@@ -1,0 +1,247 @@
+[
+	{
+		"name": "Flare",
+		"port": 4001,
+		"mode": "prod",
+		"ssrHtml": {
+			"url": "http://localhost:4001/posts/building-web-frameworks",
+			"size": 6641,
+			"stateSize": 3225,
+			"htmlOnly": 3416
+		},
+		"spaNavigation": {
+			"url": "http://localhost:4001/posts/building-web-frameworks",
+			"status": 200,
+			"headers": {
+				"cache-control": "no-store",
+				"connection": "keep-alive",
+				"content-security-policy": "base-uri 'self'; connect-src 'self' https:; default-src 'self'; img-src 'self' data: https:; script-src 'self' 'strict-dynamic' 'nonce-27f69bb8f9c28c024778a1690c237a8a'; style-src 'self' 'unsafe-inline'; upgrade-insecure-requests",
+				"content-type": "application/x-ndjson",
+				"cross-origin-opener-policy": "same-origin-allow-popups",
+				"date": "Sun, 22 Feb 2026 18:30:35 GMT",
+				"keep-alive": "timeout=5",
+				"referrer-policy": "strict-origin-when-cross-origin",
+				"strict-transport-security": "max-age=63072000; includeSubDomains; preload",
+				"transfer-encoding": "chunked",
+				"vary": "Origin",
+				"x-content-type-options": "nosniff",
+				"x-frame-options": "DENY"
+			},
+			"contentType": "application/x-ndjson",
+			"body": "{\"m\":\"_root_:{\\\"slug\\\":\\\"building-web-frameworks\\\"}:[]\",\"t\":\"l\"}\n{\"d\":{\"comments\":{\"__deferred\":true,\"key\":\"d0\"},\"likes\":42,\"post\":{\"slug\":\"building-web-frameworks\",\"title\":\"Building Web Frameworks from Scratch\",\"author\":\"Sarah Chen\",\"body\":\"Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP request routing works at the lowest level, mapping URL patterns to handler functions. Then you layer on server-side rendering, which means generating HTML strings from component trees. The real complexity emerges when you add client-side hydration — the process of attaching event listeners and state to server-rendered markup without re-rendering the entire page. Streaming SSR adds another dimension, allowing you to send HTML chunks as data becomes available rather than waiting for everything. This is where frameworks diverge most: some send complete HTML with embedded state, others stream structured data formats that the client interprets. Error boundaries, code splitting, and prefetching each add their own wire protocol requirements. The framework must coordinate between server and client, maintaining a shared understanding of route structure, data dependencies, and component hierarchy. Every framework makes different tradeoffs in this design space, and understanding those tradeoffs requires building one yourself.\"}},\"m\":\"_root_/posts/[slug]:{\\\"slug\\\":\\\"building-web-frameworks\\\"}:[]\",\"t\":\"l\"}\n{\"d\":{\"meta\":{\"charset\":\"utf-8\",\"viewport\":\"width=device-width, initial-scale=1\"},\"title\":\"Flare Benchmark\"},\"m\":\"_root_:{\\\"slug\\\":\\\"building-web-frameworks\\\"}:[]\",\"t\":\"h\"}\n{\"d\":{\"meta\":{\"charset\":\"utf-8\",\"viewport\":\"width=device-width, initial-scale=1\"},\"title\":\"Building Web Frameworks from Scratch\",\"description\":\"Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...\",\"openGraph\":{\"description\":\"Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...\",\"title\":\"Building Web Frameworks from Scratch\",\"type\":\"article\"}},\"m\":\"_root_/posts/[slug]:{\\\"slug\\\":\\\"building-web-frameworks\\\"}:[]\",\"t\":\"h\"}\n{\"t\":\"r\"}\n{\"d\":[{\"author\":\"Alex Kim\",\"text\":\"This mirrors my experience building our internal framework at work. The hydration step is where most complexity lives.\",\"date\":\"2025-03-15\"},{\"author\":\"Jordan Blake\",\"text\":\"Have you looked at how Qwik handles this differently with resumability instead of hydration?\",\"date\":\"2025-03-16\"},{\"author\":\"Morgan Lee\",\"text\":\"Great write-up. Would love a follow-up on how you handle streaming with error boundaries.\",\"date\":\"2025-03-17\"}],\"k\":\"d0\",\"m\":\"_root_/posts/[slug]:{\\\"slug\\\":\\\"building-web-frameworks\\\"}:[]\",\"t\":\"c\"}\n{\"t\":\"d\"}\n",
+			"size": 2885
+		},
+		"wireAnnotation": {
+			"totalLines": 7,
+			"linesByType": {
+				"loader": 2,
+				"head": 2,
+				"ready": 1,
+				"chunk": 1,
+				"done": 1
+			},
+			"userDataBytes": 1980,
+			"overheadBytes": 905
+		},
+		"spaJsCost": {
+			"totalBytes": 2828,
+			"fileCount": 1,
+			"files": [
+				{
+					"url": "http://localhost:4001/assets/DKvN84n9.js",
+					"size": 2828
+				}
+			]
+		},
+		"initialJsCost": {
+			"totalBytes": 73332,
+			"fileCount": 5
+		},
+		"headAfterNav": {
+			"title": "Building Web Frameworks from Scratch",
+			"ogTitle": "Building Web Frameworks from Scratch",
+			"ogDescription": "Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...",
+			"description": "Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque..."
+		},
+		"backForwardRefetches": 0,
+		"prefetchRequests": 0,
+		"interactivity": {
+			"buttonFound": true,
+			"initialText": "Like (42)",
+			"afterClickText": "Like (43)",
+			"worked": true
+		},
+		"ttfb": {
+			"ssrMs": 502.67,
+			"spaMs": 501.37
+		},
+		"gzipSizes": {
+			"ssrHtml": 1811,
+			"spaPayload": 1150
+		},
+		"buildOutput": {
+			"totalClientKB": 76.2,
+			"totalServerKB": 144.4,
+			"chunkCount": 8,
+			"entryChunkKB": 0
+		}
+	},
+	{
+		"name": "Next.js",
+		"port": 4002,
+		"mode": "prod",
+		"ssrHtml": {
+			"url": "http://localhost:4002/posts/building-web-frameworks",
+			"size": 13065,
+			"stateSize": 8281,
+			"htmlOnly": 4784
+		},
+		"spaNavigation": {
+			"url": "http://localhost:4002/posts/building-web-frameworks",
+			"status": 200,
+			"headers": {
+				"cache-control": "private, no-cache, no-store, max-age=0, must-revalidate",
+				"connection": "keep-alive",
+				"content-encoding": "gzip",
+				"content-type": "text/x-component",
+				"date": "Sun, 22 Feb 2026 18:30:59 GMT",
+				"keep-alive": "timeout=5",
+				"transfer-encoding": "chunked",
+				"vary": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding"
+			},
+			"contentType": "text/x-component",
+			"body": "1:\"$Sreact.fragment\"\n3:I[9665,[],\"OutletBoundary\"]\n6:I[4911,[],\"AsyncMetadataOutlet\"]\n8:I[9665,[],\"ViewportBoundary\"]\na:I[9665,[],\"MetadataBoundary\"]\nc:\"$Sreact.suspense\"\nd:I[4911,[],\"AsyncMetadata\"]\nf:I[6472,[\"874\",\"static/chunks/874-902439cddad6b9e5.js\",\"858\",\"static/chunks/app/posts/%5Bslug%5D/page-f39ea98c2f34c843.js\"],\"LikeButton\"]\n12:I[6874,[\"874\",\"static/chunks/874-902439cddad6b9e5.js\",\"858\",\"static/chunks/app/posts/%5Bslug%5D/page-f39ea98c2f34c843.js\"],\"\"]\n0:{\"b\":\"CPX3tY0AhYI0CB34Stp47\",\"f\":[[\"children\",\"posts\",\"children\",[\"slug\",\"building-web-frameworks\",\"d\"],\"children\",\"__PAGE__\",[\"__PAGE__\",{}],[\"__PAGE__\",[\"$\",\"$1\",\"c\",{\"children\":[\"$L2\",\"$undefined\",null,[\"$\",\"$L3\",null,{\"children\":[\"$L4\",\"$L5\",[\"$\",\"$L6\",null,{\"promise\":\"$@7\"}]]}]]}],{},null,false],[\"$\",\"$1\",\"h\",{\"children\":[null,[\"$\",\"$1\",\"twiacvYLEuoyd-e-uB5AE\",{\"children\":[[\"$\",\"$L8\",null,{\"children\":\"$L9\"}],null]}],[[\"$\",\"$La\",\"twiacvYLEuoyd-e-uB5AE\",{\"children\":\"$Lb\"}]],null]}],false]],\"S\":false}\nb:[\"$\",\"$c\",null,{\"fallback\":null,\"children\":[\"$\",\"$Ld\",null,{\"promise\":\"$@e\"}]}]\n10:T49e,Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP request routing works at the lowest level, mapping URL patterns to handler functions. Then you layer on server-side rendering, which means generating HTML strings from component trees. The real complexity emerges when you add client-side hydration — the process of attaching event listeners and state to server-rendered markup without re-rendering the entire page. Streaming SSR adds another dimension, allowing you to send HTML chunks as data becomes available rather than waiting for everything. This is where frameworks diverge most: some send complete HTML with embedded state, others stream structured data formats that the client interprets. Error boundaries, code splitting, and prefetching each add their own wire protocol requirements. The framework must coordinate between server and client, maintaining a shared understanding of route structure, data dependencies, and component hierarchy. Every framework makes different tradeoffs in this design space, and understanding those tradeoffs requires building one yourself.2:[\"$\",\"article\",null,{\"children\":[[\"$\",\"h1\",null,{\"children\":\"Building Web Frameworks from Scratch\"}],[\"$\",\"p\",null,{\"children\":[\"By \",\"Sarah Chen\"]}],[\"$\",\"$Lf\",null,{\"initial\":42}],[\"$\",\"div\",null,{\"children\":\"$10\"}],[\"$\",\"h2\",null,{\"children\":\"Comments\"}],[\"$\",\"$c\",null,{\"fallback\":[\"$\",\"p\",null,{\"children\":\"Loading comments...\"}],\"children\":\"$L11\"}],[\"$\",\"p\",null,{\"children\":[\"$\",\"$L12\",null,{\"href\":\"/\",\"children\":\"Back to posts\"}]}]]}]\n5:null\n9:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}]]\n4:null\n7:{\"metadata\":[[\"$\",\"title\",\"0\",{\"children\":\"Building Web Frameworks from Scratch\"}],[\"$\",\"meta\",\"1\",{\"name\":\"description\",\"content\":\"Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...\"}],[\"$\",\"meta\",\"2\",{\"property\":\"og:title\",\"content\":\"Building Web Frameworks from Scratch\"}],[\"$\",\"meta\",\"3\",{\"property\":\"og:description\",\"content\":\"Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...\"}],[\"$\",\"meta\",\"4\",{\"property\":\"og:type\",\"content\":\"article\"}],[\"$\",\"meta\",\"5\",{\"name\":\"twitter:card\",\"content\":\"summary\"}],[\"$\",\"meta\",\"6\",{\"name\":\"twitter:title\",\"content\":\"Building Web Frameworks from Scratch\"}],[\"$\",\"meta\",\"7\",{\"name\":\"twitter:description\",\"content\":\"Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...\"}]],\"error\":null,\"digest\":\"$undefined\"}\ne:{\"metadata\":\"$7:metadata\",\"error\":null,\"digest\":\"$undefined\"}\n11:[\"$\",\"ul\",null,{\"children\":[[\"$\",\"li\",\"0\",{\"children\":[[\"$\",\"strong\",null,{\"children\":\"Alex Kim\"}],\" (\",\"2025-03-15\",\"): \",\"This mirrors my experience building our internal framework at work. The hydration step is where most complexity lives.\"]}],[\"$\",\"li\",\"1\",{\"children\":[[\"$\",\"strong\",null,{\"children\":\"Jordan Blake\"}],\" (\",\"2025-03-16\",\"): \",\"Have you looked at how Qwik handles this differently with resumability instead of hydration?\"]}],[\"$\",\"li\",\"2\",{\"children\":[[\"$\",\"strong\",null,{\"children\":\"Morgan Lee\"}],\" (\",\"2025-03-17\",\"): \",\"Great write-up. Would love a follow-up on how you handle streaming with error boundaries.\"]}]]}]\n",
+			"size": 4614
+		},
+		"wireAnnotation": {
+			"totalLines": 18,
+			"linesByType": {
+				"string-const": 2,
+				"module-ref": 7,
+				"object": 3,
+				"vdom-node": 3,
+				"text-blob": 1,
+				"null": 2
+			},
+			"userDataBytes": 2181,
+			"overheadBytes": 2433
+		},
+		"spaJsCost": {
+			"totalBytes": 488,
+			"fileCount": 1,
+			"files": [
+				{
+					"url": "http://localhost:4002/_next/static/chunks/app/posts/%5Bslug%5D/page-f39ea98c2f34c843.js",
+					"size": 488
+				}
+			]
+		},
+		"initialJsCost": {
+			"totalBytes": 355311,
+			"fileCount": 6
+		},
+		"headAfterNav": {
+			"title": "Building Web Frameworks from Scratch",
+			"ogTitle": "Building Web Frameworks from Scratch",
+			"ogDescription": "Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...",
+			"description": "Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque..."
+		},
+		"backForwardRefetches": 0,
+		"prefetchRequests": 0,
+		"interactivity": {
+			"buttonFound": true,
+			"initialText": "Like (42)",
+			"afterClickText": "Like (43)",
+			"worked": true
+		},
+		"ttfb": {
+			"ssrMs": 504.07,
+			"spaMs": 502.59
+		},
+		"gzipSizes": {
+			"ssrHtml": 3545,
+			"spaPayload": 1717
+		},
+		"buildOutput": {
+			"totalClientKB": 755.7,
+			"totalServerKB": 526.6,
+			"chunkCount": 17,
+			"entryChunkKB": 116.2
+		}
+	},
+	{
+		"name": "TanStack Start",
+		"port": 4003,
+		"mode": "prod",
+		"ssrHtml": {
+			"url": "http://localhost:4003/posts/building-web-frameworks",
+			"size": 5943,
+			"stateSize": 2960,
+			"htmlOnly": 2983
+		},
+		"spaNavigation": {
+			"url": "http://localhost:4003/_serverFn/8e0188c0e7f02a2431565678bab7a8f03960a2b1de9e000a68a166b7874a5b4e?payload=%7B%22t%22%3A%7B%22t%22%3A10%2C%22i%22%3A0%2C%22p%22%3A%7B%22k%22%3A%5B%22data%22%5D%2C%22v%22%3A%5B%7B%22t%22%3A1%2C%22s%22%3A%22building-web-frameworks%22%7D%5D%7D%2C%22o%22%3A0%7D%2C%22f%22%3A63%2C%22m%22%3A%5B%5D%7D",
+			"status": 200,
+			"headers": {
+				"transfer-encoding": "chunked",
+				"x-tss-serialized": "true",
+				"keep-alive": "timeout=5",
+				"date": "Sun, 22 Feb 2026 18:31:26 GMT",
+				"content-type": "application/json",
+				"vary": "Accept-Encoding",
+				"connection": "keep-alive"
+			},
+			"contentType": "application/json",
+			"body": "{\"t\":10,\"i\":0,\"p\":{\"k\":[\"result\",\"error\",\"context\"],\"v\":[{\"t\":9,\"i\":1,\"a\":[{\"t\":10,\"i\":2,\"p\":{\"k\":[\"author\",\"text\",\"date\"],\"v\":[{\"t\":1,\"s\":\"Alex Kim\"},{\"t\":1,\"s\":\"This mirrors my experience building our internal framework at work. The hydration step is where most complexity lives.\"},{\"t\":1,\"s\":\"2025-03-15\"}]},\"o\":0},{\"t\":10,\"i\":3,\"p\":{\"k\":[\"author\",\"text\",\"date\"],\"v\":[{\"t\":1,\"s\":\"Jordan Blake\"},{\"t\":1,\"s\":\"Have you looked at how Qwik handles this differently with resumability instead of hydration?\"},{\"t\":1,\"s\":\"2025-03-16\"}]},\"o\":0},{\"t\":10,\"i\":4,\"p\":{\"k\":[\"author\",\"text\",\"date\"],\"v\":[{\"t\":1,\"s\":\"Morgan Lee\"},{\"t\":1,\"s\":\"Great write-up. Would love a follow-up on how you handle streaming with error boundaries.\"},{\"t\":1,\"s\":\"2025-03-17\"}]},\"o\":0}],\"o\":0},{\"t\":2,\"s\":1},{\"t\":11,\"i\":5,\"p\":{\"k\":[],\"v\":[]},\"o\":0}]},\"o\":0}",
+			"size": 826
+		},
+		"wireAnnotation": {
+			"totalLines": 1,
+			"linesByType": {},
+			"userDataBytes": 359,
+			"overheadBytes": 467
+		},
+		"spaJsCost": {
+			"totalBytes": 816,
+			"fileCount": 1,
+			"files": [
+				{
+					"url": "http://localhost:4003/assets/posts._slug-DQkM-aK9.js",
+					"size": 816
+				}
+			]
+		},
+		"initialJsCost": {
+			"totalBytes": 322581,
+			"fileCount": 2
+		},
+		"headAfterNav": {
+			"title": "Building Web Frameworks from Scratch",
+			"ogTitle": "Building Web Frameworks from Scratch",
+			"ogDescription": "Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque...",
+			"description": "Building a web framework from scratch teaches you more about the web platform than years of using existing tools. You start by understanding how HTTP reque..."
+		},
+		"backForwardRefetches": 1,
+		"prefetchRequests": 1,
+		"interactivity": {
+			"buttonFound": true,
+			"initialText": "Like (42)",
+			"afterClickText": "Like (43)",
+			"worked": true
+		},
+		"ttfb": {
+			"ssrMs": 502.9,
+			"spaMs": 0
+		},
+		"gzipSizes": {
+			"ssrHtml": 1997,
+			"spaPayload": 400
+		},
+		"buildOutput": {
+			"totalClientKB": 316.2,
+			"totalServerKB": 839.1,
+			"chunkCount": 4,
+			"entryChunkKB": 314.7
+		}
+	}
+]

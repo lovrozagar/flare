@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"jsx": "preserve",
+		"jsxImportSource": "solid-js",
+		"types": []
+	},
+	"exclude": ["src/_gen/**/*"],
+	"files": ["src/plugins/virtual.d.ts", "src/plugins/solid-jsx.d.ts", "src/plugins/sx.d.ts"],
+	"include": ["src/**/*", "tests/**/*"]
+}

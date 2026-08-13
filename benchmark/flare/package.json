@@ -1,0 +1,21 @@
+{
+	"name": "flare-benchmark-flare",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite dev --port 4001",
+		"preview": "vite preview --port 4001"
+	},
+	"dependencies": {
+		"flare": "workspace:*",
+		"solid-js": "1.9.14"
+	},
+	"devDependencies": {
+		"@types/node": "26.1.1",
+		"typescript": "7.0.2",
+		"vite": "8.1.4",
+		"vite-plugin-solid": "2.11.12"
+	}
+}

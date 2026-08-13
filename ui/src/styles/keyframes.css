@@ -1,0 +1,9 @@
+@keyframes accordion-down {
+  from { height: 0 }
+  to   { height: var(--collapsible-panel-height) }
+}
+
+@keyframes accordion-up {
+  from { height: var(--collapsible-panel-height) }
+  to   { height: 0 }
+}

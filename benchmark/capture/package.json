@@ -1,0 +1,10 @@
+{
+	"name": "flare-benchmark-capture",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"dependencies": {
+		"@playwright/test": "1.61.1",
+		"tsx": "4.23.0"
+	}
+}

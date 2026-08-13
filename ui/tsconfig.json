@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"esModuleInterop": true,
+		"forceConsistentCasingInFileNames": true,
+		"isolatedModules": true,
+		"jsx": "preserve",
+		"jsxImportSource": "solid-js",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"noEmit": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "ESNext",
+		"types": []
+	},
+	"exclude": ["tests/fixture/**/*"],
+	"files": [
+		"../core/src/plugins/virtual.d.ts",
+		"../core/src/plugins/solid-jsx.d.ts",
+		"../core/src/plugins/sx.d.ts"
+	],
+	"include": ["src/**/*", "tests/**/*", "playwright.config.ts"]
+}

@@ -1,0 +1,36 @@
+# dependencies
+node_modules
+**/node_modules
+
+# build
+**/dist/
+**/*.tsbuildinfo
+**/.wrangler/
+**/.flare
+**/.output
+**/.nitro
+**/.vinxi
+**/.vercel/
+**/.netlify/
+**/.amplify-hosting/
+**/.zeabur/
+**/.stormkit/
+**/.open-next/
+**/src-tauri/gen/
+**/target/
+
+# testing
+**/coverage/
+**/test-results/
+**/playwright-report/
+
+# editor / os
+.DS_Store
+*.swp
+*.log
+
+# local
+.local
+*.local
+.tmp
+.temp

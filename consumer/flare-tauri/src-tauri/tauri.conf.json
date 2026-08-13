@@ -1,0 +1,33 @@
+{
+	"productName": "Flare Tauri",
+	"version": "0.1.0",
+	"identifier": "com.ecomet.flare-tauri",
+	"bundle": {
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		]
+	},
+	"build": {
+		"beforeDevCommand": "bun run dev",
+		"devUrl": "http://localhost:5173",
+		"beforeBuildCommand": "bun run build",
+		"frontendDist": "../.output/public"
+	},
+	"app": {
+		"withGlobalTauri": true,
+		"windows": [
+			{
+				"title": "Flare Tauri",
+				"width": 1200,
+				"height": 800
+			}
+		],
+		"security": {
+			"csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+		}
+	}
+}

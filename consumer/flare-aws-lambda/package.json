@@ -1,0 +1,19 @@
+{
+	"name": "flare-aws-lambda",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite dev"
+	},
+	"dependencies": {
+		"flare": "workspace:*",
+		"nitro": "catalog:",
+		"solid-js": "catalog:",
+		"vite": "catalog:",
+		"vite-plugin-solid": "catalog:"
+	},
+	"devDependencies": {
+		"typescript": "catalog:"
+	}
+}

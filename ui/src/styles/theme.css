@@ -1,0 +1,64 @@
+@import "./tokens.css";
+@import "./keyframes.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  /* color — surface */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-fg: var(--card-fg);
+  --color-popover: var(--popover);
+  --color-popover-fg: var(--popover-fg);
+
+  /* color — semantic pairs */
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-secondary: var(--secondary);
+  --color-secondary-fg: var(--secondary-fg);
+  --color-muted: var(--muted);
+  --color-muted-fg: var(--muted-fg);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-destructive: var(--destructive);
+  --color-destructive-fg: var(--destructive-fg);
+  --color-success: var(--success);
+  --color-success-fg: var(--success-fg);
+  --color-warning: var(--warning);
+  --color-warning-fg: var(--warning-fg);
+  --color-info: var(--info);
+  --color-info-fg: var(--info-fg);
+
+  /* color — form/input */
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* ring — bridges `:root` ring tokens; bare `ring` utility resolves through these */
+  --default-ring-width: var(--ring-width);
+  --default-ring-offset-width: var(--ring-offset);
+  --default-ring-offset-color: transparent;
+
+  /* radius — derived from base */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* font family bridge — utilities `font-sans`, `font-mono` resolve to var() */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* z-index bridge — utilities `z-sticky`, `z-fixed`, `z-popover`, `z-modal`, `z-toast` */
+  --z-index-sticky: var(--z-sticky);
+  --z-index-fixed: var(--z-fixed);
+  --z-index-popover: var(--z-popover);
+  --z-index-modal: var(--z-modal);
+  --z-index-toast: var(--z-toast);
+
+  /* animation — keyframes only for height-based transitions; all enter/exit fades use
+     data-[starting-style]/data-[ending-style] transition utilities inline on the consuming primitive */
+  --animate-accordion-down: accordion-down 200ms ease-out;
+  --animate-accordion-up: accordion-up 200ms ease-out;
+}

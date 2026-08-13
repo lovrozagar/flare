@@ -1,0 +1,28 @@
+{
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"allowSyntheticDefaultImports": true,
+		"declaration": true,
+		"esModuleInterop": true,
+		"isolatedModules": true,
+		"jsx": "preserve",
+		"jsxImportSource": "solid-js",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"noUncheckedIndexedAccess": true,
+		"outDir": "./dist",
+		"rewriteRelativeImportExtensions": true,
+		"rootDir": "./src",
+		"skipLibCheck": true,
+		"strict": true,
+		"target": "ESNext"
+	},
+	"include": [
+		"src/client/provider.tsx",
+		"src/components/head-content.tsx",
+		"src/components/scripts.tsx",
+		"src/components/ssr-context.tsx",
+		"src/router/link/index.tsx",
+		"src/router/outlet/index.tsx"
+	]
+}

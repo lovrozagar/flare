@@ -1,0 +1,22 @@
+{
+  "name": "@flare/ui-fixture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 4099",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@repo/flare-ui": "workspace:*",
+    "@solidports/base-ui": "workspace:*",
+    "solid-js": "catalog:"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-mkcert": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  }
+}
