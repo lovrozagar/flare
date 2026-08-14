@@ -43,7 +43,7 @@ function emitAll(plugin: SxPlugin): { css: string; manifestRaw: string | undefin
 	const gb = plugin.generateBundle as unknown as (this: typeof ctx) => void
 	gb.call(ctx)
 	return {
-		css: emitted.find((f) => f.fileName === "flare-global.css")?.source ?? "",
+		css: emitted.find((f) => f.fileName.endsWith("flare-global.css"))?.source ?? "",
 		manifestRaw: emitted.find((f) => f.fileName === "flare-sx-manifest.json")?.source,
 	}
 }

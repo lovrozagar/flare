@@ -263,6 +263,10 @@ describe("navigate", () => {
 
 		expect(ctx.notFound()).toBe(true)
 		expect(ctx.isNavigating()).toBe(false)
+		expect(window.location.pathname).toBe("/nonexistent")
+		expect(mockApplyPerRouteHeads).toHaveBeenCalledWith([
+			{ head: { title: "Not Found" }, matchId: "__notfound" },
+		])
 	})
 
 	it("cross-root → no module loading, isNavigating reset", async () => {
@@ -537,6 +541,17 @@ describe("prefetch", () => {
 		expect(mockFetchNDJSON).not.toHaveBeenCalled()
 	})
 
+	it("unmatched path does not fetch NDJSON", async () => {
+		const ctx = makeCtx()
+		setupNavigation(ctx, mockLoadRouteModules)
+		mockMatchRoute.mockReturnValue(null)
+
+		await prefetch({ to: "/does-not-exist-at-all" })
+
+		expect(mockFetchNDJSON).not.toHaveBeenCalled()
+		expect(mockLoadRouteModules).not.toHaveBeenCalled()
+	})
+
 	it("skips if already prefetched (fresh)", async () => {
 		const ctx = makeCtx()
 		setupNavigation(ctx, mockLoadRouteModules)
@@ -553,6 +568,7 @@ describe("prefetch", () => {
 	it("fetches data + modules in parallel", async () => {
 		const ctx = makeCtx()
 		setupNavigation(ctx, mockLoadRouteModules)
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/pf-parallel") })
 
 		mockFetchNDJSON.mockResolvedValue({
 			matches: [{ loaderData: "prefetched", matchId: "m1" }],
@@ -571,6 +587,7 @@ describe("prefetch", () => {
 	it("success → matchCache populated", async () => {
 		const ctx = makeCtx()
 		setupNavigation(ctx, mockLoadRouteModules)
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/pf-cache") })
 
 		mockFetchNDJSON.mockResolvedValue({
 			matches: [{ loaderData: "prefetched-data", matchId: "test-match" }],
@@ -587,6 +604,7 @@ describe("prefetch", () => {
 	it("error → prefetchCache entry deleted", async () => {
 		const ctx = makeCtx()
 		setupNavigation(ctx, mockLoadRouteModules)
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/pf-error") })
 
 		mockFetchNDJSON.mockRejectedValue(new Error("network error"))
 		mockLoadRouteModules.mockResolvedValue(makeLoadedModules())
@@ -601,6 +619,7 @@ describe("prefetch", () => {
 	it("prefetch stores error in matchCache", async () => {
 		const ctx = makeCtx()
 		setupNavigation(ctx, mockLoadRouteModules)
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/pf-error-cache") })
 
 		const loaderError = new Error("loader failed")
 		mockFetchNDJSON.mockResolvedValue({
@@ -1352,6 +1371,9 @@ describe("notFoundMode", () => {
 
 		await navigate({ to: "/products/nonexistent" })
 
+		expect(mockApplyPerRouteHeads).toHaveBeenCalledWith([
+			{ head: { title: "Not Found" }, matchId: "_root_/products/__notfound" },
+		])
 		expect(ctx.notFound()).toBe(false)
 		const matches = ctx.matches()
 		expect(matches.length).toBeGreaterThanOrEqual(2)
@@ -1374,6 +1396,7 @@ describe("notFoundMode", () => {
 		expect(ctx.notFound()).toBe(true)
 		expect(ctx.matches()).toEqual([])
 		expect(ctx.isNavigating()).toBe(false)
+		expect(window.location.pathname).toBe("/totally/unknown")
 	})
 
 	it("default mode (unset) behaves as fuzzy", async () => {

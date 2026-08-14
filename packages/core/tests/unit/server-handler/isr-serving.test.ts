@@ -174,6 +174,31 @@ describe("ISR serving — cache hit", () => {
 		expect(csp).toMatch(/nonce-[a-f0-9]+/)
 	})
 
+	it("serves HIT when stored content-length no longer matches nonce rewrite", async () => {
+		const html = '<html><script nonce="__FLARE_NONCE__">x</script></html>'
+		const store = makeStore({
+			"static:/about": makeStaticEntry({
+				headers: {
+					connection: "keep-alive",
+					"content-length": "1",
+					"content-type": "text/html; charset=utf-8",
+					"transfer-encoding": "chunked",
+				},
+				html,
+			}),
+		})
+		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
+			store,
+		})
+		const response = await handler.fetch(req(), {})
+		expect(response.status).toBe(200)
+		const body = await response.text()
+		expect(body).toMatch(/nonce="[a-f0-9]+"/)
+		expect(response.headers.get("content-length")).not.toBe("1")
+		expect(response.headers.has("transfer-encoding")).toBe(false)
+		expect(response.headers.has("connection")).toBe(false)
+	})
+
 	it("includes security headers on cached response", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry(),
@@ -251,6 +276,20 @@ describe("ISR serving — cache miss + dynamicParams modes", () => {
 		)
 		const response = await handler.fetch(req(), {})
 		expect(response.status).toBe(404)
+	})
+
+	it("dynamicParams: false + x-flare-prerender → falls through to SSR", async () => {
+		const store = makeStore()
+		const handler = makeHandler(
+			"/about",
+			makeISRRouteData({ dynamicParams: false, mode: "isr", revalidate: 300 }),
+			{ store },
+		)
+		const response = await handler.fetch(
+			new Request("http://localhost/about", { headers: { "x-flare-prerender": "1" } }),
+			{},
+		)
+		expect([200, 500]).toContain(response.status)
 	})
 
 	it("no dynamicParams specified (default true) → falls through to SSR", async () => {

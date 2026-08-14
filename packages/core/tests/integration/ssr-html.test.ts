@@ -7,7 +7,18 @@
  * execution → head merging → FlareState building → stream injection →
  * security headers. No false positives — every assertion verifies real output.
  */
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+const devRef = vi.hoisted(() => ({ current: true }))
+vi.mock("virtual:flare-is-dev", () => ({
+	get default() {
+		return devRef.current
+	},
+}))
+
+afterEach(() => {
+	devRef.current = true
+})
 
 /* ── Mock solid-js/web before any imports that use it ────────────────── */
 
@@ -368,6 +379,7 @@ describe("SSR — security headers", () => {
 	})
 
 	it("CSP header with nonce on SSR response", async () => {
+		devRef.current = false
 		const handler = buildHandler()
 		const response = await handler.fetch(makeRequest("/home"), {})
 		const csp = response.headers.get("Content-Security-Policy") ?? ""
@@ -585,6 +597,7 @@ describe("SSR — multiple sequential requests", () => {
 	})
 
 	it("each request gets a unique nonce", async () => {
+		devRef.current = false
 		const handler = buildHandler()
 		const r1 = await handler.fetch(makeRequest("/home"), {})
 		const r2 = await handler.fetch(makeRequest("/home"), {})

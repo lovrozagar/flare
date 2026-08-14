@@ -22,6 +22,19 @@ function safeDecodeURIComponent(s: string): string | null {
 	}
 }
 
+/** True when `decoded` may be stored as `paramName` under the current locale allow-list. */
+function localeAllowsConsume(
+	paramName: string,
+	decoded: string,
+	localeMatch?: LocaleMatch,
+): boolean {
+	return (
+		!localeMatch ||
+		paramName !== localeMatch.paramName ||
+		localeMatch.locales.includes(decoded)
+	)
+}
+
 export function createTreeNode(paramName?: string): TreeNode {
 	const node: TreeNode = { s: Object.create(null) }
 	if (paramName !== undefined) {
@@ -170,16 +183,20 @@ function matchNode(
 		if (paramName) {
 			const decoded = safeDecodeURIComponent(segment)
 			if (decoded === null) return null
-			const hadKey = paramName in params
-			const prevVal = params[paramName]
-			params[paramName] = decoded
-			const result = matchNode(node.p, segments, index + 1, params, caseSensitive, localeMatch)
-			if (result) return result
-			/* backtrack — restore only the single key we changed */
-			if (hadKey) {
-				params[paramName] = prevVal
-			} else {
-				delete params[paramName]
+			/* locale allow-list: reject consume when segment is not a declared locale —
+			 * required [locale] must not swallow unknown first segments as a locale index */
+			if (localeAllowsConsume(paramName, decoded, localeMatch)) {
+				const hadKey = paramName in params
+				const prevVal = params[paramName]
+				params[paramName] = decoded
+				const result = matchNode(node.p, segments, index + 1, params, caseSensitive, localeMatch)
+				if (result) return result
+				/* backtrack — restore only the single key we changed */
+				if (hadKey) {
+					params[paramName] = prevVal
+				} else {
+					delete params[paramName]
+				}
 			}
 		} else {
 			const result = matchNode(node.p, segments, index + 1, params, caseSensitive, localeMatch)
@@ -199,12 +216,7 @@ function matchNode(
 			const decoded = safeDecodeURIComponent(segment)
 			/* locale allow-list: reject consume when segment is not a declared locale —
 			 * prevents /[[locale]] from greedily matching cross-worker path segments like /docs */
-			if (
-				decoded !== null &&
-				(!localeMatch ||
-					paramName !== localeMatch.paramName ||
-					localeMatch.locales.includes(decoded))
-			) {
+			if (decoded !== null && localeAllowsConsume(paramName, decoded, localeMatch)) {
 				const hadKey = paramName in params
 				const prevVal = params[paramName]
 				params[paramName] = decoded

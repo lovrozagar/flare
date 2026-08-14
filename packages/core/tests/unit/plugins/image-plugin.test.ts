@@ -198,7 +198,7 @@ describe("createImagePlugin", () => {
 	})
 
 	describe("load build mode (real sharp)", () => {
-		const testImagePath = resolve(__dirname, "../../../../flare-e2e/src/assets/test-hero.jpg")
+		const testImagePath = resolve(__dirname, "../../../../../flare-e2e/src/assets/test-hero.jpg")
 
 		it("build mode: emits WebP asset and returns correct module", async () => {
 			const emitted: { fileName: string; source: Buffer; type: string }[] = []

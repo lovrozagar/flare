@@ -6,7 +6,6 @@ import {
 	on,
 	onCleanup,
 	onMount,
-	sharedConfig,
 	useContext,
 } from "solid-js"
 
@@ -60,11 +59,6 @@ export interface ThemeContextValue {
 const ThemeCtx = createContext<ThemeContextValue>()
 
 export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConfig }): JSX.Element {
-	/* SSR: pass through children (context not needed on server, scripts handle theme) */
-	if (sharedConfig.context) {
-		return props.children
-	}
-
 	const cfg: Required<ThemeConfig> = {
 		attribute: props.config?.attribute ?? DEFAULT_CONFIG.attribute,
 		defaultTheme: props.config?.defaultTheme ?? DEFAULT_CONFIG.defaultTheme,

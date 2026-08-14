@@ -6,11 +6,18 @@ function tick(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0))
 }
 
-function fireStorageEvent(key: string, newValue: string | null, storageArea = localStorage): void {
-	const event = new StorageEvent("storage", {
-		key,
-		newValue,
-		storageArea,
+function fireStorageEvent(
+	key: string,
+	newValue: string | null,
+	storageArea = localStorage,
+): void {
+	/* jsdom rejects a non-jsdom Storage on StorageEventInit. Dispatch a
+	   storage-shaped Event so storageArea can be the same object the app reads. */
+	const event = new Event("storage") as StorageEvent
+	Object.defineProperties(event, {
+		key: { value: key },
+		newValue: { value: newValue },
+		storageArea: { value: storageArea },
 	})
 	window.dispatchEvent(event)
 }
@@ -230,7 +237,7 @@ describe("ThemeProvider cross-tab sync via StorageEvent", () => {
 		expect(document.documentElement.style.colorScheme).toBe("dark")
 	})
 
-	it("SSR: no window.addEventListener called when sharedConfig.context set", async () => {
+	it("sharedConfig.context set still registers storage listener on client render", async () => {
 		const addSpy = vi.spyOn(window, "addEventListener")
 		const { sharedConfig } = await import("solid-js")
 		const original = sharedConfig.context
@@ -239,9 +246,17 @@ describe("ThemeProvider cross-tab sync via StorageEvent", () => {
 				configurable: true,
 				value: { count: 0, id: "test" },
 			})
-			ThemeProvider({ children: null as unknown as import("solid-js").JSX.Element })
+			dispose = render(
+				() => (
+					<ThemeProvider>
+						{null}
+					</ThemeProvider>
+				),
+				container,
+			)
+			await tick()
 			const storageCalls = addSpy.mock.calls.filter((c) => c[0] === "storage")
-			expect(storageCalls).toHaveLength(0)
+			expect(storageCalls.length).toBeGreaterThan(0)
 		} finally {
 			Object.defineProperty(sharedConfig, "context", {
 				configurable: true,

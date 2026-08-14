@@ -1,7 +1,8 @@
 import { warn } from "../logger.ts"
 
 declare const __FLARE_IS_DEV__: boolean | undefined
-const isDev = typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : false
+const isDev =
+	typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : process.env.NODE_ENV !== "production"
 import type { Sx } from "./sx-types.ts"
 
 export type { ClassValue, Sx } from "./sx-types.ts"

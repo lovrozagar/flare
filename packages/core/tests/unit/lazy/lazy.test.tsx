@@ -117,6 +117,25 @@ describe("lazy", () => {
 		expect(container.querySelector("[data-testid='loaded']")?.textContent).toBe("custom")
 	})
 
+	it("retries a transient chunk-load error then renders", async () => {
+		let calls = 0
+		const LazyComp = lazy({
+			loader: () => {
+				calls++
+				if (calls === 1) {
+					return Promise.reject(new Error("Failed to fetch dynamically imported module: /island.js"))
+				}
+				return Promise.resolve({ default: FakeComponent })
+			},
+		})
+
+		await new Promise((r) => setTimeout(r, 300))
+		dispose = render(() => <LazyComp />, container)
+		await tick()
+		expect(container.querySelector("[data-testid='loaded']")).not.toBeNull()
+		expect(calls).toBe(2)
+	})
+
 	it("loader rejection surfaces error to ErrorBoundary", async () => {
 		const LazyComp = lazy<{ label?: string }>({
 			loader: () =>
@@ -235,6 +254,25 @@ describe("clientLazy", () => {
 
 		dispose = render(() => <LazyComp />, container)
 		expect(container.innerHTML).toBe("")
+	})
+
+	it("retries a transient chunk-load error then renders", async () => {
+		let calls = 0
+		const LazyComp = clientLazy({
+			loader: () => {
+				calls++
+				if (calls === 1) {
+					return Promise.reject(new Error("Failed to fetch dynamically imported module: /island.js"))
+				}
+				return Promise.resolve({ default: FakeComponent })
+			},
+		})
+
+		dispose = render(() => <LazyComp />, container)
+		await new Promise((r) => setTimeout(r, 300))
+		await tick()
+		expect(container.querySelector("[data-testid='loaded']")).not.toBeNull()
+		expect(calls).toBe(2)
 	})
 
 	it("eager loader rejection surfaces error to ErrorBoundary", async () => {

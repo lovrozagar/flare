@@ -49,6 +49,32 @@ describe("background()", () => {
 		expect(resolved).toBe(true)
 	})
 
+	it("does not throw when waitUntil rejects an unbound this", () => {
+		const executionCtx = {
+			waitUntil(this: unknown, _p: Promise<unknown>) {
+				if (this !== executionCtx) {
+					throw new TypeError(
+						"Illegal invocation: function called with incorrect `this` reference.",
+					)
+				}
+			},
+		}
+		const unbound = executionCtx.waitUntil
+
+		expect(() => {
+			runWithServerContext(
+				{
+					nonce: "abc",
+					request: new Request("http://localhost/"),
+					waitUntil: unbound,
+				},
+				() => {
+					background(Promise.resolve("bg"))
+				},
+			)
+		}).not.toThrow()
+	})
+
 	it("swallows errors in fire-and-forget mode", () => {
 		const rejecting = Promise.reject(new Error("bg fail"))
 

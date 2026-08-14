@@ -476,10 +476,14 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
  */
 function makeRetry(ctx: FlareProviderContext): () => void {
 	return () => {
+		const to =
+			typeof window !== "undefined"
+				? `${window.location.pathname}${window.location.search}`
+				: "/"
 		ctx.navigate({
 			replace: true,
 			revalidate: true,
-			to: typeof window !== "undefined" ? window.location.href : "/",
+			to,
 		})
 	}
 }

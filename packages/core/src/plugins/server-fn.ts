@@ -276,7 +276,7 @@ export function generateServerFnMapSource(files: string[]): string {
  * Whole-import drops only — partial-specifier removal is out of scope. Side-effect imports
  * (`import "x"` with no specifiers) are always kept.
  */
-function dropDeadImports(code: string, id: string): string {
+export function dropDeadImports(code: string, id: string): string {
 	let parsed: ReturnType<typeof parseSync>
 	try {
 		parsed = parseSync(id, code, { lang: id.endsWith(".tsx") || id.endsWith(".jsx") ? "tsx" : "ts" })
@@ -307,17 +307,24 @@ function dropDeadImports(code: string, id: string): string {
 
 	if (imports.length === 0) return code
 
-	const lastImportEnd = imports[imports.length - 1].end
-	/* Strip comments + string literals before scanning for identifiers — JSDoc that mentions
-	   an imported name as documentation is not a real usage. */
-	const bodyAfterImports = stripCommentsAndStrings(code.slice(lastImportEnd))
+	/* Scan the whole file minus import declarations. Solid's JSX compiler
+	   emits `_$template(...)` *between* import groups; slicing after the last
+	   import treats that usage as dead and drops `template as _$template`. */
+	const usageScan = stripCommentsAndStrings(code)
+	const usageMasked = usageScan.split("")
+	for (const imp of imports) {
+		for (let i = imp.start; i < imp.end && i < usageMasked.length; i++) {
+			usageMasked[i] = " "
+		}
+	}
+	const usedCode = usageMasked.join("")
 
 	const ms = new MagicString(code)
 	let removed = false
 	for (const imp of imports) {
 		const allUnused = imp.bindings.every((name) => {
 			const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`)
-			return !re.test(bodyAfterImports)
+			return !re.test(usedCode)
 		})
 		if (allUnused) {
 			ms.remove(imp.start, imp.end)

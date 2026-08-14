@@ -229,6 +229,32 @@ describe("flare:generate", () => {
 		const gen = plugins.find((p) => p.name === "flare:generate")
 		expect(gen?.configureServer).toBeDefined()
 	})
+
+	it("buildStart uses fsCodegen: false when fsVirtualPaths is false", () => {
+		const plugins = flarePlugins({ codegen: { fsVirtualPaths: false } })
+		const gen = plugins.find((p) => p.name === "flare:generate")
+		const buildStart = gen?.buildStart as (() => void) | undefined
+		if (!buildStart) throw new Error("buildStart not found")
+		buildStart.call({ environment: { config: { root: "/tmp/str" } } })
+		expect(runGenerate).toHaveBeenCalledWith({
+			fsCodegen: false,
+			ignorePrefix: "_",
+			outputPath: "src/_gen/routes.gen.ts",
+			rootDir: "/tmp/str",
+			typesOutputPath: "src/_gen/types.gen.d.ts",
+		})
+	})
+
+	it("buildStart uses fsCodegen: true when fsVirtualPaths is true", () => {
+		const plugins = flarePlugins({ codegen: { fsVirtualPaths: true } })
+		const gen = plugins.find((p) => p.name === "flare:generate")
+		const buildStart = gen?.buildStart as (() => void) | undefined
+		if (!buildStart) throw new Error("buildStart not found")
+		buildStart.call({ environment: { config: { root: "/tmp/fs" } } })
+		expect(runGenerate).toHaveBeenCalledWith(
+			expect.objectContaining({ fsCodegen: true, rootDir: "/tmp/fs" }),
+		)
+	})
 })
 
 describe("flare:ssr-build", () => {

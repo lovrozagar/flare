@@ -31,6 +31,7 @@ import type { SxAstOptions } from "./sx-ast/index.ts"
 import type { ResolvedEntries, VitePlugin } from "./types.ts"
 import { createVirtualPlugin } from "./virtual.ts"
 import { resolveFlareOptions } from "./options.ts"
+import { safeRunGenerate, shouldTriggerGenerate } from "./generate-watch.ts"
 
 /* ── Re-exports ─────────────────────────────────────────────────────── */
 
@@ -44,6 +45,7 @@ export type { PrerenderPluginConfig, SitemapPluginConfig } from "./prerender-plu
 export { createPrerenderPlugin } from "./prerender-plugin.ts"
 export {
 	createServerFnPlugin,
+	dropDeadImports,
 	generateServerFnMapSource,
 	replaceServerFnConfigs,
 	scanServerFnFiles,
@@ -62,6 +64,16 @@ export interface FlareImageConfig {
 }
 
 export interface CodegenConfig {
+	/**
+	 * Derive virtual paths from `src/routes/` folder layout.
+	 * Default: `true`.
+	 *
+	 * When true, route files must use suffixes under a `_name_` root scope:
+	 * `*.page.tsx`, `*.layout.tsx`, `*.root-layout.tsx`, `*.path-segment.tsx`.
+	 * Example: `src/routes/_root_/about/about.page.tsx` → `createPage("_root_/about")`.
+	 * String-style files (`about.tsx` + handwritten `createPage("...")`) are rejected.
+	 * Set `false` to keep owning virtual-path strings yourself.
+	 */
 	fsVirtualPaths?: boolean
 	routesFilePath?: string
 	typesFilePath?: string
@@ -183,10 +195,6 @@ function createResolverPlugin(): VitePlugin {
 
 /* ── Generate ────────────────────────────────────────────────────────── */
 
-const GEN_IGNORE_RE = /(_gen[/\\]|\.gen\.tsx?$)/
-
-const FS_CODEGEN_SUFFIX_RE = /\.(page|layout|root-layout)\.(tsx?|jsx?)$/
-
 function createGeneratePlugin(
 	config: FlarePluginConfig,
 	codegen: ReturnType<typeof resolveCodegenConfig>,
@@ -216,21 +224,11 @@ function createGeneratePlugin(
 			let debounceTimer: ReturnType<typeof setTimeout> | undefined
 
 			const watcher = watch(srcDir, { recursive: true }, (_event, filename) => {
-				if (!filename) return
-				const name = String(filename)
-				if (GEN_IGNORE_RE.test(name)) return
-
-				/* In fs-codegen mode, only trigger on route suffix files or file deletions */
-				if (codegen.fsVirtualPaths && _event !== "rename" && !FS_CODEGEN_SUFFIX_RE.test(name))
-					return
+				if (!shouldTriggerGenerate(filename, String(_event), codegen.fsVirtualPaths)) return
 
 				clearTimeout(debounceTimer)
 				debounceTimer = setTimeout(() => {
-					try {
-						runGenerate({ ...generateOpts, rootDir: root })
-					} catch {
-						/* validation errors logged by caller */
-					}
+					safeRunGenerate({ ...generateOpts, rootDir: root })
 				}, 100)
 			})
 

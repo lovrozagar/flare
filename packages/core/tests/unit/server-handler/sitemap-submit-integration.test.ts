@@ -1,5 +1,16 @@
 /** @vitest-environment node */
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+const devRef = vi.hoisted(() => ({ current: true }))
+vi.mock("virtual:flare-is-dev", () => ({
+	get default() {
+		return devRef.current
+	},
+}))
+
+afterEach(() => {
+	devRef.current = true
+})
 
 import { createRouter, type MarkedRouterConfig } from "../../../src/router-config/index.ts"
 import type { TreeNode } from "../../../src/router-primitives/index.ts"
@@ -114,6 +125,7 @@ describe("sitemap submit — middleware integration", () => {
 
 describe("sitemap submit — CSP nonce", () => {
 	it("response includes CSP header with nonce", async () => {
+		devRef.current = false
 		const handler = createServerHandler(makeConfig())
 		const res = await handler.fetch(makeSubmitRequest(), {})
 		const csp = res.headers.get("content-security-policy")

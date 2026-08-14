@@ -488,12 +488,14 @@ describe("prerender — synthetic request shape", () => {
 		expect(htmlReq?.method).toBe("GET")
 		expect(new URL(htmlReq?.url ?? "").pathname).toBe("/about")
 		expect(htmlReq?.headers.get("x-d")).toBeNull()
+		expect(htmlReq?.headers.get("x-flare-prerender")).toBe("1")
 
 		/* NDJSON request */
 		const dataReq = capturedRequests[1]
 		expect(dataReq?.method).toBe("GET")
 		expect(new URL(dataReq?.url ?? "").pathname).toBe("/about")
 		expect(dataReq?.headers.get("x-d")).toBe("1")
+		expect(dataReq?.headers.get("x-flare-prerender")).toBe("1")
 	})
 
 	it("uses provided origin for request URLs", async () => {

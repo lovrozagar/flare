@@ -182,7 +182,7 @@ export function proceedPendingNavigation(): void {
 	const pending = pendingNavigation
 	pendingNavigation = null
 	if (pending) {
-		void navigate(pending)
+		void navigate({ ...pending, _bypassBlocker: true })
 	}
 }
 
@@ -612,7 +612,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 	const c = ctx
 
 	/* Step 0: Check SPA blocker (skip for popstate — browser already changed URL) */
-	if (activeBlockerFn && !options._popstate && activeBlockerFn()) {
+	if (activeBlockerFn && !options._popstate && !options._bypassBlocker && activeBlockerFn()) {
 		pendingNavigation = options
 		/* Defer to avoid re-entrant navigation from SolidJS reactive effects */
 		if (onBlockedCallback) {
@@ -685,16 +685,26 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 						stopNavigation()
 					})
 					syncLocale(partial.params)
+					applyPerRouteHeads([
+						{ head: { title: "Not Found" }, matchId: `${partial.route.x}/__notfound` },
+					])
 					return
 				}
 			}
 		}
 
+		if (!options._popstate) {
+			handleHistoryUpdate(options, url, {})
+		}
+
 		batch(() => {
 			c.setNotFound(true)
 			c.setMatches([])
+			c.setParams({})
+			c.setSearch(parseSearchParams(url.searchParams))
 			stopNavigation()
 		})
+		applyPerRouteHeads([{ head: { title: "Not Found" }, matchId: "__notfound" }])
 		return
 	}
 
@@ -1041,6 +1051,14 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			}
 		}
 
+		/* Failed data fetch with no parsed matches: keep the current match
+		 * tree. Rebuilding from cache would drop pipeline errors that were
+		 * never written to matchCache (SSR hydrates them via errorName only). */
+		if (fetchResult && !fetchResult.success && fetchResult.matches.length === 0) {
+			stopNavigation()
+			return
+		}
+
 		/* Step 10: Build client matches */
 		const clientMatches = buildClientMatches(allModules, search, modules.params)
 
@@ -1185,6 +1203,8 @@ export async function prefetch(options: {
 		caseSensitive,
 		toLocaleMatch(localeConfig),
 	)
+	if (!match) return
+
 	const staleTime = parseMilliseconds(
 		match?.route.o.client?.prefetchStaleTime ??
 			ctx?.routerCacheDefaults?.prefetchStaleTime ??

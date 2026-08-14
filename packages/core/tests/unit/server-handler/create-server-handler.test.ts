@@ -170,6 +170,7 @@ describe("security headers", () => {
 	})
 
 	it("CSP includes nonce", async () => {
+		devRef.current = false
 		const handler = createServerHandler(makeConfig())
 		const response = await handler.fetch(makeRequest("http://localhost/nope"), {})
 		const csp = response.headers.get("Content-Security-Policy") ?? ""

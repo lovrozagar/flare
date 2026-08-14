@@ -45,7 +45,7 @@ function callGenerateBundleCss(plugin: SxPlugin): string {
 	}
 	const gb = plugin.generateBundle as unknown as (this: typeof ctx) => void
 	gb.call(ctx)
-	return emitted.find((f) => f.fileName === "flare-global.css")?.source ?? ""
+	return emitted.find((f) => f.fileName.endsWith("flare-global.css"))?.source ?? ""
 }
 
 function mustHaveManifest(plugin: SxPlugin): SxCssManifest {

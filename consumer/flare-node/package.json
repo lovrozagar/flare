@@ -6,7 +6,8 @@
 		"build": "vite build",
 		"dev": "vite dev",
 		"preview": "node .output/server/index.mjs",
-		"start": "node .output/server/index.mjs"
+		"start": "node .output/server/index.mjs",
+		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
 		"flare": "workspace:*",
@@ -16,6 +17,7 @@
 		"vite-plugin-solid": "catalog:"
 	},
 	"devDependencies": {
+		"@types/node": "catalog:",
 		"typescript": "catalog:"
 	}
 }

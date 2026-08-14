@@ -6,7 +6,12 @@
   updated    2026-08-13
 
 ## now
-  1.a.5   Core vitest: 7233 passed / 114 failed (21 files). Remaining clusters: jsdom localStorage (theme/direction), sx generateBundle CSS emit, a few SSR/security assertions
+  4.a.1   Decide: publish `@solidports/base-ui`, switch to `@msviderok/base-ui-solid`, or keep UI parked
 
 ## next
-  2.a.1   e2e, real-world, consumer/* resolve `flare` from the workspace
+  3.a.3   Add bun / workers harnesses when those runtimes need proof (opt-in)
+
+## 3.a.2 notes
+  Checklist: `e2e/COVERAGE.md`. Default suite is `@flare/e2e-node` (186 passed).
+  Old suite: `e2e-archive` / `test:e2e:archive` (guide, not deleted).
+  Still open on the checklist: i18n, cache/ISR, query/broadcast/theme, fonts/image/lazy, intercept/shallow/prefetch.

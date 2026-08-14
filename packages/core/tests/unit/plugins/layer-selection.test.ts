@@ -164,7 +164,7 @@ describe.concurrent("layer selection — CSS layer in generateBundle output", ()
 		}
 		const gb = plugin.generateBundle as unknown as (this: typeof ctx) => void
 		gb.call(ctx)
-		return emitted.find((f) => f.fileName === "flare-global.css")?.source ?? ""
+		return emitted.find((f) => f.fileName.endsWith("flare-global.css"))?.source ?? ""
 	}
 
 	it("lib-origin module → rule lands in @layer sx block", () => {
@@ -199,7 +199,7 @@ describe.concurrent("layer selection — CSS layer in generateBundle output", ()
 		}
 		const gb = plugin.generateBundle as unknown as (this: typeof ctx) => void
 		gb.call(ctx)
-		const css = emitted.find((f) => f.fileName === "flare-global.css")?.source ?? ""
+		const css = emitted.find((f) => f.fileName.endsWith("flare-global.css"))?.source ?? ""
 
 		expect(css).toContain("@layer sx")
 		expect(css).toContain("@layer app")

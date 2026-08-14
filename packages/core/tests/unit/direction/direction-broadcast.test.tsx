@@ -6,11 +6,18 @@ function tick(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0))
 }
 
-function fireStorageEvent(key: string, newValue: string | null, storageArea = localStorage): void {
-	const event = new StorageEvent("storage", {
-		key,
-		newValue,
-		storageArea,
+function fireStorageEvent(
+	key: string,
+	newValue: string | null,
+	storageArea = localStorage,
+): void {
+	/* jsdom rejects a non-jsdom Storage on StorageEventInit. Dispatch a
+	   storage-shaped Event so storageArea can be the same object the app reads. */
+	const event = new Event("storage") as StorageEvent
+	Object.defineProperties(event, {
+		key: { value: key },
+		newValue: { value: newValue },
+		storageArea: { value: storageArea },
 	})
 	window.dispatchEvent(event)
 }

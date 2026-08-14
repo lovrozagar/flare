@@ -6,7 +6,18 @@
  * Tests the full pipeline: route matching → module loading → loader execution →
  * head chain → NDJSON serialization → security headers.
  */
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+const devRef = vi.hoisted(() => ({ current: true }))
+vi.mock("virtual:flare-is-dev", () => ({
+	get default() {
+		return devRef.current
+	},
+}))
+
+afterEach(() => {
+	devRef.current = true
+})
 import { createRouter } from "../../src/router-config/index.ts"
 import { createTreeNode, insertRoute } from "../../src/router-primitives/index.ts"
 import { createServerHandler } from "../../src/server-handler/index.ts"
@@ -59,6 +70,7 @@ describe("NDJSON — content type and headers", () => {
 	})
 
 	it("CSP nonce present even on NDJSON responses", async () => {
+		devRef.current = false
 		const handler = buildHandler()
 		const response = await handler.fetch(dataRequest("/about"), {})
 		const csp = response.headers.get("Content-Security-Policy") ?? ""

@@ -24,11 +24,29 @@ describe("createServer()", () => {
 		expect(typeof server.fetch).toBe("function")
 	})
 
+	it("exposes getStaticParams for the prerender plugin", async () => {
+		const server = createServer(buildRouter())
+		expect(typeof server.getStaticParams).toBe("function")
+		const result = await server.getStaticParams()
+		expect(result).toBeInstanceOf(Map)
+	})
+
 	it(".fetch() returns a Response", async () => {
 		const server = createServer(buildRouter())
 		const response = await server.fetch(dataReq("/home"))
 		expect(response).toBeInstanceOf(Response)
 		expect(response.status).toBe(200)
+	})
+
+	it("does not log per-request env debug on fetch", async () => {
+		const spy = vi.spyOn(console, "error").mockImplementation(() => {})
+		const server = createServer(buildRouter())
+		await server.fetch(dataReq("/home"))
+		const debug = spy.mock.calls.filter((args) =>
+			String(args[0] ?? "").includes("envKeys="),
+		)
+		spy.mockRestore()
+		expect(debug).toHaveLength(0)
 	})
 
 	it("builder methods return chainable builder", () => {

@@ -23,6 +23,68 @@ const EN_DE_LOCALE = { paramName: "locale", locales: ["en", "de"] } as const
 const EMPTY_LOCALE = { paramName: "locale", locales: [] } as const
 
 describe("matchRoute — locale allow-list (localeMatch 4th arg)", () => {
+	describe("required [locale] — same allow-list as optional", () => {
+		it('/docs against [locale]-only tree → null', () => {
+			const tree = createTreeNode()
+			insertRoute(tree, "/[locale]", route("[locale]/_root_/", "/[locale]"))
+
+			expect(matchRoute(tree, "/docs", false, EN_LOCALE)).toBeNull()
+		})
+
+		it('/does-not-exist-at-all against [locale] + /about tree → null', () => {
+			const tree = createTreeNode()
+			insertRoute(tree, "/", route("_root_/", "/"))
+			insertRoute(tree, "/about", route("_root_/about", "/about"))
+			insertRoute(tree, "/[locale]", route("[locale]/_root_/", "/[locale]"))
+			insertRoute(tree, "/[locale]/about", route("[locale]/_root_/about", "/[locale]/about"))
+
+			expect(matchRoute(tree, "/does-not-exist-at-all", false, EN_LOCALE)).toBeNull()
+			expect(matchRoute(tree, "/about", false, EN_LOCALE)?.route.v).toBe("/about")
+		})
+
+		it('/en against [locale]-only tree → match with params.locale="en"', () => {
+			const tree = createTreeNode()
+			const r = route("[locale]/_root_/", "/[locale]")
+			insertRoute(tree, "/[locale]", r)
+
+			const result = matchRoute(tree, "/en", false, EN_LOCALE)
+			expect(result).not.toBeNull()
+			expect(result?.route).toBe(r)
+			expect(result?.params).toEqual({ locale: "en" })
+		})
+
+		it('/en/about against [locale]/about → match', () => {
+			const tree = createTreeNode()
+			const r = route("[locale]/_root_/about", "/[locale]/about")
+			insertRoute(tree, "/[locale]", route("[locale]/_root_/", "/[locale]"))
+			insertRoute(tree, "/[locale]/about", r)
+
+			const result = matchRoute(tree, "/en/about", false, EN_LOCALE)
+			expect(result?.route).toBe(r)
+			expect(result?.params).toEqual({ locale: "en" })
+		})
+
+		it("/[id] is not constrained by locale allow-list", () => {
+			const tree = createTreeNode()
+			const r = route("_root_/users/[id]", "/users/[id]")
+			insertRoute(tree, "/users/[id]", r)
+
+			const result = matchRoute(tree, "/users/docs", false, EN_LOCALE)
+			expect(result?.route).toBe(r)
+			expect(result?.params).toEqual({ id: "docs" })
+		})
+
+		it("/docs against [locale] without localeMatch → greedy match", () => {
+			const tree = createTreeNode()
+			const r = route("[locale]/_root_/", "/[locale]")
+			insertRoute(tree, "/[locale]", r)
+
+			const result = matchRoute(tree, "/docs")
+			expect(result).not.toBeNull()
+			expect(result?.params).toEqual({ locale: "docs" })
+		})
+	})
+
 	describe("consume rejected for non-locale segment", () => {
 		it('/docs against [[locale]]-only tree → null (cross-worker segment rejected)', () => {
 			const tree = createTreeNode()

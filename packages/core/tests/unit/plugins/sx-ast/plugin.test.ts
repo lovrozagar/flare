@@ -116,7 +116,7 @@ describe("createSxAstPlugin — generateBundle CSS emission", () => {
 
 		await genBundle.call(ctx, {}, {})
 
-		const cssAsset = emitted.find((f) => f.fileName === "flare-global.css")
+		const cssAsset = emitted.find((f) => f.fileName.endsWith("flare-global.css"))
 		expect(cssAsset).toBeDefined()
 		if (!cssAsset) return
 		expect(cssAsset.source).toContain("@layer")
@@ -196,7 +196,7 @@ describe("createSxAstPlugin — generateBundle CSS composition", () => {
 		) => void
 		genBundle.call(ctx, {}, {})
 
-		const css = emitted.find((f) => f.fileName === "flare-global.css")
+		const css = emitted.find((f) => f.fileName.endsWith("flare-global.css"))
 		expect(css).toBeDefined()
 		expect(css?.source).toContain("@layer sx")
 	})
@@ -221,7 +221,7 @@ describe("createSxAstPlugin — generateBundle CSS composition", () => {
 		) => void
 		genBundle.call(ctx, {}, {})
 
-		const css = emitted.find((f) => f.fileName === "flare-global.css")
+		const css = emitted.find((f) => f.fileName.endsWith("flare-global.css"))
 		expect(css).toBeDefined()
 		expect(css?.source).toContain("@layer app")
 	})
@@ -245,7 +245,7 @@ describe("createSxAstPlugin — generateBundle CSS composition", () => {
 		) => void
 		genBundle.call(ctx, {}, {})
 
-		const css = emitted.find((f) => f.fileName === "flare-global.css")
+		const css = emitted.find((f) => f.fileName.endsWith("flare-global.css"))
 		expect(css).toBeDefined()
 		expect(css?.source).toContain("@layer reset, sx, app")
 		/* No actual layer blocks when pool is empty */

@@ -1,5 +1,6 @@
 import type { JSX } from "solid-js"
 import { type Component, createSignal, onMount, Show, sharedConfig } from "solid-js"
+import { retryImport } from "../internal.ts"
 import { warn } from "../logger.ts"
 
 export interface LazyOptions<P extends Record<string, unknown>> {
@@ -44,7 +45,7 @@ export function lazy<P extends Record<string, unknown>>(options: LazyOptions<P>)
 	let loadPromise: Promise<void> | undefined
 
 	/* Start loading immediately at factory call */
-	loadPromise = loader()
+	loadPromise = retryImport(loader)
 		.then((mod) => {
 			loaded = mod.default
 			getGlobalLoaded().add(loadPromise as Promise<void>)
@@ -111,7 +112,7 @@ export function clientLazy<P extends Record<string, unknown>>(
 	let loadPromise: Promise<void> | undefined
 
 	if (eager) {
-		loadPromise = loader()
+		loadPromise = retryImport(loader)
 			.then((mod) => {
 				loaded = mod.default
 			})
@@ -133,7 +134,7 @@ export function clientLazy<P extends Record<string, unknown>>(
 
 		const startLoading = () => {
 			if (!loadPromise) {
-				loadPromise = loader()
+				loadPromise = retryImport(loader)
 					.then((mod) => {
 						loaded = mod.default
 					})

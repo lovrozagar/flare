@@ -1,18 +1,18 @@
 import { cloudflare } from "@cloudflare/vite-plugin"
-import { defineConfig } from "vite"
+import { defineConfig, type PluginOption } from "vite"
 import { flare } from "flare/plugins"
 
-export default defineConfig(() => ({
+export default defineConfig({
 	plugins: [
-		flare({
+		...(flare({
 			alias: { "@": "/src" },
 			codegen: { fsVirtualPaths: false },
 			port: 3000,
 			prerender: true,
 			purge: true,
 			serviceWorker: { offlineFallback: "/offline" },
-			tailwind: true,
-		}),
+			sx: { tw: true },
+		}) as PluginOption[]),
 		cloudflare({ inspectorPort: 9231, viteEnvironment: { name: "ssr" } }),
 	],
-}))
+})

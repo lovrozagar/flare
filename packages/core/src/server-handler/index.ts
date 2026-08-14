@@ -1,10 +1,14 @@
 import clientEntryPath from "virtual:flare-client-entry"
 import { layoutModuleIds } from "virtual:flare-generated"
+import virtualIsDev from "virtual:flare-is-dev"
 /* `__FLARE_IS_DEV__` is injected as a Vite `define` by Flare's virtual plugin — reliable across
    all environments including cf-vite-plugin's SSR worker (where `import.meta.env.DEV` is forced
-   to false because the SSR env defaults to `mode: "production"` even during `vite serve`). */
+   to false because the SSR env defaults to `mode: "production"` even during `vite serve`).
+   Tests mock `virtual:flare-is-dev` and never get the define — fall back to that module. */
 declare const __FLARE_IS_DEV__: boolean | undefined
-const isDevDefault = typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : false
+function readIsDev(): boolean {
+	return typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : virtualIsDev
+}
 import { clientManifest, entryPreloads } from "virtual:flare-module-preloads"
 import { sxManifest } from "virtual:flare-sx-manifest"
 import serverFnsDefault from "virtual:flare-server-fn-map"
@@ -216,6 +220,32 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 	return parts.join("; ")
 }
 
+const SKIP_STATIC_HEADERS = new Set([
+	"connection",
+	"content-encoding",
+	"content-length",
+	"keep-alive",
+	"transfer-encoding",
+])
+
+function sanitizeStaticHeaders(headers: Record<string, string>): Record<string, string> {
+	const result: Record<string, string> = {}
+	for (const [key, value] of Object.entries(headers)) {
+		if (SKIP_STATIC_HEADERS.has(key.toLowerCase())) continue
+		result[key] = value
+	}
+	return result
+}
+
+function headersToStaticRecord(headers: Headers): Record<string, string> {
+	const result: Record<string, string> = {}
+	headers.forEach((value, key) => {
+		if (SKIP_STATIC_HEADERS.has(key.toLowerCase())) return
+		result[key] = value
+	})
+	return result
+}
+
 /* ── Types ────────────────────────────────────────────────────────────── */
 
 export interface ServerHandler<TEnv = unknown> {
@@ -287,13 +317,27 @@ export interface ServerHandlerConfig<
 /* ── Fallback pages ───────────────────────────────────────────────────── */
 
 const FALLBACK_404 =
-	"<!doctype html><html><head><title>Not Found</title></head><body><h1>404</h1><p>Not Found</p></body></html>"
+	'<!doctype html><html lang="en"><head><title>Not Found</title></head><body><h1>404</h1><p>Not Found</p></body></html>'
 const FALLBACK_401 =
-	"<!doctype html><html><head><title>Unauthorized</title></head><body><h1>401</h1><p>Unauthorized</p></body></html>"
+	'<!doctype html><html lang="en"><head><title>Unauthorized</title></head><body><h1>401</h1><p>Unauthorized</p></body></html>'
 const FALLBACK_403 =
-	"<!doctype html><html><head><title>Forbidden</title></head><body><h1>403</h1><p>Forbidden</p></body></html>"
+	'<!doctype html><html lang="en"><head><title>Forbidden</title></head><body><h1>403</h1><p>Forbidden</p></body></html>'
 const FALLBACK_500 =
-	"<!doctype html><html><head><title>Server Error</title></head><body><h1>500</h1><p>Internal Server Error</p></body></html>"
+	'<!doctype html><html lang="en"><head><title>Server Error</title></head><body><h1>500</h1><p>Internal Server Error</p></body></html>'
+
+function unmatchedNdjson404(): Response {
+	const body = `${JSON.stringify({
+		e: { message: "Not found", name: "NotFoundError" },
+		t: "e",
+	})}\n${JSON.stringify({ t: "r" })}\n${JSON.stringify({ t: "d" })}\n`
+	return new Response(body, {
+		headers: {
+			"Cache-Control": "no-store",
+			"Content-Type": "application/x-ndjson",
+		},
+		status: 404,
+	})
+}
 
 function fallbackHtmlResponse(
 	html: string,
@@ -322,7 +366,7 @@ function buildDevErrorHtml(error: unknown): string {
 	if (error instanceof Error) {
 		const msg = escapeHtml(error.message)
 		const stack = escapeHtml(error.stack ?? "")
-		return `<!doctype html><html><head><title>Server Error</title></head><body><h1>500</h1><p>${msg}</p><pre>${stack}</pre></body></html>`
+		return `<!doctype html><html lang="en"><head><title>Server Error</title></head><body><h1>500</h1><p>${msg}</p><pre>${stack}</pre></body></html>`
 	}
 	return FALLBACK_500
 }
@@ -705,6 +749,7 @@ function collectDynamicRoutes(node: import("../router-primitives").TreeNode): Ro
 			walk(child)
 		}
 		if (n.p) walk(n.p)
+		if (n.q) walk(n.q)
 		if (n.c) walk(n.c)
 		if (n.o) walk(n.o)
 	}
@@ -822,7 +867,7 @@ export function createServerHandler<
 	registerFormActionContextGetter(getFormActionContext)
 
 	const { dedupeFetch = true } = config
-	const isDev = isDevDefault
+	const isDev = readIsDev()
 	const serverFns = serverFnsDefault
 	const enableServerLogs = config.serverLogs ?? isDev
 	let mounts: MountConfig<TEnv>[] = []
@@ -1110,12 +1155,23 @@ export function createServerHandler<
 						if (!match) {
 							const fuzzy = config.router.notFoundMode !== "root"
 							if (fuzzy) {
-								const partial = matchRoutePartial(
-									config.router.routeTree,
-									matchPathname,
-									cs,
-									toLocaleMatch(config.router.locale),
-								)
+								/* matchRoutePartial skips "/" when the first segment is neither
+								 * a locale nor a static child (cross-worker guard). The request
+								 * already arrived here, so fall back to the root index and
+								 * render the app's notFound boundary instead of generic HTML. */
+								const partial =
+									matchRoutePartial(
+										config.router.routeTree,
+										matchPathname,
+										cs,
+										toLocaleMatch(config.router.locale),
+									) ??
+									matchRoute(
+										config.router.routeTree,
+										"/",
+										cs,
+										toLocaleMatch(config.router.locale),
+									)
 								if (partial) {
 									const resolvedRoutes = await loadRouteModules(
 										partial.route,
@@ -1157,6 +1213,20 @@ export function createServerHandler<
 										pipelineResult.matches.findLast((m) => m.headConfig)?.headConfig ?? {}
 
 									const fuzzyLogs = enableServerLogs ? getServerLogs() : undefined
+									if (request.headers.get("x-d") === "1") {
+										const ndjson = createNDJSONResponse({
+											deferContexts: pipelineResult.deferContexts,
+											matches: pipelineResult.matches,
+											serverLogs: fuzzyLogs && fuzzyLogs.length > 0 ? fuzzyLogs : undefined,
+										})
+										let data404 = new Response(ndjson.body, {
+											headers: ndjson.headers,
+											status: 404,
+										})
+										data404 = await applyResponseHandlers(data404, responseHandlers)
+										return addSecurityHeaders(data404, secHeaders)
+									}
+
 									const fuzzyQC = await resolveQueryClient(config.router)
 									let ssrResult: ReturnType<typeof renderToStream>
 									setRewrite(composedRewrite)
@@ -1196,6 +1266,11 @@ export function createServerHandler<
 									response = await applyResponseHandlers(response, responseHandlers)
 									return addSecurityHeaders(response, secHeaders)
 								}
+							}
+							if (request.headers.get("x-d") === "1") {
+								let data404 = unmatchedNdjson404()
+								data404 = await applyResponseHandlers(data404, responseHandlers)
+								return addSecurityHeaders(data404, secHeaders)
 							}
 							return fallbackHtmlResponse(FALLBACK_404, 404, secHeaders)
 						}
@@ -1245,10 +1320,7 @@ export function createServerHandler<
 												ISR_TIMEOUT,
 											)
 											const ndjson = await dataResponse.text()
-											const headers: Record<string, string> = {}
-											reRenderResponse.headers.forEach((v: string, k: string) => {
-												headers[k] = v
-											})
+											const headers = headersToStaticRecord(reRenderResponse.headers)
 
 											/* Replace real nonces with placeholder before storing */
 											let storedHtml = html
@@ -1306,7 +1378,7 @@ export function createServerHandler<
 
 								/* Replace nonce placeholder */
 								const entryHeaders: Record<string, string> = {}
-								for (const [k, v] of Object.entries(staticData.headers)) {
+								for (const [k, v] of Object.entries(sanitizeStaticHeaders(staticData.headers))) {
 									entryHeaders[k] = v.replaceAll(NONCE_PLACEHOLDER, nonce)
 								}
 
@@ -1343,10 +1415,12 @@ export function createServerHandler<
 								return addSecurityHeaders(response, secHeaders)
 							}
 
-							/* Cache miss — dynamicParams: false → 404, otherwise SSR */
+							/* Cache miss — dynamicParams: false → 404, otherwise SSR.
+							 * Prerender fetches set x-flare-prerender so listed slugs can
+							 * be generated at build time before the store is populated. */
 							if (staticMeta.mode === "isr") {
 								const dynamicParams = staticMeta.dynamicParams ?? true
-								if (dynamicParams === false) {
+								if (dynamicParams === false && request.headers.get("x-flare-prerender") !== "1") {
 									const missResponse = fallbackHtmlResponse(FALLBACK_404, 404, secHeaders)
 									if (config.cache?.headers !== false) {
 										missResponse.headers.set(FLARE_CACHE_HEADER, "MISS")
@@ -1588,10 +1662,7 @@ export function createServerHandler<
 											ISR_TIMEOUT,
 										)
 										const ndjsonBody = await dataRes.text()
-										const resHeaders: Record<string, string> = {}
-										htmlRes.headers.forEach((v: string, k: string) => {
-											resHeaders[k] = v
-										})
+										const resHeaders = headersToStaticRecord(htmlRes.headers)
 
 										/* Replace real nonces with placeholder before storing */
 										let storedHtml = html
@@ -1657,6 +1728,7 @@ export function createServerHandler<
 							)
 						}
 
+						logError("handler", "unhandled request error", e)
 						const html = isDev ? buildDevErrorHtml(e) : FALLBACK_500
 						const errResponse = fallbackHtmlResponse(html, 500, secHeaders)
 						if (request.headers.get("x-isr-bg") !== "1" && config.cache?.headers !== false) {

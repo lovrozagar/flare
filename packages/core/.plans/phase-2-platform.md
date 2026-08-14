@@ -3,7 +3,7 @@
 Phase 1 = routing, SSR, navigation, caching, boundaries, server fns, head management.
 Phase 2 = cache architecture, streaming, client DX, type safety, CF integration.
 
-Core stays platform-agnostic. CF-specific features in `@ecomet/flare-cf` adapter.
+Core stays platform-agnostic. CF-specific features in `flare-cf` adapter.
 
 ---
 
@@ -12,9 +12,9 @@ Core stays platform-agnostic. CF-specific features in `@ecomet/flare-cf` adapter
 ### WS1: Client Entry Cleanup ✅
 **Priority**: Highest (biggest DX win, no architectural risk)
 
-**Done**. `hydrate(router, options?)` exported from `@ecomet/flare/client`.
+**Done**. `hydrate(router, options?)` exported from `flare/client`.
 
-- [x] Export `hydrate(router, options?)` from `@ecomet/flare/client`
+- [x] Export `hydrate(router, options?)` from `flare/client`
 - [x] Internalize: state parsing, module loading, cache creation, match building, boundary extraction, provider wiring, context ready pattern, navigation setup, scroll restoration, hydration attribute
 - [x] Escape hatches via options: `onContextReady`, `devOverlay`
 - [x] Extract helpers: `extractRootBoundaries()`, `buildInitialMatches()`
@@ -184,7 +184,7 @@ Parent layout `.authenticate()` flows to child routes at the type level.
 
 #### Phase C: KV cache layer ✅
 
-**Done**. Platform-agnostic `CacheStore` interface on `ServerHandlerConfig` — no `@ecomet/flare-cf` adapter needed.
+**Done**. Platform-agnostic `CacheStore` interface on `ServerHandlerConfig` — no `flare-cf` adapter needed.
 
 - [x] `CacheStore` + `CacheEntry` interfaces in `src/route-builder/types.ts`
 - [x] `cacheStore` on `ServerHandlerConfig` — direct object or `(env: TEnv) => CacheStore` factory
@@ -195,7 +195,7 @@ Parent layout `.authenticate()` flows to child routes at the type level.
 - [x] `CacheConfig<TPath>` generic — conditional `static` field (boolean for static paths, callback for dynamic)
 - [x] `HasDynamicSegments<T>` + `StaticConfig<TPath>` conditional types
 - [x] Generator detects `static: true` and `static: () => [...]` in `.cache()` config
-- [x] `CacheStore`, `CacheEntry` exported from `@ecomet/flare/server`
+- [x] `CacheStore`, `CacheEntry` exported from `flare/server`
 - [x] 34 new unit tests (KV intercept, cache-store config, type tests, generator detection)
 - [x] 11 new e2e tests (SSR hit, SPA navigation, parameterized routes, static config, console cleanliness)
 - [x] 2912 unit + 692 e2e tests pass, TypeScript clean
@@ -245,7 +245,7 @@ Parent layout `.authenticate()` flows to child routes at the type level.
 - [x] Error during stream → `{ e: { message } }` chunk + stream close
 - [x] Plugin stripping: `stripHandlerBodies` handles both `.handler(` and `.stream(`
 - [x] `HANDLER_RE` updated to `/\.(handler|stream)\s*\(/`
-- [x] `StreamContext`, `StreamFn` exported from `@ecomet/flare/server`
+- [x] `StreamContext`, `StreamFn` exported from `flare/server`
 - [x] 2878 unit + E2E streaming tests pass, TypeScript clean
 
 **Consumer pattern**:
@@ -431,7 +431,7 @@ const { direction, setDirection, toggleDirection } = useDirection()
 - [x] Generator emits `FlareRegister` declaration merging in `routes.gen.ts`
 - [x] `FlareRegister` changed from `type` to `interface` (enables declaration merging)
 - [x] `extractParamsFromPattern()` extracts param names + types from URL patterns
-- [x] `generateRouteRegistry()` builds `declare module "@ecomet/flare"` block
+- [x] `generateRouteRegistry()` builds `declare module "flare"` block
 - [x] Single param `[id]` → `string`, catch-all `[...slug]` → `string[]`, optional `[[...locale]]` → `string[] | undefined`
 - [x] Params sorted alphabetically within each route type
 - [x] Routes sorted by URL path, layouts + response routes excluded
@@ -467,7 +467,7 @@ const { direction, setDirection, toggleDirection } = useDirection()
 - [x] Auto `rel="noopener noreferrer"` for `target="_blank"` (both internal + external), explicit `rel` always wins
 - [x] `activeProps`/`inactiveProps` — `FlareAnchorProps` objects merged on active state (class concatenated, style merged, other attrs spread)
 - [x] Native attrs (`title`, `download`, `id`, `aria-*`, `data-*`) flow through `...rest` to `<a>` and disabled `<span>`
-- [x] `FlareAnchorProps` + `ExternalLinkProps` exported from `@ecomet/flare/client`
+- [x] `FlareAnchorProps` + `ExternalLinkProps` exported from `flare/client`
 - [x] Fixed pre-existing test bug: `Object.defineProperty(window, "location")` polluting subsequent tests
 - [x] 2839 unit + 16 new e2e + 17 existing link e2e tests pass, TypeScript clean
 
@@ -515,7 +515,7 @@ WS8 (theme/direction ctx)   -- ✅ DONE
 ## Architecture: Core vs CF Adapter
 
 ```
-@ecomet/flare          (core, platform-agnostic)
+flare          (core, platform-agnostic)
   src/
     cache/             staleTime, gcTime, client memory cache
     hydrate/           client entry bootstrap
@@ -526,7 +526,7 @@ WS8 (theme/direction ctx)   -- ✅ DONE
     loader-pipeline/   KV cache intercept (Phase 4)
     server-handler/    cacheStore on ServerHandlerConfig
 
-@ecomet/flare-cf       (CF Workers adapter, optional — future)
+flare-cf       (CF Workers adapter, optional — future)
   src/
     cdn-cache.ts       Cache API + surrogate key management
     invalidation.ts    unified purge (client + cdn + kv)
@@ -747,7 +747,7 @@ TanStack validates search params on every client navigation. Flare now runs `.in
 
 ### Strategic Implications for Phase 3
 
-1. ~~**`<Image>` component**~~ ✅ — `@ecomet/flare/image` with loader interface, blur placeholder, priority hints, srcset generation, quality config
+1. ~~**`<Image>` component**~~ ✅ — `flare/image` with loader interface, blur placeholder, priority hints, srcset generation, quality config
 2. ~~**Client-side `.input()` validation**~~ ✅ — validators run on shallow nav via `match.route.p()` module load
 3. ~~**Env-bound functions**~~ ✅ — `createServerOnlyFn`, `createClientOnlyFn`, `createIsomorphicFn` with Vite plugin DCE. 3 separate exports, 14 unit + 5 E2E tests
 4. **Static prerendering** — `flare build --static` with route manifest
@@ -758,7 +758,7 @@ TanStack validates search params on every client navigation. Flare now runs `.in
 
 ## Non-Goals (Phase 2)
 
-- ~~**isomorphicFn**~~ ✅ — implemented as `createIsomorphicFn`, `createServerOnlyFn`, `createClientOnlyFn`. Vite plugin extracts env-specific branch at build time (full DCE). Separate exports: `@ecomet/flare/create-server-only-fn`, `@ecomet/flare/create-client-only-fn`, `@ecomet/flare/create-isomorphic-fn`.
+- ~~**isomorphicFn**~~ ✅ — implemented as `createIsomorphicFn`, `createServerOnlyFn`, `createClientOnlyFn`. Vite plugin extracts env-specific branch at build time (full DCE). Separate exports: `flare/create-server-only-fn`, `flare/create-client-only-fn`, `flare/create-isomorphic-fn`.
 - **WebSocket support** — different paradigm, out of scope for router framework
 - **Durable Objects coordination** — future phase, needs real multi-isolate use case first
 - **File upload in serverFns** — FormData/multipart. Can add later without breaking changes.

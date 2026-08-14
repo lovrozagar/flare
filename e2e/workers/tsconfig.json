@@ -1,0 +1,7 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["@cloudflare/workers-types"]
+	},
+	"include": ["playwright.config.ts", "vite.config.ts"]
+}

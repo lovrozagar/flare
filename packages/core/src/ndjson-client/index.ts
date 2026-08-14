@@ -110,7 +110,12 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 		signal: options.signal,
 	})
 
-	if (!response.ok) {
+	const contentType = response.headers?.get("content-type") ?? ""
+	const isNdjson = contentType.includes("ndjson")
+	/* Loader errors often travel as HTTP 500 + application/x-ndjson. Dropping the
+	 * body makes retry() rebuild matches from a cache that never stored the
+	 * pipeline error, so the error UI cannot recover. */
+	if (!response.ok && !isNdjson) {
 		return { matches: [], perRouteHeads: [], success: false }
 	}
 

@@ -1,0 +1,24 @@
+{
+	"name": "@flare/e2e-workers",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "bunx vite dev --port 4104 --config ../app/vite.workers.config.ts",
+		"test": "playwright test",
+		"test:prod": "TEST_MODE=prod playwright test",
+		"type:check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@flare/e2e-app": "workspace:*",
+		"flare": "workspace:*"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "catalog:",
+		"@cloudflare/vite-plugin": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"@playwright/test": "catalog:",
+		"typescript": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

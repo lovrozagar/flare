@@ -377,7 +377,7 @@ describe("System theme detection", () => {
 })
 
 describe("SSR passthrough", () => {
-	it("sharedConfig.context truthy → returns children without context provider", async () => {
+	it("sharedConfig.context truthy → still provides useTheme context", async () => {
 		const { sharedConfig } = await import("solid-js")
 		const original = sharedConfig.context
 		try {
@@ -385,11 +385,19 @@ describe("SSR passthrough", () => {
 				configurable: true,
 				value: { count: 0, id: "test" },
 			})
-			/* SSR branch returns props.children directly — no ThemeCtx.Provider wrapper.
-			   Verify by checking that useTheme() throws (no provider was created). */
-			const result = ThemeProvider({ children: null as unknown as import("solid-js").JSX.Element })
-			expect(result).toBeDefined()
-			expect(() => useTheme()).toThrow("useTheme() called outside ThemeProvider")
+			let theme: string | undefined
+			dispose = render(
+				() => (
+					<ThemeProvider>
+						{(() => {
+							theme = useTheme().theme()
+							return null
+						})()}
+					</ThemeProvider>
+				),
+				container,
+			)
+			expect(theme).toBe("system")
 		} finally {
 			Object.defineProperty(sharedConfig, "context", {
 				configurable: true,

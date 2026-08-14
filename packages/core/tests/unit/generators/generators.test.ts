@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, describe, expect, it } from "vitest"
@@ -941,6 +941,7 @@ describe("generateRoutesFile", () => {
 		expect(file).not.toContain("const R0")
 		expect(file).not.toContain("function S(")
 		expect(file).not.toContain("RouteData")
+		expect(file).not.toContain("_FlareHandler")
 		expect(file).not.toContain("\n\n\n")
 	})
 
@@ -1117,13 +1118,22 @@ describe("runGenerate", () => {
 		expect(output).toContain("HomePage")
 	})
 
-	it("empty project → file with empty tree", () => {
+	it("empty project → does not write a stub _gen", () => {
 		const result = runGenerate({ rootDir: tmpDir })
 		expect(result.routes).toBe(0)
 		expect(result.layouts).toBe(0)
+		expect(existsSync(join(tmpDir, "src", "_gen", "routes.gen.ts"))).toBe(false)
+		expect(existsSync(join(tmpDir, "src", "_gen", "types.gen.d.ts"))).toBe(false)
+	})
 
-		const output = readFileSync(join(tmpDir, "src", "_gen", "routes.gen.ts"), "utf-8")
-		expect(output).toContain("export const routeTree: TreeNode = { s: E }")
+	it("empty project removes a leftover stub _gen", () => {
+		const genDir = join(tmpDir, "src", "_gen")
+		mkdirSync(genDir, { recursive: true })
+		writeFileSync(join(genDir, "routes.gen.ts"), "import type { RouteData } from \"flare\"\n")
+		writeFileSync(join(genDir, "types.gen.d.ts"), "")
+		runGenerate({ rootDir: tmpDir })
+		expect(existsSync(join(genDir, "routes.gen.ts"))).toBe(false)
+		expect(existsSync(join(genDir, "types.gen.d.ts"))).toBe(false)
 	})
 })
 

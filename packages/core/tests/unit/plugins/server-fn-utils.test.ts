@@ -4,7 +4,11 @@ vi.mock("vite-plugin-solid", () => ({
 	default: () => ({ name: "solid" }),
 }))
 
-import { generateServerFnMapSource, stripHandlerBodies } from "../../../src/plugins/index.ts"
+import {
+	dropDeadImports,
+	generateServerFnMapSource,
+	stripHandlerBodies,
+} from "../../../src/plugins/index.ts"
 
 describe("stripHandlerBodies", () => {
 	it("strips simple arrow handler", () => {
@@ -122,5 +126,20 @@ describe("stripHandlerBodies - stream", () => {
 		expect(result).toContain("createServerFn")
 		expect(result).toContain(".someChain()")
 		expect(result).not.toContain("secret")
+	})
+})
+
+describe("dropDeadImports", () => {
+	it("keeps _$template used between import groups (Solid JSX emit)", () => {
+		const code = `import { template as _$template } from "solid-js/web";
+var _tmpl$ = _$template(\`<main></main>\`);
+import { createPage } from "flare/page";
+import { createServerOnlyFn } from "flare/server-only";
+export const route = createPage("x");
+`
+		const result = dropDeadImports(code, "env-fn-test.tsx")
+		expect(result).toContain("_$template")
+		expect(result).toContain("createPage")
+		expect(result).not.toContain("createServerOnlyFn")
 	})
 })

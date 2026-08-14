@@ -63,6 +63,19 @@ function makeHandler(
 }
 
 describe("getStaticParams", () => {
+	it("optional [[locale]] route is collected and expanded", async () => {
+		const pageMod = {
+			_type: "render",
+			cache: { ssg: { params: () => [{ locale: "en" }, { locale: "hr" }] } },
+			render: () => null,
+		}
+		const route = makeRouteData("[[locale]]/_root_/about", "/[[locale]]/about", pageMod)
+		const tree = buildTree([{ data: route, path: "/[[locale]]/about" }])
+
+		const result = await makeHandler(tree).getStaticParams()
+		expect(result.get("[[locale]]/_root_/about")).toEqual([{ locale: "en" }, { locale: "hr" }])
+	})
+
 	it("page-only params → correct expansion", async () => {
 		const pageMod = {
 			_type: "render",

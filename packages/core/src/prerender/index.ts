@@ -20,6 +20,9 @@ import { resolvePathParams } from "../url/index.ts"
 
 export const NONCE_PLACEHOLDER = "__FLARE_NONCE__"
 
+/** Build-time prerender fetch — skips ISR `dynamicParams: false` store-miss 404. */
+export const PRERENDER_HEADER = "x-flare-prerender"
+
 export interface PrerenderRoute {
 	defer?: StaticDeferMode
 	dynamicParams?: boolean
@@ -103,7 +106,10 @@ async function renderRoute(
 	/* 1. Fetch HTML */
 	let htmlResponse: Response
 	try {
-		htmlResponse = await handler.fetch(new Request(url, { method: "GET" }), env)
+		htmlResponse = await handler.fetch(
+			new Request(url, { headers: { [PRERENDER_HEADER]: "1" }, method: "GET" }),
+			env,
+		)
 	} catch (e: unknown) {
 		const msg = e instanceof Error ? e.message : String(e)
 		return { error: { message: msg, pathname: route.pathname } }
@@ -126,7 +132,7 @@ async function renderRoute(
 	try {
 		const dataResponse = await handler.fetch(
 			new Request(url, {
-				headers: { "x-d": "1" },
+				headers: { "x-d": "1", [PRERENDER_HEADER]: "1" },
 				method: "GET",
 			}),
 			env,

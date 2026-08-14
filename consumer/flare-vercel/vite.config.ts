@@ -3,5 +3,5 @@ import { nitro } from "nitro/vite"
 import { defineConfig } from "vite"
 
 export default defineConfig({
-	plugins: [flare(), nitro({ preset: "vercel" })],
+	plugins: [flare({ codegen: { fsVirtualPaths: false } }), nitro({ preset: "vercel" })],
 })

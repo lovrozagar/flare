@@ -170,7 +170,7 @@ describe("loadRouteModules", () => {
 
 		await loadRouteModules("/About", makeFakeTree(), {}, true)
 
-		expect(mockMatchRoute).toHaveBeenCalledWith(expect.anything(), "/About", true)
+		expect(mockMatchRoute).toHaveBeenCalledWith(expect.anything(), "/About", true, undefined)
 	})
 
 	it("passes caseSensitive=false to matchRoute by default", async () => {
@@ -178,7 +178,7 @@ describe("loadRouteModules", () => {
 
 		await loadRouteModules("/about", makeFakeTree(), {})
 
-		expect(mockMatchRoute).toHaveBeenCalledWith(expect.anything(), "/about", undefined)
+		expect(mockMatchRoute).toHaveBeenCalledWith(expect.anything(), "/about", undefined, undefined)
 	})
 
 	it("missing layout loader → skipped", async () => {

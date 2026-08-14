@@ -3,5 +3,5 @@ import { defineConfig } from "vite"
 import { flare } from "flare/plugins"
 
 export default defineConfig({
-	plugins: [flare(), nitro({ preset: "node-server" })],
+	plugins: [flare({ codegen: { fsVirtualPaths: false } }), nitro({ preset: "node-server" })],
 })

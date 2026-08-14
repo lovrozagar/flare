@@ -9,6 +9,8 @@ import {
 	Switch,
 } from "solid-js"
 import { render } from "solid-js/web"
+import type { LocaleMatch } from "../../router-primitives/tree.ts"
+import { matchRouteTree } from "./match-route-tree.ts"
 
 /* ── Types (mirror plugin.ts) ────────────────────────────────────────── */
 
@@ -50,6 +52,7 @@ interface ServerFnInfo {
 interface ApiData {
 	builderChains: Record<string, string[]>
 	defs: RouteDef[]
+	localeMatch?: LocaleMatch
 	routeTree: RouteTreeNode[]
 	serverFunctions: ServerFnInfo[]
 }
@@ -168,91 +171,6 @@ function saveState(s: {
 	} catch {
 		/* noop */
 	}
-}
-
-/* ── URL matching ─────────────────────────────────────────────────────── */
-
-/* TODO: locale allow-list — non-blocking, dev-only */
-function matchRouteTree(
-	nodes: RouteTreeNode[],
-	pathname: string,
-): { chain: MatchedRoute[]; params: Record<string, string> } {
-	const urlSegments = pathname.split("/").filter(Boolean)
-	const params: Record<string, string> = {}
-	const chain: MatchedRoute[] = []
-
-	function walk(children: RouteTreeNode[], idx: number): boolean {
-		for (const node of children) {
-			const seg = node.segment
-			const isGroup = seg.startsWith("(") && seg.endsWith(")")
-			const isParam = seg.startsWith("[") && seg.endsWith("]") && !seg.startsWith("[...")
-			const isCatchAll = seg.startsWith("[...") && seg.endsWith("]")
-			const isOptCatchAll = seg.startsWith("[[...") && seg.endsWith("]]")
-
-			if (isGroup) {
-				chain.push({ node, params: {} })
-				if (walk(node.children, idx)) return true
-				chain.pop()
-				continue
-			}
-
-			if (isOptCatchAll) {
-				const paramName = seg.slice(5, -2)
-				const remaining = urlSegments.slice(idx)
-				params[paramName] = remaining.join("/")
-				chain.push({ node, params: { [paramName]: remaining.join("/") } })
-				return true
-			}
-
-			if (isCatchAll) {
-				if (idx >= urlSegments.length) continue
-				const paramName = seg.slice(4, -1)
-				const remaining = urlSegments.slice(idx)
-				params[paramName] = remaining.join("/")
-				chain.push({ node, params: { [paramName]: remaining.join("/") } })
-				return true
-			}
-
-			const currentSeg = urlSegments[idx]
-
-			if (isParam) {
-				if (idx >= urlSegments.length) continue
-				const paramName = seg.slice(1, -1)
-				params[paramName] = currentSeg ?? ""
-				chain.push({ node, params: { [paramName]: currentSeg ?? "" } })
-
-				if (idx + 1 === urlSegments.length && node.children.length === 0) return true
-				if (walk(node.children, idx + 1)) return true
-				delete params[paramName]
-				chain.pop()
-				continue
-			}
-
-			/* Exact match or index "/" */
-			if (seg === currentSeg || (seg === "/" && idx === urlSegments.length)) {
-				chain.push({ node, params: {} })
-				if (seg === "/" && idx === urlSegments.length) return true
-				if (idx + 1 === urlSegments.length && node.children.length === 0) return true
-				if (walk(node.children, idx + 1)) return true
-				chain.pop()
-			}
-		}
-		return false
-	}
-
-	if (nodes.length > 0) {
-		const root = nodes[0]
-		if (root) {
-			chain.push({ node: root, params: {} })
-			if (urlSegments.length === 0) {
-				walk(root.children, 0)
-			} else {
-				walk(root.children, 0)
-			}
-		}
-	}
-
-	return { chain, params }
 }
 
 /* ── Badge helpers ────────────────────────────────────────────────────── */
@@ -643,12 +561,20 @@ const CSS = `
 .badge-orange { background: #18181b; color: #a1a1aa; border: 1px solid #27272a; }
 
 .list-item-file {
+  background: none;
+  border: none;
   color: #3f3f46;
+  cursor: pointer;
+  display: block;
+  font: inherit;
   font-size: 11px;
   margin-top: 2px;
   overflow: hidden;
+  padding: 0;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+  width: 100%;
 }
 
 .list-item-detail {
@@ -825,13 +751,19 @@ const CSS = `
 .cur-chain-seg.is-group { color: #52525b; font-style: italic; }
 .cur-chain-seg.is-param { color: #3b82f6; }
 .cur-chain-file {
+  background: none;
+  border: none;
   color: #3f3f46;
+  cursor: pointer;
+  font: inherit;
   font-size: 11px;
   margin-left: auto;
+  max-width: 280px;
   overflow: hidden;
+  padding: 0;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 280px;
 }
 
 .cur-chain-methods {
@@ -1312,7 +1244,18 @@ function ListItem(props: {
 	urlPath: string
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
 	return (
-		<button class="list-item" onClick={() => props.onClick()} type="button">
+		<div
+			class="list-item"
+			onClick={() => props.onClick()}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault()
+					props.onClick()
+				}
+			}}
+			role="button"
+			tabIndex={0}
+		>
 			<div class="list-item-header">
 				<span class="list-item-url">{props.urlPath}</span>
 				<div class="list-item-badges">
@@ -1367,7 +1310,7 @@ function ListItem(props: {
 					</Show>
 				</div>
 			</Show>
-		</button>
+		</div>
 	)
 }
 
@@ -1625,7 +1568,18 @@ function ChainNode(props: {
 		props.headConfig !== undefined
 
 	return (
-		<button class="cur-chain-node" onClick={() => setExpanded((e) => !e)} type="button">
+		<div
+			class="cur-chain-node"
+			onClick={() => setExpanded((e) => !e)}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.preventDefault()
+					setExpanded((v) => !v)
+				}
+			}}
+			role="button"
+			tabIndex={0}
+		>
 			<div class="cur-chain-header">
 				<span
 					class="tree-badge"
@@ -1725,7 +1679,7 @@ function ChainNode(props: {
 					</Show>
 				</div>
 			</Show>
-		</button>
+		</div>
 	)
 }
 
@@ -1748,6 +1702,7 @@ function formatAge(ms: number): string {
 function CurrentTab(props: {
 	builderChains: Record<string, string[]>
 	defs: RouteDef[]
+	localeMatch?: LocaleMatch
 	tree: RouteTreeNode[]
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
 	const [url, setUrl] = createSignal({
@@ -1819,7 +1774,7 @@ function CurrentTab(props: {
 		})
 	})
 
-	const matched = createMemo(() => matchRouteTree(props.tree, url().pathname))
+	const matched = createMemo(() => matchRouteTree(props.tree, url().pathname, props.localeMatch))
 	const searchParams = createMemo(() => parseSearchParams(url().search))
 
 	/* Read runtime matches (loader data, preloader context) + cache (headConfig) */
@@ -2686,6 +2641,7 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 											<CurrentTab
 												builderChains={d().builderChains}
 												defs={d().defs}
+												localeMatch={d().localeMatch}
 												tree={d().routeTree}
 											/>
 										</div>
@@ -2693,7 +2649,11 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 									<Match when={activeTab() === "actions"}>
 										<ActionsTab
 											defs={d().defs}
-											matched={matchRouteTree(d().routeTree, window.location.pathname)}
+											matched={matchRouteTree(
+												d().routeTree,
+												window.location.pathname,
+												d().localeMatch,
+											)}
 											serverFns={d().serverFunctions}
 											tree={d().routeTree}
 										/>

@@ -7,7 +7,7 @@ import {
 } from "../../../src/errors/index.ts"
 import { fetchNDJSON } from "../../../src/ndjson-client/index.ts"
 
-function createMockResponse(lines: string[]): Response {
+function createMockResponse(lines: string[], init?: { ok?: boolean; status?: number }): Response {
 	const body = `${lines.join("\n")}\n`
 	const encoder = new TextEncoder()
 	const encoded = encoder.encode(body)
@@ -24,9 +24,12 @@ function createMockResponse(lines: string[]): Response {
 		}),
 	}
 
+	const ok = init?.ok ?? true
 	return {
 		body: { getReader: () => reader },
-		ok: true,
+		headers: { get: (name: string) => (name.toLowerCase() === "content-type" ? "application/x-ndjson" : null) },
+		ok,
+		status: init?.status ?? (ok ? 200 : 500),
 	} as unknown as Response
 }
 
@@ -1094,5 +1097,47 @@ describe("response.body null handling", () => {
 		expect(result.perRouteHeads).toHaveLength(0)
 
 		globalThis.fetch = originalFetch
+	})
+})
+
+describe("non-OK NDJSON bodies", () => {
+	it("HTTP 500 with x-ndjson still parses loader and error messages", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				createMockResponse(
+					[
+						line({ d: { attempt: 2 }, m: "m1", t: "l" }),
+						line({ t: "d" }),
+					],
+					{ ok: false, status: 500 },
+				),
+			),
+		)
+
+		const result = await fetchNDJSON({ url: "/retry-test" })
+		expect(result.success).toBe(true)
+		expect(result.matches).toHaveLength(1)
+		expect(result.matches[0]?.loaderData).toEqual({ attempt: 2 })
+
+		vi.unstubAllGlobals()
+	})
+
+	it("HTTP 500 HTML is still a failed fetch", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				body: { getReader: () => ({ cancel: vi.fn(), read: async () => ({ done: true }) }) },
+				headers: { get: () => "text/html" },
+				ok: false,
+				status: 500,
+			}),
+		)
+
+		const result = await fetchNDJSON({ url: "/retry-test" })
+		expect(result.success).toBe(false)
+		expect(result.matches).toHaveLength(0)
+
+		vi.unstubAllGlobals()
 	})
 })

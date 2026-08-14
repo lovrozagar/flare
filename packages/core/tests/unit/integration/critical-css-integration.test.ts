@@ -73,10 +73,9 @@ describe.concurrent("critical-CSS full injection path", () => {
 		html = injectCriticalPlaceholder(html, "nonce-abc", MANIFEST.bundleHref)
 		html = injectCriticalAppend(html, ["/src/layout.tsx"], MANIFEST, "nonce-abc")
 
-		/* Placeholder is still present (placeholder itself unchanged) */
+		/* Placeholder stays in <head>; append fills it instead of a second tag. */
 		expect(html).toContain(`id="${CRITICAL_SHEET_ID}"`)
-		/* Late-inject appended with content */
-		expect(html).toContain("data-flare-critical-append")
+		expect(html).not.toContain("data-flare-critical-append")
 		expect(html).toContain(".a1-ee000005 { display: flex }")
 	})
 })

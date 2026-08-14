@@ -318,6 +318,49 @@ describe("retry triggers navigation with revalidation", () => {
 		expect(call.replace).toBe(true)
 		expect(call.revalidate).toBe(true)
 	})
+
+	it("setMatches without error leaves the pipeline error UI", async () => {
+		let retryFn: (() => void) | undefined
+		let ctx: FlareProviderContext | undefined
+
+		const page = makeMatch({
+			error: new Error("Transient failure"),
+			errorRender: (props) => {
+				retryFn = props.retry as () => void
+				return <div data-testid="retry-error-boundary">Error</div>
+			},
+			loaderData: { attempt: 2 },
+			render: (props) => (
+				<div data-testid="retry-success">{String((props.loaderData as { attempt: number }).attempt)}</div>
+			),
+			virtualPath: "_root_/retry-test",
+		})
+
+		dispose = render(
+			() => (
+				<FlareProvider
+					{...makeProviderProps({
+						matches: [page],
+						onContextReady: (c) => {
+							ctx = c
+						},
+					})}
+				>
+					<Outlet />
+				</FlareProvider>
+			),
+			container,
+		)
+
+		expect(container.querySelector("[data-testid='retry-error-boundary']")).not.toBeNull()
+		expect(retryFn).toBeDefined()
+
+		ctx?.setMatches([{ ...page, error: undefined }])
+		await Promise.resolve()
+
+		expect(container.querySelector("[data-testid='retry-error-boundary']")).toBeNull()
+		expect(container.querySelector("[data-testid='retry-success']")?.textContent).toBe("2")
+	})
 })
 
 describe("layout boundary receives retry for child errors", () => {

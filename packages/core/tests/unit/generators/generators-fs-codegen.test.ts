@@ -148,6 +148,10 @@ describe("detectRouteType", () => {
 		expect(detectRouteType("x.page.jsx")).toBe("page")
 	})
 
+	it("detects path-segment from .path-segment.tsx", () => {
+		expect(detectRouteType("locale.path-segment.tsx")).toBe("path-segment")
+	})
+
 	it("returns null for helper.ts", () => {
 		expect(detectRouteType("helper.ts")).toBeNull()
 	})

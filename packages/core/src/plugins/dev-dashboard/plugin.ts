@@ -1,9 +1,11 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { createRequire } from "node:module"
 import { dirname, join, resolve } from "node:path"
 import type { RouteDefinition } from "../../generators/index.ts"
 import { scanSourceFiles } from "../../generators/index.ts"
+import type { LocaleMatch } from "../../router-primitives/tree.ts"
 import type { FlarePluginConfig, VitePlugin } from "../index.ts"
+import { extractLocaleMatchFromModule } from "./match-route-tree.ts"
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -185,6 +187,27 @@ async function collectServerFns(
 	}
 }
 
+const ROUTER_CANDIDATES = ["src/router.ts", "src/router.tsx"] as const
+
+export async function collectLocaleMatch(
+	ssrRunner: { import: (id: string) => Promise<Record<string, unknown>> } | undefined,
+	root: string,
+): Promise<LocaleMatch | undefined> {
+	if (!ssrRunner) return undefined
+
+	for (const rel of ROUTER_CANDIDATES) {
+		if (!existsSync(join(root, rel))) continue
+		try {
+			const mod = await ssrRunner.import(`./${rel}`)
+			const match = extractLocaleMatchFromModule(mod)
+			if (match) return match
+		} catch {
+			/* try next candidate */
+		}
+	}
+	return undefined
+}
+
 /* ── Builder chain extraction ─────────────────────────────────────────── */
 
 const BUILDER_METHODS = new Set([
@@ -322,12 +345,15 @@ export function createDevDashboardPlugin(config: FlarePluginConfig): VitePlugin 
 					const routeTree = collectRouteTree(root, ignorePrefix)
 					const serverFunctions = await collectServerFns(ssrRunner)
 					const builderChains = extractBuilderChains(root, defs)
+					const localeMatch = await collectLocaleMatch(ssrRunner, root)
 
 					res.writeHead(200, {
 						"access-control-allow-origin": "*",
 						"content-type": "application/json",
 					})
-					res.end(JSON.stringify({ builderChains, defs, routeTree, serverFunctions }, null, 2))
+					res.end(
+						JSON.stringify({ builderChains, defs, localeMatch, routeTree, serverFunctions }, null, 2),
+					)
 				} catch (e: unknown) {
 					const msg = e instanceof Error ? e.message : String(e)
 					res.writeHead(500, { "content-type": "application/json" })

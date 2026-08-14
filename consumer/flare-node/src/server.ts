@@ -45,7 +45,7 @@ const pathMiddleware: FlareMiddleware = (ctx) => {
 	return ctx.next()
 }
 
-export default createServer(router)
+export const handler = createServer(router)
 	.use(timingMiddleware, markerMiddleware, pathMiddleware)
 	.serverContext(({ request }) => {
 		const url = new URL(request.url)
@@ -59,3 +59,5 @@ export default createServer(router)
 			userAgent: request.headers.get("user-agent") ?? "unknown",
 		}
 	})
+
+export default handler

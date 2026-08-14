@@ -121,10 +121,12 @@ export function createVirtualPlugin(
 				}
 			}
 			if (id === "\0virtual:flare-is-dev") {
-				return { code: `export default ${isDevMode}`, moduleType: "js" }
+				const dev = isDevMode || this.environment?.config?.mode === "development"
+				return { code: `export default ${dev}`, moduleType: "js" }
 			}
 			if (id === "\0virtual:flare-log-level") {
-				const level = config.logLevel ?? (isDevMode ? "warn" : "error")
+				const dev = isDevMode || this.environment?.config?.mode === "development"
+				const level = config.logLevel ?? (dev ? "warn" : "error")
 				return { code: `export default "${level}"`, moduleType: "js" }
 			}
 			if (id === "\0virtual:flare-module-preloads") {

@@ -1,6 +1,11 @@
 import type { Command } from "commander"
 import { resolveProject } from "../utils/project"
 
+/** `--fs` wins; otherwise use suffix-file detection from the project tree. */
+export function resolveCodegenFs(cliFs: boolean | undefined, hasFsCodegen: boolean): boolean {
+	return cliFs ?? hasFsCodegen
+}
+
 export function registerCodegen(program: Command): void {
 	program
 		.command("codegen")
@@ -19,7 +24,7 @@ export function registerCodegen(program: Command): void {
 			const { runGenerate } = await import("flare/generators")
 
 			const result = runGenerate({
-				fsCodegen: opts.fs ?? project.hasFsCodegen,
+				fsCodegen: resolveCodegenFs(opts.fs, project.hasFsCodegen),
 				outputPath: opts.output,
 				rootDir: project.root,
 				srcDir: opts.src,

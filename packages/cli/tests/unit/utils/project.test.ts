@@ -41,12 +41,24 @@ describe("resolveProject", () => {
 		expect(result.hasFlare).toBe(false)
 	})
 
-	it("detects fs-codegen when routes dir exists", () => {
+	it("does not treat a string-style routes dir as fs-codegen", () => {
 		writeFileSync(
 			join(tmp, "package.json"),
 			JSON.stringify({ dependencies: { "flare": "^0.0.1" } }),
 		)
 		mkdirSync(join(tmp, "src", "routes"), { recursive: true })
+		writeFileSync(join(tmp, "src", "routes", "about.tsx"), `export const route = createPage("_root_/about")`)
+		const result = resolveProject(tmp)
+		expect(result.hasFsCodegen).toBe(false)
+	})
+
+	it("detects fs-codegen when suffix route files exist", () => {
+		writeFileSync(
+			join(tmp, "package.json"),
+			JSON.stringify({ dependencies: { "flare": "^0.0.1" } }),
+		)
+		mkdirSync(join(tmp, "src", "routes", "_root_"), { recursive: true })
+		writeFileSync(join(tmp, "src", "routes", "_root_", "home.page.tsx"), "")
 		const result = resolveProject(tmp)
 		expect(result.hasFsCodegen).toBe(true)
 	})

@@ -5,7 +5,7 @@ import { flare } from "flare/plugins"
 const host = process.env.TAURI_DEV_HOST
 
 export default defineConfig({
-	plugins: [flare(), nitro({ preset: "node-server" })],
+	plugins: [flare({ codegen: { fsVirtualPaths: false } }), nitro({ preset: "node-server" })],
 	server: {
 		hmr: host ? { host, port: 5174, protocol: "ws" } : undefined,
 		host: host || false,

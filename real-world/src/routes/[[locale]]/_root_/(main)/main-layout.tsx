@@ -13,7 +13,7 @@ export const route = createLayout("[[locale]]/_root_/(main)")
 
 		return (
 			<>
-				<nav data-testid="main-nav" tw="flex items-center gap-4 p-4 border-b border-white/10">
+				<nav data-testid="main-nav" class="flex items-center gap-4 p-4 border-b border-white/10">
 					<Link
 						data-testid="nav-home"
 						params={{ locale: locale === "en" ? undefined : locale }}
@@ -28,7 +28,7 @@ export const route = createLayout("[[locale]]/_root_/(main)")
 					>
 						{t("common.nav.about")}
 					</Link>
-					<div data-testid="locale-switcher" tw="ml-auto flex gap-2 text-sm">
+					<div data-testid="locale-switcher" class="ml-auto flex gap-2 text-sm">
 						<Link data-testid="switch-en" params={{ locale: undefined }} to="/[[locale]]">
 							en
 						</Link>
@@ -40,7 +40,7 @@ export const route = createLayout("[[locale]]/_root_/(main)")
 						</Link>
 					</div>
 				</nav>
-				<div tw="p-4">{ctx.children}</div>
+				<div class="p-4">{ctx.children}</div>
 			</>
 		)
 	})

@@ -13,6 +13,7 @@ import type {
 	ServerHandler,
 	ServerHandlerConfig,
 	SitemapSubmitConfig,
+	StaticParamsMap,
 	TracingConfig,
 } from "../server-handler/index.ts"
 
@@ -61,6 +62,7 @@ export interface ServerBuilder<TExcluded extends string = never> {
 		env?: unknown,
 		ctx?: { waitUntil?: (p: Promise<unknown>) => void },
 	): Promise<Response>
+	getStaticParams(): Promise<StaticParamsMap>
 	keepalive: "keepalive" extends TExcluded
 		? never
 		: (config: KeepaliveConfig) => ServerBuilder<TExcluded | "keepalive">
@@ -100,6 +102,7 @@ interface ServerBuilderImpl {
 		env?: unknown,
 		ctx?: { waitUntil?: (p: Promise<unknown>) => void },
 	): Promise<Response>
+	getStaticParams(): Promise<StaticParamsMap>
 	keepalive(config: KeepaliveConfig): ServerBuilderImpl
 	mount(prefix: string, target: MountTarget): ServerBuilderImpl
 	security(
@@ -148,6 +151,20 @@ function normalizeMountTarget(target: MountTarget): MountConfig["fetch"] {
 	return (req, env, ctx) => target.fetch(req, env, ctx)
 }
 
+/**
+ * Cloudflare ExecutionContext.waitUntil must be invoked as a method.
+ * Passing the extracted function loses `this` and throws Illegal invocation,
+ * which previously turned a finished SSR into a 500.
+ */
+function bindWaitUntil(
+	ctx?: { waitUntil?: (p: Promise<unknown>) => void },
+): ((p: Promise<unknown>) => void) | undefined {
+	if (!ctx?.waitUntil) return undefined
+	return (p) => {
+		ctx.waitUntil!(p)
+	}
+}
+
 export function createServer(router: MarkedRouterConfig): ServerBuilder {
 	const middlewareEntries: MiddlewareEntry[] = []
 	const mountConfigs: MountConfig[] = []
@@ -160,10 +177,13 @@ export function createServer(router: MarkedRouterConfig): ServerBuilder {
 	let tracingConfig: TracingConfig | undefined
 
 	let cachedHandler: ServerHandler | undefined
-	let cachedWaitUntil: ((p: Promise<unknown>) => void) | undefined
+	let handlerConfig: ServerHandlerConfig | undefined
 
 	async function getHandler(waitUntil?: (p: Promise<unknown>) => void): Promise<ServerHandler> {
-		if (cachedHandler && cachedWaitUntil === waitUntil) return cachedHandler
+		if (cachedHandler && handlerConfig) {
+			handlerConfig.waitUntil = waitUntil
+			return cachedHandler
+		}
 
 		const allEntries = [...middlewareEntries]
 
@@ -204,8 +224,8 @@ export function createServer(router: MarkedRouterConfig): ServerBuilder {
 		}
 
 		const create = await getCreateServerHandler()
+		handlerConfig = config
 		cachedHandler = create(config)
-		cachedWaitUntil = waitUntil
 		return cachedHandler
 	}
 
@@ -219,9 +239,12 @@ export function createServer(router: MarkedRouterConfig): ServerBuilder {
 			return builder
 		},
 		async fetch(request, env, ctx) {
-			console.error(`[flare:server-builder] fetch envKeys=${env ? Object.keys(env as Record<string, unknown>).join(",") : "<env undefined>"} ctxArg=${ctx ? "present" : "absent"}`)
-			const h = await getHandler(ctx?.waitUntil)
+			const h = await getHandler(bindWaitUntil(ctx))
 			return h.fetch(request, env)
+		},
+		async getStaticParams() {
+			const h = await getHandler()
+			return h.getStaticParams()
 		},
 		keepalive(config) {
 			keepaliveConfig = config

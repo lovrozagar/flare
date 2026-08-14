@@ -9,6 +9,19 @@ export interface ProjectInfo {
 	srcDir: string
 }
 
+const FS_ROUTE_SUFFIX_RE = /\.(page|layout|root-layout|path-segment)\.(tsx?|jsx?)$/
+
+function hasFsRouteSuffixes(routesDir: string): boolean {
+	if (!existsSync(routesDir)) return false
+	let entries: string[]
+	try {
+		entries = readdirSync(routesDir, { recursive: true }) as string[]
+	} catch {
+		return false
+	}
+	return entries.some((entry) => FS_ROUTE_SUFFIX_RE.test(String(entry).replace(/\\/g, "/")))
+}
+
 export function resolveProject(startDir?: string): ProjectInfo {
 	const cwd = startDir ?? process.cwd()
 	let dir = resolve(cwd)
@@ -39,7 +52,7 @@ export function resolveProject(startDir?: string): ProjectInfo {
 						const routesDir = join(dir, srcDir, "routes")
 						return {
 							hasFlare: true,
-							hasFsCodegen: existsSync(routesDir),
+							hasFsCodegen: hasFsRouteSuffixes(routesDir),
 							root: dir,
 							routesDir,
 							srcDir,

@@ -1,0 +1,41 @@
+{
+	"name": "@flare/e2e-archive",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite dev --port 3999",
+		"preview": "vite preview --port 4000",
+		"test": "bunx playwright test --project=chromium-dev",
+		"test:all": "bunx playwright test",
+		"test:ui": "bunx playwright test --ui",
+		"type:check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@flare/ui-test-prebuilt": "workspace:*",
+		"@flare/ui-test-source": "workspace:*",
+		"@msviderok/base-ui-solid": "1.0.0-beta.12",
+		"flare": "workspace:*",
+		"@tanstack/solid-query": "catalog:",
+		"solid-js": "catalog:",
+		"tailwindcss": "catalog:",
+		"vite": "catalog:",
+		"vite-plugin-solid": "catalog:"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "catalog:",
+		"@effect/schema": "catalog:",
+		"@playwright/test": "catalog:",
+		"@sinclair/typebox": "catalog:",
+		"@types/node": "catalog:",
+		"arktype": "catalog:",
+		"effect": "catalog:",
+		"superstruct": "catalog:",
+		"typescript": "catalog:",
+		"valibot": "catalog:",
+		"vite-plugin-mkcert": "catalog:",
+		"yup": "catalog:",
+		"zod": "catalog:"
+	}
+}

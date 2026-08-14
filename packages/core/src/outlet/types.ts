@@ -126,6 +126,8 @@ export type NavigateOptions<TPath extends RoutePaths = RoutePaths> = {
 export interface InternalNavigateOptions {
 	/* internal: skip redundant matchRoute when delegate already resolved */
 	_precomputedMatch?: MatchResult
+	/* internal: user confirmed a blocked navigation — do not re-check the blocker */
+	_bypassBlocker?: boolean
 	_popstate?: boolean
 	_popstateDirection?: ViewTransitionDirection
 	_restoreScroll?: { x: number; y: number } | null

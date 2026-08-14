@@ -331,7 +331,7 @@ describe("anchor click delegate", () => {
 		await Promise.resolve()
 
 		expect(ev.defaultPrevented).toBe(true)
-		expect(mockMatchRoute).toHaveBeenCalledWith(expect.anything(), "/products", expect.anything())
+		expect(mockMatchRoute.mock.calls[0]?.[1]).toBe("/products")
 		expect(pushStateSpy).toHaveBeenCalled()
 	})
 

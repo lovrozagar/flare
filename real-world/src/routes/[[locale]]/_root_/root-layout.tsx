@@ -9,7 +9,7 @@ import { localeConfig } from "../../../i18n/config"
 export const rootLayout = createRootLayout("[[locale]]/_root_")
 	.preloader((ctx) => ({ locale: ctx.location.params.locale ?? "en" }))
 	.render((ctx) => (
-		<html lang={ctx.preloaderContext.locale} tw="bg-black text-white">
+		<html lang={ctx.preloaderContext.locale} class="bg-black text-white">
 			<head>
 				<FontCSS font={inter} subsets={["latin", "latin-ext"]} />
 				<ResetCSS />

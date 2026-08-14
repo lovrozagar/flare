@@ -6,7 +6,7 @@ export const route = createPage("[[locale]]/_root_/offline")
 		title: "Offline",
 	}))
 	.render(() => (
-		<main tw="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+		<main class="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
 			<svg
 				fill="none"
 				height="64"
@@ -25,7 +25,7 @@ export const route = createPage("[[locale]]/_root_/offline")
 				<path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
 				<line x1="12" x2="12.01" y1="20" y2="20" />
 			</svg>
-			<h1 tw="text-2xl font-bold">You're offline</h1>
-			<p tw="text-white/60">Please check your internet connection and try again.</p>
+			<h1 class="text-2xl font-bold">You're offline</h1>
+			<p class="text-white/60">Please check your internet connection and try again.</p>
 		</main>
 	))

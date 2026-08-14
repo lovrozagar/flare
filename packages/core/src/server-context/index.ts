@@ -208,8 +208,13 @@ export function getFormActionContext(fnId: string): FormActionContext | undefine
 export function background(promise: Promise<unknown>): void {
 	const ctx = getContext()
 	if (ctx.waitUntil) {
-		ctx.waitUntil(promise)
-	} else {
-		promise.catch(() => {})
+		try {
+			ctx.waitUntil(promise)
+			return
+		} catch {
+			/* Cloudflare's waitUntil is a method. An extracted unbound fn throws
+			   Illegal invocation — never fail the request for bookkeeping. */
+		}
 	}
+	promise.catch(() => {})
 }
