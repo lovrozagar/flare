@@ -168,7 +168,20 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 	const hydratePathname = composedRewrite
 		? executeRewriteInput(composedRewrite, hydrateUrl).pathname
 		: state.pathname
-	const modules = await loadRouteModules(hydratePathname, r.routeTree, r.layouts)
+	let modules = await loadRouteModules(
+		hydratePathname,
+		r.routeTree,
+		r.layouts,
+		r.caseSensitive,
+		r.locale,
+	)
+	/* Same fuzzy fallback as the server: unmatched URLs still hydrate the
+	   root index so NotFoundError from FlareState maps onto `_root_/`
+	   instead of a greedy `[locale]` param (which would render with no
+	   loaderData and throw on `.t`). */
+	if (!modules && (r.notFoundMode ?? "fuzzy") !== "root") {
+		modules = await loadRouteModules("/", r.routeTree, r.layouts, r.caseSensitive, r.locale)
+	}
 
 	if (modules) {
 		const search = parseSearchParams(new URL(window.location.href).searchParams)

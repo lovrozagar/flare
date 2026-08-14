@@ -51,6 +51,14 @@ describe("getPromise", () => {
 		const p = Promise.resolve(42)
 		expect(getPromise(p)).toBe(p)
 	})
+
+	it("deferred marker without promise → undefined", () => {
+		expect(getPromise({ __deferred: true } as Deferred<unknown>)).toBeUndefined()
+	})
+
+	it("null → undefined", () => {
+		expect(getPromise(null)).toBeUndefined()
+	})
 })
 
 describe("getResolvedValue", () => {

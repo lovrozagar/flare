@@ -270,6 +270,11 @@ export async function handleCdnRequest(
 		cacheKey = probeKey
 	}
 
+	if (cached && cached.body.includes("html-proxy")) {
+		/* Vite-virtualised inline scripts are not a valid cache body — treat as miss. */
+		cached = null
+	}
+
 	if (cached) {
 		const cc = parseCacheControl(cached.headers["cache-control"])
 		const freshness = checkFreshness(cached, cc, Date.now())
@@ -377,7 +382,7 @@ function interceptResponse(
 
 		const cc = parseCacheControl(capturedHeaders["cache-control"])
 
-		if (isCacheable(capturedStatus, cc)) {
+		if (isCacheable(capturedStatus, cc) && !capturedBody.includes("html-proxy")) {
 			const varyHeaders = parseVaryHeader(capturedHeaders.vary)
 			const surrogateKeys = parseSurrogateKey(capturedHeaders["surrogate-key"])
 			const reqHeaders = extractRequestHeaders(req, varyHeaders)

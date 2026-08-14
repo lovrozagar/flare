@@ -1063,6 +1063,28 @@ describe("popstate cache behavior", () => {
 		expect(ctx.isNavigating()).toBe(false)
 	})
 
+	it("popstate with hasDeferred cache → fetches", async () => {
+		const ctx = makeCtx()
+		setupNavigation(ctx, mockLoadRouteModules)
+
+		ctx.matchCache.set({
+			data: { comments: { __deferred: true, key: "c" } },
+			hasDeferred: true,
+			invalid: false,
+			matchId: "_root_/post:{}:[]",
+			updatedAt: Date.now(),
+		})
+
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/post") })
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule("_root_/post") }))
+		mockFetchNDJSON.mockResolvedValue({ matches: [], perRouteHeads: [], success: true })
+
+		window.history.pushState({}, "", "/post")
+		await navigate({ _popstate: true, to: "/post" })
+
+		expect(mockFetchNDJSON).toHaveBeenCalled()
+	})
+
 	it("popstate without cached data → fetches", async () => {
 		const ctx = makeCtx()
 		setupNavigation(ctx, mockLoadRouteModules)

@@ -1,4 +1,5 @@
 import type { JSX } from "solid-js"
+import { NoHydration } from "solid-js/web"
 import type { LocaleConfig } from "../locale/index.tsx"
 import { getLocaleScript } from "../locale/index.tsx"
 import { useSSRContext } from "./ssr-context.tsx"
@@ -17,5 +18,9 @@ export function LocaleScript(props: LocaleScriptProps): JSX.Element {
 		)
 	const script = getLocaleScript(config)
 
-	return (<script innerHTML={script} nonce={nonce} />) as unknown as JSX.Element
+	return (
+		<NoHydration>
+			<script innerHTML={script} nonce={nonce} />
+		</NoHydration>
+	) as unknown as JSX.Element
 }

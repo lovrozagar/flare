@@ -966,7 +966,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				})
 
 				if (options._popstate) {
-					if (!ctx.matchCache.isCached(matchId)) {
+					/* hasDeferred cache is a shell/marker — restore must refetch
+					   so Await gets a live promise, not `{ __deferred: true }` */
+					if (!ctx.matchCache.isCached(matchId) || ctx.matchCache.get(matchId)?.hasDeferred) {
 						staleMatchIds.push(matchId)
 					}
 				} else if (options.revalidate || refetch || ctx.matchCache.isStale(matchId, staleTime)) {
@@ -1012,6 +1014,17 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 
 			const now = Date.now()
 			for (const m of fetchResult.matches) {
+				/* x-m skip runs the route with loader stripped → null data.
+				   Do not clobber a live cache entry that already has data. */
+				const existing = ctx.matchCache.get(m.matchId)
+				if (m.loaderData == null && !m.error && existing && existing.data != null) {
+					const nextHead = headByMatchId.get(m.matchId)
+					if (nextHead) {
+						existing.headConfig = nextHead
+						ctx.matchCache.set(existing)
+					}
+					continue
+				}
 				ctx.matchCache.set({
 					data: m.loaderData,
 					error: m.error,
@@ -1054,7 +1067,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		/* Failed data fetch with no parsed matches: keep the current match
 		 * tree. Rebuilding from cache would drop pipeline errors that were
 		 * never written to matchCache (SSR hydrates them via errorName only). */
-		if (fetchResult && !fetchResult.success && fetchResult.matches.length === 0) {
+		if (fetchResult && fetchResult.success === false && fetchResult.matches.length === 0) {
 			stopNavigation()
 			return
 		}

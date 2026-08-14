@@ -26,9 +26,43 @@ describe("getThemeScript", () => {
 		expect(script).toContain("data-theme")
 	})
 
-	it("script sets colorScheme style", () => {
+	it("script sets colorScheme style behind try/catch (CSP CSSOM)", () => {
 		const script = getThemeScript()
 		expect(script).toContain("colorScheme")
+		expect(script).toContain("try{e.style.colorScheme=t}catch{}")
+	})
+
+	it("executed script applies stored theme to documentElement", () => {
+		document.documentElement.removeAttribute("data-theme")
+		document.documentElement.style.colorScheme = ""
+		localStorage.setItem("flare.theme", "dark")
+		const script = getThemeScript()
+		new Function(script)()
+		expect(document.documentElement.getAttribute("data-theme")).toBe("dark")
+		expect(document.documentElement.style.colorScheme).toBe("dark")
+		localStorage.removeItem("flare.theme")
+		document.documentElement.removeAttribute("data-theme")
+		document.documentElement.style.colorScheme = ""
+	})
+
+	it("executed script resolves system via matchMedia when nothing is stored", () => {
+		document.documentElement.removeAttribute("data-theme")
+		localStorage.removeItem("flare.theme")
+		const original = window.matchMedia
+		window.matchMedia = ((query: string) =>
+			({
+				addEventListener: () => {},
+				matches: query.includes("dark"),
+				removeEventListener: () => {},
+			}) as MediaQueryList) as typeof matchMedia
+		try {
+			new Function(getThemeScript())()
+			expect(document.documentElement.getAttribute("data-theme")).toBe("dark")
+		} finally {
+			window.matchMedia = original
+			document.documentElement.removeAttribute("data-theme")
+			document.documentElement.style.colorScheme = ""
+		}
 	})
 
 	it("custom attribute → used in script", () => {

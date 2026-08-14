@@ -176,10 +176,14 @@ export function createServer(router: MarkedRouterConfig): ServerBuilder {
 	let sitemapConfig: SitemapSubmitConfig | undefined
 	let tracingConfig: TracingConfig | undefined
 
-	let cachedHandler: ServerHandler | undefined
+	type ResolvedHandler = ServerHandler & {
+		getStaticParams(): Promise<StaticParamsMap>
+	}
+
+	let cachedHandler: ResolvedHandler | undefined
 	let handlerConfig: ServerHandlerConfig | undefined
 
-	async function getHandler(waitUntil?: (p: Promise<unknown>) => void): Promise<ServerHandler> {
+	async function getHandler(waitUntil?: (p: Promise<unknown>) => void): Promise<ResolvedHandler> {
 		if (cachedHandler && handlerConfig) {
 			handlerConfig.waitUntil = waitUntil
 			return cachedHandler

@@ -109,6 +109,23 @@ describe("ThemeProvider initialization", () => {
 })
 
 describe("ThemeProvider DOM sync", () => {
+	it("applies data-theme synchronously on first land, before effects", () => {
+		localStorage.setItem("flare.theme", "dark")
+		dispose = render(
+			() => (
+				<ThemeProvider>
+					{(() => {
+						useTheme()
+						return null
+					})()}
+				</ThemeProvider>
+			),
+			container,
+		)
+		expect(document.documentElement.getAttribute("data-theme")).toBe("dark")
+		expect(document.documentElement.style.colorScheme).toBe("dark")
+	})
+
 	it("resolved theme sets data-theme attribute on documentElement", async () => {
 		localStorage.setItem("flare.theme", "dark")
 		dispose = render(
@@ -377,6 +394,42 @@ describe("System theme detection", () => {
 })
 
 describe("SSR passthrough", () => {
+	it("hydration does not read localStorage as initial (avoids first-land freeze)", async () => {
+		localStorage.setItem("flare.theme", "dark")
+		const { sharedConfig } = await import("solid-js")
+		const original = sharedConfig.context
+		try {
+			Object.defineProperty(sharedConfig, "context", {
+				configurable: true,
+				value: { count: 0, id: "test" },
+			})
+			const first: string[] = []
+			let getter: (() => string) | undefined
+			dispose = render(
+				() => (
+					<ThemeProvider>
+						{(() => {
+							const ctx = useTheme()
+							getter = ctx.theme
+							first.push(ctx.theme())
+							return null
+						})()}
+					</ThemeProvider>
+				),
+				container,
+			)
+			expect(first[0]).toBe("system")
+			await tick()
+			expect(getter?.()).toBe("dark")
+			expect(document.documentElement.getAttribute("data-theme")).toBe("dark")
+		} finally {
+			Object.defineProperty(sharedConfig, "context", {
+				configurable: true,
+				value: original,
+			})
+		}
+	})
+
 	it("sharedConfig.context truthy → still provides useTheme context", async () => {
 		const { sharedConfig } = await import("solid-js")
 		const original = sharedConfig.context

@@ -1,0 +1,38 @@
+{
+	"name": "@flare/e2e-product",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite dev --port 4101",
+		"generate": "flare codegen",
+		"preview": "vite preview --port 4102",
+		"type:check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@tanstack/solid-query": "catalog:",
+		"flare": "workspace:*",
+		"node-html-markdown": "catalog:",
+		"solid-js": "catalog:",
+		"tailwindcss": "catalog:",
+		"vite": "catalog:",
+		"vite-plugin-solid": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "catalog:",
+		"@cloudflare/vite-plugin": "catalog:",
+		"@effect/schema": "catalog:",
+		"@flare/cli": "workspace:*",
+		"@playwright/test": "catalog:",
+		"@sinclair/typebox": "catalog:",
+		"@types/node": "catalog:",
+		"arktype": "catalog:",
+		"effect": "catalog:",
+		"superstruct": "catalog:",
+		"typescript": "catalog:",
+		"valibot": "catalog:",
+		"yup": "catalog:"
+	}
+}

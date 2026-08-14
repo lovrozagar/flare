@@ -23,126 +23,28 @@
         "vite-plugin-solid": "2.11.12",
       },
     },
-    "consumer/flare-aws-amplify": {
-      "name": "flare-aws-amplify",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-aws-lambda": {
-      "name": "flare-aws-lambda",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-bun": {
-      "name": "flare-bun",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-cf-durable": {
-      "name": "flare-cf-durable",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-cf-module": {
-      "name": "flare-cf-module",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-cf-pages": {
-      "name": "flare-cf-pages",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-cf-workers": {
-      "name": "flare-cf-workers",
+    "e2e/apps/demo": {
+      "name": "@flare/e2e-demo",
+      "version": "0.0.1",
       "dependencies": {
         "flare": "workspace:*",
         "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
+        "zod": "catalog:",
       },
       "devDependencies": {
         "@cloudflare/vite-plugin": "catalog:",
+        "@playwright/test": "catalog:",
+        "@types/node": "catalog:",
+        "tailwindcss": "catalog:",
         "typescript": "catalog:",
+        "vite": "catalog:",
+        "vite-plugin-solid": "catalog:",
         "wrangler": "catalog:",
       },
     },
-    "consumer/flare-deno": {
-      "name": "flare-deno",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-deno-deploy": {
-      "name": "flare-deno-deploy",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-fs-paths": {
-      "name": "flare-fs-paths",
+    "e2e/apps/fs-routes": {
+      "name": "@flare/e2e-fs-routes",
+      "version": "0.0.1",
       "dependencies": {
         "flare": "workspace:*",
         "solid-js": "catalog:",
@@ -158,158 +60,8 @@
         "wrangler": "catalog:",
       },
     },
-    "consumer/flare-netlify": {
-      "name": "flare-netlify",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-node": {
-      "name": "flare-node",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "@types/node": "catalog:",
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-node-cluster": {
-      "name": "flare-node-cluster",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-node-middleware": {
-      "name": "flare-node-middleware",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-standard": {
-      "name": "flare-standard",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-stormkit": {
-      "name": "flare-stormkit",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-tauri": {
-      "name": "flare-tauri",
-      "dependencies": {
-        "@tauri-apps/api": "2.11.1",
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "@tauri-apps/cli": "2.11.4",
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-vercel": {
-      "name": "flare-vercel",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "consumer/flare-zeabur": {
-      "name": "flare-zeabur",
-      "dependencies": {
-        "flare": "workspace:*",
-        "nitro": "catalog:",
-        "solid-js": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "typescript": "catalog:",
-      },
-    },
-    "e2e-archive": {
-      "name": "@flare/e2e-archive",
-      "version": "0.0.1",
-      "dependencies": {
-        "@flare/ui-test-prebuilt": "workspace:*",
-        "@flare/ui-test-source": "workspace:*",
-        "@msviderok/base-ui-solid": "1.0.0-beta.12",
-        "@tanstack/solid-query": "catalog:",
-        "flare": "workspace:*",
-        "solid-js": "catalog:",
-        "tailwindcss": "catalog:",
-        "vite": "catalog:",
-        "vite-plugin-solid": "catalog:",
-      },
-      "devDependencies": {
-        "@axe-core/playwright": "catalog:",
-        "@effect/schema": "catalog:",
-        "@playwright/test": "catalog:",
-        "@sinclair/typebox": "catalog:",
-        "@types/node": "catalog:",
-        "arktype": "catalog:",
-        "effect": "catalog:",
-        "superstruct": "catalog:",
-        "typescript": "catalog:",
-        "valibot": "catalog:",
-        "vite-plugin-mkcert": "catalog:",
-        "yup": "catalog:",
-        "zod": "catalog:",
-      },
-    },
-    "e2e/app": {
-      "name": "@flare/e2e-app",
+    "e2e/apps/product": {
+      "name": "@flare/e2e-product",
       "version": "0.0.1",
       "dependencies": {
         "@tanstack/solid-query": "catalog:",
@@ -322,8 +74,33 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@axe-core/playwright": "catalog:",
         "@cloudflare/vite-plugin": "catalog:",
+        "@effect/schema": "catalog:",
         "@flare/cli": "workspace:*",
+        "@playwright/test": "catalog:",
+        "@sinclair/typebox": "catalog:",
+        "@types/node": "catalog:",
+        "arktype": "catalog:",
+        "effect": "catalog:",
+        "superstruct": "catalog:",
+        "typescript": "catalog:",
+        "valibot": "catalog:",
+        "yup": "catalog:",
+      },
+    },
+    "e2e/apps/tauri": {
+      "name": "@flare/e2e-tauri",
+      "version": "0.0.1",
+      "dependencies": {
+        "@tauri-apps/api": "2.11.1",
+        "flare": "workspace:*",
+        "nitro": "catalog:",
+        "solid-js": "catalog:",
+        "vite": "catalog:",
+        "vite-plugin-solid": "catalog:",
+      },
+      "devDependencies": {
         "@playwright/test": "catalog:",
         "@types/node": "catalog:",
         "typescript": "catalog:",
@@ -333,7 +110,7 @@
       "name": "@flare/e2e-bun",
       "version": "0.0.1",
       "dependencies": {
-        "@flare/e2e-app": "workspace:*",
+        "@flare/e2e-product": "workspace:*",
         "flare": "workspace:*",
       },
       "devDependencies": {
@@ -347,7 +124,7 @@
       "name": "@flare/e2e-deno",
       "version": "0.0.1",
       "dependencies": {
-        "@flare/e2e-app": "workspace:*",
+        "@flare/e2e-product": "workspace:*",
         "flare": "workspace:*",
       },
       "devDependencies": {
@@ -360,7 +137,7 @@
       "name": "@flare/e2e-node",
       "version": "0.0.1",
       "dependencies": {
-        "@flare/e2e-app": "workspace:*",
+        "@flare/e2e-product": "workspace:*",
         "flare": "workspace:*",
       },
       "devDependencies": {
@@ -374,7 +151,7 @@
       "name": "@flare/e2e-workers",
       "version": "0.0.1",
       "dependencies": {
-        "@flare/e2e-app": "workspace:*",
+        "@flare/e2e-product": "workspace:*",
         "flare": "workspace:*",
       },
       "devDependencies": {
@@ -446,23 +223,6 @@
       "optionalPeers": [
         "node-html-markdown",
       ],
-    },
-    "real-world": {
-      "name": "@flare/real-world",
-      "version": "0.0.1",
-      "dependencies": {
-        "flare": "workspace:*",
-        "solid-js": "1.9.14",
-        "zod": "catalog:",
-      },
-      "devDependencies": {
-        "@playwright/test": "1.61.1",
-        "@types/node": "26.1.1",
-        "tailwindcss": "4.3.2",
-        "typescript": "7.0.2",
-        "vite": "8.1.4",
-        "vite-plugin-solid": "2.11.12",
-      },
     },
     "ui-test-prebuilt": {
       "name": "@flare/ui-test-prebuilt",
@@ -667,29 +427,25 @@
 
     "@flare/cli": ["@flare/cli@workspace:packages/cli"],
 
-    "@flare/e2e-app": ["@flare/e2e-app@workspace:e2e/app"],
-
-    "@flare/e2e-archive": ["@flare/e2e-archive@workspace:e2e-archive"],
-
     "@flare/e2e-bun": ["@flare/e2e-bun@workspace:e2e/bun"],
+
+    "@flare/e2e-demo": ["@flare/e2e-demo@workspace:e2e/apps/demo"],
 
     "@flare/e2e-deno": ["@flare/e2e-deno@workspace:e2e/deno"],
 
+    "@flare/e2e-fs-routes": ["@flare/e2e-fs-routes@workspace:e2e/apps/fs-routes"],
+
     "@flare/e2e-node": ["@flare/e2e-node@workspace:e2e/node"],
 
-    "@flare/e2e-workers": ["@flare/e2e-workers@workspace:e2e/workers"],
+    "@flare/e2e-product": ["@flare/e2e-product@workspace:e2e/apps/product"],
 
-    "@flare/real-world": ["@flare/real-world@workspace:real-world"],
+    "@flare/e2e-tauri": ["@flare/e2e-tauri@workspace:e2e/apps/tauri"],
+
+    "@flare/e2e-workers": ["@flare/e2e-workers@workspace:e2e/workers"],
 
     "@flare/ui-test-prebuilt": ["@flare/ui-test-prebuilt@workspace:ui-test-prebuilt"],
 
     "@flare/ui-test-source": ["@flare/ui-test-source@workspace:ui-test-source"],
-
-    "@floating-ui/core": ["@floating-ui/core@1.8.0", "", { "dependencies": { "@floating-ui/utils": "^0.2.12" } }, "sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ=="],
-
-    "@floating-ui/dom": ["@floating-ui/dom@1.8.0", "", { "dependencies": { "@floating-ui/core": "^1.8.0", "@floating-ui/utils": "^0.2.12" } }, "sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg=="],
-
-    "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
     "@formatjs/fast-memoize": ["@formatjs/fast-memoize@3.1.6", "", {}, "sha512-H5aexk1Le7T9TPmscacZ+1pR6CTa2n1wq+HDVGXhH8TzUlQQpeXzZs91dRtmFHrbeNbjPFPfQujUqm7MHgVoXQ=="],
 
@@ -758,8 +514,6 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.9", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.0.3", "@jridgewell/sourcemap-codec": "^1.4.10" } }, "sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ=="],
-
-    "@msviderok/base-ui-solid": ["@msviderok/base-ui-solid@1.0.0-beta.12", "", { "dependencies": { "@babel/runtime": "^7.27.6", "@floating-ui/dom": "^1.7.2", "@floating-ui/utils": "^0.2.10", "@solid-primitives/props": "^3.2.2", "@solidjs/router": "^0.15.3", "tabbable": "^6.2.0" }, "peerDependencies": { "solid-js": "^1.8" } }, "sha512-MP44XO5FdUoXrPO+Rzj7pG1+r4H4xnVvBtgEQV0V0OrnE9oyQ0lhg0/aLaHHot5dGjbGozpqVD9sUUWAWWgEKg=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.3", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-UMduMbqO5s5zF2NkNacMT/yK5Y5QiKvWr2+50bzIIxFDwVJ2h49b+oyjaCGPhJxd2/gC2x39EHv/gHVuu36x2Q=="],
 
@@ -887,10 +641,6 @@
 
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 
-    "@solid-primitives/props": ["@solid-primitives/props@3.2.4", "", { "dependencies": { "@solid-primitives/utils": "^6.4.1" }, "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-MXXdvi2TSB6d+0N6ueA/HP1j/Kh9SEc4WdF1ZDMLwPagxW6pIHHSS9xbRO0RjqSVpNP4j0nxCWT1hx3CkJNhNA=="],
-
-    "@solid-primitives/utils": ["@solid-primitives/utils@6.4.1", "", { "peerDependencies": { "solid-js": "^1.6.12" } }, "sha512-ISSB5QX1qP2ynrheIpYwc4oKR5Ny4siNuUyf1qZniy+Il+p/PtDB0QK1Dnle8noiHpwRD3gpPdubOC3qI/Zamg=="],
-
     "@solidjs/router": ["@solidjs/router@0.15.4", "", { "peerDependencies": { "solid-js": "^1.8.6" } }, "sha512-WOpgg9a9T638cR+5FGbFi/IV4l2FpmBs1GpIMSPa0Ce9vyJN7Wts+X2PqMf9IYn0zUj2MlSJtm1gp7/HI/n5TQ=="],
 
     "@solidjs/testing-library": ["@solidjs/testing-library@0.8.10", "", { "dependencies": { "@testing-library/dom": "^10.4.0" }, "peerDependencies": { "@solidjs/router": ">=0.9.0", "solid-js": ">=1.0.0" }, "optionalPeers": ["@solidjs/router"] }, "sha512-qdeuIerwyq7oQTIrrKvV0aL9aFeuwTd86VYD3afdq5HYEwoox1OBTJy4y8A3TFZr8oAR0nujYgCzY/8wgHGfeQ=="],
@@ -906,30 +656,6 @@
     "@tanstack/solid-query": ["@tanstack/solid-query@5.101.2", "", { "dependencies": { "@tanstack/query-core": "5.101.2" }, "peerDependencies": { "solid-js": "^1.6.0" } }, "sha512-IbCeM23gEbU0lW4wWFQhS4ELjgdmVXjhyCUh8pFemdMIuA5UswlkqEMryEE+lCMtxLS7m0oN1yWMocKi7vwXdw=="],
 
     "@tauri-apps/api": ["@tauri-apps/api@2.11.1", "", {}, "sha512-M2FPuYND2m+wh5hfW9ZpSdxMPdEJovPBWwoHJmwUpysTYNHaOkVFN419m/K0LIgjb/7KU2vBgsUepJWugQCvAA=="],
-
-    "@tauri-apps/cli": ["@tauri-apps/cli@2.11.4", "", { "optionalDependencies": { "@tauri-apps/cli-darwin-arm64": "2.11.4", "@tauri-apps/cli-darwin-x64": "2.11.4", "@tauri-apps/cli-linux-arm-gnueabihf": "2.11.4", "@tauri-apps/cli-linux-arm64-gnu": "2.11.4", "@tauri-apps/cli-linux-arm64-musl": "2.11.4", "@tauri-apps/cli-linux-riscv64-gnu": "2.11.4", "@tauri-apps/cli-linux-x64-gnu": "2.11.4", "@tauri-apps/cli-linux-x64-musl": "2.11.4", "@tauri-apps/cli-win32-arm64-msvc": "2.11.4", "@tauri-apps/cli-win32-ia32-msvc": "2.11.4", "@tauri-apps/cli-win32-x64-msvc": "2.11.4" }, "bin": { "tauri": "tauri.js" } }, "sha512-R8xGtMpwyetawSqm9kYOuMmEqkhUbvcUy8n0aNXIxollKBLESUu5f4Fx+64hgASYm1H+jSWq6jCW6zqTnH6hqQ=="],
-
-    "@tauri-apps/cli-darwin-arm64": ["@tauri-apps/cli-darwin-arm64@2.11.4", "", { "os": "darwin", "cpu": "arm64" }, "sha512-1ryOF3ZhpZ/nemHV5zVwBQBz9jDGKmKPvWPADOhc83ig0P4bMc2iER4NbC6r9sjeIZ6RVQ4g3RZIYvezhcl4TQ=="],
-
-    "@tauri-apps/cli-darwin-x64": ["@tauri-apps/cli-darwin-x64@2.11.4", "", { "os": "darwin", "cpu": "x64" }, "sha512-uFsGQAAfuyz1k/yGLmkWfkBlgKAqZfxqlHmLWx81QU27RJWfmbNHCIq8T8w1e+VClleIuZUjpHWfoE4E3DLo3A=="],
-
-    "@tauri-apps/cli-linux-arm-gnueabihf": ["@tauri-apps/cli-linux-arm-gnueabihf@2.11.4", "", { "os": "linux", "cpu": "arm" }, "sha512-IaHZn5CdBL21oUmjiVOS1ctw6Ip1O0pjp70FwOWmYz1myWe0SY96ZIj2FYf7pT0m8bI2h/hrs5ZbEXXh44/MkQ=="],
-
-    "@tauri-apps/cli-linux-arm64-gnu": ["@tauri-apps/cli-linux-arm64-gnu@2.11.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-N41/ukTRVe6XSuUTESuFdGeOW2i7k62tK+6gHK5Kd5/q5RPvvi19GaWAVPPb9u95HSGmTChSolBfzynUsssFaA=="],
-
-    "@tauri-apps/cli-linux-arm64-musl": ["@tauri-apps/cli-linux-arm64-musl@2.11.4", "", { "os": "linux", "cpu": "arm64" }, "sha512-v277UnT/fB64xAfSroL5N3Km3tLmvATWqJJw/wRI+g6o+HkeD0slyE7gOhNs1MbjE41R7bQOTxMVoL3aomUJmw=="],
-
-    "@tauri-apps/cli-linux-riscv64-gnu": ["@tauri-apps/cli-linux-riscv64-gnu@2.11.4", "", { "os": "linux", "cpu": "none" }, "sha512-qqgNkQ2u1yZHxjhxsZaxUtRDW8dIqIYm33rx/mzwQv0SfY9x1B+iraj8vWeFiXjjSVVhEMepXSOts1TqPzvXNQ=="],
-
-    "@tauri-apps/cli-linux-x64-gnu": ["@tauri-apps/cli-linux-x64-gnu@2.11.4", "", { "os": "linux", "cpu": "x64" }, "sha512-2VRNWl84FOH0m2giiDkO2h0QXlcMJeX+zJDpI5kDIQAx6s+geF3v48F4DXfJez4GS/FdoDGnPnw1C2iYGbQ7bQ=="],
-
-    "@tauri-apps/cli-linux-x64-musl": ["@tauri-apps/cli-linux-x64-musl@2.11.4", "", { "os": "linux", "cpu": "x64" }, "sha512-o9GyhYor/nc7xarmwDE3ka2szuW3uuZzXjHWh64Q8YX5AtSgxdQkFWzrY4O8KiGtVNvFBI14H3Q49Qj5TOIP/A=="],
-
-    "@tauri-apps/cli-win32-arm64-msvc": ["@tauri-apps/cli-win32-arm64-msvc@2.11.4", "", { "os": "win32", "cpu": "arm64" }, "sha512-ld5Ehb598m0VkYyylRPNeCFsBe/km0jxis6KgMpl3IGY6I/i1RwQXO05I1AsXUXO2WC6AvB/Lw4qTf/asiuEiQ=="],
-
-    "@tauri-apps/cli-win32-ia32-msvc": ["@tauri-apps/cli-win32-ia32-msvc@2.11.4", "", { "os": "win32", "cpu": "ia32" }, "sha512-12Hxi0XX/H5VFxO/bGgHkFWhml9VMgEOu9CidjeCeTNQ1l6fpUlbiGgSP7CLI3PFtW9/FfbeHieZ+kyWK5H7CA=="],
-
-    "@tauri-apps/cli-win32-x64-msvc": ["@tauri-apps/cli-win32-x64-msvc@2.11.4", "", { "os": "win32", "cpu": "x64" }, "sha512-+vDiqBIU5dMISg/wNvX3sF+ZHfgJGJ5T0AcO+EHNXV9GGAG+P5fzodlDXD3QdKCRgZxMoCm5PPvj3BqLNjBthw=="],
 
     "@testing-library/dom": ["@testing-library/dom@10.4.1", "", { "dependencies": { "@babel/code-frame": "^7.10.4", "@babel/runtime": "^7.12.5", "@types/aria-query": "^5.0.1", "aria-query": "5.3.0", "dom-accessibility-api": "^0.5.9", "lz-string": "^1.5.0", "picocolors": "1.1.1", "pretty-format": "^27.0.2" } }, "sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg=="],
 
@@ -1139,45 +865,7 @@
 
     "flare": ["flare@workspace:packages/core"],
 
-    "flare-aws-amplify": ["flare-aws-amplify@workspace:consumer/flare-aws-amplify"],
-
-    "flare-aws-lambda": ["flare-aws-lambda@workspace:consumer/flare-aws-lambda"],
-
     "flare-benchmark-flare": ["flare-benchmark-flare@workspace:benchmark/flare"],
-
-    "flare-bun": ["flare-bun@workspace:consumer/flare-bun"],
-
-    "flare-cf-durable": ["flare-cf-durable@workspace:consumer/flare-cf-durable"],
-
-    "flare-cf-module": ["flare-cf-module@workspace:consumer/flare-cf-module"],
-
-    "flare-cf-pages": ["flare-cf-pages@workspace:consumer/flare-cf-pages"],
-
-    "flare-cf-workers": ["flare-cf-workers@workspace:consumer/flare-cf-workers"],
-
-    "flare-deno": ["flare-deno@workspace:consumer/flare-deno"],
-
-    "flare-deno-deploy": ["flare-deno-deploy@workspace:consumer/flare-deno-deploy"],
-
-    "flare-fs-paths": ["flare-fs-paths@workspace:consumer/flare-fs-paths"],
-
-    "flare-netlify": ["flare-netlify@workspace:consumer/flare-netlify"],
-
-    "flare-node": ["flare-node@workspace:consumer/flare-node"],
-
-    "flare-node-cluster": ["flare-node-cluster@workspace:consumer/flare-node-cluster"],
-
-    "flare-node-middleware": ["flare-node-middleware@workspace:consumer/flare-node-middleware"],
-
-    "flare-standard": ["flare-standard@workspace:consumer/flare-standard"],
-
-    "flare-stormkit": ["flare-stormkit@workspace:consumer/flare-stormkit"],
-
-    "flare-tauri": ["flare-tauri@workspace:consumer/flare-tauri"],
-
-    "flare-vercel": ["flare-vercel@workspace:consumer/flare-vercel"],
-
-    "flare-zeabur": ["flare-zeabur@workspace:consumer/flare-zeabur"],
 
     "form-data": ["form-data@4.0.6", "", { "dependencies": { "asynckit": "^0.4.0", "combined-stream": "^1.0.8", "es-set-tostringtag": "^2.1.0", "hasown": "^2.0.4", "mime-types": "^2.1.35" } }, "sha512-vKatAh4SlVfgbv+YtmhiRjhEMJsYpsG1Y2rMQtR+SVSbytsSD1YGzDIcrAJmdFec88u/+VoGmxnl+80gL1tRCQ=="],
 
@@ -1385,8 +1073,6 @@
 
     "symbol-tree": ["symbol-tree@3.2.4", "", {}, "sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw=="],
 
-    "tabbable": ["tabbable@6.5.0", "", {}, "sha512-wieBHXygIm7OyQOu5hQlkk62/WyCFYGlWg7L6/ZCUZwx0o398Zkn4pVmMyfYhfMG8kGrj/Krt8eIk6UKC6VzwA=="],
-
     "tailwindcss": ["tailwindcss@4.3.2", "", {}, "sha512-WtctNNSH8A9jlMIqxzuYumOHU5uGZyRv0Q5svQl+oEPy5w84YpBxdb7MdqyiSPQge5jTJ6zFQLq0PFygdccSBA=="],
 
     "tiny-case": ["tiny-case@1.0.3", "", {}, "sha512-Eet/eeMhkO6TX8mnUteS9zgPbUMQa4I6Kkp5ORiBD5476/m+PIRiumP5tmh5ioJpH7k51Kehawy2UDfsnxxY8Q=="],
@@ -1411,7 +1097,7 @@
 
     "typescript": ["typescript@7.0.2", "", { "optionalDependencies": { "@typescript/typescript-aix-ppc64": "7.0.2", "@typescript/typescript-darwin-arm64": "7.0.2", "@typescript/typescript-darwin-x64": "7.0.2", "@typescript/typescript-freebsd-arm64": "7.0.2", "@typescript/typescript-freebsd-x64": "7.0.2", "@typescript/typescript-linux-arm": "7.0.2", "@typescript/typescript-linux-arm64": "7.0.2", "@typescript/typescript-linux-loong64": "7.0.2", "@typescript/typescript-linux-mips64el": "7.0.2", "@typescript/typescript-linux-ppc64": "7.0.2", "@typescript/typescript-linux-riscv64": "7.0.2", "@typescript/typescript-linux-s390x": "7.0.2", "@typescript/typescript-linux-x64": "7.0.2", "@typescript/typescript-netbsd-arm64": "7.0.2", "@typescript/typescript-netbsd-x64": "7.0.2", "@typescript/typescript-openbsd-arm64": "7.0.2", "@typescript/typescript-openbsd-x64": "7.0.2", "@typescript/typescript-sunos-x64": "7.0.2", "@typescript/typescript-win32-arm64": "7.0.2", "@typescript/typescript-win32-x64": "7.0.2" }, "bin": { "tsc": "bin/tsc" } }, "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA=="],
 
-    "undici": ["undici@8.10.0", "", {}, "sha512-HvltHd7avK13QIw/oLe4qoOLyoVSoafqJ2jYOrtMRBkbYT31eiBQ8O0ehRKZiEZCMEyLFQNIADpgCWC5fALvYQ=="],
+    "undici": ["undici@7.28.0", "", {}, "sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA=="],
 
     "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
 
@@ -1430,8 +1116,6 @@
     "valibot": ["valibot@1.4.2", "", { "peerDependencies": { "typescript": ">=5" }, "optionalPeers": ["typescript"] }, "sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg=="],
 
     "vite": ["vite@8.1.4", "", { "dependencies": { "lightningcss": "^1.32.0", "picomatch": "^4.0.5", "postcss": "^8.5.16", "rolldown": "~1.1.4", "tinyglobby": "^0.2.17" }, "optionalDependencies": { "fsevents": "~2.3.3" }, "peerDependencies": { "@types/node": "^20.19.0 || >=22.12.0", "@vitejs/devtools": "^0.3.0", "esbuild": "^0.27.0 || ^0.28.0", "jiti": ">=1.21.0", "less": "^4.0.0", "sass": "^1.70.0", "sass-embedded": "^1.70.0", "stylus": ">=0.54.8", "sugarss": "^5.0.0", "terser": "^5.16.0", "tsx": "^4.8.1", "yaml": "^2.4.2" }, "optionalPeers": ["@types/node", "@vitejs/devtools", "esbuild", "jiti", "less", "sass", "sass-embedded", "stylus", "sugarss", "terser", "tsx", "yaml"], "bin": { "vite": "bin/vite.js" } }, "sha512-bTT9PsdWO+MQMNG9ZXIP/qM9wGh37DFxTV/sPq9cFpHr3w4jkgef032PkAL9jAqhk3Nz8NQw3O8n6/xFkqO4QQ=="],
-
-    "vite-plugin-mkcert": ["vite-plugin-mkcert@2.1.0", "", { "dependencies": { "debug": "^4.4.3", "supports-color": "^10.2.2", "undici": "^8.3.0" }, "peerDependencies": { "vite": ">=3" } }, "sha512-UQS5iyknruwCsvqDPsKRyHIVSVfv/iGdRPmUPaM1JRwNJo8wo/MubzJ66ckWwOLxFU4wW90oZq9GviV87nRHsg=="],
 
     "vite-plugin-solid": ["vite-plugin-solid@2.11.12", "", { "dependencies": { "@babel/core": "^7.23.3", "@types/babel__core": "^7.20.4", "babel-preset-solid": "^1.8.4", "merge-anything": "^5.1.7", "solid-refresh": "^0.6.3", "vitefu": "^1.0.4" }, "peerDependencies": { "@testing-library/jest-dom": "^5.16.6 || ^5.17.0 || ^6.*", "solid-js": "^1.7.2", "vite": "^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0" }, "optionalPeers": ["@testing-library/jest-dom"] }, "sha512-FgjPcx2OwX9h6f28jli7A4bG7PP3te8uyakE5iqsmpq3Jqi1TWLgSroC9N6cMfGRU2zXsl4Q6ISvTr2VL0QHpA=="],
 
@@ -1530,8 +1214,6 @@
     "dom-serializer/entities": ["entities@4.5.0", "", {}, "sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw=="],
 
     "miniflare/sharp": ["sharp@0.34.5", "", { "dependencies": { "@img/colour": "^1.0.0", "detect-libc": "^2.1.2", "semver": "^7.7.3" }, "optionalDependencies": { "@img/sharp-darwin-arm64": "0.34.5", "@img/sharp-darwin-x64": "0.34.5", "@img/sharp-libvips-darwin-arm64": "1.2.4", "@img/sharp-libvips-darwin-x64": "1.2.4", "@img/sharp-libvips-linux-arm": "1.2.4", "@img/sharp-libvips-linux-arm64": "1.2.4", "@img/sharp-libvips-linux-ppc64": "1.2.4", "@img/sharp-libvips-linux-riscv64": "1.2.4", "@img/sharp-libvips-linux-s390x": "1.2.4", "@img/sharp-libvips-linux-x64": "1.2.4", "@img/sharp-libvips-linuxmusl-arm64": "1.2.4", "@img/sharp-libvips-linuxmusl-x64": "1.2.4", "@img/sharp-linux-arm": "0.34.5", "@img/sharp-linux-arm64": "0.34.5", "@img/sharp-linux-ppc64": "0.34.5", "@img/sharp-linux-riscv64": "0.34.5", "@img/sharp-linux-s390x": "0.34.5", "@img/sharp-linux-x64": "0.34.5", "@img/sharp-linuxmusl-arm64": "0.34.5", "@img/sharp-linuxmusl-x64": "0.34.5", "@img/sharp-wasm32": "0.34.5", "@img/sharp-win32-arm64": "0.34.5", "@img/sharp-win32-ia32": "0.34.5", "@img/sharp-win32-x64": "0.34.5" } }, "sha512-Ou9I5Ft9WNcCbXrU9cMgPBcCK8LiwLqcbywW3t4oDV37n1pzpuNLsYiAV8eODnjbtQlSDwZ2cUEeQz4E54Hltg=="],
-
-    "miniflare/undici": ["undici@7.28.0", "", {}, "sha512-cRZYrTDwWznlnRiPjggAGxZXanty6M8RV1ff8Wm4LWXBp7/IG8v5DnOm74DtUBp9OONpK75YlPnIjQqX0dBDtA=="],
 
     "playwright/fsevents": ["fsevents@2.3.2", "", { "os": "darwin" }, "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="],
 

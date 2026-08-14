@@ -494,13 +494,12 @@ describe("NDJSON — stale match filtering (x-m)", () => {
 /* ── 404 ─────────────────────────────────────────────────────────────── */
 
 describe("NDJSON — 404 for unknown route", () => {
-	it("unknown route with x-d:1 → 404 HTML (not NDJSON)", async () => {
+	it("unknown route with x-d:1 → 404 NDJSON (SPA can parse it)", async () => {
 		const handler = buildHandler()
 		const response = await handler.fetch(dataRequest("/nonexistent"), {})
 
-		/* 404 happens before data request check */
 		expect(response.status).toBe(404)
-		expect(response.headers.get("Content-Type")).toContain("text/html")
+		expect(response.headers.get("Content-Type")).toContain("application/x-ndjson")
 	})
 })
 

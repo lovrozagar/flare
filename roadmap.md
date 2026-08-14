@@ -35,7 +35,7 @@
 ### Track 3.a — Suites                             [sequential]
   [x] 3.a.1   Make the extract Playwright suite green or skip-with-reason (now `e2e-archive`)
   [x] 3.a.2   Honey-shaped `e2e/app` + `e2e/node`; new suite is the default proof
-  [ ] 3.a.3   Add bun / workers harnesses when those runtimes need proof
+  [x] 3.a.3   Add bun / workers harnesses when those runtimes need proof
 
 ## Phase 4 — UI kit
   goal    `flare-ui` is honest about its Base UI dependency and is in or out of this repo

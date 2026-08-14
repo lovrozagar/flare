@@ -12,6 +12,7 @@ describe("buildSecurityHeaders()", () => {
 
 		expect(headers["Content-Security-Policy"]).toContain("'nonce-abc123'")
 		expect(headers["Content-Security-Policy"]).toContain("'self'")
+		expect(headers["Content-Security-Policy"]).not.toContain("strict-dynamic")
 		expect(headers["Cross-Origin-Opener-Policy"]).toBe("same-origin-allow-popups")
 		expect(headers["Cross-Origin-Resource-Policy"]).toBe("same-origin")
 		expect(headers["Permissions-Policy"]).toBeDefined()

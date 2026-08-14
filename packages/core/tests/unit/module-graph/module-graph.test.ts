@@ -111,6 +111,29 @@ describe("resolveModulePreloads", () => {
 		expect(result.js).not.toContain("/assets/about.js")
 	})
 
+	it("follows the hydrate dynamic import from the client entry", () => {
+		const manifest = {
+			"src/client.tsx": {
+				dynamicImports: [
+					"../../packages/core/src/hydrate/index.tsx",
+					"src/routes/about.tsx",
+				],
+				file: "assets/client.js",
+			},
+			"../../packages/core/src/hydrate/index.tsx": {
+				file: "assets/hydrate.js",
+				imports: ["_shared.js"],
+			},
+			"_shared.js": { file: "assets/shared.js" },
+			"src/routes/about.tsx": { file: "assets/about.js" },
+		}
+		const result = resolveModulePreloads(manifest, "src/client.tsx")
+		expect(result.js).toContain("/assets/client.js")
+		expect(result.js).toContain("/assets/hydrate.js")
+		expect(result.js).toContain("/assets/shared.js")
+		expect(result.js).not.toContain("/assets/about.js")
+	})
+
 	it("returns empty for unknown key", () => {
 		const result = resolveModulePreloads(MANIFEST, "nonexistent")
 		expect(result.js).toEqual([])

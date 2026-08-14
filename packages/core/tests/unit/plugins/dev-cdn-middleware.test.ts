@@ -344,6 +344,33 @@ describe("handleCdnRequest — cache hit", () => {
 		expect(res.headers.age).toBeDefined()
 	})
 
+	it("html-proxy body is treated as a miss (Vite virtual ids are not cacheable)", async () => {
+		const entry = makeCdnEntry({
+			body: '<html><body><script type="module" src="/@id/__x00__/index.html?html-proxy&index=0.js"></script></body></html>',
+			storedAt: Date.now() - 5000,
+		})
+		await seedCache("cdn:GET:/about", entry)
+
+		const req = makeReq({ headers: { host: "localhost:3000" } })
+		const res = makeRes()
+		let nextCalled = false
+
+		await handleCdnRequest(
+			req,
+			res,
+			() => {
+				nextCalled = true
+				res.writeHead(200, { "cache-control": "public, s-maxage=3600", "content-type": "text/html" })
+				res.end("<html><body>fresh</body></html>")
+			},
+			store,
+			new Set(),
+		)
+
+		expect(nextCalled).toBe(true)
+		expect(res.body).toBe("<html><body>fresh</body></html>")
+	})
+
 	it("Surrogate-Key tags stored on cache entry", async () => {
 		const req = makeReq()
 		const res = makeRes()

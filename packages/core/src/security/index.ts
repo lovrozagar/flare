@@ -120,14 +120,13 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 	}
 
 	/* Skip nonce injection when the user opted into 'unsafe-inline' — per CSP Level 3,
-	   presence of a nonce causes 'unsafe-inline' to be ignored, silently breaking intent.
-	   Add 'strict-dynamic' alongside the nonce so a nonced loader (CF Turnstile, Stripe.js,
-	   etc.) can inject further <script> + iframe srcdoc bootstrap scripts without each one
-	   needing its own hash/nonce — host allowlists are dropped under strict-dynamic, but
-	   transitive trust through the nonced root is what modern CSP3 actually wants. */
+	   a nonce makes 'unsafe-inline' inert. Do not add 'strict-dynamic' by default:
+	   Chrome (crbug.com/702612) then fails to mark <link rel="modulepreload"> as
+	   isLinkPreload, so Lighthouse chains every JS file. Apps that need Turnstile /
+	   Stripe loaders can opt in via script-src: ["'strict-dynamic'"]. */
 	const scriptSrc = directives["script-src"]
 	if (Array.isArray(scriptSrc) && !scriptSrc.includes("'unsafe-inline'")) {
-		scriptSrc.push(`'nonce-${nonce}'`, "'strict-dynamic'")
+		scriptSrc.push(`'nonce-${nonce}'`)
 	}
 
 	const styleSrc = directives["style-src"]

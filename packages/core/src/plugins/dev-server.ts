@@ -109,6 +109,34 @@ async function streamResponse(response: Response, res: NodeRes): Promise<void> {
 	}
 }
 
+const INLINE_PLACEHOLDER = (i: number) => `<!--flare-inline-${i}-->`
+const INLINE_PLACEHOLDER_RE = /<!--flare-inline-(\d+)-->/g
+
+/**
+ * Vite's transformIndexHtml virtualises every inline <script>/<style> as
+ * `?html-proxy` modules. Theme IIFEs must stay blocking, and the body
+ * `import(entry)` must stay a real inline module — a NUL-prefixed virtual
+ * id 500s and hydrate never starts. Peel, transform, restore in place.
+ */
+export function peelInlineTags(html: string): { html: string; tags: string[] } {
+	const tags: string[] = []
+	const next = html.replace(
+		/<(script|style)(\s[^>]*)?>([\s\S]*?)<\/\1>/gi,
+		(full, tag: string, attrs = "") => {
+			if (tag.toLowerCase() === "script" && /\ssrc\s*=/i.test(attrs)) return full
+			const i = tags.length
+			tags.push(full)
+			return INLINE_PLACEHOLDER(i)
+		},
+	)
+	return { html: next, tags }
+}
+
+export function restoreInlineTags(html: string, tags: string[]): string {
+	if (tags.length === 0) return html
+	return html.replace(INLINE_PLACEHOLDER_RE, (_, n) => tags[Number(n)] ?? "")
+}
+
 export function createDevServerPlugin(entries: ResolvedEntries, _assetsBase: string = "/assets"): VitePlugin {
 	return {
 		configureServer(server: unknown) {
@@ -176,7 +204,11 @@ export function createDevServerPlugin(entries: ResolvedEntries, _assetsBase: str
 							 */
 							const lastSlash = url.pathname.lastIndexOf("/")
 							const hasFileExt = url.pathname.indexOf(".", lastSlash) !== -1
-							html = await vite.transformIndexHtml(hasFileExt ? "/" : url.pathname, html)
+							const { html: peeledHtml, tags } = peelInlineTags(html)
+							html = restoreInlineTags(
+								await vite.transformIndexHtml(hasFileExt ? "/" : url.pathname, peeledHtml),
+								tags,
+							)
 
 							const htmlHeaders: Record<string, string | string[]> = {
 								"content-type": "text/html; charset=utf-8",

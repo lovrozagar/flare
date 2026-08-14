@@ -1,0 +1,24 @@
+{
+	"name": "@flare/e2e-tauri",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite dev --port 4101",
+		"type:check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@tauri-apps/api": "2.11.1",
+		"flare": "workspace:*",
+		"nitro": "catalog:",
+		"solid-js": "catalog:",
+		"vite": "catalog:",
+		"vite-plugin-solid": "catalog:"
+	},
+	"devDependencies": {
+		"@playwright/test": "catalog:",
+		"@types/node": "catalog:",
+		"typescript": "catalog:"
+	}
+}

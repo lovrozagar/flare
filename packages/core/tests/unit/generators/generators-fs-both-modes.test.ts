@@ -110,7 +110,7 @@ describe("fsVirtualPaths false — deep", () => {
 	it("flare-fs-paths suffix files still generate when fs is off (strings already written)", () => {
 		const result = runGenerate({
 			fsCodegen: false,
-			rootDir: join(REPO_ROOT, "consumer/flare-fs-paths"),
+			rootDir: join(REPO_ROOT, "e2e/apps/fs-routes"),
 		})
 		expect(result.routes).toBeGreaterThanOrEqual(10)
 		expect(result.warnings).toEqual([])

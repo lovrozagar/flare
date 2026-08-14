@@ -26,8 +26,14 @@ export function isDeferred<T>(value: unknown): value is Deferred<T> {
 	)
 }
 
-export function getPromise<T>(value: Deferred<T> | Promise<T>): Promise<T> {
-	return isDeferred<T>(value) ? value.promise : value
+export function getPromise<T>(value: Deferred<T> | Promise<T> | null | undefined): Promise<T> | undefined {
+	if (isDeferred<T>(value)) {
+		return value.promise instanceof Promise ? value.promise : undefined
+	}
+	if (value != null && typeof (value as Promise<T>).then === "function") {
+		return value as Promise<T>
+	}
+	return undefined
 }
 
 export function getResolvedValue<T>(value: Deferred<T> | Promise<T>): T | undefined {
@@ -56,7 +62,7 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 
 	let currentPromise = getPromise(props.promise)
 
-	if (initialResolved === undefined && !initialError) {
+	if (initialResolved === undefined && !initialError && currentPromise) {
 		trackPromise(currentPromise)
 	}
 
@@ -89,7 +95,7 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 			setData(undefined)
 			setError(undefined)
 		})
-		trackPromise(p)
+		if (p) trackPromise(p)
 	}
 
 	/* Watch for promise prop changes */
@@ -117,7 +123,7 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 		}
 
 		setStatus("pending")
-		trackPromise(newPromise)
+		if (newPromise) trackPromise(newPromise)
 	})
 
 	return (() => {

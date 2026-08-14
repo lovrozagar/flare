@@ -156,6 +156,27 @@ describe("ISR serving — cache hit", () => {
 		expect(body).toMatch(/nonce="[a-f0-9]+"/)
 	})
 
+	it("If-None-Match does not 304 nonce-rewritten HTML", async () => {
+		const html = '<html><script nonce="__FLARE_NONCE__">x</script></html>'
+		const store = makeStore({
+			"static:/about": makeStaticEntry({
+				etag: 'W/"abc"',
+				html,
+			}),
+		})
+		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
+			store,
+		})
+		const first = await handler.fetch(req(), {})
+		expect(first.status).toBe(200)
+		const etag = first.headers.get("etag") ?? 'W/"abc"'
+		const second = await handler.fetch(req("http://localhost/about", { "if-none-match": etag }), {})
+		expect(second.status).toBe(200)
+		const body = await second.text()
+		expect(body).toMatch(/nonce="[a-f0-9]+"/)
+		expect(body).toContain("<script")
+	})
+
 	it("replaces nonce placeholder in CSP header", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({
@@ -276,6 +297,26 @@ describe("ISR serving — cache miss + dynamicParams modes", () => {
 		)
 		const response = await handler.fetch(req(), {})
 		expect(response.status).toBe(404)
+	})
+
+	it("store HIT + x-flare-prerender → skips stale artifacts and SSRs", async () => {
+		const store = makeStore({
+			"static:/about": makeStaticEntry({
+				html: "<html>stale-prerender-artifact</html>",
+			}),
+		})
+		const handler = makeHandler(
+			"/about",
+			makeISRRouteData({ dynamicParams: false, mode: "isr", revalidate: 300 }),
+			{ store },
+		)
+		const response = await handler.fetch(
+			new Request("http://localhost/about", { headers: { "x-flare-prerender": "1" } }),
+			{},
+		)
+		expect([200, 500]).toContain(response.status)
+		const body = await response.text()
+		expect(body).not.toContain("stale-prerender-artifact")
 	})
 
 	it("dynamicParams: false + x-flare-prerender → falls through to SSR", async () => {

@@ -453,7 +453,7 @@ describe("consumers — fs on vs off", () => {
 	})
 
 	it("flare-standard (string-style) generates with fs off", () => {
-		const root = copyConsumer(join(REPO_ROOT, "consumer/flare-standard"))
+		const root = copyConsumer(join(REPO_ROOT, "packages/core/tests/fixtures/string-style-app"))
 		copies.push(root)
 		const aboutBefore = readFileSync(join(root, "src/routes/about.tsx"), "utf-8")
 		const result = runGenerate({ fsCodegen: false, rootDir: root })
@@ -471,7 +471,7 @@ describe("consumers — fs on vs off", () => {
 	})
 
 	it("flare-standard throws a structure error with fs on", () => {
-		const root = copyConsumer(join(REPO_ROOT, "consumer/flare-standard"))
+		const root = copyConsumer(join(REPO_ROOT, "packages/core/tests/fixtures/string-style-app"))
 		copies.push(root)
 		expect(() => runGenerate({ fsCodegen: true, rootDir: root })).toThrow(/fsVirtualPaths is enabled/)
 		expect(() => runGenerate({ fsCodegen: true, rootDir: root })).toThrow(/about\.tsx/)
@@ -479,8 +479,8 @@ describe("consumers — fs on vs off", () => {
 		expect(() => runGenerate({ fsCodegen: true, rootDir: root })).toThrow(/_layout_\.tsx/)
 	})
 
-	it("e2e/app (string-style) generates with fs off and throws with fs on", () => {
-		const root = copyConsumer(join(REPO_ROOT, "e2e/app"))
+	it("e2e/apps/product (string-style) generates with fs off and throws with fs on", () => {
+		const root = copyConsumer(join(REPO_ROOT, "e2e/apps/product"))
 		copies.push(root)
 		const aboutBefore = readFileSync(join(root, "src/routes/about.tsx"), "utf-8")
 		const result = runGenerate({ fsCodegen: false, rootDir: root })
@@ -491,7 +491,7 @@ describe("consumers — fs on vs off", () => {
 	})
 
 	it("flare({ codegen: { fsVirtualPaths: true } }) warns on leftover string-style and still generates", async () => {
-		const root = copyConsumer(join(REPO_ROOT, "consumer/flare-fs-paths"))
+		const root = copyConsumer(join(REPO_ROOT, "e2e/apps/fs-routes"))
 		copies.push(root)
 		writeFile(
 			root,
@@ -529,7 +529,7 @@ describe("consumers — fs on vs off", () => {
 	})
 
 	it("flare-fs-paths (suffix convention) generates with fs on", () => {
-		const root = copyConsumer(join(REPO_ROOT, "consumer/flare-fs-paths"))
+		const root = copyConsumer(join(REPO_ROOT, "e2e/apps/fs-routes"))
 		copies.push(root)
 		const result = runGenerate({ fsCodegen: true, rootDir: root })
 		expect(result.routes).toBeGreaterThanOrEqual(10)

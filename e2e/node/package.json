@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "bun run dev:kill && bun run --filter @flare/e2e-app dev",
+		"dev": "bun run dev:kill && bun run --filter @flare/e2e-product dev",
 		"dev:kill": "lsof -ti:4101,4102 2>/dev/null | xargs -r kill -9 2>/dev/null || true",
 		"test": "bun run dev:kill && playwright test",
 		"test:firefox": "bun run dev:kill && playwright test --config playwright.firefox.config.ts",
@@ -12,7 +12,7 @@
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@flare/e2e-app": "workspace:*",
+		"@flare/e2e-product": "workspace:*",
 		"flare": "workspace:*"
 	},
 	"devDependencies": {

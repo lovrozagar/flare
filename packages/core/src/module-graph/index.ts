@@ -70,6 +70,18 @@ export function resolveModulePreloads(manifest: ViteManifest, entryKey: string):
 
 	walk(entryKey)
 
+	/* Hydrate is a dynamic import from createClient — not a route chunk.
+	   Preload that one hop so Lighthouse does not chain client.js → hydrate.js.
+	   Never follow src/routes/* dynamicImports (those stay lazy). */
+	const root = manifest[entryKey]
+	if (root?.dynamicImports) {
+		for (const dep of root.dynamicImports) {
+			if (/[/\\]hydrate[/\\]index\.[cm]?[tj]sx?$/.test(dep)) {
+				walk(dep)
+			}
+		}
+	}
+
 	return { css, js }
 }
 

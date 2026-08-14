@@ -268,6 +268,42 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		if (effectivePrefetch() === "intent") triggerPrefetch()
 	}
 
+	function scheduleAfterLoad(fn: () => void): () => void {
+		let cancelled = false
+		let idleId: number | undefined
+		let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+		const run = () => {
+			if (!cancelled) fn()
+		}
+
+		const armIdle = () => {
+			if (cancelled) return
+			if (typeof requestIdleCallback === "function") {
+				idleId = requestIdleCallback(run)
+			} else {
+				timeoutId = setTimeout(run, 0)
+			}
+		}
+
+		if (typeof document !== "undefined" && document.readyState === "complete") {
+			armIdle()
+		} else if (typeof window !== "undefined") {
+			addEventListener("load", armIdle, { once: true })
+		} else {
+			armIdle()
+		}
+
+		return () => {
+			cancelled = true
+			if (typeof window !== "undefined") removeEventListener("load", armIdle)
+			if (idleId !== undefined && typeof cancelIdleCallback === "function") {
+				cancelIdleCallback(idleId)
+			}
+			if (timeoutId !== undefined) clearTimeout(timeoutId)
+		}
+	}
+
 	function setupPrefetchBehavior(el: HTMLAnchorElement): void {
 		if (local.href !== undefined) return
 		if (isExternal(resolvedHref())) return
@@ -284,24 +320,31 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		}
 
 		if (strategy === "viewport") {
-			if (typeof IntersectionObserver === "undefined") return
-			const observer = new IntersectionObserver(
-				(entries) => {
-					for (const entry of entries) {
-						if (entry.isIntersecting) {
-							triggerPrefetch()
-							observer.unobserve(entry.target)
+			let observer: IntersectionObserver | undefined
+			const cancel = scheduleAfterLoad(() => {
+				if (typeof IntersectionObserver === "undefined") return
+				observer = new IntersectionObserver(
+					(entries) => {
+						for (const entry of entries) {
+							if (entry.isIntersecting) {
+								triggerPrefetch()
+								observer?.unobserve(entry.target)
+							}
 						}
-					}
-				},
-				{ threshold: 0 },
-			)
-			observer.observe(el)
-			onCleanup(() => observer.disconnect())
+					},
+					{ threshold: 0 },
+				)
+				observer.observe(el)
+			})
+			onCleanup(() => {
+				cancel()
+				observer?.disconnect()
+			})
 		}
 
 		if (strategy === "render") {
-			queueMicrotask(() => triggerPrefetch())
+			const cancel = scheduleAfterLoad(() => triggerPrefetch())
+			onCleanup(cancel)
 		}
 	}
 

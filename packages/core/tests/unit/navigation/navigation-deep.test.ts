@@ -821,6 +821,7 @@ describe("prefetch → navigate cache reuse", () => {
 		const ctx = makeCtx()
 		setupNavigation(ctx, mockLoadRouteModules)
 
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/prefetched") })
 		mockLoadRouteModules.mockResolvedValue(makeLoadedModules())
 		mockFetchNDJSON.mockResolvedValue({
 			matches: [{ loaderData: "pf", matchId: "_root_/prefetched:{}:[]" }],
@@ -843,6 +844,7 @@ describe("prefetch → navigate cache reuse", () => {
 			cache: { client: { staleTime: 60_000 } },
 		}
 
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/pf-target") })
 		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: modWithStale }))
 		mockFetchNDJSON.mockResolvedValue({
 			matches: [{ loaderData: "prefetched-data", matchId: "_root_/pf-target:{}:[]" }],

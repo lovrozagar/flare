@@ -82,7 +82,7 @@ import type { StaticEntryData } from "../store/index.ts"
 import { noopTracer } from "../tracing/noop.ts"
 import { buildServerTimingHeader, createTimingTracer, type TimingTracer } from "../tracing/timing.ts"
 import type { FlareTracer } from "../tracing/types.ts"
-import { computeEtag, weakMatch } from "./etag.ts"
+import { computeEtag } from "./etag.ts"
 import {
 	FLARE_CACHE_HEADER,
 	FLARE_RENDER_HEADER,
@@ -977,6 +977,7 @@ export function createServerHandler<
 							onResponse: () => {},
 							request,
 							requestType,
+							routeTree: config.router.routeTree,
 							serverContext: serverCtx,
 							url,
 							warn: (...args: unknown[]) => serverLog("warn", ...args),
@@ -1280,7 +1281,12 @@ export function createServerHandler<
 						/* ── ISR / Static Store serving ─────────────────────── */
 						const staticMeta = match.route.o.static
 						const isISRBgRequest = request.headers.get("x-isr-bg") === "1"
-						if (staticMeta && resolvedStore && !isISRBgRequest) {
+						const isPrerenderRequest = request.headers.get("x-flare-prerender") === "1"
+						/* Skip the store on prerender: loadPrerenderArtifacts() rehydrates
+						   the previous build's HTML into the same in-memory store the
+						   prerender plugin then fetch()es, which would freeze stale
+						   client hashes into the new artifacts. */
+						if (staticMeta && resolvedStore && !isISRBgRequest && !isPrerenderRequest) {
 							const storeKey = `static:${url.pathname}`
 							const entry = await resolvedStore.get(storeKey)
 
@@ -1382,23 +1388,12 @@ export function createServerHandler<
 									entryHeaders[k] = v.replaceAll(NONCE_PLACEHOLDER, nonce)
 								}
 
-								/* ETag + conditional 304 for store-served HTML */
-								const entryEtag = staticData.etag
-								if (entryEtag) {
-									entryHeaders["ETag"] = entryEtag
-									const ifNoneMatch = request.headers.get("If-None-Match")
-									if (ifNoneMatch && weakMatch(ifNoneMatch, entryEtag)) {
-										let notModified: Response = new Response(null, {
-											headers: entryHeaders,
-											status: 304,
-										})
-										if (headersEnabled) {
-											notModified.headers.set(FLARE_CACHE_HEADER, flareCache)
-											notModified.headers.set(FLARE_RENDER_HEADER, flareRender)
-										}
-										notModified = await applyResponseHandlers(notModified, responseHandlers)
-										return addSecurityHeaders(notModified, secHeaders)
-									}
+								/* Never 304 HTML that embeds a per-request CSP nonce. A 304 keeps the
+								   cached body (old nonce="") and applies this response's new CSP, so
+								   ThemeScript and every other inline script are blocked until a full
+								   200 rewrite. ETag stays on the 200 for validators that only read it. */
+								if (staticData.etag) {
+									entryHeaders["ETag"] = staticData.etag
 								}
 
 								const html = staticData.html.replaceAll(NONCE_PLACEHOLDER, nonce)

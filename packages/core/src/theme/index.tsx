@@ -6,6 +6,7 @@ import {
 	on,
 	onCleanup,
 	onMount,
+	sharedConfig,
 	useContext,
 } from "solid-js"
 
@@ -44,7 +45,7 @@ export function getThemeScript(opts?: ThemeConfig): string {
 	const attr = escapeJsString(opts?.attribute ?? DEFAULT_CONFIG.attribute)
 	const defaultTheme = escapeJsString(opts?.defaultTheme ?? DEFAULT_CONFIG.defaultTheme)
 	const storageKey = escapeJsString(opts?.storageKey ?? DEFAULT_CONFIG.storageKey)
-	return `((k,d,a)=>{const e=document.documentElement;let t;try{t=localStorage.getItem(k)||d}catch{t=d}if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";e.setAttribute(a,t);e.style.colorScheme=t})("${storageKey}","${defaultTheme}","${attr}")`
+	return `((k,d,a)=>{const e=document.documentElement;let t;try{t=localStorage.getItem(k)||d}catch{t=d}if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";e.setAttribute(a,t);try{e.style.colorScheme=t}catch{}})("${storageKey}","${defaultTheme}","${attr}")`
 }
 
 /* ── Context ──────────────────────────────────────────────────────── */
@@ -68,9 +69,14 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 		themes: props.config?.themes ?? DEFAULT_CONFIG.themes,
 	}
 
-	/* Read initial theme from localStorage or default */
+	const hydrating = !!sharedConfig.context
+
+	/* During SSR + hydration, always start from defaultTheme so the tree matches.
+	   ThemeScript already applied localStorage to <html> before first paint.
+	   Reading storage here on the client would hydrate with a different signal
+	   than the server and freeze the SSR "system" text until refresh. */
 	let initial: Theme = cfg.defaultTheme
-	if (typeof localStorage !== "undefined") {
+	if (typeof localStorage !== "undefined" && !hydrating) {
 		try {
 			const stored = localStorage.getItem(cfg.storageKey)
 			if (stored && cfg.themes.includes(stored as Theme)) {
@@ -94,6 +100,37 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 		const t = theme()
 		return t === "system" ? systemTheme() : t
 	}
+
+	const applyToDocument = (resolved: ResolvedTheme): void => {
+		if (typeof document === "undefined") return
+		const el = document.documentElement
+		el.setAttribute(cfg.attribute, resolved)
+		try {
+			el.style.colorScheme = resolved
+		} catch {
+			/* CSP style-src may block CSSOM writes; attribute + nonce'd CSS still apply */
+		}
+	}
+
+	/* Client remount / CSR: apply immediately. During hydration, ThemeScript owns
+	   first paint — applying here would overwrite a stored theme with "system". */
+	if (!hydrating) {
+		applyToDocument(resolvedTheme())
+	}
+
+	/* After hydrate, sync from localStorage so useTheme() matches ThemeScript. */
+	onMount(() => {
+		if (typeof localStorage === "undefined") return
+		try {
+			const stored = localStorage.getItem(cfg.storageKey)
+			if (stored && cfg.themes.includes(stored as Theme) && stored !== theme()) {
+				setThemeSignal(stored as Theme)
+			}
+		} catch {
+			/* noop */
+		}
+		applyToDocument(resolvedTheme())
+	})
 
 	/* Listen for OS preference changes */
 	onMount(() => {
@@ -124,12 +161,21 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 	createEffect(() => {
 		const resolved = resolvedTheme()
 		if (typeof document === "undefined") return
-		const el = document.documentElement
 
 		if (skipFirst) {
 			skipFirst = false
-			el.setAttribute(cfg.attribute, resolved)
-			el.style.colorScheme = resolved
+			/* After Solid hydrates <html> it drops ThemeScript's data-theme.
+			   Re-apply the visual value (storage or system) without waiting for onMount. */
+			let visual: ResolvedTheme = resolved
+			if (typeof localStorage !== "undefined") {
+				try {
+					const stored = localStorage.getItem(cfg.storageKey)
+					if (stored === "light" || stored === "dark") visual = stored
+				} catch {
+					/* noop */
+				}
+			}
+			applyToDocument(visual)
 			return
 		}
 
@@ -137,13 +183,11 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 			const style = document.createElement("style")
 			style.textContent = "* { transition: none !important }"
 			document.head.appendChild(style)
-			el.setAttribute(cfg.attribute, resolved)
-			el.style.colorScheme = resolved
+			applyToDocument(resolved)
 			if (document.body) getComputedStyle(document.body).opacity
 			requestAnimationFrame(() => style.remove())
 		} else {
-			el.setAttribute(cfg.attribute, resolved)
-			el.style.colorScheme = resolved
+			applyToDocument(resolved)
 		}
 	})
 

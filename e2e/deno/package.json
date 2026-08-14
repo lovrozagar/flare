@@ -4,14 +4,14 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "bun run dev:kill && deno run -A npm:vite dev --port 4106 --config ../app/vite.config.ts",
+		"dev": "bun run dev:kill && deno run -A ./run-vite.ts --host 127.0.0.1 dev --port 4106 --config ../apps/product/vite.config.ts",
 		"dev:kill": "lsof -ti:4106 2>/dev/null | xargs -r kill -9 2>/dev/null || true",
 		"test": "bun run dev:kill && playwright test",
 		"test:prod": "bun run dev:kill && TEST_MODE=prod playwright test",
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@flare/e2e-app": "workspace:*",
+		"@flare/e2e-product": "workspace:*",
 		"flare": "workspace:*"
 	},
 	"devDependencies": {

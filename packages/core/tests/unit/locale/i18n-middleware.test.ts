@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 import type { MiddlewareContext } from "../../../src/middleware/index.ts"
 import { i18n } from "../../../src/middleware/builtins/i18n.ts"
+import type { RouteData } from "../../../src/router-primitives/index.ts"
+import { createTreeNode, insertRoute } from "../../../src/router-primitives/index.ts"
 
 function makeCtx(
 	url: string,
@@ -37,6 +39,17 @@ function makeCtxWithHeaders(url: string, headers: Record<string, string>): Middl
 const localeConfig = {
 	defaultLocale: "en",
 	locales: ["en", "hr", "de"],
+}
+
+function dummyRoute(variablePath: string): RouteData {
+	return {
+		e: "default",
+		o: {},
+		p: () => Promise.resolve({ default: null }),
+		t: "r",
+		v: variablePath,
+		x: variablePath,
+	}
 }
 
 describe("i18n middleware", () => {
@@ -127,6 +140,53 @@ describe("i18n middleware", () => {
 				const location = new URL(result.response.headers.get("Location") ?? "")
 				expect(location.pathname).toBe("/")
 			}
+		})
+
+		it("keeps /en/ssg-about when the unprefixed path is not a route", async () => {
+			const mw = i18n()
+			const tree = createTreeNode()
+			insertRoute(tree, "/", dummyRoute("/"))
+			insertRoute(tree, "/[locale]/ssg-about", dummyRoute("/[locale]/ssg-about"))
+			const ctx = makeCtx("https://example.com/en/ssg-about", { routeTree: tree })
+			const result = await mw(ctx)
+			expect(result.type).toBe("next")
+			expect(ctx.serverContext.locale).toBe("en")
+		})
+
+		it("still strips /en/about when /about exists", async () => {
+			const mw = i18n()
+			const tree = createTreeNode()
+			insertRoute(tree, "/", dummyRoute("/"))
+			insertRoute(tree, "/about", dummyRoute("/about"))
+			insertRoute(tree, "/[locale]/about", dummyRoute("/[locale]/about"))
+			const ctx = makeCtx("https://example.com/en/about", { routeTree: tree })
+			const result = await mw(ctx)
+			expect(result.type).toBe("bypass")
+			if (result.type === "bypass") {
+				expect(new URL(result.response.headers.get("Location") ?? "").pathname).toBe("/about")
+			}
+		})
+	})
+
+	describe("prerender header", () => {
+		it("x-flare-prerender skips default-locale strip", async () => {
+			const mw = i18n()
+			const ctx = makeCtxWithHeaders("https://example.com/en/ssg-about", {
+				"x-flare-prerender": "1",
+			})
+			const result = await mw(ctx)
+			expect(result.type).toBe("next")
+			expect(ctx.serverContext.locale).toBe("en")
+		})
+
+		it("x-flare-prerender keeps non-default path locale", async () => {
+			const mw = i18n()
+			const ctx = makeCtxWithHeaders("https://example.com/hr/ssg-about", {
+				"x-flare-prerender": "1",
+			})
+			const result = await mw(ctx)
+			expect(result.type).toBe("next")
+			expect(ctx.serverContext.locale).toBe("hr")
 		})
 	})
 

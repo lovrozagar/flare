@@ -30,9 +30,11 @@ import { CRITICAL_SHEET_ID, injectCriticalAppend, type SxCssManifest } from "./c
 import { ThemeProvider } from "../theme.ts"
 import { parseSearchParams, type SearchParams } from "../url/index.ts"
 import { renderHeadToHtml } from "./head.ts"
+import { buildHeadPrefix } from "./head-prefix.ts"
 
 export { mergeHeadConfigs } from "../internal.ts"
 export { renderHeadToHtml } from "./head.ts"
+export { buildHeadPrefix } from "./head-prefix.ts"
 
 export const MAX_STREAM_BUFFER_SIZE = 2 * 1024 * 1024
 
@@ -538,18 +540,18 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
  * Inject resolved head tags, CSP nonce meta, and scoped styles before </head>.
  * Returns updated buffer with head content injected, or original buffer if </head> not found.
  *
- * Head structure (order matters for Chrome's preload scanner):
+ * Head structure (order matters for first paint + Chrome's preload scanner):
  *   1. <meta name="csp-nonce"> with nonce attribute (browser hides it from DOM/CSS)
- *   2. <link rel="modulepreload"> — early, so Chrome marks them isLinkPreload=true
- *   3. Solid's SSR output (styles, inline scripts from root layout)
- *   4. Resolved <head> tags (title, meta, etc.)
- *   5. Scoped styles
+ *   2. viewport (if the app omitted one)
+ *   3. theme / direction / locale blocking scripts — before CSS so first land is themed
+ *   4. <link rel="modulepreload"> + stylesheets
+ *   5. Solid's SSR output (layout ThemeScript is a duplicate, harmless)
+ *   6. Resolved <head> tags (title, meta, etc.)
+ *   7. Scoped styles
  *
- * Why modulepreloads must be first: Chrome's network stack uses isLinkPreload
- * to exclude resources from the critical request chain. If inline <script> tags
- * appear before modulepreload links, the preload scanner may not set that flag,
- * causing Lighthouse to report an "Avoid chaining critical requests" warning.
- * This also requires CSP without 'strict-dynamic' — see server-handler/index.ts.
+ * Theme scripts must precede stylesheets. Modulepreloads stay after those
+ * tiny inline scripts so Chrome can still mark them isLinkPreload when CSP
+ * has no 'strict-dynamic' (crbug.com/702612).
  */
 function injectHeadContent(
 	buffer: string,
@@ -560,15 +562,14 @@ function injectHeadContent(
 	devSxClasses: string[] = [],
 ): string {
 	const escapedNonce = escapeAttr(config.nonce)
-	let headPrefix = `<meta name="csp-nonce" nonce="${escapedNonce}">`
-	if (config.modulePreloads) {
-		for (const href of config.modulePreloads.js) {
-			headPrefix += `<link rel="modulepreload" href="${escapeAttr(href)}"/>`
-		}
-		for (const href of config.modulePreloads.css) {
-			headPrefix += `<link rel="stylesheet" href="${escapeAttr(href)}"/>`
-		}
-	}
+	const headPrefix = buildHeadPrefix({
+		direction: config.router?.direction,
+		locale: config.router?.locale,
+		modulePreloads: config.modulePreloads,
+		nonce: config.nonce,
+		resolvedHead: config.resolvedHead,
+		theme: config.router?.theme,
+	})
 
 	let headSuffix = ""
 	const headHtml = renderHeadToHtml(config.resolvedHead, config.nonce)

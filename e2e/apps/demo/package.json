@@ -1,0 +1,27 @@
+{
+	"name": "@flare/e2e-demo",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "vite build",
+		"dev": "vite dev --port 4101",
+		"preview": "vite preview --port 4102",
+		"type:check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"flare": "workspace:*",
+		"solid-js": "catalog:",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@playwright/test": "catalog:",
+		"@types/node": "catalog:",
+		"tailwindcss": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vite-plugin-solid": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

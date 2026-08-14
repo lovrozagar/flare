@@ -1,5 +1,0 @@
-# Font binaries downloaded by flare font add
-# Restore with: flare font install
-*.woff2
-!.flare-fonts.json
-!.gitignore

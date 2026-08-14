@@ -579,10 +579,8 @@ describe("Link", () => {
 				container,
 			)
 
-			/* render prefetch fires via queueMicrotask */
-			await new Promise<void>((r) => queueMicrotask(r))
-
-			expect(mockPrefetch).toHaveBeenCalledWith({ to: "/about" })
+			/* render prefetch waits for load + idle so it stays off the LCP chain */
+			await vi.waitFor(() => expect(mockPrefetch).toHaveBeenCalledWith({ to: "/about" }))
 		})
 
 		it("no prefetch on mount when strategy is false", async () => {
@@ -818,7 +816,7 @@ describe("Link", () => {
 			globalThis.IntersectionObserver = originalIO
 		})
 
-		it("prefetch called when link enters viewport", () => {
+		it("prefetch called when link enters viewport", async () => {
 			const props = makeProviderProps()
 			dispose = render(
 				() => (
@@ -831,7 +829,7 @@ describe("Link", () => {
 				container,
 			)
 
-			expect(observeSpy).toHaveBeenCalledTimes(1)
+			await vi.waitFor(() => expect(observeSpy).toHaveBeenCalledTimes(1))
 			expect(mockPrefetch).not.toHaveBeenCalled()
 
 			/* Simulate intersection */
@@ -844,7 +842,7 @@ describe("Link", () => {
 			expect(mockPrefetch).toHaveBeenCalledWith({ to: "/lazy" })
 		})
 
-		it("prefetch NOT called before intersection", () => {
+		it("prefetch NOT called before intersection", async () => {
 			const props = makeProviderProps()
 			dispose = render(
 				() => (
@@ -857,8 +855,8 @@ describe("Link", () => {
 				container,
 			)
 
-			/* Observer created, but no intersection triggered */
-			expect(observeSpy).toHaveBeenCalledTimes(1)
+			/* Observer created after load/idle, but no intersection triggered */
+			await vi.waitFor(() => expect(observeSpy).toHaveBeenCalledTimes(1))
 			expect(mockPrefetch).not.toHaveBeenCalled()
 		})
 
@@ -1040,7 +1038,7 @@ describe("Link", () => {
 			expect(mockPrefetch).toHaveBeenCalledWith({ to: "/about" })
 		})
 
-		it("no prefetch prop + route has viewport → IntersectionObserver triggers prefetch", () => {
+		it("no prefetch prop + route has viewport → IntersectionObserver triggers prefetch", async () => {
 			const observeSpy = vi.fn()
 			const disconnectSpy = vi.fn()
 			let observerCallback: IntersectionObserverCallback = () => {}
@@ -1063,7 +1061,7 @@ describe("Link", () => {
 				container,
 			)
 
-			expect(observeSpy).toHaveBeenCalledTimes(1)
+			await vi.waitFor(() => expect(observeSpy).toHaveBeenCalledTimes(1))
 
 			const anchor = container.querySelector("a")
 			observerCallback(

@@ -1,7 +1,0 @@
-import { flare } from "flare/plugins"
-import { nitro } from "nitro/vite"
-import { defineConfig } from "vite"
-
-export default defineConfig({
-	plugins: [flare({ codegen: { fsVirtualPaths: false } }), nitro({ preset: "vercel" })],
-})

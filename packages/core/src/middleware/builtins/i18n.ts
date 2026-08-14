@@ -2,6 +2,7 @@ import { match as cldrMatch } from "@formatjs/intl-localematcher"
 import { isbot } from "isbot"
 import Negotiator from "negotiator"
 import type { FlareMiddleware } from ".."
+import { matchRoute, toLocaleMatch } from "../../router-primitives/tree.ts"
 
 /**
  * Matches BCP-47-like path segments with 2-letter primary subtag:
@@ -115,6 +116,13 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 		const { pathname } = ctx.url
 		const isHttps = ctx.url.protocol === "https:"
 
+		/* Prerender snapshots the exact expanded URL — do not locale-redirect. */
+		if (ctx.request.headers.get("x-flare-prerender") === "1") {
+			const prerenderLocale = getLocaleFromPath(pathname, cachedLocaleSet)
+			ctx.serverContext.locale = prerenderLocale ?? defaultLocale
+			return ctx.next()
+		}
+
 		/* Bots get default locale for consistent SEO */
 		if (options?.botDetection !== false) {
 			const userAgent = ctx.request.headers.get("user-agent") ?? ""
@@ -187,22 +195,29 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 			return ctx.bypass(new Response(null, { headers, status: 302 }))
 		}
 
-		/* Default locale in URL → strip prefix, canonical URL has no prefix */
+		/* Default locale in URL → strip prefix when the unprefixed path is a real route.
+		   Required `[locale]/ssg-about` has no `/ssg-about` twin — keep `/en/ssg-about`. */
 		if (pathLocale === defaultLocale) {
-			const newUrl = new URL(ctx.url)
-			newUrl.pathname = pathname.replace(`/${defaultLocale}`, "") || "/"
-			const headers = new Headers({ Location: newUrl.href })
-			headers.set(
-				"Set-Cookie",
-				buildCookieHeader(
-					defaultLocale,
-					cachedCookieName,
-					cachedMaxAge,
-					isHttps,
-					options?.cookie?.secure,
-				),
-			)
-			return ctx.bypass(new Response(null, { headers, status: 302 }))
+			const strippedPath = pathname.replace(`/${defaultLocale}`, "") || "/"
+			const canStrip =
+				!ctx.routeTree ||
+				matchRoute(ctx.routeTree, strippedPath, false, toLocaleMatch(ctx.locale)) !== null
+			if (canStrip) {
+				const newUrl = new URL(ctx.url)
+				newUrl.pathname = strippedPath
+				const headers = new Headers({ Location: newUrl.href })
+				headers.set(
+					"Set-Cookie",
+					buildCookieHeader(
+						defaultLocale,
+						cachedCookieName,
+						cachedMaxAge,
+						isHttps,
+						options?.cookie?.secure,
+					),
+				)
+				return ctx.bypass(new Response(null, { headers, status: 302 }))
+			}
 		}
 
 		/*

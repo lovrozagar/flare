@@ -26,6 +26,8 @@ export interface MiddlewareContext<TEnv = unknown> {
 	request: Request
 	requestType: RequestType
 	respond: (response: Response) => MiddlewareResult
+	/** Present on live requests. Used by i18n to keep `/en/...` when the unprefixed path is not a route. */
+	routeTree?: import("../router-primitives/types.ts").TreeNode
 	serverContext: Record<string, unknown>
 	url: URL
 	warn: (...args: unknown[]) => void

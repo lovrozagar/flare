@@ -231,6 +231,7 @@ describe("scrollRestorationBehavior through navigate", () => {
 			to: "/home",
 		})
 
+		await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
 		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 0, y: 300 }, "smooth")
 	})
 
@@ -253,6 +254,7 @@ describe("scrollRestorationBehavior through navigate", () => {
 			to: "/home",
 		})
 
+		await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
 		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 10, y: 50 }, "auto")
 	})
 })

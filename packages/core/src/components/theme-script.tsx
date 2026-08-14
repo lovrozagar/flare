@@ -1,4 +1,5 @@
 import type { JSX } from "solid-js"
+import { NoHydration } from "solid-js/web"
 import type { ThemeConfig } from "../theme.ts"
 import { getThemeScript } from "../theme.ts"
 import { useSSRContext } from "./ssr-context.tsx"
@@ -13,5 +14,9 @@ export function ThemeScript(props: ThemeScriptProps): JSX.Element {
 	const config = props.config ?? ctx?.theme
 	const script = getThemeScript(config)
 
-	return (<script innerHTML={script} nonce={nonce} />) as unknown as JSX.Element
+	return (
+		<NoHydration>
+			<script innerHTML={script} nonce={nonce} />
+		</NoHydration>
+	) as unknown as JSX.Element
 }

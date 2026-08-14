@@ -1,0 +1,6 @@
+{
+	"compatibility_date": "2025-04-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "src/server.ts",
+	"name": "flare-real-world"
+}

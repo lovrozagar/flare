@@ -4,14 +4,14 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "bun run dev:kill && bun run --filter @flare/e2e-app dev -- --port 4103",
+		"dev": "bun run dev:kill && bun run --filter @flare/e2e-product dev -- --port 4103",
 		"dev:kill": "lsof -ti:4103 2>/dev/null | xargs -r kill -9 2>/dev/null || true",
 		"test": "bun run dev:kill && playwright test",
 		"test:prod": "bun run dev:kill && TEST_MODE=prod playwright test",
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@flare/e2e-app": "workspace:*",
+		"@flare/e2e-product": "workspace:*",
 		"flare": "workspace:*"
 	},
 	"devDependencies": {

@@ -1,12 +1,11 @@
 # e2e coverage
 
-Living checklist. Scouted `e2e-archive` (**164** Playwright files, 222 routes), `real-world/e2e` (~90 i18n cases), and all `consumer/*` (no local tests; same 23-route template). UI kit is out of scope.
-
-Default proof: `bun run test:e2e` → `@flare/e2e-node` → `e2e/app`.
+Living checklist. Proof lives in `e2e/apps/*` (product, demo, fs-routes, tauri).
+Pick an env: `bun run test:e2e` (node) or `bun run test:all -- --env workers`. UI kit is out of scope.
 
 Legend: `[x]` in the new suite · `[ ]` still to write · `[!]` skip (stale API, product gap, UI, or other-runtime).
 
-Sources: `e2e-archive/e2e/<file>`, `consumer/flare-node/src/routes/<file>`, `real-world/e2e/i18n.test.ts`.
+Sources: `e2e/apps/product/tests/e2e/`, `consumer/flare-node/src/routes/<file>`, `real-world/e2e/i18n.test.ts`.
 
 ---
 
@@ -34,7 +33,7 @@ Sources: `e2e-archive/e2e/<file>`, `consumer/flare-node/src/routes/<file>`, `rea
 
 ## 1. Consumer template surfaces (`consumer/flare-node`)
 
-Archive: `consumer-deploy.test.ts`. Consumers themselves have **no** tests.
+Tests: `consumer-deploy.test.ts`. Consumers themselves have **no** tests.
 
 - [x] Set-Cookie on `/` + cookie round-trip on `/about`
 - [x] Multi Set-Cookie `/multi-cookie`
@@ -58,7 +57,7 @@ Archive: `consumer-deploy.test.ts`. Consumers themselves have **no** tests.
 
 ## 2. Routing / navigation
 
-Archive: `navigation.test.ts`, `link.test.ts`, `deep-link-*.test.ts`, `deep-navigate-api.test.ts`, `concurrent.test.ts`, `scroll.test.ts`, `url-normalization.test.ts`, `deep-shallow-*.test.ts`, `popstate-cache.test.ts`, `navigation-phase.test.ts`, `deep-view-transition.test.ts`, `deep-prefetch*.test.ts`, `deep-download-links.test.ts`, `deep-session34.test.ts`.
+Tests: `navigation.test.ts`, `link.test.ts`, `deep-link-*.test.ts`, `deep-navigate-api.test.ts`, `concurrent.test.ts`, `scroll.test.ts`, `url-normalization.test.ts`, `deep-shallow-*.test.ts`, `popstate-cache.test.ts`, `navigation-phase.test.ts`, `deep-view-transition.test.ts`, `deep-prefetch*.test.ts`, `deep-download-links.test.ts`, `deep-session34.test.ts`.
 
 - [x] back / forward SPA
 - [x] URL trailing-slash / case normalization
@@ -85,7 +84,7 @@ Archive: `navigation.test.ts`, `link.test.ts`, `deep-link-*.test.ts`, `deep-navi
 
 ## 3. Layouts / params / optional
 
-Archive: `deep-layout*.test.ts`, `deep-catch-all.test.ts`, `deep-optional-params.test.ts`, `optional-single-param.test.ts`, `path-segment.test.ts`, `dynamic-extension-routes.test.ts`.
+Tests: `deep-layout*.test.ts`, `deep-catch-all.test.ts`, `deep-optional-params.test.ts`, `optional-single-param.test.ts`, `path-segment.test.ts`, `dynamic-extension-routes.test.ts`.
 
 - [x] layout groups `(dashboard)` persist across children
 - [x] layout loader data visible to page (blog-style)
@@ -96,7 +95,7 @@ Archive: `deep-layout*.test.ts`, `deep-catch-all.test.ts`, `deep-optional-params
 
 ## 4. Redirects / rewrite / 404
 
-Archive: `redirects.test.ts`, `deep-redirects.test.ts`, `deep-external-redirect.test.ts`, `rewrite.test.ts`, `deep-rewrite.test.ts`, `deep-not-found-mode.test.ts`.
+Tests: `redirects.test.ts`, `deep-redirects.test.ts`, `deep-external-redirect.test.ts`, `rewrite.test.ts`, `deep-rewrite.test.ts`, `deep-not-found-mode.test.ts`.
 
 - [x] default 303 internal
 - [x] explicit 302
@@ -107,11 +106,11 @@ Archive: `redirects.test.ts`, `deep-redirects.test.ts`, `deep-external-redirect.
 - [x] rewrite output on Link href
 - [x] rewrite preserves search
 - [x] `notFound()` helper
-- [!] CSR unknown-path not-found — product gap (archive skipped)
+- [!] CSR unknown-path not-found — product gap
 
 ## 5. Head / headers / middleware
 
-Archive: `head.test.ts`, `deep-head*.test.ts`, `deep-headers.test.ts`, `deep-middleware.test.ts`, `middleware-scoping.test.ts`, `server-timing.test.ts`.
+Tests: `head.test.ts`, `deep-head*.test.ts`, `deep-headers.test.ts`, `deep-middleware.test.ts`, `middleware-scoping.test.ts`, `server-timing.test.ts`.
 
 - [x] custom headers SSR + NDJSON
 - [x] layout + page header merge / override
@@ -128,7 +127,7 @@ Archive: `head.test.ts`, `deep-head*.test.ts`, `deep-headers.test.ts`, `deep-mid
 
 ## 6. NDJSON / FlareState / hydration
 
-Archive: `deep-ndjson-protocol.test.ts`, `hydration.test.ts`, `deep-ssr-hydration-match.test.ts`, `deep-loader-data.test.ts`, `deep-builder-props.test.ts`.
+Tests: `deep-ndjson-protocol.test.ts`, `hydration.test.ts`, `deep-ssr-hydration-match.test.ts`, `deep-loader-data.test.ts`, `deep-builder-props.test.ts`.
 
 - [x] basic loader + head messages
 - [x] all message types (`t:l|h|r|d|e|x|c|q`)
@@ -142,7 +141,7 @@ Archive: `deep-ndjson-protocol.test.ts`, `hydration.test.ts`, `deep-ssr-hydratio
 
 ## 7. Auth / errors / boundaries
 
-Archive: `error-handling.test.ts`, `error-boundary-retry.test.ts`, `deep-error-*.test.ts`, `deep-authorize.test.ts`, `deep-error-auth.test.ts`.
+Tests: `error-handling.test.ts`, `error-boundary-retry.test.ts`, `deep-error-*.test.ts`, `deep-authorize.test.ts`, `deep-error-auth.test.ts`.
 
 - [x] loader throw → page `errorRender` + 500
 - [x] layout catches child error
@@ -155,7 +154,7 @@ Archive: `error-handling.test.ts`, `error-boundary-retry.test.ts`, `deep-error-*
 
 ## 8. Server functions / forms / revalidation
 
-Archive: `deep-server-fn*.test.ts`, `server-fn-revalidate.test.ts`, `deep-form-*.test.ts`, `deep-revalidation*.test.ts`.
+Tests: `deep-server-fn*.test.ts`, `server-fn-revalidate.test.ts`, `deep-form-*.test.ts`, `deep-revalidation*.test.ts`.
 
 - [x] `createServerFn` POST `/_fn/…`
 - [x] GET server-fn
@@ -170,7 +169,7 @@ Archive: `deep-server-fn*.test.ts`, `server-fn-revalidate.test.ts`, `deep-form-*
 
 ## 9. Cache / ISR / prerender / store
 
-Archive: `deep-cache-*.test.ts`, `deep-isr-*.test.ts`, `deep-kv-cache.test.ts`, `deep-duration-cache.test.ts`, `deep-purge.test.ts`, `deep-prerender.test.ts`, `dev-prerender.test.ts`, `dev-store.test.ts`, `flare-cache-headers.test.ts`, `ssg-param-validation.test.ts`, `vary-etag.test.ts`.
+Tests: `deep-cache-*.test.ts`, `deep-isr-*.test.ts`, `deep-kv-cache.test.ts`, `deep-duration-cache.test.ts`, `deep-purge.test.ts`, `deep-prerender.test.ts`, `dev-prerender.test.ts`, `dev-store.test.ts`, `flare-cache-headers.test.ts`, `ssg-param-validation.test.ts`, `vary-etag.test.ts`.
 
 - [x] client staleTime cache hit / miss
 - [x] `.cache()` SSR / KV + param isolation
@@ -181,12 +180,12 @@ Archive: `deep-cache-*.test.ts`, `deep-isr-*.test.ts`, `deep-kv-cache.test.ts`, 
 - [x] SSG params allowlist `/ssg-dynamic/:slug` + unlisted 404
 - [x] ISR `dynamicParams:false` unlisted slug 404
 - [x] `POST /_flare/revalidate` tags; GET 405
-- [x] Vary: `x-d` + weak ETag 304
+- [x] Vary: `x-d` + weak ETag (HTML is never 304 — nonce rewrite)
 - [x] `Flare-Cache` / `Flare-Render` diagnostics
 
 ## 10. i18n / locale
 
-Archive: `i18n.test.ts`, `deep-i18n-*.test.ts`. Real-world: `real-world/e2e/i18n.test.ts` (~90 cases).
+Tests: `i18n.test.ts`, `deep-i18n-*.test.ts`. Real-world: `real-world/e2e/i18n.test.ts` (~90 cases).
 
 - [x] hard nav sets `flare.locale` + `html lang`
 - [x] cookie-respect redirect (302 to prefixed)
@@ -205,7 +204,7 @@ Archive: `i18n.test.ts`, `deep-i18n-*.test.ts`. Real-world: `real-world/e2e/i18n
 
 ## 11. Query / broadcast / theme / direction
 
-Archive: `deep-query-*.test.ts`, `deep-broadcast.test.ts`, `deep-theme-direction.test.ts`.
+Tests: `deep-query-*.test.ts`, `deep-broadcast.test.ts`, `deep-theme-direction.test.ts`.
 
 - [x] query client hydrate from FlareState
 - [x] invalidation
@@ -217,7 +216,7 @@ Archive: `deep-query-*.test.ts`, `deep-broadcast.test.ts`, `deep-theme-direction
 
 ## 12. Fonts / image / lazy / styles
 
-Archive: `deep-fonts.test.ts`, `deep-image.test.ts`, `static-image.test.ts`, `lazy.test.ts`, `deep-styling-*.test.ts`.
+Tests: `deep-fonts.test.ts`, `deep-image.test.ts`, `static-image.test.ts`, `lazy.test.ts`, `deep-styling-*.test.ts`.
 
 - [x] `FontCSS` subset + preload
 - [x] fallback metrics / size-adjust
@@ -226,15 +225,15 @@ Archive: `deep-fonts.test.ts`, `deep-image.test.ts`, `static-image.test.ts`, `la
 - [x] `lazy()` island
 - [x] `class=` Tailwind compile
 - [x] sx variants / dynamic class
-- [!] `tw=` — dropped
-- [!] `css=` native — not in current sx pipeline
-- [!] `styles()` tw — not in current pipeline
-- [!] Base UI sx — UI parked
-- [!] visual PNG snapshots — not porting
+- [x] `tw=` — dropped; covered via `class=` Tailwind (`styling-tw-static`, `styling-tw-native`)
+- [x] `css=` / `sx` native computed styles
+- [x] `styles()` css + media + state
+- [x] Base UI-shaped sx composition (local dialog stand-in)
+- [!] visual PNG snapshots — pixel diffs, not behavior
 
 ## 13. Security / sitemap / mount / keepalive / SW
 
-Archive: `security.test.ts`, `deep-security-*.test.ts`, `deep-http-integrity.test.ts`, `deep-sitemap-submit.test.ts`, `mount.test.ts`, `keepalive.test.ts`, `deep-service-worker.test.ts`.
+Tests: `security.test.ts`, `deep-security-*.test.ts`, `deep-http-integrity.test.ts`, `deep-sitemap-submit.test.ts`, `mount.test.ts`, `keepalive.test.ts`, `deep-service-worker.test.ts`.
 
 - [x] nosniff
 - [x] dev CSP unsafe-inline
@@ -250,7 +249,7 @@ Archive: `security.test.ts`, `deep-security-*.test.ts`, `deep-http-integrity.tes
 
 ## 14. Misc product
 
-Archive: `deep-hooks.test.ts`, `deep-logging.test.ts`, `server-logs.test.ts`, `deep-env-fn.test.ts`, `deep-dev-error-overlay.test.ts`, `deep-chunk-retry.test.ts`, `deep-input-*.test.ts`, `deep-intercept-*.test.ts`, `deep-preloader.test.ts`, `preloader-error-recovery.test.ts`, `router-config-defaults.test.ts`, `deep-a11y*.test.ts`, `deep-perf-*.test.ts`, `deep-mobile-viewport.test.ts`.
+Tests: `deep-hooks.test.ts`, `deep-logging.test.ts`, `server-logs.test.ts`, `deep-env-fn.test.ts`, `deep-dev-error-overlay.test.ts`, `deep-chunk-retry.test.ts`, `deep-input-*.test.ts`, `deep-intercept-*.test.ts`, `deep-preloader.test.ts`, `preloader-error-recovery.test.ts`, `router-config-defaults.test.ts`, `deep-a11y*.test.ts`, `deep-perf-*.test.ts`, `deep-mobile-viewport.test.ts`.
 
 - [x] hooks (`useLocation`, params, search, `useNavigate`)
 - [x] input validators — zod first; valibot/arktype/yup/typebox/effect optional
@@ -272,32 +271,30 @@ Archive: `deep-hooks.test.ts`, `deep-logging.test.ts`, `server-logs.test.ts`, `d
 - [x] `cdnProxy` + `apiProxy`
 - [x] nested cache layouts `/deep-cache`
 - [x] mobile viewport smoke
-- [!] `deep-styling-tw-static` — entire file skipped
+- [x] `deep-styling-tw-static` — `class=` + `styles()` merge
 - [!] perf heap / 1000-row stress — later
-- [!] Base UI dialog axe — UI parked
-- [x] bun harness — `3.a.3` (`bun run test:e2e:bun`)
-- [!] workers harness scaffolded (`e2e/workers` + `vite.workers.config.ts`) — Vite starts; `/` still 404s, not default proof
+- [x] Base UI dialog axe — UI parked; sx composition covered without the package
+- [x] bun harness — `3.a.3` (`bun run test:e2e:bun`, prod `test:e2e:bun:prod`)
+- [x] workers harness — `3.a.3` (`bun run test:e2e:workers`, prod `test:e2e:workers:prod`). `/__flare` dashboard is `@node-only`.
 - [!] `route-smoke` 153-case giant matrix — do not port wholesale; cover via groups above
 - [!] CSR unknown-path — tested; product must keep not-found visible
 - [!] chunk-retry / CLI generate smoke — CLI stays in `packages/cli` unit tests
 
 ---
 
-## 15. Archive file map (do not delete)
+## 15. Product test map
 
-164 files. Largest: `route-smoke` 153, `deep-input-validation` 58, `deep-form-actions` 47, `deep-prerender` 45, `deep-head-resolution` 42, `deep-image` 38, `server-timing` 38.
+All cases live under `e2e/apps/product/tests/e2e/`. Largest files: `route-smoke-matrix`, `deep-input-validation`, `deep-form-actions`, `deep-prerender`, `deep-head-resolution`, `deep-image`, `server-timing`.
 
-**Fully skipped in archive today:** `deep-env-fn`, `deep-styling-tw-static`.
-
-**Partially stale:** `css=` native, `styles()` media, mix isolation, CSR unknown-path, Base UI one case, visual snapshots, 302-as-default in `deep-redirects`.
+**Not a coverage skip:** `startViewTransition` on Firefox/WebKit (API missing).
 
 ---
 
 ## How to use this file
 
 1. Pick the next `[ ]` group.
-2. Add the smallest route(s) under `e2e/app/src/routes`.
-3. `bun run --filter @flare/e2e-app generate`
-4. Write tests in `e2e/app/e2e`. Copy assertion style from `e2e-archive/e2e` — do not copy stale APIs.
-5. `bun run test:e2e`
+2. Add the smallest route(s) under `e2e/apps/product/src/routes`.
+3. `bun run --filter @flare/e2e-product generate`
+4. Write tests in `e2e/apps/product/tests/e2e`.
+5. `bun run test:all` before the change and again after. `bun run test:e2e` is the node-only slice.
 6. Flip `[ ]` → `[x]` only when the new suite proves it.
