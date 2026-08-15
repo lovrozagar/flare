@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { useSuspenseQuery } from "flare/suspense-query"
+import { createPage } from "@lovrozagar/flare/page";
+import { useSuspenseQuery } from "@lovrozagar/flare/suspense-query";
 
 /**
  * Tests multiple useSuspenseQuery calls on the same page.
@@ -10,13 +10,13 @@ function UserQuery() {
 		queryFn: async () => ({ name: "Alice", role: "admin" }),
 		queryKey: ["user"],
 		staleTime: 30_000,
-	})
+	});
 	return (
 		<div data-testid="user-data">
 			<span data-testid="user-name">{query.data()?.name}</span>
 			<span data-testid="user-role">{query.data()?.role}</span>
 		</div>
-	)
+	);
 }
 
 function ItemsQuery() {
@@ -27,13 +27,13 @@ function ItemsQuery() {
 		],
 		queryKey: ["items"],
 		staleTime: 30_000,
-	})
+	});
 	return (
 		<div data-testid="items-data">
 			<span data-testid="items-count">{query.data()?.length}</span>
 			<span data-testid="items-first">{query.data()?.[0]?.title}</span>
 		</div>
-	)
+	);
 }
 
 export const route = createPage("_root_/query-multi").render(() => (
@@ -42,4 +42,4 @@ export const route = createPage("_root_/query-multi").render(() => (
 		<UserQuery />
 		<ItemsQuery />
 	</div>
-))
+));

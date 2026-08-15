@@ -1,16 +1,16 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/about")
 	.loader(({ request }) => {
-		const host = request.headers.get("host") ?? "unknown"
-		const cookies = request.headers.get("cookie") ?? ""
-		const visitCookie = cookies.match(/flare-visit=([^;]+)/)?.[1] ?? "none"
+		const host = request.headers.get("host") ?? "unknown";
+		const cookies = request.headers.get("cookie") ?? "";
+		const visitCookie = cookies.match(/flare-visit=([^;]+)/)?.[1] ?? "none";
 		return {
 			host,
 			platform: "Standard",
 			rendered: new Date().toISOString(),
 			visitCookie,
-		}
+		};
 	})
 	.headers(() => ({
 		"cache-control": "no-store",
@@ -33,4 +33,4 @@ export const route = createPage("_root_/about")
 				<dd data-testid="visit-cookie">{props.loaderData.visitCookie}</dd>
 			</dl>
 		</div>
-	))
+	));

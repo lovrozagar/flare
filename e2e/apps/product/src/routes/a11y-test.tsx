@@ -1,6 +1,6 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
-import { createSignal, For, Show } from "solid-js"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal, For, Show } from "solid-js";
 
 export const route = createPage("_root_/a11y-test")
 	.loader(() => ({
@@ -29,8 +29,8 @@ export const route = createPage("_root_/a11y-test")
 		title: "A11y Test",
 	}))
 	.render((props) => {
-		const [expanded, setExpanded] = createSignal(false)
-		const [notification, setNotification] = createSignal("")
+		const [expanded, setExpanded] = createSignal(false);
+		const [notification, setNotification] = createSignal("");
 
 		return (
 			<main aria-label="Accessibility test content" data-testid="a11y-page">
@@ -58,11 +58,7 @@ export const route = createPage("_root_/a11y-test")
 					<input id="a11y-email-field" name="email" type="email" />
 					<h2>Articles</h2>
 					<ul aria-label="Article list" data-testid="article-list">
-						<For
-							each={
-								props.loaderData.articles as Array<{ id: number; summary: string; title: string }>
-							}
-						>
+						<For each={props.loaderData.articles as Array<{ id: number; summary: string; title: string }>}>
 							{(article) => (
 								<li data-testid={`article-${article.id}`}>
 									<article aria-labelledby={`article-title-${article.id}`}>
@@ -83,8 +79,8 @@ export const route = createPage("_root_/a11y-test")
 						aria-expanded={expanded()}
 						data-testid="toggle-btn"
 						onClick={() => {
-							setExpanded(!expanded())
-							setNotification(expanded() ? "Content expanded" : "Content collapsed")
+							setExpanded(!expanded());
+							setNotification(expanded() ? "Content expanded" : "Content collapsed");
 						}}
 						type="button"
 					>
@@ -123,5 +119,5 @@ export const route = createPage("_root_/a11y-test")
 					<p>Footer content for accessibility testing</p>
 				</footer>
 			</main>
-		)
-	})
+		);
+	});

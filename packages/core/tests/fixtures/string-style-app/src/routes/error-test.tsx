@@ -1,12 +1,12 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/error-test")
 	.loader((ctx) => {
-		const fail = ctx.location.search.fail
+		const fail = ctx.location.search.fail;
 		if (fail === "true") {
-			throw new Error("Intentional loader error")
+			throw new Error("Intentional loader error");
 		}
-		return { status: "ok", timestamp: Date.now() }
+		return { status: "ok", timestamp: Date.now() };
 	})
 	.render((props) => (
 		<div>
@@ -27,4 +27,4 @@ export const route = createPage("_root_/error-test")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

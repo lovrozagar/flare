@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(head-nest)/head-nest/page")
 	.head(() => ({
@@ -8,4 +8,4 @@ export const route = createPage("_root_/(head-nest)/head-nest/page")
 		<main data-testid="head-nest-page">
 			<h1>Head nest</h1>
 		</main>
-	))
+	));

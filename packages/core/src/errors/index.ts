@@ -1,52 +1,51 @@
-import type { RouteParamsProps, RoutePaths, RouteSearchProps } from "../route-builder/register.ts"
-import { buildUrl } from "../url/index.ts"
+import type { RouteParamsProps, RoutePaths, RouteSearchProps } from "../route-builder/register.ts";
+import { buildUrl } from "../url/index.ts";
 
 /* Internal type for RedirectResponse constructor — accepts already-resolved URLs */
 type RawRedirectOptions =
 	| { href: string; replace?: boolean; status?: number }
-	| { replace?: boolean; status?: number; to: string }
+	| { replace?: boolean; status?: number; to: string };
 
 /* Public type — route-typed like <Link> when FlareRegister is augmented */
 export type RedirectOptions<TPath extends RoutePaths = RoutePaths> =
 	| { href: string; replace?: boolean; status?: number }
-	| ({ replace?: boolean; status?: number; to: TPath } & RouteParamsProps<TPath> &
-			RouteSearchProps<TPath>)
+	| ({ replace?: boolean; status?: number; to: TPath } & RouteParamsProps<TPath> & RouteSearchProps<TPath>);
 
 export type FlattenedError = {
-	fieldErrors: Record<string, string[]>
-	formErrors: string[]
-}
+	fieldErrors: Record<string, string[]>;
+	formErrors: string[];
+};
 
 export class NotFoundError extends Error {
-	readonly name = "NotFoundError" as const
-	readonly status = 404 as const
-	readonly pathname?: string
+	readonly name = "NotFoundError" as const;
+	readonly status = 404 as const;
+	readonly pathname?: string;
 
 	constructor(message?: string, pathname?: string) {
-		super(message ?? "Not found")
-		this.pathname = pathname
+		super(message ?? "Not found");
+		this.pathname = pathname;
 	}
 }
 
 export class UnauthenticatedError extends Error {
-	readonly name = "UnauthenticatedError" as const
-	readonly status = 401 as const
+	readonly name = "UnauthenticatedError" as const;
+	readonly status = 401 as const;
 
 	constructor(message?: string) {
-		super(message ?? "Unauthorized")
+		super(message ?? "Unauthorized");
 	}
 }
 
 export class UnauthorizedError extends Error {
-	readonly name = "UnauthorizedError" as const
-	readonly status = 403 as const
+	readonly name = "UnauthorizedError" as const;
+	readonly status = 403 as const;
 
 	constructor(message?: string) {
-		super(message ?? "Forbidden")
+		super(message ?? "Forbidden");
 	}
 }
 
-const SAFE_PROTOCOLS = new Set(["http:", "https:"])
+const SAFE_PROTOCOLS = new Set(["http:", "https:"]);
 
 /**
  * Allowlist-based redirect URL validation using the URL constructor.
@@ -55,113 +54,113 @@ const SAFE_PROTOCOLS = new Set(["http:", "https:"])
  */
 function validateExternalRedirectUrl(href: string): string {
 	/* Relative paths are safe — no protocol to exploit */
-	if (href.startsWith("/") || href.startsWith(".")) return href
+	if (href.startsWith("/") || href.startsWith(".")) return href;
 
-	let parsed: URL
+	let parsed: URL;
 	try {
-		parsed = new URL(href, "http://localhost")
+		parsed = new URL(href, "http://localhost");
 	} catch {
-		throw new Error(`Unsafe redirect URL: ${href}`)
+		throw new Error(`Unsafe redirect URL: ${href}`);
 	}
 
 	if (!SAFE_PROTOCOLS.has(parsed.protocol)) {
-		throw new Error(`Unsafe redirect URL: ${href}`)
+		throw new Error(`Unsafe redirect URL: ${href}`);
 	}
 
-	return href
+	return href;
 }
 
 export class RedirectResponse extends Error {
-	readonly name = "RedirectResponse" as const
-	readonly url: string
-	readonly external: boolean
-	readonly status: number
-	readonly replace: boolean
+	readonly name = "RedirectResponse" as const;
+	readonly url: string;
+	readonly external: boolean;
+	readonly status: number;
+	readonly replace: boolean;
 
 	constructor(options: RawRedirectOptions) {
-		super("Redirect")
+		super("Redirect");
 		if ("href" in options) {
-			this.url = validateExternalRedirectUrl(options.href)
-			this.external = true
+			this.url = validateExternalRedirectUrl(options.href);
+			this.external = true;
 		} else {
-			this.url = options.to
-			this.external = false
+			this.url = options.to;
+			this.external = false;
 		}
-		this.status = options.status ?? 303
-		this.replace = options.replace ?? true
+		this.status = options.status ?? 303;
+		this.replace = options.replace ?? true;
 	}
 }
 
 export class NavigationError extends Error {
-	readonly name = "NavigationError" as const
+	readonly name = "NavigationError" as const;
 }
 
 export class ServerFnValidationError extends Error {
-	readonly name = "ServerFnValidationError" as const
-	readonly errors: FlattenedError
+	readonly name = "ServerFnValidationError" as const;
+	readonly errors: FlattenedError;
 
 	constructor(errors: FlattenedError) {
-		super(errors.formErrors?.length ? errors.formErrors.join(", ") : "Validation error")
-		this.errors = errors
+		super(errors.formErrors?.length ? errors.formErrors.join(", ") : "Validation error");
+		this.errors = errors;
 	}
 }
 
 export function notFound(message?: string): never {
-	throw new NotFoundError(message)
+	throw new NotFoundError(message);
 }
 
 export function unauthenticated(message?: string): never {
-	throw new UnauthenticatedError(message)
+	throw new UnauthenticatedError(message);
 }
 
 export function unauthorized(message?: string): never {
-	throw new UnauthorizedError(message)
+	throw new UnauthorizedError(message);
 }
 
-export function redirect<TPath extends RoutePaths>(options: RedirectOptions<TPath>): never
+export function redirect<TPath extends RoutePaths>(options: RedirectOptions<TPath>): never;
 export function redirect(options: {
-	href?: string
-	params?: Record<string, unknown>
-	replace?: boolean
-	search?: Record<string, unknown>
-	status?: number
-	to?: string
+	href?: string;
+	params?: Record<string, unknown>;
+	replace?: boolean;
+	search?: Record<string, unknown>;
+	status?: number;
+	to?: string;
 }): never {
 	if (options.href !== undefined) {
 		throw new RedirectResponse({
 			href: options.href,
 			replace: options.replace,
 			status: options.status,
-		})
+		});
 	}
 	if (options.to === undefined) {
-		throw new Error("redirect() requires either 'to' or 'href'")
+		throw new Error("redirect() requires either 'to' or 'href'");
 	}
-	const url = buildUrl({ params: options.params, search: options.search, to: options.to })
-	throw new RedirectResponse({ replace: options.replace, status: options.status, to: url })
+	const url = buildUrl({ params: options.params, search: options.search, to: options.to });
+	throw new RedirectResponse({ replace: options.replace, status: options.status, to: url });
 }
 
 /* Name-based guards work across realms and with reconstructed errors */
 export function isNotFoundError(e: unknown): e is NotFoundError {
-	return e instanceof Error && e.name === "NotFoundError"
+	return e instanceof Error && e.name === "NotFoundError";
 }
 
 export function isUnauthenticatedError(e: unknown): e is UnauthenticatedError {
-	return e instanceof Error && e.name === "UnauthenticatedError"
+	return e instanceof Error && e.name === "UnauthenticatedError";
 }
 
 export function isUnauthorizedError(e: unknown): e is UnauthorizedError {
-	return e instanceof Error && e.name === "UnauthorizedError"
+	return e instanceof Error && e.name === "UnauthorizedError";
 }
 
 export function isRedirectResponse(e: unknown): e is RedirectResponse {
-	return e instanceof Error && e.name === "RedirectResponse"
+	return e instanceof Error && e.name === "RedirectResponse";
 }
 
 export function isNavigationError(e: unknown): e is NavigationError {
-	return e instanceof Error && e.name === "NavigationError"
+	return e instanceof Error && e.name === "NavigationError";
 }
 
 export function isServerFnValidationError(e: unknown): e is ServerFnValidationError {
-	return e instanceof Error && e.name === "ServerFnValidationError"
+	return e instanceof Error && e.name === "ServerFnValidationError";
 }

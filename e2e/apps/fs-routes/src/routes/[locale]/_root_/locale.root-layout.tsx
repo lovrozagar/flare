@@ -1,5 +1,5 @@
-import { createRootLayout } from "flare/root-layout"
-import { ThemeScript } from "flare/theme"
+import { createRootLayout } from "@lovrozagar/flare/root-layout";
+import { ThemeScript } from "@lovrozagar/flare/theme";
 
 export const route = createRootLayout("[locale]/_root_")
 	.head(() => ({ title: "FS locale" }))
@@ -10,4 +10,4 @@ export const route = createRootLayout("[locale]/_root_")
 			</head>
 			<body data-testid="locale-root">{props.children}</body>
 		</html>
-	))
+	));

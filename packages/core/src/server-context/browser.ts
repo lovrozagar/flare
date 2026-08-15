@@ -9,74 +9,75 @@
  * they should be guarded by `import.meta.env.SSR` or live inside a stripped server-fn handler.
  */
 
-import type { CdnPurgeAdapter } from "../revalidation/index.ts"
-import type { FlareStore } from "../store/index.ts"
+import type { CdnPurgeAdapter } from "../revalidation/index.ts";
+import type { FlareStore } from "../store/index.ts";
 
 export interface ServerLogEntry {
-	a: unknown[]
-	l: "error" | "log" | "warn"
-	s?: string
+	a: unknown[];
+	l: "error" | "log" | "warn";
+	s?: string;
 }
 
 export interface ServerRequestContextStore {
-	get<T>(key: string): T | undefined
-	set<K extends string, V>(key: K, value: V): void
+	get<T>(key: string): T | undefined;
+	set<K extends string, V>(key: K, value: V): void;
 }
 
 export interface RunWithServerContextOptions {
-	cdnPurgeAdapter?: CdnPurgeAdapter
-	isDev?: boolean
-	nonce: string
-	request: Request
-	serverContext?: Record<string, unknown>
-	store?: FlareStore
-	waitUntil?: (promise: Promise<unknown>) => void
+	cdnPurgeAdapter?: CdnPurgeAdapter;
+	isDev?: boolean;
+	nonce: string;
+	request: Request;
+	serverContext?: Record<string, unknown>;
+	store?: FlareStore;
+	waitUntil?: (promise: Promise<unknown>) => void;
 }
 
-const ERR = "Flare server-context API called in the browser. Move call into a server-fn handler or guard with import.meta.env.SSR."
+const ERR =
+	"Flare server-context API called in the browser. Move call into a server-fn handler or guard with import.meta.env.SSR.";
 
 function unreachable(): never {
-	throw new Error(ERR)
+	throw new Error(ERR);
 }
 
 export function generateNonce(): string {
-	const bytes = crypto.getRandomValues(new Uint8Array(16))
-	let hex = ""
+	const bytes = crypto.getRandomValues(new Uint8Array(16));
+	let hex = "";
 	for (const b of bytes) {
-		hex += b.toString(16).padStart(2, "0")
+		hex += b.toString(16).padStart(2, "0");
 	}
-	return hex
+	return hex;
 }
 
 export function runWithServerContext<T>(_opts: RunWithServerContextOptions, _cb: () => T): T {
-	return unreachable()
+	return unreachable();
 }
 
 export function getServerNonce(): string {
-	return ""
+	return "";
 }
 
 export function setServerNonce(_nonce: string): void {
-	unreachable()
+	unreachable();
 }
 
 export function getServerRequest(): Request {
-	return unreachable()
+	return unreachable();
 }
 
 export function getServerRequestContext(): ServerRequestContextStore {
-	return unreachable()
+	return unreachable();
 }
 
 export function getServerContext<T extends Record<string, unknown> = Record<string, unknown>>(): T {
-	return unreachable() as T
+	return unreachable() as T;
 }
 
 export function getRevalidationContext(): {
-	cdnPurgeAdapter?: CdnPurgeAdapter
-	store?: FlareStore
+	cdnPurgeAdapter?: CdnPurgeAdapter;
+	store?: FlareStore;
 } {
-	return {}
+	return {};
 }
 
 export function addRevalidatedTags(_tags: string[]): void {
@@ -84,7 +85,7 @@ export function addRevalidatedTags(_tags: string[]): void {
 }
 
 export function getRevalidatedTags(): string[] {
-	return []
+	return [];
 }
 
 export function serverLog(_level: "error" | "log" | "warn", ..._args: unknown[]): void {
@@ -92,7 +93,7 @@ export function serverLog(_level: "error" | "log" | "warn", ..._args: unknown[])
 }
 
 export function getServerLogs(): ServerLogEntry[] {
-	return []
+	return [];
 }
 
 export function background(_promise: Promise<unknown>): void {
@@ -100,13 +101,13 @@ export function background(_promise: Promise<unknown>): void {
 }
 
 export interface FormActionContext {
-	[key: string]: unknown
+	[key: string]: unknown;
 }
 
 export function setFormActionContext(_fnId: string, _ctx: FormActionContext): void {
-	unreachable()
+	unreachable();
 }
 
 export function getFormActionContext(_fnId: string): FormActionContext | undefined {
-	return undefined
+	return undefined;
 }

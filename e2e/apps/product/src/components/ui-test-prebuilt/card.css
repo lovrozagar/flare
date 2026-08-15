@@ -1,0 +1,14 @@
+@layer sx {
+	.a1-pc001 {
+		background-color: rgb(245, 250, 245);
+	}
+	.a1-pc002 {
+		border: 1px solid rgb(180, 220, 180);
+	}
+	.a1-pc003 {
+		border-radius: 8px;
+	}
+	.a1-pc004 {
+		padding: 20px;
+	}
+}

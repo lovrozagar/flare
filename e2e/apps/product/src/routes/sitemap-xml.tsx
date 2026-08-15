@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/sitemap.xml").response(() => {
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -7,8 +7,8 @@ export const route = createPage("_root_/sitemap.xml").response(() => {
   <url><loc>http://localhost:4101/about</loc></url>
   <url><loc>https://example.com/</loc></url>
   <url><loc>https://example.com/about</loc></url>
-</urlset>`
+</urlset>`;
 	return new Response(xml, {
 		headers: { "content-type": "application/xml; charset=utf-8" },
-	})
-})
+	});
+});

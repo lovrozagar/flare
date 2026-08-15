@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/head-minimal")
 	.head(() => ({
@@ -11,4 +11,4 @@ export const route = createPage("_root_/head-minimal")
 			<h1>Head Minimal</h1>
 			<p>Only title, description, and robots.</p>
 		</main>
-	))
+	));

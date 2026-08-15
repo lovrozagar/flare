@@ -1,27 +1,27 @@
-import { Await } from "flare/await"
-import { createPage } from "flare/page"
-import { For } from "solid-js"
+import { Await } from "@lovrozagar/flare/await";
+import { createPage } from "@lovrozagar/flare/page";
+import { For } from "solid-js";
 
 interface Comment {
-	author: string
-	text: string
+	author: string;
+	text: string;
 }
 
 export const route = createPage("_root_/(blog)/blog/[slug]")
 	.loader((ctx) => {
-		const slug = ctx.location.params.slug
+		const slug = ctx.location.params.slug;
 		const comments = ctx.defer<Comment[]>(async () => {
-			await new Promise((r) => setTimeout(r, 80))
+			await new Promise((r) => setTimeout(r, 80));
 			return [
 				{ author: "Alice", text: `Comment on ${slug}` },
 				{ author: "Bob", text: "Great post" },
-			]
-		})
+			];
+		});
 		return {
 			comments,
 			slug,
 			title: `Post: ${slug}`,
-		}
+		};
 	})
 	.head((ctx) => ({
 		title: ctx.loaderData.title,
@@ -49,4 +49,4 @@ export const route = createPage("_root_/(blog)/blog/[slug]")
 				</Await>
 			</section>
 		</main>
-	))
+	));

@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/xss-test")
 	.loader(() => ({
@@ -17,4 +17,4 @@ export const route = createPage("_root_/xss-test")
 			<p data-testid="xss-json">{props.loaderData.jsonContent}</p>
 			<p data-testid="xss-special">{props.loaderData.specialChars}</p>
 		</div>
-	))
+	));

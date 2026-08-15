@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(chain-auth)/chain-auth")
 	.loader(({ auth }) => ({
@@ -8,4 +8,4 @@ export const route = createPage("_root_/(chain-auth)/chain-auth")
 		<main data-testid="chain-auth-child">
 			<p data-testid="auth-child-user">{props.loaderData.childUser}</p>
 		</main>
-	))
+	));

@@ -10,14 +10,14 @@ Rendering layer. FlareProvider holds reactive state, `<Outlet>` renders the matc
 
 ```ts
 interface ClientMatch {
-	_type: "layout" | "render" | "root-layout"
-	errorRender?: (props: ErrorRenderProps) => JSX.Element
-	loaderData: unknown
-	notFoundRender?: (props: NotFoundRenderProps) => JSX.Element
-	preloaderContext?: Record<string, unknown>
-	render: (props: RenderProps) => JSX.Element
-	unauthorizedRender?: (props: UnauthorizedRenderProps) => JSX.Element
-	virtualPath: string
+	_type: "layout" | "render" | "root-layout";
+	errorRender?: (props: ErrorRenderProps) => JSX.Element;
+	loaderData: unknown;
+	notFoundRender?: (props: NotFoundRenderProps) => JSX.Element;
+	preloaderContext?: Record<string, unknown>;
+	render: (props: RenderProps) => JSX.Element;
+	unauthorizedRender?: (props: UnauthorizedRenderProps) => JSX.Element;
+	virtualPath: string;
 }
 ```
 
@@ -28,40 +28,40 @@ Client-side representation of a matched route. Combined from loaded module (rend
 ```ts
 interface FlareProviderContext {
 	/* Reactive state (Solid signals) */
-	hydrated: Accessor<boolean>
-	isNavigating: Accessor<boolean>
-	location: Accessor<Location>
-	matches: Accessor<ClientMatch[]>
-	notFound: Accessor<boolean>
-	params: Accessor<Record<string, string | string[]>>
-	search: Accessor<Record<string, string>>
+	hydrated: Accessor<boolean>;
+	isNavigating: Accessor<boolean>;
+	location: Accessor<Location>;
+	matches: Accessor<ClientMatch[]>;
+	notFound: Accessor<boolean>;
+	params: Accessor<Record<string, string | string[]>>;
+	search: Accessor<Record<string, string>>;
 
 	/* State setters (called by navigation / hydration) */
-	setHydrated: (v: boolean) => void
-	setIsNavigating: (v: boolean) => void
-	setMatches: (matches: ClientMatch[]) => void
-	setNotFound: (notFound: boolean) => void
-	setParams: (params: Record<string, string | string[]>) => void
-	setSearch: (search: Record<string, string>) => void
+	setHydrated: (v: boolean) => void;
+	setIsNavigating: (v: boolean) => void;
+	setMatches: (matches: ClientMatch[]) => void;
+	setNotFound: (notFound: boolean) => void;
+	setParams: (params: Record<string, string | string[]>) => void;
+	setSearch: (search: Record<string, string>) => void;
 
 	/* Caches */
-	matchCache: MatchCache
-	prefetchCache: PrefetchCache
+	matchCache: MatchCache;
+	prefetchCache: PrefetchCache;
 
 	/* Router actions (set by setupNavigation) */
-	navigate: (options: NavigateOptions) => Promise<void>
-	prefetch: (options: PrefetchOptions) => Promise<void>
+	navigate: (options: NavigateOptions) => Promise<void>;
+	prefetch: (options: PrefetchOptions) => Promise<void>;
 
 	/* Boundaries (from FlareProviderProps) */
-	boundaries?: GlobalBoundaries
+	boundaries?: GlobalBoundaries;
 
 	/* Invalidation */
-	invalidate: (options?: InvalidateOptions) => void
+	invalidate: (options?: InvalidateOptions) => void;
 
 	/* Infrastructure */
-	layouts: Record<string, () => Promise<{ default: unknown }>>
-	resolvers: Map<string, DeferredResolver>
-	routeTree: TreeNode
+	layouts: Record<string, () => Promise<{ default: unknown }>>;
+	resolvers: Map<string, DeferredResolver>;
+	routeTree: TreeNode;
 }
 ```
 
@@ -70,31 +70,29 @@ interface FlareProviderContext {
 ```ts
 interface FlareRouter {
 	/* Reactive signals */
-	hydrated: Accessor<boolean>
-	isNavigating: Accessor<boolean>
-	location: Accessor<Location>
-	matches: Accessor<ClientMatch[]>
-	params: Accessor<Record<string, string | string[]>>
-	search: Accessor<Record<string, string>>
+	hydrated: Accessor<boolean>;
+	isNavigating: Accessor<boolean>;
+	location: Accessor<Location>;
+	matches: Accessor<ClientMatch[]>;
+	params: Accessor<Record<string, string | string[]>>;
+	search: Accessor<Record<string, string>>;
 
 	/* Actions */
-	buildLocation: <TPath extends RegisteredRoutes>(options: BuildLocationOptions<TPath>) => Location
-	buildUrl: <TPath extends RegisteredRoutes>(options: BuildUrlOptions<TPath>) => string
-	clearCache: () => void
-	invalidate: (options?: InvalidateOptions) => void
-	navigate: <TPath extends RegisteredRoutes>(options: NavigateOptions<TPath>) => Promise<void>
-	prefetch: <TPath extends RegisteredRoutes>(options: PrefetchOptions<TPath>) => Promise<void>
-	refetch: () => Promise<void>
+	buildLocation: <TPath extends RegisteredRoutes>(options: BuildLocationOptions<TPath>) => Location;
+	buildUrl: <TPath extends RegisteredRoutes>(options: BuildUrlOptions<TPath>) => string;
+	clearCache: () => void;
+	invalidate: (options?: InvalidateOptions) => void;
+	navigate: <TPath extends RegisteredRoutes>(options: NavigateOptions<TPath>) => Promise<void>;
+	prefetch: <TPath extends RegisteredRoutes>(options: PrefetchOptions<TPath>) => Promise<void>;
+	refetch: () => Promise<void>;
 
 	/* Data hooks */
-	useBlocker: (when: () => boolean) => BlockerState
-	useLoaderData: <TPath extends RegisteredLoaderPaths>(
-		options: UseLoaderDataOptions<TPath>,
-	) => Accessor<unknown>
-	useMatch: <TPath extends string>(options: { from: TPath }) => Accessor<ClientMatch | undefined>
+	useBlocker: (when: () => boolean) => BlockerState;
+	useLoaderData: <TPath extends RegisteredLoaderPaths>(options: UseLoaderDataOptions<TPath>) => Accessor<unknown>;
+	useMatch: <TPath extends string>(options: { from: TPath }) => Accessor<ClientMatch | undefined>;
 	usePreloaderContext: <TPath extends RegisteredPreloaderPaths>(
 		options: UsePreloaderContextOptions<TPath>,
-	) => Accessor<unknown>
+	) => Accessor<unknown>;
 }
 ```
 
@@ -143,20 +141,20 @@ interface BuildUrlOptions<TPath extends RegisteredRoutes = RegisteredRoutes> {
 ### View Transition Types
 
 ```ts
-type ViewTransitionConfig = boolean | ViewTransitionOptions
+type ViewTransitionConfig = boolean | ViewTransitionOptions;
 
 interface ViewTransitionOptions {
-	types: string[] | ((info: LocationChangeInfo) => string[] | false)
+	types: string[] | ((info: LocationChangeInfo) => string[] | false);
 }
 
 interface LocationChangeInfo {
-	direction: ViewTransitionDirection
-	fromLocation: { hash: string; pathname: string; search: string } | null
-	pathChanged: boolean
-	toLocation: { hash: string; pathname: string; search: string }
+	direction: ViewTransitionDirection;
+	fromLocation: { hash: string; pathname: string; search: string } | null;
+	pathChanged: boolean;
+	toLocation: { hash: string; pathname: string; search: string };
 }
 
-type ViewTransitionDirection = "back" | "forward" | "none"
+type ViewTransitionDirection = "back" | "forward" | "none";
 ```
 
 - `true` → enable with direction-based types (`forward`/`back`/`none`)
@@ -169,19 +167,19 @@ type ViewTransitionDirection = "back" | "forward" | "none"
 
 ```ts
 interface UseLoaderDataOptions<TPath extends RegisteredLoaderPaths> {
-	from: TPath
-	select?: (data: ResolvedLoaderData<TPath>) => unknown
+	from: TPath;
+	select?: (data: ResolvedLoaderData<TPath>) => unknown;
 }
 
 interface UsePreloaderContextOptions<TPath extends RegisteredPreloaderPaths> {
-	from: TPath
-	select?: (ctx: ResolvedPreloaderContext<TPath>) => unknown
+	from: TPath;
+	select?: (ctx: ResolvedPreloaderContext<TPath>) => unknown;
 }
 
 interface BlockerState {
-	blocked: Accessor<boolean>
-	proceed: () => void
-	reset: () => void
+	blocked: Accessor<boolean>;
+	proceed: () => void;
+	reset: () => void;
 }
 ```
 
@@ -231,16 +229,16 @@ Outlet: (props?: { fallback?: JSX.Element }) => JSX.Element
 
 ```ts
 interface FlareProviderProps {
-	boundaries?: GlobalBoundaries
-	children: JSX.Element
-	layouts: Record<string, () => Promise<{ default: unknown }>>
-	matchCache: MatchCache
-	matches: ClientMatch[]
-	onContextReady?: (ctx: FlareProviderContext) => void
-	params: Record<string, string | string[]>
-	prefetchCache: PrefetchCache
-	resolvers: Map<string, DeferredResolver>
-	routeTree: TreeNode
+	boundaries?: GlobalBoundaries;
+	children: JSX.Element;
+	layouts: Record<string, () => Promise<{ default: unknown }>>;
+	matchCache: MatchCache;
+	matches: ClientMatch[];
+	onContextReady?: (ctx: FlareProviderContext) => void;
+	params: Record<string, string | string[]>;
+	prefetchCache: PrefetchCache;
+	resolvers: Map<string, DeferredResolver>;
+	routeTree: TreeNode;
 }
 ```
 
@@ -249,29 +247,26 @@ interface FlareProviderProps {
 Creates reactive state from initial props:
 
 ```ts
-const [hydrated, setHydrated] = createSignal(false)
-const [isNavigating, setIsNavigating] = createSignal(false)
-const [matches, setMatches] = createSignal(props.matches)
-const [notFound, setNotFound] = createSignal(false)
-const [params, setParams] = createSignal(props.params)
-const [search, setSearch] = createSignal(
-	Object.fromEntries(new URL(window.location.href).searchParams),
-)
+const [hydrated, setHydrated] = createSignal(false);
+const [isNavigating, setIsNavigating] = createSignal(false);
+const [matches, setMatches] = createSignal(props.matches);
+const [notFound, setNotFound] = createSignal(false);
+const [params, setParams] = createSignal(props.params);
+const [search, setSearch] = createSignal(Object.fromEntries(new URL(window.location.href).searchParams));
 
 const location = createMemo(() => {
-	const allMatches = matches()
-	const lastMatch = allMatches[allMatches.length - 1]
-	const firstMatch = allMatches[0]
-	if (!lastMatch || !firstMatch)
-		return buildLocation(new URL(window.location.href), params(), "", "")
+	const allMatches = matches();
+	const lastMatch = allMatches[allMatches.length - 1];
+	const firstMatch = allMatches[0];
+	if (!lastMatch || !firstMatch) return buildLocation(new URL(window.location.href), params(), "", "");
 
 	return buildLocation(
 		new URL(window.location.href),
 		params(),
 		lastMatch.virtualPath,
 		/* variablePath derived from virtualPath */
-	)
-})
+	);
+});
 ```
 
 `location` is a computed signal — recomputes when params or matches change.
@@ -283,9 +278,9 @@ Called during initial render (not deferred). Passes full `FlareProviderContext` 
 ```ts
 createEffect(() => {
 	if (props.onContextReady) {
-		props.onContextReady(ctx)
+		props.onContextReady(ctx);
 	}
-})
+});
 ```
 
 Called once. `setupNavigation(ctx)` binds navigate/prefetch functions to context.
@@ -296,9 +291,9 @@ Convenience wrapper exposed to application code:
 
 ```ts
 function invalidate(options?: InvalidateOptions): void {
-	ctx.matchCache.invalidate(options)
+	ctx.matchCache.invalidate(options);
 	/* Trigger re-fetch for current route's stale matches */
-	navigate({ revalidate: true, to: window.location.href, replace: true })
+	navigate({ revalidate: true, to: window.location.href, replace: true });
 }
 ```
 
@@ -308,8 +303,8 @@ Invalidates cache entries, then re-navigates to current URL with `revalidate` to
 
 ```ts
 function useRouter(): FlareRouter {
-	const ctx = useContext(RouterContext)
-	if (!ctx) throw new Error("useRouter() called outside FlareProvider")
+	const ctx = useContext(RouterContext);
+	if (!ctx) throw new Error("useRouter() called outside FlareProvider");
 	return {
 		/* Signals */
 		hydrated: ctx.hydrated,
@@ -321,8 +316,8 @@ function useRouter(): FlareRouter {
 
 		/* Actions */
 		buildLocation: (options) => {
-			const url = new URL(buildUrl(options), window.location.href)
-			const match = matchRoute(ctx.routeTree, url.pathname)
+			const url = new URL(buildUrl(options), window.location.href);
+			const match = matchRoute(ctx.routeTree, url.pathname);
 			return buildLocationPrimitive(
 				url,
 				options.params ?? match?.params ?? {},
@@ -330,7 +325,7 @@ function useRouter(): FlareRouter {
 				match?.route.v ?? "",
 				options.search,
 				options.hash,
-			)
+			);
 		},
 		buildUrl: (options) => buildUrl(options),
 		clearCache: () => ctx.matchCache.clear(),
@@ -344,7 +339,7 @@ function useRouter(): FlareRouter {
 		useLoaderData: (options) => createLoaderDataAccessor(ctx, options),
 		useMatch: (options) => createMatchAccessor(ctx, options),
 		usePreloaderContext: (options) => createPreloaderContextAccessor(ctx, options),
-	}
+	};
 }
 ```
 
@@ -355,15 +350,15 @@ Public hook. Returns signals, actions, and data hooks. No setters, no caches, no
 Type-safe loader data access by virtualPath:
 
 ```ts
-const router = useRouter()
-const product = router.useLoaderData({ from: "_root_/(shop)/products/[id]" })
+const router = useRouter();
+const product = router.useLoaderData({ from: "_root_/(shop)/products/[id]" });
 /* product() → typed loader data for that route */
 
 /* With select — derive a subset */
 const title = router.useLoaderData({
 	from: "_root_/(shop)/products/[id]",
 	select: (data) => data.product.title,
-})
+});
 ```
 
 Implementation:
@@ -371,11 +366,11 @@ Implementation:
 ```ts
 function createLoaderDataAccessor(ctx, options): Accessor<unknown> {
 	return createMemo(() => {
-		const match = ctx.matches().find((m) => m.virtualPath === options.from)
-		if (!match) return undefined
-		if (options.select) return options.select(match.loaderData)
-		return match.loaderData
-	})
+		const match = ctx.matches().find((m) => m.virtualPath === options.from);
+		if (!match) return undefined;
+		if (options.select) return options.select(match.loaderData);
+		return match.loaderData;
+	});
 }
 ```
 
@@ -389,11 +384,11 @@ function createLoaderDataAccessor(ctx, options): Accessor<unknown> {
 Same pattern as `useLoaderData` but for preloader context:
 
 ```ts
-const router = useRouter()
+const router = useRouter();
 const theme = router.usePreloaderContext({
 	from: "_root_",
 	select: (ctx) => ctx.theme,
-})
+});
 ```
 
 Implementation:
@@ -401,11 +396,11 @@ Implementation:
 ```ts
 function createPreloaderContextAccessor(ctx, options): Accessor<unknown> {
 	return createMemo(() => {
-		const match = ctx.matches().find((m) => m.virtualPath === options.from)
-		if (!match) return undefined
-		if (options.select) return options.select(match.preloaderContext)
-		return match.preloaderContext
-	})
+		const match = ctx.matches().find((m) => m.virtualPath === options.from);
+		if (!match) return undefined;
+		if (options.select) return options.select(match.preloaderContext);
+		return match.preloaderContext;
+	});
 }
 ```
 
@@ -414,8 +409,8 @@ function createPreloaderContextAccessor(ctx, options): Accessor<unknown> {
 Access a specific match by virtualPath:
 
 ```ts
-const router = useRouter()
-const shopLayout = router.useMatch({ from: "_root_/(shop)" })
+const router = useRouter();
+const shopLayout = router.useMatch({ from: "_root_/(shop)" });
 /* shopLayout() → ClientMatch | undefined */
 ```
 
@@ -423,7 +418,7 @@ Implementation:
 
 ```ts
 function createMatchAccessor(ctx, options): Accessor<ClientMatch | undefined> {
-	return createMemo(() => ctx.matches().find((m) => m.virtualPath === options.from))
+	return createMemo(() => ctx.matches().find((m) => m.virtualPath === options.from));
 }
 ```
 
@@ -449,49 +444,49 @@ Implementation:
 
 ```ts
 function createBlocker(ctx, when): BlockerState {
-	const [blocked, setBlocked] = createSignal(false)
-	let pendingNavigation: NavigateOptions | null = null
+	const [blocked, setBlocked] = createSignal(false);
+	let pendingNavigation: NavigateOptions | null = null;
 
 	/* Intercept navigate() */
-	const originalNavigate = ctx.navigate
+	const originalNavigate = ctx.navigate;
 	ctx.navigate = async (options) => {
 		if (when()) {
-			pendingNavigation = options
-			setBlocked(true)
-			return
+			pendingNavigation = options;
+			setBlocked(true);
+			return;
 		}
-		return originalNavigate(options)
-	}
+		return originalNavigate(options);
+	};
 
 	/* Intercept beforeunload (browser close/refresh) */
 	const handleBeforeUnload = (e: BeforeUnloadEvent) => {
 		if (when()) {
-			e.preventDefault()
-			e.returnValue = ""
+			e.preventDefault();
+			e.returnValue = "";
 		}
-	}
-	window.addEventListener("beforeunload", handleBeforeUnload)
+	};
+	window.addEventListener("beforeunload", handleBeforeUnload);
 
 	onCleanup(() => {
-		ctx.navigate = originalNavigate
-		window.removeEventListener("beforeunload", handleBeforeUnload)
-	})
+		ctx.navigate = originalNavigate;
+		window.removeEventListener("beforeunload", handleBeforeUnload);
+	});
 
 	return {
 		blocked,
 		proceed: () => {
-			setBlocked(false)
+			setBlocked(false);
 			if (pendingNavigation) {
-				const nav = pendingNavigation
-				pendingNavigation = null
-				originalNavigate(nav)
+				const nav = pendingNavigation;
+				pendingNavigation = null;
+				originalNavigate(nav);
 			}
 		},
 		reset: () => {
-			setBlocked(false)
-			pendingNavigation = null
+			setBlocked(false);
+			pendingNavigation = null;
 		},
-	}
+	};
 }
 ```
 
@@ -506,10 +501,10 @@ function createBlocker(ctx, when): BlockerState {
 Signal that tracks hydration state:
 
 ```ts
-const router = useRouter()
+const router = useRouter();
 
-/* SSR: */ router.hydrated() === false
-/* After hydrate(): */ router.hydrated() === true
+/* SSR: */ router.hydrated() === false;
+/* After hydrate(): */ router.hydrated() === true;
 ```
 
 Set to `true` after `solidHydrate` completes + `data-hydrated` attribute set. Useful for client-only UI (e.g. showing interactive elements only after hydration).
@@ -518,9 +513,9 @@ Set to `true` after `solidHydrate` completes + `data-hydrated` attribute set. Us
 
 ```ts
 function useRouterContext(): FlareProviderContext {
-	const ctx = useContext(RouterContext)
-	if (!ctx) throw new Error("useRouterContext() called outside FlareProvider")
-	return ctx
+	const ctx = useContext(RouterContext);
+	if (!ctx) throw new Error("useRouterContext() called outside FlareProvider");
+	return ctx;
 }
 ```
 
@@ -532,7 +527,7 @@ Internal hook. Used by `<Outlet>`, `<Link>`, and navigation module. Full context
 
 ```ts
 interface OutletProps {
-	fallback?: JSX.Element
+	fallback?: JSX.Element;
 }
 ```
 
@@ -543,10 +538,10 @@ Optional `fallback` rendered during Suspense (deferred data loading).
 Each Outlet renders one level of the match chain. Depth tracked via Solid context:
 
 ```ts
-const DepthContext = createContext<number>(0)
+const DepthContext = createContext<number>(0);
 
 function useDepth(): number {
-	return useContext(DepthContext) ?? 0
+	return useContext(DepthContext) ?? 0;
 }
 ```
 

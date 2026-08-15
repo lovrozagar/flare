@@ -1,12 +1,12 @@
-import { createSignal, For } from "solid-js"
+import { createSignal, For } from "solid-js";
 
 interface TabsProps {
-	tabs: string[]
+	tabs: string[];
 }
 
 /* Headless + styled tabs — active state via data-active attr */
 export function SxTabs(props: TabsProps) {
-	const [active, setActive] = createSignal(0)
+	const [active, setActive] = createSignal(0);
 
 	return (
 		<div data-testid="sx-tabs-root">
@@ -45,5 +45,5 @@ export function SxTabs(props: TabsProps) {
 				{props.tabs[active()]}
 			</div>
 		</div>
-	)
+	);
 }

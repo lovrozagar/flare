@@ -10,7 +10,7 @@ Top-level orchestrator. Receives HTTP requests, decides what to do, returns resp
 
 ```ts
 interface ServerHandler<TEnv = unknown> {
-	fetch(request: Request, env: TEnv, executionContext?: ExecutionContext): Promise<Response>
+	fetch(request: Request, env: TEnv, executionContext?: ExecutionContext): Promise<Response>;
 }
 ```
 
@@ -20,16 +20,16 @@ Cloudflare Workers compatible. `executionContext` optional for non-Worker runtim
 
 ```ts
 interface ServerHandlerConfig<TEnv = unknown> {
-	allowedExtensions?: string[] /* extensions that bypass static file 404 (e.g. [".json", ".xml"]) */
-	authenticateFn?: AuthenticateFn<TEnv>
-	boundaries?: GlobalBoundaries
-	csp?: CspDirectives
-	dedupeFetch?: boolean /* patch globalThis.fetch for per-request dedup (default: true) */
-	entryScript?: string
-	isDev?: boolean
-	middlewares?: FlareMiddleware<TEnv>[]
-	router: MarkedRouterConfig /* from createRouter() (spec 25) */
-	serverFns?: Map<string, ServerFnRegistration>
+	allowedExtensions?: string[]; /* extensions that bypass static file 404 (e.g. [".json", ".xml"]) */
+	authenticateFn?: AuthenticateFn<TEnv>;
+	boundaries?: GlobalBoundaries;
+	csp?: CspDirectives;
+	dedupeFetch?: boolean; /* patch globalThis.fetch for per-request dedup (default: true) */
+	entryScript?: string;
+	isDev?: boolean;
+	middlewares?: FlareMiddleware<TEnv>[];
+	router: MarkedRouterConfig; /* from createRouter() (spec 25) */
+	serverFns?: Map<string, ServerFnRegistration>;
 }
 ```
 
@@ -39,20 +39,20 @@ interface ServerHandlerConfig<TEnv = unknown> {
 
 ```ts
 interface CspDirectives {
-	"base-uri"?: string[]
-	"connect-src"?: string[]
-	"default-src"?: string[]
-	"font-src"?: string[]
-	"form-action"?: string[]
-	"frame-ancestors"?: string[]
-	"frame-src"?: string[]
-	"img-src"?: string[]
-	"media-src"?: string[]
-	"object-src"?: string[]
-	"script-src"?: string[]
-	"style-src"?: string[]
-	"upgrade-insecure-requests"?: boolean
-	"worker-src"?: string[]
+	"base-uri"?: string[];
+	"connect-src"?: string[];
+	"default-src"?: string[];
+	"font-src"?: string[];
+	"form-action"?: string[];
+	"frame-ancestors"?: string[];
+	"frame-src"?: string[];
+	"img-src"?: string[];
+	"media-src"?: string[];
+	"object-src"?: string[];
+	"script-src"?: string[];
+	"style-src"?: string[];
+	"upgrade-insecure-requests"?: boolean;
+	"worker-src"?: string[];
 }
 ```
 
@@ -64,12 +64,12 @@ Defined in spec 23. Repeated here for context:
 
 ```ts
 interface ServerFnRegistration {
-	authenticate: boolean
-	authorizeFn?: (ctx: { auth: unknown; input: unknown }) => boolean | Promise<boolean>
-	fn: (ctx: HandlerContext<unknown, unknown>) => unknown | Promise<unknown>
-	input?: Validator<unknown>
-	method: "get" | "post"
-	name: string
+	authenticate: boolean;
+	authorizeFn?: (ctx: { auth: unknown; input: unknown }) => boolean | Promise<boolean>;
+	fn: (ctx: HandlerContext<unknown, unknown>) => unknown | Promise<unknown>;
+	input?: Validator<unknown>;
+	method: "get" | "post";
+	name: string;
 }
 ```
 
@@ -80,7 +80,7 @@ const CSR_HEADERS = {
 	DATA_REQUEST: "x-d" /* "1" when CSR navigation */,
 	MATCH_IDS: "x-m" /* comma-separated stale matchIds */,
 	PREFETCH: "x-p" /* "1" when prefetch */,
-}
+};
 ```
 
 ## Exports
@@ -150,26 +150,26 @@ Called before any processing. Three outcomes:
 
 ```ts
 function normalizeUrl(request: Request): Response | null {
-	const url = new URL(request.url)
+	const url = new URL(request.url);
 
 	if (url.pathname !== "/" && url.pathname.endsWith("/")) {
-		const target = url.pathname.slice(0, -1) + url.search + url.hash
+		const target = url.pathname.slice(0, -1) + url.search + url.hash;
 		return new Response(null, {
 			headers: { Location: target },
 			status: 301,
-		})
+		});
 	}
 
-	const lastSegment = url.pathname.split("/").pop() ?? ""
-	const dotIndex = lastSegment.lastIndexOf(".")
+	const lastSegment = url.pathname.split("/").pop() ?? "";
+	const dotIndex = lastSegment.lastIndexOf(".");
 	if (dotIndex > 0) {
-		const ext = lastSegment.slice(dotIndex)
+		const ext = lastSegment.slice(dotIndex);
 		if (ext !== ".html" && !config.allowedExtensions?.includes(ext)) {
-			return new Response("Not Found", { status: 404 })
+			return new Response("Not Found", { status: 404 });
 		}
 	}
 
-	return null
+	return null;
 }
 ```
 
@@ -198,7 +198,7 @@ Response handlers collected during middleware execution are applied after the ro
 When pathname starts with `/_fn/`, delegates to `handleServerFnRequest()` from spec 23:
 
 ```ts
-handleServerFnRequest(request, env, config.serverFns, config.authenticateFn)
+handleServerFnRequest(request, env, config.serverFns, config.authenticateFn);
 ```
 
 Full pipeline (spec 23):
@@ -224,9 +224,9 @@ No match -> render 404 page. Uses global `notFound` boundary from `config.bounda
 ### Navigation Format Detection
 
 ```ts
-const isDataRequest = request.headers.get("x-d") === "1"
-const isPrefetch = request.headers.get("x-p") === "1"
-const staleMatchIds = request.headers.get("x-m")?.split(",") ?? []
+const isDataRequest = request.headers.get("x-d") === "1";
+const isPrefetch = request.headers.get("x-p") === "1";
+const staleMatchIds = request.headers.get("x-m")?.split(",") ?? [];
 
 if (!isDataRequest) {
 	/* Initial load -> SSR */
@@ -247,7 +247,7 @@ After route match, load the matched page module and all layout modules for the m
 ### Loader Cause
 
 ```ts
-const cause: LoaderCause = isPrefetch ? "prefetch" : "enter"
+const cause: LoaderCause = isPrefetch ? "prefetch" : "enter";
 ```
 
 Server always resolves to `"prefetch"` or `"enter"`. `"stay"` is client-only (invalidation/shouldRefetch while already on the route, spec 15). Both SSR and CSR data requests are `"enter"` — user is entering the route.
@@ -285,13 +285,13 @@ SSR mode:
 return new Response(null, {
 	headers: { Location: redirect.url },
 	status: redirect.status,
-})
+});
 ```
 
 NDJSON mode:
 
 ```ts
-return createRedirectNDJSONResponse(redirect)
+return createRedirectNDJSONResponse(redirect);
 ```
 
 External redirects (`redirect.external === true`) always return HTTP redirect regardless of navigation format.
@@ -311,7 +311,7 @@ const ssrResult = renderToStream({
 	prefetch: isPrefetch,
 	resolvedHead,
 	url,
-})
+});
 
 return new Response(ssrResult.body, {
 	headers: {
@@ -319,7 +319,7 @@ return new Response(ssrResult.body, {
 		...securityHeaders(nonce, config.csp, config.isDev),
 	},
 	status: ssrResult.status,
-})
+});
 ```
 
 ### NDJSON Rendering (CSR Navigation)
@@ -343,9 +343,9 @@ Both from spec 09. Config:
 After route handler produces a response (SSR or NDJSON), apply response handlers collected from middleware:
 
 ```ts
-let response = routeResponse
+let response = routeResponse;
 for (const handler of responseHandlers) {
-	response = await handler(response)
+	response = await handler(response);
 }
 ```
 
@@ -362,7 +362,7 @@ const SECURITY_HEADERS = {
 	"Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
 	"X-Content-Type-Options": "nosniff",
 	"X-Frame-Options": "DENY",
-}
+};
 ```
 
 ### CSP Construction
@@ -378,7 +378,7 @@ const CSP_DEFAULTS: CspDirectives = {
 	"script-src": ["'self'", "'strict-dynamic'"],
 	"style-src": ["'self'", "'unsafe-inline'"],
 	"upgrade-insecure-requests": true,
-}
+};
 ```
 
 Merge: config `csp` values appended to defaults per directive (array concat, no dedup). Nonce injected into `script-src` as `'nonce-${nonce}'`.
@@ -386,7 +386,7 @@ Merge: config `csp` values appended to defaults per directive (array concat, no 
 Final CSP string: directives joined with `; `, sources joined with space.
 
 ```ts
-function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?: boolean): string
+function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?: boolean): string;
 ```
 
 ### Dev Mode CSP Relaxation

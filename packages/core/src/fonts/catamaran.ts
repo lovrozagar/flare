@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const catamaran: Font<"latin" | "latin-ext" | "tamil"> = createRegistryFont({
 	category: "sans-serif",
@@ -38,4 +38,4 @@ export const catamaran: Font<"latin" | "latin-ext" | "tamil"> = createRegistryFo
 	],
 	subsets: ["latin", "latin-ext", "tamil"],
 	weights: "100 900",
-})
+});

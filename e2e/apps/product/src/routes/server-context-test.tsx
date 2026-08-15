@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/server-context-test")
 	.loader(({ serverContext }) => ({
@@ -9,4 +9,4 @@ export const route = createPage("_root_/server-context-test")
 			<h1>Server Context Test</h1>
 			<p data-testid="request-id">{props.loaderData.requestId}</p>
 		</div>
-	))
+	));

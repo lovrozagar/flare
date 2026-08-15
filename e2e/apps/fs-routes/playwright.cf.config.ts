@@ -1,8 +1,8 @@
-import { defineConfig } from "@playwright/test"
+import { defineConfig } from "@playwright/test";
 
-const baseURL = process.env.BASE_URL
+const baseURL = process.env.BASE_URL;
 if (!baseURL) {
-	throw new Error("BASE_URL is required for Cloudflare Playwright (e.g. https://….workers.dev)")
+	throw new Error("BASE_URL is required for Cloudflare Playwright (e.g. https://….workers.dev)");
 }
 
 export default defineConfig({
@@ -16,4 +16,4 @@ export default defineConfig({
 		baseURL,
 		trace: "on-first-retry",
 	},
-})
+});

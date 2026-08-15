@@ -1,1 +1,1 @@
-export default "warn"
+export default "warn";

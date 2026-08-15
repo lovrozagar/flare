@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const barlowCondensed: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
@@ -111,4 +111,4 @@ export const barlowCondensed: Font<"latin" | "latin-ext" | "vietnamese"> = creat
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: [400, 700],
-})
+});

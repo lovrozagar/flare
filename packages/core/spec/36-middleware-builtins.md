@@ -10,15 +10,15 @@ Built-in middleware for common patterns: API proxy, CDN proxy, HTML cache, i18n,
 
 ```ts
 interface ServiceBinding {
-	fetch: (request: Request) => Promise<Response>
+	fetch: (request: Request) => Promise<Response>;
 }
 
 interface ApiProxyConfig<TEnv = unknown> {
-	enabled?: boolean | ((ctx: { env: TEnv }) => boolean)
-	headers?: (ctx: { env: TEnv; request: Request }) => Record<string, string>
-	pathPrefix: string
-	rewrite?: (path: string) => string
-	target: (ctx: { env: TEnv }) => ServiceBinding
+	enabled?: boolean | ((ctx: { env: TEnv }) => boolean);
+	headers?: (ctx: { env: TEnv; request: Request }) => Record<string, string>;
+	pathPrefix: string;
+	rewrite?: (path: string) => string;
+	target: (ctx: { env: TEnv }) => ServiceBinding;
 }
 ```
 
@@ -38,7 +38,7 @@ apiProxy({
 	pathPrefix: "/api",
 	rewrite: (path) => path.slice(4),
 	target: ({ env }) => env.GATEWAY_SERVICE,
-})
+});
 ```
 
 ## `cdnProxy`
@@ -48,18 +48,18 @@ apiProxy({
 ```ts
 interface R2BucketBinding {
 	get: (key: string) => Promise<{
-		body: ReadableStream
-		etag: string
-		httpMetadata?: { contentType?: string }
-		size: number
-	} | null>
+		body: ReadableStream;
+		etag: string;
+		httpMetadata?: { contentType?: string };
+		size: number;
+	} | null>;
 }
 
 interface CdnProxyConfig<TEnv = unknown> {
-	bucket: (ctx: { env: TEnv }) => R2BucketBinding
-	cacheControl?: string /* default: "public, max-age=31536000, immutable" */
-	edgeCache?: boolean /* default: false */
-	pathPrefix: string
+	bucket: (ctx: { env: TEnv }) => R2BucketBinding;
+	cacheControl?: string; /* default: "public, max-age=31536000, immutable" */
+	edgeCache?: boolean; /* default: false */
+	pathPrefix: string;
 }
 ```
 
@@ -81,16 +81,16 @@ Serves static assets from R2 bucket.
 
 ```ts
 interface FileCacheRule {
-	cacheControl: string
-	path: string /* suffix match */
+	cacheControl: string;
+	path: string; /* suffix match */
 }
 
 interface HtmlCacheConfig<TEnv = unknown> {
-	enabled?: boolean | ((ctx: { env: TEnv }) => boolean)
-	files?: FileCacheRule[]
-	html: { cacheControl: string }
-	name: string /* cache namespace */
-	skip?: RegExp /* paths to skip */
+	enabled?: boolean | ((ctx: { env: TEnv }) => boolean);
+	files?: FileCacheRule[];
+	html: { cacheControl: string };
+	name: string; /* cache namespace */
+	skip?: RegExp; /* paths to skip */
 }
 ```
 
@@ -128,16 +128,16 @@ SWR (Stale-While-Revalidate) cache using Cloudflare Cache API.
 
 ```ts
 interface I18nCookieConfig {
-	key: string
-	maxAge?: number /* default: 31536000 (1 year) */
-	secure?: boolean /* default: auto-detect from URL */
+	key: string;
+	maxAge?: number; /* default: 31536000 (1 year) */
+	secure?: boolean; /* default: auto-detect from URL */
 }
 
 interface I18nConfig {
-	cookie: I18nCookieConfig
-	defaultLocale: string
-	locales: string[]
-	skip?: string[]
+	cookie: I18nCookieConfig;
+	defaultLocale: string;
+	locales: string[];
+	skip?: string[];
 }
 ```
 
@@ -170,7 +170,7 @@ Locale detection and routing. Priority: URL path > cookie > Accept-Language > de
 ### Exports
 
 ```ts
-LOCALE_KEY: "locale" /* context key for serverRequestContext.get/set */
+LOCALE_KEY: "locale"; /* context key for serverRequestContext.get/set */
 ```
 
 ### Dependencies
@@ -185,7 +185,7 @@ LOCALE_KEY: "locale" /* context key for serverRequestContext.get/set */
 
 ```ts
 interface StaticAssetsConfig {
-	paths: string[]
+	paths: string[];
 }
 ```
 
@@ -200,7 +200,7 @@ Serves static assets via Cloudflare's `ASSETS` binding.
 - Env must include `ASSETS: { fetch: typeof fetch }`
 
 ```ts
-staticAssets({ paths: ["/assets/", "/favicon.ico"] })
+staticAssets({ paths: ["/assets/", "/favicon.ico"] });
 ```
 
 ## Test Cases

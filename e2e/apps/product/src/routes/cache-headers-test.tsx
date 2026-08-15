@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/cache-headers-test")
 	.cache({
@@ -17,4 +17,4 @@ export const route = createPage("_root_/cache-headers-test")
 			<p data-testid="cache-message">{props.loaderData.message}</p>
 			<p data-testid="cache-rendered-at">{props.loaderData.renderedAt}</p>
 		</div>
-	))
+	));

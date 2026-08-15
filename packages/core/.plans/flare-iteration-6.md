@@ -1,6 +1,7 @@
 # Flare Framework — Iteration 6
 
 ## Context
+
 Iterations 1-5 addressed security, perf, bugs, dead code, validation, and function extraction. This iteration focuses on TSC error elimination and a real bug fix.
 
 ## Items
@@ -13,6 +14,7 @@ Iterations 1-5 addressed security, perf, bugs, dead code, validation, and functi
 6. **Fix navigate() formatting** — misindented redirect call
 
 ## Execution order
+
 1. Bug fix (mutation method)
 2. Deduplicate mergeResponseHeaders
 3. Fix ParamsValidator type (removes source casts)

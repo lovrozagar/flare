@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/ssg-dynamic/[slug]")
 	.cache({
@@ -11,4 +11,4 @@ export const route = createPage("_root_/ssg-dynamic/[slug]")
 		<main data-testid="ssg-dynamic">
 			<p data-testid="ssg-dynamic-slug">{props.loaderData.slug}</p>
 		</main>
-	))
+	));

@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const mavenPro: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
@@ -63,4 +63,4 @@ export const mavenPro: Font<"latin" | "latin-ext" | "vietnamese"> = createRegist
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: [400, 700],
-})
+});

@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/json-edge")
 	.loader(() => {
@@ -13,17 +13,17 @@ export const route = createPage("_root_/json-edge")
 			platform: "Standard",
 			unicode: "\u00e9\u00e8\u00ea\u00eb",
 			zero: 0,
-		}
+		};
 		/* Round-trip: serialize then parse to verify consistency */
-		const serialized = JSON.stringify(data)
-		const parsed = JSON.parse(serialized) as typeof data
+		const serialized = JSON.stringify(data);
+		const parsed = JSON.parse(serialized) as typeof data;
 		const roundTripMatch =
 			parsed.maxSafe === data.maxSafe &&
 			parsed.emoji === data.emoji &&
 			parsed.nullValue === null &&
 			parsed.zero === 0 &&
-			parsed.nested.deep.value === 42
-		return { ...data, roundTripMatch, serializedLength: serialized.length }
+			parsed.nested.deep.value === 42;
+		return { ...data, roundTripMatch, serializedLength: serialized.length };
 	})
 	.render((props) => (
 		<div>
@@ -54,4 +54,4 @@ export const route = createPage("_root_/json-edge")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

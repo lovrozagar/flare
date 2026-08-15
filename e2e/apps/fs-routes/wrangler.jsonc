@@ -3,5 +3,5 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "src/server.ts",
 	"name": "flare-fs-paths",
-	"workers_dev": true
+	"workers_dev": true,
 }

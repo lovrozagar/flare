@@ -1,13 +1,13 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/seo")
 	.loader((ctx) => {
-		const title = String(ctx.location.search.title ?? "Default Title")
+		const title = String(ctx.location.search.title ?? "Default Title");
 		return {
 			platform: "Standard",
 			title,
 			ts: Date.now(),
-		}
+		};
 	})
 	.head((ctx) => ({
 		canonical: "https://example.com/seo",
@@ -39,4 +39,4 @@ export const route = createPage("_root_/seo")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const robotoSlab: Font<
 	"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext" | "latin" | "latin-ext" | "vietnamese"
@@ -69,4 +69,4 @@ export const robotoSlab: Font<
 	],
 	subsets: ["cyrillic", "cyrillic-ext", "greek", "greek-ext", "latin", "latin-ext", "vietnamese"],
 	weights: "100 900",
-})
+});

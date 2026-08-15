@@ -1,1 +1,1 @@
-export { createRootLayout } from "./route-builder/index.ts"
+export { createRootLayout } from "./route-builder/index.ts";

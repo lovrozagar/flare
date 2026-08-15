@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(styling-head-css-shared)/styling-child-b")
 	.head(() => ({ css: "/child-b-only.css" }))
@@ -6,4 +6,4 @@ export const route = createPage("_root_/(styling-head-css-shared)/styling-child-
 		<div class="child-b-el" data-testid="child-b">
 			Child B Content
 		</div>
-	))
+	));

@@ -1,6 +1,6 @@
-import { cloudflare } from "@cloudflare/vite-plugin"
-import { defineConfig } from "vite"
-import { flare } from "flare/plugins"
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { defineConfig } from "vite";
+import { flare } from "@lovrozagar/flare/plugins";
 
 export default defineConfig({
 	plugins: [
@@ -17,4 +17,4 @@ export default defineConfig({
 	server: {
 		hmr: { overlay: false },
 	},
-})
+});

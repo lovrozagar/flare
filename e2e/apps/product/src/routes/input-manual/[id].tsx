@@ -1,12 +1,12 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/input-manual/[id]")
 	.input({
 		params: (raw) => {
 			if (typeof raw.id !== "string" || !/^\d+$/.test(raw.id)) {
-				throw new Error("Invalid id: must be numeric")
+				throw new Error("Invalid id: must be numeric");
 			}
-			return { id: raw.id }
+			return { id: raw.id };
 		},
 		searchParams: (raw) => ({
 			limit: raw.get("limit") ?? "10",
@@ -30,4 +30,4 @@ export const route = createPage("_root_/input-manual/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

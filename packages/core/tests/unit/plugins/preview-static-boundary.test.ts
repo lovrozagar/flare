@@ -1,5 +1,5 @@
-import { join, resolve } from "node:path"
-import { describe, expect, it } from "vitest"
+import { join, resolve } from "node:path";
+import { describe, expect, it } from "vitest";
 
 /**
  * Task 2: startsWith path boundary bypass in preview static assets
@@ -11,38 +11,38 @@ import { describe, expect, it } from "vitest"
 
 /* Mirror the fixed logic — normalize with trailing slash for boundary safety */
 function isWithinClientDir(clientDir: string, urlPath: string): boolean {
-	const filePath = resolve(join(clientDir, urlPath))
-	const dirWithSlash = clientDir.endsWith("/") ? clientDir : `${clientDir}/`
-	return filePath.startsWith(dirWithSlash)
+	const filePath = resolve(join(clientDir, urlPath));
+	const dirWithSlash = clientDir.endsWith("/") ? clientDir : `${clientDir}/`;
+	return filePath.startsWith(dirWithSlash);
 }
 
 describe("Task 2: preview static asset boundary", () => {
-	const clientDir = "/app/dist/client"
+	const clientDir = "/app/dist/client";
 
 	it("valid asset path is allowed", () => {
-		expect(isWithinClientDir(clientDir, "/assets/main.js")).toBe(true)
-	})
+		expect(isWithinClientDir(clientDir, "/assets/main.js")).toBe(true);
+	});
 
 	it("nested asset path is allowed", () => {
-		expect(isWithinClientDir(clientDir, "/assets/css/style.css")).toBe(true)
-	})
+		expect(isWithinClientDir(clientDir, "/assets/css/style.css")).toBe(true);
+	});
 
 	it("sibling directory with overlapping prefix is rejected", () => {
 		/* /app/dist/client-evil/malicious.js should NOT pass */
-		const siblingPath = resolve("/app/dist/client-evil/malicious.js")
-		const filePath = resolve(join(clientDir, "/../client-evil/malicious.js"))
-		expect(isWithinClientDir(clientDir, "/../client-evil/malicious.js")).toBe(false)
-	})
+		const siblingPath = resolve("/app/dist/client-evil/malicious.js");
+		const filePath = resolve(join(clientDir, "/../client-evil/malicious.js"));
+		expect(isWithinClientDir(clientDir, "/../client-evil/malicious.js")).toBe(false);
+	});
 
 	it("traversal to parent is rejected", () => {
-		expect(isWithinClientDir(clientDir, "/../../../etc/passwd")).toBe(false)
-	})
+		expect(isWithinClientDir(clientDir, "/../../../etc/passwd")).toBe(false);
+	});
 
 	it("clientDir without trailing slash works for valid paths", () => {
-		expect(isWithinClientDir("/app/dist/client", "/assets/app.js")).toBe(true)
-	})
+		expect(isWithinClientDir("/app/dist/client", "/assets/app.js")).toBe(true);
+	});
 
 	it("clientDir with trailing slash works for valid paths", () => {
-		expect(isWithinClientDir("/app/dist/client/", "/assets/app.js")).toBe(true)
-	})
-})
+		expect(isWithinClientDir("/app/dist/client/", "/assets/app.js")).toBe(true);
+	});
+});

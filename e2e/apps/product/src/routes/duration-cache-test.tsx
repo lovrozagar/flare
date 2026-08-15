@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/duration-cache-test")
 	.cache({
@@ -11,4 +11,4 @@ export const route = createPage("_root_/duration-cache-test")
 			<p data-testid="duration-timestamp">{props.loaderData.timestamp}</p>
 			<p data-testid="duration-random">{props.loaderData.timestamp}</p>
 		</main>
-	))
+	));

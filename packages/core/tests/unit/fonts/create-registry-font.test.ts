@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { createRegistryFont } from "../../../src/fonts/create-registry-font.ts"
+import { describe, expect, it } from "vitest";
+import { createRegistryFont } from "../../../src/fonts/create-registry-font.ts";
 
 describe("createRegistryFont", () => {
 	it("creates font with correct properties", () => {
@@ -17,14 +17,14 @@ describe("createRegistryFont", () => {
 			],
 			subsets: ["latin"],
 			weights: "100 900",
-		})
+		});
 
-		expect(font.family).toBe("Test Sans")
-		expect(font.category).toBe("sans-serif")
-		expect(font.subsets).toEqual(["latin"])
-		expect(font.weights).toBe("100 900")
-		expect(font.fontFamily).toBe('"Test Sans", sans-serif')
-	})
+		expect(font.family).toBe("Test Sans");
+		expect(font.category).toBe("sans-serif");
+		expect(font.subsets).toEqual(["latin"]);
+		expect(font.weights).toBe("100 900");
+		expect(font.fontFamily).toBe('"Test Sans", sans-serif');
+	});
 
 	it("css() filters by subset correctly", () => {
 		const font = createRegistryFont({
@@ -55,23 +55,23 @@ describe("createRegistryFont", () => {
 			],
 			subsets: ["cyrillic", "greek", "latin"],
 			weights: [400],
-		})
+		});
 
-		const latin = font.css(["latin"])
-		expect(latin).toContain("latin.woff2")
-		expect(latin).not.toContain("cyrillic.woff2")
-		expect(latin).not.toContain("greek.woff2")
+		const latin = font.css(["latin"]);
+		expect(latin).toContain("latin.woff2");
+		expect(latin).not.toContain("cyrillic.woff2");
+		expect(latin).not.toContain("greek.woff2");
 
-		const multi = font.css(["latin", "cyrillic"])
-		expect(multi).toContain("latin.woff2")
-		expect(multi).toContain("cyrillic.woff2")
-		expect(multi).not.toContain("greek.woff2")
+		const multi = font.css(["latin", "cyrillic"]);
+		expect(multi).toContain("latin.woff2");
+		expect(multi).toContain("cyrillic.woff2");
+		expect(multi).not.toContain("greek.woff2");
 
-		const all = font.css()
-		expect(all).toContain("latin.woff2")
-		expect(all).toContain("cyrillic.woff2")
-		expect(all).toContain("greek.woff2")
-	})
+		const all = font.css();
+		expect(all).toContain("latin.woff2");
+		expect(all).toContain("cyrillic.woff2");
+		expect(all).toContain("greek.woff2");
+	});
 
 	it("preloadLinks returns empty for nonexistent subset", () => {
 		const font = createRegistryFont({
@@ -88,10 +88,10 @@ describe("createRegistryFont", () => {
 			],
 			subsets: ["latin"],
 			weights: [400],
-		})
+		});
 
-		expect(font.preloadLinks("arabic" as "latin")).toEqual([])
-	})
+		expect(font.preloadLinks("arabic" as "latin")).toEqual([]);
+	});
 
 	it("preloadLinks skips italic entries", () => {
 		const font = createRegistryFont({
@@ -108,11 +108,11 @@ describe("createRegistryFont", () => {
 			],
 			subsets: ["latin"],
 			weights: [400],
-		})
+		});
 
 		/* only normal entries, no italic-only preloads */
-		expect(font.preloadLinks("latin")).toEqual([])
-	})
+		expect(font.preloadLinks("latin")).toEqual([]);
+	});
 
 	it("fontFamily includes fallback when metrics provided", () => {
 		const font = createRegistryFont({
@@ -128,8 +128,8 @@ describe("createRegistryFont", () => {
 			subsetEntries: [],
 			subsets: [],
 			weights: "400",
-		})
+		});
 
-		expect(font.fontFamily).toBe('"Code Font", "Code Font Fallback", monospace')
-	})
-})
+		expect(font.fontFamily).toBe('"Code Font", "Code Font Fallback", monospace');
+	});
+});

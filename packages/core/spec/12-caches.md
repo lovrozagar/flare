@@ -12,29 +12,29 @@ Caches loader data per route match. Keyed by `matchId`.
 
 ```ts
 interface CachedMatch {
-	data: unknown
-	invalid: boolean
-	matchId: string
-	preloaderContext?: Record<string, unknown>
-	updatedAt: number
+	data: unknown;
+	invalid: boolean;
+	matchId: string;
+	preloaderContext?: Record<string, unknown>;
+	updatedAt: number;
 }
 
 interface InvalidateOptions {
-	filter?: (match: CachedMatch) => boolean
-	matchId?: string
-	routeId?: string
+	filter?: (match: CachedMatch) => boolean;
+	matchId?: string;
+	routeId?: string;
 }
 
 interface MatchCache {
-	clear(): void
-	delete(matchId: string): void
-	get(matchId: string): CachedMatch | undefined
-	getAll(): CachedMatch[]
-	has(matchId: string): boolean
-	invalidate(options?: InvalidateOptions): void
-	isStale(matchId: string, staleTime: number): boolean
-	set(match: CachedMatch): void
-	size(): number
+	clear(): void;
+	delete(matchId: string): void;
+	get(matchId: string): CachedMatch | undefined;
+	getAll(): CachedMatch[];
+	has(matchId: string): boolean;
+	invalidate(options?: InvalidateOptions): void;
+	isStale(matchId: string, staleTime: number): boolean;
+	set(match: CachedMatch): void;
+	size(): number;
 }
 ```
 
@@ -111,16 +111,16 @@ Tracks prefetch timestamps per URL. Prevents duplicate prefetch requests.
 
 ```ts
 interface PrefetchCache {
-	cleanup(maxAge: number): void
-	clear(): void
-	delete(url: string): void
-	get(url: string): number | undefined
-	has(url: string): boolean
-	isStale(url: string, staleTime: number): boolean
-	mark(url: string): void
-	set(url: string, fetchedAt: number): void
-	shouldPrefetch(url: string, staleTime: number): boolean
-	size(): number
+	cleanup(maxAge: number): void;
+	clear(): void;
+	delete(url: string): void;
+	get(url: string): number | undefined;
+	has(url: string): boolean;
+	isStale(url: string, staleTime: number): boolean;
+	mark(url: string): void;
+	set(url: string, fetchedAt: number): void;
+	shouldPrefetch(url: string, staleTime: number): boolean;
+	size(): number;
 }
 ```
 

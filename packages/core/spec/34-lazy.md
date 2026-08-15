@@ -8,14 +8,14 @@ SSR-safe lazy component loading. `lazy` for universal components, `clientLazy` f
 
 ```ts
 interface LazyOptions<P extends Record<string, unknown>> {
-	loader: () => Promise<{ default: Component<P> }>
-	pending?: Component<P>
+	loader: () => Promise<{ default: Component<P> }>;
+	pending?: Component<P>;
 }
 
 interface ClientLazyOptions<P extends Record<string, unknown>> {
-	eager?: boolean /* start loading at factory call (default: false) */
-	loader: () => Promise<{ default: Component<P> }>
-	pending?: Component<P>
+	eager?: boolean; /* start loading at factory call (default: false) */
+	loader: () => Promise<{ default: Component<P> }>;
+	pending?: Component<P>;
 }
 ```
 
@@ -98,7 +98,7 @@ Client-only component. Returns null (or `pending`) on server. Never loads on SSR
 const HeavyChart = clientLazy({
 	loader: () => import("./chart"),
 	pending: () => <div>Loading chart...</div>,
-})
+});
 
 /* SSR: renders "Loading chart..." */
 /* Client: loads chart module, swaps when ready */
@@ -116,9 +116,9 @@ Returns a promise that resolves when all `lazy()` preloads have completed. Calle
 
 ```ts
 async function waitForLazyPreloads(): Promise<void> {
-	const pending = getGlobalPending()
-	if (pending.size === 0) return
-	await Promise.all([...pending])
+	const pending = getGlobalPending();
+	if (pending.size === 0) return;
+	await Promise.all([...pending]);
 }
 ```
 

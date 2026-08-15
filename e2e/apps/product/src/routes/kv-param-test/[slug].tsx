@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
-let callCount = 0
+let callCount = 0;
 
 export const route = createPage("_root_/kv-param-test/[slug]")
 	.cache({
@@ -11,12 +11,12 @@ export const route = createPage("_root_/kv-param-test/[slug]")
 		},
 	})
 	.loader(({ location }) => {
-		callCount++
+		callCount++;
 		return {
 			callCount,
 			slug: location.params.slug,
 			timestamp: Date.now(),
-		}
+		};
 	})
 	.render((props) => (
 		<div data-testid="kv-param-test">
@@ -24,4 +24,4 @@ export const route = createPage("_root_/kv-param-test/[slug]")
 			<p data-testid="kv-param-timestamp">{props.loaderData.timestamp}</p>
 			<p data-testid="kv-param-call-count">{props.loaderData.callCount}</p>
 		</div>
-	))
+	));

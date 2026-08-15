@@ -1,12 +1,12 @@
-import { parseRichText } from "./jsx.tsx"
-import { formatMessage } from "./message-format.ts"
+import { parseRichText } from "./jsx.tsx";
+import { formatMessage } from "./message-format.ts";
 
-export { parseRichText } from "./jsx.tsx"
-export { formatMessage } from "./message-format.ts"
+export { parseRichText } from "./jsx.tsx";
+export { formatMessage } from "./message-format.ts";
 
 /* ── createTranslations ────────────────────────────────────────────── */
 
-type TranslationDict = Record<string, string>
+type TranslationDict = Record<string, string>;
 
 /**
  * Static import: () => import("./en/common.json")  → { default: T }
@@ -14,9 +14,9 @@ type TranslationDict = Record<string, string>
  */
 type TranslationLoader<T extends TranslationDict = TranslationDict> =
 	| (() => Promise<T>)
-	| (() => Promise<{ default: T }>)
+	| (() => Promise<{ default: T }>);
 
-type TranslationNamespaces = Record<string, Record<string, TranslationLoader>>
+type TranslationNamespaces = Record<string, Record<string, TranslationLoader>>;
 
 /**
  * Extract the resolved dict type for a namespace.
@@ -26,18 +26,16 @@ type UnwrapLoader<TLoader> = TLoader extends () => Promise<{ default: infer D }>
 	? D
 	: TLoader extends () => Promise<infer D>
 		? D
-		: TranslationDict
+		: TranslationDict;
 
-type ResolvedDict<TLoaders extends Record<string, TranslationLoader>> = UnwrapLoader<
-	TLoaders[keyof TLoaders]
->
+type ResolvedDict<TLoaders extends Record<string, TranslationLoader>> = UnwrapLoader<TLoaders[keyof TLoaders]>;
 
 type LoadResult<T extends TranslationNamespaces, K extends keyof T & string> = {
-	[N in K]: ResolvedDict<T[N]>
-}
+	[N in K]: ResolvedDict<T[N]>;
+};
 
 interface TranslationsConfig<T extends TranslationNamespaces> {
-	load: <K extends keyof T & string>(locale: string, namespaces: K[]) => Promise<LoadResult<T, K>>
+	load: <K extends keyof T & string>(locale: string, namespaces: K[]) => Promise<LoadResult<T, K>>;
 }
 
 function unwrapModule(mod: unknown): TranslationDict {
@@ -47,30 +45,28 @@ function unwrapModule(mod: unknown): TranslationDict {
 		"default" in (mod as Record<string, unknown>) &&
 		typeof (mod as Record<string, unknown>).default === "object"
 	) {
-		return (mod as { default: TranslationDict }).default
+		return (mod as { default: TranslationDict }).default;
 	}
-	return mod as TranslationDict
+	return mod as TranslationDict;
 }
 
-export function createTranslations<const T extends TranslationNamespaces>(
-	namespaces: T,
-): TranslationsConfig<T> {
+export function createTranslations<const T extends TranslationNamespaces>(namespaces: T): TranslationsConfig<T> {
 	return {
 		async load<K extends keyof T & string>(locale: string, nsKeys: K[]): Promise<LoadResult<T, K>> {
 			const entries = await Promise.all(
 				nsKeys.map(async (ns) => {
-					const loaders = namespaces[ns]
-					if (!loaders) throw new Error(`Unknown namespace: ${ns}`)
-					const loader = loaders[locale]
-					if (!loader) throw new Error(`Missing locale "${locale}" for namespace "${ns}"`)
-					const result = await loader()
-					return [ns, unwrapModule(result)] as const
+					const loaders = namespaces[ns];
+					if (!loaders) throw new Error(`Unknown namespace: ${ns}`);
+					const loader = loaders[locale];
+					if (!loader) throw new Error(`Missing locale "${locale}" for namespace "${ns}"`);
+					const result = await loader();
+					return [ns, unwrapModule(result)] as const;
 				}),
-			)
+			);
 
-			return Object.fromEntries(entries) as LoadResult<T, K>
+			return Object.fromEntries(entries) as LoadResult<T, K>;
 		},
-	}
+	};
 }
 
 /* ── createTranslator ──────────────────────────────────────────────── */
@@ -78,24 +74,24 @@ export function createTranslations<const T extends TranslationNamespaces>(
 type PrefixKeys<
 	T extends Record<string, Record<string, string>>,
 	NS extends keyof T & string,
-> = `${NS}.${string & keyof T[NS]}`
+> = `${NS}.${string & keyof T[NS]}`;
 
 export type FlatKeys<T extends Record<string, Record<string, string>>> = [T] extends [never]
 	? never
 	: {
-			[NS in keyof T & string]: PrefixKeys<T, NS>
-		}[keyof T & string]
+			[NS in keyof T & string]: PrefixKeys<T, NS>;
+		}[keyof T & string];
 
 /** Extract `t` property from loader data or preloader context */
 export type ExtractT<TData> = TData extends {
-	t: infer T extends Record<string, Record<string, string>>
+	t: infer T extends Record<string, Record<string, string>>;
 }
 	? T
-	: never
+	: never;
 
 /* ── ICU variable extraction (type-level) ─────────────────────────── */
 
-type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+type Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9";
 type Alpha =
 	| "A"
 	| "B"
@@ -148,16 +144,16 @@ type Alpha =
 	| "w"
 	| "x"
 	| "y"
-	| "z"
-type WordChar = Alpha | Digit | "_"
+	| "z";
+type WordChar = Alpha | Digit | "_";
 
-type EndsWithWordChar<S extends string> = S extends `${string}${WordChar}` ? true : false
+type EndsWithWordChar<S extends string> = S extends `${string}${WordChar}` ? true : false;
 
 type IsIdent<S extends string> = S extends `${Alpha | "_"}${string}`
 	? S extends `${string} ${string}`
 		? false
 		: true
-	: false
+	: false;
 
 /**
  * Extract ICU variable names from a template string at the type level.
@@ -183,7 +179,7 @@ export type ExtractICUVars<S extends string> = S extends `${infer Before}{${infe
 								: never
 							: never)
 			| ExtractICUVars<After>
-	: never
+	: never;
 
 /** Resolve flat key `"ns.key"` back to the template string type */
 type LookupTemplate<
@@ -195,22 +191,22 @@ type LookupTemplate<
 			? TDict[NS][Key]
 			: string
 		: string
-	: string
+	: string;
 
 /** Required typed values when template has ICU vars, optional otherwise */
 type TranslatorArgs<Template extends string> = [ExtractICUVars<Template>] extends [never]
 	? [values?: Record<string, unknown>]
-	: [values: { [K in ExtractICUVars<Template>]: number | string }]
+	: [values: { [K in ExtractICUVars<Template>]: number | string }];
 
 export interface Translator<
 	TDict extends Record<string, Record<string, string>> = Record<string, Record<string, string>>,
 > {
-	<K extends FlatKeys<TDict>>(key: K, ...args: TranslatorArgs<LookupTemplate<TDict, K>>): string
+	<K extends FlatKeys<TDict>>(key: K, ...args: TranslatorArgs<LookupTemplate<TDict, K>>): string;
 	rich: <K extends FlatKeys<TDict>>(
 		key: K,
 		components: Record<string, (children: string) => unknown>,
 		...args: TranslatorArgs<LookupTemplate<TDict, K>>
-	) => unknown
+	) => unknown;
 }
 
 export function createTranslator<T extends Record<string, Record<string, string>>>(
@@ -218,37 +214,37 @@ export function createTranslator<T extends Record<string, Record<string, string>
 	locale?: string,
 ): Translator<T> {
 	/* Flatten: { ns: { "key": "val" } } → { "ns.key": "val" } */
-	const flat: Record<string, string> = {}
+	const flat: Record<string, string> = {};
 	for (const [ns, entries] of Object.entries(loaded)) {
 		for (const [key, val] of Object.entries(entries)) {
-			flat[`${ns}.${key}`] = val
+			flat[`${ns}.${key}`] = val;
 		}
 	}
 
 	const t = (key: string, values?: Record<string, unknown>): string => {
-		const template = flat[key]
-		if (template === undefined) return key
-		return formatMessage(template, values, locale)
-	}
+		const template = flat[key];
+		if (template === undefined) return key;
+		return formatMessage(template, values, locale);
+	};
 
 	t.rich = (
 		key: string,
 		components: Record<string, (children: string) => unknown>,
 		values?: Record<string, unknown>,
 	): unknown => {
-		const template = flat[key]
-		if (template === undefined) return key
+		const template = flat[key];
+		if (template === undefined) return key;
 
 		/* First apply ICU formatting if values provided */
-		const formatted = values ? formatMessage(template, values, locale) : template
+		const formatted = values ? formatMessage(template, values, locale) : template;
 
 		/* Then parse rich text components */
-		const parts = parseRichText(formatted, components)
+		const parts = parseRichText(formatted, components);
 
 		/* If single element, return it directly */
-		if (parts.length === 1) return parts[0]
-		return parts
-	}
+		if (parts.length === 1) return parts[0];
+		return parts;
+	};
 
-	return t as Translator<T>
+	return t as Translator<T>;
 }

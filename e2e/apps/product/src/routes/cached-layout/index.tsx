@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(cached-layout)/cached-layout/")
 	.loader(() => ({
@@ -10,4 +10,4 @@ export const route = createPage("_root_/(cached-layout)/cached-layout/")
 			<p data-testid="cached-layout-index-page">{props.loaderData.page}</p>
 			<p data-testid="cached-layout-index-ts">{props.loaderData.childTs}</p>
 		</div>
-	))
+	));

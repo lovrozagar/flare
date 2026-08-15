@@ -10,9 +10,9 @@ export {
 	mergeHeadConfigs,
 	mergeResponseHeaders,
 	retryImport,
-} from "../internal/index.ts"
-export { preload } from "../preload/index.ts"
-export type { InferParams, InferSearchParams } from "../route-builder/index.ts"
+} from "../internal/index.ts";
+export { preload } from "../preload/index.ts";
+export type { InferParams, InferSearchParams } from "../route-builder/index.ts";
 export type {
 	ExtractPathParams,
 	FlareRegister,
@@ -37,5 +37,5 @@ export type {
 	RouteSearchProps,
 	RouteSearchType,
 	RouteVirtualPaths,
-} from "../route-builder/register.ts"
-export type { RouteData, TreeNode } from "../router-primitives/index.ts"
+} from "../route-builder/register.ts";
+export type { RouteData, TreeNode } from "../router-primitives/index.ts";

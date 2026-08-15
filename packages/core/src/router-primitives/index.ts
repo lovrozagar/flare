@@ -1,5 +1,5 @@
-export { buildLocation } from "./location.ts"
-export { computeMatchId, parseMatchId } from "./match-id.ts"
+export { buildLocation } from "./location.ts";
+export { computeMatchId, parseMatchId } from "./match-id.ts";
 export {
 	deriveLayouts,
 	deriveParams,
@@ -9,9 +9,9 @@ export {
 	stripGroups,
 	toUrlPath,
 	toVirtualPath,
-} from "./paths.ts"
-export { createTreeNode, insertRoute, matchRoute, matchRoutePartial, toLocaleMatch } from "./tree.ts"
-export type { LocaleMatch } from "./tree.ts"
+} from "./paths.ts";
+export { createTreeNode, insertRoute, matchRoute, matchRoutePartial, toLocaleMatch } from "./tree.ts";
+export type { LocaleMatch } from "./tree.ts";
 export type {
 	ComputeMatchIdOptions,
 	Location,
@@ -22,4 +22,4 @@ export type {
 	RouteMeta,
 	RouteMetaClient,
 	TreeNode,
-} from "./types.ts"
+} from "./types.ts";

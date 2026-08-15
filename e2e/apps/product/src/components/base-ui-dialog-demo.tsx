@@ -1,11 +1,11 @@
-import { createSignal, Show, type JSX } from "solid-js"
+import { createSignal, Show, type JSX } from "solid-js";
 
 /**
  * Local stand-in for Base UI primitives so sx/class composition is still
  * exercised. `@msviderok/base-ui-solid` is not a product dependency.
  */
 export function DialogDemo() {
-	const [open, setOpen] = createSignal(false)
+	const [open, setOpen] = createSignal(false);
 	return (
 		<div>
 			<button
@@ -18,10 +18,7 @@ export function DialogDemo() {
 				Open dialog
 			</button>
 			<Show when={open()}>
-				<div
-					data-testid="bui-backdrop"
-					sx={{ background: "rgba(0,0,0,0.5)", inset: "0", position: "fixed" }}
-				/>
+				<div data-testid="bui-backdrop" sx={{ background: "rgba(0,0,0,0.5)", inset: "0", position: "fixed" }} />
 				<div
 					data-testid="bui-popup"
 					sx={{
@@ -45,18 +42,18 @@ export function DialogDemo() {
 				</div>
 			</Show>
 		</div>
-	)
+	);
 }
 
 export function PolyDemo() {
-	const [open, setOpen] = createSignal(false)
+	const [open, setOpen] = createSignal(false);
 	const triggerProps: JSX.AnchorHTMLAttributes<HTMLAnchorElement> = {
 		href: "#poly",
 		onClick: (e) => {
-			e.preventDefault()
-			setOpen(true)
+			e.preventDefault();
+			setOpen(true);
 		},
-	}
+	};
 	return (
 		<div>
 			<a {...triggerProps} data-testid="bui-trigger-link" sx={{ textDecoration: "underline" }}>
@@ -80,5 +77,5 @@ export function PolyDemo() {
 				</div>
 			</Show>
 		</div>
-	)
+	);
 }

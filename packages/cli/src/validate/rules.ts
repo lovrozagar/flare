@@ -1,22 +1,22 @@
-import type { RouteDefinition } from "flare/generators"
-import type { ChainMethods } from "./chain-detect"
+import type { RouteDefinition } from "@lovrozagar/flare/generators";
+import type { ChainMethods } from "./chain-detect";
 
-export type DiagnosticLevel = "error" | "info" | "warning"
+export type DiagnosticLevel = "error" | "info" | "warning";
 
 export interface Diagnostic {
-	filePath: string
-	fix?: { command: string }
-	level: DiagnosticLevel
-	message: string
-	rule: string
+	filePath: string;
+	fix?: { command: string };
+	level: DiagnosticLevel;
+	message: string;
+	rule: string;
 }
 
 export interface EnrichedDefinition extends RouteDefinition {
-	chainMethods: ChainMethods
+	chainMethods: ChainMethods;
 }
 
 export function runRules(defs: EnrichedDefinition[], validationErrors: string[]): Diagnostic[] {
-	const diagnostics: Diagnostic[] = []
+	const diagnostics: Diagnostic[] = [];
 
 	/* Error: missing-root-layout */
 	if (!defs.some((d) => d.type === "root-layout")) {
@@ -25,7 +25,7 @@ export function runRules(defs: EnrichedDefinition[], validationErrors: string[])
 			level: "error",
 			message: "No root layout found. Create one with: flare gen layout --root",
 			rule: "missing-root-layout",
-		})
+		});
 	}
 
 	/* Error: duplicate-routes (from validateRouteDefinitions) */
@@ -35,13 +35,13 @@ export function runRules(defs: EnrichedDefinition[], validationErrors: string[])
 			level: "error",
 			message: err,
 			rule: "duplicate-routes",
-		})
+		});
 	}
 
-	const pages = defs.filter((d) => d.type === "page")
+	const pages = defs.filter((d) => d.type === "page");
 
 	for (const page of pages) {
-		const isPublic = page.authenticateMode === false
+		const isPublic = page.authenticateMode === false;
 
 		/* Warning: loader-no-error-boundary */
 		if (page.chainMethods.hasLoader && !page.chainMethods.hasErrorRender) {
@@ -51,7 +51,7 @@ export function runRules(defs: EnrichedDefinition[], validationErrors: string[])
 				level: "warning",
 				message: "Page has loader but no error boundary",
 				rule: "loader-no-error-boundary",
-			})
+			});
 		}
 
 		/* Warning: auth-no-boundary */
@@ -62,7 +62,7 @@ export function runRules(defs: EnrichedDefinition[], validationErrors: string[])
 				level: "warning",
 				message: "Page has authenticate but no unauthenticated boundary",
 				rule: "auth-no-boundary",
-			})
+			});
 		}
 
 		/* Warning: public-no-head */
@@ -73,7 +73,7 @@ export function runRules(defs: EnrichedDefinition[], validationErrors: string[])
 				level: "warning",
 				message: "Public page has no .head() for SEO",
 				rule: "public-no-head",
-			})
+			});
 		}
 
 		/* Warning: public-no-cache */
@@ -84,7 +84,7 @@ export function runRules(defs: EnrichedDefinition[], validationErrors: string[])
 				level: "warning",
 				message: "Public page has no cache configuration",
 				rule: "public-no-cache",
-			})
+			});
 		}
 
 		/* Info: suggest-prefetch */
@@ -94,9 +94,9 @@ export function runRules(defs: EnrichedDefinition[], validationErrors: string[])
 				level: "info",
 				message: "Route has client cache but no prefetch strategy",
 				rule: "suggest-prefetch",
-			})
+			});
 		}
 	}
 
-	return diagnostics
+	return diagnostics;
 }

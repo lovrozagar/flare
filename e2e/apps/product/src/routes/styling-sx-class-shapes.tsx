@@ -1,10 +1,10 @@
-import { createPage } from "flare/page"
-import { createSignal } from "solid-js"
-import { cn } from "flare/styles"
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal } from "solid-js";
+import { cn } from "@lovrozagar/flare/styles";
 
 /* One element per class= shape variant — tests plugin static resolver coverage */
 export const route = createPage("_root_/styling-sx-class-shapes").render(() => {
-	const [active, setActive] = createSignal(false)
+	const [active, setActive] = createSignal(false);
 
 	return (
 		<main data-testid="styling-sx-class-shapes">
@@ -29,19 +29,12 @@ export const route = createPage("_root_/styling-sx-class-shapes").render(() => {
 			</div>
 
 			{/* conditional branch */}
-			<button
-				data-testid="toggle-active"
-				onClick={() => setActive((v) => !v)}
-				type="button"
-			>
+			<button data-testid="toggle-active" onClick={() => setActive((v) => !v)} type="button">
 				Toggle
 			</button>
-			<div
-				class={["shape-base", active() && "shape-active"]}
-				data-testid="shape-dynamic"
-			>
+			<div class={["shape-base", active() && "shape-active"]} data-testid="shape-dynamic">
 				dynamic conditional
 			</div>
 		</main>
-	)
-})
+	);
+});

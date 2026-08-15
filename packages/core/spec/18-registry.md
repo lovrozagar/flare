@@ -8,15 +8,15 @@ Dynamic component registry. Server decides which components render, client resol
 
 ```ts
 interface Registry<T extends Record<string, LazyComponent>> {
-	get(key: string): LazyComponent | undefined
-	keys(): string[]
+	get(key: string): LazyComponent | undefined;
+	keys(): string[];
 }
 
-type LazyComponent = ReturnType<typeof lazy>
+type LazyComponent = ReturnType<typeof lazy>;
 
 interface RegistryTrackingResult<R> {
-	dk: () => string[]
-	result: R
+	dk: () => string[];
+	result: R;
 }
 ```
 
@@ -46,7 +46,7 @@ const tenantComponents = createRegistry({
 	"hero-banner": lazy(() => import("./components/hero-banner")),
 	"pricing-table": lazy(() => import("./components/pricing-table")),
 	"blog-post": lazy(() => import("./components/blog-post")),
-})
+});
 ```
 
 **Server (SSR)**:
@@ -54,18 +54,18 @@ const tenantComponents = createRegistry({
 Registry wrapped in a `Proxy`. When `.get(key)` is called during SSR render, the key is recorded in the current request's tracking set (via `AsyncLocalStorage`).
 
 ```ts
-const trackingStore = new AsyncLocalStorage<Set<string>>()
+const trackingStore = new AsyncLocalStorage<Set<string>>();
 
 function createRegistryProxy(components): Proxy {
 	return new Proxy(components, {
 		get(target, prop) {
-			const store = trackingStore.getStore()
+			const store = trackingStore.getStore();
 			if (store && typeof prop === "string") {
-				store.add(prop)
+				store.add(prop);
 			}
-			return target[prop]
+			return target[prop];
 		},
-	})
+	});
 }
 ```
 
@@ -79,21 +79,21 @@ SSR wrapper. Creates a tracking context, runs the provided function, returns res
 
 ```ts
 function withRegistryTracking<R>(fn: () => R): RegistryTrackingResult<R> {
-	const tracked = new Set<string>()
-	const result = trackingStore.run(tracked, fn)
+	const tracked = new Set<string>();
+	const result = trackingStore.run(tracked, fn);
 	return {
 		dk: () => Array.from(tracked),
 		result,
-	}
+	};
 }
 ```
 
 Used by SSR layer to wrap `renderToStream`:
 
 ```ts
-const { result: stream, dk } = withRegistryTracking(() => renderToStream(config))
+const { result: stream, dk } = withRegistryTracking(() => renderToStream(config));
 /* After render completes: */
-const dynamicKeys = dk()
+const dynamicKeys = dk();
 /* Serialized to self.flare.dk in HTML */
 ```
 
@@ -102,22 +102,22 @@ const dynamicKeys = dk()
 Client-side. Adds a registry to the global list for preload discovery.
 
 ```ts
-const registries: Registry<unknown>[] = []
+const registries: Registry<unknown>[] = [];
 
 function registerRegistry(registry: Registry<unknown>): void {
-	registries.push(registry)
+	registries.push(registry);
 }
 
 function getRegisteredRegistries(): Registry<unknown>[] {
-	return registries
+	return registries;
 }
 ```
 
 Called at app startup (before hydrate):
 
 ```ts
-registerRegistry(tenantComponents)
-registerRegistry(cmsBlocks)
+registerRegistry(tenantComponents);
+registerRegistry(cmsBlocks);
 ```
 
 ### `scanStringsForPreload`
@@ -125,27 +125,23 @@ registerRegistry(cmsBlocks)
 Walks a data tree looking for string values that match registry keys. For each match, calls `.preload()` on the lazy component and pushes the promise.
 
 ```ts
-function scanStringsForPreload(
-	data: unknown,
-	registries: Registry<unknown>[],
-	preloads: Promise<unknown>[],
-): void {
+function scanStringsForPreload(data: unknown, registries: Registry<unknown>[], preloads: Promise<unknown>[]): void {
 	if (typeof data === "string") {
 		for (const registry of registries) {
-			const component = registry.get(data)
+			const component = registry.get(data);
 			if (component) {
-				preloads.push(component.preload())
+				preloads.push(component.preload());
 			}
 		}
-		return
+		return;
 	}
 	if (Array.isArray(data)) {
-		for (const item of data) scanStringsForPreload(item, registries, preloads)
-		return
+		for (const item of data) scanStringsForPreload(item, registries, preloads);
+		return;
 	}
 	if (data !== null && typeof data === "object") {
 		for (const value of Object.values(data)) {
-			scanStringsForPreload(value, registries, preloads)
+			scanStringsForPreload(value, registries, preloads);
 		}
 	}
 }
@@ -163,8 +159,8 @@ Returns dynamic keys tracked during current SSR render. Shortcut for `withRegist
 
 ```ts
 function dk(): string[] {
-	const store = trackingStore.getStore()
-	return store ? Array.from(store) : []
+	const store = trackingStore.getStore();
+	return store ? Array.from(store) : [];
 }
 ```
 
@@ -174,34 +170,34 @@ SSR serializes dynamic keys into FlareState:
 
 ```ts
 interface FlareState {
-	c: ContextState /* dir, locale, router, theme */
-	dk?: string[] /* dynamic component keys accessed during SSR */
-	e?: DevError[] /* dev-only SSR errors */
-	m: FlareMatchState[] /* matched routes */
-	p: string /* pathname */
-	ph?: PerRouteHead[] /* per-route head configs */
-	q?: QueryState[] /* TanStack Query hydration */
-	r: Record<string, string | string[]> /* params */
-	s: Record<string, string> /* search */
+	c: ContextState; /* dir, locale, router, theme */
+	dk?: string[]; /* dynamic component keys accessed during SSR */
+	e?: DevError[]; /* dev-only SSR errors */
+	m: FlareMatchState[]; /* matched routes */
+	p: string; /* pathname */
+	ph?: PerRouteHead[]; /* per-route head configs */
+	q?: QueryState[]; /* TanStack Query hydration */
+	r: Record<string, string | string[]>; /* params */
+	s: Record<string, string>; /* search */
 }
 ```
 
 Client hydration preloads these chunks:
 
 ```ts
-const state = parseFlareState(raw)
-const preloads: Promise<unknown>[] = []
+const state = parseFlareState(raw);
+const preloads: Promise<unknown>[] = [];
 
 if (state.dk) {
 	for (const key of state.dk) {
 		for (const registry of getRegisteredRegistries()) {
-			const component = registry.get(key)
-			if (component) preloads.push(component.preload())
+			const component = registry.get(key);
+			if (component) preloads.push(component.preload());
 		}
 	}
 }
 
-await Promise.all(preloads)
+await Promise.all(preloads);
 /* Then hydrate */
 ```
 

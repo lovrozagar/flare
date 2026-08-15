@@ -8,13 +8,13 @@ Playwright page object for Flare E2E testing. Console/error capturing, hydration
 
 ```ts
 interface ConsoleMessage {
-	text: string
-	type: "error" | "log" | "warning"
+	text: string;
+	type: "error" | "log" | "warning";
 }
 
 interface PageError {
-	message: string
-	stack?: string
+	message: string;
+	stack?: string;
 }
 ```
 
@@ -22,55 +22,55 @@ interface PageError {
 
 ```ts
 /* Extended Playwright test with flare fixture */
-test: TestType<{ flare: FlarePage }>
-expect: typeof import("@playwright/test").expect
+test: TestType<{ flare: FlarePage }>;
+expect: typeof import("@playwright/test").expect;
 
 /* Page object */
 class FlarePage {
-	readonly body: Locator
-	readonly page: Page
+	readonly body: Locator;
+	readonly page: Page;
 
 	/* Lifecycle */
-	startCapturing(): void
-	clearCaptures(): void
+	startCapturing(): void;
+	clearCaptures(): void;
 
 	/* Navigation */
-	goto(path?: string): Promise<Response | null>
-	load(path: string): Promise<Response | null>
-	waitForNavigation(path: string): Promise<void>
-	clickLink(text: string): Promise<void>
-	navigateNdjson(linkText: string): Promise<void>
+	goto(path?: string): Promise<Response | null>;
+	load(path: string): Promise<Response | null>;
+	waitForNavigation(path: string): Promise<void>;
+	clickLink(text: string): Promise<void>;
+	navigateNdjson(linkText: string): Promise<void>;
 
 	/* Hydration */
-	waitForHydration(timeout?: number): Promise<void>
+	waitForHydration(timeout?: number): Promise<void>;
 
 	/* State */
-	getFlareState(): Promise<FlareState | null>
-	assertFlareStateValid(): Promise<void>
+	getFlareState(): Promise<FlareState | null>;
+	assertFlareStateValid(): Promise<void>;
 
 	/* CSR detection */
-	setNavigationMarker(): Promise<void>
-	wasClientNavigation(): Promise<boolean>
+	setNavigationMarker(): Promise<void>;
+	wasClientNavigation(): Promise<boolean>;
 
 	/* Response */
-	getResponseHeaders(): Record<string, string>
-	getLastResponse(): Response | null
+	getResponseHeaders(): Record<string, string>;
+	getLastResponse(): Response | null;
 
 	/* Captures */
-	getConsoleLogs(): string[]
-	getConsoleErrors(): string[]
-	getConsoleWarnings(): string[]
-	getPageErrors(): PageError[]
-	getHydrationErrors(): string[]
-	hasHydrationErrors(): boolean
+	getConsoleLogs(): string[];
+	getConsoleErrors(): string[];
+	getConsoleWarnings(): string[];
+	getPageErrors(): PageError[];
+	getHydrationErrors(): string[];
+	hasHydrationErrors(): boolean;
 
 	/* Assertions */
-	assertNoConsoleErrors(ignorePatterns?: RegExp[]): void
-	assertNoConsoleWarnings(ignorePatterns?: RegExp[]): void
-	assertNoPageErrors(): void
-	assertNoHydrationErrors(): void
-	assertHealthy(): void
-	assertFullyHealthy(): void
+	assertNoConsoleErrors(ignorePatterns?: RegExp[]): void;
+	assertNoConsoleWarnings(ignorePatterns?: RegExp[]): void;
+	assertNoPageErrors(): void;
+	assertNoHydrationErrors(): void;
+	assertHealthy(): void;
+	assertFullyHealthy(): void;
 }
 ```
 
@@ -83,11 +83,11 @@ class FlarePage {
 ```ts
 const test = base.extend<{ flare: FlarePage }>({
 	flare: async ({ page }, use) => {
-		const flarePage = new FlarePage(page)
-		flarePage.startCapturing()
-		await use(flarePage)
+		const flarePage = new FlarePage(page);
+		flarePage.startCapturing();
+		await use(flarePage);
 	},
-})
+});
 ```
 
 ### Console/Error Capturing

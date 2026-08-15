@@ -1,5 +1,5 @@
-import { createLayout } from "flare/layout"
-import { Link } from "flare/link"
+import { createLayout } from "@lovrozagar/flare/layout";
+import { Link } from "@lovrozagar/flare/link";
 
 export const route = createLayout("_root_/(blog)")
 	.loader(() => ({ section: "Blog" }))
@@ -11,4 +11,4 @@ export const route = createLayout("_root_/(blog)")
 			</nav>
 			<div data-testid="blog-content">{props.children}</div>
 		</div>
-	))
+	));

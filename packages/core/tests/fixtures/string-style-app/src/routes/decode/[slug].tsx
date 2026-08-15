@@ -1,16 +1,16 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/decode/[slug]")
 	.loader((ctx) => {
-		const slug = ctx.location.params.slug
-		const url = new URL(ctx.request.url)
-		const rawPath = url.pathname
+		const slug = ctx.location.params.slug;
+		const url = new URL(ctx.request.url);
+		const rawPath = url.pathname;
 		return {
 			decoded: slug,
 			length: slug.length,
 			platform: "Standard",
 			rawPath,
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -29,4 +29,4 @@ export const route = createPage("_root_/decode/[slug]")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

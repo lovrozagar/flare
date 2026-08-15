@@ -1,55 +1,55 @@
 function capitalize(s: string): string {
-	return s.charAt(0).toUpperCase() + s.slice(1)
+	return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function singularize(s: string): string {
-	if (s.endsWith("ies")) return `${s.slice(0, -3)}y`
-	if (s.endsWith("ses") || s.endsWith("xes") || s.endsWith("zes")) return s.slice(0, -2)
-	if (s.endsWith("ches") || s.endsWith("shes")) return s.slice(0, -2)
-	if (s.endsWith("s") && !s.endsWith("ss")) return s.slice(0, -1)
-	return s
+	if (s.endsWith("ies")) return `${s.slice(0, -3)}y`;
+	if (s.endsWith("ses") || s.endsWith("xes") || s.endsWith("zes")) return s.slice(0, -2);
+	if (s.endsWith("ches") || s.endsWith("shes")) return s.slice(0, -2);
+	if (s.endsWith("s") && !s.endsWith("ss")) return s.slice(0, -1);
+	return s;
 }
 
 export function pageTemplate(name: string): string {
-	const label = capitalize(name)
-	return `import { createPage } from "flare"
+	const label = capitalize(name);
+	return `import { createPage } from "@lovrozagar/flare"
 
 export const route = createPage("")
 \t.render(() => (
 \t\t<div>${label}</div>
 \t))
-`
+`;
 }
 
 export function layoutTemplate(_name: string): string {
-	return `import { createLayout } from "flare"
+	return `import { createLayout } from "@lovrozagar/flare"
 
 export const route = createLayout("")
 \t.render((ctx) => (
 \t\t<>{ctx.children}</>
 \t))
-`
+`;
 }
 
 export interface GeneratedFile {
-	content: string
-	customize: Array<{ hint: string; method: string }>
-	path: string
+	content: string;
+	customize: Array<{ hint: string; method: string }>;
+	path: string;
 }
 
 export interface ResourceResult {
-	routes: GeneratedFile[]
-	serverFn: GeneratedFile | null
+	routes: GeneratedFile[];
+	serverFn: GeneratedFile | null;
 }
 
 export function resourceTemplates(name: string, crud?: boolean): ResourceResult {
-	const singular = singularize(name)
-	const Name = capitalize(name)
-	const Singular = capitalize(singular)
+	const singular = singularize(name);
+	const Name = capitalize(name);
+	const Singular = capitalize(singular);
 
 	const routes: GeneratedFile[] = [
 		{
-			content: `import { createPage } from "flare"
+			content: `import { createPage } from "@lovrozagar/flare"
 
 export const route = createPage("")
 \t.loader(async () => {
@@ -72,7 +72,7 @@ export const route = createPage("")
 			path: `${name}.page.tsx`,
 		},
 		{
-			content: `import { createPage } from "flare"
+			content: `import { createPage } from "@lovrozagar/flare"
 
 export const route = createPage("")
 \t.loader(async (ctx) => {
@@ -98,12 +98,12 @@ export const route = createPage("")
 			],
 			path: `[id]/${singular}-detail.page.tsx`,
 		},
-	]
+	];
 
 	if (crud) {
 		routes.push(
 			{
-				content: `import { createPage } from "flare"
+				content: `import { createPage } from "@lovrozagar/flare"
 
 export const route = createPage("")
 \t.render(() => (
@@ -117,7 +117,7 @@ export const route = createPage("")
 				path: `new/${singular}-new.page.tsx`,
 			},
 			{
-				content: `import { createPage } from "flare"
+				content: `import { createPage } from "@lovrozagar/flare"
 
 export const route = createPage("")
 \t.loader(async (ctx) => {
@@ -138,7 +138,7 @@ export const route = createPage("")
 				],
 				path: `[id]/edit/${singular}-edit.page.tsx`,
 			},
-		)
+		);
 	}
 
 	const serverFn = crud
@@ -151,14 +151,14 @@ export const route = createPage("")
 				],
 				path: `${name}.ts`,
 			}
-		: null
+		: null;
 
-	return { routes, serverFn }
+	return { routes, serverFn };
 }
 
 function serverFnCrudTemplate(name: string, singular: string, Singular: string): string {
-	const Name = capitalize(name)
-	return `import { createServerFn } from "flare/server-fn"
+	const Name = capitalize(name);
+	return `import { createServerFn } from "@lovrozagar/flare/server-fn"
 
 export const get${Name} = createServerFn({ name: "get-${name}" })
 \t.handler(async () => {
@@ -186,16 +186,16 @@ export const delete${Singular} = createServerFn({ method: "post", name: "delete-
 \t.handler(async () => {
 \t\t/* TODO: delete ${singular} */
 \t})
-`
+`;
 }
 
 export function serverFnTemplate(name: string): string {
-	return `import { createServerFn } from "flare/server-fn"
+	return `import { createServerFn } from "@lovrozagar/flare/server-fn"
 
 export const ${name} = createServerFn({ name: "${name}" })
 \t.handler(async () => {
 \t\t/* TODO: implement */
 \t\treturn null
 \t})
-`
+`;
 }

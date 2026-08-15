@@ -1,5 +1,5 @@
-import { createLayout } from "flare/layout"
-import { Link } from "flare/link"
+import { createLayout } from "@lovrozagar/flare/layout";
+import { Link } from "@lovrozagar/flare/link";
 
 export const route = createLayout("_root_/(styling-head-css-shared)")
 	.head(() => ({ css: "/shared-layout.css" }))
@@ -12,4 +12,4 @@ export const route = createLayout("_root_/(styling-head-css-shared)")
 			</nav>
 			{p.children}
 		</div>
-	))
+	));

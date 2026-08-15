@@ -1,7 +1,7 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(layout-catches-child)/layout-catches-child/broken-child")
 	.loader(() => {
-		throw new Error("Child broke")
+		throw new Error("Child broke");
 	})
-	.render(() => <div>no</div>)
+	.render(() => <div>no</div>);

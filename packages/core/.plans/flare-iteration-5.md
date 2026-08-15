@@ -1,6 +1,7 @@
 # Flare Framework — Iteration 5
 
 ## Context
+
 Iterations 1-4 fixed security vulns, perf issues, dead code, validation gaps, and added ~90 tests. This iteration focuses on function extraction and code organization — the remaining high-value cleanup.
 
 ## 1. Outlet void pattern cleanup
@@ -8,16 +9,17 @@ Iterations 1-4 fixed security vulns, perf issues, dead code, validation gaps, an
 **File**: `src/outlet/index.tsx:329-334`
 
 Replace temp variable + void pattern with direct void:
+
 ```ts
 /* Before */
-const _vp = props.match.virtualPath
-const _hasErr = props.match.error
-void _vp
-void _hasErr
+const _vp = props.match.virtualPath;
+const _hasErr = props.match.error;
+void _vp;
+void _hasErr;
 
 /* After */
-void props.match.virtualPath
-void props.match.error
+void props.match.virtualPath;
+void props.match.error;
 ```
 
 ## 2. SSR `buildComponentTree` extraction
@@ -26,10 +28,10 @@ void props.match.error
 
 Extract 2 helpers:
 
-| Helper | Responsibility |
-|--------|---------------|
+| Helper                                    | Responsibility                          |
+| ----------------------------------------- | --------------------------------------- |
 | `pipelineMatchesToClientMatches(matches)` | Convert PipelineMatch[] → ClientMatch[] |
-| `extractRootBoundaries(rootMatch)` | Root layout → GlobalBoundaries |
+| `extractRootBoundaries(rootMatch)`        | Root layout → GlobalBoundaries          |
 
 `buildComponentTree` shrinks to ~80 lines of orchestration.
 
@@ -38,6 +40,7 @@ Extract 2 helpers:
 **File**: `src/server-handler/index.ts:236-278`
 
 Replace `...mod.default` spread-cast with explicit property mapping:
+
 ```ts
 /* Before */
 routes.push({

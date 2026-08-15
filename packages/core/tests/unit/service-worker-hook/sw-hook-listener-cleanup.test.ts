@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest";
 
 /**
  * useServiceWorker registers statechange and updatefound listeners inside
@@ -10,23 +10,23 @@ import { describe, expect, it, vi } from "vitest"
  */
 
 interface MockTarget {
-	addEventListener: (event: string, handler: Function) => void
-	listenerCount: (event: string) => number
-	removeEventListener: (event: string, handler: Function) => void
+	addEventListener: (event: string, handler: Function) => void;
+	listenerCount: (event: string) => number;
+	removeEventListener: (event: string, handler: Function) => void;
 }
 
 function createMockTarget(): MockTarget {
-	const listeners = new Map<string, Set<Function>>()
+	const listeners = new Map<string, Set<Function>>();
 	return {
 		addEventListener: vi.fn((event: string, handler: Function) => {
-			if (!listeners.has(event)) listeners.set(event, new Set())
-			listeners.get(event)?.add(handler)
+			if (!listeners.has(event)) listeners.set(event, new Set());
+			listeners.get(event)?.add(handler);
 		}),
 		listenerCount: (event: string) => listeners.get(event)?.size ?? 0,
 		removeEventListener: vi.fn((event: string, handler: Function) => {
-			listeners.get(event)?.delete(handler)
+			listeners.get(event)?.delete(handler);
 		}),
-	}
+	};
 }
 
 /**
@@ -34,69 +34,69 @@ function createMockTarget(): MockTarget {
  * Uses trackedListeners array to clean up async-registered listeners.
  */
 function simulateFixedCode() {
-	const sw = createMockTarget()
-	const worker = createMockTarget()
-	const registration = createMockTarget()
+	const sw = createMockTarget();
+	const worker = createMockTarget();
+	const registration = createMockTarget();
 
 	const trackedListeners: Array<{
-		handler: () => void
-		name: string
-		target: MockTarget
-	}> = []
+		handler: () => void;
+		name: string;
+		target: MockTarget;
+	}> = [];
 
 	/* Synchronous: controllerchange */
-	const onControllerChange = () => {}
-	sw.addEventListener("controllerchange", onControllerChange)
+	const onControllerChange = () => {};
+	sw.addEventListener("controllerchange", onControllerChange);
 
 	/* onCleanup now handles ALL listeners */
 	const cleanup = () => {
-		sw.removeEventListener("controllerchange", onControllerChange)
+		sw.removeEventListener("controllerchange", onControllerChange);
 		for (const entry of trackedListeners) {
-			entry.target.removeEventListener(entry.name, entry.handler)
+			entry.target.removeEventListener(entry.name, entry.handler);
 		}
-	}
+	};
 
 	/* Async (.then callback): statechange — tracked for cleanup */
-	const stateHandler = () => {}
-	worker.addEventListener("statechange", stateHandler)
-	trackedListeners.push({ handler: stateHandler, name: "statechange", target: worker })
+	const stateHandler = () => {};
+	worker.addEventListener("statechange", stateHandler);
+	trackedListeners.push({ handler: stateHandler, name: "statechange", target: worker });
 
 	/* Async (.then callback): updatefound — tracked for cleanup */
-	const updateHandler = () => {}
-	registration.addEventListener("updatefound", updateHandler)
-	trackedListeners.push({ handler: updateHandler, name: "updatefound", target: registration })
+	const updateHandler = () => {};
+	registration.addEventListener("updatefound", updateHandler);
+	trackedListeners.push({ handler: updateHandler, name: "updatefound", target: registration });
 
-	return { cleanup, registration, sw, worker }
+	return { cleanup, registration, sw, worker };
 }
 
 describe("useServiceWorker listener cleanup", () => {
 	it("after cleanup, statechange listener should be removed", () => {
-		const { cleanup, worker } = simulateFixedCode()
-		expect(worker.listenerCount("statechange")).toBe(1)
+		const { cleanup, worker } = simulateFixedCode();
+		expect(worker.listenerCount("statechange")).toBe(1);
 
-		cleanup()
+		cleanup();
 
 		/* CORRECT behavior: listener should be removed */
-		expect(worker.listenerCount("statechange")).toBe(0)
-	})
+		expect(worker.listenerCount("statechange")).toBe(0);
+	});
 
 	it("after cleanup, updatefound listener should be removed", () => {
-		const { cleanup, registration } = simulateFixedCode()
-		expect(registration.listenerCount("updatefound")).toBe(1)
+		const { cleanup, registration } = simulateFixedCode();
+		expect(registration.listenerCount("updatefound")).toBe(1);
 
-		cleanup()
+		cleanup();
 
 		/* CORRECT behavior: listener should be removed */
-		expect(registration.listenerCount("updatefound")).toBe(0)
-	})
+		expect(registration.listenerCount("updatefound")).toBe(0);
+	});
 
 	it("after cleanup, controllerchange listener should be removed", () => {
-		const { cleanup, sw } = simulateFixedCode()
-		expect(sw.listenerCount("controllerchange")).toBe(1)
+		const { cleanup, sw } = simulateFixedCode();
+		expect(sw.listenerCount("controllerchange")).toBe(1);
 
-		cleanup()
+		cleanup();
 
 		/* This already works in current code */
-		expect(sw.listenerCount("controllerchange")).toBe(0)
-	})
-})
+		expect(sw.listenerCount("controllerchange")).toBe(0);
+	});
+});

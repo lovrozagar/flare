@@ -1,119 +1,98 @@
-import {
-	createEffect,
-	createMemo,
-	createSignal,
-	For,
-	Match,
-	onCleanup,
-	Show,
-	Switch,
-} from "solid-js"
-import { render } from "solid-js/web"
-import type { LocaleMatch } from "../../router-primitives/tree.ts"
-import { matchRouteTree } from "./match-route-tree.ts"
+import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js";
+import { render } from "solid-js/web";
+import type { LocaleMatch } from "../../router-primitives/tree.ts";
+import { matchRouteTree } from "./match-route-tree.ts";
 
 /* ── Types (mirror plugin.ts) ────────────────────────────────────────── */
 
 interface RouteTreeNode {
-	auth: false | "optional" | true
-	cache: Record<string, unknown>
-	children: RouteTreeNode[]
-	filePath: string | null
-	hasInput: boolean
-	intercept?: Record<string, unknown>
-	responseRoute: boolean
-	segment: string
-	type: "layout" | "page" | "path-segment" | "root-layout" | "segment"
-	urlPath: string
-	virtualPath: string | null
+	auth: false | "optional" | true;
+	cache: Record<string, unknown>;
+	children: RouteTreeNode[];
+	filePath: string | null;
+	hasInput: boolean;
+	intercept?: Record<string, unknown>;
+	responseRoute: boolean;
+	segment: string;
+	type: "layout" | "page" | "path-segment" | "root-layout" | "segment";
+	urlPath: string;
+	virtualPath: string | null;
 }
 
 interface RouteDef {
-	authenticateMode: false | "optional" | true
-	cache: Record<string, unknown>
-	exportName: string
-	filePath: string
-	hasInput: boolean
-	intercept?: Record<string, unknown>
-	responseRoute: boolean
-	type: "layout" | "page" | "path-segment" | "root-layout"
-	virtualPath: string
+	authenticateMode: false | "optional" | true;
+	cache: Record<string, unknown>;
+	exportName: string;
+	filePath: string;
+	hasInput: boolean;
+	intercept?: Record<string, unknown>;
+	responseRoute: boolean;
+	type: "layout" | "page" | "path-segment" | "root-layout";
+	virtualPath: string;
 }
 
 interface ServerFnInfo {
-	authenticate: boolean
-	file: string
-	id: string
-	method: string
-	name: string
-	stream: boolean
+	authenticate: boolean;
+	file: string;
+	id: string;
+	method: string;
+	name: string;
+	stream: boolean;
 }
 
 interface ApiData {
-	builderChains: Record<string, string[]>
-	defs: RouteDef[]
-	localeMatch?: LocaleMatch
-	routeTree: RouteTreeNode[]
-	serverFunctions: ServerFnInfo[]
+	builderChains: Record<string, string[]>;
+	defs: RouteDef[];
+	localeMatch?: LocaleMatch;
+	routeTree: RouteTreeNode[];
+	serverFunctions: ServerFnInfo[];
 }
 
 interface MatchedRoute {
-	node: RouteTreeNode
-	params: Record<string, string>
+	node: RouteTreeNode;
+	params: Record<string, string>;
 }
 
 interface RuntimeMatch {
-	loaderData: unknown
-	preloaderContext?: Record<string, unknown>
-	type: string
-	virtualPath: string
+	loaderData: unknown;
+	preloaderContext?: Record<string, unknown>;
+	type: string;
+	virtualPath: string;
 }
 
 interface CachedMatchInfo {
-	data: unknown
-	headConfig?: Record<string, unknown>
-	matchId: string
-	updatedAt: number
+	data: unknown;
+	headConfig?: Record<string, unknown>;
+	matchId: string;
+	updatedAt: number;
 }
 
 interface DevtoolsActions {
-	clearError: () => void
-	clearPrefetchCache: () => void
+	clearError: () => void;
+	clearPrefetchCache: () => void;
 	getCacheStats: () => {
-		entries: { age: number; matchId: string }[]
-		matchCount: number
-		prefetchCount: number
-	}
-	invalidate: (options?: { revalidate?: boolean }) => void
-	navigate: (options: {
-		params?: Record<string, unknown>
-		replace?: boolean
-		to: string
-	}) => Promise<void>
-	prefetch: (options: { to: string }) => Promise<void>
-	setError: (error: unknown) => void
-	setNotFound: (v: boolean) => void
+		entries: { age: number; matchId: string }[];
+		matchCount: number;
+		prefetchCount: number;
+	};
+	invalidate: (options?: { revalidate?: boolean }) => void;
+	navigate: (options: { params?: Record<string, unknown>; replace?: boolean; to: string }) => Promise<void>;
+	prefetch: (options: { to: string }) => Promise<void>;
+	setError: (error: unknown) => void;
+	setNotFound: (v: boolean) => void;
 }
 
 declare global {
 	interface Window {
-		__flare_devtools_actions__?: DevtoolsActions
-		__flare_devtools_cache__?: CachedMatchInfo[]
-		__flare_devtools_matches__?: RuntimeMatch[]
+		__flare_devtools_actions__?: DevtoolsActions;
+		__flare_devtools_cache__?: CachedMatchInfo[];
+		__flare_devtools_matches__?: RuntimeMatch[];
 	}
 }
 
 /* ── Tabs ─────────────────────────────────────────────────────────────── */
 
-type TabId =
-	| "actions"
-	| "current"
-	| "layouts"
-	| "pages"
-	| "root-layouts"
-	| "segments"
-	| "server-fns"
-	| "tree"
+type TabId = "actions" | "current" | "layouts" | "pages" | "root-layouts" | "segments" | "server-fns" | "tree";
 
 const TABS: { id: TabId; label: string }[] = [
 	{ id: "current", label: "Current" },
@@ -124,50 +103,45 @@ const TABS: { id: TabId; label: string }[] = [
 	{ id: "root-layouts", label: "Root" },
 	{ id: "segments", label: "Segments" },
 	{ id: "server-fns", label: "Server Fns" },
-]
+];
 
 const TAB_TO_DEF_TYPE: Record<string, RouteDef["type"]> = {
 	layouts: "layout",
 	pages: "page",
 	"root-layouts": "root-layout",
 	segments: "path-segment",
-}
+};
 
 /* ── Persistence ──────────────────────────────────────────────────────── */
 
-const STORAGE_KEY = "__flare_devtools"
+const STORAGE_KEY = "__flare_devtools";
 
 function loadState(): {
-	activeTab: TabId
-	expandedNodes: string[]
-	sortCol: string
-	sortDir: "asc" | "desc"
+	activeTab: TabId;
+	expandedNodes: string[];
+	sortCol: string;
+	sortDir: "asc" | "desc";
 } {
 	try {
-		const raw = localStorage.getItem(STORAGE_KEY)
+		const raw = localStorage.getItem(STORAGE_KEY);
 		if (raw) {
-			const parsed = JSON.parse(raw) as Record<string, unknown>
+			const parsed = JSON.parse(raw) as Record<string, unknown>;
 			return {
 				activeTab: (parsed.activeTab as TabId) ?? "current",
 				expandedNodes: (parsed.expandedNodes as string[]) ?? [],
 				sortCol: (parsed.sortCol as string) ?? "name",
 				sortDir: (parsed.sortDir as "asc" | "desc") ?? "asc",
-			}
+			};
 		}
 	} catch {
 		/* noop */
 	}
-	return { activeTab: "current", expandedNodes: [], sortCol: "name", sortDir: "asc" }
+	return { activeTab: "current", expandedNodes: [], sortCol: "name", sortDir: "asc" };
 }
 
-function saveState(s: {
-	activeTab: TabId
-	expandedNodes: string[]
-	sortCol: string
-	sortDir: string
-}): void {
+function saveState(s: { activeTab: TabId; expandedNodes: string[]; sortCol: string; sortDir: string }): void {
 	try {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(s))
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
 	} catch {
 		/* noop */
 	}
@@ -178,34 +152,34 @@ function saveState(s: {
 function typeBadgeColor(type: string): string {
 	switch (type) {
 		case "page":
-			return "#fafafa"
+			return "#fafafa";
 		case "layout":
-			return "#a1a1aa"
+			return "#a1a1aa";
 		case "root-layout":
-			return "#3b82f6"
+			return "#3b82f6";
 		case "path-segment":
-			return "#71717a"
+			return "#71717a";
 		case "segment":
-			return "#52525b"
+			return "#52525b";
 		default:
-			return "#52525b"
+			return "#52525b";
 	}
 }
 
 function typeBadgeLabel(type: string): string {
 	switch (type) {
 		case "page":
-			return "PAGE"
+			return "PAGE";
 		case "layout":
-			return "LYT"
+			return "LYT";
 		case "root-layout":
-			return "ROOT"
+			return "ROOT";
 		case "path-segment":
-			return "SEG"
+			return "SEG";
 		case "segment":
-			return "DIR"
+			return "DIR";
 		default:
-			return type.toUpperCase()
+			return type.toUpperCase();
 	}
 }
 
@@ -1054,107 +1028,107 @@ const CSS = `
   .act-btn { padding: 3px 8px; font-size: 10px; }
   .act-param-row { flex-direction: column; align-items: stretch; }
 }
-`
+`;
 
 /* ── Virtual list ─────────────────────────────────────────────────────── */
 
 function VirtualList<T>(props: {
-	containerRef?: (el: HTMLDivElement) => void
-	each: T[]
-	estimateHeight: number
-	render: (item: T, index: number) => ReturnType<(typeof import("solid-js"))["createComponent"]>
+	containerRef?: (el: HTMLDivElement) => void;
+	each: T[];
+	estimateHeight: number;
+	render: (item: T, index: number) => ReturnType<(typeof import("solid-js"))["createComponent"]>;
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	let scrollEl: HTMLDivElement | null = null
-	const [scrollTop, setScrollTop] = createSignal(0)
-	const [viewHeight, setViewHeight] = createSignal(500)
+	let scrollEl: HTMLDivElement | null = null;
+	const [scrollTop, setScrollTop] = createSignal(0);
+	const [viewHeight, setViewHeight] = createSignal(500);
 
-	const totalHeight = () => props.each.length * props.estimateHeight
+	const totalHeight = () => props.each.length * props.estimateHeight;
 
 	const visibleRange = () => {
-		const top = scrollTop()
-		const height = viewHeight()
-		const overscan = 5
-		const startIdx = Math.max(0, Math.floor(top / props.estimateHeight) - overscan)
-		const endIdx = Math.min(
-			props.each.length,
-			Math.ceil((top + height) / props.estimateHeight) + overscan,
-		)
-		return { endIdx, startIdx }
-	}
+		const top = scrollTop();
+		const height = viewHeight();
+		const overscan = 5;
+		const startIdx = Math.max(0, Math.floor(top / props.estimateHeight) - overscan);
+		const endIdx = Math.min(props.each.length, Math.ceil((top + height) / props.estimateHeight) + overscan);
+		return { endIdx, startIdx };
+	};
 
 	const visibleItems = () => {
-		const { endIdx, startIdx } = visibleRange()
-		const items: { idx: number; item: T }[] = []
+		const { endIdx, startIdx } = visibleRange();
+		const items: { idx: number; item: T }[] = [];
 		for (let i = startIdx; i < endIdx; i++) {
-			const item = props.each[i]
-			if (item !== undefined) items.push({ idx: i, item })
+			const item = props.each[i];
+			if (item !== undefined) items.push({ idx: i, item });
 		}
-		return items
-	}
+		return items;
+	};
 
 	const onScroll = () => {
 		if (scrollEl) {
-			setScrollTop(scrollEl.scrollTop)
-			setViewHeight(scrollEl.clientHeight)
+			setScrollTop(scrollEl.scrollTop);
+			setViewHeight(scrollEl.clientHeight);
 		}
-	}
+	};
 
 	createEffect(() => {
 		if (scrollEl) {
-			setViewHeight(scrollEl.clientHeight)
-			if (props.containerRef) props.containerRef(scrollEl)
+			setViewHeight(scrollEl.clientHeight);
+			if (props.containerRef) props.containerRef(scrollEl);
 		}
-	})
+	});
 
 	return (
-		<div class="content" onScroll={onScroll} ref={(el) => { scrollEl = el }}>
+		<div
+			class="content"
+			onScroll={onScroll}
+			ref={(el) => {
+				scrollEl = el;
+			}}
+		>
 			<div class="vlist">
 				<div class="vlist-inner" style={{ height: `${totalHeight()}px` }}>
-					<div
-						class="vlist-window"
-						style={{ top: `${visibleRange().startIdx * props.estimateHeight}px` }}
-					>
+					<div class="vlist-window" style={{ top: `${visibleRange().startIdx * props.estimateHeight}px` }}>
 						<For each={visibleItems()}>{(entry) => props.render(entry.item, entry.idx)}</For>
 					</div>
 				</div>
 			</div>
 		</div>
-	)
+	);
 }
 
 /* ── Components ───────────────────────────────────────────────────────── */
 
 function sortArrow(dir: "asc" | "desc"): string {
-	if (dir === "asc") return " \u2191"
-	return " \u2193"
+	if (dir === "asc") return " \u2191";
+	return " \u2193";
 }
 
 function openEditor(file: string): void {
-	fetch(`/__flare/open-editor?file=${encodeURIComponent(file)}`)
+	fetch(`/__flare/open-editor?file=${encodeURIComponent(file)}`);
 }
 
 function matchesSearch(node: RouteTreeNode, term: string): boolean {
-	if (!term) return true
-	const lower = term.toLowerCase()
-	if (node.segment.toLowerCase().includes(lower)) return true
-	if (node.filePath?.toLowerCase().includes(lower)) return true
-	if (node.urlPath.toLowerCase().includes(lower)) return true
-	return node.children.some((c) => matchesSearch(c, term))
+	if (!term) return true;
+	const lower = term.toLowerCase();
+	if (node.segment.toLowerCase().includes(lower)) return true;
+	if (node.filePath?.toLowerCase().includes(lower)) return true;
+	if (node.urlPath.toLowerCase().includes(lower)) return true;
+	return node.children.some((c) => matchesSearch(c, term));
 }
 
 function TreeRow(props: {
-	node: RouteTreeNode
-	prefix: string
+	node: RouteTreeNode;
+	prefix: string;
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	const isGroup = () => props.node.segment.startsWith("(") && props.node.segment.endsWith(")")
-	const isParam = () => props.node.segment.startsWith("[") && props.node.segment.endsWith("]")
-	const label = () => props.node.segment || props.node.virtualPath || "_root_"
+	const isGroup = () => props.node.segment.startsWith("(") && props.node.segment.endsWith(")");
+	const isParam = () => props.node.segment.startsWith("[") && props.node.segment.endsWith("]");
+	const label = () => props.node.segment || props.node.virtualPath || "_root_";
 
 	return (
 		<button
 			class="tree-row"
 			onClick={() => {
-				if (props.node.filePath) openEditor(props.node.filePath)
+				if (props.node.filePath) openEditor(props.node.filePath);
 			}}
 			type="button"
 		>
@@ -1178,7 +1152,7 @@ function TreeRow(props: {
 				<span class="tree-path">{props.node.filePath}</span>
 			</Show>
 		</button>
-	)
+	);
 }
 
 function flattenTree(
@@ -1186,44 +1160,44 @@ function flattenTree(
 	search: string,
 	parentPrefix: string,
 ): { node: RouteTreeNode; prefix: string }[] {
-	const rows: { node: RouteTreeNode; prefix: string }[] = []
+	const rows: { node: RouteTreeNode; prefix: string }[] = [];
 
-	const filtered = search ? nodes.filter((n) => matchesSearch(n, search)) : nodes
+	const filtered = search ? nodes.filter((n) => matchesSearch(n, search)) : nodes;
 
 	for (let i = 0; i < filtered.length; i++) {
-		const node = filtered[i]
-		if (!node) continue
-		const isLast = i === filtered.length - 1
-		const connector = isLast ? "\u2514\u2500 " : "\u251C\u2500 "
-		const prefix = parentPrefix + connector
+		const node = filtered[i];
+		if (!node) continue;
+		const isLast = i === filtered.length - 1;
+		const connector = isLast ? "\u2514\u2500 " : "\u251C\u2500 ";
+		const prefix = parentPrefix + connector;
 
-		rows.push({ node, prefix })
+		rows.push({ node, prefix });
 
 		if (node.children.length > 0) {
-			const childPrefix = parentPrefix + (isLast ? "   " : "\u2502  ")
-			rows.push(...flattenTree(node.children, search, childPrefix))
+			const childPrefix = parentPrefix + (isLast ? "   " : "\u2502  ");
+			rows.push(...flattenTree(node.children, search, childPrefix));
 		}
 	}
 
-	return rows
+	return rows;
 }
 
 function TreeTab(props: {
-	search: string
-	tree: RouteTreeNode[]
+	search: string;
+	tree: RouteTreeNode[];
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
 	const rows = createMemo(() => {
-		const result: { node: RouteTreeNode; prefix: string }[] = []
+		const result: { node: RouteTreeNode; prefix: string }[] = [];
 
 		for (const root of props.tree) {
-			result.push({ node: root, prefix: "" })
+			result.push({ node: root, prefix: "" });
 			if (root.children.length > 0) {
-				result.push(...flattenTree(root.children, props.search, ""))
+				result.push(...flattenTree(root.children, props.search, ""));
 			}
 		}
 
-		return result
-	})
+		return result;
+	});
 
 	return (
 		<Show fallback={<div class="empty-state">No routes found</div>} when={rows().length > 0}>
@@ -1233,15 +1207,15 @@ function TreeTab(props: {
 				render={(row) => <TreeRow node={row.node} prefix={row.prefix} />}
 			/>
 		</Show>
-	)
+	);
 }
 
 function ListItem(props: {
-	def: RouteDef
-	expanded: boolean
-	onClick: () => void
-	onOpenEditor: (f: string) => void
-	urlPath: string
+	def: RouteDef;
+	expanded: boolean;
+	onClick: () => void;
+	onOpenEditor: (f: string) => void;
+	urlPath: string;
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
 	return (
 		<div
@@ -1249,8 +1223,8 @@ function ListItem(props: {
 			onClick={() => props.onClick()}
 			onKeyDown={(e) => {
 				if (e.key === "Enter" || e.key === " ") {
-					e.preventDefault()
-					props.onClick()
+					e.preventDefault();
+					props.onClick();
 				}
 			}}
 			role="button"
@@ -1279,8 +1253,8 @@ function ListItem(props: {
 			<button
 				class="list-item-file"
 				onClick={(e) => {
-					e.stopPropagation()
-					props.onOpenEditor(props.def.filePath)
+					e.stopPropagation();
+					props.onOpenEditor(props.def.filePath);
 				}}
 				type="button"
 			>
@@ -1311,48 +1285,44 @@ function ListItem(props: {
 				</div>
 			</Show>
 		</div>
-	)
+	);
 }
 
 function TypedListTab(props: {
-	defs: RouteDef[]
-	onOpenEditor: (f: string) => void
-	search: string
-	type: RouteDef["type"]
+	defs: RouteDef[];
+	onOpenEditor: (f: string) => void;
+	search: string;
+	type: RouteDef["type"];
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	const [expandedIdx, setExpandedIdx] = createSignal<number | null>(null)
+	const [expandedIdx, setExpandedIdx] = createSignal<number | null>(null);
 
 	const filtered = createMemo(() => {
-		let items = props.defs.filter((d) => d.type === props.type)
+		let items = props.defs.filter((d) => d.type === props.type);
 		if (props.search) {
-			const term = props.search.toLowerCase()
+			const term = props.search.toLowerCase();
 			items = items.filter(
-				(d) =>
-					d.filePath.toLowerCase().includes(term) || d.virtualPath.toLowerCase().includes(term),
-			)
+				(d) => d.filePath.toLowerCase().includes(term) || d.virtualPath.toLowerCase().includes(term),
+			);
 		}
-		return items
-	})
+		return items;
+	});
 
 	const urlPath = (vp: string): string => {
-		const parts = vp.split("/")
-		const rootIdx = parts.findIndex((p) => p.startsWith("_") && p.endsWith("_") && p.length >= 3)
-		const urlParts: string[] = []
+		const parts = vp.split("/");
+		const rootIdx = parts.findIndex((p) => p.startsWith("_") && p.endsWith("_") && p.length >= 3);
+		const urlParts: string[] = [];
 		for (let i = 0; i < parts.length; i++) {
-			const part = parts[i] ?? ""
-			if (rootIdx >= 0 && i <= rootIdx) continue
-			if (part.startsWith("(") && part.endsWith(")")) continue
-			if (part === "") continue
-			urlParts.push(part)
+			const part = parts[i] ?? "";
+			if (rootIdx >= 0 && i <= rootIdx) continue;
+			if (part.startsWith("(") && part.endsWith(")")) continue;
+			if (part === "") continue;
+			urlParts.push(part);
 		}
-		return `/${urlParts.join("/")}`
-	}
+		return `/${urlParts.join("/")}`;
+	};
 
 	return (
-		<Show
-			fallback={<div class="empty-state">No {props.type} routes found</div>}
-			when={filtered().length > 0}
-		>
+		<Show fallback={<div class="empty-state">No {props.type} routes found</div>} when={filtered().length > 0}>
 			<VirtualList
 				each={filtered()}
 				estimateHeight={48}
@@ -1367,72 +1337,69 @@ function TypedListTab(props: {
 				)}
 			/>
 		</Show>
-	)
+	);
 }
 
 function ServerFnsTab(props: {
-	fns: ServerFnInfo[]
-	onOpenEditor: (f: string) => void
-	search: string
+	fns: ServerFnInfo[];
+	onOpenEditor: (f: string) => void;
+	search: string;
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	const [sortCol, setSortCol] = createSignal(loadState().sortCol)
-	const [sortDir, setSortDir] = createSignal<"asc" | "desc">(loadState().sortDir)
+	const [sortCol, setSortCol] = createSignal(loadState().sortCol);
+	const [sortDir, setSortDir] = createSignal<"asc" | "desc">(loadState().sortDir);
 
 	const handleSort = (col: string) => {
 		if (sortCol() === col) {
-			setSortDir((d) => (d === "asc" ? "desc" : "asc"))
+			setSortDir((d) => (d === "asc" ? "desc" : "asc"));
 		} else {
-			setSortCol(col)
-			setSortDir("asc")
+			setSortCol(col);
+			setSortDir("asc");
 		}
-	}
+	};
 
 	const filtered = createMemo(() => {
-		let items = [...props.fns]
+		let items = [...props.fns];
 		if (props.search) {
-			const term = props.search.toLowerCase()
+			const term = props.search.toLowerCase();
 			items = items.filter(
 				(f) =>
 					f.name.toLowerCase().includes(term) ||
 					f.file.toLowerCase().includes(term) ||
 					f.method.toLowerCase().includes(term),
-			)
+			);
 		}
-		const col = sortCol()
-		const dir = sortDir()
+		const col = sortCol();
+		const dir = sortDir();
 		const getValue = (fn: ServerFnInfo): string => {
 			switch (col) {
 				case "name":
-					return fn.name
+					return fn.name;
 				case "method":
-					return fn.method
+					return fn.method;
 				case "authenticate":
-					return String(fn.authenticate)
+					return String(fn.authenticate);
 				case "stream":
-					return String(fn.stream)
+					return String(fn.stream);
 				case "file":
-					return fn.file
+					return fn.file;
 				default:
-					return fn.name
+					return fn.name;
 			}
-		}
+		};
 		items.sort((a, b) => {
-			const cmp = getValue(a).localeCompare(getValue(b))
-			return dir === "asc" ? cmp : -cmp
-		})
-		return items
-	})
+			const cmp = getValue(a).localeCompare(getValue(b));
+			return dir === "asc" ? cmp : -cmp;
+		});
+		return items;
+	});
 
 	const sortIndicator = (col: string) => {
-		if (sortCol() !== col) return ""
-		return sortArrow(sortDir())
-	}
+		if (sortCol() !== col) return "";
+		return sortArrow(sortDir());
+	};
 
 	return (
-		<Show
-			fallback={<div class="empty-state">No server functions found</div>}
-			when={filtered().length > 0}
-		>
+		<Show fallback={<div class="empty-state">No server functions found</div>} when={filtered().length > 0}>
 			<div class="fn-table-wrap">
 				<table class="fn-table">
 					<thead>
@@ -1440,22 +1407,13 @@ function ServerFnsTab(props: {
 							<th classList={{ sorted: sortCol() === "name" }} onClick={() => handleSort("name")}>
 								Name{sortIndicator("name")}
 							</th>
-							<th
-								classList={{ sorted: sortCol() === "method" }}
-								onClick={() => handleSort("method")}
-							>
+							<th classList={{ sorted: sortCol() === "method" }} onClick={() => handleSort("method")}>
 								Method{sortIndicator("method")}
 							</th>
-							<th
-								classList={{ sorted: sortCol() === "authenticate" }}
-								onClick={() => handleSort("authenticate")}
-							>
+							<th classList={{ sorted: sortCol() === "authenticate" }} onClick={() => handleSort("authenticate")}>
 								Auth{sortIndicator("authenticate")}
 							</th>
-							<th
-								classList={{ sorted: sortCol() === "stream" }}
-								onClick={() => handleSort("stream")}
-							>
+							<th classList={{ sorted: sortCol() === "stream" }} onClick={() => handleSort("stream")}>
 								Stream{sortIndicator("stream")}
 							</th>
 							<th>File</th>
@@ -1472,11 +1430,7 @@ function ServerFnsTab(props: {
 									<td>{fn.authenticate ? "\u2713" : "\u2013"}</td>
 									<td>{fn.stream ? "\u2713" : "\u2013"}</td>
 									<td>
-										<button
-											class="file-link"
-											onClick={() => props.onOpenEditor(fn.file)}
-											type="button"
-										>
+										<button class="file-link" onClick={() => props.onOpenEditor(fn.file)} type="button">
 											{fn.file}
 										</button>
 									</td>
@@ -1487,7 +1441,7 @@ function ServerFnsTab(props: {
 				</table>
 			</div>
 		</Show>
-	)
+	);
 }
 
 function methodCategory(m: string): string {
@@ -1495,68 +1449,67 @@ function methodCategory(m: string): string {
 		case "authenticate":
 		case "authenticateOptional":
 		case "authorize":
-			return "is-auth"
+			return "is-auth";
 		case "loader":
 		case "preloader":
 		case "effects":
 		case "input":
-			return "is-data"
+			return "is-data";
 		case "cache":
-			return "is-cache"
+			return "is-cache";
 		case "render":
 		case "response":
-			return "is-render"
+			return "is-render";
 		case "head":
 		case "headers":
-			return "is-head"
+			return "is-head";
 		case "errorRender":
 		case "notFoundRender":
 		case "unauthenticatedRender":
 		case "unauthorizedRender":
-			return "is-error"
+			return "is-error";
 		default:
-			return ""
+			return "";
 	}
 }
 
 function shortMethod(m: string): string {
 	switch (m) {
 		case "authenticateOptional":
-			return "auth?"
+			return "auth?";
 		case "authenticate":
-			return "auth"
+			return "auth";
 		case "unauthenticatedRender":
-			return "401"
+			return "401";
 		case "unauthorizedRender":
-			return "403"
+			return "403";
 		case "notFoundRender":
-			return "404"
+			return "404";
 		case "errorRender":
-			return "error"
+			return "error";
 		default:
-			return m
+			return m;
 	}
 }
 
 function safeStringify(val: unknown, indent?: number): string {
 	try {
-		return JSON.stringify(val, null, indent)
+		return JSON.stringify(val, null, indent);
 	} catch {
-		return String(val)
+		return String(val);
 	}
 }
 
 function ChainNode(props: {
-	builderChains: Record<string, string[]>
-	headConfig?: Record<string, unknown>
-	node: RouteTreeNode
-	runtimeMatch?: RuntimeMatch
+	builderChains: Record<string, string[]>;
+	headConfig?: Record<string, unknown>;
+	node: RouteTreeNode;
+	runtimeMatch?: RuntimeMatch;
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	const [expanded, setExpanded] = createSignal(false)
-	const methods = () =>
-		props.node.filePath ? (props.builderChains[props.node.filePath] ?? []) : []
-	const isGroup = () => props.node.segment.startsWith("(") && props.node.segment.endsWith(")")
-	const isParam = () => props.node.segment.startsWith("[") && props.node.segment.endsWith("]")
+	const [expanded, setExpanded] = createSignal(false);
+	const methods = () => (props.node.filePath ? (props.builderChains[props.node.filePath] ?? []) : []);
+	const isGroup = () => props.node.segment.startsWith("(") && props.node.segment.endsWith(")");
+	const isParam = () => props.node.segment.startsWith("[") && props.node.segment.endsWith("]");
 	const hasDetails = () =>
 		props.node.auth !== false ||
 		(props.node.cache && Object.keys(props.node.cache).length > 0) ||
@@ -1565,7 +1518,7 @@ function ChainNode(props: {
 		props.node.responseRoute ||
 		props.runtimeMatch?.loaderData !== undefined ||
 		props.runtimeMatch?.preloaderContext !== undefined ||
-		props.headConfig !== undefined
+		props.headConfig !== undefined;
 
 	return (
 		<div
@@ -1573,8 +1526,8 @@ function ChainNode(props: {
 			onClick={() => setExpanded((e) => !e)}
 			onKeyDown={(e) => {
 				if (e.key === "Enter" || e.key === " ") {
-					e.preventDefault()
-					setExpanded((v) => !v)
+					e.preventDefault();
+					setExpanded((v) => !v);
 				}
 			}}
 			role="button"
@@ -1597,8 +1550,8 @@ function ChainNode(props: {
 					<button
 						class="cur-chain-file"
 						onClick={(e) => {
-							e.stopPropagation()
-							openEditor(props.node.filePath ?? "")
+							e.stopPropagation();
+							openEditor(props.node.filePath ?? "");
 						}}
 						type="button"
 					>
@@ -1608,9 +1561,7 @@ function ChainNode(props: {
 			</div>
 			<Show when={methods().length > 0}>
 				<div class="cur-chain-methods">
-					<For each={methods()}>
-						{(m) => <span class={`cur-method ${methodCategory(m)}`}>{shortMethod(m)}</span>}
-					</For>
+					<For each={methods()}>{(m) => <span class={`cur-method ${methodCategory(m)}`}>{shortMethod(m)}</span>}</For>
 				</div>
 			</Show>
 			<Show when={expanded() && hasDetails()}>
@@ -1660,9 +1611,7 @@ function ChainNode(props: {
 					<Show when={props.runtimeMatch?.preloaderContext !== undefined}>
 						<div class="cur-config-row">
 							<span class="cur-config-key">preloader</span>
-							<pre class="cur-config-pre">
-								{safeStringify(props.runtimeMatch?.preloaderContext, 2)}
-							</pre>
+							<pre class="cur-config-pre">{safeStringify(props.runtimeMatch?.preloaderContext, 2)}</pre>
 						</div>
 					</Show>
 					<Show when={props.runtimeMatch?.loaderData !== undefined}>
@@ -1680,42 +1629,42 @@ function ChainNode(props: {
 				</div>
 			</Show>
 		</div>
-	)
+	);
 }
 
 function parseSearchParams(search: string): [string, string][] {
-	if (!search || search === "?") return []
-	const params = new URLSearchParams(search)
-	const result: [string, string][] = []
+	if (!search || search === "?") return [];
+	const params = new URLSearchParams(search);
+	const result: [string, string][] = [];
 	for (const [k, v] of params) {
-		result.push([k, v])
+		result.push([k, v]);
 	}
-	return result
+	return result;
 }
 
 function formatAge(ms: number): string {
-	if (ms < 1000) return `${ms}ms`
-	if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
-	return `${(ms / 60000).toFixed(1)}m`
+	if (ms < 1000) return `${ms}ms`;
+	if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+	return `${(ms / 60000).toFixed(1)}m`;
 }
 
 function CurrentTab(props: {
-	builderChains: Record<string, string[]>
-	defs: RouteDef[]
-	localeMatch?: LocaleMatch
-	tree: RouteTreeNode[]
+	builderChains: Record<string, string[]>;
+	defs: RouteDef[];
+	localeMatch?: LocaleMatch;
+	tree: RouteTreeNode[];
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
 	const [url, setUrl] = createSignal({
 		hash: window.location.hash,
 		pathname: window.location.pathname,
 		search: window.location.search,
-	})
+	});
 	const [htmlAttrs, setHtmlAttrs] = createSignal({
 		dir: document.documentElement.getAttribute("dir") ?? "ltr",
 		lang: document.documentElement.getAttribute("lang") ?? "",
 		theme: document.documentElement.getAttribute("data-theme") ?? "",
-	})
-	const [docTitle, setDocTitle] = createSignal(document.title)
+	});
+	const [docTitle, setDocTitle] = createSignal(document.title);
 
 	/* Watch URL changes */
 	createEffect(() => {
@@ -1724,29 +1673,29 @@ function CurrentTab(props: {
 				hash: window.location.hash,
 				pathname: window.location.pathname,
 				search: window.location.search,
-			})
-			setDocTitle(document.title)
-		}
+			});
+			setDocTitle(document.title);
+		};
 
-		window.addEventListener("popstate", update)
+		window.addEventListener("popstate", update);
 
-		const origPush = history.pushState.bind(history)
-		const origReplace = history.replaceState.bind(history)
+		const origPush = history.pushState.bind(history);
+		const origReplace = history.replaceState.bind(history);
 		history.pushState = (...args: Parameters<typeof history.pushState>) => {
-			origPush(...args)
-			update()
-		}
+			origPush(...args);
+			update();
+		};
 		history.replaceState = (...args: Parameters<typeof history.replaceState>) => {
-			origReplace(...args)
-			update()
-		}
+			origReplace(...args);
+			update();
+		};
 
 		onCleanup(() => {
-			window.removeEventListener("popstate", update)
-			history.pushState = origPush
-			history.replaceState = origReplace
-		})
-	})
+			window.removeEventListener("popstate", update);
+			history.pushState = origPush;
+			history.replaceState = origReplace;
+		});
+	});
 
 	/* Watch <html> attributes + title */
 	createEffect(() => {
@@ -1755,104 +1704,102 @@ function CurrentTab(props: {
 				dir: document.documentElement.getAttribute("dir") ?? "ltr",
 				lang: document.documentElement.getAttribute("lang") ?? "",
 				theme: document.documentElement.getAttribute("data-theme") ?? "",
-			})
-		})
+			});
+		});
 		observer.observe(document.documentElement, {
 			attributeFilter: ["data-theme", "dir", "lang"],
 			attributes: true,
-		})
+		});
 
-		const titleObs = new MutationObserver(() => setDocTitle(document.title))
-		const titleEl = document.querySelector("title")
+		const titleObs = new MutationObserver(() => setDocTitle(document.title));
+		const titleEl = document.querySelector("title");
 		if (titleEl) {
-			titleObs.observe(titleEl, { characterData: true, childList: true, subtree: true })
+			titleObs.observe(titleEl, { characterData: true, childList: true, subtree: true });
 		}
 
 		onCleanup(() => {
-			observer.disconnect()
-			titleObs.disconnect()
-		})
-	})
+			observer.disconnect();
+			titleObs.disconnect();
+		});
+	});
 
-	const matched = createMemo(() => matchRouteTree(props.tree, url().pathname, props.localeMatch))
-	const searchParams = createMemo(() => parseSearchParams(url().search))
+	const matched = createMemo(() => matchRouteTree(props.tree, url().pathname, props.localeMatch));
+	const searchParams = createMemo(() => parseSearchParams(url().search));
 
 	/* Read runtime matches (loader data, preloader context) + cache (headConfig) */
-	const [runtimeMatches, setRuntimeMatches] = createSignal<RuntimeMatch[]>([])
-	const [cachedMatches, setCachedMatches] = createSignal<CachedMatchInfo[]>([])
+	const [runtimeMatches, setRuntimeMatches] = createSignal<RuntimeMatch[]>([]);
+	const [cachedMatches, setCachedMatches] = createSignal<CachedMatchInfo[]>([]);
 
 	createEffect(() => {
 		const read = () => {
-			const matches = window.__flare_devtools_matches__
-			if (matches) setRuntimeMatches(matches)
-			const cache = window.__flare_devtools_cache__
-			if (cache) setCachedMatches(cache)
-		}
-		read()
+			const matches = window.__flare_devtools_matches__;
+			if (matches) setRuntimeMatches(matches);
+			const cache = window.__flare_devtools_cache__;
+			if (cache) setCachedMatches(cache);
+		};
+		read();
 
 		/* Re-read on navigation (URL signal triggers this effect) */
-		void url()
-		const timer = setTimeout(read, 100)
-		onCleanup(() => clearTimeout(timer))
-	})
+		void url();
+		const timer = setTimeout(read, 100);
+		onCleanup(() => clearTimeout(timer));
+	});
 
 	const runtimeMatchFor = (node: RouteTreeNode): RuntimeMatch | undefined => {
-		if (!node.virtualPath) return undefined
-		return runtimeMatches().find((m) => m.virtualPath === node.virtualPath)
-	}
+		if (!node.virtualPath) return undefined;
+		return runtimeMatches().find((m) => m.virtualPath === node.virtualPath);
+	};
 
 	const headConfigFor = (node: RouteTreeNode): Record<string, unknown> | undefined => {
-		if (!node.virtualPath) return undefined
-		const cached = cachedMatches().find((c) => c.matchId.startsWith(`${node.virtualPath}:`))
-		return cached?.headConfig
-	}
+		if (!node.virtualPath) return undefined;
+		const cached = cachedMatches().find((c) => c.matchId.startsWith(`${node.virtualPath}:`));
+		return cached?.headConfig;
+	};
 
 	const currentCacheEntries = createMemo(() => {
-		const chain = matched().chain
-		const vPaths = new Set(
-			chain.map((m) => m.node.virtualPath).filter((vp): vp is string => vp !== null),
-		)
-		const stats = window.__flare_devtools_actions__?.getCacheStats()
-		if (!stats) return []
+		const chain = matched().chain;
+		const vPaths = new Set(chain.map((m) => m.node.virtualPath).filter((vp): vp is string => vp !== null));
+		const stats = window.__flare_devtools_actions__?.getCacheStats();
+		if (!stats) return [];
 		return stats.entries.filter((e) => {
 			for (const vp of vPaths) {
-				if (e.matchId.startsWith(vp)) return true
+				if (e.matchId.startsWith(vp)) return true;
 			}
-			return false
-		})
-	})
+			return false;
+		});
+	});
 
 	/* Read resolved <head> tags from DOM */
-	const [headTags, setHeadTags] = createSignal<{ attrs: Record<string, string>; tag: string }[]>([])
+	const [headTags, setHeadTags] = createSignal<{ attrs: Record<string, string>; tag: string }[]>([]);
 
 	const readHeadTags = () => {
-		const tags: { attrs: Record<string, string>; tag: string }[] = []
-		const head = document.head
+		const tags: { attrs: Record<string, string>; tag: string }[] = [];
+		const head = document.head;
 		for (const el of head.querySelectorAll("meta, link[rel]")) {
-			const attrs: Record<string, string> = {}
+			const attrs: Record<string, string> = {};
 			for (const attr of el.attributes) {
-				attrs[attr.name] = attr.value
+				attrs[attr.name] = attr.value;
 			}
-			tags.push({ attrs, tag: el.tagName.toLowerCase() })
+			tags.push({ attrs, tag: el.tagName.toLowerCase() });
 		}
-		setHeadTags(tags)
-	}
+		setHeadTags(tags);
+	};
 
 	createEffect(() => {
-		void url()
-		readHeadTags()
-		const timer = setTimeout(readHeadTags, 200)
-		onCleanup(() => clearTimeout(timer))
-	})
+		void url();
+		readHeadTags();
+		const timer = setTimeout(readHeadTags, 200);
+		onCleanup(() => clearTimeout(timer));
+	});
 
 	const leafMatch = createMemo(() => {
-		const chain = matched().chain
+		const chain = matched().chain;
 		for (let i = chain.length - 1; i >= 0; i--) {
-			const node = chain[i]?.node
-			if (node?.virtualPath && node.type !== "segment") return node
+			const node = chain[i]?.node;
+			if (node?.virtualPath && node.type !== "segment") return node;
 		}
-		return null
-	})
+		return null;
+	});
 
 	return (
 		<div class="cur-grid">
@@ -2010,9 +1957,9 @@ function CurrentTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								const a = window.__flare_devtools_actions__
+								const a = window.__flare_devtools_actions__;
 								if (a) {
-									a.invalidate({ revalidate: true })
+									a.invalidate({ revalidate: true });
 								}
 							}}
 							type="button"
@@ -2038,10 +1985,10 @@ function CurrentTab(props: {
 					<button
 						class="act-btn is-danger"
 						onClick={() => {
-							const err = new Error("Simulated unauthenticated")
-							Object.defineProperty(err, "name", { value: "UnauthenticatedError" })
-							Object.defineProperty(err, "status", { value: 401 })
-							window.__flare_devtools_actions__?.setError(err)
+							const err = new Error("Simulated unauthenticated");
+							Object.defineProperty(err, "name", { value: "UnauthenticatedError" });
+							Object.defineProperty(err, "status", { value: 401 });
+							window.__flare_devtools_actions__?.setError(err);
 						}}
 						type="button"
 					>
@@ -2050,10 +1997,10 @@ function CurrentTab(props: {
 					<button
 						class="act-btn is-danger"
 						onClick={() => {
-							const err = new Error("Simulated unauthorized")
-							Object.defineProperty(err, "name", { value: "UnauthorizedError" })
-							Object.defineProperty(err, "status", { value: 403 })
-							window.__flare_devtools_actions__?.setError(err)
+							const err = new Error("Simulated unauthorized");
+							Object.defineProperty(err, "name", { value: "UnauthorizedError" });
+							Object.defineProperty(err, "status", { value: 403 });
+							window.__flare_devtools_actions__?.setError(err);
 						}}
 						type="button"
 					>
@@ -2069,13 +2016,13 @@ function CurrentTab(props: {
 					<button
 						class="act-btn is-danger"
 						onClick={() => {
-							const err = new Error("Simulated validation error")
-							Object.defineProperty(err, "name", { value: "ServerFnValidationError" })
-							Object.defineProperty(err, "status", { value: 400 })
+							const err = new Error("Simulated validation error");
+							Object.defineProperty(err, "name", { value: "ServerFnValidationError" });
+							Object.defineProperty(err, "status", { value: 400 });
 							Object.defineProperty(err, "errors", {
 								value: { fieldErrors: {}, formErrors: ["Simulated validation error"] },
-							})
-							window.__flare_devtools_actions__?.setError(err)
+							});
+							window.__flare_devtools_actions__?.setError(err);
 						}}
 						type="button"
 					>
@@ -2083,9 +2030,7 @@ function CurrentTab(props: {
 					</button>
 					<button
 						class="act-btn is-danger"
-						onClick={() =>
-							window.__flare_devtools_actions__?.setError(new Error("Simulated error"))
-						}
+						onClick={() => window.__flare_devtools_actions__?.setError(new Error("Simulated error"))}
 						type="button"
 					>
 						500
@@ -2093,8 +2038,8 @@ function CurrentTab(props: {
 					<button
 						class="act-btn"
 						onClick={() => {
-							window.__flare_devtools_actions__?.setNotFound(false)
-							window.__flare_devtools_actions__?.clearError()
+							window.__flare_devtools_actions__?.setNotFound(false);
+							window.__flare_devtools_actions__?.clearError();
 						}}
 						type="button"
 					>
@@ -2103,135 +2048,128 @@ function CurrentTab(props: {
 				</div>
 			</div>
 		</div>
-	)
+	);
 }
 
 /* ── Actions tab ──────────────────────────────────────────────────────── */
 
 function CopyButton(props: {
-	getData: () => unknown
-	label: string
+	getData: () => unknown;
+	label: string;
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	const [copied, setCopied] = createSignal(false)
+	const [copied, setCopied] = createSignal(false);
 
 	const handleCopy = () => {
-		const text = JSON.stringify(props.getData(), null, 2)
+		const text = JSON.stringify(props.getData(), null, 2);
 		navigator.clipboard.writeText(text).then(() => {
-			setCopied(true)
-			setTimeout(() => setCopied(false), 1500)
-		})
-	}
+			setCopied(true);
+			setTimeout(() => setCopied(false), 1500);
+		});
+	};
 
 	return (
-		<button
-			class="act-btn"
-			classList={{ "is-copied": copied() }}
-			onClick={handleCopy}
-			type="button"
-		>
+		<button class="act-btn" classList={{ "is-copied": copied() }} onClick={handleCopy} type="button">
 			{copied() ? "Copied" : props.label}
 		</button>
-	)
+	);
 }
 
 function extractParams(virtualPath: string): string[] {
-	const params: string[] = []
-	const re = /\[([^\]]+)\]/g
-	let m = re.exec(virtualPath)
+	const params: string[] = [];
+	const re = /\[([^\]]+)\]/g;
+	let m = re.exec(virtualPath);
 	while (m) {
-		const name = m[1] ?? ""
+		const name = m[1] ?? "";
 		if (name.startsWith("...")) {
-			params.push(name.slice(3))
+			params.push(name.slice(3));
 		} else {
-			params.push(name)
+			params.push(name);
 		}
-		m = re.exec(virtualPath)
+		m = re.exec(virtualPath);
 	}
-	return params
+	return params;
 }
 
 function ActionsTab(props: {
-	defs: RouteDef[]
-	matched: { chain: MatchedRoute[]; params: Record<string, string> }
-	serverFns: ServerFnInfo[]
-	tree: RouteTreeNode[]
+	defs: RouteDef[];
+	matched: { chain: MatchedRoute[]; params: Record<string, string> };
+	serverFns: ServerFnInfo[];
+	tree: RouteTreeNode[];
 }): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	const actions = () => window.__flare_devtools_actions__
+	const actions = () => window.__flare_devtools_actions__;
 	const [cacheStats, setCacheStats] = createSignal<{
-		entries: { age: number; matchId: string }[]
-		matchCount: number
-		prefetchCount: number
-	}>({ entries: [], matchCount: 0, prefetchCount: 0 })
+		entries: { age: number; matchId: string }[];
+		matchCount: number;
+		prefetchCount: number;
+	}>({ entries: [], matchCount: 0, prefetchCount: 0 });
 
 	const refreshStats = () => {
-		const a = actions()
-		if (a) setCacheStats(a.getCacheStats())
-	}
+		const a = actions();
+		if (a) setCacheStats(a.getCacheStats());
+	};
 
 	createEffect(() => {
-		refreshStats()
-		const timer = setInterval(refreshStats, 2000)
-		onCleanup(() => clearInterval(timer))
-	})
+		refreshStats();
+		const timer = setInterval(refreshStats, 2000);
+		onCleanup(() => clearInterval(timer));
+	});
 
 	/* Navigate section */
 	const pageRoutes = createMemo(() =>
-		props.defs
-			.filter((d) => d.type === "page")
-			.sort((a, b) => a.virtualPath.localeCompare(b.virtualPath)),
-	)
-	const [selectedRoute, setSelectedRoute] = createSignal("")
+		props.defs.filter((d) => d.type === "page").sort((a, b) => a.virtualPath.localeCompare(b.virtualPath)),
+	);
+	const [selectedRoute, setSelectedRoute] = createSignal("");
 	const selectedParams = createMemo(() => {
-		const vp = selectedRoute()
-		if (!vp) return []
-		return extractParams(vp)
-	})
-	const [paramValues, setParamValues] = createSignal<Record<string, string>>({})
-	const [useReplace, setUseReplace] = createSignal(false)
+		const vp = selectedRoute();
+		if (!vp) return [];
+		return extractParams(vp);
+	});
+	const [paramValues, setParamValues] = createSignal<Record<string, string>>({});
+	const [useReplace, setUseReplace] = createSignal(false);
 
 	const resolveUrl = (): string => {
-		const vp = selectedRoute()
-		if (!vp) return "/"
-		const parts = vp.split("/")
-		const rootIdx = parts.findIndex((p) => p.startsWith("_") && p.endsWith("_") && p.length >= 3)
-		const urlParts: string[] = []
-		const pv = paramValues()
+		const vp = selectedRoute();
+		if (!vp) return "/";
+		const parts = vp.split("/");
+		const rootIdx = parts.findIndex((p) => p.startsWith("_") && p.endsWith("_") && p.length >= 3);
+		const urlParts: string[] = [];
+		const pv = paramValues();
 		for (let i = 0; i < parts.length; i++) {
-			const part = parts[i] ?? ""
-			if (rootIdx >= 0 && i <= rootIdx) continue
-			if (part.startsWith("(") && part.endsWith(")")) continue
-			if (part === "") continue
+			const part = parts[i] ?? "";
+			if (rootIdx >= 0 && i <= rootIdx) continue;
+			if (part.startsWith("(") && part.endsWith(")")) continue;
+			if (part === "") continue;
 			if (part.startsWith("[[...") && part.endsWith("]]")) {
-				const name = part.slice(5, -2)
-				const val = pv[name]
-				if (val) urlParts.push(val)
+				const name = part.slice(5, -2);
+				const val = pv[name];
+				if (val) urlParts.push(val);
 			} else if (part.startsWith("[...") && part.endsWith("]")) {
-				const name = part.slice(4, -1)
-				urlParts.push(pv[name] ?? "")
+				const name = part.slice(4, -1);
+				urlParts.push(pv[name] ?? "");
 			} else if (part.startsWith("[") && part.endsWith("]")) {
-				const name = part.slice(1, -1)
-				urlParts.push(pv[name] ?? "")
+				const name = part.slice(1, -1);
+				urlParts.push(pv[name] ?? "");
 			} else {
-				urlParts.push(part)
+				urlParts.push(part);
 			}
 		}
-		return `/${urlParts.join("/")}`
-	}
+		return `/${urlParts.join("/")}`;
+	};
 
 	/* Document state */
 	const [docState, setDocState] = createSignal({
 		dir: document.documentElement.getAttribute("dir") ?? "ltr",
 		lang: document.documentElement.getAttribute("lang") ?? "",
 		theme: document.documentElement.getAttribute("data-theme") ?? "",
-	})
+	});
 
 	const refreshDocState = () => {
 		setDocState({
 			dir: document.documentElement.getAttribute("dir") ?? "ltr",
 			lang: document.documentElement.getAttribute("lang") ?? "",
 			theme: document.documentElement.getAttribute("data-theme") ?? "",
-		})
-	}
+		});
+	};
 
 	return (
 		<div class="content">
@@ -2253,8 +2191,8 @@ function ActionsTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								actions()?.invalidate()
-								refreshStats()
+								actions()?.invalidate();
+								refreshStats();
 							}}
 							type="button"
 						>
@@ -2263,8 +2201,8 @@ function ActionsTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								actions()?.clearPrefetchCache()
-								refreshStats()
+								actions()?.clearPrefetchCache();
+								refreshStats();
 							}}
 							type="button"
 						>
@@ -2273,8 +2211,8 @@ function ActionsTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								actions()?.invalidate({ revalidate: true })
-								refreshStats()
+								actions()?.invalidate({ revalidate: true });
+								refreshStats();
 							}}
 							type="button"
 						>
@@ -2302,15 +2240,13 @@ function ActionsTab(props: {
 						<select
 							class="act-select"
 							onChange={(e) => {
-								setSelectedRoute(e.currentTarget.value)
-								setParamValues({})
+								setSelectedRoute(e.currentTarget.value);
+								setParamValues({});
 							}}
 							value={selectedRoute()}
 						>
 							<option value="">Select route...</option>
-							<For each={pageRoutes()}>
-								{(def) => <option value={def.virtualPath}>{def.virtualPath}</option>}
-							</For>
+							<For each={pageRoutes()}>{(def) => <option value={def.virtualPath}>{def.virtualPath}</option>}</For>
 						</select>
 					</div>
 					<Show when={selectedParams().length > 0}>
@@ -2332,7 +2268,7 @@ function ActionsTab(props: {
 												setParamValues((prev) => ({
 													...prev,
 													[param]: e.currentTarget.value,
-												}))
+												}));
 											}}
 											placeholder={param}
 											value={paramValues()[param] ?? ""}
@@ -2346,8 +2282,8 @@ function ActionsTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								const url = resolveUrl()
-								if (url) actions()?.navigate({ replace: useReplace(), to: url })
+								const url = resolveUrl();
+								if (url) actions()?.navigate({ replace: useReplace(), to: url });
 							}}
 							type="button"
 						>
@@ -2356,8 +2292,8 @@ function ActionsTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								const url = resolveUrl()
-								if (url) actions()?.prefetch({ to: url })
+								const url = resolveUrl();
+								if (url) actions()?.prefetch({ to: url });
 							}}
 							type="button"
 						>
@@ -2390,16 +2326,16 @@ function ActionsTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								const current = document.documentElement.getAttribute("data-theme") ?? ""
-								let next = ""
-								if (current === "") next = "light"
-								else if (current === "light") next = "dark"
+								const current = document.documentElement.getAttribute("data-theme") ?? "";
+								let next = "";
+								if (current === "") next = "light";
+								else if (current === "light") next = "dark";
 								if (next) {
-									document.documentElement.setAttribute("data-theme", next)
+									document.documentElement.setAttribute("data-theme", next);
 								} else {
-									document.documentElement.removeAttribute("data-theme")
+									document.documentElement.removeAttribute("data-theme");
 								}
-								refreshDocState()
+								refreshDocState();
 							}}
 							type="button"
 						>
@@ -2412,9 +2348,9 @@ function ActionsTab(props: {
 						<button
 							class="act-btn"
 							onClick={() => {
-								const next = document.documentElement.getAttribute("dir") === "rtl" ? "ltr" : "rtl"
-								document.documentElement.setAttribute("dir", next)
-								refreshDocState()
+								const next = document.documentElement.getAttribute("dir") === "rtl" ? "ltr" : "rtl";
+								document.documentElement.setAttribute("dir", next);
+								refreshDocState();
 							}}
 							type="button"
 						>
@@ -2426,8 +2362,8 @@ function ActionsTab(props: {
 						<input
 							class="act-input"
 							onInput={(e) => {
-								document.documentElement.setAttribute("lang", e.currentTarget.value)
-								refreshDocState()
+								document.documentElement.setAttribute("lang", e.currentTarget.value);
+								refreshDocState();
 							}}
 							placeholder="en"
 							value={docState().lang}
@@ -2459,27 +2395,27 @@ function ActionsTab(props: {
 				</div>
 			</div>
 		</div>
-	)
+	);
 }
 
 /* ── DevTools root ────────────────────────────────────────────────────── */
 
 function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> {
-	const [isOpen, setIsOpen] = createSignal(false)
-	const [activeTab, setActiveTab] = createSignal<TabId>(loadState().activeTab)
-	const [search, setSearch] = createSignal("")
-	const [data, setData] = createSignal<ApiData | null>(null)
+	const [isOpen, setIsOpen] = createSignal(false);
+	const [activeTab, setActiveTab] = createSignal<TabId>(loadState().activeTab);
+	const [search, setSearch] = createSignal("");
+	const [data, setData] = createSignal<ApiData | null>(null);
 
-	let searchRef: HTMLInputElement | null = null
+	let searchRef: HTMLInputElement | null = null;
 
 	/* Fetch data on open */
 	createEffect(() => {
 		if (isOpen()) {
 			fetch("/__flare/api")
 				.then((r) => r.json())
-				.then((d) => setData(d as ApiData))
+				.then((d) => setData(d as ApiData));
 		}
-	})
+	});
 
 	/* Persist state */
 	createEffect(() => {
@@ -2488,38 +2424,38 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 			expandedNodes: [],
 			sortCol: "name",
 			sortDir: "asc",
-		})
-	})
+		});
+	});
 
 	/* Keyboard shortcuts */
 	createEffect(() => {
 		const handler = (e: KeyboardEvent) => {
 			if (e.ctrlKey && e.shiftKey && e.key === "D") {
-				e.preventDefault()
-				setIsOpen((o) => !o)
+				e.preventDefault();
+				setIsOpen((o) => !o);
 			}
 			if (e.key === "Escape" && isOpen()) {
-				setIsOpen(false)
+				setIsOpen(false);
 			}
 			if (e.key === "/" && isOpen() && document.activeElement !== searchRef) {
-				e.preventDefault()
-				searchRef?.focus()
+				e.preventDefault();
+				searchRef?.focus();
 			}
-		}
-		window.addEventListener("keydown", handler)
-		onCleanup(() => window.removeEventListener("keydown", handler))
-	})
+		};
+		window.addEventListener("keydown", handler);
+		onCleanup(() => window.removeEventListener("keydown", handler));
+	});
 
 	const tabCount = (tabId: TabId): number | null => {
-		const d = data()
-		if (!d) return null
-		if (tabId === "tree") return d.routeTree.length
-		if (tabId === "server-fns") return d.serverFunctions.length
-		if (tabId === "current") return null
-		const defType = TAB_TO_DEF_TYPE[tabId]
-		if (defType) return d.defs.filter((def) => def.type === defType).length
-		return null
-	}
+		const d = data();
+		if (!d) return null;
+		if (tabId === "tree") return d.routeTree.length;
+		if (tabId === "server-fns") return d.serverFunctions.length;
+		if (tabId === "current") return null;
+		const defType = TAB_TO_DEF_TYPE[tabId];
+		if (defType) return d.defs.filter((def) => def.type === defType).length;
+		return null;
+	};
 
 	return (
 		<>
@@ -2537,7 +2473,7 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 				<div
 					class="overlay"
 					onClick={(e) => {
-						if (e.target === e.currentTarget) setIsOpen(false)
+						if (e.target === e.currentTarget) setIsOpen(false);
 					}}
 				>
 					<div class="modal">
@@ -2550,8 +2486,8 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 											class="tab-btn"
 											classList={{ active: activeTab() === tab.id }}
 											onClick={() => {
-												setActiveTab(tab.id)
-												setSearch("")
+												setActiveTab(tab.id);
+												setSearch("");
 											}}
 											type="button"
 										>
@@ -2575,7 +2511,9 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 									class="search-input"
 									onInput={(e) => setSearch(e.currentTarget.value)}
 									placeholder={`Search ${activeTab()}... (press / to focus)`}
-									ref={(el) => { searchRef = el }}
+									ref={(el) => {
+										searchRef = el;
+									}}
 									value={search()}
 								/>
 							</div>
@@ -2596,44 +2534,20 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 										<TreeTab search={search()} tree={d().routeTree} />
 									</Match>
 									<Match when={activeTab() === "pages"}>
-										<TypedListTab
-											defs={d().defs}
-											onOpenEditor={openEditor}
-											search={search()}
-											type="page"
-										/>
+										<TypedListTab defs={d().defs} onOpenEditor={openEditor} search={search()} type="page" />
 									</Match>
 									<Match when={activeTab() === "layouts"}>
-										<TypedListTab
-											defs={d().defs}
-											onOpenEditor={openEditor}
-											search={search()}
-											type="layout"
-										/>
+										<TypedListTab defs={d().defs} onOpenEditor={openEditor} search={search()} type="layout" />
 									</Match>
 									<Match when={activeTab() === "root-layouts"}>
-										<TypedListTab
-											defs={d().defs}
-											onOpenEditor={openEditor}
-											search={search()}
-											type="root-layout"
-										/>
+										<TypedListTab defs={d().defs} onOpenEditor={openEditor} search={search()} type="root-layout" />
 									</Match>
 									<Match when={activeTab() === "segments"}>
-										<TypedListTab
-											defs={d().defs}
-											onOpenEditor={openEditor}
-											search={search()}
-											type="path-segment"
-										/>
+										<TypedListTab defs={d().defs} onOpenEditor={openEditor} search={search()} type="path-segment" />
 									</Match>
 									<Match when={activeTab() === "server-fns"}>
 										<div class="content">
-											<ServerFnsTab
-												fns={d().serverFunctions}
-												onOpenEditor={openEditor}
-												search={search()}
-											/>
+											<ServerFnsTab fns={d().serverFunctions} onOpenEditor={openEditor} search={search()} />
 										</div>
 									</Match>
 									<Match when={activeTab() === "current"}>
@@ -2649,11 +2563,7 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 									<Match when={activeTab() === "actions"}>
 										<ActionsTab
 											defs={d().defs}
-											matched={matchRouteTree(
-												d().routeTree,
-												window.location.pathname,
-												d().localeMatch,
-											)}
+											matched={matchRouteTree(d().routeTree, window.location.pathname, d().localeMatch)}
 											serverFns={d().serverFunctions}
 											tree={d().routeTree}
 										/>
@@ -2672,22 +2582,22 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 				</div>
 			</Show>
 		</>
-	)
+	);
 }
 
 /* ── Mount ────────────────────────────────────────────────────────────── */
 
 export function mount(): void {
-	if (typeof window === "undefined") return
+	if (typeof window === "undefined") return;
 
-	const host = document.createElement("div")
-	host.id = "__flare-devtools-host"
-	const shadow = host.attachShadow({ mode: "open" })
+	const host = document.createElement("div");
+	host.id = "__flare-devtools-host";
+	const shadow = host.attachShadow({ mode: "open" });
 
-	const style = document.createElement("style")
-	style.textContent = CSS
-	shadow.appendChild(style)
+	const style = document.createElement("style");
+	style.textContent = CSS;
+	shadow.appendChild(style);
 
-	document.body.appendChild(host)
-	render(() => <DevTools />, shadow)
+	document.body.appendChild(host);
+	render(() => <DevTools />, shadow);
 }

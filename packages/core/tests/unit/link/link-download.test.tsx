@@ -1,41 +1,41 @@
-import { createSignal } from "solid-js"
-import { render } from "solid-js/web"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts"
-import { Link } from "../../../src/link/index.tsx"
-import { FlareProvider } from "../../../src/outlet/index.tsx"
-import type { FlareProviderProps } from "../../../src/outlet/types.ts"
-import { createTreeNode, insertRoute } from "../../../src/router-primitives/index.ts"
-import type { TreeNode } from "../../../src/router-primitives/types.ts"
+import { createSignal } from "solid-js";
+import { render } from "solid-js/web";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
+import { Link } from "../../../src/link/index.tsx";
+import { FlareProvider } from "../../../src/outlet/index.tsx";
+import type { FlareProviderProps } from "../../../src/outlet/types.ts";
+import { createTreeNode, insertRoute } from "../../../src/router-primitives/index.ts";
+import type { TreeNode } from "../../../src/router-primitives/types.ts";
 
 /* Mock navigation module */
 vi.mock("../../../src/navigation", () => ({
 	applyRewriteOutput: vi.fn((href: string) => href),
 	hardNavigate: vi.fn(),
 	isExternal: vi.fn((href: string) => {
-		if (href.startsWith("mailto:") || href.startsWith("tel:")) return true
+		if (href.startsWith("mailto:") || href.startsWith("tel:")) return true;
 		if (href.startsWith("http://") || href.startsWith("https://")) {
 			try {
-				const url = new URL(href)
-				return url.origin !== window.location.origin
+				const url = new URL(href);
+				return url.origin !== window.location.origin;
 			} catch {
-				return false
+				return false;
 			}
 		}
-		return false
+		return false;
 	}),
 	navigate: vi.fn(() => Promise.resolve()),
 	prefetch: vi.fn(() => Promise.resolve()),
 	resetNavigationState: vi.fn(),
 	setupNavigation: vi.fn(),
-}))
+}));
 
-import { navigate } from "../../../src/navigation/index.ts"
+import { navigate } from "../../../src/navigation/index.ts";
 
-const mockNavigate = navigate as ReturnType<typeof vi.fn>
+const mockNavigate = navigate as ReturnType<typeof vi.fn>;
 
 function makeFakeTree(): TreeNode {
-	return { s: {} }
+	return { s: {} };
 }
 
 function makeProviderProps(overrides?: Partial<FlareProviderProps>): FlareProviderProps {
@@ -49,24 +49,24 @@ function makeProviderProps(overrides?: Partial<FlareProviderProps>): FlareProvid
 		resolvers: new Map(),
 		routeTree: makeFakeTree(),
 		...overrides,
-	}
+	};
 }
 
 describe("Link defaultPrevented", () => {
-	let container: HTMLDivElement
+	let container: HTMLDivElement;
 
 	beforeEach(() => {
-		mockNavigate.mockClear()
-		container = document.createElement("div")
-		document.body.appendChild(container)
-	})
+		mockNavigate.mockClear();
+		container = document.createElement("div");
+		document.body.appendChild(container);
+	});
 
 	afterEach(() => {
-		document.body.removeChild(container)
-	})
+		document.body.removeChild(container);
+	});
 
 	it("does NOT navigate when event.defaultPrevented is true", () => {
-		const providerProps = makeProviderProps()
+		const providerProps = makeProviderProps();
 
 		render(
 			() => (
@@ -77,35 +77,35 @@ describe("Link defaultPrevented", () => {
 				</FlareProvider>
 			),
 			container,
-		)
+		);
 
-		const anchor = container.querySelector("[data-testid=prevented]") as HTMLAnchorElement
-		expect(anchor).toBeTruthy()
+		const anchor = container.querySelector("[data-testid=prevented]") as HTMLAnchorElement;
+		expect(anchor).toBeTruthy();
 
 		/* Simulate a parent handler that already prevented default */
-		const event = new MouseEvent("click", { bubbles: true, cancelable: true })
-		event.preventDefault()
-		anchor.dispatchEvent(event)
+		const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+		event.preventDefault();
+		anchor.dispatchEvent(event);
 
-		expect(mockNavigate).not.toHaveBeenCalled()
-	})
-})
+		expect(mockNavigate).not.toHaveBeenCalled();
+	});
+});
 
 describe("Link download attribute", () => {
-	let container: HTMLDivElement
+	let container: HTMLDivElement;
 
 	beforeEach(() => {
-		mockNavigate.mockClear()
-		container = document.createElement("div")
-		document.body.appendChild(container)
-	})
+		mockNavigate.mockClear();
+		container = document.createElement("div");
+		document.body.appendChild(container);
+	});
 
 	afterEach(() => {
-		document.body.removeChild(container)
-	})
+		document.body.removeChild(container);
+	});
 
 	it("click on <Link download> does NOT call navigate()", () => {
-		const providerProps = makeProviderProps()
+		const providerProps = makeProviderProps();
 
 		render(
 			() => (
@@ -116,20 +116,20 @@ describe("Link download attribute", () => {
 				</FlareProvider>
 			),
 			container,
-		)
+		);
 
-		const anchor = container.querySelector("[data-testid=dl]") as HTMLAnchorElement
-		expect(anchor).toBeTruthy()
-		expect(anchor.tagName.toLowerCase()).toBe("a")
-		expect(anchor.hasAttribute("download")).toBe(true)
+		const anchor = container.querySelector("[data-testid=dl]") as HTMLAnchorElement;
+		expect(anchor).toBeTruthy();
+		expect(anchor.tagName.toLowerCase()).toBe("a");
+		expect(anchor.hasAttribute("download")).toBe(true);
 
-		anchor.click()
+		anchor.click();
 
-		expect(mockNavigate).not.toHaveBeenCalled()
-	})
+		expect(mockNavigate).not.toHaveBeenCalled();
+	});
 
 	it("click on <Link download='export.csv'> does NOT call navigate()", () => {
-		const providerProps = makeProviderProps()
+		const providerProps = makeProviderProps();
 
 		render(
 			() => (
@@ -140,19 +140,19 @@ describe("Link download attribute", () => {
 				</FlareProvider>
 			),
 			container,
-		)
+		);
 
-		const anchor = container.querySelector("[data-testid=dl-named]") as HTMLAnchorElement
-		expect(anchor).toBeTruthy()
-		expect(anchor.hasAttribute("download")).toBe(true)
+		const anchor = container.querySelector("[data-testid=dl-named]") as HTMLAnchorElement;
+		expect(anchor).toBeTruthy();
+		expect(anchor.hasAttribute("download")).toBe(true);
 
-		anchor.click()
+		anchor.click();
 
-		expect(mockNavigate).not.toHaveBeenCalled()
-	})
+		expect(mockNavigate).not.toHaveBeenCalled();
+	});
 
 	it("click on <Link> without download DOES call navigate() (regression guard)", () => {
-		const providerProps = makeProviderProps()
+		const providerProps = makeProviderProps();
 
 		render(
 			() => (
@@ -163,13 +163,13 @@ describe("Link download attribute", () => {
 				</FlareProvider>
 			),
 			container,
-		)
+		);
 
-		const anchor = container.querySelector("[data-testid=normal]") as HTMLAnchorElement
-		expect(anchor).toBeTruthy()
+		const anchor = container.querySelector("[data-testid=normal]") as HTMLAnchorElement;
+		expect(anchor).toBeTruthy();
 
-		anchor.click()
+		anchor.click();
 
-		expect(mockNavigate).toHaveBeenCalled()
-	})
-})
+		expect(mockNavigate).toHaveBeenCalled();
+	});
+});

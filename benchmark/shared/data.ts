@@ -1,16 +1,16 @@
-export const COMMENT_DELAY_MS = 500
+export const COMMENT_DELAY_MS = 500;
 
 export interface Post {
-	slug: string
-	title: string
-	author: string
-	body: string
+	slug: string;
+	title: string;
+	author: string;
+	body: string;
 }
 
 export interface Comment {
-	author: string
-	text: string
-	date: string
+	author: string;
+	text: string;
+	date: string;
 }
 
 export const posts: Post[] = [
@@ -32,7 +32,7 @@ export const posts: Post[] = [
 		slug: "type-safe-routing",
 		title: "Type-Safe Routing in Modern Frameworks",
 	},
-]
+];
 
 export const comments: Record<string, Comment[]> = {
 	"building-web-frameworks": [
@@ -86,15 +86,15 @@ export const comments: Record<string, Comment[]> = {
 			text: "How does this interact with dynamic routes that are only known at runtime?",
 		},
 	],
-}
+};
 
 export function getPost(slug: string): Post | undefined {
-	return posts.find((p) => p.slug === slug)
+	return posts.find((p) => p.slug === slug);
 }
 
 export async function getDelayedComments(slug: string): Promise<Comment[]> {
-	await new Promise((r) => setTimeout(r, COMMENT_DELAY_MS))
-	return comments[slug] ?? []
+	await new Promise((r) => setTimeout(r, COMMENT_DELAY_MS));
+	return comments[slug] ?? [];
 }
 
 /**
@@ -105,14 +105,14 @@ export const initialLikes: Record<string, number> = {
 	"building-web-frameworks": 42,
 	"streaming-ssr": 18,
 	"type-safe-routing": 73,
-}
+};
 
 export function headForPost(post: Post): {
-	title: string
-	description: string
-	openGraph: { title: string; description: string; type: string; author: string }
+	title: string;
+	description: string;
+	openGraph: { title: string; description: string; type: string; author: string };
 } {
-	const description = `${post.body.slice(0, 155)}...`
+	const description = `${post.body.slice(0, 155)}...`;
 	return {
 		description,
 		openGraph: {
@@ -122,5 +122,5 @@ export function headForPost(post: Post): {
 			type: "article",
 		},
 		title: post.title,
-	}
+	};
 }

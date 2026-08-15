@@ -24,9 +24,9 @@ Catches `UnauthenticatedError` (401) and `UnauthorizedError` (403). Both map to 
 
 ```ts
 interface ErrorRenderProps<TParams = Record<string, string>, TSearch = Record<string, string>> {
-	error: Error
-	location: Location<TParams, TSearch>
-	reset: () => void
+	error: Error;
+	location: Location<TParams, TSearch>;
+	reset: () => void;
 }
 ```
 
@@ -38,19 +38,16 @@ interface ErrorRenderProps<TParams = Record<string, string>, TSearch = Record<st
 
 ```ts
 interface NotFoundRenderProps<TParams = Record<string, string>, TSearch = Record<string, string>> {
-	location: Location<TParams, TSearch>
+	location: Location<TParams, TSearch>;
 }
 ```
 
 ### UnauthorizedRenderProps
 
 ```ts
-interface UnauthorizedRenderProps<
-	TParams = Record<string, string>,
-	TSearch = Record<string, string>,
-> {
-	error: UnauthenticatedError | UnauthorizedError
-	location: Location<TParams, TSearch>
+interface UnauthorizedRenderProps<TParams = Record<string, string>, TSearch = Record<string, string>> {
+	error: UnauthenticatedError | UnauthorizedError;
+	location: Location<TParams, TSearch>;
 }
 ```
 
@@ -89,9 +86,9 @@ Configured at handler level. Last resort for uncaught errors.
 
 ```ts
 interface GlobalBoundaries {
-	error?: (props: ErrorRenderProps) => JSX.Element
-	notFound?: (props: NotFoundRenderProps) => JSX.Element
-	unauthorized?: (props: UnauthorizedRenderProps) => JSX.Element
+	error?: (props: ErrorRenderProps) => JSX.Element;
+	notFound?: (props: NotFoundRenderProps) => JSX.Element;
+	unauthorized?: (props: UnauthorizedRenderProps) => JSX.Element;
 }
 ```
 
@@ -135,10 +132,10 @@ Renders deferred data with loading/error/success states. Wraps Solid's `<Suspens
 
 ```ts
 interface AwaitProps<T> {
-	children: (data: T) => JSX.Element
-	error?: (err: Error, reset: () => void) => JSX.Element
-	pending?: JSX.Element
-	promise: Deferred<T> | Promise<T>
+	children: (data: T) => JSX.Element;
+	error?: (err: Error, reset: () => void) => JSX.Element;
+	pending?: JSX.Element;
+	promise: Deferred<T> | Promise<T>;
 }
 ```
 

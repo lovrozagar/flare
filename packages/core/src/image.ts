@@ -8,5 +8,5 @@ export type {
 	ResponsiveImageProps,
 	StaticImageData,
 	StaticResponsiveImageProps,
-} from "./image/index.tsx"
-export { configureImage, Image } from "./image/index.tsx"
+} from "./image/index.tsx";
+export { configureImage, Image } from "./image/index.tsx";

@@ -9,37 +9,37 @@ Layer 5. Depends on navigation (navigate, prefetch), outlet (useRouter, FlarePro
 ```ts
 interface LinkProps<TPath extends RegisteredRoutes = RegisteredRoutes> {
 	/* Navigation */
-	to: TPath
-	hash?: string
-	replace?: boolean
-	scroll?: boolean
-	shallow?: boolean
-	viewTransition?: ViewTransitionConfig
+	to: TPath;
+	hash?: string;
+	replace?: boolean;
+	scroll?: boolean;
+	shallow?: boolean;
+	viewTransition?: ViewTransitionConfig;
 
 	/* Params — required if route has required params */
 	/* params: RouteParams<TPath> (conditional via HasRequiredParams) */
-	search?: RouteSearch<TPath>
+	search?: RouteSearch<TPath>;
 
 	/* Behavior */
-	disabled?: boolean /* renders <span> instead of <a> */
-	force?: boolean /* navigate even if same URL */
-	prefetch?: PrefetchStrategy
+	disabled?: boolean; /* renders <span> instead of <a> */
+	force?: boolean; /* navigate even if same URL */
+	prefetch?: PrefetchStrategy;
 
 	/* Active state */
-	activeClass?: string
-	inactiveClass?: string
-	isActive?: (location: Location) => boolean
+	activeClass?: string;
+	inactiveClass?: string;
+	isActive?: (location: Location) => boolean;
 
 	/* Base styling */
-	children: JSX.Element
-	class?: string
-	style?: JSX.CSSProperties | string
-	target?: string
+	children: JSX.Element;
+	class?: string;
+	style?: JSX.CSSProperties | string;
+	target?: string;
 
 	/* All other HTML anchor attributes forwarded */
 }
 
-type PrefetchStrategy = false | "intent" | "render" | "viewport"
+type PrefetchStrategy = false | "intent" | "render" | "viewport";
 ```
 
 Same conditional params pattern as `NavigateOptions<TPath>` — `params` required when route has `[param]` segments.
@@ -47,7 +47,7 @@ Same conditional params pattern as `NavigateOptions<TPath>` — `params` require
 ## Exports
 
 ```ts
-Link: (props: LinkProps) => JSX.Element
+Link: (props: LinkProps) => JSX.Element;
 ```
 
 ## Behavior
@@ -78,21 +78,17 @@ Intercepts clicks for client-side navigation:
 
 function handleClick(event: MouseEvent): void {
 	/* Let browser handle if: */
-	if (isExternal(href)) return
-	if (event.button !== 0) return /* non-left click */
-	if (event.metaKey || event.ctrlKey) return /* new tab */
-	if (event.shiftKey) return /* new window */
-	if (event.altKey) return /* download */
-	if (props.target === "_blank") return /* explicit new tab */
+	if (isExternal(href)) return;
+	if (event.button !== 0) return; /* non-left click */
+	if (event.metaKey || event.ctrlKey) return; /* new tab */
+	if (event.shiftKey) return; /* new window */
+	if (event.altKey) return; /* download */
+	if (props.target === "_blank") return; /* explicit new tab */
 
-	event.preventDefault()
+	event.preventDefault();
 
 	/* Same-URL guard — skip navigation unless force is set */
-	if (
-		!props.force &&
-		href === window.location.pathname + window.location.search + window.location.hash
-	)
-		return
+	if (!props.force && href === window.location.pathname + window.location.search + window.location.hash) return;
 
 	navigate({
 		replace: props.replace,
@@ -100,7 +96,7 @@ function handleClick(event: MouseEvent): void {
 		shallow: props.shallow,
 		to: href,
 		viewTransition: props.viewTransition,
-	})
+	});
 }
 ```
 
@@ -111,11 +107,11 @@ Modifier keys let browser handle natively — Cmd+Click opens new tab, etc.
 ```ts
 function isExternal(href: string): boolean {
 	if (href.startsWith("http://") || href.startsWith("https://")) {
-		const url = new URL(href)
-		return url.origin !== window.location.origin
+		const url = new URL(href);
+		return url.origin !== window.location.origin;
 	}
-	if (href.startsWith("mailto:") || href.startsWith("tel:")) return true
-	return false
+	if (href.startsWith("mailto:") || href.startsWith("tel:")) return true;
+	return false;
 }
 ```
 
@@ -132,26 +128,26 @@ Reactive — updates when location changes.
 ```ts
 const active = createMemo(() => {
 	if (props.isActive) {
-		return props.isActive(ctx.location())
+		return props.isActive(ctx.location());
 	}
-	const url = new URL(href, window.location.href)
-	return url.pathname === ctx.location().pathname
-})
+	const url = new URL(href, window.location.href);
+	return url.pathname === ctx.location().pathname;
+});
 ```
 
 **Class application**:
 
 ```ts
 const classes = createMemo(() => {
-	const result: string[] = []
-	if (props.class) result.push(props.class)
+	const result: string[] = [];
+	if (props.class) result.push(props.class);
 	if (active()) {
-		if (props.activeClass) result.push(props.activeClass)
+		if (props.activeClass) result.push(props.activeClass);
 	} else {
-		if (props.inactiveClass) result.push(props.inactiveClass)
+		if (props.inactiveClass) result.push(props.inactiveClass);
 	}
-	return result.join(" ")
-})
+	return result.join(" ");
+});
 ```
 
 - `activeClass` applied when active
@@ -190,29 +186,29 @@ Prefetch immediately when Link component mounts. Fires via `queueMicrotask` in r
 Prefetch when link enters viewport:
 
 ```ts
-let observer: IntersectionObserver | null = null
+let observer: IntersectionObserver | null = null;
 
 onMount(() => {
-	if (resolvedPrefetch() !== "viewport") return
-	if (isExternal(href)) return
+	if (resolvedPrefetch() !== "viewport") return;
+	if (isExternal(href)) return;
 
 	observer = new IntersectionObserver(
 		(entries) => {
 			for (const entry of entries) {
 				if (entry.isIntersecting) {
-					prefetch({ to: href })
-					observer.unobserve(entry.target)
+					prefetch({ to: href });
+					observer.unobserve(entry.target);
 				}
 			}
 		},
 		{ threshold: 0 },
-	)
-	observer.observe(anchorRef)
-})
+	);
+	observer.observe(anchorRef);
+});
 
 onCleanup(() => {
-	observer?.disconnect()
-})
+	observer?.disconnect();
+});
 ```
 
 - `threshold: 0` → triggers when any pixel visible

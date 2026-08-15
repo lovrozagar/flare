@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { Link } from "flare/link"
+import { createPage } from "@lovrozagar/flare/page";
+import { Link } from "@lovrozagar/flare/link";
 
 export const route = createPage("_root_/(dc-l1)/(dc-l2)/(dc-l3)/(dc-l4)/deep-cache/uncached")
 	.loader(() => ({ layer: "P2-uncached", ts: Date.now() }))
@@ -19,4 +19,4 @@ export const route = createPage("_root_/(dc-l1)/(dc-l2)/(dc-l3)/(dc-l4)/deep-cac
 				</Link>
 			</nav>
 		</div>
-	))
+	));

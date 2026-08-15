@@ -1,1 +1,1 @@
-export default { enabled: false }
+export default { enabled: false };

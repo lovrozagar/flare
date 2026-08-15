@@ -10,14 +10,14 @@ Full TanStack Query integration for SolidJS. Reactive query/mutation hooks, SSR 
 
 ```ts
 interface TrackedQueryClient<TEnv = unknown> {
-	client: QueryClient /* @tanstack/query-core QueryClient */
-	getTrackedQueries(): QueryState[] /* SSR: returns all queries fetched during render */
+	client: QueryClient; /* @tanstack/query-core QueryClient */
+	getTrackedQueries(): QueryState[]; /* SSR: returns all queries fetched during render */
 }
 
 interface QueryState {
-	data: unknown
-	key: unknown[]
-	staleTime?: number
+	data: unknown;
+	key: unknown[];
+	staleTime?: number;
 }
 ```
 
@@ -25,19 +25,19 @@ interface QueryState {
 
 ```ts
 interface UseQueryOptions<TData, TError, TQueryKey extends QueryKey> {
-	enabled?: Accessor<boolean> | boolean
-	gcTime?: number
-	queryFn: QueryFunction<TData, TQueryKey>
-	queryKey: Accessor<TQueryKey> | TQueryKey
-	select?: (data: TData) => unknown
-	staleTime?: number
+	enabled?: Accessor<boolean> | boolean;
+	gcTime?: number;
+	queryFn: QueryFunction<TData, TQueryKey>;
+	queryKey: Accessor<TQueryKey> | TQueryKey;
+	select?: (data: TData) => unknown;
+	staleTime?: number;
 	/* ...all @tanstack/query-core QueryObserverOptions */
 }
 
 interface UseSuspenseQueryOptions<TData, TError, TQueryKey extends QueryKey> {
 	/* Same as UseQueryOptions minus enabled, placeholderData, throwOnError */
-	queryFn: QueryFunction<TData, TQueryKey>
-	queryKey: Accessor<TQueryKey> | TQueryKey
+	queryFn: QueryFunction<TData, TQueryKey>;
+	queryKey: Accessor<TQueryKey> | TQueryKey;
 }
 
 /* deferStream: true → wraps query in Deferred for NDJSON streaming */
@@ -46,7 +46,7 @@ interface SolidQueryOptions<TData, TError, TQueryKey extends QueryKey> extends U
 	TError,
 	TQueryKey
 > {
-	deferStream?: boolean
+	deferStream?: boolean;
 }
 ```
 
@@ -54,32 +54,32 @@ interface SolidQueryOptions<TData, TError, TQueryKey extends QueryKey> extends U
 
 ```ts
 interface UseQueryResult<TData, TError> {
-	data: Accessor<TData | undefined>
-	dataUpdatedAt: Accessor<number>
-	error: Accessor<TError | null>
-	errorUpdatedAt: Accessor<number>
-	failureCount: Accessor<number>
-	failureReason: Accessor<TError | null>
-	fetchStatus: Accessor<FetchStatus>
-	isError: Accessor<boolean>
-	isFetched: Accessor<boolean>
-	isFetchedAfterMount: Accessor<boolean>
-	isFetching: Accessor<boolean>
-	isLoading: Accessor<boolean>
-	isPaused: Accessor<boolean>
-	isPending: Accessor<boolean>
-	isPlaceholderData: Accessor<boolean>
-	isRefetchError: Accessor<boolean>
-	isRefetching: Accessor<boolean>
-	isStale: Accessor<boolean>
-	isSuccess: Accessor<boolean>
-	refetch: () => Promise<UseQueryResult<TData, TError>>
-	status: Accessor<QueryStatus>
+	data: Accessor<TData | undefined>;
+	dataUpdatedAt: Accessor<number>;
+	error: Accessor<TError | null>;
+	errorUpdatedAt: Accessor<number>;
+	failureCount: Accessor<number>;
+	failureReason: Accessor<TError | null>;
+	fetchStatus: Accessor<FetchStatus>;
+	isError: Accessor<boolean>;
+	isFetched: Accessor<boolean>;
+	isFetchedAfterMount: Accessor<boolean>;
+	isFetching: Accessor<boolean>;
+	isLoading: Accessor<boolean>;
+	isPaused: Accessor<boolean>;
+	isPending: Accessor<boolean>;
+	isPlaceholderData: Accessor<boolean>;
+	isRefetchError: Accessor<boolean>;
+	isRefetching: Accessor<boolean>;
+	isStale: Accessor<boolean>;
+	isSuccess: Accessor<boolean>;
+	refetch: () => Promise<UseQueryResult<TData, TError>>;
+	status: Accessor<QueryStatus>;
 }
 
 interface UseSuspenseQueryResult<TData, TError> {
-	data: Accessor<TData> /* guaranteed defined — throws if loading/errored */
-	status: Accessor<"success">
+	data: Accessor<TData>; /* guaranteed defined — throws if loading/errored */
+	status: Accessor<"success">;
 	/* ...rest same as UseQueryResult minus isPending */
 }
 ```
@@ -88,60 +88,57 @@ interface UseSuspenseQueryResult<TData, TError> {
 
 ```ts
 interface UseMutationOptions<TData, TError, TVariables, TContext> {
-	mutationFn: (variables: TVariables) => Promise<TData>
-	mutationKey?: MutationKey
-	onError?: (error: TError, variables: TVariables, context: TContext | undefined) => void
-	onMutate?: (variables: TVariables) => Promise<TContext | undefined> | TContext | undefined
+	mutationFn: (variables: TVariables) => Promise<TData>;
+	mutationKey?: MutationKey;
+	onError?: (error: TError, variables: TVariables, context: TContext | undefined) => void;
+	onMutate?: (variables: TVariables) => Promise<TContext | undefined> | TContext | undefined;
 	onSettled?: (
 		data: TData | undefined,
 		error: TError | null,
 		variables: TVariables,
 		context: TContext | undefined,
-	) => void
-	onSuccess?: (data: TData, variables: TVariables, context: TContext) => void
+	) => void;
+	onSuccess?: (data: TData, variables: TVariables, context: TContext) => void;
 }
 
 interface UseMutationResult<TData, TError, TVariables, TContext> {
-	data: Accessor<TData | undefined>
-	error: Accessor<TError | null>
-	isError: Accessor<boolean>
-	isIdle: Accessor<boolean>
-	isPending: Accessor<boolean>
-	isSuccess: Accessor<boolean>
-	mutate: UseMutateFunction<TData, TError, TVariables, TContext>
-	mutateAsync: (variables: TVariables) => Promise<TData>
-	reset: () => void
-	status: Accessor<MutationStatus>
-	variables: Accessor<TVariables | undefined>
+	data: Accessor<TData | undefined>;
+	error: Accessor<TError | null>;
+	isError: Accessor<boolean>;
+	isIdle: Accessor<boolean>;
+	isPending: Accessor<boolean>;
+	isSuccess: Accessor<boolean>;
+	mutate: UseMutateFunction<TData, TError, TVariables, TContext>;
+	mutateAsync: (variables: TVariables) => Promise<TData>;
+	reset: () => void;
+	status: Accessor<MutationStatus>;
+	variables: Accessor<TVariables | undefined>;
 }
 
 type UseMutateFunction<TData, TError, TVariables, TContext> = (
 	variables: TVariables,
 	options?: MutateOptions<TData, TError, TVariables, TContext>,
-) => void
+) => void;
 ```
 
 ### Infinite Query
 
 ```ts
 interface UseInfiniteQueryOptions<TData, TError, TQueryKey extends QueryKey, TPageParam> {
-	getNextPageParam: (lastPage: TData, allPages: TData[]) => TPageParam | undefined
-	getPreviousPageParam?: (firstPage: TData, allPages: TData[]) => TPageParam | undefined
-	initialPageParam: TPageParam
-	queryFn: QueryFunction<TData, TQueryKey, TPageParam>
-	queryKey: Accessor<TQueryKey> | TQueryKey
+	getNextPageParam: (lastPage: TData, allPages: TData[]) => TPageParam | undefined;
+	getPreviousPageParam?: (firstPage: TData, allPages: TData[]) => TPageParam | undefined;
+	initialPageParam: TPageParam;
+	queryFn: QueryFunction<TData, TQueryKey, TPageParam>;
+	queryKey: Accessor<TQueryKey> | TQueryKey;
 }
 
-interface UseInfiniteQueryResult<TData, TError> extends UseQueryResult<
-	InfiniteData<TData>,
-	TError
-> {
-	fetchNextPage: () => Promise<UseInfiniteQueryResult<TData, TError>>
-	fetchPreviousPage: () => Promise<UseInfiniteQueryResult<TData, TError>>
-	hasNextPage: Accessor<boolean>
-	hasPreviousPage: Accessor<boolean>
-	isFetchingNextPage: Accessor<boolean>
-	isFetchingPreviousPage: Accessor<boolean>
+interface UseInfiniteQueryResult<TData, TError> extends UseQueryResult<InfiniteData<TData>, TError> {
+	fetchNextPage: () => Promise<UseInfiniteQueryResult<TData, TError>>;
+	fetchPreviousPage: () => Promise<UseInfiniteQueryResult<TData, TError>>;
+	hasNextPage: Accessor<boolean>;
+	hasPreviousPage: Accessor<boolean>;
+	isFetchingNextPage: Accessor<boolean>;
+	isFetchingPreviousPage: Accessor<boolean>;
 }
 ```
 
@@ -208,14 +205,14 @@ createTrackedQueryClient(client: QueryClient): TrackedQueryClient
 Custom implementation (not via `useBaseQuery`):
 
 ```ts
-const observer = new QueryObserver(client, options)
-const [result, setResult] = createSignal(observer.getOptimisticResult(options))
+const observer = new QueryObserver(client, options);
+const [result, setResult] = createSignal(observer.getOptimisticResult(options));
 
 createEffect(() => {
-	const r = result()
-	if (r.isLoading) throw r.fetchStatus === "fetching" ? r.promise : new Promise(() => {})
-	if (r.isError) throw r.error
-})
+	const r = result();
+	if (r.isLoading) throw r.fetchStatus === "fetching" ? r.promise : new Promise(() => {});
+	if (r.isError) throw r.error;
+});
 ```
 
 ### SSR Tracked Queries

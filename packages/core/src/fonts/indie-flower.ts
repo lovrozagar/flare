@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const indieFlower: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
@@ -31,4 +31,4 @@ export const indieFlower: Font<"latin" | "latin-ext"> = createRegistryFont({
 	],
 	subsets: ["latin", "latin-ext"],
 	weights: [400],
-})
+});

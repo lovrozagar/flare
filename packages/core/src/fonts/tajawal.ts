@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const tajawal: Font<"arabic" | "latin"> = createRegistryFont({
 	category: "sans-serif",
@@ -47,4 +47,4 @@ export const tajawal: Font<"arabic" | "latin"> = createRegistryFont({
 	],
 	subsets: ["arabic", "latin"],
 	weights: [400, 700],
-})
+});

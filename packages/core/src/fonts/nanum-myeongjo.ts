@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const nanumMyeongjo: Font<"latin"> = createRegistryFont({
 	category: "serif",
@@ -31,4 +31,4 @@ export const nanumMyeongjo: Font<"latin"> = createRegistryFont({
 	],
 	subsets: ["latin"],
 	weights: [400, 700],
-})
+});

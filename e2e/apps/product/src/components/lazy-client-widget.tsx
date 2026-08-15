@@ -1,3 +1,3 @@
 export default function LazyClientWidget() {
-	return <div data-testid="lazy-client-widget">Client Widget Loaded</div>
+	return <div data-testid="lazy-client-widget">Client Widget Loaded</div>;
 }

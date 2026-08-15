@@ -1,5 +1,5 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 import {
 	useBlocker,
 	useLoaderData,
@@ -8,8 +8,8 @@ import {
 	useNavigate,
 	useParams,
 	useSearch,
-} from "flare/router"
-import { createSignal, Show } from "solid-js"
+} from "@lovrozagar/flare/router";
+import { createSignal, Show } from "solid-js";
 
 export const route = createPage("_root_/hooks-test")
 	.loader(() => ({
@@ -17,15 +17,15 @@ export const route = createPage("_root_/hooks-test")
 		timestamp: Date.now(),
 	}))
 	.render(() => {
-		const data = useLoaderData({ from: "_root_/hooks-test" })
-		const location = useLocation()
-		const match = useMatch({ from: "_root_/hooks-test" })
-		const navigate = useNavigate()
-		const params = useParams({ from: "_root_/hooks-test" })
-		const search = useSearch({ from: "_root_/hooks-test" })
-		const [dirty, setDirty] = createSignal(false)
-		const blocker = useBlocker(() => dirty())
-		const [navigated, setNavigated] = createSignal(false)
+		const data = useLoaderData({ from: "_root_/hooks-test" });
+		const location = useLocation();
+		const match = useMatch({ from: "_root_/hooks-test" });
+		const navigate = useNavigate();
+		const params = useParams({ from: "_root_/hooks-test" });
+		const search = useSearch({ from: "_root_/hooks-test" });
+		const [dirty, setDirty] = createSignal(false);
+		const blocker = useBlocker(() => dirty());
+		const [navigated, setNavigated] = createSignal(false);
 
 		return (
 			<main data-testid="hooks-test">
@@ -64,8 +64,8 @@ export const route = createPage("_root_/hooks-test")
 					<button
 						data-testid="navigate-btn"
 						onClick={() => {
-							setNavigated(true)
-							navigate({ search: { filter: "active" }, to: "/hooks-test" })
+							setNavigated(true);
+							navigate({ search: { filter: "active" }, to: "/hooks-test" });
 						}}
 						type="button"
 					>
@@ -97,5 +97,5 @@ export const route = createPage("_root_/hooks-test")
 					Go to About
 				</Link>
 			</main>
-		)
-	})
+		);
+	});

@@ -1,42 +1,42 @@
-import { createRouter } from "flare/router"
-import type { LocationRewrite } from "flare/rewrite"
-import { layouts, routeTree } from "./_gen/routes.gen"
-import { getQueryClient } from "./query-client"
+import { createRouter } from "@lovrozagar/flare/router";
+import type { LocationRewrite } from "@lovrozagar/flare/rewrite";
+import { layouts, routeTree } from "./_gen/routes.gen";
+import { getQueryClient } from "./query-client";
 
 const vanityRewrite: LocationRewrite = {
 	input: ({ url }) => {
 		if (url.pathname === "/vanity") {
-			const next = new URL(url)
-			next.pathname = "/about"
-			return next
+			const next = new URL(url);
+			next.pathname = "/about";
+			return next;
 		}
 		if (url.pathname === "/alt-target") {
-			const next = new URL(url)
-			next.pathname = "/rewrite-target"
-			return next
+			const next = new URL(url);
+			next.pathname = "/rewrite-target";
+			return next;
 		}
 		if (url.pathname === "/rw-with-search") {
-			const next = new URL(url)
-			next.pathname = "/rewrite-target"
-			return next
+			const next = new URL(url);
+			next.pathname = "/rewrite-target";
+			return next;
 		}
-		return undefined
+		return undefined;
 	},
 	output: ({ url }) => {
 		if (url.pathname === "/rewrite-target") {
-			const next = new URL(url)
-			next.pathname = "/alt-target"
-			return next
+			const next = new URL(url);
+			next.pathname = "/alt-target";
+			return next;
 		}
-		return undefined
+		return undefined;
 	},
-}
+};
 
 export const localeConfig = {
 	defaultLocale: "en",
 	locales: ["en", "hr", "fr"] as const,
 	paramName: "locale",
-}
+};
 
 export const router = createRouter({
 	cache: {
@@ -50,4 +50,4 @@ export const router = createRouter({
 	routeTree,
 	theme: { defaultTheme: "system" },
 	viewTransitions: true,
-})
+});

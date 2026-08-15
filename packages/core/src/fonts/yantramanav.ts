@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const yantramanav: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
@@ -63,4 +63,4 @@ export const yantramanav: Font<"devanagari" | "latin" | "latin-ext"> = createReg
 	],
 	subsets: ["devanagari", "latin", "latin-ext"],
 	weights: [400, 700],
-})
+});

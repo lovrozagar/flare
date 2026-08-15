@@ -20,18 +20,18 @@ Returns an array of Vite plugins. Single entry point for all Flare build integra
 
 **Enforce: pre**
 
-Resolves `flare` imports to environment-specific builds.
+Resolves `@lovrozagar/flare` imports to environment-specific builds.
 
 ```ts
 /* SSR context */
-import { renderToStream } from "flare/ssr"
+import { renderToStream } from "@lovrozagar/flare/ssr"
 → resolves to dist/ssr/ssr.js
 
 /* Client context */
-import { Link } from "flare/link"
+import { Link } from "@lovrozagar/flare/link"
 → resolves to dist/client/link.js
 
-import { hydrate } from "flare/hydrate"
+import { hydrate } from "@lovrozagar/flare/hydrate"
 → resolves to dist/client/hydrate.js
 ```
 
@@ -52,13 +52,13 @@ generateRoutes({
 	outputPath: config.generated?.routesFilePath ?? "src/_gen/routes.gen.ts",
 	rootDir: process.cwd(),
 	srcDir: "src",
-})
+});
 
 generateRouteTypes({
 	outputPath: config.generated?.typesFilePath ?? "src/_gen/types.gen.d.ts",
 	serverEntryPath: config.serverEntryFilePath ?? "src/server.ts",
 	srcDir: "src",
-})
+});
 ```
 
 **`configureServer()`**: sets up watch mode in dev.
@@ -128,14 +128,14 @@ ssr: {
 Provides `virtual:flare-config` module with build-time config:
 
 ```ts
-import config from "virtual:flare-config"
+import config from "virtual:flare-config";
 /* config = serialized FlareBuildConfig subset needed at runtime */
 ```
 
 Also provides `virtual:client-manifest`:
 
 ```ts
-import clientEntry from "virtual:client-manifest"
+import clientEntry from "virtual:client-manifest";
 /* clientEntry = "/assets/client-abc123.js" (prod) or "/src/client.ts" (dev) */
 ```
 
@@ -153,7 +153,7 @@ solid({
 	extensions: [".tsx", ".jsx"],
 	solid: { hydratable: true },
 	ssr: true,
-})
+});
 ```
 
 - `hydratable: true` — generates hydration keys for SSR ↔ client matching
@@ -194,10 +194,10 @@ Separate from `flare()` array. Optional, enabled by `config.serverFn !== false`.
 
 ```ts
 /* Input */
-const myFn = createServerFn({ name: "myFn" })
+const myFn = createServerFn({ name: "myFn" });
 
 /* Output */
-const myFn = createServerFn({ name: "myFn", __id: "a1b2c3d4" })
+const myFn = createServerFn({ name: "myFn", __id: "a1b2c3d4" });
 ```
 
 ID computed from file hash + function name. Deterministic across builds.
@@ -205,7 +205,7 @@ ID computed from file hash + function name. Deterministic across builds.
 **Build secret**: generates `randomBytes(32).toString("hex")` at build time. Available via:
 
 ```ts
-import secret from "virtual:flare-server-fn-secret"
+import secret from "virtual:flare-server-fn-secret";
 ```
 
 Used for HMAC signing of server function RPC calls.

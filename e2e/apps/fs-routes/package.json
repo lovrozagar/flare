@@ -11,7 +11,7 @@
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
-		"flare": "workspace:*",
+		"@lovrozagar/flare": "workspace:*",
 		"solid-js": "catalog:",
 		"vite": "catalog:",
 		"vite-plugin-solid": "catalog:"

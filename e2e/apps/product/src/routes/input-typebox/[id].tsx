@@ -1,12 +1,12 @@
-import { createPage } from "flare/page"
-import { Type } from "@sinclair/typebox"
-import { Value } from "@sinclair/typebox/value"
+import { createPage } from "@lovrozagar/flare/page";
+import { Type } from "@sinclair/typebox";
+import { Value } from "@sinclair/typebox/value";
 
-const ParamsType = Type.Object({ id: Type.String({ pattern: "^\\d+$" }) })
+const ParamsType = Type.Object({ id: Type.String({ pattern: "^\\d+$" }) });
 const SearchType = Type.Object({
 	limit: Type.String({ default: "10" }),
 	tab: Type.String({ default: "overview" }),
-})
+});
 
 export const route = createPage("_root_/input-typebox/[id]")
 	.input({
@@ -30,4 +30,4 @@ export const route = createPage("_root_/input-typebox/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

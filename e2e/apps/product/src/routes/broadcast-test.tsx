@@ -1,15 +1,15 @@
-import { createBroadcastSignal, useBroadcast } from "flare/broadcast"
-import { createPage } from "flare/page"
-import { useRouter } from "flare/router"
-import { createSignal } from "solid-js"
+import { createBroadcastSignal, useBroadcast } from "@lovrozagar/flare/broadcast";
+import { createPage } from "@lovrozagar/flare/page";
+import { useRouter } from "@lovrozagar/flare/router";
+import { createSignal } from "solid-js";
 
 export const route = createPage("_root_/broadcast-test").render(() => {
-	const router = useRouter()
-	const [received, setReceived] = createSignal("")
+	const router = useRouter();
+	const [received, setReceived] = createSignal("");
 	const emit = useBroadcast<string>("ping", (data) => {
-		setReceived(data)
-	})
-	const [count, setCount] = createBroadcastSignal("counter", 0)
+		setReceived(data);
+	});
+	const [count, setCount] = createBroadcastSignal("counter", 0);
 
 	return (
 		<main data-testid="broadcast-test">
@@ -42,5 +42,5 @@ export const route = createPage("_root_/broadcast-test").render(() => {
 			<section data-testid="signal-section" />
 			<section data-testid="router-section" />
 		</main>
-	)
-})
+	);
+});

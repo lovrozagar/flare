@@ -1,4 +1,4 @@
-import { createLayout } from "flare/layout"
+import { createLayout } from "@lovrozagar/flare/layout";
 
 export const route = createLayout("_root_/(chain-override)")
 	.preloader(() => ({
@@ -13,9 +13,7 @@ export const route = createLayout("_root_/(chain-override)")
 			<div data-testid="layout-shared">{String(props.preloaderContext.shared)}</div>
 			<div data-testid="layout-layoutOnly">{String(props.preloaderContext.layoutOnly)}</div>
 			<div data-testid="layout-has-pageOnly">{String("pageOnly" in props.preloaderContext)}</div>
-			<div data-testid="layout-snapshot">
-				{JSON.stringify(props.loaderData.layoutPreloaderContext)}
-			</div>
+			<div data-testid="layout-snapshot">{JSON.stringify(props.loaderData.layoutPreloaderContext)}</div>
 			{props.children}
 		</div>
-	))
+	));

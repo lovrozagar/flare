@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const openSans: Font<
 	| "cyrillic"
@@ -337,4 +337,4 @@ export const openSans: Font<
 		"vietnamese",
 	],
 	weights: [400, 700],
-})
+});

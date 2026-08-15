@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/styling-tw-native").render(() => (
 	<main data-testid="styling-tw-native">
@@ -9,4 +9,4 @@ export const route = createPage("_root_/styling-tw-native").render(() => (
 			TW Color
 		</div>
 	</main>
-))
+));

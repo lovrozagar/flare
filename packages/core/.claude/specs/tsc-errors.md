@@ -34,16 +34,16 @@
 ```typescript
 /* Before */
 interface PathSegmentBuilderInitial<TPath extends string> extends PathSegmentResult<TPath> {
-	cache(config: CacheConfig<TPath>): PathSegmentResult<TPath>
+	cache(config: CacheConfig<TPath>): PathSegmentResult<TPath>;
 }
 
 /* After */
 interface PathSegmentBuilderInitial<TPath extends string> {
-	_type: "layout"
-	cache(config: CacheConfig<TPath>): PathSegmentResult<TPath>
-	render: (props: { children: unknown }) => unknown
-	virtualPath: TPath
-	[BUILDER_MARKER]: true
+	_type: "layout";
+	cache(config: CacheConfig<TPath>): PathSegmentResult<TPath>;
+	render: (props: { children: unknown }) => unknown;
+	virtualPath: TPath;
+	[BUILDER_MARKER]: true;
 }
 ```
 
@@ -56,12 +56,12 @@ interface PathSegmentBuilderInitial<TPath extends string> {
 
 ```typescript
 /* Before (inside buildStart) */
-const resolved = await this.resolve("flare/plugins")
+const resolved = await this.resolve("flare/plugins");
 
 /* After (module scope) */
-import { createRequire } from "node:module"
-const require = createRequire(import.meta.url)
-const pluginsDir = dirname(require.resolve("flare/plugins"))
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const pluginsDir = dirname(require.resolve("flare/plugins"));
 ```
 
 ---
@@ -106,10 +106,9 @@ resolveId(id: string) {
 **Fix:** The `SsrEnvironment.runner.import` already returns `Promise<Record<string, unknown>>`. Access via bracket notation:
 
 ```typescript
-const mod = await ssrRunner.import("./src/server")
-const exported =
-	mod["handler"] ?? (mod["default"] as Record<string, unknown> | undefined)?.["handler"]
-const handler = exported as ServerHandler | undefined
+const mod = await ssrRunner.import("./src/server");
+const exported = mod["handler"] ?? (mod["default"] as Record<string, unknown> | undefined)?.["handler"];
+const handler = exported as ServerHandler | undefined;
 ```
 
 ### B4. Purge test config hook casts
@@ -120,16 +119,16 @@ const handler = exported as ServerHandler | undefined
 
 ```typescript
 /* Before */
-const configHook = plugin?.config as (cfg, env) => Record<string, unknown> | undefined
+const configHook = plugin?.config as (cfg, env) => Record<string, unknown> | undefined;
 
 /* After */
 function getConfigHook(plugin: Plugin | undefined) {
-	const raw = plugin?.config
-	if (typeof raw === "function") return raw
+	const raw = plugin?.config;
+	if (typeof raw === "function") return raw;
 	if (raw && typeof raw === "object" && "handler" in raw) {
-		return (raw as { handler: (...args: unknown[]) => unknown }).handler
+		return (raw as { handler: (...args: unknown[]) => unknown }).handler;
 	}
-	return undefined
+	return undefined;
 }
 ```
 
@@ -209,7 +208,7 @@ import type { MiddlewareContext } from "../../../src/middleware"
 const config: { defaultLocale: string; locales: readonly string[]; paramName?: string } = {
 	defaultLocale: "en",
 	locales: ["en", "hr"] as const,
-}
+};
 ```
 
 ### D3. i18n cookie cycle mock context
@@ -235,7 +234,7 @@ fn._registration = {
 	name: "testFn",
 	stream: false as const,
 	...overrides,
-} satisfies ServerFnHandlerRegistration
+} satisfies ServerFnHandlerRegistration;
 ```
 
 ### D5. Outlet retry test casts
@@ -247,8 +246,8 @@ fn._registration = {
 
 ```typescript
 type CtxWithInternals = FlareProviderContext & {
-	_setNavigate?: (fn: unknown) => void
-}
+	_setNavigate?: (fn: unknown) => void;
+};
 ```
 
 ---
@@ -263,9 +262,9 @@ type CtxWithInternals = FlareProviderContext & {
 **Fix:** Assert non-null after call:
 
 ```typescript
-const registry = _getRegistryForTest()
-if (!registry) throw new Error("expected registry in test env")
-expect(registry.has("cart")).toBe(true)
+const registry = _getRegistryForTest();
+if (!registry) throw new Error("expected registry in test env");
+expect(registry.has("cart")).toBe(true);
 ```
 
 ---

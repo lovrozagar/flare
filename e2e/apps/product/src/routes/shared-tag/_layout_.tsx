@@ -1,12 +1,12 @@
-import { createLayout } from "flare/layout"
+import { createLayout } from "@lovrozagar/flare/layout";
 
-let callCount = 0
+let callCount = 0;
 
 export const route = createLayout("_root_/(shared-tag)")
 	.cache({ ssr: { staleTime: 5_000, tags: ["shared-tag"], ttl: 60 } })
 	.loader(() => {
-		callCount++
-		return { callCount, timestamp: Date.now() }
+		callCount++;
+		return { callCount, timestamp: Date.now() };
 	})
 	.render((props) => (
 		<div data-testid="shared-tag-layout">
@@ -14,4 +14,4 @@ export const route = createLayout("_root_/(shared-tag)")
 			<span data-testid="stag-layout-calls">{props.loaderData.callCount}</span>
 			{props.children}
 		</div>
-	))
+	));

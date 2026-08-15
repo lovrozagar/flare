@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/isr-test")
 	.cache({ isr: { revalidate: 5 } })
@@ -8,4 +8,4 @@ export const route = createPage("_root_/isr-test")
 			<p data-testid="isr-source">{props.loaderData.source}</p>
 			<p data-testid="isr-rendered-at">{props.loaderData.renderedAt}</p>
 		</main>
-	))
+	));

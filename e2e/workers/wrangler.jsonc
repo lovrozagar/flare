@@ -2,5 +2,5 @@
 	"compatibility_date": "2026-01-20",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "../apps/product/src/server.ts",
-	"name": "flare-e2e-workers"
+	"name": "flare-e2e-workers",
 }

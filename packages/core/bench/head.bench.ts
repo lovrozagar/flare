@@ -1,13 +1,13 @@
-import { bench, describe } from "vitest"
-import { renderHeadToHtml } from "../src/ssr/head"
-import type { HeadConfig } from "../src/route-builder/types"
+import { bench, describe } from "vitest";
+import { renderHeadToHtml } from "../src/ssr/head";
+import type { HeadConfig } from "../src/route-builder/types";
 
 describe("renderHeadToHtml", () => {
-	const nonce = "a1b2c3d4e5f6a7b8"
+	const nonce = "a1b2c3d4e5f6a7b8";
 
 	const simpleHead: HeadConfig = {
 		title: "My Page",
-	}
+	};
 
 	const fullHead: HeadConfig = {
 		custom: {
@@ -24,13 +24,13 @@ describe("renderHeadToHtml", () => {
 		},
 		description: "A page about things",
 		title: "Full Page Title — My Site",
-	}
+	};
 
 	bench("simple head — title only", () => {
-		renderHeadToHtml(simpleHead, nonce)
-	})
+		renderHeadToHtml(simpleHead, nonce);
+	});
 
 	bench("full head — title + description + custom meta + links", () => {
-		renderHeadToHtml(fullHead, nonce)
-	})
-})
+		renderHeadToHtml(fullHead, nonce);
+	});
+});

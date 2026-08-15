@@ -481,7 +481,7 @@ head: ({ loaderData }) => ({
 		{ name: "description", content: h.description },
 		{ property: "og:title", content: h.openGraph.title },
 	],
-})
+});
 ```
 
 The `<HeadContent />` component reads this and patches `<head>` DOM nodes. No server round-trip needed for head data on SPA nav.

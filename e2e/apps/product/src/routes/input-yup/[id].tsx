@@ -1,11 +1,11 @@
-import { createPage } from "flare/page"
-import * as yup from "yup"
+import { createPage } from "@lovrozagar/flare/page";
+import * as yup from "yup";
 
-const paramsSchema = yup.object({ id: yup.string().matches(/^\d+$/).required() })
+const paramsSchema = yup.object({ id: yup.string().matches(/^\d+$/).required() });
 const searchSchema = yup.object({
 	limit: yup.string().default("10"),
 	tab: yup.string().default("overview"),
-})
+});
 
 export const route = createPage("_root_/input-yup/[id]")
 	.input({
@@ -29,4 +29,4 @@ export const route = createPage("_root_/input-yup/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

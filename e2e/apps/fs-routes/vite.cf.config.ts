@@ -1,6 +1,6 @@
-import { cloudflare } from "@cloudflare/vite-plugin"
-import { flare } from "flare/plugins"
-import { defineConfig } from "vite"
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { flare } from "@lovrozagar/flare/plugins";
+import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [
@@ -12,4 +12,4 @@ export default defineConfig({
 			viteEnvironment: { name: "ssr" },
 		}),
 	],
-})
+});

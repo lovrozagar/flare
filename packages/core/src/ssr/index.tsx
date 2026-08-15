@@ -1,16 +1,16 @@
-import type { JSX } from "solid-js"
-import { createComponent, Hydration, renderToStream as solidRenderToStream } from "solid-js/web"
-import type { GlobalBoundaries } from "../boundaries/index.ts"
-import { BroadcastProvider } from "../broadcast/provider.tsx"
-import { createMatchCache, createPrefetchCache } from "../caches/index.ts"
-import { setSSRContext } from "../components/ssr-context.tsx"
-import type { DeferContext, DeferredEntry } from "../defer/index.ts"
-import { isDeferred } from "../defer/index.ts"
-import { DirectionProvider } from "../direction.ts"
-import { isNotFoundError, isUnauthenticatedError, isUnauthorizedError } from "../errors/index.ts"
-import { applyResponseHeaders, isRenderFn } from "../internal.ts"
-import type { PipelineMatch } from "../loader-pipeline/index.ts"
-import { FlareProvider, Outlet, useRouter } from "../outlet/index.tsx"
+import type { JSX } from "solid-js";
+import { createComponent, Hydration, renderToStream as solidRenderToStream } from "solid-js/web";
+import type { GlobalBoundaries } from "../boundaries/index.ts";
+import { BroadcastProvider } from "../broadcast/provider.tsx";
+import { createMatchCache, createPrefetchCache } from "../caches/index.ts";
+import { setSSRContext } from "../components/ssr-context.tsx";
+import type { DeferContext, DeferredEntry } from "../defer/index.ts";
+import { isDeferred } from "../defer/index.ts";
+import { DirectionProvider } from "../direction.ts";
+import { isNotFoundError, isUnauthenticatedError, isUnauthorizedError } from "../errors/index.ts";
+import { applyResponseHeaders, isRenderFn } from "../internal.ts";
+import type { PipelineMatch } from "../loader-pipeline/index.ts";
+import { FlareProvider, Outlet, useRouter } from "../outlet/index.tsx";
 import type {
 	ClientErrorRenderProps,
 	ClientMatch,
@@ -19,113 +19,109 @@ import type {
 	ClientUnauthorizedRenderProps,
 	ProviderLocation,
 	RenderProps,
-} from "../outlet/types.ts"
-import { dk as getDynamicKeys } from "../registry/index.ts"
-import type { HeadConfig } from "../route-builder/types.ts"
-import { extractSerializable, type MarkedRouterConfig } from "../router-config/index.ts"
-import { createTreeNode } from "../router-primitives/index.ts"
-import type { ServerLogEntry } from "flare/server-context"
-import { clearScopedStyles, getScopedStyles, RUNTIME_SHEET_ID } from "../styles/index.ts"
-import { CRITICAL_SHEET_ID, injectCriticalAppend, type SxCssManifest } from "./critical-css.ts"
-import { ThemeProvider } from "../theme.ts"
-import { parseSearchParams, type SearchParams } from "../url/index.ts"
-import { renderHeadToHtml } from "./head.ts"
-import { buildHeadPrefix } from "./head-prefix.ts"
+} from "../outlet/types.ts";
+import { dk as getDynamicKeys } from "../registry/index.ts";
+import type { HeadConfig } from "../route-builder/types.ts";
+import { extractSerializable, type MarkedRouterConfig } from "../router-config/index.ts";
+import { createTreeNode } from "../router-primitives/index.ts";
+import type { ServerLogEntry } from "@lovrozagar/flare/server-context";
+import { clearScopedStyles, getScopedStyles, RUNTIME_SHEET_ID } from "../styles/index.ts";
+import { CRITICAL_SHEET_ID, injectCriticalAppend, type SxCssManifest } from "./critical-css.ts";
+import { ThemeProvider } from "../theme.ts";
+import { parseSearchParams, type SearchParams } from "../url/index.ts";
+import { renderHeadToHtml } from "./head.ts";
+import { buildHeadPrefix } from "./head-prefix.ts";
 
-export { mergeHeadConfigs } from "../internal.ts"
-export { renderHeadToHtml } from "./head.ts"
-export { buildHeadPrefix } from "./head-prefix.ts"
+export { mergeHeadConfigs } from "../internal.ts";
+export { renderHeadToHtml } from "./head.ts";
+export { buildHeadPrefix } from "./head-prefix.ts";
 
-export const MAX_STREAM_BUFFER_SIZE = 2 * 1024 * 1024
+export const MAX_STREAM_BUFFER_SIZE = 2 * 1024 * 1024;
 
 export interface FlareState {
-	c: ContextState
-	dk?: string[]
-	e?: DevError[]
-	g?: ServerLogEntry[]
-	m: FlareMatchState[]
-	p: string
-	ph?: PerRouteHead[]
-	q?: QueryState[]
-	r: Record<string, string | string[]>
-	s: SearchParams
+	c: ContextState;
+	dk?: string[];
+	e?: DevError[];
+	g?: ServerLogEntry[];
+	m: FlareMatchState[];
+	p: string;
+	ph?: PerRouteHead[];
+	q?: QueryState[];
+	r: Record<string, string | string[]>;
+	s: SearchParams;
 }
 
 export interface FlareMatchState {
-	d: unknown
-	h?: HeadConfig
-	i: string
-	p?: Record<string, unknown>
-	v: string
-	x?: string
+	d: unknown;
+	h?: HeadConfig;
+	i: string;
+	p?: Record<string, unknown>;
+	v: string;
+	x?: string;
 }
 
 export interface ContextState {
-	dir?: string
-	locale?: string
-	router?: Record<string, unknown>
-	theme?: string
+	dir?: string;
+	locale?: string;
+	router?: Record<string, unknown>;
+	theme?: string;
 }
 
 export interface DevError {
-	message: string
-	name: string
-	source: string
-	stack?: string
+	message: string;
+	name: string;
+	source: string;
+	stack?: string;
 }
 
 export interface PerRouteHead {
-	head: HeadConfig
-	matchId: string
+	head: HeadConfig;
+	matchId: string;
 }
 
 export interface QueryState {
-	data: unknown
-	key: unknown[]
-	staleTime?: number
+	data: unknown;
+	key: unknown[];
+	staleTime?: number;
 }
 
 export interface ModulePreloads {
-	css: string[]
-	js: string[]
+	css: string[];
+	js: string[];
 }
 
 export interface SSRConfig {
-	auth: unknown | null
-	cause: string
-	deferContexts?: Map<string, DeferContext>
-	entryScript?: string
-	matches: PipelineMatch[]
-	modulePreloads?: ModulePreloads
-	moduleScripts: string[]
-	nonce: string
-	params?: Record<string, string | string[]>
-	prefetch: boolean
-	queryClient?: unknown
-	queryClientGetter?: () => unknown
-	queryClientProvider?: (props: { children: JSX.Element; client: unknown }) => JSX.Element
-	resolvedHead: HeadConfig
-	router?: MarkedRouterConfig
-	serverLogs?: ServerLogEntry[]
+	auth: unknown | null;
+	cause: string;
+	deferContexts?: Map<string, DeferContext>;
+	entryScript?: string;
+	matches: PipelineMatch[];
+	modulePreloads?: ModulePreloads;
+	moduleScripts: string[];
+	nonce: string;
+	params?: Record<string, string | string[]>;
+	prefetch: boolean;
+	queryClient?: unknown;
+	queryClientGetter?: () => unknown;
+	queryClientProvider?: (props: { children: JSX.Element; client: unknown }) => JSX.Element;
+	resolvedHead: HeadConfig;
+	router?: MarkedRouterConfig;
+	serverLogs?: ServerLogEntry[];
 	/** Loaded from flare-sx-manifest.json at server startup. Enables critical-CSS injection. */
-	sxCssManifest?: SxCssManifest
+	sxCssManifest?: SxCssManifest;
 	/** Module IDs in the rendered route's dependency graph. Used to union Show/Switch branch classes. */
-	sxRenderedModules?: string[]
-	url: URL
+	sxRenderedModules?: string[];
+	url: URL;
 }
 
 export interface SSRResult {
-	body: ReadableStream<Uint8Array>
-	headers: Headers
-	status: number
+	body: ReadableStream<Uint8Array>;
+	headers: Headers;
+	status: number;
 }
 
 function escapeAttr(str: string): string {
-	return str
-		.replace(/&/g, "&amp;")
-		.replace(/"/g, "&quot;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
+	return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 /**
@@ -136,71 +132,71 @@ function escapeAttr(str: string): string {
  * (diamonds) are allowed but true cycles return null.
  */
 function stripDeferredPromises(value: unknown, ancestors?: WeakSet<object>): unknown {
-	if (value === null || value === undefined) return value
-	if (typeof value !== "object") return value
+	if (value === null || value === undefined) return value;
+	if (typeof value !== "object") return value;
 
-	const a = ancestors ?? new WeakSet<object>()
-	if (a.has(value as object)) return null
-	a.add(value as object)
+	const a = ancestors ?? new WeakSet<object>();
+	if (a.has(value as object)) return null;
+	a.add(value as object);
 
-	let result: unknown
+	let result: unknown;
 	if (Array.isArray(value)) {
-		result = value.map((v) => stripDeferredPromises(v, a))
+		result = value.map((v) => stripDeferredPromises(v, a));
 	} else {
-		const obj = value as Record<string, unknown>
+		const obj = value as Record<string, unknown>;
 		if (isDeferred(obj)) {
-			result = { __deferred: true, key: obj.key }
+			result = { __deferred: true, key: obj.key };
 		} else {
-			const out: Record<string, unknown> = {}
+			const out: Record<string, unknown> = {};
 			for (const key of Object.keys(obj)) {
-				out[key] = stripDeferredPromises(obj[key], a)
+				out[key] = stripDeferredPromises(obj[key], a);
 			}
-			result = out
+			result = out;
 		}
 	}
 
-	a.delete(value as object)
-	return result
+	a.delete(value as object);
+	return result;
 }
 
 export function serializeFlareState(state: FlareState): string {
-	const cleaned = stripDeferredPromises(state)
+	const cleaned = stripDeferredPromises(state);
 	/* Strip error info entirely — never serialize to client (security) */
-	delete (cleaned as { e?: unknown }).e
-	const json = JSON.stringify(cleaned)
-	return json.replace(/</g, "\\u003c")
+	delete (cleaned as { e?: unknown }).e;
+	const json = JSON.stringify(cleaned);
+	return json.replace(/</g, "\\u003c");
 }
 
-const FLARE_STATE_MARKER = "data-flare-state"
+const FLARE_STATE_MARKER = "data-flare-state";
 
 export function buildFlareStateScript(state: FlareState, nonce: string): string {
-	return `<script ${FLARE_STATE_MARKER} nonce="${escapeAttr(nonce)}">self.flare=${serializeFlareState(state)};</script>`
+	return `<script ${FLARE_STATE_MARKER} nonce="${escapeAttr(nonce)}">self.flare=${serializeFlareState(state)};</script>`;
 }
 
-export { applyResponseHeaders, mergeResponseHeaders } from "../internal.ts"
+export { applyResponseHeaders, mergeResponseHeaders } from "../internal.ts";
 
 /**
  * Derive HTTP status from pipeline match errors.
  * Priority: 401 > 403 > 404 > 500 > 200
  */
 export function deriveStatus(matches: Array<{ error?: Error }>): number {
-	let status = 200
+	let status = 200;
 
 	for (const match of matches) {
-		if (!match.error) continue
+		if (!match.error) continue;
 
-		if (isUnauthenticatedError(match.error)) return 401
+		if (isUnauthenticatedError(match.error)) return 401;
 
 		if (isUnauthorizedError(match.error)) {
-			if (status !== 401) status = 403
+			if (status !== 401) status = 403;
 		} else if (isNotFoundError(match.error)) {
-			if (status !== 401 && status !== 403) status = 404
+			if (status !== 401 && status !== 403) status = 404;
 		} else {
-			if (status === 200) status = 500
+			if (status === 200) status = 500;
 		}
 	}
 
-	return status
+	return status;
 }
 
 /* ── renderToStream ────────────────────────────────────────────────── */
@@ -211,27 +207,27 @@ function buildFlareState(config: SSRConfig): FlareState {
 			d: stripDeferredPromises(m.loaderData),
 			i: m.matchId,
 			v: m.route.virtualPath,
-		}
+		};
 		if (m.preloaderContext) {
 			for (const k in m.preloaderContext) {
 				if (Object.hasOwn(m.preloaderContext, k)) {
-					state.p = m.preloaderContext
-					break
+					state.p = m.preloaderContext;
+					break;
 				}
 			}
 		}
 		if (m.headConfig) {
-			state.h = m.headConfig
+			state.h = m.headConfig;
 		}
 		if (m.error) {
-			state.x = m.error.name
+			state.x = m.error.name;
 		}
-		return state
-	})
+		return state;
+	});
 
-	const contextState: ContextState = {}
+	const contextState: ContextState = {};
 	if (config.router) {
-		contextState.router = extractSerializable(config.router) as Record<string, unknown>
+		contextState.router = extractSerializable(config.router) as Record<string, unknown>;
 	}
 
 	const state: FlareState = {
@@ -240,23 +236,23 @@ function buildFlareState(config: SSRConfig): FlareState {
 		p: config.url.pathname,
 		r: config.params ?? {},
 		s: parseSearchParams(config.url.searchParams),
-	}
+	};
 
 	/* per-route heads for client initRouteHierarchy */
-	const perRouteHeads: PerRouteHead[] = []
+	const perRouteHeads: PerRouteHead[] = [];
 	for (const m of config.matches) {
 		if (m.headConfig) {
-			perRouteHeads.push({ head: m.headConfig as HeadConfig, matchId: m.matchId })
+			perRouteHeads.push({ head: m.headConfig as HeadConfig, matchId: m.matchId });
 		}
 	}
 	if (perRouteHeads.length > 0) {
-		state.ph = perRouteHeads
+		state.ph = perRouteHeads;
 	}
 
 	/* dynamic registry keys for client preloading (spec 18) */
-	const dynamicKeys = getDynamicKeys()
+	const dynamicKeys = getDynamicKeys();
 	if (dynamicKeys.length > 0) {
-		state.dk = dynamicKeys
+		state.dk = dynamicKeys;
 	}
 
 	/* dev-only SSR errors for client overlay (spec 37) */
@@ -267,7 +263,7 @@ function buildFlareState(config: SSRConfig): FlareState {
 			name: m.error?.name ?? "Error",
 			source: m.route.virtualPath,
 			stack: m.error?.stack,
-		}))
+		}));
 	for (const m of config.matches) {
 		if (m.headError) {
 			devErrors.push({
@@ -275,7 +271,7 @@ function buildFlareState(config: SSRConfig): FlareState {
 				name: `HeadError(${m.route.virtualPath})`,
 				source: m.route.virtualPath,
 				stack: m.headError.stack,
-			})
+			});
 		}
 		if (m.headersError) {
 			devErrors.push({
@@ -283,21 +279,21 @@ function buildFlareState(config: SSRConfig): FlareState {
 				name: `HeadersError(${m.route.virtualPath})`,
 				source: m.route.virtualPath,
 				stack: m.headersError.stack,
-			})
+			});
 		}
 	}
 	if (devErrors.length > 0) {
-		state.e = devErrors
+		state.e = devErrors;
 	}
 
 	/* query client hydration handled post-render in renderToStream (spec 33) */
 
 	/* dev-only server logs for client console forwarding */
 	if (config.serverLogs && config.serverLogs.length > 0) {
-		state.g = config.serverLogs
+		state.g = config.serverLogs;
 	}
 
-	return state
+	return state;
 }
 
 /**
@@ -311,24 +307,24 @@ function buildFlareState(config: SSRConfig): FlareState {
  * fetch that competes with the modulepreload and appears in the critical chain.
  */
 function buildScriptTags(config: SSRConfig, flareState: FlareState): string {
-	const parts: string[] = []
-	const escapedNonce = escapeAttr(config.nonce)
+	const parts: string[] = [];
+	const escapedNonce = escapeAttr(config.nonce);
 
-	parts.push(buildFlareStateScript(flareState, config.nonce))
+	parts.push(buildFlareStateScript(flareState, config.nonce));
 
 	if (config.entryScript) {
 		parts.push(
 			`<script nonce="${escapedNonce}" type="module" async>import(${JSON.stringify(config.entryScript).replace(/</g, "\\u003c")})</script>`,
-		)
+		);
 	}
 
 	for (const src of config.moduleScripts) {
 		parts.push(
 			`<script nonce="${escapedNonce}" type="module" async>import(${JSON.stringify(src).replace(/</g, "\\u003c")})</script>`,
-		)
+		);
 	}
 
-	return parts.join("")
+	return parts.join("");
 }
 
 /**
@@ -338,11 +334,11 @@ function buildScriptTags(config: SSRConfig, flareState: FlareState): string {
  */
 function pipelineMatchesToClientMatches(matches: PipelineMatch[]): ClientMatch[] {
 	return matches.map((m) => {
-		const er = m.route.errorRender
-		const nfr = m.route.notFoundRender
-		const uar = m.route.unauthenticatedRender
-		const ur = m.route.unauthorizedRender
-		const r = m.route.render
+		const er = m.route.errorRender;
+		const nfr = m.route.notFoundRender;
+		const uar = m.route.unauthenticatedRender;
+		const ur = m.route.unauthorizedRender;
+		const r = m.route.render;
 
 		return {
 			_type: m.route._type as "layout" | "render",
@@ -352,25 +348,22 @@ function pipelineMatchesToClientMatches(matches: PipelineMatch[]): ClientMatch[]
 				: undefined,
 			loaderData: m.loaderData,
 			notFoundRender: isRenderFn(nfr)
-				? (((p: ClientNotFoundRenderProps) =>
-						nfr(p) as JSX.Element) as ClientMatch["notFoundRender"])
+				? (((p: ClientNotFoundRenderProps) => nfr(p) as JSX.Element) as ClientMatch["notFoundRender"])
 				: undefined,
 			preloaderContext: m.preloaderContext,
 			render: isRenderFn(r)
 				? (((p: RenderProps) => r(p) as JSX.Element) as ClientMatch["render"])
 				: ((() => null) as ClientMatch["render"]),
 			unauthenticatedRender: isRenderFn(uar)
-				? (((p: ClientUnauthenticatedRenderProps) =>
-						uar(p) as JSX.Element) as ClientMatch["unauthenticatedRender"])
+				? (((p: ClientUnauthenticatedRenderProps) => uar(p) as JSX.Element) as ClientMatch["unauthenticatedRender"])
 				: undefined,
 			unauthorizedRender: isRenderFn(ur)
-				? (((p: ClientUnauthorizedRenderProps) =>
-						ur(p) as JSX.Element) as ClientMatch["unauthorizedRender"])
+				? (((p: ClientUnauthorizedRenderProps) => ur(p) as JSX.Element) as ClientMatch["unauthorizedRender"])
 				: undefined,
 			variablePath: m.route.variablePath,
 			virtualPath: m.route.virtualPath,
-		}
-	})
+		};
+	});
 }
 
 /**
@@ -379,37 +372,36 @@ function pipelineMatchesToClientMatches(matches: PipelineMatch[]): ClientMatch[]
  * for global error/notFound/auth boundary resolution.
  */
 function extractRootBoundaries(rootMatch: PipelineMatch | undefined): GlobalBoundaries {
-	const boundaries: GlobalBoundaries = {}
+	const boundaries: GlobalBoundaries = {};
 	if (rootMatch?.route.errorRender && isRenderFn(rootMatch.route.errorRender)) {
-		boundaries.error = rootMatch.route.errorRender as GlobalBoundaries["error"]
+		boundaries.error = rootMatch.route.errorRender as GlobalBoundaries["error"];
 	}
 	if (rootMatch?.route.notFoundRender && isRenderFn(rootMatch.route.notFoundRender)) {
-		boundaries.notFound = rootMatch.route.notFoundRender as GlobalBoundaries["notFound"]
+		boundaries.notFound = rootMatch.route.notFoundRender as GlobalBoundaries["notFound"];
 	}
 	if (rootMatch?.route.unauthenticatedRender && isRenderFn(rootMatch.route.unauthenticatedRender)) {
-		boundaries.unauthenticated = rootMatch.route
-			.unauthenticatedRender as GlobalBoundaries["unauthenticated"]
+		boundaries.unauthenticated = rootMatch.route.unauthenticatedRender as GlobalBoundaries["unauthenticated"];
 	}
 	if (rootMatch?.route.unauthorizedRender && isRenderFn(rootMatch.route.unauthorizedRender)) {
-		boundaries.unauthorized = rootMatch.route.unauthorizedRender as GlobalBoundaries["unauthorized"]
+		boundaries.unauthorized = rootMatch.route.unauthorizedRender as GlobalBoundaries["unauthorized"];
 	}
-	return boundaries
+	return boundaries;
 }
 
 function RootRenderer(props: {
-	data: unknown
-	location: ProviderLocation
-	preloaderContext: Record<string, unknown> | undefined
-	renderFn: (p: RenderProps) => JSX.Element
+	data: unknown;
+	location: ProviderLocation;
+	preloaderContext: Record<string, unknown> | undefined;
+	renderFn: (p: RenderProps) => JSX.Element;
 }): JSX.Element {
-	const router = useRouter()
+	const router = useRouter();
 	return props.renderFn({
 		children: <Outlet />,
 		loaderData: props.data,
 		location: props.location,
 		preloaderContext: props.preloaderContext,
 		router,
-	})
+	});
 }
 
 /**
@@ -424,7 +416,7 @@ function RootRenderer(props: {
  * <NoHydration> internally so their innerHTML-injected content stays inert.
  */
 function buildComponentTree(config: SSRConfig, flareStateScript: string): () => JSX.Element {
-	const matches = config.matches
+	const matches = config.matches;
 
 	return () => {
 		setSSRContext({
@@ -435,9 +427,9 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 			nonce: config.nonce,
 			resolvedHead: config.resolvedHead,
 			theme: config.router?.theme,
-		})
+		});
 
-		const lastMatch = matches[matches.length - 1]
+		const lastMatch = matches[matches.length - 1];
 		const location: ProviderLocation = {
 			hash: "",
 			params: config.params ?? ({} as Record<string, string | string[]>),
@@ -446,15 +438,15 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 			url: config.url,
 			variablePath: lastMatch?.route.variablePath ?? "",
 			virtualPath: lastMatch?.route.virtualPath ?? "",
-		}
+		};
 
-		const rootMatch = matches.find((m) => m.route._type === "root-layout")
-		const nonRootMatches = matches.filter((m) => m.route._type !== "root-layout")
+		const rootMatch = matches.find((m) => m.route._type === "root-layout");
+		const nonRootMatches = matches.filter((m) => m.route._type !== "root-layout");
 
-		const clientMatches = pipelineMatchesToClientMatches(nonRootMatches)
-		const rootBoundaries = extractRootBoundaries(rootMatch)
-		const matchCache = createMatchCache()
-		const prefetchCache = createPrefetchCache()
+		const clientMatches = pipelineMatchesToClientMatches(nonRootMatches);
+		const rootBoundaries = extractRootBoundaries(rootMatch);
+		const matchCache = createMatchCache();
+		const prefetchCache = createPrefetchCache();
 
 		/*
 		 * Full-document hydration: providers wrap root layout so components
@@ -465,7 +457,7 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 		 *
 		 * All JSX inside the Hydration boundary — no pre-evaluated constants outside.
 		 */
-		let rootRenderFn: ((props: RenderProps) => JSX.Element) | undefined
+		let rootRenderFn: ((props: RenderProps) => JSX.Element) | undefined;
 		if (rootMatch?.error) {
 			rootRenderFn = rootMatch.route.errorRender
 				? (props: RenderProps) =>
@@ -474,13 +466,13 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 							error: rootMatch.error,
 							reset: () => {},
 						})
-				: undefined
+				: undefined;
 		} else {
-			rootRenderFn = rootMatch?.route.render as typeof rootRenderFn
+			rootRenderFn = rootMatch?.route.render as typeof rootRenderFn;
 		}
 
-		const QCP = config.queryClientProvider
-		const qc = config.queryClient
+		const QCP = config.queryClientProvider;
+		const qc = config.queryClient;
 
 		/*
 		 * Inner tree factory — must be lazy so that when QCP wraps it,
@@ -519,21 +511,21 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 					</BroadcastProvider>
 				</DirectionProvider>
 			</ThemeProvider>
-		)
+		);
 
 		return (
 			<Hydration>
 				{QCP && qc
 					? createComponent(QCP, {
 							get children() {
-								return renderInner()
+								return renderInner();
 							},
 							client: qc,
 						})
 					: renderInner()}
 			</Hydration>
-		) as JSX.Element
-	}
+		) as JSX.Element;
+	};
 }
 
 /**
@@ -561,7 +553,7 @@ function injectHeadContent(
 	devSxCss = "",
 	devSxClasses: string[] = [],
 ): string {
-	const escapedNonce = escapeAttr(config.nonce)
+	const escapedNonce = escapeAttr(config.nonce);
 	const headPrefix = buildHeadPrefix({
 		direction: config.router?.direction,
 		locale: config.router?.locale,
@@ -569,26 +561,26 @@ function injectHeadContent(
 		nonce: config.nonce,
 		resolvedHead: config.resolvedHead,
 		theme: config.router?.theme,
-	})
+	});
 
-	let headSuffix = ""
-	const headHtml = renderHeadToHtml(config.resolvedHead, config.nonce)
-	if (headHtml) headSuffix += headHtml
+	let headSuffix = "";
+	const headHtml = renderHeadToHtml(config.resolvedHead, config.nonce);
+	if (headHtml) headSuffix += headHtml;
 	if (scopedStyles) {
-		const safeStyles = scopedStyles.replace(/<\/style\b/gi, "<\\/style")
-		headSuffix += `<style id="${RUNTIME_SHEET_ID}" nonce="${escapedNonce}">${safeStyles}</style>`
+		const safeStyles = scopedStyles.replace(/<\/style\b/gi, "<\\/style");
+		headSuffix += `<style id="${RUNTIME_SHEET_ID}" nonce="${escapedNonce}">${safeStyles}</style>`;
 	}
 	/* Critical-CSS placeholder — body not known yet; late-inject populates it near </body>. */
 	if (config.sxCssManifest) {
-		const nonceAttr = config.nonce ? ` nonce="${escapedNonce}"` : ""
-		headSuffix += `<style id="${CRITICAL_SHEET_ID}"${nonceAttr}></style>`
-		const href = config.sxCssManifest.bundleHref
+		const nonceAttr = config.nonce ? ` nonce="${escapedNonce}"` : "";
+		headSuffix += `<style id="${CRITICAL_SHEET_ID}"${nonceAttr}></style>`;
+		const href = config.sxCssManifest.bundleHref;
 		if (href) {
-			const escapedHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+			const escapedHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 			/* Direct stylesheet — inline `onload="this.rel='stylesheet'"` preload trick violates
 			 * CSP `script-src` (inline event handler). Critical CSS already ships in the head
 			 * placeholder above, so the bundle link can resolve synchronously without the swap. */
-			headSuffix += `<link rel="stylesheet" href="${escapedHref}"${nonceAttr}/>`
+			headSuffix += `<link rel="stylesheet" href="${escapedHref}"${nonceAttr}/>`;
 		}
 	}
 	/*
@@ -597,16 +589,16 @@ function injectHeadContent(
 	 * ensures styles land in the SSR response before any JS runs.
 	 */
 	if (devSxCss) {
-		const nonceAttr = config.nonce ? ` nonce="${escapedNonce}"` : ""
-		const safeCss = devSxCss.replace(/<\/style\b/gi, "<\\/style")
-		headSuffix += `<style id="flare-sx-dev"${nonceAttr}>${safeCss}</style>`
+		const nonceAttr = config.nonce ? ` nonce="${escapedNonce}"` : "";
+		const safeCss = devSxCss.replace(/<\/style\b/gi, "<\\/style");
+		headSuffix += `<style id="flare-sx-dev"${nonceAttr}>${safeCss}</style>`;
 		if (devSxClasses && devSxClasses.length > 0) {
 			/* Seed window.__flare_sx_classes__ with the full SSR class-pool before any module
 			 * runs. Per-module client inject snippets dedupe against this Set — stops duplicate
 			 * @layer app rules from stacking and flipping source-order cascade (breaks combos
 			 * like `hidden md:flex`). */
-			const seedJson = JSON.stringify(devSxClasses).replace(/</g, "\\u003c")
-			headSuffix += `<script${nonceAttr}>window.__flare_sx_classes__=new Set(${seedJson})</script>`
+			const seedJson = JSON.stringify(devSxClasses).replace(/</g, "\\u003c");
+			headSuffix += `<script${nonceAttr}>window.__flare_sx_classes__=new Set(${seedJson})</script>`;
 		}
 	}
 
@@ -615,18 +607,18 @@ function injectHeadContent(
 	 * Extract <body style="..."> and promote to a nonce'd <style> tag so
 	 * critical body styles (font-family, background, color) apply on first paint.
 	 */
-	const bodyStyleMatch = buffer.match(/<body\b[^>]*?\sstyle="([^"]*)"/)
+	const bodyStyleMatch = buffer.match(/<body\b[^>]*?\sstyle="([^"]*)"/);
 	if (bodyStyleMatch) {
 		const cssText = bodyStyleMatch[1]
 			.replace(/&quot;/g, '"')
 			.replace(/&amp;/g, "&")
 			.replace(/&lt;/g, "<")
-			.replace(/&gt;/g, ">")
-		headSuffix += `<style nonce="${escapedNonce}">body{${cssText}}</style>`
+			.replace(/&gt;/g, ">");
+		headSuffix += `<style nonce="${escapedNonce}">body{${cssText}}</style>`;
 	}
 
-	const result = buffer.replace(/<head[^>]*>/, `$&${headPrefix}`)
-	return result.replace("</head>", `${headSuffix}${extraSuffix}</head>`)
+	const result = buffer.replace(/<head[^>]*>/, `$&${headPrefix}`);
+	return result.replace("</head>", `${headSuffix}${extraSuffix}</head>`);
 }
 
 /**
@@ -638,56 +630,51 @@ export function serializeQueryClientCache(qc: unknown, nonce: string): string {
 		| {
 				getQueryCache?: () => {
 					getAll?: () => Array<{
-						options?: { staleTime?: number }
-						queryKey: unknown[]
-						state: { data: unknown }
-					}>
-				}
+						options?: { staleTime?: number };
+						queryKey: unknown[];
+						state: { data: unknown };
+					}>;
+				};
 		  }
-		| undefined
-	const queries = typed?.getQueryCache?.()?.getAll?.()
-	if (!queries || queries.length === 0) return ""
+		| undefined;
+	const queries = typed?.getQueryCache?.()?.getAll?.();
+	if (!queries || queries.length === 0) return "";
 	const entries: QueryState[] = queries.map((q) => {
-		const qs: QueryState = { data: q.state.data, key: q.queryKey }
+		const qs: QueryState = { data: q.state.data, key: q.queryKey };
 		if (q.options?.staleTime !== undefined) {
-			qs.staleTime = q.options.staleTime
+			qs.staleTime = q.options.staleTime;
 		}
-		return qs
-	})
-	const json = JSON.stringify(entries).replace(/</g, "\\u003c")
-	return `<script nonce="${escapeAttr(nonce)}">self.flare.q=${json};</script>`
+		return qs;
+	});
+	const json = JSON.stringify(entries).replace(/</g, "\\u003c");
+	return `<script nonce="${escapeAttr(nonce)}">self.flare.q=${json};</script>`;
 }
 
-function injectBodyContent(
-	buffer: string,
-	config: SSRConfig,
-	flareState: FlareState,
-	qcScript: string,
-): string {
+function injectBodyContent(buffer: string, config: SSRConfig, flareState: FlareState, qcScript: string): string {
 	/* Late-inject critical CSS computed from final rendered body + module manifest. */
 	let result = config.sxCssManifest
 		? injectCriticalAppend(buffer, config.sxRenderedModules ?? [], config.sxCssManifest, config.nonce)
-		: buffer
+		: buffer;
 
-	let scripts = buildScriptTags(config, flareState)
-	if (qcScript) scripts = scripts.replace(/<\/script>/, `</script>${qcScript}`)
-	if (scripts) result = result.replace("</body>", `${scripts}</body>`)
-	return result
+	let scripts = buildScriptTags(config, flareState);
+	if (qcScript) scripts = scripts.replace(/<\/script>/, `</script>${qcScript}`);
+	if (scripts) result = result.replace("</body>", `${scripts}</body>`);
+	return result;
 }
 
 export function renderToStream(config: SSRConfig): SSRResult {
-	clearScopedStyles()
+	clearScopedStyles();
 
 	/* Resolve queryClient from getter if not provided directly */
 	if (!config.queryClient && config.queryClientGetter) {
-		config.queryClient = config.queryClientGetter()
+		config.queryClient = config.queryClientGetter();
 	}
 
-	const flareState = buildFlareState(config)
-	const flareStateScript = buildFlareStateScript(flareState, config.nonce)
-	const treeFactory = buildComponentTree(config, flareStateScript)
+	const flareState = buildFlareState(config);
+	const flareStateScript = buildFlareStateScript(flareState, config.nonce);
+	const treeFactory = buildComponentTree(config, flareStateScript);
 
-	const solidStream = solidRenderToStream(treeFactory, { nonce: config.nonce })
+	const solidStream = solidRenderToStream(treeFactory, { nonce: config.nonce });
 
 	/*
 	 * Capture scoped styles immediately after sync render completes.
@@ -695,30 +682,30 @@ export function renderToStream(config: SSRConfig): SSRResult {
 	 * Reading eagerly prevents a concurrent SSR render from clearing the
 	 * registry before our stream transform runs injectHeadContent.
 	 */
-	const capturedStyles = getScopedStyles()
+	const capturedStyles = getScopedStyles();
 
-	const encoder = new TextEncoder()
-	const decoder = new TextDecoder()
+	const encoder = new TextEncoder();
+	const decoder = new TextDecoder();
 
 	/*
 	 * Solid only injects _$HY when async work exists (Suspense, deferred data).
 	 * For sync-only rendering, _$HY is never set, but client `hydrate()` always
 	 * reads `globalThis._$HY.done`. Inject a minimal _$HY init unconditionally.
 	 */
-	const hyInit = `<script nonce="${escapeAttr(config.nonce)}">window._$HY||(window._$HY={events:[],completed:new WeakSet,r:{},fe(){},done:false})</script>`
+	const hyInit = `<script nonce="${escapeAttr(config.nonce)}">window._$HY||(window._$HY={events:[],completed:new WeakSet,r:{},fe(){},done:false})</script>`;
 
-	let streamBuffer = ""
-	let streamDoctypeInjected = false
-	let streamHeadInjected = false
-	let streamBodyInjected = false
-	let hyInjected = false
+	let streamBuffer = "";
+	let streamDoctypeInjected = false;
+	let streamHeadInjected = false;
+	let streamBodyInjected = false;
+	let hyInjected = false;
 
 	/* Solid's pipeTo writes Uint8Array chunks despite the typing */
-	const { readable, writable } = new TransformStream()
+	const { readable, writable } = new TransformStream();
 	/* Prevent unhandled rejection — Solid's pipeTo returns Promise at runtime despite void typing */
-	void Promise.resolve(solidStream.pipeTo(writable)).catch(() => {})
+	void Promise.resolve(solidStream.pipeTo(writable)).catch(() => {});
 
-	const reader = readable.getReader()
+	const reader = readable.getReader();
 
 	const body = new ReadableStream<Uint8Array>({
 		async start(controller) {
@@ -729,159 +716,164 @@ export function renderToStream(config: SSRConfig): SSRResult {
 				 * module's load hook each time — no caching — so HMR additions are reflected.
 				 * Guarded by import.meta.env.DEV so prod builds tree-shake this entirely.
 				 */
-				let resolvedDevSxCss = ""
-				let resolvedDevSxClasses: string[] = []
+				let resolvedDevSxCss = "";
+				let resolvedDevSxClasses: string[] = [];
 				if (import.meta.env.DEV) {
 					try {
-						const mod = await import("virtual:flare-sx-dev-css")
-						resolvedDevSxCss = mod.getDevSxCss()
-						resolvedDevSxClasses = mod.getDevSxClasses()
+						const mod = await import("virtual:flare-sx-dev-css");
+						resolvedDevSxCss = mod.getDevSxCss();
+						resolvedDevSxClasses = mod.getDevSxClasses();
 					} catch {
 						/* virtual module absent (sx plugin not enabled) — silently skip */
 					}
 				}
 
 				while (true) {
-					const { done, value } = await reader.read()
-					if (done) break
-					const chunk =
-						value instanceof Uint8Array ? decoder.decode(value, { stream: true }) : String(value)
-					streamBuffer += chunk
+					const { done, value } = await reader.read();
+					if (done) break;
+					const chunk = value instanceof Uint8Array ? decoder.decode(value, { stream: true }) : String(value);
+					streamBuffer += chunk;
 
 					if (streamBuffer.length > MAX_STREAM_BUFFER_SIZE) {
-						controller.enqueue(
-							encoder.encode("<!-- flare: stream buffer limit exceeded, aborting render -->"),
-						)
-						controller.close()
-						return
+						controller.enqueue(encoder.encode("<!-- flare: stream buffer limit exceeded, aborting render -->"));
+						controller.close();
+						return;
 					}
 
 					if (!streamDoctypeInjected && streamBuffer.includes("<html")) {
-						streamDoctypeInjected = true
-						streamBuffer = streamBuffer.replace("<html", "<!DOCTYPE html><html")
+						streamDoctypeInjected = true;
+						streamBuffer = streamBuffer.replace("<html", "<!DOCTYPE html><html");
 					}
 
 					if (!streamHeadInjected && streamBuffer.includes("</head>")) {
-						streamHeadInjected = true
+						streamHeadInjected = true;
 						/*
 						 * Inject _$HY init at end of <head> so it runs before body content.
 						 * Must NOT be after <body> tag — full-document hydration walks body.firstChild,
 						 * and an injected script there would break the DOM traversal.
 						 * Passed as extraSuffix to avoid scanning buffer for </head> twice.
 						 */
-						const hySuffix = hyInjected ? "" : hyInit
-						hyInjected = true
-						streamBuffer = injectHeadContent(streamBuffer, config, capturedStyles, hySuffix, resolvedDevSxCss, resolvedDevSxClasses)
+						const hySuffix = hyInjected ? "" : hyInit;
+						hyInjected = true;
+						streamBuffer = injectHeadContent(
+							streamBuffer,
+							config,
+							capturedStyles,
+							hySuffix,
+							resolvedDevSxCss,
+							resolvedDevSxClasses,
+						);
 					}
 
 					if (!streamBodyInjected && streamBuffer.includes("</body>")) {
-						streamBodyInjected = true
+						streamBodyInjected = true;
 						/* QC serialization deferred to here — queries populate during stream render */
-						const qcScript = config.queryClient
-							? serializeQueryClientCache(config.queryClient, config.nonce)
-							: ""
-						streamBuffer = injectBodyContent(streamBuffer, config, flareState, qcScript)
+						const qcScript = config.queryClient ? serializeQueryClientCache(config.queryClient, config.nonce) : "";
+						streamBuffer = injectBodyContent(streamBuffer, config, flareState, qcScript);
 					}
 
 					if (streamHeadInjected && streamBodyInjected) {
-						controller.enqueue(encoder.encode(streamBuffer))
-						streamBuffer = ""
+						controller.enqueue(encoder.encode(streamBuffer));
+						streamBuffer = "";
 					} else {
-						const safeLen = streamBuffer.length - 20
+						const safeLen = streamBuffer.length - 20;
 						if (safeLen > 0) {
-							controller.enqueue(encoder.encode(streamBuffer.slice(0, safeLen)))
-							streamBuffer = streamBuffer.slice(safeLen)
+							controller.enqueue(encoder.encode(streamBuffer.slice(0, safeLen)));
+							streamBuffer = streamBuffer.slice(safeLen);
 						}
 					}
 				}
 
 				/* Flush remaining — use same helpers as loop to avoid duplication */
 				if (!streamHeadInjected) {
-					streamBuffer = injectHeadContent(streamBuffer, config, capturedStyles, "", resolvedDevSxCss, resolvedDevSxClasses)
+					streamBuffer = injectHeadContent(
+						streamBuffer,
+						config,
+						capturedStyles,
+						"",
+						resolvedDevSxCss,
+						resolvedDevSxClasses,
+					);
 				}
 				if (!streamBodyInjected) {
-					const qcFlush = config.queryClient
-						? serializeQueryClientCache(config.queryClient, config.nonce)
-						: ""
-					streamBuffer = injectBodyContent(streamBuffer, config, flareState, qcFlush)
+					const qcFlush = config.queryClient ? serializeQueryClientCache(config.queryClient, config.nonce) : "";
+					streamBuffer = injectBodyContent(streamBuffer, config, flareState, qcFlush);
 				}
 				if (streamBuffer.length > 0) {
-					controller.enqueue(encoder.encode(streamBuffer))
+					controller.enqueue(encoder.encode(streamBuffer));
 				}
 
 				/* Stream deferred resolution scripts after HTML */
 				if (config.deferContexts && config.deferContexts.size > 0) {
 					/* Install QC tracking so deferred callbacks' setQueryData calls are captured */
-					let trackedQC:
-						| { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> }
-						| undefined
+					let trackedQC: { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> } | undefined;
 					if (config.queryClient) {
-						const { createTrackedQueryClient } = await import("../query-client")
-						const typed = config.queryClient as Parameters<typeof createTrackedQueryClient>[0]
-						trackedQC = createTrackedQueryClient(typed)
+						const { createTrackedQueryClient } = await import("../query-client");
+						const typed = config.queryClient as Parameters<typeof createTrackedQueryClient>[0];
+						trackedQC = createTrackedQueryClient(typed);
 					}
 
-					const entries: DeferredEntry[] = []
+					const entries: DeferredEntry[] = [];
 					for (const ctx of config.deferContexts.values()) {
 						for (const e of ctx.entries()) {
-							entries.push(e)
+							entries.push(e);
 						}
 					}
-					const escapedNonce = escapeAttr(config.nonce)
-					const esc = (s: string) => JSON.stringify(s).replace(/</g, "\\u003c")
+					const escapedNonce = escapeAttr(config.nonce);
+					const esc = (s: string) => JSON.stringify(s).replace(/</g, "\\u003c");
 					await Promise.allSettled(
 						entries.map(async (entry) => {
-							const resolverKey = esc(`${entry.matchId}:${entry.key}`)
+							const resolverKey = esc(`${entry.matchId}:${entry.key}`);
 							try {
-								const data = await entry.promise
-								const json = JSON.stringify(data).replace(/</g, "\\u003c")
+								const data = await entry.promise;
+								const json = JSON.stringify(data).replace(/</g, "\\u003c");
 								controller.enqueue(
 									encoder.encode(
 										`<script nonce="${escapedNonce}">(self.__flare_q=self.__flare_q||[]).push([${resolverKey},${json}])</script>`,
 									),
-								)
+								);
 							} catch (err) {
-								const msg = err instanceof Error ? err.message : String(err)
-								const safeMsg = esc(msg)
+								const msg = err instanceof Error ? err.message : String(err);
+								const safeMsg = esc(msg);
 								controller.enqueue(
 									encoder.encode(
 										`<script nonce="${escapedNonce}">(self.__flare_q=self.__flare_q||[]).push([${resolverKey},${safeMsg},true])</script>`,
 									),
-								)
+								);
 							}
 
 							/* Stream QC delta entries accumulated during this deferred resolve */
 							if (trackedQC) {
-								const qcEntries = trackedQC.drain()
+								const qcEntries = trackedQC.drain();
 								for (const qcEntry of qcEntries) {
-									const qcJson = JSON.stringify(qcEntry).replace(/</g, "\\u003c")
+									const qcJson = JSON.stringify(qcEntry).replace(/</g, "\\u003c");
 									controller.enqueue(
 										encoder.encode(
 											`<script nonce="${escapedNonce}">(self.__flare_qc=self.__flare_qc||[]).push([${qcJson}])</script>`,
 										),
-									)
+									);
 								}
 							}
 						}),
-					)
+					);
 				}
 
-				controller.close()
+				controller.close();
 			} catch (e) {
-				controller.error(e)
+				controller.error(e);
 			} finally {
-				reader.releaseLock()
+				reader.releaseLock();
 			}
 		},
-	})
+	});
 
-	const status = deriveStatus(config.matches)
+	const status = deriveStatus(config.matches);
 
-	const lastMatch = config.matches[config.matches.length - 1]
-	const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" })
+	const lastMatch = config.matches[config.matches.length - 1];
+	const headers = new Headers({ "Content-Type": "text/html; charset=utf-8" });
 	if (lastMatch?.responseHeaders) {
-		applyResponseHeaders(headers, lastMatch.responseHeaders)
+		applyResponseHeaders(headers, lastMatch.responseHeaders);
 	}
 
-	return { body, headers, status }
+	return { body, headers, status };
 }

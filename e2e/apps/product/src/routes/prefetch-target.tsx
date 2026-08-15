@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/prefetch-target")
 	.cache({ client: { prefetch: "intent", staleTime: 60_000 } })
@@ -8,4 +8,4 @@ export const route = createPage("_root_/prefetch-target")
 			<p data-testid="prefetch-loaded">{String(props.loaderData.loaded)}</p>
 			<p data-testid="prefetch-ts">{props.loaderData.timestamp}</p>
 		</main>
-	))
+	));

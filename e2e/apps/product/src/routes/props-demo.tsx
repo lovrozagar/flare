@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 /**
  * Exercises every builder prop: preloader → loader → head → render.
@@ -42,14 +42,10 @@ export const route = createPage("_root_/props-demo")
 			<div data-testid="loader-timestamp">{props.loaderData.loaderTimestamp}</div>
 
 			{/* Verify preloaderContext prop */}
-			<div data-testid="preloader-context-present">
-				{String(typeof props.preloaderContext === "object")}
-			</div>
+			<div data-testid="preloader-context-present">{String(typeof props.preloaderContext === "object")}</div>
 			<div data-testid="preloader-timestamp">{props.preloaderContext.preloaderTimestamp}</div>
 			<div data-testid="preloader-pathname">{props.preloaderContext.locationPathname}</div>
-			<div data-testid="preloader-has-abort">
-				{String(props.preloaderContext.hasAbortController)}
-			</div>
+			<div data-testid="preloader-has-abort">{String(props.preloaderContext.hasAbortController)}</div>
 			<div data-testid="preloader-has-request">{String(props.preloaderContext.hasRequest)}</div>
 			<div data-testid="preloader-env-type">{props.preloaderContext.envType}</div>
 			<div data-testid="preloader-auth-present">{String(props.preloaderContext.authPresent)}</div>
@@ -70,4 +66,4 @@ export const route = createPage("_root_/props-demo")
 				{String(props.preloaderContext.preloaderTimestamp === props.loaderData.preloaderTimestamp)}
 			</div>
 		</main>
-	))
+	));

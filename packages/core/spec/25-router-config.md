@@ -11,54 +11,54 @@ Isomorphic router configuration. Created in `router.ts`, consumed by both server
 ```ts
 interface RouterConfig {
 	/* Route tree (required — from generated routes.gen.ts) */
-	layouts: Record<string, () => Promise<{ default: unknown }>>
-	routeTree: TreeNode
+	layouts: Record<string, () => Promise<{ default: unknown }>>;
+	routeTree: TreeNode;
 
 	/* URL behavior */
-	basePath?: string /* default: "" */
-	caseSensitive?: boolean /* default: false */
-	trailingSlash?: TrailingSlashMode /* default: "never" */
+	basePath?: string; /* default: "" */
+	caseSensitive?: boolean; /* default: false */
+	trailingSlash?: TrailingSlashMode; /* default: "never" */
 
 	/* Cache timing defaults (milliseconds) */
-	gcTime?: number /* default: 300_000 (5 min) */
-	prefetchGcTime?: number /* default: 300_000 (5 min) */
-	prefetchStaleTime?: number /* default: 30_000 (30s) */
-	staleTime?: number /* default: 0 (always refetch) */
+	gcTime?: number; /* default: 300_000 (5 min) */
+	prefetchGcTime?: number; /* default: 300_000 (5 min) */
+	prefetchStaleTime?: number; /* default: 30_000 (30s) */
+	staleTime?: number; /* default: 0 (always refetch) */
 
 	/* Prefetch */
-	prefetch?: PrefetchStrategy /* default: false */
+	prefetch?: PrefetchStrategy; /* default: false */
 
 	/* View transitions */
-	viewTransitions?: ViewTransitionDefaults /* default: false */
+	viewTransitions?: ViewTransitionDefaults; /* default: false */
 
 	/* Scroll restoration */
-	scrollRestoration?: boolean /* default: true */
-	scrollRestorationBehavior?: "auto" | "smooth" /* default: "auto" */
-	scrollRestorationMaxEntries?: number /* default: 2000 */
-	getScrollRestorationKey?: (location: Location) => string
+	scrollRestoration?: boolean; /* default: true */
+	scrollRestorationBehavior?: "auto" | "smooth"; /* default: "auto" */
+	scrollRestorationMaxEntries?: number; /* default: 2000 */
+	getScrollRestorationKey?: (location: Location) => string;
 
 	/* Cache limits */
-	routeCacheMaxEntries?: number /* default: 200 */
+	routeCacheMaxEntries?: number; /* default: 200 */
 
 	/* Not found boundary resolution */
-	notFoundBoundary?: "nearest" | "root" /* default: "nearest" */
+	notFoundBoundary?: "nearest" | "root"; /* default: "nearest" */
 
 	/* TanStack Query integration (optional, tree-shaken if not provided) */
-	queryClientGetter?: () => QueryClient
+	queryClientGetter?: () => QueryClient;
 }
 
-type TrailingSlashMode = "never" | "always" | "preserve"
-type PrefetchStrategy = false | "intent" | "render" | "viewport"
+type TrailingSlashMode = "never" | "always" | "preserve";
+type PrefetchStrategy = false | "intent" | "render" | "viewport";
 
 /** Serializable subset — no functions (functions can't survive FlareState JSON) */
-type ViewTransitionDefaults = boolean | { types: string[] }
+type ViewTransitionDefaults = boolean | { types: string[] };
 ```
 
 ### MarkedRouterConfig
 
 ```ts
 interface MarkedRouterConfig extends RouterConfig {
-	[Symbol.for("flare/router-config")]: true
+	[Symbol.for("flare/router-config")]: true;
 }
 ```
 
@@ -68,20 +68,20 @@ Subset of `RouterConfig` that survives JSON serialization (no functions). Embedd
 
 ```ts
 interface SerializableRouterConfig {
-	basePath?: string
-	caseSensitive?: boolean
-	gcTime?: number
-	notFoundBoundary?: "nearest" | "root"
-	prefetch?: PrefetchStrategy
-	prefetchGcTime?: number
-	prefetchStaleTime?: number
-	routeCacheMaxEntries?: number
-	scrollRestoration?: boolean
-	scrollRestorationBehavior?: "auto" | "smooth"
-	scrollRestorationMaxEntries?: number
-	staleTime?: number
-	trailingSlash?: TrailingSlashMode
-	viewTransitions?: ViewTransitionDefaults
+	basePath?: string;
+	caseSensitive?: boolean;
+	gcTime?: number;
+	notFoundBoundary?: "nearest" | "root";
+	prefetch?: PrefetchStrategy;
+	prefetchGcTime?: number;
+	prefetchStaleTime?: number;
+	routeCacheMaxEntries?: number;
+	scrollRestoration?: boolean;
+	scrollRestorationBehavior?: "auto" | "smooth";
+	scrollRestorationMaxEntries?: number;
+	staleTime?: number;
+	trailingSlash?: TrailingSlashMode;
+	viewTransitions?: ViewTransitionDefaults;
 }
 ```
 
@@ -93,30 +93,30 @@ Serialized into `self.flare` for client hydration. Single-char keys for bundle s
 
 ```ts
 interface FlareState {
-	c: ContextState /* client context */
-	dk?: string[] /* dynamic registry keys (spec 18) */
-	e?: DevError[] /* dev-only SSR errors for client overlay */
-	m: FlareMatchState[] /* matched route data */
-	p: string /* pathname */
-	ph?: PerRouteHead[] /* per-route head configs for client init */
-	q?: QueryState[] /* query client hydration data */
-	r: Record<string, string | string[]> /* params */
-	s: Record<string, string> /* search */
+	c: ContextState; /* client context */
+	dk?: string[]; /* dynamic registry keys (spec 18) */
+	e?: DevError[]; /* dev-only SSR errors for client overlay */
+	m: FlareMatchState[]; /* matched route data */
+	p: string; /* pathname */
+	ph?: PerRouteHead[]; /* per-route head configs for client init */
+	q?: QueryState[]; /* query client hydration data */
+	r: Record<string, string | string[]>; /* params */
+	s: Record<string, string>; /* search */
 }
 
 interface FlareMatchState {
-	d: unknown /* loaderData (deferred markers preserved) */
-	h?: HeadConfig /* per-route head config */
-	i: string /* matchId */
-	p?: Record<string, unknown> /* preloaderContext */
-	v: string /* virtualPath */
+	d: unknown; /* loaderData (deferred markers preserved) */
+	h?: HeadConfig; /* per-route head config */
+	i: string; /* matchId */
+	p?: Record<string, unknown>; /* preloaderContext */
+	v: string; /* virtualPath */
 }
 
 interface ContextState {
-	dir?: string /* document direction ("ltr" | "rtl") */
-	locale?: string /* active locale */
-	router?: SerializableRouterConfig /* serialized router config */
-	theme?: string /* active theme ("light" | "dark") */
+	dir?: string; /* document direction ("ltr" | "rtl") */
+	locale?: string; /* active locale */
+	router?: SerializableRouterConfig; /* serialized router config */
+	theme?: string; /* active theme ("light" | "dark") */
 }
 ```
 
@@ -126,21 +126,21 @@ Defined in spec 08 (SSR). Repeated here for FlareState completeness:
 
 ```ts
 interface DevError {
-	message: string
-	name: string
-	source: string
-	stack?: string
+	message: string;
+	name: string;
+	source: string;
+	stack?: string;
 }
 
 interface PerRouteHead {
-	head: HeadConfig
-	matchId: string
+	head: HeadConfig;
+	matchId: string;
 }
 
 interface QueryState {
-	data: unknown
-	key: unknown[]
-	staleTime?: number
+	data: unknown;
+	key: unknown[];
+	staleTime?: number;
 }
 ```
 
@@ -169,10 +169,10 @@ getRouterConfig(state: FlareState): SerializableRouterConfig
 Factory for isomorphic router config. Marks the config object with a symbol for runtime identification.
 
 ```ts
-const MARKER = Symbol.for("flare/router-config")
+const MARKER = Symbol.for("flare/router-config");
 
 function createRouter(config: RouterConfig): MarkedRouterConfig {
-	return { ...config, [MARKER]: true }
+	return { ...config, [MARKER]: true };
 }
 ```
 
@@ -180,9 +180,9 @@ Used in `router.ts`:
 
 ```ts
 /* src/router.ts — isomorphic, imported by server.ts and client.ts */
-import { createRouter } from "flare"
-import { layouts, routeTree } from "./_gen/routes.gen"
-import { getQueryClient } from "./query-client"
+import { createRouter } from "@lovrozagar/flare";
+import { layouts, routeTree } from "./_gen/routes.gen";
+import { getQueryClient } from "./query-client";
 
 export const router = createRouter({
 	layouts,
@@ -191,27 +191,27 @@ export const router = createRouter({
 	queryClientGetter: getQueryClient,
 	staleTime: 30_000,
 	viewTransitions: true,
-})
+});
 ```
 
 Minimal:
 
 ```ts
-import { layouts, routeTree } from "./_gen/routes.gen"
+import { layouts, routeTree } from "./_gen/routes.gen";
 
-export const router = createRouter({ layouts, routeTree })
+export const router = createRouter({ layouts, routeTree });
 ```
 
 Server and client entries:
 
 ```ts
 /* src/server.ts */
-import { router } from "./router"
-export default createServerHandler({ router, authenticateFn })
+import { router } from "./router";
+export default createServerHandler({ router, authenticateFn });
 
 /* src/client.ts */
-import { router } from "./router"
-hydrate(router)
+import { router } from "./router";
+hydrate(router);
 ```
 
 ### `isRouterConfig`
@@ -220,7 +220,7 @@ Runtime check for marker symbol:
 
 ```ts
 function isRouterConfig(value: unknown): value is MarkedRouterConfig {
-	return value !== null && typeof value === "object" && MARKER in value && value[MARKER] === true
+	return value !== null && typeof value === "object" && MARKER in value && value[MARKER] === true;
 }
 ```
 
@@ -230,15 +230,8 @@ function isRouterConfig(value: unknown): value is MarkedRouterConfig {
 
 ```ts
 function extractSerializable(router: MarkedRouterConfig): SerializableRouterConfig {
-	const {
-		getScrollRestorationKey,
-		layouts,
-		queryClientGetter,
-		routeTree,
-		[MARKER]: _,
-		...clean
-	} = router
-	return clean
+	const { getScrollRestorationKey, layouts, queryClientGetter, routeTree, [MARKER]: _, ...clean } = router;
+	return clean;
 }
 
 const flareState: FlareState = {
@@ -262,7 +255,7 @@ const flareState: FlareState = {
 	q: queryStates.length > 0 ? queryStates : undefined,
 	r: matchResult.params,
 	s: Object.fromEntries(url.searchParams),
-}
+};
 ```
 
 ### Client Consumption
@@ -305,9 +298,9 @@ Validates required fields: `c` (object), `m` (array), `p` (string), `r` (object)
 Route `.options()` overrides router config per field:
 
 ```ts
-const effectiveStaleTime = route.options?.staleTime ?? router.staleTime ?? 0
-const effectiveGcTime = route.options?.gcTime ?? router.gcTime ?? 300_000
-const effectivePrefetch = route.options?.prefetch ?? router.prefetch ?? false
+const effectiveStaleTime = route.options?.staleTime ?? router.staleTime ?? 0;
+const effectiveGcTime = route.options?.gcTime ?? router.gcTime ?? 300_000;
+const effectivePrefetch = route.options?.prefetch ?? router.prefetch ?? false;
 ```
 
 Non-overridden fields inherit from router config.

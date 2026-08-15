@@ -1,19 +1,18 @@
-import { createTranslator } from "flare/i18n"
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
-import { translations } from "../translations"
+import { createTranslator } from "@lovrozagar/flare/i18n";
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
+import { translations } from "../translations";
 
 export const route = createPage("_root_/i18n-demo/[[locale]]/")
 	.loader(async (ctx) => {
-		const fromParam = ctx.location.params.locale
-		const locale =
-			(typeof fromParam === "string" && fromParam) || ctx.locale() || "en"
-		const t = await translations.load(locale, ["common"])
-		return { locale, t }
+		const fromParam = ctx.location.params.locale;
+		const locale = (typeof fromParam === "string" && fromParam) || ctx.locale() || "en";
+		const t = await translations.load(locale, ["common"]);
+		return { locale, t };
 	})
 	.head((ctx) => ({ title: `i18n: ${ctx.loaderData.locale}` }))
 	.render((props) => {
-		const t = createTranslator(props.loaderData.t, props.loaderData.locale)
+		const t = createTranslator(props.loaderData.t, props.loaderData.locale);
 		return (
 			<main data-testid="i18n-page">
 				<h1 data-testid="welcome-title">{t("common.welcome")}</h1>
@@ -32,5 +31,5 @@ export const route = createPage("_root_/i18n-demo/[[locale]]/")
 					</Link>
 				</nav>
 			</main>
-		)
-	})
+		);
+	});

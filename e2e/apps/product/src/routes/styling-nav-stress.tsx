@@ -1,11 +1,11 @@
-import { createPage } from "flare/page"
-import { styles } from "flare/styles"
+import { createPage } from "@lovrozagar/flare/page";
+import { styles } from "@lovrozagar/flare/styles";
 
 export const route = createPage("_root_/styling-nav-stress").render(() => {
-	const s1 = styles("stress-header", { css: "color: rgb(255, 0, 0); padding: 16px;" })
-	const s2 = styles("stress-body", { css: "color: rgb(0, 128, 0); padding: 12px;" })
-	const s3 = styles("stress-footer", { css: "color: rgb(0, 0, 255); padding: 8px;" })
-	const s4 = styles("stress-sidebar", { css: "color: rgb(255, 165, 0); padding: 10px;" })
+	const s1 = styles("stress-header", { css: "color: rgb(255, 0, 0); padding: 16px;" });
+	const s2 = styles("stress-body", { css: "color: rgb(0, 128, 0); padding: 12px;" });
+	const s3 = styles("stress-footer", { css: "color: rgb(0, 0, 255); padding: 8px;" });
+	const s4 = styles("stress-sidebar", { css: "color: rgb(255, 165, 0); padding: 10px;" });
 	const s5 = styles("stress-badge", {
 		css: (sel) => `
 			padding: 4px 8px;
@@ -13,7 +13,7 @@ export const route = createPage("_root_/styling-nav-stress").render(() => {
 			${sel.active("true")} { color: rgb(0, 200, 0); }
 		`,
 		state: { active: "true" },
-	})
+	});
 
 	return (
 		<main data-testid="styling-nav-stress">
@@ -33,5 +33,5 @@ export const route = createPage("_root_/styling-nav-stress").render(() => {
 				Badge
 			</div>
 		</main>
-	)
-})
+	);
+});

@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const fredoka: Font<"hebrew" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
@@ -61,4 +61,4 @@ export const fredoka: Font<"hebrew" | "latin" | "latin-ext"> = createRegistryFon
 	],
 	subsets: ["hebrew", "latin", "latin-ext"],
 	weights: [400, 700],
-})
+});

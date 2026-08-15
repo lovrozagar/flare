@@ -7,15 +7,15 @@ No-flash theme switching with localStorage persistence, system preference detect
 ## Types
 
 ```ts
-type Theme = "light" | "dark" | "system"
-type ResolvedTheme = "light" | "dark"
+type Theme = "light" | "dark" | "system";
+type ResolvedTheme = "light" | "dark";
 
 interface ThemeConfig {
-	attribute?: string /* default: "data-theme" */
-	defaultTheme?: Theme /* default: "system" */
-	disableTransitionOnChange?: boolean /* default: true */
-	storageKey?: string /* default: "flare.theme" */
-	themes?: readonly Theme[] /* default: ["light", "dark", "system"] */
+	attribute?: string; /* default: "data-theme" */
+	defaultTheme?: Theme; /* default: "system" */
+	disableTransitionOnChange?: boolean; /* default: true */
+	storageKey?: string; /* default: "flare.theme" */
+	themes?: readonly Theme[]; /* default: ["light", "dark", "system"] */
 }
 ```
 
@@ -49,10 +49,10 @@ Script logic:
 
 ```ts
 function getThemeScript(opts?: ThemeConfig): string {
-	const attr = opts?.attribute ?? "data-theme"
-	const defaultTheme = opts?.defaultTheme ?? "system"
-	const storageKey = opts?.storageKey ?? "flare.theme"
-	return `((k,d,a)=>{const e=document.documentElement;let t;try{t=localStorage.getItem(k)||d}catch{t=d}if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";e.setAttribute(a,t);e.style.colorScheme=t})("${storageKey}","${defaultTheme}","${attr}")`
+	const attr = opts?.attribute ?? "data-theme";
+	const defaultTheme = opts?.defaultTheme ?? "system";
+	const storageKey = opts?.storageKey ?? "flare.theme";
+	return `((k,d,a)=>{const e=document.documentElement;let t;try{t=localStorage.getItem(k)||d}catch{t=d}if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";e.setAttribute(a,t);e.style.colorScheme=t})("${storageKey}","${defaultTheme}","${attr}")`;
 }
 ```
 
@@ -69,18 +69,18 @@ Rendered in root layout's `<head>` inside `<NoHydration>`:
 ```ts
 function initTheme(opts?: ThemeConfig): void {
 	/* Detect system preference */
-	const mq = matchMedia("(prefers-color-scheme: dark)")
-	systemTheme = mq.matches ? "dark" : "light"
+	const mq = matchMedia("(prefers-color-scheme: dark)");
+	systemTheme = mq.matches ? "dark" : "light";
 
 	/* Listen for changes */
 	mq.addEventListener("change", (e) => {
-		systemTheme = e.matches ? "dark" : "light"
+		systemTheme = e.matches ? "dark" : "light";
 		/* If using "system" theme, re-apply */
-		const stored = localStorage.getItem(storageKey)
+		const stored = localStorage.getItem(storageKey);
 		if (stored === "system" || !stored) {
-			applyTheme(systemTheme, false)
+			applyTheme(systemTheme, false);
 		}
-	})
+	});
 }
 ```
 
@@ -101,7 +101,7 @@ Transition disable prevents jarring mid-animation color changes. Style injected,
 Module-level signal for component reactivity:
 
 ```ts
-const [themeSignal, setThemeSignal] = createSignal<ResolvedTheme>("light")
+const [themeSignal, setThemeSignal] = createSignal<ResolvedTheme>("light");
 ```
 
 Updated by `setTheme()`. Components read via `getResolvedTheme()`.

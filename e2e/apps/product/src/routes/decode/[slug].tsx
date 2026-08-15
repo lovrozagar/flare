@@ -1,14 +1,14 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/decode/[slug]")
 	.loader((ctx) => {
-		const slug = ctx.location.params.slug
+		const slug = ctx.location.params.slug;
 		return {
 			decoded: slug,
 			length: slug.length,
 			rawPath: new URL(ctx.request.url).pathname,
-		}
+		};
 	})
 	.render((props) => (
 		<main data-testid="decode">
@@ -20,4 +20,4 @@ export const route = createPage("_root_/decode/[slug]")
 				<Link to="/">Home</Link>
 			</nav>
 		</main>
-	))
+	));

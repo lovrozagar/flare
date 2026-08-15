@@ -1,5 +1,5 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/seo")
 	.loader((ctx) => ({
@@ -32,4 +32,4 @@ export const route = createPage("_root_/seo")
 				<Link to="/">Home</Link>
 			</nav>
 		</main>
-	))
+	));

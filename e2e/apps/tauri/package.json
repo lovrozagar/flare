@@ -9,8 +9,8 @@
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@lovrozagar/flare": "workspace:*",
 		"@tauri-apps/api": "2.11.1",
-		"flare": "workspace:*",
 		"nitro": "catalog:",
 		"solid-js": "catalog:",
 		"vite": "catalog:",

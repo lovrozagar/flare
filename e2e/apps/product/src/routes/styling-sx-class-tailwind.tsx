@@ -1,8 +1,8 @@
-import { createPage } from "flare/page"
-import { createSignal } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal } from "solid-js";
 
 export const route = createPage("_root_/styling-sx-class-tailwind").render(() => {
-	const [on, setOn] = createSignal(false)
+	const [on, setOn] = createSignal(false);
 
 	return (
 		<main data-testid="styling-sx-class-tailwind">
@@ -14,13 +14,9 @@ export const route = createPage("_root_/styling-sx-class-tailwind").render(() =>
 				Conditional class
 			</div>
 
-			<button
-				data-testid="tw-toggle"
-				type="button"
-				onClick={() => setOn((v) => !v)}
-			>
+			<button data-testid="tw-toggle" type="button" onClick={() => setOn((v) => !v)}>
 				Toggle
 			</button>
 		</main>
-	)
-})
+	);
+});

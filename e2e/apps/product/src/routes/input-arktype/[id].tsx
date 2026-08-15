@@ -1,23 +1,23 @@
-import { createPage } from "flare/page"
-import { type } from "arktype"
+import { createPage } from "@lovrozagar/flare/page";
+import { type } from "arktype";
 
-const ParamsType = type({ id: "string.numeric" })
+const ParamsType = type({ id: "string.numeric" });
 
 export const route = createPage("_root_/input-arktype/[id]")
 	.input({
 		params: {
 			parse: (raw) => {
-				const result = ParamsType(raw)
-				if (result instanceof type.errors) throw new Error(result.summary)
-				return result
+				const result = ParamsType(raw);
+				if (result instanceof type.errors) throw new Error(result.summary);
+				return result;
 			},
 		},
 		searchParams: (raw) => {
-			const obj = Object.fromEntries(raw)
+			const obj = Object.fromEntries(raw);
 			return {
 				limit: obj.limit ?? "10",
 				tab: obj.tab ?? "overview",
-			}
+			};
 		},
 	})
 	.loader((ctx) => ({
@@ -37,4 +37,4 @@ export const route = createPage("_root_/input-arktype/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

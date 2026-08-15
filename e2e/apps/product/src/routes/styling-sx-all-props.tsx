@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 /* Every sx prop category: flat, pseudo, @media, @supports, @container, variants, nested :where */
 export const route = createPage("_root_/styling-sx-all-props").render(() => {
@@ -71,12 +71,9 @@ export const route = createPage("_root_/styling-sx-all-props").render(() => {
 			</div>
 
 			{/* CSS custom vars via sx dynamic — the var flows through style= */}
-			<div
-				data-testid="sx-vars"
-				sx={{ borderLeft: "4px solid rgb(200, 100, 0)", paddingLeft: "8px" }}
-			>
+			<div data-testid="sx-vars" sx={{ borderLeft: "4px solid rgb(200, 100, 0)", paddingLeft: "8px" }}>
 				vars / border
 			</div>
 		</main>
-	)
-})
+	);
+});

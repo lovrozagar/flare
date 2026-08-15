@@ -297,8 +297,8 @@ $ flare add font
 │
 ◇ Done!
 │
-│  import { inter } from "flare/fonts/inter"
-│  import { FontCSS } from "flare/fonts"
+│  import { inter } from "@lovrozagar/flare/fonts/inter"
+│  import { FontCSS } from "@lovrozagar/flare/fonts"
 │
 │  <FontCSS font={inter} subsets={["latin"]} />
 │
@@ -556,19 +556,19 @@ One export per font. ~50KB total compressed for 200+ fonts metadata. Zero WOFF2 
 ### Font object API
 
 ```typescript
-import { inter } from "flare/fonts/inter"
+import { inter } from "@lovrozagar/flare/fonts/inter";
 
-inter.family // "Inter"
-inter.category // "sans-serif"
-inter.fontFamily // '"Inter", "Inter Fallback", sans-serif' — ready-to-use CSS value
-inter.weights // "100 900" (variable) or [400, 700] (static)
-inter.subsets // ["latin", "latin-ext", "cyrillic", "greek", "vietnamese"]
+inter.family; // "Inter"
+inter.category; // "sans-serif"
+inter.fontFamily; // '"Inter", "Inter Fallback", sans-serif' — ready-to-use CSS value
+inter.weights; // "100 900" (variable) or [400, 700] (static)
+inter.subsets; // ["latin", "latin-ext", "cyrillic", "greek", "vietnamese"]
 
-inter.css() // full @font-face CSS string — all subsets, unicode-range scoped
-inter.css(["latin"]) // @font-face CSS for latin only — optimized payload
+inter.css(); // full @font-face CSS string — all subsets, unicode-range scoped
+inter.css(["latin"]); // @font-face CSS for latin only — optimized payload
 
-inter.preloadLinks() // [{ rel: "preload", href: "/fonts/inter/latin.woff2", ... }]
-inter.preloadLinks("cyrillic") // preload cyrillic instead of default latin
+inter.preloadLinks(); // [{ rel: "preload", href: "/fonts/inter/latin.woff2", ... }]
+inter.preloadLinks("cyrillic"); // preload cyrillic instead of default latin
 ```
 
 ### Per-font type-safe subsets
@@ -577,29 +577,27 @@ Each generated font export is generic over its available subsets. `css()` and `p
 
 ```typescript
 interface Font<S extends string = string> {
-	category: string
-	css(subsets?: S[]): string
-	family: string
-	fontFamily: string
-	preloadLinks(subset?: S): Array<Record<string, string>>
-	subsets: S[]
-	weights: string | number[]
+	category: string;
+	css(subsets?: S[]): string;
+	family: string;
+	fontFamily: string;
+	preloadLinks(subset?: S): Array<Record<string, string>>;
+	subsets: S[];
+	weights: string | number[];
 }
 
 /* Generated — each font narrows S to its actual subsets */
-export const inter: Font<
-	"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext" | "latin" | "latin-ext" | "vietnamese"
->
-export const crimsonText: Font<"latin" | "latin-ext" | "vietnamese">
+export const inter: Font<"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext" | "latin" | "latin-ext" | "vietnamese">;
+export const crimsonText: Font<"latin" | "latin-ext" | "vietnamese">;
 ```
 
 ```typescript
-inter.css(["latin"]) // ✅ autocomplete
-inter.css(["japanese"]) // ❌ type error — Inter has no japanese subset
-crimsonText.css(["cyrillic"]) // ❌ type error — Crimson Text has no cyrillic
+inter.css(["latin"]); // ✅ autocomplete
+inter.css(["japanese"]); // ❌ type error — Inter has no japanese subset
+crimsonText.css(["cyrillic"]); // ❌ type error — Crimson Text has no cyrillic
 
-inter.preloadLinks("greek") // ✅
-inter.preloadLinks("arabic") // ❌ type error
+inter.preloadLinks("greek"); // ✅
+inter.preloadLinks("arabic"); // ❌ type error
 ```
 
 Zero runtime cost — the generic is erased at compile time. Works because each font export is generated with its subset union baked in.
@@ -609,8 +607,8 @@ Zero runtime cost — the generic is erased at compile time. Works because each 
 Renders into `<head>`: inline `<style>` with @font-face declarations + `<link rel="preload">` for primary subset.
 
 ```tsx
-import { inter } from "flare/fonts/inter"
-import { FontCSS } from "flare/fonts"
+import { inter } from "@lovrozagar/flare/fonts/inter"
+import { FontCSS } from "@lovrozagar/flare/fonts"
 
 // Root layout
 .render((ctx) => (
@@ -654,8 +652,8 @@ Locale-to-subset mapping built in: `en` → latin, `hr` → latin + latin-ext, `
 `fontFamily` is a plain CSS value. Use it anywhere — inline style, CSS variable, Tailwind:
 
 ```tsx
-import { inter } from "flare/fonts/inter"
-import { playfairDisplay } from "flare/fonts/playfair-display"
+import { inter } from "@lovrozagar/flare/fonts/inter"
+import { playfairDisplay } from "@lovrozagar/flare/fonts/playfair-display"
 
 .render((ctx) => (
   <html style={{
@@ -694,14 +692,14 @@ body {
 Server-driven architecture solves the Next.js problem. `.render()` runs per-request on the server — only selected fonts' CSS ships:
 
 ```tsx
-import { inter } from "flare/fonts/inter"
-import { lora } from "flare/fonts/lora"
-import { playfairDisplay } from "flare/fonts/playfair-display"
-import { roboto } from "flare/fonts/roboto"
+import { inter } from "@lovrozagar/flare/fonts/inter";
+import { lora } from "@lovrozagar/flare/fonts/lora";
+import { playfairDisplay } from "@lovrozagar/flare/fonts/playfair-display";
+import { roboto } from "@lovrozagar/flare/fonts/roboto";
 
 const fontMap = { inter, lora, playfairDisplay, roboto }.render((ctx) => {
-	const heading = fontMap[ctx.preloaderContext.headingFont]
-	const body = fontMap[ctx.preloaderContext.bodyFont]
+	const heading = fontMap[ctx.preloaderContext.headingFont];
+	const body = fontMap[ctx.preloaderContext.bodyFont];
 	return (
 		<html style={{ "--font-heading": heading.fontFamily, "--font-body": body.fontFamily }}>
 			<head>
@@ -710,8 +708,8 @@ const fontMap = { inter, lora, playfairDisplay, roboto }.render((ctx) => {
 			</head>
 			<body>{ctx.children}</body>
 		</html>
-	)
-})
+	);
+});
 ```
 
 **Why this beats Next.js:**
@@ -786,7 +784,7 @@ The `css()` method generates the correct @font-face blocks based on whether the 
 Not everything is on Google Fonts. Brand fonts, licensed fonts, local WOFF2 files:
 
 ```typescript
-import { createFont } from "flare/fonts"
+import { createFont } from "@lovrozagar/flare/fonts"
 
 const acmeSans = createFont({
   family: "Acme Sans",
@@ -821,7 +819,7 @@ const acmeSans = createFont({
 	family: "Acme Sans",
 	src: "/fonts/acme-sans.woff2",
 	category: "sans-serif",
-})
+});
 ```
 
 ### Client-side navigation

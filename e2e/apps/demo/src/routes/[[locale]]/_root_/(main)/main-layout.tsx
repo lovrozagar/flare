@@ -1,24 +1,20 @@
-import { createLayout } from "flare/layout"
-import { Link } from "flare/link"
-import { translations } from "../../../../i18n/translations"
+import { createLayout } from "@lovrozagar/flare/layout";
+import { Link } from "@lovrozagar/flare/link";
+import { translations } from "../../../../i18n/translations";
 
 export const route = createLayout("[[locale]]/_root_/(main)")
 	.loader(async (ctx) => {
-		const t = await translations.load(ctx.locale(), ["common"])
-		return { t }
+		const t = await translations.load(ctx.locale(), ["common"]);
+		return { t };
 	})
 	.render((ctx) => {
-		const t = ctx.router.useLoaderT({ from: "[[locale]]/_root_/(main)" })
-		const locale = ctx.router.locale() ?? "en"
+		const t = ctx.router.useLoaderT({ from: "[[locale]]/_root_/(main)" });
+		const locale = ctx.router.locale() ?? "en";
 
 		return (
 			<>
 				<nav data-testid="main-nav" class="flex items-center gap-4 p-4 border-b border-white/10">
-					<Link
-						data-testid="nav-home"
-						params={{ locale: locale === "en" ? undefined : locale }}
-						to="/[[locale]]"
-					>
+					<Link data-testid="nav-home" params={{ locale: locale === "en" ? undefined : locale }} to="/[[locale]]">
 						{t("common.nav.home")}
 					</Link>
 					<Link
@@ -42,5 +38,5 @@ export const route = createLayout("[[locale]]/_root_/(main)")
 				</nav>
 				<div class="p-4">{ctx.children}</div>
 			</>
-		)
-	})
+		);
+	});

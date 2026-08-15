@@ -1,9 +1,9 @@
-import type { Command } from "commander"
-import { resolveProject } from "../utils/project"
+import type { Command } from "commander";
+import { resolveProject } from "../utils/project";
 
 /** `--fs` wins; otherwise use suffix-file detection from the project tree. */
 export function resolveCodegenFs(cliFs: boolean | undefined, hasFsCodegen: boolean): boolean {
-	return cliFs ?? hasFsCodegen
+	return cliFs ?? hasFsCodegen;
 }
 
 export function registerCodegen(program: Command): void {
@@ -14,22 +14,22 @@ export function registerCodegen(program: Command): void {
 		.option("--src <dir>", "Source directory", "src")
 		.option("--output <path>", "Output path for routes.gen.ts")
 		.action(async (opts: { fs?: boolean; output?: string; src: string }) => {
-			const project = resolveProject()
+			const project = resolveProject();
 
 			if (!project.hasFlare) {
-				process.stderr.write("error: flare not found in dependencies\n")
-				process.exit(1)
+				process.stderr.write("error: flare not found in dependencies\n");
+				process.exit(1);
 			}
 
-			const { runGenerate } = await import("flare/generators")
+			const { runGenerate } = await import("@lovrozagar/flare/generators");
 
 			const result = runGenerate({
 				fsCodegen: resolveCodegenFs(opts.fs, project.hasFsCodegen),
 				outputPath: opts.output,
 				rootDir: project.root,
 				srcDir: opts.src,
-			})
+			});
 
-			process.stdout.write(`codegen: ${result.routes} routes, ${result.layouts} layouts\n`)
-		})
+			process.stdout.write(`codegen: ${result.routes} routes, ${result.layouts} layouts\n`);
+		});
 }

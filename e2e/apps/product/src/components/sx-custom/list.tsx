@@ -1,4 +1,4 @@
-import { For } from "solid-js"
+import { For } from "solid-js";
 
 /* Mapped list — each item has its own sx based on index/variant */
 export function SxList(props: { items: string[] }) {
@@ -18,5 +18,5 @@ export function SxList(props: { items: string[] }) {
 				)}
 			</For>
 		</ul>
-	)
+	);
 }

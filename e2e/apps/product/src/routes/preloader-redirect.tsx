@@ -1,9 +1,9 @@
-import { redirect } from "flare/errors"
-import { createPage } from "flare/page"
+import { redirect } from "@lovrozagar/flare/errors";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/preloader-redirect")
 	.preloader(() => {
-		throw redirect({ to: "/redirect-target" })
+		throw redirect({ to: "/redirect-target" });
 	})
 	.loader(() => ({ reached: true }))
-	.render(() => <div>no</div>)
+	.render(() => <div>no</div>);

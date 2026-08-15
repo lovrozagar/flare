@@ -1,1 +1,1 @@
-export { navigate, prefetch } from "./navigation/index.ts"
+export { navigate, prefetch } from "./navigation/index.ts";

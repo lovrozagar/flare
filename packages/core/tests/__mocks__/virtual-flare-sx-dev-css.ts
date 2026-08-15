@@ -1,7 +1,7 @@
 export function getDevSxCss(): string {
-	return ""
+	return "";
 }
 
 export function getDevSxClasses(): string[] {
-	return []
+	return [];
 }

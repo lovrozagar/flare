@@ -7,7 +7,7 @@ Per-request deduplication for server-side async operations and fetch calls.
 ## Types
 
 ```ts
-type DedupeCache = Map<string, Promise<unknown>>
+type DedupeCache = Map<string, Promise<unknown>>;
 ```
 
 ## Exports
@@ -33,13 +33,13 @@ Wraps async function for per-request deduplication. Same function + same args + 
 ```ts
 const getUser = dedupe(async (id: string, env: Env) =>
 	env.D1.prepare("SELECT * FROM users WHERE id = ?").bind(id).first(),
-)
+);
 
 /* In root preloader — executes */
-const user = await getUser("123", env)
+const user = await getUser("123", env);
 
 /* In page loader (same request) — returns cached promise */
-const user = await getUser("123", env)
+const user = await getUser("123", env);
 ```
 
 Implementation:
@@ -67,17 +67,17 @@ Headers key excludes trace/correlation headers that change per-request:
 ```ts
 function createDedupedFetch(originalFetch: typeof fetch): typeof fetch {
 	return async (input, init?) => {
-		const key = getFetchCacheKey(input, init)
-		if (!key) return originalFetch(input, init) /* non-deduplicatable */
+		const key = getFetchCacheKey(input, init);
+		if (!key) return originalFetch(input, init); /* non-deduplicatable */
 
-		const cache = getFetchCache() /* from serverRequestContext */
-		const existing = cache.get(key)
-		if (existing) return (await existing).clone()
+		const cache = getFetchCache(); /* from serverRequestContext */
+		const existing = cache.get(key);
+		if (existing) return (await existing).clone();
 
-		const promise = originalFetch(input, init)
-		cache.set(key, promise)
-		return (await promise).clone()
-	}
+		const promise = originalFetch(input, init);
+		cache.set(key, promise);
+		return (await promise).clone();
+	};
 }
 ```
 

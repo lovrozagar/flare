@@ -1,15 +1,13 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/files/[...path]")
 	.loader((ctx) => {
-		const segments = ctx.location.params.path
-		const isArray = Array.isArray(segments)
-		const count = isArray ? segments.length : 0
-		const joined = isArray ? segments.join("/") : String(segments)
+		const segments = ctx.location.params.path;
+		const isArray = Array.isArray(segments);
+		const count = isArray ? segments.length : 0;
+		const joined = isArray ? segments.join("/") : String(segments);
 		const extension =
-			isArray && segments.length > 0
-				? ((segments[segments.length - 1] ?? "").split(".").pop() ?? "")
-				: ""
+			isArray && segments.length > 0 ? ((segments[segments.length - 1] ?? "").split(".").pop() ?? "") : "";
 		return {
 			count,
 			extension,
@@ -17,7 +15,7 @@ export const route = createPage("_root_/files/[...path]")
 			joined,
 			platform: "Standard",
 			segments: isArray ? segments : [String(segments)],
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -38,4 +36,4 @@ export const route = createPage("_root_/files/[...path]")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

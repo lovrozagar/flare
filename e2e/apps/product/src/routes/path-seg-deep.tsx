@@ -1,23 +1,25 @@
-import { createPage } from "flare/page"
-import { createPathSegment } from "flare/path-segment"
+import { createPage } from "@lovrozagar/flare/page";
+import { createPathSegment } from "@lovrozagar/flare/path-segment";
 
 export const orgSegment = createPathSegment("_root_/(path-seg-deep)/path-seg-deep/[org]").cache({
 	ssg: {
 		params: () => [{ org: "acme" }, { org: "globex" }],
 	},
-})
+});
 
-export const repoSegment = createPathSegment(
-	"_root_/(path-seg-deep)/path-seg-deep/[org]/[repo]",
-).cache({
+export const repoSegment = createPathSegment("_root_/(path-seg-deep)/path-seg-deep/[org]/[repo]").cache({
 	ssg: {
 		params: (ctx) => {
-			const org = ctx.params.org as string
-			if (org === "acme") return [{ org, repo: "api" }, { org, repo: "web" }]
-			return [{ org, repo: "main" }]
+			const org = ctx.params.org as string;
+			if (org === "acme")
+				return [
+					{ org, repo: "api" },
+					{ org, repo: "web" },
+				];
+			return [{ org, repo: "main" }];
 		},
 	},
-})
+});
 
 export const route = createPage("_root_/(path-seg-deep)/path-seg-deep/[org]/[repo]/settings")
 	.cache({ ssg: true })
@@ -31,4 +33,4 @@ export const route = createPage("_root_/(path-seg-deep)/path-seg-deep/[org]/[rep
 			<p data-testid="path-seg-org">{props.loaderData.org}</p>
 			<p data-testid="path-seg-repo">{props.loaderData.repo}</p>
 		</div>
-	))
+	));

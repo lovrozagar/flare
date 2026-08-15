@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
-import { SourceButton } from "@flare/ui-test-source/button"
-import { SourceCard } from "@flare/ui-test-source/card"
+import { createPage } from "@lovrozagar/flare/page";
+import { SourceButton } from "../components/ui-test-source/button";
+import { SourceCard } from "../components/ui-test-source/card";
 
 /*
  * Mode 3 cross-package test — lib ships source only, consumer's sx pipeline
@@ -18,12 +18,9 @@ export const route = createPage("_root_/styling-sx-source").render(() => {
 			</SourceCard>
 
 			{/* Consumer-authored sx in same build pass — no class duplication expected */}
-			<div
-				data-testid="source-consumer-box"
-				sx={{ color: "rgb(20, 80, 160)", fontSize: "15px", fontWeight: "500" }}
-			>
+			<div data-testid="source-consumer-box" sx={{ color: "rgb(20, 80, 160)", fontSize: "15px", fontWeight: "500" }}>
 				Consumer sx alongside source lib
 			</div>
 		</main>
-	)
-})
+	);
+});

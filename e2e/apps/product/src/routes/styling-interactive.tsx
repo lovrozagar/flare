@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
-import { styles } from "flare/styles"
-import { createSignal } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { styles } from "@lovrozagar/flare/styles";
+import { createSignal } from "solid-js";
 
 export const route = createPage("_root_/styling-interactive").render(() => {
 	const activeProps = styles("active-box", {
@@ -10,7 +10,7 @@ export const route = createPage("_root_/styling-interactive").render(() => {
 			${s.active("true")} { color: rgb(0, 128, 0); }
 		`,
 		state: { active: "false" },
-	})
+	});
 
 	const variantProps = styles("variant-box", {
 		css: (s) => `
@@ -20,10 +20,10 @@ export const route = createPage("_root_/styling-interactive").render(() => {
 			${s.variant("b")} { color: rgb(0, 0, 255); }
 		`,
 		state: { variant: "a" },
-	})
+	});
 
-	const [active, setActive] = createSignal(false)
-	const [variant, setVariant] = createSignal<"a" | "b">("a")
+	const [active, setActive] = createSignal(false);
+	const [variant, setVariant] = createSignal<"a" | "b">("a");
 
 	return (
 		<main data-testid="styling-interactive">
@@ -44,5 +44,5 @@ export const route = createPage("_root_/styling-interactive").render(() => {
 				Variant Box
 			</div>
 		</main>
-	)
-})
+	);
+});

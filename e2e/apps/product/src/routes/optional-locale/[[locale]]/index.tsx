@@ -1,15 +1,14 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(optional-locale)/optional-locale/[[...locale]]/")
 	.loader((ctx) => {
-		const raw = ctx.location.params.locale
-		const segments = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : []
-		const locale = segments[0] ?? "default"
+		const raw = ctx.location.params.locale;
+		const segments = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
+		const locale = segments[0] ?? "default";
 		return {
-			greeting:
-				locale === "de" ? "Hallo Welt" : locale === "fr" ? "Bonjour le monde" : "Hello World",
+			greeting: locale === "de" ? "Hallo Welt" : locale === "fr" ? "Bonjour le monde" : "Hello World",
 			locale,
-		}
+		};
 	})
 	.head((ctx) => ({ title: `Locale: ${ctx.loaderData.locale}` }))
 	.render((props) => (
@@ -17,4 +16,4 @@ export const route = createPage("_root_/(optional-locale)/optional-locale/[[...l
 			<h1 data-testid="locale-value">{props.loaderData.locale}</h1>
 			<p data-testid="greeting">{props.loaderData.greeting}</p>
 		</main>
-	))
+	));

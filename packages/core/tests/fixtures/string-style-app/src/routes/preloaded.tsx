@@ -1,13 +1,13 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/preloaded")
 	.preloader((ctx) => {
-		const ua = ctx.request.headers.get("user-agent") ?? "unknown"
+		const ua = ctx.request.headers.get("user-agent") ?? "unknown";
 		return {
 			preloadedAt: Date.now(),
 			short: ua.slice(0, 20),
 			uaLength: ua.length,
-		}
+		};
 	})
 	.loader((ctx) => {
 		return {
@@ -16,7 +16,7 @@ export const route = createPage("_root_/preloaded")
 			preloadTimestamp: ctx.preloaderContext.preloadedAt,
 			uaLength: ctx.preloaderContext.uaLength,
 			uaShort: ctx.preloaderContext.short,
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -37,4 +37,4 @@ export const route = createPage("_root_/preloaded")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

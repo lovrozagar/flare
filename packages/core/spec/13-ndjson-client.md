@@ -8,28 +8,28 @@ Client-side NDJSON stream consumption. Reads streaming responses, dispatches mes
 
 ```ts
 interface NDJSONFetchOptions {
-	matchIds?: string[]
-	prefetch?: boolean
-	signal?: AbortSignal
-	url: string
+	matchIds?: string[];
+	prefetch?: boolean;
+	signal?: AbortSignal;
+	url: string;
 }
 
 interface NDJSONFetchResult {
-	matches: FetchedMatch[]
-	perRouteHeads: PerRouteHead[]
-	success: boolean
+	matches: FetchedMatch[];
+	perRouteHeads: PerRouteHead[];
+	success: boolean;
 }
 
 interface FetchedMatch {
-	error?: Error
-	loaderData: unknown
-	matchId: string
-	preloaderContext?: Record<string, unknown>
+	error?: Error;
+	loaderData: unknown;
+	matchId: string;
+	preloaderContext?: Record<string, unknown>;
 }
 
 interface PerRouteHead {
-	head: HeadConfig
-	matchId: string
+	head: HeadConfig;
+	matchId: string;
 }
 ```
 
@@ -50,14 +50,14 @@ Fetches NDJSON data from server for CSR navigation or prefetch.
 ```ts
 const headers: Record<string, string> = {
 	"x-d": "1",
-}
+};
 
 if (options.matchIds) {
-	headers["x-m"] = options.matchIds.join(",")
+	headers["x-m"] = options.matchIds.join(",");
 }
 
 if (options.prefetch) {
-	headers["x-p"] = "1"
+	headers["x-p"] = "1";
 }
 ```
 
@@ -67,28 +67,28 @@ if (options.prefetch) {
 const response = await fetch(options.url, {
 	headers,
 	signal: options.signal,
-})
+});
 ```
 
 **3. Stream reading**
 
 ```ts
-const reader = response.body.getReader()
-const decoder = new TextDecoder()
-let buffer = ""
-const deferredResolvers = new Map<string, DeferredResolver>()
+const reader = response.body.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
+const deferredResolvers = new Map<string, DeferredResolver>();
 
 while (true) {
-	const { done, value } = await reader.read()
-	if (done) break
+	const { done, value } = await reader.read();
+	if (done) break;
 
-	buffer += decoder.decode(value, { stream: true })
-	const lines = buffer.split("\n")
-	buffer = lines.pop() ?? ""
+	buffer += decoder.decode(value, { stream: true });
+	const lines = buffer.split("\n");
+	buffer = lines.pop() ?? "";
 
 	for (const line of lines) {
-		if (!line.trim()) continue
-		const msg = JSON.parse(line)
+		if (!line.trim()) continue;
+		const msg = JSON.parse(line);
 		/* dispatch by msg.t */
 	}
 }
@@ -112,13 +112,13 @@ while (true) {
 After `loadersReady` resolves (on `t: "r"` or `t: "d"`), return result immediately. Chunks continue streaming in background, resolving deferred promises.
 
 ```ts
-await loadersReady
+await loadersReady;
 
 return {
 	matches,
 	perRouteHeads,
 	success: true,
-}
+};
 ```
 
 ### Deferred Hydration (CSR)

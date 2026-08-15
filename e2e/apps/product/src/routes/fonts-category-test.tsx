@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { createFont, FontCSS } from "flare/fonts"
+import { createPage } from "@lovrozagar/flare/page";
+import { createFont, FontCSS } from "@lovrozagar/flare/fonts";
 
 const serifFont = createFont({
 	category: "serif",
@@ -13,7 +13,7 @@ const serifFont = createFont({
 	family: "Category Test Serif",
 	src: "/fonts/test-serif.woff2",
 	weights: "100 900",
-})
+});
 
 const monoFont = createFont({
 	category: "monospace",
@@ -27,7 +27,7 @@ const monoFont = createFont({
 	family: "Category Test Mono",
 	src: "/fonts/test-mono.woff2",
 	weights: "100 900",
-})
+});
 
 const sansFont = createFont({
 	category: "sans-serif",
@@ -41,7 +41,7 @@ const sansFont = createFont({
 	family: "Category Test Sans",
 	src: "/fonts/test-sans.woff2",
 	weights: "100 900",
-})
+});
 
 export const route = createPage("_root_/fonts-category-test")
 	.head(() => ({ title: "Font Category Test" }))
@@ -63,4 +63,4 @@ export const route = createPage("_root_/fonts-category-test")
 				Sans-serif text content for testing
 			</div>
 		</main>
-	))
+	));

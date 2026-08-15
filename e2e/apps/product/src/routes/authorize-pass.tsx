@@ -1,14 +1,14 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/authorize-pass")
 	.authenticate()
 	.authorize(({ auth }) => {
-		const a = auth as unknown as Record<string, unknown> | null
-		return a?.userId === "admin"
+		const a = auth as unknown as Record<string, unknown> | null;
+		return a?.userId === "admin";
 	})
 	.loader(({ auth }) => {
-		const a = auth as unknown as Record<string, unknown> | null
-		return { message: "Authorized", userId: String(a?.userId ?? "") }
+		const a = auth as unknown as Record<string, unknown> | null;
+		return { message: "Authorized", userId: String(a?.userId ?? "") };
 	})
 	.render((props) => (
 		<main data-testid="authorize-pass">
@@ -20,4 +20,4 @@ export const route = createPage("_root_/authorize-pass")
 		<div data-testid="authorize-unauthorized">
 			<p>Forbidden</p>
 		</div>
-	))
+	));

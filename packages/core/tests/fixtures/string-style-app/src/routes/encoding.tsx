@@ -1,22 +1,22 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/encoding")
 	.loader((ctx) => {
-		const input = String(ctx.location.search.text ?? "Hello, World! 🌍")
+		const input = String(ctx.location.search.text ?? "Hello, World! 🌍");
 
 		/* btoa/atob round-trip */
-		const base64 = btoa(unescape(encodeURIComponent(input)))
-		const decoded = decodeURIComponent(escape(atob(base64)))
+		const base64 = btoa(unescape(encodeURIComponent(input)));
+		const decoded = decodeURIComponent(escape(atob(base64)));
 
 		/* TextEncoder/TextDecoder round-trip */
-		const encoder = new TextEncoder()
-		const encoded = encoder.encode(input)
-		const decoder = new TextDecoder()
-		const textDecoded = decoder.decode(encoded)
+		const encoder = new TextEncoder();
+		const encoded = encoder.encode(input);
+		const decoder = new TextDecoder();
+		const textDecoded = decoder.decode(encoded);
 
 		/* encodeURIComponent round-trip */
-		const uriEncoded = encodeURIComponent(input)
-		const uriDecoded = decodeURIComponent(uriEncoded)
+		const uriEncoded = encodeURIComponent(input);
+		const uriDecoded = decodeURIComponent(uriEncoded);
 
 		return {
 			base64,
@@ -27,7 +27,7 @@ export const route = createPage("_root_/encoding")
 			roundTripMatch: input === decoded && input === textDecoded && input === uriDecoded,
 			textDecoded,
 			uriEncoded,
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -50,4 +50,4 @@ export const route = createPage("_root_/encoding")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

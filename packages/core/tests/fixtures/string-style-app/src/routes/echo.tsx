@@ -1,10 +1,10 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/echo")
 	.loader((ctx) => {
-		const headers = ctx.request.headers
-		const url = new URL(ctx.request.url)
-		const allHeaderNames = [...headers.keys()].sort()
+		const headers = ctx.request.headers;
+		const url = new URL(ctx.request.url);
+		const allHeaderNames = [...headers.keys()].sort();
 		return {
 			accept: headers.get("accept") ?? "none",
 			acceptEncoding: headers.get("accept-encoding") ?? "none",
@@ -17,7 +17,7 @@ export const route = createPage("_root_/echo")
 			platform: "Standard",
 			protocol: url.protocol,
 			xCustom: headers.get("x-custom-test") ?? "not-set",
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -48,4 +48,4 @@ export const route = createPage("_root_/echo")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

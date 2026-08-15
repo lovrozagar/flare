@@ -4,4 +4,4 @@ export default {
 	items: "{count, plural, =0{Nema stavki} one{# stavka} other{# stavki}}",
 	terms: "Prihvati nase [[link:uvjete koristenja]]",
 	welcome: "Dobrodosli",
-} as const
+} as const;

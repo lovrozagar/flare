@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const fraunces: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
@@ -63,4 +63,4 @@ export const fraunces: Font<"latin" | "latin-ext" | "vietnamese"> = createRegist
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: "100 900",
-})
+});

@@ -1,16 +1,16 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/users/[id]")
 	.loader((ctx) => {
-		const id = ctx.location.params.id
-		const url = new URL(ctx.request.url)
+		const id = ctx.location.params.id;
+		const url = new URL(ctx.request.url);
 		return {
 			id,
 			origin: url.origin,
 			path: url.pathname,
 			platform: "Standard",
 			timestamp: Date.now(),
-		}
+		};
 	})
 	.head((ctx) => ({
 		title: `User ${(ctx.loaderData as { id: string }).id} — Standard`,
@@ -34,4 +34,4 @@ export const route = createPage("_root_/users/[id]")
 				<a href="/users/abc-def">User abc-def</a>
 			</nav>
 		</div>
-	))
+	));

@@ -1,8 +1,8 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 /* Edge cases: empty sx, empty class, null/undefined branches — must not crash */
 export const route = createPage("_root_/styling-sx-edge-empty").render(() => {
-	const falsyFlag = false as boolean
+	const falsyFlag = false as boolean;
 
 	return (
 		<main data-testid="styling-sx-edge-empty">
@@ -17,10 +17,7 @@ export const route = createPage("_root_/styling-sx-edge-empty").render(() => {
 			</div>
 
 			{/* falsy conditional branches in class array */}
-			<div
-				class={["base-class", falsyFlag && "never-added", null, undefined]}
-				data-testid="falsy-branches"
-			>
+			<div class={["base-class", falsyFlag && "never-added", null, undefined]} data-testid="falsy-branches">
 				falsy branches
 			</div>
 
@@ -29,5 +26,5 @@ export const route = createPage("_root_/styling-sx-edge-empty").render(() => {
 				zero values
 			</div>
 		</main>
-	)
-})
+	);
+});

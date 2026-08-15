@@ -1,7 +1,7 @@
-import { FieldError, Form } from "flare/form"
-import { createPage } from "flare/page"
-import { Show } from "solid-js"
-import { formMultiFn } from "../../form-stubs"
+import { FieldError, Form } from "@lovrozagar/flare/form";
+import { createPage } from "@lovrozagar/flare/page";
+import { Show } from "solid-js";
+import { formMultiFn } from "../../form-stubs";
 
 export const route = createPage("_root_/forms/multi").render(() => {
 	return (
@@ -26,9 +26,7 @@ export const route = createPage("_root_/forms/multi").render(() => {
 							</label>
 							<FieldError class="field-error" field="tags" of={form} />
 						</fieldset>
-						<Show when={form.result()}>
-							{(r) => <p data-testid="result-data">{JSON.stringify(r())}</p>}
-						</Show>
+						<Show when={form.result()}>{(r) => <p data-testid="result-data">{JSON.stringify(r())}</p>}</Show>
 						<button data-testid="submit-btn" disabled={form.pending()} type="submit">
 							Submit
 						</button>
@@ -36,5 +34,5 @@ export const route = createPage("_root_/forms/multi").render(() => {
 				)}
 			</Form>
 		</main>
-	)
-})
+	);
+});

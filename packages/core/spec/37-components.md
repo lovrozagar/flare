@@ -8,10 +8,10 @@ Container div with `id="app"` for hydration target.
 
 ```ts
 type AppRootProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, "id"> & {
-	children: JSX.Element
-}
+	children: JSX.Element;
+};
 
-function AppRoot(props: AppRootProps): JSX.Element
+function AppRoot(props: AppRootProps): JSX.Element;
 ```
 
 Renders `<div id="app" data-testid="app-root" {...rest}>{children}</div>`. Accepts all div attributes except `id` (always `"app"`). Uses `splitProps` to separate children.
@@ -21,7 +21,7 @@ Renders `<div id="app" data-testid="app-root" {...rest}>{children}</div>`. Accep
 SSR-only. Renders `<head>` elements from resolved HeadConfig.
 
 ```ts
-function HeadContent(): JSX.Element
+function HeadContent(): JSX.Element;
 ```
 
 **Server**: renders elements in order:
@@ -56,7 +56,7 @@ Converts robots object to meta content string:
 SSR-only. Renders FlareState and entry client scripts.
 
 ```ts
-function HydrationScripts(): JSX.Element
+function HydrationScripts(): JSX.Element;
 ```
 
 **Server**: wrapped in `<NoHydration>` to prevent hydration marker leakage into sibling elements.
@@ -78,20 +78,20 @@ Client. Renders deferred data with loading/error states.
 
 ```ts
 interface Deferred<T> {
-	__deferred: true
-	__error?: { message: string }
-	__key?: string
-	__resolved?: T
-	promise: Promise<T>
+	__deferred: true;
+	__error?: { message: string };
+	__key?: string;
+	__resolved?: T;
+	promise: Promise<T>;
 }
 
-type AwaitStatus = "error" | "pending" | "success"
+type AwaitStatus = "error" | "pending" | "success";
 
 interface AwaitProps<T> {
-	children: (data: T) => JSX.Element
-	error?: ((err: Error, reset: () => void) => JSX.Element) | null
-	pending?: JSX.Element
-	promise: Deferred<T> | Promise<T>
+	children: (data: T) => JSX.Element;
+	error?: ((err: Error, reset: () => void) => JSX.Element) | null;
+	pending?: JSX.Element;
+	promise: Deferred<T> | Promise<T>;
 }
 ```
 
@@ -137,11 +137,11 @@ SSR data transport via `sharedConfig.context` (not component tree).
 
 ```ts
 interface SSRContextValue {
-	entryScript?: string
-	flareStateScript: string
-	isServer: boolean
-	nonce: string
-	resolvedHead?: HeadConfig
+	entryScript?: string;
+	flareStateScript: string;
+	isServer: boolean;
+	nonce: string;
+	resolvedHead?: HeadConfig;
 }
 ```
 
@@ -170,21 +170,21 @@ SSR-only. Blocking inline script in `<head>` to prevent theme flash (FOUC).
 ### Types
 
 ```ts
-type ThemeScriptProps = ThemeConfig
+type ThemeScriptProps = ThemeConfig;
 
 interface ThemeConfig {
-	attribute?: string /* html attribute (default: "data-theme") */
-	defaultTheme?: string /* fallback theme (default: "system") */
-	disableTransitionOnChange?: boolean /* prevent mid-animation flash (default: true) */
-	storageKey?: string /* localStorage key (default: "flare.theme") */
-	themes?: readonly string[] /* valid themes (default: ["light", "dark", "system"]) */
+	attribute?: string; /* html attribute (default: "data-theme") */
+	defaultTheme?: string; /* fallback theme (default: "system") */
+	disableTransitionOnChange?: boolean; /* prevent mid-animation flash (default: true) */
+	storageKey?: string; /* localStorage key (default: "flare.theme") */
+	themes?: readonly string[]; /* valid themes (default: ["light", "dark", "system"]) */
 }
 ```
 
 ### Behavior
 
 ```ts
-function ThemeScript(props: ThemeScriptProps): JSX.Element
+function ThemeScript(props: ThemeScriptProps): JSX.Element;
 ```
 
 **Server**: renders `<NoHydration><script nonce={nonce}>{themeScript}</script></NoHydration>`.
@@ -207,19 +207,19 @@ SSR-only. Blocking inline script in `<head>` to prevent direction flash.
 
 ```ts
 interface DirectionConfig {
-	attribute?: string /* html attribute (default: "data-dir") */
-	defaultDir?: Direction /* fallback direction (default: "ltr") */
-	rtlLocales?: readonly string[] /* RTL locale codes (default: ["ar", "he", "fa", "ur"]) */
-	storageKey?: string /* localStorage key (default: "flare.dir") */
+	attribute?: string; /* html attribute (default: "data-dir") */
+	defaultDir?: Direction; /* fallback direction (default: "ltr") */
+	rtlLocales?: readonly string[]; /* RTL locale codes (default: ["ar", "he", "fa", "ur"]) */
+	storageKey?: string; /* localStorage key (default: "flare.dir") */
 }
 
-type Direction = "ltr" | "rtl"
+type Direction = "ltr" | "rtl";
 ```
 
 ### Behavior
 
 ```ts
-function DirectionScript(props: DirectionConfig): JSX.Element
+function DirectionScript(props: DirectionConfig): JSX.Element;
 ```
 
 **Server**: renders `<NoHydration><script nonce={nonce}>{directionScript}</script></NoHydration>`.
@@ -250,7 +250,7 @@ getDirectionConfig(): Readonly<DirectionConfig>
 SSR-only. Renders baseline CSS reset in `<head>`.
 
 ```ts
-function ResetCSS(): JSX.Element
+function ResetCSS(): JSX.Element;
 ```
 
 **Server**: renders `<NoHydration><style nonce={nonce}>{resetCss}</style></NoHydration>`.
@@ -270,14 +270,14 @@ SSR-only. Renders View Transitions API styles in `<head>`.
 
 ```ts
 interface ViewTransitionCSSProps {
-	duration?: number /* animation duration in ms (default: 175) */
+	duration?: number; /* animation duration in ms (default: 175) */
 }
 ```
 
 ### Behavior
 
 ```ts
-function ViewTransitionCSS(props: ViewTransitionCSSProps): JSX.Element
+function ViewTransitionCSS(props: ViewTransitionCSSProps): JSX.Element;
 ```
 
 **Server**: renders `<NoHydration><style nonce={nonce}>{css}</style></NoHydration>`.
@@ -312,26 +312,26 @@ Client-only, dev mode. Reactive error store for the dev overlay.
 
 ```ts
 interface SerializedError {
-	message: string
-	name: string
-	source: string
-	stack?: string
+	message: string;
+	name: string;
+	source: string;
+	stack?: string;
 }
 
 interface CapturedError {
-	dismissed: boolean
-	error: Error
-	id: string
-	source: string
-	timestamp: number
+	dismissed: boolean;
+	error: Error;
+	id: string;
+	source: string;
+	timestamp: number;
 }
 
 interface DevErrorStore {
-	clear: () => void
-	dismiss: (id: string) => void
-	errors: Accessor<CapturedError[]>
-	hasErrors: () => boolean
-	register: (error: Error | SerializedError, source?: string) => void
+	clear: () => void;
+	dismiss: (id: string) => void;
+	errors: Accessor<CapturedError[]>;
+	hasErrors: () => boolean;
+	register: (error: Error | SerializedError, source?: string) => void;
 }
 ```
 
@@ -363,7 +363,7 @@ Both register to the store with source `"window.onerror"` / `"unhandledrejection
 Client-only, dev mode. Full-screen error modal.
 
 ```ts
-function DevErrorOverlay(): JSX.Element
+function DevErrorOverlay(): JSX.Element;
 ```
 
 - Renders via `<Portal mount={document.body}>` — outside app tree

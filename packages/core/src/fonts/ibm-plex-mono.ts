@@ -1,8 +1,8 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
-export const ibmPlexMono: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> =
-	createRegistryFont({
+export const ibmPlexMono: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont(
+	{
 		category: "monospace",
 		fallbackMetrics: {
 			ascentOverride: "117.63%",
@@ -168,4 +168,5 @@ export const ibmPlexMono: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ex
 		],
 		subsets: ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"],
 		weights: [400, 700],
-	})
+	},
+);

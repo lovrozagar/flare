@@ -71,7 +71,7 @@ if (filePath === root || filePath.startsWith(rootWithSlash)) {
 **Fix**: Add `.trim()` after regex extraction:
 
 ```typescript
-const locale = match?.[1]?.trim().toLowerCase()
+const locale = match?.[1]?.trim().toLowerCase();
 ```
 
 ---
@@ -91,11 +91,11 @@ const locale = match?.[1]?.trim().toLowerCase()
 **Fix**: Wrap the `await request.formData()` call in its own try-catch that returns a 400 response:
 
 ```typescript
-let formData: FormData
+let formData: FormData;
 try {
-	formData = await request.formData()
+	formData = await request.formData();
 } catch {
-	return addSecurityHeaders(new Response("Bad Request", { status: 400 }), secHeaders)
+	return addSecurityHeaders(new Response("Bad Request", { status: 400 }), secHeaders);
 }
 ```
 

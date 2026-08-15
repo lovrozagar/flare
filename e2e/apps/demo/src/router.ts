@@ -1,6 +1,6 @@
-import { createRouter } from "flare/router"
-import { layouts, routeTree } from "./_gen/routes.gen"
-import { localeConfig } from "./i18n/config"
+import { createRouter } from "@lovrozagar/flare/router";
+import { layouts, routeTree } from "./_gen/routes.gen";
+import { localeConfig } from "./i18n/config";
 
 export const router = createRouter({
 	cache: {
@@ -10,4 +10,4 @@ export const router = createRouter({
 	locale: localeConfig,
 	routeTree,
 	viewTransitions: true,
-})
+});

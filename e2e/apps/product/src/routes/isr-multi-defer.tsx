@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { Await } from "flare/await"
+import { createPage } from "@lovrozagar/flare/page";
+import { Await } from "@lovrozagar/flare/await";
 
 export const route = createPage("_root_/isr-multi-defer")
 	.cache({
@@ -7,14 +7,14 @@ export const route = createPage("_root_/isr-multi-defer")
 	})
 	.loader((ctx) => {
 		const fast = ctx.defer<string>(async () => {
-			await new Promise((r) => setTimeout(r, 50))
-			return "fast-result"
-		})
+			await new Promise((r) => setTimeout(r, 50));
+			return "fast-result";
+		});
 		const slow = ctx.defer<string>(async () => {
-			await new Promise((r) => setTimeout(r, 300))
-			return "slow-result"
-		})
-		return { fast, renderedAt: Date.now(), slow }
+			await new Promise((r) => setTimeout(r, 300));
+			return "slow-result";
+		});
+		return { fast, renderedAt: Date.now(), slow };
 	})
 	.render((props) => (
 		<div data-testid="isr-multi-defer">
@@ -32,4 +32,4 @@ export const route = createPage("_root_/isr-multi-defer")
 				{(val) => <span data-testid="isr-multi-slow-resolved">{val}</span>}
 			</Await>
 		</div>
-	))
+	));

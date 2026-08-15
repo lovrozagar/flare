@@ -1,63 +1,63 @@
-import { createHash } from "node:crypto"
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
-import type { ViteManifest } from "../module-graph/index.ts"
-import { generateSwSource } from "../service-worker/template.ts"
-import type { VitePlugin } from "./types.ts"
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import type { ViteManifest } from "../module-graph/index.ts";
+import { generateSwSource } from "../service-worker/template.ts";
+import type { VitePlugin } from "./types.ts";
 
 /* ── Config ──────────────────────────────────────────────────────── */
 
 export interface ServiceWorkerConfig {
-	offlineFallback?: string
-	runtimeCacheMax?: number
-	scope?: string
-	skipWaiting?: boolean
+	offlineFallback?: string;
+	runtimeCacheMax?: number;
+	scope?: string;
+	skipWaiting?: boolean;
 }
 
 interface ResolvedServiceWorkerConfig {
-	offlineFallback?: string
-	runtimeCacheMax: number
-	scope: string
-	skipWaiting: boolean
+	offlineFallback?: string;
+	runtimeCacheMax: number;
+	scope: string;
+	skipWaiting: boolean;
 }
 
 const SW_DEFAULTS: ResolvedServiceWorkerConfig = {
 	runtimeCacheMax: 32,
 	scope: "/",
 	skipWaiting: true,
-}
+};
 
 export function normalizeSwConfig(
 	input: ServiceWorkerConfig | boolean | undefined,
 ): ResolvedServiceWorkerConfig | undefined {
-	if (input === false || input === undefined) return undefined
-	if (input === true) return { ...SW_DEFAULTS }
-	return { ...SW_DEFAULTS, ...input }
+	if (input === false || input === undefined) return undefined;
+	if (input === true) return { ...SW_DEFAULTS };
+	return { ...SW_DEFAULTS, ...input };
 }
 
 /* ── Manifest utilities ──────────────────────────────────────────── */
 
 export function extractPrecacheUrls(manifest: ViteManifest): string[] {
-	const urls = new Set<string>()
+	const urls = new Set<string>();
 
 	for (const entry of Object.values(manifest)) {
 		if (entry.file) {
-			urls.add(`/${entry.file}`)
+			urls.add(`/${entry.file}`);
 		}
 		if (entry.css) {
 			for (const css of entry.css) {
-				urls.add(`/${css}`)
+				urls.add(`/${css}`);
 			}
 		}
 	}
 
-	return [...urls]
+	return [...urls];
 }
 
 export function computeBuildId(urls: string[]): string {
-	const sorted = [...urls].sort()
-	const hash = createHash("sha256").update(sorted.join("\n")).digest("hex")
-	return hash.slice(0, 12)
+	const sorted = [...urls].sort();
+	const hash = createHash("sha256").update(sorted.join("\n")).digest("hex");
+	return hash.slice(0, 12);
 }
 
 /* ── Dev SW ──────────────────────────────────────────────────────── */
@@ -66,7 +66,7 @@ function generateDevSw(offlineFallback?: string): string {
 	if (!offlineFallback) {
 		return `self.addEventListener("install", function () { self.skipWaiting() })
 self.addEventListener("activate", function (event) { event.waitUntil(self.clients.claim()) })
-`
+`;
 	}
 
 	return `var OFFLINE_PAGE = ${JSON.stringify(offlineFallback)}
@@ -94,92 +94,93 @@ self.addEventListener("fetch", function (event) {
 		})
 	)
 })
-`
+`;
 }
 
 interface NodeReq {
-	url?: string
+	url?: string;
 }
 
 interface NodeRes {
-	end: (data?: unknown) => void
-	writeHead: (status: number, headers: Record<string, string>) => void
+	end: (data?: unknown) => void;
+	writeHead: (status: number, headers: Record<string, string>) => void;
 }
 
 interface ViteDevServer {
 	middlewares: {
-		use: (fn: (req: NodeReq, res: NodeRes, next: () => void) => void) => void
-	}
+		use: (fn: (req: NodeReq, res: NodeRes, next: () => void) => void) => void;
+	};
 }
 
-export function createServiceWorkerPlugin(swConfig: ResolvedServiceWorkerConfig, assetsBase: string = "/assets"): VitePlugin {
+export function createServiceWorkerPlugin(
+	swConfig: ResolvedServiceWorkerConfig,
+	assetsBase: string = "/assets",
+): VitePlugin {
 	return {
 		closeBundle(this: { environment?: { config?: { root?: string }; name?: string } }): void {
-			const envName = this.environment?.name
+			const envName = this.environment?.name;
 			/* Multi-env: SSR closes last, manifest already written. Single-env: no "ssr" env, fire on "client". */
-			if (envName !== "ssr" && envName !== "client") return
+			if (envName !== "ssr" && envName !== "client") return;
 
-			const root = this.environment?.config?.root ?? process.cwd()
-			const manifestPath = join(root, "dist/client/.vite/manifest.json")
+			const root = this.environment?.config?.root ?? process.cwd();
+			const manifestPath = join(root, "dist/client/.vite/manifest.json");
 
-			if (!existsSync(manifestPath)) return
+			if (!existsSync(manifestPath)) return;
 
-			const raw = readFileSync(manifestPath, "utf-8")
-			const manifest = JSON.parse(raw) as ViteManifest
-			const urls = extractPrecacheUrls(manifest)
-			const buildId = computeBuildId(urls)
+			const raw = readFileSync(manifestPath, "utf-8");
+			const manifest = JSON.parse(raw) as ViteManifest;
+			const urls = extractPrecacheUrls(manifest);
+			const buildId = computeBuildId(urls);
 
 			const swSource = generateSwSource(urls, buildId, {
 				assetsBase,
 				offlineFallback: swConfig.offlineFallback ?? null,
 				runtimeCacheMax: swConfig.runtimeCacheMax,
 				skipWaiting: swConfig.skipWaiting,
-			})
+			});
 
-			writeFileSync(join(root, "dist/client/sw.js"), swSource, "utf-8")
-			process.stderr.write(
-				`[flare:service-worker] Generated sw.js (${urls.length} assets, build ${buildId})\n`,
-			)
+			writeFileSync(join(root, "dist/client/sw.js"), swSource, "utf-8");
+			process.stderr.write(`[flare:service-worker] Generated sw.js (${urls.length} assets, build ${buildId})\n`);
 		},
 
 		configurePreviewServer(server: unknown) {
 			const preview = server as {
-				config?: { root?: string }
-				middlewares: ViteDevServer["middlewares"]
-			}
-			const root = preview.config?.root ?? process.cwd()
-			const swPath = join(root, "dist/client/sw.js")
+				config?: { root?: string };
+				middlewares: ViteDevServer["middlewares"];
+			};
+			const root = preview.config?.root ?? process.cwd();
+			const swPath = join(root, "dist/client/sw.js");
 
 			preview.middlewares.use((req, res, next) => {
 				if (req.url === "/sw.js" && existsSync(swPath)) {
-					const content = readFileSync(swPath, "utf-8")
+					const content = readFileSync(swPath, "utf-8");
 					res.writeHead(200, {
 						"cache-control": "no-cache",
 						"content-type": "application/javascript",
-					})
-					res.end(content)
-					return
+					});
+					res.end(content);
+					return;
 				}
-				next()
-			})
-			return undefined
+				next();
+			});
+			return undefined;
 		},
 
 		configureServer(server: unknown) {
-			const vite = server as ViteDevServer
-			const devSwSource = generateDevSw(swConfig.offlineFallback)
+			const vite = server as ViteDevServer;
+			const devSwSource = generateDevSw(swConfig.offlineFallback);
 			vite.middlewares.use((req, res, next) => {
 				if (req.url === "/sw.js") {
 					res.writeHead(200, {
 						"cache-control": "no-cache",
 						"content-type": "application/javascript",
-					})
-					res.end(devSwSource)
-					return
+					});
+					res.end(devSwSource);
+					return;
 				}
-				next()
-			})
-			return undefined
+				next();
+			});
+			return undefined;
 		},
 
 		load(id: string): { code: string; moduleType: string } | null {
@@ -191,34 +192,34 @@ export function createServiceWorkerPlugin(swConfig: ResolvedServiceWorkerConfig,
 						scope: swConfig.scope,
 					})}`,
 					moduleType: "js",
-				}
+				};
 			}
-			return null
+			return null;
 		},
 
 		name: "flare:service-worker",
 
 		resolveId(id: string): string | null {
-			if (id === "virtual:flare-sw-config") return "\0virtual:flare-sw-config"
-			return null
+			if (id === "virtual:flare-sw-config") return "\0virtual:flare-sw-config";
+			return null;
 		},
-	}
+	};
 }
 
 export function createServiceWorkerDisabledPlugin(): VitePlugin {
 	return {
 		load(id: string): { code: string; moduleType: string } | null {
 			if (id === "\0virtual:flare-sw-config") {
-				return { code: "export default { enabled: false }", moduleType: "js" }
+				return { code: "export default { enabled: false }", moduleType: "js" };
 			}
-			return null
+			return null;
 		},
 
 		name: "flare:service-worker",
 
 		resolveId(id: string): string | null {
-			if (id === "virtual:flare-sw-config") return "\0virtual:flare-sw-config"
-			return null
+			if (id === "virtual:flare-sw-config") return "\0virtual:flare-sw-config";
+			return null;
 		},
-	}
+	};
 }

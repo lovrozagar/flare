@@ -1,5 +1,5 @@
-import { test } from "@playwright/test"
-import { loadPage } from "./helpers"
+import { test } from "@playwright/test";
+import { loadPage } from "./helpers";
 
 /**
  * Living smoke over routes that exist in this app. Hard-nav + hydrate only.
@@ -66,15 +66,15 @@ const ROUTES: Array<{ label: string; path: string }> = [
 	{ label: "json edge", path: "/json-edge" },
 	{ label: "multi cookie", path: "/multi-cookie" },
 	{ label: "path segment", path: "/path-segment-test/books/detail" },
-]
+];
 
 test.describe("route smoke — current app", () => {
 	for (const route of ROUTES) {
 		test(`SSR hydrate: ${route.label} (${route.path})`, async ({ page }) => {
 			if (route.path.startsWith("/dashboard")) {
-				await page.setExtraHTTPHeaders({ "x-test-auth": "admin" })
+				await page.setExtraHTTPHeaders({ "x-test-auth": "admin" });
 			}
-			await loadPage(page, route.path)
-		})
+			await loadPage(page, route.path);
+		});
 	}
-})
+});

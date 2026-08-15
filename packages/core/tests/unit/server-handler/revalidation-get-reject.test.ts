@@ -1,9 +1,9 @@
 /** @vitest-environment node */
-import { describe, expect, it, vi } from "vitest"
-import { createRouter, type MarkedRouterConfig } from "../../../src/router-config/index.ts"
-import type { RouteData } from "../../../src/router-primitives/index.ts"
-import { createTreeNode, insertRoute } from "../../../src/router-primitives/index.ts"
-import { createServerHandler } from "../../../src/server-handler/index.ts"
+import { describe, expect, it, vi } from "vitest";
+import { createRouter, type MarkedRouterConfig } from "../../../src/router-config/index.ts";
+import type { RouteData } from "../../../src/router-primitives/index.ts";
+import { createTreeNode, insertRoute } from "../../../src/router-primitives/index.ts";
+import { createServerHandler } from "../../../src/server-handler/index.ts";
 
 /**
  * Bug 53: GET revalidation endpoint leaks secret in URL query params
@@ -23,13 +23,13 @@ function makeRouteData(): RouteData {
 		t: "r" as const,
 		v: "/test",
 		x: "_root_/test",
-	}
+	};
 }
 
 function makeRouter(): MarkedRouterConfig {
-	const tree = createTreeNode()
-	insertRoute(tree, "/test", makeRouteData())
-	return createRouter({ layouts: {}, routeTree: tree })
+	const tree = createTreeNode();
+	insertRoute(tree, "/test", makeRouteData());
+	return createRouter({ layouts: {}, routeTree: tree });
 }
 
 describe("Bug 53: GET revalidation endpoint should be rejected", () => {
@@ -45,14 +45,14 @@ describe("Bug 53: GET revalidation endpoint should be rejected", () => {
 				},
 			},
 			router: makeRouter(),
-		})
+		});
 
-		const url = "http://localhost/_flare/revalidate?secret=test-secret-123&tags=foo&tiers=ssr"
-		const request = new Request(url, { method: "GET" })
-		const response = await handler.fetch(request, {})
+		const url = "http://localhost/_flare/revalidate?secret=test-secret-123&tags=foo&tiers=ssr";
+		const request = new Request(url, { method: "GET" });
+		const response = await handler.fetch(request, {});
 
-		expect(response.status).toBe(405)
-	})
+		expect(response.status).toBe(405);
+	});
 
 	it("should still accept POST requests to /_flare/revalidate", async () => {
 		const handler = createServerHandler({
@@ -66,7 +66,7 @@ describe("Bug 53: GET revalidation endpoint should be rejected", () => {
 				},
 			},
 			router: makeRouter(),
-		})
+		});
 
 		const request = new Request("http://localhost/_flare/revalidate", {
 			body: JSON.stringify({ tags: ["foo"], tiers: ["ssr"] }),
@@ -75,9 +75,9 @@ describe("Bug 53: GET revalidation endpoint should be rejected", () => {
 				"x-revalidation-secret": "test-secret-123",
 			},
 			method: "POST",
-		})
-		const response = await handler.fetch(request, {})
+		});
+		const response = await handler.fetch(request, {});
 
-		expect(response.status).toBe(200)
-	})
-})
+		expect(response.status).toBe(200);
+	});
+});

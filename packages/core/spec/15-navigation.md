@@ -13,18 +13,18 @@ Client-side navigation. Pushes/replaces history, fetches data via NDJSON, loads 
 /* Full HistoryState and ScrollPosition defined in spec 26 (history). Repeated here for context: */
 
 interface ScrollPosition {
-	x: number
-	y: number
+	x: number;
+	y: number;
 }
 
 interface HistoryState {
-	historyIndex: number
-	key: string
-	params: Record<string, string | string[]>
-	pathname: string
-	scroll?: ScrollPosition
-	search: string
-	state?: unknown
+	historyIndex: number;
+	key: string;
+	params: Record<string, string | string[]>;
+	pathname: string;
+	scroll?: ScrollPosition;
+	search: string;
+	state?: unknown;
 }
 ```
 
@@ -63,8 +63,8 @@ const resolvedPath = buildUrl({
 	params: options.params,
 	search: options.search,
 	to: options.to,
-})
-const url = new URL(resolvedPath, window.location.href)
+});
+const url = new URL(resolvedPath, window.location.href);
 ```
 
 `buildUrl` (spec 03) resolves path parameters, appends search params, and sets hash. This converts type-safe route patterns from `NavigateOptions.to` (e.g. `/products/[id]`) into real URLs. Internal callers like `invalidate()` and `refetch()` pass `window.location.href` directly — `buildUrl` passes through URLs with no bracket params unchanged.
@@ -72,7 +72,7 @@ const url = new URL(resolvedPath, window.location.href)
 #### Step 2: Same-URL guard
 
 ```ts
-if (url.href === window.location.href && !options.revalidate) return
+if (url.href === window.location.href && !options.revalidate) return;
 ```
 
 Navigating to same URL without `revalidate` is a no-op.
@@ -80,10 +80,10 @@ Navigating to same URL without `revalidate` is a no-op.
 #### Step 3: Abort previous navigation + set navigating
 
 ```ts
-if (currentController) currentController.abort()
-const controller = new AbortController()
-currentController = controller
-ctx.setIsNavigating(true)
+if (currentController) currentController.abort();
+const controller = new AbortController();
+currentController = controller;
+ctx.setIsNavigating(true);
 ```
 
 Module-level `currentController: AbortController | null` and `navigationVersion: number`. Only one navigation in-flight at a time. Previous navigation's `fetchNDJSON` reader gets cancelled, pending deferred resolvers rejected. Navigation version increments per `navigate()` call — after async operations, check `myVersion === navigationVersion` before updating signals (double-safety beyond abort controller for race conditions in signal updates).
@@ -91,7 +91,7 @@ Module-level `currentController: AbortController | null` and `navigationVersion:
 #### Step 4: Match route
 
 ```ts
-const match = matchRoute(ctx.routeTree, url.pathname)
+const match = matchRoute(ctx.routeTree, url.pathname);
 ```
 
 If no match → set `ctx.setNotFound(true)`, `ctx.setIsNavigating(false)`, return. Outlet renders global notFound boundary.
@@ -99,21 +99,21 @@ If no match → set `ctx.setNotFound(true)`, `ctx.setIsNavigating(false)`, retur
 #### Step 4b: Cross-root detection + response route detection
 
 ```ts
-const currentRoot = ctx.matches()[0]?.virtualPath.split("/")[0]
-const newRoot = match.route.x.split("/")[0]
+const currentRoot = ctx.matches()[0]?.virtualPath.split("/")[0];
+const newRoot = match.route.x.split("/")[0];
 if (currentRoot && newRoot && currentRoot !== newRoot) {
-	ctx.setIsNavigating(false)
-	currentController = null
-	window.location.href = url.href
-	return
+	ctx.setIsNavigating(false);
+	currentController = null;
+	window.location.href = url.href;
+	return;
 }
 
 /* Response routes (t: "x") return raw Response, not renderable JSX */
 if (match.route.t === "x") {
-	ctx.setIsNavigating(false)
-	currentController = null
-	window.location.href = url.href
-	return
+	ctx.setIsNavigating(false);
+	currentController = null;
+	window.location.href = url.href;
+	return;
 }
 ```
 
@@ -123,13 +123,13 @@ Different roots (e.g. `_root_` → `_docs_`) trigger a full page reload — clea
 
 ```ts
 /* Save current scroll into scroll store (spec 26) keyed by current history key */
-const currentState = parseHistoryState(history.state)
+const currentState = parseHistoryState(history.state);
 if (currentState) {
-	scrollStore.save(currentState.key, getCurrentScroll())
+	scrollStore.save(currentState.key, getCurrentScroll());
 }
 
 /* Increment history index for direction tracking (spec 26) */
-incrementHistoryIndex()
+incrementHistoryIndex();
 
 /* Push or replace via pushHistoryState / replaceHistoryState (spec 26) */
 if (options.replace) {
@@ -137,13 +137,13 @@ if (options.replace) {
 		hash: url.hash,
 		historyIndex: getHistoryIndex(),
 		state: options.state,
-	})
+	});
 } else {
 	pushHistoryState(url.pathname, match.params, url.search, {
 		hash: url.hash,
 		historyIndex: getHistoryIndex(),
 		state: options.state,
-	})
+	});
 }
 ```
 
@@ -153,11 +153,11 @@ Save BEFORE pushState — preserves current scroll for back navigation.
 
 ```ts
 if (options.shallow) {
-	ctx.setParams(match.params)
-	ctx.setSearch(Object.fromEntries(url.searchParams))
-	ctx.setIsNavigating(false)
-	currentController = null
-	return
+	ctx.setParams(match.params);
+	ctx.setSearch(Object.fromEntries(url.searchParams));
+	ctx.setIsNavigating(false);
+	currentController = null;
+	return;
 }
 ```
 
@@ -166,7 +166,7 @@ if (options.shallow) {
 #### Step 6: Load route modules
 
 ```ts
-const modules = await loadRouteModules(url.pathname, ctx.routeTree, ctx.layouts)
+const modules = await loadRouteModules(url.pathname, ctx.routeTree, ctx.layouts);
 ```
 
 Loads page + layout JS chunks. Browser-cached for previously visited routes (near-instant). For new routes, downloads chunks.
@@ -176,20 +176,20 @@ If `controller.signal.aborted` after load → return silently (superseded by new
 #### Step 7: Compute match IDs + check staleness
 
 ```ts
-const search = Object.fromEntries(url.searchParams)
-const allModules = [...modules.layouts, modules.page]
-const staleMatchIds: string[] = []
+const search = Object.fromEntries(url.searchParams);
+const allModules = [...modules.layouts, modules.page];
+const staleMatchIds: string[] = [];
 
 for (const mod of allModules) {
-	const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? []
+	const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? [];
 	const matchId = computeMatchId({
 		routeId: mod.virtualPath,
 		params: modules.params,
 		search,
 		loaderDeps: () => deps,
-	})
+	});
 
-	const staleTime = mod.options?.staleTime ?? 0
+	const staleTime = mod.options?.staleTime ?? 0;
 	const refetch = mod.effectsConfig?.shouldRefetch?.({
 		location: {
 			current: {
@@ -201,10 +201,10 @@ for (const mod of allModules) {
 			next: { hash: url.hash, params: modules.params, pathname: url.pathname, search },
 		},
 		trigger: "navigation",
-	})
+	});
 
 	if (options.revalidate || refetch || ctx.matchCache.isStale(matchId, staleTime)) {
-		staleMatchIds.push(matchId)
+		staleMatchIds.push(matchId);
 	}
 }
 ```
@@ -212,14 +212,14 @@ for (const mod of allModules) {
 #### Step 8: Fetch if needed
 
 ```ts
-let fetchResult: NDJSONFetchResult | null = null
+let fetchResult: NDJSONFetchResult | null = null;
 
 if (staleMatchIds.length > 0) {
 	fetchResult = await fetchNDJSON({
 		matchIds: staleMatchIds,
 		signal: controller.signal,
 		url: url.href,
-	})
+	});
 }
 ```
 
@@ -233,7 +233,7 @@ If ALL matches fresh → no NDJSON fetch, instant navigation from cache.
 
 ```ts
 if (fetchResult) {
-	const now = Date.now()
+	const now = Date.now();
 	for (const match of fetchResult.matches) {
 		ctx.matchCache.set({
 			data: match.loaderData,
@@ -241,7 +241,7 @@ if (fetchResult) {
 			matchId: match.matchId,
 			preloaderContext: match.preloaderContext,
 			updatedAt: now,
-		})
+		});
 	}
 }
 ```
@@ -250,14 +250,14 @@ if (fetchResult) {
 
 ```ts
 const clientMatches = allModules.map((mod) => {
-	const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? []
+	const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? [];
 	const matchId = computeMatchId({
 		routeId: mod.virtualPath,
 		params: modules.params,
 		search,
 		loaderDeps: () => deps,
-	})
-	const cached = ctx.matchCache.get(matchId)
+	});
+	const cached = ctx.matchCache.get(matchId);
 
 	return {
 		_type: mod._type,
@@ -268,8 +268,8 @@ const clientMatches = allModules.map((mod) => {
 		render: mod.render,
 		unauthorizedRender: mod.unauthorizedRender,
 		virtualPath: mod.virtualPath,
-	}
-})
+	};
+});
 ```
 
 Merges loaded component functions with cached/fetched data.
@@ -278,16 +278,16 @@ Merges loaded component functions with cached/fetched data.
 
 ```ts
 const update = () => {
-	ctx.setNotFound(false)
-	ctx.setMatches(clientMatches)
-	ctx.setParams(modules.params)
-	ctx.setSearch(search)
-}
+	ctx.setNotFound(false);
+	ctx.setMatches(clientMatches);
+	ctx.setParams(modules.params);
+	ctx.setSearch(search);
+};
 
 if (document.startViewTransition) {
-	document.startViewTransition(update)
+	document.startViewTransition(update);
 } else {
-	update()
+	update();
 }
 ```
 
@@ -297,7 +297,7 @@ View transition wraps state update for smooth visual transition. Progressive enh
 
 ```ts
 if (fetchResult?.perRouteHeads.length) {
-	applyHeadToDocument(fetchResult.perRouteHeads)
+	applyHeadToDocument(fetchResult.perRouteHeads);
 }
 ```
 
@@ -308,11 +308,11 @@ See `applyHeadToDocument` below.
 ```ts
 if (options.scroll !== false) {
 	if (url.hash) {
-		const el = document.getElementById(url.hash.slice(1))
-		if (el) el.scrollIntoView()
-		else window.scrollTo(0, 0)
+		const el = document.getElementById(url.hash.slice(1));
+		if (el) el.scrollIntoView();
+		else window.scrollTo(0, 0);
 	} else {
-		window.scrollTo(0, 0)
+		window.scrollTo(0, 0);
 	}
 }
 ```
@@ -322,8 +322,8 @@ if (options.scroll !== false) {
 #### Step 14: Cleanup
 
 ```ts
-ctx.setIsNavigating(false)
-currentController = null
+ctx.setIsNavigating(false);
+currentController = null;
 ```
 
 ### Optimization: Parallel fetch for new routes
@@ -334,7 +334,7 @@ When modules aren't browser-cached (first visit to route), loading them takes a 
 const [modules, fetchResult] = await Promise.all([
 	loadRouteModules(url.pathname, ctx.routeTree, ctx.layouts),
 	fetchNDJSON({ url: url.href, signal: controller.signal }),
-])
+]);
 ```
 
 No `x-m` header in this case — can't compute stale matchIds without modules. Server runs all loaders. After both complete, proceeds from step 9.
@@ -348,22 +348,22 @@ Handles browser back/forward:
 ```ts
 createHistoryListener((event: HistoryNavigateEvent) => {
 	/* Update history index for direction tracking */
-	setHistoryIndex(event.historyIndex)
+	setHistoryIndex(event.historyIndex);
 
 	navigate({
 		replace: true,
 		to: window.location.href,
 	}).then(() => {
 		/* Restore scroll from scroll store (spec 26) */
-		const savedScroll = scrollStore.get(event.key)
+		const savedScroll = scrollStore.get(event.key);
 		requestAnimationFrame(() => {
 			requestAnimationFrame(() => {
-				if (savedScroll) restoreScroll(savedScroll)
-				else scrollToTop()
-			})
-		})
-	})
-})
+				if (savedScroll) restoreScroll(savedScroll);
+				else scrollToTop();
+			});
+		});
+	});
+});
 ```
 
 - `replace: true` — don't push another history entry
@@ -376,7 +376,7 @@ Browser's default scroll restoration disabled:
 
 ```ts
 if ("scrollRestoration" in history) {
-	history.scrollRestoration = "manual"
+	history.scrollRestoration = "manual";
 }
 ```
 
@@ -394,19 +394,19 @@ Progressive enhancement. Available in Chrome 111+, Safari 18+.
 
 ```ts
 if (document.startViewTransition && viewTransitionConfig) {
-	const direction = getViewTransitionDirection(previousHistoryIndex, getHistoryIndex())
+	const direction = getViewTransitionDirection(previousHistoryIndex, getHistoryIndex());
 	document.startViewTransition({
 		types: resolveViewTransitionTypes(viewTransitionConfig, direction, fromLocation, toLocation),
 		update: () => {
-			ctx.setMatches(newMatches)
-			ctx.setParams(newParams)
-			ctx.setSearch(newSearch)
+			ctx.setMatches(newMatches);
+			ctx.setParams(newParams);
+			ctx.setSearch(newSearch);
 		},
-	})
+	});
 } else {
-	ctx.setMatches(newMatches)
-	ctx.setParams(newParams)
-	ctx.setSearch(newSearch)
+	ctx.setMatches(newMatches);
+	ctx.setParams(newParams);
+	ctx.setSearch(newSearch);
 }
 ```
 
@@ -440,9 +440,9 @@ When `matchRoute` returns `null`:
 
 ```ts
 if (!match) {
-	ctx.setNotFound(true)
-	ctx.setMatches([])
-	return
+	ctx.setNotFound(true);
+	ctx.setMatches([]);
+	return;
 }
 ```
 
@@ -455,7 +455,7 @@ Server-side 404 (loader throws `NotFoundError`) handled via NDJSON error message
 Updates `<head>` after CSR navigation:
 
 ```ts
-function applyHeadToDocument(heads: PerRouteHead[]): void
+function applyHeadToDocument(heads: PerRouteHead[]): void;
 ```
 
 1. Merge per-route heads via `mergeHeadConfigs` (same merge logic as SSR)

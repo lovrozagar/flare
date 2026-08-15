@@ -137,17 +137,17 @@ Deferred data inside the dynamic component is fine — just the **key itself** m
 
 ```tsx
 /* src/registries/tenant-components.ts */
-import { lazy } from "solid-js"
-import { createRegistry } from "flare"
+import { lazy } from "solid-js";
+import { createRegistry } from "@lovrozagar/flare";
 
 const tenantComponents = createRegistry({
 	about: lazy(() => import("./components/tenant-about")),
 	"blog-post": lazy(() => import("./components/blog-post")),
 	pricing: lazy(() => import("./components/pricing")),
 	dashboard: lazy(() => import("./components/dashboard")),
-})
+});
 
-export { tenantComponents }
+export { tenantComponents };
 ```
 
 Each `lazy()` call tells Vite to create a separate chunk. `createRegistry()` wraps the record in a Proxy that tracks which keys are accessed during SSR render. No manifest, no directory scanning.
@@ -165,42 +165,42 @@ Uses `AsyncLocalStorage` (supported on CF Workers with `nodejs_compat` flag) for
 
 ```ts
 /* src/registry.ts — shared (server + client) */
-import { isServer } from "solid-js/web"
+import { isServer } from "solid-js/web";
 
 /* Server-only: lazy-initialized to avoid top-level node:async_hooks import */
-let registryContext: import("node:async_hooks").AsyncLocalStorage<Set<string>> | null = null
+let registryContext: import("node:async_hooks").AsyncLocalStorage<Set<string>> | null = null;
 
 function getRegistryContext() {
 	if (!registryContext) {
 		/* Dynamic import avoided — require is sync in CF Workers bundled build */
-		const { AsyncLocalStorage } = require("node:async_hooks")
-		registryContext = new AsyncLocalStorage<Set<string>>()
+		const { AsyncLocalStorage } = require("node:async_hooks");
+		registryContext = new AsyncLocalStorage<Set<string>>();
 	}
-	return registryContext
+	return registryContext;
 }
 
 function createRegistry<T extends Record<string, ReturnType<typeof lazy>>>(components: T): T {
-	if (!isServer) return components /* client: raw record, no tracking needed */
+	if (!isServer) return components; /* client: raw record, no tracking needed */
 
 	return new Proxy(components, {
 		get(target, key: string | symbol) {
 			if (typeof key === "string" && key in target) {
-				const store = getRegistryContext().getStore()
-				if (store) store.add(key)
+				const store = getRegistryContext().getStore();
+				if (store) store.add(key);
 			}
-			return Reflect.get(target, key)
+			return Reflect.get(target, key);
 		},
-	})
+	});
 }
 
 /* SSR handler — wraps render in AsyncLocalStorage context (server-only) */
 function withRegistryTracking<R>(fn: () => R): { result: R; dk: () => string[] } {
-	const accessed = new Set<string>()
-	const result = getRegistryContext().run(accessed, fn)
+	const accessed = new Set<string>();
+	const result = getRegistryContext().run(accessed, fn);
 	return {
 		result,
 		dk: () => [...accessed] /* callable anytime — accumulates during streaming */,
-	}
+	};
 }
 ```
 
@@ -233,13 +233,13 @@ Different use cases can have separate registries:
 const tenantPages = createRegistry({
 	about: lazy(() => import("./tenant-pages/about")),
 	pricing: lazy(() => import("./tenant-pages/pricing")),
-})
+});
 
 const cmsBlocks = createRegistry({
 	hero: lazy(() => import("./cms-blocks/hero")),
 	testimonials: lazy(() => import("./cms-blocks/testimonials")),
 	faq: lazy(() => import("./cms-blocks/faq")),
-})
+});
 ```
 
 ---
@@ -249,21 +249,21 @@ const cmsBlocks = createRegistry({
 ### Basic: Server picks component via preloader
 
 ```tsx
-import { tenantComponents } from "../registries/tenant-components"
+import { tenantComponents } from "../registries/tenant-components";
 
 createPage("_root_/[...route]")
 	.preloader(async ({ env, location }) => {
-		const tenant = await getTenantConfig(env, location)
-		return { componentId: tenant.pageComponent, tenant }
+		const tenant = await getTenantConfig(env, location);
+		return { componentId: tenant.pageComponent, tenant };
 	})
 	.loader(async ({ env, preloaderContext }) => {
-		return await loadPageData(env, preloaderContext.tenant)
+		return await loadPageData(env, preloaderContext.tenant);
 	})
 	.render(({ loaderData, preloaderContext }) => {
-		const Page = tenantComponents[preloaderContext.componentId]
-		if (!Page) return <NotFound />
-		return <Page data={loaderData} />
-	})
+		const Page = tenantComponents[preloaderContext.componentId];
+		if (!Page) return <NotFound />;
+		return <Page data={loaderData} />;
+	});
 ```
 
 Component key flows through normal preloaderContext/loaderData. NDJSON sends it as a plain string. Client has the registry. Done.
@@ -273,23 +273,23 @@ Component key flows through normal preloaderContext/loaderData. NDJSON sends it 
 ```tsx
 createPage("_root_/[...route]")
 	.preloader(async ({ env, location }) => {
-		return { tenant: await getTenantConfig(env, location) }
+		return { tenant: await getTenantConfig(env, location) };
 	})
 	.loader(async ({ defer, env, preloaderContext }) => {
-		const mainData = await loadMainData(env, preloaderContext.tenant)
-		const comments = defer(loadComments(env, preloaderContext.tenant))
-		return { comments, componentId: preloaderContext.tenant.pageComponent, mainData }
+		const mainData = await loadMainData(env, preloaderContext.tenant);
+		const comments = defer(loadComments(env, preloaderContext.tenant));
+		return { comments, componentId: preloaderContext.tenant.pageComponent, mainData };
 	})
 	.render(({ loaderData }) => {
-		const Page = tenantComponents[loaderData.componentId]
+		const Page = tenantComponents[loaderData.componentId];
 		return (
 			<Page data={loaderData.mainData}>
 				<Suspense fallback={<Skeleton />}>
 					<Comments data={loaderData.comments} />
 				</Suspense>
 			</Page>
-		)
-	})
+		);
+	});
 ```
 
 `defer()` works unchanged. The dynamic component renders with main data immediately. Deferred data streams in via existing `t:"c"` chunks. `<Suspense>` resolves when data arrives.
@@ -299,17 +299,17 @@ createPage("_root_/[...route]")
 ```tsx
 createPage("_root_/[...route]")
 	.preloader(async ({ env, location }) => {
-		const layout = await getCMSLayout(env, location)
-		return { heroId: layout.hero, sidebarId: layout.sidebar }
+		const layout = await getCMSLayout(env, location);
+		return { heroId: layout.hero, sidebarId: layout.sidebar };
 	})
 	.loader(async ({ defer, env, preloaderContext }) => {
-		const heroData = await loadHeroData(env)
-		const sidebarData = defer(loadSidebarData(env))
-		return { heroData, sidebarData }
+		const heroData = await loadHeroData(env);
+		const sidebarData = defer(loadSidebarData(env));
+		return { heroData, sidebarData };
 	})
 	.render(({ loaderData, preloaderContext }) => {
-		const Hero = cmsBlocks[preloaderContext.heroId]
-		const Sidebar = cmsBlocks[preloaderContext.sidebarId]
+		const Hero = cmsBlocks[preloaderContext.heroId];
+		const Sidebar = cmsBlocks[preloaderContext.sidebarId];
 		return (
 			<div>
 				<Hero data={loaderData.heroData} />
@@ -317,8 +317,8 @@ createPage("_root_/[...route]")
 					<Sidebar data={loaderData.sidebarData} />
 				</Suspense>
 			</div>
-		)
-	})
+		);
+	});
 ```
 
 Hero renders immediately (data awaited). Sidebar is inside `<Suspense>` with deferred data — Solid's `lazy()` won't even start loading the sidebar chunk until the `<Suspense>` boundary attempts to render it. If the data is deferred, the chunk download naturally waits until data arrives. Zero wasted bandwidth — no special `clientLazy` mechanism needed.
@@ -331,15 +331,15 @@ createPage("_root_/[...route]")
 	.authorize(["manage-pages"])
 	.input({ params: z.x.object({ route: z.x.string().array() }) })
 	.preloader(async ({ env, location }) => {
-		return { tenant: await getTenantConfig(env, location) }
+		return { tenant: await getTenantConfig(env, location) };
 	})
 	.loader(async ({ env, preloaderContext }) => {
-		return await loadPageData(env, preloaderContext.tenant)
+		return await loadPageData(env, preloaderContext.tenant);
 	})
 	.render(({ loaderData, preloaderContext }) => {
-		const Page = tenantComponents[preloaderContext.tenant.componentId]
-		return <Page data={loaderData} />
-	})
+		const Page = tenantComponents[preloaderContext.tenant.componentId];
+		return <Page data={loaderData} />;
+	});
 ```
 
 No `.dynamic()` chain method needed. The registry is just an import in the render function's file scope.
@@ -403,13 +403,13 @@ After NDJSON `t:"r"` arrives and before `resolveLoadersReady()`, scan all string
 
 ```ts
 /* In NDJSON handler, after all t:"l" messages, before resolving loadersReady */
-const preloads: Promise<unknown>[] = []
+const preloads: Promise<unknown>[] = [];
 for (const match of matches) {
-	scanStringsForPreload(match.loaderData, registeredRegistries, preloads)
-	scanStringsForPreload(match.preloaderContext, registeredRegistries, preloads)
+	scanStringsForPreload(match.loaderData, registeredRegistries, preloads);
+	scanStringsForPreload(match.preloaderContext, registeredRegistries, preloads);
 }
-await Promise.allSettled(preloads)
-resolveLoadersReady()
+await Promise.allSettled(preloads);
+resolveLoadersReady();
 ```
 
 **How `scanStringsForPreload` works**: recursively walk the data object, for every string value check if `registry[value]` exists in any registered registry. If yes, call `registry[value].preload()`. O(n\*m) where n = string values in data, m = registry keys. Both are small. False positives (a string like `"about"` that happens to match a registry key but isn't used as one) cause harmless extra preloads. False negatives are impossible — if the key is in the data and the registry is registered, it's found.
@@ -485,7 +485,7 @@ a) **Progressive `dk`** — initial `self.flare.dk = []`, then append via inline
 
 ```html
 <script>
-	self.flare.dk.push("sidebar")
+	self.flare.dk.push("sidebar");
 </script>
 ```
 
@@ -542,12 +542,12 @@ Developer registers their registries at app entry. Registration must happen **be
 
 ```ts
 /* client entry (runs before hydrate) */
-import { registerRegistry } from "flare"
-import { tenantComponents } from "../registries/tenant-components"
-import { cmsBlocks } from "../registries/cms-blocks"
+import { registerRegistry } from "@lovrozagar/flare";
+import { tenantComponents } from "../registries/tenant-components";
+import { cmsBlocks } from "../registries/cms-blocks";
 
-registerRegistry(tenantComponents)
-registerRegistry(cmsBlocks)
+registerRegistry(tenantComponents);
+registerRegistry(cmsBlocks);
 ```
 
 Registration adds to a module-level array (`registeredRegistries`). This is safe on the client — single-threaded, no concurrent request isolation needed (unlike the server's AsyncLocalStorage tracking). Flare reads this array during hydration to preload `dk` keys.
@@ -590,13 +590,14 @@ No new mechanism needed — existing `staleTime` / `gcTime` from `.options()` co
 Flare has 5 boundary types, at 2 levels:
 
 **Boundary types:**
-| Type | Error class | HTTP | When |
-|---|---|---|---|
-| `error` | any `Error` | 500 | Runtime errors in loaders/render |
-| `notFound` | `NotFoundError` | 404 | `notFound()` thrown in loader/preloader |
-| `unauthorized` | `UnauthenticatedError` | 401 | `authenticateFn` fails |
-| `forbidden` | `ForbiddenError` | 403 | `authorize()` returns false |
-| `streaming` | N/A | N/A | Suspense fallback during streaming SSR |
+
+| Type           | Error class            | HTTP | When                                    |
+| -------------- | ---------------------- | ---- | --------------------------------------- |
+| `error`        | any `Error`            | 500  | Runtime errors in loaders/render        |
+| `notFound`     | `NotFoundError`        | 404  | `notFound()` thrown in loader/preloader |
+| `unauthorized` | `UnauthenticatedError` | 401  | `authenticateFn` fails                  |
+| `forbidden`    | `ForbiddenError`       | 403  | `authorize()` returns false             |
+| `streaming`    | N/A                    | N/A  | Suspense fallback during streaming SSR  |
 
 **Two levels:**
 
@@ -622,24 +623,24 @@ Dynamic components introduce errors at **render time** that existing boundaries 
 ```tsx
 createPage("_root_/[...route]")
 	.preloader(async ({ env, location }) => {
-		const tenant = await getTenantConfig(env, location)
-		if (!tenant) notFound("Tenant not found")
-		return { componentId: tenant.pageComponent, tenant }
+		const tenant = await getTenantConfig(env, location);
+		if (!tenant) notFound("Tenant not found");
+		return { componentId: tenant.pageComponent, tenant };
 	})
 	.loader(async ({ env, preloaderContext }) => {
-		return await loadPageData(env, preloaderContext.tenant)
+		return await loadPageData(env, preloaderContext.tenant);
 	})
 	.render(({ loaderData, preloaderContext }) => {
-		const Page = tenantComponents[preloaderContext.componentId]
+		const Page = tenantComponents[preloaderContext.componentId];
 
 		/* Unknown key → throw notFound (caught by notFoundRender or global notFound boundary) */
-		if (!Page) notFound(`Unknown component: ${preloaderContext.componentId}`)
+		if (!Page) notFound(`Unknown component: ${preloaderContext.componentId}`);
 
 		return (
 			<Suspense fallback={<PageSkeleton />}>
 				<Page data={loaderData} />
 			</Suspense>
-		)
+		);
 	})
 	.notFoundRender(({ pathname }) => (
 		/* Catches: unknown tenant, unknown component key */
@@ -648,7 +649,7 @@ createPage("_root_/[...route]")
 	.errorRender(({ error }) => (
 		/* Catches: chunk load failure, render errors from dynamic component */
 		<ErrorPage error={error} />
-	))
+	));
 ```
 
 ### Boundary Flow Diagram
@@ -714,14 +715,14 @@ Using `Vary` header fragments the cache. Better: custom cache keys via Cloudflar
 
 ```ts
 /* In middleware */
-const tenantId = resolveTenant(request)
-const cacheKey = new Request(`${request.url}?__tenant=${tenantId}`, request)
-const cached = await caches.default.match(cacheKey)
-if (cached) return cached
+const tenantId = resolveTenant(request);
+const cacheKey = new Request(`${request.url}?__tenant=${tenantId}`, request);
+const cached = await caches.default.match(cacheKey);
+if (cached) return cached;
 
-const response = await origin(request)
-ctx.waitUntil(caches.default.put(cacheKey, response.clone()))
-return response
+const response = await origin(request);
+ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+return response;
 ```
 
 ### Per-Route Cache Headers
@@ -730,10 +731,9 @@ Dynamic routes control their own caching via `.headers()`:
 
 ```tsx
 createPage("_root_/[...route]").headers(({ preloaderContext }) => ({
-	"Cache-Control":
-		preloaderContext.tenant.cachePolicy ?? "public, s-maxage=60, stale-while-revalidate=3600",
+	"Cache-Control": preloaderContext.tenant.cachePolicy ?? "public, s-maxage=60, stale-while-revalidate=3600",
 	"CDN-Cache-Control": "max-age=60",
-}))
+}));
 ```
 
 ---
@@ -750,7 +750,7 @@ createPage("_root_/[...route]").headers(({ preloaderContext }) => ({
 const [, modules] = await Promise.all([
 	clientRouter.navigate(options) /* NDJSON fetch → server loaders */,
 	loadRouteModules(resolvedUrl) /* matchRoute(routeTree, url) → import() page + layout chunks */,
-])
+]);
 ```
 
 Without the tree, chunk loading waits for server response → serialized → 50-200ms extra latency per nav.
@@ -786,7 +786,7 @@ Per-route override via `.options()`:
 ```ts
 createPage("_root_/[...route]").options({
 	staleTime: 10_000,
-}) /* shorter stale time for dynamic routes */
+}); /* shorter stale time for dynamic routes */
 ```
 
 ### Three preloading contexts
@@ -816,18 +816,18 @@ function scanStringsForPreload(
 	if (typeof data === "string") {
 		for (const registry of registries) {
 			if (data in registry) {
-				preloads.push(registry[data].preload())
+				preloads.push(registry[data].preload());
 			}
 		}
-		return
+		return;
 	}
 	if (Array.isArray(data)) {
-		for (const item of data) scanStringsForPreload(item, registries, preloads)
-		return
+		for (const item of data) scanStringsForPreload(item, registries, preloads);
+		return;
 	}
 	if (data && typeof data === "object") {
 		for (const value of Object.values(data)) {
-			scanStringsForPreload(value, registries, preloads)
+			scanStringsForPreload(value, registries, preloads);
 		}
 	}
 }
@@ -897,17 +897,17 @@ prefetch: async (options) => {
 	/* ... existing prefetch logic ... */
 
 	if (result.success && result.state) {
-		updateMatchCache(matchCache, result.state)
+		updateMatchCache(matchCache, result.state);
 
 		/* NEW: preload dynamic component chunks from prefetched data */
-		const preloads: Promise<unknown>[] = []
+		const preloads: Promise<unknown>[] = [];
 		for (const match of result.state.matches) {
-			scanStringsForPreload(match.loaderData, getRegisteredRegistries(), preloads)
-			scanStringsForPreload(match.preloaderContext, getRegisteredRegistries(), preloads)
+			scanStringsForPreload(match.loaderData, getRegisteredRegistries(), preloads);
+			scanStringsForPreload(match.preloaderContext, getRegisteredRegistries(), preloads);
 		}
-		void Promise.allSettled(preloads) /* fire-and-forget — don't block prefetch */
+		void Promise.allSettled(preloads); /* fire-and-forget — don't block prefetch */
 	}
-}
+};
 ```
 
 **Result**: hover → data + chunk both prefetch. Click → data from cache + chunk from browser module cache → instant render, zero Suspense flash.
@@ -946,7 +946,7 @@ For routes where component selection changes frequently:
 ```ts
 createPage("_root_/[...route]").options({
 	staleTime: 5_000,
-}) /* re-fetch after 5s — always fresh component */
+}); /* re-fetch after 5s — always fresh component */
 ```
 
 ### Chunk Cache (Browser Module Cache)
@@ -1002,10 +1002,10 @@ With `defer()` → streaming response. To CDN cache: middleware buffers full str
 
 ```ts
 if (isBot(request.headers.get("user-agent"))) {
-	const html = await streamToString(stream)
-	return new Response(html, { headers })
+	const html = await streamToString(stream);
+	return new Response(html, { headers });
 }
-return new Response(stream, { headers })
+return new Response(stream, { headers });
 ```
 
 ---

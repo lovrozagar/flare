@@ -1,8 +1,8 @@
-import { redirect } from "flare/errors"
-import { createPage } from "flare/page"
+import { redirect } from "@lovrozagar/flare/errors";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/old-page")
 	.loader(() => {
-		throw redirect({ to: "/about" })
+		throw redirect({ to: "/about" });
 	})
-	.render(() => <div>Should not render</div>)
+	.render(() => <div>Should not render</div>);

@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const tenorSans: Font<"cyrillic" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
@@ -38,4 +38,4 @@ export const tenorSans: Font<"cyrillic" | "latin" | "latin-ext"> = createRegistr
 	],
 	subsets: ["cyrillic", "latin", "latin-ext"],
 	weights: [400],
-})
+});

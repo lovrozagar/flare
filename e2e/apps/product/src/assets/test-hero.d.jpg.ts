@@ -1,4 +1,4 @@
-import type { StaticImageData } from "flare/image"
+import type { StaticImageData } from "@lovrozagar/flare/image";
 
-declare const data: StaticImageData
-export default data
+declare const data: StaticImageData;
+export default data;

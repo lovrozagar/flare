@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/styling-head-css")
 	.head(() => ({ css: "/test-styles.css" }))
@@ -8,4 +8,4 @@ export const route = createPage("_root_/styling-head-css")
 				Head CSS Styled
 			</div>
 		</main>
-	))
+	));

@@ -1,3 +1,3 @@
-import { defineEnvConfig } from "../playwright-env.ts"
+import { defineEnvConfig } from "../playwright-env.ts";
 
-export default defineEnvConfig("firefox")
+export default defineEnvConfig("firefox");

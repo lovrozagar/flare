@@ -1,5 +1,5 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(dc)/(inner)/(leaf)/deep-cache")
 	.cache({ cdn: { maxAge: "1d", swr: "7d", tags: ["fs-paths"] }, isr: true })
@@ -10,4 +10,4 @@ export const route = createPage("_root_/(dc)/(inner)/(leaf)/deep-cache")
 				Uncached
 			</Link>
 		</main>
-	))
+	));

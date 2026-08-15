@@ -1,9 +1,9 @@
-import { DirectionProvider, DirectionScript } from "flare/direction"
-import { LocaleProvider, LocaleScript } from "flare/locale"
-import { createRootLayout } from "flare/root-layout"
-import { ThemeProvider, ThemeScript } from "flare/theme"
-import { ViewTransitionCSS } from "flare/view-transition-css"
-import { localeConfig } from "../router"
+import { DirectionProvider, DirectionScript } from "@lovrozagar/flare/direction";
+import { LocaleProvider, LocaleScript } from "@lovrozagar/flare/locale";
+import { createRootLayout } from "@lovrozagar/flare/root-layout";
+import { ThemeProvider, ThemeScript } from "@lovrozagar/flare/theme";
+import { ViewTransitionCSS } from "@lovrozagar/flare/view-transition-css";
+import { localeConfig } from "../router";
 
 export const route = createRootLayout("_root_")
 	.preloader((ctx) => ({ locale: ctx.locale() }))
@@ -56,4 +56,4 @@ export const route = createRootLayout("_root_")
 		<div data-testid="root-unauthorized">
 			<h1>Forbidden</h1>
 		</div>
-	))
+	));

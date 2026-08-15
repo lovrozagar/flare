@@ -1,6 +1,6 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
-import { For } from "solid-js"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
+import { For } from "solid-js";
 
 export const route = createPage("_root_/(blog)/blog")
 	.loader(() => ({
@@ -32,4 +32,4 @@ export const route = createPage("_root_/(blog)/blog")
 				</ul>
 			</div>
 		</main>
-	))
+	));

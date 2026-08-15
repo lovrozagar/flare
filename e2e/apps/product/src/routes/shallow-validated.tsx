@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { useRouter } from "flare/router"
+import { createPage } from "@lovrozagar/flare/page";
+import { useRouter } from "@lovrozagar/flare/router";
 
 export const route = createPage("_root_/shallow-validated")
 	.input({
@@ -15,7 +15,7 @@ export const route = createPage("_root_/shallow-validated")
 		sort: ctx.location.search.sort,
 	}))
 	.render((props) => {
-		const r = useRouter()
+		const r = useRouter();
 		return (
 			<main data-testid="shallow-validated">
 				<p data-testid="search-page">{String(r.location().search.page ?? "")}</p>
@@ -64,5 +64,5 @@ export const route = createPage("_root_/shallow-validated")
 					Transform
 				</button>
 			</main>
-		)
-	})
+		);
+	});

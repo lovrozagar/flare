@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 /*
  * InterDisplay ships as static per-weight woff2 only (no variable font in rsms.me v4.1).
@@ -49,4 +49,4 @@ export const interDisplay: Font<"latin"> = createRegistryFont({
 	],
 	subsets: ["latin"],
 	weights: [300, 400, 600],
-})
+});

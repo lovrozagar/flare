@@ -1,16 +1,16 @@
-import { createClientOnlyFn } from "flare/client-only"
-import { createIsomorphicFn } from "flare/isomorphic"
-import { createPage } from "flare/page"
-import { createServerOnlyFn } from "flare/server-only"
-import { createSignal, onMount } from "solid-js"
+import { createClientOnlyFn } from "@lovrozagar/flare/client-only";
+import { createIsomorphicFn } from "@lovrozagar/flare/isomorphic";
+import { createPage } from "@lovrozagar/flare/page";
+import { createServerOnlyFn } from "@lovrozagar/flare/server-only";
+import { createSignal, onMount } from "solid-js";
 
-const getServerSecret = createServerOnlyFn(() => "server-secret-42")
+const getServerSecret = createServerOnlyFn(() => "server-secret-42");
 
 const getEnvLabel = createIsomorphicFn()
 	.server(() => "rendered-on-server")
-	.client(() => "rendered-on-client")
+	.client(() => "rendered-on-client");
 
-const getClientMark = createClientOnlyFn(() => "client-only-mark")
+const getClientMark = createClientOnlyFn(() => "client-only-mark");
 
 export const route = createPage("_root_/env-fn-test")
 	.loader(() => ({
@@ -18,13 +18,13 @@ export const route = createPage("_root_/env-fn-test")
 		secret: getServerSecret(),
 	}))
 	.render((props) => {
-		const [clientMark, setClientMark] = createSignal("")
-		const [liveEnv, setLiveEnv] = createSignal("")
+		const [clientMark, setClientMark] = createSignal("");
+		const [liveEnv, setLiveEnv] = createSignal("");
 
 		onMount(() => {
-			setClientMark(getClientMark())
-			setLiveEnv(getEnvLabel())
-		})
+			setClientMark(getClientMark());
+			setLiveEnv(getEnvLabel());
+		});
 
 		return (
 			<main data-testid="env-fn-test">
@@ -33,5 +33,5 @@ export const route = createPage("_root_/env-fn-test")
 				<p data-testid="client-mark">{clientMark()}</p>
 				<p data-testid="live-env">{liveEnv()}</p>
 			</main>
-		)
-	})
+		);
+	});

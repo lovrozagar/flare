@@ -1,15 +1,8 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const arimo: Font<
-	| "cyrillic"
-	| "cyrillic-ext"
-	| "greek"
-	| "greek-ext"
-	| "hebrew"
-	| "latin"
-	| "latin-ext"
-	| "vietnamese"
+	"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext" | "hebrew" | "latin" | "latin-ext" | "vietnamese"
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
@@ -258,15 +251,6 @@ export const arimo: Font<
 			weight: "700",
 		},
 	],
-	subsets: [
-		"cyrillic",
-		"cyrillic-ext",
-		"greek",
-		"greek-ext",
-		"hebrew",
-		"latin",
-		"latin-ext",
-		"vietnamese",
-	],
+	subsets: ["cyrillic", "cyrillic-ext", "greek", "greek-ext", "hebrew", "latin", "latin-ext", "vietnamese"],
 	weights: [400, 700],
-})
+});

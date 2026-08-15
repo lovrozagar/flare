@@ -1,3 +1,3 @@
-import { defineEnvConfig } from "../playwright-env.ts"
+import { defineEnvConfig } from "../playwright-env.ts";
 
-export default defineEnvConfig("deno")
+export default defineEnvConfig("deno");

@@ -11,8 +11,8 @@
 		"type:check": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@lovrozagar/flare": "workspace:*",
 		"@tanstack/solid-query": "catalog:",
-		"flare": "workspace:*",
 		"node-html-markdown": "catalog:",
 		"solid-js": "catalog:",
 		"tailwindcss": "catalog:",

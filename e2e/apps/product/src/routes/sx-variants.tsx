@@ -1,18 +1,14 @@
-import { createPage } from "flare/page"
-import { createSignal } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal } from "solid-js";
 
-const VARIANTS = ["primary", "secondary", "danger"] as const
+const VARIANTS = ["primary", "secondary", "danger"] as const;
 
 export const route = createPage("_root_/sx-variants").render(() => {
-	const [variantIdx, setVariantIdx] = createSignal(0)
-	const variant = () => VARIANTS[variantIdx()]
+	const [variantIdx, setVariantIdx] = createSignal(0);
+	const variant = () => VARIANTS[variantIdx()];
 	return (
 		<main data-testid="sx-variants">
-			<button
-				data-testid="cycle-variant"
-				type="button"
-				onClick={() => setVariantIdx((i) => (i + 1) % VARIANTS.length)}
-			>
+			<button data-testid="cycle-variant" type="button" onClick={() => setVariantIdx((i) => (i + 1) % VARIANTS.length)}>
 				Cycle
 			</button>
 			<div
@@ -33,5 +29,5 @@ export const route = createPage("_root_/sx-variants").render(() => {
 				{variant()}
 			</div>
 		</main>
-	)
-})
+	);
+});

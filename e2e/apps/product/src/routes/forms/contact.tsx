@@ -1,11 +1,11 @@
-import { FieldError, Form } from "flare/form"
-import { createPage } from "flare/page"
-import { createSignal, Show } from "solid-js"
-import { formContactFn } from "../../form-stubs"
+import { FieldError, Form } from "@lovrozagar/flare/form";
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal, Show } from "solid-js";
+import { formContactFn } from "../../form-stubs";
 
 export const route = createPage("_root_/forms/contact").render(() => {
-	const [successMsg, setSuccessMsg] = createSignal("")
-	const [resetCount, setResetCount] = createSignal(0)
+	const [successMsg, setSuccessMsg] = createSignal("");
+	const [resetCount, setResetCount] = createSignal(0);
 
 	return (
 		<main data-testid="form-contact">
@@ -18,20 +18,14 @@ export const route = createPage("_root_/forms/contact").render(() => {
 			<Form
 				action={formContactFn}
 				onSuccess={() => {
-					setSuccessMsg("Message sent!")
+					setSuccessMsg("Message sent!");
 				}}
 			>
 				{(form) => (
 					<>
 						<div>
 							<label for="email">Email</label>
-							<input
-								data-testid="email-input"
-								id="email"
-								name="email"
-								type="text"
-								value={form.value("email")}
-							/>
+							<input data-testid="email-input" id="email" name="email" type="text" value={form.value("email")} />
 							<FieldError class="field-error" field="email" of={form} />
 							<FieldError all class="field-error-all" field="email" of={form} />
 						</div>
@@ -43,21 +37,17 @@ export const route = createPage("_root_/forms/contact").render(() => {
 							<FieldError class="field-error" field="message" of={form} />
 						</div>
 						<p data-testid="has-errors">{String(form.hasErrors())}</p>
-						<Show when={form.error()}>
-							{(err) => <p data-testid="form-error">{err().message}</p>}
-						</Show>
+						<Show when={form.error()}>{(err) => <p data-testid="form-error">{err().message}</p>}</Show>
 						<p data-testid="pending-state">{String(form.pending())}</p>
-						<Show when={form.result()}>
-							{(r) => <p data-testid="result-data">{JSON.stringify(r())}</p>}
-						</Show>
+						<Show when={form.result()}>{(r) => <p data-testid="result-data">{JSON.stringify(r())}</p>}</Show>
 						<button data-testid="submit-btn" disabled={form.pending()} type="submit">
 							{form.pending() ? "Sending..." : "Send"}
 						</button>
 						<button
 							data-testid="reset-btn"
 							onClick={() => {
-								form.reset()
-								setResetCount((c) => c + 1)
+								form.reset();
+								setResetCount((c) => c + 1);
 							}}
 							type="button"
 						>
@@ -68,5 +58,5 @@ export const route = createPage("_root_/forms/contact").render(() => {
 				)}
 			</Form>
 		</main>
-	)
-})
+	);
+});

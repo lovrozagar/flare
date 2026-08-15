@@ -9,7 +9,7 @@
 		"preview": "vite preview --port 4001"
 	},
 	"dependencies": {
-		"flare": "workspace:*",
+		"@lovrozagar/flare": "workspace:*",
 		"solid-js": "1.9.14"
 	},
 	"devDependencies": {

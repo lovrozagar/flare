@@ -60,7 +60,7 @@ Every response from the server handler must include `Vary: x-d`. This is non-neg
 
 ```ts
 /* In SECURITY_HEADERS or applied separately */
-headers.set("Vary", "x-d")
+headers.set("Vary", "x-d");
 ```
 
 If user adds custom Vary values, they're appended: `Vary: x-d, Accept-Language`.
@@ -71,11 +71,11 @@ Add `vary` to `CdnCacheConfig`:
 
 ```ts
 interface CdnCacheConfig {
-	maxAge: number
-	private?: boolean
-	swr?: number
-	tags?: string[]
-	vary?: string[] /* NEW — additional Vary header values */
+	maxAge: number;
+	private?: boolean;
+	swr?: number;
+	tags?: string[];
+	vary?: string[]; /* NEW — additional Vary header values */
 }
 ```
 
@@ -109,11 +109,11 @@ No config option needed — always-on for store-served, absent for streaming. Ze
 
 ```ts
 /* When writing to store (SSG prerender, ISR cache, SSR cache) */
-const etag = `W/"${await computeEtag(body)}"`
+const etag = `W/"${await computeEtag(body)}"`;
 /* Hash the stored content (with placeholder, before nonce swap) */
 
 /* When serving from store */
-headers.set("ETag", etag)
+headers.set("ETag", etag);
 ```
 
 Hash function: Web Crypto `SHA-256` truncated to 16 hex chars. Fast, collision-resistant enough for cache validation.
@@ -125,10 +125,10 @@ Hash function: Web Crypto `SHA-256` truncated to 16 hex chars. Fast, collision-r
 Before sending a cached response, check `If-None-Match`:
 
 ```ts
-const ifNoneMatch = request.headers.get("If-None-Match")
+const ifNoneMatch = request.headers.get("If-None-Match");
 /* Weak comparison: strip W/ prefix for matching (RFC 9110 §8.8.3.2) */
 if (ifNoneMatch && weakMatch(ifNoneMatch, etag)) {
-	return new Response(null, { status: 304, headers })
+	return new Response(null, { status: 304, headers });
 }
 ```
 
@@ -422,13 +422,13 @@ flare({
 						 * only adds the status headers the CDN would add in prod.
 						 */
 						headers: (event: {
-							age: number
-							cacheControl: string
-							fresh: boolean
-							hit: boolean
-							revalidating: boolean
-							swr: boolean
-						}) => Record<string, string>
+							age: number;
+							cacheControl: string;
+							fresh: boolean;
+							hit: boolean;
+							revalidating: boolean;
+							swr: boolean;
+						}) => Record<string, string>;
 				  },
 		},
 
@@ -461,31 +461,31 @@ flare({
 		 */
 		serverTiming: true,
 	},
-})
+});
 ```
 
 #### Shorthand forms
 
 ```ts
 dev: {
-	cache: true
+	cache: true;
 } /* static + loader on, cdn off (default) */
 dev: {
-	cache: false
+	cache: false;
 } /* all caching off */
 dev: {
 	cache: {
-		cdn: true
+		cdn: true;
 	}
 } /* all on including cdn with X-Flare-Cache header */
 dev: {
 	cache: {
-		cdn: cfHeaders
+		cdn: cfHeaders;
 	}
 } /* all on, cdn with CF-style headers */
 dev: {
 	cache: {
-		static: false
+		static: false;
 	}
 } /* loader on, static off (fast startup, test loader logic) */
 ```
@@ -494,7 +494,7 @@ dev: {
 
 ```ts
 /* Cloudflare-style headers */
-import { cfHeaders } from "flare/cdn"
+import { cfHeaders } from "@lovrozagar/flare/cdn";
 /* Equivalent to: */
 const cfHeaders = (e) => ({
 	Age: String(e.age),
@@ -507,19 +507,19 @@ const cfHeaders = (e) => ({
 				: e.fresh
 					? "HIT"
 					: "EXPIRED",
-})
+});
 
 /* Fastly-style headers */
 const fastlyHeaders = (e) => ({
 	Age: String(e.age),
 	"X-Cache": e.hit ? "HIT" : "MISS",
-})
+});
 
 /* Vercel-style headers */
 const vercelHeaders = (e) => ({
 	Age: String(e.age),
 	"x-vercel-cache": !e.hit ? "MISS" : !e.fresh && e.swr ? "STALE" : "HIT",
-})
+});
 ```
 
 These are convenience exports from `flare/cdn` — not core framework code. Users can write their own. Flare provides the cache state facts (`hit`, `fresh`, `swr`, `age`, `revalidating`, `cacheControl`), user decides the headers.

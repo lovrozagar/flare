@@ -27,10 +27,10 @@ Sent after ready, as deferred promises resolve.
 
 ```ts
 {
-	d: unknown /* resolved data */
-	k: string /* deferred key */
-	m: string /* matchId (which route) */
-	t: "c"
+	d: unknown; /* resolved data */
+	k: string; /* deferred key */
+	m: string; /* matchId (which route) */
+	t: "c";
 }
 ```
 
@@ -53,9 +53,9 @@ Per-route head config. Sent after loaders.
 
 ```ts
 {
-	d: HeadConfig /* head config for this route */
-	m: string /* matchId (route ownership) */
-	t: "h"
+	d: HeadConfig; /* head config for this route */
+	m: string; /* matchId (route ownership) */
+	t: "h";
 }
 ```
 
@@ -80,7 +80,7 @@ Signals loaders complete, safe to render. Chunks stream after this.
 
 ```ts
 {
-	t: "r"
+	t: "r";
 }
 ```
 
@@ -90,7 +90,7 @@ End of stream. All deferred settled.
 
 ```ts
 {
-	t: "d"
+	t: "d";
 }
 ```
 
@@ -104,11 +104,11 @@ type NDJSONMessage =
 	| { d: HeadConfig; m: string; t: "h" }
 	| { r?: boolean; s: number; t: "x"; u: string }
 	| { t: "r" }
-	| { t: "d" }
+	| { t: "d" };
 
 interface NDJSONResponseConfig {
-	deferContexts: Map<string, DeferContext>
-	matches: PipelineMatch[]
+	deferContexts: Map<string, DeferContext>;
+	matches: PipelineMatch[];
 }
 ```
 

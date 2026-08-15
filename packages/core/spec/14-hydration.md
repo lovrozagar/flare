@@ -7,19 +7,19 @@ Client bootstrap. Reads SSR state, loads route modules, hydrates Solid app.
 ## Types
 
 ```ts
-type HydrateConfig = MarkedRouterConfig /* from createRouter() (spec 25) */
+type HydrateConfig = MarkedRouterConfig; /* from createRouter() (spec 25) */
 
 interface RouteComponent {
-	_type: "render" | "layout" | "root-layout"
-	render: (props: unknown) => JSX.Element
-	virtualPath: string
+	_type: "render" | "layout" | "root-layout";
+	render: (props: unknown) => JSX.Element;
+	virtualPath: string;
 	/* plus other route result fields */
 }
 
 interface LoadedModules {
-	layouts: RouteComponent[]
-	page: RouteComponent
-	params: Record<string, string | string[]>
+	layouts: RouteComponent[];
+	page: RouteComponent;
+	params: Record<string, string | string[]>;
 }
 ```
 
@@ -49,11 +49,11 @@ Full client bootstrap sequence:
 #### Step 1: Parse SSR State
 
 ```ts
-const raw = (self as { flare?: unknown }).flare
-const state = parseFlareState(raw)
-if (!state) throw new Error("No valid flare state found")
+const raw = (self as { flare?: unknown }).flare;
+const state = parseFlareState(raw);
+if (!state) throw new Error("No valid flare state found");
 
-const { matches, params, pathname, resolvers, search } = hydrateFlareState(state)
+const { matches, params, pathname, resolvers, search } = hydrateFlareState(state);
 ```
 
 `resolvers` map holds deferred promise resolve/reject functions — passed to NDJSON streaming chunks arriving after initial HTML.
@@ -64,16 +64,16 @@ const { matches, params, pathname, resolvers, search } = hydrateFlareState(state
 const matchCache = createMatchCache({
 	gcTime: router.gcTime ?? 300_000,
 	maxEntries: router.routeCacheMaxEntries ?? 200,
-})
+});
 const prefetchCache = createPrefetchCache({
 	gcTime: router.prefetchGcTime ?? 300_000,
-})
+});
 ```
 
 #### Step 3: Populate matchCache
 
 ```ts
-const now = Date.now()
+const now = Date.now();
 for (const match of matches) {
 	matchCache.set({
 		data: match.loaderData,
@@ -81,7 +81,7 @@ for (const match of matches) {
 		matchId: match.matchId,
 		preloaderContext: match.preloaderContext,
 		updatedAt: now,
-	})
+	});
 }
 ```
 
@@ -90,7 +90,7 @@ SSR data is fresh — `invalid: false`, `updatedAt: now`.
 #### Step 4: Load Route Modules
 
 ```ts
-const modules = await loadRouteModules(pathname, router.routeTree, router.layouts)
+const modules = await loadRouteModules(pathname, router.routeTree, router.layouts);
 ```
 
 Loads page and layout JS chunks in parallel. See `loadRouteModules` below.
@@ -98,7 +98,7 @@ Loads page and layout JS chunks in parallel. See `loadRouteModules` below.
 #### Step 5: Wait for Lazy Preloads
 
 ```ts
-await waitForLazyPreloads()
+await waitForLazyPreloads();
 ```
 
 Client-side lazy components (`clientLazy`) register preload promises globally. Wait for all to resolve before hydration — prevents flash of loading state.
@@ -135,7 +135,7 @@ solidHydrate(
 
 ```ts
 function Dummy(props: { children: JSX.Element }): JSX.Element {
-	return props.children
+	return props.children;
 }
 ```
 
@@ -147,12 +147,12 @@ After hydration completes:
 If `state.q` exists and `router.queryClientGetter` is provided, hydrate query cache before rendering:
 
 ```ts
-const queryClient = router.queryClientGetter?.()
+const queryClient = router.queryClientGetter?.();
 if (state.q && queryClient) {
 	for (const entry of state.q) {
-		queryClient.setQueryData(entry.key, entry.data, { updatedAt: Date.now() })
+		queryClient.setQueryData(entry.key, entry.data, { updatedAt: Date.now() });
 		if (entry.staleTime !== undefined) {
-			queryClient.setQueryDefaults(entry.key, { staleTime: entry.staleTime })
+			queryClient.setQueryDefaults(entry.key, { staleTime: entry.staleTime });
 		}
 	}
 }
@@ -163,7 +163,7 @@ If `state.e` exists (dev errors from SSR — only populated in dev mode by serve
 ```ts
 if (state.e) {
 	for (const err of state.e) {
-		devErrorStore.register(err)
+		devErrorStore.register(err);
 	}
 }
 ```
@@ -174,8 +174,8 @@ If `state.ph` exists (per-route heads from SSR), initialize head tracking:
 
 ```ts
 if (state.ph) {
-	initRouteHierarchy(state.ph.map((h) => h.matchId))
-	applyPerRouteHeads(state.ph)
+	initRouteHierarchy(state.ph.map((h) => h.matchId));
+	applyPerRouteHeads(state.ph);
 }
 ```
 
@@ -192,10 +192,10 @@ Loads page + layout JS chunks in parallel.
 const [pageModule, ...layoutModules] = await Promise.all([
 	route.p() /* page lazy loader */,
 	...layoutKeys.map((key) => {
-		const loader = layouts[key]
-		return loader ? loader() : null
+		const loader = layouts[key];
+		return loader ? loader() : null;
 	}),
-])
+]);
 ```
 
 5. Extract `.default` from each module
@@ -206,12 +206,12 @@ const [pageModule, ...layoutModules] = await Promise.all([
 Client lazy components (`clientLazy`) push preload promises to a global array:
 
 ```ts
-const PRELOAD_KEY = "__FLARE_LAZY_PRELOADS__"
+const PRELOAD_KEY = "__FLARE_LAZY_PRELOADS__";
 
 function waitForLazyPreloads(): Promise<void> {
-	const promises = (globalThis as any)[PRELOAD_KEY] as Promise<unknown>[] | undefined
-	if (!promises || promises.length === 0) return Promise.resolve()
-	return Promise.all(promises).then(() => {})
+	const promises = (globalThis as any)[PRELOAD_KEY] as Promise<unknown>[] | undefined;
+	if (!promises || promises.length === 0) return Promise.resolve();
+	return Promise.all(promises).then(() => {});
 }
 ```
 
@@ -223,18 +223,18 @@ Combines loaded modules (components) with cached data (loaderData):
 
 ```ts
 function buildMatches(ctx: FlareProviderContext, modules: LoadedModules): void {
-	const search = Object.fromEntries(new URL(window.location.href).searchParams)
-	const allModules = [...modules.layouts, modules.page]
+	const search = Object.fromEntries(new URL(window.location.href).searchParams);
+	const allModules = [...modules.layouts, modules.page];
 
 	const matches = allModules.map((mod) => {
-		const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? []
+		const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? [];
 		const matchId = computeMatchId({
 			loaderDeps: () => deps,
 			params: modules.params,
 			routeId: mod.virtualPath,
 			search,
-		})
-		const cached = matchCache.get(matchId)
+		});
+		const cached = matchCache.get(matchId);
 
 		return {
 			_type: mod._type,
@@ -242,11 +242,11 @@ function buildMatches(ctx: FlareProviderContext, modules: LoadedModules): void {
 			preloaderContext: cached?.preloaderContext,
 			render: mod.render,
 			virtualPath: mod.virtualPath,
-		}
-	})
+		};
+	});
 
-	ctx.setMatches(matches)
-	ctx.setParams(modules.params)
+	ctx.setMatches(matches);
+	ctx.setParams(modules.params);
 }
 ```
 

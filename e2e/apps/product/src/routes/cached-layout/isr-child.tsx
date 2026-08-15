@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(cached-layout)/cached-layout/isr-child")
 	.cache({
@@ -13,4 +13,4 @@ export const route = createPage("_root_/(cached-layout)/cached-layout/isr-child"
 			<p data-testid="isr-child-page">{props.loaderData.page}</p>
 			<p data-testid="isr-child-ts">{props.loaderData.childTs}</p>
 		</div>
-	))
+	));

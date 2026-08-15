@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { styles } from "flare/styles"
+import { createPage } from "@lovrozagar/flare/page";
+import { styles } from "@lovrozagar/flare/styles";
 
 export const route = createPage("_root_/styling-full-css").render(() => {
 	const mediaProps = styles("media-box", {
@@ -10,14 +10,14 @@ export const route = createPage("_root_/styling-full-css").render(() => {
 				background: rgb(200, 200, 255);
 			}
 		`,
-	})
+	});
 	const pseudoProps = styles("pseudo-box", {
 		css: `
 			color: rgb(100, 100, 100);
 			&:hover { color: rgb(255, 0, 0); }
 			&::before { content: ">>"; }
 		`,
-	})
+	});
 	const keyframeProps = styles("keyframe-box", {
 		css: `
 			animation-name: spin-test;
@@ -27,13 +27,13 @@ export const route = createPage("_root_/styling-full-css").render(() => {
 				to { transform: rotate(360deg); }
 			}
 		`,
-	})
+	});
 	const nestedProps = styles("nested-box", {
 		css: `
 			padding: 4px;
 			.inner { color: rgb(128, 0, 128); font-weight: bold; }
 		`,
-	})
+	});
 	const stateProps = styles("state-box", {
 		css: (s) => `
 			color: rgb(0, 0, 0);
@@ -42,12 +42,12 @@ export const route = createPage("_root_/styling-full-css").render(() => {
 			${s.size("lg")} { font-size: 24px; }
 		`,
 		state: { size: "lg", variant: "primary" },
-	})
+	});
 	const varsProps = styles("vars-combo-box", {
 		css: (_s, v) => `color: ${v.fg}; background: ${v.bg};`,
 		style: { "font-weight": "900" },
 		vars: { bg: "rgb(240, 240, 240)", fg: "rgb(0, 100, 0)" },
-	})
+	});
 	return (
 		<main data-testid="styling-full-css">
 			<div {...mediaProps} data-testid="media-box">
@@ -71,5 +71,5 @@ export const route = createPage("_root_/styling-full-css").render(() => {
 				Vars + Style
 			</div>
 		</main>
-	)
-})
+	);
+});

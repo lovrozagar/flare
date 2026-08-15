@@ -1,8 +1,8 @@
-import { createPage } from "flare/page"
-import { useTheme } from "flare/theme"
+import { createPage } from "@lovrozagar/flare/page";
+import { useTheme } from "@lovrozagar/flare/theme";
 
 export const route = createPage("_root_/theme-dir").render(() => {
-	const theme = useTheme()
+	const theme = useTheme();
 	return (
 		<main data-testid="theme-dir">
 			<p data-testid="theme-page">scripts</p>
@@ -12,5 +12,5 @@ export const route = createPage("_root_/theme-dir").render(() => {
 				Toggle
 			</button>
 		</main>
-	)
-})
+	);
+});

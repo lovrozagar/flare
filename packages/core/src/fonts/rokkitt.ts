@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const rokkitt: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
@@ -63,4 +63,4 @@ export const rokkitt: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistr
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: "100 900",
-})
+});

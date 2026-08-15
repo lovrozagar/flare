@@ -1,5 +1,5 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/rewrite-target")
 	.loader(({ request }) => ({
@@ -24,4 +24,4 @@ export const route = createPage("_root_/rewrite-target")
 				</Link>
 			</nav>
 		</main>
-	))
+	));

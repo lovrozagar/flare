@@ -5,7 +5,7 @@ Layer 0 (pure, no deps). Internal logging system with build-time configurable lo
 ## Types
 
 ```ts
-type LogLevel = "error" | "silent" | "verbose" | "warn"
+type LogLevel = "error" | "silent" | "verbose" | "warn";
 ```
 
 Priority: `silent(0) < error(1) < warn(2) < verbose(3)`. A function fires only if `currentLevel >= functionLevel`.
@@ -35,12 +35,12 @@ Resolved at build time via `virtual:flare-log-level` virtual module. The Vite pl
 
 ```ts
 interface ConsoleConfig {
-	logLevel?: LogLevel
-	strip?: ("log" | "warn")[] | boolean
+	logLevel?: LogLevel;
+	strip?: ("log" | "warn")[] | boolean;
 }
 
 interface FlarePluginConfig {
-	console?: { dev?: ConsoleConfig; prod?: ConsoleConfig }
+	console?: { dev?: ConsoleConfig; prod?: ConsoleConfig };
 }
 ```
 

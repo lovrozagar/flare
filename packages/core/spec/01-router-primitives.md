@@ -6,38 +6,38 @@ Layer 0. Pure functions, zero deps. Ships to both server and client.
 
 ```ts
 type RouteMeta = {
-	authenticate?: boolean
-	gcTime?: number
-	prefetch?: PrefetchStrategy
-	prefetchGcTime?: number
-	prefetchStaleTime?: number
-	staleTime?: number
-}
+	authenticate?: boolean;
+	gcTime?: number;
+	prefetch?: PrefetchStrategy;
+	prefetchGcTime?: number;
+	prefetchStaleTime?: number;
+	staleTime?: number;
+};
 
-type PrefetchStrategy = false | "intent" | "render" | "viewport"
+type PrefetchStrategy = false | "intent" | "render" | "viewport";
 
 type RouteData = {
-	e: string /* exportName (debug/dev) */
-	o: RouteMeta /* route options */
-	p: () => Promise<{ default: unknown }> /* page lazy loader */
-	t: "r" | "x" /* type: "r" = render, "x" = response */
-	v: string /* variablePath: "/products/[id]" */
-	x: string /* virtualPath: "_root_/(auth)/login" */
-}
+	e: string; /* exportName (debug/dev) */
+	o: RouteMeta; /* route options */
+	p: () => Promise<{ default: unknown }>; /* page lazy loader */
+	t: "r" | "x"; /* type: "r" = render, "x" = response */
+	v: string; /* variablePath: "/products/[id]" */
+	x: string; /* virtualPath: "_root_/(auth)/login" */
+};
 
 type TreeNode = {
-	c?: TreeNode /* catchAll [...slug] */
-	n?: string /* paramName */
-	o?: TreeNode /* optionalCatchAll [[...slug]] */
-	p?: TreeNode /* param [id] */
-	r?: RouteData /* route data (terminal) */
-	s: Map<string, TreeNode> /* static children */
-}
+	c?: TreeNode; /* catchAll [...slug] */
+	n?: string; /* paramName */
+	o?: TreeNode; /* optionalCatchAll [[...slug]] */
+	p?: TreeNode; /* param [id] */
+	r?: RouteData; /* route data (terminal) */
+	s: Map<string, TreeNode>; /* static children */
+};
 
 type MatchResult = {
-	params: Record<string, string | string[]>
-	route: RouteData
-}
+	params: Record<string, string | string[]>;
+	route: RouteData;
+};
 ```
 
 Single-char keys for bundle size. Radix tree with O(depth) matching.
@@ -45,18 +45,14 @@ Single-char keys for bundle size. Radix tree with O(depth) matching.
 ### Location
 
 ```ts
-interface Location<
-	TParams = Record<string, string | string[]>,
-	TSearch = Record<string, string>,
-	THash = string,
-> {
-	hash: THash
-	params: TParams
-	pathname: string
-	search: TSearch
-	url: URL
-	variablePath: string
-	virtualPath: string
+interface Location<TParams = Record<string, string | string[]>, TSearch = Record<string, string>, THash = string> {
+	hash: THash;
+	params: TParams;
+	pathname: string;
+	search: TSearch;
+	url: URL;
+	variablePath: string;
+	virtualPath: string;
 }
 ```
 
@@ -76,7 +72,7 @@ function buildLocation<
 	variablePath: string,
 	search?: TSearch,
 	hash?: THash,
-): Location<TParams, TSearch, THash>
+): Location<TParams, TSearch, THash>;
 ```
 
 - If `search` not provided, parses from `url.searchParams`
@@ -86,9 +82,9 @@ function buildLocation<
 ### Path Validation Types
 
 ```ts
-type RootLayoutPath = `_${string}_`
+type RootLayoutPath = `_${string}_`;
 
-type VirtualPath = RootLayoutPath | `${RootLayoutPath}/${string}`
+type VirtualPath = RootLayoutPath | `${RootLayoutPath}/${string}`;
 ```
 
 Runtime validators:

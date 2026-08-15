@@ -1,17 +1,17 @@
-import { createPage } from "flare/page"
-import * as z from "zod"
+import { createPage } from "@lovrozagar/flare/page";
+import * as z from "zod";
 
 export const route = createPage("_root_/input-zod/[id]")
 	.input({
 		params: z.object({ id: z.string().regex(/^\d+$/) }),
 		searchParams: (raw) => {
-			const obj = Object.fromEntries(raw)
+			const obj = Object.fromEntries(raw);
 			return z
 				.object({
 					limit: z.string().default("10"),
 					tab: z.string().default("overview"),
 				})
-				.parse(obj)
+				.parse(obj);
 		},
 	})
 	.loader((ctx) => ({
@@ -31,4 +31,4 @@ export const route = createPage("_root_/input-zod/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

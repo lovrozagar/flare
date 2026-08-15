@@ -1,0 +1,17 @@
+@layer sx {
+	.a1-pb001 {
+		background-color: rgb(0, 120, 80);
+	}
+	.a1-pb002 {
+		color: rgb(255, 255, 255);
+	}
+	.a1-pb003 {
+		border-radius: 6px;
+	}
+	.a1-pb004 {
+		padding: 8px 20px;
+	}
+	.a1-pb005 {
+		cursor: pointer;
+	}
+}

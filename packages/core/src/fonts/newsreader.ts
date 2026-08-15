@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const newsreader: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
@@ -111,4 +111,4 @@ export const newsreader: Font<"latin" | "latin-ext" | "vietnamese"> = createRegi
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: [400, 700],
-})
+});

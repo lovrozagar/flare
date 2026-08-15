@@ -1,21 +1,21 @@
-import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test"
-import { type EnvId, ENV_PORTS, e2eEnvCommand, loadE2eApp } from "./apps/load.ts"
-import { e2eAppName, e2eAppTestDir } from "./playwright-app.ts"
+import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
+import { type EnvId, ENV_PORTS, e2eEnvCommand, loadE2eApp } from "./apps/load.ts";
+import { e2eAppName, e2eAppTestDir } from "./playwright-app.ts";
 
 export function defineEnvConfig(env: EnvId): PlaywrightTestConfig {
-	const app = loadE2eApp(e2eAppName())
-	const ports = ENV_PORTS[env]
-	const mode = process.env.TEST_MODE ?? "dev"
-	const isDev = mode === "dev"
+	const app = loadE2eApp(e2eAppName());
+	const ports = ENV_PORTS[env];
+	const mode = process.env.TEST_MODE ?? "dev";
+	const isDev = mode === "dev";
 	if (env === "firefox" && !isDev) {
-		throw new Error("firefox env is dev-only")
+		throw new Error("firefox env is dev-only");
 	}
 
-	const port = isDev ? ports.dev : ports.prod
-	process.env.PORT = String(port)
+	const port = isDev ? ports.dev : ports.prod;
+	process.env.PORT = String(port);
 
-	const invert: string[] = isDev ? ["@prod-only"] : ["@dev-only"]
-	if (env === "workers") invert.push("@node-only")
+	const invert: string[] = isDev ? ["@prod-only"] : ["@dev-only"];
+	if (env === "workers") invert.push("@node-only");
 
 	return defineConfig({
 		expect: { timeout: 10_000 },
@@ -40,5 +40,5 @@ export function defineEnvConfig(env: EnvId): PlaywrightTestConfig {
 			timeout: isDev ? 60_000 : 180_000,
 		},
 		workers: env === "deno" ? 1 : undefined,
-	})
+	});
 }

@@ -1,10 +1,10 @@
-import { FieldError, Form } from "flare/form"
-import { createPage } from "flare/page"
-import { createSignal, Show } from "solid-js"
-import { formContactFn } from "../form-stubs"
+import { FieldError, Form } from "@lovrozagar/flare/form";
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal, Show } from "solid-js";
+import { formContactFn } from "../form-stubs";
 
 export const route = createPage("_root_/a11y-form-test").render(() => {
-	const [submitted, setSubmitted] = createSignal(false)
+	const [submitted, setSubmitted] = createSignal(false);
 
 	return (
 		<main aria-label="Accessible form test" data-testid="a11y-form-page">
@@ -76,12 +76,7 @@ export const route = createPage("_root_/a11y-form-test").render(() => {
 
 						<div>
 							<label for="a11y-terms">
-								<input
-									data-testid="a11y-terms-input"
-									id="a11y-terms"
-									name="terms"
-									type="checkbox"
-								/>
+								<input data-testid="a11y-terms-input" id="a11y-terms" name="terms" type="checkbox" />
 								I agree to the terms
 							</label>
 						</div>
@@ -94,17 +89,12 @@ export const route = createPage("_root_/a11y-form-test").render(() => {
 							)}
 						</Show>
 
-						<button
-							aria-busy={form.pending()}
-							data-testid="a11y-submit-btn"
-							disabled={form.pending()}
-							type="submit"
-						>
+						<button aria-busy={form.pending()} data-testid="a11y-submit-btn" disabled={form.pending()} type="submit">
 							{form.pending() ? "Submitting..." : "Submit"}
 						</button>
 					</fieldset>
 				)}
 			</Form>
 		</main>
-	)
-})
+	);
+});

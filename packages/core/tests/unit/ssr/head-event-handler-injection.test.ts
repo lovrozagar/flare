@@ -5,21 +5,13 @@
  * The regex filter allows valid alphanumeric attr names but must
  * explicitly reject event handler attributes (onload, onerror, etc).
  */
-import { describe, expect, it } from "vitest"
-import { renderHeadToHtml } from "../../../src/ssr/head.ts"
+import { describe, expect, it } from "vitest";
+import { renderHeadToHtml } from "../../../src/ssr/head.ts";
 
-const NONCE = "test-nonce"
+const NONCE = "test-nonce";
 
 describe("custom head on* event handler injection", () => {
-	const eventHandlers = [
-		"onload",
-		"onerror",
-		"onclick",
-		"onfocus",
-		"onblur",
-		"onmouseover",
-		"onbeforeinput",
-	]
+	const eventHandlers = ["onload", "onerror", "onclick", "onfocus", "onblur", "onmouseover", "onbeforeinput"];
 
 	describe("custom meta tags", () => {
 		for (const handler of eventHandlers) {
@@ -31,13 +23,13 @@ describe("custom head on* event handler injection", () => {
 						},
 					},
 					NONCE,
-				)
-				expect(html).toContain('name="safe"')
-				expect(html).not.toContain(handler)
-				expect(html).not.toContain("alert(1)")
-			})
+				);
+				expect(html).toContain('name="safe"');
+				expect(html).not.toContain(handler);
+				expect(html).not.toContain("alert(1)");
+			});
 		}
-	})
+	});
 
 	describe("custom link tags", () => {
 		for (const handler of eventHandlers) {
@@ -49,13 +41,13 @@ describe("custom head on* event handler injection", () => {
 						},
 					},
 					NONCE,
-				)
-				expect(html).toContain('rel="stylesheet"')
-				expect(html).not.toContain(handler)
-				expect(html).not.toContain("alert(1)")
-			})
+				);
+				expect(html).toContain('rel="stylesheet"');
+				expect(html).not.toContain(handler);
+				expect(html).not.toContain("alert(1)");
+			});
 		}
-	})
+	});
 
 	it("allows safe data- attributes", () => {
 		const html = renderHeadToHtml(
@@ -65,9 +57,9 @@ describe("custom head on* event handler injection", () => {
 				},
 			},
 			NONCE,
-		)
-		expect(html).toContain('data-testid="foo"')
-	})
+		);
+		expect(html).toContain('data-testid="foo"');
+	});
 
 	it("allows safe aria- attributes", () => {
 		const html = renderHeadToHtml(
@@ -77,7 +69,7 @@ describe("custom head on* event handler injection", () => {
 				},
 			},
 			NONCE,
-		)
-		expect(html).toContain('aria-label="link"')
-	})
-})
+		);
+		expect(html).toContain('aria-label="link"');
+	});
+});

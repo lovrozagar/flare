@@ -8,29 +8,29 @@ Type-safe scoped styles with state-based selectors, CSS variables, and server-re
 
 ```ts
 interface StylesResult {
-	"data-c": string
-	style?: JSX.CSSProperties
-	[key: `data-${string}`]: string
+	"data-c": string;
+	style?: JSX.CSSProperties;
+	[key: `data-${string}`]: string;
 }
 
 interface StylesConfigFull<S extends Record<string, unknown>, V extends Record<string, unknown>> {
-	css?: ((s: StateSelectors<S>, v: VarAccessors<V>) => string) | string
-	outerCss?: string
-	state?: S
-	style?: JSX.CSSProperties
-	tw?: string
-	vars?: V
+	css?: ((s: StateSelectors<S>, v: VarAccessors<V>) => string) | string;
+	outerCss?: string;
+	state?: S;
+	style?: JSX.CSSProperties;
+	tw?: string;
+	vars?: V;
 }
 
-type StylesConfig<S, V> = StylesConfigFull<S, V> | string
+type StylesConfig<S, V> = StylesConfigFull<S, V> | string;
 
 type StateSelectors<S> = {
-	[K in keyof S]: (value: S[K]) => string
-}
+	[K in keyof S]: (value: S[K]) => string;
+};
 
 type VarAccessors<V> = {
-	[K in keyof V]: string
-}
+	[K in keyof V]: string;
+};
 ```
 
 ## Exports
@@ -113,7 +113,7 @@ function Card(props: { outerCss?: string }) {
 				outerCss: props.outerCss,
 			})}
 		/>
-	)
+	);
 }
 /* outerCss appended after inner CSS (wins on conflicts) */
 /* name hashed: "card-{hash}" for unique scoping */
@@ -175,9 +175,9 @@ For `css=` prop transform. Hashes CSS content, generates unique `data-c` value:
 
 ```ts
 function registerCSS(css: string): string {
-	const hash = hashString(minify(css))
-	registerCSSByName(hash, css)
-	return hash
+	const hash = hashString(minify(css));
+	registerCSSByName(hash, css);
+	return hash;
 }
 ```
 

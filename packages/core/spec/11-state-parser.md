@@ -8,23 +8,23 @@ Parses `self.flare` (FlareState) from SSR-injected inline script. Converts defer
 
 ```ts
 interface FlareState {
-	c: ContextState /* dir, locale, router, theme */
-	dk?: string[] /* dynamic registry keys (spec 18) */
-	e?: DevError[] /* dev-only SSR errors for client overlay */
-	m: FlareMatchState[] /* matched routes */
-	p: string /* pathname */
-	ph?: PerRouteHead[] /* per-route head configs for client init */
-	q?: QueryState[] /* TanStack Query hydration (optional) */
-	r: Record<string, string | string[]> /* params */
-	s: Record<string, string> /* search */
+	c: ContextState; /* dir, locale, router, theme */
+	dk?: string[]; /* dynamic registry keys (spec 18) */
+	e?: DevError[]; /* dev-only SSR errors for client overlay */
+	m: FlareMatchState[]; /* matched routes */
+	p: string; /* pathname */
+	ph?: PerRouteHead[]; /* per-route head configs for client init */
+	q?: QueryState[]; /* TanStack Query hydration (optional) */
+	r: Record<string, string | string[]>; /* params */
+	s: Record<string, string>; /* search */
 }
 
 interface FlareMatchState {
-	d: unknown /* loaderData (deferred markers) */
-	h?: HeadConfig /* per-route head config */
-	i: string /* matchId */
-	p?: Record<string, unknown> /* preloaderContext */
-	v: string /* virtualPath */
+	d: unknown; /* loaderData (deferred markers) */
+	h?: HeadConfig; /* per-route head config */
+	i: string; /* matchId */
+	p?: Record<string, unknown>; /* preloaderContext */
+	v: string; /* virtualPath */
 }
 ```
 
@@ -36,8 +36,8 @@ Serialized form of `Deferred<T>` (promise stripped):
 
 ```ts
 interface DeferredMarker {
-	__deferred: true
-	key: string
+	__deferred: true;
+	key: string;
 }
 ```
 
@@ -45,24 +45,24 @@ interface DeferredMarker {
 
 ```ts
 interface HydratedMatch {
-	headConfig?: HeadConfig
-	loaderData: unknown
-	matchId: string
-	preloaderContext?: Record<string, unknown>
-	virtualPath: string
+	headConfig?: HeadConfig;
+	loaderData: unknown;
+	matchId: string;
+	preloaderContext?: Record<string, unknown>;
+	virtualPath: string;
 }
 
 interface ParseResult {
-	matches: HydratedMatch[]
-	params: Record<string, string | string[]>
-	pathname: string
-	resolvers: Map<string, DeferredResolver>
-	search: Record<string, string>
+	matches: HydratedMatch[];
+	params: Record<string, string | string[]>;
+	pathname: string;
+	resolvers: Map<string, DeferredResolver>;
+	search: Record<string, string>;
 }
 
 interface DeferredResolver {
-	reject: (error: Error) => void
-	resolve: (data: unknown) => void
+	reject: (error: Error) => void;
+	resolve: (data: unknown) => void;
 }
 ```
 
@@ -118,7 +118,7 @@ value != null &&
 	"__deferred" in value &&
 	value.__deferred === true &&
 	"key" in value &&
-	typeof value.key === "string"
+	typeof value.key === "string";
 ```
 
 Stricter than `isDeferred` (requires `key` field, no `promise` field expected).
@@ -126,11 +126,11 @@ Stricter than `isDeferred` (requires `key` field, no `promise` field expected).
 ### Client Bootstrap
 
 ```ts
-const raw = (self as { flare?: unknown }).flare
-const state = parseFlareState(raw)
-if (!state) throw new Error("No valid flare state found")
+const raw = (self as { flare?: unknown }).flare;
+const state = parseFlareState(raw);
+if (!state) throw new Error("No valid flare state found");
 
-const { matches, params, pathname, resolvers, search } = hydrateFlareState(state)
+const { matches, params, pathname, resolvers, search } = hydrateFlareState(state);
 /* resolvers passed to NDJSON client for chunk resolution */
 ```
 

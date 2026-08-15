@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { useSuspenseQuery } from "flare/suspense-query"
+import { createPage } from "@lovrozagar/flare/page";
+import { useSuspenseQuery } from "@lovrozagar/flare/suspense-query";
 
 /**
  * Tests that FlareState.q is populated during SSR when queryClientGetter is provided.
@@ -9,8 +9,8 @@ function StateQuery() {
 	const query = useSuspenseQuery({
 		queryFn: async () => ({ payload: "state-check" }),
 		queryKey: ["state-check"],
-	})
-	return <span data-testid="state-query-data">{query.data()?.payload}</span>
+	});
+	return <span data-testid="state-query-data">{query.data()?.payload}</span>;
 }
 
 export const route = createPage("_root_/query-flare-state")
@@ -20,4 +20,4 @@ export const route = createPage("_root_/query-flare-state")
 			<p data-testid="loader-ok">{String(props.loaderData.ok)}</p>
 			<StateQuery />
 		</div>
-	))
+	));

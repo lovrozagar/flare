@@ -1,16 +1,16 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/search")
 	.loader((ctx) => {
-		const q = ctx.location.search.q ?? ""
-		const page = ctx.location.search.page ?? "1"
-		const url = new URL(ctx.request.url)
+		const q = ctx.location.search.q ?? "";
+		const page = ctx.location.search.page ?? "1";
+		const url = new URL(ctx.request.url);
 		return {
 			hostname: url.hostname,
 			page: String(page),
 			paramCount: Object.keys(ctx.location.search).length,
 			q: String(q),
-		}
+		};
 	})
 	.head((ctx) => ({
 		title: `Search: ${(ctx.loaderData as { q: string }).q || "empty"}`,
@@ -32,4 +32,4 @@ export const route = createPage("_root_/search")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

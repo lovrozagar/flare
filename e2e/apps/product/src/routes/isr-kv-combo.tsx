@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/isr-kv-combo")
 	.cache({
@@ -13,4 +13,4 @@ export const route = createPage("_root_/isr-kv-combo")
 			<p data-testid="isr-kv-source">{props.loaderData.source}</p>
 			<p data-testid="isr-kv-rendered-at">{props.loaderData.renderedAt}</p>
 		</div>
-	))
+	));

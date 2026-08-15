@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const quicksand: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
@@ -63,4 +63,4 @@ export const quicksand: Font<"latin" | "latin-ext" | "vietnamese"> = createRegis
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: [400, 700],
-})
+});

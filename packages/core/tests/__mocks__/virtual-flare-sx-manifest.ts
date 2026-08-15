@@ -1,1 +1,1 @@
-export const sxManifest = null
+export const sxManifest = null;

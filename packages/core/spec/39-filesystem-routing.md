@@ -11,7 +11,7 @@ Enabled via Vite plugin config:
 ```ts
 flare({
 	fsCodegen: true /* default: true — auto-generate virtual paths from filesystem */,
-})
+});
 ```
 
 When `false`: falls back to current behavior (regex scanning file contents for `createPage("string")`). User manages virtual paths manually.
@@ -175,7 +175,7 @@ When the generator detects a new empty (or missing builder call) route file, it 
 
 ```tsx
 /* @flare-generated */
-export const route = createPage("_root_/(blog)/blog/[slug]")
+export const route = createPage("_root_/(blog)/blog/[slug]");
 ```
 
 The developer then adds their chain methods below.
@@ -204,7 +204,7 @@ The virtual path string in the source file provides TypeScript with the type inf
 export const route = createPage("_root_/(blog)/blog/[slug]")
 	.loader((ctx) => fetchPost(ctx.location.params.slug))
 	.head((ctx) => ({ title: ctx.loaderData.title }))
-	.render((props) => <BlogPost post={props.loaderData} />)
+	.render((props) => <BlogPost post={props.loaderData} />);
 ```
 
 The `createPage("_root_/(blog)/blog/[slug]")` line is written and maintained by the generator. Moving the file updates it automatically.

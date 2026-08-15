@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/search-effects")
 	.effects({
@@ -15,4 +15,4 @@ export const route = createPage("_root_/search-effects")
 			<div data-testid="effects-deps">{JSON.stringify(props.loaderData.deps)}</div>
 			<div data-testid="effects-timestamp">{props.loaderData.timestamp}</div>
 		</div>
-	))
+	));

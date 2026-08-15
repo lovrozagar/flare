@@ -1,1 +1,2 @@
 /* test stub */
+export {};

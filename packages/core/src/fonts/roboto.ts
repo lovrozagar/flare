@@ -1,16 +1,8 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const roboto: Font<
-	| "cyrillic"
-	| "cyrillic-ext"
-	| "greek"
-	| "greek-ext"
-	| "latin"
-	| "latin-ext"
-	| "math"
-	| "symbols"
-	| "vietnamese"
+	"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext" | "latin" | "latin-ext" | "math" | "symbols" | "vietnamese"
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
@@ -159,16 +151,6 @@ export const roboto: Font<
 			weight: "100 900",
 		},
 	],
-	subsets: [
-		"cyrillic",
-		"cyrillic-ext",
-		"greek",
-		"greek-ext",
-		"latin",
-		"latin-ext",
-		"math",
-		"symbols",
-		"vietnamese",
-	],
+	subsets: ["cyrillic", "cyrillic-ext", "greek", "greek-ext", "latin", "latin-ext", "math", "symbols", "vietnamese"],
 	weights: "100 900",
-})
+});

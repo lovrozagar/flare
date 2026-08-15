@@ -1,12 +1,12 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
-import { useRouter } from "flare/router"
-import { createSignal } from "solid-js"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
+import { useRouter } from "@lovrozagar/flare/router";
+import { createSignal } from "solid-js";
 
 export const route = createPage("_root_/blocker-test").render(() => {
-	const router = useRouter()
-	const [dirty, setDirty] = createSignal(false)
-	const blocker = router.useBlocker(() => dirty())
+	const router = useRouter();
+	const [dirty, setDirty] = createSignal(false);
+	const blocker = router.useBlocker(() => dirty());
 
 	return (
 		<main data-testid="blocker-test">
@@ -25,5 +25,5 @@ export const route = createPage("_root_/blocker-test").render(() => {
 				Reset
 			</button>
 		</main>
-	)
-})
+	);
+});

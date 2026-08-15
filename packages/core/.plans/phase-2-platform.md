@@ -10,6 +10,7 @@ Core stays platform-agnostic. CF-specific features in `flare-cf` adapter.
 ## Workstreams
 
 ### WS1: Client Entry Cleanup ✅
+
 **Priority**: Highest (biggest DX win, no architectural risk)
 
 **Done**. `hydrate(router, options?)` exported from `flare/client`.
@@ -22,6 +23,7 @@ Core stays platform-agnostic. CF-specific features in `flare-cf` adapter.
 - [x] Both e2e + benchmark updated, 655 e2e + 2479 unit tests pass
 
 **Consumer pattern**:
+
 ```
 src/router.ts      → createRouter({ layouts, routeTree }) — shared
 src/client.tsx     → hydrate(router, { devOverlay, onContextReady })
@@ -29,10 +31,14 @@ src/server.ts      → createServerHandler({ router, ... })
 ```
 
 **API supports**: direct value, sync callback, async callback:
+
 ```ts
-hydrate(router)
-hydrate(() => router)
-hydrate(async () => { await setup(); return router })
+hydrate(router);
+hydrate(() => router);
+hydrate(async () => {
+	await setup();
+	return router;
+});
 ```
 
 **Files**: `src/hydrate/index.tsx`, `src/hydration/index.ts`, `src/client.ts`
@@ -48,42 +54,47 @@ hydrate(async () => { await setup(); return router })
 All cache layers namespaced under `.cache({})` — clear which layer you're configuring.
 
 **Router-level defaults** (inherited by all routes):
+
 ```ts
 createRouter({
-  cache: {
-    client: { staleTime: 30_000, gcTime: 300_000, prefetch: "hover" },
-    kv: { staleTime: 60_000 },
-    cdn: { maxAge: 60, swr: 3600 },
-  },
-})
+	cache: {
+		client: { staleTime: 30_000, gcTime: 300_000, prefetch: "hover" },
+		kv: { staleTime: 60_000 },
+		cdn: { maxAge: 60, swr: 3600 },
+	},
+});
 ```
 
 **Per-route overrides** — pages get all 3 keys:
+
 ```ts
 createPage("_root_/posts/[id]")
-  .cache({
-    client: { staleTime: 0, prefetch: "viewport" },
-    kv: false,
-    cdn: { maxAge: 3600, tags: (ctx) => [`post-${ctx.params.id}`] },
-  })
-  .render(fn)
+	.cache({
+		client: { staleTime: 0, prefetch: "viewport" },
+		kv: false,
+		cdn: { maxAge: 3600, tags: (ctx) => [`post-${ctx.params.id}`] },
+	})
+	.render(fn);
 ```
 
 **Layouts** — same type, `cdn` ignored (layouts don't own URLs):
+
 ```ts
 createLayout("_root_/(auth)")
-  .cache({ client: { staleTime: 60_000 }, kv: { staleTime: 120_000 } })
-  .render(fn)
+	.cache({ client: { staleTime: 60_000 }, kv: { staleTime: 120_000 } })
+	.render(fn);
 ```
 
 **Inheritance**: router defaults → layout overrides → page overrides. `false` disables a layer.
 
 **Prefetch** lives inside `client` as flat fields — it's client behavior, not a separate cache layer:
+
 - `prefetch: "hover" | "viewport" | false` — trigger strategy
 - `prefetchStaleTime: number` — how long before re-prefetching (default 30s)
 - `prefetchGcTime: number` — prefetch cache GC time
 
 When `<Link>` is hovered/visible:
+
 1. Client fetches NDJSON → **CDN** serves cached if valid
 2. Server receives → **KV** serves cached if valid, else runs loader + stores
 3. Response arrives → **Client** stores in matchCache
@@ -92,32 +103,32 @@ When `<Link>` is hovered/visible:
 
 ```ts
 interface ClientCacheConfig {
-  cacheDeferred?: boolean      /* opt-in: update matchCache when deferreds resolve */
-  gcTime?: number              /* ms, default 300_000 */
-  prefetch?: PrefetchStrategy  /* trigger: "hover" | "viewport" | false */
-  prefetchGcTime?: number      /* ms, prefetch cache GC */
-  prefetchStaleTime?: number   /* ms, how long before re-prefetch (default 30s) */
-  staleTime?: number           /* ms, default 0 */
+	cacheDeferred?: boolean; /* opt-in: update matchCache when deferreds resolve */
+	gcTime?: number; /* ms, default 300_000 */
+	prefetch?: PrefetchStrategy; /* trigger: "hover" | "viewport" | false */
+	prefetchGcTime?: number; /* ms, prefetch cache GC */
+	prefetchStaleTime?: number; /* ms, how long before re-prefetch (default 30s) */
+	staleTime?: number; /* ms, default 0 */
 }
 
 interface KvCacheConfig {
-  key?: (ctx: CacheKeyContext) => string    /* default: matchId */
-  staleTime?: number                        /* ms */
+	key?: (ctx: CacheKeyContext) => string; /* default: matchId */
+	staleTime?: number; /* ms */
 }
 
 interface CdnCacheConfig {
-  maxAge?: number           /* seconds */
-  private?: boolean
-  swr?: number              /* stale-while-revalidate, seconds */
-  tags?: string[] | ((ctx: CacheTagContext) => string[])
+	maxAge?: number; /* seconds */
+	private?: boolean;
+	swr?: number; /* stale-while-revalidate, seconds */
+	tags?: string[] | ((ctx: CacheTagContext) => string[]);
 }
 
-type PrefetchStrategy = false | "hover" | "viewport"
+type PrefetchStrategy = false | "hover" | "viewport";
 
 interface CacheConfig {
-  cdn?: CdnCacheConfig | false
-  client?: ClientCacheConfig | false
-  kv?: KvCacheConfig | false
+	cdn?: CdnCacheConfig | false;
+	client?: ClientCacheConfig | false;
+	kv?: KvCacheConfig | false;
 }
 ```
 
@@ -160,6 +171,7 @@ interface CacheConfig {
 - [x] 2529 unit + 655 e2e tests pass, TypeScript clean
 
 **Generated headers**:
+
 - `Cache-Control: public, max-age={maxAge}[, stale-while-revalidate={swr}]` (or `private` if `cdn.private: true`)
 - `Surrogate-Key: tag1 tag2` (from `cdn.tags`)
 
@@ -249,17 +261,19 @@ Parent layout `.authenticate()` flows to child routes at the type level.
 - [x] 2878 unit + E2E streaming tests pass, TypeScript clean
 
 **Consumer pattern**:
+
 ```ts
 createServerFn({ name: "chat" })
-  .input(z.object({ prompt: z.string() }))
-  .stream(async function* (ctx) {
-    for await (const chunk of ai.stream(ctx.input.prompt)) {
-      yield chunk
-    }
-  })
+	.input(z.object({ prompt: z.string() }))
+	.stream(async function* (ctx) {
+		for await (const chunk of ai.stream(ctx.input.prompt)) {
+			yield chunk;
+		}
+	});
 ```
 
 **NDJSON protocol**:
+
 ```
 {"c":"Hello"}
 {"c":" world"}
@@ -294,15 +308,14 @@ Single `invalidate()` call clears all cache layers.
 
 ```ts
 /* In serverFn after mutation */
-createServerFn({ name: "updatePost" })
-  .handler(async (ctx) => {
-    await db.updatePost(ctx.input)
-    ctx.invalidate({
-      routes: ["/posts", "/posts/[id]"],
-      params: { id: ctx.input.id },
-    })
-    return { ok: true }
-  })
+createServerFn({ name: "updatePost" }).handler(async (ctx) => {
+	await db.updatePost(ctx.input);
+	ctx.invalidate({
+		routes: ["/posts", "/posts/[id]"],
+		params: { id: ctx.input.id },
+	});
+	return { ok: true };
+});
 ```
 
 **Files**: `packages/flare-cf/src/invalidation.ts`, `src/server-fn/index.ts` (handler context)
@@ -366,6 +379,7 @@ createServerFn({ name: "updatePost" })
 - [x] 2805 unit + 655 e2e tests pass, TypeScript clean
 
 **Consumer pattern (after)**:
+
 ```ts
 /* vite.config.ts — unchanged, single call */
 plugins: [solid({ ssr: true }), ...createFlarePlugins({})]
@@ -406,6 +420,7 @@ hydrate(router, { devOverlay: isDev })
 - [x] 2784 unit + 655 e2e tests pass, TypeScript clean
 
 **Consumer pattern (after)**:
+
 ```ts
 /* router.ts */
 createRouter({ theme: { defaultTheme: "system" }, direction: { defaultDir: "ltr" }, ... })
@@ -431,7 +446,7 @@ const { direction, setDirection, toggleDirection } = useDirection()
 - [x] Generator emits `FlareRegister` declaration merging in `routes.gen.ts`
 - [x] `FlareRegister` changed from `type` to `interface` (enables declaration merging)
 - [x] `extractParamsFromPattern()` extracts param names + types from URL patterns
-- [x] `generateRouteRegistry()` builds `declare module "flare"` block
+- [x] `generateRouteRegistry()` builds `declare module "@lovrozagar/flare"` block
 - [x] Single param `[id]` → `string`, catch-all `[...slug]` → `string[]`, optional `[[...locale]]` → `string[] | undefined`
 - [x] Params sorted alphabetically within each route type
 - [x] Routes sorted by URL path, layouts + response routes excluded
@@ -507,6 +522,7 @@ WS8 (theme/direction ctx)   -- ✅ DONE
 ```
 
 **Next up** (no blockers):
+
 1. **WS5** (unified invalidation) — medium, unblocked by WS2-C
 2. **WS4-B** (mutation streaming) — blocked by WS5
 
@@ -559,6 +575,7 @@ CF adapter imports `@cloudflare/workers-types` and wraps core with CF primitives
 **Format**: Newline-delimited JSON. One object per line. Standard `application/x-ndjson`.
 
 **Message types**:
+
 - `t:"l"` — loader data. `m` = matchId (route+params+search+deps), `d` = data payload
 - `t:"h"` — head config per route. Streamed as structured data (title, meta, OG, etc.)
 - `t:"r"` — ready signal. All initial loader data sent. Client can render.
@@ -586,6 +603,7 @@ f:I[69949,["8821","static/chunks/8821-8fff7607...","4226","static/chunks/4226-d1
 ```
 
 **Format**: Custom "flight" protocol. Mix of:
+
 - `I[moduleId, [chunkIds...], exportName]` — module/component references
 - `:HL[url, type, options]` — resource hints (fonts, CSS)
 - `{"P":...,"f":...}` — serialized route tree with nested component structure
@@ -610,6 +628,7 @@ f:I[69949,["8821","static/chunks/8821-8fff7607...","4226","static/chunks/4226-d1
 **Format**: Server-Sent Events. Streams dehydrated router/query state.
 
 **Architecture**: In TanStack Start, ALL data loading goes through serverFns. There's no separate "loader" concept — route loaders call serverFns internally. This means:
+
 - Every data request is a serverFn call
 - The SSE endpoint streams the combined dehydrated state (router + query cache)
 - `k: ["data", "queries", "translations"]` is a query cache key from a user serverFn, not framework internals
@@ -622,20 +641,20 @@ f:I[69949,["8821","static/chunks/8821-8fff7607...","4226","static/chunks/4226-d1
 
 ### What We Can Compare (Architecture, Not Payload Size)
 
-| Aspect | Flare | Next RSC | TanStack Start |
-|--------|-------|----------|---------------|
-| **Transport** | NDJSON (chunked) | RSC flight (chunked) | SSE |
-| **Content type** | `application/x-ndjson` | Custom RSC protocol | `text/event-stream` |
-| **Data model** | Loader data per route | Full component tree | Dehydrated query cache |
-| **Sends component tree** | No | Yes | No |
-| **Sends JS chunk refs** | No | Yes | No |
-| **Head/meta in stream** | Yes (first-class `t:"h"`) | Yes (embedded in vDOM) | No (separate mechanism) |
-| **Cache key design** | matchId (route+params+search+deps) | None (tree is the response) | Query key arrays |
-| **Client-side data caching** | Yes (data decoupled from UI) | Hard (data inside vDOM) | Yes (query cache) |
-| **Route IDs in network tab** | matchId with virtual path | Route path visible | Hashed, opaque |
-| **Debuggability** | High (JSON lines, human-readable) | Low (custom binary-like) | Low (opaque SSE + hashed routes) |
-| **Data loading model** | Route loaders (server-side) | Server components (render = fetch) | serverFns (all data is RPC) |
-| **Deferred/streaming data** | Native (chunks between ready/done) | Suspense boundaries | Via query cache hydration |
+| Aspect                       | Flare                              | Next RSC                           | TanStack Start                   |
+| ---------------------------- | ---------------------------------- | ---------------------------------- | -------------------------------- |
+| **Transport**                | NDJSON (chunked)                   | RSC flight (chunked)               | SSE                              |
+| **Content type**             | `application/x-ndjson`             | Custom RSC protocol                | `text/event-stream`              |
+| **Data model**               | Loader data per route              | Full component tree                | Dehydrated query cache           |
+| **Sends component tree**     | No                                 | Yes                                | No                               |
+| **Sends JS chunk refs**      | No                                 | Yes                                | No                               |
+| **Head/meta in stream**      | Yes (first-class `t:"h"`)          | Yes (embedded in vDOM)             | No (separate mechanism)          |
+| **Cache key design**         | matchId (route+params+search+deps) | None (tree is the response)        | Query key arrays                 |
+| **Client-side data caching** | Yes (data decoupled from UI)       | Hard (data inside vDOM)            | Yes (query cache)                |
+| **Route IDs in network tab** | matchId with virtual path          | Route path visible                 | Hashed, opaque                   |
+| **Debuggability**            | High (JSON lines, human-readable)  | Low (custom binary-like)           | Low (opaque SSE + hashed routes) |
+| **Data loading model**       | Route loaders (server-side)        | Server components (render = fetch) | serverFns (all data is RPC)      |
+| **Deferred/streaming data**  | Native (chunks between ready/done) | Suspense boundaries                | Via query cache hydration        |
 
 ### Architectural Observations
 
@@ -649,6 +668,7 @@ Flare treats head config as first-class streamed data — each route's `t:"h"` c
 ### TODO: Fair Benchmark
 
 For a proper comparison, build the same page on all three:
+
 - [x] Simple blog post: one layout (nav) + one page (post content)
 - [x] Loader data: `{ title, body, author, publishedAt }`
 - [x] Head config: title, description, OG image, canonical URL
@@ -664,49 +684,50 @@ Deep 20-dimension comparison. Scored 1-10 per dimension.
 
 ### Core Runtime
 
-| Dimension | Flare | Next | TanStack | Notes |
-|-----------|-------|------|----------|-------|
-| Bundle size | 10 | 4 | 6 | 76KB vs 756KB (Next) vs 316KB (TanStack) in prod |
-| SSR streaming | 9 | 8 | 7 | NDJSON chunk-level control vs RSC Flight vs basic Suspense |
-| SPA nav wire efficiency | 9 | 5 | 7 | matchId staleness skips fresh loaders. Next re-sends UI+data fused |
-| Deferred / real-time | 9 | 6 | 7 | NDJSON deferred streaming, cached on resolve. Next: Suspense. TanStack: Await |
-| Server Components | 1 | 10 | 3 | Next: zero-JS RSC. Different paradigm — Flare compensates with 10x smaller bundle + fine-grained Solid reactivity |
+| Dimension               | Flare | Next | TanStack | Notes                                                                                                             |
+| ----------------------- | ----- | ---- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| Bundle size             | 10    | 4    | 6        | 76KB vs 756KB (Next) vs 316KB (TanStack) in prod                                                                  |
+| SSR streaming           | 9     | 8    | 7        | NDJSON chunk-level control vs RSC Flight vs basic Suspense                                                        |
+| SPA nav wire efficiency | 9     | 5    | 7        | matchId staleness skips fresh loaders. Next re-sends UI+data fused                                                |
+| Deferred / real-time    | 9     | 6    | 7        | NDJSON deferred streaming, cached on resolve. Next: Suspense. TanStack: Await                                     |
+| Server Components       | 1     | 10   | 3        | Next: zero-JS RSC. Different paradigm — Flare compensates with 10x smaller bundle + fine-grained Solid reactivity |
 
 ### Data & Caching
 
-| Dimension | Flare | Next | TanStack | Notes |
-|-----------|-------|------|----------|-------|
-| Caching architecture | 9 | 8 | 4 | 3-layer (client/KV-R2-S3-DB/CDN) vs Data Cache + ISR vs none |
-| Data loading patterns | 8 | 8 | 9 | TanStack: loaderDeps, staleTime. Flare: parallel loaders + preloader chain. Next: RSC + fetch cache |
-| Static generation / ISR | 2 | 10 | 4 | Next: mature SSG/ISR/PPR. TanStack: basic prerender. Flare: planned |
-| Head management | 9 | 8 | 5 | Per-route streamed head, cached per matchId vs Metadata API vs out-of-band |
+| Dimension               | Flare | Next | TanStack | Notes                                                                                               |
+| ----------------------- | ----- | ---- | -------- | --------------------------------------------------------------------------------------------------- |
+| Caching architecture    | 9     | 8    | 4        | 3-layer (client/KV-R2-S3-DB/CDN) vs Data Cache + ISR vs none                                        |
+| Data loading patterns   | 8     | 8    | 9        | TanStack: loaderDeps, staleTime. Flare: parallel loaders + preloader chain. Next: RSC + fetch cache |
+| Static generation / ISR | 2     | 10   | 4        | Next: mature SSG/ISR/PPR. TanStack: basic prerender. Flare: planned                                 |
+| Head management         | 9     | 8    | 5        | Per-route streamed head, cached per matchId vs Metadata API vs out-of-band                          |
 
 ### DX & Type Safety
 
-| Dimension | Flare | Next | TanStack | Notes |
-|-----------|-------|------|----------|-------|
-| Type safety (routing) | 8 | 5 | 8 | Both Flare and TanStack use Vite plugin codegen (`routes.gen` / `routeTree.gen`). Next: experimental typedRoutes |
-| Type safety (search params) | 9 | 3 | 9 | TanStack: validated search state machine. Flare: `.input()` validators run client-side on shallow nav + server-side on full nav. Next: manual |
-| Error boundaries | 10 | 6 | 5 | 4-type (error/notFound/unauthenticated/unauthorized) vs error.tsx + not-found.tsx vs errorComponent |
-| Auth integration | 9 | 5 | 6 | Pipeline-native `.authenticate()` with optional/required modes vs middleware + manual vs beforeLoad |
-| Testing story | 9 | 5 | 6 | 2854 unit + 674 e2e, purpose-built harness vs manual setup vs basic vitest |
+| Dimension                   | Flare | Next | TanStack | Notes                                                                                                                                         |
+| --------------------------- | ----- | ---- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type safety (routing)       | 8     | 5    | 8        | Both Flare and TanStack use Vite plugin codegen (`routes.gen` / `routeTree.gen`). Next: experimental typedRoutes                              |
+| Type safety (search params) | 9     | 3    | 9        | TanStack: validated search state machine. Flare: `.input()` validators run client-side on shallow nav + server-side on full nav. Next: manual |
+| Error boundaries            | 10    | 6    | 5        | 4-type (error/notFound/unauthenticated/unauthorized) vs error.tsx + not-found.tsx vs errorComponent                                           |
+| Auth integration            | 9     | 5    | 6        | Pipeline-native `.authenticate()` with optional/required modes vs middleware + manual vs beforeLoad                                           |
+| Testing story               | 9     | 5    | 6        | 2854 unit + 674 e2e, purpose-built harness vs manual setup vs basic vitest                                                                    |
 
 ### Platform & Deployment
 
-| Dimension | Flare | Next | TanStack | Notes |
-|-----------|-------|------|----------|-------|
-| Edge runtime | 10 | 6 | 7 | CF Workers first, adapter-agnostic core (`fetch(Request): Response`). Uses `cloudflare()` Vite plugin, not hardcoded |
-| Deployment breadth | 6 | 9 | 8 | CF Workers first adapter. Core is platform-agnostic — any runtime wrapping `fetch()` works. Node/Bun adapters planned |
-| View transitions | 9 | 3 | 7 | Native VT API + `<ViewTransitionCSS>` component for easy CSS transitions. TanStack: viewTransition option. Next: experimental |
-| Middleware | 8 | 7 | 8 | Server + route-level preloaders vs edge middleware vs client + server middleware |
-| Intercepting/parallel routes | 8 | 9 | 2 | `.intercept({ from, render })` + `InterceptOutlet` render-prop. No parallel routes yet |
-| Image optimization | 8 | 10 | 2 | `<Image>` component with loader interface, blur placeholder, srcset, priority hints. CF Image Resizing via custom loader |
+| Dimension                    | Flare | Next | TanStack | Notes                                                                                                                         |
+| ---------------------------- | ----- | ---- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Edge runtime                 | 10    | 6    | 7        | CF Workers first, adapter-agnostic core (`fetch(Request): Response`). Uses `cloudflare()` Vite plugin, not hardcoded          |
+| Deployment breadth           | 6     | 9    | 8        | CF Workers first adapter. Core is platform-agnostic — any runtime wrapping `fetch()` works. Node/Bun adapters planned         |
+| View transitions             | 9     | 3    | 7        | Native VT API + `<ViewTransitionCSS>` component for easy CSS transitions. TanStack: viewTransition option. Next: experimental |
+| Middleware                   | 8     | 7    | 8        | Server + route-level preloaders vs edge middleware vs client + server middleware                                              |
+| Intercepting/parallel routes | 8     | 9    | 2        | `.intercept({ from, render })` + `InterceptOutlet` render-prop. No parallel routes yet                                        |
+| Image optimization           | 8     | 10   | 2        | `<Image>` component with loader interface, blur placeholder, srcset, priority hints. CF Image Resizing via custom loader      |
 
 **Totals: Flare 161, Next.js 135, TanStack 113**
 
 ### `.input()` Validation Analysis ✅ FIXED
 
 Behavior:
+
 - **Server (loader pipeline Phase 1)**: `.input({ params, searchParams })` validators run via Zod or function — validates and transforms before loaders execute
 - **Client full SPA nav**: request goes to server → validation runs server-side → safe
 - **Client shallow nav**: Loads route module via `match.route.p()` (cached from same-route), reads `inputConfig`, runs validators with try/catch fallback to raw values

@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/static-pure")
 	.cache({
@@ -13,4 +13,4 @@ export const route = createPage("_root_/static-pure")
 			<p data-testid="static-pure-source">{props.loaderData.source}</p>
 			<p data-testid="static-pure-built-at">{props.loaderData.builtAt}</p>
 		</div>
-	))
+	));

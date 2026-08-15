@@ -1,22 +1,19 @@
-import { createPage } from "flare/page"
-import { Await } from "flare/await"
+import { createPage } from "@lovrozagar/flare/page";
+import { Await } from "@lovrozagar/flare/await";
 
 export const route = createPage("_root_/deferred")
 	.loader((ctx) => {
 		const delayed = ctx.defer<{ message: string; ts: number }>(async () => {
-			await new Promise((r) => setTimeout(r, 150))
-			return { message: "streamed from Standard", ts: Date.now() }
-		})
-		return { delayed, shell: "ready" }
+			await new Promise((r) => setTimeout(r, 150));
+			return { message: "streamed from Standard", ts: Date.now() };
+		});
+		return { delayed, shell: "ready" };
 	})
 	.render((props) => (
 		<div>
 			<h1 data-testid="deferred-heading">Deferred — Standard</h1>
 			<p data-testid="shell-status">{props.loaderData.shell}</p>
-			<Await
-				pending={<p data-testid="deferred-pending">Loading...</p>}
-				promise={props.loaderData.delayed}
-			>
+			<Await pending={<p data-testid="deferred-pending">Loading...</p>} promise={props.loaderData.delayed}>
 				{(val) => (
 					<div>
 						<p data-testid="deferred-message">{val.message}</p>
@@ -28,4 +25,4 @@ export const route = createPage("_root_/deferred")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/chain-final")
 	.loader(() => ({
@@ -11,4 +11,4 @@ export const route = createPage("_root_/chain-final")
 			<p data-testid="chain-path">{props.loaderData.chain}</p>
 			<p data-testid="chain-arrived">{String(props.loaderData.arrived)}</p>
 		</div>
-	))
+	));

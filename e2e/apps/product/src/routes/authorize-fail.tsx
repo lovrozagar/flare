@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/authorize-fail")
 	.authenticate()
@@ -14,4 +14,4 @@ export const route = createPage("_root_/authorize-fail")
 			<p data-testid="authorize-fail-error">{props.error.message}</p>
 			<p>Always rejected</p>
 		</div>
-	))
+	));

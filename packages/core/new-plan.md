@@ -11,7 +11,7 @@ Builder context types hardcode `env: unknown`. Adding `ResolvedEnv` via FlareReg
 **1. `src/route-builder/register.ts`** — add ResolvedEnv
 
 ```ts
-export type ResolvedEnv = "env" extends keyof FlareRegister ? FlareRegister["env"] : unknown
+export type ResolvedEnv = "env" extends keyof FlareRegister ? FlareRegister["env"] : unknown;
 ```
 
 **2. `src/server-handler/index.ts`** — drop phantom, expose real props
@@ -35,9 +35,9 @@ export type ResolvedEnv = "env" extends keyof FlareRegister ? FlareRegister["env
 **5. `src/generators/index.ts`** — always import handler, emit types from real signatures:
 
 ```ts
-auth: NonNullable<Awaited<ReturnType<NonNullable<(typeof _FlareHandler)["authenticateFn"]>>>>
-env: Parameters < typeof _FlareHandler["fetch"] > [1]
-serverContext: Awaited<ReturnType<NonNullable<(typeof _FlareHandler)["serverContext"]>>>
+auth: NonNullable<Awaited<ReturnType<NonNullable<(typeof _FlareHandler)["authenticateFn"]>>>>;
+env: Parameters < typeof _FlareHandler["fetch"] > [1];
+serverContext: Awaited<ReturnType<NonNullable<(typeof _FlareHandler)["serverContext"]>>>;
 ```
 
 **6. Regenerate** routes.gen.ts for E2E app
@@ -123,7 +123,7 @@ createServerHandler({
 		PUBLIC_API_URL: z.url(),
 		DB: z.custom<SomeBinding>(),
 	}),
-})
+});
 ```
 
 - Framework auto-splits by `PUBLIC_*` prefix

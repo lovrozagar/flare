@@ -1,1 +1,1 @@
-export { createServerOnlyFn } from "./env-fn.ts"
+export { createServerOnlyFn } from "./env-fn.ts";

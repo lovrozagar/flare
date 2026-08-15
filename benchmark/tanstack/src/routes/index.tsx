@@ -1,13 +1,13 @@
-import { For } from "solid-js"
-import { Link, createFileRoute } from "@tanstack/react-router"
-import { posts } from "../../../shared/data"
+import { For } from "solid-js";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { posts } from "../../../shared/data";
 
 export const Route = createFileRoute("/")({
 	component: HomePage,
 	head: () => ({
 		meta: [{ title: "Blog Posts" }],
 	}),
-})
+});
 
 function HomePage() {
 	return (
@@ -26,5 +26,5 @@ function HomePage() {
 				</For>
 			</ul>
 		</main>
-	)
+	);
 }

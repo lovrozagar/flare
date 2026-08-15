@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/head-full")
 	.loader(() => ({ year: 2026 }))
@@ -16,9 +16,7 @@ export const route = createPage("_root_/head-full")
 			ico: "/favicon.ico",
 			svg: "/icon.svg",
 		},
-		images: [
-			{ alt: "Top Level", height: 400, url: "https://example.com/top-level.jpg", width: 800 },
-		],
+		images: [{ alt: "Top Level", height: 400, url: "https://example.com/top-level.jpg", width: 800 }],
 		jsonLd: [
 			{
 				"@context": "https://schema.org",
@@ -82,4 +80,4 @@ export const route = createPage("_root_/head-full")
 			<h1>Head Full</h1>
 			<p data-testid="head-full-year">{props.loaderData.year}</p>
 		</main>
-	))
+	));

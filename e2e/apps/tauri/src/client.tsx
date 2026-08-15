@@ -1,4 +1,4 @@
-import { createClient } from "flare/client"
-import { router } from "./router"
+import { createClient } from "@lovrozagar/flare/client";
+import { router } from "./router";
 
-createClient(() => router)
+createClient(() => router);

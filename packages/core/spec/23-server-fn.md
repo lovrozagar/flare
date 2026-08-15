@@ -10,8 +10,8 @@ Runtime system for type-safe server function definition and RPC execution. Build
 
 ```ts
 interface ServerFnConfig {
-	method?: "get" | "post"
-	name: string
+	method?: "get" | "post";
+	name: string;
 }
 ```
 
@@ -22,14 +22,12 @@ interface ServerFnConfig {
 
 ```ts
 interface ServerFnBuilder<TAuth, TInput, TOutput> {
-	authenticate(): ServerFnBuilder<Auth, TInput, TOutput>
+	authenticate(): ServerFnBuilder<Auth, TInput, TOutput>;
 	authorize(
 		fn: (ctx: { auth: TAuth; input: TInput }) => boolean | Promise<boolean>,
-	): ServerFnBuilder<TAuth, TInput, TOutput>
-	handler(
-		fn: (ctx: HandlerContext<TAuth, TInput>) => TOutput | Promise<TOutput>,
-	): ServerFn<TInput, TOutput>
-	input<T>(validator: Validator<T>): ServerFnBuilder<TAuth, T, TOutput>
+	): ServerFnBuilder<TAuth, TInput, TOutput>;
+	handler(fn: (ctx: HandlerContext<TAuth, TInput>) => TOutput | Promise<TOutput>): ServerFn<TInput, TOutput>;
+	input<T>(validator: Validator<T>): ServerFnBuilder<TAuth, T, TOutput>;
 }
 ```
 
@@ -39,17 +37,17 @@ Immutable chain. Each method returns a new builder instance. Original builder un
 
 ```ts
 interface HandlerContext<TAuth, TInput, TEnv = unknown> {
-	auth: TAuth
-	env: TEnv
-	input: TInput
-	request: Request
+	auth: TAuth;
+	env: TEnv;
+	input: TInput;
+	request: Request;
 }
 ```
 
 ### ServerFn
 
 ```ts
-type ServerFn<TInput, TOutput> = (input: TInput) => Promise<TOutput>
+type ServerFn<TInput, TOutput> = (input: TInput) => Promise<TOutput>;
 ```
 
 Callable function returned by `.handler()`. On server, executes handler directly. On client, performs RPC fetch.
@@ -58,12 +56,12 @@ Callable function returned by `.handler()`. On server, executes handler directly
 
 ```ts
 interface ServerFnRegistration {
-	authenticate: boolean
-	authorizeFn?: (ctx: { auth: unknown; input: unknown }) => boolean | Promise<boolean>
-	fn: (ctx: HandlerContext<unknown, unknown>) => unknown | Promise<unknown>
-	input?: Validator<unknown>
-	method: "get" | "post"
-	name: string
+	authenticate: boolean;
+	authorizeFn?: (ctx: { auth: unknown; input: unknown }) => boolean | Promise<boolean>;
+	fn: (ctx: HandlerContext<unknown, unknown>) => unknown | Promise<unknown>;
+	input?: Validator<unknown>;
+	method: "get" | "post";
+	name: string;
 }
 ```
 
@@ -72,7 +70,7 @@ Internal representation stored in the server function registry. Used by `handleS
 ### Validator
 
 ```ts
-type Validator<T> = { parse: (raw: unknown) => T } | ((raw: unknown) => T)
+type Validator<T> = { parse: (raw: unknown) => T } | ((raw: unknown) => T);
 ```
 
 Accepts Zod schemas (`{ parse }`) or plain functions. Throwing from either signals validation failure.
@@ -80,7 +78,7 @@ Accepts Zod schemas (`{ parse }`) or plain functions. Throwing from either signa
 ### Auth
 
 ```ts
-type Auth = NonNullable<Awaited<ReturnType<AuthenticateFn>>>
+type Auth = NonNullable<Awaited<ReturnType<AuthenticateFn>>>;
 ```
 
 Resolved auth type from the app's `authenticateFn`. When `.authenticate()` not called, `TAuth` is `null`.

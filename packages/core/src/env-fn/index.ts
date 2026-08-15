@@ -12,10 +12,10 @@
 export function createServerOnlyFn<TArgs extends unknown[], TReturn>(
 	fn: (...args: TArgs) => TReturn,
 ): (...args: TArgs) => TReturn {
-	if (import.meta.env.SSR) return fn
+	if (import.meta.env.SSR) return fn;
 	return (..._args: TArgs): never => {
-		throw new Error("Server-only function called on client")
-	}
+		throw new Error("Server-only function called on client");
+	};
 }
 
 /* ── createClientOnlyFn ─────────────────────────────────────────────── */
@@ -30,10 +30,10 @@ export function createServerOnlyFn<TArgs extends unknown[], TReturn>(
 export function createClientOnlyFn<TArgs extends unknown[], TReturn>(
 	fn: (...args: TArgs) => TReturn,
 ): (...args: TArgs) => TReturn {
-	if (!import.meta.env.SSR) return fn
+	if (!import.meta.env.SSR) return fn;
 	return (..._args: TArgs): never => {
-		throw new Error("Client-only function called on server")
-	}
+		throw new Error("Client-only function called on server");
+	};
 }
 
 /* ── createIsomorphicFn ─────────────────────────────────────────────── */
@@ -54,34 +54,19 @@ export function createClientOnlyFn<TArgs extends unknown[], TReturn>(
 
 export type IsomorphicFn<TArgs extends unknown[] = [], TServer = undefined, TClient = undefined> = (
 	...args: TArgs
-) => TClient | TServer
+) => TClient | TServer;
 
-export interface ServerBoundFn<TArgs extends unknown[], TServer> extends IsomorphicFn<
-	TArgs,
-	TServer
-> {
-	client: <TClient>(
-		clientImpl: (...args: TArgs) => TClient,
-	) => IsomorphicFn<TArgs, TServer, TClient>
+export interface ServerBoundFn<TArgs extends unknown[], TServer> extends IsomorphicFn<TArgs, TServer> {
+	client: <TClient>(clientImpl: (...args: TArgs) => TClient) => IsomorphicFn<TArgs, TServer, TClient>;
 }
 
-export interface ClientBoundFn<TArgs extends unknown[], TClient> extends IsomorphicFn<
-	TArgs,
-	undefined,
-	TClient
-> {
-	server: <TServer>(
-		serverImpl: (...args: TArgs) => TServer,
-	) => IsomorphicFn<TArgs, TServer, TClient>
+export interface ClientBoundFn<TArgs extends unknown[], TClient> extends IsomorphicFn<TArgs, undefined, TClient> {
+	server: <TServer>(serverImpl: (...args: TArgs) => TServer) => IsomorphicFn<TArgs, TServer, TClient>;
 }
 
 export interface IsomorphicFnBuilder {
-	client: <TArgs extends unknown[], TClient>(
-		clientImpl: (...args: TArgs) => TClient,
-	) => ClientBoundFn<TArgs, TClient>
-	server: <TArgs extends unknown[], TServer>(
-		serverImpl: (...args: TArgs) => TServer,
-	) => ServerBoundFn<TArgs, TServer>
+	client: <TArgs extends unknown[], TClient>(clientImpl: (...args: TArgs) => TClient) => ClientBoundFn<TArgs, TClient>;
+	server: <TArgs extends unknown[], TServer>(serverImpl: (...args: TArgs) => TServer) => ServerBoundFn<TArgs, TServer>;
 }
 
 function buildIsomorphic<TArgs extends unknown[], TServer, TClient>(
@@ -89,28 +74,28 @@ function buildIsomorphic<TArgs extends unknown[], TServer, TClient>(
 	clientImpl: ((...args: TArgs) => TClient) | null,
 ): IsomorphicFn<TArgs, TServer, TClient> {
 	return ((...args: TArgs) => {
-		if (import.meta.env.SSR) return serverImpl ? serverImpl(...args) : undefined
-		return clientImpl ? clientImpl(...args) : undefined
-	}) as IsomorphicFn<TArgs, TServer, TClient>
+		if (import.meta.env.SSR) return serverImpl ? serverImpl(...args) : undefined;
+		return clientImpl ? clientImpl(...args) : undefined;
+	}) as IsomorphicFn<TArgs, TServer, TClient>;
 }
 
 export function createIsomorphicFn(): IsomorphicFnBuilder {
 	return {
 		client<TArgs extends unknown[], TClient>(clientImpl: (...args: TArgs) => TClient) {
-			const fn = buildIsomorphic<TArgs, undefined, TClient>(null, clientImpl)
+			const fn = buildIsomorphic<TArgs, undefined, TClient>(null, clientImpl);
 			return Object.assign(fn, {
 				server<TServer>(serverImpl: (...args: TArgs) => TServer) {
-					return buildIsomorphic<TArgs, TServer, TClient>(serverImpl, clientImpl)
+					return buildIsomorphic<TArgs, TServer, TClient>(serverImpl, clientImpl);
 				},
-			}) as ClientBoundFn<TArgs, TClient>
+			}) as ClientBoundFn<TArgs, TClient>;
 		},
 		server<TArgs extends unknown[], TServer>(serverImpl: (...args: TArgs) => TServer) {
-			const fn = buildIsomorphic<TArgs, TServer, undefined>(serverImpl, null)
+			const fn = buildIsomorphic<TArgs, TServer, undefined>(serverImpl, null);
 			return Object.assign(fn, {
 				client<TClient>(clientImpl: (...args: TArgs) => TClient) {
-					return buildIsomorphic<TArgs, TServer, TClient>(serverImpl, clientImpl)
+					return buildIsomorphic<TArgs, TServer, TClient>(serverImpl, clientImpl);
 				},
-			}) as ServerBoundFn<TArgs, TServer>
+			}) as ServerBoundFn<TArgs, TServer>;
 		},
-	}
+	};
 }

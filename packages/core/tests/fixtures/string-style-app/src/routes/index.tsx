@@ -1,11 +1,11 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/")
 	.loader(({ request, serverContext }) => {
-		const ua = request.headers.get("user-agent") ?? "unknown"
-		const acceptLang = request.headers.get("accept-language") ?? "none"
-		const ctx = serverContext as { requestId: string; userAgent: string }
-		const visitToken = `visit-${Date.now()}`
+		const ua = request.headers.get("user-agent") ?? "unknown";
+		const acceptLang = request.headers.get("accept-language") ?? "none";
+		const ctx = serverContext as { requestId: string; userAgent: string };
+		const visitToken = `visit-${Date.now()}`;
 		return {
 			acceptLanguage: acceptLang,
 			name: "Standard",
@@ -13,7 +13,7 @@ export const route = createPage("_root_/")
 			timestamp: Date.now(),
 			userAgent: ua,
 			visitToken,
-		}
+		};
 	})
 	.head(({ loaderData }) => ({
 		title: `Flare on Standard — ${(loaderData as { requestId: string }).requestId.slice(0, 8)}`,
@@ -60,4 +60,4 @@ export const route = createPage("_root_/")
 				<dd data-testid="visit-token">{props.loaderData.visitToken}</dd>
 			</dl>
 		</div>
-	))
+	));

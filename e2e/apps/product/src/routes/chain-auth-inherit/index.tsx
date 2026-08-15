@@ -1,12 +1,12 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(chain-auth-inherit)/chain-auth-inherit/")
 	.loader((ctx) => {
-		const a = ctx.auth as Record<string, unknown> | null
+		const a = ctx.auth as Record<string, unknown> | null;
 		return {
 			pageAuth: a,
 			pagePreloaderContext: ctx.preloaderContext,
-		}
+		};
 	})
 	.render((props) => (
 		<div data-testid="chain-auth-page">
@@ -19,8 +19,6 @@ export const route = createPage("_root_/(chain-auth-inherit)/chain-auth-inherit/
 			<div data-testid="auth-page-callerData">
 				{JSON.stringify((props.loaderData.pageAuth as Record<string, unknown>)?.callerData ?? [])}
 			</div>
-			<div data-testid="auth-page-snapshot">
-				{JSON.stringify(props.loaderData.pagePreloaderContext)}
-			</div>
+			<div data-testid="auth-page-snapshot">{JSON.stringify(props.loaderData.pagePreloaderContext)}</div>
 		</div>
-	))
+	));

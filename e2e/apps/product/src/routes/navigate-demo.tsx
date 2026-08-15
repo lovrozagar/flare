@@ -1,10 +1,10 @@
-import { createPage } from "flare/page"
-import { useRouter } from "flare/router"
+import { createPage } from "@lovrozagar/flare/page";
+import { useRouter } from "@lovrozagar/flare/router";
 
 export const route = createPage("_root_/navigate-demo")
 	.loader(() => ({ loadedAt: Date.now() }))
 	.render((props) => {
-		const r = useRouter()
+		const r = useRouter();
 		return (
 			<main data-testid="navigate-demo">
 				<p data-testid="nav-loaded-at">{props.loaderData.loadedAt}</p>
@@ -31,5 +31,5 @@ export const route = createPage("_root_/navigate-demo")
 				</button>
 				<p data-testid="is-navigating">{String(r.isNavigating())}</p>
 			</main>
-		)
-	})
+		);
+	});

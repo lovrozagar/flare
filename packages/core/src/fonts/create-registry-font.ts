@@ -1,17 +1,17 @@
-import { buildFontCss, buildFontFamily, buildPreloadLinks } from "./css.ts"
-import type { FallbackMetrics, Font, FontData, SubsetEntry } from "./types.ts"
+import { buildFontCss, buildFontFamily, buildPreloadLinks } from "./css.ts";
+import type { FallbackMetrics, Font, FontData, SubsetEntry } from "./types.ts";
 
 /**
  * Internal factory for generated per-font files.
  * Takes decoded registry data and returns a Font<S> with working methods.
  */
 export function createRegistryFont<S extends string>(opts: {
-	category: string
-	fallbackMetrics?: FallbackMetrics
-	family: string
-	subsetEntries: SubsetEntry[]
-	subsets: S[]
-	weights: number[] | string
+	category: string;
+	fallbackMetrics?: FallbackMetrics;
+	family: string;
+	subsetEntries: SubsetEntry[];
+	subsets: S[];
+	weights: number[] | string;
 }): Font<S> {
 	const data: FontData = {
 		category: opts.category,
@@ -20,21 +20,21 @@ export function createRegistryFont<S extends string>(opts: {
 		subsetEntries: opts.subsetEntries,
 		subsets: opts.subsets,
 		weights: opts.weights,
-	}
+	};
 
-	const fontFamily = buildFontFamily(data)
+	const fontFamily = buildFontFamily(data);
 
 	return {
 		category: opts.category,
 		css(subsets?: S[]): string {
-			return buildFontCss(data, subsets)
+			return buildFontCss(data, subsets);
 		},
 		family: opts.family,
 		fontFamily,
 		preloadLinks(subset?: S): Array<Record<string, string>> {
-			return buildPreloadLinks(data, subset)
+			return buildPreloadLinks(data, subset);
 		},
 		subsets: opts.subsets,
 		weights: opts.weights,
-	}
+	};
 }

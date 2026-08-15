@@ -1,0 +1,45 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "oxc"],
+	"env": {
+		"browser": true,
+		"node": true
+	},
+	"ignorePatterns": [
+		"dist/**",
+		"coverage/**",
+		"**/dist/**",
+		"**/coverage/**",
+		"**/test-results/**",
+		"**/playwright-report/**",
+		"**/.wrangler/**",
+		"**/.flare/**",
+		"**/.output/**",
+		"**/_gen/**",
+		"**/*.gen.ts",
+		"**/*.gen.d.ts",
+		"**/target/**",
+		"e2e/apps/tauri/src-tauri/**"
+	],
+	"categories": {
+		"correctness": "error",
+		"suspicious": "warn"
+	},
+	"rules": {
+		"no-unused-vars": "warn",
+		"no-underscore-dangle": "off",
+		"no-unassigned-vars": "off",
+		"require-yield": "off",
+		"unicorn/no-array-sort": "off",
+		"unicorn/prefer-string-starts-ends-with": "warn"
+	},
+	"overrides": [
+		{
+			"files": ["e2e/apps/**/*.{ts,tsx}", "packages/core/tests/**/*.{ts,tsx}"],
+			"rules": {
+				"typescript/no-explicit-any": "off",
+				"no-unsafe-finally": "off"
+			}
+		}
+	]
+}

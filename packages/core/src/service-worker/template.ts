@@ -1,24 +1,20 @@
 export interface SwTemplateConfig {
 	/** URL prefix for cache-first asset matching. Defaults to `"/assets"`. */
-	assetsBase?: string
-	offlineFallback: string | null
-	runtimeCacheMax: number
-	skipWaiting: boolean
+	assetsBase?: string;
+	offlineFallback: string | null;
+	runtimeCacheMax: number;
+	skipWaiting: boolean;
 }
 
-export function generateSwSource(
-	precacheManifest: string[],
-	buildId: string,
-	config: SwTemplateConfig,
-): string {
-	const manifest = JSON.stringify(precacheManifest)
-	const assetsBase = config.assetsBase ?? "/assets"
+export function generateSwSource(precacheManifest: string[], buildId: string, config: SwTemplateConfig): string {
+	const manifest = JSON.stringify(precacheManifest);
+	const assetsBase = config.assetsBase ?? "/assets";
 	const swConfig = JSON.stringify({
 		assetsBase,
 		offlineFallback: config.offlineFallback,
 		runtimeCacheMax: config.runtimeCacheMax,
 		skipWaiting: config.skipWaiting,
-	})
+	});
 
 	return `/* Flare Service Worker — generated at build time */
 var PRECACHE_MANIFEST = ${manifest}
@@ -153,5 +149,5 @@ self.addEventListener("fetch", function (event) {
 		return
 	}
 })
-`
+`;
 }

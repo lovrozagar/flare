@@ -1,6 +1,6 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
-import { For } from "solid-js"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
+import { For } from "solid-js";
 
 export const route = createPage("_root_/(products)/products/")
 	.loader(() => [
@@ -15,11 +15,7 @@ export const route = createPage("_root_/(products)/products/")
 				<For each={props.loaderData}>
 					{(product) => (
 						<li>
-							<Link
-								data-testid={`product-link-${product.id}`}
-								params={{ id: product.id }}
-								to="/products/[id]"
-							>
+							<Link data-testid={`product-link-${product.id}`} params={{ id: product.id }} to="/products/[id]">
 								{product.name}
 							</Link>
 						</li>
@@ -27,4 +23,4 @@ export const route = createPage("_root_/(products)/products/")
 				</For>
 			</ul>
 		</main>
-	))
+	));

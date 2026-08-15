@@ -1,20 +1,20 @@
-import { createPage } from "flare/page"
-import { clientLazy, lazy } from "flare/lazy"
-import { Link } from "flare/link"
+import { createPage } from "@lovrozagar/flare/page";
+import { clientLazy, lazy } from "@lovrozagar/flare/lazy";
+import { Link } from "@lovrozagar/flare/link";
 
 const LazyHeavy = lazy({
 	loader: () => import("../components/lazy-heavy"),
 	pending: () => <span data-testid="lazy-heavy-pending">Loading heavy...</span>,
-})
+});
 
 const ClientWidget = clientLazy({
 	loader: () => import("../components/lazy-client-widget"),
-})
+});
 
 const ClientWidgetEager = clientLazy({
 	eager: true,
 	loader: () => import("../components/lazy-client-widget"),
-})
+});
 
 export const route = createPage("_root_/lazy-test").render(() => (
 	<main data-testid="lazy-test-page">
@@ -32,4 +32,4 @@ export const route = createPage("_root_/lazy-test").render(() => (
 			<Link to="/">Home</Link>
 		</nav>
 	</main>
-))
+));

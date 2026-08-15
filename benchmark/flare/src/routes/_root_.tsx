@@ -1,4 +1,4 @@
-import { createRootLayout } from "flare"
+import { createRootLayout } from "@lovrozagar/flare";
 
 export const route = createRootLayout("_root_")
 	.head(() => ({
@@ -29,4 +29,4 @@ export const route = createRootLayout("_root_")
 			<h1>404</h1>
 			<p>Page not found</p>
 		</div>
-	))
+	));

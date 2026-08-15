@@ -1,1 +1,1 @@
-export { NavigationProgress, type NavigationProgressProps } from "./navigation-progress/index.tsx"
+export { NavigationProgress, type NavigationProgressProps } from "./navigation-progress/index.tsx";

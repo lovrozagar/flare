@@ -23,14 +23,27 @@ node_modules
 **/coverage/
 **/test-results/
 **/playwright-report/
+**/.ruff_cache/
+
+# python
+**/__pycache__/
+**/*.pyc
 
 # editor / os
 .DS_Store
 *.swp
 *.log
 
+# secrets
+.env
+.env.*
+
 # local
 .local
 *.local
 .tmp
+.tmp-*
 .temp
+
+# cargo target for rust / tauri (do not use /tmp — it is a small tmpfs)
+.cache/

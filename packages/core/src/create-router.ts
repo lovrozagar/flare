@@ -4,5 +4,5 @@ export type {
 	RouterConfig,
 	TrailingSlashMode,
 	ViewTransitionDefaults,
-} from "./router-config/index.ts"
-export { createRouter } from "./router-config/index.ts"
+} from "./router-config/index.ts";
+export { createRouter } from "./router-config/index.ts";

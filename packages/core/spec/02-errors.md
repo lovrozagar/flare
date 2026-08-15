@@ -8,46 +8,46 @@ All classes use `readonly name = "..." as const` for reliable discrimination.
 
 ```ts
 class NotFoundError extends Error {
-	readonly name = "NotFoundError" as const
-	readonly status = 404 as const
-	readonly pathname?: string
-	constructor(message?: string, pathname?: string)
+	readonly name = "NotFoundError" as const;
+	readonly status = 404 as const;
+	readonly pathname?: string;
+	constructor(message?: string, pathname?: string);
 	/* message defaults to "Not found" */
 }
 
 class UnauthenticatedError extends Error {
-	readonly name = "UnauthenticatedError" as const
-	readonly status = 401 as const
-	constructor(message?: string)
+	readonly name = "UnauthenticatedError" as const;
+	readonly status = 401 as const;
+	constructor(message?: string);
 	/* message defaults to "Unauthorized" */
 }
 
 class UnauthorizedError extends Error {
-	readonly name = "UnauthorizedError" as const
-	readonly status = 403 as const
-	constructor(message?: string)
+	readonly name = "UnauthorizedError" as const;
+	readonly status = 403 as const;
+	constructor(message?: string);
 	/* message defaults to "Forbidden" */
 }
 
 class RedirectResponse extends Error {
-	readonly name = "RedirectResponse" as const
-	readonly url: string
-	readonly external: boolean
-	readonly status: number
-	readonly replace: boolean
-	constructor(options: RedirectOptions)
+	readonly name = "RedirectResponse" as const;
+	readonly url: string;
+	readonly external: boolean;
+	readonly status: number;
+	readonly replace: boolean;
+	constructor(options: RedirectOptions);
 	/* status defaults to 302, replace defaults to false */
 }
 
 class NavigationError extends Error {
-	readonly name = "NavigationError" as const
+	readonly name = "NavigationError" as const;
 	/* marker class for client-side nav failures, no extra props */
 }
 
 class ServerFnValidationError extends Error {
-	readonly name = "ServerFnValidationError" as const
-	readonly errors: z.typeToFlattenedError<unknown>
-	constructor(errors: z.typeToFlattenedError<unknown>)
+	readonly name = "ServerFnValidationError" as const;
+	readonly errors: z.typeToFlattenedError<unknown>;
+	constructor(errors: z.typeToFlattenedError<unknown>);
 }
 ```
 
@@ -57,8 +57,7 @@ Discriminated union — `to` (internal) vs `href` (external):
 
 ```ts
 type RedirectOptions =
-	| { to: string; replace?: boolean; status?: number }
-	| { href: string; replace?: boolean; status?: number }
+	{ to: string; replace?: boolean; status?: number } | { href: string; replace?: boolean; status?: number };
 ```
 
 - `to` → internal redirect (client-side nav on CSR), `external = false`
@@ -180,11 +179,11 @@ Cross-reference to spec 09 (ndjson-server). Errors streamed via NDJSON use this 
 
 ```ts
 type ErrorMessage = {
-	e: { message: string }
-	k?: string /* deferred key (for chunk errors) */
-	m: string /* matchId */
-	t: "e"
-}
+	e: { message: string };
+	k?: string; /* deferred key (for chunk errors) */
+	m: string; /* matchId */
+	t: "e";
+};
 ```
 
 Only `message` sent — no stack traces to client (security/perf).
@@ -195,11 +194,11 @@ Cross-reference to spec 09 (ndjson-server).
 
 ```ts
 type RedirectMessage = {
-	r?: boolean /* replace flag */
-	s: number /* status */
-	t: "x"
-	u: string /* URL */
-}
+	r?: boolean; /* replace flag */
+	s: number; /* status */
+	t: "x";
+	u: string; /* URL */
+};
 ```
 
 ## Notes

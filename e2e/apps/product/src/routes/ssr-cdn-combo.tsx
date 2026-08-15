@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
-let callCount = 0
+let callCount = 0;
 
 export const route = createPage("_root_/ssr-cdn-combo")
 	.cache({
@@ -8,12 +8,12 @@ export const route = createPage("_root_/ssr-cdn-combo")
 		ssr: { staleTime: 5_000, tags: ["combo-ssr", "combo-shared"], ttl: 60 },
 	})
 	.loader(() => {
-		callCount++
-		return { callCount, timestamp: Date.now() }
+		callCount++;
+		return { callCount, timestamp: Date.now() };
 	})
 	.render((props) => (
 		<div data-testid="ssr-cdn-combo">
 			<p data-testid="combo-timestamp">{props.loaderData.timestamp}</p>
 			<p data-testid="combo-calls">{props.loaderData.callCount}</p>
 		</div>
-	))
+	));

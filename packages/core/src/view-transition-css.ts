@@ -1,1 +1,1 @@
-export { ViewTransitionCSS } from "./components/index.ts"
+export { ViewTransitionCSS } from "./components/index.ts";

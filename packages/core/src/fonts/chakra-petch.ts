@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const chakraPetch: Font<"latin" | "latin-ext" | "thai" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
@@ -139,4 +139,4 @@ export const chakraPetch: Font<"latin" | "latin-ext" | "thai" | "vietnamese"> = 
 	],
 	subsets: ["latin", "latin-ext", "thai", "vietnamese"],
 	weights: [400, 700],
-})
+});

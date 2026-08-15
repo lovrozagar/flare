@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const satisfy: Font<"latin"> = createRegistryFont({
 	category: "handwriting",
@@ -23,4 +23,4 @@ export const satisfy: Font<"latin"> = createRegistryFont({
 	],
 	subsets: ["latin"],
 	weights: [400],
-})
+});

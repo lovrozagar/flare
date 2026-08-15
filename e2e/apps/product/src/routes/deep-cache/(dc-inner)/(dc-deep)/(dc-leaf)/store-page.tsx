@@ -1,13 +1,13 @@
-import { createPage } from "flare/page"
-import { Link } from "flare/link"
+import { createPage } from "@lovrozagar/flare/page";
+import { Link } from "@lovrozagar/flare/link";
 
-let callCount = 0
+let callCount = 0;
 
 export const route = createPage("_root_/(dc-l1)/(dc-l2)/(dc-l3)/(dc-l4)/deep-cache/store-page")
 	.cache({ ssr: { staleTime: 3000, tags: ["dc-p3"], ttl: 30 } })
 	.loader(() => {
-		callCount++
-		return { callCount, layer: "P3-store", ts: Date.now() }
+		callCount++;
+		return { callCount, layer: "P3-store", ts: Date.now() };
 	})
 	.render((props) => (
 		<div data-testid="dc-p3">
@@ -26,4 +26,4 @@ export const route = createPage("_root_/(dc-l1)/(dc-l2)/(dc-l3)/(dc-l4)/deep-cac
 				</Link>
 			</nav>
 		</div>
-	))
+	));

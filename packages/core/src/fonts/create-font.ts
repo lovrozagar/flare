@@ -1,8 +1,8 @@
-import { buildFontCss, buildFontFamily } from "./css.ts"
-import type { CreateFontOptions, Font, FontData } from "./types.ts"
+import { buildFontCss, buildFontFamily } from "./css.ts";
+import type { CreateFontOptions, Font, FontData } from "./types.ts";
 
 export function createFont(options: CreateFontOptions): Font<string> {
-	const weights = options.weights ?? "400"
+	const weights = options.weights ?? "400";
 
 	const data: FontData = {
 		category: options.category,
@@ -19,14 +19,14 @@ export function createFont(options: CreateFontOptions): Font<string> {
 		],
 		subsets: [],
 		weights,
-	}
+	};
 
-	const fontFamily = buildFontFamily(data)
+	const fontFamily = buildFontFamily(data);
 
 	return {
 		category: options.category,
 		css(_subsets?: string[]): string {
-			return buildFontCss(data)
+			return buildFontCss(data);
 		},
 		family: options.family,
 		fontFamily,
@@ -39,9 +39,9 @@ export function createFont(options: CreateFontOptions): Font<string> {
 					rel: "preload",
 					type: "font/woff2",
 				},
-			]
+			];
 		},
 		subsets: [],
 		weights,
-	}
+	};
 }

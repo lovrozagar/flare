@@ -1,15 +1,15 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/about")
 	.loader(({ request }) => {
-		const cookies = request.headers.get("cookie") ?? ""
-		const visitCookie = cookies.match(/flare-visit=([^;]+)/)?.[1] ?? "none"
+		const cookies = request.headers.get("cookie") ?? "";
+		const visitCookie = cookies.match(/flare-visit=([^;]+)/)?.[1] ?? "none";
 		return {
 			content: "This is the about page for the Flare E2E test app.",
 			visitCookie,
 			year: 2026,
-		}
+		};
 	})
 	.head((ctx) => ({
 		description: "About this app",
@@ -31,4 +31,4 @@ export const route = createPage("_root_/about")
 				<Link to="/head-demo">Head Demo</Link>
 			</nav>
 		</main>
-	))
+	));

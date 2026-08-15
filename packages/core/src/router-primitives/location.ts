@@ -1,6 +1,6 @@
-import type { SearchParams } from "../url/index.ts"
-import { parseSearchParams } from "../url/index.ts"
-import type { Location } from "./types.ts"
+import type { SearchParams } from "../url/index.ts";
+import { parseSearchParams } from "../url/index.ts";
+import type { Location } from "./types.ts";
 
 export function buildLocation<
 	TParams extends Record<string, string | string[]>,
@@ -14,8 +14,8 @@ export function buildLocation<
 	search?: TSearch,
 	hash?: THash,
 ): Location<TParams, TSearch, THash> {
-	const resolvedSearch = search ?? (parseSearchParams(url.searchParams) as TSearch)
-	const resolvedHash = hash ?? (url.hash as THash)
+	const resolvedSearch = search ?? (parseSearchParams(url.searchParams) as TSearch);
+	const resolvedHash = hash ?? (url.hash as THash);
 
 	return {
 		hash: resolvedHash,
@@ -25,5 +25,5 @@ export function buildLocation<
 		url,
 		variablePath,
 		virtualPath,
-	}
+	};
 }

@@ -1,5 +1,5 @@
-import { createLayout } from "flare/layout"
-import { Link } from "flare/link"
+import { createLayout } from "@lovrozagar/flare/layout";
+import { Link } from "@lovrozagar/flare/link";
 
 export const route = createLayout("_root_/(dashboard)")
 	.authenticate()
@@ -28,4 +28,4 @@ export const route = createLayout("_root_/(dashboard)")
 			<p>Please sign in to access the dashboard.</p>
 			<Link to="/">Go Home</Link>
 		</div>
-	))
+	));

@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest"
-import type { PipelineConfig, ResolvedRoute } from "../../../src/loader-pipeline/index.ts"
-import { runPipeline } from "../../../src/loader-pipeline/index.ts"
-import type { FlareStore, FlareStoreEntry } from "../../../src/store/index.ts"
+import { describe, expect, it, vi } from "vitest";
+import type { PipelineConfig, ResolvedRoute } from "../../../src/loader-pipeline/index.ts";
+import { runPipeline } from "../../../src/loader-pipeline/index.ts";
+import type { FlareStore, FlareStoreEntry } from "../../../src/store/index.ts";
 
 function makeRoute(overrides?: Partial<ResolvedRoute>): ResolvedRoute {
 	return {
@@ -9,7 +9,7 @@ function makeRoute(overrides?: Partial<ResolvedRoute>): ResolvedRoute {
 		variablePath: "/test",
 		virtualPath: "_root_/test",
 		...overrides,
-	}
+	};
 }
 
 function makeConfig(overrides?: Partial<PipelineConfig>): PipelineConfig {
@@ -22,114 +22,114 @@ function makeConfig(overrides?: Partial<PipelineConfig>): PipelineConfig {
 		routes: [],
 		url: new URL("http://localhost/test"),
 		...overrides,
-	}
+	};
 }
 
 function createMapStore(): FlareStore & { store: Map<string, FlareStoreEntry> } {
-	const store = new Map<string, FlareStoreEntry>()
+	const store = new Map<string, FlareStoreEntry>();
 	return {
 		delete: async (key: string) => {
-			store.delete(key)
+			store.delete(key);
 		},
 		deleteByTags: async (tags: string[]) => {
 			for (const [key, entry] of store) {
-				if (entry.tags?.some((t) => tags.includes(t))) store.delete(key)
+				if (entry.tags?.some((t) => tags.includes(t))) store.delete(key);
 			}
 		},
 		get: async (key: string) => store.get(key) ?? null,
 		set: async (key: string, entry: FlareStoreEntry) => {
-			store.set(key, entry)
+			store.set(key, entry);
 		},
 		store,
-	}
+	};
 }
 
 describe("Store cache intercept", () => {
 	it("cache hit returns cached loaderData — skips loader", async () => {
-		const loader = vi.fn(() => Promise.resolve("fresh-data"))
-		const store = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("fresh-data"));
+		const store = createMapStore();
 		store.store.set("flare:_root_/test:{}", {
 			data: "cached-data",
 			storedAt: Date.now(),
-		})
+		});
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("cached-data")
-		expect(result.matches[0]?.status).toBe("success")
-		expect(result.matches[0]?.cacheHit).toBe(true)
-		expect(loader).not.toHaveBeenCalled()
-	})
+		expect(result.matches[0]?.loaderData).toBe("cached-data");
+		expect(result.matches[0]?.status).toBe("success");
+		expect(result.matches[0]?.cacheHit).toBe(true);
+		expect(loader).not.toHaveBeenCalled();
+	});
 
 	it("cache miss calls loader and writes to store", async () => {
-		const loader = vi.fn(() => Promise.resolve("fresh-data"))
-		const store = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("fresh-data"));
+		const store = createMapStore();
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("fresh-data")
-		expect(result.matches[0]?.cacheHit).toBe(false)
-		expect(loader).toHaveBeenCalledOnce()
+		expect(result.matches[0]?.loaderData).toBe("fresh-data");
+		expect(result.matches[0]?.cacheHit).toBe(false);
+		expect(loader).toHaveBeenCalledOnce();
 
-		const stored = store.store.get("flare:_root_/test:{}")
-		expect(stored?.data).toBe("fresh-data")
-		expect(stored?.storedAt).toBeGreaterThan(0)
-	})
+		const stored = store.store.get("flare:_root_/test:{}");
+		expect(stored?.data).toBe("fresh-data");
+		expect(stored?.storedAt).toBeGreaterThan(0);
+	});
 
 	it("stale entry (age > staleTime) calls loader and refreshes store", async () => {
-		const loader = vi.fn(() => Promise.resolve("refreshed-data"))
-		const store = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("refreshed-data"));
+		const store = createMapStore();
 		store.store.set("flare:_root_/test:{}", {
 			data: "stale-data",
 			storedAt: Date.now() - 120_000,
-		})
+		});
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("refreshed-data")
-		expect(loader).toHaveBeenCalledOnce()
+		expect(result.matches[0]?.loaderData).toBe("refreshed-data");
+		expect(loader).toHaveBeenCalledOnce();
 
-		const stored = store.store.get("flare:_root_/test:{}")
-		expect(stored?.data).toBe("refreshed-data")
-	})
+		const stored = store.store.get("flare:_root_/test:{}");
+		expect(stored?.data).toBe("refreshed-data");
+	});
 
 	it("respects custom key function", async () => {
-		const loader = vi.fn(() => Promise.resolve("fresh"))
-		const store = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("fresh"));
+		const store = createMapStore();
 		store.store.set("custom:slug-abc", {
 			data: "custom-cached",
 			storedAt: Date.now(),
-		})
+		});
 
 		const route = makeRoute({
 			cache: {
@@ -140,7 +140,7 @@ describe("Store cache intercept", () => {
 			},
 			loader,
 			virtualPath: "_root_/blog/[slug]",
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
@@ -148,21 +148,21 @@ describe("Store cache intercept", () => {
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("custom-cached")
-		expect(loader).not.toHaveBeenCalled()
-	})
+		expect(result.matches[0]?.loaderData).toBe("custom-cached");
+		expect(loader).not.toHaveBeenCalled();
+	});
 
 	it("default key uses virtualPath:params pattern", async () => {
-		const loader = vi.fn(() => Promise.resolve("data"))
-		const store = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("data"));
+		const store = createMapStore();
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
 			virtualPath: "_root_/blog/[slug]",
-		})
+		});
 
 		await runPipeline(
 			makeConfig({
@@ -170,148 +170,148 @@ describe("Store cache intercept", () => {
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		const expectedKey = 'flare:_root_/blog/[slug]:{"slug":"hello"}'
-		expect(store.store.has(expectedKey)).toBe(true)
-	})
+		const expectedKey = 'flare:_root_/blog/[slug]:{"slug":"hello"}';
+		expect(store.store.has(expectedKey)).toBe(true);
+	});
 
 	it("no store → store config ignored, loader runs normally", async () => {
-		const loader = vi.fn(() => Promise.resolve("normal-data"))
+		const loader = vi.fn(() => Promise.resolve("normal-data"));
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("normal-data")
-		expect(result.matches[0]?.cacheHit).toBeUndefined()
-		expect(loader).toHaveBeenCalledOnce()
-	})
+		expect(result.matches[0]?.loaderData).toBe("normal-data");
+		expect(result.matches[0]?.cacheHit).toBeUndefined();
+		expect(loader).toHaveBeenCalledOnce();
+	});
 
 	it("no store config → loader runs normally even with store", async () => {
-		const loader = vi.fn(() => Promise.resolve("normal-data"))
-		const store = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("normal-data"));
+		const store = createMapStore();
 
 		const route = makeRoute({
 			cache: { client: { staleTime: 5000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("normal-data")
-		expect(loader).toHaveBeenCalledOnce()
-	})
+		expect(result.matches[0]?.loaderData).toBe("normal-data");
+		expect(loader).toHaveBeenCalledOnce();
+	});
 
 	it("ttl passed to store.set", async () => {
-		const setSpy = vi.fn(async () => {})
+		const setSpy = vi.fn(async () => {});
 		const store: FlareStore = {
 			delete: async () => {},
 			deleteByTags: async () => {},
 			get: async () => null,
 			set: setSpy,
-		}
+		};
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000, ttl: 300 } },
 			loader: () => Promise.resolve("data"),
-		})
+		});
 
 		await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(setSpy).toHaveBeenCalledOnce()
+		expect(setSpy).toHaveBeenCalledOnce();
 		expect(setSpy).toHaveBeenCalledWith(
 			expect.any(String),
 			expect.objectContaining({ data: "data", storedAt: expect.any(Number) }),
 			300,
-		)
-	})
+		);
+	});
 
 	it("cache store get failure → treats as miss, runs loader", async () => {
-		const loader = vi.fn(() => Promise.resolve("fallback-data"))
+		const loader = vi.fn(() => Promise.resolve("fallback-data"));
 		const store: FlareStore = {
 			delete: async () => {},
 			deleteByTags: async () => {},
 			get: async () => {
-				throw new Error("store down")
+				throw new Error("store down");
 			},
 			set: async () => {},
-		}
+		};
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("fallback-data")
-		expect(loader).toHaveBeenCalledOnce()
-	})
+		expect(result.matches[0]?.loaderData).toBe("fallback-data");
+		expect(loader).toHaveBeenCalledOnce();
+	});
 
 	it("cache store set failure → does not break request", async () => {
-		const loader = vi.fn(() => Promise.resolve("data"))
+		const loader = vi.fn(() => Promise.resolve("data"));
 		const store: FlareStore = {
 			delete: async () => {},
 			deleteByTags: async () => {},
 			get: async () => null,
 			set: async () => {
-				throw new Error("write failed")
+				throw new Error("write failed");
 			},
-		}
+		};
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("data")
-		expect(result.matches[0]?.status).toBe("success")
-	})
+		expect(result.matches[0]?.loaderData).toBe("data");
+		expect(result.matches[0]?.status).toBe("success");
+	});
 
 	it("factory function store resolved with env", async () => {
-		const loader = vi.fn(() => Promise.resolve("fresh"))
-		const innerStore = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("fresh"));
+		const innerStore = createMapStore();
 		innerStore.store.set("flare:_root_/test:{}", {
 			data: "from-kv",
 			storedAt: Date.now(),
-		})
+		});
 
-		const storeFactory = (_env: unknown) => innerStore
+		const storeFactory = (_env: unknown) => innerStore;
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
@@ -319,14 +319,14 @@ describe("Store cache intercept", () => {
 				routes: [route],
 				store: storeFactory,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("from-kv")
-		expect(loader).not.toHaveBeenCalled()
-	})
+		expect(result.matches[0]?.loaderData).toBe("from-kv");
+		expect(loader).not.toHaveBeenCalled();
+	});
 
 	it("tags stored in cache entry on write-back (static array)", async () => {
-		const store = createMapStore()
+		const store = createMapStore();
 
 		const route = makeRoute({
 			cache: {
@@ -337,21 +337,21 @@ describe("Store cache intercept", () => {
 				},
 			},
 			loader: () => Promise.resolve("tagged-data"),
-		})
+		});
 
 		await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		const stored = store.store.get("flare:_root_/test:{}")
-		expect(stored?.tags).toEqual(["products", "featured"])
-	})
+		const stored = store.store.get("flare:_root_/test:{}");
+		expect(stored?.tags).toEqual(["products", "featured"]);
+	});
 
 	it("tags stored in cache entry on write-back (function)", async () => {
-		const store = createMapStore()
+		const store = createMapStore();
 
 		const route = makeRoute({
 			cache: {
@@ -362,7 +362,7 @@ describe("Store cache intercept", () => {
 			},
 			loader: () => Promise.resolve("tagged-data"),
 			virtualPath: "_root_/products/[id]",
-		})
+		});
 
 		await runPipeline(
 			makeConfig({
@@ -370,29 +370,29 @@ describe("Store cache intercept", () => {
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		const stored = store.store.get('flare:_root_/products/[id]:{"id":"42"}')
-		expect(stored?.tags).toEqual(["product:42"])
-	})
+		const stored = store.store.get('flare:_root_/products/[id]:{"id":"42"}');
+		expect(stored?.tags).toEqual(["product:42"]);
+	});
 
 	it("deleteByKeys called when FlareStore implements it", async () => {
-		const deleteByKeysSpy = vi.fn(async () => {})
+		const deleteByKeysSpy = vi.fn(async () => {});
 		const store: FlareStore = {
 			delete: async () => {},
 			deleteByKeys: deleteByKeysSpy,
 			deleteByTags: async () => {},
 			get: async () => null,
 			set: async () => {},
-		}
+		};
 
-		await store.deleteByKeys?.(["key1", "key2"], { source: "test" })
+		await store.deleteByKeys?.(["key1", "key2"], { source: "test" });
 
-		expect(deleteByKeysSpy).toHaveBeenCalledWith(["key1", "key2"], { source: "test" })
-	})
+		expect(deleteByKeysSpy).toHaveBeenCalledWith(["key1", "key2"], { source: "test" });
+	});
 
 	it("deferred markers stripped from cached data", async () => {
-		const store = createMapStore()
+		const store = createMapStore();
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
@@ -401,70 +401,70 @@ describe("Store cache intercept", () => {
 					items: ["a", "b"],
 					lazy: { __deferred: true, key: "lazy-key", promise: Promise.resolve("resolved") },
 				}),
-		})
+		});
 
 		await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		const stored = store.store.get("flare:_root_/test:{}")
-		const data = stored?.data as Record<string, unknown>
-		expect(data.items).toEqual(["a", "b"])
+		const stored = store.store.get("flare:_root_/test:{}");
+		const data = stored?.data as Record<string, unknown>;
+		expect(data.items).toEqual(["a", "b"]);
 		/* Deferred marker preserved but promise stripped */
-		const lazy = data.lazy as Record<string, unknown>
-		expect(lazy.__deferred).toBe(true)
-		expect(lazy.key).toBe("lazy-key")
-		expect(lazy.promise).toBeUndefined()
-	})
+		const lazy = data.lazy as Record<string, unknown>;
+		expect(lazy.__deferred).toBe(true);
+		expect(lazy.key).toBe("lazy-key");
+		expect(lazy.promise).toBeUndefined();
+	});
 
 	it("circular references in loader data replaced with null in cache", async () => {
-		const store = createMapStore()
+		const store = createMapStore();
 
-		const circular: Record<string, unknown> = { name: "root" }
-		circular.self = circular
+		const circular: Record<string, unknown> = { name: "root" };
+		circular.self = circular;
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
 			loader: () => Promise.resolve(circular),
-		})
+		});
 
 		await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		const stored = store.store.get("flare:_root_/test:{}")
-		const data = stored?.data as Record<string, unknown>
-		expect(data.name).toBe("root")
-		expect(data.self).toBeNull()
-	})
+		const stored = store.store.get("flare:_root_/test:{}");
+		const data = stored?.data as Record<string, unknown>;
+		expect(data.name).toBe("root");
+		expect(data.self).toBeNull();
+	});
 
 	it("no staleTime → entry always considered fresh", async () => {
-		const loader = vi.fn(() => Promise.resolve("fresh"))
-		const store = createMapStore()
+		const loader = vi.fn(() => Promise.resolve("fresh"));
+		const store = createMapStore();
 		store.store.set("flare:_root_/test:{}", {
 			data: "cached-forever",
 			storedAt: Date.now() - 999_999_999,
-		})
+		});
 
 		const route = makeRoute({
 			cache: { ssr: {} },
 			loader,
-		})
+		});
 
 		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
-		)
+		);
 
-		expect(result.matches[0]?.loaderData).toBe("cached-forever")
-		expect(loader).not.toHaveBeenCalled()
-	})
-})
+		expect(result.matches[0]?.loaderData).toBe("cached-forever");
+		expect(loader).not.toHaveBeenCalled();
+	});
+});

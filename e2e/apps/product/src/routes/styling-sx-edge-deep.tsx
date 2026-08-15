@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 /* Deep selector nesting and @supports/@container at-rules */
 export const route = createPage("_root_/styling-sx-edge-deep").render(() => {
@@ -33,10 +33,7 @@ export const route = createPage("_root_/styling-sx-edge-deep").render(() => {
 			</div>
 
 			{/* negative margin */}
-			<div
-				data-testid="negative-margin"
-				sx={{ margin: -4, padding: "8px" }}
-			>
+			<div data-testid="negative-margin" sx={{ margin: -4, padding: "8px" }}>
 				negative margin
 			</div>
 
@@ -62,5 +59,5 @@ export const route = createPage("_root_/styling-sx-edge-deep").render(() => {
 				many declarations
 			</div>
 		</main>
-	)
-})
+	);
+});

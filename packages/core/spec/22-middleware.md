@@ -10,27 +10,23 @@ Request-level middleware chain. Runs before route matching/loading. Supports res
 type FlareMiddleware<TEnv = unknown> = (
 	ctx: MiddlewareContext<TEnv>,
 	next: () => Promise<MiddlewareResult>,
-) => Promise<MiddlewareResult>
+) => Promise<MiddlewareResult>;
 
 interface MiddlewareContext<TEnv = unknown> {
-	env: TEnv
-	nonce: string
-	onResponse: (handler: ResponseHandler) => void
-	request: Request
-	url: URL
+	env: TEnv;
+	nonce: string;
+	onResponse: (handler: ResponseHandler) => void;
+	request: Request;
+	url: URL;
 }
 
-type ResponseHandler = (response: Response) => Response | Promise<Response>
+type ResponseHandler = (response: Response) => Response | Promise<Response>;
 
 type MiddlewareResult =
-	| { response: Response; type: "bypass" }
-	| { response: Response; type: "respond" }
-	| { type: "next" }
+	{ response: Response; type: "bypass" } | { response: Response; type: "respond" } | { type: "next" };
 
 type MiddlewareRunResult =
-	| { type: "next" }
-	| { response: Response; type: "respond" }
-	| { response: Response; type: "bypass" }
+	{ type: "next" } | { response: Response; type: "respond" } | { response: Response; type: "bypass" };
 ```
 
 ## Exports
@@ -134,8 +130,8 @@ Full return type from `runMiddlewares`:
 
 ```ts
 interface MiddlewareRunOutput {
-	responseHandlers: ResponseHandler[]
-	result: MiddlewareRunResult
+	responseHandlers: ResponseHandler[];
+	result: MiddlewareRunResult;
 }
 ```
 

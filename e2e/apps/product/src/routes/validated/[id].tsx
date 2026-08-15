@@ -1,13 +1,13 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/validated/[id]")
 	.input({
 		params: (raw) => {
-			const id = raw.id
+			const id = raw.id;
 			if (typeof id !== "string" || !/^\d+$/.test(id)) {
-				throw new Error("Invalid id: must be numeric")
+				throw new Error("Invalid id: must be numeric");
 			}
-			return { id }
+			return { id };
 		},
 		searchParams: (raw) => ({
 			tab: raw.get("tab") ?? "overview",
@@ -28,4 +28,4 @@ export const route = createPage("_root_/validated/[id]")
 		<div data-testid="validated-error">
 			<p data-testid="validated-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

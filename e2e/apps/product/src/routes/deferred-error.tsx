@@ -1,13 +1,13 @@
-import { Await } from "flare/await"
-import { createPage } from "flare/page"
+import { Await } from "@lovrozagar/flare/await";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/deferred-error")
 	.loader((ctx) => {
 		const failing = ctx.defer<string>(async () => {
-			await new Promise((r) => setTimeout(r, 200))
-			throw new Error("Deferred failed intentionally")
-		})
-		return { failing, status: "ok" }
+			await new Promise((r) => setTimeout(r, 200));
+			throw new Error("Deferred failed intentionally");
+		});
+		return { failing, status: "ok" };
 	})
 	.head(() => ({ title: "Deferred Error" }))
 	.render((props) => (
@@ -31,4 +31,4 @@ export const route = createPage("_root_/deferred-error")
 				</Await>
 			</div>
 		</main>
-	))
+	));

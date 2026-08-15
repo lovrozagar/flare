@@ -8,14 +8,14 @@ Fire-and-forget module preloading for non-component code (utils, heavy libs). Si
 
 ```ts
 interface PreloadOptions<T, R extends boolean = false> {
-	loader: () => Promise<{ default: T }>
-	throws?: R /* default: false */
+	loader: () => Promise<{ default: T }>;
+	throws?: R; /* default: false */
 }
 
 interface PreloadResult<T, R extends boolean> {
-	load: () => Promise<R extends true ? T : T | undefined>
-	preload: () => void
-	reset: () => void
+	load: () => Promise<R extends true ? T : T | undefined>;
+	preload: () => void;
+	reset: () => void;
 }
 ```
 
@@ -45,8 +45,8 @@ Single automatic retry on failure (1s delay). After 2 attempts:
 Cache cleared on exhausted retries — next `load()` call starts fresh.
 
 ```ts
-const RETRY_DELAY_MS = 1000
-const MAX_ATTEMPTS = 2
+const RETRY_DELAY_MS = 1000;
+const MAX_ATTEMPTS = 2;
 ```
 
 ### Usage

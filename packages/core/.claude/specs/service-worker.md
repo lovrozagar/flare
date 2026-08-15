@@ -48,7 +48,7 @@ Built-in service worker that ships with zero config. Precaches hashed static ass
 /* vite.config.ts */
 flare({
 	serviceWorker: true,
-})
+});
 ```
 
 Enables asset precaching + navigation preload + deploy resilience. No offline support.
@@ -60,7 +60,7 @@ flare({
 	serviceWorker: {
 		offlineFallback: "/offline",
 	},
-})
+});
 ```
 
 When network fails for a document request and no cached HTML exists, serves the `/offline` route (must be a real route in the app — prerendered at build time and cached by the SW).
@@ -74,7 +74,7 @@ flare({
 		scope: "/", // SW scope, default "/"
 		skipWaiting: true, // auto-activate new SW, default true
 	},
-})
+});
 ```
 
 ### Disable (default)
@@ -82,7 +82,7 @@ flare({
 ```ts
 flare({
 	serviceWorker: false, // or omit entirely
-})
+});
 ```
 
 No SW generated, no registration code emitted.
@@ -91,10 +91,10 @@ No SW generated, no registration code emitted.
 
 ```ts
 export interface ServiceWorkerConfig {
-	offlineFallback?: string // route path for offline page
-	runtimeCacheMax?: number // max cached HTML pages, default 32
-	scope?: string // SW scope, default "/"
-	skipWaiting?: boolean // auto-activate, default true
+	offlineFallback?: string; // route path for offline page
+	runtimeCacheMax?: number; // max cached HTML pages, default 32
+	scope?: string; // SW scope, default "/"
+	skipWaiting?: boolean; // auto-activate, default true
 }
 ```
 
@@ -103,7 +103,7 @@ On `FlarePluginConfig`:
 ```ts
 export interface FlarePluginConfig {
 	// ... existing fields
-	serviceWorker?: ServiceWorkerConfig | boolean
+	serviceWorker?: ServiceWorkerConfig | boolean;
 }
 ```
 
@@ -208,20 +208,20 @@ After hydration completes (after `document.documentElement.setAttribute("data-hy
 
 ```ts
 function onceIdle(fn: () => void): void {
-	let fired = false
+	let fired = false;
 	const run = () => {
-		if (fired) return
-		fired = true
-		cleanup()
-		fn()
-	}
-	const events = ["mousemove", "touchstart", "scroll", "keydown"] as const
+		if (fired) return;
+		fired = true;
+		cleanup();
+		fn();
+	};
+	const events = ["mousemove", "touchstart", "scroll", "keydown"] as const;
 	const cleanup = () => {
-		for (const e of events) removeEventListener(e, run, { capture: true })
-	}
-	for (const e of events) addEventListener(e, run, { once: true, capture: true, passive: true })
+		for (const e of events) removeEventListener(e, run, { capture: true });
+	};
+	for (const e of events) addEventListener(e, run, { once: true, capture: true, passive: true });
 	if ("requestIdleCallback" in window) {
-		requestIdleCallback(run)
+		requestIdleCallback(run);
 	}
 }
 
@@ -231,7 +231,7 @@ if ("serviceWorker" in navigator) {
 			scope: "/",
 			updateViaCache: "none", // always network-check SW file, never HTTP cache
 		}),
-	)
+	);
 }
 ```
 
@@ -264,15 +264,15 @@ This is safe because:
 When `skipWaiting` is disabled, the new SW waits in `installed` state. Flare exposes a reactive hook:
 
 ```tsx
-import { useServiceWorker } from "flare/use-service-worker"
+import { useServiceWorker } from "@lovrozagar/flare/use-service-worker";
 
 function UpdateBanner() {
-	const sw = useServiceWorker()
+	const sw = useServiceWorker();
 	return (
 		<Show when={sw.updateAvailable()}>
 			<button onClick={sw.update}>New version available — reload</button>
 		</Show>
-	)
+	);
 }
 ```
 
@@ -285,8 +285,8 @@ If `virtual:flare-sw-config` says `{ enabled: false }`, hydration runs:
 ```ts
 if ("serviceWorker" in navigator) {
 	navigator.serviceWorker.getRegistrations().then((regs) => {
-		for (const reg of regs) reg.unregister()
-	})
+		for (const reg of regs) reg.unregister();
+	});
 }
 ```
 
@@ -312,7 +312,7 @@ export const route = createPage("_root_/offline")
 			<h1>You're offline</h1>
 			<p>Check your connection and try again.</p>
 		</div>
-	))
+	));
 ```
 
 It's prerendered to static HTML at build time so it works without network. The cached JS hydrates normally (precached by SW), so client-side interactivity works.

@@ -9,4 +9,4 @@ export default {
 	"welcome.items": "{count, plural, =0{Aucun element} one{# element} other{# elements}}",
 	"welcome.subtitle": "Une vraie application Flare avec support i18n complet",
 	"welcome.title": "Bienvenue",
-} as const
+} as const;

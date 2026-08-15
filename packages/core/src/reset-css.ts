@@ -1,1 +1,1 @@
-export { ResetCSS } from "./components/index.ts"
+export { ResetCSS } from "./components/index.ts";

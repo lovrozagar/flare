@@ -13,7 +13,7 @@
 	},
 	"dependencies": {
 		"@flare/e2e-product": "workspace:*",
-		"flare": "workspace:*"
+		"@lovrozagar/flare": "workspace:*"
 	},
 	"devDependencies": {
 		"@axe-core/playwright": "catalog:",

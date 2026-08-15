@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(ham-layout)/head-auto-merge/replaced")
 	.head(
@@ -7,4 +7,4 @@ export const route = createPage("_root_/(ham-layout)/head-auto-merge/replaced")
 		}),
 		{ replace: true },
 	)
-	.render(() => <div data-testid="ham-replaced">Replace mode active</div>)
+	.render(() => <div data-testid="ham-replaced">Replace mode active</div>);

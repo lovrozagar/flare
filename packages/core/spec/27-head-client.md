@@ -8,8 +8,8 @@ Client-side `<head>` management. Tracks head elements per route, cleans up stale
 
 ```ts
 interface PerRouteHead {
-	head: HeadConfig
-	matchId: string
+	head: HeadConfig;
+	matchId: string;
 }
 ```
 
@@ -38,23 +38,23 @@ Called during hydration. Scans existing DOM for Flare-managed head elements and 
 
 ```ts
 function initRouteHierarchy(matchIds: string[]): void {
-	currentRouteHierarchy = [...matchIds]
+	currentRouteHierarchy = [...matchIds];
 
 	/* Scan existing meta[name], meta[property] */
 	for (const meta of document.head.querySelectorAll("meta[name], meta[property]")) {
-		const selector = buildSelector(meta)
-		managedMetaTags.add(selector)
+		const selector = buildSelector(meta);
+		managedMetaTags.add(selector);
 	}
 
 	/* Scan hreflang links */
 	for (const link of document.head.querySelectorAll('link[rel="alternate"][hreflang]')) {
-		managedHreflangLinks.add(link.getAttribute("hreflang"))
+		managedHreflangLinks.add(link.getAttribute("hreflang"));
 	}
 
 	/* Associate all with deepest route */
-	const deepestRoute = matchIds[matchIds.length - 1]
+	const deepestRoute = matchIds[matchIds.length - 1];
 	if (deepestRoute) {
-		headByRoute.set(deepestRoute, new Set([...managedMetaTags, ...extraSelectors]))
+		headByRoute.set(deepestRoute, new Set([...managedMetaTags, ...extraSelectors]));
 	}
 }
 ```
@@ -66,21 +66,21 @@ Main navigation head update. Three-phase:
 **Phase 1 — Determine removed routes:**
 
 ```ts
-const newHierarchy = heads.map((h) => h.matchId)
-const removed = currentRouteHierarchy.filter((r) => !newHierarchy.includes(r))
+const newHierarchy = heads.map((h) => h.matchId);
+const removed = currentRouteHierarchy.filter((r) => !newHierarchy.includes(r));
 ```
 
 **Phase 2 — Clean up removed routes' head elements:**
 
 ```ts
 for (const routeId of removed) {
-	const selectors = headByRoute.get(routeId)
+	const selectors = headByRoute.get(routeId);
 	if (selectors) {
 		for (const selector of selectors) {
-			document.head.querySelectorAll(selector).forEach((el) => el.remove())
-			managedMetaTags.delete(selector)
+			document.head.querySelectorAll(selector).forEach((el) => el.remove());
+			managedMetaTags.delete(selector);
 		}
-		headByRoute.delete(routeId)
+		headByRoute.delete(routeId);
 	}
 }
 ```
@@ -89,9 +89,9 @@ for (const routeId of removed) {
 
 ```ts
 for (const { head, matchId } of heads) {
-	applyHeadConfigForRoute(matchId, head)
+	applyHeadConfigForRoute(matchId, head);
 }
-currentRouteHierarchy = newHierarchy
+currentRouteHierarchy = newHierarchy;
 ```
 
 ### `applyHeadConfigForRoute`
@@ -126,7 +126,7 @@ After applying, removes stale meta tags:
 ```ts
 for (const selector of managedMetaTags) {
 	if (!currentMetaTags.has(selector)) {
-		document.head.querySelectorAll(selector).forEach((el) => el.remove())
+		document.head.querySelectorAll(selector).forEach((el) => el.remove());
 	}
 }
 ```
@@ -146,15 +146,15 @@ Upsert pattern — no duplicate elements.
 
 ```ts
 function buildRobotsContent(robots: RobotsConfig): string {
-	const directives: string[] = []
-	if (robots.index === false) directives.push("noindex")
-	else if (robots.index === true) directives.push("index")
-	if (robots.follow === false) directives.push("nofollow")
-	else if (robots.follow === true) directives.push("follow")
-	if (robots.noarchive) directives.push("noarchive")
-	if (robots["max-snippet"] !== undefined) directives.push(`max-snippet:${robots["max-snippet"]}`)
+	const directives: string[] = [];
+	if (robots.index === false) directives.push("noindex");
+	else if (robots.index === true) directives.push("index");
+	if (robots.follow === false) directives.push("nofollow");
+	else if (robots.follow === true) directives.push("follow");
+	if (robots.noarchive) directives.push("noarchive");
+	if (robots["max-snippet"] !== undefined) directives.push(`max-snippet:${robots["max-snippet"]}`);
 	/* ... */
-	return directives.join(", ")
+	return directives.join(", ");
 }
 ```
 

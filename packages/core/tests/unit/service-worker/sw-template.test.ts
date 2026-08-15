@@ -1,223 +1,223 @@
-import { describe, expect, it } from "vitest"
-import { generateSwSource } from "../../../src/service-worker/template.ts"
+import { describe, expect, it } from "vitest";
+import { generateSwSource } from "../../../src/service-worker/template.ts";
 
 describe("SW template generation", () => {
 	const defaultConfig = {
 		offlineFallback: null as string | null,
 		runtimeCacheMax: 32,
 		skipWaiting: true,
-	}
+	};
 
 	it("injects precache manifest as array of URL strings", () => {
-		const manifest = ["/assets/client-abc.js", "/assets/style-def.css"]
-		const result = generateSwSource(manifest, "build123", defaultConfig)
+		const manifest = ["/assets/client-abc.js", "/assets/style-def.css"];
+		const result = generateSwSource(manifest, "build123", defaultConfig);
 
-		expect(result).toContain('"/assets/client-abc.js"')
-		expect(result).toContain('"/assets/style-def.css"')
-	})
+		expect(result).toContain('"/assets/client-abc.js"');
+		expect(result).toContain('"/assets/style-def.css"');
+	});
 
 	it("injects BUILD_ID into cache name", () => {
-		const result = generateSwSource([], "xyz789", defaultConfig)
-		expect(result).toContain("flare-assets-xyz789")
-	})
+		const result = generateSwSource([], "xyz789", defaultConfig);
+		expect(result).toContain("flare-assets-xyz789");
+	});
 
 	it("injects SW_CONFIG with skipWaiting", () => {
-		const result = generateSwSource([], "b1", { ...defaultConfig, skipWaiting: false })
-		expect(result).toContain("skipWaiting")
+		const result = generateSwSource([], "b1", { ...defaultConfig, skipWaiting: false });
+		expect(result).toContain("skipWaiting");
 		/* The config should reflect skipWaiting: false */
-		expect(result).toMatch(/skipWaiting["']?\s*:\s*false/)
-	})
+		expect(result).toMatch(/skipWaiting["']?\s*:\s*false/);
+	});
 
 	it("injects offlineFallback path when configured", () => {
-		const result = generateSwSource([], "b1", { ...defaultConfig, offlineFallback: "/offline" })
-		expect(result).toContain("/offline")
-	})
+		const result = generateSwSource([], "b1", { ...defaultConfig, offlineFallback: "/offline" });
+		expect(result).toContain("/offline");
+	});
 
 	it("sets offlineFallback to null when not configured", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toMatch(/offlineFallback["']?\s*:\s*null/)
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toMatch(/offlineFallback["']?\s*:\s*null/);
+	});
 
 	it("includes install event handler", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("install")
-		expect(result).toContain("addAll")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("install");
+		expect(result).toContain("addAll");
+	});
 
 	it("includes activate event handler with old cache cleanup", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("activate")
-		expect(result).toContain("flare-assets-")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("activate");
+		expect(result).toContain("flare-assets-");
+	});
 
 	it("includes fetch event handler", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("fetch")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("fetch");
+	});
 
 	it("includes NavigationPreloadManager enable", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("navigationPreload")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("navigationPreload");
+	});
 
 	it("includes message handler for SKIP_WAITING", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("SKIP_WAITING")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("SKIP_WAITING");
+	});
 
 	it("handles cache-first for /assets/ requests", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("/assets/")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("/assets/");
+	});
 
 	it("passes through /_fn/ requests", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("/_fn/")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("/_fn/");
+	});
 
 	it("passes through NDJSON requests with x-d header", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("x-d")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("x-d");
+	});
 
 	it("includes runtimeCacheMax in config", () => {
-		const result = generateSwSource([], "b1", { ...defaultConfig, runtimeCacheMax: 64 })
-		expect(result).toMatch(/runtimeCacheMax["']?\s*:\s*64/)
-	})
+		const result = generateSwSource([], "b1", { ...defaultConfig, runtimeCacheMax: 64 });
+		expect(result).toMatch(/runtimeCacheMax["']?\s*:\s*64/);
+	});
 
 	it("generates valid JavaScript", () => {
-		const manifest = ["/assets/a.js", "/assets/b.css"]
-		const result = generateSwSource(manifest, "abc", defaultConfig)
+		const manifest = ["/assets/a.js", "/assets/b.css"];
+		const result = generateSwSource(manifest, "abc", defaultConfig);
 		/* Should not throw when parsed as a script (basic syntax check) */
-		expect(() => new Function(result)).not.toThrow()
-	})
+		expect(() => new Function(result)).not.toThrow();
+	});
 
 	it("includes RUNTIME_CACHE name", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("flare-runtime-v1")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("flare-runtime-v1");
+	});
 
 	it("includes clients.claim in activate", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("clients.claim")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("clients.claim");
+	});
 
 	it("includes preloadResponse for navigation", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("preloadResponse")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("preloadResponse");
+	});
 
 	it("passes through keepalive requests", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("keepalive")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("keepalive");
+	});
 
 	it("checks same-origin before intercepting fetch", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("url.origin")
-		expect(result).toContain("self.location.origin")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("url.origin");
+		expect(result).toContain("self.location.origin");
+	});
 
 	it("LRU eviction checks runtimeCacheMax", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("runtimeCacheMax")
-		expect(result).toContain("keys.length")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("runtimeCacheMax");
+		expect(result).toContain("keys.length");
+	});
 
 	it("caches navigation response clone in RUNTIME_CACHE", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("clone")
-		expect(result).toContain("RUNTIME_CACHE")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("clone");
+		expect(result).toContain("RUNTIME_CACHE");
+	});
 
 	it("falls back to cached HTML on network failure for navigate", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
+		const result = generateSwSource([], "b1", defaultConfig);
 		/* The catch block should try caches.match for the request */
-		expect(result).toContain(".catch")
-		expect(result).toContain("caches.match(event.request)")
-	})
+		expect(result).toContain(".catch");
+		expect(result).toContain("caches.match(event.request)");
+	});
 
 	it("serves offlineFallback when cache miss + network failure", () => {
 		const result = generateSwSource([], "b1", {
 			...defaultConfig,
 			offlineFallback: "/offline",
-		})
-		expect(result).toContain("offlineFallback")
-		expect(result).toContain("caches.match(SW_CONFIG.offlineFallback)")
-	})
+		});
+		expect(result).toContain("offlineFallback");
+		expect(result).toContain("caches.match(SW_CONFIG.offlineFallback)");
+	});
 
 	it("offline fallback is precached in install event", () => {
 		const result = generateSwSource([], "b1", {
 			...defaultConfig,
 			offlineFallback: "/offline",
-		})
+		});
 		/* Install should fetch + cache the offline fallback */
-		expect(result).toContain("fetch(SW_CONFIG.offlineFallback)")
-	})
+		expect(result).toContain("fetch(SW_CONFIG.offlineFallback)");
+	});
 
 	it("delete old caches matching flare-assets- prefix in activate", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain('startsWith("flare-assets-")')
-		expect(result).toContain("caches.delete")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain('startsWith("flare-assets-")');
+		expect(result).toContain("caches.delete");
+	});
 
 	it("only deletes caches not matching current CACHE_NAME", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("!== CACHE_NAME")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("!== CACHE_NAME");
+	});
 
 	it("cache-first strategy: match then fallback to network + cache", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
+		const result = generateSwSource([], "b1", defaultConfig);
 		/* For /assets/: match first, then fetch + put */
-		expect(result).toContain("caches.match(event.request)")
-		expect(result).toContain("fetch(event.request)")
-		expect(result).toContain("cache.put(event.request")
-	})
+		expect(result).toContain("caches.match(event.request)");
+		expect(result).toContain("fetch(event.request)");
+		expect(result).toContain("cache.put(event.request");
+	});
 
 	it("network-first for navigations uses event.preloadResponse", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain("event.preloadResponse")
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain("event.preloadResponse");
+	});
 
 	it("skipWaiting called in install when config.skipWaiting is true", () => {
-		const result = generateSwSource([], "b1", { ...defaultConfig, skipWaiting: true })
+		const result = generateSwSource([], "b1", { ...defaultConfig, skipWaiting: true });
 		/* self.skipWaiting in install handler (conditional on config) */
-		expect(result).toContain("SW_CONFIG.skipWaiting")
-		expect(result).toContain("self.skipWaiting()")
-	})
+		expect(result).toContain("SW_CONFIG.skipWaiting");
+		expect(result).toContain("self.skipWaiting()");
+	});
 
 	it("empty manifest produces valid SW with no precache entries", () => {
-		const result = generateSwSource([], "empty1", defaultConfig)
-		expect(result).toContain("PRECACHE_MANIFEST = []")
-		expect(() => new Function(result)).not.toThrow()
-	})
+		const result = generateSwSource([], "empty1", defaultConfig);
+		expect(result).toContain("PRECACHE_MANIFEST = []");
+		expect(() => new Function(result)).not.toThrow();
+	});
 
 	it("large manifest with many assets still produces valid JS", () => {
-		const urls = Array.from({ length: 200 }, (_, i) => `/assets/chunk-${i}.js`)
-		const result = generateSwSource(urls, "large1", defaultConfig)
-		expect(() => new Function(result)).not.toThrow()
+		const urls = Array.from({ length: 200 }, (_, i) => `/assets/chunk-${i}.js`);
+		const result = generateSwSource(urls, "large1", defaultConfig);
+		expect(() => new Function(result)).not.toThrow();
 		for (const url of urls.slice(0, 5)) {
-			expect(result).toContain(url)
+			expect(result).toContain(url);
 		}
-	})
+	});
 
 	it("mode navigate check for document requests", () => {
-		const result = generateSwSource([], "b1", defaultConfig)
-		expect(result).toContain('"navigate"')
-	})
+		const result = generateSwSource([], "b1", defaultConfig);
+		expect(result).toContain('"navigate"');
+	});
 
 	it("has RUNTIME_CACHE as version-stable name", () => {
 		/* RUNTIME_CACHE should NOT contain build ID — persists across deploys */
-		const result1 = generateSwSource([], "build1", defaultConfig)
-		const result2 = generateSwSource([], "build2", defaultConfig)
-		expect(result1).toContain('"flare-runtime-v1"')
-		expect(result2).toContain('"flare-runtime-v1"')
-	})
+		const result1 = generateSwSource([], "build1", defaultConfig);
+		const result2 = generateSwSource([], "build2", defaultConfig);
+		expect(result1).toContain('"flare-runtime-v1"');
+		expect(result2).toContain('"flare-runtime-v1"');
+	});
 
 	it("CACHE_NAME is unique per build", () => {
-		const result1 = generateSwSource([], "build1", defaultConfig)
-		const result2 = generateSwSource([], "build2", defaultConfig)
-		expect(result1).toContain("flare-assets-build1")
-		expect(result2).toContain("flare-assets-build2")
-	})
-})
+		const result1 = generateSwSource([], "build1", defaultConfig);
+		const result2 = generateSwSource([], "build2", defaultConfig);
+		expect(result1).toContain("flare-assets-build1");
+		expect(result2).toContain("flare-assets-build2");
+	});
+});

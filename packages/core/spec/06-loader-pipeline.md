@@ -10,25 +10,23 @@ Orchestrates the full server-side request lifecycle: validate â†’ authenticate â
 
 ```ts
 interface PipelineConfig<TEnv = unknown> {
-	abortController: AbortController
-	authenticateFn?: AuthenticateFn<TEnv>
-	cause: LoaderCause
-	env: TEnv
-	prefetch: boolean
-	request: Request
-	routes: ResolvedRoute[]
-	url: URL
+	abortController: AbortController;
+	authenticateFn?: AuthenticateFn<TEnv>;
+	cause: LoaderCause;
+	env: TEnv;
+	prefetch: boolean;
+	request: Request;
+	routes: ResolvedRoute[];
+	url: URL;
 }
 
-type AuthenticateFn<TEnv = unknown> = (
-	ctx: AuthenticateFnContext<TEnv>,
-) => Auth | null | Promise<Auth | null>
+type AuthenticateFn<TEnv = unknown> = (ctx: AuthenticateFnContext<TEnv>) => Auth | null | Promise<Auth | null>;
 
 interface AuthenticateFnContext<TEnv = unknown> {
-	callerData?: unknown[]
-	env: TEnv
-	request: Request
-	url: URL
+	callerData?: unknown[];
+	env: TEnv;
+	request: Request;
+	url: URL;
 }
 ```
 
@@ -40,23 +38,23 @@ Runtime representation of a matched route definition. Produced by loading route 
 
 ```ts
 interface ResolvedRoute {
-	_type: "render" | "response" | "layout" | "root-layout"
-	authenticate?: unknown[] /* args from .authenticate(...args) */
-	authorize?: (ctx: AuthorizeContext) => boolean | Promise<boolean>
-	effectsConfig?: EffectsConfig
-	errorRender?: (props: ErrorRenderProps) => JSX.Element
-	head?: (ctx: HeadContext) => HeadConfig
-	headers?: (ctx: HeadersContext) => ResponseHeaders
-	inputConfig?: InputConfig
-	loader?: (ctx: LoaderContext) => unknown | Promise<unknown>
-	notFoundRender?: (props: NotFoundRenderProps) => JSX.Element
-	options?: RouteOptions
-	preloader?: (ctx: PreloaderContext) => unknown | Promise<unknown>
-	render?: (props: RenderProps) => JSX.Element
-	response?: (ctx: ResponseContext) => Response | Promise<Response>
-	unauthorizedRender?: (props: UnauthorizedRenderProps) => JSX.Element
-	variablePath: string
-	virtualPath: string
+	_type: "render" | "response" | "layout" | "root-layout";
+	authenticate?: unknown[]; /* args from .authenticate(...args) */
+	authorize?: (ctx: AuthorizeContext) => boolean | Promise<boolean>;
+	effectsConfig?: EffectsConfig;
+	errorRender?: (props: ErrorRenderProps) => JSX.Element;
+	head?: (ctx: HeadContext) => HeadConfig;
+	headers?: (ctx: HeadersContext) => ResponseHeaders;
+	inputConfig?: InputConfig;
+	loader?: (ctx: LoaderContext) => unknown | Promise<unknown>;
+	notFoundRender?: (props: NotFoundRenderProps) => JSX.Element;
+	options?: RouteOptions;
+	preloader?: (ctx: PreloaderContext) => unknown | Promise<unknown>;
+	render?: (props: RenderProps) => JSX.Element;
+	response?: (ctx: ResponseContext) => Response | Promise<Response>;
+	unauthorizedRender?: (props: UnauthorizedRenderProps) => JSX.Element;
+	variablePath: string;
+	virtualPath: string;
 }
 ```
 
@@ -64,21 +62,21 @@ interface ResolvedRoute {
 
 ```ts
 interface PipelineResult {
-	auth: Auth | null
-	deferContexts: Map<string, DeferContext>
-	matches: PipelineMatch[]
+	auth: Auth | null;
+	deferContexts: Map<string, DeferContext>;
+	matches: PipelineMatch[];
 }
 
 interface PipelineMatch {
-	deferContext: DeferContext
-	error?: Error
-	headConfig?: HeadConfig
-	loaderData: unknown
-	matchId: string
-	preloaderContext: Record<string, unknown>
-	responseHeaders?: ResponseHeaders
-	route: ResolvedRoute
-	status: "success" | "error"
+	deferContext: DeferContext;
+	error?: Error;
+	headConfig?: HeadConfig;
+	loaderData: unknown;
+	matchId: string;
+	preloaderContext: Record<string, unknown>;
+	responseHeaders?: ResponseHeaders;
+	route: ResolvedRoute;
+	status: "success" | "error";
 }
 ```
 

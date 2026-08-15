@@ -1,4 +1,4 @@
-import { createTranslations } from "flare/i18n"
+import { createTranslations } from "@lovrozagar/flare/i18n";
 
 export const translations = createTranslations({
 	common: {
@@ -6,4 +6,4 @@ export const translations = createTranslations({
 		fr: () => import("./fr/common"),
 		hr: () => import("./hr/common"),
 	},
-})
+});

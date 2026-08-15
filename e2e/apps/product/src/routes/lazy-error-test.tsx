@@ -1,10 +1,10 @@
-import { createPage } from "flare/page"
-import { lazy } from "flare/lazy"
-import { Link } from "flare/link"
+import { createPage } from "@lovrozagar/flare/page";
+import { lazy } from "@lovrozagar/flare/lazy";
+import { Link } from "@lovrozagar/flare/link";
 
 const FailingComp = lazy<Record<string, unknown>>({
 	loader: () => Promise.reject(new Error("Chunk load failed")),
-})
+});
 
 export const route = createPage("_root_/lazy-error-test")
 	.render(() => (
@@ -15,4 +15,4 @@ export const route = createPage("_root_/lazy-error-test")
 			</nav>
 		</main>
 	))
-	.errorRender(() => <div data-testid="lazy-error-caught">Lazy load failed</div>)
+	.errorRender(() => <div data-testid="lazy-error-caught">Lazy load failed</div>);

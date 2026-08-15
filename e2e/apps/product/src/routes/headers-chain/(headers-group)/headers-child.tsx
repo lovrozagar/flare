@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(headers-group)/headers-chain/headers-child")
 	.loader(() => ({ content: "Headers chain child" }))
@@ -11,4 +11,4 @@ export const route = createPage("_root_/(headers-group)/headers-chain/headers-ch
 		<div data-testid="headers-chain-child">
 			<p data-testid="headers-child-content">{props.loaderData.content}</p>
 		</div>
-	))
+	));

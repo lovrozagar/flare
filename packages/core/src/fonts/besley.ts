@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const besley: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
@@ -79,4 +79,4 @@ export const besley: Font<"latin" | "latin-ext"> = createRegistryFont({
 	],
 	subsets: ["latin", "latin-ext"],
 	weights: [400, 700],
-})
+});

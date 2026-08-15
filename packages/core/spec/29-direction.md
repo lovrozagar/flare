@@ -7,13 +7,13 @@ No-flash LTR/RTL direction switching with localStorage persistence and locale-ba
 ## Types
 
 ```ts
-type Direction = "ltr" | "rtl"
+type Direction = "ltr" | "rtl";
 
 interface DirectionConfig {
-	attribute?: string /* default: "data-dir" */
-	defaultDir?: Direction /* default: "ltr" */
-	rtlLocales?: readonly string[] /* default: ["ar", "he", "fa", "ur"] */
-	storageKey?: string /* default: "flare.dir" */
+	attribute?: string; /* default: "data-dir" */
+	defaultDir?: Direction; /* default: "ltr" */
+	rtlLocales?: readonly string[]; /* default: ["ar", "he", "fa", "ur"] */
+	storageKey?: string; /* default: "flare.dir" */
 }
 ```
 
@@ -49,9 +49,9 @@ Extracts base language from locale string, checks against `rtlLocales`:
 
 ```ts
 function getDirFromLocale(locale: string | undefined): Direction {
-	if (!locale) return "ltr"
-	const base = locale.split("-")[0]?.toLowerCase() ?? ""
-	return rtlLocales.includes(base) ? "rtl" : "ltr"
+	if (!locale) return "ltr";
+	const base = locale.split("-")[0]?.toLowerCase() ?? "";
+	return rtlLocales.includes(base) ? "rtl" : "ltr";
 }
 ```
 
@@ -68,7 +68,7 @@ Updates signal, DOM attributes (`dir` + `data-dir`), and localStorage.
 Module-level signal:
 
 ```ts
-const [directionSignal, setDirectionSignal] = createSignal<Direction>("ltr")
+const [directionSignal, setDirectionSignal] = createSignal<Direction>("ltr");
 ```
 
 `getDirection()` returns signal value (reactive in components).

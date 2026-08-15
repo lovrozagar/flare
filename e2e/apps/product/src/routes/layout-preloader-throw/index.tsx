@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(layout-preloader-throw)/layout-preloader-throw/")
 	.loader(() => ({ child: true }))
@@ -6,4 +6,4 @@ export const route = createPage("_root_/(layout-preloader-throw)/layout-preloade
 		<div data-testid="layout-preloader-child">
 			<p>Child page — should not render when layout preloader throws</p>
 		</div>
-	))
+	));

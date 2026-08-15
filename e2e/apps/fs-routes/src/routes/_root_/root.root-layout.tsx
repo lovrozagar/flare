@@ -1,5 +1,5 @@
-import { createRootLayout } from "flare/root-layout"
-import { ThemeScript } from "flare/theme"
+import { createRootLayout } from "@lovrozagar/flare/root-layout";
+import { ThemeScript } from "@lovrozagar/flare/theme";
 
 export const route = createRootLayout("_root_")
 	.head(() => ({
@@ -13,4 +13,4 @@ export const route = createRootLayout("_root_")
 			</head>
 			<body>{props.children}</body>
 		</html>
-	))
+	));

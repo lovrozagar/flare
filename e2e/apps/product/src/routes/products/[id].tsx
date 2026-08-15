@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(products)/products/[id]")
 	.intercept({ from: ["/products"], render: "modal" })
@@ -11,4 +11,4 @@ export const route = createPage("_root_/(products)/products/[id]")
 			<h2 data-testid="product-name">{props.loaderData.name}</h2>
 			<p data-testid="product-id">ID: {props.loaderData.id}</p>
 		</div>
-	))
+	));

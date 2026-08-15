@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { styles } from "flare/styles"
+import { createPage } from "@lovrozagar/flare/page";
+import { styles } from "@lovrozagar/flare/styles";
 
 export const route = createPage("_root_/styling-mix")
 	.head(() => ({
@@ -9,7 +9,7 @@ export const route = createPage("_root_/styling-mix")
 	.render(() => {
 		const scopedProps = styles("mix-scoped", {
 			css: "margin: 8px; color: rgb(0, 0, 255);",
-		})
+		});
 		return (
 			<main data-testid="styling-mix">
 				<div class="mix-head" data-testid="mix-head">
@@ -28,5 +28,5 @@ export const route = createPage("_root_/styling-mix")
 					Native tw=
 				</div>
 			</main>
-		)
-	})
+		);
+	});

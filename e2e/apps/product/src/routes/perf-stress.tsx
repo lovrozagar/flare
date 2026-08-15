@@ -1,7 +1,7 @@
-import { Await } from "flare/await"
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
-import { For } from "solid-js"
+import { Await } from "@lovrozagar/flare/await";
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
+import { For } from "solid-js";
 
 export const route = createPage("_root_/perf-stress")
 	.loader((ctx) => {
@@ -11,19 +11,19 @@ export const route = createPage("_root_/perf-stress")
 			id: i,
 			name: `Item ${i}`,
 			value: Math.random().toString(36).slice(2, 10),
-		}))
+		}));
 
 		const slowDeferred = ctx.defer<string>(async () => {
-			await new Promise((r) => setTimeout(r, 500))
-			return "stress-deferred-resolved"
-		})
+			await new Promise((r) => setTimeout(r, 500));
+			return "stress-deferred-resolved";
+		});
 
 		return {
 			count: rows.length,
 			rows,
 			slowDeferred,
 			staticPayload: "x".repeat(10_000),
-		}
+		};
 	})
 	.head(() => ({ title: "Performance Stress Test" }))
 	.render((props) => (
@@ -59,11 +59,11 @@ export const route = createPage("_root_/perf-stress")
 					<For
 						each={
 							props.loaderData.rows as Array<{
-								active: boolean
-								category: string | undefined
-								id: number
-								name: string
-								value: string
+								active: boolean;
+								category: string | undefined;
+								id: number;
+								name: string;
+								value: string;
 							}>
 						}
 					>
@@ -80,4 +80,4 @@ export const route = createPage("_root_/perf-stress")
 				</tbody>
 			</table>
 		</main>
-	))
+	));

@@ -1,42 +1,42 @@
-import { createPage } from "flare/page"
-import { styles } from "flare/styles"
-import { createSignal, For } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { styles } from "@lovrozagar/flare/styles";
+import { createSignal, For } from "solid-js";
 
 export const route = createPage("_root_/styling-stress").render(() => {
 	/* many unique styles() calls to stress the registry */
 	const boxes = Array.from({ length: 20 }, (_, i) => {
-		const hue = (i * 18) % 360
+		const hue = (i * 18) % 360;
 		return {
 			id: i,
 			props: styles(`stress-box-${i}`, {
 				css: `color: hsl(${hue}, 70%, 50%); padding: ${4 + i}px;`,
 			}),
-		}
-	})
+		};
+	});
 
 	/* cross-property collision: all set "color" but with different values */
 	const collisionA = styles("collision-a", {
 		css: "color: rgb(255, 0, 0); margin: 4px;",
-	})
+	});
 	const collisionB = styles("collision-b", {
 		css: "color: rgb(0, 255, 0); margin: 4px;",
-	})
+	});
 	const collisionC = styles("collision-c", {
 		css: "color: rgb(0, 0, 255); margin: 4px;",
-	})
+	});
 
 	/* dynamic list that creates styles() on mount */
-	const [dynamicCount, setDynamicCount] = createSignal(3)
+	const [dynamicCount, setDynamicCount] = createSignal(3);
 	const dynamicItems = () =>
 		Array.from({ length: dynamicCount() }, (_, i) => ({
 			color: `rgb(${(i * 80) % 256}, ${(i * 50 + 100) % 256}, ${(i * 30 + 50) % 256})`,
 			id: `dyn-${i}`,
-		}))
+		}));
 
 	/* native css= and tw= mixed on same page as styles() */
 	const mixedScoped = styles("stress-mixed-scoped", {
 		css: "font-size: 20px; color: rgb(100, 0, 100);",
-	})
+	});
 
 	return (
 		<main data-testid="styling-stress">
@@ -71,12 +71,12 @@ export const route = createPage("_root_/styling-stress").render(() => {
 					{(item) => {
 						const itemProps = styles(`stress-dyn-${item.id}`, {
 							css: `color: ${item.color}; padding: 2px;`,
-						})
+						});
 						return (
 							<div {...itemProps} data-testid={item.id}>
 								{item.id}
 							</div>
-						)
+						);
 					}}
 				</For>
 			</section>
@@ -93,5 +93,5 @@ export const route = createPage("_root_/styling-stress").render(() => {
 				</div>
 			</section>
 		</main>
-	)
-})
+	);
+});

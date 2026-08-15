@@ -1,14 +1,11 @@
-import { HeadContent, Link, Scripts, createRootRoute } from "@tanstack/react-router"
+import { HeadContent, Link, Scripts, createRootRoute } from "@tanstack/react-router";
 
 export const Route = createRootRoute({
 	head: () => ({
-		meta: [
-			{ charSet: "utf-8" },
-			{ content: "width=device-width, initial-scale=1", name: "viewport" },
-		],
+		meta: [{ charSet: "utf-8" }, { content: "width=device-width, initial-scale=1", name: "viewport" }],
 	}),
 	shellComponent: RootDocument,
-})
+});
 
 function RootDocument(props: { children: React.ReactNode }) {
 	return (
@@ -26,5 +23,5 @@ function RootDocument(props: { children: React.ReactNode }) {
 				<Scripts />
 			</body>
 		</html>
-	)
+	);
 }

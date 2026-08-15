@@ -8,22 +8,22 @@ Deferred streaming control. Wraps async work so results stream as NDJSON chunks 
 
 ```ts
 interface Deferred<T> {
-	__deferred: true
-	key: string
-	promise: Promise<T>
+	__deferred: true;
+	key: string;
+	promise: Promise<T>;
 }
 
 interface DeferContext {
-	defer: DeferFn
-	entries: () => DeferredEntry[]
+	defer: DeferFn;
+	entries: () => DeferredEntry[];
 }
 
-type DeferFn = <T>(fn: () => Promise<T>, options?: { key?: string }) => Deferred<T>
+type DeferFn = <T>(fn: () => Promise<T>, options?: { key?: string }) => Deferred<T>;
 
 interface DeferredEntry {
-	key: string
-	matchId: string
-	promise: Promise<unknown>
+	key: string;
+	matchId: string;
+	promise: Promise<unknown>;
 }
 ```
 
@@ -66,7 +66,7 @@ Wraps a lazy async function for streaming.
 ### `isDeferred`
 
 ```ts
-value != null && typeof value === "object" && "__deferred" in value && value.__deferred === true
+value != null && typeof value === "object" && "__deferred" in value && value.__deferred === true;
 ```
 
 ### Lifecycle

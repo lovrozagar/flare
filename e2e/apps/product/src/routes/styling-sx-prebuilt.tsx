@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
-import { PrebuiltButton } from "@flare/ui-test-prebuilt/button"
-import { PrebuiltCard } from "@flare/ui-test-prebuilt/card"
+import { createPage } from "@lovrozagar/flare/page";
+import { PrebuiltButton } from "../components/ui-test-prebuilt/button";
+import { PrebuiltCard } from "../components/ui-test-prebuilt/card";
 
 /*
  * Mode 2 cross-package test — lib ships pre-extracted CSS in @layer sx.
@@ -18,12 +18,9 @@ export const route = createPage("_root_/styling-sx-prebuilt").render(() => {
 			</PrebuiltCard>
 
 			{/* Consumer-authored sx — goes into consumer's flare-global.css */}
-			<div
-				data-testid="consumer-sx-box"
-				sx={{ color: "rgb(10, 60, 120)", fontSize: "16px", fontWeight: "600" }}
-			>
+			<div data-testid="consumer-sx-box" sx={{ color: "rgb(10, 60, 120)", fontSize: "16px", fontWeight: "600" }}>
 				Consumer sx box
 			</div>
 		</main>
-	)
-})
+	);
+});

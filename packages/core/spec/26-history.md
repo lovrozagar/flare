@@ -8,29 +8,29 @@ Browser history API integration. Manages history state, scroll position save/res
 
 ```ts
 interface HistoryState {
-	historyIndex: number /* monotonic index for view transition direction */
-	key: string /* unique per entry, keys scroll store */
-	params: Record<string, string | string[]>
-	pathname: string
-	scroll?: ScrollPosition /* saved before navigation */
-	search: string
-	state?: unknown /* user-provided state via navigate({ state }) */
+	historyIndex: number; /* monotonic index for view transition direction */
+	key: string; /* unique per entry, keys scroll store */
+	params: Record<string, string | string[]>;
+	pathname: string;
+	scroll?: ScrollPosition; /* saved before navigation */
+	search: string;
+	state?: unknown; /* user-provided state via navigate({ state }) */
 }
 
 interface ScrollPosition {
-	x: number
-	y: number
+	x: number;
+	y: number;
 }
 
 interface HistoryNavigateEvent {
-	historyIndex: number
-	key: string
-	params: Record<string, string | string[]>
-	pathname: string
-	scroll?: ScrollPosition
-	search: string
-	state?: unknown
-	type: "popstate"
+	historyIndex: number;
+	key: string;
+	params: Record<string, string | string[]>;
+	pathname: string;
+	scroll?: ScrollPosition;
+	search: string;
+	state?: unknown;
+	type: "popstate";
 }
 ```
 
@@ -79,7 +79,7 @@ function createHistoryState(
 		pathname,
 		search,
 		state: options?.state,
-	}
+	};
 }
 ```
 
@@ -91,12 +91,12 @@ Create state and call `history.pushState` / `history.replaceState`. SSR-safe: no
 
 ```ts
 function pushHistoryState(pathname, params, search, options): HistoryState {
-	const state = createHistoryState(pathname, params, search, options)
-	const url = `${pathname}${search}${options?.hash ?? ""}`
+	const state = createHistoryState(pathname, params, search, options);
+	const url = `${pathname}${search}${options?.hash ?? ""}`;
 	if (typeof history !== "undefined") {
-		history.pushState(state, "", url)
+		history.pushState(state, "", url);
 	}
-	return state
+	return state;
 }
 ```
 
@@ -120,8 +120,8 @@ LRU cache of scroll positions keyed by history entry key.
 
 ```ts
 interface ScrollStore {
-	get(key: string): ScrollPosition | null
-	save(key: string, position: ScrollPosition): void
+	get(key: string): ScrollPosition | null;
+	save(key: string, position: ScrollPosition): void;
 }
 ```
 
@@ -138,8 +138,8 @@ interface ScrollStore {
 
 ```ts
 /* Save current scroll into scroll store */
-const scroll = getCurrentScroll()
-scrollStore.save(currentHistoryKey, scroll)
+const scroll = getCurrentScroll();
+scrollStore.save(currentHistoryKey, scroll);
 ```
 
 **After forward navigation (double rAF for paint):**
@@ -147,22 +147,22 @@ scrollStore.save(currentHistoryKey, scroll)
 ```ts
 requestAnimationFrame(() => {
 	requestAnimationFrame(() => {
-		if (hash) scrollToHash(hash)
-		else scrollToTop()
-	})
-})
+		if (hash) scrollToHash(hash);
+		else scrollToTop();
+	});
+});
 ```
 
 **After popstate (back/forward):**
 
 ```ts
-const savedScroll = scrollStore.get(event.key)
+const savedScroll = scrollStore.get(event.key);
 requestAnimationFrame(() => {
 	requestAnimationFrame(() => {
-		if (savedScroll) restoreScroll(savedScroll)
-		else scrollToTop()
-	})
-})
+		if (savedScroll) restoreScroll(savedScroll);
+		else scrollToTop();
+	});
+});
 ```
 
 Double `requestAnimationFrame`: first rAF schedules after current frame. Second rAF runs after browser has painted — DOM updates from signal changes are committed. Scroll position set on painted DOM.
@@ -172,19 +172,19 @@ Double `requestAnimationFrame`: first rAF schedules after current frame. Second 
 Module-level counter for view transition direction detection.
 
 ```ts
-let currentIndex = 0
+let currentIndex = 0;
 
 function getHistoryIndex(): number {
-	return currentIndex
+	return currentIndex;
 }
 function setHistoryIndex(i: number): void {
-	currentIndex = i
+	currentIndex = i;
 }
 function incrementHistoryIndex(): void {
-	currentIndex++
+	currentIndex++;
 }
 function initHistoryIndex(i: number): void {
-	currentIndex = i
+	currentIndex = i;
 }
 ```
 
@@ -200,7 +200,7 @@ Set at navigation setup:
 
 ```ts
 if ("scrollRestoration" in history) {
-	history.scrollRestoration = "manual"
+	history.scrollRestoration = "manual";
 }
 ```
 

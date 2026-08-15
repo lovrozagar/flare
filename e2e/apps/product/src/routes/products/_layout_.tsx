@@ -1,5 +1,5 @@
-import { createLayout } from "flare/layout"
-import { InterceptOutlet } from "flare/intercept-outlet"
+import { createLayout } from "@lovrozagar/flare/layout";
+import { InterceptOutlet } from "@lovrozagar/flare/intercept-outlet";
 
 export const route = createLayout("_root_/(products)").render((props) => (
 	<>
@@ -19,4 +19,4 @@ export const route = createLayout("_root_/(products)").render((props) => (
 			)}
 		</InterceptOutlet>
 	</>
-))
+));

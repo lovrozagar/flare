@@ -1,15 +1,8 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const notoSans: Font<
-	| "cyrillic"
-	| "cyrillic-ext"
-	| "devanagari"
-	| "greek"
-	| "greek-ext"
-	| "latin"
-	| "latin-ext"
-	| "vietnamese"
+	"cyrillic" | "cyrillic-ext" | "devanagari" | "greek" | "greek-ext" | "latin" | "latin-ext" | "vietnamese"
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
@@ -142,15 +135,6 @@ export const notoSans: Font<
 			weight: "100 900",
 		},
 	],
-	subsets: [
-		"cyrillic",
-		"cyrillic-ext",
-		"devanagari",
-		"greek",
-		"greek-ext",
-		"latin",
-		"latin-ext",
-		"vietnamese",
-	],
+	subsets: ["cyrillic", "cyrillic-ext", "devanagari", "greek", "greek-ext", "latin", "latin-ext", "vietnamese"],
 	weights: "100 900",
-})
+});

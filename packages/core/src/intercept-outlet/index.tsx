@@ -1,11 +1,11 @@
-import { type JSX, Show, useContext } from "solid-js"
-import { RouterContext } from "../outlet/index.tsx"
-import type { InterceptedState } from "../outlet/types.ts"
+import { type JSX, Show, useContext } from "solid-js";
+import { RouterContext } from "../outlet/index.tsx";
+import type { InterceptedState } from "../outlet/types.ts";
 
-export type { InterceptedState } from "../outlet/types.ts"
+export type { InterceptedState } from "../outlet/types.ts";
 
 export interface InterceptOutletProps {
-	children: (state: InterceptedState) => JSX.Element
+	children: (state: InterceptedState) => JSX.Element;
 }
 
 /**
@@ -13,8 +13,6 @@ export interface InterceptOutletProps {
  * FlareProvider (root layout renders in NoHydration during SSR).
  */
 export function InterceptOutlet(props: InterceptOutletProps): JSX.Element {
-	const ctx = useContext(RouterContext)
-	return (
-		<Show when={ctx?.intercepted()}>{(state) => props.children(state())}</Show>
-	) as JSX.Element
+	const ctx = useContext(RouterContext);
+	return (<Show when={ctx?.intercepted()}>{(state) => props.children(state())}</Show>) as JSX.Element;
 }

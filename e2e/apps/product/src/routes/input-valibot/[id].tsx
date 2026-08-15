@@ -1,11 +1,11 @@
-import { createPage } from "flare/page"
-import * as v from "valibot"
+import { createPage } from "@lovrozagar/flare/page";
+import * as v from "valibot";
 
-const paramsSchema = v.object({ id: v.pipe(v.string(), v.regex(/^\d+$/)) })
+const paramsSchema = v.object({ id: v.pipe(v.string(), v.regex(/^\d+$/)) });
 const searchSchema = v.object({
 	limit: v.optional(v.string(), "10"),
 	tab: v.optional(v.string(), "overview"),
-})
+});
 
 export const route = createPage("_root_/input-valibot/[id]")
 	.input({
@@ -29,4 +29,4 @@ export const route = createPage("_root_/input-valibot/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

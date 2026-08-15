@@ -1,7 +1,7 @@
-import { createPage } from "flare/page"
-import { Image, type ImageLoader } from "flare/image"
+import { createPage } from "@lovrozagar/flare/page";
+import { Image, type ImageLoader } from "@lovrozagar/flare/image";
 
-const globalLoader: ImageLoader = ({ quality, src, width }) => `/_img/w${width}/q${quality}${src}`
+const globalLoader: ImageLoader = ({ quality, src, width }) => `/_img/w${width}/q${quality}${src}`;
 
 export const route = createPage("_root_/image-test").render(() => (
 	<div data-testid="image-test">
@@ -61,14 +61,7 @@ export const route = createPage("_root_/image-test").render(() => (
 		{/* ── Fixed mode ── */}
 
 		{/* Fixed — no loader */}
-		<Image
-			alt="Fixed icon"
-			data-testid="img-fixed-basic"
-			fixed
-			height={48}
-			src="/photos/icon.png"
-			width={48}
-		/>
+		<Image alt="Fixed icon" data-testid="img-fixed-basic" fixed height={48} src="/photos/icon.png" width={48} />
 
 		{/* Fixed — with loader (density descriptors) */}
 		<Image
@@ -84,28 +77,13 @@ export const route = createPage("_root_/image-test").render(() => (
 		{/* ── Fill mode ── */}
 
 		{/* Fill — basic */}
-		<div
-			data-testid="fill-container"
-			style={{ "height": "300px", "position": "relative", "width": "400px" }}
-		>
-			<Image
-				alt="Fill image"
-				data-testid="img-fill-basic"
-				fill
-				loader={globalLoader}
-				src="/photos/fill.jpg"
-			/>
+		<div data-testid="fill-container" style={{ height: "300px", position: "relative", width: "400px" }}>
+			<Image alt="Fill image" data-testid="img-fill-basic" fill loader={globalLoader} src="/photos/fill.jpg" />
 		</div>
 
 		{/* Fill — with aspectRatio */}
-		<div style={{ "height": "300px", "position": "relative", "width": "400px" }}>
-			<Image
-				alt="Fill aspect"
-				aspectRatio={16 / 9}
-				data-testid="img-fill-aspect"
-				fill
-				src="/photos/fill-aspect.jpg"
-			/>
+		<div style={{ height: "300px", position: "relative", width: "400px" }}>
+			<Image alt="Fill aspect" aspectRatio={16 / 9} data-testid="img-fill-aspect" fill src="/photos/fill-aspect.jpg" />
 		</div>
 
 		{/* ── Shared features ── */}
@@ -202,4 +180,4 @@ export const route = createPage("_root_/image-test").render(() => (
 			widths={[400, 600, 800]}
 		/>
 	</div>
-))
+));

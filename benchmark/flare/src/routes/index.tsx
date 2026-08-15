@@ -1,7 +1,7 @@
-import { For } from "solid-js"
-import { createPage } from "flare"
-import { Link } from "flare/link"
-import { posts } from "../../../shared/data"
+import { For } from "solid-js";
+import { createPage } from "@lovrozagar/flare";
+import { Link } from "@lovrozagar/flare/link";
+import { posts } from "../../../shared/data";
 
 export const route = createPage("_root_/index")
 	.loader(() => posts.map((p) => ({ author: p.author, slug: p.slug, title: p.title })))
@@ -20,4 +20,4 @@ export const route = createPage("_root_/index")
 				</For>
 			</ul>
 		</main>
-	))
+	));

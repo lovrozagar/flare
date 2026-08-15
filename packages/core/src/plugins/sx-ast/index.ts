@@ -1,63 +1,63 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs"
-import { join } from "node:path"
-import type { Plugin } from "vite"
-import { extractDeclarations, extractPrefaceCss, initTailwindCompiler } from "../tw-compile.ts"
-import type { TailwindCompiler } from "../tw-compile.ts"
-import { rewriteModule } from "./rewrite.ts"
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { Plugin } from "vite";
+import { extractDeclarations, extractPrefaceCss, initTailwindCompiler } from "../tw-compile.ts";
+import type { TailwindCompiler } from "../tw-compile.ts";
+import { rewriteModule } from "./rewrite.ts";
 
 export interface SxAstOptions {
-	strict?: boolean
+	strict?: boolean;
 	/** Absolute path prefixes that map to the "sx" layer (lib code). Default: ["/node_modules/"]. */
-	libPaths?: string[]
+	libPaths?: string[];
 	/** Override layer detection per module id. Return null to fall back to libPaths heuristic. */
-	layerOverride?: (id: string) => "sx" | "app" | null
+	layerOverride?: (id: string) => "sx" | "app" | null;
 	/** Emit flare-sx-manifest.json alongside CSS — for lib builds. */
-	manifest?: boolean
+	manifest?: boolean;
 	/** Emit one .css asset per transformed component module — for lib builds. */
-	perComponent?: boolean
+	perComponent?: boolean;
 	/**
 	 * Scan node_modules (and workspace-linked packages) for flare-sx-manifest.json files at
 	 * buildStart and omit any classes already provided by those libs from this build's CSS output.
 	 * Prevents duplicate atomic rules when a lib and its consumer both run the sx plugin.
 	 */
-	pruneFromLibManifests?: boolean
+	pruneFromLibManifests?: boolean;
 	/**
 	 * Absolute path to a Tailwind CSS entry file (e.g. `src/tailwind.css`).
 	 * When provided, the plugin compiles Tailwind utility tokens found in `class=` attributes.
 	 * Omit to disable Tailwind compilation (pass-through mode).
 	 */
-	twCssPath?: string
+	twCssPath?: string;
 	/**
 	 * Enable Tailwind compilation using the default `@import "tailwindcss"` entry.
 	 * Ignored when `twCssPath` is set. Set to `true` to enable with default config.
 	 */
-	tw?: boolean
+	tw?: boolean;
 }
 
-const LAYER_PRELUDE = "@layer reset, sx, app, user.lib, user.app, inline;"
+const LAYER_PRELUDE = "@layer reset, sx, app, user.lib, user.app, inline;";
 
 /** CSS rule pool accumulated across all transforms in a build. */
 interface PluginState {
 	/** className → CSS rule text */
-	classPool: Map<string, string>
+	classPool: Map<string, string>;
 	/** className → which @layer it belongs to */
-	layerByClass: Map<string, "sx" | "app">
+	layerByClass: Map<string, "sx" | "app">;
 	/** moduleId → emitted class names */
-	moduleManifest: Map<string, Set<string>>
+	moduleManifest: Map<string, Set<string>>;
 	/** Classes already shipped by upstream libs — excluded from this build's CSS output. */
-	providedByLibs: Set<string>
+	providedByLibs: Set<string>;
 	/** Tailwind compiler instance, null if not initialized or init failed. */
-	twCompiler: TailwindCompiler | null
+	twCompiler: TailwindCompiler | null;
 	/**
 	 * Full Tailwind preamble (theme + base/preflight layers) from a zero-class build.
 	 * Emitted verbatim before atomic utility rules so browser defaults are normalized.
 	 */
-	twPrefaceCss: string
+	twPrefaceCss: string;
 }
 
 interface LibManifestShape {
-	classes?: string[]
-	rules?: Record<string, unknown>
+	classes?: string[];
+	rules?: Record<string, unknown>;
 }
 
 /**
@@ -66,49 +66,49 @@ interface LibManifestShape {
  * Returns the union of all class names found.
  */
 function scanLibManifests(root: string): Set<string> {
-	const provided = new Set<string>()
-	const nmDir = join(root, "node_modules")
-	if (!existsSync(nmDir)) return provided
+	const provided = new Set<string>();
+	const nmDir = join(root, "node_modules");
+	if (!existsSync(nmDir)) return provided;
 
-	let pkgNames: string[]
+	let pkgNames: string[];
 	try {
-		pkgNames = readdirSync(nmDir)
+		pkgNames = readdirSync(nmDir);
 	} catch {
-		return provided
+		return provided;
 	}
 
 	for (const pkg of pkgNames) {
 		/* Scoped packages live one level deeper */
 		if (pkg.startsWith("@")) {
-			const scopeDir = join(nmDir, pkg)
-			let scoped: string[]
+			const scopeDir = join(nmDir, pkg);
+			let scoped: string[];
 			try {
-				scoped = readdirSync(scopeDir)
+				scoped = readdirSync(scopeDir);
 			} catch {
-				continue
+				continue;
 			}
 			for (const name of scoped) {
-				collectFromPkg(join(scopeDir, name), provided)
+				collectFromPkg(join(scopeDir, name), provided);
 			}
 		} else {
-			collectFromPkg(join(nmDir, pkg), provided)
+			collectFromPkg(join(nmDir, pkg), provided);
 		}
 	}
 
-	return provided
+	return provided;
 }
 
 function collectFromPkg(pkgDir: string, out: Set<string>): void {
 	for (const rel of ["flare-sx-manifest.json", "dist/flare-sx-manifest.json"]) {
-		const p = join(pkgDir, rel)
+		const p = join(pkgDir, rel);
 		try {
-			const raw = readFileSync(p, "utf-8")
-			const m = JSON.parse(raw) as LibManifestShape
+			const raw = readFileSync(p, "utf-8");
+			const m = JSON.parse(raw) as LibManifestShape;
 			/* Support both {classes:[]} and {rules:{cls:rule}} manifest shapes */
 			if (Array.isArray(m.classes)) {
-				for (const cls of m.classes) out.add(cls)
+				for (const cls of m.classes) out.add(cls);
 			} else if (m.rules && typeof m.rules === "object") {
-				for (const cls of Object.keys(m.rules)) out.add(cls)
+				for (const cls of Object.keys(m.rules)) out.add(cls);
 			}
 		} catch {
 			/* package doesn't have a manifest — fine */
@@ -122,13 +122,13 @@ function resolveLayer(
 	override: ((id: string) => "sx" | "app" | null) | undefined,
 ): "sx" | "app" {
 	if (override) {
-		const result = override(id)
-		if (result !== null) return result
+		const result = override(id);
+		if (result !== null) return result;
 	}
 	for (const prefix of libPaths) {
-		if (id.includes(prefix)) return "sx"
+		if (id.includes(prefix)) return "sx";
 	}
-	return "app"
+	return "app";
 }
 
 /** Compose the final CSS text from the class pool, wrapped in @layer blocks. */
@@ -138,33 +138,33 @@ function composeCss(
 	skip: Set<string>,
 	twPrefaceCss: string,
 ): string {
-	const sxRules: string[] = []
-	const appRules: string[] = []
+	const sxRules: string[] = [];
+	const appRules: string[] = [];
 
 	for (const [cls, rule] of classPool) {
-		if (skip.has(cls)) continue
+		if (skip.has(cls)) continue;
 		/* istanbul ignore next -- layerByClass is always set alongside classPool in cssEmit */
-		const layer = layerByClass.get(cls) ?? "app"
-		if (layer === "sx") sxRules.push(rule)
-		else appRules.push(rule)
+		const layer = layerByClass.get(cls) ?? "app";
+		if (layer === "sx") sxRules.push(rule);
+		else appRules.push(rule);
 	}
 
-	const parts: string[] = []
-	if (twPrefaceCss) parts.push(twPrefaceCss)
-	parts.push(LAYER_PRELUDE)
-	if (sxRules.length > 0) parts.push(`@layer sx { ${sxRules.join(" ")} }`)
-	if (appRules.length > 0) parts.push(`@layer app { ${appRules.join(" ")} }`)
+	const parts: string[] = [];
+	if (twPrefaceCss) parts.push(twPrefaceCss);
+	parts.push(LAYER_PRELUDE);
+	if (sxRules.length > 0) parts.push(`@layer sx { ${sxRules.join(" ")} }`);
+	if (appRules.length > 0) parts.push(`@layer app { ${appRules.join(" ")} }`);
 
-	return parts.join("\n")
+	return parts.join("\n");
 }
 
-const DEV_CSS_VIRTUAL_ID = "virtual:flare-sx-dev-css"
-const DEV_CSS_RESOLVED_ID = "\0virtual:flare-sx-dev-css"
+const DEV_CSS_VIRTUAL_ID = "virtual:flare-sx-dev-css";
+const DEV_CSS_RESOLVED_ID = "\0virtual:flare-sx-dev-css";
 
 export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = "/assets"): Plugin {
-	const libPaths = opts.libPaths ?? ["/node_modules/"]
+	const libPaths = opts.libPaths ?? ["/node_modules/"];
 	/* On-disk dir mirrors URL prefix — emit must land where bundleHref points. */
-	const assetsDir = assetsBase === "" ? "assets" : assetsBase.slice(1)
+	const assetsDir = assetsBase === "" ? "assets" : assetsBase.slice(1);
 	const state: PluginState = {
 		classPool: new Map(),
 		layerByClass: new Map(),
@@ -172,70 +172,70 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 		providedByLibs: new Set(),
 		twCompiler: null,
 		twPrefaceCss: "",
-	}
+	};
 
-	let mode: "dev" | "prod" = "dev"
-	let root = process.cwd()
+	let mode: "dev" | "prod" = "dev";
+	let root = process.cwd();
 
 	return {
 		async buildStart(this: { environment?: { config?: { root?: string } } }) {
-			root = this.environment?.config?.root ?? process.cwd()
+			root = this.environment?.config?.root ?? process.cwd();
 			if (opts.pruneFromLibManifests) {
-				state.providedByLibs = scanLibManifests(root)
+				state.providedByLibs = scanLibManifests(root);
 			}
 			if ((opts.tw || opts.twCssPath) && state.twCompiler === null) {
 				try {
-					state.twCompiler = await initTailwindCompiler(opts.twCssPath)
+					state.twCompiler = await initTailwindCompiler(opts.twCssPath);
 					/* Zero-class build captures theme vars + preflight (base layer) verbatim. */
-					state.twPrefaceCss = extractPrefaceCss(state.twCompiler.build([]))
+					state.twPrefaceCss = extractPrefaceCss(state.twCompiler.build([]));
 				} catch (e) {
 					/* Warn but don't fail the build — class= tokens pass through without CSS emit. */
-					console.warn(`[flare:sx-ast] Tailwind compiler init failed: ${e instanceof Error ? e.message : String(e)}`)
+					console.warn(`[flare:sx-ast] Tailwind compiler init failed: ${e instanceof Error ? e.message : String(e)}`);
 				}
 			}
 		},
 
 		configResolved(config) {
-			mode = config.command === "build" ? "prod" : "dev"
-			root = config.root ?? process.cwd()
+			mode = config.command === "build" ? "prod" : "dev";
+			root = config.root ?? process.cwd();
 		},
 
 		enforce: "pre",
 
 		resolveId(id: string): string | null {
-			if (id === DEV_CSS_VIRTUAL_ID) return DEV_CSS_RESOLVED_ID
-			return null
+			if (id === DEV_CSS_VIRTUAL_ID) return DEV_CSS_RESOLVED_ID;
+			return null;
 		},
 
 		load(id: string): { code: string; moduleType: string } | null {
-			if (id !== DEV_CSS_RESOLVED_ID) return null
+			if (id !== DEV_CSS_RESOLVED_ID) return null;
 			/* Each import() re-runs load — no caching — so SSR always gets latest state. */
-			const css = composeCss(state.classPool, state.layerByClass, state.providedByLibs, state.twPrefaceCss)
-			const classNames = [...state.classPool.keys()]
+			const css = composeCss(state.classPool, state.layerByClass, state.providedByLibs, state.twPrefaceCss);
+			const classNames = [...state.classPool.keys()];
 			return {
 				code: `export function getDevSxCss() { return ${JSON.stringify(css)} }\nexport function getDevSxClasses() { return ${JSON.stringify(classNames)} }`,
 				moduleType: "js",
-			}
+			};
 		},
 
 		generateBundle() {
-			const self = this as unknown as { emitFile: (f: { type: string; fileName: string; source: string }) => void }
-			const css = composeCss(state.classPool, state.layerByClass, state.providedByLibs, state.twPrefaceCss)
-			self.emitFile({ fileName: `${assetsDir}/flare-global.css`, source: css, type: "asset" })
+			const self = this as unknown as { emitFile: (f: { type: string; fileName: string; source: string }) => void };
+			const css = composeCss(state.classPool, state.layerByClass, state.providedByLibs, state.twPrefaceCss);
+			self.emitFile({ fileName: `${assetsDir}/flare-global.css`, source: css, type: "asset" });
 
 			if (opts.manifest) {
-				const rules: Record<string, string> = {}
-				const layerByRule: Record<string, "sx" | "app"> = {}
+				const rules: Record<string, string> = {};
+				const layerByRule: Record<string, "sx" | "app"> = {};
 				for (const [cls, rule] of state.classPool) {
-					if (state.providedByLibs.has(cls)) continue
-					rules[cls] = rule
+					if (state.providedByLibs.has(cls)) continue;
+					rules[cls] = rule;
 					/* istanbul ignore next -- layerByClass always set alongside classPool */
-					layerByRule[cls] = state.layerByClass.get(cls) ?? "app"
+					layerByRule[cls] = state.layerByClass.get(cls) ?? "app";
 				}
-				const moduleManifest: Record<string, string[]> = {}
+				const moduleManifest: Record<string, string[]> = {};
 				for (const [modId, clsSet] of state.moduleManifest) {
-					const filtered = [...clsSet].filter((c) => !state.providedByLibs.has(c))
-					if (filtered.length > 0) moduleManifest[modId] = filtered
+					const filtered = [...clsSet].filter((c) => !state.providedByLibs.has(c));
+					if (filtered.length > 0) moduleManifest[modId] = filtered;
 				}
 				const manifest = {
 					/* bundleHref resolved at runtime from Vite manifest — placeholder during build */
@@ -245,28 +245,28 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 					moduleManifest,
 					rules,
 					version: 1,
-				}
+				};
 				self.emitFile({
 					fileName: "flare-sx-manifest.json",
 					source: JSON.stringify(manifest),
 					type: "asset",
-				})
+				});
 			}
 		},
 
 		name: "flare:sx-ast",
 
 		transform(code: string, id: string): { code: string; map: null } | null {
-			if (!id.endsWith(".tsx") && !id.endsWith(".jsx")) return null
+			if (!id.endsWith(".tsx") && !id.endsWith(".jsx")) return null;
 
 			/* Quick filter — skip files that obviously have no relevant attrs */
-			if (!code.includes("sx=") && !code.includes("css=") && !code.includes("class=")) return null
+			if (!code.includes("sx=") && !code.includes("css=") && !code.includes("class=")) return null;
 
-			const layer = resolveLayer(id, libPaths, opts.layerOverride)
-			const emittedForModule = new Set<string>()
-			const moduleRules: Array<{ cls: string; rule: string }> = []
+			const layer = resolveLayer(id, libPaths, opts.layerOverride);
+			const emittedForModule = new Set<string>();
+			const moduleRules: Array<{ cls: string; rule: string }> = [];
 
-			const tw = state.twCompiler
+			const tw = state.twCompiler;
 			const result = rewriteModule(code, {
 				cssEmit: (rule) => {
 					/*
@@ -275,35 +275,35 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 					 * after the opening brace — the leading-dot-only regex missed those entirely.
 					 * Match the first `.cls` followed by whitespace, `{`, `[`, or `:`.
 					 */
-					const m = rule.match(/\.((?:[a-zA-Z0-9_-]|\\[^a-zA-Z0-9_-])+?)[\s{[:]/)
+					const m = rule.match(/\.((?:[a-zA-Z0-9_-]|\\[^a-zA-Z0-9_-])+?)[\s{[:]/);
 					/* istanbul ignore next -- emitAtomic always produces .cls-prefixed rules */
-					const cls = m ? m[1].replace(/\\/g, "") : rule.slice(0, 40)
-					state.classPool.set(cls, rule)
-					state.layerByClass.set(cls, layer)
-					emittedForModule.add(cls)
-					moduleRules.push({ cls, rule })
+					const cls = m ? m[1].replace(/\\/g, "") : rule.slice(0, 40);
+					state.classPool.set(cls, rule);
+					state.layerByClass.set(cls, layer);
+					emittedForModule.add(cls);
+					moduleRules.push({ cls, rule });
 				},
 				layer,
 				mode,
 				sourcePath: id,
 				twCompile: tw
 					? (token: string) => {
-							const output = tw.build([token])
-							return extractDeclarations(output, [token], tw.themeVars) || null
-					  }
+							const output = tw.build([token]);
+							return extractDeclarations(output, [token], tw.themeVars) || null;
+						}
 					: undefined,
-			})
+			});
 
 			/* Track which classes this module emitted; layer already set in cssEmit above */
 			if (result !== null) {
 				for (const cls of result.emittedClasses) {
-					emittedForModule.add(cls)
+					emittedForModule.add(cls);
 					/* c8 ignore next -- static sx always passes through cssEmit first, setting layerByClass */
-					if (!state.layerByClass.has(cls)) state.layerByClass.set(cls, layer)
+					if (!state.layerByClass.has(cls)) state.layerByClass.set(cls, layer);
 				}
 			}
 			if (emittedForModule.size > 0) {
-				state.moduleManifest.set(id, emittedForModule)
+				state.moduleManifest.set(id, emittedForModule);
 			}
 
 			/*
@@ -317,8 +317,8 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 			 * CSS was still collected into moduleRules via cssEmit — must still inject the snippet.
 			 */
 			if (mode === "dev" && moduleRules.length > 0) {
-				const layerName: "sx" | "app" = layer
-				const perClassJson = JSON.stringify(moduleRules.map(({ cls, rule }) => [cls, rule]))
+				const layerName: "sx" | "app" = layer;
+				const perClassJson = JSON.stringify(moduleRules.map(({ cls, rule }) => [cls, rule]));
 				/* SSR pre-populates flare-sx-dev with the full atomic payload for the page, plus
 				 * twPrefaceCss (theme vars + base preflight) and the @layer prelude. Every client
 				 * module import used to re-append ALL its scanned rules, stacking duplicates —
@@ -347,13 +347,13 @@ if (typeof document !== "undefined") {
     }
     __sx_el__.textContent += __buf__;
   }
-}`
-				const baseCode = result !== null ? result.code : code
-				return { code: `${baseCode}\n${injectSnippet}`, map: null }
+}`;
+				const baseCode = result !== null ? result.code : code;
+				return { code: `${baseCode}\n${injectSnippet}`, map: null };
 			}
 
-			if (result === null) return null
-			return { code: result.code, map: null }
+			if (result === null) return null;
+			return { code: result.code, map: null };
 		},
 
 		/*
@@ -363,12 +363,10 @@ if (typeof document !== "undefined") {
 		 * that do `__sx_el__.textContent +=` always find the element via getElementById.
 		 */
 		transformIndexHtml(html: string): string {
-			if (mode !== "dev") return html
-			if (!html.includes("</head>")) return html
-			const prefaceTag = state.twPrefaceCss
-				? `<style id="flare-tw-preface">${state.twPrefaceCss}</style>`
-				: ""
-			return html.replace("</head>", `${prefaceTag}<style id="flare-sx-dev"></style></head>`)
+			if (mode !== "dev") return html;
+			if (!html.includes("</head>")) return html;
+			const prefaceTag = state.twPrefaceCss ? `<style id="flare-tw-preface">${state.twPrefaceCss}</style>` : "";
+			return html.replace("</head>", `${prefaceTag}<style id="flare-sx-dev"></style></head>`);
 		},
-	}
+	};
 }

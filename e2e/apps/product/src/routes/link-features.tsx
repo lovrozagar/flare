@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { Link } from "flare/link"
+import { createPage } from "@lovrozagar/flare/page";
+import { Link } from "@lovrozagar/flare/link";
 
 export const route = createPage("_root_/link-features").render(() => (
 	<div data-testid="link-features">
@@ -81,4 +81,4 @@ export const route = createPage("_root_/link-features").render(() => (
 			Style Merge
 		</Link>
 	</div>
-))
+));

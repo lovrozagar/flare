@@ -1,11 +1,11 @@
-import { createRouter } from "flare/router"
-import { layouts, routeTree } from "./_gen/routes.gen"
+import { createRouter } from "@lovrozagar/flare/router";
+import { layouts, routeTree } from "./_gen/routes.gen";
 
 export const localeConfig = {
 	defaultLocale: "en",
 	locales: ["en", "hr", "fr"] as const,
 	paramName: "locale",
-}
+};
 
 export const router = createRouter({
 	cache: {
@@ -15,4 +15,4 @@ export const router = createRouter({
 	locale: localeConfig,
 	routeTree,
 	theme: { defaultTheme: "system" },
-})
+});

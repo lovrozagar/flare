@@ -1,20 +1,20 @@
-import { splitProps } from "solid-js"
-import type { JSX } from "solid-js"
-import { Dynamic } from "solid-js/web"
+import { splitProps } from "solid-js";
+import type { JSX } from "solid-js";
+import { Dynamic } from "solid-js/web";
 
 type ButtonSlotProps = {
 	/** Render as any HTML tag. Defaults to "button". */
-	as?: keyof JSX.IntrinsicElements
-	children?: JSX.Element
-	class?: string
-	style?: JSX.CSSProperties
+	as?: keyof JSX.IntrinsicElements;
+	children?: JSX.Element;
+	class?: string;
+	style?: JSX.CSSProperties;
 	/* allow arbitrary HTML attrs (href, type, aria-*, data-*, etc.) */
-	[key: string]: unknown
-}
+	[key: string]: unknown;
+};
 
 /* Polymorphic button — lib sx in user.lib layer, consumer style/class always wins */
 export function ButtonSlot(props: ButtonSlotProps) {
-	const [local, rest] = splitProps(props, ["as"])
+	const [local, rest] = splitProps(props, ["as"]);
 
 	return (
 		<Dynamic
@@ -33,5 +33,5 @@ export function ButtonSlot(props: ButtonSlotProps) {
 		>
 			{props.children}
 		</Dynamic>
-	)
+	);
 }

@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { Link } from "flare/link"
+import { createPage } from "@lovrozagar/flare/page";
+import { Link } from "@lovrozagar/flare/link";
 
 export const route = createPage("_root_/link-test").render(() => (
 	<div data-testid="link-test">
@@ -22,4 +22,4 @@ export const route = createPage("_root_/link-test").render(() => (
 			View Transition Link
 		</Link>
 	</div>
-))
+));

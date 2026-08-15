@@ -1,4 +1,4 @@
-import { createLayout } from "flare/layout"
+import { createLayout } from "@lovrozagar/flare/layout";
 
 export const route = createLayout("_root_/(dc-l1)/(dc-l2)/(dc-l3)/(dc-l4)")
 	.loader(() => ({ layer: "L4", ts: Date.now() }))
@@ -8,4 +8,4 @@ export const route = createLayout("_root_/(dc-l1)/(dc-l2)/(dc-l3)/(dc-l4)")
 			<span data-testid="dc-l4-ts">{props.loaderData.ts}</span>
 			{props.children}
 		</div>
-	))
+	));

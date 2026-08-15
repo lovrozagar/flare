@@ -1,1 +1,1 @@
-export default "/src/client.tsx"
+export default "/src/client.tsx";

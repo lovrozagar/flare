@@ -1,19 +1,11 @@
-import { RedirectResponse } from "../../src/errors/index.ts"
-import type { AuthenticateFn, ResolvedRoute } from "../../src/loader-pipeline/index.ts"
-import type { FlareMiddleware } from "../../src/middleware/index.ts"
-import { createRouter, type MarkedRouterConfig } from "../../src/router-config/index.ts"
-import type { RouteData, TreeNode } from "../../src/router-primitives/index.ts"
-import { createTreeNode, insertRoute } from "../../src/router-primitives/index.ts"
-import type {
-	HandlerContext,
-	ServerFnHandlerRegistration,
-	ServerFnRegistration,
-} from "../../src/server-fn/index.ts"
-import {
-	createServerHandler,
-	type ServerHandler,
-	type ServerHandlerConfig,
-} from "../../src/server-handler/index.ts"
+import { RedirectResponse } from "../../src/errors/index.ts";
+import type { AuthenticateFn, ResolvedRoute } from "../../src/loader-pipeline/index.ts";
+import type { FlareMiddleware } from "../../src/middleware/index.ts";
+import { createRouter, type MarkedRouterConfig } from "../../src/router-config/index.ts";
+import type { RouteData, TreeNode } from "../../src/router-primitives/index.ts";
+import { createTreeNode, insertRoute } from "../../src/router-primitives/index.ts";
+import type { HandlerContext, ServerFnHandlerRegistration, ServerFnRegistration } from "../../src/server-fn/index.ts";
+import { createServerHandler, type ServerHandler, type ServerHandlerConfig } from "../../src/server-handler/index.ts";
 
 /* ── Route module factory ────────────────────────────────────────────── */
 
@@ -23,22 +15,22 @@ import {
  */
 function makeRouteModule(
 	resolved: Partial<ResolvedRoute> & {
-		variablePath: string
-		virtualPath: string
+		variablePath: string;
+		virtualPath: string;
 	},
 ): () => Promise<{ default: unknown }> {
 	return () =>
 		Promise.resolve({
 			default: { ...resolved },
-		})
+		});
 }
 
 /* ── Route data factory ──────────────────────────────────────────────── */
 
 function makeRouteData(overrides: {
-	module: () => Promise<{ default: unknown }>
-	variablePath: string
-	virtualPath: string
+	module: () => Promise<{ default: unknown }>;
+	variablePath: string;
+	virtualPath: string;
 }): RouteData {
 	return {
 		e: overrides.virtualPath,
@@ -47,7 +39,7 @@ function makeRouteData(overrides: {
 		t: "r" as const,
 		v: overrides.variablePath,
 		x: overrides.virtualPath,
-	}
+	};
 }
 
 /* ── Route modules ───────────────────────────────────────────────────── */
@@ -58,11 +50,10 @@ function makeRouteData(overrides: {
  */
 const rootLayoutModule = makeRouteModule({
 	_type: "root-layout",
-	render: (props: Record<string, unknown>) =>
-		`[root-layout]${String(props.children ?? "")}[/root-layout]`,
+	render: (props: Record<string, unknown>) => `[root-layout]${String(props.children ?? "")}[/root-layout]`,
 	variablePath: "_root_",
 	virtualPath: "_root_",
-})
+});
 
 /**
  * Home page: no loader, static content.
@@ -73,7 +64,7 @@ const homePageModule = makeRouteModule({
 	render: () => "[home]",
 	variablePath: "_root_/home",
 	virtualPath: "_root_/home",
-})
+});
 
 /**
  * About page: loader + head config.
@@ -86,12 +77,12 @@ const aboutPageModule = makeRouteModule({
 	head: () => ({ description: "About us page", title: "About" }),
 	loader: () => ({ title: "About" }),
 	render: (props: Record<string, unknown>) => {
-		const data = props.loaderData as { title: string }
-		return `[about:${data.title}]`
+		const data = props.loaderData as { title: string };
+		return `[about:${data.title}]`;
 	},
 	variablePath: "_root_/about",
 	virtualPath: "_root_/about",
-})
+});
 
 /**
  * User page: parameterized route.
@@ -101,16 +92,16 @@ const aboutPageModule = makeRouteModule({
 const userPageModule = makeRouteModule({
 	_type: "render",
 	loader: (ctx: Record<string, unknown>) => {
-		const location = ctx.location as { params: Record<string, string> }
-		return { userId: location.params.id ?? "unknown" }
+		const location = ctx.location as { params: Record<string, string> };
+		return { userId: location.params.id ?? "unknown" };
 	},
 	render: (props: Record<string, unknown>) => {
-		const data = props.loaderData as { userId: string }
-		return `[user:${data.userId}]`
+		const data = props.loaderData as { userId: string };
+		return `[user:${data.userId}]`;
 	},
 	variablePath: "_root_/users/[id]",
 	virtualPath: "_root_/users/[id]",
-})
+});
 
 /**
  * Dashboard page: requires authentication.
@@ -123,12 +114,12 @@ const dashboardPageModule = makeRouteModule({
 	authenticate: [],
 	loader: (ctx: Record<string, unknown>) => ({ user: ctx.auth }),
 	render: (props: Record<string, unknown>) => {
-		const data = props.loaderData as { user: unknown }
-		return `[dashboard:${JSON.stringify(data.user)}]`
+		const data = props.loaderData as { user: unknown };
+		return `[dashboard:${JSON.stringify(data.user)}]`;
 	},
 	variablePath: "_root_/dashboard",
 	virtualPath: "_root_/dashboard",
-})
+});
 
 /**
  * Broken page: loader throws.
@@ -137,12 +128,12 @@ const dashboardPageModule = makeRouteModule({
 const brokenPageModule = makeRouteModule({
 	_type: "render",
 	loader: () => {
-		throw new Error("Loader exploded")
+		throw new Error("Loader exploded");
 	},
 	render: () => "[broken:should-not-render]",
 	variablePath: "_root_/broken",
 	virtualPath: "_root_/broken",
-})
+});
 
 /**
  * Redirect page: loader throws RedirectResponse.
@@ -151,12 +142,12 @@ const brokenPageModule = makeRouteModule({
 const redirectPageModule = makeRouteModule({
 	_type: "render",
 	loader: () => {
-		throw new RedirectResponse({ to: "/about" })
+		throw new RedirectResponse({ to: "/about" });
 	},
 	render: () => "[redirect:should-not-render]",
 	variablePath: "_root_/old",
 	virtualPath: "_root_/old",
-})
+});
 
 /**
  * Blog layout: group-based layout `(blog)`.
@@ -164,11 +155,10 @@ const redirectPageModule = makeRouteModule({
  */
 const blogLayoutModule = makeRouteModule({
 	_type: "layout",
-	render: (props: Record<string, unknown>) =>
-		`[blog-layout]${String(props.children ?? "")}[/blog-layout]`,
+	render: (props: Record<string, unknown>) => `[blog-layout]${String(props.children ?? "")}[/blog-layout]`,
 	variablePath: "_root_/(blog)",
 	virtualPath: "_root_/(blog)",
-})
+});
 
 /**
  * Blog post page: nested under blog layout.
@@ -181,12 +171,12 @@ const blogPostPageModule = makeRouteModule({
 	head: () => ({ title: "Blog Post" }),
 	loader: () => ({ content: "post body" }),
 	render: (props: Record<string, unknown>) => {
-		const data = props.loaderData as { content: string }
-		return `[post:${data.content}]`
+		const data = props.loaderData as { content: string };
+		return `[post:${data.content}]`;
 	},
 	variablePath: "_root_/(blog)/post",
 	virtualPath: "_root_/(blog)/post",
-})
+});
 
 /**
  * Headers page: sets custom response headers.
@@ -198,7 +188,7 @@ const headersPageModule = makeRouteModule({
 	render: () => "[headers-page]",
 	variablePath: "_root_/with-headers",
 	virtualPath: "_root_/with-headers",
-})
+});
 
 /**
  * Preloader page: has a preloader that returns context.
@@ -207,17 +197,17 @@ const headersPageModule = makeRouteModule({
 const preloaderPageModule = makeRouteModule({
 	_type: "render",
 	loader: (ctx: Record<string, unknown>) => {
-		const pre = ctx.preloaderContext as Record<string, unknown>
-		return { fromPreloader: pre.dbConn }
+		const pre = ctx.preloaderContext as Record<string, unknown>;
+		return { fromPreloader: pre.dbConn };
 	},
 	preloader: () => ({ dbConn: "pg://localhost" }),
 	render: (props: Record<string, unknown>) => {
-		const data = props.loaderData as { fromPreloader: string }
-		return `[preloader:${data.fromPreloader}]`
+		const data = props.loaderData as { fromPreloader: string };
+		return `[preloader:${data.fromPreloader}]`;
 	},
 	variablePath: "_root_/preloader-test",
 	virtualPath: "_root_/preloader-test",
-})
+});
 
 /**
  * Sitemap response route: returns raw XML Response via `.response()`.
@@ -237,17 +227,17 @@ const sitemapResponseModule = makeRouteModule({
 		),
 	variablePath: "_root_/sitemap.xml",
 	virtualPath: "_root_/sitemap.xml",
-})
+});
 
 /* ── Tree builder ────────────────────────────────────────────────────── */
 
 export function buildRouteTree(): TreeNode {
-	const tree = createTreeNode()
+	const tree = createTreeNode();
 	const routes: Array<{
-		module: () => Promise<{ default: unknown }>
-		path: string
-		v: string
-		x: string
+		module: () => Promise<{ default: unknown }>;
+		path: string;
+		v: string;
+		x: string;
 	}> = [
 		{ module: homePageModule, path: "/home", v: "_root_/home", x: "_root_/home" },
 		{ module: aboutPageModule, path: "/about", v: "_root_/about", x: "_root_/about" },
@@ -278,13 +268,9 @@ export function buildRouteTree(): TreeNode {
 			v: "_root_/preloader-test",
 			x: "_root_/preloader-test",
 		},
-	]
+	];
 	for (const r of routes) {
-		insertRoute(
-			tree,
-			r.path,
-			makeRouteData({ module: r.module, variablePath: r.v, virtualPath: r.x }),
-		)
+		insertRoute(tree, r.path, makeRouteData({ module: r.module, variablePath: r.v, virtualPath: r.x }));
 	}
 
 	/* Response-type route: raw Response, no SSR */
@@ -295,16 +281,16 @@ export function buildRouteTree(): TreeNode {
 		t: "x" as const,
 		v: "/sitemap.xml",
 		x: "_root_/sitemap.xml",
-	} satisfies RouteData)
+	} satisfies RouteData);
 
-	return tree
+	return tree;
 }
 
 export function buildLayouts(): Record<string, () => Promise<{ default: unknown }>> {
 	return {
 		_root_: rootLayoutModule,
 		"_root_/(blog)": blogLayoutModule,
-	}
+	};
 }
 
 export function buildRouter(overrides?: Partial<MarkedRouterConfig>): MarkedRouterConfig {
@@ -312,73 +298,71 @@ export function buildRouter(overrides?: Partial<MarkedRouterConfig>): MarkedRout
 		layouts: buildLayouts(),
 		routeTree: buildRouteTree(),
 		...overrides,
-	})
+	});
 }
 
-export function buildHandler<TEnv = unknown>(
-	overrides?: Partial<ServerHandlerConfig<TEnv>>,
-): ServerHandler<TEnv> {
-	const router = buildRouter()
+export function buildHandler<TEnv = unknown>(overrides?: Partial<ServerHandlerConfig<TEnv>>): ServerHandler<TEnv> {
+	const router = buildRouter();
 	return createServerHandler({
 		router,
 		...overrides,
-	} as ServerHandlerConfig<TEnv>)
+	} as ServerHandlerConfig<TEnv>);
 }
 
 export function makeRequest(path: string, init?: RequestInit): Request {
-	return new Request(`http://localhost${path}`, init)
+	return new Request(`http://localhost${path}`, init);
 }
 
 export function dataRequest(path: string, extraHeaders?: Record<string, string>): Request {
 	return makeRequest(path, {
 		headers: { "x-d": "1", ...extraHeaders },
-	})
+	});
 }
 
 /* ── Authenticate helpers ────────────────────────────────────────────── */
 
-export const alwaysAuthFn: AuthenticateFn = () => ({ id: "user-1", role: "admin" })
-export const neverAuthFn: AuthenticateFn = () => null
+export const alwaysAuthFn: AuthenticateFn = () => ({ id: "user-1", role: "admin" });
+export const neverAuthFn: AuthenticateFn = () => null;
 
 /* ── NDJSON parser ───────────────────────────────────────────────────── */
 
 export interface NDJSONMessage {
-	d?: unknown
-	e?: unknown
-	k?: string
-	m?: string
-	p?: unknown
-	r?: boolean
-	s?: number
-	t: string
-	u?: string
+	d?: unknown;
+	e?: unknown;
+	k?: string;
+	m?: string;
+	p?: unknown;
+	r?: boolean;
+	s?: number;
+	t: string;
+	u?: string;
 }
 
 export function parseNDJSON(body: string): NDJSONMessage[] {
 	return body
 		.split("\n")
 		.filter((line) => line.trim().length > 0)
-		.map((line) => JSON.parse(line) as NDJSONMessage)
+		.map((line) => JSON.parse(line) as NDJSONMessage);
 }
 
 /* ── HTML stream reader ──────────────────────────────────────────────── */
 
 export async function readResponseBody(response: Response): Promise<string> {
-	return response.text()
+	return response.text();
 }
 
 /* ── FlareState extractor ────────────────────────────────────────────── */
 
 export interface FlareState {
-	c: Record<string, unknown>
-	dk?: string[]
-	e?: Array<{ message: string; name: string; source: string; stack?: string }>
-	m: Array<{ d: unknown; h?: unknown; i: string; p?: unknown; v: string }>
-	p: string
-	ph?: Array<{ head: unknown; matchId: string }>
-	q?: unknown[]
-	r: Record<string, string | string[]>
-	s: Record<string, string>
+	c: Record<string, unknown>;
+	dk?: string[];
+	e?: Array<{ message: string; name: string; source: string; stack?: string }>;
+	m: Array<{ d: unknown; h?: unknown; i: string; p?: unknown; v: string }>;
+	p: string;
+	ph?: Array<{ head: unknown; matchId: string }>;
+	q?: unknown[];
+	r: Record<string, string | string[]>;
+	s: Record<string, string>;
 }
 
 /**
@@ -386,9 +370,9 @@ export interface FlareState {
  * Looks for `self.flare={...};` script injection.
  */
 export function extractFlareState(html: string): FlareState | null {
-	const match = html.match(/self\.flare=(\{.*?\});/)
-	if (!match || !match[1]) return null
-	return JSON.parse(match[1]) as FlareState
+	const match = html.match(/self\.flare=(\{.*?\});/);
+	if (!match || !match[1]) return null;
+	return JSON.parse(match[1]) as FlareState;
 }
 
 /* ── Exports ─────────────────────────────────────────────────────────── */
@@ -408,6 +392,6 @@ export {
 	headersPageModule,
 	preloaderPageModule,
 	sitemapResponseModule,
-}
+};
 
-export type { FlareMiddleware, HandlerContext, ServerFnHandlerRegistration, ServerFnRegistration }
+export type { FlareMiddleware, HandlerContext, ServerFnHandlerRegistration, ServerFnRegistration };

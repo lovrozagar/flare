@@ -1,6 +1,6 @@
 {
 	"name": "@flare/cli",
-	"version": "0.0.1",
+	"version": "0.1.0",
 	"private": true,
 	"license": "MIT",
 	"bin": {
@@ -13,8 +13,8 @@
 	},
 	"dependencies": {
 		"@clack/prompts": "1.7.0",
-		"commander": "15.0.0",
-		"flare": "workspace:*"
+		"@lovrozagar/flare": "workspace:*",
+		"commander": "15.0.0"
 	},
 	"devDependencies": {
 		"typescript": "catalog:",

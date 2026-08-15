@@ -1,18 +1,18 @@
-import { Await } from "flare/await"
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Await } from "@lovrozagar/flare/await";
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/a11y-nav-test")
 	.loader((ctx) => {
 		const deferred = ctx.defer<string>(async () => {
-			await new Promise((r) => setTimeout(r, 300))
-			return "Async content loaded"
-		})
+			await new Promise((r) => setTimeout(r, 300));
+			return "Async content loaded";
+		});
 		return {
 			deferred,
 			items: ["Dashboard", "Settings", "Profile"],
 			title: "Navigation A11y Test",
-		}
+		};
 	})
 	.head(() => ({
 		description: "Tests accessibility during SPA navigation and async content loading",
@@ -92,4 +92,4 @@ export const route = createPage("_root_/a11y-nav-test")
 				</table>
 			</section>
 		</main>
-	))
+	));

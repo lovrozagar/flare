@@ -1,4 +1,4 @@
-import { createRootLayout } from "flare/root-layout"
+import { createRootLayout } from "@lovrozagar/flare/root-layout";
 
 export const route = createRootLayout("_root_")
 	.head(() => ({
@@ -19,4 +19,4 @@ export const route = createRootLayout("_root_")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

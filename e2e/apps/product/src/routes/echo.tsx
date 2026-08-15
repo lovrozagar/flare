@@ -1,14 +1,14 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/echo")
 	.loader((ctx) => {
-		const headers = ctx.request.headers
+		const headers = ctx.request.headers;
 		return {
 			host: headers.get("host") ?? "none",
 			method: ctx.request.method,
 			xCustom: headers.get("x-custom-test") ?? "not-set",
-		}
+		};
 	})
 	.render((props) => (
 		<main data-testid="echo">
@@ -20,4 +20,4 @@ export const route = createPage("_root_/echo")
 				<Link to="/">Home</Link>
 			</nav>
 		</main>
-	))
+	));

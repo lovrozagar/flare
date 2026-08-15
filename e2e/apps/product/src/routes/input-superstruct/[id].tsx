@@ -1,11 +1,11 @@
-import { createPage } from "flare/page"
-import { create, defaulted, object, pattern, string } from "superstruct"
+import { createPage } from "@lovrozagar/flare/page";
+import { create, defaulted, object, pattern, string } from "superstruct";
 
-const ParamsStruct = object({ id: pattern(string(), /^\d+$/) })
+const ParamsStruct = object({ id: pattern(string(), /^\d+$/) });
 const SearchStruct = object({
 	limit: defaulted(string(), "10"),
 	tab: defaulted(string(), "overview"),
-})
+});
 
 export const route = createPage("_root_/input-superstruct/[id]")
 	.input({
@@ -29,4 +29,4 @@ export const route = createPage("_root_/input-superstruct/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

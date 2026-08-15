@@ -1,4 +1,4 @@
-import { createRouter } from "flare/router"
-import { layouts, routeTree } from "./_gen/routes.gen"
+import { createRouter } from "@lovrozagar/flare/router";
+import { layouts, routeTree } from "./_gen/routes.gen";
 
-export const router = createRouter({ layouts, routeTree })
+export const router = createRouter({ layouts, routeTree });

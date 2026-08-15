@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/redirect-target")
 	.loader((ctx) => ({
@@ -10,4 +10,4 @@ export const route = createPage("_root_/redirect-target")
 			<p>You were redirected here</p>
 			<p data-testid="redirect-q">{props.loaderData.q}</p>
 		</main>
-	))
+	));

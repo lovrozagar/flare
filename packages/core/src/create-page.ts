@@ -1,1 +1,1 @@
-export { createPage } from "./route-builder/index.ts"
+export { createPage } from "./route-builder/index.ts";

@@ -1,11 +1,11 @@
-import { createPage } from "flare/page"
-import * as Schema from "@effect/schema/Schema"
+import { createPage } from "@lovrozagar/flare/page";
+import * as Schema from "@effect/schema/Schema";
 
-const ParamsSchema = Schema.Struct({ id: Schema.String.pipe(Schema.pattern(/^\d+$/)) })
+const ParamsSchema = Schema.Struct({ id: Schema.String.pipe(Schema.pattern(/^\d+$/)) });
 const SearchSchema = Schema.Struct({
 	limit: Schema.optionalWith(Schema.String, { default: () => "10" }),
 	tab: Schema.optionalWith(Schema.String, { default: () => "overview" }),
-})
+});
 
 export const route = createPage("_root_/input-effect/[id]")
 	.input({
@@ -29,4 +29,4 @@ export const route = createPage("_root_/input-effect/[id]")
 		<div data-testid="input-error">
 			<p data-testid="input-error-message">{props.error.message}</p>
 		</div>
-	))
+	));

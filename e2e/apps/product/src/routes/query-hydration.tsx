@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { useSuspenseQuery } from "flare/suspense-query"
+import { createPage } from "@lovrozagar/flare/page";
+import { useSuspenseQuery } from "@lovrozagar/flare/suspense-query";
 
 /**
  * Tests SSR → client query hydration.
@@ -14,13 +14,13 @@ function TimestampQuery() {
 		}),
 		queryKey: ["hydration-ts"],
 		staleTime: 60_000,
-	})
+	});
 	return (
 		<div>
 			<span data-testid="query-source">{query.data()?.source}</span>
 			<span data-testid="query-ts">{query.data()?.ts}</span>
 		</div>
-	)
+	);
 }
 
 export const route = createPage("_root_/query-hydration")
@@ -30,4 +30,4 @@ export const route = createPage("_root_/query-hydration")
 			<p data-testid="loader-ready">{String(props.loaderData.ready)}</p>
 			<TimestampQuery />
 		</div>
-	))
+	));

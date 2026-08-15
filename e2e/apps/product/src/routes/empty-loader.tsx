@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/empty-loader")
 	.loader(() => ({}))
@@ -6,4 +6,4 @@ export const route = createPage("_root_/empty-loader")
 		<main data-testid="empty-loader-page">
 			<p data-testid="empty-loader-keys">{Object.keys(props.loaderData).length}</p>
 		</main>
-	))
+	));

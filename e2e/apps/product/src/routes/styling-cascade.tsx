@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
-import { styles } from "flare/styles"
-import { createSignal } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { styles } from "@lovrozagar/flare/styles";
+import { createSignal } from "solid-js";
 
 export const route = createPage("_root_/styling-cascade")
 	.head(() => ({
@@ -10,12 +10,12 @@ export const route = createPage("_root_/styling-cascade")
 		/* global class + scoped styles() on same element */
 		const scopedProps = styles("cascade-scoped", {
 			css: "font-weight: bold; padding: 8px;",
-		})
+		});
 
 		/* scoped with !important to test cascade override */
 		const importantProps = styles("cascade-important", {
 			css: "color: rgb(0, 0, 255);",
-		})
+		});
 
 		/* styles() with state + css= native on wrapper */
 		const stateProps = styles("cascade-state", {
@@ -25,20 +25,20 @@ export const route = createPage("_root_/styling-cascade")
 				${s.mode("light")} { color: rgb(0, 0, 0); background: rgb(255, 255, 255); }
 			`,
 			state: { mode: "light" },
-		})
+		});
 
-		const [mode, setMode] = createSignal<"light" | "dark">("light")
+		const [mode, setMode] = createSignal<"light" | "dark">("light");
 
 		/* deeply nested: outer sets color, middle sets background, inner inherits */
 		const outerProps = styles("cascade-outer", {
 			css: "color: rgb(200, 0, 0);",
-		})
+		});
 		const middleProps = styles("cascade-middle", {
 			css: "background: rgb(240, 240, 240); padding: 8px;",
-		})
+		});
 		const innerProps = styles("cascade-inner", {
 			css: "font-style: italic;",
-		})
+		});
 
 		return (
 			<main data-testid="styling-cascade">
@@ -71,5 +71,5 @@ export const route = createPage("_root_/styling-cascade")
 					</div>
 				</div>
 			</main>
-		)
-	})
+		);
+	});

@@ -1,33 +1,33 @@
-import { createPage } from "flare"
-import { Await } from "flare/await"
-import { Link } from "flare/link"
-import { createSignal, For } from "solid-js"
-import type { Comment } from "../../../../shared/data"
-import { getDelayedComments, getPost, headForPost, initialLikes } from "../../../../shared/data"
+import { createPage } from "@lovrozagar/flare";
+import { Await } from "@lovrozagar/flare/await";
+import { Link } from "@lovrozagar/flare/link";
+import { createSignal, For } from "solid-js";
+import type { Comment } from "../../../../shared/data";
+import { getDelayedComments, getPost, headForPost, initialLikes } from "../../../../shared/data";
 
 function LikeButton(props: { initial: number }) {
-	const [count, setCount] = createSignal(props.initial)
+	const [count, setCount] = createSignal(props.initial);
 	return (
 		<button data-testid="like-button" onClick={() => setCount((c) => c + 1)} type="button">
 			Like ({count()})
 		</button>
-	)
+	);
 }
 
 export const route = createPage("_root_/posts/[slug]")
 	.loader((ctx) => {
-		const slug = ctx.location.params.slug
-		const post = getPost(slug)
-		if (!post) throw new Error(`Post not found: ${slug}`)
+		const slug = ctx.location.params.slug;
+		const post = getPost(slug);
+		if (!post) throw new Error(`Post not found: ${slug}`);
 
 		const comments = ctx.defer<Comment[]>(async () => {
-			return getDelayedComments(slug)
-		})
+			return getDelayedComments(slug);
+		});
 
-		return { comments, likes: initialLikes[slug] ?? 0, post }
+		return { comments, likes: initialLikes[slug] ?? 0, post };
 	})
 	.head((ctx) => {
-		const h = headForPost(ctx.loaderData.post)
+		const h = headForPost(ctx.loaderData.post);
 		return {
 			description: h.description,
 			openGraph: {
@@ -36,7 +36,7 @@ export const route = createPage("_root_/posts/[slug]")
 				type: h.openGraph.type,
 			},
 			title: h.title,
-		}
+		};
 	})
 	.render((props) => (
 		<article>
@@ -64,4 +64,4 @@ export const route = createPage("_root_/posts/[slug]")
 				<Link to="/">Back to posts</Link>
 			</p>
 		</article>
-	))
+	));

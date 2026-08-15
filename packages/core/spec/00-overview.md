@@ -69,8 +69,8 @@ Three files define a Flare app. `router.ts` is isomorphic — imported by both s
 
 ```ts
 /* src/router.ts — isomorphic config (spec 25) */
-import { createRouter } from "flare"
-import { layouts, routeTree } from "./_gen/routes.gen"
+import { createRouter } from "@lovrozagar/flare";
+import { layouts, routeTree } from "./_gen/routes.gen";
 
 export const router = createRouter({
 	layouts,
@@ -78,28 +78,28 @@ export const router = createRouter({
 	prefetch: "intent",
 	staleTime: 30_000,
 	viewTransitions: true,
-})
+});
 ```
 
 ```ts
 /* src/server.ts — server entry (spec 24) */
-import { createServerHandler } from "flare/server"
-import { router } from "./router"
+import { createServerHandler } from "@lovrozagar/flare/server";
+import { router } from "./router";
 
 export default createServerHandler({
 	router,
 	authenticateFn: async ({ env, request }) => {
 		/* ... */
 	},
-})
+});
 ```
 
 ```ts
 /* src/client.ts — client entry (spec 14) */
-import { hydrate } from "flare/client"
-import { router } from "./router"
+import { hydrate } from "@lovrozagar/flare/client";
+import { router } from "./router";
 
-hydrate(router)
+hydrate(router);
 ```
 
 `createRouter` is the single source of truth — `routeTree`, `layouts`, `queryClientGetter`, and all runtime defaults (cache timing, prefetch, scroll restoration, URL behavior). Server-only config (`authenticateFn`, `csp`, `middlewares`) stays on `createServerHandler`. Build-time config (`globalBoundaries`, `css`, `serverFn`) stays on `createFlareBuild` (spec 21).

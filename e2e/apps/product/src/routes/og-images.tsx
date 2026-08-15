@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/og-images")
 	.head(() => ({
@@ -18,4 +18,4 @@ export const route = createPage("_root_/og-images")
 			<h1>OG Images Demo</h1>
 			<p>This page has multiple OG images for testing.</p>
 		</div>
-	))
+	));

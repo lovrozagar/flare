@@ -1,15 +1,15 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/context")
 	.loader(({ serverContext }) => {
 		const ctx = serverContext as {
-			isoTimestamp: string
-			origin: string
-			pathname: string
-			requestId: string
-			timestamp: number
-			userAgent: string
-		}
+			isoTimestamp: string;
+			origin: string;
+			pathname: string;
+			requestId: string;
+			timestamp: number;
+			userAgent: string;
+		};
 		return {
 			hasUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(ctx.requestId),
 			isoTimestamp: ctx.isoTimestamp,
@@ -19,7 +19,7 @@ export const route = createPage("_root_/context")
 			requestId: ctx.requestId,
 			timestamp: ctx.timestamp,
 			uaPresent: ctx.userAgent.length > 0,
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -44,4 +44,4 @@ export const route = createPage("_root_/context")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

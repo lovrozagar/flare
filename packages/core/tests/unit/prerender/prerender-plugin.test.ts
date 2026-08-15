@@ -1,8 +1,8 @@
 /** @vitest-environment node */
-import { describe, expect, it } from "vitest"
-import type { RouteDefinition } from "../../../src/generators/index.ts"
-import type { PrerenderManifestEntry } from "../../../src/prerender/index.ts"
-import { buildPrerenderRoutes, writePrerenderOutput } from "../../../src/prerender/index.ts"
+import { describe, expect, it } from "vitest";
+import type { RouteDefinition } from "../../../src/generators/index.ts";
+import type { PrerenderManifestEntry } from "../../../src/prerender/index.ts";
+import { buildPrerenderRoutes, writePrerenderOutput } from "../../../src/prerender/index.ts";
 
 /* ── buildPrerenderRoutes ────────────────────────────────────────── */
 
@@ -19,10 +19,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/about",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toEqual([])
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toEqual([]);
+	});
 
 	it("builds static route for ssg: true", () => {
 		const defs: RouteDefinition[] = [
@@ -36,12 +36,12 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/about",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toHaveLength(1)
-		expect(result[0]?.pathname).toBe("/about")
-		expect(result[0]?.mode).toBe("static")
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toHaveLength(1);
+		expect(result[0]?.pathname).toBe("/about");
+		expect(result[0]?.mode).toBe("static");
+	});
 
 	it("builds ISR route for isr config", () => {
 		const defs: RouteDefinition[] = [
@@ -55,12 +55,12 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/pricing",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toHaveLength(1)
-		expect(result[0]?.mode).toBe("isr")
-		expect(result[0]?.revalidate).toBe(300)
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toHaveLength(1);
+		expect(result[0]?.mode).toBe("isr");
+		expect(result[0]?.revalidate).toBe(300);
+	});
 
 	it("sets defer and dynamicParams from isr config", () => {
 		const defs: RouteDefinition[] = [
@@ -79,16 +79,16 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/products/[id]",
 			},
-		]
-		const staticParams = new Map([["_root_/products/[id]", [{ id: "1" }, { id: "2" }]]])
-		const result = buildPrerenderRoutes(defs, staticParams)
-		expect(result).toHaveLength(2)
-		expect(result[0]?.defer).toBe("stream")
-		expect(result[0]?.dynamicParams).toBe(false)
-		expect(result[0]?.revalidate).toBe(60)
-		expect(result[0]?.pathname).toBe("/products/1")
-		expect(result[1]?.pathname).toBe("/products/2")
-	})
+		];
+		const staticParams = new Map([["_root_/products/[id]", [{ id: "1" }, { id: "2" }]]]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result).toHaveLength(2);
+		expect(result[0]?.defer).toBe("stream");
+		expect(result[0]?.dynamicParams).toBe(false);
+		expect(result[0]?.revalidate).toBe(60);
+		expect(result[0]?.pathname).toBe("/products/1");
+		expect(result[1]?.pathname).toBe("/products/2");
+	});
 
 	it("skips layouts and root-layouts", () => {
 		const defs: RouteDefinition[] = [
@@ -112,11 +112,11 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/about",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toHaveLength(1)
-		expect(result[0]?.pathname).toBe("/about")
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toHaveLength(1);
+		expect(result[0]?.pathname).toBe("/about");
+	});
 
 	it("skips response routes", () => {
 		const defs: RouteDefinition[] = [
@@ -130,10 +130,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/api",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toEqual([])
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toEqual([]);
+	});
 
 	it("rejects authenticated routes with ssg config", () => {
 		const defs: RouteDefinition[] = [
@@ -147,9 +147,9 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/dashboard",
 			},
-		]
-		expect(() => buildPrerenderRoutes(defs)).toThrow(/authenticate.*static/)
-	})
+		];
+		expect(() => buildPrerenderRoutes(defs)).toThrow(/authenticate.*static/);
+	});
 
 	it("rejects authenticated routes with isr config", () => {
 		const defs: RouteDefinition[] = [
@@ -163,9 +163,9 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/dashboard",
 			},
-		]
-		expect(() => buildPrerenderRoutes(defs)).toThrow(/authenticate.*static/)
-	})
+		];
+		expect(() => buildPrerenderRoutes(defs)).toThrow(/authenticate.*static/);
+	});
 
 	it("skips isr routes without revalidate (on-demand only)", () => {
 		const defs: RouteDefinition[] = [
@@ -179,10 +179,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/cached",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toEqual([])
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toEqual([]);
+	});
 
 	it("skips isr dynamic routes without revalidate (on-demand only)", () => {
 		const defs: RouteDefinition[] = [
@@ -196,10 +196,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/posts/[slug]",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toEqual([])
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toEqual([]);
+	});
 
 	it("allows authenticateOptional with ssg config", () => {
 		const defs: RouteDefinition[] = [
@@ -213,10 +213,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toHaveLength(1)
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toHaveLength(1);
+	});
 
 	it("handles index page (virtualPath _root_/ → /)", () => {
 		const defs: RouteDefinition[] = [
@@ -230,10 +230,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result[0]?.pathname).toBe("/")
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result[0]?.pathname).toBe("/");
+	});
 
 	it("handles group segments (skip them in pathname)", () => {
 		const defs: RouteDefinition[] = [
@@ -247,10 +247,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/(shop)/products",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result[0]?.pathname).toBe("/products")
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result[0]?.pathname).toBe("/products");
+	});
 
 	it("handles ssg dynamic routes with staticParams", () => {
 		const defs: RouteDefinition[] = [
@@ -264,14 +264,14 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/users/[id]",
 			},
-		]
-		const staticParams = new Map([["_root_/users/[id]", [{ id: "alice" }, { id: "bob" }]]])
-		const result = buildPrerenderRoutes(defs, staticParams)
-		expect(result).toHaveLength(2)
-		expect(result[0]?.mode).toBe("static")
-		expect(result[0]?.pathname).toBe("/users/alice")
-		expect(result[1]?.pathname).toBe("/users/bob")
-	})
+		];
+		const staticParams = new Map([["_root_/users/[id]", [{ id: "alice" }, { id: "bob" }]]]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result).toHaveLength(2);
+		expect(result[0]?.mode).toBe("static");
+		expect(result[0]?.pathname).toBe("/users/alice");
+		expect(result[1]?.pathname).toBe("/users/bob");
+	});
 
 	it("skips ssg dynamic routes without staticParams", () => {
 		const defs: RouteDefinition[] = [
@@ -285,10 +285,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/users/[id]",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result).toHaveLength(0)
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toHaveLength(0);
+	});
 
 	it("handles dynamicParams: false mapped correctly", () => {
 		const defs: RouteDefinition[] = [
@@ -306,11 +306,11 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/posts/[slug]",
 			},
-		]
-		const staticParams = new Map([["_root_/posts/[slug]", [{ slug: "hello" }]]])
-		const result = buildPrerenderRoutes(defs, staticParams)
-		expect(result[0]?.dynamicParams).toBe(false)
-	})
+		];
+		const staticParams = new Map([["_root_/posts/[slug]", [{ slug: "hello" }]]]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result[0]?.dynamicParams).toBe(false);
+	});
 
 	it("ssg defer preserved", () => {
 		const defs: RouteDefinition[] = [
@@ -324,10 +324,10 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/about",
 			},
-		]
-		const result = buildPrerenderRoutes(defs)
-		expect(result[0]?.defer).toBe("stream")
-	})
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result[0]?.defer).toBe("stream");
+	});
 
 	it("expands inherited layout params for pages with ssg: true", () => {
 		const defs: RouteDefinition[] = [
@@ -341,13 +341,13 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/[locale]/about",
 			},
-		]
-		const staticParams = new Map([["_root_/[locale]/about", [{ locale: "en" }, { locale: "fr" }]]])
-		const result = buildPrerenderRoutes(defs, staticParams)
-		expect(result).toHaveLength(2)
-		expect(result[0]?.pathname).toBe("/en/about")
-		expect(result[1]?.pathname).toBe("/fr/about")
-	})
+		];
+		const staticParams = new Map([["_root_/[locale]/about", [{ locale: "en" }, { locale: "fr" }]]]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result).toHaveLength(2);
+		expect(result[0]?.pathname).toBe("/en/about");
+		expect(result[1]?.pathname).toBe("/fr/about");
+	});
 
 	it("expands catch-all params", () => {
 		const defs: RouteDefinition[] = [
@@ -361,15 +361,15 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/docs/[...slug]",
 			},
-		]
+		];
 		const staticParams = new Map([
 			["_root_/docs/[...slug]", [{ slug: ["getting-started"] }, { slug: ["api", "auth"] }]],
-		])
-		const result = buildPrerenderRoutes(defs, staticParams)
-		expect(result).toHaveLength(2)
-		expect(result[0]?.pathname).toBe("/docs/getting-started")
-		expect(result[1]?.pathname).toBe("/docs/api/auth")
-	})
+		]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result).toHaveLength(2);
+		expect(result[0]?.pathname).toBe("/docs/getting-started");
+		expect(result[1]?.pathname).toBe("/docs/api/auth");
+	});
 
 	it("expands multiple dynamic segments", () => {
 		const defs: RouteDefinition[] = [
@@ -383,7 +383,7 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/[locale]/blog/[slug]",
 			},
-		]
+		];
 		const staticParams = new Map([
 			[
 				"_root_/[locale]/blog/[slug]",
@@ -394,14 +394,14 @@ describe("buildPrerenderRoutes", () => {
 					{ locale: "fr", slug: "world" },
 				],
 			],
-		])
-		const result = buildPrerenderRoutes(defs, staticParams)
-		expect(result).toHaveLength(4)
-		expect(result[0]?.pathname).toBe("/en/blog/hello")
-		expect(result[1]?.pathname).toBe("/en/blog/world")
-		expect(result[2]?.pathname).toBe("/fr/blog/hello")
-		expect(result[3]?.pathname).toBe("/fr/blog/world")
-	})
+		]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result).toHaveLength(4);
+		expect(result[0]?.pathname).toBe("/en/blog/hello");
+		expect(result[1]?.pathname).toBe("/en/blog/world");
+		expect(result[2]?.pathname).toBe("/fr/blog/hello");
+		expect(result[3]?.pathname).toBe("/fr/blog/world");
+	});
 
 	it("mixed static + dynamic routes", () => {
 		const defs: RouteDefinition[] = [
@@ -425,14 +425,14 @@ describe("buildPrerenderRoutes", () => {
 				type: "page",
 				virtualPath: "_root_/posts/[slug]",
 			},
-		]
-		const staticParams = new Map([["_root_/posts/[slug]", [{ slug: "hello" }]]])
-		const result = buildPrerenderRoutes(defs, staticParams)
-		expect(result).toHaveLength(2)
-		expect(result[0]?.pathname).toBe("/about")
-		expect(result[1]?.pathname).toBe("/posts/hello")
-	})
-})
+		];
+		const staticParams = new Map([["_root_/posts/[slug]", [{ slug: "hello" }]]]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result).toHaveLength(2);
+		expect(result[0]?.pathname).toBe("/about");
+		expect(result[1]?.pathname).toBe("/posts/hello");
+	});
+});
 
 /* ── writePrerenderOutput ────────────────────────────────────────── */
 
@@ -454,17 +454,17 @@ describe("writePrerenderOutput", () => {
 				pathname: "/pricing",
 				revalidate: 300,
 			},
-		]
+		];
 
-		const result = writePrerenderOutput(entries)
+		const result = writePrerenderOutput(entries);
 
-		expect(result.manifest).toHaveLength(2)
-		expect(result.manifest[0]?.pathname).toBe("/about")
-		expect(result.manifest[0]?.mode).toBe("static")
-		expect(result.manifest[1]?.pathname).toBe("/pricing")
-		expect(result.manifest[1]?.mode).toBe("isr")
-		expect(result.manifest[1]?.revalidate).toBe(300)
-	})
+		expect(result.manifest).toHaveLength(2);
+		expect(result.manifest[0]?.pathname).toBe("/about");
+		expect(result.manifest[0]?.mode).toBe("static");
+		expect(result.manifest[1]?.pathname).toBe("/pricing");
+		expect(result.manifest[1]?.mode).toBe("isr");
+		expect(result.manifest[1]?.revalidate).toBe(300);
+	});
 
 	it("builds file entries for each route", () => {
 		const entries: PrerenderManifestEntry[] = [
@@ -475,23 +475,23 @@ describe("writePrerenderOutput", () => {
 				ndjson: '{"t":"d"}\n',
 				pathname: "/about",
 			},
-		]
+		];
 
-		const result = writePrerenderOutput(entries)
+		const result = writePrerenderOutput(entries);
 
-		expect(result.files).toHaveLength(3)
+		expect(result.files).toHaveLength(3);
 		/* HTML file */
-		const htmlFile = result.files.find((f) => f.path.endsWith(".html"))
-		expect(htmlFile?.path).toBe("/about.html")
-		expect(htmlFile?.content).toBe("<html>About</html>")
+		const htmlFile = result.files.find((f) => f.path.endsWith(".html"));
+		expect(htmlFile?.path).toBe("/about.html");
+		expect(htmlFile?.content).toBe("<html>About</html>");
 		/* NDJSON file */
-		const ndjsonFile = result.files.find((f) => f.path.endsWith(".ndjson"))
-		expect(ndjsonFile?.path).toBe("/about.ndjson")
-		expect(ndjsonFile?.content).toBe('{"t":"d"}\n')
+		const ndjsonFile = result.files.find((f) => f.path.endsWith(".ndjson"));
+		expect(ndjsonFile?.path).toBe("/about.ndjson");
+		expect(ndjsonFile?.content).toBe('{"t":"d"}\n');
 		/* Headers JSON */
-		const headersFile = result.files.find((f) => f.path.endsWith(".headers.json"))
-		expect(headersFile?.path).toBe("/about.headers.json")
-	})
+		const headersFile = result.files.find((f) => f.path.endsWith(".headers.json"));
+		expect(headersFile?.path).toBe("/about.headers.json");
+	});
 
 	it("handles root path (/ → index.html)", () => {
 		const entries: PrerenderManifestEntry[] = [
@@ -502,10 +502,10 @@ describe("writePrerenderOutput", () => {
 				ndjson: "",
 				pathname: "/",
 			},
-		]
+		];
 
-		const result = writePrerenderOutput(entries)
-		const htmlFile = result.files.find((f) => f.path.endsWith(".html"))
-		expect(htmlFile?.path).toBe("/index.html")
-	})
-})
+		const result = writePrerenderOutput(entries);
+		const htmlFile = result.files.find((f) => f.path.endsWith(".html"));
+		expect(htmlFile?.path).toBe("/index.html");
+	});
+});

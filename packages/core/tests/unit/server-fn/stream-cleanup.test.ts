@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest";
 
 /**
  * Task 4: Streaming generator cleanup race
@@ -21,343 +21,343 @@ function createMockRegistration(
 		inputSchema: undefined,
 		name: "testStream",
 		stream: true,
-	}
+	};
 }
 
 async function readStream(stream: ReadableStream<Uint8Array>): Promise<string[]> {
-	const reader = stream.getReader()
-	const decoder = new TextDecoder()
-	const chunks: string[] = []
+	const reader = stream.getReader();
+	const decoder = new TextDecoder();
+	const chunks: string[] = [];
 	while (true) {
-		const { done, value } = await reader.read()
-		if (done) break
-		chunks.push(decoder.decode(value))
+		const { done, value } = await reader.read();
+		if (done) break;
+		chunks.push(decoder.decode(value));
 	}
-	return chunks
+	return chunks;
 }
 
 async function readNDJSON(stream: ReadableStream<Uint8Array>): Promise<unknown[]> {
-	const chunks = await readStream(stream)
+	const chunks = await readStream(stream);
 	return chunks
 		.join("")
 		.split("\n")
 		.filter(Boolean)
-		.map((line) => JSON.parse(line))
+		.map((line) => JSON.parse(line));
 }
 
 describe("Task 4: streaming generator cleanup", () => {
 	it("generator cleanup called on normal stream completion", async () => {
-		let returnCalled = false
+		let returnCalled = false;
 
 		async function* gen() {
 			try {
-				yield "a"
-				yield "b"
+				yield "a";
+				yield "b";
 			} finally {
-				returnCalled = true
+				returnCalled = true;
 			}
 		}
 
-		const iterator = gen()
-		const abortController = new AbortController()
-		const encoder = new TextEncoder()
-		let cleaned = false
+		const iterator = gen();
+		const abortController = new AbortController();
+		const encoder = new TextEncoder();
+		let cleaned = false;
 
 		const stream = new ReadableStream({
 			cancel() {
-				abortController.abort()
+				abortController.abort();
 				if (!cleaned) {
-					cleaned = true
-					iterator.return(undefined).catch(() => {})
+					cleaned = true;
+					iterator.return(undefined).catch(() => {});
 				}
 			},
 			async pull(controller) {
 				try {
-					const { done, value } = await iterator.next()
+					const { done, value } = await iterator.next();
 					if (done) {
-						controller.enqueue(encoder.encode(`${JSON.stringify({ d: true })}\n`))
-						controller.close()
+						controller.enqueue(encoder.encode(`${JSON.stringify({ d: true })}\n`));
+						controller.close();
 						if (!cleaned) {
-							cleaned = true
-							await iterator.return(undefined).catch(() => {})
+							cleaned = true;
+							await iterator.return(undefined).catch(() => {});
 						}
-						return
+						return;
 					}
-					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value ?? null })}\n`))
+					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value ?? null })}\n`));
 				} catch (e) {
-					const message = e instanceof Error ? e.message : "Stream error"
-					controller.enqueue(encoder.encode(`${JSON.stringify({ e: { message } })}\n`))
-					controller.close()
-					abortController.abort()
+					const message = e instanceof Error ? e.message : "Stream error";
+					controller.enqueue(encoder.encode(`${JSON.stringify({ e: { message } })}\n`));
+					controller.close();
+					abortController.abort();
 					if (!cleaned) {
-						cleaned = true
-						await iterator.return(undefined).catch(() => {})
+						cleaned = true;
+						await iterator.return(undefined).catch(() => {});
 					}
 				}
 			},
-		})
+		});
 
-		const data = await readNDJSON(stream)
-		expect(data).toEqual([{ c: "a" }, { c: "b" }, { d: true }])
-		expect(returnCalled).toBe(true)
-		expect(cleaned).toBe(true)
-	})
+		const data = await readNDJSON(stream);
+		expect(data).toEqual([{ c: "a" }, { c: "b" }, { d: true }]);
+		expect(returnCalled).toBe(true);
+		expect(cleaned).toBe(true);
+	});
 
 	it("generator cleanup called on stream cancellation", async () => {
-		let returnCalled = false
-		let yieldCount = 0
+		let returnCalled = false;
+		let yieldCount = 0;
 
 		async function* gen() {
 			try {
 				while (true) {
-					yieldCount++
-					yield `chunk-${yieldCount}`
+					yieldCount++;
+					yield `chunk-${yieldCount}`;
 				}
 			} finally {
-				returnCalled = true
+				returnCalled = true;
 			}
 		}
 
-		const iterator = gen()
-		const abortController = new AbortController()
-		const encoder = new TextEncoder()
-		let cleaned = false
+		const iterator = gen();
+		const abortController = new AbortController();
+		const encoder = new TextEncoder();
+		let cleaned = false;
 
 		const stream = new ReadableStream({
 			cancel() {
-				abortController.abort()
+				abortController.abort();
 				if (!cleaned) {
-					cleaned = true
-					iterator.return(undefined).catch(() => {})
+					cleaned = true;
+					iterator.return(undefined).catch(() => {});
 				}
 			},
 			async pull(controller) {
 				try {
-					const { done, value } = await iterator.next()
+					const { done, value } = await iterator.next();
 					if (done) {
-						controller.close()
-						return
+						controller.close();
+						return;
 					}
-					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`))
+					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`));
 				} catch {
-					controller.close()
+					controller.close();
 				}
 			},
-		})
+		});
 
-		const reader = stream.getReader()
+		const reader = stream.getReader();
 		/* Read first chunk */
-		await reader.read()
+		await reader.read();
 		/* Cancel the stream */
-		await reader.cancel()
+		await reader.cancel();
 
-		expect(returnCalled).toBe(true)
-		expect(cleaned).toBe(true)
-		expect(abortController.signal.aborted).toBe(true)
-	})
+		expect(returnCalled).toBe(true);
+		expect(cleaned).toBe(true);
+		expect(abortController.signal.aborted).toBe(true);
+	});
 
 	it("concurrent cancel during pull doesn't call return() twice", async () => {
-		let returnCallCount = 0
+		let returnCallCount = 0;
 
 		async function* gen() {
 			try {
-				yield "first"
+				yield "first";
 				/* Simulate slow yield */
-				await new Promise((r) => setTimeout(r, 50))
-				yield "second"
+				await new Promise((r) => setTimeout(r, 50));
+				yield "second";
 			} finally {
-				returnCallCount++
+				returnCallCount++;
 			}
 		}
 
-		const iterator = gen()
-		const abortController = new AbortController()
-		const encoder = new TextEncoder()
-		let cleaned = false
+		const iterator = gen();
+		const abortController = new AbortController();
+		const encoder = new TextEncoder();
+		let cleaned = false;
 
 		const stream = new ReadableStream({
 			cancel() {
-				abortController.abort()
+				abortController.abort();
 				if (!cleaned) {
-					cleaned = true
-					iterator.return(undefined).catch(() => {})
+					cleaned = true;
+					iterator.return(undefined).catch(() => {});
 				}
 			},
 			async pull(controller) {
 				try {
-					const { done, value } = await iterator.next()
+					const { done, value } = await iterator.next();
 					if (done) {
-						controller.enqueue(encoder.encode(`${JSON.stringify({ d: true })}\n`))
-						controller.close()
+						controller.enqueue(encoder.encode(`${JSON.stringify({ d: true })}\n`));
+						controller.close();
 						if (!cleaned) {
-							cleaned = true
-							await iterator.return(undefined).catch(() => {})
+							cleaned = true;
+							await iterator.return(undefined).catch(() => {});
 						}
-						return
+						return;
 					}
-					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`))
+					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`));
 				} catch (e) {
-					const message = e instanceof Error ? e.message : "Stream error"
-					controller.enqueue(encoder.encode(`${JSON.stringify({ e: { message } })}\n`))
-					controller.close()
-					abortController.abort()
+					const message = e instanceof Error ? e.message : "Stream error";
+					controller.enqueue(encoder.encode(`${JSON.stringify({ e: { message } })}\n`));
+					controller.close();
+					abortController.abort();
 					if (!cleaned) {
-						cleaned = true
-						await iterator.return(undefined).catch(() => {})
+						cleaned = true;
+						await iterator.return(undefined).catch(() => {});
 					}
 				}
 			},
-		})
+		});
 
-		const reader = stream.getReader()
-		await reader.read()
-		await reader.cancel()
+		const reader = stream.getReader();
+		await reader.read();
+		await reader.cancel();
 
 		/* Guard flag prevents double cleanup */
-		expect(returnCallCount).toBeLessThanOrEqual(1)
-	})
+		expect(returnCallCount).toBeLessThanOrEqual(1);
+	});
 
 	it("generator return() rejection is caught (not unhandled)", async () => {
 		async function* gen() {
 			try {
-				yield "data"
+				yield "data";
 			} finally {
-				throw new Error("cleanup failed")
+				throw new Error("cleanup failed");
 			}
 		}
 
-		const iterator = gen()
-		const abortController = new AbortController()
-		const encoder = new TextEncoder()
-		let cleaned = false
+		const iterator = gen();
+		const abortController = new AbortController();
+		const encoder = new TextEncoder();
+		let cleaned = false;
 
 		const stream = new ReadableStream({
 			cancel() {
-				abortController.abort()
+				abortController.abort();
 				if (!cleaned) {
-					cleaned = true
+					cleaned = true;
 					/* .catch(() => {}) prevents unhandled rejection */
-					iterator.return(undefined).catch(() => {})
+					iterator.return(undefined).catch(() => {});
 				}
 			},
 			async pull(controller) {
-				const { done, value } = await iterator.next()
+				const { done, value } = await iterator.next();
 				if (done) {
-					controller.close()
+					controller.close();
 					if (!cleaned) {
-						cleaned = true
-						await iterator.return(undefined).catch(() => {})
+						cleaned = true;
+						await iterator.return(undefined).catch(() => {});
 					}
-					return
+					return;
 				}
-				controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`))
+				controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`));
 			},
-		})
+		});
 
-		const reader = stream.getReader()
-		await reader.read()
+		const reader = stream.getReader();
+		await reader.read();
 
 		/* Cancel should not throw even though generator cleanup throws */
-		await expect(reader.cancel()).resolves.toBeUndefined()
-		expect(cleaned).toBe(true)
-	})
+		await expect(reader.cancel()).resolves.toBeUndefined();
+		expect(cleaned).toBe(true);
+	});
 
 	it("AbortController.abort() fires before iterator cleanup", async () => {
-		const order: string[] = []
+		const order: string[] = [];
 
 		async function* gen() {
 			try {
-				yield "data"
+				yield "data";
 			} finally {
-				order.push("return")
+				order.push("return");
 			}
 		}
 
-		const iterator = gen()
-		const abortController = new AbortController()
+		const iterator = gen();
+		const abortController = new AbortController();
 		abortController.signal.addEventListener("abort", () => {
-			order.push("abort")
-		})
-		const encoder = new TextEncoder()
-		let cleaned = false
+			order.push("abort");
+		});
+		const encoder = new TextEncoder();
+		let cleaned = false;
 
 		const stream = new ReadableStream({
 			cancel() {
-				abortController.abort()
-				order.push("after-abort")
+				abortController.abort();
+				order.push("after-abort");
 				if (!cleaned) {
-					cleaned = true
-					iterator.return(undefined).catch(() => {})
+					cleaned = true;
+					iterator.return(undefined).catch(() => {});
 				}
 			},
 			async pull(controller) {
-				const { done, value } = await iterator.next()
+				const { done, value } = await iterator.next();
 				if (done) {
-					controller.close()
-					return
+					controller.close();
+					return;
 				}
-				controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`))
+				controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`));
 			},
-		})
+		});
 
-		const reader = stream.getReader()
-		await reader.read()
-		await reader.cancel()
+		const reader = stream.getReader();
+		await reader.read();
+		await reader.cancel();
 
-		expect(order.indexOf("abort")).toBeLessThan(order.indexOf("return"))
-	})
+		expect(order.indexOf("abort")).toBeLessThan(order.indexOf("return"));
+	});
 
 	it("generator that throws in return() doesn't crash the stream", async () => {
-		let errorInCleanup = false
+		let errorInCleanup = false;
 
 		async function* gen() {
-			yield "ok"
+			yield "ok";
 			try {
-				yield "also ok"
+				yield "also ok";
 			} finally {
-				errorInCleanup = true
-				throw new Error("boom in cleanup")
+				errorInCleanup = true;
+				throw new Error("boom in cleanup");
 			}
 		}
 
-		const iterator = gen()
-		const encoder = new TextEncoder()
-		let cleaned = false
+		const iterator = gen();
+		const encoder = new TextEncoder();
+		let cleaned = false;
 
 		const stream = new ReadableStream({
 			cancel() {
 				if (!cleaned) {
-					cleaned = true
-					iterator.return(undefined).catch(() => {})
+					cleaned = true;
+					iterator.return(undefined).catch(() => {});
 				}
 			},
 			async pull(controller) {
 				try {
-					const { done, value } = await iterator.next()
+					const { done, value } = await iterator.next();
 					if (done) {
-						controller.enqueue(encoder.encode(`${JSON.stringify({ d: true })}\n`))
-						controller.close()
+						controller.enqueue(encoder.encode(`${JSON.stringify({ d: true })}\n`));
+						controller.close();
 						if (!cleaned) {
-							cleaned = true
-							await iterator.return(undefined).catch(() => {})
+							cleaned = true;
+							await iterator.return(undefined).catch(() => {});
 						}
-						return
+						return;
 					}
-					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`))
+					controller.enqueue(encoder.encode(`${JSON.stringify({ c: value })}\n`));
 				} catch (e) {
-					const message = e instanceof Error ? e.message : "Stream error"
-					controller.enqueue(encoder.encode(`${JSON.stringify({ e: { message } })}\n`))
-					controller.close()
+					const message = e instanceof Error ? e.message : "Stream error";
+					controller.enqueue(encoder.encode(`${JSON.stringify({ e: { message } })}\n`));
+					controller.close();
 					if (!cleaned) {
-						cleaned = true
-						await iterator.return(undefined).catch(() => {})
+						cleaned = true;
+						await iterator.return(undefined).catch(() => {});
 					}
 				}
 			},
-		})
+		});
 
 		/* Reading should not throw */
-		const data = await readNDJSON(stream)
-		expect(data.length).toBeGreaterThan(0)
-	})
-})
+		const data = await readNDJSON(stream);
+		expect(data.length).toBeGreaterThan(0);
+	});
+});

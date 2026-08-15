@@ -9,38 +9,38 @@ Build-time configuration for Flare apps. Defines paths, features, global options
 ```ts
 interface FlareBuildConfig {
 	/* Entry points */
-	clientEntryFilePath?: string /* default: "src/client.ts" */
-	serverEntryFilePath?: string /* default: "src/server.ts" */
+	clientEntryFilePath?: string; /* default: "src/client.ts" */
+	serverEntryFilePath?: string; /* default: "src/server.ts" */
 
 	/* Generation */
 	generated?: {
-		routesFilePath?: string /* default: "src/_gen/routes.gen.ts" */
-		typesFilePath?: string /* default: "src/_gen/types.gen.d.ts" */
-	}
-	ignorePrefix?: string /* default: "_" */
+		routesFilePath?: string; /* default: "src/_gen/routes.gen.ts" */
+		typesFilePath?: string; /* default: "src/_gen/types.gen.d.ts" */
+	};
+	ignorePrefix?: string; /* default: "_" */
 
 	/* Global boundaries */
-	globalBoundaries?: GlobalBoundariesConfig
+	globalBoundaries?: GlobalBoundariesConfig;
 
 	/* Features */
-	css?: CssConfig | false
-	serverFn?: ServerFnConfig | false
-	viewTransitions?: boolean
+	css?: CssConfig | false;
+	serverFn?: ServerFnConfig | false;
+	viewTransitions?: boolean;
 }
 
 interface GlobalBoundariesConfig {
-	error?: string /* file path to error boundary component */
-	notFound?: string /* file path to 404 component */
-	unauthorized?: string /* file path to 401/403 component */
+	error?: string; /* file path to error boundary component */
+	notFound?: string; /* file path to 404 component */
+	unauthorized?: string; /* file path to 401/403 component */
 }
 
 interface CssConfig {
-	scoped?: boolean /* enable css= attribute transform */
+	scoped?: boolean; /* enable css= attribute transform */
 }
 
 interface ServerFnConfig {
-	exclude?: RegExp
-	include?: RegExp
+	exclude?: RegExp;
+	include?: RegExp;
 }
 ```
 
@@ -58,17 +58,17 @@ isFlareBuildConfig(value: unknown): value is MarkedFlareBuildConfig
 Factory for build config. Marks the config object with a symbol for runtime identification.
 
 ```ts
-const MARKER = Symbol.for("flare/build-config")
+const MARKER = Symbol.for("flare/build-config");
 
 function createFlareBuild(config: FlareBuildConfig): MarkedFlareBuildConfig {
-	return { ...config, [MARKER]: true }
+	return { ...config, [MARKER]: true };
 }
 ```
 
 Used in `vite.config.ts`:
 
 ```ts
-import { flare, createFlareBuild } from "flare/plugins"
+import { flare, createFlareBuild } from "@lovrozagar/flare/plugins";
 
 const config = createFlareBuild({
 	clientEntryFilePath: "./src/client.ts",
@@ -76,11 +76,11 @@ const config = createFlareBuild({
 		error: "./src/boundaries/error.tsx",
 		notFound: "./src/boundaries/not-found.tsx",
 	},
-})
+});
 
 export default defineConfig({
 	plugins: [...flare(config)],
-})
+});
 ```
 
 ### `isFlareBuildConfig`
@@ -89,7 +89,7 @@ Runtime check for marker symbol:
 
 ```ts
 function isFlareBuildConfig(value: unknown): value is MarkedFlareBuildConfig {
-	return value !== null && typeof value === "object" && MARKER in value && value[MARKER] === true
+	return value !== null && typeof value === "object" && MARKER in value && value[MARKER] === true;
 }
 ```
 
@@ -131,7 +131,7 @@ const SECURITY_HEADERS = {
 	"Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
 	"X-Content-Type-Options": "nosniff",
 	"X-Frame-Options": "DENY",
-}
+};
 
 const CSP_DEFAULTS = {
 	"base-uri": ["'self'"],
@@ -141,7 +141,7 @@ const CSP_DEFAULTS = {
 	"script-src": ["'self'", "'strict-dynamic'"],
 	"style-src": ["'self'", "'unsafe-inline'"],
 	"upgrade-insecure-requests": true,
-}
+};
 ```
 
 Nonce added at runtime via `generateNonce()` (spec 05). `'strict-dynamic'` + nonce for scripts.

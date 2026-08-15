@@ -1,8 +1,8 @@
-import { nitro } from "nitro/vite"
-import { defineConfig } from "vite"
-import { flare } from "flare/plugins"
+import { nitro } from "nitro/vite";
+import { defineConfig } from "vite";
+import { flare } from "@lovrozagar/flare/plugins";
 
-const host = process.env.TAURI_DEV_HOST
+const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
 	plugins: [flare({ codegen: { fsVirtualPaths: false } }), nitro({ preset: "node-server" })],
@@ -12,4 +12,4 @@ export default defineConfig({
 		port: 5173,
 		strictPort: true,
 	},
-})
+});

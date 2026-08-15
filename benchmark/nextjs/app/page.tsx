@@ -1,11 +1,11 @@
-import { For } from "solid-js"
-import type { Metadata } from "next"
-import Link from "next/link"
-import { posts } from "../../shared/data"
+import { For } from "solid-js";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { posts } from "../../shared/data";
 
 export const metadata: Metadata = {
 	title: "Blog Posts",
-}
+};
 
 export default function HomePage() {
 	return (
@@ -22,5 +22,5 @@ export default function HomePage() {
 				</For>
 			</ul>
 		</main>
-	)
+	);
 }

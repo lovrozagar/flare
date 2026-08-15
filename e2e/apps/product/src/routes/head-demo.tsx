@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/head-demo")
 	.head(() => ({
@@ -28,4 +28,4 @@ export const route = createPage("_root_/head-demo")
 			<h1>Head Demo</h1>
 			<p>This page tests complex head configuration.</p>
 		</main>
-	))
+	));

@@ -1,8 +1,8 @@
-import { createPage } from "flare/page"
-import { createSignal } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal } from "solid-js";
 
 export const route = createPage("_root_/styles").render(() => {
-	const [on, setOn] = createSignal(false)
+	const [on, setOn] = createSignal(false);
 
 	return (
 		<main data-testid="styles">
@@ -16,5 +16,5 @@ export const route = createPage("_root_/styles").render(() => {
 				Toggle
 			</button>
 		</main>
-	)
-})
+	);
+});

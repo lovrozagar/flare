@@ -1,18 +1,18 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/hash")
 	.loader(async (ctx) => {
-		const input = String(ctx.location.search.input ?? "hello")
-		const encoder = new TextEncoder()
-		const data = encoder.encode(input)
-		const hashBuffer = await crypto.subtle.digest("SHA-256", data)
-		const hashArray = Array.from(new Uint8Array(hashBuffer))
-		const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+		const input = String(ctx.location.search.input ?? "hello");
+		const encoder = new TextEncoder();
+		const data = encoder.encode(input);
+		const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 		return {
 			hash: hashHex,
 			input,
 			platform: "Standard",
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -29,4 +29,4 @@ export const route = createPage("_root_/hash")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

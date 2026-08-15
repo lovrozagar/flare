@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const zenKakuGothicNew: Font<"cyrillic" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
@@ -61,4 +61,4 @@ export const zenKakuGothicNew: Font<"cyrillic" | "latin" | "latin-ext"> = create
 	],
 	subsets: ["cyrillic", "latin", "latin-ext"],
 	weights: [400, 700],
-})
+});

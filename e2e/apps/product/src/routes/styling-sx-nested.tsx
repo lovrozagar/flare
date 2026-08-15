@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/styling-sx-nested").render(() => {
 	return (
@@ -20,5 +20,5 @@ export const route = createPage("_root_/styling-sx-nested").render(() => {
 				Media box
 			</div>
 		</main>
-	)
-})
+	);
+});

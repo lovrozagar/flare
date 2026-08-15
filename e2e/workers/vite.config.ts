@@ -1,9 +1,9 @@
-import { cloudflare } from "@cloudflare/vite-plugin"
-import { flare } from "flare/plugins"
-import { fileURLToPath } from "node:url"
-import { defineConfig } from "vite"
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { flare } from "@lovrozagar/flare/plugins";
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vite";
 
-const appRoot = fileURLToPath(new URL("../app", import.meta.url))
+const appRoot = fileURLToPath(new URL("../app", import.meta.url));
 
 export default defineConfig({
 	plugins: [
@@ -18,4 +18,4 @@ export default defineConfig({
 	server: {
 		hmr: { overlay: false },
 	},
-})
+});

@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const leagueSpartan: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
@@ -39,4 +39,4 @@ export const leagueSpartan: Font<"latin" | "latin-ext" | "vietnamese"> = createR
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: "100 900",
-})
+});

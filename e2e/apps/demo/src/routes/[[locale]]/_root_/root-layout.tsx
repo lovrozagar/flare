@@ -1,10 +1,10 @@
-import { FontCSS } from "flare/fonts"
-import { inter } from "flare/fonts/inter"
-import { LocaleProvider, LocaleScript } from "flare/locale"
-import { ResetCSS } from "flare/reset-css"
-import { createRootLayout } from "flare/root-layout"
-import { ViewTransitionCSS } from "flare/view-transition-css"
-import { localeConfig } from "../../../i18n/config"
+import { FontCSS } from "@lovrozagar/flare/fonts";
+import { inter } from "@lovrozagar/flare/fonts/inter";
+import { LocaleProvider, LocaleScript } from "@lovrozagar/flare/locale";
+import { ResetCSS } from "@lovrozagar/flare/reset-css";
+import { createRootLayout } from "@lovrozagar/flare/root-layout";
+import { ViewTransitionCSS } from "@lovrozagar/flare/view-transition-css";
+import { localeConfig } from "../../../i18n/config";
 
 export const rootLayout = createRootLayout("[[locale]]/_root_")
 	.preloader((ctx) => ({ locale: ctx.location.params.locale ?? "en" }))
@@ -22,4 +22,4 @@ export const rootLayout = createRootLayout("[[locale]]/_root_")
 				</LocaleProvider>
 			</body>
 		</html>
-	))
+	));

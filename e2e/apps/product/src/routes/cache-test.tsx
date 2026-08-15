@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/cache-test")
 	.cache({ client: { staleTime: 2000 } })
@@ -11,4 +11,4 @@ export const route = createPage("_root_/cache-test")
 			<p data-testid="cache-timestamp">{props.loaderData.timestamp}</p>
 			<p data-testid="cache-random">{props.loaderData.random}</p>
 		</main>
-	))
+	));

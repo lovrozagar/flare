@@ -1,4 +1,4 @@
-import { createLayout } from "flare/layout"
+import { createLayout } from "@lovrozagar/flare/layout";
 
 export const route = createLayout("_root_/(cached-layout)")
 	.cache({ ssr: { staleTime: 5000, ttl: 30 } })
@@ -14,4 +14,4 @@ export const route = createLayout("_root_/(cached-layout)")
 			</header>
 			<main data-testid="cached-layout-content">{props.children}</main>
 		</div>
-	))
+	));

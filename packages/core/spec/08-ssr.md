@@ -10,16 +10,16 @@ Server-side rendering via Solid's `renderToStream`. Produces streaming HTML Resp
 
 ```ts
 interface SSRConfig {
-	auth: Auth | null
-	cause: LoaderCause
-	entryScript?: string
-	matches: PipelineMatch[]
-	moduleScripts: string[]
-	nonce: string
-	prefetch: boolean
-	queryClientGetter?: () => QueryClient
-	resolvedHead: HeadConfig
-	url: URL
+	auth: Auth | null;
+	cause: LoaderCause;
+	entryScript?: string;
+	matches: PipelineMatch[];
+	moduleScripts: string[];
+	nonce: string;
+	prefetch: boolean;
+	queryClientGetter?: () => QueryClient;
+	resolvedHead: HeadConfig;
+	url: URL;
 }
 ```
 
@@ -29,48 +29,48 @@ Serialized into `self.flare` for client hydration. Canonical shape defined in sp
 
 ```ts
 interface FlareState {
-	c: ContextState /* dir, locale, router, theme */
-	dk?: string[] /* dynamic registry keys (spec 18) */
-	e?: DevError[] /* dev-only SSR errors for client overlay */
-	m: FlareMatchState[] /* matched routes */
-	p: string /* pathname */
-	ph?: PerRouteHead[] /* per-route head configs for client init */
-	q?: QueryState[] /* TanStack Query hydration (optional) */
-	r: Record<string, string | string[]> /* params */
-	s: Record<string, string> /* search */
+	c: ContextState; /* dir, locale, router, theme */
+	dk?: string[]; /* dynamic registry keys (spec 18) */
+	e?: DevError[]; /* dev-only SSR errors for client overlay */
+	m: FlareMatchState[]; /* matched routes */
+	p: string; /* pathname */
+	ph?: PerRouteHead[]; /* per-route head configs for client init */
+	q?: QueryState[]; /* TanStack Query hydration (optional) */
+	r: Record<string, string | string[]>; /* params */
+	s: Record<string, string>; /* search */
 }
 
 interface FlareMatchState {
-	d: unknown /* loaderData (deferred markers preserved) */
-	h?: HeadConfig /* per-route head config */
-	i: string /* matchId */
-	p?: Record<string, unknown> /* preloaderContext */
-	v: string /* virtualPath */
+	d: unknown; /* loaderData (deferred markers preserved) */
+	h?: HeadConfig; /* per-route head config */
+	i: string; /* matchId */
+	p?: Record<string, unknown>; /* preloaderContext */
+	v: string; /* virtualPath */
 }
 
 interface ContextState {
-	dir?: string
-	locale?: string
-	router?: SerializableRouterConfig /* from createRouter(), spec 25 */
-	theme?: string
+	dir?: string;
+	locale?: string;
+	router?: SerializableRouterConfig; /* from createRouter(), spec 25 */
+	theme?: string;
 }
 
 interface DevError {
-	message: string
-	name: string
-	source: string
-	stack?: string
+	message: string;
+	name: string;
+	source: string;
+	stack?: string;
 }
 
 interface PerRouteHead {
-	head: HeadConfig
-	matchId: string
+	head: HeadConfig;
+	matchId: string;
 }
 
 interface QueryState {
-	data: unknown
-	key: unknown[]
-	staleTime?: number
+	data: unknown;
+	key: unknown[];
+	staleTime?: number;
 }
 ```
 
@@ -80,9 +80,9 @@ Single-char keys for bundle size.
 
 ```ts
 interface SSRResult {
-	body: ReadableStream<Uint8Array>
-	headers: Record<string, string>
-	status: number
+	body: ReadableStream<Uint8Array>;
+	headers: Record<string, string>;
+	status: number;
 }
 ```
 

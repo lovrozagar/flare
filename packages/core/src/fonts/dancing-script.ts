@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const dancingScript: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "handwriting",
@@ -63,4 +63,4 @@ export const dancingScript: Font<"latin" | "latin-ext" | "vietnamese"> = createR
 	],
 	subsets: ["latin", "latin-ext", "vietnamese"],
 	weights: [400, 700],
-})
+});

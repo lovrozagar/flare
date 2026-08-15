@@ -1,9 +1,9 @@
 export interface FlareSpan {
-	end(): void
-	setAttribute(key: string, value: boolean | number | string): void
-	setStatus(status: "error" | "ok"): void
+	end(): void;
+	setAttribute(key: string, value: boolean | number | string): void;
+	setStatus(status: "error" | "ok"): void;
 }
 
 export interface FlareTracer {
-	startSpan(name: string): FlareSpan
+	startSpan(name: string): FlareSpan;
 }

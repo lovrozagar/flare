@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { Await } from "flare/await"
+import { createPage } from "@lovrozagar/flare/page";
+import { Await } from "@lovrozagar/flare/await";
 
 export const route = createPage("_root_/isr-defer-error")
 	.cache({
@@ -7,10 +7,10 @@ export const route = createPage("_root_/isr-defer-error")
 	})
 	.loader((ctx) => {
 		const bad = ctx.defer<string>(async () => {
-			await new Promise((r) => setTimeout(r, 200))
-			throw new Error("boom")
-		})
-		return { bad, renderedAt: Date.now() }
+			await new Promise((r) => setTimeout(r, 200));
+			throw new Error("boom");
+		});
+		return { bad, renderedAt: Date.now() };
 	})
 	.render((props) => (
 		<div data-testid="isr-defer-error">
@@ -23,4 +23,4 @@ export const route = createPage("_root_/isr-defer-error")
 				{(val) => <span data-testid="isr-defer-error-resolved">{val}</span>}
 			</Await>
 		</div>
-	))
+	));

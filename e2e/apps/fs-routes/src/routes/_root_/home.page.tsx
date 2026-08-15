@@ -1,5 +1,5 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/")
 	.cache({ cdn: { maxAge: "1d", swr: "7d", tags: ["fs-paths"] }, isr: true })
@@ -20,11 +20,13 @@ export const route = createPage("_root_/")
 				<Link prefetch={false} to="/deep-cache/uncached">
 					Uncached
 				</Link>
-				<Link to="/optional-locale/[[locale]]">Opt locale</Link>
+				<Link params={{ locale: undefined }} to="/optional-locale/[[locale]]">
+					Opt locale
+				</Link>
 				<Link to="/_internal">Internal</Link>
 				<Link prefetch={false} to="/dashboard">
 					Dashboard
 				</Link>
 			</nav>
 		</main>
-	))
+	));

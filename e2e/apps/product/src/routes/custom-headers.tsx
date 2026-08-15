@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/custom-headers")
 	.loader(() => ({
@@ -15,4 +15,4 @@ export const route = createPage("_root_/custom-headers")
 			<p data-testid="custom-headers-content">{props.loaderData.content}</p>
 			<p data-testid="custom-headers-timestamp">{props.loaderData.timestamp}</p>
 		</main>
-	))
+	));

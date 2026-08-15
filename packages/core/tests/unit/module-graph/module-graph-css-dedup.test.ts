@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest"
-import { resolveModulePreloads, resolveRoutePreloads } from "../../../src/module-graph/index.ts"
+import { describe, expect, it } from "vitest";
+import { resolveModulePreloads, resolveRoutePreloads } from "../../../src/module-graph/index.ts";
 
 describe("resolveModulePreloads — CSS deduplication", () => {
 	it("does not produce duplicate CSS entries when two imports share a CSS file", () => {
@@ -18,13 +18,13 @@ describe("resolveModulePreloads — CSS deduplication", () => {
 				imports: ["src/a.ts", "src/b.ts"],
 				isEntry: true,
 			},
-		}
+		};
 
-		const result = resolveModulePreloads(manifest, "src/entry.ts")
-		const uniqueCss = new Set(result.css)
-		expect(result.css.length).toBe(uniqueCss.size)
-		expect(result.css).toEqual(["/assets/shared.css"])
-	})
+		const result = resolveModulePreloads(manifest, "src/entry.ts");
+		const uniqueCss = new Set(result.css);
+		expect(result.css.length).toBe(uniqueCss.size);
+		expect(result.css).toEqual(["/assets/shared.css"]);
+	});
 
 	it("does not produce duplicate CSS when entry and import share CSS", () => {
 		const manifest = {
@@ -38,11 +38,11 @@ describe("resolveModulePreloads — CSS deduplication", () => {
 				imports: ["src/dep.ts"],
 				isEntry: true,
 			},
-		}
+		};
 
-		const result = resolveModulePreloads(manifest, "src/entry.ts")
-		expect(result.css).toEqual(["/assets/common.css"])
-	})
+		const result = resolveModulePreloads(manifest, "src/entry.ts");
+		expect(result.css).toEqual(["/assets/common.css"]);
+	});
 
 	it("preserves distinct CSS files", () => {
 		const manifest = {
@@ -56,12 +56,12 @@ describe("resolveModulePreloads — CSS deduplication", () => {
 				imports: ["src/dep.ts"],
 				isEntry: true,
 			},
-		}
+		};
 
-		const result = resolveModulePreloads(manifest, "src/entry.ts")
-		expect(result.css).toEqual(["/assets/a.css", "/assets/b.css"])
-	})
-})
+		const result = resolveModulePreloads(manifest, "src/entry.ts");
+		expect(result.css).toEqual(["/assets/a.css", "/assets/b.css"]);
+	});
+});
 
 describe("resolveRoutePreloads — CSS deduplication", () => {
 	it("does not produce duplicate CSS entries across route modules", () => {
@@ -76,11 +76,11 @@ describe("resolveRoutePreloads — CSS deduplication", () => {
 				file: "assets/b.js",
 				isDynamicEntry: true,
 			},
-		}
+		};
 
-		const result = resolveRoutePreloads(manifest, ["src/routes/a.tsx", "src/routes/b.tsx"])
-		const uniqueCss = new Set(result.css)
-		expect(result.css.length).toBe(uniqueCss.size)
-		expect(result.css).toEqual(["/assets/shared.css"])
-	})
-})
+		const result = resolveRoutePreloads(manifest, ["src/routes/a.tsx", "src/routes/b.tsx"]);
+		const uniqueCss = new Set(result.css);
+		expect(result.css.length).toBe(uniqueCss.size);
+		expect(result.css).toEqual(["/assets/shared.css"]);
+	});
+});

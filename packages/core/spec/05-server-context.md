@@ -8,14 +8,14 @@ Per-request context via `AsyncLocalStorage`. Works natively with Cloudflare Work
 
 ```ts
 interface ServerContextValue {
-	nonce: string
-	request: Request
-	store: Map<string, unknown>
+	nonce: string;
+	request: Request;
+	store: Map<string, unknown>;
 }
 
 interface ServerRequestContextStore {
-	get<T>(key: string): T | undefined
-	set<K extends string, V>(key: K, value: V): void
+	get<T>(key: string): T | undefined;
+	set<K extends string, V>(key: K, value: V): void;
 }
 ```
 

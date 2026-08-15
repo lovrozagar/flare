@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test } from "@playwright/test";
 import {
 	assertHydrated,
 	assertSPANavigation,
@@ -7,7 +7,7 @@ import {
 	loadPage,
 	setNavMarker,
 	setupConsoleCapture,
-} from "./helpers"
+} from "./helpers";
 
 /**
  * Route smoke tests: verify EVERY route works via both hard navigation (SSR)
@@ -88,7 +88,7 @@ const RENDERABLE_ROUTES: Array<{ label: string; path: string }> = [
 	{ label: "Prefetch Defer", path: "/prefetch-defer" },
 	{ label: "Search Effects", path: "/search-effects?q=foo" },
 	{ label: "Layout Catches Child Safe", path: "/layout-catches-child" },
-]
+];
 
 /*
  * Routes that intentionally produce console errors (deferred rejections,
@@ -101,7 +101,7 @@ const NOISY_ROUTES: Array<{ label: string; path: string }> = [
 	{ label: "Head Scripts", path: "/head-scripts" },
 	{ label: "Image Test", path: "/image-test" },
 	{ label: "ISR Defer Error", path: "/isr-defer-error" },
-]
+];
 
 /*
  * Routes that require auth context — loader redirects or throws without it.
@@ -113,7 +113,7 @@ const AUTH_ROUTES: Array<{ label: string; path: string }> = [
 	{ label: "Chain Auth Inherit", path: "/chain-auth-inherit" },
 	{ label: "Caller Data", path: "/caller-data" },
 	{ label: "Authorize Pass", path: "/authorize-pass" },
-]
+];
 
 /* Routes that throw errors in their loader — still render error boundary HTML */
 const ERROR_ROUTES: Array<{ label: string; path: string; expectedStatus: number }> = [
@@ -131,19 +131,19 @@ const ERROR_ROUTES: Array<{ label: string; path: string; expectedStatus: number 
 	{ expectedStatus: 500, label: "Validated Param abc", path: "/validated/abc" },
 	{ expectedStatus: 200, label: "Lazy Error Test", path: "/lazy-error-test" },
 	{ expectedStatus: 401, label: "Authorize Fail", path: "/authorize-fail" },
-]
+];
 
 /* Routes that do internal redirects */
 const REDIRECT_ROUTES: Array<{ expectedPath: string; label: string; path: string }> = [
 	{ expectedPath: "/redirect-target", label: "Redirect Source", path: "/redirect-source" },
 	{ expectedPath: "/chain-final", label: "Chain Redirect", path: "/chain-a" },
-]
+];
 
 /* External redirect routes */
 const EXTERNAL_REDIRECT_ROUTES: Array<{ label: string; path: string }> = [
 	{ label: "External 302", path: "/redirect-external" },
 	{ label: "External 307", path: "/redirect-external-307" },
-]
+];
 
 /* SPA nav targets: linked on index, navigable via click */
 const SPA_TARGETS: Array<{ expectedPath: string; label: string; linkText: string }> = [
@@ -218,139 +218,123 @@ const SPA_TARGETS: Array<{ expectedPath: string; label: string; linkText: string
 	{ expectedPath: "/rewrite-target", label: "Rewrite Target", linkText: "Rewrite Target" },
 	{ expectedPath: "/isr-defer", label: "ISR Defer", linkText: "ISR Defer" },
 	{ expectedPath: "/isr-multi-defer", label: "ISR Multi Defer", linkText: "ISR Multi Defer" },
-]
+];
 
 test.describe("Route Smoke: SSR Hard Navigation", () => {
 	for (const route of RENDERABLE_ROUTES) {
 		test(`SSR: ${route.label} (${route.path})`, async ({ page }) => {
-			const cap = setupConsoleCapture(page)
-			await loadPage(page, route.path)
+			const cap = setupConsoleCapture(page);
+			await loadPage(page, route.path);
 
-			const hydrated = await page.evaluate(() =>
-				document.documentElement.hasAttribute("data-hydrated"),
-			)
-			expect(hydrated).toBe(true)
-			cap.assertClean()
-		})
+			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+			expect(hydrated).toBe(true);
+			cap.assertClean();
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SSR Noisy Routes (intentional console errors)", () => {
 	for (const route of NOISY_ROUTES) {
 		test(`SSR noisy: ${route.label} (${route.path})`, async ({ page }) => {
 			/* These routes intentionally produce console errors (deferred rejections, etc.) */
-			await loadPage(page, route.path)
+			await loadPage(page, route.path);
 
-			const hydrated = await page.evaluate(() =>
-				document.documentElement.hasAttribute("data-hydrated"),
-			)
-			expect(hydrated).toBe(true)
-		})
+			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+			expect(hydrated).toBe(true);
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SSR Auth Routes", () => {
 	for (const route of AUTH_ROUTES) {
 		test(`SSR auth: ${route.label} (${route.path})`, async ({ request }) => {
 			/* Auth routes redirect or error without session — verify valid response */
-			const res = await request.get(`${BASE}${route.path}`)
-			expect(res.status()).toBeGreaterThanOrEqual(200)
-			expect(res.status()).toBeLessThan(600)
-			const html = await res.text()
-			expect(html.length).toBeGreaterThan(0)
-		})
+			const res = await request.get(`${BASE}${route.path}`);
+			expect(res.status()).toBeGreaterThanOrEqual(200);
+			expect(res.status()).toBeLessThan(600);
+			const html = await res.text();
+			expect(html.length).toBeGreaterThan(0);
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SSR Error Pages", () => {
 	for (const route of ERROR_ROUTES) {
-		test(`SSR error: ${route.label} (${route.path}) → ${route.expectedStatus}`, async ({
-			request,
-		}) => {
-			const res = await request.get(`${BASE}${route.path}`)
-			expect(res.status()).toBe(route.expectedStatus)
-			const html = await res.text()
+		test(`SSR error: ${route.label} (${route.path}) → ${route.expectedStatus}`, async ({ request }) => {
+			const res = await request.get(`${BASE}${route.path}`);
+			expect(res.status()).toBe(route.expectedStatus);
+			const html = await res.text();
 			/* Must return valid HTML — Vite dev uses lowercase <!doctype html> */
-			expect(html.toLowerCase()).toContain("<!doctype html>")
-		})
+			expect(html.toLowerCase()).toContain("<!doctype html>");
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SSR Internal Redirects", () => {
 	for (const route of REDIRECT_ROUTES) {
 		test(`SSR redirect: ${route.label} → ${route.expectedPath}`, async ({ page }) => {
-			const cap = setupConsoleCapture(page)
-			await page.goto(route.path, { waitUntil: "domcontentloaded" })
-			await assertHydrated(page)
-			expect(new URL(page.url()).pathname).toBe(route.expectedPath)
-			cap.assertClean()
-		})
+			const cap = setupConsoleCapture(page);
+			await page.goto(route.path, { waitUntil: "domcontentloaded" });
+			await assertHydrated(page);
+			expect(new URL(page.url()).pathname).toBe(route.expectedPath);
+			cap.assertClean();
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SSR External Redirects", () => {
 	for (const route of EXTERNAL_REDIRECT_ROUTES) {
 		test(`SSR external: ${route.label} (${route.path})`, async ({ request }) => {
-			const res = await request.get(`${BASE}${route.path}`, { maxRedirects: 0 })
-			expect(res.status()).toBeGreaterThanOrEqual(300)
-			expect(res.status()).toBeLessThan(400)
-			const location = res.headers().location
-			expect(location).toBeTruthy()
-			expect(location).toContain("example.com")
-		})
+			const res = await request.get(`${BASE}${route.path}`, { maxRedirects: 0 });
+			expect(res.status()).toBeGreaterThanOrEqual(300);
+			expect(res.status()).toBeLessThan(400);
+			const location = res.headers().location;
+			expect(location).toBeTruthy();
+			expect(location).toContain("example.com");
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SPA Navigation from Index", () => {
 	for (const target of SPA_TARGETS) {
 		test(`SPA: ${target.label}`, async ({ page }) => {
-			const cap = setupConsoleCapture(page)
-			await loadPage(page, "/")
+			const cap = setupConsoleCapture(page);
+			await loadPage(page, "/");
 
-			await clickAndAssertSPA(
-				page,
-				`[data-testid="nav-links"] a:has-text("${target.linkText}")`,
-				target.expectedPath,
-			)
+			await clickAndAssertSPA(page, `[data-testid="nav-links"] a:has-text("${target.linkText}")`, target.expectedPath);
 
-			const hydrated = await page.evaluate(() =>
-				document.documentElement.hasAttribute("data-hydrated"),
-			)
-			expect(hydrated).toBe(true)
-			cap.assertClean()
-		})
+			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+			expect(hydrated).toBe(true);
+			cap.assertClean();
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SPA Internal Redirects", () => {
 	test("SPA: redirect-source → redirect-target", async ({ page }) => {
-		const cap = setupConsoleCapture(page)
-		await loadPage(page, "/")
-		await setNavMarker(page)
-		await page.click('[data-testid="nav-links"] a:has-text("Redirect Source")')
-		await page.waitForURL("**/redirect-target", { timeout: 10_000 })
+		const cap = setupConsoleCapture(page);
+		await loadPage(page, "/");
+		await setNavMarker(page);
+		await page.click('[data-testid="nav-links"] a:has-text("Redirect Source")');
+		await page.waitForURL("**/redirect-target", { timeout: 10_000 });
 
-		const hydrated = await page.evaluate(() =>
-			document.documentElement.hasAttribute("data-hydrated"),
-		)
-		expect(hydrated).toBe(true)
-		cap.assertClean()
-	})
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		expect(hydrated).toBe(true);
+		cap.assertClean();
+	});
 
 	test("SPA: chain-a → chain-final", async ({ page }) => {
-		const cap = setupConsoleCapture(page)
-		await loadPage(page, "/")
-		await setNavMarker(page)
-		await page.click('[data-testid="nav-links"] a:has-text("Chain Redirect")')
-		await page.waitForURL("**/chain-final", { timeout: 10_000 })
+		const cap = setupConsoleCapture(page);
+		await loadPage(page, "/");
+		await setNavMarker(page);
+		await page.click('[data-testid="nav-links"] a:has-text("Chain Redirect")');
+		await page.waitForURL("**/chain-final", { timeout: 10_000 });
 
-		const hydrated = await page.evaluate(() =>
-			document.documentElement.hasAttribute("data-hydrated"),
-		)
-		expect(hydrated).toBe(true)
-		cap.assertClean()
-	})
-})
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		expect(hydrated).toBe(true);
+		cap.assertClean();
+	});
+});
 
 test.describe("Route Smoke: SPA External Redirects (Bug 76)", () => {
 	/*
@@ -362,23 +346,23 @@ test.describe("Route Smoke: SPA External Redirects (Bug 76)", () => {
 		test(`SPA external: ${route.label} returns NDJSON not 3xx`, async ({ request }) => {
 			const res = await request.get(`${BASE}${route.path}`, {
 				headers: { "x-d": "1" },
-			})
+			});
 			/* Data request MUST get NDJSON 200, NOT a raw 3xx redirect */
-			expect(res.status()).toBe(200)
-			expect(res.headers()["content-type"]).toContain("application/x-ndjson")
+			expect(res.status()).toBe(200);
+			expect(res.headers()["content-type"]).toContain("application/x-ndjson");
 
-			const body = await res.text()
-			const lines = body.trim().split("\n")
-			expect(lines.length).toBeGreaterThanOrEqual(2)
+			const body = await res.text();
+			const lines = body.trim().split("\n");
+			expect(lines.length).toBeGreaterThanOrEqual(2);
 
-			const redirectLine = JSON.parse(lines[0] ?? "{}") as Record<string, unknown>
-			expect(redirectLine.t).toBe("x")
-			expect(redirectLine.xl).toBe(true)
-			expect(typeof redirectLine.u).toBe("string")
-			expect(redirectLine.u as string).toContain("example.com")
-		})
+			const redirectLine = JSON.parse(lines[0] ?? "{}") as Record<string, unknown>;
+			expect(redirectLine.t).toBe("x");
+			expect(redirectLine.xl).toBe(true);
+			expect(typeof redirectLine.u).toBe("string");
+			expect(redirectLine.u as string).toContain("example.com");
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: SPA Error Routes", () => {
 	const SPA_ERROR_TARGETS: Array<{ expectedPath: string; label: string; linkText: string }> = [
@@ -401,93 +385,75 @@ test.describe("Route Smoke: SPA Error Routes", () => {
 			label: "Layout Catches Broken",
 			linkText: "Layout Catches Broken Child",
 		},
-	]
+	];
 
 	for (const target of SPA_ERROR_TARGETS) {
 		test(`SPA error: ${target.label}`, async ({ page }) => {
-			await loadPage(page, "/")
-			await setNavMarker(page)
-			await page.click(`[data-testid="nav-links"] a:has-text("${target.linkText}")`)
-			await page.waitForURL(`**${target.expectedPath}`, { timeout: 10_000 })
+			await loadPage(page, "/");
+			await setNavMarker(page);
+			await page.click(`[data-testid="nav-links"] a:has-text("${target.linkText}")`);
+			await page.waitForURL(`**${target.expectedPath}`, { timeout: 10_000 });
 
 			/* SPA nav should survive — app doesn't crash, error boundary renders */
-			await assertSPANavigation(page)
-		})
+			await assertSPANavigation(page);
+		});
 	}
-})
+});
 
 test.describe("Route Smoke: Multi-hop SPA Navigation", () => {
 	test("Index → About → Back → Head Demo → Forward/Back", async ({ page }) => {
-		const cap = setupConsoleCapture(page)
-		await loadPage(page, "/")
+		const cap = setupConsoleCapture(page);
+		await loadPage(page, "/");
 
-		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("About")', "/about")
+		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("About")', "/about");
 
-		await page.goBack()
-		await page.waitForURL("**/", { timeout: 5000 })
-		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("Head Demo")', "/head-demo")
+		await page.goBack();
+		await page.waitForURL("**/", { timeout: 5000 });
+		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("Head Demo")', "/head-demo");
 
-		await page.goBack()
-		await page.waitForURL("**/", { timeout: 5000 })
-		await page.goForward()
-		await page.waitForURL("**/head-demo", { timeout: 5000 })
+		await page.goBack();
+		await page.waitForURL("**/", { timeout: 5000 });
+		await page.goForward();
+		await page.waitForURL("**/head-demo", { timeout: 5000 });
 
-		const hydrated = await page.evaluate(() =>
-			document.documentElement.hasAttribute("data-hydrated"),
-		)
-		expect(hydrated).toBe(true)
-		cap.assertClean()
-	})
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		expect(hydrated).toBe(true);
+		cap.assertClean();
+	});
 
 	test("Index → Deep Cache → P3 Store → Back → Shared Tag", async ({ page }) => {
-		const cap = setupConsoleCapture(page)
-		await loadPage(page, "/")
+		const cap = setupConsoleCapture(page);
+		await loadPage(page, "/");
 
-		await clickAndAssertSPA(
-			page,
-			'[data-testid="nav-links"] a:has-text("Deep Cache Index")',
-			"/deep-cache",
-		)
+		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("Deep Cache Index")', "/deep-cache");
 		/* Deep cache page uses testid links — wait for hydration to complete */
-		await page.waitForSelector('[data-testid="dc-nav-p3"]', { state: "visible" })
-		await clickAndAssertSPA(page, '[data-testid="dc-nav-p3"]', "/deep-cache/store-page")
+		await page.waitForSelector('[data-testid="dc-nav-p3"]', { state: "visible" });
+		await clickAndAssertSPA(page, '[data-testid="dc-nav-p3"]', "/deep-cache/store-page");
 
-		await page.goBack()
-		await page.waitForURL("**/deep-cache", { timeout: 5000 })
+		await page.goBack();
+		await page.waitForURL("**/deep-cache", { timeout: 5000 });
 
-		await page.goBack()
-		await page.waitForURL("**/", { timeout: 5000 })
-		await clickAndAssertSPA(
-			page,
-			'[data-testid="nav-links"] a:has-text("Shared Tag Index")',
-			"/shared-tag",
-		)
+		await page.goBack();
+		await page.waitForURL("**/", { timeout: 5000 });
+		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("Shared Tag Index")', "/shared-tag");
 
-		cap.assertClean()
-	})
+		cap.assertClean();
+	});
 
 	test("Index → ISR Test → KV Cache → Products (cross-section hops)", async ({ page }) => {
-		const cap = setupConsoleCapture(page)
-		await loadPage(page, "/")
+		const cap = setupConsoleCapture(page);
+		await loadPage(page, "/");
 
-		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("ISR Test")', "/isr-test")
-		await page.goBack()
-		await page.waitForURL("**/", { timeout: 5000 })
+		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("ISR Test")', "/isr-test");
+		await page.goBack();
+		await page.waitForURL("**/", { timeout: 5000 });
 
-		await clickAndAssertSPA(
-			page,
-			'[data-testid="nav-links"] a:has-text("KV Cache Test")',
-			"/kv-cache-test",
-		)
-		await page.goBack()
-		await page.waitForURL("**/", { timeout: 5000 })
+		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("KV Cache Test")', "/kv-cache-test");
+		await page.goBack();
+		await page.waitForURL("**/", { timeout: 5000 });
 
-		await clickAndAssertSPA(
-			page,
-			'[data-testid="nav-links"] a:has-text("Products Index")',
-			"/products",
-		)
+		await clickAndAssertSPA(page, '[data-testid="nav-links"] a:has-text("Products Index")', "/products");
 
-		cap.assertClean()
-	})
-})
+		cap.assertClean();
+	});
+});

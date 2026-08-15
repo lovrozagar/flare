@@ -1,8 +1,8 @@
-export { createLayout } from "./create-layout.ts"
-export type { InterceptConfig } from "./create-page.ts"
-export { createPage } from "./create-page.ts"
-export { createPathSegment } from "./create-path-segment.ts"
-export { createRootLayout } from "./create-root-layout.ts"
+export { createLayout } from "./create-layout.ts";
+export type { InterceptConfig } from "./create-page.ts";
+export { createPage } from "./create-page.ts";
+export { createPathSegment } from "./create-path-segment.ts";
+export { createRootLayout } from "./create-root-layout.ts";
 export type {
 	ExtractPathParams,
 	FlareRegister,
@@ -29,7 +29,7 @@ export type {
 	RouteSearchProps,
 	RouteSearchType,
 	RouteVirtualPaths,
-} from "./register.ts"
+} from "./register.ts";
 export type {
 	AuthenticateMode,
 	CacheConfig,
@@ -45,5 +45,5 @@ export type {
 	ResponseHeaders,
 	ServerThrowHelpers,
 	SsrCacheConfig,
-} from "./types.ts"
-export { BUILDER_MARKER } from "./types.ts"
+} from "./types.ts";
+export { BUILDER_MARKER } from "./types.ts";

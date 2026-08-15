@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 /**
  * Child page under props-nested layout — tests that page preloaderContext
@@ -30,9 +30,7 @@ export const route = createPage("_root_/(props-nested)/props-nested/")
 			<div data-testid="page-preloader-ran">{String(props.preloaderContext.pagePreloaderRan)}</div>
 			<div data-testid="page-preloader-timestamp">{props.preloaderContext.pageTimestamp}</div>
 			<div data-testid="page-preloader-pathname">{props.preloaderContext.pathname}</div>
-			<div data-testid="page-preloader-has-request">
-				{String(props.preloaderContext.hasRequest)}
-			</div>
+			<div data-testid="page-preloader-has-request">{String(props.preloaderContext.hasRequest)}</div>
 			<div data-testid="page-location-pathname">{props.location.pathname}</div>
 
 			{/* Verify preloader timestamp passed to loader correctly */}
@@ -40,4 +38,4 @@ export const route = createPage("_root_/(props-nested)/props-nested/")
 				{String(props.preloaderContext.pageTimestamp === props.loaderData.pagePreloaderTimestamp)}
 			</div>
 		</div>
-	))
+	));

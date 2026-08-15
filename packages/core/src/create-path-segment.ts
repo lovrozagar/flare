@@ -1,1 +1,1 @@
-export { createPathSegment } from "./route-builder/index.ts"
+export { createPathSegment } from "./route-builder/index.ts";

@@ -1,5 +1,5 @@
-import { For } from "solid-js"
-import { createPage } from "flare/page"
+import { For } from "solid-js";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/large-data")
 	.loader(() => {
@@ -7,8 +7,8 @@ export const route = createPage("_root_/large-data")
 			id: i,
 			name: `Item ${i}`,
 			value: Math.random().toString(36).slice(2),
-		}))
-		return { count: items.length, items }
+		}));
+		return { count: items.length, items };
 	})
 	.render((props) => (
 		<div data-testid="large-data-page">
@@ -20,4 +20,4 @@ export const route = createPage("_root_/large-data")
 				</For>
 			</ul>
 		</div>
-	))
+	));

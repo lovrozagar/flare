@@ -8,22 +8,22 @@ Code generation for route manifests and TypeScript declarations. Scans source fi
 
 ```ts
 interface GenerateRoutesOptions {
-	ignorePrefix: string
-	outputPath: string
-	rootDir: string
-	srcDir: string
+	ignorePrefix: string;
+	outputPath: string;
+	rootDir: string;
+	srcDir: string;
 }
 
 interface GenerateRoutesResult {
-	files: string[]
-	layouts: number
-	routes: number
+	files: string[];
+	layouts: number;
+	routes: number;
 }
 
 interface GenerateRouteTypesOptions {
-	outputPath: string
-	serverEntryPath: string
-	srcDir: string
+	outputPath: string;
+	serverEntryPath: string;
+	srcDir: string;
 }
 ```
 
@@ -80,9 +80,9 @@ Output file: `src/_gen/routes.gen.ts`
 
 ```ts
 /* Auto-generated. Do not edit. */
-import { createTreeNode, insertRoute } from "flare/router-primitives"
+import { createTreeNode, insertRoute } from "@lovrozagar/flare/router-primitives";
 
-const tree = createTreeNode()
+const tree = createTreeNode();
 
 insertRoute(tree, "/", {
 	e: "HomePage",
@@ -91,7 +91,7 @@ insertRoute(tree, "/", {
 	t: "r",
 	v: "/",
 	x: "_root_/index",
-})
+});
 
 insertRoute(tree, "/products/[id]", {
 	e: "ProductPage",
@@ -100,15 +100,15 @@ insertRoute(tree, "/products/[id]", {
 	t: "r",
 	v: "/products/[id]",
 	x: "_root_/(shop)/products/[id]",
-})
+});
 
-export const routeTree = tree
+export const routeTree = tree;
 
 export const layouts: Record<string, () => Promise<{ default: unknown }>> = {
 	_root_: () => import("../routes/_root_").then((m) => ({ default: m.RootLayout })),
 	"_root_/(shop)": () => import("../routes/(shop)").then((m) => ({ default: m.ShopLayout })),
 	"_root_/(auth)": () => import("../routes/(auth)").then((m) => ({ default: m.AuthLayout })),
-}
+};
 ```
 
 - Pages inserted into route tree via `insertRoute`
@@ -124,7 +124,7 @@ Generates TypeScript declarations for route-level type safety.
 #### Step 1: Detect capabilities
 
 ```ts
-const hasAuthenticate = detectAuthenticateFn(serverEntryPath)
+const hasAuthenticate = detectAuthenticateFn(serverEntryPath);
 /* Scans server entry for: export const authenticateFn */
 ```
 
@@ -142,34 +142,34 @@ Output file: `src/_gen/types.gen.d.ts`
 
 ```ts
 /* Auto-generated. Do not edit. */
-import "flare"
+import "@lovrozagar/flare";
 
-declare module "flare" {
+declare module "@lovrozagar/flare" {
 	interface FlareRegister {
-		auth: import("../server").AppAuth
-		env: import("../server").AppEnv
+		auth: import("../server").AppAuth;
+		env: import("../server").AppEnv;
 		loaderData: {
 			"_root_/(shop)/products/[id]": import("../routes/products/[id]").ProductPage extends {
-				_type: "render"
-				loader?: (...args: any[]) => infer R
+				_type: "render";
+				loader?: (...args: any[]) => infer R;
 			}
 				? Awaited<R>
-				: void
+				: void;
 			/* ... one entry per route with .loader() */
-		}
+		};
 		preloaderContext: {
 			_root_: import("../routes/_root_").RootLayout extends {
-				preloader?: (...args: any[]) => infer R
+				preloader?: (...args: any[]) => infer R;
 			}
 				? Awaited<R>
-				: Record<string, never>
+				: Record<string, never>;
 			/* ... one entry per route with .preloader() */
-		}
+		};
 		routes: {
-			"/": { params: Record<string, string>; search: Record<string, string> }
-			"/products/[id]": { params: { id: string }; search: Record<string, string> }
+			"/": { params: Record<string, string>; search: Record<string, string> };
+			"/products/[id]": { params: { id: string }; search: Record<string, string> };
 			/* ... one entry per route, params/search extracted from .input() */
-		}
+		};
 	}
 }
 ```

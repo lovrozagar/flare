@@ -1,9 +1,9 @@
-import { createPage } from "flare/page"
-import { styles } from "flare/styles"
-import { createSignal } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { styles } from "@lovrozagar/flare/styles";
+import { createSignal } from "solid-js";
 
-const VARIANTS = ["primary", "secondary", "danger"] as const
-const SIZES = ["sm", "md", "lg"] as const
+const VARIANTS = ["primary", "secondary", "danger"] as const;
+const SIZES = ["sm", "md", "lg"] as const;
 
 export const route = createPage("_root_/styling-state-switch").render(() => {
 	const variantProps = styles("variant-switch", {
@@ -15,7 +15,7 @@ export const route = createPage("_root_/styling-state-switch").render(() => {
 			${s.variant("danger")} { color: rgb(200, 0, 0); }
 		`,
 		state: { variant: "primary" },
-	})
+	});
 
 	const sizeProps = styles("size-switch", {
 		css: (s) => `
@@ -26,7 +26,7 @@ export const route = createPage("_root_/styling-state-switch").render(() => {
 			${s.size("lg")} { font-size: 24px; }
 		`,
 		state: { size: "md" },
-	})
+	});
 
 	const comboProps = styles("combo-switch", {
 		css: (s) => `
@@ -41,28 +41,20 @@ export const route = createPage("_root_/styling-state-switch").render(() => {
 			${s.size("lg")} { font-size: 24px; }
 		`,
 		state: { size: "md", variant: "primary" },
-	})
+	});
 
-	const [variantIdx, setVariantIdx] = createSignal(0)
-	const [sizeIdx, setSizeIdx] = createSignal(1)
+	const [variantIdx, setVariantIdx] = createSignal(0);
+	const [sizeIdx, setSizeIdx] = createSignal(1);
 
-	const variant = () => VARIANTS[variantIdx()]
-	const size = () => SIZES[sizeIdx()]
+	const variant = () => VARIANTS[variantIdx()];
+	const size = () => SIZES[sizeIdx()];
 
 	return (
 		<main data-testid="styling-state-switch">
-			<button
-				data-testid="cycle-variant"
-				onClick={() => setVariantIdx((i) => (i + 1) % VARIANTS.length)}
-				type="button"
-			>
+			<button data-testid="cycle-variant" onClick={() => setVariantIdx((i) => (i + 1) % VARIANTS.length)} type="button">
 				Cycle Variant
 			</button>
-			<button
-				data-testid="cycle-size"
-				onClick={() => setSizeIdx((i) => (i + 1) % SIZES.length)}
-				type="button"
-			>
+			<button data-testid="cycle-size" onClick={() => setSizeIdx((i) => (i + 1) % SIZES.length)} type="button">
 				Cycle Size
 			</button>
 
@@ -76,5 +68,5 @@ export const route = createPage("_root_/styling-state-switch").render(() => {
 				Combo: {variant()} / {size()}
 			</div>
 		</main>
-	)
-})
+	);
+});

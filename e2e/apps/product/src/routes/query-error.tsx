@@ -1,13 +1,13 @@
-import { createPage } from "flare/page"
-import { useSuspenseQuery } from "flare/suspense-query"
-import { ErrorBoundary, Suspense } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { useSuspenseQuery } from "@lovrozagar/flare/suspense-query";
+import { ErrorBoundary, Suspense } from "solid-js";
 
 function FailingQuery() {
 	const query = useSuspenseQuery({
 		queryFn: () => Promise.reject(new Error("query-exploded")),
 		queryKey: ["failing-query"],
-	})
-	return <span>{String(query.data())}</span>
+	});
+	return <span>{String(query.data())}</span>;
 }
 
 export const route = createPage("_root_/query-error").render(() => (
@@ -25,4 +25,4 @@ export const route = createPage("_root_/query-error").render(() => (
 			</Suspense>
 		</ErrorBoundary>
 	</div>
-))
+));

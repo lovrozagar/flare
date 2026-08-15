@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("[[locale]]/_root_/offline")
 	.loader(() => ({ offline: true }))
@@ -28,4 +28,4 @@ export const route = createPage("[[locale]]/_root_/offline")
 			<h1 class="text-2xl font-bold">You're offline</h1>
 			<p class="text-white/60">Please check your internet connection and try again.</p>
 		</main>
-	))
+	));

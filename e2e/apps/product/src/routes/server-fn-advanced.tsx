@@ -1,189 +1,189 @@
-import { createPage } from "flare/page"
-import { createSignal, For, Show } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal, For, Show } from "solid-js";
 
 interface StreamChunk {
-	chunk: number
+	chunk: number;
 }
 
 interface ConcResult {
-	id: string
-	timestamp: number
+	id: string;
+	timestamp: number;
 }
 
 export const route = createPage("_root_/server-fn-advanced").render(() => {
 	/* ── Streaming ──────────────────────────────────────────── */
-	const [streamStatus, setStreamStatus] = createSignal("idle")
-	const [streamChunks, setStreamChunks] = createSignal<StreamChunk[]>([])
-	const [streamError, setStreamError] = createSignal("")
+	const [streamStatus, setStreamStatus] = createSignal("idle");
+	const [streamChunks, setStreamChunks] = createSignal<StreamChunk[]>([]);
+	const [streamError, setStreamError] = createSignal("");
 
 	const startStream = async () => {
-		setStreamStatus("streaming")
-		setStreamChunks([])
-		setStreamError("")
+		setStreamStatus("streaming");
+		setStreamChunks([]);
+		setStreamError("");
 
 		try {
 			const res = await fetch("/_fn/slow-stream/slow-stream", {
 				body: "{}",
 				headers: { "content-type": "application/json" },
 				method: "POST",
-			})
+			});
 			if (!res.ok || !res.body) {
-				setStreamError(`HTTP ${res.status}`)
-				setStreamStatus("error")
-				return
+				setStreamError(`HTTP ${res.status}`);
+				setStreamStatus("error");
+				return;
 			}
-			const reader = res.body.getReader()
-			const decoder = new TextDecoder()
-			let buffer = ""
+			const reader = res.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = "";
 
 			while (true) {
-				const { done, value } = await reader.read()
-				if (done) break
-				buffer += decoder.decode(value, { stream: true })
-				const lines = buffer.split("\n")
-				buffer = lines.pop() ?? ""
+				const { done, value } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split("\n");
+				buffer = lines.pop() ?? "";
 				for (const line of lines) {
-					if (!line.trim()) continue
-					const parsed = JSON.parse(line) as Record<string, unknown>
+					if (!line.trim()) continue;
+					const parsed = JSON.parse(line) as Record<string, unknown>;
 					if ("c" in parsed) {
-						setStreamChunks((prev) => [...prev, parsed.c as StreamChunk])
+						setStreamChunks((prev) => [...prev, parsed.c as StreamChunk]);
 					} else if ("e" in parsed) {
-						const err = parsed.e as { message: string }
-						setStreamError(err.message)
+						const err = parsed.e as { message: string };
+						setStreamError(err.message);
 					}
 				}
 			}
-			setStreamStatus("done")
+			setStreamStatus("done");
 		} catch (err: unknown) {
-			setStreamError(err instanceof Error ? err.message : "Unknown error")
-			setStreamStatus("error")
+			setStreamError(err instanceof Error ? err.message : "Unknown error");
+			setStreamStatus("error");
 		}
-	}
+	};
 
 	/* ── Piggyback ──────────────────────────────────────────── */
-	const [mutResult, setMutResult] = createSignal("")
-	const [piggyItems, setPiggyItems] = createSignal("")
-	const [piggyCount, setPiggyCount] = createSignal("")
+	const [mutResult, setMutResult] = createSignal("");
+	const [piggyItems, setPiggyItems] = createSignal("");
+	const [piggyCount, setPiggyCount] = createSignal("");
 
 	const callPiggyback = async () => {
-		setMutResult("")
-		setPiggyItems("")
-		setPiggyCount("")
+		setMutResult("");
+		setPiggyItems("");
+		setPiggyCount("");
 		try {
 			const res = await fetch("/_fn/piggyback/piggyback", {
 				body: JSON.stringify({ value: "test" }),
 				headers: { "content-type": "application/json" },
 				method: "POST",
-			})
+			});
 			const json = (await res.json()) as {
-				data: { saved: boolean; value: string }
-				queries?: Array<{ data: unknown; key: unknown[] }>
-			}
-			setMutResult(JSON.stringify(json.data))
+				data: { saved: boolean; value: string };
+				queries?: Array<{ data: unknown; key: unknown[] }>;
+			};
+			setMutResult(JSON.stringify(json.data));
 			if (json.queries) {
 				for (const q of json.queries) {
-					const key = Array.isArray(q.key) ? (q.key[0] as string) : ""
-					if (key === "demo-items") setPiggyItems(JSON.stringify(q.data))
-					if (key === "demo-count") setPiggyCount(JSON.stringify(q.data))
+					const key = Array.isArray(q.key) ? (q.key[0] as string) : "";
+					if (key === "demo-items") setPiggyItems(JSON.stringify(q.data));
+					if (key === "demo-count") setPiggyCount(JSON.stringify(q.data));
 				}
 			}
 		} catch {
-			setMutResult("error")
+			setMutResult("error");
 		}
-	}
+	};
 
 	/* ── Concurrent ─────────────────────────────────────────── */
-	const [concResults, setConcResults] = createSignal<ConcResult[]>([])
-	const [concCount, setConcCount] = createSignal(0)
+	const [concResults, setConcResults] = createSignal<ConcResult[]>([]);
+	const [concCount, setConcCount] = createSignal(0);
 
 	const callConcurrent = async () => {
-		setConcResults([])
-		setConcCount(0)
-		const ids = ["A", "B", "C"]
+		setConcResults([]);
+		setConcCount(0);
+		const ids = ["A", "B", "C"];
 		const promises = ids.map((id) =>
 			fetch("/_fn/concurrent/concurrent", {
 				body: JSON.stringify({ delay: 50, id }),
 				headers: { "content-type": "application/json" },
 				method: "POST",
 			}).then((r) => r.json() as Promise<{ data: ConcResult }>),
-		)
-		const results = await Promise.all(promises)
-		const items = results.map((r) => r.data)
-		setConcResults(items)
-		setConcCount(items.length)
-	}
+		);
+		const results = await Promise.all(promises);
+		const items = results.map((r) => r.data);
+		setConcResults(items);
+		setConcCount(items.length);
+	};
 
 	/* ── Retry ──────────────────────────────────────────────── */
-	const [retryResult, setRetryResult] = createSignal("")
-	const [retryError, setRetryError] = createSignal("")
-	const retryKey = `ui-${Date.now()}`
+	const [retryResult, setRetryResult] = createSignal("");
+	const [retryError, setRetryError] = createSignal("");
+	const retryKey = `ui-${Date.now()}`;
 
 	const callRetry = async () => {
-		setRetryResult("")
-		setRetryError("")
+		setRetryResult("");
+		setRetryError("");
 		try {
 			const res = await fetch("/_fn/retryable/retryable", {
 				body: JSON.stringify({ key: retryKey }),
 				headers: { "content-type": "application/json" },
 				method: "POST",
-			})
+			});
 			if (!res.ok) {
-				const body = (await res.json()) as { message: string }
-				setRetryError(body.message)
-				return
+				const body = (await res.json()) as { message: string };
+				setRetryError(body.message);
+				return;
 			}
-			const json = (await res.json()) as { data: unknown }
-			setRetryResult(JSON.stringify(json.data))
+			const json = (await res.json()) as { data: unknown };
+			setRetryResult(JSON.stringify(json.data));
 		} catch (err: unknown) {
-			setRetryError(err instanceof Error ? err.message : "Unknown error")
+			setRetryError(err instanceof Error ? err.message : "Unknown error");
 		}
-	}
+	};
 
 	/* ── Auth ───────────────────────────────────────────────── */
-	const [authResult, setAuthResult] = createSignal("")
-	const [authError, setAuthError] = createSignal("")
+	const [authResult, setAuthResult] = createSignal("");
+	const [authError, setAuthError] = createSignal("");
 
 	const callAuthNo = async () => {
-		setAuthResult("")
-		setAuthError("")
+		setAuthResult("");
+		setAuthError("");
 		try {
 			const res = await fetch("/_fn/auth-gated/auth-gated", {
 				body: "{}",
 				headers: { "content-type": "application/json" },
 				method: "POST",
-			})
+			});
 			if (!res.ok) {
-				const body = (await res.json()) as { message: string }
-				setAuthError(body.message)
-				return
+				const body = (await res.json()) as { message: string };
+				setAuthError(body.message);
+				return;
 			}
-			const json = (await res.json()) as { data: unknown }
-			setAuthResult(JSON.stringify(json.data))
+			const json = (await res.json()) as { data: unknown };
+			setAuthResult(JSON.stringify(json.data));
 		} catch (err: unknown) {
-			setAuthError(err instanceof Error ? err.message : "Unknown error")
+			setAuthError(err instanceof Error ? err.message : "Unknown error");
 		}
-	}
+	};
 
 	const callAuthYes = async () => {
-		setAuthResult("")
-		setAuthError("")
+		setAuthResult("");
+		setAuthError("");
 		try {
 			const res = await fetch("/_fn/auth-gated/auth-gated", {
 				body: "{}",
 				headers: { "content-type": "application/json", "x-test-auth": "user-42" },
 				method: "POST",
-			})
+			});
 			if (!res.ok) {
-				const body = (await res.json()) as { message: string }
-				setAuthError(body.message)
-				return
+				const body = (await res.json()) as { message: string };
+				setAuthError(body.message);
+				return;
 			}
-			const json = (await res.json()) as { data: unknown }
-			setAuthResult(JSON.stringify(json.data))
+			const json = (await res.json()) as { data: unknown };
+			setAuthResult(JSON.stringify(json.data));
 		} catch (err: unknown) {
-			setAuthError(err instanceof Error ? err.message : "Unknown error")
+			setAuthError(err instanceof Error ? err.message : "Unknown error");
 		}
-	}
+	};
 
 	return (
 		<main data-testid="server-fn-advanced">
@@ -198,9 +198,7 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 				<p data-testid="stream-status">{streamStatus()}</p>
 				<p data-testid="stream-count">{streamChunks().length}</p>
 				<ul data-testid="stream-chunks">
-					<For each={streamChunks()}>
-						{(c, i) => <li data-testid={`chunk-${i()}`}>{JSON.stringify(c)}</li>}
-					</For>
+					<For each={streamChunks()}>{(c, i) => <li data-testid={`chunk-${i()}`}>{JSON.stringify(c)}</li>}</For>
 				</ul>
 				<Show when={streamError()}>
 					<p data-testid="stream-error">{streamError()}</p>
@@ -257,5 +255,5 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 				</Show>
 			</section>
 		</main>
-	)
-})
+	);
+});

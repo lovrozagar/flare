@@ -1,16 +1,16 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/cookie-test")
 	.loader(({ request }) => {
-		const cookies = request.headers.get("cookie") ?? ""
+		const cookies = request.headers.get("cookie") ?? "";
 		const existing = cookies.includes("flare-session=")
 			? (cookies.match(/flare-session=([^;]+)/)?.[1] ?? "none")
-			: "none"
+			: "none";
 		return {
 			existingSession: existing,
 			message: "Cookie test page",
 			newToken: `tok-${Date.now()}`,
-		}
+		};
 	})
 	.headers(({ loaderData }) => ({
 		"set-cookie": `flare-session=${(loaderData as { newToken: string }).newToken}; Path=/; HttpOnly; SameSite=Lax`,
@@ -21,4 +21,4 @@ export const route = createPage("_root_/cookie-test")
 			<p data-testid="cookie-token">{props.loaderData.newToken}</p>
 			<p data-testid="cookie-existing">{props.loaderData.existingSession}</p>
 		</div>
-	))
+	));

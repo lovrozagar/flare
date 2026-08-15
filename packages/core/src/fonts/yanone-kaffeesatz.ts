@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const yanoneKaffeesatz: Font<
 	"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "math" | "symbols" | "vietnamese"
@@ -125,4 +125,4 @@ export const yanoneKaffeesatz: Font<
 	],
 	subsets: ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "math", "symbols", "vietnamese"],
 	weights: [400, 700],
-})
+});

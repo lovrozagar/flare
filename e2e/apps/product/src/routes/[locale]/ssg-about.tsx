@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/[locale]/ssg-about")
 	.cache({
@@ -11,4 +11,4 @@ export const route = createPage("_root_/[locale]/ssg-about")
 		<div data-testid="ssg-about">
 			<p data-testid="ssg-about-locale">{props.loaderData.locale}</p>
 		</div>
-	))
+	));

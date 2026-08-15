@@ -1,1 +1,1 @@
-export { createClientOnlyFn } from "./env-fn.ts"
+export { createClientOnlyFn } from "./env-fn.ts";

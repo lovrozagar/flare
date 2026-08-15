@@ -1,9 +1,9 @@
-import type { Metadata } from "next"
-import Link from "next/link"
+import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
 	title: "Next.js Benchmark",
-}
+};
 
 export default function RootLayout(props: { children: React.ReactNode }) {
 	return (
@@ -17,5 +17,5 @@ export default function RootLayout(props: { children: React.ReactNode }) {
 				{props.children}
 			</body>
 		</html>
-	)
+	);
 }

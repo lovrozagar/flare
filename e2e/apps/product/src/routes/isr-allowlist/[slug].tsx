@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/isr-allowlist/[slug]")
 	.cache({
@@ -17,4 +17,4 @@ export const route = createPage("_root_/isr-allowlist/[slug]")
 			<p data-testid="isr-allowlist-slug">{props.loaderData.slug}</p>
 			<p data-testid="isr-allowlist-rendered-at">{props.loaderData.renderedAt}</p>
 		</main>
-	))
+	));

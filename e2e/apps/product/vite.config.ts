@@ -1,5 +1,5 @@
-import { defineConfig } from "vite"
-import { flare } from "flare/plugins"
+import { defineConfig } from "vite";
+import { flare } from "@lovrozagar/flare/plugins";
 
 export default defineConfig({
 	server: {
@@ -14,4 +14,4 @@ export default defineConfig({
 			sx: { tw: true },
 		}),
 	],
-})
+});

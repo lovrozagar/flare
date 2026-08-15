@@ -1,18 +1,18 @@
-import { createPage } from "flare/page"
-import { useRouter } from "flare/router"
+import { createPage } from "@lovrozagar/flare/page";
+import { useRouter } from "@lovrozagar/flare/router";
 
 export const route = createPage("_root_/search-demo")
 	.loader((ctx) => {
 		return {
 			allParams: ctx.location.search,
 			paramCount: Object.keys(ctx.location.search).length,
-		}
+		};
 	})
 	.head((ctx) => ({
 		title: `Search: ${JSON.stringify(ctx.loaderData.allParams)}`,
 	}))
 	.render((props) => {
-		const router = useRouter()
+		const router = useRouter();
 		return (
 			<div data-testid="search-demo-page">
 				<h1>Search Demo</h1>
@@ -21,5 +21,5 @@ export const route = createPage("_root_/search-demo")
 				<p data-testid="search-signal">{JSON.stringify(router.search())}</p>
 				<p data-testid="search-q">{String(props.loaderData.allParams.q ?? "")}</p>
 			</div>
-		)
-	})
+		);
+	});

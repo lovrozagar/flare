@@ -1,62 +1,59 @@
-import { createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js"
-import { Portal } from "solid-js/web"
-import { createDevErrorStore, type DevErrorStore } from "./index.ts"
+import { createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { Portal } from "solid-js/web";
+import { createDevErrorStore, type DevErrorStore } from "./index.ts";
 
-let globalStore: DevErrorStore | undefined
+let globalStore: DevErrorStore | undefined;
 
 export function getDevErrorStore(): DevErrorStore {
 	if (!globalStore) {
-		globalStore = createDevErrorStore()
+		globalStore = createDevErrorStore();
 	}
-	return globalStore
+	return globalStore;
 }
 
 export function resetDevErrorStore(): void {
-	globalStore = undefined
+	globalStore = undefined;
 }
 
 export function DevErrorOverlay(): JSX.Element {
-	const store = getDevErrorStore()
-	const [errors, setErrors] = createSignal(store.errors().filter((e) => !e.dismissed))
+	const store = getDevErrorStore();
+	const [errors, setErrors] = createSignal(store.errors().filter((e) => !e.dismissed));
 
 	function refresh(): void {
-		setErrors(store.errors().filter((e) => !e.dismissed))
+		setErrors(store.errors().filter((e) => !e.dismissed));
 	}
 
 	function handleWindowError(event: ErrorEvent): void {
-		store.register(
-			event.error instanceof Error ? event.error : new Error(event.message),
-			"window.onerror",
-		)
-		refresh()
+		store.register(event.error instanceof Error ? event.error : new Error(event.message), "window.onerror");
+		refresh();
 	}
 
 	function handleUnhandledRejection(event: PromiseRejectionEvent): void {
-		const err = event.reason instanceof Error ? event.reason : new Error(String(event.reason))
-		store.register(err, "unhandledrejection")
-		refresh()
+		const err = event.reason instanceof Error ? event.reason : new Error(String(event.reason));
+		store.register(err, "unhandledrejection");
+		refresh();
 	}
 
 	onMount(() => {
-		if (typeof window === "undefined") return
-		window.addEventListener("error", handleWindowError)
-		window.addEventListener("unhandledrejection", handleUnhandledRejection)
-	})
+		if (typeof window === "undefined") return;
+		window.addEventListener("error", handleWindowError);
+		window.addEventListener("unhandledrejection", handleUnhandledRejection);
+	});
 
 	onCleanup(() => {
-		if (typeof window === "undefined") return
-		window.removeEventListener("error", handleWindowError)
-		window.removeEventListener("unhandledrejection", handleUnhandledRejection)
-	})
+		if (typeof window === "undefined") return;
+		window.removeEventListener("error", handleWindowError);
+		window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+	});
 
 	function dismiss(id: string): void {
-		store.dismiss(id)
-		refresh()
+		store.dismiss(id);
+		refresh();
 	}
 
 	function clearAll(): void {
-		store.clear()
-		refresh()
+		store.clear();
+		refresh();
 	}
 
 	return (
@@ -133,9 +130,7 @@ export function DevErrorOverlay(): JSX.Element {
 										x
 									</button>
 								</div>
-								<div style={{ color: "#888", "font-size": "12px", "margin-top": "4px" }}>
-									{entry.source}
-								</div>
+								<div style={{ color: "#888", "font-size": "12px", "margin-top": "4px" }}>{entry.source}</div>
 								<Show when={entry.error.stack}>
 									<pre
 										style={{
@@ -155,5 +150,5 @@ export function DevErrorOverlay(): JSX.Element {
 				</div>
 			</Portal>
 		</Show>
-	) as unknown as JSX.Element
+	) as unknown as JSX.Element;
 }

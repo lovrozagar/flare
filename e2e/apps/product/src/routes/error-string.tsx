@@ -1,8 +1,8 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/error-string")
 	.loader(() => {
-		throw "plain string error"
+		throw "plain string error";
 	})
 	.render(() => <div>Should not render</div>)
 	.errorRender((props) => (
@@ -11,4 +11,4 @@ export const route = createPage("_root_/error-string")
 			<p data-testid="error-string-message">{String(props.error)}</p>
 			<p data-testid="error-string-type">{typeof props.error}</p>
 		</div>
-	))
+	));

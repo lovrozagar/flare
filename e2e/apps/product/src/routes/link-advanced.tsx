@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { Link } from "flare/link"
+import { createPage } from "@lovrozagar/flare/page";
+import { Link } from "@lovrozagar/flare/link";
 
 export const route = createPage("_root_/link-advanced")
 	.loader(() => ({
@@ -18,20 +18,10 @@ export const route = createPage("_root_/link-advanced")
 			<Link to="/link-advanced" force data-testid="link-force">
 				Force Refresh
 			</Link>
-			<Link
-				to="/link-advanced"
-				activeClass="is-active"
-				inactiveClass="is-inactive"
-				data-testid="link-active-self"
-			>
+			<Link to="/link-advanced" activeClass="is-active" inactiveClass="is-inactive" data-testid="link-active-self">
 				Self Active
 			</Link>
-			<Link
-				to="/about"
-				activeClass="is-active"
-				inactiveClass="is-inactive"
-				data-testid="link-active-other"
-			>
+			<Link to="/about" activeClass="is-active" inactiveClass="is-inactive" data-testid="link-active-other">
 				Other Page
 			</Link>
 			<Link to="/about" shallow data-testid="link-shallow">
@@ -45,4 +35,4 @@ export const route = createPage("_root_/link-advanced")
 				<p>Target section for hash navigation</p>
 			</div>
 		</div>
-	))
+	));

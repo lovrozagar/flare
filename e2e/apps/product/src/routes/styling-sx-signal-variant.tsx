@@ -1,21 +1,17 @@
-import { createPage } from "flare/page"
-import { createSignal } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { createSignal } from "solid-js";
 
 /* Signal toggles data-variant attr — variant classes already emitted statically */
-const VARIANTS = ["info", "success", "error"] as const
-type Variant = (typeof VARIANTS)[number]
+const VARIANTS = ["info", "success", "error"] as const;
+type Variant = (typeof VARIANTS)[number];
 
 export const route = createPage("_root_/styling-sx-signal-variant").render(() => {
-	const [idx, setIdx] = createSignal(0)
-	const variant = (): Variant => VARIANTS[idx()]
+	const [idx, setIdx] = createSignal(0);
+	const variant = (): Variant => VARIANTS[idx()];
 
 	return (
 		<main data-testid="styling-sx-signal-variant">
-			<button
-				data-testid="cycle-variant"
-				onClick={() => setIdx((i) => (i + 1) % VARIANTS.length)}
-				type="button"
-			>
+			<button data-testid="cycle-variant" onClick={() => setIdx((i) => (i + 1) % VARIANTS.length)} type="button">
 				Cycle Variant
 			</button>
 			<div
@@ -35,5 +31,5 @@ export const route = createPage("_root_/styling-sx-signal-variant").render(() =>
 				Variant: {variant()}
 			</div>
 		</main>
-	)
-})
+	);
+});

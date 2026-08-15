@@ -10,31 +10,27 @@ Type-safe chain API for defining pages, layouts, and root layouts. Each chain st
 
 ```ts
 interface RouteOptions {
-	gcTime?: number
-	prefetch?: PrefetchStrategy
-	prefetchGcTime?: number
-	prefetchStaleTime?: number
-	staleTime?: number
+	gcTime?: number;
+	prefetch?: PrefetchStrategy;
+	prefetchGcTime?: number;
+	prefetchStaleTime?: number;
+	staleTime?: number;
 }
 
-type PrefetchStrategy = false | "intent" | "render" | "viewport"
+type PrefetchStrategy = false | "intent" | "render" | "viewport";
 ```
 
 ### InputConfig
 
 ```ts
 interface InputConfig<TParams, TSearch> {
-	params?: ParamsValidator<TParams>
-	searchParams?: SearchParamsValidator<TSearch>
+	params?: ParamsValidator<TParams>;
+	searchParams?: SearchParamsValidator<TSearch>;
 }
 
-type ParamsValidator<T> =
-	| ((raw: Record<string, string>) => T)
-	| { parse: (raw: Record<string, string>) => T }
+type ParamsValidator<T> = ((raw: Record<string, string>) => T) | { parse: (raw: Record<string, string>) => T };
 
-type SearchParamsValidator<T> =
-	| ((raw: URLSearchParams) => T)
-	| { parse: (raw: URLSearchParams) => T }
+type SearchParamsValidator<T> = ((raw: URLSearchParams) => T) | { parse: (raw: URLSearchParams) => T };
 ```
 
 Accepts Zod schemas (`.parse()`) or plain transform functions. Narrows `TParams` and `TSearch` generics. Validation runs before authorize/preloader/loader — invalid input throws before any route logic executes.
@@ -43,16 +39,16 @@ Accepts Zod schemas (`.parse()`) or plain transform functions. Narrows `TParams`
 
 ```ts
 interface EffectsConfig<TParams, TSearch> {
-	loaderDeps?: (ctx: { search: TSearch }) => unknown[]
-	shouldRefetch?: (ctx: EffectsContext<TParams, TSearch>) => boolean
+	loaderDeps?: (ctx: { search: TSearch }) => unknown[];
+	shouldRefetch?: (ctx: EffectsContext<TParams, TSearch>) => boolean;
 }
 
 interface EffectsContext<TParams, TSearch> {
 	location: {
-		current: { hash: string; params: TParams; pathname: string; search: TSearch }
-		next: { hash: string; params: TParams; pathname: string; search: TSearch }
-	}
-	trigger: "initial" | "navigation" | "revalidation"
+		current: { hash: string; params: TParams; pathname: string; search: TSearch };
+		next: { hash: string; params: TParams; pathname: string; search: TSearch };
+	};
+	trigger: "initial" | "navigation" | "revalidation";
 }
 ```
 
@@ -63,7 +59,7 @@ interface EffectsContext<TParams, TSearch> {
 ### LoaderCause
 
 ```ts
-type LoaderCause = "enter" | "prefetch" | "stay"
+type LoaderCause = "enter" | "prefetch" | "stay";
 ```
 
 - `"enter"` — user navigated to this route (initial load or CSR nav)
@@ -73,12 +69,12 @@ type LoaderCause = "enter" | "prefetch" | "stay"
 ### DeferFn
 
 ```ts
-type DeferFn = <T>(fn: () => Promise<T>, options?: { key?: string }) => Deferred<T>
+type DeferFn = <T>(fn: () => Promise<T>, options?: { key?: string }) => Deferred<T>;
 
 interface Deferred<T> {
-	__deferred: true
-	key: string
-	promise: Promise<T>
+	__deferred: true;
+	key: string;
+	promise: Promise<T>;
 }
 ```
 
@@ -90,97 +86,97 @@ Wraps async work for NDJSON streaming. The promise resolves on the server, resul
 
 ```ts
 interface HeadConfig {
-	canonical?: string
-	css?: string
-	custom?: CustomHeadConfig
-	description?: string
-	favicons?: FaviconConfig
-	images?: SeoImage[]
-	jsonLd?: Thing | Thing[] /* from schema-dts */
-	keywords?: string
-	languages?: Record<string, string>
-	meta?: MetaConfig
-	openGraph?: OpenGraphConfig
-	robots?: RobotsConfig
-	title?: string
-	twitter?: TwitterConfig
+	canonical?: string;
+	css?: string;
+	custom?: CustomHeadConfig;
+	description?: string;
+	favicons?: FaviconConfig;
+	images?: SeoImage[];
+	jsonLd?: Thing | Thing[]; /* from schema-dts */
+	keywords?: string;
+	languages?: Record<string, string>;
+	meta?: MetaConfig;
+	openGraph?: OpenGraphConfig;
+	robots?: RobotsConfig;
+	title?: string;
+	twitter?: TwitterConfig;
 }
 
 interface FaviconConfig {
-	"96x96"?: string
-	"192x192"?: string
-	"512x512"?: string
-	appleTouchIcon?: string
-	ico?: string
-	svg?: string
+	"96x96"?: string;
+	"192x192"?: string;
+	"512x512"?: string;
+	appleTouchIcon?: string;
+	ico?: string;
+	svg?: string;
 }
 
 interface SeoImage {
-	alt?: string
-	height?: number
-	type?: string
-	url: string
-	width?: number
+	alt?: string;
+	height?: number;
+	type?: string;
+	url: string;
+	width?: number;
 }
 
 interface MetaConfig {
-	applicationName?: string
-	appleMobileWebAppCapable?: "yes" | "no"
-	appleMobileWebAppStatusBarStyle?: "default" | "black" | "black-translucent"
-	appleMobileWebAppTitle?: string
-	author?: string
-	charset?: string
-	creator?: string
-	generator?: string
-	manifest?: string
-	mobileWebAppCapable?: "yes" | "no"
-	publisher?: string
-	viewport?: string | false
+	applicationName?: string;
+	appleMobileWebAppCapable?: "yes" | "no";
+	appleMobileWebAppStatusBarStyle?: "default" | "black" | "black-translucent";
+	appleMobileWebAppTitle?: string;
+	author?: string;
+	charset?: string;
+	creator?: string;
+	generator?: string;
+	manifest?: string;
+	mobileWebAppCapable?: "yes" | "no";
+	publisher?: string;
+	viewport?: string | false;
 }
 
 interface OpenGraphConfig {
-	alternateLocale?: string[]
-	audio?: Array<{ secureUrl?: string; type?: string; url: string }>
-	description?: string
-	images?: SeoImage[]
-	locale?: string
-	siteName?: string
-	title?: string
-	type?: "article" | "product" | "profile" | "website"
-	url?: string
+	alternateLocale?: string[];
+	audio?: Array<{ secureUrl?: string; type?: string; url: string }>;
+	description?: string;
+	images?: SeoImage[];
+	locale?: string;
+	siteName?: string;
+	title?: string;
+	type?: "article" | "product" | "profile" | "website";
+	url?: string;
 	videos?: Array<{
-		height?: number
-		secureUrl?: string
-		type?: string
-		url: string
-		width?: number
-	}>
+		height?: number;
+		secureUrl?: string;
+		type?: string;
+		url: string;
+		width?: number;
+	}>;
 }
 
 interface RobotsConfig {
-	follow?: boolean
-	index?: boolean
-	"max-image-preview"?: "large" | "none" | "standard"
-	"max-snippet"?: number
-	"max-video-preview"?: number
-	noarchive?: boolean
-	noimageindex?: boolean
+	follow?: boolean;
+	index?: boolean;
+	"max-image-preview"?: "large" | "none" | "standard";
+	"max-snippet"?: number;
+	"max-video-preview"?: number;
+	noarchive?: boolean;
+	noimageindex?: boolean;
 }
 
 interface TwitterConfig {
-	card?: "app" | "player" | "summary" | "summary_large_image"
-	creator?: string
-	description?: string
-	images?: Array<{ alt?: string; url: string }>
-	site?: string
-	title?: string
+	card?: "app" | "player" | "summary" | "summary_large_image";
+	creator?: string;
+	description?: string;
+	images?: Array<{ alt?: string; url: string }>;
+	site?: string;
+	title?: string;
 }
 
 interface CustomHeadConfig {
-	links?: Array<Record<string, string>>
-	meta?: Array<Record<string, string>>
-	scripts?: Array<{ children?: string; src?: string; type?: string }>
-	styles?: Array<{ children: string }>
+	links?: Array<Record<string, string>>;
+	meta?: Array<Record<string, string>>;
+	scripts?: Array<{ children?: string; src?: string; type?: string }>;
+	styles?: Array<{ children: string }>;
 }
 ```
 
@@ -189,7 +185,7 @@ Child overrides parent for same key. Merged sequentially: root → layouts → p
 ### ResponseHeaders
 
 ```ts
-type ResponseHeaders = Record<string, string>
+type ResponseHeaders = Record<string, string>;
 ```
 
 Child overrides parent for same key. Merged sequentially like head.
@@ -197,16 +193,16 @@ Child overrides parent for same key. Merged sequentially like head.
 ### Auth Resolution
 
 ```ts
-type ResolvedAuth<TAuth> = /* .authenticate() or .authenticate(data)      → */ Auth
-/* no .authenticate()                          → */ null
+type ResolvedAuth<TAuth> = /* .authenticate() or .authenticate(data)      → */ Auth;
+/* no .authenticate()                          → */ null;
 ```
 
 `Auth` type provided via module augmentation:
 
 ```ts
-declare module "flare" {
+declare module "@lovrozagar/flare" {
 	interface FlareRegister {
-		auth: AppAuth
+		auth: AppAuth;
 	}
 }
 ```
@@ -311,12 +307,12 @@ Rules:
 
 ```ts
 interface PageAuthorizeContext<TPath, TParams, TSearch, TPreloaderContext> {
-	abortController: AbortController
-	auth: ResolvedAuth<TAuth>
-	env: unknown
-	location: Location<TParams, TSearch>
-	preloaderContext: TPreloaderContext
-	request: Request
+	abortController: AbortController;
+	auth: ResolvedAuth<TAuth>;
+	env: unknown;
+	location: Location<TParams, TSearch>;
+	preloaderContext: TPreloaderContext;
+	request: Request;
 }
 ```
 
@@ -326,12 +322,12 @@ Returns `boolean | Promise<boolean>`. `false` → framework throws `Unauthorized
 
 ```ts
 interface PagePreloaderContext<TPath, TParams, TSearch, TPreloaderContext> {
-	abortController: AbortController
-	auth: ResolvedAuth<TAuth>
-	env: unknown
-	location: Location<TParams, TSearch>
-	preloaderContext: TPreloaderContext /* parent's context, NOT own return */
-	request: Request
+	abortController: AbortController;
+	auth: ResolvedAuth<TAuth>;
+	env: unknown;
+	location: Location<TParams, TSearch>;
+	preloaderContext: TPreloaderContext; /* parent's context, NOT own return */
+	request: Request;
 }
 ```
 
@@ -341,16 +337,16 @@ Returns object. Return value intersected with parent context: `TParent & Awaited
 
 ```ts
 interface PageLoaderContext<TPath, TParams, TSearch, TPreloaderContext> {
-	abortController: AbortController
-	auth: ResolvedAuth<TAuth>
-	cause: LoaderCause
-	defer: DeferFn
-	deps: unknown[]
-	env: unknown
-	location: Location<TParams, TSearch>
-	prefetch: boolean
-	preloaderContext: TPreloaderContext
-	request: Request
+	abortController: AbortController;
+	auth: ResolvedAuth<TAuth>;
+	cause: LoaderCause;
+	defer: DeferFn;
+	deps: unknown[];
+	env: unknown;
+	location: Location<TParams, TSearch>;
+	prefetch: boolean;
+	preloaderContext: TPreloaderContext;
+	request: Request;
 }
 ```
 
@@ -360,12 +356,12 @@ Returns `TLoaderData | Promise<TLoaderData>`.
 
 ```ts
 interface PageHeadContext<TParams, TSearch, TPreloaderContext, TLoaderData> {
-	cause: LoaderCause
-	loaderData: TLoaderData
-	location: Location<TParams, TSearch>
-	parentHead: HeadConfig | undefined
-	prefetch: boolean
-	preloaderContext: TPreloaderContext
+	cause: LoaderCause;
+	loaderData: TLoaderData;
+	location: Location<TParams, TSearch>;
+	parentHead: HeadConfig | undefined;
+	prefetch: boolean;
+	preloaderContext: TPreloaderContext;
 }
 ```
 
@@ -375,14 +371,14 @@ Returns `HeadConfig`. No `env`, `request`, `auth` — head is pure data transfor
 
 ```ts
 interface PageHeadersContext<TParams, TSearch, TPreloaderContext, TLoaderData> {
-	cause: LoaderCause
-	env: unknown
-	loaderData: TLoaderData
-	location: Location<TParams, TSearch>
-	parentHeaders: ResponseHeaders | undefined
-	prefetch: boolean
-	preloaderContext: TPreloaderContext
-	request: Request
+	cause: LoaderCause;
+	env: unknown;
+	loaderData: TLoaderData;
+	location: Location<TParams, TSearch>;
+	parentHeaders: ResponseHeaders | undefined;
+	prefetch: boolean;
+	preloaderContext: TPreloaderContext;
+	request: Request;
 }
 ```
 
@@ -392,9 +388,9 @@ Returns `ResponseHeaders`. Has `env` and `request` (may need request info for ca
 
 ```ts
 interface PageRenderProps<TParams, TSearch, TPreloaderContext, TLoaderData> {
-	loaderData: TLoaderData
-	location: Location<TParams, TSearch>
-	preloaderContext: TPreloaderContext
+	loaderData: TLoaderData;
+	location: Location<TParams, TSearch>;
+	preloaderContext: TPreloaderContext;
 }
 ```
 
@@ -404,7 +400,7 @@ Returns `JSX.Element`. No `env`, `request`, `abortController` — render is not 
 
 ```ts
 interface PageResponseContext {
-	request: Request
+	request: Request;
 }
 ```
 
@@ -414,9 +410,9 @@ Returns `Response`. For API routes, webhooks, non-HTML endpoints. Not wrapped in
 
 ```ts
 interface PageErrorRenderProps<TParams, TSearch> {
-	error: Error
-	location: Location<TParams, TSearch>
-	reset: () => void
+	error: Error;
+	location: Location<TParams, TSearch>;
+	reset: () => void;
 }
 ```
 
@@ -426,7 +422,7 @@ Catches errors thrown in **this route's** loader or render. `reset()` clears bou
 
 ```ts
 interface PageNotFoundRenderProps<TParams, TSearch> {
-	location: Location<TParams, TSearch>
+	location: Location<TParams, TSearch>;
 }
 ```
 
@@ -436,8 +432,8 @@ Catches `NotFoundError` thrown in **child** routes.
 
 ```ts
 interface PageUnauthorizedRenderProps<TParams, TSearch> {
-	error: UnauthenticatedError | UnauthorizedError
-	location: Location<TParams, TSearch>
+	error: UnauthenticatedError | UnauthorizedError;
+	location: Location<TParams, TSearch>;
 }
 ```
 
@@ -447,41 +443,33 @@ Catches `UnauthenticatedError` (401) and `UnauthorizedError` (403) — walk-up c
 
 ```ts
 interface PageResultRender<TPath, TParams, TSearch, TAuth, TPreloaderContext, TLoaderData> {
-	_type: "render"
-	authenticate?: unknown[] /* args from .authenticate(...args) */
-	authorize?: (
-		ctx: PageAuthorizeContext<TPath, TParams, TSearch, TPreloaderContext>,
-	) => boolean | Promise<boolean>
-	effectsConfig?: EffectsConfig<TParams, TSearch>
-	errorRender?: (props: PageErrorRenderProps<TParams, TSearch>) => JSX.Element
-	head?: (ctx: PageHeadContext<TParams, TSearch, TPreloaderContext, TLoaderData>) => HeadConfig
-	headers?: (
-		ctx: PageHeadersContext<TParams, TSearch, TPreloaderContext, TLoaderData>,
-	) => ResponseHeaders
-	inputConfig?: InputConfig<TParams, TSearch>
-	loader?: (
-		ctx: PageLoaderContext<TPath, TParams, TSearch, TPreloaderContext>,
-	) => TLoaderData | Promise<TLoaderData>
-	notFoundRender?: (props: PageNotFoundRenderProps<TParams, TSearch>) => JSX.Element
-	options?: RouteOptions
-	preloader?: (ctx: PagePreloaderContext<TPath, TParams, TSearch, TPreloaderContext>) => unknown
-	render: (props: PageRenderProps<TParams, TSearch, TPreloaderContext, TLoaderData>) => JSX.Element
-	unauthorizedRender?: (props: PageUnauthorizedRenderProps<TParams, TSearch>) => JSX.Element
-	virtualPath: TPath
+	_type: "render";
+	authenticate?: unknown[]; /* args from .authenticate(...args) */
+	authorize?: (ctx: PageAuthorizeContext<TPath, TParams, TSearch, TPreloaderContext>) => boolean | Promise<boolean>;
+	effectsConfig?: EffectsConfig<TParams, TSearch>;
+	errorRender?: (props: PageErrorRenderProps<TParams, TSearch>) => JSX.Element;
+	head?: (ctx: PageHeadContext<TParams, TSearch, TPreloaderContext, TLoaderData>) => HeadConfig;
+	headers?: (ctx: PageHeadersContext<TParams, TSearch, TPreloaderContext, TLoaderData>) => ResponseHeaders;
+	inputConfig?: InputConfig<TParams, TSearch>;
+	loader?: (ctx: PageLoaderContext<TPath, TParams, TSearch, TPreloaderContext>) => TLoaderData | Promise<TLoaderData>;
+	notFoundRender?: (props: PageNotFoundRenderProps<TParams, TSearch>) => JSX.Element;
+	options?: RouteOptions;
+	preloader?: (ctx: PagePreloaderContext<TPath, TParams, TSearch, TPreloaderContext>) => unknown;
+	render: (props: PageRenderProps<TParams, TSearch, TPreloaderContext, TLoaderData>) => JSX.Element;
+	unauthorizedRender?: (props: PageUnauthorizedRenderProps<TParams, TSearch>) => JSX.Element;
+	virtualPath: TPath;
 }
 
 interface PageResultResponse<TPath, TParams, TSearch, TAuth, TPreloaderContext> {
-	_type: "response"
-	authenticate?: unknown[] /* args from .authenticate(...args) */
-	authorize?: (
-		ctx: PageAuthorizeContext<TPath, TParams, TSearch, TPreloaderContext>,
-	) => boolean | Promise<boolean>
-	effectsConfig?: EffectsConfig<TParams, TSearch>
-	inputConfig?: InputConfig<TParams, TSearch>
-	options?: RouteOptions
-	preloader?: (ctx: PagePreloaderContext<TPath, TParams, TSearch, TPreloaderContext>) => unknown
-	response: (ctx: PageResponseContext) => Response
-	virtualPath: TPath
+	_type: "response";
+	authenticate?: unknown[]; /* args from .authenticate(...args) */
+	authorize?: (ctx: PageAuthorizeContext<TPath, TParams, TSearch, TPreloaderContext>) => boolean | Promise<boolean>;
+	effectsConfig?: EffectsConfig<TParams, TSearch>;
+	inputConfig?: InputConfig<TParams, TSearch>;
+	options?: RouteOptions;
+	preloader?: (ctx: PagePreloaderContext<TPath, TParams, TSearch, TPreloaderContext>) => unknown;
+	response: (ctx: PageResponseContext) => Response;
+	virtualPath: TPath;
 }
 ```
 
@@ -533,10 +521,10 @@ Same as page for `.authorize()`, `.preloader()`, `.loader()`, `.head()`, `.heade
 
 ```ts
 interface LayoutRenderProps<TParams, TSearch, TPreloaderContext, TLoaderData> {
-	children: JSX.Element
-	loaderData: TLoaderData
-	location: Location<TParams, TSearch>
-	preloaderContext: TPreloaderContext
+	children: JSX.Element;
+	loaderData: TLoaderData;
+	location: Location<TParams, TSearch>;
+	preloaderContext: TPreloaderContext;
 }
 ```
 
@@ -588,11 +576,11 @@ Differs from page/layout in authorize, preloader, and head.
 
 ```ts
 interface RootAuthorizeContext<TPath, TParams, TSearch> {
-	abortController: AbortController
-	auth: ResolvedAuth<TAuth>
-	env: unknown
-	location: Location<TParams, TSearch>
-	request: Request
+	abortController: AbortController;
+	auth: ResolvedAuth<TAuth>;
+	env: unknown;
+	location: Location<TParams, TSearch>;
+	request: Request;
 }
 ```
 
@@ -602,11 +590,11 @@ interface RootAuthorizeContext<TPath, TParams, TSearch> {
 
 ```ts
 interface RootPreloaderContext<TPath, TParams, TSearch> {
-	abortController: AbortController
-	auth: ResolvedAuth<TAuth>
-	env: unknown
-	location: Location<TParams, TSearch>
-	request: Request
+	abortController: AbortController;
+	auth: ResolvedAuth<TAuth>;
+	env: unknown;
+	location: Location<TParams, TSearch>;
+	request: Request;
 }
 ```
 
@@ -620,11 +608,11 @@ Same as page. **Does** receive `preloaderContext` — from root's own `.preloade
 
 ```ts
 interface RootHeadContext<TParams, TSearch, TPreloaderContext, TLoaderData> {
-	cause: LoaderCause
-	loaderData: TLoaderData
-	location: Location<TParams, TSearch>
-	prefetch: boolean
-	preloaderContext: TPreloaderContext
+	cause: LoaderCause;
+	loaderData: TLoaderData;
+	location: Location<TParams, TSearch>;
+	prefetch: boolean;
+	preloaderContext: TPreloaderContext;
 }
 ```
 
@@ -634,13 +622,13 @@ interface RootHeadContext<TParams, TSearch, TPreloaderContext, TLoaderData> {
 
 ```ts
 interface RootHeadersContext<TParams, TSearch, TPreloaderContext, TLoaderData> {
-	cause: LoaderCause
-	env: unknown
-	loaderData: TLoaderData
-	location: Location<TParams, TSearch>
-	prefetch: boolean
-	preloaderContext: TPreloaderContext
-	request: Request
+	cause: LoaderCause;
+	env: unknown;
+	loaderData: TLoaderData;
+	location: Location<TParams, TSearch>;
+	prefetch: boolean;
+	preloaderContext: TPreloaderContext;
+	request: Request;
 }
 ```
 
@@ -650,10 +638,10 @@ interface RootHeadersContext<TParams, TSearch, TPreloaderContext, TLoaderData> {
 
 ```ts
 interface RootLayoutRenderProps<TParams, TSearch, TPreloaderContext, TLoaderData> {
-	children: JSX.Element
-	loaderData: TLoaderData
-	location: Location<TParams, TSearch>
-	preloaderContext: TPreloaderContext
+	children: JSX.Element;
+	loaderData: TLoaderData;
+	location: Location<TParams, TSearch>;
+	preloaderContext: TPreloaderContext;
 }
 ```
 
@@ -694,22 +682,22 @@ TLoaderData       → narrowed by .loader(fn) return type               default:
 
 ```ts
 /* root defines theme */
-createRootLayout("_root_").preloader(async () => ({ theme: "dark" as const }))
+createRootLayout("_root_").preloader(async () => ({ theme: "dark" as const }));
 /* TPreloaderContext = { theme: "dark" } */
 
 /* layout adds user, receives theme from root */
 createLayout("_root_/(auth)").preloader(async (ctx) => {
-	ctx.preloaderContext.theme /* "dark" — typed from parent */
-	return { user: await getUser() }
-})
+	ctx.preloaderContext.theme; /* "dark" — typed from parent */
+	return { user: await getUser() };
+});
 /* TPreloaderContext = { theme: "dark" } & { user: User } */
 
 /* page receives both */
 createPage("_root_/(auth)/dashboard").loader(async (ctx) => {
-	ctx.preloaderContext.theme /* "dark" */
-	ctx.preloaderContext.user /* User */
-	return { stats: await getStats(ctx.preloaderContext.user.id) }
-})
+	ctx.preloaderContext.theme; /* "dark" */
+	ctx.preloaderContext.user; /* User */
+	return { stats: await getStats(ctx.preloaderContext.user.id) };
+});
 ```
 
 ### Loader data inference
@@ -818,7 +806,7 @@ createPage("_root_/api/health").response(
 		new Response(JSON.stringify({ ok: true }), {
 			headers: { "Content-Type": "application/json" },
 		}),
-)
+);
 ```
 
 ### Layout with preloader

@@ -1,13 +1,13 @@
-import { createLayout } from "flare/layout"
+import { createLayout } from "@lovrozagar/flare/layout";
 
 export const route = createLayout("_root_/(dashboard)")
 	.loader((ctx) => {
-		const ua = ctx.request.headers.get("user-agent") ?? "unknown"
+		const ua = ctx.request.headers.get("user-agent") ?? "unknown";
 		return {
 			layoutPlatform: "Standard",
 			layoutTimestamp: Date.now(),
 			userAgentShort: ua.slice(0, 30),
-		}
+		};
 	})
 	.headers(() => ({
 		"x-dashboard-layout": "true",
@@ -25,4 +25,4 @@ export const route = createLayout("_root_/(dashboard)")
 			</header>
 			<main data-testid="dashboard-main">{props.children}</main>
 		</div>
-	))
+	));

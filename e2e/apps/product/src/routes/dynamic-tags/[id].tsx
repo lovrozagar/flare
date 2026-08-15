@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
-let callCount = 0
+let callCount = 0;
 
 export const route = createPage("_root_/dynamic-tags/[id]")
 	.cache({
@@ -11,8 +11,8 @@ export const route = createPage("_root_/dynamic-tags/[id]")
 		},
 	})
 	.loader(({ location }) => {
-		callCount++
-		return { callCount, id: location.params.id, timestamp: Date.now() }
+		callCount++;
+		return { callCount, id: location.params.id, timestamp: Date.now() };
 	})
 	.render((props) => (
 		<div data-testid="dynamic-tags">
@@ -20,4 +20,4 @@ export const route = createPage("_root_/dynamic-tags/[id]")
 			<p data-testid="dtag-timestamp">{props.loaderData.timestamp}</p>
 			<p data-testid="dtag-calls">{props.loaderData.callCount}</p>
 		</div>
-	))
+	));

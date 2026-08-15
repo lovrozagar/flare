@@ -1,26 +1,23 @@
-import { describe, expect, it } from "vitest"
-import { getServerContext, runWithServerContext } from "../../../src/server-context/index.ts"
+import { describe, expect, it } from "vitest";
+import { getServerContext, runWithServerContext } from "../../../src/server-context/index.ts";
 
 describe("getServerContext", () => {
 	it("returns factory result within runWithServerContext", () => {
-		const ctx = { db: "test-db", requestId: "abc-123" }
-		runWithServerContext(
-			{ nonce: "x", request: new Request("http://localhost/"), serverContext: ctx },
-			() => {
-				expect(getServerContext()).toBe(ctx)
-			},
-		)
-	})
+		const ctx = { db: "test-db", requestId: "abc-123" };
+		runWithServerContext({ nonce: "x", request: new Request("http://localhost/"), serverContext: ctx }, () => {
+			expect(getServerContext()).toBe(ctx);
+		});
+	});
 
 	it("returns empty object outside request context", () => {
-		expect(getServerContext()).toEqual({})
-	})
+		expect(getServerContext()).toEqual({});
+	});
 
 	it("defaults to empty object when serverContext option omitted", () => {
 		runWithServerContext({ nonce: "x", request: new Request("http://localhost/") }, () => {
-			expect(getServerContext()).toEqual({})
-		})
-	})
+			expect(getServerContext()).toEqual({});
+		});
+	});
 
 	it("mutations visible via getServerContext within same request", () => {
 		runWithServerContext(
@@ -30,12 +27,12 @@ describe("getServerContext", () => {
 				serverContext: { count: 0 },
 			},
 			() => {
-				const ctx = getServerContext()
-				ctx.count = 42
-				expect(getServerContext().count).toBe(42)
+				const ctx = getServerContext();
+				ctx.count = 42;
+				expect(getServerContext().count).toBe(42);
 			},
-		)
-	})
+		);
+	});
 
 	it("isolated between concurrent requests", async () => {
 		const results = await Promise.all([
@@ -46,8 +43,8 @@ describe("getServerContext", () => {
 					serverContext: { id: "request-a" },
 				},
 				async () => {
-					await new Promise((r) => setTimeout(r, 10))
-					return getServerContext().id
+					await new Promise((r) => setTimeout(r, 10));
+					return getServerContext().id;
 				},
 			),
 			runWithServerContext(
@@ -57,13 +54,13 @@ describe("getServerContext", () => {
 					serverContext: { id: "request-b" },
 				},
 				async () => {
-					await new Promise((r) => setTimeout(r, 5))
-					return getServerContext().id
+					await new Promise((r) => setTimeout(r, 5));
+					return getServerContext().id;
 				},
 			),
-		])
-		expect(results).toEqual(["request-a", "request-b"])
-	})
+		]);
+		expect(results).toEqual(["request-a", "request-b"]);
+	});
 
 	it("async factory result preserved through awaits", async () => {
 		const result = await runWithServerContext(
@@ -73,11 +70,11 @@ describe("getServerContext", () => {
 				serverContext: { token: "secret" },
 			},
 			async () => {
-				await Promise.resolve()
-				await new Promise((r) => setTimeout(r, 5))
-				return getServerContext().token
+				await Promise.resolve();
+				await new Promise((r) => setTimeout(r, 5));
+				return getServerContext().token;
 			},
-		)
-		expect(result).toBe("secret")
-	})
-})
+		);
+		expect(result).toBe("secret");
+	});
+});

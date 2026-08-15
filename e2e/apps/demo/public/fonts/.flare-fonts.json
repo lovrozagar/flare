@@ -3,15 +3,7 @@
 		"inter": {
 			"family": "Inter",
 			"installedAt": "2026-03-07T23:03:14.484Z",
-			"subsets": [
-				"cyrillic",
-				"cyrillic-ext",
-				"greek",
-				"greek-ext",
-				"latin",
-				"latin-ext",
-				"vietnamese"
-			]
+			"subsets": ["cyrillic", "cyrillic-ext", "greek", "greek-ext", "latin", "latin-ext", "vietnamese"]
 		}
 	}
 }

@@ -1,15 +1,15 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/time")
 	.loader(() => {
-		const epoch = new Date(0)
-		const known = new Date("2024-06-15T12:30:00Z")
+		const epoch = new Date(0);
+		const known = new Date("2024-06-15T12:30:00Z");
 		const formatter = new Intl.DateTimeFormat("en-US", {
 			day: "numeric",
 			month: "short",
 			timeZone: "UTC",
 			year: "numeric",
-		})
+		});
 
 		return {
 			epochIso: epoch.toISOString(),
@@ -20,7 +20,7 @@ export const route = createPage("_root_/time")
 			parsedEpoch: Date.parse("1970-01-01T00:00:00.000Z"),
 			platform: "Standard",
 			utcString: epoch.toUTCString(),
-		}
+		};
 	})
 	.render((props) => (
 		<div>
@@ -45,4 +45,4 @@ export const route = createPage("_root_/time")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

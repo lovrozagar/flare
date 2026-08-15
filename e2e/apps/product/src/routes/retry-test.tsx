@@ -1,16 +1,16 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
-const retryState = globalThis as { __flareRetryCount?: number }
+const retryState = globalThis as { __flareRetryCount?: number };
 
 export function resetRetryCounter(): void {
-	retryState.__flareRetryCount = 0
+	retryState.__flareRetryCount = 0;
 }
 
 export const route = createPage("_root_/retry-test")
 	.loader(() => {
-		retryState.__flareRetryCount = (retryState.__flareRetryCount ?? 0) + 1
-		if (retryState.__flareRetryCount === 1) throw new Error("Transient failure")
-		return { attempt: retryState.__flareRetryCount }
+		retryState.__flareRetryCount = (retryState.__flareRetryCount ?? 0) + 1;
+		if (retryState.__flareRetryCount === 1) throw new Error("Transient failure");
+		return { attempt: retryState.__flareRetryCount };
 	})
 	.render((props) => (
 		<div data-testid="retry-success">
@@ -24,4 +24,4 @@ export const route = createPage("_root_/retry-test")
 				Retry
 			</button>
 		</div>
-	))
+	));

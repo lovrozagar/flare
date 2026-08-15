@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { useRouter } from "flare/router"
+import { createPage } from "@lovrozagar/flare/page";
+import { useRouter } from "@lovrozagar/flare/router";
 
 export const route = createPage("_root_/shallow-test")
 	.loader(() => ({
@@ -7,7 +7,7 @@ export const route = createPage("_root_/shallow-test")
 		random: Math.random(),
 	}))
 	.render((props) => {
-		const r = useRouter()
+		const r = useRouter();
 		return (
 			<main data-testid="shallow-test">
 				<p data-testid="shallow-loaded-at">{props.loaderData.loadedAt}</p>
@@ -15,12 +15,10 @@ export const route = createPage("_root_/shallow-test")
 				<button
 					data-testid="shallow-search"
 					type="button"
-					onClick={() =>
-						r.navigate({ search: { tab: "b" }, shallow: true, to: "/shallow-test" })
-					}
+					onClick={() => r.navigate({ search: { tab: "b" }, shallow: true, to: "/shallow-test" })}
 				>
 					Shallow
 				</button>
 			</main>
-		)
-	})
+		);
+	});

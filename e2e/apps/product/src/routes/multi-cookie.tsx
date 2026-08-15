@@ -1,14 +1,14 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/multi-cookie")
 	.loader(({ request }) => {
-		const cookies = request.headers.get("cookie") ?? ""
+		const cookies = request.headers.get("cookie") ?? "";
 		return {
 			langCookie: cookies.match(/lang=([^;]+)/)?.[1] ?? "none",
 			sessionCookie: cookies.match(/session=([^;]+)/)?.[1] ?? "none",
 			themeCookie: cookies.match(/theme=([^;]+)/)?.[1] ?? "none",
-		}
+		};
 	})
 	.headers(() => ({
 		"set-cookie": [
@@ -28,4 +28,4 @@ export const route = createPage("_root_/multi-cookie")
 				<Link to="/">Home</Link>
 			</nav>
 		</main>
-	))
+	));

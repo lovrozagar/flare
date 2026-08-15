@@ -1,16 +1,14 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/context")
 	.loader(({ serverContext }) => {
-		const ctx = serverContext as { requestId: string; userAgent: string }
+		const ctx = serverContext as { requestId: string; userAgent: string };
 		return {
-			hasUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-				ctx.requestId,
-			),
+			hasUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ctx.requestId),
 			requestId: ctx.requestId,
 			uaPresent: ctx.userAgent.length > 0,
-		}
+		};
 	})
 	.render((props) => (
 		<main data-testid="context">
@@ -27,4 +25,4 @@ export const route = createPage("_root_/context")
 				<Link to="/">Home</Link>
 			</nav>
 		</main>
-	))
+	));

@@ -1,10 +1,10 @@
-import { Show } from "solid-js"
-import type { JSX } from "solid-js"
+import { Show } from "solid-js";
+import type { JSX } from "solid-js";
 
 interface DialogProps {
-	open: boolean
-	onClose: () => void
-	children: JSX.Element
+	open: boolean;
+	onClose: () => void;
+	children: JSX.Element;
 }
 
 /* Dialog with sx on content and backdrop — no portal in SSR-safe version */
@@ -43,5 +43,5 @@ export function SxDialog(props: DialogProps) {
 				</div>
 			</div>
 		</Show>
-	)
+	);
 }

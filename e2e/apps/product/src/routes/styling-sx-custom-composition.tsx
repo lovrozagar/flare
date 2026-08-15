@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
-import { SxCard } from "../components/sx-custom/card"
-import { SxButton } from "../components/sx-custom/button"
+import { createPage } from "@lovrozagar/flare/page";
+import { SxCard } from "../components/sx-custom/card";
+import { SxButton } from "../components/sx-custom/button";
 
 /* Card wrapping Button — both with sx; verify cascade doesn't collide */
 export const route = createPage("_root_/styling-sx-custom-composition").render(() => {
@@ -18,5 +18,5 @@ export const route = createPage("_root_/styling-sx-custom-composition").render((
 				<span data-testid="card-override-text">Override card</span>
 			</SxCard>
 		</main>
-	)
-})
+	);
+});

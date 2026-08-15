@@ -1,5 +1,5 @@
-import { createRegistryFont } from "./create-registry-font.ts"
-import type { Font } from "./types.ts"
+import { createRegistryFont } from "./create-registry-font.ts";
+import type { Font } from "./types.ts";
 
 export const anticSlab: Font<"latin"> = createRegistryFont({
 	category: "serif",
@@ -23,4 +23,4 @@ export const anticSlab: Font<"latin"> = createRegistryFont({
 	],
 	subsets: ["latin"],
 	weights: [400],
-})
+});

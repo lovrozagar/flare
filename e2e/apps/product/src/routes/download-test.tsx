@@ -1,5 +1,5 @@
-import { Link } from "flare/link"
-import { createPage } from "flare/page"
+import { Link } from "@lovrozagar/flare/link";
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/download-test").render(() => (
 	<main data-testid="download-test">
@@ -16,4 +16,4 @@ export const route = createPage("_root_/download-test").render(() => (
 			External Anchor
 		</a>
 	</main>
-))
+));

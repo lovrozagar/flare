@@ -8,22 +8,22 @@
  */
 
 export interface ModulePreloads {
-	css: string[]
-	js: string[]
+	css: string[];
+	js: string[];
 }
 
 export interface ViteManifestEntry {
-	css?: string[]
-	dynamicImports?: string[]
-	file: string
-	imports?: string[]
-	isDynamicEntry?: boolean
-	isEntry?: boolean
-	name?: string
-	src?: string
+	css?: string[];
+	dynamicImports?: string[];
+	file: string;
+	imports?: string[];
+	isDynamicEntry?: boolean;
+	isEntry?: boolean;
+	name?: string;
+	src?: string;
 }
 
-export type ViteManifest = Record<string, ViteManifestEntry>
+export type ViteManifest = Record<string, ViteManifestEntry>;
 
 /**
  * Walk Vite manifest from an entry key, collecting all transitive
@@ -33,56 +33,56 @@ export type ViteManifest = Record<string, ViteManifestEntry>
  * Returns deduplicated, ordered arrays of asset paths.
  */
 function ensureLeadingSlash(path: string): string {
-	return path.startsWith("/") ? path : `/${path}`
+	return path.startsWith("/") ? path : `/${path}`;
 }
 
 export function resolveModulePreloads(manifest: ViteManifest, entryKey: string): ModulePreloads {
-	const js: string[] = []
-	const css: string[] = []
-	const visited = new Set<string>()
-	const cssVisited = new Set<string>()
+	const js: string[] = [];
+	const css: string[] = [];
+	const visited = new Set<string>();
+	const cssVisited = new Set<string>();
 
 	function walk(key: string) {
-		if (visited.has(key)) return
-		visited.add(key)
+		if (visited.has(key)) return;
+		visited.add(key);
 
-		const entry = manifest[key]
-		if (!entry) return
+		const entry = manifest[key];
+		if (!entry) return;
 
-		js.push(ensureLeadingSlash(entry.file))
+		js.push(ensureLeadingSlash(entry.file));
 
 		if (entry.css) {
 			for (const href of entry.css) {
-				const path = ensureLeadingSlash(href)
+				const path = ensureLeadingSlash(href);
 				if (!cssVisited.has(path)) {
-					cssVisited.add(path)
-					css.push(path)
+					cssVisited.add(path);
+					css.push(path);
 				}
 			}
 		}
 
 		if (entry.imports) {
 			for (const dep of entry.imports) {
-				walk(dep)
+				walk(dep);
 			}
 		}
 	}
 
-	walk(entryKey)
+	walk(entryKey);
 
 	/* Hydrate is a dynamic import from createClient — not a route chunk.
 	   Preload that one hop so Lighthouse does not chain client.js → hydrate.js.
 	   Never follow src/routes/* dynamicImports (those stay lazy). */
-	const root = manifest[entryKey]
+	const root = manifest[entryKey];
 	if (root?.dynamicImports) {
 		for (const dep of root.dynamicImports) {
 			if (/[/\\]hydrate[/\\]index\.[cm]?[tj]sx?$/.test(dep)) {
-				walk(dep)
+				walk(dep);
 			}
 		}
 	}
 
-	return { css, js }
+	return { css, js };
 }
 
 /**
@@ -99,48 +99,48 @@ export function resolveRoutePreloads(
 	routeModuleIds: string[],
 	entryPreloads?: ModulePreloads,
 ): ModulePreloads {
-	const entryJs = new Set(entryPreloads?.js)
-	const entryCss = new Set(entryPreloads?.css)
+	const entryJs = new Set(entryPreloads?.js);
+	const entryCss = new Set(entryPreloads?.css);
 
-	const js: string[] = []
-	const css: string[] = []
-	const visited = new Set<string>()
-	const cssVisited = new Set(entryCss)
+	const js: string[] = [];
+	const css: string[] = [];
+	const visited = new Set<string>();
+	const cssVisited = new Set(entryCss);
 
 	function walk(key: string) {
-		if (visited.has(key)) return
-		visited.add(key)
+		if (visited.has(key)) return;
+		visited.add(key);
 
-		const entry = manifest[key]
-		if (!entry) return
+		const entry = manifest[key];
+		if (!entry) return;
 
-		const file = ensureLeadingSlash(entry.file)
+		const file = ensureLeadingSlash(entry.file);
 		if (!entryJs.has(file)) {
-			js.push(file)
+			js.push(file);
 		}
 
 		if (entry.css) {
 			for (const href of entry.css) {
-				const cssFile = ensureLeadingSlash(href)
+				const cssFile = ensureLeadingSlash(href);
 				if (!cssVisited.has(cssFile)) {
-					cssVisited.add(cssFile)
-					css.push(cssFile)
+					cssVisited.add(cssFile);
+					css.push(cssFile);
 				}
 			}
 		}
 
 		if (entry.imports) {
 			for (const dep of entry.imports) {
-				walk(dep)
+				walk(dep);
 			}
 		}
 	}
 
 	for (const moduleId of routeModuleIds) {
-		walk(moduleId)
+		walk(moduleId);
 	}
 
-	return { css, js }
+	return { css, js };
 }
 
 /**
@@ -148,34 +148,34 @@ export function resolveRoutePreloads(
  */
 export function findEntryKey(manifest: ViteManifest): string | undefined {
 	for (const [key, entry] of Object.entries(manifest)) {
-		if (entry.isEntry) return key
+		if (entry.isEntry) return key;
 	}
-	return undefined
+	return undefined;
 }
 
 /**
  * Merge two ModulePreloads, deduplicating.
  */
 export function mergePreloads(a: ModulePreloads, b: ModulePreloads): ModulePreloads {
-	const jsSet = new Set(a.js)
-	const cssSet = new Set(a.css)
+	const jsSet = new Set(a.js);
+	const cssSet = new Set(a.css);
 
-	const js = [...a.js]
-	const css = [...a.css]
+	const js = [...a.js];
+	const css = [...a.css];
 
 	for (const href of b.js) {
 		if (!jsSet.has(href)) {
-			js.push(href)
-			jsSet.add(href)
+			js.push(href);
+			jsSet.add(href);
 		}
 	}
 
 	for (const href of b.css) {
 		if (!cssSet.has(href)) {
-			css.push(href)
-			cssSet.add(href)
+			css.push(href);
+			cssSet.add(href);
 		}
 	}
 
-	return { css, js }
+	return { css, js };
 }

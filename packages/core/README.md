@@ -3,9 +3,9 @@
 Solid meta-framework. Server-driven, NDJSON streaming, `renderToStream`.
 
 ```ts
-import { createPage } from "flare/page"
-import { createRouter } from "flare/router"
-import { flare } from "flare/plugins"
+import { createPage } from "@lovrozagar/flare/page";
+import { createRouter } from "@lovrozagar/flare/router";
+import { flare } from "@lovrozagar/flare/plugins";
 ```
 
 See the repo root README for layout, develop commands, and the consumer proof.

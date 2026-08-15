@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(chain-override)/chain-override/")
 	.preloader(() => ({
@@ -15,4 +15,4 @@ export const route = createPage("_root_/(chain-override)/chain-override/")
 			<div data-testid="page-pageOnly">{String(props.preloaderContext.pageOnly)}</div>
 			<div data-testid="page-snapshot">{JSON.stringify(props.loaderData.pagePreloaderContext)}</div>
 		</div>
-	))
+	));

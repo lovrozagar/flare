@@ -1,17 +1,17 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/multi-cookie")
 	.loader(({ request }) => {
-		const cookies = request.headers.get("cookie") ?? ""
-		const sessionCookie = cookies.match(/session=([^;]+)/)?.[1] ?? "none"
-		const themeCookie = cookies.match(/theme=([^;]+)/)?.[1] ?? "none"
-		const langCookie = cookies.match(/lang=([^;]+)/)?.[1] ?? "none"
+		const cookies = request.headers.get("cookie") ?? "";
+		const sessionCookie = cookies.match(/session=([^;]+)/)?.[1] ?? "none";
+		const themeCookie = cookies.match(/theme=([^;]+)/)?.[1] ?? "none";
+		const langCookie = cookies.match(/lang=([^;]+)/)?.[1] ?? "none";
 		return {
 			langCookie,
 			platform: "Standard",
 			sessionCookie,
 			themeCookie,
-		}
+		};
 	})
 	.headers(() => ({
 		"set-cookie": [
@@ -36,4 +36,4 @@ export const route = createPage("_root_/multi-cookie")
 				<a href="/">Home</a>
 			</nav>
 		</div>
-	))
+	));

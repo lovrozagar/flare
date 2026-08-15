@@ -1,4 +1,4 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/ssg-static")
 	.cache({ ssg: true })
@@ -8,4 +8,4 @@ export const route = createPage("_root_/ssg-static")
 			<p data-testid="ssg-static-source">{props.loaderData.source}</p>
 			<p data-testid="ssg-static-rendered-at">{props.loaderData.renderedAt}</p>
 		</main>
-	))
+	));

@@ -1,5 +1,5 @@
-import { createPage } from "flare/page"
-import { createFont, FontCSS } from "flare/fonts"
+import { createPage } from "@lovrozagar/flare/page";
+import { createFont, FontCSS } from "@lovrozagar/flare/fonts";
 
 const testFont = createFont({
 	category: "sans-serif",
@@ -13,7 +13,7 @@ const testFont = createFont({
 	family: "Test Font",
 	src: "/fonts/test-font.woff2",
 	weights: "100 900",
-})
+});
 
 export const route = createPage("_root_/fonts-test")
 	.head(() => ({
@@ -26,4 +26,4 @@ export const route = createPage("_root_/fonts-test")
 			<p data-testid="font-family">{testFont.fontFamily}</p>
 			<p data-testid="font-category">{testFont.category}</p>
 		</main>
-	))
+	));

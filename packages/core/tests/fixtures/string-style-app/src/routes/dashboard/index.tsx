@@ -1,8 +1,8 @@
-import { createPage } from "flare/page"
+import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/(dashboard)/dashboard")
 	.loader(() => {
-		return { section: "overview", ts: Date.now() }
+		return { section: "overview", ts: Date.now() };
 	})
 	.headers(({ parentHeaders }) => ({
 		...parentHeaders,
@@ -14,4 +14,4 @@ export const route = createPage("_root_/(dashboard)/dashboard")
 			<p data-testid="dash-section">{props.loaderData.section}</p>
 			<p data-testid="dash-ts">{String(props.loaderData.ts)}</p>
 		</div>
-	))
+	));

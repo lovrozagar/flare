@@ -1,5 +1,5 @@
-import { createServerFn } from "@tanstack/react-start"
-import { getDelayedComments } from "../../shared/data"
+import { createServerFn } from "@tanstack/react-start";
+import { getDelayedComments } from "../../shared/data";
 
 /**
  * Server function that fetches comments.
@@ -9,5 +9,5 @@ import { getDelayedComments } from "../../shared/data"
 export const fetchComments = createServerFn({ method: "GET" })
 	.inputValidator((slug: string) => slug)
 	.handler(async ({ data: slug }) => {
-		return getDelayedComments(slug)
-	})
+		return getDelayedComments(slug);
+	});

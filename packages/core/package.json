@@ -1,6 +1,6 @@
 {
-	"name": "flare",
-	"version": "0.0.1",
+	"name": "@lovrozagar/flare",
+	"version": "0.1.0",
 	"description": "Solid meta-framework. Server-driven, NDJSON streaming, renderToStream.",
 	"keywords": [
 		"flare",
@@ -16,9 +16,6 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/lovrozagar/flare"
-	},
-	"publishConfig": {
-		"access": "public"
 	},
 	"files": [
 		"src",
@@ -92,6 +89,9 @@
 		"./view-transition-css": "./src/view-transition-css.ts",
 		"./virtual-types": "./src/plugins/virtual.d.ts"
 	},
+	"publishConfig": {
+		"access": "public"
+	},
 	"scripts": {
 		"bench": "vitest bench",
 		"fonts:generate": "bun run scripts/populate-fonts.ts",
@@ -139,6 +139,8 @@
 		"vite-plugin-solid": ">=2.0.0"
 	},
 	"peerDependenciesMeta": {
-		"node-html-markdown": { "optional": true }
+		"node-html-markdown": {
+			"optional": true
+		}
 	}
 }

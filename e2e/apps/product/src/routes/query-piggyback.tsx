@@ -1,6 +1,6 @@
-import { createPage } from "flare/page"
-import { serverFnMutationOptions, serverFnQueryOptions } from "flare/server-fn-query"
-import { createSignal, Show } from "solid-js"
+import { createPage } from "@lovrozagar/flare/page";
+import { serverFnMutationOptions, serverFnQueryOptions } from "@lovrozagar/flare/server-fn-query";
+import { createSignal, Show } from "solid-js";
 
 /*
  * Client-safe stub for the piggyback server function.
@@ -10,63 +10,63 @@ import { createSignal, Show } from "solid-js"
  */
 const piggybackStub = Object.assign(
 	(_input: { value: string }): Promise<never> => {
-		throw new Error("stub: should not be called directly on client")
+		throw new Error("stub: should not be called directly on client");
 	},
 	{ _registration: { method: "post", name: "piggyback" } },
-)
+);
 
 export const route = createPage("_root_/query-piggyback").render(() => {
-	const [result, setResult] = createSignal("")
-	const [cacheHit, setCacheHit] = createSignal("")
-	const [invalidated, setInvalidated] = createSignal(false)
+	const [result, setResult] = createSignal("");
+	const [cacheHit, setCacheHit] = createSignal("");
+	const [invalidated, setInvalidated] = createSignal(false);
 
 	const callMutation = async () => {
-		setResult("")
-		setCacheHit("")
-		setInvalidated(false)
+		setResult("");
+		setCacheHit("");
+		setInvalidated(false);
 
 		try {
-			const qc = getQueryClientFromWindow()
+			const qc = getQueryClientFromWindow();
 			if (!qc) {
-				setResult("no-query-client")
-				return
+				setResult("no-query-client");
+				return;
 			}
 
 			const opts = serverFnMutationOptions(piggybackStub, {
 				queryClient: qc,
-			})
-			const data = await opts.mutationFn({ value: "piggyback-test" })
-			setResult(JSON.stringify(data))
+			});
+			const data = await opts.mutationFn({ value: "piggyback-test" });
+			setResult(JSON.stringify(data));
 
-			const cached = qc.getQueryData(["demo-items"])
-			setCacheHit(cached ? JSON.stringify(cached) : "miss")
+			const cached = qc.getQueryData(["demo-items"]);
+			setCacheHit(cached ? JSON.stringify(cached) : "miss");
 		} catch (e) {
-			setResult(`error: ${e instanceof Error ? e.message : String(e)}`)
+			setResult(`error: ${e instanceof Error ? e.message : String(e)}`);
 		}
-	}
+	};
 
 	const callQueryOptions = async () => {
-		setCacheHit("")
+		setCacheHit("");
 		try {
-			const qc = getQueryClientFromWindow()
+			const qc = getQueryClientFromWindow();
 			if (!qc) {
-				setCacheHit("no-query-client")
-				return
+				setCacheHit("no-query-client");
+				return;
 			}
 
 			const opts = serverFnQueryOptions(piggybackStub, {
 				input: { value: "query-test" },
 				queryClient: qc,
-			})
-			const data = await opts.queryFn()
-			setResult(JSON.stringify(data))
+			});
+			const data = await opts.queryFn();
+			setResult(JSON.stringify(data));
 
-			const cached = qc.getQueryData(["demo-items"])
-			setCacheHit(cached ? JSON.stringify(cached) : "miss")
+			const cached = qc.getQueryData(["demo-items"]);
+			setCacheHit(cached ? JSON.stringify(cached) : "miss");
 		} catch (e) {
-			setResult(`error: ${e instanceof Error ? e.message : String(e)}`)
+			setResult(`error: ${e instanceof Error ? e.message : String(e)}`);
 		}
-	}
+	};
 
 	return (
 		<div data-testid="query-piggyback-page">
@@ -83,16 +83,16 @@ export const route = createPage("_root_/query-piggyback").render(() => {
 				<p data-testid="invalidated">true</p>
 			</Show>
 		</div>
-	)
-})
+	);
+});
 
 function getQueryClientFromWindow():
 	| {
-			getQueryData: (key: unknown[]) => unknown
-			invalidateQueries: (opts: { queryKey: unknown[] }) => Promise<void>
-			setQueryData: (key: unknown[], data: unknown) => unknown
+			getQueryData: (key: unknown[]) => unknown;
+			invalidateQueries: (opts: { queryKey: unknown[] }) => Promise<void>;
+			setQueryData: (key: unknown[], data: unknown) => unknown;
 	  }
 	| undefined {
-	const w = window as unknown as Record<string, unknown>
-	return w.__flareQueryClient as ReturnType<typeof getQueryClientFromWindow>
+	const w = window as unknown as Record<string, unknown>;
+	return w.__flareQueryClient as ReturnType<typeof getQueryClientFromWindow>;
 }
