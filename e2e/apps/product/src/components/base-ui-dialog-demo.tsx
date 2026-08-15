@@ -1,4 +1,4 @@
-import { createSignal, Show, type JSX } from "solid-js";
+import { createSignal, Show } from "solid-js";
 
 /**
  * Local stand-in for Base UI primitives so sx/class composition is still
@@ -47,16 +47,19 @@ export function DialogDemo() {
 
 export function PolyDemo() {
 	const [open, setOpen] = createSignal(false);
-	const triggerProps: JSX.AnchorHTMLAttributes<HTMLAnchorElement> = {
-		href: "#poly",
-		onClick: (e) => {
-			e.preventDefault();
-			setOpen(true);
-		},
-	};
 	return (
 		<div>
-			<a {...triggerProps} data-testid="bui-trigger-link" sx={{ textDecoration: "underline" }}>
+			<a
+				data-flare-skip
+				data-testid="bui-trigger-link"
+				href="#poly"
+				sx={{ textDecoration: "underline" }}
+				onClick={(e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					setOpen(true);
+				}}
+			>
 				Link trigger
 			</a>
 			<Show when={open()}>

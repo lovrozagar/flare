@@ -43,14 +43,25 @@ interface MockRes extends OutgoingLike {
 	status: number;
 }
 
+function chunkToString(chunk: unknown): string {
+	if (chunk == null) return "";
+	if (typeof chunk === "string") return chunk;
+	if (chunk instanceof Uint8Array) return new TextDecoder().decode(chunk);
+	return "";
+}
+
 function makeRes(): MockRes {
 	const res: MockRes = {
 		body: "",
-		end(body?: string) {
-			if (typeof body === "string") res.body = body;
+		end(body?: unknown) {
+			res.body += chunkToString(body);
 		},
 		headers: {},
 		status: 200,
+		write(chunk?: unknown) {
+			res.body += chunkToString(chunk);
+			return true;
+		},
 		writeHead(status: number, headers?: Record<string, string | string[]>) {
 			res.status = status;
 			if (headers) {
@@ -201,6 +212,54 @@ describe("handleCdnRequest — skip conditions", () => {
 /* ── Middleware: cache miss → intercept + store ──────────────────────── */
 
 describe("handleCdnRequest — cache miss + response interception", () => {
+	it("write() chunks then end() cache the concatenated HTML", async () => {
+		const req = makeReq();
+		const res = makeRes();
+
+		await handleCdnRequest(
+			req,
+			res,
+			() => {
+				res.writeHead(200, {
+					"cache-control": "public, s-maxage=3600",
+					"content-type": "text/html",
+				});
+				res.write("<html>");
+				res.write(new TextEncoder().encode("streamed"));
+				res.write("</html>");
+				res.end();
+			},
+			store,
+			new Set(),
+		);
+
+		expect(res.body).toBe("<html>streamed</html>");
+		const cached = await store.get("cdn:GET:/about");
+		expect(cached).not.toBeNull();
+		expect((cached?.data as { body?: string })?.body).toBe("<html>streamed</html>");
+	});
+
+	it("empty streamed body is NOT cached", async () => {
+		const req = makeReq();
+		const res = makeRes();
+
+		await handleCdnRequest(
+			req,
+			res,
+			() => {
+				res.writeHead(200, {
+					"cache-control": "public, s-maxage=3600",
+					"content-type": "text/html",
+				});
+				res.end();
+			},
+			store,
+			new Set(),
+		);
+
+		expect(await store.get("cdn:GET:/about")).toBeNull();
+	});
+
 	it("first request passes through and caches the response", async () => {
 		const req = makeReq();
 		const res = makeRes();

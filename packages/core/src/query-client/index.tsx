@@ -8,6 +8,7 @@ export { QueryClientProvider };
 export interface UseSuspenseQueryOptions<TData = unknown, _TError = Error, TQueryKey extends QueryKey = QueryKey> {
 	queryFn: (context: { queryKey: TQueryKey; signal: AbortSignal }) => TData | Promise<TData>;
 	queryKey: Accessor<TQueryKey> | TQueryKey;
+	retry?: boolean | number;
 	staleTime?: number;
 }
 
@@ -50,6 +51,7 @@ export function useSuspenseQuery<TData = unknown, TError = Error, TQueryKey exte
 		enabled: true,
 		queryFn: options.queryFn as (context: { queryKey: QueryKey; signal: AbortSignal }) => TData | Promise<TData>,
 		queryKey: resolveQueryKey(options.queryKey),
+		retry: options.retry,
 		staleTime: options.staleTime,
 		throwOnError: true,
 	}));

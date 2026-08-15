@@ -6,6 +6,7 @@ function FailingQuery() {
 	const query = useSuspenseQuery({
 		queryFn: () => Promise.reject(new Error("query-exploded")),
 		queryKey: ["failing-query"],
+		retry: false,
 	});
 	return <span>{String(query.data())}</span>;
 }

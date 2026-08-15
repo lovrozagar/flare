@@ -175,11 +175,13 @@ export interface IncomingLike {
 }
 
 export interface OutgoingLike {
-	end: (body?: string) => void;
+	end: (body?: unknown) => void;
 	getHeader?: (name: string) => string | string[] | number | undefined;
 	headersSent?: boolean;
 	on?: (event: string, fn: () => void) => void;
+	setHeader?: (name: string, value: string | string[]) => void;
 	statusCode?: number;
+	write?: (chunk?: unknown) => boolean | undefined;
 	writeHead: (status: number, headers?: Record<string, string | string[]>) => void;
 }
 
@@ -344,6 +346,21 @@ function serve304(res: OutgoingLike, entry: CdnCacheEntry): void {
 	res.end();
 }
 
+function chunkToString(chunk: unknown): string {
+	if (chunk == null) return "";
+	if (typeof chunk === "string") return chunk;
+	if (chunk instanceof Uint8Array) return new TextDecoder().decode(chunk);
+	if (ArrayBuffer.isView(chunk)) {
+		const view = chunk as ArrayBufferView;
+		return new TextDecoder().decode(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+	}
+	return "";
+}
+
+function captureHeaderValue(headers: Record<string, string>, key: string, val: string | string[]): void {
+	headers[key.toLowerCase()] = Array.isArray(val) ? (val[0] ?? "") : val;
+}
+
 function interceptResponse(
 	req: IncomingLike,
 	res: OutgoingLike,
@@ -354,28 +371,59 @@ function interceptResponse(
 ): void {
 	const originalWriteHead = res.writeHead.bind(res);
 	const originalEnd = res.end.bind(res);
+	const originalWrite = res.write?.bind(res);
+	const originalSetHeader = res.setHeader?.bind(res);
 	let capturedStatus = 200;
 	const capturedHeaders: Record<string, string> = {};
 	let capturedBody = "";
+	let ended = false;
+	let wroteHead = false;
 
 	res.writeHead = (status: number, headers?: Record<string, string | string[]>) => {
+		wroteHead = true;
 		capturedStatus = status;
 		if (headers) {
 			for (const [key, val] of Object.entries(headers)) {
-				capturedHeaders[key.toLowerCase()] = Array.isArray(val) ? (val[0] ?? "") : val;
+				captureHeaderValue(capturedHeaders, key, val);
 			}
 		}
 		return originalWriteHead(status, headers);
 	};
 
-	res.end = (body?: string) => {
-		if (typeof body === "string") {
-			capturedBody = body;
+	if (originalSetHeader) {
+		res.setHeader = (name: string, value: string | string[]) => {
+			captureHeaderValue(capturedHeaders, name, value);
+			return originalSetHeader(name, value);
+		};
+	}
+
+	if (originalWrite) {
+		res.write = (chunk?: unknown) => {
+			capturedBody += chunkToString(chunk);
+			return originalWrite(chunk);
+		};
+	}
+
+	res.end = (body?: unknown) => {
+		if (ended) return originalEnd(body);
+		ended = true;
+		capturedBody += chunkToString(body);
+
+		if (!wroteHead && typeof res.statusCode === "number") capturedStatus = res.statusCode;
+		const headerFromRes = res.getHeader?.("cache-control");
+		if (!capturedHeaders["cache-control"] && headerFromRes != null) {
+			captureHeaderValue(
+				capturedHeaders,
+				"cache-control",
+				Array.isArray(headerFromRes) ? headerFromRes : String(headerFromRes),
+			);
 		}
 
 		const cc = parseCacheControl(capturedHeaders["cache-control"]);
 
-		if (isCacheable(capturedStatus, cc) && !capturedBody.includes("html-proxy")) {
+		/* workerd / Cloudflare Vite streams via write(chunk)+end() with no
+		   final body. An empty capture is a miss, not a cacheable document. */
+		if (isCacheable(capturedStatus, cc) && capturedBody.length > 0 && !capturedBody.includes("html-proxy")) {
 			const varyHeaders = parseVaryHeader(capturedHeaders.vary);
 			const surrogateKeys = parseSurrogateKey(capturedHeaders["surrogate-key"]);
 			const reqHeaders = extractRequestHeaders(req, varyHeaders);

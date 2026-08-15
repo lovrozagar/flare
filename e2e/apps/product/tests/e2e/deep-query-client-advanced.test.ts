@@ -3,7 +3,7 @@ import { BASE, loadPage, navigateSPA, setupConsoleCapture } from "./helpers";
 
 /* ── 1. Error queries ──────────────────────────────────────────────── */
 
-test.describe("QueryClient Advanced: error queries", () => {
+test.describe("QueryClient Advanced: error queries @node-only", () => {
 	test("error boundary renders after streaming resolves error", async ({ page }) => {
 		await page.goto(`${BASE}/query-error`, { waitUntil: "domcontentloaded" });
 		/* SSR streams the error; client-side ErrorBoundary catches it */

@@ -103,7 +103,7 @@ test.describe("sx + Base UI Solid: render prop polymorphism", () => {
 
 	test("render fn: anchor trigger opens dialog", async ({ page }) => {
 		await loadPage(page, "/styling-sx-base-ui");
-		await page.getByTestId("bui-trigger-link").click();
+		await page.getByTestId("bui-trigger-link").click({ noWaitAfter: true });
 		await expect(page.getByTestId("bui-poly-popup")).toBeVisible();
 	});
 });

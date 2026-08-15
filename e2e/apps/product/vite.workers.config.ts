@@ -6,6 +6,7 @@ export default defineConfig({
 	plugins: [
 		flare({
 			codegen: { fsVirtualPaths: false },
+			dev: { cdnCache: false },
 			serviceWorker: { offlineFallback: "/offline" },
 			sx: { tw: true },
 		}),
