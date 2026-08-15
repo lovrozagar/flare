@@ -20,7 +20,7 @@ export function defineEnvConfig(env: EnvId): PlaywrightTestConfig {
 	return defineConfig({
 		expect: { timeout: 10_000 },
 		forbidOnly: true,
-		fullyParallel: env === "deno" ? false : undefined,
+		fullyParallel: env === "deno" || env === "workers" ? false : undefined,
 		grepInvert: new RegExp(invert.join("|")),
 		retries: 1,
 		testDir: e2eAppTestDir(),
@@ -39,6 +39,6 @@ export function defineEnvConfig(env: EnvId): PlaywrightTestConfig {
 			reuseExistingServer: false,
 			timeout: isDev ? 60_000 : 180_000,
 		},
-		workers: env === "deno" ? 1 : undefined,
+		workers: env === "deno" || env === "workers" ? 1 : undefined,
 	});
 }

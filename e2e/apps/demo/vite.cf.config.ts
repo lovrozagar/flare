@@ -1,3 +1,4 @@
+import { cloudflare } from "@cloudflare/vite-plugin";
 import { defineConfig } from "vite";
 import { flare } from "@lovrozagar/flare/plugins";
 
@@ -10,6 +11,11 @@ export default defineConfig({
 			purge: true,
 			serviceWorker: { offlineFallback: "/offline" },
 			sx: { tw: true },
+		}),
+		cloudflare({
+			configPath: "./wrangler.jsonc",
+			inspectorPort: 9231,
+			viteEnvironment: { name: "ssr" },
 		}),
 	],
 });

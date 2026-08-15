@@ -59,7 +59,7 @@ export const ENV_PORTS: Record<EnvId, { dev: number; host: string; prod: number 
 function viteConfigFlag(app: string, env: EnvId): string {
 	if (env !== "workers") return "";
 	if (app === "product") return " --config vite.workers.config.ts";
-	if (app === "fs-routes") return " --config vite.cf.config.ts";
+	if (app === "fs-routes" || app === "demo") return " --config vite.cf.config.ts";
 	return "";
 }
 

@@ -173,7 +173,7 @@ test.describe("@prod-only hashed assets", () => {
 	});
 });
 
-test.describe("@dev-only fs inspector", () => {
+test.describe("@dev-only @node-only fs inspector", () => {
 	test("devtools host mounts", async ({ page }) => {
 		await loadPage(page, "/");
 		await expect(page.locator("#__flare-devtools-host")).toHaveCount(1);
