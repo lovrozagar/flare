@@ -30,8 +30,10 @@ Run these from the repo root; CI runs the same set.
     bun run lint         # oxlint
     bun run typecheck
     bun run typecheck:consumers
+    bun run typecheck:harness   # e2e runners, run-build/run-env, scripts/
     bun run test
     bun run test:cli
+    bun run test:build   # builds every e2e app for every deploy target
 
 The per-runtime e2e suites (`test:e2e`, `test:e2e:bun`, `test:e2e:deno`,
 `test:e2e:workers`) need Playwright browsers and are normally left to CI.
