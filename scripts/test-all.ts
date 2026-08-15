@@ -32,9 +32,14 @@ interface Suite {
 const suites: Suite[] = [
 	{ cmd: ["bun", "run", "test"], name: "core-unit" },
 	{ cmd: ["bun", "run", "test:cli"], name: "cli-unit" },
+	{ cmd: ["bun", "run", "e2e/run-build.ts"], name: "build" },
 	{ cmd: ["bun", "run", "e2e/run-env.ts", "--env", env], name: `e2e-${env}` },
 ];
 if (full) {
+	suites.push({
+		cmd: ["bun", "run", "e2e/run-build.ts", "--runtime", "all"],
+		name: "build-all-runtimes",
+	});
 	suites.push({
 		cmd: ["bun", "run", "e2e/run-env.ts", "--env", env],
 		name: `e2e-${env}-prod`,

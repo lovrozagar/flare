@@ -1,7 +1,14 @@
 {
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
-		"types": ["@cloudflare/workers-types"]
+		"jsx": "preserve",
+		"jsxImportSource": "solid-js",
+		"types": ["@cloudflare/workers-types", "node"]
 	},
+	"files": [
+		"../../packages/core/src/plugins/virtual.d.ts",
+		"../../packages/core/src/plugins/solid-jsx.d.ts",
+		"../../packages/core/src/plugins/sx.d.ts"
+	],
 	"include": ["playwright.config.ts", "vite.config.ts"]
 }
