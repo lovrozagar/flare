@@ -76,6 +76,23 @@ function writeGenFile(filePath: string, body: string, generator: string): void {
 	writeFileSync(filePath, fullContent, "utf-8");
 }
 
+/**
+ * Recursive source listing, normalized to posix separators and sorted.
+ *
+ * `readdirSync` order is filesystem- and runtime-dependent — node, bun, and
+ * deno disagree — and generated files are checked in, so an unsorted scan
+ * makes `routes.gen.ts` churn based on who ran the build. Sorting by code
+ * unit (not `localeCompare`, which follows ICU locale data) pins the order.
+ * Returns [] when the directory is missing.
+ */
+function listSourceEntries(srcPath: string): string[] {
+	try {
+		return (readdirSync(srcPath, { recursive: true }) as string[]).map((entry) => entry.replace(/\\/g, "/")).sort();
+	} catch {
+		return [];
+	}
+}
+
 const BUILDER_TO_TYPE: Record<string, RouteDefinition["type"]> = {
 	createLayout: "layout",
 	createPage: "page",
@@ -1106,17 +1123,7 @@ export function scanSourceFiles(options: ScanOptions): RouteDefinition[] {
 	const prefix = options.ignorePrefix ?? "_";
 	const defs: RouteDefinition[] = [];
 
-	let entries: string[];
-	try {
-		entries = readdirSync(srcPath, { recursive: true }) as string[];
-	} catch {
-		return defs;
-	}
-
-	for (const entry of entries) {
-		/* Normalize to posix separators */
-		const rel = entry.replace(/\\/g, "/");
-
+	for (const rel of listSourceEntries(srcPath)) {
 		/* Skip non-ts files */
 		if (!rel.endsWith(".ts") && !rel.endsWith(".tsx")) continue;
 
@@ -1254,15 +1261,7 @@ export function inspectFsCodegenLayout(options: ScanOptions): FsLayoutIssue[] {
 	const prefix = options.ignorePrefix ?? "_";
 	const issues: FsLayoutIssue[] = [];
 
-	let entries: string[];
-	try {
-		entries = readdirSync(srcPath, { recursive: true }) as string[];
-	} catch {
-		return issues;
-	}
-
-	for (const entry of entries) {
-		const rel = entry.replace(/\\/g, "/");
+	for (const rel of listSourceEntries(srcPath)) {
 		if (!rel.endsWith(".ts") && !rel.endsWith(".tsx") && !rel.endsWith(".js") && !rel.endsWith(".jsx")) continue;
 		if (rel.includes("_gen/") || rel.includes("node_modules")) continue;
 		if (rel.endsWith(".gen.ts") || rel.endsWith(".gen.tsx")) continue;
@@ -1421,16 +1420,7 @@ export function scanSourceFilesFsCodegen(options: ScanOptions): RouteDefinition[
 	const routesDir = "routes";
 	const defs: RouteDefinition[] = [];
 
-	let entries: string[];
-	try {
-		entries = readdirSync(srcPath, { recursive: true }) as string[];
-	} catch {
-		return defs;
-	}
-
-	for (const entry of entries) {
-		const rel = entry.replace(/\\/g, "/");
-
+	for (const rel of listSourceEntries(srcPath)) {
 		/* Only process files under routes/ */
 		if (!rel.startsWith(`${routesDir}/`)) continue;
 
