@@ -1,6 +1,6 @@
 {
 	"name": "@lovrozagar/flare",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Solid meta-framework. Server-driven, NDJSON streaming, renderToStream.",
 	"keywords": [
 		"flare",
