@@ -1151,6 +1151,8 @@ bun run fmt:check
 
 GitHub Actions (`.github/workflows/ci.yml`): `test` runs typecheck, fmt, lint, unit. `e2e` is a matrix of node / bun / workers / deno.
 
+Release: bump `packages/core/package.json`, commit, tag `vX.Y.Z` matching that version, and push the tag. `.github/workflows/release.yml` publishes `@lovrozagar/flare` to npm via GitHub Actions OIDC (no npm token) and opens the GitHub Release. The npm trusted publisher must name this file `release.yml`.
+
 ### Checks
 
 TypeScript 7 `strict` plus [oxlint](https://oxc.rs/docs/guide/usage/linter.html) / [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html):
