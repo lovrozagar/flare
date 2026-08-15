@@ -43,6 +43,7 @@ jobs:
       - run: bun run lint
       - run: bun run test
       - run: bun run test:cli
+      - run: bun run test:build
 
   npmjs:
     name: npmjs.com
