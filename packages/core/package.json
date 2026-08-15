@@ -1,6 +1,6 @@
 {
 	"name": "@lovrozagar/flare",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "Solid meta-framework. Server-driven, NDJSON streaming, renderToStream.",
 	"keywords": [
 		"flare",
@@ -12,6 +12,7 @@
 		"streaming",
 		"vite"
 	],
+	"homepage": "https://github.com/lovrozagar/flare",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -105,7 +106,7 @@
 		"@capsizecss/metrics": "catalog:",
 		"@formatjs/intl-localematcher": "catalog:",
 		"@solidjs/testing-library": "catalog:",
-		"@tanstack/query-broadcast-client-experimental": "5.101.2",
+		"@tanstack/query-broadcast-client-experimental": "catalog:",
 		"@tanstack/solid-query": "catalog:",
 		"@types/negotiator": "catalog:",
 		"isbot": "catalog:",
@@ -139,7 +140,31 @@
 		"vite-plugin-solid": ">=2.0.0"
 	},
 	"peerDependenciesMeta": {
+		"@formatjs/intl-localematcher": {
+			"optional": true
+		},
+		"@tanstack/query-broadcast-client-experimental": {
+			"optional": true
+		},
+		"@tanstack/solid-query": {
+			"optional": true
+		},
+		"isbot": {
+			"optional": true
+		},
+		"negotiator": {
+			"optional": true
+		},
 		"node-html-markdown": {
+			"optional": true
+		},
+		"oxc-parser": {
+			"optional": true
+		},
+		"oxc-resolver": {
+			"optional": true
+		},
+		"sharp": {
 			"optional": true
 		}
 	}

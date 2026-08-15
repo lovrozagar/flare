@@ -2,7 +2,7 @@
 
 Solid + Vite meta-framework. You declare pages and layouts with a typed builder. The server streams HTML (`renderToStream`). Later navigations speak NDJSON (`x-d: 1`). Prefetch, ISR, deferred loaders, and forms reuse that protocol.
 
-This repo is the source of [`@lovrozagar/flare`](https://www.npmjs.com/package/@lovrozagar/flare) `0.1.0`. The CLI binary is `flare`.
+This repo is the source of [`@lovrozagar/flare`](https://www.npmjs.com/package/@lovrozagar/flare) `0.1.1`. The CLI binary is `flare`.
 
 If you are an agent: read this file end to end. It is the usage contract. Import only from the paths in [Package exports](#package-exports). Do not invent a kitchen-sink `flare` barrel for UI.
 
@@ -123,7 +123,7 @@ npm add @lovrozagar/flare
 pnpm add @lovrozagar/flare
 ```
 
-Peers: `solid-js`, `vite`, `vite-plugin-solid`. Optional: `sharp` (images), `isbot` (skip locale cookies for bots), `@tanstack/solid-query`, `oxc-parser`, `oxc-resolver`.
+Peers: `solid-js`, `vite`, `vite-plugin-solid`. Optional: `sharp` (images), `isbot` (skip locale cookies for bots), `@tanstack/solid-query` (query), `@tanstack/query-broadcast-client-experimental` (query broadcast), `oxc-parser`, `oxc-resolver`.
 
 The CLI is a workspace package (`@flare/cli`, binary `flare`). In this repo it is on the path via workspace linking. A published consumer uses `flare init` after adding the package.
 

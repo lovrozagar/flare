@@ -22,6 +22,7 @@
 			"@sinclair/typebox": "0.34.50",
 			"@solidjs/testing-library": "0.8.10",
 			"@tailwindcss/vite": "4.3.2",
+			"@tanstack/query-broadcast-client-experimental": "5.101.2",
 			"@tanstack/solid-query": "5.101.2",
 			"@total-typescript/ts-reset": "0.6.1",
 			"@types/negotiator": "0.6.4",
