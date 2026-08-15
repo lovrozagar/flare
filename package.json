@@ -55,6 +55,7 @@
 	},
 	"type": "module",
 	"scripts": {
+		"prepare": "git rev-parse --git-dir >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
 		"test": "bun run --filter @lovrozagar/flare test",
 		"test:all": "bun run scripts/test-all.ts",
 		"test:all:full": "bun run scripts/test-all.ts --full",
