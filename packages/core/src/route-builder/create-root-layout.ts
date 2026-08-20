@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { FlareRouter } from "../outlet/types.ts";
 import type { Location } from "../router-primitives/index.ts";
 import type { ResolvedAuth, ResolvedEnv, ResolvedQueryClient, ResolvedServerContext } from "./register.ts";

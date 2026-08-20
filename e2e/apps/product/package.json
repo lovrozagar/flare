@@ -12,12 +12,12 @@
 	},
 	"dependencies": {
 		"@lovrozagar/flare": "workspace:*",
+		"@solidjs/web": "catalog:",
 		"@tanstack/solid-query": "catalog:",
 		"node-html-markdown": "catalog:",
 		"solid-js": "catalog:",
 		"tailwindcss": "catalog:",
 		"vite": "catalog:",
-		"vite-plugin-solid": "catalog:",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
@@ -27,6 +27,7 @@
 		"@flare/cli": "workspace:*",
 		"@playwright/test": "catalog:",
 		"@sinclair/typebox": "catalog:",
+		"@solidjs/vite-plugin": "catalog:",
 		"@types/node": "catalog:",
 		"arktype": "catalog:",
 		"effect": "catalog:",

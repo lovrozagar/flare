@@ -1,4 +1,5 @@
-import { batch, createEffect, createSignal, type JSX } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 export interface Deferred<T> {
 	__deferred: true;
@@ -57,7 +58,7 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 	}
 
 	const [status, setStatus] = createSignal<AwaitStatus>(computeInitialStatus());
-	const [data, setData] = createSignal<T | undefined>(initialResolved);
+	const [data, setData] = createSignal<T | undefined>(initialResolved as Exclude<T | undefined, Function>);
 	const [error, setError] = createSignal<Error | undefined>(initialError);
 
 	let currentPromise = getPromise(props.promise);
@@ -70,18 +71,14 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 		p.then(
 			(result) => {
 				if (currentPromise === p) {
-					batch(() => {
-						setData(() => result);
-						setStatus("success");
-					});
+					setData(() => result);
+					setStatus("success");
 				}
 			},
 			(err: unknown) => {
 				if (currentPromise === p) {
-					batch(() => {
-						setError(() => (err instanceof Error ? err : new Error(String(err))));
-						setStatus("error");
-					});
+					setError(() => (err instanceof Error ? err : new Error(String(err))));
+					setStatus("error");
 				}
 			},
 		);
@@ -90,41 +87,40 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 	function reset(): void {
 		const p = getPromise(props.promise);
 		currentPromise = p;
-		batch(() => {
-			setStatus("pending");
-			setData(undefined);
-			setError(undefined);
-		});
+		setStatus("pending");
+		setData(undefined);
+		setError(undefined);
 		if (p) trackPromise(p);
 	}
 
 	/* Watch for promise prop changes */
-	createEffect(() => {
-		const newPromise = getPromise(props.promise);
-		if (newPromise === currentPromise) return;
-		currentPromise = newPromise;
+	createEffect(
+		() => {
+			void props.promise;
+		},
+		() => {
+			const newPromise = getPromise(props.promise);
+			if (newPromise === currentPromise) return;
+			currentPromise = newPromise;
 
-		const resolved = getResolvedValue(props.promise);
-		const resolvedError = getResolvedError(props.promise);
+			const resolved = getResolvedValue(props.promise);
+			const resolvedError = getResolvedError(props.promise);
 
-		if (resolved !== undefined) {
-			batch(() => {
+			if (resolved !== undefined) {
 				setData(() => resolved);
 				setStatus("success");
-			});
-			return;
-		}
-		if (resolvedError) {
-			batch(() => {
+				return;
+			}
+			if (resolvedError) {
 				setError(() => resolvedError);
 				setStatus("error");
-			});
-			return;
-		}
+				return;
+			}
 
-		setStatus("pending");
-		if (newPromise) trackPromise(newPromise);
-	});
+			setStatus("pending");
+			if (newPromise) trackPromise(newPromise);
+		},
+	);
 
 	return (() => {
 		const s = status();

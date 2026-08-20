@@ -104,7 +104,7 @@ export function createQueryClientGetter(options?: QueryClientGetterOptions): () 
 					.then(({ broadcastQueryClient }) => {
 						broadcastQueryClient({
 							broadcastChannel: channelName,
-							queryClient: clientInstance as QueryClient,
+							queryClient: clientInstance as never,
 						});
 					})
 					.catch(() => {});

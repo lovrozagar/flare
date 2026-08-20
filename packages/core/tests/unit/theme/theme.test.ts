@@ -1,3 +1,4 @@
+import { createRoot } from "solid-js";
 import { describe, expect, it } from "vitest";
 import { escapeJsString, getThemeScript, useTheme } from "../../../src/theme.ts";
 
@@ -116,6 +117,14 @@ describe("getThemeScript XSS prevention", () => {
 
 describe("useTheme", () => {
 	it("throws when used outside ThemeProvider", () => {
-		expect(() => useTheme()).toThrow("useTheme() called outside ThemeProvider");
+		expect(() => {
+			createRoot((dispose) => {
+				try {
+					useTheme();
+				} finally {
+					dispose();
+				}
+			});
+		}).toThrow("useTheme() called outside ThemeProvider");
 	});
 });

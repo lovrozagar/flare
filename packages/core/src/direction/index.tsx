@@ -1,14 +1,5 @@
-import {
-	createContext,
-	createEffect,
-	createSignal,
-	type JSX,
-	on,
-	onCleanup,
-	onMount,
-	sharedConfig,
-	useContext,
-} from "solid-js";
+import { createContext, createEffect, createSignal, onSettled, sharedConfig, useContext } from "solid-js";
+import { isServer, type JSX } from "@solidjs/web";
 
 export type Direction = "ltr" | "rtl";
 
@@ -60,11 +51,11 @@ export interface DirectionContextValue {
 	toggleDirection: () => void;
 }
 
-const DirectionCtx = createContext<DirectionContextValue>();
+const DirectionCtx = createContext<DirectionContextValue | null>(null);
 
 export function DirectionProvider(props: { children: JSX.Element; config?: DirectionConfig }): JSX.Element {
 	/* SSR: pass through children (context not needed on server, scripts handle direction) */
-	if (sharedConfig.context) {
+	if (isServer || sharedConfig.hydrating) {
 		return props.children;
 	}
 
@@ -97,8 +88,7 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 	const [direction, setDirectionSignal] = createSignal<Direction>(initial);
 
 	/* Sync direction to DOM */
-	createEffect(() => {
-		const dir = direction();
+	createEffect(direction, (dir) => {
 		if (typeof document === "undefined") return;
 		const el = document.documentElement;
 		el.setAttribute(cfg.attribute, dir);
@@ -106,7 +96,7 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 	});
 
 	/* Cross-tab sync: StorageEvent fires in OTHER tabs only */
-	onMount(() => {
+	onSettled(() => {
 		const handler = (e: StorageEvent) => {
 			if (e.key !== cfg.storageKey || e.storageArea !== localStorage) return;
 			const v = e.newValue;
@@ -115,22 +105,20 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 			}
 		};
 		window.addEventListener("storage", handler);
-		onCleanup(() => window.removeEventListener("storage", handler));
+		return () => window.removeEventListener("storage", handler);
 	});
 
 	/* Persist to localStorage on changes */
 	createEffect(
-		on(
-			direction,
-			(dir) => {
-				try {
-					localStorage.setItem(cfg.storageKey, dir);
-				} catch {
-					/* noop */
-				}
-			},
-			{ defer: true },
-		),
+		direction,
+		(dir) => {
+			try {
+				localStorage.setItem(cfg.storageKey, dir);
+			} catch {
+				/* noop */
+			}
+		},
+		{ defer: true },
 	);
 
 	const setDirection = (dir: Direction): void => {
@@ -153,7 +141,7 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 		toggleDirection,
 	};
 
-	return <DirectionCtx.Provider value={value}>{props.children}</DirectionCtx.Provider>;
+	return <DirectionCtx value={value}>{props.children}</DirectionCtx>;
 }
 
 export function useDirection(): DirectionContextValue {

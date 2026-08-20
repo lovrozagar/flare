@@ -1,5 +1,6 @@
-import { createRoot, type JSX } from "solid-js";
-import { render } from "solid-js/web";
+import { createRoot } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	ResetCSS,

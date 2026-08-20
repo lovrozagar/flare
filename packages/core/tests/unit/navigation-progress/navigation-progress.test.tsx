@@ -1,5 +1,5 @@
-import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
 import { NavigationProgress } from "../../../src/navigation-progress/index.tsx";
@@ -74,9 +74,9 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
@@ -92,9 +92,9 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
@@ -109,14 +109,15 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
 
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(250);
 
 		const bar = container.querySelector("[role=progressbar]") as HTMLElement;
@@ -131,14 +132,15 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
 
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(200);
 
 		const bar = container.querySelector("[role=progressbar]") as HTMLElement;
@@ -157,17 +159,19 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
 
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(400);
 
 		setPhase("idle");
+		flush();
 		vi.advanceTimersByTime(10);
 
 		const bar = container.querySelector("[role=progressbar]") as HTMLElement;
@@ -180,20 +184,22 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
 
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(400);
 
 		const bar = container.querySelector("[role=progressbar]") as HTMLElement;
 		const wrapper = bar.parentElement as HTMLElement;
 
 		setPhase("idle");
+		flush();
 		vi.advanceTimersByTime(10);
 
 		/* Immediately after set(1): wrapper snapped to opacity 1 */
@@ -210,9 +216,9 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress color="#ff0000" height={4} zIndex={1000} />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
@@ -232,18 +238,20 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress minDisplayTime={150} />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
 
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(50);
 
 		/* Navigation completes very fast (50ms < 150ms minDisplayTime) */
 		setPhase("idle");
+		flush();
 		vi.advanceTimersByTime(10);
 
 		const bar = container.querySelector("[role=progressbar]") as HTMLElement;
@@ -262,14 +270,15 @@ describe("NavigationProgress", () => {
 
 		const dispose = render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
 
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(200);
 
 		const timersBefore = vi.getTimerCount();
@@ -285,17 +294,19 @@ describe("NavigationProgress", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<NavigationProgress />
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
 
 		/* First navigation */
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(400);
 		setPhase("idle");
+		flush();
 		/* Let full completion: set(1) + fade(200) + reset(200) */
 		vi.advanceTimersByTime(500);
 
@@ -305,6 +316,7 @@ describe("NavigationProgress", () => {
 
 		/* Second navigation — should restart from beginning */
 		setPhase("loading");
+		flush();
 		vi.advanceTimersByTime(200);
 
 		const wrapper = bar.parentElement as HTMLElement;

@@ -1,5 +1,5 @@
-import { createRoot } from "solid-js";
-import { render } from "solid-js/web";
+import { createRoot, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /* We need to set up the mock BroadcastChannel BEFORE importing the module */
@@ -76,12 +76,12 @@ describe("useBroadcast", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						useBroadcast<number>("counter", (v) => received.push(v));
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -106,12 +106,12 @@ describe("useBroadcast", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						useBroadcast<number>("counter", (v) => received.push(v));
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -135,12 +135,12 @@ describe("useBroadcast", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						emitFn = useBroadcast<number>("counter");
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -164,12 +164,12 @@ describe("useBroadcast", () => {
 		let emitFn: ((v: number) => void) | undefined;
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						emitFn = useBroadcast<number>("counter");
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -198,13 +198,13 @@ describe("useBroadcast", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						useBroadcast<number>("x", (v) => a.push(v));
 						useBroadcast<number>("x", (v) => b.push(v));
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -229,12 +229,12 @@ describe("useBroadcast", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						useBroadcast<number>("x", (v) => received.push(v));
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -261,7 +261,7 @@ describe("useBroadcast", () => {
 		let emitFn: (() => void) | undefined;
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						/* Tab A: listen */
 						useBroadcast("logout", () => {
@@ -269,7 +269,7 @@ describe("useBroadcast", () => {
 						});
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -310,13 +310,13 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [val] = createBroadcastSignal("count", 0);
 						accessor = val;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -338,20 +338,21 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [val, set] = createBroadcastSignal("count", 0);
 						accessor = val;
 						setter = set;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
 		await tick();
 
 		setter?.(5);
+		flush();
 		expect(accessor?.()).toBe(5);
 		ch.close();
 	});
@@ -371,13 +372,13 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [, set] = createBroadcastSignal("count", 0);
 						setter = set;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -405,13 +406,13 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [val] = createBroadcastSignal("count", 0);
 						accessor = val;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -419,6 +420,7 @@ describe("createBroadcastSignal", () => {
 
 		const bc2 = new MockBC("flare");
 		bc2.postMessage({ _f: 1, key: "count", payload: 99, type: "custom" });
+		flush();
 
 		expect(accessor?.()).toBe(99);
 		ch.close();
@@ -436,7 +438,7 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [a] = createBroadcastSignal("a", 0);
 						const [b] = createBroadcastSignal("b", "hello");
@@ -444,7 +446,7 @@ describe("createBroadcastSignal", () => {
 						bVal = b;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -452,6 +454,7 @@ describe("createBroadcastSignal", () => {
 
 		const bc2 = new MockBC("flare");
 		bc2.postMessage({ _f: 1, key: "a", payload: 42, type: "custom" });
+		flush();
 
 		expect(aVal?.()).toBe(42);
 		expect(bVal?.()).toBe("hello");
@@ -471,7 +474,7 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [a, setA] = createBroadcastSignal("cart", 0);
 						aVal = a;
@@ -483,13 +486,14 @@ describe("createBroadcastSignal", () => {
 						bVal = b;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
 		await tick();
 
 		aSetter?.(5);
+		flush();
 		expect(aVal?.()).toBe(5);
 		expect(bVal?.()).toBe(5);
 		ch.close();
@@ -507,7 +511,7 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [val] = createBroadcastSignal("cart", 0);
 						outerVal = val;
@@ -522,7 +526,7 @@ describe("createBroadcastSignal", () => {
 						innerDispose = d;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -548,12 +552,12 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						createBroadcastSignal("temp", 0);
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -584,19 +588,20 @@ describe("createBroadcastSignal", () => {
 		/* First mount */
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [v, s] = createBroadcastSignal("cart", 0);
 						val = v;
 						setter = s;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
 		await tick();
 		setter?.(99);
+		flush();
 		expect(val?.()).toBe(99);
 
 		dispose?.();
@@ -606,13 +611,13 @@ describe("createBroadcastSignal", () => {
 		/* Second mount — should get fresh signal with initialValue */
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [v] = createBroadcastSignal("cart", 0);
 						val = v;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
@@ -633,20 +638,21 @@ describe("createBroadcastSignal", () => {
 
 		dispose = render(
 			() => (
-				<BroadcastCtx.Provider value={ch}>
+				<BroadcastCtx value={ch}>
 					{(() => {
 						const [v, s] = createBroadcastSignal("prefs", { fontSize: 14 });
 						val = v;
 						setter = s;
 						return null;
 					})()}
-				</BroadcastCtx.Provider>
+				</BroadcastCtx>
 			),
 			container,
 		);
 		await tick();
 
 		setter?.({ fontSize: 16 });
+		flush();
 		expect(val?.()).toEqual({ fontSize: 16 });
 		ch.close();
 	});
@@ -667,6 +673,7 @@ describe("createBroadcastSignal", () => {
 		await tick();
 
 		setter?.(5);
+		flush();
 		expect(val?.()).toBe(5);
 	});
 });

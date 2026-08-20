@@ -89,7 +89,12 @@ export const route = createPage("_root_/a11y-form-test").render(() => {
 							)}
 						</Show>
 
-						<button aria-busy={form.pending()} data-testid="a11y-submit-btn" disabled={form.pending()} type="submit">
+						<button
+							aria-busy={form.pending() ? "true" : "false"}
+							data-testid="a11y-submit-btn"
+							disabled={form.pending()}
+							type="submit"
+						>
 							{form.pending() ? "Submitting..." : "Submit"}
 						</button>
 					</fieldset>

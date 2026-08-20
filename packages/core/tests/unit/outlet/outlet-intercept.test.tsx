@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
 import { InterceptOutlet } from "../../../src/intercept-outlet.ts";
@@ -87,9 +87,9 @@ describe("InterceptOutlet", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<InterceptOutlet>{(s) => <div data-testid="overlay">Mode: {s.render}</div>}</InterceptOutlet>
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
@@ -102,9 +102,9 @@ describe("InterceptOutlet", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<InterceptOutlet>{(s) => <div data-testid="overlay">Mode: {s.render}</div>}</InterceptOutlet>
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);
@@ -118,9 +118,9 @@ describe("InterceptOutlet", () => {
 
 		render(
 			() => (
-				<RouterContext.Provider value={ctx}>
+				<RouterContext value={ctx}>
 					<InterceptOutlet>{(s) => <div data-testid="overlay">Mode: {s.render}</div>}</InterceptOutlet>
-				</RouterContext.Provider>
+				</RouterContext>
 			),
 			container,
 		);

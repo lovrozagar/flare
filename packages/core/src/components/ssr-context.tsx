@@ -1,4 +1,5 @@
-import { createContext, type JSX, sharedConfig, useContext } from "solid-js";
+import { createContext, useContext } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { DirectionConfig } from "../direction.ts";
 import type { LocaleConfig } from "../locale/index.tsx";
 import type { HeadConfig } from "../route-builder/types.ts";
@@ -15,23 +16,15 @@ export interface SSRContextValue {
 	theme?: ThemeConfig;
 }
 
-const SSRCtx = createContext<SSRContextValue>();
+const SSRCtx = createContext<SSRContextValue | null>(null);
 
-export function setSSRContext(value: SSRContextValue): void {
-	if (sharedConfig.context) {
-		(sharedConfig.context as Record<string, unknown>).flare = value;
-	}
-}
+/** @deprecated Wrap the tree with SSRContextProvider. Solid 2 has no sharedConfig.context. */
+export function setSSRContext(_value: SSRContextValue): void {}
 
 export function useSSRContext(): SSRContextValue | undefined {
-	/* SSR path: read from sharedConfig.context */
-	if (sharedConfig.context) {
-		return (sharedConfig.context as Record<string, unknown>).flare as SSRContextValue | undefined;
-	}
-	/* Testing fallback: read from Solid context provider */
-	return useContext(SSRCtx);
+	return useContext(SSRCtx) ?? undefined;
 }
 
 export function SSRContextProvider(props: { children: JSX.Element; value: SSRContextValue }): JSX.Element {
-	return <SSRCtx.Provider value={props.value}>{props.children}</SSRCtx.Provider>;
+	return <SSRCtx value={props.value}>{props.children}</SSRCtx>;
 }

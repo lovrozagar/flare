@@ -1,5 +1,5 @@
 import { createLayout } from "@lovrozagar/flare/layout";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 export const route = createLayout("_root_/(headers-group)")
 	.headers(() => ({

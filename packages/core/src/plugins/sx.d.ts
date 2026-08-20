@@ -1,14 +1,13 @@
-import type { ClassValue, Sx } from "../styles/sx-types";
+import "@solidjs/web";
+import type { Sx } from "../styles/sx-types";
 
-declare module "solid-js" {
+declare module "@solidjs/web" {
 	namespace JSX {
 		interface HTMLAttributes<T> {
 			sx?: Sx;
-			class?: string | ClassValue[];
 		}
-		interface CoreSVGAttributes<T> {
+		interface SVGAttributes<T> {
 			sx?: Sx;
-			class?: string | ClassValue[];
 		}
 	}
 }

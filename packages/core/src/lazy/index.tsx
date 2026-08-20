@@ -1,5 +1,6 @@
-import type { JSX } from "solid-js";
-import { type Component, createSignal, onMount, Show, sharedConfig } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { isServer } from "@solidjs/web";
+import { type Component, createSignal, onSettled, Show, sharedConfig } from "solid-js";
 import { retryImport } from "../internal.ts";
 import { warn } from "../logger.ts";
 
@@ -58,24 +59,27 @@ export function lazy<P extends Record<string, unknown>>(options: LazyOptions<P>)
 	getGlobalPending().add(loadPromise);
 
 	return ((props: P) => {
-		const isSSR = !!sharedConfig.context;
+		const isSSR = isServer || !!sharedConfig.hydrating;
 
 		/* Pre-known error at render time → throw from component body */
 		if (loadError) throw loadError;
 
-		const [component, setComponent] = createSignal<Component<P> | undefined>(isSSR ? undefined : loaded);
+		/* Store `{ C }` — Solid 2 treats a function initial value as a derived signal. */
+		const [component, setComponent] = createSignal<{ C: Component<P> } | undefined>(
+			isSSR || !loaded ? undefined : { C: loaded },
+		);
 		const [error, setError] = createSignal<Error | undefined>();
 
 		if (isSSR || !loaded) {
-			onMount(() => {
+			onSettled(() => {
 				if (loadError) {
 					setError(loadError);
 				} else if (loaded) {
-					setComponent(() => loaded);
+					setComponent({ C: loaded });
 				} else {
 					loadPromise?.then(() => {
 						if (loadError) setError(loadError);
-						else setComponent(() => loaded);
+						else if (loaded) setComponent({ C: loaded });
 					});
 				}
 			});
@@ -89,13 +93,18 @@ export function lazy<P extends Record<string, unknown>>(options: LazyOptions<P>)
 			: null;
 
 		return (
-			<Show fallback={<ThrowError error={error() as Error} />} when={!error()}>
-				<Show fallback={PendingFallback} when={component()}>
-					{(Comp) => {
-						const C = Comp();
-						return (<C {...props} />) as JSX.Element;
-					}}
-				</Show>
+			<Show
+				fallback={
+					<Show fallback={PendingFallback} when={component()}>
+						{(entry) => {
+							const C = entry().C;
+							return (<C {...props} />) as JSX.Element;
+						}}
+					</Show>
+				}
+				when={error()}
+			>
+				{(err) => <ThrowError error={err() as Error} />}
 			</Show>
 		) as JSX.Element;
 	}) as Component<P>;
@@ -120,12 +129,15 @@ export function clientLazy<P extends Record<string, unknown>>(
 	}
 
 	return ((props: P & { pending?: Component<P> }) => {
-		const isSSR = !!sharedConfig.context;
+		const isSSR = isServer || !!sharedConfig.hydrating;
 
 		/* Pre-known error at render time → throw from component body */
 		if (loadError) throw loadError;
 
-		const [component, setComponent] = createSignal<Component<P> | undefined>(isSSR ? undefined : loaded);
+		/* Store `{ C }` — Solid 2 treats a function initial value as a derived signal. */
+		const [component, setComponent] = createSignal<{ C: Component<P> } | undefined>(
+			isSSR || !loaded ? undefined : { C: loaded },
+		);
 		const [error, setError] = createSignal<Error | undefined>();
 
 		const startLoading = () => {
@@ -141,7 +153,7 @@ export function clientLazy<P extends Record<string, unknown>>(
 			loadPromise
 				.then(() => {
 					if (loadError) setError(loadError);
-					else setComponent(() => loaded);
+					else if (loaded) setComponent({ C: loaded });
 				})
 				.catch((e: unknown) => {
 					warn("lazy", "chunk retry failed", e);
@@ -156,9 +168,9 @@ export function clientLazy<P extends Record<string, unknown>>(
 			/* Already loaded — render immediately */
 		} else {
 			/* SSR hydration or not-yet-loaded: kick off after mount */
-			onMount(() => {
+			onSettled(() => {
 				if (loaded) {
-					setComponent(() => loaded);
+					setComponent({ C: loaded });
 				} else if (loadError) {
 					setError(loadError);
 				} else {
@@ -176,13 +188,18 @@ export function clientLazy<P extends Record<string, unknown>>(
 			: null;
 
 		return (
-			<Show fallback={<ThrowError error={error() as Error} />} when={!error()}>
-				<Show fallback={PendingFallback} when={component()}>
-					{(Comp) => {
-						const C = Comp();
-						return (<C {...(props as P)} />) as JSX.Element;
-					}}
-				</Show>
+			<Show
+				fallback={
+					<Show fallback={PendingFallback} when={component()}>
+						{(entry) => {
+							const C = entry().C;
+							return (<C {...(props as P)} />) as JSX.Element;
+						}}
+					</Show>
+				}
+				when={error()}
+			>
+				{(err) => <ThrowError error={err() as Error} />}
 			</Show>
 		) as JSX.Element;
 	}) as Component<P & { pending?: Component<P> }>;

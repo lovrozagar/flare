@@ -14,7 +14,7 @@ export const route = createPage("_root_/styling-sx-edge-deep").render(() => {
 						color: "rgb(0, 80, 200)",
 					},
 				}}
-				tabIndex={0}
+				tabindex={0}
 			>
 				<div data-testid="deep-nested" sx={{ color: "rgb(0, 0, 0)" }}>
 					deep nested hover+focus

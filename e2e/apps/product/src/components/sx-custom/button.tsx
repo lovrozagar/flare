@@ -1,5 +1,5 @@
-import { splitProps } from "solid-js";
-import type { JSX } from "solid-js";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
 	variant?: "primary" | "secondary" | "danger";
@@ -7,7 +7,7 @@ type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 /* lib-style Button — uses splitProps so consumer style/data-* attrs forward cleanly */
 export function SxButton(props: ButtonProps) {
-	const [, rest] = splitProps(props, ["variant"]);
+	const rest = omit(props, "variant");
 
 	return (
 		<button

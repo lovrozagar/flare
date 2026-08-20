@@ -1,9 +1,9 @@
-import type { JSX } from "solid-js";
-import { createComponent, Hydration, renderToStream as solidRenderToStream } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { createComponent, Hydration, renderToStream as solidRenderToStream } from "@solidjs/web";
 import type { GlobalBoundaries } from "../boundaries/index.ts";
 import { BroadcastProvider } from "../broadcast/provider.tsx";
 import { createMatchCache, createPrefetchCache } from "../caches/index.ts";
-import { setSSRContext } from "../components/ssr-context.tsx";
+import { SSRContextProvider } from "../components/ssr-context.tsx";
 import type { DeferContext, DeferredEntry } from "../defer/index.ts";
 import { isDeferred } from "../defer/index.ts";
 import { DirectionProvider } from "../direction.ts";
@@ -419,7 +419,7 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 	const matches = config.matches;
 
 	return () => {
-		setSSRContext({
+		const ssrCtxValue = {
 			direction: config.router?.direction,
 			entryScript: config.entryScript,
 			flareStateScript,
@@ -427,7 +427,7 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 			nonce: config.nonce,
 			resolvedHead: config.resolvedHead,
 			theme: config.router?.theme,
-		});
+		};
 
 		const lastMatch = matches[matches.length - 1];
 		const location: ProviderLocation = {
@@ -480,37 +480,39 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 		 * inside the Provider's context scope during Solid SSR.
 		 */
 		const renderInner = () => (
-			<ThemeProvider config={config.router?.theme}>
-				<DirectionProvider config={config.router?.direction}>
-					<BroadcastProvider>
-						<FlareProvider
-							boundaries={rootBoundaries}
-							caseSensitive={config.router?.caseSensitive}
-							initialLocation={location}
-							layouts={config.router?.layouts ?? {}}
-							localeConfig={config.router?.locale}
-							matchCache={matchCache}
-							matches={clientMatches}
-							params={location.params}
-							prefetchCache={prefetchCache}
-							resolvers={new Map()}
-							routeTree={config.router?.routeTree ?? createTreeNode()}
-							search={location.search}
-						>
-							{rootRenderFn ? (
-								<RootRenderer
-									data={rootMatch?.loaderData}
-									location={location}
-									preloaderContext={rootMatch?.preloaderContext}
-									renderFn={rootRenderFn}
-								/>
-							) : (
-								<Outlet />
-							)}
-						</FlareProvider>
-					</BroadcastProvider>
-				</DirectionProvider>
-			</ThemeProvider>
+			<SSRContextProvider value={ssrCtxValue}>
+				<ThemeProvider config={config.router?.theme}>
+					<DirectionProvider config={config.router?.direction}>
+						<BroadcastProvider>
+							<FlareProvider
+								boundaries={rootBoundaries}
+								caseSensitive={config.router?.caseSensitive}
+								initialLocation={location}
+								layouts={config.router?.layouts ?? {}}
+								localeConfig={config.router?.locale}
+								matchCache={matchCache}
+								matches={clientMatches}
+								params={location.params}
+								prefetchCache={prefetchCache}
+								resolvers={new Map()}
+								routeTree={config.router?.routeTree ?? createTreeNode()}
+								search={location.search}
+							>
+								{rootRenderFn ? (
+									<RootRenderer
+										data={rootMatch?.loaderData}
+										location={location}
+										preloaderContext={rootMatch?.preloaderContext}
+										renderFn={rootRenderFn}
+									/>
+								) : (
+									<Outlet />
+								)}
+							</FlareProvider>
+						</BroadcastProvider>
+					</DirectionProvider>
+				</ThemeProvider>
+			</SSRContextProvider>
 		);
 
 		return (

@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("virtual:flare-is-dev", () => ({ default: false }));
 
-vi.mock("solid-js/web", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("solid-js/web")>();
+vi.mock("@solidjs/web", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@solidjs/web")>();
 	return {
 		...actual,
 		hydrate: vi.fn((fn: () => unknown) => {
@@ -54,6 +54,10 @@ vi.mock("../../../src/outlet", () => ({
 	useRouter: vi.fn(() => ({})),
 }));
 
+vi.mock("../../../src/broadcast/provider", () => ({
+	BroadcastProvider: vi.fn((props: { children: unknown }) => props.children),
+}));
+
 vi.mock("../../../src/theme", () => ({
 	ThemeProvider: vi.fn((props: { children: unknown }) => props.children),
 }));
@@ -70,7 +74,7 @@ vi.mock("../../../src/state-parser", () => ({
 	parseFlareState: vi.fn(),
 }));
 
-import { render, hydrate as solidHydrate } from "solid-js/web";
+import { render, hydrate as solidHydrate } from "@solidjs/web";
 import { createMatchCache } from "../../../src/caches/index.ts";
 import { replaceHistoryState } from "../../../src/history/index.ts";
 import { hydrate } from "../../../src/hydrate/index.tsx";

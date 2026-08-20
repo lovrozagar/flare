@@ -10,14 +10,15 @@
 	},
 	"dependencies": {
 		"@lovrozagar/flare": "workspace:*",
+		"@solidjs/web": "catalog:",
 		"@tauri-apps/api": "2.11.1",
 		"nitro": "catalog:",
 		"solid-js": "catalog:",
-		"vite": "catalog:",
-		"vite-plugin-solid": "catalog:"
+		"vite": "catalog:"
 	},
 	"devDependencies": {
 		"@playwright/test": "catalog:",
+		"@solidjs/vite-plugin": "catalog:",
 		"@types/node": "catalog:",
 		"typescript": "catalog:"
 	}

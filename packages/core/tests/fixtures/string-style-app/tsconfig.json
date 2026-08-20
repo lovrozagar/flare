@@ -2,7 +2,7 @@
 	"compilerOptions": {
 		"allowImportingTsExtensions": true,
 		"jsx": "preserve",
-		"jsxImportSource": "solid-js",
+		"jsxImportSource": "@solidjs/web",
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"noEmit": true,

@@ -1,4 +1,4 @@
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider, useTheme } from "../../../src/theme.ts";
 
@@ -397,11 +397,11 @@ describe("SSR passthrough", () => {
 	it("hydration does not read localStorage as initial (avoids first-land freeze)", async () => {
 		localStorage.setItem("flare.theme", "dark");
 		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.context;
+		const original = sharedConfig.hydrating;
 		try {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
-				value: { count: 0, id: "test" },
+				value: true,
 			});
 			const first: string[] = [];
 			let getter: (() => string) | undefined;
@@ -423,20 +423,20 @@ describe("SSR passthrough", () => {
 			expect(getter?.()).toBe("dark");
 			expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 		} finally {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
 				value: original,
 			});
 		}
 	});
 
-	it("sharedConfig.context truthy → still provides useTheme context", async () => {
+	it("sharedConfig.hydrating truthy → still provides useTheme context", async () => {
 		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.context;
+		const original = sharedConfig.hydrating;
 		try {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
-				value: { count: 0, id: "test" },
+				value: true,
 			});
 			let theme: string | undefined;
 			dispose = render(
@@ -452,7 +452,7 @@ describe("SSR passthrough", () => {
 			);
 			expect(theme).toBe("system");
 		} finally {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
 				value: original,
 			});

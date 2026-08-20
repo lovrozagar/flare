@@ -1,14 +1,5 @@
-import {
-	createContext,
-	createEffect,
-	createSignal,
-	type JSX,
-	on,
-	onCleanup,
-	onMount,
-	sharedConfig,
-	useContext,
-} from "solid-js";
+import { createContext, createEffect, createSignal, onSettled, sharedConfig, useContext } from "solid-js";
+import { isServer, type JSX } from "@solidjs/web";
 import { BroadcastCtx } from "../broadcast/context.ts";
 import { escapeJsString } from "../theme/index.tsx";
 
@@ -40,10 +31,10 @@ export function getLocaleScript(opts: LocaleConfig): string {
 
 /* ── Context ───────────────────────────────────────────────────────── */
 
-const LocaleCtx = createContext<LocaleContextValue>();
+const LocaleCtx = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider(props: { children: JSX.Element; config: LocaleConfig; initial?: string }): JSX.Element {
-	if (sharedConfig.context) {
+	if (isServer || sharedConfig.hydrating) {
 		return props.children;
 	}
 
@@ -51,7 +42,7 @@ export function LocaleProvider(props: { children: JSX.Element; config: LocaleCon
 	const defaultLocale = cfg.defaultLocale;
 	const cookieName = cfg.cookieName ?? "flare.locale";
 
-	/* Capture context at component setup level (not inside onMount) */
+	/* Capture context at component setup level (not inside onSettled) */
 	const channel = cfg.broadcast ? useContext(BroadcastCtx) : undefined;
 
 	/* URL is truth: initial comes from server (URL params), not localStorage */
@@ -59,30 +50,27 @@ export function LocaleProvider(props: { children: JSX.Element; config: LocaleCon
 	const [locale, setLocaleSignal] = createSignal(initial);
 
 	/* Cross-tab sync: BroadcastChannel for locale (opt-in) */
-	onMount(() => {
+	onSettled(() => {
 		if (!channel) return;
 
-		const unsubscribe = channel.onMessage((msg) => {
+		return channel.onMessage((msg) => {
 			if (msg.type === "locale" && typeof msg.value === "string" && cfg.locales.includes(msg.value)) {
 				setLocaleSignal(msg.value);
 			}
 		});
-
-		createEffect(
-			on(
-				locale,
-				(l) => {
-					channel.broadcast({ type: "locale", value: l });
-				},
-				{ defer: true },
-			),
-		);
-
-		onCleanup(unsubscribe);
 	});
 
-	createEffect(() => {
-		const l = locale();
+	if (channel) {
+		createEffect(
+			locale,
+			(l) => {
+				channel.broadcast({ type: "locale", value: l });
+			},
+			{ defer: true },
+		);
+	}
+
+	createEffect(locale, (l) => {
 		if (typeof document === "undefined") return;
 		document.documentElement.setAttribute("lang", l);
 		document.cookie = `${cookieName}=${l}; path=/; max-age=31536000; samesite=lax`;
@@ -100,7 +88,7 @@ export function LocaleProvider(props: { children: JSX.Element; config: LocaleCon
 		setLocale,
 	};
 
-	return <LocaleCtx.Provider value={value}>{props.children}</LocaleCtx.Provider>;
+	return <LocaleCtx value={value}>{props.children}</LocaleCtx>;
 }
 
 export function useLocale(): LocaleContextValue {

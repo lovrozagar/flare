@@ -1,5 +1,5 @@
-import { createRoot } from "solid-js";
-import { describe, expect, it } from "vitest";
+import { render } from "@solidjs/web";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SSRContextProvider, type SSRContextValue, useSSRContext } from "../../../src/components/index.ts";
 
 function makeValue(overrides?: Partial<SSRContextValue>): SSRContextValue {
@@ -12,81 +12,84 @@ function makeValue(overrides?: Partial<SSRContextValue>): SSRContextValue {
 }
 
 describe("SSRContextProvider + useSSRContext", () => {
-	it("provides value to children", () => {
-		createRoot((dispose) => {
-			let result: SSRContextValue | undefined;
+	let container: HTMLDivElement;
+	let dispose: (() => void) | undefined;
 
-			const value = makeValue();
-			const el = (
+	beforeEach(() => {
+		container = document.createElement("div");
+		document.body.appendChild(container);
+	});
+
+	afterEach(() => {
+		dispose?.();
+		container.remove();
+	});
+
+	it("provides value to children", () => {
+		let result: SSRContextValue | undefined;
+		const value = makeValue();
+		dispose = render(
+			() => (
 				<SSRContextProvider value={value}>
 					{(() => {
 						result = useSSRContext();
 						return null;
 					})()}
 				</SSRContextProvider>
-			);
-			/* Force evaluation */
-			void el;
+			),
+			container,
+		);
 
-			expect(result).toBeDefined();
-			expect(result?.nonce).toBe("abc123");
-			expect(result?.flareStateScript).toBe("self.flare={}");
-			expect(result?.isServer).toBe(false);
-
-			dispose();
-		});
+		expect(result).toBeDefined();
+		expect(result?.nonce).toBe("abc123");
+		expect(result?.flareStateScript).toBe("self.flare={}");
+		expect(result?.isServer).toBe(false);
 	});
 
 	it("useSSRContext outside provider → undefined", () => {
-		createRoot((dispose) => {
-			let result: SSRContextValue | undefined = makeValue();
+		let result: SSRContextValue | undefined = makeValue();
+		dispose = render(() => {
 			result = useSSRContext();
-			expect(result).toBeUndefined();
-			dispose();
-		});
+			return null;
+		}, container);
+		expect(result).toBeUndefined();
 	});
 
 	it("passes entryScript through", () => {
-		createRoot((dispose) => {
-			let result: SSRContextValue | undefined;
-
-			const value = makeValue({ entryScript: "/assets/client-abc.js" });
-			const el = (
+		let result: SSRContextValue | undefined;
+		const value = makeValue({ entryScript: "/assets/client-abc.js" });
+		dispose = render(
+			() => (
 				<SSRContextProvider value={value}>
 					{(() => {
 						result = useSSRContext();
 						return null;
 					})()}
 				</SSRContextProvider>
-			);
-			void el;
+			),
+			container,
+		);
 
-			expect(result?.entryScript).toBe("/assets/client-abc.js");
-
-			dispose();
-		});
+		expect(result?.entryScript).toBe("/assets/client-abc.js");
 	});
 
 	it("passes resolvedHead through", () => {
-		createRoot((dispose) => {
-			let result: SSRContextValue | undefined;
-
-			const value = makeValue({
-				resolvedHead: { title: "Test Page" } as SSRContextValue["resolvedHead"],
-			});
-			const el = (
+		let result: SSRContextValue | undefined;
+		const value = makeValue({
+			resolvedHead: { title: "Test Page" } as SSRContextValue["resolvedHead"],
+		});
+		dispose = render(
+			() => (
 				<SSRContextProvider value={value}>
 					{(() => {
 						result = useSSRContext();
 						return null;
 					})()}
 				</SSRContextProvider>
-			);
-			void el;
+			),
+			container,
+		);
 
-			expect(result?.resolvedHead).toEqual({ title: "Test Page" });
-
-			dispose();
-		});
+		expect(result?.resolvedHead).toEqual({ title: "Test Page" });
 	});
 });

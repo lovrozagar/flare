@@ -107,6 +107,8 @@
 		"@capsizecss/metrics": "catalog:",
 		"@formatjs/intl-localematcher": "catalog:",
 		"@solidjs/testing-library": "catalog:",
+		"@solidjs/vite-plugin": "catalog:",
+		"@solidjs/web": "catalog:",
 		"@tanstack/query-broadcast-client-experimental": "catalog:",
 		"@tanstack/solid-query": "catalog:",
 		"@types/negotiator": "catalog:",
@@ -121,14 +123,15 @@
 		"solid-js": "catalog:",
 		"typescript": "catalog:",
 		"vite": "catalog:",
-		"vite-plugin-solid": "catalog:",
 		"vitest": "catalog:"
 	},
 	"peerDependencies": {
 		"@babel/parser": ">=8.0.0",
 		"@formatjs/intl-localematcher": ">=0.6.0",
+		"@solidjs/vite-plugin": ">=3.0.0-next.0",
+		"@solidjs/web": ">=2.0.0-rc.0",
 		"@tanstack/query-broadcast-client-experimental": ">=5.0.0",
-		"@tanstack/solid-query": ">=5.0.0",
+		"@tanstack/solid-query": ">=6.0.0-rc.0",
 		"isbot": ">=5.0.0",
 		"magic-string": ">=0.30.0",
 		"negotiator": ">=1.0.0",
@@ -136,9 +139,8 @@
 		"oxc-parser": ">=0.139.0",
 		"oxc-resolver": ">=11.23.0",
 		"sharp": ">=0.33.0",
-		"solid-js": ">=1.9.0",
-		"vite": ">=8.0.0",
-		"vite-plugin-solid": ">=2.0.0"
+		"solid-js": ">=2.0.0-rc.0",
+		"vite": ">=8.0.0"
 	},
 	"peerDependenciesMeta": {
 		"@formatjs/intl-localematcher": {

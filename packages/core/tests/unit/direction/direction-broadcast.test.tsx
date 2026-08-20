@@ -1,4 +1,4 @@
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DirectionProvider, useDirection } from "../../../src/direction.ts";
 
@@ -233,14 +233,14 @@ describe("DirectionProvider cross-tab sync via StorageEvent", () => {
 		expect(getter?.()).toBe("ltr");
 	});
 
-	it("SSR: no window.addEventListener called when sharedConfig.context set", async () => {
+	it("SSR: no window.addEventListener called when sharedConfig.hydrating set", async () => {
 		const addSpy = vi.spyOn(window, "addEventListener");
 		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.context;
+		const original = sharedConfig.hydrating;
 		try {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
-				value: { count: 0, id: "test" },
+				value: true,
 			});
 			DirectionProvider({
 				children: null as unknown as import("solid-js").JSX.Element,
@@ -248,7 +248,7 @@ describe("DirectionProvider cross-tab sync via StorageEvent", () => {
 			const storageCalls = addSpy.mock.calls.filter((c) => c[0] === "storage");
 			expect(storageCalls).toHaveLength(0);
 		} finally {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
 				value: original,
 			});
