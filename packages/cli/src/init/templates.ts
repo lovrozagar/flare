@@ -23,15 +23,16 @@ export const DEFAULT_OPTIONS: InitOptions = {
 export function packageJsonTemplate(opts: InitOptions): string {
 	const deps: Record<string, string> = {
 		"@lovrozagar/flare": "^0.1.0",
-		"@tanstack/solid-query": "^5.90.0",
-		"solid-js": "^1.9.0",
+		"@solidjs/web": "^2.0.0-rc.0",
+		"@tanstack/solid-query": "^6.0.0-rc.0",
+		"solid-js": "^2.0.0-rc.0",
 	};
 
 	const devDeps: Record<string, string> = {
+		"@solidjs/vite-plugin": "^3.0.0-next.0",
 		"@types/node": "^22.0.0",
 		typescript: "^7.0.0",
 		vite: "^8.0.0",
-		"vite-plugin-solid": "^2.11.0",
 	};
 
 	if (opts.style === "tailwind") {
@@ -67,7 +68,7 @@ export function tsconfigTemplate(): string {
 				forceConsistentCasingInFileNames: true,
 				isolatedModules: true,
 				jsx: "preserve",
-				jsxImportSource: "solid-js",
+				jsxImportSource: "@solidjs/web",
 				module: "ESNext",
 				moduleResolution: "bundler",
 				noEmit: true,

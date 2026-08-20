@@ -11,17 +11,18 @@
 	},
 	"dependencies": {
 		"@lovrozagar/flare": "workspace:*",
+		"@solidjs/web": "catalog:",
 		"solid-js": "catalog:",
 		"zod": "catalog:"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
 		"@playwright/test": "catalog:",
+		"@solidjs/vite-plugin": "catalog:",
 		"@types/node": "catalog:",
 		"tailwindcss": "catalog:",
 		"typescript": "catalog:",
 		"vite": "catalog:",
-		"vite-plugin-solid": "catalog:",
 		"wrangler": "catalog:"
 	}
 }

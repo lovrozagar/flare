@@ -1,5 +1,6 @@
-import { createEffect, type JSX, onCleanup, useContext } from "solid-js";
-import { isServer } from "solid-js/web";
+import { createEffect, useContext } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { isServer } from "@solidjs/web";
 import { RouterContext } from "../outlet/index.tsx";
 
 export interface NavigationProgressProps {
@@ -179,20 +180,20 @@ export function NavigationProgress(props: NavigationProgressProps): JSX.Element 
 	const ctx = useContext(RouterContext);
 
 	if (!isServer && ctx) {
-		createEffect(() => {
-			const phase = ctx.navigationPhase();
-
-			if (phase === "loading") {
-				clearTimers();
-				start();
-			} else if (phase === "idle" && status !== null) {
-				handleComplete();
-			} else if (phase === "transitioning" && status !== null) {
-				handleComplete();
-			}
-		});
-
-		onCleanup(clearTimers);
+		createEffect(
+			() => ctx.navigationPhase(),
+			(phase) => {
+				if (phase === "loading") {
+					clearTimers();
+					start();
+				} else if (phase === "idle" && status !== null) {
+					handleComplete();
+				} else if (phase === "transitioning" && status !== null) {
+					handleComplete();
+				}
+				return clearTimers;
+			},
+		);
 	}
 
 	const barColor = (): string => props.color ?? "currentColor";

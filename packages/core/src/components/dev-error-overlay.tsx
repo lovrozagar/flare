@@ -1,5 +1,6 @@
-import { createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
-import { Portal } from "solid-js/web";
+import { createSignal, For, onSettled, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Portal } from "@solidjs/web";
 import { createDevErrorStore, type DevErrorStore } from "./index.ts";
 
 let globalStore: DevErrorStore | undefined;
@@ -34,16 +35,14 @@ export function DevErrorOverlay(): JSX.Element {
 		refresh();
 	}
 
-	onMount(() => {
+	onSettled(() => {
 		if (typeof window === "undefined") return;
 		window.addEventListener("error", handleWindowError);
 		window.addEventListener("unhandledrejection", handleUnhandledRejection);
-	});
-
-	onCleanup(() => {
-		if (typeof window === "undefined") return;
-		window.removeEventListener("error", handleWindowError);
-		window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+		return () => {
+			window.removeEventListener("error", handleWindowError);
+			window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+		};
 	});
 
 	function dismiss(id: string): void {

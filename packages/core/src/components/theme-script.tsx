@@ -1,5 +1,5 @@
-import type { JSX } from "solid-js";
-import { NoHydration } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { NoHydration } from "@solidjs/web";
 import type { ThemeConfig } from "../theme.ts";
 import { getThemeScript } from "../theme.ts";
 import { useSSRContext } from "./ssr-context.tsx";

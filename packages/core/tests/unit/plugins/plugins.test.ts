@@ -1,8 +1,8 @@
 import type { Plugin } from "vite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/* Mock vite-plugin-solid to avoid esbuild binary in jsdom */
-vi.mock("vite-plugin-solid", () => ({
+/* Mock @solidjs/vite-plugin to avoid esbuild binary in jsdom */
+vi.mock("@solidjs/vite-plugin", () => ({
 	default: (opts: Record<string, unknown>) => ({ config: () => ({ solid: opts }), name: "solid" }),
 }));
 
@@ -314,6 +314,7 @@ describe("flare:ssr-build", () => {
 			resolve?: { dedupe?: string[] };
 		};
 		expect(result.resolve?.dedupe).toContain("solid-js");
+		expect(result.resolve?.dedupe).toContain("@solidjs/web");
 	});
 
 	it("solid in ssr.noExternal", () => {
@@ -327,6 +328,7 @@ describe("flare:ssr-build", () => {
 			ssr?: { noExternal?: string[] };
 		};
 		expect(result.ssr?.noExternal).toContain("solid-js");
+		expect(result.ssr?.noExternal).toContain("@solidjs/web");
 		expect(result.ssr?.noExternal).toContain("@lovrozagar/flare");
 	});
 
@@ -576,7 +578,7 @@ describe("solid plugin", () => {
 		expect((plugins[2] as { name?: string }).name).toBe("solid");
 	});
 
-	it("solid option passes through to vite-plugin-solid", () => {
+	it("solid option passes through to @solidjs/vite-plugin", () => {
 		const plugins = flarePlugins({ solid: { dev: false } });
 		const solidPlugin = plugins.find((p: { name?: string }) => p.name === "solid");
 		const config = (solidPlugin as { config?: () => Record<string, unknown> })?.config;

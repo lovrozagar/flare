@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { Plugin } from "vite";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("vite-plugin-solid", () => ({
+vi.mock("@solidjs/vite-plugin", () => ({
 	default: () => ({ name: "solid" }),
 }));
 

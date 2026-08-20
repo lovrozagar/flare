@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-/* Mock vite-plugin-solid to avoid esbuild binary in jsdom */
-vi.mock("vite-plugin-solid", () => ({
+/* Mock @solidjs/vite-plugin to avoid esbuild binary in jsdom */
+vi.mock("@solidjs/vite-plugin", () => ({
 	default: (opts: Record<string, unknown>) => ({ config: () => ({ solid: opts }), name: "solid" }),
 }));
 

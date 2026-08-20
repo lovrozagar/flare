@@ -2,7 +2,7 @@
  * @vitest-environment node
  *
  * Full SSR integration tests.
- * Mocks solid-js/web so renderToStream produces real HTML output.
+ * Mocks @solidjs/web so renderToStream produces real HTML output.
  * Tests the complete pipeline: route matching → layout loading → pipeline
  * execution → head merging → FlareState building → stream injection →
  * security headers. No false positives — every assertion verifies real output.
@@ -20,16 +20,17 @@ afterEach(() => {
 	devRef.current = true;
 });
 
-/* ── Mock solid-js/web before any imports that use it ────────────────── */
+/* ── Mock @solidjs/web before any imports that use it ────────────────── */
 
-vi.mock("solid-js/web", async (importOriginal) => {
+vi.mock("@solidjs/web", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
+	const { unwrapJsx } = await import("../unwrap-jsx.ts");
 	return {
 		...actual,
 		Hydration: (props: { children: unknown }) => props.children,
 		NoHydration: (props: { children: unknown }) => props.children,
 		renderToStream: (factory: () => unknown) => {
-			const content = String(factory() ?? "");
+			const content = unwrapJsx(factory());
 			const html = `<html lang="en"><head><title>Flare</title></head><body>${content}</body></html>`;
 			return {
 				pipeTo: (writable: WritableStream<string>) => {

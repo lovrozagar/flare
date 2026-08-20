@@ -2,10 +2,10 @@
  * @vitest-environment node
  *
  * Solid's renderToStream only works with SSR-compiled output.
- * vite-plugin-solid compiles for browser by default, so we mock solidRenderToStream
+ * @solidjs/vite-plugin compiles for browser by default, so we mock solidRenderToStream
  * to test our wrapping logic: FlareState building, stream injection, status derivation.
  */
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDeferContext } from "../../../src/defer/index.ts";
 import { NotFoundError, UnauthenticatedError, UnauthorizedError } from "../../../src/errors/index.ts";
@@ -13,14 +13,15 @@ import type { PipelineMatch, ResolvedRoute } from "../../../src/loader-pipeline/
 import { createRouter } from "../../../src/router-config/index.ts";
 import { clearScopedStyles, registerCSSByName } from "../../../src/styles/index.ts";
 
-vi.mock("solid-js/web", async (importOriginal) => {
+vi.mock("@solidjs/web", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
+	const { unwrapJsx } = await import("../../unwrap-jsx.ts");
 	return {
 		...actual,
 		Hydration: (props: { children: unknown }) => props.children,
 		NoHydration: (props: { children: unknown }) => props.children,
 		renderToStream: (factory: () => unknown) => {
-			const content = String(factory() ?? "");
+			const content = unwrapJsx(factory());
 			const html = `<html lang="en"><head><title>Test</title></head><body>${content}</body></html>`;
 			return {
 				pipe: vi.fn(),

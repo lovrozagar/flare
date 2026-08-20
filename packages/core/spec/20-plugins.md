@@ -107,13 +107,13 @@ Additional config:
 
 ```ts
 optimizeDeps: {
-  include: ["solid-js", "solid-js/web", "solid-js/store"],
+  include: ["solid-js", "@solidjs/web"],
 },
 resolve: {
-  dedupe: ["solid-js", "solid-js/web", "solid-js/store"],
+  dedupe: ["solid-js", "@solidjs/web"],
 },
 ssr: {
-  noExternal: ["solid-js", "flare"],
+  noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"],
 }
 ```
 
@@ -146,18 +146,17 @@ Client manifest resolution:
 
 ### 5. Solid Plugin
 
-Wraps `vite-plugin-solid`:
+Wraps `@solidjs/vite-plugin` (never `start: true` — Flare owns entries, SSR, and server functions):
 
 ```ts
 solid({
 	extensions: [".tsx", ".jsx"],
-	solid: { hydratable: true },
 	ssr: true,
 });
 ```
 
-- `hydratable: true` — generates hydration keys for SSR ↔ client matching
-- `ssr: true` — enables SSR compilation mode
+- `ssr: true` — hydratable SSR compilation (Solid 2 no longer has a separate `hydratable` flag)
+- `solid.start` is rejected — Flare is not SolidStart
 - Solid plugin uses `options.ssr` from transform hooks to compile for correct target
 
 ## CSS Scope Plugin
@@ -256,9 +255,9 @@ flare:virtual:
   virtual:client-manifest (dev) → source path
 
 Solid plugin:
-  hydratable: true configured
   ssr: true configured
   .tsx and .jsx extensions
+  solid.start rejected
 
 CSS scope:
   css= attribute → transformed to data-c + registerCSS call
@@ -284,7 +283,7 @@ CSS transform:
 - `flare()` returns an array — spread into Vite config's `plugins` array
 - Plugin order matters: resolver (pre) → generate → ssr-build → virtual → solid
 - CSS scope and server function plugins are separate — conditionally included based on config
-- Solid plugin MUST have `hydratable: true` — without it, SSR and client hydration keys don't match
+- Solid plugin MUST have `ssr: true` — Solid 2 hydratable output is implied by SSR mode; without it, SSR and client hydration keys don't match
 - `resolve.dedupe` for Solid is critical — duplicate Solid instances break reactivity completely
 - Virtual modules use `\0` prefix convention for Vite virtual module IDs
 - Client manifest resolution has production (manifest.json) and dev (source path) modes

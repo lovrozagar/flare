@@ -1,8 +1,8 @@
 import { existsSync, watch } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Options as SolidPluginOptions } from "vite-plugin-solid";
-import solid from "vite-plugin-solid";
+import type { Options as SolidPluginOptions } from "@solidjs/vite-plugin";
+import solid from "@solidjs/vite-plugin";
 import { runGenerate } from "../generators/index.ts";
 import { EMPTY_OBJ } from "../internal/index.ts";
 import type { LogLevel } from "../logger.ts";
@@ -285,11 +285,11 @@ function createSsrBuildPlugin(
 					},
 				},
 				optimizeDeps: {
-					include: ["solid-js", "solid-js/web", "solid-js/store"],
+					include: ["solid-js", "@solidjs/web"],
 				},
 				resolve: {
 					...(config.alias ? { alias: config.alias } : {}),
-					dedupe: ["solid-js", "solid-js/web", "solid-js/store"],
+					dedupe: ["solid-js", "@solidjs/web"],
 				},
 				server: {
 					...(config.port ? { port: config.port } : {}),
@@ -298,7 +298,7 @@ function createSsrBuildPlugin(
 					},
 				},
 				ssr: {
-					noExternal: ["solid-js", "@lovrozagar/flare", "@tanstack/solid-query"],
+					noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"],
 				},
 			};
 		},
@@ -386,16 +386,19 @@ export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
 		server: resolveEntry(root, "server", config.entry?.server),
 	};
 
+	if (config.solid && "start" in config.solid && (config.solid as { start?: unknown }).start) {
+		throw new Error("Flare: solid.start is not supported. Flare owns entries, SSR, and server functions.");
+	}
+
 	const solidConfig = {
 		extensions: [".tsx", ".jsx"],
-		hydratable: true,
 		ssr: true,
 		...config.solid,
 	};
 
 	const resolvedSw = normalizeSwConfig(config.serviceWorker);
 
-	/* TS 7: vite + vite-plugin-solid Plugin identities overflow. Keep this list on VitePlugin. */
+	/* TS 7: vite + @solidjs/vite-plugin Plugin identities overflow. Keep this list on VitePlugin. */
 	const plugins: VitePlugin[] = [
 		createTwDeprecatedPlugin(),
 		/* manifest: true always enabled so virtual:flare-sx-manifest is populated at SSR build time */

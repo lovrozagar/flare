@@ -2,7 +2,7 @@ import { createClientOnlyFn } from "@lovrozagar/flare/client-only";
 import { createIsomorphicFn } from "@lovrozagar/flare/isomorphic";
 import { createPage } from "@lovrozagar/flare/page";
 import { createServerOnlyFn } from "@lovrozagar/flare/server-only";
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onSettled } from "solid-js";
 
 const getServerSecret = createServerOnlyFn(() => "server-secret-42");
 
@@ -21,7 +21,7 @@ export const route = createPage("_root_/env-fn-test")
 		const [clientMark, setClientMark] = createSignal("");
 		const [liveEnv, setLiveEnv] = createSignal("");
 
-		onMount(() => {
+		onSettled(() => {
 			setClientMark(getClientMark());
 			setLiveEnv(getEnvLabel());
 		});

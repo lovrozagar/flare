@@ -1,4 +1,4 @@
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { useSSRContext } from "./ssr-context.tsx";
 
 /* Duplicated from index.ts to avoid circular import (index re-exports this component) */

@@ -1,4 +1,4 @@
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider, useTheme } from "../../../src/theme.ts";
 
@@ -233,21 +233,21 @@ describe("ThemeProvider cross-tab sync via StorageEvent", () => {
 		expect(document.documentElement.style.colorScheme).toBe("dark");
 	});
 
-	it("sharedConfig.context set still registers storage listener on client render", async () => {
+	it("sharedConfig.hydrating set still registers storage listener on client render", async () => {
 		const addSpy = vi.spyOn(window, "addEventListener");
 		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.context;
+		const original = sharedConfig.hydrating;
 		try {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
-				value: { count: 0, id: "test" },
+				value: true,
 			});
 			dispose = render(() => <ThemeProvider>{null}</ThemeProvider>, container);
 			await tick();
 			const storageCalls = addSpy.mock.calls.filter((c) => c[0] === "storage");
 			expect(storageCalls.length).toBeGreaterThan(0);
 		} finally {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
 				value: original,
 			});

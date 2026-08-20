@@ -1,11 +1,11 @@
-import { splitProps } from "solid-js";
-import type { JSX } from "solid-js";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement>;
 
 /* Source-only lib button — sx processed by the app Vite pipeline, not pre-extracted. */
 export function SourceButton(props: ButtonProps) {
-	const [, rest] = splitProps(props, []);
+	const rest = props;
 
 	return (
 		<button

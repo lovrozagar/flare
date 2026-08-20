@@ -1,4 +1,5 @@
-import { render } from "solid-js/web";
+import { flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageLoader, StaticImageData } from "../../../src/image/index.tsx";
 import { configureImage, Image, resetImageConfig } from "../../../src/image/index.tsx";
@@ -322,6 +323,7 @@ describe("blur placeholder", () => {
 		expect(img?.getAttribute("style") ?? "").toContain(blurDataURL);
 
 		img?.dispatchEvent(new Event("load"));
+		flush();
 
 		const styleAfter = img?.getAttribute("style") ?? "";
 		expect(styleAfter).not.toContain(blurDataURL);

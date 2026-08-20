@@ -531,7 +531,7 @@ interface OutletProps {
 }
 ```
 
-Optional `fallback` rendered during Suspense (deferred data loading).
+Optional `fallback` rendered during `<Loading>` (deferred data loading).
 
 ### Depth Tracking
 
@@ -580,7 +580,7 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
 
         return (
           <ErrorBoundaryWrapper match={m()} depth={props.depth}>
-            <Suspense fallback={props.fallback ?? null}>
+            <Loading fallback={props.fallback ?? null}>
               <Dynamic
                 component={m().render}
                 loaderData={m().loaderData}
@@ -588,7 +588,7 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
                 preloaderContext={m().preloaderContext}
                 {...(isPage() ? {} : { children: <Outlet fallback={props.fallback} /> })}
               />
-            </Suspense>
+            </Loading>
           </ErrorBoundaryWrapper>
         )
       }}
@@ -599,8 +599,8 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
 
 - `<Dynamic>` renders the match's component
 - Layouts receive `children` (next Outlet). Pages do not.
-- `<Suspense>` wraps for deferred data (Await/streaming)
-- `<ErrorBoundaryWrapper>` wraps for error catching
+- `<Loading>` wraps for deferred data (Await/streaming)
+- `<ErrorBoundaryWrapper>` wraps for error catching (`<Errored>` internally)
 
 ### Error Boundary Wrapping
 
@@ -615,22 +615,23 @@ function ErrorBoundaryWrapper(props: {
   const ctx = useRouterContext()
 
   return (
-    <ErrorBoundary
+    <Errored
       fallback={(error, reset) => {
+        const err = error()
         /* NotFoundError → walk up notFoundRender chain */
-        if (error instanceof NotFoundError) {
-          return resolveNotFoundBoundary(ctx, props.depth, error)
+        if (err instanceof NotFoundError) {
+          return resolveNotFoundBoundary(ctx, props.depth, err)
         }
         /* UnauthenticatedError / UnauthorizedError → walk up unauthorizedRender chain */
-        if (error instanceof UnauthenticatedError || error instanceof UnauthorizedError) {
-          return resolveUnauthorizedBoundary(ctx, props.depth, error)
+        if (err instanceof UnauthenticatedError || err instanceof UnauthorizedError) {
+          return resolveUnauthorizedBoundary(ctx, props.depth, err)
         }
         /* Other errors → walk up errorRender chain */
-        return resolveErrorBoundary(ctx, props.depth, error, reset)
+        return resolveErrorBoundary(ctx, props.depth, err, reset)
       }}
     >
       {props.children}
-    </ErrorBoundary>
+    </Errored>
   )
 }
 ```
@@ -807,8 +808,8 @@ Outlet rendering:
   Layout receives children (nested Outlet)
   Page does NOT receive children
   No match at depth → renders nothing
-  Suspense wraps component for deferred data
-  fallback prop passed to Suspense
+  Loading wraps component for deferred data
+  fallback prop passed to Loading
 
 Layout persistence:
   Same virtualPath across nav → component stays mounted
@@ -876,4 +877,4 @@ Global boundaries:
 - `notFound` state is separate from `matches` — allows rendering notFound without any match chain
 - `DepthContext` is a Solid context (not a global) — safe for concurrent rendering and multiple root layouts
 - Root layout's `children` is everything below it — entire app tree renders through a single `<Outlet>` chain
-- `<Suspense>` fallback is shared across all deferred data at a depth level — per-field fallbacks use `<Await>` component (spec 37)
+- `<Loading>` fallback is shared across all deferred data at a depth level — per-field fallbacks use `<Await>` component (spec 37)

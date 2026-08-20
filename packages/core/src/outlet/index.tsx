@@ -4,14 +4,14 @@ import {
 	createEffect,
 	createMemo,
 	createSignal,
-	ErrorBoundary,
-	type JSX,
+	Errored,
+	Loading,
 	onCleanup,
-	onMount,
+	onSettled,
 	Show,
-	Suspense,
 	useContext,
 } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import type { GlobalBoundaries } from "../boundaries/index.ts";
 import type { ChannelMessage, SerializedInvalidateOptions } from "../broadcast/channel.ts";
 import { BroadcastCtx } from "../broadcast/context.ts";
@@ -56,8 +56,8 @@ export type {
 	ViewTransitionOptions,
 } from "./types.ts";
 
-/** Exported for SSR — SSR injects context directly on sharedConfig.context */
-export const RouterContext = createContext<FlareProviderContext>();
+/** Default `null` (not `undefined`) — Solid 2 throws ContextNotFoundError when default is undefined. */
+export const RouterContext = createContext<FlareProviderContext | null>(null);
 export const DepthContext = createContext<number>(0);
 
 export function FlareProvider(props: FlareProviderProps): JSX.Element {
@@ -223,7 +223,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	}
 
 	/* Cross-tab broadcast: receive invalidate/navigate from other tabs */
-	onMount(() => {
+	onSettled(() => {
 		const unsubscribe = channel.onMessage((msg: ChannelMessage) => {
 			if (msg.type === "invalidate") {
 				props.matchCache.invalidate(msg.options);
@@ -240,16 +240,14 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 				});
 			}
 		});
-		onCleanup(unsubscribe);
+		return unsubscribe;
 	});
 
-	createEffect(() => {
-		if (props.onContextReady) {
-			props.onContextReady(ctx);
-		}
+	onSettled(() => {
+		props.onContextReady?.(ctx);
 	});
 
-	return <RouterContext.Provider value={ctx}>{props.children}</RouterContext.Provider>;
+	return <RouterContext value={ctx}>{props.children}</RouterContext>;
 }
 
 export function useRouterContext(): FlareProviderContext {
@@ -404,9 +402,9 @@ export function Outlet(props?: OutletProps): JSX.Element {
 
 	return (
 		<Show when={!ctx.notFound() || depth === 0}>
-			<DepthContext.Provider value={depth + 1}>
+			<DepthContext value={depth + 1}>
 				<OutletContent depth={depth} fallback={props?.fallback} />
-			</DepthContext.Provider>
+			</DepthContext>
 		</Show>
 	) as JSX.Element;
 }
@@ -441,13 +439,13 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
 					<Show
 						fallback={
 							<ErrorBoundaryWrapper depth={props.depth} match={m()}>
-								<Suspense fallback={props.fallback ?? null}>
+								<Loading fallback={props.fallback ?? null}>
 									{(() => {
 										const fn = renderFn();
 										const p = renderProps();
 										return fn(p);
 									})()}
-								</Suspense>
+								</Loading>
 							</ErrorBoundaryWrapper>
 						}
 						when={hasError()}
@@ -504,33 +502,37 @@ function ErrorBoundaryWrapper(props: { children: JSX.Element; depth: number; mat
 	 * fallback mode. Without this, navigating from error page → valid page
 	 * stays stuck in ErrorBoundary fallback.
 	 */
-	createEffect(() => {
-		/* Track reactive deps — resets ErrorBoundary on SPA navigation */
-		void props.match.virtualPath;
-		void props.match.error;
-		if (resetFn) resetFn();
-	});
+	createEffect(
+		() => {
+			void props.match.virtualPath;
+			void props.match.error;
+		},
+		() => {
+			resetFn?.();
+		},
+	);
 
 	const retry = makeRetry(ctx);
 
 	return (
-		<ErrorBoundary
+		<Errored
 			fallback={(error, reset) => {
 				resetFn = reset;
-				if (error instanceof NotFoundError) {
+				const err = error();
+				if (err instanceof NotFoundError) {
 					return resolveNotFoundBoundary(ctx, props.depth);
 				}
-				if (error instanceof UnauthenticatedError) {
-					return resolveUnauthenticatedBoundary(ctx, props.depth, error, retry);
+				if (err instanceof UnauthenticatedError) {
+					return resolveUnauthenticatedBoundary(ctx, props.depth, err, retry);
 				}
-				if (error instanceof UnauthorizedError) {
-					return resolveUnauthorizedBoundary(ctx, props.depth, error, retry);
+				if (err instanceof UnauthorizedError) {
+					return resolveUnauthorizedBoundary(ctx, props.depth, err, retry);
 				}
-				return resolveErrorBoundary(ctx, props.depth, error, reset, retry);
+				return resolveErrorBoundary(ctx, props.depth, err, reset, retry);
 			}}
 		>
 			{props.children}
-		</ErrorBoundary>
+		</Errored>
 	) as JSX.Element;
 }
 

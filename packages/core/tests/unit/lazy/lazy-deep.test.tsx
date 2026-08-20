@@ -1,6 +1,6 @@
 import type { Component } from "solid-js";
-import { ErrorBoundary } from "solid-js";
-import { render } from "solid-js/web";
+import { Errored } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clientLazy, lazy, resetLazyState, waitForLazyPreloads } from "../../../src/lazy/index.tsx";
 
@@ -54,9 +54,9 @@ describe("lazy error coercion", () => {
 
 		dispose = render(
 			() => (
-				<ErrorBoundary fallback={(err) => <span data-testid="error">{(err as Error).message}</span>}>
+				<Errored fallback={(err) => <span data-testid="error">{String((err() as Error).message)}</span>}>
 					<LazyComp />
-				</ErrorBoundary>
+				</Errored>
 			),
 			container,
 		);
@@ -74,9 +74,9 @@ describe("lazy error coercion", () => {
 
 		dispose = render(
 			() => (
-				<ErrorBoundary fallback={(err) => <span data-testid="error">{(err as Error).message}</span>}>
+				<Errored fallback={(err) => <span data-testid="error">{String((err() as Error).message)}</span>}>
 					<LazyComp />
-				</ErrorBoundary>
+				</Errored>
 			),
 			container,
 		);
@@ -94,9 +94,9 @@ describe("lazy error coercion", () => {
 
 		dispose = render(
 			() => (
-				<ErrorBoundary fallback={(err) => <span data-testid="error">{(err as Error).message}</span>}>
+				<Errored fallback={(err) => <span data-testid="error">{String((err() as Error).message)}</span>}>
 					<LazyComp />
-				</ErrorBoundary>
+				</Errored>
 			),
 			container,
 		);
@@ -225,9 +225,9 @@ describe("clientLazy edge cases", () => {
 
 		dispose = render(
 			() => (
-				<ErrorBoundary fallback={(err) => <span data-testid="error">{(err as Error).message}</span>}>
+				<Errored fallback={(err) => <span data-testid="error">{String((err() as Error).message)}</span>}>
 					<LazyComp />
-				</ErrorBoundary>
+				</Errored>
 			),
 			container,
 		);

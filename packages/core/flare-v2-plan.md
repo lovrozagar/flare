@@ -165,7 +165,7 @@ Uses `AsyncLocalStorage` (supported on CF Workers with `nodejs_compat` flag) for
 
 ```ts
 /* src/registry.ts — shared (server + client) */
-import { isServer } from "solid-js/web";
+import { isServer } from "@solidjs/web";
 
 /* Server-only: lazy-initialized to avoid top-level node:async_hooks import */
 let registryContext: import("node:async_hooks").AsyncLocalStorage<Set<string>> | null = null;

@@ -28,6 +28,7 @@ describe("packageJsonTemplate", () => {
 		const parsed: unknown = JSON.parse(result);
 		expect(parsed).toHaveProperty(["dependencies", "@lovrozagar/flare"]);
 		expect(parsed).toHaveProperty("dependencies.solid-js");
+		expect(parsed).toHaveProperty("dependencies.@solidjs/web");
 		expect(parsed).toHaveProperty("dependencies.@tanstack/solid-query");
 	});
 
@@ -37,7 +38,7 @@ describe("packageJsonTemplate", () => {
 		expect(parsed).toHaveProperty("devDependencies.@types/node");
 		expect(parsed).toHaveProperty("devDependencies.typescript");
 		expect(parsed).toHaveProperty("devDependencies.vite");
-		expect(parsed).toHaveProperty("devDependencies.vite-plugin-solid");
+		expect(parsed).toHaveProperty("devDependencies.@solidjs/vite-plugin");
 	});
 
 	it("includes tailwind when style is tailwind", () => {
@@ -75,7 +76,7 @@ describe("tsconfigTemplate", () => {
 	it("has solid-js jsx config", () => {
 		const result = tsconfigTemplate();
 		const parsed: unknown = JSON.parse(result);
-		expect(parsed).toHaveProperty("compilerOptions.jsxImportSource", "solid-js");
+		expect(parsed).toHaveProperty("compilerOptions.jsxImportSource", "@solidjs/web");
 		expect(parsed).toHaveProperty("compilerOptions.jsx", "preserve");
 	});
 });

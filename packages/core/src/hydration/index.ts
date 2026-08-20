@@ -1,4 +1,3 @@
-import { batch } from "solid-js";
 import type { GlobalBoundaries } from "../boundaries/index.ts";
 import type { CachedMatch, MatchCache } from "../caches/index.ts";
 import { applyPerRouteHeads, initRouteHierarchy } from "../head-client/index.ts";
@@ -80,10 +79,8 @@ export function buildMatches(ctx: FlareProviderContext, modules: LoadedRouteModu
 		};
 	});
 
-	batch(() => {
-		ctx.setMatches(clientMatches);
-		ctx.setParams(modules.params);
-	});
+	ctx.setMatches(clientMatches);
+	ctx.setParams(modules.params);
 }
 
 export function extractRootBoundaries(rootLayout: LoadedRouteModule | undefined): GlobalBoundaries {

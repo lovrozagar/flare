@@ -1,5 +1,5 @@
-import type { JSX } from "solid-js";
-import { NoHydration } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { NoHydration } from "@solidjs/web";
 import type { LocaleConfig } from "../locale/index.tsx";
 import { getLocaleScript } from "../locale/index.tsx";
 import { useSSRContext } from "./ssr-context.tsx";

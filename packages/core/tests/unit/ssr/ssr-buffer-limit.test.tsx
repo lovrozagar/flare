@@ -4,7 +4,7 @@
  * Tests the stream buffer size limit in renderToStream to prevent DoS
  * via pathological SSR output that never produces injection markers.
  */
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDeferContext } from "../../../src/defer/index.ts";
 import type { PipelineMatch, ResolvedRoute } from "../../../src/loader-pipeline/index.ts";
@@ -13,7 +13,7 @@ import { clearScopedStyles } from "../../../src/styles/index.ts";
 
 const OVERSIZED_CHUNK_LEN = 3 * 1024 * 1024;
 
-vi.mock("solid-js/web", async (importOriginal) => {
+vi.mock("@solidjs/web", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
 	return {
 		...actual,

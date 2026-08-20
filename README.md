@@ -123,7 +123,7 @@ npm add @lovrozagar/flare
 pnpm add @lovrozagar/flare
 ```
 
-Peers: `solid-js`, `vite`, `vite-plugin-solid`. Optional: `sharp` (images), `isbot` (skip locale cookies for bots), `@tanstack/solid-query` (query), `@tanstack/query-broadcast-client-experimental` (query broadcast), `oxc-parser`, `oxc-resolver`.
+Peers: `solid-js`, `@solidjs/web`, `@solidjs/vite-plugin`, `vite`. Optional: `sharp` (images), `isbot` (skip locale cookies for bots), `@tanstack/solid-query` (query), `@tanstack/query-broadcast-client-experimental` (query broadcast), `oxc-parser`, `oxc-resolver`.
 
 The CLI is a workspace package (`@flare/cli`, binary `flare`). In this repo it is on the path via workspace linking. A published consumer uses `flare init` after adding the package.
 
@@ -132,7 +132,7 @@ The CLI is a workspace package (`@flare/cli`, binary `flare`). In this repo it i
 ```bash
 mkdir my-app && cd my-app
 bun init -y
-bun add @lovrozagar/flare solid-js vite vite-plugin-solid
+bun add @lovrozagar/flare solid-js @solidjs/web vite @solidjs/vite-plugin
 flare init
 bun run dev
 ```
@@ -1053,7 +1053,7 @@ export default defineConfig({
 | `ignorePrefix`                         | extra ignored folder names                  |                                                              |
 | `port`                                 | Vite `server.port` (overrides CLI `--port`) |                                                              |
 | `alias`                                | Vite alias                                  |                                                              |
-| `solid`                                | passed to `vite-plugin-solid`               |                                                              |
+| `solid`                                | passed to `@solidjs/vite-plugin`            | `ssr: true` is forced; `start: true` is rejected             |
 
 `dev: false` turns every `dev.*` flag off. Dev dashboard is `@node-only` in e2e (not on Workers).
 

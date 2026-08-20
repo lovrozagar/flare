@@ -1,5 +1,5 @@
-import { createEffect, createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js";
-import { render } from "solid-js/web";
+import { createEffect, createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import { render } from "@solidjs/web";
 import type { LocaleMatch } from "../../router-primitives/tree.ts";
 import { matchRouteTree } from "./match-route-tree.ts";
 
@@ -1070,12 +1070,15 @@ function VirtualList<T>(props: {
 		}
 	};
 
-	createEffect(() => {
-		if (scrollEl) {
-			setViewHeight(scrollEl.clientHeight);
-			if (props.containerRef) props.containerRef(scrollEl);
-		}
-	});
+	createEffect(
+		() => scrollEl,
+		(el) => {
+			if (el) {
+				setViewHeight(el.clientHeight);
+				if (props.containerRef) props.containerRef(el);
+			}
+		},
+	);
 
 	return (
 		<div
@@ -1142,9 +1145,7 @@ function TreeRow(props: {
 			>
 				{typeBadgeLabel(props.node.type)}
 			</span>
-			<span class="tree-segment" classList={{ "is-group": isGroup(), "is-param": isParam() }}>
-				{label()}
-			</span>
+			<span class={["tree-segment", { "is-group": isGroup(), "is-param": isParam() }]}>{label()}</span>
 			<Show when={props.node.urlPath && props.node.type !== "segment"}>
 				<span class="tree-url">{props.node.urlPath}</span>
 			</Show>
@@ -1228,7 +1229,7 @@ function ListItem(props: {
 				}
 			}}
 			role="button"
-			tabIndex={0}
+			tabindex={0}
 		>
 			<div class="list-item-header">
 				<span class="list-item-url">{props.urlPath}</span>
@@ -1404,16 +1405,16 @@ function ServerFnsTab(props: {
 				<table class="fn-table">
 					<thead>
 						<tr>
-							<th classList={{ sorted: sortCol() === "name" }} onClick={() => handleSort("name")}>
+							<th class={{ sorted: sortCol() === "name" }} onClick={() => handleSort("name")}>
 								Name{sortIndicator("name")}
 							</th>
-							<th classList={{ sorted: sortCol() === "method" }} onClick={() => handleSort("method")}>
+							<th class={{ sorted: sortCol() === "method" }} onClick={() => handleSort("method")}>
 								Method{sortIndicator("method")}
 							</th>
-							<th classList={{ sorted: sortCol() === "authenticate" }} onClick={() => handleSort("authenticate")}>
+							<th class={{ sorted: sortCol() === "authenticate" }} onClick={() => handleSort("authenticate")}>
 								Auth{sortIndicator("authenticate")}
 							</th>
-							<th classList={{ sorted: sortCol() === "stream" }} onClick={() => handleSort("stream")}>
+							<th class={{ sorted: sortCol() === "stream" }} onClick={() => handleSort("stream")}>
 								Stream{sortIndicator("stream")}
 							</th>
 							<th>File</th>
@@ -1531,7 +1532,7 @@ function ChainNode(props: {
 				}
 			}}
 			role="button"
-			tabIndex={0}
+			tabindex={0}
 		>
 			<div class="cur-chain-header">
 				<span
@@ -1543,7 +1544,7 @@ function ChainNode(props: {
 				>
 					{typeBadgeLabel(props.node.type)}
 				</span>
-				<span class="cur-chain-seg" classList={{ "is-group": isGroup(), "is-param": isParam() }}>
+				<span class={["cur-chain-seg", { "is-group": isGroup(), "is-param": isParam() }]}>
 					{props.node.segment || "/"}
 				</span>
 				<Show when={props.node.filePath}>
@@ -1667,61 +1668,67 @@ function CurrentTab(props: {
 	const [docTitle, setDocTitle] = createSignal(document.title);
 
 	/* Watch URL changes */
-	createEffect(() => {
-		const update = () => {
-			setUrl({
-				hash: window.location.hash,
-				pathname: window.location.pathname,
-				search: window.location.search,
-			});
-			setDocTitle(document.title);
-		};
+	createEffect(
+		() => undefined,
+		() => {
+			const update = () => {
+				setUrl({
+					hash: window.location.hash,
+					pathname: window.location.pathname,
+					search: window.location.search,
+				});
+				setDocTitle(document.title);
+			};
 
-		window.addEventListener("popstate", update);
+			window.addEventListener("popstate", update);
 
-		const origPush = history.pushState.bind(history);
-		const origReplace = history.replaceState.bind(history);
-		history.pushState = (...args: Parameters<typeof history.pushState>) => {
-			origPush(...args);
-			update();
-		};
-		history.replaceState = (...args: Parameters<typeof history.replaceState>) => {
-			origReplace(...args);
-			update();
-		};
+			const origPush = history.pushState.bind(history);
+			const origReplace = history.replaceState.bind(history);
+			history.pushState = (...args: Parameters<typeof history.pushState>) => {
+				origPush(...args);
+				update();
+			};
+			history.replaceState = (...args: Parameters<typeof history.replaceState>) => {
+				origReplace(...args);
+				update();
+			};
 
-		onCleanup(() => {
-			window.removeEventListener("popstate", update);
-			history.pushState = origPush;
-			history.replaceState = origReplace;
-		});
-	});
+			return () => {
+				window.removeEventListener("popstate", update);
+				history.pushState = origPush;
+				history.replaceState = origReplace;
+			};
+		},
+	);
 
 	/* Watch <html> attributes + title */
-	createEffect(() => {
-		const observer = new MutationObserver(() => {
-			setHtmlAttrs({
-				dir: document.documentElement.getAttribute("dir") ?? "ltr",
-				lang: document.documentElement.getAttribute("lang") ?? "",
-				theme: document.documentElement.getAttribute("data-theme") ?? "",
+	createEffect(
+		() => undefined,
+		() => {
+			const observer = new MutationObserver(() => {
+				setHtmlAttrs({
+					dir: document.documentElement.getAttribute("dir") ?? "ltr",
+					lang: document.documentElement.getAttribute("lang") ?? "",
+					theme: document.documentElement.getAttribute("data-theme") ?? "",
+				});
 			});
-		});
-		observer.observe(document.documentElement, {
-			attributeFilter: ["data-theme", "dir", "lang"],
-			attributes: true,
-		});
+			observer.observe(document.documentElement, {
+				attributeFilter: ["data-theme", "dir", "lang"],
+				attributes: true,
+			});
 
-		const titleObs = new MutationObserver(() => setDocTitle(document.title));
-		const titleEl = document.querySelector("title");
-		if (titleEl) {
-			titleObs.observe(titleEl, { characterData: true, childList: true, subtree: true });
-		}
+			const titleObs = new MutationObserver(() => setDocTitle(document.title));
+			const titleEl = document.querySelector("title");
+			if (titleEl) {
+				titleObs.observe(titleEl, { characterData: true, childList: true, subtree: true });
+			}
 
-		onCleanup(() => {
-			observer.disconnect();
-			titleObs.disconnect();
-		});
-	});
+			return () => {
+				observer.disconnect();
+				titleObs.disconnect();
+			};
+		},
+	);
 
 	const matched = createMemo(() => matchRouteTree(props.tree, url().pathname, props.localeMatch));
 	const searchParams = createMemo(() => parseSearchParams(url().search));
@@ -1730,20 +1737,20 @@ function CurrentTab(props: {
 	const [runtimeMatches, setRuntimeMatches] = createSignal<RuntimeMatch[]>([]);
 	const [cachedMatches, setCachedMatches] = createSignal<CachedMatchInfo[]>([]);
 
-	createEffect(() => {
-		const read = () => {
-			const matches = window.__flare_devtools_matches__;
-			if (matches) setRuntimeMatches(matches);
-			const cache = window.__flare_devtools_cache__;
-			if (cache) setCachedMatches(cache);
-		};
-		read();
-
-		/* Re-read on navigation (URL signal triggers this effect) */
-		void url();
-		const timer = setTimeout(read, 100);
-		onCleanup(() => clearTimeout(timer));
-	});
+	createEffect(
+		() => url(),
+		() => {
+			const read = () => {
+				const matches = window.__flare_devtools_matches__;
+				if (matches) setRuntimeMatches(matches);
+				const cache = window.__flare_devtools_cache__;
+				if (cache) setCachedMatches(cache);
+			};
+			read();
+			const timer = setTimeout(read, 100);
+			return () => clearTimeout(timer);
+		},
+	);
 
 	const runtimeMatchFor = (node: RouteTreeNode): RuntimeMatch | undefined => {
 		if (!node.virtualPath) return undefined;
@@ -1785,12 +1792,14 @@ function CurrentTab(props: {
 		setHeadTags(tags);
 	};
 
-	createEffect(() => {
-		void url();
-		readHeadTags();
-		const timer = setTimeout(readHeadTags, 200);
-		onCleanup(() => clearTimeout(timer));
-	});
+	createEffect(
+		() => url(),
+		() => {
+			readHeadTags();
+			const timer = setTimeout(readHeadTags, 200);
+			return () => clearTimeout(timer);
+		},
+	);
 
 	const leafMatch = createMemo(() => {
 		const chain = matched().chain;
@@ -2068,7 +2077,7 @@ function CopyButton(props: {
 	};
 
 	return (
-		<button class="act-btn" classList={{ "is-copied": copied() }} onClick={handleCopy} type="button">
+		<button class={["act-btn", { "is-copied": copied() }]} onClick={handleCopy} type="button">
 			{copied() ? "Copied" : props.label}
 		</button>
 	);
@@ -2108,11 +2117,14 @@ function ActionsTab(props: {
 		if (a) setCacheStats(a.getCacheStats());
 	};
 
-	createEffect(() => {
-		refreshStats();
-		const timer = setInterval(refreshStats, 2000);
-		onCleanup(() => clearInterval(timer));
-	});
+	createEffect(
+		() => undefined,
+		() => {
+			refreshStats();
+			const timer = setInterval(refreshStats, 2000);
+			return () => clearInterval(timer);
+		},
+	);
 
 	/* Navigate section */
 	const pageRoutes = createMemo(() =>
@@ -2306,8 +2318,7 @@ function ActionsTab(props: {
 							Forward
 						</button>
 						<button
-							class="act-btn"
-							classList={{ "is-copied": useReplace() }}
+							class={["act-btn", { "is-copied": useReplace() }]}
 							onClick={() => setUseReplace((r) => !r)}
 							style={useReplace() ? { "border-color": "#3b82f6", color: "#3b82f6" } : {}}
 							type="button"
@@ -2409,8 +2420,8 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 	let searchRef: HTMLInputElement | null = null;
 
 	/* Fetch data on open */
-	createEffect(() => {
-		if (isOpen()) {
+	createEffect(isOpen, (open) => {
+		if (open) {
 			fetch("/__flare/api")
 				.then((r) => r.json())
 				.then((d) => setData(d as ApiData));
@@ -2418,9 +2429,9 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 	});
 
 	/* Persist state */
-	createEffect(() => {
+	createEffect(activeTab, (tab) => {
 		saveState({
-			activeTab: activeTab(),
+			activeTab: tab,
 			expandedNodes: [],
 			sortCol: "name",
 			sortDir: "asc",
@@ -2428,23 +2439,26 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 	});
 
 	/* Keyboard shortcuts */
-	createEffect(() => {
-		const handler = (e: KeyboardEvent) => {
-			if (e.ctrlKey && e.shiftKey && e.key === "D") {
-				e.preventDefault();
-				setIsOpen((o) => !o);
-			}
-			if (e.key === "Escape" && isOpen()) {
-				setIsOpen(false);
-			}
-			if (e.key === "/" && isOpen() && document.activeElement !== searchRef) {
-				e.preventDefault();
-				searchRef?.focus();
-			}
-		};
-		window.addEventListener("keydown", handler);
-		onCleanup(() => window.removeEventListener("keydown", handler));
-	});
+	createEffect(
+		() => undefined,
+		() => {
+			const handler = (e: KeyboardEvent) => {
+				if (e.ctrlKey && e.shiftKey && e.key === "D") {
+					e.preventDefault();
+					setIsOpen((o) => !o);
+				}
+				if (e.key === "Escape" && isOpen()) {
+					setIsOpen(false);
+				}
+				if (e.key === "/" && isOpen() && document.activeElement !== searchRef) {
+					e.preventDefault();
+					searchRef?.focus();
+				}
+			};
+			window.addEventListener("keydown", handler);
+			return () => window.removeEventListener("keydown", handler);
+		},
+	);
 
 	const tabCount = (tabId: TabId): number | null => {
 		const d = data();
@@ -2460,8 +2474,7 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 	return (
 		<>
 			<button
-				class="toggle-btn"
-				classList={{ "is-open": isOpen() }}
+				class={["toggle-btn", { "is-open": isOpen() }]}
 				onClick={() => setIsOpen((o) => !o)}
 				title="Flare DevTools (Ctrl+Shift+D)"
 				type="button"
@@ -2483,8 +2496,7 @@ function DevTools(): ReturnType<(typeof import("solid-js"))["createComponent"]> 
 								<For each={TABS}>
 									{(tab) => (
 										<button
-											class="tab-btn"
-											classList={{ active: activeTab() === tab.id }}
+											class={["tab-btn", { active: activeTab() === tab.id }]}
 											onClick={() => {
 												setActiveTab(tab.id);
 												setSearch("");

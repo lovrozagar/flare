@@ -1,3 +1,4 @@
+import { createRoot } from "solid-js";
 import { describe, expect, it } from "vitest";
 import { getLocaleScript, useLocale } from "../../../src/locale.ts";
 
@@ -44,6 +45,14 @@ describe("getLocaleScript", () => {
 
 describe("useLocale", () => {
 	it("throws when used outside LocaleProvider", () => {
-		expect(() => useLocale()).toThrow("useLocale() called outside LocaleProvider");
+		expect(() => {
+			createRoot((dispose) => {
+				try {
+					useLocale();
+				} finally {
+					dispose();
+				}
+			});
+		}).toThrow("useLocale() called outside LocaleProvider");
 	});
 });

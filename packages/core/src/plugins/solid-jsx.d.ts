@@ -1,11 +1,11 @@
-import "solid-js";
+import "@solidjs/web";
 
-declare module "solid-js" {
+declare module "@solidjs/web" {
 	namespace JSX {
 		interface HTMLAttributes<T> {
 			css?: string;
 		}
-		interface CoreSVGAttributes<T> {
+		interface SVGAttributes<T> {
 			css?: string;
 		}
 	}

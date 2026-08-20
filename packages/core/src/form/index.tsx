@@ -1,5 +1,6 @@
-import { createMemo, createSignal, For, type JSX, Show, splitProps } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { createMemo, createSignal, For, omit, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Dynamic } from "@solidjs/web";
 import type { FlattenedError } from "../errors/index.ts";
 import { ServerFnValidationError } from "../errors/index.ts";
 import type { ServerFn } from "../server-fn/index.ts";
@@ -54,13 +55,8 @@ export type FormProps<TInput, TOutput> = FormOwnProps<TInput, TOutput> &
 /* ── Form component ────────────────────────────────────────────────── */
 
 export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.Element {
-	const [local, rest] = splitProps(props as FormOwnProps<TInput, TOutput> & Record<string, unknown>, [
-		"action",
-		"children",
-		"enctype",
-		"onError",
-		"onSuccess",
-	]);
+	const local = props as FormOwnProps<TInput, TOutput> & Record<string, unknown>;
+	const rest = omit(local, "action", "children", "enctype", "onError", "onSuccess");
 
 	const reg = createMemo(() => local.action._registration);
 	const fnId = createMemo(() => reg()?.id ?? "");

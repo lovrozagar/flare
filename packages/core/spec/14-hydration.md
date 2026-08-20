@@ -321,7 +321,7 @@ SSR deferred resolution:
 
 - `router` from `createRouter()` (spec 25) is the single source of truth — contains routeTree, layouts, queryClientGetter, and all runtime defaults
 - Client entry: `hydrate(router)` — single arg, same `router` object imported by server
-- `solidHydrate` is Solid's `hydrate()` from `solid-js/web` — attaches reactivity to SSR HTML without re-rendering
+- `solidHydrate` is Solid's `hydrate()` from `@solidjs/web` — attaches reactivity to SSR HTML without re-rendering
 - Dummy component depth MUST match SSR's `<Hydration>` wrapper depth — off by one breaks hydration key alignment
 - `#app` element expected in SSR HTML body — root layout renders it as part of `<body>`
 - Route modules loaded in parallel with `Promise.all` — page + all layouts simultaneously

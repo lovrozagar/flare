@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("vite-plugin-solid", () => ({
+vi.mock("@solidjs/vite-plugin", () => ({
 	default: () => ({ name: "solid" }),
 }));
 
@@ -123,7 +123,7 @@ describe("stripHandlerBodies - stream", () => {
 
 describe("dropDeadImports", () => {
 	it("keeps _$template used between import groups (Solid JSX emit)", () => {
-		const code = `import { template as _$template } from "solid-js/web";
+		const code = `import { template as _$template } from "@solidjs/web";
 var _tmpl$ = _$template(\`<main></main>\`);
 import { createPage } from "@lovrozagar/flare/page";
 import { createServerOnlyFn } from "@lovrozagar/flare/server-only";

@@ -220,7 +220,7 @@ describe("anchor click delegate", () => {
 		/* Import and render Link inside FlareProvider so the component is wired up */
 		const { Link } = await import("../../../src/link/index.tsx");
 		const { FlareProvider } = await import("../../../src/outlet/index.tsx");
-		const { render } = await import("solid-js/web");
+		const { render } = await import("@solidjs/web");
 
 		/* Mock navigation for the Link module — but because anchor-intercept tests use REAL
 		 * navigation module, we need a ctx + setupNavigation so the delegate fires.

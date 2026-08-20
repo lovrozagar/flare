@@ -1,4 +1,5 @@
-import { render } from "solid-js/web";
+import { createRoot } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DirectionProvider, useDirection } from "../../../src/direction.ts";
 
@@ -297,21 +298,29 @@ describe("setDirection / toggleDirection", () => {
 });
 
 describe("SSR passthrough + context getDirFromLocale", () => {
-	it("sharedConfig.context truthy → returns children without context provider", async () => {
+	it("sharedConfig.hydrating truthy → returns children without context provider", async () => {
 		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.context;
+		const original = sharedConfig.hydrating;
 		try {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
-				value: { count: 0, id: "test" },
+				value: true,
 			});
 			const result = DirectionProvider({
 				children: null as unknown as import("solid-js").JSX.Element,
 			});
 			expect(result).toBeDefined();
-			expect(() => useDirection()).toThrow("useDirection() called outside DirectionProvider");
+			expect(() => {
+				createRoot((dispose) => {
+					try {
+						useDirection();
+					} finally {
+						dispose();
+					}
+				});
+			}).toThrow("useDirection() called outside DirectionProvider");
 		} finally {
-			Object.defineProperty(sharedConfig, "context", {
+			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,
 				value: original,
 			});

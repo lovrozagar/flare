@@ -1,3 +1,4 @@
+import { createRoot } from "solid-js";
 import { describe, expect, it } from "vitest";
 import { getDirectionScript, getDirFromLocale, useDirection } from "../../../src/direction.ts";
 
@@ -82,6 +83,14 @@ describe("getDirFromLocale", () => {
 
 describe("useDirection", () => {
 	it("throws when used outside DirectionProvider", () => {
-		expect(() => useDirection()).toThrow("useDirection() called outside DirectionProvider");
+		expect(() => {
+			createRoot((dispose) => {
+				try {
+					useDirection();
+				} finally {
+					dispose();
+				}
+			});
+		}).toThrow("useDirection() called outside DirectionProvider");
 	});
 });
