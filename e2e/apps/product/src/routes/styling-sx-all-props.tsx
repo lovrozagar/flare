@@ -26,7 +26,7 @@ export const route = createPage("_root_/styling-sx-all-props").render(() => {
 					color: "rgb(30, 30, 30)",
 					padding: "8px",
 				}}
-				tabIndex={0}
+				tabindex={0}
 			>
 				focus-visible pseudo
 			</div>

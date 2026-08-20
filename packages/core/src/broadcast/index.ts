@@ -42,7 +42,7 @@ export function createBroadcastSignal<T>(key: string, initialValue: T): [() => T
 
 	let entry = registry.get(key);
 	if (!entry) {
-		const [value, setValue] = createSignal<T>(initialValue);
+		const [value, setValue] = createSignal(initialValue as Exclude<T, Function>);
 		entry = {
 			refCount: 0,
 			signal: [value, setValue as (v: unknown) => void],

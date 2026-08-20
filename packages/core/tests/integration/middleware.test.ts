@@ -5,7 +5,7 @@
  * Tests middleware through the full server handler pipeline — bypass/respond/next,
  * response handlers, chain ordering, interaction with NDJSON + server fn paths.
  *
- * Mocks solid-js/web for SSR tests that go through renderToStream.
+ * Mocks @solidjs/web for SSR tests that go through renderToStream.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -20,14 +20,15 @@ afterEach(() => {
 	devRef.current = true;
 });
 
-vi.mock("solid-js/web", async (importOriginal) => {
+vi.mock("@solidjs/web", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
+	const { unwrapJsx } = await import("../unwrap-jsx.ts");
 	return {
 		...actual,
 		Hydration: (props: { children: unknown }) => props.children,
 		NoHydration: (props: { children: unknown }) => props.children,
 		renderToStream: (factory: () => unknown) => {
-			const content = String(factory() ?? "");
+			const content = unwrapJsx(factory());
 			const html = `<html lang="en"><head><title>Flare</title></head><body>${content}</body></html>`;
 			return {
 				pipeTo: (writable: WritableStream<string>) => {

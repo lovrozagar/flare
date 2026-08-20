@@ -1,4 +1,5 @@
-import { createMemo, createSignal, type JSX, splitProps } from "solid-js";
+import { createMemo, createSignal, omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { warn } from "../logger.ts";
 
 /* ── Static image data ── */
@@ -326,7 +327,9 @@ function mergeStyles(
 /* ── Image component ── */
 
 export function Image(props: ImageProps): JSX.Element {
-	const [local, rest] = splitProps(props as unknown as ImagePropsInternal, [
+	const local = props as unknown as ImagePropsInternal;
+	const rest = omit(
+		local,
 		"alt",
 		"aspectRatio",
 		"blurDataURL",
@@ -345,7 +348,7 @@ export function Image(props: ImageProps): JSX.Element {
 		"style",
 		"width",
 		"widths",
-	]);
+	);
 
 	const [loaded, setLoaded] = createSignal(false);
 

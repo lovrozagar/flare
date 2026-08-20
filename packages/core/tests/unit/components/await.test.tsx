@@ -1,5 +1,5 @@
-import { createRoot, createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { createSignal, flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	Await,
@@ -268,35 +268,25 @@ describe("Await component", () => {
 
 		const [promise, setPromise] = createSignal<Promise<string>>(p1);
 
-		createRoot((rootDispose) => {
-			dispose = render(
-				() => (
-					<Await pending={<span data-testid="loading">Loading</span>} promise={promise()}>
-						{(data) => <span data-testid="data">{data}</span>}
-					</Await>
-				),
-				container,
-			);
+		dispose = render(
+			() => (
+				<Await pending={<span data-testid="loading">Loading</span>} promise={promise()}>
+					{(data) => <span data-testid="data">{data}</span>}
+				</Await>
+			),
+			container,
+		);
 
-			/* Switch to p2 before p1 resolves */
-			setPromise(p2);
-
-			tick().then(() => {
-				/* p2 should win */
-				expect(container.querySelector("[data-testid='data']")?.textContent).toBe("second");
-
-				/* Late resolve of p1 should be ignored */
-				resolve1("first");
-
-				tick().then(() => {
-					expect(container.querySelector("[data-testid='data']")?.textContent).toBe("second");
-					rootDispose();
-				});
-			});
-		});
+		/* Switch to p2 before p1 resolves — must be outside an owned scope. */
+		setPromise(p2);
+		flush();
 
 		await tick();
+		expect(container.querySelector("[data-testid='data']")?.textContent).toBe("second");
+
+		resolve1("first");
 		await tick();
+		expect(container.querySelector("[data-testid='data']")?.textContent).toBe("second");
 	});
 
 	it("no pending prop → renders nothing while loading", () => {

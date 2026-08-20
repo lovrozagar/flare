@@ -1,4 +1,5 @@
-import { type JSX, Show, useContext } from "solid-js";
+import { Show, useContext } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { RouterContext } from "../outlet/index.tsx";
 import type { InterceptedState } from "../outlet/types.ts";
 

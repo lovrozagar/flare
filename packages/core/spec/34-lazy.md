@@ -1,6 +1,6 @@
 # Lazy
 
-Layer 4 (client). Depends on solid-js (`lazy`, `createSignal`, `onMount`, `sharedConfig`).
+Layer 4 (client). Depends on solid-js (`createSignal`, `onSettled`, `sharedConfig`) and `@solidjs/web` (`isServer`).
 
 SSR-safe lazy component loading. `lazy` for universal components, `clientLazy` for client-only components.
 
@@ -35,15 +35,15 @@ SSR-transparent lazy component. Renders `pending` on both server AND initial cli
 
 **Server (SSR)**: always renders `pending` (or null). Component never loaded server-side — it's a client module.
 
-**Client (hydration)**: starts as `pending` to match SSR output. After hydration completes (`onMount`), swaps to loaded component.
+**Client (hydration)**: starts as `pending` to match SSR output. After hydration completes (`onSettled`), swaps to loaded component.
 
 **Client (post-hydration)**: renders loaded component immediately.
 
 Implementation:
 
 1. At factory call: starts `loader()` immediately, caches promise globally
-2. During SSR (`sharedConfig.context` truthy): renders `pending`
-3. During hydration (`sharedConfig.context` truthy on first render): renders `pending`, then swaps after `onMount`
+2. During SSR (`isServer` or `sharedConfig.hydrating`): renders `pending`
+3. During hydration (`sharedConfig.hydrating` on first render): renders `pending`, then swaps after `onSettled`
 4. After hydration: renders loaded component
 
 ```ts
@@ -64,15 +64,16 @@ function lazy<P>(options: LazyOptions<P>): Component<P> {
   getGlobalPending().add(loadPromise)
 
   return (props: P) => {
-    const isSSR = !!sharedConfig.context
-    const [component, setComponent] = createSignal<Component<P> | undefined>(
-      isSSR ? undefined : loaded
+    const isSSR = isServer || !!sharedConfig.hydrating
+    /* Store `{ C }` — Solid 2 treats a function initial value as a derived signal. */
+    const [component, setComponent] = createSignal<{ C: Component<P> } | undefined>(
+      isSSR || !loaded ? undefined : { C: loaded }
     )
 
     if (isSSR || !loaded) {
-      onMount(() => {
-        if (loaded) setComponent(() => loaded)
-        else loadPromise?.then(() => setComponent(() => loaded))
+      onSettled(() => {
+        if (loaded) setComponent({ C: loaded })
+        else loadPromise?.then(() => { if (loaded) setComponent({ C: loaded }) })
       })
     }
 
@@ -131,7 +132,7 @@ lazy:
   SSR: renders pending component
   SSR: renders null when no pending
   Client hydration: starts as pending (matches SSR)
-  Client hydration: swaps to loaded after onMount
+  Client hydration: swaps to loaded after onSettled
   Client post-hydration: renders loaded immediately
   Loader called once (cached)
   Multiple instances share same load promise

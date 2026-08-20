@@ -1,14 +1,5 @@
-import {
-	createContext,
-	createEffect,
-	createSignal,
-	type JSX,
-	on,
-	onCleanup,
-	onMount,
-	sharedConfig,
-	useContext,
-} from "solid-js";
+import { createContext, createEffect, createSignal, onSettled, sharedConfig, useContext } from "solid-js";
+import { isServer, type JSX } from "@solidjs/web";
 
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -57,7 +48,7 @@ export interface ThemeContextValue {
 	toggleTheme: () => void;
 }
 
-const ThemeCtx = createContext<ThemeContextValue>();
+const ThemeCtx = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConfig }): JSX.Element {
 	const cfg: Required<ThemeConfig> = {
@@ -68,7 +59,7 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 		themes: props.config?.themes ?? DEFAULT_CONFIG.themes,
 	};
 
-	const hydrating = !!sharedConfig.context;
+	const hydrating = isServer || !!sharedConfig.hydrating;
 
 	/* During SSR + hydration, always start from defaultTheme so the tree matches.
 	   ThemeScript already applied localStorage to <html> before first paint.
@@ -118,7 +109,7 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 	}
 
 	/* After hydrate, sync from localStorage so useTheme() matches ThemeScript. */
-	onMount(() => {
+	onSettled(() => {
 		if (typeof localStorage === "undefined") return;
 		try {
 			const stored = localStorage.getItem(cfg.storageKey);
@@ -132,18 +123,18 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 	});
 
 	/* Listen for OS preference changes */
-	onMount(() => {
+	onSettled(() => {
 		if (typeof matchMedia === "undefined") return;
 		const mq = matchMedia("(prefers-color-scheme: dark)");
 		const handler = (e: MediaQueryListEvent) => {
 			setSystemTheme(e.matches ? "dark" : "light");
 		};
 		mq.addEventListener("change", handler);
-		onCleanup(() => mq.removeEventListener("change", handler));
+		return () => mq.removeEventListener("change", handler);
 	});
 
 	/* Cross-tab sync: StorageEvent fires in OTHER tabs only */
-	onMount(() => {
+	onSettled(() => {
 		const handler = (e: StorageEvent) => {
 			if (e.key !== cfg.storageKey || e.storageArea !== localStorage) return;
 			const v = e.newValue;
@@ -152,19 +143,18 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 			}
 		};
 		window.addEventListener("storage", handler);
-		onCleanup(() => window.removeEventListener("storage", handler));
+		return () => window.removeEventListener("storage", handler);
 	});
 
 	/* Sync resolved theme to DOM (skip transition-disable on first run) */
 	let skipFirst = true;
-	createEffect(() => {
-		const resolved = resolvedTheme();
+	createEffect(resolvedTheme, (resolved) => {
 		if (typeof document === "undefined") return;
 
 		if (skipFirst) {
 			skipFirst = false;
 			/* After Solid hydrates <html> it drops ThemeScript's data-theme.
-			   Re-apply the visual value (storage or system) without waiting for onMount. */
+			   Re-apply the visual value (storage or system) without waiting for onSettled. */
 			let visual: ResolvedTheme = resolved;
 			if (typeof localStorage !== "undefined") {
 				try {
@@ -192,17 +182,15 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 
 	/* Persist to localStorage on changes (not initial — it was read from there) */
 	createEffect(
-		on(
-			theme,
-			(t) => {
-				try {
-					localStorage.setItem(cfg.storageKey, t);
-				} catch {
-					/* noop */
-				}
-			},
-			{ defer: true },
-		),
+		theme,
+		(t) => {
+			try {
+				localStorage.setItem(cfg.storageKey, t);
+			} catch {
+				/* noop */
+			}
+		},
+		{ defer: true },
 	);
 
 	const setTheme = (t: Theme): void => {
@@ -222,7 +210,7 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 		toggleTheme,
 	};
 
-	return <ThemeCtx.Provider value={value}>{props.children}</ThemeCtx.Provider>;
+	return <ThemeCtx value={value}>{props.children}</ThemeCtx>;
 }
 
 export function useTheme(): ThemeContextValue {

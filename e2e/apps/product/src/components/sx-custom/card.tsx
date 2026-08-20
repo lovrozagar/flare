@@ -1,5 +1,5 @@
-import type { JSX } from "solid-js";
-import { splitProps } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { omit } from "solid-js";
 
 type CardProps = JSX.HTMLAttributes<HTMLDivElement> & {
 	children: JSX.Element;
@@ -7,7 +7,8 @@ type CardProps = JSX.HTMLAttributes<HTMLDivElement> & {
 
 /* Composition primitive — accepts outer class/style/data-* for consumer overrides */
 export function SxCard(props: CardProps) {
-	const [local, rest] = splitProps(props, ["children", "class", "style"]);
+	const rest = omit(props, "children", "class", "style");
+	const local = props;
 
 	return (
 		<div

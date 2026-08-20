@@ -8,9 +8,9 @@
  */
 import { describe, expect, it, vi } from "vitest";
 
-/* ── Mock solid-js/web ───────────────────────────────────────────────── */
+/* ── Mock @solidjs/web ───────────────────────────────────────────────── */
 
-vi.mock("solid-js/web", async (importOriginal) => {
+vi.mock("@solidjs/web", async (importOriginal) => {
 	const actual = await importOriginal<Record<string, unknown>>();
 	return {
 		...actual,

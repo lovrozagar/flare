@@ -3,7 +3,7 @@
  * Current code uses startsWith("javascript:") which is case-sensitive.
  * "JavaScript:", "JAVASCRIPT:", "jAvAsCrIpT:" all bypass the check.
  */
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
 import { Link } from "../../../src/link/index.tsx";

@@ -1,3 +1,10 @@
+import { flush } from "solid-js";
+import { afterEach } from "vitest";
+
+afterEach(() => {
+	flush();
+});
+
 function installMemoryStorage(): Storage {
 	const store = new Map<string, string>();
 	return {

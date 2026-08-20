@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("vite-plugin-solid", () => ({
+vi.mock("@solidjs/vite-plugin", () => ({
 	default: () => ({ name: "solid" }),
 }));
 

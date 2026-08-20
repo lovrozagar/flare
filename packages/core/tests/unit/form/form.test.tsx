@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Form, type FormContext } from "../../../src/form/index.tsx";
 import type { ServerFn, ServerFnRegistration } from "../../../src/server-fn/index.ts";

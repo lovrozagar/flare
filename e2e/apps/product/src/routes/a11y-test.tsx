@@ -76,7 +76,7 @@ export const route = createPage("_root_/a11y-test")
 
 					<button
 						aria-controls="expandable-content"
-						aria-expanded={expanded()}
+						aria-expanded={expanded() ? "true" : "false"}
 						data-testid="toggle-btn"
 						onClick={() => {
 							setExpanded(!expanded());

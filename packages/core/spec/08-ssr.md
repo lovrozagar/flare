@@ -374,8 +374,8 @@ Status derivation:
 ## Notes
 
 - Uses Solid's `renderToStream()` (not `renderToStringAsync`) for streaming from day 1
-- `sharedConfig.context` set directly via symbol IDs — Solid SSR renders children before parents, so Provider-based context doesn't work for SSR
-- `<NoHydration>` / `<Hydration>` from solid-js/web control hydration marker placement
+- SSR context is a Solid 2 `<SSRContextProvider value={...}>` wrapping the tree (`sharedConfig.context` is gone in Solid 2)
+- `<NoHydration>` / `<Hydration>` from @solidjs/web control hydration marker placement
 - `self.flare` is a global assignment — accessible immediately on client, no DOM query needed
 - Deferred values in FlareState are markers only — actual data streams via NDJSON after initial HTML (CSR nav). During SSR, Solid's `renderToStream` handles deferred resolution via its built-in streaming Suspense: if a deferred promise resolves while the HTML stream is still open, Solid inlines the resolved content as a `<script>` chunk appended to the stream. The HTML stream stays open until all Suspense boundaries resolve. Flare does not need a separate SSR delivery mechanism — Solid's streaming handles it.
 - `css` field is a URL string for external stylesheet, NOT inline CSS content

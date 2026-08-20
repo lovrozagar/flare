@@ -5,7 +5,7 @@
  * Verifies that `retry` and `reset` callbacks are wired through
  * to all error boundary render props (error, unauthenticated, unauthorized).
  */
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
 import { UnauthenticatedError, UnauthorizedError } from "../../../src/errors/index.ts";

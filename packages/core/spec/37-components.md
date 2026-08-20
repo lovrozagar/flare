@@ -14,7 +14,7 @@ type AppRootProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, "id"> & {
 function AppRoot(props: AppRootProps): JSX.Element;
 ```
 
-Renders `<div id="app" data-testid="app-root" {...rest}>{children}</div>`. Accepts all div attributes except `id` (always `"app"`). Uses `splitProps` to separate children.
+Renders `<div id="app" data-testid="app-root" {...rest}>{children}</div>`. Accepts all div attributes except `id` (always `"app"`). Uses `omit` to separate children.
 
 ## HeadContent
 

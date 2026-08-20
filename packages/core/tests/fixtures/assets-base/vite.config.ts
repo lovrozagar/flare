@@ -1,4 +1,4 @@
-import solid from "vite-plugin-solid";
+import solid from "@solidjs/vite-plugin";
 import { createSxAstPlugin } from "../../../src/plugins/sx-ast/index.ts";
 import { createImagePlugin } from "../../../src/plugins/image-plugin.ts";
 import { createServiceWorkerPlugin, normalizeSwConfig } from "../../../src/plugins/service-worker.ts";

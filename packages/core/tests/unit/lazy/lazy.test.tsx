@@ -1,6 +1,6 @@
 import type { Component } from "solid-js";
-import { ErrorBoundary } from "solid-js";
-import { render } from "solid-js/web";
+import { Errored } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clientLazy, lazy, resetLazyState, waitForLazyPreloads } from "../../../src/lazy/index.tsx";
 
@@ -136,7 +136,7 @@ describe("lazy", () => {
 		expect(calls).toBe(2);
 	});
 
-	it("loader rejection surfaces error to ErrorBoundary", async () => {
+	it("loader rejection surfaces error to Errored", async () => {
 		const LazyComp = lazy<{ label?: string }>({
 			loader: () => Promise.reject<{ default: Component<{ label?: string }> }>(new Error("chunk 404")),
 			pending: PendingComponent,
@@ -146,9 +146,9 @@ describe("lazy", () => {
 
 		dispose = render(
 			() => (
-				<ErrorBoundary fallback={(err) => <span data-testid="error">{(err as Error).message}</span>}>
+				<Errored fallback={(err) => <span data-testid="error">{String((err() as Error).message)}</span>}>
 					<LazyComp />
-				</ErrorBoundary>
+				</Errored>
 			),
 			container,
 		);
@@ -272,7 +272,7 @@ describe("clientLazy", () => {
 		expect(calls).toBe(2);
 	});
 
-	it("eager loader rejection surfaces error to ErrorBoundary", async () => {
+	it("eager loader rejection surfaces error to Errored", async () => {
 		const LazyComp = clientLazy<{ label?: string }>({
 			eager: true,
 			loader: () => Promise.reject<{ default: Component<{ label?: string }> }>(new Error("chunk 404")),
@@ -283,9 +283,9 @@ describe("clientLazy", () => {
 
 		dispose = render(
 			() => (
-				<ErrorBoundary fallback={(err) => <span data-testid="error">{(err as Error).message}</span>}>
+				<Errored fallback={(err) => <span data-testid="error">{String((err() as Error).message)}</span>}>
 					<LazyComp />
-				</ErrorBoundary>
+				</Errored>
 			),
 			container,
 		);
@@ -294,7 +294,7 @@ describe("clientLazy", () => {
 		expect(container.querySelector("[data-testid='error']")?.textContent).toBe("chunk 404");
 	});
 
-	it("non-eager loader rejection surfaces error to ErrorBoundary", async () => {
+	it("non-eager loader rejection surfaces error to Errored", async () => {
 		const LazyComp = clientLazy<{ label?: string }>({
 			loader: () => Promise.reject<{ default: Component<{ label?: string }> }>(new Error("chunk 404")),
 			pending: PendingComponent,
@@ -302,9 +302,9 @@ describe("clientLazy", () => {
 
 		dispose = render(
 			() => (
-				<ErrorBoundary fallback={(err) => <span data-testid="error">{(err as Error).message}</span>}>
+				<Errored fallback={(err) => <span data-testid="error">{String((err() as Error).message)}</span>}>
 					<LazyComp />
-				</ErrorBoundary>
+				</Errored>
 			),
 			container,
 		);

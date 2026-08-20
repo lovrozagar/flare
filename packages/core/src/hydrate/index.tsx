@@ -3,8 +3,8 @@ import swConfig from "virtual:flare-sw-config";
 
 declare const __FLARE_IS_DEV__: boolean | undefined;
 const isDevDefault = typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : false;
-import type { JSX } from "solid-js";
-import { createComponent, render, hydrate as solidHydrate } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { createComponent, render, hydrate as solidHydrate } from "@solidjs/web";
 import { createChannel } from "../broadcast/channel.ts";
 import { BroadcastProvider } from "../broadcast/provider.tsx";
 import type { MatchCache } from "../caches/index.ts";

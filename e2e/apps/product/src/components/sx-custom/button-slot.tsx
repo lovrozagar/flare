@@ -1,6 +1,6 @@
-import { splitProps } from "solid-js";
-import type { JSX } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { omit } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Dynamic } from "@solidjs/web";
 
 type ButtonSlotProps = {
 	/** Render as any HTML tag. Defaults to "button". */
@@ -14,7 +14,8 @@ type ButtonSlotProps = {
 
 /* Polymorphic button — lib sx in user.lib layer, consumer style/class always wins */
 export function ButtonSlot(props: ButtonSlotProps) {
-	const [local, rest] = splitProps(props, ["as"]);
+	const rest = omit(props, "as");
+	const local = props;
 
 	return (
 		<Dynamic

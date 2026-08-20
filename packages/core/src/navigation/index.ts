@@ -1,4 +1,3 @@
-import { batch } from "solid-js";
 import type { DeferredTracker } from "../caches/index.ts";
 import { collectDeferredPromises, createDeferredTracker } from "../caches/index.ts";
 import type { DirectionConfig } from "../direction.ts";
@@ -642,13 +641,12 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 						handleHistoryUpdate(options, url, partial.params);
 					}
 
-					batch(() => {
-						c.setNotFound(false);
-						c.setMatches(clientMatches);
-						c.setParams(partial.params);
-						c.setSearch(search);
-						stopNavigation();
-					});
+					c.setNotFound(false);
+					c.setMatches(clientMatches);
+					c.setParams(partial.params);
+					c.setSearch(search);
+					stopNavigation();
+
 					syncLocale(partial.params);
 					applyPerRouteHeads([{ head: { title: "Not Found" }, matchId: `${partial.route.x}/__notfound` }]);
 					return;
@@ -660,13 +658,12 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			handleHistoryUpdate(options, url, {});
 		}
 
-		batch(() => {
-			c.setNotFound(true);
-			c.setMatches([]);
-			c.setParams({});
-			c.setSearch(parseSearchParams(url.searchParams));
-			stopNavigation();
-		});
+		c.setNotFound(true);
+		c.setMatches([]);
+		c.setParams({});
+		c.setSearch(parseSearchParams(url.searchParams));
+		stopNavigation();
+
 		applyPerRouteHeads([{ head: { title: "Not Found" }, matchId: "__notfound" }]);
 		return;
 	}
@@ -780,11 +777,11 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		const currentSearch = serializeSearchParams(loc.search);
 		if (url.pathname === loc.pathname && url.search === currentSearch) {
 			const search = parseSearchParams(url.searchParams);
-			batch(() => {
-				c.setIntercepted(null);
-				c.setParams(match.params);
-				c.setSearch(search);
-			});
+
+			c.setIntercepted(null);
+			c.setParams(match.params);
+			c.setSearch(search);
+
 			syncLocale(match.params);
 			if (url.hash) {
 				const el = typeof document !== "undefined" ? document.getElementById(url.hash.slice(1)) : null;
@@ -839,11 +836,10 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				warn("nav", `shallow validation failed: ${e instanceof Error ? e.message : String(e)}`);
 			}
 
-			batch(() => {
-				c.setParams(validatedParams);
-				c.setSearch(validatedSearch);
-				stopNavigation();
-			});
+			c.setParams(validatedParams);
+			c.setSearch(validatedSearch);
+			stopNavigation();
+
 			syncLocale(validatedParams);
 			return;
 		}
@@ -1042,13 +1038,12 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		/* Step 12: Update state + scroll + head + cleanup.
 		 * Everything inside update() so VT captures the complete state transition. */
 		const update = () => {
-			batch(() => {
-				c.setIntercepted(null);
-				c.setNotFound(false);
-				c.setMatches(clientMatches);
-				c.setParams(modules.params);
-				c.setSearch(search);
-			});
+			c.setIntercepted(null);
+			c.setNotFound(false);
+			c.setMatches(clientMatches);
+			c.setParams(modules.params);
+			c.setSearch(search);
+
 			syncLocale(modules.params);
 
 			/* Popstate scroll restoration — double rAF ensures SolidJS has flushed its

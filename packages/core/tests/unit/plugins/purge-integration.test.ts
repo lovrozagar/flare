@@ -2,7 +2,7 @@ import type { Plugin } from "vite";
 import { describe, expect, it, vi } from "vitest";
 import type { VitePlugin } from "../../../src/plugins/index.ts";
 
-vi.mock("vite-plugin-solid", () => ({
+vi.mock("@solidjs/vite-plugin", () => ({
 	default: (opts: Record<string, unknown>) => ({ config: () => ({ solid: opts }), name: "solid" }),
 }));
 

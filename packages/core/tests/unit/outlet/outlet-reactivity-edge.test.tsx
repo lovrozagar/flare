@@ -1,4 +1,5 @@
-import { render } from "solid-js/web";
+import { flush } from "solid-js";
+import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
 import { NotFoundError } from "../../../src/errors/index.ts";
@@ -93,6 +94,7 @@ describe("location memo reactivity", () => {
 
 		/* Simulate navigation: params change, same route */
 		ctx?.setParams({ id: "99" });
+		flush();
 		expect(ctx?.location().params).toEqual({ id: "99" });
 		/* virtualPath unchanged */
 		expect(ctx?.location().virtualPath).toBe("_root_/users/[id]");
@@ -118,9 +120,11 @@ describe("location memo reactivity", () => {
 		expect(ctx?.location().search).toEqual({});
 
 		ctx?.setSearch({ q: "hello" });
+		flush();
 		expect(ctx?.location().search).toEqual({ q: "hello" });
 
 		ctx?.setSearch({ page: "2", q: "world" });
+		flush();
 		expect(ctx?.location().search).toEqual({ page: "2", q: "world" });
 	});
 
@@ -145,6 +149,7 @@ describe("location memo reactivity", () => {
 		expect(ctx?.location().virtualPath).toBe("_root_/home");
 
 		ctx?.setMatches([about]);
+		flush();
 		expect(ctx?.location().virtualPath).toBe("_root_/about");
 	});
 
@@ -168,6 +173,7 @@ describe("location memo reactivity", () => {
 		expect(ctx?.location().virtualPath).toBe("_root_/home");
 
 		ctx?.setMatches([]);
+		flush();
 		expect(ctx?.location().virtualPath).toBe("");
 	});
 });
@@ -221,6 +227,7 @@ describe("useLoaderData reactivity", () => {
 				virtualPath: "_root_/counter",
 			}),
 		]);
+		flush();
 		expect(loaderAccessor?.()).toEqual({ count: 42 });
 	});
 
@@ -252,6 +259,7 @@ describe("useLoaderData reactivity", () => {
 
 		/* Navigate away — match disappears */
 		ctx?.setMatches([makeMatch({ virtualPath: "_root_/other" })]);
+		flush();
 		expect(loaderAccessor?.()).toBeUndefined();
 	});
 });
@@ -294,6 +302,7 @@ describe("useSearch / useParams reactivity", () => {
 		expect(searchAccessor?.()).toEqual({});
 
 		ctx?.setSearch({ q: "test" });
+		flush();
 		expect(searchAccessor?.()).toEqual({ q: "test" });
 	});
 
@@ -319,6 +328,7 @@ describe("useSearch / useParams reactivity", () => {
 		expect(paramsAccessor?.()).toEqual({ id: "1" });
 
 		ctx?.setParams({ id: "999" });
+		flush();
 		expect(paramsAccessor?.()).toEqual({ id: "999" });
 	});
 });
@@ -361,12 +371,16 @@ describe("notFound reactivity through Outlet", () => {
 
 		/* notFound + clear matches → 404 fallback shows */
 		ctx?.setNotFound(true);
+		flush();
 		ctx?.setMatches([]);
+		flush();
 		expect(container.textContent).toContain("Page not found");
 
 		/* Clear notFound + restore matches → page back */
 		ctx?.setNotFound(false);
+		flush();
 		ctx?.setMatches([page]);
+		flush();
 		expect(container.querySelector("[data-testid='page-_root_/home']")).not.toBeNull();
 	});
 
@@ -390,6 +404,7 @@ describe("notFound reactivity through Outlet", () => {
 
 		/* notFound=true but match exists → match wins */
 		ctx?.setNotFound(true);
+		flush();
 		expect(container.querySelector("[data-testid='page-_root_/home']")).not.toBeNull();
 		expect(container.textContent).toContain("still here");
 	});
@@ -420,7 +435,9 @@ describe("notFound reactivity through Outlet", () => {
 		expect(container.querySelector("[data-testid='page-_root_/home']")).not.toBeNull();
 
 		ctx?.setNotFound(true);
+		flush();
 		ctx?.setMatches([]);
+		flush();
 		expect(container.querySelector("[data-testid='global-404']")).not.toBeNull();
 	});
 });
@@ -461,8 +478,10 @@ describe("isNavigating reactivity", () => {
 
 		expect(router?.isNavigating()).toBe(false);
 		ctx?.setNavigationPhase("loading");
+		flush();
 		expect(router?.isNavigating()).toBe(true);
 		ctx?.setNavigationPhase("idle");
+		flush();
 		expect(router?.isNavigating()).toBe(false);
 	});
 });
@@ -518,6 +537,7 @@ describe("ErrorBoundary reset on match change", () => {
 			virtualPath: "_root_/home",
 		});
 		ctx?.setMatches([goodPage]);
+		flush();
 
 		/* Error boundary should reset, valid page should render */
 		expect(container.querySelector("[data-testid='page-_root_/home']")).not.toBeNull();
@@ -564,6 +584,7 @@ describe("ErrorBoundary reset on match change", () => {
 			virtualPath: "_root_/safe",
 		});
 		ctx?.setMatches([safe]);
+		flush();
 
 		expect(container.querySelector("[data-testid='page-_root_/safe']")).not.toBeNull();
 		expect(container.textContent).not.toContain("Something went wrong");
@@ -606,6 +627,7 @@ describe("ErrorBoundary reset on match change", () => {
 			virtualPath: "_root_/home",
 		});
 		ctx?.setMatches([layout, valid]);
+		flush();
 
 		expect(container.querySelector("[data-testid='page-_root_/home']")).not.toBeNull();
 		expect(container.querySelector("[data-testid='nf-boundary']")).toBeNull();
@@ -654,6 +676,7 @@ describe("Outlet match replacement at same depth", () => {
 
 		/* Swap page at depth 1, layout at depth 0 unchanged */
 		ctx?.setMatches([layout, page2]);
+		flush();
 
 		expect(container.querySelector("[data-testid='page-_root_/page-2']")).not.toBeNull();
 		expect(container.textContent).toContain("page-2");
@@ -688,6 +711,7 @@ describe("Outlet match replacement at same depth", () => {
 
 		/* Full route swap */
 		ctx?.setMatches([layout2, page2]);
+		flush();
 
 		expect(container.querySelector("[data-testid='layout-_root_/blog']")).not.toBeNull();
 		expect(container.querySelector("[data-testid='layout-_root_/shop']")).toBeNull();
@@ -801,6 +825,7 @@ describe("hydrated signal", () => {
 
 		expect(ctx?.hydrated()).toBe(false);
 		ctx?.setHydrated(true);
+		flush();
 		expect(ctx?.hydrated()).toBe(true);
 	});
 
@@ -824,6 +849,7 @@ describe("hydrated signal", () => {
 
 		expect(router?.hydrated()).toBe(false);
 		ctx?.setHydrated(true);
+		flush();
 		expect(router?.hydrated()).toBe(true);
 	});
 });

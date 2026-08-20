@@ -1,5 +1,5 @@
 import { createMemo, createSignal } from "solid-js";
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	useBlocker,
@@ -113,7 +113,7 @@ afterEach(() => {
 
 function renderWithRouter(fn: () => null, ctx?: FlareProviderContext): void {
 	const context = ctx ?? createMockContext();
-	render(() => <RouterContext.Provider value={context}>{fn()}</RouterContext.Provider>, container);
+	render(() => <RouterContext value={context}>{fn()}</RouterContext>, container);
 }
 
 /* ── useLoaderData ───────────────────────────────────────── */

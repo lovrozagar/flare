@@ -1,4 +1,5 @@
-import { createMemo, type JSX, onCleanup, Show, splitProps } from "solid-js";
+import { createMemo, omit, onCleanup, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { applyRewriteOutput, isExternal, navigate, prefetch } from "../navigation/index.ts";
 import { useRouterContext } from "../outlet/index.tsx";
 import type { RouteParamsProps, RoutePaths, RouteSearchProps } from "../route-builder/register.ts";
@@ -83,7 +84,9 @@ function isDangerousHref(href: string): boolean {
 export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Element {
 	const ctx = useRouterContext();
 
-	const [local, rest] = splitProps(props as unknown as LinkPropsInternal, [
+	const local = props as unknown as LinkPropsInternal;
+	const rest = omit(
+		local,
 		"activeClass",
 		"activeProps",
 		"children",
@@ -107,7 +110,7 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		"target",
 		"to",
 		"viewTransition",
-	]);
+	);
 
 	const resolvedHref = createMemo(() => {
 		if (local.href !== undefined) {
@@ -226,15 +229,27 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 			return;
 		}
 
+		let to = local.to ?? "";
+		let hash = local.hash;
+		if (!local.to && local.href !== undefined) {
+			try {
+				const url = new URL(h, typeof window !== "undefined" ? window.location.href : "http://localhost/");
+				to = url.pathname + url.search;
+				hash = hash ?? (url.hash || undefined);
+			} catch {
+				to = h;
+			}
+		}
+
 		navigate({
-			hash: local.hash,
+			hash,
 			params: local.params,
 			replace: local.replace,
 			revalidate: local.revalidate,
 			scroll: local.scroll,
 			search: local.search,
 			shallow: local.shallow,
-			to: local.to ?? "",
+			to,
 			viewTransition: local.viewTransition,
 		});
 	}
@@ -341,7 +356,7 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 	return (
 		<Show
 			fallback={
-				<span {...rest} aria-disabled="true" class={classes()} style={disabledStyle()} tabIndex={-1}>
+				<span {...rest} aria-disabled="true" class={classes()} style={disabledStyle()} tabindex={-1}>
 					{local.children}
 				</span>
 			}
