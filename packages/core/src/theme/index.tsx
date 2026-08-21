@@ -1,4 +1,13 @@
-import { createContext, createEffect, createSignal, onSettled, sharedConfig, useContext } from "solid-js";
+import {
+	createContext,
+	createEffect,
+	createMemo,
+	createSignal,
+	onSettled,
+	sharedConfig,
+	untrack,
+	useContext,
+} from "solid-js";
 import { isServer, type JSX } from "@solidjs/web";
 
 export type Theme = "light" | "dark" | "system";
@@ -86,10 +95,10 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 	}
 	const [systemTheme, setSystemTheme] = createSignal<ResolvedTheme>(initialSystem);
 
-	const resolvedTheme = (): ResolvedTheme => {
+	const resolvedTheme = createMemo((): ResolvedTheme => {
 		const t = theme();
 		return t === "system" ? systemTheme() : t;
-	};
+	});
 
 	const applyToDocument = (resolved: ResolvedTheme): void => {
 		if (typeof document === "undefined") return;
@@ -105,7 +114,7 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 	/* Client remount / CSR: apply immediately. During hydration, ThemeScript owns
 	   first paint — applying here would overwrite a stored theme with "system". */
 	if (!hydrating) {
-		applyToDocument(resolvedTheme());
+		applyToDocument(untrack(resolvedTheme));
 	}
 
 	/* After hydrate, sync from localStorage so useTheme() matches ThemeScript. */
@@ -113,13 +122,13 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 		if (typeof localStorage === "undefined") return;
 		try {
 			const stored = localStorage.getItem(cfg.storageKey);
-			if (stored && cfg.themes.includes(stored as Theme) && stored !== theme()) {
+			if (stored && cfg.themes.includes(stored as Theme) && stored !== untrack(theme)) {
 				setThemeSignal(stored as Theme);
 			}
 		} catch {
 			/* noop */
 		}
-		applyToDocument(resolvedTheme());
+		applyToDocument(untrack(resolvedTheme));
 	});
 
 	/* Listen for OS preference changes */
@@ -199,7 +208,7 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 	};
 
 	const toggleTheme = (): void => {
-		const current = resolvedTheme();
+		const current = untrack(resolvedTheme);
 		setTheme(current === "light" ? "dark" : "light");
 	};
 

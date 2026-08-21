@@ -162,7 +162,7 @@ function buildRobotsContent(robots: RobotsConfig): string {
 
 Scripts are **additive only** — removing a `<script>` from DOM does NOT undo its JS effects (globals, event listeners persist). New scripts deduplicated by `src` attribute or content hash.
 
-Per-route tracking allows cleanup of page-specific external scripts when navigating away. For cleanup of page-specific JS effects, use SolidJS lifecycle (`onMount` / `onCleanup`).
+Per-route tracking allows cleanup of page-specific external scripts when navigating away. For cleanup of page-specific JS effects, use SolidJS lifecycle (`onSettled` / `onCleanup`).
 
 ## Test Cases
 

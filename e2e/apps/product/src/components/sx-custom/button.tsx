@@ -5,7 +5,7 @@ type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
 	variant?: "primary" | "secondary" | "danger";
 };
 
-/* lib-style Button — uses splitProps so consumer style/data-* attrs forward cleanly */
+/* lib-style Button — uses omit so consumer style/data-* attrs forward cleanly */
 export function SxButton(props: ButtonProps) {
 	const rest = omit(props, "variant");
 

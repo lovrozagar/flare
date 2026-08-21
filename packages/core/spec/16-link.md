@@ -188,7 +188,7 @@ Prefetch when link enters viewport:
 ```ts
 let observer: IntersectionObserver | null = null;
 
-onMount(() => {
+onSettled(() => {
 	if (resolvedPrefetch() !== "viewport") return;
 	if (isExternal(href)) return;
 
@@ -229,7 +229,7 @@ When `disabled={true}`, renders `<span>` instead of `<a>`:
 	class={computedClass()}
 	role="link"
 	style={computedStyle ? `cursor:not-allowed;${computedStyle}` : "cursor:not-allowed"}
-	tabIndex={-1}
+	tabindex={-1}
 >
 	{children}
 </span>
@@ -238,7 +238,7 @@ When `disabled={true}`, renders `<span>` instead of `<a>`:
 - No click handler, no navigation
 - No prefetch (hover or viewport)
 - `aria-disabled="true"` + `role="link"` for accessibility
-- `tabIndex={-1}` removes from tab order
+- `tabindex={-1}` removes from tab order
 - `cursor: not-allowed` prepended to any existing style
 - Active state classes still computed (class/activeClass/inactiveClass apply)
 
@@ -325,7 +325,7 @@ Prefetch resolution:
 
 Disabled state:
   disabled={true} → renders <span> not <a>
-  Span has aria-disabled="true", role="link", tabIndex={-1}
+  Span has aria-disabled="true", role="link", tabindex={-1}
   Span has cursor:not-allowed style
   No click handler on span
   No prefetch on disabled link

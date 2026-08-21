@@ -690,7 +690,7 @@ export function renderToStream(config: SSRConfig): SSRResult {
 	const decoder = new TextDecoder();
 
 	/*
-	 * Solid only injects _$HY when async work exists (Suspense, deferred data).
+	 * Solid only injects _$HY when async work exists (Loading, deferred data).
 	 * For sync-only rendering, _$HY is never set, but client `hydrate()` always
 	 * reads `globalThis._$HY.done`. Inject a minimal _$HY init unconditionally.
 	 */

@@ -107,7 +107,7 @@ renderHeadToHtml(head: HeadConfig, nonce: string): string
 1. **Clear scoped styles**: `clearScopedStyles()` (spec 30) — reset style registry for this request
 2. **Build FlareState** from pipeline matches (strip deferred promises, preserve markers)
 3. **Build component tree**: root layout → layouts → page via Outlet nesting, wrapped in `ErrorBoundaryWrapper` per depth (same as CSR, spec 17)
-4. **Set SSR context** on `sharedConfig.context` directly (Solid SSR workaround)
+4. **Wrap the tree** with `<SSRContextProvider value={...}>` (Solid 2 has no `sharedConfig.context`)
 5. **Call Solid's `renderToStream()`** with the component tree
 6. **Collect scoped styles**: `getScopedStyles()` (spec 30) — all styles registered during render
 7. **Transform stream**: inject scoped `<style id="__FLARE_SCOPED__">` into `</head>`, inject state script + module scripts after `</body>`
@@ -119,7 +119,7 @@ Returns `SSRResult` with streaming body, headers, and status code.
 ### Component Tree Construction
 
 ```
-<FlareContext.Provider value={flareContext}>
+<FlareProvider> {/* RouterContext value={...} internally */}
   <NoHydration>
     <RootLayout props={rootProps}>
       <Hydration>
@@ -139,7 +139,7 @@ Returns `SSRResult` with streaming body, headers, and status code.
       </Hydration>
     </RootLayout>
   </NoHydration>
-</FlareContext.Provider>
+</FlareProvider>
 ```
 
 `QueryClientProvider` wraps inside `<Hydration>` and outside `ErrorBoundaryWrapper` chain. Only present when `config.queryClientGetter` provided (spec 33). `queryClient` created per-request via `queryClientGetter()`.
@@ -147,7 +147,7 @@ Returns `SSRResult` with streaming body, headers, and status code.
 - Same `ErrorBoundaryWrapper` as CSR (spec 17) — identical boundary walk-up logic for error/notFound/unauthorized on both SSR and client. Errors caught during SSR render are handled by the same boundary resolution chain.
 - `<NoHydration>` wraps document shell (html, head, body). Prevents hydration markers on structural HTML elements.
 - `<Hydration>` wraps app content inside root layout. Enables fine-grained hydration.
-- `sharedConfig.context` set directly using symbol IDs from FlareContext/OutletContext — avoids Solid's SSR render-order issue (children render before parents).
+- SSR context is `<SSRContextProvider value={...}>` wrapping the tree. Solid 2 has no `sharedConfig.context`.
 
 ### Render Props Assembly
 
@@ -377,7 +377,7 @@ Status derivation:
 - SSR context is a Solid 2 `<SSRContextProvider value={...}>` wrapping the tree (`sharedConfig.context` is gone in Solid 2)
 - `<NoHydration>` / `<Hydration>` from @solidjs/web control hydration marker placement
 - `self.flare` is a global assignment — accessible immediately on client, no DOM query needed
-- Deferred values in FlareState are markers only — actual data streams via NDJSON after initial HTML (CSR nav). During SSR, Solid's `renderToStream` handles deferred resolution via its built-in streaming Suspense: if a deferred promise resolves while the HTML stream is still open, Solid inlines the resolved content as a `<script>` chunk appended to the stream. The HTML stream stays open until all Suspense boundaries resolve. Flare does not need a separate SSR delivery mechanism — Solid's streaming handles it.
+- Deferred values in FlareState are markers only — actual data streams via NDJSON after initial HTML (CSR nav). During SSR, `<Await>` tracks the deferred promise and commits pending/success/error into the HTML stream. Flare does not use Solid `<Loading>` as the deferred slot.
 - `css` field is a URL string for external stylesheet, NOT inline CSS content
 - TanStack Query state serialized in `FlareState.q` when query client provided (spec 33)
 - `FlareState.e` carries dev-only SSR errors to client `devErrorStore` for overlay (spec 37)

@@ -89,7 +89,7 @@ Every question answerable from the specs. Per-spec questions kept as-is (answers
 
 - What's the component tree structure for SSR rendering?
 - Why is `NoHydration` used for the doc shell but not the app content?
-- How does `sharedConfig.context` avoid SSR render-order issues?
+- How does `<SSRContextProvider>` wrap the SSR tree (Solid 2 has no `sharedConfig.context`)?
 - What's the head merge strategy — child overrides scalar, merge keys object, concatenate array?
 - In what order are scripts injected (flare state → entry → modules)?
 - How does status derivation work — what's the priority order?
@@ -370,7 +370,7 @@ A: Spec 10: "notFoundRender on a route catches NotFoundError from **child** rout
 
 **Q: How does boundary resolution work during SSR vs CSR?**
 
-A: SSR: pipeline (spec 06) catches errors per-loader, stores in `PipelineMatch.error`. SSR layer (spec 08) finds appropriate boundary via walk-up using route index, renders boundary component server-side. CSR: Solid's `<ErrorBoundary>` in `ErrorBoundaryWrapper` (spec 17) catches at each depth level and walks up via `resolveErrorBoundary`. The walk-up rules are identical in intent — page → layout → root → global. Implementation differs: SSR is index-based imperative, CSR is component-tree-based.
+A: SSR: pipeline (spec 06) catches errors per-loader, stores in `PipelineMatch.error`. SSR layer (spec 08) finds appropriate boundary via walk-up using route index, renders boundary component server-side. CSR: Solid's `<Errored>` in `ErrorBoundaryWrapper` (spec 17) catches at each depth level and walks up via `resolveErrorBoundary`. The walk-up rules are identical in intent — page → layout → root → global. Implementation differs: SSR is index-based imperative, CSR is component-tree-based.
 
 **Q: `<Await>` rejects with no `error` prop — re-throws to nearest error boundary. That boundary is per-depth. Does a deferred error in a layout's loader data get caught by the layout's own errorRender?**
 
@@ -422,11 +422,11 @@ A: Spec 06: "Head/Headers: Any error → Caught per-route, silently ignored (non
 
 **Q: Loader returns deferred. During SSR, `fetchSlow()` resolves before SSR finishes streaming. Does the resolved value get inlined in HTML?**
 
-A: Yes. The server-side `Deferred` has an active `promise` field. `<Await>` wraps Solid's `<Suspense>`. Solid's `renderToStream` handles this via streaming Suspense: if the promise resolves while the HTML stream is still open, Solid inlines the resolved content as a `<script>` chunk in the stream. The HTML stream stays open until all Suspense boundaries settle. No separate Flare mechanism needed — Solid handles SSR deferred delivery entirely.
+A: Yes. The server-side `Deferred` has an active `promise` field. `<Await>` tracks that promise and renders pending/success/error itself. If the promise resolves before `renderToStream` finishes, `<Await>` commits the resolved branch into the HTML. Flare does not rely on Solid `<Loading>` for deferred slots.
 
 **Q: Deferred promise rejects during SSR (not NDJSON). How does the error reach the client?**
 
-A: During SSR, Solid's `renderToStream` handles deferred promises via streaming Suspense. If a deferred rejects before the stream closes, `<Await>` renders its error callback (or re-throws to the error boundary) — the error state is inlined as HTML. If it rejects while the stream is still open, Solid serializes the rejection as an inline `<script>` chunk in the HTML stream (same as resolution). The HTML stream stays open until all Suspense boundaries settle. The client hydrates the final state (success or error).
+A: During SSR, `<Await>` tracks the deferred promise. If it rejects before the stream closes, `<Await>` renders its error callback (or re-throws to `<Errored>`) — the error state is inlined as HTML. The client hydrates that committed state.
 
 **Q: At what exact point does the Deferred shape transform from server to client?**
 

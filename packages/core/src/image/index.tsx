@@ -100,7 +100,7 @@ export interface StaticResponsiveImageProps extends FlareImgProps {
 
 export type ImageProps = FillImageProps | FixedImageProps | ResponsiveImageProps | StaticResponsiveImageProps;
 
-/* Flattened internal type for splitProps — avoids TS intersection issues with Omit */
+/* Flattened internal type for omit — avoids TS intersection issues with Omit */
 interface ImagePropsInternal {
 	alt: string;
 	aspectRatio?: number;
