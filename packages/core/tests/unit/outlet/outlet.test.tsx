@@ -1,5 +1,5 @@
 import { createRoot } from "solid-js";
-import { render } from "@solidjs/web";
+import { hydrate, render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
 import { NotFoundError, UnauthenticatedError, UnauthorizedError } from "../../../src/errors/index.ts";
@@ -150,6 +150,30 @@ describe("FlareProvider", () => {
 
 		expect(onContextReady).toHaveBeenCalledTimes(1);
 		expect(onContextReady.mock.calls[0]?.[0]).toHaveProperty("hydrated");
+		expect(onContextReady.mock.calls[0]?.[0]).toHaveProperty("setMatches");
+	});
+
+	it("onContextReady fires under hydrate without waiting for onSettled", () => {
+		const onContextReady = vi.fn();
+		const props = makeProviderProps({ onContextReady });
+		const g = globalThis as { _$HY?: Record<string, unknown> };
+		const prevHy = g._$HY;
+		g._$HY = { completed: new WeakSet(), done: false, events: [], fe() {}, r: {} };
+		container.innerHTML = "<div></div>";
+		try {
+			dispose = hydrate(
+				() => (
+					<FlareProvider {...props}>
+						<div />
+					</FlareProvider>
+				),
+				container,
+			);
+		} finally {
+			g._$HY = prevHy;
+		}
+
+		expect(onContextReady).toHaveBeenCalledTimes(1);
 		expect(onContextReady.mock.calls[0]?.[0]).toHaveProperty("setMatches");
 	});
 
