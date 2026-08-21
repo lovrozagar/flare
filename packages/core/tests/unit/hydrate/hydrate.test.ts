@@ -66,6 +66,11 @@ vi.mock("../../../src/components/ssr-context.tsx", () => ({
 	SSRContextProvider: vi.fn((props: { children: unknown }) => props.children),
 }));
 
+vi.mock("../../../src/query-client", () => ({
+	QueryClientProvider: (props: { children: unknown }) => props.children,
+	hydrateQueryCache: vi.fn(),
+}));
+
 vi.mock("../../../src/state-parser", () => ({
 	hydrateFlareState: vi.fn(() => ({
 		matches: [],
@@ -75,6 +80,7 @@ vi.mock("../../../src/state-parser", () => ({
 		search: {},
 	})),
 	installDeferredResolver: vi.fn(),
+	installQueryCacheResolver: vi.fn(),
 	parseFlareState: vi.fn(),
 }));
 
@@ -90,11 +96,17 @@ import {
 	populateMatchCache,
 } from "../../../src/hydration/index.ts";
 import { setupNavigation } from "../../../src/navigation/index.ts";
-import { hydrateFlareState, installDeferredResolver, parseFlareState } from "../../../src/state-parser/index.ts";
+import {
+	hydrateFlareState,
+	installDeferredResolver,
+	installQueryCacheResolver,
+	parseFlareState,
+} from "../../../src/state-parser/index.ts";
 
 const mockParseFlareState = parseFlareState as ReturnType<typeof vi.fn>;
 const mockHydrateFlareState = hydrateFlareState as ReturnType<typeof vi.fn>;
 const mockInstallDeferredResolver = installDeferredResolver as ReturnType<typeof vi.fn>;
+const mockInstallQueryCacheResolver = installQueryCacheResolver as ReturnType<typeof vi.fn>;
 const mockLoadRouteModules = loadRouteModules as ReturnType<typeof vi.fn>;
 const mockBuildInitialMatches = buildInitialMatches as ReturnType<typeof vi.fn>;
 const mockExtractRootBoundaries = extractRootBoundaries as ReturnType<typeof vi.fn>;
@@ -514,6 +526,47 @@ describe("DOM & hydration", () => {
 		const doc = (globalThis as Record<string, unknown>).document as Record<string, unknown>;
 		const docEl = doc.documentElement as { setAttribute: ReturnType<typeof vi.fn> };
 		expect(docEl.setAttribute).not.toHaveBeenCalledWith("data-hydrated", "");
+	});
+
+	it("installQueryCacheResolver runs after solidHydrate so deferred QC can notify observers", async () => {
+		const raw = makeFlareState();
+		(globalThis as Record<string, unknown>).self = { flare: raw };
+		mockParseFlareState.mockReturnValue(raw);
+
+		const modules = {
+			layouts: [],
+			page: { _type: "render", variablePath: "", virtualPath: "_root_/home" },
+			params: {},
+		};
+		mockLoadRouteModules.mockResolvedValue(modules);
+		mockBuildInitialMatches.mockReturnValue([]);
+
+		const order: string[] = [];
+		mockSolidHydrate.mockImplementation((fn: () => unknown) => {
+			order.push("hydrate");
+			fn();
+		});
+		mockInstallQueryCacheResolver.mockImplementation(() => {
+			order.push("qc-resolver");
+		});
+
+		const client = { mount() {}, unmount() {} };
+		await hydrate(makeRouterConfig({ queryClientGetter: () => client }) as never);
+
+		expect(order).toEqual(["hydrate", "qc-resolver"]);
+		expect(mockInstallQueryCacheResolver).toHaveBeenCalledWith(client);
+	});
+
+	it("installQueryCacheResolver is not called when hydration finds no modules", async () => {
+		const raw = makeFlareState();
+		(globalThis as Record<string, unknown>).self = { flare: raw };
+		mockParseFlareState.mockReturnValue(raw);
+		mockLoadRouteModules.mockResolvedValue(null);
+
+		await hydrate(makeRouterConfig({ queryClientGetter: () => ({ mount() {}, unmount() {} }) }) as never);
+
+		expect(mockSolidHydrate).not.toHaveBeenCalled();
+		expect(mockInstallQueryCacheResolver).not.toHaveBeenCalled();
 	});
 
 	it("dev overlay suppressed when devOverlay: false", async () => {

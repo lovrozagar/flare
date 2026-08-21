@@ -1,7 +1,19 @@
-import { QueryClient, QueryClientProvider, type QueryKey, useQuery } from "@tanstack/solid-query";
-import type { Accessor } from "solid-js";
+import { QueryClient, QueryClientContext, type QueryKey, useQuery } from "@tanstack/solid-query";
+import { onCleanup, type Accessor } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
-export { QueryClientProvider };
+/**
+ * Same tree on server and client. TanStack's provider also mounts a Solid
+ * dehydration channel + HydrationCoordinator that waits for a channel `done`
+ * Flare never yields (we stream `flare.q` / `__flare_qc` instead). Without
+ * that coordinator, `useQuery` attaches its cache subscriber on a microtask
+ * after hydrate; `hydrate()` drains `__flare_qc` after that attach.
+ */
+export function QueryClientProvider(props: { children?: JSX.Element; client: QueryClient }): JSX.Element {
+	props.client.mount();
+	onCleanup(() => props.client.unmount());
+	return <QueryClientContext value={() => props.client}>{props.children}</QueryClientContext>;
+}
 
 /* ── useSuspenseQuery ────────────────────────────────────────────────── */
 
