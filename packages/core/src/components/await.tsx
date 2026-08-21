@@ -93,10 +93,11 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 		if (p) trackPromise(p);
 	}
 
-	/* Watch for promise prop changes — apply reads the compute snapshot, not props. */
+	/* Watch for promise prop changes. Wrap in an object so a Promise value is
+	   not treated as an async computation (Solid 2 unwraps returned Promises). */
 	createEffect(
-		() => props.promise,
-		(promise) => {
+		() => ({ promise: props.promise }),
+		({ promise }) => {
 			const newPromise = getPromise(promise);
 			if (newPromise === currentPromise) return;
 			currentPromise = newPromise;
