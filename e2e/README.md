@@ -19,8 +19,12 @@ e2e/
 bun run test:e2e                      # all apps × node
 bun run test:e2e:workers              # all apps × workers
 bun run test:e2e -- --app product
-bun run test:all                      # unit + build + all apps × node
+bun run test:all                      # unit + build + all apps × node (dev then prod)
 bun run test:all -- --env bun
+bun run test:e2e                      # Playwright, Vite dev
+bun run test:e2e:prod                 # same tests, `vite preview` after build
+# traces: e2e/<env>/test-results/<env>-<dev|prod>-<app>/
+# FLARE_E2E_RETRIES=0 skips Playwright retries (CI default is 1)
 ```
 
 ## Build tier

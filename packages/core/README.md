@@ -1141,7 +1141,7 @@ Requires [Bun](https://bun.sh) 1.3+ and TypeScript 7.
 bun install
 bun run test                 # core unit
 bun run test:cli             # CLI unit
-bun run test:all             # unit + all e2e apps on node
+bun run test:all             # unit + build + e2e apps on node (dev then prod)
 bun run test:all -- --env bun
 bun run typecheck
 bun run typecheck:consumers
@@ -1149,7 +1149,7 @@ bun run lint
 bun run fmt:check
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`): `test` runs typecheck, fmt, lint, unit. `e2e` is a matrix of node / bun / workers / deno.
+GitHub Actions (`.github/workflows/ci.yml`): `test` runs typecheck, fmt, lint, unit. `e2e` is a matrix of node / bun / workers / deno, each in Vite **dev** and (except deno/firefox) **prod** (`vite preview`).
 
 Release: bump `packages/core/package.json`, commit, tag `vX.Y.Z` matching that version, and push the tag. `.github/workflows/release.yml` publishes `@lovrozagar/flare` to npm via GitHub Actions OIDC (no npm token) and opens the GitHub Release. The npm trusted publisher must name this file `release.yml`.
 
@@ -1172,16 +1172,18 @@ Do not weaken `strict` or add `as any` to make typecheck pass.
 
 ### Test matrix
 
-| Command                    | What it proves                 |
-| -------------------------- | ------------------------------ |
-| `bun run test`             | Core unit + integration        |
-| `bun run test:cli`         | CLI unit                       |
-| `bun run test:e2e`         | Playwright, every app × node   |
-| `bun run test:e2e:bun`     | Same tests, Bun listen         |
-| `bun run test:e2e:workers` | Same tests, local workerd      |
-| `bun run test:e2e:deno`    | Same tests, Deno               |
-| `bun run test:e2e:firefox` | Same tests, Firefox (dev only) |
-| `bun run test:e2e:prod`    | Node, `TEST_MODE=prod`         |
+| Command                         | What it proves                             |
+| ------------------------------- | ------------------------------------------ |
+| `bun run test`                  | Core unit + integration                    |
+| `bun run test:cli`              | CLI unit                                   |
+| `bun run test:e2e`              | Playwright, every app × node, Vite **dev** |
+| `bun run test:e2e:prod`         | Same tests, `vite build` + **preview**     |
+| `bun run test:e2e:bun`          | Same tests, Bun listen (dev)               |
+| `bun run test:e2e:bun:prod`     | Bun listen, prod preview                   |
+| `bun run test:e2e:workers`      | Same tests, local workerd (dev)            |
+| `bun run test:e2e:workers:prod` | workerd, prod preview                      |
+| `bun run test:e2e:deno`         | Same tests, Deno (dev)                     |
+| `bun run test:e2e:firefox`      | Same tests, Firefox (**dev only**)         |
 
 ```bash
 bun run test:e2e -- --app product

@@ -96,10 +96,16 @@ jobs:
         include:
           - runtime: node
             script: test:e2e
+          - runtime: node
+            script: test:e2e:prod
           - runtime: bun
             script: test:e2e:bun
+          - runtime: bun
+            script: test:e2e:bun:prod
           - runtime: workers
             script: test:e2e:workers
+          - runtime: workers
+            script: test:e2e:workers:prod
           - runtime: deno
             script: test:e2e:deno
     steps:
