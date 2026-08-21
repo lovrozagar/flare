@@ -41,8 +41,7 @@ function resolveQueryKey<T extends QueryKey>(v: Accessor<T> | T): T {
 
 /**
  * Thin wrapper over TanStack's `useQuery` with suspense semantics.
- * Delegates entirely to TanStack's SSR-aware implementation which uses
- * `createResource` for proper Solid SSR streaming integration.
+ * Delegates to TanStack's SSR-aware Solid Query implementation.
  */
 export function useSuspenseQuery<TData = unknown, TError = Error, TQueryKey extends QueryKey = QueryKey>(
 	options: UseSuspenseQueryOptions<TData, TError, TQueryKey>,

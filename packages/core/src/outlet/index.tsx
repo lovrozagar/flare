@@ -489,7 +489,7 @@ function renderMatchError(ctx: FlareProviderContext, depth: number, error: unkno
 	if (error instanceof UnauthorizedError) {
 		return resolveUnauthorizedBoundary(ctx, depth, error, retry);
 	}
-	/* Pipeline errors: reset = retry (no ErrorBoundary to clear, must re-run loaders) */
+	/* Pipeline errors: reset = retry (no Errored to clear, must re-run loaders) */
 	return resolveErrorBoundary(ctx, depth, error, retry, retry);
 }
 
@@ -498,9 +498,9 @@ function ErrorBoundaryWrapper(props: { children: JSX.Element; depth: number; mat
 	let resetFn: (() => void) | undefined;
 
 	/*
-	 * When match changes (SPA navigation), reset ErrorBoundary so it exits
+	 * When match changes (SPA navigation), reset Errored so it exits
 	 * fallback mode. Without this, navigating from error page → valid page
-	 * stays stuck in ErrorBoundary fallback.
+	 * stays stuck in Errored fallback.
 	 */
 	createEffect(
 		() => {

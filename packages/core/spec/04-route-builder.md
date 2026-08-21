@@ -791,9 +791,9 @@ createPage("_root_/products/[id]")
   .render(({ loaderData }) => (
     <div>
       <ProductCard product={loaderData.product} />
-      <Suspense fallback={<Spinner />}>
-        <ReviewList reviews={loaderData.reviews} />
-      </Suspense>
+      <Await pending={<Spinner />} promise={loaderData.reviews}>
+        {(reviews) => <ReviewList reviews={reviews} />}
+      </Await>
     </div>
   ))
 ```

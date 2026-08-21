@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { isServer } from "@solidjs/web";
+import { Dynamic, isServer } from "@solidjs/web";
 import { type Component, createSignal, onSettled, Show, sharedConfig } from "solid-js";
 import { retryImport } from "../internal.ts";
 import { warn } from "../logger.ts";
@@ -31,7 +31,7 @@ function getGlobalLoaded(): Set<Promise<void>> {
 }
 
 /**
- * Throws during component init — ErrorBoundary catches it.
+ * Throws during component init — Errored catches it.
  * Must be rendered via Show/conditional so the throw happens during
  * the component's initial render phase (not in an effect).
  */
@@ -96,10 +96,7 @@ export function lazy<P extends Record<string, unknown>>(options: LazyOptions<P>)
 			<Show
 				fallback={
 					<Show fallback={PendingFallback} when={component()}>
-						{(entry) => {
-							const C = entry().C;
-							return (<C {...props} />) as JSX.Element;
-						}}
+						{(entry) => <Dynamic component={entry().C} {...props} />}
 					</Show>
 				}
 				when={error()}
@@ -191,10 +188,7 @@ export function clientLazy<P extends Record<string, unknown>>(
 			<Show
 				fallback={
 					<Show fallback={PendingFallback} when={component()}>
-						{(entry) => {
-							const C = entry().C;
-							return (<C {...(props as P)} />) as JSX.Element;
-						}}
+						{(entry) => <Dynamic component={entry().C} {...(props as P)} />}
 					</Show>
 				}
 				when={error()}

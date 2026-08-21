@@ -95,7 +95,7 @@ Client (hydration):
 Client (chunk arrival):
   Match chunk to resolver by matchId + key
   Resolve or reject the pending promise
-  Suspense boundary re-renders
+  `<Await>` re-renders from pending to success/error
 ```
 
 ### Deferred in Loader Data
@@ -128,7 +128,7 @@ Client shape: `{ __deferred: true, __key?, __resolved?, __error?, promise }` (sp
 - Deferred promise rejects → error sent as NDJSON `t:"e"` with the deferred's `key`
 - Only `message` sent to client (no stack traces — security)
 - Client receives error, rejects the pending promise
-- `<Suspense>` fallback or error boundary catches on client side
+- `<Await>` pending/error slots (or a route `errorRender` / `<Errored>`) catch on the client side
 - Server-side: errors logged, do NOT crash the stream
 
 ### Key Scoping
