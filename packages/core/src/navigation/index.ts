@@ -1,3 +1,4 @@
+import { flush } from "solid-js";
 import type { DeferredTracker } from "../caches/index.ts";
 import { collectDeferredPromises, createDeferredTracker } from "../caches/index.ts";
 import type { DirectionConfig } from "../direction.ts";
@@ -1062,11 +1063,21 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				});
 			} else if (options.scroll !== false) {
 				if (url.hash) {
-					const el = typeof document !== "undefined" ? document.getElementById(url.hash.slice(1)) : null;
+					flush();
+					const id = url.hash.slice(1);
+					const el = typeof document !== "undefined" ? document.getElementById(id) : null;
 					if (el) {
 						el.scrollIntoView();
 					} else {
-						scrollToTop();
+						/* Solid 2 may not have committed the new route yet. */
+						requestAnimationFrame(() => {
+							requestAnimationFrame(() => {
+								if (myVersion !== navigationVersion) return;
+								const late = typeof document !== "undefined" ? document.getElementById(id) : null;
+								if (late) late.scrollIntoView();
+								else scrollToTop();
+							});
+						});
 					}
 				} else {
 					scrollToTop();

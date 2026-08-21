@@ -179,21 +179,19 @@ test.describe("Deep: SSR raw HTML structure", () => {
 		/* Fetch raw HTML without JS execution */
 		const response = await page.request.get("/about");
 		const html = await response.text();
-		/* data-hk markers indicate Solid hydration keys */
-		expect(html).toContain("data-hk");
-		/* Content inside <body> should have markers */
+		/* Solid 2 hydration keys are `_hk` (Solid 1 used data-hk). */
+		expect(html).toContain("_hk=");
 		const bodyStart = html.indexOf("<body");
 		const afterBody = html.substring(bodyStart);
-		expect(afterBody).toContain("data-hk");
+		expect(afterBody).toContain("_hk=");
 	});
 
 	test("SSR HTML has data-hk on <html> element (full-document hydration)", async ({ page }) => {
 		const response = await page.request.get("/");
 		const html = await response.text();
-		/* <html> tag SHOULD have data-hk — root layout is inside Hydration boundary */
 		const htmlTagMatch = html.match(/<html[^>]*>/);
 		expect(htmlTagMatch).toBeTruthy();
-		expect(htmlTagMatch?.[0]).toContain("data-hk");
+		expect(htmlTagMatch?.[0]).toContain("_hk=");
 	});
 
 	test("SSR HTML has flare state script with self.flare=", async ({ page }) => {

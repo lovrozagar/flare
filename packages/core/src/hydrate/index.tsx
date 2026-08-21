@@ -3,6 +3,7 @@ import swConfig from "virtual:flare-sw-config";
 
 declare const __FLARE_IS_DEV__: boolean | undefined;
 const isDevDefault = typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : false;
+import { flush } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { createComponent, Hydration, render, hydrate as solidHydrate } from "@solidjs/web";
 import { SSRContextProvider } from "../components/ssr-context.tsx";
@@ -276,6 +277,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 			),
 			document,
 		);
+		flush();
 		finishHydration();
 
 		replaceHistoryState(window.location.pathname, state.params, window.location.search, {

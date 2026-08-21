@@ -201,9 +201,18 @@ export function createDevServerPlugin(entries: ResolvedEntries, _assetsBase: str
 							 */
 							const lastSlash = url.pathname.lastIndexOf("/");
 							const hasFileExt = url.pathname.indexOf(".", lastSlash) !== -1;
+							let htmlPath = "/";
+							if (!hasFileExt) {
+								try {
+									decodeURIComponent(url.pathname);
+									htmlPath = url.pathname;
+								} catch {
+									htmlPath = "/";
+								}
+							}
 							const { html: peeledHtml, tags } = peelInlineTags(html);
 							html = hoistHydrationHeadMarkers(
-								restoreInlineTags(await vite.transformIndexHtml(hasFileExt ? "/" : url.pathname, peeledHtml), tags),
+								restoreInlineTags(await vite.transformIndexHtml(htmlPath, peeledHtml), tags),
 							);
 
 							const htmlHeaders: Record<string, string | string[]> = {
