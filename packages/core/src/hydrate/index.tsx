@@ -157,7 +157,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 		}
 		const { QueryClientProvider } = await import("../query-client");
 		QCP = QueryClientProvider as typeof QCP;
-		installQueryCacheResolver(queryClientInstance);
+		/* `__flare_qc` is drained after solidHydrate — observers must attach first. */
 	}
 
 	/* Build composed rewrite: basePath (if any) + user rewrite */
@@ -279,6 +279,20 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 		);
 		flush();
 		finishHydration();
+
+		if (queryClientInstance) {
+			/*
+			 * TanStack `useQuery` (no HydrationCoordinator) attaches its cache
+			 * subscriber on a microtask after the hydration replay. Streamed
+			 * `__flare_qc` must land after that attach — applying it earlier
+			 * writes deferred data into a cache with no observers, and the
+			 * SSR-serialized fallback stays on screen.
+			 */
+			await Promise.resolve();
+			await Promise.resolve();
+			installQueryCacheResolver(queryClientInstance);
+			flush();
+		}
 
 		replaceHistoryState(window.location.pathname, state.params, window.location.search, {
 			hash: window.location.hash,

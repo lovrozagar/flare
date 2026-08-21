@@ -208,6 +208,9 @@ export function installDeferredResolver(resolvers: Map<string, DeferredResolver>
  * SSR scripts push `[{data, key, staleTime?}]` into `self.__flare_qc` array.
  * This function drains them, then replaces the array with a push-proxy
  * so future scripts hydrate immediately.
+ *
+ * Call after `useQuery` observers have attached (a microtask after
+ * `solidHydrate`). Draining earlier writes into a cache with no subscribers.
  */
 export function installQueryCacheResolver(queryClient: unknown): void {
 	if (typeof globalThis === "undefined") return;

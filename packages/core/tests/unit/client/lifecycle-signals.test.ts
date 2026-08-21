@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { HydrateOptions } from "../../../src/hydrate/index.tsx";
 
+vi.mock("../../../src/hydrate/index.tsx", () => ({
+	hydrate: vi.fn(async () => {}),
+}));
+
 describe("lifecycle signals", () => {
 	beforeEach(() => {
 		vi.restoreAllMocks();
