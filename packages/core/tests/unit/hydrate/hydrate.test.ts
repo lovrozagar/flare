@@ -62,6 +62,10 @@ vi.mock("../../../src/theme", () => ({
 	ThemeProvider: vi.fn((props: { children: unknown }) => props.children),
 }));
 
+vi.mock("../../../src/components/ssr-context.tsx", () => ({
+	SSRContextProvider: vi.fn((props: { children: unknown }) => props.children),
+}));
+
 vi.mock("../../../src/state-parser", () => ({
 	hydrateFlareState: vi.fn(() => ({
 		matches: [],
