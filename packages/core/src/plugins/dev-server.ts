@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { hoistHydrationHeadMarkers } from "../ssr/hoist-head-markers.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
 
 interface NodeReq {
@@ -201,9 +202,8 @@ export function createDevServerPlugin(entries: ResolvedEntries, _assetsBase: str
 							const lastSlash = url.pathname.lastIndexOf("/");
 							const hasFileExt = url.pathname.indexOf(".", lastSlash) !== -1;
 							const { html: peeledHtml, tags } = peelInlineTags(html);
-							html = restoreInlineTags(
-								await vite.transformIndexHtml(hasFileExt ? "/" : url.pathname, peeledHtml),
-								tags,
+							html = hoistHydrationHeadMarkers(
+								restoreInlineTags(await vite.transformIndexHtml(hasFileExt ? "/" : url.pathname, peeledHtml), tags),
 							);
 
 							const htmlHeaders: Record<string, string | string[]> = {

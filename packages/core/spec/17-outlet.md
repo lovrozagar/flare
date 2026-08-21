@@ -276,11 +276,8 @@ const location = createMemo(() => {
 Called during initial render (not deferred). Passes full `FlareProviderContext` to caller. Used by hydration to wire up navigation:
 
 ```ts
-createEffect(() => {
-	if (props.onContextReady) {
-		props.onContextReady(ctx);
-	}
-});
+/* First execution of FlareProvider — not onSettled (hydrate awaits this). */
+props.onContextReady?.(ctx);
 ```
 
 Called once. `setupNavigation(ctx)` binds navigate/prefetch functions to context.

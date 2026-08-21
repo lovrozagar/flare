@@ -4,7 +4,8 @@ import swConfig from "virtual:flare-sw-config";
 declare const __FLARE_IS_DEV__: boolean | undefined;
 const isDevDefault = typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : false;
 import type { JSX } from "@solidjs/web";
-import { createComponent, render, hydrate as solidHydrate } from "@solidjs/web";
+import { createComponent, Hydration, render, hydrate as solidHydrate } from "@solidjs/web";
+import { SSRContextProvider } from "../components/ssr-context.tsx";
 import { createChannel } from "../broadcast/channel.ts";
 import { BroadcastProvider } from "../broadcast/provider.tsx";
 import type { MatchCache } from "../caches/index.ts";
@@ -55,13 +56,9 @@ export interface HydrateOptions {
 	onInteraction?: () => void;
 }
 
-/**
- * Matches SSR's Hydration component depth.
- * Hydration is a single-child-passthrough, Dummy matches its depth
- * so hydration keys align between SSR and client.
- */
-function Dummy(props: { children: JSX.Element }): JSX.Element {
-	return props.children;
+function readDocumentNonce(): string {
+	if (typeof document === "undefined") return "";
+	return document.querySelector('meta[name="csp-nonce"]')?.getAttribute("nonce") ?? "";
 }
 
 function RootRenderer(props: {
@@ -71,8 +68,11 @@ function RootRenderer(props: {
 	renderFn: (p: RenderProps) => JSX.Element;
 }): JSX.Element {
 	const router = useRouter();
+	/* Getter so <Outlet> does not consume hydration child ids before <html>. */
 	return props.renderFn({
-		children: <Outlet />,
+		get children() {
+			return <Outlet />;
+		},
 		loaderData: props.data,
 		location: props.location,
 		preloaderContext: props.preloaderContext,
@@ -199,61 +199,71 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 		const rootMatchState = rootLayout ? state.matches.find((m) => m.virtualPath === rootLayout.virtualPath) : undefined;
 
 		/*
-		 * Full-document hydration: providers wrap root layout so components
-		 * inside root layout (e.g. NavigationProgress) have RouterContext.
+		 * Full-document hydration. SSR and client wrappers must match —
+		 * Solid 2 `_hk` ids follow the owner tree.
 		 *
-		 * SSR:    Hydration > QCP? > Theme > Direction > Broadcast > FlareProvider > rootRenderFn({children: Outlet})
-		 * Client: Dummy     > QCP? > Theme > Direction > Broadcast > FlareProvider > rootRenderFn({children: Outlet})
+		 * Both: Hydration > QCP? > SSRContextProvider > Theme > Direction >
+		 *       Broadcast > FlareProvider > rootRenderFn({children: Outlet})
 		 */
 		const channel = createChannel();
 		const renderInner = () => (
-			<ThemeProvider config={r.theme}>
-				<DirectionProvider config={r.direction}>
-					<BroadcastProvider value={channel}>
-						<FlareProvider
-							boundaries={rootBoundaries}
-							caseSensitive={r.caseSensitive}
-							layouts={r.layouts}
-							localeConfig={r.locale}
-							matchCache={matchCache}
-							matches={initialMatches}
-							onContextReady={(ctx) => {
-								resolveCtx(ctx);
-							}}
-							params={state.params}
-							prefetchCache={prefetchCache}
-							resolvers={state.resolvers}
-							routerCacheDefaults={r.cache?.client || undefined}
-							routeTree={r.routeTree}
-							search={search}
-						>
-							{rootLayout?.render ? (
-								<RootRenderer
-									data={rootMatchState?.loaderData}
-									location={{
-										hash: window.location.hash,
-										params: state.params,
-										pathname: state.pathname,
-										search,
-										url: new URL(window.location.href),
-										variablePath: "",
-										virtualPath: rootLayout.virtualPath,
-									}}
-									preloaderContext={rootMatchState?.preloaderContext}
-									renderFn={rootLayout.render}
-								/>
-							) : (
-								<Outlet />
-							)}
-						</FlareProvider>
-					</BroadcastProvider>
-				</DirectionProvider>
-			</ThemeProvider>
+			<SSRContextProvider
+				value={{
+					direction: r.direction,
+					flareStateScript: "",
+					isServer: false,
+					nonce: readDocumentNonce(),
+					theme: r.theme,
+				}}
+			>
+				<ThemeProvider config={r.theme}>
+					<DirectionProvider config={r.direction}>
+						<BroadcastProvider value={channel}>
+							<FlareProvider
+								boundaries={rootBoundaries}
+								caseSensitive={r.caseSensitive}
+								layouts={r.layouts}
+								localeConfig={r.locale}
+								matchCache={matchCache}
+								matches={initialMatches}
+								onContextReady={(ctx) => {
+									resolveCtx(ctx);
+								}}
+								params={state.params}
+								prefetchCache={prefetchCache}
+								resolvers={state.resolvers}
+								routerCacheDefaults={r.cache?.client || undefined}
+								routeTree={r.routeTree}
+								search={search}
+							>
+								{rootLayout?.render ? (
+									RootRenderer({
+										data: rootMatchState?.loaderData,
+										location: {
+											hash: window.location.hash,
+											params: state.params,
+											pathname: state.pathname,
+											search,
+											url: new URL(window.location.href),
+											variablePath: "",
+											virtualPath: rootLayout.virtualPath,
+										},
+										preloaderContext: rootMatchState?.preloaderContext,
+										renderFn: rootLayout.render,
+									})
+								) : (
+									<Outlet />
+								)}
+							</FlareProvider>
+						</BroadcastProvider>
+					</DirectionProvider>
+				</ThemeProvider>
+			</SSRContextProvider>
 		);
 
 		solidHydrate(
 			() => (
-				<Dummy>
+				<Hydration>
 					{QCP && queryClientInstance
 						? createComponent(QCP, {
 								get children() {
@@ -262,7 +272,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 								client: queryClientInstance,
 							})
 						: renderInner()}
-				</Dummy>
+				</Hydration>
 			),
 			document,
 		);

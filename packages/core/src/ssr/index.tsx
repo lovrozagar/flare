@@ -1,3 +1,4 @@
+import { getNextChildId, getOwner } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { createComponent, Hydration, renderToStream as solidRenderToStream } from "@solidjs/web";
 import type { GlobalBoundaries } from "../boundaries/index.ts";
@@ -30,6 +31,7 @@ import { CRITICAL_SHEET_ID, injectCriticalAppend, type SxCssManifest } from "./c
 import { ThemeProvider } from "../theme.ts";
 import { parseSearchParams, type SearchParams } from "../url/index.ts";
 import { renderHeadToHtml } from "./head.ts";
+import { hoistHydrationHeadMarkers } from "./hoist-head-markers.ts";
 import { buildHeadPrefix } from "./head-prefix.ts";
 
 export { mergeHeadConfigs } from "../internal.ts";
@@ -394,9 +396,19 @@ function RootRenderer(props: {
 	preloaderContext: Record<string, unknown> | undefined;
 	renderFn: (p: RenderProps) => JSX.Element;
 }): JSX.Element {
+	/*
+	 * Client `createContext` children() consumes one hydration id in this
+	 * owner before the layout runs; the server's children() memos do not.
+	 * Advance the server counter so <html> `_hk` matches hydrate.
+	 */
+	const owner = getOwner();
+	if (owner?.id != null) getNextChildId(owner);
 	const router = useRouter();
+	/* Getter so <Outlet> does not consume hydration child ids before <html>. */
 	return props.renderFn({
-		children: <Outlet />,
+		get children() {
+			return <Outlet />;
+		},
 		loaderData: props.data,
 		location: props.location,
 		preloaderContext: props.preloaderContext,
@@ -452,8 +464,8 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 		 * Full-document hydration: providers wrap root layout so components
 		 * inside the root layout (e.g. NavigationProgress) have RouterContext.
 		 *
-		 * SSR:    Hydration > Theme > Direction > FlareProvider > rootRenderFn({children: Outlet})
-		 * Client: Dummy     > Theme > Direction > FlareProvider > rootRenderFn({children: Outlet})
+		 * SSR and client: Hydration > QCP? > SSRContextProvider > Theme >
+		 * Direction > Broadcast > FlareProvider > rootRenderFn({children: Outlet})
 		 *
 		 * All JSX inside the Hydration boundary — no pre-evaluated constants outside.
 		 */
@@ -499,12 +511,12 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 								search={location.search}
 							>
 								{rootRenderFn ? (
-									<RootRenderer
-										data={rootMatch?.loaderData}
-										location={location}
-										preloaderContext={rootMatch?.preloaderContext}
-										renderFn={rootRenderFn}
-									/>
+									RootRenderer({
+										data: rootMatch?.loaderData,
+										location,
+										preloaderContext: rootMatch?.preloaderContext,
+										renderFn: rootRenderFn,
+									})
 								) : (
 									<Outlet />
 								)}
@@ -534,18 +546,15 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
  * Inject resolved head tags, CSP nonce meta, and scoped styles before </head>.
  * Returns updated buffer with head content injected, or original buffer if </head> not found.
  *
- * Head structure (order matters for first paint + Chrome's preload scanner):
- *   1. <meta name="csp-nonce"> with nonce attribute (browser hides it from DOM/CSS)
- *   2. viewport (if the app omitted one)
- *   3. theme / direction / locale blocking scripts — before CSS so first land is themed
- *   4. <link rel="modulepreload"> + stylesheets
- *   5. Solid's SSR output (layout ThemeScript is a duplicate, harmless)
- *   6. Resolved <head> tags (title, meta, etc.)
- *   7. Scoped styles
+ * Head structure:
+ *   1. Solid's hydratable head children (`<!--$-->` first — required for Solid 2)
+ *   2. CSP nonce / viewport / theme / direction / locale scripts (headPrefix)
+ *   3. modulepreload + stylesheets
+ *   4. Resolved <head> tags (title, meta, etc.)
+ *   5. Scoped styles
  *
- * Theme scripts must precede stylesheets. Modulepreloads stay after those
- * tiny inline scripts so Chrome can still mark them isLinkPreload when CSP
- * has no 'strict-dynamic' (crbug.com/702612).
+ * Prefix is appended (not prepended) so hydrate can walk Solid's markers.
+ * Theme scripts still run in `<head>` before `<body>` is parsed.
  */
 function injectHeadContent(
 	buffer: string,
@@ -619,8 +628,8 @@ function injectHeadContent(
 		headSuffix += `<style nonce="${escapedNonce}">body{${cssText}}</style>`;
 	}
 
-	const result = buffer.replace(/<head[^>]*>/, `$&${headPrefix}`);
-	return result.replace("</head>", `${headSuffix}${extraSuffix}</head>`);
+	const result = buffer.replace("</head>", `${headPrefix}${headSuffix}${extraSuffix}</head>`);
+	return hoistHydrationHeadMarkers(result);
 }
 
 /**

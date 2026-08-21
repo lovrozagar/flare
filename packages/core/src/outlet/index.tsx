@@ -243,9 +243,12 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 		return unsubscribe;
 	});
 
-	onSettled(() => {
-		props.onContextReady?.(ctx);
-	});
+	/*
+	 * Must run during the provider's first execution — Solid 2 onSettled waits
+	 * for hydration to finish, and hydrate() awaits this callback, so onSettled
+	 * would deadlock and never set html[data-hydrated].
+	 */
+	props.onContextReady?.(ctx);
 
 	return <RouterContext value={ctx}>{props.children}</RouterContext>;
 }
