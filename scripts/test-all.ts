@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 /**
  * Sequential gate. Pick the environment; every e2e app runs on it.
+ * Default e2e is both Vite dev and `vite preview` (prod), same split
+ * other frameworks use. Firefox is dev-only.
  *
  *   bun run test:all
  *   bun run test:all -- --env bun
@@ -35,15 +37,18 @@ const suites: Suite[] = [
 	{ cmd: ["bun", "run", "e2e/run-build.ts"], name: "build" },
 	{ cmd: ["bun", "run", "e2e/run-env.ts", "--env", env], name: `e2e-${env}` },
 ];
-if (full) {
-	suites.push({
-		cmd: ["bun", "run", "e2e/run-build.ts", "--runtime", "all"],
-		name: "build-all-runtimes",
-	});
+/* Firefox env is Playwright-on-node and documented as dev-only. */
+if (env !== "firefox") {
 	suites.push({
 		cmd: ["bun", "run", "e2e/run-env.ts", "--env", env],
 		name: `e2e-${env}-prod`,
 		prod: true,
+	});
+}
+if (full) {
+	suites.push({
+		cmd: ["bun", "run", "e2e/run-build.ts", "--runtime", "all"],
+		name: "build-all-runtimes",
 	});
 	suites.push({ cmd: ["bun", "run", "typecheck"], name: "typecheck" });
 }
