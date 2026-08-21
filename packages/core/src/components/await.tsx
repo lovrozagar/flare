@@ -1,4 +1,4 @@
-import { createEffect, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 export interface Deferred<T> {
@@ -93,18 +93,16 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 		if (p) trackPromise(p);
 	}
 
-	/* Watch for promise prop changes */
+	/* Watch for promise prop changes — apply reads the compute snapshot, not props. */
 	createEffect(
-		() => {
-			void props.promise;
-		},
-		() => {
-			const newPromise = getPromise(props.promise);
+		() => props.promise,
+		(promise) => {
+			const newPromise = getPromise(promise);
 			if (newPromise === currentPromise) return;
 			currentPromise = newPromise;
 
-			const resolved = getResolvedValue(props.promise);
-			const resolvedError = getResolvedError(props.promise);
+			const resolved = getResolvedValue(promise);
+			const resolvedError = getResolvedError(promise);
 
 			if (resolved !== undefined) {
 				setData(() => resolved);
@@ -122,7 +120,7 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 		},
 	);
 
-	return (() => {
+	return createMemo(() => {
 		const s = status();
 		if (s === "success") {
 			return props.children(data() as T);

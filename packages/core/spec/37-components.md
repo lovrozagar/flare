@@ -131,7 +131,7 @@ Accepts `Deferred<T>` (from server `defer()`) or raw `Promise<T>`.
 
 ## SSRContext
 
-SSR data transport via `sharedConfig.context` (not component tree).
+SSR data transport via `<SSRContextProvider value={...}>` wrapping the render tree. Solid 2 has no `sharedConfig.context`.
 
 ### Types
 
@@ -155,13 +155,11 @@ SSRContextProvider(props: { children: JSX.Element; value: SSRContextValue }): JS
 
 ### Behavior
 
-**`setSSRContext`**: stores context on `sharedConfig.context.flare` during `renderToStream` callback. No component tree provider needed.
+**`setSSRContext`**: deprecated no-op. Solid 2 removed `sharedConfig.context`; kept so existing imports do not break.
 
-**`useSSRContext`**: reads from `sharedConfig.context.flare` (SSR) or falls back to `useContext(SSRContext)` (testing).
+**`useSSRContext`**: reads `useContext(SSRCtx)`. Returns `undefined` outside a provider.
 
-**`SSRContextProvider`**: component provider for testing only. Production SSR uses `setSSRContext`.
-
-Using `sharedConfig.context` instead of component tree avoids hydration mismatches from differing server/client tree structures.
+**`SSRContextProvider`**: wraps the SSR tree (`<SSRCtx value={...}>`). Production SSR and tests both use this provider.
 
 ## ThemeScript
 
@@ -412,10 +410,9 @@ Await:
   Race condition: stale promise ignored
 
 SSRContext:
-  setSSRContext stores on sharedConfig.context.flare
-  useSSRContext reads from sharedConfig on server
-  useSSRContext falls back to context provider
-  SSRContextProvider works for testing
+  setSSRContext is a deprecated no-op
+  useSSRContext reads SSRCtx from the component tree
+  SSRContextProvider wraps the SSR tree
 
 ThemeScript:
   SSR: renders blocking script with nonce

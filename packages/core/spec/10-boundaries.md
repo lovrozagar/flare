@@ -126,7 +126,7 @@ All three optional. Any order after `.render()`. Each consumed once.
 
 ## `<Await>` Component
 
-Renders deferred data with loading/error/success states. Wraps Solid's `<Suspense>`.
+Renders deferred data with loading/error/success states. Own pending/error/success state machine — does not wrap Solid `<Loading>`.
 
 ### Props
 
@@ -298,10 +298,10 @@ SSR error rendering:
 ## Notes
 
 - `unauthorizedRender` IS on the route builder chain in v2 — all three boundary types (`errorRender`, `notFoundRender`, `unauthorizedRender`) available after `.render()`. Walk-up for `UnauthenticatedError`/`UnauthorizedError`: page `unauthorizedRender` → layout `unauthorizedRender` → root `unauthorizedRender` → global `unauthorized` boundary → minimal 401/403 fallback.
-- `<Await>` wraps Solid's `<Suspense>` internally — pending state triggers Suspense fallback
+- `<Await>` tracks the deferred promise itself — pending state renders the `pending` slot, not a Solid `<Loading>` boundary
 - `reset()` works on both SSR and client — SSR re-runs loader, client re-executes promise
 - Boundary resolution is route-index based: error at index 2 walks indices 1 → 0 → global
 - Dev error overlay is a separate concern from boundaries — it shows ALL errors, boundaries show user-facing UI
-- No "streaming boundary" as a separate type — `<Await>` with `<Suspense>` handles streaming via Solid's built-in mechanism
+- No "streaming boundary" as a separate type — `<Await>` plus Flare NDJSON (`t:"c"`) handle deferred streaming. Solid `<Loading>` is used by Outlet for route-module readiness, not by `<Await>`.
 - `<Await>` API defined here (spec 10) as part of boundary system. Implementation details (Deferred shape, SSR pre-resolution, helpers) in spec 37 (components). Spec 10 is canonical for behavior, spec 37 for component internals.
 - Error boundary prevents crash propagation — without it, a single loader failure would break the entire page

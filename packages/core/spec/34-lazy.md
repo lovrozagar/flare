@@ -158,5 +158,5 @@ waitForLazyPreloads:
 - `clientLazy` with `eager: false` defers to first render — for heavy components that may never render
 - `waitForLazyPreloads` is critical for hydration alignment — without it, lazy components render pending during hydration then flash to loaded
 - Factory-level `createSignal` means state is per-factory-call, shared across all instances. This is correct — all instances of the same lazy component share the load state.
-- `sharedConfig.context` is Solid's SSR detection — truthy during SSR and initial hydration render
+- `isServer || sharedConfig.hydrating` is Solid 2's SSR/hydration detection (`sharedConfig.context` is gone)
 - Global tracking via `__FLARE_LAZY_LOADED__` survives Vite module identity issues (same global regardless of import path)

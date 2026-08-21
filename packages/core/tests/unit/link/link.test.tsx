@@ -500,6 +500,7 @@ describe("Link", () => {
 				),
 				container,
 			);
+			flush();
 
 			const a = container.querySelector("a");
 			a?.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
@@ -519,6 +520,7 @@ describe("Link", () => {
 				),
 				container,
 			);
+			flush();
 
 			const a = container.querySelector("a");
 			a?.dispatchEvent(new TouchEvent("touchstart", { bubbles: true }));
@@ -557,6 +559,7 @@ describe("Link", () => {
 				),
 				container,
 			);
+			flush();
 
 			const a = container.querySelector("a");
 			a?.dispatchEvent(new FocusEvent("focus", { bubbles: true }));

@@ -2,7 +2,7 @@
 
 Layer 4 (client). Depends on solid-js reactivity. Optional — only when `@tanstack/query-core` installed.
 
-Full TanStack Query integration for SolidJS. Reactive query/mutation hooks, SSR streaming support, Suspense integration.
+Full TanStack Query integration for SolidJS. Reactive query/mutation hooks, SSR streaming support, Loading/Errored integration.
 
 ## Types
 
@@ -186,20 +186,20 @@ createTrackedQueryClient(client: QueryClient): TrackedQueryClient
 
 ### SSR Streaming Support
 
-`deferStream: true` enables query data streaming via SSR Suspense.
+`deferStream: true` enables query data streaming via Solid `<Loading>` during SSR.
 
-**SSR behavior**: During `renderToStream`, `useSuspenseQuery` with `deferStream: true` throws the pending promise, which Solid's streaming Suspense catches. Solid keeps the HTML stream open — when the query resolves, Solid inlines the resolved content as a `<script>` chunk appended to the stream. This uses Solid's built-in streaming Suspense mechanism, NOT Flare's NDJSON deferred pipeline.
+**SSR behavior**: During `renderToStream`, `useSuspenseQuery` with `deferStream: true` throws the pending promise, which Solid's `<Loading>` catches. Solid keeps the HTML stream open — when the query resolves, Solid inlines the resolved content. This uses Solid's streaming, NOT Flare's NDJSON deferred pipeline.
 
-**CSR behavior**: `deferStream` has no effect during CSR navigation. Queries execute normally during component render via Suspense. The Flare NDJSON defer system (spec 07) operates at the loader level, not the component render level — `deferStream` is an SSR-only streaming optimization.
+**CSR behavior**: `deferStream` has no effect during CSR navigation. Queries execute normally during component render via `<Loading>`. The Flare NDJSON defer system (spec 07) operates at the loader level, not the component render level — `deferStream` is an SSR-only streaming optimization.
 
 **Not connected to DeferContext**: Unlike `ctx.defer()` in loaders (spec 07), `deferStream` does not create `DeferContext` entries or NDJSON chunks. It relies entirely on Solid's built-in SSR streaming.
 
-### Suspense Integration
+### Loading / Errored Integration
 
 `useSuspenseQuery`:
 
-- During loading: throws promise (Solid `<Suspense>` catches it)
-- On error: throws error (Solid `<ErrorBoundary>` catches it)
+- During loading: throws promise (Solid `<Loading>` catches it)
+- On error: throws error (Solid `<Errored>` catches it)
 - On success: `data()` is guaranteed defined (no `undefined`)
 
 Custom implementation (not via `useBaseQuery`):
@@ -246,8 +246,8 @@ useQuery:
   gcTime respected
 
 useSuspenseQuery:
-  Loading → throws promise (Suspense catches)
-  Error → throws error (ErrorBoundary catches)
+  Loading → throws promise (Loading catches)
+  Error → throws error (Errored catches)
   Success → data() is defined, status() is "success"
   No enabled option (always enabled)
   No placeholderData option

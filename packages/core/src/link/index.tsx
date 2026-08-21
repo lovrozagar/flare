@@ -1,4 +1,4 @@
-import { createMemo, omit, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, omit, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { applyRewriteOutput, isExternal, navigate, prefetch } from "../navigation/index.ts";
 import { useRouterContext } from "../outlet/index.tsx";
@@ -40,7 +40,7 @@ export type ExternalLinkProps = FlareAnchorProps & {
 
 export type LinkProps<TPath extends RoutePaths = RoutePaths> = InternalLinkProps<TPath> | ExternalLinkProps;
 
-/* Flattened internal type for splitProps — avoids TS intersection issues with Omit */
+/* Flattened internal type for omit — avoids TS intersection issues with Omit */
 interface LinkPropsInternal {
 	activeClass?: string;
 	activeProps?: FlareAnchorProps;
@@ -303,49 +303,62 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		};
 	}
 
-	function setupPrefetchBehavior(el: HTMLAnchorElement): void {
-		if (local.href !== undefined) return;
-		if (isExternal(resolvedHref())) return;
+	/* Capture the element; attach listeners in createEffect so cleanup is owned. */
+	const [anchor, setAnchor] = createSignal<HTMLAnchorElement | undefined>();
 
-		const strategy = effectivePrefetch();
+	createEffect(
+		() => {
+			const el = anchor();
+			const strategy = effectivePrefetch();
+			const href = resolvedHref();
+			return {
+				disabled: !!local.disabled,
+				el,
+				external: isExternal(href),
+				hrefOnly: local.href !== undefined,
+				strategy,
+			};
+		},
+		({ disabled, el, external, hrefOnly, strategy }) => {
+			if (!el || disabled || hrefOnly || external) return;
 
-		if (strategy === "intent") {
-			el.addEventListener("focus", handleIntent);
-			el.addEventListener("touchstart", handleIntent, { passive: true });
-			onCleanup(() => {
-				el.removeEventListener("focus", handleIntent);
-				el.removeEventListener("touchstart", handleIntent);
-			});
-		}
+			if (strategy === "intent") {
+				el.addEventListener("focus", handleIntent);
+				el.addEventListener("touchstart", handleIntent, { passive: true });
+				return () => {
+					el.removeEventListener("focus", handleIntent);
+					el.removeEventListener("touchstart", handleIntent);
+				};
+			}
 
-		if (strategy === "viewport") {
-			let observer: IntersectionObserver | undefined;
-			const cancel = scheduleAfterLoad(() => {
-				if (typeof IntersectionObserver === "undefined") return;
-				observer = new IntersectionObserver(
-					(entries) => {
-						for (const entry of entries) {
-							if (entry.isIntersecting) {
-								triggerPrefetch();
-								observer?.unobserve(entry.target);
+			if (strategy === "viewport") {
+				let observer: IntersectionObserver | undefined;
+				const cancel = scheduleAfterLoad(() => {
+					if (typeof IntersectionObserver === "undefined") return;
+					observer = new IntersectionObserver(
+						(entries) => {
+							for (const entry of entries) {
+								if (entry.isIntersecting) {
+									triggerPrefetch();
+									observer?.unobserve(entry.target);
+								}
 							}
-						}
-					},
-					{ threshold: 0 },
-				);
-				observer.observe(el);
-			});
-			onCleanup(() => {
-				cancel();
-				observer?.disconnect();
-			});
-		}
+						},
+						{ threshold: 0 },
+					);
+					observer.observe(el);
+				});
+				return () => {
+					cancel();
+					observer?.disconnect();
+				};
+			}
 
-		if (strategy === "render") {
-			const cancel = scheduleAfterLoad(() => triggerPrefetch());
-			onCleanup(cancel);
-		}
-	}
+			if (strategy === "render") {
+				return scheduleAfterLoad(() => triggerPrefetch());
+			}
+		},
+	);
 
 	function disabledStyle(): JSX.CSSProperties | string {
 		if (typeof local.style === "string") return `cursor:not-allowed;${local.style}`;
@@ -371,7 +384,7 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 				href={resolvedHref()}
 				onClick={handleClick}
 				onMouseEnter={handleIntent}
-				ref={setupPrefetchBehavior}
+				ref={setAnchor}
 				rel={effectiveRel()}
 				target={local.target}
 			>
