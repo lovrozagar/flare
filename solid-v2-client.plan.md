@@ -83,10 +83,10 @@ Do not mass-rewrite tests. Fix production reads that drop reactivity or hang.
 
 ## 5. Widen the gate
 
-- [ ] `bun run test:e2e -- --app demo` (dev)
-- [ ] `bun run test:e2e -- --app fs-routes`
-- [ ] `bun run test:e2e -- --app tauri`
-- [ ] `TEST_MODE=prod bun run test:e2e -- --app demo`
+- [x] `bun run test:e2e -- --app demo` (dev)
+- [x] `bun run test:e2e -- --app fs-routes`
+- [x] `bun run test:e2e -- --app tauri`
+- [x] `TEST_MODE=prod bun run test:e2e -- --app demo`
 - [ ] `bun run test:e2e -- --app product` (dev) — 16 workers; expect hours only if hydrate still misses
 - [ ] `TEST_MODE=prod bun run test:e2e -- --app product`
 - [ ] `bun run test:all` (now includes e2e-dev then e2e-prod)

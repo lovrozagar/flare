@@ -253,20 +253,21 @@ test.describe("CDN-only revalidation", () => {
 
 test.describe("ISR on-demand revalidation via keys", () => {
 	test("revalidating ISR store key forces fresh SSR", async ({ request }) => {
-		/* Prime ISR store */
+		/* Prime, then take two consecutive hits. 5s ISR + 16 workers can expire
+		   a 1s wait; tight consecutive GETs are the store-hit signal. */
 		await request.get("/isr-test");
-		await new Promise((r) => setTimeout(r, 1000));
-
-		/* Confirm store hit — same timestamp */
-		const res1 = await request.get("/isr-test");
-		const html1 = await res1.text();
-		const ts1 = html1.match(/data-testid="isr-rendered-at">(\d+)</);
-		expect(ts1).not.toBeNull();
-
-		const res2 = await request.get("/isr-test");
-		const html2 = await res2.text();
-		const ts2 = html2.match(/data-testid="isr-rendered-at">(\d+)</);
-		expect(ts2?.[1]).toBe(ts1?.[1]);
+		const readTs = async () => {
+			const html = await (await request.get("/isr-test")).text();
+			return html.match(/data-testid="isr-rendered-at">(\d+)</)?.[1];
+		};
+		let ts1 = await readTs();
+		let ts2 = await readTs();
+		for (let i = 0; i < 8 && (ts1 == null || ts1 !== ts2); i++) {
+			ts1 = ts2;
+			ts2 = await readTs();
+		}
+		expect(ts1).toBeTruthy();
+		expect(ts2).toBe(ts1);
 
 		/* Revalidate ISR key */
 		const revalRes = await revalidate(request, {
@@ -280,7 +281,7 @@ test.describe("ISR on-demand revalidation via keys", () => {
 		const html3 = await res3.text();
 		const ts3 = html3.match(/data-testid="isr-rendered-at">(\d+)</);
 		expect(ts3).not.toBeNull();
-		expect(ts3?.[1]).not.toBe(ts1?.[1]);
+		expect(ts3?.[1]).not.toBe(ts1);
 	});
 });
 
