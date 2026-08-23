@@ -24,12 +24,20 @@ test.describe("Static image (auto-optimized import)", () => {
 	});
 
 	test("auto blur placeholder applied", async ({ page }) => {
-		await loadPage(page, "/static-image-test");
+		const html = await (await page.request.get("/static-image-test")).text();
+		expect(html).toMatch(/background-image:\s*url\("data:image\/webp;base64,/);
 
+		await loadPage(page, "/static-image-test");
 		const img = page.locator("[data-testid=img-static-responsive]");
-		const style = await img.getAttribute("style");
-		expect(style).toContain("background-image");
-		expect(style).toContain("data:image/webp;base64,");
+		const state = await img.evaluate((el: HTMLImageElement) => ({
+			complete: el.complete && el.naturalWidth > 0,
+			style: el.getAttribute("style") ?? "",
+		}));
+		/* After load the placeholder is cleared; assert it only while still pending. */
+		if (!state.complete) {
+			expect(state.style).toContain("background-image");
+			expect(state.style).toContain("data:image/webp;base64,");
+		}
 	});
 
 	test("placeholder=none suppresses blur", async ({ page }) => {
