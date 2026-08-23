@@ -118,6 +118,33 @@ describe("finishHydration — lifts SSR gate", () => {
 		const count = (css.match(/safe-double/g) ?? []).length;
 		expect(count).toBe(1);
 	});
+
+	it("finishHydration injects rules registered while the SSR gate was up", () => {
+		simulateSsrSheet('[data-c="ssr-only"]{color:red}');
+		enableDomInjection();
+		registerCSSByName("client-during-gate", "margin:0");
+		expect(getSheetText()).not.toContain("client-during-gate");
+
+		finishHydration();
+		expect(getSheetText()).toContain("client-during-gate");
+	});
+
+	it("re-register after finishHydration injects if the live sheet lost the rule", () => {
+		enableDomInjection();
+		finishHydration();
+		registerCSSByName("lazy-styled-box", "color:rgb(0,100,200)");
+		expect(getSheetText()).toContain("lazy-styled-box");
+
+		const el = getSheetEl();
+		if (el?.sheet) {
+			while (el.sheet.cssRules.length > 0) el.sheet.deleteRule(0);
+		} else if (el) {
+			el.textContent = "";
+		}
+
+		registerCSSByName("lazy-styled-box", "color:rgb(0,100,200)");
+		expect(getSheetText()).toContain("lazy-styled-box");
+	});
 });
 
 /* ── compileSx + SSR hydration round-trip ────────────────────────── */
