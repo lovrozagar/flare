@@ -45,10 +45,12 @@ export const DEFAULT_CSP: Record<string, string[] | boolean> = {
 	"object-src": ["'none'"],
 	"script-src": ["'self'"],
 	"style-src": ["'self'"],
-	/* Solid 2 applies JSX `style={}` via CSSOM (`setProperty`). CSP3 nonces do
-	 * not cover attribute/CSSOM writes; `style-src-attr` keeps `<style nonce>`
-	 * elements tight while allowing those writes. */
+	/* Solid 2 applies JSX `style={}` via CSSOM (`setProperty`). A nonce on
+	 * `style-src` is the fallback for both elements and attributes, and Chrome
+	 * then blocks CSSOM even when `style-src-attr` allows it. Put the nonce on
+	 * `style-src-elem` only; keep `style-src` host-only. */
 	"style-src-attr": ["'unsafe-inline'"],
+	"style-src-elem": ["'self'"],
 	"upgrade-insecure-requests": true,
 	"worker-src": ["'self'"],
 };
@@ -98,6 +100,8 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 		   do not apply to attribute styles, so 'unsafe-inline' is the only knob for dev parity. */
 		const styleSrc = directives["style-src"] as string[];
 		styleSrc.push("'unsafe-inline'");
+		const styleSrcElem = directives["style-src-elem"] as string[];
+		styleSrcElem.push("'unsafe-inline'");
 		const workerSrc = directives["worker-src"] as string[];
 		workerSrc.push("blob:");
 	}
@@ -128,9 +132,15 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 		scriptSrc.push(`'nonce-${nonce}'`);
 	}
 
-	const styleSrc = directives["style-src"];
-	if (Array.isArray(styleSrc) && !styleSrc.includes("'unsafe-inline'")) {
-		styleSrc.push(`'nonce-${nonce}'`);
+	/* Never nonce `style-src`: Chromium treats that as the CSSOM policy and
+	 * ignores `style-src-attr 'unsafe-inline'`. `<style nonce>` / `<link>` are
+	 * `style-src-elem`. */
+	if (!directives["style-src-elem"]) {
+		directives["style-src-elem"] = ["'self'"];
+	}
+	const styleSrcElem = directives["style-src-elem"];
+	if (Array.isArray(styleSrcElem) && !styleSrcElem.includes("'unsafe-inline'")) {
+		styleSrcElem.push(`'nonce-${nonce}'`);
 	}
 
 	if (!directives["style-src-attr"]) {

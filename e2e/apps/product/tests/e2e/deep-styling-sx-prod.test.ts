@@ -99,10 +99,11 @@ test.describe("sx: prod — critical CSS inlined in HTML @prod-only", () => {
 		expect(html).toMatch(/@layer (sx|app)/);
 	});
 
-	test("preload link for flare-global.css emitted in head", async ({ page }) => {
+	test("stylesheet link for flare-global.css emitted in head", async ({ page }) => {
 		const res = await page.request.get("/styling-sx-basic");
 		const html = await res.text();
-		expect(html).toMatch(/rel="preload"[^>]*flare-global|flare-global[^>]*rel="preload"/);
+		/* Direct stylesheet — preload-as-style + onload swap is an inline handler and fails CSP. */
+		expect(html).toMatch(/rel="stylesheet"[^>]*flare-global|flare-global[^>]*rel="stylesheet"/);
 	});
 });
 

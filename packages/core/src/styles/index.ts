@@ -939,37 +939,31 @@ export function forceRegisterCSSByName(name: string, css: string): void {
 	registerCSSByName(name, css);
 }
 
-/**
- * Split minified CSS into individual rules by tracking brace depth.
- * Handles nested @media / @supports blocks correctly.
- */
-function splitCSSRules(css: string): string[] {
-	const rules: string[] = [];
-	let depth = 0;
-	let start = 0;
-	for (let i = 0; i < css.length; i++) {
-		if (css[i] === "{") depth++;
-		else if (css[i] === "}") {
-			depth--;
-			if (depth === 0) {
-				const rule = css.slice(start, i + 1).trim();
-				if (rule.length > 0) rules.push(rule);
-				start = i + 1;
-			}
-		}
-	}
-	return rules;
+function readDocumentNonce(): string {
+	if (typeof document === "undefined") return "";
+	const meta = document.querySelector('meta[name="csp-nonce"]');
+	const fromContent = meta?.getAttribute("content");
+	if (fromContent) return fromContent;
+	const tagged = document.querySelector("script[nonce], style[nonce]") as HTMLElement | null;
+	return tagged?.nonce || tagged?.getAttribute("nonce") || "";
 }
 
-function getStyleEl(): HTMLStyleElement {
-	let styleEl = document.getElementById(RUNTIME_SHEET_ID) as HTMLStyleElement | null;
-	if (!styleEl) {
-		styleEl = document.createElement("style");
-		styleEl.id = RUNTIME_SHEET_ID;
-		document.head.appendChild(styleEl);
-		injected.clear();
+/**
+ * Insert a complete nonce'd `<style id="flare-runtime">`. CSP checks nonce at
+ * insertion; mutating an in-document sheet is not covered by that nonce.
+ */
+function writeRuntimeSheet(css: string): void {
+	const el = document.createElement("style");
+	el.id = RUNTIME_SHEET_ID;
+	const nonce = readDocumentNonce();
+	if (nonce) {
+		el.setAttribute("nonce", nonce);
+		el.nonce = nonce;
 	}
-	return styleEl;
+	el.textContent = css;
+	const old = document.getElementById(RUNTIME_SHEET_ID);
+	if (old) old.replaceWith(el);
+	else document.head.appendChild(el);
 }
 
 function liveSheetText(): string {
@@ -1008,49 +1002,18 @@ function ensureInjected(name: string, scoped: string, kind: "attr" | "class"): v
 	injected.add(name);
 }
 
-/**
- * Inject scoped CSS into the DOM via CSSOM insertRule (CSP-safe).
- * Falls back to textContent append for environments without CSSOM (jsdom).
- */
 function injectStyleToDOM(scoped: string): void {
 	if (!domInjectionEnabled || ssrSheetPresent || typeof document === "undefined") return;
-	const styleEl = getStyleEl();
-	const sheet = styleEl.sheet;
-	if (sheet) {
-		for (const rule of splitCSSRules(scoped)) {
-			try {
-				sheet.insertRule(rule, sheet.cssRules.length);
-			} catch {
-				/* Invalid rule — dev validator catches these separately */
-			}
-		}
-	} else {
-		styleEl.appendChild(document.createTextNode(scoped));
-	}
+	const current = document.getElementById(RUNTIME_SHEET_ID)?.textContent ?? "";
+	writeRuntimeSheet(current + scoped);
 }
 
-/**
- * Rebuild the sheet from current registry after eviction.
- */
 function rebuildSheet(): void {
 	if (!domInjectionEnabled || typeof document === "undefined") return;
 	injected.clear();
-	const styleEl = getStyleEl();
-	const sheet = styleEl.sheet;
-	if (sheet) {
-		while (sheet.cssRules.length > 0) sheet.deleteRule(0);
-		for (const [name, scoped] of registry) {
-			for (const rule of splitCSSRules(scoped)) {
-				try {
-					sheet.insertRule(rule, sheet.cssRules.length);
-				} catch {}
-			}
-			injected.add(name);
-		}
-	} else {
-		styleEl.textContent = Array.from(registry.values()).join("");
-		for (const name of registry.keys()) injected.add(name);
-	}
+	writeRuntimeSheet(Array.from(registry.values()).join("") + Array.from(classRegistry.values()).join(""));
+	for (const name of registry.keys()) injected.add(name);
+	for (const name of classRegistry.keys()) injected.add(name);
 }
 
 export function getScopedStyles(): string {
