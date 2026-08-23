@@ -718,6 +718,29 @@ function collectDynamicRoutes(node: import("../router-primitives").TreeNode): Ro
 	return results;
 }
 
+function expandLocaleParam(
+	virtualPath: string,
+	current: Record<string, string | string[]>[],
+	locale: { locales: readonly string[]; paramName?: string } | undefined,
+): Record<string, string | string[]>[] {
+	if (!locale?.locales.length || current.length === 0) return current;
+	const name = locale.paramName ?? "locale";
+	if (!virtualPath.includes(`[${name}]`)) return current;
+	if (current.every((p) => p[name] != null && p[name] !== "")) return current;
+
+	const out: Record<string, string | string[]>[] = [];
+	for (const parent of current) {
+		if (parent[name] != null && parent[name] !== "") {
+			out.push(parent);
+			continue;
+		}
+		for (const loc of locale.locales) {
+			out.push({ ...parent, [name]: loc });
+		}
+	}
+	return out;
+}
+
 async function buildGetStaticParams(router: MarkedRouterConfig): Promise<StaticParamsMap> {
 	const dynamicRoutes = collectDynamicRoutes(router.routeTree);
 	if (dynamicRoutes.length === 0) return new Map();
@@ -784,6 +807,8 @@ async function buildGetStaticParams(router: MarkedRouterConfig): Promise<StaticP
 				}
 				currentParams = nextParams;
 			}
+
+			currentParams = expandLocaleParam(route.x, currentParams, router.locale);
 
 			if (currentParams.length > 0 && Object.keys(currentParams[0] ?? {}).length > 0) {
 				resultMap.set(route.x, currentParams);

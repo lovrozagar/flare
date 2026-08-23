@@ -293,14 +293,8 @@ describe("emitAtomic — at-rule with nested selector inside", () => {
 	});
 });
 
-describe("emitAtomic — dedup within same emitAtomic call (line 85 cssRules.has guard)", () => {
-	it("two at-rules with identical parentSelector+prop+value → same class, cssRules entry added only once", () => {
-		/*
-		 * Both at-rules have the same parentSelector ("") and same base prop.
-		 * emitIR calls emitDeclarations twice with cssSelector="" and prop+value identical.
-		 * The class hash is the same → ctx.cssRules.has(cls) is true on the second call → `continue`.
-		 * ctx.classes still receives the class name twice; cssRules has exactly one entry.
-		 */
+describe("emitAtomic — at-wrap is part of the class hash", () => {
+	it("two at-rules with the same prop/value but different queries get distinct classes", () => {
 		const ir = makeIR({
 			atRules: [
 				{
@@ -314,10 +308,10 @@ describe("emitAtomic — dedup within same emitAtomic call (line 85 cssRules.has
 			],
 		});
 		const { classes, cssRules } = emitAtomic(ir, "prod");
-		/* Both at-rules yield the same class name (same selector+prop+value triple) */
-		expect(classes[0]).toBe(classes[1]);
-		/* cssRules deduped — only one entry for this class */
-		expect(cssRules.size).toBe(1);
+		expect(classes[0]).not.toBe(classes[1]);
+		expect(cssRules.size).toBe(2);
+		expect(cssRules.get(classes[0])).toContain("@media (min-width: 768px)");
+		expect(cssRules.get(classes[1])).toContain("@media (min-width: 1024px)");
 	});
 });
 
