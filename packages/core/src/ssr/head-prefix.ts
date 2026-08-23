@@ -35,7 +35,8 @@ export interface HeadPrefixOptions {
  */
 export function buildHeadPrefix(options: HeadPrefixOptions): string {
 	const escapedNonce = escapeAttr(options.nonce);
-	let prefix = `<meta name="csp-nonce" nonce="${escapedNonce}">`;
+	/* `content` is the JS-readable copy. Browsers hide `getAttribute("nonce")` after parse. */
+	let prefix = `<meta name="csp-nonce" nonce="${escapedNonce}" content="${escapedNonce}">`;
 	if (options.resolvedHead.meta?.viewport === undefined) {
 		prefix += `<meta name="viewport" content="width=device-width, initial-scale=1">`;
 	}

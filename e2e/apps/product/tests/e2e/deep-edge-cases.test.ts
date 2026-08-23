@@ -108,7 +108,7 @@ test.describe("Edge: error → error → valid navigation chain", () => {
 
 		/* Navigate to valid page via full reload fallback */
 		await page.goto("/about", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction("document.documentElement.hasAttribute('data-hydrated')", null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
 			timeout: 15_000,
 		});
 		const content = await page.locator("[data-testid=about-content]").textContent();

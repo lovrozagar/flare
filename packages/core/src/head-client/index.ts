@@ -564,6 +564,13 @@ function addCssLinkForRoute(matchId: string, href: string): void {
 function addCssStyleForRoute(matchId: string, children: string): void {
 	if (typeof document === "undefined") return;
 	const el = document.createElement("style");
+	const meta = document.querySelector?.('meta[name="csp-nonce"]');
+	const tagged = document.querySelector?.("script[nonce], style[nonce]") as HTMLElement | null;
+	const nonce = meta?.getAttribute("content") || tagged?.nonce || tagged?.getAttribute("nonce") || "";
+	if (nonce) {
+		el.setAttribute("nonce", nonce);
+		el.nonce = nonce;
+	}
 	el.setAttribute("data-flare-route", matchId);
 	el.textContent = children;
 	document.head.appendChild(el);

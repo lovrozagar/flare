@@ -179,8 +179,12 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 
 		if (cfg.disableTransitionOnChange) {
 			const style = document.createElement("style");
-			const nonce = document.querySelector("script[nonce]")?.getAttribute("nonce");
-			if (nonce) style.setAttribute("nonce", nonce);
+			const script = document.querySelector("script[nonce]") as HTMLElement | null;
+			const nonce = script?.nonce || script?.getAttribute("nonce");
+			if (nonce) {
+				style.setAttribute("nonce", nonce);
+				style.nonce = nonce;
+			}
 			style.textContent = "* { transition: none !important }";
 			document.head.appendChild(style);
 			applyToDocument(resolved);

@@ -10,6 +10,7 @@ export default defineConfig({
 			codegen: { fsVirtualPaths: false },
 			dev: { cdnCache: false },
 			prerender: true,
+			purge: { console: true },
 			serviceWorker: { offlineFallback: "/offline" },
 			sx: { tw: true },
 		}),

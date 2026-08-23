@@ -88,7 +88,7 @@ Do not mass-rewrite tests. Fix production reads that drop reactivity or hang.
 - [x] `bun run test:e2e -- --app tauri`
 - [x] `TEST_MODE=prod bun run test:e2e -- --app demo`
 - [x] `bun run test:e2e -- --app product` (dev) — 2542/2543; remaining fail is lazy-styles SPA flake under 16 workers (isolated re-run 9/9). Deferred QC hydrate is green.
-- [ ] `TEST_MODE=prod bun run test:e2e -- --app product`
+- [x] `TEST_MODE=prod bun run test:e2e -- --app product` — 2640/2640
 - [ ] `bun run test:all` (now includes e2e-dev then e2e-prod)
 
 **Done when:** `test:all` env=node is green on `solid-v2`. Then merge.
