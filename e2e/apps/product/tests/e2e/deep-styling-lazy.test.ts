@@ -104,8 +104,9 @@ test.describe("Lazy styles: SPA round-trip", () => {
 		const lazyBox = page.getByTestId("lazy-styled-box");
 		await expect(lazyBox).toBeVisible({ timeout: 10_000 });
 
-		const color = await lazyBox.evaluate((el) => getComputedStyle(el).color);
-		expect(color).toBe("rgb(0, 100, 200)");
+		await expect
+			.poll(async () => lazyBox.evaluate((el) => getComputedStyle(el).color), { timeout: 10_000 })
+			.toBe("rgb(0, 100, 200)");
 	});
 });
 

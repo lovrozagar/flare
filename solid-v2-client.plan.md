@@ -49,7 +49,7 @@ Only if step 1 still mismatches after `ctxReady` is fixed.
 
 - [x] Read current `@solidjs/web` `hydrate` / `renderToStream` for the hydration marker format (not Solid 1 `data-hk` assumptions).
 - [x] Align Flare SSR (`packages/core/src/ssr/index.tsx`) `_$HY` init and any hydration wrappers (`<Hydration>`, `<NoHydration>`, Dummy) with that format.
-- [ ] Re-check a streamed page (`defer` + `<Await>`) and a sync page. Both must hydrate.
+- [x] Re-check a streamed page (`defer` + `<Await>`) and a sync page. Both must hydrate.
 - [x] Re-check prod preview (`TEST_MODE=prod` demo `/`) — hashed client graph, not Vite transform.
 
 **Done when:** demo `/` hydrates in **dev and prod**.
@@ -62,7 +62,7 @@ Demo SPA locale switcher and nav links currently time out because they wait for 
 
 - [x] Click locale switcher en→hr. URL, `lang`, cookie, and content update without a full reload.
 - [x] Link click `/` → `/about` (demo). Product `clickAndAssertSPA` is plan §5, not this landing.
-- [ ] `FlareProvider` match updates still reset `<Errored>` (existing `createEffect` on `virtualPath`). Confirm SPA error → success does not stick on the fallback.
+- [x] `FlareProvider` match updates still reset `<Errored>` (existing `createEffect` on `virtualPath`). Confirm SPA error → success does not stick on the fallback.
 - [x] NDJSON `x-d: 1` still returns 200 + NDJSON on SPA data fetches (already true on the server; confirm the **client** consumes it after hydrate).
 
 **Done when:** demo SPA locale tests pass in dev. Then fs-routes SPA, then a handful of product navigation tests — not the whole matrix.
@@ -75,7 +75,7 @@ Do not mass-rewrite tests. Fix production reads that drop reactivity or hang.
 
 - [ ] `STRICT_READ_UNTRACKED` in **src** (ThemeProvider body `resolvedTheme()`, Await effect apply reading `props.promise`, Show children that call accessors under `untrack`, `ThrowError` in lazy). Tests that use IIFE children can wait.
 - [ ] `onSettled` vs `onMount` semantics anywhere else that must run during hydrate (theme, locale, direction, lazy).
-- [ ] Keep Flare `<Await>` as the defer UI. Do not move page data onto `createMemo` + `<Loading>` in this landing.
+- [x] Keep Flare `<Await>` as the defer UI. Do not move page data onto `createMemo` + `<Loading>` in this landing.
 
 **Done when:** `bun run --filter @lovrozagar/flare test` stays green and demo has no hydrate-blocking diagnostics in the console.
 
@@ -87,7 +87,7 @@ Do not mass-rewrite tests. Fix production reads that drop reactivity or hang.
 - [x] `bun run test:e2e -- --app fs-routes`
 - [x] `bun run test:e2e -- --app tauri`
 - [x] `TEST_MODE=prod bun run test:e2e -- --app demo`
-- [ ] `bun run test:e2e -- --app product` (dev) — 16 workers; expect hours only if hydrate still misses
+- [x] `bun run test:e2e -- --app product` (dev) — 2542/2543; remaining fail is lazy-styles SPA flake under 16 workers (isolated re-run 9/9). Deferred QC hydrate is green.
 - [ ] `TEST_MODE=prod bun run test:e2e -- --app product`
 - [ ] `bun run test:all` (now includes e2e-dev then e2e-prod)
 
