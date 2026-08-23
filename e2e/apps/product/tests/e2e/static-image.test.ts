@@ -45,7 +45,7 @@ test.describe("Static image (auto-optimized import)", () => {
 
 		const img = page.locator("[data-testid=img-static-constrained]");
 		const style = await img.getAttribute("style");
-		expect(style).toContain("max-width:100px");
+		expect(style).toMatch(/max-width:\s*100px/);
 	});
 
 	test("fill mode has absolute positioning", async ({ page }) => {

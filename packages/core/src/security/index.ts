@@ -45,6 +45,10 @@ export const DEFAULT_CSP: Record<string, string[] | boolean> = {
 	"object-src": ["'none'"],
 	"script-src": ["'self'"],
 	"style-src": ["'self'"],
+	/* Solid 2 applies JSX `style={}` via CSSOM (`setProperty`). CSP3 nonces do
+	 * not cover attribute/CSSOM writes; `style-src-attr` keeps `<style nonce>`
+	 * elements tight while allowing those writes. */
+	"style-src-attr": ["'unsafe-inline'"],
 	"upgrade-insecure-requests": true,
 	"worker-src": ["'self'"],
 };
@@ -127,6 +131,10 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 	const styleSrc = directives["style-src"];
 	if (Array.isArray(styleSrc) && !styleSrc.includes("'unsafe-inline'")) {
 		styleSrc.push(`'nonce-${nonce}'`);
+	}
+
+	if (!directives["style-src-attr"]) {
+		directives["style-src-attr"] = ["'unsafe-inline'"];
 	}
 
 	const parts: string[] = [];

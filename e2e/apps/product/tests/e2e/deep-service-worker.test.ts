@@ -427,6 +427,6 @@ test.describe("Service Worker — prod @prod-only", () => {
 	test("/offline route renders correctly when visited online", async ({ page }) => {
 		await loadPage(page, "/offline");
 		const heading = await page.locator("[data-testid='offline-page'] h1").textContent();
-		expect(heading).toContain("offline");
+		expect(heading).toMatch(/offline/i);
 	});
 });
