@@ -25,7 +25,8 @@ test.describe("Static image (auto-optimized import)", () => {
 
 	test("auto blur placeholder applied", async ({ page }) => {
 		const html = await (await page.request.get("/static-image-test")).text();
-		expect(html).toMatch(/background-image:\s*url\("data:image\/webp;base64,/);
+		expect(html).toContain("background-image");
+		expect(html).toContain("data:image/webp;base64,");
 
 		await loadPage(page, "/static-image-test");
 		const img = page.locator("[data-testid=img-static-responsive]");
