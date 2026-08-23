@@ -11,12 +11,17 @@ import type { ResolvedEntries, VitePlugin } from "./types.ts";
  * when the SSR build loads this virtual module.
  */
 function readClientManifest(root: string): ViteManifest | undefined {
-	const manifestPath = join(root, "dist/client/.vite/manifest.json");
-	try {
-		const raw = readFileSync(manifestPath, "utf-8");
-		return JSON.parse(raw) as ViteManifest;
-	} catch {
-		/* manifest doesn't exist yet (dev mode) — caller uses dev fallback */
+	const candidates = [
+		join(root, "dist/client/.vite/manifest.json"),
+		/* Nitro writes the client build under `.output/public`. */
+		join(root, ".output/public/.vite/manifest.json"),
+	];
+	for (const manifestPath of candidates) {
+		try {
+			return JSON.parse(readFileSync(manifestPath, "utf-8")) as ViteManifest;
+		} catch {
+			/* try next location */
+		}
 	}
 	return undefined;
 }
