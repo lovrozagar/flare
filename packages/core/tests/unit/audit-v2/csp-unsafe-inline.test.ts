@@ -20,4 +20,11 @@ describe("CSP — style-src must not include unsafe-inline", () => {
 		expect(styleSrcMatch).toBeTruthy();
 		expect(styleSrcMatch?.[1]).not.toContain("'unsafe-inline'");
 	});
+
+	it("production allows Solid 2 CSSOM style writes via style-src-attr", () => {
+		const header = buildCspHeader("test-nonce", undefined, false);
+		expect(header).toContain("style-src-attr 'unsafe-inline'");
+		const styleSrcMatch = header.match(/(?:^|;)\s*style-src\s+([^;]*)/);
+		expect(styleSrcMatch?.[1]).not.toContain("'unsafe-inline'");
+	});
 });
