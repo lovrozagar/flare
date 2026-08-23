@@ -113,7 +113,7 @@ Per-instance `pending` prop overrides factory-level `pending`:
 
 ### `waitForLazyPreloads`
 
-Returns a promise that resolves when all `lazy()` preloads have completed. Called before `solidHydrate()` to ensure component code is ready before hydration starts.
+Returns a promise that resolves when all `lazy()` factory preloads have completed. Test helper — **not** called from `hydrate()`. Hydration alignment is pending-on-SSR + `onSettled` swap, so the first client paint matches SSR even if the chunk is still loading.
 
 ```ts
 async function waitForLazyPreloads(): Promise<void> {
@@ -122,8 +122,6 @@ async function waitForLazyPreloads(): Promise<void> {
 	await Promise.all([...pending]);
 }
 ```
-
-Critical for hydration: if component code isn't loaded, hydration would render `pending` and then swap — causing a flash. `waitForLazyPreloads` ensures hydration renders the real component immediately.
 
 ## Test Cases
 
@@ -149,14 +147,13 @@ waitForLazyPreloads:
   No lazy components → resolves immediately
   All loaded → resolves immediately
   Pending loads → waits for all
-  Called before hydrate() → ensures components ready
 ```
 
 ## Notes
 
 - `lazy` starts loading at factory call — NOT at first render. This is intentional: import happens as soon as the module is evaluated (typically at app startup), giving maximum time to load.
 - `clientLazy` with `eager: false` defers to first render — for heavy components that may never render
-- `waitForLazyPreloads` is critical for hydration alignment — without it, lazy components render pending during hydration then flash to loaded
+- `waitForLazyPreloads` is a test helper. Production hydrate does not wait for lazy chunks; pending UI matches SSR until `onSettled` swaps in the loaded component.
 - Factory-level `createSignal` means state is per-factory-call, shared across all instances. This is correct — all instances of the same lazy component share the load state.
 - `isServer || sharedConfig.hydrating` is Solid 2's SSR/hydration detection (`sharedConfig.context` is gone)
 - Global tracking via `__FLARE_LAZY_LOADED__` survives Vite module identity issues (same global regardless of import path)

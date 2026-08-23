@@ -277,7 +277,7 @@ SSR:
   createTrackedQueryClient tracks queries during render
   getTrackedQueries returns serializable states
   Client hydration restores via setQueryData
-  deferStream: true → triggers Solid SSR streaming Suspense (NOT Flare Deferred)
+  SSR query state is serialized as flare.q / __flare_qc (NOT Solid async memos)
 
 queryOptions:
   Returns same options with branded queryKey
@@ -296,8 +296,8 @@ useIsMutating:
 - All hooks use Solid's `createEffect`/`createSignal`/`createStore` — NOT React patterns
 - `Accessor<T>` wrapper on queryKey/enabled enables reactive re-subscription
 - `deferStream` is Flare-specific — not in standard TanStack Query
-- `useSuspenseQuery` is a custom implementation — standard TanStack Suspense doesn't work with Solid
-- `useQueries` uses `createStore` + `createResource` per query for SSR streaming
+- `useSuspenseQuery` is a thin wrapper over TanStack `useQuery` with `throwOnError: true` (Solid `<Loading>` / `<Errored>`). Flare does not export `useQueries`.
+- Query cache hydration uses Flare's `flare.q` / `__flare_qc` stream, not TanStack's dehydration channel.
 - Query client is provided via Solid context (`QueryClientProvider`)
 - `IsRestoringProvider` pauses subscriptions during persistence restore (e.g. `@tanstack/query-persist-client-core`)
 - `replaceEqualDeep` used in `useMutationState` to prevent unnecessary re-renders on structurally identical results

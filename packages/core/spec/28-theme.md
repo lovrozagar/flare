@@ -22,16 +22,19 @@ interface ThemeConfig {
 ## Exports
 
 ```ts
-/* Server */
+/* Server / blocking <head> script */
 getThemeScript(opts?: ThemeConfig): string
 
 /* Client */
-initTheme(opts?: ThemeConfig): void
-setTheme(theme: Theme): void
-getTheme(): Theme
-getResolvedTheme(): ResolvedTheme
-toggleTheme(): void
-getThemeConfig(): Readonly<ThemeConfig>
+function ThemeProvider(props: { children: JSX.Element; config?: ThemeConfig }): JSX.Element
+function useTheme(): ThemeContextValue
+
+interface ThemeContextValue {
+	resolvedTheme: () => ResolvedTheme
+	setTheme: (theme: Theme) => void
+	theme: () => Theme
+	toggleTheme: () => void
+}
 ```
 
 ## Behavior
@@ -62,31 +65,15 @@ Rendered in root layout's `<head>` inside `<NoHydration>`:
 <script nonce={nonce}>{getThemeScript()}</script>
 ```
 
-### Client Init
+### Client: ThemeProvider
 
-`initTheme()` called once during app bootstrap. Merges config, detects system preference, listens for OS preference changes.
+Always provides context (SSR and hydrate). During hydrate the signal starts at `defaultTheme` so the tree matches SSR; `ThemeScript` already applied storage to `<html>` before first paint. After settle, `onSettled` syncs the signal from `localStorage`. Listeners (OS preference, cross-tab `storage`) attach in `onSettled`.
 
-```ts
-function initTheme(opts?: ThemeConfig): void {
-	/* Detect system preference */
-	const mq = matchMedia("(prefers-color-scheme: dark)");
-	systemTheme = mq.matches ? "dark" : "light";
-
-	/* Listen for changes */
-	mq.addEventListener("change", (e) => {
-		systemTheme = e.matches ? "dark" : "light";
-		/* If using "system" theme, re-apply */
-		const stored = localStorage.getItem(storageKey);
-		if (stored === "system" || !stored) {
-			applyTheme(systemTheme, false);
-		}
-	});
-}
-```
+There is no module-level `initTheme` / `setTheme` singleton — all state lives in `<ThemeProvider>`.
 
 ### Theme Application
 
-`setTheme(theme)`:
+`useTheme().setTheme(theme)`:
 
 1. Validate against `config.themes`
 2. Resolve: `"system"` → `systemTheme`, others → as-is
@@ -98,13 +85,7 @@ Transition disable prevents jarring mid-animation color changes. Style injected,
 
 ### Reactive Integration
 
-Module-level signal for component reactivity:
-
-```ts
-const [themeSignal, setThemeSignal] = createSignal<ResolvedTheme>("light");
-```
-
-Updated by `setTheme()`. Components read via `getResolvedTheme()`.
+Provider-scoped signals. Components read via `useTheme()`.
 
 ## Test Cases
 
@@ -119,35 +100,17 @@ getThemeScript:
   Custom storageKey → used in script
   Custom defaultTheme → used in script
 
-initTheme:
-  Detects system dark preference
-  Detects system light preference
-  Listens for system preference change
-  System change while using "system" theme → updates
-  System change while using "dark" theme → no update
-  Idempotent: second call no-op
-  SSR-safe: no-op without window
-
-setTheme:
-  "light" → html[data-theme]="light", colorScheme="light"
-  "dark" → html[data-theme]="dark", colorScheme="dark"
-  "system" + OS dark → html[data-theme]="dark"
+ThemeProvider / useTheme:
+  Always provides context during hydrate (no pass-through)
+  Hydrate initial signal is defaultTheme (not localStorage)
+  onSettled syncs signal from localStorage
+  Detects system dark/light preference
+  Listens for system preference change after settle
+  setTheme("light") → html[data-theme]="light"
   Invalid theme (not in themes array) → no-op
-  Persists to localStorage
-  disableTransitionOnChange: true → transition disable applied
-
-getTheme:
-  Returns stored theme from localStorage
-  No stored → returns defaultTheme
-  localStorage unavailable → returns defaultTheme
-
-getResolvedTheme:
-  Returns current attribute value from DOM
-  SSR-safe: returns "light"
-
-toggleTheme:
-  "light" → "dark"
-  "dark" → "light"
+  Persists to localStorage on change
+  toggleTheme: resolved light → dark, dark → light
+  Throws if useTheme() is called outside ThemeProvider
 ```
 
 ## Notes
@@ -155,6 +118,5 @@ toggleTheme:
 - Script MUST be in `<head>` before stylesheets — any later and theme flash occurs
 - `colorScheme` CSS property tells browser to use native dark mode for form controls, scrollbars, etc.
 - `disableTransitionOnChange` prevents mid-transition artifacts when switching themes
-- Module-level signal means theme state is global (singleton per app)
-- `initTheme` is idempotent — safe to call multiple times
+- Theme state is provider-scoped (not a module singleton)
 - No dependency on Flare internals — can be used standalone

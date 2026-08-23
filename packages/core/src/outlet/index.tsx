@@ -9,6 +9,7 @@ import {
 	onCleanup,
 	onSettled,
 	Show,
+	untrack,
 	useContext,
 } from "solid-js";
 import type { JSX } from "@solidjs/web";
@@ -66,10 +67,10 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	const [navigationPhase, setNavigationPhase] = createSignal<NavigationPhase>("idle");
 	const isNavigating = createMemo(() => navigationPhase() !== "idle");
 	const [viewTransitionSignal, setViewTransition] = createSignal<BrowserViewTransition | null>(null);
-	const [matches, setMatches] = createSignal<ClientMatch[]>(props.matches);
+	const [matches, setMatches] = createSignal<ClientMatch[]>(untrack(() => props.matches));
 	const [notFound, setNotFound] = createSignal(false);
-	const [params, setParams] = createSignal<Record<string, string | string[]>>(props.params);
-	const [search, setSearch] = createSignal<SearchParams>(props.search ?? {});
+	const [params, setParams] = createSignal<Record<string, string | string[]>>(untrack(() => props.params));
+	const [search, setSearch] = createSignal<SearchParams>(untrack(() => props.search) ?? {});
 
 	const location = createMemo(() => {
 		const allMatches = matches();
@@ -104,9 +105,20 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	}) => Promise<void> = () => Promise.resolve();
 
 	const channel = useContext(BroadcastCtx);
+	const staticProps = untrack(() => ({
+		boundaries: props.boundaries,
+		caseSensitive: props.caseSensitive,
+		layouts: props.layouts,
+		localeConfig: props.localeConfig,
+		matchCache: props.matchCache,
+		prefetchCache: props.prefetchCache,
+		resolvers: props.resolvers,
+		routeTree: props.routeTree,
+		routerCacheDefaults: props.routerCacheDefaults,
+	}));
 
 	function invalidate(options?: Parameters<FlareProviderContext["invalidate"]>[0]): void {
-		props.matchCache.invalidate(options);
+		staticProps.matchCache.invalidate(options);
 		navigateFn({
 			replace: true,
 			revalidate: true,
@@ -122,16 +134,16 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	}
 
 	const ctx: FlareProviderContext = {
-		boundaries: props.boundaries,
-		caseSensitive: props.caseSensitive,
+		boundaries: staticProps.boundaries,
+		caseSensitive: staticProps.caseSensitive,
 		hydrated,
 		intercepted,
 		invalidate,
 		isNavigating,
-		layouts: props.layouts,
-		localeConfig: props.localeConfig,
+		layouts: staticProps.layouts,
+		localeConfig: staticProps.localeConfig,
 		location,
-		matchCache: props.matchCache,
+		matchCache: staticProps.matchCache,
 		matches,
 		navigate: (opts) => {
 			if (opts.broadcast) {
@@ -143,10 +155,10 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 		notFound,
 		params,
 		prefetch: (opts) => prefetchFn(opts),
-		prefetchCache: props.prefetchCache,
-		resolvers: props.resolvers,
-		routeTree: props.routeTree,
-		routerCacheDefaults: props.routerCacheDefaults,
+		prefetchCache: staticProps.prefetchCache,
+		resolvers: staticProps.resolvers,
+		routeTree: staticProps.routeTree,
+		routerCacheDefaults: staticProps.routerCacheDefaults,
 		search,
 		setHydrated,
 		setIntercepted,
@@ -185,7 +197,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 		});
 		Object.defineProperty(window, "__flare_devtools_cache__", {
 			configurable: true,
-			get: () => props.matchCache.getAll(),
+			get: () => staticProps.matchCache.getAll(),
 		});
 		Object.defineProperty(window, "__flare_devtools_actions__", {
 			configurable: true,
@@ -199,14 +211,14 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 					});
 					setMatches(restored);
 				},
-				clearPrefetchCache: () => props.prefetchCache.clear(),
+				clearPrefetchCache: () => staticProps.prefetchCache.clear(),
 				getCacheStats: () => ({
-					entries: props.matchCache.getAll().map((c) => ({
+					entries: staticProps.matchCache.getAll().map((c) => ({
 						age: Date.now() - c.updatedAt,
 						matchId: c.matchId,
 					})),
-					matchCount: props.matchCache.getAll().length,
-					prefetchCount: props.prefetchCache.size(),
+					matchCount: staticProps.matchCache.getAll().length,
+					prefetchCount: staticProps.prefetchCache.size(),
 				}),
 				invalidate: (opts?: Parameters<FlareProviderContext["invalidate"]>[0]) => invalidate(opts),
 				navigate: (opts: InternalNavigateOptions) => navigateFn(opts),
@@ -226,8 +238,8 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	onSettled(() => {
 		const unsubscribe = channel.onMessage((msg: ChannelMessage) => {
 			if (msg.type === "invalidate") {
-				props.matchCache.invalidate(msg.options);
-				props.prefetchCache.clear();
+				staticProps.matchCache.invalidate(msg.options);
+				staticProps.prefetchCache.clear();
 				navigateFn({
 					replace: true,
 					revalidate: true,
@@ -248,7 +260,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	 * for hydration to finish, and hydrate() awaits this callback, so onSettled
 	 * would deadlock and never set html[data-hydrated].
 	 */
-	props.onContextReady?.(ctx);
+	untrack(() => props.onContextReady?.(ctx));
 
 	return <RouterContext value={ctx}>{props.children}</RouterContext>;
 }
@@ -414,7 +426,6 @@ export function Outlet(props?: OutletProps): JSX.Element {
 
 function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.Element {
 	const ctx = useRouterContext();
-	const router = useRouter();
 	const match: Accessor<ClientMatch | undefined> = createMemo(() => ctx.matches()[props.depth]);
 
 	return (
@@ -422,43 +433,49 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
 			fallback={ctx.notFound() && props.depth === 0 ? resolveNotFoundBoundary(ctx, props.depth) : null}
 			when={match()}
 		>
-			{(m) => {
-				const isPage = () => m()._type === "render";
-				const renderFn = () => m().render;
-				const hasError = createMemo(() => m().error);
-				const renderProps = () => ({
-					children: isPage() ? undefined : <Outlet fallback={props.fallback} />,
-					loaderData: m().loaderData,
-					location: ctx.location(),
-					preloaderContext: m().preloaderContext,
-					router,
-				});
-
-				/*
-				 * Pipeline errors rendered via reactive Show — must react to SPA nav
-				 * match updates. Static `if (current.error)` only works for SSR initial render.
-				 */
-				return (
-					<Show
-						fallback={
-							<ErrorBoundaryWrapper depth={props.depth} match={m()}>
-								<Loading fallback={props.fallback ?? null}>
-									{(() => {
-										const fn = renderFn();
-										const p = renderProps();
-										return fn(p);
-									})()}
-								</Loading>
-							</ErrorBoundaryWrapper>
-						}
-						when={hasError()}
-					>
-						{renderMatchError(ctx, props.depth, hasError())}
-					</Show>
-				);
-			}}
+			{(m) => <MatchOutlet depth={props.depth} fallback={props.fallback} match={m()} />}
 		</Show>
 	) as JSX.Element;
+}
+
+function MatchOutlet(props: { depth: number; fallback?: JSX.Element; match: ClientMatch }): JSX.Element {
+	const ctx = useRouterContext();
+	const hasError = createMemo(() => props.match.error);
+
+	/*
+	 * Pipeline errors rendered via reactive Show — must react to SPA nav
+	 * match updates. Static `if (current.error)` only works for SSR initial render.
+	 */
+	return (
+		<Show
+			fallback={
+				<ErrorBoundaryWrapper depth={props.depth} match={props.match}>
+					<Loading fallback={props.fallback ?? null}>
+						<RouteRender fallback={props.fallback} match={props.match} />
+					</Loading>
+				</ErrorBoundaryWrapper>
+			}
+			when={hasError()}
+		>
+			{renderMatchError(ctx, props.depth, hasError())}
+		</Show>
+	) as JSX.Element;
+}
+
+function RouteRender(props: { fallback?: JSX.Element; match: ClientMatch }): JSX.Element {
+	const ctx = useRouterContext();
+	const router = useRouter();
+	return (
+		<>
+			{props.match.render({
+				children: props.match._type === "render" ? undefined : <Outlet fallback={props.fallback} />,
+				loaderData: props.match.loaderData,
+				location: ctx.location(),
+				preloaderContext: props.match.preloaderContext,
+				router,
+			})}
+		</>
+	);
 }
 
 /**

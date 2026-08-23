@@ -1,6 +1,6 @@
 # Registry
 
-Layer 6. Cross-cutting. Depends on defer (Deferred), server-context (AsyncLocalStorage), hydration (waitForLazyPreloads).
+Layer 6. Cross-cutting. Depends on defer (Deferred), server-context (AsyncLocalStorage), hydration.
 
 Dynamic component registry. Server decides which components render, client resolves from pre-loaded registry. Enables multi-tenant UIs, CMS-driven pages, A/B testing.
 

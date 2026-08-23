@@ -1,5 +1,5 @@
-import { createContext, createEffect, createSignal, onSettled, sharedConfig, useContext } from "solid-js";
-import { isServer, type JSX } from "@solidjs/web";
+import { createContext, createEffect, createSignal, onSettled, untrack, useContext } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { BroadcastCtx } from "../broadcast/context.ts";
 import { escapeJsString } from "../theme/index.tsx";
 
@@ -34,11 +34,7 @@ export function getLocaleScript(opts: LocaleConfig): string {
 const LocaleCtx = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider(props: { children: JSX.Element; config: LocaleConfig; initial?: string }): JSX.Element {
-	if (isServer || sharedConfig.hydrating) {
-		return props.children;
-	}
-
-	const cfg = props.config;
+	const cfg = untrack(() => props.config);
 	const defaultLocale = cfg.defaultLocale;
 	const cookieName = cfg.cookieName ?? "flare.locale";
 
@@ -46,7 +42,7 @@ export function LocaleProvider(props: { children: JSX.Element; config: LocaleCon
 	const channel = cfg.broadcast ? useContext(BroadcastCtx) : undefined;
 
 	/* URL is truth: initial comes from server (URL params), not localStorage */
-	const initial = props.initial ?? defaultLocale;
+	const initial = untrack(() => props.initial) ?? defaultLocale;
 	const [locale, setLocaleSignal] = createSignal(initial);
 
 	/* Cross-tab sync: BroadcastChannel for locale (opt-in) */
