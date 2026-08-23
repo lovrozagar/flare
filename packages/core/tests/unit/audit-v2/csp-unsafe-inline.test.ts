@@ -27,4 +27,13 @@ describe("CSP — style-src must not include unsafe-inline", () => {
 		const styleSrcMatch = header.match(/(?:^|;)\s*style-src\s+([^;]*)/);
 		expect(styleSrcMatch?.[1]).not.toContain("'unsafe-inline'");
 	});
+
+	it("production puts the style nonce on style-src-elem, not style-src", () => {
+		const header = buildCspHeader("test-nonce", undefined, false);
+		const styleSrc = header.match(/(?:^|;)\s*style-src\s+([^;]*)/)?.[1] ?? "";
+		const styleSrcElem = header.match(/style-src-elem\s+([^;]*)/)?.[1] ?? "";
+		expect(styleSrc).not.toContain("nonce-");
+		expect(styleSrcElem).toContain("'nonce-test-nonce'");
+		expect(styleSrcElem).not.toContain("'unsafe-inline'");
+	});
 });

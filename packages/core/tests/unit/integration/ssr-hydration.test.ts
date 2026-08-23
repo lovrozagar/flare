@@ -78,6 +78,19 @@ describe("SSR sheet detection — enableDomInjection", () => {
 		const els = document.querySelectorAll(`#${RUNTIME_SHEET_ID}`);
 		expect(els.length).toBe(1);
 	});
+
+	it("created runtime sheet copies the document CSP nonce", () => {
+		const meta = document.createElement("meta");
+		meta.setAttribute("name", "csp-nonce");
+		meta.setAttribute("content", "unit-nonce");
+		document.head.appendChild(meta);
+
+		enableDomInjection();
+		registerCSSByName("nonce-copy", "color:red");
+
+		expect(getSheetEl()?.getAttribute("nonce")).toBe("unit-nonce");
+		meta.remove();
+	});
 });
 
 /* ── finishHydration lifts the gate ──────────────────────────────── */

@@ -59,7 +59,8 @@ export interface HydrateOptions {
 
 function readDocumentNonce(): string {
 	if (typeof document === "undefined") return "";
-	return document.querySelector('meta[name="csp-nonce"]')?.getAttribute("nonce") ?? "";
+	const meta = document.querySelector('meta[name="csp-nonce"]');
+	return meta?.getAttribute("content") || meta?.getAttribute("nonce") || "";
 }
 
 function RootRenderer(props: {
