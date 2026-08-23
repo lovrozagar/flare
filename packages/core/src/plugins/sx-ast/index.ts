@@ -149,6 +149,15 @@ function composeCss(
 		else appRules.push(rule);
 	}
 
+	/* At-rules last so @media utilities beat earlier base utilities of equal
+	 * specificity. classPool insertion order is first-seen across the whole
+	 * build, so a later page's `fontSize: 12px` would otherwise override an
+	 * earlier `@media (min-width: 1px) { fontSize: 24px }`. */
+	const atLast = (a: string, b: string) =>
+		Number(a.trimStart().startsWith("@")) - Number(b.trimStart().startsWith("@"));
+	sxRules.sort(atLast);
+	appRules.sort(atLast);
+
 	const parts: string[] = [];
 	if (twPrefaceCss) parts.push(twPrefaceCss);
 	parts.push(LAYER_PRELUDE);

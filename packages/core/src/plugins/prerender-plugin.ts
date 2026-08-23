@@ -92,13 +92,13 @@ export function createPrerenderPlugin(config: {
 			const mod = (await import(`${serverPath}?t=${Date.now()}`)) as ServerModule;
 
 			/* 4. Resolve static params for dynamic routes */
-			const hasDynamic = defs.some(
-				(d) => d.type === "page" && (d.cache.ssg === "dynamic" || d.cache.isr === "dynamic"),
+			const needsStaticParams = defs.some(
+				(d) => d.type === "page" && Boolean(d.cache.ssg || d.cache.isr) && d.virtualPath.includes("["),
 			);
 			const resolvedHandler = mod.server ?? mod.handler;
 			if (!resolvedHandler) return;
 			const staticParams =
-				hasDynamic && resolvedHandler.getStaticParams ? await resolvedHandler.getStaticParams() : undefined;
+				needsStaticParams && resolvedHandler.getStaticParams ? await resolvedHandler.getStaticParams() : undefined;
 
 			/* 5. Convert to prerender routes */
 			const routes = buildPrerenderRoutes(defs, staticParams);

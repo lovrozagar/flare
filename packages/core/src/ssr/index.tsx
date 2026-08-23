@@ -576,11 +576,12 @@ function injectHeadContent(
 
 	let headSuffix = "";
 	const headHtml = renderHeadToHtml(config.resolvedHead, config.nonce);
-	if (headHtml) headSuffix += headHtml;
+	/* Runtime scoped sheet first so route `head().custom.styles` win at equal specificity. */
 	if (scopedStyles) {
 		const safeStyles = scopedStyles.replace(/<\/style\b/gi, "<\\/style");
 		headSuffix += `<style id="${RUNTIME_SHEET_ID}" nonce="${escapedNonce}">${safeStyles}</style>`;
 	}
+	if (headHtml) headSuffix += headHtml;
 	/* Critical-CSS placeholder — body not known yet; late-inject populates it near </body>. */
 	if (config.sxCssManifest) {
 		const nonceAttr = config.nonce ? ` nonce="${escapedNonce}"` : "";

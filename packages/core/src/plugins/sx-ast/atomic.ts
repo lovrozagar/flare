@@ -28,12 +28,12 @@ function hash4(s: string): string {
  * Class name triple: selector\0property\0value.
  * Null-byte separators prevent `color:red` ↔ `col:or:red` collisions.
  */
-function tripleKey(selector: string, prop: string, value: string): string {
-	return `${selector}\0${prop}\0${value}`;
+function tripleKey(selector: string, prop: string, value: string, atWrap = ""): string {
+	return `${selector}\0${prop}\0${value}\0${atWrap}`;
 }
 
-function className(selector: string, prop: string, value: string, mode: "dev" | "prod"): string {
-	const key = tripleKey(selector, prop, value);
+function className(selector: string, prop: string, value: string, mode: "dev" | "prod", atWrap = ""): string {
+	const key = tripleKey(selector, prop, value, atWrap);
 	if (mode === "prod") {
 		return `a1-${hash8(key)}`;
 	}
@@ -101,7 +101,7 @@ function emitDeclarations(ctx: EmitCtx, cssSelector: string, base: SxIR["base"],
 		}
 
 		const cssProp = toKebab(prop);
-		const cls = className(cssSelector, cssProp, value, ctx.mode);
+		const cls = className(cssSelector, cssProp, value, ctx.mode, atWrap);
 		ctx.classes.push(cls);
 
 		if (ctx.cssRules.has(cls)) continue;

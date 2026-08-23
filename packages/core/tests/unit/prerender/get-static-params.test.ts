@@ -58,6 +58,27 @@ function makeHandler(routeTree: TreeNode, layouts: Record<string, () => Promise<
 }
 
 describe("getStaticParams", () => {
+	it("ssg: true on [locale] route expands from router.locale.locales", async () => {
+		const pageMod = {
+			_type: "render",
+			cache: { ssg: true },
+			render: () => null,
+		};
+		const route = makeRouteData("_root_/[locale]/ssg-about", "/[locale]/ssg-about", pageMod);
+		const tree = buildTree([{ data: route, path: "/:locale/ssg-about" }]);
+
+		const result = await createServerHandler({
+			router: {
+				layouts: {},
+				locale: { defaultLocale: "en", locales: ["en", "fr"], paramName: "locale" },
+				routeTree: tree,
+				[Symbol.for("flare/router-config")]: true,
+			} as never,
+		}).getStaticParams();
+
+		expect(result.get("_root_/[locale]/ssg-about")).toEqual([{ locale: "en" }, { locale: "fr" }]);
+	});
+
 	it("optional [[locale]] route is collected and expanded", async () => {
 		const pageMod = {
 			_type: "render",
