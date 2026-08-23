@@ -233,7 +233,7 @@ describe("DirectionProvider cross-tab sync via StorageEvent", () => {
 		expect(getter?.()).toBe("ltr");
 	});
 
-	it("SSR: no window.addEventListener called when sharedConfig.hydrating set", async () => {
+	it("sharedConfig.hydrating set still registers storage listener on client render", async () => {
 		const addSpy = vi.spyOn(window, "addEventListener");
 		const { sharedConfig } = await import("solid-js");
 		const original = sharedConfig.hydrating;
@@ -242,11 +242,10 @@ describe("DirectionProvider cross-tab sync via StorageEvent", () => {
 				configurable: true,
 				value: true,
 			});
-			DirectionProvider({
-				children: null as unknown as import("solid-js").JSX.Element,
-			});
+			dispose = render(() => <DirectionProvider>{null}</DirectionProvider>, container);
+			await tick();
 			const storageCalls = addSpy.mock.calls.filter((c) => c[0] === "storage");
-			expect(storageCalls).toHaveLength(0);
+			expect(storageCalls.length).toBeGreaterThan(0);
 		} finally {
 			Object.defineProperty(sharedConfig, "hydrating", {
 				configurable: true,

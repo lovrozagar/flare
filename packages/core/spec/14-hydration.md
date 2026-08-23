@@ -28,7 +28,6 @@ interface LoadedModules {
 ```ts
 hydrate(router: MarkedRouterConfig): Promise<void>
 loadRouteModules(pathname: string, routeTree: TreeNode, layouts: Record<string, () => Promise<unknown>>): Promise<LoadedModules | null>
-waitForLazyPreloads(): Promise<void>
 ```
 
 ## Behavior
@@ -42,8 +41,7 @@ Full client bootstrap sequence:
 2. Create caches (with router config defaults)
 3. Populate matchCache from SSR state
 4. Load route modules (JS chunks)
-5. Wait for lazy component preloads
-6. Hydrate Solid app
+5. Hydrate Solid app (full document)
 ```
 
 #### Step 1: Parse SSR State
@@ -95,19 +93,11 @@ const modules = await loadRouteModules(pathname, router.routeTree, router.layout
 
 Loads page and layout JS chunks in parallel. See `loadRouteModules` below.
 
-#### Step 5: Wait for Lazy Preloads
+#### Step 5: Hydrate Solid App
+
+Full-document hydrate (`solidHydrate(..., document)`). Lazy route islands render `pending` until `onSettled` (matches SSR). `waitForLazyPreloads` is a test helper on `@lovrozagar/flare/lazy`, not part of hydrate.
 
 ```ts
-await waitForLazyPreloads();
-```
-
-Client-side lazy components (`clientLazy`) register preload promises globally. Wait for all to resolve before hydration — prevents flash of loading state.
-
-#### Step 6: Hydrate Solid App
-
-```ts
-const appRoot = document.getElementById("app")
-
 solidHydrate(
   () => (
     <Dummy>
@@ -127,7 +117,7 @@ solidHydrate(
       </FlareProvider>
     </Dummy>
   ),
-  appRoot,
+  document,
 )
 ```
 
@@ -201,22 +191,6 @@ const [pageModule, ...layoutModules] = await Promise.all([
 5. Extract `.default` from each module
 6. Return `{ layouts, page, params }`
 
-### `waitForLazyPreloads`
-
-Client lazy components (`clientLazy`) push preload promises to a global array:
-
-```ts
-const PRELOAD_KEY = "__FLARE_LAZY_PRELOADS__";
-
-function waitForLazyPreloads(): Promise<void> {
-	const promises = (globalThis as any)[PRELOAD_KEY] as Promise<unknown>[] | undefined;
-	if (!promises || promises.length === 0) return Promise.resolve();
-	return Promise.all(promises).then(() => {});
-}
-```
-
-Each `clientLazy` component, on import, immediately starts loading its chunk and pushes the promise. `waitForLazyPreloads` ensures all are loaded before hydration starts.
-
 ### `buildMatches`
 
 Combines loaded modules (components) with cached data (loaderData):
@@ -284,12 +258,6 @@ loadRouteModules:
   Layout module returns .default as RouteComponent
   Missing layout loader → null (skipped)
 
-waitForLazyPreloads:
-  No preloads → resolves immediately
-  One preload → waits for it
-  Multiple preloads → waits for all (Promise.all)
-  Preload failure → promise rejects (propagates to hydrate)
-
 buildMatches:
   Combines module render functions with cached loaderData
   Layouts ordered by nesting depth
@@ -301,7 +269,7 @@ Dummy component:
   Adds one tree depth level (matches SSR Hydration wrapper)
 
 Hydration flow:
-  solidHydrate called with app root element
+  solidHydrate called with document
   FlareProvider receives matchCache and prefetchCache
   onContextReady called during hydration
   data-hydrated attribute set on html element after hydration
@@ -314,7 +282,7 @@ Hydration flow:
 SSR deferred resolution:
   Deferred markers in SSR state → promises created during hydration
   NDJSON chunks after HTML → resolve those promises
-  Suspense boundaries update when chunks arrive
+  <Await> updates when chunks arrive
 ```
 
 ## Notes

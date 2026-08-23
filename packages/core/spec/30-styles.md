@@ -185,9 +185,9 @@ function registerCSS(css: string): string {
 
 Internal `Map<string, string>` of `name → scoped CSS rule`.
 
-**SSR**: `getScopedStyles()` returns all rules joined. Injected into `</head>` as `<style id="__FLARE_SCOPED__">`.
+**SSR**: `getScopedStyles()` returns all rules joined. Injected into `</head>` as `<style id="flare-runtime">`.
 
-**Client**: On first `registerCSSByName` call, checks for `#__FLARE_SCOPED__` style tag. If found, parses existing rules to prevent duplicates. New rules injected via `CSSStyleSheet.insertRule()` or by appending to style element.
+**Client**: Runtime CSS is written as a complete nonce'd `<style id="flare-runtime">` and `replaceWith`'d (not `insertRule`). CSP checks nonce at element insertion; mutating an in-document sheet is not covered by that nonce. While the SSR sheet is present during hydrate, new `styles()` registrations are held and flushed in `finishHydration()`.
 
 `clearScopedStyles()` resets registry. Called before each SSR render.
 
@@ -238,10 +238,10 @@ registerCSS:
 SSR:
   getScopedStyles → all registered rules joined
   clearScopedStyles → resets registry
-  Styles injected in <style id="__FLARE_SCOPED__">
+  Styles injected in <style id="flare-runtime">
 
 Client hydration:
-  Existing __FLARE_SCOPED__ → parsed, no duplicates
+  Existing #flare-runtime → parsed, no duplicates
   New styles after hydration → appended to stylesheet
 ```
 

@@ -20,16 +20,20 @@ interface DirectionConfig {
 ## Exports
 
 ```ts
-/* Server */
+/* Server / blocking <head> script */
 getDirectionScript(opts?: DirectionConfig): string
+getDirFromLocale(locale: string | undefined, rtlLocales?: readonly string[]): Direction
 
 /* Client */
-initDirection(opts?: DirectionConfig): void
-setDirection(dir: Direction): void
-getDirection(): Direction
-toggleDirection(): void
-getDirFromLocale(locale: string | undefined): Direction
-getDirectionConfig(): Readonly<DirectionConfig>
+function DirectionProvider(props: { children: JSX.Element; config?: DirectionConfig }): JSX.Element
+function useDirection(): DirectionContextValue
+
+interface DirectionContextValue {
+	direction: () => Direction
+	getDirFromLocale: (locale: string | undefined) => Direction
+	setDirection: (dir: Direction) => void
+	toggleDirection: () => void
+}
 ```
 
 ## Behavior
@@ -55,23 +59,19 @@ function getDirFromLocale(locale: string | undefined): Direction {
 }
 ```
 
-### Client Init
+### Client: DirectionProvider
 
-`initDirection()`: merges config, syncs signal from DOM attribute.
+Always provides context (SSR and hydrate), same pattern as ThemeProvider. During hydrate the signal starts at `defaultDir` so the tree matches SSR; `DirectionScript` already applied storage to `<html>` before first paint. After settle, `onSettled` syncs the signal from `localStorage`. Cross-tab `storage` listener attaches in `onSettled`.
 
-### `setDirection`
+There is no module-level `initDirection` / `setDirection` singleton.
+
+### `useDirection().setDirection`
 
 Updates signal, DOM attributes (`dir` + `data-dir`), and localStorage.
 
 ### Reactive Integration
 
-Module-level signal:
-
-```ts
-const [directionSignal, setDirectionSignal] = createSignal<Direction>("ltr");
-```
-
-`getDirection()` returns signal value (reactive in components).
+Provider-scoped signal. Components read via `useDirection()`.
 
 ## Test Cases
 
@@ -93,20 +93,14 @@ getDirFromLocale:
   undefined → "ltr"
   "" → "ltr"
 
-initDirection:
-  Syncs signal from DOM dir attribute
-  Idempotent: second call no-op
-  SSR-safe: no-op without window
-
-setDirection:
-  "rtl" → html[dir]="rtl", html[data-dir]="rtl"
-  "ltr" → html[dir]="ltr", html[data-dir]="ltr"
-  Persists to localStorage
-  Updates reactive signal
-
-toggleDirection:
-  "ltr" → "rtl"
-  "rtl" → "ltr"
+DirectionProvider / useDirection:
+  Always provides context during hydrate (no pass-through)
+  Hydrate initial signal is defaultDir (not localStorage)
+  onSettled syncs signal from localStorage
+  setDirection("rtl") → html[dir]="rtl", html[data-dir]="rtl"
+  Persists to localStorage on change
+  toggleDirection: ltr → rtl, rtl → ltr
+  Throws if useDirection() is called outside DirectionProvider
 ```
 
 ## Notes
