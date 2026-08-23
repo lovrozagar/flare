@@ -47,6 +47,10 @@ export function __setMaxRegistrySize(size: number): void {
 const registry = new Map<string, string>();
 let domInjectionEnabled = false;
 let ssrSheetPresent = false;
+/* Names whose scoped rules are in the live `#flare-runtime` sheet. Distinct
+ * from `registry`: a name can be registered while the SSR sheet gate is up
+ * (lazy `styles()` during hydrate) and never inserted. */
+const injected = new Set<string>();
 
 export function enableDomInjection(): void {
 	domInjectionEnabled = true;
@@ -58,6 +62,14 @@ export function enableDomInjection(): void {
 
 export function finishHydration(): void {
 	ssrSheetPresent = false;
+	/* Flush CSS registered while the SSR sheet blocked insertRule — otherwise
+	 * a later styles() call sees registry.has and never injects. */
+	for (const [name, scoped] of registry) {
+		ensureInjected(name, scoped, "attr");
+	}
+	for (const [name, scoped] of classRegistry) {
+		ensureInjected(name, scoped, "class");
+	}
 }
 
 function hashString(str: string): string {
@@ -892,11 +904,16 @@ export function registerCSS(css: string): string {
 }
 
 export function registerCSSByName(name: string, css: string): string {
-	if (registry.has(name)) return name;
+	const existing = registry.get(name);
+	if (existing !== undefined) {
+		ensureInjected(name, existing, "attr");
+		return name;
+	}
 	if (isDev) validateCSS(name, css);
 	const scoped = minifyCSS(scopeCSS(name, css));
 	registry.set(name, scoped);
 	injectStyleToDOM(scoped);
+	markInjected(name);
 	/* FIFO eviction: remove oldest entries when over limit */
 	if (registry.size > maxRegistrySize) {
 		const iter = registry.keys();
@@ -904,6 +921,7 @@ export function registerCSSByName(name: string, css: string): string {
 			const oldest = iter.next();
 			if (oldest.done) break;
 			registry.delete(oldest.value);
+			injected.delete(oldest.value);
 		}
 		rebuildSheet();
 	}
@@ -917,6 +935,7 @@ export function registerCSSByName(name: string, css: string): string {
  */
 export function forceRegisterCSSByName(name: string, css: string): void {
 	registry.delete(name);
+	injected.delete(name);
 	registerCSSByName(name, css);
 }
 
@@ -948,8 +967,45 @@ function getStyleEl(): HTMLStyleElement {
 		styleEl = document.createElement("style");
 		styleEl.id = RUNTIME_SHEET_ID;
 		document.head.appendChild(styleEl);
+		injected.clear();
 	}
 	return styleEl;
+}
+
+function liveSheetText(): string {
+	if (typeof document === "undefined") return "";
+	const el = document.getElementById(RUNTIME_SHEET_ID) as HTMLStyleElement | null;
+	if (!el) return "";
+	if (el.sheet) {
+		return Array.from(el.sheet.cssRules)
+			.map((r) => r.cssText)
+			.join("");
+	}
+	return el.textContent ?? "";
+}
+
+function sheetHasName(name: string, kind: "attr" | "class"): boolean {
+	const text = liveSheetText();
+	if (!text) return false;
+	if (kind === "class") return text.includes(`.${name}`);
+	const esc = escapeCSSAttrValue(name);
+	return text.includes(`[data-c="${esc}"]`) || text.includes(`[data-c=${esc}]`);
+}
+
+function markInjected(name: string): void {
+	if (domInjectionEnabled && !ssrSheetPresent) injected.add(name);
+}
+
+function ensureInjected(name: string, scoped: string, kind: "attr" | "class"): void {
+	if (!domInjectionEnabled || ssrSheetPresent || typeof document === "undefined") {
+		return;
+	}
+	if (sheetHasName(name, kind)) {
+		injected.add(name);
+		return;
+	}
+	injectStyleToDOM(scoped);
+	injected.add(name);
 }
 
 /**
@@ -978,19 +1034,22 @@ function injectStyleToDOM(scoped: string): void {
  */
 function rebuildSheet(): void {
 	if (!domInjectionEnabled || typeof document === "undefined") return;
+	injected.clear();
 	const styleEl = getStyleEl();
 	const sheet = styleEl.sheet;
 	if (sheet) {
 		while (sheet.cssRules.length > 0) sheet.deleteRule(0);
-		for (const scoped of registry.values()) {
+		for (const [name, scoped] of registry) {
 			for (const rule of splitCSSRules(scoped)) {
 				try {
 					sheet.insertRule(rule, sheet.cssRules.length);
 				} catch {}
 			}
+			injected.add(name);
 		}
 	} else {
 		styleEl.textContent = Array.from(registry.values()).join("");
+		for (const name of registry.keys()) injected.add(name);
 	}
 }
 
@@ -1020,9 +1079,14 @@ function scopeCssToClass(className: string, css: string): string {
  * Mirrors registerCSSByName but keys by class name and uses class selectors.
  */
 export function registerCSSAsClass(className: string, scopedCssInLayer: string): string {
-	if (classRegistry.has(className)) return className;
+	const existing = classRegistry.get(className);
+	if (existing !== undefined) {
+		ensureInjected(className, existing, "class");
+		return className;
+	}
 	classRegistry.set(className, scopedCssInLayer);
 	injectStyleToDOM(scopedCssInLayer);
+	markInjected(className);
 	/* FIFO eviction mirrors main registry */
 	if (classRegistry.size > maxRegistrySize) {
 		const iter = classRegistry.keys();
@@ -1030,6 +1094,7 @@ export function registerCSSAsClass(className: string, scopedCssInLayer: string):
 			const oldest = iter.next();
 			if (oldest.done) break;
 			classRegistry.delete(oldest.value);
+			injected.delete(oldest.value);
 		}
 	}
 	return className;
@@ -1185,6 +1250,7 @@ export function cn(...inputs: CnValue[]): string {
 export function clearScopedStyles(): void {
 	registry.clear();
 	classRegistry.clear();
+	injected.clear();
 	domInjectionEnabled = false;
 	ssrSheetPresent = false;
 	if (typeof document !== "undefined") {
