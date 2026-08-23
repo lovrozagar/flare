@@ -18,6 +18,8 @@ export interface CspDirectives {
 	"object-src"?: string[];
 	"script-src"?: string[];
 	"style-src"?: string[];
+	"style-src-attr"?: string[];
+	"style-src-elem"?: string[];
 	"block-all-mixed-content"?: boolean;
 	"upgrade-insecure-requests"?: boolean;
 	"worker-src"?: string[];

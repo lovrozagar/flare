@@ -13,7 +13,7 @@ import { assertSPANavigation, loadPage, navigateSPA, setNavMarker, setupConsoleC
  * files. server.ts loads these into the in-memory FlareStore at startup.
  */
 
-const STATIC_DIR = join(import.meta.dirname, "../../../dist/static");
+const STATIC_DIR = join(import.meta.dirname, "../../dist/static");
 const MANIFEST_PATH = join(STATIC_DIR, "manifest.json");
 
 function readManifest(): Array<{ mode: string; pathname: string; revalidate?: number }> {
