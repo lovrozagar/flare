@@ -39,8 +39,8 @@ Layer 4 (client, depends on L0 + L3 protocol)
 ├── state-parser        — parseFlareState from self.flare
 ├── caches              — matchCache, prefetchCache
 ├── ndjson-client       — NDJSON consumption, deferred chunk handling
-├── hydration           — loadRouteModules, clientLazy preloads, solidHydrate
-├── lazy                — lazy(), clientLazy(), waitForLazyPreloads(), SSR-safe
+├── hydration           — loadRouteModules, solidHydrate(document)
+├── lazy                — lazy(), clientLazy(), SSR-safe pending alignment
 ├── head-client         — per-route head tracking, applyPerRouteHeads, applyHeadConfig
 ├── history             — HistoryState, scroll store, pushHistoryState, replaceHistoryState
 └── query-client        — TanStack Query integration, useQuery, useSuspenseQuery, SSR streaming
@@ -60,7 +60,7 @@ Layer 7 (tooling)
 └── testing             — FlarePage playwright page object, E2E fixtures
 
 Layer 8 (assembled components, depends on L2 + L4)
-└── components          — AppRoot, HeadContent, Scripts, Await, DevErrorOverlay, ssr-context (spec 37)
+└── components          — Await, ThemeScript, DirectionScript, ResetCSS, ViewTransitionCSS, DevErrorOverlay, ssr-context (spec 37)
 ```
 
 ## Entry Points
@@ -108,45 +108,45 @@ hydrate(router);
 
 Start bottom-up. Each layer is TDD'd before moving up.
 
-| Order | Domain                | Why first                                                          |
-| ----- | --------------------- | ------------------------------------------------------------------ |
-| 1     | `router-primitives`   | Pure functions, zero deps, foundation for everything               |
-| 2     | `errors`              | Simple classes, used everywhere                                    |
-| 3     | `url`                 | Pure, used by router + client                                      |
-| 4     | `preload`             | Pure, no deps, fire-and-forget module loading                      |
-| 5     | `styles`              | Pure, scoped CSS system                                            |
-| 6     | `route-builder`       | Chain API, depends on router primitives + errors                   |
-| 7     | `server-context`      | AsyncLocalStorage, needed by loader pipeline                       |
-| 8     | `dedupe`              | Per-request dedup, depends on server-context                       |
-| 9     | `theme`               | Theme signal + flash-prevention script                             |
-| 10    | `direction`           | Direction signal + flash-prevention script                         |
-| 11    | `loader-pipeline`     | Core server logic                                                  |
-| 12    | `defer`               | Streaming control                                                  |
-| 13    | `ssr`                 | renderToStream integration                                         |
-| 14    | `middleware`          | Request middleware chain                                           |
-| 15    | `server-fn`           | Server function runtime (L2, no L3+ dependents)                    |
-| 16    | `ndjson-server`       | Server response format                                             |
-| 17    | `boundaries`          | Error rendering                                                    |
-| 18    | `router-config`       | createRouter, RouterConfig, FlareState shape                       |
-| 19    | `middleware-builtins` | apiProxy, cdnProxy, htmlCache, i18n, staticAssets                  |
-| 20    | `server-handler`      | Top-level request orchestrator                                     |
-| 21    | `state-parser`        | Client bootstrap                                                   |
-| 22    | `caches`              | matchCache, prefetchCache                                          |
-| 23    | `ndjson-client`       | Client NDJSON consumption                                          |
-| 24    | `hydration`           | Client mount                                                       |
-| 25    | `lazy`                | lazy/clientLazy, SSR-safe code splitting                           |
-| 26    | `head-client`         | Per-route head tracking + cleanup                                  |
-| 27    | `history`             | History state, scroll store, direction detection                   |
-| 28    | `query-client`        | TanStack Query hooks, SSR streaming                                |
-| 29    | `navigation`          | CSR nav                                                            |
-| 30    | `link`                | Prefetch component                                                 |
-| 31    | `outlet`              | Render tree                                                        |
-| 32    | `registry`            | Dynamic components (cross-cutting)                                 |
-| 33    | `components`          | AppRoot, HeadContent, Scripts, Await, DevErrorOverlay, ssr-context |
-| 34    | `generators`          | Code generation                                                    |
-| 35    | `plugins`             | Vite integration                                                   |
-| 36    | `config`              | Build config                                                       |
-| 37    | `testing`             | Playwright E2E fixtures                                            |
+| Order | Domain                | Why first                                                      |
+| ----- | --------------------- | -------------------------------------------------------------- |
+| 1     | `router-primitives`   | Pure functions, zero deps, foundation for everything           |
+| 2     | `errors`              | Simple classes, used everywhere                                |
+| 3     | `url`                 | Pure, used by router + client                                  |
+| 4     | `preload`             | Pure, no deps, fire-and-forget module loading                  |
+| 5     | `styles`              | Pure, scoped CSS system                                        |
+| 6     | `route-builder`       | Chain API, depends on router primitives + errors               |
+| 7     | `server-context`      | AsyncLocalStorage, needed by loader pipeline                   |
+| 8     | `dedupe`              | Per-request dedup, depends on server-context                   |
+| 9     | `theme`               | Theme signal + flash-prevention script                         |
+| 10    | `direction`           | Direction signal + flash-prevention script                     |
+| 11    | `loader-pipeline`     | Core server logic                                              |
+| 12    | `defer`               | Streaming control                                              |
+| 13    | `ssr`                 | renderToStream integration                                     |
+| 14    | `middleware`          | Request middleware chain                                       |
+| 15    | `server-fn`           | Server function runtime (L2, no L3+ dependents)                |
+| 16    | `ndjson-server`       | Server response format                                         |
+| 17    | `boundaries`          | Error rendering                                                |
+| 18    | `router-config`       | createRouter, RouterConfig, FlareState shape                   |
+| 19    | `middleware-builtins` | apiProxy, cdnProxy, htmlCache, i18n, staticAssets              |
+| 20    | `server-handler`      | Top-level request orchestrator                                 |
+| 21    | `state-parser`        | Client bootstrap                                               |
+| 22    | `caches`              | matchCache, prefetchCache                                      |
+| 23    | `ndjson-client`       | Client NDJSON consumption                                      |
+| 24    | `hydration`           | Client mount                                                   |
+| 25    | `lazy`                | lazy/clientLazy, SSR-safe code splitting                       |
+| 26    | `head-client`         | Per-route head tracking + cleanup                              |
+| 27    | `history`             | History state, scroll store, direction detection               |
+| 28    | `query-client`        | TanStack Query hooks, SSR streaming                            |
+| 29    | `navigation`          | CSR nav                                                        |
+| 30    | `link`                | Prefetch component                                             |
+| 31    | `outlet`              | Render tree                                                    |
+| 32    | `registry`            | Dynamic components (cross-cutting)                             |
+| 33    | `components`          | Await, ThemeScript, DirectionScript, ResetCSS, DevErrorOverlay |
+| 34    | `generators`          | Code generation                                                |
+| 35    | `plugins`             | Vite integration                                               |
+| 36    | `config`              | Build config                                                   |
+| 37    | `testing`             | Playwright E2E fixtures                                        |
 
 ## Spec Files
 

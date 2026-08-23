@@ -1,4 +1,4 @@
-import { createContext, createEffect, createSignal, onSettled, sharedConfig, useContext } from "solid-js";
+import { createContext, createEffect, createSignal, onSettled, sharedConfig, untrack, useContext } from "solid-js";
 import { isServer, type JSX } from "@solidjs/web";
 
 export type Direction = "ltr" | "rtl";
@@ -54,11 +54,6 @@ export interface DirectionContextValue {
 const DirectionCtx = createContext<DirectionContextValue | null>(null);
 
 export function DirectionProvider(props: { children: JSX.Element; config?: DirectionConfig }): JSX.Element {
-	/* SSR: pass through children (context not needed on server, scripts handle direction) */
-	if (isServer || sharedConfig.hydrating) {
-		return props.children;
-	}
-
 	const cfg: Required<DirectionConfig> = {
 		attribute: props.config?.attribute ?? DEFAULT_CONFIG.attribute,
 		defaultDir: props.config?.defaultDir ?? DEFAULT_CONFIG.defaultDir,
@@ -66,9 +61,12 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 		storageKey: props.config?.storageKey ?? DEFAULT_CONFIG.storageKey,
 	};
 
-	/* Read initial direction from localStorage, DOM dir attr, or default */
+	const hydrating = isServer || !!sharedConfig.hydrating;
+
+	/* During SSR + hydration, start from defaultDir so the tree matches.
+	   DirectionScript already applied localStorage to <html> before first paint. */
 	let initial: Direction = cfg.defaultDir;
-	if (typeof localStorage !== "undefined") {
+	if (typeof localStorage !== "undefined" && !hydrating) {
 		try {
 			const stored = localStorage.getItem(cfg.storageKey);
 			if (stored === "ltr" || stored === "rtl") {
@@ -78,7 +76,7 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 			/* noop */
 		}
 	}
-	if (initial === cfg.defaultDir && typeof document !== "undefined") {
+	if (initial === cfg.defaultDir && typeof document !== "undefined" && !hydrating) {
 		const domDir = document.documentElement.getAttribute("dir");
 		if (domDir === "ltr" || domDir === "rtl") {
 			initial = domDir;
@@ -87,16 +85,34 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 
 	const [direction, setDirectionSignal] = createSignal<Direction>(initial);
 
-	/* Sync direction to DOM */
-	createEffect(direction, (dir) => {
+	const applyToDocument = (dir: Direction): void => {
 		if (typeof document === "undefined") return;
 		const el = document.documentElement;
 		el.setAttribute(cfg.attribute, dir);
 		el.setAttribute("dir", dir);
+	};
+
+	if (!hydrating) {
+		applyToDocument(untrack(direction));
+	}
+
+	/* After hydrate, sync from localStorage so useDirection() matches DirectionScript. */
+	onSettled(() => {
+		if (typeof localStorage === "undefined") return;
+		try {
+			const stored = localStorage.getItem(cfg.storageKey);
+			if ((stored === "ltr" || stored === "rtl") && stored !== untrack(direction)) {
+				setDirectionSignal(stored);
+			}
+		} catch {
+			/* noop */
+		}
+		applyToDocument(untrack(direction));
 	});
 
 	/* Cross-tab sync: StorageEvent fires in OTHER tabs only */
 	onSettled(() => {
+		if (typeof window === "undefined") return;
 		const handler = (e: StorageEvent) => {
 			if (e.key !== cfg.storageKey || e.storageArea !== localStorage) return;
 			const v = e.newValue;
@@ -108,7 +124,28 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 		return () => window.removeEventListener("storage", handler);
 	});
 
-	/* Persist to localStorage on changes */
+	/* After Solid hydrates <html> it may drop DirectionScript's dir. Re-apply. */
+	let skipFirst = true;
+	createEffect(direction, (dir) => {
+		if (typeof document === "undefined") return;
+		if (skipFirst) {
+			skipFirst = false;
+			let visual: Direction = dir;
+			if (typeof localStorage !== "undefined") {
+				try {
+					const stored = localStorage.getItem(cfg.storageKey);
+					if (stored === "ltr" || stored === "rtl") visual = stored;
+				} catch {
+					/* noop */
+				}
+			}
+			applyToDocument(visual);
+			return;
+		}
+		applyToDocument(dir);
+	});
+
+	/* Persist to localStorage on changes (not initial — it was read from there) */
 	createEffect(
 		direction,
 		(dir) => {
@@ -126,7 +163,7 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 	};
 
 	const toggleDirection = (): void => {
-		const current = direction();
+		const current = untrack(direction);
 		setDirection(current === "ltr" ? "rtl" : "ltr");
 	};
 

@@ -1,6 +1,6 @@
 import type { JSX } from "@solidjs/web";
 import { Dynamic, isServer } from "@solidjs/web";
-import { type Component, createSignal, onSettled, Show, sharedConfig } from "solid-js";
+import { type Component, createSignal, onSettled, Show, sharedConfig, untrack } from "solid-js";
 import { retryImport } from "../internal.ts";
 import { warn } from "../logger.ts";
 
@@ -30,13 +30,9 @@ function getGlobalLoaded(): Set<Promise<void>> {
 	return g[LOADED_KEY] as Set<Promise<void>>;
 }
 
-/**
- * Throws during component init — Errored catches it.
- * Must be rendered via Show/conditional so the throw happens during
- * the component's initial render phase (not in an effect).
- */
+/** Throw during render so `<Errored>` can catch. Read is untracked — error is a snapshot. */
 function ThrowError(props: { error: Error }): JSX.Element {
-	throw props.error;
+	throw untrack(() => props.error);
 }
 
 export function lazy<P extends Record<string, unknown>>(options: LazyOptions<P>): Component<P> {
@@ -85,17 +81,10 @@ export function lazy<P extends Record<string, unknown>>(options: LazyOptions<P>)
 			});
 		}
 
-		const PendingFallback = pending
-			? (() => {
-					const P = pending;
-					return (<P {...props} />) as JSX.Element;
-				})()
-			: null;
-
 		return (
 			<Show
 				fallback={
-					<Show fallback={PendingFallback} when={component()}>
+					<Show fallback={pending ? <Dynamic component={pending} {...props} /> : null} when={component()}>
 						{(entry) => <Dynamic component={entry().C} {...props} />}
 					</Show>
 				}
@@ -176,18 +165,17 @@ export function clientLazy<P extends Record<string, unknown>>(
 			});
 		}
 
-		const PendingComp = props.pending ?? factoryPending;
-		const PendingFallback = PendingComp
-			? (() => {
-					const P = PendingComp;
-					return (<P {...(props as P)} />) as JSX.Element;
-				})()
-			: null;
-
 		return (
 			<Show
 				fallback={
-					<Show fallback={PendingFallback} when={component()}>
+					<Show
+						fallback={
+							<Show when={props.pending ?? factoryPending}>
+								{(Comp) => <Dynamic component={Comp()} {...(props as P)} />}
+							</Show>
+						}
+						when={component()}
+					>
 						{(entry) => <Dynamic component={entry().C} {...(props as P)} />}
 					</Show>
 				}

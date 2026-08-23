@@ -73,8 +73,8 @@ Demo SPA locale switcher and nav links currently time out because they wait for 
 
 Do not mass-rewrite tests. Fix production reads that drop reactivity or hang.
 
-- [ ] `STRICT_READ_UNTRACKED` in **src** (ThemeProvider body `resolvedTheme()`, Await effect apply reading `props.promise`, Show children that call accessors under `untrack`, `ThrowError` in lazy). Tests that use IIFE children can wait.
-- [ ] `onSettled` vs `onMount` semantics anywhere else that must run during hydrate (theme, locale, direction, lazy).
+- [x] `STRICT_READ_UNTRACKED` in **src** (ThemeProvider body `resolvedTheme()`, Await effect apply reading `props.promise`, Show children that call accessors under `untrack`, `ThrowError` in lazy). Tests that use IIFE children can wait.
+- [x] `onSettled` vs `onMount` semantics anywhere else that must run during hydrate (theme, locale, direction, lazy).
 - [x] Keep Flare `<Await>` as the defer UI. Do not move page data onto `createMemo` + `<Loading>` in this landing.
 
 **Done when:** `bun run --filter @lovrozagar/flare test` stays green and demo has no hydrate-blocking diagnostics in the console.

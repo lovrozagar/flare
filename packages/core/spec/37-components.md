@@ -1,74 +1,19 @@
 # Components
 
-Layer 4 (client) / Layer 2 (SSR). SolidJS components for Flare document structure and streaming.
+Layer 4 (client) / Layer 2 (SSR). SolidJS components for Flare streaming UI and optional `<head>` helpers.
 
-## AppRoot
+There is no `<AppRoot>`, `<HeadContent>`, or `<HydrationScripts>` component. `hydrate()` targets the full `document`. Head tags, CSP nonce meta, theme/direction/locale scripts, `#flare-runtime` styles, `self.flare` state, and the entry module script are string-injected by `renderToStream` (`buildHeadPrefix` + `injectHeadContent`). Solid does not use `generateHydrationScript()` here.
 
-Container div with `id="app"` for hydration target.
-
-```ts
-type AppRootProps = Omit<JSX.HTMLAttributes<HTMLDivElement>, "id"> & {
-	children: JSX.Element;
-};
-
-function AppRoot(props: AppRootProps): JSX.Element;
-```
-
-Renders `<div id="app" data-testid="app-root" {...rest}>{children}</div>`. Accepts all div attributes except `id` (always `"app"`). Uses `omit` to separate children.
-
-## HeadContent
-
-SSR-only. Renders `<head>` elements from resolved HeadConfig.
-
-```ts
-function HeadContent(): JSX.Element;
-```
-
-**Server**: renders elements in order:
-
-1. HydrationScript (Solid's `generateHydrationScript()` with nonce)
-2. `<title>`
-3. `<meta name="description">`
-4. `<meta name="keywords">`
-5. `<link rel="canonical">`
-6. `<meta name="robots">` (built from robots object)
-7. OpenGraph meta (`og:title`, `og:description`, `og:type`, `og:url`, `og:site_name`, `og:locale`, `og:image` with width/height/alt)
-8. Twitter meta (`twitter:card`, `twitter:title`, `twitter:description`, `twitter:site`, `twitter:creator`, `twitter:image` with alt)
-9. JSON-LD structured data (`<script type="application/ld+json">`)
-10. Hreflang links (`<link rel="alternate" hreflang>`)
-11. Custom meta tags (name/content or property/content)
-
-**Client**: returns null — head already in DOM from SSR. Client-side head managed by head-client module.
-
-Reads context via `useSSRContext()` — accesses `resolvedHead` and `nonce`.
+Optional JSX helpers still exist for apps that render their own `<head>`: `ThemeScript`, `DirectionScript`, `ResetCSS`, `ViewTransitionCSS`. They read `useSSRContext()` and wrap in `<NoHydration>`.
 
 ### Robots Content Builder
 
-Converts robots object to meta content string:
+Converts robots object to meta content string (used by the SSR head injector):
 
 - `index: true` → "index", `index: false` → "noindex"
 - `follow: true` → "follow", `follow: false` → "nofollow"
 - `noarchive`, `noimageindex` flags
 - `max-snippet`, `max-image-preview`, `max-video-preview` directives
-
-## HydrationScripts
-
-SSR-only. Renders FlareState and entry client scripts.
-
-```ts
-function HydrationScripts(): JSX.Element;
-```
-
-**Server**: wrapped in `<NoHydration>` to prevent hydration marker leakage into sibling elements.
-
-Renders (when available):
-
-1. `<script nonce={nonce}>{flareStateScript}</script>` — serialized `self.flare` state
-2. `<script type="module" src={entryScript} nonce={nonce} />` — client entry point
-
-**Client**: returns null.
-
-`NoHydration` wrapper is critical — Solid's hydration context doesn't properly restore after sibling elements with nested boundaries.
 
 ## Await
 
@@ -233,12 +178,8 @@ The inline script (from `getDirectionScript(config)`) runs before body renders:
 ### Direction Utilities
 
 ```ts
-getDirFromLocale(locale: string | undefined): Direction
-initDirection(opts?: DirectionConfig): void
-setDirection(dir: Direction): void
-getDirection(): Direction                     /* reactive signal */
-toggleDirection(): void
-getDirectionConfig(): Readonly<DirectionConfig>
+getDirFromLocale(locale: string | undefined, rtlLocales?: readonly string[]): Direction
+DirectionProvider / useDirection              /* spec 29 */
 ```
 
 `getDirFromLocale` returns `"rtl"` for Arabic, Hebrew, Persian, Urdu based on the base locale code.
@@ -375,30 +316,6 @@ function DevErrorOverlay(): JSX.Element;
 ## Test Cases
 
 ```
-AppRoot:
-  Renders div with id="app"
-  Passes through HTML attributes
-  Renders children
-
-HeadContent:
-  SSR: renders HydrationScript with nonce
-  SSR: renders title, description, keywords
-  SSR: renders canonical link
-  SSR: renders robots meta from object
-  SSR: renders OpenGraph meta tags
-  SSR: renders Twitter meta tags
-  SSR: renders JSON-LD script
-  SSR: renders hreflang links
-  SSR: renders custom meta tags
-  Client: returns null
-
-HydrationScripts:
-  SSR: renders flare state script with nonce
-  SSR: renders entry client script as module
-  SSR: wrapped in NoHydration
-  SSR: returns null if no scripts
-  Client: returns null
-
 Await:
   Pending → renders pending slot
   Resolved → renders children with data
@@ -469,15 +386,13 @@ DevErrorOverlay:
 
 ## Notes
 
-- `HeadContent` and `HydrationScripts` use `useSSRContext()` — server-only rendering, null on client
-- `HydrationScripts` `NoHydration` wrapper prevents Solid hydration context corruption
-- `Await` supports both `Deferred` (server defer) and raw `Promise`
+- `Await` supports both `Deferred` (server defer) and raw `Promise` — this is NDJSON defer UI, not Solid 2 async memos / `<Loading>`
 - `Deferred.__resolved` / `__error` enable SSR→client state transfer without flash
 - `DevErrorOverlay` uses inline CSS strings because `ssrStyleProperty` isn't in client bundles
-- `AppRoot` `id="app"` must match hydration target in client init
+- Hydration target is `document` (full document), not `#app`
 - `ThemeScript` and `DirectionScript` are blocking `<head>` scripts — must run before first paint to prevent FOUC
 - `ResetCSS` is a static string — no dynamic generation, exported as constant for custom injection
 - `ViewTransitionCSS` pre-builds default CSS at import time — custom duration generates on render
 - `devErrorStore` deduplicates by hash of name + message + source + stack prefix — prevents flood from repeated errors
 - `devErrorStore.register()` accepts both `Error` (runtime) and `SerializedError` (from SSR `FlareState.e`)
-- All `<head>` components (`ThemeScript`, `DirectionScript`, `ResetCSS`, `ViewTransitionCSS`, `HeadContent`, `HydrationScripts`) use `<NoHydration>` wrapper
+- Optional `<head>` JSX helpers (`ThemeScript`, `DirectionScript`, `ResetCSS`, `ViewTransitionCSS`) use `<NoHydration>`

@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal, untrack } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 export interface Deferred<T> {
@@ -48,8 +48,10 @@ export function getResolvedError(value: unknown): Error | undefined {
 }
 
 export function Await<T>(props: AwaitProps<T>): JSX.Element {
-	const initialResolved = getResolvedValue(props.promise);
-	const initialError = getResolvedError(props.promise);
+	/* Snapshot only — `createEffect` below tracks `props.promise` for updates. */
+	const initialPromise = untrack(() => props.promise);
+	const initialResolved = getResolvedValue(initialPromise);
+	const initialError = getResolvedError(initialPromise);
 
 	function computeInitialStatus(): AwaitStatus {
 		if (initialResolved !== undefined) return "success";
@@ -61,7 +63,7 @@ export function Await<T>(props: AwaitProps<T>): JSX.Element {
 	const [data, setData] = createSignal<T | undefined>(initialResolved as Exclude<T | undefined, Function>);
 	const [error, setError] = createSignal<Error | undefined>(initialError);
 
-	let currentPromise = getPromise(props.promise);
+	let currentPromise = getPromise(initialPromise);
 
 	if (initialResolved === undefined && !initialError && currentPromise) {
 		trackPromise(currentPromise);

@@ -110,7 +110,7 @@ renderHeadToHtml(head: HeadConfig, nonce: string): string
 4. **Wrap the tree** with `<SSRContextProvider value={...}>` (Solid 2 has no `sharedConfig.context`)
 5. **Call Solid's `renderToStream()`** with the component tree
 6. **Collect scoped styles**: `getScopedStyles()` (spec 30) — all styles registered during render
-7. **Transform stream**: inject scoped `<style id="__FLARE_SCOPED__">` into `</head>`, inject state script + module scripts after `</body>`
+7. **Transform stream**: inject scoped `<style id="flare-runtime">` into `</head>`, inject state script + module scripts after `</body>`
 8. **Determine status** from match errors
 9. **Build response headers**: Content-Type + resolved route headers + CSP
 
@@ -286,7 +286,7 @@ Priority order: 401 > 403 > 404 > 500 > 200 (redirects handled at handler level,
 }
 ```
 
-CSP constructed from nonce: `script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}';` (exact directives configurable via handler config).
+CSP constructed from nonce: `script-src 'nonce-${nonce}'` and `style-src-elem 'nonce-${nonce}'`. Nonce is **not** on `style-src` — Chrome treats a nonce there as the fallback for both elements and attributes and then blocks CSSOM (`style={}` / `setProperty`) even when `style-src-attr` allows it. Defaults also set `style-src-attr 'unsafe-inline'`. A `<meta name="csp-nonce" nonce content>` is emitted so client JS can read the nonce (`content`; Chrome hides `getAttribute("nonce")`).
 
 ## Test Cases
 
@@ -304,7 +304,7 @@ renderToStream:
   No matches errored → status 200
   clearScopedStyles called before render → fresh style registry per request
   Components using styles() → CSS collected via getScopedStyles()
-  Scoped styles injected as <style id="__FLARE_SCOPED__"> in </head>
+  Scoped styles injected as <style id="flare-runtime"> in </head>
 
 serializeFlareState:
   Serializes to JSON string
@@ -385,5 +385,5 @@ Status derivation:
 - Head merge runs sequentially: root → layouts (nesting order) → page
 - `mergeHeadConfigs` and `mergeResponseHeaders` are pure functions, also used by NDJSON layer for CSR nav
 - Redirects short-circuit SSR — handler detects redirect in pipeline results and returns HTTP 3xx before rendering
-- Scoped styles (spec 30) integrated via `clearScopedStyles()` before render + `getScopedStyles()` after render. `clearScopedStyles` isolates per-request style state (Cloudflare Workers run concurrent requests in same isolate). Collected styles injected as `<style id="__FLARE_SCOPED__">` in `</head>` via stream transform.
+- Scoped styles (spec 30) integrated via `clearScopedStyles()` before render + `getScopedStyles()` after render. `clearScopedStyles` isolates per-request style state (Cloudflare Workers run concurrent requests in same isolate). Collected styles injected as `<style id="flare-runtime">` in `</head>` via stream transform.
 - SSR uses same `ErrorBoundaryWrapper` as CSR (spec 17) — identical boundary walk-up for error/notFound/unauthorized. No separate SSR-only boundary resolution.

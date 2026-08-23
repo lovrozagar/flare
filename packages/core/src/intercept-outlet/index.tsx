@@ -15,5 +15,5 @@ export interface InterceptOutletProps {
  */
 export function InterceptOutlet(props: InterceptOutletProps): JSX.Element {
 	const ctx = useContext(RouterContext);
-	return (<Show when={ctx?.intercepted()}>{(state) => props.children(state())}</Show>) as JSX.Element;
+	return (<Show when={ctx?.intercepted()}>{(state) => <>{props.children(state())}</>}</Show>) as JSX.Element;
 }
