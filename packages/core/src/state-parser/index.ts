@@ -68,6 +68,10 @@ export function hydrateLoaderData(matchId: string, data: unknown, resolvers: Map
 			resolveFn = resolve;
 			rejectFn = reject;
 		});
+		/* Handler attached in the same tick as construction so a later
+		   reject() (NDJSON error, navigation cancel) is not unhandled
+		   before Await's then() attaches. Multiple handlers still fire. */
+		promise.catch(() => {});
 		resolvers.set(`${matchId}:${data.key}`, { reject: rejectFn, resolve: resolveFn });
 		return { __deferred: true, __key: data.key, promise };
 	}

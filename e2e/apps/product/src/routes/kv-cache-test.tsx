@@ -4,7 +4,7 @@ let callCount = 0;
 
 export const route = createPage("_root_/kv-cache-test")
 	.cache({
-		ssr: { staleTime: 5_000, tags: ["kv-test"], ttl: 60 },
+		ssr: { staleTime: 30_000, tags: ["kv-test"], ttl: 60 },
 	})
 	.loader(() => {
 		callCount++;

@@ -1,7 +1,7 @@
 import { createPage } from "@lovrozagar/flare/page";
 
 export const route = createPage("_root_/cache-test")
-	.cache({ client: { staleTime: 2000 } })
+	.cache({ client: { staleTime: 30_000 } })
 	.loader(() => ({
 		random: Math.random(),
 		timestamp: Date.now(),

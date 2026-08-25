@@ -1179,36 +1179,44 @@ export async function prefetch(options: {
 	/* Hover/viewport prefetch must not refetch a route still inside client
 	   staleTime — that overwrites matchCache and looks like a cache miss. */
 	const clientStaleTime = parseMilliseconds(match.route.o.client?.staleTime ?? ctx.routerCacheDefaults?.staleTime ?? 0);
-	if (clientStaleTime > 0 && matchCacheHasFreshRoute(match.route.x, clientStaleTime)) return;
+	if (clientStaleTime > 0 && matchCacheHasFreshRoute(match.route.x, clientStaleTime)) {
+		visitedRoutes.add(match.route.x);
+		ctx.prefetchCache.mark(url.href);
+		return;
+	}
+
+	/* Mark visited immediately so a click during in-flight prefetch does not
+	   take navigate()'s parallel-fetch "new route" path. */
+	visitedRoutes.add(match.route.x);
+
+	const navCtx = ctx;
+	const loadMods = loadRouteModules;
+	if (!navCtx || !loadMods) return;
 
 	try {
-		const [fetchResult] = await Promise.all([
-			fetchNDJSON({ prefetch: true, queryClient: queryClientRef, url: url.href }),
-			loadRouteModules(rewritePathname(url.pathname), ctx.routeTree, ctx.layouts),
+		await Promise.all([
+			fetchNDJSON({ prefetch: true, queryClient: queryClientRef, url: url.href }).then((fetchResult) => {
+				const headByMatchId = new Map<string, HeadConfig>();
+				for (const h of fetchResult.perRouteHeads) {
+					headByMatchId.set(h.matchId, h.head);
+				}
+				const now = Date.now();
+				for (const m of fetchResult.matches) {
+					navCtx.matchCache.set({
+						data: m.loaderData,
+						error: m.error,
+						hasDeferred: m.hasDeferredMarkers,
+						headConfig: headByMatchId.get(m.matchId),
+						invalid: false,
+						matchId: m.matchId,
+						preloaderContext: m.preloaderContext,
+						updatedAt: now,
+					});
+				}
+			}),
+			loadMods(rewritePathname(url.pathname), navCtx.routeTree, navCtx.layouts),
 		]);
-
-		ctx.prefetchCache.mark(url.href);
-
-		/* Mark route visited so navigate() checks staleness instead of blind re-fetch */
-		if (match) visitedRoutes.add(match.route.x);
-
-		const headByMatchId = new Map<string, HeadConfig>();
-		for (const h of fetchResult.perRouteHeads) {
-			headByMatchId.set(h.matchId, h.head);
-		}
-		const now = Date.now();
-		for (const m of fetchResult.matches) {
-			ctx.matchCache.set({
-				data: m.loaderData,
-				error: m.error,
-				hasDeferred: m.hasDeferredMarkers,
-				headConfig: headByMatchId.get(m.matchId),
-				invalid: false,
-				matchId: m.matchId,
-				preloaderContext: m.preloaderContext,
-				updatedAt: now,
-			});
-		}
+		navCtx.prefetchCache.mark(url.href);
 	} catch {
 		/* Silently discard errors including redirects — prefetch is speculative
 		 * (hover/touch). Navigating on redirect would move the user away from
