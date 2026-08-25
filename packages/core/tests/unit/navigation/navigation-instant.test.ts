@@ -33,6 +33,7 @@ vi.mock("../../../src/history", async (importOriginal) => {
 	};
 });
 
+import { restoreScroll, scrollToTop } from "../../../src/history/index.ts";
 import { warn } from "../../../src/logger.ts";
 import { navigate, prefetch, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
 import { fetchNDJSON } from "../../../src/ndjson-client/index.ts";
@@ -40,6 +41,8 @@ import { matchRoute } from "../../../src/router-primitives/index.ts";
 
 const mockFetchNDJSON = fetchNDJSON as ReturnType<typeof vi.fn>;
 const mockMatchRoute = matchRoute as ReturnType<typeof vi.fn>;
+const mockRestoreScroll = restoreScroll as ReturnType<typeof vi.fn>;
+const mockScrollToTop = scrollToTop as ReturnType<typeof vi.fn>;
 
 function makeFakeTree(): TreeNode {
 	return { s: {} };
@@ -383,7 +386,7 @@ describe("instant navigation — in-flight prefetch is the navigation fetch", ()
 			}),
 		);
 		mockFetchNDJSON.mockResolvedValueOnce({
-			matches: [{ loaderData: { title: "full" }, matchId: ABOUT_ID }],
+			matches: [{ keepShell: true, loaderData: { title: "full" }, matchId: ABOUT_ID }],
 			perRouteHeads: [],
 			success: true,
 		});
@@ -399,7 +402,7 @@ describe("instant navigation — in-flight prefetch is the navigation fetch", ()
 			matches: [
 				{
 					hasDeferredMarkers: true,
-					loaderData: { title: "shell" },
+					loaderData: { inventory: { __deferred: true, key: "d0" }, title: "shell" },
 					matchId: ABOUT_ID,
 				},
 			],
@@ -412,6 +415,7 @@ describe("instant navigation — in-flight prefetch is the navigation fetch", ()
 		expect(mockFetchNDJSON).toHaveBeenCalledTimes(2);
 		expect(mockFetchNDJSON.mock.calls[0]?.[0]).toMatchObject({ prefetch: true });
 		expect(mockFetchNDJSON.mock.calls[1]?.[0]?.prefetch).toBeFalsy();
+		expect(mockFetchNDJSON.mock.calls[1]?.[0]?.keepMatchIds).toEqual([ABOUT_ID]);
 		expect(ctx.matches().some((m) => JSON.stringify(m.loaderData).includes("shell"))).toBe(true);
 	});
 });
@@ -506,5 +510,148 @@ describe("instant navigation — viewport warms modules only", () => {
 		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
 		expect(ctx.matches().some((m) => m.loaderData === "from-enter")).toBe(true);
 		expect(warn).toHaveBeenCalledWith("nav", expect.stringContaining("no prefetched shell"));
+	});
+});
+
+describe("instant navigation — popstate restores scroll on the cached shell", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		mockRestoreScroll.mockReset();
+		mockScrollToTop.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("restores saved scroll on the cached shell before rAF or the enter fetch", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "cached-page", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await prefetch({ to: "/about" });
+
+		vi.stubGlobal("requestAnimationFrame", () => 1);
+
+		let resolveNavFetch: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReset();
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolveNavFetch = resolve;
+			}),
+		);
+		stubAboutRoute();
+
+		const navP = navigate({
+			_popstate: true,
+			_restoreScroll: { x: 0, y: 420 },
+			to: "/about",
+		});
+
+		await vi.waitFor(() => {
+			expect(ctx.matches().some((m) => m.loaderData === "cached-page")).toBe(true);
+		});
+
+		/* Same turn as the shell paint — not after fetch, not after rAF. */
+		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 0, y: 420 }, "auto");
+		expect(mockScrollToTop).not.toHaveBeenCalled();
+
+		resolveNavFetch?.({
+			matches: [{ loaderData: "fresh", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navP;
+	});
+});
+
+describe("instant navigation — aborted deferred visits refetch", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("returning after abort does not keepMatchIds or keep dead promises", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		mockMatchRoute.mockImplementation((_tree, pathname) => {
+			if (String(pathname).includes("about")) {
+				return { params: {}, route: makeRoute("_root_/about") };
+			}
+			return { params: {}, route: makeRoute("_root_/other") };
+		});
+		mockLoadRouteModules.mockImplementation(async (pathname) => {
+			if (String(pathname).includes("about")) {
+				return makeLoadedModules({ page: ABOUT_PAGE });
+			}
+			return makeLoadedModules({ page: makeModule("_root_/other") });
+		});
+
+		const deadFast = new Promise(() => {});
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [
+				{
+					hasDeferredMarkers: true,
+					loaderData: {
+						fast: { __key: "d0", promise: deadFast },
+						instant: "instant-value",
+					},
+					matchId: ABOUT_ID,
+				},
+			],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ to: "/about" });
+
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [{ loaderData: "other", matchId: "_root_/other:{}:[]" }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ to: "/other" });
+
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [
+				{
+					hasDeferredMarkers: true,
+					loaderData: {
+						fast: { __key: "d0", promise: Promise.resolve("fast-result") },
+						instant: "instant-value",
+					},
+					matchId: ABOUT_ID,
+				},
+			],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ to: "/about" });
+
+		expect(mockFetchNDJSON.mock.calls[2]?.[0]?.keepMatchIds).toBeFalsy();
+
+		const page = ctx.matches().find((m) => m.virtualPath === "_root_/about");
+		const data = page?.loaderData as { fast: { promise: Promise<unknown> }; instant: string };
+		expect(data.instant).toBe("instant-value");
+		await expect(data.fast.promise).resolves.toBe("fast-result");
 	});
 });
