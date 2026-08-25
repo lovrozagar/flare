@@ -100,6 +100,16 @@ describe("buildSecurityHeaders()", () => {
 		expect(csp).toContain("'unsafe-inline'");
 		expect(csp).toContain("'unsafe-eval'");
 	});
+
+	it("dev CSP does not upgrade-insecure-requests (HTTP localhost must not become https)", () => {
+		const headers = buildSecurityHeaders({ isDev: true, nonce: "abc" });
+		expect(headers["Content-Security-Policy"]).not.toContain("upgrade-insecure-requests");
+	});
+
+	it("production CSP still has upgrade-insecure-requests", () => {
+		const headers = buildSecurityHeaders({ isDev: false, nonce: "abc" });
+		expect(headers["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+	});
 });
 
 describe("buildPermissionsPolicy()", () => {

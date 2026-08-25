@@ -67,6 +67,13 @@ describe("buildServerTimingHeader", () => {
 	it("returns empty string for no entries", () => {
 		expect(buildServerTimingHeader([])).toBe("");
 	});
+
+	it("sanitizes span names to Server-Timing tokens (no : or /)", () => {
+		const header = buildServerTimingHeader([{ dur: 1.2, name: "flare.pipeline.preloader:_root_/preloader-redirect" }]);
+		expect(header).toBe("flare.pipeline.preloader._root_.preloader-redirect;dur=1.2");
+		expect(header).not.toContain(":");
+		expect(header).not.toContain("/");
+	});
 });
 
 describe("createOtelTracer", () => {
