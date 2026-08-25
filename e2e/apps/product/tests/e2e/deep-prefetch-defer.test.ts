@@ -172,8 +172,8 @@ test.describe("Prefetch cache: deferred forces refetch, non-deferred uses cache"
 		const prefetchCount = ndjsonRequests.filter((r) => r.isPrefetch).length;
 		expect(prefetchCount).toBeGreaterThanOrEqual(1);
 
-		/* Step 2: click to navigate — should fire a SECOND (non-prefetch) request
-		 * because hasDeferred forces cache staleness */
+		/* Step 2: click still fires enter NDJSON so deferred fns start and `c` streams.
+		 * The prefetch `l` shell is kept (see timestamp test below). */
 		await setNavMarker(page);
 		await page.locator("[data-testid='prefetch-defer-link']").click({ force: true });
 		await page.waitForURL("**/prefetch-defer");
@@ -296,10 +296,9 @@ test.describe("Deferred data freshness after prefetch", () => {
 		const shellText = await page.locator("[data-testid='shell-data']").textContent();
 		const shellTs = Number(shellText?.replace("shell-", ""));
 
-		/* Shell data comes from the refetch (hasDeferred forces stale),
-		 * so it will have a timestamp from navigate time, not prefetch time.
-		 * Just verify it's a valid recent timestamp. */
-		expect(shellTs).toBeGreaterThan(beforePrefetch);
+		/* Prefetch `l` shell is kept — timestamp is from prefetch, not enter. */
+		expect(shellTs).toBeGreaterThanOrEqual(beforePrefetch - 50);
+		expect(shellTs).toBeLessThanOrEqual(afterPrefetch + 200);
 
 		cap.assertClean();
 	});

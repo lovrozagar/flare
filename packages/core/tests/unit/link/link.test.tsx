@@ -583,7 +583,7 @@ describe("Link", () => {
 			);
 
 			/* render prefetch waits for load + idle so it stays off the LCP chain */
-			await vi.waitFor(() => expect(mockPrefetch).toHaveBeenCalledWith({ to: "/about" }));
+			await vi.waitFor(() => expect(mockPrefetch).toHaveBeenCalledWith({ modulesOnly: true, to: "/about" }));
 		});
 
 		it("no prefetch on mount when strategy is false", async () => {
@@ -844,7 +844,7 @@ describe("Link", () => {
 				{} as IntersectionObserver,
 			);
 
-			expect(mockPrefetch).toHaveBeenCalledWith({ to: "/lazy" });
+			expect(mockPrefetch).toHaveBeenCalledWith({ modulesOnly: true, to: "/lazy" });
 		});
 
 		it("prefetch NOT called before intersection", async () => {
@@ -1067,7 +1067,7 @@ describe("Link", () => {
 				{} as IntersectionObserver,
 			);
 
-			expect(mockPrefetch).toHaveBeenCalledWith({ to: "/lazy" });
+			expect(mockPrefetch).toHaveBeenCalledWith({ modulesOnly: true, to: "/lazy" });
 			globalThis.IntersectionObserver = originalIO;
 		});
 

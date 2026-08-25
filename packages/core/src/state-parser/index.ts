@@ -57,6 +57,17 @@ export function isDeferredMarker(value: unknown): value is DeferredMarker {
 	return obj.__deferred === true && "key" in obj && typeof obj.key === "string";
 }
 
+const MAX_DEFERRED_WALK = 50;
+
+/** Prefetch stores `{ __deferred, key }` with no promise. Hydrated shells use `__key` + `promise`. */
+export function hasRawDeferredMarkers(data: unknown, depth = 0): boolean {
+	if (depth > MAX_DEFERRED_WALK) return false;
+	if (data === null || data === undefined || typeof data !== "object") return false;
+	if (isDeferredMarker(data) && !("promise" in data)) return true;
+	if (Array.isArray(data)) return data.some((v) => hasRawDeferredMarkers(v, depth + 1));
+	return Object.values(data as Record<string, unknown>).some((v) => hasRawDeferredMarkers(v, depth + 1));
+}
+
 export function hydrateLoaderData(matchId: string, data: unknown, resolvers: Map<string, DeferredResolver>): unknown {
 	if (data === null || data === undefined) return data;
 	if (typeof data !== "object") return data;
