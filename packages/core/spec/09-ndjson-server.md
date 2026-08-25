@@ -116,13 +116,13 @@ interface NDJSONResponseConfig {
 
 Client sets these to trigger NDJSON mode:
 
-| Header | Value                    | Purpose                                    |
-| ------ | ------------------------ | ------------------------------------------ |
-| `x-d`  | `"1"`                    | Marks as CSR data request (enables NDJSON) |
-| `x-m`  | comma-separated matchIds | Request specific routes only               |
-| `x-p`  | `"1"`                    | Prefetch flag (cause = "prefetch")         |
+| Header           | Value                    | Purpose                                    |
+| ---------------- | ------------------------ | ------------------------------------------ |
+| `flare-data`     | `"1"`                    | Marks as CSR data request (enables NDJSON) |
+| `flare-stale`    | comma-separated matchIds | Request specific routes only               |
+| `flare-prefetch` | `"1"`                    | Prefetch flag (cause = "prefetch")         |
 
-Detection: `x-d === "1"` → data request → NDJSON. No HTML nav mode in v2.
+Detection: `flare-data === "1"` → data request → NDJSON. No HTML nav mode in v2.
 
 ## Exports
 
@@ -313,11 +313,11 @@ Error handling:
   RedirectResponse in loader results → redirect response, not error message
 
 Request header detection:
-  x-d: "1" → NDJSON mode
-  x-d: "1" → NDJSON (only data request format in v2)
-  No x-d → NOT data request (initial page load → SSR)
-  x-p: "1" → prefetch flag, cause = "prefetch"
-  x-m: "a,b,c" → request only those matchIds
+  flare-data: "1" → NDJSON mode
+  flare-data: "1" → NDJSON (only data request format in v2)
+  No flare-data → NOT data request (initial page load → SSR)
+  flare-prefetch: "1" → prefetch flag, cause = "prefetch"
+  flare-stale: "a,b,c" → request only those matchIds
 
 Edge cases:
   Empty matches array → just done message
@@ -337,4 +337,4 @@ Edge cases:
 - Non-streaming path exists as optimization — skip ReadableStream overhead when no deferred
 - Stream error mid-flight doesn't crash response — caught per-chunk, sent as error message
 - No custom queuing strategy needed — NDJSON messages are small (hundreds of bytes each), default `ReadableStream` backpressure is sufficient. Cloudflare Workers uses fixed internal buffering.
-- `x-m` header for partial route loading — only requested routes sent loader data. Used when navigating within same layout (layout data already cached). When `x-m` is set: filter `matches` to only include matchIds listed in the header. Non-listed routes skipped entirely (no loader, head, or error messages). The done message always sent regardless of filtering.
+- `flare-stale` header for partial route loading — only requested routes sent loader data. Used when navigating within same layout (layout data already cached). When `flare-stale` is set: filter `matches` to only include matchIds listed in the header. Non-listed routes skipped entirely (no loader, head, or error messages). The done message always sent regardless of filtering.

@@ -54,7 +54,7 @@ function makeHandler(opts: {
 }
 
 function dataRequest(url: string, headers?: Record<string, string>): Request {
-	return new Request(url, { headers: { "x-d": "1", ...headers } });
+	return new Request(url, { headers: { "flare-data": "1", ...headers } });
 }
 
 function request(url: string): Request {

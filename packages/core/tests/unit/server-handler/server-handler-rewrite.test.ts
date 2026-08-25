@@ -52,7 +52,7 @@ function makeHandler(opts: {
 
 /* data request avoids SSR (renderToStream fails in jsdom) */
 function dataRequest(url: string): Request {
-	return new Request(url, { headers: { "x-d": "1" } });
+	return new Request(url, { headers: { "flare-data": "1" } });
 }
 
 function request(url: string): Request {

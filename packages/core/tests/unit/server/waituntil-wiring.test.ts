@@ -12,7 +12,7 @@ import { buildRouter } from "../../integration/fixtures.ts";
 
 function dataReq(path: string): Request {
 	return new Request(`http://localhost${path}`, {
-		headers: { "x-d": "1" },
+		headers: { "flare-data": "1" },
 	});
 }
 

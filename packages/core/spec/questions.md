@@ -105,7 +105,7 @@ Every question answerable from the specs. Per-spec questions kept as-is (answers
 - What request headers trigger NDJSON mode?
 - Why is there no `t:"q"` message?
 - How does `Promise.allSettled` ensure `done` is always sent?
-- What happens when `x-m` specifies specific matchIds?
+- What happens when `flare-stale` specifies specific matchIds?
 
 ### Boundaries (10)
 
@@ -141,7 +141,7 @@ Every question answerable from the specs. Per-spec questions kept as-is (answers
 
 - What are the 6 steps of the hydration bootstrap?
 - Why does `solidHydrate` need a `<Dummy>` wrapper?
-- What does `data-hydrated` on `<html>` signal?
+- What does `data-flare-hydrated` on `<html>` signal?
 - What does `waitForLazyPreloads` ensure before hydration?
 
 ### Navigation (15)
@@ -320,7 +320,7 @@ A: After all loaders complete. The pipeline (spec 06) runs ALL 6 phases before r
 
 **Q: If a page has 3 deferred values and SSR is streaming — does the HTML stream contain the pending fallbacks, and then NDJSON chunks resolve them after the page loads?**
 
-A: Deferred values during SSR are rendered as Suspense pending fallbacks in the HTML stream. The `promise` field on the server `Deferred` is active — Solid's `renderToStream` handles this via its built-in streaming Suspense: if a deferred promise resolves while the HTML stream is still open, Solid inlines the resolved content as a `<script>` chunk appended to the stream (same mechanism as SolidStart). The HTML stream stays open until all Suspense boundaries resolve. NDJSON is a separate concern — only for CSR navigation (`x-d: "1"`). Flare does not need its own SSR delivery mechanism — Solid's streaming handles it entirely.
+A: Deferred values during SSR are rendered as Suspense pending fallbacks in the HTML stream. The `promise` field on the server `Deferred` is active — Solid's `renderToStream` handles this via its built-in streaming Suspense: if a deferred promise resolves while the HTML stream is still open, Solid inlines the resolved content as a `<script>` chunk appended to the stream (same mechanism as SolidStart). The HTML stream stays open until all Suspense boundaries resolve. NDJSON is a separate concern — only for CSR navigation (`flare-data: "1"`). Flare does not need its own SSR delivery mechanism — Solid's streaming handles it entirely.
 
 **Q: In NDJSON mode, can the server decide mid-response to switch from non-streaming to streaming? What if a deferred promise resolves before the ready message?**
 
@@ -332,7 +332,7 @@ A: Spec 09 uses `ReadableStream` with `controller.enqueue()`. Non-issue — NDJS
 
 **Q: Can a single request have BOTH streaming HTML (SSR) AND NDJSON chunks?**
 
-A: No. Strictly separate. Spec 24 step 9: no `x-d` → SSR (HTML), `x-d: "1"` → NDJSON. One or the other. SSR deferred resolution uses Solid's built-in streaming Suspense mechanism within the HTML stream, not NDJSON.
+A: No. Strictly separate. Spec 24 step 9: no `flare-data` → SSR (HTML), `flare-data: "1"` → NDJSON. One or the other. SSR deferred resolution uses Solid's built-in streaming Suspense mechanism within the HTML stream, not NDJSON.
 
 **Q: If `htmlCache` middleware caches an SSR response with streaming Suspense — does the cache capture the complete stream?**
 
@@ -458,15 +458,15 @@ A: Race condition in signal updates. Navigate to A (version=1), abort fires, Nav
 
 **Q: Navigate `/products/1` → `/products/2`. Same layout. Does layout's loader re-run?**
 
-A: Depends on matchId. The layout's matchId is `${routeId}:${params}:${deps}`. If the layout's `loaderDeps` doesn't depend on the page's params, the matchId is identical → cache check: if `staleTime: 0` (default), it IS stale → re-fetches. With `staleTime: 30000`, cache is fresh → skips. The `x-m` header sends only stale matchIds — if layout is fresh, server skips its loader.
+A: Depends on matchId. The layout's matchId is `${routeId}:${params}:${deps}`. If the layout's `loaderDeps` doesn't depend on the page's params, the matchId is identical → cache check: if `staleTime: 0` (default), it IS stale → re-fetches. With `staleTime: 30000`, cache is fresh → skips. The `flare-stale` header sends only stale matchIds — if layout is fresh, server skips its loader.
 
 **Q: `navigate()` called during `navigate()` execution — re-entrancy protection?**
 
 A: Spec 15 step 3: `if (currentController) currentController.abort()`. The second `navigate()` aborts the first. The first navigate checks `controller.signal.aborted` after each async step and returns silently. No explicit re-entrancy guard beyond abort — it's abort-based cancellation.
 
-**Q: `x-m` header staleness gap — client thinks layout is fresh, but server data changed.**
+**Q: `flare-stale` header staleness gap — client thinks layout is fresh, but server data changed.**
 
-A: Correct — this is an inherent race. The `x-m` header is a client-side optimization to avoid redundant work. If the layout data changed server-side but the client cache says fresh, the client uses stale cached data. This is the expected stale-while-revalidate behavior. The next navigation (when cache expires) would fetch fresh data. `invalidate()` or `refetch()` force immediate refresh.
+A: Correct — this is an inherent race. The `flare-stale` header is a client-side optimization to avoid redundant work. If the layout data changed server-side but the client cache says fresh, the client uses stale cached data. This is the expected stale-while-revalidate behavior. The next navigation (when cache expires) would fetch fresh data. `invalidate()` or `refetch()` force immediate refresh.
 
 **Q: SSR redirect loop limit?**
 
@@ -544,11 +544,11 @@ A: Spec 36: `htmlCache` extracts the nonce from the first 4KB of cached HTML. On
 
 ### Server Functions — Integration Edge Cases
 
-**Q: `/_fn/` path goes through middleware?**
+**Q: `/_flare/server-fn/` path goes through middleware?**
 
 A: Yes. Spec 24 flow: step 6 (middleware) runs before step 7 (server fn check). Server function requests go through the full middleware chain first.
 
-**Q: Middleware returns `bypass` for `/_fn/` path — server function never executes?**
+**Q: Middleware returns `bypass` for `/_flare/server-fn/` path — server function never executes?**
 
 A: Correct. Bypass short-circuits everything. The server function handler (step 7) never reached. This is intentional — middleware has full control over all requests.
 
@@ -572,9 +572,9 @@ A: If `dedupeFetch: true` (default), `globalThis.fetch` is patched. Server funct
 
 A: Spec 14: `waitForLazyPreloads` uses `Promise.all(promises)`. If one promise never resolves, hydration hangs. Spec 31 (preload) has retry with max 2 attempts — after exhaustion, `throws: true` → rejects, `throws: false` → resolves undefined. So the preload promise DOES settle eventually (resolve or reject). If it rejects, `Promise.all` rejects, and `hydrate` throws. On failure, the SSR HTML remains visible but non-interactive — the page degrades to static HTML. No framework-level error UI. Apps can wrap `hydrate()` in try/catch to show a reload prompt.
 
-**Q: JavaScript fails to load entirely — testing framework hangs on `data-hydrated`?**
+**Q: JavaScript fails to load entirely — testing framework hangs on `data-flare-hydrated`?**
 
-A: Yes. `data-hydrated` is set by JavaScript after `solidHydrate` completes (spec 14). If JS fails to load, the attribute is never set. The testing framework (spec 35) would poll forever. This is by design — if JS doesn't load, the app isn't interactive.
+A: Yes. `data-flare-hydrated` is set by JavaScript after `solidHydrate` completes (spec 14). If JS fails to load, the attribute is never set. The testing framework (spec 35) would poll forever. This is by design — if JS doesn't load, the app isn't interactive.
 
 **Q: `FlareState.dk` chunk fails to load?**
 
@@ -594,7 +594,7 @@ A: Solid's `hydrate()` requires identical tree structure. Spec 14 notes: "Dummy 
 
 **Q: `staleTime: 0` (default) — every navigation re-fetches?**
 
-A: Yes. `Date.now() - updatedAt > 0` is always true (unless `updatedAt === Date.now()`, which is essentially impossible). Every matchId check returns stale. Every navigation sends all matchIds in `x-m`. The layout stays mounted (layout persistence, spec 17), but its data re-fetches. UI doesn't unmount/remount — signal updates with new data.
+A: Yes. `Date.now() - updatedAt > 0` is always true (unless `updatedAt === Date.now()`, which is essentially impossible). Every matchId check returns stale. Every navigation sends all matchIds in `flare-stale`. The layout stays mounted (layout persistence, spec 17), but its data re-fetches. UI doesn't unmount/remount — signal updates with new data.
 
 **Q: `invalidate()` on a currently mounted match — stale data while re-fetching or loading state?**
 
@@ -602,7 +602,7 @@ A: Spec 17: `invalidate()` calls `navigate({ revalidate: true, to: currentURL, r
 
 **Q: `prefetchCache` URL-keyed vs `matchCache` matchId-keyed. Invalidating one matchId — mismatch?**
 
-A: `prefetchCache` and `matchCache` are independent. Navigation (spec 15) checks `matchCache` staleness per matchId. `prefetchCache` is checked for URL-level dedup (avoid refetching a URL that was recently prefetched). If you invalidate one matchId in `matchCache`, the next navigation checks each matchId independently. The invalidated one is stale → included in `x-m`. The fresh ones are not. `prefetchCache` isn't consulted for regular navigation — only for prefetch dedup.
+A: `prefetchCache` and `matchCache` are independent. Navigation (spec 15) checks `matchCache` staleness per matchId. `prefetchCache` is checked for URL-level dedup (avoid refetching a URL that was recently prefetched). If you invalidate one matchId in `matchCache`, the next navigation checks each matchId independently. The invalidated one is stale → included in `flare-stale`. The fresh ones are not. `prefetchCache` isn't consulted for regular navigation — only for prefetch dedup.
 
 **Q: `staleTime` vs `gcTime` — user experience difference between stale and GC'd data?**
 
@@ -690,9 +690,9 @@ A:
 4. `normalizeUrl` — `/products/123` passes (no trailing slash, no extension)
 5. `runWithServerContext({ nonce, request })`
 6. Build MiddlewareContext, run middlewares: `i18n` detects locale from URL/cookie/Accept-Language, sets locale on `serverRequestContext`, returns `middlewareNext()`
-7. Check `/_fn/` prefix — no, continue
+7. Check `/_flare/server-fn/` prefix — no, continue
 8. `matchRoute(routeTree, "/products/123")` → `{ route, params: { id: "123" } }`
-9. No `x-d` header → SSR mode, cause = "initial"
+9. No `flare-data` header → SSR mode, cause = "initial"
 10. `loadRouteModules`: derive layouts from virtualPath → `["_root_", "_root_/(auth)"]`. Load root layout + auth layout + product page modules in parallel
 11. Build `ResolvedRoute[]`: [root, authLayout, productPage]
 12. `runPipeline`:
@@ -714,7 +714,7 @@ Client hydration:
 4. `loadRouteModules` (modules may already be loaded from SSR bundle)
 5. `waitForLazyPreloads()`
 6. `solidHydrate` — attaches reactivity, `<Await>` shows pending fallback for reviews
-7. Set `data-hydrated` attribute
+7. Set `data-flare-hydrated` attribute
 8. `setupNavigation(ctx)` — popstate listener, GC interval
 
 NDJSON chunk arrives (reviews resolved on server):
@@ -730,8 +730,8 @@ First CSR nav to `/products/456`:
 4. `matchRoute` → same route, params: `{ id: "456" }`
 5. Load modules — already cached (same page type)
 6. Compute matchId — different (id changed) → stale
-7. `fetchNDJSON({ url: "/products/456", matchIds: [pageMatchId] })` — layout matchIds fresh (same params), only page sent in `x-m`
-8. Server runs pipeline for page only (x-m filter), streams NDJSON: loader message (product + deferred reviews marker) → head → ready → done (chunks stream after)
+7. `fetchNDJSON({ url: "/products/456", matchIds: [pageMatchId] })` — layout matchIds fresh (same params), only page sent in `flare-stale`
+8. Server runs pipeline for page only (flare-stale filter), streams NDJSON: loader message (product + deferred reviews marker) → head → ready → done (chunks stream after)
 9. `fetchNDJSON` returns on ready
 10. Update matchCache
 11. Build matches, wrap state update in view transition
@@ -743,7 +743,7 @@ First CSR nav to `/products/456`:
 
 A:
 
-1. Hover on Link to `/products/2` → `prefetch({ to: ... })` starts: `fetchNDJSON` with `x-p: "1"`, stored in prefetchCache
+1. Hover on Link to `/products/2` → `prefetch({ to: ... })` starts: `fetchNDJSON` with `flare-prefetch: "1"`, stored in prefetchCache
 2. User clicks the link → `navigate()` starts. Step 7 checks matchCache staleness. If prefetch completed, prefetchCache has data → matchCache populated from prefetch → no fetch needed → instant nav. If prefetch still in-flight, navigate's own fetch starts (prefetch abort depends on implementation — they use separate controllers)
 3. Immediately clicks back → `popstate` fires → new `navigate()` to `/products/1`. Step 3 aborts the `/products/2` navigation. `/products/1` data is in matchCache (just navigated from there) → fresh → no fetch → instant nav from cache
 4. Scroll restored from scroll store (spec 26) using the history key, double rAF timing

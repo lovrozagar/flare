@@ -44,7 +44,7 @@ function _findLoaderWithData(messages: NDJSONMessage[]): NDJSONMessage[] {
 /* ── Basic data request ──────────────────────────────────────────────── */
 
 describe("NDJSON — content type and headers", () => {
-	it("x-d:1 → application/x-ndjson content type", async () => {
+	it("flare-data:1 → application/x-ndjson content type", async () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(dataRequest("/about"), {});
 
@@ -329,7 +329,7 @@ describe("NDJSON — broken loader", () => {
 /* ── Prefetch ────────────────────────────────────────────────────────── */
 
 describe("NDJSON — prefetch cause", () => {
-	it("x-p:1 → loader receives cause='prefetch' and prefetch=true", async () => {
+	it("flare-prefetch:1 → loader receives cause='prefetch' and prefetch=true", async () => {
 		let capturedCause: unknown;
 		let capturedPrefetch: unknown;
 		const tree = createTreeNode();
@@ -355,13 +355,13 @@ describe("NDJSON — prefetch cause", () => {
 		});
 		const router = createRouter({ layouts: {}, routeTree: tree });
 		const handler = createServerHandler({ router });
-		await handler.fetch(makeRequest("/spy", { headers: { "x-d": "1", "x-p": "1" } }), {});
+		await handler.fetch(makeRequest("/spy", { headers: { "flare-data": "1", "flare-prefetch": "1" } }), {});
 
 		expect(capturedCause).toBe("prefetch");
 		expect(capturedPrefetch).toBe(true);
 	});
 
-	it("without x-p:1 → cause='enter' and prefetch=false", async () => {
+	it("without flare-prefetch:1 → cause='enter' and prefetch=false", async () => {
 		let capturedCause: unknown;
 		let capturedPrefetch: unknown;
 		const tree = createTreeNode();
@@ -396,8 +396,8 @@ describe("NDJSON — prefetch cause", () => {
 
 /* ── Stale match filtering ───────────────────────────────────────────── */
 
-describe("NDJSON — stale match filtering (x-m)", () => {
-	it("x-m with non-matching route → loader NOT called", async () => {
+describe("NDJSON — stale match filtering (flare-stale)", () => {
+	it("flare-stale with non-matching route → loader NOT called", async () => {
 		const loaderSpy = vi.fn(() => ({ fresh: true }));
 		const tree = createTreeNode();
 		insertRoute(tree, "/filtered", {
@@ -418,12 +418,15 @@ describe("NDJSON — stale match filtering (x-m)", () => {
 		});
 		const router = createRouter({ layouts: {}, routeTree: tree });
 		const handler = createServerHandler({ router });
-		await handler.fetch(makeRequest("/filtered", { headers: { "x-d": "1", "x-m": "_root_/other-route" } }), {});
+		await handler.fetch(
+			makeRequest("/filtered", { headers: { "flare-data": "1", "flare-stale": "_root_/other-route" } }),
+			{},
+		);
 
 		expect(loaderSpy).not.toHaveBeenCalled();
 	});
 
-	it("x-m matching route → loader called", async () => {
+	it("flare-stale matching route → loader called", async () => {
 		const loaderSpy = vi.fn(() => ({ stale: true }));
 		const tree = createTreeNode();
 		insertRoute(tree, "/stale", {
@@ -444,12 +447,12 @@ describe("NDJSON — stale match filtering (x-m)", () => {
 		});
 		const router = createRouter({ layouts: {}, routeTree: tree });
 		const handler = createServerHandler({ router });
-		await handler.fetch(makeRequest("/stale", { headers: { "x-d": "1", "x-m": "_root_/stale" } }), {});
+		await handler.fetch(makeRequest("/stale", { headers: { "flare-data": "1", "flare-stale": "_root_/stale" } }), {});
 
 		expect(loaderSpy).toHaveBeenCalled();
 	});
 
-	it("x-m with prefix match → loader called", async () => {
+	it("flare-stale with prefix match → loader called", async () => {
 		const loaderSpy = vi.fn(() => ({ stale: true }));
 		const tree = createTreeNode();
 		insertRoute(tree, "/prefixed", {
@@ -470,7 +473,10 @@ describe("NDJSON — stale match filtering (x-m)", () => {
 		});
 		const router = createRouter({ layouts: {}, routeTree: tree });
 		const handler = createServerHandler({ router });
-		await handler.fetch(makeRequest("/prefixed", { headers: { "x-d": "1", "x-m": "_root_/prefixed:some-dep" } }), {});
+		await handler.fetch(
+			makeRequest("/prefixed", { headers: { "flare-data": "1", "flare-stale": "_root_/prefixed:some-dep" } }),
+			{},
+		);
 
 		expect(loaderSpy).toHaveBeenCalled();
 	});
@@ -479,7 +485,7 @@ describe("NDJSON — stale match filtering (x-m)", () => {
 /* ── 404 ─────────────────────────────────────────────────────────────── */
 
 describe("NDJSON — 404 for unknown route", () => {
-	it("unknown route with x-d:1 → 404 NDJSON (SPA can parse it)", async () => {
+	it("unknown route with flare-data:1 → 404 NDJSON (SPA can parse it)", async () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(dataRequest("/nonexistent"), {});
 

@@ -24,7 +24,7 @@ test.describe("theme first land", () => {
 		/* Evaluate immediately — waitForFunction yields and prod hydrate can finish first. */
 		const beforeHydrate = await page.evaluate(() => ({
 			colorScheme: document.documentElement.style.colorScheme,
-			hydrated: document.documentElement.hasAttribute("data-hydrated"),
+			hydrated: document.documentElement.hasAttribute("data-flare-hydrated"),
 			theme: document.documentElement.getAttribute("data-theme"),
 		}));
 		expect(beforeHydrate.theme).toBe("dark");
@@ -37,7 +37,7 @@ test.describe("theme first land", () => {
 		await page.goto("/theme-dir", { waitUntil: "commit" });
 		const beforeHydrate = await page.evaluate(() => ({
 			colorScheme: document.documentElement.style.colorScheme,
-			hydrated: document.documentElement.hasAttribute("data-hydrated"),
+			hydrated: document.documentElement.hasAttribute("data-flare-hydrated"),
 			theme: document.documentElement.getAttribute("data-theme"),
 		}));
 		expect(beforeHydrate.theme).toBe("dark");

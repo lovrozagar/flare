@@ -28,7 +28,7 @@ test.describe("Search params: multi-value preservation", () => {
 
 	test("client hydration preserves multi-value search params", async ({ page }) => {
 		await page.goto("/search-demo?tag=x&tag=y");
-		await page.waitForSelector("[data-hydrated]");
+		await page.waitForSelector("[data-flare-hydrated]");
 		const text = await page.locator('[data-testid="search-all-params"]').textContent();
 		const parsed = JSON.parse(text ?? "{}");
 		expect(parsed.tag).toEqual(["x", "y"]);
@@ -36,7 +36,7 @@ test.describe("Search params: multi-value preservation", () => {
 
 	test("SPA navigation preserves multi-value search params", async ({ page }) => {
 		await page.goto("/search-demo?q=initial");
-		await page.waitForSelector("[data-hydrated]");
+		await page.waitForSelector("[data-flare-hydrated]");
 		await navigateSPA(page, "/search-demo?color=red&color=blue&color=green");
 		/* Wait for loader data to reflect the new search params */
 		await page.waitForFunction(() => {

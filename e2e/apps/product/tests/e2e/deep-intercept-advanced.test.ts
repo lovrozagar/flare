@@ -230,7 +230,7 @@ test.describe("Intercept routes — advanced", () => {
 
 		/* Hard reload */
 		await page.reload({ waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 

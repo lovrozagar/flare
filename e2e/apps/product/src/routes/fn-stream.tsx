@@ -12,7 +12,7 @@ export const route = createPage("_root_/fn-stream").render(() => {
 	const start = async () => {
 		setStatus("streaming");
 		setChunks([]);
-		const res = await fetch("/_fn/slow-stream/slow-stream", {
+		const res = await fetch("/_flare/server-fn/slow-stream/slow-stream", {
 			body: "{}",
 			headers: { "content-type": "application/json" },
 			method: "POST",

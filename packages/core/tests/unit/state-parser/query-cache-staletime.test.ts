@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { installQueryCacheResolver } from "../../../src/state-parser/index.ts";
 
 function cleanGlobals() {
-	globalThis.__flare_qc = undefined;
+	globalThis.__flare_queries = undefined;
 }
 
 function createMockQueryClient() {
@@ -17,7 +17,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("valid positive staleTime applied", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k1"], staleTime: 5000 }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k1"], staleTime: 5000 }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k1"], "val");
@@ -26,7 +26,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("zero staleTime applied", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k2"], staleTime: 0 }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k2"], staleTime: 0 }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k2"], "val");
@@ -35,7 +35,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("undefined staleTime skipped", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k3"] }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k3"] }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k3"], "val");
@@ -44,7 +44,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("null staleTime skipped", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k4"], staleTime: null }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k4"], staleTime: null }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k4"], "val");
@@ -53,7 +53,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("NaN staleTime skipped", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k5"], staleTime: NaN }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k5"], staleTime: NaN }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k5"], "val");
@@ -62,7 +62,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("Infinity staleTime skipped", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k6"], staleTime: Infinity }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k6"], staleTime: Infinity }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k6"], "val");
@@ -71,7 +71,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("negative staleTime skipped", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k7"], staleTime: -100 }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k7"], staleTime: -100 }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k7"], "val");
@@ -80,7 +80,7 @@ describe("Task 5: query cache staleTime validation", () => {
 
 	it("non-number staleTime (string) skipped", () => {
 		const qc = createMockQueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["k8"], staleTime: "5000" }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["k8"], staleTime: "5000" }]];
 		installQueryCacheResolver(qc);
 
 		expect(qc.setQueryData).toHaveBeenCalledWith(["k8"], "val");
@@ -91,7 +91,7 @@ describe("Task 5: query cache staleTime validation", () => {
 		const qc = createMockQueryClient();
 		installQueryCacheResolver(qc);
 
-		const q = globalThis.__flare_qc;
+		const q = globalThis.__flare_queries;
 		if (q && "push" in q) {
 			q.push([{ data: "late", key: ["k9"], staleTime: 3000 }]);
 		}
@@ -104,7 +104,7 @@ describe("Task 5: query cache staleTime validation", () => {
 		const qc = createMockQueryClient();
 		installQueryCacheResolver(qc);
 
-		const q = globalThis.__flare_qc;
+		const q = globalThis.__flare_queries;
 		if (q && "push" in q) {
 			q.push([{ data: "late", key: ["k10"], staleTime: NaN }]);
 		}

@@ -148,7 +148,7 @@ Locale detection and routing. Priority: URL path > cookie > Accept-Language > de
 **Detection flow:**
 
 1. Bots (via `isbot`) → always get `defaultLocale` (consistent SEO)
-2. Skip configured paths (e.g., `/_fn/`) and file extensions
+2. Skip configured paths (e.g., `/_flare/`) and file extensions
 3. Normalize locale case: `/EN-US/about` → 302 to `/en-us/about`
 4. Extract locale from path, cookie, Accept-Language (CLDR matching)
 

@@ -15,7 +15,7 @@ test.describe("server-fn ctx.revalidate", () => {
 		expect(ts2?.[1]).toBe(ts1?.[1]);
 
 		/* Call server-fn that uses ctx.revalidate */
-		const revalRes = await request.post(`${BASE}/_fn/revalidate-cache/revalidate-cache`, {
+		const revalRes = await request.post(`${BASE}/_flare/server-fn/revalidate-cache/revalidate-cache`, {
 			data: {},
 		});
 		expect(revalRes.status()).toBe(200);
@@ -29,7 +29,7 @@ test.describe("server-fn ctx.revalidate", () => {
 	});
 
 	test("response from server-fn includes revalidatedTags", async ({ request }) => {
-		const res = await request.post(`${BASE}/_fn/revalidate-cache/revalidate-cache`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/revalidate-cache/revalidate-cache`, {
 			data: {},
 		});
 		expect(res.status()).toBe(200);
@@ -46,7 +46,7 @@ test.describe("server-fn ctx.revalidate", () => {
 		const cachedTs = cachedHtml.match(/data-testid="kv-timestamp">(\d+)</);
 
 		/* Call server-fn that purges both tiers */
-		const res = await request.post(`${BASE}/_fn/revalidate-both/revalidate-both`, { data: {} });
+		const res = await request.post(`${BASE}/_flare/server-fn/revalidate-both/revalidate-both`, { data: {} });
 		expect(res.status()).toBe(200);
 		const json = (await res.json()) as Record<string, unknown>;
 		expect(json.data).toEqual({ revalidated: true });
@@ -91,7 +91,7 @@ test.describe("server-fn ctx.revalidate", () => {
 		const cachedTs = cachedHtml.match(/data-testid="kv-timestamp">(\d+)</);
 
 		/* Revalidate via server-fn */
-		await request.post(`${BASE}/_fn/revalidate-cache/revalidate-cache`, { data: {} });
+		await request.post(`${BASE}/_flare/server-fn/revalidate-cache/revalidate-cache`, { data: {} });
 
 		/* Fresh load should differ */
 		const fresh = await request.get(`${BASE}/kv-cache-test`);

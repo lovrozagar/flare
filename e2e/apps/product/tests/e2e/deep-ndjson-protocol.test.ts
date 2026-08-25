@@ -16,7 +16,7 @@ function parseNDJSON(body: string): Array<Record<string, unknown>> {
 test.describe("Deep: NDJSON message types and shapes", () => {
 	test("loader message (t:l) has matchId (m) and data (d)", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
@@ -33,7 +33,7 @@ test.describe("Deep: NDJSON message types and shapes", () => {
 
 	test("loader data contains correct values for /about", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -50,7 +50,7 @@ test.describe("Deep: NDJSON message types and shapes", () => {
 
 	test("head message (t:h) has matchId (m) and head config (d)", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const heads = msgs.filter((m) => m.t === "h");
@@ -65,7 +65,7 @@ test.describe("Deep: NDJSON message types and shapes", () => {
 
 	test("head message title matches page head() return", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const heads = msgs.filter((m) => m.t === "h");
@@ -80,7 +80,7 @@ test.describe("Deep: NDJSON message types and shapes", () => {
 
 	test("done message (t:d) terminates stream", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const done = msgs.filter((m) => m.t === "d");
@@ -91,7 +91,7 @@ test.describe("Deep: NDJSON message types and shapes", () => {
 
 	test("ready message (t:r) precedes done", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const readyIdx = msgs.findIndex((m) => m.t === "r");
@@ -104,7 +104,7 @@ test.describe("Deep: NDJSON message types and shapes", () => {
 test.describe("Deep: NDJSON message ordering", () => {
 	test("loaders come before heads, heads before ready, ready before done", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const types = msgs.map((m) => m.t);
@@ -126,7 +126,7 @@ test.describe("Deep: NDJSON message ordering", () => {
 
 	test("layout loader message comes before page loader for nested route", async ({ page }) => {
 		const response = await page.request.get("/blog/hello-world", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -149,7 +149,7 @@ test.describe("Deep: NDJSON message ordering", () => {
 
 	test("multiple loader messages for layout+page route", async ({ page }) => {
 		const response = await page.request.get("/blog", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -163,14 +163,14 @@ test.describe("Deep: NDJSON message ordering", () => {
 test.describe("Deep: NDJSON content-type and status", () => {
 	test("NDJSON response has application/x-ndjson content-type", async ({ page }) => {
 		const response = await page.request.get("/", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
 	});
 
 	test("NDJSON response status is 200 even for routes with errors", async ({ page }) => {
 		const response = await page.request.get("/broken", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		/* NDJSON always returns 200 — errors are encoded in messages */
 		expect(response.status()).toBe(200);
@@ -178,7 +178,7 @@ test.describe("Deep: NDJSON content-type and status", () => {
 
 	test("auth-required route returns 401 even for NDJSON requests", async ({ page }) => {
 		const response = await page.request.get("/dashboard", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		/* Auth check runs before NDJSON path — returns HTTP error */
 		expect(response.status()).toBe(401);
@@ -188,7 +188,7 @@ test.describe("Deep: NDJSON content-type and status", () => {
 test.describe("Deep: NDJSON error messages", () => {
 	test("broken route returns error message (t:e) with message", async ({ page }) => {
 		const response = await page.request.get("/broken", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const errors = msgs.filter((m) => m.t === "e");
@@ -202,7 +202,7 @@ test.describe("Deep: NDJSON error messages", () => {
 
 	test("auth-required route without auth returns 401 (not NDJSON)", async ({ page }) => {
 		const response = await page.request.get("/dashboard", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		/* Auth check runs before NDJSON pipeline — returns HTML error page */
 		expect(response.status()).toBe(401);
@@ -213,7 +213,7 @@ test.describe("Deep: NDJSON error messages", () => {
 test.describe("Deep: NDJSON redirect message", () => {
 	test("redirect route returns redirect message (t:x) not HTTP redirect", async ({ page }) => {
 		const response = await page.request.get("/redirect-source", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		/* NDJSON wraps redirect as message, status is still 200 */
 		expect(response.status()).toBe(200);
@@ -230,7 +230,7 @@ test.describe("Deep: NDJSON redirect message", () => {
 
 	test("redirect message followed by done", async ({ page }) => {
 		const response = await page.request.get("/redirect-source", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		expect(msgs.length).toBeGreaterThanOrEqual(2);
@@ -238,11 +238,11 @@ test.describe("Deep: NDJSON redirect message", () => {
 	});
 });
 
-test.describe("Deep: NDJSON stale match filtering (x-m header)", () => {
-	test("sending x-m with existing match IDs skips those loaders", async ({ page }) => {
+test.describe("Deep: NDJSON stale match filtering (flare-stale header)", () => {
+	test("sending flare-stale with existing match IDs skips those loaders", async ({ page }) => {
 		/* First request: get match IDs */
 		const firstResponse = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const firstMsgs = parseNDJSON(await firstResponse.text());
 		const firstLoaders = firstMsgs.filter((m) => m.t === "l");
@@ -251,8 +251,8 @@ test.describe("Deep: NDJSON stale match filtering (x-m header)", () => {
 		/* Second request: send match IDs as stale */
 		const secondResponse = await page.request.get("/about", {
 			headers: {
-				"x-d": "1",
-				"x-m": matchIds.join(","),
+				"flare-data": "1",
+				"flare-stale": matchIds.join(","),
 			},
 		});
 		const secondMsgs = parseNDJSON(await secondResponse.text());
@@ -262,19 +262,19 @@ test.describe("Deep: NDJSON stale match filtering (x-m header)", () => {
 		expect(secondLoaders.length).toBe(firstLoaders.length);
 	});
 
-	test("sending x-m with NO match IDs returns all loaders", async ({ page }) => {
+	test("sending flare-stale with NO match IDs returns all loaders", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
 		expect(loaders.length).toBeGreaterThan(0);
 	});
 
-	test("x-m filters non-matching routes (only stale routes re-run loaders)", async ({ page }) => {
+	test("flare-stale filters non-matching routes (only stale routes re-run loaders)", async ({ page }) => {
 		/* Get all match IDs for /blog/hello-world */
 		const firstResponse = await page.request.get("/blog/hello-world", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const firstMsgs = parseNDJSON(await firstResponse.text());
 		const firstLoaders = firstMsgs.filter((m) => m.t === "l");
@@ -291,8 +291,8 @@ test.describe("Deep: NDJSON stale match filtering (x-m header)", () => {
 		/* Send ONLY the page match ID as stale — layout should be skipped */
 		const secondResponse = await page.request.get("/blog/hello-world", {
 			headers: {
-				"x-d": "1",
-				"x-m": pageMatchId,
+				"flare-data": "1",
+				"flare-stale": pageMatchId,
 			},
 		});
 		const secondMsgs = parseNDJSON(await secondResponse.text());
@@ -317,7 +317,7 @@ test.describe("Deep: NDJSON stale match filtering (x-m header)", () => {
 test.describe("Deep: NDJSON params in loader data", () => {
 	test("user route NDJSON has param-derived data", async ({ page }) => {
 		const response = await page.request.get("/users/42", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -331,8 +331,8 @@ test.describe("Deep: NDJSON params in loader data", () => {
 	});
 
 	test("different params produce different NDJSON data", async ({ page }) => {
-		const r1 = await page.request.get("/users/1", { headers: { "x-d": "1" } });
-		const r2 = await page.request.get("/users/99", { headers: { "x-d": "1" } });
+		const r1 = await page.request.get("/users/1", { headers: { "flare-data": "1" } });
+		const r2 = await page.request.get("/users/99", { headers: { "flare-data": "1" } });
 		const msgs1 = parseNDJSON(await r1.text());
 		const msgs2 = parseNDJSON(await r2.text());
 
@@ -355,9 +355,9 @@ test.describe("Deep: NDJSON params in loader data", () => {
 });
 
 test.describe("Deep: NDJSON prefetch header", () => {
-	test("x-p:1 sets prefetch cause in loader context", async ({ page }) => {
+	test("flare-prefetch:1 sets prefetch cause in loader context", async ({ page }) => {
 		const response = await page.request.get("/props-demo", {
-			headers: { "x-d": "1", "x-p": "1" },
+			headers: { "flare-data": "1", "flare-prefetch": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -371,9 +371,9 @@ test.describe("Deep: NDJSON prefetch header", () => {
 		expect(data.prefetch).toBe(true);
 	});
 
-	test("no x-p header sets enter cause", async ({ page }) => {
+	test("no flare-prefetch header sets enter cause", async ({ page }) => {
 		const response = await page.request.get("/props-demo", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -391,7 +391,7 @@ test.describe("Deep: NDJSON prefetch header", () => {
 test.describe("Deep: NDJSON preloaderContext in messages", () => {
 	test("preloaderContext present in loader message when route has preloader", async ({ page }) => {
 		const response = await page.request.get("/props-demo", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -409,7 +409,7 @@ test.describe("Deep: NDJSON preloaderContext in messages", () => {
 
 	test("preloaderContext only inherits from parent when route has no own preloader", async ({ page }) => {
 		const response = await page.request.get("/empty-loader", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -429,7 +429,7 @@ test.describe("Deep: NDJSON preloaderContext in messages", () => {
 
 	test("nested route has independent preloaderContext per match", async ({ page }) => {
 		const response = await page.request.get("/props-nested", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -462,12 +462,12 @@ test.describe("Deep: NDJSON preloaderContext in messages", () => {
 });
 
 test.describe("Deep: SPA navigation triggers NDJSON with correct protocol", () => {
-	test("SPA nav fires NDJSON request with x-d:1 header", async ({ page }) => {
+	test("SPA nav fires NDJSON request with flare-data:1 header", async ({ page }) => {
 		const cap = setupConsoleCapture(page);
 		const captured: Array<{ url: string; headers: Record<string, string> }> = [];
 
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1") {
+			if (req.headers()["flare-data"] === "1") {
 				captured.push({
 					headers: req.headers(),
 					url: req.url(),
@@ -481,7 +481,7 @@ test.describe("Deep: SPA navigation triggers NDJSON with correct protocol", () =
 		expect(captured.length).toBeGreaterThan(0);
 		const ndjsonReq = captured[captured.length - 1];
 		expect(ndjsonReq?.url).toContain("/about");
-		expect(ndjsonReq?.headers["x-d"]).toBe("1");
+		expect(ndjsonReq?.headers["flare-data"]).toBe("1");
 		cap.assertClean();
 	});
 

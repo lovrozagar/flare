@@ -17,7 +17,7 @@ export const route = createPage("_root_/form-demo").render(() => {
 		setResult("");
 
 		try {
-			const res = await fetch("/_fn/echo/echo", {
+			const res = await fetch("/_flare/server-fn/echo/echo", {
 				body: JSON.stringify({ message }),
 				headers: { "content-type": "application/json" },
 				method: "POST",

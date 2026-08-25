@@ -150,7 +150,7 @@ createPrefetchCache(): PrefetchCache
 1. Link enters viewport / user hovers
 2. shouldPrefetch(url, prefetchStaleTime) → true?
 3. mark(url) → set timestamp BEFORE fetch
-4. Fetch NDJSON with x-p: "1" header
+4. Fetch NDJSON with flare-prefetch: "1" header
 5. On success: update matchCache with loader data
 6. On failure: delete(url) → allow retry
 ```

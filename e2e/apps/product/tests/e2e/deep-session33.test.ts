@@ -220,9 +220,9 @@ test.describe("Body tag with attributes hydration", () => {
 		expect(hyInit).toBeLessThan(headEnd);
 	});
 
-	test("page hydrates correctly (data-hydrated present)", async ({ page }) => {
+	test("page hydrates correctly (data-flare-hydrated present)", async ({ page }) => {
 		await loadPage(page, "/");
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 });

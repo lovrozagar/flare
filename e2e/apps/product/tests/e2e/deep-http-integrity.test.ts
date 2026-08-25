@@ -14,7 +14,7 @@ test.describe("Content-Type headers", () => {
 
 	test("NDJSON data response has application/x-ndjson content-type", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
 	});
@@ -62,7 +62,7 @@ test.describe("Content-Type headers", () => {
 test.describe("CSP and nonce verification", () => {
 	test("NDJSON CSP includes script-src with nonce @prod-only", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const csp = response.headers()["content-security-policy"];
 		expect(csp).toBeDefined();
@@ -71,11 +71,11 @@ test.describe("CSP and nonce verification", () => {
 	});
 
 	test("NDJSON CSP nonce differs between requests @prod-only", async ({ request }) => {
-		const r1 = await request.get("/", { headers: { "x-d": "1" } });
+		const r1 = await request.get("/", { headers: { "flare-data": "1" } });
 		const csp1 = r1.headers()["content-security-policy"] ?? "";
 		const nonce1 = csp1.match(/nonce-([a-f0-9]+)/)?.[1];
 
-		const r2 = await request.get("/about", { headers: { "x-d": "1" } });
+		const r2 = await request.get("/about", { headers: { "flare-data": "1" } });
 		const csp2 = r2.headers()["content-security-policy"] ?? "";
 		const nonce2 = csp2.match(/nonce-([a-f0-9]+)/)?.[1];
 
@@ -121,7 +121,7 @@ test.describe("CSP and nonce verification", () => {
 
 	test("error NDJSON response includes CSP header @prod-only", async ({ request }) => {
 		const response = await request.get("/broken", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const csp = response.headers()["content-security-policy"];
 		expect(csp).toBeDefined();
@@ -184,7 +184,7 @@ test.describe("Set-Cookie from route headers", () => {
 
 	test("NDJSON response includes Set-Cookie header", async ({ request }) => {
 		const response = await request.get("/cookie-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const setCookie = response.headers()["set-cookie"];
 		expect(setCookie).toBeTruthy();
@@ -234,7 +234,7 @@ test.describe("Cache-Control from CDN config", () => {
 
 	test("NDJSON also receives Cache-Control from cdn config", async ({ request }) => {
 		const response = await request.get("/cache-headers-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const cc = response.headers()["cache-control"];
 		expect(cc).toBeDefined();
@@ -285,7 +285,7 @@ test.describe("Security headers completeness", () => {
 
 	test("security headers present on NDJSON response @dev-only", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["referrer-policy"]).toBe("strict-origin-when-cross-origin");
 		expect(response.headers()["x-content-type-options"]).toBe("nosniff");

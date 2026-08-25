@@ -34,7 +34,7 @@ test.describe("Custom response headers (SSR)", () => {
 test.describe("Custom headers via NDJSON", () => {
 	test("NDJSON response includes custom headers", async ({ request }) => {
 		const response = await request.get("/custom-headers", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		expect(response.headers()["x-custom-header"]).toBe("flare-test-value");
@@ -43,7 +43,7 @@ test.describe("Custom headers via NDJSON", () => {
 
 	test("NDJSON x-custom-data header has timestamp", async ({ request }) => {
 		const response = await request.get("/custom-headers", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const customData = response.headers()["x-custom-data"];
 		expect(customData).toBeTruthy();
@@ -70,7 +70,7 @@ test.describe("Headers chain (layout + page merge)", () => {
 
 	test("headers chain NDJSON also merges", async ({ request }) => {
 		const response = await request.get("/headers-chain/headers-child", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["x-layout-header"]).toBe("from-layout");
 		expect(response.headers()["x-child-header"]).toBe("from-child");

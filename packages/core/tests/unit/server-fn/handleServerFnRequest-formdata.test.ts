@@ -32,7 +32,7 @@ describe("handleServerFnRequest FormData support", () => {
 	it("H1: parses x-www-form-urlencoded input", async () => {
 		const fns = createFns();
 		const body = new URLSearchParams({ email: "a@b.com", name: "Jo" });
-		const req = makeRequest("http://localhost/_fn/test-fn/test", {
+		const req = makeRequest("http://localhost/_flare/server-fn/test-fn/test", {
 			body: body.toString(),
 			headers: { "content-type": "application/x-www-form-urlencoded" },
 		});
@@ -48,7 +48,7 @@ describe("handleServerFnRequest FormData support", () => {
 		const fd = new FormData();
 		fd.append("email", "a@b.com");
 		fd.append("name", "Jo");
-		const req = makeRequest("http://localhost/_fn/test-fn/test", {
+		const req = makeRequest("http://localhost/_flare/server-fn/test-fn/test", {
 			body: fd,
 		});
 		const res = await runInContext(() => handleServerFnRequest(req, {}, fns));
@@ -60,7 +60,7 @@ describe("handleServerFnRequest FormData support", () => {
 	/* H3: JSON body */
 	it("H3: parses JSON body", async () => {
 		const fns = createFns();
-		const req = makeRequest("http://localhost/_fn/test-fn/test", {
+		const req = makeRequest("http://localhost/_flare/server-fn/test-fn/test", {
 			body: JSON.stringify({ email: "a@b.com" }),
 			headers: { "content-type": "application/json" },
 		});
@@ -73,7 +73,7 @@ describe("handleServerFnRequest FormData support", () => {
 	/* H4: No content-type, empty body */
 	it("H4: handles no content-type with empty body", async () => {
 		const fns = createFns();
-		const req = makeRequest("http://localhost/_fn/test-fn/test", {
+		const req = makeRequest("http://localhost/_flare/server-fn/test-fn/test", {
 			body: undefined,
 			headers: {},
 		});
@@ -86,7 +86,7 @@ describe("handleServerFnRequest FormData support", () => {
 	/* H5: Invalid JSON → 400 */
 	it("H5: returns 400 for invalid JSON", async () => {
 		const fns = createFns();
-		const req = makeRequest("http://localhost/_fn/test-fn/test", {
+		const req = makeRequest("http://localhost/_flare/server-fn/test-fn/test", {
 			body: "{broken json",
 			headers: { "content-type": "application/json" },
 		});
@@ -115,7 +115,7 @@ describe("handleServerFnRequest FormData support", () => {
 		const fd = new FormData();
 		fd.append("email", "");
 		fd.append("name", "");
-		const req = makeRequest("http://localhost/_fn/test-fn/test", { body: fd });
+		const req = makeRequest("http://localhost/_flare/server-fn/test-fn/test", { body: fd });
 		const res = await runInContext(() => handleServerFnRequest(req, {}, fns));
 		expect(res.status).toBe(400);
 		const json = (await res.json()) as {
@@ -129,17 +129,17 @@ describe("handleServerFnRequest FormData support", () => {
 		expect(json.errors.formErrors).toEqual([]);
 	});
 
-	/* Extra: __flare_fn stripped from FormData input */
-	it("strips __flare_fn from FormData before passing to handler", async () => {
+	/* Extra: flare_fn stripped from FormData input */
+	it("strips flare_fn from FormData before passing to handler", async () => {
 		const fns = createFns();
 		const fd = new FormData();
-		fd.append("__flare_fn", "some-id");
+		fd.append("flare_fn", "some-id");
 		fd.append("email", "a@b.com");
-		const req = makeRequest("http://localhost/_fn/test-fn/test", { body: fd });
+		const req = makeRequest("http://localhost/_flare/server-fn/test-fn/test", { body: fd });
 		const res = await runInContext(() => handleServerFnRequest(req, {}, fns));
 		expect(res.status).toBe(200);
 		const json = (await res.json()) as { data: { received: Record<string, unknown> } };
 		expect(json.data.received).toEqual({ email: "a@b.com" });
-		expect("__flare_fn" in (json.data.received as Record<string, unknown>)).toBe(false);
+		expect("flare_fn" in (json.data.received as Record<string, unknown>)).toBe(false);
 	});
 });

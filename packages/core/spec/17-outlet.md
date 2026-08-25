@@ -504,7 +504,7 @@ const router = useRouter();
 /* After hydrate(): */ router.hydrated() === true;
 ```
 
-Set to `true` after `solidHydrate` completes + `data-hydrated` attribute set. Useful for client-only UI (e.g. showing interactive elements only after hydration).
+Set to `true` after `solidHydrate` completes + `data-flare-hydrated` attribute set. Useful for client-only UI (e.g. showing interactive elements only after hydration).
 
 ## `useRouterContext`
 

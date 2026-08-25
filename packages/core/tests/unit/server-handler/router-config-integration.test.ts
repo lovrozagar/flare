@@ -146,7 +146,7 @@ describe("caseSensitive through server handler", () => {
 				router: makeRouter({ caseSensitive: true, routeTree: tree }),
 			}),
 		);
-		const response = await handler.fetch(makeRequest("http://localhost/About", { headers: { "x-d": "1" } }), {});
+		const response = await handler.fetch(makeRequest("http://localhost/About", { headers: { "flare-data": "1" } }), {});
 		expect(response.status).toBe(404);
 	});
 
@@ -344,9 +344,9 @@ describe("basePath through server handler", () => {
 		expect([200, 500]).toContain(response.status);
 	});
 
-	it("basePath does not affect /_fn/ routes", async () => {
+	it("basePath does not affect /_flare/server-fn/ routes", async () => {
 		const handler = makeHandlerWithBasePath("/app");
-		const response = await handler.fetch(makeRequest("http://localhost/_fn/test/run"), {});
+		const response = await handler.fetch(makeRequest("http://localhost/_flare/server-fn/test/run"), {});
 		/* Server functions bypass basePath — handled before route matching */
 		expect(response.status).toBe(404); /* no fn registered, but route entered */
 	});

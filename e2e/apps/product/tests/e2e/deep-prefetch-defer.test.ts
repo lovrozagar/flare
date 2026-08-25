@@ -58,13 +58,17 @@ test.describe("Prefetch + Deferred optimization", () => {
 });
 
 test.describe("Prefetch NDJSON protocol: deferred route", () => {
-	test("prefetch request sends x-p: 1 header for deferred route", async ({ page }) => {
+	test("prefetch request sends flare-prefetch: 1 header for deferred route", async ({ page }) => {
 		const cap = setupConsoleCapture(page);
 		await loadPage(page, "/");
 
 		let prefetchHeaderSeen = false;
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/prefetch-defer") && req.headers()["x-p"] === "1") {
+			if (
+				req.headers()["flare-data"] === "1" &&
+				req.url().includes("/prefetch-defer") &&
+				req.headers()["flare-prefetch"] === "1"
+			) {
 				prefetchHeaderSeen = true;
 			}
 		});
@@ -79,7 +83,7 @@ test.describe("Prefetch NDJSON protocol: deferred route", () => {
 	test("prefetch response contains NO deferred chunk messages (t:c)", async ({ page }) => {
 		/* Directly fetch the NDJSON as the client prefetch would */
 		const response = await page.request.fetch("/prefetch-defer", {
-			headers: { "x-d": "1", "x-p": "1" },
+			headers: { "flare-data": "1", "flare-prefetch": "1" },
 		});
 		const body = await response.text();
 		const lines = body
@@ -104,9 +108,9 @@ test.describe("Prefetch NDJSON protocol: deferred route", () => {
 	});
 
 	test("non-prefetch response DOES contain deferred chunk messages (t:c)", async ({ page }) => {
-		/* Fetch without x-p header — server should execute deferred and stream chunk */
+		/* Fetch without flare-prefetch header — server should execute deferred and stream chunk */
 		const response = await page.request.fetch("/prefetch-defer", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const body = await response.text();
 		const lines = body
@@ -126,7 +130,7 @@ test.describe("Prefetch NDJSON protocol: deferred route", () => {
 		/* Prefetch skips deferred execution → no entries → non-streaming NDJSON.
 		 * Verify response arrives as complete body (not chunked transfer) with ready + done. */
 		const response = await page.request.fetch("/prefetch-defer", {
-			headers: { "x-d": "1", "x-p": "1" },
+			headers: { "flare-data": "1", "flare-prefetch": "1" },
 		});
 		const body = await response.text();
 		const lines = body
@@ -151,9 +155,9 @@ test.describe("Prefetch cache: deferred forces refetch, non-deferred uses cache"
 		/* Track all NDJSON requests to /prefetch-defer */
 		const ndjsonRequests: { isPrefetch: boolean; url: string }[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/prefetch-defer")) {
+			if (req.headers()["flare-data"] === "1" && req.url().includes("/prefetch-defer")) {
 				ndjsonRequests.push({
-					isPrefetch: req.headers()["x-p"] === "1",
+					isPrefetch: req.headers()["flare-prefetch"] === "1",
 					url: req.url(),
 				});
 			}
@@ -162,7 +166,7 @@ test.describe("Prefetch cache: deferred forces refetch, non-deferred uses cache"
 		/* Step 1: intent trigger (hover) prefetch — wait for NDJSON response */
 		await page.locator("[data-testid='prefetch-defer-link']").dispatchEvent("mouseenter");
 		await page.waitForResponse(
-			(resp) => resp.url().includes("/prefetch-defer") && resp.request().headers()["x-d"] === "1",
+			(resp) => resp.url().includes("/prefetch-defer") && resp.request().headers()["flare-data"] === "1",
 		);
 
 		const prefetchCount = ndjsonRequests.filter((r) => r.isPrefetch).length;
@@ -190,9 +194,9 @@ test.describe("Prefetch cache: deferred forces refetch, non-deferred uses cache"
 
 		const ndjsonRequests: { isPrefetch: boolean; url: string }[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/prefetch-target")) {
+			if (req.headers()["flare-data"] === "1" && req.url().includes("/prefetch-target")) {
 				ndjsonRequests.push({
-					isPrefetch: req.headers()["x-p"] === "1",
+					isPrefetch: req.headers()["flare-prefetch"] === "1",
 					url: req.url(),
 				});
 			}
@@ -201,7 +205,7 @@ test.describe("Prefetch cache: deferred forces refetch, non-deferred uses cache"
 		/* Intent trigger (hover) prefetch for non-deferred route — wait for response */
 		await page.locator("[data-testid='prefetch-intent-link']").dispatchEvent("mouseenter");
 		await page.waitForResponse(
-			(resp) => resp.url().includes("/prefetch-target") && resp.request().headers()["x-d"] === "1",
+			(resp) => resp.url().includes("/prefetch-target") && resp.request().headers()["flare-data"] === "1",
 		);
 
 		const prefetchCount = ndjsonRequests.filter((r) => r.isPrefetch).length;
@@ -237,7 +241,7 @@ test.describe("Deferred data freshness after prefetch", () => {
 		/* Trigger prefetch via dispatchEvent to avoid vite-error-overlay blocking hover */
 		await page.locator("[data-testid='prefetch-defer-link']").dispatchEvent("mouseenter");
 		await page.waitForResponse(
-			(resp) => resp.url().includes("/prefetch-defer") && resp.request().headers()["x-d"] === "1",
+			(resp) => resp.url().includes("/prefetch-defer") && resp.request().headers()["flare-data"] === "1",
 		);
 		const prefetchTime = Date.now();
 		await page.waitForTimeout(1000);
@@ -334,8 +338,8 @@ test.describe("SSR deferred streaming", () => {
 		expect(html).toContain("__deferred");
 		expect(html).toContain('"key":"d0"');
 
-		/* SSR should inject streaming deferred chunk after </html> via __flare_q queue */
-		expect(html).toContain("__flare_q");
+		/* SSR should inject streaming deferred chunk after </html> via __flare_defer queue */
+		expect(html).toContain("__flare_defer");
 	});
 
 	test("SSR deferred route hydrates without errors", async ({ page }) => {

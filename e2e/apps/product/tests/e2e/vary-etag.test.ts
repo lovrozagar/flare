@@ -1,29 +1,29 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Vary header — x-d on all responses", () => {
-	test("HTML response has Vary: x-d", async ({ request }) => {
+test.describe("Vary header — flare-data on all responses", () => {
+	test("HTML response has Vary: flare-data", async ({ request }) => {
 		const res = await request.get("/about");
-		expect(res.headers()["vary"]).toContain("x-d");
+		expect(res.headers()["vary"]).toContain("flare-data");
 	});
 
-	test("NDJSON response has Vary: x-d", async ({ request }) => {
+	test("NDJSON response has Vary: flare-data", async ({ request }) => {
 		const res = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
-		expect(res.headers()["vary"]).toContain("x-d");
+		expect(res.headers()["vary"]).toContain("flare-data");
 	});
 
-	test("404 response has Vary: x-d", async ({ request }) => {
+	test("404 response has Vary: flare-data", async ({ request }) => {
 		const res = await request.get("/nonexistent-page-xyz");
 		expect(res.status()).toBe(404);
-		/* 404 fallback is built before the x-d vary path; Origin is still set. */
+		/* 404 fallback is built before the flare-data vary path; Origin is still set. */
 		expect(res.headers()["vary"]).toBeDefined();
 	});
 
-	test("ISR fallback response has Vary: x-d", async ({ request }) => {
+	test("ISR fallback response has Vary: flare-data", async ({ request }) => {
 		const res = await request.get("/isr-test");
 		expect(res.status()).toBe(200);
-		expect(res.headers()["vary"]).toContain("x-d");
+		expect(res.headers()["vary"]).toContain("flare-data");
 	});
 });
 
@@ -64,7 +64,7 @@ test.describe("ETag on ISR cache hit", () => {
 
 	test("NDJSON response has no ETag", async ({ request }) => {
 		const res = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.headers()["etag"]).toBeUndefined();
 	});
@@ -108,7 +108,7 @@ test.describe("304 Not Modified", () => {
 				headers: { "If-None-Match": etag },
 			});
 			expect(res2.status()).toBe(200);
-			expect(res2.headers()["vary"]).toContain("x-d");
+			expect(res2.headers()["vary"]).toContain("flare-data");
 			expect(res2.headers()["etag"]).toBe(etag);
 		}
 	});

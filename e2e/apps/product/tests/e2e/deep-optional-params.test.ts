@@ -111,7 +111,7 @@ test.describe("Optional params [[locale]] — history", () => {
 test.describe("Optional params [[locale]] — NDJSON", () => {
 	test("NDJSON request includes correct params", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/optional-locale/de`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		const text = await response.text();
@@ -129,7 +129,7 @@ test.describe("Optional params [[locale]] — NDJSON", () => {
 
 	test("NDJSON request without locale param", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/optional-locale`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		const text = await response.text();

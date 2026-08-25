@@ -89,7 +89,7 @@ test.describe("@prod-only Perf — no dev overhead", () => {
 	});
 
 	test("NDJSON responses have no Server-Timing in prod", async ({ request }) => {
-		const res = await request.get("/about", { headers: { "x-d": "1" } });
+		const res = await request.get("/about", { headers: { "flare-data": "1" } });
 		const serverTiming = res.headers()["server-timing"];
 		expect(serverTiming).toBeUndefined();
 	});
@@ -115,7 +115,7 @@ test.describe("@prod-only Perf — response size optimization", () => {
 	});
 
 	test("prod NDJSON response is compact", async ({ request }) => {
-		const res = await request.get("/about", { headers: { "x-d": "1" } });
+		const res = await request.get("/about", { headers: { "flare-data": "1" } });
 		const ndjson = await res.text();
 
 		/* NDJSON for about page: just loader data, no HTML shell */
@@ -124,7 +124,7 @@ test.describe("@prod-only Perf — response size optimization", () => {
 
 	test("prod stress page (1000 rows) NDJSON is smaller than HTML", async ({ request }) => {
 		const htmlRes = await request.get("/perf-stress");
-		const ndjsonRes = await request.get("/perf-stress", { headers: { "x-d": "1" } });
+		const ndjsonRes = await request.get("/perf-stress", { headers: { "flare-data": "1" } });
 
 		const htmlSize = (await htmlRes.text()).length;
 		const ndjsonSize = (await ndjsonRes.text()).length;

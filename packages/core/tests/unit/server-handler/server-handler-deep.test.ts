@@ -314,7 +314,7 @@ describe("response handler edge cases", () => {
 /* ── Server function auth ────────────────────────────────────────────── */
 
 describe("server function auth", () => {
-	it("/_fn/ path with authenticateFn creates auth wrapper for authenticated fns", async () => {
+	it("/_flare/server-fn/ path with authenticateFn creates auth wrapper for authenticated fns", async () => {
 		const authSpy = vi.fn((..._args: unknown[]) => Promise.resolve({ userId: "u1" }));
 		const fnSpy = vi.fn(() => Promise.resolve({ ok: true }));
 
@@ -339,7 +339,7 @@ describe("server function auth", () => {
 		);
 
 		const response = await handler.fetch(
-			makeRequest("http://localhost/_fn/test-id/run", {
+			makeRequest("http://localhost/_flare/server-fn/test-id/run", {
 				body: JSON.stringify({ data: 1 }),
 				headers: { "Content-Type": "application/json" },
 				method: "POST",
@@ -352,7 +352,7 @@ describe("server function auth", () => {
 		expect(fnSpy).toHaveBeenCalled();
 	});
 
-	it("/_fn/ path without authenticateFn returns 401 for authenticated fn", async () => {
+	it("/_flare/server-fn/ path without authenticateFn returns 401 for authenticated fn", async () => {
 		const fns = new Map([
 			[
 				"test-id",
@@ -370,7 +370,7 @@ describe("server function auth", () => {
 		const handler = createServerHandler(makeConfig());
 
 		const response = await handler.fetch(
-			makeRequest("http://localhost/_fn/test-id/run", {
+			makeRequest("http://localhost/_flare/server-fn/test-id/run", {
 				body: JSON.stringify({}),
 				headers: { "Content-Type": "application/json" },
 				method: "POST",

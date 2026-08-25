@@ -333,7 +333,7 @@ test.describe("Form actions — JS on — auth form (fn validator + authenticate
 
 	test("auth form with valid auth header — success", async ({ page, context }) => {
 		/* Set auth header via route interception */
-		await context.route("**/_fn/**", async (route) => {
+		await context.route("**/_flare/server-fn/**", async (route) => {
 			const request = route.request();
 			const headers = {
 				...request.headers(),
@@ -353,7 +353,7 @@ test.describe("Form actions — JS on — auth form (fn validator + authenticate
 	});
 
 	test("auth form with empty note — validation error", async ({ page, context }) => {
-		await context.route("**/_fn/**", async (route) => {
+		await context.route("**/_flare/server-fn/**", async (route) => {
 			const request = route.request();
 			const headers = { ...request.headers(), "x-test-auth": "admin" };
 			await route.continue({ headers });
@@ -537,7 +537,7 @@ test.describe("Form actions — validator diversity", () => {
 	});
 
 	test("manual function validator + authenticate works together", async ({ page, context }) => {
-		await context.route("**/_fn/**", async (route) => {
+		await context.route("**/_flare/server-fn/**", async (route) => {
 			const request = route.request();
 			const headers = { ...request.headers(), "x-test-auth": "admin" };
 			await route.continue({ headers });

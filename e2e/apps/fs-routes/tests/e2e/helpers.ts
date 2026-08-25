@@ -3,7 +3,7 @@ import { expect, type Page } from "@playwright/test";
 const HYDRATE_TIMEOUT = process.env.BASE_URL ? 30_000 : 15_000;
 
 export async function assertHydrated(page: Page): Promise<void> {
-	await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+	await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 		timeout: HYDRATE_TIMEOUT,
 	});
 }

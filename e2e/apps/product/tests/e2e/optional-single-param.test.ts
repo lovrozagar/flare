@@ -86,7 +86,7 @@ test.describe("Optional single param [[lang]] — SPA navigation", () => {
 test.describe("Optional single param [[lang]] — NDJSON", () => {
 	test("NDJSON request with lang param", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/opt-single-param/de`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		const text = await response.text();
@@ -103,7 +103,7 @@ test.describe("Optional single param [[lang]] — NDJSON", () => {
 
 	test("NDJSON request without lang param", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/opt-single-param`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		const text = await response.text();

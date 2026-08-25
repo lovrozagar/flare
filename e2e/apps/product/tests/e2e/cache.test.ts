@@ -43,13 +43,13 @@ test.describe("KV / ISR / duration / Vary", () => {
 		expect(Number(await page.getByTestId("duration-timestamp").textContent())).toBeGreaterThan(0);
 	});
 
-	test("Vary includes x-d", async ({ request }) => {
+	test("Vary includes flare-data", async ({ request }) => {
 		const res = await request.get("/");
 		const vary = res.headers().vary ?? "";
-		expect(vary.toLowerCase()).toContain("x-d");
+		expect(vary.toLowerCase()).toContain("flare-data");
 	});
 
-	test("Flare-Cache or Flare-Render header may appear on ISR", async ({ request }) => {
+	test("flare-cache or flare-render header may appear on ISR", async ({ request }) => {
 		const res = await request.get("/isr-test");
 		const keys = Object.keys(res.headers());
 		expect(keys.length).toBeGreaterThan(0);
@@ -80,7 +80,7 @@ test.describe("KV / ISR / duration / Vary", () => {
 			   cached body and block ThemeScript. Always rewrite as 200. */
 			expect(res2.status()).toBe(200);
 			expect(res2.headers()["etag"]).toBe(etag);
-			expect(res2.headers()["vary"] ?? "").toContain("x-d");
+			expect(res2.headers()["vary"] ?? "").toContain("flare-data");
 			const html = await res2.text();
 			const headerNonce = /nonce-([a-f0-9]+)/.exec(res2.headers()["content-security-policy"] ?? "");
 			const scriptNonce = /nonce="([a-f0-9]+)"/.exec(html);

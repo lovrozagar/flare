@@ -168,7 +168,7 @@ describe("middleware — bypass", () => {
 				},
 			],
 		});
-		const response = await handler.fetch(makeRequest("/_fn/test/run", { method: "POST" }), {});
+		const response = await handler.fetch(makeRequest("/_flare/server-fn/test/run", { method: "POST" }), {});
 
 		expect(await readResponseBody(response)).toBe("blocked by mw");
 	});

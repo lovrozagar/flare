@@ -36,14 +36,14 @@ afterEach(() => {
 /* ── C1: Renders form element ─────────────────────────────────────── */
 
 describe("Form component", () => {
-	it("C1: renders form with method=post and hidden __flare_fn input", () => {
+	it("C1: renders form with method=post and hidden flare_fn input", () => {
 		setup();
 		const action = mockServerFn();
 		render(() => <Form action={action}>{() => <button type="submit">Submit</button>}</Form>, container);
 		const form = container.querySelector("form");
 		expect(form).toBeTruthy();
 		expect(form?.getAttribute("method")).toBe("post");
-		const hidden = form?.querySelector("input[name='__flare_fn']") as HTMLInputElement | null;
+		const hidden = form?.querySelector("input[name='flare_fn']") as HTMLInputElement | null;
 		expect(hidden).toBeTruthy();
 		expect(hidden?.type).toBe("hidden");
 	});
@@ -53,7 +53,7 @@ describe("Form component", () => {
 		setup();
 		const action = mockServerFn({ id: "my-fn-123" });
 		render(() => <Form action={action}>{() => <span>child</span>}</Form>, container);
-		const hidden = container.querySelector("input[name='__flare_fn']") as HTMLInputElement | null;
+		const hidden = container.querySelector("input[name='flare_fn']") as HTMLInputElement | null;
 		expect(hidden?.value).toBe("my-fn-123");
 	});
 

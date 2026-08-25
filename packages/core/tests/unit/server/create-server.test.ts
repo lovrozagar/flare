@@ -2,7 +2,7 @@
  * @vitest-environment node
  *
  * Tests createServer builder API.
- * Uses data requests (x-d header) to avoid SSR rendering.
+ * Uses data requests (flare-data header) to avoid SSR rendering.
  */
 import { describe, expect, it, vi } from "vitest";
 import type { MiddlewareContext } from "../../../src/middleware/index.ts";
@@ -14,7 +14,7 @@ import { buildRouter } from "../../integration/fixtures.ts";
 
 function dataReq(path: string): Request {
 	return new Request(`http://localhost${path}`, {
-		headers: { "x-d": "1" },
+		headers: { "flare-data": "1" },
 	});
 }
 

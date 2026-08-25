@@ -4,6 +4,8 @@
  * to avoid pulling in node:async_hooks on the client.
  */
 
+import { serverFnPath } from "./protocol.ts";
+
 export interface PiggybackedQuery {
 	data: unknown;
 	key: unknown[];
@@ -48,7 +50,7 @@ export function serverFnQueryOptions<TInput, TOutput>(
 				return serverFn(config?.input as TInput);
 			}
 
-			const url = `/_fn/${id}/${name}`;
+			const url = serverFnPath(id, name);
 			const method = reg?.method ?? "post";
 
 			const res =
@@ -121,7 +123,7 @@ export function serverFnMutationOptions<TInput, TOutput>(
 				return serverFn(input);
 			}
 
-			const url = `/_fn/${id}/${name}`;
+			const url = serverFnPath(id, name);
 			const res = await fetch(url, {
 				body: input !== undefined ? JSON.stringify(input) : undefined,
 				headers: { "content-type": "application/json" },

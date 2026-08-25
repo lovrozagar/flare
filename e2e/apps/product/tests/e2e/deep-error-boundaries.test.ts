@@ -218,7 +218,7 @@ test.describe("Error boundary walk-up", () => {
 test.describe("NDJSON error responses", () => {
 	test("NDJSON /broken returns error message (t:e) with correct matchId and message", async ({ page }) => {
 		const response = await page.request.get("/broken", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
@@ -236,7 +236,7 @@ test.describe("NDJSON error responses", () => {
 
 	test("NDJSON /error-string returns error message for thrown string", async ({ page }) => {
 		const response = await page.request.get("/error-string", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 
@@ -252,7 +252,7 @@ test.describe("NDJSON error responses", () => {
 
 	test("NDJSON /throw-not-found returns not-found error type", async ({ page }) => {
 		const response = await page.request.get("/throw-not-found", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const hasErrorOrNotFound = msgs.some((m) => m.t === "e" || m.t === "nf");
@@ -261,7 +261,7 @@ test.describe("NDJSON error responses", () => {
 
 	test("NDJSON /throw-unauthorized returns auth error type", async ({ page }) => {
 		const response = await page.request.get("/throw-unauthorized", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const hasAuthError = msgs.some((m) => m.t === "e" || m.t === "ua" || m.t === "nf");
@@ -270,7 +270,7 @@ test.describe("NDJSON error responses", () => {
 
 	test("NDJSON /layout-catches-child/broken-child returns child error", async ({ page }) => {
 		const response = await page.request.get("/layout-catches-child/broken-child", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 
@@ -284,7 +284,7 @@ test.describe("NDJSON error responses", () => {
 
 	test("NDJSON error response still ends with done message (t:d)", async ({ page }) => {
 		const response = await page.request.get("/broken", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		expect(msgs.length).toBeGreaterThan(0);

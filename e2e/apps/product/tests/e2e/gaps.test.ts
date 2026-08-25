@@ -127,7 +127,7 @@ test.describe("error retry recovers", () => {
 		await page.request.get("/api/retry-reset");
 		await page.goto("/retry-test");
 		await expect(page.getByTestId("retry-error-boundary")).toBeVisible();
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 		await page.getByTestId("retry-button").click();

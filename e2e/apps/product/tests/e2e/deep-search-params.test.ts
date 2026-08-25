@@ -220,7 +220,7 @@ test.describe("Search params: persistence across navigation", () => {
 test.describe("Search params: NDJSON data requests", () => {
 	test("loader receives search params via NDJSON", async ({ request }) => {
 		const response = await request.get("/search-demo?q=ndjson-test&page=3", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const text = await response.text();
 		expect(text).toContain("ndjson-test");
@@ -229,7 +229,7 @@ test.describe("Search params: NDJSON data requests", () => {
 
 	test("NDJSON with special characters in params", async ({ request }) => {
 		const response = await request.get(`/search-demo?q=${encodeURIComponent("café & résumé")}`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const text = await response.text();
 		expect(text).toContain("café");

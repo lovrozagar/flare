@@ -3,7 +3,7 @@ import { loadPage } from "./helpers";
 
 test.describe("CSRF", () => {
 	test("cross-origin POST is 403", async ({ request }) => {
-		const res = await request.post("/_fn/form-contact/form-contact", {
+		const res = await request.post("/_flare/server-fn/form-contact/form-contact", {
 			data: { email: "user@test.com", message: "Hello" },
 			headers: { origin: "http://evil.com" },
 		});
@@ -52,13 +52,13 @@ test.describe("revalidate + piggyback", () => {
 	});
 
 	test("server-fn revalidate-cache", async ({ request }) => {
-		const res = await request.post("/_fn/revalidate-cache/revalidate-cache", { data: {} });
+		const res = await request.post("/_flare/server-fn/revalidate-cache/revalidate-cache", { data: {} });
 		expect(res.status()).toBe(200);
 		expect((await res.json()).data.revalidated).toBe(true);
 	});
 
 	test("piggyback queries in response", async ({ request }) => {
-		const res = await request.post("/_fn/piggyback/piggyback", { data: { value: "x" } });
+		const res = await request.post("/_flare/server-fn/piggyback/piggyback", { data: { value: "x" } });
 		expect(res.status()).toBe(200);
 		const json = await res.json();
 		expect(json.data.saved).toBe(true);

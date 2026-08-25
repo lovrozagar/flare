@@ -7,7 +7,7 @@ describe("nonce extraction handles case variations", () => {
 	function mockHandler(html: string) {
 		return {
 			fetch: async (req: Request) => {
-				if (req.headers.get("x-d") === "1") return new Response("", { status: 200 });
+				if (req.headers.get("flare-data") === "1") return new Response("", { status: 200 });
 				return new Response(html, {
 					headers: { "Content-Type": "text/html" },
 					status: 200,

@@ -131,7 +131,7 @@ function Dummy(props: { children: JSX.Element }): JSX.Element {
 
 After hydration completes:
 
-1. `document.documentElement.dataset.hydrated = ""` — CSS-targetable (`[data-hydrated]`)
+1. `document.documentElement.dataset.flareHydrated = ""` — CSS-targetable (`[data-flare-hydrated]`)
 2. `ctx.setHydrated(true)` — reactive signal for components via `router.hydrated()`
 
 If `state.q` exists and `router.queryClientGetter` is provided, hydrate query cache before rendering:
@@ -272,7 +272,7 @@ Hydration flow:
   solidHydrate called with document
   FlareProvider receives matchCache and prefetchCache
   onContextReady called during hydration
-  data-hydrated attribute set on html element after hydration
+  data-flare-hydrated attribute set on html element after hydration
   hydrated signal set to true after hydration
   Deferred resolvers available for incoming NDJSON chunks
   Query client hydrated from state.q when router.queryClientGetter provided
@@ -299,6 +299,6 @@ SSR deferred resolution:
 - TanStack Query hydration: `state.q` entries restored via `router.queryClientGetter?.().setQueryData()` before render (spec 33)
 - Dev error hydration: `state.e` entries registered in `devErrorStore` for overlay (spec 37)
 - Per-route head hydration: `state.ph` entries init head tracking via `initRouteHierarchy` + `applyPerRouteHeads` (spec 27)
-- `data-hydrated` attribute on `<html>` enables CSS targeting of post-hydration state (e.g. `[data-hydrated] .skeleton { display: none }`)
+- `data-flare-hydrated` attribute on `<html>` enables CSS targeting of post-hydration state (e.g. `[data-flare-hydrated] .skeleton { display: none }`)
 - `resolvers` map bridges SSR deferred markers to NDJSON chunk resolution
 - If hydration fails (preload error, module load error), the SSR HTML remains visible but non-interactive. No framework-level error UI — the page degrades to static HTML. Apps can wrap `hydrate()` in try/catch to show a reload prompt.

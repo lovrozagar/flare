@@ -400,7 +400,7 @@ test.describe("Deep cache nesting: StaleTime differential", () => {
 test.describe("Deep cache nesting: NDJSON protocol", () => {
 	test("data request has loader messages for all 6 layers", async ({ page }) => {
 		const response = await page.request.get("/deep-cache/uncached", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
@@ -414,7 +414,7 @@ test.describe("Deep cache nesting: NDJSON protocol", () => {
 
 	test("loader ordering matches nesting depth", async ({ page }) => {
 		const response = await page.request.get("/deep-cache/uncached", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -437,11 +437,11 @@ test.describe("Deep cache nesting: NDJSON protocol", () => {
 	test("cached layer data matches store-served data", async ({ page }) => {
 		/* First hit populates caches, second should serve from store */
 		await page.request.get("/deep-cache/store-page", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 
 		const response = await page.request.get("/deep-cache/store-page", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");

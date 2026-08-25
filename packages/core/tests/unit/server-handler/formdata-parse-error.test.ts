@@ -37,7 +37,7 @@ describe("Task 4: formData parse error returns 400", () => {
 		expect(response.status).toBe(400);
 	});
 
-	it("valid form POST without __flare_fn falls through to SSR", async () => {
+	it("valid form POST without flare_fn falls through to SSR", async () => {
 		const handler = makeHandler();
 		const formData = new FormData();
 		formData.set("name", "test");
@@ -46,7 +46,7 @@ describe("Task 4: formData parse error returns 400", () => {
 			method: "POST",
 		});
 		const response = await handler.fetch(request, {});
-		/* No __flare_fn → falls through to normal SSR → 404 (no routes) */
+		/* No flare_fn → falls through to normal SSR → 404 (no routes) */
 		expect(response.status).toBe(404);
 	});
 });

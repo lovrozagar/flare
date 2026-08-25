@@ -105,15 +105,15 @@ describe("#3: escapeJsString newline injection", () => {
 	});
 });
 
-/* ── #4: unbounded x-m header parsing ────────────────────────────── */
+/* ── #4: unbounded flare-stale header parsing ────────────────────────────── */
 
-describe("#4: x-m header stale match IDs bounded", () => {
+describe("#4: flare-stale header stale match IDs bounded", () => {
 	it("source caps stale match IDs to prevent CPU exhaustion", async () => {
 		const { readFileSync } = await import("node:fs");
 		const { resolve } = await import("node:path");
 		const source = readFileSync(resolve(__dirname, "../../src/server-handler/index.ts"), "utf-8");
 		/* Should have a .slice() or limit on the split result */
-		expect(source).toMatch(/x-m.*split.*slice|MAX_STALE/);
+		expect(source).toMatch(/flare-stale.*split.*slice|MAX_STALE/);
 	});
 });
 

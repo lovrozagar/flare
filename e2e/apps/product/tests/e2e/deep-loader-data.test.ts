@@ -2,13 +2,13 @@ import { expect, test } from "@playwright/test";
 import { assertSPANavigation, clickAndAssertSPA, loadPage, setNavMarker, setupConsoleCapture } from "./helpers";
 
 test.describe("Deep: NDJSON fetch occurs on SPA nav", () => {
-	test("SPA nav triggers NDJSON data request with x-d header", async ({ page }) => {
+	test("SPA nav triggers NDJSON data request with flare-data header", async ({ page }) => {
 		await loadPage(page, "/");
 
 		/* Intercept requests to detect NDJSON fetch */
 		const ndjsonRequests: { url: string; headers: Record<string, string> }[] = [];
 		page.on("request", (req) => {
-			const xd = req.headers()["x-d"];
+			const xd = req.headers()["flare-data"];
 			if (xd === "1") {
 				ndjsonRequests.push({ headers: req.headers(), url: req.url() });
 			}
@@ -19,7 +19,7 @@ test.describe("Deep: NDJSON fetch occurs on SPA nav", () => {
 
 		expect(ndjsonRequests.length).toBeGreaterThanOrEqual(1);
 		expect(ndjsonRequests[0].url).toContain("/about");
-		expect(ndjsonRequests[0].headers["x-d"]).toBe("1");
+		expect(ndjsonRequests[0].headers["flare-data"]).toBe("1");
 	});
 
 	test("NDJSON response returns 200 with correct content type", async ({ page }) => {
@@ -28,7 +28,7 @@ test.describe("Deep: NDJSON fetch occurs on SPA nav", () => {
 		const ndjsonResponses: { status: number; contentType: string }[] = [];
 		page.on("response", (res) => {
 			const req = res.request();
-			if (req.headers()["x-d"] === "1") {
+			if (req.headers()["flare-data"] === "1") {
 				ndjsonResponses.push({
 					contentType: res.headers()["content-type"] ?? "",
 					status: res.status(),
@@ -86,7 +86,7 @@ test.describe("Deep: loader data values are correct after SPA nav", () => {
 		/* Track NDJSON requests for param change */
 		let ndjsonFired = false;
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/users/2")) {
+			if (req.headers()["flare-data"] === "1" && req.url().includes("/users/2")) {
 				ndjsonFired = true;
 			}
 		});

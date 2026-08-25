@@ -131,7 +131,7 @@ describe("ISR serving — cache hit", () => {
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			store,
 		});
-		const response = await handler.fetch(req("http://localhost/about", { "x-d": "1" }), {});
+		const response = await handler.fetch(req("http://localhost/about", { "flare-data": "1" }), {});
 		expect(response.status).toBe(200);
 		const body = await response.text();
 		expect(body).toContain("cached-data");
@@ -291,7 +291,7 @@ describe("ISR serving — cache miss + dynamicParams modes", () => {
 		expect(response.status).toBe(404);
 	});
 
-	it("store HIT + x-flare-prerender → skips stale artifacts and SSRs", async () => {
+	it("store HIT + flare-prerender → skips stale artifacts and SSRs", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({
 				html: "<html>stale-prerender-artifact</html>",
@@ -301,7 +301,7 @@ describe("ISR serving — cache miss + dynamicParams modes", () => {
 			store,
 		});
 		const response = await handler.fetch(
-			new Request("http://localhost/about", { headers: { "x-flare-prerender": "1" } }),
+			new Request("http://localhost/about", { headers: { "flare-prerender": "1" } }),
 			{},
 		);
 		expect([200, 500]).toContain(response.status);
@@ -309,13 +309,13 @@ describe("ISR serving — cache miss + dynamicParams modes", () => {
 		expect(body).not.toContain("stale-prerender-artifact");
 	});
 
-	it("dynamicParams: false + x-flare-prerender → falls through to SSR", async () => {
+	it("dynamicParams: false + flare-prerender → falls through to SSR", async () => {
 		const store = makeStore();
 		const handler = makeHandler("/about", makeISRRouteData({ dynamicParams: false, mode: "isr", revalidate: 300 }), {
 			store,
 		});
 		const response = await handler.fetch(
-			new Request("http://localhost/about", { headers: { "x-flare-prerender": "1" } }),
+			new Request("http://localhost/about", { headers: { "flare-prerender": "1" } }),
 			{},
 		);
 		expect([200, 500]).toContain(response.status);
@@ -373,7 +373,7 @@ describe("ISR serving — truly static routes", () => {
 });
 
 describe("ISR serving — bg re-render must bypass cache", () => {
-	it("x-isr-bg request bypasses static store, renders fresh SSR", async () => {
+	it("flare-isr request bypasses static store, renders fresh SSR", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({
 				html: "<html><body>STALE_CACHED_MARKER</body></html>",
@@ -384,7 +384,7 @@ describe("ISR serving — bg re-render must bypass cache", () => {
 		});
 
 		/* Direct ISR background request — should bypass static store */
-		const response = await handler.fetch(new Request("http://localhost/about", { headers: { "x-isr-bg": "1" } }), {});
+		const response = await handler.fetch(new Request("http://localhost/about", { headers: { "flare-isr": "1" } }), {});
 
 		const html = await response.text();
 		/* Bug: response contains STALE_CACHED_MARKER from cache */
@@ -425,7 +425,7 @@ describe("ISR serving — bg re-render must bypass cache", () => {
 		}
 	});
 
-	it("x-isr-bg data request bypasses static store NDJSON", async () => {
+	it("flare-isr data request bypasses static store NDJSON", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({
 				ndjson: '{"t":"l","m":"_root_/about","d":{"title":"STALE_NDJSON_MARKER"}}\n',
@@ -437,7 +437,7 @@ describe("ISR serving — bg re-render must bypass cache", () => {
 
 		/* Data request with ISR bg flag */
 		const response = await handler.fetch(
-			new Request("http://localhost/about", { headers: { "x-d": "1", "x-isr-bg": "1" } }),
+			new Request("http://localhost/about", { headers: { "flare-data": "1", "flare-isr": "1" } }),
 			{},
 		);
 
@@ -468,10 +468,10 @@ describe("ISR serving — route without static meta", () => {
 	});
 });
 
-/* ── Flare-Render / Flare-Cache headers ────────────────────────────── */
+/* ── flare-render / flare-cache headers ────────────────────────────── */
 
-describe("Flare-Render and Flare-Cache headers", () => {
-	it("ISR fresh hit → Flare-Render: ISR, Flare-Cache: HIT", async () => {
+describe("flare-render and flare-cache headers", () => {
+	it("ISR fresh hit → flare-render: ISR, flare-cache: HIT", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
@@ -479,11 +479,11 @@ describe("Flare-Render and Flare-Cache headers", () => {
 			store,
 		});
 		const response = await handler.fetch(req(), {});
-		expect(response.headers.get("Flare-Render")).toBe("ISR");
-		expect(response.headers.get("Flare-Cache")).toBe("HIT");
+		expect(response.headers.get("flare-render")).toBe("ISR");
+		expect(response.headers.get("flare-cache")).toBe("HIT");
 	});
 
-	it("ISR stale hit → Flare-Render: ISR, Flare-Cache: STALE", async () => {
+	it("ISR stale hit → flare-render: ISR, flare-cache: STALE", async () => {
 		const staleTime = Date.now() - 400_000;
 		const store = makeStore({
 			"static:/about": makeStaticEntry({ storedAt: staleTime }),
@@ -495,58 +495,58 @@ describe("Flare-Render and Flare-Cache headers", () => {
 			{ waitUntil: vi.fn() },
 		);
 		const response = await handler.fetch(req(), {});
-		expect(response.headers.get("Flare-Render")).toBe("ISR");
-		expect(response.headers.get("Flare-Cache")).toBe("STALE");
+		expect(response.headers.get("flare-render")).toBe("ISR");
+		expect(response.headers.get("flare-cache")).toBe("STALE");
 	});
 
-	it("ISR data request hit → Flare-Render: ISR, Flare-Cache: HIT", async () => {
+	it("ISR data request hit → flare-render: ISR, flare-cache: HIT", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			store,
 		});
-		const response = await handler.fetch(req("http://localhost/about", { "x-d": "1" }), {});
-		expect(response.headers.get("Flare-Render")).toBe("ISR");
-		expect(response.headers.get("Flare-Cache")).toBe("HIT");
+		const response = await handler.fetch(req("http://localhost/about", { "flare-data": "1" }), {});
+		expect(response.headers.get("flare-render")).toBe("ISR");
+		expect(response.headers.get("flare-cache")).toBe("HIT");
 	});
 
-	it("SSG hit → Flare-Render: SSG, Flare-Cache: HIT", async () => {
+	it("SSG hit → flare-render: SSG, flare-cache: HIT", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "static" }), { store });
 		const response = await handler.fetch(req(), {});
-		expect(response.headers.get("Flare-Render")).toBe("SSG");
-		expect(response.headers.get("Flare-Cache")).toBe("HIT");
+		expect(response.headers.get("flare-render")).toBe("SSG");
+		expect(response.headers.get("flare-cache")).toBe("HIT");
 	});
 
-	it("ISR miss with dynamicParams: false → Flare-Render: ISR, Flare-Cache: MISS", async () => {
+	it("ISR miss with dynamicParams: false → flare-render: ISR, flare-cache: MISS", async () => {
 		const store = makeStore();
 		const handler = makeHandler("/about", makeISRRouteData({ dynamicParams: false, mode: "isr", revalidate: 300 }), {
 			store,
 		});
 		const response = await handler.fetch(req(), {});
-		expect(response.headers.get("Flare-Render")).toBe("ISR");
-		expect(response.headers.get("Flare-Cache")).toBe("MISS");
+		expect(response.headers.get("flare-render")).toBe("ISR");
+		expect(response.headers.get("flare-cache")).toBe("MISS");
 	});
 
-	it("ISR miss with dynamicParams: true → falls through to SSR with Flare-Render", async () => {
+	it("ISR miss with dynamicParams: true → falls through to SSR with flare-render", async () => {
 		const store = makeStore();
 		const handler = makeHandler("/about", makeISRRouteData({ dynamicParams: true, mode: "isr", revalidate: 300 }), {
 			store,
 		});
 		const response = await handler.fetch(req(), {});
 		/* Falls through to SSR path — in test env renderToStream fails,
-		 * but the happy path sets Flare-Render: ISR, Flare-Cache: MISS */
-		expect(response.headers.get("Flare-Render")).toBeTruthy();
+		 * but the happy path sets flare-render: ISR, flare-cache: MISS */
+		expect(response.headers.get("flare-render")).toBeTruthy();
 	});
 
-	it("SSR route without cache → Flare-Render: SSR, no Flare-Cache", async () => {
+	it("SSR route without cache → flare-render: SSR, no flare-cache", async () => {
 		const handler = makeHandler("/about", makeRouteData());
 		const response = await handler.fetch(req(), {});
-		expect(response.headers.get("Flare-Render")).toBe("SSR");
-		expect(response.headers.get("Flare-Cache")).toBeNull();
+		expect(response.headers.get("flare-render")).toBe("SSR");
+		expect(response.headers.get("flare-cache")).toBeNull();
 	});
 
 	it("ISR bg render → no Flare headers", async () => {
@@ -556,9 +556,9 @@ describe("Flare-Render and Flare-Cache headers", () => {
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			store,
 		});
-		const response = await handler.fetch(new Request("http://localhost/about", { headers: { "x-isr-bg": "1" } }), {});
-		expect(response.headers.get("Flare-Render")).toBeNull();
-		expect(response.headers.get("Flare-Cache")).toBeNull();
+		const response = await handler.fetch(new Request("http://localhost/about", { headers: { "flare-isr": "1" } }), {});
+		expect(response.headers.get("flare-render")).toBeNull();
+		expect(response.headers.get("flare-cache")).toBeNull();
 	});
 
 	it("global headers: false → no Flare headers on ISR hit", async () => {
@@ -571,8 +571,8 @@ describe("Flare-Render and Flare-Cache headers", () => {
 		});
 		const response = await handler.fetch(req(), {});
 		expect(response.status).toBe(200);
-		expect(response.headers.get("Flare-Render")).toBeNull();
-		expect(response.headers.get("Flare-Cache")).toBeNull();
+		expect(response.headers.get("flare-render")).toBeNull();
+		expect(response.headers.get("flare-cache")).toBeNull();
 	});
 
 	it("global headers: false → no Flare headers on ISR data request", async () => {
@@ -583,15 +583,15 @@ describe("Flare-Render and Flare-Cache headers", () => {
 			headers: false,
 			store,
 		});
-		const response = await handler.fetch(req("http://localhost/about", { "x-d": "1" }), {});
-		expect(response.headers.get("Flare-Render")).toBeNull();
-		expect(response.headers.get("Flare-Cache")).toBeNull();
+		const response = await handler.fetch(req("http://localhost/about", { "flare-data": "1" }), {});
+		expect(response.headers.get("flare-render")).toBeNull();
+		expect(response.headers.get("flare-cache")).toBeNull();
 	});
 
 	it("global headers: false → no Flare headers on SSR route", async () => {
 		const handler = makeHandler("/about", makeRouteData(), { headers: false });
 		const response = await handler.fetch(req(), {});
-		expect(response.headers.get("Flare-Render")).toBeNull();
-		expect(response.headers.get("Flare-Cache")).toBeNull();
+		expect(response.headers.get("flare-render")).toBeNull();
+		expect(response.headers.get("flare-cache")).toBeNull();
 	});
 });

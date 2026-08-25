@@ -299,7 +299,7 @@ describe("installDeferredResolver edge cases", () => {
 	afterEach(() => {
 		globalThis.__flare_r = undefined;
 		globalThis.__flare_re = undefined;
-		globalThis.__flare_q = undefined;
+		globalThis.__flare_defer = undefined;
 	});
 
 	it("empty resolvers map → immediately cleans up globals", () => {
@@ -307,7 +307,7 @@ describe("installDeferredResolver edge cases", () => {
 		installDeferredResolver(resolvers);
 		expect(globalThis.__flare_r).toBeUndefined();
 		expect(globalThis.__flare_re).toBeUndefined();
-		expect(globalThis.__flare_q).toBeUndefined();
+		expect(globalThis.__flare_defer).toBeUndefined();
 	});
 
 	it("drains buffered queue entries", () => {
@@ -321,7 +321,7 @@ describe("installDeferredResolver edge cases", () => {
 		});
 
 		/* Simulate SSR script that already pushed to queue */
-		globalThis.__flare_q = [["m1:d0", "buffered-data"]];
+		globalThis.__flare_defer = [["m1:d0", "buffered-data"]];
 
 		installDeferredResolver(resolvers);
 		expect(resolvedData).toBe("buffered-data");
@@ -338,7 +338,7 @@ describe("installDeferredResolver edge cases", () => {
 			resolve: () => {},
 		});
 
-		globalThis.__flare_q = [["m1:d0", "error message", true]];
+		globalThis.__flare_defer = [["m1:d0", "error message", true]];
 
 		installDeferredResolver(resolvers);
 		expect(rejectedError?.message).toBe("error message");
@@ -357,7 +357,7 @@ describe("installDeferredResolver edge cases", () => {
 		installDeferredResolver(resolvers);
 
 		/* Simulate late SSR script push */
-		const q = globalThis.__flare_q as { push: (entry: [string, unknown, boolean?]) => number };
+		const q = globalThis.__flare_defer as { push: (entry: [string, unknown, boolean?]) => number };
 		q.push(["m1:d0", "late-data"]);
 		expect(resolvedData).toBe("late-data");
 	});
@@ -374,7 +374,7 @@ describe("installDeferredResolver edge cases", () => {
 
 		installDeferredResolver(resolvers);
 
-		const q = globalThis.__flare_q as { push: (entry: [string, unknown, boolean?]) => number };
+		const q = globalThis.__flare_defer as { push: (entry: [string, unknown, boolean?]) => number };
 		q.push(["m1:d0", "late error", true]);
 		expect(rejectedError?.message).toBe("late error");
 	});
@@ -386,7 +386,7 @@ describe("installDeferredResolver edge cases", () => {
 			resolve: () => {},
 		});
 
-		globalThis.__flare_q = [["m1:nonexistent", "data"]];
+		globalThis.__flare_defer = [["m1:nonexistent", "data"]];
 
 		installDeferredResolver(resolvers);
 		/* m1:d0 still present because nothing resolved it */
@@ -409,7 +409,7 @@ describe("installDeferredResolver edge cases", () => {
 			},
 		});
 
-		globalThis.__flare_q = [
+		globalThis.__flare_defer = [
 			["m1:d0", "first"],
 			["m1:d1", "second"],
 		];

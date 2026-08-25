@@ -24,7 +24,7 @@ Flare has critical gaps in standard HTTP caching headers:
 
 ### Why This Is Critical
 
-**The `Vary: x-d` problem:** Flare differentiates HTML and NDJSON responses by the `x-d` request header. Same URL → two completely different response bodies. Without `Vary: x-d`, a CDN caches the first response (say HTML) and serves it for NDJSON requests too. SPA navigation breaks.
+**The `Vary: flare-data` problem:** Flare differentiates HTML and NDJSON responses by the `flare-data` request header. Same URL → two completely different response bodies. Without `Vary: flare-data`, a CDN caches the first response (say HTML) and serves it for NDJSON requests too. SPA navigation breaks.
 
 **ETag on store-served responses:** SSG, ISR cache hits, and SSR cache hits have deterministic content (served from store, not streaming). An ETag lets browsers and CDNs skip re-downloading unchanged content (304 Not Modified). Streaming responses (uncached SSR, NDJSON) can't have ETags — chunks are sent before the full body exists.
 
@@ -54,16 +54,16 @@ Flare has critical gaps in standard HTTP caching headers:
 
 ### Design
 
-#### 1. Auto-set `Vary: x-d`
+#### 1. Auto-set `Vary: flare-data`
 
-Every response from the server handler must include `Vary: x-d`. This is non-negotiable — flare's NDJSON protocol requires it.
+Every response from the server handler must include `Vary: flare-data`. This is non-negotiable — flare's NDJSON protocol requires it.
 
 ```ts
 /* In SECURITY_HEADERS or applied separately */
-headers.set("Vary", "x-d");
+headers.set("Vary", "flare-data");
 ```
 
-If user adds custom Vary values, they're appended: `Vary: x-d, Accept-Language`.
+If user adds custom Vary values, they're appended: `Vary: flare-data, Accept-Language`.
 
 #### 2. User-configurable `cdn.vary`
 
@@ -87,9 +87,9 @@ Usage:
 })
 ```
 
-Result: `Vary: x-d, Accept-Language, Cookie`
+Result: `Vary: flare-data, Accept-Language, Cookie`
 
-`x-d` is always included automatically — users don't need to add it.
+`flare-data` is always included automatically — users don't need to add it.
 
 #### 3. ETag on store-served responses
 
@@ -136,23 +136,23 @@ if (ifNoneMatch && weakMatch(ifNoneMatch, etag)) {
 
 ### Implementation Files
 
-| File                                           | Action                                                                       |
-| ---------------------------------------------- | ---------------------------------------------------------------------------- |
-| `flare/src/server-handler/index.ts`            | MODIFY — add `Vary: x-d` to all responses, add 304 handling for cached pages |
-| `flare/src/loader-pipeline/index.ts`           | MODIFY — `buildCdnCacheHeaders` outputs Vary from `cdn.vary` config          |
-| `flare/src/route-builder/types.ts`             | MODIFY — add `vary?: string[]` to `CdnCacheConfig`                           |
-| `flare/src/server-handler/etag.ts`             | CREATE — `computeEtag(body)`, `handleConditionalRequest(req, etag, headers)` |
-| `flare/tests/unit/server-handler/etag.test.ts` | CREATE — unit tests                                                          |
-| `flare/tests/unit/server-handler/vary.test.ts` | CREATE — Vary header assembly tests                                          |
+| File                                           | Action                                                                              |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `flare/src/server-handler/index.ts`            | MODIFY — add `Vary: flare-data` to all responses, add 304 handling for cached pages |
+| `flare/src/loader-pipeline/index.ts`           | MODIFY — `buildCdnCacheHeaders` outputs Vary from `cdn.vary` config                 |
+| `flare/src/route-builder/types.ts`             | MODIFY — add `vary?: string[]` to `CdnCacheConfig`                                  |
+| `flare/src/server-handler/etag.ts`             | CREATE — `computeEtag(body)`, `handleConditionalRequest(req, etag, headers)`        |
+| `flare/tests/unit/server-handler/etag.test.ts` | CREATE — unit tests                                                                 |
+| `flare/tests/unit/server-handler/vary.test.ts` | CREATE — Vary header assembly tests                                                 |
 
 ### Test Cases
 
 **Vary:**
 
-- Every HTML response has `Vary: x-d`
-- Every NDJSON response has `Vary: x-d`
-- Route with `cdn.vary: ["Accept-Language"]` → `Vary: x-d, Accept-Language`
-- Multiple Vary values don't duplicate `x-d`
+- Every HTML response has `Vary: flare-data`
+- Every NDJSON response has `Vary: flare-data`
+- Route with `cdn.vary: ["Accept-Language"]` → `Vary: flare-data, Accept-Language`
+- Multiple Vary values don't duplicate `flare-data`
 
 **ETag:**
 
@@ -404,7 +404,7 @@ flare({
 			 * serves on cache hit. No framework does this — first of its kind.
 			 *
 			 * false = off (default).
-			 * true = on with default X-Flare-Cache header.
+			 * true = on with default X-flare-cache header.
 			 * { headers } = on with custom status header mapping.
 			 *
 			 * @default false
@@ -477,7 +477,7 @@ dev: {
 	cache: {
 		cdn: true;
 	}
-} /* all on including cdn with X-Flare-Cache header */
+} /* all on including cdn with X-flare-cache header */
 dev: {
 	cache: {
 		cdn: cfHeaders;
@@ -553,7 +553,7 @@ Same `Store` interface for static + loader. CDN simulator is a thin middleware l
 1. Read `Cache-Control` from response headers (already built by flare from `.cache({ cdn: { maxAge, swr } })`)
 2. Parse `s-maxage` > `max-age`, `stale-while-revalidate`, `private`, `no-store`
 3. If cacheable → write to `.flare/cache/cdn/{url-hash}.json` with `{ body, headers, storedAt, maxAge, swr }`
-4. Call `headers()` adapter with `{ hit: false, ... }` → add status headers (e.g. `X-Flare-Cache: MISS`)
+4. Call `headers()` adapter with `{ hit: false, ... }` → add status headers (e.g. `X-flare-cache: MISS`)
 
 **On request (before SSR):**
 

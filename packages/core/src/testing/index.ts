@@ -1,4 +1,5 @@
 import { EMPTY_ARR } from "../internal/index.ts";
+import { ATTR_HYDRATED } from "../protocol.ts";
 
 const HYDRATION_PATTERNS = [/hydration/i, /mismatch/i, /unable to find dom nodes/i];
 
@@ -148,9 +149,13 @@ export class FlarePage {
 	/* ── Hydration ──────────────────────────────────────────────────── */
 
 	async waitForHydration(timeout = 15_000): Promise<void> {
-		await this.page.waitForFunction("document.documentElement.hasAttribute('data-hydrated')", undefined, {
-			timeout,
-		});
+		await this.page.waitForFunction(
+			`document.documentElement.hasAttribute(${JSON.stringify(ATTR_HYDRATED)})`,
+			undefined,
+			{
+				timeout,
+			},
+		);
 	}
 
 	/* ── State ──────────────────────────────────────────────────────── */

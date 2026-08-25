@@ -53,7 +53,7 @@ describe("#3: server-fn jsonResponse charset", () => {
 		const { handleServerFnRequest } = await import("../../src/server-fn/index.ts");
 		const fns = new Map();
 		const response = await handleServerFnRequest(
-			new Request("http://localhost/_fn/nonexistent/fn", { method: "POST" }),
+			new Request("http://localhost/_flare/server-fn/nonexistent/fn", { method: "POST" }),
 			{},
 			fns,
 		);
@@ -183,7 +183,7 @@ describe("#7: server-fn streaming cleanup", () => {
 
 		const response = await runWithServerContext({ nonce: "test", request: new Request("http://localhost") }, () =>
 			handleServerFnRequest(
-				new Request("http://localhost/_fn/stream-test/streamTest", {
+				new Request("http://localhost/_flare/server-fn/stream-test/streamTest", {
 					method: "POST",
 				}),
 				{},

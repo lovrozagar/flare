@@ -189,10 +189,10 @@ request.destination or URL pattern → strategy:
    → On network failure: serve cached HTML from RUNTIME_CACHE if exists.
    → On cache miss + network failure: serve offlineFallback from RUNTIME_CACHE (if configured).
 
-3. NDJSON requests (request has `x-d` header — set by fetchNDJSON):
+3. NDJSON requests (request has `flare-data` header — set by fetchNDJSON):
    → Passthrough. Never cache.
 
-4. Server function requests (/_fn/*):
+4. Server function requests (/_flare/server-fn/*):
    → Passthrough. Never cache.
 
 5. Keepalive pings (/_flare/keepalive):
@@ -204,7 +204,7 @@ request.destination or URL pattern → strategy:
 
 ### Client registration (`src/hydrate/index.tsx`)
 
-After hydration completes (after `document.documentElement.setAttribute("data-hydrated", "")`), registration is deferred until the browser is idle OR the user interacts — whichever comes first. This ensures zero Lighthouse impact (LCP, FID, TTI, TBT all unaffected):
+After hydration completes (after `document.documentElement.setAttribute("data-flare-hydrated", "")`), registration is deferred until the browser is idle OR the user interacts — whichever comes first. This ensures zero Lighthouse impact (LCP, FID, TTI, TBT all unaffected):
 
 ```ts
 function onceIdle(fn: () => void): void {

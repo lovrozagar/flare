@@ -87,17 +87,17 @@ test.describe("shallow", () => {
 });
 
 test.describe("prefetch", () => {
-	test("hover intent sends x-p and does not commit", async ({ page }) => {
+	test("hover intent sends flare-prefetch and does not commit", async ({ page }) => {
 		await loadPage(page, "/");
-		const pref = page.waitForRequest((r) => r.headers()["x-p"] === "1");
+		const pref = page.waitForRequest((r) => r.headers()["flare-prefetch"] === "1");
 		await page.getByRole("link", { name: "Prefetch", exact: true }).hover();
 		const req = await pref;
-		expect(req.headers()["x-d"]).toBe("1");
+		expect(req.headers()["flare-data"]).toBe("1");
 		expect(new URL(page.url()).pathname).toBe("/");
 	});
 
 	test("prefetch defer has no t:c", async ({ request }) => {
-		const res = await request.get("/prefetch-defer", { headers: { "x-d": "1", "x-p": "1" } });
+		const res = await request.get("/prefetch-defer", { headers: { "flare-data": "1", "flare-prefetch": "1" } });
 		const body = await res.text();
 		expect(body.includes('"t":"c"') || body.includes('"t": "c"')).toBe(false);
 	});
@@ -153,10 +153,10 @@ test.describe("scroll + popstate cache", () => {
 	test("back to cached page does not refetch NDJSON", async ({ page }) => {
 		await loadPage(page, "/cache-test");
 		await page.goto("/about");
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"));
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		let ndjson = 0;
 		page.on("request", (r) => {
-			if (r.headers()["x-d"] === "1") ndjson++;
+			if (r.headers()["flare-data"] === "1") ndjson++;
 		});
 		await setNavMarker(page);
 		await page.goBack();

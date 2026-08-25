@@ -11,7 +11,7 @@ test.describe("custom headers", () => {
 	});
 
 	test("NDJSON custom headers", async ({ request }) => {
-		const response = await request.get("/custom-headers", { headers: { "x-d": "1" } });
+		const response = await request.get("/custom-headers", { headers: { "flare-data": "1" } });
 		expect(response.headers()["x-custom-header"]).toBe("flare-test-value");
 		expect(response.headers()["x-custom-data"]?.startsWith("ts-")).toBe(true);
 	});
@@ -32,7 +32,7 @@ test.describe("header chain", () => {
 
 	test("NDJSON also merges", async ({ request }) => {
 		const response = await request.get("/dashboard", {
-			headers: { "x-d": "1", "x-test-auth": "admin" },
+			headers: { "flare-data": "1", "x-test-auth": "admin" },
 		});
 		expect(response.headers()["x-dashboard-layout"]).toBe("true");
 		expect(response.headers()["x-dashboard-page"]).toBe("overview");

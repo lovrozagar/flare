@@ -40,7 +40,7 @@ describe("streaming server fn generator cleanup on error", () => {
 		}
 
 		const fns = createStreamRegistration(() => circularGenerator());
-		const request = new Request("http://localhost/_fn/test-stream/testStream", {
+		const request = new Request("http://localhost/_flare/server-fn/test-stream/testStream", {
 			method: "POST",
 		});
 
@@ -70,7 +70,7 @@ describe("streaming server fn generator cleanup on error", () => {
 		}
 
 		const fns = createStreamRegistration((ctx: { signal: AbortSignal }) => signalGenerator(ctx));
-		const request = new Request("http://localhost/_fn/test-stream/testStream", {
+		const request = new Request("http://localhost/_flare/server-fn/test-stream/testStream", {
 			method: "POST",
 		});
 
@@ -96,7 +96,7 @@ describe("streaming server fn generator cleanup on error", () => {
 		}
 
 		const fns = createStreamRegistration(() => failingGenerator());
-		const request = new Request("http://localhost/_fn/test-stream/testStream", {
+		const request = new Request("http://localhost/_flare/server-fn/test-stream/testStream", {
 			method: "POST",
 		});
 

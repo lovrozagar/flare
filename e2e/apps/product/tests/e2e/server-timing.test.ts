@@ -33,7 +33,7 @@ test.describe("Server-Timing header — dev auto-inject @dev-only", () => {
 
 	test("NDJSON response has Server-Timing", async ({ request }) => {
 		const res = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		const timing = res.headers()["server-timing"];
@@ -59,7 +59,7 @@ test.describe("Server-Timing header — dev auto-inject @dev-only", () => {
 
 	test("ISR NDJSON response has Server-Timing", async ({ request }) => {
 		const res = await request.get("/isr-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		const timing = res.headers()["server-timing"];
@@ -68,7 +68,7 @@ test.describe("Server-Timing header — dev auto-inject @dev-only", () => {
 	});
 
 	test("server function response has Server-Timing", async ({ request }) => {
-		const res = await request.post("/_fn/echo", {
+		const res = await request.post("/_flare/server-fn/echo", {
 			data: { message: "hello" },
 			headers: { "content-type": "application/json" },
 		});
@@ -201,7 +201,7 @@ test.describe("Server-Timing — deep tracing cases @dev-only", () => {
 
 	test("NDJSON response has all 6 pipeline phases", async ({ request }) => {
 		const res = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const timing = res.headers()["server-timing"];
 		expect(timing).toBeDefined();
@@ -272,7 +272,7 @@ test.describe("Server-Timing — deep tracing cases @dev-only", () => {
 	});
 
 	test("server-fn has middleware spans but no pipeline spans", async ({ request }) => {
-		const res = await request.post("/_fn/echo", {
+		const res = await request.post("/_flare/server-fn/echo", {
 			data: { message: "hello" },
 			headers: { "content-type": "application/json" },
 		});
@@ -351,7 +351,7 @@ test.describe("Server-Timing header — NOT present in prod @prod-only", () => {
 
 	test("NDJSON response has no Server-Timing in prod", async ({ request }) => {
 		const res = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		expect(res.headers()["server-timing"]).toBeUndefined();
@@ -370,7 +370,7 @@ test.describe("Server-Timing header — NOT present in prod @prod-only", () => {
 	});
 
 	test("server function response has no Server-Timing in prod", async ({ request }) => {
-		const res = await request.post("/_fn/echo", {
+		const res = await request.post("/_flare/server-fn/echo", {
 			data: { message: "prod" },
 			headers: { "content-type": "application/json" },
 		});

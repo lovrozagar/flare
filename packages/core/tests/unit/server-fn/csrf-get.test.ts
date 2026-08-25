@@ -37,25 +37,25 @@ async function callHandler(req: Request, fns?: Map<string, ServerFnRegistration>
 
 describe("Task 7: CSRF GET origin validation", () => {
 	it("GET request with matching origin passes", async () => {
-		const req = getRequest("http://localhost:3000/_fn/test-fn/testGet", "http://localhost:3000");
+		const req = getRequest("http://localhost:3000/_flare/server-fn/test-fn/testGet", "http://localhost:3000");
 		const res = await callHandler(req);
 		expect(res.status).toBe(200);
 	});
 
 	it("GET request with no origin header passes (same-origin browser behavior)", async () => {
-		const req = getRequest("http://localhost:3000/_fn/test-fn/testGet");
+		const req = getRequest("http://localhost:3000/_flare/server-fn/test-fn/testGet");
 		const res = await callHandler(req);
 		expect(res.status).toBe(200);
 	});
 
 	it("GET request with mismatched origin is rejected", async () => {
-		const req = getRequest("http://localhost:3000/_fn/test-fn/testGet", "http://evil.com");
+		const req = getRequest("http://localhost:3000/_flare/server-fn/test-fn/testGet", "http://evil.com");
 		const res = await callHandler(req);
 		expect(res.status).toBe(403);
 	});
 
 	it("GET request from different port is rejected", async () => {
-		const req = getRequest("http://localhost:3000/_fn/test-fn/testGet", "http://localhost:4000");
+		const req = getRequest("http://localhost:3000/_flare/server-fn/test-fn/testGet", "http://localhost:4000");
 		const res = await callHandler(req);
 		expect(res.status).toBe(403);
 	});
@@ -66,7 +66,7 @@ describe("Task 7: CSRF GET origin validation", () => {
 			"content-type": "application/json",
 			origin: "http://evil.com",
 		};
-		const req = new Request("http://localhost:3000/_fn/test-fn/testGet", {
+		const req = new Request("http://localhost:3000/_flare/server-fn/test-fn/testGet", {
 			body: JSON.stringify({}),
 			headers,
 			method: "POST",
@@ -81,7 +81,7 @@ describe("Task 7: CSRF GET origin validation", () => {
 			"content-type": "application/json",
 			origin: "http://localhost:3000",
 		};
-		const req = new Request("http://localhost:3000/_fn/test-fn/testGet", {
+		const req = new Request("http://localhost:3000/_flare/server-fn/test-fn/testGet", {
 			body: JSON.stringify({}),
 			headers,
 			method: "POST",
@@ -94,7 +94,7 @@ describe("Task 7: CSRF GET origin validation", () => {
 		const headers: Record<string, string> = {
 			referer: "http://localhost:3000/page",
 		};
-		const req = new Request("http://localhost:3000/_fn/test-fn/testGet", {
+		const req = new Request("http://localhost:3000/_flare/server-fn/test-fn/testGet", {
 			headers,
 			method: "GET",
 		});

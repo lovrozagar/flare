@@ -1,25 +1,25 @@
 import { expect, test } from "@playwright/test";
 
-test.describe("Flare-Render header", () => {
-	test("SSR route has Flare-Render: SSR", async ({ page }) => {
+test.describe("flare-render header", () => {
+	test("SSR route has flare-render: SSR", async ({ page }) => {
 		const response = await page.goto("/about", { waitUntil: "domcontentloaded" });
 		expect(response?.headers()["flare-render"]).toBe("SSR");
 	});
 
-	test("SSR route without cache has no Flare-Cache", async ({ page }) => {
+	test("SSR route without cache has no flare-cache", async ({ page }) => {
 		const response = await page.goto("/head-demo", { waitUntil: "domcontentloaded" });
 		expect(response?.headers()["flare-cache"]).toBeUndefined();
 	});
 
-	test("SSR data request has Flare-Render: SSR", async ({ request }) => {
+	test("SSR data request has flare-render: SSR", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["flare-render"]).toBe("SSR");
 	});
 });
 
-test.describe("Flare-Cache header with store", () => {
+test.describe("flare-cache header with store", () => {
 	test("first request to store-cached route is MISS", async ({ request }) => {
 		/* Use a fresh request to avoid cached data */
 		const response = await request.get("/deep-cache/store-page");
@@ -32,7 +32,7 @@ test.describe("Flare-Cache header with store", () => {
 		}
 	});
 
-	test("store-cached route has Flare-Cache header", async ({ request }) => {
+	test("store-cached route has flare-cache header", async ({ request }) => {
 		/* First request populates store */
 		await request.get("/deep-cache/store-page");
 		/* Second request should hit */
@@ -46,7 +46,7 @@ test.describe("Flare-Cache header with store", () => {
 		await request.get("/deep-cache/store-page");
 		/* NDJSON request should also have headers */
 		const response = await request.get("/deep-cache/store-page", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["flare-render"]).toBe("SSR");
 		expect(response.headers()["flare-cache"]).toBe("HIT");

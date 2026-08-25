@@ -119,7 +119,7 @@ test.describe("ISR — NDJSON data requests", () => {
 		await new Promise((r) => setTimeout(r, 500));
 
 		const res = await request.get("/isr-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 
