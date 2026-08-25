@@ -12,7 +12,7 @@ test.describe("@prod-only server log forwarding disabled in prod", () => {
 
 	test("NDJSON: no log messages in data response", async ({ request }) => {
 		const response = await request.get("/server-log-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const text = await response.text();
 		const lines = text.trim().split("\n");

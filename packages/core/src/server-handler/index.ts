@@ -66,6 +66,18 @@ import {
 	serverLog,
 	setFormActionContext,
 } from "@lovrozagar/flare/server-context";
+import {
+	FORM_FN_FIELD,
+	HEADER_DATA,
+	HEADER_FLAG,
+	HEADER_ISR,
+	HEADER_PRERENDER,
+	HEADER_PREFETCH,
+	HEADER_STALE,
+	INTERNAL_PATH_PREFIX,
+	isServerFnPathname,
+	serverFnPath,
+} from "../protocol.ts";
 import { formDataToObject, handleServerFnRequest } from "../server-fn/index.ts";
 import { applyResponseHeaders, mergeResponseHeaders, renderToStream, type SSRConfig } from "../ssr/index.tsx";
 import type { StaticEntryData } from "../store/index.ts";
@@ -362,15 +374,15 @@ function addSecurityHeaders(response: Response, secHeaders: Record<string, strin
 		}
 	}
 
-	/* Ensure Vary includes x-d — merge with any existing Vary from cdn.vary config */
+	/* Ensure Vary includes flare-data — merge with any existing Vary from cdn.vary config */
 	const existing = headers.get("Vary");
 	if (existing) {
 		const parts = existing.split(",").map((v) => v.trim());
-		if (!parts.some((v) => v.toLowerCase() === "x-d")) {
-			headers.set("Vary", `x-d, ${existing}`);
+		if (!parts.some((v) => v.toLowerCase() === HEADER_DATA)) {
+			headers.set("Vary", `${HEADER_DATA}, ${existing}`);
 		}
 	} else {
-		headers.set("Vary", "x-d");
+		headers.set("Vary", HEADER_DATA);
 	}
 
 	return new Response(response.body, {
@@ -950,9 +962,9 @@ export function createServerHandler<
 						let requestType: RequestType = "page";
 						if (matchedMount) {
 							requestType = "mount";
-						} else if (url.pathname.startsWith("/_fn/")) {
+						} else if (isServerFnPathname(url.pathname)) {
 							requestType = "server-fn";
-						} else if (url.pathname.startsWith("/_flare/")) {
+						} else if (url.pathname.startsWith(INTERNAL_PATH_PREFIX)) {
 							requestType = "internal";
 						}
 
@@ -1009,18 +1021,18 @@ export function createServerHandler<
 									})
 							: undefined;
 
-						if (url.pathname.startsWith("/_fn/")) {
+						if (isServerFnPathname(url.pathname)) {
 							const fns = serverFns;
 							let response = await handleServerFnRequest(request, env, fns, serverFnAuthFn);
 							response = await applyResponseHandlers(response, responseHandlers);
 							return addSecurityHeaders(response, secHeaders);
 						}
 
-						/* PE POST: no-JS <Form> submits to page URL with __flare_fn hidden field */
+						/* PE POST: no-JS <Form> submits to page URL with flare_fn hidden field */
 						if (
 							request.method === "POST" &&
-							!url.pathname.startsWith("/_fn/") &&
-							!url.pathname.startsWith("/_flare/")
+							!isServerFnPathname(url.pathname) &&
+							!url.pathname.startsWith(INTERNAL_PATH_PREFIX)
 						) {
 							const ct = request.headers.get("content-type") ?? "";
 							if (ct.includes("form")) {
@@ -1030,11 +1042,11 @@ export function createServerHandler<
 								} catch {
 									return addSecurityHeaders(new Response("Bad Request", { status: 400 }), secHeaders);
 								}
-								const flareFnId = formData.get("__flare_fn");
+								const flareFnId = formData.get(FORM_FN_FIELD);
 								if (typeof flareFnId === "string" && serverFns.has(flareFnId)) {
 									const reg = serverFns.get(flareFnId);
 									if (reg) {
-										const fnUrl = `${url.origin}/_fn/${reg.id}/${reg.name}`;
+										const fnUrl = `${url.origin}${serverFnPath(reg.id, reg.name)}`;
 										/* Forward headers but drop Content-Type so the runtime
 										 * auto-sets the correct multipart boundary for FormData body. */
 										const forwardHeaders = new Headers(request.headers);
@@ -1170,7 +1182,7 @@ export function createServerHandler<
 									const resolvedHead = pipelineResult.matches.findLast((m) => m.headConfig)?.headConfig ?? {};
 
 									const fuzzyLogs = enableServerLogs ? getServerLogs() : undefined;
-									if (request.headers.get("x-d") === "1") {
+									if (request.headers.get(HEADER_DATA) === HEADER_FLAG) {
 										const ndjson = createNDJSONResponse({
 											deferContexts: pipelineResult.deferContexts,
 											matches: pipelineResult.matches,
@@ -1221,7 +1233,7 @@ export function createServerHandler<
 									return addSecurityHeaders(response, secHeaders);
 								}
 							}
-							if (request.headers.get("x-d") === "1") {
+							if (request.headers.get(HEADER_DATA) === HEADER_FLAG) {
 								let data404 = unmatchedNdjson404();
 								data404 = await applyResponseHandlers(data404, responseHandlers);
 								return addSecurityHeaders(data404, secHeaders);
@@ -1229,12 +1241,12 @@ export function createServerHandler<
 							return fallbackHtmlResponse(FALLBACK_404, 404, secHeaders);
 						}
 
-						const isDataRequest = request.headers.get("x-d") === "1";
+						const isDataRequest = request.headers.get(HEADER_DATA) === HEADER_FLAG;
 
 						/* ── ISR / Static Store serving ─────────────────────── */
 						const staticMeta = match.route.o.static;
-						const isISRBgRequest = request.headers.get("x-isr-bg") === "1";
-						const isPrerenderRequest = request.headers.get("x-flare-prerender") === "1";
+						const isISRBgRequest = request.headers.get(HEADER_ISR) === HEADER_FLAG;
+						const isPrerenderRequest = request.headers.get(HEADER_PRERENDER) === HEADER_FLAG;
 						/* Skip the store on prerender: loadPrerenderArtifacts() rehydrates
 						   the previous build's HTML into the same in-memory store the
 						   prerender plugin then fetch()es, which would freeze stale
@@ -1252,14 +1264,14 @@ export function createServerHandler<
 									isrRevalidate !== undefined &&
 									Date.now() - entry.storedAt > isrRevalidate * 1000;
 
-								if (isStale && !request.headers.get("x-isr-bg") && !isrInFlight.has(storeKey)) {
+								if (isStale && !request.headers.get(HEADER_ISR) && !isrInFlight.has(storeKey)) {
 									isrInFlight.add(storeKey);
 									const revalidatePromise = (async () => {
 										try {
 											const reRenderResponse = await withTimeout(
 												handler.fetch(
 													new Request(request.url, {
-														headers: { "x-isr-bg": "1" },
+														headers: { [HEADER_ISR]: HEADER_FLAG },
 														method: "GET",
 													}),
 													env,
@@ -1270,7 +1282,7 @@ export function createServerHandler<
 											const dataResponse = await withTimeout(
 												handler.fetch(
 													new Request(request.url, {
-														headers: { "x-d": "1", "x-isr-bg": "1" },
+														headers: { [HEADER_DATA]: HEADER_FLAG, [HEADER_ISR]: HEADER_FLAG },
 														method: "GET",
 													}),
 													env,
@@ -1360,11 +1372,11 @@ export function createServerHandler<
 							}
 
 							/* Cache miss — dynamicParams: false → 404, otherwise SSR.
-							 * Prerender fetches set x-flare-prerender so listed slugs can
+							 * Prerender fetches set flare-prerender so listed slugs can
 							 * be generated at build time before the store is populated. */
 							if (staticMeta.mode === "isr") {
 								const dynamicParams = staticMeta.dynamicParams ?? true;
-								if (dynamicParams === false && request.headers.get("x-flare-prerender") !== "1") {
+								if (dynamicParams === false && request.headers.get(HEADER_PRERENDER) !== HEADER_FLAG) {
 									const missResponse = fallbackHtmlResponse(FALLBACK_404, 404, secHeaders);
 									if (config.cache?.headers !== false) {
 										missResponse.headers.set(FLARE_CACHE_HEADER, "MISS");
@@ -1376,9 +1388,9 @@ export function createServerHandler<
 							}
 						}
 
-						const isPrefetch = request.headers.get("x-p") === "1";
+						const isPrefetch = request.headers.get(HEADER_PREFETCH) === HEADER_FLAG;
 						const MAX_STALE_IDS = 100;
-						const staleMatchIds = (request.headers.get("x-m")?.split(",") ?? []).slice(0, MAX_STALE_IDS);
+						const staleMatchIds = (request.headers.get(HEADER_STALE)?.split(",") ?? []).slice(0, MAX_STALE_IDS);
 
 						const cause = isPrefetch ? "prefetch" : ("enter" as const);
 
@@ -1560,10 +1572,10 @@ export function createServerHandler<
 
 						/*
 						 * ISR on-demand: populate store after first SSR miss.
-						 * Skip if x-isr-bg header present (prevents recursion from
+						 * Skip if flare-isr header present (prevents recursion from
 						 * the background re-render itself triggering another populate).
 						 */
-						if (staticMeta?.mode === "isr" && resolvedStore && !isDataRequest && !request.headers.get("x-isr-bg")) {
+						if (staticMeta?.mode === "isr" && resolvedStore && !isDataRequest && !request.headers.get(HEADER_ISR)) {
 							const isrStoreKey = `static:${url.pathname}`;
 							if (!isrInFlight.has(isrStoreKey)) {
 								isrInFlight.add(isrStoreKey);
@@ -1572,7 +1584,7 @@ export function createServerHandler<
 										const htmlRes = await withTimeout(
 											handler.fetch(
 												new Request(request.url, {
-													headers: { "x-isr-bg": "1" },
+													headers: { [HEADER_ISR]: HEADER_FLAG },
 													method: "GET",
 												}),
 												env,
@@ -1583,7 +1595,7 @@ export function createServerHandler<
 										const dataRes = await withTimeout(
 											handler.fetch(
 												new Request(request.url, {
-													headers: { "x-d": "1", "x-isr-bg": "1" },
+													headers: { [HEADER_DATA]: HEADER_FLAG, [HEADER_ISR]: HEADER_FLAG },
 													method: "GET",
 												}),
 												env,
@@ -1630,7 +1642,7 @@ export function createServerHandler<
 							}
 							/* Preloader `throw redirect()` never lands in match.error — same NDJSON
 							   as loader redirects so fetch() does not follow a raw 3xx. */
-							if (request.headers.get("x-d") === "1") {
+							if (request.headers.get(HEADER_DATA) === HEADER_FLAG) {
 								return addSecurityHeaders(createRedirectNDJSONResponse(e), secHeaders);
 							}
 							return new Response(null, {
@@ -1664,7 +1676,7 @@ export function createServerHandler<
 						logError("handler", "unhandled request error", e);
 						const html = isDev ? buildDevErrorHtml(e) : FALLBACK_500;
 						const errResponse = fallbackHtmlResponse(html, 500, secHeaders);
-						if (request.headers.get("x-isr-bg") !== "1" && config.cache?.headers !== false) {
+						if (request.headers.get(HEADER_ISR) !== HEADER_FLAG && config.cache?.headers !== false) {
 							errResponse.headers.set(FLARE_RENDER_HEADER, "SSR");
 						}
 						return errResponse;

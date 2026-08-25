@@ -21,7 +21,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 		fd.append("email", "user@test.com");
 		fd.append("message", "Hello");
 
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: fd.toString(),
 			headers: {
 				"content-type": "application/x-www-form-urlencoded",
@@ -34,7 +34,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	});
 
 	test("CSRF-E3: cross-origin JSON POST returns 403", async ({ request }) => {
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: { email: "user@test.com", message: "Hello" },
 			headers: {
 				"content-type": "application/json",
@@ -47,7 +47,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	});
 
 	test("CSRF-E4: missing Origin header allows request (non-browser)", async ({ request }) => {
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: { email: "user@test.com", message: "Hello" },
 			headers: {
 				"content-type": "application/json",
@@ -59,7 +59,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	});
 
 	test("CSRF-E5: same-origin POST allowed", async ({ request }) => {
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: { email: "user@test.com", message: "Hello" },
 			headers: {
 				"content-type": "application/json",
@@ -70,7 +70,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	});
 
 	test("CSRF-E6: port mismatch rejected", async ({ request }) => {
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: { email: "user@test.com", message: "Hello" },
 			headers: {
 				"content-type": "application/json",
@@ -81,7 +81,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	});
 
 	test("CSRF-E7: scheme mismatch rejected", async ({ request }) => {
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: { email: "user@test.com", message: "Hello" },
 			headers: {
 				"content-type": "application/json",
@@ -92,7 +92,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	});
 
 	test("CSRF-E8: null origin rejected (sandboxed iframe)", async ({ request }) => {
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: { email: "user@test.com", message: "Hello" },
 			headers: {
 				"content-type": "application/json",
@@ -105,7 +105,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	test("CSRF-E9: cross-origin blocked before auth check (401 not reached)", async ({ request }) => {
 		/* form-auth requires authenticate — without auth header, same-origin gets 401.
 		 * Cross-origin should get 403 (CSRF) before auth is checked. */
-		const res = await request.post(`${BASE}/_fn/form-auth/form-auth`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-auth/form-auth`, {
 			data: { note: "test" },
 			headers: {
 				"content-type": "application/json",
@@ -120,7 +120,7 @@ test.describe("Form actions — CSRF Origin validation", () => {
 	test("CSRF-E10: cross-origin blocked before validation (400 not reached)", async ({ request }) => {
 		/* Empty body would normally trigger validation error (400).
 		 * Cross-origin should get 403 first. */
-		const res = await request.post(`${BASE}/_fn/form-contact/form-contact`, {
+		const res = await request.post(`${BASE}/_flare/server-fn/form-contact/form-contact`, {
 			data: {},
 			headers: {
 				"content-type": "application/json",
@@ -147,9 +147,9 @@ test.describe("Form actions — CSRF — PE path (JS off)", () => {
 	});
 
 	test("CSRF-E12: no-JS PE path cross-origin blocked", async ({ request }) => {
-		/* POST to page URL with __flare_fn (PE path) from cross-origin */
+		/* POST to page URL with flare_fn (PE path) from cross-origin */
 		const fd = new URLSearchParams();
-		fd.append("__flare_fn", "form-contact");
+		fd.append("flare_fn", "form-contact");
 		fd.append("email", "user@test.com");
 		fd.append("message", "Hello");
 

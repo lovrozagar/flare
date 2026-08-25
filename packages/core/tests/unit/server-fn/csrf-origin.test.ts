@@ -34,7 +34,7 @@ async function runInContext<T>(fn: () => T | Promise<T>): Promise<T> {
 /* ── CSRF Origin validation via handleServerFnRequest ─────────────── */
 
 describe("handleServerFnRequest CSRF Origin validation", () => {
-	const FN_URL = "http://localhost/_fn/test-fn/test";
+	const FN_URL = "http://localhost/_flare/server-fn/test-fn/test";
 
 	/* ── allowed requests ─────────────────────────────────────────── */
 
@@ -52,7 +52,7 @@ describe("handleServerFnRequest CSRF Origin validation", () => {
 
 	it("CSRF3: same-origin https → 200", async () => {
 		const fns = createFns();
-		const url = "https://app.com/_fn/test-fn/test";
+		const url = "https://app.com/_flare/server-fn/test-fn/test";
 		const res = await runInContext(() => handleServerFnRequest(postJson(url, "https://app.com"), {}, fns));
 		expect(res.status).toBe(200);
 	});
@@ -82,14 +82,14 @@ describe("handleServerFnRequest CSRF Origin validation", () => {
 
 	it("CSRF7: port mismatch → 403", async () => {
 		const fns = createFns();
-		const url = "http://localhost:3000/_fn/test-fn/test";
+		const url = "http://localhost:3000/_flare/server-fn/test-fn/test";
 		const res = await runInContext(() => handleServerFnRequest(postJson(url, "http://localhost:4000"), {}, fns));
 		expect(res.status).toBe(403);
 	});
 
 	it("CSRF8: scheme mismatch (http vs https) → 403", async () => {
 		const fns = createFns();
-		const url = "https://app.com/_fn/test-fn/test";
+		const url = "https://app.com/_flare/server-fn/test-fn/test";
 		const res = await runInContext(() => handleServerFnRequest(postJson(url, "http://app.com"), {}, fns));
 		expect(res.status).toBe(403);
 	});
@@ -102,7 +102,7 @@ describe("handleServerFnRequest CSRF Origin validation", () => {
 
 	it("CSRF10: subdomain mismatch → 403", async () => {
 		const fns = createFns();
-		const url = "https://app.example.com/_fn/test-fn/test";
+		const url = "https://app.example.com/_flare/server-fn/test-fn/test";
 		const res = await runInContext(() => handleServerFnRequest(postJson(url, "https://evil.example.com"), {}, fns));
 		expect(res.status).toBe(403);
 	});

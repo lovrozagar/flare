@@ -2,7 +2,7 @@
  * @vitest-environment node
  *
  * Server function integration tests.
- * Tests /_fn/ routing through the full server handler pipeline.
+ * Tests /_flare/server-fn/ routing through the full server handler pipeline.
  * Validates routing, method enforcement, authentication, input validation,
  * authorization, error handling, middleware interaction, and security headers.
  */
@@ -42,7 +42,7 @@ function makeFnMap(
 }
 
 function postFn(fnId: string, fnName: string, body?: unknown): Request {
-	return makeRequest(`/_fn/${fnId}/${fnName}`, {
+	return makeRequest(`/_flare/server-fn/${fnId}/${fnName}`, {
 		body: body !== undefined ? JSON.stringify(body) : undefined,
 		headers: { "Content-Type": "application/json" },
 		method: "POST",
@@ -51,7 +51,7 @@ function postFn(fnId: string, fnName: string, body?: unknown): Request {
 
 function getFn(fnId: string, fnName: string, params?: Record<string, string>): Request {
 	const search = params ? `?${new URLSearchParams(params).toString()}` : "";
-	return makeRequest(`/_fn/${fnId}/${fnName}${search}`, { method: "GET" });
+	return makeRequest(`/_flare/server-fn/${fnId}/${fnName}${search}`, { method: "GET" });
 }
 
 async function parseJsonResponse(response: Response): Promise<Record<string, unknown>> {
@@ -62,7 +62,7 @@ async function parseJsonResponse(response: Response): Promise<Record<string, unk
 /* ── Routing ─────────────────────────────────────────────────────────── */
 
 describe("server fn — routing", () => {
-	it("/_fn/ with no serverFns configured → 404", async () => {
+	it("/_flare/server-fn/ with no serverFns configured → 404", async () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(postFn("abc", "doStuff"), {});
 
@@ -103,7 +103,7 @@ describe("server fn — routing", () => {
 		expect(response.status).toBe(404);
 	});
 
-	it("incomplete path /_fn/id → 404", async () => {
+	it("incomplete path /_flare/server-fn/id → 404", async () => {
 		makeFnMap([
 			"fn1",
 			{
@@ -114,7 +114,7 @@ describe("server fn — routing", () => {
 			},
 		]);
 		const handler = buildHandler();
-		const response = await handler.fetch(makeRequest("/_fn/fn1", { method: "POST" }), {});
+		const response = await handler.fetch(makeRequest("/_flare/server-fn/fn1", { method: "POST" }), {});
 
 		expect(response.status).toBe(404);
 	});
@@ -192,7 +192,7 @@ describe("server fn — POST execution", () => {
 		]);
 		const handler = buildHandler();
 		const response = await handler.fetch(
-			makeRequest("/_fn/fn1/noBody", {
+			makeRequest("/_flare/server-fn/fn1/noBody", {
 				headers: { "Content-Type": "application/json" },
 				method: "POST",
 			}),
@@ -214,7 +214,7 @@ describe("server fn — POST execution", () => {
 		]);
 		const handler = buildHandler();
 		const response = await handler.fetch(
-			makeRequest("/_fn/fn1/strict", {
+			makeRequest("/_flare/server-fn/fn1/strict", {
 				body: "not valid json{{{",
 				headers: { "Content-Type": "application/json" },
 				method: "POST",

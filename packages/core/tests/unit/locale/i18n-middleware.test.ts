@@ -66,9 +66,9 @@ describe("i18n middleware", () => {
 	});
 
 	describe("skip paths", () => {
-		it("skips /_fn/ paths", async () => {
+		it("skips /_flare/server-fn/ paths", async () => {
 			const mw = i18n();
-			const ctx = makeCtx("https://example.com/_fn/some-action");
+			const ctx = makeCtx("https://example.com/_flare/server-fn/some-action");
 			const result = await mw(ctx);
 			expect(result.type).toBe("next");
 		});
@@ -169,20 +169,20 @@ describe("i18n middleware", () => {
 	});
 
 	describe("prerender header", () => {
-		it("x-flare-prerender skips default-locale strip", async () => {
+		it("flare-prerender skips default-locale strip", async () => {
 			const mw = i18n();
 			const ctx = makeCtxWithHeaders("https://example.com/en/ssg-about", {
-				"x-flare-prerender": "1",
+				"flare-prerender": "1",
 			});
 			const result = await mw(ctx);
 			expect(result.type).toBe("next");
 			expect(ctx.serverContext.locale).toBe("en");
 		});
 
-		it("x-flare-prerender keeps non-default path locale", async () => {
+		it("flare-prerender keeps non-default path locale", async () => {
 			const mw = i18n();
 			const ctx = makeCtxWithHeaders("https://example.com/hr/ssg-about", {
-				"x-flare-prerender": "1",
+				"flare-prerender": "1",
 			});
 			const result = await mw(ctx);
 			expect(result.type).toBe("next");
@@ -221,7 +221,7 @@ describe("i18n middleware", () => {
 			const mw = i18n();
 			const ctx = makeCtxWithHeaders("https://example.com/", {
 				cookie: "flare.locale=hr",
-				"x-d": "1",
+				"flare-data": "1",
 			});
 			const result = await mw(ctx);
 			expect(result.type).toBe("next");

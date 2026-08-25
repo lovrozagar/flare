@@ -98,7 +98,7 @@ test.describe("@prod-only HSTS and hashed assets", () => {
 	});
 
 	test("NDJSON works in production", async ({ request }) => {
-		const response = await request.get("/about", { headers: { "x-d": "1" } });
+		const response = await request.get("/about", { headers: { "flare-data": "1" } });
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
 		expect((await response.text()).length).toBeGreaterThan(0);
 	});

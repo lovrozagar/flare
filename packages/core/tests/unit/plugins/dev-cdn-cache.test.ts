@@ -132,8 +132,8 @@ describe("parseVaryHeader", () => {
 		expect(parseVaryHeader("  Accept-Language ,  Accept  ")).toEqual(["accept-language", "accept"]);
 	});
 
-	it("x-d header (Flare NDJSON protocol) parsed normally", () => {
-		expect(parseVaryHeader("x-d, Accept-Language")).toEqual(["x-d", "accept-language"]);
+	it("flare-data header (Flare NDJSON protocol) parsed normally", () => {
+		expect(parseVaryHeader("flare-data, Accept-Language")).toEqual(["flare-data", "accept-language"]);
 	});
 });
 
@@ -214,20 +214,20 @@ describe("buildCdnCacheKey", () => {
 		expect(keyEn).not.toBe(keyFr);
 	});
 
-	it("x-d in Vary → HTML vs NDJSON get separate cache keys", () => {
-		const htmlKey = buildCdnCacheKey("GET", "/about", ["x-d"], { "x-d": undefined });
-		const ndjsonKey = buildCdnCacheKey("GET", "/about", ["x-d"], { "x-d": "1" });
+	it("flare-data in Vary → HTML vs NDJSON get separate cache keys", () => {
+		const htmlKey = buildCdnCacheKey("GET", "/about", ["flare-data"], { "flare-data": undefined });
+		const ndjsonKey = buildCdnCacheKey("GET", "/about", ["flare-data"], { "flare-data": "1" });
 		expect(htmlKey).not.toBe(ndjsonKey);
-		expect(htmlKey).toBe("cdn:GET:/about:x-d=");
-		expect(ndjsonKey).toBe("cdn:GET:/about:x-d=1");
+		expect(htmlKey).toBe("cdn:GET:/about:flare-data=");
+		expect(ndjsonKey).toBe("cdn:GET:/about:flare-data=1");
 	});
 
-	it("Vary: x-d, accept-language → both in key", () => {
-		const key = buildCdnCacheKey("GET", "/page", ["x-d", "accept-language"], {
+	it("Vary: flare-data, accept-language → both in key", () => {
+		const key = buildCdnCacheKey("GET", "/page", ["flare-data", "accept-language"], {
 			"accept-language": "en",
-			"x-d": "1",
+			"flare-data": "1",
 		});
-		expect(key).toBe("cdn:GET:/page:accept-language=en,x-d=1");
+		expect(key).toBe("cdn:GET:/page:accept-language=en,flare-data=1");
 	});
 });
 

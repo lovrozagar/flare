@@ -77,7 +77,7 @@ test.describe("Perf Stress — large payload", () => {
 	});
 
 	test("large NDJSON response size is reasonable", async ({ request }) => {
-		const res = await request.get("/perf-stress", { headers: { "x-d": "1" } });
+		const res = await request.get("/perf-stress", { headers: { "flare-data": "1" } });
 		const ndjson = await res.text();
 
 		/* 1000 rows + 10KB payload — NDJSON should be under 200KB */
@@ -87,7 +87,7 @@ test.describe("Perf Stress — large payload", () => {
 
 	test("NDJSON for stress page is not larger than HTML", async ({ request }) => {
 		const htmlRes = await request.get("/perf-stress");
-		const ndjsonRes = await request.get("/perf-stress", { headers: { "x-d": "1" } });
+		const ndjsonRes = await request.get("/perf-stress", { headers: { "flare-data": "1" } });
 
 		const htmlSize = (await htmlRes.text()).length;
 		const ndjsonSize = (await ndjsonRes.text()).length;
@@ -264,7 +264,7 @@ test.describe("Perf Stress — deferred under load", () => {
 		await page.waitForTimeout(1000);
 
 		/* page should still work */
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 });

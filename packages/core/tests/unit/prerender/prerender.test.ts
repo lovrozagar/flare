@@ -10,7 +10,7 @@ function makeHandler(responses: Map<string, { body: string; headers?: Record<str
 	return {
 		async fetch(request: Request): Promise<Response> {
 			const url = new URL(request.url);
-			const isData = request.headers.get("x-d") === "1";
+			const isData = request.headers.get("flare-data") === "1";
 			const key = isData ? `ndjson:${url.pathname}` : url.pathname;
 
 			const entry = responses.get(key);
@@ -402,7 +402,7 @@ describe("prerender — error handling", () => {
 		const handler: ServerHandler = {
 			async fetch(request: Request): Promise<Response> {
 				const url = new URL(request.url);
-				const isData = request.headers.get("x-d") === "1";
+				const isData = request.headers.get("flare-data") === "1";
 
 				if (url.pathname === "/crash") {
 					throw new Error("boom");
@@ -452,7 +452,7 @@ describe("prerender — synthetic request shape", () => {
 		const handler: ServerHandler = {
 			async fetch(request: Request): Promise<Response> {
 				capturedRequests.push(request);
-				const isData = request.headers.get("x-d") === "1";
+				const isData = request.headers.get("flare-data") === "1";
 				if (isData) {
 					return new Response(
 						ndjsonBody([
@@ -485,15 +485,15 @@ describe("prerender — synthetic request shape", () => {
 		const htmlReq = capturedRequests[0];
 		expect(htmlReq?.method).toBe("GET");
 		expect(new URL(htmlReq?.url ?? "").pathname).toBe("/about");
-		expect(htmlReq?.headers.get("x-d")).toBeNull();
-		expect(htmlReq?.headers.get("x-flare-prerender")).toBe("1");
+		expect(htmlReq?.headers.get("flare-data")).toBeNull();
+		expect(htmlReq?.headers.get("flare-prerender")).toBe("1");
 
 		/* NDJSON request */
 		const dataReq = capturedRequests[1];
 		expect(dataReq?.method).toBe("GET");
 		expect(new URL(dataReq?.url ?? "").pathname).toBe("/about");
-		expect(dataReq?.headers.get("x-d")).toBe("1");
-		expect(dataReq?.headers.get("x-flare-prerender")).toBe("1");
+		expect(dataReq?.headers.get("flare-data")).toBe("1");
+		expect(dataReq?.headers.get("flare-prerender")).toBe("1");
 	});
 
 	it("uses provided origin for request URLs", async () => {
@@ -503,7 +503,7 @@ describe("prerender — synthetic request shape", () => {
 		const handler: ServerHandler = {
 			async fetch(request: Request): Promise<Response> {
 				capturedUrls.push(request.url);
-				const isData = request.headers.get("x-d") === "1";
+				const isData = request.headers.get("flare-data") === "1";
 				if (isData) {
 					return new Response(
 						ndjsonBody([
@@ -586,7 +586,7 @@ describe("prerender — env", () => {
 		const handler: ServerHandler = {
 			async fetch(request: Request, env: unknown): Promise<Response> {
 				capturedEnv = env;
-				const isData = request.headers.get("x-d") === "1";
+				const isData = request.headers.get("flare-data") === "1";
 				if (isData) {
 					return new Response(
 						ndjsonBody([
@@ -621,7 +621,7 @@ describe("prerender — env", () => {
 		const handler: ServerHandler = {
 			async fetch(request: Request, env: unknown): Promise<Response> {
 				capturedEnv = env;
-				const isData = request.headers.get("x-d") === "1";
+				const isData = request.headers.get("flare-data") === "1";
 				if (isData) {
 					return new Response(
 						ndjsonBody([
@@ -656,7 +656,7 @@ describe("prerender — env", () => {
 		const handler: ServerHandler = {
 			async fetch(request: Request, env: unknown): Promise<Response> {
 				capturedEnv = env;
-				const isData = request.headers.get("x-d") === "1";
+				const isData = request.headers.get("flare-data") === "1";
 				if (isData) {
 					return new Response(
 						ndjsonBody([
@@ -703,7 +703,7 @@ describe("prerender — concurrency", () => {
 				await new Promise((r) => setTimeout(r, 10));
 				currentConcurrent--;
 
-				const isData = request.headers.get("x-d") === "1";
+				const isData = request.headers.get("flare-data") === "1";
 				if (isData) {
 					return new Response(
 						ndjsonBody([

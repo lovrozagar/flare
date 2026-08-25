@@ -19,19 +19,19 @@ test.describe("QueryClient: deferred streaming (SSR)", () => {
 		capture.assertClean();
 	});
 
-	test("__flare_qc script present in streamed HTML", async ({ page }) => {
+	test("__flare_queries script present in streamed HTML", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/query-deferred`);
 		const html = await response.text();
 		/* shell data in initial HTML */
 		expect(html).toContain("ready");
-		/* __flare_qc script should be streamed after </body> */
-		expect(html).toContain("__flare_qc");
+		/* __flare_queries script should be streamed after </body> */
+		expect(html).toContain("__flare_queries");
 		/* deferred data should contain our QC entry */
 		expect(html).toContain("from-deferred");
 		expect(html).toContain("deferred-item");
 	});
 
-	test("initial self.flare.q has fallback, __flare_qc overrides it", async ({ page }) => {
+	test("initial self.flare.q has fallback, __flare_queries overrides it", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/query-deferred`);
 		const html = await response.text();
 		/* self.flare.q has the initial queryFn result (fallback) */
@@ -45,7 +45,7 @@ test.describe("QueryClient: deferred streaming (SSR)", () => {
 		expect(deferredEntry).toBeTruthy();
 		expect((deferredEntry?.data as { name: string } | undefined)?.name).toBe("fallback");
 
-		/* __flare_qc has the deferred override */
+		/* __flare_queries has the deferred override */
 		expect(html).toContain('"name":"from-deferred"');
 	});
 
@@ -108,7 +108,7 @@ test.describe("QueryClient: deferred streaming (SPA nav)", () => {
 test.describe("QueryClient: deferred NDJSON", () => {
 	test("NDJSON data request contains q message for deferred QC", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/query-deferred`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const text = await response.text();
 		const lines = text.trim().split("\n");
@@ -125,7 +125,7 @@ test.describe("QueryClient: deferred NDJSON", () => {
 
 	test("NDJSON has correct message order: l, r, c, q, d", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/query-deferred`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const text = await response.text();
 		const types = text

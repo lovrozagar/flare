@@ -1,5 +1,6 @@
 import { NotFoundError, RedirectResponse, UnauthenticatedError, UnauthorizedError } from "../errors/index.ts";
 import { warn } from "../logger.ts";
+import { HEADER_DATA, HEADER_FLAG, HEADER_PREFETCH, HEADER_STALE } from "../protocol.ts";
 import type { HeadConfig } from "../route-builder/types.ts";
 import type { DeferredResolver } from "../state-parser/index.ts";
 import { hydrateLoaderData } from "../state-parser/index.ts";
@@ -95,14 +96,14 @@ function forwardServerLog(msg: NDJSONMessage): void {
 }
 
 export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFetchResult> {
-	const headers: Record<string, string> = { "x-d": "1" };
+	const headers: Record<string, string> = { [HEADER_DATA]: HEADER_FLAG };
 
 	if (options.matchIds) {
-		headers["x-m"] = options.matchIds.join(",");
+		headers[HEADER_STALE] = options.matchIds.join(",");
 	}
 
 	if (options.prefetch) {
-		headers["x-p"] = "1";
+		headers[HEADER_PREFETCH] = HEADER_FLAG;
 	}
 
 	const response = await fetch(options.url, {

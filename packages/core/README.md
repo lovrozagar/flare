@@ -1,6 +1,6 @@
 # Flare
 
-Solid + Vite meta-framework. You declare pages and layouts with a typed builder. The server streams HTML (`renderToStream`). Later navigations speak NDJSON (`x-d: 1`). Prefetch, ISR, deferred loaders, and forms reuse that protocol.
+Solid + Vite meta-framework. You declare pages and layouts with a typed builder. The server streams HTML (`renderToStream`). Later navigations speak NDJSON (`flare-data: 1`). Prefetch, ISR, deferred loaders, and forms reuse that protocol.
 
 This repo is the source of [`@lovrozagar/flare`](https://www.npmjs.com/package/@lovrozagar/flare) `0.1.1`. The CLI binary is `flare`.
 
@@ -786,7 +786,7 @@ import { DirectionScript } from "@lovrozagar/flare/direction";
 </head>;
 ```
 
-- **Locale** — optional `[[locale]]` segment or prefix. Cookie `flare.locale` + `Accept-Language`. Default locale is stripped (`/en/about` → `/about`). Playwright / bot UAs skip Set-Cookie (`isbot`). Prefetch (`x-p: 1`) never writes the cookie.
+- **Locale** — optional `[[locale]]` segment or prefix. Cookie `flare.locale` + `Accept-Language`. Default locale is stripped (`/en/about` → `/about`). Playwright / bot UAs skip Set-Cookie (`isbot`). Prefetch (`flare-prefetch: 1`) never writes the cookie.
 - **Theme** — `data-theme`, system preference, `localStorage`.
 - **Direction** — `dir` / `data-dir`.
 
@@ -908,7 +908,7 @@ import { BroadcastProvider } from "@lovrozagar/flare/broadcast";
 createRouter({ queryClientGetter: getQueryClient });
 ```
 
-SSR dehydrates into the stream (`__flare_qc` / `t:"q"`). `useSuspenseQuery` suspends until the dehydrated entry is ready. Optional `BroadcastProvider` invalidates across tabs.
+SSR dehydrates into the stream (`__flare_queries` / `t:"q"`). `useSuspenseQuery` suspends until the dehydrated entry is ready. Optional `BroadcastProvider` invalidates across tabs.
 
 ```ts
 import { createQueryClientGetter } from "@lovrozagar/flare/query-client";
@@ -993,7 +993,28 @@ Playwright helpers: hydration, FlareState shape, console-error filters. Product 
 
 ## NDJSON protocol
 
-SPA / prefetch / data requests send `x-d: 1`. Prefetch also sends `x-p: 1`. Stale match skip uses `x-m`.
+SPA / prefetch / data requests send `flare-data: 1`. Prefetch also sends `flare-prefetch: 1`. Stale match skip uses `flare-stale`. Flag value is always `"1"`. Headers are lowercase (HTTP/2 / Node). NDJSON `t` codes and FlareState keys stay short.
+
+| Request           | Meaning                                           |
+| ----------------- | ------------------------------------------------- |
+| `flare-data`      | NDJSON data request. `Vary` always includes this. |
+| `flare-prefetch`  | Prefetch (no locale cookie commit)                |
+| `flare-stale`     | Comma-separated match ids the client already has  |
+| `flare-isr`       | Internal ISR background re-render                 |
+| `flare-prerender` | Build-time prerender fetch                        |
+
+| Response       | Meaning                  |
+| -------------- | ------------------------ |
+| `flare-cache`  | `HIT` / `MISS` / `STALE` |
+| `flare-render` | `ISR` / `SSG` / `SSR`    |
+
+| Path / HTML                     | Meaning                                    |
+| ------------------------------- | ------------------------------------------ |
+| `/_flare/server-fn/{id}/{name}` | Server functions                           |
+| `flare_fn`                      | Hidden form field for no-JS POST           |
+| `data-flare-hydrated`           | Set on `<html>` after `solidHydrate`       |
+| `__flare_defer`                 | Window queue for SSR deferred chunks       |
+| `__flare_queries`               | Window queue for SSR query-cache dehydrate |
 
 | `t` | Meaning         |
 | --- | --------------- |

@@ -53,32 +53,32 @@ function line(obj: Record<string, unknown>): string {
 }
 
 describe("request building", () => {
-	it("basic nav → headers: { x-d: 1 }", async () => {
+	it("basic nav → headers: { flare-data: 1 }", async () => {
 		const fetchSpy = vi.fn().mockResolvedValue(createMockResponse([line({ t: "d" })]));
 		vi.stubGlobal("fetch", fetchSpy);
 
 		await fetchNDJSON({ url: "/api" });
-		expect(fetchSpy.mock.calls[0][1].headers["x-d"]).toBe("1");
+		expect(fetchSpy.mock.calls[0][1].headers["flare-data"]).toBe("1");
 
 		vi.unstubAllGlobals();
 	});
 
-	it("with matchIds → x-m: a,b,c", async () => {
+	it("with matchIds → flare-stale: a,b,c", async () => {
 		const fetchSpy = vi.fn().mockResolvedValue(createMockResponse([line({ t: "d" })]));
 		vi.stubGlobal("fetch", fetchSpy);
 
 		await fetchNDJSON({ matchIds: ["a", "b", "c"], url: "/api" });
-		expect(fetchSpy.mock.calls[0][1].headers["x-m"]).toBe("a,b,c");
+		expect(fetchSpy.mock.calls[0][1].headers["flare-stale"]).toBe("a,b,c");
 
 		vi.unstubAllGlobals();
 	});
 
-	it("with prefetch → x-p: 1", async () => {
+	it("with prefetch → flare-prefetch: 1", async () => {
 		const fetchSpy = vi.fn().mockResolvedValue(createMockResponse([line({ t: "d" })]));
 		vi.stubGlobal("fetch", fetchSpy);
 
 		await fetchNDJSON({ prefetch: true, url: "/api" });
-		expect(fetchSpy.mock.calls[0][1].headers["x-p"]).toBe("1");
+		expect(fetchSpy.mock.calls[0][1].headers["flare-prefetch"]).toBe("1");
 
 		vi.unstubAllGlobals();
 	});

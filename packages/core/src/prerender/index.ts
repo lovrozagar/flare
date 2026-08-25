@@ -5,7 +5,7 @@
  * For each route:
  *   1. Create synthetic GET request
  *   2. Call handler.fetch() → collect HTML response
- *   3. Call handler.fetch() with x-d:1 header → collect NDJSON response
+ *   3. Call handler.fetch() with flare-data:1 header → collect NDJSON response
  *   4. Replace CSP nonce with __FLARE_NONCE__ placeholder
  *   5. Store entry with headers, html, ndjson
  *   6. Generate manifest entry
@@ -15,13 +15,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtractedStaticDeferMode, RouteDefinition } from "../generators/index.ts";
 import type { StaticDeferMode } from "../route-builder/types.ts";
+import { HEADER_DATA, HEADER_FLAG, HEADER_PRERENDER } from "../protocol.ts";
 import type { ServerHandler } from "../server-handler/index.ts";
 import { resolvePathParams } from "../url/index.ts";
 
 export const NONCE_PLACEHOLDER = "__FLARE_NONCE__";
 
 /** Build-time prerender fetch — skips ISR `dynamicParams: false` store-miss 404. */
-export const PRERENDER_HEADER = "x-flare-prerender";
+export const PRERENDER_HEADER = HEADER_PRERENDER;
 
 export interface PrerenderRoute {
 	defer?: StaticDeferMode;
@@ -106,7 +107,10 @@ async function renderRoute(
 	/* 1. Fetch HTML */
 	let htmlResponse: Response;
 	try {
-		htmlResponse = await handler.fetch(new Request(url, { headers: { [PRERENDER_HEADER]: "1" }, method: "GET" }), env);
+		htmlResponse = await handler.fetch(
+			new Request(url, { headers: { [PRERENDER_HEADER]: HEADER_FLAG }, method: "GET" }),
+			env,
+		);
 	} catch (e: unknown) {
 		const msg = e instanceof Error ? e.message : String(e);
 		return { error: { message: msg, pathname: route.pathname } };
@@ -129,7 +133,7 @@ async function renderRoute(
 	try {
 		const dataResponse = await handler.fetch(
 			new Request(url, {
-				headers: { "x-d": "1", [PRERENDER_HEADER]: "1" },
+				headers: { [HEADER_DATA]: HEADER_FLAG, [PRERENDER_HEADER]: HEADER_FLAG },
 				method: "GET",
 			}),
 			env,

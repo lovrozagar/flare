@@ -3,26 +3,26 @@ import { loadPage, parseNDJSON } from "./helpers";
 
 test.describe("NDJSON protocol deep", () => {
 	test("error loader emits t:e", async ({ request }) => {
-		const res = await request.get("/error-test?fail=true", { headers: { "x-d": "1" } });
+		const res = await request.get("/error-test?fail=true", { headers: { "flare-data": "1" } });
 		const msgs = parseNDJSON(await res.text());
 		expect(msgs.some((m) => m.t === "e")).toBe(true);
 	});
 
 	test("redirect emits t:x", async ({ request }) => {
-		const res = await request.get("/old-page", { headers: { "x-d": "1" }, maxRedirects: 0 });
+		const res = await request.get("/old-page", { headers: { "flare-data": "1" }, maxRedirects: 0 });
 		if (res.status() >= 300 && res.status() < 400) return;
 		const msgs = parseNDJSON(await res.text());
 		expect(msgs.some((m) => m.t === "x" || m.t === "r")).toBe(true);
 	});
 
-	test("prefetch x-p is marked", async ({ request }) => {
-		const res = await request.get("/about", { headers: { "x-d": "1", "x-p": "1" } });
+	test("prefetch flare-prefetch is marked", async ({ request }) => {
+		const res = await request.get("/about", { headers: { "flare-data": "1", "flare-prefetch": "1" } });
 		expect(res.status()).toBe(200);
 		expect(res.headers()["content-type"]).toContain("ndjson");
 	});
 
-	test("stale x-m still 200", async ({ request }) => {
-		const res = await request.get("/about", { headers: { "x-d": "1", "x-m": "stale-id" } });
+	test("stale flare-stale still 200", async ({ request }) => {
+		const res = await request.get("/about", { headers: { "flare-data": "1", "flare-stale": "stale-id" } });
 		expect(res.status()).toBe(200);
 	});
 

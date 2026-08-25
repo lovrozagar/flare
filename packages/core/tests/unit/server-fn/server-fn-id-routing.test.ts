@@ -47,7 +47,7 @@ describe("server function id-based routing", () => {
 			fns.set("hash-abc", makeReg({ id: "hash-abc", name: "getData" }));
 
 			const result = await runWithServerContext({ nonce: "x", request: new Request("http://localhost/") }, () =>
-				handleServerFnRequest(postReq("/_fn/hash-abc/getData", { q: "test" }), {}, fns),
+				handleServerFnRequest(postReq("/_flare/server-fn/hash-abc/getData", { q: "test" }), {}, fns),
 			);
 			expect(result.status).toBe(200);
 		});
@@ -74,7 +74,7 @@ describe("server function id-based routing", () => {
 			const resultA = await runWithServerContext(
 				{ nonce: "x", request: new Request("http://localhost/") },
 				async () => {
-					const resp = await handleServerFnRequest(postReq("/_fn/hash-1/getData"), {}, fns);
+					const resp = await handleServerFnRequest(postReq("/_flare/server-fn/hash-1/getData"), {}, fns);
 					return resp.json();
 				},
 			);
@@ -83,7 +83,7 @@ describe("server function id-based routing", () => {
 			const resultB = await runWithServerContext(
 				{ nonce: "x", request: new Request("http://localhost/") },
 				async () => {
-					const resp = await handleServerFnRequest(postReq("/_fn/hash-2/getData"), {}, fns);
+					const resp = await handleServerFnRequest(postReq("/_flare/server-fn/hash-2/getData"), {}, fns);
 					return resp.json();
 				},
 			);
@@ -95,7 +95,7 @@ describe("server function id-based routing", () => {
 			fns.set("hash-abc", makeReg({ id: "hash-abc", name: "getData" }));
 
 			const result = await runWithServerContext({ nonce: "x", request: new Request("http://localhost/") }, () =>
-				handleServerFnRequest(postReq("/_fn/hash-abc/wrongName"), {}, fns),
+				handleServerFnRequest(postReq("/_flare/server-fn/hash-abc/wrongName"), {}, fns),
 			);
 			expect(result.status).toBe(404);
 		});
@@ -133,7 +133,7 @@ describe("server function id-based routing", () => {
 				const opts = serverFnQueryOptions(fn, { input: undefined });
 				await opts.queryFn();
 
-				expect(capturedUrl).toBe("/_fn/hash-xyz/myFn");
+				expect(capturedUrl).toBe("/_flare/server-fn/hash-xyz/myFn");
 			} finally {
 				globalThis.fetch = originalFetch;
 				if (originalWindow === undefined) {
@@ -163,7 +163,7 @@ describe("server function id-based routing", () => {
 				const opts = serverFnMutationOptions(fn);
 				await opts.mutationFn("input" as never);
 
-				expect(capturedUrl).toBe("/_fn/mut-hash/updateItem");
+				expect(capturedUrl).toBe("/_flare/server-fn/mut-hash/updateItem");
 			} finally {
 				globalThis.fetch = originalFetch;
 				if (originalWindow === undefined) {

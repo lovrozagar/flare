@@ -112,7 +112,7 @@ test.describe("Deep: redirect with query params", () => {
 test.describe("Deep: NDJSON redirect shape", () => {
 	test("NDJSON redirect response has correct fields", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/redirect-source`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 			maxRedirects: 0,
 		});
 		expect(response.status()).toBe(200);

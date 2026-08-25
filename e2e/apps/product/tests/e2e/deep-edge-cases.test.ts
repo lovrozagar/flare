@@ -108,7 +108,7 @@ test.describe("Edge: error → error → valid navigation chain", () => {
 
 		/* Navigate to valid page via full reload fallback */
 		await page.goto("/about", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 		const content = await page.locator("[data-testid=about-content]").textContent();
@@ -200,7 +200,7 @@ test.describe("Edge: same-URL navigation guard", () => {
 		await loadPage(page, "/about");
 		const ndjsonRequests: string[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1") {
+			if (req.headers()["flare-data"] === "1") {
 				ndjsonRequests.push(req.url());
 			}
 		});
@@ -245,7 +245,7 @@ test.describe("Edge: 404 not-found boundary", () => {
 		 * URL may not change since history.pushState happens after match check.
 		 * Just verify the page didn't crash.
 		 */
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 
@@ -329,7 +329,7 @@ test.describe("Edge: search params pipeline", () => {
 		await loadPage(page, "/search-demo?v=1");
 		const ndjsonCount: number[] = [0];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1") ndjsonCount[0]++;
+			if (req.headers()["flare-data"] === "1") ndjsonCount[0]++;
 		});
 
 		await page.evaluate(() => {

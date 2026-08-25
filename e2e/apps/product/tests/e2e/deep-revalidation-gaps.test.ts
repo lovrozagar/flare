@@ -340,10 +340,10 @@ test.describe("Shared tag layout + page", () => {
 	});
 });
 
-/* ── Section 8: Flare-Cache + CDN headers coexistence ─────────────── */
+/* ── Section 8: flare-cache + CDN headers coexistence ─────────────── */
 
-test.describe("Flare-Cache + CDN headers coexistence", () => {
-	test("first request has Flare-Render SSR + CDN headers", async ({ request }) => {
+test.describe("flare-cache + CDN headers coexistence", () => {
+	test("first request has flare-render SSR + CDN headers", async ({ request }) => {
 		/* Purge to ensure fresh */
 		await revalidate(request, { tags: ["combo-ssr", "combo-shared"], tiers: ["ssr"] });
 
@@ -368,7 +368,7 @@ test.describe("Flare-Cache + CDN headers coexistence", () => {
 
 	test("NDJSON data request includes Surrogate-Key", async ({ request }) => {
 		const res = await request.get("/ssr-cdn-combo", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const headers = res.headers();
 

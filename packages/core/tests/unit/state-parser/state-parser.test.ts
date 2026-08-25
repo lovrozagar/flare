@@ -247,7 +247,7 @@ describe("installDeferredResolver", () => {
 	afterEach(() => {
 		globalThis.__flare_r = undefined;
 		globalThis.__flare_re = undefined;
-		globalThis.__flare_q = undefined;
+		globalThis.__flare_defer = undefined;
 	});
 
 	it("drains buffered queue entries", () => {
@@ -260,7 +260,7 @@ describe("installDeferredResolver", () => {
 			},
 		});
 
-		globalThis.__flare_q = [["m1:d0", "queued-data"]];
+		globalThis.__flare_defer = [["m1:d0", "queued-data"]];
 		installDeferredResolver(resolvers);
 		expect(resolved).toBe("queued-data");
 	});
@@ -275,7 +275,7 @@ describe("installDeferredResolver", () => {
 			resolve: () => {},
 		});
 
-		globalThis.__flare_q = [["m1:d0", "fail-msg", true]];
+		globalThis.__flare_defer = [["m1:d0", "fail-msg", true]];
 		installDeferredResolver(resolvers);
 		expect(rejected).toBeInstanceOf(Error);
 		expect((rejected ?? new Error("should not be null")).message).toBe("fail-msg");
@@ -295,7 +295,7 @@ describe("installDeferredResolver", () => {
 		globalThis.__flare_r?.("m1:d0", "data");
 		expect(globalThis.__flare_r).toBeUndefined();
 		expect(globalThis.__flare_re).toBeUndefined();
-		expect(globalThis.__flare_q).toBeUndefined();
+		expect(globalThis.__flare_defer).toBeUndefined();
 	});
 
 	it("cleans up immediately when no resolvers exist", () => {
@@ -305,7 +305,7 @@ describe("installDeferredResolver", () => {
 		expect(globalThis.__flare_re).toBeUndefined();
 	});
 
-	it("late pushes to __flare_q after drain are intercepted", () => {
+	it("late pushes to __flare_defer after drain are intercepted", () => {
 		const resolvers = new Map<string, DeferredResolver>();
 		let resolved: unknown = null;
 		resolvers.set("m1:d0", {
@@ -317,12 +317,12 @@ describe("installDeferredResolver", () => {
 
 		installDeferredResolver(resolvers);
 		/* Simulate SSR script arriving after drain */
-		const q = globalThis.__flare_q;
+		const q = globalThis.__flare_defer;
 		if (q) q.push(["m1:d0", "late-data"]);
 		expect(resolved).toBe("late-data");
 	});
 
-	it("late error pushes to __flare_q after drain are intercepted", () => {
+	it("late error pushes to __flare_defer after drain are intercepted", () => {
 		const resolvers = new Map<string, DeferredResolver>();
 		let rejected: Error | null = null;
 		resolvers.set("m1:d0", {
@@ -333,7 +333,7 @@ describe("installDeferredResolver", () => {
 		});
 
 		installDeferredResolver(resolvers);
-		const q = globalThis.__flare_q;
+		const q = globalThis.__flare_defer;
 		if (q) q.push(["m1:d0", "late-error", true]);
 		expect(rejected).toBeInstanceOf(Error);
 		expect((rejected ?? new Error("should not be null")).message).toBe("late-error");

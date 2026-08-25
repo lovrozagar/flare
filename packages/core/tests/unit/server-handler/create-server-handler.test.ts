@@ -139,9 +139,9 @@ describe("route matching", () => {
 });
 
 describe("server function handling", () => {
-	it("/_fn/ with no serverFns → delegates to handleServerFnRequest (404 fn)", async () => {
+	it("/_flare/server-fn/ with no serverFns → delegates to handleServerFnRequest (404 fn)", async () => {
 		const handler = createServerHandler(makeConfig());
-		const response = await handler.fetch(makeRequest("http://localhost/_fn/test/run"), {});
+		const response = await handler.fetch(makeRequest("http://localhost/_flare/server-fn/test/run"), {});
 		/* handleServerFnRequest returns 404 for unknown fn */
 		expect(response.status).toBe(404);
 		expect(response.headers.get("Content-Security-Policy")).toBeTruthy();
@@ -307,7 +307,7 @@ describe("error handling", () => {
 });
 
 describe("navigation format detection", () => {
-	it("no x-d header → SSR path (404 for empty tree)", async () => {
+	it("no flare-data header → SSR path (404 for empty tree)", async () => {
 		const handler = createServerHandler(makeConfig());
 		const response = await handler.fetch(makeRequest(), {});
 		expect(response.status).toBe(404);
@@ -347,7 +347,7 @@ describe("matched route — SSR path", () => {
 		return createServerHandler({ router });
 	}
 
-	it("matched route without x-d → SSR path entered (not 404)", async () => {
+	it("matched route without flare-data → SSR path entered (not 404)", async () => {
 		const handler = makeHandlerWithRoute();
 		const response = await handler.fetch(makeRequest("http://localhost/about"), {});
 		/* Route matched → SSR path: either 200 (SSR succeeded) or 500 (SSR threw).
@@ -360,7 +360,7 @@ describe("matched route — SSR path", () => {
 
 /* ── Matched route: Data request (NDJSON) path ───────────────────────── */
 
-describe("matched route — data request (x-d:1)", () => {
+describe("matched route — data request (flare-data:1)", () => {
 	function makeHandlerWithRoute(routeOverrides?: Partial<RouteData>, configOverrides?: Partial<ServerHandlerConfig>) {
 		const tree = makeTreeWithRoute("/about", makeRouteData(routeOverrides));
 		const router = makeRouter({ layouts: {}, routeTree: tree });
@@ -369,11 +369,11 @@ describe("matched route — data request (x-d:1)", () => {
 
 	function dataRequest(url = "http://localhost/about", extraHeaders?: Record<string, string>) {
 		return makeRequest(url, {
-			headers: { "x-d": "1", ...extraHeaders },
+			headers: { "flare-data": "1", ...extraHeaders },
 		});
 	}
 
-	it("x-d:1 → NDJSON response (not HTML)", async () => {
+	it("flare-data:1 → NDJSON response (not HTML)", async () => {
 		const handler = makeHandlerWithRoute();
 		const response = await handler.fetch(dataRequest(), {});
 		expect(response.status).toBe(200);
@@ -383,14 +383,14 @@ describe("matched route — data request (x-d:1)", () => {
 		expect(response.headers.get("Content-Type")).not.toContain("text/html");
 	});
 
-	it("x-d:1 response includes security headers", async () => {
+	it("flare-data:1 response includes security headers", async () => {
 		const handler = makeHandlerWithRoute();
 		const response = await handler.fetch(dataRequest(), {});
 		expect(response.headers.get("Content-Security-Policy")).toBeTruthy();
 		expect(response.headers.get("X-Frame-Options")).toBe("DENY");
 	});
 
-	it("x-d:1 + preloader redirect → NDJSON t:x, not HTTP 3xx", async () => {
+	it("flare-data:1 + preloader redirect → NDJSON t:x, not HTTP 3xx", async () => {
 		const handler = makeHandlerWithRoute({
 			p: () =>
 				Promise.resolve({
@@ -416,7 +416,7 @@ describe("matched route — data request (x-d:1)", () => {
 		expect(redirectLine?.u).toBe("/redirect-target");
 	});
 
-	it("x-d:1 + x-p:1 + preloader redirect → NDJSON t:x", async () => {
+	it("flare-data:1 + flare-prefetch:1 + preloader redirect → NDJSON t:x", async () => {
 		const handler = makeHandlerWithRoute({
 			p: () =>
 				Promise.resolve({
@@ -429,7 +429,7 @@ describe("matched route — data request (x-d:1)", () => {
 					},
 				}),
 		});
-		const response = await handler.fetch(dataRequest("http://localhost/about", { "x-p": "1" }), {});
+		const response = await handler.fetch(dataRequest("http://localhost/about", { "flare-prefetch": "1" }), {});
 		expect(response.status).toBe(200);
 		expect(response.headers.get("Content-Type")).toContain("ndjson");
 		expect(await response.text()).toContain('"t":"x"');
@@ -453,7 +453,7 @@ describe("matched route — data request (x-d:1)", () => {
 		expect(response.headers.get("Location")).toBe("/redirect-target");
 	});
 
-	it("x-d:1 + x-p:1 → prefetch cause passed to pipeline", async () => {
+	it("flare-data:1 + flare-prefetch:1 → prefetch cause passed to pipeline", async () => {
 		let capturedCtx: Record<string, unknown> = {};
 		const handler = makeHandlerWithRoute({
 			p: () =>
@@ -469,14 +469,14 @@ describe("matched route — data request (x-d:1)", () => {
 				}),
 		});
 		const req = makeRequest("http://localhost/about", {
-			headers: { "x-d": "1", "x-p": "1" },
+			headers: { "flare-data": "1", "flare-prefetch": "1" },
 		});
 		await handler.fetch(req, {});
 		expect(capturedCtx.prefetch).toBe(true);
 		expect(capturedCtx.cause).toBe("prefetch");
 	});
 
-	it("stale match filtering via x-m header strips loaders for fresh routes", async () => {
+	it("stale match filtering via flare-stale header strips loaders for fresh routes", async () => {
 		const loaderSpy = vi.fn(() => Promise.resolve({ fresh: true }));
 		const handler = makeHandlerWithRoute({
 			p: () =>
@@ -488,9 +488,9 @@ describe("matched route — data request (x-d:1)", () => {
 					},
 				}),
 		});
-		/* x-m lists stale matches — route NOT in list, so loader stripped */
+		/* flare-stale lists stale matches — route NOT in list, so loader stripped */
 		const req = makeRequest("http://localhost/about", {
-			headers: { "x-d": "1", "x-m": "_root_/other" },
+			headers: { "flare-data": "1", "flare-stale": "_root_/other" },
 		});
 		await handler.fetch(req, {});
 		/* loader was stripped because "_root_/about" not in stale list */
@@ -511,7 +511,7 @@ describe("matched route — data request (x-d:1)", () => {
 		});
 		/* route IS in stale list → loader should run */
 		const req = makeRequest("http://localhost/about", {
-			headers: { "x-d": "1", "x-m": "_root_/about" },
+			headers: { "flare-data": "1", "flare-stale": "_root_/about" },
 		});
 		await handler.fetch(req, {});
 		expect(loaderSpy).toHaveBeenCalled();
@@ -543,7 +543,7 @@ describe("pipeline redirect", () => {
 		const router = makeRouter({ layouts: {}, routeTree: tree });
 		const handler = createServerHandler({ router });
 		const req = makeRequest("http://localhost/login", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const response = await handler.fetch(req, {});
 		const body = await response.text();

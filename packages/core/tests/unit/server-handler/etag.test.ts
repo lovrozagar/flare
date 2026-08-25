@@ -52,23 +52,23 @@ describe("weakMatch", () => {
 });
 
 describe("buildVaryHeader", () => {
-	it("returns x-d with no additional values", () => {
-		expect(buildVaryHeader()).toBe("x-d");
+	it("returns flare-data with no additional values", () => {
+		expect(buildVaryHeader()).toBe("flare-data");
 	});
 
 	it("appends additional values", () => {
-		expect(buildVaryHeader(["Accept-Language", "Cookie"])).toBe("x-d, Accept-Language, Cookie");
+		expect(buildVaryHeader(["Accept-Language", "Cookie"])).toBe("flare-data, Accept-Language, Cookie");
 	});
 
-	it("deduplicates x-d if user includes it", () => {
-		expect(buildVaryHeader(["x-d", "Accept-Language"])).toBe("x-d, Accept-Language");
+	it("deduplicates flare-data if user includes it", () => {
+		expect(buildVaryHeader(["flare-data", "Accept-Language"])).toBe("flare-data, Accept-Language");
 	});
 
 	it("deduplicates case-insensitively", () => {
-		expect(buildVaryHeader(["X-D", "Accept-Language"])).toBe("x-d, Accept-Language");
+		expect(buildVaryHeader(["FLARE-DATA", "Accept-Language"])).toBe("flare-data, Accept-Language");
 	});
 
-	it("returns x-d for empty array", () => {
-		expect(buildVaryHeader([])).toBe("x-d");
+	it("returns flare-data for empty array", () => {
+		expect(buildVaryHeader([])).toBe("flare-data");
 	});
 });

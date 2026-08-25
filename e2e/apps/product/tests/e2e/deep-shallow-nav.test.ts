@@ -12,7 +12,7 @@ test.describe("Shallow navigation preserves data", () => {
 
 		const ndjsonRequests: string[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1") {
+			if (req.headers()["flare-data"] === "1") {
 				ndjsonRequests.push(req.url());
 			}
 		});

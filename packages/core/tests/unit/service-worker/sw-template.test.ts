@@ -70,14 +70,14 @@ describe("SW template generation", () => {
 		expect(result).toContain("/assets/");
 	});
 
-	it("passes through /_fn/ requests", () => {
+	it("passes through /_flare/ requests", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		expect(result).toContain("/_fn/");
+		expect(result).toContain("/_flare/");
 	});
 
-	it("passes through NDJSON requests with x-d header", () => {
+	it("passes through NDJSON requests with flare-data header", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		expect(result).toContain("x-d");
+		expect(result).toContain("flare-data");
 	});
 
 	it("includes runtimeCacheMax in config", () => {
@@ -107,9 +107,9 @@ describe("SW template generation", () => {
 		expect(result).toContain("preloadResponse");
 	});
 
-	it("passes through keepalive requests", () => {
+	it("passes through keepalive via /_flare/ prefix", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		expect(result).toContain("keepalive");
+		expect(result).toContain('url.pathname.startsWith("/_flare/")');
 	});
 
 	it("checks same-origin before intercepting fetch", () => {

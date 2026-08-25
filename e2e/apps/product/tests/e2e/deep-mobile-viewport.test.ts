@@ -28,7 +28,7 @@ test.describe("Mobile viewport — rendering", () => {
 
 			for (const route of ROUTES) {
 				await page.goto(route, { waitUntil: "domcontentloaded" });
-				await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+				await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 					timeout: 15_000,
 				});
 
@@ -48,11 +48,11 @@ test.describe("Mobile viewport — hydration", () => {
 		const cap = setupConsoleCapture(page);
 
 		await page.goto("/", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 
 		cap.assertClean();
@@ -62,11 +62,11 @@ test.describe("Mobile viewport — hydration", () => {
 		await page.setViewportSize({ height: 844, width: 390 });
 
 		await page.goto("/perf-bench", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 
@@ -74,7 +74,7 @@ test.describe("Mobile viewport — hydration", () => {
 		await page.setViewportSize({ height: 844, width: 390 });
 
 		await page.goto("/perf-stress", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 
@@ -87,7 +87,7 @@ test.describe("Mobile viewport — touch targets", () => {
 	test("interactive elements meet 44px minimum tap target", async ({ page }) => {
 		await page.setViewportSize({ height: 667, width: 375 });
 		await page.goto("/a11y-test", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 
@@ -122,7 +122,7 @@ test.describe("Mobile viewport — SPA navigation", () => {
 		await page.setViewportSize({ height: 667, width: 375 });
 
 		await page.goto("/", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 
@@ -135,7 +135,7 @@ test.describe("Mobile viewport — SPA navigation", () => {
 		});
 		await page.waitForURL("**/about");
 
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 
@@ -143,7 +143,7 @@ test.describe("Mobile viewport — SPA navigation", () => {
 		await page.setViewportSize({ height: 667, width: 375 });
 
 		await page.goto("/", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 
@@ -161,7 +161,7 @@ test.describe("Mobile viewport — SPA navigation", () => {
 		await page.goForward();
 		await page.waitForURL("**/about");
 
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 });
@@ -171,7 +171,7 @@ test.describe("Mobile viewport — form interaction", () => {
 		await page.setViewportSize({ height: 667, width: 375 });
 
 		await page.goto("/a11y-form-test", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 

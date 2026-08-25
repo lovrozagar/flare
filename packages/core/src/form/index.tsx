@@ -3,6 +3,7 @@ import type { JSX } from "@solidjs/web";
 import { Dynamic } from "@solidjs/web";
 import type { FlattenedError } from "../errors/index.ts";
 import { ServerFnValidationError } from "../errors/index.ts";
+import { FORM_FN_FIELD, serverFnPath } from "../protocol.ts";
 import type { ServerFn } from "../server-fn/index.ts";
 
 /* Duplicated here to avoid importing server-context (uses node:async_hooks)
@@ -112,7 +113,7 @@ export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.El
 		setFieldErrors({});
 
 		try {
-			const url = `/_fn/${id}/${name}`;
+			const url = serverFnPath(id, name);
 			const res = await fetch(url, {
 				body: formData,
 				method: "POST",
@@ -161,7 +162,7 @@ export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.El
 			method="post"
 			onSubmit={handleSubmit}
 		>
-			<input name="__flare_fn" type="hidden" value={fnId()} />
+			<input name={FORM_FN_FIELD} type="hidden" value={fnId()} />
 			{local.children(formCtx)}
 		</form>
 	) as JSX.Element;

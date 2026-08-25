@@ -497,7 +497,7 @@ describe("DOM & hydration", () => {
 		expect(mockSolidHydrate).not.toHaveBeenCalled();
 	});
 
-	it("data-hydrated attribute set on documentElement after successful hydration", async () => {
+	it("data-flare-hydrated attribute set on documentElement after successful hydration", async () => {
 		const raw = makeFlareState();
 		(globalThis as Record<string, unknown>).self = { flare: raw };
 		mockParseFlareState.mockReturnValue(raw);
@@ -513,10 +513,10 @@ describe("DOM & hydration", () => {
 		await hydrate(makeRouterConfig() as never);
 		const doc = (globalThis as Record<string, unknown>).document as Record<string, unknown>;
 		const docEl = doc.documentElement as { setAttribute: ReturnType<typeof vi.fn> };
-		expect(docEl.setAttribute).toHaveBeenCalledWith("data-hydrated", "");
+		expect(docEl.setAttribute).toHaveBeenCalledWith("data-flare-hydrated", "");
 	});
 
-	it("data-hydrated NOT set when no route modules found", async () => {
+	it("data-flare-hydrated NOT set when no route modules found", async () => {
 		const raw = makeFlareState();
 		(globalThis as Record<string, unknown>).self = { flare: raw };
 		mockParseFlareState.mockReturnValue(raw);
@@ -525,7 +525,7 @@ describe("DOM & hydration", () => {
 		await hydrate(makeRouterConfig() as never);
 		const doc = (globalThis as Record<string, unknown>).document as Record<string, unknown>;
 		const docEl = doc.documentElement as { setAttribute: ReturnType<typeof vi.fn> };
-		expect(docEl.setAttribute).not.toHaveBeenCalledWith("data-hydrated", "");
+		expect(docEl.setAttribute).not.toHaveBeenCalledWith("data-flare-hydrated", "");
 	});
 
 	it("installQueryCacheResolver runs after solidHydrate so deferred QC can notify observers", async () => {

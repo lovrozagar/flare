@@ -2,6 +2,7 @@ import { match as cldrMatch } from "@formatjs/intl-localematcher";
 import { isbot } from "isbot";
 import Negotiator from "negotiator";
 import type { FlareMiddleware } from "..";
+import { HEADER_DATA, HEADER_FLAG, HEADER_PRERENDER, HEADER_PREFETCH, INTERNAL_PATH_PREFIX } from "../../protocol.ts";
 import { matchRoute, toLocaleMatch } from "../../router-primitives/tree.ts";
 
 /**
@@ -102,14 +103,14 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 			cachedCookieName = options?.cookieName ?? ctx.locale.cookieName ?? "flare.locale";
 			cachedMaxAge = options?.cookie?.maxAge ?? 31536000;
 			const skip = options?.skip ?? ctx.locale.skip ?? [];
-			cachedSkipPaths = ["/_fn/", ...skip];
+			cachedSkipPaths = [INTERNAL_PATH_PREFIX, ...skip];
 		}
 
 		const { pathname } = ctx.url;
 		const isHttps = ctx.url.protocol === "https:";
 
 		/* Prerender snapshots the exact expanded URL — do not locale-redirect. */
-		if (ctx.request.headers.get("x-flare-prerender") === "1") {
+		if (ctx.request.headers.get(HEADER_PRERENDER) === HEADER_FLAG) {
 			const prerenderLocale = getLocaleFromPath(pathname, cachedLocaleSet);
 			ctx.serverContext.locale = prerenderLocale ?? defaultLocale;
 			return ctx.next();
@@ -216,7 +217,7 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 		 * Only for full page loads (not NDJSON/prefetch — SPA router handles those).
 		 * e.g. /about with cookie=fr → 302 → /fr/about
 		 */
-		const isDataRequest = ctx.request.headers.get("x-d") === "1";
+		const isDataRequest = ctx.request.headers.get(HEADER_DATA) === HEADER_FLAG;
 		if (!pathLocale && cookieLocale && cookieLocale !== defaultLocale && !isDataRequest) {
 			const newUrl = new URL(ctx.url);
 			newUrl.pathname = `/${cookieLocale}${pathname}`;
@@ -235,7 +236,7 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 		/* Prefetch requests must not set cookies — SPA prefetches multiple
 		 * locale URLs after hydration, and the last one to complete would
 		 * overwrite the correct cookie from the actual page load. */
-		const isPrefetch = ctx.request.headers.get("x-p") === "1";
+		const isPrefetch = ctx.request.headers.get(HEADER_PREFETCH) === HEADER_FLAG;
 		const needsCookie = !isPrefetch && currentLocale !== cookieLocale;
 		if (needsCookie) {
 			const setCookieHeader = buildCookieHeader(

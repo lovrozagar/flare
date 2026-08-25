@@ -25,7 +25,7 @@ test.describe("External redirect — data request", () => {
 		/* Data requests MUST get NDJSON 200 — raw 3xx causes fetch() to follow
 		 * cross-origin → CORS block → frozen UI. Client reads NDJSON and does hardNavigate(). */
 		const response = await page.request.get(`${BASE}/redirect-external`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
@@ -38,7 +38,7 @@ test.describe("External redirect — data request", () => {
 
 	test("external redirect 307 returns NDJSON redirect for data request", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/redirect-external-307`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");

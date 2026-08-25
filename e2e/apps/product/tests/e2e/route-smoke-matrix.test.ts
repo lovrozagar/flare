@@ -226,7 +226,7 @@ test.describe("Route Smoke: SSR Hard Navigation", () => {
 			const cap = setupConsoleCapture(page);
 			await loadPage(page, route.path);
 
-			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 			expect(hydrated).toBe(true);
 			cap.assertClean();
 		});
@@ -239,7 +239,7 @@ test.describe("Route Smoke: SSR Noisy Routes (intentional console errors)", () =
 			/* These routes intentionally produce console errors (deferred rejections, etc.) */
 			await loadPage(page, route.path);
 
-			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 			expect(hydrated).toBe(true);
 		});
 	}
@@ -303,7 +303,7 @@ test.describe("Route Smoke: SPA Navigation from Index", () => {
 
 			await clickAndAssertSPA(page, `[data-testid="nav-links"] a:has-text("${target.linkText}")`, target.expectedPath);
 
-			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+			const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 			expect(hydrated).toBe(true);
 			cap.assertClean();
 		});
@@ -318,7 +318,7 @@ test.describe("Route Smoke: SPA Internal Redirects", () => {
 		await page.click('[data-testid="nav-links"] a:has-text("Redirect Source")');
 		await page.waitForURL("**/redirect-target", { timeout: 10_000 });
 
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 		cap.assertClean();
 	});
@@ -330,7 +330,7 @@ test.describe("Route Smoke: SPA Internal Redirects", () => {
 		await page.click('[data-testid="nav-links"] a:has-text("Chain Redirect")');
 		await page.waitForURL("**/chain-final", { timeout: 10_000 });
 
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 		cap.assertClean();
 	});
@@ -345,7 +345,7 @@ test.describe("Route Smoke: SPA External Redirects (Bug 76)", () => {
 	for (const route of EXTERNAL_REDIRECT_ROUTES) {
 		test(`SPA external: ${route.label} returns NDJSON not 3xx`, async ({ request }) => {
 			const res = await request.get(`${BASE}${route.path}`, {
-				headers: { "x-d": "1" },
+				headers: { "flare-data": "1" },
 			});
 			/* Data request MUST get NDJSON 200, NOT a raw 3xx redirect */
 			expect(res.status()).toBe(200);
@@ -416,7 +416,7 @@ test.describe("Route Smoke: Multi-hop SPA Navigation", () => {
 		await page.goForward();
 		await page.waitForURL("**/head-demo", { timeout: 5000 });
 
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 		cap.assertClean();
 	});

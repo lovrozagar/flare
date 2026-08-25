@@ -21,7 +21,7 @@ Fix 4 hot-path issues — 3 are the P1-P3 bugs still present in the actively exp
 ### Task 2: Per-request Set/array allocations in i18n closure
 
 - **File**: `src/middleware/builtins/i18n.ts` lines 103-104
-- **Problem**: `new Set(locales.map(...))` and `["/_fn/", ...skip]` allocated every request despite locale config being static
+- **Problem**: `new Set(locales.map(...))` and `["/_flare/server-fn/", ...skip]` allocated every request despite locale config being static
 - **Fix**: Cache in closure outside the returned middleware function (same as P2 fix)
 - **Impact**: HIGH — Set + array allocation per request
 

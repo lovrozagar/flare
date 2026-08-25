@@ -4,19 +4,19 @@ import { afterEach, describe, expect, it } from "vitest";
 import { installQueryCacheResolver } from "../../../src/state-parser/index.ts";
 
 declare global {
-	var __flare_qc: Array<[unknown]> | { push: (entry: [unknown]) => number } | undefined;
+	var __flare_queries: Array<[unknown]> | { push: (entry: [unknown]) => number } | undefined;
 }
 
 afterEach(() => {
-	globalThis.__flare_qc = undefined;
+	globalThis.__flare_queries = undefined;
 });
 
 describe("installQueryCacheResolver", () => {
-	it("drains buffered __flare_qc entries and hydrates query cache", () => {
+	it("drains buffered __flare_queries entries and hydrates query cache", () => {
 		const qc = new QueryClient();
 
 		/* simulate SSR scripts that arrived before hydration */
-		globalThis.__flare_qc = [
+		globalThis.__flare_queries = [
 			[{ data: { name: "item-a" }, key: ["a"], staleTime: 5000 }],
 			[{ data: { name: "item-b" }, key: ["b"] }],
 		];
@@ -32,7 +32,7 @@ describe("installQueryCacheResolver", () => {
 		installQueryCacheResolver(qc);
 
 		/* simulate a late SSR script pushing after hydration */
-		const proxy = globalThis.__flare_qc as { push: (entry: [unknown]) => number };
+		const proxy = globalThis.__flare_queries as { push: (entry: [unknown]) => number };
 		proxy.push([{ data: "late-value", key: ["late-key"] }]);
 
 		expect(qc.getQueryData(["late-key"])).toBe("late-value");
@@ -40,22 +40,22 @@ describe("installQueryCacheResolver", () => {
 
 	it("handles empty buffer gracefully", () => {
 		const qc = new QueryClient();
-		globalThis.__flare_qc = [];
+		globalThis.__flare_queries = [];
 		installQueryCacheResolver(qc);
 		/* no crash, proxy installed */
-		expect(globalThis.__flare_qc).toBeDefined();
+		expect(globalThis.__flare_queries).toBeDefined();
 	});
 
 	it("handles no buffer (undefined) gracefully", () => {
 		const qc = new QueryClient();
-		globalThis.__flare_qc = undefined;
+		globalThis.__flare_queries = undefined;
 		installQueryCacheResolver(qc);
-		expect(globalThis.__flare_qc).toBeDefined();
+		expect(globalThis.__flare_queries).toBeDefined();
 	});
 
 	it("preserves staleTime from streamed entries", () => {
 		const qc = new QueryClient();
-		globalThis.__flare_qc = [[{ data: "val", key: ["st-key"], staleTime: 60000 }]];
+		globalThis.__flare_queries = [[{ data: "val", key: ["st-key"], staleTime: 60000 }]];
 
 		installQueryCacheResolver(qc);
 

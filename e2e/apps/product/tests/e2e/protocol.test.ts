@@ -2,17 +2,17 @@ import { expect, test } from "@playwright/test";
 import { loadPage, parseNDJSON, setupConsoleCapture } from "./helpers";
 
 test.describe("NDJSON", () => {
-	test("x-d request is application/x-ndjson", async ({ request }) => {
+	test("flare-data request is application/x-ndjson", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
 	});
 
-	test("unmatched path with x-d is NDJSON 404, not HTML", async ({ request }) => {
+	test("unmatched path with flare-data is NDJSON 404, not HTML", async ({ request }) => {
 		const response = await request.get("/does-not-exist", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(404);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
@@ -23,7 +23,7 @@ test.describe("NDJSON", () => {
 
 	test("loader message has match id and about data", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const loaders = msgs.filter((m) => m.t === "l");
@@ -42,7 +42,7 @@ test.describe("NDJSON", () => {
 
 	test("head message title matches page head()", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const msgs = parseNDJSON(await response.text());
 		const heads = msgs.filter((m) => m.t === "h");

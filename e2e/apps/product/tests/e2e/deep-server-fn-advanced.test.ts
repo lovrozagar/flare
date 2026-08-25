@@ -102,7 +102,7 @@ test.describe("Deep: mutation + piggyback", () => {
 	});
 
 	test("response structure via HTTP", async ({ page }) => {
-		const response = await page.request.post(`${BASE}/_fn/piggyback/piggyback`, {
+		const response = await page.request.post(`${BASE}/_flare/server-fn/piggyback/piggyback`, {
 			data: { value: "http-test" },
 		});
 		expect(response.status()).toBe(200);
@@ -142,7 +142,7 @@ test.describe("Deep: concurrent calls", () => {
 		const ids = ["X1", "X2", "X3", "X4", "X5"];
 		const results = await Promise.all(
 			ids.map((id) =>
-				page.request.post(`${BASE}/_fn/concurrent/concurrent`, {
+				page.request.post(`${BASE}/_flare/server-fn/concurrent/concurrent`, {
 					data: { delay: 10, id },
 				}),
 			),
@@ -224,7 +224,7 @@ test.describe("Deep: error recovery", () => {
 	test("500 format via HTTP", async ({ page }) => {
 		/* unique key ensures first call is always the odd (failing) one */
 		const key = `http-500-${Date.now()}`;
-		const response = await page.request.post(`${BASE}/_fn/retryable/retryable`, {
+		const response = await page.request.post(`${BASE}/_flare/server-fn/retryable/retryable`, {
 			data: { key },
 		});
 		expect(response.status()).toBe(500);
@@ -255,14 +255,14 @@ test.describe("Deep: auth from browser", () => {
 	});
 
 	test("401 via raw HTTP", async ({ page }) => {
-		const response = await page.request.post(`${BASE}/_fn/auth-gated/auth-gated`, {
+		const response = await page.request.post(`${BASE}/_flare/server-fn/auth-gated/auth-gated`, {
 			data: {},
 		});
 		expect(response.status()).toBe(401);
 	});
 
 	test("403 via raw HTTP", async ({ page }) => {
-		const response = await page.request.post(`${BASE}/_fn/authorized/authorized`, {
+		const response = await page.request.post(`${BASE}/_flare/server-fn/authorized/authorized`, {
 			data: {},
 			headers: { "x-test-auth": "regular-user" },
 		});
@@ -274,7 +274,7 @@ test.describe("Deep: auth from browser", () => {
 
 test.describe("Deep: piggyback structure via HTTP", () => {
 	test("response includes queries array", async ({ page }) => {
-		const response = await page.request.post(`${BASE}/_fn/piggyback/piggyback`, {
+		const response = await page.request.post(`${BASE}/_flare/server-fn/piggyback/piggyback`, {
 			data: { value: "struct-test" },
 		});
 		const json = (await response.json()) as Record<string, unknown>;
@@ -283,7 +283,7 @@ test.describe("Deep: piggyback structure via HTTP", () => {
 	});
 
 	test("piggyback keys are arrays", async ({ page }) => {
-		const response = await page.request.post(`${BASE}/_fn/piggyback/piggyback`, {
+		const response = await page.request.post(`${BASE}/_flare/server-fn/piggyback/piggyback`, {
 			data: { value: "keys-test" },
 		});
 		const json = (await response.json()) as {
@@ -295,7 +295,7 @@ test.describe("Deep: piggyback structure via HTTP", () => {
 	});
 
 	test("piggyback data matches handler output", async ({ page }) => {
-		const response = await page.request.post(`${BASE}/_fn/piggyback/piggyback`, {
+		const response = await page.request.post(`${BASE}/_flare/server-fn/piggyback/piggyback`, {
 			data: { value: "match-test" },
 		});
 		const json = (await response.json()) as {

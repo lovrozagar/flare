@@ -29,6 +29,7 @@ import type { ServerLogEntry } from "@lovrozagar/flare/server-context";
 import { clearScopedStyles, getScopedStyles, RUNTIME_SHEET_ID } from "../styles/index.ts";
 import { CRITICAL_SHEET_ID, injectCriticalAppend, type SxCssManifest } from "./critical-css.ts";
 import { ThemeProvider } from "../theme.ts";
+import { GLOBAL_DEFER, GLOBAL_QUERIES } from "../protocol.ts";
 import { parseSearchParams, type SearchParams } from "../url/index.ts";
 import { renderHeadToHtml } from "./head.ts";
 import { hoistHydrationHeadMarkers } from "./hoist-head-markers.ts";
@@ -841,7 +842,7 @@ export function renderToStream(config: SSRConfig): SSRResult {
 								const json = JSON.stringify(data).replace(/</g, "\\u003c");
 								controller.enqueue(
 									encoder.encode(
-										`<script nonce="${escapedNonce}">(self.__flare_q=self.__flare_q||[]).push([${resolverKey},${json}])</script>`,
+										`<script nonce="${escapedNonce}">(self.${GLOBAL_DEFER}=self.${GLOBAL_DEFER}||[]).push([${resolverKey},${json}])</script>`,
 									),
 								);
 							} catch (err) {
@@ -849,7 +850,7 @@ export function renderToStream(config: SSRConfig): SSRResult {
 								const safeMsg = esc(msg);
 								controller.enqueue(
 									encoder.encode(
-										`<script nonce="${escapedNonce}">(self.__flare_q=self.__flare_q||[]).push([${resolverKey},${safeMsg},true])</script>`,
+										`<script nonce="${escapedNonce}">(self.${GLOBAL_DEFER}=self.${GLOBAL_DEFER}||[]).push([${resolverKey},${safeMsg},true])</script>`,
 									),
 								);
 							}
@@ -861,7 +862,7 @@ export function renderToStream(config: SSRConfig): SSRResult {
 									const qcJson = JSON.stringify(qcEntry).replace(/</g, "\\u003c");
 									controller.enqueue(
 										encoder.encode(
-											`<script nonce="${escapedNonce}">(self.__flare_qc=self.__flare_qc||[]).push([${qcJson}])</script>`,
+											`<script nonce="${escapedNonce}">(self.${GLOBAL_QUERIES}=self.${GLOBAL_QUERIES}||[]).push([${qcJson}])</script>`,
 										),
 									);
 								}

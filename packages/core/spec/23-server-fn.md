@@ -120,16 +120,16 @@ Each method returns a new builder. Methods can be called in any order before `.h
 
 **Server**: `.handler()` registers the function in a global `Map<string, ServerFnRegistration>` keyed by `__id`. The returned `ServerFn` calls the handler directly (same-process invocation). `env` and `request` come from the current server context.
 
-**Client**: `.handler()` returns an async function that serializes `input` and fetches `/_fn/{__id}/{name}`. No handler code shipped to client — the build plugin tree-shakes it.
+**Client**: `.handler()` returns an async function that serializes `input` and fetches `/_flare/server-fn/{__id}/{name}`. No handler code shipped to client — the build plugin tree-shakes it.
 
 ### `handleServerFnRequest`
 
-Called by the server handler (spec 24) when pathname matches `/_fn/*`.
+Called by the server handler (spec 24) when pathname matches `/_flare/server-fn/*`.
 
 #### URL Pattern
 
 ```
-/_fn/{id}/{name}
+/_flare/server-fn/{id}/{name}
 ```
 
 - `id` — the `__id` injected at build time (deterministic hash)
@@ -195,7 +195,7 @@ Error: `{ message: string }` with appropriate status code.
 
 When `createServerFn` runs on the client (browser), `.handler()` returns an async function that:
 
-1. Determines URL: `/_fn/{__id}/{name}`
+1. Determines URL: `/_flare/server-fn/{__id}/{name}`
 2. For `"post"` method:
    - `fetch(url, { body: JSON.stringify(input), headers: { "Content-Type": "application/json" }, method: "POST" })`
 3. For `"get"` method:
@@ -262,9 +262,9 @@ Builder chain - ordering:
   Order of authenticate/input/authorize does not affect execution order
 
 handleServerFnRequest - URL parsing:
-  /_fn/abc123/myFn -> id = "abc123", name = "myFn"
-  /_fn/abc123 -> 404 (missing name)
-  /_fn/ -> 404 (missing id and name)
+  /_flare/server-fn/abc123/myFn -> id = "abc123", name = "myFn"
+  /_flare/server-fn/abc123 -> 404 (missing name)
+  /_flare/server-fn/ -> 404 (missing id and name)
 
 handleServerFnRequest - lookup:
   Known id, matching name -> proceeds to execution
@@ -359,7 +359,7 @@ Registration:
 
 - `__id` is injected by the build-time plugin (spec 20), not user-provided. Users never see or set it.
 - Build plugin computes `__id` from file hash + function name. Deterministic across builds of the same source.
-- `/_fn/` is a reserved URL prefix. Route tree must not contain routes starting with `_fn` (enforced by route generator, spec 19).
+- `/_flare/server-fn/` is a reserved URL prefix. Route tree must not contain routes starting with `_flare` (enforced by route generator, spec 19).
 - RPC URL includes `name` for human-readable devtools/network panel inspection. `id` alone is sufficient for lookup, but `name` mismatch returns 404 to catch stale client code after deploys.
 - GET method is for idempotent reads. Enables HTTP caching (CDN, browser cache). POST for mutations. Default is POST to prevent accidental caching of side-effectful calls.
 - Input validation runs the validator's `parse` method (Zod) or calls the function directly. Both should throw on invalid input. Error message extracted from the thrown error.

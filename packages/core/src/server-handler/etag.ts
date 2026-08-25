@@ -4,6 +4,8 @@
  * the actual bytes while content is semantically identical.
  */
 
+import { HEADER_DATA } from "../protocol.ts";
+
 /** Compute weak ETag from content using SHA-256, truncated to 16 hex chars */
 export async function computeEtag(body: string): Promise<string> {
 	const encoded = new TextEncoder().encode(body);
@@ -35,11 +37,11 @@ export function weakMatch(ifNoneMatch: string, etag: string): boolean {
 }
 
 /**
- * Build Vary header value. Always includes `x-d` (flare's NDJSON protocol header).
+ * Build Vary header value. Always includes `flare-data` (NDJSON protocol header).
  * Additional values are appended, with deduplication.
  */
 export function buildVaryHeader(additional?: string[]): string {
-	const values = ["x-d"];
+	const values = [HEADER_DATA];
 	if (additional) {
 		for (const v of additional) {
 			if (!values.some((existing) => existing.toLowerCase() === v.toLowerCase())) {

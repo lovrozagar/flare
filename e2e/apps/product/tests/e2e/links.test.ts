@@ -32,7 +32,7 @@ test.describe("Link features", () => {
 	test("replace does not grow history", async ({ page }) => {
 		await loadPage(page, "/");
 		await page.goto("/link-features");
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"));
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		const before = await page.evaluate(() => history.length);
 		await page.getByTestId("replace-about").click();
 		await page.waitForURL("**/about");

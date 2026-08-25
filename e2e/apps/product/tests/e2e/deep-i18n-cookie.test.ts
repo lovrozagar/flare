@@ -32,7 +32,7 @@ test.describe("i18n cookie — raw HTTP Set-Cookie", () => {
 
 	test("NDJSON /about: no cookie → Set-Cookie: en", async ({ request }) => {
 		const res = await request.get(`${BASE}/about`, {
-			headers: { "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		expect(res.headers()["set-cookie"]).toContain("flare.locale=en");
@@ -40,7 +40,7 @@ test.describe("i18n cookie — raw HTTP Set-Cookie", () => {
 
 	test("NDJSON /about: cookie=en → no Set-Cookie", async ({ request }) => {
 		const res = await request.get(`${BASE}/about`, {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
@@ -48,21 +48,21 @@ test.describe("i18n cookie — raw HTTP Set-Cookie", () => {
 
 	test("NDJSON /hr/about: cookie=en → Set-Cookie: hr", async ({ request }) => {
 		const res = await request.get(`${BASE}/hr/about`, {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(res.headers()["set-cookie"]).toContain("flare.locale=hr");
 	});
 
 	test("NDJSON /fr/about: cookie=hr → Set-Cookie: fr", async ({ request }) => {
 		const res = await request.get(`${BASE}/fr/about`, {
-			headers: { cookie: "flare.locale=hr", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=hr", "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(res.headers()["set-cookie"]).toContain("flare.locale=fr");
 	});
 
 	test("NDJSON /about: cookie=fr → Set-Cookie: en", async ({ request }) => {
 		const res = await request.get(`${BASE}/about`, {
-			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		expect(res.headers()["set-cookie"]).toContain("flare.locale=en");
@@ -74,7 +74,7 @@ test.describe("i18n cookie — raw HTTP Set-Cookie", () => {
 				headers: {
 					...(cookie ? { cookie } : {}),
 					"user-agent": BROWSER_UA,
-					"x-d": "1",
+					"flare-data": "1",
 				},
 			});
 
@@ -104,28 +104,28 @@ test.describe("i18n cookie — raw HTTP Set-Cookie", () => {
 test.describe("i18n cookie — prefetch must not overwrite", () => {
 	test("prefetch /hr with cookie=en → no Set-Cookie", async ({ request }) => {
 		const res = await request.get(`${BASE}/hr/about`, {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1", "x-p": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1", "flare-prefetch": "1" },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
 	});
 
 	test("prefetch /fr with cookie=en → no Set-Cookie", async ({ request }) => {
 		const res = await request.get(`${BASE}/fr/about`, {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1", "x-p": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1", "flare-prefetch": "1" },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
 	});
 
 	test("prefetch / with cookie=fr → no Set-Cookie", async ({ request }) => {
 		const res = await request.get(`${BASE}/about`, {
-			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "x-d": "1", "x-p": "1" },
+			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "flare-data": "1", "flare-prefetch": "1" },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
 	});
 
 	test("non-prefetch same path still sets cookie", async ({ request }) => {
 		const res = await request.get(`${BASE}/hr/about`, {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(res.headers()["set-cookie"]).toContain("flare.locale=hr");
 	});

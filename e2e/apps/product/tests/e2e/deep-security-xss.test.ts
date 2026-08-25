@@ -61,7 +61,7 @@ test.describe("Deep: XSS prevention in SSR serialization", () => {
 test.describe("Deep: SSR response headers security", () => {
 	test("NDJSON response has security headers", async ({ page }) => {
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["x-content-type-options"]).toBe("nosniff");
 		expect(response.headers()["x-frame-options"]).toBe("DENY");

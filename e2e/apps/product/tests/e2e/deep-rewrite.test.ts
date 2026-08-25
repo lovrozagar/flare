@@ -156,7 +156,7 @@ test.describe("Rewrite — NDJSON data requests", () => {
 		let ndjsonStatus = 0;
 		let ndjsonContentType = "";
 		page.on("response", (res) => {
-			if (res.url().includes("/vanity") && res.request().headers()["x-d"] === "1") {
+			if (res.url().includes("/vanity") && res.request().headers()["flare-data"] === "1") {
 				ndjsonStatus = res.status();
 				ndjsonContentType = res.headers()["content-type"] ?? "";
 			}
@@ -173,7 +173,7 @@ test.describe("Rewrite — NDJSON data requests", () => {
 
 		let ndjsonStatus = 0;
 		page.on("response", (res) => {
-			if (res.url().includes("/alt-target") && res.request().headers()["x-d"] === "1") {
+			if (res.url().includes("/alt-target") && res.request().headers()["flare-data"] === "1") {
 				ndjsonStatus = res.status();
 			}
 		});

@@ -7,7 +7,7 @@ import { expect, test } from "@playwright/test";
  * Validates progressive delivery, abort behavior, and stream protocol.
  */
 
-const STREAM_URL = "/_fn/slow-stream/slow-stream";
+const STREAM_URL = "/_flare/server-fn/slow-stream/slow-stream";
 
 test.describe("Slow stream — progressive delivery", () => {
 	test("stream delivers all 5 chunks", async ({ request }) => {
@@ -76,7 +76,7 @@ test.describe("Slow stream — abort behavior", () => {
 		 */
 		const result = await page.evaluate(async () => {
 			const controller = new AbortController();
-			const res = await fetch(new URL("/_fn/slow-stream/slow-stream", window.location.origin).href, {
+			const res = await fetch(new URL("/_flare/server-fn/slow-stream/slow-stream", window.location.origin).href, {
 				body: "{}",
 				headers: { "content-type": "application/json" },
 				method: "POST",
@@ -126,7 +126,7 @@ test.describe("Slow stream — abort behavior", () => {
 test.describe("Slow stream — via UI", () => {
 	test("stream button works on server-fn-advanced page", async ({ page }) => {
 		await page.goto("/server-fn-advanced", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 

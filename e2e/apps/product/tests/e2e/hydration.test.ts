@@ -13,7 +13,7 @@ test.describe("Hydration", () => {
 		await assertFlareState(page);
 	});
 
-	test("data-hydrated present after load", async ({ page }) => {
+	test("data-flare-hydrated present after load", async ({ page }) => {
 		await page.goto("/", { waitUntil: "domcontentloaded" });
 		await assertHydrated(page);
 	});

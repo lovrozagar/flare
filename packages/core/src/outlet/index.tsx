@@ -258,7 +258,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	/*
 	 * Must run during the provider's first execution — Solid 2 onSettled waits
 	 * for hydration to finish, and hydrate() awaits this callback, so onSettled
-	 * would deadlock and never set html[data-hydrated].
+	 * would deadlock and never set html[data-flare-hydrated].
 	 */
 	untrack(() => props.onContextReady?.(ctx));
 

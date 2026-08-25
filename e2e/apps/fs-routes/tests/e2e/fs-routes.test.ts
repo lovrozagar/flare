@@ -134,7 +134,7 @@ test.describe("fsVirtualPaths true — SPA", () => {
 });
 
 test.describe("cdn + origin store", () => {
-	test("cached page emits Cache-Control and Flare-Render ISR", async ({ request }) => {
+	test("cached page emits Cache-Control and flare-render ISR", async ({ request }) => {
 		let res = await request.get("/about");
 		if (res.status() >= 500) res = await request.get("/about");
 		expect(res.status()).toBe(200);

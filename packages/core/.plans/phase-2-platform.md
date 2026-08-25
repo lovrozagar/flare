@@ -373,7 +373,7 @@ createServerFn({ name: "updatePost" }).handler(async (ctx) => {
 - [x] `entryScript` defaults to `"/src/client.tsx"`, `isDev` defaults to `false`
 - [x] `virtual.d.ts` — TypeScript declarations for all virtual modules (kept as reference, but generator now emits `virtual.gen.d.ts` automatically)
 - [x] E2e app updated: exports server fns, uses virtual modules, no manual wiring
-- [x] Server fn map keyed by `name` (not hash `id`) — backward-compatible URLs `/_fn/{name}/{name}`
+- [x] Server fn map keyed by `name` (not hash `id`) — backward-compatible URLs `/_flare/server-fn/{name}/{name}`
 - [x] `serverFnQueryOptions`/`serverFnMutationOptions` URL uses name for both segments
 - [x] Link `hash` prop passed through to `navigate()` (was missing — hash only in `<a>` href)
 - [x] 2805 unit + 655 e2e tests pass, TypeScript clean

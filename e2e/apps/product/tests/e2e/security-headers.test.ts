@@ -35,7 +35,7 @@ test.describe("Security Headers", () => {
 
 	test("CSP with nonce on NDJSON @prod-only", async ({ request }) => {
 		const response = await request.get("/", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const csp = response.headers()["content-security-policy"];
 		expect(csp).toBeDefined();
@@ -45,8 +45,8 @@ test.describe("Security Headers", () => {
 	});
 
 	test("nonce differs between requests @prod-only", async ({ request }) => {
-		const r1 = await request.get("/", { headers: { "x-d": "1" } });
-		const r2 = await request.get("/", { headers: { "x-d": "1" } });
+		const r1 = await request.get("/", { headers: { "flare-data": "1" } });
+		const r2 = await request.get("/", { headers: { "flare-data": "1" } });
 		const csp1 = r1.headers()["content-security-policy"] ?? "";
 		const csp2 = r2.headers()["content-security-policy"] ?? "";
 		const nonce1 = csp1.match(/nonce-([a-f0-9]+)/)?.[1];

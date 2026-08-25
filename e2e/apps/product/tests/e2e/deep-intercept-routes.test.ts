@@ -122,7 +122,7 @@ test.describe("Intercepting routes", () => {
 		await expect(page.locator("[data-testid=intercept-overlay]")).not.toBeVisible();
 
 		/* Verify hydration happened */
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 		cap.assertClean();
 	});

@@ -21,7 +21,7 @@ test.describe("Dev prerender — SSG routes in dev @dev-only", () => {
 
 	test("SSG route NDJSON also works in dev", async ({ request }) => {
 		const res = await request.get("/static-cache-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 	});
@@ -35,7 +35,7 @@ test.describe("Dev prerender — SSG routes in dev @dev-only", () => {
 
 	test("SSG route with Vary header", async ({ request }) => {
 		const res = await request.get("/static-cache-test");
-		expect(res.headers()["vary"]).toContain("x-d");
+		expect(res.headers()["vary"]).toContain("flare-data");
 	});
 
 	test("multiple SSG routes all serve correctly", async ({ request }) => {

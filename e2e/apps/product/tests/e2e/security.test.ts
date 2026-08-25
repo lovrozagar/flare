@@ -8,7 +8,7 @@ test.describe("dev security", () => {
 
 	test("dev CSP uses unsafe-inline, not nonce @dev-only", async ({ request }) => {
 		const response = await request.get("/", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const csp = response.headers()["content-security-policy"];
 		expect(csp).toBeDefined();
