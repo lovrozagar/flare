@@ -1,0 +1,449 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
+import type { LoadedRouteModules } from "../../../src/navigation/types.ts";
+import type { FlareProviderContext, NavigateOptions } from "../../../src/outlet/types.ts";
+import type { TreeNode } from "../../../src/router-primitives/types.ts";
+import type { SearchParams } from "../../../src/url/index.ts";
+
+vi.mock("../../../src/ndjson-client", () => ({
+	fetchNDJSON: vi.fn(),
+}));
+
+vi.mock("../../../src/head-client", () => ({
+	applyPerRouteHeads: vi.fn(),
+}));
+
+vi.mock("../../../src/router-primitives", async (importOriginal) => {
+	const original = await importOriginal<typeof import("../../../src/router-primitives")>();
+	return { ...original, matchRoute: vi.fn() };
+});
+
+vi.mock("../../../src/history", async (importOriginal) => {
+	const original = await importOriginal<typeof import("../../../src/history")>();
+	return {
+		...original,
+		restoreScroll: vi.fn(),
+		scrollToTop: vi.fn(),
+	};
+});
+
+import { navigate, prefetch, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
+import { fetchNDJSON } from "../../../src/ndjson-client/index.ts";
+import { matchRoute } from "../../../src/router-primitives/index.ts";
+
+const mockFetchNDJSON = fetchNDJSON as ReturnType<typeof vi.fn>;
+const mockMatchRoute = matchRoute as ReturnType<typeof vi.fn>;
+
+function makeFakeTree(): TreeNode {
+	return { s: {} };
+}
+
+function makeModule(virtualPath: string, type: "layout" | "render" = "render") {
+	return { _type: type, render: () => null, variablePath: "", virtualPath };
+}
+
+function makeLoadedModules(overrides?: Partial<LoadedRouteModules>): LoadedRouteModules {
+	return {
+		layouts: [],
+		page: makeModule("_root_/home"),
+		params: {},
+		...overrides,
+	};
+}
+
+function makeRoute(virtualPath: string, type: "r" | "x" = "r", meta: Record<string, unknown> = {}) {
+	return { e: "", o: meta, p: vi.fn(), t: type, v: "", x: virtualPath };
+}
+
+function makeCtx(overrides?: Partial<FlareProviderContext>): FlareProviderContext {
+	let matches: FlareProviderContext["matches"] extends () => infer R ? R : never = [];
+	let params: Record<string, string | string[]> = {};
+	let search: SearchParams = {};
+	let navigationPhase: import("../../../src/outlet/types").NavigationPhase = "idle";
+	let viewTransition: import("../../../src/outlet/types").BrowserViewTransition | null = null;
+	let notFound = false;
+	let hydrated = false;
+
+	const ctx: FlareProviderContext = {
+		hydrated: () => hydrated,
+		intercepted: () => null,
+		invalidate: vi.fn(),
+		isNavigating: () => navigationPhase !== "idle",
+		layouts: {},
+		location: () => ({
+			hash: "",
+			params: {},
+			pathname: "/",
+			search: {},
+			url: new URL("http://localhost/"),
+			variablePath: "",
+			virtualPath: "",
+		}),
+		matchCache: createMatchCache(),
+		matches: () => matches,
+		navigate: vi.fn(() => Promise.resolve()),
+		navigationPhase: () => navigationPhase,
+		notFound: () => notFound,
+		params: () => params,
+		prefetch: vi.fn(() => Promise.resolve()),
+		prefetchCache: createPrefetchCache(),
+		resolvers: new Map(),
+		routeTree: makeFakeTree(),
+		search: () => search,
+		setHydrated: (v: boolean) => {
+			hydrated = v;
+		},
+		setIntercepted: () => {},
+		setMatches: (m) => {
+			matches = m;
+		},
+		setNavigationPhase: (v: import("../../../src/outlet/types").NavigationPhase) => {
+			navigationPhase = v;
+		},
+		setNotFound: (v: boolean) => {
+			notFound = v;
+		},
+		setParams: (p) => {
+			params = p;
+		},
+		setSearch: (s) => {
+			search = s;
+		},
+		setViewTransition: (vt: import("../../../src/outlet/types").BrowserViewTransition | null) => {
+			viewTransition = vt;
+		},
+		viewTransition: () => viewTransition,
+		...overrides,
+	};
+
+	let navigateFn: (opts: NavigateOptions) => Promise<void> = () => Promise.resolve();
+	let prefetchFn: (opts: { to: string }) => Promise<void> = () => Promise.resolve();
+
+	Object.defineProperty(ctx, "_setNavigate", {
+		value: (fn: typeof navigateFn) => {
+			navigateFn = fn;
+		},
+	});
+	Object.defineProperty(ctx, "_setPrefetch", {
+		value: (fn: typeof prefetchFn) => {
+			prefetchFn = fn;
+		},
+	});
+
+	return ctx;
+}
+
+const mockLoadRouteModules =
+	vi.fn<(pathname: string, routeTree: unknown, layouts: unknown) => Promise<LoadedRouteModules>>();
+
+function resetLocation(): void {
+	window.history.replaceState({}, "", "/");
+}
+
+const ABOUT_ID = "_root_/about:{}:[]";
+const ABOUT_PAGE = makeModule("_root_/about");
+
+function stubAboutRoute(): void {
+	mockMatchRoute.mockReturnValue({
+		params: {},
+		route: makeRoute("_root_/about"),
+	});
+	mockLoadRouteModules.mockResolvedValue(
+		makeLoadedModules({
+			page: ABOUT_PAGE,
+		}),
+	);
+}
+
+describe("instant navigation — commit shell before NDJSON", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("paints prefetched loaderData before the navigation fetch resolves", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "prefetched-shell", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		await prefetch({ to: "/about" });
+		expect(ctx.matchCache.get(ABOUT_ID)?.data).toBe("prefetched-shell");
+
+		let resolveNavFetch: ((value: unknown) => void) | undefined;
+		const navFetch = new Promise((resolve) => {
+			resolveNavFetch = resolve;
+		});
+		mockFetchNDJSON.mockReset();
+		mockFetchNDJSON.mockReturnValue(navFetch);
+		stubAboutRoute();
+
+		const navP = navigate({ to: "/about" });
+
+		await vi.waitFor(() => {
+			expect(ctx.matches().some((m) => m.loaderData === "prefetched-shell")).toBe(true);
+		});
+
+		resolveNavFetch?.({
+			matches: [{ loaderData: "fresh", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navP;
+
+		expect(ctx.matches().some((m) => m.loaderData === "fresh")).toBe(true);
+	});
+
+	it("A→B→A paints cached A before the refetch resolves", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		mockMatchRoute.mockImplementation((_tree, pathname) => {
+			if (String(pathname).includes("about")) {
+				return { params: {}, route: makeRoute("_root_/about") };
+			}
+			return { params: {}, route: makeRoute("_root_/other") };
+		});
+		mockLoadRouteModules.mockImplementation(async (pathname) => {
+			if (String(pathname).includes("about")) {
+				return makeLoadedModules({ page: ABOUT_PAGE });
+			}
+			return makeLoadedModules({ page: makeModule("_root_/other") });
+		});
+
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [{ loaderData: "visit-1", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ to: "/about" });
+		expect(ctx.matches().some((m) => m.loaderData === "visit-1")).toBe(true);
+
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [{ loaderData: "other", matchId: "_root_/other:{}:[]" }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ to: "/other" });
+
+		let resolveReturn: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolveReturn = resolve;
+			}),
+		);
+
+		const navP = navigate({ to: "/about" });
+
+		await vi.waitFor(() => {
+			expect(ctx.matches().some((m) => m.loaderData === "visit-1")).toBe(true);
+		});
+
+		resolveReturn?.({
+			matches: [{ loaderData: "visit-2", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navP;
+
+		expect(ctx.matches().some((m) => m.loaderData === "visit-2")).toBe(true);
+	});
+
+	it("paints a hasDeferred prefetch shell before the enter fetch resolves", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [
+				{
+					hasDeferredMarkers: true,
+					loaderData: { inventory: { __deferred: true, key: "d0" }, title: "shell-title" },
+					matchId: ABOUT_ID,
+				},
+			],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		await prefetch({ to: "/about" });
+
+		let resolveNavFetch: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReset();
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolveNavFetch = resolve;
+			}),
+		);
+		stubAboutRoute();
+
+		const navP = navigate({ to: "/about" });
+
+		await vi.waitFor(() => {
+			const page = ctx.matches().find((m) => m.virtualPath === "_root_/about");
+			expect(page?.loaderData).toEqual({ inventory: { __deferred: true, key: "d0" }, title: "shell-title" });
+		});
+
+		resolveNavFetch?.({
+			matches: [
+				{
+					loaderData: { inventory: "loaded", title: "shell-title" },
+					matchId: ABOUT_ID,
+				},
+			],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navP;
+	});
+});
+
+describe("instant navigation — in-flight prefetch is the navigation fetch", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("hover-then-click does not start a second NDJSON while prefetch is in flight", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+
+		let resolvePrefetch: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolvePrefetch = resolve;
+			}),
+		);
+
+		const prefetchP = prefetch({ to: "/about" });
+		await vi.waitFor(() => expect(mockFetchNDJSON).toHaveBeenCalledTimes(1));
+
+		const navP = navigate({ to: "/about" });
+		await vi.waitFor(() => expect(mockLoadRouteModules).toHaveBeenCalled());
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
+
+		resolvePrefetch?.({
+			matches: [{ loaderData: "from-prefetch", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await prefetchP;
+		await navP;
+
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
+		expect(ctx.matches().some((m) => m.loaderData === "from-prefetch")).toBe(true);
+	});
+
+	it("hover-then-click on a deferred route waits for prefetch then fetches enter chunks", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+
+		let resolvePrefetch: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReturnValueOnce(
+			new Promise((resolve) => {
+				resolvePrefetch = resolve;
+			}),
+		);
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [{ loaderData: { title: "full" }, matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		const prefetchP = prefetch({ to: "/about" });
+		await vi.waitFor(() => expect(mockFetchNDJSON).toHaveBeenCalledTimes(1));
+
+		const navP = navigate({ to: "/about" });
+		await vi.waitFor(() => expect(mockLoadRouteModules).toHaveBeenCalled());
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
+
+		resolvePrefetch?.({
+			matches: [
+				{
+					hasDeferredMarkers: true,
+					loaderData: { title: "shell" },
+					matchId: ABOUT_ID,
+				},
+			],
+			perRouteHeads: [],
+			success: true,
+		});
+		await prefetchP;
+		await navP;
+
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(2);
+		expect(mockFetchNDJSON.mock.calls[0]?.[0]).toMatchObject({ prefetch: true });
+		expect(mockFetchNDJSON.mock.calls[1]?.[0]?.prefetch).toBeFalsy();
+		expect(ctx.matches().some((m) => JSON.stringify(m.loaderData).includes("full"))).toBe(true);
+	});
+});
+
+describe("instant navigation — late prefetch must not clobber", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("prefetch matchCache.set is ignored when a newer committed entry exists", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+
+		let resolvePrefetch: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolvePrefetch = resolve;
+			}),
+		);
+
+		const prefetchP = prefetch({ to: "/about" });
+		await vi.waitFor(() => expect(mockFetchNDJSON).toHaveBeenCalledTimes(1));
+
+		ctx.matchCache.set({
+			data: "from-navigate",
+			invalid: false,
+			matchId: ABOUT_ID,
+			updatedAt: Date.now() + 5_000,
+		});
+
+		resolvePrefetch?.({
+			matches: [{ loaderData: "from-prefetch", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await prefetchP;
+
+		expect(ctx.matchCache.get(ABOUT_ID)?.data).toBe("from-navigate");
+	});
+});

@@ -87,6 +87,20 @@ export async function assertSPANavigation(page: Page): Promise<void> {
 	}
 }
 
+/**
+ * Next Instant Navigation analogue: the route shell is painted on click
+ * (title visible) without waiting for the enter NDJSON hop.
+ */
+export async function assertInstantShell(
+	page: Page,
+	opts: { pendingTestId?: string; shellTestId: string; timeout?: number },
+): Promise<void> {
+	await expect(page.getByTestId(opts.shellTestId)).toBeVisible({ timeout: opts.timeout ?? 500 });
+	if (opts.pendingTestId) {
+		await expect(page.getByTestId(opts.pendingTestId)).toBeVisible({ timeout: opts.timeout ?? 500 });
+	}
+}
+
 export async function clickAndAssertSPA(page: Page, selector: string, expectedPath: string): Promise<void> {
 	await assertHydrated(page);
 	await setNavMarker(page);
