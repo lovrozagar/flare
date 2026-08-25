@@ -259,10 +259,10 @@ describe("prefetch marks route visited", () => {
 
 		await navigate({ to: "/dashboard" });
 
-		/* Should have fetched fresh data */
+		/* Enter hop still runs so deferred work can start */
 		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
-		/* Cache updated with fresh data */
-		expect(ctx.matchCache.get(computedMatchId)?.data).toEqual({ stats: "full" });
+		/* Prefetch `l` shell is kept — enter must not replace it */
+		expect(ctx.matchCache.get(computedMatchId)?.data).toEqual({ stats: "shell" });
 	});
 
 	it("navigate to prefetched route without deferred → uses cache, no fetch", async () => {

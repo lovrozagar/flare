@@ -1,5 +1,5 @@
 import { flush } from "solid-js";
-import type { DeferredTracker } from "../caches/index.ts";
+import type { CachedMatch, DeferredTracker } from "../caches/index.ts";
 import { collectDeferredPromises, createDeferredTracker } from "../caches/index.ts";
 import type { DirectionConfig } from "../direction.ts";
 import { getDirFromLocale } from "../direction.ts";
@@ -27,6 +27,8 @@ import { STORAGE_CHUNK_RELOAD } from "../protocol.ts";
 import type { LocaleConfig } from "../locale.ts";
 import { warn } from "../logger.ts";
 import { fetchNDJSON, type NDJSONFetchResult } from "../ndjson-client/index.ts";
+import type { DeferredResolver } from "../state-parser/index.ts";
+import { hasRawDeferredMarkers, hydrateLoaderData } from "../state-parser/index.ts";
 import type {
 	FlareProviderContext,
 	InternalNavigateOptions,
@@ -57,7 +59,12 @@ function extractRootIdentity(virtualPath: string): string {
 interface InternalProviderContext extends FlareProviderContext {
 	_setNavigate?: (fn: (opts: InternalNavigateOptions) => Promise<void>) => void;
 	_setPrefetch?: (
-		fn: (opts: { params?: Record<string, unknown>; search?: Record<string, unknown>; to: string }) => Promise<void>,
+		fn: (opts: {
+			modulesOnly?: boolean;
+			params?: Record<string, unknown>;
+			search?: Record<string, unknown>;
+			to: string;
+		}) => Promise<void>,
 	) => void;
 }
 
@@ -113,6 +120,8 @@ const visitedRoutes = new Set<string>();
 
 /** In-flight hover/viewport prefetch — navigate reuses this instead of starting a second NDJSON. */
 const inflightPrefetch = new Map<string, { promise: Promise<NDJSONFetchResult>; startedAt: number }>();
+/** Resolvers for a painted prefetch `l` shell waiting on enter `c` chunks. */
+const deferredResumeResolvers = new Map<string, DeferredResolver>();
 
 /* Keepalive ping — keeps HTTP/2 connection and CF isolate warm */
 let keepaliveIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -486,27 +495,69 @@ function routeHasDeferredShell(
 	return false;
 }
 
+function hydrateCachedDeferred(cached: CachedMatch): void {
+	if (!ctx || !cached.hasDeferred || !hasRawDeferredMarkers(cached.data)) return;
+	const matchCache = ctx.matchCache;
+	const local = new Map<string, DeferredResolver>();
+	cached.data = hydrateLoaderData(cached.matchId, cached.data, local);
+	let remaining = local.size;
+	const matchId = cached.matchId;
+	for (const [key, r] of local) {
+		deferredResumeResolvers.set(key, {
+			reject(err) {
+				r.reject(err);
+				remaining--;
+				if (remaining <= 0) {
+					const cur = matchCache.get(matchId);
+					if (cur) {
+						cur.hasDeferred = false;
+						matchCache.set(cur);
+					}
+				}
+			},
+			resolve(data) {
+				r.resolve(data);
+				remaining--;
+				if (remaining <= 0) {
+					const cur = matchCache.get(matchId);
+					if (cur) {
+						cur.hasDeferred = false;
+						cur.updatedAt = Date.now();
+						matchCache.set(cur);
+					}
+				}
+			},
+		});
+	}
+	matchCache.set(cached);
+}
+
 /**
  * Paint cached/prefetched matches immediately so click is not blocked on NDJSON.
- * Returns whether any target match had a cache entry.
+ * Hydrates prefetch `{ __deferred, key }` markers so Await can track enter `c` chunks.
  */
 function commitCachedShell(
 	c: FlareProviderContext,
 	allModules: LoadedRouteModule[],
 	search: SearchParams,
 	params: Record<string, string | string[]>,
-): boolean {
-	if (!ctx) return false;
+): { hadShell: boolean; keepMatchIds: string[] } {
+	if (!ctx) return { hadShell: false, keepMatchIds: [] };
 	let found = false;
 	const heads: PerRouteHead[] = [];
+	const keepMatchIds: string[] = [];
 	for (const mod of allModules) {
 		const matchId = matchIdForModule(mod, search, params);
 		const cached = ctx.matchCache.get(matchId);
 		if (!cached || cached.invalid) continue;
 		found = true;
+		if (cached.hasDeferred) {
+			hydrateCachedDeferred(cached);
+			keepMatchIds.push(matchId);
+		}
 		if (cached.headConfig) heads.push({ head: cached.headConfig, matchId });
 	}
-	if (!found) return false;
+	if (!found) return { hadShell: false, keepMatchIds: [] };
 
 	c.setIntercepted(null);
 	c.setNotFound(false);
@@ -515,7 +566,7 @@ function commitCachedShell(
 	c.setSearch(search);
 	syncLocale(params);
 	if (heads.length > 0) applyPerRouteHeads(heads);
-	return true;
+	return { hadShell: true, keepMatchIds };
 }
 
 /** Map loaded modules to client match objects using cached data. */
@@ -960,6 +1011,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		 * before the enter NDJSON hop. Skipped when this nav already fetched in
 		 * parallel (first visit, no cache). */
 		let adoptedInflight = false;
+		let hadShell = false;
+		let keepMatchIds: string[] = [];
+		const sequential = !fetchResult;
 		if (!fetchResult) {
 			const inflight = inflightPrefetch.get(url.href);
 			if (inflight) {
@@ -971,7 +1025,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				}
 			}
 			if (controller.signal.aborted || myVersion !== navigationVersion) return;
-			commitCachedShell(c, allModules, search, modules.params);
+			const shell = commitCachedShell(c, allModules, search, modules.params);
+			hadShell = shell.hadShell;
+			keepMatchIds = shell.keepMatchIds;
 		}
 
 		/* Step 7: Compute match IDs + check staleness (only for known-cached routes) */
@@ -1021,12 +1077,18 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			/* Step 8: Fetch if needed */
 			if (!skipEnterFetch && staleMatchIds.length > 0) {
 				fetchResult = await fetchNDJSON({
+					keepMatchIds: keepMatchIds.length > 0 ? keepMatchIds : undefined,
 					matchIds: staleMatchIds,
 					queryClient: queryClientRef,
+					resolvers: keepMatchIds.length > 0 ? deferredResumeResolvers : undefined,
 					signal: controller.signal,
 					url: url.href,
 				});
 			}
+		}
+
+		if (import.meta.env.DEV && sequential && !hadShell && fetchResult && !options._popstate) {
+			warn("nav", `navigation to ${url.pathname} waited on loaders with no prefetched shell`);
 		}
 
 		if (controller.signal.aborted || myVersion !== navigationVersion) return;
@@ -1060,6 +1122,15 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				   Do not clobber a live cache entry that already has data. */
 				const existing = ctx.matchCache.get(m.matchId);
 				if (m.loaderData == null && !m.error && existing && existing.data != null) {
+					const nextHead = headByMatchId.get(m.matchId);
+					if (nextHead) {
+						existing.headConfig = nextHead;
+						ctx.matchCache.set(existing);
+					}
+					continue;
+				}
+				/* Prefetch `l` shell is already painted — keep it, let `c` fill Await. */
+				if (!options.revalidate && existing && !m.error && (m.keepShell || existing.hasDeferred)) {
 					const nextHead = headByMatchId.get(m.matchId);
 					if (nextHead) {
 						existing.headConfig = nextHead;
@@ -1249,6 +1320,7 @@ function matchCacheHasFreshRoute(routeId: string, staleTime: number): boolean {
 }
 
 export async function prefetch(options: {
+	modulesOnly?: boolean;
 	params?: Record<string, unknown>;
 	search?: Record<string, unknown>;
 	to: string;
@@ -1262,6 +1334,21 @@ export async function prefetch(options: {
 	/* Resolve route to read per-route prefetchStaleTime, fall back to default */
 	const match = matchRoute(ctx.routeTree, rewritePathname(url.pathname), caseSensitive, toLocaleMatch(localeConfig));
 	if (!match) return;
+
+	const navCtx = ctx;
+	const loadMods = loadRouteModules;
+	if (!navCtx || !loadMods) return;
+
+	/* Viewport/render: warm JS once per route. Do not NDJSON every URL. */
+	if (options.modulesOnly) {
+		visitedRoutes.add(match.route.x);
+		try {
+			await loadMods(rewritePathname(url.pathname), navCtx.routeTree, navCtx.layouts);
+		} catch {
+			/* Speculative */
+		}
+		return;
+	}
 
 	const staleTime = parseMilliseconds(
 		match?.route.o.client?.prefetchStaleTime ??
@@ -1283,10 +1370,6 @@ export async function prefetch(options: {
 	/* Mark visited immediately so a click during in-flight prefetch does not
 	   take navigate()'s parallel-fetch "new route" path. */
 	visitedRoutes.add(match.route.x);
-
-	const navCtx = ctx;
-	const loadMods = loadRouteModules;
-	if (!navCtx || !loadMods) return;
 
 	const startedAt = Date.now();
 	const resultPromise = fetchNDJSON({ prefetch: true, queryClient: queryClientRef, url: url.href }).then(
@@ -1334,6 +1417,7 @@ export function resetNavigationState(): void {
 	}
 	visitedRoutes.clear();
 	inflightPrefetch.clear();
+	deferredResumeResolvers.clear();
 	activeBlockerFn = null;
 	onBlockedCallback = null;
 	pendingNavigation = null;

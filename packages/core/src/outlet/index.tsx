@@ -99,6 +99,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	/* Stub navigate/prefetch — replaced by setupNavigation */
 	let navigateFn: (options: InternalNavigateOptions) => Promise<void> = () => Promise.resolve();
 	let prefetchFn: (options: {
+		modulesOnly?: boolean;
 		params?: Record<string, unknown>;
 		search?: Record<string, unknown>;
 		to: string;

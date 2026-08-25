@@ -259,8 +259,14 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		if (local.href !== undefined) return;
 		const h = resolvedHref();
 		if (isExternal(h)) return;
-		/* params + search already resolved into h by resolvedHref() — passing them again would double-apply */
-		prefetch({ to: h });
+		/* params + search already resolved into h by resolvedHref() — passing them again would double-apply.
+		 * Intent prefetches that URL's NDJSON shell. Viewport/render only warm JS once per route. */
+		const strategy = effectivePrefetch();
+		if (strategy === "viewport" || strategy === "render") {
+			prefetch({ modulesOnly: true, to: h });
+		} else {
+			prefetch({ to: h });
+		}
 	}
 
 	function handleIntent(): void {

@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../../src/logger", () => ({
+	error: vi.fn(),
+	verbose: vi.fn(),
+	warn: vi.fn(),
+}));
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
 import type { LoadedRouteModules } from "../../../src/navigation/types.ts";
 import type { FlareProviderContext, NavigateOptions } from "../../../src/outlet/types.ts";
@@ -27,6 +33,7 @@ vi.mock("../../../src/history", async (importOriginal) => {
 	};
 });
 
+import { warn } from "../../../src/logger.ts";
 import { navigate, prefetch, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
 import { fetchNDJSON } from "../../../src/ndjson-client/index.ts";
 import { matchRoute } from "../../../src/router-primitives/index.ts";
@@ -294,13 +301,17 @@ describe("instant navigation — commit shell before NDJSON", () => {
 
 		await vi.waitFor(() => {
 			const page = ctx.matches().find((m) => m.virtualPath === "_root_/about");
-			expect(page?.loaderData).toEqual({ inventory: { __deferred: true, key: "d0" }, title: "shell-title" });
+			const data = page?.loaderData as { inventory: { promise: Promise<unknown> }; title: string };
+			expect(data.title).toBe("shell-title");
+			expect(data.inventory.promise).toBeInstanceOf(Promise);
 		});
 
 		resolveNavFetch?.({
+			keepShell: true,
 			matches: [
 				{
-					loaderData: { inventory: "loaded", title: "shell-title" },
+					keepShell: true,
+					loaderData: { inventory: "loaded", title: "from-enter" },
 					matchId: ABOUT_ID,
 				},
 			],
@@ -308,6 +319,10 @@ describe("instant navigation — commit shell before NDJSON", () => {
 			success: true,
 		});
 		await navP;
+
+		const page = ctx.matches().find((m) => m.virtualPath === "_root_/about");
+		expect((page?.loaderData as { title: string } | undefined)?.title).toBe("shell-title");
+		expect(mockFetchNDJSON.mock.calls[0]?.[0]?.keepMatchIds).toEqual([ABOUT_ID]);
 	});
 });
 
@@ -397,7 +412,7 @@ describe("instant navigation — in-flight prefetch is the navigation fetch", ()
 		expect(mockFetchNDJSON).toHaveBeenCalledTimes(2);
 		expect(mockFetchNDJSON.mock.calls[0]?.[0]).toMatchObject({ prefetch: true });
 		expect(mockFetchNDJSON.mock.calls[1]?.[0]?.prefetch).toBeFalsy();
-		expect(ctx.matches().some((m) => JSON.stringify(m.loaderData).includes("full"))).toBe(true);
+		expect(ctx.matches().some((m) => JSON.stringify(m.loaderData).includes("shell"))).toBe(true);
 	});
 });
 
@@ -445,5 +460,51 @@ describe("instant navigation — late prefetch must not clobber", () => {
 		await prefetchP;
 
 		expect(ctx.matchCache.get(ABOUT_ID)?.data).toBe("from-navigate");
+	});
+});
+
+describe("instant navigation — viewport warms modules only", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("modulesOnly prefetch does not fetch NDJSON", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+
+		await prefetch({ modulesOnly: true, to: "/about" });
+
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+		expect(mockLoadRouteModules).toHaveBeenCalled();
+		expect(ctx.prefetchCache.has(new URL("/about", window.location.href).href)).toBe(false);
+	});
+
+	it("click after modulesOnly still fetches enter NDJSON (no data shell)", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		stubAboutRoute();
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "from-enter", matchId: ABOUT_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		await prefetch({ modulesOnly: true, to: "/about" });
+		vi.mocked(warn).mockClear();
+		await navigate({ to: "/about" });
+
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
+		expect(ctx.matches().some((m) => m.loaderData === "from-enter")).toBe(true);
+		expect(warn).toHaveBeenCalledWith("nav", expect.stringContaining("no prefetched shell"));
 	});
 });

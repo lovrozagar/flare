@@ -146,6 +146,8 @@ export interface InternalNavigateOptions {
 }
 
 export type PrefetchOptions<TPath extends RoutePaths = RoutePaths> = {
+	/** Viewport/render: load route modules only, no per-URL NDJSON. */
+	modulesOnly?: boolean;
 	params?: Record<string, unknown>;
 	to: TPath;
 } & RouteSearchProps<TPath>;

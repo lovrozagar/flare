@@ -9,9 +9,13 @@ const MAX_LINE_BYTES = 5 * 1024 * 1024;
 const MAX_MESSAGES = 10_000;
 
 export interface NDJSONFetchOptions {
+	/** Match ids whose prefetch `l` shell is already committed — skip hydrate, stream `c` into `resolvers`. */
+	keepMatchIds?: Iterable<string>;
 	matchIds?: string[];
 	prefetch?: boolean;
 	queryClient?: unknown;
+	/** Pre-seeded deferred resolvers (hydrated prefetch shell). */
+	resolvers?: Map<string, DeferredResolver>;
 	signal?: AbortSignal;
 	url: string;
 }
@@ -25,6 +29,8 @@ export interface NDJSONFetchResult {
 export interface FetchedMatch {
 	error?: Error;
 	hasDeferredMarkers?: boolean;
+	/** Enter `l` for a match whose prefetch shell is already on screen — do not replace loaderData. */
+	keepShell?: boolean;
 	loaderData: unknown;
 	matchId: string;
 	preloaderContext?: Record<string, unknown>;
@@ -122,7 +128,8 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 
 	const matches: FetchedMatch[] = [];
 	const perRouteHeads: PerRouteHead[] = [];
-	const deferredResolvers = new Map<string, DeferredResolver>();
+	const deferredResolvers = options.resolvers ?? new Map<string, DeferredResolver>();
+	const keepMatchIds = new Set(options.keepMatchIds ?? []);
 
 	let loadersReadyResolve: () => void = () => {};
 	let loadersReadyResolved = false;
@@ -169,20 +176,29 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 			}
 
 			case "l": {
-				if (options.prefetch) {
+				const matchId = msg.m ?? "";
+				if (keepMatchIds.has(matchId)) {
+					matches.push({
+						hasDeferredMarkers: true,
+						keepShell: true,
+						loaderData: msg.d,
+						matchId,
+						preloaderContext: msg.p,
+					});
+				} else if (options.prefetch) {
 					matches.push({
 						hasDeferredMarkers: containsDeferredMarkers(msg.d) || undefined,
 						loaderData: msg.d,
-						matchId: msg.m ?? "",
+						matchId,
 						preloaderContext: msg.p,
 					});
 				} else {
 					const sizeBefore = deferredResolvers.size;
-					const hydrated = hydrateLoaderData(msg.m ?? "", msg.d, deferredResolvers);
+					const hydrated = hydrateLoaderData(matchId, msg.d, deferredResolvers);
 					matches.push({
 						hasDeferredMarkers: deferredResolvers.size > sizeBefore || undefined,
 						loaderData: hydrated,
-						matchId: msg.m ?? "",
+						matchId,
 						preloaderContext: msg.p,
 					});
 				}
