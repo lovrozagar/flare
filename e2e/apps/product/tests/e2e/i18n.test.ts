@@ -3,6 +3,10 @@ import { loadPage } from "./helpers";
 
 const UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
 
+function locUrl(header: string | undefined): URL {
+	return new URL(header ?? "", "http://localhost");
+}
+
 function cookie(headers: Record<string, string>, name: string): string | null {
 	const raw = headers["set-cookie"];
 	if (!raw) return null;
@@ -66,7 +70,7 @@ test.describe("i18n cookie rules", () => {
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(302);
-		expect(new URL(res.headers().location).pathname).toBe("/i18n-demo");
+		expect(locUrl(res.headers().location).pathname).toBe("/i18n-demo");
 	});
 
 	test("/HR case normalize", async ({ request }) => {
@@ -115,7 +119,7 @@ test.describe("i18n cookie rules", () => {
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(302);
-		expect(new URL(res.headers().location).searchParams.get("foo")).toBe("bar");
+		expect(locUrl(res.headers().location).searchParams.get("foo")).toBe("bar");
 	});
 
 	test("bot does not redirect", async ({ request }) => {
