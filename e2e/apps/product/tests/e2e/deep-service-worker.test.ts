@@ -204,7 +204,7 @@ test.describe("Service Worker — prod @prod-only", () => {
 		const text = await response?.text();
 		expect(text).toContain("fetch");
 		expect(text).toContain("navigate");
-		expect(text).toContain('redirect: "manual"');
+		expect(text).not.toContain('redirect: "manual"');
 		expect(text).not.toContain("navigationPreload");
 		expect(text).toContain("caches.match");
 		expect(text).toContain("caches.open");
@@ -363,65 +363,22 @@ test.describe("Service Worker — prod @prod-only", () => {
 		expect(hasOfflinePage).toBe(true);
 	});
 
-	test("navigating to uncached page while offline serves fallback", async ({ page, context }) => {
+	test("navigations are not stored in RUNTIME_CACHE", async ({ page }) => {
 		await loadPage(page, "/");
 		await page.mouse.move(100, 100);
-
-		/* Wait for SW to become active and cache populated */
 		await page.evaluate(async () => {
 			await navigator.serviceWorker.ready;
 		});
-		await page.waitForTimeout(2000);
-
-		/* Go offline */
-		await context.setOffline(true);
-
-		/* Navigate to a page we haven't visited (not in runtime cache) */
-		const response = await page.goto("/about");
-
-		/* Should get the offline fallback page content */
-		const text = await page.content();
-		expect(text).toContain("offline");
-
-		await context.setOffline(false);
-	});
-
-	test("cached page still works offline", async ({ page, context }) => {
-		/* First visit — triggers SW registration */
-		await loadPage(page, "/");
-		await page.mouse.move(100, 100);
-
-		/* Wait for SW to become active */
-		await page.evaluate(async () => {
-			await navigator.serviceWorker.ready;
-		});
-		await page.waitForTimeout(2000);
-
-		/*
-		 * Reload while online so the active SW intercepts the navigate
-		 * and caches the response in RUNTIME_CACHE.
-		 * The first load may have happened before the SW was active.
-		 */
 		await page.reload({ waitUntil: "networkidle" });
-		await page.waitForTimeout(500);
 
-		/* Verify / is in runtime cache */
 		const cached = await page.evaluate(async () => {
 			const cache = await caches.open("flare-runtime-v1");
 			const keys = await cache.keys();
 			return keys.some((k) => new URL(k.url).pathname === "/");
 		});
-		expect(cached).toBe(true);
-
-		/* Go offline and reload the same page */
-		await context.setOffline(true);
-
-		await page.goto("/");
-		const text = await page.content();
-		/* Should serve the cached version, not the offline fallback */
-		expect(text).not.toContain("offline-page");
-
-		await context.setOffline(false);
+		/* HTML is not runtime-cached — Set-Cookie on locale navigations
+		   must be applied by the document, not a worker fetch(). */
+		expect(cached).toBe(false);
 	});
 
 	test("/offline route renders correctly when visited online", async ({ page }) => {

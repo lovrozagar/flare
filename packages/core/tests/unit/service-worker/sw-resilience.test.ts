@@ -19,12 +19,12 @@ describe("SW resilience — fetch handler error safety", () => {
 		expect(assetsSection).toContain("fetch(event.request)");
 	});
 
-	it("navigation handler has .catch() for offline fallback", () => {
+	it("navigation is not intercepted so locale Set-Cookie reaches the document", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
 		const navigateStart = result.indexOf('"navigate"');
 		const navSection = result.slice(navigateStart);
-		expect(navSection).toContain(".catch");
-		expect(navSection).toContain("caches.match(event.request)");
+		expect(navSection).not.toContain("respondWith");
+		expect(navSection).not.toContain("fetch(");
 	});
 });
 

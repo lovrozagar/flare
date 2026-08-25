@@ -111,24 +111,11 @@ self.addEventListener("fetch", function (event) {
 		return
 	}
 
-	/* Network-only for navigations. redirect:manual so 3xx Set-Cookie
-	   (locale strip, cookie-respect) reaches the document. Do not cache
-	   HTML — a cached 200 would skip Set-Cookie on the next locale visit.
-	   Do not enable navigation preload: it follows redirects and drops 3xx cookies. */
-	if (event.request.mode === "navigate") {
-		event.respondWith(
-			fetch(event.request, { redirect: "manual" }).catch(function () {
-				return caches.match(event.request).then(function (cached) {
-					if (cached) return cached
-					if (SW_CONFIG.offlineFallback) {
-						return caches.match(SW_CONFIG.offlineFallback)
-					}
-					return undefined
-				})
-			})
-		)
-		return
-	}
+	/* Do not intercept navigations. A SW fetch() either follows 3xx
+	   (document never sees Location / Set-Cookie) or returns a Response
+	   whose Set-Cookie the browser ignores — locale cookies stay stale
+	   (hr→fr still cookie=hr while the HTML is French). */
+	if (event.request.mode === "navigate") return
 })
 `;
 }

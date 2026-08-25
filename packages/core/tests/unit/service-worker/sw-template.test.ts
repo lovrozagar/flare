@@ -124,28 +124,29 @@ describe("SW template generation", () => {
 		expect(result).toContain("runtimeCacheMax");
 	});
 
-	it("does not cache navigation HTML (locale Set-Cookie must hit the network)", () => {
+	it("does not intercept navigations (locale Set-Cookie must reach the document)", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
 		const navigateStart = result.indexOf('"navigate"');
 		const navSection = result.slice(navigateStart);
-		expect(navSection).not.toContain("cache.put(event.request");
-		expect(result).toContain("RUNTIME_CACHE");
+		expect(navSection).toContain("return");
+		expect(navSection).not.toContain("respondWith");
+		expect(navSection).not.toContain("cache.put");
 	});
 
-	it("falls back to cached HTML on network failure for navigate", () => {
+	it("does not fetch navigations inside the worker", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		/* The catch block should try caches.match for the request */
-		expect(result).toContain(".catch");
-		expect(result).toContain("caches.match(event.request)");
+		const navigateStart = result.indexOf('"navigate"');
+		const navSection = result.slice(navigateStart);
+		expect(navSection).not.toContain("fetch(event.request");
 	});
 
-	it("serves offlineFallback when cache miss + network failure", () => {
+	it("offlineFallback is configured even though navigations are not intercepted", () => {
 		const result = generateSwSource([], "b1", {
 			...defaultConfig,
 			offlineFallback: "/offline",
 		});
 		expect(result).toContain("offlineFallback");
-		expect(result).toContain("caches.match(SW_CONFIG.offlineFallback)");
+		expect(result).toContain("/offline");
 	});
 
 	it("offline fallback is precached in install event", () => {
@@ -176,17 +177,18 @@ describe("SW template generation", () => {
 		expect(result).toContain("cache.put(event.request");
 	});
 
-	it("navigation fetch uses redirect:manual instead of preload follow", () => {
+	it("navigation is a passthrough, not a redirect:manual fetch", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
 		expect(result).not.toContain("event.preloadResponse");
-		expect(result).toContain('redirect: "manual"');
+		expect(result).not.toContain('redirect: "manual"');
 	});
 
-	it("navigation fetch does not auto-follow redirects (Set-Cookie on 3xx must reach the document)", () => {
+	it("navigation passthrough does not auto-follow redirects", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
 		const navigateStart = result.indexOf('"navigate"');
 		const navSection = result.slice(navigateStart);
-		expect(navSection).toContain('redirect: "manual"');
+		expect(navSection).not.toContain("fetch(");
+		expect(navSection).toContain("return");
 	});
 
 	it("skipWaiting called in install when config.skipWaiting is true", () => {
