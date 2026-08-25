@@ -23,6 +23,10 @@ import { expect, test } from "@playwright/test";
 const BROWSER_UA =
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
 
+function locUrl(header: string | undefined): URL {
+	return new URL(header ?? "", "http://localhost");
+}
+
 function getCookie(headers: Record<string, string>, name: string): string | null {
 	const raw = headers["set-cookie"];
 	if (!raw) return null;
@@ -209,7 +213,7 @@ test.describe("default locale stripping", () => {
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(302);
-		expect(new URL(res.headers()["location"]).pathname).toBe("/");
+		expect(locUrl(res.headers()["location"]).pathname).toBe("/");
 		expect(getCookie(res.headers(), "flare.locale")).toBe("en");
 	});
 
@@ -219,7 +223,7 @@ test.describe("default locale stripping", () => {
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(302);
-		expect(new URL(res.headers()["location"]).pathname).toBe("/about");
+		expect(locUrl(res.headers()["location"]).pathname).toBe("/about");
 		expect(getCookie(res.headers(), "flare.locale")).toBe("en");
 	});
 
@@ -426,19 +430,19 @@ test.describe("browser cookie-respect redirect", () => {
 
 	test("/en resets cookie → / stays English after", async ({ page }) => {
 		/* First set cookie to fr */
-		await page.goto("/fr");
+		await gotoHydrated(page, "/fr");
 		let cookies = await page.context().cookies();
 		expect(cookies.find((c) => c.name === "flare.locale")?.value).toBe("fr");
 
 		/* Now explicit /en → redirected to / with cookie=en */
-		await page.goto("/en");
+		await gotoHydrated(page, "/en");
 		cookies = await page.context().cookies();
 		expect(cookies.find((c) => c.name === "flare.locale")?.value).toBe("en");
 		expect(page.url()).not.toContain("/en");
 		expect(page.url()).not.toContain("/fr");
 
 		/* / should now stay English (cookie=en) */
-		await page.goto("/");
+		await gotoHydrated(page, "/");
 		await expect(page.getByTestId("welcome-title")).toHaveText("Welcome");
 	});
 });
@@ -736,7 +740,7 @@ test.describe("query strings preserved", () => {
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(302);
-		const loc = new URL(res.headers()["location"]);
+		const loc = locUrl(res.headers()["location"]);
 		expect(loc.pathname).toBe("/about");
 		expect(loc.searchParams.get("foo")).toBe("bar");
 	});
@@ -747,7 +751,7 @@ test.describe("query strings preserved", () => {
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(302);
-		const loc = new URL(res.headers()["location"]);
+		const loc = locUrl(res.headers()["location"]);
 		expect(loc.pathname).toContain("/fr");
 		expect(loc.searchParams.get("ref")).toBe("x");
 	});

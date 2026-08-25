@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { BASE } from "./helpers";
+import { assertHydrated, BASE } from "./helpers";
 
 const BROWSER_UA =
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
@@ -19,6 +19,26 @@ test.describe("i18n cookie — raw HTTP Set-Cookie", () => {
 			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
+	});
+
+	test("SSR /fr/about: cookie=hr → 200 Set-Cookie: fr", async ({ request }) => {
+		const res = await request.get(`${BASE}/fr/about`, {
+			headers: { cookie: "flare.locale=hr", "user-agent": BROWSER_UA },
+		});
+		expect(res.status()).toBe(200);
+		expect(res.headers()["set-cookie"]).toContain("flare.locale=fr");
+	});
+
+	test("SSR /en/about: cookie=fr → 302 /about and Set-Cookie: en", async ({ request }) => {
+		const res = await request.get(`${BASE}/en/about`, {
+			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA },
+			maxRedirects: 0,
+		});
+		expect(res.status()).toBe(302);
+		const location = res.headers()["location"] ?? "";
+		expect(location.startsWith("http")).toBe(false);
+		expect(new URL(location, "http://localhost").pathname).toBe("/about");
+		expect(res.headers()["set-cookie"]).toContain("flare.locale=en");
 	});
 
 	test("SSR /about: cookie=fr → 302 redirect to /fr/about (cookie-respect)", async ({ request }) => {
@@ -139,6 +159,7 @@ test.describe("i18n cookie — browser NDJSON fetch cycle", () => {
 	test("en → hr → fr → en: cookie updates on every NDJSON fetch", async ({ page }) => {
 		/* Step 1: SSR load /about → cookie=en */
 		await page.goto(`${BASE}/about`);
+		await assertHydrated(page);
 		await page.waitForSelector("[data-testid=about]");
 		let cookies = await page.context().cookies();
 		let lc = cookies.find((c) => c.name === "flare.locale");
@@ -147,11 +168,13 @@ test.describe("i18n cookie — browser NDJSON fetch cycle", () => {
 		/* Subsequent hops use real locale URLs. NDJSON still sets the cookie
 		 * (prefetch is the only request that must not), and HTML does too. */
 		await page.goto(`${BASE}/hr/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("hr");
 
 		await page.goto(`${BASE}/fr/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("fr");
@@ -159,21 +182,25 @@ test.describe("i18n cookie — browser NDJSON fetch cycle", () => {
 		/* Default-locale cookie is set by the /en strip redirect, not by
 		 * unprefixed /about (cookie-respect would 302 back to /fr/about). */
 		await page.goto(`${BASE}/en/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("en");
 
 		await page.goto(`${BASE}/hr/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("hr");
 
 		await page.goto(`${BASE}/fr/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("fr");
 
 		await page.goto(`${BASE}/en/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("en");
@@ -182,19 +209,23 @@ test.describe("i18n cookie — browser NDJSON fetch cycle", () => {
 	test("non-default locales cycle: hr → fr → hr", async ({ page }) => {
 		/* Start at /about, get initial cookie */
 		await page.goto(`${BASE}/about`);
+		await assertHydrated(page);
 		await page.waitForSelector("[data-testid=about]");
 
 		await page.goto(`${BASE}/hr/about`);
+		await assertHydrated(page);
 		let cookies = await page.context().cookies();
 		let lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("hr");
 
 		await page.goto(`${BASE}/fr/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("fr");
 
 		await page.goto(`${BASE}/hr/about`);
+		await assertHydrated(page);
 		cookies = await page.context().cookies();
 		lc = cookies.find((c) => c.name === "flare.locale");
 		expect(lc?.value).toBe("hr");
