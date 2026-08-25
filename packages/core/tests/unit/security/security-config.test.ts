@@ -110,6 +110,24 @@ describe("buildSecurityHeaders()", () => {
 		const headers = buildSecurityHeaders({ isDev: false, nonce: "abc" });
 		expect(headers["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
 	});
+
+	it("production HTTP URL CSP does not upgrade-insecure-requests", () => {
+		const headers = buildSecurityHeaders({
+			isDev: false,
+			nonce: "abc",
+			url: "http://localhost:4102/about",
+		});
+		expect(headers["Content-Security-Policy"]).not.toContain("upgrade-insecure-requests");
+	});
+
+	it("production HTTPS URL CSP still has upgrade-insecure-requests", () => {
+		const headers = buildSecurityHeaders({
+			isDev: false,
+			nonce: "abc",
+			url: "https://example.com/about",
+		});
+		expect(headers["Content-Security-Policy"]).toContain("upgrade-insecure-requests");
+	});
 });
 
 describe("buildPermissionsPolicy()", () => {

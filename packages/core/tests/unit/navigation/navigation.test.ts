@@ -66,8 +66,8 @@ function makeLoadedModules(overrides?: Partial<LoadedRouteModules>): LoadedRoute
 	};
 }
 
-function makeRoute(virtualPath: string, type: "r" | "x" = "r") {
-	return { e: "", o: {}, p: vi.fn(), t: type, v: "", x: virtualPath };
+function makeRoute(virtualPath: string, type: "r" | "x" = "r", meta: Record<string, unknown> = {}) {
+	return { e: "", o: meta, p: vi.fn(), t: type, v: "", x: virtualPath };
 }
 
 function makeCtx(overrides?: Partial<FlareProviderContext>): FlareProviderContext {
@@ -555,6 +555,58 @@ describe("prefetch", () => {
 		await prefetch({ to: "/pf-skip" });
 
 		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+	});
+
+	it("skips fetch when matchCache already has fresh data for the route", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		const routeId = "_root_/cache-test";
+		const matchId = `${routeId}:{}:[]`;
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute(routeId, "r", { client: { staleTime: 60_000 } }),
+		});
+		ctx.matchCache.set({
+			data: "ssr-data",
+			invalid: false,
+			matchId,
+			updatedAt: Date.now(),
+		});
+
+		await prefetch({ to: "/cache-test" });
+
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+		expect(ctx.matchCache.get(matchId)?.data).toBe("ssr-data");
+	});
+
+	it("fetches when matchCache entry is past client staleTime", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		const routeId = "_root_/cache-test";
+		const matchId = `${routeId}:{}:[]`;
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute(routeId, "r", { client: { staleTime: 2_000 } }),
+		});
+		ctx.matchCache.set({
+			data: "stale-ssr",
+			invalid: false,
+			matchId,
+			updatedAt: Date.now() - 10_000,
+		});
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "fresh-prefetch", matchId }],
+			perRouteHeads: [],
+			success: true,
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules());
+
+		await prefetch({ to: "/cache-test" });
+
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
+		expect(ctx.matchCache.get(matchId)?.data).toBe("fresh-prefetch");
 	});
 
 	it("fetches data + modules in parallel", async () => {

@@ -7,6 +7,7 @@ export default defineConfig({
 		flare({
 			codegen: { fsVirtualPaths: false },
 			dev: { cdnCache: false },
+			purge: { console: true },
 			serviceWorker: { offlineFallback: "/offline" },
 			sx: { tw: true },
 		}),

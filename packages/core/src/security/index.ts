@@ -84,7 +84,16 @@ const DEV_SKIP_HEADERS = new Set(["Strict-Transport-Security", "Cross-Origin-Ope
 
 /* ── CSP builder ───────────────────────────────────────────────────────── */
 
-export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?: boolean): string {
+function requestIsHttp(url?: string): boolean {
+	if (!url) return false;
+	try {
+		return new URL(url).protocol === "http:";
+	} catch {
+		return false;
+	}
+}
+
+export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?: boolean, url?: string): string {
 	const directives: Record<string, string[] | boolean> = {};
 
 	for (const [key, value] of Object.entries(DEFAULT_CSP)) {
@@ -104,7 +113,11 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 		styleSrcElem.push("'unsafe-inline'");
 		const workerSrc = directives["worker-src"] as string[];
 		workerSrc.push("blob:");
-		/* HTTP localhost + this directive makes Chrome follow redirects as https://localhost. */
+	}
+
+	/* HTTP (localhost preview included) + this directive makes Chrome follow
+	   redirects as https://. Dev is always HTTP. HTTPS production keeps it. */
+	if (isDev || requestIsHttp(url)) {
 		directives["upgrade-insecure-requests"] = false;
 	}
 
@@ -197,10 +210,12 @@ export interface BuildSecurityHeadersOptions {
 	config?: SecurityConfig;
 	isDev?: boolean;
 	nonce: string;
+	/** Request URL. HTTP (e.g. localhost preview) must not send upgrade-insecure-requests. */
+	url?: string;
 }
 
 export function buildSecurityHeaders(options: BuildSecurityHeadersOptions): Record<string, string> {
-	const { config, isDev, nonce } = options;
+	const { config, isDev, nonce, url } = options;
 	const result: Record<string, string> = {};
 
 	/* CSP */
@@ -213,6 +228,7 @@ export function buildSecurityHeaders(options: BuildSecurityHeadersOptions): Reco
 				nonce,
 				typeof cspConfig === "object" ? cspConfig : undefined,
 				isDev,
+				url,
 			);
 		}
 	}
