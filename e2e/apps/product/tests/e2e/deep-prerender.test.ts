@@ -50,7 +50,7 @@ const EXPECTED_ROUTES = [
 	"/static-pure",
 ];
 
-test.describe("@prod-only Prerender build output", () => {
+test.describe("@prod-only @node-only Prerender build output", () => {
 	test("manifest.json exists with all expected routes", () => {
 		expect(existsSync(MANIFEST_PATH)).toBe(true);
 		const manifest = readManifest();
@@ -132,7 +132,7 @@ test.describe("@prod-only Prerender build output", () => {
 
 /* ── Group 2: Static pages served from store, not SSR ────────────────── */
 
-test.describe("@prod-only Prerender static pages — served from store", () => {
+test.describe("@prod-only @node-only Prerender static pages — served from store", () => {
 	test("/static-pure timestamp matches build artifact exactly", async ({ request }) => {
 		/*
 		 * Read the build artifact directly and compare to served response.
@@ -236,7 +236,7 @@ test.describe("@prod-only Prerender ISR pre-population", () => {
 		expect(html).toContain('data-testid="isr-test"');
 	});
 
-	test("/isr-test timestamp is at or after the build artifact", async ({ request }) => {
+	test("/isr-test timestamp is at or after the build artifact @node-only", async ({ request }) => {
 		const artifactHtml = readFileSync(join(STATIC_DIR, "/isr-test.html"), "utf-8");
 		const artifactTs = artifactHtml.match(/data-testid="isr-rendered-at">(\d+)</);
 		expect(artifactTs).not.toBeNull();
@@ -338,7 +338,7 @@ test.describe("@prod-only Prerender hydration", () => {
 
 /* ── Group 7: Serving hierarchy — store beats SSR ─────────────────────── */
 
-test.describe("@prod-only Prerender serving hierarchy", () => {
+test.describe("@prod-only @node-only Prerender serving hierarchy", () => {
 	test("static route: store entry used, not fresh SSR", async ({ request }) => {
 		/*
 		 * Static routes have no on-demand population. If the store entry
@@ -503,7 +503,7 @@ test.describe("@prod-only Prerender SPA navigation", () => {
 
 /* ── Group 9: Dynamic params prerender ────────────────────────────────── */
 
-test.describe("@prod-only Prerender dynamic params expansion", () => {
+test.describe("@prod-only @node-only Prerender dynamic params expansion", () => {
 	test("page-level params expanded: /ssg-dynamic/hello and /ssg-dynamic/world", () => {
 		const manifest = readManifest();
 		const pathnames = manifest.map((r) => r.pathname);

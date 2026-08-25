@@ -82,11 +82,13 @@ export function e2eEnvCommand(env: EnvId, app: string, mode: "dev" | "prod", por
 		return `${bin} dev --port ${port}${cfg}`;
 	}
 
-	if (env === "workers" && app === "product") {
+	/* Workers preview must build with the same config the plugin uses, or
+	   `.wrangler/deploy/config.json` is missing and wrangler cannot start. */
+	if (env === "workers") {
+		if (app === "fs-routes") {
+			return `bun run build:cf && ${bin} preview --port ${port}${cfg}`;
+		}
 		return `${bin} build${cfg} && ${bin} preview --port ${port}${cfg}`;
-	}
-	if (env === "workers" && app === "fs-routes") {
-		return `bun run build:cf && ${bin} preview --port ${port}${cfg}`;
 	}
 	return `bun run build && ${bin} preview --port ${port}${cfg}`;
 }

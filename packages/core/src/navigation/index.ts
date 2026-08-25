@@ -1143,6 +1143,15 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 
 const DEFAULT_PREFETCH_STALE_TIME = 30_000;
 
+function matchCacheHasFreshRoute(routeId: string, staleTime: number): boolean {
+	if (!ctx) return false;
+	for (const entry of ctx.matchCache.getAll()) {
+		if (entry.matchId !== routeId && !entry.matchId.startsWith(`${routeId}:`)) continue;
+		if (!ctx.matchCache.isStale(entry.matchId, staleTime)) return true;
+	}
+	return false;
+}
+
 export async function prefetch(options: {
 	params?: Record<string, unknown>;
 	search?: Record<string, unknown>;
@@ -1165,6 +1174,11 @@ export async function prefetch(options: {
 	);
 
 	if (!ctx.prefetchCache.shouldPrefetch(url.href, staleTime)) return;
+
+	/* Hover/viewport prefetch must not refetch a route still inside client
+	   staleTime — that overwrites matchCache and looks like a cache miss. */
+	const clientStaleTime = parseMilliseconds(match.route.o.client?.staleTime ?? ctx.routerCacheDefaults?.staleTime ?? 0);
+	if (clientStaleTime > 0 && matchCacheHasFreshRoute(match.route.x, clientStaleTime)) return;
 
 	try {
 		const [fetchResult] = await Promise.all([
