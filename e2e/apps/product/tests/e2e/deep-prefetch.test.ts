@@ -67,7 +67,7 @@ test.describe("Link prefetch='intent'", () => {
 });
 
 test.describe("Link prefetch='viewport'", () => {
-	test("viewport prefetch link triggers NDJSON when scrolled into view", async ({ page }) => {
+	test("viewport prefetch does not fire per-URL NDJSON", async ({ page }) => {
 		const cap = setupConsoleCapture(page);
 
 		const ndjsonUrls: string[] = [];
@@ -88,7 +88,8 @@ test.describe("Link prefetch='viewport'", () => {
 		await link.scrollIntoViewIfNeeded();
 		await page.waitForTimeout(2000);
 
-		expect(ndjsonUrls.length).toBeGreaterThanOrEqual(1);
+		/* Viewport warms route JS only — not a per-URL NDJSON prefetch. */
+		expect(ndjsonUrls).toHaveLength(0);
 		cap.assertClean();
 	});
 });

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DeferredResolver } from "../../../src/state-parser/index.ts";
 import {
 	hydrateFlareState,
+	hasRawDeferredMarkers,
 	hydrateLoaderData,
 	installDeferredResolver,
 	isDeferredMarker,
@@ -75,6 +76,24 @@ describe("isDeferredMarker", () => {
 
 	it("string → false", () => {
 		expect(isDeferredMarker("string")).toBe(false);
+	});
+});
+
+describe("hasRawDeferredMarkers", () => {
+	it("prefetch marker → true", () => {
+		expect(hasRawDeferredMarkers({ __deferred: true, key: "d0" })).toBe(true);
+	});
+
+	it("nested prefetch marker → true", () => {
+		expect(hasRawDeferredMarkers({ shell: "x", wait: { __deferred: true, key: "d0" } })).toBe(true);
+	});
+
+	it("hydrated marker with promise → false", () => {
+		expect(hasRawDeferredMarkers({ __deferred: true, __key: "d0", promise: Promise.resolve(1) })).toBe(false);
+	});
+
+	it("plain data → false", () => {
+		expect(hasRawDeferredMarkers({ title: "shell" })).toBe(false);
 	});
 });
 

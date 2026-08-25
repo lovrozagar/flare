@@ -229,6 +229,46 @@ describe("chunk messages", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("keepMatchIds skips hydrate and streams c into seeded resolvers", async () => {
+		let resolveFn: (d: unknown) => void = () => {};
+		const promise = new Promise<unknown>((resolve) => {
+			resolveFn = resolve;
+		});
+		const resolvers = new Map([
+			[
+				"m1:d0",
+				{
+					reject: () => {},
+					resolve: resolveFn,
+				},
+			],
+		]);
+
+		vi.stubGlobal(
+			"fetch",
+			vi
+				.fn()
+				.mockResolvedValue(
+					createMockResponse([
+						line({ d: { deferred: { __deferred: true, key: "d0" }, title: "from-enter" }, m: "m1", t: "l" }),
+						line({ t: "r" }),
+						line({ d: "chunk-value", k: "d0", m: "m1", t: "c" }),
+						line({ t: "d" }),
+					]),
+				),
+		);
+
+		const result = await fetchNDJSON({ keepMatchIds: ["m1"], resolvers, url: "/api" });
+		expect(result.matches[0]?.keepShell).toBe(true);
+		expect(result.matches[0]?.loaderData).toEqual({
+			deferred: { __deferred: true, key: "d0" },
+			title: "from-enter",
+		});
+		await expect(promise).resolves.toBe("chunk-value");
+
+		vi.unstubAllGlobals();
+	});
+
 	it("chunk for unknown key → ignored", async () => {
 		vi.stubGlobal(
 			"fetch",
