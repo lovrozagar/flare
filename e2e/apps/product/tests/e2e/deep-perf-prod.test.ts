@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loadPage, navigateSPA, setupConsoleCapture } from "./helpers";
+import { CLS_BUDGET, loadPage, navigateSPA, runnerBudget, setupConsoleCapture } from "./helpers";
 
 /**
  * Production-only performance tests.
@@ -176,7 +176,7 @@ test.describe("@prod-only Perf — Web Vitals in production", () => {
 			});
 		});
 
-		expect(cls).toBeLessThan(0.01);
+		expect(cls).toBeLessThan(CLS_BUDGET);
 	});
 
 	test("zero CLS on prod data-heavy page", async ({ page }) => {
@@ -198,7 +198,7 @@ test.describe("@prod-only Perf — Web Vitals in production", () => {
 			});
 		});
 
-		expect(cls).toBeLessThan(0.01);
+		expect(cls).toBeLessThan(CLS_BUDGET);
 	});
 
 	test("zero long tasks on prod home page", async ({ page }) => {
@@ -219,7 +219,7 @@ test.describe("@prod-only Perf — Web Vitals in production", () => {
 		});
 
 		/* Product home hydrates a large nav tree; Solid 2 may record one 50ms+ task. */
-		expect(longTasks).toBeLessThanOrEqual(8);
+		expect(longTasks).toBeLessThanOrEqual(runnerBudget(3, 8));
 	});
 
 	test("FCP in prod is within threshold", async ({ page }) => {
@@ -246,7 +246,7 @@ test.describe("@prod-only Perf — Web Vitals in production", () => {
 
 		expect(fcp).toBeGreaterThan(0);
 		/* prod should be faster — tighter threshold */
-		expect(fcp).toBeLessThan(1500);
+		expect(fcp).toBeLessThan(runnerBudget(1500, 4000));
 	});
 
 	test("LCP in prod is within threshold", async ({ page }) => {
@@ -269,7 +269,7 @@ test.describe("@prod-only Perf — Web Vitals in production", () => {
 		});
 
 		expect(lcp).toBeGreaterThan(0);
-		expect(lcp).toBeLessThan(2500);
+		expect(lcp).toBeLessThan(runnerBudget(2500, 5000));
 	});
 });
 
@@ -298,8 +298,7 @@ test.describe("@prod-only Perf — prod hydration", () => {
 		const count = await page.locator("[data-testid=stress-count]").textContent();
 		expect(count).toBe("1000");
 
-		/* even 1000 rows should hydrate under 5s in prod */
-		expect(elapsed).toBeLessThan(5000);
+		expect(elapsed).toBeLessThan(runnerBudget(5000, 8000));
 	});
 
 	test("deferred data resolves in prod", async ({ page }) => {
@@ -320,8 +319,7 @@ test.describe("@prod-only Perf — SPA navigation speed in prod", () => {
 		await navigateSPA(page, "/about");
 		const elapsed = Date.now() - start;
 
-		/* prod SPA should be fast — no dev overhead. CI runners still need headroom. */
-		expect(elapsed).toBeLessThan(2000);
+		expect(elapsed).toBeLessThan(runnerBudget(300, 2000));
 	});
 
 	test("SPA nav to heavy page is fast in prod", async ({ page }) => {
@@ -331,7 +329,7 @@ test.describe("@prod-only Perf — SPA navigation speed in prod", () => {
 		await navigateSPA(page, "/perf-bench");
 		const elapsed = Date.now() - start;
 
-		expect(elapsed).toBeLessThan(2000);
+		expect(elapsed).toBeLessThan(runnerBudget(500, 2000));
 	});
 
 	test("sequential SPA navs stay fast in prod", async ({ page }) => {
@@ -347,7 +345,7 @@ test.describe("@prod-only Perf — SPA navigation speed in prod", () => {
 		}
 
 		for (const t of timings) {
-			expect(t).toBeLessThan(2000);
+			expect(t).toBeLessThan(runnerBudget(500, 2000));
 		}
 	});
 

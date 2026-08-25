@@ -40,14 +40,11 @@ describe("SW resilience — cache.put() error handling", () => {
 		expect(afterPut).toContain(".catch");
 	});
 
-	it("cache.put() in navigation handler has .catch()", () => {
+	it("navigation handler does not cache.put HTML (locale Set-Cookie must hit the network)", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
 		const navigateStart = result.indexOf('"navigate"');
 		const navSection = result.slice(navigateStart);
-		/* Navigation cache.put should also handle errors */
-		const putIdx = navSection.indexOf("cache.put");
-		const afterPut = navSection.slice(putIdx, navSection.indexOf("LRU"));
-		expect(afterPut).toContain(".catch");
+		expect(navSection).not.toContain("cache.put");
 	});
 });
 
@@ -83,13 +80,12 @@ describe("SW resilience — install error handling", () => {
 });
 
 describe("SW resilience — LRU batch eviction", () => {
-	it("LRU eviction uses while loop for batch deletion", () => {
+	it("navigation handler does not LRU-cache HTML", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		/* Should use while loop to evict ALL excess entries, not just one */
 		const navigateStart = result.indexOf('"navigate"');
 		const navSection = result.slice(navigateStart);
-		expect(navSection).toContain("while");
-		expect(navSection).toContain("runtimeCacheMax");
+		expect(navSection).not.toContain("while");
+		expect(navSection).not.toContain("cache.put");
 	});
 
 	it("generated JS with batch eviction is syntactically valid", () => {

@@ -55,7 +55,6 @@ self.addEventListener("install", function (event) {
 self.addEventListener("activate", function (event) {
 	event.waitUntil(
 		Promise.all([
-			self.registration.navigationPreload && self.registration.navigationPreload.enable(),
 			caches.keys().then(function (names) {
 				return Promise.all(
 					names.filter(function (n) {
@@ -112,28 +111,13 @@ self.addEventListener("fetch", function (event) {
 		return
 	}
 
-	/* Network-first for navigations. redirect:manual so 3xx Set-Cookie
-	   (locale strip, cookie-respect) is applied by the document, not eaten
-	   by fetch() follow inside the worker. */
+	/* Network-only for navigations. redirect:manual so 3xx Set-Cookie
+	   (locale strip, cookie-respect) reaches the document. Do not cache
+	   HTML — a cached 200 would skip Set-Cookie on the next locale visit.
+	   Do not enable navigation preload: it follows redirects and drops 3xx cookies. */
 	if (event.request.mode === "navigate") {
 		event.respondWith(
-			fetch(event.request, { redirect: "manual" }).then(function (response) {
-				if (response.ok) {
-					var clone = response.clone()
-					caches.open(RUNTIME_CACHE).then(function (cache) {
-						cache.put(event.request, clone).catch(function () {})
-						/* LRU eviction — batch delete to stay under limit */
-						cache.keys().then(function (keys) {
-							var i = 0
-							while (keys.length - i > SW_CONFIG.runtimeCacheMax) {
-								cache.delete(keys[i])
-								i++
-							}
-						})
-					}).catch(function () {})
-				}
-				return response
-			}).catch(function () {
+			fetch(event.request, { redirect: "manual" }).catch(function () {
 				return caches.match(event.request).then(function (cached) {
 					if (cached) return cached
 					if (SW_CONFIG.offlineFallback) {

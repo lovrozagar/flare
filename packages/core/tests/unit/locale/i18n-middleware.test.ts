@@ -143,8 +143,26 @@ describe("i18n middleware", () => {
 			expect(result.type).toBe("bypass");
 			if (result.type === "bypass") {
 				expect(result.response.status).toBe(302);
-				const location = locUrl(result.response.headers.get("Location"));
+				const header = result.response.headers.get("Location") ?? "";
+				expect(header.startsWith("http")).toBe(false);
+				const location = locUrl(header);
 				expect(location.pathname).toBe("/");
+			}
+		});
+
+		it("/en with cookie=hr → 302 relative / and Set-Cookie en", async () => {
+			const mw = i18n();
+			const ctx = makeCtxWithHeaders("https://example.com/en", {
+				cookie: "flare.locale=hr",
+			});
+			const result = await mw(ctx);
+			expect(result.type).toBe("bypass");
+			if (result.type === "bypass") {
+				expect(result.response.status).toBe(302);
+				const header = result.response.headers.get("Location") ?? "";
+				expect(header.startsWith("http")).toBe(false);
+				expect(locUrl(header).pathname).toBe("/");
+				expect(result.response.headers.get("Set-Cookie")).toContain("flare.locale=en");
 			}
 		});
 
@@ -206,7 +224,9 @@ describe("i18n middleware", () => {
 			expect(result.type).toBe("bypass");
 			if (result.type === "bypass") {
 				expect(result.response.status).toBe(302);
-				expect(locUrl(result.response.headers.get("Location")).pathname).toBe("/hr/");
+				const header = result.response.headers.get("Location") ?? "";
+				expect(header.startsWith("http")).toBe(false);
+				expect(locUrl(header).pathname).toBe("/hr/");
 			}
 		});
 
