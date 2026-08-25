@@ -578,6 +578,9 @@ describe("prefetch", () => {
 
 		expect(mockFetchNDJSON).not.toHaveBeenCalled();
 		expect(ctx.matchCache.get(matchId)?.data).toBe("ssr-data");
+		/* Skip must still mark the route visited so navigate() does not
+		   take the parallel-fetch "new route" path. */
+		expect(ctx.prefetchCache.has(new URL("/cache-test", window.location.href).href)).toBe(true);
 	});
 
 	it("fetches when matchCache entry is past client staleTime", async () => {
@@ -607,6 +610,38 @@ describe("prefetch", () => {
 
 		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
 		expect(ctx.matchCache.get(matchId)?.data).toBe("fresh-prefetch");
+	});
+
+	it("writes matchCache when NDJSON returns even if loadRouteModules is still pending", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const routeId = "_root_/prefetch-target";
+		const matchId = `${routeId}:{}:[]`;
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute(routeId, "r", { client: { staleTime: 60_000 } }),
+		});
+
+		let resolveMods!: (v: LoadedRouteModules) => void;
+		mockLoadRouteModules.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveMods = resolve;
+				}),
+		);
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ hasDeferredMarkers: false, loaderData: "prefetched", matchId }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		const pending = prefetch({ to: "/prefetch-target" });
+		await vi.waitFor(() => {
+			expect(ctx.matchCache.get(matchId)?.data).toBe("prefetched");
+		});
+
+		resolveMods(makeLoadedModules({ page: makeModule(routeId) }));
+		await pending;
 	});
 
 	it("fetches data + modules in parallel", async () => {

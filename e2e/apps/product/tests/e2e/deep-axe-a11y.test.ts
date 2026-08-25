@@ -21,7 +21,6 @@ const ROUTES = [
 	"/a11y-form-test",
 	"/a11y-nav-test",
 	"/perf-bench",
-	"/perf-stress",
 	"/fonts-category-test",
 	"/error-test",
 ];

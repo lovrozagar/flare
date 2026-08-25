@@ -10,7 +10,7 @@ import { loadPage, navigateSPA, setupConsoleCapture } from "./helpers";
  * when the entry is fresh.
  *
  * The test route /kv-cache-test has:
- *   - kv.staleTime: 5000ms
+ *   - kv.staleTime: 30000ms
  *   - kv.ttl: 60s
  *   - loader increments a server-side callCount + returns random + timestamp
  */

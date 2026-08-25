@@ -69,6 +69,13 @@ function getLocaleFromAcceptLanguage(request: Request, locales: readonly string[
 	return defaultLocale;
 }
 
+/** Path-only Location so the document applies Set-Cookie on 3xx (SW fetch() with follow does not). */
+function locationForPath(url: URL, pathname: string): string {
+	const next = new URL(url);
+	next.pathname = pathname;
+	return `${next.pathname}${next.search}${next.hash}`;
+}
+
 function buildCookieHeader(
 	locale: string,
 	cookieName: string,
@@ -147,9 +154,9 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 		if (firstSegment && LOCALE_LIKE_RE.test(firstSegment)) {
 			const lowerSegment = firstSegment.toLowerCase();
 			if (firstSegment !== lowerSegment) {
-				const newUrl = new URL(ctx.url);
-				newUrl.pathname = pathname.replace(firstSegment, lowerSegment);
-				const headers = new Headers({ Location: newUrl.href });
+				const headers = new Headers({
+					Location: locationForPath(ctx.url, pathname.replace(firstSegment, lowerSegment)),
+				});
 				if (cachedLocaleSet.has(lowerSegment)) {
 					headers.set(
 						"Set-Cookie",
@@ -166,9 +173,9 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 
 		/* Invalid/unsupported locale-like segment in path → strip it */
 		if (hasInvalidLocale) {
-			const newUrl = new URL(ctx.url);
-			newUrl.pathname = pathname.replace(`/${firstSegment}`, "") || "/";
-			const headers = new Headers({ Location: newUrl.href });
+			const headers = new Headers({
+				Location: locationForPath(ctx.url, pathname.replace(`/${firstSegment}`, "") || "/"),
+			});
 			headers.set(
 				"Set-Cookie",
 				buildCookieHeader(defaultLocale, cachedCookieName, cachedMaxAge, isHttps, options?.cookie?.secure),
@@ -183,9 +190,7 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 			const canStrip =
 				!ctx.routeTree || matchRoute(ctx.routeTree, strippedPath, false, toLocaleMatch(ctx.locale)) !== null;
 			if (canStrip) {
-				const newUrl = new URL(ctx.url);
-				newUrl.pathname = strippedPath;
-				const headers = new Headers({ Location: newUrl.href });
+				const headers = new Headers({ Location: locationForPath(ctx.url, strippedPath) });
 				headers.set(
 					"Set-Cookie",
 					buildCookieHeader(defaultLocale, cachedCookieName, cachedMaxAge, isHttps, options?.cookie?.secure),
@@ -201,9 +206,7 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 		if (!pathLocale && pathname === "/" && !cookieLocale) {
 			const acceptLocale = getLocaleFromAcceptLanguage(ctx.request, locales, defaultLocale);
 			if (acceptLocale !== defaultLocale) {
-				const newUrl = new URL(ctx.url);
-				newUrl.pathname = `/${acceptLocale}`;
-				const headers = new Headers({ Location: newUrl.href });
+				const headers = new Headers({ Location: locationForPath(ctx.url, `/${acceptLocale}`) });
 				headers.set(
 					"Set-Cookie",
 					buildCookieHeader(acceptLocale, cachedCookieName, cachedMaxAge, isHttps, options?.cookie?.secure),
@@ -219,11 +222,9 @@ export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {
 		 */
 		const isDataRequest = ctx.request.headers.get(HEADER_DATA) === HEADER_FLAG;
 		if (!pathLocale && cookieLocale && cookieLocale !== defaultLocale && !isDataRequest) {
-			const newUrl = new URL(ctx.url);
-			newUrl.pathname = `/${cookieLocale}${pathname}`;
 			return ctx.bypass(
 				new Response(null, {
-					headers: new Headers({ Location: newUrl.href }),
+					headers: new Headers({ Location: locationForPath(ctx.url, `/${cookieLocale}${pathname}`) }),
 					status: 302,
 				}),
 			);
