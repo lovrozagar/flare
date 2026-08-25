@@ -77,9 +77,9 @@ interface ServerFnRegistration {
 
 ```ts
 const CSR_HEADERS = {
-	DATA_REQUEST: "x-d" /* "1" when CSR navigation */,
-	MATCH_IDS: "x-m" /* comma-separated stale matchIds */,
-	PREFETCH: "x-p" /* "1" when prefetch */,
+	DATA_REQUEST: "flare-data" /* "1" when CSR navigation */,
+	MATCH_IDS: "flare-stale" /* comma-separated stale matchIds */,
+	PREFETCH: "flare-prefetch" /* "1" when prefetch */,
 };
 ```
 
@@ -112,15 +112,15 @@ Request arrives -> createServerHandler.fetch(request, env, ctx)
      |- bypass -> return raw response (no headers, no handlers)
      |- respond -> apply response handlers + security headers -> return
      |- next -> continue
-7.   Check server function request (pathname starts with "/_fn/")
+7.   Check server function request (pathname starts with "/_flare/server-fn/")
      |- yes -> handleServerFnRequest() -> apply response handlers
                 + security headers -> return
 8.   matchRoute(config.router.routeTree, pathname)
      |- no match -> render 404 (global notFound boundary or fallback)
                     + security headers -> return
 9.   Determine navigation format from headers:
-     |- no x-d header -> Initial load (SSR)
-     |- x-d: "1" -> NDJSON streaming navigation
+     |- no flare-data header -> Initial load (SSR)
+     |- flare-data: "1" -> NDJSON streaming navigation
 10.  Load route modules (page + layouts from config.router.layouts)
 11.  Build ResolvedRoute[] from loaded modules + matched route
 12.  runPipeline({ abortController, authenticateFn, cause, env,
@@ -195,7 +195,7 @@ Response handlers collected during middleware execution are applied after the ro
 
 ### Server Function Handling
 
-When pathname starts with `/_fn/`, delegates to `handleServerFnRequest()` from spec 23:
+When pathname starts with `/_flare/server-fn/`, delegates to `handleServerFnRequest()` from spec 23:
 
 ```ts
 handleServerFnRequest(request, env, config.serverFns, config.authenticateFn);
@@ -203,7 +203,7 @@ handleServerFnRequest(request, env, config.serverFns, config.authenticateFn);
 
 Full pipeline (spec 23):
 
-1. Parse URL → extract `{id}` and `{name}` from `/_fn/{id}/{name}`
+1. Parse URL → extract `{id}` and `{name}` from `/_flare/server-fn/{id}/{name}`
 2. Look up `id` in `config.serverFns` Map, verify `name` matches
 3. Validate HTTP method (registration.method vs request method)
 4. If `authenticate === true` → run `authenticateFn`
@@ -224,9 +224,9 @@ No match -> render 404 page. Uses global `notFound` boundary from `config.bounda
 ### Navigation Format Detection
 
 ```ts
-const isDataRequest = request.headers.get("x-d") === "1";
-const isPrefetch = request.headers.get("x-p") === "1";
-const staleMatchIds = request.headers.get("x-m")?.split(",") ?? [];
+const isDataRequest = request.headers.get("flare-data") === "1";
+const isPrefetch = request.headers.get("flare-prefetch") === "1";
+const staleMatchIds = request.headers.get("flare-stale")?.split(",") ?? [];
 
 if (!isDataRequest) {
 	/* Initial load -> SSR */
@@ -298,7 +298,7 @@ External redirects (`redirect.external === true`) always return HTTP redirect re
 
 ### SSR Rendering (Initial Load)
 
-When no `x-d` header present. Calls `renderToStream()` from spec 08:
+When no `flare-data` header present. Calls `renderToStream()` from spec 08:
 
 ```ts
 const ssrResult = renderToStream({
@@ -324,7 +324,7 @@ return new Response(ssrResult.body, {
 
 ### NDJSON Rendering (CSR Navigation)
 
-When `x-d: "1"`. Checks if any deferred contexts exist:
+When `flare-data: "1"`. Checks if any deferred contexts exist:
 
 - Has deferred -> `createStreamingNDJSONResponse()`
 - No deferred -> `createNDJSONResponse()`
@@ -485,9 +485,9 @@ Callbacks in pipeline/middleware can check `abortController.signal.aborted` to b
 
 On client disconnect, the response stream's writable side closes (Cloudflare Workers). Solid's `renderToStream` may continue producing HTML that is discarded. Deferred promise callbacks should check `signal.aborted` to short-circuit expensive work and save CPU.
 
-### Stale Match Filtering (x-m Header)
+### Stale Match Filtering (flare-stale Header)
 
-When `x-m` header is present, only routes whose matchIds are in the comma-separated list run loaders. Other routes in the match chain still load modules and run preloaders/authorize but skip loaders. Loader data for skipped routes is `undefined` with `status: "success"`.
+When `flare-stale` header is present, only routes whose matchIds are in the comma-separated list run loaders. Other routes in the match chain still load modules and run preloaders/authorize but skip loaders. Loader data for skipped routes is `undefined` with `status: "success"`.
 
 Used for navigations within the same layout — layout data already cached on client.
 
@@ -540,17 +540,17 @@ Middleware integration:
   ctx.url matches parsed request URL
 
 Server function handling:
-  /_fn/valid-id -> calls registered fn, returns { data: result }
-  /_fn/unknown-id -> 404 { message: "Server function not found" }
-  /_fn/id with input validator, valid input -> fn called with parsed input
-  /_fn/id with input validator, invalid input -> 400 { message: ... }
-  /_fn/id fn throws ServerFnValidationError -> 400
-  /_fn/id fn throws UnauthenticatedError -> 401
-  /_fn/id fn throws UnauthorizedError -> 403
-  /_fn/id fn throws generic Error -> 500
-  /_fn/id response goes through response handlers
-  /_fn/id response gets security headers
-  No serverFns configured -> all /_fn/* -> 404
+  /_flare/server-fn/valid-id -> calls registered fn, returns { data: result }
+  /_flare/server-fn/unknown-id -> 404 { message: "Server function not found" }
+  /_flare/server-fn/id with input validator, valid input -> fn called with parsed input
+  /_flare/server-fn/id with input validator, invalid input -> 400 { message: ... }
+  /_flare/server-fn/id fn throws ServerFnValidationError -> 400
+  /_flare/server-fn/id fn throws UnauthenticatedError -> 401
+  /_flare/server-fn/id fn throws UnauthorizedError -> 403
+  /_flare/server-fn/id fn throws generic Error -> 500
+  /_flare/server-fn/id response goes through response handlers
+  /_flare/server-fn/id response gets security headers
+  No serverFns configured -> all /_flare/server-fn/* -> 404
 
 Route matching:
   Matched route -> load modules, run pipeline
@@ -560,11 +560,11 @@ Route matching:
   404 response gets security headers
 
 Navigation format:
-  No x-d header -> SSR (initial load)
-  x-d: "1" -> NDJSON navigation
-  x-p: "1" -> cause = "prefetch", prefetch = true
-  No x-p -> cause = "enter" (both data request and SSR)
-  x-m: "a,b,c" -> only those matchIds run loaders
+  No flare-data header -> SSR (initial load)
+  flare-data: "1" -> NDJSON navigation
+  flare-prefetch: "1" -> cause = "prefetch", prefetch = true
+  No flare-prefetch -> cause = "enter" (both data request and SSR)
+  flare-stale: "a,b,c" -> only those matchIds run loaders
 
 Route module loading:
   Page module loaded via route.p()
@@ -578,7 +578,7 @@ Pipeline execution:
   env from fetch args passed through
   AbortController created and passed
   Pipeline result used for rendering
-  prefetch flag from x-p header
+  prefetch flag from flare-prefetch header
 
 Redirect handling (SSR):
   Pipeline throws RedirectResponse -> HTTP redirect
@@ -593,7 +593,7 @@ Redirect handling (NDJSON):
   External redirect -> HTTP redirect (not NDJSON)
 
 SSR rendering:
-  No x-d -> renderToStream called
+  No flare-data -> renderToStream called
   SSRResult.body used as Response body
   SSRResult.status used as Response status
   SSRResult.headers merged with security headers
@@ -601,7 +601,7 @@ SSR rendering:
   resolvedHead from pipeline head chain
 
 NDJSON rendering:
-  x-d: "1" -> NDJSON response
+  flare-data: "1" -> NDJSON response
   Has deferred contexts -> createStreamingNDJSONResponse
   No deferred contexts -> createNDJSONResponse
   Content-Type: application/x-ndjson
@@ -661,19 +661,19 @@ AbortController:
   Callbacks can check signal.aborted
 
 Stale match filtering:
-  x-m header present -> filter loaders to listed matchIds
+  flare-stale header present -> filter loaders to listed matchIds
   Unlisted routes -> loaderData = undefined, status = "success"
   Preloaders/authorize still run for all routes
-  No x-m header -> all routes run loaders
+  No flare-stale header -> all routes run loaders
 
 End-to-end:
   Minimal: single page, no auth, no middleware -> SSR 200
   Full: root + layout + page, auth, middleware, preloaders -> SSR 200
-  CSR nav: x-d: "1" -> NDJSON with loader data
-  Prefetch: x-d: "1" + x-p: "1" -> NDJSON, cause "prefetch"
-  404 nav: no match + x-d: "1" -> NDJSON error
-  Redirect: loader redirect + x-d: "1" -> NDJSON redirect message
-  Server fn: /_fn/id + x-d: "1" -> JSON (not NDJSON)
+  CSR nav: flare-data: "1" -> NDJSON with loader data
+  Prefetch: flare-data: "1" + flare-prefetch: "1" -> NDJSON, cause "prefetch"
+  404 nav: no match + flare-data: "1" -> NDJSON error
+  Redirect: loader redirect + flare-data: "1" -> NDJSON redirect message
+  Server fn: /_flare/server-fn/id + flare-data: "1" -> JSON (not NDJSON)
   Bypass: middleware bypass -> raw response, no CSP
 ```
 
@@ -684,7 +684,7 @@ End-to-end:
 - Security headers are always applied (except bypass). No opt-out mechanism beyond `middlewareBypass`.
 - CSP `'strict-dynamic'` propagates trust to dynamically loaded scripts (Vite chunks). Nonce only needed on initial scripts.
 - Static file 404 is intentional — handler should never serve static files. Platform (CF, Vite, nginx) handles static assets before the handler.
-- Server function path `/_fn/` is a reserved prefix. Route tree should not contain routes starting with `_fn`.
+- Server function path `/_flare/server-fn/` is a reserved prefix. Route tree should not contain routes starting with `_flare`.
 - `config.router.layouts` is a map of layout key -> lazy loader. Layout keys from `deriveLayouts()` (spec 01). Generated by route generator (spec 19).
 - `router` config merged into pipeline contexts but not into route tree — runtime merge, not build-time.
 - NDJSON 404 (no route match on CSR nav) sends error messages rather than rendering HTML. Client handles 404 display.

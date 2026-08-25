@@ -142,7 +142,7 @@ test.describe("Perf — hydration timing", () => {
 	test("hydration completes within threshold on home page", async ({ page }) => {
 		const start = Date.now();
 		await page.goto("/", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: HYDRATION_THRESHOLD_MS,
 		});
 		const hydrationTime = Date.now() - start;
@@ -153,7 +153,7 @@ test.describe("Perf — hydration timing", () => {
 	test("hydration completes within threshold on data-heavy page", async ({ page }) => {
 		const start = Date.now();
 		await page.goto("/perf-bench", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: HYDRATION_THRESHOLD_MS,
 		});
 		const hydrationTime = Date.now() - start;
@@ -267,7 +267,7 @@ test.describe("Perf — NDJSON data requests", () => {
 	test("NDJSON response is fast for simple page", async ({ page }) => {
 		const start = Date.now();
 		const response = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const elapsed = Date.now() - start;
 
@@ -278,7 +278,7 @@ test.describe("Perf — NDJSON data requests", () => {
 	test("NDJSON response is smaller than full HTML", async ({ page }) => {
 		const htmlRes = await page.request.get("/about");
 		const ndjsonRes = await page.request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 
 		const htmlSize = (await htmlRes.text()).length;
@@ -291,7 +291,7 @@ test.describe("Perf — NDJSON data requests", () => {
 	test("NDJSON for data-heavy page is smaller than HTML", async ({ page }) => {
 		const htmlRes = await page.request.get("/perf-bench");
 		const ndjsonRes = await page.request.get("/perf-bench", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 
 		const htmlSize = (await htmlRes.text()).length;

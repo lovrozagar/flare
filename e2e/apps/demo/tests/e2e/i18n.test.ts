@@ -10,8 +10,8 @@ import { expect, test } from "@playwright/test";
  * - / (cookie=fr)  → 302 → /fr (cookie respected)
  * - / (cookie=en)  → serve en, no redirect
  * - /en/about      → 302 → /about, set cookie=en (strip default prefix)
- * - NDJSON (x-d:1) → no cookie redirect, URL is truth
- * - Prefetch (x-p:1) → no cookie set at all
+ * - NDJSON (flare-data:1) → no cookie redirect, URL is truth
+ * - Prefetch (flare-prefetch:1) → no cookie set at all
  * - Bot            → always default, no redirect
  *
  * CONTENT:
@@ -33,7 +33,7 @@ function getCookie(headers: Record<string, string>, name: string): string | null
 /** Navigate + wait for SolidJS hydration before any click interaction */
 async function gotoHydrated(page: import("@playwright/test").Page, url: string) {
 	await page.goto(url);
-	await page.waitForSelector("html[data-hydrated]", { timeout: 10000 });
+	await page.waitForSelector("html[data-flare-hydrated]", { timeout: 10000 });
 }
 
 /* ── 1. Hard nav — no cookie ──────────────────────────────────────── */
@@ -310,28 +310,28 @@ test.describe("skip paths", () => {
 test.describe("prefetch isolation", () => {
 	test("prefetch /hr + cookie=en → no Set-Cookie", async ({ request }) => {
 		const res = await request.get("/hr", {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1", "x-p": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1", "flare-prefetch": "1" },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
 	});
 
 	test("prefetch /fr + cookie=en → no Set-Cookie", async ({ request }) => {
 		const res = await request.get("/fr", {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1", "x-p": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1", "flare-prefetch": "1" },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
 	});
 
 	test("prefetch / + cookie=fr → no Set-Cookie", async ({ request }) => {
 		const res = await request.get("/", {
-			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "x-d": "1", "x-p": "1" },
+			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "flare-data": "1", "flare-prefetch": "1" },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
 	});
 
 	test("non-prefetch NDJSON still sets cookie", async ({ request }) => {
 		const res = await request.get("/hr", {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(getCookie(res.headers(), "flare.locale")).toBe("hr");
 	});
@@ -342,7 +342,7 @@ test.describe("prefetch isolation", () => {
 test.describe("NDJSON — no cookie redirect", () => {
 	test("NDJSON / + cookie=hr → 200 (not redirected)", async ({ request }) => {
 		const res = await request.get("/", {
-			headers: { cookie: "flare.locale=hr", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=hr", "user-agent": BROWSER_UA, "flare-data": "1" },
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(200);
@@ -350,7 +350,7 @@ test.describe("NDJSON — no cookie redirect", () => {
 
 	test("NDJSON /about + cookie=fr → 200 (not redirected)", async ({ request }) => {
 		const res = await request.get("/about", {
-			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=fr", "user-agent": BROWSER_UA, "flare-data": "1" },
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(200);
@@ -358,7 +358,7 @@ test.describe("NDJSON — no cookie redirect", () => {
 
 	test("NDJSON /hr + cookie=en → 200 with Set-Cookie: hr", async ({ request }) => {
 		const res = await request.get("/hr", {
-			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": BROWSER_UA, "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		expect(getCookie(res.headers(), "flare.locale")).toBe("hr");

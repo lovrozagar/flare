@@ -6,7 +6,7 @@ test.describe("tauri app", () => {
 		expect(res.status()).toBe(200);
 		expect(await res.text()).toContain("Flare on Tauri");
 		await page.goto("/", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 20_000,
 		});
 		await expect(page.getByTestId("request-id")).toBeVisible();

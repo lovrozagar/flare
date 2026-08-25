@@ -96,14 +96,14 @@ test.describe("i18n cookie rules", () => {
 
 	test("prefetch does not Set-Cookie", async ({ request }) => {
 		const res = await request.get("/i18n-demo/hr", {
-			headers: { cookie: "flare.locale=en", "user-agent": UA, "x-d": "1", "x-p": "1" },
+			headers: { cookie: "flare.locale=en", "user-agent": UA, "flare-data": "1", "flare-prefetch": "1" },
 		});
 		expect(res.headers()["set-cookie"] ?? "").not.toContain("flare.locale=");
 	});
 
 	test("NDJSON does not cookie-redirect", async ({ request }) => {
 		const res = await request.get("/i18n-demo", {
-			headers: { cookie: "flare.locale=hr", "user-agent": UA, "x-d": "1" },
+			headers: { cookie: "flare.locale=hr", "user-agent": UA, "flare-data": "1" },
 			maxRedirects: 0,
 		});
 		expect(res.status()).toBe(200);

@@ -70,8 +70,8 @@ test.describe("Service Worker — prod @prod-only", () => {
 
 	test("prod sw.js passes through server functions and NDJSON", async ({ page }) => {
 		const text = await (await page.goto("/sw.js"))?.text();
-		expect(text).toContain("/_fn/");
-		expect(text).toContain("x-d");
+		expect(text).toContain("/_flare/");
+		expect(text).toContain("flare-data");
 	});
 
 	test("sw registers and becomes active in prod", async ({ page }) => {

@@ -315,7 +315,7 @@ export function makeRequest(path: string, init?: RequestInit): Request {
 
 export function dataRequest(path: string, extraHeaders?: Record<string, string>): Request {
 	return makeRequest(path, {
-		headers: { "x-d": "1", ...extraHeaders },
+		headers: { "flare-data": "1", ...extraHeaders },
 	});
 }
 

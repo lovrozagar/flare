@@ -121,7 +121,7 @@ test.describe("Deep: CSR error navigation", () => {
 test.describe("Deep: error NDJSON responses", () => {
 	test("NDJSON to /broken returns error message in response", async ({ request }) => {
 		const response = await request.get("/broken", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 
@@ -139,7 +139,7 @@ test.describe("Deep: error NDJSON responses", () => {
 
 	test("NDJSON to /dashboard without auth returns 401-related data", async ({ request }) => {
 		const response = await request.get("/dashboard", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		/* NDJSON always returns 200 status, error encoded in messages */
 		const body = await response.text();

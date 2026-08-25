@@ -8,7 +8,7 @@ test.describe("Link prefetch='intent'", () => {
 
 		const ndjsonUrls: string[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1") {
+			if (req.headers()["flare-data"] === "1") {
 				ndjsonUrls.push(req.url());
 			}
 		});
@@ -28,7 +28,7 @@ test.describe("Link prefetch='intent'", () => {
 
 		const ndjsonUrls: string[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1") {
+			if (req.headers()["flare-data"] === "1") {
 				ndjsonUrls.push(req.url());
 			}
 		});
@@ -44,14 +44,14 @@ test.describe("Link prefetch='intent'", () => {
 		cap.assertClean();
 	});
 
-	test("prefetch intent request has x-p header", async ({ page }) => {
+	test("prefetch intent request has flare-prefetch header", async ({ page }) => {
 		const cap = setupConsoleCapture(page);
 		await loadPage(page, "/");
 
 		let hasPrefetchHeader = false;
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/prefetch-target")) {
-				if (req.headers()["x-p"] === "1") {
+			if (req.headers()["flare-data"] === "1" && req.url().includes("/prefetch-target")) {
+				if (req.headers()["flare-prefetch"] === "1") {
 					hasPrefetchHeader = true;
 				}
 			}
@@ -72,7 +72,7 @@ test.describe("Link prefetch='viewport'", () => {
 
 		const ndjsonUrls: string[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/prefetch-target")) {
+			if (req.headers()["flare-data"] === "1" && req.url().includes("/prefetch-target")) {
 				ndjsonUrls.push(req.url());
 			}
 		});
@@ -106,7 +106,7 @@ test.describe("Prefetch → navigation interaction", () => {
 		/* count NDJSON requests after click (should be 0 if prefetch cache hit) */
 		const ndjsonAfterClick: string[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/prefetch-target")) {
+			if (req.headers()["flare-data"] === "1" && req.url().includes("/prefetch-target")) {
 				ndjsonAfterClick.push(req.url());
 			}
 		});

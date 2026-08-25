@@ -42,14 +42,14 @@ describe("formDataToObject", () => {
 		expect(result.avatar).toBeInstanceOf(File);
 	});
 
-	/* F5: Strips __flare_fn */
-	it("F5: strips __flare_fn key", () => {
+	/* F5: Strips flare_fn */
+	it("F5: strips flare_fn key", () => {
 		const fd = new FormData();
-		fd.append("__flare_fn", "some-id");
+		fd.append("flare_fn", "some-id");
 		fd.append("email", "a@b.com");
 		const result = formDataToObject(fd);
 		expect(result).toEqual({ email: "a@b.com" });
-		expect("__flare_fn" in result).toBe(false);
+		expect("flare_fn" in result).toBe(false);
 	});
 
 	/* F6: Strips __proto__ */

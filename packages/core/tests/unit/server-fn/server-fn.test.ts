@@ -225,20 +225,20 @@ describe("builder chain - ordering", () => {
 });
 
 describe("handleServerFnRequest - URL parsing", () => {
-	it("/_fn/abc123/myFn → proceeds", async () => {
+	it("/_flare/server-fn/abc123/myFn → proceeds", async () => {
 		const fns = makeFns(["abc123", { name: "myFn" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/abc123/myFn"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/abc123/myFn"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
-	it("/_fn/abc123 → 404 (missing name)", async () => {
+	it("/_flare/server-fn/abc123 → 404 (missing name)", async () => {
 		const fns = makeFns(["abc123", { name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/abc123"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/abc123"), {}, fns);
 		expect(res.status).toBe(404);
 	});
 
-	it("/_fn/ → 404", async () => {
-		const res = await handleServerFnRequest(postReq("/_fn/"), {}, new Map());
+	it("/_flare/server-fn/ → 404", async () => {
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/"), {}, new Map());
 		expect(res.status).toBe(404);
 	});
 });
@@ -246,24 +246,24 @@ describe("handleServerFnRequest - URL parsing", () => {
 describe("handleServerFnRequest - lookup", () => {
 	it("known id, matching name → proceeds", async () => {
 		const fns = makeFns(["id1", { name: "myFn" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/myFn"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/myFn"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
 	it("known id, wrong name → 404", async () => {
 		const fns = makeFns(["id1", { name: "myFn" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/wrong"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/wrong"), {}, fns);
 		expect(res.status).toBe(404);
 	});
 
 	it("unknown id → 404", async () => {
 		const fns = makeFns(["id1", { name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/unknown/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/unknown/test"), {}, fns);
 		expect(res.status).toBe(404);
 	});
 
 	it("empty fns Map → 404", async () => {
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, new Map());
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, new Map());
 		expect(res.status).toBe(404);
 	});
 });
@@ -271,25 +271,25 @@ describe("handleServerFnRequest - lookup", () => {
 describe("handleServerFnRequest - method validation", () => {
 	it('registration "post", request GET → 405', async () => {
 		const fns = makeFns(["id1", { method: "post", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(405);
 	});
 
 	it('registration "get", request POST → 405', async () => {
 		const fns = makeFns(["id1", { method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(405);
 	});
 
 	it('registration "post", request POST → proceeds', async () => {
 		const fns = makeFns(["id1", { method: "post", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
 	it('registration "get", request GET → proceeds', async () => {
 		const fns = makeFns(["id1", { method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 });
@@ -298,27 +298,27 @@ describe("handleServerFnRequest - authentication", () => {
 	it("authenticate: true, authenticateFn returns user → proceeds", async () => {
 		const fns = makeFns(["id1", { authenticate: true, name: "test" }]);
 		const authFn = async () => ({ id: "user1" });
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, authFn);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, authFn);
 		expect(res.status).toBe(200);
 	});
 
 	it("authenticate: true, authenticateFn returns null → 401", async () => {
 		const fns = makeFns(["id1", { authenticate: true, name: "test" }]);
 		const authFn = async () => null;
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, authFn);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, authFn);
 		expect(res.status).toBe(401);
 	});
 
 	it("authenticate: false → no authenticateFn call", async () => {
 		const authFn = vi.fn(async () => ({ id: "user1" }));
 		const fns = makeFns(["id1", { authenticate: false, name: "test" }]);
-		await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, authFn);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, authFn);
 		expect(authFn).not.toHaveBeenCalled();
 	});
 
 	it("authenticate: true, no authenticateFn → 401", async () => {
 		const fns = makeFns(["id1", { authenticate: true, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(401);
 	});
 });
@@ -327,7 +327,7 @@ describe("handleServerFnRequest - input parsing", () => {
 	it("POST with JSON body → parsed as input", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ x: 1 });
 	});
@@ -335,7 +335,7 @@ describe("handleServerFnRequest - input parsing", () => {
 	it("POST with empty body → input = undefined", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toBeNull();
 	});
@@ -343,7 +343,7 @@ describe("handleServerFnRequest - input parsing", () => {
 	it("GET with search params → Object.fromEntries as input", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test?foo=bar"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?foo=bar"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ foo: "bar" });
 	});
@@ -353,7 +353,7 @@ describe("handleServerFnRequest - input validation", () => {
 	it("zod schema, valid → proceeds", async () => {
 		const schema = { parse: (raw: unknown) => raw };
 		const fns = makeFns(["id1", { fn: async (ctx) => ctx.input, input: schema, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
@@ -364,7 +364,7 @@ describe("handleServerFnRequest - input validation", () => {
 			},
 		};
 		const fns = makeFns(["id1", { fn: async () => "ok", input: schema, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), {}, fns);
 		expect(res.status).toBe(400);
 	});
 
@@ -373,7 +373,7 @@ describe("handleServerFnRequest - input validation", () => {
 			throw new Error("bad input");
 		};
 		const fns = makeFns(["id1", { fn: async () => "ok", input: validator, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), {}, fns);
 		expect(res.status).toBe(400);
 	});
 });
@@ -381,25 +381,25 @@ describe("handleServerFnRequest - input validation", () => {
 describe("handleServerFnRequest - authorization", () => {
 	it("authorizeFn returns true → proceeds", async () => {
 		const fns = makeFns(["id1", { authorizeFn: () => true, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
 	it("authorizeFn returns false → 403", async () => {
 		const fns = makeFns(["id1", { authorizeFn: () => false, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 	});
 
 	it("authorizeFn returns Promise<true> → proceeds", async () => {
 		const fns = makeFns(["id1", { authorizeFn: async () => true, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
 	it("no authorizeFn → proceeds", async () => {
 		const fns = makeFns(["id1", { name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 });
@@ -407,7 +407,7 @@ describe("handleServerFnRequest - authorization", () => {
 describe("handleServerFnRequest - handler execution", () => {
 	it("handler returns value → 200 { data: value }", async () => {
 		const fns = makeFns(["id1", { fn: async () => "hello", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(res.status).toBe(200);
 		expect(body).toEqual({ data: "hello" });
@@ -415,14 +415,14 @@ describe("handleServerFnRequest - handler execution", () => {
 
 	it("handler returns undefined → 200 { data: null }", async () => {
 		const fns = makeFns(["id1", { fn: async () => undefined, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body).toEqual({ data: null });
 	});
 
 	it("handler returns null → 200 { data: null }", async () => {
 		const fns = makeFns(["id1", { fn: async () => null, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body).toEqual({ data: null });
 	});
@@ -444,7 +444,7 @@ describe("handleServerFnRequest - handler execution", () => {
 				name: "test",
 			},
 		]);
-		await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), { DB: "test" }, fns);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), { DB: "test" }, fns);
 		expect(captured?.env).toEqual({ DB: "test" });
 		expect(captured?.hasRequest).toBe(true);
 	});
@@ -464,7 +464,7 @@ describe("handleServerFnRequest - error mapping", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(400);
 		const body = await res.json();
 		expect(body.message).toBe("bad data");
@@ -484,7 +484,7 @@ describe("handleServerFnRequest - error mapping", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(401);
 	});
 
@@ -498,7 +498,7 @@ describe("handleServerFnRequest - error mapping", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 	});
 
@@ -512,7 +512,7 @@ describe("handleServerFnRequest - error mapping", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(500);
 		const body = await res.json();
 		expect(body.message).toBe("Internal server error");
@@ -522,12 +522,12 @@ describe("handleServerFnRequest - error mapping", () => {
 describe("handleServerFnRequest - response format", () => {
 	it("Content-Type: application/json on all responses", async () => {
 		const fns = makeFns(["id1", { fn: async () => "ok", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
 	});
 
 	it("error response also has application/json", async () => {
-		const res = await handleServerFnRequest(postReq("/_fn/unknown/test"), {}, new Map());
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/unknown/test"), {}, new Map());
 		expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
 		expect(res.status).toBe(404);
 	});
@@ -537,7 +537,7 @@ describe("handleServerFnRequest - execution order", () => {
 	it("authenticate fails → handler not called", async () => {
 		const handler = vi.fn(async () => "ok");
 		const fns = makeFns(["id1", { authenticate: true, fn: handler, name: "test" }]);
-		await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, async () => null);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, async () => null);
 		expect(handler).not.toHaveBeenCalled();
 	});
 
@@ -557,7 +557,7 @@ describe("handleServerFnRequest - execution order", () => {
 				name: "test",
 			},
 		]);
-		await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), {}, fns);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), {}, fns);
 		expect(authorizeFn).not.toHaveBeenCalled();
 		expect(handler).not.toHaveBeenCalled();
 	});
@@ -569,7 +569,7 @@ describe("handleServerFnRequest - auth returns undefined", () => {
 	it("authenticate: true, authenticateFn returns undefined → 401", async () => {
 		const fns = makeFns(["id1", { authenticate: true, name: "test" }]);
 		const authFn = async () => undefined;
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, authFn);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, authFn);
 		expect(res.status).toBe(401);
 	});
 });
@@ -577,7 +577,7 @@ describe("handleServerFnRequest - auth returns undefined", () => {
 describe("handleServerFnRequest - malformed JSON", () => {
 	it("POST with invalid JSON body → 400", async () => {
 		const fns = makeFns(["id1", { name: "test" }]);
-		const req = new Request("http://localhost/_fn/id1/test", {
+		const req = new Request("http://localhost/_flare/server-fn/id1/test", {
 			body: "not-valid-json{{{",
 			headers: { "content-type": "application/json" },
 			method: "POST",
@@ -592,25 +592,25 @@ describe("handleServerFnRequest - malformed JSON", () => {
 describe("handleServerFnRequest - authorize falsy values", () => {
 	it("authorizeFn returns undefined → 403", async () => {
 		const fns = makeFns(["id1", { authorizeFn: () => undefined as unknown as boolean, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 	});
 
 	it("authorizeFn returns null → 403", async () => {
 		const fns = makeFns(["id1", { authorizeFn: () => null as unknown as boolean, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 	});
 
 	it("authorizeFn returns 0 → 403", async () => {
 		const fns = makeFns(["id1", { authorizeFn: () => 0 as unknown as boolean, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 	});
 
 	it("authorizeFn returns empty string → 403", async () => {
 		const fns = makeFns(["id1", { authorizeFn: () => "" as unknown as boolean, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 	});
 });
@@ -619,7 +619,7 @@ describe("handleServerFnRequest - GET multi-value params", () => {
 	it("duplicate keys → grouped into array", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test?tag=a&tag=b"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?tag=a&tag=b"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ tag: ["a", "b"] });
 	});
@@ -627,7 +627,7 @@ describe("handleServerFnRequest - GET multi-value params", () => {
 	it("triple duplicate keys → array of 3", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test?x=1&x=2&x=3"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?x=1&x=2&x=3"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ x: ["1", "2", "3"] });
 	});
@@ -635,7 +635,7 @@ describe("handleServerFnRequest - GET multi-value params", () => {
 	it("mixed single and multi-value params", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test?q=hello&tag=a&tag=b"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?q=hello&tag=a&tag=b"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ q: "hello", tag: ["a", "b"] });
 	});
@@ -645,7 +645,7 @@ describe("handleServerFnRequest - GET no params", () => {
 	it("GET with no search params → input undefined, handler receives undefined", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.data).toBeNull();
@@ -711,7 +711,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ ok: true });
 		expect(body.queries).toEqual([{ data: [{ id: 1, title: "Buy milk" }], key: ["todos"] }]);
@@ -719,7 +719,7 @@ describe("handleServerFnRequest - piggyback", () => {
 
 	it("handler without piggyback → response has no queries field", async () => {
 		const fns = makeFns(["id1", { fn: async () => "ok", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body).toEqual({ data: "ok" });
 		expect(body.queries).toBeUndefined();
@@ -738,7 +738,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries).toHaveLength(3);
 		expect(body.queries[0].key).toEqual(["todos"]);
@@ -757,7 +757,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries).toEqual([{ data: null, key: ["cleared"] }]);
 	});
@@ -773,7 +773,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].data).toEqual([]);
 	});
@@ -790,7 +790,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].data).toEqual(nested);
 	});
@@ -806,7 +806,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].key).toEqual(["users", { filter: "active", page: 2 }]);
 	});
@@ -823,7 +823,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries).toHaveLength(2);
 		expect(body.queries[0].data).toEqual([1]);
@@ -841,7 +841,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(500);
 		const body = await res.json();
 		expect(body.queries).toBeUndefined();
@@ -860,7 +860,7 @@ describe("handleServerFnRequest - piggyback", () => {
 			},
 		]);
 		const authFn = async () => ({ id: "user1" });
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, authFn);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, authFn);
 		const body = await res.json();
 		expect(body.queries[0].data).toEqual({ user: { id: "user1" } });
 	});
@@ -877,7 +877,7 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { x: 42 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 42 }), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].data).toEqual({ x: 42 });
 	});
@@ -895,11 +895,11 @@ describe("handleServerFnRequest - piggyback", () => {
 				name: "test",
 			},
 		]);
-		const res1 = await handleServerFnRequest(postReq("/_fn/id1/test", "first"), {}, fns);
+		const res1 = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", "first"), {}, fns);
 		const body1 = await res1.json();
 		expect(body1.queries).toHaveLength(1);
 
-		const res2 = await handleServerFnRequest(postReq("/_fn/id1/test", "second"), {}, fns);
+		const res2 = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", "second"), {}, fns);
 		const body2 = await res2.json();
 		expect(body2.queries).toBeUndefined();
 	});
@@ -1212,7 +1212,7 @@ describe("integration: full pipeline", () => {
 		const fns = new Map<string, typeof todoFn._registration>();
 		fns.set(todoFn._registration?.id ?? "", todoFn._registration ?? ({} as never));
 
-		const req = postReq("/_fn/todo-update/updateTodo", { id: 1, title: "Updated" });
+		const req = postReq("/_flare/server-fn/todo-update/updateTodo", { id: 1, title: "Updated" });
 		const res = await handleServerFnRequest(req, {}, fns as never);
 
 		expect(res.status).toBe(200);
@@ -1262,7 +1262,7 @@ describe("integration: full pipeline", () => {
 		fns.set("profile-update", fn._registration ?? ({} as never));
 
 		const authFn = async () => ({ id: "user-123", role: "admin" });
-		const req = postReq("/_fn/profile-update/updateProfile", { name: "Alice" });
+		const req = postReq("/_flare/server-fn/profile-update/updateProfile", { name: "Alice" });
 		const res = await handleServerFnRequest(req, {}, fns as never, authFn);
 
 		expect(res.status).toBe(200);
@@ -1283,7 +1283,7 @@ describe("integration: full pipeline", () => {
 		const fns = new Map<string, typeof fn._registration>();
 		fns.set("secret", fn._registration ?? ({} as never));
 
-		const res = await handleServerFnRequest(postReq("/_fn/secret/secret"), {}, fns as never);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/secret/secret"), {}, fns as never);
 		expect(res.status).toBe(401);
 		const body = await res.json();
 		expect(body.queries).toBeUndefined();
@@ -1302,7 +1302,7 @@ describe("integration: full pipeline", () => {
 		const fns = new Map<string, typeof fn._registration>();
 		fns.set("validated", fn._registration ?? ({} as never));
 
-		const req = postReq("/_fn/validated/validated", { x: 1 });
+		const req = postReq("/_flare/server-fn/validated/validated", { x: 1 });
 		const res = await handleServerFnRequest(req, {}, fns as never);
 		expect(res.status).toBe(400);
 		const body = await res.json();
@@ -1485,7 +1485,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].data).toBe(0);
 	});
@@ -1501,7 +1501,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].data).toBe(false);
 	});
@@ -1517,7 +1517,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].data).toBe("");
 	});
@@ -1535,7 +1535,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries).toHaveLength(50);
 		expect(body.queries[0].key).toEqual(["key-0"]);
@@ -1554,7 +1554,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries).toEqual([{ data: "after-await", key: ["delayed"] }]);
 	});
@@ -1570,7 +1570,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].key).toEqual(["simple"]);
 	});
@@ -1586,7 +1586,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.queries[0].key).toEqual([1, 2, 3]);
 	});
@@ -1605,7 +1605,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 		const body = await res.json();
 		expect(body.queries).toBeUndefined();
@@ -1623,7 +1623,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(401);
 		const body = await res.json();
 		expect(body.queries).toBeUndefined();
@@ -1640,7 +1640,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 		const body = await res.json();
 		expect(body.queries).toBeUndefined();
@@ -1657,7 +1657,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(400);
 		const body = await res.json();
 		expect(body.queries).toBeUndefined();
@@ -1675,7 +1675,7 @@ describe("handleServerFnRequest — piggyback deep edge cases", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test?q=hello"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?q=hello"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual([1, 2, 3]);
 		expect(body.queries[0].data).toEqual({ q: "hello" });
@@ -1735,7 +1735,7 @@ describe("handleServerFnRequest — handler context shape", () => {
 				name: "test",
 			},
 		]);
-		await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(hasPiggyback).toBe(true);
 	});
 
@@ -1752,7 +1752,7 @@ describe("handleServerFnRequest — handler context shape", () => {
 			},
 		]);
 		const env = { DB: "d1-binding", KV: "kv-binding" };
-		await handleServerFnRequest(postReq("/_fn/id1/test"), env, fns);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), env, fns);
 		expect(capturedEnv).toEqual({ DB: "d1-binding", KV: "kv-binding" });
 	});
 
@@ -1770,9 +1770,9 @@ describe("handleServerFnRequest — handler context shape", () => {
 				name: "test",
 			},
 		]);
-		await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(isRequest).toBe(true);
-		expect(capturedUrl).toBe("http://localhost/_fn/id1/test");
+		expect(capturedUrl).toBe("http://localhost/_flare/server-fn/id1/test");
 	});
 
 	it("authenticated handler receives auth value from authenticateFn", async () => {
@@ -1789,7 +1789,7 @@ describe("handleServerFnRequest — handler context shape", () => {
 			},
 		]);
 		const authFn = async () => ({ id: "u1", permissions: ["read", "write"] });
-		await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, authFn);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, authFn);
 		expect(capturedAuth).toEqual({ id: "u1", permissions: ["read", "write"] });
 	});
 
@@ -1805,7 +1805,7 @@ describe("handleServerFnRequest — handler context shape", () => {
 				name: "test",
 			},
 		]);
-		await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(capturedAuth).toBeNull();
 	});
 });
@@ -1828,7 +1828,7 @@ describe("e2e: handleServerFnRequest → response → query cache hydration", ()
 				name: "updateTodo",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/updateTodo"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/updateTodo"), {}, fns);
 		const body = await res.json();
 
 		/* simulate what client-side mutation unwrapping does */
@@ -1883,7 +1883,7 @@ describe("e2e: handleServerFnRequest → response → query cache hydration", ()
 				name: "createTodo",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/createTodo"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/createTodo"), {}, fns);
 		const body = await res.json();
 
 		/* 5. Apply piggybacked data */
@@ -1919,7 +1919,7 @@ describe("e2e: handleServerFnRequest → response → query cache hydration", ()
 					name: "increment",
 				},
 			]);
-			const res = await handleServerFnRequest(postReq("/_fn/id1/increment"), {}, fns);
+			const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/increment"), {}, fns);
 			const body = await res.json();
 			if (body.queries) {
 				for (const q of body.queries) {
@@ -1938,7 +1938,7 @@ describe("e2e: handleServerFnRequest → response → query cache hydration", ()
 		qc.setQueryData(["existing"], "original");
 
 		const fns = makeFns(["id1", { fn: async () => "ok", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 
 		/* no queries to apply */
@@ -2055,7 +2055,7 @@ describe("handleServerFnRequest — RedirectResponse re-throw", () => {
 				name: "test",
 			},
 		]);
-		await expect(handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns)).rejects.toThrow("Redirect");
+		await expect(handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns)).rejects.toThrow("Redirect");
 	});
 
 	it("handler throws external RedirectResponse → re-thrown", async () => {
@@ -2070,7 +2070,7 @@ describe("handleServerFnRequest — RedirectResponse re-throw", () => {
 			},
 		]);
 		try {
-			await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+			await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 			expect.unreachable("should have thrown");
 		} catch (e) {
 			expect(e).toBeInstanceOf(RedirectResponse);
@@ -2091,7 +2091,7 @@ describe("handleServerFnRequest — RedirectResponse re-throw", () => {
 				name: "test",
 			},
 		]);
-		await expect(handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns)).rejects.toThrow("Redirect");
+		await expect(handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns)).rejects.toThrow("Redirect");
 	});
 });
 
@@ -2100,28 +2100,28 @@ describe("handleServerFnRequest — RedirectResponse re-throw", () => {
 describe("handleServerFnRequest — URL edge cases", () => {
 	it("extra path segments after name → still matches (segments[1] and [2] used)", async () => {
 		const fns = makeFns(["id1", { fn: async () => "ok", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test/extra/segments"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test/extra/segments"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
 	it("URL-encoded id segment", async () => {
 		const fns = makeFns(["my%20id", { fn: async () => "ok", name: "test" }]);
 		/* browser encodes spaces as %20, URL.pathname preserves encoding */
-		const res = await handleServerFnRequest(postReq("/_fn/my%20id/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/my%20id/test"), {}, fns);
 		/* depends on whether fns map uses encoded or decoded key */
 		expect([200, 404]).toContain(res.status);
 	});
 
 	it("segments with dots and hyphens", async () => {
 		const fns = makeFns(["mod.v2-hash", { fn: async () => "ok", name: "get-data" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/mod.v2-hash/get-data"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/mod.v2-hash/get-data"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
 	it("query string does not interfere with POST path parsing", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test?ignored=true", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test?ignored=true", { x: 1 }), {}, fns);
 		const body = await res.json();
 		/* POST reads body, not query string */
 		expect(body.data).toEqual({ x: 1 });
@@ -2140,7 +2140,7 @@ describe("handleServerFnRequest — validator transforms input", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", "  hello  "), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", "  hello  "), {}, fns);
 		const body = await res.json();
 		expect(body.data).toBe("HELLO");
 	});
@@ -2157,7 +2157,7 @@ describe("handleServerFnRequest — validator transforms input", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { count: "42" }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { count: "42" }), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ count: 42 });
 	});
@@ -2171,7 +2171,7 @@ describe("handleServerFnRequest — validator transforms input", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { page: 3 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { page: 3 }), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ limit: 10, page: 3 });
 	});
@@ -2191,7 +2191,7 @@ describe("handleServerFnRequest — validator transforms input", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", [3, -1, 2, 0, 5]), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", [3, -1, 2, 0, 5]), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual([2, 3, 5]);
 	});
@@ -2211,7 +2211,7 @@ describe("handleServerFnRequest — handler return types", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual([
 			[1, 2],
@@ -2223,7 +2223,7 @@ describe("handleServerFnRequest — handler return types", () => {
 		const bigObj: Record<string, number> = {};
 		for (let i = 0; i < 500; i++) bigObj[`key-${i}`] = i;
 		const fns = makeFns(["id1", { fn: async () => bigObj, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(Object.keys(body.data)).toHaveLength(500);
 		expect(body.data["key-0"]).toBe(0);
@@ -2232,35 +2232,35 @@ describe("handleServerFnRequest — handler return types", () => {
 
 	it("returns string with special chars", async () => {
 		const fns = makeFns(["id1", { fn: async () => 'hello "world" <script>alert(1)</script>', name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toBe('hello "world" <script>alert(1)</script>');
 	});
 
 	it("returns unicode string", async () => {
 		const fns = makeFns(["id1", { fn: async () => "Hello", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toBe("Hello");
 	});
 
 	it("returns number 0", async () => {
 		const fns = makeFns(["id1", { fn: async () => 0, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toBe(0);
 	});
 
 	it("returns false", async () => {
 		const fns = makeFns(["id1", { fn: async () => false, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toBe(false);
 	});
 
 	it("returns empty string", async () => {
 		const fns = makeFns(["id1", { fn: async () => "", name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		/* ?? only catches null/undefined, empty string passes through */
 		expect(body.data).toBe("");
@@ -2268,7 +2268,7 @@ describe("handleServerFnRequest — handler return types", () => {
 
 	it("returns empty array", async () => {
 		const fns = makeFns(["id1", { fn: async () => [], name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual([]);
 	});
@@ -2287,7 +2287,7 @@ describe("handleServerFnRequest — non-Error throws", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(500);
 	});
 
@@ -2301,7 +2301,7 @@ describe("handleServerFnRequest — non-Error throws", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(500);
 	});
 
@@ -2315,7 +2315,7 @@ describe("handleServerFnRequest — non-Error throws", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(500);
 	});
 
@@ -2329,7 +2329,7 @@ describe("handleServerFnRequest — non-Error throws", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		/* plain object doesn't pass `e instanceof Error`, so falls through to 500 */
 		expect(res.status).toBe(500);
 	});
@@ -2350,7 +2350,7 @@ describe("handleServerFnRequest — async authorization", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
@@ -2365,7 +2365,7 @@ describe("handleServerFnRequest — async authorization", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(500);
 	});
 
@@ -2385,7 +2385,7 @@ describe("handleServerFnRequest — async authorization", () => {
 			},
 		]);
 		const authFn = async () => ({ role: "admin" });
-		await handleServerFnRequest(postReq("/_fn/id1/test", { action: "delete" }), {}, fns, authFn);
+		await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { action: "delete" }), {}, fns, authFn);
 		expect(captured?.auth).toEqual({ role: "admin" });
 		expect(captured?.input).toEqual({ action: "delete" });
 	});
@@ -2400,9 +2400,9 @@ describe("handleServerFnRequest — multi-registration routing", () => {
 		fns.set("id-b", makeReg({ fn: async () => "result-b", id: "id-b", name: "fnB" }));
 		fns.set("id-c", makeReg({ fn: async () => "result-c", id: "id-c", name: "fnC" }));
 
-		const resA = await handleServerFnRequest(postReq("/_fn/id-a/fnA"), {}, fns);
-		const resB = await handleServerFnRequest(postReq("/_fn/id-b/fnB"), {}, fns);
-		const resC = await handleServerFnRequest(postReq("/_fn/id-c/fnC"), {}, fns);
+		const resA = await handleServerFnRequest(postReq("/_flare/server-fn/id-a/fnA"), {}, fns);
+		const resB = await handleServerFnRequest(postReq("/_flare/server-fn/id-b/fnB"), {}, fns);
+		const resC = await handleServerFnRequest(postReq("/_flare/server-fn/id-c/fnC"), {}, fns);
 
 		expect((await resA.json()).data).toBe("result-a");
 		expect((await resB.json()).data).toBe("result-b");
@@ -2414,8 +2414,8 @@ describe("handleServerFnRequest — multi-registration routing", () => {
 		fns.set("v1", makeReg({ fn: async () => "version-1", id: "v1", name: "getData" }));
 		fns.set("v2", makeReg({ fn: async () => "version-2", id: "v2", name: "getData" }));
 
-		const res1 = await handleServerFnRequest(postReq("/_fn/v1/getData"), {}, fns);
-		const res2 = await handleServerFnRequest(postReq("/_fn/v2/getData"), {}, fns);
+		const res1 = await handleServerFnRequest(postReq("/_flare/server-fn/v1/getData"), {}, fns);
+		const res2 = await handleServerFnRequest(postReq("/_flare/server-fn/v2/getData"), {}, fns);
 
 		expect((await res1.json()).data).toBe("version-1");
 		expect((await res2.json()).data).toBe("version-2");
@@ -2426,8 +2426,8 @@ describe("handleServerFnRequest — multi-registration routing", () => {
 		fns.set("get-id", makeReg({ fn: async () => "get-result", id: "get-id", method: "get", name: "data" }));
 		fns.set("post-id", makeReg({ fn: async () => "post-result", id: "post-id", method: "post", name: "data" }));
 
-		const getRes = await handleServerFnRequest(getReq("/_fn/get-id/data"), {}, fns);
-		const postRes = await handleServerFnRequest(postReq("/_fn/post-id/data"), {}, fns);
+		const getRes = await handleServerFnRequest(getReq("/_flare/server-fn/get-id/data"), {}, fns);
+		const postRes = await handleServerFnRequest(postReq("/_flare/server-fn/post-id/data"), {}, fns);
 
 		expect((await getRes.json()).data).toBe("get-result");
 		expect((await postRes.json()).data).toBe("post-result");
@@ -2453,7 +2453,7 @@ describe("serverFnQueryOptions — client-side fetch path", () => {
 		}
 	}
 
-	it("POST: queryFn fetches /_fn/{id}/{name} with JSON body", async () => {
+	it("POST: queryFn fetches /_flare/server-fn/{id}/{name} with JSON body", async () => {
 		let capturedUrl = "";
 		let capturedInit: RequestInit | undefined;
 		mockClientEnv(async (url, init) => {
@@ -2471,7 +2471,7 @@ describe("serverFnQueryOptions — client-side fetch path", () => {
 			const opts = serverFnQueryOptions(fn, { input: { id: 42 } });
 			const result = await opts.queryFn();
 
-			expect(capturedUrl).toBe("/_fn/abc/getTodo");
+			expect(capturedUrl).toBe("/_flare/server-fn/abc/getTodo");
 			expect(capturedInit?.method).toBe("POST");
 			expect(capturedInit?.body).toBe(JSON.stringify({ id: 42 }));
 			expect(result).toEqual({ id: 1, title: "Test" });
@@ -2496,7 +2496,7 @@ describe("serverFnQueryOptions — client-side fetch path", () => {
 			const opts = serverFnQueryOptions(fn, { input: { q: "hello" } });
 			const result = await opts.queryFn();
 
-			expect(capturedUrl).toBe("/_fn/search-id/search?q=hello");
+			expect(capturedUrl).toBe("/_flare/server-fn/search-id/search?q=hello");
 			expect(result).toEqual([1, 2]);
 		} finally {
 			restoreEnv();
@@ -2515,7 +2515,7 @@ describe("serverFnQueryOptions — client-side fetch path", () => {
 			const opts = serverFnQueryOptions(fn);
 			await opts.queryFn();
 
-			expect(capturedUrl).toBe("/_fn/all-id/getAll");
+			expect(capturedUrl).toBe("/_flare/server-fn/all-id/getAll");
 		} finally {
 			restoreEnv();
 		}
@@ -2668,7 +2668,7 @@ describe("serverFnMutationOptions — client-side fetch path", () => {
 		}
 	}
 
-	it("mutationFn fetches /_fn/{id}/{name} with POST", async () => {
+	it("mutationFn fetches /_flare/server-fn/{id}/{name} with POST", async () => {
 		let capturedUrl = "";
 		let capturedBody = "";
 		mockClientEnv(async (url, init) => {
@@ -2684,7 +2684,7 @@ describe("serverFnMutationOptions — client-side fetch path", () => {
 			const opts = serverFnMutationOptions(fn);
 			const result = await opts.mutationFn({ title: "New" });
 
-			expect(capturedUrl).toBe("/_fn/mut-id/update");
+			expect(capturedUrl).toBe("/_flare/server-fn/mut-id/update");
 			expect(capturedBody).toBe(JSON.stringify({ title: "New" }));
 			expect(result).toEqual({ id: 1 });
 		} finally {
@@ -2887,27 +2887,27 @@ describe("e2e: CRUD application flow", () => {
 		}
 
 		/* CREATE */
-		const r1 = await call(postReq("/_fn/create/createTodo", { title: "Buy milk" }));
+		const r1 = await call(postReq("/_flare/server-fn/create/createTodo", { title: "Buy milk" }));
 		expect(r1.data).toEqual({ done: false, id: 1, title: "Buy milk" });
 		expect(qc.getQueryData(["todos"])).toEqual([{ done: false, id: 1, title: "Buy milk" }]);
 
 		/* CREATE another */
-		await call(postReq("/_fn/create/createTodo", { title: "Walk dog" }));
+		await call(postReq("/_flare/server-fn/create/createTodo", { title: "Walk dog" }));
 		expect(qc.getQueryData(["todos"])).toHaveLength(2);
 
 		/* READ */
-		const r3 = await call(getReq("/_fn/list/getTodos"));
+		const r3 = await call(getReq("/_flare/server-fn/list/getTodos"));
 		expect(r3.data).toHaveLength(2);
 
 		/* UPDATE */
-		const r4 = await call(postReq("/_fn/update/updateTodo", { done: true, id: 1 }));
+		const r4 = await call(postReq("/_flare/server-fn/update/updateTodo", { done: true, id: 1 }));
 		expect((r4.data as Record<string, unknown>).done).toBe(true);
 		expect(qc.getQueryData(["todo", 1])).toEqual({ done: true, id: 1, title: "Buy milk" });
 		const todos = qc.getQueryData(["todos"]) as Array<{ done: boolean }>;
 		expect(todos[0]?.done).toBe(true);
 
 		/* DELETE */
-		await call(postReq("/_fn/delete/deleteTodo", { id: 1 }));
+		await call(postReq("/_flare/server-fn/delete/deleteTodo", { id: 1 }));
 		expect(qc.getQueryData(["todos"])).toHaveLength(1);
 		expect((qc.getQueryData(["todos"]) as Array<{ title: string }>)[0]?.title).toBe("Walk dog");
 	});
@@ -2930,14 +2930,18 @@ describe("e2e: CRUD application flow", () => {
 		fns.set("auth-create", createItem._registration ?? ({} as never));
 
 		/* unauthenticated attempt */
-		const res1 = await handleServerFnRequest(postReq("/_fn/auth-create/createItem", { name: "Secret" }), {}, fns);
+		const res1 = await handleServerFnRequest(
+			postReq("/_flare/server-fn/auth-create/createItem", { name: "Secret" }),
+			{},
+			fns,
+		);
 		expect(res1.status).toBe(401);
 		expect(qc.getQueryData(["items"])).toBeUndefined();
 
 		/* authenticated attempt */
 		const authFn = async () => ({ id: "user-42" });
 		const res2 = await handleServerFnRequest(
-			postReq("/_fn/auth-create/createItem", { name: "Secret" }),
+			postReq("/_flare/server-fn/auth-create/createItem", { name: "Secret" }),
 			{},
 			fns,
 			authFn,
@@ -2967,13 +2971,21 @@ describe("e2e: CRUD application flow", () => {
 		fns.set("validated", fn._registration ?? ({} as never));
 
 		/* invalid submission */
-		const res1 = await handleServerFnRequest(postReq("/_fn/validated/submitForm", { email: "bad" }), {}, fns);
+		const res1 = await handleServerFnRequest(
+			postReq("/_flare/server-fn/validated/submitForm", { email: "bad" }),
+			{},
+			fns,
+		);
 		expect(res1.status).toBe(400);
 		const body1 = await res1.json();
 		expect(body1.queries).toBeUndefined();
 
 		/* valid submission */
-		const res2 = await handleServerFnRequest(postReq("/_fn/validated/submitForm", { email: "user@test.com" }), {}, fns);
+		const res2 = await handleServerFnRequest(
+			postReq("/_flare/server-fn/validated/submitForm", { email: "user@test.com" }),
+			{},
+			fns,
+		);
 		expect(res2.status).toBe(200);
 		const body2 = await res2.json();
 		expect(body2.queries[0].data).toEqual({ email: "user@test.com" });
@@ -2999,8 +3011,8 @@ describe("e2e: CRUD application flow", () => {
 
 		/* fire both concurrently */
 		const [res1, res2] = await Promise.all([
-			handleServerFnRequest(postReq("/_fn/fn1/fn1"), {}, fns),
-			handleServerFnRequest(postReq("/_fn/fn2/fn2"), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/fn1/fn1"), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/fn2/fn2"), {}, fns),
 		]);
 
 		const body1 = await res1.json();
@@ -3058,7 +3070,11 @@ describe("e2e: CRUD application flow", () => {
 		const fns = new Map<string, ServerFnRegistration>();
 		fns.set("add", addTodo._registration ?? ({} as never));
 
-		const res = await handleServerFnRequest(postReq("/_fn/add/addTodo", { title: "From client" }), {}, fns);
+		const res = await handleServerFnRequest(
+			postReq("/_flare/server-fn/add/addTodo", { title: "From client" }),
+			{},
+			fns,
+		);
 		const body = await res.json();
 
 		/* apply piggyback to client cache */
@@ -3122,7 +3138,7 @@ describe("e2e: CRUD application flow", () => {
 				}),
 			);
 
-			const res = await handleServerFnRequest(postReq("/_fn/add-item/addItem", item), {}, mutFns);
+			const res = await handleServerFnRequest(postReq("/_flare/server-fn/add-item/addItem", item), {}, mutFns);
 			const body = await res.json();
 			for (const q of body.queries) {
 				qc.setQueryData(q.key, q.data);
@@ -3148,12 +3164,12 @@ describe("e2e: CRUD application flow", () => {
 
 		/* viewer → 403 */
 		const viewerAuth = async () => ({ id: "u1", role: "viewer" });
-		const res1 = await handleServerFnRequest(postReq("/_fn/del/delete"), {}, fns, viewerAuth);
+		const res1 = await handleServerFnRequest(postReq("/_flare/server-fn/del/delete"), {}, fns, viewerAuth);
 		expect(res1.status).toBe(403);
 
 		/* admin → 200 + piggyback */
 		const adminAuth = async () => ({ id: "u2", role: "admin" });
-		const res2 = await handleServerFnRequest(postReq("/_fn/del/delete"), {}, fns, adminAuth);
+		const res2 = await handleServerFnRequest(postReq("/_flare/server-fn/del/delete"), {}, fns, adminAuth);
 		expect(res2.status).toBe(200);
 		const body = await res2.json();
 		expect(body.queries).toEqual([{ data: [], key: ["items"] }]);
@@ -3198,7 +3214,7 @@ describe("e2e: pagination with piggyback cache", () => {
 		fns.set("get-page", getPage._registration ?? ({} as never));
 
 		for (const page of [2, 3, 4]) {
-			const res = await handleServerFnRequest(getReq(`/_fn/get-page/getPage?page=${page}`), {}, fns);
+			const res = await handleServerFnRequest(getReq(`/_flare/server-fn/get-page/getPage?page=${page}`), {}, fns);
 			expect(res.status).toBe(200);
 			const body = await res.json();
 			clientQC.setQueryData(["items", { page }], body.data);
@@ -3238,13 +3254,21 @@ describe("e2e: error recovery flow", () => {
 		fns.set("update", updateFn._registration ?? ({} as never));
 
 		/* first attempt: fails */
-		const res1 = await handleServerFnRequest(postReq("/_fn/update/update", { id: 1, title: "Updated" }), {}, fns);
+		const res1 = await handleServerFnRequest(
+			postReq("/_flare/server-fn/update/update", { id: 1, title: "Updated" }),
+			{},
+			fns,
+		);
 		expect(res1.status).toBe(500);
 		/* cache unchanged */
 		expect(clientQC.getQueryData(["todos"])).toEqual([{ id: 1, title: "Original" }]);
 
 		/* retry: succeeds */
-		const res2 = await handleServerFnRequest(postReq("/_fn/update/update", { id: 1, title: "Updated" }), {}, fns);
+		const res2 = await handleServerFnRequest(
+			postReq("/_flare/server-fn/update/update", { id: 1, title: "Updated" }),
+			{},
+			fns,
+		);
 		expect(res2.status).toBe(200);
 		const body2 = await res2.json();
 		for (const q of body2.queries) {
@@ -3276,16 +3300,24 @@ describe("e2e: error recovery flow", () => {
 		fns.set("submit", submitFn._registration ?? ({} as never));
 
 		/* attempt 1: name too short */
-		const r1 = await handleServerFnRequest(postReq("/_fn/submit/submit", { email: "a@b.com", name: "A" }), {}, fns);
+		const r1 = await handleServerFnRequest(
+			postReq("/_flare/server-fn/submit/submit", { email: "a@b.com", name: "A" }),
+			{},
+			fns,
+		);
 		expect(r1.status).toBe(400);
 
 		/* attempt 2: invalid email */
-		const r2 = await handleServerFnRequest(postReq("/_fn/submit/submit", { email: "bad", name: "Alice" }), {}, fns);
+		const r2 = await handleServerFnRequest(
+			postReq("/_flare/server-fn/submit/submit", { email: "bad", name: "Alice" }),
+			{},
+			fns,
+		);
 		expect(r2.status).toBe(400);
 
 		/* attempt 3: valid */
 		const r3 = await handleServerFnRequest(
-			postReq("/_fn/submit/submit", { email: "alice@test.com", name: "Alice" }),
+			postReq("/_flare/server-fn/submit/submit", { email: "alice@test.com", name: "Alice" }),
 			{},
 			fns,
 		);
@@ -3325,7 +3357,7 @@ describe("e2e: batch operations with many piggyback entries", () => {
 		fns.set("batch", batchUpdate._registration ?? ({} as never));
 
 		const ids = Array.from({ length: 20 }, (_, i) => i + 1);
-		const res = await handleServerFnRequest(postReq("/_fn/batch/batchUpdate", { ids }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/batch/batchUpdate", { ids }), {}, fns);
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.queries).toHaveLength(22); /* 20 items + list + count */
@@ -3363,8 +3395,8 @@ describe("e2e: concurrent mutations to same resource", () => {
 
 		/* fire two mutations concurrently: slow (10) and fast (100) */
 		const [resSlow, resFast] = await Promise.all([
-			handleServerFnRequest(postReq("/_fn/inc/increment", { amount: 10, delay: 20 }), {}, fns),
-			handleServerFnRequest(postReq("/_fn/inc/increment", { amount: 100, delay: 1 }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/inc/increment", { amount: 10, delay: 20 }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/inc/increment", { amount: 100, delay: 1 }), {}, fns),
 		]);
 
 		/* fast finishes first, apply it */
@@ -3394,9 +3426,9 @@ describe("e2e: concurrent mutations to same resource", () => {
 		fns.set("upd", updateItem._registration ?? ({} as never));
 
 		const results = await Promise.all([
-			handleServerFnRequest(postReq("/_fn/upd/updateItem", { id: 1, value: "alpha" }), {}, fns),
-			handleServerFnRequest(postReq("/_fn/upd/updateItem", { id: 2, value: "beta" }), {}, fns),
-			handleServerFnRequest(postReq("/_fn/upd/updateItem", { id: 3, value: "gamma" }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/upd/updateItem", { id: 1, value: "alpha" }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/upd/updateItem", { id: 2, value: "beta" }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/upd/updateItem", { id: 3, value: "gamma" }), {}, fns),
 		]);
 
 		for (const res of results) {
@@ -3476,18 +3508,18 @@ describe("e2e: mixed GET/POST pipeline", () => {
 		}
 
 		/* step 1: GET users */
-		const r1 = await call(getReq("/_fn/get-users/getUsers"));
+		const r1 = await call(getReq("/_flare/server-fn/get-users/getUsers"));
 		clientQC.setQueryData(["users"], r1.data);
 		expect(clientQC.getQueryData(["users"])).toHaveLength(2);
 
 		/* step 2: promote Alice */
-		await call(postReq("/_fn/promote/promoteUser", { id: 1 }), adminAuth);
+		await call(postReq("/_flare/server-fn/promote/promoteUser", { id: 1 }), adminAuth);
 		const users = clientQC.getQueryData(["users"]) as Array<{ role: string }>;
 		expect(users[0]?.role).toBe("admin");
 		expect(clientQC.getQueryData(["user", 1])).toEqual({ id: 1, name: "Alice", role: "admin" });
 
 		/* step 3: add new user (admin only) */
-		await call(postReq("/_fn/add-user/addUser", { name: "Charlie" }), adminAuth);
+		await call(postReq("/_flare/server-fn/add-user/addUser", { name: "Charlie" }), adminAuth);
 		expect(clientQC.getQueryData(["users"])).toHaveLength(3);
 		expect(clientQC.getQueryData(["user", 3])).toEqual({ id: 3, name: "Charlie", role: "user" });
 		expect(clientQC.getQueryData(["user-count"])).toBe(3);
@@ -3495,7 +3527,7 @@ describe("e2e: mixed GET/POST pipeline", () => {
 		/* step 4: non-admin tries to add user → 403 */
 		const viewerAuth = async () => ({ id: "viewer-1", role: "viewer" });
 		const forbidden = await handleServerFnRequest(
-			postReq("/_fn/add-user/addUser", { name: "Dave" }),
+			postReq("/_flare/server-fn/add-user/addUser", { name: "Dave" }),
 			{},
 			fns,
 			viewerAuth,
@@ -3532,7 +3564,7 @@ describe("e2e: multi-tenant data isolation", () => {
 
 		/* user 1 request */
 		const qc1 = new QueryClient();
-		const res1 = await handleServerFnRequest(postReq("/_fn/todos/getTodos"), {}, fns, async () => ({
+		const res1 = await handleServerFnRequest(postReq("/_flare/server-fn/todos/getTodos"), {}, fns, async () => ({
 			id: "user-1",
 		}));
 		const body1 = await res1.json();
@@ -3540,7 +3572,7 @@ describe("e2e: multi-tenant data isolation", () => {
 
 		/* user 2 request */
 		const qc2 = new QueryClient();
-		const res2 = await handleServerFnRequest(postReq("/_fn/todos/getTodos"), {}, fns, async () => ({
+		const res2 = await handleServerFnRequest(postReq("/_flare/server-fn/todos/getTodos"), {}, fns, async () => ({
 			id: "user-2",
 		}));
 		const body2 = await res2.json();
@@ -3643,9 +3675,14 @@ describe("e2e: dashboard with multiple data sources", () => {
 		const fns = new Map<string, ServerFnRegistration>();
 		fns.set("mark-read", markRead._registration ?? ({} as never));
 
-		const res = await handleServerFnRequest(postReq("/_fn/mark-read/markRead", { id: 1 }), {}, fns, async () => ({
-			id: "alice",
-		}));
+		const res = await handleServerFnRequest(
+			postReq("/_flare/server-fn/mark-read/markRead", { id: 1 }),
+			{},
+			fns,
+			async () => ({
+				id: "alice",
+			}),
+		);
 		const body = await res.json();
 		for (const q of body.queries) clientQC.setQueryData(q.key, q.data);
 
@@ -4015,7 +4052,7 @@ function makeStreamFns(
 describe("handleServerFnRequest - streaming", () => {
 	it("stream fn returns text/x-ndjson content-type", async () => {
 		const fns = makeStreamFns(["id1", { name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.headers.get("content-type")).toBe("text/x-ndjson");
 	});
 
@@ -4030,7 +4067,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages).toContainEqual({ c: "hello" });
 		expect(messages).toContainEqual({ c: "world" });
@@ -4046,14 +4083,14 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages[messages.length - 1]).toEqual({ d: true });
 	});
 
 	it("auth failure → normal JSON 401 (not streamed)", async () => {
 		const fns = makeStreamFns(["id1", { authenticate: true, name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(401);
 		expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
 	});
@@ -4070,7 +4107,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), {}, fns);
 		expect(res.status).toBe(400);
 		expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
 	});
@@ -4083,7 +4120,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 		expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
 	});
@@ -4099,7 +4136,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages[0]).toEqual({ c: "ok" });
 		expect(messages).toContainEqual({ e: { message: "stream broke" } });
@@ -4115,7 +4152,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages).toEqual([{ d: true }]);
 	});
@@ -4134,7 +4171,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		const chunks = messages.filter((m): m is { c: number } => "c" in (m as Record<string, unknown>));
 		expect(chunks.map((c) => c.c)).toEqual([1, 2, 3, 4, 5]);
@@ -4152,7 +4189,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		await collectNDJSON(res);
 		expect(hasSignal).toBe(true);
 	});
@@ -4167,7 +4204,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages[0]).toEqual({ c: null });
 	});
@@ -4182,7 +4219,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages).toContainEqual({ e: { message: "instant fail" } });
 	});
@@ -4197,7 +4234,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages).toContainEqual({ e: { message: "Stream error" } });
 	});
@@ -4216,7 +4253,7 @@ describe("handleServerFnRequest - streaming", () => {
 			},
 		]);
 		const authFn = () => ({ role: "admin", userId: "u1" });
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns, authFn);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns, authFn);
 		await collectNDJSON(res);
 		expect(capturedAuth).toEqual({ role: "admin", userId: "u1" });
 	});
@@ -4234,7 +4271,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { prompt: "hello" }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { prompt: "hello" }), {}, fns);
 		await collectNDJSON(res);
 		expect(capturedInput).toEqual({ prompt: "hello" });
 	});
@@ -4252,7 +4289,7 @@ describe("handleServerFnRequest - streaming", () => {
 			},
 		]);
 		const env = { API_KEY: "secret" };
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), env, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), env, fns);
 		await collectNDJSON(res);
 		expect(capturedEnv).toEqual({ API_KEY: "secret" });
 	});
@@ -4269,9 +4306,9 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		await collectNDJSON(res);
-		expect(capturedUrl).toBe("http://localhost/_fn/id1/test");
+		expect(capturedUrl).toBe("http://localhost/_flare/server-fn/id1/test");
 	});
 
 	it("GET method stream: query params parsed as input", async () => {
@@ -4287,7 +4324,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_fn/id1/test?prompt=hello&n=5"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?prompt=hello&n=5"), {}, fns);
 		expect(res.headers.get("content-type")).toBe("text/x-ndjson");
 		const messages = await collectNDJSON(res);
 		expect(messages).toContainEqual({ c: "ok" });
@@ -4308,7 +4345,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		const chunks = messages.filter((m): m is { c: unknown } => "c" in (m as Record<string, unknown>));
 		expect(chunks[0]?.c).toEqual({ items: [1, 2], nested: { deep: true } });
@@ -4332,7 +4369,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		const chunks = messages.filter((m): m is { c: string } => "c" in (m as Record<string, unknown>));
 		expect(chunks.map((c) => c.c)).toEqual(["start", "middle", "end"]);
@@ -4351,7 +4388,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		const messages = await collectNDJSON(res);
 		const chunks = messages.filter((m): m is { c: string } => "c" in (m as Record<string, unknown>));
 		expect(chunks.map((c) => c.c)).toEqual(["a", "b", "c"]);
@@ -4362,7 +4399,7 @@ describe("handleServerFnRequest - streaming", () => {
 
 	it("stream response status is 200", async () => {
 		const fns = makeStreamFns(["id1", { name: "test" }]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(200);
 	});
 
@@ -4379,7 +4416,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		expect(res.status).toBe(403);
 		expect(generatorCalled).toBe(false);
 	});
@@ -4401,7 +4438,7 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test", { x: 1 }), {}, fns);
 		expect(res.status).toBe(400);
 		expect(generatorCalled).toBe(false);
 	});
@@ -4428,7 +4465,7 @@ describe("ctx.revalidate", () => {
 				request: new Request("http://localhost"),
 				store: makeFlareStore(),
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		expect(hasRevalidate).toBe(true);
 	});
@@ -4451,7 +4488,7 @@ describe("ctx.revalidate", () => {
 				request: new Request("http://localhost"),
 				store: store,
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		expect(store.deleteByTags).toHaveBeenCalledWith(["products"], undefined);
 	});
@@ -4474,7 +4511,7 @@ describe("ctx.revalidate", () => {
 				request: new Request("http://localhost"),
 				store: store,
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		expect(store.delete).toHaveBeenCalledWith("key1");
 		expect(store.delete).toHaveBeenCalledWith("key2");
@@ -4496,7 +4533,7 @@ describe("ctx.revalidate", () => {
 				nonce: "x",
 				request: new Request("http://localhost"),
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		expect(res.status).toBe(500);
 	});
@@ -4523,7 +4560,7 @@ describe("revalidatedTags in response", () => {
 				request: new Request("http://localhost"),
 				store: store,
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.revalidatedTags).toEqual(["products", "users"]);
@@ -4536,7 +4573,7 @@ describe("revalidatedTags in response", () => {
 				nonce: "x",
 				request: new Request("http://localhost"),
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.revalidatedTags).toBeUndefined();
@@ -4561,7 +4598,7 @@ describe("revalidatedTags in response", () => {
 				request: new Request("http://localhost"),
 				store: store,
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.revalidatedTags).toEqual(["products", "users"]);
@@ -4585,7 +4622,7 @@ describe("revalidatedTags in response", () => {
 				request: new Request("http://localhost"),
 				store: store,
 			},
-			() => handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns),
+			() => handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns),
 		);
 		const body = (await res.json()) as Record<string, unknown>;
 		expect(body.revalidatedTags).toBeUndefined();

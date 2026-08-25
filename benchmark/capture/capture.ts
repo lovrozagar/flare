@@ -257,7 +257,7 @@ async function measureFrameworkTtfb(fw: { name: string; port: number }): Promise
 	/* SPA nav TTFB */
 	let spaMs = 0;
 	if (fw.name === "Flare") {
-		spaMs = await measureTtfb(pageUrl, { accept: "application/x-ndjson", "x-d": "1" });
+		spaMs = await measureTtfb(pageUrl, { accept: "application/x-ndjson", "flare-data": "1" });
 	} else if (fw.name === "Next.js") {
 		spaMs = await measureTtfb(pageUrl, {
 			"next-router-state-tree": encodeURIComponent(
@@ -354,9 +354,9 @@ async function captureSpaHttp(fw: { name: string; port: number }): Promise<Captu
 	const url = `${baseUrl}${POST_PATH}`;
 
 	if (fw.name === "Flare") {
-		/* Flare: x-d header triggers NDJSON response */
+		/* Flare: flare-data header triggers NDJSON response */
 		const res = await fetch(url, {
-			headers: { accept: "application/x-ndjson", "x-d": "1" },
+			headers: { accept: "application/x-ndjson", "flare-data": "1" },
 		});
 		const body = await res.text();
 		const headers: Record<string, string> = {};
@@ -484,7 +484,7 @@ async function captureInitialJs(
 
 	await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
 	if (fwName === "Flare") {
-		await page.waitForSelector("[data-hydrated]", { timeout: 10000 }).catch(() => {});
+		await page.waitForSelector("[data-flare-hydrated]", { timeout: 10000 }).catch(() => {});
 	}
 	await page.waitForTimeout(2000);
 
@@ -602,7 +602,7 @@ async function captureFramework(
 
 		await jsPage.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
 		if (fw.name === "Flare") {
-			await jsPage.waitForSelector("[data-hydrated]", { timeout: 10000 }).catch(() => {});
+			await jsPage.waitForSelector("[data-flare-hydrated]", { timeout: 10000 }).catch(() => {});
 		}
 		await jsPage.waitForTimeout(1000);
 
@@ -639,7 +639,7 @@ async function captureFramework(
 	await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
 
 	if (fw.name === "Flare") {
-		await page.waitForSelector("[data-hydrated]", { timeout: 10000 }).catch(() => {});
+		await page.waitForSelector("[data-flare-hydrated]", { timeout: 10000 }).catch(() => {});
 	}
 	await page.waitForTimeout(2000);
 

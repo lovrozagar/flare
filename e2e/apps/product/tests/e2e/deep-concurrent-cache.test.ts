@@ -187,7 +187,7 @@ test.describe("Deep: cache freshness on revisit", () => {
 
 		let aboutNdjsonCount = 0;
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1" && req.url().includes("/about")) {
+			if (req.headers()["flare-data"] === "1" && req.url().includes("/about")) {
 				aboutNdjsonCount++;
 			}
 		});

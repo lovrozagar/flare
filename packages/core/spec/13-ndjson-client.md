@@ -49,15 +49,15 @@ Fetches NDJSON data from server for CSR navigation or prefetch.
 
 ```ts
 const headers: Record<string, string> = {
-	"x-d": "1",
+	"flare-data": "1",
 };
 
 if (options.matchIds) {
-	headers["x-m"] = options.matchIds.join(",");
+	headers["flare-stale"] = options.matchIds.join(",");
 }
 
 if (options.prefetch) {
-	headers["x-p"] = "1";
+	headers["flare-prefetch"] = "1";
 }
 ```
 
@@ -163,9 +163,9 @@ When `t: "x"` received:
 
 ```
 Request building:
-  Basic nav → headers: { "x-d": "1" }
-  With matchIds → "x-m": "a,b,c"
-  With prefetch → "x-p": "1"
+  Basic nav → headers: { "flare-data": "1" }
+  With matchIds → "flare-stale": "a,b,c"
+  With prefetch → "flare-prefetch": "1"
   With signal → passed to fetch
 
 Loader messages:

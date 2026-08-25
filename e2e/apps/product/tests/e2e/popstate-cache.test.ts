@@ -5,10 +5,10 @@ test("back/forward uses cache — zero NDJSON requests", async ({ page }) => {
 	const cap = setupConsoleCapture(page);
 	await loadPage(page, "/");
 
-	/* Track NDJSON requests via x-d header */
+	/* Track NDJSON requests via flare-data header */
 	const ndjsonRequests: string[] = [];
 	await page.route("**/*", (route) => {
-		if (route.request().headers()["x-d"] === "1") {
+		if (route.request().headers()["flare-data"] === "1") {
 			ndjsonRequests.push(route.request().url());
 		}
 		return route.continue();

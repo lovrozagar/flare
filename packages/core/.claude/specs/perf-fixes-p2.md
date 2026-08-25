@@ -14,7 +14,7 @@ Fix 3 hot-path performance issues found in P2 audit.
 ### Task 1: i18n per-request Set + array allocation
 
 - **File**: `src/middleware-builtins/index.ts` lines 111-112
-- **Problem**: `new Set(locales.map(l => l.toLowerCase()))` and `["/_fn/", ...skip]` allocated on every request despite stable config
+- **Problem**: `new Set(locales.map(l => l.toLowerCase()))` and `["/_flare/server-fn/", ...skip]` allocated on every request despite stable config
 - **Fix**: Cache in closure variables, rebuild only when locales reference changes
 - **Impact**: HIGH — every i18n-enabled request
 

@@ -48,7 +48,7 @@ Implementation:
 
 ```ts
 /* Global preload tracking */
-const GLOBAL_KEY = "__FLARE_LAZY_LOADED__"
+const GLOBAL_KEY = "__flare_lazy_loaded"
 
 function lazy<P>(options: LazyOptions<P>): Component<P> {
   const { loader, pending } = options
@@ -156,4 +156,4 @@ waitForLazyPreloads:
 - `waitForLazyPreloads` is a test helper. Production hydrate does not wait for lazy chunks; pending UI matches SSR until `onSettled` swaps in the loaded component.
 - Factory-level `createSignal` means state is per-factory-call, shared across all instances. This is correct — all instances of the same lazy component share the load state.
 - `isServer || sharedConfig.hydrating` is Solid 2's SSR/hydration detection (`sharedConfig.context` is gone)
-- Global tracking via `__FLARE_LAZY_LOADED__` survives Vite module identity issues (same global regardless of import path)
+- Global tracking via `__flare_lazy_loaded` survives Vite module identity issues (same global regardless of import path)

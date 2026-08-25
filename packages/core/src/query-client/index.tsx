@@ -5,9 +5,9 @@ import type { JSX } from "@solidjs/web";
 /**
  * Same tree on server and client. TanStack's provider also mounts a Solid
  * dehydration channel + HydrationCoordinator that waits for a channel `done`
- * Flare never yields (we stream `flare.q` / `__flare_qc` instead). Without
+ * Flare never yields (we stream `flare.q` / `__flare_queries` instead). Without
  * that coordinator, `useQuery` attaches its cache subscriber on a microtask
- * after hydrate; `hydrate()` drains `__flare_qc` after that attach.
+ * after hydrate; `hydrate()` drains `__flare_queries` after that attach.
  */
 export function QueryClientProvider(props: { children?: JSX.Element; client: QueryClient }): JSX.Element {
 	props.client.mount();

@@ -13,7 +13,7 @@ Sources: `e2e/apps/product/tests/e2e/`, `consumer/flare-node/src/routes/<file>`,
 
 - [x] SSR HTML 200 + content-type
 - [x] `html lang=en`
-- [x] hydrate `data-hydrated` + `FlareState` shape
+- [x] hydrate `data-flare-hydrated` + `FlareState` shape
 - [x] loader data on `/` and `/about`
 - [x] route headers `x-powered-by` + middleware `x-middleware-ran`
 - [x] `Link` renders `<a href>`
@@ -21,7 +21,7 @@ Sources: `e2e/apps/product/tests/e2e/`, `consumer/flare-node/src/routes/<file>`,
 - [x] nested dashboard layout SSR + SPA
 - [x] layout header `x-dashboard-layout`
 - [x] SSR 404 + `notFoundRender`
-- [x] NDJSON `x-d` content-type
+- [x] NDJSON `flare-data` content-type
 - [x] NDJSON loader `t:l` + head `t:h`
 - [x] `serverContext` UUID + forwarded `x-request-id`
 - [x] default redirect **303** SSR + CSR
@@ -73,7 +73,7 @@ Tests: `navigation.test.ts`, `link.test.ts`, `deep-link-*.test.ts`, `deep-naviga
 - [x] `useRouter().navigate()` push/replace/search + `invalidate()`
 - [x] shallow nav same-route search
 - [x] shallow + validated search
-- [x] prefetch `x-p` does not commit
+- [x] prefetch `flare-prefetch` does not commit
 - [x] prefetch + defer: no `t:c` on prefetch
 - [x] download links not intercepted
 - [x] scroll restore + hash `scrollIntoView`
@@ -131,8 +131,8 @@ Tests: `deep-ndjson-protocol.test.ts`, `hydration.test.ts`, `deep-ssr-hydration-
 
 - [x] basic loader + head messages
 - [x] all message types (`t:l|h|r|d|e|x|c|q`)
-- [x] stale match `x-m`
-- [x] prefetch cause `x-p`
+- [x] stale match `flare-stale`
+- [x] prefetch cause `flare-prefetch`
 - [x] NDJSON redirect `t:x` / external `xl`
 - [x] stream abort cleanup
 - [x] SSR HTML matches hydrated DOM
@@ -156,7 +156,7 @@ Tests: `error-handling.test.ts`, `error-boundary-retry.test.ts`, `deep-error-*.t
 
 Tests: `deep-server-fn*.test.ts`, `server-fn-revalidate.test.ts`, `deep-form-*.test.ts`, `deep-revalidation*.test.ts`.
 
-- [x] `createServerFn` POST `/_fn/…`
+- [x] `createServerFn` POST `/_flare/server-fn/…`
 - [x] GET server-fn
 - [x] CSRF origin reject
 - [x] input validation errors (form + FieldError)
@@ -180,8 +180,8 @@ Tests: `deep-cache-*.test.ts`, `deep-isr-*.test.ts`, `deep-kv-cache.test.ts`, `d
 - [x] SSG params allowlist `/ssg-dynamic/:slug` + unlisted 404
 - [x] ISR `dynamicParams:false` unlisted slug 404
 - [x] `POST /_flare/revalidate` tags; GET 405
-- [x] Vary: `x-d` + weak ETag (HTML is never 304 — nonce rewrite)
-- [x] `Flare-Cache` / `Flare-Render` diagnostics
+- [x] Vary: `flare-data` + weak ETag (HTML is never 304 — nonce rewrite)
+- [x] `flare-cache` / `flare-render` diagnostics
 
 ## 10. i18n / locale
 
@@ -194,7 +194,7 @@ Tests: `i18n.test.ts`, `deep-i18n-*.test.ts`. Real-world: `real-world/e2e/i18n.t
 - [x] case normalize `/HR` → `/hr`
 - [x] unsupported locale stripped
 - [x] skip static file paths
-- [x] prefetch `x-p` does not Set-Cookie
+- [x] prefetch `flare-prefetch` does not Set-Cookie
 - [x] NDJSON does not cookie-redirect
 - [x] SPA locale switcher + cookie
 - [x] ICU interpolation + plural

@@ -1,4 +1,5 @@
 import type { FlattenedError } from "../errors/index.ts";
+import { FORM_FN_FIELD, parseServerFnPathname, serverFnPath } from "../protocol.ts";
 import {
 	isNotFoundError,
 	isRedirectResponse,
@@ -307,7 +308,7 @@ function validateOrigin(request: Request): boolean {
 export function formDataToObject(formData: FormData): Record<string, File | string | string[]> {
 	const obj: Record<string, File | string | string[]> = Object.create(null);
 	for (const [key, val] of formData) {
-		if (key === "__flare_fn" || key === "__proto__" || key === "constructor" || key === "prototype") continue;
+		if (key === FORM_FN_FIELD || key === "__proto__" || key === "constructor" || key === "prototype") continue;
 		if (val instanceof File) {
 			obj[key] = val;
 			continue;
@@ -330,20 +331,14 @@ export async function handleServerFnRequest(
 	fns: Map<string, ServerFnRegistration>,
 	authenticateFn?: (env: unknown, request: Request) => unknown | Promise<unknown>,
 ): Promise<Response> {
-	/* parse URL: /_fn/{id}/{name} */
+	/* parse URL: /_flare/server-fn/{id}/{name} */
 	const url = new URL(request.url);
-	const segments = url.pathname.split("/").filter(Boolean);
-	/* segments: ["_fn", id, name] */
-	if (segments.length < 3 || segments[0] !== "_fn") {
+	const parsed = parseServerFnPathname(url.pathname);
+	if (!parsed) {
 		return jsonResponse({ message: "Server function not found" }, 404);
 	}
 
-	const id = segments[1];
-	const name = segments[2];
-
-	if (!id || !name) {
-		return jsonResponse({ message: "Server function not found" }, 404);
-	}
+	const { id, name } = parsed;
 
 	/* CSRF: validate Origin before any processing */
 	if (!validateOrigin(request)) {
@@ -577,7 +572,7 @@ export function serverFnQueryOptions<TInput, TOutput>(
 			}
 
 			/* client: HTTP fetch */
-			const url = `/_fn/${id}/${name}`;
+			const url = serverFnPath(id, name);
 			const method = reg?.method ?? "post";
 
 			const res =
@@ -658,7 +653,7 @@ export function serverFnMutationOptions<TInput, TOutput>(
 			}
 
 			/* client: HTTP fetch — mutations always POST */
-			const url = `/_fn/${id}/${name}`;
+			const url = serverFnPath(id, name);
 			const res = await fetch(url, {
 				body: input !== undefined ? JSON.stringify(input) : undefined,
 				headers: { "content-type": "application/json" },

@@ -78,7 +78,7 @@ test.describe("Service Worker — dev mode @dev-only", () => {
 	test("SW does not register before interaction or idle", async ({ page }) => {
 		/* Load page but do NOT interact */
 		await page.goto("/", { waitUntil: "domcontentloaded" });
-		await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+		await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 			timeout: 15_000,
 		});
 
@@ -94,7 +94,7 @@ test.describe("Service Worker — dev mode @dev-only", () => {
 
 	test("page hydrates correctly with SW enabled", async ({ page }) => {
 		await loadPage(page, "/");
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 
@@ -116,7 +116,7 @@ test.describe("Service Worker — dev mode @dev-only", () => {
 		const link = page.locator("a[href]").first();
 		if (await link.isVisible()) {
 			await link.click();
-			await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+			await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 				timeout: 10_000,
 			});
 		}
@@ -131,7 +131,7 @@ test.describe("Service Worker — dev mode @dev-only", () => {
 		if (await link.isVisible()) {
 			const href = await link.getAttribute("href");
 			await link.click();
-			await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+			await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 				timeout: 10_000,
 			});
 			/* If NDJSON was intercepted/broken, SPA navigation would fail */
@@ -219,9 +219,8 @@ test.describe("Service Worker — prod @prod-only", () => {
 	test("prod sw.js passes through server functions and NDJSON", async ({ page }) => {
 		const response = await page.goto("/sw.js");
 		const text = await response?.text();
-		expect(text).toContain("/_fn/");
-		expect(text).toContain("x-d");
-		expect(text).toContain("keepalive");
+		expect(text).toContain("/_flare/");
+		expect(text).toContain("flare-data");
 	});
 
 	test("prod sw.js has cache-first for /assets/", async ({ page }) => {
@@ -321,7 +320,7 @@ test.describe("Service Worker — prod @prod-only", () => {
 		const link = page.locator("a[href]").first();
 		if (await link.isVisible()) {
 			await link.click();
-			await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+			await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 				timeout: 10_000,
 			});
 		}
@@ -329,7 +328,7 @@ test.describe("Service Worker — prod @prod-only", () => {
 
 	test("page hydrates correctly in prod with SW", async ({ page }) => {
 		await loadPage(page, "/");
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 
 		/* FlareState should be valid */

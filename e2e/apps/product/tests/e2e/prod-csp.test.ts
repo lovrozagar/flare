@@ -164,13 +164,13 @@ test.describe("@prod-only no dev artifacts", () => {
 			return nav(path);
 		}, "/about");
 		await page.waitForURL("**/about", { timeout: 10_000 });
-		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+		const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 		expect(hydrated).toBe(true);
 	});
 
 	test("NDJSON data requests work in production", async ({ request }) => {
 		const response = await request.get("/about", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
 		const text = await response.text();
@@ -178,7 +178,7 @@ test.describe("@prod-only no dev artifacts", () => {
 	});
 
 	test("server functions work in production", async ({ request }) => {
-		const response = await request.post(`${BASE}/_fn/echo/echo`, {
+		const response = await request.post(`${BASE}/_flare/server-fn/echo/echo`, {
 			data: { message: "prod-test" },
 		});
 		expect(response.status()).toBe(200);

@@ -67,7 +67,7 @@ test.describe("i18n — SPA navigation", () => {
 test.describe("i18n — NDJSON", () => {
 	test("NDJSON request returns translated data for hr", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/i18n-test/hr`, {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(response.status()).toBe(200);
 		const text = await response.text();

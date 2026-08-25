@@ -5,7 +5,7 @@ import { installDeferredResolver } from "../../../src/state-parser/index.ts";
 function cleanGlobals() {
 	globalThis.__flare_r = undefined;
 	globalThis.__flare_re = undefined;
-	globalThis.__flare_q = undefined;
+	globalThis.__flare_defer = undefined;
 }
 
 describe("Task 4: deferred multi-instance resolver", () => {
@@ -31,7 +31,7 @@ describe("Task 4: deferred multi-instance resolver", () => {
 		/* globals cleaned after all resolved */
 		expect(globalThis.__flare_r).toBeUndefined();
 		expect(globalThis.__flare_re).toBeUndefined();
-		expect(globalThis.__flare_q).toBeUndefined();
+		expect(globalThis.__flare_defer).toBeUndefined();
 	});
 
 	it("single instance: reject works", () => {
@@ -104,7 +104,7 @@ describe("Task 4: deferred multi-instance resolver", () => {
 		installDeferredResolver(resolvers2);
 
 		/* late SSR script push */
-		const q = globalThis.__flare_q;
+		const q = globalThis.__flare_defer;
 		if (q && "push" in q) {
 			q.push(["a:z", "late-one"]);
 			q.push(["b:z", "late-two"]);
@@ -140,12 +140,12 @@ describe("Task 4: deferred multi-instance resolver", () => {
 		/* both drained — globals should be cleaned */
 		expect(globalThis.__flare_r).toBeUndefined();
 		expect(globalThis.__flare_re).toBeUndefined();
-		expect(globalThis.__flare_q).toBeUndefined();
+		expect(globalThis.__flare_defer).toBeUndefined();
 	});
 
 	it("buffered queue drained for both instances", () => {
 		/* simulate SSR script that pushed before hydration */
-		globalThis.__flare_q = [
+		globalThis.__flare_defer = [
 			["a:pre", "buffered-a"],
 			["b:pre", "buffered-b"],
 		] as Array<[string, unknown, boolean?]>;

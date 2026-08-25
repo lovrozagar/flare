@@ -54,7 +54,7 @@ test.describe("Dev store — ISR caching works in dev @dev-only", () => {
 		await request.get("/isr-test");
 		await new Promise((r) => setTimeout(r, 1000));
 		const res = await request.get("/isr-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		const body = await res.text();

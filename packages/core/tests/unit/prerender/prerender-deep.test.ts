@@ -20,7 +20,7 @@ describe("prerender nonce replacement", () => {
 	function mockHandler(html: string, ndjson = "", status = 200) {
 		return {
 			fetch: vi.fn(async (req: Request) => {
-				const isData = req.headers.get("x-d") === "1";
+				const isData = req.headers.get("flare-data") === "1";
 				if (isData) return new Response(ndjson, { status: 200 });
 				return new Response(html, {
 					headers: {
@@ -65,7 +65,7 @@ describe("prerender nonce replacement", () => {
 	it("NDJSON fetch failure is non-fatal → stores empty ndjson", async () => {
 		const handler = {
 			fetch: vi.fn(async (req: Request) => {
-				if (req.headers.get("x-d") === "1") throw new Error("NDJSON fail");
+				if (req.headers.get("flare-data") === "1") throw new Error("NDJSON fail");
 				return new Response("<html></html>", { status: 200 });
 			}),
 		};

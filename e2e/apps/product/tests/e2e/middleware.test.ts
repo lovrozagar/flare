@@ -37,7 +37,7 @@ test.describe("middleware", () => {
 	test("onPage runs for HTML and NDJSON, not mount", async ({ page, request }) => {
 		const html = await page.goto("/about");
 		expect(html?.headers()["x-route-only"]).toBe("true");
-		const ndjson = await request.get("/about", { headers: { "x-d": "1" } });
+		const ndjson = await request.get("/about", { headers: { "flare-data": "1" } });
 		expect(ndjson.headers()["x-route-only"]).toBe("true");
 		const api = await request.get("/api/health");
 		expect(api.headers()["x-route-only"]).toBeUndefined();

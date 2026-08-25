@@ -1,3 +1,5 @@
+import { HEADER_DATA, INTERNAL_PATH_PREFIX } from "../protocol.ts";
+
 export interface SwTemplateConfig {
 	/** URL prefix for cache-first asset matching. Defaults to `"/assets"`. */
 	assetsBase?: string;
@@ -84,10 +86,9 @@ self.addEventListener("fetch", function (event) {
 	/* Only handle same-origin */
 	if (url.origin !== self.location.origin) return
 
-	/* Passthrough: NDJSON (x-d header), server functions, keepalive */
-	if (event.request.headers.has("x-d")) return
-	if (url.pathname.startsWith("/_fn/")) return
-	if (url.pathname === "/_flare/keepalive") return
+	/* Passthrough: NDJSON (flare-data header), Flare internals */
+	if (event.request.headers.has(${JSON.stringify(HEADER_DATA)})) return
+	if (url.pathname.startsWith(${JSON.stringify(INTERNAL_PATH_PREFIX)})) return
 
 	/* Cache-first for hashed assets under the configured assetsBase */
 	if (url.pathname.startsWith(${JSON.stringify(`${assetsBase}/`)})) {

@@ -158,7 +158,7 @@ test.describe("Security: unicode in routes", () => {
 test.describe("Security: server function input", () => {
 	test("server fn rejects oversized payload", async ({ request }) => {
 		const bigPayload = { message: "x".repeat(1_000_000) };
-		const response = await request.post(`${BASE}/_fn/echo/echo`, {
+		const response = await request.post(`${BASE}/_flare/server-fn/echo/echo`, {
 			data: bigPayload,
 		});
 		/* Should either succeed (framework handles) or return 413/400 — not crash */
@@ -167,7 +167,7 @@ test.describe("Security: server function input", () => {
 	});
 
 	test("server fn handles non-JSON body gracefully", async ({ request }) => {
-		const response = await request.post(`${BASE}/_fn/echo/echo`, {
+		const response = await request.post(`${BASE}/_flare/server-fn/echo/echo`, {
 			data: "not json at all <><>",
 			headers: { "content-type": "text/plain" },
 		});
@@ -177,7 +177,7 @@ test.describe("Security: server function input", () => {
 	});
 
 	test("server fn handles empty body gracefully", async ({ request }) => {
-		const response = await request.post(`${BASE}/_fn/echo/echo`, {
+		const response = await request.post(`${BASE}/_flare/server-fn/echo/echo`, {
 			headers: { "content-type": "application/json" },
 		});
 		expect(response.status()).toBeGreaterThanOrEqual(200);
@@ -185,7 +185,7 @@ test.describe("Security: server function input", () => {
 	});
 
 	test("server fn with __proto__ in input does not pollute", async ({ request }) => {
-		const response = await request.post(`${BASE}/_fn/echo/echo`, {
+		const response = await request.post(`${BASE}/_flare/server-fn/echo/echo`, {
 			data: { __proto__: { polluted: true }, message: "safe" },
 		});
 		expect(response.status()).toBe(200);

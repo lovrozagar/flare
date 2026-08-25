@@ -225,7 +225,7 @@ if (staleMatchIds.length > 0) {
 
 If `controller.signal.aborted` after fetch → return silently.
 
-`x-m` header sends only stale matchIds — server skips fresh loaders.
+`flare-stale` header sends only stale matchIds — server skips fresh loaders.
 
 If ALL matches fresh → no NDJSON fetch, instant navigation from cache.
 
@@ -337,7 +337,7 @@ const [modules, fetchResult] = await Promise.all([
 ]);
 ```
 
-No `x-m` header in this case — can't compute stale matchIds without modules. Server runs all loaders. After both complete, proceeds from step 9.
+No `flare-stale` header in this case — can't compute stale matchIds without modules. Server runs all loaders. After both complete, proceeds from step 9.
 
 Detection: route modules are "known cached" if the route was visited before in this session. Track visited virtualPaths in a `Set<string>`.
 
@@ -579,8 +579,8 @@ Route matching:
 
 Staleness check:
   All matches fresh (staleTime > age) → no NDJSON fetch
-  Some matches stale → x-m header with stale matchIds only
-  All stale → x-m header with all matchIds
+  Some matches stale → flare-stale header with stale matchIds only
+  All stale → flare-stale header with all matchIds
   revalidate: true → all matches treated as stale
   staleTime: 0 (default) → always stale, always fetch
   shouldRefetch returns true → treated as stale regardless of cache age
@@ -646,7 +646,7 @@ prefetch:
   Data + modules loaded in parallel
   Success → matchCache populated with loader data
   Error → prefetchCache entry deleted (allows retry)
-  NDJSON sent with x-p: "1" header
+  NDJSON sent with flare-prefetch: "1" header
   No abort controller (fire-and-forget)
 
 Garbage collection:
@@ -666,7 +666,7 @@ Garbage collection:
 - History state management, scroll store, and scroll restoration delegated to spec 26 (history)
 - View transitions are progressive enhancement — zero-cost when unavailable
 - View transition direction (`back`/`forward`/`none`) detected via `historyIndex` from spec 26
-- `x-m` header optimization requires modules loaded first (for loaderDeps) — unavailable on first visit to a route
+- `flare-stale` header optimization requires modules loaded first (for loaderDeps) — unavailable on first visit to a route
 - `prefetch()` has no abort controller — intentionally fire-and-forget, doesn't interfere with navigation
 - Redirect loop guard (max 10) prevents infinite server-driven redirect chains
 - `applyHeadToDocument` delegates to `applyPerRouteHeads` (spec 27) — per-route ownership via `headByRoute` Map prevents conflicts with static head content

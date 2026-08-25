@@ -72,7 +72,7 @@ test.describe("ISR + Defer — store captures resolved deferred data", () => {
 
 		/*
 		 * Store captures full SSR output including streaming deferred chunks.
-		 * The deferred data appears in __flare_q.push() scripts at the end,
+		 * The deferred data appears in __flare_defer.push() scripts at the end,
 		 * not pre-rendered in the HTML body (that's done client-side by Await).
 		 */
 		expect(html).toContain("deferred-comment");
@@ -111,7 +111,7 @@ test.describe("ISR + Defer — NDJSON data requests", () => {
 		await new Promise((r) => setTimeout(r, POPULATE_WAIT));
 
 		const res = await request.get("/isr-defer", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 
@@ -127,7 +127,7 @@ test.describe("ISR + Defer — NDJSON data requests", () => {
 		await new Promise((r) => setTimeout(r, POPULATE_WAIT));
 
 		const res = await request.get("/isr-multi-defer", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 		expect(res.headers()["content-type"]).toContain("ndjson");

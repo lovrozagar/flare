@@ -104,7 +104,7 @@ describe("streaming abort/cancellation", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/id1/test"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/id1/test"), {}, fns);
 		await collectNDJSON(res);
 		expect(signalAborted).toBe(false);
 	});
@@ -217,8 +217,8 @@ describe("concurrent request isolation", () => {
 		const fns2 = makeFn("s2", ["b1", "b2", "b3"]);
 
 		const [res1, res2] = await Promise.all([
-			handleServerFnRequest(postReq("/_fn/s1/s1"), {}, fns1),
-			handleServerFnRequest(postReq("/_fn/s2/s2"), {}, fns2),
+			handleServerFnRequest(postReq("/_flare/server-fn/s1/s1"), {}, fns1),
+			handleServerFnRequest(postReq("/_flare/server-fn/s2/s2"), {}, fns2),
 		]);
 
 		const msgs1 = await collectNDJSON(res1);
@@ -245,8 +245,8 @@ describe("concurrent request isolation", () => {
 		]);
 
 		const [r1, r2] = await Promise.all([
-			handleServerFnRequest(postReq("/_fn/echo/echo", { n: 1 }), {}, fns),
-			handleServerFnRequest(postReq("/_fn/echo/echo", { n: 2 }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/echo/echo", { n: 1 }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/echo/echo", { n: 2 }), {}, fns),
 		]);
 
 		const d1 = (await r1.json()) as { data: { n: number } };
@@ -270,12 +270,12 @@ describe("concurrent request isolation", () => {
 			return h ? { userId: h } : null;
 		};
 
-		const authedReq = new Request("http://localhost/_fn/gated/gated", {
+		const authedReq = new Request("http://localhost/_flare/server-fn/gated/gated", {
 			body: "{}",
 			headers: { "content-type": "application/json", "x-auth": "user-1" },
 			method: "POST",
 		});
-		const unauthedReq = postReq("/_fn/gated/gated", {});
+		const unauthedReq = postReq("/_flare/server-fn/gated/gated", {});
 
 		const [r1, r2] = await Promise.all([
 			handleServerFnRequest(authedReq, {}, fns, authFn),
@@ -300,8 +300,8 @@ describe("concurrent request isolation", () => {
 		]);
 
 		const [r1, r2] = await Promise.all([
-			handleServerFnRequest(postReq("/_fn/pig/pig", { n: 1 }), {}, fns),
-			handleServerFnRequest(postReq("/_fn/pig/pig", { n: 2 }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/pig/pig", { n: 1 }), {}, fns),
+			handleServerFnRequest(postReq("/_flare/server-fn/pig/pig", { n: 2 }), {}, fns),
 		]);
 
 		const j1 = (await r1.json()) as { queries: Array<{ data: unknown; key: unknown[] }> };
@@ -327,10 +327,10 @@ describe("concurrent request isolation", () => {
 
 		const [r1, r2] = await Promise.all([
 			runWithServerContext({ nonce: "a", request: new Request("http://localhost"), store: store }, () =>
-				handleServerFnRequest(postReq("/_fn/rev/rev", { tags: ["a"] }), {}, fns),
+				handleServerFnRequest(postReq("/_flare/server-fn/rev/rev", { tags: ["a"] }), {}, fns),
 			),
 			runWithServerContext({ nonce: "b", request: new Request("http://localhost"), store: store }, () =>
-				handleServerFnRequest(postReq("/_fn/rev/rev", { tags: ["b"] }), {}, fns),
+				handleServerFnRequest(postReq("/_flare/server-fn/rev/rev", { tags: ["b"] }), {}, fns),
 			),
 		]);
 
@@ -352,7 +352,7 @@ describe("concurrent request isolation", () => {
 
 		const results = await Promise.all(
 			Array.from({ length: 10 }, (_, i) =>
-				handleServerFnRequest(postReq("/_fn/ten/ten", { i }), {}, fns).then(
+				handleServerFnRequest(postReq("/_flare/server-fn/ten/ten", { i }), {}, fns).then(
 					(r) => r.json() as Promise<{ data: { i: number } }>,
 				),
 			),
@@ -380,7 +380,7 @@ describe("error serialization edge cases", () => {
 				name: "e1",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e1/e1"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e1/e1"), {}, fns);
 		expect(res.status).toBe(500);
 		const json = (await res.json()) as Record<string, unknown>;
 		expect(json.message).toBe("Internal server error");
@@ -397,7 +397,7 @@ describe("error serialization edge cases", () => {
 				name: "e2",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e2/e2"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e2/e2"), {}, fns);
 		expect(res.status).toBe(500);
 		const json = (await res.json()) as Record<string, unknown>;
 		expect(json.message).toBe("Internal server error");
@@ -414,7 +414,7 @@ describe("error serialization edge cases", () => {
 				name: "e3",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e3/e3"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e3/e3"), {}, fns);
 		expect(res.status).toBe(400);
 		const json = (await res.json()) as {
 			errors: { fieldErrors: Record<string, string[]>; formErrors: string[] };
@@ -439,7 +439,7 @@ describe("error serialization edge cases", () => {
 				name: "e4",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e4/e4"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e4/e4"), {}, fns);
 		expect(res.status).toBe(400);
 		const json = (await res.json()) as {
 			errors: { fieldErrors: Record<string, string[]>; formErrors: string[] };
@@ -462,7 +462,7 @@ describe("error serialization edge cases", () => {
 				name: "e5",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e5/e5", { x: 1 }), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e5/e5", { x: 1 }), {}, fns);
 		expect(res.status).toBe(400);
 		const json = (await res.json()) as { message: string };
 		expect(json.message).toBe("Validation failed");
@@ -478,7 +478,7 @@ describe("error serialization edge cases", () => {
 				name: "e6",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e6/e6"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e6/e6"), {}, fns);
 		expect(res.status).toBe(401);
 		const json = (await res.json()) as { message: string };
 		expect(json.message).toBe("Session expired, please log in again");
@@ -494,7 +494,7 @@ describe("error serialization edge cases", () => {
 				name: "e7",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e7/e7"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e7/e7"), {}, fns);
 		expect(res.status).toBe(403);
 		const json = (await res.json()) as { message: string };
 		expect(json.message).toBe("Admin access required");
@@ -510,7 +510,7 @@ describe("error serialization edge cases", () => {
 				name: "e8",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e8/e8"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e8/e8"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages).toContainEqual({ e: { message: "Stream error" } });
 	});
@@ -530,7 +530,7 @@ describe("error serialization edge cases", () => {
 				name: "e9",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/e9/e9"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/e9/e9"), {}, fns);
 		const messages = await collectNDJSON(res);
 		expect(messages).toContainEqual({ e: { message: "Custom stream boom" } });
 	});
@@ -550,7 +550,7 @@ describe("GET streaming edge cases", () => {
 				name: "gs1",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_fn/gs1/gs1"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/gs1/gs1"), {}, fns);
 		expect(res.headers.get("content-type")).toBe("text/x-ndjson");
 	});
 
@@ -567,7 +567,7 @@ describe("GET streaming edge cases", () => {
 				name: "gs2",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_fn/gs2/gs2?foo=bar&n=42"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/gs2/gs2?foo=bar&n=42"), {}, fns);
 		await collectNDJSON(res);
 		expect(capturedInput).toEqual({ foo: "bar", n: "42" });
 	});
@@ -585,7 +585,7 @@ describe("GET streaming edge cases", () => {
 				name: "gs3",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_fn/gs3/gs3"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/gs3/gs3"), {}, fns);
 		await collectNDJSON(res);
 		expect(capturedInput).toBeUndefined();
 	});
@@ -603,7 +603,7 @@ describe("GET streaming edge cases", () => {
 				name: "gs4",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_fn/gs4/gs4?tag=a&tag=b&tag=c"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/gs4/gs4?tag=a&tag=b&tag=c"), {}, fns);
 		await collectNDJSON(res);
 		expect(capturedInput).toEqual({ tag: ["a", "b", "c"] });
 	});
@@ -626,7 +626,7 @@ describe("GET streaming edge cases", () => {
 				name: "gs5",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_fn/gs5/gs5?x=1"), {}, fns);
+		const res = await handleServerFnRequest(getReq("/_flare/server-fn/gs5/gs5?x=1"), {}, fns);
 		expect(res.status).toBe(400);
 		expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
 		expect(generatorCalled).toBe(false);
@@ -643,7 +643,7 @@ describe("GET streaming edge cases", () => {
 				name: "gs6",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/gs6/gs6"), {}, fns);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/gs6/gs6"), {}, fns);
 		expect(res.status).toBe(405);
 	});
 });
@@ -668,7 +668,7 @@ describe("streaming + auth combo", () => {
 				name: "sa1",
 			},
 		]);
-		const req = new Request("http://localhost/_fn/sa1/sa1", {
+		const req = new Request("http://localhost/_flare/server-fn/sa1/sa1", {
 			body: "{}",
 			headers: { "content-type": "application/json", "x-auth": "user-1" },
 			method: "POST",
@@ -694,7 +694,7 @@ describe("streaming + auth combo", () => {
 				name: "sa2",
 			},
 		]);
-		const req = new Request("http://localhost/_fn/sa2/sa2", {
+		const req = new Request("http://localhost/_flare/server-fn/sa2/sa2", {
 			body: "{}",
 			headers: { "content-type": "application/json", "x-auth": "user-1" },
 			method: "POST",
@@ -718,7 +718,7 @@ describe("streaming + auth combo", () => {
 				name: "sa3",
 			},
 		]);
-		const req = new Request("http://localhost/_fn/sa3/sa3", {
+		const req = new Request("http://localhost/_flare/server-fn/sa3/sa3", {
 			body: "{}",
 			headers: { "content-type": "application/json", "x-auth": "user-1" },
 			method: "POST",
@@ -743,7 +743,7 @@ describe("streaming + auth combo", () => {
 				name: "sa4",
 			},
 		]);
-		const req = new Request("http://localhost/_fn/sa4/sa4", {
+		const req = new Request("http://localhost/_flare/server-fn/sa4/sa4", {
 			body: "{}",
 			headers: { "content-type": "application/json", "x-auth": "admin" },
 			method: "POST",
@@ -769,7 +769,7 @@ describe("streaming + auth combo", () => {
 				name: "sa5",
 			},
 		]);
-		const req = new Request("http://localhost/_fn/sa5/sa5", {
+		const req = new Request("http://localhost/_flare/server-fn/sa5/sa5", {
 			body: "{}",
 			headers: { "content-type": "application/json", "x-auth": "alice" },
 			method: "POST",
@@ -791,7 +791,7 @@ describe("streaming + auth combo", () => {
 				name: "sa6",
 			},
 		]);
-		const res = await handleServerFnRequest(postReq("/_fn/sa6/sa6", {}), {}, fns, authFn);
+		const res = await handleServerFnRequest(postReq("/_flare/server-fn/sa6/sa6", {}), {}, fns, authFn);
 		expect(res.status).toBe(401);
 		expect(res.headers.get("content-type")).toBe("application/json; charset=utf-8");
 	});

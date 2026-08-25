@@ -138,7 +138,7 @@ test.describe("Deep: layout and page data independence", () => {
 
 		const ndjsonRequests: string[] = [];
 		page.on("request", (req) => {
-			if (req.headers()["x-d"] === "1") {
+			if (req.headers()["flare-data"] === "1") {
 				ndjsonRequests.push(req.url());
 			}
 		});

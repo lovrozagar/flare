@@ -321,10 +321,10 @@ describe("i18n middleware", () => {
 		expect(responseHandlers.length).toBe(0);
 	});
 
-	it("prefetch (x-p: 1) does NOT set cookie even when locale differs", async () => {
+	it("prefetch (flare-prefetch: 1) does NOT set cookie even when locale differs", async () => {
 		const { ctx, responseHandlers } = makeI18nCtx("http://localhost/hr/about", {
 			cookie: "flare.locale=en",
-			"x-p": "1",
+			"flare-prefetch": "1",
 		});
 		await mw(ctx);
 		expect(responseHandlers.length).toBe(0);
@@ -334,8 +334,8 @@ describe("i18n middleware", () => {
 	it("prefetch to default locale does NOT set cookie", async () => {
 		const { ctx, responseHandlers } = makeI18nCtx("http://localhost/about", {
 			cookie: "flare.locale=fr",
-			"x-d": "1",
-			"x-p": "1",
+			"flare-data": "1",
+			"flare-prefetch": "1",
 		});
 		await mw(ctx);
 		expect(responseHandlers.length).toBe(0);
@@ -378,17 +378,17 @@ describe("i18n middleware", () => {
 	it("NDJSON /about with cookie=fr → no redirect (SPA handles routing)", async () => {
 		const { ctx } = makeI18nCtx("http://localhost/about", {
 			cookie: "flare.locale=fr",
-			"x-d": "1",
+			"flare-data": "1",
 		});
 		const result = await mw(ctx);
 		expect(result.type).toBe("next");
 		expect(ctx.serverContext.locale).toBe("en");
 	});
 
-	it("NDJSON navigation (x-d: 1, no x-p) DOES set cookie", async () => {
+	it("NDJSON navigation (flare-data: 1, no flare-prefetch) DOES set cookie", async () => {
 		const { ctx, responseHandlers } = makeI18nCtx("http://localhost/hr/about", {
 			cookie: "flare.locale=en",
-			"x-d": "1",
+			"flare-data": "1",
 		});
 		await mw(ctx);
 		expect(responseHandlers.length).toBe(1);
@@ -407,8 +407,8 @@ describe("i18n middleware", () => {
 		}
 	});
 
-	it("skips /_fn/ paths", async () => {
-		const { ctx } = makeI18nCtx("http://localhost/_fn/some-action");
+	it("skips /_flare/server-fn/ paths", async () => {
+		const { ctx } = makeI18nCtx("http://localhost/_flare/server-fn/some-action");
 		const result = await mw(ctx);
 		expect(result.type).toBe("next");
 		expect(ctx.serverContext.locale).toBe("en");

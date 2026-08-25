@@ -22,7 +22,7 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 		setStreamError("");
 
 		try {
-			const res = await fetch("/_fn/slow-stream/slow-stream", {
+			const res = await fetch("/_flare/server-fn/slow-stream/slow-stream", {
 				body: "{}",
 				headers: { "content-type": "application/json" },
 				method: "POST",
@@ -70,7 +70,7 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 		setPiggyItems("");
 		setPiggyCount("");
 		try {
-			const res = await fetch("/_fn/piggyback/piggyback", {
+			const res = await fetch("/_flare/server-fn/piggyback/piggyback", {
 				body: JSON.stringify({ value: "test" }),
 				headers: { "content-type": "application/json" },
 				method: "POST",
@@ -101,7 +101,7 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 		setConcCount(0);
 		const ids = ["A", "B", "C"];
 		const promises = ids.map((id) =>
-			fetch("/_fn/concurrent/concurrent", {
+			fetch("/_flare/server-fn/concurrent/concurrent", {
 				body: JSON.stringify({ delay: 50, id }),
 				headers: { "content-type": "application/json" },
 				method: "POST",
@@ -122,7 +122,7 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 		setRetryResult("");
 		setRetryError("");
 		try {
-			const res = await fetch("/_fn/retryable/retryable", {
+			const res = await fetch("/_flare/server-fn/retryable/retryable", {
 				body: JSON.stringify({ key: retryKey }),
 				headers: { "content-type": "application/json" },
 				method: "POST",
@@ -147,7 +147,7 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 		setAuthResult("");
 		setAuthError("");
 		try {
-			const res = await fetch("/_fn/auth-gated/auth-gated", {
+			const res = await fetch("/_flare/server-fn/auth-gated/auth-gated", {
 				body: "{}",
 				headers: { "content-type": "application/json" },
 				method: "POST",
@@ -168,7 +168,7 @@ export const route = createPage("_root_/server-fn-advanced").render(() => {
 		setAuthResult("");
 		setAuthError("");
 		try {
-			const res = await fetch("/_fn/auth-gated/auth-gated", {
+			const res = await fetch("/_flare/server-fn/auth-gated/auth-gated", {
 				body: "{}",
 				headers: { "content-type": "application/json", "x-test-auth": "user-42" },
 				method: "POST",

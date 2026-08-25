@@ -42,9 +42,9 @@ describe("SW keepalive path matching", () => {
 	it("non-keepalive paths are not matched in either version", () => {
 		expect(shouldPassthroughFixed("/")).toBe(false);
 		expect(shouldPassthroughFixed("/assets/main.js")).toBe(false);
-		expect(shouldPassthroughFixed("/_fn/myFunction")).toBe(false);
+		expect(shouldPassthroughFixed("/_flare/server-fn/myFunction")).toBe(false);
 		expect(shouldPassthroughBuggy("/")).toBe(false);
 		expect(shouldPassthroughBuggy("/assets/main.js")).toBe(false);
-		expect(shouldPassthroughBuggy("/_fn/myFunction")).toBe(false);
+		expect(shouldPassthroughBuggy("/_flare/server-fn/myFunction")).toBe(false);
 	});
 });

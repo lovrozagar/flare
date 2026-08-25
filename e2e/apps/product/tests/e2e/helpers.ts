@@ -13,10 +13,10 @@ const IGNORE_PATTERNS = [
 ];
 
 export async function assertHydrated(page: Page): Promise<void> {
-	await page.waitForFunction(() => document.documentElement.hasAttribute("data-hydrated"), null, {
+	await page.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"), null, {
 		timeout: 15_000,
 	});
-	const hasAttr = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+	const hasAttr = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 	expect(hasAttr).toBe(true);
 }
 
@@ -81,9 +81,9 @@ export async function assertSPANavigation(page: Page): Promise<void> {
 		);
 	}
 
-	const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-hydrated"));
+	const hydrated = await page.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 	if (!hydrated) {
-		throw new Error("data-hydrated attribute missing after navigation.");
+		throw new Error("data-flare-hydrated attribute missing after navigation.");
 	}
 }
 

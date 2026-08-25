@@ -28,7 +28,7 @@ test.describe("Cache hit on immediate revisit", () => {
 		const ndjsonRequests: string[] = [];
 		await page.route("**/*", (route) => {
 			const headers = route.request().headers();
-			if (headers["x-d"] === "1") {
+			if (headers["flare-data"] === "1") {
 				ndjsonRequests.push(route.request().url());
 			}
 			return route.continue();
@@ -76,7 +76,7 @@ test.describe("Cache miss after staleTime", () => {
 		const ndjsonRequests: string[] = [];
 		await page.route("**/*", (route) => {
 			const headers = route.request().headers();
-			if (headers["x-d"] === "1") {
+			if (headers["flare-data"] === "1") {
 				ndjsonRequests.push(route.request().url());
 			}
 			return route.continue();
@@ -165,7 +165,7 @@ test.describe("NDJSON fetch tracking", () => {
 		const ndjsonRequests: string[] = [];
 		await page.route("**/*", (route) => {
 			const headers = route.request().headers();
-			if (headers["x-d"] === "1") {
+			if (headers["flare-data"] === "1") {
 				ndjsonRequests.push(route.request().url());
 			}
 			return route.continue();
@@ -190,7 +190,7 @@ test.describe("NDJSON fetch tracking", () => {
 		const ndjsonRequests: string[] = [];
 		await page.route("**/*", (route) => {
 			const headers = route.request().headers();
-			if (headers["x-d"] === "1") {
+			if (headers["flare-data"] === "1") {
 				ndjsonRequests.push(route.request().url());
 			}
 			return route.continue();

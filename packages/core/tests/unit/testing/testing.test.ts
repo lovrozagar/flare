@@ -242,14 +242,14 @@ describe("FlarePage", () => {
 	});
 
 	describe("hydration", () => {
-		it("waitForHydration → polls for data-hydrated", async () => {
+		it("waitForHydration → polls for data-flare-hydrated", async () => {
 			const page = makeMockPage();
 			const fp = new FlarePage(page);
 
 			await fp.waitForHydration();
 
 			expect(page.waitForFunction).toHaveBeenCalledWith(
-				"document.documentElement.hasAttribute('data-hydrated')",
+				'document.documentElement.hasAttribute("data-flare-hydrated")',
 				undefined,
 				{ timeout: 15_000 },
 			);
@@ -262,7 +262,7 @@ describe("FlarePage", () => {
 			await fp.waitForHydration(5000);
 
 			expect(page.waitForFunction).toHaveBeenCalledWith(
-				"document.documentElement.hasAttribute('data-hydrated')",
+				'document.documentElement.hasAttribute("data-flare-hydrated")',
 				undefined,
 				{ timeout: 5000 },
 			);

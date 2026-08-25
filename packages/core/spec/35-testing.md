@@ -107,7 +107,7 @@ Captures:
 
 ### Hydration Detection
 
-`waitForHydration()` polls for `data-hydrated` attribute on `<html>`. Set by Flare client after `solidHydrate()` completes. Uses `document.documentElement.hasAttribute("data-hydrated")` check.
+`waitForHydration()` polls for `data-flare-hydrated` attribute on `<html>`. Set by Flare client after `solidHydrate()` completes. Uses `document.documentElement.hasAttribute("data-flare-hydrated")` check.
 
 ### CSR Detection
 
@@ -150,7 +150,7 @@ Navigation:
   navigateNdjson → CSR marker set, link clicked
 
 Hydration:
-  waitForHydration → resolves when html[data-hydrated] exists
+  waitForHydration → resolves when html[data-flare-hydrated] exists
   waitForHydration → times out if attribute never set
 
 CSR detection:
@@ -182,7 +182,7 @@ FlareState:
 ## Notes
 
 - `navigateHtml` removed in v2 — NDJSON only, no HTML nav mode
-- `data-hydrated` attribute on `<html>` set by client init after hydration (spec 14)
+- `data-flare-hydrated` attribute on `<html>` set by client init after hydration (spec 14)
 - `__FLARE_NAV_MARKER__` is a window property trick — survives SPA nav, cleared on MPA nav
 - Hydration error detection strings are Solid-specific
 - `ignorePatterns` on assertNoConsoleErrors useful for known third-party warnings

@@ -23,6 +23,7 @@ import {
 	setHistoryIndex,
 } from "../history/index.ts";
 import { isChunkLoadError, isRenderFn } from "../internal.ts";
+import { STORAGE_CHUNK_RELOAD } from "../protocol.ts";
 import type { LocaleConfig } from "../locale.ts";
 import { warn } from "../logger.ts";
 import { fetchNDJSON } from "../ndjson-client/index.ts";
@@ -960,7 +961,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 
 			const now = Date.now();
 			for (const m of fetchResult.matches) {
-				/* x-m skip runs the route with loader stripped → null data.
+				/* flare-stale skip runs the route with loader stripped → null data.
 				   Do not clobber a live cache entry that already has data. */
 				const existing = ctx.matchCache.get(m.matchId);
 				if (m.loaderData == null && !m.error && existing && existing.data != null) {
@@ -1122,7 +1123,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		}
 		if (isChunkLoadError(error) && typeof window !== "undefined") {
 			try {
-				const key = "__flare_chunk_reload__";
+				const key = STORAGE_CHUNK_RELOAD;
 				const last = Number(sessionStorage.getItem(key) || 0);
 				if (Date.now() - last > 10_000) {
 					sessionStorage.setItem(key, String(Date.now()));

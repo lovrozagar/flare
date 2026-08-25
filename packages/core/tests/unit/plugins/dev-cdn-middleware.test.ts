@@ -80,12 +80,12 @@ function makeCdnEntry(overrides?: Partial<CdnCacheEntry>): CdnCacheEntry {
 		headers: {
 			"cache-control": "public, s-maxage=3600",
 			"content-type": "text/html",
-			vary: "x-d",
+			vary: "flare-data",
 		},
 		status: 200,
 		storedAt: Date.now(),
 		surrogateKeys: [],
-		varyHeaders: ["x-d"],
+		varyHeaders: ["flare-data"],
 		...overrides,
 	};
 }
@@ -272,7 +272,7 @@ describe("handleCdnRequest — cache miss + response interception", () => {
 				res.writeHead(200, {
 					"cache-control": "public, s-maxage=3600",
 					"content-type": "text/html",
-					vary: "x-d",
+					vary: "flare-data",
 				});
 				res.end("<html>hello</html>");
 			},
@@ -285,7 +285,7 @@ describe("handleCdnRequest — cache miss + response interception", () => {
 		expect(res.body).toBe("<html>hello</html>");
 
 		/* Entry was cached */
-		const cached = await store.get("cdn:GET:/about:x-d=");
+		const cached = await store.get("cdn:GET:/about:flare-data=");
 		expect(cached).not.toBeNull();
 	});
 
@@ -458,8 +458,8 @@ describe("handleCdnRequest — cache hit", () => {
 /* ── Middleware: Vary-keyed caching ───────────────────────────────────── */
 
 describe("handleCdnRequest — Vary header support", () => {
-	it("different x-d values → different cache entries (HTML vs NDJSON)", async () => {
-		/* First: cache HTML response (x-d absent) */
+	it("different flare-data values → different cache entries (HTML vs NDJSON)", async () => {
+		/* First: cache HTML response (flare-data absent) */
 		const req1 = makeReq({ headers: { host: "localhost" } });
 		const res1 = makeRes();
 
@@ -470,7 +470,7 @@ describe("handleCdnRequest — Vary header support", () => {
 				res1.writeHead(200, {
 					"cache-control": "public, s-maxage=3600",
 					"content-type": "text/html",
-					vary: "x-d",
+					vary: "flare-data",
 				});
 				res1.end("<html>HTML response</html>");
 			},
@@ -478,8 +478,8 @@ describe("handleCdnRequest — Vary header support", () => {
 			new Set(),
 		);
 
-		/* Second: cache NDJSON response (x-d: 1) */
-		const req2 = makeReq({ headers: { host: "localhost", "x-d": "1" } });
+		/* Second: cache NDJSON response (flare-data: 1) */
+		const req2 = makeReq({ headers: { host: "localhost", "flare-data": "1" } });
 		const res2 = makeRes();
 
 		await handleCdnRequest(
@@ -489,7 +489,7 @@ describe("handleCdnRequest — Vary header support", () => {
 				res2.writeHead(200, {
 					"cache-control": "public, s-maxage=3600",
 					"content-type": "application/x-ndjson",
-					vary: "x-d",
+					vary: "flare-data",
 				});
 				res2.end('{"data":"ndjson"}');
 			},
@@ -531,7 +531,7 @@ describe("handleCdnRequest — Vary header support", () => {
 				res1.writeHead(200, {
 					"cache-control": "public, s-maxage=3600",
 					"content-type": "text/html",
-					vary: "x-d, Accept-Language",
+					vary: "flare-data, Accept-Language",
 				});
 				res1.end("<html>English</html>");
 			},
@@ -552,7 +552,7 @@ describe("handleCdnRequest — Vary header support", () => {
 				res2.writeHead(200, {
 					"cache-control": "public, s-maxage=3600",
 					"content-type": "text/html",
-					vary: "x-d, Accept-Language",
+					vary: "flare-data, Accept-Language",
 				});
 				res2.end("<html>Français</html>");
 			},
@@ -791,7 +791,7 @@ describe("tag-based invalidation via store.deleteByTags", () => {
 /* ── Middleware: Flare header compatibility ───────────────────────────── */
 
 describe("Flare header compatibility", () => {
-	it("caches response with Flare-Cache + Flare-Render headers", async () => {
+	it("caches response with flare-cache + flare-render headers", async () => {
 		const req = makeReq();
 		const res = makeRes();
 
@@ -804,7 +804,7 @@ describe("Flare header compatibility", () => {
 					"content-type": "text/html",
 					"flare-cache": "HIT",
 					"flare-render": "SSG",
-					vary: "x-d",
+					vary: "flare-data",
 				});
 				res.end("<html>SSG page</html>");
 			},
@@ -813,14 +813,14 @@ describe("Flare header compatibility", () => {
 		);
 
 		/* Flare headers preserved in cached entry */
-		const cached = await store.get("cdn:GET:/about:x-d=");
+		const cached = await store.get("cdn:GET:/about:flare-data=");
 		expect(cached).not.toBeNull();
 		const cdnEntry = cached?.data as CdnCacheEntry;
 		expect(cdnEntry.headers["flare-cache"]).toBe("HIT");
 		expect(cdnEntry.headers["flare-render"]).toBe("SSG");
 	});
 
-	it("cached Flare-Cache + Flare-Render headers served back", async () => {
+	it("cached flare-cache + flare-render headers served back", async () => {
 		const entry = makeCdnEntry({
 			headers: {
 				"cache-control": "public, s-maxage=3600",
@@ -855,7 +855,7 @@ describe("Flare header compatibility", () => {
 					"cache-control": "public, s-maxage=3600",
 					"content-type": "text/html",
 					etag: 'W/"a1b2c3d4e5f6g7h8"',
-					vary: "x-d",
+					vary: "flare-data",
 				});
 				res.end("<html>page with etag</html>");
 			},
@@ -864,7 +864,7 @@ describe("Flare header compatibility", () => {
 		);
 
 		/* ETag stored */
-		const cached = await store.get("cdn:GET:/about:x-d=");
+		const cached = await store.get("cdn:GET:/about:flare-data=");
 		const cdnEntry = cached?.data as CdnCacheEntry;
 		expect(cdnEntry.headers.etag).toBe('W/"a1b2c3d4e5f6g7h8"');
 

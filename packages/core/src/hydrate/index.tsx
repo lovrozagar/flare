@@ -22,6 +22,7 @@ import {
 	populateMatchCache,
 } from "../hydration/index.ts";
 import { onceIdle } from "../internal/once-idle.ts";
+import { ATTR_HYDRATED } from "../protocol.ts";
 import { setupNavigation } from "../navigation/index.ts";
 import type { LoadedRouteModule } from "../navigation/types.ts";
 import { FlareProvider, Outlet, useRouter } from "../outlet/index.tsx";
@@ -158,7 +159,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 		}
 		const { QueryClientProvider } = await import("../query-client");
 		QCP = QueryClientProvider as typeof QCP;
-		/* `__flare_qc` is drained after solidHydrate — observers must attach first. */
+		/* `__flare_queries` is drained after solidHydrate — observers must attach first. */
 	}
 
 	/* Build composed rewrite: basePath (if any) + user rewrite */
@@ -285,7 +286,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 			/*
 			 * TanStack `useQuery` (no HydrationCoordinator) attaches its cache
 			 * subscriber on a microtask after the hydration replay. Streamed
-			 * `__flare_qc` must land after that attach — applying it earlier
+			 * `__flare_queries` must land after that attach — applying it earlier
 			 * writes deferred data into a cache with no observers, and the
 			 * SSR-serialized fallback stays on screen.
 			 */
@@ -379,7 +380,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 			render(() => <DevErrorOverlay />, overlayRoot);
 		}
 
-		document.documentElement.setAttribute("data-hydrated", "");
+		document.documentElement.setAttribute(ATTR_HYDRATED, "");
 	}
 
 	/* Service worker registration / unregistration */

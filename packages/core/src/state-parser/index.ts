@@ -90,11 +90,11 @@ export function hydrateLoaderData(matchId: string, data: unknown, resolvers: Map
  * from SSR deferred resolution can resolve hydrated promise shells.
  */
 declare global {
-	var __flare_q:
+	var __flare_defer:
 		| Array<[string, unknown, boolean?]>
 		| { push: (entry: [string, unknown, boolean?]) => number }
 		| undefined;
-	var __flare_qc: Array<[unknown]> | { push: (entry: [unknown]) => number } | undefined;
+	var __flare_queries: Array<[unknown]> | { push: (entry: [unknown]) => number } | undefined;
 	var __flare_r: ((key: string, data: unknown) => void) | undefined;
 	var __flare_re: ((key: string, message: string) => void) | undefined;
 }
@@ -102,7 +102,7 @@ declare global {
 /*
  * Multi-instance registry: supports multiple Flare apps hydrating on the same page.
  * Each call to installDeferredResolver registers its resolver map. The global
- * __flare_r/__flare_re/__flare_q search ALL active maps when resolving a key.
+ * __flare_r/__flare_re/__flare_defer search ALL active maps when resolving a key.
  * Globals are only cleaned when every active map is drained AND no pending entries remain.
  */
 const activeInstances = new Set<Map<string, DeferredResolver>>();
@@ -131,7 +131,7 @@ function cleanupIfAllEmpty(): void {
 	}
 	globalThis.__flare_r = undefined;
 	globalThis.__flare_re = undefined;
-	globalThis.__flare_q = undefined;
+	globalThis.__flare_defer = undefined;
 	activeInstances.clear();
 }
 
@@ -140,7 +140,7 @@ function cleanupIfAllEmpty(): void {
  * then install live resolver for any late-arriving chunks.
  *
  * SSR scripts push `[key, data]` (or `[key, msg, true]` for errors)
- * into `self.__flare_q` array. This function drains them, then replaces
+ * into `self.__flare_defer` array. This function drains them, then replaces
  * the array push with a direct resolver so future chunks resolve immediately.
  *
  * Safe for multiple Flare instances on the same page — resolvers compose
@@ -158,7 +158,7 @@ export function installDeferredResolver(resolvers: Map<string, DeferredResolver>
 	activeInstances.add(resolvers);
 
 	/* Drain any buffered entries from SSR script tags */
-	const queue = globalThis.__flare_q;
+	const queue = globalThis.__flare_defer;
 	if (Array.isArray(queue)) {
 		for (const entry of queue) {
 			resolveOrBuffer(entry[0], entry[1], Boolean(entry[2]));
@@ -185,11 +185,11 @@ export function installDeferredResolver(resolvers: Map<string, DeferredResolver>
 	};
 
 	/*
-	 * Trap __flare_q so late-arriving SSR script pushes resolve immediately.
-	 * SSR scripts do `(self.__flare_q=self.__flare_q||[]).push([...])` — after
+	 * Trap __flare_defer so late-arriving SSR script pushes resolve immediately.
+	 * SSR scripts do `(self.__flare_defer=self.__flare_defer||[]).push([...])` — after
 	 * drain, new pushes must route through the live resolver, not the array.
 	 */
-	globalThis.__flare_q = {
+	globalThis.__flare_defer = {
 		push(entry: [string, unknown, boolean?]) {
 			resolveOrBuffer(entry[0], entry[1], Boolean(entry[2]));
 			cleanupIfAllEmpty();
@@ -205,7 +205,7 @@ export function installDeferredResolver(resolvers: Map<string, DeferredResolver>
  * Drain buffered deferred QC entries from SSR streamed `<script>` tags,
  * then install live proxy for late-arriving entries.
  *
- * SSR scripts push `[{data, key, staleTime?}]` into `self.__flare_qc` array.
+ * SSR scripts push `[{data, key, staleTime?}]` into `self.__flare_queries` array.
  * This function drains them, then replaces the array with a push-proxy
  * so future scripts hydrate immediately.
  *
@@ -231,7 +231,7 @@ export function installQueryCacheResolver(queryClient: unknown): void {
 	}
 
 	/* Drain any buffered entries from SSR script tags */
-	const queue = globalThis.__flare_qc;
+	const queue = globalThis.__flare_queries;
 	if (Array.isArray(queue)) {
 		for (const entry of queue) {
 			applyEntry(entry[0]);
@@ -239,7 +239,7 @@ export function installQueryCacheResolver(queryClient: unknown): void {
 	}
 
 	/* Install push-proxy for late-arriving SSR scripts */
-	globalThis.__flare_qc = {
+	globalThis.__flare_queries = {
 		push(entry: [unknown]) {
 			applyEntry(entry[0]);
 			return 0;

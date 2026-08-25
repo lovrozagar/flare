@@ -3,6 +3,7 @@ import { Dynamic, isServer } from "@solidjs/web";
 import { type Component, createSignal, onSettled, Show, sharedConfig, untrack } from "solid-js";
 import { retryImport } from "../internal.ts";
 import { warn } from "../logger.ts";
+import { GLOBAL_LAZY_LOADED, GLOBAL_LAZY_PENDING } from "../protocol.ts";
 
 export interface LazyOptions<P extends Record<string, unknown>> {
 	loader: () => Promise<{ default: Component<P> }>;
@@ -15,8 +16,8 @@ export interface ClientLazyOptions<P extends Record<string, unknown>> {
 	pending?: Component<P>;
 }
 
-const PENDING_KEY = "__FLARE_LAZY_PENDING__";
-const LOADED_KEY = "__FLARE_LAZY_LOADED__";
+const PENDING_KEY = GLOBAL_LAZY_PENDING;
+const LOADED_KEY = GLOBAL_LAZY_LOADED;
 
 function getGlobalPending(): Set<Promise<void>> {
 	const g = globalThis as Record<string, unknown>;

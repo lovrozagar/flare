@@ -276,9 +276,9 @@ test.describe("@prod-only Prerender ISR pre-population", () => {
 /* ── Group 5: NDJSON data requests from store ────────────────────────── */
 
 test.describe("@prod-only Prerender NDJSON data serving", () => {
-	test("/static-pure x-d:1 returns pre-rendered NDJSON", async ({ request }) => {
+	test("/static-pure flare-data:1 returns pre-rendered NDJSON", async ({ request }) => {
 		const res = await request.get("/static-pure", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 
@@ -289,9 +289,9 @@ test.describe("@prod-only Prerender NDJSON data serving", () => {
 		expect(body.length).toBeGreaterThan(0);
 	});
 
-	test("/isr-test x-d:1 returns pre-rendered NDJSON", async ({ request }) => {
+	test("/isr-test flare-data:1 returns pre-rendered NDJSON", async ({ request }) => {
 		const res = await request.get("/isr-test", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		expect(res.status()).toBe(200);
 
@@ -430,13 +430,13 @@ test.describe("@prod-only @node-only Prerender serving hierarchy", () => {
 
 	test("NDJSON also served from store for static routes", async ({ request }) => {
 		/*
-		 * x-d:1 data requests for static routes should also hit the store.
+		 * flare-data:1 data requests for static routes should also hit the store.
 		 * Verify NDJSON content matches the build artifact.
 		 */
 		const artifactNdjson = readFileSync(join(STATIC_DIR, "/static-pure.ndjson"), "utf-8");
 
 		const res = await request.get("/static-pure", {
-			headers: { "x-d": "1" },
+			headers: { "flare-data": "1" },
 		});
 		const servedNdjson = await res.text();
 

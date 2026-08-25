@@ -81,7 +81,7 @@ Every fix uses strict TDD: write failing test (red), implement fix (green), run 
 ### Task 4: Global state trampling in deferred resolvers
 
 **Source**: `src/state-parser/index.ts` lines 156-176
-**Bug**: `globalThis.__flare_r`, `__flare_re`, `__flare_q` overwritten unconditionally. If multiple Flare app instances hydrate on the same page, the second instance's resolver overwrites the first, breaking deferred data resolution for instance 1.
+**Bug**: `globalThis.__flare_r`, `__flare_re`, `__flare_defer` overwritten unconditionally. If multiple Flare app instances hydrate on the same page, the second instance's resolver overwrites the first, breaking deferred data resolution for instance 1.
 
 **Unit tests** (`tests/unit/state-parser/deferred-multi-instance.test.ts`):
 
@@ -89,7 +89,7 @@ Every fix uses strict TDD: write failing test (red), implement fix (green), run 
 - Single instance: cleanup removes globals after all resolved
 - Two instances: both resolvers receive their respective entries
 - Two instances: first instance's entries still resolve after second installs
-- Late-arriving push (via `__flare_q.push`) routes to correct resolver
+- Late-arriving push (via `__flare_defer.push`) routes to correct resolver
 - Cleanup only removes globals when ALL instances are drained
 
 **Fix**: Instead of overwriting globals, compose resolvers. Store previous `__flare_r`/`__flare_re` before overwriting. In the new resolver, call through to the previous one if the key doesn't match any pending resolver in the current instance. Track instance count; only delete globals when all instances have cleaned up.

@@ -41,7 +41,7 @@ test.describe("Middleware response headers (NDJSON)", () => {
 
 		const ndjsonHeaders: Record<string, string> = {};
 		page.on("response", (res) => {
-			if (res.request().headers()["x-d"] === "1") {
+			if (res.request().headers()["flare-data"] === "1") {
 				for (const [k, v] of Object.entries(res.headers())) {
 					ndjsonHeaders[k] = v;
 				}
@@ -68,7 +68,7 @@ test.describe("Middleware response headers (NDJSON)", () => {
 
 		const ndjsonHeaders: Record<string, string> = {};
 		page.on("response", (res) => {
-			if (res.request().headers()["x-d"] === "1") {
+			if (res.request().headers()["flare-data"] === "1") {
 				for (const [k, v] of Object.entries(res.headers())) {
 					ndjsonHeaders[k] = v;
 				}
@@ -94,7 +94,7 @@ test.describe("Middleware response headers (NDJSON)", () => {
 
 		const ndjsonHeaders: Record<string, string> = {};
 		page.on("response", (res) => {
-			if (res.request().headers()["x-d"] === "1") {
+			if (res.request().headers()["flare-data"] === "1") {
 				for (const [k, v] of Object.entries(res.headers())) {
 					ndjsonHeaders[k] = v;
 				}
@@ -157,7 +157,7 @@ test.describe("Middleware + custom route headers coexistence", () => {
 
 		const ndjsonHeaders: Record<string, string> = {};
 		page.on("response", (res) => {
-			if (res.request().headers()["x-d"] === "1") {
+			if (res.request().headers()["flare-data"] === "1") {
 				for (const [k, v] of Object.entries(res.headers())) {
 					ndjsonHeaders[k] = v;
 				}
