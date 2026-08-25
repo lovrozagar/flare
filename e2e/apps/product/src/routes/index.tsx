@@ -259,6 +259,11 @@ export const route = createPage("_root_/")
 							Prefetch Defer
 						</Link>
 					</li>
+					<li>
+						<Link data-testid="instant-nav-link" prefetch="intent" to="/instant-nav">
+							Instant Nav
+						</Link>
+					</li>
 				</ul>
 				<h2>Deferred</h2>
 				<ul>
