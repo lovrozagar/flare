@@ -112,40 +112,36 @@ self.addEventListener("fetch", function (event) {
 		return
 	}
 
-	/* Network-first for navigations */
+	/* Network-first for navigations. redirect:manual so 3xx Set-Cookie
+	   (locale strip, cookie-respect) is applied by the document, not eaten
+	   by fetch() follow inside the worker. */
 	if (event.request.mode === "navigate") {
 		event.respondWith(
-			(function () {
-				var preload = event.preloadResponse || Promise.resolve(undefined)
-				return preload.then(function (preloaded) {
-					if (preloaded) return preloaded
-					return fetch(event.request)
-				}).then(function (response) {
-					if (response.ok) {
-						var clone = response.clone()
-						caches.open(RUNTIME_CACHE).then(function (cache) {
-							cache.put(event.request, clone).catch(function () {})
-							/* LRU eviction — batch delete to stay under limit */
-							cache.keys().then(function (keys) {
-								var i = 0
-								while (keys.length - i > SW_CONFIG.runtimeCacheMax) {
-									cache.delete(keys[i])
-									i++
-								}
-							})
-						}).catch(function () {})
+			fetch(event.request, { redirect: "manual" }).then(function (response) {
+				if (response.ok) {
+					var clone = response.clone()
+					caches.open(RUNTIME_CACHE).then(function (cache) {
+						cache.put(event.request, clone).catch(function () {})
+						/* LRU eviction — batch delete to stay under limit */
+						cache.keys().then(function (keys) {
+							var i = 0
+							while (keys.length - i > SW_CONFIG.runtimeCacheMax) {
+								cache.delete(keys[i])
+								i++
+							}
+						})
+					}).catch(function () {})
+				}
+				return response
+			}).catch(function () {
+				return caches.match(event.request).then(function (cached) {
+					if (cached) return cached
+					if (SW_CONFIG.offlineFallback) {
+						return caches.match(SW_CONFIG.offlineFallback)
 					}
-					return response
-				}).catch(function () {
-					return caches.match(event.request).then(function (cached) {
-						if (cached) return cached
-						if (SW_CONFIG.offlineFallback) {
-							return caches.match(SW_CONFIG.offlineFallback)
-						}
-						return undefined
-					})
+					return undefined
 				})
-			})()
+			})
 		)
 		return
 	}

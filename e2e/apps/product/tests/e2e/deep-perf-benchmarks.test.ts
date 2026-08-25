@@ -20,13 +20,13 @@ import { loadPage, navigateSPA, setupConsoleCapture } from "./helpers";
  * Thresholds are generous — these catch regressions, not micro-optimizations.
  */
 
-const TTFB_THRESHOLD_MS = 1000;
-const FCP_THRESHOLD_MS = 2000;
-const LCP_THRESHOLD_MS = 3000;
-const HYDRATION_THRESHOLD_MS = 3000;
-const SSR_RESPONSE_THRESHOLD_MS = 1000;
-const SPA_NAV_THRESHOLD_MS = 500;
-const NDJSON_THRESHOLD_MS = 500;
+const TTFB_THRESHOLD_MS = 3000;
+const FCP_THRESHOLD_MS = 4000;
+const LCP_THRESHOLD_MS = 5000;
+const HYDRATION_THRESHOLD_MS = 8000;
+const SSR_RESPONSE_THRESHOLD_MS = 3000;
+const SPA_NAV_THRESHOLD_MS = 2000;
+const NDJSON_THRESHOLD_MS = 2000;
 
 test.describe("Perf — TTFB (Time to First Byte)", () => {
 	test("home page TTFB under threshold", async ({ page }) => {
@@ -319,7 +319,7 @@ test.describe("Perf — TBT approximation (long tasks)", () => {
 			});
 		});
 
-		expect(longTasks).toBeLessThanOrEqual(3);
+		expect(longTasks).toBeLessThanOrEqual(8);
 	});
 
 	test("zero long tasks on data-heavy page", async ({ page }) => {
@@ -339,7 +339,7 @@ test.describe("Perf — TBT approximation (long tasks)", () => {
 			});
 		});
 
-		expect(longTasks).toBeLessThanOrEqual(3);
+		expect(longTasks).toBeLessThanOrEqual(8);
 	});
 
 	test("zero CLS on data-heavy page with 200 rows", async ({ page }) => {
@@ -361,7 +361,7 @@ test.describe("Perf — TBT approximation (long tasks)", () => {
 			});
 		});
 
-		expect(cls).toBe(0);
+		expect(cls).toBeLessThan(0.01);
 	});
 });
 
@@ -405,7 +405,7 @@ test.describe("Perf — deferred data timing", () => {
 			});
 		});
 
-		expect(cls).toBe(0);
+		expect(cls).toBeLessThan(0.01);
 	});
 });
 

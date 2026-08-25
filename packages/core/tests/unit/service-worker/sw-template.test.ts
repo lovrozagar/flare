@@ -102,9 +102,9 @@ describe("SW template generation", () => {
 		expect(result).toContain("clients.claim");
 	});
 
-	it("includes preloadResponse for navigation", () => {
+	it("navigation fetch does not follow redirects via preloadResponse", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		expect(result).toContain("preloadResponse");
+		expect(result).not.toContain("preloadResponse");
 	});
 
 	it("passes through keepalive via /_flare/ prefix", () => {
@@ -174,9 +174,17 @@ describe("SW template generation", () => {
 		expect(result).toContain("cache.put(event.request");
 	});
 
-	it("network-first for navigations uses event.preloadResponse", () => {
+	it("navigation fetch uses redirect:manual instead of preload follow", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		expect(result).toContain("event.preloadResponse");
+		expect(result).not.toContain("event.preloadResponse");
+		expect(result).toContain('redirect: "manual"');
+	});
+
+	it("navigation fetch does not auto-follow redirects (Set-Cookie on 3xx must reach the document)", () => {
+		const result = generateSwSource([], "b1", defaultConfig);
+		const navigateStart = result.indexOf('"navigate"');
+		const navSection = result.slice(navigateStart);
+		expect(navSection).toContain('redirect: "manual"');
 	});
 
 	it("skipWaiting called in install when config.skipWaiting is true", () => {

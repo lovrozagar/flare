@@ -81,6 +81,12 @@ describe("createServerHandler", () => {
 		expect(typeof handler.fetch).toBe("function");
 	});
 
+	it("GET /_flare/revalidate → 405 when revalidateSecret is configured", async () => {
+		const handler = createServerHandler(makeConfig({ cache: { revalidateSecret: "e2e-test-secret" } }));
+		const response = await handler.fetch(makeRequest("http://localhost/_flare/revalidate"), {});
+		expect(response.status).toBe(405);
+	});
+
 	it("fetch returns Promise<Response>", async () => {
 		const handler = createServerHandler(makeConfig());
 		const result = handler.fetch(makeRequest(), {});

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DeferredResolver } from "../../../src/state-parser/index.ts";
 import {
 	hydrateFlareState,
@@ -379,5 +379,19 @@ describe("resolver integration", () => {
 		resolver?.reject(new Error("fail"));
 
 		await expect(promise).rejects.toThrow("fail");
+	});
+
+	it("resolver.reject does not fire unhandledRejection (Await may attach later)", async () => {
+		const handler = vi.fn();
+		process.on("unhandledRejection", handler);
+		try {
+			const resolvers = new Map<string, DeferredResolver>();
+			hydrateLoaderData("m1", { __deferred: true, key: "d0" }, resolvers);
+			resolvers.get("m1:d0")?.reject(new Error("Deferred failed intentionally"));
+			await new Promise((r) => setTimeout(r, 50));
+			expect(handler).not.toHaveBeenCalled();
+		} finally {
+			process.removeListener("unhandledRejection", handler);
+		}
 	});
 });

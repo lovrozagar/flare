@@ -59,8 +59,8 @@ test.describe("Cache miss after staleTime", () => {
 		await navigateSPA(page, "/about");
 		await expect(page.locator("[data-testid=about]")).toBeVisible();
 
-		/* Wait beyond staleTime (2000ms) */
-		await page.waitForTimeout(2500);
+		/* Wait beyond staleTime (30s) */
+		await page.waitForTimeout(32_000);
 
 		await navigateSPA(page, "/cache-test");
 		await expect(page.locator("[data-testid=cache-test]")).toBeVisible();
@@ -87,8 +87,8 @@ test.describe("Cache miss after staleTime", () => {
 
 		const countBeforeReturn = ndjsonRequests.filter((u) => u.includes("/cache-test")).length;
 
-		/* Wait beyond staleTime (2000ms) */
-		await page.waitForTimeout(2500);
+		/* Wait beyond staleTime (30s) */
+		await page.waitForTimeout(32_000);
 
 		await navigateSPA(page, "/cache-test");
 		await expect(page.locator("[data-testid=cache-test]")).toBeVisible();
@@ -105,7 +105,7 @@ test.describe("Cache miss after staleTime", () => {
 		const rand1 = await page.locator("[data-testid=cache-random]").textContent();
 
 		await navigateSPA(page, "/about");
-		await page.waitForTimeout(2500);
+		await page.waitForTimeout(32_000);
 		await navigateSPA(page, "/cache-test");
 
 		const rand2 = await page.locator("[data-testid=cache-random]").textContent();
@@ -199,7 +199,7 @@ test.describe("NDJSON fetch tracking", () => {
 		await loadPage(page, "/cache-test");
 
 		await navigateSPA(page, "/about");
-		await page.waitForTimeout(2500);
+		await page.waitForTimeout(32_000);
 		await navigateSPA(page, "/cache-test");
 		await expect(page.locator("[data-testid=cache-test]")).toBeVisible();
 
@@ -222,7 +222,7 @@ test.describe("Console cleanliness", () => {
 		const cap = setupConsoleCapture(page);
 		await loadPage(page, "/cache-test");
 		await navigateSPA(page, "/about");
-		await page.waitForTimeout(2500);
+		await page.waitForTimeout(32_000);
 		await navigateSPA(page, "/cache-test");
 		await page.waitForTimeout(200);
 		cap.assertClean();

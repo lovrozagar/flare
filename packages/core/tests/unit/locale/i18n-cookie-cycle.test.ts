@@ -114,7 +114,7 @@ describe("i18n cookie cycle: en → hr → fr → en", () => {
 	it("step 4: navigate to / (cookie=fr) → redirect to /fr", async () => {
 		const result = await runFullFlow("/", "flare.locale=fr");
 		expect(result.response.status).toBe(302);
-		expect(new URL(result.response.headers.get("Location") ?? "").pathname).toBe("/fr/");
+		expect(new URL(result.response.headers.get("Location") ?? "", "http://localhost:3000").pathname).toBe("/fr/");
 	});
 
 	it("step 5: navigate to /hr again (cookie=en) → sets cookie to hr", async () => {
@@ -147,7 +147,7 @@ describe("i18n cookie cycle: en → hr → fr → en", () => {
 		/* Step 4: / with cookie=fr → redirect to /fr (cookie-respect) */
 		const r4 = await runFullFlow("/", cookie);
 		expect(r4.response.status).toBe(302);
-		expect(new URL(r4.response.headers.get("Location") ?? "").pathname).toBe("/fr/");
+		expect(new URL(r4.response.headers.get("Location") ?? "", "http://localhost:3000").pathname).toBe("/fr/");
 		/* Cookie stays fr — user follows redirect to /fr */
 
 		/* Step 5: → hr (cookie still fr, explicit URL wins) */
@@ -160,6 +160,17 @@ describe("i18n cookie cycle: en → hr → fr → en", () => {
 		const r6 = await runFullFlow("/en", cookie);
 		expect(r6.response.status).toBe(302);
 		/* /en redirects to / (strip default prefix) */
+	});
+
+	it("/en with cookie=fr → 302 to / and Set-Cookie en", async () => {
+		const result = await runFullFlow("/en", "flare.locale=fr");
+		expect(result.response.status).toBe(302);
+		const location = result.response.headers.get("Location") ?? "";
+		expect(new URL(location, "http://localhost:3000").pathname).toBe("/");
+		/* Relative Location so the document — not a service worker fetch()
+		   that follows redirects — applies Set-Cookie before the next hop. */
+		expect(location.startsWith("http")).toBe(false);
+		expect(result.cookie).toContain("flare.locale=en");
 	});
 });
 
@@ -222,7 +233,7 @@ describe("i18n cookie with non-root paths", () => {
 	it("/about with cookie=fr → redirect to /fr/about", async () => {
 		const result = await runFullFlow("/about", "flare.locale=fr");
 		expect(result.response.status).toBe(302);
-		expect(new URL(result.response.headers.get("Location") ?? "").pathname).toBe("/fr/about");
+		expect(new URL(result.response.headers.get("Location") ?? "", "http://localhost:3000").pathname).toBe("/fr/about");
 	});
 
 	it("/hr/about with cookie=fr → sets cookie to hr", async () => {
