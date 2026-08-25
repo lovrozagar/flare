@@ -44,6 +44,7 @@ node_modules
 .tmp
 .tmp-*
 .temp
+ISSUES.md
 
 # cargo target for rust / tauri (do not use /tmp — it is a small tmpfs)
 .cache/
