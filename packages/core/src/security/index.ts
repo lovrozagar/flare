@@ -104,6 +104,8 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 		styleSrcElem.push("'unsafe-inline'");
 		const workerSrc = directives["worker-src"] as string[];
 		workerSrc.push("blob:");
+		/* HTTP localhost + this directive makes Chrome follow redirects as https://localhost. */
+		directives["upgrade-insecure-requests"] = false;
 	}
 
 	if (overrides) {

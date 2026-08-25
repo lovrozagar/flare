@@ -29,6 +29,11 @@ export function createTimingTracer(): TimingTracer {
 	};
 }
 
+/* Server-Timing `name` is an RFC 7230 token — no `:`, `/`, or spaces. */
+function timingToken(name: string): string {
+	return name.replace(/[^0-9A-Za-z!#$%&'*+\-.^_`|~]/g, ".");
+}
+
 export function buildServerTimingHeader(entries: TimingEntry[]): string {
-	return entries.map((e) => `${e.name};dur=${e.dur.toFixed(1)}`).join(", ");
+	return entries.map((e) => `${timingToken(e.name)};dur=${e.dur.toFixed(1)}`).join(", ");
 }
