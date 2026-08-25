@@ -1,5 +1,13 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { loadPage, navigateSPA, setupConsoleCapture } from "./helpers";
+
+const CLIENT_STALE_MS = 30_000;
+
+/** Advance page clocks past client staleTime without a 32s real wait. */
+async function expireClientStaleTime(page: Page): Promise<void> {
+	await page.clock.install();
+	await page.clock.fastForward(CLIENT_STALE_MS + 1_000);
+}
 
 test.describe("Cache hit on immediate revisit", () => {
 	test("cached timestamp is identical after immediate A→B→A", async ({ page }) => {
@@ -59,8 +67,7 @@ test.describe("Cache miss after staleTime", () => {
 		await navigateSPA(page, "/about");
 		await expect(page.locator("[data-testid=about]")).toBeVisible();
 
-		/* Wait beyond staleTime (30s) */
-		await page.waitForTimeout(32_000);
+		await expireClientStaleTime(page);
 
 		await navigateSPA(page, "/cache-test");
 		await expect(page.locator("[data-testid=cache-test]")).toBeVisible();
@@ -87,8 +94,7 @@ test.describe("Cache miss after staleTime", () => {
 
 		const countBeforeReturn = ndjsonRequests.filter((u) => u.includes("/cache-test")).length;
 
-		/* Wait beyond staleTime (30s) */
-		await page.waitForTimeout(32_000);
+		await expireClientStaleTime(page);
 
 		await navigateSPA(page, "/cache-test");
 		await expect(page.locator("[data-testid=cache-test]")).toBeVisible();
@@ -105,7 +111,7 @@ test.describe("Cache miss after staleTime", () => {
 		const rand1 = await page.locator("[data-testid=cache-random]").textContent();
 
 		await navigateSPA(page, "/about");
-		await page.waitForTimeout(32_000);
+		await expireClientStaleTime(page);
 		await navigateSPA(page, "/cache-test");
 
 		const rand2 = await page.locator("[data-testid=cache-random]").textContent();
@@ -199,7 +205,7 @@ test.describe("NDJSON fetch tracking", () => {
 		await loadPage(page, "/cache-test");
 
 		await navigateSPA(page, "/about");
-		await page.waitForTimeout(32_000);
+		await expireClientStaleTime(page);
 		await navigateSPA(page, "/cache-test");
 		await expect(page.locator("[data-testid=cache-test]")).toBeVisible();
 
@@ -222,7 +228,7 @@ test.describe("Console cleanliness", () => {
 		const cap = setupConsoleCapture(page);
 		await loadPage(page, "/cache-test");
 		await navigateSPA(page, "/about");
-		await page.waitForTimeout(32_000);
+		await expireClientStaleTime(page);
 		await navigateSPA(page, "/cache-test");
 		await page.waitForTimeout(200);
 		cap.assertClean();

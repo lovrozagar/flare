@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { CLS_BUDGET, runnerBudget } from "./helpers";
 
 /**
  * Performance regression tests.
@@ -145,7 +146,7 @@ test.describe("Performance — Web Vitals indicators", () => {
 			});
 		});
 
-		expect(cls).toBeLessThan(0.01);
+		expect(cls).toBeLessThan(CLS_BUDGET);
 	});
 
 	test("zero long tasks (>50ms) on simple page load", async ({ page }) => {
@@ -165,7 +166,7 @@ test.describe("Performance — Web Vitals indicators", () => {
 			});
 		});
 
-		expect(longTasks).toBeLessThanOrEqual(8);
+		expect(longTasks).toBeLessThanOrEqual(runnerBudget(3, 8));
 	});
 
 	test("ISR page hydrates with zero CLS", async ({ page }) => {
@@ -188,7 +189,7 @@ test.describe("Performance — Web Vitals indicators", () => {
 			});
 		});
 
-		expect(cls).toBeLessThan(0.01);
+		expect(cls).toBeLessThan(CLS_BUDGET);
 	});
 });
 
@@ -233,7 +234,7 @@ test.describe("Performance — ISR deferred page vitals", () => {
 			});
 		});
 
-		expect(cls).toBeLessThan(0.01);
+		expect(cls).toBeLessThan(CLS_BUDGET);
 	});
 
 	test("zero long tasks on ISR defer page", async ({ page }) => {
@@ -253,7 +254,7 @@ test.describe("Performance — ISR deferred page vitals", () => {
 			});
 		});
 
-		expect(longTasks).toBeLessThanOrEqual(8);
+		expect(longTasks).toBeLessThanOrEqual(runnerBudget(3, 8));
 	});
 
 	test("ISR multi-defer page hydrates with zero CLS", async ({ page }) => {
@@ -276,6 +277,6 @@ test.describe("Performance — ISR deferred page vitals", () => {
 			});
 		});
 
-		expect(cls).toBeLessThan(0.01);
+		expect(cls).toBeLessThan(CLS_BUDGET);
 	});
 });

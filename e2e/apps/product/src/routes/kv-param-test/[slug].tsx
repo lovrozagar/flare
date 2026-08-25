@@ -3,10 +3,11 @@ import { createPage } from "@lovrozagar/flare/page";
 let callCount = 0;
 
 export const route = createPage("_root_/kv-param-test/[slug]")
+	/* 30s: CI hydrate + SPA round trip exceeds a 5s window. */
 	.cache({
 		ssr: {
 			key: ({ params }) => `kv-param:${params.slug}`,
-			staleTime: 5_000,
+			staleTime: 30_000,
 			tags: ({ params }) => ["kv-param", `kv-param:${params.slug}`],
 		},
 	})

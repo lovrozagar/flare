@@ -14,6 +14,7 @@ function axeScan(page: Page, tags: string[] = ["wcag2a", "wcag2aa", "wcag21a", "
 	return new AxeBuilder({ page }).withTags(tags).exclude("[data-flare-dev-overlay]");
 }
 
+/* /perf-stress (1000 rows + deferred work) is excluded: axe exceeds Playwright's 35s timeout on CI. */
 const ROUTES = [
 	"/",
 	"/about",

@@ -55,9 +55,10 @@ describe("SW template generation", () => {
 		expect(result).toContain("fetch");
 	});
 
-	it("includes NavigationPreloadManager enable", () => {
+	it("does not enable navigationPreload (preload follows redirects and drops 3xx Set-Cookie)", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		expect(result).toContain("navigationPreload");
+		expect(result).not.toContain("navigationPreload");
+		expect(result).not.toContain("preloadResponse");
 	});
 
 	it("includes message handler for SKIP_WAITING", () => {
@@ -118,15 +119,16 @@ describe("SW template generation", () => {
 		expect(result).toContain("self.location.origin");
 	});
 
-	it("LRU eviction checks runtimeCacheMax", () => {
+	it("runtimeCacheMax stays in config even though navigations are not cached", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
 		expect(result).toContain("runtimeCacheMax");
-		expect(result).toContain("keys.length");
 	});
 
-	it("caches navigation response clone in RUNTIME_CACHE", () => {
+	it("does not cache navigation HTML (locale Set-Cookie must hit the network)", () => {
 		const result = generateSwSource([], "b1", defaultConfig);
-		expect(result).toContain("clone");
+		const navigateStart = result.indexOf('"navigate"');
+		const navSection = result.slice(navigateStart);
+		expect(navSection).not.toContain("cache.put(event.request");
 		expect(result).toContain("RUNTIME_CACHE");
 	});
 

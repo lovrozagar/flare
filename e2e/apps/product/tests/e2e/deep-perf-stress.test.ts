@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loadPage, navigateSPA, setupConsoleCapture } from "./helpers";
+import { CLS_BUDGET, loadPage, navigateSPA, runnerBudget, setupConsoleCapture } from "./helpers";
 
 /**
  * Performance stress tests.
@@ -55,7 +55,7 @@ test.describe("Perf Stress — 1000 row rendering", () => {
 			});
 		});
 
-		expect(cls).toBeLessThan(0.01);
+		expect(cls).toBeLessThan(CLS_BUDGET);
 	});
 
 	test("1000 row SSR response time under 2s", async ({ request }) => {
@@ -64,7 +64,7 @@ test.describe("Perf Stress — 1000 row rendering", () => {
 		const elapsed = Date.now() - start;
 
 		expect(res.status()).toBe(200);
-		expect(elapsed).toBeLessThan(2000);
+		expect(elapsed).toBeLessThan(runnerBudget(2000));
 	});
 });
 
@@ -138,7 +138,7 @@ test.describe("Perf Stress — rapid navigation", () => {
 
 		/* average should be under 500ms */
 		const avg = timings.reduce((a, b) => a + b, 0) / timings.length;
-		expect(avg).toBeLessThan(2000);
+		expect(avg).toBeLessThan(runnerBudget(500, 2000));
 
 		/* last nav shouldn't be 3x slower than first */
 		const first = timings[0];
@@ -156,7 +156,7 @@ test.describe("Perf Stress — rapid navigation", () => {
 		await navigateSPA(page, "/");
 		const elapsed = Date.now() - start;
 
-		expect(elapsed).toBeLessThan(8000);
+		expect(elapsed).toBeLessThan(runnerBudget(2000, 8000));
 		await expect(page.locator("[data-testid=home]")).toBeVisible();
 	});
 });

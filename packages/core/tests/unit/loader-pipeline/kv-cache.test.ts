@@ -71,6 +71,24 @@ describe("Store cache intercept", () => {
 		expect(loader).not.toHaveBeenCalled();
 	});
 
+	it("two sequential pipeline runs share the store — second skips the loader", async () => {
+		const loader = vi.fn(() => Promise.resolve({ timestamp: 42 }));
+		const store = createMapStore();
+		const route = makeRoute({
+			cache: { ssr: { staleTime: 30_000 } },
+			loader,
+		});
+		const config = makeConfig({ routes: [route], store });
+
+		const first = await runPipeline(config);
+		const second = await runPipeline(config);
+
+		expect(loader).toHaveBeenCalledOnce();
+		expect(first.matches[0]?.loaderData).toEqual({ timestamp: 42 });
+		expect(second.matches[0]?.loaderData).toEqual({ timestamp: 42 });
+		expect(second.matches[0]?.cacheHit).toBe(true);
+	});
+
 	it("cache miss calls loader and writes to store", async () => {
 		const loader = vi.fn(() => Promise.resolve("fresh-data"));
 		const store = createMapStore();

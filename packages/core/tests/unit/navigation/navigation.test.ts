@@ -583,6 +583,44 @@ describe("prefetch", () => {
 		expect(ctx.prefetchCache.has(new URL("/cache-test", window.location.href).href)).toBe(true);
 	});
 
+	it("skipped prefetch then navigate does not parallel-fetch within staleTime", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		const routeId = "_root_/cache-test";
+		const matchId = `${routeId}:{}:[]`;
+		const pageMod = {
+			...makeModule(routeId),
+			cache: { client: { staleTime: 60_000 } },
+		};
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute(routeId, "r", { client: { staleTime: 60_000 } }),
+		});
+		ctx.matchCache.set({
+			data: "ssr-data",
+			invalid: false,
+			matchId,
+			updatedAt: Date.now(),
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: pageMod }));
+
+		await prefetch({ to: "/cache-test" });
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+
+		mockFetchNDJSON.mockClear();
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "should-not-write", matchId }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		await navigate({ to: "/cache-test" });
+
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+		expect(ctx.matchCache.get(matchId)?.data).toBe("ssr-data");
+	});
+
 	it("fetches when matchCache entry is past client staleTime", async () => {
 		const ctx = makeCtx();
 		setupNavigation(ctx, mockLoadRouteModules);
