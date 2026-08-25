@@ -3,6 +3,7 @@ import { createPage } from "@lovrozagar/flare/page";
 let callCount = 0;
 
 export const route = createPage("_root_/kv-cache-test")
+	/* 30s: CI hydrate + SPA round trip exceeds a 5s window, so NDJSON would miss KV. */
 	.cache({
 		ssr: { staleTime: 30_000, tags: ["kv-test"], ttl: 60 },
 	})

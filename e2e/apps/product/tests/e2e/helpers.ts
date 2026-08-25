@@ -161,6 +161,14 @@ export async function navigateSPA(page: Page, to: string): Promise<void> {
 /** Playwright baseURL is already set; some tests concatenate BASE onto paths. */
 export const BASE = "";
 
+/** GitHub-hosted runners are slower than local; keep local budgets tight. */
+export function runnerBudget(local: number, ci = local * 4): number {
+	return process.env.CI ? ci : local;
+}
+
+/** Cumulative layout shift: exact 0 is too brittle (~0.004 noise on CI). */
+export const CLS_BUDGET = 0.01;
+
 export function parseNDJSON(body: string): Array<Record<string, unknown>> {
 	return body
 		.split("\n")

@@ -204,7 +204,8 @@ test.describe("Service Worker — prod @prod-only", () => {
 		const text = await response?.text();
 		expect(text).toContain("fetch");
 		expect(text).toContain("navigate");
-		expect(text).toContain("navigationPreload");
+		expect(text).toContain('redirect: "manual"');
+		expect(text).not.toContain("navigationPreload");
 		expect(text).toContain("caches.match");
 		expect(text).toContain("caches.open");
 	});
