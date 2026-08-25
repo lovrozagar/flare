@@ -86,6 +86,7 @@ const RENDERABLE_ROUTES: Array<{ label: string; path: string }> = [
 	{ label: "ISR Defer", path: "/isr-defer" },
 	{ label: "ISR Multi Defer", path: "/isr-multi-defer" },
 	{ label: "Prefetch Defer", path: "/prefetch-defer" },
+	{ label: "Instant Nav", path: "/instant-nav" },
 	{ label: "Search Effects", path: "/search-effects?q=foo" },
 	{ label: "Layout Catches Child Safe", path: "/layout-catches-child" },
 ];
