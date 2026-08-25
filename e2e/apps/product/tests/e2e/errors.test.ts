@@ -39,9 +39,7 @@ test.describe("auth errors", () => {
 	test("authenticate() without header is unauthenticated", async ({ page }) => {
 		const response = await page.goto("/guarded");
 		expect(response?.status()).toBe(401);
-		/* authenticate() gate uses the default 401 page, not page unauthenticatedRender */
-		await expect(page.getByRole("heading", { name: "401" })).toBeVisible();
-		await expect(page.getByText("Unauthorized")).toBeVisible();
+		await expect(page.getByTestId("guarded-unauthenticated")).toBeVisible();
 	});
 
 	test("authenticate() with x-test-auth renders", async ({ page }) => {

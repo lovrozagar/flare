@@ -96,12 +96,11 @@ describe("authentication", () => {
 		expect(result.auth).toBe(user);
 	});
 
-	it("route with .authenticate(), auth = null → throws UnauthenticatedError", async () => {
+	it("route with .authenticate(), auth = null → error match", async () => {
 		const authFn = vi.fn(() => Promise.resolve(null));
 		const route = makeRoute({ authenticate: [] });
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }));
+		expect(result.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 
 	it('route with .authenticate("admin"), callerData passed', async () => {
@@ -136,17 +135,29 @@ describe("authentication", () => {
 		expect(authFn).toHaveBeenCalledTimes(1);
 	});
 
-	it("no authenticateFn + route with authenticate → throws UnauthenticatedError", async () => {
+	it("no authenticateFn + route with authenticate → error match, does not throw", async () => {
 		const route = makeRoute({ authenticate: [] });
-		await expect(runPipeline(makeConfig({ routes: [route] }))).rejects.toThrow(UnauthenticatedError);
+		const result = await runPipeline(makeConfig({ routes: [route] }));
+		expect(result.matches[0]?.status).toBe("error");
+		expect(result.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 
-	it("authenticateFn returning undefined → throws UnauthenticatedError", async () => {
+	it("authenticateFn returning undefined → error match, does not throw", async () => {
 		const authFn = vi.fn(() => Promise.resolve(undefined));
 		const route = makeRoute({ authenticate: [] });
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }));
+		expect(result.matches[0]?.status).toBe("error");
+		expect(result.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
+	});
+
+	it("authenticate failure skips later loaders", async () => {
+		const pageLoader = vi.fn(() => Promise.resolve({ ok: true }));
+		const layout = makeRoute({ authenticate: [], virtualPath: "_root_/(dash)" });
+		const page = makeRoute({ loader: pageLoader, virtualPath: "_root_/(dash)/home" });
+		const result = await runPipeline(makeConfig({ routes: [layout, page] }));
+		expect(pageLoader).not.toHaveBeenCalled();
+		expect(result.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
+		expect(result.matches[1]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 });
 
@@ -168,7 +179,7 @@ describe("optional authentication", () => {
 		expect(result.auth).toBe(user);
 	});
 
-	it("mixed: optional + required → throws if auth = null", async () => {
+	it("mixed: optional + required → error match if auth = null", async () => {
 		const authFn = vi.fn(() => Promise.resolve(null));
 		const optional = makeRoute({
 			authenticate: [],
@@ -179,9 +190,8 @@ describe("optional authentication", () => {
 			authenticate: [],
 			virtualPath: "_root_/dashboard",
 		});
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [optional, required] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [optional, required] }));
+		expect(result.matches[1]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 
 	it("mixed: optional + required → succeeds when auth resolves", async () => {

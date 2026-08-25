@@ -40,6 +40,7 @@ test.describe("Deep: auth boundary SSR", () => {
 	test("/dashboard without auth returns 401 status", async ({ page }) => {
 		const response = await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
 		expect(response?.status()).toBe(401);
+		await expect(page.getByTestId("dashboard-unauthenticated")).toBeVisible();
 	});
 
 	test("/dashboard with x-test-auth header returns 200", async ({ page }) => {
@@ -87,7 +88,7 @@ test.describe("Deep: CSR error navigation", () => {
 		expect(body.length).toBeGreaterThan(0);
 	});
 
-	test("SPA nav to /dashboard (no auth) changes URL without crash", async ({ page }) => {
+	test("SPA nav to /dashboard (no auth) shows unauthenticated boundary", async ({ page }) => {
 		await loadPage(page, "/");
 
 		await page.evaluate(() => {
@@ -95,12 +96,12 @@ test.describe("Deep: CSR error navigation", () => {
 				| ((to: string) => Promise<void>)
 				| undefined;
 			if (!nav) throw new Error("__flareNavigate not available");
-			return nav("/dashboard").catch(() => {
-				/* navigate may reject on auth error */
-			});
+			return nav("/dashboard");
 		});
 		await page.waitForURL("**/dashboard", { timeout: 10_000 });
 		expect(page.url()).toContain("/dashboard");
+		await expect(page.getByTestId("dashboard-unauthenticated")).toBeVisible();
+		await expect(page.getByTestId("home")).not.toBeVisible();
 	});
 
 	test("recovery: SPA nav from error to valid page works", async ({ page }) => {
@@ -123,7 +124,7 @@ test.describe("Deep: error NDJSON responses", () => {
 		const response = await request.get("/broken", {
 			headers: { "flare-data": "1" },
 		});
-		expect(response.status()).toBe(200);
+		expect(response.status()).toBe(500);
 
 		const body = await response.text();
 		const lines = body.split("\n").filter((l) => l.trim().length > 0);
@@ -141,8 +142,9 @@ test.describe("Deep: error NDJSON responses", () => {
 		const response = await request.get("/dashboard", {
 			headers: { "flare-data": "1" },
 		});
-		/* NDJSON always returns 200 status, error encoded in messages */
+		expect(response.status()).toBe(401);
+		expect(response.headers()["content-type"] ?? "").toContain("ndjson");
 		const body = await response.text();
-		expect(body.length).toBeGreaterThan(0);
+		expect(body).toContain("UnauthenticatedError");
 	});
 });

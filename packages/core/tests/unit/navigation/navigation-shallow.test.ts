@@ -371,6 +371,59 @@ describe("shallow navigation guard", () => {
 		expect(spy).toHaveBeenCalled();
 	});
 
+	it("stale shallow setParams is dropped when a newer navigation wins", async () => {
+		const ctx = makeCtx({
+			matches: () => [
+				{
+					_type: "render" as const,
+					loaderData: null,
+					render: () => null,
+					variablePath: "/search",
+					virtualPath: "_root_/search",
+				},
+			],
+		});
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		let resolveShallow: ((value: unknown) => void) | undefined;
+		const hungRoute = makeRoute("_root_/search");
+		hungRoute.p = vi.fn(
+			() =>
+				new Promise((resolve) => {
+					resolveShallow = resolve;
+				}),
+		);
+
+		mockMatchRoute.mockImplementation((_tree, pathname) => {
+			if (String(pathname).includes("other")) {
+				return { params: {}, route: makeRoute("_root_/other") };
+			}
+			return { params: { q: "stale" }, route: hungRoute };
+		});
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				page: makeModule("_root_/other"),
+			}),
+		);
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "other", matchId: "_root_/other:{}:[]" }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		const shallowP = navigate({ shallow: true, to: "/search?q=stale" });
+		await vi.waitFor(() => expect(hungRoute.p).toHaveBeenCalled());
+
+		await navigate({ to: "/other" });
+		expect(ctx.params()).toEqual({});
+
+		resolveShallow?.({ default: {} });
+		await shallowP;
+
+		expect(ctx.params()).toEqual({});
+		expect(ctx.search()).not.toEqual({ q: "stale" });
+	});
+
 	it("shallow different route + replace: true → full nav with replace", async () => {
 		const ctx = makeCtx({
 			matches: () => [

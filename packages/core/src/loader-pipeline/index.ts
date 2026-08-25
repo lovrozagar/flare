@@ -144,6 +144,7 @@ function buildCdnCacheHeaders(cdn: CdnCacheConfig, params: Record<string, string
 }
 
 interface InternalRoute {
+	authenticateError?: Error;
 	authorizeError?: Error;
 	location: Location<Record<string, string | string[]>, SearchParams, string>;
 	preloaderError?: Error;
@@ -151,6 +152,27 @@ interface InternalRoute {
 	route: ResolvedRoute;
 	validatedParams: Record<string, string | string[]>;
 	validatedSearch: SearchParams;
+}
+
+function isRequiredAuth(route: ResolvedRoute): boolean {
+	return route.authenticate !== undefined && route.authenticateMode !== "optional";
+}
+
+/** Store UnauthenticatedError on the first required-auth route and every subsequent match so loaders skip. */
+function attachUnauthenticated(internalRoutes: InternalRoute[], err: UnauthenticatedError): void {
+	let first = -1;
+	for (let i = 0; i < internalRoutes.length; i++) {
+		const ir = internalRoutes[i];
+		if (ir && isRequiredAuth(ir.route)) {
+			first = i;
+			break;
+		}
+	}
+	if (first < 0) return;
+	for (let j = first; j < internalRoutes.length; j++) {
+		const ir = internalRoutes[j];
+		if (ir) ir.authenticateError = err;
+	}
 }
 
 /** Phase 1: Validate route inputs (params + search) and build location objects. */
@@ -235,37 +257,42 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 	const hasAnyAuth = internalRoutes.some((r) => r.route.authenticate !== undefined);
 
 	if (hasAnyAuth) {
+		const hasRequired = internalRoutes.some((r) => isRequiredAuth(r.route));
 		if (!config.authenticateFn) {
-			/* Only throw if at least one route requires auth (not just optional) */
-			const hasRequired = internalRoutes.some(
-				(r) => r.route.authenticate !== undefined && r.route.authenticateMode !== "optional",
-			);
 			if (hasRequired) {
 				authSpan.setStatus("error");
-				authSpan.end();
-				throw new UnauthenticatedError();
+				attachUnauthenticated(internalRoutes, new UnauthenticatedError());
 			}
 		} else {
-			/* find first route with authenticate to get callerData */
 			const firstAuthRoute = internalRoutes.find((r) => r.route.authenticate !== undefined);
-			auth = await config.authenticateFn({
-				callerData: firstAuthRoute?.route.authenticate as unknown[] | undefined,
-				env,
-				request,
-				serverContext: getServerContext(),
-				url,
-			});
-
-			if (auth === null || auth === undefined) {
-				/* Only throw for required auth (true or unset mode), not optional */
-				const hasRequired = internalRoutes.some(
-					(r) => r.route.authenticate !== undefined && r.route.authenticateMode !== "optional",
-				);
-				if (hasRequired) {
+			try {
+				auth = await config.authenticateFn({
+					callerData: firstAuthRoute?.route.authenticate as unknown[] | undefined,
+					env,
+					request,
+					serverContext: getServerContext(),
+					url,
+				});
+			} catch (e: unknown) {
+				if (isRedirectResponse(e) || isNotFoundError(e)) {
 					authSpan.setStatus("error");
 					authSpan.end();
-					throw new UnauthenticatedError();
+					throw e;
 				}
+				if (isUnauthenticatedError(e)) {
+					authSpan.setStatus("error");
+					attachUnauthenticated(internalRoutes, e);
+					auth = null;
+				} else {
+					authSpan.setStatus("error");
+					authSpan.end();
+					throw e;
+				}
+			}
+
+			if (!internalRoutes.some((r) => r.authenticateError) && (auth === null || auth === undefined) && hasRequired) {
+				authSpan.setStatus("error");
+				attachUnauthenticated(internalRoutes, new UnauthenticatedError());
 			}
 		}
 	}
@@ -292,6 +319,8 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 	};
 
 	for (const ir of internalRoutes) {
+		if (ir.authenticateError) continue;
+
 		/* 3a. Preloader */
 		if (ir.route.preloader && !ir.preloaderError) {
 			const preloaderSpan = tracer.startSpan(`flare.pipeline.preloader:${ir.route.virtualPath}`);
@@ -390,6 +419,18 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 
 		const deferContext = createDeferContext(matchId, { prefetch: config.prefetch });
 		deferContexts.set(matchId, deferContext);
+
+		if (ir.authenticateError) {
+			return {
+				deferContext,
+				error: ir.authenticateError,
+				loaderData: undefined,
+				matchId,
+				preloaderContext: ir.preloaderSnapshot,
+				route: ir.route,
+				status: "error",
+			};
+		}
 
 		/* Authorize failure stored in phase 3b — skip loader, produce error match */
 		if (ir.authorizeError) {
