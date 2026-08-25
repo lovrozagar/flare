@@ -10,6 +10,7 @@ export interface NDJSONResponseConfig {
 	matches: PipelineMatch[];
 	queryClient?: unknown;
 	serverLogs?: ServerLogEntry[];
+	status?: number;
 }
 
 const NDJSON_HEADERS = {
@@ -190,7 +191,25 @@ export function createNDJSONResponse(config: NDJSONResponseConfig): Response {
 	for (const l of lines) {
 		body += `${l}\n`;
 	}
-	return new Response(body, { headers: NDJSON_HEADERS, status: 200 });
+	return new Response(body, { headers: NDJSON_HEADERS, status: config.status ?? 200 });
+}
+
+export function createErrorNDJSONResponse(error: Error, status?: number): Response {
+	const http =
+		status ??
+		(error.name === "UnauthenticatedError"
+			? 401
+			: error.name === "UnauthorizedError"
+				? 403
+				: error.name === "NotFoundError"
+					? 404
+					: 500);
+	const lines = [formatErrorMessage("", error), formatReadyMessage(), formatDoneMessage()];
+	let body = "";
+	for (const l of lines) {
+		body += `${l}\n`;
+	}
+	return new Response(body, { headers: NDJSON_HEADERS, status: http });
 }
 
 export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Response {
@@ -268,7 +287,7 @@ export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Res
 		},
 	});
 
-	return new Response(stream, { headers: NDJSON_HEADERS, status: 200 });
+	return new Response(stream, { headers: NDJSON_HEADERS, status: config.status ?? 200 });
 }
 
 export function createRedirectNDJSONResponse(redirect: RedirectResponse): Response {

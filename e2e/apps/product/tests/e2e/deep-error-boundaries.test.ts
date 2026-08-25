@@ -220,7 +220,7 @@ test.describe("NDJSON error responses", () => {
 		const response = await page.request.get("/broken", {
 			headers: { "flare-data": "1" },
 		});
-		expect(response.status()).toBe(200);
+		expect(response.status()).toBe(500);
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
 
 		const msgs = parseNDJSON(await response.text());
@@ -238,7 +238,7 @@ test.describe("NDJSON error responses", () => {
 		const response = await page.request.get("/error-string", {
 			headers: { "flare-data": "1" },
 		});
-		expect(response.status()).toBe(200);
+		expect(response.status()).toBe(500);
 
 		const msgs = parseNDJSON(await response.text());
 		const errors = msgs.filter((m) => m.t === "e");
@@ -272,7 +272,7 @@ test.describe("NDJSON error responses", () => {
 		const response = await page.request.get("/layout-catches-child/broken-child", {
 			headers: { "flare-data": "1" },
 		});
-		expect(response.status()).toBe(200);
+		expect(response.status()).toBe(500);
 
 		const msgs = parseNDJSON(await response.text());
 		const errors = msgs.filter((m) => m.t === "e");

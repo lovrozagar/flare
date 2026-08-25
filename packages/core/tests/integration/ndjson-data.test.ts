@@ -252,13 +252,14 @@ describe("NDJSON — redirect", () => {
 /* ── Authentication ──────────────────────────────────────────────────── */
 
 describe("NDJSON — authentication", () => {
-	it("/dashboard without auth → 401 (not NDJSON)", async () => {
+	it("/dashboard without auth → 401 NDJSON error", async () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(dataRequest("/dashboard"), {});
 
-		/* UnauthenticatedError thrown before NDJSON serialization */
 		expect(response.status).toBe(401);
-		expect(response.headers.get("Content-Type")).toContain("text/html");
+		expect(response.headers.get("Content-Type")).toContain("application/x-ndjson");
+		const messages = parseNDJSON(await response.text());
+		expect(findByType(messages, "e").length).toBeGreaterThan(0);
 	});
 
 	it("/dashboard with null auth → 401", async () => {
@@ -299,7 +300,7 @@ describe("NDJSON — broken loader", () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(dataRequest("/broken"), {});
 
-		expect(response.status).toBe(200);
+		expect(response.status).toBe(500);
 		const messages = parseNDJSON(await response.text());
 		const errors = findByType(messages, "e");
 

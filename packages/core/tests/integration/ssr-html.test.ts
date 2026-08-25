@@ -418,8 +418,7 @@ describe("SSR — authentication", () => {
 
 		expect(response.status).toBe(401);
 		const html = await readResponseBody(response);
-		expect(html).toContain("401");
-		expect(html).toContain("Unauthorized");
+		expect(html).toContain("UnauthenticatedError");
 	});
 
 	it("/dashboard with null-returning auth → 401", async () => {

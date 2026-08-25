@@ -701,4 +701,77 @@ describe("prefetch cache NOT marked on failure", () => {
 		await prefetch({ to: "/good-page" });
 		expect(mockFetchNDJSON).not.toHaveBeenCalled();
 	});
+
+	it("soft HTTP failure does not mark prefetchCache", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute("_root_/soft-fail"),
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule("_root_/soft-fail") }));
+		mockFetchNDJSON.mockResolvedValue({ matches: [], perRouteHeads: [], success: false });
+
+		await prefetch({ to: "/soft-fail" });
+
+		mockFetchNDJSON.mockReset();
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "recovered", matchId: "_root_/soft-fail:{}:[]" }],
+			perRouteHeads: [],
+			success: true,
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule("_root_/soft-fail") }));
+
+		await prefetch({ to: "/soft-fail" });
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("concurrent prefetch is one NDJSON hop", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("two overlapping prefetch() calls share the in-flight fetch", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		const matchId = "_root_/about:{}:[]";
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute("_root_/about"),
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule("_root_/about") }));
+
+		let resolveFetch: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolveFetch = resolve;
+			}),
+		);
+
+		const first = prefetch({ to: "/about" });
+		const second = prefetch({ to: "/about" });
+		await vi.waitFor(() => expect(mockFetchNDJSON).toHaveBeenCalled());
+
+		resolveFetch?.({
+			matches: [{ loaderData: "shared", matchId }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await Promise.all([first, second]);
+
+		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
+		expect(ctx.matchCache.get(matchId)?.data).toBe("shared");
+	});
 });

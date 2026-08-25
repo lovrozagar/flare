@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
-import { RedirectResponse } from "../../../src/errors/index.ts";
+import { RedirectResponse, UnauthenticatedError } from "../../../src/errors/index.ts";
 import type { LoadedRouteModules } from "../../../src/navigation/types.ts";
 import type { FlareProviderContext, InterceptedState, NavigateOptions } from "../../../src/outlet/types.ts";
 import type { TreeNode } from "../../../src/router-primitives/types.ts";
@@ -1346,6 +1346,102 @@ describe("popstate handling", () => {
 		expect(mockFetchNDJSON).not.toHaveBeenCalled();
 
 		document.body.removeChild(el);
+	});
+
+	it("hash-only change with a query string skips loaders", async () => {
+		window.history.replaceState({}, "", "/docs?tab=api");
+
+		const ctx = makeCtx({
+			location: () => ({
+				hash: "",
+				params: {},
+				pathname: "/docs",
+				search: { tab: "api" },
+				url: new URL("http://localhost/docs?tab=api"),
+				variablePath: "",
+				virtualPath: "",
+			}),
+		});
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/docs") });
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules());
+		mockFetchNDJSON.mockResolvedValue({ matches: [], perRouteHeads: [], success: true });
+
+		const el = document.createElement("div");
+		el.id = "install";
+		el.scrollIntoView = vi.fn();
+		document.body.appendChild(el);
+
+		await navigate({ to: "/docs?tab=api#install" });
+
+		expect(el.scrollIntoView).toHaveBeenCalled();
+		expect(mockLoadRouteModules).not.toHaveBeenCalled();
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+
+		document.body.removeChild(el);
+	});
+
+	it("failed data fetch does not leave the URL on the new path", async () => {
+		window.history.replaceState({}, "", "/start");
+
+		const ctx = makeCtx({
+			location: () => ({
+				hash: "",
+				params: {},
+				pathname: "/start",
+				search: {},
+				url: new URL("http://localhost/start"),
+				variablePath: "",
+				virtualPath: "_root_/start",
+			}),
+		});
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/down") });
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule("_root_/down") }));
+		mockFetchNDJSON.mockResolvedValue({ matches: [], perRouteHeads: [], success: false });
+
+		await navigate({ to: "/down" });
+
+		expect(window.location.pathname).toBe("/start");
+		expect(ctx.matches().some((m) => m.virtualPath === "_root_/down")).toBe(false);
+	});
+
+	it("401 data fetch commits the target URL and an UnauthenticatedError match", async () => {
+		window.history.replaceState({}, "", "/start");
+
+		const ctx = makeCtx({
+			location: () => ({
+				hash: "",
+				params: {},
+				pathname: "/start",
+				search: {},
+				url: new URL("http://localhost/start"),
+				variablePath: "",
+				virtualPath: "_root_/start",
+			}),
+		});
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/dashboard") });
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				page: makeModule("_root_/dashboard"),
+			}),
+		);
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [],
+			perRouteHeads: [],
+			status: 401,
+			success: false,
+		});
+
+		await navigate({ to: "/dashboard" });
+
+		expect(window.location.pathname).toBe("/dashboard");
+		const page = ctx.matches().find((m) => m.virtualPath === "_root_/dashboard");
+		expect(page?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 
 	it("stale rAF scroll restore is dropped when superseded by new navigation", async () => {

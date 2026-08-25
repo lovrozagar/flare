@@ -4,7 +4,7 @@ import { collectDeferredPromises, createDeferredTracker } from "../caches/index.
 import type { DirectionConfig } from "../direction.ts";
 import { getDirFromLocale } from "../direction.ts";
 import { parseMilliseconds } from "../duration/index.ts";
-import { NotFoundError, RedirectResponse } from "../errors/index.ts";
+import { NotFoundError, RedirectResponse, UnauthenticatedError, UnauthorizedError } from "../errors/index.ts";
 import type { PerRouteHead } from "../head-client/index.ts";
 import { applyPerRouteHeads } from "../head-client/index.ts";
 import {
@@ -419,6 +419,13 @@ function resolveNavigationUrl(options: InternalNavigateOptions): URL | null {
 }
 
 /** Save scroll position + push/replace history state. */
+function samePathAndSearch(url: URL, loc: { pathname: string; search: SearchParams }): boolean {
+	return (
+		url.pathname === loc.pathname &&
+		serializeSearchParams(parseSearchParams(url.searchParams)) === serializeSearchParams(loc.search)
+	);
+}
+
 function handleHistoryUpdate(
 	options: InternalNavigateOptions,
 	url: URL,
@@ -894,6 +901,13 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		}
 	}
 
+	const previousPathname = typeof window !== "undefined" ? window.location.pathname : "/";
+	const previousSearch = typeof window !== "undefined" ? window.location.search : "";
+	const previousHash = typeof window !== "undefined" ? window.location.hash : "";
+	const previousIndex = getHistoryIndex();
+	const previousKey = currentHistoryKey;
+	const previousParams = ctx.location().params;
+
 	/* Step 4: Save scroll + update history (skip for popstate — handled in listener) */
 	if (!options._popstate) {
 		handleHistoryUpdate(options, url, match.params);
@@ -906,8 +920,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 	 * Skip when revalidate is set — caller explicitly wants loaders to re-run. */
 	if (!options._popstate && !options.revalidate) {
 		const loc = ctx.location();
-		const currentSearch = serializeSearchParams(loc.search);
-		if (url.pathname === loc.pathname && url.search === currentSearch) {
+		if (samePathAndSearch(url, loc)) {
 			const search = parseSearchParams(url.searchParams);
 
 			c.setIntercepted(null);
@@ -967,6 +980,8 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			} catch (e: unknown) {
 				warn("nav", `shallow validation failed: ${e instanceof Error ? e.message : String(e)}`);
 			}
+
+			if (controller.signal.aborted || myVersion !== navigationVersion) return;
 
 			c.setParams(validatedParams);
 			c.setSearch(validatedSearch);
@@ -1179,12 +1194,37 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			}
 		}
 
-		/* Failed data fetch with no parsed matches: keep the current match
-		 * tree. Rebuilding from cache would drop pipeline errors that were
-		 * never written to matchCache (SSR hydrates them via errorName only). */
+		/* Bare HTTP error with no NDJSON matches. 401/403 still commit the
+		 * target URL and an error match so unauthenticated/unauthorized
+		 * boundaries render. Anything else reverts the URL — do not leave
+		 * the address bar on a path whose tree never committed. */
 		if (fetchResult && fetchResult.success === false && fetchResult.matches.length === 0) {
-			stopNavigation();
-			return;
+			const status = fetchResult.status;
+			const err = status === 401 ? new UnauthenticatedError() : status === 403 ? new UnauthorizedError() : undefined;
+			if (err) {
+				const last = allModules.at(-1);
+				if (last) {
+					ctx.matchCache.set({
+						data: null,
+						error: err,
+						hasDeferred: false,
+						invalid: false,
+						matchId: matchIdForModule(last, search, modules.params),
+						updatedAt: Date.now(),
+					});
+				}
+			} else {
+				if (!options._popstate && !hadShell) {
+					replaceHistoryState(previousPathname, previousParams, previousSearch, {
+						hash: previousHash,
+						historyIndex: previousIndex,
+					});
+					currentHistoryKey = previousKey;
+					setHistoryIndex(previousIndex);
+				}
+				stopNavigation();
+				return;
+			}
 		}
 
 		/* Step 10: Build client matches */
@@ -1214,6 +1254,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		/* Step 12: Update state + scroll + head + cleanup.
 		 * Everything inside update() so VT captures the complete state transition. */
 		const update = () => {
+			if (myVersion !== navigationVersion) return;
 			c.setIntercepted(null);
 			c.setNotFound(false);
 			c.setMatches(clientMatches);
@@ -1311,9 +1352,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 					return;
 				}
 			} catch {
-				/* sessionStorage unavailable — reload once without guard */
-				window.location.reload();
-				return;
+				/* No durable guard — a reload would loop in private mode. */
 			}
 			/* Already reloaded recently — don't loop, let the error propagate */
 		}
@@ -1370,6 +1409,16 @@ export async function prefetch(options: {
 			DEFAULT_PREFETCH_STALE_TIME,
 	);
 
+	const inflight = inflightPrefetch.get(url.href);
+	if (inflight) {
+		try {
+			await inflight.promise;
+		} catch {
+			/* Speculative */
+		}
+		return;
+	}
+
 	if (!ctx.prefetchCache.shouldPrefetch(url.href, staleTime)) return;
 
 	/* Hover/viewport prefetch must not refetch a route still inside client
@@ -1395,8 +1444,13 @@ export async function prefetch(options: {
 	inflightPrefetch.set(url.href, { promise: resultPromise, startedAt });
 
 	try {
-		await Promise.all([resultPromise, loadMods(rewritePathname(url.pathname), navCtx.routeTree, navCtx.layouts)]);
-		navCtx.prefetchCache.mark(url.href);
+		const [fetchResult] = await Promise.all([
+			resultPromise,
+			loadMods(rewritePathname(url.pathname), navCtx.routeTree, navCtx.layouts),
+		]);
+		if (fetchResult.success !== false) {
+			navCtx.prefetchCache.mark(url.href);
+		}
 	} catch {
 		/* Silently discard errors including redirects — prefetch is speculative
 		 * (hover/touch). Navigating on redirect would move the user away from
