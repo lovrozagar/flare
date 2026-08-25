@@ -261,8 +261,9 @@ describe("prefetch marks route visited", () => {
 
 		/* Enter hop still runs so deferred work can start */
 		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
-		/* Prefetch `l` shell is kept — enter must not replace it */
-		expect(ctx.matchCache.get(computedMatchId)?.data).toEqual({ stats: "shell" });
+		/* Prefetch marked hasDeferred but stored no raw `{ __deferred, key }` markers,
+		 * so this is not a keep-shell — enter `l` replaces the stale entry. */
+		expect(ctx.matchCache.get(computedMatchId)?.data).toEqual({ stats: "full" });
 	});
 
 	it("navigate to prefetched route without deferred → uses cache, no fetch", async () => {

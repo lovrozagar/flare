@@ -495,11 +495,12 @@ function routeHasDeferredShell(
 	return false;
 }
 
-function hydrateCachedDeferred(cached: CachedMatch): void {
-	if (!ctx || !cached.hasDeferred || !hasRawDeferredMarkers(cached.data)) return;
+function hydrateCachedDeferred(cached: CachedMatch): boolean {
+	if (!ctx || !cached.hasDeferred || !hasRawDeferredMarkers(cached.data)) return false;
 	const matchCache = ctx.matchCache;
 	const local = new Map<string, DeferredResolver>();
 	cached.data = hydrateLoaderData(cached.matchId, cached.data, local);
+	if (local.size === 0) return false;
 	let remaining = local.size;
 	const matchId = cached.matchId;
 	for (const [key, r] of local) {
@@ -530,6 +531,7 @@ function hydrateCachedDeferred(cached: CachedMatch): void {
 		});
 	}
 	matchCache.set(cached);
+	return true;
 }
 
 /**
@@ -551,8 +553,7 @@ function commitCachedShell(
 		const cached = ctx.matchCache.get(matchId);
 		if (!cached || cached.invalid) continue;
 		found = true;
-		if (cached.hasDeferred) {
-			hydrateCachedDeferred(cached);
+		if (cached.hasDeferred && hydrateCachedDeferred(cached)) {
 			keepMatchIds.push(matchId);
 		}
 		if (cached.headConfig) heads.push({ head: cached.headConfig, matchId });
@@ -1028,6 +1029,12 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			const shell = commitCachedShell(c, allModules, search, modules.params);
 			hadShell = shell.hadShell;
 			keepMatchIds = shell.keepMatchIds;
+			/* Restore before the next paint so back/forward does not flash at y=0
+			 * while the enter hop (or the post-update rAF) is still outstanding. */
+			if (hadShell && scrollRestorationEnabled && options._restoreScroll) {
+				flush();
+				restoreScroll(options._restoreScroll, "auto");
+			}
 		}
 
 		/* Step 7: Compute match IDs + check staleness (only for known-cached routes) */
@@ -1129,8 +1136,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 					}
 					continue;
 				}
-				/* Prefetch `l` shell is already painted — keep it, let `c` fill Await. */
-				if (!options.revalidate && existing && !m.error && (m.keepShell || existing.hasDeferred)) {
+				/* Prefetch `l` hydrated this nav — keep it, let `c` fill Await.
+				 * Do not keep a leftover hasDeferred entry: abort leaves dead promises. */
+				if (!options.revalidate && existing && !m.error && m.keepShell) {
 					const nextHead = headByMatchId.get(m.matchId);
 					if (nextHead) {
 						existing.headConfig = nextHead;
@@ -1214,20 +1222,26 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 
 			syncLocale(modules.params);
 
-			/* Popstate scroll restoration — double rAF ensures SolidJS has flushed its
-			 * reactive updates and the DOM is ready before we scroll.
-			 * Version check prevents stale restore when a new navigation supersedes this one. */
+			/* Popstate scroll restoration. A cached shell already restored in the
+			 * same turn as setMatches; restore again after this commit in case the
+			 * fetched tree changed height. Skip rAF on that path — rAF is after paint
+			 * and would flash y=0. No-shell popstate still waits for layout via rAF. */
 			if (scrollRestorationEnabled && options._restoreScroll !== undefined) {
-				requestAnimationFrame(() => {
+				if (hadShell && options._restoreScroll) {
+					flush();
+					restoreScroll(options._restoreScroll, "auto");
+				} else {
 					requestAnimationFrame(() => {
-						if (myVersion !== navigationVersion) return;
-						if (options._restoreScroll) {
-							restoreScroll(options._restoreScroll, scrollRestorationBehavior);
-						} else {
-							scrollToTop();
-						}
+						requestAnimationFrame(() => {
+							if (myVersion !== navigationVersion) return;
+							if (options._restoreScroll) {
+								restoreScroll(options._restoreScroll, scrollRestorationBehavior);
+							} else {
+								scrollToTop();
+							}
+						});
 					});
-				});
+				}
 			} else if (options.scroll !== false) {
 				if (url.hash) {
 					flush();
