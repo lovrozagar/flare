@@ -109,6 +109,11 @@ describe("CSP construction", () => {
 		expect(csp).toContain("ws://localhost:*");
 	});
 
+	it("isDev: true → no upgrade-insecure-requests", () => {
+		const csp = buildCspHeader("n", undefined, true);
+		expect(csp).not.toContain("upgrade-insecure-requests");
+	});
+
 	it("isDev: false → strict CSP (no unsafe-*)", () => {
 		const csp = buildCspHeader("n", undefined, false);
 		/* script-src should not have unsafe-eval */

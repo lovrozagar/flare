@@ -165,6 +165,7 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 
 		const scriptSrc = directives["script-src"] as string[];
 		scriptSrc.push("'unsafe-inline'", "'unsafe-eval'");
+		directives["upgrade-insecure-requests"] = false;
 	}
 
 	if (overrides) {
@@ -1623,6 +1624,11 @@ export function createServerHandler<
 							redirectCount++;
 							if (redirectCount > MAX_REDIRECTS) {
 								return fallbackHtmlResponse(FALLBACK_500, 500, secHeaders);
+							}
+							/* Preloader `throw redirect()` never lands in match.error — same NDJSON
+							   as loader redirects so fetch() does not follow a raw 3xx. */
+							if (request.headers.get("x-d") === "1") {
+								return addSecurityHeaders(createRedirectNDJSONResponse(e), secHeaders);
 							}
 							return new Response(null, {
 								headers: { Location: e.url },
