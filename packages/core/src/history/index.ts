@@ -150,6 +150,12 @@ export function createScrollStore(maxSize = 200, ttl = DEFAULT_SCROLL_TTL): Scro
 
 	return {
 		get(key: string): ScrollPosition | null {
+			const ts = timestamps.get(key);
+			if (ts !== undefined && Date.now() - ts > ttl) {
+				store.delete(key);
+				timestamps.delete(key);
+				return null;
+			}
 			return store.get(key) ?? null;
 		},
 

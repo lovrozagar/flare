@@ -275,6 +275,17 @@ describe("scroll store edge cases", () => {
 		vi.spyOn(Date, "now").mockRestore();
 	});
 
+	it("get evicts entries past TTL without a later save", () => {
+		const store = createScrollStore(200, 100);
+		store.save("k1", { x: 0, y: 1 });
+
+		vi.spyOn(Date, "now").mockReturnValue(Date.now() + 200);
+
+		expect(store.get("k1")).toBeNull();
+
+		vi.spyOn(Date, "now").mockRestore();
+	});
+
 	it("entries within TTL are preserved", () => {
 		const store = createScrollStore(200, 500);
 		store.save("k1", { x: 0, y: 1 });

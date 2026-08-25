@@ -36,7 +36,7 @@ test.describe("Error Handling", () => {
 		expect(page.url()).toContain("/broken");
 	});
 
-	test("CSR nav to /dashboard navigates without page crash", async ({ page }) => {
+	test("CSR nav to /dashboard without auth shows unauthenticated boundary", async ({ page }) => {
 		await loadPage(page, "/");
 		await page.evaluate(() => {
 			const nav = (window as unknown as Record<string, unknown>).__flareNavigate as
@@ -46,5 +46,6 @@ test.describe("Error Handling", () => {
 		});
 		await page.waitForURL("**/dashboard", { timeout: 10_000 });
 		expect(page.url()).toContain("/dashboard");
+		await expect(page.getByTestId("dashboard-unauthenticated")).toBeVisible();
 	});
 });

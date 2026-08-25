@@ -33,6 +33,7 @@ import { mergePreloads, resolveRoutePreloads, type ViteManifest } from "../modul
 import { dispatchMount, type MountConfig, matchMount } from "../mount/index.ts";
 import { setRewrite } from "../navigation/index.ts";
 import {
+	createErrorNDJSONResponse,
 	createNDJSONResponse,
 	createRedirectNDJSONResponse,
 	createStreamingNDJSONResponse,
@@ -79,7 +80,13 @@ import {
 	serverFnPath,
 } from "../protocol.ts";
 import { formDataToObject, handleServerFnRequest } from "../server-fn/index.ts";
-import { applyResponseHeaders, mergeResponseHeaders, renderToStream, type SSRConfig } from "../ssr/index.tsx";
+import {
+	applyResponseHeaders,
+	deriveStatus,
+	mergeResponseHeaders,
+	renderToStream,
+	type SSRConfig,
+} from "../ssr/index.tsx";
 import type { StaticEntryData } from "../store/index.ts";
 import { noopTracer } from "../tracing/noop.ts";
 import { buildServerTimingHeader, createTimingTracer, type TimingTracer } from "../tracing/timing.ts";
@@ -1519,18 +1526,21 @@ export function createServerHandler<
 								}
 							}
 
+							const ndjsonStatus = deriveStatus(pipelineResult.matches);
 							if (hasDeferreds) {
 								response = createStreamingNDJSONResponse({
 									deferContexts: pipelineResult.deferContexts,
 									matches: pipelineResult.matches,
 									queryClient: pageQC?.queryClient,
 									serverLogs: logsForTransport,
+									status: ndjsonStatus,
 								});
 							} else {
 								response = createNDJSONResponse({
 									deferContexts: pipelineResult.deferContexts,
 									matches: pipelineResult.matches,
 									serverLogs: logsForTransport,
+									status: ndjsonStatus,
 								});
 							}
 
@@ -1652,14 +1662,23 @@ export function createServerHandler<
 						}
 
 						if (isUnauthenticatedError(e)) {
+							if (request.headers.get(HEADER_DATA) === HEADER_FLAG) {
+								return addSecurityHeaders(createErrorNDJSONResponse(e), secHeaders);
+							}
 							return fallbackHtmlResponse(FALLBACK_401, 401, secHeaders);
 						}
 
 						if (isUnauthorizedError(e)) {
+							if (request.headers.get(HEADER_DATA) === HEADER_FLAG) {
+								return addSecurityHeaders(createErrorNDJSONResponse(e), secHeaders);
+							}
 							return fallbackHtmlResponse(FALLBACK_403, 403, secHeaders);
 						}
 
 						if (isNotFoundError(e)) {
+							if (request.headers.get(HEADER_DATA) === HEADER_FLAG) {
+								return addSecurityHeaders(createErrorNDJSONResponse(e), secHeaders);
+							}
 							return fallbackHtmlResponse(FALLBACK_404, 404, secHeaders);
 						}
 

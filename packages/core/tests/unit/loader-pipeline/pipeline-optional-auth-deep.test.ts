@@ -333,9 +333,8 @@ describe("mixed auth modes — nested routes", () => {
 			authenticate: [],
 			virtualPath: "_root_/secret",
 		});
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [root, page] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [root, page] }));
+		expect(result.matches.some((m) => m.error instanceof UnauthenticatedError)).toBe(true);
 	});
 
 	it("root optional + page required → succeeds when auth resolves", async () => {
@@ -366,9 +365,8 @@ describe("mixed auth modes — nested routes", () => {
 			authenticateMode: "optional",
 			virtualPath: "_root_/about",
 		});
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [root, page] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [root, page] }));
+		expect(result.matches.some((m) => m.error instanceof UnauthenticatedError)).toBe(true);
 	});
 
 	it("root required + page optional → succeeds when auth resolves", async () => {
@@ -421,9 +419,8 @@ describe("mixed auth modes — nested routes", () => {
 			authenticateMode: "optional",
 			virtualPath: "_root_/(dash)/profile",
 		});
-		await expect(
-			runPipeline(makeConfig({ authenticateFn: authFn, routes: [layout, required, optional] })),
-		).rejects.toThrow(UnauthenticatedError);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [layout, required, optional] }));
+		expect(result.matches.some((m) => m.error instanceof UnauthenticatedError)).toBe(true);
 	});
 
 	it("3 levels: root no-auth + layout optional + page required → throws", async () => {
@@ -439,9 +436,8 @@ describe("mixed auth modes — nested routes", () => {
 			authenticate: [],
 			virtualPath: "_root_/(auth)/secret",
 		});
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [root, layout, page] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [root, layout, page] }));
+		expect(result.matches.some((m) => m.error instanceof UnauthenticatedError)).toBe(true);
 	});
 
 	it("3 levels: root no-auth + layout optional + page optional → null auth OK", async () => {
@@ -481,7 +477,8 @@ describe("mixed auth modes — nested routes", () => {
 			}),
 			makeRoute({ authenticate: [], virtualPath: "_root_/(a)/(b)/secret" }),
 		];
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes }))).rejects.toThrow(UnauthenticatedError);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes }));
+		expect(result.matches.some((m) => m.error instanceof UnauthenticatedError)).toBe(true);
 	});
 
 	it("no authenticateFn + only optional routes → no throw", async () => {
@@ -493,12 +490,13 @@ describe("mixed auth modes — nested routes", () => {
 		expect(result.auth).toBeNull();
 	});
 
-	it("no authenticateFn + mixed optional + required → throws", async () => {
+	it("no authenticateFn + mixed optional + required → error match", async () => {
 		const routes = [
 			makeRoute({ authenticate: [], authenticateMode: "optional", virtualPath: "_root_" }),
 			makeRoute({ authenticate: [], virtualPath: "_root_/admin" }),
 		];
-		await expect(runPipeline(makeConfig({ routes }))).rejects.toThrow(UnauthenticatedError);
+		const result = await runPipeline(makeConfig({ routes }));
+		expect(result.matches.some((m) => m.error instanceof UnauthenticatedError)).toBe(true);
 	});
 
 	it("optional route with no authenticate array + non-auth route → no auth at all", async () => {
@@ -674,12 +672,11 @@ describe("error handling with optional auth", () => {
 		expect(result.matches[0]?.status).toBe("success");
 	});
 
-	it("required auth undefined → throws UnauthenticatedError", async () => {
+	it("required auth undefined → error match", async () => {
 		const authFn = vi.fn(() => Promise.resolve(undefined));
 		const route = makeRoute({ authenticate: [] });
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }));
+		expect(result.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 });
 
@@ -874,16 +871,15 @@ describe("phase ordering with optional auth", () => {
 /* ── Response routes with auth modes ───────────────────────────────── */
 
 describe("response routes with auth modes", () => {
-	it("response route with required auth → throws when null", async () => {
+	it("response route with required auth → error match when null", async () => {
 		const authFn = vi.fn(() => Promise.resolve(null));
 		const route = makeRoute({
 			_type: "response",
 			authenticate: [],
 			response: () => new Response("ok"),
 		});
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }));
+		expect(result.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 
 	it("response route with optional auth → does not throw when null", async () => {
@@ -901,15 +897,14 @@ describe("response routes with auth modes", () => {
 /* ── authenticateMode explicitly true (backwards compat) ───────────── */
 
 describe("authenticateMode explicitly true", () => {
-	it("authenticateMode: true + null auth → throws", async () => {
+	it("authenticateMode: true + null auth → error match", async () => {
 		const authFn = vi.fn(() => Promise.resolve(null));
 		const route = makeRoute({
 			authenticate: [],
 			authenticateMode: true,
 		});
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const result = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [route] }));
+		expect(result.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 
 	it("authenticateMode: true + resolved → passes through", async () => {
@@ -928,12 +923,9 @@ describe("authenticateMode explicitly true", () => {
 		const withMode = makeRoute({ authenticate: [], authenticateMode: true });
 		const withoutMode = makeRoute({ authenticate: [] });
 
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [withMode] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
-
-		await expect(runPipeline(makeConfig({ authenticateFn: authFn, routes: [withoutMode] }))).rejects.toThrow(
-			UnauthenticatedError,
-		);
+		const a = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [withMode] }));
+		const b = await runPipeline(makeConfig({ authenticateFn: authFn, routes: [withoutMode] }));
+		expect(a.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
+		expect(b.matches[0]?.error).toBeInstanceOf(UnauthenticatedError);
 	});
 });

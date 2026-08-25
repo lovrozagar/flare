@@ -23,6 +23,7 @@ export interface NDJSONFetchOptions {
 export interface NDJSONFetchResult {
 	matches: FetchedMatch[];
 	perRouteHeads: PerRouteHead[];
+	status?: number;
 	success: boolean;
 }
 
@@ -123,7 +124,7 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 	 * body makes retry() rebuild matches from a cache that never stored the
 	 * pipeline error, so the error UI cannot recover. */
 	if (!response.ok && !isNdjson) {
-		return { matches: [], perRouteHeads: [], success: false };
+		return { matches: [], perRouteHeads: [], status: response.status, success: false };
 	}
 
 	const matches: FetchedMatch[] = [];

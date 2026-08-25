@@ -168,20 +168,20 @@ test.describe("Deep: NDJSON content-type and status", () => {
 		expect(response.headers()["content-type"]).toContain("application/x-ndjson");
 	});
 
-	test("NDJSON response status is 200 even for routes with errors", async ({ page }) => {
+	test("NDJSON response status follows match errors", async ({ page }) => {
 		const response = await page.request.get("/broken", {
 			headers: { "flare-data": "1" },
 		});
-		/* NDJSON always returns 200 — errors are encoded in messages */
-		expect(response.status()).toBe(200);
+		expect(response.status()).toBe(500);
+		expect(response.headers()["content-type"] ?? "").toContain("ndjson");
 	});
 
-	test("auth-required route returns 401 even for NDJSON requests", async ({ page }) => {
+	test("auth-required route returns 401 NDJSON", async ({ page }) => {
 		const response = await page.request.get("/dashboard", {
 			headers: { "flare-data": "1" },
 		});
-		/* Auth check runs before NDJSON path — returns HTTP error */
 		expect(response.status()).toBe(401);
+		expect(response.headers()["content-type"] ?? "").toContain("ndjson");
 	});
 });
 
@@ -200,13 +200,14 @@ test.describe("Deep: NDJSON error messages", () => {
 		expect(errData?.message).toBe("Intentional loader error");
 	});
 
-	test("auth-required route without auth returns 401 (not NDJSON)", async ({ page }) => {
+	test("auth-required route without auth returns 401 NDJSON error", async ({ page }) => {
 		const response = await page.request.get("/dashboard", {
 			headers: { "flare-data": "1" },
 		});
-		/* Auth check runs before NDJSON pipeline — returns HTML error page */
 		expect(response.status()).toBe(401);
-		expect(response.headers()["content-type"]).not.toContain("application/x-ndjson");
+		expect(response.headers()["content-type"] ?? "").toContain("ndjson");
+		const msgs = parseNDJSON(await response.text());
+		expect(msgs.some((m) => m.t === "e")).toBe(true);
 	});
 });
 

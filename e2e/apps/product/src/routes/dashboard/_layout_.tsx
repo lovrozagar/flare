@@ -22,8 +22,8 @@ export const route = createLayout("_root_/(dashboard)")
 			<main data-testid="dashboard-main">{props.children}</main>
 		</div>
 	))
-	.unauthorizedRender(() => (
-		<div data-testid="unauthorized">
+	.unauthenticatedRender(() => (
+		<div data-testid="dashboard-unauthenticated">
 			<h1>401 Unauthorized</h1>
 			<p>Please sign in to access the dashboard.</p>
 			<Link to="/">Go Home</Link>
