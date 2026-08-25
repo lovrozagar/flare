@@ -177,6 +177,22 @@ describe("security headers", () => {
 		expect(csp).toMatch(/nonce-[a-f0-9]+/);
 	});
 
+	it("prod HTTP response CSP does not upgrade-insecure-requests", async () => {
+		devRef.current = false;
+		const handler = createServerHandler(makeConfig());
+		const response = await handler.fetch(makeRequest("http://localhost:4102/nope"), {});
+		const csp = response.headers.get("Content-Security-Policy") ?? "";
+		expect(csp).not.toContain("upgrade-insecure-requests");
+	});
+
+	it("prod HTTPS response CSP still has upgrade-insecure-requests", async () => {
+		devRef.current = false;
+		const handler = createServerHandler(makeConfig());
+		const response = await handler.fetch(makeRequest("https://example.com/nope"), {});
+		const csp = response.headers.get("Content-Security-Policy") ?? "";
+		expect(csp).toContain("upgrade-insecure-requests");
+	});
+
 	it("CSP dev mode relaxation", async () => {
 		const handler = createServerHandler(makeConfig());
 		const response = await handler.fetch(makeRequest("http://localhost/nope"), {});

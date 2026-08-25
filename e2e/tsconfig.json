@@ -3,5 +3,13 @@
 	"compilerOptions": {
 		"types": ["bun-types"]
 	},
-	"include": ["run-build.ts", "run-env.ts", "playwright-app.ts", "playwright-env.ts", "apps/builds.ts", "apps/load.ts"]
+	"include": [
+		"run-build.ts",
+		"run-env.ts",
+		"playwright-app.ts",
+		"playwright-env.ts",
+		"apps/builds.ts",
+		"apps/load.ts",
+		"apps/load.test.ts"
+	]
 }

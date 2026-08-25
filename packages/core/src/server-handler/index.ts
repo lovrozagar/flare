@@ -152,7 +152,7 @@ const CSP_DEFAULTS: Record<string, string[] | boolean> = {
 	"upgrade-insecure-requests": true,
 };
 
-export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?: boolean): string {
+export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?: boolean, url?: string): string {
 	const directives: Record<string, string[] | boolean> = {};
 
 	for (const [key, value] of Object.entries(CSP_DEFAULTS)) {
@@ -165,6 +165,9 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 
 		const scriptSrc = directives["script-src"] as string[];
 		scriptSrc.push("'unsafe-inline'", "'unsafe-eval'");
+	}
+
+	if (isDev || (url !== undefined && url.startsWith("http:"))) {
 		directives["upgrade-insecure-requests"] = false;
 	}
 
@@ -915,7 +918,7 @@ export function createServerHandler<
 				config.csp && !resolvedSecCfg?.["Content-Security-Policy"]
 					? { ...resolvedSecCfg, "Content-Security-Policy": config.csp }
 					: resolvedSecCfg;
-			const secHeaders = buildSecurityHeaders({ config: mergedSecCfg, isDev, nonce });
+			const secHeaders = buildSecurityHeaders({ config: mergedSecCfg, isDev, nonce, url: request.url });
 			const tracer = resolveTracer(config.tracing);
 
 			let resolvedStore = typeof config.cache?.store === "function" ? config.cache.store(env) : config.cache?.store;

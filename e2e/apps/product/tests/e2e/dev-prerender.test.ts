@@ -55,7 +55,7 @@ test.describe("Dev prerender — SSG routes in prod @prod-only", () => {
 		expect(body).toContain("static-cache-test");
 	});
 
-	test("SSG route served from store has flare-cache HIT", async ({ request }) => {
+	test("SSG route served from store has flare-cache HIT @node-only", async ({ request }) => {
 		const res = await request.get("/static-cache-test");
 		expect(res.status()).toBe(200);
 		const cacheHeader = res.headers()["flare-cache"];
