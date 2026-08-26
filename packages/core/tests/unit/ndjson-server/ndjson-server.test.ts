@@ -6,6 +6,7 @@ import {
 	createNDJSONResponse,
 	createRedirectNDJSONResponse,
 	createStreamingNDJSONResponse,
+	followAbortSignal,
 	formatChunkMessage,
 	formatDoneMessage,
 	formatErrorMessage,
@@ -332,6 +333,29 @@ describe("createStreamingNDJSONResponse", () => {
 		const err = errors[0] as Record<string, unknown>;
 		expect(err.k).toBe("d0");
 		expect((err.e as Record<string, unknown>).message).toBe("defer-fail");
+	});
+
+	it("cancel aborts the bound controller", async () => {
+		const ac = new AbortController();
+		const ctx = createDeferContext("r1");
+		ctx.defer(() => new Promise(() => {}), { key: "hang" });
+		const match = makeMatch({ deferContext: ctx, loaderData: "x", matchId: "r1" });
+		const resp = createStreamingNDJSONResponse({
+			abortController: ac,
+			deferContexts: new Map([["r1", ctx]]),
+			matches: [match],
+		});
+		await resp.body?.cancel();
+		expect(ac.signal.aborted).toBe(true);
+	});
+
+	it("followAbortSignal aborts the controller when the request signal aborts", () => {
+		const controller = new AbortController();
+		const incoming = new AbortController();
+		followAbortSignal(controller, incoming.signal);
+		expect(controller.signal.aborted).toBe(false);
+		incoming.abort();
+		expect(controller.signal.aborted).toBe(true);
 	});
 
 	it("done message after all settled", async () => {

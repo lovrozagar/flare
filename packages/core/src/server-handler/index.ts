@@ -37,6 +37,7 @@ import {
 	createNDJSONResponse,
 	createRedirectNDJSONResponse,
 	createStreamingNDJSONResponse,
+	followAbortSignal,
 } from "../ndjson-server/index.ts";
 import { extractNonce, NONCE_PLACEHOLDER, replaceNonce, tagsFromSurrogateKey } from "../prerender/index.ts";
 import { createRevalidateFn } from "../revalidation/index.ts";
@@ -931,6 +932,7 @@ export function createServerHandler<
 		async fetch(request: Request, env: TEnv): Promise<Response> {
 			const nonce = generateNonce();
 			const abortController = new AbortController();
+			followAbortSignal(abortController, request.signal);
 			const url = new URL(request.url);
 
 			const matchedMount = matchMount(mounts, url.pathname);
@@ -1561,6 +1563,7 @@ export function createServerHandler<
 							const ndjsonStatus = deriveStatus(pipelineResult.matches);
 							if (hasDeferreds) {
 								response = createStreamingNDJSONResponse({
+									abortController,
 									deferContexts: pipelineResult.deferContexts,
 									matches: pipelineResult.matches,
 									queryClient: pageQC?.queryClient,

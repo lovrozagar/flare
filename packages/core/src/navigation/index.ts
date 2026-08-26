@@ -139,13 +139,23 @@ interface BlockerRegistration {
 const blockers: BlockerRegistration[] = [];
 let pendingNavigation: InternalNavigateOptions | null = null;
 
-/** Reset navigation phase + clear controller in one place — used at all early-return sites */
+/** Reset navigation phase. Keep currentController so the next navigate can abort late streams. */
 function stopNavigation(): void {
 	if (ctx) {
 		ctx.setNavigationPhase("idle");
 		ctx.setViewTransition(null);
 	}
-	currentController = null;
+}
+
+function rejectDeferredResume(error: Error): void {
+	for (const r of deferredResumeResolvers.values()) {
+		try {
+			r.reject(error);
+		} catch {
+			/* already settled */
+		}
+	}
+	deferredResumeResolvers.clear();
 }
 
 /**
@@ -786,6 +796,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 
 	/* Step 2: Abort previous + set navigating */
 	if (currentController) currentController.abort();
+	rejectDeferredResume(new DOMException("The operation was aborted", "AbortError"));
 	const controller = new AbortController();
 	currentController = controller;
 	navigationVersion++;
@@ -1041,6 +1052,10 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		}
 	}
 
+	let paintedShell = false;
+	let paintedModules: LoadedRouteModule[] | undefined;
+	let paintedSearch: SearchParams | undefined;
+	let paintedParams: Record<string, string | string[]> | undefined;
 	try {
 		/* Step 6: Load route modules */
 		const isNewRoute = !visitedRoutes.has(match.route.x);
@@ -1092,6 +1107,12 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			if (controller.signal.aborted || myVersion !== navigationVersion) return;
 			const shell = commitCachedShell(c, allModules, search, modules.params);
 			hadShell = shell.hadShell;
+			paintedShell = shell.hadShell;
+			if (shell.hadShell) {
+				paintedModules = allModules;
+				paintedSearch = search;
+				paintedParams = modules.params;
+			}
 			keepMatchIds = shell.keepMatchIds;
 			/* Restore before the next paint so back/forward does not flash at y=0
 			 * while the enter hop (or the post-update rAF) is still outstanding. */
@@ -1425,6 +1446,21 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				/* No durable guard — a reload would loop in private mode. */
 			}
 			/* Already reloaded recently — don't loop, let the error propagate */
+		}
+		if (paintedShell && ctx && paintedModules && paintedSearch && paintedParams) {
+			const err = error instanceof Error ? error : new Error(String(error));
+			const last = paintedModules.at(-1);
+			if (last) {
+				ctx.matchCache.set({
+					data: null,
+					error: err,
+					hasDeferred: false,
+					invalid: false,
+					matchId: matchIdForModule(last, paintedSearch, paintedParams),
+					updatedAt: Date.now(),
+				});
+			}
+			rejectDeferredResume(err);
 		}
 		stopNavigation();
 		throw error;
