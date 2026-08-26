@@ -539,6 +539,7 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 			if (config.queryClient) {
 				loaderCtx.queryClient = config.queryClient;
 			}
+			const startedAt = Date.now();
 			const loaderData = await ir.route.loader(loaderCtx);
 
 			/* Store cache write-back — skip deferred trees (markers have no live promises) */
@@ -548,11 +549,14 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 					tags = typeof ssrConfig.tags === "function" ? ssrConfig.tags({ params: ir.validatedParams }) : ssrConfig.tags;
 				}
 				try {
-					await resolvedStore.set(
-						cacheKey,
-						{ data: serializeLoaderData(loaderData), storedAt: Date.now(), tags },
-						ssrConfig.ttl !== undefined ? parseSeconds(ssrConfig.ttl) : undefined,
-					);
+					const existing = await resolvedStore.get(cacheKey);
+					if (!existing || existing.storedAt < startedAt) {
+						await resolvedStore.set(
+							cacheKey,
+							{ data: serializeLoaderData(loaderData), storedAt: startedAt, tags },
+							ssrConfig.ttl !== undefined ? parseSeconds(ssrConfig.ttl) : undefined,
+						);
+					}
 				} catch (e: unknown) {
 					warn("cache", "Store set failed", e);
 				}

@@ -1,4 +1,4 @@
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import { hydrate, render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
@@ -8,6 +8,7 @@ import {
 	FlareProvider,
 	type FlareProviderContext,
 	type FlareProviderProps,
+	type InterceptedState,
 	Outlet,
 	type RenderProps,
 	useRouter,
@@ -484,6 +485,54 @@ describe("useRouter", () => {
 		expect(typeof blockerState?.proceed).toBe("function");
 		expect(typeof blockerState?.reset).toBe("function");
 		expect(blockerState?.blocked()).toBe(false);
+	});
+
+	it("useParams in the background tree keeps overlay params off the background from", () => {
+		let overlayParams: (() => Record<string, string | string[]>) | undefined;
+		let backgroundParams: (() => Record<string, string | string[]>) | undefined;
+		let ctx: FlareProviderContext | undefined;
+
+		const layout = makeLayoutMatch("_root_/products");
+		const props = makeProviderProps({
+			matches: [layout],
+			params: { cat: "shoes" },
+		});
+		dispose = render(
+			() => (
+				<FlareProvider {...props}>
+					{(() => {
+						ctx = useRouterContext();
+						const router = useRouter();
+						overlayParams = router.useParams({ from: "_root_/products/[id]" });
+						backgroundParams = router.useParams({ from: "_root_/products" });
+						return null;
+					})()}
+				</FlareProvider>
+			),
+			container,
+		);
+
+		const intercepted: InterceptedState = {
+			backgroundLocation: {
+				hash: "",
+				params: { cat: "shoes" },
+				pathname: "/products",
+				search: { sort: "new" },
+				url: new URL("http://localhost/products"),
+				variablePath: "/products",
+				virtualPath: "_root_/products",
+			},
+			dismiss: () => {},
+			match: makeMatch({ virtualPath: "_root_/products/[id]" }),
+			params: { id: "42" },
+			render: "modal",
+			search: {},
+		};
+		ctx?.setIntercepted(intercepted);
+		flush();
+
+		expect(overlayParams?.()).toEqual({ id: "42" });
+		expect(backgroundParams?.()).toEqual({ cat: "shoes" });
 	});
 
 	it("buildLocation uses caseSensitive=true from context", () => {

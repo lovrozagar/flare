@@ -332,8 +332,8 @@ export function useRouter(): FlareRouter {
 			const [blocked, setBlocked] = createSignal(false);
 
 			/* Register SPA blocker — navigate() checks this before proceeding */
-			setActiveBlocker(when, () => setBlocked(true));
-			onCleanup(() => setActiveBlocker(null));
+			const unregister = setActiveBlocker(when, () => setBlocked(true));
+			onCleanup(unregister);
 
 			/* Also handle browser-level unload (tab close, external nav) */
 			const handler = (e: BeforeUnloadEvent) => {
@@ -379,7 +379,15 @@ export function useRouter(): FlareRouter {
 			return createTranslator((data() ?? {}) as Record<string, Record<string, string>>, locale());
 		}) as never,
 		useMatch: (options) => createMemo(() => ctx.matches().find((match) => match.virtualPath === options.from)),
-		useParams: ((_options: { from: string }) => createMemo(() => ctx.params())) as never,
+		useParams: ((options: { from: string }) =>
+			createMemo(() => {
+				const overlay = ctx.intercepted();
+				if (overlay) {
+					if (options.from === overlay.match.virtualPath) return overlay.params;
+					return overlay.backgroundLocation.params;
+				}
+				return ctx.params();
+			})) as never,
 		usePreloaderContext: ((options: { from: string }) =>
 			createMemo(() => {
 				const m = ctx.matches().find((match) => match.virtualPath === options.from);
@@ -399,7 +407,15 @@ export function useRouter(): FlareRouter {
 			};
 			return createTranslator((data() ?? {}) as Record<string, Record<string, string>>, locale());
 		}) as never,
-		useSearch: ((_options: { from: string }) => createMemo(() => ctx.search())) as never,
+		useSearch: ((options: { from: string }) =>
+			createMemo(() => {
+				const overlay = ctx.intercepted();
+				if (overlay) {
+					if (options.from === overlay.match.virtualPath) return overlay.search;
+					return overlay.backgroundLocation.search;
+				}
+				return ctx.search();
+			})) as never,
 		viewTransition: ctx.viewTransition,
 	};
 }

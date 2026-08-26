@@ -1023,6 +1023,27 @@ describe("SPA navigation blocker", () => {
 		expect(mockFetchNDJSON).toHaveBeenCalledTimes(1);
 	});
 
+	it("second blocker survives first cleanup", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		const { setActiveBlocker } = await import("../../../src/navigation");
+		const firstBlocked = vi.fn();
+		const secondBlocked = vi.fn();
+		const unregFirst = setActiveBlocker(() => false, firstBlocked);
+		setActiveBlocker(() => true, secondBlocked);
+		unregFirst();
+
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/kept") });
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules());
+		mockFetchNDJSON.mockResolvedValue({ matches: [], perRouteHeads: [], success: true });
+
+		await navigate({ to: "/kept" });
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+		expect(secondBlocked).toHaveBeenCalledTimes(1);
+		expect(firstBlocked).not.toHaveBeenCalled();
+	});
+
 	it("resetNavigationState clears active blocker", async () => {
 		const ctx = makeCtx();
 		setupNavigation(ctx, mockLoadRouteModules);

@@ -3,6 +3,7 @@ import type { HeadConfig } from "../route-builder/types.ts";
 export interface CachedMatch {
 	data: unknown;
 	error?: unknown;
+	gcTime?: number;
 	hasDeferred?: boolean;
 	headConfig?: HeadConfig;
 	invalid: boolean;
