@@ -36,11 +36,20 @@ describe("stripHandlerBodies", () => {
 	});
 
 	it("preserves code before and after handler", () => {
-		const code = 'const x = createServerFn({ name: "a" }).handler(() => secret).input(z.object({}))';
+		const code = 'const x = createServerFn({ name: "a" }).handler(() => secret)';
 		const result = stripHandlerBodies(code);
 		expect(result).toContain("createServerFn");
-		expect(result).toContain(".input(z.object({}))");
 		expect(result).not.toContain("secret");
+	});
+
+	it("strips authorize and input closures", () => {
+		const code =
+			'createServerFn({ name: "a" }).input((raw) => secretParse(raw)).authorize(({ auth }) => auth.role === "admin").handler(() => dbSecret())';
+		const result = stripHandlerBodies(code);
+		expect(result).not.toContain("secretParse");
+		expect(result).not.toContain("auth.role");
+		expect(result).not.toContain("dbSecret");
+		expect((result.match(/Server function called on client/g) ?? []).length).toBe(3);
 	});
 
 	it("handles multiple handlers in same file", () => {

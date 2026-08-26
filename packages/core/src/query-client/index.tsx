@@ -201,6 +201,18 @@ export function createTrackedQueryClient(client: QueryClient): TrackedQueryClien
 	};
 }
 
+export async function withTrackedQueryClient<T>(
+	client: QueryClient,
+	fn: (tracked: TrackedQueryClient) => Promise<T>,
+): Promise<T> {
+	const tracked = createTrackedQueryClient(client);
+	try {
+		return await fn(tracked);
+	} finally {
+		tracked.release();
+	}
+}
+
 /* ── hydrateQueryCache (client-side query hydration) ─────────────────── */
 
 export function hydrateQueryCache(client: QueryClient, queries: QueryState[]): void {

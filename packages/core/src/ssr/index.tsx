@@ -818,16 +818,6 @@ export function renderToStream(config: SSRConfig): SSRResult {
 
 				/* Stream deferred resolution scripts after HTML */
 				if (config.deferContexts && config.deferContexts.size > 0) {
-					/* Install QC tracking so deferred callbacks' setQueryData calls are captured */
-					let trackedQC:
-						| { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }>; release(): void }
-						| undefined;
-					if (config.queryClient) {
-						const { createTrackedQueryClient } = await import("../query-client");
-						const typed = config.queryClient as Parameters<typeof createTrackedQueryClient>[0];
-						trackedQC = createTrackedQueryClient(typed);
-					}
-
 					const entries: DeferredEntry[] = [];
 					for (const ctx of config.deferContexts.values()) {
 						for (const e of ctx.entries()) {
@@ -836,42 +826,53 @@ export function renderToStream(config: SSRConfig): SSRResult {
 					}
 					const escapedNonce = escapeAttr(config.nonce);
 					const esc = (s: string) => JSON.stringify(s).replace(/</g, "\\u003c");
-					await Promise.allSettled(
-						entries.map(async (entry) => {
-							const resolverKey = esc(`${entry.matchId}:${entry.key}`);
-							try {
-								const data = await entry.promise;
-								const json = JSON.stringify(data).replace(/</g, "\\u003c");
-								controller.enqueue(
-									encoder.encode(
-										`<script nonce="${escapedNonce}">(self.${GLOBAL_DEFER}=self.${GLOBAL_DEFER}||[]).push([${resolverKey},${json}])</script>`,
-									),
-								);
-							} catch (err) {
-								const msg = err instanceof Error ? err.message : String(err);
-								const safeMsg = esc(msg);
-								controller.enqueue(
-									encoder.encode(
-										`<script nonce="${escapedNonce}">(self.${GLOBAL_DEFER}=self.${GLOBAL_DEFER}||[]).push([${resolverKey},${safeMsg},true])</script>`,
-									),
-								);
-							}
 
-							/* Stream QC delta entries accumulated during this deferred resolve */
-							if (trackedQC) {
-								const qcEntries = trackedQC.drain();
-								for (const qcEntry of qcEntries) {
-									const qcJson = JSON.stringify(qcEntry).replace(/</g, "\\u003c");
+					const streamDeferred = async (
+						trackedQC?: { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> },
+					) => {
+						await Promise.allSettled(
+							entries.map(async (entry) => {
+								const resolverKey = esc(`${entry.matchId}:${entry.key}`);
+								try {
+									const data = await entry.promise;
+									const json = JSON.stringify(data).replace(/</g, "\\u003c");
 									controller.enqueue(
 										encoder.encode(
-											`<script nonce="${escapedNonce}">(self.${GLOBAL_QUERIES}=self.${GLOBAL_QUERIES}||[]).push([${qcJson}])</script>`,
+											`<script nonce="${escapedNonce}">(self.${GLOBAL_DEFER}=self.${GLOBAL_DEFER}||[]).push([${resolverKey},${json}])</script>`,
+										),
+									);
+								} catch (err) {
+									const msg = err instanceof Error ? err.message : String(err);
+									const safeMsg = esc(msg);
+									controller.enqueue(
+										encoder.encode(
+											`<script nonce="${escapedNonce}">(self.${GLOBAL_DEFER}=self.${GLOBAL_DEFER}||[]).push([${resolverKey},${safeMsg},true])</script>`,
 										),
 									);
 								}
-							}
-						}),
-					);
-					trackedQC?.release();
+
+								if (trackedQC) {
+									const qcEntries = trackedQC.drain();
+									for (const qcEntry of qcEntries) {
+										const qcJson = JSON.stringify(qcEntry).replace(/</g, "\\u003c");
+										controller.enqueue(
+											encoder.encode(
+												`<script nonce="${escapedNonce}">(self.${GLOBAL_QUERIES}=self.${GLOBAL_QUERIES}||[]).push([${qcJson}])</script>`,
+											),
+										);
+									}
+								}
+							}),
+						);
+					};
+
+					if (config.queryClient) {
+						const { withTrackedQueryClient } = await import("../query-client");
+						const typed = config.queryClient as Parameters<typeof withTrackedQueryClient>[0];
+						await withTrackedQueryClient(typed, streamDeferred);
+					} else {
+						await streamDeferred();
+					}
 				}
 
 				controller.close();
