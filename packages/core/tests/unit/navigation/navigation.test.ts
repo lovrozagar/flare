@@ -701,6 +701,33 @@ describe("prefetch", () => {
 		expect(mockFetchNDJSON).toHaveBeenCalledWith(expect.objectContaining({ prefetch: true }));
 	});
 
+	it("copies route cache tags onto matchCache entries", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/products") });
+
+		const { computeMatchId } = await import("../../../src/router-primitives/match-id.ts");
+		const matchId = computeMatchId({ params: {}, routeId: "_root_/products", search: {} });
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "tagged", matchId }],
+			perRouteHeads: [],
+			success: true,
+		});
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				page: {
+					...makeModule("_root_/products"),
+					cache: { cdn: { tags: ["products"] } },
+				},
+			}),
+		);
+
+		await prefetch({ to: "/products" });
+
+		expect(ctx.matchCache.get(matchId)?.data).toBe("tagged");
+		expect(ctx.matchCache.get(matchId)?.tags).toEqual(["products"]);
+	});
+
 	it("success → matchCache populated", async () => {
 		const ctx = makeCtx();
 		setupNavigation(ctx, mockLoadRouteModules);

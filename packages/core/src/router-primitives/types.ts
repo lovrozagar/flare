@@ -20,9 +20,11 @@ export type RouteMetaStatic = {
 
 export type RouteMeta = {
 	authenticate?: boolean;
+	authorize?: boolean;
 	client?: RouteMetaClient;
 	intercept?: { from: readonly string[]; render: string };
 	static?: RouteMetaStatic;
+	tags?: string[];
 };
 
 export type RouteData = {

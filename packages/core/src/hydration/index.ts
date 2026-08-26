@@ -1,5 +1,5 @@
 import type { GlobalBoundaries } from "../boundaries/index.ts";
-import type { CachedMatch, MatchCache } from "../caches/index.ts";
+import { resolveCacheTags, type CachedMatch, type MatchCache } from "../caches/index.ts";
 import { applyPerRouteHeads, initRouteHierarchy } from "../head-client/index.ts";
 import { isRenderFn, retryImport } from "../internal.ts";
 import type { LoadedRouteModule, LoadedRouteModules } from "../navigation/types.ts";
@@ -165,6 +165,29 @@ export function populateMatchCache(
 			preloaderContext: m.preloaderContext,
 			updatedAt: now,
 		});
+	}
+}
+
+export function applyMatchCacheTags(
+	matchCache: MatchCache,
+	modules: LoadedRouteModule[],
+	params: Record<string, string | string[]>,
+	search: SearchParams,
+): void {
+	for (const mod of modules) {
+		const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? [];
+		const matchId = computeMatchId({
+			loaderDeps: () => deps,
+			params,
+			routeId: mod.virtualPath,
+			search,
+		});
+		const entry = matchCache.get(matchId);
+		if (!entry) continue;
+		const tags = resolveCacheTags(mod.cache, params);
+		if (!tags) continue;
+		entry.tags = tags;
+		matchCache.set(entry);
 	}
 }
 
