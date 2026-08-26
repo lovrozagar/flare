@@ -1408,6 +1408,44 @@ describe("popstate handling", () => {
 		expect(ctx.matches().some((m) => m.virtualPath === "_root_/down")).toBe(false);
 	});
 
+	it("500 data fetch commits the target URL and an error match", async () => {
+		window.history.replaceState({}, "", "/start");
+
+		const ctx = makeCtx({
+			location: () => ({
+				hash: "",
+				params: {},
+				pathname: "/start",
+				search: {},
+				url: new URL("http://localhost/start"),
+				variablePath: "",
+				virtualPath: "_root_/start",
+			}),
+		});
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/input-zod/$id") });
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				page: makeModule("_root_/input-zod/$id"),
+			}),
+		);
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [],
+			perRouteHeads: [],
+			status: 500,
+			success: false,
+		});
+
+		await navigate({ to: "/input-zod/abc" });
+
+		/* Validation/loader HTTP errors must keep the URL so error boundaries
+		   and recovery navigations (invalid → valid) can run. */
+		expect(window.location.pathname).toBe("/input-zod/abc");
+		const page = ctx.matches().find((m) => m.virtualPath === "_root_/input-zod/$id");
+		expect(page?.error).toBeInstanceOf(Error);
+	});
+
 	it("401 data fetch commits the target URL and an UnauthenticatedError match", async () => {
 		window.history.replaceState({}, "", "/start");
 

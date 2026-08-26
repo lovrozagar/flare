@@ -327,6 +327,36 @@ describe("instant navigation — commit shell before NDJSON", () => {
 		expect((page?.loaderData as { title: string } | undefined)?.title).toBe("shell-title");
 		expect(mockFetchNDJSON.mock.calls[0]?.[0]?.keepMatchIds).toEqual([ABOUT_ID]);
 	});
+
+	it("same-route search change keeps page match identity", async () => {
+		const hooksId = "_root_/hooks-test:{}:[]";
+		const hooksPage = makeModule("_root_/hooks-test");
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute("_root_/hooks-test"),
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: hooksPage }));
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: { greeting: "hello" }, matchId: hooksId }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		window.history.replaceState({}, "", "/");
+		await navigate({ to: "/hooks-test" });
+		const pageBefore = ctx.matches().find((m) => m.virtualPath === "_root_/hooks-test");
+		expect(pageBefore).toBeDefined();
+
+		await navigate({ search: { filter: "active" }, to: "/hooks-test" });
+
+		const pageAfter = ctx.matches().find((m) => m.virtualPath === "_root_/hooks-test");
+		/* Same object so Outlet <Show when={match()}> does not remount the page
+		   (wiping local signals like hooks-test navigated()). */
+		expect(pageAfter).toBe(pageBefore);
+		expect(ctx.search()).toEqual({ filter: "active" });
+	});
 });
 
 describe("instant navigation — in-flight prefetch is the navigation fetch", () => {
