@@ -1,4 +1,3 @@
-import type { FlattenedError } from "../errors/index.ts";
 import { FORM_FN_FIELD, parseServerFnPathname, serverFnPath } from "../protocol.ts";
 import {
 	isNotFoundError,
@@ -6,8 +5,9 @@ import {
 	isServerFnValidationError,
 	isUnauthenticatedError,
 	isUnauthorizedError,
-	ServerFnValidationError,
 } from "../errors/index.ts";
+import { parseGetSearchParams, serverFnGetUrl } from "./get-input.ts";
+import { throwServerFnHttpError } from "./http-error.ts";
 import type { RevalidateFn, RevalidateOptions } from "../revalidation/index.ts";
 import { createRevalidateFn } from "../revalidation/index.ts";
 /* package self-reference: routes through `exports.browser` -> stub on client, real on server.
@@ -285,6 +285,47 @@ function jsonResponse(data: unknown, status: number): Response {
 	});
 }
 
+/** Max POST body for `/_flare/server-fn/*` (JSON or form). */
+export const SERVER_FN_MAX_BODY_BYTES = 1_048_576;
+
+async function readLimitedBody(
+	request: Request,
+	maxBytes: number,
+): Promise<{ bytes: ArrayBuffer } | { error: Response }> {
+	const declared = Number(request.headers.get("content-length"));
+	if (Number.isFinite(declared) && declared > maxBytes) {
+		return { error: jsonResponse({ message: "Payload too large" }, 413) };
+	}
+
+	const stream = request.body;
+	if (!stream) {
+		return { bytes: new ArrayBuffer(0) };
+	}
+
+	const reader = stream.getReader();
+	const chunks: Uint8Array[] = [];
+	let size = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (!value) continue;
+		size += value.byteLength;
+		if (size > maxBytes) {
+			await reader.cancel().catch(() => {});
+			return { error: jsonResponse({ message: "Payload too large" }, 413) };
+		}
+		chunks.push(value);
+	}
+
+	const bytes = new Uint8Array(size);
+	let offset = 0;
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return { bytes: bytes.buffer };
+}
+
 /* ── CSRF Origin validation ────────────────────────────────────────── */
 
 /**
@@ -372,36 +413,26 @@ export async function handleServerFnRequest(
 		/* parse input — FormData for form submissions, JSON for programmatic calls */
 		let input: unknown;
 		if (registration.method === "post") {
+			const limited = await readLimitedBody(request, SERVER_FN_MAX_BODY_BYTES);
+			if ("error" in limited) return limited.error;
 			const contentType = request.headers.get("content-type") ?? "";
 			if (contentType.includes("multipart/form-data") || contentType.includes("x-www-form-urlencoded")) {
-				input = formDataToObject(await request.formData());
-			} else {
-				const text = await request.text();
-				if (text) {
-					try {
-						input = JSON.parse(text);
-					} catch {
-						return jsonResponse({ message: "Invalid JSON" }, 400);
-					}
+				const formRequest = new Request(request.url, {
+					body: limited.bytes,
+					headers: { "content-type": contentType },
+					method: "POST",
+				});
+				input = formDataToObject(await formRequest.formData());
+			} else if (limited.bytes.byteLength > 0) {
+				const text = new TextDecoder().decode(limited.bytes);
+				try {
+					input = JSON.parse(text);
+				} catch {
+					return jsonResponse({ message: "Invalid JSON" }, 400);
 				}
 			}
 		} else {
-			const params = url.searchParams;
-			const obj: Record<string, string | string[]> = Object.create(null);
-			let hasParams = false;
-			for (const [key, val] of params) {
-				if (key === "__proto__" || key === "constructor" || key === "prototype") continue;
-				hasParams = true;
-				const existing = obj[key];
-				if (existing !== undefined) {
-					obj[key] = Array.isArray(existing) ? [...existing, val] : [existing, val];
-				} else {
-					obj[key] = val;
-				}
-			}
-			if (hasParams) {
-				input = obj;
-			}
+			input = parseGetSearchParams(url.searchParams);
 		}
 
 		/* validate input — ServerFnValidationError propagates to outer catch for structured errors */
@@ -577,11 +608,7 @@ export function serverFnQueryOptions<TInput, TOutput>(
 
 			const res =
 				method === "get"
-					? await fetch(
-							config?.input !== undefined
-								? `${url}?${new URLSearchParams(config.input as Record<string, string>)}`
-								: url,
-						)
+					? await fetch(serverFnGetUrl(url, config?.input))
 					: await fetch(url, {
 							body: config?.input !== undefined ? JSON.stringify(config.input) : undefined,
 							headers: { "content-type": "application/json" },
@@ -590,14 +617,7 @@ export function serverFnQueryOptions<TInput, TOutput>(
 
 			if (!res.ok) {
 				const body: unknown = await res.json().catch(() => null);
-				if (typeof body === "object" && body !== null && "errors" in body) {
-					throw new ServerFnValidationError((body as { errors: FlattenedError }).errors);
-				}
-				const errMsg =
-					typeof body === "object" && body !== null && "message" in body
-						? String((body as Record<string, unknown>).message)
-						: `Request failed (${res.status})`;
-				throw new Error(`Server function "${name}" failed: ${errMsg}`);
+				throwServerFnHttpError(body, res.status, name);
 			}
 
 			const json = (await res.json()) as {
@@ -662,14 +682,7 @@ export function serverFnMutationOptions<TInput, TOutput>(
 
 			if (!res.ok) {
 				const body: unknown = await res.json().catch(() => null);
-				if (typeof body === "object" && body !== null && "errors" in body) {
-					throw new ServerFnValidationError((body as { errors: FlattenedError }).errors);
-				}
-				const errMsg =
-					typeof body === "object" && body !== null && "message" in body
-						? String((body as Record<string, unknown>).message)
-						: `Request failed (${res.status})`;
-				throw new Error(`Server function "${name}" failed: ${errMsg}`);
+				throwServerFnHttpError(body, res.status, name);
 			}
 
 			const json = (await res.json()) as {

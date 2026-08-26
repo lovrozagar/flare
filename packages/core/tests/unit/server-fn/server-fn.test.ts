@@ -639,6 +639,15 @@ describe("handleServerFnRequest - GET multi-value params", () => {
 		const body = await res.json();
 		expect(body.data).toEqual({ q: "hello", tag: ["a", "b"] });
 	});
+
+	it("JSON object query values parse as nested objects", async () => {
+		const handler = vi.fn(async (ctx) => ctx.input);
+		const fns = makeFns(["id1", { fn: handler, method: "get", name: "test" }]);
+		const filter = encodeURIComponent(JSON.stringify({ status: "open" }));
+		const res = await handleServerFnRequest(getReq(`/_flare/server-fn/id1/test?filter=${filter}&q=hello`), {}, fns);
+		const body = await res.json();
+		expect(body.data).toEqual({ filter: { status: "open" }, q: "hello" });
+	});
 });
 
 describe("handleServerFnRequest - GET no params", () => {
