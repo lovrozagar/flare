@@ -138,3 +138,12 @@ export function buildUrl(options: BuildUrlOptions): string {
 
 	return result;
 }
+
+/** Path+search for a same-origin 3xx. Protocol-relative `//host` is not a path. */
+export function sameOriginRedirectPath(url: URL): string {
+	const path = url.pathname;
+	if (!path.startsWith("/") || path.startsWith("//") || /[\0\r\n]/.test(path) || /[\0\r\n]/.test(url.search)) {
+		return "/";
+	}
+	return `${path}${url.search}`;
+}

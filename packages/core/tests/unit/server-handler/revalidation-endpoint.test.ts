@@ -208,6 +208,32 @@ describe("/_flare/revalidate endpoint", () => {
 			const json = (await res.json()) as Record<string, unknown>;
 			expect(json.keys).toEqual(["GET:/products/1", "GET:/products/2"]);
 		});
+
+		it("rejects an oversized JSON body with 413", async () => {
+			const { SERVER_FN_MAX_BODY_BYTES } = await import("../../../src/server-fn/index.ts");
+			const handler = createServerHandler(
+				makeConfig({
+					cache: {
+						revalidateSecret: SECRET,
+						store: makeFlareStore(),
+					},
+				}),
+			);
+
+			const res = await handler.fetch(
+				new Request("http://localhost/_flare/revalidate", {
+					body: `{"tags":["${"x".repeat(SERVER_FN_MAX_BODY_BYTES)}"]}`,
+					headers: {
+						"content-type": "application/json",
+						"x-revalidation-secret": SECRET,
+					},
+					method: "POST",
+				}),
+				{},
+			);
+
+			expect(res.status).toBe(413);
+		});
 	});
 
 	describe("GET requests rejected (secret leak prevention)", () => {

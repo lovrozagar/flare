@@ -79,7 +79,13 @@ import {
 	isServerFnPathname,
 	serverFnPath,
 } from "../protocol.ts";
-import { formDataToObject, handleServerFnRequest } from "../server-fn/index.ts";
+import {
+	formDataToObject,
+	handleServerFnRequest,
+	readLimitedBody,
+	SERVER_FN_MAX_BODY_BYTES,
+} from "../server-fn/index.ts";
+import { sameOriginRedirectPath } from "../url/index.ts";
 import {
 	applyResponseHeaders,
 	deriveStatus,
@@ -567,9 +573,11 @@ async function handleRevalidateRequest<TEnv>(
 		return jsonResponse({ error: "Unauthorized" }, 401);
 	}
 
+	const limited = await readLimitedBody(request, SERVER_FN_MAX_BODY_BYTES);
+	if ("error" in limited) return limited.error;
 	let body: Record<string, unknown>;
 	try {
-		body = (await request.json()) as Record<string, unknown>;
+		body = JSON.parse(new TextDecoder().decode(limited.bytes)) as Record<string, unknown>;
 	} catch {
 		return jsonResponse({ error: "Invalid JSON body" }, 400);
 	}
@@ -649,18 +657,22 @@ async function handleSitemapSubmitRequest<TEnv>(
 	let urls: string[] | undefined;
 	if (request.method === "POST") {
 		try {
-			const body = (await request.json()) as Record<string, unknown>;
-			if (Array.isArray(body.urls)) {
-				const allowedOrigin = new URL(sitemapConfig.sitemapUrl).origin;
-				urls = body.urls
-					.filter((u): u is string => typeof u === "string")
-					.filter((u) => {
-						try {
-							return new URL(u).origin === allowedOrigin;
-						} catch {
-							return false;
-						}
-					});
+			const limited = await readLimitedBody(request, SERVER_FN_MAX_BODY_BYTES);
+			if ("error" in limited) return limited.error;
+			if (limited.bytes.byteLength > 0) {
+				const body = JSON.parse(new TextDecoder().decode(limited.bytes)) as Record<string, unknown>;
+				if (Array.isArray(body.urls)) {
+					const allowedOrigin = new URL(sitemapConfig.sitemapUrl).origin;
+					urls = body.urls
+						.filter((u): u is string => typeof u === "string")
+						.filter((u) => {
+							try {
+								return new URL(u).origin === allowedOrigin;
+							} catch {
+								return false;
+							}
+						});
+				}
 			}
 		} catch {
 			/* no body or invalid JSON — fine, sitemap-only submission */
@@ -1045,7 +1057,16 @@ export function createServerHandler<
 							if (ct.includes("form")) {
 								let formData: FormData;
 								try {
-									formData = await request.formData();
+									const limited = await readLimitedBody(request, SERVER_FN_MAX_BODY_BYTES);
+									if ("error" in limited) {
+										return addSecurityHeaders(limited.error, secHeaders);
+									}
+									const formRequest = new Request(request.url, {
+										body: limited.bytes,
+										headers: { "content-type": ct },
+										method: "POST",
+									});
+									formData = await formRequest.formData();
 								} catch {
 									return addSecurityHeaders(new Response("Bad Request", { status: 400 }), secHeaders);
 								}
@@ -1067,7 +1088,7 @@ export function createServerHandler<
 											const fnResponse = await handleServerFnRequest(fnRequest, env, serverFns, serverFnAuthFn);
 											if (fnResponse.ok) {
 												return new Response(null, {
-													headers: { Location: url.pathname + url.search },
+													headers: { Location: sameOriginRedirectPath(url) },
 													status: 303,
 												});
 											}

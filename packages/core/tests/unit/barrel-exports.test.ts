@@ -120,6 +120,7 @@ describe("barrel exports — url", () => {
 		"buildUrl",
 		"parseSearchParams",
 		"resolvePathParams",
+		"sameOriginRedirectPath",
 		"serializeSearchParams",
 	]);
 });
