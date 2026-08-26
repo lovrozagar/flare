@@ -291,10 +291,11 @@ describe("stripHandlerBodies deep", () => {
 		expect((result.match(/Server function called on client/g) ?? []).length).toBe(3);
 	});
 
-	it("no .handler() or .stream() → unchanged", () => {
+	it(".input() without .handler() is still stubbed", () => {
 		const code = 'const fn = createServerFn({ name: "test" }).input(z.object({}))';
 		const result = stripHandlerBodies(code);
-		expect(result).toBe(code);
+		expect(result).toContain("Server function called on client");
+		expect(result).not.toContain("z.object");
 	});
 
 	it("handler calling another handler (meta pattern)", () => {
