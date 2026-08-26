@@ -7,6 +7,7 @@ import type {
 	ServerFnRegistration,
 	ServerFnStreamRegistration,
 } from "../../../src/server-fn/index.ts";
+import { serializeGetInput } from "../../../src/server-fn/get-input.ts";
 import { createServerFn, handleServerFnRequest } from "../../../src/server-fn/index.ts";
 import type { FlareStore } from "../../../src/store/index.ts";
 
@@ -567,7 +568,8 @@ describe("GET streaming edge cases", () => {
 				name: "gs2",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_flare/server-fn/gs2/gs2?foo=bar&n=42"), {}, fns);
+		const qs = serializeGetInput({ foo: "bar", n: "42" });
+		const res = await handleServerFnRequest(getReq(`/_flare/server-fn/gs2/gs2?${qs}`), {}, fns);
 		await collectNDJSON(res);
 		expect(capturedInput).toEqual({ foo: "bar", n: "42" });
 	});

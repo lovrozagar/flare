@@ -22,6 +22,7 @@ afterEach(() => {
 	fnRef.current = new Map();
 });
 
+import { serverFnGetUrl } from "../../src/server-fn/get-input.ts";
 import {
 	alwaysAuthFn,
 	buildHandler,
@@ -50,8 +51,8 @@ function postFn(fnId: string, fnName: string, body?: unknown): Request {
 }
 
 function getFn(fnId: string, fnName: string, params?: Record<string, string>): Request {
-	const search = params ? `?${new URLSearchParams(params).toString()}` : "";
-	return makeRequest(`/_flare/server-fn/${fnId}/${fnName}${search}`, { method: "GET" });
+	const path = `/_flare/server-fn/${fnId}/${fnName}`;
+	return makeRequest(params ? serverFnGetUrl(path, params) : path, { method: "GET" });
 }
 
 async function parseJsonResponse(response: Response): Promise<Record<string, unknown>> {

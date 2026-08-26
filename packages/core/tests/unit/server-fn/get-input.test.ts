@@ -53,4 +53,11 @@ describe("parseGetSearchParams", () => {
 		const qs = serializeGetInput(input);
 		expect(parseGetSearchParams(new URLSearchParams(qs))).toEqual(input);
 	});
+
+	it("string digits stay strings and do not collide with numbers", () => {
+		expect(parseGetSearchParams(new URLSearchParams(serializeGetInput({ id: "42" })))).toEqual({ id: "42" });
+		expect(parseGetSearchParams(new URLSearchParams(serializeGetInput({ id: 42 })))).toEqual({ id: 42 });
+		expect(parseGetSearchParams(new URLSearchParams(serializeGetInput({ ok: "true" })))).toEqual({ ok: "true" });
+		expect(parseGetSearchParams(new URLSearchParams(serializeGetInput({ ok: true })))).toEqual({ ok: true });
+	});
 });

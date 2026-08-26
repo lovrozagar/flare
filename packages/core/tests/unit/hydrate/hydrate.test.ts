@@ -32,6 +32,7 @@ vi.mock("../../../src/history", () => ({
 }));
 
 vi.mock("../../../src/hydration", () => ({
+	applyMatchCacheTags: vi.fn(),
 	buildInitialMatches: vi.fn(() => []),
 	extractRootBoundaries: vi.fn(() => ({})),
 	hydrateHeadState: vi.fn(),

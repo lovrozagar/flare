@@ -7,6 +7,7 @@ import type {
 	ServerFnRegistration,
 	ServerFnStreamRegistration,
 } from "../../../src/server-fn/index.ts";
+import { serializeGetInput } from "../../../src/server-fn/get-input.ts";
 import {
 	createServerFn,
 	handleServerFnRequest,
@@ -627,7 +628,8 @@ describe("handleServerFnRequest - GET multi-value params", () => {
 	it("triple duplicate keys → array of 3", async () => {
 		const handler = vi.fn(async (ctx) => ctx.input);
 		const fns = makeFns(["id1", { fn: handler, method: "get", name: "test" }]);
-		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?x=1&x=2&x=3"), {}, fns);
+		const qs = serializeGetInput({ x: ["1", "2", "3"] });
+		const res = await handleServerFnRequest(getReq(`/_flare/server-fn/id1/test?${qs}`), {}, fns);
 		const body = await res.json();
 		expect(body.data).toEqual({ x: ["1", "2", "3"] });
 	});
@@ -4333,7 +4335,8 @@ describe("handleServerFnRequest - streaming", () => {
 				name: "test",
 			},
 		]);
-		const res = await handleServerFnRequest(getReq("/_flare/server-fn/id1/test?prompt=hello&n=5"), {}, fns);
+		const qs = serializeGetInput({ n: "5", prompt: "hello" });
+		const res = await handleServerFnRequest(getReq(`/_flare/server-fn/id1/test?${qs}`), {}, fns);
 		expect(res.headers.get("content-type")).toBe("text/x-ndjson");
 		const messages = await collectNDJSON(res);
 		expect(messages).toContainEqual({ c: "ok" });
