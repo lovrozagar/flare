@@ -6,7 +6,12 @@ import type { VitePlugin } from "./types.ts";
 const IMAGE_EXTS = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".tiff", ".webp"]);
 const ANIMATED_EXTS = new Set([".gif"]);
 const IMAGE_DEFAULT_WIDTHS = [640, 750, 828, 1080, 1200, 1920, 2048, 3840];
+export const IMAGE_MAX_WIDTH = 3840;
 const IMAGE_DEFAULT_QUALITY = 75;
+
+export function isAllowedImageWidth(w: number): boolean {
+	return Number.isInteger(w) && w >= 1 && w <= IMAGE_MAX_WIDTH;
+}
 
 interface SharpInstance {
 	metadata: () => Promise<{ height?: number; width?: number }>;
@@ -72,7 +77,7 @@ export function createImagePlugin(
 					const url = new URL(req.url, "http://localhost");
 					const src = url.searchParams.get("src");
 					const w = Number(url.searchParams.get("w"));
-					if (!src || !w) return next();
+					if (!src || !isAllowedImageWidth(w)) return next();
 
 					/* Guard against path traversal — resolve symlinks then check within cwd */
 					const cwd = process.cwd();
