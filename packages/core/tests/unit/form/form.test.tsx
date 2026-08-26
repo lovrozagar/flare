@@ -1,7 +1,8 @@
 import { createSignal } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Form, type FormContext } from "../../../src/form/index.tsx";
+import { Form, type FormContext, seedFormErrorFromSsr } from "../../../src/form/index.tsx";
+import { isServerFnValidationError } from "../../../src/errors/index.ts";
 import type { ServerFn, ServerFnRegistration } from "../../../src/server-fn/index.ts";
 
 /* ── helpers ───────────────────────────────────────────────────────── */
@@ -273,5 +274,35 @@ describe("Form component", () => {
 		);
 		ctx?.reset();
 		expect(ctx?.hasErrors()).toBe(false);
+	});
+});
+
+describe("seedFormErrorFromSsr", () => {
+	it("returns null when there is no SSR context", () => {
+		expect(seedFormErrorFromSsr(undefined)).toBeNull();
+	});
+
+	it("returns null when only field errors are present", () => {
+		expect(
+			seedFormErrorFromSsr({
+				fieldErrors: { email: ["required"] },
+				formErrors: [],
+				message: "Validation error",
+				values: {},
+			}),
+		).toBeNull();
+	});
+
+	it("seeds ServerFnValidationError from form-level SSR errors", () => {
+		const err = seedFormErrorFromSsr({
+			fieldErrors: {},
+			formErrors: ["Form-level validation failed"],
+			message: "Validation error",
+			values: {},
+		});
+		expect(isServerFnValidationError(err)).toBe(true);
+		if (isServerFnValidationError(err)) {
+			expect(err.errors.formErrors).toEqual(["Form-level validation failed"]);
+		}
 	});
 });

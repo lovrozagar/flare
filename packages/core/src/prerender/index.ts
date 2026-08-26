@@ -92,11 +92,20 @@ export function replaceNonce(text: string, nonce: string): string {
 /**
  * Convert Response headers to a plain object, excluding hop-by-hop headers.
  */
+const SKIP_PRERENDER_HEADERS = new Set([
+	"connection",
+	"content-encoding",
+	"content-length",
+	"keep-alive",
+	"set-cookie",
+	"set-cookie2",
+	"transfer-encoding",
+]);
+
 function headersToRecord(headers: Headers): Record<string, string> {
 	const result: Record<string, string> = {};
 	headers.forEach((value, key) => {
-		/* Skip transfer-encoding and connection headers */
-		if (key === "transfer-encoding" || key === "connection") return;
+		if (SKIP_PRERENDER_HEADERS.has(key)) return;
 		result[key] = value;
 	});
 	return result;
@@ -318,16 +327,18 @@ export function buildPrerenderRoutes(
 		const hasPrerenderConfig = def.cache.ssg || def.cache.isr;
 		if (!hasPrerenderConfig) continue;
 
-		/* isr without revalidate = on-demand only, skip build-time prerender */
-		if (def.cache.isr && def.cache.isrRevalidate === undefined) continue;
-
-		/* Auth + static = build error (authenticateOptional is allowed) */
+		/* Auth + static = build error (authenticateOptional is allowed).
+		   Check before the on-demand-ISR skip so `.authenticate().isr()` without
+		   revalidate cannot populate the store as a public page. */
 		if (def.authenticateMode === true) {
 			throw new Error(
 				`Route "${def.virtualPath}" has both authenticate and static config. ` +
 					"Authenticated routes cannot be pre-rendered.",
 			);
 		}
+
+		/* isr without revalidate = on-demand only, skip build-time prerender */
+		if (def.cache.isr && def.cache.isrRevalidate === undefined) continue;
 
 		const pathname = virtualPathToPathname(def.virtualPath);
 		const mode: "isr" | "static" = def.cache.isr ? "isr" : "static";

@@ -41,8 +41,15 @@ export function matchMount<TEnv>(mounts: MountConfig<TEnv>[], pathname: string):
 }
 
 export function buildMountRequest<TEnv>(request: Request, mount: MountConfig<TEnv>, url: URL): Request {
-	const strippedPath = url.pathname.slice(mount.prefix.length) || "/";
+	let strippedPath = url.pathname.slice(mount.prefix.length) || "/";
+	if (!strippedPath.startsWith("/")) strippedPath = `/${strippedPath}`;
+	if (strippedPath.startsWith("//") || strippedPath.includes("\\") || /[\0\r\n]/.test(strippedPath)) {
+		strippedPath = "/";
+	}
 	const target = new URL(strippedPath, url.origin);
+	if (target.origin !== url.origin) {
+		target.href = `${url.origin}/`;
+	}
 	target.search = url.search;
 	target.hash = url.hash;
 	return new Request(target.toString(), {
