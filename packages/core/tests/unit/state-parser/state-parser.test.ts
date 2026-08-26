@@ -308,10 +308,12 @@ describe("installDeferredResolver", () => {
 		});
 
 		installDeferredResolver(resolvers);
-		expect(globalThis.__flare_r).toBeDefined();
+		expect(globalThis.__flare_r).toBeUndefined();
+		expect(globalThis.__flare_re).toBeUndefined();
+		expect(globalThis.__flare_defer).toBeDefined();
 
-		/* Resolve the last resolver — globals should be cleaned */
-		globalThis.__flare_r?.("m1:d0", "data");
+		const q = globalThis.__flare_defer;
+		if (q) q.push(["m1:d0", "data"]);
 		expect(globalThis.__flare_r).toBeUndefined();
 		expect(globalThis.__flare_re).toBeUndefined();
 		expect(globalThis.__flare_defer).toBeUndefined();
@@ -364,15 +366,15 @@ describe("installDeferredResolver", () => {
 		resolvers.set("m1:d1", { reject: () => {}, resolve: () => {} });
 
 		installDeferredResolver(resolvers);
-		expect(globalThis.__flare_r).toBeDefined();
-
-		/* Resolve only one — globals still alive */
-		globalThis.__flare_r?.("m1:d0", "data");
-		expect(globalThis.__flare_r).toBeDefined();
-
-		/* Resolve second — now cleaned up */
-		globalThis.__flare_r?.("m1:d1", "data2");
+		expect(globalThis.__flare_defer).toBeDefined();
 		expect(globalThis.__flare_r).toBeUndefined();
+
+		const q = globalThis.__flare_defer;
+		if (q) q.push(["m1:d0", "data"]);
+		expect(globalThis.__flare_defer).toBeDefined();
+
+		if (q) q.push(["m1:d1", "data2"]);
+		expect(globalThis.__flare_defer).toBeUndefined();
 	});
 });
 

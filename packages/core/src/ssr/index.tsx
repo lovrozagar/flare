@@ -819,7 +819,9 @@ export function renderToStream(config: SSRConfig): SSRResult {
 				/* Stream deferred resolution scripts after HTML */
 				if (config.deferContexts && config.deferContexts.size > 0) {
 					/* Install QC tracking so deferred callbacks' setQueryData calls are captured */
-					let trackedQC: { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> } | undefined;
+					let trackedQC:
+						| { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }>; release(): void }
+						| undefined;
 					if (config.queryClient) {
 						const { createTrackedQueryClient } = await import("../query-client");
 						const typed = config.queryClient as Parameters<typeof createTrackedQueryClient>[0];
@@ -869,6 +871,7 @@ export function renderToStream(config: SSRConfig): SSRResult {
 							}
 						}),
 					);
+					trackedQC?.release();
 				}
 
 				controller.close();
