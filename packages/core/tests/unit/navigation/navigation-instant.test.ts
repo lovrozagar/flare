@@ -357,6 +357,70 @@ describe("instant navigation — commit shell before NDJSON", () => {
 		expect(pageAfter).toBe(pageBefore);
 		expect(ctx.search()).toEqual({ filter: "active" });
 	});
+
+	it("same-route search change does not call setMatches when the match is reused", async () => {
+		const hooksId = "_root_/hooks-test:{}:[]";
+		const hooksPage = makeModule("_root_/hooks-test");
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute("_root_/hooks-test"),
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: hooksPage }));
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: { greeting: "hello" }, matchId: hooksId }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		window.history.replaceState({}, "", "/");
+		await navigate({ to: "/hooks-test" });
+
+		const inner = ctx.setMatches.bind(ctx);
+		const spy = vi.fn(inner);
+		ctx.setMatches = spy;
+
+		await navigate({ search: { filter: "active" }, to: "/hooks-test" });
+
+		expect(spy).not.toHaveBeenCalled();
+		expect(ctx.search()).toEqual({ filter: "active" });
+	});
+
+	it("cleared pipeline error replaces the match object so Errored can remount", async () => {
+		const pageId = "_root_/retry-test:{}:[]";
+		const pageMod = makeModule("_root_/retry-test");
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute("_root_/retry-test"),
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: pageMod }));
+
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [{ error: new Error("Transient failure"), matchId: pageId }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		window.history.replaceState({}, "", "/");
+		await navigate({ to: "/retry-test" });
+		const before = ctx.matches().find((m) => m.virtualPath === "_root_/retry-test");
+		expect(before?.error).toBeInstanceOf(Error);
+
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [{ loaderData: "ok", matchId: pageId }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ replace: true, revalidate: true, to: "/retry-test" });
+
+		const after = ctx.matches().find((m) => m.virtualPath === "_root_/retry-test");
+		expect(after).not.toBe(before);
+		expect(after?.error).toBeUndefined();
+		expect(after?.loaderData).toBe("ok");
+	});
 });
 
 describe("instant navigation — in-flight prefetch is the navigation fetch", () => {

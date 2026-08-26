@@ -89,7 +89,9 @@ export interface InterceptedState {
 	backgroundLocation: ProviderLocation;
 	dismiss: () => void;
 	match: ClientMatch;
+	params: Record<string, string | string[]>;
 	render: string;
+	search: SearchParams;
 }
 
 export interface ClientMatch {

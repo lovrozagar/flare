@@ -114,6 +114,39 @@ describe("Store cache intercept", () => {
 		expect(stored?.storedAt).toBeGreaterThan(0);
 	});
 
+	it("slow loader does not overwrite a newer cache entry", async () => {
+		let releaseSlow: () => void = () => {};
+		const slowGate = new Promise<void>((resolve) => {
+			releaseSlow = resolve;
+		});
+		let calls = 0;
+		const loader = vi.fn(async () => {
+			const n = ++calls;
+			if (n === 1) {
+				await slowGate;
+				return { ts: 1 };
+			}
+			return { ts: 2 };
+		});
+		const store = createMapStore();
+		const route = makeRoute({
+			cache: { ssr: { staleTime: 60_000 } },
+			loader,
+		});
+
+		const slow = runPipeline(makeConfig({ routes: [route], store }));
+		await vi.waitFor(() => {
+			expect(calls).toBe(1);
+		});
+		const fast = await runPipeline(makeConfig({ routes: [route], store }));
+		expect(fast.matches[0]?.loaderData).toEqual({ ts: 2 });
+
+		releaseSlow();
+		await slow;
+
+		expect(store.store.get("flare:_root_/test:{}")?.data).toEqual({ ts: 2 });
+	});
+
 	it("stale entry (age > staleTime) calls loader and refreshes store", async () => {
 		const loader = vi.fn(() => Promise.resolve("refreshed-data"));
 		const store = createMapStore();

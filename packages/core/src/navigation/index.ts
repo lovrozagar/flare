@@ -129,9 +129,12 @@ let keepaliveVisibilityHandler: (() => void) | null = null;
 
 let clickCleanup: (() => void) | null = null;
 
-/* SPA navigation blocker — set by useBlocker, checked by navigate */
-let activeBlockerFn: (() => boolean) | null = null;
-let onBlockedCallback: (() => void) | null = null;
+/* SPA navigation blockers — stacked so a child's cleanup cannot null a parent */
+interface BlockerRegistration {
+	onBlocked: () => void;
+	when: () => boolean;
+}
+const blockers: BlockerRegistration[] = [];
 let pendingNavigation: InternalNavigateOptions | null = null;
 
 /** Reset navigation phase + clear controller in one place — used at all early-return sites */
@@ -171,9 +174,25 @@ function syncLocale(params: Record<string, string | string[]>): void {
 	}
 }
 
-export function setActiveBlocker(when: (() => boolean) | null, onBlocked?: () => void): void {
-	activeBlockerFn = when;
-	onBlockedCallback = onBlocked ?? null;
+export function setActiveBlocker(when: (() => boolean) | null, onBlocked?: () => void): () => void {
+	if (when === null) {
+		blockers.length = 0;
+		return () => {};
+	}
+	const entry: BlockerRegistration = { onBlocked: onBlocked ?? (() => {}), when };
+	blockers.push(entry);
+	return () => {
+		const i = blockers.indexOf(entry);
+		if (i >= 0) blockers.splice(i, 1);
+	};
+}
+
+function findBlocking(): BlockerRegistration | undefined {
+	for (let i = blockers.length - 1; i >= 0; i--) {
+		const blocker = blockers[i];
+		if (blocker?.when()) return blocker;
+	}
+	return undefined;
 }
 
 export function clearPendingNavigation(): void {
@@ -357,12 +376,17 @@ export function setupNavigation(
 	gcIntervalId = setInterval(() => {
 		if (!ctx) return;
 		const now = Date.now();
+		const defaultGc = parseMilliseconds(ctx.routerCacheDefaults?.gcTime ?? GC_MAX_AGE);
+		const prefetchGc = parseMilliseconds(
+			ctx.routerCacheDefaults?.prefetchGcTime ?? ctx.routerCacheDefaults?.gcTime ?? GC_MAX_AGE,
+		);
 		for (const entry of ctx.matchCache.getAll()) {
-			if (now - entry.updatedAt > GC_MAX_AGE) {
+			const maxAge = entry.gcTime ?? defaultGc;
+			if (now - entry.updatedAt > maxAge) {
 				ctx.matchCache.delete(entry.matchId);
 			}
 		}
-		ctx.prefetchCache.cleanup(GC_MAX_AGE);
+		ctx.prefetchCache.cleanup(prefetchGc);
 	}, GC_INTERVAL);
 
 	/* Keepalive ping — clear previous before setting up */
@@ -569,7 +593,7 @@ function commitCachedShell(
 
 	c.setIntercepted(null);
 	c.setNotFound(false);
-	c.setMatches(buildClientMatches(allModules, search, params));
+	assignMatches(c, buildClientMatches(allModules, search, params));
 	c.setParams(params);
 	c.setSearch(search);
 	syncLocale(params);
@@ -603,14 +627,24 @@ function buildClientMatches(
 			virtualPath: mod.virtualPath,
 		};
 		/* Reuse the previous object when the route slot is unchanged so
-		   Outlet <Show when={match()}> does not remount (local page signals). */
+		   Outlet <Show when={match()}> does not remount (local page signals).
+		   Error identity must change — Errored stays in fallback if the same
+		   object is mutated from error to success. */
 		const prev = current[i];
-		if (prev && prev.virtualPath === next.virtualPath && prev._type === next._type) {
+		if (prev && prev.virtualPath === next.virtualPath && prev._type === next._type && prev.error === next.error) {
 			Object.assign(prev, next);
 			return prev;
 		}
 		return next;
 	});
+}
+
+function assignMatches(c: FlareProviderContext, next: ReturnType<FlareProviderContext["matches"]>): void {
+	const current = c.matches();
+	if (next.length === current.length && next.length > 0 && next.every((m, i) => m === current[i])) {
+		return;
+	}
+	c.setMatches(next);
 }
 
 /** Apply view transition with VT API, or call update() directly as fallback.
@@ -732,14 +766,15 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 	const c = ctx;
 
 	/* Step 0: Check SPA blocker (skip for popstate — browser already changed URL) */
-	if (activeBlockerFn && !options._popstate && !options._bypassBlocker && activeBlockerFn()) {
-		pendingNavigation = options;
-		/* Defer to avoid re-entrant navigation from SolidJS reactive effects */
-		if (onBlockedCallback) {
-			const cb = onBlockedCallback;
+	if (!options._popstate && !options._bypassBlocker) {
+		const blocker = findBlocking();
+		if (blocker) {
+			pendingNavigation = options;
+			/* Defer to avoid re-entrant navigation from SolidJS reactive effects */
+			const cb = blocker.onBlocked;
 			queueMicrotask(() => cb());
+			return;
 		}
-		return;
 	}
 
 	/* Step 1: Resolve URL + same-URL guard */
@@ -894,10 +929,10 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 							if (typeof history !== "undefined") history.back();
 						},
 						match: interceptedMatch,
+						params: modules.params,
 						render: interceptConfig.render,
+						search,
 					});
-					c.setParams(modules.params);
-					c.setSearch(search);
 					syncLocale(modules.params);
 				}
 
@@ -1148,6 +1183,13 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			}
 
 			const now = Date.now();
+			const gcByMatchId = new Map<string, number>();
+			for (const mod of allModules) {
+				const cc = mod.cache?.client;
+				if (cc !== false && cc !== undefined && cc.gcTime !== undefined) {
+					gcByMatchId.set(matchIdForModule(mod, search, modules.params), parseMilliseconds(cc.gcTime));
+				}
+			}
 			for (const m of fetchResult.matches) {
 				/* flare-stale skip runs the route with loader stripped → null data.
 				   Do not clobber a live cache entry that already has data. */
@@ -1173,6 +1215,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				ctx.matchCache.set({
 					data: m.loaderData,
 					error: m.error,
+					gcTime: gcByMatchId.get(m.matchId),
 					hasDeferred: m.hasDeferredMarkers,
 					headConfig: headByMatchId.get(m.matchId),
 					invalid: false,
@@ -1274,7 +1317,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			if (myVersion !== navigationVersion) return;
 			c.setIntercepted(null);
 			c.setNotFound(false);
-			c.setMatches(clientMatches);
+			assignMatches(c, clientMatches);
 			c.setParams(modules.params);
 			c.setSearch(search);
 
@@ -1503,8 +1546,7 @@ export function resetNavigationState(): void {
 	visitedRoutes.clear();
 	inflightPrefetch.clear();
 	deferredResumeResolvers.clear();
-	activeBlockerFn = null;
-	onBlockedCallback = null;
+	blockers.length = 0;
 	pendingNavigation = null;
 	if (popstateCleanup) {
 		popstateCleanup();
