@@ -238,6 +238,12 @@ describe("buildPrerenderRoutes deep", () => {
 		).toThrow("authenticate and static");
 	});
 
+	it("throws on authenticate + on-demand isr (no revalidate)", () => {
+		expect(() => buildPrerenderRoutes([makeDef({ authenticateMode: true, cache: { isr: true } })] as never)).toThrow(
+			"authenticate and static",
+		);
+	});
+
 	it("authenticateOptional allowed with ssg", () => {
 		const routes = buildPrerenderRoutes([makeDef({ authenticateMode: "optional" })] as never);
 		expect(routes).toHaveLength(1);

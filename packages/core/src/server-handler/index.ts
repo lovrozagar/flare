@@ -234,6 +234,8 @@ const SKIP_STATIC_HEADERS = new Set([
 	"content-encoding",
 	"content-length",
 	"keep-alive",
+	"set-cookie",
+	"set-cookie2",
 	"transfer-encoding",
 ]);
 
@@ -1279,7 +1281,13 @@ export function createServerHandler<
 						   the previous build's HTML into the same in-memory store the
 						   prerender plugin then fetch()es, which would freeze stale
 						   client hashes into the new artifacts. */
-						if (staticMeta && resolvedStore && !isISRBgRequest && !isPrerenderRequest) {
+						if (
+							staticMeta &&
+							match.route.o.authenticate !== true &&
+							resolvedStore &&
+							!isISRBgRequest &&
+							!isPrerenderRequest
+						) {
 							const storeKey = `static:${url.pathname}`;
 							const entry = await resolvedStore.get(storeKey);
 
@@ -1605,7 +1613,13 @@ export function createServerHandler<
 						 * Skip if flare-isr header present (prevents recursion from
 						 * the background re-render itself triggering another populate).
 						 */
-						if (staticMeta?.mode === "isr" && resolvedStore && !isDataRequest && !request.headers.get(HEADER_ISR)) {
+						if (
+							staticMeta?.mode === "isr" &&
+							match.route.o.authenticate !== true &&
+							resolvedStore &&
+							!isDataRequest &&
+							!request.headers.get(HEADER_ISR)
+						) {
 							const isrStoreKey = `static:${url.pathname}`;
 							if (!isrInFlight.has(isrStoreKey)) {
 								isrInFlight.add(isrStoreKey);

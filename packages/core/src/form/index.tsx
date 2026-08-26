@@ -53,6 +53,15 @@ interface FormOwnProps<TInput, TOutput> {
 export type FormProps<TInput, TOutput> = FormOwnProps<TInput, TOutput> &
 	Omit<JSX.FormHTMLAttributes<HTMLFormElement>, "action" | "children" | "enctype" | "method">;
 
+/** Seed `form.error()` after a no-JS PE POST with form-level validation errors. */
+export function seedFormErrorFromSsr(ssrCtx: FormActionContext | undefined): Error | null {
+	if (!ssrCtx?.formErrors.length) return null;
+	return new ServerFnValidationError({
+		fieldErrors: ssrCtx.fieldErrors,
+		formErrors: ssrCtx.formErrors,
+	});
+}
+
 /* ── Form component ────────────────────────────────────────────────── */
 
 export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.Element {
@@ -67,7 +76,7 @@ export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.El
 	const ssrCtx = typeof window === "undefined" && _getFormActionContext ? _getFormActionContext(fnId()) : undefined;
 
 	const [pending, setPending] = createSignal(false);
-	const [error, setError] = createSignal<Error | null>(null);
+	const [error, setError] = createSignal<Error | null>(seedFormErrorFromSsr(ssrCtx));
 	const [fieldErrors, setFieldErrors] = createSignal<Record<string, string[]>>(ssrCtx?.fieldErrors ?? {});
 	const [result, setResult] = createSignal<TOutput | undefined>(undefined);
 
