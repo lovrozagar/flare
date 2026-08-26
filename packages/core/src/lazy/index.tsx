@@ -105,7 +105,7 @@ export function clientLazy<P extends Record<string, unknown>>(
 	let loadError: Error | undefined;
 	let loadPromise: Promise<void> | undefined;
 
-	if (eager) {
+	if (eager && !isServer) {
 		loadPromise = retryImport(loader)
 			.then((mod) => {
 				loaded = mod.default;

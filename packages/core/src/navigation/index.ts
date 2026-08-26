@@ -23,8 +23,9 @@ import {
 	setHistoryIndex,
 } from "../history/index.ts";
 import { isChunkLoadError, isRenderFn } from "../internal.ts";
-import { STORAGE_CHUNK_RELOAD } from "../protocol.ts";
+import { KEEPALIVE_PATH, STORAGE_CHUNK_RELOAD } from "../protocol.ts";
 import type { LocaleConfig } from "../locale.ts";
+import { formatLocaleCookie } from "../locale/cookie.ts";
 import { warn } from "../logger.ts";
 import { fetchNDJSON, type NDJSONFetchResult } from "../ndjson-client/index.ts";
 import type { DeferredResolver } from "../state-parser/index.ts";
@@ -159,8 +160,9 @@ function syncLocale(params: Record<string, string | string[]>): void {
 	const effectiveLocale = (typeof val === "string" ? val : undefined) ?? localeConfig.defaultLocale;
 
 	/* Cookie — always write for localized routes to keep it current */
-	const cookieName = localeConfig.cookieName ?? "flare.locale";
-	document.cookie = `${cookieName}=${effectiveLocale}; path=/; max-age=31536000; samesite=lax`;
+	document.cookie = formatLocaleCookie(effectiveLocale, localeConfig.cookieName, {
+		https: location.protocol === "https:",
+	});
 
 	/* html lang */
 	document.documentElement.setAttribute("lang", effectiveLocale);
@@ -399,7 +401,7 @@ export function setupNavigation(
 	const keepaliveMs = options.keepalive;
 	if (typeof keepaliveMs === "number" && keepaliveMs > 0) {
 		const ping = () => {
-			fetch("/_flare/keepalive", { priority: "low" }).catch(() => {});
+			fetch(KEEPALIVE_PATH, { priority: "low" }).catch(() => {});
 		};
 
 		keepaliveIntervalId = setInterval(ping, keepaliveMs);

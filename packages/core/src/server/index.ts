@@ -6,6 +6,7 @@ import {
 	type PathMatcher,
 } from "../middleware/index.ts";
 import type { MountConfig } from "../mount/index.ts";
+import { KEEPALIVE_PATH } from "../protocol.ts";
 import type { MarkedRouterConfig } from "../router-config/index.ts";
 import type { SecurityConfig } from "../security/index.ts";
 import type {
@@ -106,8 +107,6 @@ interface ServerBuilderImpl {
 }
 
 /* ── Builder ───────────────────────────────────────────────────────────── */
-
-const KEEPALIVE_PATH = "/_flare/keepalive";
 
 /*
  * server-handler/index.ts imports virtual modules (virtual:flare-client-entry, etc.)

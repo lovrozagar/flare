@@ -2,6 +2,7 @@ import { createContext, createEffect, createSignal, onSettled, untrack, useConte
 import type { JSX } from "@solidjs/web";
 import { BroadcastCtx } from "../broadcast/context.ts";
 import { escapeJsString } from "../theme/index.tsx";
+import { formatLocaleCookie } from "./cookie.ts";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 
@@ -14,6 +15,8 @@ export interface LocaleConfig {
 	skip?: readonly string[];
 	syncDirection?: boolean;
 }
+
+export { formatLocaleCookie } from "./cookie.ts";
 
 export interface LocaleContextValue {
 	defaultLocale: string;
@@ -69,7 +72,9 @@ export function LocaleProvider(props: { children: JSX.Element; config: LocaleCon
 	createEffect(locale, (l) => {
 		if (typeof document === "undefined") return;
 		document.documentElement.setAttribute("lang", l);
-		document.cookie = `${cookieName}=${l}; path=/; max-age=31536000; samesite=lax`;
+		document.cookie = formatLocaleCookie(l, cookieName, {
+			https: typeof location !== "undefined" && location.protocol === "https:",
+		});
 	});
 
 	const setLocale = (l: string): void => {

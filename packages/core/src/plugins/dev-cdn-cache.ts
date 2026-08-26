@@ -247,6 +247,12 @@ export async function handleCdnRequest(
 		return;
 	}
 
+	/* Background SWR hop — skip the cache read and refill the same key */
+	if (getHeader(req, "flare-cdn-revalidate") === "1") {
+		interceptResponse(req, res, next, store, method, pathname);
+		return;
+	}
+
 	/* Probe cache — first without Vary to discover what Vary headers were stored */
 	const probeKey = buildCdnCacheKey(method, pathname, [], {});
 	const probeEntry = await store.get(probeKey);
@@ -292,14 +298,21 @@ export async function handleCdnRequest(
 
 		if (freshness.state === "stale-revalidate") {
 			serveCached(res, cached, "STALE");
-			/* Background: delete stale entry so next request gets fresh SSR */
+			/* Keep the stale entry; background-fill the same key */
 			if (!revalidating.has(cacheKey)) {
 				revalidating.add(cacheKey);
-				store.delete(cacheKey).catch(() => {});
-				if (probeCdn && probeCdn.varyHeaders.length > 0) {
-					store.delete(probeKey).catch(() => {});
+				const host = getHeader(req, "host") ?? "localhost";
+				const revalidateUrl = `http://${host}${req.url ?? pathname}`;
+				const headers = new Headers();
+				for (const [key, val] of Object.entries(req.headers)) {
+					if (typeof val === "string") headers.set(key, val);
 				}
-				setTimeout(() => revalidating.delete(cacheKey), 100);
+				headers.set("flare-cdn-revalidate", "1");
+				fetch(revalidateUrl, { headers })
+					.catch(() => {})
+					.finally(() => {
+						revalidating.delete(cacheKey);
+					});
 			}
 			return;
 		}

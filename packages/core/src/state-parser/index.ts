@@ -101,8 +101,8 @@ export function hydrateLoaderData(matchId: string, data: unknown, resolvers: Map
 }
 
 /**
- * Register `self.__flare_r(resolverKey, data)` global so streamed `<script>` tags
- * from SSR deferred resolution can resolve hydrated promise shells.
+ * SSR deferred chunks push into `self.__flare_defer`. `__flare_r` / `__flare_re`
+ * are leftovers and are no longer installed.
  */
 declare global {
 	var __flare_defer:
@@ -117,7 +117,7 @@ declare global {
 /*
  * Multi-instance registry: supports multiple Flare apps hydrating on the same page.
  * Each call to installDeferredResolver registers its resolver map. The global
- * __flare_r/__flare_re/__flare_defer search ALL active maps when resolving a key.
+ * `__flare_defer` push proxy searches ALL active maps when resolving a key.
  * Globals are only cleaned when every active map is drained AND no pending entries remain.
  */
 const activeInstances = new Set<Map<string, DeferredResolver>>();
@@ -164,8 +164,10 @@ function cleanupIfAllEmpty(): void {
 export function installDeferredResolver(resolvers: Map<string, DeferredResolver>): void {
 	if (typeof globalThis === "undefined") return;
 
-	/* Reset registry if globals were cleaned externally (e.g. tests) */
-	if (!globalThis.__flare_r && activeInstances.size > 0) {
+	/* Reset leftover instances when this is a new page load: no live proxy
+	 * (undefined after cleanup, or a fresh SSR array to drain). */
+	const deferIsLiveProxy = globalThis.__flare_defer !== undefined && !Array.isArray(globalThis.__flare_defer);
+	if (!deferIsLiveProxy && activeInstances.size > 0) {
 		activeInstances.clear();
 		pendingEntries.length = 0;
 	}
@@ -189,16 +191,6 @@ export function installDeferredResolver(resolvers: Map<string, DeferredResolver>
 		}
 	}
 
-	/* Install live resolvers for chunks that stream after hydration */
-	globalThis.__flare_r = (key: string, data: unknown) => {
-		resolveOrBuffer(key, data, false);
-		cleanupIfAllEmpty();
-	};
-	globalThis.__flare_re = (key: string, message: string) => {
-		resolveOrBuffer(key, message, true);
-		cleanupIfAllEmpty();
-	};
-
 	/*
 	 * Trap __flare_defer so late-arriving SSR script pushes resolve immediately.
 	 * SSR scripts do `(self.__flare_defer=self.__flare_defer||[]).push([...])` — after
@@ -211,6 +203,8 @@ export function installDeferredResolver(resolvers: Map<string, DeferredResolver>
 			return 0;
 		},
 	};
+	globalThis.__flare_r = undefined;
+	globalThis.__flare_re = undefined;
 
 	/* If no resolvers needed (all data was instant), clean up immediately */
 	cleanupIfAllEmpty();

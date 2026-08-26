@@ -691,7 +691,7 @@ describe("handleCdnRequest — conditional requests (ETag / If-None-Match)", () 
 /* ── Middleware: stale-while-revalidate ───────────────────────────────── */
 
 describe("handleCdnRequest — stale-while-revalidate", () => {
-	it("stale entry within SWR → serves STALE + deletes cache", async () => {
+	it("stale entry within SWR → serves STALE and keeps the cache key", async () => {
 		const entry = makeCdnEntry({
 			headers: {
 				"cache-control": "public, s-maxage=10, stale-while-revalidate=120",
@@ -713,14 +713,41 @@ describe("handleCdnRequest — stale-while-revalidate", () => {
 		expect(res.headers["flare-cdn"]).toBe("STALE");
 		expect(res.body).toBe(entry.body);
 
-		/* Cache entry deleted for revalidation */
-		await vi.waitFor(
-			async () => {
-				const cached = await store.get("cdn:GET:/about");
-				expect(cached).toBeNull();
+		const cached = await store.get("cdn:GET:/about");
+		expect(cached).not.toBeNull();
+	});
+
+	it("revalidate hop fills the same cache key without deleting first", async () => {
+		const entry = makeCdnEntry({
+			headers: {
+				"cache-control": "public, s-maxage=10, stale-while-revalidate=120",
+				"content-type": "text/html",
 			},
-			{ timeout: 500 },
+			storedAt: Date.now() - 30_000,
+			varyHeaders: [],
+		});
+		await seedCache("cdn:GET:/about", entry);
+
+		const req = makeReq({
+			headers: { host: "localhost", "flare-cdn-revalidate": "1" },
+		});
+		const res = makeRes();
+		await handleCdnRequest(
+			req,
+			res,
+			() => {
+				res.writeHead(200, {
+					"cache-control": "public, s-maxage=10, stale-while-revalidate=120",
+					"content-type": "text/html",
+				});
+				res.end("<html>fresh</html>");
+			},
+			store,
+			new Set(),
 		);
+
+		const cached = await store.get("cdn:GET:/about");
+		expect((cached?.data as { body?: string } | undefined)?.body).toContain("fresh");
 	});
 
 	it("stale-expired → falls through to SSR", async () => {

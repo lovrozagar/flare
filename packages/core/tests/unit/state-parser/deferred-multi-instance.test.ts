@@ -22,9 +22,12 @@ describe("Task 4: deferred multi-instance resolver", () => {
 		});
 
 		installDeferredResolver(resolvers);
-		expect(globalThis.__flare_r).toBeDefined();
+		expect(globalThis.__flare_r).toBeUndefined();
+		expect(globalThis.__flare_re).toBeUndefined();
+		expect(globalThis.__flare_defer).toBeDefined();
 
-		globalThis.__flare_r?.("m1:title", "hello");
+		const q = globalThis.__flare_defer;
+		if (q) q.push(["m1:title", "hello"]);
 		expect(resolved).toBe("hello");
 		expect(resolvers.size).toBe(0);
 
@@ -45,7 +48,8 @@ describe("Task 4: deferred multi-instance resolver", () => {
 		});
 
 		installDeferredResolver(resolvers);
-		globalThis.__flare_re?.("m1:data", "boom");
+		const q = globalThis.__flare_defer;
+		if (q) q.push(["m1:data", "boom", true]);
 		expect((rejected as Error | null)?.message).toBe("boom");
 		expect(resolvers.size).toBe(0);
 	});
@@ -72,12 +76,11 @@ describe("Task 4: deferred multi-instance resolver", () => {
 		installDeferredResolver(resolvers1);
 		installDeferredResolver(resolvers2);
 
-		/* resolve instance 2's key */
-		globalThis.__flare_r?.("b:y", "two");
+		const q = globalThis.__flare_defer;
+		if (q) q.push(["b:y", "two"]);
 		expect(resolved2).toBe("two");
 
-		/* resolve instance 1's key — must still work after instance 2 installed */
-		globalThis.__flare_r?.("a:x", "one");
+		if (q) q.push(["a:x", "one"]);
 		expect(resolved1).toBe("one");
 	});
 
@@ -130,14 +133,13 @@ describe("Task 4: deferred multi-instance resolver", () => {
 		installDeferredResolver(resolvers1);
 		installDeferredResolver(resolvers2);
 
-		/* drain instance 2 */
-		globalThis.__flare_r?.("b:k", "ok");
-		/* instance 1 still has pending — globals must remain */
-		expect(globalThis.__flare_r).toBeDefined();
+		const q = globalThis.__flare_defer;
+		if (q) q.push(["b:k", "ok"]);
+		/* instance 1 still has pending — defer proxy must remain */
+		expect(globalThis.__flare_defer).toBeDefined();
+		expect(globalThis.__flare_r).toBeUndefined();
 
-		/* drain instance 1 */
-		globalThis.__flare_r?.("a:k", "ok");
-		/* both drained — globals should be cleaned */
+		if (q) q.push(["a:k", "ok"]);
 		expect(globalThis.__flare_r).toBeUndefined();
 		expect(globalThis.__flare_re).toBeUndefined();
 		expect(globalThis.__flare_defer).toBeUndefined();

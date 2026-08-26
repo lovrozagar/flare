@@ -247,7 +247,9 @@ export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Res
 			enqueue(formatReadyMessage());
 
 			/* Install QC tracking for deferred callbacks */
-			let trackedQC: { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> } | undefined;
+			let trackedQC:
+				| { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }>; release(): void }
+				| undefined;
 			if (config.queryClient) {
 				const { createTrackedQueryClient } = await import("../query-client");
 				const typed = config.queryClient as Parameters<typeof createTrackedQueryClient>[0];
@@ -280,6 +282,7 @@ export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Res
 					}
 				}),
 			);
+			trackedQC?.release();
 
 			/* 5. Done */
 			enqueue(formatDoneMessage());

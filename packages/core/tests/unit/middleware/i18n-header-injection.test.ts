@@ -207,6 +207,26 @@ describe("Task 5: i18n cookie header injection defense", () => {
 			}
 		});
 
+		it("cookieName with CRLF is not interpolated into Set-Cookie", async () => {
+			const { i18n } = await import("../../../src/middleware/builtins/i18n");
+			const middleware = i18n({ cookieName: "flare\r\nSet-Cookie: evil=1" });
+
+			const ctx = createMockCtx({
+				locale: { defaultLocale: "en", locales: ["en", "hr"] },
+				pathname: "/en/about",
+			});
+
+			await middleware(ctx as never);
+
+			if (ctx.bypassed) {
+				const setCookie = ctx.bypassed.headers.get("set-cookie") ?? "";
+				expect(setCookie).not.toContain("\r");
+				expect(setCookie).not.toContain("\n");
+				expect(setCookie).not.toContain("evil=1");
+				expect(setCookie).toContain("flare.locale=en");
+			}
+		});
+
 		it("multiple Set-Cookie headers not injected from single locale", async () => {
 			const { i18n } = await import("../../../src/middleware/builtins/i18n");
 			const middleware = i18n();
