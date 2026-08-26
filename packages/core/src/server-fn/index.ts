@@ -288,7 +288,7 @@ function jsonResponse(data: unknown, status: number): Response {
 /** Max POST body for `/_flare/server-fn/*` (JSON or form). */
 export const SERVER_FN_MAX_BODY_BYTES = 1_048_576;
 
-async function readLimitedBody(
+export async function readLimitedBody(
 	request: Request,
 	maxBytes: number,
 ): Promise<{ bytes: ArrayBuffer } | { error: Response }> {
