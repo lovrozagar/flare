@@ -160,6 +160,39 @@ describe("navigate error paths", () => {
 		expect(ctx.isNavigating()).toBe(false);
 	});
 
+	it("network throw after instant shell commits a match error", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const routeId = "_root_/shell-fail";
+		const matchId = `${routeId}:{}:[]`;
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute(routeId),
+		});
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				page: { ...makeModule(routeId), cache: { client: { staleTime: 60_000 } } },
+			}),
+		);
+		ctx.matchCache.set({
+			data: "shell",
+			hasDeferred: true,
+			invalid: false,
+			matchId,
+			updatedAt: Date.now(),
+		});
+		mockFetchNDJSON.mockResolvedValueOnce({
+			matches: [{ hasDeferredMarkers: true, loaderData: "shell", matchId }],
+			perRouteHeads: [],
+			success: true,
+		});
+		const { prefetch } = await import("../../../src/navigation/index.ts");
+		await prefetch({ to: "/shell-fail" });
+		mockFetchNDJSON.mockRejectedValue(new TypeError("Failed to fetch"));
+		await expect(navigate({ to: "/shell-fail" })).rejects.toThrow("Failed to fetch");
+		expect(ctx.matchCache.get(matchId)?.error).toBeInstanceOf(Error);
+	});
+
 	it("AbortError is silently swallowed (navigation superseded)", async () => {
 		const ctx = makeCtx();
 		setupNavigation(ctx, mockLoadRouteModules);
