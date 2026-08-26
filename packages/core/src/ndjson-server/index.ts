@@ -280,9 +280,9 @@ export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Res
 				}
 			}
 
-			const streamDeferred = async (
-				trackedQC?: { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> },
-			) => {
+			const streamDeferred = async (trackedQC?: {
+				drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }>;
+			}) => {
 				await Promise.allSettled(
 					entries.map(async (entry) => {
 						try {

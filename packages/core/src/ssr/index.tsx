@@ -827,9 +827,9 @@ export function renderToStream(config: SSRConfig): SSRResult {
 					const escapedNonce = escapeAttr(config.nonce);
 					const esc = (s: string) => JSON.stringify(s).replace(/</g, "\\u003c");
 
-					const streamDeferred = async (
-						trackedQC?: { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> },
-					) => {
+					const streamDeferred = async (trackedQC?: {
+						drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }>;
+					}) => {
 						await Promise.allSettled(
 							entries.map(async (entry) => {
 								const resolverKey = esc(`${entry.matchId}:${entry.key}`);

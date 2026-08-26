@@ -54,7 +54,8 @@ function parseGetValue(val: string): unknown {
 		val === "true" ||
 		val === "false" ||
 		val === "null" ||
-		((val.startsWith("{") && val.endsWith("}")) || (val.startsWith("[") && val.endsWith("]"))) ||
+		(val.startsWith("{") && val.endsWith("}")) ||
+		(val.startsWith("[") && val.endsWith("]")) ||
 		/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(val)
 	) {
 		try {

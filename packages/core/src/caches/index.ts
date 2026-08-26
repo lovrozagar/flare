@@ -14,7 +14,7 @@ export function resolveCacheTags(
 	const push = (
 		src: { tags?: string[] | ((ctx: { params: Record<string, string | string[]> }) => string[]) } | false | undefined,
 	) => {
-		if (!src || src === false || !src.tags) return;
+		if (!src || !src.tags) return;
 		const list = typeof src.tags === "function" ? src.tags({ params }) : src.tags;
 		for (const t of list) {
 			if (typeof t === "string" && t.length > 0 && !tags.includes(t)) tags.push(t);

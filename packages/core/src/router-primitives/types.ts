@@ -24,7 +24,7 @@ export type RouteMeta = {
 	client?: RouteMetaClient;
 	intercept?: { from: readonly string[]; render: string };
 	static?: RouteMetaStatic;
-	tags?: string[];
+	tags?: readonly string[];
 };
 
 export type RouteData = {

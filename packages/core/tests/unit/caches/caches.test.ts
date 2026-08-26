@@ -853,9 +853,9 @@ describe("resolveCacheTags", () => {
 
 	it("resolves function tags with params", async () => {
 		const { resolveCacheTags } = await import("../../../src/caches/index.ts");
-		expect(
-			resolveCacheTags({ cdn: { tags: ({ params }) => [`item:${String(params.id)}`] } }, { id: "42" }),
-		).toEqual(["item:42"]);
+		expect(resolveCacheTags({ cdn: { tags: ({ params }) => [`item:${String(params.id)}`] } }, { id: "42" })).toEqual([
+			"item:42",
+		]);
 	});
 });
 
