@@ -112,17 +112,22 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		"viewTransition",
 	);
 
-	const resolvedHref = createMemo(() => {
-		if (local.href !== undefined) {
-			if (isDangerousHref(local.href)) return "#";
-			return local.href;
-		}
-		const raw = buildUrl({
+	const internalHref = createMemo(() => {
+		if (local.href !== undefined) return undefined;
+		return buildUrl({
 			hash: local.hash,
 			params: local.params,
 			search: local.search,
 			to: local.to ?? "",
 		});
+	});
+
+	const resolvedHref = createMemo(() => {
+		if (local.href !== undefined) {
+			if (isDangerousHref(local.href)) return "#";
+			return local.href;
+		}
+		const raw = internalHref() ?? "";
 		if (isDangerousHref(raw)) return "#";
 		return applyRewriteOutput(raw);
 	});
@@ -135,8 +140,8 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 
 	const routePrefetch = createMemo(() => {
 		if (local.href !== undefined) return undefined;
-		const h = resolvedHref();
-		if (isExternal(h)) return undefined;
+		const h = internalHref();
+		if (!h || isExternal(h)) return undefined;
 		try {
 			const url = new URL(h, typeof window !== "undefined" ? window.location.href : "http://localhost/");
 			const match = matchRoute(ctx.routeTree, url.pathname, ctx.caseSensitive, toLocaleMatch(ctx.localeConfig));

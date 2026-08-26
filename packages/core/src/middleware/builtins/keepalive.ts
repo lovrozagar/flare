@@ -1,7 +1,6 @@
 import { error } from "../../logger.ts";
+import { KEEPALIVE_PATH } from "../../protocol.ts";
 import type { FlareMiddleware, MiddlewareContext } from "..";
-
-const PING_PATH = "/_flare/keepalive";
 
 interface KeepaliveConfig<TEnv = unknown> {
 	handler?: (ctx: MiddlewareContext<TEnv>) => Promise<void> | void;
@@ -9,7 +8,7 @@ interface KeepaliveConfig<TEnv = unknown> {
 
 export function keepalive<TEnv = unknown>(config?: KeepaliveConfig<TEnv>): FlareMiddleware<TEnv> {
 	return async (ctx: MiddlewareContext<TEnv>) => {
-		if (ctx.url.pathname !== PING_PATH || ctx.request.method !== "GET") return ctx.next();
+		if (ctx.url.pathname !== KEEPALIVE_PATH || ctx.request.method !== "GET") return ctx.next();
 
 		if (config?.handler) {
 			try {

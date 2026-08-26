@@ -137,16 +137,41 @@ export interface TrackedQueryClient {
 	client: QueryClient;
 	drain(): QueryState[];
 	getTrackedQueries(): QueryState[];
+	release(): void;
+}
+
+type SetQueryDataFn = QueryClient["setQueryData"];
+
+interface QueryClientPatch {
+	listeners: Set<(args: Parameters<SetQueryDataFn>, result: unknown) => void>;
+	original: SetQueryDataFn;
+}
+
+const patches = new WeakMap<QueryClient, QueryClientPatch>();
+
+function ensurePatch(client: QueryClient): QueryClientPatch {
+	const existing = patches.get(client);
+	if (existing) return existing;
+
+	const original = client.setQueryData.bind(client) as SetQueryDataFn;
+	const listeners = new Set<(args: Parameters<SetQueryDataFn>, result: unknown) => void>();
+	/* TS 7: QueryClient.setQueryData identities from query-core vs solid-query do not unify. */
+	client.setQueryData = ((...args: Parameters<SetQueryDataFn>) => {
+		const result = original(...args);
+		for (const listener of listeners) listener(args, result);
+		return result;
+	}) as SetQueryDataFn;
+
+	const patch: QueryClientPatch = { listeners, original };
+	patches.set(client, patch);
+	return patch;
 }
 
 export function createTrackedQueryClient(client: QueryClient): TrackedQueryClient {
 	const tracked: QueryState[] = [];
+	const patch = ensurePatch(client);
 
-	const originalSetQueryData = client.setQueryData.bind(client);
-	/* TS 7: QueryClient.setQueryData identities from query-core vs solid-query do not unify. */
-	client.setQueryData = ((...args: Parameters<QueryClient["setQueryData"]>) => {
-		const result = originalSetQueryData(...args);
-
+	const listener = (args: Parameters<SetQueryDataFn>, result: unknown) => {
 		const defaults = client.getQueryDefaults(args[0]);
 		const rawStaleTime = defaults?.staleTime;
 		tracked.push({
@@ -154,14 +179,25 @@ export function createTrackedQueryClient(client: QueryClient): TrackedQueryClien
 			key: [...args[0]],
 			staleTime: typeof rawStaleTime === "number" ? rawStaleTime : undefined,
 		});
+	};
+	patch.listeners.add(listener);
 
-		return result;
-	}) as QueryClient["setQueryData"];
+	let released = false;
+	const release = () => {
+		if (released) return;
+		released = true;
+		patch.listeners.delete(listener);
+		if (patch.listeners.size === 0) {
+			client.setQueryData = patch.original;
+			patches.delete(client);
+		}
+	};
 
 	return {
 		client,
 		drain: () => tracked.splice(0),
 		getTrackedQueries: () => tracked,
+		release,
 	};
 }
 

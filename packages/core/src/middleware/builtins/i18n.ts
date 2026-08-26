@@ -2,6 +2,7 @@ import { match as cldrMatch } from "@formatjs/intl-localematcher";
 import { isbot } from "isbot";
 import Negotiator from "negotiator";
 import type { FlareMiddleware } from "..";
+import { formatLocaleCookie } from "../../locale/cookie.ts";
 import { HEADER_DATA, HEADER_FLAG, HEADER_PRERENDER, HEADER_PREFETCH, INTERNAL_PATH_PREFIX } from "../../protocol.ts";
 import { matchRoute, toLocaleMatch } from "../../router-primitives/tree.ts";
 
@@ -83,12 +84,7 @@ function buildCookieHeader(
 	isHttps: boolean,
 	secure?: boolean,
 ): string {
-	/* Defense-in-depth: strip chars that could enable header/cookie injection.
-	 * Primary gate is localeSet.has() before any call site, but this guards
-	 * against future code paths that might bypass that check. */
-	const safe = locale.replace(/[\r\n;\0]/g, "");
-	const secureFlag = (secure ?? isHttps) ? "; Secure" : "";
-	return `${cookieName}=${safe}; Path=/; Max-Age=${maxAge}; SameSite=Lax${secureFlag}`;
+	return formatLocaleCookie(locale, cookieName, { https: isHttps, maxAge, secure });
 }
 
 export function i18n(options?: I18nMiddlewareOptions): FlareMiddleware {

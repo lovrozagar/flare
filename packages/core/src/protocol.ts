@@ -25,6 +25,8 @@ export const FLARE_RENDER_HEADER = "flare-render";
 
 /** Reserved prefix for Flare-owned endpoints (keepalive, image, revalidate, server-fn). */
 export const INTERNAL_PATH_PREFIX = "/_flare/";
+/** Keepalive ping path. */
+export const KEEPALIVE_PATH = `${INTERNAL_PATH_PREFIX}keepalive`;
 /** Server function HTTP path prefix: `/_flare/server-fn/{id}/{name}`. */
 export const SERVER_FN_PREFIX = "/_flare/server-fn";
 
