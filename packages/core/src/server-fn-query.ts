@@ -4,6 +4,8 @@
  * to avoid pulling in node:async_hooks on the client.
  */
 
+import { serverFnGetUrl } from "./server-fn/get-input.ts";
+import { throwServerFnHttpError } from "./server-fn/http-error.ts";
 import { serverFnPath } from "./protocol.ts";
 
 export interface PiggybackedQuery {
@@ -55,11 +57,7 @@ export function serverFnQueryOptions<TInput, TOutput>(
 
 			const res =
 				method === "get"
-					? await fetch(
-							config?.input !== undefined
-								? `${url}?${new URLSearchParams(config.input as Record<string, string>)}`
-								: url,
-						)
+					? await fetch(serverFnGetUrl(url, config?.input))
 					: await fetch(url, {
 							body: config?.input !== undefined ? JSON.stringify(config.input) : undefined,
 							headers: { "content-type": "application/json" },
@@ -68,11 +66,7 @@ export function serverFnQueryOptions<TInput, TOutput>(
 
 			if (!res.ok) {
 				const body: unknown = await res.json().catch(() => null);
-				const errMsg =
-					typeof body === "object" && body !== null && "message" in body
-						? String((body as Record<string, unknown>).message)
-						: `Request failed (${res.status})`;
-				throw new Error(`Server function request failed: ${errMsg}`);
+				throwServerFnHttpError(body, res.status, name);
 			}
 
 			const json = (await res.json()) as {
@@ -132,11 +126,7 @@ export function serverFnMutationOptions<TInput, TOutput>(
 
 			if (!res.ok) {
 				const body: unknown = await res.json().catch(() => null);
-				const errMsg =
-					typeof body === "object" && body !== null && "message" in body
-						? String((body as Record<string, unknown>).message)
-						: `Request failed (${res.status})`;
-				throw new Error(`Server function request failed: ${errMsg}`);
+				throwServerFnHttpError(body, res.status, name);
 			}
 
 			const json = (await res.json()) as {
