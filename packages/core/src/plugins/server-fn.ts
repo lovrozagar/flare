@@ -412,34 +412,29 @@ function stripCommentsAndStrings(code: string): string {
  * Preserves _registration (client needs id, name, method for RPC).
  * Uses paren-depth tracking to find matching closing paren.
  */
+const CLIENT_STUB_TOKENS = [".handler(", ".stream(", ".authorize(", ".input("] as const;
+
+function nextClientStub(code: string, from: number): { idx: number; token: string } | null {
+	let best: { idx: number; token: string } | null = null;
+	for (const token of CLIENT_STUB_TOKENS) {
+		const idx = code.indexOf(token, from);
+		if (idx === -1) continue;
+		if (!best || idx < best.idx) best = { idx, token };
+	}
+	return best;
+}
+
 export function stripHandlerBodies(code: string): string {
 	let result = "";
 	let cursor = 0;
 
 	while (cursor < code.length) {
-		const handlerIdx = code.indexOf(".handler(", cursor);
-		const streamIdx = code.indexOf(".stream(", cursor);
-
-		/* pick whichever comes first, skip -1 (not found) */
-		let idx: number;
-		let token: string;
-		if (handlerIdx === -1 && streamIdx === -1) {
+		const found = nextClientStub(code, cursor);
+		if (!found) {
 			result += code.slice(cursor);
 			break;
 		}
-		if (handlerIdx === -1) {
-			idx = streamIdx;
-			token = ".stream(";
-		} else if (streamIdx === -1) {
-			idx = handlerIdx;
-			token = ".handler(";
-		} else if (handlerIdx <= streamIdx) {
-			idx = handlerIdx;
-			token = ".handler(";
-		} else {
-			idx = streamIdx;
-			token = ".stream(";
-		}
+		const { idx, token } = found;
 
 		/* include everything up to and including the token */
 		const handlerStart = idx + token.length;

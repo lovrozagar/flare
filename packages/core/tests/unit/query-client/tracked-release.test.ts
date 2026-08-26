@@ -1,7 +1,7 @@
 /** @vitest-environment node */
 import { QueryClient } from "@tanstack/solid-query";
 import { describe, expect, it } from "vitest";
-import { createTrackedQueryClient } from "../../../src/query-client/index.tsx";
+import { createTrackedQueryClient, withTrackedQueryClient } from "../../../src/query-client/index.tsx";
 
 describe("createTrackedQueryClient release()", () => {
 	it("stops tracking after release", () => {
@@ -36,5 +36,21 @@ describe("createTrackedQueryClient release()", () => {
 		expect(() => tracked.release()).not.toThrow();
 		qc.setQueryData(["x"], 1);
 		expect(tracked.getTrackedQueries()).toHaveLength(0);
+	});
+
+	it("withTrackedQueryClient releases when the callback throws", async () => {
+		const qc = new QueryClient();
+		await expect(
+			withTrackedQueryClient(qc, async () => {
+				qc.setQueryData(["a"], 1);
+				throw new Error("boom");
+			}),
+		).rejects.toThrow("boom");
+
+		const second = createTrackedQueryClient(qc);
+		qc.setQueryData(["b"], 2);
+		expect(second.getTrackedQueries()).toHaveLength(1);
+		expect(second.getTrackedQueries()[0]?.key).toEqual(["b"]);
+		second.release();
 	});
 });

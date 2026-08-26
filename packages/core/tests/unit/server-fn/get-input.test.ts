@@ -42,4 +42,15 @@ describe("parseGetSearchParams", () => {
 	it("empty search → undefined", () => {
 		expect(parseGetSearchParams(new URLSearchParams())).toBeUndefined();
 	});
+
+	it("empty arrays round-trip as []", () => {
+		const qs = serializeGetInput({ tags: [] });
+		expect(parseGetSearchParams(new URLSearchParams(qs))).toEqual({ tags: [] });
+	});
+
+	it("top-level numbers, booleans, and null keep their types", () => {
+		const input = { missing: null, n: 42, ok: true };
+		const qs = serializeGetInput(input);
+		expect(parseGetSearchParams(new URLSearchParams(qs))).toEqual(input);
+	});
 });

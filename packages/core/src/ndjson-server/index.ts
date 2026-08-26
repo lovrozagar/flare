@@ -246,16 +246,6 @@ export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Res
 			/* 3. Ready */
 			enqueue(formatReadyMessage());
 
-			/* Install QC tracking for deferred callbacks */
-			let trackedQC:
-				| { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }>; release(): void }
-				| undefined;
-			if (config.queryClient) {
-				const { createTrackedQueryClient } = await import("../query-client");
-				const typed = config.queryClient as Parameters<typeof createTrackedQueryClient>[0];
-				trackedQC = createTrackedQueryClient(typed);
-			}
-
 			/* 4. Stream deferred chunks */
 			const entries: DeferredEntry[] = [];
 			for (const ctx of deferContexts.values()) {
@@ -263,26 +253,37 @@ export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Res
 					entries.push(e);
 				}
 			}
-			await Promise.allSettled(
-				entries.map(async (entry) => {
-					try {
-						const data = await entry.promise;
-						enqueue(formatChunkMessage(entry.matchId, entry.key, data));
-					} catch (e) {
-						const err = e instanceof Error ? e : new Error(String(e));
-						enqueue(formatErrorMessage(entry.matchId, err, entry.key));
-					}
 
-					/* Drain QC delta entries accumulated during this deferred resolve */
-					if (trackedQC) {
-						const qcEntries = trackedQC.drain();
-						if (qcEntries.length > 0) {
-							enqueue(formatQueryCacheMessage(qcEntries));
+			const streamDeferred = async (
+				trackedQC?: { drain(): Array<{ data: unknown; key: unknown[]; staleTime?: number }> },
+			) => {
+				await Promise.allSettled(
+					entries.map(async (entry) => {
+						try {
+							const data = await entry.promise;
+							enqueue(formatChunkMessage(entry.matchId, entry.key, data));
+						} catch (e) {
+							const err = e instanceof Error ? e : new Error(String(e));
+							enqueue(formatErrorMessage(entry.matchId, err, entry.key));
 						}
-					}
-				}),
-			);
-			trackedQC?.release();
+
+						if (trackedQC) {
+							const qcEntries = trackedQC.drain();
+							if (qcEntries.length > 0) {
+								enqueue(formatQueryCacheMessage(qcEntries));
+							}
+						}
+					}),
+				);
+			};
+
+			if (config.queryClient) {
+				const { withTrackedQueryClient } = await import("../query-client");
+				const typed = config.queryClient as Parameters<typeof withTrackedQueryClient>[0];
+				await withTrackedQueryClient(typed, streamDeferred);
+			} else {
+				await streamDeferred();
+			}
 
 			/* 5. Done */
 			enqueue(formatDoneMessage());
