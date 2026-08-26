@@ -328,20 +328,36 @@ async function readLimitedBody(
 
 /* ── CSRF Origin validation ────────────────────────────────────────── */
 
+const ALLOWED_FETCH_SITES = new Set(["none", "same-origin", "same-site"]);
+
 /**
- * Validate that the request Origin header matches the request URL origin.
- * Browsers always send Origin on POST; some browsers omit it on GET.
- * When Origin is present (any method), validate it — cross-origin GET
- * server function calls are just as dangerous as POST for CSRF.
- * Missing Origin is allowed since CSRF is a browser-only attack vector
- * and non-browser clients (curl, etc) won't have cookies.
+ * CSRF: Origin when present (any method), else Sec-Fetch-Site, else Referer.
+ * Top-level GET navigations omit Origin; SameSite=Lax still sends cookies.
+ * Missing all three is allowed for non-browser clients (curl, server-to-server).
  */
 function validateOrigin(request: Request): boolean {
-	const origin = request.headers.get("origin");
-	if (!origin) return true;
-
 	const requestOrigin = new URL(request.url).origin;
-	return origin === requestOrigin;
+
+	const origin = request.headers.get("origin");
+	if (origin !== null) {
+		return origin === requestOrigin;
+	}
+
+	const site = request.headers.get("sec-fetch-site");
+	if (site !== null) {
+		return ALLOWED_FETCH_SITES.has(site);
+	}
+
+	const referer = request.headers.get("referer");
+	if (referer !== null) {
+		try {
+			return new URL(referer).origin === requestOrigin;
+		} catch {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /* ── formDataToObject ───────────────────────────────────────────────── */
