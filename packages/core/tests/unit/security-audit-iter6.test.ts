@@ -22,10 +22,9 @@ describe("#1: RedirectResponse embedded control character bypass", () => {
 		expect(() => new RedirectResponse({ href: "java\rscript:alert(1)" })).toThrow("Unsafe redirect URL");
 	});
 
-	it("null byte in data: → safe (URL constructor treats as relative path)", async () => {
+	it("null byte in data: → rejected (header injection)", async () => {
 		const { RedirectResponse } = await import("../../src/errors/index.ts");
-		/* \0 breaks the protocol name — URL constructor treats as path, not data: */
-		expect(() => new RedirectResponse({ href: "da\0ta:text/html,<script>" })).not.toThrow();
+		expect(() => new RedirectResponse({ href: "da\0ta:text/html,<script>" })).toThrow("Unsafe redirect URL");
 	});
 });
 
