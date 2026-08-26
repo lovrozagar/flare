@@ -886,8 +886,20 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 	 * matches one of the "from" routes, render as overlay instead of full navigation. */
 	const interceptConfig = match.route.o.intercept;
 	if (interceptConfig && !options._popstate && !options.revalidate) {
-		const currentVarPath = ctx.location().variablePath;
-		if (interceptConfig.from.includes(currentVarPath)) {
+		const loc = ctx.location();
+		/* window.location is the overlay URL while loc is the frozen background. */
+		const displayed =
+			typeof window !== "undefined"
+				? {
+						pathname: window.location.pathname,
+						search: parseSearchParams(new URLSearchParams(window.location.search)),
+					}
+				: loc;
+		if (
+			!samePathAndSearch(url, loc) &&
+			!samePathAndSearch(url, displayed) &&
+			interceptConfig.from.includes(loc.variablePath)
+		) {
 			try {
 				/* Load modules + fetch data for the intercepted target */
 				const modules = await loadRouteModules(matchPath, ctx.routeTree, ctx.layouts);
@@ -904,17 +916,22 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				/* Update matchCache with fetched data */
 				const now = Date.now();
 				const interceptTags = resolveCacheTags(modules.page.cache, modules.params);
+				const interceptHeads = new Map(fetchResult.perRouteHeads.map((h) => [h.matchId, h.head]));
 				for (const m of fetchResult.matches) {
 					ctx.matchCache.set({
 						data: m.loaderData,
 						error: m.error,
 						hasDeferred: m.hasDeferredMarkers,
+						headConfig: interceptHeads.get(m.matchId),
 						invalid: false,
 						matchId: m.matchId,
 						preloaderContext: m.preloaderContext,
 						tags: interceptTags,
 						updatedAt: now,
 					});
+				}
+				if (fetchResult.perRouteHeads.length > 0) {
+					applyPerRouteHeads(fetchResult.perRouteHeads);
 				}
 
 				/* Build single ClientMatch for the intercepted page */
@@ -974,20 +991,27 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 	}
 
 	/* Step 4b: Hash-only change — skip loaders, just update hash + scroll.
-	 * Compare against ctx.location() since Step 4 already updated window.location.
-	 * Skip for popstate — browser already updated window.location, so ctx.location()
-	 * reads the new URL, making the comparison always match (false positive).
+	 * Compare against ctx.location() and the pre-Step-4 window URL. After
+	 * handleHistoryUpdate, window.location is already the target, so it is not
+	 * a valid "same page" oracle. During intercept, loc is the background and
+	 * previousPathname is the overlay URL — either match is hash-only.
+	 * Skip for popstate — browser already updated window.location.
 	 * Skip when revalidate is set — caller explicitly wants loaders to re-run. */
 	if (!options._popstate && !options.revalidate) {
 		const loc = ctx.location();
-		if (samePathAndSearch(url, loc)) {
+		const previous = {
+			pathname: previousPathname,
+			search: parseSearchParams(new URLSearchParams(previousSearch)),
+		};
+		if (samePathAndSearch(url, loc) || samePathAndSearch(url, previous)) {
 			const search = parseSearchParams(url.searchParams);
 
-			c.setIntercepted(null);
-			c.setParams(match.params);
-			c.setSearch(search);
-
-			syncLocale(match.params);
+			if (!c.intercepted()) {
+				c.setIntercepted(null);
+				c.setParams(match.params);
+				c.setSearch(search);
+				syncLocale(match.params);
+			}
 			if (url.hash) {
 				const el = typeof document !== "undefined" ? document.getElementById(url.hash.slice(1)) : null;
 				if (el) {
@@ -1116,9 +1140,19 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			keepMatchIds = shell.keepMatchIds;
 			/* Restore before the next paint so back/forward does not flash at y=0
 			 * while the enter hop (or the post-update rAF) is still outstanding. */
-			if (hadShell && scrollRestorationEnabled && options._restoreScroll) {
+			if (hadShell && scrollRestorationEnabled) {
 				flush();
-				restoreScroll(options._restoreScroll, "auto");
+				if (options._restoreScroll) {
+					restoreScroll(options._restoreScroll, "auto");
+				} else if (options.scroll !== false) {
+					if (url.hash) {
+						const el = typeof document !== "undefined" ? document.getElementById(url.hash.slice(1)) : null;
+						if (el) el.scrollIntoView();
+						else scrollToTop();
+					} else {
+						scrollToTop();
+					}
+				}
 			}
 		}
 
