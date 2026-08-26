@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import { clickAndAssertSPA, loadPage, navigateSPA, setNavMarker, setupConsoleCapture } from "./helpers";
 
 const SECRET = "e2e-test-secret";
@@ -15,6 +15,27 @@ function parseNDJSON(body: string): Array<Record<string, unknown>> {
 function extractTs(html: string, testId: string): string | null {
 	const match = html.match(new RegExp(`data-testid="${testId}">(\\d+)<`));
 	return match?.[1] ?? null;
+}
+
+async function revalidateTags(request: APIRequestContext, tags: string[]) {
+	return request.post(REVALIDATE_URL, {
+		data: { tags, tiers: ["ssr"] },
+		headers: {
+			"content-type": "application/json",
+			"x-revalidation-secret": SECRET,
+		},
+	});
+}
+
+/** Bust then populate so tag-isolation assertions are not racing layout staleTime. */
+async function freshStoreSnapshot(request: APIRequestContext) {
+	await revalidateTags(request, ["dc-l1", "dc-l3", "dc-p3"]);
+	const html = await (await request.get("/deep-cache/store-page")).text();
+	return {
+		l1: extractTs(html, "dc-l1-ts"),
+		l3: extractTs(html, "dc-l3-ts"),
+		p3: extractTs(html, "dc-p3-ts"),
+	};
 }
 
 /* ──────────────────────────── SSR rendering ──────────────────────────── */
@@ -255,83 +276,39 @@ test.describe("Deep cache nesting: SPA navigation", () => {
 
 test.describe("Deep cache nesting: Tag-based revalidation", () => {
 	test("revalidate dc-l1: only L1 refreshes, L3/P3 untouched", async ({ request }) => {
-		/* Populate caches via store-page (has L1, L3, P3 all store-cached) */
-		await request.get("/deep-cache/store-page");
-		const before = await (await request.get("/deep-cache/store-page")).text();
-		const l1Before = extractTs(before, "dc-l1-ts");
-		const l3Before = extractTs(before, "dc-l3-ts");
-		const p3Before = extractTs(before, "dc-p3-ts");
+		const before = await freshStoreSnapshot(request);
 
-		/* Revalidate only L1 tag */
-		const revalRes = await request.post(REVALIDATE_URL, {
-			data: { tags: ["dc-l1"], tiers: ["ssr"] },
-			headers: {
-				"content-type": "application/json",
-				"x-revalidation-secret": SECRET,
-			},
-		});
+		const revalRes = await revalidateTags(request, ["dc-l1"]);
 		expect(revalRes.status()).toBe(200);
 
 		const after = await (await request.get("/deep-cache/store-page")).text();
-		const l1After = extractTs(after, "dc-l1-ts");
-		const l3After = extractTs(after, "dc-l3-ts");
-		const p3After = extractTs(after, "dc-p3-ts");
-
-		expect(l1After).not.toBe(l1Before);
-		expect(l3After).toBe(l3Before);
-		expect(p3After).toBe(p3Before);
+		expect(extractTs(after, "dc-l1-ts")).not.toBe(before.l1);
+		expect(extractTs(after, "dc-l3-ts")).toBe(before.l3);
+		expect(extractTs(after, "dc-p3-ts")).toBe(before.p3);
 	});
 
 	test("revalidate dc-l3: only L3 refreshes, L1/P3 untouched", async ({ request }) => {
-		await request.get("/deep-cache/store-page");
-		const before = await (await request.get("/deep-cache/store-page")).text();
-		const l1Before = extractTs(before, "dc-l1-ts");
-		const l3Before = extractTs(before, "dc-l3-ts");
-		const p3Before = extractTs(before, "dc-p3-ts");
+		const before = await freshStoreSnapshot(request);
 
-		const revalRes = await request.post(REVALIDATE_URL, {
-			data: { tags: ["dc-l3"], tiers: ["ssr"] },
-			headers: {
-				"content-type": "application/json",
-				"x-revalidation-secret": SECRET,
-			},
-		});
+		const revalRes = await revalidateTags(request, ["dc-l3"]);
 		expect(revalRes.status()).toBe(200);
 
 		const after = await (await request.get("/deep-cache/store-page")).text();
-		const l1After = extractTs(after, "dc-l1-ts");
-		const l3After = extractTs(after, "dc-l3-ts");
-		const p3After = extractTs(after, "dc-p3-ts");
-
-		expect(l1After).toBe(l1Before);
-		expect(l3After).not.toBe(l3Before);
-		expect(p3After).toBe(p3Before);
+		expect(extractTs(after, "dc-l1-ts")).toBe(before.l1);
+		expect(extractTs(after, "dc-l3-ts")).not.toBe(before.l3);
+		expect(extractTs(after, "dc-p3-ts")).toBe(before.p3);
 	});
 
 	test("revalidate dc-p3: only P3 refreshes, L1/L3 untouched", async ({ request }) => {
-		await request.get("/deep-cache/store-page");
-		const before = await (await request.get("/deep-cache/store-page")).text();
-		const l1Before = extractTs(before, "dc-l1-ts");
-		const l3Before = extractTs(before, "dc-l3-ts");
-		const p3Before = extractTs(before, "dc-p3-ts");
+		const before = await freshStoreSnapshot(request);
 
-		const revalRes = await request.post(REVALIDATE_URL, {
-			data: { tags: ["dc-p3"], tiers: ["ssr"] },
-			headers: {
-				"content-type": "application/json",
-				"x-revalidation-secret": SECRET,
-			},
-		});
+		const revalRes = await revalidateTags(request, ["dc-p3"]);
 		expect(revalRes.status()).toBe(200);
 
 		const after = await (await request.get("/deep-cache/store-page")).text();
-		const l1After = extractTs(after, "dc-l1-ts");
-		const l3After = extractTs(after, "dc-l3-ts");
-		const p3After = extractTs(after, "dc-p3-ts");
-
-		expect(l1After).toBe(l1Before);
-		expect(l3After).toBe(l3Before);
-		expect(p3After).not.toBe(p3Before);
+		expect(extractTs(after, "dc-l1-ts")).toBe(before.l1);
+		expect(extractTs(after, "dc-l3-ts")).toBe(before.l3);
+		expect(extractTs(after, "dc-p3-ts")).not.toBe(before.p3);
 	});
 });
 
