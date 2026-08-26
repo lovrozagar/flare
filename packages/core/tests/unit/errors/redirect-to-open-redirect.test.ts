@@ -13,6 +13,15 @@ describe("redirect({ to }) must not emit an open redirect", () => {
 		expect(r.url).toBe("/login?next=/home#top");
 	});
 
+	it("emits the normalized path, not raw to", () => {
+		const r = new RedirectResponse({ to: "/foo/../login" });
+		expect(r.url).toBe("/login");
+	});
+
+	it("rejects percent-encoded backslash to", () => {
+		expect(() => new RedirectResponse({ to: "/%5cevil.com" })).toThrow("Unsafe redirect URL");
+	});
+
 	it("rejects https:// URLs passed as to", () => {
 		expect(() => new RedirectResponse({ to: "https://evil.com" })).toThrow("Unsafe redirect URL");
 	});
