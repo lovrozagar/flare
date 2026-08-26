@@ -11,10 +11,16 @@ describe("Task 2: rewrite URL construction safety", () => {
 			expect(result.pathname).toBe("/new-path");
 		});
 
-		it("valid full URL works", () => {
+		it("cross-origin full URL keeps the original URL", () => {
 			const rewrite = { input: () => "https://example.com/path" };
 			const result = executeRewriteInput(rewrite, base);
-			expect(result.href).toBe("https://example.com/path");
+			expect(result.href).toBe(base.href);
+		});
+
+		it("same-origin full URL is allowed", () => {
+			const rewrite = { input: () => "http://localhost:3000/path" };
+			const result = executeRewriteInput(rewrite, base);
+			expect(result.href).toBe("http://localhost:3000/path");
 		});
 
 		it("undefined return keeps original URL", () => {

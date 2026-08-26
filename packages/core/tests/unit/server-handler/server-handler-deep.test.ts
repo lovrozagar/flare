@@ -382,6 +382,64 @@ describe("server function auth", () => {
 	});
 });
 
+describe("PE POST security headers", () => {
+	it("success 303 includes nosniff", async () => {
+		fnRef.current = new Map([
+			[
+				"pe-ok",
+				{
+					authenticate: false,
+					fn: () => Promise.resolve({ ok: true }),
+					id: "pe-ok",
+					method: "post" as const,
+					name: "save",
+				},
+			],
+		]);
+		const handler = createServerHandler(makeConfig());
+		const form = new FormData();
+		form.set("flare_fn", "pe-ok");
+		const response = await handler.fetch(
+			makeRequest("http://localhost/page", {
+				body: form,
+				method: "POST",
+			}),
+			{},
+		);
+		expect(response.status).toBe(303);
+		expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+		expect(response.headers.get("location")).toBe("/page");
+	});
+
+	it("CSRF 403 includes nosniff", async () => {
+		fnRef.current = new Map([
+			[
+				"pe-csrf",
+				{
+					authenticate: false,
+					fn: () => Promise.resolve({ ok: true }),
+					id: "pe-csrf",
+					method: "post" as const,
+					name: "save",
+				},
+			],
+		]);
+		const handler = createServerHandler(makeConfig());
+		const form = new FormData();
+		form.set("flare_fn", "pe-csrf");
+		const response = await handler.fetch(
+			makeRequest("http://localhost/page", {
+				body: form,
+				headers: { Origin: "https://evil.com" },
+				method: "POST",
+			}),
+			{},
+		);
+		expect(response.status).toBe(403);
+		expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+	});
+});
+
 /* ── Security header non-override ────────────────────────────────────── */
 
 describe("security header non-override", () => {

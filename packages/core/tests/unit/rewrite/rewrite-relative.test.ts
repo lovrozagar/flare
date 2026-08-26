@@ -32,14 +32,25 @@ describe("Bug 62: rewrite with relative path strings", () => {
 		expect(result.origin).toBe("http://example.com");
 	});
 
-	it("should still handle full URL strings", () => {
+	it("keeps the original origin when a rewrite string is cross-origin", () => {
 		const url = new URL("http://example.com/original");
 		const rewrite = {
 			input: () => "http://other.com/path",
 		};
 
 		const result = executeRewriteInput(rewrite, url);
-		expect(result.pathname).toBe("/path");
-		expect(result.origin).toBe("http://other.com");
+		expect(result.origin).toBe("http://example.com");
+		expect(result.href).toBe(url.href);
+	});
+
+	it("does not follow protocol-relative rewrite strings", () => {
+		const url = new URL("http://example.com/original");
+		const rewrite = {
+			input: () => "//evil.com/x",
+		};
+
+		const result = executeRewriteInput(rewrite, url);
+		expect(result.origin).toBe("http://example.com");
+		expect(result.href).toBe(url.href);
 	});
 });

@@ -75,10 +75,24 @@ function validateRedirectUrl(raw: string, mode: "internal" | "external"): string
 
 	const sameOrigin = parsed.origin === SENTINEL_ORIGIN;
 	if (mode === "internal") {
-		if (!sameOrigin || !raw.startsWith("/") || raw.startsWith("//")) {
+		let decodedPath = parsed.pathname;
+		try {
+			decodedPath = decodeURIComponent(parsed.pathname);
+		} catch {
+			/* keep pathname */
+		}
+		if (
+			!sameOrigin ||
+			!raw.startsWith("/") ||
+			raw.startsWith("//") ||
+			raw.includes("\\") ||
+			parsed.pathname.startsWith("//") ||
+			decodedPath.includes("\\") ||
+			decodedPath.startsWith("//")
+		) {
 			throw new Error(`Unsafe redirect URL: ${raw}`);
 		}
-		return raw;
+		return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 	}
 
 	if (!sameOrigin && !HAS_SCHEME.test(raw.trimStart())) {
