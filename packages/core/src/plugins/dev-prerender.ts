@@ -48,7 +48,11 @@ export function filterDevPrerenderRoutes(defs: RouteDefinition[]): PrerenderRout
 		/* skip dynamic routes — they need params we don't have at dev time */
 		if (pathname.includes("[")) continue;
 
-		routes.push({ mode: "static", pathname });
+		const route: PrerenderRoute = { mode: "static", pathname };
+		if (def.cache.cdnTags && def.cache.cdnTags.length > 0) {
+			route.tags = def.cache.cdnTags;
+		}
+		routes.push(route);
 	}
 
 	return routes;
@@ -103,6 +107,7 @@ export function createDevPrerenderPlugin(config: FlarePluginConfig, entries: Res
 						ndjson: entry.ndjson,
 					},
 					storedAt: Date.now(),
+					tags: entry.tags,
 				});
 			}
 

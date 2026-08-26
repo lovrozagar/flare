@@ -409,33 +409,143 @@ describe("Store cache intercept", () => {
 		expect(deleteByKeysSpy).toHaveBeenCalledWith(["key1", "key2"], { source: "test" });
 	});
 
-	it("deferred markers stripped from cached data", async () => {
+	it("does not write loader data that contains defer() markers", async () => {
 		const store = createMapStore();
 
 		const route = makeRoute({
 			cache: { ssr: { staleTime: 60_000 } },
-			loader: () =>
-				Promise.resolve({
+			loader: (ctx) => {
+				const defer = ctx.defer as (fn: () => Promise<unknown>) => unknown;
+				return Promise.resolve({
 					items: ["a", "b"],
-					lazy: { __deferred: true, key: "lazy-key", promise: Promise.resolve("resolved") },
-				}),
+					lazy: defer(() => Promise.resolve("resolved")),
+				});
+			},
 		});
 
-		await runPipeline(
+		const result = await runPipeline(
 			makeConfig({
 				routes: [route],
 				store,
 			}),
 		);
 
-		const stored = store.store.get("flare:_root_/test:{}");
-		const data = stored?.data as Record<string, unknown>;
-		expect(data.items).toEqual(["a", "b"]);
-		/* Deferred marker preserved but promise stripped */
-		const lazy = data.lazy as Record<string, unknown>;
-		expect(lazy.__deferred).toBe(true);
-		expect(lazy.key).toBe("lazy-key");
-		expect(lazy.promise).toBeUndefined();
+		expect(result.matches[0]?.loaderData).toEqual(expect.objectContaining({ items: ["a", "b"] }));
+		expect(store.store.size).toBe(0);
+	});
+
+	it("cache hit of serialized defer markers is treated as a miss", async () => {
+		const loader = vi.fn(() => Promise.resolve({ items: ["fresh"] }));
+		const store = createMapStore();
+		store.store.set("flare:_root_/test:{}", {
+			data: { items: ["stale"], lazy: { __deferred: true, key: "d0" } },
+			storedAt: Date.now(),
+		});
+
+		const route = makeRoute({
+			cache: { ssr: { staleTime: 60_000 } },
+			loader,
+		});
+
+		const result = await runPipeline(
+			makeConfig({
+				routes: [route],
+				store,
+			}),
+		);
+
+		expect(loader).toHaveBeenCalledOnce();
+		expect(result.matches[0]?.loaderData).toEqual({ items: ["fresh"] });
+		expect(result.matches[0]?.cacheHit).not.toBe(true);
+	});
+
+	it("default key includes search so ?tab= values do not collide", async () => {
+		const store = createMapStore();
+		const route = makeRoute({
+			cache: { ssr: { staleTime: 60_000 } },
+			loader: (ctx) => {
+				const location = ctx.location as { search: { tab?: string } };
+				return Promise.resolve(`tab:${location.search.tab ?? ""}`);
+			},
+		});
+
+		const first = await runPipeline(
+			makeConfig({
+				request: new Request("http://localhost/test?tab=a"),
+				routes: [route],
+				store,
+				url: new URL("http://localhost/test?tab=a"),
+			}),
+		);
+		const second = await runPipeline(
+			makeConfig({
+				request: new Request("http://localhost/test?tab=b"),
+				routes: [route],
+				store,
+				url: new URL("http://localhost/test?tab=b"),
+			}),
+		);
+
+		expect(first.matches[0]?.loaderData).toBe("tab:a");
+		expect(second.matches[0]?.loaderData).toBe("tab:b");
+		expect(second.matches[0]?.cacheHit).not.toBe(true);
+		expect(store.store.has("flare:_root_/test:{}:tab=a")).toBe(true);
+		expect(store.store.has("flare:_root_/test:{}:tab=b")).toBe(true);
+	});
+
+	it("same path and search hits the default SSR cache", async () => {
+		const loader = vi.fn(() => Promise.resolve("tab-a"));
+		const store = createMapStore();
+		const route = makeRoute({
+			cache: { ssr: { staleTime: 60_000 } },
+			loader,
+		});
+		const config = makeConfig({
+			request: new Request("http://localhost/test?tab=a"),
+			routes: [route],
+			store,
+			url: new URL("http://localhost/test?tab=a"),
+		});
+
+		await runPipeline(config);
+		const second = await runPipeline(config);
+
+		expect(loader).toHaveBeenCalledOnce();
+		expect(second.matches[0]?.loaderData).toBe("tab-a");
+		expect(second.matches[0]?.cacheHit).toBe(true);
+	});
+
+	it("custom key function receives search", async () => {
+		const loader = vi.fn(() => Promise.resolve("fresh"));
+		const store = createMapStore();
+		store.store.set("custom:hello:reviews", {
+			data: "cached-tab",
+			storedAt: Date.now(),
+		});
+
+		const route = makeRoute({
+			cache: {
+				ssr: {
+					key: ({ params, search }) => `custom:${params.slug}:${search.tab}`,
+					staleTime: 60_000,
+				},
+			},
+			loader,
+			virtualPath: "_root_/blog/[slug]",
+		});
+
+		const result = await runPipeline(
+			makeConfig({
+				params: { slug: "hello" },
+				request: new Request("http://localhost/blog/hello?tab=reviews"),
+				routes: [route],
+				store,
+				url: new URL("http://localhost/blog/hello?tab=reviews"),
+			}),
+		);
+
+		expect(result.matches[0]?.loaderData).toBe("cached-tab");
+		expect(loader).not.toHaveBeenCalled();
 	});
 
 	it("circular references in loader data replaced with null in cache", async () => {

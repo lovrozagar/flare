@@ -329,6 +329,44 @@ describe("buildPrerenderRoutes", () => {
 		expect(result[0]?.defer).toBe("stream");
 	});
 
+	it("copies extracted cdnTags onto prerender routes", () => {
+		const defs: RouteDefinition[] = [
+			{
+				authenticateMode: false,
+				cache: { cdnTags: ["page-about", "tag-marketing"], ssg: true },
+				exportName: "aboutPage",
+				filePath: "src/routes/about.tsx",
+				hasInput: false,
+				responseRoute: false,
+				type: "page",
+				virtualPath: "_root_/about",
+			},
+		];
+		const result = buildPrerenderRoutes(defs);
+		expect(result).toHaveLength(1);
+		expect(result[0]?.tags).toEqual(["page-about", "tag-marketing"]);
+	});
+
+	it("copies extracted cdnTags onto expanded dynamic prerender routes", () => {
+		const defs: RouteDefinition[] = [
+			{
+				authenticateMode: false,
+				cache: { cdnTags: ["products"], isr: "dynamic", isrRevalidate: 60 },
+				exportName: "productPage",
+				filePath: "src/routes/products/[id].tsx",
+				hasInput: false,
+				responseRoute: false,
+				type: "page",
+				virtualPath: "_root_/products/[id]",
+			},
+		];
+		const staticParams = new Map([["_root_/products/[id]", [{ id: "1" }, { id: "2" }]]]);
+		const result = buildPrerenderRoutes(defs, staticParams);
+		expect(result).toHaveLength(2);
+		expect(result[0]?.tags).toEqual(["products"]);
+		expect(result[1]?.tags).toEqual(["products"]);
+	});
+
 	it("expands inherited layout params for pages with ssg: true", () => {
 		const defs: RouteDefinition[] = [
 			{

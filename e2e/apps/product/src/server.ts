@@ -48,7 +48,7 @@ const store: FlareStore = {
 try {
 	if (typeof import.meta.url === "string" && import.meta.url) {
 		const serverDir = dirname(fileURLToPath(import.meta.url));
-		loadPrerenderArtifacts(join(serverDir, "../static"), store);
+		await loadPrerenderArtifacts(join(serverDir, "../static"), store);
 	}
 } catch {
 	/* workerd has no fileURLToPath(import.meta.url) — artifacts stay empty */
