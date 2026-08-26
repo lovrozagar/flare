@@ -1,28 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { RedirectResponse } from "../../../src/errors/index.ts";
 
-/* ── Protocol-relative URLs — valid external redirects ── */
+/* ── Protocol-relative URLs — open-redirect footgun, must reject ── */
 
 describe("RedirectResponse protocol-relative URLs", () => {
-	it("protocol-relative //evil.com is allowed (valid external redirect)", () => {
-		const r = new RedirectResponse({ href: "//evil.com" });
-		expect(r.url).toBe("//evil.com");
-		expect(r.external).toBe(true);
+	it("protocol-relative //evil.com is rejected", () => {
+		expect(() => new RedirectResponse({ href: "//evil.com" })).toThrow("Unsafe redirect URL");
 	});
 
-	it("protocol-relative //evil.com/path is allowed", () => {
-		const r = new RedirectResponse({ href: "//evil.com/steal-cookies" });
-		expect(r.url).toBe("//evil.com/steal-cookies");
+	it("protocol-relative //evil.com/path is rejected", () => {
+		expect(() => new RedirectResponse({ href: "//evil.com/steal-cookies" })).toThrow("Unsafe redirect URL");
 	});
 
-	it("protocol-relative with user info //user@evil.com is allowed", () => {
-		const r = new RedirectResponse({ href: "//user@evil.com" });
-		expect(r.url).toBe("//user@evil.com");
+	it("protocol-relative with user info //user@evil.com is rejected", () => {
+		expect(() => new RedirectResponse({ href: "//user@evil.com" })).toThrow("Unsafe redirect URL");
 	});
 
-	it("triple slash ///evil.com is allowed (relative path)", () => {
-		const r = new RedirectResponse({ href: "///evil.com" });
-		expect(r.url).toBe("///evil.com");
+	it("triple slash ///evil.com is rejected", () => {
+		expect(() => new RedirectResponse({ href: "///evil.com" })).toThrow("Unsafe redirect URL");
 	});
 });
 

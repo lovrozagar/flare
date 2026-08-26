@@ -54,9 +54,7 @@ describe("RedirectResponse — valid URLs pass through", () => {
 		expect(r.url).toBe("./next");
 	});
 
-	it("allows protocol-relative URL (valid external redirect)", () => {
-		const r = new RedirectResponse({ href: "//example.com/path" });
-		expect(r.url).toBe("//example.com/path");
-		expect(r.external).toBe(true);
+	it("rejects protocol-relative URL (open-redirect footgun)", () => {
+		expect(() => new RedirectResponse({ href: "//example.com/path" })).toThrow("Unsafe redirect URL");
 	});
 });

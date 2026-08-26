@@ -110,10 +110,8 @@ describe("RedirectResponse protocol edge cases", () => {
 		expect(r.external).toBe(true);
 	});
 
-	it("internal to with javascript:-like prefix → allowed (no protocol check for internal)", () => {
-		const r = new RedirectResponse({ to: "javascript:something" });
-		expect(r.url).toBe("javascript:something");
-		expect(r.external).toBe(false);
+	it("internal to with javascript:-like prefix → rejected", () => {
+		expect(() => new RedirectResponse({ to: "javascript:something" })).toThrow("Unsafe redirect URL");
 	});
 });
 

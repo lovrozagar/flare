@@ -46,28 +46,46 @@ export class UnauthorizedError extends Error {
 }
 
 const SAFE_PROTOCOLS = new Set(["http:", "https:"]);
+const SENTINEL_ORIGIN = "https://flare.invalid";
+const HAS_SCHEME = /^[a-zA-Z][a-zA-Z+\-.]*:/;
 
 /**
  * Allowlist-based redirect URL validation using the URL constructor.
- * Lets the platform's URL parser handle all encoding/unicode normalization
- * instead of a regex blocklist that can be bypassed.
+ * Lets the platform's URL parser handle encoding, backslash normalization,
+ * and unicode instead of a regex blocklist that can be bypassed.
+ *
+ * Protocol-relative (`//host`) is not a same-origin path — `startsWith("/")`
+ * would treat it as one. Internal `to` must stay on the sentinel origin.
  */
-function validateExternalRedirectUrl(href: string): string {
-	/* Relative paths are safe — no protocol to exploit */
-	if (href.startsWith("/") || href.startsWith(".")) return href;
+function validateRedirectUrl(raw: string, mode: "internal" | "external"): string {
+	if (/[\0\r\n]/.test(raw)) {
+		throw new Error(`Unsafe redirect URL: ${raw}`);
+	}
 
 	let parsed: URL;
 	try {
-		parsed = new URL(href, "http://localhost");
+		parsed = new URL(raw, SENTINEL_ORIGIN);
 	} catch {
-		throw new Error(`Unsafe redirect URL: ${href}`);
+		throw new Error(`Unsafe redirect URL: ${raw}`);
 	}
 
 	if (!SAFE_PROTOCOLS.has(parsed.protocol)) {
-		throw new Error(`Unsafe redirect URL: ${href}`);
+		throw new Error(`Unsafe redirect URL: ${raw}`);
 	}
 
-	return href;
+	const sameOrigin = parsed.origin === SENTINEL_ORIGIN;
+	if (mode === "internal") {
+		if (!sameOrigin || !raw.startsWith("/") || raw.startsWith("//")) {
+			throw new Error(`Unsafe redirect URL: ${raw}`);
+		}
+		return raw;
+	}
+
+	if (!sameOrigin && !HAS_SCHEME.test(raw.trimStart())) {
+		throw new Error(`Unsafe redirect URL: ${raw}`);
+	}
+
+	return raw;
 }
 
 export class RedirectResponse extends Error {
@@ -80,10 +98,10 @@ export class RedirectResponse extends Error {
 	constructor(options: RawRedirectOptions) {
 		super("Redirect");
 		if ("href" in options) {
-			this.url = validateExternalRedirectUrl(options.href);
+			this.url = validateRedirectUrl(options.href, "external");
 			this.external = true;
 		} else {
-			this.url = options.to;
+			this.url = validateRedirectUrl(options.to, "internal");
 			this.external = false;
 		}
 		this.status = options.status ?? 303;
@@ -136,6 +154,8 @@ export function redirect(options: {
 	if (options.to === undefined) {
 		throw new Error("redirect() requires either 'to' or 'href'");
 	}
+	/* Validate the raw path before buildUrl collapses leading slashes (`//host` → `/host`) */
+	validateRedirectUrl(options.to, "internal");
 	const url = buildUrl({ params: options.params, search: options.search, to: options.to });
 	throw new RedirectResponse({ replace: options.replace, status: options.status, to: url });
 }

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { basename, dirname, extname, resolve } from "node:path";
+import { basename, dirname, extname, isAbsolute, relative, resolve, sep } from "node:path";
 import type { VitePlugin } from "./types.ts";
 
 const IMAGE_EXTS = new Set([".avif", ".gif", ".jpeg", ".jpg", ".png", ".tiff", ".webp"]);
@@ -16,6 +16,14 @@ interface SharpInstance {
 }
 
 type SharpFactory = (input: string) => SharpInstance;
+
+/** True when `target` is `root` or a descendant. Prefix match is not enough (`/proj/flare-evil` vs `/proj/flare`). */
+export function isPathWithinRoot(target: string, root: string): boolean {
+	const rel = relative(root, target);
+	if (rel === "") return true;
+	if (isAbsolute(rel)) return false;
+	return rel !== ".." && !rel.startsWith(`..${sep}`);
+}
 
 async function importSharp(): Promise<SharpFactory> {
 	try {
@@ -67,15 +75,16 @@ export function createImagePlugin(
 					if (!src || !w) return next();
 
 					/* Guard against path traversal — resolve symlinks then check within cwd */
+					const cwd = process.cwd();
 					const resolvedSrc = resolve(src);
-					if (!resolvedSrc.startsWith(process.cwd())) return next();
+					if (!isPathWithinRoot(resolvedSrc, cwd)) return next();
 					let realSrc: string;
 					try {
 						realSrc = realpathSync(resolvedSrc);
 					} catch {
 						return next();
 					}
-					if (!realSrc.startsWith(process.cwd())) return next();
+					if (!isPathWithinRoot(realSrc, cwd)) return next();
 
 					const sharp = await importSharp();
 					const sourceExt = extname(realSrc).toLowerCase();
