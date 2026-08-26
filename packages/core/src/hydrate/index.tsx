@@ -19,6 +19,7 @@ import {
 	extractRootBoundaries,
 	hydrateHeadState,
 	loadRouteModules,
+	applyMatchCacheTags,
 	populateMatchCache,
 } from "../hydration/index.ts";
 import { onceIdle } from "../internal/once-idle.ts";
@@ -181,6 +182,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 		const rootLayout = modules.layouts.find((m) => m._type === "root-layout");
 		const nonRootLayouts = modules.layouts.filter((m) => m._type !== "root-layout");
 		const allModules: LoadedRouteModule[] = [...nonRootLayouts, modules.page];
+		applyMatchCacheTags(matchCache, allModules, modules.params, search);
 
 		/* Build error map from per-match error names (survives serialization) */
 		const errorMap = new Map<string, Error>();

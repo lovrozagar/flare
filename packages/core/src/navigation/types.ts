@@ -29,6 +29,11 @@ export interface LoadedRouteModule {
 	errorRender?: (props: ClientErrorRenderProps) => JSX.Element;
 	notFoundRender?: (props: ClientNotFoundRenderProps) => JSX.Element;
 	cache?: {
+		cdn?:
+			| {
+					tags?: string[] | ((ctx: { params: Record<string, string | string[]> }) => string[]);
+			  }
+			| false;
 		client?:
 			| {
 					cacheDeferred?: boolean;
@@ -36,6 +41,11 @@ export interface LoadedRouteModule {
 					prefetchGcTime?: number;
 					prefetchStaleTime?: number;
 					staleTime?: number;
+			  }
+			| false;
+		ssr?:
+			| {
+					tags?: string[] | ((ctx: { params: Record<string, string | string[]> }) => string[]);
 			  }
 			| false;
 	};

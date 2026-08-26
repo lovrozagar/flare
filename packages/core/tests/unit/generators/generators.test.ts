@@ -1767,6 +1767,24 @@ describe("generateRoutesFile — intercept in meta", () => {
 /* ── formatRouteMeta — ssg/isr in generated output ────────────── */
 
 describe("generateRoutesFile — static meta in route", () => {
+	it("emits authorize: true when the page has authorize", () => {
+		const defs: RouteDefinition[] = [
+			{
+				authenticateMode: false,
+				cache: { ssg: true },
+				exportName: "page",
+				filePath: "src/routes/admin.tsx",
+				hasAuthorize: true,
+				hasInput: false,
+				responseRoute: false,
+				type: "page",
+				virtualPath: "_root_/admin",
+			},
+		];
+		const output = generateRoutesFile(defs, "src/_gen");
+		expect(output).toContain("authorize: true");
+	});
+
 	it("emits static: { mode: 'static' } for ssg: true", () => {
 		const defs: RouteDefinition[] = [
 			{

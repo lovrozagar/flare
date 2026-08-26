@@ -233,6 +233,22 @@ describe("ISR serving — cache hit", () => {
 		expect(response.headers.get("set-cookie")).toBeNull();
 	});
 
+	it("does not serve static HIT when the route has authorize", async () => {
+		const store = makeStore({
+			"static:/about": makeStaticEntry({ html: "<html>cached-secret</html>" }),
+		});
+		const handler = makeHandler(
+			"/about",
+			makeISRRouteData({ mode: "isr", revalidate: 300 }, "/about", {
+				o: { authorize: true, static: { mode: "isr", revalidate: 300 } },
+			}),
+			{ store },
+		);
+		const response = await handler.fetch(req(), {});
+		const body = await response.text();
+		expect(body).not.toContain("cached-secret");
+	});
+
 	it("does not serve static HIT when the route requires authenticate", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry({ html: "<html>cached-secret</html>" }),

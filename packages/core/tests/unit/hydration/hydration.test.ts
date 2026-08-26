@@ -315,6 +315,31 @@ describe("populateMatchCache", () => {
 		expect(matchCache.get("m2")?.data).toBe("data2");
 		expect(matchCache.get("m2")?.preloaderContext).toEqual({ foo: "bar" });
 	});
+
+	it("applyMatchCacheTags copies route cache tags onto hydrated entries", async () => {
+		const { applyMatchCacheTags } = await import("../../../src/hydration/index.ts");
+		const { computeMatchId } = await import("../../../src/router-primitives/match-id.ts");
+		const matchCache = createMatchCache();
+		const matchId = computeMatchId({ params: {}, routeId: "_root_/about", search: {} });
+		populateMatchCache(matchCache, [{ loaderData: "about", matchId }]);
+		applyMatchCacheTags(
+			matchCache,
+			[
+				{
+					_type: "render",
+					cache: { ssr: { tags: ["about"] } },
+					render: () => null,
+					variablePath: "/about",
+					virtualPath: "_root_/about",
+				},
+			],
+			{},
+			{},
+		);
+		expect(matchCache.get(matchId)?.tags).toEqual(["about"]);
+		matchCache.invalidate({ tags: ["about"] });
+		expect(matchCache.get(matchId)?.invalid).toBe(true);
+	});
 });
 
 describe("hydrateHeadState", () => {

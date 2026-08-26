@@ -174,6 +174,58 @@ describe("Store cache intercept", () => {
 		expect(stored?.data).toBe("refreshed-data");
 	});
 
+	it("does not share default SSR cache across authenticated users", async () => {
+		const loader = vi.fn((ctx: { auth: { id: string } }) => Promise.resolve({ user: ctx.auth.id }));
+		const store = createMapStore();
+		const route = makeRoute({
+			authenticate: [],
+			authenticateMode: true,
+			cache: { ssr: { staleTime: 60_000 } },
+			loader,
+		});
+
+		const alice = await runPipeline(
+			makeConfig({
+				authenticateFn: async () => ({ id: "alice" }),
+				routes: [route],
+				store,
+			}),
+		);
+		const bob = await runPipeline(
+			makeConfig({
+				authenticateFn: async () => ({ id: "bob" }),
+				routes: [route],
+				store,
+			}),
+		);
+
+		expect(alice.matches[0]?.loaderData).toEqual({ user: "alice" });
+		expect(bob.matches[0]?.loaderData).toEqual({ user: "bob" });
+		expect(loader).toHaveBeenCalledTimes(2);
+	});
+
+	it("passes auth into a custom SSR cache key", async () => {
+		const store = createMapStore();
+		const key = vi.fn(({ auth }: { auth?: { id: string } }) => `user:${auth?.id}`);
+		const route = makeRoute({
+			authenticate: [],
+			authenticateMode: true,
+			cache: { ssr: { key, staleTime: 60_000 } },
+			loader: (ctx: { auth: { id: string } }) => ({ user: ctx.auth.id }),
+		});
+
+		await runPipeline(
+			makeConfig({
+				authenticateFn: async () => ({ id: "alice" }),
+				routes: [route],
+				store,
+			}),
+		);
+
+		expect(key).toHaveBeenCalledWith(expect.objectContaining({ auth: { id: "alice" } }));
+		expect(store.store.has("user:alice")).toBe(true);
+	});
+
 	it("respects custom key function", async () => {
 		const loader = vi.fn(() => Promise.resolve("fresh"));
 		const store = createMapStore();

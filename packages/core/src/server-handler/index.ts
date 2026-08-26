@@ -1284,6 +1284,7 @@ export function createServerHandler<
 						if (
 							staticMeta &&
 							match.route.o.authenticate !== true &&
+							match.route.o.authorize !== true &&
 							resolvedStore &&
 							!isISRBgRequest &&
 							!isPrerenderRequest
@@ -1616,6 +1617,7 @@ export function createServerHandler<
 						if (
 							staticMeta?.mode === "isr" &&
 							match.route.o.authenticate !== true &&
+							match.route.o.authorize !== true &&
 							resolvedStore &&
 							!isDataRequest &&
 							!request.headers.get(HEADER_ISR)
