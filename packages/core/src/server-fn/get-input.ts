@@ -13,12 +13,16 @@ function isPrimitive(value: unknown): value is boolean | number | string | null 
 function appendGetParam(params: URLSearchParams, key: string, value: unknown): void {
 	if (value === undefined) return;
 	if (isPrimitive(value)) {
-		params.append(key, String(value));
+		params.append(key, typeof value === "string" ? value : JSON.stringify(value));
+		return;
+	}
+	if (Array.isArray(value) && value.length === 0) {
+		params.append(key, "[]");
 		return;
 	}
 	if (Array.isArray(value) && value.every(isPrimitive)) {
 		for (const item of value) {
-			params.append(key, String(item));
+			params.append(key, typeof item === "string" ? item : JSON.stringify(item));
 		}
 		return;
 	}
@@ -46,7 +50,13 @@ export function serverFnGetUrl(path: string, input: unknown): string {
 }
 
 function parseGetValue(val: string): unknown {
-	if ((val.startsWith("{") && val.endsWith("}")) || (val.startsWith("[") && val.endsWith("]"))) {
+	if (
+		val === "true" ||
+		val === "false" ||
+		val === "null" ||
+		((val.startsWith("{") && val.endsWith("}")) || (val.startsWith("[") && val.endsWith("]"))) ||
+		/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(val)
+	) {
 		try {
 			return JSON.parse(val) as unknown;
 		} catch {
