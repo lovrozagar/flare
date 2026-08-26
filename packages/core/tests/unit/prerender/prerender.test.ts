@@ -576,6 +576,41 @@ describe("prerender — response headers", () => {
 		expect(entry?.tags).toEqual(["about", "products"]);
 	});
 
+	it("does not persist Set-Cookie into the prerender manifest", async () => {
+		const handler = makeHandler(
+			new Map([
+				[
+					"/about",
+					{
+						body: "<html><body>about</body></html>",
+						headers: {
+							"Content-Type": "text/html; charset=utf-8",
+							"Set-Cookie": "flare-visit=abc; Path=/; SameSite=Lax",
+						},
+					},
+				],
+				[
+					"ndjson:/about",
+					{
+						body: ndjsonBody([
+							JSON.stringify({ d: {}, m: "m1", t: "l" }),
+							JSON.stringify({ t: "r" }),
+							JSON.stringify({ t: "d" }),
+						]),
+					},
+				],
+			]),
+		);
+
+		const result = await prerender({
+			handler,
+			origin: "http://localhost:3000",
+			routes: [makeRoute({ pathname: "/about" })],
+		});
+
+		expect(result.entries[0]?.headers["set-cookie"]).toBeUndefined();
+	});
+
 	it("fills entry.tags from Surrogate-Key when the route has no tags", async () => {
 		const nonce = "abc123";
 		const handler = makeHandler(

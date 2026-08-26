@@ -116,6 +116,15 @@ describe("buildMountRequest", () => {
 		const built = buildMountRequest(original, mount, url);
 		expect(await built.text()).toBe(body);
 	});
+
+	it("does not turn a protocol-relative remainder into a cross-origin URL", () => {
+		const original = new Request("http://localhost/api//evil.com/x");
+		const url = new URL(original.url);
+		const built = buildMountRequest(original, mount, url);
+		const builtUrl = new URL(built.url);
+		expect(builtUrl.origin).toBe("http://localhost");
+		expect(builtUrl.pathname.startsWith("//")).toBe(false);
+	});
 });
 
 /* ── dispatchMount ─────────────────────────────────────────────────────── */

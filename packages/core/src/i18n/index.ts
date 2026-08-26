@@ -209,6 +209,14 @@ export interface Translator<
 	) => unknown;
 }
 
+function neutralizeRichValues(values: Record<string, unknown>): Record<string, unknown> {
+	const out: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(values)) {
+		out[key] = typeof value === "string" ? value.replaceAll("[[", "[\u200B[").replaceAll("]]", "]\u200B]") : value;
+	}
+	return out;
+}
+
 export function createTranslator<T extends Record<string, Record<string, string>>>(
 	loaded: T,
 	locale?: string,
@@ -235,8 +243,9 @@ export function createTranslator<T extends Record<string, Record<string, string>
 		const template = flat[key];
 		if (template === undefined) return key;
 
-		/* First apply ICU formatting if values provided */
-		const formatted = values ? formatMessage(template, values, locale) : template;
+		/* ICU first, but neutralize `[[` / `]]` in user values so they cannot
+		   inject rich-component markers into a trusted template. */
+		const formatted = values ? formatMessage(template, neutralizeRichValues(values), locale) : template;
 
 		/* Then parse rich text components */
 		const parts = parseRichText(formatted, components);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createTranslator } from "../../../src/i18n/index.ts";
 
 describe("createTranslator", () => {
@@ -64,6 +64,19 @@ describe("createTranslator", () => {
 				link: (c) => c,
 			});
 			expect(result).toBe("common.nonexistent");
+		});
+
+		it("does not treat interpolated user values as rich markers", () => {
+			const t = createTranslator({
+				common: {
+					hello: "Hello {name}",
+				},
+			});
+			const link = vi.fn((children: string) => `<a>${children}</a>`);
+			const result = t.rich("common.hello", { link }, { name: "[[link:javascript:alert(1)]]" });
+			expect(link).not.toHaveBeenCalled();
+			expect(result).not.toBe(`Hello <a>javascript:alert(1)</a>`);
+			expect(String(result)).toContain("Hello ");
 		});
 	});
 
