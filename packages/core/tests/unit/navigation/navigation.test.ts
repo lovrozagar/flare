@@ -621,6 +621,37 @@ describe("prefetch", () => {
 		expect(ctx.matchCache.get(matchId)?.data).toBe("ssr-data");
 	});
 
+	it("click + instant shell scrolls to top before the enter hop", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const routeId = "_root_/shell-scroll";
+		const matchId = `${routeId}:{}:[]`;
+		const pageMod = {
+			...makeModule(routeId),
+			cache: { client: { staleTime: 60_000 } },
+		};
+		mockMatchRoute.mockReturnValue({
+			params: {},
+			route: makeRoute(routeId, "r", { client: { staleTime: 60_000 } }),
+		});
+		ctx.matchCache.set({
+			data: "shell",
+			invalid: false,
+			matchId,
+			updatedAt: Date.now(),
+		});
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: pageMod }));
+		await prefetch({ to: "/shell-scroll" });
+		mockScrollToTop.mockClear();
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "shell", matchId }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ to: "/shell-scroll" });
+		expect(mockScrollToTop).toHaveBeenCalled();
+	});
+
 	it("fetches when matchCache entry is past client staleTime", async () => {
 		const ctx = makeCtx();
 		setupNavigation(ctx, mockLoadRouteModules);
@@ -1307,7 +1338,7 @@ describe("popstate handling", () => {
 		document.body.removeChild(el);
 	});
 
-	it("hash-only change while intercepted clears intercept overlay", async () => {
+	it("hash-only change while intercepted keeps intercept overlay", async () => {
 		window.history.replaceState({}, "", "/products/42");
 
 		let intercepted: InterceptedState | null = { dismiss: () => {}, match: {} } as InterceptedState;
@@ -1335,7 +1366,8 @@ describe("popstate handling", () => {
 
 		await navigate({ to: "/products/42#reviews" });
 
-		expect(intercepted).toBeNull();
+		expect(intercepted).not.toBeNull();
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
 	});
 
 	it("hash-only change skips loaders when pathname + search unchanged", async () => {

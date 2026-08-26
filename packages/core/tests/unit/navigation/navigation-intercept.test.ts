@@ -28,11 +28,13 @@ vi.mock("../../../src/history", async (importOriginal) => {
 	};
 });
 
+import { applyPerRouteHeads } from "../../../src/head-client/index.ts";
 import { navigate, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
 import { fetchNDJSON } from "../../../src/ndjson-client/index.ts";
 import { matchRoute } from "../../../src/router-primitives/index.ts";
 
 const mockFetchNDJSON = fetchNDJSON as ReturnType<typeof vi.fn>;
+const mockApplyPerRouteHeads = applyPerRouteHeads as ReturnType<typeof vi.fn>;
 const mockMatchRoute = matchRoute as ReturnType<typeof vi.fn>;
 
 function makeFakeTree(): TreeNode {
@@ -206,6 +208,75 @@ describe("intercept routes", () => {
 
 		/* Should not be navigating anymore */
 		expect(ctx.isNavigating()).toBe(false);
+	});
+
+	it("applies per-route heads on intercept success", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const route = makeRoute("_root_/products/[id]", "r", {
+			from: ["/products"],
+			render: "modal",
+		});
+		mockMatchRoute.mockReturnValue({ params: { id: "42" }, route });
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				page: makeModule("_root_/products/[id]"),
+				params: { id: "42" },
+			}),
+		);
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [
+				{
+					error: null,
+					hasDeferredMarkers: false,
+					loaderData: { name: "Widget" },
+					matchId: "head-match",
+					preloaderContext: undefined,
+				},
+			],
+			perRouteHeads: [{ head: { title: "Widget" }, matchId: "head-match" }],
+		});
+		window.history.replaceState({}, "", "/products");
+		await navigate({ to: "/products/42" });
+		expect(mockApplyPerRouteHeads).toHaveBeenCalledWith([{ head: { title: "Widget" }, matchId: "head-match" }]);
+		expect(ctx.matchCache.get("head-match")?.headConfig).toEqual({ title: "Widget" });
+	});
+
+	it("hash-only navigation to the current overlay URL does not re-enter intercept", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const route = makeRoute("_root_/products/[id]", "r", {
+			from: ["/products"],
+			render: "modal",
+		});
+		mockMatchRoute.mockReturnValue({ params: { id: "42" }, route });
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				page: makeModule("_root_/products/[id]"),
+				params: { id: "42" },
+			}),
+		);
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [
+				{
+					error: null,
+					hasDeferredMarkers: false,
+					loaderData: { name: "Widget" },
+					matchId: "hash-match",
+					preloaderContext: undefined,
+				},
+			],
+			perRouteHeads: [],
+		});
+		window.history.replaceState({}, "", "/products");
+		await navigate({ to: "/products/42" });
+		expect(ctx.intercepted()).not.toBeNull();
+		mockFetchNDJSON.mockClear();
+		mockLoadRouteModules.mockClear();
+		window.history.replaceState({ _intercepted: true }, "", "/products/42");
+		await navigate({ to: "/products/42#reviews" });
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+		expect(ctx.intercepted()).not.toBeNull();
 	});
 
 	it("does NOT intercept when current variablePath does not match from", async () => {

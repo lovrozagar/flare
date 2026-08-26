@@ -361,12 +361,18 @@ export function useRouter(): FlareRouter {
 		},
 		useLoaderData: ((options: { from: string }) =>
 			createMemo(() => {
+				const overlay = ctx.intercepted();
+				if (overlay && options.from === overlay.match.virtualPath) return overlay.match.loaderData;
 				const m = ctx.matches().find((match) => match.virtualPath === options.from);
 				return m?.loaderData;
 			})) as never,
 		useLoaderT: ((options: { from: string }) => {
 			const data = createMemo(() => {
-				const m = ctx.matches().find((match) => match.virtualPath === options.from);
+				const overlay = ctx.intercepted();
+				const m =
+					overlay && options.from === overlay.match.virtualPath
+						? overlay.match
+						: ctx.matches().find((match) => match.virtualPath === options.from);
 				return (m?.loaderData as Record<string, unknown> | undefined)?.t;
 			});
 			const lc = ctx.localeConfig;
@@ -378,7 +384,12 @@ export function useRouter(): FlareRouter {
 			};
 			return createTranslator((data() ?? {}) as Record<string, Record<string, string>>, locale());
 		}) as never,
-		useMatch: (options) => createMemo(() => ctx.matches().find((match) => match.virtualPath === options.from)),
+		useMatch: (options) =>
+			createMemo(() => {
+				const overlay = ctx.intercepted();
+				if (overlay && options.from === overlay.match.virtualPath) return overlay.match;
+				return ctx.matches().find((match) => match.virtualPath === options.from);
+			}),
 		useParams: ((options: { from: string }) =>
 			createMemo(() => {
 				const overlay = ctx.intercepted();
@@ -390,12 +401,18 @@ export function useRouter(): FlareRouter {
 			})) as never,
 		usePreloaderContext: ((options: { from: string }) =>
 			createMemo(() => {
+				const overlay = ctx.intercepted();
+				if (overlay && options.from === overlay.match.virtualPath) return overlay.match.preloaderContext;
 				const m = ctx.matches().find((match) => match.virtualPath === options.from);
 				return m?.preloaderContext;
 			})) as never,
 		usePreloaderT: ((options: { from: string }) => {
 			const data = createMemo(() => {
-				const m = ctx.matches().find((match) => match.virtualPath === options.from);
+				const overlay = ctx.intercepted();
+				const m =
+					overlay && options.from === overlay.match.virtualPath
+						? overlay.match
+						: ctx.matches().find((match) => match.virtualPath === options.from);
 				return (m?.preloaderContext as Record<string, unknown> | undefined)?.t;
 			});
 			const lc = ctx.localeConfig;
