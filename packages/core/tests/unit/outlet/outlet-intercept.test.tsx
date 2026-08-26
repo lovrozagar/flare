@@ -25,7 +25,9 @@ function makeInterceptedState(overrides?: Partial<InterceptedState>): Intercepte
 			variablePath: "/products/[id]",
 			virtualPath: "_root_/products/[id]",
 		},
+		params: {},
 		render: "modal",
+		search: {},
 		...overrides,
 	};
 }

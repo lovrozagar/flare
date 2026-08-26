@@ -200,6 +200,9 @@ describe("intercept routes", () => {
 		expect(ctx.intercepted()?.match).toBeDefined();
 		expect(ctx.intercepted()?.dismiss).toBeInstanceOf(Function);
 		expect(ctx.intercepted()?.backgroundLocation.pathname).toBe("/products");
+		expect(ctx.intercepted()?.params).toEqual({ id: "42" });
+		/* Background tree keeps the pre-overlay params */
+		expect(ctx.params()).toEqual({});
 
 		/* Should not be navigating anymore */
 		expect(ctx.isNavigating()).toBe(false);

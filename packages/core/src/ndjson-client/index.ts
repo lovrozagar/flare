@@ -102,6 +102,20 @@ function forwardServerLog(msg: NDJSONMessage): void {
 	}
 }
 
+/** Hydrate `t:"q"` entries unless the navigation that started this hop has aborted. */
+export function applyQueryCacheHydration(queryClient: unknown, entries: unknown, signal?: AbortSignal): void {
+	if (signal?.aborted) return;
+	void import("../query-client")
+		.then(({ hydrateQueryCache }) => {
+			if (signal?.aborted) return;
+			hydrateQueryCache(
+				queryClient as Parameters<typeof hydrateQueryCache>[0],
+				entries as Parameters<typeof hydrateQueryCache>[1],
+			);
+		})
+		.catch(() => {});
+}
+
 export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFetchResult> {
 	const headers: Record<string, string> = { [HEADER_DATA]: HEADER_FLAG };
 
@@ -264,14 +278,7 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 
 			case "q": {
 				if (options.queryClient && Array.isArray(msg.d)) {
-					import("../query-client")
-						.then(({ hydrateQueryCache }) => {
-							hydrateQueryCache(
-								options.queryClient as Parameters<typeof hydrateQueryCache>[0],
-								msg.d as Parameters<typeof hydrateQueryCache>[1],
-							);
-						})
-						.catch(() => {});
+					applyQueryCacheHydration(options.queryClient, msg.d, options.signal);
 				}
 				break;
 			}
