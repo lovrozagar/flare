@@ -29,6 +29,17 @@ describe("filterDevPrerenderRoutes", () => {
 		expect(routes[0]?.pathname).toBe("/about");
 	});
 
+	it("copies cdnTags onto SSG prerender routes", () => {
+		const defs = [
+			makeDef({
+				cache: { ...defaultCache, cdnTags: ["page-about"], ssg: true },
+				virtualPath: "_root_/about",
+			}),
+		];
+		const routes = filterDevPrerenderRoutes(defs);
+		expect(routes[0]?.tags).toEqual(["page-about"]);
+	});
+
 	it("excludes ISR routes", () => {
 		const defs = [
 			makeDef({

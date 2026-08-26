@@ -264,6 +264,30 @@ describe("extractCacheFromChain", () => {
 		const c = extractCacheFromChain(`.cache({ client: { staleTime: '5m' } })`);
 		expect(c.client?.staleTime).toBe(300000);
 	});
+
+	/* ── cdn.tags ── */
+
+	it("cdn.tags string array extracted", () => {
+		const c = extractCacheFromChain(
+			`.cache({ isr: { revalidate: 60 }, cdn: { tags: ["page-about", "tag-marketing"] } })`,
+		);
+		expect(c.cdnTags).toEqual(["page-about", "tag-marketing"]);
+		expect(c.isr).toBe(true);
+		expect(c.isrRevalidate).toBe(60);
+	});
+
+	it("cdn.tags function is not extracted", () => {
+		const c = extractCacheFromChain(
+			`.cache({ ssg: true, cdn: { tags: ({ params }) => [\`product:\${params.id}\`] } })`,
+		);
+		expect(c.cdnTags).toBeUndefined();
+		expect(c.ssg).toBe(true);
+	});
+
+	it("cdn.tags empty array is omitted", () => {
+		const c = extractCacheFromChain(`.cache({ ssg: true, cdn: { tags: [] } })`);
+		expect(c.cdnTags).toBeUndefined();
+	});
 });
 
 /* ── extractRouteDefinitions ─────────────────────────────────────────── */

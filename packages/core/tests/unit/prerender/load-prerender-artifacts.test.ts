@@ -232,7 +232,7 @@ describe("loadPrerenderArtifacts", () => {
 
 	/* ── L11: Partial manifest — some routes have html, some don't ── */
 
-	it("L11: mix of existing and missing html files", () => {
+	it("L11: mix of existing and missing html files", async () => {
 		const manifest = [
 			{ mode: "static", pathname: "/exists" },
 			{ mode: "static", pathname: "/missing" },
@@ -245,7 +245,63 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		await loadPrerenderArtifacts("/static", store);
 		expect(store.set).toHaveBeenCalledTimes(2);
+	});
+
+	it("L12: manifest tags are stored on the entry", async () => {
+		const manifest = [{ mode: "static", pathname: "/about", tags: ["page-about", "marketing"] }];
+		setFiles({
+			"/static/about.html": "<h1>About</h1>",
+			"/static/manifest.json": JSON.stringify(manifest),
+		});
+
+		const store = createMockStore();
+		await loadPrerenderArtifacts("/static", store);
+
+		expect(store.set).toHaveBeenCalledWith(
+			"static:/about",
+			expect.objectContaining({
+				tags: ["page-about", "marketing"],
+			}),
+		);
+	});
+
+	it("L13: falls back to Surrogate-Key header when manifest has no tags", async () => {
+		const manifest = [{ mode: "static", pathname: "/about" }];
+		setFiles({
+			"/static/about.headers.json": JSON.stringify({ "surrogate-key": "page-about tag-marketing" }),
+			"/static/about.html": "<h1>About</h1>",
+			"/static/manifest.json": JSON.stringify(manifest),
+		});
+
+		const store = createMockStore();
+		await loadPrerenderArtifacts("/static", store);
+
+		expect(store.set).toHaveBeenCalledWith(
+			"static:/about",
+			expect.objectContaining({
+				tags: ["page-about", "tag-marketing"],
+			}),
+		);
+	});
+
+	it("L14: awaits store.set before returning", async () => {
+		const manifest = [{ mode: "static", pathname: "/about" }];
+		setFiles({
+			"/static/about.html": "<h1>About</h1>",
+			"/static/manifest.json": JSON.stringify(manifest),
+		});
+
+		let settled = false;
+		const store = createMockStore();
+		store.set = vi.fn(async (key: string, entry: FlareStoreEntry) => {
+			await Promise.resolve();
+			store.entries.set(key, entry);
+			settled = true;
+		});
+
+		await loadPrerenderArtifacts("/static", store);
+		expect(settled).toBe(true);
 	});
 });

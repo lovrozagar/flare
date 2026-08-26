@@ -313,6 +313,11 @@ describe("buildPrerenderRoutes deep", () => {
 		] as never);
 		expect(routes[0]?.dynamicParams).toBe(true);
 	});
+
+	it("cdnTags copied onto static prerender route", () => {
+		const routes = buildPrerenderRoutes([makeDef({ cache: { cdnTags: ["about"], ssg: true } })] as never);
+		expect(routes[0]?.tags).toEqual(["about"]);
+	});
 });
 
 /* ── writePrerenderOutput ── */
