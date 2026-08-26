@@ -535,6 +535,60 @@ describe("useRouter", () => {
 		expect(backgroundParams?.()).toEqual({ cat: "shoes" });
 	});
 
+	it("useLoaderData / useMatch / usePreloaderContext read the overlay match", () => {
+		let overlayData: (() => unknown) | undefined;
+		let overlayMatch: (() => unknown) | undefined;
+		let overlayPre: (() => unknown) | undefined;
+		let ctx: FlareProviderContext | undefined;
+
+		const layout = makeLayoutMatch("_root_/products");
+		const props = makeProviderProps({
+			matches: [layout],
+		});
+		dispose = render(
+			() => (
+				<FlareProvider {...props}>
+					{(() => {
+						ctx = useRouterContext();
+						const router = useRouter();
+						overlayData = router.useLoaderData({ from: "_root_/products/[id]" });
+						overlayMatch = router.useMatch({ from: "_root_/products/[id]" });
+						overlayPre = router.usePreloaderContext({ from: "_root_/products/[id]" });
+						return null;
+					})()}
+				</FlareProvider>
+			),
+			container,
+		);
+
+		const intercepted: InterceptedState = {
+			backgroundLocation: {
+				hash: "",
+				params: {},
+				pathname: "/products",
+				search: {},
+				url: new URL("http://localhost/products"),
+				variablePath: "/products",
+				virtualPath: "_root_/products",
+			},
+			dismiss: () => {},
+			match: makeMatch({
+				loaderData: { name: "Widget" },
+				preloaderContext: { ready: true },
+				virtualPath: "_root_/products/[id]",
+			}),
+			params: { id: "42" },
+			render: "modal",
+			search: {},
+		};
+		ctx?.setIntercepted(intercepted);
+		flush();
+
+		expect(overlayData?.()).toEqual({ name: "Widget" });
+		expect((overlayMatch?.() as { virtualPath?: string } | undefined)?.virtualPath).toBe("_root_/products/[id]");
+		expect(overlayPre?.()).toEqual({ ready: true });
+	});
+
 	it("buildLocation uses caseSensitive=true from context", () => {
 		const tree = createTreeNode();
 		insertRoute(tree, "/about", {
