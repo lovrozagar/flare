@@ -583,12 +583,13 @@ function buildClientMatches(
 	search: SearchParams,
 	params: Record<string, string | string[]>,
 ) {
-	return allModules.map((mod) => {
+	const current = ctx?.matches() ?? [];
+	return allModules.map((mod, i) => {
 		const matchId = matchIdForModule(mod, search, params);
 		const cached = ctx?.matchCache.get(matchId);
 		const error = cached?.error instanceof Error ? cached.error : undefined;
 
-		return {
+		const next = {
 			_type: mod._type,
 			error,
 			errorRender: isRenderFn(mod.errorRender) ? mod.errorRender : undefined,
@@ -601,6 +602,14 @@ function buildClientMatches(
 			variablePath: mod.variablePath,
 			virtualPath: mod.virtualPath,
 		};
+		/* Reuse the previous object when the route slot is unchanged so
+		   Outlet <Show when={match()}> does not remount (local page signals). */
+		const prev = current[i];
+		if (prev && prev.virtualPath === next.virtualPath && prev._type === next._type) {
+			Object.assign(prev, next);
+			return prev;
+		}
+		return next;
 	});
 }
 
@@ -1194,13 +1203,21 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			}
 		}
 
-		/* Bare HTTP error with no NDJSON matches. 401/403 still commit the
-		 * target URL and an error match so unauthenticated/unauthorized
-		 * boundaries render. Anything else reverts the URL — do not leave
-		 * the address bar on a path whose tree never committed. */
+		/* Bare HTTP error with no NDJSON matches. 401/403 commit auth
+		 * boundaries; other 4xx/5xx commit a pipeline error so invalid
+		 * params and loader failures stay on the target URL. Network-level
+		 * failures (no status) revert — do not leave the address bar on a
+		 * path whose tree never committed. */
 		if (fetchResult && fetchResult.success === false && fetchResult.matches.length === 0) {
 			const status = fetchResult.status;
-			const err = status === 401 ? new UnauthenticatedError() : status === 403 ? new UnauthorizedError() : undefined;
+			const err =
+				status === 401
+					? new UnauthenticatedError()
+					: status === 403
+						? new UnauthorizedError()
+						: typeof status === "number" && status >= 400
+							? new Error(`Request failed (${status})`)
+							: undefined;
 			if (err) {
 				const last = allModules.at(-1);
 				if (last) {
