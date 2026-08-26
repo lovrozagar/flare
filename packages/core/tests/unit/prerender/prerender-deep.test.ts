@@ -244,6 +244,10 @@ describe("buildPrerenderRoutes deep", () => {
 		);
 	});
 
+	it("throws on authorize + ssg", () => {
+		expect(() => buildPrerenderRoutes([makeDef({ hasAuthorize: true })] as never)).toThrow("authorize and static");
+	});
+
 	it("authenticateOptional allowed with ssg", () => {
 		const routes = buildPrerenderRoutes([makeDef({ authenticateMode: "optional" })] as never);
 		expect(routes).toHaveLength(1);

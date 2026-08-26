@@ -336,6 +336,12 @@ export function buildPrerenderRoutes(
 					"Authenticated routes cannot be pre-rendered.",
 			);
 		}
+		if (def.hasAuthorize) {
+			throw new Error(
+				`Route "${def.virtualPath}" has both authorize and static config. ` +
+					"Authorized routes cannot be pre-rendered.",
+			);
+		}
 
 		/* isr without revalidate = on-demand only, skip build-time prerender */
 		if (def.cache.isr && def.cache.isrRevalidate === undefined) continue;

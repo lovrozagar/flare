@@ -1,6 +1,7 @@
 import { flush } from "solid-js";
 import type { CachedMatch, DeferredTracker } from "../caches/index.ts";
-import { collectDeferredPromises, createDeferredTracker } from "../caches/index.ts";
+import { collectDeferredPromises, createDeferredTracker, resolveCacheTags } from "../caches/index.ts";
+import { applyMatchCacheTags } from "../hydration/index.ts";
 import type { DirectionConfig } from "../direction.ts";
 import { getDirFromLocale } from "../direction.ts";
 import { parseMilliseconds } from "../duration/index.ts";
@@ -891,6 +892,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 
 				/* Update matchCache with fetched data */
 				const now = Date.now();
+				const interceptTags = resolveCacheTags(modules.page.cache, modules.params);
 				for (const m of fetchResult.matches) {
 					ctx.matchCache.set({
 						data: m.loaderData,
@@ -899,6 +901,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 						invalid: false,
 						matchId: m.matchId,
 						preloaderContext: m.preloaderContext,
+						tags: interceptTags,
 						updatedAt: now,
 					});
 				}
@@ -1186,11 +1189,15 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 
 			const now = Date.now();
 			const gcByMatchId = new Map<string, number>();
+			const tagsByMatchId = new Map<string, string[]>();
 			for (const mod of allModules) {
+				const id = matchIdForModule(mod, search, modules.params);
 				const cc = mod.cache?.client;
 				if (cc !== false && cc !== undefined && cc.gcTime !== undefined) {
-					gcByMatchId.set(matchIdForModule(mod, search, modules.params), parseMilliseconds(cc.gcTime));
+					gcByMatchId.set(id, parseMilliseconds(cc.gcTime));
 				}
+				const tags = resolveCacheTags(mod.cache, modules.params);
+				if (tags) tagsByMatchId.set(id, tags);
 			}
 			for (const m of fetchResult.matches) {
 				/* flare-stale skip runs the route with loader stripped → null data.
@@ -1223,6 +1230,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 					invalid: false,
 					matchId: m.matchId,
 					preloaderContext: m.preloaderContext,
+					tags: tagsByMatchId.get(m.matchId),
 					updatedAt: now,
 				});
 
@@ -1506,12 +1514,21 @@ export async function prefetch(options: {
 	inflightPrefetch.set(url.href, { promise: resultPromise, startedAt });
 
 	try {
-		const [fetchResult] = await Promise.all([
+		const [fetchResult, modules] = await Promise.all([
 			resultPromise,
 			loadMods(rewritePathname(url.pathname), navCtx.routeTree, navCtx.layouts),
 		]);
 		if (fetchResult.success !== false) {
 			navCtx.prefetchCache.mark(url.href);
+		}
+		if (modules) {
+			const nonRoot = modules.layouts.filter((m) => m._type !== "root-layout");
+			applyMatchCacheTags(
+				navCtx.matchCache,
+				[...nonRoot, modules.page],
+				modules.params,
+				parseSearchParams(url.searchParams),
+			);
 		}
 	} catch {
 		/* Silently discard errors including redirects — prefetch is speculative

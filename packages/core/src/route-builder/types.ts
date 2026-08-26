@@ -36,7 +36,11 @@ export interface ClientCacheConfig {
 }
 
 export interface SsrCacheConfig {
-	key?: (ctx: { params: Record<string, string | string[]>; search: Record<string, string | string[]> }) => string;
+	key?: (ctx: {
+		auth?: unknown;
+		params: Record<string, string | string[]>;
+		search: Record<string, string | string[]>;
+	}) => string;
 	staleTime?: Duration;
 	tags?: string[] | ((ctx: { params: Record<string, string | string[]> }) => string[]);
 	ttl?: Duration;

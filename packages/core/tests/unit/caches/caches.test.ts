@@ -839,6 +839,26 @@ describe("collectDeferredPromises", () => {
 	});
 });
 
+describe("resolveCacheTags", () => {
+	it("returns undefined when cache has no tags", async () => {
+		const { resolveCacheTags } = await import("../../../src/caches/index.ts");
+		expect(resolveCacheTags(undefined, {})).toBeUndefined();
+		expect(resolveCacheTags({ cdn: { maxAge: 60 } }, {})).toBeUndefined();
+	});
+
+	it("collects static cdn and ssr tags", async () => {
+		const { resolveCacheTags } = await import("../../../src/caches/index.ts");
+		expect(resolveCacheTags({ cdn: { tags: ["a"] }, ssr: { tags: ["b"] } }, {})).toEqual(["a", "b"]);
+	});
+
+	it("resolves function tags with params", async () => {
+		const { resolveCacheTags } = await import("../../../src/caches/index.ts");
+		expect(
+			resolveCacheTags({ cdn: { tags: ({ params }) => [`item:${String(params.id)}`] } }, { id: "42" }),
+		).toEqual(["item:42"]);
+	});
+});
+
 describe("matchCache.invalidate by tags", () => {
 	it("invalidate({ tags: ['a'] }) marks entries with matching tags", () => {
 		const cache = createMatchCache();

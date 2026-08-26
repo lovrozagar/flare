@@ -38,6 +38,7 @@ export interface RouteDefinition {
 	exportName: string;
 	filePath: string;
 	cache: ExtractedCacheConfig;
+	hasAuthorize?: boolean;
 	hasInput: boolean;
 	intercept?: ExtractedInterceptConfig;
 	responseRoute: boolean;
@@ -496,6 +497,7 @@ export function extractRouteDefinitions(src: string, filePath: string): RouteDef
 			const hasAuthenticateOptional = /\.authenticateOptional\s*\(/.test(chainText);
 			const hasAuthenticate = /\.authenticate\s*\(/.test(chainText);
 			const authenticateMode: AuthenticateMode = hasAuthenticateOptional ? "optional" : !!hasAuthenticate;
+			const hasAuthorize = /\.authorize\s*\(/.test(chainText);
 			const hasInput = /\.input\s*(?:<[^>]*>)?\s*\(/.test(chainText);
 			const responseRoute = /\.response\s*\(/.test(chainText);
 			const cache = extractCacheFromChain(chainText);
@@ -506,6 +508,7 @@ export function extractRouteDefinitions(src: string, filePath: string): RouteDef
 				cache,
 				exportName,
 				filePath,
+				hasAuthorize,
 				hasInput,
 				intercept,
 				responseRoute,
@@ -641,6 +644,11 @@ function formatRouteMeta(def: RouteDefinition): string {
 	const parts: string[] = [];
 	if (def.authenticateMode === true) parts.push("authenticate: true");
 	else if (def.authenticateMode === "optional") parts.push(`authenticate: "optional"`);
+	if (def.hasAuthorize) parts.push("authorize: true");
+	if (def.cache.cdnTags && def.cache.cdnTags.length > 0) {
+		const tagLit = def.cache.cdnTags.map((t) => `"${escapeCodegenStr(t)}"`).join(", ");
+		parts.push(`tags: [${tagLit}]`);
+	}
 
 	if (def.cache.client) {
 		const cp: string[] = [];
@@ -1497,6 +1505,7 @@ export function scanSourceFilesFsCodegen(options: ScanOptions): RouteDefinition[
 		const hasAuthenticateOptional = /\.authenticateOptional\s*\(/.test(content);
 		const hasAuthenticate = /\.authenticate\s*\(/.test(content);
 		const authenticateMode: AuthenticateMode = hasAuthenticateOptional ? "optional" : !!hasAuthenticate;
+		const hasAuthorize = /\.authorize\s*\(/.test(content);
 		const hasInput = /\.input\s*(?:<[^>]*>)?\s*\(/.test(content);
 		const responseRoute = /\.response\s*\(/.test(content);
 		const cache = extractCacheFromChain(content);
@@ -1507,6 +1516,7 @@ export function scanSourceFilesFsCodegen(options: ScanOptions): RouteDefinition[
 			cache,
 			exportName: "route",
 			filePath: posix.join(options.srcDir ?? "src", rel),
+			hasAuthorize,
 			hasInput,
 			intercept,
 			responseRoute,

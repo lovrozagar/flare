@@ -1,5 +1,30 @@
 import type { HeadConfig } from "../route-builder/types.ts";
 
+export function resolveCacheTags(
+	cache:
+		| {
+				cdn?: { tags?: string[] | ((ctx: { params: Record<string, string | string[]> }) => string[]) } | false;
+				ssr?: { tags?: string[] | ((ctx: { params: Record<string, string | string[]> }) => string[]) } | false;
+		  }
+		| undefined,
+	params: Record<string, string | string[]>,
+): string[] | undefined {
+	if (!cache) return undefined;
+	const tags: string[] = [];
+	const push = (
+		src: { tags?: string[] | ((ctx: { params: Record<string, string | string[]> }) => string[]) } | false | undefined,
+	) => {
+		if (!src || src === false || !src.tags) return;
+		const list = typeof src.tags === "function" ? src.tags({ params }) : src.tags;
+		for (const t of list) {
+			if (typeof t === "string" && t.length > 0 && !tags.includes(t)) tags.push(t);
+		}
+	};
+	push(cache.cdn);
+	push(cache.ssr);
+	return tags.length > 0 ? tags : undefined;
+}
+
 export interface CachedMatch {
 	data: unknown;
 	error?: unknown;

@@ -485,9 +485,12 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 		const ssrConfig = ir.route.cache?.ssr ?? ssrCacheDefaults;
 		let cacheKey: string | undefined;
 		if (ssrConfig && resolvedStore) {
-			cacheKey = ssrConfig.key
-				? ssrConfig.key({ params: ir.validatedParams, search })
-				: defaultSsrCacheKey(ir.route.virtualPath, ir.validatedParams, search);
+			const personalized = ir.route.authenticateMode === true || ir.route.authenticateMode === "optional";
+			if (ssrConfig.key) {
+				cacheKey = ssrConfig.key({ auth, params: ir.validatedParams, search });
+			} else if (!personalized) {
+				cacheKey = defaultSsrCacheKey(ir.route.virtualPath, ir.validatedParams, search);
+			}
 		}
 		if (ssrConfig && resolvedStore && cacheKey) {
 			try {
