@@ -442,6 +442,30 @@ describe("triple rapid navigation", () => {
 		expect(ctx.matchCache.get("B-match")).toBeUndefined();
 	});
 
+	it("completed navigation's AbortSignal is aborted by the next navigate", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const signals: AbortSignal[] = [];
+		mockMatchRoute.mockImplementation((_tree: unknown, pathname: string) => ({
+			params: {},
+			route: makeRoute(`_root_${pathname}`),
+		}));
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules());
+		mockFetchNDJSON.mockImplementation((opts: { signal?: AbortSignal }) => {
+			if (opts.signal) signals.push(opts.signal);
+			return Promise.resolve({
+				matches: [{ loaderData: "ok", matchId: `m-${signals.length}` }],
+				perRouteHeads: [],
+				success: true,
+			});
+		});
+
+		await navigate({ to: "/first" });
+		expect(signals[0]?.aborted).toBe(false);
+		await navigate({ to: "/second" });
+		expect(signals[0]?.aborted).toBe(true);
+	});
+
 	it("shallow → shallow → full: only full's data persists", async () => {
 		const ctx = makeCtx({
 			matches: () => [

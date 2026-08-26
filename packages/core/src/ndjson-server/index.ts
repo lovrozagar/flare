@@ -6,11 +6,27 @@ import type { HeadConfig } from "../route-builder/types.ts";
 import type { ServerLogEntry } from "@lovrozagar/flare/server-context";
 
 export interface NDJSONResponseConfig {
+	abortController?: AbortController;
 	deferContexts: Map<string, DeferContext>;
 	matches: PipelineMatch[];
 	queryClient?: unknown;
 	serverLogs?: ServerLogEntry[];
 	status?: number;
+}
+
+export function followAbortSignal(controller: AbortController, signal: AbortSignal | undefined): void {
+	if (!signal) return;
+	if (signal.aborted) {
+		controller.abort();
+		return;
+	}
+	signal.addEventListener(
+		"abort",
+		() => {
+			if (!controller.signal.aborted) controller.abort();
+		},
+		{ once: true },
+	);
 }
 
 const NDJSON_HEADERS = {
@@ -214,11 +230,21 @@ export function createErrorNDJSONResponse(error: Error, status?: number): Respon
 
 export function createStreamingNDJSONResponse(config: NDJSONResponseConfig): Response {
 	const { deferContexts, matches } = config;
+	let cancelled = false;
 
 	const stream = new ReadableStream({
+		cancel() {
+			cancelled = true;
+			if (config.abortController && !config.abortController.signal.aborted) {
+				config.abortController.abort();
+			}
+		},
 		async start(controller) {
 			const encoder = new TextEncoder();
-			const enqueue = (msg: string) => controller.enqueue(encoder.encode(`${msg}\n`));
+			const enqueue = (msg: string) => {
+				if (cancelled) return;
+				controller.enqueue(encoder.encode(`${msg}\n`));
+			};
 
 			/* 0. Server log messages */
 			if (config.serverLogs) {
