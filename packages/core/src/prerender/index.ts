@@ -17,9 +17,18 @@ import type { ExtractedStaticDeferMode, RouteDefinition } from "../generators/in
 import type { StaticDeferMode } from "../route-builder/types.ts";
 import { HEADER_DATA, HEADER_FLAG, HEADER_PRERENDER } from "../protocol.ts";
 import type { ServerHandler } from "../server-handler/index.ts";
+import type { FlareStore, FlareStoreEntry } from "../store/index.ts";
 import { resolvePathParams } from "../url/index.ts";
 
 export const NONCE_PLACEHOLDER = "__FLARE_NONCE__";
+
+/** Parse `Surrogate-Key` into store tags. Empty / missing → undefined. */
+export function tagsFromSurrogateKey(headers: Record<string, string>): string[] | undefined {
+	const raw = headers["surrogate-key"];
+	if (!raw) return undefined;
+	const tags = raw.split(" ").filter(Boolean);
+	return tags.length > 0 ? tags : undefined;
+}
 
 /** Build-time prerender fetch — skips ISR `dynamicParams: false` store-miss 404. */
 export const PRERENDER_HEADER = HEADER_PRERENDER;
@@ -167,7 +176,9 @@ async function renderRoute(
 	if (route.defer !== undefined) entry.defer = route.defer;
 	if (route.dynamicParams !== undefined) entry.dynamicParams = route.dynamicParams;
 	if (route.revalidate !== undefined) entry.revalidate = route.revalidate;
-	if (route.tags !== undefined) entry.tags = route.tags;
+	const headerTags = tagsFromSurrogateKey(htmlHeaders);
+	if (headerTags) entry.tags = headerTags;
+	else if (route.tags !== undefined) entry.tags = route.tags;
 
 	return { entry };
 }
@@ -274,6 +285,19 @@ function mapDefer(extracted: ExtractedStaticDeferMode | undefined): StaticDeferM
 	return extracted;
 }
 
+function applyExtractedCache(route: PrerenderRoute, def: RouteDefinition): void {
+	if (def.cache.isrRevalidate !== undefined) {
+		route.revalidate = def.cache.isrRevalidate;
+	}
+	const defer = mapDefer(def.cache.isrDefer ?? def.cache.ssgDefer);
+	if (defer !== undefined) route.defer = defer;
+	const dp = mapDynamicParams(def.cache.isrDynamicParams);
+	if (dp !== undefined) route.dynamicParams = dp;
+	if (def.cache.cdnTags && def.cache.cdnTags.length > 0) {
+		route.tags = def.cache.cdnTags;
+	}
+}
+
 /**
  * Convert generator RouteDefinitions to PrerenderRoutes.
  * Filters to pages with static config, validates auth constraints.
@@ -316,30 +340,14 @@ export function buildPrerenderRoutes(
 			for (const params of paramSets) {
 				const resolved = resolvePathParams(pathname, params);
 				const route: PrerenderRoute = { mode, pathname: resolved };
-
-				if (def.cache.isrRevalidate !== undefined) {
-					route.revalidate = def.cache.isrRevalidate;
-				}
-				const defer = mapDefer(def.cache.isrDefer ?? def.cache.ssgDefer);
-				if (defer !== undefined) route.defer = defer;
-				const dp = mapDynamicParams(def.cache.isrDynamicParams);
-				if (dp !== undefined) route.dynamicParams = dp;
-
+				applyExtractedCache(route, def);
 				routes.push(route);
 			}
 			continue;
 		}
 
 		const route: PrerenderRoute = { mode, pathname };
-
-		if (def.cache.isrRevalidate !== undefined) {
-			route.revalidate = def.cache.isrRevalidate;
-		}
-		const defer = mapDefer(def.cache.isrDefer ?? def.cache.ssgDefer);
-		if (defer !== undefined) route.defer = defer;
-		const dp2 = mapDynamicParams(def.cache.isrDynamicParams);
-		if (dp2 !== undefined) route.dynamicParams = dp2;
-
+		applyExtractedCache(route, def);
 		routes.push(route);
 	}
 
@@ -408,11 +416,12 @@ export function writePrerenderOutput(entries: PrerenderManifestEntry[]): Prerend
  * Reads manifest.json + .html/.ndjson/.headers.json files from `staticDir`.
  * Silently no-ops if manifest doesn't exist (e.g. dev mode without prerender).
  */
-export function loadPrerenderArtifacts(staticDir: string, store: import("../store").FlareStore): void {
+export async function loadPrerenderArtifacts(staticDir: string, store: FlareStore): Promise<void> {
 	const manifestPath = join(staticDir, "manifest.json");
 	if (!existsSync(manifestPath)) return;
 
 	const manifest: PrerenderManifestRecord[] = JSON.parse(readFileSync(manifestPath, "utf-8"));
+	const writes: Promise<void>[] = [];
 
 	for (const record of manifest) {
 		const base = record.pathname === "/" ? "/index" : record.pathname;
@@ -427,9 +436,15 @@ export function loadPrerenderArtifacts(staticDir: string, store: import("../stor
 			? JSON.parse(readFileSync(headersPath, "utf-8"))
 			: {};
 
-		store.set(`static:${record.pathname}`, {
+		const tags = record.tags ?? tagsFromSurrogateKey(headers);
+		const entry: FlareStoreEntry = {
 			data: { headers, html, ndjson },
 			storedAt: Date.now(),
-		});
+		};
+		if (tags && tags.length > 0) entry.tags = tags;
+
+		writes.push(store.set(`static:${record.pathname}`, entry));
 	}
+
+	await Promise.all(writes);
 }

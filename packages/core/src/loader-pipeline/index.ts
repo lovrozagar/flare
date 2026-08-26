@@ -1,5 +1,5 @@
 import type { DeferContext } from "../defer/index.ts";
-import { createDeferContext } from "../defer/index.ts";
+import { containsDeferred, createDeferContext } from "../defer/index.ts";
 import { parseMilliseconds, parseSeconds } from "../duration/index.ts";
 import {
 	isNotFoundError,
@@ -35,7 +35,7 @@ import { buildVaryHeader } from "../server-handler/etag.ts";
 import type { FlareStore } from "../store/index.ts";
 import { noopTracer } from "../tracing/noop.ts";
 import type { FlareTracer } from "../tracing/types.ts";
-import { buildUrl, parseSearchParams, type SearchParams } from "../url/index.ts";
+import { buildUrl, parseSearchParams, serializeSearchParams, type SearchParams } from "../url/index.ts";
 import { isStandardSchema, issuesToFlattenedError } from "../validation/index.ts";
 
 export type { LoaderCause };
@@ -152,6 +152,16 @@ interface InternalRoute {
 	route: ResolvedRoute;
 	validatedParams: Record<string, string | string[]>;
 	validatedSearch: SearchParams;
+}
+
+function defaultSsrCacheKey(
+	virtualPath: string,
+	params: Record<string, string | string[]>,
+	search: SearchParams,
+): string {
+	const base = `flare:${virtualPath}:${JSON.stringify(params)}`;
+	const searchPart = serializeSearchParams(search);
+	return searchPart.length > 0 ? `${base}:${searchPart}` : base;
 }
 
 function isRequiredAuth(route: ResolvedRoute): boolean {
@@ -476,13 +486,13 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 		let cacheKey: string | undefined;
 		if (ssrConfig && resolvedStore) {
 			cacheKey = ssrConfig.key
-				? ssrConfig.key({ params: ir.validatedParams })
-				: `flare:${ir.route.virtualPath}:${JSON.stringify(ir.validatedParams)}`;
+				? ssrConfig.key({ params: ir.validatedParams, search })
+				: defaultSsrCacheKey(ir.route.virtualPath, ir.validatedParams, search);
 		}
 		if (ssrConfig && resolvedStore && cacheKey) {
 			try {
 				const cached = await resolvedStore.get(cacheKey);
-				if (cached) {
+				if (cached && !containsDeferred(cached.data)) {
 					const isFresh =
 						ssrConfig.staleTime === undefined || Date.now() - cached.storedAt < parseMilliseconds(ssrConfig.staleTime);
 					if (isFresh) {
@@ -531,8 +541,8 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 			}
 			const loaderData = await ir.route.loader(loaderCtx);
 
-			/* Store cache write-back */
-			if (ssrConfig && resolvedStore && cacheKey) {
+			/* Store cache write-back — skip deferred trees (markers have no live promises) */
+			if (ssrConfig && resolvedStore && cacheKey && !containsDeferred(loaderData)) {
 				let tags: string[] | undefined;
 				if (ssrConfig.tags) {
 					tags = typeof ssrConfig.tags === "function" ? ssrConfig.tags({ params: ir.validatedParams }) : ssrConfig.tags;

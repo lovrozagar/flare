@@ -573,6 +573,31 @@ describe("prerender — response headers", () => {
 		/* Headers API lowercases all keys */
 		expect(entry?.headers["surrogate-key"]).toBe("about products");
 		expect(entry?.headers["cache-control"]).toBe("public, max-age=3600");
+		expect(entry?.tags).toEqual(["about", "products"]);
+	});
+
+	it("fills entry.tags from Surrogate-Key when the route has no tags", async () => {
+		const nonce = "abc123";
+		const handler = makeHandler(
+			new Map([
+				[
+					"/about",
+					{
+						body: htmlWithNonce(nonce),
+						headers: { "Surrogate-Key": "page-about tag-marketing" },
+					},
+				],
+				["ndjson:/about", { body: ndjsonBody([JSON.stringify({ t: "d" })]) }],
+			]),
+		);
+
+		const result = await prerender({
+			handler,
+			origin: "http://localhost:3000",
+			routes: [makeRoute({ pathname: "/about" })],
+		});
+
+		expect(result.entries[0]?.tags).toEqual(["page-about", "tag-marketing"]);
 	});
 });
 

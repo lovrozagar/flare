@@ -38,7 +38,7 @@ import {
 	createRedirectNDJSONResponse,
 	createStreamingNDJSONResponse,
 } from "../ndjson-server/index.ts";
-import { extractNonce, NONCE_PLACEHOLDER, replaceNonce } from "../prerender/index.ts";
+import { extractNonce, NONCE_PLACEHOLDER, replaceNonce, tagsFromSurrogateKey } from "../prerender/index.ts";
 import { createRevalidateFn } from "../revalidation/index.ts";
 import { composeRewrites, executeRewriteInput, type LocationRewrite, rewriteBasePath } from "../rewrite/index.ts";
 import type { CacheConfig, ResponseHeaders } from "../route-builder/types.ts";
@@ -1312,8 +1312,7 @@ export function createServerHandler<
 											}
 
 											/* Extract fresh tags from re-render response */
-											const surrogateKey = headers["surrogate-key"];
-											const freshTags = surrogateKey ? surrogateKey.split(" ").filter(Boolean) : entry.tags;
+											const freshTags = tagsFromSurrogateKey(headers) ?? entry.tags;
 
 											const etag = await computeEtag(storedHtml);
 											await resolvedStore.set(storeKey, {
@@ -1632,6 +1631,7 @@ export function createServerHandler<
 										await resolvedStore.set(isrStoreKey, {
 											data: { etag, headers: resHeaders, html: storedHtml, ndjson: ndjsonBody },
 											storedAt: Date.now(),
+											tags: tagsFromSurrogateKey(resHeaders),
 										});
 									} catch (e) {
 										logError("isr", `background ISR population failed for ${isrStoreKey}`, e);

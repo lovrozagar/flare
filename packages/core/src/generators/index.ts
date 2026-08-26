@@ -11,6 +11,7 @@ export type PrefetchStrategy = false | "intent" | "render" | "viewport";
 export type ExtractedStaticDeferMode = "resolve" | "stream";
 
 export interface ExtractedCacheConfig {
+	cdnTags?: string[];
 	client?: {
 		cacheDeferred?: boolean;
 		gcTime?: number;
@@ -223,6 +224,41 @@ function extractNestedBlock(body: string, key: string): string | null {
 	return null;
 }
 
+function extractStringArray(text: string, key: string): string[] | undefined {
+	const re = new RegExp(`${key}\\s*:\\s*\\[`);
+	const match = re.exec(text);
+	if (!match) return undefined;
+
+	const start = (match.index ?? 0) + match[0].length;
+	let depth = 1;
+	let end = start;
+	for (let i = start; i < text.length; i++) {
+		const skipped = skipStringOrComment(text, i);
+		if (skipped !== i) {
+			i = skipped;
+			continue;
+		}
+		if (text[i] === "[") depth++;
+		else if (text[i] === "]") {
+			depth--;
+			if (depth === 0) {
+				end = i;
+				break;
+			}
+		}
+	}
+	const inner = text.slice(start, end);
+	const items: string[] = [];
+	const itemRe = /["'`]([^"'`]*)["'`]/g;
+	let itemMatch: RegExpExecArray | null = itemRe.exec(inner);
+	while (itemMatch) {
+		const value = itemMatch[1];
+		if (value) items.push(value);
+		itemMatch = itemRe.exec(inner);
+	}
+	return items;
+}
+
 function extractNumeric(text: string, key: string, unit?: "ms" | "s"): number | undefined {
 	/* try duration string first: key: "5m" */
 	const dm = DURATION_STR_RE(key).exec(text);
@@ -310,6 +346,13 @@ export function extractCacheFromChain(chainText: string): ExtractedCacheConfig {
 		}
 	} else if (/isr\s*:\s*true/.test(body)) {
 		config.isr = true;
+	}
+
+	/* cdn: { tags: ["a", "b"] } — static string arrays only; function tags are computed at render */
+	const cdnBlock = extractNestedBlock(body, "cdn");
+	if (cdnBlock) {
+		const tags = extractStringArray(cdnBlock, "tags");
+		if (tags && tags.length > 0) config.cdnTags = tags;
 	}
 
 	return config;

@@ -80,3 +80,25 @@ export function isDeferred(value: unknown): value is Deferred<unknown> {
 		(value as Record<string, unknown>).__deferred === true
 	);
 }
+
+/** True if `data` is or contains a deferred marker. Used to skip SSR store cache of unresolved streams. */
+export function containsDeferred(data: unknown, seen?: WeakSet<object>): boolean {
+	if (data === null || data === undefined || typeof data !== "object") return false;
+	if (isDeferred(data)) return true;
+
+	const tracking = seen ?? new WeakSet<object>();
+	if (tracking.has(data as object)) return false;
+	tracking.add(data as object);
+
+	if (Array.isArray(data)) {
+		for (const item of data) {
+			if (containsDeferred(item, tracking)) return true;
+		}
+		return false;
+	}
+
+	for (const value of Object.values(data as Record<string, unknown>)) {
+		if (containsDeferred(value, tracking)) return true;
+	}
+	return false;
+}

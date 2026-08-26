@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createDeferContext, isDeferred } from "../../../src/defer/index.ts";
+import { containsDeferred, createDeferContext, isDeferred } from "../../../src/defer/index.ts";
 
 describe("createDeferContext", () => {
 	it("returns { defer, entries }", () => {
@@ -116,6 +116,30 @@ describe("isDeferred", () => {
 
 	it("__deferred: true without key → true (guard only checks brand)", () => {
 		expect(isDeferred({ __deferred: true })).toBe(true);
+	});
+});
+
+describe("containsDeferred", () => {
+	it("direct deferred marker → true", () => {
+		expect(containsDeferred({ __deferred: true, key: "d0" })).toBe(true);
+	});
+
+	it("nested deferred marker → true", () => {
+		expect(containsDeferred({ items: ["a"], lazy: { __deferred: true, key: "d0" } })).toBe(true);
+	});
+
+	it("array of deferred markers → true", () => {
+		expect(containsDeferred([{ id: 1 }, { __deferred: true, key: "d1" }])).toBe(true);
+	});
+
+	it("plain data → false", () => {
+		expect(containsDeferred({ items: ["a", "b"], count: 2 })).toBe(false);
+	});
+
+	it("circular object without deferred → false", () => {
+		const circular: Record<string, unknown> = { name: "root" };
+		circular.self = circular;
+		expect(containsDeferred(circular)).toBe(false);
 	});
 });
 
