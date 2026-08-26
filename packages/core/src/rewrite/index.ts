@@ -5,12 +5,18 @@ export interface LocationRewrite {
 	output?: RewriteFn;
 }
 
+function keepSameOrigin(next: URL, original: URL): URL {
+	if (next.origin !== original.origin) return original;
+	if (next.pathname.startsWith("//") || next.pathname.includes("\\")) return original;
+	return next;
+}
+
 export function executeRewriteInput(rewrite: LocationRewrite | undefined, url: URL): URL {
 	try {
 		const result = rewrite?.input?.({ url });
 		if (result === undefined) return url;
-		if (typeof result === "string") return new URL(result, url);
-		return result;
+		const next = typeof result === "string" ? new URL(result, url) : result;
+		return keepSameOrigin(next, url);
 	} catch {
 		return url;
 	}
@@ -20,8 +26,8 @@ export function executeRewriteOutput(rewrite: LocationRewrite | undefined, url: 
 	try {
 		const result = rewrite?.output?.({ url });
 		if (result === undefined) return url;
-		if (typeof result === "string") return new URL(result, url);
-		return result;
+		const next = typeof result === "string" ? new URL(result, url) : result;
+		return keepSameOrigin(next, url);
 	} catch {
 		return url;
 	}

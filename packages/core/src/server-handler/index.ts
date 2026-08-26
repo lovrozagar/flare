@@ -1089,14 +1089,17 @@ export function createServerHandler<
 										try {
 											const fnResponse = await handleServerFnRequest(fnRequest, env, serverFns, serverFnAuthFn);
 											if (fnResponse.ok) {
-												return new Response(null, {
-													headers: { Location: sameOriginRedirectPath(url) },
-													status: 303,
-												});
+												return addSecurityHeaders(
+													new Response(null, {
+														headers: { Location: sameOriginRedirectPath(url) },
+														status: 303,
+													}),
+													secHeaders,
+												);
 											}
 											/* CSRF rejection — hard 403, not a form error */
 											if (fnResponse.status === 403) {
-												return fnResponse;
+												return addSecurityHeaders(fnResponse, secHeaders);
 											}
 											/* Validation/auth error — store context for SSR re-render */
 											const body: unknown = await fnResponse.json().catch(() => null);
