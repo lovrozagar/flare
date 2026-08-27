@@ -12,6 +12,9 @@ export interface InterceptOutletProps {
 /**
  * Renders intercepted route content. SSR-safe — returns null when outside
  * FlareProvider (root layout renders in NoHydration during SSR).
+ *
+ * Unkeyed on purpose: the function child receives an accessor. Reading it in
+ * JSX re-invokes `children` when intercept identity changes (overlay A → B).
  */
 export function InterceptOutlet(props: InterceptOutletProps): JSX.Element {
 	const ctx = useContext(RouterContext);
