@@ -166,6 +166,8 @@ export interface FlareProviderContext {
 	location: Accessor<ProviderLocation>;
 	matchCache: MatchCache;
 	matches: Accessor<ClientMatch[]>;
+	/** Bumps when match objects are reused in place (instant shell → NDJSON). */
+	matchesEpoch?: Accessor<number>;
 	navigate: (options: InternalNavigateOptions) => Promise<void>;
 	navigationPhase: Accessor<NavigationPhase>;
 	notFound: Accessor<boolean>;
@@ -179,6 +181,7 @@ export interface FlareProviderContext {
 	setHydrated: (v: boolean) => void;
 	setIntercepted: (state: InterceptedState | null) => void;
 	setMatches: (matches: ClientMatch[]) => void;
+	touchMatches?: () => void;
 	setNavigationPhase: (phase: NavigationPhase) => void;
 	setNotFound: (notFound: boolean) => void;
 	setParams: (params: Record<string, string | string[]>) => void;

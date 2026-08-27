@@ -68,6 +68,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 	const isNavigating = createMemo(() => navigationPhase() !== "idle");
 	const [viewTransitionSignal, setViewTransition] = createSignal<BrowserViewTransition | null>(null);
 	const [matches, setMatches] = createSignal<ClientMatch[]>(untrack(() => props.matches));
+	const [matchesEpoch, setMatchesEpoch] = createSignal(0);
 	const [notFound, setNotFound] = createSignal(false);
 	const [params, setParams] = createSignal<Record<string, string | string[]>>(untrack(() => props.params));
 	const [search, setSearch] = createSignal<SearchParams>(untrack(() => props.search) ?? {});
@@ -146,6 +147,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 		location,
 		matchCache: staticProps.matchCache,
 		matches,
+		matchesEpoch,
 		navigate: (opts) => {
 			if (opts.broadcast) {
 				channel.broadcast({ replace: opts.replace, to: opts.to, type: "navigate" });
@@ -169,6 +171,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 		setParams,
 		setSearch,
 		setViewTransition,
+		touchMatches: () => setMatchesEpoch((n) => n + 1),
 		viewTransition: viewTransitionSignal,
 	};
 
@@ -373,6 +376,7 @@ export function useRouter(): FlareRouter {
 		},
 		useLoaderData: ((options: { from: string }) =>
 			createMemo(() => {
+				ctx.matchesEpoch?.();
 				const overlay = ctx.intercepted();
 				if (overlay && options.from === overlay.match.virtualPath) return overlay.match.loaderData;
 				const m = ctx.matches().find((match) => match.virtualPath === options.from);
@@ -380,6 +384,7 @@ export function useRouter(): FlareRouter {
 			})) as never,
 		useLoaderT: ((options: { from: string }) => {
 			const data = createMemo(() => {
+				ctx.matchesEpoch?.();
 				const overlay = ctx.intercepted();
 				const m =
 					overlay && options.from === overlay.match.virtualPath
@@ -398,6 +403,7 @@ export function useRouter(): FlareRouter {
 		}) as never,
 		useMatch: (options) =>
 			createMemo(() => {
+				ctx.matchesEpoch?.();
 				const overlay = ctx.intercepted();
 				if (overlay && options.from === overlay.match.virtualPath) return overlay.match;
 				return ctx.matches().find((match) => match.virtualPath === options.from);
@@ -413,6 +419,7 @@ export function useRouter(): FlareRouter {
 			})) as never,
 		usePreloaderContext: ((options: { from: string }) =>
 			createMemo(() => {
+				ctx.matchesEpoch?.();
 				const overlay = ctx.intercepted();
 				if (overlay && options.from === overlay.match.virtualPath) return overlay.match.preloaderContext;
 				const m = ctx.matches().find((match) => match.virtualPath === options.from);
@@ -420,6 +427,7 @@ export function useRouter(): FlareRouter {
 			})) as never,
 		usePreloaderT: ((options: { from: string }) => {
 			const data = createMemo(() => {
+				ctx.matchesEpoch?.();
 				const overlay = ctx.intercepted();
 				const m =
 					overlay && options.from === overlay.match.virtualPath
