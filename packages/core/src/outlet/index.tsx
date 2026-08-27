@@ -281,10 +281,10 @@ function liveTranslator(data: Accessor<unknown>, locale: () => string | undefine
 	const translator = createMemo(() =>
 		createTranslator((data() ?? {}) as Record<string, Record<string, string>>, locale()),
 	);
-	const t = ((key: string, values?: Record<string, unknown>) => translator()(key, values)) as ReturnType<
+	const t = ((key: string, values?: Record<string, unknown>) => translator()(key as never, values)) as ReturnType<
 		typeof createTranslator
 	>;
-	t.rich = (key, components, values) => translator().rich(key, components, values);
+	t.rich = ((key, components, ...args) => translator().rich(key, components, ...args)) as typeof t.rich;
 	return t;
 }
 
@@ -482,19 +482,28 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
 	const ctx = useRouterContext();
 	const match: Accessor<ClientMatch | undefined> = createMemo(() => ctx.matches()[props.depth]);
 
+	/*
+	 * Solid 2 <Show> is unkeyed by default — the child is reused across truthy
+	 * values. Instant shells reuse the same match object so local page signals
+	 * survive; a new object (different route or error identity) must remount.
+	 */
 	return (
 		<Show
 			fallback={ctx.notFound() && props.depth === 0 ? resolveNotFoundBoundary(ctx, props.depth) : null}
+			keyed
 			when={match()}
 		>
-			{(m) => <MatchOutlet depth={props.depth} fallback={props.fallback} match={m()} />}
+			{(m) => <MatchOutlet depth={props.depth} fallback={props.fallback} match={m} />}
 		</Show>
 	) as JSX.Element;
 }
 
 function MatchOutlet(props: { depth: number; fallback?: JSX.Element; match: ClientMatch }): JSX.Element {
 	const ctx = useRouterContext();
-	const hasError = createMemo(() => props.match.error);
+	const hasError = createMemo(() => {
+		ctx.matchesEpoch?.();
+		return props.match.error;
+	});
 
 	/*
 	 * Pipeline errors rendered via reactive Show — must react to SPA nav
@@ -519,16 +528,26 @@ function MatchOutlet(props: { depth: number; fallback?: JSX.Element; match: Clie
 function RouteRender(props: { fallback?: JSX.Element; match: ClientMatch }): JSX.Element {
 	const ctx = useRouterContext();
 	const router = useRouter();
+	const loaderData = createMemo(() => {
+		ctx.matchesEpoch?.();
+		return props.match.loaderData;
+	});
+	const preloaderContext = createMemo(() => {
+		ctx.matchesEpoch?.();
+		return props.match.preloaderContext;
+	});
+	/* Capture once per MatchOutlet instance. Keyed <Show> remounts when the
+	 * match identity changes; recreating <Outlet> on epoch would remount layouts. */
+	const nested = untrack(() => (props.match._type === "render" ? undefined : <Outlet fallback={props.fallback} />));
+	const Render = untrack(() => props.match.render);
 	return (
-		<>
-			{props.match.render({
-				children: props.match._type === "render" ? undefined : <Outlet fallback={props.fallback} />,
-				loaderData: props.match.loaderData,
-				location: ctx.location(),
-				preloaderContext: props.match.preloaderContext,
-				router,
-			})}
-		</>
+		<Render
+			children={nested}
+			loaderData={loaderData()}
+			location={ctx.location()}
+			preloaderContext={preloaderContext()}
+			router={router}
+		/>
 	);
 }
 

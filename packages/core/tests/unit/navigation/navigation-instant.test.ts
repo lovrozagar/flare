@@ -358,6 +358,40 @@ describe("instant navigation — commit shell before NDJSON", () => {
 		expect(ctx.search()).toEqual({ filter: "active" });
 	});
 
+	it("same-route param change replaces page match identity", async () => {
+		const pageMod = makeModule("_root_/query-dynamic/[id]");
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		mockMatchRoute.mockReturnValue({
+			params: { id: "first" },
+			route: makeRoute("_root_/query-dynamic/[id]"),
+		});
+		mockLoadRouteModules.mockResolvedValueOnce(makeLoadedModules({ page: pageMod, params: { id: "first" } }));
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: { id: "first" }, matchId: "_root_/query-dynamic/[id]:{}:[]" }],
+			perRouteHeads: [],
+			success: true,
+		});
+
+		window.history.replaceState({}, "", "/");
+		await navigate({ to: "/query-dynamic/first" });
+		const pageBefore = ctx.matches().find((m) => m.virtualPath === "_root_/query-dynamic/[id]");
+		expect(pageBefore).toBeDefined();
+
+		mockMatchRoute.mockReturnValue({
+			params: { id: "second" },
+			route: makeRoute("_root_/query-dynamic/[id]"),
+		});
+		mockLoadRouteModules.mockResolvedValueOnce(makeLoadedModules({ page: pageMod, params: { id: "second" } }));
+		await navigate({ to: "/query-dynamic/second" });
+
+		const pageAfter = ctx.matches().find((m) => m.virtualPath === "_root_/query-dynamic/[id]");
+		/* New object so keyed Outlet remounts — render-body snapshots
+		   (createTranslator, useSuspenseQuery keys) pick up the new param. */
+		expect(pageAfter).not.toBe(pageBefore);
+		expect(ctx.params()).toEqual({ id: "second" });
+	});
+
 	it("same-route search change does not call setMatches when the match is reused", async () => {
 		const hooksId = "_root_/hooks-test:{}:[]";
 		const hooksPage = makeModule("_root_/hooks-test");
