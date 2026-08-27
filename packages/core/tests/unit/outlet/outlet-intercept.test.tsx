@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createSignal, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatchCache, createPrefetchCache } from "../../../src/caches/index.ts";
@@ -139,5 +139,54 @@ describe("InterceptOutlet", () => {
 		setIntercepted(null);
 		await new Promise((r) => setTimeout(r, 10));
 		expect(container.querySelector("[data-testid=overlay]")).toBeNull();
+	});
+
+	it("swaps overlay content when intercept identity changes", () => {
+		const [intercepted, setIntercepted] = createSignal<InterceptedState | null>(null);
+		const ctx = makeCtx(intercepted);
+
+		render(
+			() => (
+				<RouterContext value={ctx}>
+					<InterceptOutlet>
+						{(s) => (
+							<div data-testid="overlay">{String((s.match.loaderData as { name?: string } | undefined)?.name)}</div>
+						)}
+					</InterceptOutlet>
+				</RouterContext>
+			),
+			container,
+		);
+
+		setIntercepted(
+			makeInterceptedState({
+				match: {
+					_type: "render",
+					loaderData: { name: "Product 1" },
+					render: () => null,
+					variablePath: "/products/[id]",
+					virtualPath: "_root_/products/[id]",
+				},
+				params: { id: "1" },
+			}),
+		);
+		flush();
+		expect(container.querySelector("[data-testid=overlay]")?.textContent).toBe("Product 1");
+
+		/* Same truthy overlay, new object. Unkeyed Show must still re-read the accessor. */
+		setIntercepted(
+			makeInterceptedState({
+				match: {
+					_type: "render",
+					loaderData: { name: "Product 2" },
+					render: () => null,
+					variablePath: "/products/[id]",
+					virtualPath: "_root_/products/[id]",
+				},
+				params: { id: "2" },
+			}),
+		);
+		flush();
+		expect(container.querySelector("[data-testid=overlay]")?.textContent).toBe("Product 2");
 	});
 });
