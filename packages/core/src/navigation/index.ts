@@ -614,6 +614,25 @@ function commitCachedShell(
 	return { hadShell: true, keepMatchIds };
 }
 
+function sameRouteParams(a: Record<string, string | string[]>, b: Record<string, string | string[]>): boolean {
+	const keys = Object.keys(a);
+	if (keys.length !== Object.keys(b).length) return false;
+	for (const key of keys) {
+		const av = a[key];
+		const bv = b[key];
+		if (av === bv) continue;
+		if (Array.isArray(av) && Array.isArray(bv)) {
+			if (av.length !== bv.length) return false;
+			for (let i = 0; i < av.length; i++) {
+				if (av[i] !== bv[i]) return false;
+			}
+			continue;
+		}
+		return false;
+	}
+	return true;
+}
+
 /** Map loaded modules to client match objects using cached data. */
 function buildClientMatches(
 	allModules: LoadedRouteModule[],
@@ -621,6 +640,7 @@ function buildClientMatches(
 	params: Record<string, string | string[]>,
 ) {
 	const current = ctx?.matches() ?? [];
+	const paramsUnchanged = sameRouteParams(ctx?.params() ?? {}, params);
 	return allModules.map((mod, i) => {
 		const matchId = matchIdForModule(mod, search, params);
 		const cached = ctx?.matchCache.get(matchId);
@@ -640,11 +660,20 @@ function buildClientMatches(
 			virtualPath: mod.virtualPath,
 		};
 		/* Reuse the previous object when the route slot is unchanged so
-		   Outlet <Show when={match()}> does not remount (local page signals).
+		   Outlet <Show keyed when={match()}> does not remount (local page
+		   signals). Param changes are a new page instance — render bodies
+		   that snapshot loaderData (translators, query keys) must re-run.
+		   Search-only updates keep identity and refresh via matchesEpoch.
 		   Error identity must change — Errored stays in fallback if the same
 		   object is mutated from error to success. */
 		const prev = current[i];
-		if (prev && prev.virtualPath === next.virtualPath && prev._type === next._type && prev.error === next.error) {
+		if (
+			prev &&
+			paramsUnchanged &&
+			prev.virtualPath === next.virtualPath &&
+			prev._type === next._type &&
+			prev.error === next.error
+		) {
 			Object.assign(prev, next);
 			return prev;
 		}

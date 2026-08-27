@@ -745,6 +745,129 @@ describe("Outlet", () => {
 		expect(container.querySelector("[data-testid='page-_root_/home']")?.textContent).toBe("page data");
 	});
 
+	it("refreshes props.loaderData after touchMatches without remounting", () => {
+		let mounts = 0;
+		const pageMatch: ClientMatch = {
+			_type: "render",
+			loaderData: "overview",
+			render: (props: RenderProps) => {
+				mounts++;
+				return <div data-testid="page-_root_/input">{String(props.loaderData)}</div>;
+			},
+			variablePath: "",
+			virtualPath: "_root_/input",
+		};
+		let ctx: FlareProviderContext | undefined;
+		const props = makeProviderProps({ matches: [pageMatch] });
+		dispose = render(
+			() => (
+				<FlareProvider {...props}>
+					{(() => {
+						ctx = useRouterContext();
+						return <Outlet />;
+					})()}
+				</FlareProvider>
+			),
+			container,
+		);
+
+		expect(container.querySelector("[data-testid='page-_root_/input']")?.textContent).toBe("overview");
+		expect(mounts).toBe(1);
+		pageMatch.loaderData = "billing";
+		ctx?.touchMatches?.();
+		flush();
+		expect(container.querySelector("[data-testid='page-_root_/input']")?.textContent).toBe("billing");
+		expect(mounts).toBe(1);
+	});
+
+	it("swaps the page component when the match object identity changes", () => {
+		const pageA = makeMatch({
+			loaderData: "A",
+			virtualPath: "_root_/a",
+		});
+		const pageB = makeMatch({
+			loaderData: "B",
+			virtualPath: "_root_/b",
+		});
+		let ctx: FlareProviderContext | undefined;
+		const props = makeProviderProps({ matches: [pageA] });
+		dispose = render(
+			() => (
+				<FlareProvider {...props}>
+					{(() => {
+						ctx = useRouterContext();
+						return <Outlet />;
+					})()}
+				</FlareProvider>
+			),
+			container,
+		);
+
+		expect(container.querySelector("[data-testid='page-_root_/a']")?.textContent).toBe("A");
+		ctx?.setMatches([pageB]);
+		flush();
+		expect(container.querySelector("[data-testid='page-_root_/b']")?.textContent).toBe("B");
+		expect(container.querySelector("[data-testid='page-_root_/a']")).toBeNull();
+	});
+
+	it("keeps the layout mounted when only the page match identity changes", () => {
+		let layoutMounts = 0;
+		let pageMounts = 0;
+		const layoutMatch: ClientMatch = {
+			_type: "layout",
+			loaderData: null,
+			render: (props: RenderProps) => {
+				layoutMounts++;
+				return <div data-testid="layout-_root_">{props.children}</div>;
+			},
+			variablePath: "",
+			virtualPath: "_root_",
+		};
+		const pageA: ClientMatch = {
+			_type: "render",
+			loaderData: "A",
+			render: (props: RenderProps) => {
+				pageMounts++;
+				return <div data-testid="page-a">{String(props.loaderData)}</div>;
+			},
+			variablePath: "",
+			virtualPath: "_root_/a",
+		};
+		const pageB: ClientMatch = {
+			_type: "render",
+			loaderData: "B",
+			render: (props: RenderProps) => {
+				pageMounts++;
+				return <div data-testid="page-b">{String(props.loaderData)}</div>;
+			},
+			variablePath: "",
+			virtualPath: "_root_/b",
+		};
+		let ctx: FlareProviderContext | undefined;
+		const props = makeProviderProps({ matches: [layoutMatch, pageA] });
+		dispose = render(
+			() => (
+				<FlareProvider {...props}>
+					{(() => {
+						ctx = useRouterContext();
+						return <Outlet />;
+					})()}
+				</FlareProvider>
+			),
+			container,
+		);
+
+		expect(container.querySelector("[data-testid='page-a']")?.textContent).toBe("A");
+		expect(layoutMounts).toBe(1);
+		expect(pageMounts).toBe(1);
+		ctx?.setMatches([layoutMatch, pageB]);
+		flush();
+		expect(container.querySelector("[data-testid='page-b']")?.textContent).toBe("B");
+		expect(container.querySelector("[data-testid='page-a']")).toBeNull();
+		expect(layoutMounts).toBe(1);
+		expect(pageMounts).toBe(2);
+	});
+
 	it("renders layout + page chain", () => {
 		const layoutMatch = makeLayoutMatch("_root_");
 		const pageMatch = makeMatch({
