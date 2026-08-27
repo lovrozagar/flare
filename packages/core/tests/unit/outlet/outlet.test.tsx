@@ -372,6 +372,34 @@ describe("useRouter", () => {
 		expect(typeof router?.buildLocation).toBe("function");
 	});
 
+	it("useLoaderT updates when match loaderData.t is refreshed", () => {
+		let t: ((key: string) => string) | undefined;
+		let ctx: FlareProviderContext | undefined;
+		const page = makeMatch({
+			loaderData: { t: { common: { hello: "Hi" } } },
+			virtualPath: "_root_/about",
+		});
+		const props = makeProviderProps({ matches: [page] });
+		dispose = render(
+			() => (
+				<FlareProvider {...props}>
+					{(() => {
+						ctx = useRouterContext();
+						t = useRouter().useLoaderT({ from: "_root_/about" });
+						return null;
+					})()}
+				</FlareProvider>
+			),
+			container,
+		);
+
+		expect(t?.("common.hello")).toBe("Hi");
+		page.loaderData = { t: { common: { hello: "Yo" } } };
+		ctx?.setMatches([page]);
+		flush();
+		expect(t?.("common.hello")).toBe("Yo");
+	});
+
 	it("useLoaderData returns reactive loader data for matching virtualPath", () => {
 		let loaderAccessor: (() => unknown) | undefined;
 
