@@ -358,7 +358,7 @@ describe("instant navigation — commit shell before NDJSON", () => {
 		expect(ctx.search()).toEqual({ filter: "active" });
 	});
 
-	it("same-route search change does not call setMatches when the match is reused", async () => {
+	it("same-route search change notifies setMatches but keeps match identity", async () => {
 		const hooksId = "_root_/hooks-test:{}:[]";
 		const hooksPage = makeModule("_root_/hooks-test");
 		const ctx = makeCtx();
@@ -376,6 +376,7 @@ describe("instant navigation — commit shell before NDJSON", () => {
 
 		window.history.replaceState({}, "", "/");
 		await navigate({ to: "/hooks-test" });
+		const pageBefore = ctx.matches().find((m) => m.virtualPath === "_root_/hooks-test");
 
 		const inner = ctx.setMatches.bind(ctx);
 		const spy = vi.fn(inner);
@@ -383,7 +384,8 @@ describe("instant navigation — commit shell before NDJSON", () => {
 
 		await navigate({ search: { filter: "active" }, to: "/hooks-test" });
 
-		expect(spy).not.toHaveBeenCalled();
+		expect(spy).toHaveBeenCalled();
+		expect(ctx.matches().find((m) => m.virtualPath === "_root_/hooks-test")).toBe(pageBefore);
 		expect(ctx.search()).toEqual({ filter: "active" });
 	});
 
