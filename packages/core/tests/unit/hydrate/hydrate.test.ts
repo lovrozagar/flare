@@ -90,6 +90,7 @@ import { createMatchCache } from "../../../src/caches/index.ts";
 import { replaceHistoryState } from "../../../src/history/index.ts";
 import { hydrate } from "../../../src/hydrate/index.tsx";
 import {
+	applyMatchCacheTags,
 	buildInitialMatches,
 	extractRootBoundaries,
 	hydrateHeadState,
@@ -112,6 +113,7 @@ const mockLoadRouteModules = loadRouteModules as ReturnType<typeof vi.fn>;
 const mockBuildInitialMatches = buildInitialMatches as ReturnType<typeof vi.fn>;
 const mockExtractRootBoundaries = extractRootBoundaries as ReturnType<typeof vi.fn>;
 const mockPopulateMatchCache = populateMatchCache as ReturnType<typeof vi.fn>;
+const mockApplyMatchCacheTags = applyMatchCacheTags as ReturnType<typeof vi.fn>;
 const mockHydrateHeadState = hydrateHeadState as ReturnType<typeof vi.fn>;
 const mockReplaceHistoryState = replaceHistoryState as ReturnType<typeof vi.fn>;
 const mockSetupNavigation = setupNavigation as ReturnType<typeof vi.fn>;
@@ -281,6 +283,7 @@ describe("module loading", () => {
 
 		await hydrate(makeRouterConfig() as never);
 		expect(mockBuildInitialMatches).toHaveBeenCalled();
+		expect(mockApplyMatchCacheTags).toHaveBeenCalled();
 	});
 
 	it("async router config (function) resolved before use", async () => {
