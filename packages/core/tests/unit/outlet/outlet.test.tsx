@@ -395,7 +395,7 @@ describe("useRouter", () => {
 
 		expect(t?.("common.hello")).toBe("Hi");
 		page.loaderData = { t: { common: { hello: "Yo" } } };
-		ctx?.setMatches([page]);
+		ctx?.touchMatches?.();
 		flush();
 		expect(t?.("common.hello")).toBe("Yo");
 	});
