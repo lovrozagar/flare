@@ -653,10 +653,13 @@ function buildClientMatches(
 }
 
 function assignMatches(c: FlareProviderContext, next: ReturnType<FlareProviderContext["matches"]>): void {
-	/* Always write the signal. Instant shells Object.assign loader data onto
-	 * the same match objects; skipping the write left useLoaderT/useLoaderData
-	 * stuck on the empty shell. Same element refs still keep Outlet Show
-	 * from remounting the page. */
+	const current = c.matches();
+	if (next.length === current.length && next.length > 0 && next.every((m, i) => m === current[i])) {
+		/* Reused objects: do not write matches (keeps Outlet from remounting
+		 * local page signals). Tick matchesEpoch so loader/t hooks re-read. */
+		c.touchMatches?.();
+		return;
+	}
 	c.setMatches(next);
 }
 
