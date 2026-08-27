@@ -653,10 +653,10 @@ function buildClientMatches(
 }
 
 function assignMatches(c: FlareProviderContext, next: ReturnType<FlareProviderContext["matches"]>): void {
-	const current = c.matches();
-	if (next.length === current.length && next.length > 0 && next.every((m, i) => m === current[i])) {
-		return;
-	}
+	/* Always write the signal. Instant shells Object.assign loader data onto
+	 * the same match objects; skipping the write left useLoaderT/useLoaderData
+	 * stuck on the empty shell. Same element refs still keep Outlet Show
+	 * from remounting the page. */
 	c.setMatches(next);
 }
 
@@ -991,19 +991,18 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 	}
 
 	/* Step 4b: Hash-only change — skip loaders, just update hash + scroll.
-	 * Compare against ctx.location() and the pre-Step-4 window URL. After
-	 * handleHistoryUpdate, window.location is already the target, so it is not
-	 * a valid "same page" oracle. During intercept, loc is the background and
-	 * previousPathname is the overlay URL — either match is hash-only.
+	 * Compare only to the pre-Step-4 window URL. FlareProvider.location()
+	 * reads pathname from window, which handleHistoryUpdate already moved,
+	 * so using loc here treats every same-search path change as hash-only.
+	 * Overlay hash-only still matches: previousPathname is the overlay URL.
 	 * Skip for popstate — browser already updated window.location.
 	 * Skip when revalidate is set — caller explicitly wants loaders to re-run. */
 	if (!options._popstate && !options.revalidate) {
-		const loc = ctx.location();
 		const previous = {
 			pathname: previousPathname,
 			search: parseSearchParams(new URLSearchParams(previousSearch)),
 		};
-		if (samePathAndSearch(url, loc) || samePathAndSearch(url, previous)) {
+		if (samePathAndSearch(url, previous)) {
 			const search = parseSearchParams(url.searchParams);
 
 			if (!c.intercepted()) {

@@ -273,6 +273,18 @@ export function useRouterContext(): FlareProviderContext {
 	return ctx;
 }
 
+/** Instant shells mutate match.loaderData in place; t() must track that refresh. */
+function liveTranslator(data: Accessor<unknown>, locale: () => string | undefined) {
+	const translator = createMemo(() =>
+		createTranslator((data() ?? {}) as Record<string, Record<string, string>>, locale()),
+	);
+	const t = ((key: string, values?: Record<string, unknown>) => translator()(key, values)) as ReturnType<
+		typeof createTranslator
+	>;
+	t.rich = (key, components, values) => translator().rich(key, components, values);
+	return t;
+}
+
 export function useRouter(): FlareRouter {
 	const ctx = useRouterContext();
 
@@ -382,7 +394,7 @@ export function useRouter(): FlareRouter {
 				const val = p[lc.paramName ?? "locale"];
 				return (typeof val === "string" ? val : undefined) ?? lc.defaultLocale;
 			};
-			return createTranslator((data() ?? {}) as Record<string, Record<string, string>>, locale());
+			return liveTranslator(data, locale);
 		}) as never,
 		useMatch: (options) =>
 			createMemo(() => {
@@ -422,7 +434,7 @@ export function useRouter(): FlareRouter {
 				const val = p[lc.paramName ?? "locale"];
 				return (typeof val === "string" ? val : undefined) ?? lc.defaultLocale;
 			};
-			return createTranslator((data() ?? {}) as Record<string, Record<string, string>>, locale());
+			return liveTranslator(data, locale);
 		}) as never,
 		useSearch: ((options: { from: string }) =>
 			createMemo(() => {

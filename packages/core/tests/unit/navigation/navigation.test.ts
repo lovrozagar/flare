@@ -351,6 +351,32 @@ describe("navigate", () => {
 		expect(spy).toHaveBeenCalled();
 	});
 
+	it("path change still fetches when location() pathname follows window after pushState", async () => {
+		window.history.replaceState({}, "", "/");
+		const ctx = makeCtx({
+			location: () => ({
+				hash: window.location.hash,
+				params: {},
+				pathname: window.location.pathname,
+				search: {},
+				url: new URL(window.location.href),
+				variablePath: "",
+				virtualPath: "",
+			}),
+		});
+		setupNavigation(ctx, mockLoadRouteModules);
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/about") });
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule("_root_/about") }));
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: { title: "About" }, matchId: "_root_/about:" }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navigate({ to: "/about" });
+		expect(mockFetchNDJSON).toHaveBeenCalled();
+		expect(ctx.matches().at(-1)?.virtualPath).toBe("_root_/about");
+	});
+
 	it("updates state signals after navigation", async () => {
 		const ctx = makeCtx();
 		setupNavigation(ctx, mockLoadRouteModules);
