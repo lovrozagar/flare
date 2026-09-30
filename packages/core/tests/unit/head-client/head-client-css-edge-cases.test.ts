@@ -194,15 +194,127 @@ describe("CSS lifecycle: custom.styles edge cases", () => {
 		expect(styleEls).toHaveLength(0);
 	});
 
-	it("custom.styles with same content from different routes are NOT deduped", () => {
+	it("custom.styles with same content from different routes are deduped", () => {
 		initRouteHierarchy(["r1", "r2"]);
 		applyPerRouteHeads([
 			{ head: { custom: { styles: [{ children: ".x { color: red }" }] } }, matchId: "r1" },
 			{ head: { custom: { styles: [{ children: ".x { color: red }" }] } }, matchId: "r2" },
 		]);
-		/* Style elements are NOT refcounted — each route gets its own */
 		const styleEls = mockDoc.elements.filter((e) => e.tag === "style");
-		expect(styleEls).toHaveLength(2);
+		expect(styleEls).toHaveLength(1);
+
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: ".x { color: red }" }] } }, matchId: "r1" }]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(1);
+
+		applyPerRouteHeads([]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(0);
+	});
+
+	it("custom.styles with different content from different routes stay distinct", () => {
+		initRouteHierarchy(["r1", "r2"]);
+		applyPerRouteHeads([
+			{ head: { custom: { styles: [{ children: ".a { color: red }" }] } }, matchId: "r1" },
+			{ head: { custom: { styles: [{ children: ".b { color: blue }" }] } }, matchId: "r2" },
+		]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(2);
+
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: ".a { color: red }" }] } }, matchId: "r1" }]);
+		const remaining = mockDoc.elements.filter((e) => e.tag === "style");
+		expect(remaining).toHaveLength(1);
+		expect(remaining[0]?.textContent).toBe(".a { color: red }");
+	});
+
+	it("SSR-rendered custom.styles is adopted, not duplicated", () => {
+		const ssrStyle = mockDoc.createElement("style");
+		ssrStyle.setAttribute("nonce", "ssr-nonce");
+		ssrStyle.textContent = ".x { color: red }";
+		mockDoc.head.appendChild(ssrStyle);
+		const ssrId = ssrStyle.id;
+
+		initRouteHierarchy(["r1"]);
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: ".x { color: red }" }] } }, matchId: "r1" }]);
+
+		const styleEls = mockDoc.elements.filter((e) => e.tag === "style");
+		expect(styleEls).toHaveLength(1);
+		expect(styleEls[0]?.id).toBe(ssrId);
+		expect(styleEls[0]?.attrs.nonce).toBe("ssr-nonce");
+		expect(styleEls[0]?.attrs["data-flare-route"]).toBe("r1");
+	});
+
+	it("layout custom.styles persists across child navigations and is removed off-layout", () => {
+		initRouteHierarchy(["layout", "child-a"]);
+		applyPerRouteHeads([
+			{ head: { custom: { styles: [{ children: ".layout { color: red }" }] } }, matchId: "layout" },
+			{ head: { title: "A" }, matchId: "child-a" },
+		]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(1);
+		const layoutId = mockDoc.elements.find((e) => e.tag === "style")?.id;
+
+		applyPerRouteHeads([
+			{ head: { custom: { styles: [{ children: ".layout { color: red }" }] } }, matchId: "layout" },
+			{ head: { title: "B" }, matchId: "child-b" },
+		]);
+		const afterSibling = mockDoc.elements.filter((e) => e.tag === "style");
+		expect(afterSibling).toHaveLength(1);
+		expect(afterSibling[0]?.id).toBe(layoutId);
+
+		applyPerRouteHeads([{ head: { title: "Other" }, matchId: "other" }]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(0);
+	});
+
+	it("one route with two identical custom.styles entries shares one element", () => {
+		initRouteHierarchy(["r1"]);
+		applyPerRouteHeads([
+			{
+				head: {
+					custom: {
+						styles: [{ children: ".dup { color: red }" }, { children: ".dup { color: red }" }],
+					},
+				},
+				matchId: "r1",
+			},
+		]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(1);
+
+		applyPerRouteHeads([]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(0);
+	});
+
+	it("route swapping custom.styles removes the old sheet and adds the new one", () => {
+		initRouteHierarchy(["r1"]);
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: ".a { color: red }" }] } }, matchId: "r1" }]);
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: ".b { color: blue }" }] } }, matchId: "r1" }]);
+		const styleEls = mockDoc.elements.filter((e) => e.tag === "style");
+		expect(styleEls).toHaveLength(1);
+		expect(styleEls[0]?.textContent).toBe(".b { color: blue }");
+	});
+
+	it("empty custom.styles children still creates a sheet", () => {
+		initRouteHierarchy(["r1"]);
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: "" }] } }, matchId: "r1" }]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(1);
+	});
+
+	it("whitespace-different custom.styles are not deduped", () => {
+		initRouteHierarchy(["r1", "r2"]);
+		applyPerRouteHeads([
+			{ head: { custom: { styles: [{ children: ".x { color: red }" }] } }, matchId: "r1" },
+			{ head: { custom: { styles: [{ children: ".x {  color: red }" }] } }, matchId: "r2" },
+		]);
+		expect(mockDoc.elements.filter((e) => e.tag === "style")).toHaveLength(2);
+	});
+
+	it("re-applying the same custom.styles on a persistent route keeps the element", () => {
+		initRouteHierarchy(["r1"]);
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: ".keep { color: red }" }] } }, matchId: "r1" }]);
+		const before = mockDoc.elements.filter((e) => e.tag === "style");
+		expect(before).toHaveLength(1);
+		const elementId = before[0]?.id;
+
+		applyPerRouteHeads([{ head: { custom: { styles: [{ children: ".keep { color: red }" }] } }, matchId: "r1" }]);
+		const after = mockDoc.elements.filter((e) => e.tag === "style");
+		expect(after).toHaveLength(1);
+		expect(after[0]?.id).toBe(elementId);
 	});
 });
 

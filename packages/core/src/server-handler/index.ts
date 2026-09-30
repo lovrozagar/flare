@@ -1214,7 +1214,7 @@ export function createServerHandler<
 										});
 									}
 
-									const resolvedHead = pipelineResult.matches.findLast((m) => m.headConfig)?.headConfig ?? {};
+									const resolvedHead = pipelineResult.mergedHead ?? {};
 
 									const fuzzyLogs = enableServerLogs ? getServerLogs() : undefined;
 									if (request.headers.get(HEADER_DATA) === HEADER_FLAG) {
@@ -1517,7 +1517,7 @@ export function createServerHandler<
 						const logsForTransport = collectedLogs && collectedLogs.length > 0 ? collectedLogs : undefined;
 
 						if (!isDataRequest) {
-							const resolvedHead = pipelineResult.matches.findLast((m) => m.headConfig)?.headConfig ?? {};
+							const resolvedHead = pipelineResult.mergedHead ?? {};
 
 							let ssrResult: ReturnType<typeof renderToStream>;
 							setRewrite(composedRewrite);
