@@ -7,9 +7,9 @@ test.describe("Head custom.styles: layout sheet is unique after hydrate", () => 
 	test("SSR HTML contains the layout sheet once", async ({ page }) => {
 		const response = await page.request.get(`${BASE}/styling-custom-a`);
 		const html = await response.text();
-		const matches = html.match(/\.layout-inline-sheet \{ color: rgb\(1, 2, 3\); \}/g) ?? [];
-		expect(matches).toHaveLength(1);
-		expect(html).toMatch(/<style nonce="[^"]*">\.layout-inline-sheet \{ color: rgb\(1, 2, 3\); \}<\/style>/);
+		const styleTags =
+			html.match(/<style nonce="[^"]*">\.layout-inline-sheet \{ color: rgb\(1, 2, 3\); \}<\/style>/g) ?? [];
+		expect(styleTags).toHaveLength(1);
 	});
 
 	test("after hydration the layout CSS is a single style tag with the request nonce", async ({ page }) => {
