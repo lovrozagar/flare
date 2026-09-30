@@ -96,6 +96,8 @@ export interface PipelineResult {
 	auth: unknown | null;
 	deferContexts: Map<string, DeferContext>;
 	matches: PipelineMatch[];
+	/** Accumulated merge (root → page) for SSR `resolvedHead`. */
+	mergedHead?: HeadConfig;
 }
 
 export interface PipelineMatch {
@@ -235,6 +237,23 @@ async function buildInternalRoutes(
 	}
 
 	return result;
+}
+
+/**
+ * Per-match head for client apply (`ph`, NDJSON, match cache).
+ * Scalars / objects / images / jsonLd stay merged so upsert and
+ * remove-all-then-append fields still see the full set. Concatenate
+ * `custom.*` arrays stay on the declaring route so descendants do not replay them.
+ */
+function toClientHeadConfig(merged: HeadConfig | undefined, own: HeadConfig | undefined): HeadConfig | undefined {
+	if (!merged) return undefined;
+	const client: HeadConfig = { ...merged };
+	if (own?.custom !== undefined) {
+		client.custom = own.custom;
+	} else {
+		delete client.custom;
+	}
+	return client;
 }
 
 export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>): Promise<PipelineResult> {
@@ -605,11 +624,12 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 	let mergedHead: HeadConfig | undefined;
 
 	for (const match of matches) {
+		let routeHead: HeadConfig | undefined;
 		if (match.route.head && match.status === "success") {
 			const location = routeLocationMap.get(match.route);
 			if (location) {
 				try {
-					const routeHead = match.route.head({
+					routeHead = match.route.head({
 						...urlHelpers,
 						cause,
 						loaderData: match.loaderData,
@@ -631,10 +651,13 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 					}
 				} catch (e: unknown) {
 					match.headError = e instanceof Error ? e : new Error(String(e));
+					routeHead = undefined;
 				}
 			}
 		}
-		match.headConfig = mergedHead;
+		/* Client apply uses this match's own custom.* so concatenate fields
+		 * are not replayed once per descendant. SSR uses `mergedHead`. */
+		match.headConfig = toClientHeadConfig(mergedHead, routeHead);
 	}
 	headSpan.end();
 
@@ -693,5 +716,5 @@ export async function runPipeline<TEnv = unknown>(config: PipelineConfig<TEnv>):
 	}
 	headersSpan.end();
 
-	return { auth, deferContexts, matches };
+	return { auth, deferContexts, matches, mergedHead };
 }

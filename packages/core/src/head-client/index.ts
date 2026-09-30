@@ -17,6 +17,7 @@ const managedHreflangTags = new Set<string>();
 /* CSS lifecycle: per-route elements + refcounted dedup for shared stylesheets */
 const cssElementsByRoute = new Map<string, HTMLElement[]>();
 const cssRefCount = new Map<string, { element: HTMLElement; refCount: number }>();
+const styleRefCount = new Map<string, { element: HTMLElement; refCount: number }>();
 
 export function clearRouteTracking(): void {
 	baseTitle = "";
@@ -26,6 +27,7 @@ export function clearRouteTracking(): void {
 	managedHreflangTags.clear();
 	cssElementsByRoute.clear();
 	cssRefCount.clear();
+	styleRefCount.clear();
 }
 
 export function initRouteHierarchy(matchIds: string[], rootTitle?: string): void {
@@ -561,22 +563,70 @@ function addCssLinkForRoute(matchId: string, href: string): void {
 	cssElementsByRoute.set(matchId, list);
 }
 
-function addCssStyleForRoute(matchId: string, children: string): void {
-	if (typeof document === "undefined") return;
-	const el = document.createElement("style");
+function stampStyleNonce(el: HTMLElement): void {
+	if (el.getAttribute("nonce") || el.nonce) return;
 	const meta = document.querySelector?.('meta[name="csp-nonce"]');
 	const tagged = document.querySelector?.("script[nonce], style[nonce]") as HTMLElement | null;
 	const nonce = meta?.getAttribute("content") || tagged?.nonce || tagged?.getAttribute("nonce") || "";
-	if (nonce) {
-		el.setAttribute("nonce", nonce);
-		el.nonce = nonce;
+	if (!nonce) return;
+	el.setAttribute("nonce", nonce);
+	el.nonce = nonce;
+}
+
+function isInfraStyle(el: HTMLElement): boolean {
+	const id = el.getAttribute("id");
+	return id === "flare-runtime" || id === "flare-critical";
+}
+
+function isStyleTracked(el: HTMLElement): boolean {
+	for (const ref of styleRefCount.values()) {
+		if (ref.element === el) return true;
 	}
-	el.setAttribute("data-flare-route", matchId);
-	el.textContent = children;
-	document.head.appendChild(el);
+	return false;
+}
+
+function findAdoptableStyle(children: string): HTMLElement | null {
+	const nodes = document.head?.querySelectorAll("style");
+	if (!nodes) return null;
+	for (const node of nodes) {
+		const el = node as HTMLElement;
+		if (isInfraStyle(el) || isStyleTracked(el)) continue;
+		if (el.textContent === children) return el;
+	}
+	return null;
+}
+
+function trackStyleForRoute(matchId: string, el: HTMLElement): void {
 	const list = cssElementsByRoute.get(matchId) ?? [];
 	list.push(el);
 	cssElementsByRoute.set(matchId, list);
+}
+
+function addCssStyleForRoute(matchId: string, children: string): void {
+	if (typeof document === "undefined") return;
+	const ref = styleRefCount.get(children);
+	if (ref) {
+		ref.refCount++;
+		trackStyleForRoute(matchId, ref.element);
+		return;
+	}
+
+	const existing = findAdoptableStyle(children);
+	if (existing) {
+		existing.setAttribute("data-flare-route", matchId);
+		stampStyleNonce(existing);
+		styleRefCount.set(children, { element: existing, refCount: 1 });
+		trackStyleForRoute(matchId, existing);
+		return;
+	}
+
+	const el = document.createElement("style");
+	stampStyleNonce(el);
+	el.setAttribute("data-flare-route", matchId);
+	el.textContent = children;
+	document.head.appendChild(el);
+	styleRefCount.set(children, { element: el, refCount: 1 });
+	trackStyleForRoute(matchId, el);
 }
 
 function applyCssForRoute(matchId: string, config: HeadConfig): void {
@@ -608,20 +658,34 @@ function applyCssForRoute(matchId: string, config: HeadConfig): void {
 
 	/* THEN decrement old refcounts — shared elements stay because new refs were added above */
 	for (const el of oldElements) {
-		const href = el.getAttribute("href");
-		if (href && el.getAttribute("rel") === "stylesheet") {
-			const ref = cssRefCount.get(href);
-			if (ref) {
-				ref.refCount--;
-				if (ref.refCount <= 0) {
-					ref.element.remove();
-					cssRefCount.delete(href);
-				}
-				continue;
-			}
-		}
-		el.remove();
+		releaseCssElement(el);
 	}
+}
+
+function releaseCssElement(el: HTMLElement): void {
+	const href = el.getAttribute("href");
+	if (href && el.getAttribute("rel") === "stylesheet") {
+		const ref = cssRefCount.get(href);
+		if (ref) {
+			ref.refCount--;
+			if (ref.refCount <= 0) {
+				ref.element.remove();
+				cssRefCount.delete(href);
+			}
+			return;
+		}
+	}
+	const content = el.textContent ?? "";
+	const styleRef = styleRefCount.get(content);
+	if (styleRef && styleRef.element === el) {
+		styleRef.refCount--;
+		if (styleRef.refCount <= 0) {
+			styleRef.element.remove();
+			styleRefCount.delete(content);
+		}
+		return;
+	}
+	el.remove();
 }
 
 function removeCssForRoute(routeId: string): void {
@@ -629,21 +693,7 @@ function removeCssForRoute(routeId: string): void {
 	if (!elements) return;
 
 	for (const el of elements) {
-		const href = el.getAttribute("href");
-		/* Refcounted stylesheet links */
-		if (href && el.getAttribute("rel") === "stylesheet") {
-			const ref = cssRefCount.get(href);
-			if (ref) {
-				ref.refCount--;
-				if (ref.refCount <= 0) {
-					ref.element.remove();
-					cssRefCount.delete(href);
-				}
-				continue;
-			}
-		}
-		/* <style> elements or untracked links — just remove */
-		el.remove();
+		releaseCssElement(el);
 	}
 	cssElementsByRoute.delete(routeId);
 }

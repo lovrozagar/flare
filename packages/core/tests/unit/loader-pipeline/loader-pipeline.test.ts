@@ -575,7 +575,7 @@ describe("head chain", () => {
 		});
 	});
 
-	it("custom head config arrays concatenated", async () => {
+	it("custom head config arrays concatenated on mergedHead, own-only on each match", async () => {
 		const root = makeRoute({
 			head: () => ({
 				custom: {
@@ -595,12 +595,17 @@ describe("head chain", () => {
 			virtualPath: "_root_/about",
 		});
 		const result = await runPipeline(makeConfig({ routes: [root, page] }));
-		const pageHead = result.matches[1]?.headConfig;
-		expect(pageHead?.custom?.meta).toEqual([
+		expect(result.mergedHead?.custom?.meta).toEqual([
 			{ content: "root-val", name: "root-meta" },
 			{ content: "page-val", name: "page-meta" },
 		]);
-		expect(pageHead?.custom?.scripts).toEqual([{ src: "/root.js" }]);
+		expect(result.mergedHead?.custom?.scripts).toEqual([{ src: "/root.js" }]);
+		expect(result.mergedHead?.custom?.links).toEqual([{ href: "/page.css", rel: "stylesheet" }]);
+		expect(result.matches[0]?.headConfig?.custom?.meta).toEqual([{ content: "root-val", name: "root-meta" }]);
+		expect(result.matches[0]?.headConfig?.custom?.scripts).toEqual([{ src: "/root.js" }]);
+		const pageHead = result.matches[1]?.headConfig;
+		expect(pageHead?.custom?.meta).toEqual([{ content: "page-val", name: "page-meta" }]);
+		expect(pageHead?.custom?.scripts).toBeUndefined();
 		expect(pageHead?.custom?.links).toEqual([{ href: "/page.css", rel: "stylesheet" }]);
 	});
 
@@ -659,6 +664,13 @@ describe("head chain", () => {
 		});
 		await runPipeline(makeConfig({ routes: [root, page] }));
 		expect(capturedLocations).toEqual(["_root_", "_root_/about"]);
+	});
+
+	it("no head callbacks → mergedHead is undefined", async () => {
+		const route = makeRoute({ virtualPath: "_root_" });
+		const result = await runPipeline(makeConfig({ routes: [route] }));
+		expect(result.mergedHead).toBeUndefined();
+		expect(result.matches[0]?.headConfig).toBeUndefined();
 	});
 
 	it("route without head → headConfig inherits accumulated merged head", async () => {

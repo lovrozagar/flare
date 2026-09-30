@@ -197,6 +197,7 @@ For each route (root → page) with a `head` callback:
 mergedHead = undefined
 
 for each route:
+  routeHead = undefined
   if route.head and route.status === "success":
     routeHead = route.head({
       cause,
@@ -206,12 +207,21 @@ for each route:
       prefetch,
       preloaderContext: route.preloaderSnapshot,
     })
-    mergedHead = mergeHeadConfigs(mergedHead, routeHead)
+    if route.headReplace:
+      mergedHead = routeHead
+      clear previous matches' headConfig  /* so ph will not replay ancestor tags */
+    else:
+      mergedHead = mergeHeadConfigs(mergedHead, routeHead)
 
-  route.headConfig = mergedHead
+  route.headConfig = clientHead(mergedHead, routeHead)
+    /* merged scalars/objects/images/jsonLd; own custom.* only.
+     * Concatenate custom.styles/scripts/links/meta stay on the declaring
+     * route so descendants do not replay them during hydrate / SPA nav. */
+
+pipeline.mergedHead = mergedHead  /* SSR resolvedHead uses the full merge */
 ```
 
-Root layout: `parentHead = undefined`. Skipped for errored routes.
+Root layout: `parentHead = undefined`. Skipped for errored routes. `headReplace` (same invariant as the merge path): previous matches are dropped from `ph`.
 
 ### Phase 6: Headers Chain (sequential)
 
@@ -318,6 +328,9 @@ Head chain:
   Page head: parentHead = merged head from root + layouts
   Route without head → mergedHead unchanged, passed to next route
   Errored route → head skipped for that route
+  match.headConfig custom.* is this route's own arrays (not the accumulated merge)
+  pipeline.mergedHead is the full concatenation used for SSR HTML
+  headReplace clears previous match.headConfig so ph will not replay ancestor tags
 
 Headers chain:
   Same pattern as head chain

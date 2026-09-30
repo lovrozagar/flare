@@ -216,7 +216,7 @@ Favicon updates:
 Custom elements:
   custom.meta → arbitrary meta created
   custom.scripts → external scripts deduplicated by src
-  custom.styles → styles deduplicated by content
+  custom.styles → styles deduplicated by content (refcount; SSR <style> adopted, not cloned)
   custom.links → links deduplicated by rel+href
 
 Route cleanup:
@@ -230,6 +230,7 @@ Route cleanup:
 - `data-flare-head` attribute NOT used in v2 — replaced by per-route ownership tracking via `headByRoute` Map
 - Per-route tracking is more precise than v1's flat cleanup — layout head persists when only page changes
 - `initRouteHierarchy` must run before first CSR navigation — ensures SSR-rendered head elements are trackable
+- `custom.styles` adopt an existing untracked `<style>` whose `textContent` matches (SSR nonce stays on that node). `#flare-runtime` / `#flare-critical` are never adopted. Client navigations still create/remove.
 - Title is deliberately NOT per-route tracked — deepest route's title always wins, no cleanup needed
 - `managedMetaTags` tracks selectors (not elements) — elements may be replaced on update
 - Hreflang links tracked separately from meta tags — different cleanup lifecycle
