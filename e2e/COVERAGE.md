@@ -224,6 +224,9 @@ Tests: `deep-fonts.test.ts`, `deep-image.test.ts`, `static-image.test.ts`, `lazy
 - [x] Image loader srcset + static blur / `placeholder=none`
 - [x] `lazy()` island
 - [x] `class=` Tailwind compile
+- [x] static `class` conflict merge (`styling-cn-static`: `p-2 p-8` → `p-8`, `p-2 md:p-8` kept)
+- [x] dynamic `cn` (`styling-cn-dynamic`: toggle `p-2` → `p-8`)
+- [x] prod bundle contains the `cn` tables when a dynamic class list exists (`deep-styling-cn` `@prod-only`)
 - [x] sx variants / dynamic class
 - [x] `tw=` — dropped; covered via `class=` Tailwind (`styling-tw-static`, `styling-tw-native`)
 - [x] `css=` / `sx` native computed styles

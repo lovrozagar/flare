@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { mergeClassList } from "../../../src/styles/cn.ts";
 import { clearScopedStyles, cn } from "../../../src/styles/index.ts";
 
 afterEach(() => {
@@ -69,18 +70,50 @@ describe("cn — nested arrays", () => {
 	});
 });
 
-describe("cn — deduplication", () => {
-	it("duplicate class names → deduplicated", () => {
-		expect(cn("a", "a")).toBe("a");
+describe("cn — external tokens are not deduped", () => {
+	it("duplicate non-tailwind names stay", () => {
+		expect(cn("foo", "foo")).toBe("foo foo");
 	});
 
-	it("same class in nested array → dedup", () => {
-		expect(cn("a", ["a", "b"])).toBe("a b");
+	it("same external class in a nested array stays", () => {
+		expect(cn("a", ["a", "b"])).toBe("a a b");
 	});
 
-	it("order: first occurrence wins in output", () => {
-		const result = cn("a", "b", "a");
-		expect(result).toBe("a b");
+	it("later duplicate external class is kept", () => {
+		expect(cn("a", "b", "a")).toBe("a b a");
+	});
+});
+
+describe("cn — tailwind conflict merge", () => {
+	it("later padding-x wins", () => {
+		expect(cn("px-2", "px-4")).toBe("px-4");
+	});
+
+	it("later padding wins", () => {
+		expect(cn("p-2", "p-8")).toBe("p-8");
+	});
+
+	it("same utility collapses to one token", () => {
+		expect(cn("flex", "flex")).toBe("flex");
+	});
+
+	it("keeps non-conflicting variants in source order", () => {
+		expect(cn("p-2", "md:p-8")).toBe("p-2 md:p-8");
+	});
+
+	it("keeps hashed atomics and drops the conflicting utility", () => {
+		expect(cn("px-2", "a1-deadbeef", "px-4")).toBe("a1-deadbeef px-4");
+		expect(cn("px-2", "sx-box", "px-4")).toBe("sx-box px-4");
+		expect(cn("px-2", "flare-rt-abc", "px-4")).toBe("flare-rt-abc px-4");
+	});
+
+	it("keeps group and peer markers", () => {
+		expect(cn("group", "px-2", "peer/name", "px-4")).toBe("group peer/name px-4");
+	});
+
+	it("mergeClassList matches cn on one string", () => {
+		expect(mergeClassList("px-2 px-4")).toBe("px-4");
+		expect(mergeClassList("px-2 a1-deadbeef px-4")).toBe("a1-deadbeef px-4");
 	});
 });
 
