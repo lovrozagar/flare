@@ -46,6 +46,10 @@ registerCSSByName(name: string, css: string): void
 /* SSR */
 getScopedStyles(): string
 clearScopedStyles(): void
+
+/* Class names. cn is public. mergeClassList stays on styles/cn.ts for the plugin. */
+cn(...inputs: CnValue[]): string
+mergeClassList(input: string): string
 ```
 
 ## Behavior
@@ -191,6 +195,16 @@ Internal `Map<string, string>` of `name → scoped CSS rule`.
 
 `clearScopedStyles()` resets registry. Called before each SSR render.
 
+### `cn` and `mergeClassList`
+
+`cn` joins clsx-shaped values (strings, arrays, object maps, falsy skips) and resolves Tailwind conflicts. The last utility in a conflict group wins: `cn("px-2", "px-4")` is `"px-4"`, `cn("p-2", "p-8")` is `"p-8"`, `cn("flex", "flex")` is `"flex"`. Utilities that do not conflict stay, in source order: `cn("p-2", "md:p-8")` is `"p-2 md:p-8"`.
+
+Non-Tailwind tokens are not deduped: `cn("foo", "foo")` is `"foo foo"`. Hashed atomics (`a1-…`, `sx-…`, `flare-rt-…`) and `group` / `peer` markers pass through.
+
+`mergeClassList` is the same merge on one space-separated string. The sx plugin runs it on a fully static `class` value before Tailwind emit, so `class="px-2 px-4"` and `cn("px-2", "px-4")` both become `"px-4"`. A mixed list (`class={["px-2", on() && "px-4"]}`, `class={expr}`) stays a runtime `cn(...)` call. That call, and the compiled tables behind it, ship only when a dynamic class list exists. A client bundle that only uses static `class` strings does not include them.
+
+`CnValue` is `string | false | null | undefined | Record<string, boolean> | CnValue[]`. `twMerge`, `clsx`, and `createEngine` are not public exports.
+
 ### outerCss Hashing
 
 When `outerCss` provided, effective name becomes `${name}-${hash(outerCss)}`. This ensures unique scoping per outer CSS variant — same component with different parent overrides gets distinct rules.
@@ -234,6 +248,14 @@ registerCSS:
   Returns hash string
   Same CSS → same hash (deduped)
   Different CSS → different hash
+
+cn / mergeClassList:
+  cn("px-2", "px-4") → "px-4"
+  cn("p-2", "md:p-8") → "p-2 md:p-8"
+  cn("foo", "foo") → "foo foo"
+  hashed atomics and group/peer markers kept
+  static class="px-2 px-4" compiles to px-4
+  runtime cn ships only when a dynamic class list exists
 
 SSR:
   getScopedStyles → all registered rules joined

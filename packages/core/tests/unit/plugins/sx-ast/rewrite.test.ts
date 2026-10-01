@@ -91,14 +91,13 @@ describe("rewriteModule — class= static resolution", () => {
 		expect(result.code).toContain('class="a b"');
 	});
 
-	it("array with conditional → template literal with guard", () => {
+	it("array with conditional → cn() call", () => {
 		const src = `export default function A({ on }: { on: boolean }) { return <div class={["a", on && "b"]} /> }`;
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		/* Produces something like: class={`a${on ? " b" : ""}`} */
-		expect(result.code).toMatch(/class=\{`a/);
-		expect(result.code).toContain("on ?");
+		expect(result.code).toContain('cn("a", on && "b")');
+		expect(result.code).not.toMatch(/class=\{`/);
 	});
 
 	it("array with null literal → null skipped, no 'null' string in output", () => {
@@ -153,6 +152,45 @@ describe("rewriteModule — class= static resolution", () => {
 		expect(result).not.toBeNull();
 		if (!result) return;
 		expect(result.code).toContain("cn(v)");
+	});
+
+	it("fully static cn() folds to the merged literal and drops the call", () => {
+		const src = `import { cn } from "@lovrozagar/flare/styles"; export default function A() { return <div class={cn("px-2", "px-4")} /> }`;
+		const result = transform(src);
+		expect(result).not.toBeNull();
+		if (!result) return;
+		expect(result.code).toMatch(/class="px-4"|class=\{"px-4"\}/);
+		expect(result.code).not.toMatch(/\bcn\s*\(/);
+		expect(result.code).not.toContain("import { cn }");
+	});
+
+	it("mixed cn() keeps the call and the styles import", () => {
+		const src = `import { cn } from "@lovrozagar/flare/styles"; export default function A({ on }: { on: boolean }) { return <div class={cn("px-2", on && "px-4")} /> }`;
+		const result = transform(src);
+		const code = result?.code ?? src;
+		expect(code).toContain("cn(");
+		expect(code).toContain("@lovrozagar/flare/styles");
+		expect(code).toContain("px-2");
+		expect(code).toContain("px-4");
+	});
+
+	it("mixed array emits cn() instead of a template join", () => {
+		const src = `export default function A({ on }: { on: () => boolean }) { return <div class={["px-2", on() && "px-4"]} /> }`;
+		const result = transform(src);
+		expect(result).not.toBeNull();
+		if (!result) return;
+		expect(result.code).toContain('cn("px-2", on() && "px-4")');
+		expect(result.code).not.toMatch(/class=\{`/);
+		expect(result.code).toContain("@lovrozagar/flare/styles");
+	});
+
+	it('class="foo" css="color:red" still joins through cn with no tailwind conflict', () => {
+		const src = `export default function A() { return <div class="foo" css="color:red" /> }`;
+		const result = transform(src);
+		expect(result).not.toBeNull();
+		if (!result) return;
+		expect(result.code).toContain('cn("foo", compileCss(');
+		expect(result.code).not.toContain("px-");
 	});
 });
 
@@ -331,32 +369,22 @@ export default function A() { return <div css="color: red" /> }`;
 });
 
 describe("rewriteModule — class array with || LogicalExpression (non-&& operator)", () => {
-	it("array with || logical expression → falls to generic expr branch", () => {
-		/*
-		 * resolveClassArray: the LogicalExpression branch only fires for operator === "&&".
-		 * An `||` expression takes the generic `else` branch (lines 121-125).
-		 */
+	it("array with || logical expression → cn() argument", () => {
 		const src = `export default function A({ a, b }: { a: string; b: string }) { return <div class={[a || b]} /> }`;
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		/* Generic template interpolation: ${a || b} */
-		expect(result.code).toContain("${a || b}");
+		expect(result.code).toContain("cn(a || b)");
 	});
 });
 
 describe("rewriteModule — class array with && non-string right side (lines 116-118)", () => {
-	it("array with cond && expr (non-string right) → nested template ternary", () => {
-		/*
-		 * LogicalExpression with && but rightEl is not a string literal →
-		 * the `else` branch at line 116-118 in resolveClassArray.
-		 */
+	it("array with cond && expr (non-string right) → cn() argument", () => {
 		const src = `export default function A({ on, cls }: { on: boolean; cls: string }) { return <div class={[on && cls]} /> }`;
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		/* Produces: ${on ? ` ${cls}` : ""} or ${on ? `${cls}` : ""} */
-		expect(result.code).toMatch(/\$\{on \? `/);
+		expect(result.code).toContain("cn(on && cls)");
 	});
 });
 
@@ -439,31 +467,20 @@ describe("rewriteModule — resolveClassAttr fallback (line 186)", () => {
 });
 
 describe("rewriteModule — resolveClassArray first=true ternary arms (lines 113, 122)", () => {
-	it("single [on && 'active'] element → sep='' (first=true, string-literal right branch, line 113)", () => {
-		/*
-		 * resolveClassArray: only element is LogicalExpression(&&) with string-literal right.
-		 * first=true → sep="" → exercises line 113 true arm (empty-string sep).
-		 */
+	it("single [on && 'active'] element → cn() of that expression", () => {
 		const src = `export default function A({ on }: { on: boolean }) { return <div class={[on && "active"]} /> }`;
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		/* No space prefix in the ternary expression */
-		expect(result.code).toMatch(/\$\{on \? "active" : ""\}/);
+		expect(result.code).toContain('cn(on && "active")');
 	});
 
-	it("single [a || b] element → sep='' (first=true, generic else branch, line 122)", () => {
-		/*
-		 * resolveClassArray: only element is LogicalExpression(||) — not &&, falls to generic else.
-		 * first=true → sep="" at line 122 true arm (no leading space interpolation).
-		 */
+	it("single [a || b] element → cn() of that expression", () => {
 		const src = `export default function A({ a, b }: { a: string; b: string }) { return <div class={[a || b]} /> }`;
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		/* sep="" → no leading space before ${a || b} */
-		expect(result.code).toContain("${a || b}");
-		expect(result.code).not.toMatch(/` \$\{a \|\| b\}/);
+		expect(result.code).toContain("cn(a || b)");
 	});
 });
 
@@ -494,8 +511,7 @@ describe("rewriteModule — resolveClassArray null-hole elements (allStaticStrin
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		expect(result.code).toContain("b");
-		expect(result.code).toContain("${a}");
+		expect(result.code).toContain('cn(a, "b")');
 	});
 });
 
@@ -510,7 +526,7 @@ describe("rewriteModule — resolveClassArray string-after-non-string (first=fal
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		expect(result.code).toContain(" extra");
+		expect(result.code).toContain('cn(on && "x", "extra")');
 	});
 
 	it("[on && cls, on && otherCls] → second &&+non-string-right after first (line 116 false arm: sep=' ')", () => {
@@ -523,9 +539,7 @@ describe("rewriteModule — resolveClassArray string-after-non-string (first=fal
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		/* Both items interpolated, second has leading space */
-		expect(result.code).toContain("${on ?");
-		expect(result.code).toContain("other");
+		expect(result.code).toContain("cn(on && cls, on && other)");
 	});
 
 	it("[on && 'x', a || b] → generic expr after first (line 122 false arm: sep=' ')", () => {
@@ -538,8 +552,7 @@ describe("rewriteModule — resolveClassArray string-after-non-string (first=fal
 		const result = transform(src);
 		expect(result).not.toBeNull();
 		if (!result) return;
-		/* Generic expr gets leading space interpolation */
-		expect(result.code).toContain("${a || b}");
+		expect(result.code).toContain('cn(on && "x", a || b)');
 	});
 });
 

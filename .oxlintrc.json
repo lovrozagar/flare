@@ -19,7 +19,8 @@
 		"**/*.gen.ts",
 		"**/*.gen.d.ts",
 		"**/target/**",
-		"e2e/apps/tauri/src-tauri/**"
+		"e2e/apps/tauri/src-tauri/**",
+		"packages/core/src/styles/cn-vendor/**"
 	],
 	"categories": {
 		"correctness": "error",

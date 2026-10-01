@@ -17,7 +17,11 @@ const FAKE_UTILITIES: Record<string, string> = {
 	"hover:bg-red-500": "&:hover { background-color: rgb(239, 68, 68) }",
 	"items-center": "align-items: center",
 	"md:p-8": "@media (min-width: 768px) { padding: 2rem }",
+	"p-2": "padding: 0.5rem",
 	"p-4": "padding: 1rem",
+	"p-8": "padding: 2rem",
+	"px-2": "padding-left: 0.5rem; padding-right: 0.5rem",
+	"px-4": "padding-left: 1rem; padding-right: 1rem",
 };
 
 /* MARKER_TOKEN_RE: group | peer with optional /name suffix */
@@ -198,7 +202,85 @@ describe("class= Tailwind compile — array expression", () => {
 	});
 });
 
+describe("class= Tailwind compile — static conflict merge", () => {
+	it('class="px-2 px-4" rewrites to px-4 and does not emit a px-2 rule', () => {
+		const { result, rules } = transformWithRules(`export default function A() { return <div class="px-2 px-4" /> }`);
+		expect(result).not.toBeNull();
+		if (!result) return;
+		expect(result.code).toMatch(/class="px-4"|class=\{"px-4"\}/);
+		expect(result.code).not.toContain("px-2");
+		expect(rules.some((r) => r.includes("px-4"))).toBe(true);
+		expect(rules.some((r) => r.includes("px-2"))).toBe(false);
+	});
+
+	it('class={["p-2", "p-8"]} rewrites to p-8', () => {
+		const { result, rules } = transformWithRules(
+			`export default function A() { return <div class={["p-2", "p-8"]} /> }`,
+		);
+		expect(result).not.toBeNull();
+		if (!result) return;
+		expect(result.code).toContain("p-8");
+		expect(result.code).not.toContain("p-2");
+		expect(rules.some((r) => r.includes("p-8"))).toBe(true);
+		expect(rules.some((r) => r.includes("p-2"))).toBe(false);
+	});
+
+	it('class="p-2 md:p-8" keeps both tokens', () => {
+		const src = `export default function A() { return <div class="p-2 md:p-8" /> }`;
+		const { result, rules } = transformWithRules(src);
+		const code = result?.code ?? src;
+		expect(code).toContain("p-2");
+		expect(code).toContain("md:p-8");
+		expect(rules.some((r) => r.includes("p-2"))).toBe(true);
+		expect(rules.some((r) => r.includes("p-8") && r.includes("@media"))).toBe(true);
+	});
+
+	it('class="flex gap-4 p-8" is unchanged when nothing conflicts', () => {
+		const src = `export default function A() { return <div class="flex gap-4 p-8" /> }`;
+		const { result, rules } = transformWithRules(src);
+		if (result !== null) {
+			expect(result.code).toContain('class="flex gap-4 p-8"');
+		}
+		expect(rules.some((r) => r.includes("flex"))).toBe(true);
+		expect(rules.some((r) => r.includes("p-8"))).toBe(true);
+		expect(rules.some((r) => r.includes("gap-4"))).toBe(false);
+	});
+});
+
 describe("class= Tailwind compile — cn() call", () => {
+	it('class={cn("px-2", "px-4")} folds to px-4 and does not emit px-2', () => {
+		const { result, rules } = transformWithRules(
+			`import { cn } from "@lovrozagar/flare/styles"; export default function A() { return <div class={cn("px-2", "px-4")} /> }`,
+		);
+		expect(result).not.toBeNull();
+		if (!result) return;
+		expect(result.code).toMatch(/class="px-4"|class=\{"px-4"\}/);
+		expect(result.code).not.toMatch(/\bcn\s*\(/);
+		expect(rules.some((r) => r.includes("px-4"))).toBe(true);
+		expect(rules.some((r) => r.includes("px-2"))).toBe(false);
+	});
+
+	it('class={cn("px-2", on && "px-4")} keeps cn() and compiles both sides', () => {
+		const { result, rules } = transformWithRules(
+			`import { cn } from "@lovrozagar/flare/styles"; export default function A({ on }: { on: boolean }) { return <div class={cn("px-2", on && "px-4")} /> }`,
+		);
+		const code = result?.code ?? "";
+		expect(code).toContain("cn(");
+		expect(code).toContain("@lovrozagar/flare/styles");
+		expect(rules.some((r) => r.includes("px-2"))).toBe(true);
+		expect(rules.some((r) => r.includes("px-4"))).toBe(true);
+	});
+
+	it('class={["px-2", on() && "px-4"]} emits cn() rather than a template', () => {
+		const { result } = transformWithRules(
+			`export default function A({ on }: { on: () => boolean }) { return <div class={["px-2", on() && "px-4"]} /> }`,
+		);
+		expect(result).not.toBeNull();
+		if (!result) return;
+		expect(result.code).toContain('cn("px-2", on() && "px-4")');
+		expect(result.code).not.toMatch(/class=\{`/);
+	});
+
 	it('class={cn("flex", on && "bg-red-500")} → cn preserved, both string literals scanned', () => {
 		const { result, rules } = transformWithRules(
 			`import { cn } from "@lovrozagar/flare/styles"; export default function A({ on }: { on: boolean }) { return <div class={cn("flex", on && "bg-red-500")} /> }`,

@@ -1,5 +1,6 @@
 import MagicString from "magic-string";
 import type { Expression, JSXAttribute, JSXOpeningElement, Node, ObjectExpression, Program } from "oxc-parser";
+import { mergeClassList } from "../../styles/cn.ts";
 import { parseSource } from "./parser.ts";
 import { evaluateSxObject } from "./evaluator.ts";
 import { emitAtomic } from "./atomic.ts";
@@ -82,7 +83,13 @@ function isDOMElement(tag: string): boolean {
 	return tag.length > 0 && tag[0] !== "" && tag[0] === tag[0].toLowerCase();
 }
 
-function isCnCall(expr: Expression): boolean {
+function isCnCall(expr: unknown): expr is {
+	type: "CallExpression";
+	callee: { type: "Identifier"; name: string };
+	arguments: Expression[];
+	start: number;
+	end: number;
+} {
 	if (!isCallExpression(expr)) return false;
 	return expr.callee.type === "Identifier" && expr.callee.name === "cn";
 }
@@ -236,67 +243,91 @@ function buildTwRule(token: string, body: string): string {
 	return `.${escaped} { ${body} }`;
 }
 
-function allStaticStrings(elements: Array<Expression | null>): string[] | null {
-	const result: string[] = [];
-	for (const el of elements) {
-		if (el === null) continue;
-		if (!isStringLiteral(el)) return null;
-		result.push(el.value);
-	}
-	return result;
+function isIgnorableClassNode(el: unknown): boolean {
+	if (isIdentifier(el) && el.name === "undefined") return true;
+	if (typeof el !== "object" || el === null) return false;
+	const node = el as { type?: string; value?: unknown };
+	return node.type === "Literal" && (node.value === null || node.value === false);
 }
 
 /*
- * Resolve a mixed-type class array to either a literal string or a template expr string.
- * LogicalExpression `cond && "str"` → ternary guard in template.
+ * Fully static cn() arguments become one class string (before conflict merge).
+ * Any dynamic argument returns null so the call stays at runtime.
+ */
+function staticCnParts(args: readonly unknown[]): string[] | null {
+	const parts: string[] = [];
+	for (const arg of args) {
+		if (arg === null) continue;
+		if (isStringLiteral(arg)) {
+			if (arg.value) parts.push(arg.value);
+			continue;
+		}
+		if (isIgnorableClassNode(arg)) continue;
+		if (isArrayExpression(arg)) {
+			const inner = staticCnParts(arg.elements);
+			if (inner === null) return null;
+			parts.push(...inner);
+			continue;
+		}
+		if (isCnCall(arg)) {
+			const inner = staticCnParts(arg.arguments);
+			if (inner === null) return null;
+			parts.push(...inner);
+			continue;
+		}
+		return null;
+	}
+	return parts;
+}
+
+/*
+ * Static arrays become a literal. Mixed arrays become a cn() call so runtime
+ * merge sees every token, including ones hidden behind a conditional.
  */
 function resolveClassArray(
 	source: string,
 	elements: Array<Expression | null>,
-): { kind: "literal"; value: string } | { kind: "template"; expr: string } {
-	const allStatic = allStaticStrings(elements);
-	if (allStatic !== null) {
-		return { kind: "literal", value: allStatic.filter(Boolean).join(" ") };
-	}
-
-	const parts: string[] = [];
-	let first = true;
+): { kind: "literal"; value: string } | { kind: "cn"; expr: string } {
+	const args: string[] = [];
+	let dynamic = false;
 	for (const el of elements) {
-		if (el === null) continue;
+		if (el === null || isIgnorableClassNode(el)) continue;
 		if (isStringLiteral(el)) {
-			parts.push(first ? el.value : ` ${el.value}`);
-			first = false;
-		} else if (
-			typeof el === "object" &&
-			el !== null &&
-			(el as { type: string }).type === "LogicalExpression" &&
-			(el as { operator?: string }).operator === "&&"
-		) {
-			const logic = el as { left: Expression; right: Expression };
-			const leftSrc = srcOf(source, logic.left as { start: number; end: number });
-			const rightEl = logic.right;
-			if (isStringLiteral(rightEl)) {
-				const sep = first ? "" : " ";
-				parts.push(`\${${leftSrc} ? "${sep}${rightEl.value}" : ""}`);
-			} else {
-				const sep = first ? "" : " ";
-				const rightSrc = srcOf(source, rightEl as { start: number; end: number });
-				parts.push(`\${${leftSrc} ? \`${sep}\${${rightSrc}}\` : ""}`);
-			}
-			first = false;
-		} else {
-			/* Skip null/false literals and the `undefined` identifier — they contribute nothing. */
-			const isNullLit = (el as { type: string }).type === "Literal" && (el as { value: unknown }).value === null;
-			const isFalseLit = (el as { type: string }).type === "Literal" && (el as { value: unknown }).value === false;
-			const isUndefined = isIdentifier(el) && el.name === "undefined";
-			if (isNullLit || isFalseLit || isUndefined) continue;
-			const sep = first ? "" : " ";
-			parts.push(`${sep}\${${srcOf(source, el as { start: number; end: number })}}`);
-			first = false;
+			if (el.value) args.push(JSON.stringify(el.value));
+			continue;
 		}
+		dynamic = true;
+		args.push(srcOf(source, el as { start: number; end: number }));
 	}
+	if (!dynamic) {
+		return { kind: "literal", value: args.map((part) => JSON.parse(part) as string).join(" ") };
+	}
+	return { expr: `cn(${args.join(", ")})`, kind: "cn" };
+}
 
-	return { expr: parts.join(""), kind: "template" };
+function dropUnusedCnImport(code: string): string {
+	const withoutImports = code.replace(/import\s*\{[^}]*\}\s*from\s*["'][^"']+["']\s*;?/g, "");
+	if (/\bcn\b/.test(withoutImports)) return code;
+	return code.replace(
+		/import\s*\{([^}]*)\}\s*from\s*(["'](?:@lovrozagar\/flare\/styles|flare\/styles)["'])\s*;?/g,
+		(full, specifiers: string, from: string) => {
+			const parts = specifiers
+				.split(",")
+				.map((part) => part.trim())
+				.filter(Boolean);
+			const kept = parts.filter(
+				(part) =>
+					(part
+						.split(/\s+as\s+/)
+						.pop()
+						?.trim() ?? part) !== "cn",
+			);
+			if (kept.length === parts.length) return full;
+			if (kept.length === 0) return "";
+			const semicolon = full.trimEnd().endsWith(";") ? ";" : "";
+			return `import { ${kept.join(", ")} } from ${from}${semicolon}`;
+		},
+	);
 }
 
 function findAttr(opening: JSXOpeningElement, name: string): JSXAttribute | null {
@@ -327,7 +358,9 @@ function hasSpread(opening: JSXOpeningElement): { identName: string } | null {
 function resolveClassAttr(
 	source: string,
 	classAttr: JSXAttribute,
-): { kind: "literal"; value: string } | { kind: "expr"; expr: string; wasArray: boolean; wasDynamic: boolean } {
+):
+	| { kind: "literal"; value: string; rewrite?: boolean }
+	| { kind: "expr"; expr: string; wasArray: boolean; wasDynamic: boolean } {
 	const cv = classAttr.value;
 	if (cv === null) return { kind: "literal", value: "" };
 
@@ -339,15 +372,18 @@ function resolveClassAttr(
 		if (isArrayExpression(expr)) {
 			const resolved = resolveClassArray(source, expr.elements);
 			if (resolved.kind === "literal") return { kind: "literal", value: resolved.value };
-			return { expr: `\`${resolved.expr}\``, kind: "expr", wasArray: true, wasDynamic: false };
+			return { expr: resolved.expr, kind: "expr", wasArray: true, wasDynamic: true };
 		}
 		if (isCnCall(expr)) {
-			/* Explicit cn() — preserve as-is */
+			const parts = staticCnParts(expr.arguments);
+			if (parts !== null) {
+				return { kind: "literal", rewrite: true, value: parts.join(" ") };
+			}
 			return {
 				expr: srcOf(source, expr as { start: number; end: number }),
 				kind: "expr",
 				wasArray: false,
-				wasDynamic: false,
+				wasDynamic: true,
 			};
 		}
 		/* Dynamic expression → wrap in cn() */
@@ -379,6 +415,7 @@ export function rewriteModule(source: string, ctx: RewriteCtx): RewriteResult | 
 	const insertsBefore: Array<{ pos: number; text: string }> = [];
 
 	const neededImports = new Set<FlareImport>();
+	let foldedStaticCn = false;
 	const emittedClasses = new Set<string>();
 	let changed = false;
 
@@ -451,26 +488,19 @@ export function rewriteModule(source: string, ctx: RewriteCtx): RewriteResult | 
 		if (classAttr) {
 			const resolved = resolveClassAttr(source, classAttr);
 			if (resolved.kind === "literal") {
-				classLiteral = resolved.value;
+				const merged = mergeClassList(resolved.value);
+				classLiteral = merged;
+				if (resolved.rewrite || merged !== resolved.value) classNeedsRewrite = true;
+				if (resolved.rewrite) foldedStaticCn = true;
+				compileTwFromString(merged, ctx);
 			} else {
 				classExpr = resolved.expr;
 				classWasArray = resolved.wasArray;
 				classWasDynamic = resolved.wasDynamic;
 				if (classWasDynamic) neededImports.add("cn");
-			}
-
-			/* Compile Tailwind utilities found in class= string literals */
-			const cv = classAttr.value;
-			if (cv === null) {
-				/* boolean attr — nothing to compile */
-			} else if (isStringLiteral(cv)) {
-				compileTwFromString(cv.value, ctx);
-			} else if (isJSXExpressionContainer(cv)) {
-				const expr = cv.expression;
-				if (isStringLiteral(expr)) {
-					compileTwFromString(expr.value, ctx);
-				} else {
-					compileTwFromExpr(expr, ctx);
+				const cv = classAttr.value;
+				if (cv !== null && isJSXExpressionContainer(cv)) {
+					compileTwFromExpr(cv.expression, ctx);
 				}
 			}
 		}
@@ -601,7 +631,12 @@ export function rewriteModule(source: string, ctx: RewriteCtx): RewriteResult | 
 					return isArrayExpression((cv as { expression: unknown }).expression);
 				})()
 			: false;
-		if (classAttr && (classAttrWasArray || classWasArray || classWasDynamic || classNeedsRewrite)) {
+		const cssRewritesClass = cssAttr !== null && cssAttr.value !== null;
+		if (
+			classAttr &&
+			!cssRewritesClass &&
+			(classAttrWasArray || classWasArray || classWasDynamic || classNeedsRewrite)
+		) {
 			emitClassAttr(classAttr, classAttr.start, classLiteral, classExpr);
 		} else if (!classAttr && spread && dom) {
 			/* Spread on DOM with no class attr — don't inject anything */
@@ -672,8 +707,9 @@ export function rewriteModule(source: string, ctx: RewriteCtx): RewriteResult | 
 		} else if (classAttr) {
 			const existing = resolveClassAttr(source, classAttr);
 			if (existing.kind === "literal") {
-				if (existing.value) {
-					replace(classAttr.start, classAttr.end, `class={cn("${existing.value}", ${compileCssCall})}`);
+				const merged = mergeClassList(existing.value);
+				if (merged) {
+					replace(classAttr.start, classAttr.end, `class={cn("${merged}", ${compileCssCall})}`);
 					neededImports.add("cn");
 				} else {
 					replace(classAttr.start, classAttr.end, `class={${compileCssCall}}`);
@@ -759,5 +795,6 @@ export function rewriteModule(source: string, ctx: RewriteCtx): RewriteResult | 
 		}
 	}
 
-	return { code: ms.toString(), emittedClasses, map: null };
+	const code = foldedStaticCn ? dropUnusedCnImport(ms.toString()) : ms.toString();
+	return { code, emittedClasses, map: null };
 }

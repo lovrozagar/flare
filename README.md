@@ -744,6 +744,8 @@ import { styles, cn } from "@lovrozagar/flare/styles";
 <div class={cn("base", on() && "active")} />
 ```
 
+`cn` merges Tailwind conflicts: the last utility in a group wins. A static `class="px-2 px-4"` compiles to `px-4`. Runtime `cn` is tree-shaken unless a dynamic class list exists.
+
 `tw=` on `styles()` or as a JSX attribute is **dropped**. Put utilities in `class=`. `css=` compiles through the same plugin (not a `data-c` hash).
 
 ## Fonts and images

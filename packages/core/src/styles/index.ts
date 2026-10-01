@@ -1173,42 +1173,7 @@ export function compileCss(text: string, layer: "user.lib" | "user.app" = "user.
 	return cls;
 }
 
-/** Accepted input shapes for `cn()`. Superset of the JSX `ClassValue` — adds object maps. */
-export type CnValue = string | false | null | undefined | Record<string, boolean> | CnValue[];
-
-function collectClasses(input: CnValue, seen: Set<string>, out: string[]): void {
-	if (!input) return;
-	if (typeof input === "string") {
-		/* Split on whitespace — each token deduped individually */
-		for (const token of input.trim().split(/\s+/)) {
-			if (token && !seen.has(token)) {
-				seen.add(token);
-				out.push(token);
-			}
-		}
-		return;
-	}
-	if (Array.isArray(input)) {
-		for (const item of input) collectClasses(item as CnValue, seen, out);
-		return;
-	}
-	if (typeof input === "object") {
-		for (const [key, active] of Object.entries(input)) {
-			if (active && !seen.has(key)) {
-				seen.add(key);
-				out.push(key);
-			}
-		}
-	}
-}
-
-/** Merge class names, filter falsy, deduplicate. Matches clsx API. */
-export function cn(...inputs: CnValue[]): string {
-	const seen = new Set<string>();
-	const out: string[] = [];
-	for (const input of inputs) collectClasses(input, seen, out);
-	return out.join(" ");
-}
+export { cn, type CnValue } from "./cn.ts";
 
 export function clearScopedStyles(): void {
 	registry.clear();
