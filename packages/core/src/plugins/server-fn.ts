@@ -605,7 +605,7 @@ export function createServerFnPlugin(_config?: { ignorePrefix?: string }): ViteP
 				if (hasServerFnCalls(transformed)) {
 					transformed = replaceServerFnConfigs(transformed, (content) => {
 						const fnId = computeFnId(id, content);
-						return ` __id: "${fnId}",${content}`;
+						return ` __client: true, __id: "${fnId}",${content}`;
 					});
 				}
 

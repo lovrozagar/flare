@@ -4,9 +4,7 @@
  * to avoid pulling in node:async_hooks on the client.
  */
 
-import { serverFnGetUrl } from "./server-fn/get-input.ts";
-import { throwServerFnHttpError } from "./server-fn/http-error.ts";
-import { serverFnPath } from "./protocol.ts";
+import { callServerFnOverHttp } from "./server-fn/rpc.ts";
 
 export interface PiggybackedQuery {
 	data: unknown;
@@ -52,28 +50,7 @@ export function serverFnQueryOptions<TInput, TOutput>(
 				return serverFn(config?.input as TInput);
 			}
 
-			const url = serverFnPath(id, name);
-			const method = reg?.method ?? "post";
-
-			const res =
-				method === "get"
-					? await fetch(serverFnGetUrl(url, config?.input))
-					: await fetch(url, {
-							body: config?.input !== undefined ? JSON.stringify(config.input) : undefined,
-							headers: { "content-type": "application/json" },
-							method: "POST",
-						});
-
-			if (!res.ok) {
-				const body: unknown = await res.json().catch(() => null);
-				throwServerFnHttpError(body, res.status, name);
-			}
-
-			const json = (await res.json()) as {
-				data: TOutput;
-				queries?: Array<{ data: unknown; key: unknown[] }>;
-				revalidatedTags?: string[];
-			};
+			const json = await callServerFnOverHttp<TOutput>({ id, method: reg?.method ?? "post", name }, config?.input);
 
 			if (json.queries && config?.queryClient) {
 				for (const q of json.queries) {
@@ -117,23 +94,8 @@ export function serverFnMutationOptions<TInput, TOutput>(
 				return serverFn(input);
 			}
 
-			const url = serverFnPath(id, name);
-			const res = await fetch(url, {
-				body: input !== undefined ? JSON.stringify(input) : undefined,
-				headers: { "content-type": "application/json" },
-				method: "POST",
-			});
-
-			if (!res.ok) {
-				const body: unknown = await res.json().catch(() => null);
-				throwServerFnHttpError(body, res.status, name);
-			}
-
-			const json = (await res.json()) as {
-				data: TOutput;
-				queries?: Array<{ data: unknown; key: unknown[] }>;
-				revalidatedTags?: string[];
-			};
+			/* mutations always POST, whatever the fn's own method */
+			const json = await callServerFnOverHttp<TOutput>({ id, method: "post", name }, input);
 
 			if (json.queries && config?.queryClient) {
 				for (const q of json.queries) {
