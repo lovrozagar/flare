@@ -640,7 +640,6 @@ interface EngineResult {
 
 async function handleSitemapSubmitRequest<TEnv>(
 	request: Request,
-	url: URL,
 	env: TEnv,
 	sitemapConfig: SitemapSubmitConfig<TEnv>,
 ): Promise<Response> {
@@ -1154,7 +1153,7 @@ export function createServerHandler<
 
 						if (url.pathname === "/_flare/sitemap/submit" && config.sitemap) {
 							/* Internal endpoints bypass middleware response handlers — only security headers */
-							let sitemapResponse = await handleSitemapSubmitRequest(request, url, env, config.sitemap);
+							let sitemapResponse = await handleSitemapSubmitRequest(request, env, config.sitemap);
 							sitemapResponse = addSecurityHeaders(sitemapResponse, secHeaders);
 							return sitemapResponse;
 						}
@@ -1288,7 +1287,7 @@ export function createServerHandler<
 						   client hashes into the new artifacts. */
 						if (
 							staticMeta &&
-							match.route.o.authenticate !== true &&
+							!match.route.o.authenticate &&
 							match.route.o.authorize !== true &&
 							resolvedStore &&
 							!isISRBgRequest &&
@@ -1622,7 +1621,7 @@ export function createServerHandler<
 						 */
 						if (
 							staticMeta?.mode === "isr" &&
-							match.route.o.authenticate !== true &&
+							!match.route.o.authenticate &&
 							match.route.o.authorize !== true &&
 							resolvedStore &&
 							!isDataRequest &&

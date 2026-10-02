@@ -8,6 +8,24 @@ export type { FlareStore, FlareStoreEntry, StaticEntryData };
 
 export type AuthenticateMode = false | "optional" | true;
 
+/** `.authenticate("optional", ...callerData)` is optional; any other argument list is callerData for a required gate. */
+export type AuthenticateModeFromArgs<TArgs extends readonly unknown[]> = TArgs extends readonly [
+	"optional",
+	...unknown[],
+]
+	? "optional"
+	: true;
+
+/** Runtime half of `AuthenticateModeFromArgs`: splits the mode from the callerData forwarded to `authenticateFn`. */
+export function resolveAuthenticateArgs(args: readonly unknown[]): {
+	authenticate: unknown[];
+	authenticateMode: "optional" | true;
+} {
+	return args[0] === "optional"
+		? { authenticate: args.slice(1), authenticateMode: "optional" }
+		: { authenticate: [...args], authenticateMode: true };
+}
+
 /**
  * Symbol marker for route builder chain methods that look like render fns
  * but return builder objects. Used to filter them out in SSR/hydration/navigation

@@ -153,7 +153,7 @@ const ENTRY_EXTENSIONS = [".tsx", ".ts"];
 
 function resolveEntry(root: string, base: string, override?: string): string {
 	if (override) {
-		if (!existsSync(join(root, override))) {
+		if (!existsSync(resolve(root, override))) {
 			throw new Error(`Flare: entry.${base} path "${override}" not found`);
 		}
 		return override;
@@ -189,7 +189,11 @@ function createResolverPlugin(): VitePlugin {
 
 /* ── Generate ────────────────────────────────────────────────────────── */
 
-function createGeneratePlugin(config: FlarePluginConfig, codegen: ReturnType<typeof resolveCodegenConfig>): VitePlugin {
+function createGeneratePlugin(
+	config: FlarePluginConfig,
+	codegen: ReturnType<typeof resolveCodegenConfig>,
+	serverEntry: string,
+): VitePlugin {
 	const ignorePrefix = config.ignorePrefix ?? "_";
 
 	const generateOpts = {
@@ -197,6 +201,7 @@ function createGeneratePlugin(config: FlarePluginConfig, codegen: ReturnType<typ
 		ignorePrefix,
 		outputPath: codegen.routesFilePath,
 		rootDir: "",
+		serverEntry,
 		typesOutputPath: codegen.typesFilePath,
 	};
 
@@ -235,12 +240,7 @@ function createGeneratePlugin(config: FlarePluginConfig, codegen: ReturnType<typ
 
 /* ── SSR Build ───────────────────────────────────────────────────────── */
 
-function createSsrBuildPlugin(
-	entries: ResolvedEntries,
-	config: FlarePluginConfig,
-	assetsBase: string,
-	assetsDir: string,
-): VitePlugin {
+function createSsrBuildPlugin(entries: ResolvedEntries, config: FlarePluginConfig, assetsDir: string): VitePlugin {
 	return {
 		config() {
 			return {
@@ -411,8 +411,8 @@ export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
 		solid(solidConfig) as unknown as VitePlugin,
 		createImagePlugin(config, resolvedOptions.assetsBase, resolvedOptions.assetsDir),
 		createResolverPlugin(),
-		createGeneratePlugin(config, resolvedCodegen),
-		createSsrBuildPlugin(entries, config, resolvedOptions.assetsBase, resolvedOptions.assetsDir),
+		createGeneratePlugin(config, resolvedCodegen, resolve(root, entries.server)),
+		createSsrBuildPlugin(entries, config, resolvedOptions.assetsDir),
 		createDevServerPlugin(entries, resolvedOptions.assetsBase),
 		createPreviewServerPlugin(resolvedOptions.assetsBase),
 		createVirtualPlugin(config, entries, resolvedCodegen),

@@ -192,6 +192,7 @@ describe("flare:generate", () => {
 			ignorePrefix: "_",
 			outputPath: "src/_gen/routes.gen.ts",
 			rootDir: "/tmp/test",
+			serverEntry: join(process.cwd(), "src/server.ts"),
 			typesOutputPath: "src/_gen/types.gen.d.ts",
 		});
 	});
@@ -212,6 +213,7 @@ describe("flare:generate", () => {
 			ignorePrefix: "__",
 			outputPath: "src/generated/routes.gen.ts",
 			rootDir: "/app",
+			serverEntry: join(process.cwd(), "src/server.ts"),
 			typesOutputPath: "src/_gen/types.gen.d.ts",
 		});
 	});
@@ -233,8 +235,25 @@ describe("flare:generate", () => {
 			ignorePrefix: "_",
 			outputPath: "src/_gen/routes.gen.ts",
 			rootDir: "/tmp/str",
+			serverEntry: join(process.cwd(), "src/server.ts"),
 			typesOutputPath: "src/_gen/types.gen.d.ts",
 		});
+	});
+
+	it("buildStart passes the configured server entry as an absolute path", () => {
+		const plugins = flarePlugins({ entry: { server: "src/custom.server.ts" } });
+		const gen = plugins.find((p) => p.name === "flare:generate");
+		const buildStart = gen?.buildStart as (() => void) | undefined;
+		if (!buildStart) throw new Error("buildStart not found");
+		buildStart.call({ environment: { config: { root: "/tmp/entry" } } });
+		expect(runGenerate).toHaveBeenCalledWith(
+			expect.objectContaining({ serverEntry: join(process.cwd(), "src/custom.server.ts") }),
+		);
+	});
+
+	it("accepts an absolute entry path", () => {
+		const server = join(process.cwd(), "src/custom.server.ts");
+		expect(() => flarePlugins({ entry: { server } })).not.toThrow();
 	});
 
 	it("buildStart uses fsCodegen: true when fsVirtualPaths is true", () => {

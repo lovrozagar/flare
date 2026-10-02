@@ -265,6 +265,22 @@ describe("ISR serving — cache hit", () => {
 		expect(body).not.toContain("cached-secret");
 	});
 
+	it("does not serve static HIT when the route has optional authenticate", async () => {
+		const store = makeStore({
+			"static:/about": makeStaticEntry({ html: "<html>cached-other-user</html>" }),
+		});
+		const handler = makeHandler(
+			"/about",
+			makeISRRouteData({ mode: "isr", revalidate: 300 }, "/about", {
+				o: { authenticate: "optional", static: { mode: "isr", revalidate: 300 } },
+			}),
+			{ store },
+		);
+		const response = await handler.fetch(req(), {});
+		const body = await response.text();
+		expect(body).not.toContain("cached-other-user");
+	});
+
 	it("includes security headers on cached response", async () => {
 		const store = makeStore({
 			"static:/about": makeStaticEntry(),

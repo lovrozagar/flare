@@ -23,6 +23,7 @@ From the repo root; CI runs the same set, with `fmt:check` in place of `fmt`.
     bun run typecheck
     bun run typecheck:consumers
     bun run typecheck:harness   # e2e runners, run-build/run-env, scripts/
+    bun run typecheck:consumer-strict   # packed tarball under strict consumer flags
     bun run test
     bun run test:cli
     bun run test:build   # builds every e2e app for every deploy target

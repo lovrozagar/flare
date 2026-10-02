@@ -4,6 +4,7 @@ import type { Location } from "../router-primitives/index.ts";
 import type { ResolvedAuth, ResolvedEnv, ResolvedQueryClient, ResolvedServerContext } from "./register.ts";
 import {
 	type AuthenticateMode,
+	type AuthenticateModeFromArgs,
 	BUILDER_MARKER,
 	type CacheConfig,
 	type DeferFn,
@@ -17,6 +18,7 @@ import {
 	type SearchParamsValidator,
 	type ServerThrowHelpers,
 	type ServerUrlHelpers,
+	resolveAuthenticateArgs,
 } from "./types.ts";
 
 /* ── callback context types (root-specific) ─────────────────────── */
@@ -302,7 +304,11 @@ interface RootBuilderAfterInput<TPath extends string, TParams, TSearch> extends 
 	TSearch,
 	false
 > {
-	authenticate(...args: unknown[]): RootBuilderAfterAuthenticate<TPath, TParams, TSearch, true>;
+	/** Required by default; `.authenticate("optional")` lets anonymous requests through with `ctx.auth === null`. Other arguments are callerData for `authenticateFn`. */
+	authenticate<const TArgs extends readonly unknown[]>(
+		...args: TArgs
+	): RootBuilderAfterAuthenticate<TPath, TParams, TSearch, AuthenticateModeFromArgs<TArgs>>;
+	/** @deprecated Use `.authenticate("optional", ...callerData)`. */
 	authenticateOptional(...args: unknown[]): RootBuilderAfterAuthenticate<TPath, TParams, TSearch, "optional">;
 }
 
@@ -569,11 +575,10 @@ function createBuilderAfterInput<TPath extends string, TParams, TSearch>(
 ): RootBuilderAfterInput<TPath, TParams, TSearch> {
 	return {
 		...createBuilderAfterAuthenticate<TPath, TParams, TSearch, false>(state),
-		authenticate(...args: unknown[]) {
-			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, true>({
+		authenticate<const TArgs extends readonly unknown[]>(...args: TArgs) {
+			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, AuthenticateModeFromArgs<TArgs>>({
 				...state,
-				authenticate: args,
-				authenticateMode: true,
+				...resolveAuthenticateArgs(args),
 			});
 		},
 		authenticateOptional(...args: unknown[]) {

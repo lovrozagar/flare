@@ -331,7 +331,7 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 			};
 		},
 		({ disabled, el, external, hrefOnly, strategy }) => {
-			if (!el || disabled || hrefOnly || external) return;
+			if (!el || disabled || hrefOnly || external) return undefined;
 
 			if (strategy === "intent") {
 				el.addEventListener("focus", handleIntent);
@@ -368,6 +368,7 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 			if (strategy === "render") {
 				return scheduleAfterLoad(() => triggerPrefetch());
 			}
+			return undefined;
 		},
 	);
 

@@ -321,7 +321,7 @@ Chain order (typical): `intercept` → `cache` → `authenticate` → `input` �
 | Method                                                                                        | Role                                                             |
 | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `.cache(config)`                                                                              | Client / SSR / ISR / SSG / CDN                                   |
-| `.authenticate()` / `.authenticate("optional")` / `.authenticate(false)`                      | Auth gate                                                        |
+| `.authenticate()` / `.authenticate("optional")`                                               | Auth gate                                                        |
 | `.authorize(fn)`                                                                              | Role check; inherits parent unless overridden                    |
 | `.input({ params, searchParams })`                                                            | Standard Schema or parse fn                                      |
 | `.effects({ loaderDeps, shouldRefetch })`                                                     | When to rerun the loader on search change                        |
@@ -462,9 +462,10 @@ export const route = createPage("_root_/dashboard")
 ```
 
 - `.authenticate()` — required; null user → `UnauthenticatedError` (401).
-- `.authenticate("optional")` — user may be null.
-- `.authenticate(false)` — skip even if a parent required it.
-- Child inherits parent auth unless it sets its own mode.
+- `.authenticate("optional")` — user may be null; `ctx.auth` is `null` for anonymous requests.
+- Other arguments are callerData for `authenticateFn`: `.authenticate("admin")` is required, `.authenticate("optional", "viewer")` is optional.
+- A required layout gates every route below it; a child cannot loosen it.
+- `.authenticateOptional()` is a deprecated alias of `.authenticate("optional")`.
 - `createServer(router).authenticateFn(fn)` is the app-wide hook (cookie, header, JWT).
 
 Throw helpers: `ctx.notFound()`, `ctx.redirect({ to, params, search, status, replace })`, `ctx.unauthenticated()`, `ctx.unauthorized()`.

@@ -39,25 +39,33 @@ export type MountTarget =
 	  }
 	| ((request: Request, env: unknown, ctx: { waitUntil(p: Promise<unknown>): void }) => Response | Promise<Response>);
 
-export interface ServerBuilder<TExcluded extends string = never> {
+export interface ServerBuilder<
+	TExcluded extends string = never,
+	TAuth = unknown,
+	TServerContext = Record<string, unknown>,
+> {
+	/** Type-only: what `.authenticateFn()` and `.serverContext()` resolve to. Generated route types read it. */
+	readonly "~flare"?: { auth: TAuth; serverContext: TServerContext };
 	authenticateFn: "authenticateFn" extends TExcluded
 		? never
-		: <TAuth>(
+		: <TNewAuth>(
 				fn: (ctx: {
 					callerData?: unknown[];
 					env: unknown;
 					request: Request;
 					serverContext: Record<string, unknown>;
 					url: URL;
-				}) => TAuth | null | Promise<TAuth | null>,
-			) => ServerBuilder<TExcluded | "authenticateFn">;
-	cache: "cache" extends TExcluded ? never : (config: HandlerCacheConfig) => ServerBuilder<TExcluded | "cache">;
+				}) => TNewAuth | null | Promise<TNewAuth | null>,
+			) => ServerBuilder<TExcluded | "authenticateFn", TNewAuth, TServerContext>;
+	cache: "cache" extends TExcluded
+		? never
+		: (config: HandlerCacheConfig) => ServerBuilder<TExcluded | "cache", TAuth, TServerContext>;
 	fetch(request: Request, env?: unknown, ctx?: { waitUntil?: (p: Promise<unknown>) => void }): Promise<Response>;
 	getStaticParams(): Promise<StaticParamsMap>;
 	keepalive: "keepalive" extends TExcluded
 		? never
-		: (config: KeepaliveConfig) => ServerBuilder<TExcluded | "keepalive">;
-	mount(prefix: string, target: MountTarget): ServerBuilder<TExcluded>;
+		: (config: KeepaliveConfig) => ServerBuilder<TExcluded | "keepalive", TAuth, TServerContext>;
+	mount(prefix: string, target: MountTarget): ServerBuilder<TExcluded, TAuth, TServerContext>;
 	security: "security" extends TExcluded
 		? never
 		: (
@@ -69,15 +77,19 @@ export interface ServerBuilder<TExcluded extends string = never> {
 							request: Request;
 							serverContext: Record<string, unknown>;
 					  }) => SecurityConfig),
-			) => ServerBuilder<TExcluded | "security">;
+			) => ServerBuilder<TExcluded | "security", TAuth, TServerContext>;
 	serverContext: "serverContext" extends TExcluded
 		? never
 		: <T extends Record<string, unknown>>(
 				fn: (ctx: { env: unknown; request: Request }) => T | Promise<T>,
-			) => ServerBuilder<TExcluded | "serverContext">;
-	sitemap: "sitemap" extends TExcluded ? never : (config: SitemapSubmitConfig) => ServerBuilder<TExcluded | "sitemap">;
-	tracing: "tracing" extends TExcluded ? never : (config: TracingConfig) => ServerBuilder<TExcluded | "tracing">;
-	use(...args: (FlareMiddleware | PathMatcher | string)[]): ServerBuilder<TExcluded>;
+			) => ServerBuilder<TExcluded | "serverContext", TAuth, T>;
+	sitemap: "sitemap" extends TExcluded
+		? never
+		: (config: SitemapSubmitConfig) => ServerBuilder<TExcluded | "sitemap", TAuth, TServerContext>;
+	tracing: "tracing" extends TExcluded
+		? never
+		: (config: TracingConfig) => ServerBuilder<TExcluded | "tracing", TAuth, TServerContext>;
+	use(...args: (FlareMiddleware | PathMatcher | string)[]): ServerBuilder<TExcluded, TAuth, TServerContext>;
 }
 
 /* Internal implementation type — no exclusion tracking */

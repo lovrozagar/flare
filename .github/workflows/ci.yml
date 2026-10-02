@@ -52,6 +52,7 @@ jobs:
       - run: bun run typecheck
       - run: bun run typecheck:consumers
       - run: bun run typecheck:harness
+      - run: bun run typecheck:consumer-strict
 
   test:
     name: test
