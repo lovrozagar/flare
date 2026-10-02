@@ -12,7 +12,7 @@ import type {
 } from "./register.ts";
 import {
 	type AuthenticateMode,
-	type AuthenticateModeFromArgs,
+	type CallerDataGuard,
 	BUILDER_MARKER,
 	type CacheConfig,
 	type DeferFn,
@@ -26,7 +26,7 @@ import {
 	type SearchParamsValidator,
 	type ServerThrowHelpers,
 	type ServerUrlHelpers,
-	resolveAuthenticateArgs,
+	assertCallerData,
 } from "./types.ts";
 
 /* ── callback context types ─────────────────────────────────────── */
@@ -317,11 +317,11 @@ interface LayoutBuilderAfterInput<
 	TAuth extends AuthenticateMode,
 	TPreloaderContext,
 > extends LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, TAuth, TPreloaderContext> {
-	/** Required by default; `.authenticate("optional")` lets anonymous requests through with `ctx.auth === null`. Other arguments are callerData for `authenticateFn`. */
+	/** Requires a user; anonymous requests get the unauthenticated boundary. Arguments are callerData for `authenticateFn`. */
 	authenticate<const TArgs extends readonly unknown[]>(
-		...args: TArgs
-	): LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, AuthenticateModeFromArgs<TArgs>, TPreloaderContext>;
-	/** @deprecated Use `.authenticate("optional", ...callerData)`. */
+		...args: TArgs & CallerDataGuard<TArgs>
+	): LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, true, TPreloaderContext>;
+	/** Lets anonymous requests through with `ctx.auth === null`. Arguments are callerData for `authenticateFn`. */
 	authenticateOptional(
 		...args: unknown[]
 	): LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, "optional", TPreloaderContext>;
@@ -607,14 +607,12 @@ function createBuilderAfterInput<
 >(state: BuilderStateInternal): LayoutBuilderAfterInput<TPath, TParams, TSearch, TAuth, TPreloaderContext> {
 	return {
 		...createBuilderAfterAuthenticate<TPath, TParams, TSearch, TAuth, TPreloaderContext>(state),
-		authenticate<const TArgs extends readonly unknown[]>(...args: TArgs) {
-			return createBuilderAfterAuthenticate<
-				TPath,
-				TParams,
-				TSearch,
-				AuthenticateModeFromArgs<TArgs>,
-				TPreloaderContext
-			>({ ...state, ...resolveAuthenticateArgs(args) });
+		authenticate(...args: readonly unknown[]) {
+			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, true, TPreloaderContext>({
+				...state,
+				authenticate: assertCallerData(args),
+				authenticateMode: true,
+			});
 		},
 		authenticateOptional(...args: unknown[]) {
 			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, "optional", TPreloaderContext>({

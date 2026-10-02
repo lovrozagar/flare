@@ -446,20 +446,30 @@ describe("generateRouteRegistry — authModes section", () => {
 /* ── detectAuthenticateMode ────────────────────────────────────────── */
 
 describe("detectAuthenticateMode", () => {
+	/* the mode is the method name; arguments are callerData and never change it */
 	it.each([
 		["", false],
 		[".authenticate()", true],
 		['.authenticate("admin")', true],
-		['.authenticate("optional")', "optional"],
-		[".authenticate('optional')", "optional"],
-		[".authenticate(`optional`)", "optional"],
-		['.authenticate( "optional" , "viewer")', "optional"],
 		['.authenticate("optionalish")', true],
 		['.authenticate("admin", "optional")', true],
 		[".authenticate(optional)", true],
 		[".authenticateOptional()", "optional"],
+		['.authenticateOptional("viewer")', "optional"],
 		[".authenticateFn(fn)", false],
 	] as const)("%s → %s", (chain, mode) => {
 		expect(detectAuthenticateMode(`createPage("_root_/x")${chain}.render(() => null)`)).toBe(mode);
+	});
+
+	/* the removed mode argument fails codegen with the fix in the message, instead of meaning "required" */
+	it.each([
+		'.authenticate("optional")',
+		".authenticate('optional')",
+		".authenticate(`optional`)",
+		'.authenticate( "optional" , "viewer")',
+	])("%s throws and names .authenticateOptional()", (chain) => {
+		expect(() => detectAuthenticateMode(`createPage("_root_/x")${chain}.render(() => null)`)).toThrow(
+			/authenticateOptional/,
+		);
 	});
 });

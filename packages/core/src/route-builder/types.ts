@@ -8,22 +8,21 @@ export type { FlareStore, FlareStoreEntry, StaticEntryData };
 
 export type AuthenticateMode = false | "optional" | true;
 
-/** `.authenticate("optional", ...callerData)` is optional; any other argument list is callerData for a required gate. */
-export type AuthenticateModeFromArgs<TArgs extends readonly unknown[]> = TArgs extends readonly [
-	"optional",
-	...unknown[],
-]
-	? "optional"
-	: true;
+/**
+ * Arguments to `.authenticate()` / `.authenticateOptional()` are callerData for `authenticateFn`; the auth mode is
+ * the method name, never an argument. A leading `"optional"` is the old mode form, which once compiled to a
+ * required route: it does not type-check (`never`), and `assertCallerData` throws at definition.
+ */
+export type CallerDataGuard<TArgs extends readonly unknown[]> = TArgs extends readonly ["optional", ...unknown[]]
+	? never
+	: unknown;
 
-/** Runtime half of `AuthenticateModeFromArgs`: splits the mode from the callerData forwarded to `authenticateFn`. */
-export function resolveAuthenticateArgs(args: readonly unknown[]): {
-	authenticate: unknown[];
-	authenticateMode: "optional" | true;
-} {
-	return args[0] === "optional"
-		? { authenticate: args.slice(1), authenticateMode: "optional" }
-		: { authenticate: [...args], authenticateMode: true };
+export const AUTHENTICATE_OPTIONAL_ARGUMENT_ERROR =
+	'.authenticate("optional") is not an auth mode: arguments are callerData for authenticateFn. Use .authenticateOptional(...callerData) for optional auth.';
+
+export function assertCallerData(args: readonly unknown[]): unknown[] {
+	if (args[0] === "optional") throw new Error(AUTHENTICATE_OPTIONAL_ARGUMENT_ERROR);
+	return [...args];
 }
 
 /**

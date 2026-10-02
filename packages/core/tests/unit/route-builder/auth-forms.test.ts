@@ -11,14 +11,13 @@ import { createLayout, createPage, createRootLayout } from "../../../src/route-b
 
 /**
  * Every supported auth chain form. Builder state, both codegen scans, and the
- * README must agree with this table.
+ * README must agree with this table. Arguments are always callerData; the mode
+ * is the method name, so codegen never has to evaluate an argument.
  */
 const FORMS: ReadonlyArray<{ callerData: unknown[] | undefined; chain: string; mode: AuthenticateMode }> = [
 	{ callerData: undefined, chain: "", mode: false },
 	{ callerData: [], chain: ".authenticate()", mode: true },
 	{ callerData: ["admin"], chain: '.authenticate("admin")', mode: true },
-	{ callerData: [], chain: '.authenticate("optional")', mode: "optional" },
-	{ callerData: ["viewer"], chain: '.authenticate("optional", "viewer")', mode: "optional" },
 	{ callerData: [], chain: ".authenticateOptional()", mode: "optional" },
 	{ callerData: ["viewer"], chain: '.authenticateOptional("viewer")', mode: "optional" },
 ];
@@ -91,6 +90,47 @@ describe.each(FORMS)("auth form `$chain`", ({ callerData, chain, mode }) => {
 		if (mode !== true) expect(loaderAuth).toBeNull();
 	});
 });
+
+/* `.authenticate("optional")` once compiled to a required route; it now fails at every layer instead */
+const REMOVED = ['.authenticate("optional")', '.authenticate("optional", "viewer")', ".authenticate('optional')"];
+
+describe.each(REMOVED)("removed form `%s`", (chain) => {
+	it.each(BUILDERS)("$name builder throws and names the fix", ({ create }) => {
+		expect(() => applyChain(create(), chain)).toThrow(/authenticateOptional/);
+	});
+
+	it.each(BUILDERS)("$name file-chain codegen throws and names the fix", ({ source }) => {
+		expect(() => extractRouteDefinitions(`export const route = ${source}${chain}.render(() => null)`, "f.tsx")).toThrow(
+			/authenticateOptional/,
+		);
+	});
+
+	it("fs-routes codegen throws and names the fix", () => {
+		const dir = mkdtempSync(join(tmpdir(), "flare-auth-removed-"));
+		try {
+			mkdirSync(join(dir, "src/routes/_root_/x"), { recursive: true });
+			writeFileSync(
+				join(dir, "src/routes/_root_/x/x.page.tsx"),
+				`export const route = createPage("_root_/x")${chain}.render(() => null)`,
+			);
+			expect(() => scanSourceFilesFsCodegen({ rootDir: dir })).toThrow(/authenticateOptional/);
+		} finally {
+			rmSync(dir, { force: true, recursive: true });
+		}
+	});
+});
+
+/* compile-time half: never called, checked by `type:check:tests` */
+export function removedOptionalArgumentDoesNotCompile(): void {
+	// @ts-expect-error optional auth is .authenticateOptional(); arguments are callerData
+	createPage("_root_/x").authenticate("optional");
+	// @ts-expect-error same on layouts
+	createLayout("_root_/(g)").authenticate("optional", "viewer");
+	// @ts-expect-error same on the root layout
+	createRootLayout("_root_").authenticate("optional");
+	createPage("_root_/x").authenticate("admin");
+	createPage("_root_/x").authenticateOptional("viewer");
+}
 
 describe("README auth forms", () => {
 	const root = resolve(import.meta.dirname, "../../../../..");

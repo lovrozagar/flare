@@ -2,7 +2,7 @@ import { createPage } from "@lovrozagar/flare/page";
 
 /* Optional auth: anonymous requests get `ctx.auth === null`. */
 export const route = createPage("_root_/")
-	.authenticate("optional")
+	.authenticateOptional()
 	.loader((ctx) => {
 		/* Registered only when codegen follows the server entry to the router's queryClientGetter. */
 		ctx.queryClient.setQueryData(["home"], 1);

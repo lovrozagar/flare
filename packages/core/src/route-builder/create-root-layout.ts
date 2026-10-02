@@ -4,7 +4,7 @@ import type { Location } from "../router-primitives/index.ts";
 import type { ResolvedAuth, ResolvedEnv, ResolvedQueryClient, ResolvedServerContext } from "./register.ts";
 import {
 	type AuthenticateMode,
-	type AuthenticateModeFromArgs,
+	type CallerDataGuard,
 	BUILDER_MARKER,
 	type CacheConfig,
 	type DeferFn,
@@ -18,7 +18,7 @@ import {
 	type SearchParamsValidator,
 	type ServerThrowHelpers,
 	type ServerUrlHelpers,
-	resolveAuthenticateArgs,
+	assertCallerData,
 } from "./types.ts";
 
 /* ── callback context types (root-specific) ─────────────────────── */
@@ -304,11 +304,11 @@ interface RootBuilderAfterInput<TPath extends string, TParams, TSearch> extends 
 	TSearch,
 	false
 > {
-	/** Required by default; `.authenticate("optional")` lets anonymous requests through with `ctx.auth === null`. Other arguments are callerData for `authenticateFn`. */
+	/** Requires a user; anonymous requests get the unauthenticated boundary. Arguments are callerData for `authenticateFn`. */
 	authenticate<const TArgs extends readonly unknown[]>(
-		...args: TArgs
-	): RootBuilderAfterAuthenticate<TPath, TParams, TSearch, AuthenticateModeFromArgs<TArgs>>;
-	/** @deprecated Use `.authenticate("optional", ...callerData)`. */
+		...args: TArgs & CallerDataGuard<TArgs>
+	): RootBuilderAfterAuthenticate<TPath, TParams, TSearch, true>;
+	/** Lets anonymous requests through with `ctx.auth === null`. Arguments are callerData for `authenticateFn`. */
 	authenticateOptional(...args: unknown[]): RootBuilderAfterAuthenticate<TPath, TParams, TSearch, "optional">;
 }
 
@@ -575,10 +575,11 @@ function createBuilderAfterInput<TPath extends string, TParams, TSearch>(
 ): RootBuilderAfterInput<TPath, TParams, TSearch> {
 	return {
 		...createBuilderAfterAuthenticate<TPath, TParams, TSearch, false>(state),
-		authenticate<const TArgs extends readonly unknown[]>(...args: TArgs) {
-			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, AuthenticateModeFromArgs<TArgs>>({
+		authenticate(...args: readonly unknown[]) {
+			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, true>({
 				...state,
-				...resolveAuthenticateArgs(args),
+				authenticate: assertCallerData(args),
+				authenticateMode: true,
 			});
 		},
 		authenticateOptional(...args: unknown[]) {

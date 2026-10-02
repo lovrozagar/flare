@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0
+
+- Breaking: auth mode is the method name. `.authenticate(...callerData)` is required and `.authenticateOptional(...callerData)` is optional; arguments are only callerData for `authenticateFn`. `.authenticateOptional()` is no longer deprecated.
+- Breaking: `.authenticate("optional")` (the 0.4.1 form) is removed. A leading `"optional"` argument does not type-check, throws at route definition, and fails codegen, each with a message naming `.authenticateOptional()`. Codegen reads the mode from the method name and never evaluates an argument, so a variable argument can no longer make the builder and the generated route meta disagree. Migrate `.authenticate("optional", ...x)` to `.authenticateOptional(...x)`.
+
 ## 0.4.2
 
 - The published `@types/negotiator` dependency is a version, not `catalog:`. 0.4.1 failed to install outside this workspace. The strict consumer check now packs with `npm pack`, like the release, so an unresolved specifier fails CI.

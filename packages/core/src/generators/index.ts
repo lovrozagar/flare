@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync,
 import { dirname, extname, join, posix, relative, resolve } from "node:path";
 import { parse as babelParse } from "@babel/parser";
 import { parseSeconds } from "../duration/index.ts";
-import type { AuthenticateMode } from "../route-builder/types.ts";
+import { AUTHENTICATE_OPTIONAL_ARGUMENT_ERROR, type AuthenticateMode } from "../route-builder/types.ts";
 import { extractLayoutKey } from "../router-primitives/paths.ts";
 
 export type PrefetchStrategy = false | "intent" | "render" | "viewport";
@@ -638,10 +638,15 @@ function relativeImportPath(from: string, to: string): string {
 	return `${prefix}/${downs.join("/")}`;
 }
 
-/** Auth mode of a builder chain; mirrors `resolveAuthenticateArgs` in the route builder. */
+/**
+ * Auth mode of a builder chain. The mode is the method name, so this never evaluates an argument; the removed
+ * `.authenticate("optional")` form fails codegen the same way `assertCallerData` fails the builder.
+ */
 export function detectAuthenticateMode(chainText: string): AuthenticateMode {
+	if (/\.authenticate\s*\(\s*(["'`])optional\1\s*[,)]/.test(chainText)) {
+		throw new Error(AUTHENTICATE_OPTIONAL_ARGUMENT_ERROR);
+	}
 	if (/\.authenticateOptional\s*\(/.test(chainText)) return "optional";
-	if (/\.authenticate\s*\(\s*(["'`])optional\1\s*[,)]/.test(chainText)) return "optional";
 	return /\.authenticate\s*\(/.test(chainText);
 }
 
