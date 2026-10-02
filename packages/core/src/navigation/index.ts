@@ -585,12 +585,12 @@ function hydrateCachedDeferred(cached: CachedMatch): boolean {
 function commitCachedShell(
 	c: FlareProviderContext,
 	allModules: LoadedRouteModule[],
+	rootLayout: LoadedRouteModule | undefined,
 	search: SearchParams,
 	params: Record<string, string | string[]>,
 ): { hadShell: boolean; keepMatchIds: string[] } {
 	if (!ctx) return { hadShell: false, keepMatchIds: [] };
 	let found = false;
-	const heads: PerRouteHead[] = [];
 	const keepMatchIds: string[] = [];
 	for (const mod of allModules) {
 		const matchId = matchIdForModule(mod, search, params);
@@ -600,9 +600,22 @@ function commitCachedShell(
 		if (cached.hasDeferred && hydrateCachedDeferred(cached)) {
 			keepMatchIds.push(matchId);
 		}
-		if (cached.headConfig) heads.push({ head: cached.headConfig, matchId });
 	}
 	if (!found) return { hadShell: false, keepMatchIds: [] };
+
+	/* applyPerRouteHeads replaces the whole hierarchy, so a partial set would
+	 * drop the root layout's CSS. Apply only when every route has a cached head;
+	 * otherwise the post-fetch update applies the full set. */
+	const heads: PerRouteHead[] = [];
+	for (const mod of rootLayout ? [rootLayout, ...allModules] : allModules) {
+		const matchId = matchIdForModule(mod, search, params);
+		const head = ctx.matchCache.get(matchId)?.headConfig;
+		if (!head) {
+			heads.length = 0;
+			break;
+		}
+		heads.push({ head, matchId });
+	}
 
 	c.setIntercepted(null);
 	c.setNotFound(false);
@@ -1141,6 +1154,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		 */
 		const nonRootLayouts = modules.layouts.filter((m) => m._type !== "root-layout");
 		const allModules: LoadedRouteModule[] = [...nonRootLayouts, modules.page];
+		/* The root layout still owns head state (title, CSS) on every navigation. */
+		const rootLayout = modules.layouts.find((m) => m._type === "root-layout");
+		const headModules = rootLayout ? [rootLayout, ...allModules] : allModules;
 
 		/* Instant navigation: reuse in-flight prefetch and paint a cached shell
 		 * before the enter NDJSON hop. Skipped when this nav already fetched in
@@ -1160,7 +1176,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				}
 			}
 			if (controller.signal.aborted || myVersion !== navigationVersion) return;
-			const shell = commitCachedShell(c, allModules, search, modules.params);
+			const shell = commitCachedShell(c, allModules, rootLayout, search, modules.params);
 			hadShell = shell.hadShell;
 			paintedShell = shell.hadShell;
 			if (shell.hadShell) {
@@ -1387,25 +1403,21 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		const clientMatches = buildClientMatches(allModules, search, modules.params);
 
 		/* Step 11: Compute head data before update — used inside VT callback */
-		const freshHeads = fetchResult?.perRouteHeads ?? [];
-		const fetchedHeadIds = new Set<string>();
-		for (const h of freshHeads) fetchedHeadIds.add(h.matchId);
-		const perRouteHeads: PerRouteHead[] = [...freshHeads];
-		for (const mod of allModules) {
-			const deps = mod.effectsConfig?.loaderDeps?.({ search }) ?? [];
-			const matchId = computeMatchId({
-				loaderDeps: () => deps,
-				params: modules.params,
-				routeId: mod.virtualPath,
-				search,
-			});
-			if (!fetchedHeadIds.has(matchId)) {
-				const cached = ctx.matchCache.get(matchId);
-				if (cached?.headConfig) {
-					perRouteHeads.push({ head: cached.headConfig, matchId });
-				}
+		const freshHeads = new Map<string, HeadConfig>();
+		for (const h of fetchResult?.perRouteHeads ?? []) freshHeads.set(h.matchId, h.head);
+		const fetchedIds = new Set(fetchResult?.matches.map((m) => m.matchId));
+		/* Hierarchy order, root first. A fetched route uses its fresh head (none
+		 * under headReplace); an unfetched one falls back to the cache. */
+		const perRouteHeads: PerRouteHead[] = [];
+		for (const mod of headModules) {
+			const matchId = matchIdForModule(mod, search, modules.params);
+			const head = fetchedIds.has(matchId) ? freshHeads.get(matchId) : ctx.matchCache.get(matchId)?.headConfig;
+			if (head) {
+				perRouteHeads.push({ head, matchId });
+				freshHeads.delete(matchId);
 			}
 		}
+		for (const [matchId, head] of freshHeads) perRouteHeads.push({ head, matchId });
 
 		/* Step 12: Update state + scroll + head + cleanup.
 		 * Everything inside update() so VT captures the complete state transition. */

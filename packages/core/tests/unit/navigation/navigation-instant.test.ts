@@ -33,6 +33,7 @@ vi.mock("../../../src/history", async (importOriginal) => {
 	};
 });
 
+import { applyPerRouteHeads } from "../../../src/head-client/index.ts";
 import { restoreScroll, scrollToTop } from "../../../src/history/index.ts";
 import { warn } from "../../../src/logger.ts";
 import { navigate, prefetch, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
@@ -41,6 +42,7 @@ import { matchRoute } from "../../../src/router-primitives/index.ts";
 
 const mockFetchNDJSON = fetchNDJSON as ReturnType<typeof vi.fn>;
 const mockMatchRoute = matchRoute as ReturnType<typeof vi.fn>;
+const mockApplyPerRouteHeads = applyPerRouteHeads as ReturnType<typeof vi.fn>;
 const mockRestoreScroll = restoreScroll as ReturnType<typeof vi.fn>;
 const mockScrollToTop = scrollToTop as ReturnType<typeof vi.fn>;
 
@@ -783,5 +785,50 @@ describe("instant navigation — aborted deferred visits refetch", () => {
 		const data = page?.loaderData as { fast: { promise: Promise<unknown> }; instant: string };
 		expect(data.instant).toBe("instant-value");
 		await expect(data.fast.promise).resolves.toBe("fast-result");
+	});
+});
+
+describe("instant navigation — popstate keeps the root layout head", () => {
+	const ROOT_ID = "_root_:{}:[]";
+	const ROOT_HEAD = { custom: { styles: [{ children: "body { margin: 0; }" }] } };
+	const ABOUT_HEAD = { title: "About" };
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	it("applies the cached root head first so its CSS is not released", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/about") });
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				layouts: [{ ...makeModule("_root_"), _type: "root-layout" } as never],
+				page: ABOUT_PAGE,
+			}),
+		);
+		const now = Date.now();
+		ctx.matchCache.set({ data: null, headConfig: ROOT_HEAD, invalid: false, matchId: ROOT_ID, updatedAt: now });
+		ctx.matchCache.set({ data: "cached", headConfig: ABOUT_HEAD, invalid: false, matchId: ABOUT_ID, updatedAt: now });
+
+		await navigate({ _popstate: true, to: "/about" });
+
+		expect(mockFetchNDJSON).not.toHaveBeenCalled();
+		expect(mockApplyPerRouteHeads).toHaveBeenCalled();
+		for (const [heads] of mockApplyPerRouteHeads.mock.calls) {
+			expect(heads).toEqual([
+				{ head: ROOT_HEAD, matchId: ROOT_ID },
+				{ head: ABOUT_HEAD, matchId: ABOUT_ID },
+			]);
+		}
 	});
 });
