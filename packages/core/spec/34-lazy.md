@@ -1,6 +1,6 @@
 # Lazy
 
-Layer 4 (client). Depends on solid-js (`createSignal`, `onSettled`, `sharedConfig`) and `@solidjs/web` (`isServer`).
+Layer 4 (client). Depends on solid-js (`createSignal`, `isHydrating`, `onSettled`) and `@solidjs/web` (`isServer`).
 
 SSR-safe lazy component loading. `lazy` for universal components, `clientLazy` for client-only components.
 
@@ -42,8 +42,8 @@ SSR-transparent lazy component. Renders `pending` on both server AND initial cli
 Implementation:
 
 1. At factory call: starts `loader()` immediately, caches promise globally
-2. During SSR (`isServer` or `sharedConfig.hydrating`): renders `pending`
-3. During hydration (`sharedConfig.hydrating` on first render): renders `pending`, then swaps after `onSettled`
+2. During SSR (`isServer` or `isHydrating()`): renders `pending`
+3. During hydration (`isHydrating()` on first render): renders `pending`, then swaps after `onSettled`
 4. After hydration: renders loaded component
 
 ```ts
@@ -64,7 +64,7 @@ function lazy<P>(options: LazyOptions<P>): Component<P> {
   getGlobalPending().add(loadPromise)
 
   return (props: P) => {
-    const isSSR = isServer || !!sharedConfig.hydrating
+    const isSSR = isServer || isHydrating()
     /* Store `{ C }` — Solid 2 treats a function initial value as a derived signal. */
     const [component, setComponent] = createSignal<{ C: Component<P> } | undefined>(
       isSSR || !loaded ? undefined : { C: loaded }
@@ -155,5 +155,5 @@ waitForLazyPreloads:
 - `clientLazy` with `eager: false` defers to first render — for heavy components that may never render
 - `waitForLazyPreloads` is a test helper. Production hydrate does not wait for lazy chunks; pending UI matches SSR until `onSettled` swaps in the loaded component.
 - Factory-level `createSignal` means state is per-factory-call, shared across all instances. This is correct — all instances of the same lazy component share the load state.
-- `isServer || sharedConfig.hydrating` is Solid 2's SSR/hydration detection (`sharedConfig.context` is gone)
+- `isServer || isHydrating()` is Solid 2's SSR/hydration detection
 - Global tracking via `__flare_lazy_loaded` survives Vite module identity issues (same global regardless of import path)

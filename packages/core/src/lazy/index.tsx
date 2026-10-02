@@ -1,6 +1,6 @@
 import type { JSX } from "@solidjs/web";
 import { Dynamic, isServer } from "@solidjs/web";
-import { type Component, createSignal, onSettled, Show, sharedConfig, untrack } from "solid-js";
+import { type Component, createSignal, isHydrating, onSettled, Show, untrack } from "solid-js";
 import { retryImport } from "../internal.ts";
 import { warn } from "../logger.ts";
 import { GLOBAL_LAZY_LOADED, GLOBAL_LAZY_PENDING } from "../protocol.ts";
@@ -56,7 +56,7 @@ export function lazy<P extends Record<string, unknown>>(options: LazyOptions<P>)
 	getGlobalPending().add(loadPromise);
 
 	return ((props: P) => {
-		const isSSR = isServer || !!sharedConfig.hydrating;
+		const isSSR = isServer || isHydrating();
 
 		/* Pre-known error at render time → throw from component body */
 		if (loadError) throw loadError;
@@ -116,7 +116,7 @@ export function clientLazy<P extends Record<string, unknown>>(
 	}
 
 	return ((props: P & { pending?: Component<P> }) => {
-		const isSSR = isServer || !!sharedConfig.hydrating;
+		const isSSR = isServer || isHydrating();
 
 		/* Pre-known error at render time → throw from component body */
 		if (loadError) throw loadError;

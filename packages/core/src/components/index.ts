@@ -11,7 +11,7 @@ export {
 } from "./await.tsx";
 export { DirectionScript, type DirectionScriptProps } from "./direction-script.tsx";
 export { ResetCSS } from "./reset-css.tsx";
-export { SSRContextProvider, type SSRContextValue, setSSRContext, useSSRContext } from "./ssr-context.tsx";
+export { SSRContextProvider, type SSRContextValue, useSSRContext } from "./ssr-context.tsx";
 export { ThemeScript, type ThemeScriptProps } from "./theme-script.tsx";
 export { ViewTransitionCSS, type ViewTransitionCSSProps } from "./view-transition-css.tsx";
 

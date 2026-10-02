@@ -1,6 +1,7 @@
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider, useTheme } from "../../../src/theme.ts";
+import { hydrateClient } from "../../hydrate-client.ts";
 
 function tick(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0));
@@ -396,67 +397,41 @@ describe("System theme detection", () => {
 describe("SSR passthrough", () => {
 	it("hydration does not read localStorage as initial (avoids first-land freeze)", async () => {
 		localStorage.setItem("flare.theme", "dark");
-		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.hydrating;
-		try {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: true,
-			});
-			const first: string[] = [];
-			let getter: (() => string) | undefined;
-			dispose = render(
-				() => (
-					<ThemeProvider>
-						{(() => {
-							const ctx = useTheme();
-							getter = ctx.theme;
-							first.push(ctx.theme());
-							return null;
-						})()}
-					</ThemeProvider>
-				),
-				container,
-			);
-			expect(first[0]).toBe("system");
-			await tick();
-			expect(getter?.()).toBe("dark");
-			expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-		} finally {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: original,
-			});
-		}
+		const first: string[] = [];
+		let getter: (() => string) | undefined;
+		dispose = hydrateClient(
+			() => (
+				<ThemeProvider>
+					{(() => {
+						const ctx = useTheme();
+						getter = ctx.theme;
+						first.push(ctx.theme());
+						return null;
+					})()}
+				</ThemeProvider>
+			),
+			container,
+		);
+		expect(first[0]).toBe("system");
+		await tick();
+		expect(getter?.()).toBe("dark");
+		expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
 	});
 
-	it("sharedConfig.hydrating truthy → still provides useTheme context", async () => {
-		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.hydrating;
-		try {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: true,
-			});
-			let theme: string | undefined;
-			dispose = render(
-				() => (
-					<ThemeProvider>
-						{(() => {
-							theme = useTheme().theme();
-							return null;
-						})()}
-					</ThemeProvider>
-				),
-				container,
-			);
-			expect(theme).toBe("system");
-		} finally {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: original,
-			});
-		}
+	it("hydrate → still provides useTheme context", () => {
+		let theme: string | undefined;
+		dispose = hydrateClient(
+			() => (
+				<ThemeProvider>
+					{(() => {
+						theme = useTheme().theme();
+						return null;
+					})()}
+				</ThemeProvider>
+			),
+			container,
+		);
+		expect(theme).toBe("system");
 	});
 
 	it("localStorage.setItem throws on persist → no crash", async () => {

@@ -1,6 +1,7 @@
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeProvider, useTheme } from "../../../src/theme.ts";
+import { hydrateClient } from "../../hydrate-client.ts";
 
 function tick(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0));
@@ -233,24 +234,11 @@ describe("ThemeProvider cross-tab sync via StorageEvent", () => {
 		expect(document.documentElement.style.colorScheme).toBe("dark");
 	});
 
-	it("sharedConfig.hydrating set still registers storage listener on client render", async () => {
+	it("hydrate still registers storage listener", async () => {
 		const addSpy = vi.spyOn(window, "addEventListener");
-		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.hydrating;
-		try {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: true,
-			});
-			dispose = render(() => <ThemeProvider>{null}</ThemeProvider>, container);
-			await tick();
-			const storageCalls = addSpy.mock.calls.filter((c) => c[0] === "storage");
-			expect(storageCalls.length).toBeGreaterThan(0);
-		} finally {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: original,
-			});
-		}
+		dispose = hydrateClient(() => <ThemeProvider>{null}</ThemeProvider>, container);
+		await tick();
+		const storageCalls = addSpy.mock.calls.filter((c) => c[0] === "storage");
+		expect(storageCalls.length).toBeGreaterThan(0);
 	});
 });
