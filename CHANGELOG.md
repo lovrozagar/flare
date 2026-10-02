@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- `createServer<TEnv>(router)` types the worker env. `ctx.env` in `.authenticateFn()`, `.serverContext()`, `.security()`, and every route is `TEnv`. Before, the generated registry read `env` from `fetch`'s `unknown` parameter, so every route's `ctx.env` was `unknown` and an app-side `env` augmentation conflicted with it. Pass the env type once: `createServer<Cloudflare.Env>(router)`. The strict consumer fixture now reads a typed env in a loader and in `authenticateFn`.
+
 ## 0.5.0
 
 - Breaking: auth mode is the method name. `.authenticate(...callerData)` is required and `.authenticateOptional(...callerData)` is optional; arguments are only callerData for `authenticateFn`. `.authenticateOptional()` is no longer deprecated.

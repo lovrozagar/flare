@@ -1210,7 +1210,7 @@ export function generateRouteRegistry(
 	}
 
 	if (hasServer) {
-		lines.push(`\t\tenv: Parameters<typeof _FlareHandler["fetch"]>[1]`);
+		lines.push(`\t\tenv: NonNullable<(typeof _FlareHandler)["~flare"]>["env"]`);
 		lines.push(`\t\tserverContext: NonNullable<(typeof _FlareHandler)["~flare"]>["serverContext"]`);
 	}
 	if (hasQueryClient) {
