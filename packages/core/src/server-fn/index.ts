@@ -1,4 +1,5 @@
 import { FORM_FN_FIELD, parseServerFnPathname, serverFnPath } from "../protocol.ts";
+import { callServerFnOverHttp } from "./rpc.ts";
 import {
 	isNotFoundError,
 	isRedirectResponse,
@@ -26,6 +27,8 @@ import { runValidator } from "../validation/index.ts";
 export type { Validator } from "../validation/index.ts";
 
 export interface ServerFnConfig {
+	/** Set by the client build transform: calls go over HTTP, the handler body is gone. */
+	__client?: boolean;
 	__id?: string;
 	method?: "get" | "post";
 	name: string;
@@ -87,6 +90,7 @@ export interface ServerFnStreamRegistration extends ServerFnRegistrationBase {
 export type ServerFnRegistration = ServerFnHandlerRegistration | ServerFnStreamRegistration;
 
 interface BuilderState {
+	__client?: boolean;
 	__id?: string;
 	authenticate: boolean;
 	authorizeFn?: (ctx: { auth: unknown; input: unknown }) => boolean | Promise<boolean>;
@@ -138,6 +142,14 @@ function createBuilderTerminal<TAuth, TInput, TOutput>(
 				method: state.method,
 				name: state.name,
 			};
+
+			if (state.__client) {
+				/* browser: the server validates, authenticates, and runs the handler */
+				const clientFn: ServerFn<TInput, TOutput> = async (input: TInput): Promise<TOutput> =>
+					(await callServerFnOverHttp<TOutput>(registration, input)).data;
+				clientFn._registration = registration;
+				return clientFn;
+			}
 
 			const serverFn: ServerFn<TInput, TOutput> = async (_input: TInput): Promise<TOutput> => {
 				if (state.authenticate) {
@@ -271,6 +283,7 @@ function createBuilder<TAuth, TInput, TOutput>(state: BuilderState): ServerFnBui
 
 export function createServerFn(config: ServerFnConfig): ServerFnBuilder<null, void, unknown> {
 	return createBuilder<null, void, unknown>({
+		__client: config.__client,
 		__id: config.__id,
 		authenticate: false,
 		method: config.method ?? "post",

@@ -698,6 +698,8 @@ const save = createServerFn({ name: "save" })
 ```
 
 - The Vite plugin strips handler bodies from the client bundle.
+- Call a server fn directly from browser code (`await save({ email })`): the client build sends it to
+  `/_flare/server-fn/{id}/{name}`, and validation errors reject as `ServerFnValidationError`.
 - Progressive enhancement works with JS off (`POST` + redirect).
 - CSRF: mutating methods check `Origin` / `Referer`.
 - `.authenticate()` / `.authorize(fn)` on the server fn (same idea as routes).
