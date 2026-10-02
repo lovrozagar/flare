@@ -192,9 +192,9 @@
     },
     "packages/core": {
       "name": "@lovrozagar/flare",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "dependencies": {
-        "@types/negotiator": "catalog:",
+        "@types/negotiator": "0.6.4",
       },
       "devDependencies": {
         "@babel/parser": "catalog:",

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.2
+
+- The published `@types/negotiator` dependency is a version, not `catalog:`. 0.4.1 failed to install outside this workspace. The strict consumer check now packs with `npm pack`, like the release, so an unresolved specifier fails CI.
+
 ## 0.4.1
 
 - Flare's source compiles under strict consumer flags (`noUnusedLocals`, `noUnusedParameters`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `allowUnreachableCode: false`). CI and the release workflow typecheck the packed tarball in a strict consumer fixture that imports every export path.
