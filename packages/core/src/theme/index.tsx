@@ -3,8 +3,8 @@ import {
 	createEffect,
 	createMemo,
 	createSignal,
+	isHydrating,
 	onSettled,
-	sharedConfig,
 	untrack,
 	useContext,
 } from "solid-js";
@@ -68,7 +68,7 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 		themes: props.config?.themes ?? DEFAULT_CONFIG.themes,
 	};
 
-	const hydrating = isServer || !!sharedConfig.hydrating;
+	const hydrating = isServer || isHydrating();
 
 	/* During SSR + hydration, always start from defaultTheme so the tree matches.
 	   ThemeScript already applied localStorage to <html> before first paint.

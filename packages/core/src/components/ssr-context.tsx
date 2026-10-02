@@ -18,9 +18,6 @@ export interface SSRContextValue {
 
 const SSRCtx = createContext<SSRContextValue | null>(null);
 
-/** @deprecated Wrap the tree with SSRContextProvider. Solid 2 has no sharedConfig.context. */
-export function setSSRContext(_value: SSRContextValue): void {}
-
 export function useSSRContext(): SSRContextValue | undefined {
 	return useContext(SSRCtx) ?? undefined;
 }

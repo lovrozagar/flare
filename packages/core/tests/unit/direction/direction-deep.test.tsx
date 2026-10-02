@@ -1,6 +1,7 @@
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DirectionProvider, useDirection } from "../../../src/direction.ts";
+import { hydrateClient } from "../../hydrate-client.ts";
 
 function tick(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0));
@@ -299,67 +300,41 @@ describe("setDirection / toggleDirection", () => {
 describe("SSR passthrough + context getDirFromLocale", () => {
 	it("hydration does not read localStorage as initial (avoids first-land freeze)", async () => {
 		localStorage.setItem("flare.dir", "rtl");
-		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.hydrating;
-		try {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: true,
-			});
-			const first: string[] = [];
-			let getter: (() => string) | undefined;
-			dispose = render(
-				() => (
-					<DirectionProvider>
-						{(() => {
-							const ctx = useDirection();
-							getter = ctx.direction;
-							first.push(ctx.direction());
-							return null;
-						})()}
-					</DirectionProvider>
-				),
-				container,
-			);
-			expect(first[0]).toBe("ltr");
-			await tick();
-			expect(getter?.()).toBe("rtl");
-			expect(document.documentElement.getAttribute("dir")).toBe("rtl");
-		} finally {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: original,
-			});
-		}
+		const first: string[] = [];
+		let getter: (() => string) | undefined;
+		dispose = hydrateClient(
+			() => (
+				<DirectionProvider>
+					{(() => {
+						const ctx = useDirection();
+						getter = ctx.direction;
+						first.push(ctx.direction());
+						return null;
+					})()}
+				</DirectionProvider>
+			),
+			container,
+		);
+		expect(first[0]).toBe("ltr");
+		await tick();
+		expect(getter?.()).toBe("rtl");
+		expect(document.documentElement.getAttribute("dir")).toBe("rtl");
 	});
 
-	it("sharedConfig.hydrating truthy → still provides useDirection context", async () => {
-		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.hydrating;
-		try {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: true,
-			});
-			let dir: string | undefined;
-			dispose = render(
-				() => (
-					<DirectionProvider>
-						{(() => {
-							dir = useDirection().direction();
-							return null;
-						})()}
-					</DirectionProvider>
-				),
-				container,
-			);
-			expect(dir).toBe("ltr");
-		} finally {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: original,
-			});
-		}
+	it("hydrate → still provides useDirection context", () => {
+		let dir: string | undefined;
+		dispose = hydrateClient(
+			() => (
+				<DirectionProvider>
+					{(() => {
+						dir = useDirection().direction();
+						return null;
+					})()}
+				</DirectionProvider>
+			),
+			container,
+		);
+		expect(dir).toBe("ltr");
 	});
 
 	it("context getDirFromLocale uses cfg.rtlLocales", () => {

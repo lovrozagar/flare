@@ -93,14 +93,11 @@ interface SSRContextValue {
 ### Exports
 
 ```ts
-setSSRContext(value: SSRContextValue): void
 useSSRContext(): SSRContextValue | undefined
 SSRContextProvider(props: { children: JSX.Element; value: SSRContextValue }): JSX.Element
 ```
 
 ### Behavior
-
-**`setSSRContext`**: deprecated no-op. Solid 2 removed `sharedConfig.context`; kept so existing imports do not break.
 
 **`useSSRContext`**: reads `useContext(SSRCtx)`. Returns `undefined` outside a provider.
 
@@ -327,7 +324,6 @@ Await:
   Race condition: stale promise ignored
 
 SSRContext:
-  setSSRContext is a deprecated no-op
   useSSRContext reads SSRCtx from the component tree
   SSRContextProvider wraps the SSR tree
 

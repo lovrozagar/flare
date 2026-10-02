@@ -1,6 +1,6 @@
-import { render } from "@solidjs/web";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LocaleProvider, useLocale } from "../../../src/locale.ts";
+import { hydrateClient } from "../../hydrate-client.ts";
 
 function tick(): Promise<void> {
 	return new Promise((r) => setTimeout(r, 0));
@@ -24,34 +24,21 @@ afterEach(() => {
 });
 
 describe("LocaleProvider hydration", () => {
-	it("sharedConfig.hydrating truthy → still provides useLocale context", async () => {
-		const { sharedConfig } = await import("solid-js");
-		const original = sharedConfig.hydrating;
-		try {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: true,
-			});
-			let locale: string | undefined;
-			dispose = render(
-				() => (
-					<LocaleProvider config={CONFIG} initial="hr">
-						{(() => {
-							locale = useLocale().locale();
-							return null;
-						})()}
-					</LocaleProvider>
-				),
-				container,
-			);
-			expect(locale).toBe("hr");
-			await tick();
-			expect(document.documentElement.getAttribute("lang")).toBe("hr");
-		} finally {
-			Object.defineProperty(sharedConfig, "hydrating", {
-				configurable: true,
-				value: original,
-			});
-		}
+	it("hydrate → still provides useLocale context", async () => {
+		let locale: string | undefined;
+		dispose = hydrateClient(
+			() => (
+				<LocaleProvider config={CONFIG} initial="hr">
+					{(() => {
+						locale = useLocale().locale();
+						return null;
+					})()}
+				</LocaleProvider>
+			),
+			container,
+		);
+		expect(locale).toBe("hr");
+		await tick();
+		expect(document.documentElement.getAttribute("lang")).toBe("hr");
 	});
 });

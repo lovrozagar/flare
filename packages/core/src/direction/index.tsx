@@ -1,4 +1,4 @@
-import { createContext, createEffect, createSignal, onSettled, sharedConfig, untrack, useContext } from "solid-js";
+import { createContext, createEffect, createSignal, isHydrating, onSettled, untrack, useContext } from "solid-js";
 import { isServer, type JSX } from "@solidjs/web";
 
 export type Direction = "ltr" | "rtl";
@@ -61,7 +61,7 @@ export function DirectionProvider(props: { children: JSX.Element; config?: Direc
 		storageKey: props.config?.storageKey ?? DEFAULT_CONFIG.storageKey,
 	};
 
-	const hydrating = isServer || !!sharedConfig.hydrating;
+	const hydrating = isServer || isHydrating();
 
 	/* During SSR + hydration, start from defaultDir so the tree matches.
 	   DirectionScript already applied localStorage to <html> before first paint. */
