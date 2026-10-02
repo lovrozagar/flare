@@ -6,7 +6,7 @@
  *
  *   bun run typecheck:consumer-strict
  */
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -42,7 +42,11 @@ function catalogVersion(name: string): string {
 
 const work = mkdtempSync(join(tmpdir(), "flare-consumer-strict-"));
 try {
-	run(["bun", "pm", "pack", "--filename", join(work, "flare.tgz"), "--quiet"], CORE);
+	/* npm pack, like the release workflow's npm publish: bun pack would hide unresolved catalog: specifiers. */
+	run(["npm", "pack", "--pack-destination", work, "--silent"], CORE);
+	const [tarball] = [...new Bun.Glob("*.tgz").scanSync({ cwd: work })];
+	if (!tarball) throw new Error("npm pack produced no tarball");
+	renameSync(join(work, tarball), join(work, "flare.tgz"));
 
 	const app = join(work, "app");
 	cpSync(FIXTURE, app, { recursive: true });

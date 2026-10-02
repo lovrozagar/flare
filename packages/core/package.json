@@ -103,7 +103,7 @@
 		"type:check:tests": "NODE_OPTIONS='--max-old-space-size=4096' tsc --noEmit"
 	},
 	"dependencies": {
-		"@types/negotiator": "catalog:"
+		"@types/negotiator": "0.6.4"
 	},
 	"devDependencies": {
 		"@babel/parser": "catalog:",
