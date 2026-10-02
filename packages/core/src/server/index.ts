@@ -43,53 +43,54 @@ export interface ServerBuilder<
 	TExcluded extends string = never,
 	TAuth = unknown,
 	TServerContext = Record<string, unknown>,
+	TEnv = unknown,
 > {
-	/** Type-only: what `.authenticateFn()` and `.serverContext()` resolve to. Generated route types read it. */
-	readonly "~flare"?: { auth: TAuth; serverContext: TServerContext };
+	/** Type-only: what `.authenticateFn()`, `.serverContext()`, and `createServer<TEnv>()` resolve to. Generated route types read it. */
+	readonly "~flare"?: { auth: TAuth; env: TEnv; serverContext: TServerContext };
 	authenticateFn: "authenticateFn" extends TExcluded
 		? never
 		: <TNewAuth>(
 				fn: (ctx: {
 					callerData?: unknown[];
-					env: unknown;
+					env: TEnv;
 					request: Request;
 					serverContext: Record<string, unknown>;
 					url: URL;
 				}) => TNewAuth | null | Promise<TNewAuth | null>,
-			) => ServerBuilder<TExcluded | "authenticateFn", TNewAuth, TServerContext>;
+			) => ServerBuilder<TExcluded | "authenticateFn", TNewAuth, TServerContext, TEnv>;
 	cache: "cache" extends TExcluded
 		? never
-		: (config: HandlerCacheConfig) => ServerBuilder<TExcluded | "cache", TAuth, TServerContext>;
-	fetch(request: Request, env?: unknown, ctx?: { waitUntil?: (p: Promise<unknown>) => void }): Promise<Response>;
+		: (config: HandlerCacheConfig) => ServerBuilder<TExcluded | "cache", TAuth, TServerContext, TEnv>;
+	fetch(request: Request, env?: TEnv, ctx?: { waitUntil?: (p: Promise<unknown>) => void }): Promise<Response>;
 	getStaticParams(): Promise<StaticParamsMap>;
 	keepalive: "keepalive" extends TExcluded
 		? never
-		: (config: KeepaliveConfig) => ServerBuilder<TExcluded | "keepalive", TAuth, TServerContext>;
-	mount(prefix: string, target: MountTarget): ServerBuilder<TExcluded, TAuth, TServerContext>;
+		: (config: KeepaliveConfig) => ServerBuilder<TExcluded | "keepalive", TAuth, TServerContext, TEnv>;
+	mount(prefix: string, target: MountTarget): ServerBuilder<TExcluded, TAuth, TServerContext, TEnv>;
 	security: "security" extends TExcluded
 		? never
 		: (
 				config:
 					| SecurityConfig
 					| ((ctx: {
-							env: unknown;
+							env: TEnv;
 							nonce: string;
 							request: Request;
 							serverContext: Record<string, unknown>;
 					  }) => SecurityConfig),
-			) => ServerBuilder<TExcluded | "security", TAuth, TServerContext>;
+			) => ServerBuilder<TExcluded | "security", TAuth, TServerContext, TEnv>;
 	serverContext: "serverContext" extends TExcluded
 		? never
 		: <T extends Record<string, unknown>>(
-				fn: (ctx: { env: unknown; request: Request }) => T | Promise<T>,
-			) => ServerBuilder<TExcluded | "serverContext", TAuth, T>;
+				fn: (ctx: { env: TEnv; request: Request }) => T | Promise<T>,
+			) => ServerBuilder<TExcluded | "serverContext", TAuth, T, TEnv>;
 	sitemap: "sitemap" extends TExcluded
 		? never
-		: (config: SitemapSubmitConfig) => ServerBuilder<TExcluded | "sitemap", TAuth, TServerContext>;
+		: (config: SitemapSubmitConfig) => ServerBuilder<TExcluded | "sitemap", TAuth, TServerContext, TEnv>;
 	tracing: "tracing" extends TExcluded
 		? never
-		: (config: TracingConfig) => ServerBuilder<TExcluded | "tracing", TAuth, TServerContext>;
-	use(...args: (FlareMiddleware | PathMatcher | string)[]): ServerBuilder<TExcluded, TAuth, TServerContext>;
+		: (config: TracingConfig) => ServerBuilder<TExcluded | "tracing", TAuth, TServerContext, TEnv>;
+	use(...args: (FlareMiddleware | PathMatcher | string)[]): ServerBuilder<TExcluded, TAuth, TServerContext, TEnv>;
 }
 
 /* Internal implementation type — no exclusion tracking */
@@ -155,7 +156,10 @@ function bindWaitUntil(ctx?: {
 	};
 }
 
-export function createServer(router: MarkedRouterConfig): ServerBuilder {
+/** `TEnv` is the worker env (`createServer<Cloudflare.Env>(router)`); it types `ctx.env` here and in every route. */
+export function createServer<TEnv = unknown>(
+	router: MarkedRouterConfig,
+): ServerBuilder<never, unknown, Record<string, unknown>, TEnv> {
 	const middlewareEntries: MiddlewareEntry[] = [];
 	const mountConfigs: MountConfig[] = [];
 	let authenticateFn: ServerHandlerConfig["authenticateFn"];
@@ -293,5 +297,5 @@ export function createServer(router: MarkedRouterConfig): ServerBuilder {
 		},
 	};
 
-	return builder as ServerBuilder;
+	return builder as ServerBuilder<never, unknown, Record<string, unknown>, TEnv>;
 }
