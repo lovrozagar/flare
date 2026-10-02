@@ -262,6 +262,23 @@ describe("flare:ssr-build", () => {
 		expect(envs?.ssr?.build?.outDir).toBe("dist/server");
 	});
 
+	it("emits server source maps for remapped worker stack traces, never client ones", () => {
+		const plugins = flarePlugins({});
+		const ssrBuild = plugins.find((p) => p.name === "flare:ssr-build");
+		const config = ssrBuild?.config as (() => Record<string, unknown>) | undefined;
+
+		if (!config) throw new Error("config not found");
+
+		const result = config.call({}) as Record<string, unknown>;
+		const envs = result.environments as Record<string, { build: { minify?: boolean; sourcemap?: boolean } }>;
+
+		/* @cloudflare/vite-plugin sets upload_source_maps when the worker build emits maps */
+		expect(envs?.ssr?.build?.sourcemap).toBe(true);
+		expect(envs?.ssr?.build?.minify).toBe(true);
+		/* client maps would publish source as static assets */
+		expect(envs?.client?.build?.sourcemap).toBeUndefined();
+	});
+
 	it("builder.sharedPlugins is true", () => {
 		const plugins = flarePlugins({});
 		const ssrBuild = plugins.find((p) => p.name === "flare:ssr-build");
