@@ -8,6 +8,7 @@ import { localeConfig } from "../router";
 export const route = createRootLayout("_root_")
 	.preloader((ctx) => ({ locale: ctx.locale() }))
 	.head(() => ({
+		custom: { styles: [{ children: ":root { --flare-root-sheet: on; }" }] },
 		meta: { charset: "utf-8", viewport: "width=device-width, initial-scale=1" },
 		title: "Flare E2E",
 	}))

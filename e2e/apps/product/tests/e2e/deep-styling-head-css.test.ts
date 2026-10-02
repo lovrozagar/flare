@@ -122,11 +122,15 @@ test.describe("Head CSS: custom.styles applied", () => {
 test.describe("Head CSS: custom.styles cleanup", () => {
 	test("custom.styles removed after navigating away", async ({ page }) => {
 		await loadPage(page, "/styling-combo");
-		const stylesBefore = await page.evaluate(() => document.querySelectorAll("style[data-flare-route]").length);
+		const stylesBefore = await page.evaluate(
+			() => document.querySelectorAll('style[data-flare-route]:not([data-flare-route^="_root_:"])').length,
+		);
 		expect(stylesBefore).toBeGreaterThan(0);
 
 		await navigateSPA(page, "/about");
-		const stylesAfter = await page.evaluate(() => document.querySelectorAll("style[data-flare-route]").length);
+		const stylesAfter = await page.evaluate(
+			() => document.querySelectorAll('style[data-flare-route]:not([data-flare-route^="_root_:"])').length,
+		);
 		expect(stylesAfter).toBe(0);
 	});
 });

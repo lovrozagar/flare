@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0
+
+- The root layout's head CSS (`custom.styles`, `css`) survives cached back and forward navigation. Before, a cached popstate dropped the root sheet and left the page unstyled until reload.
+- Client navigation applies per-route heads in hierarchy order, root first. A route that was not refetched keeps its cached head.
+
 ## 0.3.1
 
 - The server (Worker) build emits source maps. `@cloudflare/vite-plugin` then sets `upload_source_maps`, so Cloudflare remaps minified stack traces in Workers Logs and `wrangler tail` to the original files and lines. The client build stays without maps, so no source ships as a static asset.
