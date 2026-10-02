@@ -177,10 +177,13 @@ export function extractDeclarations(
 	return raw.replace(/\s+/g, " ").trim();
 }
 
+const TAILWIND_MODULE: string = "tailwindcss";
+
 /** Initialize a Tailwind v4 compiler from an optional CSS entry file. */
 export async function initTailwindCompiler(cssPath?: string): Promise<TailwindCompiler> {
 	try {
-		const tw = await import("tailwindcss");
+		/* Optional peer: a non-literal specifier keeps consumers without tailwindcss typechecking. */
+		const tw = (await import(/* @vite-ignore */ TAILWIND_MODULE)) as { compile?: unknown; default?: unknown };
 		const compileFn = tw.compile ?? (tw.default as { compile?: unknown })?.compile;
 		if (typeof compileFn !== "function") {
 			throw new Error(

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, extname, join, posix } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { dirname, extname, join, posix, relative, resolve } from "node:path";
 import { parse as babelParse } from "@babel/parser";
 import { parseSeconds } from "../duration/index.ts";
 import type { AuthenticateMode } from "../route-builder/types.ts";
@@ -494,9 +494,7 @@ export function extractRouteDefinitions(src: string, filePath: string): RouteDef
 			const nextExport = NEXT_EXPORT_RE.exec(rest);
 			const chainText = nextExport ? rest.slice(0, nextExport.index) : rest;
 
-			const hasAuthenticateOptional = /\.authenticateOptional\s*\(/.test(chainText);
-			const hasAuthenticate = /\.authenticate\s*\(/.test(chainText);
-			const authenticateMode: AuthenticateMode = hasAuthenticateOptional ? "optional" : !!hasAuthenticate;
+			const authenticateMode = detectAuthenticateMode(chainText);
 			const hasAuthorize = /\.authorize\s*\(/.test(chainText);
 			const hasInput = /\.input\s*(?:<[^>]*>)?\s*\(/.test(chainText);
 			const responseRoute = /\.response\s*\(/.test(chainText);
@@ -638,6 +636,13 @@ function relativeImportPath(from: string, to: string): string {
 	downs[downs.length - 1] = last.replace(/\.(tsx?|ts)$/, "");
 
 	return `${prefix}/${downs.join("/")}`;
+}
+
+/** Auth mode of a builder chain; mirrors `resolveAuthenticateArgs` in the route builder. */
+export function detectAuthenticateMode(chainText: string): AuthenticateMode {
+	if (/\.authenticateOptional\s*\(/.test(chainText)) return "optional";
+	if (/\.authenticate\s*\(\s*(["'`])optional\1\s*[,)]/.test(chainText)) return "optional";
+	return /\.authenticate\s*\(/.test(chainText);
 }
 
 function formatRouteMeta(def: RouteDefinition): string {
@@ -846,7 +851,11 @@ function serializeRouteMeta(def: RouteDefinition): string {
 	return `{${meta}}`;
 }
 
-export function generateRoutesFile(defs: RouteDefinition[], outputDir: string): string {
+export function generateRoutesFile(
+	defs: RouteDefinition[],
+	outputDir: string,
+	app: AppEntries = resolveAppEntries(".", outputDir),
+): string {
 	const pages = defs.filter((d) => d.type === "page");
 	const layouts = generateLayoutsRecord(defs, outputDir);
 
@@ -858,22 +867,7 @@ export function generateRoutesFile(defs: RouteDefinition[], outputDir: string): 
 	/* Detect whether any pages have .input() for search params typing */
 	const hasSearchParams = pages.some((d) => !d.responseRoute && d.hasInput);
 
-	/* Detect queryClientGetter in router source */
-	const routerFilePath = posix.join(posix.dirname(outputDir), "router");
-	let hasQueryClient = false;
-	for (const ext of [".ts", ".tsx"]) {
-		try {
-			const routerSource = readFileSync(`${routerFilePath}${ext}`, "utf-8");
-			if (routerSource.includes("queryClientGetter")) {
-				hasQueryClient = true;
-			}
-			break;
-		} catch {
-			/* file doesn't exist with this extension */
-		}
-	}
-
-	const serverHandler = resolveCreateServerExport(outputDir);
+	const { hasQueryClient, serverHandler } = app;
 	const registry = generateRouteRegistry(defs, outputDir, hasAuth, hasQueryClient, serverHandler !== null);
 
 	/* Deduplicate meta objects */
@@ -1008,23 +1002,82 @@ export function generateVirtualModuleTypes(): string {
 	return `/// <reference types="vite/client" />\n/// <reference types="@lovrozagar/flare/virtual-types" />\n`;
 }
 
-function resolveCreateServerExport(outputDir: string): { exportName: string; importPath: string } | null {
-	const serverFilePath = posix.join(posix.dirname(outputDir), "server");
-	for (const ext of [".ts", ".tsx"]) {
-		try {
-			const serverSource = readFileSync(`${serverFilePath}${ext}`, "utf-8");
-			const match = serverSource.match(/export\s+const\s+(\w+)\s*=\s*createServer/);
-			if (match?.[1]) {
-				return {
-					exportName: match[1],
-					importPath: relativeImportPath(`${outputDir}/routes.gen.ts`, serverFilePath),
-				};
-			}
-		} catch {
-			/* missing extension */
-		}
+export interface AppEntries {
+	hasQueryClient: boolean;
+	serverHandler: { exportName: string; importPath: string } | null;
+	warnings: string[];
+}
+
+const ENTRY_EXTS = [".ts", ".tsx"];
+
+/** Root-relative posix path of the first existing candidate (`base` as given, then with each extension). */
+function findSourceFile(rootDir: string, base: string): string | null {
+	for (const candidate of [
+		base,
+		...ENTRY_EXTS.map((ext) => `${base}${ext}`),
+		...ENTRY_EXTS.map((ext) => `${base}/index${ext}`),
+	]) {
+		const abs = resolve(rootDir, candidate);
+		if (existsSync(abs) && statSync(abs).isFile()) return relative(resolve(rootDir), abs).replaceAll("\\", "/");
 	}
 	return null;
+}
+
+function readSource(rootDir: string, rel: string | null): string | null {
+	if (!rel) return null;
+	try {
+		return readFileSync(resolve(rootDir, rel), "utf-8");
+	} catch {
+		return null;
+	}
+}
+
+/** Relative module the server entry imports the router from: `createServer(x)` + `import { x } from "./..."`. */
+function routerImportOf(serverSource: string): string | null {
+	const arg = serverSource.match(/createServer\s*(?:<[^>]*>)?\s*\(\s*(\w+)/)?.[1];
+	if (!arg) return null;
+	for (const m of serverSource.matchAll(/import\s*\{([^}]*)\}\s*from\s*["'](\.{1,2}\/[^"']+)["']/g)) {
+		const names = (m[1] ?? "").split(",").map((n) =>
+			n
+				.trim()
+				.split(/\s+as\s+/)
+				.pop(),
+		);
+		if (names.includes(arg)) return m[2] ?? null;
+	}
+	return null;
+}
+
+/**
+ * Server handler export and router facts for the registry. The server entry
+ * defaults to `server.ts(x)` beside the output dir; the router is the module
+ * the server passes to `createServer()`, else `router.ts(x)` beside it.
+ */
+export function resolveAppEntries(rootDir: string, outputDir: string, serverEntry?: string): AppEntries {
+	const warnings: string[] = [];
+	const srcDir = posix.dirname(outputDir);
+	const serverFile = serverEntry ? findSourceFile(rootDir, serverEntry) : findSourceFile(rootDir, `${srcDir}/server`);
+	const serverSource = readSource(rootDir, serverFile);
+
+	const routerSpec = serverSource && serverFile ? routerImportOf(serverSource) : null;
+	const routerFile =
+		(routerSpec && serverFile ? findSourceFile(rootDir, posix.join(posix.dirname(serverFile), routerSpec)) : null) ??
+		findSourceFile(rootDir, `${srcDir}/router`);
+	const hasQueryClient = readSource(rootDir, routerFile)?.includes("queryClientGetter") ?? false;
+
+	let serverHandler: AppEntries["serverHandler"] = null;
+	if (serverSource && serverFile) {
+		const exportName = serverSource.match(/export\s+const\s+(\w+)\s*=\s*createServer/)?.[1];
+		if (exportName) {
+			serverHandler = { exportName, importPath: relativeImportPath(`${outputDir}/routes.gen.ts`, serverFile) };
+		} else if (/createServer\s*(?:<[^>]*>)?\s*\(/.test(serverSource)) {
+			warnings.push(
+				`${serverFile} calls createServer() without exporting it; export the chain (export const server = createServer(router)...) so routes.gen.ts can infer auth, env, and serverContext`,
+			);
+		}
+	}
+
+	return { hasQueryClient, serverHandler, warnings };
 }
 
 /** Generate TypeScript declaration merging block for route type registry. */
@@ -1148,12 +1201,12 @@ export function generateRouteRegistry(
 	}
 
 	if (hasServer && hasAuth) {
-		lines.push(`\t\tauth: NonNullable<Awaited<ReturnType<NonNullable<typeof _FlareHandler["authenticateFn"]>>>>`);
+		lines.push(`\t\tauth: NonNullable<NonNullable<(typeof _FlareHandler)["~flare"]>["auth"]>`);
 	}
 
 	if (hasServer) {
 		lines.push(`\t\tenv: Parameters<typeof _FlareHandler["fetch"]>[1]`);
-		lines.push(`\t\tserverContext: Awaited<ReturnType<NonNullable<typeof _FlareHandler["serverContext"]>>>`);
+		lines.push(`\t\tserverContext: NonNullable<(typeof _FlareHandler)["~flare"]>["serverContext"]`);
 	}
 	if (hasQueryClient) {
 		lines.push("\t\thasQueryClient: true");
@@ -1502,9 +1555,7 @@ export function scanSourceFilesFsCodegen(options: ScanOptions): RouteDefinition[
 		}
 
 		/* Extract chain metadata from file content */
-		const hasAuthenticateOptional = /\.authenticateOptional\s*\(/.test(content);
-		const hasAuthenticate = /\.authenticate\s*\(/.test(content);
-		const authenticateMode: AuthenticateMode = hasAuthenticateOptional ? "optional" : !!hasAuthenticate;
+		const authenticateMode = detectAuthenticateMode(content);
 		const hasAuthorize = /\.authorize\s*\(/.test(content);
 		const hasInput = /\.input\s*(?:<[^>]*>)?\s*\(/.test(content);
 		const responseRoute = /\.response\s*\(/.test(content);
@@ -1533,6 +1584,8 @@ export interface RunGenerateOptions {
 	ignorePrefix?: string;
 	outputPath?: string;
 	rootDir: string;
+	/** Server entry (root-relative or absolute); defaults to `server.ts(x)` beside the output dir. */
+	serverEntry?: string;
 	srcDir?: string;
 	typesOutputPath?: string;
 }
@@ -1617,7 +1670,12 @@ export function runGenerate(options: RunGenerateOptions): GenerateResult {
 		return { layouts: 0, routes: 0, warnings };
 	}
 
-	const content = generateRoutesFile(defs, outputDir);
+	const app = resolveAppEntries(options.rootDir, outputDir, options.serverEntry);
+	for (const warning of app.warnings) {
+		warnings.push(warning);
+		console.warn(`[flare:generate] ${warning}`);
+	}
+	const content = generateRoutesFile(defs, outputDir, app);
 	writeGenFile(fullOutputPath, content, "flare");
 
 	/* Write virtual module type declarations as a .d.ts file (must be ambient, not in a module) */

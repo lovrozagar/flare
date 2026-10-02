@@ -1,5 +1,13 @@
 {
 	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"allowUnreachableCode": false,
+		"allowUnusedLabels": false,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitReturns": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true
+	},
 	"include": ["src/**/*"],
 	"exclude": ["src/_gen/**/*"]
 }

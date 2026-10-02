@@ -12,6 +12,7 @@ import type {
 } from "./register.ts";
 import {
 	type AuthenticateMode,
+	type AuthenticateModeFromArgs,
 	BUILDER_MARKER,
 	type CacheConfig,
 	type DeferFn,
@@ -25,6 +26,7 @@ import {
 	type SearchParamsValidator,
 	type ServerThrowHelpers,
 	type ServerUrlHelpers,
+	resolveAuthenticateArgs,
 } from "./types.ts";
 
 /* ── callback context types ─────────────────────────────────────── */
@@ -315,7 +317,11 @@ interface LayoutBuilderAfterInput<
 	TAuth extends AuthenticateMode,
 	TPreloaderContext,
 > extends LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, TAuth, TPreloaderContext> {
-	authenticate(...args: unknown[]): LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, true, TPreloaderContext>;
+	/** Required by default; `.authenticate("optional")` lets anonymous requests through with `ctx.auth === null`. Other arguments are callerData for `authenticateFn`. */
+	authenticate<const TArgs extends readonly unknown[]>(
+		...args: TArgs
+	): LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, AuthenticateModeFromArgs<TArgs>, TPreloaderContext>;
+	/** @deprecated Use `.authenticate("optional", ...callerData)`. */
 	authenticateOptional(
 		...args: unknown[]
 	): LayoutBuilderAfterAuthenticate<TPath, TParams, TSearch, "optional", TPreloaderContext>;
@@ -601,12 +607,14 @@ function createBuilderAfterInput<
 >(state: BuilderStateInternal): LayoutBuilderAfterInput<TPath, TParams, TSearch, TAuth, TPreloaderContext> {
 	return {
 		...createBuilderAfterAuthenticate<TPath, TParams, TSearch, TAuth, TPreloaderContext>(state),
-		authenticate(...args: unknown[]) {
-			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, true, TPreloaderContext>({
-				...state,
-				authenticate: args,
-				authenticateMode: true,
-			});
+		authenticate<const TArgs extends readonly unknown[]>(...args: TArgs) {
+			return createBuilderAfterAuthenticate<
+				TPath,
+				TParams,
+				TSearch,
+				AuthenticateModeFromArgs<TArgs>,
+				TPreloaderContext
+			>({ ...state, ...resolveAuthenticateArgs(args) });
 		},
 		authenticateOptional(...args: unknown[]) {
 			return createBuilderAfterAuthenticate<TPath, TParams, TSearch, "optional", TPreloaderContext>({

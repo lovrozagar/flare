@@ -1,3 +1,4 @@
+import type { AuthenticateMode } from "../route-builder/types.ts";
 import type { SearchParams } from "../url/index.ts";
 
 export type PrefetchStrategy = false | "intent" | "render" | "viewport";
@@ -19,7 +20,7 @@ export type RouteMetaStatic = {
 };
 
 export type RouteMeta = {
-	authenticate?: boolean;
+	authenticate?: AuthenticateMode;
 	authorize?: boolean;
 	client?: RouteMetaClient;
 	intercept?: { from: readonly string[]; render: string };

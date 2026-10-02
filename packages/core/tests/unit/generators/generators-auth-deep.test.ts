@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { RouteDefinition } from "../../../src/generators/index.ts";
-import { extractRouteDefinitions, generateRouteRegistry, generateRoutesFile } from "../../../src/generators/index.ts";
+import {
+	detectAuthenticateMode,
+	extractRouteDefinitions,
+	generateRouteRegistry,
+	generateRoutesFile,
+} from "../../../src/generators/index.ts";
 
 function makeDef(overrides: Partial<RouteDefinition>): RouteDefinition {
 	return {
@@ -435,5 +440,26 @@ describe("generateRouteRegistry — authModes section", () => {
 		expect(result).toContain('"_root_/p1": "optional"');
 		expect(result).toContain('"_root_/p4": "optional"');
 		expect(result).toContain('"_root_/p7": "optional"');
+	});
+});
+
+/* ── detectAuthenticateMode ────────────────────────────────────────── */
+
+describe("detectAuthenticateMode", () => {
+	it.each([
+		["", false],
+		[".authenticate()", true],
+		['.authenticate("admin")', true],
+		['.authenticate("optional")', "optional"],
+		[".authenticate('optional')", "optional"],
+		[".authenticate(`optional`)", "optional"],
+		['.authenticate( "optional" , "viewer")', "optional"],
+		['.authenticate("optionalish")', true],
+		['.authenticate("admin", "optional")', true],
+		[".authenticate(optional)", true],
+		[".authenticateOptional()", "optional"],
+		[".authenticateFn(fn)", false],
+	] as const)("%s → %s", (chain, mode) => {
+		expect(detectAuthenticateMode(`createPage("_root_/x")${chain}.render(() => null)`)).toBe(mode);
 	});
 });

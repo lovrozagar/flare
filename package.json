@@ -75,6 +75,7 @@
 		"test:e2e:workers:prod": "TEST_MODE=prod bun run e2e/run-env.ts --env workers",
 		"test:watch": "bun run --filter @lovrozagar/flare test:watch",
 		"typecheck": "bun run --filter @lovrozagar/flare type:check",
+		"typecheck:consumer-strict": "bun run scripts/check-consumer-strict.ts",
 		"typecheck:consumers": "bun run --filter @flare/e2e-product type:check && bun run --filter @flare/e2e-demo type:check && bun run --filter @flare/e2e-fs-routes type:check && bun run --filter @flare/e2e-tauri type:check",
 		"typecheck:harness": "tsc -p e2e/tsconfig.json && tsc -p scripts/tsconfig.json && bun run --filter @flare/e2e-node type:check && bun run --filter @flare/e2e-bun type:check && bun run --filter @flare/e2e-deno type:check && bun run --filter @flare/e2e-workers type:check",
 		"lint": "oxlint",
