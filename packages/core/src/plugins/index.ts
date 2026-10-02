@@ -281,6 +281,8 @@ function createSsrBuildPlugin(
 									entryFileNames: "server.js",
 								},
 							},
+							/* @cloudflare/vite-plugin then sets upload_source_maps, so minified worker stack traces remap */
+							sourcemap: true,
 						},
 					},
 				},

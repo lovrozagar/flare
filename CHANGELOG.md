@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- The server (Worker) build emits source maps. `@cloudflare/vite-plugin` then sets `upload_source_maps`, so Cloudflare remaps minified stack traces in Workers Logs and `wrangler tail` to the original files and lines. The client build stays without maps, so no source ships as a static asset.
+
 ## 0.3.0
 
 - `cn` resolves Tailwind conflicts. The last utility in a group wins.
