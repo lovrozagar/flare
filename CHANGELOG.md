@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- A server fn called directly from browser code makes the HTTP call. Before, the client build stubbed the handler and validator, so `await fn(input)` in a component, event handler, or client module threw `Server function called on client`, and only `<Form action>` and the `server-fn-query` helpers reached the server. The client transform now marks each server fn, and calling it sends `POST` (or `GET` for `method: "get"`) to `/_flare/server-fn/{id}/{name}` and resolves with the handler's result. Failures reject the same way the query helpers do, with `ServerFnValidationError` for validation errors. A unit test runs a module through the client transform and calls the export, so the client build and the runtime are tested together.
+
 ## 0.5.1
 
 - `createServer<TEnv>(router)` types the worker env. `ctx.env` in `.authenticateFn()`, `.serverContext()`, `.security()`, and every route is `TEnv`. Before, the generated registry read `env` from `fetch`'s `unknown` parameter, so every route's `ctx.env` was `unknown` and an app-side `env` augmentation conflicted with it. Pass the env type once: `createServer<Cloudflare.Env>(router)`. The strict consumer fixture now reads a typed env in a loader and in `authenticateFn`.
