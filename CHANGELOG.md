@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- A server fn's return type reaches its callers: `.handler()` infers the output, so `await fn(input)` is typed without restating it. Before, the output was fixed to `unknown` when the builder was created and every call site cast. Handler and stream contexts now type `env`, `serverContext`, and (after `.authenticate()`) `auth` from the app's registry (`createServer<Env>(router)`, `.serverContext()`, `.authenticateFn()`), and `.authenticateFn()` / `.security()` receive the `.serverContext()` type. Middleware keeps the open `serverContext` record because built-ins store framework keys there.
+
 ## 0.7.0
 
 - A server fn called directly from browser code makes the HTTP call. Before, the client build stubbed the handler and validator, so `await fn(input)` in a component, event handler, or client module threw `Server function called on client`, and only `<Form action>` and the `server-fn-query` helpers reached the server. The client transform now marks each server fn, and calling it sends `POST` (or `GET` for `method: "get"`) to `/_flare/server-fn/{id}/{name}` and resolves with the handler's result. Failures reject the same way the query helpers do, with `ServerFnValidationError` for validation errors. A unit test runs a module through the client transform and calls the export, so the client build and the runtime are tested together.
