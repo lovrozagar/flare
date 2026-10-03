@@ -54,7 +54,7 @@ export interface ServerBuilder<
 					callerData?: unknown[];
 					env: TEnv;
 					request: Request;
-					serverContext: Record<string, unknown>;
+					serverContext: TServerContext;
 					url: URL;
 				}) => TNewAuth | null | Promise<TNewAuth | null>,
 			) => ServerBuilder<TExcluded | "authenticateFn", TNewAuth, TServerContext, TEnv>;
@@ -72,12 +72,7 @@ export interface ServerBuilder<
 		: (
 				config:
 					| SecurityConfig
-					| ((ctx: {
-							env: TEnv;
-							nonce: string;
-							request: Request;
-							serverContext: Record<string, unknown>;
-					  }) => SecurityConfig),
+					| ((ctx: { env: TEnv; nonce: string; request: Request; serverContext: TServerContext }) => SecurityConfig),
 			) => ServerBuilder<TExcluded | "security", TAuth, TServerContext, TEnv>;
 	serverContext: "serverContext" extends TExcluded
 		? never

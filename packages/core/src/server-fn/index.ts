@@ -1,3 +1,4 @@
+import type { ResolvedAuth, ResolvedEnv, ResolvedServerContext } from "../route-builder/register.ts";
 import { FORM_FN_FIELD, parseServerFnPathname, serverFnPath } from "../protocol.ts";
 import { callServerFnOverHttp } from "./rpc.ts";
 import {
@@ -39,7 +40,8 @@ export interface PiggybackedQuery {
 	key: unknown[];
 }
 
-export interface HandlerContext<TAuth, TInput, TEnv = unknown> {
+/* TEnv defaults to the app's registered env (`createServer<Env>()`) */
+export interface HandlerContext<TAuth, TInput, TEnv = ResolvedEnv> {
 	auth: TAuth;
 	env: TEnv;
 	input: TInput;
@@ -56,15 +58,17 @@ export interface HandlerContext<TAuth, TInput, TEnv = unknown> {
 	piggyback: (key: unknown[], data: unknown) => void;
 	request: Request;
 	revalidate: RevalidateFn;
-	serverContext: Record<string, unknown>;
+	/* the app's `.serverContext()` result, typed through FlareRegister */
+	serverContext: ResolvedServerContext;
 }
 
-export interface StreamContext<TAuth, TInput, TEnv = unknown> {
+export interface StreamContext<TAuth, TInput, TEnv = ResolvedEnv> {
 	auth: TAuth;
 	env: TEnv;
 	input: TInput;
 	request: Request;
-	serverContext: Record<string, unknown>;
+	/* the app's `.serverContext()` result, typed through FlareRegister */
+	serverContext: ResolvedServerContext;
 	signal: AbortSignal;
 }
 
@@ -78,12 +82,12 @@ export interface ServerFnRegistrationBase {
 }
 
 export interface ServerFnHandlerRegistration extends ServerFnRegistrationBase {
-	fn: (ctx: HandlerContext<unknown, unknown>) => unknown | Promise<unknown>;
+	fn: (ctx: HandlerContext<unknown, unknown, unknown>) => unknown | Promise<unknown>;
 	stream?: false;
 }
 
 export interface ServerFnStreamRegistration extends ServerFnRegistrationBase {
-	fn: (ctx: StreamContext<unknown, unknown>) => AsyncGenerator<unknown>;
+	fn: (ctx: StreamContext<unknown, unknown, unknown>) => AsyncGenerator<unknown>;
 	stream: true;
 }
 
@@ -99,22 +103,24 @@ interface BuilderState {
 	name: string;
 }
 
-interface ServerFnBuilderTerminal<TAuth, TInput, TOutput> {
-	handler(fn: (ctx: HandlerContext<TAuth, TInput>) => TOutput | Promise<TOutput>): ServerFn<TInput, TOutput>;
-	input<T>(validator: Validator<T>): ServerFnBuilderTerminal<TAuth, T, TOutput>;
+interface ServerFnBuilderTerminal<TAuth, TInput> {
+	/* the output type is the handler's: callers get it without restating it */
+	handler<TOutput>(fn: (ctx: HandlerContext<TAuth, TInput>) => TOutput | Promise<TOutput>): ServerFn<TInput, TOutput>;
+	input<T>(validator: Validator<T>): ServerFnBuilderTerminal<TAuth, T>;
 	stream<TChunk>(fn: (ctx: StreamContext<TAuth, TInput>) => AsyncGenerator<TChunk>): StreamFn<TInput, TChunk>;
 }
 
-interface ServerFnBuilderAfterAuth<TAuth, TInput, TOutput> extends ServerFnBuilderTerminal<TAuth, TInput, TOutput> {
+interface ServerFnBuilderAfterAuth<TAuth, TInput> extends ServerFnBuilderTerminal<TAuth, TInput> {
 	authorize(
 		fn: (ctx: { auth: TAuth; input: TInput }) => boolean | Promise<boolean>,
-	): ServerFnBuilderTerminal<TAuth, TInput, TOutput>;
-	input<T>(validator: Validator<T>): ServerFnBuilderAfterAuth<TAuth, T, TOutput>;
+	): ServerFnBuilderTerminal<TAuth, TInput>;
+	input<T>(validator: Validator<T>): ServerFnBuilderAfterAuth<TAuth, T>;
 }
 
-interface ServerFnBuilder<TAuth, TInput, TOutput> extends ServerFnBuilderAfterAuth<TAuth, TInput, TOutput> {
-	authenticate(): ServerFnBuilderAfterAuth<unknown, TInput, TOutput>;
-	input<T>(validator: Validator<T>): ServerFnBuilder<TAuth, T, TOutput>;
+interface ServerFnBuilder<TAuth, TInput> extends ServerFnBuilderAfterAuth<TAuth, TInput> {
+	/* the app's `authenticateFn` result, typed through FlareRegister */
+	authenticate(): ServerFnBuilderAfterAuth<ResolvedAuth<true>, TInput>;
+	input<T>(validator: Validator<T>): ServerFnBuilder<TAuth, T>;
 }
 
 export type ServerFn<_TInput, TOutput> = ((_input: _TInput) => Promise<TOutput>) & {
@@ -128,15 +134,13 @@ export type StreamFn<_TInput, TChunk> = ((
 	_registration?: ServerFnRegistration;
 };
 
-function createBuilderTerminal<TAuth, TInput, TOutput>(
-	state: BuilderState,
-): ServerFnBuilderTerminal<TAuth, TInput, TOutput> {
+function createBuilderTerminal<TAuth, TInput>(state: BuilderState): ServerFnBuilderTerminal<TAuth, TInput> {
 	return {
-		handler(fn) {
+		handler<TOutput>(fn: (ctx: HandlerContext<TAuth, TInput>) => TOutput | Promise<TOutput>) {
 			const registration: ServerFnHandlerRegistration = {
 				authenticate: state.authenticate,
 				authorizeFn: state.authorizeFn,
-				fn: fn as (ctx: HandlerContext<unknown, unknown>) => unknown | Promise<unknown>,
+				fn: fn as (ctx: HandlerContext<unknown, unknown, unknown>) => unknown | Promise<unknown>,
 				id: state.__id && state.__id.length > 0 ? state.__id : state.name,
 				input: state.input,
 				method: state.method,
@@ -168,7 +172,8 @@ function createBuilderTerminal<TAuth, TInput, TOutput>(
 				};
 				return await fn({
 					auth: null as TAuth,
-					env: {},
+					/* direct server-side invocation runs outside a request: there are no bindings */
+					env: {} as ResolvedEnv,
 					input: validated,
 					piggyback: () => {},
 					request: new Request("http://localhost"),
@@ -180,7 +185,7 @@ function createBuilderTerminal<TAuth, TInput, TOutput>(
 			return serverFn;
 		},
 		input<T>(validator: Validator<T>) {
-			return createBuilderTerminal<TAuth, T, TOutput>({
+			return createBuilderTerminal<TAuth, T>({
 				...state,
 				input: validator as Validator<unknown>,
 			});
@@ -189,7 +194,7 @@ function createBuilderTerminal<TAuth, TInput, TOutput>(
 			const registration: ServerFnStreamRegistration = {
 				authenticate: state.authenticate,
 				authorizeFn: state.authorizeFn,
-				fn: fn as (ctx: StreamContext<unknown, unknown>) => AsyncGenerator<unknown>,
+				fn: fn as (ctx: StreamContext<unknown, unknown, unknown>) => AsyncGenerator<unknown>,
 				id: state.__id && state.__id.length > 0 ? state.__id : state.name,
 				input: state.input,
 				method: state.method,
@@ -218,7 +223,7 @@ function createBuilderTerminal<TAuth, TInput, TOutput>(
 									const validated = (await validatedPromise) as TInput;
 									generator = fn({
 										auth: null as TAuth,
-										env: {} as unknown,
+										env: {} as ResolvedEnv,
 										input: validated,
 										request: new Request("http://localhost"),
 										serverContext: getServerContext(),
@@ -243,19 +248,17 @@ function createBuilderTerminal<TAuth, TInput, TOutput>(
 	};
 }
 
-function createBuilderAfterAuth<TAuth, TInput, TOutput>(
-	state: BuilderState,
-): ServerFnBuilderAfterAuth<TAuth, TInput, TOutput> {
+function createBuilderAfterAuth<TAuth, TInput>(state: BuilderState): ServerFnBuilderAfterAuth<TAuth, TInput> {
 	return {
-		...createBuilderTerminal<TAuth, TInput, TOutput>(state),
+		...createBuilderTerminal<TAuth, TInput>(state),
 		authorize(fn) {
-			return createBuilderTerminal<TAuth, TInput, TOutput>({
+			return createBuilderTerminal<TAuth, TInput>({
 				...state,
 				authorizeFn: fn as (ctx: { auth: unknown; input: unknown }) => boolean | Promise<boolean>,
 			});
 		},
 		input<T>(validator: Validator<T>) {
-			return createBuilderAfterAuth<TAuth, T, TOutput>({
+			return createBuilderAfterAuth<TAuth, T>({
 				...state,
 				input: validator as Validator<unknown>,
 			});
@@ -263,17 +266,17 @@ function createBuilderAfterAuth<TAuth, TInput, TOutput>(
 	};
 }
 
-function createBuilder<TAuth, TInput, TOutput>(state: BuilderState): ServerFnBuilder<TAuth, TInput, TOutput> {
+function createBuilder<TAuth, TInput>(state: BuilderState): ServerFnBuilder<TAuth, TInput> {
 	return {
-		...createBuilderAfterAuth<TAuth, TInput, TOutput>(state),
+		...createBuilderAfterAuth<TAuth, TInput>(state),
 		authenticate() {
-			return createBuilderAfterAuth<unknown, TInput, TOutput>({
+			return createBuilderAfterAuth<ResolvedAuth<true>, TInput>({
 				...state,
 				authenticate: true,
 			});
 		},
 		input<T>(validator: Validator<T>) {
-			return createBuilder<TAuth, T, TOutput>({
+			return createBuilder<TAuth, T>({
 				...state,
 				input: validator as Validator<unknown>,
 			});
@@ -281,8 +284,8 @@ function createBuilder<TAuth, TInput, TOutput>(state: BuilderState): ServerFnBui
 	};
 }
 
-export function createServerFn(config: ServerFnConfig): ServerFnBuilder<null, void, unknown> {
-	return createBuilder<null, void, unknown>({
+export function createServerFn(config: ServerFnConfig): ServerFnBuilder<null, void> {
+	return createBuilder<null, void>({
 		__client: config.__client,
 		__id: config.__id,
 		authenticate: false,
