@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.2
+
+- Dev hydration works when Flare is installed from npm. Flare ships TSX source, and Vite's dependency optimizer pre-bundled it from `node_modules` without the Solid JSX transform, so dev pages failed at hydration with `React is not defined` (and event handlers never attached). The plugin now excludes `@lovrozagar/flare` from `optimizeDeps`, so it's served as source like a linked package. Workspace-linked apps never hit this, so a new test installs a real copy into a consumer app's `node_modules` and asserts Flare isn't pre-bundled.
+
 ## 0.9.1
 
 - Variants Tailwind emits as a suffix on a utility's own selector keep the whole suffix. Tailwind 4.3.3 flattens attribute variants (`.u[aria-pressed="true"]`, `.u[data-open]`), and Flare dropped them as unknown selectors, so `aria-pressed:` and `data-[x]:` classes shipped no CSS. Chained pseudo-classes (`focus-visible:disabled:`) also lost every pseudo but the last.
