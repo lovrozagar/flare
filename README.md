@@ -766,6 +766,26 @@ import { styles, cn } from "@lovrozagar/flare/styles";
 
 `tw=` on `styles()` or as a JSX attribute is **dropped**. Put utilities in `class=`. `css=` compiles through the same plugin (not a `data-c` hash).
 
+### Which class strings compile
+
+Only string literals inside a `class=` expression get CSS: plain literals, arrays, ternary branches, the right side of `&&`, call arguments (`cn("a", on() && "b")`) and template literals. Literals elsewhere get none: module constants and lookups (`variants[props.v]`, so cva-style config objects), `class={(state) => "…"}` functions, and props not named `class`. Write variants as `&&` arms inside `cn(...)`.
+
+### Theme
+
+`sx.twCssPath` is the app's Tailwind entry stylesheet. Relative and package `@import`s resolve from the importing file, and `@plugin` loads relative or installed plugins.
+
+- **Merging follows the theme.** `cn` (and the compile-time static merge) uses tables compiled from that theme, so custom scale names merge: with `--radius-control`, `cn("rounded-control", "rounded-lg")` is `rounded-lg`, and a custom `--text-body` size no longer conflicts with a `text-muted` color. Without `twCssPath`, `cn` uses the default Tailwind tables. In dev, editing the theme rebuilds the CSS and the tables.
+- **Theme values are inlined by default** (`sx.themeVars: "inline"`): `.bg-canvas { background-color: light-dark(#f9f9fb, #18191b) }`. `"reference"` keeps `var(--background-color-canvas)` and ships the referenced theme vars in `@layer theme`, so a page can change them at runtime (a live theme editor).
+- **Tailwind's own stacks stay live.** Element-local `--tw-*` vars (shadow, ring, transform and filter stacks) are never inlined, and their `@property` rules ship, so `shadow-sm ring-1` composes on one element.
+
+### Strict classes
+
+`sx.strict` fails the module (a build error; the dev overlay in dev) when an app-layer class literal compiles to no CSS, for example a reset palette color or a typo. `{ allow: ["prose"] }` lets non-Tailwind class names through; `group` and `peer` markers always pass. `{ deny: [/^-?m[lr]-/] }` rejects utilities even when they compile. Library-layer modules (`/node_modules/`) are not checked.
+
+```ts
+flare({ sx: { tw: true, twCssPath: "./src/theme.css", strict: { allow: ["prose"], deny: [/^text-(left|right)$/] } } });
+```
+
 ## Fonts and images
 
 ```tsx
@@ -1088,6 +1108,9 @@ export default defineConfig({
 | `purge`                                | off                                         | Dead CSS / `data-testid` strip                               |
 | `serviceWorker`                        | off                                         | `sw.js`                                                      |
 | `sx.tw`                                | compile `class=` Tailwind                   |                                                              |
+| `sx.twCssPath`                         | `@import "tailwindcss"`                     | Theme entry stylesheet; `cn` merges with its scales          |
+| `sx.themeVars`                         | `"inline"`                                  | `"reference"` keeps theme `var()`s for runtime theming       |
+| `sx.strict`                            | off                                         | Unknown or denied class literals fail the build              |
 | `image.quality` / `widths` / `exclude` | image pipeline                              |                                                              |
 | `assetsBase`                           | `"/assets"`                                 | Must start with `/`, no trailing `/` (`"/"` = root-relative) |
 | `entry.client` / `entry.server`        | `src/client`, `src/server`                  |                                                              |

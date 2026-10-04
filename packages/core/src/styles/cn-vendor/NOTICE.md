@@ -9,10 +9,14 @@ https://github.com/shadcn-ui/cn
 - tag: `cn@0.4.0`
 - commit: `84db83298f69a229d6f1ffc5d8c8d99ef451fb49`
 
-Copied files (runtime slice only):
+Copied files:
 
-- `engine.ts`
-- `tables.generated.ts`
-- `types.ts`
+- Runtime: `engine.ts`, `tables.generated.ts`, `types.ts`
+- Build-time theme compiler (used by `src/plugins/cn-theme.ts` to compile merge tables from an app's Tailwind theme): `compiler.ts`, `config.ts`, `default-config.generated.ts`, `theme-css.ts`, `validators.ts`
 
-Not copied: `compiler.ts`, `build.ts`, `config.ts`, `default-config.generated.ts`, `vite.ts`, `next.ts`, `lite.ts`, `theme-css.ts`, `validators.ts`, `index.ts`.
+Local changes (marked `Flare patch` in the source):
+
+- Relative imports carry a `.ts` extension.
+- `theme-css.ts`: follows bare (package) `@import`s through an injected resolver, skipping `tailwindcss`, and ignores per-utility color namespaces (`--text-color-*`, `--background-color-*`, …) so they never land on another scale.
+
+Not copied: `build.ts`, `vite.ts`, `next.ts`, `lite.ts`, `index.ts`.
