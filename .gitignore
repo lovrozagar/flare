@@ -48,3 +48,6 @@ ISSUES.md
 
 # cargo target for rust / tauri (do not use /tmp — it is a small tmpfs)
 .cache/
+
+# Temp consumer apps from optimize-deps-consumer.test.ts
+packages/core/tests/fixtures/.consumer-dev-*/

@@ -287,6 +287,9 @@ function createSsrBuildPlugin(entries: ResolvedEntries, config: FlarePluginConfi
 					},
 				},
 				optimizeDeps: {
+					/* Flare ships TSX source: the dep optimizer would bundle it without the Solid JSX
+					   transform. Serve it as source, like a linked package. */
+					exclude: ["@lovrozagar/flare"],
 					include: ["solid-js", "@solidjs/web"],
 				},
 				resolve: {
