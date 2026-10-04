@@ -166,18 +166,22 @@ export function clientLazy<P extends Record<string, unknown>>(
 			});
 		}
 
+		/* Cast outside JSX: Solid's SSR compiler hoists JSX props into classes and captures
+		 * `P` from `{...(props as P)}` as a runtime value ("P is not defined"). */
+		const forwarded = props as P;
+
 		return (
 			<Show
 				fallback={
 					<Show
 						fallback={
 							<Show when={props.pending ?? factoryPending}>
-								{(Comp) => <Dynamic component={Comp()} {...(props as P)} />}
+								{(Comp) => <Dynamic component={Comp()} {...forwarded} />}
 							</Show>
 						}
 						when={component()}
 					>
-						{(entry) => <Dynamic component={entry().C} {...(props as P)} />}
+						{(entry) => <Dynamic component={entry().C} {...forwarded} />}
 					</Show>
 				}
 				when={error()}
