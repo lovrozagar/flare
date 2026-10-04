@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.9
+
+- Client navigation never paints a page before its loader data. A viewport prefetch warms only a route's modules but marked it visited, so the click painted a cached shell; with just the shared layout cached (hydration seeds it), the page mounted with null loader data, threw into the root error boundary or showed raw i18n keys, then recovered when the data landed. The shell now paints only when every route module is cached; otherwise navigation waits for the data as on a first visit.
+- Classes keyed in a class object compile (`class={["p-2", { "bg-accent/10": on() }]}`). Flare's extraction skipped object keys, so those utilities reached the DOM with no CSS.
+- **Breaking:** theme is opt-in. Without `theme` in `createRouter`, Flare emits no theme script or `color-scheme` style and never sets `data-theme`. Before, every app defaulted to `system`, so a light-only site turned dark for dark-mode visitors. Apps with dark mode set `theme: { defaultTheme: "system" }`.
+- Sources added to the CSP `style-src` also allow stylesheets. Flare puts its style nonce on `style-src-elem`, which browsers then use alone for `<style>` and `<link>`, so a widget's stylesheet host in `style-src` was blocked. Unless the app sets `style-src-elem` itself, its `style-src` sources are copied there.
+
 ## 0.9.8
 
 - `vite preview` works with `--configLoader runner` (needed to preview on Node, since Flare ships TypeScript). The preview server and prerender imported the built server bundle with `import()` in module source, which the config's module runner rewrote; Vite closes that runner after loading the config, so the first request failed with "Vite module runner has been closed".
