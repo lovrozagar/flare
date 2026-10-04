@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { markSolidHeadStart, moveHeadPrependsAfterSolid } from "../ssr/head-prepend.ts";
+import { importFileFresh } from "./native-import.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
 
 interface NodeReq {
@@ -285,7 +286,7 @@ export function createPreviewServerPlugin(assetsBase: string = "/assets"): ViteP
 
 			function getHandler() {
 				if (!handlerPromise) {
-					handlerPromise = import(`${serverPath}?t=${Date.now()}`).then(
+					handlerPromise = importFileFresh<{ handler?: unknown; server?: unknown }>(serverPath).then(
 						(mod) =>
 							(mod.server ?? mod.handler) as {
 								fetch: (request: Request) => Promise<Response>;
