@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { registerAdd } from "./commands/add";
 import { registerCodegen } from "./commands/codegen";
+import { registerFont } from "./commands/font";
 import { registerGen } from "./commands/gen";
 import { registerInit } from "./commands/init";
 import { registerRoutes } from "./commands/routes";
@@ -12,6 +13,7 @@ const program = new Command().name("flare").description("The AI-first web framew
 
 registerAdd(program);
 registerCodegen(program);
+registerFont(program);
 registerGen(program);
 registerInit(program);
 registerRoutes(program);
