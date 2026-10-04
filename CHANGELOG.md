@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.8
+
+- `vite preview` works with `--configLoader runner` (needed to preview on Node, since Flare ships TypeScript). The preview server and prerender imported the built server bundle with `import()` in module source, which the config's module runner rewrote; Vite closes that runner after loading the config, so the first request failed with "Vite module runner has been closed".
+- A rebuilt server bundle is loaded fresh under Bun. The `?t=` cache-buster never worked there (Bun keys its module cache by path) and could collide on Node within one millisecond. Flare now imports a uniquely named copy of the bundle next to it and removes the copy afterwards.
+
 ## 0.9.7
 
 - Utilities that style other elements compile. `space-x-*`, `space-y-*`, `divide-*` and the `*:` and `**:` child variants wrap the utility's class in a selector (`:where(.space-x-2 > :not(:last-child))`), which Flare's extraction skipped, so they shipped no CSS and `sx.strict` rejected them. They now compile to a rule nested on the utility, keeping Tailwind's selector and specificity.
