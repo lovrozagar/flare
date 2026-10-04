@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js";
 import { createTranslator } from "@lovrozagar/flare/i18n";
 import { Link } from "@lovrozagar/flare/link";
 import { createPage } from "@lovrozagar/flare/page";
@@ -12,12 +13,13 @@ export const route = createPage("_root_/i18n-demo/[[locale]]/")
 	})
 	.head((ctx) => ({ title: `i18n: ${ctx.loaderData.locale}` }))
 	.render((props) => {
-		const t = createTranslator(props.loaderData.t, props.loaderData.locale);
+		/* Loader data is reactive: build the translator in a memo, not the render body. */
+		const t = createMemo(() => createTranslator(props.loaderData.t, props.loaderData.locale));
 		return (
 			<main data-testid="i18n-page">
-				<h1 data-testid="welcome-title">{t("common.welcome")}</h1>
-				<p data-testid="welcome-greeting">{t("common.greeting", { name: "Flare" })}</p>
-				<p data-testid="welcome-items">{t("common.items", { count: 3 })}</p>
+				<h1 data-testid="welcome-title">{t()("common.welcome")}</h1>
+				<p data-testid="welcome-greeting">{t()("common.greeting", { name: "Flare" })}</p>
+				<p data-testid="welcome-items">{t()("common.items", { count: 3 })}</p>
 				<p data-testid="locale-value">{props.loaderData.locale}</p>
 				<nav>
 					<Link data-testid="switch-en" href="/i18n-demo">

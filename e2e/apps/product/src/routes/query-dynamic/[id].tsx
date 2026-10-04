@@ -4,7 +4,8 @@ import { useSuspenseQuery } from "@lovrozagar/flare/suspense-query";
 function DynamicQuery(props: { id: string }) {
 	const query = useSuspenseQuery({
 		queryFn: async () => ({ id: props.id, name: `Item-${props.id}` }),
-		queryKey: ["item", props.id],
+		/* props.id is reactive: an accessor key keeps the read tracked */
+		queryKey: () => ["item", props.id],
 		staleTime: 30_000,
 	});
 	return (

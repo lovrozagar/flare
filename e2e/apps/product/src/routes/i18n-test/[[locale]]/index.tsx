@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js";
 import { createPage } from "@lovrozagar/flare/page";
 import { createTranslator } from "@lovrozagar/flare/i18n";
 import { translations } from "../../../translations";
@@ -10,16 +11,17 @@ export const route = createPage("_root_/(i18n-test)/i18n-test/[[locale]]/")
 	})
 	.head((ctx) => ({ title: `i18n: ${ctx.loaderData.locale}` }))
 	.render((props) => {
-		const t = createTranslator(props.loaderData.t, props.loaderData.locale);
+		/* Loader data is reactive: build the translator in a memo, not the render body. */
+		const t = createMemo(() => createTranslator(props.loaderData.t, props.loaderData.locale));
 		return (
 			<main data-testid="i18n-page">
-				<h1 data-testid="app-name">{t("common.app.name")}</h1>
-				<p data-testid="greeting">{t("common.greeting", { name: "Flare" })}</p>
-				<p data-testid="items-zero">{t("common.items", { count: 0 })}</p>
-				<p data-testid="items-one">{t("common.items", { count: 1 })}</p>
-				<p data-testid="items-many">{t("common.items", { count: 5 })}</p>
+				<h1 data-testid="app-name">{t()("common.app.name")}</h1>
+				<p data-testid="greeting">{t()("common.greeting", { name: "Flare" })}</p>
+				<p data-testid="items-zero">{t()("common.items", { count: 0 })}</p>
+				<p data-testid="items-one">{t()("common.items", { count: 1 })}</p>
+				<p data-testid="items-many">{t()("common.items", { count: 5 })}</p>
 				<p data-testid="locale-value">{props.loaderData.locale}</p>
-				<p data-testid="missing-key">{t("common.nonexistent" as "common.app.name")}</p>
+				<p data-testid="missing-key">{t()("common.nonexistent" as "common.app.name")}</p>
 			</main>
 		);
 	});

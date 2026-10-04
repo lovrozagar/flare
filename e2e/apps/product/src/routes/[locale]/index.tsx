@@ -1,3 +1,4 @@
+import { createMemo } from "solid-js";
 import { createTranslator } from "@lovrozagar/flare/i18n";
 import { Link } from "@lovrozagar/flare/link";
 import { createPage } from "@lovrozagar/flare/page";
@@ -11,10 +12,11 @@ export const route = createPage("_root_/[locale]/")
 	})
 	.head((ctx) => ({ title: `Home (${ctx.loaderData.locale})` }))
 	.render((props) => {
-		const t = createTranslator(props.loaderData.t, props.loaderData.locale);
+		/* Loader data is reactive: build the translator in a memo, not the render body. */
+		const t = createMemo(() => createTranslator(props.loaderData.t, props.loaderData.locale));
 		return (
 			<main data-testid="locale-home">
-				<h1 data-testid="locale-home-welcome">{t("common.welcome")}</h1>
+				<h1 data-testid="locale-home-welcome">{t()("common.welcome")}</h1>
 				<p data-testid="locale-home-locale">{props.loaderData.locale}</p>
 				<nav>
 					<Link data-testid="locale-home-about" params={{ locale: props.loaderData.locale }} to="/[locale]/about">
