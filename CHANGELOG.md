@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.5
+
+- Dev and preview servers stop streaming to a client that left. They kept reading the SSR body and writing after a disconnect (closed tab, aborted navigation), so abandoned renders ran to completion; under Bun, the write to the closed response threw and could take `vite preview` down. A closed response now cancels the body, and an error after the headers are sent drops the connection instead of reaching the error handler. A test runs `vite preview` under Bun, abandons three streams mid-body, and asserts each is cancelled and the server keeps serving.
+- `flare font` is registered in the CLI. The command existed and was documented but unreachable; a test now checks every command module is wired.
+
 ## 0.9.4
 
 - The first-paint `color-scheme` follows the default theme. The head prefix pinned an unlayered `html{color-scheme:light}`, so before the theme script ran, or with JavaScript off, a `system`-default app rendered light for dark-mode users and overrode the app's own `color-scheme: light dark`. It now emits `light dark` for a `system` default and the fixed scheme for a `light` or `dark` default, plus rules for both attribute values.
