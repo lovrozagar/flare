@@ -643,6 +643,48 @@ describe("instant navigation — viewport warms modules only", () => {
 		expect(ctx.matches().some((m) => m.loaderData === "from-enter")).toBe(true);
 		expect(warn).toHaveBeenCalledWith("nav", expect.stringContaining("no prefetched shell"));
 	});
+
+	it("click after modulesOnly never paints a page without loader data when only its layout is cached", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const layout = makeModule("_root_/(main)", "layout");
+		const page = makeModule("_root_/(main)/pricing");
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute("_root_/(main)/pricing") });
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ layouts: [layout], page }));
+
+		/* Hydration seeds the shared layout; the page has never loaded. */
+		const layoutId = "_root_/(main):{}:[]";
+		const pageId = "_root_/(main)/pricing:{}:[]";
+		ctx.matchCache.set({ data: "layout-data", invalid: false, matchId: layoutId, updatedAt: Date.now() });
+
+		await prefetch({ modulesOnly: true, to: "/pricing" });
+
+		let resolveNavFetch: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolveNavFetch = resolve;
+			}),
+		);
+		const pageMatch = () => ctx.matches().find((m) => m.virtualPath === page.virtualPath);
+
+		const navP = navigate({ to: "/pricing" });
+		await vi.waitFor(() => expect(mockFetchNDJSON).toHaveBeenCalledTimes(1));
+
+		/* The page must not mount until its loader data exists. */
+		expect(pageMatch()).toBeUndefined();
+
+		resolveNavFetch?.({
+			matches: [
+				{ loaderData: "layout-data", matchId: layoutId },
+				{ loaderData: "pricing-data", matchId: pageId },
+			],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navP;
+
+		expect(pageMatch()?.loaderData).toBe("pricing-data");
+	});
 });
 
 describe("instant navigation — popstate restores scroll on the cached shell", () => {

@@ -179,3 +179,25 @@ test.describe("@dev-only @node-only fs inspector", () => {
 		await expect(page.locator("#__flare-devtools-host")).toHaveCount(1);
 	});
 });
+
+test.describe("client navigation after a viewport prefetch", () => {
+	test("never mounts a page before its loader data exists", async ({ page }) => {
+		const errors: string[] = [];
+		page.on("pageerror", (e) => errors.push(e.message));
+		await loadPage(page, "/blog");
+
+		/* The shared (blog) layout is cached from hydration; the link's viewport prefetch warms modules only. */
+		const link = page.getByTestId("blog-data-link");
+		await expect(link).toBeVisible();
+		await page.waitForLoadState("networkidle");
+
+		await link.click();
+		await expect(page.getByTestId("blog-data")).toHaveText("Loaded data");
+
+		const renderedWithoutData = await page.evaluate(
+			() => (window as unknown as { __nullLoaderData?: boolean }).__nullLoaderData === true,
+		);
+		expect(errors).toEqual([]);
+		expect(renderedWithoutData).toBe(false);
+	});
+});
