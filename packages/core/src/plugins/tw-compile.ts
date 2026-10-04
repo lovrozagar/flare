@@ -37,18 +37,18 @@ function cssEscapeClass(cls: string): string {
 	return cls.replace(/([^a-zA-Z0-9_-])/g, "\\$1");
 }
 
-function selectorMatchesAny(selector: string, prefixes: Set<string>): boolean {
+/**
+ * What follows a requested utility's own class in `selector`: "" for the bare class, the variant
+ * suffix (`[aria-pressed="true"]`, `:focus-visible:disabled`, `:where(...)`, ` .child`) otherwise,
+ * or null when the selector is not that utility (`.p-40` is not `.p-4`).
+ */
+function suffixAfterUtility(selector: string, prefixes: Set<string>): string | null {
 	for (const prefix of prefixes) {
-		if (
-			selector === prefix ||
-			selector.startsWith(`${prefix}:`) ||
-			selector.startsWith(`${prefix} `) ||
-			selector.startsWith(`${prefix},`)
-		) {
-			return true;
-		}
+		if (!selector.startsWith(prefix)) continue;
+		const suffix = selector.slice(prefix.length);
+		if (suffix === "" || /^[:[ ,]/.test(suffix)) return suffix;
 	}
-	return false;
+	return null;
 }
 
 function extractLayerContent(css: string, atStart: number): string {
@@ -108,13 +108,15 @@ function extractDeclsInner(css: string, selectorSet?: Set<string>): string {
 			}
 		}
 		const body = remaining.slice(braceStart + 1, i).trim();
-		const matchesFilter = !selectorSet || selectorMatchesAny(selector, selectorSet);
-		if (matchesFilter && body.length > 0) {
-			const pseudo = extractPseudo(selector);
-			if (pseudo) {
-				result.push(`&${pseudo} { ${body} }`);
+		if (body.length > 0) {
+			if (selectorSet) {
+				/* Keep the whole variant suffix: flattened attribute variants and chained pseudos. */
+				const suffix = suffixAfterUtility(selector, selectorSet);
+				if (suffix === "" || suffix?.startsWith(",")) result.push(body);
+				else if (suffix !== null) result.push(`&${suffix} { ${body} }`);
 			} else {
-				result.push(body);
+				const pseudo = extractPseudo(selector);
+				result.push(pseudo ? `&${pseudo} { ${body} }` : body);
 			}
 		}
 		remaining = remaining.slice(i + 1).trim();
