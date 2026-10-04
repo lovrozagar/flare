@@ -12,10 +12,9 @@ function escapeAttr(str: string): string {
  * The scheme before the theme script runs, or without JavaScript: the default theme, where
  * "system" is the OS preference (`light dark`). Once the script sets the attribute, it wins.
  */
-function colorSchemeCss(theme: ThemeConfig | undefined): string {
-	const attr = (theme?.attribute ?? "data-theme").replace(/[^\w-]/g, "") || "data-theme";
-	const fallback =
-		theme?.defaultTheme === "light" || theme?.defaultTheme === "dark" ? theme.defaultTheme : "light dark";
+function colorSchemeCss(theme: ThemeConfig): string {
+	const attr = (theme.attribute ?? "data-theme").replace(/[^\w-]/g, "") || "data-theme";
+	const fallback = theme.defaultTheme === "light" || theme.defaultTheme === "dark" ? theme.defaultTheme : "light dark";
 	return `html{color-scheme:${fallback}}html[${attr}=light]{color-scheme:light}html[${attr}=dark]{color-scheme:dark}`;
 }
 
@@ -48,8 +47,11 @@ export function buildHeadPrefix(options: HeadPrefixOptions): string {
 	}
 
 	const nonceAttr = ` nonce="${escapedNonce}"`;
-	prefix += `<script${nonceAttr}>${getThemeScript(options.theme)}</script>`;
-	prefix += `<style${nonceAttr}>${colorSchemeCss(options.theme)}</style>`;
+	/* Theme is opt-in: an app without `theme` keeps its own color-scheme. */
+	if (options.theme) {
+		prefix += `<script${nonceAttr}>${getThemeScript(options.theme)}</script>`;
+		prefix += `<style${nonceAttr}>${colorSchemeCss(options.theme)}</style>`;
+	}
 
 	if (options.direction) {
 		prefix += `<script${nonceAttr}>${getDirectionScript(options.direction)}</script>`;

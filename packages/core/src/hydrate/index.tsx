@@ -38,7 +38,7 @@ import {
 	parseFlareState,
 } from "../state-parser/index.ts";
 import { enableDomInjection, finishHydration } from "../styles/index.ts";
-import { ThemeProvider } from "../theme.ts";
+import { RouterThemeProvider } from "../theme/index.tsx";
 import { parseSearchParams } from "../url/index.ts";
 
 function reconstructError(name: string): Error {
@@ -221,7 +221,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 					theme: r.theme,
 				}}
 			>
-				<ThemeProvider config={r.theme}>
+				<RouterThemeProvider config={r.theme}>
 					<DirectionProvider config={r.direction}>
 						<BroadcastProvider value={channel}>
 							<FlareProvider
@@ -262,7 +262,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 							</FlareProvider>
 						</BroadcastProvider>
 					</DirectionProvider>
-				</ThemeProvider>
+				</RouterThemeProvider>
 			</SSRContextProvider>
 		);
 

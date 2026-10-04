@@ -2,12 +2,20 @@ import { describe, expect, it } from "vitest";
 import { buildHeadPrefix } from "../../../src/ssr/head-prefix.ts";
 
 const NONCE = "abc123";
+const SYSTEM = { defaultTheme: "system" } as const;
 
 function styleOf(html: string): string | undefined {
 	return /<style nonce="[^"]*">([^<]*)<\/style>/.exec(html)?.[1];
 }
 
 describe("buildHeadPrefix — first-paint order", () => {
+	/* Theme is opt-in: an app without `theme` in createRouter never gets a scheme forced on it. */
+	it("emits no theme script or color-scheme style without a theme config", () => {
+		const html = buildHeadPrefix({ nonce: NONCE, resolvedHead: {} });
+		expect(html).not.toContain("flare.theme");
+		expect(html).not.toContain("color-scheme");
+	});
+
 	it("emits theme script before modulepreload and stylesheet", () => {
 		const html = buildHeadPrefix({
 			modulePreloads: {
@@ -16,6 +24,7 @@ describe("buildHeadPrefix — first-paint order", () => {
 			},
 			nonce: NONCE,
 			resolvedHead: {},
+			theme: SYSTEM,
 		});
 
 		const themeIdx = html.indexOf("flare.theme");
@@ -28,13 +37,13 @@ describe("buildHeadPrefix — first-paint order", () => {
 	});
 
 	it("theme script is nonce'd and matches the request nonce", () => {
-		const html = buildHeadPrefix({ nonce: NONCE, resolvedHead: {} });
+		const html = buildHeadPrefix({ nonce: NONCE, resolvedHead: {}, theme: SYSTEM });
 		expect(html).toContain(`<script nonce="${NONCE}">`);
 		expect(html).toContain("flare.theme");
 	});
 
 	it("injects color-scheme CSS so first land is not blocked by style-src CSPOM", () => {
-		const html = buildHeadPrefix({ nonce: NONCE, resolvedHead: {} });
+		const html = buildHeadPrefix({ nonce: NONCE, resolvedHead: {}, theme: SYSTEM });
 		expect(html).toContain(`<style nonce="${NONCE}">`);
 		expect(html).toContain("[data-theme=dark]{color-scheme:dark}");
 		expect(html.indexOf("flare.theme")).toBeLessThan(html.indexOf(`<style nonce="${NONCE}">`));
@@ -42,7 +51,7 @@ describe("buildHeadPrefix — first-paint order", () => {
 
 	/* Without JavaScript (or before it runs) the page follows the default theme; "system" is the OS. */
 	it("follows the OS before the theme script runs when the default theme is system", () => {
-		expect(styleOf(buildHeadPrefix({ nonce: NONCE, resolvedHead: {} }))).toBe(
+		expect(styleOf(buildHeadPrefix({ nonce: NONCE, resolvedHead: {}, theme: SYSTEM }))).toBe(
 			"html{color-scheme:light dark}html[data-theme=light]{color-scheme:light}html[data-theme=dark]{color-scheme:dark}",
 		);
 	});

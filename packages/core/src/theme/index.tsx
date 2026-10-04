@@ -228,8 +228,18 @@ export function ThemeProvider(props: { children: JSX.Element; config?: ThemeConf
 	return <ThemeCtx value={value}>{props.children}</ThemeCtx>;
 }
 
+/** Router-level provider. Theme is opt-in: without `theme` in createRouter, `<html>` keeps the app's own scheme. */
+export function RouterThemeProvider(props: { children: JSX.Element; config?: ThemeConfig }): JSX.Element {
+	if (!props.config) return props.children;
+	return <ThemeProvider config={props.config}>{props.children}</ThemeProvider>;
+}
+
 export function useTheme(): ThemeContextValue {
 	const ctx = useContext(ThemeCtx);
-	if (!ctx) throw new Error("useTheme() called outside ThemeProvider. Wrap your app with <ThemeProvider>.");
+	if (!ctx) {
+		throw new Error(
+			"useTheme() called outside ThemeProvider. Set `theme` in createRouter or wrap the tree in <ThemeProvider>.",
+		);
+	}
 	return ctx;
 }

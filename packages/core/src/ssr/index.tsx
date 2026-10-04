@@ -28,7 +28,7 @@ import { createTreeNode } from "../router-primitives/index.ts";
 import type { ServerLogEntry } from "@lovrozagar/flare/server-context";
 import { clearScopedStyles, getScopedStyles, RUNTIME_SHEET_ID } from "../styles/index.ts";
 import { CRITICAL_SHEET_ID, injectCriticalAppend, type SxCssManifest } from "./critical-css.ts";
-import { ThemeProvider } from "../theme.ts";
+import { RouterThemeProvider } from "../theme/index.tsx";
 import { GLOBAL_DEFER, GLOBAL_QUERIES } from "../protocol.ts";
 import { parseSearchParams, type SearchParams } from "../url/index.ts";
 import { renderHeadToHtml } from "./head.ts";
@@ -493,7 +493,7 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 		 */
 		const renderInner = () => (
 			<SSRContextProvider value={ssrCtxValue}>
-				<ThemeProvider config={config.router?.theme}>
+				<RouterThemeProvider config={config.router?.theme}>
 					<DirectionProvider config={config.router?.direction}>
 						<BroadcastProvider>
 							<FlareProvider
@@ -523,7 +523,7 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
 							</FlareProvider>
 						</BroadcastProvider>
 					</DirectionProvider>
-				</ThemeProvider>
+				</RouterThemeProvider>
 			</SSRContextProvider>
 		);
 

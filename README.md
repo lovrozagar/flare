@@ -827,7 +827,7 @@ import { DirectionScript } from "@lovrozagar/flare/direction";
 ```
 
 - **Locale** — optional `[[locale]]` segment or prefix. Cookie `flare.locale` + `Accept-Language`. Default locale is stripped (`/en/about` → `/about`). Playwright / bot UAs skip Set-Cookie (`isbot`). Prefetch (`flare-prefetch: 1`) never writes the cookie.
-- **Theme** — `data-theme`, system preference, `localStorage`.
+- **Theme** — opt-in. Without `theme` in `createRouter`, Flare emits no theme script and never sets `data-theme` or `color-scheme`. With it: `data-theme`, system preference, `localStorage`.
 - **Direction** — `dir` / `data-dir`.
 
 Copy (separate from routing locale):
