@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- `withFetchDedupe(target)` from `@lovrozagar/flare/fetch-dedupe` gives a fetch that is not `globalThis.fetch` the same request-scoped `GET` / `HEAD` dedupe, such as an SDK over a Workers service binding. Pass the binding itself: wrappers over the same target share one cache, so an SDK built per request still dedupes, and the binding is called as a method so `this` stays intact. Before, only `globalThis.fetch` was patched, so SDK calls over a binding in an authenticate, preloader, and loader of one request each went upstream.
+- Deduped responses no longer leave an unread clone branch. Each fetch kept its original response unread and handed out clones, so every SSR `GET` buffered its whole body (the workerd "did not read the body of both clones" warning) and a large streamed response could run a worker out of memory. One branch now streams to the first caller and the other is read into a replay buffer. Bodies over `maxBytes` (default 1 MiB) and `text/event-stream` responses still stream to every waiting caller but are not reused later, and a large body keeps backpressure.
+- A caller's `AbortSignal` cancels only that caller. Before, every caller shared the first caller's signal, so one SDK timeout or navigation abort failed every other caller of the same `GET`. The upstream fetch is aborted once every caller has aborted.
+- Any other method (`POST`, `PATCH`, …) drops the request's memoized responses, so a `GET` after a mutation goes upstream. Cache keys now include `redirect` and the other request mode fields, and URLs and header names are normalized.
+- A new e2e route checks all of this against real network fetches on node, bun, deno, and workerd (dev and prod), including a real service binding on workers.
+
 ## 0.7.1
 
 - A server fn's return type reaches its callers: `.handler()` infers the output, so `await fn(input)` is typed without restating it. Before, the output was fixed to `unknown` when the builder was created and every call site cast. Handler and stream contexts now type `env`, `serverContext`, and (after `.authenticate()`) `auth` from the app's registry (`createServer<Env>(router)`, `.serverContext()`, `.authenticateFn()`), and `.authenticateFn()` / `.security()` receive the `.serverContext()` type. Middleware keeps the open `serverContext` record because built-ins store framework keys there.
