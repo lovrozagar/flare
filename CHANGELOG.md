@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- **`cn` merges with the app's theme.** With `sx.twCssPath`, the plugin compiles `cn` tables from that stylesheet and its imports, and serves them in place of the default ones. The compile-time static merge uses the same tables, on client and server.
+  - Before, custom scale names didn't merge: `cn("rounded-control", "rounded-lg")` kept both. Worse, a custom font size was read as a color, so `cn("text-body", "text-muted")` dropped `text-body`.
+  - In dev, editing the theme rebuilds the CSS and the tables.
+- **Tailwind's element-local vars stay live.** Flare used to inline every `--tw-*` value it had seen, so one utility could carry another's output: `ring-1` shipped `shadow-sm`'s shadow, and shadow, ring, transform and filter stacks didn't compose. `--tw-*` vars are no longer inlined, and the `@property` rules they need ship, together with Tailwind's `@layer properties` fallback.
+- **Imports and plugins resolve from the stylesheet.** The Tailwind entry's relative and package `@import`s resolve from the importing file, and `@plugin` loads relative and installed plugins. A Tailwind init failure fails the build; before, it warned and shipped class tokens with no CSS.
+- **`sx.strict`** fails the module when an app-layer class literal compiles to no CSS, with `allow` for non-Tailwind names and `deny` patterns for utilities to reject. The error names the file, line and token.
+- **`sx.themeVars: "reference"`** keeps theme `var()` references and emits exactly the theme vars they use, for runtime theme editing. The default, `"inline"`, is unchanged.
+- **A characterization build test (`ui-contract`) pins the CSS contract design systems build on:** layers, inlined `light-dark()` chains, logical and state variants, and which class literals compile.
+
 ## 0.8.0
 
 - `withFetchDedupe(target)` from `@lovrozagar/flare/fetch-dedupe` gives a fetch that is not `globalThis.fetch` the same request-scoped `GET` / `HEAD` dedupe, such as an SDK over a Workers service binding. Pass the binding itself: wrappers over the same target share one cache, so an SDK built per request still dedupes, and the binding is called as a method so `this` stays intact. Before, only `globalThis.fetch` was patched, so SDK calls over a binding in an authenticate, preloader, and loader of one request each went upstream.
