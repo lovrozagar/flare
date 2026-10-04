@@ -590,18 +590,20 @@ function commitCachedShell(
 	params: Record<string, string | string[]>,
 ): { hadShell: boolean; keepMatchIds: string[] } {
 	if (!ctx) return { hadShell: false, keepMatchIds: [] };
-	let found = false;
-	const keepMatchIds: string[] = [];
+	/* Paint only a complete shell. A cached layout (hydration seeds it) with an
+	 * uncached page would mount the page with null loader data. */
+	const cachedMatches: CachedMatch[] = [];
 	for (const mod of allModules) {
-		const matchId = matchIdForModule(mod, search, params);
-		const cached = ctx.matchCache.get(matchId);
-		if (!cached || cached.invalid) continue;
-		found = true;
+		const cached = ctx.matchCache.get(matchIdForModule(mod, search, params));
+		if (!cached || cached.invalid) return { hadShell: false, keepMatchIds: [] };
+		cachedMatches.push(cached);
+	}
+	const keepMatchIds: string[] = [];
+	for (const cached of cachedMatches) {
 		if (cached.hasDeferred && hydrateCachedDeferred(cached)) {
-			keepMatchIds.push(matchId);
+			keepMatchIds.push(cached.matchId);
 		}
 	}
-	if (!found) return { hadShell: false, keepMatchIds: [] };
 
 	/* applyPerRouteHeads replaces the whole hierarchy, so a partial set would
 	 * drop the root layout's CSS. Apply only when every route has a cached head;
