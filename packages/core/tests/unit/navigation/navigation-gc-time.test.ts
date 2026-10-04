@@ -84,6 +84,21 @@ describe("client gcTime / prefetchGcTime", () => {
 		expect(ctx.matchCache.has("fresh")).toBe(true);
 	});
 
+	it("keeps an entry exactly gcTime old and evicts one a millisecond older", () => {
+		const ctx = makeCtx({ routerCacheDefaults: { gcTime: 90_000, prefetchGcTime: 90_000 } });
+		setupNavigation(ctx, mockLoad);
+
+		/* The GC tick runs 60s from now; at that instant `now - updatedAt` is exactly 90s or 90s + 1ms. */
+		const tick = Date.now() + 60_000;
+		ctx.matchCache.set({ data: "edge", invalid: false, matchId: "edge", updatedAt: tick - 90_000 });
+		ctx.matchCache.set({ data: "past", invalid: false, matchId: "past", updatedAt: tick - 90_001 });
+
+		vi.advanceTimersByTime(60_000);
+
+		expect(ctx.matchCache.has("edge")).toBe(true);
+		expect(ctx.matchCache.has("past")).toBe(false);
+	});
+
 	it("evicts prefetchCache entries older than prefetchGcTime", () => {
 		const ctx = makeCtx({ routerCacheDefaults: { gcTime: 5 * 60_000, prefetchGcTime: 90_000 } });
 		setupNavigation(ctx, mockLoad);

@@ -254,29 +254,6 @@ describe("prefetchCache mark before fetch", () => {
 	});
 });
 
-describe("matchCache GC boundary", () => {
-	it("entry exactly at maxAge boundary is NOT evicted (uses >)", () => {
-		const cache = createMatchCache();
-		const exactlyAtBoundary = Date.now() - 300_000;
-		cache.set({
-			data: "boundary",
-			invalid: false,
-			matchId: "boundary-match",
-			updatedAt: exactlyAtBoundary,
-		});
-
-		/* GC logic: now - entry.updatedAt > maxAge → 300000 > 300000 is false → kept */
-		const now = Date.now();
-		for (const entry of cache.getAll()) {
-			if (now - entry.updatedAt > 300_000) {
-				cache.delete(entry.matchId);
-			}
-		}
-
-		expect(cache.has("boundary-match")).toBe(true);
-	});
-});
-
 describe("matchCache maxSize LRU eviction", () => {
 	it("evicts oldest entry when exceeding maxSize", () => {
 		const cache = createMatchCache(3);
