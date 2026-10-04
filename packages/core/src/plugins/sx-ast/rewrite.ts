@@ -119,7 +119,7 @@ function cssEscapeClass(cls: string): string {
 /**
  * Walk an expression and collect every string literal that appears as a class token.
  * Handles: plain string literals, array elements (recursive), LogicalExpression right-arms,
- * ternary branches, cn() arguments, TemplateLiteral quasis and string-literal expressions.
+ * ternary branches, cn() arguments, class-object keys, TemplateLiteral quasis and string-literal expressions.
  */
 function collectClassLiterals(expr: unknown): string[] {
 	if (isStringLiteral(expr)) return [expr.value];
@@ -143,6 +143,17 @@ function collectClassLiterals(expr: unknown): string[] {
 		for (const el of expr.elements) {
 			if (el === null) continue;
 			tokens.push(...collectClassLiterals(el));
+		}
+		return tokens;
+	}
+
+	if (isObjectExpression(expr)) {
+		/* Solid class objects `{ "bg-accent/10": on(), flex: on() }`: each key is class tokens */
+		const tokens: string[] = [];
+		for (const prop of expr.properties) {
+			if (prop.type !== "Property" || prop.computed) continue;
+			if (isStringLiteral(prop.key)) tokens.push(prop.key.value);
+			else if (isIdentifier(prop.key)) tokens.push(prop.key.name);
 		}
 		return tokens;
 	}
