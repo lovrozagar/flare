@@ -86,6 +86,18 @@ describe("ui contract: direction, scheme, state variants", () => {
 	});
 });
 
+describe("ui contract: utilities that style children", () => {
+	/* space-*, divide-* and the `*:` variants put the class inside :where()/:is(). */
+	it("compiles them as a rule nested on the utility, with Tailwind's own selector", () => {
+		expect(css).toMatch(/\.-space-x-2 \{ :where\(& > :not\(:last-child\)\) \{ [^}]*margin-inline-start:/);
+		expect(css).toMatch(/\.divide-y \{ :where\(& > :not\(:last-child\)\) \{ [^}]*border-bottom-width:/);
+		expect(css).toContain(".\\*\\:p-2 { :is(& > *) { padding: calc(0.25rem * 2); } }");
+		expect(css).toMatch(
+			/\.\\\*\\:data-\\\[slot\\=avatar\\\]\\:ring-2 \{ :is\(& > \*\)\[data-slot="avatar"\] \{ --tw-ring-shadow:/,
+		);
+	});
+});
+
 describe("ui contract: which class literals compile", () => {
 	it("compiles literals in cn() args, && right arms and ternary branches", () => {
 		for (const cls of [".p-4", ".gap-3", ".px-5", ".py-6"]) expect(rule(cls), cls).not.toBeNull();
