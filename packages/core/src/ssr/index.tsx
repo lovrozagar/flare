@@ -32,7 +32,6 @@ import { ThemeProvider } from "../theme.ts";
 import { GLOBAL_DEFER, GLOBAL_QUERIES } from "../protocol.ts";
 import { parseSearchParams, type SearchParams } from "../url/index.ts";
 import { renderHeadToHtml } from "./head.ts";
-import { hoistHydrationHeadMarkers } from "./hoist-head-markers.ts";
 import { buildHeadPrefix } from "./head-prefix.ts";
 
 export { mergeHeadConfigs } from "../internal.ts";
@@ -548,7 +547,7 @@ function buildComponentTree(config: SSRConfig, flareStateScript: string): () => 
  * Returns updated buffer with head content injected, or original buffer if </head> not found.
  *
  * Head structure:
- *   1. Solid's hydratable head children (`<!--$-->` first — required for Solid 2)
+ *   1. Solid's head children, in render order (hydration walks them from `head.firstChild`)
  *   2. CSP nonce / viewport / theme / direction / locale scripts (headPrefix)
  *   3. modulepreload + stylesheets
  *   4. Resolved <head> tags (title, meta, etc.)
@@ -630,8 +629,7 @@ function injectHeadContent(
 		headSuffix += `<style nonce="${escapedNonce}">body{${cssText}}</style>`;
 	}
 
-	const result = buffer.replace("</head>", `${headPrefix}${headSuffix}${extraSuffix}</head>`);
-	return hoistHydrationHeadMarkers(result);
+	return buffer.replace("</head>", `${headPrefix}${headSuffix}${extraSuffix}</head>`);
 }
 
 /**
@@ -725,9 +723,9 @@ export function renderToStream(config: SSRConfig): SSRResult {
 			try {
 				/*
 				 * Resolve dev sx CSS before the read loop so both injectHeadContent call sites
-				 * (in-loop and flush) get the same snapshot. Dynamic import re-runs the virtual
-				 * module's load hook each time — no caching — so HMR additions are reflected.
-				 * Guarded by import.meta.env.DEV so prod builds tree-shake this entirely.
+				 * (in-loop and flush) get the same snapshot. The virtual module is a registry every
+				 * server-transformed module registers its rules into as it runs, so it covers every
+				 * module this render used. Guarded by import.meta.env.DEV so prod builds tree-shake it.
 				 */
 				let resolvedDevSxCss = "";
 				let resolvedDevSxClasses: string[] = [];

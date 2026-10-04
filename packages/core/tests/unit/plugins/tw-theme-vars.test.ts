@@ -4,12 +4,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import {
-	extractDeclarations,
-	extractPrefaceCss,
-	initTailwindCompiler,
-	themeVarsBlock,
-} from "../../../src/plugins/tw-compile.ts";
+import { extractDeclarations, extractPrefaceCss, initTailwindCompiler } from "../../../src/plugins/tw-compile.ts";
+import { themeVarsBlock } from "../../../src/plugins/sx-ast/compose-css.ts";
 
 const dirs: string[] = [];
 
