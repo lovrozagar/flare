@@ -1,8 +1,10 @@
 # Changelog
 
-## 0.9.5
+## 0.9.6
 
-- Dev and preview servers stop streaming to a client that left. They kept reading the SSR body and writing after a disconnect (closed tab, aborted navigation), so abandoned renders ran to completion; under Bun, the write to the closed response threw and could take `vite preview` down. A closed response now cancels the body, and an error after the headers are sent drops the connection instead of reaching the error handler. A test runs `vite preview` under Bun, abandons three streams mid-body, and asserts each is cancelled and the server keeps serving.
+0.9.5 was tagged but not published (its CI test run failed on Bun 1.3); 0.9.6 ships its changes with the fix.
+
+- Dev and preview servers stop streaming to a client that left. They kept reading the SSR body and writing after a disconnect (closed tab, aborted navigation), so abandoned renders ran to completion; under Bun, the write to the closed response threw and could take `vite preview` down. A departed client (detected on the response and its socket; Bun 1.3 closes only the socket) now cancels the body, and an error after the headers are sent drops the connection instead of reaching the error handler. Tests run `vite preview` under Bun, abandon three streams mid-body and assert each is cancelled and the server keeps serving, and check keep-alive sockets don't accumulate listeners.
 - `flare font` is registered in the CLI. The command existed and was documented but unreachable; a test now checks every command module is wired.
 
 ## 0.9.4
