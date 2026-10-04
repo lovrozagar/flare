@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.10
+
+- `clientLazy` components render on the server. Solid's SSR compiler captured the type parameter in `{...(props as P)}` as a runtime value, so every `clientLazy` threw "P is not defined" during SSR, the server sent the error boundary, and hydration missed its keys.
+- `FontCSS` follows reactive props. It read `font`, `subsets` and `preload` once, so a font chosen from loader data or search params never updated after navigation.
+- Apps typecheck without the optional `@tanstack/query-broadcast-client-experimental`. Flare ships TypeScript source, and `tsc` failed on its dynamic import in query-client when the peer was not installed. `typecheck:consumer-strict` now also checks an app without feature peers.
+
 ## 0.9.9
 
 - Client navigation never paints a page before its loader data. A viewport prefetch warms only a route's modules but marked it visited, so the click painted a cached shell; with just the shared layout cached (hydration seeds it), the page mounted with null loader data, threw into the root error boundary or showed raw i18n keys, then recovered when the data landed. The shell now paints only when every route module is cached; otherwise navigation waits for the data as on a first visit.
