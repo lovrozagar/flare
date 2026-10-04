@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.11
+
+0.9.10 was tagged but not published (a timing-dependent unit test failed its release run); 0.9.11 ships its changes with that test fixed.
+
 ## 0.9.10
 
 - `clientLazy` components render on the server. Solid's SSR compiler captured the type parameter in `{...(props as P)}` as a runtime value, so every `clientLazy` threw "P is not defined" during SSR, the server sent the error boundary, and hydration missed its keys.
