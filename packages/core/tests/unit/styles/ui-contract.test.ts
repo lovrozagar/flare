@@ -71,6 +71,12 @@ describe("ui contract: direction, scheme, state variants", () => {
 		expect(rule(".ms-2")).toBe(".ms-2 { margin-inline-start: calc(0.25rem * 2); }");
 	});
 
+	it("compiles boolean aria variants (flattened by Tailwind 4.3.3+)", () => {
+		expect(rule('.aria-pressed\\:bg-canvas[aria-pressed="true"]')).toBe(
+			'.aria-pressed\\:bg-canvas[aria-pressed="true"] { background-color: light-dark(#f9f9fb, #18191b); }',
+		);
+	});
+
 	it("compiles rtl:, scheme-dark and data-[x]: variants", () => {
 		expect(css).toContain('.rtl\\:-scale-x-100:where(:dir(rtl), [dir="rtl"], [dir="rtl"] *) {');
 		expect(rule(".scheme-dark")).toBe(".scheme-dark { color-scheme: dark; }");

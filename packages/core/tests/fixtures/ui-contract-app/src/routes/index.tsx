@@ -27,6 +27,7 @@ export const route = createPage("_root_/").render(() => {
 			<p class="rtl:-scale-x-100" />
 			<p class="scheme-dark" />
 			<p class="data-[popup-open]:bg-surface" />
+			<p class="aria-pressed:bg-canvas" />
 			<p class="bg-blue-500" />
 			<p class="text-surface" />
 			<p class="rounded-control rounded-lg" data-testid="static-merge" />
