@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.3
+
+- Dev server-rendered pages carry all their CSS. Dev SSR read the sx stylesheet from a module the server runner cached after its first import, so classes from routes and packages loaded later reached the page only once JavaScript ran (a flash of unstyled content on every route but the first). Each server-transformed module now registers its rules as it runs, and SSR composes the stylesheet at render with the same code production output uses. Tests cover a route's first render, a route rendered after another, and a page edit.
+- `<head>` keeps Solid's render order. The head hoist moved component regions (`ThemeScript`, `DirectionScript`) ahead of static `<meta>` and `<title>`, so hydration met the wrong first child and warned about a structure mismatch, in dev and production. SSR no longer reorders the head; in dev, only the tags Vite prepends move after Solid's head children.
+
 ## 0.9.2
 
 - Dev hydration works when Flare is installed from npm. Flare ships TSX source, and Vite's dependency optimizer pre-bundled it from `node_modules` without the Solid JSX transform, so dev pages failed at hydration with `React is not defined` (and event handlers never attached). The plugin now excludes `@lovrozagar/flare` from `optimizeDeps`, so it's served as source like a linked package. Workspace-linked apps never hit this, so a new test installs a real copy into a consumer app's `node_modules` and asserts Flare isn't pre-bundled.
