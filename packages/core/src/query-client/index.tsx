@@ -101,6 +101,11 @@ export interface QueryClientGetterOptions {
 	};
 }
 
+/** The slice of `@tanstack/query-broadcast-client-experimental` Flare calls. */
+interface BroadcastPeer {
+	broadcastQueryClient: (options: { broadcastChannel: string; queryClient: never }) => void;
+}
+
 export function createQueryClientGetter(options?: QueryClientGetterOptions): () => QueryClient {
 	let clientInstance: QueryClient | undefined;
 	return () => {
@@ -111,7 +116,10 @@ export function createQueryClientGetter(options?: QueryClientGetterOptions): () 
 			clientInstance = new QueryClient(options);
 			if (options?.broadcast) {
 				const channelName = typeof options.broadcast === "string" ? options.broadcast : "flare:qc";
-				import("@tanstack/query-broadcast-client-experimental")
+				/* Optional peer. The `as string` keeps consumers' tsc from resolving it (Flare ships TS
+				 * source, so an app without the peer would fail to typecheck); TS stripping leaves a
+				 * literal specifier, so bundlers still split and load it. */
+				(import("@tanstack/query-broadcast-client-experimental" as string) as Promise<BroadcastPeer>)
 					.then(({ broadcastQueryClient }) => {
 						broadcastQueryClient({
 							broadcastChannel: channelName,
