@@ -406,3 +406,22 @@ describe("class= Tailwind compile — rule shape", () => {
 		expect(ruleText).toContain("@media");
 	});
 });
+
+describe("class= Tailwind compile — object keys in a class array", () => {
+	it('class={["p-2", { "bg-red-500": on(), flex: on() }]} → emits rules for string and identifier keys', () => {
+		const { rules } = transformWithRules(
+			`export default function A(props: { on: boolean }) { return <div class={["p-2", { "bg-red-500": props.on, flex: props.on }]} /> }`,
+		);
+		expect(rules.some((r) => r.includes("p-2"))).toBe(true);
+		expect(rules.some((r) => r.includes("bg-red-500"))).toBe(true);
+		expect(rules.some((r) => r.includes("display: flex"))).toBe(true);
+	});
+
+	it('class={{ "font-bold items-center": on }} → emits rules for every token in a key', () => {
+		const { rules } = transformWithRules(
+			`export default function A(props: { on: boolean }) { return <div class={{ "font-bold items-center": props.on }} /> }`,
+		);
+		expect(rules.some((r) => r.includes("font-weight: 700"))).toBe(true);
+		expect(rules.some((r) => r.includes("align-items: center"))).toBe(true);
+	});
+});

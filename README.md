@@ -768,7 +768,7 @@ import { styles, cn } from "@lovrozagar/flare/styles";
 
 ### Which class strings compile
 
-Only string literals inside a `class=` expression get CSS: plain literals, arrays, ternary branches, the right side of `&&`, call arguments (`cn("a", on() && "b")`) and template literals. Literals elsewhere get none: module constants and lookups (`variants[props.v]`, so cva-style config objects), `class={(state) => "…"}` functions, and props not named `class`. Write variants as `&&` arms inside `cn(...)`.
+Only string literals inside a `class=` expression get CSS: plain literals, arrays, ternary branches, the right side of `&&`, call arguments (`cn("a", on() && "b")`), class-object keys (`["p-2", { "bg-accent/10": on() }]`) and template literals. Literals elsewhere get none: module constants and lookups (`variants[props.v]`, so cva-style config objects), `class={(state) => "…"}` functions, and props not named `class`. Write variants as `&&` arms inside `cn(...)`.
 
 ### Theme
 

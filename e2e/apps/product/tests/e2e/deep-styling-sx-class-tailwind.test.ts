@@ -93,3 +93,16 @@ test.describe("sx class= Tailwind compile: no console errors", () => {
 		cap.assertClean();
 	});
 });
+
+test.describe("sx class= Tailwind compile: object-key class", () => {
+	test("after toggle — classes keyed in a class object get compiled CSS", async ({ page }) => {
+		await loadPage(page, "/styling-sx-class-tailwind");
+		const el = page.getByTestId("tw-class-object");
+		await expect(el).toHaveCSS("font-weight", "400");
+		await page.getByTestId("tw-toggle").click();
+		await expect(el).toHaveClass(/bg-emerald-500\/50/);
+		await expect(el).toHaveCSS("font-weight", "700");
+		const bg = await el.evaluate((node) => getComputedStyle(node).backgroundColor);
+		expect(bg).not.toBe("rgba(0, 0, 0, 0)");
+	});
+});

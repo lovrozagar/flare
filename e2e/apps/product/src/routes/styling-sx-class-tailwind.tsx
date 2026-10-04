@@ -14,6 +14,10 @@ export const route = createPage("_root_/styling-sx-class-tailwind").render(() =>
 				Conditional class
 			</div>
 
+			<div data-testid="tw-class-object" class={["p-2", { "bg-emerald-500/50": on(), "font-bold": on() }]}>
+				Object-key class
+			</div>
+
 			<button data-testid="tw-toggle" type="button" onClick={() => setOn((v) => !v)}>
 				Toggle
 			</button>
