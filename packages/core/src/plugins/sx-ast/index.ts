@@ -1,16 +1,12 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Plugin, ViteDevServer } from "vite";
 import { createThemeCn } from "../cn-theme.ts";
 import type { ThemeCn } from "../cn-theme.ts";
-import {
-	extractDeclarations,
-	extractPrefaceCss,
-	extractPropertyRules,
-	initTailwindCompiler,
-	themeVarsBlock,
-} from "../tw-compile.ts";
+import { extractDeclarations, extractPrefaceCss, extractPropertyRules, initTailwindCompiler } from "../tw-compile.ts";
 import type { TailwindCompiler } from "../tw-compile.ts";
+import { composeCss, themeVarsBlock } from "./compose-css.ts";
 import { rewriteModule } from "./rewrite.ts";
 
 export interface SxStrictOptions {
@@ -58,8 +54,6 @@ export interface SxAstOptions {
 	 */
 	tw?: boolean;
 }
-
-const LAYER_PRELUDE = "@layer reset, sx, app, user.lib, user.app, inline;";
 
 /** CSS rule pool accumulated across all transforms in a build. */
 interface PluginState {
@@ -160,63 +154,6 @@ function resolveLayer(
 	return "app";
 }
 
-/** Compose the final CSS text from the class pool, wrapped in @layer blocks. */
-/* Tailwind's fallback for browsers without @property: the same initial values, set directly. */
-const PROPERTIES_SUPPORTS =
-	"((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b))))";
-
-function propertiesFallback(properties: Map<string, string>): string {
-	const decls = [...properties].map(([name, rule]) => {
-		const initial = /initial-value:\s*([^;]+);/.exec(rule);
-		return `${name}: ${initial ? initial[1].trim() : "initial"};`;
-	});
-	return `@layer properties { @supports ${PROPERTIES_SUPPORTS} { *, ::before, ::after, ::backdrop { ${decls.join(" ")} } } }`;
-}
-
-function composeCss(
-	classPool: Map<string, string>,
-	layerByClass: Map<string, "sx" | "app">,
-	skip: Set<string>,
-	twPrefaceCss: string,
-	properties: Map<string, string> = new Map(),
-	themeBlock = "",
-): string {
-	const sxRules: string[] = [];
-	const appRules: string[] = [];
-
-	for (const [cls, rule] of classPool) {
-		if (skip.has(cls)) continue;
-		/* istanbul ignore next -- layerByClass is always set alongside classPool in cssEmit */
-		const layer = layerByClass.get(cls) ?? "app";
-		if (layer === "sx") sxRules.push(rule);
-		else appRules.push(rule);
-	}
-
-	/* At-rules last so @media utilities beat earlier base utilities of equal
-	 * specificity. classPool insertion order is first-seen across the whole
-	 * build, so a later page's `fontSize: 12px` would otherwise override an
-	 * earlier `@media (min-width: 1px) { fontSize: 24px }`. */
-	const atLast = (a: string, b: string) =>
-		Number(a.trimStart().startsWith("@")) - Number(b.trimStart().startsWith("@"));
-	sxRules.sort(atLast);
-	appRules.sort(atLast);
-
-	const parts: string[] = [];
-	/* First statement, so the fallback layer ranks below every other layer. */
-	if (properties.size > 0) parts.push("@layer properties;");
-	if (twPrefaceCss) parts.push(twPrefaceCss);
-	if (themeBlock) parts.push(themeBlock);
-	parts.push(LAYER_PRELUDE);
-	if (sxRules.length > 0) parts.push(`@layer sx { ${sxRules.join(" ")} }`);
-	if (appRules.length > 0) parts.push(`@layer app { ${appRules.join(" ")} }`);
-	if (properties.size > 0) {
-		parts.push(...properties.values());
-		parts.push(propertiesFallback(properties));
-	}
-
-	return parts.join("\n");
-}
-
 /* Flare's own `cn` tables module. With a twCssPath, the plugin serves tables compiled from that
    theme in its place, so `cn` merges the app's custom scale names (`rounded-control`). */
 const CN_TABLES_RE = /[\\/]styles[\\/]cn-vendor[\\/]tables\.generated\.ts(?:\?.*)?$/;
@@ -247,6 +184,40 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 		referencedVars: new Set(),
 	};
 	const referenceVars = opts.themeVars === "reference";
+	/*
+	 * Dev SSR stylesheet: a registry living in the server runtime. Every module the server
+	 * transforms registers its rules when it runs (see transform), so the stylesheet SSR reads
+	 * at render time covers every module evaluated so far. A snapshot of plugin state baked into
+	 * this module would go stale: the runner caches the module after its first import, while the
+	 * pool keeps growing as later routes are first rendered. Composition is shared with the build.
+	 */
+	const devCssModule = (): string => {
+		const themeVars = referenceVars && state.twCompiler ? [...state.twCompiler.themeVars] : null;
+		const composeCssPath = fileURLToPath(new URL("./compose-css.ts", import.meta.url));
+		return `import { composeCss, themeVarsBlock } from ${JSON.stringify(composeCssPath)};
+const rules = new Map();
+const layers = new Map();
+const properties = new Map();
+const referenced = new Set();
+const skip = new Set(${JSON.stringify([...state.providedByLibs])});
+const preface = ${JSON.stringify(state.twPrefaceCss)};
+const themeVars = ${themeVars ? `new Map(${JSON.stringify(themeVars)})` : "null"};
+export function registerDevSx(moduleRules, moduleProperties, moduleReferenced) {
+	for (const [cls, rule, layer] of moduleRules) {
+		rules.set(cls, rule);
+		layers.set(cls, layer);
+	}
+	for (const [name, rule] of moduleProperties) properties.set(name, rule);
+	for (const name of moduleReferenced) referenced.add(name);
+}
+export function getDevSxCss() {
+	return composeCss(rules, layers, skip, preface, properties, themeVars ? themeVarsBlock(referenced, themeVars, preface) : "");
+}
+export function getDevSxClasses() {
+	return [...rules.keys()];
+}
+`;
+	};
 	const themeBlockOf = (): string =>
 		referenceVars && state.twCompiler
 			? themeVarsBlock(state.referencedVars, state.twCompiler.themeVars, state.twPrefaceCss)
@@ -324,20 +295,7 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 				return theme ? { code: theme.source, moduleType: "js" } : null;
 			}
 			if (id !== DEV_CSS_RESOLVED_ID) return null;
-			/* Each import() re-runs load — no caching — so SSR always gets latest state. */
-			const css = composeCss(
-				state.classPool,
-				state.layerByClass,
-				state.providedByLibs,
-				state.twPrefaceCss,
-				state.properties,
-				themeBlockOf(),
-			);
-			const classNames = [...state.classPool.keys()];
-			return {
-				code: `export function getDevSxCss() { return ${JSON.stringify(css)} }\nexport function getDevSxClasses() { return ${JSON.stringify(classNames)} }`,
-				moduleType: "js",
-			};
+			return { code: devCssModule(), moduleType: "js" };
 		},
 
 		generateBundle() {
@@ -385,7 +343,12 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 
 		name: "flare:sx-ast",
 
-		transform(code: string, id: string): { code: string; map: null } | null {
+		transform(
+			this: { environment?: { config?: { consumer?: string } } },
+			code: string,
+			id: string,
+			options?: { ssr?: boolean },
+		): { code: string; map: null } | null {
 			if (!id.endsWith(".tsx") && !id.endsWith(".jsx")) return null;
 
 			/* Quick filter — skip files that obviously have no relevant attrs */
@@ -394,6 +357,8 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 			const layer = resolveLayer(id, libPaths, opts.layerOverride);
 			const emittedForModule = new Set<string>();
 			const moduleRules: Array<{ cls: string; rule: string }> = [];
+			const moduleProperties = new Map<string, string>();
+			const moduleReferenced = new Set<string>();
 
 			const tw = state.twCompiler;
 			const violations: string[] = [];
@@ -430,10 +395,16 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 				twCompile: tw
 					? (token: string) => {
 							const output = tw.build([token]);
-							for (const [name, rule] of extractPropertyRules(output)) state.properties.set(name, rule);
+							for (const [name, rule] of extractPropertyRules(output)) {
+								state.properties.set(name, rule);
+								moduleProperties.set(name, rule);
+							}
 							const decls = extractDeclarations(output, [token], referenceVars ? undefined : tw.themeVars);
 							if (referenceVars) {
-								for (const m of decls.matchAll(/var\((--[\w-]+)/g)) state.referencedVars.add(m[1]);
+								for (const m of decls.matchAll(/var\((--[\w-]+)/g)) {
+									state.referencedVars.add(m[1]);
+									moduleReferenced.add(m[1]);
+								}
 							}
 							return decls || null;
 						}
@@ -468,6 +439,24 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 			 * result === null means the AST needed no code rewrite (pure class= literals, no sx/spread).
 			 * CSS was still collected into moduleRules via cssEmit — must still inject the snippet.
 			 */
+			if (
+				mode === "dev" &&
+				moduleRules.length > 0 &&
+				(options?.ssr || this.environment?.config?.consumer === "server")
+			) {
+				/* Server runtime: register into the dev stylesheet SSR reads at render (devCssModule). */
+				const registration = JSON.stringify([
+					moduleRules.map(({ cls, rule }) => [cls, rule, layer]),
+					[...moduleProperties],
+					[...moduleReferenced],
+				]);
+				const baseCode = result !== null ? result.code : code;
+				return {
+					code: `${baseCode}\nimport { registerDevSx as __flareRegisterDevSx__ } from "${DEV_CSS_VIRTUAL_ID}";\n__flareRegisterDevSx__(...${registration});\n`,
+					map: null,
+				};
+			}
+
 			if (mode === "dev" && moduleRules.length > 0) {
 				const layerName: "sx" | "app" = layer;
 				const perClassJson = JSON.stringify(moduleRules.map(({ cls, rule }) => [cls, rule]));

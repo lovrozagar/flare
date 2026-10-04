@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { hoistHydrationHeadMarkers } from "../ssr/hoist-head-markers.ts";
+import { markSolidHeadStart, moveHeadPrependsAfterSolid } from "../ssr/head-prepend.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
 
 interface NodeReq {
@@ -210,10 +210,9 @@ export function createDevServerPlugin(entries: ResolvedEntries, _assetsBase: str
 									htmlPath = "/";
 								}
 							}
-							const { html: peeledHtml, tags } = peelInlineTags(html);
-							html = hoistHydrationHeadMarkers(
-								restoreInlineTags(await vite.transformIndexHtml(htmlPath, peeledHtml), tags),
-							);
+							const { html: peeledHtml, tags } = peelInlineTags(markSolidHeadStart(html));
+							const transformed = await vite.transformIndexHtml(htmlPath, peeledHtml);
+							html = moveHeadPrependsAfterSolid(restoreInlineTags(transformed, tags));
 
 							const htmlHeaders: Record<string, string | string[]> = {
 								"content-type": "text/html; charset=utf-8",

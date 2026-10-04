@@ -57,7 +57,13 @@ declare module "virtual:flare-sx-manifest" {
 }
 
 declare module "virtual:flare-sx-dev-css" {
-	/** Returns the current accumulated sx CSS string. Re-imported each SSR request to pick up HMR additions. */
+	/** Dev SSR transforms call this when a module runs, with the rules, `@property` rules and theme vars it emits. */
+	export function registerDevSx(
+		rules: Array<[cls: string, rule: string, layer: "sx" | "app"]>,
+		properties: Array<[name: string, rule: string]>,
+		referenced: string[],
+	): void;
+	/** The sx stylesheet for every module the server runtime has run so far. */
 	export function getDevSxCss(): string;
 	/** Returns the current accumulated class-name list. Seeded into window state so client module injects dedupe against SSR-emitted classes. */
 	export function getDevSxClasses(): string[];

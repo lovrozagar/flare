@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isLocalVar } from "./sx-ast/compose-css.ts";
 
 export interface TailwindCompiler {
 	build: (classes: string[]) => string;
@@ -124,11 +125,6 @@ function extractDeclsInner(css: string, selectorSet?: Set<string>): string {
 	return result.join(";");
 }
 
-/** Tailwind's element-local stacks (`--tw-shadow`, `--tw-scale-x`, …): never theme values. */
-function isLocalVar(name: string): boolean {
-	return name.startsWith("--tw-");
-}
-
 /**
  * The `@property` rules in a build output, keyed by variable name, whitespace-normalized
  * (`@property --tw-shadow { syntax: "*"; inherits: false; initial-value: 0 0 #0000; }`).
@@ -145,28 +141,6 @@ export function extractPropertyRules(cssOutput: string): Map<string, string> {
 		rules.set(m[1], `@property ${m[1]} { ${decls.map((d) => `${d};`).join(" ")} }`);
 	}
 	return rules;
-}
-
-/**
- * `@layer theme { :root, :host { … } }` defining the theme vars `referenced` needs: each one and,
- * transitively, the vars its value references. Locals (`--tw-*`), vars the preface already defines,
- * and names Tailwind never emitted are skipped. Empty string when nothing is needed.
- */
-export function themeVarsBlock(referenced: Set<string>, themeVars: Map<string, string>, preface: string): string {
-	const decls: string[] = [];
-	const seen = new Set<string>();
-	const queue = [...referenced];
-	while (queue.length > 0) {
-		const name = queue.shift() as string;
-		if (seen.has(name) || isLocalVar(name)) continue;
-		seen.add(name);
-		if (new RegExp(`${name.replace(/[-]/g, "\\-")}\\s*:`).test(preface)) continue;
-		const value = themeVars.get(name);
-		if (value === undefined) continue;
-		decls.push(`${name}: ${value};`);
-		for (const m of value.matchAll(/var\((--[\w-]+)/g)) queue.push(m[1]);
-	}
-	return decls.length > 0 ? `@layer theme { :root, :host { ${decls.join(" ")} } }` : "";
 }
 
 function resolveThemeVars(css: string, themeVars: Map<string, string>): string {
