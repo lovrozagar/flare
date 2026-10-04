@@ -3,6 +3,10 @@ import { buildHeadPrefix } from "../../../src/ssr/head-prefix.ts";
 
 const NONCE = "abc123";
 
+function styleOf(html: string): string | undefined {
+	return /<style nonce="[^"]*">([^<]*)<\/style>/.exec(html)?.[1];
+}
+
 describe("buildHeadPrefix — first-paint order", () => {
 	it("emits theme script before modulepreload and stylesheet", () => {
 		const html = buildHeadPrefix({
@@ -32,9 +36,20 @@ describe("buildHeadPrefix — first-paint order", () => {
 	it("injects color-scheme CSS so first land is not blocked by style-src CSPOM", () => {
 		const html = buildHeadPrefix({ nonce: NONCE, resolvedHead: {} });
 		expect(html).toContain(`<style nonce="${NONCE}">`);
-		expect(html).toContain("color-scheme:light");
-		expect(html).toContain("[data-theme=dark]");
-		expect(html.indexOf("flare.theme")).toBeLessThan(html.indexOf("color-scheme:light"));
+		expect(html).toContain("[data-theme=dark]{color-scheme:dark}");
+		expect(html.indexOf("flare.theme")).toBeLessThan(html.indexOf(`<style nonce="${NONCE}">`));
+	});
+
+	/* Without JavaScript (or before it runs) the page follows the default theme; "system" is the OS. */
+	it("follows the OS before the theme script runs when the default theme is system", () => {
+		expect(styleOf(buildHeadPrefix({ nonce: NONCE, resolvedHead: {} }))).toBe(
+			"html{color-scheme:light dark}html[data-theme=light]{color-scheme:light}html[data-theme=dark]{color-scheme:dark}",
+		);
+	});
+
+	it.each(["light", "dark"] as const)("pins the scheme to a %s default theme", (defaultTheme) => {
+		const css = styleOf(buildHeadPrefix({ nonce: NONCE, resolvedHead: {}, theme: { defaultTheme } }));
+		expect(css?.startsWith(`html{color-scheme:${defaultTheme}}`)).toBe(true);
 	});
 
 	it("uses custom theme attribute in color-scheme CSS", () => {

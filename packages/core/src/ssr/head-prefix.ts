@@ -8,9 +8,15 @@ function escapeAttr(str: string): string {
 	return str.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function colorSchemeCss(attribute: string): string {
-	const attr = attribute.replace(/[^\w-]/g, "") || "data-theme";
-	return `html{color-scheme:light}html[${attr}=dark]{color-scheme:dark}`;
+/*
+ * The scheme before the theme script runs, or without JavaScript: the default theme, where
+ * "system" is the OS preference (`light dark`). Once the script sets the attribute, it wins.
+ */
+function colorSchemeCss(theme: ThemeConfig | undefined): string {
+	const attr = (theme?.attribute ?? "data-theme").replace(/[^\w-]/g, "") || "data-theme";
+	const fallback =
+		theme?.defaultTheme === "light" || theme?.defaultTheme === "dark" ? theme.defaultTheme : "light dark";
+	return `html{color-scheme:${fallback}}html[${attr}=light]{color-scheme:light}html[${attr}=dark]{color-scheme:dark}`;
 }
 
 export interface HeadPrefixOptions {
@@ -42,9 +48,8 @@ export function buildHeadPrefix(options: HeadPrefixOptions): string {
 	}
 
 	const nonceAttr = ` nonce="${escapedNonce}"`;
-	const themeAttr = options.theme?.attribute ?? "data-theme";
 	prefix += `<script${nonceAttr}>${getThemeScript(options.theme)}</script>`;
-	prefix += `<style${nonceAttr}>${colorSchemeCss(themeAttr)}</style>`;
+	prefix += `<style${nonceAttr}>${colorSchemeCss(options.theme)}</style>`;
 
 	if (options.direction) {
 		prefix += `<script${nonceAttr}>${getDirectionScript(options.direction)}</script>`;
