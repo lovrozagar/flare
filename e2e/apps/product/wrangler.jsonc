@@ -3,4 +3,6 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "src/server.ts",
 	"name": "flare-e2e-workers",
+	/* Self binding: the fetch-dedupe e2e route dedupes through a real service binding. */
+	"services": [{ "binding": "SELF", "service": "flare-e2e-workers" }],
 }

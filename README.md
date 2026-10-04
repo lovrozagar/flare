@@ -426,6 +426,24 @@ Pipeline: authenticate → authorize → preloaders (parent → child) → loade
 
 `<Await>` also accepts `error` and `onError`. Missing deferred data must not throw in `.then` — the component treats a missing promise as pending.
 
+### Fetch dedupe
+
+During a server request, identical `GET` / `HEAD` fetches share one upstream call: concurrent callers wait on it, and later callers in the same request reuse it. The key is method, URL, headers (minus `traceparent`, `tracestate`, `x-request-id`, `x-correlation-id`), and the request's mode fields such as `redirect`. `globalThis.fetch` is covered automatically.
+
+A fetch you pass around yourself, such as an SDK over a Workers service binding, opts in with `withFetchDedupe`. Pass the binding itself, not an arrow around it. Wrappers over the same target share one cache, so building the SDK per request still dedupes.
+
+```ts
+import { withFetchDedupe } from "@lovrozagar/flare/fetch-dedupe";
+
+const sdk = new ApiClient({ fetch: withFetchDedupe(env.API) });
+```
+
+- Each caller gets its own `Response` with the upstream status, headers, `url`, and `redirected`.
+- A caller's `AbortSignal` cancels only that caller. The upstream fetch is aborted once every caller has aborted.
+- Any other method passes through and clears the request's memoized responses.
+- Bodies over `maxBytes` (default 1 MiB, `withFetchDedupe(target, { maxBytes })`) and `text/event-stream` responses still stream but are not reused by later callers.
+- Outside a request (browser, module scope, queue consumers) it is a plain passthrough.
+
 ## Hooks
 
 From `@lovrozagar/flare` (route-builder barrel) / the same names on the provider:
@@ -1124,6 +1142,7 @@ Import features from their path.
 | `@lovrozagar/flare/lazy`                | `lazy`, `clientLazy`                    |
 | `@lovrozagar/flare/server`              | `createServer`                          |
 | `@lovrozagar/flare/server-context`      | ALS, `background`                       |
+| `@lovrozagar/flare/fetch-dedupe`        | `withFetchDedupe`                       |
 | `@lovrozagar/flare/server-only`         | `createServerOnlyFn`                    |
 | `@lovrozagar/flare/client-only`         | `createClientOnlyFn`                    |
 | `@lovrozagar/flare/isomorphic`          | `createIsomorphicFn`                    |

@@ -10,6 +10,7 @@ import { loadPrerenderArtifacts } from "@lovrozagar/flare/prerender";
 import type { CdnPurgeAdapter } from "@lovrozagar/flare/server";
 import { createServer } from "@lovrozagar/flare/server";
 import type { FlareStore, FlareStoreEntry } from "@lovrozagar/flare/store";
+import { dedupeHits, dedupeUpstream } from "./fetch-dedupe-upstream";
 import { router } from "./router";
 
 const kvStore = new Map<string, { entry: FlareStoreEntry; expiresAt?: number }>();
@@ -196,6 +197,8 @@ const testApi = async (request: Request) => {
 		resetRetryCounter();
 		return json({ reset: true });
 	}
+	if (url.pathname === "/dedupe-upstream") return dedupeUpstream(request, url);
+	if (url.pathname === "/dedupe-hits") return dedupeHits(url);
 	if (url.pathname === "/error") {
 		throw new Error("test mount error");
 	}
