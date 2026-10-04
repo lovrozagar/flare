@@ -34,6 +34,7 @@
 		"./codegen": "./src/codegen/index.ts",
 		"./direction": "./src/direction.ts",
 		"./errors": "./src/errors/index.ts",
+		"./fetch-dedupe": "./src/fetch-dedupe.ts",
 		"./fonts": "./src/fonts/index.ts",
 		"./fonts/*": "./src/fonts/*.ts",
 		"./form": "./src/form/index.tsx",
