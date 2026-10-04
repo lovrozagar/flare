@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { scanSourceFiles } from "../generators/index.ts";
 import { buildPrerenderRoutes, prerender, writePrerenderOutput } from "../prerender/index.ts";
 import { buildSitemapFromDefs, type ChangeFreq, generateRobotsTxt, type SitemapEntry } from "../sitemap/index.ts";
+import { importFileFresh } from "./native-import.ts";
 import type { VitePlugin } from "./types.ts";
 
 interface ServerModuleHandler {
@@ -89,7 +90,7 @@ export function createPrerenderPlugin(config: {
 				(g.Cloudflare as Record<string, unknown>).compatibilityFlags = {};
 			}
 
-			const mod = (await import(`${serverPath}?t=${Date.now()}`)) as ServerModule;
+			const mod = await importFileFresh<ServerModule>(serverPath);
 
 			/* 4. Resolve static params for dynamic routes */
 			const needsStaticParams = defs.some(
