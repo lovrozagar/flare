@@ -918,7 +918,7 @@ createServer(router).security(({ nonce }) => ({
 }));
 ```
 
-Defaults: `nosniff`, CSP (dev `unsafe-inline`; prod nonce on HTML), HSTS in prod (skipped in dev). Set a header to `false` to omit it.
+Defaults: `nosniff`, CSP (dev `unsafe-inline`; prod nonce on HTML), HSTS in prod (skipped in dev). Set a header to `false` to omit it. The style nonce lives on `style-src-elem`; sources you add to `style-src` (a widget's stylesheet host) are copied there unless you set `style-src-elem` yourself.
 
 ## Store and revalidation
 

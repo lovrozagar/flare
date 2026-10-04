@@ -154,6 +154,15 @@ export function buildCspHeader(nonce: string, overrides?: CspDirectives, isDev?:
 		directives["style-src-elem"] = ["'self'"];
 	}
 	const styleSrcElem = directives["style-src-elem"];
+	/* Flare adds style-src-elem only to carry the nonce. Browsers then ignore style-src for
+	 * <style>/<link>, so the app's style-src sources (a widget's stylesheet host) must be
+	 * carried over unless the app set style-src-elem itself. */
+	const styleSrc = directives["style-src"];
+	if (Array.isArray(styleSrcElem) && Array.isArray(styleSrc) && overrides?.["style-src-elem"] === undefined) {
+		for (const source of styleSrc) {
+			if (!styleSrcElem.includes(source)) styleSrcElem.push(source);
+		}
+	}
 	if (Array.isArray(styleSrcElem) && !styleSrcElem.includes("'unsafe-inline'")) {
 		styleSrcElem.push(`'nonce-${nonce}'`);
 	}

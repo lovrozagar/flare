@@ -37,3 +37,21 @@ describe("CSP — style-src must not include unsafe-inline", () => {
 		expect(styleSrcElem).not.toContain("'unsafe-inline'");
 	});
 });
+
+describe("CSP — app style-src sources reach the synthesized style-src-elem", () => {
+	it("style-src hosts also allow stylesheets, next to the nonce", () => {
+		const header = buildCspHeader("test-nonce", { "style-src": ["https://client.crisp.chat"] }, false);
+		const styleSrcElem = header.match(/style-src-elem\s+([^;]*)/)?.[1] ?? "";
+		expect(styleSrcElem.split(" ")).toEqual(["'self'", "https://client.crisp.chat", "'nonce-test-nonce'"]);
+	});
+
+	it("an explicit style-src-elem override is not widened by style-src", () => {
+		const header = buildCspHeader(
+			"test-nonce",
+			{ "style-src": ["https://a.example"], "style-src-elem": ["https://b.example"] },
+			false,
+		);
+		const styleSrcElem = header.match(/style-src-elem\s+([^;]*)/)?.[1] ?? "";
+		expect(styleSrcElem.split(" ")).toEqual(["'self'", "https://b.example", "'nonce-test-nonce'"]);
+	});
+});

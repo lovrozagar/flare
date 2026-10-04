@@ -19,6 +19,18 @@ export const route = createPage("[[locale]]/_root_/(main)/about")
 
 		return (
 			<main>
+				{/* Third-party widgets inject their sheet from script, without a nonce. */}
+				<p
+					data-testid="csp-style-probe"
+					ref={() => {
+						const link = document.createElement("link");
+						link.rel = "stylesheet";
+						link.href = "data:text/css,[data-testid=csp-style-probe]{outline:3px solid rgb(1, 2, 3)}";
+						document.head.append(link);
+					}}
+				>
+					CSP probe
+				</p>
 				<h1 data-testid="about-title">{t("common.about.title")}</h1>
 				<p data-testid="about-description">{t("common.about.description")}</p>
 			</main>
