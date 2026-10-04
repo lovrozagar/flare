@@ -4,7 +4,7 @@
  * Bun's node:http throws on a write after the response ended, so the server runs under Bun.
  */
 import { type ChildProcess, spawn } from "node:child_process";
-import { request } from "node:http";
+import { Agent, request } from "node:http";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -17,7 +17,8 @@ afterEach(() => {
 });
 
 async function start(): Promise<{ output: () => string; port: number }> {
-	const proc = spawn("bun", [SERVER], { stdio: ["ignore", "pipe", "pipe"] });
+	/* FLARE_TEST_BUN picks another Bun binary (CI pins an older one). */
+	const proc = spawn(process.env.FLARE_TEST_BUN ?? "bun", [SERVER], { stdio: ["ignore", "pipe", "pipe"] });
 	child = proc;
 	let output = "";
 	proc.stdout?.on("data", (chunk) => (output += String(chunk)));
@@ -60,5 +61,24 @@ describe("preview server: client disconnect mid-stream", () => {
 		expect(await response.text()).toBe("ok");
 		expect(child?.exitCode).toBeNull();
 		expect(output()).not.toMatch(/write after end|ERR_STREAM/i);
+	}, 30_000);
+
+	it("detaches from keep-alive sockets after each response", async () => {
+		const { output, port } = await start();
+		const agent = new Agent({ keepAlive: true, maxSockets: 1 });
+		for (let i = 0; i < 15; i++) {
+			const body = await new Promise<string>((resolve, reject) => {
+				const req = request({ agent, host: "127.0.0.1", path: "/", port }, (res) => {
+					let text = "";
+					res.on("data", (chunk) => (text += String(chunk)));
+					res.on("end", () => resolve(text));
+				});
+				req.on("error", reject);
+				req.end();
+			});
+			expect(body).toBe("ok");
+		}
+		agent.destroy();
+		expect(output()).not.toMatch(/MaxListenersExceeded/);
 	}, 30_000);
 });

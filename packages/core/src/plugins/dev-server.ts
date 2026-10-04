@@ -16,6 +16,7 @@ interface NodeRes {
 	end: (data?: unknown) => void;
 	headersSent?: boolean;
 	on: (event: string, fn: () => void) => void;
+	socket?: { off: (event: string, fn: () => void) => void; on: (event: string, fn: () => void) => void } | null;
 	writableEnded?: boolean;
 	write: (chunk: unknown) => void;
 	writeHead: (status: number, headers: Record<string, string | string[]>) => void;
@@ -95,14 +96,18 @@ export async function streamResponse(response: Response, res: NodeRes): Promise<
 		return;
 	}
 	const reader = response.body.getReader();
-	/* A client that leaves mid-stream (closed tab, aborted navigation) closes `res` early: cancel
-	   the body so rendering stops, and never write to the closed response (Bun throws on it). */
+	/* A client that leaves mid-stream (closed tab, aborted navigation): cancel the body so
+	   rendering stops, and never write to the closed response. Node and Bun 1.4 close `res`;
+	   Bun 1.3 only closes the socket, so listen to both. */
 	let left = false;
-	res.on("close", () => {
-		if (res.writableEnded) return;
+	const leave = () => {
+		if (left || res.writableEnded) return;
 		left = true;
 		reader.cancel().catch(() => {});
-	});
+	};
+	const socket = res.socket;
+	res.on("close", leave);
+	socket?.on("close", leave);
 	try {
 		while (true) {
 			const { done, value } = await reader.read();
@@ -110,6 +115,8 @@ export async function streamResponse(response: Response, res: NodeRes): Promise<
 			res.write(value);
 		}
 	} finally {
+		/* Keep-alive sockets outlive this response. */
+		socket?.off("close", leave);
 		if (!left && !res.writableEnded) res.end();
 	}
 }
