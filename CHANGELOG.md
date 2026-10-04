@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.1
+
+- Variants Tailwind emits as a suffix on a utility's own selector keep the whole suffix. Tailwind 4.3.3 flattens attribute variants (`.u[aria-pressed="true"]`, `.u[data-open]`), and Flare dropped them as unknown selectors, so `aria-pressed:` and `data-[x]:` classes shipped no CSS. Chained pseudo-classes (`focus-visible:disabled:`) also lost every pseudo but the last.
+- The workspace is on Tailwind 4.3.3, so CI exercises the flattened output consumers get.
+
 ## 0.9.0
 
 - **`cn` merges with the app's theme.** With `sx.twCssPath`, the plugin compiles `cn` tables from that stylesheet and its imports, and serves them in place of the default ones. The compile-time static merge uses the same tables, on client and server.
