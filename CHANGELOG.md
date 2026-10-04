@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.7
+
+- Utilities that style other elements compile. `space-x-*`, `space-y-*`, `divide-*` and the `*:` and `**:` child variants wrap the utility's class in a selector (`:where(.space-x-2 > :not(:last-child))`), which Flare's extraction skipped, so they shipped no CSS and `sx.strict` rejected them. They now compile to a rule nested on the utility, keeping Tailwind's selector and specificity.
+
 ## 0.9.6
 
 0.9.5 was tagged but not published (its CI test run failed on Bun 1.3); 0.9.6 ships its changes with the fix.
