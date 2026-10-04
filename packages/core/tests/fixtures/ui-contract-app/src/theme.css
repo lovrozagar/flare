@@ -1,0 +1,24 @@
+@import "tailwindcss";
+@plugin "./fixture-plugin.mjs";
+
+/* Contract fixture for @repo/frontend-ui: palette reset, per-utility color namespaces,
+   light-dark() scale vars, and a semantic -> scale chain. */
+@theme {
+	--color-*: initial;
+	--shadow-*: initial;
+
+	--background-color-canvas: var(--gray-2);
+	--background-color-surface: var(--gray-1);
+	--text-color-fg: var(--gray-12);
+	--border-color-line: var(--gray-a5);
+
+	--radius-control: 6px;
+	--shadow-raised: 0 1px 2px light-dark(#0000001a, #00000080);
+}
+
+:root {
+	--gray-1: light-dark(#fcfcfd, #111113);
+	--gray-2: light-dark(#f9f9fb, #18191b);
+	--gray-12: light-dark(#1c2024, #edeef0);
+	--gray-a5: light-dark(#0009321f, #d9edfe25);
+}

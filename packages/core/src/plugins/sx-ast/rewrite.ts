@@ -15,6 +15,13 @@ export interface RewriteCtx {
 	 * null for unknown tokens. Omit to disable Tailwind compilation entirely.
 	 */
 	twCompile?: (token: string) => string | null;
+	/**
+	 * Compile-time merge for a static class string. Defaults to the built-in tables; the sx plugin
+	 * passes the app theme's merge so custom scale names (`rounded-control`) collapse correctly.
+	 */
+	mergeClassList?: (input: string) => string;
+	/** Called for every literal class token compiled through Tailwind (markers excluded); `compiled` is false when it produced no CSS. */
+	onClassToken?: (token: string, compiled: boolean) => void;
 }
 
 export interface RewriteResult {
@@ -183,6 +190,7 @@ function compileTwFromExpr(expr: unknown, ctx: RewriteCtx): void {
 		for (const token of raw.split(/\s+/).filter(Boolean)) {
 			if (MARKER_TOKEN_RE.test(token)) continue;
 			const body = ctx.twCompile(token);
+			ctx.onClassToken?.(token, Boolean(body));
 			if (!body) continue;
 			ctx.cssEmit(buildTwRule(token, body));
 		}
@@ -197,6 +205,7 @@ function compileTwFromString(value: string, ctx: RewriteCtx): void {
 	for (const token of value.split(/\s+/).filter(Boolean)) {
 		if (MARKER_TOKEN_RE.test(token)) continue;
 		const body = ctx.twCompile(token);
+		ctx.onClassToken?.(token, Boolean(body));
 		if (!body) continue;
 		ctx.cssEmit(buildTwRule(token, body));
 	}
@@ -488,7 +497,7 @@ export function rewriteModule(source: string, ctx: RewriteCtx): RewriteResult | 
 		if (classAttr) {
 			const resolved = resolveClassAttr(source, classAttr);
 			if (resolved.kind === "literal") {
-				const merged = mergeClassList(resolved.value);
+				const merged = (ctx.mergeClassList ?? mergeClassList)(resolved.value);
 				classLiteral = merged;
 				if (resolved.rewrite || merged !== resolved.value) classNeedsRewrite = true;
 				if (resolved.rewrite) foldedStaticCn = true;
@@ -707,7 +716,7 @@ export function rewriteModule(source: string, ctx: RewriteCtx): RewriteResult | 
 		} else if (classAttr) {
 			const existing = resolveClassAttr(source, classAttr);
 			if (existing.kind === "literal") {
-				const merged = mergeClassList(existing.value);
+				const merged = (ctx.mergeClassList ?? mergeClassList)(existing.value);
 				if (merged) {
 					replace(classAttr.start, classAttr.end, `class={cn("${merged}", ${compileCssCall})}`);
 					neededImports.add("cn");

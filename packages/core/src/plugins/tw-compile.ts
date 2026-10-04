@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export interface TailwindCompiler {
 	build: (classes: string[]) => string;
@@ -121,11 +122,56 @@ function extractDeclsInner(css: string, selectorSet?: Set<string>): string {
 	return result.join(";");
 }
 
+/** Tailwind's element-local stacks (`--tw-shadow`, `--tw-scale-x`, …): never theme values. */
+function isLocalVar(name: string): boolean {
+	return name.startsWith("--tw-");
+}
+
+/**
+ * The `@property` rules in a build output, keyed by variable name, whitespace-normalized
+ * (`@property --tw-shadow { syntax: "*"; inherits: false; initial-value: 0 0 #0000; }`).
+ * Utilities reference these locals with `var()`; without the registration (and its initial
+ * value) a stack like `box-shadow: var(--tw-inset-shadow), …, var(--tw-shadow)` is invalid.
+ */
+export function extractPropertyRules(cssOutput: string): Map<string, string> {
+	const rules = new Map<string, string>();
+	for (const m of cssOutput.matchAll(/@property\s+(--[\w-]+)\s*\{([^}]*)\}/g)) {
+		const decls = m[2]
+			.split(";")
+			.map((d) => d.trim().replace(/\s+/g, " "))
+			.filter(Boolean);
+		rules.set(m[1], `@property ${m[1]} { ${decls.map((d) => `${d};`).join(" ")} }`);
+	}
+	return rules;
+}
+
+/**
+ * `@layer theme { :root, :host { … } }` defining the theme vars `referenced` needs: each one and,
+ * transitively, the vars its value references. Locals (`--tw-*`), vars the preface already defines,
+ * and names Tailwind never emitted are skipped. Empty string when nothing is needed.
+ */
+export function themeVarsBlock(referenced: Set<string>, themeVars: Map<string, string>, preface: string): string {
+	const decls: string[] = [];
+	const seen = new Set<string>();
+	const queue = [...referenced];
+	while (queue.length > 0) {
+		const name = queue.shift() as string;
+		if (seen.has(name) || isLocalVar(name)) continue;
+		seen.add(name);
+		if (new RegExp(`${name.replace(/[-]/g, "\\-")}\\s*:`).test(preface)) continue;
+		const value = themeVars.get(name);
+		if (value === undefined) continue;
+		decls.push(`${name}: ${value};`);
+		for (const m of value.matchAll(/var\((--[\w-]+)/g)) queue.push(m[1]);
+	}
+	return decls.length > 0 ? `@layer theme { :root, :host { ${decls.join(" ")} } }` : "";
+}
+
 function resolveThemeVars(css: string, themeVars: Map<string, string>): string {
 	let result = css;
 	for (let i = 0; i < 5; i++) {
 		const next = result.replace(/var\((--[\w-]+)\)/g, (full, name: string) => {
-			return themeVars.get(name) ?? full;
+			return isLocalVar(name) ? full : (themeVars.get(name) ?? full);
 		});
 		if (next === result) break;
 		result = next;
@@ -179,8 +225,80 @@ export function extractDeclarations(
 
 const TAILWIND_MODULE: string = "tailwindcss";
 
-/** Initialize a Tailwind v4 compiler from an optional CSS entry file. */
+/** `@scope/name/sub/path` → `["@scope/name", "sub/path"]`; `name` → `["name", ""]`. */
+function splitBareSpecifier(id: string): [string, string] {
+	const parts = id.split("/");
+	const nameParts = id.startsWith("@") ? 2 : 1;
+	return [parts.slice(0, nameParts).join("/"), parts.slice(nameParts).join("/")];
+}
+
+/**
+ * A bare CSS specifier from `fromDir`: a package root resolves to its `style` entry
+ * (`exports["."].style`, then `style`); a subpath goes through the package's exports.
+ */
+function resolveBareStylesheet(id: string, fromDir: string): string {
+	const req = createRequire(join(fromDir, "noop.css"));
+	const [name, subpath] = splitBareSpecifier(id);
+	if (subpath) return req.resolve(id);
+	const pkgPath = req.resolve(`${name}/package.json`);
+	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+		exports?: Record<string, { style?: string } | string> | string;
+		style?: string;
+	};
+	const rootExport = typeof pkg.exports === "object" ? pkg.exports["."] : undefined;
+	const style = (typeof rootExport === "object" ? rootExport.style : undefined) ?? pkg.style;
+	if (!style) throw new Error(`package "${name}" has no "style" entry to import as CSS`);
+	return join(dirname(pkgPath), style);
+}
+
+/**
+ * Where an `@import` points. Relative and absolute ids resolve against the importing
+ * stylesheet's directory (`base`). Bare ids resolve from `base` like Node would, then from
+ * Flare's own install (the optional `tailwindcss` peer usually sits beside Flare).
+ */
+export function resolveStylesheetPath(id: string, base: string): string {
+	if (id.startsWith(".") || isAbsolute(id)) return resolve(base, id);
+	try {
+		return resolveBareStylesheet(id, base);
+	} catch (fromBase) {
+		try {
+			return resolveBareStylesheet(id, dirname(fileURLToPath(import.meta.url)));
+		} catch {
+			throw new Error(
+				`cannot resolve @import "${id}" from ${base}: ${fromBase instanceof Error ? fromBase.message : String(fromBase)}`,
+				{ cause: fromBase },
+			);
+		}
+	}
+}
+
+/**
+ * Where an `@plugin` / `@config` module points: relative and absolute ids from the referencing
+ * stylesheet's directory, bare ids through Node resolution from there, then from Flare's install.
+ */
+export function resolveModulePath(id: string, base: string): string {
+	if (id.startsWith(".") || isAbsolute(id)) return resolve(base, id);
+	try {
+		return createRequire(join(base, "noop.js")).resolve(id);
+	} catch (fromBase) {
+		try {
+			return createRequire(import.meta.url).resolve(id);
+		} catch {
+			throw new Error(
+				`cannot resolve @plugin "${id}" from ${base}: ${fromBase instanceof Error ? fromBase.message : String(fromBase)}`,
+				{ cause: fromBase },
+			);
+		}
+	}
+}
+
+/**
+ * Initialize a Tailwind v4 compiler from an optional CSS entry file. The entry's imports
+ * resolve from its own directory (no entry: the process cwd). Throws on any failure —
+ * callers fail the build, never fall back to pass-through.
+ */
 export async function initTailwindCompiler(cssPath?: string): Promise<TailwindCompiler> {
+	const entry = cssPath ? resolve(cssPath) : undefined;
 	try {
 		/* Optional peer: a non-literal specifier keeps consumers without tailwindcss typechecking. */
 		const tw = (await import(/* @vite-ignore */ TAILWIND_MODULE)) as { compile?: unknown; default?: unknown };
@@ -191,12 +309,7 @@ export async function initTailwindCompiler(cssPath?: string): Promise<TailwindCo
 			);
 		}
 
-		let cssContent: string;
-		if (cssPath) {
-			cssContent = readFileSync(resolve(cssPath), "utf-8");
-		} else {
-			cssContent = '@import "tailwindcss";';
-		}
+		const cssContent = entry ? readFileSync(entry, "utf-8") : '@import "tailwindcss";';
 
 		const compiler = await (
 			compileFn as (
@@ -206,18 +319,17 @@ export async function initTailwindCompiler(cssPath?: string): Promise<TailwindCo
 				build: (classes: string[]) => string;
 			}>
 		)(cssContent, {
+			/* Without `base`, Tailwind resolves the entry's own @imports against "" — the process cwd. */
+			base: entry ? dirname(entry) : process.cwd(),
 			loadStylesheet: (id: string, base: string) => {
-				if (id === "tailwindcss") {
-					const esmRequire = createRequire(import.meta.url);
-					const pkgPath = esmRequire.resolve("tailwindcss/package.json");
-					const pkgDir = dirname(pkgPath);
-					const cssPath2 = join(pkgDir, "index.css");
-					const content = readFileSync(cssPath2, "utf-8");
-					return { base: pkgDir, content, path: cssPath2 };
-				}
-				const resolved = resolve(base, id);
-				const content = readFileSync(resolved, "utf-8");
-				return { base: dirname(resolved), content, path: resolved };
+				const path = resolveStylesheetPath(id, base);
+				return { base: dirname(path), content: readFileSync(path, "utf-8"), path };
+			},
+			/* `@plugin` and `@config`: a plugin's default export (function or plugin object). */
+			loadModule: async (id: string, base: string) => {
+				const path = resolveModulePath(id, base);
+				const mod = (await import(/* @vite-ignore */ pathToFileURL(path).href)) as { default?: unknown };
+				return { base: dirname(path), module: mod.default ?? mod, path };
 			},
 		});
 
@@ -226,7 +338,7 @@ export async function initTailwindCompiler(cssPath?: string): Promise<TailwindCo
 		const trackingBuild = (classes: string[]): string => {
 			const output = originalBuild(classes);
 			for (const m of output.matchAll(/(--[\w-]+)\s*:\s*([^;]+)/g)) {
-				if (!themeVars.has(m[1])) {
+				if (!isLocalVar(m[1]) && !themeVars.has(m[1])) {
 					themeVars.set(m[1], m[2].trim());
 				}
 			}
@@ -236,7 +348,7 @@ export async function initTailwindCompiler(cssPath?: string): Promise<TailwindCo
 		return { build: trackingBuild, themeVars };
 	} catch (e: unknown) {
 		throw new Error(
-			`tailwindcss init failed: ${e instanceof Error ? e.message : String(e)}. Check tailwind.config.ts for syntax errors.`,
+			`Tailwind init failed for ${entry ?? 'the default @import "tailwindcss" entry'}: ${e instanceof Error ? e.message : String(e)}`,
 			{ cause: e },
 		);
 	}

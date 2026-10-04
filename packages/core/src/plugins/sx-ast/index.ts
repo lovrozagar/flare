@@ -1,12 +1,37 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import type { Plugin } from "vite";
-import { extractDeclarations, extractPrefaceCss, initTailwindCompiler } from "../tw-compile.ts";
+import { join, resolve } from "node:path";
+import type { Plugin, ViteDevServer } from "vite";
+import { createThemeCn } from "../cn-theme.ts";
+import type { ThemeCn } from "../cn-theme.ts";
+import {
+	extractDeclarations,
+	extractPrefaceCss,
+	extractPropertyRules,
+	initTailwindCompiler,
+	themeVarsBlock,
+} from "../tw-compile.ts";
 import type { TailwindCompiler } from "../tw-compile.ts";
 import { rewriteModule } from "./rewrite.ts";
 
+export interface SxStrictOptions {
+	/** Tokens that may compile to no CSS (non-Tailwind classes such as `prose`). Markers (`group`, `peer`) are always allowed. */
+	allow?: string[];
+	/** Tokens rejected even when they compile (e.g. physical-direction utilities). */
+	deny?: RegExp[];
+}
+
 export interface SxAstOptions {
-	strict?: boolean;
+	/**
+	 * Fail the module (build error, dev overlay) when an app-layer class literal compiles to no CSS
+	 * or matches a `deny` pattern. Library-layer modules are not checked. Requires Tailwind (`tw`/`twCssPath`).
+	 */
+	strict?: boolean | SxStrictOptions;
+	/**
+	 * How utilities reference theme values. `"inline"` (default) resolves them to their values at
+	 * build time. `"reference"` keeps `var(--…)` and emits the referenced theme vars, so a page can
+	 * change the theme at runtime (live theme editors).
+	 */
+	themeVars?: "inline" | "reference";
 	/** Absolute path prefixes that map to the "sx" layer (lib code). Default: ["/node_modules/"]. */
 	libPaths?: string[];
 	/** Override layer detection per module id. Return null to fall back to libPaths heuristic. */
@@ -53,6 +78,10 @@ interface PluginState {
 	 * Emitted verbatim before atomic utility rules so browser defaults are normalized.
 	 */
 	twPrefaceCss: string;
+	/** `@property` rules for the Tailwind locals the emitted utilities use, by variable name. */
+	properties: Map<string, string>;
+	/** themeVars "reference": theme vars the emitted utilities reference. */
+	referencedVars: Set<string>;
 }
 
 interface LibManifestShape {
@@ -132,11 +161,25 @@ function resolveLayer(
 }
 
 /** Compose the final CSS text from the class pool, wrapped in @layer blocks. */
+/* Tailwind's fallback for browsers without @property: the same initial values, set directly. */
+const PROPERTIES_SUPPORTS =
+	"((-webkit-hyphens: none) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color:rgb(from red r g b))))";
+
+function propertiesFallback(properties: Map<string, string>): string {
+	const decls = [...properties].map(([name, rule]) => {
+		const initial = /initial-value:\s*([^;]+);/.exec(rule);
+		return `${name}: ${initial ? initial[1].trim() : "initial"};`;
+	});
+	return `@layer properties { @supports ${PROPERTIES_SUPPORTS} { *, ::before, ::after, ::backdrop { ${decls.join(" ")} } } }`;
+}
+
 function composeCss(
 	classPool: Map<string, string>,
 	layerByClass: Map<string, "sx" | "app">,
 	skip: Set<string>,
 	twPrefaceCss: string,
+	properties: Map<string, string> = new Map(),
+	themeBlock = "",
 ): string {
 	const sxRules: string[] = [];
 	const appRules: string[] = [];
@@ -159,12 +202,29 @@ function composeCss(
 	appRules.sort(atLast);
 
 	const parts: string[] = [];
+	/* First statement, so the fallback layer ranks below every other layer. */
+	if (properties.size > 0) parts.push("@layer properties;");
 	if (twPrefaceCss) parts.push(twPrefaceCss);
+	if (themeBlock) parts.push(themeBlock);
 	parts.push(LAYER_PRELUDE);
 	if (sxRules.length > 0) parts.push(`@layer sx { ${sxRules.join(" ")} }`);
 	if (appRules.length > 0) parts.push(`@layer app { ${appRules.join(" ")} }`);
+	if (properties.size > 0) {
+		parts.push(...properties.values());
+		parts.push(propertiesFallback(properties));
+	}
 
 	return parts.join("\n");
+}
+
+/* Flare's own `cn` tables module. With a twCssPath, the plugin serves tables compiled from that
+   theme in its place, so `cn` merges the app's custom scale names (`rounded-control`). */
+const CN_TABLES_RE = /[\\/]styles[\\/]cn-vendor[\\/]tables\.generated\.ts(?:\?.*)?$/;
+
+function lineOf(code: string, token: string): number {
+	const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	const m = new RegExp(`(?<![\\w:/-])${escaped}(?![\\w-])`).exec(code);
+	return m ? code.slice(0, m.index).split("\n").length : 1;
 }
 
 const DEV_CSS_VIRTUAL_ID = "virtual:flare-sx-dev-css";
@@ -172,6 +232,8 @@ const DEV_CSS_RESOLVED_ID = "\0virtual:flare-sx-dev-css";
 
 export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = "/assets"): Plugin {
 	const libPaths = opts.libPaths ?? ["/node_modules/"];
+	const strict: SxStrictOptions | null = opts.strict ? (opts.strict === true ? {} : opts.strict) : null;
+	const strictAllow = new Set(strict?.allow ?? []);
 	/* On-disk dir mirrors URL prefix — emit must land where bundleHref points. */
 	const assetsDir = assetsBase === "" ? "assets" : assetsBase.slice(1);
 	const state: PluginState = {
@@ -181,10 +243,35 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 		providedByLibs: new Set(),
 		twCompiler: null,
 		twPrefaceCss: "",
+		properties: new Map(),
+		referencedVars: new Set(),
 	};
+	const referenceVars = opts.themeVars === "reference";
+	const themeBlockOf = (): string =>
+		referenceVars && state.twCompiler
+			? themeVarsBlock(state.referencedVars, state.twCompiler.themeVars, state.twPrefaceCss)
+			: "";
 
 	let mode: "dev" | "prod" = "dev";
 	let root = process.cwd();
+	let themeCn: ThemeCn | null = null;
+	let devServer: ViteDevServer | null = null;
+	const themeCnFor = (): ThemeCn | null => {
+		if (!opts.twCssPath) return null;
+		if (!themeCn) {
+			themeCn = createThemeCn(resolve(opts.twCssPath));
+			devServer?.watcher.add(themeCn.files);
+		}
+		return themeCn;
+	};
+	/* Throws on failure: a broken Tailwind entry fails the build (non-zero exit) instead of
+	   shipping class= tokens with no CSS behind them. */
+	const loadTw = async (): Promise<void> => {
+		const compiler = await initTailwindCompiler(opts.twCssPath);
+		/* Zero-class build captures theme vars + preflight (base layer) verbatim. */
+		state.twPrefaceCss = extractPrefaceCss(compiler.build([]));
+		state.twCompiler = compiler;
+	};
 
 	return {
 		async buildStart(this: { environment?: { config?: { root?: string } } }) {
@@ -192,16 +279,31 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 			if (opts.pruneFromLibManifests) {
 				state.providedByLibs = scanLibManifests(root);
 			}
-			if ((opts.tw || opts.twCssPath) && state.twCompiler === null) {
+			if ((opts.tw || opts.twCssPath) && state.twCompiler === null) await loadTw();
+		},
+
+		configureServer(server) {
+			devServer = server;
+			if (themeCn) server.watcher.add(themeCn.files);
+			/* A theme edit changes both the CSS every utility compiles to and the cn merge tables:
+			   drop both, forget emitted rules, and re-transform every module from scratch. */
+			server.watcher.on("change", async (file) => {
+				if (!themeCn?.files.includes(resolve(file))) return;
 				try {
-					state.twCompiler = await initTailwindCompiler(opts.twCssPath);
-					/* Zero-class build captures theme vars + preflight (base layer) verbatim. */
-					state.twPrefaceCss = extractPrefaceCss(state.twCompiler.build([]));
+					await loadTw();
 				} catch (e) {
-					/* Warn but don't fail the build — class= tokens pass through without CSS emit. */
-					console.warn(`[flare:sx-ast] Tailwind compiler init failed: ${e instanceof Error ? e.message : String(e)}`);
+					server.config.logger.error(`[flare:sx-ast] ${e instanceof Error ? e.message : String(e)}`);
+					return;
 				}
-			}
+				themeCn = null;
+				state.classPool.clear();
+				state.layerByClass.clear();
+				state.moduleManifest.clear();
+				state.properties.clear();
+				state.referencedVars.clear();
+				server.moduleGraph.invalidateAll();
+				server.ws.send({ type: "full-reload" });
+			});
 		},
 
 		configResolved(config) {
@@ -217,9 +319,20 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 		},
 
 		load(id: string): { code: string; moduleType: string } | null {
+			if (CN_TABLES_RE.test(id)) {
+				const theme = themeCnFor();
+				return theme ? { code: theme.source, moduleType: "js" } : null;
+			}
 			if (id !== DEV_CSS_RESOLVED_ID) return null;
 			/* Each import() re-runs load — no caching — so SSR always gets latest state. */
-			const css = composeCss(state.classPool, state.layerByClass, state.providedByLibs, state.twPrefaceCss);
+			const css = composeCss(
+				state.classPool,
+				state.layerByClass,
+				state.providedByLibs,
+				state.twPrefaceCss,
+				state.properties,
+				themeBlockOf(),
+			);
 			const classNames = [...state.classPool.keys()];
 			return {
 				code: `export function getDevSxCss() { return ${JSON.stringify(css)} }\nexport function getDevSxClasses() { return ${JSON.stringify(classNames)} }`,
@@ -229,7 +342,14 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 
 		generateBundle() {
 			const self = this as unknown as { emitFile: (f: { type: string; fileName: string; source: string }) => void };
-			const css = composeCss(state.classPool, state.layerByClass, state.providedByLibs, state.twPrefaceCss);
+			const css = composeCss(
+				state.classPool,
+				state.layerByClass,
+				state.providedByLibs,
+				state.twPrefaceCss,
+				state.properties,
+				themeBlockOf(),
+			);
 			self.emitFile({ fileName: `${assetsDir}/flare-global.css`, source: css, type: "asset" });
 
 			if (opts.manifest) {
@@ -276,6 +396,7 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 			const moduleRules: Array<{ cls: string; rule: string }> = [];
 
 			const tw = state.twCompiler;
+			const violations: string[] = [];
 			const result = rewriteModule(code, {
 				cssEmit: (rule) => {
 					/*
@@ -293,15 +414,37 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 					moduleRules.push({ cls, rule });
 				},
 				layer,
+				mergeClassList: themeCnFor()?.mergeString,
+				onClassToken:
+					strict && layer === "app"
+						? (token, compiled) => {
+								if (!compiled && !strictAllow.has(token)) {
+									violations.push(`${id}:${lineOf(code, token)} "${token}" compiles to no CSS`);
+								}
+								const denied = strict.deny?.find((re) => re.test(token));
+								if (denied) violations.push(`${id}:${lineOf(code, token)} "${token}" matches deny ${denied}`);
+							}
+						: undefined,
 				mode,
 				sourcePath: id,
 				twCompile: tw
 					? (token: string) => {
 							const output = tw.build([token]);
-							return extractDeclarations(output, [token], tw.themeVars) || null;
+							for (const [name, rule] of extractPropertyRules(output)) state.properties.set(name, rule);
+							const decls = extractDeclarations(output, [token], referenceVars ? undefined : tw.themeVars);
+							if (referenceVars) {
+								for (const m of decls.matchAll(/var\((--[\w-]+)/g)) state.referencedVars.add(m[1]);
+							}
+							return decls || null;
 						}
 					: undefined,
 			});
+
+			if (violations.length > 0) {
+				throw new Error(
+					`[flare:sx-ast] sx.strict rejected ${violations.length} class token(s):\n  ${violations.join("\n  ")}`,
+				);
+			}
 
 			/* Track which classes this module emitted; layer already set in cssEmit above */
 			if (result !== null) {
