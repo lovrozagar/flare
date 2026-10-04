@@ -1,3 +1,4 @@
+import { createMemo, Show } from "solid-js";
 import { createPage } from "@lovrozagar/flare/page";
 import type { Font } from "@lovrozagar/flare/fonts";
 import { createFont, FontCSS } from "@lovrozagar/flare/fonts";
@@ -42,16 +43,14 @@ export const route = createPage("_root_/fonts-dynamic")
 		};
 	})
 	.render((ctx) => {
-		/* resolve fonts client-side from search params for FontCSS */
-		const headingKey = ctx.location.search.heading;
-		const bodyKey = ctx.location.search.body;
-		const heading = fontDb[headingKey] ?? fontDb.alpha;
-		const body = fontDb[bodyKey] ?? fontDb.alpha;
+		/* resolve fonts client-side from search params for FontCSS; location is reactive */
+		const heading = createMemo(() => fontDb[ctx.location.search.heading] ?? fontDb.alpha);
+		const body = createMemo(() => fontDb[ctx.location.search.body] ?? fontDb.alpha);
 
 		return (
 			<main data-testid="fonts-dynamic">
-				{heading ? <FontCSS font={heading} /> : null}
-				{body && heading !== body ? <FontCSS font={body} /> : null}
+				<Show when={heading()}>{(font) => <FontCSS font={font()} />}</Show>
+				<Show when={body() !== heading() && body()}>{(font) => <FontCSS font={font()} />}</Show>
 				<h1 data-testid="dynamic-heading" style={{ "font-family": ctx.loaderData.headingFamily }}>
 					Dynamic Heading
 				</h1>
