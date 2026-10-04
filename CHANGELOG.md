@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.4
+
+- The first-paint `color-scheme` follows the default theme. The head prefix pinned an unlayered `html{color-scheme:light}`, so before the theme script ran, or with JavaScript off, a `system`-default app rendered light for dark-mode users and overrode the app's own `color-scheme: light dark`. It now emits `light dark` for a `system` default and the fixed scheme for a `light` or `dark` default, plus rules for both attribute values.
+
 ## 0.9.3
 
 - Dev server-rendered pages carry all their CSS. Dev SSR read the sx stylesheet from a module the server runner cached after its first import, so classes from routes and packages loaded later reached the page only once JavaScript ran (a flash of unstyled content on every route but the first). Each server-transformed module now registers its rules as it runs, and SSR composes the stylesheet at render with the same code production output uses. Tests cover a route's first render, a route rendered after another, and a page edit.
