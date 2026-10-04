@@ -12,7 +12,9 @@ interface NodeReq {
 }
 
 interface NodeRes {
+	destroy: () => void;
 	end: (data?: unknown) => void;
+	headersSent?: boolean;
 	on: (event: string, fn: () => void) => void;
 	writableEnded?: boolean;
 	write: (chunk: unknown) => void;
@@ -71,7 +73,7 @@ function nodeToWebRequest(req: NodeReq, url: URL): Request {
 	} as RequestInit);
 }
 
-async function streamResponse(response: Response, res: NodeRes): Promise<void> {
+export async function streamResponse(response: Response, res: NodeRes): Promise<void> {
 	const responseHeaders: Record<string, string | string[]> = {};
 	/* Set-Cookie must be sent as separate headers — Node.js writeHead
 	 * accepts string[] for multi-value headers like Set-Cookie */
@@ -88,26 +90,34 @@ async function streamResponse(response: Response, res: NodeRes): Promise<void> {
 	}
 	res.writeHead(response.status, responseHeaders);
 
-	if (response.body) {
-		const reader = response.body.getReader();
-		const pump = async (): Promise<void> => {
-			const { done, value } = await reader.read();
-			if (done) {
-				res.end();
-				return;
-			}
-			res.write(value);
-			return pump();
-		};
-		try {
-			await pump();
-		} finally {
-			reader.cancel().catch(() => {});
-			if (!res.writableEnded) res.end();
-		}
-	} else {
+	if (!response.body) {
 		res.end();
+		return;
 	}
+	const reader = response.body.getReader();
+	/* A client that leaves mid-stream (closed tab, aborted navigation) closes `res` early: cancel
+	   the body so rendering stops, and never write to the closed response (Bun throws on it). */
+	let left = false;
+	res.on("close", () => {
+		if (res.writableEnded) return;
+		left = true;
+		reader.cancel().catch(() => {});
+	});
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done || left) break;
+			res.write(value);
+		}
+	} finally {
+		if (!left && !res.writableEnded) res.end();
+	}
+}
+
+/* Once the status line is out, an error can't become a 500: drop the connection instead. */
+function failResponse(res: NodeRes, next: (err?: unknown) => void, error: unknown): void {
+	if (res.headersSent) res.destroy();
+	else next(error);
 }
 
 const INLINE_PLACEHOLDER = (i: number) => `<!--flare-inline-${i}-->`;
@@ -238,7 +248,7 @@ export function createDevServerPlugin(entries: ResolvedEntries, _assetsBase: str
 						if (e instanceof Error) {
 							vite.ssrFixStacktrace(e);
 						}
-						next(e);
+						failResponse(res, next, e);
 					}
 				});
 			};
@@ -325,7 +335,7 @@ export function createPreviewServerPlugin(assetsBase: string = "/assets"): ViteP
 						const response = await handler.fetch(webReq);
 						await streamResponse(response, res);
 					} catch (e: unknown) {
-						next(e);
+						failResponse(res, next, e);
 					}
 				});
 			};
