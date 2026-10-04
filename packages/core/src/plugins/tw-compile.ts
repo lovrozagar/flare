@@ -52,6 +52,23 @@ function suffixAfterUtility(selector: string, prefixes: Set<string>): string | n
 	return null;
 }
 
+/**
+ * `selector` with a requested utility's class replaced by `&`, for utilities that style other
+ * elements and so wrap their class (`:where(.space-x-2 > :not(:last-child))`, `:is(.\*\:p-2 > *)`).
+ * Only a whole class token matches (`.space-x-2` is not in `.space-x-20`); null when absent.
+ */
+function nestOnUtility(selector: string, prefixes: Set<string>): string | null {
+	for (const prefix of prefixes) {
+		for (let at = selector.indexOf(prefix); at !== -1; at = selector.indexOf(prefix, at + 1)) {
+			const next = selector[at + prefix.length];
+			if (next === undefined || !/[\w\\-]/.test(next)) {
+				return `${selector.slice(0, at)}&${selector.slice(at + prefix.length)}`;
+			}
+		}
+	}
+	return null;
+}
+
 function extractLayerContent(css: string, atStart: number): string {
 	const braceStart = css.indexOf("{", atStart);
 	if (braceStart === -1) return "";
@@ -115,6 +132,10 @@ function extractDeclsInner(css: string, selectorSet?: Set<string>): string {
 				const suffix = suffixAfterUtility(selector, selectorSet);
 				if (suffix === "" || suffix?.startsWith(",")) result.push(body);
 				else if (suffix !== null) result.push(`&${suffix} { ${body} }`);
+				else {
+					const nested = nestOnUtility(selector, selectorSet);
+					if (nested !== null) result.push(`${nested} { ${body} }`);
+				}
 			} else {
 				const pseudo = extractPseudo(selector);
 				result.push(pseudo ? `&${pseudo} { ${body} }` : body);

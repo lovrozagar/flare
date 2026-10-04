@@ -33,6 +33,10 @@ export const route = createPage("_root_/").render(() => {
 			<p class="rounded-control rounded-lg" data-testid="static-merge" />
 			<p class="fixture-contract" />
 			<p class="shadow-raised ring-1" data-testid="shadow-ring" />
+			<div class="-space-x-2" />
+			<div class="divide-y" />
+			<ul class="*:p-2" />
+			<div class="*:data-[slot=avatar]:ring-2" />
 			<div class={cn("p-4", on() && "gap-3", on() ? "px-5" : "py-6")} data-testid="cn-arms" />
 			<Variant v="ghost" />
 			<Stateful class={(state) => (state > 0 ? "mb-9" : "mb-9")} />
