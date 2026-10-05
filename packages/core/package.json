@@ -89,6 +89,7 @@
 		"./theme": "./src/theme.ts",
 		"./tracing": "./src/tracing/index.ts",
 		"./validation": "./src/validation/index.ts",
+		"./view-transition-boundary": "./src/view-transition-boundary/index.tsx",
 		"./view-transition-css": "./src/view-transition-css.ts",
 		"./virtual-types": "./src/plugins/virtual.d.ts"
 	},
