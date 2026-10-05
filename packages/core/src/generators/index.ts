@@ -10,6 +10,11 @@ import { extractLayoutKey } from "../router-primitives/paths.ts";
 /** @deprecated Use `PrefetchTrigger`. */
 export type PrefetchStrategy = PrefetchTrigger;
 
+/** A prefetch trigger as generated source: `false` or a quoted string. */
+function triggerLiteral(t: PrefetchTrigger): string {
+	return t === false ? "false" : `"${t}"`;
+}
+
 export type ExtractedStaticDeferMode = "resolve" | "stream";
 
 export interface ExtractedCacheConfig {
@@ -698,14 +703,13 @@ function formatRouteMeta(def: RouteDefinition): string {
 		if (def.cache.client.gcTime !== undefined) cp.push(`gcTime: ${def.cache.client.gcTime}`);
 		if (def.cache.client.prefetch !== undefined) {
 			const pv = def.cache.client.prefetch;
-			const lit = (t: PrefetchTrigger) => (t === false ? "false" : `"${t}"`);
 			if (typeof pv === "object") {
 				const fields: string[] = [];
-				if (pv.data !== undefined) fields.push(`data: ${lit(pv.data)}`);
-				if (pv.modules !== undefined) fields.push(`modules: ${lit(pv.modules)}`);
+				if (pv.data !== undefined) fields.push(`data: ${triggerLiteral(pv.data)}`);
+				if (pv.modules !== undefined) fields.push(`modules: ${triggerLiteral(pv.modules)}`);
 				cp.push(`prefetch: { ${fields.join(", ")} }`);
 			} else {
-				cp.push(`prefetch: ${lit(pv)}`);
+				cp.push(`prefetch: ${triggerLiteral(pv)}`);
 			}
 		}
 		if (def.cache.client.prefetchStaleTime !== undefined)
