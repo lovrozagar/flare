@@ -201,3 +201,18 @@ test.describe("client navigation after a viewport prefetch", () => {
 		expect(renderedWithoutData).toBe(false);
 	});
 });
+
+test.describe("layout identity across param changes", () => {
+	test("the (blog) layout stays mounted when only the post slug changes", async ({ page }) => {
+		await loadPage(page, "/blog/hello");
+		await page.evaluate(() => {
+			(document.querySelector('[data-testid="blog-layout"]') as HTMLElement & { __mark?: number }).__mark = 1;
+		});
+		await page.getByTestId("blog-post-next").click();
+		await expect(page.getByTestId("blog-post")).toHaveText("world");
+		const kept = await page.evaluate(
+			() => (document.querySelector('[data-testid="blog-layout"]') as HTMLElement & { __mark?: number }).__mark === 1,
+		);
+		expect(kept).toBe(true);
+	});
+});

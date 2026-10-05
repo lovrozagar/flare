@@ -874,3 +874,81 @@ describe("instant navigation — popstate keeps the root layout head", () => {
 		}
 	});
 });
+
+describe("match identity across param changes", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		resetLocation();
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		resetLocation();
+	});
+
+	function stubPost(slug: string): void {
+		mockMatchRoute.mockReturnValue({ params: { slug }, route: makeRoute("_root_/(blog)/blog/[slug]") });
+		mockLoadRouteModules.mockResolvedValue(
+			makeLoadedModules({
+				layouts: [makeModule("_root_/(blog)", "layout")],
+				page: makeModule("_root_/(blog)/blog/[slug]"),
+				params: { slug },
+			}),
+		);
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [
+				{ loaderData: `layout-${slug}`, matchId: `_root_/(blog):{"slug":"${slug}"}:[]` },
+				{ loaderData: `post-${slug}`, matchId: `_root_/(blog)/blog/[slug]:{"slug":"${slug}"}:[]` },
+			],
+			perRouteHeads: [],
+			success: true,
+		});
+	}
+
+	it("keeps a layout mounted when only a child param changes, and remounts the page", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+
+		stubPost("a");
+		await navigate({ to: "/blog/a" });
+		const [layoutA, pageA] = ctx.matches();
+
+		stubPost("b");
+		await navigate({ to: "/blog/b" });
+		const [layoutB, pageB] = ctx.matches();
+
+		expect(layoutB).toBe(layoutA);
+		expect(pageB).not.toBe(pageA);
+		expect(pageB?.loaderData).toBe("post-b");
+		/* The layout's data still refreshes for the new URL. */
+		expect(layoutB?.loaderData).toBe("layout-b");
+	});
+
+	it("remounts a layout whose own param changes", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules);
+		const stubLocale = (locale: string) => {
+			mockMatchRoute.mockReturnValue({ params: { locale }, route: makeRoute("[locale]/_root_/about") });
+			mockLoadRouteModules.mockResolvedValue(
+				makeLoadedModules({
+					layouts: [makeModule("[locale]/_root_/(main)", "layout")],
+					page: makeModule("[locale]/_root_/(main)/about"),
+					params: { locale },
+				}),
+			);
+			mockFetchNDJSON.mockResolvedValue({ matches: [], perRouteHeads: [], success: true });
+		};
+
+		stubLocale("en");
+		await navigate({ to: "/en/about" });
+		const [layoutEn] = ctx.matches();
+		stubLocale("hr");
+		await navigate({ to: "/hr/about" });
+		const [layoutHr] = ctx.matches();
+
+		expect(layoutHr).not.toBe(layoutEn);
+	});
+});

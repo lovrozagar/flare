@@ -380,6 +380,8 @@ export const route = createLayout("_root_/(blog)")
 	));
 ```
 
+A layout stays mounted while navigation changes only params its own path does not declare (`/blog/a` → `/blog/b` keeps `(blog)`; `[locale]` layouts remount on a locale switch). Its loader still re-runs and `props.loaderData` updates reactively, so read data in JSX or memos, not once in the render body. Pages remount on any param change.
+
 ```ts
 import { createPathSegment } from "@lovrozagar/flare/path-segment";
 

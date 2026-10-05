@@ -42,6 +42,7 @@ import { executeRewriteInput, executeRewriteOutput, type LocationRewrite } from 
 import type { HeadConfig } from "../route-builder/types.ts";
 import {
 	computeMatchId,
+	deriveParams,
 	isRootLayoutPath,
 	matchRoute,
 	matchRoutePartial,
@@ -629,10 +630,13 @@ function commitCachedShell(
 	return { hadShell: true, keepMatchIds };
 }
 
-function sameRouteParams(a: Record<string, string | string[]>, b: Record<string, string | string[]>): boolean {
-	const keys = Object.keys(a);
-	if (keys.length !== Object.keys(b).length) return false;
-	for (const key of keys) {
+/** Whether the params a route's own path declares kept their values. */
+function ownParamsUnchanged(
+	virtualPath: string,
+	a: Record<string, string | string[]>,
+	b: Record<string, string | string[]>,
+): boolean {
+	for (const key of deriveParams(virtualPath)) {
 		const av = a[key];
 		const bv = b[key];
 		if (av === bv) continue;
@@ -655,7 +659,7 @@ function buildClientMatches(
 	params: Record<string, string | string[]>,
 ) {
 	const current = ctx?.matches() ?? [];
-	const paramsUnchanged = sameRouteParams(ctx?.params() ?? {}, params);
+	const prevParams = ctx?.params() ?? {};
 	return allModules.map((mod, i) => {
 		const matchId = matchIdForModule(mod, search, params);
 		const cached = ctx?.matchCache.get(matchId);
@@ -676,15 +680,17 @@ function buildClientMatches(
 		};
 		/* Reuse the previous object when the route slot is unchanged so
 		   Outlet <Show keyed when={match()}> does not remount (local page
-		   signals). Param changes are a new page instance — render bodies
-		   that snapshot loaderData (translators, query keys) must re-run.
-		   Search-only updates keep identity and refresh via matchesEpoch.
-		   Error identity must change — Errored stays in fallback if the same
-		   object is mutated from error to success. */
+		   signals). A change to a param the route's own path declares is a
+		   new instance — render bodies that snapshot loaderData (translators,
+		   query keys) must re-run. A layout whose own params did not change
+		   stays mounted when a child param changes; like search-only updates,
+		   its data refreshes via matchesEpoch. Error identity must change —
+		   Errored stays in fallback if the same object is mutated from error
+		   to success. */
 		const prev = current[i];
 		if (
 			prev &&
-			paramsUnchanged &&
+			ownParamsUnchanged(mod.virtualPath, prevParams, params) &&
 			prev.virtualPath === next.virtualPath &&
 			prev._type === next._type &&
 			prev.error === next.error
