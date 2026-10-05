@@ -1,0 +1,34 @@
+import { createSignal } from "solid-js";
+import { createLayout } from "@lovrozagar/flare/layout";
+import { Link } from "@lovrozagar/flare/link";
+import { ViewTransitionBoundary } from "@lovrozagar/flare/view-transition-boundary";
+
+/* A persistent shell: navigations inside it should animate only <main>. */
+export const route = createLayout("[[locale]]/_root_/(vt)").render((props) => {
+	const [clicks, setClicks] = createSignal(0);
+	return (
+		<div data-testid="vt-shell" style={{ display: "flex", gap: "16px" }}>
+			<aside data-testid="vt-sidebar">
+				<Link data-testid="vt-link-a" to="/[[locale]]/vt-shell/a">
+					A
+				</Link>
+				<Link data-testid="vt-link-b" to="/[[locale]]/vt-shell/b">
+					B
+				</Link>
+				<Link data-testid="vt-link-1" params={{ id: "1" }} to="/[[locale]]/vt-shell/[id]">
+					Item 1
+				</Link>
+				<Link data-testid="vt-link-2" params={{ id: "2" }} to="/[[locale]]/vt-shell/[id]">
+					Item 2
+				</Link>
+			</aside>
+			<ViewTransitionBoundary>
+				<main data-testid="vt-main">{props.children}</main>
+			</ViewTransitionBoundary>
+			{/* Hydrates after the boundary: proves the boundary does not shift hydration ids. */}
+			<button data-testid="vt-after" onClick={() => setClicks((n) => n + 1)} type="button">
+				clicks {clicks()}
+			</button>
+		</div>
+	);
+});
