@@ -42,6 +42,24 @@ function mount(onSubmit: (event: SubmitEvent) => void): HTMLFormElement {
 
 const submit = (form: HTMLFormElement) => form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
 
+describe("Form props", () => {
+	it("types onError as the action's Error, not the form element's ErrorEvent", () => {
+		const container = document.createElement("div");
+		containers.push(container);
+		const errors: Error[] = [];
+		/* A type error here is the regression: the DOM onError used to intersect with it. */
+		render(
+			() => (
+				<Form action={mockServerFn()} onError={(error: Error) => errors.push(error)}>
+					{() => <span />}
+				</Form>
+			),
+			container,
+		);
+		expect(errors).toEqual([]);
+	});
+});
+
 describe("Form consumer onSubmit", () => {
 	it("runs before the server call and cancels it by preventing the default", () => {
 		const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: {} })));
