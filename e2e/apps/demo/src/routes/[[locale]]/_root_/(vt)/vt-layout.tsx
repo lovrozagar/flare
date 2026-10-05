@@ -8,6 +8,9 @@ export const route = createLayout("[[locale]]/_root_/(vt)").render((props) => {
 	const [clicks, setClicks] = createSignal(0);
 	return (
 		<div data-testid="vt-shell" style={{ display: "flex", gap: "16px" }}>
+			{/* Hover wins over the resting color and animates, like a real sidebar. */}
+			<style>{`[data-testid="vt-sidebar"] a { display: block; color: rgb(0, 0, 255); transition: color 150ms; }
+[data-testid="vt-sidebar"] a:hover { color: rgb(255, 0, 0); }`}</style>
 			<aside data-testid="vt-sidebar">
 				<Link data-testid="vt-link-a" to="/[[locale]]/vt-shell/a">
 					A
@@ -20,6 +23,12 @@ export const route = createLayout("[[locale]]/_root_/(vt)").render((props) => {
 				</Link>
 				<Link data-testid="vt-link-2" params={{ id: "2" }} to="/[[locale]]/vt-shell/[id]">
 					Item 2
+				</Link>
+				<Link data-testid="vt-link-doc" to="/[[locale]]/vt-shell/b" viewTransition={{ scope: "document" }}>
+					B (document transition)
+				</Link>
+				<Link data-testid="vt-link-out" to="/[[locale]]/about">
+					Leave the shell
 				</Link>
 			</aside>
 			<ViewTransitionBoundary>

@@ -27,6 +27,8 @@ vi.mock("../../../src/history", async (importOriginal) => {
 });
 
 import { navigate, prefetch, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
+import { setOutletNodes } from "../../../src/outlet/outlet-nodes.ts";
+import { registerBoundary } from "../../../src/view-transition-boundary/registry.ts";
 import { fetchNDJSON } from "../../../src/ndjson-client/index.ts";
 import { matchRoute } from "../../../src/router-primitives/index.ts";
 
@@ -458,5 +460,141 @@ describe("one view transition per navigation, around the first route swap", () =
 		expect(calls).toHaveLength(1);
 		expect(calls[0]?.mountedAtStart).toBe(false);
 		expect(ctx.matches().find((m) => m.virtualPath === PAGE)?.loaderData).toBe("fresh");
+	});
+});
+
+describe("view transition scope", () => {
+	type Started = { target: "document" | "element"; types?: string[]; skip: ReturnType<typeof vi.fn> };
+	let started: Started[] = [];
+	let elementProto: ((arg: unknown) => unknown) | undefined;
+
+	function fakeTransition(update: () => void, entry: Started, settle = true) {
+		const updateCallbackDone = Promise.resolve().then(update);
+		return {
+			finished: settle ? updateCallbackDone : new Promise<void>(() => {}),
+			ready: Promise.resolve(),
+			skipTransition: entry.skip,
+			updateCallbackDone,
+		};
+	}
+
+	function install(opts: { element?: boolean; elementThrows?: boolean; settle?: boolean } = {}) {
+		started = [];
+		const start =
+			(target: "document" | "element") => (arg: (() => void) | { types?: string[]; update: () => void }) => {
+				if (target === "element" && opts.elementThrows) throw new Error("scoped VT unsupported");
+				const update = typeof arg === "function" ? arg : arg.update;
+				const entry: Started = { skip: vi.fn(), target, types: typeof arg === "function" ? undefined : arg.types };
+				started.push(entry);
+				return fakeTransition(update, entry, opts.settle ?? true);
+			};
+		(document as unknown as Record<string, unknown>).startViewTransition = start("document");
+		if (opts.element !== false) {
+			(Element.prototype as unknown as Record<string, unknown>).startViewTransition = start("element");
+		}
+	}
+
+	/* A shell with a boundary around the outlet content; the next navigation swaps depth 0. */
+	function mountShell(): HTMLElement {
+		const main = document.createElement("main");
+		const page = document.createElement("section");
+		main.appendChild(page);
+		document.body.appendChild(main);
+		registerBoundary(main);
+		setOutletNodes(0, [page]);
+		return main;
+	}
+
+	function stubTarget(path: string): void {
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute(path) });
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule(path) }));
+		mockFetchNDJSON.mockResolvedValue({ matches: [], perRouteHeads: [], success: true });
+	}
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		window.history.replaceState({}, "", "/");
+		elementProto = (Element.prototype as unknown as { startViewTransition?: (arg: unknown) => unknown })
+			.startViewTransition;
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		delete (document as unknown as Record<string, unknown>).startViewTransition;
+		if (elementProto) (Element.prototype as unknown as Record<string, unknown>).startViewTransition = elementProto;
+		else delete (Element.prototype as unknown as Record<string, unknown>).startViewTransition;
+		document.body.innerHTML = "";
+		vi.restoreAllMocks();
+	});
+
+	it("auto: runs on the boundary around the swapped content, with the configured types", async () => {
+		install();
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules, { viewTransitions: { types: ["slide"] } });
+		mountShell();
+		stubTarget("_root_/next");
+		await navigate({ to: "/next" });
+		expect(started).toEqual([expect.objectContaining({ target: "element", types: ["slide"] })]);
+	});
+
+	it("scope: 'document' on navigate, and a router scope function, use the document", async () => {
+		install();
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules, { viewTransitions: { scope: () => "document" } });
+		mountShell();
+		stubTarget("_root_/next");
+		await navigate({ to: "/next" });
+		stubTarget("_root_/other");
+		await navigate({ to: "/other", viewTransition: { scope: "document" } });
+		expect(started.map((s) => s.target)).toEqual(["document", "document"]);
+	});
+
+	it("falls back to the document without the element API", async () => {
+		install({ element: false });
+		delete (Element.prototype as unknown as Record<string, unknown>).startViewTransition;
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules, { viewTransitions: true });
+		mountShell();
+		stubTarget("_root_/next");
+		await navigate({ to: "/next" });
+		expect(started.map((s) => s.target)).toEqual(["document"]);
+	});
+
+	it("falls back to the document, warning once, when the element call throws", async () => {
+		install({ elementThrows: true });
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules, { viewTransitions: true });
+		mountShell();
+		stubTarget("_root_/next");
+		await navigate({ to: "/next" });
+		expect(started.map((s) => s.target)).toEqual(["document"]);
+	});
+
+	it("skips a transition still running when the next navigation starts one", async () => {
+		install({ settle: false });
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules, { viewTransitions: true });
+		mountShell();
+		stubTarget("_root_/next");
+		await navigate({ to: "/next" });
+		stubTarget("_root_/other");
+		await navigate({ to: "/other" });
+		expect(started).toHaveLength(2);
+		expect(started[0]?.skip).toHaveBeenCalledTimes(1);
+		expect(started[1]?.skip).not.toHaveBeenCalled();
+	});
+
+	it("uses the document when the commit flips not-found", async () => {
+		install();
+		let notFound = true;
+		const ctx = makeCtx({ notFound: () => notFound, setNotFound: (v: boolean) => (notFound = v) });
+		setupNavigation(ctx, mockLoadRouteModules, { viewTransitions: true });
+		mountShell();
+		stubTarget("_root_/next");
+		await navigate({ to: "/next" });
+		expect(started.map((s) => s.target)).toEqual(["document"]);
 	});
 });

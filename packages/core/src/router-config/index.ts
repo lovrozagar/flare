@@ -1,3 +1,4 @@
+import type { ViewTransitionConfig } from "../outlet/types.ts";
 import type { DirectionConfig } from "../direction.ts";
 import type { LocaleConfig } from "../locale/index.tsx";
 import type { LocationRewrite } from "../rewrite/index.ts";
@@ -8,7 +9,7 @@ import type { ThemeConfig } from "../theme.ts";
 
 export type PrefetchStrategy = false | "intent" | "render" | "viewport";
 export type TrailingSlashMode = "always" | "never" | "preserve";
-export type ViewTransitionDefaults = boolean | { types: string[] };
+export type ViewTransitionDefaults = ViewTransitionConfig;
 
 export interface RouterCacheConfig {
 	client?: ClientCacheConfig | false;

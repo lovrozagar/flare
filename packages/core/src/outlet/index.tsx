@@ -1,5 +1,6 @@
 import {
 	type Accessor,
+	children,
 	createContext,
 	createEffect,
 	createMemo,
@@ -20,6 +21,7 @@ import { NotFoundError, UnauthenticatedError, UnauthorizedError } from "../error
 import { createTranslator } from "../i18n/index.ts";
 import { clearPendingNavigation, proceedPendingNavigation, setActiveBlocker } from "../navigation/index.ts";
 import { matchRoute, toLocaleMatch } from "../router-primitives/tree.ts";
+import { setOutletNodes } from "./outlet-nodes.ts";
 import { buildUrl, parseSearchParams, type SearchParams } from "../url/index.ts";
 import type {
 	BrowserViewTransition,
@@ -55,6 +57,7 @@ export type {
 	ViewTransitionConfig,
 	ViewTransitionDirection,
 	ViewTransitionOptions,
+	ViewTransitionScope,
 } from "./types.ts";
 
 /** Default `null` (not `undefined`) — Solid 2 throws ContextNotFoundError when default is undefined. */
@@ -487,7 +490,7 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
 	 * values. Instant shells reuse the same match object so local page signals
 	 * survive; a new object (different route or error identity) must remount.
 	 */
-	return (
+	const content = children(() => (
 		<Show
 			fallback={ctx.notFound() && props.depth === 0 ? resolveNotFoundBoundary(ctx, props.depth) : null}
 			keyed
@@ -495,7 +498,14 @@ function OutletContent(props: { depth: number; fallback?: JSX.Element }): JSX.El
 		>
 			{(m) => <MatchOutlet depth={props.depth} fallback={props.fallback} match={m} />}
 		</Show>
-	) as JSX.Element;
+	));
+	/* Record what this depth renders so a navigation can scope its view transition to the
+	 * <ViewTransitionBoundary> around it. */
+	createEffect(
+		() => content.toArray().filter((n): n is Node => typeof Node !== "undefined" && n instanceof Node),
+		(nodes) => setOutletNodes(props.depth, nodes),
+	);
+	return content as unknown as JSX.Element;
 }
 
 function MatchOutlet(props: { depth: number; fallback?: JSX.Element; match: ClientMatch }): JSX.Element {
