@@ -512,15 +512,38 @@ Default redirect status is **303**. `.redirect({ to, status: 307 })` overrides. 
 
 ```ts
 createRouter({
-	cache: { client: { prefetch: "intent", staleTime: 30_000, gcTime: "5m" } },
+	prefetch: { modules: "all", data: "intent" },
+	cache: { client: { staleTime: 30_000, gcTime: "5m" } },
 });
 
 export const route = createPage("_root_/about").cache({
-	client: { staleTime: "10s", prefetch: "viewport", cacheDeferred: true },
+	client: { staleTime: "10s", cacheDeferred: true },
 });
 ```
 
-`prefetch`: `false` | `"intent"` | `"viewport"` | `"render"`. `staleTime` / `gcTime` / `prefetchStaleTime` accept ms or [duration strings](#duration-strings). `hasDeferred` cache entries are treated stale so popstate does not replay a dead marker. `client: false` turns client cache off for that route.
+`staleTime` / `gcTime` / `prefetchStaleTime` accept ms or [duration strings](#duration-strings). `hasDeferred` cache entries are treated stale so popstate does not replay a dead marker. `client: false` turns client cache off for that route.
+
+### Prefetch
+
+Prefetch has two parts, each with its own trigger:
+
+- **`modules`** — the target route's code. No server work.
+- **`data`** — the route's loaders. Server work; always brings the modules along.
+
+A trigger is `false`, `"render"` (after load and idle), `"viewport"` (link visible) or `"intent"` (hover, focus, touch). A string sets both parts; an object sets the parts it names.
+
+```ts
+createRouter({ prefetch: { modules: "all", data: false } }); // the default
+
+<Link to="/pricing" prefetch="intent" />                 // modules and data on hover
+<Link to="/pricing" prefetch={{ data: "intent" }} />     // data on hover, modules inherited
+<Link to="/report" prefetch={false} />                   // nothing for this link
+```
+
+- Per part, a link's `prefetch` beats the target route's `cache.client.prefetch`, which beats the router's `prefetch`.
+- **`modules: "all"`** (router only, the default): after load and idle, every page and layout chunk is prefetched with `rel=prefetch`, so navigating anywhere needs no new JavaScript. Lazy components inside routes still load when rendered. Needs hashed assets served `immutable` (a prefetched copy that must revalidate is downloaded again).
+- On Data Saver or a 2G connection, `"all"` falls back to warming visible links only.
+- **Deprecated:** `cache.client.prefetch` on the router keeps its old meaning: `"viewport"`/`"render"` warm modules only, `"intent"` loads both. On routes, `cache.client.prefetch` strings keep that meaning too; the object form works there as on links.
 
 ### SSR store / ISR / SSG
 
@@ -550,8 +573,23 @@ export const route = createPage("_root_/about").cache({
 ```
 
 - **SSR cache** — store-backed HTML/data. Needs a `FlareStore` on `createServer(...).cache({ store })`.
-- **SSG** — built at `vite build` when `flare({ prerender: true })`.
-- **ISR** — `{ revalidate }` time-based, or omit `revalidate` for tag-only. `isr: true` is on-demand only. `dynamicParams: false` 404s unlisted params.
+- **SSG** — built at `vite build` when `flare({ prerender: true })`. Pages ship inside the client output (`<assetsBase>/_flare-static/<buildId>/`, one JSON file per page), so they deploy together with the assets they reference. The server serves them through `cache.static` and still adds a fresh nonce and headers per request:
+
+  ```ts
+  import { createAssetsStore, fileAssets } from "@lovrozagar/flare/store-assets";
+
+  createServer(router).cache({
+  	/* Workers: read them through the ASSETS binding */
+  	static: (env) => createAssetsStore((path) => env.ASSETS.fetch(new URL(path, "http://assets"))),
+  	/* Node, Bun, Deno: read the client directory */
+  	// static: createAssetsStore(fileAssets("dist/client")),
+  });
+  ```
+
+  Without `cache.static`, SSG pages render per request and the server warns once.
+
+- **ISR** — `{ revalidate }` time-based, or omit `revalidate` for tag-only. `isr: true` is on-demand only. `dynamicParams: false` 404s unlisted params. The ISR store is read first; a prerendered copy from `cache.static` seeds it.
+- Store entries are keyed by build (`static:<buildId>:<path>`): after a deploy, old entries are never served and age out. `revalidate({ keys: ["static:/about"] })` targets the running build.
 - Tag purge: [Store and revalidation](#store-and-revalidation).
 
 HTML that embeds a per-request CSP nonce is never `304`. A 304 would reuse the old body (old nonce) against a new CSP and block inline scripts. ETag still lands on the 200.
@@ -564,7 +602,21 @@ HTML that embeds a per-request CSP nonce is never `304`. A 304 would reuse the o
 })
 ```
 
-Sets `Cache-Control` / `CDN-Cache-Control`. Dev can emulate a CDN disk cache (`dev.cdnCache`, default on). Product e2e turns it off so HTML stays fresh.
+- `maxAge` → `Cache-Control: public, max-age=0, s-maxage=60, stale-while-revalidate=300`: CDNs keep the page, browsers revalidate, so a deploy or purge reaches every visitor. `private: true` → `private, max-age=60` (browser only).
+- Data requests for the page follow the same policy.
+- Without `cache.cdn` (or your own `Cache-Control`), pages get `private, no-cache` and data `no-store`: no shared cache stores them. A `Cache-Control` you set always wins.
+- Tags go out as `Surrogate-Key` (space-separated). A purge adapter with `tagHeader: "Cache-Tag"` sends Cloudflare's comma-separated `Cache-Tag` instead.
+
+Dev can emulate a CDN disk cache (`dev.cdnCache`, default on); it keys by full URL like a real CDN. Product e2e turns it off so HTML stays fresh.
+
+### Deploys
+
+A deploy never pairs code from one build with HTML, data or chunks from another:
+
+- **Build id** — a hash of the client build, sent with every page (`self.flare.b`) and data response (`flare-build`).
+- **Data URL** — client data requests go to `<path>?_flare=<buildId>` (plus the `flare-data` header). Every cache keys URLs, so HTML, data and builds never share a cache entry, even on CDNs that ignore `Vary`.
+- **Skew** — a client from an older deploy gets a build-mismatch answer instead of data; navigation then loads the target as a full document from the new build. A server function called from an old page is not run (`409`); the page reloads.
+- **Retained assets** — `retainPreviousAssets` keeps the replaced build's files available, so open tabs and CDN-cached pages still find their chunks (see [Plugin](#plugin)). The site serves `<assetsBase>/_flare-asset-history.json`; give it `Cache-Control: no-cache` where hashed assets are `immutable`.
 
 ## Head
 
@@ -629,7 +681,7 @@ import { navigate } from "@lovrozagar/flare";
 ```
 
 - Internal `to` is typed. External `href` is not rewritten.
-- `prefetch={false}` disables. Default comes from router / route cache.
+- `prefetch` takes a trigger for modules and data together, or `{ modules, data }` (see [Prefetch](#prefetch)). `prefetch={false}` disables both. Defaults come from the route and the router.
 - `activeClass` / `inactiveClass` / `activeProps` / `inactiveProps` / `aria-current`.
 - `createRouter({ viewTransitions: true })` wraps updates in `document.startViewTransition` (Chromium). Put `<ViewTransitionCSS />` from `@lovrozagar/flare/view-transition-css` in the root head.
 - `<ViewTransitionBoundary>` from `@lovrozagar/flare/view-transition-boundary` scopes navigations inside a persistent layout to one element, so everything outside it (sidebar, header, tabs) keeps hover, clicks and CSS transitions while the content animates. See [Scoped view transitions](#scoped-view-transitions).
@@ -953,19 +1005,23 @@ Defaults: `nosniff`, CSP (dev `unsafe-inline`; prod nonce on HTML), HSTS in prod
 
 ```ts
 import type { FlareStore, FlareStoreEntry } from "@lovrozagar/flare/store";
-import { createFilesystemStore } from "@lovrozagar/flare/store-filesystem";
+import { createFileSystemStore } from "@lovrozagar/flare/store-filesystem";
 import { createRevalidateFn } from "@lovrozagar/flare/revalidation";
 
-const store: FlareStore = createFilesystemStore(".flare/cache");
+const store: FlareStore = createFileSystemStore({ cacheDir: ".flare/cache" });
 /* or implement { get, set, delete, deleteByTags } yourself */
 
-createServer(router).cache({ store, cdnPurgeAdapter });
+createServer(router).cache({ store, cdn: cdnPurgeAdapter });
 
 const revalidate = createRevalidateFn({ store, cdnPurgeAdapter });
 await revalidate({ tags: ["posts"], keys: ["static:/about"], tiers: ["ssr", "cdn"] });
 ```
 
-HTTP purge: `POST` with header `x-revalidation-secret` (set the secret on the handler cache config). Load prerendered artifacts with `loadPrerenderArtifacts(dir, store)` from `@lovrozagar/flare/prerender`.
+- **Web Cache API store** — `createCacheApiStore()` from `@lovrozagar/flare/store-cache-api`, on the standard `caches` (Workers, Deno). On Cloudflare the Cache API is per data center: purges clear only the location that handles them. Deploys stay safe everywhere because keys carry the build id.
+- **CDN purge adapter** — `{ purgeByTags, purgeByKeys?, tagHeader? }`. `tagHeader` names the response header the CDN reads tags from (default `Surrogate-Key`; `Cache-Tag` for Cloudflare).
+- `static:/path` keys address the running build's entries.
+
+HTTP purge: `POST` with header `x-revalidation-secret` (set the secret on the handler cache config). To load prerendered pages into a store yourself, `loadPrerenderArtifacts(dir, store, buildId?)` from `@lovrozagar/flare/prerender` reads a build's `_flare-static/<buildId>/` directory; `cache.static` usually replaces it.
 
 ## Query
 
@@ -1005,13 +1061,26 @@ const BrowserOnly = clientLazy({
 
 ## Service worker
 
+Flare ships no service worker of its own. Add `src/service-worker.ts` and Flare bundles it to `/service-worker.js` after the client build and registers it once the page is idle (scope `/`). It can import this build's facts:
+
 ```ts
-flare({
-	serviceWorker: { offlineFallback: "/offline" },
+// src/service-worker.ts
+import { build, files, version } from "@lovrozagar/flare/service-worker";
+/* build: hashed chunks, CSS and assets · files: public/ · version: build id */
+
+self.addEventListener("install", (event) => {
+	event.waitUntil(caches.open(`app-${version}`).then((cache) => cache.addAll(build)));
 });
 ```
 
-Dev `sw.js` uses `skipWaiting` + `clients.claim`. The offline route is your page (`/offline`). Disable with `serviceWorker: false`.
+```ts
+flare({ serviceWorker: { entry: "src/sw/main.ts", register: false } }); // custom entry, register it yourself
+flare({ serviceWorker: false }); // ignore src/service-worker.ts
+```
+
+Production builds only. Several apps on one origin each own their worker's scope.
+
+**Migrating from the built-in worker:** `offlineFallback`, `runtimeCacheMax`, `scope` and `skipWaiting` are gone. Until your app ships its own `/sw.js`, the build writes a cleanup worker there: browsers still running Flare's old worker delete its `flare-assets-*` / `flare-runtime-*` caches and unregister it.
 
 ## Sitemap and search engines
 
@@ -1062,7 +1131,7 @@ Playwright helpers: hydration, FlareState shape, console-error filters. Product 
 
 ## NDJSON protocol
 
-SPA / prefetch / data requests send `flare-data: 1`. Prefetch also sends `flare-prefetch: 1`. Stale match skip uses `flare-stale`. Flag value is always `"1"`. Headers are lowercase (HTTP/2 / Node). NDJSON `t` codes and FlareState keys stay short.
+SPA / prefetch / data requests go to `<path>?_flare=<buildId>` and send `flare-data: 1`; the server strips `_flare` before middleware and loaders see the URL. Prefetch also sends `flare-prefetch: 1`. Stale match skip uses `flare-stale`. Flag value is always `"1"`. Headers are lowercase (HTTP/2 / Node). NDJSON `t` codes and FlareState keys stay short.
 
 | Request           | Meaning                                           |
 | ----------------- | ------------------------------------------------- |
@@ -1071,11 +1140,13 @@ SPA / prefetch / data requests send `flare-data: 1`. Prefetch also sends `flare-
 | `flare-stale`     | Comma-separated match ids the client already has  |
 | `flare-isr`       | Internal ISR background re-render                 |
 | `flare-prerender` | Build-time prerender fetch                        |
+| `flare-build`     | Server functions: the calling page's build id     |
 
 | Response       | Meaning                  |
 | -------------- | ------------------------ |
 | `flare-cache`  | `HIT` / `MISS` / `STALE` |
 | `flare-render` | `ISR` / `SSG` / `SSR`    |
+| `flare-build`  | Server build id (data)   |
 
 | Path / HTML                     | Meaning                                    |
 | ------------------------------- | ------------------------------------------ |
@@ -1089,11 +1160,15 @@ SPA / prefetch / data requests send `flare-data: 1`. Prefetch also sends `flare-
 | --- | --------------- |
 | `l` | Loader payload  |
 | `c` | Deferred chunk  |
+| `e` | Error           |
 | `h` | Head            |
-| `r` | Redirect        |
+| `x` | Redirect        |
 | `q` | Query dehydrate |
+| `r` | Loaders ready   |
+| `d` | Done            |
+| `b` | Build mismatch  |
 
-There is no JSON-RPC twin. HTML is `renderToStream`. Hydration reads `self.flare` (FlareState): `p` pathname, `r` params/search, `m` matches, `c` serializable router config.
+There is no JSON-RPC twin. HTML is `renderToStream`. Hydration reads `self.flare` (FlareState): `p` pathname, `r` params/search, `m` matches, `c` serializable router config, `b` build id, `pa` prefetch list URL, `sw` service worker URL.
 
 ## Duration strings
 
@@ -1111,7 +1186,8 @@ export default defineConfig({
 			codegen: { fsVirtualPaths: false },
 			dev: { cdnCache: false, dashboard: true, serverTiming: true },
 			prerender: true,
-			serviceWorker: { offlineFallback: "/offline" },
+			site: "https://example.com",
+			retainPreviousAssets: true,
 			sx: { tw: true },
 			image: { quality: 80, widths: [400, 800, 1200] },
 			assetsBase: "/assets",
@@ -1135,7 +1211,9 @@ export default defineConfig({
 | `dev.staticCache`                      | `true`                                      |                                                              |
 | `prerender`                            | off                                         | SSG/ISR emit                                                 |
 | `purge`                                | off                                         | Dead CSS / `data-testid` strip                               |
-| `serviceWorker`                        | off                                         | `sw.js`                                                      |
+| `retainPreviousAssets`                 | off                                         | `true` or a duration; needs `site` (below)                   |
+| `serviceWorker`                        | `src/service-worker.ts` if present          | App-owned worker; `{ entry, register }` or `false`           |
+| `site`                                 | unset                                       | Public origin; sitemap origin and retained assets            |
 | `sx.tw`                                | compile `class=` Tailwind                   |                                                              |
 | `sx.twCssPath`                         | `@import "tailwindcss"`                     | Theme entry stylesheet; `cn` merges with its scales          |
 | `sx.themeVars`                         | `"inline"`                                  | `"reference"` keeps theme `var()`s for runtime theming       |
@@ -1149,6 +1227,8 @@ export default defineConfig({
 | `solid`                                | passed to `@solidjs/vite-plugin`            | `ssr: true` is forced; `start: true` is rejected             |
 
 `dev: false` turns every `dev.*` flag off. Dev dashboard is `@node-only` in e2e (not on Workers).
+
+**`retainPreviousAssets`** — after the client build, Flare reads `<assetsBase>/_flare-asset-history.json` from `site`, copies the files of the build being replaced plus files shipped within the retention window into this build's output, and writes the new history. Open tabs and CDN-cached pages from the previous deploy keep finding their chunks. `true` keeps the previous build plus the longest HTML lifetime routes declare (`cdn.maxAge + swr`); a duration such as `"7d"` sets the window (use one when a route sets `Cache-Control` at runtime). A first deploy starts fresh; an unreachable site warns and never fails the build. It only reads the public site over HTTP, so it works on any host. Serve the history file with `Cache-Control: no-cache`.
 
 Do **not** set `flare({ port: 3000 })` in e2e apps — it steals Playwright’s `--port`.
 
@@ -1187,6 +1267,8 @@ Import features from their path.
 | `@lovrozagar/flare/security`                 | `SecurityConfig`                        |
 | `@lovrozagar/flare/revalidation`             | `createRevalidateFn`                    |
 | `@lovrozagar/flare/store`                    | `FlareStore`                            |
+| `@lovrozagar/flare/store-assets`             | `createAssetsStore`, `fileAssets`       |
+| `@lovrozagar/flare/store-cache-api`          | `createCacheApiStore`                   |
 | `@lovrozagar/flare/store-filesystem`         | disk store                              |
 | `@lovrozagar/flare/query-client`             | `createQueryClientGetter`               |
 | `@lovrozagar/flare/suspense-query`           | `useSuspenseQuery`                      |
@@ -1194,6 +1276,7 @@ Import features from their path.
 | `@lovrozagar/flare/lazy`                     | `lazy`, `clientLazy`                    |
 | `@lovrozagar/flare/server`                   | `createServer`                          |
 | `@lovrozagar/flare/server-context`           | ALS, `background`                       |
+| `@lovrozagar/flare/service-worker`           | `build`, `files`, `version` (in the SW) |
 | `@lovrozagar/flare/fetch-dedupe`             | `withFetchDedupe`                       |
 | `@lovrozagar/flare/server-only`              | `createServerOnlyFn`                    |
 | `@lovrozagar/flare/client-only`              | `createClientOnlyFn`                    |
