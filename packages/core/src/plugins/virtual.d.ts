@@ -25,6 +25,11 @@ declare module "virtual:flare-is-dev" {
 	export default isDev;
 }
 
+declare module "virtual:flare-build" {
+	const buildId: string;
+	export default buildId;
+}
+
 declare module "virtual:flare-config" {
 	const config: Record<string, unknown>;
 	export default config;

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findEntryKey, resolveModulePreloads, type ViteManifest } from "../module-graph/index.ts";
+import { buildIdFromManifest, DEV_BUILD_ID } from "./build-id.ts";
 import type { SxCssManifest } from "../ssr/critical-css.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
 
@@ -101,6 +102,14 @@ export function createVirtualPlugin(
 			if (id === "\0virtual:flare-config") {
 				return { code: `export default ${serializedConfig}`, moduleType: "js" };
 			}
+			if (id === "\0virtual:flare-build") {
+				/* Content id of the client build. Built after the client, so the manifest exists. */
+				const mode = this.environment?.config?.mode ?? "production";
+				const manifest =
+					mode === "development" ? undefined : readClientManifest(this.environment?.config?.root ?? process.cwd());
+				const buildId = manifest ? buildIdFromManifest(manifest) : DEV_BUILD_ID;
+				return { code: `export default ${JSON.stringify(buildId)}`, moduleType: "js" };
+			}
 			if (id === "\0virtual:flare-client-entry") {
 				const mode = this.environment?.config?.mode ?? "production";
 				if (mode === "development") {
@@ -173,6 +182,7 @@ export function createVirtualPlugin(
 		name: "flare:virtual",
 		resolveId(id: string): string | null {
 			if (id === "virtual:flare-config") return "\0virtual:flare-config";
+			if (id === "virtual:flare-build") return "\0virtual:flare-build";
 			if (id === "virtual:flare-client-entry") return "\0virtual:flare-client-entry";
 			if (id === "virtual:flare-generated") return "\0virtual:flare-generated";
 			if (id === "virtual:flare-is-dev") return "\0virtual:flare-is-dev";

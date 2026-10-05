@@ -1,3 +1,4 @@
+import buildId from "virtual:flare-build";
 import clientEntryPath from "virtual:flare-client-entry";
 import { layoutModuleIds } from "virtual:flare-generated";
 import virtualIsDev from "virtual:flare-is-dev";
@@ -1260,6 +1261,7 @@ export function createServerHandler<
 									try {
 										ssrResult = renderToStream({
 											auth: pipelineResult.auth,
+											buildId,
 											cause: "enter",
 											deferContexts: pipelineResult.deferContexts.size > 0 ? pipelineResult.deferContexts : undefined,
 											entryScript: clientEntryPath,
@@ -1548,6 +1550,7 @@ export function createServerHandler<
 							try {
 								ssrResult = renderToStream({
 									auth: pipelineResult.auth,
+									buildId,
 									cause,
 									deferContexts: pipelineResult.deferContexts.size > 0 ? pipelineResult.deferContexts : undefined,
 									entryScript: clientEntryPath,
