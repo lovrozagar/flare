@@ -1,12 +1,14 @@
+import type { PrefetchConfig, PrefetchTrigger } from "../prefetch/resolve.ts";
 import type { AuthenticateMode } from "../route-builder/types.ts";
 import type { SearchParams } from "../url/index.ts";
 
-export type PrefetchStrategy = false | "intent" | "render" | "viewport";
+/** @deprecated Use `PrefetchTrigger`. */
+export type PrefetchStrategy = PrefetchTrigger;
 
 export type RouteMetaClient = {
 	cacheDeferred?: boolean;
 	gcTime?: number;
-	prefetch?: PrefetchStrategy;
+	prefetch?: PrefetchConfig;
 	prefetchGcTime?: number;
 	prefetchStaleTime?: number;
 	staleTime?: number;

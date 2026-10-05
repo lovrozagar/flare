@@ -1,3 +1,4 @@
+import type { PrefetchConfig, PrefetchTrigger } from "../prefetch/resolve.ts";
 import type { Duration } from "../duration/index.ts";
 import type { RedirectOptions } from "../errors/index.ts";
 import type { Location } from "../router-primitives/index.ts";
@@ -41,12 +42,18 @@ export interface ServerThrowHelpers {
 }
 
 /* cache config */
-export type PrefetchStrategy = false | "intent" | "render" | "viewport";
+/** @deprecated Use `PrefetchTrigger` / `PrefetchConfig`. */
+export type PrefetchStrategy = PrefetchTrigger;
 
 export interface ClientCacheConfig {
 	cacheDeferred?: boolean;
 	gcTime?: Duration;
-	prefetch?: PrefetchStrategy;
+	/**
+	 * Strings keep their original meaning here (`viewport`/`render` warm modules only, `intent`
+	 * loads both); the object form sets `{ modules, data }` triggers. Prefer the router's and
+	 * Link's `prefetch` for new code.
+	 */
+	prefetch?: PrefetchConfig;
 	prefetchGcTime?: Duration;
 	prefetchStaleTime?: Duration;
 	staleTime?: Duration;

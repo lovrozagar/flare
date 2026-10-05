@@ -48,6 +48,20 @@ describe("extractCacheFromChain", () => {
 		expect(c.client?.prefetch).toBe("viewport");
 	});
 
+	it("prefetch: { modules, data } object extracted from client", () => {
+		const c = extractCacheFromChain(`.cache({ client: { prefetch: { modules: "viewport", data: "intent" } } })`);
+		expect(c.client?.prefetch).toEqual({ data: "intent", modules: "viewport" });
+	});
+
+	it("prefetch object with false and a single field", () => {
+		expect(extractCacheFromChain(`.cache({ client: { prefetch: { data: false } } })`).client?.prefetch).toEqual({
+			data: false,
+		});
+		expect(
+			extractCacheFromChain(`.cache({ client: { staleTime: 5, prefetch: { modules: "render" } } })`).client?.prefetch,
+		).toEqual({ modules: "render" });
+	});
+
 	it("prefetch: false extracted from client", () => {
 		const c = extractCacheFromChain(".cache({ client: { prefetch: false } })");
 		expect(c.client?.prefetch).toBe(false);
@@ -724,6 +738,19 @@ describe("generateRoutesFile — route declarations", () => {
 		const code = generateRoutesFile(defs, "src/_gen");
 		expect(code).toContain("staleTime: 30000");
 		expect(code).toContain(`prefetch: "intent"`);
+	});
+
+	it("cache → meta includes an object-form prefetch", () => {
+		const defs: RouteDefinition[] = [
+			makeDef({
+				cache: { client: { prefetch: { data: "intent", modules: "viewport" } } },
+				exportName: "P",
+				filePath: "routes/p.ts",
+				virtualPath: "_root_/p",
+			}),
+		];
+		const code = generateRoutesFile(defs, "src/_gen");
+		expect(code).toContain(`prefetch: { data: "intent", modules: "viewport" }`);
 	});
 
 	it("cache → meta includes client gcTime", () => {

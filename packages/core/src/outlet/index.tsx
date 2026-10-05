@@ -120,6 +120,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 		resolvers: props.resolvers,
 		routeTree: props.routeTree,
 		routerCacheDefaults: props.routerCacheDefaults,
+		routerPrefetch: props.routerPrefetch,
 	}));
 
 	function invalidate(options?: Parameters<FlareProviderContext["invalidate"]>[0]): void {
@@ -165,6 +166,7 @@ export function FlareProvider(props: FlareProviderProps): JSX.Element {
 		resolvers: staticProps.resolvers,
 		routeTree: staticProps.routeTree,
 		routerCacheDefaults: staticProps.routerCacheDefaults,
+		routerPrefetch: staticProps.routerPrefetch,
 		search,
 		setHydrated,
 		setIntercepted,
