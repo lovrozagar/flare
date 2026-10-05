@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.17
+
+- Back/forward scroll restoration and the scroll to top on navigation jump instead of animating. They followed CSS `scroll-behavior`, so an app's `html { scroll-behavior: smooth }` (meant for anchor links) animated every history restore. `scrollRestorationBehavior` now takes `"instant"` (default, like the browser's own restoration), `"smooth"`, or `"auto"` (follow CSS); hash scrolling still follows CSS.
+- A client navigation writes the document title once. Each route's head wrote it in turn, root first, and browsers forward every write to the tab strip, so the tab could flash the root layout's title before the page's.
+
 ## 0.9.16
 
 - `sx.themeVars: "reference"` in dev defines the theme vars of every module, including those compiled after the server first rendered: the dev stylesheet baked the theme var map when it was first imported, so later routes' utilities referenced undefined vars (a transparent `bg-accent`, a square `rounded-control`). Client-loaded modules inject the definitions the page lacks.
