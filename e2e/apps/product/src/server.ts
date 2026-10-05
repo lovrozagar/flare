@@ -10,12 +10,13 @@ import type { CdnPurgeAdapter } from "@lovrozagar/flare/server";
 import { createServer } from "@lovrozagar/flare/server";
 import type { FlareStore, FlareStoreEntry } from "@lovrozagar/flare/store";
 import { createAssetsStore, fileAssets } from "@lovrozagar/flare/store-assets";
+import { createCacheApiStore } from "@lovrozagar/flare/store-cache-api";
 import { dedupeHits, dedupeUpstream } from "./fetch-dedupe-upstream";
 import { router } from "./router";
 
 const kvStore = new Map<string, { entry: FlareStoreEntry; expiresAt?: number }>();
 
-const store: FlareStore = {
+const memoryStore: FlareStore = {
 	delete(key: string) {
 		kvStore.delete(key);
 		return Promise.resolve();
@@ -45,6 +46,11 @@ const store: FlareStore = {
 		return Promise.resolve();
 	},
 };
+
+/* Workers run ISR on the platform Cache API (fresh cache per isolate boot, since local state
+   persists between preview runs); other runtimes use the in-memory store above. */
+const onWorkers = typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+const store: FlareStore = onWorkers ? createCacheApiStore({ cacheName: `flare-e2e-${Date.now()}` }) : memoryStore;
 
 /* Prerendered pages ship in the client output. Workers read them through the ASSETS binding;
    Node reads the client directory next to the server bundle. */

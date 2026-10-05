@@ -83,6 +83,7 @@
 		"./sitemap": "./src/sitemap/index.ts",
 		"./store": "./src/store/index.ts",
 		"./store-assets": "./src/store/assets.ts",
+		"./store-cache-api": "./src/store/cache-api.ts",
 		"./store-filesystem": "./src/store/filesystem.ts",
 		"./styles": "./src/styles/index.ts",
 		"./suspense-query": "./src/use-suspense-query.ts",
