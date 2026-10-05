@@ -16,8 +16,17 @@ import { assertSPANavigation, loadPage, navigateSPA, setNavMarker, setupConsoleC
 const STATIC_DIR = join(import.meta.dirname, "../../dist/static");
 const MANIFEST_PATH = join(STATIC_DIR, "manifest.json");
 
-function readManifest(): Array<{ mode: string; pathname: string; revalidate?: number }> {
+interface ManifestFile {
+	buildId: string;
+	routes: Array<{ mode: string; pathname: string; revalidate?: number }>;
+}
+
+function readManifestFile(): ManifestFile {
 	return JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
+}
+
+function readManifest(): ManifestFile["routes"] {
+	return readManifestFile().routes;
 }
 
 /* ── Group 1: Build output verification ──────────────────────────────── */
@@ -57,6 +66,14 @@ test.describe("@prod-only @node-only Prerender build output", () => {
 		const pathnames = manifest.map((r) => r.pathname).sort();
 
 		expect(pathnames).toEqual(EXPECTED_ROUTES);
+	});
+
+	test("manifest records the build its artifacts belong to, and pages serve that build", async ({ request }) => {
+		const { buildId } = readManifestFile();
+		expect(buildId).toMatch(/^[0-9a-f]{12}$/);
+
+		const html = await (await request.get("/static-pure")).text();
+		expect(/self\.flare=\{"b":"([^"]+)"/.exec(html)?.[1]).toBe(buildId);
 	});
 
 	test("manifest mode matches route config", () => {

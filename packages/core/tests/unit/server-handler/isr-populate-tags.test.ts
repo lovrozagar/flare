@@ -122,7 +122,7 @@ describe("ISR on-demand first populate tags", () => {
 		expect([200, 500]).toContain(response.status);
 		await Promise.allSettled(waitUntilPromises);
 
-		const populate = store.set.mock.calls.find((call) => call[0] === "static:/about");
+		const populate = store.set.mock.calls.find((call) => call[0] === "static:test-build:/about");
 		expect(populate).toBeDefined();
 		const stored = populate?.[1] as FlareStoreEntry;
 		expect(stored.tags).toEqual(["product:1", "category:shoes"]);

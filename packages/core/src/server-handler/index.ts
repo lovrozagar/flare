@@ -99,7 +99,7 @@ import {
 	renderToStream,
 	type SSRConfig,
 } from "../ssr/index.tsx";
-import type { StaticEntryData } from "../store/index.ts";
+import { type StaticEntryData, staticStoreKey } from "../store/index.ts";
 import { noopTracer } from "../tracing/noop.ts";
 import { buildServerTimingHeader, createTimingTracer, type TimingTracer } from "../tracing/timing.ts";
 import type { FlareTracer } from "../tracing/types.ts";
@@ -654,6 +654,7 @@ async function handleRevalidateRequest<TEnv>(
 	}
 
 	const revalidateFn = createRevalidateFn({
+		buildId,
 		cdnPurgeAdapter: resolvedCdn,
 		store: resolvedStore,
 	});
@@ -1022,6 +1023,7 @@ export function createServerHandler<
 
 			const response = await runWithServerContext(
 				{
+					buildId,
 					cdnPurgeAdapter: resolvedCdnPurge,
 					isDev,
 					nonce,
@@ -1357,7 +1359,7 @@ export function createServerHandler<
 							!isISRBgRequest &&
 							!isPrerenderRequest
 						) {
-							const storeKey = `static:${url.pathname}`;
+							const storeKey = staticStoreKey(buildId, url.pathname);
 							const entry = await resolvedStore.get(storeKey);
 
 							if (entry) {
@@ -1693,7 +1695,7 @@ export function createServerHandler<
 							!isDataRequest &&
 							!request.headers.get(HEADER_ISR)
 						) {
-							const isrStoreKey = `static:${url.pathname}`;
+							const isrStoreKey = staticStoreKey(buildId, url.pathname);
 							if (!isrInFlight.has(isrStoreKey)) {
 								isrInFlight.add(isrStoreKey);
 								const isrPopulate = (async () => {

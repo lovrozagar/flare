@@ -1,5 +1,6 @@
 /** @vitest-environment node */
 import { describe, expect, it, vi } from "vitest";
+import TEST_BUILD_ID from "virtual:flare-build";
 import { createRouter, type MarkedRouterConfig } from "../../../src/router-config/index.ts";
 import type { RouteData, TreeNode } from "../../../src/router-primitives/index.ts";
 import { createTreeNode, insertRoute } from "../../../src/router-primitives/index.ts";
@@ -9,7 +10,29 @@ import {
 	type HandlerCacheConfig,
 	type ServerHandlerConfig,
 } from "../../../src/server-handler/index.ts";
-import type { FlareStore, FlareStoreEntry, StaticEntryData } from "../../../src/store/index.ts";
+import {
+	type FlareStore,
+	type FlareStoreEntry,
+	type StaticEntryData,
+	staticStoreKey,
+} from "../../../src/store/index.ts";
+
+vi.mock("../../../src/ssr/index.tsx", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../../../src/ssr/index.tsx")>();
+	return {
+		...actual,
+		renderToStream: () => ({
+			body: new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode("<html><body>fresh render</body></html>"));
+					controller.close();
+				},
+			}),
+			headers: new Headers({ "content-type": "text/html; charset=utf-8" }),
+			status: 200,
+		}),
+	};
+});
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -34,10 +57,7 @@ function makeStaticEntry(
 ): FlareStoreEntry {
 	return {
 		data: {
-			headers: {
-				"content-type": "text/html; charset=utf-8",
-				"surrogate-key": "product:1 category:shoes",
-			},
+			headers: { "content-type": "text/html; charset=utf-8" },
 			html: "<html><body>cached</body></html>",
 			ndjson: '{"t":"d","k":"_root_/about","d":{"title":"cached"}}\n',
 			...overrides,
@@ -107,48 +127,42 @@ function req(url = "http://localhost/about", headers?: Record<string, string>): 
 	return new Request(url, { headers });
 }
 
-/* ── Bug 47: ISR bg re-render should extract fresh tags from Surrogate-Key ── */
+/* ── Build-scoped keys ───────────────────────────────────────────────── */
 
-describe("ISR bg re-render tags", () => {
-	it("falls back to old tags when re-render produces no Surrogate-Key", async () => {
-		const staleTime = Date.now() - 400_000;
-		const oldTags = ["product:1", "category:shoes"];
+describe("ISR store keys are scoped to the build", () => {
+	it("staticStoreKey puts the build between prefix and path", () => {
+		expect(staticStoreKey("abc123", "/about")).toBe("static:abc123:/about");
+	});
+
+	it("an entry from another build is never served; the page renders fresh and is stored under this build", async () => {
 		const store = makeStore({
-			"static:test-build:/about": makeStaticEntry({ storedAt: staleTime, tags: oldTags }),
+			[staticStoreKey("old-build", "/about")]: makeStaticEntry({ html: "<html><body>OLD BUILD</body></html>" }),
 		});
-		const waitUntilPromises: Promise<unknown>[] = [];
+		const background: Promise<unknown>[] = [];
 		const handler = makeHandler(
 			"/about",
 			makeISRRouteData({ mode: "isr", revalidate: 300 }),
 			{ store },
-			{
-				waitUntil: (p: Promise<unknown>) => {
-					waitUntilPromises.push(p);
-				},
-			},
+			{ waitUntil: (p: Promise<unknown>) => void background.push(p) },
 		);
 
-		await handler.fetch(req(), {});
-		await Promise.allSettled(waitUntilPromises);
+		const response = await handler.fetch(req(), {});
+		const body = await response.text();
+		await Promise.allSettled(background);
 
-		/* When no Surrogate-Key header, fallback to old tags is acceptable */
-		const setCalls = store.set.mock.calls;
-		if (setCalls.length > 0) {
-			const lastCall = setCalls[setCalls.length - 1];
-			const storedEntry = lastCall[1] as FlareStoreEntry;
-			/* Tags should be preserved (either old or fresh) */
-			expect(storedEntry.tags).toBeDefined();
-		}
+		expect(body).not.toContain("OLD BUILD");
+		expect(body).toContain("fresh render");
+		expect(store.set.mock.calls.map((c) => c[0])).toContain(staticStoreKey(TEST_BUILD_ID, "/about"));
 	});
 
-	it("extracts Surrogate-Key parsing logic correctly", () => {
-		/* Direct test of the Surrogate-Key → tags parsing that ISR bg-rerender now uses */
-		const surrogateKey = "product:1 category:boots featured";
-		const freshTags = surrogateKey.split(" ").filter(Boolean);
-		expect(freshTags).toEqual(["product:1", "category:boots", "featured"]);
+	it("an entry from this build is served", async () => {
+		const store = makeStore({
+			[staticStoreKey(TEST_BUILD_ID, "/about")]: makeStaticEntry({ html: "<html><body>THIS BUILD</body></html>" }),
+		});
+		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), { store });
 
-		/* Empty Surrogate-Key should produce empty array */
-		const emptyTags = "".split(" ").filter(Boolean);
-		expect(emptyTags).toEqual([]);
+		const response = await handler.fetch(req(), {});
+
+		expect(await response.text()).toContain("THIS BUILD");
 	});
 });

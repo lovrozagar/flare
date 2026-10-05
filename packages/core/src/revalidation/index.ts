@@ -1,5 +1,5 @@
 import { getRevalidationContext } from "@lovrozagar/flare/server-context";
-import type { FlareStore } from "../store/index.ts";
+import { type FlareStore, scopeStaticKey } from "../store/index.ts";
 
 export type RevalidateFn = (options: RevalidateOptions) => Promise<void>;
 
@@ -18,6 +18,8 @@ export interface CdnPurgeAdapter {
 }
 
 export interface CreateRevalidateFnConfig {
+	/** Running build: `static:/path` keys address this build's store entries. */
+	buildId?: string;
 	cdnPurgeAdapter?: CdnPurgeAdapter;
 	store?: FlareStore;
 }
@@ -38,10 +40,12 @@ export function createRevalidateFn(config: CreateRevalidateFnConfig): Revalidate
 					promises.push(config.store.deleteByTags(tags, callerData));
 				}
 				if (keys && keys.length > 0) {
+					const { buildId } = config;
+					const storeKeys = buildId ? keys.map((k) => scopeStaticKey(k, buildId)) : keys;
 					if (config.store.deleteByKeys) {
-						promises.push(config.store.deleteByKeys(keys, callerData));
+						promises.push(config.store.deleteByKeys(storeKeys, callerData));
 					} else {
-						for (const key of keys) {
+						for (const key of storeKeys) {
 							promises.push(config.store.delete(key));
 						}
 					}

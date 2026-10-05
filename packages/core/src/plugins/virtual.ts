@@ -1,31 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { findEntryKey, resolveModulePreloads, type ViteManifest } from "../module-graph/index.ts";
-import { buildIdFromManifest, DEV_BUILD_ID } from "./build-id.ts";
+import { findEntryKey, resolveModulePreloads } from "../module-graph/index.ts";
+import { DEV_BUILD_ID, readClientBuildId, readClientManifest } from "./build-id.ts";
 import type { SxCssManifest } from "../ssr/critical-css.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
-
-/**
- * Read the client entry path from Vite's build manifest.
- * buildApp() builds client before SSR, so manifest.json exists
- * when the SSR build loads this virtual module.
- */
-function readClientManifest(root: string): ViteManifest | undefined {
-	const candidates = [
-		join(root, "dist/client/.vite/manifest.json"),
-		/* Nitro writes the client build under `.output/public`. */
-		join(root, ".output/public/.vite/manifest.json"),
-	];
-	for (const manifestPath of candidates) {
-		try {
-			return JSON.parse(readFileSync(manifestPath, "utf-8")) as ViteManifest;
-		} catch {
-			/* try next location */
-		}
-	}
-	return undefined;
-}
 
 /** Read the sx CSS manifest emitted by the sx-ast plugin during the client build. */
 function readSxManifest(root: string): SxCssManifest | undefined {
@@ -105,9 +84,8 @@ export function createVirtualPlugin(
 			if (id === "\0virtual:flare-build") {
 				/* Content id of the client build. Built after the client, so the manifest exists. */
 				const mode = this.environment?.config?.mode ?? "production";
-				const manifest =
-					mode === "development" ? undefined : readClientManifest(this.environment?.config?.root ?? process.cwd());
-				const buildId = manifest ? buildIdFromManifest(manifest) : DEV_BUILD_ID;
+				const buildId =
+					mode === "development" ? DEV_BUILD_ID : readClientBuildId(this.environment?.config?.root ?? process.cwd());
 				return { code: `export default ${JSON.stringify(buildId)}`, moduleType: "js" };
 			}
 			if (id === "\0virtual:flare-client-entry") {
