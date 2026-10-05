@@ -1,5 +1,30 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { loadPage } from "./helpers";
+
+/**
+ * The document state at the moment the blocking theme script sets data-theme. A MutationObserver
+ * fires as a microtask in that same task, so this is strictly before hydration; reading right
+ * after navigation commit instead can run before <html> exists.
+ */
+function themeAtFirstLand(page: Page) {
+	return page.evaluate(
+		() =>
+			new Promise<{ colorScheme: string; hydrated: boolean; theme: string | null }>((resolve) => {
+				const read = () => ({
+					colorScheme: document.documentElement.style.colorScheme,
+					hydrated: document.documentElement.hasAttribute("data-flare-hydrated"),
+					theme: document.documentElement.getAttribute("data-theme"),
+				});
+				if (document.documentElement?.hasAttribute("data-theme")) return resolve(read());
+				const observer = new MutationObserver(() => {
+					if (!document.documentElement?.hasAttribute("data-theme")) return;
+					observer.disconnect();
+					resolve(read());
+				});
+				observer.observe(document, { attributes: true, childList: true, subtree: true });
+			}),
+	);
+}
 
 test.describe("theme first land", () => {
 	test("blocking theme script is in SSR HTML before modulepreload and CSS", async ({ request }) => {
@@ -21,12 +46,7 @@ test.describe("theme first land", () => {
 			localStorage.setItem("flare.theme", "dark");
 		});
 		await page.goto("/theme-dir", { waitUntil: "commit" });
-		/* Evaluate immediately — waitForFunction yields and prod hydrate can finish first. */
-		const beforeHydrate = await page.evaluate(() => ({
-			colorScheme: document.documentElement.style.colorScheme,
-			hydrated: document.documentElement.hasAttribute("data-flare-hydrated"),
-			theme: document.documentElement.getAttribute("data-theme"),
-		}));
+		const beforeHydrate = await themeAtFirstLand(page);
 		expect(beforeHydrate.theme).toBe("dark");
 		expect(beforeHydrate.colorScheme).toBe("dark");
 		expect(beforeHydrate.hydrated).toBe(false);
@@ -35,11 +55,7 @@ test.describe("theme first land", () => {
 	test("system preference applies at first land, before hydration", async ({ page }) => {
 		await page.emulateMedia({ colorScheme: "dark" });
 		await page.goto("/theme-dir", { waitUntil: "commit" });
-		const beforeHydrate = await page.evaluate(() => ({
-			colorScheme: document.documentElement.style.colorScheme,
-			hydrated: document.documentElement.hasAttribute("data-flare-hydrated"),
-			theme: document.documentElement.getAttribute("data-theme"),
-		}));
+		const beforeHydrate = await themeAtFirstLand(page);
 		expect(beforeHydrate.theme).toBe("dark");
 		expect(beforeHydrate.colorScheme).toBe("dark");
 		expect(beforeHydrate.hydrated).toBe(false);
