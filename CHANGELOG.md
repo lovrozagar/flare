@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.14
+
+- `Form`'s `onError` is typed as the action's `(error: Error) => void`. The form element's own `onError` (an ErrorEvent handler) stayed in its props, and the intersection accepted no function, so a typed `onError` didn't compile.
+
 ## 0.9.13
 
 - Layouts stay mounted when navigation changes only params their own path does not declare (/blog/a → /blog/b keeps the (blog) layout); a [locale] layout still remounts on a locale switch, and pages still remount on any param change.
