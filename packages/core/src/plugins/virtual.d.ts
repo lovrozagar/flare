@@ -52,11 +52,15 @@ declare module "virtual:flare-sx-manifest" {
 }
 
 declare module "virtual:flare-sx-dev-css" {
-	/** Dev SSR transforms call this when a module runs, with the rules, `@property` rules and theme vars it emits. */
+	/**
+	 * Dev SSR transforms call this when a module runs, with the rules, `@property` rules and theme
+	 * vars it emits, and (themeVars "reference") the definitions of those theme vars.
+	 */
 	export function registerDevSx(
 		rules: Array<[cls: string, rule: string, layer: "sx" | "app"]>,
 		properties: Array<[name: string, rule: string]>,
 		referenced: string[],
+		themeVars?: Array<[name: string, value: string]>,
 	): void;
 	/** The sx stylesheet for every module the server runtime has run so far. */
 	export function getDevSxCss(): string;

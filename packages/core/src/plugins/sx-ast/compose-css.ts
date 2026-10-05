@@ -70,12 +70,16 @@ export function composeCss(
 }
 
 /**
- * `@layer theme { :root, :host { … } }` defining the theme vars `referenced` needs: each one and,
- * transitively, the vars its value references. Locals (`--tw-*`), vars the preface already defines,
- * and names Tailwind never emitted are skipped. Empty string when nothing is needed.
+ * The theme vars `referenced` needs, as `[name, value]`: each one and, transitively, the vars its
+ * value references. Locals (`--tw-*`), vars the preface already defines, and names Tailwind never
+ * emitted are skipped.
  */
-export function themeVarsBlock(referenced: Set<string>, themeVars: Map<string, string>, preface: string): string {
-	const decls: string[] = [];
+export function themeVarDefinitions(
+	referenced: Iterable<string>,
+	themeVars: Map<string, string>,
+	preface: string,
+): Array<[string, string]> {
+	const defs: Array<[string, string]> = [];
 	const seen = new Set<string>();
 	const queue = [...referenced];
 	while (queue.length > 0) {
@@ -85,8 +89,14 @@ export function themeVarsBlock(referenced: Set<string>, themeVars: Map<string, s
 		if (new RegExp(`${name.replace(/[-]/g, "\\-")}\\s*:`).test(preface)) continue;
 		const value = themeVars.get(name);
 		if (value === undefined) continue;
-		decls.push(`${name}: ${value};`);
+		defs.push([name, value]);
 		for (const m of value.matchAll(/var\((--[\w-]+)/g)) queue.push(m[1]);
 	}
+	return defs;
+}
+
+/** `@layer theme { :root, :host { … } }` defining the theme vars `referenced` needs (see above). */
+export function themeVarsBlock(referenced: Set<string>, themeVars: Map<string, string>, preface: string): string {
+	const decls = themeVarDefinitions(referenced, themeVars, preface).map(([name, value]) => `${name}: ${value};`);
 	return decls.length > 0 ? `@layer theme { :root, :host { ${decls.join(" ")} } }` : "";
 }
