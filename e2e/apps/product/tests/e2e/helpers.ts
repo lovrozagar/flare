@@ -34,9 +34,20 @@ export async function assertFlareState(page: Page): Promise<void> {
 	expect((obj.m as unknown[]).length).toBeGreaterThan(0);
 }
 
-/** Solid mismatch copy — not a module URL that happens to contain `/hydration/`. */
+/**
+ * Solid hydration mismatches and deterministic STRICT_* diagnostics. Judged on the message alone:
+ * Solid appends the owner path ("in <Hydration> › …"), so every diagnostic mentions Hydration.
+ * HOT_SCOPE_TIME is a timing budget (8ms per effect per second) that a slow runner trips without
+ * any bug, so it is not a mismatch.
+ */
 function isHydrationMismatchConsole(text: string): boolean {
-	const lower = text.toLowerCase();
+	const message = text
+		.split("\n")
+		.filter((line) => !/^\s*in </.test(line))
+		.join("\n");
+	if (/^\[HOT_SCOPE_TIME\]/.test(message.trim())) return false;
+	if (/^\[STRICT_[A-Z_]+\]/.test(message.trim())) return true;
+	const lower = message.toLowerCase();
 	if (/\/hydration\//.test(lower) || /hydration\/index\./.test(lower)) return false;
 	return /\bhydration\b/.test(lower) || lower.includes("mismatch");
 }
