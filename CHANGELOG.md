@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.12
+
+- Font fallbacks match the font's width. `size-adjust` was the ratio of line heights, so fallback text re-wrapped when the real font swapped in (Inter's fallback was 95.04%; width-matched it is 107.12%, as next/font ships). All 199 registry fonts are recomputed from Capsize's average character width; InterDisplay, which Capsize lacks, is measured from its own file.
+- Fallback faces load on Linux. They named only `local("Arial")` (or Times New Roman / Courier New), which Linux lacks, and Chromium matches `local()` by name, so the face was empty there. They now also list the metric-compatible Liberation and Croscore clones.
+
 ## 0.9.11
 
 0.9.10 was tagged but not published (a timing-dependent unit test failed its release run); 0.9.11 ships its changes with that test fixed.
