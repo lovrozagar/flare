@@ -111,6 +111,9 @@ test.describe("Deep cache nesting: Hydration", () => {
 
 test.describe("Deep cache nesting: Cache independence", () => {
 	test("L1 (store-cached): same timestamp across 2 SSR requests", async ({ request }) => {
+		/* Start from a fresh L1 entry: one another file populated ~5s ago could expire between
+		   the two requests. */
+		await revalidateTags(request, ["dc-l1"]);
 		const html1 = await (await request.get("/deep-cache/uncached")).text();
 		const html2 = await (await request.get("/deep-cache/uncached")).text();
 		const ts1 = extractTs(html1, "dc-l1-ts");

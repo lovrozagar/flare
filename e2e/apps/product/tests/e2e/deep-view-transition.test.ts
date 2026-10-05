@@ -256,7 +256,7 @@ test.describe("startViewTransition: wraps the first route swap", () => {
 		await loadPage(page, "/");
 		const link = page.locator('a[href="/about"]').first();
 		const prefetched = page.waitForResponse(
-			(r) => r.url().endsWith("/about") && r.request().headers()["flare-data"] === "1",
+			(r) => new URL(r.url()).pathname === "/about" && r.request().headers()["flare-data"] === "1",
 		);
 		await link.hover();
 		await prefetched;

@@ -61,7 +61,8 @@ export function createDeployment(app: string, port: number): Deployment {
 
 	return {
 		build(name, options) {
-			const dir = join(appsRoot, `.deploy-${app}-${name}`);
+			/* Per port: specs running in parallel never share (or delete) each other's copies. */
+			const dir = join(appsRoot, `.deploy-${app}-${port}-${name}`);
 			rmSync(dir, { force: true, recursive: true });
 			const source = join(appsRoot, app);
 			for (const entry of ["src", "public", "package.json", "tsconfig.json"]) {
@@ -73,8 +74,13 @@ export function createDeployment(app: string, port: number): Deployment {
 				`import { defineConfig } from "vite";\nimport { flare } from "@lovrozagar/flare/plugins";\nexport default defineConfig({ plugins: [flare(${options.flare})] });\n`,
 			);
 			options.edit?.(dir);
-			const result = spawnSync("bunx", ["vite", "build"], { cwd: dir, encoding: "utf-8" });
-			if (result.status !== 0) throw new Error(`build ${name} failed:\n${result.stdout}\n${result.stderr}`);
+			/* spawnSync blocks the worker, so Playwright's own timeout cannot fire: bound it here. */
+			const result = spawnSync("bunx", ["vite", "build"], { cwd: dir, encoding: "utf-8", timeout: 120_000 });
+			if (result.status !== 0) {
+				throw new Error(
+					`build ${name} failed (${result.signal ?? result.status}):\n${result.stdout}\n${result.stderr}`,
+				);
+			}
 			const manifest = JSON.parse(readFileSync(join(dir, "dist/client/.vite/manifest.json"), "utf-8")) as Record<
 				string,
 				{ file: string }
