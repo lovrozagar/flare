@@ -26,7 +26,7 @@ vi.mock("../../../src/history", async (importOriginal) => {
 	return { ...original, restoreScroll: vi.fn(), scrollToTop: vi.fn() };
 });
 
-import { navigate, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
+import { navigate, prefetch, resetNavigationState, setupNavigation } from "../../../src/navigation/index.ts";
 import { fetchNDJSON } from "../../../src/ndjson-client/index.ts";
 import { matchRoute } from "../../../src/router-primitives/index.ts";
 
@@ -378,5 +378,85 @@ describe("isNavigating timing with View Transitions", () => {
 		} else {
 			delete (document as unknown as Record<string, unknown>).startViewTransition;
 		}
+	});
+});
+
+describe("one view transition per navigation, around the first route swap", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockFetchNDJSON.mockReset();
+		mockMatchRoute.mockReset();
+		mockLoadRouteModules.mockReset();
+		window.history.replaceState({}, "", "/");
+	});
+
+	afterEach(() => {
+		resetNavigationState();
+		delete (document as unknown as Record<string, unknown>).startViewTransition;
+		window.history.replaceState({}, "", "/");
+	});
+
+	it("wraps the cached-shell paint, not the post-fetch update", async () => {
+		const ctx = makeCtx();
+		setupNavigation(ctx, mockLoadRouteModules, { viewTransitions: true });
+		const PAGE = "_root_/target";
+		const PAGE_ID = "_root_/target:{}:[]";
+		mockMatchRoute.mockReturnValue({ params: {}, route: makeRoute(PAGE) });
+		mockLoadRouteModules.mockResolvedValue(makeLoadedModules({ page: makeModule(PAGE) }));
+
+		/* A data prefetch caches the page, so the click paints a shell before the enter fetch. */
+		mockFetchNDJSON.mockResolvedValue({
+			matches: [{ loaderData: "prefetched", matchId: PAGE_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await prefetch({ to: "/target" });
+
+		let resolveEnter: ((value: unknown) => void) | undefined;
+		mockFetchNDJSON.mockReset();
+		mockFetchNDJSON.mockReturnValue(
+			new Promise((resolve) => {
+				resolveEnter = resolve;
+			}),
+		);
+
+		const pageMounted = () => ctx.matches().some((m) => m.virtualPath === PAGE);
+		const calls: Array<{ mountedAtStart: boolean; mountedAfterUpdate?: boolean }> = [];
+		(document as unknown as Record<string, unknown>).startViewTransition = (
+			arg: (() => void) | { update: () => void },
+		) => {
+			const update = typeof arg === "function" ? arg : arg.update;
+			const call: { mountedAtStart: boolean; mountedAfterUpdate?: boolean } = { mountedAtStart: pageMounted() };
+			calls.push(call);
+			/* Browsers run the update callback after capturing the old snapshot. */
+			const updateCallbackDone = new Promise<void>((resolve) => {
+				setTimeout(() => {
+					update();
+					call.mountedAfterUpdate = pageMounted();
+					resolve();
+				}, 0);
+			});
+			return {
+				finished: updateCallbackDone,
+				ready: Promise.resolve(),
+				skipTransition: () => {},
+				updateCallbackDone,
+			};
+		};
+
+		const navP = navigate({ to: "/target" });
+		await vi.waitFor(() => expect(mockFetchNDJSON).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() => expect(calls[0]?.mountedAfterUpdate).toBe(true));
+
+		resolveEnter?.({
+			matches: [{ loaderData: "fresh", matchId: PAGE_ID }],
+			perRouteHeads: [],
+			success: true,
+		});
+		await navP;
+
+		expect(calls).toHaveLength(1);
+		expect(calls[0]?.mountedAtStart).toBe(false);
+		expect(ctx.matches().find((m) => m.virtualPath === PAGE)?.loaderData).toBe("fresh");
 	});
 });

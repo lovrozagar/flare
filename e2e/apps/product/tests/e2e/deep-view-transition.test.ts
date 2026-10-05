@@ -233,3 +233,47 @@ test.describe("startViewTransition: SPA", () => {
 		expect(called).toBe(true);
 	});
 });
+
+test.describe("startViewTransition: wraps the first route swap", () => {
+	/* Record, at each startViewTransition call, whether the target page is already in the DOM. */
+	test.beforeEach(async ({ page }) => {
+		await page.addInitScript(() => {
+			const w = window as unknown as { __vtCalls: boolean[] };
+			w.__vtCalls = [];
+			const original = document.startViewTransition?.bind(document);
+			if (!original) return;
+			document.startViewTransition = ((arg: Parameters<typeof original>[0]) => {
+				w.__vtCalls.push(document.querySelector('[data-testid="about"]') !== null);
+				return original(arg);
+			}) as typeof document.startViewTransition;
+		});
+	});
+
+	const calls = (page: import("@playwright/test").Page) =>
+		page.evaluate(() => (window as unknown as { __vtCalls: boolean[] }).__vtCalls);
+
+	test("hover-prefetched click: the new page is not in the DOM when the transition starts", async ({ page }) => {
+		await loadPage(page, "/");
+		const link = page.locator('a[href="/about"]').first();
+		const prefetched = page.waitForResponse(
+			(r) => r.url().endsWith("/about") && r.request().headers()["flare-data"] === "1",
+		);
+		await link.hover();
+		await prefetched;
+		await link.click();
+		await expect(page.getByTestId("about-heading")).toBeVisible();
+		expect(await calls(page)).toEqual([false]);
+	});
+
+	test("revisit from cache: one transition, started before the swap", async ({ page }) => {
+		await loadPage(page, "/");
+		await navigateSPA(page, "/about");
+		await navigateSPA(page, "/");
+		await page.evaluate(() => {
+			(window as unknown as { __vtCalls: boolean[] }).__vtCalls = [];
+		});
+		await navigateSPA(page, "/about");
+		await expect(page.getByTestId("about-heading")).toBeVisible();
+		expect(await calls(page)).toEqual([false]);
+	});
+});
