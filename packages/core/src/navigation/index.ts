@@ -27,7 +27,7 @@ import { isChunkLoadError, isRenderFn } from "../internal.ts";
 import { KEEPALIVE_PATH, STORAGE_CHUNK_RELOAD } from "../protocol.ts";
 import type { LocaleConfig } from "../locale.ts";
 import { formatLocaleCookie } from "../locale/cookie.ts";
-import { warn } from "../logger.ts";
+import { verbose, warn } from "../logger.ts";
 import { fetchNDJSON, type NDJSONFetchResult } from "../ndjson-client/index.ts";
 import type { DeferredResolver } from "../state-parser/index.ts";
 import { hasRawDeferredMarkers, hydrateLoaderData } from "../state-parser/index.ts";
@@ -50,7 +50,7 @@ import {
 	toLocaleMatch,
 } from "../router-primitives/index.ts";
 import { buildUrl, parseSearchParams, type SearchParams, serializeSearchParams } from "../url/index.ts";
-import { outletNodes, resetOutletNodes } from "../outlet/outlet-nodes.ts";
+import { allOutletNodes, outletNodes, resetOutletNodes } from "../outlet/outlet-nodes.ts";
 import { registeredBoundaries, resetViewTransitionBoundaries } from "../view-transition-boundary/registry.ts";
 import { resolveTransitionScope } from "./transition-scope.ts";
 import type { LoadedRouteModule, LoadRouteModulesFn } from "./types.ts";
@@ -104,6 +104,24 @@ function hasElementViewTransitions(): boolean {
  * content that is being swapped. */
 let activeTransition: ViewTransitionResult | null = null;
 let warnedScopedStart = false;
+const warnedMisplaced = new WeakSet<Element>();
+
+/* Dev: a boundary around no route content (a sidebar, a header, a heading inside a page) can never
+ * scope a navigation. */
+function warnMisplacedBoundaries(): void {
+	const content = allOutletNodes();
+	if (content.length === 0) return;
+	for (const boundary of registeredBoundaries()) {
+		if (warnedMisplaced.has(boundary) || !boundary.isConnected) continue;
+		/* Useful only around some outlet's content; a boundary inside a page is swapped with it. */
+		if (content.some((node) => node !== boundary && boundary.contains(node))) continue;
+		warnedMisplaced.add(boundary);
+		warn(
+			"nav",
+			`<ViewTransitionBoundary> on <${boundary.tagName.toLowerCase()}> wraps no route content, so no navigation can scope to it. Wrap the element that renders the outlet.`,
+		);
+	}
+}
 
 export type { EffectsConfig, LoadedRouteModule, LoadedRouteModules, LoadRouteModulesFn } from "./types.ts";
 
@@ -819,6 +837,10 @@ function startNavigationTransition(
 		confined && hasElementViewTransitions() && resolveScope(options, info) === "auto"
 			? resolveTransitionScope(registeredBoundaries(), swapped())
 			: null;
+	if (import.meta.env.DEV) {
+		warnMisplacedBoundaries();
+		verbose("nav", `view transition scope: ${scopeEl ? `<${scopeEl.tagName.toLowerCase()}>` : "document"}`);
+	}
 
 	const run = (target: ViewTransitionDocument) =>
 		types.length > 0 ? target.startViewTransition({ types, update }) : target.startViewTransition(update);
@@ -848,8 +870,12 @@ function startNavigationTransition(
 	}
 	if (transition) {
 		activeTransition = transition;
+		/* Dev: mark the scope while it animates, for devtools and tests. */
+		const marked = import.meta.env.DEV && scopeEl && transition !== undefined ? scopeEl : null;
+		marked?.setAttribute("data-flare-vt-scope", "");
 		const settled = () => {
 			if (activeTransition === transition) activeTransition = null;
+			marked?.removeAttribute("data-flare-vt-scope");
 		};
 		transition.finished.then(settled, settled);
 	}

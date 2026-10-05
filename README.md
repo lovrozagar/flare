@@ -630,10 +630,35 @@ import { navigate } from "@lovrozagar/flare";
 - `prefetch={false}` disables. Default comes from router / route cache.
 - `activeClass` / `inactiveClass` / `activeProps` / `inactiveProps` / `aria-current`.
 - `createRouter({ viewTransitions: true })` wraps updates in `document.startViewTransition` (Chromium). Put `<ViewTransitionCSS />` from `@lovrozagar/flare/view-transition-css` in the root head.
+- `<ViewTransitionBoundary>` from `@lovrozagar/flare/view-transition-boundary` scopes navigations inside a persistent layout to one element, so everything outside it (sidebar, header, tabs) keeps hover, clicks and CSS transitions while the content animates. See [Scoped view transitions](#scoped-view-transitions).
 - `useBlocker(() => dirty())` — first-class leave guard.
 - Optional chrome: `<NavigationProgress />` from `@lovrozagar/flare/navigation-progress`.
 
 `ctx.invalidate()` / `router.invalidate()` refetches current matches.
+
+### Scoped view transitions
+
+```tsx
+import { ViewTransitionBoundary } from "@lovrozagar/flare/view-transition-boundary";
+
+export const route = createLayout("_root_/(app)").render((props) => (
+	<div class="shell">
+		<aside>…sidebar…</aside>
+		<ViewTransitionBoundary>
+			<main>{props.children}</main>
+		</ViewTransitionBoundary>
+	</div>
+));
+```
+
+- Each navigation starts one view transition, on the innermost boundary element that wraps the content the navigation swaps. A navigation that leaves the layout, an intercept or not-found change, or no boundary uses `document.startViewTransition` as before.
+- The boundary renders its single child unchanged; the child must be one element with a box (not `display: contents` or inline). Several children or a text child throw in dev.
+- `scope: "document"` forces a document transition: `createRouter({ viewTransitions: { scope: "document" } })`, `<Link viewTransition={{ scope: "document" }}>`, `navigate({ viewTransition: { scope } })`, or a function of the location change. Navigation and link options override the router.
+- Element-scoped transitions need Chromium (CSS View Transitions Level 2). Firefox and WebKit fall back to the document transition.
+- With a boundary, selectors change: use bare or element-qualified pseudo-elements (`::view-transition-old(root)`, `main::view-transition-group(root)`). `:root::view-transition-*` and `html:active-view-transition-type(x)` match only document transitions.
+- During the transition the boundary gets `contain: layout`, so `position: fixed` elements inside it are positioned against it for the duration. Render fixed UI in a portal or the top layer.
+- Named elements (`view-transition-name`) outside the boundary do not animate; use `scope: "document"` for a morph across it.
+- In dev, the scope carries `data-flare-vt-scope` while it animates, and a boundary around no route content (a sidebar, or an element inside a page) logs a warning once.
 
 ## Rewrite
 
@@ -1129,63 +1154,64 @@ Do **not** set `flare({ port: 3000 })` in e2e apps — it steals Playwright’s 
 
 Import features from their path.
 
-| Export                                  | You get                                 |
-| --------------------------------------- | --------------------------------------- |
-| `@lovrozagar/flare`                     | `createRouter`, hooks, `navigate`       |
-| `@lovrozagar/flare/router`              | `createRouter`                          |
-| `@lovrozagar/flare/page`                | `createPage`                            |
-| `@lovrozagar/flare/layout`              | `createLayout`                          |
-| `@lovrozagar/flare/root-layout`         | `createRootLayout`                      |
-| `@lovrozagar/flare/path-segment`        | `createPathSegment`                     |
-| `@lovrozagar/flare/link`                | `Link`                                  |
-| `@lovrozagar/flare/outlet`              | `Outlet`                                |
-| `@lovrozagar/flare/hydrate`             | `hydrate`                               |
-| `@lovrozagar/flare/client`              | `createClient`                          |
-| `@lovrozagar/flare/await`               | `<Await>`                               |
-| `@lovrozagar/flare/form`                | `Form`, `FieldError`                    |
-| `@lovrozagar/flare/server-fn`           | `createServerFn`                        |
-| `@lovrozagar/flare/server-fn-query`     | server fn ↔ Query                       |
-| `@lovrozagar/flare/plugins`             | `flare()`                               |
-| `@lovrozagar/flare/styles`              | `styles`, `cn`, `compileSx`             |
-| `@lovrozagar/flare/fonts`               | `FontCSS`, `createFont`                 |
-| `@lovrozagar/flare/fonts/<family>`      | `import { inter } from "…/fonts/inter"` |
-| `@lovrozagar/flare/image`               | `Image`, `configureImage`               |
-| `@lovrozagar/flare/theme`               | `ThemeScript`, `ThemeProvider`          |
-| `@lovrozagar/flare/direction`           | `DirectionScript`                       |
-| `@lovrozagar/flare/locale`              | `LocaleScript`, `LocaleProvider`        |
-| `@lovrozagar/flare/i18n`                | `createTranslations`, `formatMessage`   |
-| `@lovrozagar/flare/middleware`          | `onPage`, `virtualPath`, types          |
-| `@lovrozagar/flare/middleware/*`        | builtins                                |
-| `@lovrozagar/flare/errors`              | `NotFoundError`, redirects, auth errors |
-| `@lovrozagar/flare/security`            | `SecurityConfig`                        |
-| `@lovrozagar/flare/revalidation`        | `createRevalidateFn`                    |
-| `@lovrozagar/flare/store`               | `FlareStore`                            |
-| `@lovrozagar/flare/store-filesystem`    | disk store                              |
-| `@lovrozagar/flare/query-client`        | `createQueryClientGetter`               |
-| `@lovrozagar/flare/suspense-query`      | `useSuspenseQuery`                      |
-| `@lovrozagar/flare/broadcast`           | cross-tab                               |
-| `@lovrozagar/flare/lazy`                | `lazy`, `clientLazy`                    |
-| `@lovrozagar/flare/server`              | `createServer`                          |
-| `@lovrozagar/flare/server-context`      | ALS, `background`                       |
-| `@lovrozagar/flare/fetch-dedupe`        | `withFetchDedupe`                       |
-| `@lovrozagar/flare/server-only`         | `createServerOnlyFn`                    |
-| `@lovrozagar/flare/client-only`         | `createClientOnlyFn`                    |
-| `@lovrozagar/flare/isomorphic`          | `createIsomorphicFn`                    |
-| `@lovrozagar/flare/testing`             | Playwright helpers                      |
-| `@lovrozagar/flare/sitemap`             | sitemap XML                             |
-| `@lovrozagar/flare/search-engine`       | IndexNow / Google / Bing                |
-| `@lovrozagar/flare/rewrite`             | `LocationRewrite`                       |
-| `@lovrozagar/flare/mount`               | `mount`                                 |
-| `@lovrozagar/flare/intercept-outlet`    | `InterceptOutlet`                       |
-| `@lovrozagar/flare/navigation-progress` | `<NavigationProgress>`                  |
-| `@lovrozagar/flare/reset-css`           | `<ResetCSS>`                            |
-| `@lovrozagar/flare/view-transition-css` | `<ViewTransitionCSS>`                   |
-| `@lovrozagar/flare/prerender`           | `loadPrerenderArtifacts`                |
-| `@lovrozagar/flare/tracing`             | timing / OTel                           |
-| `@lovrozagar/flare/validation`          | `Validator`, `runValidator`             |
-| `@lovrozagar/flare/codegen`             | generated types                         |
-| `@lovrozagar/flare/generators`          | `runGenerate`                           |
-| `@lovrozagar/flare/virtual-types`       | `/// <reference types="…" />`           |
+| Export                                       | You get                                 |
+| -------------------------------------------- | --------------------------------------- |
+| `@lovrozagar/flare`                          | `createRouter`, hooks, `navigate`       |
+| `@lovrozagar/flare/router`                   | `createRouter`                          |
+| `@lovrozagar/flare/page`                     | `createPage`                            |
+| `@lovrozagar/flare/layout`                   | `createLayout`                          |
+| `@lovrozagar/flare/root-layout`              | `createRootLayout`                      |
+| `@lovrozagar/flare/path-segment`             | `createPathSegment`                     |
+| `@lovrozagar/flare/link`                     | `Link`                                  |
+| `@lovrozagar/flare/outlet`                   | `Outlet`                                |
+| `@lovrozagar/flare/hydrate`                  | `hydrate`                               |
+| `@lovrozagar/flare/client`                   | `createClient`                          |
+| `@lovrozagar/flare/await`                    | `<Await>`                               |
+| `@lovrozagar/flare/form`                     | `Form`, `FieldError`                    |
+| `@lovrozagar/flare/server-fn`                | `createServerFn`                        |
+| `@lovrozagar/flare/server-fn-query`          | server fn ↔ Query                       |
+| `@lovrozagar/flare/plugins`                  | `flare()`                               |
+| `@lovrozagar/flare/styles`                   | `styles`, `cn`, `compileSx`             |
+| `@lovrozagar/flare/fonts`                    | `FontCSS`, `createFont`                 |
+| `@lovrozagar/flare/fonts/<family>`           | `import { inter } from "…/fonts/inter"` |
+| `@lovrozagar/flare/image`                    | `Image`, `configureImage`               |
+| `@lovrozagar/flare/theme`                    | `ThemeScript`, `ThemeProvider`          |
+| `@lovrozagar/flare/direction`                | `DirectionScript`                       |
+| `@lovrozagar/flare/locale`                   | `LocaleScript`, `LocaleProvider`        |
+| `@lovrozagar/flare/i18n`                     | `createTranslations`, `formatMessage`   |
+| `@lovrozagar/flare/middleware`               | `onPage`, `virtualPath`, types          |
+| `@lovrozagar/flare/middleware/*`             | builtins                                |
+| `@lovrozagar/flare/errors`                   | `NotFoundError`, redirects, auth errors |
+| `@lovrozagar/flare/security`                 | `SecurityConfig`                        |
+| `@lovrozagar/flare/revalidation`             | `createRevalidateFn`                    |
+| `@lovrozagar/flare/store`                    | `FlareStore`                            |
+| `@lovrozagar/flare/store-filesystem`         | disk store                              |
+| `@lovrozagar/flare/query-client`             | `createQueryClientGetter`               |
+| `@lovrozagar/flare/suspense-query`           | `useSuspenseQuery`                      |
+| `@lovrozagar/flare/broadcast`                | cross-tab                               |
+| `@lovrozagar/flare/lazy`                     | `lazy`, `clientLazy`                    |
+| `@lovrozagar/flare/server`                   | `createServer`                          |
+| `@lovrozagar/flare/server-context`           | ALS, `background`                       |
+| `@lovrozagar/flare/fetch-dedupe`             | `withFetchDedupe`                       |
+| `@lovrozagar/flare/server-only`              | `createServerOnlyFn`                    |
+| `@lovrozagar/flare/client-only`              | `createClientOnlyFn`                    |
+| `@lovrozagar/flare/isomorphic`               | `createIsomorphicFn`                    |
+| `@lovrozagar/flare/testing`                  | Playwright helpers                      |
+| `@lovrozagar/flare/sitemap`                  | sitemap XML                             |
+| `@lovrozagar/flare/search-engine`            | IndexNow / Google / Bing                |
+| `@lovrozagar/flare/rewrite`                  | `LocationRewrite`                       |
+| `@lovrozagar/flare/mount`                    | `mount`                                 |
+| `@lovrozagar/flare/intercept-outlet`         | `InterceptOutlet`                       |
+| `@lovrozagar/flare/navigation-progress`      | `<NavigationProgress>`                  |
+| `@lovrozagar/flare/reset-css`                | `<ResetCSS>`                            |
+| `@lovrozagar/flare/view-transition-boundary` | `<ViewTransitionBoundary>`              |
+| `@lovrozagar/flare/view-transition-css`      | `<ViewTransitionCSS>`                   |
+| `@lovrozagar/flare/prerender`                | `loadPrerenderArtifacts`                |
+| `@lovrozagar/flare/tracing`                  | timing / OTel                           |
+| `@lovrozagar/flare/validation`               | `Validator`, `runValidator`             |
+| `@lovrozagar/flare/codegen`                  | generated types                         |
+| `@lovrozagar/flare/generators`               | `runGenerate`                           |
+| `@lovrozagar/flare/virtual-types`            | `/// <reference types="…" />`           |
 
 ## Repository layout
 

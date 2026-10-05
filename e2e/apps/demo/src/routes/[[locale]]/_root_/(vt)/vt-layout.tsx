@@ -12,22 +12,27 @@ export const route = createLayout("[[locale]]/_root_/(vt)").render((props) => {
 			<style>{`[data-testid="vt-sidebar"] a { display: block; color: rgb(0, 0, 255); transition: color 150ms; }
 [data-testid="vt-sidebar"] a:hover { color: rgb(255, 0, 0); }`}</style>
 			<aside data-testid="vt-sidebar">
-				<Link data-testid="vt-link-a" to="/[[locale]]/vt-shell/a">
+				<Link data-testid="vt-link-a" params={{ locale: undefined }} to="/[[locale]]/vt-shell/a">
 					A
 				</Link>
-				<Link data-testid="vt-link-b" to="/[[locale]]/vt-shell/b">
+				<Link data-testid="vt-link-b" params={{ locale: undefined }} to="/[[locale]]/vt-shell/b">
 					B
 				</Link>
-				<Link data-testid="vt-link-1" params={{ id: "1" }} to="/[[locale]]/vt-shell/[id]">
+				<Link data-testid="vt-link-1" params={{ id: "1", locale: undefined }} to="/[[locale]]/vt-shell/[id]">
 					Item 1
 				</Link>
-				<Link data-testid="vt-link-2" params={{ id: "2" }} to="/[[locale]]/vt-shell/[id]">
+				<Link data-testid="vt-link-2" params={{ id: "2", locale: undefined }} to="/[[locale]]/vt-shell/[id]">
 					Item 2
 				</Link>
-				<Link data-testid="vt-link-doc" to="/[[locale]]/vt-shell/b" viewTransition={{ scope: "document" }}>
+				<Link
+					data-testid="vt-link-doc"
+					params={{ locale: undefined }}
+					to="/[[locale]]/vt-shell/b"
+					viewTransition={{ scope: "document" }}
+				>
 					B (document transition)
 				</Link>
-				<Link data-testid="vt-link-out" to="/[[locale]]/about">
+				<Link data-testid="vt-link-out" params={{ locale: undefined }} to="/[[locale]]/about">
 					Leave the shell
 				</Link>
 			</aside>

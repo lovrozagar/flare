@@ -142,3 +142,103 @@ test.describe("navigation scopes its view transition to the boundary", () => {
 		expect(errors).toEqual([]);
 	});
 });
+
+test.describe("nested and misplaced boundaries", () => {
+	test.beforeEach(async ({ page }) => {
+		await page.addInitScript(() => {
+			const w = window as unknown as {
+				__vtTargets: string[];
+				__vtDurations: number[][];
+				__vtMarked: boolean[];
+			};
+			w.__vtTargets = [];
+			w.__vtDurations = [];
+			w.__vtMarked = [];
+			type Transition = { ready: Promise<void> };
+			const proto = Element.prototype as unknown as { startViewTransition?: (...a: unknown[]) => Transition };
+			const elementStart = proto.startViewTransition;
+			if (elementStart) {
+				proto.startViewTransition = function (this: Element, ...args: unknown[]) {
+					w.__vtTargets.push(this.getAttribute("data-testid") ?? this.tagName);
+					const transition = elementStart.apply(this, args);
+					transition.ready
+						.then(() => {
+							w.__vtMarked.push(this.hasAttribute("data-flare-vt-scope"));
+							/* The old/new snapshots: <ViewTransitionCSS> times those; the group keeps the UA default. */
+							w.__vtDurations.push(
+								this.getAnimations({ subtree: true })
+									.filter((a) =>
+										/view-transition-(old|new)/.test((a.effect as KeyframeEffect | null)?.pseudoElement ?? ""),
+									)
+									.map((a) => Number(a.effect?.getTiming().duration)),
+							);
+						})
+						.catch(() => {});
+					return transition;
+				};
+			}
+			const documentStart = document.startViewTransition?.bind(document);
+			if (documentStart) {
+				document.startViewTransition = ((...args: Parameters<typeof documentStart>) => {
+					w.__vtTargets.push("document");
+					return documentStart(...args);
+				}) as typeof document.startViewTransition;
+			}
+		});
+	});
+
+	const read = <K extends "__vtTargets" | "__vtDurations" | "__vtMarked">(page: Page, key: K) =>
+		page.evaluate((k) => (window as unknown as Record<string, unknown>)[k], key);
+	const supportsScoped = (page: Page) =>
+		page.evaluate(
+			() => typeof (Element.prototype as { startViewTransition?: unknown }).startViewTransition === "function",
+		);
+
+	test("tab to tab scopes to the tab panel; leaving the tabs scopes to the shell", async ({ page }) => {
+		await gotoHydrated(page, "/vt-tabbed/one");
+		test.skip(!(await supportsScoped(page)), "no element-scoped view transitions in this browser");
+		await page.getByTestId("vt-tab-two").click();
+		await expect(page.getByTestId("vt-tab")).toHaveText("Tab two");
+		await page.getByTestId("vt-link-a").click();
+		await expect(page.getByTestId("vt-page")).toHaveText("Page A");
+		expect(await read(page, "__vtTargets")).toEqual(["vt-tab-panel", "vt-main"]);
+	});
+
+	test("boundaries around a sidebar or inside the page are ignored", async ({ page }) => {
+		await gotoHydrated(page, "/vt-misplaced/x");
+		await page.getByTestId("vt-misplaced-y").click();
+		await expect(page.getByTestId("vt-misplaced-page")).toHaveText("Page Y");
+		expect(await read(page, "__vtTargets")).toEqual(["document"]);
+	});
+
+	test("@dev-only a boundary around no route content gets a dev warning", async ({ page }) => {
+		const warnings: string[] = [];
+		page.on("console", (m) => {
+			if (m.text().includes("wraps no route content")) warnings.push(m.text());
+		});
+		await gotoHydrated(page, "/vt-misplaced/x");
+		await page.getByTestId("vt-misplaced-y").click();
+		await expect(page.getByTestId("vt-misplaced-page")).toHaveText("Page Y");
+		await expect.poll(() => warnings.length).toBeGreaterThan(0);
+	});
+
+	test("@dev-only the chosen scope carries data-flare-vt-scope while it animates", async ({ page }) => {
+		await gotoHydrated(page, "/vt-shell/a");
+		test.skip(!(await supportsScoped(page)), "no element-scoped view transitions in this browser");
+		await page.getByTestId("vt-link-b").click();
+		await expect(page.getByTestId("vt-page")).toHaveText("Page B");
+		await expect.poll(() => read(page, "__vtMarked")).toEqual([true]);
+		await expect.poll(() => page.locator("[data-flare-vt-scope]").count()).toBe(0);
+	});
+
+	test("<ViewTransitionCSS> timing applies to the scoped transition", async ({ page }) => {
+		await gotoHydrated(page, "/vt-shell/a");
+		test.skip(!(await supportsScoped(page)), "no element-scoped view transitions in this browser");
+		await page.getByTestId("vt-link-b").click();
+		await expect(page.getByTestId("vt-page")).toHaveText("Page B");
+		await expect.poll(() => read(page, "__vtDurations")).not.toEqual([]);
+		const [durations] = (await read(page, "__vtDurations")) as number[][];
+		expect(durations?.length).toBeGreaterThan(0);
+		expect(new Set(durations)).toEqual(new Set([175]));
+	});
+});
