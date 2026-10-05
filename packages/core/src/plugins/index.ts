@@ -296,12 +296,7 @@ function createSsrBuildPlugin(entries: ResolvedEntries, config: FlarePluginConfi
 					...(config.alias ? { alias: config.alias } : {}),
 					dedupe: ["solid-js", "@solidjs/web"],
 				},
-				server: {
-					...(config.port ? { port: config.port } : {}),
-					watch: {
-						ignored: ["**/_gen/**", "**/*.gen.ts", "**/*.gen.tsx"],
-					},
-				},
+				server: config.port ? { port: config.port } : {},
 				ssr: {
 					noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"],
 				},
