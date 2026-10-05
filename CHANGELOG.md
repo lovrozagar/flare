@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.19
+
+- `sx` treats only `:root` / `:host` declarations as theme vars. A custom property a utility sets on an element (`[--panel-width:75%]`) was recorded as one: `themeVars: "reference"` hoisted it into `:root`, so a variant's value reached every element, and inline mode baked the first value it saw into `var()` reads without a fallback.
+
 ## 0.9.18
 
 - A route file added while `vite dev` runs renders without a restart. Vite's watcher ignored `_gen/`, so the regenerated `routes.gen.ts` never reached the module graph: SSR and the client kept the startup route tree and served the new route as not found.
