@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.18
+
+- A route file added while `vite dev` runs renders without a restart. Vite's watcher ignored `_gen/`, so the regenerated `routes.gen.ts` never reached the module graph: SSR and the client kept the startup route tree and served the new route as not found.
+
 ## 0.9.17
 
 - Back/forward scroll restoration and the scroll to top on navigation jump instead of animating. They followed CSS `scroll-behavior`, so an app's `html { scroll-behavior: smooth }` (meant for anchor links) animated every history restore. `scrollRestorationBehavior` now takes `"instant"` (default, like the browser's own restoration), `"smooth"`, or `"auto"` (follow CSS); hash scrolling still follows CSS.
