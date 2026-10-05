@@ -63,6 +63,14 @@ describe("data URL — matching build", () => {
 		expect(messages.some((m) => m.t === "l" && (m.d as { title?: string })?.title === "About")).toBe(true);
 	});
 
+	it("every data response names the server build (client backstop for caches that drop the frame)", async () => {
+		const response = await buildHandler().fetch(data(dataUrl("/about", TEST_BUILD_ID)), {});
+		const plain = await buildHandler().fetch(data("/about"), {});
+
+		expect(response.headers.get("flare-build")).toBe(TEST_BUILD_ID);
+		expect(plain.headers.get("flare-build")).toBe(TEST_BUILD_ID);
+	});
+
 	it("loaders never see the _flare param", async () => {
 		const { handler, seen } = spyHandler();
 		await handler.fetch(data(dataUrl("/spy?tab=a", TEST_BUILD_ID)), {});

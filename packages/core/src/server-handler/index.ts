@@ -406,6 +406,12 @@ function addSecurityHeaders(response: Response, secHeaders: Record<string, strin
 		headers.set("Vary", HEADER_DATA);
 	}
 
+	/* Data responses name their build so a client from another deploy notices even when a
+	   cache in between answered without the t:"b" frame. */
+	if (headers.get("Content-Type")?.includes("ndjson") && !headers.has(HEADER_BUILD)) {
+		headers.set(HEADER_BUILD, buildId);
+	}
+
 	return new Response(response.body, {
 		headers,
 		status: response.status,
