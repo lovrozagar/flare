@@ -9,7 +9,6 @@ export default defineConfig({
 	plugins: [
 		flare({
 			codegen: { fsVirtualPaths: false },
-			serviceWorker: { offlineFallback: "/offline" },
 			sx: { tw: true },
 		}),
 		cloudflare({ viteEnvironment: { name: "ssr" } }),

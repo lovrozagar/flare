@@ -46,12 +46,6 @@ describe.sequential("assets-base integration build", () => {
 		for (const ref of assetRefs) {
 			expect(ref).toMatch(/^\/assets\//);
 		}
-
-		/* sw.js must exist and contain the default cache rule */
-		const swPath = join(DIST_CLIENT, "sw.js");
-		expect(existsSync(swPath)).toBe(true);
-		const swSrc = await readFile(swPath, "utf-8");
-		expect(swSrc).toContain('startsWith("/assets/")');
 	});
 
 	it("build-emits-assets-under-custom-base", async () => {
@@ -67,13 +61,6 @@ describe.sequential("assets-base integration build", () => {
 		for (const ref of assetRefs) {
 			expect(ref).toMatch(/^\/app\/assets\//);
 		}
-
-		/* sw.js must contain the custom cache rule */
-		const swPath = join(DIST_CLIENT, "sw.js");
-		expect(existsSync(swPath)).toBe(true);
-		const swSrc = await readFile(swPath, "utf-8");
-		expect(swSrc).toContain('startsWith("/app/assets/")');
-		expect(swSrc).not.toContain('startsWith("/assets/")');
 
 		/* at least one image variant URL in bundled JS must use /app/assets/ */
 		const jsFiles = (await import("node:fs/promises").then((m) => m.readdir(DIST_CLIENT))).filter((f) =>

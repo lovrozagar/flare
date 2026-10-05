@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { findEntryKey, resolveModulePreloads } from "../module-graph/index.ts";
 import { writePrefetchList } from "../prefetch/list.ts";
 import { DEV_BUILD_ID, readClientBuildId, readClientManifest } from "./build-id.ts";
+import { type ServiceWorkerConfig, serviceWorkerToRegister } from "./service-worker.ts";
 import type { SxCssManifest } from "../ssr/critical-css.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
 
@@ -35,7 +36,7 @@ function resolveClientEntryFromManifest(root: string, clientEntry: string): stri
 }
 
 export function createVirtualPlugin(
-	config: { ignorePrefix?: string; logLevel?: string },
+	config: { ignorePrefix?: string; logLevel?: string; serviceWorker?: ServiceWorkerConfig | false },
 	entries: ResolvedEntries,
 	codegen?: { routesFilePath?: string },
 	assetsBase = "/assets",
@@ -95,11 +96,14 @@ export function createVirtualPlugin(
 					mode === "development"
 						? undefined
 						: writePrefetchList({ assetsBase, ignorePrefix: config.ignorePrefix ?? "_", root });
+				const serviceWorkerUrl =
+					mode === "development" ? undefined : serviceWorkerToRegister(root, config.serviceWorker);
 				return {
 					code: [
 						`export default ${JSON.stringify(buildId)}`,
 						`export const staticAssetsBase = ${JSON.stringify(staticAssetsBase)}`,
 						`export const prefetchListUrl = ${prefetchListUrl === undefined ? "undefined" : JSON.stringify(prefetchListUrl)}`,
+						`export const serviceWorkerUrl = ${serviceWorkerUrl === undefined ? "undefined" : JSON.stringify(serviceWorkerUrl)}`,
 					].join("\n"),
 					moduleType: "js",
 				};

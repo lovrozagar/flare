@@ -17,12 +17,7 @@ import { createPrerenderPlugin, type PrerenderPluginConfig } from "./prerender-p
 import { createRetainAssetsPlugin } from "./retain-assets.ts";
 import { createPurgePlugin, createPurgeTestIdsPlugin, type PurgeConfig, resolvePurgeConfig } from "./purge.ts";
 import { createServerFnPlugin } from "./server-fn.ts";
-import {
-	createServiceWorkerDisabledPlugin,
-	createServiceWorkerPlugin,
-	normalizeSwConfig,
-	type ServiceWorkerConfig,
-} from "./service-worker.ts";
+import { createServiceWorkerPlugin, type ServiceWorkerConfig } from "./service-worker.ts";
 import { createSxAstPlugin } from "./sx-ast/index.ts";
 import type { SxAstOptions } from "./sx-ast/index.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
@@ -109,7 +104,11 @@ export interface FlarePluginConfig {
 	 * window. Requires `site`. Default off.
 	 */
 	retainPreviousAssets?: boolean | Duration;
-	serviceWorker?: ServiceWorkerConfig | boolean;
+	/**
+	 * The app's own service worker: `src/service-worker.ts` (or `entry`) is bundled to
+	 * `/service-worker.js` and registered by the client. `false` skips it.
+	 */
+	serviceWorker?: ServiceWorkerConfig | false;
 	/** Public origin of the deployed app (e.g. `https://example.com`). Used by the sitemap and retainPreviousAssets. */
 	site?: string;
 	solid?: Partial<SolidPluginOptions>;
@@ -412,8 +411,6 @@ export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
 		...config.solid,
 	};
 
-	const resolvedSw = normalizeSwConfig(config.serviceWorker);
-
 	/* TS 7: vite + @solidjs/vite-plugin Plugin identities overflow. Keep this list on VitePlugin. */
 	const plugins: VitePlugin[] = [
 		createTwDeprecatedPlugin(),
@@ -432,9 +429,7 @@ export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
 		createVirtualPlugin(config, entries, resolvedCodegen, resolvedOptions.assetsBase),
 		createServerFnPlugin(config),
 		createCssTransformPlugin(),
-		(resolvedSw
-			? createServiceWorkerPlugin(resolvedSw, resolvedOptions.assetsBase)
-			: createServiceWorkerDisabledPlugin()) as unknown as VitePlugin,
+		createServiceWorkerPlugin(config.serviceWorker),
 	];
 
 	/* Purge plugins */

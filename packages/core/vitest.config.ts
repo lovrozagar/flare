@@ -13,7 +13,6 @@ export default defineConfig({
 				.pathname,
 			"virtual:flare-server-fn-map": new URL("tests/__mocks__/virtual-flare-server-fn-map.ts", import.meta.url)
 				.pathname,
-			"virtual:flare-sw-config": new URL("tests/__mocks__/virtual-flare-sw-config.ts", import.meta.url).pathname,
 			"virtual:flare-sx-dev-css": new URL("tests/__mocks__/virtual-flare-sx-dev-css.ts", import.meta.url).pathname,
 			"virtual:flare-sx-manifest": new URL("tests/__mocks__/virtual-flare-sx-manifest.ts", import.meta.url).pathname,
 		},

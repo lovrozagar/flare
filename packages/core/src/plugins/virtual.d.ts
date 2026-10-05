@@ -32,6 +32,17 @@ declare module "virtual:flare-build" {
 	export const staticAssetsBase: string;
 	/** URL of the app-wide module prefetch list (`modules: "all"`); undefined in dev. */
 	export const prefetchListUrl: string | undefined;
+	/** URL of the app's built service worker when the client should register it. */
+	export const serviceWorkerUrl: string | undefined;
+}
+
+declare module "virtual:flare-service-worker" {
+	/** This build's hashed files (chunks, CSS, imported assets) as URL paths. */
+	export const build: string[];
+	/** Files from `public/` as URL paths. */
+	export const files: string[];
+	/** This build's id. */
+	export const version: string;
 }
 
 declare module "virtual:flare-config" {
@@ -80,11 +91,6 @@ declare module "virtual:flare-sx-dev-css" {
 declare module "virtual:flare-server-fn-secret" {
 	const secret: string;
 	export default secret;
-}
-
-declare module "virtual:flare-sw-config" {
-	const config: { enabled: false } | { enabled: true; path: string; scope: string };
-	export default config;
 }
 
 declare module "*.avif" {
