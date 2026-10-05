@@ -96,3 +96,18 @@ describe("writeCleanupServiceWorker", () => {
 		expect(readFileSync(join(clientDir, "sw.js"), "utf-8")).toBe("/* mine */");
 	});
 });
+
+describe("serviceWorkerToRegister", () => {
+	it("names the worker for the client only when it was built and registration is on", async () => {
+		const { serviceWorkerToRegister } = await import("../../../src/plugins/service-worker.ts");
+		const root = project(true);
+
+		expect(serviceWorkerToRegister(root, undefined)).toBeUndefined();
+		await buildServiceWorker({ entry: "src/service-worker.ts", root });
+
+		expect(serviceWorkerToRegister(root, undefined)).toBe("/service-worker.js");
+		expect(serviceWorkerToRegister(root, {})).toBe("/service-worker.js");
+		expect(serviceWorkerToRegister(root, { register: false })).toBeUndefined();
+		expect(serviceWorkerToRegister(root, false)).toBeUndefined();
+	});
+});
