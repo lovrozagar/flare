@@ -211,6 +211,8 @@ export const router = createRouter({
 | `rewrite`                                                                                                     | Vanity URLs — see [Rewrite](#rewrite)                   |
 | `queryClientGetter`                                                                                           | TanStack — see [Query](#query)                          |
 
+`scrollRestorationBehavior` sets how back/forward restore and the scroll to top move: `"instant"` (default, like the browser's own restoration, even under `html { scroll-behavior: smooth }`), `"smooth"`, or `"auto"` (follow CSS `scroll-behavior`).
+
 ### Server
 
 ```ts

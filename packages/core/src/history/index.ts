@@ -185,15 +185,20 @@ export function getCurrentScroll(): ScrollPosition {
 	};
 }
 
-export function restoreScroll(position: ScrollPosition, behavior?: ScrollBehavior): void {
+/*
+ * Scroll jumps by default ("instant"), like the browser's own history restoration. "auto" would
+ * follow CSS `scroll-behavior`, so an app's `html { scroll-behavior: smooth }` (meant for anchor
+ * links) animated every back/forward restore and every scroll to top.
+ */
+export function restoreScroll(position: ScrollPosition, behavior: ScrollBehavior = "instant"): void {
 	if (typeof scrollTo === "function") {
-		scrollTo({ behavior: behavior ?? "auto", left: position.x, top: position.y });
+		scrollTo({ behavior, left: position.x, top: position.y });
 	}
 }
 
-export function scrollToTop(): void {
+export function scrollToTop(behavior: ScrollBehavior = "instant"): void {
 	if (typeof scrollTo === "function") {
-		scrollTo(0, 0);
+		scrollTo({ behavior, left: 0, top: 0 });
 	}
 }
 

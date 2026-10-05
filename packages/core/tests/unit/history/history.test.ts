@@ -288,7 +288,7 @@ describe("restoreScroll", () => {
 		const scrollToSpy = vi.fn();
 		vi.stubGlobal("scrollTo", scrollToSpy);
 		restoreScroll({ x: 50, y: 100 });
-		expect(scrollToSpy).toHaveBeenCalledWith({ behavior: "auto", left: 50, top: 100 });
+		expect(scrollToSpy).toHaveBeenCalledWith({ behavior: "instant", left: 50, top: 100 });
 		vi.unstubAllGlobals();
 	});
 
@@ -300,11 +300,11 @@ describe("restoreScroll", () => {
 });
 
 describe("scrollToTop", () => {
-	it("calls scrollTo(0, 0)", () => {
+	it("jumps to the top instantly", () => {
 		const scrollToSpy = vi.fn();
 		vi.stubGlobal("scrollTo", scrollToSpy);
 		scrollToTop();
-		expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
+		expect(scrollToSpy).toHaveBeenCalledWith({ behavior: "instant", left: 0, top: 0 });
 		vi.unstubAllGlobals();
 	});
 

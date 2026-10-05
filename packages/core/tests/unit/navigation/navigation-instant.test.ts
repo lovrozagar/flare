@@ -738,7 +738,7 @@ describe("instant navigation — popstate restores scroll on the cached shell", 
 		});
 
 		/* Same turn as the shell paint — not after fetch, not after rAF. */
-		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 0, y: 420 }, "auto");
+		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 0, y: 420 }, "instant");
 		expect(mockScrollToTop).not.toHaveBeenCalled();
 
 		resolveNavFetch?.({

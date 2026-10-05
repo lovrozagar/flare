@@ -29,7 +29,8 @@ export interface RouterConfig {
 	routeCacheMaxEntries?: number;
 	routeTree: TreeNode;
 	scrollRestoration?: boolean;
-	scrollRestorationBehavior?: "auto" | "smooth";
+	/** How navigation scrolls: back/forward restore and the scroll to top. Default "instant"; "auto" follows CSS `scroll-behavior`. */
+	scrollRestorationBehavior?: "instant" | "auto" | "smooth";
 	scrollRestorationMaxEntries?: number;
 	theme?: ThemeConfig;
 	trailingSlash?: TrailingSlashMode;
@@ -46,7 +47,8 @@ export interface SerializableRouterConfig {
 	notFoundMode?: "fuzzy" | "root";
 	routeCacheMaxEntries?: number;
 	scrollRestoration?: boolean;
-	scrollRestorationBehavior?: "auto" | "smooth";
+	/** How navigation scrolls: back/forward restore and the scroll to top. Default "instant"; "auto" follows CSS `scroll-behavior`. */
+	scrollRestorationBehavior?: "instant" | "auto" | "smooth";
 	scrollRestorationMaxEntries?: number;
 	theme?: ThemeConfig;
 	trailingSlash?: TrailingSlashMode;

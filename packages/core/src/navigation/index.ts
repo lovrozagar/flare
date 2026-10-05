@@ -152,7 +152,7 @@ let deferredTracker: DeferredTracker | null = null;
 let notFoundMode: "fuzzy" | "root" = "fuzzy";
 let queryClientRef: unknown;
 let scrollRestorationEnabled = true;
-let scrollRestorationBehavior: "auto" | "smooth" = "auto";
+let scrollRestorationBehavior: ScrollBehavior = "instant";
 let localeConfig: LocaleConfig | undefined;
 let directionConfig: DirectionConfig | undefined;
 const visitedRoutes = new Set<string>();
@@ -267,7 +267,7 @@ export interface SetupNavigationOptions {
 	queryClient?: unknown;
 	rewrite?: LocationRewrite;
 	scrollRestoration?: boolean;
-	scrollRestorationBehavior?: "auto" | "smooth";
+	scrollRestorationBehavior?: ScrollBehavior;
 	scrollRestorationMaxEntries?: number;
 	viewTransitions?: ViewTransitionConfig;
 }
@@ -358,7 +358,7 @@ export function setupNavigation(
 	notFoundMode = options.notFoundMode ?? "fuzzy";
 	queryClientRef = options.queryClient;
 	scrollRestorationEnabled = options.scrollRestoration ?? true;
-	scrollRestorationBehavior = options.scrollRestorationBehavior ?? "auto";
+	scrollRestorationBehavior = options.scrollRestorationBehavior ?? "instant";
 
 	/* Pre-populate visitedRoutes with hydrated page's route IDs */
 	if (options.initialRouteIds) {
@@ -1199,7 +1199,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				if (el) {
 					el.scrollIntoView();
 				} else {
-					scrollToTop();
+					scrollToTop(scrollRestorationBehavior);
 				}
 			}
 			stopNavigation();
@@ -1335,14 +1335,14 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 					if (!scrollRestorationEnabled) return;
 					flush();
 					if (options._restoreScroll) {
-						restoreScroll(options._restoreScroll, "auto");
+						restoreScroll(options._restoreScroll, scrollRestorationBehavior);
 					} else if (options.scroll !== false) {
 						if (url.hash) {
 							const el = typeof document !== "undefined" ? document.getElementById(url.hash.slice(1)) : null;
 							if (el) el.scrollIntoView();
-							else scrollToTop();
+							else scrollToTop(scrollRestorationBehavior);
 						} else {
-							scrollToTop();
+							scrollToTop(scrollRestorationBehavior);
 						}
 					}
 				};
@@ -1604,7 +1604,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			if (scrollRestorationEnabled && options._restoreScroll !== undefined) {
 				if (hadShell && options._restoreScroll) {
 					flush();
-					restoreScroll(options._restoreScroll, "auto");
+					restoreScroll(options._restoreScroll, scrollRestorationBehavior);
 				} else {
 					requestAnimationFrame(() => {
 						requestAnimationFrame(() => {
@@ -1612,7 +1612,7 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 							if (options._restoreScroll) {
 								restoreScroll(options._restoreScroll, scrollRestorationBehavior);
 							} else {
-								scrollToTop();
+								scrollToTop(scrollRestorationBehavior);
 							}
 						});
 					});
@@ -1631,12 +1631,12 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 								if (myVersion !== navigationVersion) return;
 								const late = typeof document !== "undefined" ? document.getElementById(id) : null;
 								if (late) late.scrollIntoView();
-								else scrollToTop();
+								else scrollToTop(scrollRestorationBehavior);
 							});
 						});
 					}
 				} else {
-					scrollToTop();
+					scrollToTop(scrollRestorationBehavior);
 				}
 			}
 
@@ -1854,7 +1854,7 @@ export function resetNavigationState(): void {
 	notFoundMode = "fuzzy";
 	queryClientRef = undefined;
 	scrollRestorationEnabled = true;
-	scrollRestorationBehavior = "auto";
+	scrollRestorationBehavior = "instant";
 	if (deferredTracker) {
 		deferredTracker.clear();
 		deferredTracker = null;

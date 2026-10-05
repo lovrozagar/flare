@@ -252,9 +252,9 @@ describe("scrollRestorationBehavior", () => {
 		vi.unstubAllGlobals();
 	});
 
-	it("default: restoreScroll calls scrollTo with behavior auto", () => {
+	it("default: restoreScroll calls scrollTo with behavior instant", () => {
 		restoreScroll({ x: 10, y: 20 });
-		expect(scrollToSpy).toHaveBeenCalledWith({ behavior: "auto", left: 10, top: 20 });
+		expect(scrollToSpy).toHaveBeenCalledWith({ behavior: "instant", left: 10, top: 20 });
 	});
 
 	it('behavior "smooth": restoreScroll calls scrollTo with smooth', () => {
