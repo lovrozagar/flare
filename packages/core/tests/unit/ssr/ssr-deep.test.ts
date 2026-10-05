@@ -234,6 +234,24 @@ describe("deriveStatus priority", () => {
 		expect(deriveStatus([{ error: new Error("kaboom") }])).toBe(500);
 	});
 
+	it("an upstream client error keeps its 4xx status (429 is not a server error)", () => {
+		const rateLimited = Object.assign(new Error("Too Many Requests"), { status: 429 });
+		expect(deriveStatus([{ error: rateLimited }])).toBe(429);
+		const badInput = Object.assign(new Error("Bad Request"), { status: 400 });
+		expect(deriveStatus([{ error: badInput }])).toBe(400);
+	});
+
+	it("upstream 5xx and non-HTTP status values stay 500", () => {
+		expect(deriveStatus([{ error: Object.assign(new Error("bad gateway"), { status: 502 }) }])).toBe(500);
+		expect(deriveStatus([{ error: Object.assign(new Error("odd"), { status: "429" }) }])).toBe(500);
+	});
+
+	it("a carried 4xx never outranks 401/403/404, and a generic error outranks a carried 4xx", () => {
+		const rateLimited = Object.assign(new Error("Too Many Requests"), { status: 429 });
+		expect(deriveStatus([{ error: rateLimited }, { error: new NotFoundError() }])).toBe(404);
+		expect(deriveStatus([{ error: rateLimited }, { error: new Error("kaboom") }])).toBe(500);
+	});
+
 	it("mixed: 1 success + 1 NotFoundError returns 404", () => {
 		expect(deriveStatus([{ error: undefined }, { error: new NotFoundError() }])).toBe(404);
 	});

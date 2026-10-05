@@ -467,6 +467,29 @@ describe("SSR — broken loader", () => {
 		expect(response.status).toBe(500);
 	});
 
+	it("/broken logs the loader failure with route and stack (never a silent 500)", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const handler = buildHandler();
+		const response = await handler.fetch(makeRequest("/broken"), {});
+
+		expect(response.status).toBe(500);
+		const logged = errorSpy.mock.calls.find((args) => String(args[0]).includes("[flare:loader]"));
+		expect(logged).toBeDefined();
+		expect(String(logged?.[1])).toContain("/broken");
+		expect(String(logged?.[2])).toMatch(/Error/);
+		expect(String(logged?.[2])).toContain("\n");
+		errorSpy.mockRestore();
+	});
+
+	it("expected loader outcomes (404) are not logged as failures", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const handler = buildHandler();
+		await handler.fetch(makeRequest("/nonexistent"), {});
+
+		expect(errorSpy.mock.calls.filter((args) => String(args[0]).includes("[flare:loader]"))).toEqual([]);
+		errorSpy.mockRestore();
+	});
+
 	it("/broken dev mode FlareState strips error stacks from serialized output", async () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(makeRequest("/broken"), {});
