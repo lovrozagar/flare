@@ -42,7 +42,10 @@ import {
 	followAbortSignal,
 } from "../ndjson-server/index.ts";
 import { extractNonce, NONCE_PLACEHOLDER, replaceNonce, tagsFromSurrogateKey } from "../prerender/index.ts";
-import { createRevalidateFn } from "../revalidation/index.ts";
+import { type CdnPurgeAdapter, createRevalidateFn } from "../revalidation/index.ts";
+import { applyTagHeader } from "../revalidation/tag-header.ts";
+
+export type { CdnPurgeAdapter } from "../revalidation/index.ts";
 import { composeRewrites, executeRewriteInput, type LocationRewrite, rewriteBasePath } from "../rewrite/index.ts";
 import type { CacheConfig, ResponseHeaders } from "../route-builder/types.ts";
 import type { MarkedRouterConfig } from "../router-config/index.ts";
@@ -274,11 +277,6 @@ function headersToStaticRecord(headers: Headers): Record<string, string> {
 
 export interface ServerHandler<TEnv = unknown> {
 	fetch(request: Request, env: TEnv): Promise<Response>;
-}
-
-export interface CdnPurgeAdapter {
-	purgeByKeys?(keys: string[], callerData?: unknown): Promise<void>;
-	purgeByTags(tags: string[], callerData?: unknown): Promise<void>;
 }
 
 export interface HandlerCacheConfig<TEnv = unknown> {
@@ -1454,7 +1452,7 @@ export function createServerHandler<
 											}
 
 											/* Extract fresh tags from re-render response */
-											const freshTags = tagsFromSurrogateKey(headers) ?? entry.tags;
+											const freshTags = tagsFromSurrogateKey(headers, resolvedCdnPurge?.tagHeader) ?? entry.tags;
 
 											const etag = await computeEtag(storedHtml);
 											await isrStore.set(storeKey, {
@@ -1785,7 +1783,7 @@ export function createServerHandler<
 										await resolvedStore.set(isrStoreKey, {
 											data: { etag, headers: resHeaders, html: storedHtml, ndjson: ndjsonBody },
 											storedAt: Date.now(),
-											tags: tagsFromSurrogateKey(resHeaders),
+											tags: tagsFromSurrogateKey(resHeaders, resolvedCdnPurge?.tagHeader),
 										});
 									} catch (e) {
 										logError("isr", `background ISR population failed for ${isrStoreKey}`, e);
@@ -1867,7 +1865,8 @@ export function createServerHandler<
 				}
 			}
 
-			return response;
+			/* Cache tags in the header this CDN reads (covers all response paths) */
+			return applyTagHeader(response, resolvedCdnPurge?.tagHeader);
 		},
 	};
 

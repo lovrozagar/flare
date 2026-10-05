@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { weakMatch } from "../server-handler/etag.ts";
 import { createFileSystemStore } from "../store/filesystem.ts";
+import { parseTags } from "../revalidation/tag-header.ts";
 import type { FlareStore, FlareStoreEntry } from "../store/index.ts";
 import type { VitePlugin } from "./index.ts";
 
@@ -440,7 +441,9 @@ function interceptResponse(
 		   final body. An empty capture is a miss, not a cacheable document. */
 		if (isCacheable(capturedStatus, cc) && capturedBody.length > 0 && !capturedBody.includes("html-proxy")) {
 			const varyHeaders = parseVaryHeader(capturedHeaders.vary);
-			const surrogateKeys = parseSurrogateKey(capturedHeaders["surrogate-key"]);
+			const surrogateKeys = capturedHeaders["cache-tag"]
+				? parseTags(String(capturedHeaders["cache-tag"]), "Cache-Tag")
+				: parseSurrogateKey(capturedHeaders["surrogate-key"]);
 			const reqHeaders = extractRequestHeaders(req, varyHeaders);
 			const cacheKey = buildCdnCacheKey(method, cacheUrl, varyHeaders, reqHeaders);
 

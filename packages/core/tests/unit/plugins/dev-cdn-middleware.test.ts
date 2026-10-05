@@ -968,3 +968,26 @@ describe("dev CDN keys by full URL", () => {
 		expect(second.body).toBe("<html>shared</html>");
 	});
 });
+
+describe("dev CDN reads Cloudflare Cache-Tag too", () => {
+	it("stores comma-separated Cache-Tag tags on the entry", async () => {
+		const res = makeRes();
+		await handleCdnRequest(
+			makeReq({ url: "/tagged" }),
+			res,
+			() => {
+				res.writeHead(200, {
+					"cache-control": "public, max-age=0, s-maxage=60",
+					"cache-tag": "posts,feed",
+					"content-type": "text/html",
+				});
+				res.end("<html>tagged</html>");
+			},
+			store,
+			new Set(),
+		);
+
+		const entry = await store.get(buildCdnCacheKey("GET", "/tagged", [], {}));
+		expect(entry?.tags).toEqual(["posts", "feed"]);
+	});
+});
