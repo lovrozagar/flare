@@ -7,6 +7,7 @@
  * authorization, error handling, middleware interaction, and security headers.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import TEST_BUILD_ID from "virtual:flare-build";
 import type { ServerFnHandlerRegistration, ServerFnRegistration } from "../../src/server-fn/index.ts";
 
 const fnRef = vi.hoisted(() => ({
@@ -693,5 +694,58 @@ describe("server fn — no console errors", () => {
 
 		expect(errorSpy).not.toHaveBeenCalled();
 		errorSpy.mockRestore();
+	});
+});
+
+/* ── Build skew ──────────────────────────────────────────────────────── */
+
+function withBuild(request: Request, build: string): Request {
+	const headers = new Headers(request.headers);
+	headers.set("flare-build", build);
+	return new Request(request, { headers });
+}
+
+describe("server fn — build skew", () => {
+	function spyFn() {
+		const calls = { count: 0 };
+		makeFnMap([
+			"skew1",
+			{
+				authenticate: false,
+				fn: () => {
+					calls.count++;
+					return { saved: true };
+				},
+				method: "post",
+				name: "save",
+			},
+		]);
+		return calls;
+	}
+
+	it("a call from another build is not executed and signals a reload", async () => {
+		const calls = spyFn();
+		const response = await buildHandler().fetch(withBuild(postFn("skew1", "save", {}), "old-build"), {});
+
+		expect(response.status).toBe(409);
+		expect(response.headers.get("flare-build")).toBe(TEST_BUILD_ID);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expect(calls.count).toBe(0);
+	});
+
+	it("a call from the same build executes", async () => {
+		const calls = spyFn();
+		const response = await buildHandler().fetch(withBuild(postFn("skew1", "save", {}), TEST_BUILD_ID), {});
+
+		expect(response.status).toBe(200);
+		expect(calls.count).toBe(1);
+	});
+
+	it("a call without a build header (no-JS form post, old client) executes", async () => {
+		const calls = spyFn();
+		const response = await buildHandler().fetch(postFn("skew1", "save", {}), {});
+
+		expect(response.status).toBe(200);
+		expect(calls.count).toBe(1);
 	});
 });

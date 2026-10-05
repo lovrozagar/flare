@@ -23,6 +23,7 @@ import {
 } from "@lovrozagar/flare/server-context";
 
 import type { Validator } from "../validation/index.ts";
+import { fetchServerFn } from "./transport.ts";
 import { runValidator } from "../validation/index.ts";
 
 export type { Validator } from "../validation/index.ts";
@@ -640,8 +641,8 @@ export function serverFnQueryOptions<TInput, TOutput>(
 
 			const res =
 				method === "get"
-					? await fetch(serverFnGetUrl(url, config?.input))
-					: await fetch(url, {
+					? await fetchServerFn(serverFnGetUrl(url, config?.input))
+					: await fetchServerFn(url, {
 							body: config?.input !== undefined ? JSON.stringify(config.input) : undefined,
 							headers: { "content-type": "application/json" },
 							method: "POST",
@@ -706,7 +707,7 @@ export function serverFnMutationOptions<TInput, TOutput>(
 
 			/* client: HTTP fetch — mutations always POST */
 			const url = serverFnPath(id, name);
-			const res = await fetch(url, {
+			const res = await fetchServerFn(url, {
 				body: input !== undefined ? JSON.stringify(input) : undefined,
 				headers: { "content-type": "application/json" },
 				method: "POST",

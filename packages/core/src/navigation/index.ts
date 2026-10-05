@@ -5,7 +5,13 @@ import { applyMatchCacheTags } from "../hydration/index.ts";
 import type { DirectionConfig } from "../direction.ts";
 import { getDirFromLocale } from "../direction.ts";
 import { parseMilliseconds } from "../duration/index.ts";
-import { NotFoundError, RedirectResponse, UnauthenticatedError, UnauthorizedError } from "../errors/index.ts";
+import {
+	BuildMismatchError,
+	NotFoundError,
+	RedirectResponse,
+	UnauthenticatedError,
+	UnauthorizedError,
+} from "../errors/index.ts";
 import type { PerRouteHead } from "../head-client/index.ts";
 import { applyPerRouteHeads } from "../head-client/index.ts";
 import {
@@ -24,7 +30,9 @@ import {
 	setHistoryIndex,
 } from "../history/index.ts";
 import { isChunkLoadError, isRenderFn } from "../internal.ts";
-import { KEEPALIVE_PATH, STORAGE_CHUNK_RELOAD } from "../protocol.ts";
+import { KEEPALIVE_PATH } from "../protocol.ts";
+import { navigateDocument } from "./document.ts";
+import { recoverWithDocumentLoad } from "./recover.ts";
 import type { LocaleConfig } from "../locale.ts";
 import { formatLocaleCookie } from "../locale/cookie.ts";
 import { verbose, warn } from "../logger.ts";
@@ -1690,19 +1698,21 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		if (error instanceof DOMException && error.name === "AbortError") {
 			return;
 		}
+		/* Another deploy is live: this client's code cannot render the server's data. Load the
+		   target as a document so code and data come from the same build. Different targets are
+		   plain navigations, so the guard only stops the same URL repeating. */
+		if (error instanceof BuildMismatchError && typeof window !== "undefined") {
+			stopNavigation();
+			if (recoverWithDocumentLoad(url.href, true)) return;
+			throw error;
+		}
+		/* A chunk from this build is gone (deploy without retained assets): same recovery.
+		   Without a durable guard a failing chunk would loop, so private mode surfaces it. */
 		if (isChunkLoadError(error) && typeof window !== "undefined") {
-			try {
-				const key = STORAGE_CHUNK_RELOAD;
-				const last = Number(sessionStorage.getItem(key) || 0);
-				if (Date.now() - last > 10_000) {
-					sessionStorage.setItem(key, String(Date.now()));
-					window.location.reload();
-					return;
-				}
-			} catch {
-				/* No durable guard — a reload would loop in private mode. */
+			if (recoverWithDocumentLoad(url.href, false)) {
+				stopNavigation();
+				return;
 			}
-			/* Already reloaded recently — don't loop, let the error propagate */
 		}
 		if (paintedShell && ctx && paintedModules && paintedSearch && paintedParams) {
 			const err = error instanceof Error ? error : new Error(String(error));
@@ -1834,7 +1844,7 @@ export async function prefetch(options: {
 
 /* Extracted for testability — jsdom can't spy on window.location.href assignment */
 export function hardNavigate(href: string): void {
-	if (typeof window !== "undefined") window.location.href = href;
+	navigateDocument(href);
 }
 
 export function resetNavigationState(): void {

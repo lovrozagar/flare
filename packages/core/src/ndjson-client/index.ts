@@ -1,7 +1,13 @@
 import { getBuildId } from "../build-id.ts";
-import { NotFoundError, RedirectResponse, UnauthenticatedError, UnauthorizedError } from "../errors/index.ts";
+import {
+	BuildMismatchError,
+	NotFoundError,
+	RedirectResponse,
+	UnauthenticatedError,
+	UnauthorizedError,
+} from "../errors/index.ts";
 import { warn } from "../logger.ts";
-import { HEADER_DATA, HEADER_FLAG, HEADER_PREFETCH, HEADER_STALE, PARAM_DATA } from "../protocol.ts";
+import { HEADER_BUILD, HEADER_DATA, HEADER_FLAG, HEADER_PREFETCH, HEADER_STALE, PARAM_DATA } from "../protocol.ts";
 import type { HeadConfig } from "../route-builder/types.ts";
 import type { DeferredResolver } from "../state-parser/index.ts";
 import { hydrateLoaderData } from "../state-parser/index.ts";
@@ -45,6 +51,8 @@ export interface PerRouteHead {
 
 interface NDJSONMessage {
 	a?: unknown[];
+	/* Build mismatch (t:"b"): the server's build id */
+	b?: string;
 	d?: unknown;
 	e?: { message: string; name?: string };
 	k?: string;
@@ -145,6 +153,14 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 		headers,
 		signal: options.signal,
 	});
+
+	/* Backstop for servers or caches that answer without the t:"b" frame. */
+	const clientBuild = getBuildId();
+	const serverBuild = response.headers?.get(HEADER_BUILD);
+	if (clientBuild && serverBuild && serverBuild !== clientBuild) {
+		void response.body?.cancel().catch(() => {});
+		throw new BuildMismatchError(serverBuild);
+	}
 
 	const contentType = response.headers?.get("content-type") ?? "";
 	const isNdjson = contentType.includes("ndjson");
@@ -290,6 +306,12 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 				});
 			}
 
+			case "b": {
+				reader.cancel();
+				rejectPendingResolvers();
+				throw new BuildMismatchError(typeof msg.b === "string" ? msg.b : "");
+			}
+
 			case "q": {
 				if (options.queryClient && Array.isArray(msg.d)) {
 					applyQueryCacheHydration(options.queryClient, msg.d, options.signal);
@@ -366,8 +388,8 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 			}
 		} catch (e) {
 			rejectPendingResolvers();
-			/* Redirects always propagate — caller must handle redirect even mid-stream */
-			if (e instanceof RedirectResponse) {
+			/* Redirects and build mismatches always propagate — caller must act even mid-stream */
+			if (e instanceof RedirectResponse || e instanceof BuildMismatchError) {
 				throw e;
 			}
 			if (loadersReadyResolved) {
