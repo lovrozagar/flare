@@ -274,6 +274,27 @@ interface PreviewServer {
 	};
 }
 
+/* Everything a client build emits under assetsBase: chunks, styles, images, fonts. */
+const ASSET_CONTENT_TYPES: Record<string, string> = {
+	avif: "image/avif",
+	css: "text/css",
+	gif: "image/gif",
+	ico: "image/x-icon",
+	jpeg: "image/jpeg",
+	jpg: "image/jpeg",
+	js: "application/javascript",
+	json: "application/json",
+	map: "application/json",
+	mjs: "application/javascript",
+	png: "image/png",
+	svg: "image/svg+xml",
+	ttf: "font/ttf",
+	wasm: "application/wasm",
+	webp: "image/webp",
+	woff: "font/woff",
+	woff2: "font/woff2",
+};
+
 export function createPreviewServerPlugin(assetsBase: string = "/assets"): VitePlugin {
 	return {
 		configurePreviewServer(server: unknown) {
@@ -315,15 +336,9 @@ export function createPreviewServerPlugin(assetsBase: string = "/assets"): ViteP
 					try {
 						const content = readFileSync(filePath);
 						const ext = filePath.split(".").pop() ?? "";
-						const mimeTypes: Record<string, string> = {
-							css: "text/css",
-							js: "application/javascript",
-							json: "application/json",
-							svg: "image/svg+xml",
-						};
 						res.writeHead(200, {
 							"cache-control": "public, max-age=31536000, immutable",
-							"content-type": mimeTypes[ext] ?? "application/octet-stream",
+							"content-type": ASSET_CONTENT_TYPES[ext] ?? "application/octet-stream",
 						});
 						res.end(content);
 						return;
