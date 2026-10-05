@@ -4,6 +4,7 @@ import type { RedirectResponse } from "../errors/index.ts";
 import type { PipelineMatch } from "../loader-pipeline/index.ts";
 import type { HeadConfig } from "../route-builder/types.ts";
 import type { ServerLogEntry } from "@lovrozagar/flare/server-context";
+import { HEADER_BUILD } from "../protocol.ts";
 
 export interface NDJSONResponseConfig {
 	abortController?: AbortController;
@@ -330,4 +331,15 @@ export function createRedirectNDJSONResponse(redirect: RedirectResponse): Respon
 		body += `${l}\n`;
 	}
 	return new Response(body, { headers: NDJSON_HEADERS, status: 200 });
+}
+
+/**
+ * The client was built by a different deploy (`?_flare=<id>` ≠ server build). Its code cannot
+ * render this server's data, so no loaders run: the client does a full document load instead.
+ */
+export function createBuildMismatchNDJSONResponse(serverBuildId: string): Response {
+	return new Response(`${JSON.stringify({ b: serverBuildId, t: "b" })}\n`, {
+		headers: { ...NDJSON_HEADERS, [HEADER_BUILD]: serverBuildId },
+		status: 200,
+	});
 }
