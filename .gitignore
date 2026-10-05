@@ -7,6 +7,7 @@ node_modules
 **/*.tsbuildinfo
 **/.wrangler/
 **/.flare
+e2e/apps/.deploy-*/
 **/.output
 **/.nitro
 **/.vinxi

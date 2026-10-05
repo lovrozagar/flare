@@ -13,6 +13,10 @@ export type PrefetchStrategy = PrefetchTrigger;
 export type ExtractedStaticDeferMode = "resolve" | "stream";
 
 export interface ExtractedCacheConfig {
+	/** Longest time the route's HTML may sit in a cache: `cdn.maxAge + cdn.swr`, seconds. */
+	cdnLifetime?: number;
+	/** The route sets its cache lifetime in a way codegen cannot read (expression, `.headers()`). */
+	cdnLifetimeUnknown?: true;
 	cdnTags?: string[];
 	client?: {
 		cacheDeferred?: boolean;
@@ -278,6 +282,10 @@ function extractNumeric(text: string, key: string, unit?: "ms" | "s"): number | 
 export function extractCacheFromChain(chainText: string): ExtractedCacheConfig {
 	const config: ExtractedCacheConfig = {};
 
+	/* A Cache-Control set through .headers() is only known at render time. */
+	const headersArg = /\.headers\s*\(/.test(chainText) && /cache-control/i.test(chainText);
+	if (headersArg) config.cdnLifetimeUnknown = true;
+
 	const body = extractCacheArg(chainText);
 	if (!body) return config;
 
@@ -369,6 +377,14 @@ export function extractCacheFromChain(chainText: string): ExtractedCacheConfig {
 	if (cdnBlock) {
 		const tags = extractStringArray(cdnBlock, "tags");
 		if (tags && tags.length > 0) config.cdnTags = tags;
+
+		if (/maxAge\s*:/.test(cdnBlock)) {
+			const maxAge = extractNumeric(cdnBlock, "maxAge", "s");
+			const hasSwr = /swr\s*:/.test(cdnBlock);
+			const swr = hasSwr ? extractNumeric(cdnBlock, "swr", "s") : 0;
+			if (maxAge === undefined || swr === undefined) config.cdnLifetimeUnknown = true;
+			else config.cdnLifetime = maxAge + swr;
+		}
 	}
 
 	return config;
