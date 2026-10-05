@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.20
+
+- Geist and Geist Mono are in the font registry (`@lovrozagar/flare/fonts/geist`, `@lovrozagar/flare/fonts/geist-mono`; `flare font add --name Geist`).
+
 ## 0.9.19
 
 - `sx` treats only `:root` / `:host` declarations as theme vars. A custom property a utility sets on an element (`[--panel-width:75%]`) was recorded as one: `themeVars: "reference"` hoisted it into `:root`, so a variant's value reached every element, and inline mode baked the first value it saw into `var()` reads without a fallback.
