@@ -67,7 +67,7 @@ describe("virtual:flare-build", () => {
 			{ environment: { config: { mode: "production", root } } },
 			"\0virtual:flare-build",
 		);
-		expect(result?.code).toBe(`export default ${JSON.stringify(buildIdFromManifest(MANIFEST))}`);
+		expect(result?.code).toContain(`export default ${JSON.stringify(buildIdFromManifest(MANIFEST))}`);
 	});
 
 	it('exports "dev" in development', () => {
@@ -75,8 +75,17 @@ describe("virtual:flare-build", () => {
 			{ environment: { config: { mode: "development", root: "/nowhere" } } },
 			"\0virtual:flare-build",
 		);
-		expect(result?.code).toBe(`export default ${JSON.stringify(DEV_BUILD_ID)}`);
+		expect(result?.code).toContain(`export default ${JSON.stringify(DEV_BUILD_ID)}`);
 		expect(DEV_BUILD_ID).toBe("dev");
+	});
+
+	it("exports where prerendered pages live in the client output", () => {
+		const plugin = createVirtualPlugin({}, ENTRIES, undefined, "/assets/landing");
+		const result = (plugin.load as Load).call(
+			{ environment: { config: { mode: "production", root: "/nowhere" } } },
+			"\0virtual:flare-build",
+		);
+		expect(result?.code).toContain('export const staticAssetsBase = "/assets/landing/_flare-static"');
 	});
 
 	it('falls back to "dev" when no client manifest exists', () => {
@@ -86,6 +95,6 @@ describe("virtual:flare-build", () => {
 			{ environment: { config: { mode: "production", root } } },
 			"\0virtual:flare-build",
 		);
-		expect(result?.code).toBe(`export default ${JSON.stringify(DEV_BUILD_ID)}`);
+		expect(result?.code).toContain(`export default ${JSON.stringify(DEV_BUILD_ID)}`);
 	});
 });

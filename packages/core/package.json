@@ -82,6 +82,7 @@
 		"./server-only": "./src/create-server-only-fn.ts",
 		"./sitemap": "./src/sitemap/index.ts",
 		"./store": "./src/store/index.ts",
+		"./store-assets": "./src/store/assets.ts",
 		"./store-filesystem": "./src/store/filesystem.ts",
 		"./styles": "./src/styles/index.ts",
 		"./suspense-query": "./src/use-suspense-query.ts",

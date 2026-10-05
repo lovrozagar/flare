@@ -32,20 +32,33 @@ export function buildIdFromManifest(manifest: ViteManifest): string {
  * buildApp() builds client before SSR, so manifest.json exists
  * when the SSR build loads this virtual module.
  */
-export function readClientManifest(root: string): ViteManifest | undefined {
-	const candidates = [
-		join(root, "dist/client/.vite/manifest.json"),
-		/* Nitro writes the client build under `.output/public`. */
-		join(root, ".output/public/.vite/manifest.json"),
-	];
-	for (const manifestPath of candidates) {
+const CLIENT_DIRS = [
+	"dist/client",
+	/* Nitro writes the client build under `.output/public`. */
+	".output/public",
+];
+
+/** Client build output directory under `root` (the one holding `.vite/manifest.json`). */
+export function findClientDir(root: string): string | undefined {
+	for (const dir of CLIENT_DIRS) {
 		try {
-			return JSON.parse(readFileSync(manifestPath, "utf-8")) as ViteManifest;
+			readFileSync(join(root, dir, ".vite/manifest.json"));
+			return join(root, dir);
 		} catch {
 			/* try next location */
 		}
 	}
 	return undefined;
+}
+
+export function readClientManifest(root: string): ViteManifest | undefined {
+	const dir = findClientDir(root);
+	if (!dir) return undefined;
+	try {
+		return JSON.parse(readFileSync(join(dir, ".vite/manifest.json"), "utf-8")) as ViteManifest;
+	} catch {
+		return undefined;
+	}
 }
 
 /** Build id of the client build under `root`, or `DEV_BUILD_ID` when there is none. */

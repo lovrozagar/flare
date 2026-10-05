@@ -413,7 +413,7 @@ export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
 		createSsrBuildPlugin(entries, config, resolvedOptions.assetsDir),
 		createDevServerPlugin(entries, resolvedOptions.assetsBase),
 		createPreviewServerPlugin(resolvedOptions.assetsBase),
-		createVirtualPlugin(config, entries, resolvedCodegen),
+		createVirtualPlugin(config, entries, resolvedCodegen, resolvedOptions.assetsBase),
 		createServerFnPlugin(config),
 		createCssTransformPlugin(),
 		(resolvedSw
@@ -430,7 +430,7 @@ export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
 	}
 
 	if (config.prerender) {
-		plugins.push(createPrerenderPlugin(config));
+		plugins.push(createPrerenderPlugin(config, resolvedOptions.assetsBase));
 	}
 
 	/* Dev-only plugins */

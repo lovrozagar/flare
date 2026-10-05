@@ -11,14 +11,15 @@
  *   6. Generate manifest entry
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import type { ExtractedStaticDeferMode, RouteDefinition } from "../generators/index.ts";
 import type { StaticDeferMode } from "../route-builder/types.ts";
 import { HEADER_DATA, HEADER_FLAG, HEADER_PRERENDER } from "../protocol.ts";
 import type { ServerHandler } from "../server-handler/index.ts";
 import { warn } from "../logger.ts";
-import { type FlareStore, type FlareStoreEntry, staticStoreKey } from "../store/index.ts";
+import { artifactBase } from "./artifact-path.ts";
+import { type FlareStore, type FlareStoreEntry, type StaticEntryData, staticStoreKey } from "../store/index.ts";
 import { resolvePathParams } from "../url/index.ts";
 
 export const NONCE_PLACEHOLDER = "__FLARE_NONCE__";
@@ -435,6 +436,73 @@ export interface PrerenderManifestFile {
 	routes: PrerenderManifestRecord[];
 }
 
+/* Prerendered files are served as static assets, so they must never carry credentials. */
+const PRIVATE_HEADERS = new Set([
+	"authorization",
+	"cookie",
+	"proxy-authenticate",
+	"proxy-authorization",
+	"set-cookie",
+	"set-cookie2",
+	"www-authenticate",
+]);
+
+function publicHeaders(headers: Record<string, string>): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const [k, v] of Object.entries(headers)) {
+		if (!PRIVATE_HEADERS.has(k.toLowerCase())) out[k] = v;
+	}
+	return out;
+}
+
+/** Directory of one build's prerendered pages inside the client output. */
+export function prerenderArtifactsDir(clientDir: string, assetsBase: string, buildId: string): string {
+	return join(clientDir, assetsBase, "_flare-static", buildId);
+}
+
+/**
+ * Write prerendered pages into the client output (`<assetsBase>/_flare-static/<buildId>/`),
+ * so they deploy together with the assets they reference. Returns the directory.
+ */
+export function writePrerenderArtifacts(options: {
+	assetsBase: string;
+	buildId: string;
+	clientDir: string;
+	entries: PrerenderManifestEntry[];
+}): string {
+	const dir = prerenderArtifactsDir(options.clientDir, options.assetsBase, options.buildId);
+	for (const entry of options.entries) {
+		/* One JSON file per page: a single read serves it, and no static host rewrites it the way
+		   some rewrite `*.html` requests. */
+		const page: StaticEntryData = { headers: publicHeaders(entry.headers), html: entry.html, ndjson: entry.ndjson };
+		const filePath = join(dir, `${artifactBase(entry.pathname)}.json`);
+		mkdirSync(dirname(filePath), { recursive: true });
+		writeFileSync(filePath, JSON.stringify(page), "utf-8");
+	}
+	const manifest: PrerenderManifestFile = {
+		buildId: options.buildId,
+		routes: writePrerenderOutput(options.entries).manifest,
+	};
+	mkdirSync(dir, { recursive: true });
+	writeFileSync(join(dir, "manifest.json"), JSON.stringify(manifest, null, 2), "utf-8");
+	return dir;
+}
+
+/** `<base>.json` (current) or the legacy `.html` + `.ndjson` + `.headers.json` trio. */
+function readArtifactPage(dir: string, base: string): StaticEntryData | undefined {
+	const jsonPath = join(dir, `${base}.json`);
+	if (existsSync(jsonPath)) return JSON.parse(readFileSync(jsonPath, "utf-8")) as StaticEntryData;
+	const htmlPath = join(dir, `${base}.html`);
+	if (!existsSync(htmlPath)) return undefined;
+	const ndjsonPath = join(dir, `${base}.ndjson`);
+	const headersPath = join(dir, `${base}.headers.json`);
+	return {
+		headers: existsSync(headersPath) ? (JSON.parse(readFileSync(headersPath, "utf-8")) as Record<string, string>) : {},
+		html: readFileSync(htmlPath, "utf-8"),
+		ndjson: existsSync(ndjsonPath) ? readFileSync(ndjsonPath, "utf-8") : "",
+	};
+}
+
 /**
  * Load build-time prerender artifacts from disk into a store.
  * Reads manifest.json + .html/.ndjson/.headers.json files from `staticDir`.
@@ -459,17 +527,10 @@ export async function loadPrerenderArtifacts(staticDir: string, store: FlareStor
 	const writes: Promise<void>[] = [];
 
 	for (const record of records) {
-		const base = record.pathname === "/" ? "/index" : record.pathname;
-		const htmlPath = join(staticDir, `${base}.html`);
-		if (!existsSync(htmlPath)) continue;
-
-		const html = readFileSync(htmlPath, "utf-8");
-		const ndjsonPath = join(staticDir, `${base}.ndjson`);
-		const ndjson = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, "utf-8") : "";
-		const headersPath = join(staticDir, `${base}.headers.json`);
-		const headers: Record<string, string> = existsSync(headersPath)
-			? JSON.parse(readFileSync(headersPath, "utf-8"))
-			: {};
+		const base = artifactBase(record.pathname);
+		const page = readArtifactPage(staticDir, base);
+		if (!page) continue;
+		const { headers, html, ndjson } = page;
 
 		const tags = record.tags ?? tagsFromSurrogateKey(headers);
 		const entry: FlareStoreEntry = {
@@ -483,3 +544,5 @@ export async function loadPrerenderArtifacts(staticDir: string, store: FlareStor
 
 	await Promise.all(writes);
 }
+
+export { artifactBase } from "./artifact-path.ts";

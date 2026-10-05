@@ -1,14 +1,9 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { scanSourceFiles } from "../generators/index.ts";
-import {
-	buildPrerenderRoutes,
-	type PrerenderManifestFile,
-	prerender,
-	writePrerenderOutput,
-} from "../prerender/index.ts";
+import { buildPrerenderRoutes, prerender, writePrerenderArtifacts } from "../prerender/index.ts";
 import { buildSitemapFromDefs, type ChangeFreq, generateRobotsTxt, type SitemapEntry } from "../sitemap/index.ts";
-import { readClientBuildId } from "./build-id.ts";
+import { findClientDir, readClientBuildId } from "./build-id.ts";
 import { importFileFresh } from "./native-import.ts";
 import type { VitePlugin } from "./types.ts";
 
@@ -39,10 +34,13 @@ export interface PrerenderPluginConfig {
 	sitemap?: SitemapPluginConfig;
 }
 
-export function createPrerenderPlugin(config: {
-	ignorePrefix?: string;
-	prerender?: PrerenderPluginConfig | boolean;
-}): VitePlugin {
+export function createPrerenderPlugin(
+	config: {
+		ignorePrefix?: string;
+		prerender?: PrerenderPluginConfig | boolean;
+	},
+	assetsBase = "/assets",
+): VitePlugin {
 	const prerenderConfig = typeof config.prerender === "object" ? config.prerender : ({} as PrerenderPluginConfig);
 
 	return {
@@ -129,23 +127,17 @@ export function createPrerenderPlugin(config: {
 
 			if (result.entries.length === 0) return;
 
-			/* 7. Generate output files + manifest */
-			const output = writePrerenderOutput(result.entries);
+			/* 7. Ship the pages inside the client output, keyed to this build, so they deploy
+			   with the hashed assets they reference. */
+			const clientDir = findClientDir(root) ?? join(root, "dist/client");
+			const dir = writePrerenderArtifacts({
+				assetsBase,
+				buildId: readClientBuildId(root),
+				clientDir,
+				entries: result.entries,
+			});
 
-			/* 8. Write to dist/static/ */
-			mkdirSync(staticDir, { recursive: true });
-
-			for (const file of output.files) {
-				const filePath = join(staticDir, file.path);
-				mkdirSync(dirname(filePath), { recursive: true });
-				writeFileSync(filePath, file.content, "utf-8");
-			}
-
-			/* 9. Write manifest — the build id keys these artifacts to the assets they reference */
-			const manifestFile: PrerenderManifestFile = { buildId: readClientBuildId(root), routes: output.manifest };
-			writeFileSync(join(staticDir, "manifest.json"), JSON.stringify(manifestFile, null, 2), "utf-8");
-
-			process.stderr.write(`[flare:prerender] Pre-rendered ${result.entries.length} route(s)\n`);
+			process.stderr.write(`[flare:prerender] Pre-rendered ${result.entries.length} route(s) → ${dir}\n`);
 		},
 		name: "flare:prerender",
 	};
