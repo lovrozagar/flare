@@ -105,10 +105,15 @@ function safeAssetPath(path: string, assetsBase: string): boolean {
 	return !decoded.split("/").includes("..");
 }
 
-async function fetchHistory(site: string, assetsBase: string, now: number): Promise<AssetHistory | "missing"> {
+async function fetchHistory(
+	site: string,
+	assetsBase: string,
+	now: number,
+	timeoutMs: number,
+): Promise<AssetHistory | "missing"> {
 	/* Unique query + no-store: a CDN in front of the site must not answer with an old list. */
 	const url = new URL(`${assetsBase}/${ASSET_HISTORY_FILE}?t=${now}`, site);
-	const res = await fetch(url, { cache: "no-store" });
+	const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
 	if (res.status === 404) return "missing";
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	const history = (await res.json()) as AssetHistory;
@@ -116,14 +121,19 @@ async function fetchHistory(site: string, assetsBase: string, now: number): Prom
 	return history;
 }
 
+/* A site that accepts connections but never answers must not hang the build. */
+const FETCH_TIMEOUT_MS = 30_000;
+
 export async function retainPreviousAssets(options: {
 	assetsBase: string;
+	fetchTimeoutMs?: number;
 	now?: number;
 	root: string;
 	site: string;
 	windowMs: number;
 }): Promise<{ bytes: number; failed: number; retained: number }> {
 	const now = options.now ?? Date.now();
+	const timeoutMs = options.fetchTimeoutMs ?? FETCH_TIMEOUT_MS;
 	const manifest = readClientManifest(options.root);
 	const clientDir = findClientDir(options.root);
 	if (!manifest || !clientDir) return { bytes: 0, failed: 0, retained: 0 };
@@ -132,7 +142,7 @@ export async function retainPreviousAssets(options: {
 
 	let history: AssetHistory | undefined;
 	try {
-		const fetched = await fetchHistory(options.site, options.assetsBase, now);
+		const fetched = await fetchHistory(options.site, options.assetsBase, now, timeoutMs);
 		if (fetched === "missing")
 			console.log(`[flare:retain] no previous asset history at ${options.site}, starting fresh`);
 		else history = fetched;
@@ -156,7 +166,7 @@ export async function retainPreviousAssets(options: {
 			const target = resolve(root, `.${path}`);
 			if (!target.startsWith(root + sep)) return;
 			try {
-				const res = await fetch(new URL(path, options.site));
+				const res = await fetch(new URL(path, options.site), { signal: AbortSignal.timeout(timeoutMs) });
 				if (!res.ok) throw new Error(`HTTP ${res.status}`);
 				const body = new Uint8Array(await res.arrayBuffer());
 				mkdirSync(dirname(target), { recursive: true });
