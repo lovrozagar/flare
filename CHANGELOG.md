@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.15
+
+- `<ViewTransitionBoundary>` (`@lovrozagar/flare/view-transition-boundary`) scopes a navigation's view transition to the element around the swapped route content. Content outside it (sidebar, header, tabs) keeps hover, clicks and CSS transitions; a document transition froze the whole page and dropped `:hover` for its duration. The innermost boundary around the swapped content wins; no boundary, no element-scoped transitions (Firefox, WebKit), an intercept or not-found change, or `scope: "document"` uses the document. `viewTransitions`, `Link viewTransition` and `navigate({ viewTransition })` accept `scope: "auto" | "document"` or a function of the location change. See the README for selector and `position: fixed` caveats.
+- A navigation starts at most one view transition, around the first route swap. On the instant-shell path (hover prefetch, revisit) the cached page was committed before the transition started, so it animated nothing while freezing the page, and a second transition wrapped the data update.
+- A transition still running is skipped before the next navigation starts one.
+- The log level comes from a define instead of `virtual:flare-log-level`, so `@lovrozagar/flare/styles` (`cn`) loads outside Flare's Vite plugin, for example in a component library's unit tests. Without the define the logger warns.
+
 ## 0.9.14
 
 - `Form`'s `onError` is typed as the action's `(error: Error) => void`. The form element's own `onError` (an ErrorEvent handler) stayed in its props, and the intersection accepted no function, so a typed `onError` didn't compile.
