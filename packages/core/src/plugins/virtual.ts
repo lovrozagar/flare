@@ -80,6 +80,7 @@ export function createVirtualPlugin(
 			return {
 				define: {
 					__FLARE_IS_DEV__: JSON.stringify(isDevMode),
+					__FLARE_LOG_LEVEL__: JSON.stringify(config.logLevel ?? (isDevMode ? "warn" : "error")),
 				},
 			};
 		},
@@ -129,11 +130,6 @@ export function createVirtualPlugin(
 				const dev = isDevMode || this.environment?.config?.mode === "development";
 				return { code: `export default ${dev}`, moduleType: "js" };
 			}
-			if (id === "\0virtual:flare-log-level") {
-				const dev = isDevMode || this.environment?.config?.mode === "development";
-				const level = config.logLevel ?? (dev ? "warn" : "error");
-				return { code: `export default "${level}"`, moduleType: "js" };
-			}
 			if (id === "\0virtual:flare-module-preloads") {
 				const mode = this.environment?.config?.mode ?? "production";
 				if (mode === "development") {
@@ -180,7 +176,6 @@ export function createVirtualPlugin(
 			if (id === "virtual:flare-client-entry") return "\0virtual:flare-client-entry";
 			if (id === "virtual:flare-generated") return "\0virtual:flare-generated";
 			if (id === "virtual:flare-is-dev") return "\0virtual:flare-is-dev";
-			if (id === "virtual:flare-log-level") return "\0virtual:flare-log-level";
 			if (id === "virtual:flare-module-preloads") return "\0virtual:flare-module-preloads";
 			if (id === "virtual:flare-sx-manifest") return "\0virtual:flare-sx-manifest";
 			return null;

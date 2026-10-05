@@ -25,11 +25,6 @@ declare module "virtual:flare-is-dev" {
 	export default isDev;
 }
 
-declare module "virtual:flare-log-level" {
-	const level: "error" | "silent" | "verbose" | "warn";
-	export default level;
-}
-
 declare module "virtual:flare-config" {
 	const config: Record<string, unknown>;
 	export default config;

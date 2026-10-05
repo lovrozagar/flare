@@ -6,8 +6,8 @@ afterEach(() => {
 });
 
 /*
- * Logger level is now a build-time constant via virtual:flare-log-level.
- * In vitest (dev mode), the virtual module resolves to "warn".
+ * Logger level is a build-time define (__FLARE_LOG_LEVEL__) from Flare's plugin.
+ * Without it (as in these tests) the logger warns.
  * These tests verify the priority-based gating at that fixed level.
  */
 describe("logger", () => {
