@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.16
+
+- `sx.themeVars: "reference"` in dev defines the theme vars of every module, including those compiled after the server first rendered: the dev stylesheet baked the theme var map when it was first imported, so later routes' utilities referenced undefined vars (a transparent `bg-accent`, a square `rounded-control`). Client-loaded modules inject the definitions the page lacks.
+
 ## 0.9.15
 
 - `<ViewTransitionBoundary>` (`@lovrozagar/flare/view-transition-boundary`) scopes a navigation's view transition to the element around the swapped route content. Content outside it (sidebar, header, tabs) keeps hover, clicks and CSS transitions; a document transition froze the whole page and dropped `:hover` for its duration. The innermost boundary around the swapped content wins; no boundary, no element-scoped transitions (Firefox, WebKit), an intercept or not-found change, or `scope: "document"` uses the document. `viewTransitions`, `Link viewTransition` and `navigate({ viewTransition })` accept `scope: "auto" | "document"` or a function of the location change. See the README for selector and `position: fixed` caveats.
