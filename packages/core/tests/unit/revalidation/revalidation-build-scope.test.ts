@@ -38,7 +38,7 @@ describe("revalidation — build-scoped static keys", () => {
 	it("revalidate() in request scope uses the request's build", async () => {
 		const store = makeStore();
 		await runWithServerContext(
-			{ buildId: "b9", isDev: false, nonce: "n", store } as Parameters<typeof runWithServerContext>[0],
+			{ buildId: "b9", isDev: false, nonce: "n", request: new Request("http://localhost/"), store },
 			() => revalidate({ keys: ["static:/pricing"], tiers: ["ssr"] }),
 		);
 
