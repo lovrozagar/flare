@@ -10,6 +10,7 @@ export interface ServerLogEntry {
 }
 
 interface ServerContextValue {
+	buildId?: string;
 	cdnPurgeAdapter?: CdnPurgeAdapter;
 	isDev?: boolean;
 	nonce: string;
@@ -54,6 +55,8 @@ export function generateNonce(): string {
 }
 
 export interface RunWithServerContextOptions {
+	/** Build id of the running server; scopes `static:` store keys in revalidate(). */
+	buildId?: string;
 	cdnPurgeAdapter?: CdnPurgeAdapter;
 	isDev?: boolean;
 	nonce: string;
@@ -65,6 +68,7 @@ export interface RunWithServerContextOptions {
 
 export function runWithServerContext<T>(options: RunWithServerContextOptions, callback: () => T): T {
 	const value: ServerContextValue = {
+		buildId: options.buildId,
 		cdnPurgeAdapter: options.cdnPurgeAdapter,
 		isDev: options.isDev,
 		nonce: options.nonce,
@@ -110,12 +114,14 @@ export function getServerContext<T extends Record<string, unknown> = Record<stri
 }
 
 export function getRevalidationContext(): {
+	buildId?: string;
 	cdnPurgeAdapter?: CdnPurgeAdapter;
 	store?: FlareStore;
 } {
 	const ctx = getStorage().getStore();
 	if (!ctx) return {};
 	return {
+		buildId: ctx.buildId,
 		cdnPurgeAdapter: ctx.cdnPurgeAdapter,
 		store: ctx.store,
 	};

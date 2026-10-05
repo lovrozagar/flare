@@ -109,7 +109,7 @@ function req(url = "http://localhost/about", headers?: Record<string, string>): 
 describe("ISR serving — cache hit", () => {
 	it("serves HTML from static store for ISR route", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				html: "<html><body>ISR cached</body></html>",
 			}),
 		});
@@ -124,7 +124,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("serves NDJSON from static store for data request", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				ndjson: '{"t":"d","k":"_root_/about","d":{"title":"cached-data"}}\n',
 			}),
 		});
@@ -139,7 +139,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("replaces __FLARE_NONCE__ placeholder in HTML", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				html: '<html><script nonce="__FLARE_NONCE__">alert(1)</script></html>',
 			}),
 		});
@@ -155,7 +155,7 @@ describe("ISR serving — cache hit", () => {
 	it("If-None-Match does not 304 nonce-rewritten HTML", async () => {
 		const html = '<html><script nonce="__FLARE_NONCE__">x</script></html>';
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				etag: 'W/"abc"',
 				html,
 			}),
@@ -175,7 +175,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("replaces nonce placeholder in CSP header", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				headers: {
 					"content-security-policy": "script-src 'self' 'nonce-__FLARE_NONCE__'",
 					"content-type": "text/html; charset=utf-8",
@@ -194,7 +194,7 @@ describe("ISR serving — cache hit", () => {
 	it("serves HIT when stored content-length no longer matches nonce rewrite", async () => {
 		const html = '<html><script nonce="__FLARE_NONCE__">x</script></html>';
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				headers: {
 					connection: "keep-alive",
 					"content-length": "1",
@@ -218,7 +218,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("does not replay stored Set-Cookie on HIT", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				headers: {
 					"content-type": "text/html; charset=utf-8",
 					"set-cookie": "session=alice; Path=/; HttpOnly",
@@ -235,7 +235,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("does not serve static HIT when the route has authorize", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ html: "<html>cached-secret</html>" }),
+			"static:test-build:/about": makeStaticEntry({ html: "<html>cached-secret</html>" }),
 		});
 		const handler = makeHandler(
 			"/about",
@@ -251,7 +251,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("does not serve static HIT when the route requires authenticate", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ html: "<html>cached-secret</html>" }),
+			"static:test-build:/about": makeStaticEntry({ html: "<html>cached-secret</html>" }),
 		});
 		const handler = makeHandler(
 			"/about",
@@ -267,7 +267,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("does not serve static HIT when the route has optional authenticate", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ html: "<html>cached-other-user</html>" }),
+			"static:test-build:/about": makeStaticEntry({ html: "<html>cached-other-user</html>" }),
 		});
 		const handler = makeHandler(
 			"/about",
@@ -283,7 +283,7 @@ describe("ISR serving — cache hit", () => {
 
 	it("includes security headers on cached response", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry(),
+			"static:test-build:/about": makeStaticEntry(),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			store,
@@ -297,7 +297,7 @@ describe("ISR serving — cache hit", () => {
 describe("ISR serving — stale-while-revalidate", () => {
 	it("fresh entry → no background re-render", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const waitUntilSpy = vi.fn();
 		const handler = makeHandler(
@@ -315,7 +315,7 @@ describe("ISR serving — stale-while-revalidate", () => {
 	it("stale entry → serves cached + triggers background re-render", async () => {
 		const staleTime = Date.now() - 400_000;
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: staleTime }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: staleTime }),
 		});
 		const waitUntilSpy = vi.fn();
 		const handler = makeHandler(
@@ -358,7 +358,7 @@ describe("ISR serving — cache miss + dynamicParams modes", () => {
 
 	it("store HIT + flare-prerender → skips stale artifacts and SSRs", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				html: "<html>stale-prerender-artifact</html>",
 			}),
 		});
@@ -399,7 +399,7 @@ describe("ISR serving — cache miss + dynamicParams modes", () => {
 describe("ISR serving — truly static routes", () => {
 	it("truly static cache hit → serves from store", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				html: "<html>static forever</html>",
 			}),
 		});
@@ -412,7 +412,7 @@ describe("ISR serving — truly static routes", () => {
 
 	it("truly static → never triggers background re-render", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				storedAt: 0 /* ancient */,
 			}),
 		});
@@ -440,7 +440,7 @@ describe("ISR serving — truly static routes", () => {
 describe("ISR serving — bg re-render must bypass cache", () => {
 	it("flare-isr request bypasses static store, renders fresh SSR", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				html: "<html><body>STALE_CACHED_MARKER</body></html>",
 			}),
 		});
@@ -460,7 +460,7 @@ describe("ISR serving — bg re-render must bypass cache", () => {
 	it("stale bg re-render replaces nonce with placeholder before storing", async () => {
 		const staleTime = Date.now() - 400_000;
 		const store = makeStore({
-			"static:/stale-nonce-test": makeStaticEntry({ storedAt: staleTime }),
+			"static:test-build:/stale-nonce-test": makeStaticEntry({ storedAt: staleTime }),
 		});
 		const waitUntilSpy = vi.fn();
 		const handler = makeHandler(
@@ -492,7 +492,7 @@ describe("ISR serving — bg re-render must bypass cache", () => {
 
 	it("flare-isr data request bypasses static store NDJSON", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({
+			"static:test-build:/about": makeStaticEntry({
 				ndjson: '{"t":"l","m":"_root_/about","d":{"title":"STALE_NDJSON_MARKER"}}\n',
 			}),
 		});
@@ -523,7 +523,7 @@ describe("ISR serving — no static store configured", () => {
 describe("ISR serving — route without static meta", () => {
 	it("normal route with static store → ignores store, proceeds to SSR", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry(),
+			"static:test-build:/about": makeStaticEntry(),
 		});
 		const handler = makeHandler("/about", makeRouteData() /* no static meta */, { store });
 		const response = await handler.fetch(req(), {});
@@ -538,7 +538,7 @@ describe("ISR serving — route without static meta", () => {
 describe("flare-render and flare-cache headers", () => {
 	it("ISR fresh hit → flare-render: ISR, flare-cache: HIT", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			store,
@@ -551,7 +551,7 @@ describe("flare-render and flare-cache headers", () => {
 	it("ISR stale hit → flare-render: ISR, flare-cache: STALE", async () => {
 		const staleTime = Date.now() - 400_000;
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: staleTime }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: staleTime }),
 		});
 		const handler = makeHandler(
 			"/about",
@@ -566,7 +566,7 @@ describe("flare-render and flare-cache headers", () => {
 
 	it("ISR data request hit → flare-render: ISR, flare-cache: HIT", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			store,
@@ -578,7 +578,7 @@ describe("flare-render and flare-cache headers", () => {
 
 	it("SSG hit → flare-render: SSG, flare-cache: HIT", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "static" }), { store });
 		const response = await handler.fetch(req(), {});
@@ -616,7 +616,7 @@ describe("flare-render and flare-cache headers", () => {
 
 	it("ISR bg render → no Flare headers", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry(),
+			"static:test-build:/about": makeStaticEntry(),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			store,
@@ -628,7 +628,7 @@ describe("flare-render and flare-cache headers", () => {
 
 	it("global headers: false → no Flare headers on ISR hit", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			headers: false,
@@ -642,7 +642,7 @@ describe("flare-render and flare-cache headers", () => {
 
 	it("global headers: false → no Flare headers on ISR data request", async () => {
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: Date.now() }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: Date.now() }),
 		});
 		const handler = makeHandler("/about", makeISRRouteData({ mode: "isr", revalidate: 300 }), {
 			headers: false,

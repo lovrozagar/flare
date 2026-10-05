@@ -114,7 +114,7 @@ describe("ISR bg re-render tags", () => {
 		const staleTime = Date.now() - 400_000;
 		const oldTags = ["product:1", "category:shoes"];
 		const store = makeStore({
-			"static:/about": makeStaticEntry({ storedAt: staleTime, tags: oldTags }),
+			"static:test-build:/about": makeStaticEntry({ storedAt: staleTime, tags: oldTags }),
 		});
 		const waitUntilPromises: Promise<unknown>[] = [];
 		const handler = makeHandler(

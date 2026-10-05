@@ -49,7 +49,7 @@ afterEach(() => {
 describe("loadPrerenderArtifacts", () => {
 	it("L1: no manifest.json → silent no-op, no store.set calls", () => {
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 		expect(store.set).not.toHaveBeenCalled();
 	});
 
@@ -65,10 +65,10 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 
 		expect(store.set).toHaveBeenCalledTimes(1);
-		expect(store.set).toHaveBeenCalledWith("static:/about", {
+		expect(store.set).toHaveBeenCalledWith("static:b1:/about", {
 			data: {
 				headers: { "content-type": "text/html" },
 				html: "<h1>About</h1>",
@@ -90,10 +90,10 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 
 		expect(store.set).toHaveBeenCalledWith(
-			"static:/",
+			"static:b1:/",
 			expect.objectContaining({
 				data: expect.objectContaining({ html: "<h1>Home</h1>" }),
 			}),
@@ -109,7 +109,7 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 		expect(store.set).not.toHaveBeenCalled();
 	});
 
@@ -123,10 +123,10 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 
 		expect(store.set).toHaveBeenCalledWith(
-			"static:/no-ndjson",
+			"static:b1:/no-ndjson",
 			expect.objectContaining({
 				data: expect.objectContaining({ html: "<h1>Page</h1>", ndjson: "" }),
 			}),
@@ -143,10 +143,10 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 
 		expect(store.set).toHaveBeenCalledWith(
-			"static:/no-headers",
+			"static:b1:/no-headers",
 			expect.objectContaining({
 				data: expect.objectContaining({ headers: {} }),
 			}),
@@ -172,7 +172,7 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 		expect(store.set).toHaveBeenCalledTimes(3);
 	});
 
@@ -187,7 +187,7 @@ describe("loadPrerenderArtifacts", () => {
 
 		const before = Date.now();
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 		const after = Date.now();
 
 		const call = (store.set as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -208,10 +208,10 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 
 		expect(store.set).toHaveBeenCalledWith(
-			"static:/docs/api/v2",
+			"static:b1:/docs/api/v2",
 			expect.objectContaining({
 				data: expect.objectContaining({ html: "<h1>API v2</h1>", ndjson: "data" }),
 			}),
@@ -226,7 +226,7 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		loadPrerenderArtifacts("/static", store);
+		loadPrerenderArtifacts("/static", store, "b1");
 		expect(store.set).not.toHaveBeenCalled();
 	});
 
@@ -245,7 +245,7 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		await loadPrerenderArtifacts("/static", store);
+		await loadPrerenderArtifacts("/static", store, "b1");
 		expect(store.set).toHaveBeenCalledTimes(2);
 	});
 
@@ -257,10 +257,10 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		await loadPrerenderArtifacts("/static", store);
+		await loadPrerenderArtifacts("/static", store, "b1");
 
 		expect(store.set).toHaveBeenCalledWith(
-			"static:/about",
+			"static:b1:/about",
 			expect.objectContaining({
 				tags: ["page-about", "marketing"],
 			}),
@@ -276,10 +276,10 @@ describe("loadPrerenderArtifacts", () => {
 		});
 
 		const store = createMockStore();
-		await loadPrerenderArtifacts("/static", store);
+		await loadPrerenderArtifacts("/static", store, "b1");
 
 		expect(store.set).toHaveBeenCalledWith(
-			"static:/about",
+			"static:b1:/about",
 			expect.objectContaining({
 				tags: ["page-about", "tag-marketing"],
 			}),
@@ -301,7 +301,7 @@ describe("loadPrerenderArtifacts", () => {
 			settled = true;
 		});
 
-		await loadPrerenderArtifacts("/static", store);
+		await loadPrerenderArtifacts("/static", store, "b1");
 		expect(settled).toBe(true);
 	});
 });

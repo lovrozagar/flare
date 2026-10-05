@@ -74,6 +74,7 @@ export function getServerContext<T extends Record<string, unknown> = Record<stri
 }
 
 export function getRevalidationContext(): {
+	buildId?: string;
 	cdnPurgeAdapter?: CdnPurgeAdapter;
 	store?: FlareStore;
 } {

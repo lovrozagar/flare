@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { ViteManifest } from "../module-graph/index.ts";
 
 /** Build id outside a production build: dev server, tests, or no client manifest. */
@@ -23,4 +25,31 @@ export function manifestUrls(manifest: ViteManifest): string[] {
 /** Content id of a client build: changes whenever any emitted file changes. */
 export function buildIdFromManifest(manifest: ViteManifest): string {
 	return computeBuildId(manifestUrls(manifest));
+}
+
+/**
+ * Read the client entry path from Vite's build manifest.
+ * buildApp() builds client before SSR, so manifest.json exists
+ * when the SSR build loads this virtual module.
+ */
+export function readClientManifest(root: string): ViteManifest | undefined {
+	const candidates = [
+		join(root, "dist/client/.vite/manifest.json"),
+		/* Nitro writes the client build under `.output/public`. */
+		join(root, ".output/public/.vite/manifest.json"),
+	];
+	for (const manifestPath of candidates) {
+		try {
+			return JSON.parse(readFileSync(manifestPath, "utf-8")) as ViteManifest;
+		} catch {
+			/* try next location */
+		}
+	}
+	return undefined;
+}
+
+/** Build id of the client build under `root`, or `DEV_BUILD_ID` when there is none. */
+export function readClientBuildId(root: string): string {
+	const manifest = readClientManifest(root);
+	return manifest ? buildIdFromManifest(manifest) : DEV_BUILD_ID;
 }

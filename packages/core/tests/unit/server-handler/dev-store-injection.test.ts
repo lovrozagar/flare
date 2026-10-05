@@ -56,8 +56,8 @@ describe("dev store auto-injection", () => {
 	it("auto-injected store is functional", async () => {
 		const store = resolveDevStore(true, undefined, () => createFileSystemStore({ cacheDir }));
 		const entry: FlareStoreEntry = { data: { test: true }, storedAt: Date.now() };
-		await store?.set("static:/test", entry);
-		const result = await store?.get("static:/test");
+		await store?.set("static:test-build:/test", entry);
+		const result = await store?.get("static:test-build:/test");
 		expect(result).toEqual(entry);
 	});
 });

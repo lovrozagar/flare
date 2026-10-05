@@ -5,7 +5,8 @@ import { scanSourceFiles } from "../generators/index.ts";
 import type { PrerenderRoute } from "../prerender/index.ts";
 import { prerender } from "../prerender/index.ts";
 import type { ServerHandler } from "../server-handler/index.ts";
-import type { FlareStore } from "../store/index.ts";
+import { type FlareStore, staticStoreKey } from "../store/index.ts";
+import { DEV_BUILD_ID } from "./build-id.ts";
 import { createFileSystemStore } from "../store/filesystem.ts";
 import type { FlarePluginConfig, VitePlugin } from "./index.ts";
 import type { ResolvedEntries } from "./types.ts";
@@ -100,7 +101,7 @@ export function createDevPrerenderPlugin(config: FlarePluginConfig, entries: Res
 
 			/* Write entries to store */
 			for (const entry of result.entries) {
-				await store.set(`static:${entry.pathname}`, {
+				await store.set(staticStoreKey(DEV_BUILD_ID, entry.pathname), {
 					data: {
 						headers: entry.headers,
 						html: entry.html,
@@ -153,7 +154,7 @@ export function createDevPrerenderPlugin(config: FlarePluginConfig, entries: Res
 					const routes = getRoutes();
 
 					/* Delete stale entries then re-prerender */
-					const deleteKeys = routes.map((r) => `static:${r.pathname}`);
+					const deleteKeys = routes.map((r) => staticStoreKey(DEV_BUILD_ID, r.pathname));
 					if (store.deleteByKeys && deleteKeys.length > 0) {
 						store.deleteByKeys(deleteKeys).catch(() => {});
 					}

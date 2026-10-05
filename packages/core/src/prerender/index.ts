@@ -17,7 +17,8 @@ import type { ExtractedStaticDeferMode, RouteDefinition } from "../generators/in
 import type { StaticDeferMode } from "../route-builder/types.ts";
 import { HEADER_DATA, HEADER_FLAG, HEADER_PRERENDER } from "../protocol.ts";
 import type { ServerHandler } from "../server-handler/index.ts";
-import type { FlareStore, FlareStoreEntry } from "../store/index.ts";
+import { warn } from "../logger.ts";
+import { type FlareStore, type FlareStoreEntry, staticStoreKey } from "../store/index.ts";
 import { resolvePathParams } from "../url/index.ts";
 
 export const NONCE_PLACEHOLDER = "__FLARE_NONCE__";
@@ -428,19 +429,36 @@ export function writePrerenderOutput(entries: PrerenderManifestEntry[]): Prerend
 	return { files, manifest };
 }
 
+/** `manifest.json` written next to the artifacts. Legacy builds wrote the bare route array. */
+export interface PrerenderManifestFile {
+	buildId: string;
+	routes: PrerenderManifestRecord[];
+}
+
 /**
  * Load build-time prerender artifacts from disk into a store.
  * Reads manifest.json + .html/.ndjson/.headers.json files from `staticDir`.
+ * Entries are keyed to the build that produced them (the manifest's `buildId`, or `buildId`
+ * when given), so a server only ever serves markup that matches its own assets.
  * Silently no-ops if manifest doesn't exist (e.g. dev mode without prerender).
  */
-export async function loadPrerenderArtifacts(staticDir: string, store: FlareStore): Promise<void> {
+export async function loadPrerenderArtifacts(staticDir: string, store: FlareStore, buildId?: string): Promise<void> {
 	const manifestPath = join(staticDir, "manifest.json");
 	if (!existsSync(manifestPath)) return;
 
-	const manifest: PrerenderManifestRecord[] = JSON.parse(readFileSync(manifestPath, "utf-8"));
+	const parsed = JSON.parse(readFileSync(manifestPath, "utf-8")) as PrerenderManifestFile | PrerenderManifestRecord[];
+	const records = Array.isArray(parsed) ? parsed : parsed.routes;
+	const build = buildId ?? (Array.isArray(parsed) ? undefined : parsed.buildId);
+	if (!build) {
+		warn(
+			"prerender",
+			`${manifestPath} has no build id; rebuild, or pass the build id to loadPrerenderArtifacts(). Nothing loaded.`,
+		);
+		return;
+	}
 	const writes: Promise<void>[] = [];
 
-	for (const record of manifest) {
+	for (const record of records) {
 		const base = record.pathname === "/" ? "/index" : record.pathname;
 		const htmlPath = join(staticDir, `${base}.html`);
 		if (!existsSync(htmlPath)) continue;
@@ -460,7 +478,7 @@ export async function loadPrerenderArtifacts(staticDir: string, store: FlareStor
 		};
 		if (tags && tags.length > 0) entry.tags = tags;
 
-		writes.push(store.set(`static:${record.pathname}`, entry));
+		writes.push(store.set(staticStoreKey(build, record.pathname), entry));
 	}
 
 	await Promise.all(writes);
