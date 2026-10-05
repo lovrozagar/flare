@@ -580,23 +580,25 @@ function hydrateCachedDeferred(cached: CachedMatch): boolean {
 }
 
 /**
- * Paint cached/prefetched matches immediately so click is not blocked on NDJSON.
- * Hydrates prefetch `{ __deferred, key }` markers so Await can track enter `c` chunks.
+ * A cached/prefetched shell to paint before the enter NDJSON hop, so a click is not blocked on it.
+ * Hydrates prefetch `{ __deferred, key }` markers so Await can track enter `c` chunks. Returns
+ * null unless every route is cached; `commit` swaps the route in, so the caller can run it inside
+ * a view transition.
  */
-function commitCachedShell(
+function prepareCachedShell(
 	c: FlareProviderContext,
 	allModules: LoadedRouteModule[],
 	rootLayout: LoadedRouteModule | undefined,
 	search: SearchParams,
 	params: Record<string, string | string[]>,
-): { hadShell: boolean; keepMatchIds: string[] } {
-	if (!ctx) return { hadShell: false, keepMatchIds: [] };
+): { commit: () => void; keepMatchIds: string[] } | null {
+	if (!ctx) return null;
 	/* Paint only a complete shell. A cached layout (hydration seeds it) with an
 	 * uncached page would mount the page with null loader data. */
 	const cachedMatches: CachedMatch[] = [];
 	for (const mod of allModules) {
 		const cached = ctx.matchCache.get(matchIdForModule(mod, search, params));
-		if (!cached || cached.invalid) return { hadShell: false, keepMatchIds: [] };
+		if (!cached || cached.invalid) return null;
 		cachedMatches.push(cached);
 	}
 	const keepMatchIds: string[] = [];
@@ -620,14 +622,16 @@ function commitCachedShell(
 		heads.push({ head, matchId });
 	}
 
-	c.setIntercepted(null);
-	c.setNotFound(false);
-	assignMatches(c, buildClientMatches(allModules, search, params));
-	c.setParams(params);
-	c.setSearch(search);
-	syncLocale(params);
-	if (heads.length > 0) applyPerRouteHeads(heads);
-	return { hadShell: true, keepMatchIds };
+	const commit = () => {
+		c.setIntercepted(null);
+		c.setNotFound(false);
+		assignMatches(c, buildClientMatches(allModules, search, params));
+		c.setParams(params);
+		c.setSearch(search);
+		syncLocale(params);
+		if (heads.length > 0) applyPerRouteHeads(heads);
+	};
+	return { commit, keepMatchIds };
 }
 
 /** Whether the params a route's own path declares kept their values. */
@@ -713,6 +717,73 @@ function assignMatches(c: FlareProviderContext, next: ReturnType<FlareProviderCo
 	c.setMatches(next);
 }
 
+/**
+ * Start a view transition around `update` when the config, the `types` hook and the browser allow
+ * one. `started: false` means no transition ran and `update` has not run. A started call without a
+ * transition object means the API ran `update` itself.
+ */
+function startNavigationTransition(
+	resolvedVT: ViewTransitionConfig,
+	update: () => void,
+	options: InternalNavigateOptions,
+	url: URL,
+): { started: boolean; transition?: ViewTransitionResult } {
+	const doc = typeof document !== "undefined" ? document : null;
+	if (!doc || !hasViewTransitions(doc) || !resolvedVT) return { started: false };
+	const startVT = doc.startViewTransition.bind(doc);
+	if (typeof resolvedVT === "object" && resolvedVT.types) {
+		const rawTypes = resolvedVT.types;
+		let types: string[];
+		if (typeof rawTypes === "function") {
+			const direction: ViewTransitionDirection = options._popstateDirection ?? (options._popstate ? "back" : "forward");
+			const fromLoc = ctx
+				? {
+						hash: ctx.location().hash,
+						pathname: ctx.location().pathname,
+						search: serializeSearchParams(ctx.location().search),
+					}
+				: null;
+			const toLoc = { hash: url.hash, pathname: url.pathname, search: url.search };
+			const info: LocationChangeInfo = {
+				direction,
+				fromLocation: fromLoc,
+				pathChanged: fromLoc?.pathname !== toLoc.pathname,
+				toLocation: toLoc,
+			};
+			const result = rawTypes(info);
+			if (result === false) return { started: false };
+			types = result;
+		} else {
+			types = rawTypes;
+		}
+		return { started: true, transition: types.length > 0 ? startVT({ types, update }) : startVT(update) };
+	}
+	return { started: true, transition: startVT(update) };
+}
+
+/** Enter "transitioning" for a transition whose route swap has landed; "idle" once it finishes.
+ * The version check keeps a superseded navigation's transition from resetting the phase. */
+function trackTransition(transition: ViewTransitionResult, version: number): void {
+	if (!ctx) return;
+	ctx.setNavigationPhase("transitioning");
+	ctx.setViewTransition(transition);
+	transition.finished.then(
+		() => {
+			if (ctx && version === navigationVersion) {
+				ctx.setNavigationPhase("idle");
+				ctx.setViewTransition(null);
+			}
+		},
+		(e: unknown) => {
+			warn("nav", "view transition finished with error", e);
+			if (ctx && version === navigationVersion) {
+				ctx.setNavigationPhase("idle");
+				ctx.setViewTransition(null);
+			}
+		},
+	);
+}
+
 /** Apply view transition with VT API, or call update() directly as fallback.
  * Returns a promise that resolves after update() has executed so navigate()
  * callers can rely on state being settled when the promise resolves.
@@ -727,99 +798,36 @@ async function applyViewTransition(
 	url: URL,
 	version: number,
 ): Promise<void> {
-	const doc = typeof document !== "undefined" ? document : null;
-	if (doc && hasViewTransitions(doc) && resolvedVT) {
-		const startVT = doc.startViewTransition.bind(doc);
-
-		let transition: ViewTransitionResult | undefined;
-		try {
-			if (typeof resolvedVT === "object" && resolvedVT.types) {
-				const rawTypes = resolvedVT.types;
-				if (typeof rawTypes === "function") {
-					const direction: ViewTransitionDirection =
-						options._popstateDirection ?? (options._popstate ? "back" : "forward");
-					const fromLoc = ctx
-						? {
-								hash: ctx.location().hash,
-								pathname: ctx.location().pathname,
-								search: serializeSearchParams(ctx.location().search),
-							}
-						: null;
-					const toLoc = { hash: url.hash, pathname: url.pathname, search: url.search };
-					const info: LocationChangeInfo = {
-						direction,
-						fromLocation: fromLoc,
-						pathChanged: fromLoc?.pathname !== toLoc.pathname,
-						toLocation: toLoc,
-					};
-					const result = rawTypes(info);
-					if (result === false) {
-						update();
-						stopNavigation();
-						return;
-					}
-					if (result.length > 0) {
-						transition = startVT({ types: result, update });
-					} else {
-						transition = startVT(update);
-					}
-				} else if (rawTypes.length > 0) {
-					transition = startVT({ types: rawTypes, update });
-				} else {
-					transition = startVT(update);
-				}
-			} else {
-				transition = startVT(update);
-			}
-		} catch (e: unknown) {
-			warn("nav", "view transition API failed", e);
-			update();
-			stopNavigation();
-			return;
-		}
-
-		if (transition) {
-			/**
-			 * WebKit rejects transition.ready with AbortError when a new startViewTransition
-			 * call replaces an in-flight one. Chromium swallows this internally but WebKit
-			 * surfaces it as an unhandledrejection, which triggers the dev error overlay and
-			 * blocks pointer events. The finished promise is already handled below.
-			 */
-			transition.ready.catch(() => {});
-
-			await transition.updateCallbackDone;
-
-			/* State is settled — enter transitioning phase while VT animation plays */
-			if (ctx) {
-				ctx.setNavigationPhase("transitioning");
-				ctx.setViewTransition(transition);
-			}
-
-			/* Wire finished → idle (catch rejection too — VT can be skipped/aborted).
-			 * Version check prevents stale VT from resetting phase when a new navigation superseded this one. */
-			transition.finished.then(
-				() => {
-					if (ctx && version === navigationVersion) {
-						ctx.setNavigationPhase("idle");
-						ctx.setViewTransition(null);
-					}
-				},
-				(e: unknown) => {
-					warn("nav", "view transition finished with error", e);
-					if (ctx && version === navigationVersion) {
-						ctx.setNavigationPhase("idle");
-						ctx.setViewTransition(null);
-					}
-				},
-			);
-		} else {
-			/* startVT returned void/undefined — update ran inside it, just clean up */
-			stopNavigation();
-		}
-	} else {
+	let started: ReturnType<typeof startNavigationTransition>;
+	try {
+		started = startNavigationTransition(resolvedVT, update, options, url);
+	} catch (e: unknown) {
+		warn("nav", "view transition API failed", e);
 		update();
 		stopNavigation();
+		return;
 	}
+	if (!started.started) {
+		update();
+		stopNavigation();
+		return;
+	}
+	const transition = started.transition;
+	if (!transition) {
+		/* startVT returned void/undefined — update ran inside it, just clean up */
+		stopNavigation();
+		return;
+	}
+	/**
+	 * WebKit rejects transition.ready with AbortError when a new startViewTransition
+	 * call replaces an in-flight one. Chromium swallows this internally but WebKit
+	 * surfaces it as an unhandledrejection, which triggers the dev error overlay and
+	 * blocks pointer events. The finished promise is handled in trackTransition.
+	 */
+	transition.ready.catch(() => {});
+	await transition.updateCallbackDone;
+	/* State is settled — enter transitioning phase while VT animation plays */
+	trackTransition(transition, version);
 }
 
 export async function navigate(options: InternalNavigateOptions, redirectCount = 0): Promise<void> {
@@ -1129,6 +1137,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 	}
 
 	let paintedShell = false;
+	/* The view transition started around the cached shell, if one was painted. */
+	let shellTransition: ViewTransitionResult | undefined;
+	let shellCommitted: Promise<void> | undefined;
 	let paintedModules: LoadedRouteModule[] | undefined;
 	let paintedSearch: SearchParams | undefined;
 	let paintedParams: Record<string, string | string[]> | undefined;
@@ -1166,6 +1177,8 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		const rootLayout = modules.layouts.find((m) => m._type === "root-layout");
 		const headModules = rootLayout ? [rootLayout, ...allModules] : allModules;
 
+		const resolvedVT = options.viewTransition ?? defaultViewTransition;
+
 		/* Instant navigation: reuse in-flight prefetch and paint a cached shell
 		 * before the enter NDJSON hop. Skipped when this nav already fetched in
 		 * parallel (first visit, no cache). */
@@ -1184,29 +1197,50 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				}
 			}
 			if (controller.signal.aborted || myVersion !== navigationVersion) return;
-			const shell = commitCachedShell(c, allModules, rootLayout, search, modules.params);
-			hadShell = shell.hadShell;
-			paintedShell = shell.hadShell;
-			if (shell.hadShell) {
+			const shell = prepareCachedShell(c, allModules, rootLayout, search, modules.params);
+			if (shell) {
+				hadShell = true;
+				paintedShell = true;
 				paintedModules = allModules;
 				paintedSearch = search;
 				paintedParams = modules.params;
-			}
-			keepMatchIds = shell.keepMatchIds;
-			/* Restore before the next paint so back/forward does not flash at y=0
-			 * while the enter hop (or the post-update rAF) is still outstanding. */
-			if (hadShell && scrollRestorationEnabled) {
-				flush();
-				if (options._restoreScroll) {
-					restoreScroll(options._restoreScroll, "auto");
-				} else if (options.scroll !== false) {
-					if (url.hash) {
-						const el = typeof document !== "undefined" ? document.getElementById(url.hash.slice(1)) : null;
-						if (el) el.scrollIntoView();
-						else scrollToTop();
-					} else {
-						scrollToTop();
+				keepMatchIds = shell.keepMatchIds;
+				const paint = () => {
+					if (myVersion !== navigationVersion) return;
+					shell.commit();
+					/* Restore before the next paint so back/forward does not flash at y=0
+					 * while the enter hop (or the post-update rAF) is still outstanding. */
+					if (!scrollRestorationEnabled) return;
+					flush();
+					if (options._restoreScroll) {
+						restoreScroll(options._restoreScroll, "auto");
+					} else if (options.scroll !== false) {
+						if (url.hash) {
+							const el = typeof document !== "undefined" ? document.getElementById(url.hash.slice(1)) : null;
+							if (el) el.scrollIntoView();
+							else scrollToTop();
+						} else {
+							scrollToTop();
+						}
 					}
+				};
+				/* The shell is the first route swap, so the navigation's one view transition wraps it;
+				 * the post-fetch update below then runs outside any transition. */
+				let started: ReturnType<typeof startNavigationTransition> = { started: false };
+				try {
+					started = startNavigationTransition(resolvedVT, paint, options, url);
+				} catch (e: unknown) {
+					warn("nav", "view transition API failed", e);
+				}
+				if (started.transition) {
+					shellTransition = started.transition;
+					shellTransition.ready.catch(() => {});
+					shellTransition.finished.catch(() => {});
+					shellCommitted = shellTransition.updateCallbackDone.catch(() => {});
+					/* Phase stays "loading" until the data lands; the transition is visible meanwhile. */
+					ctx.setViewTransition(shellTransition);
+				} else if (!started.started) {
+					paint();
 				}
 			}
 		}
@@ -1488,11 +1522,23 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 		/* Step 13: Apply view transition or direct update.
 		 * Await ensures navigate() doesn't resolve until update() has run,
 		 * so callers see settled state (matches, params, head) after await.
-		 * Phase management is handled by applyViewTransition:
-		 * - VT path: "transitioning" after updateCallbackDone, "idle" on finished
-		 * - No VT: "idle" immediately after update() */
-		const resolvedVT = options.viewTransition ?? defaultViewTransition;
-		await applyViewTransition(resolvedVT, update, options, url, myVersion);
+		 * One transition per navigation, around the first route swap:
+		 * - Shell painted inside a transition: wait for that paint, then update outside it;
+		 *   "transitioning" while it still animates, "idle" when it finishes.
+		 * - Otherwise applyViewTransition wraps this update ("transitioning" after
+		 *   updateCallbackDone, "idle" on finished), or runs it directly. */
+		if (shellTransition) {
+			await shellCommitted;
+			if (myVersion !== navigationVersion) return;
+			update();
+			trackTransition(shellTransition, myVersion);
+		} else if (hadShell) {
+			/* The shell already swapped the route without a transition; don't start one now. */
+			update();
+			stopNavigation();
+		} else {
+			await applyViewTransition(resolvedVT, update, options, url, myVersion);
+		}
 	} catch (error: unknown) {
 		if (error instanceof RedirectResponse) {
 			if (error.external) {
