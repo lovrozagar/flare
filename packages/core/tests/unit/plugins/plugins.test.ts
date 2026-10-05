@@ -587,20 +587,14 @@ describe("flare:service-worker", () => {
 		expect(sw).toBeDefined();
 	});
 
-	it("serviceWorker: false → disabled plugin", () => {
+	it("serviceWorker: false → plugin still present (it writes the old /sw.js cleanup worker)", () => {
 		const plugins = flarePlugins({ serviceWorker: false });
 		const sw = plugins.find((p) => p.name === "flare:service-worker");
 		expect(sw).toBeDefined();
 	});
 
-	it("serviceWorker: { offlineFallback } → enabled plugin", () => {
-		const plugins = flarePlugins({ serviceWorker: { offlineFallback: "/offline" } });
-		const sw = plugins.find((p) => p.name === "flare:service-worker");
-		expect(sw).toBeDefined();
-	});
-
-	it("serviceWorker: true → enabled plugin", () => {
-		const plugins = flarePlugins({ serviceWorker: true });
+	it("serviceWorker: { entry, register } → plugin present", () => {
+		const plugins = flarePlugins({ serviceWorker: { entry: "src/sw/main.ts", register: false } });
 		const sw = plugins.find((p) => p.name === "flare:service-worker");
 		expect(sw).toBeDefined();
 	});
