@@ -46,7 +46,13 @@ const ALL_RUNTIMES: RuntimeId[] = [...RUNTIME_IDS];
 export const BUILD_SPECS: BuildSpec[] = [
 	{
 		app: "product",
-		expect: [...SERVER, ...CLIENT, "dist/client/sw.js", "dist/static/manifest.json"],
+		expect: [
+			...SERVER,
+			...CLIENT,
+			"dist/client/service-worker.js",
+			"dist/client/sw.js",
+			"dist/client/assets/_flare-static",
+		],
 		id: "product×node",
 		outDirs: ["dist"],
 		runtimes: ALL_RUNTIMES,
@@ -55,7 +61,13 @@ export const BUILD_SPECS: BuildSpec[] = [
 	{
 		app: "product",
 		config: "vite.workers.config.ts",
-		expect: [...WORKER, ...CLIENT, "dist/client/sw.js"],
+		expect: [
+			...WORKER,
+			...CLIENT,
+			"dist/client/service-worker.js",
+			"dist/client/sw.js",
+			"dist/client/assets/_flare-static",
+		],
 		id: "product×workers",
 		outDirs: ["dist"],
 		runtimes: NODE_ONLY,

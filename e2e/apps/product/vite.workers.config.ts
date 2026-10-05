@@ -9,7 +9,6 @@ export default defineConfig({
 			dev: { cdnCache: false },
 			prerender: true,
 			purge: { console: true },
-			serviceWorker: { offlineFallback: "/offline" },
 			sx: { tw: true },
 		}),
 		cloudflare({

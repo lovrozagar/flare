@@ -9,7 +9,6 @@ export default defineConfig({
 			codegen: { fsVirtualPaths: false },
 			prerender: true,
 			purge: true,
-			serviceWorker: { offlineFallback: "/offline" },
 			sx: { tw: true },
 		}),
 		cloudflare({

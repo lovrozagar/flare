@@ -51,6 +51,8 @@ export interface FlareState {
 	p: string;
 	/** URL of the app-wide module prefetch list (router `prefetch.modules: "all"`). */
 	pa?: string;
+	/** URL of the app's service worker to register. */
+	sw?: string;
 	ph?: PerRouteHead[];
 	q?: QueryState[];
 	r: Record<string, string | string[]>;
@@ -100,6 +102,7 @@ export interface SSRConfig {
 	auth: unknown | null;
 	buildId?: string;
 	prefetchListUrl?: string;
+	serviceWorkerUrl?: string;
 	cause: string;
 	deferContexts?: Map<string, DeferContext>;
 	entryScript?: string;
@@ -258,6 +261,7 @@ function buildFlareState(config: SSRConfig): FlareState {
 		...(config.prefetchListUrl ? { pa: config.prefetchListUrl } : {}),
 		r: config.params ?? {},
 		s: parseSearchParams(config.url.searchParams),
+		...(config.serviceWorkerUrl ? { sw: config.serviceWorkerUrl } : {}),
 	};
 
 	/* per-route heads for client initRouteHierarchy */

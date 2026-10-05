@@ -1,7 +1,6 @@
 import solid from "@solidjs/vite-plugin";
 import { createSxAstPlugin } from "../../../src/plugins/sx-ast/index.ts";
 import { createImagePlugin } from "../../../src/plugins/image-plugin.ts";
-import { createServiceWorkerPlugin, normalizeSwConfig } from "../../../src/plugins/service-worker.ts";
 import { resolveFlareOptions } from "../../../src/plugins/options.ts";
 import type { FlarePluginConfig } from "../../../src/plugins/index.ts";
 
@@ -10,7 +9,6 @@ const assetsBaseEnv = process.env.FLARE_ASSETS_BASE_TEST;
 const config = (assetsBaseEnv ? { assetsBase: assetsBaseEnv } : {}) as FlarePluginConfig;
 
 const resolvedOptions = resolveFlareOptions(config);
-const resolvedSw = normalizeSwConfig(true);
 
 /*
  * viteBase: Vite requires base to end with "/" — assetsBase does not.
@@ -45,7 +43,6 @@ export default {
 		solid({ extensions: [".tsx", ".jsx"], ssr: true }),
 		/* assetsDir="" for image emitFile to match the build.assetsDir above */
 		createImagePlugin(config, resolvedOptions.assetsBase, ""),
-		resolvedSw ? createServiceWorkerPlugin(resolvedSw, resolvedOptions.assetsBase) : null,
 	],
 	root: new URL(".", import.meta.url).pathname,
 };

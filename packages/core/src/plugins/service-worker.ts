@@ -1,204 +1,137 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import type { ViteManifest } from "../module-graph/index.ts";
-import { computeBuildId, manifestUrls as extractPrecacheUrls } from "./build-id.ts";
-import { generateSwSource } from "../service-worker/template.ts";
+/**
+ * Service workers are the app's own: `src/service-worker.ts` (or `serviceWorker.entry`) is
+ * bundled to `/service-worker.js` after the client build and registered by the client. It can
+ * import this build's facts from `@lovrozagar/flare/service-worker`: `build` (hashed files),
+ * `files` (public files), `version` (build id). Flare adds no worker logic of its own.
+ *
+ * Earlier Flare versions generated `/sw.js`. Until an app ships its own file there, a cleanup
+ * worker at that path deletes the old caches and unregisters itself.
+ */
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
+import { join, relative, resolve, sep } from "node:path";
+import { buildIdFromManifest, findClientDir, readClientManifest } from "./build-id.ts";
+import { manifestFiles } from "./retain-assets.ts";
 import type { VitePlugin } from "./types.ts";
 
-/* ── Config ──────────────────────────────────────────────────────── */
-
 export interface ServiceWorkerConfig {
-	offlineFallback?: string;
-	runtimeCacheMax?: number;
-	scope?: string;
-	skipWaiting?: boolean;
+	/** Worker source, relative to the project root. Default `src/service-worker.ts`. */
+	entry?: string;
+	/** Register it from the client. Default `true`; `false` leaves registration to the app. */
+	register?: boolean;
 }
 
-interface ResolvedServiceWorkerConfig {
-	offlineFallback?: string;
-	runtimeCacheMax: number;
-	scope: string;
-	skipWaiting: boolean;
-}
+export const SERVICE_WORKER_URL = "/service-worker.js";
+const DEFAULT_ENTRY = "src/service-worker.ts";
+const FACTS_MODULE = "@lovrozagar/flare/service-worker";
+const FACTS_VIRTUAL = "virtual:flare-service-worker";
+const FACTS_ID = "\0flare-service-worker-facts";
 
-const SW_DEFAULTS: ResolvedServiceWorkerConfig = {
-	runtimeCacheMax: 32,
-	scope: "/",
-	skipWaiting: true,
-};
-
-export function normalizeSwConfig(
-	input: ServiceWorkerConfig | boolean | undefined,
-): ResolvedServiceWorkerConfig | undefined {
-	if (input === false || input === undefined) return undefined;
-	if (input === true) return { ...SW_DEFAULTS };
-	return { ...SW_DEFAULTS, ...input };
-}
-
-/* ── Manifest utilities ──────────────────────────────────────────── */
-
-export { computeBuildId, manifestUrls as extractPrecacheUrls } from "./build-id.ts";
-
-/* ── Dev SW ──────────────────────────────────────────────────────── */
-
-function generateDevSw(offlineFallback?: string): string {
-	if (!offlineFallback) {
-		return `self.addEventListener("install", function () { self.skipWaiting() })
-self.addEventListener("activate", function (event) { event.waitUntil(self.clients.claim()) })
-`;
-	}
-
-	return `var OFFLINE_PAGE = ${JSON.stringify(offlineFallback)}
-var CACHE = "flare-dev-offline"
-
-self.addEventListener("install", function (event) {
-	event.waitUntil(
-		caches.open(CACHE).then(function (cache) {
-			return fetch(OFFLINE_PAGE).then(function (res) {
-				if (res.ok) return cache.put(OFFLINE_PAGE, res)
-			}).catch(function () {})
-		}).then(function () { self.skipWaiting() })
+/** Files under `public/` as URL paths. */
+function publicFiles(root: string): string[] {
+	const dir = join(root, "public");
+	if (!existsSync(dir)) return [];
+	return (
+		readdirSync(dir, { recursive: true, withFileTypes: true }) as Array<{
+			isFile(): boolean;
+			name: string;
+			parentPath: string;
+		}>
 	)
-})
+		.filter((e) => e.isFile())
+		.map((e) => `/${relative(dir, join(e.parentPath, e.name)).split(sep).join("/")}`)
+		.sort();
+}
 
+/** Bundle the app's worker into the client output. Returns its URL, or undefined without one. */
+export async function buildServiceWorker(options: { entry: string; root: string }): Promise<string | undefined> {
+	const entry = resolve(options.root, options.entry);
+	const manifest = readClientManifest(options.root);
+	const clientDir = findClientDir(options.root);
+	if (!existsSync(entry) || !manifest || !clientDir) return undefined;
+
+	const facts = {
+		build: manifestFiles(manifest).sort(),
+		files: publicFiles(options.root),
+		version: buildIdFromManifest(manifest),
+	};
+	const { build } = await import("vite");
+	await build({
+		build: {
+			copyPublicDir: false,
+			emptyOutDir: false,
+			lib: { entry, fileName: () => SERVICE_WORKER_URL.slice(1), formats: ["iife"], name: "flareServiceWorker" },
+			outDir: clientDir,
+		},
+		configFile: false,
+		define: { "process.env.NODE_ENV": JSON.stringify("production") },
+		logLevel: "warn",
+		plugins: [
+			{
+				/* Before Vite's resolver, so the package path never reaches its real module. */
+				enforce: "pre" as const,
+				load: (id: string) =>
+					id === FACTS_ID
+						? Object.entries(facts)
+								.map(([k, v]) => `export const ${k} = ${JSON.stringify(v)};`)
+								.join("\n")
+						: null,
+				name: "flare:service-worker-facts",
+				resolveId: (id: string) => (id === FACTS_MODULE || id === FACTS_VIRTUAL ? FACTS_ID : null),
+			},
+		],
+		publicDir: false,
+		root: options.root,
+	});
+	return SERVICE_WORKER_URL;
+}
+
+const CLEANUP_WORKER = `/* Flare: the built-in service worker was removed. This replaces it once:
+   clear its caches, then unregister so the page is uncontrolled again. */
+self.addEventListener("install", function () { self.skipWaiting() })
 self.addEventListener("activate", function (event) {
-	event.waitUntil(self.clients.claim())
-})
-
-self.addEventListener("fetch", function (event) {
-	if (event.request.mode !== "navigate") return
-	event.respondWith(
-		fetch(event.request).catch(function () {
-			return caches.match(OFFLINE_PAGE)
-		})
+	event.waitUntil(
+		caches.keys()
+			.then(function (names) {
+				return Promise.all(names.filter(function (n) {
+					return n.indexOf("flare-assets-") === 0 || n.indexOf("flare-runtime-") === 0 || n === "flare-dev-offline"
+				}).map(function (n) { return caches.delete(n) }))
+			})
+			.then(function () { return self.registration.unregister() })
 	)
 })
 `;
+
+/** Write the cleanup worker at `/sw.js` unless the app ships its own file there. */
+export function writeCleanupServiceWorker(clientDir: string): boolean {
+	const path = join(clientDir, "sw.js");
+	if (existsSync(path)) return false;
+	writeFileSync(path, CLEANUP_WORKER, "utf-8");
+	return true;
 }
 
-interface NodeReq {
-	url?: string;
-}
-
-interface NodeRes {
-	end: (data?: unknown) => void;
-	writeHead: (status: number, headers: Record<string, string>) => void;
-}
-
-interface ViteDevServer {
-	middlewares: {
-		use: (fn: (req: NodeReq, res: NodeRes, next: () => void) => void) => void;
-	};
-}
-
-export function createServiceWorkerPlugin(
-	swConfig: ResolvedServiceWorkerConfig,
-	assetsBase: string = "/assets",
-): VitePlugin {
+export function createServiceWorkerPlugin(config: ServiceWorkerConfig | false | undefined): VitePlugin {
 	return {
-		closeBundle(this: { environment?: { config?: { root?: string }; name?: string } }): void {
-			const envName = this.environment?.name;
-			/* Multi-env: SSR closes last, manifest already written. Single-env: no "ssr" env, fire on "client". */
-			if (envName !== "ssr" && envName !== "client") return;
-
-			const root = this.environment?.config?.root ?? process.cwd();
-			const manifestPath = join(root, "dist/client/.vite/manifest.json");
-
-			if (!existsSync(manifestPath)) return;
-
-			const raw = readFileSync(manifestPath, "utf-8");
-			const manifest = JSON.parse(raw) as ViteManifest;
-			const urls = extractPrecacheUrls(manifest);
-			const buildId = computeBuildId(urls);
-
-			const swSource = generateSwSource(urls, buildId, {
-				assetsBase,
-				offlineFallback: swConfig.offlineFallback ?? null,
-				runtimeCacheMax: swConfig.runtimeCacheMax,
-				skipWaiting: swConfig.skipWaiting,
-			});
-
-			writeFileSync(join(root, "dist/client/sw.js"), swSource, "utf-8");
-			process.stderr.write(`[flare:service-worker] Generated sw.js (${urls.length} assets, build ${buildId})\n`);
-		},
-
-		configurePreviewServer(server: unknown) {
-			const preview = server as {
-				config?: { root?: string };
-				middlewares: ViteDevServer["middlewares"];
-			};
-			const root = preview.config?.root ?? process.cwd();
-			const swPath = join(root, "dist/client/sw.js");
-
-			preview.middlewares.use((req, res, next) => {
-				if (req.url === "/sw.js" && existsSync(swPath)) {
-					const content = readFileSync(swPath, "utf-8");
-					res.writeHead(200, {
-						"cache-control": "no-cache",
-						"content-type": "application/javascript",
-					});
-					res.end(content);
-					return;
-				}
-				next();
-			});
-			return undefined;
-		},
-
-		configureServer(server: unknown) {
-			const vite = server as ViteDevServer;
-			const devSwSource = generateDevSw(swConfig.offlineFallback);
-			vite.middlewares.use((req, res, next) => {
-				if (req.url === "/sw.js") {
-					res.writeHead(200, {
-						"cache-control": "no-cache",
-						"content-type": "application/javascript",
-					});
-					res.end(devSwSource);
-					return;
-				}
-				next();
-			});
-			return undefined;
-		},
-
-		load(id: string): { code: string; moduleType: string } | null {
-			if (id === "\0virtual:flare-sw-config") {
-				return {
-					code: `export default ${JSON.stringify({
-						enabled: true,
-						path: "/sw.js",
-						scope: swConfig.scope,
-					})}`,
-					moduleType: "js",
-				};
+		async closeBundle(this: { environment?: { config?: { root?: string }; name?: string } }): Promise<void> {
+			if (this.environment?.name !== "client") return;
+			const root = this.environment.config?.root ?? process.cwd();
+			const clientDir = findClientDir(root);
+			if (!clientDir) return;
+			if (config !== false) {
+				const url = await buildServiceWorker({ entry: config?.entry ?? DEFAULT_ENTRY, root });
+				if (url) process.stderr.write(`[flare:service-worker] built ${url}\n`);
 			}
-			return null;
+			writeCleanupServiceWorker(clientDir);
 		},
-
 		name: "flare:service-worker",
-
-		resolveId(id: string): string | null {
-			if (id === "virtual:flare-sw-config") return "\0virtual:flare-sw-config";
-			return null;
-		},
 	};
 }
 
-export function createServiceWorkerDisabledPlugin(): VitePlugin {
-	return {
-		load(id: string): { code: string; moduleType: string } | null {
-			if (id === "\0virtual:flare-sw-config") {
-				return { code: "export default { enabled: false }", moduleType: "js" };
-			}
-			return null;
-		},
-
-		name: "flare:service-worker",
-
-		resolveId(id: string): string | null {
-			if (id === "virtual:flare-sw-config") return "\0virtual:flare-sw-config";
-			return null;
-		},
-	};
+/** Whether the client should register the built worker. */
+export function serviceWorkerToRegister(
+	root: string,
+	config: ServiceWorkerConfig | false | undefined,
+): string | undefined {
+	if (config === false || config?.register === false) return undefined;
+	const clientDir = findClientDir(root);
+	return clientDir && existsSync(join(clientDir, SERVICE_WORKER_URL.slice(1))) ? SERVICE_WORKER_URL : undefined;
 }

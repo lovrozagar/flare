@@ -1,5 +1,4 @@
 /* @refresh skip */
-import swConfig from "virtual:flare-sw-config";
 
 declare const __FLARE_IS_DEV__: boolean | undefined;
 const isDevDefault = typeof __FLARE_IS_DEV__ === "boolean" ? __FLARE_IS_DEV__ : false;
@@ -9,6 +8,7 @@ import { createComponent, Hydration, render, hydrate as solidHydrate } from "@so
 import { SSRContextProvider } from "../components/ssr-context.tsx";
 import { setBuildId } from "../build-id.ts";
 import { startPrefetchAll } from "../prefetch/all.ts";
+import { registerServiceWorker } from "../service-worker/register.ts";
 import { resolvePrefetch } from "../prefetch/resolve.ts";
 import { createChannel } from "../broadcast/channel.ts";
 import { BroadcastProvider } from "../broadcast/provider.tsx";
@@ -25,7 +25,6 @@ import {
 	applyMatchCacheTags,
 	populateMatchCache,
 } from "../hydration/index.ts";
-import { onceIdle } from "../internal/once-idle.ts";
 import { ATTR_HYDRATED } from "../protocol.ts";
 import { setupNavigation } from "../navigation/index.ts";
 import type { LoadedRouteModule } from "../navigation/types.ts";
@@ -398,27 +397,6 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 		document.documentElement.setAttribute(ATTR_HYDRATED, "");
 	}
 
-	/* Service worker registration / unregistration */
-	if ("serviceWorker" in navigator) {
-		if ((swConfig as { enabled: boolean }).enabled) {
-			const cfg = swConfig as { enabled: boolean; path: string; scope: string };
-			onceIdle(() => {
-				navigator.serviceWorker
-					.register(cfg.path, {
-						scope: cfg.scope,
-						updateViaCache: "none" as ServiceWorkerUpdateViaCache,
-					})
-					.catch(() => {});
-			});
-		} else {
-			onceIdle(() => {
-				navigator.serviceWorker
-					.getRegistrations()
-					.then((regs) => {
-						for (const reg of regs) reg.unregister();
-					})
-					.catch(() => {});
-			});
-		}
-	}
+	/* The app's own service worker, when it ships one */
+	if (raw.sw) registerServiceWorker(raw.sw);
 }

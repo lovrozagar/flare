@@ -81,6 +81,7 @@
 		"./server-fn-query": "./src/server-fn-query.ts",
 		"./server-only": "./src/create-server-only-fn.ts",
 		"./sitemap": "./src/sitemap/index.ts",
+		"./service-worker": "./src/service-worker/index.ts",
 		"./store": "./src/store/index.ts",
 		"./store-assets": "./src/store/assets.ts",
 		"./store-cache-api": "./src/store/cache-api.ts",

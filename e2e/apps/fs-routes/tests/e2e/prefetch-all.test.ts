@@ -36,7 +36,7 @@ async function recordScriptRequests(cdp: CDPSession): Promise<ScriptRequest[]> {
 		const req = byId.get(e.requestId);
 		const r = e.response;
 		if (req) req.status = r.status;
-		if (req && (r.fromDiskCache || r.fromPrefetchCache || r.fromMemoryCache)) req.cached = true;
+		if (req && (r.fromDiskCache || r.fromPrefetchCache)) req.cached = true;
 	});
 	return ordered;
 }

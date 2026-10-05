@@ -264,6 +264,14 @@ describe("SSR — FlareState structure", () => {
 		expect(state?.pa).toBe("/assets/_flare-prefetch.test.json");
 	});
 
+	it("carries the app's service worker URL (sw) so the client registers it", async () => {
+		const handler = buildHandler();
+		const response = await handler.fetch(makeRequest("/home"), {});
+		const state = extractFlareState(await readResponseBody(response)) as { sw?: string } | null;
+
+		expect(state?.sw).toBe("/service-worker.js");
+	});
+
 	it("FlareState script tag has nonce attribute", async () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(makeRequest("/home"), {});
