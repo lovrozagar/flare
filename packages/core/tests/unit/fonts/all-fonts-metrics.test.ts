@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { FONT_REGISTRY } from "../../../src/fonts/registry.gen.ts";
 
 /**
- * Dynamically validates ALL 201 fonts' fallback metrics by recomputing
+ * Dynamically validates every registered font's' fallback metrics by recomputing
  * from @capsizecss/metrics source data.
  *
  * If these tests fail, the populate-fonts.ts pipeline has a calculation bug.

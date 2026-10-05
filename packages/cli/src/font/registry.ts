@@ -6,7 +6,7 @@ import type { FontEntry } from "./resolve";
 const require = createRequire(import.meta.url);
 
 /**
- * Returns the 201 font entries from flare's generated registry.
+ * Returns the font entries from flare's generated registry.
  */
 export function getFontRegistry(): FontEntry[] {
 	/* eslint-disable-next-line @typescript-eslint/no-require-imports */
