@@ -37,6 +37,7 @@ import type {
 	LocationChangeInfo,
 	ViewTransitionConfig,
 	ViewTransitionDirection,
+	ViewTransitionScope,
 } from "../outlet/types.ts";
 import { executeRewriteInput, executeRewriteOutput, type LocationRewrite } from "../rewrite/index.ts";
 import type { HeadConfig } from "../route-builder/types.ts";
@@ -49,6 +50,9 @@ import {
 	toLocaleMatch,
 } from "../router-primitives/index.ts";
 import { buildUrl, parseSearchParams, type SearchParams, serializeSearchParams } from "../url/index.ts";
+import { outletNodes, resetOutletNodes } from "../outlet/outlet-nodes.ts";
+import { registeredBoundaries, resetViewTransitionBoundaries } from "../view-transition-boundary/registry.ts";
+import { resolveTransitionScope } from "./transition-scope.ts";
 import type { LoadedRouteModule, LoadRouteModulesFn } from "./types.ts";
 
 function extractRootIdentity(virtualPath: string): string {
@@ -86,6 +90,20 @@ interface ViewTransitionDocument {
 function hasViewTransitions(doc: Document): doc is Document & ViewTransitionDocument {
 	return "startViewTransition" in doc && typeof doc.startViewTransition === "function";
 }
+
+/* Element-scoped view transitions (CSS View Transitions Level 2). Chromium only for now. */
+function hasElementViewTransitions(): boolean {
+	return (
+		typeof Element !== "undefined" &&
+		typeof (Element.prototype as unknown as Partial<ViewTransitionDocument>).startViewTransition === "function"
+	);
+}
+
+/* The navigation transition still running, so the next one can skip it first: only a second
+ * transition on the same element aborts the first, and two running at once would both freeze
+ * content that is being swapped. */
+let activeTransition: ViewTransitionResult | null = null;
+let warnedScopedStart = false;
 
 export type { EffectsConfig, LoadedRouteModule, LoadedRouteModules, LoadRouteModulesFn } from "./types.ts";
 
@@ -717,48 +735,125 @@ function assignMatches(c: FlareProviderContext, next: ReturnType<FlareProviderCo
 	c.setMatches(next);
 }
 
+function locationChange(options: InternalNavigateOptions, url: URL): LocationChangeInfo {
+	const direction: ViewTransitionDirection = options._popstateDirection ?? (options._popstate ? "back" : "forward");
+	const fromLoc = ctx
+		? {
+				hash: ctx.location().hash,
+				pathname: ctx.location().pathname,
+				search: serializeSearchParams(ctx.location().search),
+			}
+		: null;
+	const toLoc = { hash: url.hash, pathname: url.pathname, search: url.search };
+	return { direction, fromLocation: fromLoc, pathChanged: fromLoc?.pathname !== toLoc.pathname, toLocation: toLoc };
+}
+
+/* Scope precedence: navigate()/Link option, then the router default, then "auto". */
+function resolveScope(options: InternalNavigateOptions, info: () => LocationChangeInfo): ViewTransitionScope {
+	const fromNav = typeof options.viewTransition === "object" ? options.viewTransition.scope : undefined;
+	const fromRouter = typeof defaultViewTransition === "object" ? defaultViewTransition.scope : undefined;
+	const scope = fromNav ?? fromRouter ?? "auto";
+	return typeof scope === "function" ? scope(info()) : scope;
+}
+
+/** The outlet depth a commit of `allModules` replaces: the first match it does not reuse. */
+function changedDepth(allModules: LoadedRouteModule[], params: Record<string, string | string[]>): number {
+	const current = ctx?.matches() ?? [];
+	const prevParams = ctx?.params() ?? {};
+	const shared = Math.min(current.length, allModules.length);
+	for (let i = 0; i < shared; i++) {
+		const prev = current[i];
+		const mod = allModules[i];
+		if (
+			!prev ||
+			!mod ||
+			prev.virtualPath !== mod.virtualPath ||
+			prev._type !== mod._type ||
+			!ownParamsUnchanged(mod.virtualPath, prevParams, params)
+		) {
+			return i;
+		}
+	}
+	if (current.length !== allModules.length) return shared;
+	/* Nothing replaced (search-only refresh): the deepest route updates in place. */
+	return Math.max(0, allModules.length - 1);
+}
+
+/** DOM nodes a commit of `allModules` swaps, read before the commit runs. */
+function swappedNodes(allModules: LoadedRouteModule[], params: Record<string, string | string[]>): readonly Node[] {
+	return outletNodes(changedDepth(allModules, params));
+}
+
 /**
  * Start a view transition around `update` when the config, the `types` hook and the browser allow
  * one. `started: false` means no transition ran and `update` has not run. A started call without a
- * transition object means the API ran `update` itself.
+ * transition object means the API ran `update` itself. The transition runs on the innermost
+ * <ViewTransitionBoundary> around the nodes `update` swaps when the browser supports element-scoped
+ * transitions; otherwise, or with `scope: "document"`, on the document.
  */
 function startNavigationTransition(
 	resolvedVT: ViewTransitionConfig,
 	update: () => void,
 	options: InternalNavigateOptions,
 	url: URL,
+	swapped: () => readonly Node[],
 ): { started: boolean; transition?: ViewTransitionResult } {
 	const doc = typeof document !== "undefined" ? document : null;
 	if (!doc || !hasViewTransitions(doc) || !resolvedVT) return { started: false };
-	const startVT = doc.startViewTransition.bind(doc);
+	const info = () => locationChange(options, url);
+	let types: string[] = [];
 	if (typeof resolvedVT === "object" && resolvedVT.types) {
 		const rawTypes = resolvedVT.types;
-		let types: string[];
 		if (typeof rawTypes === "function") {
-			const direction: ViewTransitionDirection = options._popstateDirection ?? (options._popstate ? "back" : "forward");
-			const fromLoc = ctx
-				? {
-						hash: ctx.location().hash,
-						pathname: ctx.location().pathname,
-						search: serializeSearchParams(ctx.location().search),
-					}
-				: null;
-			const toLoc = { hash: url.hash, pathname: url.pathname, search: url.search };
-			const info: LocationChangeInfo = {
-				direction,
-				fromLocation: fromLoc,
-				pathChanged: fromLoc?.pathname !== toLoc.pathname,
-				toLocation: toLoc,
-			};
-			const result = rawTypes(info);
+			const result = rawTypes(info());
 			if (result === false) return { started: false };
 			types = result;
 		} else {
 			types = rawTypes;
 		}
-		return { started: true, transition: types.length > 0 ? startVT({ types, update }) : startVT(update) };
 	}
-	return { started: true, transition: startVT(update) };
+
+	/* An intercept or not-found flip is not confined to one outlet: use the document. */
+	const confined = ctx ? ctx.intercepted() === null && !ctx.notFound() : true;
+	const scopeEl =
+		confined && hasElementViewTransitions() && resolveScope(options, info) === "auto"
+			? resolveTransitionScope(registeredBoundaries(), swapped())
+			: null;
+
+	const run = (target: ViewTransitionDocument) =>
+		types.length > 0 ? target.startViewTransition({ types, update }) : target.startViewTransition(update);
+
+	if (activeTransition) {
+		try {
+			activeTransition.skipTransition();
+		} catch {
+			/* already finished */
+		}
+		activeTransition = null;
+	}
+
+	let transition: ViewTransitionResult | undefined;
+	if (scopeEl) {
+		try {
+			transition = run(scopeEl as unknown as ViewTransitionDocument);
+		} catch (e: unknown) {
+			if (!warnedScopedStart) {
+				warnedScopedStart = true;
+				warn("nav", "element-scoped view transition failed; using a document transition", e);
+			}
+			transition = run(doc);
+		}
+	} else {
+		transition = run(doc);
+	}
+	if (transition) {
+		activeTransition = transition;
+		const settled = () => {
+			if (activeTransition === transition) activeTransition = null;
+		};
+		transition.finished.then(settled, settled);
+	}
+	return { started: true, transition };
 }
 
 /** Enter "transitioning" for a transition whose route swap has landed; "idle" once it finishes.
@@ -797,10 +892,11 @@ async function applyViewTransition(
 	options: InternalNavigateOptions,
 	url: URL,
 	version: number,
+	swapped: () => readonly Node[],
 ): Promise<void> {
 	let started: ReturnType<typeof startNavigationTransition>;
 	try {
-		started = startNavigationTransition(resolvedVT, update, options, url);
+		started = startNavigationTransition(resolvedVT, update, options, url, swapped);
 	} catch (e: unknown) {
 		warn("nav", "view transition API failed", e);
 		update();
@@ -1228,7 +1324,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 				 * the post-fetch update below then runs outside any transition. */
 				let started: ReturnType<typeof startNavigationTransition> = { started: false };
 				try {
-					started = startNavigationTransition(resolvedVT, paint, options, url);
+					started = startNavigationTransition(resolvedVT, paint, options, url, () =>
+						swappedNodes(allModules, modules.params),
+					);
 				} catch (e: unknown) {
 					warn("nav", "view transition API failed", e);
 				}
@@ -1537,7 +1635,9 @@ export async function navigate(options: InternalNavigateOptions, redirectCount =
 			update();
 			stopNavigation();
 		} else {
-			await applyViewTransition(resolvedVT, update, options, url, myVersion);
+			await applyViewTransition(resolvedVT, update, options, url, myVersion, () =>
+				swappedNodes(allModules, modules.params),
+			);
 		}
 	} catch (error: unknown) {
 		if (error instanceof RedirectResponse) {
@@ -1713,6 +1813,10 @@ export function hardNavigate(href: string): void {
 
 export function resetNavigationState(): void {
 	ctx = null;
+	activeTransition = null;
+	warnedScopedStart = false;
+	resetOutletNodes();
+	resetViewTransitionBoundaries();
 	currentController = null;
 	navigationVersion = 0;
 	scrollStore = null;

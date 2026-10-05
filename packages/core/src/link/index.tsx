@@ -1,3 +1,4 @@
+import type { ViewTransitionConfig } from "../outlet/types.ts";
 import { createEffect, createMemo, createSignal, omit, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { applyRewriteOutput, isExternal, navigate, prefetch } from "../navigation/index.ts";
@@ -27,7 +28,7 @@ type InternalLinkProps<TPath extends RoutePaths = RoutePaths> = FlareAnchorProps
 	scroll?: boolean;
 	shallow?: boolean;
 	to: TPath;
-	viewTransition?: boolean | { types: string[] };
+	viewTransition?: ViewTransitionConfig;
 } & RouteParamsProps<TPath> &
 	RouteSearchProps<TPath>;
 
@@ -64,7 +65,7 @@ interface LinkPropsInternal {
 	style?: JSX.CSSProperties | string;
 	target?: string;
 	to?: string;
-	viewTransition?: boolean | { types: string[] };
+	viewTransition?: ViewTransitionConfig;
 }
 
 const DANGEROUS_PROTOCOLS = ["javascript:", "data:", "blob:", "vbscript:"];

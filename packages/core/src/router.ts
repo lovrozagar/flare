@@ -19,6 +19,7 @@ export type {
 	ViewTransitionConfig,
 	ViewTransitionDirection,
 	ViewTransitionOptions,
+	ViewTransitionScope,
 } from "./outlet/index.tsx";
 export { useRouter } from "./outlet/index.tsx";
 export type {

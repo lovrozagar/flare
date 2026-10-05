@@ -27,8 +27,15 @@ export interface LocationChangeInfo {
 	toLocation: { hash: string; pathname: string; search: string };
 }
 
+/**
+ * Where a navigation's view transition runs. "auto": the innermost <ViewTransitionBoundary> around
+ * the swapped route content, else the document. "document": always the document.
+ */
+export type ViewTransitionScope = "auto" | "document";
+
 export interface ViewTransitionOptions {
-	types: string[] | ((info: LocationChangeInfo) => string[] | false);
+	scope?: ViewTransitionScope | ((info: LocationChangeInfo) => ViewTransitionScope);
+	types?: string[] | ((info: LocationChangeInfo) => string[] | false);
 }
 
 export type ViewTransitionConfig = boolean | ViewTransitionOptions;
