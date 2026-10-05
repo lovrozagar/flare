@@ -16,14 +16,11 @@ afterEach(() => {
 	for (const dir of dirs.splice(0)) rmSync(dir, { force: true, recursive: true });
 });
 
-const stubLogLevel = {
-	name: "stub-flare-log-level",
-	resolveId(id: string) {
-		return id === "virtual:flare-log-level" ? "\0virtual:flare-log-level" : null;
-	},
-	load(id: string) {
-		return id === "\0virtual:flare-log-level" ? "export default 'silent';\n" : null;
-	},
+/* Silences Flare's logger in these bundles, as an app's `logLevel` would (Flare's plugin
+   defines the level; the logger needs nothing else). */
+const silentLogger = {
+	config: () => ({ define: { __FLARE_LOG_LEVEL__: JSON.stringify("silent") } }),
+	name: "silent-flare-logger",
 };
 
 async function buildAndImport(theme: string | undefined): Promise<{ merged: string; sized: string }> {
@@ -46,7 +43,7 @@ async function buildAndImport(theme: string | undefined): Promise<{ merged: stri
 	await build({
 		configFile: false,
 		logLevel: "silent",
-		plugins: [stubLogLevel, createSxAstPlugin(twCssPath ? { tw: true, twCssPath } : {})],
+		plugins: [silentLogger, createSxAstPlugin(twCssPath ? { tw: true, twCssPath } : {})],
 		root: dir,
 		build: { lib: { entry, fileName: "out", formats: ["es"] }, minify: false, outDir, write: true },
 	});

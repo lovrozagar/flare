@@ -15,14 +15,11 @@ afterEach(async () => {
 	for (const fn of cleanups.splice(0)) await fn();
 });
 
-const stubLogLevel = {
-	name: "stub-flare-log-level",
-	resolveId(id: string) {
-		return id === "virtual:flare-log-level" ? "\0virtual:flare-log-level" : null;
-	},
-	load(id: string) {
-		return id === "\0virtual:flare-log-level" ? "export default 'silent';\n" : null;
-	},
+/* Silences Flare's logger in these bundles, as an app's `logLevel` would (Flare's plugin
+   defines the level; the logger needs nothing else). */
+const silentLogger = {
+	config: () => ({ define: { __FLARE_LOG_LEVEL__: JSON.stringify("silent") } }),
+	name: "silent-flare-logger",
 };
 
 async function loadCn(server: ViteDevServer): Promise<(...inputs: string[]) => string> {
@@ -40,7 +37,7 @@ describe("sx plugin dev: theme edits rebuild the cn tables", () => {
 		const server = await createServer({
 			configFile: false,
 			logLevel: "silent",
-			plugins: [stubLogLevel, createSxAstPlugin({ tw: true, twCssPath: theme })],
+			plugins: [silentLogger, createSxAstPlugin({ tw: true, twCssPath: theme })],
 			root: dir,
 			server: { middlewareMode: true, hmr: false },
 		});

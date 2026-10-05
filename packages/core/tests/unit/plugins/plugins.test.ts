@@ -556,47 +556,35 @@ describe("flare:virtual", () => {
 		expect(result?.code).toBe("export default false");
 	});
 
-	it("resolves virtual:flare-log-level", () => {
+	/* The log level is a define, so modules importing the logger need nothing from the plugin. */
+	function logLevelDefine(options: Parameters<typeof flarePlugins>[0], env: { command?: string; mode?: string }) {
+		const plugins = flarePlugins(options);
+		const virtual = plugins.find((p) => p.name === "flare:virtual");
+		const config = virtual?.config as
+			| ((userConfig: unknown, env: { command?: string; mode?: string }) => { define?: Record<string, string> })
+			| undefined;
+		if (!config) throw new Error("config not found");
+		return config.call({}, {}, env)?.define?.__FLARE_LOG_LEVEL__;
+	}
+
+	it("no longer serves virtual:flare-log-level", () => {
 		const plugins = flarePlugins({});
 		const virtual = plugins.find((p) => p.name === "flare:virtual");
 		const resolveId = virtual?.resolveId as ((id: string) => string | null) | undefined;
-
 		if (!resolveId) throw new Error("resolveId not found");
-
-		expect(resolveId.call({}, "virtual:flare-log-level")).toBe("\0virtual:flare-log-level");
+		expect(resolveId.call({}, "virtual:flare-log-level")).toBeNull();
 	});
 
-	it("load virtual:flare-log-level → default warn in dev", () => {
-		const plugins = flarePlugins({});
-		const virtual = plugins.find((p) => p.name === "flare:virtual");
-		const load = virtual?.load as ((id: string) => { code: string; moduleType: string } | null) | undefined;
-
-		if (!load) throw new Error("load not found");
-
-		const result = load.call({ environment: { config: { mode: "development" } } }, "\0virtual:flare-log-level");
-		expect(result?.code).toBe('export default "warn"');
+	it("defines the log level: warn in dev", () => {
+		expect(logLevelDefine({}, { command: "serve", mode: "development" })).toBe('"warn"');
 	});
 
-	it("load virtual:flare-log-level → default error in production", () => {
-		const plugins = flarePlugins({});
-		const virtual = plugins.find((p) => p.name === "flare:virtual");
-		const load = virtual?.load as ((id: string) => { code: string; moduleType: string } | null) | undefined;
-
-		if (!load) throw new Error("load not found");
-
-		const result = load.call({ environment: { config: { mode: "production" } } }, "\0virtual:flare-log-level");
-		expect(result?.code).toBe('export default "error"');
+	it("defines the log level: error in production", () => {
+		expect(logLevelDefine({}, { command: "build", mode: "production" })).toBe('"error"');
 	});
 
-	it("load virtual:flare-log-level → custom logLevel overrides default", () => {
-		const plugins = flarePlugins({ logLevel: "verbose" });
-		const virtual = plugins.find((p) => p.name === "flare:virtual");
-		const load = virtual?.load as ((id: string) => { code: string; moduleType: string } | null) | undefined;
-
-		if (!load) throw new Error("load not found");
-
-		const result = load.call({ environment: { config: { mode: "production" } } }, "\0virtual:flare-log-level");
-		expect(result?.code).toBe('export default "verbose"');
+	it("defines the log level: a custom logLevel wins", () => {
+		expect(logLevelDefine({ logLevel: "verbose" }, { command: "build", mode: "production" })).toBe('"verbose"');
 	});
 });
 

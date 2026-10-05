@@ -11,16 +11,11 @@ const TABLES_NEEDLE = "nest-clamp-imageabein-lrstxyskx";
 
 const STYLES_ENTRY = fileURLToPath(new URL("../../../src/styles/index.ts", import.meta.url));
 
-const stubLogLevel = {
-	name: "stub-flare-log-level",
-	resolveId(id: string) {
-		if (id === "virtual:flare-log-level") return "\0virtual:flare-log-level";
-		return null;
-	},
-	load(id: string) {
-		if (id === "\0virtual:flare-log-level") return "export default 'silent';\n";
-		return null;
-	},
+/* Silences Flare's logger in these bundles, as an app's `logLevel` would (Flare's plugin
+   defines the level; the logger needs nothing else). */
+const silentLogger = {
+	config: () => ({ define: { __FLARE_LOG_LEVEL__: JSON.stringify("silent") } }),
+	name: "silent-flare-logger",
 };
 
 async function bundleLibrary(source: string): Promise<string> {
@@ -33,7 +28,7 @@ async function bundleLibrary(source: string): Promise<string> {
 		await build({
 			configFile: false,
 			logLevel: "silent",
-			plugins: [stubLogLevel],
+			plugins: [silentLogger],
 			root: dir,
 			build: {
 				emptyOutDir: true,
