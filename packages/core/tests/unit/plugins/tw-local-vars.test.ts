@@ -33,6 +33,20 @@ describe("Tailwind local variables", () => {
 		expect(extractDeclarations(tw.build(["p-4"]), ["p-4"], tw.themeVars)).toBe("padding: calc(0.25rem * 4);");
 	});
 
+	it("treats an arbitrary custom property as the element's, not the theme's", async () => {
+		/* A component sets `[--panel-width:75%]` on one variant and reads `w-(--panel-width)`:
+		   neither inlining the value nor hoisting it to :root may reach another element. */
+		const tw = await initTailwindCompiler();
+		const tokens = ["[--panel-width:75%]", "data-[open]:[--panel-gap:1rem]", "w-(--panel-width)", "gap-(--panel-gap)"];
+		const decls = Object.fromEntries(
+			tokens.map((token) => [token, extractDeclarations(tw.build([token]), [token], tw.themeVars)]),
+		) as Record<string, string>;
+		expect(tw.themeVars.has("--panel-width")).toBe(false);
+		expect(tw.themeVars.has("--panel-gap")).toBe(false);
+		expect(decls["w-(--panel-width)"]).toBe("width: var(--panel-width);");
+		expect(decls["gap-(--panel-gap)"]).toBe("gap: var(--panel-gap);");
+	});
+
 	it("extracts the @property rules a utility needs", async () => {
 		const tw = await initTailwindCompiler();
 		const rules = extractPropertyRules(tw.build(["shadow-sm"]));

@@ -290,6 +290,36 @@ export function resolveModulePath(id: string, base: string): string {
 }
 
 /**
+ * The bodies of the `:root` / `:host` rules in a build output, at any @layer depth: where the
+ * theme and the entry stylesheet define variables. A custom property a utility sets
+ * (`[--panel-width:75%]`) belongs to its element, so it never counts as a theme var.
+ */
+function rootBlocks(css: string): string[] {
+	const ROOT = /^(?::root|:host)(?:\s*,\s*(?::root|:host))*$/;
+	const bodies: string[] = [];
+	let start = 0;
+	for (let i = 0; i < css.length; i++) {
+		const ch = css[i];
+		if (ch === ";" || ch === "}") {
+			start = i + 1;
+		} else if (ch === "{") {
+			const prelude = css
+				.slice(start, i)
+				.replace(/\/\*[\s\S]*?\*\//g, "")
+				.trim();
+			start = i + 1;
+			if (!ROOT.test(prelude)) continue;
+			const end = css.indexOf("}", i);
+			if (end === -1) break;
+			bodies.push(css.slice(i + 1, end));
+			i = end;
+			start = end + 1;
+		}
+	}
+	return bodies;
+}
+
+/**
  * Initialize a Tailwind v4 compiler from an optional CSS entry file. The entry's imports
  * resolve from its own directory (no entry: the process cwd). Throws on any failure —
  * callers fail the build, never fall back to pass-through.
@@ -334,9 +364,11 @@ export async function initTailwindCompiler(cssPath?: string): Promise<TailwindCo
 		const originalBuild = compiler.build.bind(compiler);
 		const trackingBuild = (classes: string[]): string => {
 			const output = originalBuild(classes);
-			for (const m of output.matchAll(/(--[\w-]+)\s*:\s*([^;]+)/g)) {
-				if (!isLocalVar(m[1]) && !themeVars.has(m[1])) {
-					themeVars.set(m[1], m[2].trim());
+			for (const body of rootBlocks(output)) {
+				for (const m of body.matchAll(/(--[\w-]+)\s*:\s*([^;]+)/g)) {
+					if (!isLocalVar(m[1]) && !themeVars.has(m[1])) {
+						themeVars.set(m[1], m[2].trim());
+					}
 				}
 			}
 			return output;
