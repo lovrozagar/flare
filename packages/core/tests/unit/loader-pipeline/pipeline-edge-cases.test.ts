@@ -189,7 +189,7 @@ describe("CDN cache headers", () => {
 		});
 		const result = await runPipeline(makeConfig({ routes: [route] }));
 		expect(result.matches[0]?.responseHeaders?.["Cache-Control"]).toBe(
-			"public, max-age=300, stale-while-revalidate=60",
+			"public, max-age=0, s-maxage=300, stale-while-revalidate=60",
 		);
 		expect(result.matches[0]?.responseHeaders?.["Surrogate-Key"]).toBe("products");
 	});

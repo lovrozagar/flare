@@ -6,7 +6,7 @@ test.describe("Duration shorthand in cache config", () => {
 		const res = await request.get("/duration-cache-test");
 		expect(res.status()).toBe(200);
 		const cc = res.headers()["cache-control"];
-		expect(cc).toContain("max-age=300");
+		expect(cc).toContain("s-maxage=300");
 		expect(cc).toContain("stale-while-revalidate=60");
 	});
 

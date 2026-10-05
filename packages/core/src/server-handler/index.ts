@@ -245,6 +245,13 @@ const SKIP_STATIC_HEADERS = new Set([
 	"transfer-encoding",
 ]);
 
+function storedCacheControl(headers: Record<string, string>): string | undefined {
+	for (const [k, v] of Object.entries(headers)) {
+		if (k.toLowerCase() === "cache-control") return v;
+	}
+	return undefined;
+}
+
 function sanitizeStaticHeaders(headers: Record<string, string>): Record<string, string> {
 	const result: Record<string, string> = {};
 	for (const [key, value] of Object.entries(headers)) {
@@ -457,6 +464,18 @@ function logLoaderFailures(matches: PipelineMatch[], url: URL): void {
 			logError("loader", `loader failed: ${match.route.virtualPath} ${url.pathname}`, detail);
 		}
 	}
+}
+
+/* Pages: shared caches never store them unless the route opts in via cache.cdn (or sets its
+   own Cache-Control); browsers keep them only to revalidate. Data: not stored at all. */
+const DEFAULT_HTML_CACHE_CONTROL = "private, no-cache";
+const DEFAULT_DATA_CACHE_CONTROL = "no-store";
+
+function withDefaultCacheControl(response: Response, isData: boolean): Response {
+	if (!response.headers.has("Cache-Control")) {
+		response.headers.set("Cache-Control", isData ? DEFAULT_DATA_CACHE_CONTROL : DEFAULT_HTML_CACHE_CONTROL);
+	}
+	return response;
 }
 
 function serverFnBuildMismatchResponse(serverBuildId: string): Response {
@@ -1457,7 +1476,9 @@ export function createServerHandler<
 								const headersEnabled = config.cache?.headers !== false;
 
 								if (isDataRequest) {
+									/* Data follows the CDN policy the page was rendered with. */
 									const dataHeaders: Record<string, string> = {
+										"Cache-Control": storedCacheControl(staticData.headers) ?? DEFAULT_DATA_CACHE_CONTROL,
 										"Content-Type": "application/x-ndjson",
 									};
 									if (headersEnabled) {
@@ -1497,7 +1518,7 @@ export function createServerHandler<
 									response.headers.set(FLARE_RENDER_HEADER, flareRender);
 								}
 								response = await applyResponseHandlers(response, responseHandlers);
-								return addSecurityHeaders(response, secHeaders);
+								return addSecurityHeaders(withDefaultCacheControl(response, false), secHeaders);
 							}
 
 							/* Cache miss — dynamicParams: false → 404, otherwise SSR.
@@ -1679,7 +1700,7 @@ export function createServerHandler<
 							applyResponseHeaders(response.headers, merged);
 						}
 
-						response = await applyResponseHandlers(response, responseHandlers);
+						response = withDefaultCacheControl(await applyResponseHandlers(response, responseHandlers), isDataRequest);
 
 						/* Set Flare cache headers (skip ISR bg renders — internal only) */
 						const ssrHeadersEnabled = config.cache?.headers !== false;

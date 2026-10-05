@@ -204,11 +204,14 @@ test.describe("Set-Cookie from route headers", () => {
 /* ------------------------------------------------------------------ */
 
 test.describe("Cache-Control from CDN config", () => {
-	test("route with cdn.maxAge has Cache-Control header", async ({ request }) => {
+	test("route with cdn.maxAge: shared caches keep it (s-maxage), browsers revalidate (max-age=0)", async ({
+		request,
+	}) => {
 		const response = await request.get("/cache-headers-test");
 		const cc = response.headers()["cache-control"];
 		expect(cc).toBeDefined();
-		expect(cc).toContain("max-age=300");
+		expect(cc).toContain("s-maxage=300");
+		expect(cc).toContain("max-age=0");
 	});
 
 	test("Cache-Control includes stale-while-revalidate from cdn.swr", async ({ request }) => {
@@ -238,13 +241,13 @@ test.describe("Cache-Control from CDN config", () => {
 		});
 		const cc = response.headers()["cache-control"];
 		expect(cc).toBeDefined();
-		expect(cc).toContain("max-age=300");
+		expect(cc).toContain("s-maxage=300");
 	});
 
-	test("route without cdn config has no Cache-Control", async ({ request }) => {
+	test("route without cdn config: shared caches never store it, browsers revalidate", async ({ request }) => {
 		const response = await request.get("/about");
 		const cc = response.headers()["cache-control"];
-		expect(cc).toBeUndefined();
+		expect(cc).toBe("private, no-cache");
 	});
 
 	test("page content renders with CDN cache config", async ({ page }) => {
