@@ -241,29 +241,34 @@ test.describe("Perf — SPA navigation timing", () => {
 	test("multiple sequential SPA navigations stay fast", async ({ page }) => {
 		await loadPage(page, "/");
 
-		const timings: number[] = [];
-		const routes = ["/about", "/perf-bench", "/"];
-
-		for (const route of routes) {
-			const start = Date.now();
-			await navigateSPA(page, route);
-			timings.push(Date.now() - start);
+		/* Three rounds of the same route cycle. */
+		const rounds: number[][] = [];
+		for (let round = 0; round < 3; round++) {
+			const timings: number[] = [];
+			for (const route of ["/about", "/perf-bench", "/"]) {
+				const start = Date.now();
+				await navigateSPA(page, route);
+				timings.push(Date.now() - start);
+			}
+			rounds.push(timings);
 		}
 
 		/* every nav should be under threshold */
-		for (const t of timings) {
+		for (const t of rounds.flat()) {
 			expect(t).toBeLessThan(SPA_NAV_THRESHOLD_MS);
 		}
 
-		/* no degradation: last nav stays within 3x the first. A cached first nav can take ~20ms, where
-		 * timer and scheduling jitter alone exceed 3x, so the base has a 50ms noise floor. */
-		const first = timings[0];
-		const last = timings[timings.length - 1];
-		if (first !== undefined && last !== undefined) {
-			expect(last).toBeLessThan(Math.max(first, 50) * 3);
-		}
+		/* No degradation: the last round's median stays within 3x the first's. Medians, because one
+		 * navigation can stall for a GC or a busy runner; a 50ms floor, because a cached ~20ms
+		 * navigation makes 3x pure jitter. */
+		expect(median(rounds[2] ?? [])).toBeLessThan(Math.max(median(rounds[0] ?? []), 50) * 3);
 	});
 });
+
+function median(values: number[]): number {
+	const sorted = [...values].sort((a, b) => a - b);
+	return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
 
 test.describe("Perf — NDJSON data requests", () => {
 	test("NDJSON response is fast for simple page", async ({ page }) => {

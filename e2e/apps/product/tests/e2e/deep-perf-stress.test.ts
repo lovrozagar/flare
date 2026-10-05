@@ -140,13 +140,10 @@ test.describe("Perf Stress — rapid navigation", () => {
 		const avg = timings.reduce((a, b) => a + b, 0) / timings.length;
 		expect(avg).toBeLessThan(runnerBudget(500, 2000));
 
-		/* last nav shouldn't be 3x slower than first */
-		const first = timings[0];
-		const last = timings[timings.length - 1];
-		/* A ~20ms first nav makes 3x pure scheduling jitter, so the base has a 50ms noise floor. */
-		if (first !== undefined && last !== undefined) {
-			expect(last).toBeLessThan(Math.max(first, 50) * 3);
-		}
+		/* The second cycle's median stays within 3x the first's. Medians, because one navigation can
+		 * stall for a GC or a busy runner; a 50ms floor, because ~20ms navigations make 3x jitter. */
+		const median = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)] ?? 0;
+		expect(median(timings.slice(3))).toBeLessThan(Math.max(median(timings.slice(0, 3)), 50) * 3);
 	});
 
 	test("rapid nav to heavy page then back stays fast", async ({ page }) => {
