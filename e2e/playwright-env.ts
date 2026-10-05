@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { defineConfig, devices, type PlaywrightTestConfig } from "@playwright/test";
 import { type EnvId, ENV_PORTS, e2eEnvCommand, loadE2eApp } from "./apps/load.ts";
 import { e2eAppName, e2eAppTestDir } from "./playwright-app.ts";
@@ -50,7 +51,8 @@ export function defineEnvConfig(env: EnvId): PlaywrightTestConfig {
 			reuseExistingServer: false,
 			timeout: isDev ? 60_000 : 180_000,
 		},
-		/* deno/workerd stay serial. Node/bun: 16 Chromium workers (9800X3D 16t / 32GB). */
-		workers: env === "deno" || env === "workers" ? 1 : 16,
+		/* deno/workerd stay serial. Node/bun: one Chromium worker per CPU thread, capped at 16
+		   (16 on a 9800X3D; 4 on a CI runner, where 16 starved the dev server into timeouts). */
+		workers: env === "deno" || env === "workers" ? 1 : Math.min(16, Math.max(2, availableParallelism())),
 	});
 }
