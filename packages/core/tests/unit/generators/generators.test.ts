@@ -62,6 +62,22 @@ describe("extractCacheFromChain", () => {
 		).toEqual({ modules: "render" });
 	});
 
+	it("cdn lifetime: maxAge + swr in seconds, for retaining previous assets", () => {
+		expect(extractCacheFromChain(`.cache({ cdn: { maxAge: "1d", swr: "1h" } })`).cdnLifetime).toBe(86_400 + 3_600);
+		expect(extractCacheFromChain(".cache({ cdn: { maxAge: 300 } })").cdnLifetime).toBe(300);
+		expect(extractCacheFromChain(".cache({ cdn: { maxAge: 60, private: true } })").cdnLifetime).toBe(60);
+		expect(extractCacheFromChain(".cache({ client: { staleTime: 5 } })").cdnLifetime).toBeUndefined();
+	});
+
+	it("cdn lifetime is unknown when it cannot be read statically", () => {
+		expect(extractCacheFromChain(".cache({ cdn: { maxAge: ONE_DAY } })").cdnLifetimeUnknown).toBe(true);
+		expect(
+			extractCacheFromChain(`.headers(() => ({ "Cache-Control": "public, s-maxage=600" })).render(() => null)`)
+				.cdnLifetimeUnknown,
+		).toBe(true);
+		expect(extractCacheFromChain(`.headers(() => ({ "x-a": "1" }))`).cdnLifetimeUnknown).toBeUndefined();
+	});
+
 	it("prefetch: false extracted from client", () => {
 		const c = extractCacheFromChain(".cache({ client: { prefetch: false } })");
 		expect(c.client?.prefetch).toBe(false);

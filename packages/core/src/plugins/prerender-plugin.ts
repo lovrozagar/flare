@@ -21,7 +21,8 @@ export interface SitemapPluginConfig {
 	additionalEntries?: SitemapEntry[];
 	changefreq?: ChangeFreq | Record<string, ChangeFreq>;
 	exclude?: string[];
-	origin: string;
+	/** Public origin for sitemap URLs. Defaults to the plugin's `site`. */
+	origin?: string;
 	priority?: number | Record<string, number>;
 	robotsTxt?: boolean | string;
 }
@@ -38,6 +39,7 @@ export function createPrerenderPlugin(
 	config: {
 		ignorePrefix?: string;
 		prerender?: PrerenderPluginConfig | boolean;
+		site?: string;
 	},
 	assetsBase = "/assets",
 ): VitePlugin {
@@ -59,12 +61,16 @@ export function createPrerenderPlugin(
 			/* 2. Generate sitemap if configured */
 			const sitemapConfig = prerenderConfig.sitemap;
 			if (sitemapConfig) {
+				const sitemapOrigin = sitemapConfig.origin ?? config.site;
+				if (!sitemapOrigin) {
+					throw new Error("flare: prerender.sitemap needs an origin — set `site` (or prerender.sitemap.origin).");
+				}
 				mkdirSync(staticDir, { recursive: true });
 				const sitemapResult = buildSitemapFromDefs(defs, {
 					additionalEntries: sitemapConfig.additionalEntries,
 					changefreq: sitemapConfig.changefreq,
 					exclude: sitemapConfig.exclude,
-					origin: sitemapConfig.origin,
+					origin: sitemapOrigin,
 					priority: sitemapConfig.priority,
 				});
 
@@ -73,7 +79,7 @@ export function createPrerenderPlugin(
 				}
 
 				if (sitemapConfig.robotsTxt !== false && sitemapConfig.robotsTxt !== undefined) {
-					const sitemapUrl = `${sitemapConfig.origin}/sitemap.xml`;
+					const sitemapUrl = `${sitemapOrigin}/sitemap.xml`;
 					const rules = typeof sitemapConfig.robotsTxt === "string" ? sitemapConfig.robotsTxt : undefined;
 					writeFileSync(join(staticDir, "robots.txt"), generateRobotsTxt(sitemapUrl, rules), "utf-8");
 				}

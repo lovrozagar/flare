@@ -13,6 +13,8 @@ export interface ModulePreloads {
 }
 
 export interface ViteManifestEntry {
+	/* Static assets (images, fonts) the chunk imports */
+	assets?: string[];
 	css?: string[];
 	dynamicImports?: string[];
 	file: string;

@@ -1,3 +1,4 @@
+import type { Duration } from "../duration/index.ts";
 import { existsSync, watch } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,7 @@ import { createDevPrerenderPlugin } from "./dev-prerender.ts";
 import { createDevServerPlugin, createPreviewServerPlugin } from "./dev-server.ts";
 import { createImagePlugin } from "./image-plugin.ts";
 import { createPrerenderPlugin, type PrerenderPluginConfig } from "./prerender-plugin.ts";
+import { createRetainAssetsPlugin } from "./retain-assets.ts";
 import { createPurgePlugin, createPurgeTestIdsPlugin, type PurgeConfig, resolvePurgeConfig } from "./purge.ts";
 import { createServerFnPlugin } from "./server-fn.ts";
 import {
@@ -100,7 +102,16 @@ export interface FlarePluginConfig {
 	port?: number;
 	prerender?: PrerenderPluginConfig | boolean;
 	purge?: PurgeConfig | boolean;
+	/**
+	 * Keep files from previous builds available after a deploy (copied from `site` into this
+	 * build's output), so open tabs and CDN-cached pages keep finding their chunks. `true` keeps
+	 * the replaced build plus the longest HTML cache lifetime routes declare; a duration sets the
+	 * window. Requires `site`. Default off.
+	 */
+	retainPreviousAssets?: boolean | Duration;
 	serviceWorker?: ServiceWorkerConfig | boolean;
+	/** Public origin of the deployed app (e.g. `https://example.com`). Used by the sitemap and retainPreviousAssets. */
+	site?: string;
 	solid?: Partial<SolidPluginOptions>;
 	sx?: SxAstOptions;
 }
@@ -376,6 +387,11 @@ function createTwDeprecatedPlugin(): VitePlugin {
 /* ── Main export ─────────────────────────────────────────────────────── */
 
 export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
+	if (config.retainPreviousAssets && !config.site) {
+		throw new Error(
+			'flare: retainPreviousAssets needs `site` — the public URL the previous build is served from (e.g. site: "https://example.com").',
+		);
+	}
 	const root = process.cwd();
 	const resolvedOptions = resolveFlareOptions(config);
 	const resolvedCodegen = resolveCodegenConfig(config.codegen);
@@ -431,6 +447,17 @@ export function flare(config: FlarePluginConfig = EMPTY_OBJ): VitePlugin[] {
 
 	if (config.prerender) {
 		plugins.push(createPrerenderPlugin(config, resolvedOptions.assetsBase));
+	}
+
+	if (config.retainPreviousAssets) {
+		plugins.push(
+			createRetainAssetsPlugin({
+				assetsBase: resolvedOptions.assetsBase,
+				ignorePrefix: config.ignorePrefix ?? "_",
+				option: config.retainPreviousAssets,
+				site: config.site as string,
+			}),
+		);
 	}
 
 	/* Dev-only plugins */
