@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.13
+
+- Layouts stay mounted when navigation changes only params their own path does not declare (/blog/a → /blog/b keeps the (blog) layout); a [locale] layout still remounts on a locale switch, and pages still remount on any param change.
+- `Form` runs a consumer `onSubmit` before the server call, and preventing its default cancels the call. It used to replace the handler, so client validation composed onto the form (Base UI Form through `render`) never ran and an invalid form still posted.
+
 ## 0.9.12
 
 - Font fallbacks match the font's width. `size-adjust` was the ratio of line heights, so fallback text re-wrapped when the real font swapped in (Inter's fallback was 95.04%; width-matched it is 107.12%, as next/font ships). All 199 registry fonts are recomputed from Capsize's average character width; InterDisplay, which Capsize lacks, is measured from its own file.
