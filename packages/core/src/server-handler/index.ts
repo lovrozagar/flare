@@ -34,6 +34,7 @@ import { mergePreloads, resolveRoutePreloads, type ViteManifest } from "../modul
 import { dispatchMount, type MountConfig, matchMount } from "../mount/index.ts";
 import { setRewrite } from "../navigation/index.ts";
 import {
+	createBuildMismatchNDJSONResponse,
 	createErrorNDJSONResponse,
 	createNDJSONResponse,
 	createRedirectNDJSONResponse,
@@ -79,6 +80,7 @@ import {
 	HEADER_STALE,
 	INTERNAL_PATH_PREFIX,
 	isServerFnPathname,
+	PARAM_DATA,
 	serverFnPath,
 } from "../protocol.ts";
 import {
@@ -952,11 +954,22 @@ export function createServerHandler<
 	}
 
 	const handler: ServerHandler<TEnv> = {
-		async fetch(request: Request, env: TEnv): Promise<Response> {
+		async fetch(incoming: Request, env: TEnv): Promise<Response> {
+			/* `?_flare=<buildId>` only keys caches and carries the client's build. Strip it before
+			   anything (middleware, redirects, loaders) sees the URL. */
+			const url = new URL(incoming.url);
+			const clientBuild = url.searchParams.get(PARAM_DATA);
+			let request = incoming;
+			if (clientBuild !== null) {
+				url.searchParams.delete(PARAM_DATA);
+				request = new Request(url, incoming);
+				if (request.headers.get(HEADER_DATA) === HEADER_FLAG && clientBuild !== buildId) {
+					return createBuildMismatchNDJSONResponse(buildId);
+				}
+			}
 			const nonce = generateNonce();
 			const abortController = new AbortController();
 			followAbortSignal(abortController, request.signal);
-			const url = new URL(request.url);
 
 			const matchedMount = matchMount(mounts, url.pathname);
 			if (!matchedMount) {

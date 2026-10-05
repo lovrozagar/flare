@@ -1,6 +1,7 @@
+import { getBuildId } from "../build-id.ts";
 import { NotFoundError, RedirectResponse, UnauthenticatedError, UnauthorizedError } from "../errors/index.ts";
 import { warn } from "../logger.ts";
-import { HEADER_DATA, HEADER_FLAG, HEADER_PREFETCH, HEADER_STALE } from "../protocol.ts";
+import { HEADER_DATA, HEADER_FLAG, HEADER_PREFETCH, HEADER_STALE, PARAM_DATA } from "../protocol.ts";
 import type { HeadConfig } from "../route-builder/types.ts";
 import type { DeferredResolver } from "../state-parser/index.ts";
 import { hydrateLoaderData } from "../state-parser/index.ts";
@@ -116,6 +117,19 @@ export function applyQueryCacheHydration(queryClient: unknown, entries: unknown,
 		.catch(() => {});
 }
 
+const ABSOLUTE_URL = /^[a-z][a-z\d+.-]*:/i;
+
+/** `?_flare=<buildId>`: a cache key per build, and the server's skew check. No build id → unchanged. */
+export function withBuildParam(url: string): string {
+	const buildId = getBuildId();
+	if (!buildId) return url;
+	const base = typeof location !== "undefined" ? location.href : "http://localhost/";
+	const parsed = new URL(url, base);
+	parsed.searchParams.set(PARAM_DATA, buildId);
+	parsed.hash = "";
+	return ABSOLUTE_URL.test(url) ? parsed.href : `${parsed.pathname}${parsed.search}`;
+}
+
 export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFetchResult> {
 	const headers: Record<string, string> = { [HEADER_DATA]: HEADER_FLAG };
 
@@ -127,7 +141,7 @@ export async function fetchNDJSON(options: NDJSONFetchOptions): Promise<NDJSONFe
 		headers[HEADER_PREFETCH] = HEADER_FLAG;
 	}
 
-	const response = await fetch(options.url, {
+	const response = await fetch(withBuildParam(options.url), {
 		headers,
 		signal: options.signal,
 	});
