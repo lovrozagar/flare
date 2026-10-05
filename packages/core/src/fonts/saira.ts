@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const saira: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "155.36%",
-		descentOverride: "60.09%",
+		ascentOverride: "109.52%",
+		descentOverride: "42.36%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "73.06%",
+		sizeAdjust: "103.63%",
 	},
 	family: "Saira",
 	subsetEntries: [

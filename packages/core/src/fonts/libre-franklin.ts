@@ -5,11 +5,11 @@ export const libreFranklin: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "101.82%",
-			descentOverride: "25.93%",
+			ascentOverride: "92.61%",
+			descentOverride: "23.58%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "94.88%",
+			sizeAdjust: "104.31%",
 		},
 		family: "Libre Franklin",
 		subsetEntries: [

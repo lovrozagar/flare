@@ -6,11 +6,11 @@ export const alegreya: Font<
 > = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "120.25%",
-		descentOverride: "40.83%",
+		ascentOverride: "100.67%",
+		descentOverride: "34.18%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "84.49%",
+		sizeAdjust: "100.92%",
 	},
 	family: "Alegreya",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const cairo: Font<"arabic" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "212.35%",
-		descentOverride: "93.06%",
+		ascentOverride: "137.65%",
+		descentOverride: "60.32%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "61.36%",
+		sizeAdjust: "94.66%",
 	},
 	family: "Cairo",
 	subsetEntries: [

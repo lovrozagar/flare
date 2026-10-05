@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const lobster: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "108.70%",
-		descentOverride: "27.18%",
+		ascentOverride: "113.72%",
+		descentOverride: "28.43%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "87.93%",
 	},
 	family: "Lobster",
 	subsetEntries: [

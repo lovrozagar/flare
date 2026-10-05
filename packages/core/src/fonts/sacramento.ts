@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const sacramento: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "118.06%",
-		descentOverride: "67.18%",
+		ascentOverride: "126.38%",
+		descentOverride: "71.91%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "78.79%",
+		sizeAdjust: "73.60%",
 	},
 	family: "Sacramento",
 	subsetEntries: [

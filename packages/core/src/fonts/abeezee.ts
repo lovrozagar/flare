@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const abeezee: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "94.57%",
-		descentOverride: "26.93%",
+		ascentOverride: "85.27%",
+		descentOverride: "24.28%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "97.28%",
+		sizeAdjust: "107.90%",
 	},
 	family: "ABeeZee",
 	subsetEntries: [

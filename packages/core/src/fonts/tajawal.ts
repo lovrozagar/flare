@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const tajawal: Font<"arabic" | "latin"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "67.10%",
-		descentOverride: "37.26%",
+		ascentOverride: "67.93%",
+		descentOverride: "37.71%",
 		fallbackFont: "Arial",
-		lineGapOverride: "20.87%",
-		sizeAdjust: "95.83%",
+		lineGapOverride: "21.13%",
+		sizeAdjust: "94.66%",
 	},
 	family: "Tajawal",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const shadowsIntoLight: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "164.12%",
-		descentOverride: "60.30%",
+		ascentOverride: "138.94%",
+		descentOverride: "51.05%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "71.58%",
+		sizeAdjust: "84.56%",
 	},
 	family: "Shadows Into Light",
 	subsetEntries: [

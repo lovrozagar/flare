@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const acme: Font<"latin"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "105.58%",
-		descentOverride: "33.80%",
+		ascentOverride: "109.06%",
+		descentOverride: "34.91%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.83%",
+		sizeAdjust: "87.93%",
 	},
 	family: "Acme",
 	subsetEntries: [

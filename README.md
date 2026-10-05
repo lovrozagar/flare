@@ -798,7 +798,7 @@ import hero from "../assets/hero.jpg";
 <Image src={hero} alt="Hero" widths={[400, 800, 1200]} placeholder={false} />
 ```
 
-`flare font add` writes `public/fonts/` + subset CSS. Fallback metrics (`size-adjust`) reduce CLS.
+`flare font add` writes `public/fonts/` + subset CSS. Each font ships a `"<Family> Fallback"` face: Arial / Times New Roman / Courier New (or their metric-compatible Liberation and Croscore clones on Linux) with `size-adjust` matched to the font's average character width, so text wraps the same before and after the swap. Use `font.fontFamily`, which lists it, or name the fallback face in your own stack.
 
 `Image` emits `srcset`, optional blur placeholder. The Vite image plugin rewrites imports. `configureImage({ ... })` sets app-wide defaults. Typed imports look like `hero.d.jpg.ts` next to the file.
 

@@ -6,11 +6,11 @@ export const interTight: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "101.93%",
-		descentOverride: "25.38%",
+		ascentOverride: "100.51%",
+		descentOverride: "25.03%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.04%",
+		sizeAdjust: "96.39%",
 	},
 	family: "Inter Tight",
 	subsetEntries: [

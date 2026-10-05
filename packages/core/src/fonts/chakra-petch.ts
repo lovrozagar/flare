@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const chakraPetch: Font<"latin" | "latin-ext" | "thai" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "112.15%",
-		descentOverride: "34.82%",
+		ascentOverride: "96.77%",
+		descentOverride: "30.05%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "88.45%",
+		sizeAdjust: "102.51%",
 	},
 	family: "Chakra Petch",
 	subsetEntries: [

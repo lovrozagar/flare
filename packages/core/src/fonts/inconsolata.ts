@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const inconsolata: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "monospace",
 	fallbackMetrics: {
-		ascentOverride: "79.54%",
-		descentOverride: "17.59%",
+		ascentOverride: "103.10%",
+		descentOverride: "22.80%",
 		fallbackFont: "Courier New",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "107.99%",
+		sizeAdjust: "83.32%",
 	},
 	family: "Inconsolata",
 	subsetEntries: [

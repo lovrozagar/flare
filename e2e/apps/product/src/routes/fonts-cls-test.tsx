@@ -1,21 +1,22 @@
 import { createPage } from "@lovrozagar/flare/page";
 import { createFont, FontCSS } from "@lovrozagar/flare/fonts";
+import { inter } from "@lovrozagar/flare/fonts/inter";
 
 /**
- * Uses a real Google Fonts CDN URL so the browser actually downloads
- * and swaps the font — enabling real CLS measurement.
+ * Serves Inter's latin file from public/fonts so the browser really downloads and swaps the
+ * font, enabling real CLS measurement. Metrics are the registry's width-matched Inter values.
  */
 const interReal = createFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "101.93%",
-		descentOverride: "25.38%",
+		ascentOverride: "90.44%",
+		descentOverride: "22.52%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.04%",
+		sizeAdjust: "107.12%",
 	},
 	family: "Inter CLS Test",
-	src: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjQ.woff2",
+	src: "/fonts/inter/latin.woff2",
 	weights: "100 900",
 });
 
@@ -25,7 +26,7 @@ const interReal = createFont({
 const interNoFallback = createFont({
 	category: "sans-serif",
 	family: "Inter No Fallback",
-	src: "https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hjQ.woff2",
+	src: "/fonts/inter/latin.woff2",
 	weights: "100 900",
 });
 
@@ -35,6 +36,24 @@ export const route = createPage("_root_/fonts-cls-test")
 		<main data-testid="cls-test">
 			<FontCSS font={interReal} />
 			<FontCSS font={interNoFallback} />
+			{/* The registry font: real Inter (latin served from public/fonts) beside its "Inter Fallback" face. */}
+			<FontCSS font={inter} preload={false} subsets={["latin"]} />
+			<p>
+				<span
+					data-testid="registry-fallback"
+					style={{ "font-family": '"Inter Fallback"', "font-size": "48px", "white-space": "nowrap" }}
+				>
+					Turn invoices into rows you can edit.
+				</span>
+			</p>
+			<p>
+				<span
+					data-testid="real-inter"
+					style={{ "font-family": '"Inter"', "font-size": "48px", "white-space": "nowrap" }}
+				>
+					Turn invoices into rows you can edit.
+				</span>
+			</p>
 			<div data-testid="with-fallback" style={{ "font-family": interReal.fontFamily }}>
 				<p>
 					The quick brown fox jumps over the lazy dog. This paragraph uses Inter with fallback metrics. When the real

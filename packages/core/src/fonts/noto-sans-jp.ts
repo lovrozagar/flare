@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const notoSansJp: Font<"cyrillic" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "146.07%",
-		descentOverride: "36.27%",
+		ascentOverride: "110.73%",
+		descentOverride: "27.49%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "79.41%",
+		sizeAdjust: "104.76%",
 	},
 	family: "Noto Sans JP",
 	subsetEntries: [

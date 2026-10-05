@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const oswald: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "153.75%",
-		descentOverride: "37.25%",
+		ascentOverride: "146.51%",
+		descentOverride: "35.49%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "77.59%",
+		sizeAdjust: "81.43%",
 	},
 	family: "Oswald",
 	subsetEntries: [

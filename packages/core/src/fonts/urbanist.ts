@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const urbanist: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "99.14%",
-		descentOverride: "26.09%",
+		ascentOverride: "95.93%",
+		descentOverride: "25.24%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "99.04%",
 	},
 	family: "Urbanist",
 	subsetEntries: [

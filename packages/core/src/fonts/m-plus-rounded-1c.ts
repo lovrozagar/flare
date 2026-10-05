@@ -6,11 +6,11 @@ export const mPlusRounded1c: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "138.83%",
-		descentOverride: "41.33%",
+		ascentOverride: "100.68%",
+		descentOverride: "29.97%",
 		fallbackFont: "Arial",
-		lineGapOverride: "11.62%",
-		sizeAdjust: "77.43%",
+		lineGapOverride: "8.43%",
+		sizeAdjust: "106.77%",
 	},
 	family: "M PLUS Rounded 1c",
 	subsetEntries: [

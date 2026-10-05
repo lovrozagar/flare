@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const titilliumWeb: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "149.86%",
-		descentOverride: "51.32%",
+		ascentOverride: "119.97%",
+		descentOverride: "41.09%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "75.60%",
+		sizeAdjust: "94.44%",
 	},
 	family: "Titillium Web",
 	subsetEntries: [

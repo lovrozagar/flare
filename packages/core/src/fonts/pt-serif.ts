@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const ptSerif: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "119.72%",
-		descentOverride: "32.95%",
+		ascentOverride: "94.22%",
+		descentOverride: "25.93%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "86.79%",
+		sizeAdjust: "110.28%",
 	},
 	family: "PT Serif",
 	subsetEntries: [

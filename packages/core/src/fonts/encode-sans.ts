@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const encodeSans: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "111.97%",
-		descentOverride: "23.92%",
+		ascentOverride: "103.89%",
+		descentOverride: "22.19%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "99.15%",
 	},
 	family: "Encode Sans",
 	subsetEntries: [

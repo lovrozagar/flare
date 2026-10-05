@@ -5,11 +5,11 @@ export const rubik: Font<"arabic" | "cyrillic" | "cyrillic-ext" | "hebrew" | "la
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "96.35%",
-			descentOverride: "25.76%",
+			ascentOverride: "89.06%",
+			descentOverride: "23.81%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "97.04%",
+			sizeAdjust: "104.98%",
 		},
 		family: "Rubik",
 		subsetEntries: [

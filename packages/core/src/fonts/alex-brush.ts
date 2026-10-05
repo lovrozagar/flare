@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const alexBrush: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "89.68%",
-		descentOverride: "46.20%",
+		ascentOverride: "107.86%",
+		descentOverride: "55.56%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "76.49%",
 	},
 	family: "Alex Brush",
 	subsetEntries: [

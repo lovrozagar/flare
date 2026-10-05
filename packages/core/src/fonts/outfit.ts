@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const outfit: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "109.57%",
-		descentOverride: "28.49%",
+		ascentOverride: "100.18%",
+		descentOverride: "26.05%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.26%",
+		sizeAdjust: "99.82%",
 	},
 	family: "Outfit",
 	subsetEntries: [

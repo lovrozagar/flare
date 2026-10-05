@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const pacifico: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "198.98%",
-		descentOverride: "69.18%",
+		ascentOverride: "137.32%",
+		descentOverride: "47.74%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "65.48%",
+		sizeAdjust: "94.89%",
 	},
 	family: "Pacifico",
 	subsetEntries: [

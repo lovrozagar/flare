@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const breeSerif: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "127.19%",
-		descentOverride: "33.19%",
+		ascentOverride: "97.23%",
+		descentOverride: "25.37%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "84.68%",
+		sizeAdjust: "110.77%",
 	},
 	family: "Bree Serif",
 	subsetEntries: [

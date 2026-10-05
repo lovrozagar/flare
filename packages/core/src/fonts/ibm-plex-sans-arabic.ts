@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const ibmPlexSansArabic: Font<"arabic" | "cyrillic-ext" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "141.53%",
-		descentOverride: "54.14%",
+		ascentOverride: "107.25%",
+		descentOverride: "41.02%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "76.66%",
+		sizeAdjust: "101.17%",
 	},
 	family: "IBM Plex Sans Arabic",
 	subsetEntries: [

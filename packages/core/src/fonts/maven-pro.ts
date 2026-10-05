@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const mavenPro: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "98.61%",
-		descentOverride: "21.46%",
+		ascentOverride: "93.12%",
+		descentOverride: "20.26%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "97.86%",
+		sizeAdjust: "103.63%",
 	},
 	family: "Maven Pro",
 	subsetEntries: [

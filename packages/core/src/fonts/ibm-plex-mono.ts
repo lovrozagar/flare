@@ -5,11 +5,11 @@ export const ibmPlexMono: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ex
 	{
 		category: "monospace",
 		fallbackMetrics: {
-			ascentOverride: "117.63%",
-			descentOverride: "31.56%",
+			ascentOverride: "102.52%",
+			descentOverride: "27.50%",
 			fallbackFont: "Courier New",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "87.14%",
+			sizeAdjust: "99.98%",
 		},
 		family: "IBM Plex Mono",
 		subsetEntries: [

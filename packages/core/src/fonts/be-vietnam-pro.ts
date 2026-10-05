@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const beVietnamPro: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "110.01%",
-		descentOverride: "29.15%",
+		ascentOverride: "90.61%",
+		descentOverride: "24.01%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.90%",
+		sizeAdjust: "110.36%",
 	},
 	family: "Be Vietnam Pro",
 	subsetEntries: [

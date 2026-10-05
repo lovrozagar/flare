@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const pathwayGothicOne: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "95.57%",
-		descentOverride: "19.84%",
+		ascentOverride: "138.08%",
+		descentOverride: "28.66%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "99.82%",
+		sizeAdjust: "69.09%",
 	},
 	family: "Pathway Gothic One",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const instrumentSans: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "102.91%",
-		descentOverride: "26.52%",
+		ascentOverride: "94.42%",
+		descentOverride: "24.33%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "94.25%",
+		sizeAdjust: "102.74%",
 	},
 	family: "Instrument Sans",
 	subsetEntries: [

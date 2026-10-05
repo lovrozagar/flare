@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const barlowCondensed: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "104.36%",
-		descentOverride: "20.87%",
+		ascentOverride: "130.73%",
+		descentOverride: "26.15%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "76.49%",
 	},
 	family: "Barlow Condensed",
 	subsetEntries: [

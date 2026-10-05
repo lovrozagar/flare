@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const signika: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "100.71%",
-		descentOverride: "31.28%",
+		ascentOverride: "98.02%",
+		descentOverride: "30.45%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "93.34%",
+		sizeAdjust: "95.89%",
 	},
 	family: "Signika",
 	subsetEntries: [

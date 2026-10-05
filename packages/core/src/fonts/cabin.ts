@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const cabin: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "101.96%",
-		descentOverride: "26.42%",
+		ascentOverride: "101.94%",
+		descentOverride: "26.41%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "94.64%",
+		sizeAdjust: "94.66%",
 	},
 	family: "Cabin",
 	subsetEntries: [

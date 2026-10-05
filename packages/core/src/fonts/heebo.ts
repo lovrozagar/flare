@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const heebo: Font<"hebrew" | "latin" | "latin-ext" | "math" | "symbols"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "133.84%",
-		descentOverride: "53.76%",
+		ascentOverride: "104.90%",
+		descentOverride: "42.14%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "78.29%",
+		sizeAdjust: "99.89%",
 	},
 	family: "Heebo",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const poppins: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "136.97%",
-		descentOverride: "45.66%",
+		ascentOverride: "93.62%",
+		descentOverride: "31.21%",
 		fallbackFont: "Arial",
-		lineGapOverride: "13.04%",
-		sizeAdjust: "76.66%",
+		lineGapOverride: "8.92%",
+		sizeAdjust: "112.16%",
 	},
 	family: "Poppins",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const exo: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "115.81%",
-		descentOverride: "37.79%",
+		ascentOverride: "96.27%",
+		descentOverride: "31.42%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "86.52%",
+		sizeAdjust: "104.08%",
 	},
 	family: "Exo",
 	subsetEntries: [

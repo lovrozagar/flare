@@ -5,11 +5,11 @@ export const manrope: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" | "la
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "126.63%",
-			descentOverride: "35.64%",
+			ascentOverride: "103.31%",
+			descentOverride: "29.07%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "84.18%",
+			sizeAdjust: "103.19%",
 		},
 		family: "Manrope",
 		subsetEntries: [

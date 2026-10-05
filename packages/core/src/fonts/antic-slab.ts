@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const anticSlab: Font<"latin"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "97.28%",
-		descentOverride: "25.87%",
+		ascentOverride: "80.73%",
+		descentOverride: "21.47%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "96.63%",
+		sizeAdjust: "116.43%",
 	},
 	family: "Antic Slab",
 	subsetEntries: [

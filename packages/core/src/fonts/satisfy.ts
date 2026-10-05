@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const satisfy: Font<"latin"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "117.07%",
-		descentOverride: "61.29%",
+		ascentOverride: "109.67%",
+		descentOverride: "57.42%",
 		fallbackFont: "Arial",
-		lineGapOverride: "2.08%",
-		sizeAdjust: "79.83%",
+		lineGapOverride: "1.95%",
+		sizeAdjust: "85.21%",
 	},
 	family: "Satisfy",
 	subsetEntries: [

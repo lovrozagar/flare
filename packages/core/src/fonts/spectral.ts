@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const spectral: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "140.17%",
-		descentOverride: "61.28%",
+		ascentOverride: "96.46%",
+		descentOverride: "42.17%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "75.55%",
+		sizeAdjust: "109.78%",
 	},
 	family: "Spectral",
 	subsetEntries: [

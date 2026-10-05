@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const passionOne: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "79.95%",
-		descentOverride: "25.47%",
+		ascentOverride: "100.07%",
+		descentOverride: "31.88%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "104.44%",
+		sizeAdjust: "83.45%",
 	},
 	family: "Passion One",
 	subsetEntries: [

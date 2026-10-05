@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const sawarabiMincho: Font<"braille" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "137.62%",
-		descentOverride: "41.03%",
+		ascentOverride: "90.56%",
+		descentOverride: "27.00%",
 		fallbackFont: "Times New Roman",
-		lineGapOverride: "11.58%",
-		sizeAdjust: "77.75%",
+		lineGapOverride: "7.62%",
+		sizeAdjust: "118.15%",
 	},
 	family: "Sawarabi Mincho",
 	subsetEntries: [

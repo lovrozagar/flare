@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const merriweatherSans: Font<"cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "107.56%",
-		descentOverride: "29.84%",
+		ascentOverride: "92.45%",
+		descentOverride: "25.65%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.48%",
+		sizeAdjust: "106.44%",
 	},
 	family: "Merriweather Sans",
 	subsetEntries: [

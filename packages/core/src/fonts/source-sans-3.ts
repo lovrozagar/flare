@@ -6,11 +6,11 @@ export const sourceSans3: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "126.81%",
-		descentOverride: "49.53%",
+		ascentOverride: "109.21%",
+		descentOverride: "42.66%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "80.75%",
+		sizeAdjust: "93.76%",
 	},
 	family: "Source Sans 3",
 	subsetEntries: [

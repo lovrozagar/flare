@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const righteous: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "106.35%",
-		descentOverride: "27.73%",
+		ascentOverride: "93.08%",
+		descentOverride: "24.27%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "92.61%",
+		sizeAdjust: "105.81%",
 	},
 	family: "Righteous",
 	subsetEntries: [

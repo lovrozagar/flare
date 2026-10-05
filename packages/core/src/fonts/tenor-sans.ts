@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const tenorSans: Font<"cyrillic" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "93.61%",
-		descentOverride: "25.44%",
+		ascentOverride: "84.22%",
+		descentOverride: "22.89%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "98.28%",
+		sizeAdjust: "109.24%",
 	},
 	family: "Tenor Sans",
 	subsetEntries: [

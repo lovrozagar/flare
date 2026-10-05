@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const redHatDisplay: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "117.12%",
-		descentOverride: "35.09%",
+		ascentOverride: "102.68%",
+		descentOverride: "30.76%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "86.92%",
+		sizeAdjust: "99.15%",
 	},
 	family: "Red Hat Display",
 	subsetEntries: [

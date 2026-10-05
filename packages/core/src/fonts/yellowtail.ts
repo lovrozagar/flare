@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const yellowtail: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "115.16%",
-		descentOverride: "35.70%",
+		ascentOverride: "128.39%",
+		descentOverride: "39.81%",
 		fallbackFont: "Arial",
-		lineGapOverride: "10.65%",
-		sizeAdjust: "84.38%",
+		lineGapOverride: "11.87%",
+		sizeAdjust: "75.68%",
 	},
 	family: "Yellowtail",
 	subsetEntries: [

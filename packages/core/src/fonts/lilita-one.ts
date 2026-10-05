@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const lilitaOne: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "91.75%",
-		descentOverride: "21.87%",
+		ascentOverride: "96.14%",
+		descentOverride: "22.91%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "100.60%",
+		sizeAdjust: "96.01%",
 	},
 	family: "Lilita One",
 	subsetEntries: [

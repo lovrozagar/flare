@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const cormorant: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "97.31%",
-		descentOverride: "30.22%",
+		ascentOverride: "95.52%",
+		descentOverride: "29.67%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "94.95%",
+		sizeAdjust: "96.74%",
 	},
 	family: "Cormorant",
 	subsetEntries: [

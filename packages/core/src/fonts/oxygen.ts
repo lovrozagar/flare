@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const oxygen: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "112.76%",
-		descentOverride: "25.90%",
+		ascentOverride: "101.57%",
+		descentOverride: "23.33%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.07%",
+		sizeAdjust: "101.10%",
 	},
 	family: "Oxygen",
 	subsetEntries: [

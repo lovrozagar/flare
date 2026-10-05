@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const ptSans: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "114.56%",
-		descentOverride: "31.06%",
+		ascentOverride: "105.30%",
+		descentOverride: "28.55%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "88.86%",
+		sizeAdjust: "96.68%",
 	},
 	family: "PT Sans",
 	subsetEntries: [

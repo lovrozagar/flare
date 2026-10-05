@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const playfairDisplay: Font<"cyrillic" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "125.43%",
-		descentOverride: "29.10%",
+		ascentOverride: "97.25%",
+		descentOverride: "22.56%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "86.26%",
+		sizeAdjust: "111.26%",
 	},
 	family: "Playfair Display",
 	subsetEntries: [

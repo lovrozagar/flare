@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const domine: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "89.22%",
-		descentOverride: "23.79%",
+		ascentOverride: "75.39%",
+		descentOverride: "20.10%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "100.87%",
+		sizeAdjust: "119.38%",
 	},
 	family: "Domine",
 	subsetEntries: [

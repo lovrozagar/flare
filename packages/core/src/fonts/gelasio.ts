@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const gelasio: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "102.43%",
-		descentOverride: "37.74%",
+		ascentOverride: "84.54%",
+		descentOverride: "31.15%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.58%",
+		sizeAdjust: "109.74%",
 	},
 	family: "Gelasio",
 	subsetEntries: [

@@ -5,11 +5,11 @@ export const ibmPlexSerif: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-e
 	createRegistryFont({
 		category: "serif",
 		fallbackMetrics: {
-			ascentOverride: "115.88%",
-			descentOverride: "31.09%",
+			ascentOverride: "88.04%",
+			descentOverride: "23.62%",
 			fallbackFont: "Times New Roman",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "88.45%",
+			sizeAdjust: "116.43%",
 		},
 		family: "IBM Plex Serif",
 		subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const rokkitt: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "80.78%",
-		descentOverride: "31.64%",
+		ascentOverride: "78.46%",
+		descentOverride: "30.73%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "101.13%",
+		sizeAdjust: "104.12%",
 	},
 	family: "Rokkitt",
 	subsetEntries: [

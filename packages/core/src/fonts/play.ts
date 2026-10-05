@@ -5,11 +5,11 @@ export const play: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" | "latin
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "94.28%",
-			descentOverride: "22.14%",
+			ascentOverride: "92.83%",
+			descentOverride: "21.79%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "99.39%",
+			sizeAdjust: "100.94%",
 		},
 		family: "Play",
 		subsetEntries: [

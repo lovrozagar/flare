@@ -6,11 +6,11 @@ export const robotoSlab: Font<
 > = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "120.18%",
-		descentOverride: "31.08%",
+		ascentOverride: "89.69%",
+		descentOverride: "23.20%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "87.19%",
+		sizeAdjust: "116.83%",
 	},
 	family: "Roboto Slab",
 	subsetEntries: [

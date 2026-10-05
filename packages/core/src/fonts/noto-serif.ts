@@ -6,11 +6,11 @@ export const notoSerif: Font<
 > = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "126.62%",
-		descentOverride: "34.70%",
+		ascentOverride: "90.29%",
+		descentOverride: "24.75%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "84.43%",
+		sizeAdjust: "118.40%",
 	},
 	family: "Noto Serif",
 	subsetEntries: [

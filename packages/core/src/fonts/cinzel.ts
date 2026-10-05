@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const cinzel: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "114.41%",
-		descentOverride: "43.61%",
+		ascentOverride: "71.31%",
+		descentOverride: "27.18%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "85.30%",
+		sizeAdjust: "136.86%",
 	},
 	family: "Cinzel",
 	subsetEntries: [

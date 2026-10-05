@@ -7,14 +7,20 @@ import type { Font } from "./types.ts";
  * Full unicode-range: InterDisplay covers all scripts Inter covers; single range is safe
  * since these are non-subsetted files.
  */
+/*
+ * Capsize has no InterDisplay entry, so the fallback metrics come from InterDisplay-Regular.woff2
+ * itself (@capsizecss/unpack: unitsPerEm 2048, ascent 1984, descent -494, lineGap 0, xWidthAvg 892)
+ * against Arial (xWidthAvg 913), the same width-based formula populate-fonts uses. InterDisplay is
+ * narrower than Inter, so it cannot reuse Inter's numbers.
+ */
 export const interDisplay: Font<"latin"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "101.93%",
-		descentOverride: "25.38%",
+		ascentOverride: "99.16%",
+		descentOverride: "24.69%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.04%",
+		sizeAdjust: "97.70%",
 	},
 	family: "InterDisplay",
 	subsetEntries: [

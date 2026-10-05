@@ -6,11 +6,11 @@ export const robotoCondensed: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "94.55%",
-		descentOverride: "24.88%",
+		ascentOverride: "104.44%",
+		descentOverride: "27.48%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "98.13%",
+		sizeAdjust: "88.83%",
 	},
 	family: "Roboto Condensed",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const workSans: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "94.87%",
-		descentOverride: "24.79%",
+		ascentOverride: "83.09%",
+		descentOverride: "21.71%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "98.03%",
+		sizeAdjust: "111.93%",
 	},
 	family: "Work Sans",
 	subsetEntries: [

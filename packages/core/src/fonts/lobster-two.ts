@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const lobsterTwo: Font<"latin"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "108.70%",
-		descentOverride: "27.18%",
+		ascentOverride: "122.47%",
+		descentOverride: "30.62%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "81.65%",
 	},
 	family: "Lobster Two",
 	subsetEntries: [

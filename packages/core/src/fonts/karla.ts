@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const karla: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "93.22%",
-		descentOverride: "25.62%",
+		ascentOverride: "89.55%",
+		descentOverride: "24.61%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "98.37%",
+		sizeAdjust: "102.40%",
 	},
 	family: "Karla",
 	subsetEntries: [

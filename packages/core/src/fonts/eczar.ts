@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const eczar: Font<"devanagari" | "greek" | "greek-ext" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "176.63%",
-		descentOverride: "97.98%",
+		ascentOverride: "106.01%",
+		descentOverride: "58.80%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "64.71%",
+		sizeAdjust: "107.82%",
 	},
 	family: "Eczar",
 	subsetEntries: [

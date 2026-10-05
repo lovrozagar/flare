@@ -6,11 +6,11 @@ export const yanoneKaffeesatz: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "63.41%",
-		descentOverride: "17.25%",
+		ascentOverride: "106.38%",
+		descentOverride: "28.95%",
 		fallbackFont: "Arial",
-		lineGapOverride: "4.92%",
-		sizeAdjust: "115.92%",
+		lineGapOverride: "8.25%",
+		sizeAdjust: "69.09%",
 	},
 	family: "Yanone Kaffeesatz",
 	subsetEntries: [

@@ -15,13 +15,11 @@ async function loadCapsizeMetrics(name: string) {
 	return mod.default ?? mod;
 }
 
-function computeFallbackMetrics(
-	font: { ascent: number; descent: number; lineGap: number; unitsPerEm: number },
-	fallback: { ascent: number; descent: number; lineGap: number; unitsPerEm: number },
-) {
-	const sizeAdjust =
-		(font.unitsPerEm / fallback.unitsPerEm) *
-		((fallback.ascent - fallback.descent + fallback.lineGap) / (font.ascent - font.descent + font.lineGap));
+type Metrics = { ascent: number; descent: number; lineGap: number; unitsPerEm: number; xWidthAvg: number };
+
+function computeFallbackMetrics(font: Metrics, fallback: Metrics) {
+	/* width-matched: fallback text wraps like the real font (Capsize xWidthAvg) */
+	const sizeAdjust = font.xWidthAvg / font.unitsPerEm / (fallback.xWidthAvg / fallback.unitsPerEm);
 
 	const ascentOverride = font.ascent / (font.unitsPerEm * sizeAdjust);
 	const descentOverride = Math.abs(font.descent) / (font.unitsPerEm * sizeAdjust);
@@ -72,11 +70,17 @@ describe("fallback metrics correctness", () => {
 		expect(css).toContain(`ascent-override: ${expected.ascentOverride}`);
 	});
 
-	it("all tested fonts use Arial as fallback (sans-serif)", () => {
+	it("all tested fonts use Arial and its metric-compatible clones as fallback (sans-serif)", () => {
 		for (const font of [inter, montserrat, poppins]) {
 			const css = font.css();
-			expect(css).toContain('src: local("Arial")');
+			expect(css).toContain(
+				'src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("LiberationSans-Regular"), local("Arimo")',
+			);
 		}
+	});
+
+	it("Inter's fallback is width-matched (next/font ships the same 107.12%)", () => {
+		expect(inter.css()).toContain("size-adjust: 107.12%");
 	});
 
 	it("metrics produce reasonable percentage values", () => {

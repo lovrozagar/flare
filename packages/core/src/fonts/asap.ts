@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const asap: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "93.08%",
-		descentOverride: "21.13%",
+		ascentOverride: "94.20%",
+		descentOverride: "21.38%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "100.34%",
+		sizeAdjust: "99.15%",
 	},
 	family: "Asap",
 	subsetEntries: [

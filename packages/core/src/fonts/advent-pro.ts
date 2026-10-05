@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const adventPro: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "100.26%",
-		descentOverride: "24.13%",
+		ascentOverride: "117.42%",
+		descentOverride: "28.26%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "96.15%",
+		sizeAdjust: "82.10%",
 	},
 	family: "Advent Pro",
 	subsetEntries: [

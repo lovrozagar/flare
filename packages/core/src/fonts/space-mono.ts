@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const spaceMono: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "monospace",
 	fallbackMetrics: {
-		ascentOverride: "146.42%",
-		descentOverride: "47.20%",
+		ascentOverride: "109.82%",
+		descentOverride: "35.40%",
 		fallbackFont: "Courier New",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "76.49%",
+		sizeAdjust: "101.98%",
 	},
 	family: "Space Mono",
 	subsetEntries: [

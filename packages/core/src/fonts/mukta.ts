@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const mukta: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "163.32%",
-		descentOverride: "76.89%",
+		ascentOverride: "119.94%",
+		descentOverride: "56.47%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "69.19%",
+		sizeAdjust: "94.21%",
 	},
 	family: "Mukta",
 	subsetEntries: [

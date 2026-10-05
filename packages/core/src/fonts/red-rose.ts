@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const redRose: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "101.77%",
-		descentOverride: "33.89%",
+		ascentOverride: "86.13%",
+		descentOverride: "28.68%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "92.07%",
+		sizeAdjust: "108.79%",
 	},
 	family: "Red Rose",
 	subsetEntries: [

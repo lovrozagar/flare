@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const sora: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "106.29%",
-		descentOverride: "31.78%",
+		ascentOverride: "85.29%",
+		descentOverride: "25.50%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.26%",
+		sizeAdjust: "113.73%",
 	},
 	family: "Sora",
 	subsetEntries: [

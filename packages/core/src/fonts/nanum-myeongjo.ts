@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const nanumMyeongjo: Font<"latin"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "86.94%",
-		descentOverride: "21.76%",
+		ascentOverride: "59.73%",
+		descentOverride: "14.95%",
 		fallbackFont: "Times New Roman",
-		lineGapOverride: "27.18%",
-		sizeAdjust: "91.99%",
+		lineGapOverride: "18.67%",
+		sizeAdjust: "133.89%",
 	},
 	family: "Nanum Myeongjo",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const neuton: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "113.14%",
-		descentOverride: "26.05%",
+		ascentOverride: "113.02%",
+		descentOverride: "26.03%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.89%",
+		sizeAdjust: "90.99%",
 	},
 	family: "Neuton",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const questrial: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "73.45%",
-		descentOverride: "18.81%",
+		ascentOverride: "82.33%",
+		descentOverride: "21.09%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "111.64%",
+		sizeAdjust: "99.60%",
 	},
 	family: "Questrial",
 	subsetEntries: [

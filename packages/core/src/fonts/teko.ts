@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const teko: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "119.39%",
-		descentOverride: "59.19%",
+		ascentOverride: "146.26%",
+		descentOverride: "72.52%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "80.24%",
+		sizeAdjust: "65.50%",
 	},
 	family: "Teko",
 	subsetEntries: [

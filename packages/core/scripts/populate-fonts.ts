@@ -3,9 +3,10 @@
  * and generates registry.gen.ts, unicode-ranges.gen.ts, and per-font files.
  *
  * Usage: bun run scripts/populate-fonts.ts
+ *        bun run scripts/populate-fonts.ts --metrics-only   (recompute fallback metrics in place)
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 function writeGenFile(filePath: string, body: string, generator: string): void {
@@ -408,6 +409,7 @@ async function getFallbackMetrics(
 			descent: number;
 			lineGap: number;
 			unitsPerEm: number;
+			xWidthAvg: number;
 		};
 
 		try {
@@ -419,11 +421,10 @@ async function getFallbackMetrics(
 			return undefined;
 		}
 
-		/* calculate size-adjust and override values */
+		/* size-adjust matches average character width (Capsize's xWidthAvg), so fallback text wraps
+		   like the real font; the vertical overrides are then expressed in the adjusted em. */
 		const sizeAdjust =
-			((metrics.unitsPerEm / fallbackMetrics.unitsPerEm) *
-				(fallbackMetrics.ascent - fallbackMetrics.descent + fallbackMetrics.lineGap)) /
-			(metrics.ascent - metrics.descent + metrics.lineGap);
+			metrics.xWidthAvg / metrics.unitsPerEm / (fallbackMetrics.xWidthAvg / fallbackMetrics.unitsPerEm);
 
 		const ascentOverride = metrics.ascent / (metrics.unitsPerEm * sizeAdjust);
 		const descentOverride = Math.abs(metrics.descent) / (metrics.unitsPerEm * sizeAdjust);
@@ -592,10 +593,47 @@ function buildFileName(entry: { style: "italic" | "normal"; subset: string; weig
 	return `${parts.join("-")}.woff2`;
 }
 
+/* ── metrics-only pass ─────────────────────────────────────────── */
+
+/* Rewrite each font file's fallbackMetrics block from Capsize, leaving everything else untouched. */
+async function updateFallbackMetrics(fontsDir: string): Promise<void> {
+	let updated = 0;
+	const missing: string[] = [];
+	for (const name of readdirSync(fontsDir)
+		.filter((f) => f.endsWith(".ts"))
+		.sort()) {
+		const file = join(fontsDir, name);
+		const source = readFileSync(file, "utf-8");
+		const family = /\bfamily: "([^"]+)"/.exec(source)?.[1];
+		const category = /\bcategory: "([^"]+)"/.exec(source)?.[1] ?? "sans-serif";
+		if (!family || !source.includes("fallbackMetrics: {")) continue;
+		const metrics = await getFallbackMetrics(family, category);
+		if (!metrics) {
+			missing.push(family);
+			continue;
+		}
+		const next = source.replace(
+			/(fallbackMetrics: \{\n)(\s*)ascentOverride: "[^"]*",\n\s*descentOverride: "[^"]*",\n\s*fallbackFont: "[^"]*",\n\s*lineGapOverride: "[^"]*",\n\s*sizeAdjust: "[^"]*",/,
+			(_match, open: string, indent: string) =>
+				`${open}${indent}ascentOverride: "${metrics.ascentOverride}",\n${indent}descentOverride: "${metrics.descentOverride}",\n${indent}fallbackFont: "${metrics.fallbackFont}",\n${indent}lineGapOverride: "${metrics.lineGapOverride}",\n${indent}sizeAdjust: "${metrics.sizeAdjust}",`,
+		);
+		if (next !== source) {
+			writeFileSync(file, next);
+			updated++;
+		}
+	}
+	console.log(`Updated fallback metrics in ${updated} font files`);
+	if (missing.length > 0) console.log(`No Capsize metrics (left as is): ${missing.join(", ")}`);
+}
+
 /* ── main pipeline ─────────────────────────────────────────────── */
 
 async function main(): Promise<void> {
 	const fontsDir = join(import.meta.dirname ?? ".", "..", "src", "fonts");
+	if (process.argv.includes("--metrics-only")) {
+		await updateFallbackMetrics(fontsDir);
+		return;
+	}
 
 	if (!existsSync(fontsDir)) {
 		mkdirSync(fontsDir, { recursive: true });

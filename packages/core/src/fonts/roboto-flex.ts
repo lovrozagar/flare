@@ -5,11 +5,11 @@ export const robotoFlex: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" | 
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "94.55%",
-			descentOverride: "24.88%",
+			ascentOverride: "93.28%",
+			descentOverride: "24.55%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "98.13%",
+			sizeAdjust: "99.45%",
 		},
 		family: "Roboto Flex",
 		subsetEntries: [

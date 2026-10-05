@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const libreBaskerville: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "104.60%",
-		descentOverride: "29.12%",
+		ascentOverride: "76.22%",
+		descentOverride: "21.22%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "92.73%",
+		sizeAdjust: "127.26%",
 	},
 	family: "Libre Baskerville",
 	subsetEntries: [

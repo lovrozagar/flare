@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const rajdhani: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "103.20%",
-		descentOverride: "38.39%",
+		ascentOverride: "102.12%",
+		descentOverride: "37.99%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.12%",
+		sizeAdjust: "91.07%",
 	},
 	family: "Rajdhani",
 	subsetEntries: [

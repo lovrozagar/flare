@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const recursive: Font<"cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "99.14%",
-		descentOverride: "26.09%",
+		ascentOverride: "83.04%",
+		descentOverride: "21.85%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "114.40%",
 	},
 	family: "Recursive",
 	subsetEntries: [

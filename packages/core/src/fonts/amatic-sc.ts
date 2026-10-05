@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const amaticSc: Font<"cyrillic" | "hebrew" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "111.42%",
-		descentOverride: "26.87%",
+		ascentOverride: "157.82%",
+		descentOverride: "38.06%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.19%",
+		sizeAdjust: "64.38%",
 	},
 	family: "Amatic SC",
 	subsetEntries: [

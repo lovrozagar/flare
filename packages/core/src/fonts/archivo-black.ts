@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const archivoBlack: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "83.07%",
-		descentOverride: "19.87%",
+		ascentOverride: "70.78%",
+		descentOverride: "16.93%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "105.69%",
+		sizeAdjust: "124.05%",
 	},
 	family: "Archivo Black",
 	subsetEntries: [

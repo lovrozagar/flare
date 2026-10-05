@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const indieFlower: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "123.16%",
-		descentOverride: "61.95%",
+		ascentOverride: "103.05%",
+		descentOverride: "51.84%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "78.82%",
+		sizeAdjust: "94.19%",
 	},
 	family: "Indie Flower",
 	subsetEntries: [
