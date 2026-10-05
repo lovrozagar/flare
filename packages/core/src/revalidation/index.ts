@@ -15,6 +15,11 @@ export interface RevalidateOptions {
 export interface CdnPurgeAdapter {
 	purgeByKeys?(keys: string[], callerData?: unknown): Promise<void>;
 	purgeByTags(tags: string[], callerData?: unknown): Promise<void>;
+	/**
+	 * Response header this CDN reads cache tags from. Default `Surrogate-Key` (space-separated,
+	 * Fastly). `Cache-Tag` (Cloudflare) is written comma-separated.
+	 */
+	tagHeader?: string;
 }
 
 export interface CreateRevalidateFnConfig {

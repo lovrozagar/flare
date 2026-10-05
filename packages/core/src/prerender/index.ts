@@ -18,6 +18,7 @@ import type { StaticDeferMode } from "../route-builder/types.ts";
 import { HEADER_DATA, HEADER_FLAG, HEADER_PRERENDER } from "../protocol.ts";
 import type { ServerHandler } from "../server-handler/index.ts";
 import { warn } from "../logger.ts";
+import { DEFAULT_TAG_HEADER, parseTags } from "../revalidation/tag-header.ts";
 import { artifactBase } from "./artifact-path.ts";
 import { type FlareStore, type FlareStoreEntry, type StaticEntryData, staticStoreKey } from "../store/index.ts";
 import { resolvePathParams } from "../url/index.ts";
@@ -25,11 +26,17 @@ import { resolvePathParams } from "../url/index.ts";
 export const NONCE_PLACEHOLDER = "__FLARE_NONCE__";
 
 /** Parse `Surrogate-Key` into store tags. Empty / missing → undefined. */
-export function tagsFromSurrogateKey(headers: Record<string, string>): string[] | undefined {
-	const raw = headers["surrogate-key"];
-	if (!raw) return undefined;
-	const tags = raw.split(" ").filter(Boolean);
-	return tags.length > 0 ? tags : undefined;
+export function tagsFromSurrogateKey(
+	headers: Record<string, string>,
+	tagHeader: string = DEFAULT_TAG_HEADER,
+): string[] | undefined {
+	for (const header of [tagHeader, DEFAULT_TAG_HEADER]) {
+		const raw = headers[header.toLowerCase()];
+		if (!raw) continue;
+		const tags = parseTags(raw, header);
+		if (tags.length > 0) return tags;
+	}
+	return undefined;
 }
 
 /** Build-time prerender fetch — skips ISR `dynamicParams: false` store-miss 404. */
