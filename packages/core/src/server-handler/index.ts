@@ -99,7 +99,7 @@ import {
 	renderToStream,
 	type SSRConfig,
 } from "../ssr/index.tsx";
-import { type StaticEntryData, staticStoreKey } from "../store/index.ts";
+import { type FlareStore, type StaticEntryData, staticStoreKey } from "../store/index.ts";
 import { noopTracer } from "../tracing/noop.ts";
 import { buildServerTimingHeader, createTimingTracer, type TimingTracer } from "../tracing/timing.ts";
 import type { FlareTracer } from "../tracing/types.ts";
@@ -280,6 +280,12 @@ export interface HandlerCacheConfig<TEnv = unknown> {
 	isr?: { revalidate?: import("../duration").Duration };
 	revalidateSecret?: string | ((env: TEnv) => string);
 	ssr?: import("../route-builder/types").SsrCacheConfig;
+	/**
+	 * Read-only source of prerendered pages shipped with the build, e.g.
+	 * `createAssetsStore((path) => env.ASSETS.fetch(new URL(path, "http://assets")))`.
+	 * SSG pages read it first; ISR pages fall back to it when the ISR store misses.
+	 */
+	static?: import("../store").FlareStore | ((env: TEnv) => import("../store").FlareStore | undefined);
 	store?: import("../store").FlareStore | ((env: TEnv) => import("../store").FlareStore);
 }
 
@@ -907,6 +913,8 @@ async function buildGetStaticParams(router: MarkedRouterConfig): Promise<StaticP
 /* ── createServerHandler ─────────────────────────────────────────────── */
 
 const isrInFlight = new Set<string>();
+/* One warning per process when SSG pages render because no prerendered copy is wired up. */
+let warnedNoStaticReader = false;
 const ISR_TIMEOUT = 30_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -1012,6 +1020,7 @@ export function createServerHandler<
 			const tracer = resolveTracer(config.tracing);
 
 			let resolvedStore = typeof config.cache?.store === "function" ? config.cache.store(env) : config.cache?.store;
+			const staticStore = typeof config.cache?.static === "function" ? config.cache.static(env) : config.cache?.static;
 			if (isDev && !resolvedStore) {
 				const { createFileSystemStore } = await import("../store/filesystem");
 				resolvedStore = createFileSystemStore();
@@ -1355,12 +1364,26 @@ export function createServerHandler<
 							staticMeta &&
 							!match.route.o.authenticate &&
 							match.route.o.authorize !== true &&
-							resolvedStore &&
 							!isISRBgRequest &&
 							!isPrerenderRequest
 						) {
 							const storeKey = staticStoreKey(buildId, url.pathname);
-							const entry = await resolvedStore.get(storeKey);
+							/* SSG: the build's own artifact first. ISR: the revalidated copy first, the
+							   build artifact as its seed. */
+							const lookup = staticMeta.mode === "static" ? [staticStore, resolvedStore] : [resolvedStore, staticStore];
+							let entry: Awaited<ReturnType<FlareStore["get"]>> = null;
+							for (const source of lookup) {
+								entry = source ? await source.get(storeKey) : null;
+								if (entry) break;
+							}
+							if (!entry && staticMeta.mode === "static" && !staticStore && !isDev && !warnedNoStaticReader) {
+								warnedNoStaticReader = true;
+								warn(
+									"ssg",
+									`${url.pathname} is prerendered at build time but no prerendered copy was found, so it renders per request. Serve the build's pages with cache.static: createAssetsStore(...) (see @lovrozagar/flare/store-assets).`,
+								);
+							}
+							const isrStore = resolvedStore;
 
 							if (entry) {
 								const staticData = entry.data as StaticEntryData;
@@ -1371,7 +1394,7 @@ export function createServerHandler<
 									isrRevalidate !== undefined &&
 									Date.now() - entry.storedAt > isrRevalidate * 1000;
 
-								if (isStale && !request.headers.get(HEADER_ISR) && !isrInFlight.has(storeKey)) {
+								if (isStale && isrStore && !request.headers.get(HEADER_ISR) && !isrInFlight.has(storeKey)) {
 									isrInFlight.add(storeKey);
 									const revalidatePromise = (async () => {
 										try {
@@ -1415,7 +1438,7 @@ export function createServerHandler<
 											const freshTags = tagsFromSurrogateKey(headers) ?? entry.tags;
 
 											const etag = await computeEtag(storedHtml);
-											await resolvedStore.set(storeKey, {
+											await isrStore.set(storeKey, {
 												data: { etag, headers, html: storedHtml, ndjson },
 												storedAt: Date.now(),
 												tags: freshTags,

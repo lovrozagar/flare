@@ -1,4 +1,6 @@
 {
+	/* Lets the server read prerendered pages shipped in the client output (cache.static). */
+	"assets": { "binding": "ASSETS" },
 	"compatibility_date": "2026-01-20",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "src/server.ts",

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { assertSPANavigation, loadPage, navigateSPA, setNavMarker, setupConsoleCapture } from "./helpers";
@@ -9,12 +9,37 @@ import { assertSPANavigation, loadPage, navigateSPA, setNavMarker, setupConsoleC
  * Pre-render e2e tests — validate build-time prerender pipeline.
  *
  * These tests run against `vite preview` after `vite build` with prerender: true.
- * The build produces dist/static/ with manifest.json, .html, .ndjson, .headers.json
- * files. server.ts loads these into the in-memory FlareStore at startup.
+ * The build writes manifest.json, .html, .ndjson, .headers.json files into the client output at
+ * dist/client/assets/_flare-static/<buildId>/, and server.ts serves them through cache.static.
  */
 
-const STATIC_DIR = join(import.meta.dirname, "../../dist/static");
-const MANIFEST_PATH = join(STATIC_DIR, "manifest.json");
+const STATIC_ROOT = join(import.meta.dirname, "../../dist/client/assets/_flare-static");
+
+/** The single build directory this test run produced. */
+function staticDir(): string {
+	const builds = readdirSync(STATIC_ROOT);
+	if (builds.length !== 1) throw new Error(`expected one build in ${STATIC_ROOT}, found ${builds.join(", ")}`);
+	return join(STATIC_ROOT, builds[0] as string);
+}
+
+interface PageArtifact {
+	headers: Record<string, string>;
+	html: string;
+	ndjson: string;
+}
+
+/** One JSON file per prerendered page: `<pathname>.json` (`/` → `/index.json`). */
+function pagePath(pathname: string): string {
+	return join(staticDir(), `${pathname === "/" ? "/index" : pathname}.json`);
+}
+
+function readPage(pathname: string): PageArtifact {
+	return JSON.parse(readFileSync(pagePath(pathname), "utf-8"));
+}
+
+function manifestPath(): string {
+	return join(staticDir(), "manifest.json");
+}
 
 interface ManifestFile {
 	buildId: string;
@@ -22,7 +47,7 @@ interface ManifestFile {
 }
 
 function readManifestFile(): ManifestFile {
-	return JSON.parse(readFileSync(MANIFEST_PATH, "utf-8"));
+	return JSON.parse(readFileSync(manifestPath(), "utf-8"));
 }
 
 function readManifest(): ManifestFile["routes"] {
@@ -61,7 +86,7 @@ const EXPECTED_ROUTES = [
 
 test.describe("@prod-only @node-only Prerender build output", () => {
 	test("manifest.json exists with all expected routes", () => {
-		expect(existsSync(MANIFEST_PATH)).toBe(true);
+		expect(existsSync(manifestPath())).toBe(true);
 		const manifest = readManifest();
 		const pathnames = manifest.map((r) => r.pathname).sort();
 
@@ -91,14 +116,12 @@ test.describe("@prod-only @node-only Prerender build output", () => {
 		}
 	});
 
-	test("each manifest entry has corresponding .html, .ndjson, .headers.json files", () => {
+	test("each manifest entry has its page file", () => {
 		const manifest = readManifest();
 
 		for (const entry of manifest) {
 			const base = entry.pathname === "/" ? "/index" : entry.pathname;
-			expect(existsSync(join(STATIC_DIR, `${base}.html`))).toBe(true);
-			expect(existsSync(join(STATIC_DIR, `${base}.ndjson`))).toBe(true);
-			expect(existsSync(join(STATIC_DIR, `${base}.headers.json`))).toBe(true);
+			expect(existsSync(pagePath(base))).toBe(true);
 		}
 	});
 
@@ -107,7 +130,7 @@ test.describe("@prod-only @node-only Prerender build output", () => {
 
 		for (const entry of manifest) {
 			const base = entry.pathname === "/" ? "/index" : entry.pathname;
-			const html = readFileSync(join(STATIC_DIR, `${base}.html`), "utf-8");
+			const html = readPage(base).html;
 			expect(html).toContain("__FLARE_NONCE__");
 		}
 	});
@@ -117,7 +140,7 @@ test.describe("@prod-only @node-only Prerender build output", () => {
 
 		for (const entry of manifest) {
 			const base = entry.pathname === "/" ? "/index" : entry.pathname;
-			const html = readFileSync(join(STATIC_DIR, `${base}.html`), "utf-8");
+			const html = readPage(base).html;
 			expect(html).toContain("<!DOCTYPE html>");
 			expect(html).toContain("<html");
 			expect(html).toContain("</html>");
@@ -129,19 +152,17 @@ test.describe("@prod-only @node-only Prerender build output", () => {
 
 		for (const entry of manifest) {
 			const base = entry.pathname === "/" ? "/index" : entry.pathname;
-			const ndjson = readFileSync(join(STATIC_DIR, `${base}.ndjson`), "utf-8");
+			const ndjson = readPage(base).ndjson;
 			expect(ndjson.length).toBeGreaterThan(0);
 		}
 	});
 
-	test("all headers.json files contain content-type", () => {
+	test("every page records its content-type", () => {
 		const manifest = readManifest();
 
 		for (const entry of manifest) {
 			const base = entry.pathname === "/" ? "/index" : entry.pathname;
-			const headers: Record<string, string> = JSON.parse(
-				readFileSync(join(STATIC_DIR, `${base}.headers.json`), "utf-8"),
-			);
+			const headers: Record<string, string> = readPage(base).headers;
 			expect(headers["content-type"]).toBeDefined();
 		}
 	});
@@ -155,7 +176,7 @@ test.describe("@prod-only @node-only Prerender static pages — served from stor
 		 * Read the build artifact directly and compare to served response.
 		 * If served via fresh SSR, timestamp would differ from artifact.
 		 */
-		const artifactHtml = readFileSync(join(STATIC_DIR, "/static-pure.html"), "utf-8");
+		const artifactHtml = readPage("/static-pure").html;
 		const artifactTs = artifactHtml.match(/data-testid="static-pure-built-at">(\d+)</);
 		expect(artifactTs).not.toBeNull();
 
@@ -168,7 +189,7 @@ test.describe("@prod-only @node-only Prerender static pages — served from stor
 	});
 
 	test("/static-cache-test timestamp matches build artifact exactly", async ({ request }) => {
-		const artifactHtml = readFileSync(join(STATIC_DIR, "/static-cache-test.html"), "utf-8");
+		const artifactHtml = readPage("/static-cache-test").html;
 		const artifactTs = artifactHtml.match(/data-testid="static-built-at">(\d+)</);
 		expect(artifactTs).not.toBeNull();
 
@@ -254,7 +275,7 @@ test.describe("@prod-only Prerender ISR pre-population", () => {
 	});
 
 	test("/isr-test timestamp is at or after the build artifact @node-only", async ({ request }) => {
-		const artifactHtml = readFileSync(join(STATIC_DIR, "/isr-test.html"), "utf-8");
+		const artifactHtml = readPage("/isr-test").html;
 		const artifactTs = artifactHtml.match(/data-testid="isr-rendered-at">(\d+)</);
 		expect(artifactTs).not.toBeNull();
 
@@ -362,7 +383,7 @@ test.describe("@prod-only @node-only Prerender serving hierarchy", () => {
 		 * is being used, the timestamp is frozen from build. If SSR ran,
 		 * each request would produce a different (newer) timestamp.
 		 */
-		const artifactHtml = readFileSync(join(STATIC_DIR, "/static-pure.html"), "utf-8");
+		const artifactHtml = readPage("/static-pure").html;
 		const artifactTs = artifactHtml.match(/data-testid="static-pure-built-at">(\d+)</);
 		expect(artifactTs).not.toBeNull();
 
@@ -382,7 +403,7 @@ test.describe("@prod-only @node-only Prerender serving hierarchy", () => {
 		 * parallel suite may have already regenerated the entry, so the served
 		 * timestamp is >= the artifact, not always equal.
 		 */
-		const artifactHtml = readFileSync(join(STATIC_DIR, "/isr-test.html"), "utf-8");
+		const artifactHtml = readPage("/isr-test").html;
 		const artifactTs = artifactHtml.match(/data-testid="isr-rendered-at">(\d+)</);
 		expect(artifactTs).not.toBeNull();
 
@@ -450,7 +471,7 @@ test.describe("@prod-only @node-only Prerender serving hierarchy", () => {
 		 * flare-data:1 data requests for static routes should also hit the store.
 		 * Verify NDJSON content matches the build artifact.
 		 */
-		const artifactNdjson = readFileSync(join(STATIC_DIR, "/static-pure.ndjson"), "utf-8");
+		const artifactNdjson = readPage("/static-pure").ndjson;
 
 		const res = await request.get("/static-pure", {
 			headers: { "flare-data": "1" },
@@ -537,32 +558,30 @@ test.describe("@prod-only @node-only Prerender dynamic params expansion", () => 
 		expect(pathnames).toContain("/fr/ssg-about");
 	});
 
-	test("expanded routes have .html, .ndjson, .headers.json files", () => {
+	test("expanded routes have page files", () => {
 		const dynamicPaths = ["/ssg-dynamic/hello", "/ssg-dynamic/world", "/en/ssg-about", "/fr/ssg-about"];
 
 		for (const pathname of dynamicPaths) {
-			expect(existsSync(join(STATIC_DIR, `${pathname}.html`))).toBe(true);
-			expect(existsSync(join(STATIC_DIR, `${pathname}.ndjson`))).toBe(true);
-			expect(existsSync(join(STATIC_DIR, `${pathname}.headers.json`))).toBe(true);
+			expect(existsSync(pagePath(pathname))).toBe(true);
 		}
 	});
 
 	test("expanded HTML contains correct content", () => {
-		const helloHtml = readFileSync(join(STATIC_DIR, "/ssg-dynamic/hello.html"), "utf-8");
+		const helloHtml = readPage("/ssg-dynamic/hello").html;
 		expect(helloHtml).toContain("hello");
 
-		const worldHtml = readFileSync(join(STATIC_DIR, "/ssg-dynamic/world.html"), "utf-8");
+		const worldHtml = readPage("/ssg-dynamic/world").html;
 		expect(worldHtml).toContain("world");
 
-		const enHtml = readFileSync(join(STATIC_DIR, "/en/ssg-about.html"), "utf-8");
+		const enHtml = readPage("/en/ssg-about").html;
 		expect(enHtml).toContain("en");
 
-		const frHtml = readFileSync(join(STATIC_DIR, "/fr/ssg-about.html"), "utf-8");
+		const frHtml = readPage("/fr/ssg-about").html;
 		expect(frHtml).toContain("fr");
 	});
 
 	test("/ssg-dynamic/hello serves pre-rendered content", async ({ request }) => {
-		const artifactHtml = readFileSync(join(STATIC_DIR, "/ssg-dynamic/hello.html"), "utf-8");
+		const artifactHtml = readPage("/ssg-dynamic/hello").html;
 		const res = await request.get("/ssg-dynamic/hello");
 		expect(res.status()).toBe(200);
 		const html = await res.text();

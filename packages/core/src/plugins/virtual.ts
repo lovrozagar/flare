@@ -37,7 +37,10 @@ export function createVirtualPlugin(
 	config: { ignorePrefix?: string; logLevel?: string },
 	entries: ResolvedEntries,
 	codegen?: { routesFilePath?: string },
+	assetsBase = "/assets",
 ): VitePlugin {
+	/* Prerendered pages ship inside the client output, one directory per build. */
+	const staticAssetsBase = `${assetsBase}/_flare-static`;
 	const routesFilePath = codegen?.routesFilePath ?? "src/_gen/routes.gen.ts";
 	const serializedConfig = JSON.stringify({
 		clientEntryFilePath: entries.client,
@@ -86,7 +89,13 @@ export function createVirtualPlugin(
 				const mode = this.environment?.config?.mode ?? "production";
 				const buildId =
 					mode === "development" ? DEV_BUILD_ID : readClientBuildId(this.environment?.config?.root ?? process.cwd());
-				return { code: `export default ${JSON.stringify(buildId)}`, moduleType: "js" };
+				return {
+					code: [
+						`export default ${JSON.stringify(buildId)}`,
+						`export const staticAssetsBase = ${JSON.stringify(staticAssetsBase)}`,
+					].join("\n"),
+					moduleType: "js",
+				};
 			}
 			if (id === "\0virtual:flare-client-entry") {
 				const mode = this.environment?.config?.mode ?? "production";

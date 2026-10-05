@@ -6,10 +6,10 @@ import { apiProxy } from "@lovrozagar/flare/middleware/api-proxy";
 import { cdnProxy } from "@lovrozagar/flare/middleware/cdn-proxy";
 import { i18n } from "@lovrozagar/flare/middleware/i18n";
 import { markdownNegotiation } from "@lovrozagar/flare/middleware/markdown-negotiation";
-import { loadPrerenderArtifacts } from "@lovrozagar/flare/prerender";
 import type { CdnPurgeAdapter } from "@lovrozagar/flare/server";
 import { createServer } from "@lovrozagar/flare/server";
 import type { FlareStore, FlareStoreEntry } from "@lovrozagar/flare/store";
+import { createAssetsStore, fileAssets } from "@lovrozagar/flare/store-assets";
 import { dedupeHits, dedupeUpstream } from "./fetch-dedupe-upstream";
 import { router } from "./router";
 
@@ -46,13 +46,21 @@ const store: FlareStore = {
 	},
 };
 
+/* Prerendered pages ship in the client output. Workers read them through the ASSETS binding;
+   Node reads the client directory next to the server bundle. */
+let clientDir: string | undefined;
 try {
 	if (typeof import.meta.url === "string" && import.meta.url) {
-		const serverDir = dirname(fileURLToPath(import.meta.url));
-		await loadPrerenderArtifacts(join(serverDir, "../static"), store);
+		clientDir = join(dirname(fileURLToPath(import.meta.url)), "../client");
 	}
 } catch {
-	/* workerd has no fileURLToPath(import.meta.url) — artifacts stay empty */
+	/* workerd has no fileURLToPath(import.meta.url) */
+}
+
+function staticPages(env: unknown): FlareStore | undefined {
+	const assets = (env as { ASSETS?: { fetch: (input: URL) => Promise<Response> } } | undefined)?.ASSETS;
+	if (assets) return createAssetsStore((path) => assets.fetch(new URL(path, "http://assets")));
+	return clientDir ? createAssetsStore(fileAssets(clientDir)) : undefined;
 }
 
 const cdnPurgedTags = new Set<string>();
@@ -271,6 +279,7 @@ export const handler = createServer(router)
 		cdn: cdnPurgeAdapter,
 		headers: true,
 		revalidateSecret: "e2e-test-secret",
+		static: staticPages,
 		store,
 	})
 	.keepalive({ interval: 5_000 })

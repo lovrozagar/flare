@@ -28,6 +28,8 @@ declare module "virtual:flare-is-dev" {
 declare module "virtual:flare-build" {
 	const buildId: string;
 	export default buildId;
+	/** `<assetsBase>/_flare-static`: where prerendered pages live in the client output. */
+	export const staticAssetsBase: string;
 }
 
 declare module "virtual:flare-config" {
