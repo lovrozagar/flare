@@ -368,7 +368,7 @@ describe("flare:ssr-build", () => {
 		expect(result.ssr?.noExternal).toContain("@lovrozagar/flare");
 	});
 
-	it("_gen/ watch exclusion configured", () => {
+	it("_gen/ stays watched, so a regenerated route tree reaches the dev server", () => {
 		const plugins = flarePlugins({});
 		const ssrBuild = plugins.find((p) => p.name === "flare:ssr-build");
 		const config = ssrBuild?.config as (() => Record<string, unknown>) | undefined;
@@ -376,11 +376,9 @@ describe("flare:ssr-build", () => {
 		if (!config) throw new Error("config not found");
 
 		const result = config.call({}) as {
-			server?: { watch?: { ignored?: string[] } };
+			server?: { watch?: unknown };
 		};
-		expect(result.server?.watch?.ignored).toContain("**/_gen/**");
-		expect(result.server?.watch?.ignored).toContain("**/*.gen.ts");
-		expect(result.server?.watch?.ignored).toContain("**/*.gen.tsx");
+		expect(result.server?.watch).toBeUndefined();
 	});
 
 	it("alias option → resolve.alias in vite config", () => {
