@@ -19,6 +19,23 @@ function buildFontFaceBlock(entry: {
 	].join("\n");
 }
 
+/*
+ * Metric-compatible clones share the fallback's advance widths and vertical metrics, so the same
+ * overrides apply. Linux has no Arial / Times New Roman / Courier New, and Chromium matches
+ * `local()` by font name without fontconfig aliases: without the clones the fallback face is
+ * empty there and text renders in the default font, shifting on swap.
+ */
+const METRIC_COMPATIBLE: Record<string, string[]> = {
+	Arial: ["Arial", "ArialMT", "Liberation Sans", "LiberationSans-Regular", "Arimo"],
+	"Courier New": ["Courier New", "CourierNewPSMT", "Liberation Mono", "LiberationMono-Regular", "Cousine"],
+	"Times New Roman": ["Times New Roman", "TimesNewRomanPSMT", "Liberation Serif", "LiberationSerif-Regular", "Tinos"],
+};
+
+function fallbackSources(fallbackFont: string): string {
+	const names = METRIC_COMPATIBLE[fallbackFont] ?? [fallbackFont];
+	return names.map((name) => `local("${name}")`).join(", ");
+}
+
 function buildFallbackBlock(data: FontData): string {
 	if (!data.fallbackMetrics) return "";
 
@@ -26,7 +43,7 @@ function buildFallbackBlock(data: FontData): string {
 	return [
 		"@font-face {",
 		`  font-family: "${data.family} Fallback";`,
-		`  src: local("${m.fallbackFont}");`,
+		`  src: ${fallbackSources(m.fallbackFont)};`,
 		`  size-adjust: ${m.sizeAdjust};`,
 		`  ascent-override: ${m.ascentOverride};`,
 		`  descent-override: ${m.descentOverride};`,

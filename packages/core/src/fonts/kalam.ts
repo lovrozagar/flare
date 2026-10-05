@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const kalam: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "147.35%",
-		descentOverride: "73.61%",
+		ascentOverride: "108.94%",
+		descentOverride: "54.42%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "72.14%",
+		sizeAdjust: "97.58%",
 	},
 	family: "Kalam",
 	subsetEntries: [

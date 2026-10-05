@@ -5,11 +5,11 @@ export const ibmPlexSans: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" |
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "115.88%",
-			descentOverride: "31.09%",
+			ascentOverride: "101.32%",
+			descentOverride: "27.18%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "88.45%",
+			sizeAdjust: "101.17%",
 		},
 		family: "IBM Plex Sans",
 		subsetEntries: [

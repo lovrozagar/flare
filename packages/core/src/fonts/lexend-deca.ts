@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const lexendDeca: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "108.70%",
-		descentOverride: "27.18%",
+		ascentOverride: "90.98%",
+		descentOverride: "22.74%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "109.91%",
 	},
 	family: "Lexend Deca",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const caveat: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "105.19%",
-		descentOverride: "32.87%",
+		ascentOverride: "124.77%",
+		descentOverride: "38.99%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.26%",
+		sizeAdjust: "76.94%",
 	},
 	family: "Caveat",
 	subsetEntries: [

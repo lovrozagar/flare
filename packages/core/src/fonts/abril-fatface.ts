@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const abrilFatface: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "124.12%",
-		descentOverride: "34.14%",
+		ascentOverride: "102.31%",
+		descentOverride: "28.14%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "85.24%",
+		sizeAdjust: "103.41%",
 	},
 	family: "Abril Fatface",
 	subsetEntries: [

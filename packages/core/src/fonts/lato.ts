@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const lato: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "103.00%",
-		descentOverride: "22.23%",
+		ascentOverride: "101.03%",
+		descentOverride: "21.80%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "97.69%",
 	},
 	family: "Lato",
 	subsetEntries: [

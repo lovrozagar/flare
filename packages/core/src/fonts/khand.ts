@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const khand: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "139.62%",
-		descentOverride: "63.69%",
+		ascentOverride: "133.36%",
+		descentOverride: "60.84%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "75.21%",
+		sizeAdjust: "78.73%",
 	},
 	family: "Khand",
 	subsetEntries: [

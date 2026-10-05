@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const assistant: Font<"hebrew" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "116.14%",
-		descentOverride: "32.65%",
+		ascentOverride: "109.94%",
+		descentOverride: "30.90%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "87.91%",
+		sizeAdjust: "92.87%",
 	},
 	family: "Assistant",
 	subsetEntries: [

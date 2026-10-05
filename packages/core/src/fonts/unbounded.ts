@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const unbounded: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "107.30%",
-		descentOverride: "26.42%",
+		ascentOverride: "73.93%",
+		descentOverride: "18.20%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "92.73%",
+		sizeAdjust: "134.59%",
 	},
 	family: "Unbounded",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const nunitoSans: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "119.92%",
-		descentOverride: "41.87%",
+		ascentOverride: "99.71%",
+		descentOverride: "34.82%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "84.30%",
+		sizeAdjust: "101.39%",
 	},
 	family: "Nunito Sans",
 	subsetEntries: [

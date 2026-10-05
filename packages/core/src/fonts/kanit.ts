@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const kanit: Font<"latin" | "latin-ext" | "thai" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "143.01%",
-		descentOverride: "51.35%",
+		ascentOverride: "108.49%",
+		descentOverride: "38.96%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "76.92%",
+		sizeAdjust: "101.39%",
 	},
 	family: "Kanit",
 	subsetEntries: [

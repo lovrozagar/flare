@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const sarabun: Font<"latin" | "latin-ext" | "thai" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "120.74%",
-		descentOverride: "26.23%",
+		ascentOverride: "109.45%",
+		descentOverride: "23.78%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "88.45%",
+		sizeAdjust: "97.58%",
 	},
 	family: "Sarabun",
 	subsetEntries: [

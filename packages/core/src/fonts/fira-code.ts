@@ -5,11 +5,11 @@ export const firaCode: Font<"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext" 
 	createRegistryFont({
 		category: "monospace",
 		fallbackMetrics: {
-			ascentOverride: "114.66%",
-			descentOverride: "37.29%",
+			ascentOverride: "99.02%",
+			descentOverride: "32.21%",
 			fallbackFont: "Courier New",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "86.34%",
+			sizeAdjust: "99.98%",
 		},
 		family: "Fira Code",
 		subsetEntries: [

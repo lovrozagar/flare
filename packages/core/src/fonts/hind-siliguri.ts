@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const hindSiliguri: Font<"bengali" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "156.93%",
-		descentOverride: "70.45%",
+		ascentOverride: "116.79%",
+		descentOverride: "52.43%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "71.11%",
+		sizeAdjust: "95.56%",
 	},
 	family: "Hind Siliguri",
 	subsetEntries: [

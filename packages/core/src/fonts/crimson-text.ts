@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const crimsonText: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "107.30%",
-		descentOverride: "39.63%",
+		ascentOverride: "97.50%",
+		descentOverride: "36.01%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "88.47%",
+		sizeAdjust: "97.36%",
 	},
 	family: "Crimson Text",
 	subsetEntries: [

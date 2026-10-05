@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const fraunces: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "104.87%",
-		descentOverride: "27.34%",
+		ascentOverride: "84.71%",
+		descentOverride: "22.09%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "93.26%",
+		sizeAdjust: "115.45%",
 	},
 	family: "Fraunces",
 	subsetEntries: [

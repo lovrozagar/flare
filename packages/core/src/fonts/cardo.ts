@@ -5,11 +5,11 @@ export const cardo: Font<"gothic" | "greek" | "greek-ext" | "hebrew" | "latin" |
 	createRegistryFont({
 		category: "serif",
 		fallbackMetrics: {
-			ascentOverride: "116.60%",
-			descentOverride: "42.83%",
+			ascentOverride: "94.16%",
+			descentOverride: "34.59%",
 			fallbackFont: "Times New Roman",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "84.93%",
+			sizeAdjust: "105.17%",
 		},
 		family: "Cardo",
 		subsetEntries: [

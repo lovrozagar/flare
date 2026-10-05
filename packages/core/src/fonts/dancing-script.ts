@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const dancingScript: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "96.01%",
-		descentOverride: "29.22%",
+		ascentOverride: "112.99%",
+		descentOverride: "34.39%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "81.43%",
 	},
 	family: "Dancing Script",
 	subsetEntries: [

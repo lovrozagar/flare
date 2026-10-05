@@ -6,11 +6,11 @@ export const ebGaramond: Font<
 > = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "114.28%",
-		descentOverride: "33.82%",
+		ascentOverride: "106.26%",
+		descentOverride: "31.44%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "88.12%",
+		sizeAdjust: "94.77%",
 	},
 	family: "EB Garamond",
 	subsetEntries: [

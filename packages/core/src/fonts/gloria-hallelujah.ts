@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const gloriaHallelujah: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "242.27%",
-		descentOverride: "99.50%",
+		ascentOverride: "124.08%",
+		descentOverride: "50.96%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "58.00%",
+		sizeAdjust: "113.25%",
 	},
 	family: "Gloria Hallelujah",
 	subsetEntries: [

@@ -5,11 +5,11 @@ export const ubuntuMono: Font<"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext
 	createRegistryFont({
 		category: "monospace",
 		fallbackMetrics: {
-			ascentOverride: "73.27%",
-			descentOverride: "15.01%",
+			ascentOverride: "99.62%",
+			descentOverride: "20.40%",
 			fallbackFont: "Courier New",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "113.28%",
+			sizeAdjust: "83.32%",
 		},
 		family: "Ubuntu Mono",
 		subsetEntries: [

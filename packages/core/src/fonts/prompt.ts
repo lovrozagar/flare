@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const prompt: Font<"latin" | "latin-ext" | "thai" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "143.32%",
-		descentOverride: "55.49%",
+		ascentOverride: "97.38%",
+		descentOverride: "37.70%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "76.05%",
+		sizeAdjust: "111.93%",
 	},
 	family: "Prompt",
 	subsetEntries: [

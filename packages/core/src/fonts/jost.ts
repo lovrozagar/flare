@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const jost: Font<"cyrillic" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "134.46%",
-		descentOverride: "47.12%",
+		ascentOverride: "111.45%",
+		descentOverride: "39.06%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "79.58%",
+		sizeAdjust: "96.01%",
 	},
 	family: "Jost",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const archivo: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "83.07%",
-		descentOverride: "19.87%",
+		ascentOverride: "88.96%",
+		descentOverride: "21.28%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "105.69%",
+		sizeAdjust: "98.70%",
 	},
 	family: "Archivo",
 	subsetEntries: [

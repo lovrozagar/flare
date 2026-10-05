@@ -15,11 +15,11 @@ export const openSans: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "126.58%",
-		descentOverride: "34.70%",
+		ascentOverride: "101.65%",
+		descentOverride: "27.86%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "84.44%",
+		sizeAdjust: "105.15%",
 	},
 	family: "Open Sans",
 	subsetEntries: [

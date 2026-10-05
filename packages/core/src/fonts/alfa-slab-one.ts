@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const alfaSlabOne: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "123.34%",
-		descentOverride: "39.64%",
+		ascentOverride: "85.85%",
+		descentOverride: "27.59%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "84.00%",
+		sizeAdjust: "120.68%",
 	},
 	family: "Alfa Slab One",
 	subsetEntries: [

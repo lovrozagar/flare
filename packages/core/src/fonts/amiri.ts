@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const amiri: Font<"arabic" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "171.84%",
-		descentOverride: "96.93%",
+		ascentOverride: "112.47%",
+		descentOverride: "63.44%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "65.41%",
+		sizeAdjust: "99.94%",
 	},
 	family: "Amiri",
 	subsetEntries: [

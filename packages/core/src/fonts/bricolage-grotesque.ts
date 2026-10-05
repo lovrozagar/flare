@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const bricolageGrotesque: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "97.05%",
-		descentOverride: "28.18%",
+		ascentOverride: "88.21%",
+		descentOverride: "25.61%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "105.43%",
 	},
 	family: "Bricolage Grotesque",
 	subsetEntries: [

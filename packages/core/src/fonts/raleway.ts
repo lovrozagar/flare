@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const raleway: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "95.97%",
-		descentOverride: "23.89%",
+		ascentOverride: "90.51%",
+		descentOverride: "22.53%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "97.95%",
+		sizeAdjust: "103.86%",
 	},
 	family: "Raleway",
 	subsetEntries: [

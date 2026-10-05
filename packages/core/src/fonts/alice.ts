@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const alice: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "90.35%",
-		descentOverride: "23.26%",
+		ascentOverride: "81.88%",
+		descentOverride: "21.08%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "100.60%",
+		sizeAdjust: "111.02%",
 	},
 	family: "Alice",
 	subsetEntries: [

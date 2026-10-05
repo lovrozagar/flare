@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const fredoka: Font<"hebrew" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "102.49%",
-		descentOverride: "24.83%",
+		ascentOverride: "95.64%",
+		descentOverride: "23.17%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.03%",
+		sizeAdjust: "101.84%",
 	},
 	family: "Fredoka",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const arvo: Font<"latin"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "103.19%",
-		descentOverride: "26.53%",
+		ascentOverride: "79.95%",
+		descentOverride: "20.56%",
 		fallbackFont: "Times New Roman",
-		lineGapOverride: "2.88%",
-		sizeAdjust: "93.12%",
+		lineGapOverride: "2.23%",
+		sizeAdjust: "120.19%",
 	},
 	family: "Arvo",
 	subsetEntries: [

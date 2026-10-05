@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const dmSerifDisplay: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "123.52%",
-		descentOverride: "39.94%",
+		ascentOverride: "94.37%",
+		descentOverride: "30.51%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "83.87%",
+		sizeAdjust: "109.78%",
 	},
 	family: "DM Serif Display",
 	subsetEntries: [

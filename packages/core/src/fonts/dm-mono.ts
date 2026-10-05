@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const dmMono: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "monospace",
 	fallbackMetrics: {
-		ascentOverride: "114.02%",
-		descentOverride: "35.63%",
+		ascentOverride: "99.22%",
+		descentOverride: "31.01%",
 		fallbackFont: "Courier New",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "87.01%",
+		sizeAdjust: "99.98%",
 	},
 	family: "DM Mono",
 	subsetEntries: [

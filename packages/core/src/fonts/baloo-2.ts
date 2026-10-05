@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const baloo2: Font<"devanagari" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "150.18%",
-		descentOverride: "73.00%",
+		ascentOverride: "112.55%",
+		descentOverride: "54.71%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "71.78%",
+		sizeAdjust: "95.78%",
 	},
 	family: "Baloo 2",
 	subsetEntries: [

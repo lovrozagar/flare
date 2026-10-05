@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const biorhyme: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "151.81%",
-		descentOverride: "56.85%",
+		ascentOverride: "85.26%",
+		descentOverride: "31.93%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "74.24%",
+		sizeAdjust: "132.18%",
 	},
 	family: "BioRhyme",
 	subsetEntries: [

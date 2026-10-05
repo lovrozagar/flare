@@ -6,11 +6,11 @@ export const gothicA1: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "86.73%",
-		descentOverride: "21.97%",
+		ascentOverride: "78.33%",
+		descentOverride: "19.85%",
 		fallbackFont: "Arial",
-		lineGapOverride: "27.18%",
-		sizeAdjust: "91.99%",
+		lineGapOverride: "24.54%",
+		sizeAdjust: "101.86%",
 	},
 	family: "Gothic A1",
 	subsetEntries: [

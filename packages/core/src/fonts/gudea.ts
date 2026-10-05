@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const gudea: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "104.48%",
-		descentOverride: "28.38%",
+		ascentOverride: "101.72%",
+		descentOverride: "27.63%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "93.03%",
+		sizeAdjust: "95.56%",
 	},
 	family: "Gudea",
 	subsetEntries: [

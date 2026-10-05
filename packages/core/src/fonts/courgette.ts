@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const courgette: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "106.16%",
-		descentOverride: "29.72%",
+		ascentOverride: "96.91%",
+		descentOverride: "27.14%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "100.77%",
 	},
 	family: "Courgette",
 	subsetEntries: [

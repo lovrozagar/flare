@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const dosis: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "112.89%",
-		descentOverride: "26.05%",
+		ascentOverride: "121.44%",
+		descentOverride: "28.03%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.97%",
+		sizeAdjust: "84.57%",
 	},
 	family: "Dosis",
 	subsetEntries: [

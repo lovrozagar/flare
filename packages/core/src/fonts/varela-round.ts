@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const varelaRound: Font<"hebrew" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "96.12%",
-		descentOverride: "29.95%",
+		ascentOverride: "85.62%",
+		descentOverride: "26.67%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.51%",
+		sizeAdjust: "107.22%",
 	},
 	family: "Varela Round",
 	subsetEntries: [

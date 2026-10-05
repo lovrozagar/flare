@@ -5,11 +5,11 @@ export const comfortaa: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" | "
 	createRegistryFont({
 		category: "display",
 		fallbackMetrics: {
-			ascentOverride: "85.43%",
-			descentOverride: "22.69%",
+			ascentOverride: "74.95%",
+			descentOverride: "19.91%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "103.13%",
+			sizeAdjust: "117.54%",
 		},
 		family: "Comfortaa",
 		subsetEntries: [

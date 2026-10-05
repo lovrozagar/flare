@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const leagueSpartan: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "56.00%",
-		descentOverride: "17.60%",
+		ascentOverride: "75.47%",
+		descentOverride: "23.72%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "124.99%",
+		sizeAdjust: "92.75%",
 	},
 	family: "League Spartan",
 	subsetEntries: [

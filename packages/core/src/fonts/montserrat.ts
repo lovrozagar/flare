@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const montserrat: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "102.62%",
-		descentOverride: "26.61%",
+		ascentOverride: "85.79%",
+		descentOverride: "22.25%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "94.33%",
+		sizeAdjust: "112.83%",
 	},
 	family: "Montserrat",
 	subsetEntries: [

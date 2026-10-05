@@ -5,11 +5,11 @@ export const merriweather: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-e
 	createRegistryFont({
 		category: "serif",
 		fallbackMetrics: {
-			ascentOverride: "107.56%",
-			descentOverride: "29.84%",
+			ascentOverride: "82.42%",
+			descentOverride: "22.87%",
 			fallbackFont: "Times New Roman",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "91.48%",
+			sizeAdjust: "119.38%",
 		},
 		family: "Merriweather",
 		subsetEntries: [

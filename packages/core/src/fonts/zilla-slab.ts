@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const zillaSlab: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "98.51%",
-		descentOverride: "26.72%",
+		ascentOverride: "88.36%",
+		descentOverride: "23.96%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "106.83%",
 	},
 	family: "Zilla Slab",
 	subsetEntries: [

@@ -5,11 +5,11 @@ export const jetbrainsMono: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin"
 	createRegistryFont({
 		category: "monospace",
 		fallbackMetrics: {
-			ascentOverride: "118.85%",
-			descentOverride: "34.96%",
+			ascentOverride: "102.02%",
+			descentOverride: "30.00%",
 			fallbackFont: "Courier New",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "85.82%",
+			sizeAdjust: "99.98%",
 		},
 		family: "JetBrains Mono",
 		subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const anton: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "153.99%",
-		descentOverride: "43.08%",
+		ascentOverride: "129.70%",
+		descentOverride: "36.29%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "76.39%",
+		sizeAdjust: "90.69%",
 	},
 	family: "Anton",
 	subsetEntries: [

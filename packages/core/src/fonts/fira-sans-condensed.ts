@@ -6,11 +6,11 @@ export const firaSansCondensed: Font<
 > = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "97.57%",
-		descentOverride: "27.65%",
+		ascentOverride: "101.17%",
+		descentOverride: "28.67%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "92.42%",
 	},
 	family: "Fira Sans Condensed",
 	subsetEntries: [

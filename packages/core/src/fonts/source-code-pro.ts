@@ -6,11 +6,11 @@ export const sourceCodePro: Font<
 > = createRegistryFont({
 	category: "monospace",
 	fallbackMetrics: {
-		ascentOverride: "109.19%",
-		descentOverride: "30.29%",
+		ascentOverride: "98.42%",
+		descentOverride: "27.30%",
 		fallbackFont: "Courier New",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.12%",
+		sizeAdjust: "99.98%",
 	},
 	family: "Source Code Pro",
 	subsetEntries: [

@@ -5,11 +5,11 @@ export const robotoMono: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" | 
 	createRegistryFont({
 		category: "monospace",
 		fallbackMetrics: {
-			ascentOverride: "121.99%",
-			descentOverride: "31.55%",
+			ascentOverride: "104.79%",
+			descentOverride: "27.10%",
 			fallbackFont: "Courier New",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "85.89%",
+			sizeAdjust: "100.00%",
 		},
 		family: "Roboto Mono",
 		subsetEntries: [

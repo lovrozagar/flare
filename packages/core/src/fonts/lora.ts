@@ -5,11 +5,11 @@ export const lora: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "m
 	createRegistryFont({
 		category: "serif",
 		fallbackMetrics: {
-			ascentOverride: "111.98%",
-			descentOverride: "30.50%",
+			ascentOverride: "87.33%",
+			descentOverride: "23.78%",
 			fallbackFont: "Times New Roman",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "89.84%",
+			sizeAdjust: "115.20%",
 		},
 		family: "Lora",
 		subsetEntries: [

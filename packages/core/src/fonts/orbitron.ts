@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const orbitron: Font<"latin"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "110.25%",
-		descentOverride: "26.50%",
+		ascentOverride: "81.50%",
+		descentOverride: "19.59%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.70%",
+		sizeAdjust: "124.05%",
 	},
 	family: "Orbitron",
 	subsetEntries: [

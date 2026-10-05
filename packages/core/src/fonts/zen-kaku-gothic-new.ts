@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const zenKakuGothicNew: Font<"cyrillic" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "146.07%",
-		descentOverride: "36.27%",
+		ascentOverride: "117.00%",
+		descentOverride: "29.05%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "79.41%",
+		sizeAdjust: "99.15%",
 	},
 	family: "Zen Kaku Gothic New",
 	subsetEntries: [

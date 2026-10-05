@@ -5,11 +5,11 @@ export const philosopher: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ex
 	{
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "87.66%",
-			descentOverride: "21.43%",
+			ascentOverride: "93.96%",
+			descentOverride: "22.97%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "102.67%",
+			sizeAdjust: "95.78%",
 		},
 		family: "Philosopher",
 		subsetEntries: [

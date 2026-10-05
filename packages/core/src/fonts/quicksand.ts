@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const quicksand: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "108.70%",
-		descentOverride: "27.18%",
+		ascentOverride: "95.87%",
+		descentOverride: "23.97%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "104.31%",
 	},
 	family: "Quicksand",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const onest: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "107.55%",
-		descentOverride: "33.82%",
+		ascentOverride: "92.20%",
+		descentOverride: "28.99%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.19%",
+		sizeAdjust: "105.20%",
 	},
 	family: "Onest",
 	subsetEntries: [

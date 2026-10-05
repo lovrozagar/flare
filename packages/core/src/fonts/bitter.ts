@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const bitter: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "97.57%",
-		descentOverride: "27.65%",
+		ascentOverride: "81.69%",
+		descentOverride: "23.15%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "114.46%",
 	},
 	family: "Bitter",
 	subsetEntries: [

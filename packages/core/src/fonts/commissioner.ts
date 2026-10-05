@@ -5,11 +5,11 @@ export const commissioner: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" 
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "108.16%",
-			descentOverride: "21.91%",
+			ascentOverride: "100.64%",
+			descentOverride: "20.39%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "94.02%",
+			sizeAdjust: "101.05%",
 		},
 		family: "Commissioner",
 		subsetEntries: [

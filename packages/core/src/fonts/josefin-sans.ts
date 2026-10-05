@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const josefinSans: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "65.22%",
-		descentOverride: "21.74%",
+		ascentOverride: "73.32%",
+		descentOverride: "24.44%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "114.99%",
+		sizeAdjust: "102.29%",
 	},
 	family: "Josefin Sans",
 	subsetEntries: [

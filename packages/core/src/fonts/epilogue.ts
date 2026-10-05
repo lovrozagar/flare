@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const epilogue: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "70.42%",
-		descentOverride: "20.95%",
+		ascentOverride: "71.15%",
+		descentOverride: "21.16%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "112.19%",
+		sizeAdjust: "111.04%",
 	},
 	family: "Epilogue",
 	subsetEntries: [

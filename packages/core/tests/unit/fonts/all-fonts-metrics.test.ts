@@ -13,6 +13,7 @@ type Metrics = {
 	descent: number;
 	lineGap: number;
 	unitsPerEm: number;
+	xWidthAvg: number;
 };
 
 function toCapsizeSlug(family: string): string {
@@ -45,9 +46,8 @@ async function loadCapsizeMetrics(name: string): Promise<Metrics | undefined> {
 }
 
 function computeFallbackMetrics(font: Metrics, fallback: Metrics) {
-	const sizeAdjust =
-		(font.unitsPerEm / fallback.unitsPerEm) *
-		((fallback.ascent - fallback.descent + fallback.lineGap) / (font.ascent - font.descent + font.lineGap));
+	/* width-matched: fallback text wraps like the real font (Capsize xWidthAvg) */
+	const sizeAdjust = font.xWidthAvg / font.unitsPerEm / (fallback.xWidthAvg / fallback.unitsPerEm);
 
 	const ascentOverride = font.ascent / (font.unitsPerEm * sizeAdjust);
 	const descentOverride = Math.abs(font.descent) / (font.unitsPerEm * sizeAdjust);

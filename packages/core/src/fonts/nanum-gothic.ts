@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const nanumGothic: Font<"latin"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "73.40%",
-		descentOverride: "13.57%",
+		ascentOverride: "66.36%",
+		descentOverride: "12.27%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "114.99%",
+		sizeAdjust: "127.19%",
 	},
 	family: "Nanum Gothic",
 	subsetEntries: [

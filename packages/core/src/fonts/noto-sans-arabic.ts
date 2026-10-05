@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const notoSansArabic: Font<"arabic" | "latin" | "latin-ext" | "math" | "symbols"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "252.36%",
-		descentOverride: "135.55%",
+		ascentOverride: "129.23%",
+		descentOverride: "69.41%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "54.45%",
+		sizeAdjust: "106.33%",
 	},
 	family: "Noto Sans Arabic",
 	subsetEntries: [

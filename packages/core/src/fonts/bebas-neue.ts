@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const bebasNeue: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "93.92%",
-		descentOverride: "31.31%",
+		ascentOverride: "117.32%",
+		descentOverride: "39.11%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "76.72%",
 	},
 	family: "Bebas Neue",
 	subsetEntries: [

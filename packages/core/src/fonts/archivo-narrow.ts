@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const archivoNarrow: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "121.24%",
-		descentOverride: "36.55%",
+		ascentOverride: "125.38%",
+		descentOverride: "37.80%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "85.37%",
+		sizeAdjust: "82.55%",
 	},
 	family: "Archivo Narrow",
 	subsetEntries: [

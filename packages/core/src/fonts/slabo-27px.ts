@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const slabo27px: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "98.42%",
-		descentOverride: "31.49%",
+		ascentOverride: "95.21%",
+		descentOverride: "30.47%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "94.08%",
+		sizeAdjust: "97.25%",
 	},
 	family: "Slabo 27px",
 	subsetEntries: [

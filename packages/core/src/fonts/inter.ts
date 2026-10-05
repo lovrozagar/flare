@@ -5,11 +5,11 @@ export const inter: Font<"cyrillic" | "cyrillic-ext" | "greek" | "greek-ext" | "
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "101.93%",
-			descentOverride: "25.38%",
+			ascentOverride: "90.44%",
+			descentOverride: "22.52%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "95.04%",
+			sizeAdjust: "107.12%",
 		},
 		family: "Inter",
 		subsetEntries: [

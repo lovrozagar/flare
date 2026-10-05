@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const abel: Font<"latin"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "108.56%",
-		descentOverride: "32.69%",
+		ascentOverride: "114.21%",
+		descentOverride: "34.39%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.23%",
+		sizeAdjust: "85.76%",
 	},
 	family: "Abel",
 	subsetEntries: [

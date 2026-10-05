@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const youngSerif: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "128.44%",
-		descentOverride: "44.94%",
+		ascentOverride: "83.16%",
+		descentOverride: "29.10%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "81.44%",
+		sizeAdjust: "125.78%",
 	},
 	family: "Young Serif",
 	subsetEntries: [

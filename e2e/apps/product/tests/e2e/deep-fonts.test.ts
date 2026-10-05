@@ -165,6 +165,21 @@ test.describe("font system — zero CLS", () => {
 		expect(totalCls).toBeLessThan(0.005);
 	});
 
+	test("registry fallback face matches the real font's text width", async ({ page }) => {
+		await page.goto("/fonts-cls-test", { waitUntil: "networkidle" });
+		await page.evaluate(async () => {
+			await document.fonts.load('48px "Inter"');
+			await document.fonts.ready;
+		});
+		const widths = await page.evaluate(() => ({
+			fallback: document.querySelector('[data-testid="registry-fallback"]')?.getBoundingClientRect().width ?? 0,
+			real: document.querySelector('[data-testid="real-inter"]')?.getBoundingClientRect().width ?? 0,
+		}));
+		expect(widths.real).toBeGreaterThan(0);
+		/* A width-matched fallback keeps line breaks, so the swap shifts nothing. */
+		expect(Math.abs(widths.fallback - widths.real) / widths.real).toBeLessThan(0.02);
+	});
+
 	test("SSR renders fallback @font-face with correct metrics in CLS test page", async ({ page }) => {
 		await page.goto("/fonts-cls-test", { waitUntil: "domcontentloaded" });
 
@@ -172,10 +187,11 @@ test.describe("font system — zero CLS", () => {
 
 		/* fallback font-face present with metrics */
 		expect(html).toContain('font-family: "Inter CLS Test Fallback"');
-		expect(html).toContain("size-adjust: 95.04%");
-		expect(html).toContain("ascent-override: 101.93%");
-		expect(html).toContain("descent-override: 25.38%");
-		expect(html).toContain('src: local("Arial")');
+		expect(html).toContain("size-adjust: 107.12%");
+		expect(html).toContain("ascent-override: 90.44%");
+		expect(html).toContain("descent-override: 22.52%");
+		/* Arial plus its metric-compatible clones, so Linux (no Arial) still gets the fallback face */
+		expect(html).toContain('src: local("Arial"), local("ArialMT"), local("Liberation Sans")');
 	});
 });
 

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const plusJakartaSans: Font<"cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "113.74%",
-		descentOverride: "24.33%",
+		ascentOverride: "98.88%",
+		descentOverride: "21.15%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.26%",
+		sizeAdjust: "104.98%",
 	},
 	family: "Plus Jakarta Sans",
 	subsetEntries: [

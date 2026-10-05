@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const mulish: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "109.69%",
-		descentOverride: "27.28%",
+		ascentOverride: "96.56%",
+		descentOverride: "24.02%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.63%",
+		sizeAdjust: "104.08%",
 	},
 	family: "Mulish",
 	subsetEntries: [

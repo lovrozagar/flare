@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const chivo: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "97.28%",
-		descentOverride: "25.87%",
+		ascentOverride: "87.67%",
+		descentOverride: "23.32%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "96.63%",
+		sizeAdjust: "107.22%",
 	},
 	family: "Chivo",
 	subsetEntries: [

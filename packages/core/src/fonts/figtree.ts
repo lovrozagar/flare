@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const figtree: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "99.14%",
-		descentOverride: "26.09%",
+		ascentOverride: "94.32%",
+		descentOverride: "24.82%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "95.83%",
+		sizeAdjust: "100.72%",
 	},
 	family: "Figtree",
 	subsetEntries: [

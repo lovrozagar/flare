@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const fjallaOne: Font<"cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "110.26%",
-		descentOverride: "27.11%",
+		ascentOverride: "115.42%",
+		descentOverride: "28.38%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.49%",
+		sizeAdjust: "87.40%",
 	},
 	family: "Fjalla One",
 	subsetEntries: [

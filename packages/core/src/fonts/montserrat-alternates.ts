@@ -5,11 +5,11 @@ export const montserratAlternates: Font<"cyrillic" | "cyrillic-ext" | "latin" | 
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "102.62%",
-			descentOverride: "26.61%",
+			ascentOverride: "83.96%",
+			descentOverride: "21.77%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "94.33%",
+			sizeAdjust: "115.30%",
 		},
 		family: "Montserrat Alternates",
 		subsetEntries: [

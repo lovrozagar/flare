@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const yantramanav: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "105.90%",
-		descentOverride: "40.37%",
+		ascentOverride: "101.69%",
+		descentOverride: "38.76%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "88.67%",
+		sizeAdjust: "92.33%",
 	},
 	family: "Yantramanav",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const besley: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "182.08%",
-		descentOverride: "61.91%",
+		ascentOverride: "100.86%",
+		descentOverride: "34.29%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "68.65%",
+		sizeAdjust: "123.94%",
 	},
 	family: "Besley",
 	subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const courierPrime: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "monospace",
 	fallbackMetrics: {
-		ascentOverride: "77.45%",
-		descentOverride: "33.89%",
+		ascentOverride: "78.19%",
+		descentOverride: "34.21%",
 		fallbackFont: "Courier New",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "100.87%",
+		sizeAdjust: "99.92%",
 	},
 	family: "Courier Prime",
 	subsetEntries: [

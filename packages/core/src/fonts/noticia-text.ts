@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const noticiaText: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "127.61%",
-		descentOverride: "34.36%",
+		ascentOverride: "92.80%",
+		descentOverride: "24.99%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "84.26%",
+		sizeAdjust: "115.87%",
 	},
 	family: "Noticia Text",
 	subsetEntries: [

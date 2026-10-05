@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const dmSans: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "112.32%",
-		descentOverride: "35.10%",
+		ascentOverride: "94.90%",
+		descentOverride: "29.66%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "88.32%",
+		sizeAdjust: "104.53%",
 	},
 	family: "DM Sans",
 	subsetEntries: [

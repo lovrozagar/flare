@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const blackOpsOne: Font<"cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "display",
 	fallbackMetrics: {
-		ascentOverride: "99.31%",
-		descentOverride: "36.57%",
+		ascentOverride: "74.14%",
+		descentOverride: "27.30%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "91.99%",
+		sizeAdjust: "123.22%",
 	},
 	family: "Black Ops One",
 	subsetEntries: [

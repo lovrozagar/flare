@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const josefinSlab: Font<"latin"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "65.22%",
-		descentOverride: "21.74%",
+		ascentOverride: "71.52%",
+		descentOverride: "23.84%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "114.99%",
+		sizeAdjust: "104.86%",
 	},
 	family: "Josefin Slab",
 	subsetEntries: [

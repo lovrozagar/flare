@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const permanentMarker: Font<"latin"> = createRegistryFont({
 	category: "handwriting",
 	fallbackMetrics: {
-		ascentOverride: "140.57%",
-		descentOverride: "40.22%",
+		ascentOverride: "97.58%",
+		descentOverride: "27.92%",
 		fallbackFont: "Arial",
-		lineGapOverride: "3.84%",
-		sizeAdjust: "78.92%",
+		lineGapOverride: "2.66%",
+		sizeAdjust: "113.69%",
 	},
 	family: "Permanent Marker",
 	subsetEntries: [

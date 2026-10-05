@@ -5,11 +5,11 @@ export const vollkorn: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" | "l
 	createRegistryFont({
 		category: "serif",
 		fallbackMetrics: {
-			ascentOverride: "115.33%",
-			descentOverride: "53.42%",
+			ascentOverride: "88.30%",
+			descentOverride: "40.90%",
 			fallbackFont: "Times New Roman",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "82.55%",
+			sizeAdjust: "107.82%",
 		},
 		family: "Vollkorn",
 		subsetEntries: [

@@ -5,11 +5,11 @@ export const sourceSerif4: Font<"cyrillic" | "cyrillic-ext" | "greek" | "latin" 
 	createRegistryFont({
 		category: "serif",
 		fallbackMetrics: {
-			ascentOverride: "123.52%",
-			descentOverride: "39.94%",
+			ascentOverride: "87.87%",
+			descentOverride: "28.41%",
 			fallbackFont: "Times New Roman",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "83.87%",
+			sizeAdjust: "117.91%",
 		},
 		family: "Source Serif 4",
 		subsetEntries: [

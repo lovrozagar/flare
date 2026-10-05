@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const catamaran: Font<"latin" | "latin-ext" | "tamil"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "156.88%",
-		descentOverride: "77.02%",
+		ascentOverride: "119.31%",
+		descentOverride: "58.57%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "70.12%",
+		sizeAdjust: "92.19%",
 	},
 	family: "Catamaran",
 	subsetEntries: [

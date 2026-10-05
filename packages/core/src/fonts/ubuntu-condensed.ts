@@ -5,11 +5,11 @@ export const ubuntuCondensed: Font<"cyrillic" | "cyrillic-ext" | "greek" | "gree
 	createRegistryFont({
 		category: "sans-serif",
 		fallbackMetrics: {
-			ascentOverride: "93.13%",
-			descentOverride: "18.89%",
+			ascentOverride: "112.29%",
+			descentOverride: "22.77%",
 			fallbackFont: "Arial",
-			lineGapOverride: "2.80%",
-			sizeAdjust: "100.08%",
+			lineGapOverride: "3.37%",
+			sizeAdjust: "83.00%",
 		},
 		family: "Ubuntu Condensed",
 		subsetEntries: [

@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const creteRound: Font<"latin" | "latin-ext"> = createRegistryFont({
 	category: "serif",
 	fallbackMetrics: {
-		ascentOverride: "109.86%",
-		descentOverride: "31.74%",
+		ascentOverride: "89.77%",
+		descentOverride: "25.93%",
 		fallbackFont: "Times New Roman",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.12%",
+		sizeAdjust: "110.28%",
 	},
 	family: "Crete Round",
 	subsetEntries: [

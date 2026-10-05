@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const hind: Font<"devanagari" | "latin" | "latin-ext"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "146.89%",
-		descentOverride: "76.02%",
+		ascentOverride: "109.63%",
+		descentOverride: "56.74%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "71.82%",
+		sizeAdjust: "96.23%",
 	},
 	family: "Hind",
 	subsetEntries: [

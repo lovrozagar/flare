@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const overpass: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "97.22%",
-		descentOverride: "42.17%",
+		ascentOverride: "87.67%",
+		descentOverride: "38.03%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.83%",
+		sizeAdjust: "100.72%",
 	},
 	family: "Overpass",
 	subsetEntries: [

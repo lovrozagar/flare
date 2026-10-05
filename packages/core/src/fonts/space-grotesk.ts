@@ -4,11 +4,11 @@ import type { Font } from "./types.ts";
 export const spaceGrotesk: Font<"latin" | "latin-ext" | "vietnamese"> = createRegistryFont({
 	category: "sans-serif",
 	fallbackMetrics: {
-		ascentOverride: "109.19%",
-		descentOverride: "32.40%",
+		ascentOverride: "89.71%",
+		descentOverride: "26.62%",
 		fallbackFont: "Arial",
 		lineGapOverride: "0.00%",
-		sizeAdjust: "90.12%",
+		sizeAdjust: "109.69%",
 	},
 	family: "Space Grotesk",
 	subsetEntries: [

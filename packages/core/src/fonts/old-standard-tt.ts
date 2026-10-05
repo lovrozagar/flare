@@ -5,11 +5,11 @@ export const oldStandardTt: Font<"cyrillic" | "cyrillic-ext" | "latin" | "latin-
 	createRegistryFont({
 		category: "serif",
 		fallbackMetrics: {
-			ascentOverride: "81.91%",
-			descentOverride: "25.58%",
+			ascentOverride: "70.52%",
+			descentOverride: "22.02%",
 			fallbackFont: "Times New Roman",
-			lineGapOverride: "25.37%",
-			sizeAdjust: "93.03%",
+			lineGapOverride: "21.84%",
+			sizeAdjust: "108.06%",
 		},
 		family: "Old Standard TT",
 		subsetEntries: [

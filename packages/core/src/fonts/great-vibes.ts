@@ -5,11 +5,11 @@ export const greatVibes: Font<"cyrillic" | "cyrillic-ext" | "greek-ext" | "latin
 	createRegistryFont({
 		category: "handwriting",
 		fallbackMetrics: {
-			ascentOverride: "92.66%",
-			descentOverride: "43.66%",
+			ascentOverride: "124.79%",
+			descentOverride: "58.80%",
 			fallbackFont: "Arial",
 			lineGapOverride: "0.00%",
-			sizeAdjust: "91.85%",
+			sizeAdjust: "68.19%",
 		},
 		family: "Great Vibes",
 		subsetEntries: [
