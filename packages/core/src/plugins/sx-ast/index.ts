@@ -6,7 +6,7 @@ import { createThemeCn } from "../cn-theme.ts";
 import type { ThemeCn } from "../cn-theme.ts";
 import { extractDeclarations, extractPrefaceCss, extractPropertyRules, initTailwindCompiler } from "../tw-compile.ts";
 import type { TailwindCompiler } from "../tw-compile.ts";
-import { composeCss, themeVarsBlock } from "./compose-css.ts";
+import { composeCss, themeVarDefinitions, themeVarsBlock } from "./compose-css.ts";
 import { rewriteModule } from "./rewrite.ts";
 
 export interface SxStrictOptions {
@@ -189,10 +189,11 @@ export function createSxAstPlugin(opts: SxAstOptions = {}, assetsBase: string = 
 	 * transforms registers its rules when it runs (see transform), so the stylesheet SSR reads
 	 * at render time covers every module evaluated so far. A snapshot of plugin state baked into
 	 * this module would go stale: the runner caches the module after its first import, while the
-	 * pool keeps growing as later routes are first rendered. Composition is shared with the build.
+	 * pool keeps growing as later routes are first rendered. Theme vars (reference mode) arrive the
+	 * same way, each module with the definitions its classes need. Composition is shared with the
+	 * build.
 	 */
 	const devCssModule = (): string => {
-		const themeVars = referenceVars && state.twCompiler ? [...state.twCompiler.themeVars] : null;
 		const composeCssPath = fileURLToPath(new URL("./compose-css.ts", import.meta.url));
 		return `import { composeCss, themeVarsBlock } from ${JSON.stringify(composeCssPath)};
 const rules = new Map();
@@ -201,17 +202,18 @@ const properties = new Map();
 const referenced = new Set();
 const skip = new Set(${JSON.stringify([...state.providedByLibs])});
 const preface = ${JSON.stringify(state.twPrefaceCss)};
-const themeVars = ${themeVars ? `new Map(${JSON.stringify(themeVars)})` : "null"};
-export function registerDevSx(moduleRules, moduleProperties, moduleReferenced) {
+const themeVars = new Map();
+export function registerDevSx(moduleRules, moduleProperties, moduleReferenced, moduleThemeVars = []) {
 	for (const [cls, rule, layer] of moduleRules) {
 		rules.set(cls, rule);
 		layers.set(cls, layer);
 	}
 	for (const [name, rule] of moduleProperties) properties.set(name, rule);
 	for (const name of moduleReferenced) referenced.add(name);
+	for (const [name, value] of moduleThemeVars) themeVars.set(name, value);
 }
 export function getDevSxCss() {
-	return composeCss(rules, layers, skip, preface, properties, themeVars ? themeVarsBlock(referenced, themeVars, preface) : "");
+	return composeCss(rules, layers, skip, preface, properties, ${referenceVars ? "themeVarsBlock(referenced, themeVars, preface)" : '""'});
 }
 export function getDevSxClasses() {
 	return [...rules.keys()];
@@ -359,6 +361,11 @@ export function getDevSxClasses() {
 			const moduleRules: Array<{ cls: string; rule: string }> = [];
 			const moduleProperties = new Map<string, string>();
 			const moduleReferenced = new Set<string>();
+			/* The theme var definitions this module's classes need (reference mode; else none). */
+			const moduleThemeVars = (): Array<[string, string]> =>
+				referenceVars && state.twCompiler
+					? themeVarDefinitions(moduleReferenced, state.twCompiler.themeVars, state.twPrefaceCss)
+					: [];
 
 			const tw = state.twCompiler;
 			const violations: string[] = [];
@@ -449,6 +456,7 @@ export function getDevSxClasses() {
 					moduleRules.map(({ cls, rule }) => [cls, rule, layer]),
 					[...moduleProperties],
 					[...moduleReferenced],
+					moduleThemeVars(),
 				]);
 				const baseCode = result !== null ? result.code : code;
 				return {
@@ -460,6 +468,9 @@ export function getDevSxClasses() {
 			if (mode === "dev" && moduleRules.length > 0) {
 				const layerName: "sx" | "app" = layer;
 				const perClassJson = JSON.stringify(moduleRules.map(({ cls, rule }) => [cls, rule]));
+				/* Reference mode: the theme vars this module's classes need, for any the page lacks
+				   (a route first loaded on the client after the SSR stylesheet was written). */
+				const themeVarsJson = JSON.stringify(moduleThemeVars());
 				/* SSR pre-populates flare-sx-dev with the full atomic payload for the page, plus
 				 * twPrefaceCss (theme vars + base preflight) and the @layer prelude. Every client
 				 * module import used to re-append ALL its scanned rules, stacking duplicates —
@@ -479,6 +490,14 @@ if (typeof document !== "undefined") {
     __seen__.add(__c__);
     __buf__ += "@layer ${layerName}{" + __r__ + "}";
   }
+  const __vars__ = (window.__flare_sx_vars__ ||= new Set());
+  let __decls__ = "";
+  for (const [__n__, __v__] of ${themeVarsJson}) {
+    if (__vars__.has(__n__)) continue;
+    __vars__.add(__n__);
+    __decls__ += __n__ + ":" + __v__ + ";";
+  }
+  if (__decls__) __buf__ = "@layer theme{:root,:host{" + __decls__ + "}}" + __buf__;
   if (__buf__) {
     let __sx_el__ = document.getElementById("flare-sx-dev");
     if (!__sx_el__) {
