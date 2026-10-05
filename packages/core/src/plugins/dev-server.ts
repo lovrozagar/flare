@@ -302,35 +302,42 @@ export function createPreviewServerPlugin(assetsBase: string = "/assets"): ViteP
 				return handlerPromise;
 			}
 
+			/* Hashed client assets: served before Vite's static handler, immutable like a production
+			   host, so preview caches (and prefetch reuse) behave the way they will when deployed. */
+			preview.middlewares.use((req, res, next) => {
+				if (!req.url) return next();
+				/* Serve static client assets */
+				const urlPath = req.url.split("?")[0];
+				if (urlPath?.startsWith(`${assetsBase}/`)) {
+					const filePath = resolve(join(clientDir, urlPath));
+					const clientDirSlash = clientDir.endsWith("/") ? clientDir : `${clientDir}/`;
+					if (!filePath.startsWith(clientDirSlash)) return next();
+					try {
+						const content = readFileSync(filePath);
+						const ext = filePath.split(".").pop() ?? "";
+						const mimeTypes: Record<string, string> = {
+							css: "text/css",
+							js: "application/javascript",
+							json: "application/json",
+							svg: "image/svg+xml",
+						};
+						res.writeHead(200, {
+							"cache-control": "public, max-age=31536000, immutable",
+							"content-type": mimeTypes[ext] ?? "application/octet-stream",
+						});
+						res.end(content);
+						return;
+					} catch {
+						/* fall through to SSR */
+					}
+				}
+
+				return next();
+			});
+
 			return () => {
 				preview.middlewares.use(async (req, res, next) => {
 					if (!req.url) return next();
-
-					/* Serve static client assets */
-					const urlPath = req.url.split("?")[0];
-					if (urlPath?.startsWith(`${assetsBase}/`)) {
-						const filePath = resolve(join(clientDir, urlPath));
-						const clientDirSlash = clientDir.endsWith("/") ? clientDir : `${clientDir}/`;
-						if (!filePath.startsWith(clientDirSlash)) return next();
-						try {
-							const content = readFileSync(filePath);
-							const ext = filePath.split(".").pop() ?? "";
-							const mimeTypes: Record<string, string> = {
-								css: "text/css",
-								js: "application/javascript",
-								json: "application/json",
-								svg: "image/svg+xml",
-							};
-							res.writeHead(200, {
-								"cache-control": "public, max-age=31536000, immutable",
-								"content-type": mimeTypes[ext] ?? "application/octet-stream",
-							});
-							res.end(content);
-							return;
-						} catch {
-							/* fall through to SSR */
-						}
-					}
 
 					try {
 						const handler = await getHandler();

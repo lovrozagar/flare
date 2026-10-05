@@ -245,7 +245,7 @@ export const route = createPage("_root_/")
 						</Link>
 					</li>
 					<li>
-						<Link data-testid="prefetch-viewport-link" prefetch="viewport" to="/prefetch-target">
+						<Link data-testid="prefetch-viewport-link" prefetch={{ modules: "viewport" }} to="/prefetch-target">
 							Prefetch Viewport
 						</Link>
 					</li>

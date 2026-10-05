@@ -9,7 +9,7 @@ export const localeConfig = {
 
 export const router = createRouter({
 	cache: {
-		client: { prefetch: "viewport", prefetchGcTime: 60_000, staleTime: 60_000 },
+		client: { prefetchGcTime: 60_000, staleTime: 60_000 },
 	},
 	layouts,
 	locale: localeConfig,

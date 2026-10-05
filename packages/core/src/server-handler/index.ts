@@ -1,4 +1,4 @@
-import buildId from "virtual:flare-build";
+import buildId, { prefetchListUrl } from "virtual:flare-build";
 import clientEntryPath from "virtual:flare-client-entry";
 import { layoutModuleIds } from "virtual:flare-generated";
 import virtualIsDev from "virtual:flare-is-dev";
@@ -1328,6 +1328,7 @@ export function createServerHandler<
 										ssrResult = renderToStream({
 											auth: pipelineResult.auth,
 											buildId,
+											prefetchListUrl,
 											cause: "enter",
 											deferContexts: pipelineResult.deferContexts.size > 0 ? pipelineResult.deferContexts : undefined,
 											entryScript: clientEntryPath,
@@ -1633,6 +1634,7 @@ export function createServerHandler<
 								ssrResult = renderToStream({
 									auth: pipelineResult.auth,
 									buildId,
+									prefetchListUrl,
 									cause,
 									deferContexts: pipelineResult.deferContexts.size > 0 ? pipelineResult.deferContexts : undefined,
 									entryScript: clientEntryPath,

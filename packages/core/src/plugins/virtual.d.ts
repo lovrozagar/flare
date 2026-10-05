@@ -30,6 +30,8 @@ declare module "virtual:flare-build" {
 	export default buildId;
 	/** `<assetsBase>/_flare-static`: where prerendered pages live in the client output. */
 	export const staticAssetsBase: string;
+	/** URL of the app-wide module prefetch list (`modules: "all"`); undefined in dev. */
+	export const prefetchListUrl: string | undefined;
 }
 
 declare module "virtual:flare-config" {
