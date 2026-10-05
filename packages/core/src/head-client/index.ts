@@ -74,20 +74,15 @@ export function applyPerRouteHeads(heads: PerRouteHead[]): void {
 		removeCssForRoute(routeId);
 	}
 
+	/* Routes apply root first, so the deepest route's title wins. */
+	let title: string | undefined;
 	for (const { head, matchId } of heads) {
-		applyHeadConfigForRoute(matchId, head);
+		title = applyHeadConfigForRoute(matchId, head) ?? title;
 	}
 
 	/* If no route in the new hierarchy set a title, restore the base (root layout) title */
-	let titleSet = false;
-	for (const matchId of newHierarchy) {
-		if (headByRoute.get(matchId)?.has(TITLE_MARKER)) {
-			titleSet = true;
-			break;
-		}
-	}
-	if (!titleSet && typeof document !== "undefined") {
-		document.title = baseTitle;
+	if (typeof document !== "undefined") {
+		setTitle(title ?? baseTitle);
 	}
 
 	currentRouteHierarchy = newHierarchy;
@@ -97,7 +92,8 @@ export function applyHeadConfig(config: HeadConfig): void {
 	const currentTags = new Set<string>();
 	const currentHreflangTags = new Set<string>();
 
-	applyHeadFields(config, currentTags, currentHreflangTags);
+	const title = applyHeadFields(config, currentTags, currentHreflangTags);
+	if (title !== undefined) setTitle(title);
 
 	for (const sel of managedMetaTags) {
 		if (!currentTags.has(sel)) {
@@ -120,13 +116,13 @@ export function applyHeadConfig(config: HeadConfig): void {
 	}
 }
 
-function applyHeadConfigForRoute(matchId: string, config: HeadConfig): void {
+function applyHeadConfigForRoute(matchId: string, config: HeadConfig): string | undefined {
 	const oldSelectors = headByRoute.get(matchId) ?? new Set<string>();
 
 	const tracked = new Set<string>();
 	const hreflangTracked = new Set<string>();
 
-	applyHeadFields(config, tracked, hreflangTracked);
+	const title = applyHeadFields(config, tracked, hreflangTracked);
 
 	/* Remove selectors that the route no longer produces */
 	for (const sel of oldSelectors) {
@@ -143,11 +139,21 @@ function applyHeadConfigForRoute(matchId: string, config: HeadConfig): void {
 	for (const sel of tracked) {
 		managedMetaTags.add(sel);
 	}
+	return title;
 }
 
-function applyHeadFields(config: HeadConfig, tracked: Set<string>, hreflangTracked: Set<string>): void {
+/*
+ * Browsers forward every document.title write to the tab strip, so a title written for a parent
+ * route and then overwritten by the page flashes in the tab. Titles are written once, by the
+ * caller, and only when they change.
+ */
+function setTitle(title: string): void {
+	if (document.title !== title) document.title = title;
+}
+
+/** Applies a route's head fields except the title, which it returns for the caller to write once. */
+function applyHeadFields(config: HeadConfig, tracked: Set<string>, hreflangTracked: Set<string>): string | undefined {
 	if (config.title !== undefined) {
-		document.title = config.title;
 		tracked.add(TITLE_MARKER);
 	}
 
@@ -384,6 +390,8 @@ function applyHeadFields(config: HeadConfig, tracked: Set<string>, hreflangTrack
 			}
 		}
 	}
+
+	return config.title;
 }
 
 function upsertMeta(attrName: "name" | "property", attrValue: string, content: string, tracked: Set<string>): void {
