@@ -16,20 +16,23 @@ test.describe("A11y Nav — async content loading", () => {
 	test("pending state has aria-busy=true", async ({ page }) => {
 		await page.goto("/a11y-nav-test", { waitUntil: "domcontentloaded" });
 
-		/* check if pending state appears (may resolve quickly in SSR) */
-		const pending = page.locator("[data-testid=async-pending]");
-		const resolved = page.locator("[data-testid=async-resolved]");
+		/* The pending state may already have resolved. Read it in one snapshot: separate locator
+		 * calls race the swap and wait out the timeout for an element that is gone. */
+		const state = await page.evaluate(() => {
+			const pending = document.querySelector("[data-testid=async-pending]");
+			return {
+				busy: pending?.getAttribute("aria-busy") ?? null,
+				pending: pending !== null,
+				resolved: document.querySelector("[data-testid=async-resolved]") !== null,
+				tag: pending?.tagName.toLowerCase() ?? null,
+			};
+		});
+		expect(state.pending || state.resolved).toBe(true);
 
-		/* one of these must be visible */
-		const pendingVisible = await pending.isVisible().catch(() => false);
-		const resolvedVisible = await resolved.isVisible().catch(() => false);
-		expect(pendingVisible || resolvedVisible).toBe(true);
-
-		if (pendingVisible) {
-			expect(await pending.getAttribute("aria-busy")).toBe("true");
+		if (state.pending) {
+			expect(state.busy).toBe("true");
 			/* <output> element implicitly has role=status */
-			const tag = await pending.evaluate((el) => el.tagName.toLowerCase());
-			expect(tag).toBe("output");
+			expect(state.tag).toBe("output");
 		}
 	});
 
