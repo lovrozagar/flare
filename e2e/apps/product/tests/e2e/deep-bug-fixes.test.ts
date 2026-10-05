@@ -325,18 +325,18 @@ test.describe("Bug 26+27: ISR bg re-render produces fresh content with nonce pla
 		const res2 = await request.get("/isr-test");
 		expect(res2.status()).toBe(200);
 
-		/* Wait for bg re-render to complete */
-		await new Promise((r) => setTimeout(r, 2000));
-
-		/* Third request — should get fresh content from bg re-render */
-		const res3 = await request.get("/isr-test");
-		expect(res3.status()).toBe(200);
-		const html3 = await res3.text();
-		const ts3 = html3.match(/data-testid="isr-rendered-at">(\d+)</);
-		expect(ts3).not.toBeNull();
-
-		/* Timestamp should have changed — proves bg re-render stored fresh content */
-		expect(ts3?.[1]).not.toBe(ts1?.[1]);
+		/* Later requests get the bg re-render's fresh content once it is stored. Poll rather than
+		 * sleep a fixed time: under parallel load the re-render can take longer than 2s. */
+		await expect
+			.poll(
+				async () => {
+					const res3 = await request.get("/isr-test");
+					expect(res3.status()).toBe(200);
+					return (await res3.text()).match(/data-testid="isr-rendered-at">(\d+)</)?.[1];
+				},
+				{ intervals: [250], timeout: 15_000 },
+			)
+			.not.toBe(ts1?.[1]);
 	});
 
 	test("ISR cached response has fresh nonce per request", async ({ request }) => {

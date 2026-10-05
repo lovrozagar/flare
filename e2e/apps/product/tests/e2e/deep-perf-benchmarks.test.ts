@@ -255,11 +255,12 @@ test.describe("Perf — SPA navigation timing", () => {
 			expect(t).toBeLessThan(SPA_NAV_THRESHOLD_MS);
 		}
 
-		/* no degradation: last nav shouldn't be 2x slower than first */
+		/* no degradation: last nav stays within 3x the first. A cached first nav can take ~20ms, where
+		 * timer and scheduling jitter alone exceed 3x, so the base has a 50ms noise floor. */
 		const first = timings[0];
 		const last = timings[timings.length - 1];
-		if (first && last) {
-			expect(last).toBeLessThan(first * 3);
+		if (first !== undefined && last !== undefined) {
+			expect(last).toBeLessThan(Math.max(first, 50) * 3);
 		}
 	});
 });
