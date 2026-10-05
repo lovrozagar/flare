@@ -66,7 +66,7 @@ export function seedFormErrorFromSsr(ssrCtx: FormActionContext | undefined): Err
 
 export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.Element {
 	const local = props as FormOwnProps<TInput, TOutput> & Record<string, unknown>;
-	const rest = omit(local, "action", "children", "enctype", "onError", "onSuccess");
+	const rest = omit(local, "action", "children", "enctype", "onError", "onSubmit", "onSuccess");
 
 	const reg = createMemo(() => local.action._registration);
 	const fnId = createMemo(() => reg()?.id ?? "");
@@ -107,6 +107,12 @@ export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.El
 	};
 
 	async function handleSubmit(event: SubmitEvent): Promise<void> {
+		/* The consumer's handler runs first (client validation, e.g. Base UI Form composed through
+		   `render`); preventing the default cancels the server call. */
+		const consumer = props.onSubmit as JSX.EventHandlerUnion<HTMLFormElement, SubmitEvent> | undefined;
+		if (typeof consumer === "function") consumer(event as never);
+		else if (Array.isArray(consumer)) (consumer[0] as (data: unknown, event: SubmitEvent) => void)(consumer[1], event);
+		if (event.defaultPrevented) return;
 		event.preventDefault();
 		if (pending()) return;
 
