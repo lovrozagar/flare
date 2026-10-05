@@ -8,6 +8,7 @@
  * security headers. No false positives — every assertion verifies real output.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import TEST_BUILD_ID from "virtual:flare-build";
 
 const devRef = vi.hoisted(() => ({ current: true }));
 vi.mock("virtual:flare-is-dev", () => ({
@@ -244,6 +245,15 @@ describe("SSR — FlareState structure", () => {
 
 		expect(state?.c).toBeDefined();
 		expect(state?.c.router).toBeDefined();
+	});
+
+	it("carries the server build id (b) so the client can detect a deploy", async () => {
+		const handler = buildHandler();
+		const response = await handler.fetch(makeRequest("/home"), {});
+		const html = await readResponseBody(response);
+		const state = extractFlareState(html) as { b?: string } | null;
+
+		expect(state?.b).toBe(TEST_BUILD_ID);
 	});
 
 	it("FlareState script tag has nonce attribute", async () => {

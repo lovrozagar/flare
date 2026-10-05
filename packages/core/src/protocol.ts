@@ -15,8 +15,14 @@ export const HEADER_STALE = "flare-stale";
 export const HEADER_ISR = "flare-isr";
 /** Internal: build-time prerender fetch. */
 export const HEADER_PRERENDER = "flare-prerender";
+/** Request + response: build id. Requests send the client's; responses send the server's. */
+export const HEADER_BUILD = "flare-build";
 /** Shared flag for boolean protocol headers. */
 export const HEADER_FLAG = "1";
+
+/** Query param on data requests: `?_flare=<buildId>`. A distinct URL per build, so no
+ *  cache keyed by URL alone (CDNs that ignore `Vary`) can mix HTML, NDJSON, or builds. */
+export const PARAM_DATA = "_flare";
 
 /** Response diagnostic: HIT | MISS | STALE. Lowercase to match HTTP/2 / Node. */
 export const FLARE_CACHE_HEADER = "flare-cache";

@@ -5,6 +5,7 @@ export default defineConfig({
 	plugins: [solidPlugin()],
 	resolve: {
 		alias: {
+			"virtual:flare-build": new URL("tests/__mocks__/virtual-flare-build.ts", import.meta.url).pathname,
 			"virtual:flare-client-entry": new URL("tests/__mocks__/virtual-flare-client-entry.ts", import.meta.url).pathname,
 			"virtual:flare-generated": new URL("tests/__mocks__/virtual-flare-generated.ts", import.meta.url).pathname,
 			"virtual:flare-is-dev": new URL("tests/__mocks__/virtual-flare-is-dev.ts", import.meta.url).pathname,

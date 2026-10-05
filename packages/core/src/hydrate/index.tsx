@@ -7,6 +7,7 @@ import { flush } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { createComponent, Hydration, render, hydrate as solidHydrate } from "@solidjs/web";
 import { SSRContextProvider } from "../components/ssr-context.tsx";
+import { setBuildId } from "../build-id.ts";
 import { createChannel } from "../broadcast/channel.ts";
 import { BroadcastProvider } from "../broadcast/provider.tsx";
 import type { MatchCache } from "../caches/index.ts";
@@ -106,6 +107,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 	const r = typeof router === "function" ? await router() : router;
 	const raw = parseFlareState(self.flare);
 	if (!raw) return;
+	setBuildId(raw.b);
 
 	const state = hydrateFlareState(raw);
 	installDeferredResolver(state.resolvers);

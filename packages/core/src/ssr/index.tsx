@@ -41,6 +41,8 @@ export { buildHeadPrefix } from "./head-prefix.ts";
 export const MAX_STREAM_BUFFER_SIZE = 2 * 1024 * 1024;
 
 export interface FlareState {
+	/** Build id of the server that rendered this page; data requests carry it back. */
+	b?: string;
 	c: ContextState;
 	dk?: string[];
 	e?: DevError[];
@@ -94,6 +96,7 @@ export interface ModulePreloads {
 
 export interface SSRConfig {
 	auth: unknown | null;
+	buildId?: string;
 	cause: string;
 	deferContexts?: Map<string, DeferContext>;
 	entryScript?: string;
@@ -245,6 +248,7 @@ function buildFlareState(config: SSRConfig): FlareState {
 	}
 
 	const state: FlareState = {
+		...(config.buildId ? { b: config.buildId } : {}),
 		c: contextState,
 		m: matchStates,
 		p: config.url.pathname,

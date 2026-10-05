@@ -1,7 +1,7 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ViteManifest } from "../module-graph/index.ts";
+import { computeBuildId, manifestUrls as extractPrecacheUrls } from "./build-id.ts";
 import { generateSwSource } from "../service-worker/template.ts";
 import type { VitePlugin } from "./types.ts";
 
@@ -37,28 +37,7 @@ export function normalizeSwConfig(
 
 /* ── Manifest utilities ──────────────────────────────────────────── */
 
-export function extractPrecacheUrls(manifest: ViteManifest): string[] {
-	const urls = new Set<string>();
-
-	for (const entry of Object.values(manifest)) {
-		if (entry.file) {
-			urls.add(`/${entry.file}`);
-		}
-		if (entry.css) {
-			for (const css of entry.css) {
-				urls.add(`/${css}`);
-			}
-		}
-	}
-
-	return [...urls];
-}
-
-export function computeBuildId(urls: string[]): string {
-	const sorted = [...urls].sort();
-	const hash = createHash("sha256").update(sorted.join("\n")).digest("hex");
-	return hash.slice(0, 12);
-}
+export { computeBuildId, manifestUrls as extractPrecacheUrls } from "./build-id.ts";
 
 /* ── Dev SW ──────────────────────────────────────────────────────── */
 
