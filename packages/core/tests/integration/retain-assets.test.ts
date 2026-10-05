@@ -148,6 +148,33 @@ describe("retainPreviousAssets", () => {
 		expect(Object.keys(readHistory(root).files)).toEqual(["/assets/client-new.js"]);
 	});
 
+	it("a site that accepts connections but never answers cannot hang the build", async () => {
+		const server = createServer(() => {
+			/* never respond */
+		});
+		await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+		servers.push(server);
+		server.closeAllConnections = server.closeAllConnections.bind(server);
+		const root = newBuild(["/assets/client-new.js"]);
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const started = Date.now();
+
+		const result = await retainPreviousAssets({
+			assetsBase: "/assets",
+			fetchTimeoutMs: 200,
+			now: NOW,
+			root,
+			site: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+			windowMs: 0,
+		});
+		server.closeAllConnections();
+
+		expect(Date.now() - started).toBeLessThan(5_000);
+		expect(result).toMatchObject({ retained: 0 });
+		expect(warn.mock.calls.flat().join(" ")).toMatch(/timeout|abort/i);
+		expect(Object.keys(readHistory(root).files)).toEqual(["/assets/client-new.js"]);
+	});
+
 	it("one missing file: warns and copies the rest", async () => {
 		const site = await liveSite({
 			"/assets/_flare-asset-history.json": JSON.stringify({
