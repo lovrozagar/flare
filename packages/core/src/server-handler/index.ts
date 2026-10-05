@@ -72,6 +72,7 @@ import {
 } from "@lovrozagar/flare/server-context";
 import {
 	FORM_FN_FIELD,
+	HEADER_BUILD,
 	HEADER_DATA,
 	HEADER_FLAG,
 	HEADER_ISR,
@@ -444,6 +445,17 @@ function logLoaderFailures(matches: PipelineMatch[], url: URL): void {
 			logError("loader", `loader failed: ${match.route.virtualPath} ${url.pathname}`, detail);
 		}
 	}
+}
+
+function serverFnBuildMismatchResponse(serverBuildId: string): Response {
+	return new Response(JSON.stringify({ message: "Build mismatch" }), {
+		headers: {
+			"Cache-Control": "no-store",
+			"Content-Type": "application/json",
+			[HEADER_BUILD]: serverBuildId,
+		},
+		status: 409,
+	});
 }
 
 function findRedirectInMatches(matches: PipelineMatch[]): RedirectResponse | null {
@@ -1081,6 +1093,13 @@ export function createServerHandler<
 							: undefined;
 
 						if (isServerFnPathname(url.pathname)) {
+							/* A page from another deploy sends its build id: refuse to run the function
+							   with an old client's payload; the client reloads. No header (no-JS form
+							   posts, older clients) runs as before. */
+							const callerBuild = request.headers.get(HEADER_BUILD);
+							if (callerBuild && callerBuild !== buildId) {
+								return addSecurityHeaders(serverFnBuildMismatchResponse(buildId), secHeaders);
+							}
 							const fns = serverFns;
 							let response = await handleServerFnRequest(request, env, fns, serverFnAuthFn);
 							response = await applyResponseHandlers(response, responseHandlers);

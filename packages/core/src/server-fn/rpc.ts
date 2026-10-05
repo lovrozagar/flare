@@ -6,6 +6,7 @@
 import { serverFnPath } from "../protocol.ts";
 import { serverFnGetUrl } from "./get-input.ts";
 import { throwServerFnHttpError } from "./http-error.ts";
+import { fetchServerFn } from "./transport.ts";
 
 export interface ServerFnTarget {
 	id?: string;
@@ -26,8 +27,8 @@ export async function callServerFnOverHttp<TOutput>(
 	const url = serverFnPath(target.id ?? target.name, target.name);
 	const res =
 		target.method === "get"
-			? await fetch(serverFnGetUrl(url, input))
-			: await fetch(url, {
+			? await fetchServerFn(serverFnGetUrl(url, input))
+			: await fetchServerFn(url, {
 					body: input !== undefined ? JSON.stringify(input) : undefined,
 					headers: { "content-type": "application/json" },
 					method: "POST",

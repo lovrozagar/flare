@@ -49,12 +49,14 @@ describe("barrel exports — create-router", () => {
 
 describe("barrel exports — errors", () => {
 	assertExports(errorsMod as unknown as Record<string, unknown>, [
+		"BuildMismatchError",
 		"NavigationError",
 		"NotFoundError",
 		"RedirectResponse",
 		"ServerFnValidationError",
 		"UnauthenticatedError",
 		"UnauthorizedError",
+		"isBuildMismatchError",
 		"isNavigationError",
 		"isNotFoundError",
 		"isRedirectResponse",

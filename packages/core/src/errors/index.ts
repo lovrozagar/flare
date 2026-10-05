@@ -123,6 +123,20 @@ export class RedirectResponse extends Error {
 	}
 }
 
+/**
+ * The server runs a different build than the page that sent the request: this client's code
+ * cannot use the response. Navigation answers with a full document load of the target.
+ */
+export class BuildMismatchError extends Error {
+	readonly name = "BuildMismatchError" as const;
+	readonly serverBuildId: string;
+
+	constructor(serverBuildId: string) {
+		super(`Server is running build ${serverBuildId}; this page is from another build`);
+		this.serverBuildId = serverBuildId;
+	}
+}
+
 export class NavigationError extends Error {
 	readonly name = "NavigationError" as const;
 }
@@ -189,6 +203,10 @@ export function isUnauthorizedError(e: unknown): e is UnauthorizedError {
 
 export function isRedirectResponse(e: unknown): e is RedirectResponse {
 	return e instanceof Error && e.name === "RedirectResponse";
+}
+
+export function isBuildMismatchError(e: unknown): e is BuildMismatchError {
+	return e instanceof Error && e.name === "BuildMismatchError";
 }
 
 export function isNavigationError(e: unknown): e is NavigationError {

@@ -5,6 +5,7 @@ import type { FlattenedError } from "../errors/index.ts";
 import { ServerFnValidationError } from "../errors/index.ts";
 import { FORM_FN_FIELD, serverFnPath } from "../protocol.ts";
 import type { ServerFn } from "../server-fn/index.ts";
+import { fetchServerFn } from "../server-fn/transport.ts";
 
 /* Duplicated here to avoid importing server-context (uses node:async_hooks)
  * into this client-renderable module. Canonical definition in server-context. */
@@ -130,7 +131,7 @@ export function Form<TInput, TOutput>(props: FormProps<TInput, TOutput>): JSX.El
 
 		try {
 			const url = serverFnPath(id, name);
-			const res = await fetch(url, {
+			const res = await fetchServerFn(url, {
 				body: formData,
 				method: "POST",
 			});
