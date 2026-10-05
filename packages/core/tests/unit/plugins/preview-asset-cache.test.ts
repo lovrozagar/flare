@@ -43,3 +43,46 @@ describe("preview server — hashed assets", () => {
 		expect(headers["cache-control"]).toBe("public, max-age=31536000, immutable");
 	});
 });
+
+describe("preview server — asset content types", () => {
+	it("serves every common hashed asset type with its real content type", async () => {
+		const root = mkdtempSync(join(tmpdir(), "flare-preview-types-"));
+		roots.push(root);
+		mkdirSync(join(root, "dist/client/assets"), { recursive: true });
+		const files: Record<string, string> = {
+			"a.avif": "image/avif",
+			"a.css": "text/css",
+			"a.gif": "image/gif",
+			"a.ico": "image/x-icon",
+			"a.jpeg": "image/jpeg",
+			"a.jpg": "image/jpeg",
+			"a.js": "application/javascript",
+			"a.json": "application/json",
+			"a.map": "application/json",
+			"a.mjs": "application/javascript",
+			"a.png": "image/png",
+			"a.svg": "image/svg+xml",
+			"a.ttf": "font/ttf",
+			"a.wasm": "application/wasm",
+			"a.webp": "image/webp",
+			"a.woff": "font/woff",
+			"a.woff2": "font/woff2",
+		};
+		for (const name of Object.keys(files)) writeFileSync(join(root, "dist/client/assets", name), "x");
+		const pre: Middleware[] = [];
+		(createPreviewServerPlugin("/assets").configurePreviewServer as (s: unknown) => unknown)({
+			config: { root },
+			middlewares: { use: (fn: Middleware) => pre.push(fn) },
+		});
+
+		for (const [name, type] of Object.entries(files)) {
+			const headers: Record<string, string> = {};
+			await pre[0]?.(
+				{ url: `/assets/${name}` },
+				{ end: vi.fn(), writeHead: (_s: number, h: Record<string, string>) => Object.assign(headers, h) },
+				vi.fn(),
+			);
+			expect(headers["content-type"], name).toBe(type);
+		}
+	});
+});
