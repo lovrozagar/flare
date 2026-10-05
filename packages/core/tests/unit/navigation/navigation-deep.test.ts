@@ -592,7 +592,7 @@ describe("popstate scroll restore", () => {
 
 		/* restoreScroll is called inside double requestAnimationFrame */
 		await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 0, y: 300 }, "auto");
+		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 0, y: 300 }, "instant");
 		expect(mockScrollToTop).not.toHaveBeenCalled();
 	});
 

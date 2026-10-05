@@ -320,3 +320,56 @@ test.describe("Scroll: view transitions + back/forward", () => {
 		expect(called).toBe(true);
 	});
 });
+
+test.describe("Scroll: instant under html { scroll-behavior: smooth }", () => {
+	/* Apps often set smooth scrolling for anchor links. Back/forward restore and the scroll to top on
+	 * navigation must still jump, as the browser's own history restoration does. */
+	test.beforeEach(async ({ page }) => {
+		await page.addInitScript(() => {
+			document.addEventListener("DOMContentLoaded", () => {
+				const style = document.createElement("style");
+				style.textContent = "html { scroll-behavior: smooth; }";
+				document.head.appendChild(style);
+			});
+		});
+	});
+
+	/* scrollY on every frame for `ms` after `action` runs. */
+	async function sampleScroll(page: import("@playwright/test").Page, action: () => Promise<unknown>) {
+		const samples = page.evaluate(
+			() =>
+				new Promise<number[]>((resolve) => {
+					const seen: number[] = [];
+					const start = performance.now();
+					const tick = () => {
+						seen.push(Math.round(window.scrollY));
+						if (performance.now() - start < 700) requestAnimationFrame(tick);
+						else resolve(seen);
+					};
+					requestAnimationFrame(tick);
+				}),
+		);
+		await action();
+		return samples;
+	}
+
+	test("back restores the position without animating", async ({ page }) => {
+		await loadPage(page, "/scroll-tall");
+		await page.evaluate(() => window.scrollTo({ behavior: "instant", top: 800 }));
+		expect(await page.evaluate(() => window.scrollY)).toBe(800);
+		await navigateSPA(page, "/about");
+		await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+
+		const samples = await sampleScroll(page, () => page.goBack());
+		expect(samples.at(-1)).toBe(800);
+		expect(samples.filter((y) => y > 0 && y < 800)).toEqual([]);
+	});
+
+	test("a link click jumps to the top without animating", async ({ page }) => {
+		await loadPage(page, "/scroll-tall");
+		await page.evaluate(() => window.scrollTo({ behavior: "instant", top: 800 }));
+		const samples = await sampleScroll(page, () => navigateSPA(page, "/about"));
+		expect(samples.at(-1)).toBe(0);
+		expect(samples.filter((y) => y > 0 && y < 800)).toEqual([]);
+	});
+});

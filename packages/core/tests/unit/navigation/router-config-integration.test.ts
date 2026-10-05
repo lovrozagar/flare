@@ -235,7 +235,7 @@ describe("scrollRestorationBehavior through navigate", () => {
 		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 0, y: 300 }, "smooth");
 	});
 
-	it('default passes "auto" to restoreScroll', async () => {
+	it('default passes "instant" to restoreScroll', async () => {
 		const ctx = makeCtx();
 		const loadModules = vi.fn(() => Promise.resolve(makeLoadedModules()));
 
@@ -255,7 +255,7 @@ describe("scrollRestorationBehavior through navigate", () => {
 		});
 
 		await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 10, y: 50 }, "auto");
+		expect(mockRestoreScroll).toHaveBeenCalledWith({ x: 10, y: 50 }, "instant");
 	});
 });
 
