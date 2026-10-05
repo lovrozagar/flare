@@ -6,35 +6,7 @@ vi.mock("@solidjs/vite-plugin", () => ({
 	default: (opts: Record<string, unknown>) => ({ config: () => ({ solid: opts }), name: "solid" }),
 }));
 
-import { existsSync, mkdirSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { afterAll } from "vitest";
-
-const _stubs: string[] = [];
-const _stubDirs: string[] = [];
-for (const name of ["src/client.tsx", "src/server.ts"]) {
-	const p = join(process.cwd(), name);
-	if (!existsSync(p)) {
-		writeFileSync(p, "/* test stub */");
-		_stubs.push(p);
-	}
-}
-const distDir = join(process.cwd(), "dist");
-if (!existsSync(distDir)) {
-	mkdirSync(distDir, { recursive: true });
-	_stubDirs.push(distDir);
-}
-
-afterAll(() => {
-	for (const p of _stubs)
-		try {
-			unlinkSync(p);
-		} catch {}
-	for (const d of _stubDirs)
-		try {
-			rmdirSync(d);
-		} catch {}
-});
+/* Entry stubs and the dist/ the resolver checks come from tests/global-setup.ts. */
 
 vi.mock("../../../src/generators", () => ({
 	buildRouteTree: vi.fn(() => ({ s: {} })),

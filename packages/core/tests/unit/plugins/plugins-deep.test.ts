@@ -7,33 +7,7 @@ vi.mock("@solidjs/vite-plugin", () => ({
 	default: () => ({ name: "solid" }),
 }));
 
-/* flare() needs src/client.tsx and src/server.ts at cwd */
-const _stubs: string[] = [];
-const _stubDirs: string[] = [];
-for (const name of ["src/client.tsx", "src/server.ts"]) {
-	const p = join(process.cwd(), name);
-	if (!existsSync(p)) {
-		writeFileSync(p, "/* test stub */");
-		_stubs.push(p);
-	}
-}
-const _distDir = join(process.cwd(), "dist");
-if (!existsSync(_distDir)) {
-	mkdirSync(_distDir, { recursive: true });
-	_stubDirs.push(_distDir);
-}
-
-afterAll(() => {
-	const { unlinkSync, rmdirSync: rmdir } = require("node:fs");
-	for (const p of _stubs)
-		try {
-			unlinkSync(p);
-		} catch {}
-	for (const d of _stubDirs)
-		try {
-			rmdir(d);
-		} catch {}
-});
+/* Entry stubs and the dist/ the resolver checks come from tests/global-setup.ts. */
 
 vi.mock("../../../src/generators", () => ({
 	buildRouteTree: vi.fn(() => ({ s: {} })),
