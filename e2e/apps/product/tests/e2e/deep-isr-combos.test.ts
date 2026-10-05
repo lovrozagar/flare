@@ -143,6 +143,12 @@ test.describe("@dev-only Truly static — no on-demand population", () => {
 
 test.describe("ISR stale-while-revalidate", () => {
 	test("multiple requests within revalidate window return same content", async ({ request }) => {
+		/* Start from a fresh entry: one another file stored ~5s ago could go stale between the two
+		   requests (stale-while-revalidate then answers the second with the refreshed page). */
+		await request.post("/_flare/revalidate", {
+			data: { keys: ["static:/isr-test"], tiers: ["ssr"] },
+			headers: { "content-type": "application/json", "x-revalidation-secret": "e2e-test-secret" },
+		});
 		/* Prime store */
 		await request.get("/isr-test");
 		await new Promise((r) => setTimeout(r, POPULATE_WAIT));
