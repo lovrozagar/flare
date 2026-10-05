@@ -238,11 +238,13 @@ test.describe("Deferred data freshness after prefetch", () => {
 		const cap = setupConsoleCapture(page);
 		await loadPage(page, "/");
 
-		/* Trigger prefetch via dispatchEvent to avoid vite-error-overlay blocking hover */
-		await page.locator("[data-testid='prefetch-defer-link']").dispatchEvent("mouseenter");
-		await page.waitForResponse(
+		/* Listen before triggering: a fast prefetch can answer before a later listener attaches. */
+		const prefetched = page.waitForResponse(
 			(resp) => resp.url().includes("/prefetch-defer") && resp.request().headers()["flare-data"] === "1",
 		);
+		/* Trigger prefetch via dispatchEvent to avoid vite-error-overlay blocking hover */
+		await page.locator("[data-testid='prefetch-defer-link']").dispatchEvent("mouseenter");
+		await prefetched;
 		const prefetchTime = Date.now();
 		await page.waitForTimeout(1000);
 

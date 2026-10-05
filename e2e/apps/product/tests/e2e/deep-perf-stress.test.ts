@@ -143,8 +143,9 @@ test.describe("Perf Stress — rapid navigation", () => {
 		/* last nav shouldn't be 3x slower than first */
 		const first = timings[0];
 		const last = timings[timings.length - 1];
-		if (first && last) {
-			expect(last).toBeLessThan(first * 3);
+		/* A ~20ms first nav makes 3x pure scheduling jitter, so the base has a 50ms noise floor. */
+		if (first !== undefined && last !== undefined) {
+			expect(last).toBeLessThan(Math.max(first, 50) * 3);
 		}
 	});
 
