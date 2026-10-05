@@ -140,7 +140,7 @@ test.describe("cdn + origin store", () => {
 		expect(res.status()).toBe(200);
 		const cacheControl = res.headers()["cache-control"] ?? "";
 		expect(cacheControl).toContain("public");
-		expect(cacheControl).toContain("max-age=86400");
+		expect(cacheControl).toContain("s-maxage=86400");
 		expect(cacheControl).toContain("stale-while-revalidate=604800");
 		expect(res.headers()["surrogate-key"]).toBe("fs-paths");
 		expect((res.headers()["flare-render"] ?? "").toUpperCase()).toBe("ISR");
@@ -158,7 +158,7 @@ test.describe("cdn + origin store", () => {
 		const res = await request.get("/deep-cache/uncached");
 		expect(res.status()).toBe(200);
 		expect((res.headers()["flare-render"] ?? "").toUpperCase()).toBe("SSR");
-		expect(res.headers()["cache-control"] ?? "").not.toContain("max-age=86400");
+		expect(res.headers()["cache-control"]).toBe("private, no-cache");
 		expect(res.headers()["surrogate-key"] ?? "").not.toContain("fs-paths");
 	});
 });

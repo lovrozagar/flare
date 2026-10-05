@@ -904,3 +904,67 @@ describe("Flare header compatibility", () => {
 		expect(res2.headers.etag).toBe('W/"a1b2c3d4e5f6g7h8"');
 	});
 });
+
+/* ── Query-aware keys (like a real CDN) ──────────────────────────────── */
+
+describe("dev CDN keys by full URL", () => {
+	it("a cached page is never served for its build-scoped data URL", async () => {
+		const html = makeRes();
+		await handleCdnRequest(
+			makeReq({ url: "/about" }),
+			html,
+			() => {
+				html.writeHead(200, { "cache-control": "public, max-age=0, s-maxage=60", "content-type": "text/html" });
+				html.end("<html>page</html>");
+			},
+			store,
+			new Set(),
+		);
+
+		const data = makeRes();
+		let originHit = false;
+		await handleCdnRequest(
+			makeReq({ headers: { "flare-data": "1", host: "localhost:3000" }, url: "/about?_flare=b1" }),
+			data,
+			() => {
+				originHit = true;
+				data.writeHead(200, { "cache-control": "no-store", "content-type": "application/x-ndjson" });
+				data.end('{"t":"d"}\n');
+			},
+			store,
+			new Set(),
+		);
+
+		expect(originHit).toBe(true);
+		expect(data.body).toBe('{"t":"d"}\n');
+	});
+
+	it("s-maxage alone (max-age=0) is cacheable for the shared cache", async () => {
+		const first = makeRes();
+		await handleCdnRequest(
+			makeReq({ url: "/shared" }),
+			first,
+			() => {
+				first.writeHead(200, { "cache-control": "public, max-age=0, s-maxage=60", "content-type": "text/html" });
+				first.end("<html>shared</html>");
+			},
+			store,
+			new Set(),
+		);
+
+		const second = makeRes();
+		let originHit = false;
+		await handleCdnRequest(
+			makeReq({ url: "/shared" }),
+			second,
+			() => {
+				originHit = true;
+			},
+			store,
+			new Set(),
+		);
+
+		expect(originHit).toBe(false);
+		expect(second.body).toBe("<html>shared</html>");
+	});
+});

@@ -240,6 +240,8 @@ export async function handleCdnRequest(
 
 	const url = new URL(req.url, `http://${getHeader(req, "host") ?? "localhost"}`);
 	const pathname = url.pathname;
+	/* Real CDNs key by the full URL; data requests differ from their page only by `?_flare=`. */
+	const cacheUrl = `${pathname}${url.search}`;
 
 	/* Skip static assets (files with extensions like .js, .css, .png) */
 	if (pathname.includes(".") && !pathname.endsWith("/")) {
@@ -249,12 +251,12 @@ export async function handleCdnRequest(
 
 	/* Background SWR hop — skip the cache read and refill the same key */
 	if (getHeader(req, "flare-cdn-revalidate") === "1") {
-		interceptResponse(req, res, next, store, method, pathname);
+		interceptResponse(req, res, next, store, method, cacheUrl);
 		return;
 	}
 
 	/* Probe cache — first without Vary to discover what Vary headers were stored */
-	const probeKey = buildCdnCacheKey(method, pathname, [], {});
+	const probeKey = buildCdnCacheKey(method, cacheUrl, [], {});
 	const probeEntry = await store.get(probeKey);
 	const probeCdn = probeEntry ? storeEntryToCdnEntry(probeEntry) : null;
 
@@ -264,7 +266,7 @@ export async function handleCdnRequest(
 	if (probeCdn && probeCdn.varyHeaders.length > 0) {
 		/* Re-key with Vary dimensions from the stored response */
 		const reqHeaders = extractRequestHeaders(req, probeCdn.varyHeaders);
-		cacheKey = buildCdnCacheKey(method, pathname, probeCdn.varyHeaders, reqHeaders);
+		cacheKey = buildCdnCacheKey(method, cacheUrl, probeCdn.varyHeaders, reqHeaders);
 		const variedEntry = await store.get(cacheKey);
 		cached = variedEntry ? storeEntryToCdnEntry(variedEntry) : null;
 	} else if (probeCdn) {
@@ -321,7 +323,7 @@ export async function handleCdnRequest(
 	}
 
 	/* Cache miss — intercept response from downstream (Flare SSR) */
-	interceptResponse(req, res, next, store, method, pathname);
+	interceptResponse(req, res, next, store, method, cacheUrl);
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
@@ -380,7 +382,7 @@ function interceptResponse(
 	next: () => void,
 	store: FlareStore,
 	method: string,
-	pathname: string,
+	cacheUrl: string,
 ): void {
 	const originalWriteHead = res.writeHead.bind(res);
 	const originalEnd = res.end.bind(res);
@@ -440,7 +442,7 @@ function interceptResponse(
 			const varyHeaders = parseVaryHeader(capturedHeaders.vary);
 			const surrogateKeys = parseSurrogateKey(capturedHeaders["surrogate-key"]);
 			const reqHeaders = extractRequestHeaders(req, varyHeaders);
-			const cacheKey = buildCdnCacheKey(method, pathname, varyHeaders, reqHeaders);
+			const cacheKey = buildCdnCacheKey(method, cacheUrl, varyHeaders, reqHeaders);
 
 			const entry: CdnCacheEntry = {
 				body: capturedBody,
@@ -455,7 +457,7 @@ function interceptResponse(
 
 			/* Also store a probe entry for Vary discovery on next lookup */
 			if (varyHeaders.length > 0) {
-				const probeKey = buildCdnCacheKey(method, pathname, [], {});
+				const probeKey = buildCdnCacheKey(method, cacheUrl, [], {});
 				store.set(probeKey, cdnEntryToStoreEntry(entry)).catch(() => {});
 			}
 		}

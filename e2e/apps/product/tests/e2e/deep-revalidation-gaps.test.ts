@@ -212,7 +212,7 @@ test.describe("SSR + CDN combo", () => {
 		const res = await request.get("/ssr-cdn-combo");
 		const headers = res.headers();
 
-		expect(headers["cache-control"]).toContain("max-age=600");
+		expect(headers["cache-control"]).toContain("s-maxage=600");
 		expect(headers["cache-control"]).toContain("stale-while-revalidate=120");
 		expect(headers["surrogate-key"]).toContain("combo-cdn");
 		expect(headers["surrogate-key"]).toContain("combo-shared");
@@ -362,7 +362,7 @@ test.describe("flare-cache + CDN headers coexistence", () => {
 		const headers = res.headers();
 
 		expect(["HIT", "STALE"]).toContain(headers["flare-cache"]);
-		expect(headers["cache-control"]).toContain("max-age=600");
+		expect(headers["cache-control"]).toContain("s-maxage=600");
 		expect(headers["surrogate-key"]).toBeDefined();
 	});
 

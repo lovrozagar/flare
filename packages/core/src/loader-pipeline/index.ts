@@ -123,8 +123,10 @@ function buildCdnCacheHeaders(cdn: CdnCacheConfig, params: Record<string, string
 	const headers: ResponseHeaders = {};
 
 	if (cdn.maxAge !== undefined) {
-		const scope = cdn.private ? "private" : "public";
-		let cc = `${scope}, max-age=${parseSeconds(cdn.maxAge)}`;
+		/* Public: shared caches (CDN) keep it for maxAge, browsers always revalidate, so a deploy
+		   or purge reaches everyone. Private: only the browser may keep it. */
+		const age = parseSeconds(cdn.maxAge);
+		let cc = cdn.private ? `private, max-age=${age}` : `public, max-age=0, s-maxage=${age}`;
 		if (cdn.swr !== undefined) {
 			cc += `, stale-while-revalidate=${parseSeconds(cdn.swr)}`;
 		}

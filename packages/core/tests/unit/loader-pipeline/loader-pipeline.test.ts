@@ -731,13 +731,13 @@ describe("headers chain", () => {
 		expect(result.matches[1]?.responseHeaders).toEqual({ "x-page": "1" });
 	});
 
-	it("cdn config → Cache-Control auto-generated", async () => {
+	it("cdn config → shared caches keep it (s-maxage), browsers revalidate (max-age=0)", async () => {
 		const route = makeRoute({
 			cache: { cdn: { maxAge: 3600 } },
 			loader: () => Promise.resolve("ok"),
 		});
 		const result = await runPipeline(makeConfig({ routes: [route] }));
-		expect(result.matches[0]?.responseHeaders?.["Cache-Control"]).toBe("public, max-age=3600");
+		expect(result.matches[0]?.responseHeaders?.["Cache-Control"]).toBe("public, max-age=0, s-maxage=3600");
 	});
 
 	it("cdn config with swr → stale-while-revalidate included", async () => {
@@ -747,7 +747,7 @@ describe("headers chain", () => {
 		});
 		const result = await runPipeline(makeConfig({ routes: [route] }));
 		expect(result.matches[0]?.responseHeaders?.["Cache-Control"]).toBe(
-			"public, max-age=60, stale-while-revalidate=3600",
+			"public, max-age=0, s-maxage=60, stale-while-revalidate=3600",
 		);
 	});
 
@@ -821,7 +821,7 @@ describe("headers chain", () => {
 		});
 		const result = await runPipeline(makeConfig({ routes: [layout, page] }));
 		const pageHeaders = result.matches[1]?.responseHeaders;
-		expect(pageHeaders?.["Cache-Control"]).toBe("public, max-age=3600");
+		expect(pageHeaders?.["Cache-Control"]).toBe("public, max-age=0, s-maxage=3600");
 		expect(pageHeaders?.["Surrogate-Key"]).toBe("products");
 	});
 
