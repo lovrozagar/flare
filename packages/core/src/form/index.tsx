@@ -50,8 +50,9 @@ interface FormOwnProps<TInput, TOutput> {
 	onSuccess?: (data: TOutput) => void;
 }
 
+/* The element's own `onError` (an ErrorEvent) gives way to the action's. */
 export type FormProps<TInput, TOutput> = FormOwnProps<TInput, TOutput> &
-	Omit<JSX.FormHTMLAttributes<HTMLFormElement>, "action" | "children" | "enctype" | "method">;
+	Omit<JSX.FormHTMLAttributes<HTMLFormElement>, "action" | "children" | "enctype" | "method" | "onError">;
 
 /** Seed `form.error()` after a no-JS PE POST with form-level validation errors. */
 export function seedFormErrorFromSsr(ssrCtx: FormActionContext | undefined): Error | null {
