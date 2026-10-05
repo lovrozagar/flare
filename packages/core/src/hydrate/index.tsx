@@ -240,6 +240,7 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 								prefetchCache={prefetchCache}
 								resolvers={state.resolvers}
 								routerCacheDefaults={r.cache?.client || undefined}
+								routerPrefetch={r.prefetch}
 								routeTree={r.routeTree}
 								search={search}
 							>

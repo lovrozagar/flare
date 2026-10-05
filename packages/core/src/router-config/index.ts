@@ -2,12 +2,15 @@ import type { ViewTransitionConfig } from "../outlet/types.ts";
 import type { DirectionConfig } from "../direction.ts";
 import type { LocaleConfig } from "../locale/index.tsx";
 import type { LocationRewrite } from "../rewrite/index.ts";
+import type { PrefetchTrigger, RouterPrefetchConfig } from "../prefetch/resolve.ts";
 import type { ClientCacheConfig } from "../route-builder/types.ts";
 import type { Location, TreeNode } from "../router-primitives/types.ts";
 import { parseFlareState as _parseFlareState } from "../state-parser/index.ts";
 import type { ThemeConfig } from "../theme.ts";
 
-export type PrefetchStrategy = false | "intent" | "render" | "viewport";
+/** @deprecated Use `PrefetchTrigger` / `PrefetchConfig`. */
+export type PrefetchStrategy = PrefetchTrigger;
+export type { PrefetchConfig, PrefetchTrigger, RouterPrefetchConfig } from "../prefetch/resolve.ts";
 export type TrailingSlashMode = "always" | "never" | "preserve";
 export type ViewTransitionDefaults = ViewTransitionConfig;
 
@@ -24,6 +27,11 @@ export interface RouterConfig {
 	layouts: Record<string, () => Promise<{ default: unknown }>>;
 	locale?: LocaleConfig;
 	notFoundMode?: "fuzzy" | "root";
+	/**
+	 * Default prefetch for every link: `{ modules, data }` triggers, or one trigger for both.
+	 * Default `{ modules: "all", data: false }` — every route's code on idle, no loader work.
+	 */
+	prefetch?: RouterPrefetchConfig;
 	queryClientGetter?: () => unknown;
 	rewrite?: LocationRewrite;
 	routeCacheMaxEntries?: number;

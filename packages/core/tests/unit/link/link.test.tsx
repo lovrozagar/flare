@@ -582,8 +582,9 @@ describe("Link", () => {
 				container,
 			);
 
-			/* render prefetch waits for load + idle so it stays off the LCP chain */
-			await vi.waitFor(() => expect(mockPrefetch).toHaveBeenCalledWith({ modulesOnly: true, to: "/about" }));
+			/* render prefetch waits for load + idle so it stays off the LCP chain. A string sets
+			   both fields, so modules and data load together. */
+			await vi.waitFor(() => expect(mockPrefetch).toHaveBeenCalledWith({ to: "/about" }));
 		});
 
 		it("no prefetch on mount when strategy is false", async () => {
@@ -844,7 +845,8 @@ describe("Link", () => {
 				{} as IntersectionObserver,
 			);
 
-			expect(mockPrefetch).toHaveBeenCalledWith({ modulesOnly: true, to: "/lazy" });
+			/* A string sets both fields: modules and data load together. */
+			expect(mockPrefetch).toHaveBeenCalledWith({ to: "/lazy" });
 		});
 
 		it("prefetch NOT called before intersection", async () => {

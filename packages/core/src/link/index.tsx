@@ -3,11 +3,15 @@ import { createEffect, createMemo, createSignal, omit, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { applyRewriteOutput, isExternal, navigate, prefetch } from "../navigation/index.ts";
 import { useRouterContext } from "../outlet/index.tsx";
+import { constrainedConnection } from "../prefetch/connection.ts";
+import { type PrefetchConfig, type PrefetchTrigger, resolvePrefetch } from "../prefetch/resolve.ts";
 import type { RouteParamsProps, RoutePaths, RouteSearchProps } from "../route-builder/register.ts";
 import { matchRoute, toLocaleMatch } from "../router-primitives/index.ts";
 import { buildUrl } from "../url/index.ts";
 
-export type PrefetchStrategy = false | "intent" | "render" | "viewport";
+/** @deprecated Use `PrefetchConfig`. */
+export type PrefetchStrategy = PrefetchTrigger;
+export type { PrefetchConfig, PrefetchTrigger } from "../prefetch/resolve.ts";
 
 export type FlareAnchorProps = Omit<JSX.AnchorHTMLAttributes<HTMLAnchorElement>, "children" | "href">;
 
@@ -22,7 +26,7 @@ type InternalLinkProps<TPath extends RoutePaths = RoutePaths> = FlareAnchorProps
 	inactiveClass?: string;
 	inactiveProps?: FlareAnchorProps;
 	isActive?: (location: { pathname: string }) => boolean;
-	prefetch?: PrefetchStrategy;
+	prefetch?: PrefetchConfig;
 	replace?: boolean;
 	revalidate?: boolean;
 	scroll?: boolean;
@@ -55,7 +59,7 @@ interface LinkPropsInternal {
 	inactiveProps?: FlareAnchorProps;
 	isActive?: (location: { pathname: string }) => boolean;
 	params?: Record<string, unknown>;
-	prefetch?: PrefetchStrategy;
+	prefetch?: PrefetchConfig;
 	rel?: string;
 	replace?: boolean;
 	revalidate?: boolean;
@@ -152,9 +156,18 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		}
 	});
 
-	const effectivePrefetch = createMemo(() => {
-		if (local.href !== undefined) return false;
-		return local.prefetch ?? routePrefetch() ?? ctx.routerCacheDefaults?.prefetch ?? false;
+	/* When each part of the target route loads. "all" belongs to the app-wide idle prefetch;
+	   on a constrained connection that is off, so links warm modules when visible instead. */
+	const prefetchTriggers = createMemo((): { data: PrefetchTrigger; modules: PrefetchTrigger } => {
+		if (local.href !== undefined) return { data: false, modules: false };
+		const resolved = resolvePrefetch({
+			link: local.prefetch,
+			route: routePrefetch(),
+			router: ctx.routerPrefetch,
+			routerLegacy: ctx.routerCacheDefaults?.prefetch,
+		});
+		const modules = resolved.modules === "all" ? (constrainedConnection() ? "viewport" : false) : resolved.modules;
+		return { data: resolved.data, modules };
 	});
 
 	const active = createMemo(() => {
@@ -260,23 +273,24 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 		});
 	}
 
-	function triggerPrefetch(): void {
+	/* Data always brings the route's modules; modules alone never touch the server. */
+	function triggerPrefetch(modulesOnly: boolean): void {
 		if (local.disabled) return;
 		if (local.href !== undefined) return;
 		const h = resolvedHref();
 		if (isExternal(h)) return;
-		/* params + search already resolved into h by resolvedHref() — passing them again would double-apply.
-		 * Intent prefetches that URL's NDJSON shell. Viewport/render only warm JS once per route. */
-		const strategy = effectivePrefetch();
-		if (strategy === "viewport" || strategy === "render") {
-			prefetch({ modulesOnly: true, to: h });
-		} else {
-			prefetch({ to: h });
-		}
+		/* params + search already resolved into h by resolvedHref() — passing them again would double-apply. */
+		prefetch(modulesOnly ? { modulesOnly: true, to: h } : { to: h });
+	}
+
+	function fire(event: PrefetchTrigger): void {
+		const t = prefetchTriggers();
+		if (t.data === event) triggerPrefetch(false);
+		else if (t.modules === event) triggerPrefetch(true);
 	}
 
 	function handleIntent(): void {
-		if (effectivePrefetch() === "intent") triggerPrefetch();
+		fire("intent");
 	}
 
 	function scheduleAfterLoad(fn: () => void): () => void {
@@ -321,29 +335,32 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 	createEffect(
 		() => {
 			const el = anchor();
-			const strategy = effectivePrefetch();
+			const t = prefetchTriggers();
 			const href = resolvedHref();
 			return {
+				data: t.data,
 				disabled: !!local.disabled,
 				el,
 				external: isExternal(href),
 				hrefOnly: local.href !== undefined,
-				strategy,
+				modules: t.modules,
 			};
 		},
-		({ disabled, el, external, hrefOnly, strategy }) => {
+		({ data, disabled, el, external, hrefOnly, modules }) => {
 			if (!el || disabled || hrefOnly || external) return undefined;
+			const uses = (event: PrefetchTrigger) => data === event || modules === event;
+			const cleanups: Array<() => void> = [];
 
-			if (strategy === "intent") {
+			if (uses("intent")) {
 				el.addEventListener("focus", handleIntent);
 				el.addEventListener("touchstart", handleIntent, { passive: true });
-				return () => {
+				cleanups.push(() => {
 					el.removeEventListener("focus", handleIntent);
 					el.removeEventListener("touchstart", handleIntent);
-				};
+				});
 			}
 
-			if (strategy === "viewport") {
+			if (uses("viewport")) {
 				let observer: IntersectionObserver | undefined;
 				const cancel = scheduleAfterLoad(() => {
 					if (typeof IntersectionObserver === "undefined") return;
@@ -351,7 +368,7 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 						(entries) => {
 							for (const entry of entries) {
 								if (entry.isIntersecting) {
-									triggerPrefetch();
+									fire("viewport");
 									observer?.unobserve(entry.target);
 								}
 							}
@@ -360,16 +377,17 @@ export function Link<TPath extends RoutePaths>(props: LinkProps<TPath>): JSX.Ele
 					);
 					observer.observe(el);
 				});
-				return () => {
+				cleanups.push(() => {
 					cancel();
 					observer?.disconnect();
-				};
+				});
 			}
 
-			if (strategy === "render") {
-				return scheduleAfterLoad(() => triggerPrefetch());
+			if (uses("render")) {
+				cleanups.push(scheduleAfterLoad(() => fire("render")));
 			}
-			return undefined;
+
+			return cleanups.length > 0 ? () => cleanups.forEach((c) => c()) : undefined;
 		},
 	);
 

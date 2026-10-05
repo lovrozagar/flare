@@ -1,3 +1,4 @@
+import type { RouterPrefetchConfig } from "../prefetch/resolve.ts";
 import type { Accessor } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { GlobalBoundaries } from "../boundaries/index.ts";
@@ -183,6 +184,8 @@ export interface FlareProviderContext {
 	prefetchCache: PrefetchCache;
 	resolvers: Map<string, DeferredResolver>;
 	routerCacheDefaults?: ClientCacheConfig;
+	/** Router-wide `prefetch` (the new `{ modules, data }` model). */
+	routerPrefetch?: RouterPrefetchConfig;
 	routeTree: TreeNode;
 	search: Accessor<SearchParams>;
 	setHydrated: (v: boolean) => void;
@@ -211,6 +214,8 @@ export interface FlareProviderProps {
 	prefetchCache: PrefetchCache;
 	resolvers: Map<string, DeferredResolver>;
 	routerCacheDefaults?: ClientCacheConfig;
+	/** Router-wide `prefetch` (the new `{ modules, data }` model). */
+	routerPrefetch?: RouterPrefetchConfig;
 	routeTree: TreeNode;
 	search?: SearchParams;
 }

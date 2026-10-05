@@ -3,10 +3,12 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync,
 import { dirname, extname, join, posix, relative, resolve } from "node:path";
 import { parse as babelParse } from "@babel/parser";
 import { parseSeconds } from "../duration/index.ts";
+import type { PrefetchConfig, PrefetchTrigger } from "../prefetch/resolve.ts";
 import { AUTHENTICATE_OPTIONAL_ARGUMENT_ERROR, type AuthenticateMode } from "../route-builder/types.ts";
 import { extractLayoutKey } from "../router-primitives/paths.ts";
 
-export type PrefetchStrategy = false | "intent" | "render" | "viewport";
+/** @deprecated Use `PrefetchTrigger`. */
+export type PrefetchStrategy = PrefetchTrigger;
 
 export type ExtractedStaticDeferMode = "resolve" | "stream";
 
@@ -15,7 +17,7 @@ export interface ExtractedCacheConfig {
 	client?: {
 		cacheDeferred?: boolean;
 		gcTime?: number;
-		prefetch?: PrefetchStrategy;
+		prefetch?: PrefetchConfig;
 		prefetchGcTime?: number;
 		prefetchStaleTime?: number;
 		staleTime?: number;
@@ -297,12 +299,25 @@ export function extractCacheFromChain(chainText: string): ExtractedCacheConfig {
 		const pgc = extractNumeric(clientBlock, "prefetchGcTime", "ms");
 		if (pgc !== undefined) client.prefetchGcTime = pgc;
 
-		const prefetchMatch = PREFETCH_RE.exec(clientBlock);
-		if (prefetchMatch) {
-			client.prefetch = prefetchMatch[1] as "intent" | "render" | "viewport";
-		}
-		if (/prefetch\s*:\s*false/.test(clientBlock)) {
-			client.prefetch = false;
+		const prefetchBlock = extractNestedBlock(clientBlock, "prefetch");
+		if (prefetchBlock !== null) {
+			/* { modules, data } — each a trigger or false */
+			const split: { data?: PrefetchTrigger; modules?: PrefetchTrigger } = {};
+			for (const field of ["data", "modules"] as const) {
+				const value = new RegExp(`${field}\\s*:\\s*(?:["'\`](intent|render|viewport)["'\`]|(false))`).exec(
+					prefetchBlock,
+				);
+				if (value) split[field] = value[2] ? false : (value[1] as "intent" | "render" | "viewport");
+			}
+			client.prefetch = split;
+		} else {
+			const prefetchMatch = PREFETCH_RE.exec(clientBlock);
+			if (prefetchMatch) {
+				client.prefetch = prefetchMatch[1] as "intent" | "render" | "viewport";
+			}
+			if (/prefetch\s*:\s*false/.test(clientBlock)) {
+				client.prefetch = false;
+			}
 		}
 
 		if (Object.keys(client).length > 0) config.client = client;
@@ -667,7 +682,15 @@ function formatRouteMeta(def: RouteDefinition): string {
 		if (def.cache.client.gcTime !== undefined) cp.push(`gcTime: ${def.cache.client.gcTime}`);
 		if (def.cache.client.prefetch !== undefined) {
 			const pv = def.cache.client.prefetch;
-			cp.push(pv === false ? "prefetch: false" : `prefetch: "${pv}"`);
+			const lit = (t: PrefetchTrigger) => (t === false ? "false" : `"${t}"`);
+			if (typeof pv === "object") {
+				const fields: string[] = [];
+				if (pv.data !== undefined) fields.push(`data: ${lit(pv.data)}`);
+				if (pv.modules !== undefined) fields.push(`modules: ${lit(pv.modules)}`);
+				cp.push(`prefetch: { ${fields.join(", ")} }`);
+			} else {
+				cp.push(`prefetch: ${lit(pv)}`);
+			}
 		}
 		if (def.cache.client.prefetchStaleTime !== undefined)
 			cp.push(`prefetchStaleTime: ${def.cache.client.prefetchStaleTime}`);
