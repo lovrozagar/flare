@@ -178,11 +178,21 @@ export function buildFlareStateScript(state: FlareState, nonce: string): string 
 export { applyResponseHeaders, mergeResponseHeaders } from "../internal.ts";
 
 /**
+ * A 4xx an upstream HTTP client attached to the error it threw (`error.status`, e.g. an SDK
+ * `ClientError` for 429 or 400). Anything else — 5xx, non-numbers — is not the client's fault.
+ */
+export function carriedClientStatus(error: Error): number | undefined {
+	const status = (error as { status?: unknown }).status;
+	return typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 499 ? status : undefined;
+}
+
+/**
  * Derive HTTP status from pipeline match errors.
- * Priority: 401 > 403 > 404 > 500 > 200
+ * Priority: 401 > 403 > 404 > 500 > carried 4xx (e.g. upstream 429) > 200
  */
 export function deriveStatus(matches: Array<{ error?: Error }>): number {
 	let status = 200;
+	let clientStatus: number | undefined;
 
 	for (const match of matches) {
 		if (!match.error) continue;
@@ -194,11 +204,13 @@ export function deriveStatus(matches: Array<{ error?: Error }>): number {
 		} else if (isNotFoundError(match.error)) {
 			if (status !== 401 && status !== 403) status = 404;
 		} else {
-			if (status === 200) status = 500;
+			const carried = carriedClientStatus(match.error);
+			if (carried !== undefined) clientStatus ??= carried;
+			else if (status === 200) status = 500;
 		}
 	}
 
-	return status;
+	return status === 200 && clientStatus !== undefined ? clientStatus : status;
 }
 
 /* ── renderToStream ────────────────────────────────────────────────── */

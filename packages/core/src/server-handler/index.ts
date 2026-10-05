@@ -89,6 +89,7 @@ import {
 import { sameOriginRedirectPath } from "../url/index.ts";
 import {
 	applyResponseHeaders,
+	carriedClientStatus,
 	deriveStatus,
 	mergeResponseHeaders,
 	renderToStream,
@@ -418,6 +419,28 @@ async function applyResponseHandlers(response: Response, handlers: ResponseHandl
 		}
 	}
 	return result;
+}
+
+/**
+ * Loader errors land in `match.error` and become a rendered status via `deriveStatus` — they never
+ * reach the request catch-all. Log the unexpected ones (not redirect / 401 / 403 / 404) with
+ * route, path, and stack so a production error page is never silent. An upstream 4xx
+ * (`carriedClientStatus`, e.g. 429) is a warning; anything else is an error.
+ */
+function logLoaderFailures(matches: PipelineMatch[], url: URL): void {
+	for (const match of matches) {
+		const e = match.error;
+		if (!e || isRedirectResponse(e) || isUnauthenticatedError(e) || isUnauthorizedError(e) || isNotFoundError(e)) {
+			continue;
+		}
+		const detail = e.stack ?? `${e.name}: ${e.message}`;
+		const clientStatus = carriedClientStatus(e);
+		if (clientStatus !== undefined) {
+			warn("loader", `loader got ${clientStatus}: ${match.route.virtualPath} ${url.pathname}`, detail);
+		} else {
+			logError("loader", `loader failed: ${match.route.virtualPath} ${url.pathname}`, detail);
+		}
+	}
 }
 
 function findRedirectInMatches(matches: PipelineMatch[]): RedirectResponse | null {
@@ -1205,6 +1228,7 @@ export function createServerHandler<
 										url,
 									});
 
+									logLoaderFailures(pipelineResult.matches, url);
 									const redirect404 = findRedirectInMatches(pipelineResult.matches);
 									if (redirect404) {
 										return new Response(null, {
@@ -1483,6 +1507,7 @@ export function createServerHandler<
 							url,
 						});
 
+						logLoaderFailures(pipelineResult.matches, url);
 						const pipelineRedirect = findRedirectInMatches(pipelineResult.matches);
 						if (pipelineRedirect) {
 							redirectCount++;
