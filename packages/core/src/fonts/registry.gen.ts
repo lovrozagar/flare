@@ -55,6 +55,8 @@ export const FONT_REGISTRY: Array<
 	["Fira Sans Condensed", "fira-sans-condensed", "firaSansCondensed", "sans-serif"],
 	["Fjalla One", "fjalla-one", "fjallaOne", "sans-serif"],
 	["Fredoka", "fredoka", "fredoka", "sans-serif"],
+	["Geist", "geist", "geist", "sans-serif"],
+	["Geist Mono", "geist-mono", "geistMono", "monospace"],
 	["Gelasio", "gelasio", "gelasio", "serif"],
 	["Gloria Hallelujah", "gloria-hallelujah", "gloriaHallelujah", "handwriting"],
 	["Gothic A1", "gothic-a1", "gothicA1", "sans-serif"],
