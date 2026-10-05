@@ -1,6 +1,5 @@
 /** @vitest-environment node */
 import { rm, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect, beforeEach } from "vitest";
 import { build } from "vite";
