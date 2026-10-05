@@ -335,7 +335,8 @@ describe("preview server plugin", () => {
 				config: { root },
 				middlewares: {
 					use(fn: typeof capturedHandler) {
-						capturedHandler = fn;
+						/* Asset serving is the first middleware (before Vite's static handler). */
+						capturedHandler ??= fn;
 					},
 				},
 			};
@@ -386,7 +387,8 @@ describe("preview server plugin", () => {
 				config: { root },
 				middlewares: {
 					use(fn: typeof capturedHandler) {
-						capturedHandler = fn;
+						/* Asset serving is the first middleware (before Vite's static handler). */
+						capturedHandler ??= fn;
 					},
 				},
 			};
@@ -434,7 +436,8 @@ describe("preview server plugin", () => {
 				config: { root },
 				middlewares: {
 					use(fn: typeof capturedHandler) {
-						capturedHandler = fn;
+						/* Asset serving is the first middleware (before Vite's static handler). */
+						capturedHandler ??= fn;
 					},
 				},
 			};

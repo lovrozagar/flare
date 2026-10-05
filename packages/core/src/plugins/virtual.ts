@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { findEntryKey, resolveModulePreloads } from "../module-graph/index.ts";
+import { writePrefetchList } from "../prefetch/list.ts";
 import { DEV_BUILD_ID, readClientBuildId, readClientManifest } from "./build-id.ts";
 import type { SxCssManifest } from "../ssr/critical-css.ts";
 import type { ResolvedEntries, VitePlugin } from "./types.ts";
@@ -89,10 +90,16 @@ export function createVirtualPlugin(
 				const mode = this.environment?.config?.mode ?? "production";
 				const buildId =
 					mode === "development" ? DEV_BUILD_ID : readClientBuildId(this.environment?.config?.root ?? process.cwd());
+				const root = this.environment?.config?.root ?? process.cwd();
+				const prefetchListUrl =
+					mode === "development"
+						? undefined
+						: writePrefetchList({ assetsBase, ignorePrefix: config.ignorePrefix ?? "_", root });
 				return {
 					code: [
 						`export default ${JSON.stringify(buildId)}`,
 						`export const staticAssetsBase = ${JSON.stringify(staticAssetsBase)}`,
+						`export const prefetchListUrl = ${prefetchListUrl === undefined ? "undefined" : JSON.stringify(prefetchListUrl)}`,
 					].join("\n"),
 					moduleType: "js",
 				};

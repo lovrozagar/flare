@@ -256,6 +256,14 @@ describe("SSR — FlareState structure", () => {
 		expect(state?.b).toBe(TEST_BUILD_ID);
 	});
 
+	it("carries the app-wide prefetch list URL (pa) for idle module prefetch", async () => {
+		const handler = buildHandler();
+		const response = await handler.fetch(makeRequest("/home"), {});
+		const state = extractFlareState(await readResponseBody(response)) as { pa?: string } | null;
+
+		expect(state?.pa).toBe("/assets/_flare-prefetch.test.json");
+	});
+
 	it("FlareState script tag has nonce attribute", async () => {
 		const handler = buildHandler();
 		const response = await handler.fetch(makeRequest("/home"), {});

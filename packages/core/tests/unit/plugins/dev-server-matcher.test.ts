@@ -42,7 +42,8 @@ async function driveRequest(
 		config: { root },
 		middlewares: {
 			use(fn) {
-				capturedMiddleware = fn;
+				/* Asset serving is the first middleware (it runs before Vite's static handler). */
+				capturedMiddleware ??= fn;
 			},
 		},
 	};

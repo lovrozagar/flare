@@ -8,6 +8,8 @@ import type { JSX } from "@solidjs/web";
 import { createComponent, Hydration, render, hydrate as solidHydrate } from "@solidjs/web";
 import { SSRContextProvider } from "../components/ssr-context.tsx";
 import { setBuildId } from "../build-id.ts";
+import { startPrefetchAll } from "../prefetch/all.ts";
+import { resolvePrefetch } from "../prefetch/resolve.ts";
 import { createChannel } from "../broadcast/channel.ts";
 import { BroadcastProvider } from "../broadcast/provider.tsx";
 import type { MatchCache } from "../caches/index.ts";
@@ -108,6 +110,14 @@ export async function hydrate(router: RouterArg, options?: HydrateOptions): Prom
 	const raw = parseFlareState(self.flare);
 	if (!raw) return;
 	setBuildId(raw.b);
+	/* Router-wide `modules: "all"`: warm every route's code once the page is idle. */
+	if (
+		raw.pa &&
+		resolvePrefetch({ router: r.prefetch, routerLegacy: r.cache?.client ? r.cache.client.prefetch : undefined })
+			.modules === "all"
+	) {
+		startPrefetchAll(raw.pa);
+	}
 
 	const state = hydrateFlareState(raw);
 	installDeferredResolver(state.resolvers);

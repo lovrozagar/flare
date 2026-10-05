@@ -49,6 +49,8 @@ export interface FlareState {
 	g?: ServerLogEntry[];
 	m: FlareMatchState[];
 	p: string;
+	/** URL of the app-wide module prefetch list (router `prefetch.modules: "all"`). */
+	pa?: string;
 	ph?: PerRouteHead[];
 	q?: QueryState[];
 	r: Record<string, string | string[]>;
@@ -97,6 +99,7 @@ export interface ModulePreloads {
 export interface SSRConfig {
 	auth: unknown | null;
 	buildId?: string;
+	prefetchListUrl?: string;
 	cause: string;
 	deferContexts?: Map<string, DeferContext>;
 	entryScript?: string;
@@ -252,6 +255,7 @@ function buildFlareState(config: SSRConfig): FlareState {
 		c: contextState,
 		m: matchStates,
 		p: config.url.pathname,
+		...(config.prefetchListUrl ? { pa: config.prefetchListUrl } : {}),
 		r: config.params ?? {},
 		s: parseSearchParams(config.url.searchParams),
 	};

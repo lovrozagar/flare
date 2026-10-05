@@ -180,13 +180,13 @@ test.describe("@dev-only @node-only fs inspector", () => {
 	});
 });
 
-test.describe("client navigation after a viewport prefetch", () => {
+test.describe("client navigation after modules were prefetched", () => {
 	test("never mounts a page before its loader data exists", async ({ page }) => {
 		const errors: string[] = [];
 		page.on("pageerror", (e) => errors.push(e.message));
 		await loadPage(page, "/blog");
 
-		/* The shared (blog) layout is cached from hydration; the link's viewport prefetch warms modules only. */
+		/* The shared (blog) layout is cached from hydration; the app-wide idle prefetch warmed modules only. */
 		const link = page.getByTestId("blog-data-link");
 		await expect(link).toBeVisible();
 		await page.waitForLoadState("networkidle");
