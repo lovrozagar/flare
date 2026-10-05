@@ -6,38 +6,8 @@ vi.mock("@solidjs/vite-plugin", () => ({
 	default: (opts: Record<string, unknown>) => ({ config: () => ({ solid: opts }), name: "solid" }),
 }));
 
-/* flare() plugin scans cwd for src/client.tsx and src/server.ts — create stubs */
-/* resolver plugin checks for dist/ directory — create stub for resolver tests */
-import { existsSync, mkdirSync, rmdirSync, unlinkSync, writeFileSync } from "node:fs";
+/* Entry stubs and the dist/ the resolver checks come from tests/global-setup.ts. */
 import { join } from "node:path";
-
-const _stubs: string[] = [];
-const _stubDirs: string[] = [];
-for (const name of ["src/client.tsx", "src/server.ts", "src/custom.client.tsx", "src/custom.server.ts"]) {
-	const p = join(process.cwd(), name);
-	if (!existsSync(p)) {
-		writeFileSync(p, "/* test stub */");
-		_stubs.push(p);
-	}
-}
-const distDir = join(process.cwd(), "dist");
-if (!existsSync(distDir)) {
-	mkdirSync(distDir, { recursive: true });
-	_stubDirs.push(distDir);
-}
-
-import { afterAll } from "vitest";
-
-afterAll(() => {
-	for (const p of _stubs)
-		try {
-			unlinkSync(p);
-		} catch {}
-	for (const d of _stubDirs)
-		try {
-			rmdirSync(d);
-		} catch {}
-});
 
 /* Mock generators to avoid filesystem access in plugin tests */
 vi.mock("../../../src/generators", () => ({
