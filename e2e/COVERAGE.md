@@ -78,6 +78,9 @@ Tests: `navigation.test.ts`, `link.test.ts`, `deep-link-*.test.ts`, `deep-naviga
 - [x] download links not intercepted
 - [x] scroll restore + hash `scrollIntoView`
 - [x] view transitions (chromium)
+- [x] view transition wraps the first route swap (hover prefetch, revisit) — `deep-view-transition.test.ts`
+- [x] layout stays mounted across child param changes — fs-routes `fs-routes.test.ts`
+- [x] `<ViewTransitionBoundary>`: no wrapper, hydration, scope to `<main>`, param change, tabs nesting, misplaced boundaries, `scope: "document"`, no element API, sidebar `:hover` per frame, rapid navigation, dev scope marker, `<ViewTransitionCSS>` timing — demo `vt-boundary.test.ts`
 - [x] popstate uses cache (zero NDJSON)
 - [x] navigation phase signals
 - [x] rapid / concurrent nav cancels previous

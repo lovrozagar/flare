@@ -15,6 +15,11 @@ export function outletNodes(depth: number): readonly Node[] {
 	return nodesByDepth.get(depth) ?? [];
 }
 
+/** Every node any outlet depth renders. */
+export function allOutletNodes(): Node[] {
+	return [...nodesByDepth.values()].flat();
+}
+
 /** Tests only. */
 export function resetOutletNodes(): void {
 	nodesByDepth.clear();
