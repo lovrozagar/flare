@@ -311,8 +311,11 @@ test.describe("Bug 25: Revalidation endpoint filters non-string array elements",
 
 test.describe("Bug 26+27: ISR bg re-render produces fresh content with nonce placeholders", () => {
 	test("ISR page content updates after revalidation window", async ({ request }) => {
+		/* The 6s wait outlives the dev server's 5s keep-alive; a reused idle socket can be reset
+		 * as the request goes out, so each request closes its connection. */
+		const fresh = { headers: { connection: "close" } };
 		/* First request — populates ISR cache */
-		const res1 = await request.get("/isr-test");
+		const res1 = await request.get("/isr-test", fresh);
 		expect(res1.status()).toBe(200);
 		const html1 = await res1.text();
 		const ts1 = html1.match(/data-testid="isr-rendered-at">(\d+)</);
@@ -322,7 +325,7 @@ test.describe("Bug 26+27: ISR bg re-render produces fresh content with nonce pla
 		await new Promise((r) => setTimeout(r, 6000));
 
 		/* Second request — serves stale but triggers bg re-render */
-		const res2 = await request.get("/isr-test");
+		const res2 = await request.get("/isr-test", fresh);
 		expect(res2.status()).toBe(200);
 
 		/* Later requests get the bg re-render's fresh content once it is stored. Poll rather than
@@ -330,7 +333,7 @@ test.describe("Bug 26+27: ISR bg re-render produces fresh content with nonce pla
 		await expect
 			.poll(
 				async () => {
-					const res3 = await request.get("/isr-test");
+					const res3 = await request.get("/isr-test", fresh);
 					expect(res3.status()).toBe(200);
 					return (await res3.text()).match(/data-testid="isr-rendered-at">(\d+)</)?.[1];
 				},
