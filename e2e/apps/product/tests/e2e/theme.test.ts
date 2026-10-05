@@ -10,6 +10,7 @@ function themeAtFirstLand(page: Page) {
 	return page.evaluate(
 		() =>
 			new Promise<{ colorScheme: string; hydrated: boolean; theme: string | null }>((resolve) => {
+				// oxlint-disable-next-line unicorn/consistent-function-scoping -- runs in the page; must stay inside evaluate()
 				const read = () => ({
 					colorScheme: document.documentElement.style.colorScheme,
 					hydrated: document.documentElement.hasAttribute("data-flare-hydrated"),
