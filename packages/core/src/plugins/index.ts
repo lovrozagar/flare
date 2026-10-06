@@ -260,8 +260,11 @@ function createSsrBuildPlugin(entries: ResolvedEntries, config: FlarePluginConfi
 				},
 				builder: {
 					async buildApp(builder: { build: (env: unknown) => Promise<void>; environments: Record<string, unknown> }) {
-						await builder.build(builder.environments.client);
-						await builder.build(builder.environments.ssr);
+						/* Client first, so the manifest exists for SSR. A plugin's own buildApp hook
+						   (@solidjs/vite-plugin's) may have built it already. */
+						for (const env of [builder.environments.client, builder.environments.ssr]) {
+							if (!(env as { isBuilt?: boolean } | undefined)?.isBuilt) await builder.build(env);
+						}
 					},
 					sharedPlugins: true,
 				},
