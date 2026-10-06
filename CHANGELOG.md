@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.23
+
+- `vite build` builds the client once. `@solidjs/vite-plugin` builds the client from its own `buildApp` hook, and Flare's orchestrator built it again, doubling client build time and running every client close step (prefetch list, retained assets, service worker) twice.
+
 ## 0.9.22
 
 - `cache()` callbacks receive the server's env type. `createServer<Env>(router).cache({ static: (env) => ... })` typed `env` as `unknown`, so the documented `env.ASSETS` store did not compile.
