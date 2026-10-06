@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.9.21
+
+Deploy-safe caching. A deploy never pairs code from one build with HTML, data or chunks from another.
+
+- **Build id.** A hash of the client build reaches the server (`virtual:flare-build`) and every page (`self.flare.b`). Dev uses `dev`.
+- **Breaking:** client data requests go to `<path>?_flare=<buildId>` (plus the `flare-data` header). The server strips the parameter before middleware runs. Every cache keys by URL, so HTML, data and builds never share a cache entry, even on CDNs that ignore `Vary`. Every data response names its build (`flare-build`).
+- Skew recovery: a client from an older build gets a build-mismatch answer instead of data (no loaders run), and navigation loads the target as a full document from the new build, at most once per URL in 10 seconds. A chunk that fails to load recovers the same way. A server function called from an old page is not run (`409`); the page reloads.
+- **Breaking:** ISR and SSG store entries are keyed by build (`static:<buildId>:<path>`), so entries from an old deploy are never served and age out. `revalidate({ keys: ["static:/about"] })` still targets the running build.
+- **Breaking:** SSG pages ship inside the client output (`<assetsBase>/_flare-static/<buildId>/`, one JSON file per page), so they deploy with the assets they reference. Serve them with `cache.static`: `createAssetsStore` (`@lovrozagar/flare/store-assets`) over the Workers `ASSETS` binding or `fileAssets("dist/client")`. Without it, SSG pages render per request and production warns once. `loadPrerenderArtifacts` reads the new layout.
+- **Breaking:** `cache.cdn.maxAge` emits `public, max-age=0, s-maxage=<maxAge>`: CDNs keep the page and browsers revalidate, so a deploy or purge reaches every visitor. `private: true` emits `private, max-age=<maxAge>`. Without `cache.cdn` or an explicit `Cache-Control`, pages get `private, no-cache` and data `no-store`. Store hits keep the `Cache-Control` they were stored with.
+- `CdnPurgeAdapter.tagHeader` names the cache-tag header: `Surrogate-Key` (space-separated, default) or Cloudflare's `Cache-Tag` (comma-separated).
+- `createCacheApiStore` (`@lovrozagar/flare/store-cache-api`): an ISR store on the Web Cache API with tag purge.
+- `retainPreviousAssets` (needs the new `site` option): the build copies the replaced build's files, plus files shipped within the HTML cache window, from the live site into its own output and writes `<assetsBase>/_flare-asset-history.json`. Open tabs and CDN-cached pages from the previous deploy keep finding their chunks. It reads the public site over HTTP, so it works on any host. A first deploy starts fresh; an unreachable site warns and never fails the build. Serve the history file with `Cache-Control: no-cache`.
+- `site` is the app's public origin; the sitemap uses it when it names none.
+- **Breaking:** prefetch separates modules from data. Link `prefetch`, route `.cache({ client: { prefetch } })` and the new router `prefetch` take a trigger (`"intent" | "viewport" | "render" | false`, which sets both) or `{ modules, data }`. The router default is `{ modules: "all", data: false }`: once the page is idle, every route's modules are prefetched from a build-time list (`<assetsBase>/_flare-prefetch.<hash>.json`). Save-Data and 2G connections fall back to viewport. `cache.client.prefetch` keeps its old meaning (viewport and render prefetch modules only) and is deprecated.
+- **Breaking:** Flare no longer generates a service worker. An app that ships `src/service-worker.ts` (or `serviceWorker.entry`) gets it bundled to `/service-worker.js` and registered after load and idle (`serviceWorker.register: false` to register it yourself, `serviceWorker: false` to skip it). The worker imports this build's `build`, `files` and `version` from `@lovrozagar/flare/service-worker`. Unless the app ships its own `/sw.js`, the build writes a cleanup worker there that deletes Flare's old caches and unregisters. Removed: `serviceWorker.offlineFallback`, `runtimeCacheMax`, `scope`, `skipWaiting` and the dev `/sw.js`.
+- `vite preview` serves hashed assets as `immutable` with their content type.
+- Unexpected loader errors are logged with route, path and stack; an upstream 4xx (such as 429) is a warning. A loader error carrying a numeric 4xx status renders with that status instead of 500.
+
 ## 0.9.20
 
 - Geist and Geist Mono are in the font registry (`@lovrozagar/flare/fonts/geist`, `@lovrozagar/flare/fonts/geist-mono`; `flare font add --name Geist`).
