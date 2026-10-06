@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.22
+
+- `cache()` callbacks receive the server's env type. `createServer<Env>(router).cache({ static: (env) => ... })` typed `env` as `unknown`, so the documented `env.ASSETS` store did not compile.
+
 ## 0.9.21
 
 Deploy-safe caching. A deploy never pairs code from one build with HTML, data or chunks from another.
