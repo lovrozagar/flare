@@ -309,6 +309,28 @@ describe("flare:ssr-build", () => {
 		expect(buildOrder).toEqual(["client", "ssr"]);
 	});
 
+	it("builder.buildApp skips an environment a plugin hook already built", async () => {
+		/* @solidjs/vite-plugin builds the client from its own buildApp hook before Vite calls this one. */
+		const config = flarePlugins({}).find((p) => p.name === "flare:ssr-build")?.config as
+			| (() => { builder: { buildApp: (b: unknown) => Promise<void> } })
+			| undefined;
+		if (!config) throw new Error("config not found");
+		const result = config.call({});
+		const client = { isBuilt: true, name: "client" };
+		const ssr = { isBuilt: false, name: "ssr" };
+		const built: string[] = [];
+
+		await result.builder.buildApp({
+			build: async (env: { isBuilt: boolean; name: string }) => {
+				built.push(env.name);
+				env.isBuilt = true;
+			},
+			environments: { client, ssr },
+		});
+
+		expect(built).toEqual(["ssr"]);
+	});
+
 	it("solid deduplicated in resolve.dedupe", () => {
 		const plugins = flarePlugins({});
 		const ssrBuild = plugins.find((p) => p.name === "flare:ssr-build");
