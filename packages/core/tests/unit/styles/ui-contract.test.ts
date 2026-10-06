@@ -3,13 +3,11 @@
  * Contract the @repo/frontend-ui design system builds on. These pass against current Flare and
  * pin behavior: a change here must be deliberate, because consumer apps depend on every line.
  */
-import { readdir, readFile, rm } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { build } from "vite";
-
-const ROOT = fileURLToPath(new URL("../../fixtures/ui-contract-app/", import.meta.url));
+import { copyUiContractApp } from "./ui-contract-app.ts";
 
 let css = "";
 let js = "";
@@ -23,10 +21,10 @@ function rule(selector: string): string | null {
 }
 
 beforeAll(async () => {
-	const dist = join(ROOT, "dist");
-	await rm(dist, { recursive: true, force: true });
+	const app = await copyUiContractApp("contract");
+	const dist = join(app.root, "dist");
 	try {
-		await build({ configFile: join(ROOT, "vite.config.ts"), logLevel: "silent", root: ROOT });
+		await build({ configFile: join(app.root, "vite.config.ts"), logLevel: "silent", root: app.root });
 		const files = (await readdir(join(dist, "client"), { recursive: true })).map(String);
 		const sheets = files.filter((name) => name.endsWith(".css"));
 		const scripts = files.filter((name) => name.endsWith(".js"));
@@ -34,7 +32,7 @@ beforeAll(async () => {
 		expect(sheets).toEqual(["assets/flare-global.css"]);
 		css = (await readFile(join(dist, "client", sheets[0] as string), "utf8")).replace(/\s+/g, " ");
 	} finally {
-		await rm(dist, { recursive: true, force: true });
+		await app.dispose();
 	}
 }, 180_000);
 

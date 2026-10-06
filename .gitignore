@@ -8,6 +8,7 @@ node_modules
 **/.wrangler/
 **/.flare
 e2e/apps/.deploy-*/
+packages/core/tests/fixtures/ui-contract-app-*/
 **/.output
 **/.nitro
 **/.vinxi

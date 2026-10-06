@@ -2,20 +2,23 @@
 /* sx.strict on a real build: an unknown class literal fails `vite build`; allowing it builds. */
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { build } from "vite";
+import { copyUiContractApp, type UiContractApp } from "./ui-contract-app.ts";
 
-const ROOT = fileURLToPath(new URL("../../fixtures/ui-contract-app/", import.meta.url));
-const OUT = join(ROOT, "dist");
+let app: UiContractApp;
+beforeAll(async () => {
+	app = await copyUiContractApp("strict");
+});
+afterAll(() => app.dispose());
 
 afterEach(async () => {
 	delete process.env.FLARE_STRICT_ALLOW;
-	await rm(OUT, { recursive: true, force: true });
+	await rm(join(app.root, "dist"), { recursive: true, force: true });
 });
 
 function buildStrict() {
-	return build({ configFile: join(ROOT, "vite.strict.config.ts"), logLevel: "silent", root: ROOT });
+	return build({ configFile: join(app.root, "vite.strict.config.ts"), logLevel: "silent", root: app.root });
 }
 
 describe("sx.strict build", () => {

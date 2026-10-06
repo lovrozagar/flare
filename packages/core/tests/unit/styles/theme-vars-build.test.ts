@@ -1,12 +1,11 @@
 /** @vitest-environment node */
 /* sx.themeVars: "reference" on a real build: rules keep var(), and every var they use is defined. */
-import { readdir, readFile, rm } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { build } from "vite";
+import { copyUiContractApp } from "./ui-contract-app.ts";
 
-const ROOT = fileURLToPath(new URL("../../fixtures/ui-contract-app/", import.meta.url));
 let css = "";
 
 function rule(selector: string): string | null {
@@ -15,15 +14,15 @@ function rule(selector: string): string | null {
 }
 
 beforeAll(async () => {
-	const out = join(ROOT, "dist");
-	await rm(out, { recursive: true, force: true });
+	const app = await copyUiContractApp("theme-vars");
+	const out = join(app.root, "dist");
 	try {
-		await build({ configFile: join(ROOT, "vite.reference.config.ts"), logLevel: "silent", root: ROOT });
+		await build({ configFile: join(app.root, "vite.reference.config.ts"), logLevel: "silent", root: app.root });
 		const files = (await readdir(join(out, "client"), { recursive: true })).map(String);
 		const sheet = files.find((name) => name.endsWith(".css")) as string;
 		css = (await readFile(join(out, "client", sheet), "utf8")).replace(/\s+/g, " ");
 	} finally {
-		await rm(out, { recursive: true, force: true });
+		await app.dispose();
 	}
 }, 180_000);
 
