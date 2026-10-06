@@ -60,7 +60,7 @@ export interface ServerBuilder<
 			) => ServerBuilder<TExcluded | "authenticateFn", TNewAuth, TServerContext, TEnv>;
 	cache: "cache" extends TExcluded
 		? never
-		: (config: HandlerCacheConfig) => ServerBuilder<TExcluded | "cache", TAuth, TServerContext, TEnv>;
+		: (config: HandlerCacheConfig<TEnv>) => ServerBuilder<TExcluded | "cache", TAuth, TServerContext, TEnv>;
 	fetch(request: Request, env?: TEnv, ctx?: { waitUntil?: (p: Promise<unknown>) => void }): Promise<Response>;
 	getStaticParams(): Promise<StaticParamsMap>;
 	keepalive: "keepalive" extends TExcluded

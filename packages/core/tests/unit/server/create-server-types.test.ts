@@ -38,6 +38,16 @@ describe("createServer type safety", () => {
 		expectTypeOf(server.sitemap).toBeNever();
 	});
 
+	it(".cache() env callbacks receive the server's env type", () => {
+		type Env = { ASSETS: { fetch: (url: URL) => Promise<Response> } };
+		createServer<Env>(buildRouter()).cache({
+			static: (env) => {
+				expectTypeOf(env).toEqualTypeOf<Env>();
+				return undefined;
+			},
+		});
+	});
+
 	it(".fetch() is always available", () => {
 		const server = createServer(buildRouter())
 			.use(async (ctx: MiddlewareContext) => ctx.next())
