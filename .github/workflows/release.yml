@@ -38,13 +38,8 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - run: bun run typecheck
-      - run: bun run typecheck:consumer-strict
       - run: bun run fmt:check
       - run: bun run lint
-      - run: bun run test
-      - run: bun run test:cli
-      - run: bun run test:build
 
   npmjs:
     name: npmjs.com

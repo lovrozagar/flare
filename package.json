@@ -5,10 +5,7 @@
 	"workspaces": {
 		"packages": [
 			"packages/*",
-			"e2e/*",
-			"e2e/apps/*",
-			"benchmark",
-			"benchmark/flare"
+			"packages/core/tests/e2e/apps/*"
 		],
 		"catalog": {
 			"@axe-core/playwright": "4.12.1",
@@ -57,28 +54,9 @@
 	"type": "module",
 	"scripts": {
 		"prepare": "git config --get core.hooksPath >/dev/null || git config core.hooksPath .githooks || true",
-		"test": "bun run --filter @lovrozagar/flare test",
-		"test:all": "bun run scripts/test-all.ts",
-		"test:all:full": "bun run scripts/test-all.ts --full",
-		"test:build": "bun run e2e/run-build.ts",
-		"test:build:all": "bun run e2e/run-build.ts --runtime all",
-		"test:build:bun": "bun run e2e/run-build.ts --runtime bun",
-		"test:build:deno": "bun run e2e/run-build.ts --runtime deno",
-		"test:cli": "bun run --filter @flare/cli test",
-		"test:e2e": "bun run e2e/run-env.ts --env node",
-		"test:e2e:bun": "bun run e2e/run-env.ts --env bun",
-		"test:e2e:bun:prod": "TEST_MODE=prod bun run e2e/run-env.ts --env bun",
-		"test:e2e:deno": "bun run e2e/run-env.ts --env deno",
-		"test:e2e:firefox": "bun run e2e/run-env.ts --env firefox",
-		"test:e2e:prod": "TEST_MODE=prod bun run e2e/run-env.ts --env node",
-		"test:e2e:workers": "bun run e2e/run-env.ts --env workers",
-		"test:e2e:workers:prod": "TEST_MODE=prod bun run e2e/run-env.ts --env workers",
-		"test:watch": "bun run --filter @lovrozagar/flare test:watch",
-		"typecheck": "bun run --filter @lovrozagar/flare type:check",
-		"typecheck:consumer-strict": "bun run scripts/check-consumer-strict.ts",
-		"typecheck:consumers": "bun run --filter @flare/e2e-product type:check && bun run --filter @flare/e2e-demo type:check && bun run --filter @flare/e2e-fs-routes type:check && bun run --filter @flare/e2e-tauri type:check",
-		"typecheck:harness": "tsc -p e2e/tsconfig.json && tsc -p scripts/tsconfig.json && bun run --filter @flare/e2e-node type:check && bun run --filter @flare/e2e-bun type:check && bun run --filter @flare/e2e-deno type:check && bun run --filter @flare/e2e-workers type:check",
-		"lint": "oxlint",
+		"test": "vitest run --config packages/core/vitest.config.ts",
+		"typecheck": "tsc -p packages/core/tsconfig.json --noEmit && tsc -p packages/core/tsconfig.src.json --noEmit",
+		"lint": "sh -c 'set -e; found=$(find packages scripts -type f \\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.mjs\" \\) ! -path \"*/node_modules/*\" -print -quit); if [ -n \"$found\" ]; then oxlint; fi'",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check"
