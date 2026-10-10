@@ -95,7 +95,7 @@
 		"access": "public"
 	},
 	"scripts": {
-		"test": "vitest run",
+		"test": "vitest run --coverage",
 		"type:check": "tsc -p tsconfig.json --noEmit",
 		"type:check:src": "tsc -p tsconfig.src.json --noEmit"
 	},
