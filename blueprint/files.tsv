@@ -1,0 +1,580 @@
+path	phase	kind	env	responsibility
+scripts/check-tree.ts	P0	script	node	Exit non-zero when a tracked file is missing from this tsv or a tsv path is missing on disk
+scripts/check-tree.test.ts	P0	test	node	Unit cases for check-tree.ts
+packages/core/package.json	P0	config	-	Package name, exports map, bin, files, sideEffects. No dependencies key. Peers are >= the dev pins (B79)
+packages/core/tsconfig.json	P0	config	-	Typecheck src and tests, including tests/types/propagation.test.ts. The types fixture app has its own tsconfig
+packages/core/tsconfig.src.json	P0	config	-	Typecheck src with isolatedDeclarations
+packages/core/vitest.config.ts	P0	config	-	unit-node and unit-dom projects, v8 per-file thresholds at 100
+packages/core/.oxlintrc.json	P0	config	-	Limits, vitest rules, custom flare plugins, per-environment overrides. The vitest plugin does not run on tests/e2e (B70)
+packages/core/lint/boundaries.js	P0	lint	node	Reject every import arrow that 00-rules does not list
+packages/core/lint/boundaries.test.ts	P0	test	node	Unit cases for boundaries.js
+packages/core/lint/no-module-side-effects.js	P0	lint	node	Reject a top-level call that lacks the PURE annotation
+packages/core/lint/no-module-side-effects.test.ts	P0	test	node	Unit cases for no-module-side-effects.js
+packages/core/lint/no-module-state.js	P0	lint	node	Reject module-scope let, map, or cache without the per-process annotation
+packages/core/lint/no-module-state.test.ts	P0	test	node	Unit cases for no-module-state.js
+packages/core/lint/no-v8-ignore.js	P0	lint	node	Reject v8 ignore comments
+packages/core/lint/no-v8-ignore.test.ts	P0	test	node	Unit cases for no-v8-ignore.js
+packages/core/lint/path-prefix.js	P2	lint	node	Reject startsWith and endsWith on a pathname
+packages/core/lint/path-prefix.test.ts	P2	test	node	Unit cases for path-prefix.js
+packages/core/lint/location-only-in-redirect.js	P2	lint	node	Reject a Location header built outside server/redirect
+packages/core/lint/location-only-in-redirect.test.ts	P2	test	node	Unit cases for location-only-in-redirect.js
+packages/core/lint/funnel-only.js	P3	lint	node	Reject new Response outside finalize.ts and proxy.ts
+packages/core/lint/funnel-only.test.ts	P3	test	node	Unit cases for funnel-only.js
+packages/core/lint/no-flare-header-branching.js	P3	lint	node	Reject a branch on a flare- request header
+packages/core/lint/no-flare-header-branching.test.ts	P3	test	node	Unit cases for no-flare-header-branching.js
+packages/core/tests/structure/tree.test.ts	P0	test	node	check-tree fails on an extra file, a missing file, and an index with a statement
+packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball
+packages/core/tests/structure/api.test.ts	P14	test	node	Each entry's public d.ts matches its snapshot
+packages/core/tests/structure/snapshots/*.txt	P14	generated	-	One snapshot per public entry, written by api.test.ts
+packages/core/src/features/seo/server/google.fixture.txt	P13	corpus	server	The fixed Google JWT the signer test compares against
+packages/core/src/shared/url/types.ts	P2	types	shared	Location and LocationRewrite types
+packages/core/src/shared/url/canonical.ts	P2	src	shared	Compute the canonical path or a hostile-path rejection. Does not build a response
+packages/core/src/shared/url/canonical.test.ts	P2	test	shared	Unit cases for canonical.ts
+packages/core/src/shared/url/canonical.corpus.txt	P2	corpus	shared	Path corpus for canonical.test.ts
+packages/core/src/shared/url/prefix.ts	P2	src	shared	Segment-boundary prefix test, case-folded
+packages/core/src/shared/url/prefix.test.ts	P2	test	shared	Unit cases for prefix.ts
+packages/core/src/shared/url/prefix.corpus.txt	P2	corpus	shared	Prefix corpus
+packages/core/src/shared/url/href.ts	P2	src	shared	Href brand. Reject dangerous schemes and whitespace-prefixed URLs
+packages/core/src/shared/url/href.test.ts	P2	test	shared	Unit cases for href.ts
+packages/core/src/shared/url/href.corpus.txt	P2	corpus	shared	Href corpus
+packages/core/src/shared/url/search.ts	P2	src	shared	Parse and serialize the search record. Null prototype. Drops __proto__, constructor, and prototype (B81)
+packages/core/src/shared/url/search.test.ts	P2	test	shared	Unit cases for search.ts
+packages/core/src/shared/url/index.ts	P2	index	shared	Re-exports
+packages/core/src/shared/duration/parse.ts	P2	src	shared	Parse a duration string into milliseconds
+packages/core/src/shared/duration/parse.test.ts	P2	test	shared	Unit cases for parse.ts
+packages/core/src/shared/duration/index.ts	P2	index	shared	Re-exports
+packages/core/src/shared/errors/http.ts	P1	src	shared	notFound, unauthenticated, unauthorized throws
+packages/core/src/shared/errors/http.test.ts	P1	test	shared	Unit cases for http.ts
+packages/core/src/shared/errors/redirect.ts	P1	src	shared	redirect() throw carrying a validated target and a status
+packages/core/src/shared/errors/redirect.test.ts	P1	test	shared	Unit cases for redirect.ts
+packages/core/src/shared/errors/status.ts	P1	src	shared	Map a thrown value to an HTTP status, including a render-phase NotFoundError
+packages/core/src/shared/errors/status.test.ts	P1	test	shared	Unit cases for status.ts
+packages/core/src/shared/errors/safe.ts	P5	src	shared	markSafeError delegates to Solid and does not sanitize on its own
+packages/core/src/shared/errors/safe.test.ts	P5	test	shared	Unit cases for safe.ts
+packages/core/src/shared/errors/dev-report.ts	P5	src	shared	Vite error-overlay payload for a dev runtime bug. Production does not send it (B76)
+packages/core/src/shared/errors/dev-report.test.ts	P5	test	shared	Unit cases for dev-report.ts
+packages/core/src/shared/errors/index.ts	P1	index	shared	Re-exports
+packages/core/src/shared/validation/schema.ts	P2	src	shared	Run a Standard Schema validator and return issues
+packages/core/src/shared/validation/schema.test.ts	P2	test	shared	Unit cases for schema.ts
+packages/core/src/shared/validation/issues.ts	P2	src	shared	Build issues and fieldErrors from a schema failure
+packages/core/src/shared/validation/issues.test.ts	P2	test	shared	Unit cases for issues.ts
+packages/core/src/shared/validation/index.ts	P2	index	shared	Re-exports
+packages/core/src/shared/route-tree/types.ts	P1	types	shared	Route record, match, and pattern types
+packages/core/src/shared/route-tree/segments.ts	P1	src	shared	Parse a pattern into static, dynamic, optional, and catch-all segments
+packages/core/src/shared/route-tree/segments.test.ts	P1	test	shared	Unit cases for segments.ts
+packages/core/src/shared/route-tree/match.ts	P1	src	shared	Match a canonical path. Static segments compare encoded and honor caseSensitive
+packages/core/src/shared/route-tree/match.test.ts	P1	test	shared	Unit cases for match.ts
+packages/core/src/shared/route-tree/params.ts	P1	src	shared	Extract raw params from a match
+packages/core/src/shared/route-tree/params.test.ts	P1	test	shared	Unit cases for params.ts
+packages/core/src/shared/route-tree/rank.ts	P1	src	shared	Rank static above dynamic above catch-all
+packages/core/src/shared/route-tree/rank.test.ts	P1	test	shared	Unit cases for rank.ts
+packages/core/src/shared/route-tree/match-id.ts	P2	src	shared	Match id from raw params and raw search
+packages/core/src/shared/route-tree/match-id.test.ts	P2	test	shared	Unit cases for match-id.ts
+packages/core/src/shared/route-tree/index.ts	P1	index	shared	Re-exports
+packages/core/src/shared/route-builder/types.ts	P1	types	shared	Chain context types, HeadConfig, CacheConfig, AuthenticateMode
+packages/core/src/shared/route-builder/register.ts	P1	types	shared	FlareRegister and the Resolved* types
+packages/core/src/shared/route-builder/chain.ts	P1	src	shared	Shared builder state. Each method once, in the 03-surface order
+packages/core/src/shared/route-builder/chain.test.ts	P1	test	shared	Unit cases for chain.ts
+packages/core/src/shared/route-builder/page.ts	P1	src	shared	createPage
+packages/core/src/shared/route-builder/page.test.ts	P1	test	shared	Unit cases for page.ts
+packages/core/src/shared/route-builder/layout.ts	P1	src	shared	createLayout
+packages/core/src/shared/route-builder/layout.test.ts	P1	test	shared	Unit cases for layout.ts
+packages/core/src/shared/route-builder/root-layout.ts	P1	src	shared	createRootLayout
+packages/core/src/shared/route-builder/root-layout.test.ts	P1	test	shared	Unit cases for root-layout.ts
+packages/core/src/shared/route-builder/boundaries.ts	P1	src	shared	Attach error, not-found, unauthenticated, and unauthorized renders
+packages/core/src/shared/route-builder/boundaries.test.ts	P1	test	shared	Unit cases for boundaries.ts
+packages/core/src/shared/route-builder/segment.ts	P2	src	shared	createPathSegment
+packages/core/src/shared/route-builder/segment.test.ts	P2	test	shared	Unit cases for segment.ts
+packages/core/src/shared/route-builder/index.ts	P1	index	shared	Re-exports
+packages/core/src/shared/protocol/constants.ts	P6	src	shared	Param names, the server-fn path prefix, header names Flare writes
+packages/core/src/shared/protocol/constants.test.ts	P6	test	shared	Unit cases for constants.ts
+packages/core/src/shared/protocol/frames.ts	P6	src	shared	Encode and decode the seven NDJSON frames. Reject a line over 1 MiB
+packages/core/src/shared/protocol/frames.test.ts	P6	test	shared	Unit cases for frames.ts
+packages/core/src/shared/protocol/frames.corpus.txt	P6	corpus	shared	Frame corpus
+packages/core/src/shared/protocol/internal-params.ts	P6	src	shared	Parse and strip _flare and _flare_stale. Apply the 8 KiB cap
+packages/core/src/shared/protocol/internal-params.test.ts	P6	test	shared	Unit cases for internal-params.ts
+packages/core/src/shared/protocol/get-codec.ts	P7	src	shared	Encode and decode the _i GET payload. 8192 cap
+packages/core/src/shared/protocol/get-codec.test.ts	P7	test	shared	Unit cases for get-codec.ts
+packages/core/src/shared/protocol/index.ts	P6	index	shared	Re-exports
+packages/core/src/shared/cache/artifact-path.ts	P10	src	shared	Turn a store key into the SSG artifact URL. The only path formatter
+packages/core/src/shared/cache/artifact-path.test.ts	P10	test	shared	Unit cases for artifact-path.ts
+packages/core/src/shared/cache/index.ts	P10	index	shared	Re-exports
+packages/core/src/shared/csp/nonce.ts	P3	src	shared	nonce(). The one request nonce. Empty means omit the attribute
+packages/core/src/shared/csp/nonce.test.ts	P3	test	shared	Unit cases for nonce.ts
+packages/core/src/shared/csp/index.ts	P3	index	shared	Re-exports
+packages/core/src/shared/css/parse.ts	P11	src	shared	Split one stylesheet into ordered statements. @import and @charset throw
+packages/core/src/shared/css/parse.test.ts	P11	test	shared	Unit cases for parse.ts
+packages/core/src/shared/css/match.ts	P11	src	shared	Does a selector match the shell HTML
+packages/core/src/shared/css/match.test.ts	P11	test	shared	Unit cases for match.ts
+packages/core/src/shared/css/critical.ts	P11	src	shared	criticalCss. Rules from the built file that match the shell
+packages/core/src/shared/css/critical.test.ts	P11	test	shared	Unit cases for critical.ts
+packages/core/src/shared/css/sheet.ts	P11	src	shared	builtSheet. Source is empty. The server build replaces this module
+packages/core/src/shared/css/sheet.test.ts	P11	test	shared	Unit cases for sheet.ts
+packages/core/src/shared/css/index.ts	P11	index	shared	Re-exports
+packages/core/src/shared/env/server-only.ts	P7	src	shared	createServerOnlyFn
+packages/core/src/shared/env/server-only.test.ts	P7	test	shared	Unit cases for server-only.ts
+packages/core/src/shared/env/client-only.ts	P7	src	shared	createClientOnlyFn
+packages/core/src/shared/env/client-only.test.ts	P7	test	shared	Unit cases for client-only.ts
+packages/core/src/shared/env/isomorphic.ts	P7	src	shared	createIsomorphicFn. Both sides required
+packages/core/src/shared/env/isomorphic.test.ts	P7	test	shared	Unit cases for isomorphic.ts
+packages/core/src/shared/env/index.ts	P7	index	shared	Re-exports
+packages/core/src/shared/router/context.ts	P1	src	shared	Router context. The value is the object createRouter returned. Render and hydrate provide it. Not a public export
+packages/core/src/shared/router/context.test.ts	P1	test	shared	Unit cases for context.ts
+packages/core/src/shared/router/create-router.ts	P1	src	shared	createRouter. Holds the tree, base path, client cache defaults, and theme and direction config. Does not import those features
+packages/core/src/shared/router/create-router.test.ts	P1	test	shared	Unit cases for create-router.ts
+packages/core/src/shared/router/index.ts	P1	index	shared	Re-exports
+packages/core/src/shared/components/outlet-nodes.ts	P1	src	shared	Choose the matched layout and page nodes. No JSX
+packages/core/src/shared/components/outlet-nodes.test.ts	P1	test	shared	Unit cases for outlet-nodes.ts
+packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary toward the root, and the builtin text (B77)
+packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts
+packages/core/src/shared/components/outlet.tsx	P1	src	dom	Outlet
+packages/core/src/shared/components/outlet.test.tsx	P1	test	dom	Unit cases for outlet.tsx
+packages/core/src/shared/components/link.tsx	P6	src	dom	Link. Prefetch on intent. Reject a foreign origin
+packages/core/src/shared/components/link.test.tsx	P6	test	dom	Unit cases for link.tsx
+packages/core/src/shared/components/intercept-outlet.tsx	P6	src	dom	InterceptOutlet renders the intercepted match and keeps the background match
+packages/core/src/shared/components/intercept-outlet.test.tsx	P6	test	dom	Unit cases for intercept-outlet.tsx
+packages/core/src/shared/components/view-transition-boundary.tsx	P6	src	dom	ViewTransitionBoundary
+packages/core/src/shared/components/view-transition-boundary.test.tsx	P6	test	dom	Unit cases for view-transition-boundary.tsx
+packages/core/src/shared/components/view-transition-css.tsx	P6	src	dom	ViewTransitionCSS
+packages/core/src/shared/components/view-transition-css.test.tsx	P6	test	dom	Unit cases for view-transition-css.tsx
+packages/core/src/shared/components/stylesheet.tsx	P11	src	dom	Stylesheet. Dev renders nothing. Prod emits preload, noscript, and the nonced swap
+packages/core/src/shared/components/stylesheet.test.tsx	P11	test	dom	Unit cases for stylesheet.tsx
+packages/core/src/shared/components/index.ts	P1	index	shared	Re-exports
+packages/core/src/server/redirect/target.ts	P2	src	server	Classify a raw redirect target. Reject scheme-relative, backslash, and control characters before URL parsing
+packages/core/src/server/redirect/target.test.ts	P2	test	server	Unit cases for target.ts
+packages/core/src/server/redirect/builder.ts	P2	src	server	The only Location builder. 301 for GET and HEAD, 308 otherwise, when canonicalizing
+packages/core/src/server/redirect/builder.test.ts	P2	test	server	Unit cases for builder.ts
+packages/core/src/server/redirect/index.ts	P2	index	server	Re-exports
+packages/core/src/server/lifecycle/create.ts	P1	src	server	createServer. Wires the ordered stages and returns fetch
+packages/core/src/server/lifecycle/create.test.ts	P1	test	server	Unit cases for create.ts
+packages/core/src/server/lifecycle/order.ts	P1	src	server	The ordered stage list from 02-system
+packages/core/src/server/lifecycle/order.test.ts	P1	test	server	Unit cases for order.ts
+packages/core/src/server/lifecycle/classify.ts	P1	src	server	Classify document, data, prefetch, and server-fn from the stripped URL
+packages/core/src/server/lifecycle/classify.test.ts	P1	test	server	Unit cases for classify.ts
+packages/core/src/server/lifecycle/finalize.ts	P1	src	server	The only Response constructor. Apply policy, security headers, and Flare response headers
+packages/core/src/server/lifecycle/finalize.test.ts	P1	test	server	Unit cases for finalize.ts
+packages/core/src/server/lifecycle/policies.ts	P1	src	server	Assign shared, private, or no-store
+packages/core/src/server/lifecycle/policies.test.ts	P1	test	server	Unit cases for policies.ts
+packages/core/src/server/lifecycle/methods.ts	P1	src	server	HEAD, OPTIONS 204, 405, and the Allow list
+packages/core/src/server/lifecycle/methods.test.ts	P1	test	server	Unit cases for methods.ts
+packages/core/src/server/lifecycle/logger.ts	P1	src	server	The only console caller
+packages/core/src/server/lifecycle/logger.test.ts	P1	test	server	Unit cases for logger.ts
+packages/core/src/server/lifecycle/canonical-redirect.ts	P2	src	server	Turn a canonical.ts result into a finish() redirect or a 400
+packages/core/src/server/lifecycle/canonical-redirect.test.ts	P2	test	server	Unit cases for canonical-redirect.ts
+packages/core/src/server/lifecycle/index.ts	P1	index	server	Re-exports
+packages/core/src/server/security/defaults.ts	P3	src	server	Default header set. X-Powered-By off. HSTS without preload
+packages/core/src/server/security/defaults.test.ts	P3	test	server	Unit cases for defaults.ts
+packages/core/src/server/security/csp.ts	P3	src	server	Build the CSP. Nonce on script-src and style-src-elem only. style-src-attr stays unsafe-inline so Solid CSSOM works
+packages/core/src/server/security/csp.test.ts	P3	test	server	Unit cases for csp.ts
+packages/core/src/server/security/apply.ts	P3	src	server	Set security headers, overwriting any earlier value. Honor .security() overrides
+packages/core/src/server/security/apply.test.ts	P3	test	server	Unit cases for apply.ts
+packages/core/src/server/security/index.ts	P3	index	server	Re-exports
+packages/core/src/server/context/ctx.ts	P4	src	server	serverCtx() reads Solid's request event
+packages/core/src/server/context/ctx.test.ts	P4	test	server	Unit cases for ctx.ts
+packages/core/src/server/context/fetch-dedupe.ts	P4	src	server	Request-scoped GET and HEAD dedupe. withFetchDedupe(binding) wraps a platform fetch
+packages/core/src/server/context/fetch-dedupe.test.ts	P4	test	server	Unit cases for fetch-dedupe.ts
+packages/core/src/server/context/index.ts	P4	index	server	Re-exports
+packages/core/src/server/auth/effective.ts	P4	src	server	requires || reads from the loaded modules
+packages/core/src/server/auth/effective.test.ts	P4	test	server	Unit cases for effective.ts
+packages/core/src/server/auth/identity.ts	P4	src	server	Identity class for the cache key: anonymous or required
+packages/core/src/server/auth/identity.test.ts	P4	test	server	Unit cases for identity.ts
+packages/core/src/server/auth/caller.ts	P4	src	server	callerData is the leaf. callerChain is the full list
+packages/core/src/server/auth/caller.test.ts	P4	test	server	Unit cases for caller.ts
+packages/core/src/server/auth/gate.ts	P4	src	server	Decide store, 401, or proceed before any cache read
+packages/core/src/server/auth/gate.test.ts	P4	test	server	Unit cases for gate.ts
+packages/core/src/server/auth/index.ts	P4	index	server	Re-exports
+packages/core/src/server/loaders/run.ts	P1	src	server	Run validate, authenticate, preloader, authorize, loaders, head, headers
+packages/core/src/server/loaders/run.test.ts	P1	test	server	Unit cases for run.ts
+packages/core/src/server/loaders/cascade.ts	P4	src	server	After Promise.all, drop data-carrying descendants of a failed layout
+packages/core/src/server/loaders/cascade.test.ts	P4	test	server	Unit cases for cascade.ts
+packages/core/src/server/loaders/defer.ts	P4	src	server	defer() returns a placeholder and a promise
+packages/core/src/server/loaders/defer.test.ts	P4	test	server	Unit cases for defer.ts
+packages/core/src/server/loaders/hints.ts	P4	src	server	Apply _flare_stale. Layout loaders always run
+packages/core/src/server/loaders/hints.test.ts	P4	test	server	Unit cases for hints.ts
+packages/core/src/server/loaders/index.ts	P1	index	server	Re-exports
+packages/core/src/server/render/document.ts	P1	src	server	Call renderToStream with the options 02-system names. Provides the router context around the root layout
+packages/core/src/server/render/document.test.ts	P1	test	server	Unit cases for document.ts
+packages/core/src/server/render/critical-style.ts	P11	src	server	Insert the critical style into the shell head, then the shell may flush
+packages/core/src/server/render/critical-style.test.ts	P11	test	server	Unit cases for critical-style.ts
+packages/core/src/server/render/escape.ts	P1	src	server	escapeInlineJson, escapeInlineScript, escapeAttr
+packages/core/src/server/render/escape.test.ts	P1	test	server	Unit cases for escape.ts
+packages/core/src/server/render/escape.corpus.txt	P1	corpus	server	Script-escape corpus including dollar-brace, script close, and line separators
+packages/core/src/server/render/state.ts	P1	src	server	Build the one state script and the insertion point
+packages/core/src/server/render/state.test.ts	P1	test	server	Unit cases for state.ts
+packages/core/src/server/render/shape.ts	P1	src	server	A production body without html and body close is a 500
+packages/core/src/server/render/shape.test.ts	P1	test	server	Unit cases for shape.ts
+packages/core/src/server/render/head.ts	P1	src	server	Pass .head() results to useHead
+packages/core/src/server/render/head.test.ts	P1	test	server	Unit cases for head.ts
+packages/core/src/server/render/projector.ts	P5	src	server	Map a thrown value to the public error body
+packages/core/src/server/render/projector.test.ts	P5	test	server	Unit cases for projector.ts
+packages/core/src/server/render/abort.ts	P5	src	server	Race the request signal against chunk 0 and every later pull
+packages/core/src/server/render/abort.test.ts	P5	test	server	Unit cases for abort.ts
+packages/core/src/server/render/index.ts	P1	index	server	Re-exports
+packages/core/src/server/navigation/data.ts	P6	src	server	Choose which matches produce l frames
+packages/core/src/server/navigation/data.test.ts	P6	test	server	Unit cases for data.ts
+packages/core/src/server/navigation/response.ts	P6	src	server	Write the NDJSON body in the 02-system order
+packages/core/src/server/navigation/response.test.ts	P6	test	server	Unit cases for response.ts
+packages/core/src/server/navigation/index.ts	P6	index	server	Re-exports
+packages/core/src/server/server-fn/builder.ts	P7	src	server	createServerFn chain
+packages/core/src/server/server-fn/builder.test.ts	P7	test	server	Unit cases for builder.ts
+packages/core/src/server/server-fn/ids.ts	P7	src	server	Hash path and export name. Reject a collision
+packages/core/src/server/server-fn/ids.test.ts	P7	test	server	Unit cases for ids.ts
+packages/core/src/server/server-fn/dispatch.ts	P7	src	server	The B42 order
+packages/core/src/server/server-fn/dispatch.test.ts	P7	test	server	Unit cases for dispatch.ts
+packages/core/src/server/server-fn/csrf.ts	P7	src	server	Origin, Sec-Fetch-Site, Referer, and the same-site allow-list
+packages/core/src/server/server-fn/csrf.test.ts	P7	test	server	Unit cases for csrf.ts
+packages/core/src/server/server-fn/input.ts	P7	src	server	POST body cap and the GET _i parser
+packages/core/src/server/server-fn/input.test.ts	P7	test	server	Unit cases for input.ts
+packages/core/src/server/server-fn/envelope.ts	P7	src	server	The result and error envelope
+packages/core/src/server/server-fn/envelope.test.ts	P7	test	server	Unit cases for envelope.ts
+packages/core/src/server/server-fn/cache-control.ts	P7	src	server	Default private no-store. GET maxAge only with no auth
+packages/core/src/server/server-fn/cache-control.test.ts	P7	test	server	Unit cases for cache-control.ts
+packages/core/src/server/server-fn/stream.ts	P7	src	server	stream() writes one envelope per yielded value
+packages/core/src/server/server-fn/stream.test.ts	P7	test	server	Unit cases for stream.ts
+packages/core/src/server/server-fn/index.ts	P7	index	server	Re-exports
+packages/core/src/server/middleware/types.ts	P8	types	server	Middleware, next, respond, bypass
+packages/core/src/server/middleware/filters.ts	P8	src	server	One filter engine. Case-folded, segment boundaries
+packages/core/src/server/middleware/filters.test.ts	P8	test	server	Unit cases for filters.ts
+packages/core/src/server/middleware/run.ts	P8	src	server	Run the list. A second next() is 500. An onResponse throw is 500
+packages/core/src/server/middleware/run.test.ts	P8	test	server	Unit cases for run.ts
+packages/core/src/server/middleware/index.ts	P8	index	server	Re-exports
+packages/core/src/server/mount/mount.ts	P8	src	server	Dispatch a matching mount. Security headers still come from finalize
+packages/core/src/server/mount/mount.test.ts	P8	test	server	Unit cases for mount.ts
+packages/core/src/server/mount/index.ts	P8	index	server	Re-exports
+packages/core/src/server/proxy/proxy.ts	P8	src	server	proxy(). Hop-by-hop stripped. Cookies and Authorization opt-in. Location rewritten
+packages/core/src/server/proxy/proxy.test.ts	P8	test	server	Unit cases for proxy.ts
+packages/core/src/server/proxy/index.ts	P8	index	server	Re-exports
+packages/core/src/server/cacheability/decide.ts	P9	src	server	shared, private, or no-store from auth class, route config, and Set-Cookie
+packages/core/src/server/cacheability/decide.test.ts	P9	test	server	Unit cases for decide.ts
+packages/core/src/server/cacheability/variant.ts	P9	src	server	Document, data, and prefetch are different URLs and therefore different cache entries
+packages/core/src/server/cacheability/variant.test.ts	P9	test	server	Unit cases for variant.ts
+packages/core/src/server/cacheability/cookies.ts	P9	src	server	A Set-Cookie response is private unless allowCookies is set
+packages/core/src/server/cacheability/cookies.test.ts	P9	test	server	Unit cases for cookies.ts
+packages/core/src/server/cacheability/index.ts	P9	index	server	Re-exports
+packages/core/src/server/cache/contract.ts	P10	types	server	FlareStore
+packages/core/src/server/cache/key.ts	P10	src	server	Build static:build:routeId:rawParams. No identity class. Encode slash and percent (B86)
+packages/core/src/server/cache/key.test.ts	P10	test	server	Unit cases for key.ts
+packages/core/src/server/cache/write.ts	P10	src	server	The one write path. B46 and B47
+packages/core/src/server/cache/write.test.ts	P10	test	server	Unit cases for write.ts
+packages/core/src/server/cache/read.ts	P10	src	server	Hit only when no tombstone and no newer tag epoch. Strip Location and security headers
+packages/core/src/server/cache/read.test.ts	P10	test	server	Unit cases for read.ts
+packages/core/src/server/cache/nonce.ts	P10	src	server	Rewrite nonce attributes and the state nonce field on store and on hit
+packages/core/src/server/cache/nonce.test.ts	P10	test	server	Unit cases for nonce.ts
+packages/core/src/server/cache/scrub.ts	P10	src	server	Render a shared entry with no credentials
+packages/core/src/server/cache/scrub.test.ts	P10	test	server	Unit cases for scrub.ts
+packages/core/src/server/cache/seed.ts	P10	src	server	Accept a seed only when seed is true and renderedAt and tags are present
+packages/core/src/server/cache/seed.test.ts	P10	test	server	Unit cases for seed.ts
+packages/core/src/server/cache/tombstone.ts	P10	src	server	Per-key tombstones
+packages/core/src/server/cache/tombstone.test.ts	P10	test	server	Unit cases for tombstone.ts
+packages/core/src/server/cache/epoch.ts	P10	src	server	Tag epochs
+packages/core/src/server/cache/epoch.test.ts	P10	test	server	Unit cases for epoch.ts
+packages/core/src/server/cache/memory.ts	P10	src	server	createMemoryStore
+packages/core/src/server/cache/memory.test.ts	P10	test	server	Unit cases for memory.ts
+packages/core/src/server/cache/inflight.ts	P10	src	server	Coalesce concurrent renders of one key. The one permitted process-scoped map
+packages/core/src/server/cache/inflight.test.ts	P10	test	server	Unit cases for inflight.ts
+packages/core/src/server/cache/revalidate.ts	P10	src	server	revalidate({ keys, tags }) and createRevalidateFn
+packages/core/src/server/cache/revalidate.test.ts	P10	test	server	Unit cases for revalidate.ts
+packages/core/src/server/cache/assets.ts	P10	src	server	createAssetsStore. Read-only get of an SSG seed. set and delete reject
+packages/core/src/server/cache/assets.test.ts	P10	test	server	Unit cases for assets.ts
+packages/core/src/server/cache/index.ts	P10	index	server	Re-exports
+packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates and adopts history.state
+packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
+packages/core/src/client/boot/hydrate.ts	P1	src	dom	Read the state script, provide the router context, and call Solid hydrate
+packages/core/src/client/boot/hydrate.test.ts	P1	test	dom	Unit cases for hydrate.ts
+packages/core/src/client/boot/ready.ts	P6	src	dom	onReady, onHydrated, onIdle, onInteraction
+packages/core/src/client/boot/ready.test.ts	P6	test	dom	Unit cases for ready.ts
+packages/core/src/client/boot/index.ts	P1	index	client	Re-exports
+packages/core/src/client/navigation/navigate.ts	P6	src	dom	navigate. Same-origin only. Commit, then push. Revalidation does not push
+packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
+packages/core/src/client/navigation/pending.ts	P6	src	dom	useNavigation().pending
+packages/core/src/client/navigation/pending.test.ts	P6	test	dom	Unit cases for pending.ts
+packages/core/src/client/navigation/progress.ts	P6	src	dom	useNavigationProgress. Value only. No element
+packages/core/src/client/navigation/progress.test.ts	P6	test	dom	Unit cases for progress.ts
+packages/core/src/client/navigation/scroll.ts	P6	src	dom	sessionStorage scroll keyed by history index
+packages/core/src/client/navigation/scroll.test.ts	P6	test	dom	Unit cases for scroll.ts
+packages/core/src/client/navigation/blocker.ts	P6	src	dom	useBlocker. Cancel walks back with history.go
+packages/core/src/client/navigation/blocker.test.ts	P6	test	dom	Unit cases for blocker.ts
+packages/core/src/client/navigation/popstate.ts	P6	src	dom	A multi-entry popstate is replayed one entry at a time
+packages/core/src/client/navigation/popstate.test.ts	P6	test	dom	Unit cases for popstate.ts
+packages/core/src/client/navigation/prefetch.ts	P6	src	dom	Intent and viewport prefetch of the module and the data URL
+packages/core/src/client/navigation/prefetch.test.ts	P6	test	dom	Unit cases for prefetch.ts
+packages/core/src/client/navigation/index.ts	P6	index	client	Re-exports
+packages/core/src/client/history/history.ts	P6	src	dom	Stamp a per-document history index. Adopt the existing entry on hydrate
+packages/core/src/client/history/history.test.ts	P6	test	dom	Unit cases for history.ts
+packages/core/src/client/history/state.ts	P6	types	client	HistoryState type
+packages/core/src/client/history/index.ts	P6	index	client	Re-exports
+packages/core/src/client/head/apply.ts	P6	src	dom	Apply h frames through useHead in the same slot order the server used
+packages/core/src/client/head/apply.test.ts	P6	test	dom	Unit cases for apply.ts
+packages/core/src/client/head/index.ts	P6	index	client	Re-exports
+packages/core/src/client/view-transition/direction.ts	P6	src	dom	Choose the view-transition direction from the history index delta
+packages/core/src/client/view-transition/direction.test.ts	P6	test	dom	Unit cases for direction.ts
+packages/core/src/client/view-transition/index.ts	P6	index	client	Re-exports
+packages/core/src/client/server-fn/call.ts	P7	src	dom	Send a server-fn call and read the envelope
+packages/core/src/client/server-fn/call.test.ts	P7	test	dom	Unit cases for call.ts
+packages/core/src/client/server-fn/stream.ts	P7	src	dom	Read a stream() body as an async iterator
+packages/core/src/client/server-fn/stream.test.ts	P7	test	dom	Unit cases for stream.ts
+packages/core/src/client/server-fn/codec.ts	P7	src	dom	Build the _i query. Refuse past 8192 characters
+packages/core/src/client/server-fn/codec.test.ts	P7	test	dom	Unit cases for codec.ts
+packages/core/src/client/server-fn/index.ts	P7	index	client	Re-exports
+packages/core/src/client/router/match-cache.ts	P6	src	dom	Store successful l payloads only. An e payload evicts the entry
+packages/core/src/client/router/match-cache.test.ts	P6	test	dom	Unit cases for match-cache.ts
+packages/core/src/client/router/index.ts	P6	index	client	Re-exports
+packages/core/src/client/sync/enabled.ts	P13	src	client	broadcastEnabled. Source is true. flare({ broadcast: false }) replaces this module in the client environment
+packages/core/src/client/sync/enabled.test.ts	P13	test	client	Unit cases for enabled.ts
+packages/core/src/client/sync/channel.ts	P13	src	client	post and subscribe on BroadcastChannel flare.sync. Off or missing is a no-op
+packages/core/src/client/sync/channel.test.ts	P13	test	client	Unit cases for channel.ts
+packages/core/src/client/sync/index.ts	P13	index	client	Re-exports post and subscribe
+packages/core/src/adapters/node/request.ts	P1	src	node	toRequest. Reject //, backslash, absolute-form, and control characters. Apply trustProxy
+packages/core/src/adapters/node/request.test.ts	P1	test	node	Unit cases for request.ts
+packages/core/src/adapters/node/listener.ts	P1	src	node	createNodeListener. Flush per chunk. Honor backpressure
+packages/core/src/adapters/node/listener.test.ts	P1	test	node	Unit cases for listener.ts
+packages/core/src/adapters/node/body.ts	P3	src	node	Unread POST bodies are drained or the connection is closed
+packages/core/src/adapters/node/body.test.ts	P3	test	node	Unit cases for body.ts
+packages/core/src/adapters/node/index.ts	P1	index	node	Re-exports
+packages/core/src/adapters/bun/serve.ts	P3	src	node	createBunFetch. Set maxRequestBodySize from bodyLimit
+packages/core/src/adapters/bun/serve.test.ts	P3	test	node	Unit cases for serve.ts
+packages/core/src/adapters/bun/index.ts	P3	index	bun	Re-exports
+packages/core/src/adapters/workers/handler.ts	P3	src	node	createWorkersHandler. waitUntil from ctx. Optional assets binding for unmatched GET and HEAD
+packages/core/src/adapters/workers/handler.test.ts	P3	test	node	Unit cases for handler.ts
+packages/core/src/adapters/workers/index.ts	P3	index	workers	Re-exports
+packages/core/src/adapters/stores/fs/store.ts	P10	src	node	Filesystem store. Keys cannot collide. No raw backslash. ENAMETOOLONG is an error, not a truncated key
+packages/core/src/adapters/stores/fs/store.test.ts	P10	test	node	Unit cases for store.ts
+packages/core/src/adapters/stores/fs/assets.ts	P10	src	node	fileAssets reads a file relative to a root and rejects paths that escape it
+packages/core/src/adapters/stores/fs/assets.test.ts	P10	test	node	Unit cases for assets.ts
+packages/core/src/adapters/stores/fs/index.ts	P10	index	node	Re-exports
+packages/core/src/adapters/stores/cache-api/store.ts	P10	src	node	createCacheApiStore. Tombstones and epochs live in the cache. No key listing
+packages/core/src/adapters/stores/cache-api/store.test.ts	P10	test	node	Unit cases for store.ts
+packages/core/src/adapters/stores/cache-api/index.ts	P10	index	workers	Re-exports
+packages/core/src/vite/route-meta/extract.ts	P7	src	vite	oxc extraction of chain calls, export name, and positions
+packages/core/src/vite/route-meta/extract.test.ts	P7	test	vite	Unit cases for extract.ts
+packages/core/src/vite/route-meta/literals.ts	P7	src	vite	Fail the build when cache or auth config is not a literal
+packages/core/src/vite/route-meta/literals.test.ts	P7	test	vite	Unit cases for literals.ts
+packages/core/src/vite/route-meta/index.ts	P7	index	vite	Re-exports
+packages/core/src/vite/codegen/routes.ts	P1	src	vite	Write routes.gen.ts, including literal cache.client and intercept fields (B89)
+packages/core/src/vite/codegen/routes.test.ts	P1	test	vite	Unit cases for routes.ts
+packages/core/src/vite/codegen/scan.ts	P1	src	vite	One oxc walk of a route file. A parse error fails the build (B75)
+packages/core/src/vite/codegen/scan.test.ts	P1	test	vite	Unit cases for scan.ts
+packages/core/src/vite/codegen/escape.ts	P1	src	vite	Escape a string written into generated source
+packages/core/src/vite/codegen/escape.test.ts	P1	test	vite	Unit cases for escape.ts
+packages/core/src/vite/codegen/id-string.ts	P2	src	vite	Rewrite the createPage id to the codegen key. A hand edit that disagrees is a build error
+packages/core/src/vite/codegen/id-string.test.ts	P2	test	vite	Unit cases for id-string.ts
+packages/core/src/vite/codegen/types-gen.ts	P7	src	vite	Write types.gen.d.ts
+packages/core/src/vite/codegen/types-gen.test.ts	P7	test	vite	Unit cases for types-gen.ts
+packages/core/src/vite/codegen/auth-hint.ts	P7	src	vite	Write the hint. The runtime does not read it
+packages/core/src/vite/codegen/auth-hint.test.ts	P7	test	vite	Unit cases for auth-hint.ts
+packages/core/src/vite/codegen/index.ts	P1	index	vite	Re-exports
+packages/core/src/vite/boundary/allow.ts	P7	src	vite	The B8 allow-list
+packages/core/src/vite/boundary/allow.test.ts	P7	test	vite	Unit cases for allow.ts
+packages/core/src/vite/boundary/split.ts	P7	src	vite	Remove stripped methods and the imports that become unused
+packages/core/src/vite/boundary/split.test.ts	P7	test	vite	Unit cases for split.ts
+packages/core/src/vite/boundary/env.ts	P7	src	vite	oxc rewrite of createServerOnlyFn, createClientOnlyFn, and createIsomorphicFn
+packages/core/src/vite/boundary/env.test.ts	P7	test	vite	Unit cases for env.ts
+packages/core/src/vite/boundary/tripwire.ts	P7	src	vite	Fail the build when an emitted chunk contains a server body or an env helper body that belongs in another graph
+packages/core/src/vite/boundary/tripwire.test.ts	P7	test	vite	Unit cases for tripwire.ts
+packages/core/src/vite/boundary/index.ts	P7	index	vite	Re-exports
+packages/core/src/vite/plugin/flare.ts	P1	src	vite	The Vite plugin. Calls solid with ssr true and does not pass start (B89)
+packages/core/src/vite/plugin/flare.test.ts	P1	test	vite	Unit cases for flare.ts
+packages/core/src/vite/plugin/options.ts	P1	src	vite	Parse the flare() options
+packages/core/src/vite/plugin/options.test.ts	P1	test	vite	Unit cases for options.ts
+packages/core/src/vite/plugin/environments.ts	P1	src	vite	Declare client, ssr, and worker environments and their order
+packages/core/src/vite/plugin/environments.test.ts	P1	test	vite	Unit cases for environments.ts
+packages/core/src/vite/plugin/build-id.ts	P12	src	vite	Dev build id is dev. Production is the 12-hex manifest hash (B84, B89)
+packages/core/src/vite/plugin/build-id.test.ts	P12	test	vite	Unit cases for build-id.ts
+packages/core/src/vite/plugin/index.ts	P1	index	vite	Re-exports
+packages/core/src/vite/dev/guard.ts	P12	src	vite	Dev-only endpoints require a same-origin request. No Access-Control-Allow-Origin star
+packages/core/src/vite/dev/guard.test.ts	P12	test	vite	Unit cases for guard.ts
+packages/core/src/vite/dev/handler.ts	P12	src	vite	Node and Bun vite dev HTTP handler. middlewareMode skips it (B89)
+packages/core/src/vite/dev/handler.test.ts	P12	test	vite	Unit cases for handler.ts
+packages/core/src/vite/dev/index.ts	P12	index	vite	Re-exports
+packages/core/src/vite/prerender/run.ts	P12	src	vite	Render static routes. Non-zero exit names the route on a bad status
+packages/core/src/vite/prerender/run.test.ts	P12	test	vite	Unit cases for run.ts
+packages/core/src/vite/prerender/artifacts.ts	P12	src	vite	Write seed JSON at the artifact path, with renderedAt, tags, and seed true
+packages/core/src/vite/prerender/artifacts.test.ts	P12	test	vite	Unit cases for artifacts.ts
+packages/core/src/vite/prerender/index.ts	P12	index	vite	Re-exports
+packages/core/src/vite/css/reset.ts	P11	src	vite	The preflight string flare({ css: { reset: true } }) prepends
+packages/core/src/vite/css/reset.test.ts	P11	test	vite	Unit cases for reset.ts
+packages/core/src/vite/css/inject.ts	P11	src	vite	Prepend the preflight when reset is on. Replace the server sheet module with the built CSS
+packages/core/src/vite/css/inject.test.ts	P11	test	vite	Unit cases for inject.ts
+packages/core/src/vite/css/manifest.ts	P11	src	vite	Read the built stylesheet href from the Vite manifest
+packages/core/src/vite/css/manifest.test.ts	P11	test	vite	Unit cases for manifest.ts
+packages/core/src/vite/css/delivery.ts	P11	src	vite	The preload, noscript, and swap markup. The script text is a constant
+packages/core/src/vite/css/delivery.test.ts	P11	test	vite	Unit cases for delivery.ts
+packages/core/src/vite/css/index.ts	P11	index	vite	Re-exports
+packages/core/src/vite/bin/codegen.ts	P12	src	vite	flare codegen
+packages/core/src/vite/bin/codegen.test.ts	P12	test	vite	Unit cases for codegen.ts
+packages/core/src/vite/bin/index.ts	P12	index	vite	Re-exports
+packages/core/src/features/theme/shared/script.tsx	P13	src	dom	ThemeScript. No props. Reads router.theme. Sets the attribute before paint. Nonced
+packages/core/src/features/theme/shared/script.test.tsx	P13	test	dom	Unit cases for script.tsx
+packages/core/src/features/theme/shared/provider.tsx	P13	src	dom	ThemeProvider and useTheme. Children only. Reads router.theme. Posts theme on flare.sync. No storage listener
+packages/core/src/features/theme/shared/provider.test.tsx	P13	test	dom	Unit cases for provider.tsx
+packages/core/src/features/theme/shared/index.ts	P13	index	shared	Re-exports
+packages/core/src/features/direction/shared/script-of.ts	P13	src	shared	dirOf. Intl.Locale.getTextInfo().direction. No language list. Not a public export
+packages/core/src/features/direction/shared/script-of.test.ts	P13	test	shared	Unit cases for script-of.ts
+packages/core/src/features/direction/shared/script.tsx	P13	src	dom	DirectionScript. Optional locale prop. Storage beats dirOf. Nonced
+packages/core/src/features/direction/shared/script.test.tsx	P13	test	dom	Unit cases for script.tsx
+packages/core/src/features/direction/shared/provider.tsx	P13	src	dom	DirectionProvider and useDirection. Locale prop. Does not import i18n. Posts direction on flare.sync. No storage listener
+packages/core/src/features/direction/shared/provider.test.tsx	P13	test	dom	Unit cases for provider.tsx
+packages/core/src/features/direction/shared/index.ts	P13	index	shared	Re-exports
+packages/core/src/features/query/shared/options.ts	P13	src	shared	serverFnQueryOptions and serverFnMutationOptions. The client writes the cache from the function result
+packages/core/src/features/query/shared/options.test.ts	P13	test	shared	Unit cases for options.ts
+packages/core/src/features/query/client/getter.ts	P13	src	dom	createQueryClientGetter
+packages/core/src/features/query/client/getter.test.ts	P13	test	dom	Unit cases for getter.ts
+packages/core/src/features/query/client/use-suspense-query.ts	P13	src	dom	useSuspenseQuery
+packages/core/src/features/query/client/use-suspense-query.test.ts	P13	test	dom	Unit cases for use-suspense-query.ts
+packages/core/src/features/query/shared/index.ts	P13	index	shared	Re-exports
+packages/core/src/features/query/client/index.ts	P13	index	client	Re-exports
+packages/core/src/features/i18n/shared/translate.ts	P13	src	shared	Lookup on a null-prototype map. Missing key returns the key
+packages/core/src/features/i18n/shared/translate.test.ts	P13	test	shared	Unit cases for translate.ts
+packages/core/src/features/i18n/shared/plural.ts	P13	src	shared	Intl.PluralRules cardinal and ordinal
+packages/core/src/features/i18n/shared/plural.test.ts	P13	test	shared	Unit cases for plural.ts
+packages/core/src/features/i18n/shared/rich.ts	P13	src	shared	Rich-text tags. No prototype property is callable
+packages/core/src/features/i18n/shared/rich.test.ts	P13	test	shared	Unit cases for rich.ts
+packages/core/src/features/i18n/shared/format.ts	P13	src	shared	formatMessage
+packages/core/src/features/i18n/shared/format.test.ts	P13	test	shared	Unit cases for format.ts
+packages/core/src/features/i18n/shared/provider.tsx	P13	src	dom	LocaleProvider. initial is the route param or omitted. Does not write the cookie. Posts locale on flare.sync after a local setLocale commit
+packages/core/src/features/i18n/shared/provider.test.tsx	P13	test	dom	Unit cases for provider.tsx
+packages/core/src/features/i18n/shared/script.tsx	P13	src	dom	LocaleScript. No props. Must sit inside LocaleProvider. Sets lang. Nonced
+packages/core/src/features/i18n/shared/script.test.tsx	P13	test	dom	Unit cases for script.tsx
+packages/core/src/features/i18n/shared/hooks.ts	P13	src	dom	useLocale, useLoaderT, usePreloaderT. locale is an accessor. No useRequestLocale
+packages/core/src/features/i18n/shared/hooks.test.ts	P13	test	dom	Unit cases for hooks.ts
+packages/core/src/features/i18n/server/match.ts	P13	src	server	Pick a locale from the path, then the cookie, then Accept-Language capped at 8 tags
+packages/core/src/features/i18n/server/match.test.ts	P13	test	server	Unit cases for match.ts
+packages/core/src/features/i18n/server/middleware.ts	P13	src	server	The locale slot. Configured casing. Cookie rules. Redirect targets must be routes
+packages/core/src/features/i18n/server/middleware.test.ts	P13	test	server	Unit cases for middleware.ts
+packages/core/src/features/i18n/shared/index.ts	P13	index	shared	Re-exports
+packages/core/src/features/i18n/server/index.ts	P13	index	server	Re-exports
+packages/core/src/features/image/shared/image.tsx	P13	src	dom	Image. Srcset is the configured widths only
+packages/core/src/features/image/shared/image.test.tsx	P13	test	dom	Unit cases for image.tsx
+packages/core/src/features/image/vite/optimize.ts	P13	src	vite	Build-time resize. A width outside the set fails the build
+packages/core/src/features/image/vite/optimize.test.ts	P13	test	vite	Unit cases for optimize.ts
+packages/core/src/features/image/vite/dev-endpoint.ts	P13	src	vite	Dev image endpoint. Project root only. Configured widths only. Uses the dev guard
+packages/core/src/features/image/vite/dev-endpoint.test.ts	P13	test	vite	Unit cases for dev-endpoint.ts
+packages/core/src/features/image/shared/index.ts	P13	index	shared	Re-exports
+packages/core/src/features/image/vite/index.ts	P13	index	vite	Re-exports
+packages/core/src/features/fonts/shared/create-font.ts	P13	src	shared	createFont for a local src
+packages/core/src/features/fonts/shared/create-font.test.ts	P13	test	shared	Unit cases for create-font.ts
+packages/core/src/features/fonts/shared/css.ts	P13	src	shared	Build @font-face text. Escape family, src, and unicode-range
+packages/core/src/features/fonts/shared/css.test.ts	P13	test	shared	Unit cases for css.ts
+packages/core/src/features/fonts/shared/font-css.tsx	P13	src	dom	FontCSS renders the escaped CSS and the preload links
+packages/core/src/features/fonts/shared/font-css.test.tsx	P13	test	dom	Unit cases for font-css.tsx
+packages/core/src/features/fonts/vite/emit.ts	P13	src	vite	Copy registry woff2 files into the build output
+packages/core/src/features/fonts/vite/emit.test.ts	P13	test	vite	Unit cases for emit.ts
+packages/core/src/features/fonts/shared/index.ts	P13	index	shared	Re-exports
+packages/core/src/features/fonts/vite/index.ts	P13	index	vite	Re-exports
+packages/core/src/features/seo/server/sitemap.ts	P13	src	server	Build the sitemap from pages that are not .response() routes, whose URL has no param segment, and whose effective auth is not required. Optional auth is included. The hint is checked first
+packages/core/src/features/seo/server/sitemap.test.ts	P13	test	server	Unit cases for sitemap.ts
+packages/core/src/features/seo/server/index-now.ts	P13	src	server	IndexNow client
+packages/core/src/features/seo/server/index-now.test.ts	P13	test	server	Unit cases for index-now.ts
+packages/core/src/features/seo/server/google.ts	P13	src	server	Google Indexing JWT. WebCrypto. The key is not logged
+packages/core/src/features/seo/server/google.test.ts	P13	test	server	Unit cases for google.ts
+packages/core/src/features/seo/server/bing.ts	P13	src	server	Bing IndexNow-compatible submit
+packages/core/src/features/seo/server/bing.test.ts	P13	test	server	Unit cases for bing.ts
+packages/core/src/features/seo/server/index.ts	P13	index	server	Re-exports
+packages/core/src/testing/harness.ts	P13	src	node	createTestServer over Solid server-mock
+packages/core/src/testing/harness.test.ts	P13	test	node	Unit cases for harness.ts
+packages/core/src/testing/playwright.ts	P13	src	node	goto-hydrated and the console-error filter
+packages/core/src/testing/playwright.test.ts	P13	test	node	Unit cases for playwright.ts
+packages/core/src/testing/index.ts	P13	index	node	Re-exports
+packages/core/src/exports/index.ts	P1	index	-	Root entry
+packages/core/src/exports/client.ts	P1	index	-	createClient
+packages/core/src/exports/server.ts	P1	index	-	createServer and the server helpers born so far; later bits add re-exports to this same file, including createAssetsStore in bit 10
+packages/core/src/exports/generated.ts	P1	index	-	defineRouteTree and defineLayouts
+packages/core/src/exports/adapters-node.ts	P1	index	-	Node adapter
+packages/core/src/exports/vite.ts	P1	index	-	flare plugin. Composes feature vite factories
+packages/core/src/exports/adapters-bun.ts	P3	index	-	Bun adapter
+packages/core/src/exports/adapters-workers.ts	P3	index	-	Workers adapter
+packages/core/src/exports/server-fn.ts	P7	index	-	createServerFn
+packages/core/src/exports/stores-fs.ts	P10	index	-	Filesystem store
+packages/core/src/exports/stores-cache-api.ts	P10	index	-	Cache API store
+packages/core/src/exports/query.ts	P13	index	-	Query feature
+packages/core/src/exports/i18n.ts	P13	index	-	i18n client and shared
+packages/core/src/exports/i18n-server.ts	P13	index	-	i18n server
+packages/core/src/exports/seo.ts	P13	index	-	Sitemap and indexing clients
+packages/core/src/exports/testing.ts	P13	index	-	Test helpers
+packages/core/tests/integration/skeleton.test.ts	P1	test	node	GET / renders the page, hydrates, and returns 404 for an unknown path
+packages/core/tests/integration/ingress.test.ts	P3	test	node	Hostile targets, method discipline, and security headers on every status
+packages/core/tests/integration/nonce.test.ts	P3	test	node	One nonce on the CSP header, the head, the render, and a stored hit
+packages/core/tests/integration/auth.test.ts	P4	test	node	Layout auth in front of a public page, response() routes, and two interleaved requests
+packages/core/tests/integration/stream.test.ts	P5	test	node	Abort closes the stream. A throw before the shell is a 500 with no body bytes
+packages/core/tests/integration/navigation.test.ts	P6	test	node	A data URL returns NDJSON. A document URL returns HTML. Stale skips page loaders only
+packages/core/tests/integration/server-fn.test.ts	P7	test	node	Dispatch order, CSRF, and the no-store default
+packages/core/tests/integration/middleware.test.ts	P8	test	node	Filter case, mount, and proxy
+packages/core/tests/integration/cache.test.ts	P10	test	node	A 401 is not stored. A second user does not receive the first user's body
+packages/core/tests/workerd/handler.test.ts	P3	test	workers	The workers handler delegates unmatched GET to the assets binding and calls waitUntil
+packages/core/tests/workerd/cache-api.test.ts	P10	test	workers	Tombstones and epochs round-trip in workerd's cache
+packages/core/tests/size/budget.json	P1	config	-	Gzip budget per export. Starts empty and gains a row when the export is born
+packages/core/tests/size/size.test.ts	P1	test	node	A row over budget fails. An export missing from the budget fails
+packages/core/tests/types/propagation.test.ts	P1	test	node	expectTypeOf and @ts-expect-error for every matrix row in dx/types.md. Included in the core typecheck (B74)
+packages/core/tests/types/app.test.ts	P7	test	node	Runs the types generator on the fixture, then tsc --noEmit. An unused @ts-expect-error exits non-zero (B74)
+packages/core/tests/types/app/package.json	P7	app	-	Type fixture package. Not a Playwright app (B74)
+packages/core/tests/types/app/tsconfig.json	P7	app	-	strict, exactOptionalPropertyTypes, noUncheckedIndexedAccess, verbatimModuleSyntax, noPropertyAccessFromIndexSignature
+packages/core/tests/types/app/src/register.d.ts	P7	app	-	Augments auth, env, and serverContext. Does not write the route maps
+packages/core/tests/types/app/src/checks.ts	P7	app	-	One positive assignment and one @ts-expect-error for every matrix row marked app
+packages/core/tests/types/app/src/query.ts	P7	app	-	Imports @lovrozagar/flare/query so the generator sets hasQueryClient
+packages/core/tests/types/app/src/fns/echo.ts	P7	app	-	Server function with input and a handler, plus a stream export
+packages/core/tests/types/app/src/routes/_root_/root.root-layout.tsx	P7	app	-	Root preloader returns { requestId: string }. No auth
+packages/core/tests/types/app/src/routes/_root_/about/about.page.tsx	P7	app	-	No params. Loader returns { title: string }. No search validator
+packages/core/tests/types/app/src/routes/_root_/users/[id]/user.page.tsx	P7	app	-	Param id. Loader returns Promise of { user: { name: string } }. Head reads loaderData
+packages/core/tests/types/app/src/routes/_root_/docs/[...path]/docs.page.tsx	P7	app	-	Catch-all path: string[]
+packages/core/tests/types/app/src/routes/_root_/opt/[[locale]]/opt.page.tsx	P7	app	-	Optional locale: string or undefined. The key is required
+packages/core/tests/types/app/src/routes/_root_/files/[[...rest]]/files.page.tsx	P7	app	-	Optional catch-all rest: string[] or undefined. The key is required
+packages/core/tests/types/app/src/routes/_root_/(blog)/blog.layout.tsx	P7	app	-	authenticate(). Preloader role is admin or editor. Loader returns { section: string }. Search validator { section: string }
+packages/core/tests/types/app/src/routes/_root_/(blog)/post/[slug]/post.page.tsx	P7	app	-	No auth method. Own preloader role admin. Loader returns { title: string }. No search validator
+packages/core/tests/types/app/src/routes/_root_/(blog)/post/[slug]/comments/comments.page.tsx	P7	app	-	No auth method. Grandchild of the authenticated layout
+packages/core/tests/types/app/src/routes/_root_/search/search.page.tsx	P7	app	-	Search validator { q: string; page?: number }
+packages/core/tests/types/app/src/routes/_root_/filter/filter.page.tsx	P7	app	-	Search validator { tag?: string }
+packages/core/tests/types/app/src/routes/_root_/nosrch/nosrch.page.tsx	P7	app	-	Search validator returns {}
+packages/core/tests/types/app/src/routes/_root_/shaped/[id]/shaped.page.tsx	P7	app	-	input params replaces id: string with id: number
+packages/core/tests/types/app/src/routes/_root_/public/public.page.tsx	P7	app	-	authorize only. No authenticate
+packages/core/tests/types/app/src/routes/_root_/guest/guest.page.tsx	P7	app	-	authenticateOptional()
+packages/core/tests/types/app/src/routes/_root_/raw/raw.page.tsx	P7	app	-	response() route. No render
+packages/core/tests/types/app/src/routes/_root_/reviews/reviews.page.tsx	P7	app	-	Loader defers reviews: { quote: string }
+packages/core/tests/types/app/src/routes/_root_/static/static.page.tsx	P7	app	-	Render only. No loader
+packages/core/tests/types/app/src/routes/_root_/[_]id]/page.page.tsx	P7	app	-	Literal [id] segment. No params
+packages/core/tests/types/app/src/routes/_root_/seg/seg.segment.ts	P7	app	-	Segment. cache only. _type segment
+packages/core/tests/types/app/src/routes/[locale]/_root_/locale.root-layout.tsx	P7	app	-	Second document root. No auth
+packages/core/tests/types/app/src/routes/[locale]/_root_/about/about.page.tsx	P7	app	-	Param locale before the root marker
+packages/core/tests/e2e/playwright.config.ts	P1	config	-	One Playwright config. Linux runs chromium and firefox. macOS runs webkit. CI runs both (B70)
+packages/core/tests/e2e/boot.ts	P1	script	node	Start one e2e app on an ephemeral port. Does not copy the app (B70)
+packages/core/tests/e2e/boot.test.ts	P1	test	node	Unit cases for boot.ts
+packages/core/tests/e2e/minimal.test.ts	P1	test	node	Playwright: the minimal app renders and hydrates. Calls boot
+packages/core/tests/e2e/navigation.test.ts	P6	test	node	Playwright: client navigation, back, and scroll. Calls boot
+packages/core/tests/e2e/server-fn.test.ts	P7	test	node	Playwright: a server function round-trip. Calls boot
+packages/core/tests/e2e/i18n.test.ts	P13	test	node	Playwright: locale prefix, cookie, and a shared page without Set-Cookie. Calls boot
+packages/core/tests/e2e/golden.test.ts	P14	test	node	Packed tarball over HTTP: dev, vite build, then createNodeListener, createBunFetch, and miniflare. Not Playwright (B70)
+packages/core/tests/e2e/apps/minimal/package.json	P1	app	-	App package
+packages/core/tests/e2e/apps/minimal/tsconfig.json	P1	app	-	App tsconfig
+packages/core/tests/e2e/apps/minimal/vite.config.ts	P1	app	-	App vite config
+packages/core/tests/e2e/apps/minimal/src/client.tsx	P1	app	-	createClient
+packages/core/tests/e2e/apps/minimal/src/server.ts	P1	app	-	createServer
+packages/core/tests/e2e/apps/minimal/src/router.ts	P1	app	-	createRouter
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/root.root-layout.tsx	P1	app	-	Document root
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/home.page.tsx	P1	app	-	Home page
+packages/core/tests/e2e/apps/minimal/wrangler.jsonc	P3	app	-	Workers config for the same app
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/about.page.tsx	P6	app	-	Second page for navigation
+packages/core/tests/e2e/apps/minimal/src/fns/echo.ts	P7	app	-	One server function
+packages/core/tests/e2e/apps/basepath/package.json	P2	app	-	App package
+packages/core/tests/e2e/apps/basepath/tsconfig.json	P2	app	-	App tsconfig
+packages/core/tests/e2e/apps/basepath/vite.config.ts	P2	app	-	App vite config
+packages/core/tests/e2e/apps/basepath/src/client.tsx	P2	app	-	createClient
+packages/core/tests/e2e/apps/basepath/src/server.ts	P2	app	-	createServer
+packages/core/tests/e2e/apps/basepath/src/router.ts	P2	app	-	createRouter
+packages/core/tests/e2e/apps/basepath/src/routes/_root_/root.root-layout.tsx	P2	app	-	Document root
+packages/core/tests/e2e/apps/basepath/src/routes/_root_/home.page.tsx	P2	app	-	Home page
+packages/core/tests/e2e/apps/basepath/wrangler.jsonc	P12	app	-	Workers config so workers-prod can boot this app (B70)
+packages/core/tests/e2e/apps/i18n/package.json	P13	app	-	i18n app
+packages/core/tests/e2e/apps/i18n/tsconfig.json	P13	app	-	i18n app tsconfig
+packages/core/tests/e2e/apps/i18n/vite.config.ts	P13	app	-	i18n app vite config
+packages/core/tests/e2e/apps/i18n/src/client.tsx	P13	app	-	createClient
+packages/core/tests/e2e/apps/i18n/src/server.ts	P13	app	-	createServer with the locale slot
+packages/core/tests/e2e/apps/i18n/src/router.ts	P13	app	-	createRouter
+packages/core/tests/e2e/apps/i18n/src/routes/_root_/root.root-layout.tsx	P13	app	-	Document root
+packages/core/tests/e2e/apps/i18n/src/routes/_root_/[locale]/locale.segment.ts	P13	app	-	Locale segment
+packages/core/tests/e2e/apps/i18n/src/routes/_root_/[locale]/home.page.tsx	P13	app	-	Localized home
+packages/core/tests/e2e/apps/i18n/wrangler.jsonc	P13	app	-	Workers config so workers-prod can boot this app (B70)
+packages/core/src/features/fonts/generate.ts	P14	src	node	Turn registry.json into one module per family. No runtime entry imports it (B78)
+packages/core/src/features/fonts/generate.test.ts	P14	test	node	Unit cases for generate.ts
+packages/core/src/features/fonts/registry.json	P14	config	-	Family metadata. The only hand-written font data
+packages/core/src/features/fonts/shared/generated/*.ts	P14	generated	-	One module per registry key. Produced only by generate.ts. Default export (B78)
+scripts/release.ts	P14	script	node	Pack, run the golden test, and publish from a green tag
+scripts/release.test.ts	P14	test	node	Unit cases for release.ts

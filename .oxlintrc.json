@@ -19,8 +19,7 @@
 		"**/*.gen.ts",
 		"**/*.gen.d.ts",
 		"**/target/**",
-		"e2e/apps/tauri/src-tauri/**",
-		"packages/core/src/styles/cn-vendor/**"
+		"_v0/**"
 	],
 	"categories": {
 		"correctness": "error",
@@ -36,7 +35,7 @@
 	},
 	"overrides": [
 		{
-			"files": ["e2e/apps/**/*.{ts,tsx}", "packages/core/tests/**/*.{ts,tsx}"],
+			"files": ["packages/core/tests/**/*.{ts,tsx}"],
 			"rules": {
 				"typescript/no-explicit-any": "off",
 				"no-unsafe-finally": "off"

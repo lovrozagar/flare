@@ -1,0 +1,158 @@
+# Bit 03 — Ingress
+
+Creates every `P3` row. Security headers, the Bun and Workers adapters, and method discipline on every status.
+
+## Extends
+
+`server/lifecycle/finalize.test.ts` gains the header cases. `adapters/node/request.test.ts` gains nothing new; bit 01 already covers the hostile targets.
+
+`src/exports/index.ts` re-exports `nonce`.
+
+`server/render/document.test.ts` gains `nonce option`: `renderToStream` is called with the request nonce string. A string CSP calls it without a nonce.
+
+`server/render/state.test.ts` gains `nonce field`: the script assigns the nonce it was given, and `empty nonce`: `""` is assigned as `""`.
+
+`server/render/head.test.ts` gains `jsonld nonce`: the jsonLd script's nonce equals the request nonce.
+
+`tests/e2e/playwright.config.ts` gains `bun-dev-chromium`, `bun-dev-firefox`, and `bun-dev-webkit`. `boot.test.ts` gains `bun dev`: `{ app: "minimal", runtime: "bun", mode: "dev" }` answers GET `/` with 200. `workers` with `mode: "dev"` still throws. There is no `workers-dev` project. The Playwright files that already exist run on all three `bun-dev` browsers with no new cases (B70).
+
+## Cases
+
+### `server/security/defaults.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `no powered by` | a default response | no `X-Powered-By` |
+| `hsts` | an https response | `max-age` and `includeSubDomains`, no `preload` |
+| `nosniff` | every response | `X-Content-Type-Options: nosniff` |
+| `referrer` | every response | `Referrer-Policy: strict-origin-when-cross-origin` |
+
+The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Origin-Opener-Policy: same-origin`. A test lists the names so adding a header is a deliberate change.
+
+### `server/security/csp.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `nonce pair` | a default policy | `script-src` and `style-src-elem` contain the nonce. `style-src` does not |
+| `style attr` | the default | `style-src-attr` is `'unsafe-inline'` |
+| `per request` | two requests | two different nonces |
+| `string drops nonce` | CSP set to a string | the string is sent and it contains no nonce |
+| `false drops header` | CSP set to `false` | no `Content-Security-Policy` header is produced and no nonce is generated |
+| `length` | a default policy | the nonce is 32 hex characters |
+| `dev http` | the request URL is `http://localhost` | `upgrade-insecure-requests` is absent |
+| `permissions deny` | the default | `payment=()` and the other nine features are `()` |
+| `star` | one feature set to `true` | that feature is `*` |
+| `origin quote` | an allowlist entry containing `"` | throw |
+| `partial keeps defaults` | the directives object names only `img-src` | `img-src` is the user's list. `script-src`, `style-src-elem`, and the other unnamed directives stay at the defaults, and the nonce is still appended |
+| `style copy` | `style-src` is set and `style-src-elem` is not | `style-src-elem` is that list plus the nonce |
+| `dev extras` | `vite dev` | `connect-src` contains the four localhost `ws:` and `http:` sources, `script-src` contains `'unsafe-eval'`, `worker-src` contains `blob:`, and HSTS and COOP are absent. The nonce stays |
+
+### `server/security/apply.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `overwrites` | the body arrived with a stored `Content-Security-Policy` | the fresh policy replaces it |
+| `route security` | the page's `.security()` sets `X-Frame-Options` to `SAMEORIGIN` | that value wins over the server default |
+| `callback override` | `createServer({ security: () => ({ "X-Frame-Options": "SAMEORIGIN" }) })` | that value is the header |
+| `false removes` | `.security({ "X-Frame-Options": false })` | the header is absent |
+| `headers() cannot` | `.headers()` sets `Content-Security-Policy` | the security value still wins |
+| `both cookies` | the parent sets `set-cookie` to `a` and the child sets it to `b` | both values, parent then child. An undefined child value keeps the parent. Every other header is child-wins |
+
+### `server/lifecycle/finalize.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `401 has the set` | a thrown `unauthenticated()` | 401 and every default security header |
+| `404 has the set` | no match | 404 and the same headers |
+| `redirect has the set` | a 301 | 301, `Location`, and the same headers |
+| `500 has the set` | a thrown `Error` | 500 and the same headers |
+| `flare-build` | any response | `flare-build` is the build id |
+| `no server timing` | any response | Flare set no `Server-Timing` field |
+
+### `server/lifecycle/methods.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `order` | a page that matches | match runs, then the method rule |
+| `response methods` | a `.response()` page, OPTIONS and POST | both reach the function. The adapter does not drain the POST body first. There is no method list |
+| `unmatched post` | no route matches, POST | 405 with `Allow: GET, HEAD, OPTIONS`. On Workers the assets binding is not called. An unmatched GET or HEAD is not-found |
+
+### `adapters/node/body.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `unread post` | POST to a page, which is 405, with a body | the body is drained or the socket is closed before the next request on that connection |
+| `response route keeps the stream` | a `.response()` route reads the body | the adapter does not drain it first |
+
+### `adapters/bun/serve.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `body limit` | `bodyLimit: 1024` | the Bun serve options contain `maxRequestBodySize: 1024` |
+| `default` | no `bodyLimit` | `maxRequestBodySize` is 1 MiB |
+
+The test imports the options builder, not `Bun.serve`, so it runs under Node.
+
+### `adapters/workers/handler.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `waitUntil` | a handler calls `background` | `ctx.waitUntil` received that promise |
+| `assets GET` | no route matches, method GET, `assets: "ASSETS"` | the binding's `fetch` is called with the canonical request |
+| `assets POST` | no route matches, method POST | 405, the binding is not called |
+| `assets escape` | the path is canonicalized before the binding sees it | the binding receives the canonical path |
+| `assets missing` | `assets: "ASSETS"` and the env has no such binding | 500, logged once |
+| `connecting ip` | `CF-Connecting-IP` is `1.2.3.4`, and a request where the header is absent | `clientIp` is `1.2.3.4`, or absent |
+
+### `tests/workerd/handler.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `real binding` | the same unmatched GET inside workerd | the assets binding responds |
+| `waitUntil` | a deferred task | `waitUntil` was invoked |
+
+### `packages/core/lint/funnel-only.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `new Response in loaders` | `return new Response()` under `server/loaders` | lint error |
+| `new Response in finalize` | the same under `finalize.ts` | no error |
+| `new Response in proxy` | the upstream `fetch` result | no error |
+
+### `packages/core/lint/no-flare-header-branching.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `request header` | `request.headers.get("flare-isr")` | lint error |
+| `response header` | `headers.set("flare-render", "ssr")` inside `finalize.ts` | no error |
+
+### `shared/csp/nonce.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `server read` | a request whose nonce is `abc` | `nonce()` returns `abc` |
+| `server outside` | no request | throw |
+| `server fn` | a server-function request | throw |
+| `client` | `self.flare.nonce` is `abc` | `nonce()` returns `abc` |
+| `client absent` | `self.flare` has no `nonce` | `""` |
+
+### `tests/integration/nonce.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `same value` | a head inline script, a jsonLd script, a custom style, and a render that prints `nonce()` | each nonce attribute equals the CSP header nonce, and the printed value equals it |
+| `nested` | a page renders a child, and that child renders another child that prints `nonce()` | the child prints the CSP header nonce. The page passed no nonce prop |
+| `second request` | two document requests | two nonces. Each document matches its own header |
+| `string omits` | CSP is a string | the header is that string, those tags have no nonce attribute, and the printed `nonce()` is empty |
+| `false omits` | CSP is `false` | no `Content-Security-Policy` header, those tags have no nonce attribute, and the printed `nonce()` is empty |
+
+### `tests/integration/ingress.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `preview is not required` | the test boots `createNodeListener` | the assertions pass without Vite |
+| `hostile table` | the four hostile targets from bit 01 | 400 on this adapter too, through a full `fetch` |
+
+## Done
+
+Every status the skeleton can produce carries the security header set. Workers unmatched GET reaches the assets binding. Unmatched POST does not.

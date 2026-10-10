@@ -1,0 +1,115 @@
+# Bit 12 — Dev server and prerender
+
+Creates every `P12` row. `flare codegen` writes the same files the plugin writes. Prerender fails the build when a route does not return 2xx.
+
+## Extends
+
+`vite/codegen/auth-hint.test.ts` is now also executed from `vite/prerender/run.ts`.
+
+`tests/e2e/playwright.config.ts` gains `node-prod-chromium`, `node-prod-firefox`, `node-prod-webkit`, and the same three browsers for `bun-prod` and for `workers-prod` (B70). `boot.test.ts` gains `node prod`, `bun prod`, and `workers prod`: each answers GET `/` with 200, and the HTML contains no `@vite/client`. `workers` with `mode: "dev"` still throws. Each prod call runs `vite build` on Node into its own temp `outDir`. `createBunFetch` and miniflare serve that output. They do not run the build. `apps/basepath/wrangler.jsonc` is born in this bit so `workers-prod` can boot `basepath`. `vite preview` is not a project. The Playwright files that already exist run on those nine projects with no new cases.
+
+## Cases
+
+### `vite/dev/guard.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `same origin` | `Sec-Fetch-Site: same-origin` | the endpoint runs |
+| `missing site` | no `Sec-Fetch-Site` header | the endpoint runs |
+| `same site` | `Sec-Fetch-Site: same-site` | 403 |
+| `none` | `Sec-Fetch-Site: none` | 403 |
+| `cross site` | `Sec-Fetch-Site: cross-site` | 403 |
+| `no star` | a response from a dev endpoint | no `Access-Control-Allow-Origin: *` |
+| `absent in prod` | the plugin's prod config | the dev endpoints are not registered |
+
+### `vite/prerender/run.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `200` | a static page | exit 0, the body stored through the write path |
+| `401` | a static page under an auth layout | exit 1, stderr contains the route id, nothing written |
+| `500` | the loader throws | exit 1, the route id on stderr |
+| `hint mismatch` | the hint says public and the module requires auth | exit 1 before rendering |
+| `credential less` | the populate request | the URL is `site` plus the pathname. No search, no cookie, no authorization, and no copied request headers |
+| `dynamic false` | `dynamicParams: false` and a slug that was not listed | that slug is not rendered and is not written |
+| `defer rejected` | `defer: "resolve"` and the promise rejects | exit 1, stderr contains the route id, nothing written |
+| `missing params` | a dynamic SSG route with no `params` and no parent params | exit 1 before rendering |
+| `no static store` | an SSG route and `createServer` has no `static` | the server renders per request and warns once |
+| `concurrency` | the default | one route renders at a time |
+| `env` | `env: () => ({ TOKEN: "t" })` | the function is called at prerender, and the request env is `{ TOKEN: "t" }` |
+| `exclude` | the route id is in `exclude` | that route is not rendered |
+| `prerender off` | an SSG route and `prerender` omitted | exit 1, stderr names the route, nothing written |
+| `isr true` | `isr: true` and `prerender` omitted | exit 0, that route is not rendered |
+| `isr empty` | `isr: {}` and `prerender` omitted | exit 0, that route is not rendered |
+| `authorize` | `authorize` anywhere on the chain | exit 1, stderr names the route, nothing written |
+| `optional auth` | `authenticateOptional` and no `authorize` | the anonymous body is prerendered |
+
+### `vite/prerender/artifacts.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `seed shape` | a successful prerender | the JSON has `renderedAt`, `tags`, `seed: true`, and `data` |
+| `path` | route id `_root_/about`, build `b`, default `assetsBase` | the file is `<client>/assets/_flare-static/b/_root_%2Fabout.json` |
+| `base follows assets` | `assetsBase: "/cdn"` | the file is under `/cdn/_flare-static/` |
+| `empty tags` | an SSG route that declares no tags | the file is written and `tags` is `[]`. `revalidate` does not delete it |
+
+An SSG route with no tags still prerenders. Purge does not apply to `_flare-static` (`dx/cache.md`). A seed file whose `tags` key is absent is refused by the bit 10 checker.
+
+### `vite/bin/codegen.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `writes both` | a fixture app | `routes.gen.ts` and `types.gen.d.ts` match what the plugin would write |
+| `watch is the plugin` | the bin's command list | the only command is `codegen` |
+
+### `vite/plugin/environments.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `order` | client, ssr, and worker configs present | client builds before ssr, worker is last |
+| `no worker` | no wrangler config | the worker environment is absent |
+
+### `vite/plugin/build-id.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `dev` | no client manifest, or `vite dev` | the id is `dev` |
+| `hash` | a manifest with two JS files and one CSS file | the id is the first 12 hex digits of sha256 over the sorted deduped root-relative URLs |
+| `missing` | a production build and the manifest path is absent | the build fails and names that path |
+
+### `vite/dev/handler.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `peel` | an HTML body with an inline script and an inline style | `transformIndexHtml` sees the document without those tags, and the response puts them back |
+| `dot path` | a request whose last segment contains a dot | `transformIndexHtml` is called with `/` |
+| `stream` | a non-HTML body | the bytes are streamed. A client abort cancels the response |
+| `middleware mode` | Vite `middlewareMode` | this handler is not installed |
+| `set-cookie` | two `Set-Cookie` values | both are separate headers |
+
+### `vite/plugin/environments.test.ts` (build shape)
+
+| test | case | result |
+| --- | --- | --- |
+| `defaults` | `flare()` with no outDir override | client output is `dist/client` with the manifest on. SSR output is `dist/server/server.js`. `cssCodeSplit` is false |
+| `assets dir` | `assetsBase: "/"` and `build.assetsDir` set to something other than `assets` | the plugin throws. The URL prefix is `/` and the on-disk directory is `assets` |
+
+### `vite/plugin/flare.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `solid options` | the `solid()` call | the argument is `{ ssr: true, extensions: [".tsx", ".jsx"] }` and `start` is absent |
+
+### `vite/codegen/routes.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `client literals` | a route whose `cache.client` and `intercept` are literals | the generated record carries `prefetch`, `staleTime`, `gcTime`, `prefetchStaleTime`, `prefetchGcTime`, `cacheDeferred`, `intercept.from`, and `intercept.render` |
+| `no auth copy` | the route calls `authenticate` and sets `ssg` | those fields are not on the generated record. A non-literal client field is omitted and is not a build error |
+| `watch` | a route file under `src/routes` changes during `vite dev` | both generated files are rewritten after a short debounce. A startup failure fails the build. A watch failure is reported and the process stays up. File order is UTF-16 code unit |
+| `unchanged` | the scan result is the same | the files are not written |
+| `empty` | the route set becomes empty | both generated files are removed |
+
+## Done
+
+A prerender that produces a 401 fails the build and writes nothing. Dev endpoints are absent from the production plugin. `vite dev` on Node and Bun is `vite/dev/handler.ts`.
