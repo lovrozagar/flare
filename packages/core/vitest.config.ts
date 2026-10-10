@@ -16,6 +16,13 @@ export default defineConfig({
 				"src/exports/**",
 				"src/features/fonts/shared/generated/**",
 			],
+			thresholds: {
+				perFile: true,
+				lines: 100,
+				branches: 100,
+				functions: 100,
+				statements: 100,
+			},
 		},
 		projects: [
 			{
