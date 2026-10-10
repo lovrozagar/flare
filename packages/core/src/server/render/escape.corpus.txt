@@ -1,0 +1,4 @@
+script close	</script>
+dollar brace	$`
+line separator	\u2028\u2029
+attr quote	"\n
