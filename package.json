@@ -54,9 +54,9 @@
 	"type": "module",
 	"scripts": {
 		"prepare": "git config --get core.hooksPath >/dev/null || git config core.hooksPath .githooks || true",
-		"test": "vitest run --config packages/core/vitest.config.ts",
-		"typecheck": "tsc -p packages/core/tsconfig.json --noEmit && tsc -p packages/core/tsconfig.src.json --noEmit",
-		"lint": "sh -c 'set -e; found=$(find packages scripts -type f \\( -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.js\" -o -name \"*.mjs\" \\) ! -path \"*/node_modules/*\" -print -quit); if [ -n \"$found\" ]; then oxlint; fi'",
+		"test": "bun run --filter @lovrozagar/flare test",
+		"typecheck": "bun run --filter @lovrozagar/flare type:check && sh -c 'if find packages/core/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.test.ts\" ! -name \"*.test.tsx\" -print -quit 2>/dev/null | grep -q .; then bun run --filter @lovrozagar/flare type:check:src; fi' && bunx tsc -p tsconfig.scripts.json --noEmit",
+		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check"
