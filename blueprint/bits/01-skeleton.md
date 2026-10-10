@@ -16,6 +16,7 @@ Creates every `P1` row. At the end, the minimal app answers `GET /` with a docum
 | `optional` | `[[id]]` and `[[...rest]]` | optional forms |
 | `literal brackets` | `[_]id]` | a static segment whose text is `[id]` |
 | `group is not a segment` | `(auth)` | ignored by the pattern parser |
+| `bad brackets` | `[user-id]` and `[_]blog` | throw. Only the four bracket forms, and `[_]text]` with no `]` inside `text`, are legal (`dx/routes.md`) |
 
 ### `shared/route-tree/match.test.ts`
 
