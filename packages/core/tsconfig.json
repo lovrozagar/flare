@@ -4,6 +4,8 @@
 		"jsx": "preserve",
 		"jsxImportSource": "solid-js",
 		"types": ["node"],
+		"allowJs": true,
+		"checkJs": false,
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitReturns": true
 	},

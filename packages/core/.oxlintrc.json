@@ -1,0 +1,41 @@
+{
+	"$schema": "../../../node_modules/oxlint/configuration_schema.json",
+	"plugins": ["typescript", "unicorn", "oxc", "vitest"],
+	"jsPlugins": [{ "name": "flare", "specifier": "./lint/boundaries.js" }],
+	"categories": {
+		"correctness": "error"
+	},
+	"rules": {
+		"complexity": ["error", 15],
+		"max-depth": ["error", 4],
+		"max-lines": ["error", 300],
+		"max-lines-per-function": ["error", 60],
+		"max-params": ["error", 3],
+		"vitest/expect-expect": "error",
+		"vitest/no-conditional-expect": "error",
+		"vitest/no-focused-tests": "error",
+		"vitest/no-disabled-tests": "error",
+		"flare/boundaries": "error",
+		"flare/no-module-side-effects": "error",
+		"flare/no-module-state": "error",
+		"flare/no-v8-ignore": "error"
+	},
+	"overrides": [
+		{
+			"files": ["**/*.test.ts", "**/*.test.tsx"],
+			"rules": {
+				"max-lines": ["error", 500]
+			}
+		},
+		{
+			"files": ["tests/e2e/**"],
+			"plugins": ["typescript", "unicorn", "oxc"],
+			"rules": {
+				"vitest/expect-expect": "off",
+				"vitest/no-conditional-expect": "off",
+				"vitest/no-focused-tests": "off",
+				"vitest/no-disabled-tests": "off"
+			}
+		}
+	]
+}
