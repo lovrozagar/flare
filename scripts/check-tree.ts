@@ -78,14 +78,23 @@ function extraFiles(root: string, rows: Row[], registryPresent: boolean): string
 }
 
 function missingFiles(root: string, rows: Row[]): string[] {
+	const concrete = rows.filter((row) => !row.path.includes("*"));
+	let highest = -1;
+	let lastListed = -1;
+	for (let index = 0; index < PHASES.length; index += 1) {
+		const phase = PHASES[index];
+		const inPhase = concrete.filter((row) => row.phase === phase);
+		if (inPhase.length > 0) lastListed = index;
+		if (inPhase.some((row) => exists(join(root, row.path)))) highest = index;
+	}
 	const errors: string[] = [];
-	for (const phase of PHASES) {
-		const concrete = rows.filter((row) => row.phase === phase && !row.path.includes("*"));
-		if (concrete.length === 0) continue;
-		const missing = concrete.filter((row) => !exists(join(root, row.path)));
-		if (missing.length === 0) continue;
-		if (missing.length === concrete.length) break;
-		for (const row of missing) errors.push(row.path);
+	const limit = highest === lastListed ? highest : highest - 1;
+	for (let index = 0; index <= limit; index += 1) {
+		const phase = PHASES[index];
+		for (const row of concrete) {
+			if (row.phase !== phase) continue;
+			if (!exists(join(root, row.path))) errors.push(row.path);
+		}
 	}
 	return errors;
 }
