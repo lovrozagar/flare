@@ -3,8 +3,7 @@ export type RequestBody = {
 	on: (event: "end", listener: () => void) => void;
 };
 
-export function settleRequestBody(req: RequestBody, read: boolean): Promise<void> {
-	if (read) return Promise.resolve();
+export function settleRequestBody(req: RequestBody): Promise<void> {
 	return new Promise((resolve) => {
 		req.on("end", () => resolve());
 		req.resume();

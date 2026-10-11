@@ -1,10 +1,19 @@
+import { settleRequestBody } from "./body.ts";
+
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void };
 
 type Server = {
 	fetch: (request: Request, env: undefined, ctx: Ctx) => Promise<Response> | Response;
 };
 
-type NodeReq = { method: string; url: string; headers: Record<string, string> };
+type NodeReq = {
+	method: string;
+	url: string;
+	headers: Record<string, string>;
+	resume?: () => void;
+	on?: (event: "data" | "end", listener: (chunk: Uint8Array) => void) => void;
+	readableEnded?: boolean;
+};
 
 type NodeRes = {
 	writeHead: (status: number) => void;
@@ -25,15 +34,48 @@ export function createNodeListener(server: Server, options?: unknown): (req: Nod
 type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<unknown>> };
 
 async function pump(job: Job): Promise<void> {
-	const request = new Request(`http://localhost${job.req.url}`, { method: job.req.method, headers: job.req.headers });
+	const body = requestBody(job.req);
+	const init: RequestInit = {
+		method: job.req.method,
+		headers: requestHeaders(job.req.headers),
+	};
+	if (body !== undefined) {
+		init.body = body.stream;
+		Object.assign(init, { duplex: "half" });
+	}
+	const request = new Request(`http://localhost${job.req.url}`, init);
 	const response = await job.server.fetch(request, undefined, {
 		waitUntil(promise) {
 			job.retained.add(promise);
 		},
 	});
-	job.res.writeHead(response.status);
 	writeHeaders(job.res, response.headers);
-	await writeBody(job.res, response.body as ReadableStream<Uint8Array>);
+	job.res.writeHead(response.status);
+	await writeBody(job.res, response.body);
+	if (body !== undefined && job.req.readableEnded !== true) await body.release();
+}
+
+function requestHeaders(headers: NodeReq["headers"]): Headers {
+	return new Headers(headers);
+}
+
+function requestBody(req: NodeReq): { stream: ReadableStream<Uint8Array>; release: () => Promise<void> } | undefined {
+	if (req.method === "GET" || req.method === "HEAD") return undefined;
+	const on = req.on;
+	const resume = req.resume;
+	if (on === undefined || resume === undefined) return undefined;
+	return {
+		stream: new ReadableStream<Uint8Array>({
+			start(controller) {
+				on("data", (chunk) => controller.enqueue(chunk));
+				on("end", () => controller.close());
+			},
+			pull() {
+				resume();
+			},
+		}),
+		release: () => settleRequestBody({ on, resume }),
+	};
 }
 
 function writeHeaders(res: NodeRes, headers: Headers): void {
@@ -45,7 +87,11 @@ function writeHeaders(res: NodeRes, headers: Headers): void {
 	if (cookies.length > 0) res.setHeader("set-cookie", cookies);
 }
 
-async function writeBody(res: NodeRes, body: ReadableStream<Uint8Array>): Promise<void> {
+async function writeBody(res: NodeRes, body: ReadableStream<Uint8Array> | null): Promise<void> {
+	if (body === null) {
+		res.end();
+		return;
+	}
 	const reader = body.getReader();
 	for (;;) {
 		const step = await reader.read();

@@ -13,9 +13,11 @@ function settle(): Promise<void> {
 	});
 }
 
+function noop(): void {}
+
 it("flush", async () => {
 	const encoder = new TextEncoder();
-	let pushSecond: () => void = () => undefined;
+	let pushSecond: () => void = noop;
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(encoder.encode("one"));
@@ -52,7 +54,7 @@ it("flush", async () => {
 
 it("backpressure", async () => {
 	const encoder = new TextEncoder();
-	let pushSecond: () => void = () => undefined;
+	let pushSecond: () => void = noop;
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(encoder.encode("one"));
@@ -63,7 +65,7 @@ it("backpressure", async () => {
 		},
 	});
 	const writes: string[] = [];
-	let drain: () => void = () => undefined;
+	let drain: () => void = noop;
 	const listener = createNodeListener({ fetch: async () => new Response(body) });
 	listener(req(), {
 		writeHead() {},
@@ -85,6 +87,31 @@ it("backpressure", async () => {
 	drain();
 	await settle();
 	expect(writes).toEqual(["one", "two"]);
+});
+
+it("post without a socket", async () => {
+	for (const method of ["HEAD", "POST"]) {
+		let ended = false;
+		const listener = createNodeListener({
+			fetch: async () => new Response(null, { status: method === "POST" ? 405 : 200 }),
+		});
+		listener(
+			{ method, url: "/page", headers: { "x-test": "1" } },
+			{
+				writeHead() {},
+				setHeader() {},
+				write() {
+					return true;
+				},
+				end() {
+					ended = true;
+				},
+				once() {},
+			},
+		);
+		await settle();
+		expect(ended).toBe(true);
+	}
 });
 
 it("no options", () => {
