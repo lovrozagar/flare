@@ -1,7 +1,7 @@
-import { createContext, useContext } from "solid-js";
+import { createContext, useContext, type Context } from "solid-js";
 import type { Router } from "./create-router.ts";
 
-export const RouterContext = createContext<Router>();
+export const RouterContext: Context<Router> = createContext<Router>();
 
 export function useRouter(): Router {
 	try {

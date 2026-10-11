@@ -52,3 +52,29 @@ jobs:
       - run: bun run typecheck
       - run: bun run test
       - run: bun scripts/check-tree.ts
+
+  e2e-linux:
+    name: e2e-linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium firefox
+      - run: bun run test:e2e
+
+  e2e-mac:
+    name: e2e-mac
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps webkit
+      - run: bun run test:e2e

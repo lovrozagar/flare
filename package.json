@@ -55,6 +55,7 @@
 	"scripts": {
 		"prepare": "git config --get core.hooksPath >/dev/null || git config core.hooksPath .githooks || true",
 		"test": "bun run --filter @lovrozagar/flare test",
+		"test:e2e": "bunx playwright test -c packages/core/tests/e2e/playwright.config.ts",
 		"typecheck": "bun run --filter @lovrozagar/flare type:check && sh -c 'if find packages/core/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.test.ts\" ! -name \"*.test.tsx\" -print -quit 2>/dev/null | grep -q .; then bun run --filter @lovrozagar/flare type:check:src; fi' && bunx tsc -p tsconfig.scripts.json --noEmit",
 		"lint": "oxlint && oxlint -c packages/core/.oxlintrc.json packages/core",
 		"lint:fix": "oxlint --fix",
