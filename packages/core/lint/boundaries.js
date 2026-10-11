@@ -85,6 +85,7 @@ const rule = {
 		return {
 			ImportDeclaration(node) {
 				if (context.filename.includes(".test.")) return;
+				if (context.filename.includes("/tests/")) return;
 				const from = srcRel(context.filename);
 				if (from === null) return;
 				if (allowed(from, String(node.source.value))) return;
