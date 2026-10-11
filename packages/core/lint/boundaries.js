@@ -1,7 +1,9 @@
 // Oxlint registers one plugin name. This module publishes every flare rule.
 import { rule as noModuleSideEffects } from "./no-module-side-effects.js";
 import { rule as noModuleState } from "./no-module-state.js";
+import { rule as locationOnlyInRedirect } from "./location-only-in-redirect.js";
 import { rule as noV8Ignore } from "./no-v8-ignore.js";
+import { rule as pathPrefix } from "./path-prefix.js";
 
 const PERMIT = new Set([
 	"shared>shared",
@@ -102,5 +104,7 @@ export default {
 		"no-module-side-effects": noModuleSideEffects,
 		"no-module-state": noModuleState,
 		"no-v8-ignore": noV8Ignore,
+		"path-prefix": pathPrefix,
+		"location-only-in-redirect": locationOnlyInRedirect,
 	},
 };
