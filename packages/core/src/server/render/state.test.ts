@@ -1,22 +1,19 @@
 import { expect, it } from "vitest";
-import { insertState, stateScript } from "./state.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
+import { renderDocument } from "./document.ts";
+import { insertState } from "./state.ts";
 
-const match = {
-	id: "_root_",
-	params: {},
-	search: {},
-	data: { n: 1 },
-	preloader: null,
-	head: null,
-	error: null,
-};
-
-it("one script", () => {
-	const script = stateScript({ matches: [match] });
-	expect(script.match(/self\.flare/g)).toHaveLength(1);
-	const source = script.replace("<script>", "").replace("</script>", "");
+it("one script", async () => {
+	const html = await renderDocument({
+		request: new Request("http://localhost/"),
+		router: createRouter({ layouts: {}, routeTree: [] }),
+		loader: () => ({ n: 1 }),
+		render: () => "page",
+	});
+	expect(html.match(/self\.flare/g)).toHaveLength(1);
+	const source = html.slice(html.indexOf("self.flare="), html.indexOf("</script>"));
 	const value = Function(`const self = {}; ${source}; return self.flare;`)() as {
-		matches: Array<{ data: { n: number } }>;
+		matches: Array<Record<string, unknown> & { data: { n: number } }>;
 	};
 	expect(value.matches[0]?.data.n).toBe(1);
 	expect(Object.keys(value.matches[0] ?? {}).sort()).toEqual([
