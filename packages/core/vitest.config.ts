@@ -31,7 +31,7 @@ export default defineConfig({
 					name: "unit-node",
 					environment: "node",
 					include: nodeInclude,
-					exclude: ["tests/e2e/**", "src/client/**/*.test.ts"],
+					exclude: ["src/client/**/*.test.ts"],
 				},
 			},
 			{
