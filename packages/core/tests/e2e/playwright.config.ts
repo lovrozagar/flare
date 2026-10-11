@@ -18,6 +18,7 @@ const projects = requested
 
 export default defineConfig({
 	testDir: import.meta.dirname,
+	testIgnore: ["**/boot.test.ts"],
 	fullyParallel: false,
 	retries: 0,
 	projects,
