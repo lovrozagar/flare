@@ -59,4 +59,5 @@ it("both cookies", () => {
 	expect(merged["x-other"]).toBe("child");
 	expect(merged["x-keep"]).toBe("stay");
 	expect(mergeHeaders({ "set-cookie": "a" }, { "set-cookie": undefined })["set-cookie"]).toBe("a");
+	expect(mergeHeaders({ "x-other": "parent" }, { "set-cookie": "b" })["set-cookie"]).toBe("b");
 });

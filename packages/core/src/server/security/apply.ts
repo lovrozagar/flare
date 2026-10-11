@@ -45,7 +45,8 @@ export function mergeHeaders(
 	for (const [key, value] of Object.entries(child)) {
 		if (value === undefined) continue;
 		if (key === "set-cookie") {
-			result[key] = [String(result[key]), value];
+			const prior = result[key];
+			result[key] = typeof prior === "string" ? [prior, value] : value;
 			continue;
 		}
 		result[key] = value;
