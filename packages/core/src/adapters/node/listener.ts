@@ -25,7 +25,7 @@ export function createNodeListener(server: Server, options?: unknown): (req: Nod
 type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<unknown>> };
 
 async function pump(job: Job): Promise<void> {
-	const request = new Request(`http://localhost${job.req.url}`, { method: job.req.method });
+	const request = new Request(`http://localhost${job.req.url}`, { method: job.req.method, headers: job.req.headers });
 	const response = await job.server.fetch(request, undefined, {
 		waitUntil(promise) {
 			job.retained.add(promise);

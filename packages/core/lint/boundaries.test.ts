@@ -77,6 +77,7 @@ it("boundaries", () => {
 			'import { shared } from "../shared/ok.ts";\nimport { local } from "./local.ts";\nimport "solid-js";\nexport const value = shared ?? local;\n',
 		"src/features/theme/shared/use-shared.ts":
 			'import { shared } from "../../../shared/ok.ts";\nimport { local } from "./local.ts";\nexport const value = shared ?? local;\n',
+		"tests/e2e/apps/minimal/src/page.ts": 'import { router } from "./router.ts";\nexport const page = router;\n',
 	});
 	expect(offender).not.toBe(0);
 	expect(clean).toBe(0);
