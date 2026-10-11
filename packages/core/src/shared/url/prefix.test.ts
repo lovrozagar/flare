@@ -27,5 +27,6 @@ it("not a prefix slash-slash", () => {
 
 it("case fold", () => {
 	const [prefix, path] = row("case fold");
-	expect(hasPrefix(prefix, path)).toBe(true);
+	expect(hasPrefix(prefix, path, { caseSensitive: false })).toBe(true);
+	expect(hasPrefix(prefix, path, { caseSensitive: true })).toBe(false);
 });
