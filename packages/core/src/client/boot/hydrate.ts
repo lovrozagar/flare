@@ -29,7 +29,9 @@ export function readState(): ClientState {
 }
 
 export function hydrateDocument(router: Router): void {
-	dom._$HY = { done: true, events: [], completed: new WeakSet(), r: {} };
+	// Solid treats `_$HY.done` as "already hydrated" and then calls render(), which drops server markup.
+	const runtime: NonNullable<Dom["_$HY"]> = { done: false, events: [], completed: new WeakSet(), r: {} };
+	dom._$HY = runtime;
 	const root = dom.document.getElementById("app") as HTMLElement;
 	hydrate(
 		() =>
@@ -42,5 +44,6 @@ export function hydrateDocument(router: Router): void {
 			}),
 		root,
 	);
+	runtime.done = true;
 	dom.document.documentElement.setAttribute("data-flare-hydrated", "");
 }
