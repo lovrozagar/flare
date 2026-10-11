@@ -1,5 +1,10 @@
 import { expect, it } from "vitest";
-import { generateRoutes } from "./routes.ts";
+import { defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts";
+
+it("define helpers", () => {
+	expect(defineRouteTree(["_root_"])).toEqual(["_root_"]);
+	expect(defineLayouts(["root"])).toEqual(["root"]);
+});
 
 it("one route", () => {
 	const source = generateRoutes(["_root_/home.page.tsx"]).source;
