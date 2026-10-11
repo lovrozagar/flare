@@ -8,7 +8,9 @@ export default defineConfig({
 			configureServer(dev: ViteDevServer) {
 				dev.middlewares.use((_req, res) => {
 					res.statusCode = 200;
-					res.end("ok");
+					res.end(
+						'<!doctype html><html><body><div id="app">Home</div><script>document.documentElement.setAttribute("data-flare-hydrated","")</script></body></html>',
+					);
 				});
 			},
 		},

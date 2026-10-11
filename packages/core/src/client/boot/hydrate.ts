@@ -42,4 +42,5 @@ export function hydrateDocument(router: Router): void {
 			}),
 		root,
 	);
+	dom.document.documentElement.setAttribute("data-flare-hydrated", "");
 }
