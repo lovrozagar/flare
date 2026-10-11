@@ -20,6 +20,7 @@ export async function routeMethod(
 	const matched = input.match();
 	if (matched === undefined) return unmatched(request);
 	if (matched.kind === "response") return matched.handle(request);
+	if (request.method !== "GET" && request.method !== "HEAD") return applyMethod(request, new Response(null));
 	return applyMethod(request, matched.render());
 }
 
