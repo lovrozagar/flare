@@ -18,7 +18,9 @@
 		"flare/boundaries": "error",
 		"flare/no-module-side-effects": "error",
 		"flare/no-module-state": "error",
-		"flare/no-v8-ignore": "error"
+		"flare/no-v8-ignore": "error",
+		"flare/path-prefix": "error",
+		"flare/location-only-in-redirect": "error"
 	},
 	"overrides": [
 		{
