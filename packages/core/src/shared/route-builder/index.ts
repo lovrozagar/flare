@@ -3,4 +3,5 @@ export { createLayout } from "./layout.ts";
 export { createRootLayout } from "./root-layout.ts";
 export { createChain } from "./chain.ts";
 export { createBoundaries } from "./boundaries.ts";
+export { createPathSegment } from "./segment.ts";
 export type { AuthenticateMode, CacheConfig, HeadConfig } from "./types.ts";
