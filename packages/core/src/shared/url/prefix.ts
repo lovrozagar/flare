@@ -1,3 +1,5 @@
-export function hasPrefix(prefix: string, path: string): boolean {
-	return path.toLowerCase().startsWith(`${prefix.toLowerCase()}/`);
+export function hasPrefix(prefix: string, path: string, options?: { caseSensitive?: boolean }): boolean {
+	const left = options?.caseSensitive === true ? prefix : prefix.toLowerCase();
+	const right = options?.caseSensitive === true ? path : path.toLowerCase();
+	return right.startsWith(`${left}/`);
 }
