@@ -28,10 +28,12 @@ export function generateRoutes(files: readonly string[]): GeneratedRoutes {
 		if (file.endsWith(PAGE)) pages.push(item(file, PAGE));
 		else if (file.endsWith(LAYOUT)) layouts.push(item(file, LAYOUT));
 	}
+	assertRoot(files, pages);
 	assertOne(pages);
 	const routes = pages.map(toRoute);
 	assertUnique(routes);
 	assertShadow(routes);
+	assertKinds(routes);
 	return { source: render(routes, layouts), routes, layouts };
 }
 
@@ -43,9 +45,14 @@ function item(file: string, suffix: string): Item {
 function toRoute(page: Item): RouteGen {
 	const segments: string[] = [];
 	const params: Record<string, string> = {};
+	const names = new Set<string>();
 	let optional = "";
 	for (const part of page.id.split("/")) {
 		const read = readPart(part);
+		for (const name of Object.keys(read.params)) {
+			if (names.has(name)) throw new Error(`${page.file} repeated param ${name}`);
+			names.add(name);
+		}
 		if (read.text) segments.push(read.text);
 		if (read.optional) optional = read.optional;
 		Object.assign(params, read.params);
@@ -67,6 +74,12 @@ function readPart(part: string): Part {
 
 function isRoot(part: string): boolean {
 	return part === "_root_" || part === "_admin_";
+}
+
+function assertRoot(files: readonly string[], pages: readonly Item[]): void {
+	if (pages.length === 0) return;
+	if (files.some((file) => file.endsWith(".root-layout.tsx"))) return;
+	throw new Error(`no root: ${pages.map((page) => page.file).join(", ")}`);
 }
 
 function assertOne(pages: readonly Item[]): void {
@@ -98,6 +111,30 @@ function assertShadow(routes: readonly RouteGen[]): void {
 		);
 		if (sibling) throw new Error(`shadow: ${route.file}, ${sibling.file}`);
 	}
+}
+
+function assertKinds(routes: readonly RouteGen[]): void {
+	const seen = new Map<string, string>();
+	for (const route of routes) {
+		const parts = route.id.split("/");
+		for (const [index, folder] of parts.entries()) {
+			const kind = paramKind(folder);
+			if (kind === undefined) continue;
+			const key = `${parts.slice(0, index).join("/")}:${kind}`;
+			const prior = seen.get(key);
+			if (prior !== undefined) throw new Error(`two params: ${prior}, ${route.file}`);
+			seen.set(key, route.file);
+		}
+	}
+}
+
+function paramKind(folder: string): string | undefined {
+	if (folder.startsWith("[[...")) return "optional-catch-all";
+	if (folder.startsWith("[...")) return "catch-all";
+	if (folder.startsWith("[[")) return "optional";
+	if (folder.startsWith("[_]")) return undefined;
+	if (folder.startsWith("[")) return "dynamic";
+	return undefined;
 }
 
 function parent(id: string): string {
