@@ -31,15 +31,16 @@ export default defineConfig({
 					name: "unit-node",
 					environment: "node",
 					include: nodeInclude,
-					exclude: ["tests/e2e/**"],
+					exclude: ["tests/e2e/**", "src/client/**/*.test.ts"],
 				},
 			},
 			{
 				extends: true,
+				resolve: { conditions: ["browser", "development", "module", "import", "default"] },
 				test: {
 					name: "unit-dom",
 					environment: "jsdom",
-					include: ["src/**/*.test.tsx", "lint/**/*.test.tsx", "tests/**/*.test.tsx"],
+					include: ["src/**/*.test.tsx", "lint/**/*.test.tsx", "tests/**/*.test.tsx", "src/client/**/*.test.ts"],
 					exclude: ["tests/e2e/**"],
 					passWithNoTests: true,
 				},
