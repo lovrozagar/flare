@@ -59,5 +59,6 @@ it("control and NUL", () => {
 
 it("base path", () => {
 	expect(path("base path", { basePath: "/app" })).toBe("/");
+	expect(canonicalPath("/app", { basePath: "/app", trailingSlash: "always" })).toEqual({ path: "/" });
 	expect(canonicalPath("/app/about", { basePath: "/app" })).toEqual({ path: "/app/about" });
 });
