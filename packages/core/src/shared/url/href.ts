@@ -54,5 +54,5 @@ function encodeParam(value: string): string {
 }
 
 function isHex(char: string): boolean {
-	return char !== "" && "0123456789ABCDEF".includes(char);
+	return char !== "" && "0123456789ABCDEFabcdef".includes(char);
 }

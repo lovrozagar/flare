@@ -54,4 +54,8 @@ it("no double encode", () => {
 	const url = buildUrl({ to: users, params: { id: "a%2Fb" } });
 	expect(url).toBe("/users/a%2Fb");
 	expect(url.match(/%2F/g)).toHaveLength(1);
+	const lower = buildUrl({ to: users, params: { id: "a%2fb" } });
+	expect(lower).toBe("/users/a%2Fb");
+	expect(lower.match(/%2F/g)).toHaveLength(1);
+	expect(lower.includes("%2f")).toBe(false);
 });
