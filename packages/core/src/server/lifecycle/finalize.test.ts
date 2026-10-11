@@ -1,5 +1,16 @@
 import { expect, it } from "vitest";
+import { unauthenticated } from "../../shared/errors/http.ts";
+import { defaultHeaders } from "../security/defaults.ts";
 import { finalize } from "./finalize.ts";
+
+const url = "https://example.com/";
+
+function expectSet(response: Response): void {
+	for (const [name, value] of defaultHeaders(url)) {
+		expect(response.headers.get(name)).toBe(value);
+	}
+	expect(response.headers.has("server-timing")).toBe(false);
+}
 
 it("only finalize builds a Response", async () => {
 	const stage = { status: 201, body: "hi" };
@@ -13,4 +24,53 @@ it("only finalize builds a Response", async () => {
 it("flare-render", () => {
 	const response = finalize({ status: 200, body: "<html></html>", render: "ssr" });
 	expect(response.headers.get("flare-render")).toBe("ssr");
+});
+
+it("401 has the set", () => {
+	const response = finalize({
+		status: 200,
+		body: "page",
+		url,
+		build: "b1",
+		run: () => {
+			unauthenticated();
+		},
+	});
+	expect(response.status).toBe(401);
+	expectSet(response);
+});
+
+it("404 has the set", () => {
+	const response = finalize({ status: 404, body: "Not found", url, build: "b1" });
+	expect(response.status).toBe(404);
+	expectSet(response);
+});
+
+it("redirect has the set", () => {
+	const response = finalize({ status: 301, body: "", location: "/next", url, build: "b1" });
+	expect(response.status).toBe(301);
+	expect(response.headers.get("location")).toBe("/next");
+	expectSet(response);
+});
+
+it("500 has the set", () => {
+	const response = finalize({
+		status: 200,
+		body: "page",
+		url,
+		build: "b1",
+		run: () => {
+			throw new Error("boom");
+		},
+	});
+	expect(response.status).toBe(500);
+	expectSet(response);
+});
+
+it("flare-build", () => {
+	expect(finalize({ status: 200, body: "ok", build: "build-42", url }).headers.get("flare-build")).toBe("build-42");
+});
+
+it("no server timing", () => {
+	expect(finalize({ status: 200, body: "ok", build: "build-42", url }).headers.has("server-timing")).toBe(false);
 });
