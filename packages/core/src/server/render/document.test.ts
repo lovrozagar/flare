@@ -12,6 +12,7 @@ function request(): Request {
 it("calls renderToStream", async () => {
 	const html = await renderDocument({ request: request(), router, render: () => "home" });
 	expect(html).toContain("home");
+	expect(html).toContain("self.flare=");
 });
 
 it("signal is the request signal", async () => {
@@ -27,7 +28,6 @@ it("signal is the request signal", async () => {
 			seen = options.signal;
 			options.onError?.();
 			options.onHead?.("");
-			options.onCompleteShell?.({ write() {} });
 			return Promise.resolve("home");
 		},
 	});

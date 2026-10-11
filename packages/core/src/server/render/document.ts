@@ -2,6 +2,7 @@ import { createComponent } from "solid-js";
 import * as web from "@solidjs/web";
 import { RouterContext } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
+import { stateScript } from "./state.ts";
 
 type StreamOptions = {
 	nonce?: string;
@@ -40,7 +41,10 @@ export async function renderDocument(input: DocumentInput): Promise<string> {
 			manifest: {},
 			onError: () => undefined,
 			onHead: () => undefined,
-			onCompleteShell: () => undefined,
+			// Solid has already flushed the shell. This write is the state script (B83).
+			onCompleteShell(info) {
+				info.write(stateScript({ matches: [] }));
+			},
 		},
 	);
 }
