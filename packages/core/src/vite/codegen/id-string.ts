@@ -10,7 +10,7 @@ export function assertId(source: string, file: string): void {
 }
 
 function idFor(file: string): string {
-	const route: RouteGen | undefined = generateRoutes([file]).routes[0];
+	const route: RouteGen | undefined = generateRoutes([file, "_root_/root.root-layout.tsx"]).routes[0];
 	if (route === undefined) throw new Error(file);
 	return route.id;
 }

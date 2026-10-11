@@ -1,72 +1,78 @@
 import { expect, it } from "vitest";
 import { defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts";
 
+const rootLayout = "_root_/root.root-layout.tsx";
+
+function routesOf(files: readonly string[]) {
+	return generateRoutes([...files, rootLayout]);
+}
+
 it("define helpers", () => {
 	expect(defineRouteTree(["_root_"])).toEqual(["_root_"]);
 	expect(defineLayouts(["root"])).toEqual(["root"]);
 });
 
 it("one route", () => {
-	const source = generateRoutes(["_root_/home.page.tsx"]).source;
+	const source = routesOf(["_root_/home.page.tsx"]).source;
 	expect(source).toContain('from "./_root_/home.page.tsx"');
 	expect(source).toContain("export const routeTree");
 	expect(source).toContain("export const layouts");
 });
 
 it("filename", () => {
-	const route = generateRoutes(["_root_/home.page.tsx"]).routes[0];
+	const route = routesOf(["_root_/home.page.tsx"]).routes[0];
 	expect(route?.id).toBe("_root_");
 	expect(route?.urls).toEqual(["/"]);
 });
 
 it("about", () => {
-	const route = generateRoutes(["_root_/about/about.page.tsx"]).routes[0];
+	const route = routesOf(["_root_/about/about.page.tsx"]).routes[0];
 	expect(route?.id).toBe("_root_/about");
 	expect(route?.urls).toEqual(["/about"]);
 });
 
 it("group", () => {
-	const generated = generateRoutes(["_root_/(blog)/(blog).layout.tsx", "_root_/(blog)/post/post.page.tsx"]);
+	const generated = routesOf(["_root_/(blog)/(blog).layout.tsx", "_root_/(blog)/post/post.page.tsx"]);
 	expect(generated.routes[0]?.urls).toEqual(["/post"]);
 	expect(generated.layouts[0]?.id).toBe("_root_/(blog)");
 });
 
 it("param", () => {
-	const route = generateRoutes(["_root_/users/[id]/[id].page.tsx"]).routes[0];
+	const route = routesOf(["_root_/users/[id]/[id].page.tsx"]).routes[0];
 	expect(route?.urls).toEqual(["/users/[id]"]);
 	expect(route?.params).toEqual({ id: "string" });
 });
 
 it("catch-all", () => {
-	const route = generateRoutes(["_root_/files/[...path]/[...path].page.tsx"]).routes[0];
+	const route = routesOf(["_root_/files/[...path]/[...path].page.tsx"]).routes[0];
 	expect(route?.urls).toEqual(["/files/[...path]"]);
 	expect(route?.params).toEqual({ path: "string[]" });
 });
 
 it("optional", () => {
-	const route = generateRoutes(["_root_/optional-locale/[[locale]]/[[locale]].page.tsx"]).routes[0];
+	const route = routesOf(["_root_/optional-locale/[[locale]]/[[locale]].page.tsx"]).routes[0];
 	expect(route?.urls).toEqual(["/optional-locale", "/optional-locale/<tag>"]);
 	expect(route?.params).toEqual({ locale: "string | undefined" });
 });
 
 it("optional catch-all", () => {
-	const route = generateRoutes(["_root_/[[...rest]]/[[...rest]].page.tsx"]).routes[0];
+	const route = routesOf(["_root_/[[...rest]]/[[...rest]].page.tsx"]).routes[0];
 	expect(route?.urls).toContain("/");
 	expect(route?.params).toEqual({ rest: "string[] | undefined" });
 });
 
 it("admin root", () => {
-	const route = generateRoutes(["_admin_/dashboard/dashboard.page.tsx"]).routes[0];
+	const route = routesOf(["_admin_/dashboard/dashboard.page.tsx"]).routes[0];
 	expect(route?.urls).toEqual(["/dashboard"]);
 });
 
 it("locale root", () => {
-	const route = generateRoutes(["[locale]/_root_/about/about.page.tsx"]).routes[0];
+	const route = routesOf(["[locale]/_root_/about/about.page.tsx"]).routes[0];
 	expect(route?.urls).toEqual(["/[locale]/about"]);
 });
 
 it("literal brackets", () => {
-	const route = generateRoutes(["_root_/[_]id]/home.page.tsx"]).routes[0];
+	const route = routesOf(["_root_/[_]id]/home.page.tsx"]).routes[0];
 	expect(route?.urls).toEqual(["/[id]"]);
 });
 
@@ -74,20 +80,51 @@ it("ignored", () => {
 	expect(generateRoutes(["_parts/widget.tsx"]).routes).toEqual([]);
 });
 
+it("repeated param", () => {
+	expect(() => routesOf(["_root_/[id]/posts/[id]/post.page.tsx"])).toThrow("post.page.tsx");
+	const distinct = routesOf(["_root_/[id]/[slug]/post.page.tsx"]).routes[0];
+	expect(distinct?.params).toEqual({ id: "string", slug: "string" });
+});
+
+it("two params", () => {
+	const same = ["_root_/[id]/a.page.tsx", "_root_/[slug]/b.page.tsx"];
+	expect(() => routesOf(same)).toThrow("[id]/a.page.tsx");
+	expect(() => routesOf(same)).toThrow("[slug]/b.page.tsx");
+	const each = ["_root_/[id]/a.page.tsx", "_root_/[[locale]]/b.page.tsx", "_root_/[...path]/c.page.tsx"];
+	expect(routesOf(each).routes).toHaveLength(3);
+	const catchAlls = ["_root_/[id]/a.page.tsx", "_root_/[...path]/c.page.tsx", "_root_/[[...rest]]/d.page.tsx"];
+	expect(routesOf(catchAlls).routes).toHaveLength(3);
+	const otherParent = ["_root_/users/[id]/a.page.tsx", "_root_/posts/[slug]/b.page.tsx"];
+	expect(routesOf(otherParent).routes).toHaveLength(2);
+});
+
+it("index folder", () => {
+	const route = routesOf(["_root_/index/home.page.tsx"]).routes[0];
+	expect(route?.id).toBe("_root_/index");
+	expect(route?.urls).toEqual(["/index"]);
+});
+
+it("no root", () => {
+	const pages = ["_root_/home.page.tsx", "_root_/about/about.page.tsx"];
+	expect(() => generateRoutes(pages)).toThrow("home.page.tsx");
+	expect(() => generateRoutes(pages)).toThrow("about/about.page.tsx");
+	expect(routesOf(pages).routes).toHaveLength(2);
+});
+
 it("duplicate url", () => {
 	const files = ["_root_/dashboard/dashboard.page.tsx", "_admin_/dashboard/dashboard.page.tsx"];
-	expect(() => generateRoutes(files)).toThrow(/_root_\/dashboard\/dashboard\.page\.tsx/);
-	expect(() => generateRoutes(files)).toThrow(/_admin_\/dashboard\/dashboard\.page\.tsx/);
+	expect(() => routesOf(files)).toThrow(/_root_\/dashboard\/dashboard\.page\.tsx/);
+	expect(() => routesOf(files)).toThrow(/_admin_\/dashboard\/dashboard\.page\.tsx/);
 });
 
 it("shadow", () => {
 	const files = ["_root_/files/readme/readme.page.tsx", "_root_/files/[...path]/[...path].page.tsx"];
-	expect(() => generateRoutes(files)).toThrow(/readme\.page\.tsx/);
-	expect(() => generateRoutes(files)).toThrow(/\[\.\.\.path\]\.page\.tsx/);
+	expect(() => routesOf(files)).toThrow(/readme\.page\.tsx/);
+	expect(() => routesOf(files)).toThrow(/\[\.\.\.path\]\.page\.tsx/);
 });
 
 it("two pages", () => {
 	const files = ["_root_/home.page.tsx", "_root_/index.page.tsx"];
-	expect(() => generateRoutes(files)).toThrow(/home\.page\.tsx/);
-	expect(() => generateRoutes(files)).toThrow(/index\.page\.tsx/);
+	expect(() => routesOf(files)).toThrow(/home\.page\.tsx/);
+	expect(() => routesOf(files)).toThrow(/index\.page\.tsx/);
 });
