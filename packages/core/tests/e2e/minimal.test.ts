@@ -18,3 +18,24 @@ test("hydrate", async ({ page }: { page: Page; browser: Browser }) => {
 	await expect(page.locator("#app")).toHaveText("Home");
 	await expect(page.locator("html")).toHaveAttribute("data-flare-hydrated", "");
 });
+
+test.describe("basepath", () => {
+	let base: Boot;
+
+	test.beforeAll(async ({ browserName }, workerInfo) => {
+		const name = workerInfo.project.name ?? `node-dev-${browserName}`;
+		const [runtime, mode] = name.split("-");
+		base = await boot({ app: "basepath", runtime: runtime ?? "node", mode: mode ?? "dev" });
+	});
+
+	test.afterAll(async () => {
+		await base.close();
+	});
+
+	test("base path serves /app", async ({ page }: { page: Page; browser: Browser }) => {
+		const home = await page.goto(`${base.origin}/app`);
+		expect(home?.status()).toBe(200);
+		const root = await page.goto(`${base.origin}/`);
+		expect(root?.status()).toBe(404);
+	});
+});

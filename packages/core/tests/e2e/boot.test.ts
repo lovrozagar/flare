@@ -49,7 +49,14 @@ it("bun", async () => {
 });
 
 it("basepath", async () => {
-	await expect(boot({ app: "basepath", runtime: "node", mode: "dev" })).rejects.toThrow(/basepath/);
+	const session = await boot({ app: "basepath", runtime: "node", mode: "dev" });
+	expect(session.origin).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+	const app = await fetch(`${session.origin}/app`);
+	expect(app.status).toBe(200);
+	const root = await fetch(`${session.origin}/`);
+	expect(root.status).toBe(404);
+	await session.close();
+	await expect(fetch(`${session.origin}/app`)).rejects.toThrow(/fetch failed|ECONNREFUSED/);
 });
 
 it("no copy", async () => {

@@ -14,7 +14,7 @@ export type Boot = {
 };
 
 export async function boot(input: { app: string; runtime: string; mode: string }): Promise<Boot> {
-	if (input.app !== "minimal") throw new Error(input.app);
+	if (input.app !== "minimal" && input.app !== "basepath") throw new Error(input.app);
 	if (input.runtime !== "node") throw new Error(input.runtime);
 	if (input.mode !== "dev") throw new Error(input.mode);
 	const appDir = join(apps, input.app);
