@@ -1,0 +1,16 @@
+export const STAGES = [
+	"internal",
+	"canonical",
+	"mounts",
+	"rewrite",
+	"locale",
+	"middleware",
+	"server-function",
+	"match",
+	"method",
+	"validate",
+	"authorize",
+	"loaders",
+	"body",
+	"finalize",
+] as const;

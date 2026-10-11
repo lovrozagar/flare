@@ -13,6 +13,14 @@ export type GeneratedRoutes = { source: string; routes: RouteGen[]; layouts: Lay
 
 type Part = { text?: string; optional?: string; params: Record<string, string> };
 
+export function defineRouteTree<T>(tree: T): T {
+	return tree;
+}
+
+export function defineLayouts<T>(layouts: T): T {
+	return layouts;
+}
+
 export function generateRoutes(files: readonly string[]): GeneratedRoutes {
 	const pages: Item[] = [];
 	const layouts: LayoutGen[] = [];
