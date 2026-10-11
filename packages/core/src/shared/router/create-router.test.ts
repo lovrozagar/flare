@@ -58,6 +58,7 @@ it("base path is a route", () => {
 	});
 	expect(router.match("/app").id).toBe("_root_");
 	expect(router.match("/app/").id).toBe("_root_");
+	expect(router.match("/").id).toBeUndefined();
 });
 
 it("theme absent", () => {
