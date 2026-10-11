@@ -46,9 +46,24 @@ it("order", async () => {
 			};
 		},
 	});
-	expect(calls[0]).toBe("match");
+	expect(calls).toEqual(["match"]);
 	expect(response.status).toBe(405);
 	expect(response.headers.get("allow")).toBe("GET, HEAD, OPTIONS");
+	const allowed = await routeMethod(new Request("http://localhost/page", { method: "GET" }), {
+		match() {
+			calls.push("match");
+			return {
+				kind: "page",
+				render() {
+					calls.push("render");
+					return new Response("page", { status: 200 });
+				},
+			};
+		},
+	});
+	expect(calls).toEqual(["match", "match", "render"]);
+	expect(allowed.status).toBe(200);
+	expect(await allowed.text()).toBe("page");
 });
 
 it("response methods", async () => {
