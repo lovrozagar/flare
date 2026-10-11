@@ -1,0 +1,5 @@
+relative	/about
+javascript	javascript:alert(1)
+whitespace scheme	 java\\tscript:alert(1)
+data	data:text/html,hi
+control prefix	\u0001
