@@ -14,7 +14,8 @@ export function runValidator(validator: Validator, raw: unknown): unknown {
 	try {
 		if (typeof validator === "function") return validator(raw);
 		return shapeIssues(validator["~standard"].validate(raw).issues);
-	} catch {
-		return { status: 400, message: GENERIC };
+	} catch (error) {
+		const message = process.env.NODE_ENV === "production" ? GENERIC : (error as Error).message;
+		return { status: 400, message };
 	}
 }
