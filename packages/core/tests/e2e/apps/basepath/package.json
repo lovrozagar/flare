@@ -1,0 +1,5 @@
+{
+	"name": "basepath",
+	"private": true,
+	"type": "module"
+}
