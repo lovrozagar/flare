@@ -6,8 +6,11 @@ export function readParams(pattern: string, path: string): Record<string, string
 	const params: Record<string, string> = {};
 	for (const [index, folder] of folders.entries()) {
 		const segment = parseSegment(folder)[0];
-		if (segment === undefined || segment.kind !== "dynamic") continue;
-		params[segment.name] = upperHex(values[index]);
+		if (segment === undefined) throw new Error(folder);
+		if (segment.kind !== "dynamic") continue;
+		const value = values[index];
+		if (value === undefined) throw new Error(folder);
+		params[segment.name] = upperHex(value);
 	}
 	return params;
 }
