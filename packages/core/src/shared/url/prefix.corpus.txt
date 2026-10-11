@@ -1,0 +1,4 @@
+boundary	/admin	/admin/x
+not a prefix	/admin	/administrator
+not a prefix slash-slash	/admin	//admin
+case fold	/admin	/Admin/x
