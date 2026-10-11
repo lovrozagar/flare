@@ -1,4 +1,4 @@
-import { canonicalPath, type CanonicalOptions } from "../../shared/url/canonical.ts";
+import { canonicalPath, type CanonicalOptions, type CanonicalPath } from "../../shared/url/canonical.ts";
 
 export type PathRewrite = (path: string) => string | undefined;
 
@@ -12,11 +12,21 @@ export function applyCanonical(input: {
 }): CanonicalStep {
 	const parsed = new URL(input.url, "http://localhost");
 	const options = { trailingSlash: input.trailingSlash, caseSensitive: input.caseSensitive };
-	let path = (canonicalPath(parsed.pathname, options) as { path: string }).path;
+	const first = readPath(canonicalPath(parsed.pathname, options));
+	if (first === undefined) return { status: 400 };
+	let path = first;
 	if (input.rewrite) {
 		const next = input.rewrite(path);
-		if (typeof next === "string") path = (canonicalPath(next, options) as { path: string }).path;
+		if (typeof next === "string") {
+			const rewritten = readPath(canonicalPath(next, options));
+			if (rewritten === undefined) return { status: 400 };
+			path = rewritten;
+		}
 	}
 	if (path === parsed.pathname) return { status: 200 };
 	return { status: 301, location: `${path}${parsed.search}` };
+}
+
+function readPath(result: CanonicalPath): string | undefined {
+	return "path" in result ? result.path : undefined;
 }

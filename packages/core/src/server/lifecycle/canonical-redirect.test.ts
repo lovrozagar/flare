@@ -37,6 +37,15 @@ it("path string", () => {
 	applyCanonical({ url: "/old", rewrite: () => ({ pathname: "/new", search: "", hash: "" }) });
 });
 
+it("hostile", () => {
+	const result = applyCanonical({ url: "/%2f" });
+	expect(result.status).toBe(400);
+	expect(result).not.toHaveProperty("location");
+	const rewritten = applyCanonical({ url: "/old", rewrite: () => "/%2f" });
+	expect(rewritten.status).toBe(400);
+	expect(rewritten).not.toHaveProperty("location");
+});
+
 it("search kept", () => {
 	const result = applyCanonical({ url: "/About?q=1&q=2#top", caseSensitive: false });
 	expect(result).toEqual({ status: 301, location: "/about?q=1&q=2" });
