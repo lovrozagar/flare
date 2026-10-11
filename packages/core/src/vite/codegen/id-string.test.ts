@@ -19,6 +19,7 @@ it("rewrites on move", () => {
 
 it("mismatch fails", () => {
 	expect(() => assertId(`export default createPage("hand-edited");\n`, home)).toThrow(home);
+	expect(() => assertId(`export default function Page() {}`, home)).toThrow(home);
 });
 
 it("no route", () => {

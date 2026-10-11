@@ -5,8 +5,8 @@ export function writeId(source: string, file: string): string {
 }
 
 export function assertId(source: string, file: string): void {
-	const found = /createPage\("([^"]*)"\)/.exec(source) as RegExpExecArray;
-	if (found[1] !== idFor(file)) throw new Error(file);
+	const found = /createPage\("([^"]*)"\)/.exec(source);
+	if (found === null || found[1] !== idFor(file)) throw new Error(file);
 }
 
 function idFor(file: string): string {
