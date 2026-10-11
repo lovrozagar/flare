@@ -20,3 +20,7 @@ it("rewrites on move", () => {
 it("mismatch fails", () => {
 	expect(() => assertId(`export default createPage("hand-edited");\n`, home)).toThrow(home);
 });
+
+it("no route", () => {
+	expect(() => writeId(source, "_parts/widget.tsx")).toThrow("_parts/widget.tsx");
+});
