@@ -69,14 +69,16 @@ export function createRouter(options: RouterOptions): Router {
 
 function resolve(router: Router, path: string): Match {
 	const normalized = normalize(path, router.basePath);
+	if (normalized === undefined) return { notFoundRender: notFoundFor(router, path) };
 	const page = router.routeTree.find((route) => route.path === normalized);
 	if (page) return { id: page.id };
 	return { notFoundRender: notFoundFor(router, normalized) };
 }
 
-function normalize(path: string, basePath: string): string {
+function normalize(path: string, basePath: string): string | undefined {
+	if (basePath === "/") return path;
 	if (path === basePath || path === `${basePath}/`) return "/";
-	return path;
+	return undefined;
 }
 
 function notFoundFor(router: Router, path: string): Handler | undefined {
