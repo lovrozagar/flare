@@ -10,7 +10,7 @@ const failure = {
 it("standard schema failure", () => {
 	expect(runValidator(failure, {})).toEqual({
 		issues: [{ message: "bad", path: ["email"] }],
-		fieldErrors: { email: "bad" },
+		fieldErrors: { email: ["bad"] },
 	});
 });
 
@@ -28,6 +28,12 @@ it("throwing validator", () => {
 		expect(result.status).toBe(400);
 		expect(result.message).toBe("Something went wrong");
 		expect(result.message).not.toContain("secret-token");
+		process.env.NODE_ENV = "development";
+		const dev = runValidator(() => {
+			throw new Error("secret-token");
+		}, {}) as { status: number; message: string };
+		expect(dev.status).toBe(400);
+		expect(dev.message).toBe("secret-token");
 	} finally {
 		process.env.NODE_ENV = previous;
 	}

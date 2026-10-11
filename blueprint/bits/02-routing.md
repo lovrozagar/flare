@@ -63,7 +63,7 @@ Accepted units are `ms`, `s`, `m`, `h`, `d`. Anything else throws. No silent zer
 | test | case | result |
 | --- | --- | --- |
 | `standard schema failure` | a validator that returns issues | `{ issues, fieldErrors }` |
-| `fieldErrors is top-level` | an issue path `["user", "name"]` | `fieldErrors.user` is the message, `issues` keeps the full path |
+| `fieldErrors is top-level` | an issue path `["user", "name"]` | `fieldErrors.user` is `["required"]`. Two issues for `user` are both in that array. An empty path stays only in `issues`. `issues` keeps the full path |
 | `function validator` | `(raw) => raw` | the raw value |
 | `throwing validator` | a validator that throws | 400, the message is generic in production |
 
