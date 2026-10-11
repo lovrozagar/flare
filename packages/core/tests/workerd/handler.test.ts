@@ -11,8 +11,8 @@ const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run");
 await rm(root, { recursive: true, force: true });
 await mkdir(root, { recursive: true });
 const assets = join(root, "assets");
-await mkdir(assets);
-await writeFile(join(assets, "static.txt"), "from-assets");
+await mkdir(join(assets, "a"), { recursive: true });
+await writeFile(join(assets, "a", "static.txt"), "canonical-asset");
 const entry = join(root, "entry.ts");
 await writeFile(
 	entry,
@@ -72,9 +72,9 @@ afterAll(async () => {
 });
 
 it("real binding", async () => {
-	const response = await mf.dispatchFetch("https://example.com/static.txt");
+	const response = await mf.dispatchFetch("https://example.com/A//static.txt");
 	expect(response.status).toBe(200);
-	expect(await response.text()).toBe("from-assets");
+	expect(await response.text()).toBe("canonical-asset");
 }, 20000);
 
 it("waitUntil", async () => {
