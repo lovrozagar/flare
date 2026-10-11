@@ -12,6 +12,7 @@ export function canonicalPath(path: string, options: CanonicalOptions = {}): Can
 	if (typeof collapsed !== "string") return collapsed;
 	let next = options.caseSensitive === true ? collapsed : collapsed.toLowerCase();
 	if (options.trailingSlash === "never" && next.length > 1 && next.endsWith("/")) next = next.slice(0, -1);
+	if (options.trailingSlash === "always" && next !== "/" && !next.endsWith("/")) next = `${next}/`;
 	if (options.basePath !== undefined && next === options.basePath) return { path: "/" };
 	return { path: next };
 }
