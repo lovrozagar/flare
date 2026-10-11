@@ -43,7 +43,21 @@ export async function renderDocument(input: DocumentInput): Promise<string> {
 			onHead: () => undefined,
 			// Solid has already flushed the shell. This write is the state script (B83).
 			onCompleteShell(info) {
-				info.write(stateScript({ matches: [] }));
+				info.write(
+					stateScript({
+						matches: [
+							{
+								id: "",
+								params: {},
+								search: {},
+								data: data ?? null,
+								preloader: null,
+								head: null,
+								error: null,
+							},
+						],
+					}),
+				);
 			},
 		},
 	);
