@@ -1,0 +1,11 @@
+empty segments	/a//b
+trailing slash preserve	/a/
+trailing slash never	/a/
+case fold	/About
+scheme-relative	//evil.com/a
+backslash	/\evil
+encoded slashes	/%2f%2fevil
+dot dot	/a/../b
+dot dot encoded	/%2e%2e
+control and NUL	\u0000
+base path	/app
