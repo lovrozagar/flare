@@ -1,4 +1,4 @@
-import { generateRoutes } from "./routes.ts";
+import { generateRoutes, type RouteGen } from "./routes.ts";
 
 export function writeId(source: string, file: string): string {
 	return source.replace(/createPage\("[^"]*"\)/, `createPage("${idFor(file)}")`);
@@ -10,5 +10,7 @@ export function assertId(source: string, file: string): void {
 }
 
 function idFor(file: string): string {
-	return (generateRoutes([file]).routes[0] as { id: string }).id;
+	const route: RouteGen | undefined = generateRoutes([file]).routes[0];
+	if (route === undefined) throw new Error(file);
+	return route.id;
 }
