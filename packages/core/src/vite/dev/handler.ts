@@ -139,9 +139,10 @@ async function withVite(deps: DevDeps, url: string, html: string): Promise<strin
 
 function headTagsLast(html: string): string {
 	return html
-		.replace(PREPENDED, (_all: string, open: string, added: string, rest: string, close: string) =>
-			[open, rest, added, close].join(""),
-		)
+		.replace(PREPENDED, (_all: string, ...groups: string[]) => {
+			const [open, added, rest, close] = groups;
+			return [open, rest, added, close].join("");
+		})
 		.replace(HEAD_MARK, "");
 }
 
