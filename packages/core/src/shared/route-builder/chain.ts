@@ -10,13 +10,18 @@ export type CacheConfig =
 	| { isr: true | { revalidate?: string }; ssr?: never; ssg?: never }
 	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
 
-export type AuthContext = { auth: unknown };
+import type { HeadConfig } from "./types.ts";
+
+// What preloader, authorize, and loader receive (dx/types.md). Render does not receive auth.
+export type StepContext = { auth: unknown; request: Request; env: unknown };
 
 export type ChainAuth = { mode: true | "optional"; callerData: readonly string[] };
 
-type Step = (ctx: AuthContext) => unknown;
+type Step = (ctx: StepContext) => unknown;
 
-type Authorize = (ctx: AuthContext) => boolean | Promise<boolean>;
+type Authorize = (ctx: StepContext) => boolean | Promise<boolean>;
+
+type Head = (ctx: { loaderData: unknown }) => HeadConfig;
 
 type Render = (props: { loaderData: unknown }) => unknown;
 
@@ -27,6 +32,7 @@ export type ChainRecord = {
 	preloader?: Step;
 	loader?: Step;
 	response?: Step;
+	head?: Head;
 	render?: Render;
 };
 
@@ -38,6 +44,7 @@ export type Chain = {
 	preloader: (fn: Step) => Chain;
 	loader: (fn: Step) => Chain;
 	response: (fn: Step) => Chain;
+	head: (fn: Head) => Chain;
 	render: (fn: Render) => Chain;
 	record: () => ChainRecord;
 };
@@ -51,6 +58,7 @@ const ORDER = {
 	preloader: 7,
 	loader: 8,
 	response: 8,
+	head: 10,
 	render: 13,
 } as const;
 type Name = keyof typeof ORDER;
@@ -111,6 +119,11 @@ export function createChain(id: string): Chain {
 			record.response = fn;
 			return chain;
 		},
+		head(fn) {
+			advance(state, "head");
+			record.head = fn;
+			return chain;
+		},
 		render(fn) {
 			advance(state, "render");
 			record.render = fn;
@@ -128,6 +141,7 @@ export type Steps<B> = {
 	authorize: (fn: Authorize) => B;
 	preloader: (fn: Step) => B;
 	loader: (fn: Step) => B;
+	head: (fn: Head) => B;
 };
 
 // The methods a page, a layout, and a root layout share. Each stores on the chain and returns the builder.
@@ -155,6 +169,10 @@ export function chainSteps<B>(chain: Chain, self: () => B): Steps<B> {
 		},
 		loader(fn) {
 			chain.loader(fn);
+			return self();
+		},
+		head(fn) {
+			chain.head(fn);
 			return self();
 		},
 	};

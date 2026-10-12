@@ -8,15 +8,16 @@ import {
 } from "../../shared/errors/http.ts";
 import { redirect } from "../../shared/errors/redirect.ts";
 import { statusOf } from "../../shared/errors/status.ts";
-import type { AuthModule } from "./effective.ts";
+import type { ChainAuth } from "../../shared/route-builder/chain.ts";
 import { gate, type GateInput, type GateRoute } from "./gate.ts";
 
-const required: AuthModule = { authenticate: true };
-const optional: AuthModule = { authenticateOptional: true };
+const required: ChainAuth = { mode: true, callerData: [] };
+const optional: ChainAuth = { mode: "optional", callerData: [] };
+const request = new Request("http://localhost/");
 const session = { id: "ada" };
 
 function input(partial: Partial<GateInput> & Pick<GateInput, "authenticate">): GateInput {
-	return { kind: "document", shared: true, routes: [{ id: "page", auth: required }], ...partial };
+	return { kind: "document", request, env: {}, shared: true, routes: [{ id: "page", auth: required }], ...partial };
 }
 
 function storeSpy(): { reads: number; readStore: () => void } {

@@ -1,25 +1,26 @@
 import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts";
 import { statusOf } from "../../shared/errors/status.ts";
+import type { ChainAuth, StepContext } from "../../shared/route-builder/chain.ts";
 import type { RequestKind } from "../loaders/cascade.ts";
-import { effectiveAuth, type AuthModule } from "./effective.ts";
+import { effectiveAuth } from "./effective.ts";
 import { identity, type PolicyClass } from "./identity.ts";
-
-export type AuthContext = { auth: unknown };
 
 export type GateRoute = {
 	id: string;
-	auth?: Omit<AuthModule, "authorize">;
-	preloader?: (ctx: AuthContext) => unknown;
-	authorize?: (ctx: AuthContext) => boolean | Promise<boolean>;
+	auth?: ChainAuth;
+	preloader?: (ctx: StepContext) => unknown;
+	authorize?: (ctx: StepContext) => boolean | Promise<boolean>;
 };
 
 export type GateInput = {
 	kind: RequestKind;
+	request: Request;
+	env: unknown;
 	authenticate: () => unknown;
 	routes: readonly GateRoute[];
 	shared?: boolean;
 	readStore?: () => void;
-	response?: (ctx: AuthContext) => void;
+	response?: (ctx: StepContext) => void;
 };
 
 // "status" is an authenticate failure, a bare HTTP status for the whole chain. "stopped" fails the match at
@@ -34,11 +35,11 @@ type Taken = { kind: "session"; session: unknown } | { kind: "status"; status: n
 // Steps 10 and 11 of 02-system: authenticate once, then per match from the root down a null-session check,
 // preloader, and authorize, then the store read.
 export async function gate(input: GateInput): Promise<GateResult> {
-	const auth = effectiveAuth(input.routes.map(moduleOf));
+	const auth = effectiveAuth(input.routes);
 	const taken = await takeSession(auth.reads, input.authenticate);
 	if (taken.kind === "status") return taken;
 	const session = taken.session;
-	const ctx = { auth: session };
+	const ctx = { auth: session, request: input.request, env: input.env };
 	for (const [index, route] of input.routes.entries()) {
 		const failed = await guard(route, ctx);
 		if (failed !== undefined) return { kind: "stopped", index, session, error: failed.error };
@@ -47,12 +48,6 @@ export async function gate(input: GateInput): Promise<GateResult> {
 	if (input.response !== undefined) input.response(ctx);
 	else if (readsStore(input, policy)) input.readStore?.();
 	return { kind: "proceed", session, class: policy };
-}
-
-// An authorize function reads identity by itself, so the function is the only source of that flag.
-function moduleOf(route: GateRoute): AuthModule {
-	if (route.authorize === undefined) return route.auth ?? {};
-	return { ...route.auth, authorize: true };
 }
 
 // Only a shared document reads the store, and a required chain never does (B27).
@@ -73,8 +68,8 @@ async function takeSession(reads: boolean, authenticate: () => unknown): Promise
 }
 
 // Parent before child: this match's preloader and authorize settle before the next match starts.
-async function guard(route: GateRoute, ctx: AuthContext): Promise<{ error: unknown } | undefined> {
-	if (ctx.auth === null && route.auth?.authenticate === true) return { error: new UnauthenticatedError() };
+async function guard(route: GateRoute, ctx: StepContext): Promise<{ error: unknown } | undefined> {
+	if (ctx.auth === null && route.auth?.mode === true) return { error: new UnauthenticatedError() };
 	try {
 		await route.preloader?.(ctx);
 		if (route.authorize !== undefined && !(await route.authorize(ctx))) return { error: new UnauthorizedError() };

@@ -9,20 +9,27 @@ const boom = new Error("boom");
 function noop(): void {}
 
 function request(routes: readonly LoaderRoute[], extra: Partial<RunInput> = {}): RunInput {
-	return { kind: "document", authenticate: () => null, routes, ...extra };
+	return {
+		kind: "document",
+		request: new Request("http://localhost/"),
+		env: {},
+		authenticate: () => null,
+		routes,
+		...extra,
+	};
 }
 
 function throws(): never {
 	throw boom;
 }
 
-type Traced = { seen: string[]; status: number };
+type Traced = { seen: string[]; status: number; data: readonly unknown[]; heads: readonly unknown[] };
 
 async function traced(extra: Partial<RunInput>, authorized = true): Promise<Traced> {
 	const seen: string[] = [];
 	const route: LoaderRoute = {
 		id: "page",
-		auth: { authenticateOptional: true },
+		auth: { mode: "optional", callerData: [] },
 		validate: () => {
 			seen.push("validate");
 			return undefined;
@@ -32,8 +39,14 @@ async function traced(extra: Partial<RunInput>, authorized = true): Promise<Trac
 			seen.push("authorize");
 			return authorized;
 		},
-		loader: () => seen.push("loader"),
-		head: () => seen.push("head"),
+		loader: () => {
+			seen.push("loader");
+			return "page data";
+		},
+		head: () => {
+			seen.push("head");
+			return {};
+		},
 		headers: () => seen.push("headers"),
 	};
 	const run = await runLoaders(
@@ -47,7 +60,7 @@ async function traced(extra: Partial<RunInput>, authorized = true): Promise<Trac
 			...extra,
 		}),
 	);
-	return { seen, status: run.response.status };
+	return { seen, status: run.response.status, data: run.data, heads: run.heads };
 }
 
 it("order", async () => {
@@ -62,6 +75,8 @@ it("order", async () => {
 		"head",
 		"headers",
 	]);
+	expect(shared.data).toEqual(["page data"]);
+	expect(shared.heads).toEqual([{}]);
 	const data = await traced({ kind: "data" });
 	expect(data.seen).toEqual(["validate", "authenticate", "preloader", "authorize", "loader", "head", "headers"]);
 	const prefetch = await traced({ kind: "prefetch" });
@@ -83,7 +98,7 @@ it("auth args", async () => {
 			[
 				{
 					id: "page",
-					auth: { authenticate: true },
+					auth: { mode: true, callerData: [] },
 					preloader: (ctx) => seen.push(ctx.auth),
 					authorize: (ctx) => {
 						seen.push(ctx.auth);
@@ -245,7 +260,7 @@ async function fail(kind: RunInput["kind"]): Promise<{
 	let authenticated = false;
 	let overlay = false;
 	const { response } = await runLoaders(
-		request([{ id: "page", auth: { authenticate: true }, validate: () => [issue] }], {
+		request([{ id: "page", auth: { mode: true, callerData: [] }, validate: () => [issue] }], {
 			kind,
 			authenticate: () => {
 				authenticated = true;

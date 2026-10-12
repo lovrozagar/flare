@@ -4,6 +4,7 @@ import { createLayout } from "./layout.ts";
 const authorize = (): boolean => true;
 const preloader = (): string => "pre";
 const render = (): string => "child";
+const head = (): { title: string } => ({ title: "Admin" });
 
 type Layout = ReturnType<typeof createLayout>;
 
@@ -17,13 +18,19 @@ it("layout has no response", () => {
 
 it("layout chain", () => {
 	expect(
-		createLayout("_root_/admin").authenticateOptional().authorize(authorize).preloader(preloader).render(render),
+		createLayout("_root_/admin")
+			.authenticateOptional()
+			.authorize(authorize)
+			.preloader(preloader)
+			.head(head)
+			.render(render),
 	).toEqual({
 		id: "_root_/admin",
 		document: false,
 		auth: { mode: "optional", callerData: [] },
 		authorize,
 		preloader,
+		head,
 		render,
 	});
 });
