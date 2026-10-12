@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { rewriteEnv, type Graph } from "./env.ts";
+import { graphOf, rewriteEnv, type Graph } from "./env.ts";
 
 const IMPORT = 'import { createServerOnlyFn, createClientOnlyFn, createIsomorphicFn } from "@lovrozagar/flare";\n';
 
@@ -12,7 +12,7 @@ it("server direct", () => {
 	const client = rewrite(source, "client");
 	expect(client).not.toContain("SECRET");
 	expect(client).toContain("createServerOnlyFn()");
-	expect(rewrite(source, "ssr")).toContain("SECRET");
+	expect(rewrite(source, "server")).toContain("SECRET");
 	expect(rewriteEnv("a.ts", "export const a = 1;\n", "client")).toBeUndefined();
 });
 
@@ -22,7 +22,7 @@ it("server alias", () => {
 	expect(rewrite(source, "client")).not.toContain("SECRET");
 	const quoted =
 		'import { "createServerOnlyFn" as mark } from "@lovrozagar/flare";\nexport const read = mark(() => SECRET);\n';
-	expect(rewrite(quoted, "worker")).not.toContain("SECRET");
+	expect(rewrite(quoted, "client")).not.toContain("SECRET");
 });
 
 it("server namespace", () => {
@@ -54,25 +54,24 @@ it("server identifier", () => {
 	expect(() => rewrite(`${IMPORT}export const read = createServerOnlyFn(readDb);\n`, "client")).toThrow(
 		"src/lib/a.ts: createServerOnlyFn takes an inline function expression or arrow",
 	);
-	expect(() => rewrite(`${IMPORT}export const read = createServerOnlyFn();\n`, "ssr")).toThrow(/inline function/);
+	expect(() => rewrite(`${IMPORT}export const read = createServerOnlyFn();\n`, "server")).toThrow(/inline function/);
 });
 
 it("client body", () => {
 	const source = `${IMPORT}export const focus = createClientOnlyFn(() => SECRET);\n`;
-	expect(rewrite(source, "ssr")).not.toContain("SECRET");
-	expect(rewrite(source, "ssr")).toContain("createClientOnlyFn()");
+	expect(rewrite(source, "server")).not.toContain("SECRET");
+	expect(rewrite(source, "server")).toContain("createClientOnlyFn()");
 });
 
 it("client kept", () => {
 	const source = `${IMPORT}export const focus = createClientOnlyFn(() => SECRET);\n`;
 	expect(rewrite(source, "client")).toContain("SECRET");
-	expect(rewrite(source, "worker")).toContain("SECRET");
 });
 
 const ISO = `${IMPORT}export const format = createIsomorphicFn().server(() => SERVER).client(() => CLIENT);\n`;
 
 it("iso server", () => {
-	const code = rewrite(ISO, "ssr");
+	const code = rewrite(ISO, "server");
 	expect(code).toContain("SERVER");
 	expect(code).not.toContain("CLIENT");
 	expect(code).toContain(".client()");
@@ -85,24 +84,31 @@ it("iso client", () => {
 	expect(code).toContain(".server()");
 });
 
+// The graphs are roles. The Workers bundle is a server graph like ssr: it keeps the server function and drops the
+// client one. A Web Worker is a client graph (bits/12 `web worker`).
 it("iso worker", () => {
-	const code = rewrite(ISO, "worker");
-	expect(code).toContain("CLIENT");
-	expect(code).not.toContain("SERVER");
+	const code = rewrite(ISO, graphOf("worker"));
+	expect(code).toContain("SERVER");
+	expect(code).not.toContain("CLIENT");
+	expect(graphOf("ssr")).toBe("server");
+	expect(graphOf("client")).toBe("client");
 });
 
 it("iso one side", () => {
-	expect(() => rewrite(`${IMPORT}export const f = createIsomorphicFn().server(() => SERVER);\n`, "ssr")).toThrow(
+	expect(() => rewrite(`${IMPORT}export const f = createIsomorphicFn().server(() => SERVER);\n`, "server")).toThrow(
 		"src/lib/a.ts: createIsomorphicFn needs .server() and .client() in one expression",
 	);
 	expect(() =>
-		rewrite(`${IMPORT}export const f = createIsomorphicFn().server(() => 1).server(() => 2).client(() => 3);\n`, "ssr"),
+		rewrite(
+			`${IMPORT}export const f = createIsomorphicFn().server(() => 1).server(() => 2).client(() => 3);\n`,
+			"server",
+		),
 	).toThrow(/\.server\(\) and \.client\(\) in one expression/);
 	expect(() =>
-		rewrite(`${IMPORT}export const f = createIsomorphicFn().server(() => 1).other(() => 2);\n`, "ssr"),
+		rewrite(`${IMPORT}export const f = createIsomorphicFn().server(() => 1).other(() => 2);\n`, "server"),
 	).toThrow(/in one expression/);
 	expect(() =>
-		rewrite(`${IMPORT}export const f = createIsomorphicFn().server(read).client(() => 2);\n`, "ssr"),
+		rewrite(`${IMPORT}export const f = createIsomorphicFn().server(read).client(() => 2);\n`, "server"),
 	).toThrow("src/lib/a.ts: createIsomorphicFn .server() takes an inline function expression or arrow");
 });
 
@@ -118,8 +124,8 @@ it("iso split", () => {
 
 it("iso order", () => {
 	const source = `${IMPORT}export const format = createIsomorphicFn().client(() => CLIENT).server(() => SERVER);\n`;
-	expect(rewrite(source, "ssr")).toContain("SERVER");
-	expect(rewrite(source, "ssr")).not.toContain("CLIENT");
+	expect(rewrite(source, "server")).toContain("SERVER");
+	expect(rewrite(source, "server")).not.toContain("CLIENT");
 	expect(rewrite(source, "client")).toContain("CLIENT");
 	expect(rewrite(source, "client")).not.toContain("SERVER");
 });

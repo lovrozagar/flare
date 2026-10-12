@@ -3,7 +3,7 @@ import { isAbsolute, relative, resolve, sep } from "path";
 import { fileURLToPath } from "url";
 import solid from "@solidjs/vite-plugin";
 import type { Plugin, UserConfig } from "vite";
-import { boundaryTransform, checkChunk, type Graph } from "../boundary/index.ts";
+import { boundaryTransform, checkChunk, graphOf } from "../boundary/index.ts";
 import { chunkReferences } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
@@ -122,10 +122,6 @@ function appModule(root: string, id: string): string | undefined {
 	const file = relative(root, path).split(sep).join("/");
 	if (file.startsWith("../") || isAbsolute(file) || file.split("/").includes("node_modules")) return undefined;
 	return file;
-}
-
-function graphOf(name: string): Graph {
-	return name === "ssr" || name === "worker" ? name : "client";
 }
 
 // A public bind would expose the dev server.

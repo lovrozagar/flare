@@ -10,7 +10,7 @@ export const echo = createServerFn({ method: "post" })
 
 `name` is not a config field (B85). The id is the B41 hash of the root-relative path and the export name. A `createServerFn` that is not a direct export fails the build (`vite/route-meta/ids.test.ts` `export name`, `not exported`).
 
-The boundary transform rewrites each `createServerFn({ method })` to `createServerFn({ method, __id, __name })` in every graph, and adds `__client: true` in the client and worker graphs. These fields are internal and are not part of the typed config. `.handler()` and `.stream()` return a callable that carries `{ id, name, record }`. With `__client`, the callable is the HTTP stub; called directly during a client render, it throws before any work (B45, `client-stub.test.tsx` `client stub`). Without it, the callable is the in-request call.
+The boundary transform rewrites each `createServerFn({ method })` to `createServerFn({ method, __id, __name })` in every graph, and adds `__client: true` in the client graph. These fields are internal and are not part of the typed config. `.handler()` and `.stream()` return a callable that carries `{ id, name, record }`. With `__client`, the callable is the HTTP stub; called directly during a client render, it throws before any work (B45, `client-stub.test.tsx` `client stub`). Without it, the callable is the in-request call.
 
 An in-request call, a server function called from a loader, another server function, or `.response()`, runs authenticate, input, authorize, then the handler in-process, with no HTTP and no CSRF check. It uses the active request's `env`, `request`, `serverContext`, and session. The session is one memoized `authenticate` per request, shared by the page gate and every server function, so `authenticate` still runs once (`dx/server.md`). It returns the handler value, or throws the thrown error unprojected. Called with no active request it throws `server function called outside a request` (`dispatch.test.ts` `in request`, `no request`).
 
@@ -68,10 +68,10 @@ An in-request call uses that request's session, env, request, and `serverContext
 
 A response `flare-build` that differs from `self.flare.build`, when both are non-empty, document-loads once under the `flare_chunk_reload` guard and rejects the promise. The handler has already run. The server does not read a `flare-build` request header (B7, B84). A missing response id still returns the data (`client/server-fn/call.test.ts` `build mismatch`).
 
-The client and worker chunks contain neither the handler, the stream generator, the `authorize` callback, nor the input validator. The SSR chunk keeps all four. A sentinel in each fails the build (`vite/boundary/tripwire.test.ts` `four bodies`). The server still runs validation and `authorize`.
+A client chunk contains neither the handler, the stream generator, the `authorize` callback, nor the input validator. A server chunk, ssr or the Workers bundle, keeps all four. A sentinel in each fails the build (`vite/boundary/tripwire.test.ts` `four bodies`). The server still runs validation and `authorize`.
 
 `.stream()` writes one envelope per yielded value as NDJSON. The client function returns an async iterator.
 
 CSRF uses the adapter's origin. The first present header wins, in order `Origin`, `Sec-Fetch-Site`, `Referer`. A present header that fails is 403, and the later headers are not consulted. The table is in bit 07 and is not repeated here. The tests in `server/server-fn/csrf.test.ts` are the contract.
 
-The client calls `echo(input)`. The stub throws if that direct call runs during a component or route render on the client. `queryFn` does not throw for that reason. The build fails if the handler, the stream generator, the `authorize` callback, or the input validator is in a client or worker chunk.
+The client calls `echo(input)`. The stub throws if that direct call runs during a component or route render on the client. `queryFn` does not throw for that reason. The build fails if the handler, the stream generator, the `authorize` callback, or the input validator is in a client chunk.

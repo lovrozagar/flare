@@ -17,15 +17,14 @@ it("env prunes import", () => {
 	const client = transform(source, "client");
 	expect(client).not.toContain("db.server");
 	expect(client).toContain("createServerOnlyFn()");
-	expect(transform(source, "worker")).not.toContain("db.server");
-	expect(transform(source, "ssr")).toContain("db.server");
+	expect(transform(source, "server")).toContain("db.server");
 });
 
 it("ssr prunes client import", () => {
 	const source = `${ENV}import { confetti } from "browser-only";
 export const cheer = createIsomorphicFn().server(() => "quiet").client(() => confetti());
 `;
-	const ssr = transform(source, "ssr");
+	const ssr = transform(source, "server");
 	expect(ssr).not.toContain("browser-only");
 	expect(ssr).toContain('.server(() => "quiet").client()');
 	expect(transform(source, "client")).toContain("browser-only");
@@ -42,17 +41,17 @@ export const name = db.name;
 it("ids", () => {
 	const id = fnId(FILE, "echo");
 	const source = `${FN}export const echo = createServerFn({ method: "get" }).handler(async () => 1);\n`;
-	expect(transform(source, "ssr")).toContain(`createServerFn({ method: "get", __id: "${id}", __name: "echo" })`);
+	expect(transform(source, "server")).toContain(`createServerFn({ method: "get", __id: "${id}", __name: "echo" })`);
 	expect(transform(source, "client")).toContain(
 		`createServerFn({ method: "get", __id: "${id}", __name: "echo", __client: true }).handler(undefined)`,
 	);
 	const bare = `${FN}export const echo = createServerFn().handler(h);\n`;
-	expect(transform(bare, "worker")).toContain(`createServerFn({ __id: "${id}", __name: "echo", __client: true })`);
+	expect(transform(bare, "client")).toContain(`createServerFn({ __id: "${id}", __name: "echo", __client: true })`);
 	const trailing = `${FN}export const echo = createServerFn({ method: "post", }).handler(h);\nexport const empty = createServerFn({}).handler(h);\n`;
-	const both = transform(trailing, "ssr");
+	const both = transform(trailing, "server");
 	expect(both).toContain(`createServerFn({ method: "post", __id: "${id}", __name: "echo" })`);
 	expect(both).toContain(`createServerFn({ __id: "${fnId(FILE, "empty")}", __name: "empty" })`);
-	expect(() => transform(`${FN}export const echo = createServerFn("get").handler(h);\n`, "ssr")).toThrow(
+	expect(() => transform(`${FN}export const echo = createServerFn("get").handler(h);\n`, "server")).toThrow(
 		"src/fns/echo.ts: echo createServerFn() takes a literal object",
 	);
 	expect(boundaryTransform(FILE, "export const a = 1;\n", "client")).toBeUndefined();

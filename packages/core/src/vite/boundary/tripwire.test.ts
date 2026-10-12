@@ -16,10 +16,10 @@ afterEach(() => {
 	for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-type Graph = "client" | "ssr" | "worker";
+type Environment = "client" | "ssr" | "worker";
 
-// A fixture app: `files` under a fresh root, the client and worker entry at src/client.ts, the ssr entry at
-// src/server.ts. Every bare import stays external, so a chunk holds only the fixture's own modules.
+// A fixture app: `files` under a fresh root, the client entry at src/client.ts, and the server entry of the ssr and
+// worker environments at src/server.ts. Every bare import stays external, so a chunk holds only the fixture's own modules.
 function fixture(files: Record<string, string>): string {
 	const root = mkdtempSync(join(tmpdir(), "flare-tripwire-"));
 	roots.push(root);
@@ -42,8 +42,8 @@ function boundary(): Plugin {
 }
 
 // The emitted code of one graph's build, or the build's rejection.
-async function build(root: string, graph: Graph, extra: Plugin[] = []): Promise<string> {
-	const input = join(root, graph === "ssr" ? "src/server.ts" : "src/client.ts");
+async function build(root: string, graph: Environment, extra: Plugin[] = []): Promise<string> {
+	const input = join(root, graph === "client" ? "src/client.ts" : "src/server.ts");
 	const environment = { build: { write: false, minify: false, rollupOptions: { input, external } } };
 	const builder = await createBuilder({
 		root,
@@ -53,7 +53,7 @@ async function build(root: string, graph: Graph, extra: Plugin[] = []): Promise<
 		environments: {
 			client: environment,
 			ssr: { ...environment, build: { ...environment.build, ssr: true } },
-			worker: { ...environment, consumer: "client" },
+			worker: { ...environment, consumer: "server", build: { ...environment.build, ssr: true } },
 		},
 	});
 	const output = await builder.build(builder.environments[graph]);
@@ -110,26 +110,26 @@ it("server path", async () => {
 	);
 });
 
+// The Workers bundle is a server graph, checked like ssr: it holds server bodies and the package's server modules,
+// and a client-only body fails it.
 it("worker", async () => {
 	const root = fixture(app(`${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`));
-	expect(await build(root, "worker")).not.toContain("SENTINEL_FN");
-	await expect(
-		build(root, "worker", [forcing("mod.ts", ".handler(undefined)", '.handler(() => "SENTINEL_FN")')]),
-	).rejects.toThrow(/the worker graph must not contain/);
-	const path = fixture({
-		"src/client.ts": KEEP(`${PACKAGE_SRC}/server/lifecycle/create.ts`),
-	});
-	await expect(build(path, "worker")).rejects.toThrow(/cannot be in the worker graph/);
+	expect(await build(root, "worker")).toContain("SENTINEL_FN");
+	const path = fixture({ "src/server.ts": KEEP(`${PACKAGE_SRC}/server/context/ctx.ts`) });
+	await expect(build(path, "worker")).resolves.toContain("serverCtx");
+	const client = fixture(app(`${ENV}export const focus = createClientOnlyFn(() => "SENTINEL_CLIENT");\n`));
+	expect(await build(client, "worker")).not.toContain("SENTINEL_CLIENT");
+	const force = forcing("mod.ts", "createClientOnlyFn()", 'createClientOnlyFn(() => "SENTINEL_CLIENT")');
+	await expect(build(client, "worker", [force])).rejects.toThrow(/the server graph must not contain/);
 });
 
 it("server only body", async () => {
 	const root = fixture(app(`${ENV}export const read = createServerOnlyFn(() => "SENTINEL_ENV");\n`));
 	expect(await build(root, "client")).not.toContain("SENTINEL_ENV");
-	expect(await build(root, "worker")).not.toContain("SENTINEL_ENV");
+	expect(await build(root, "worker")).toContain("SENTINEL_ENV");
 	expect(await build(root, "ssr")).toContain("SENTINEL_ENV");
 	const force = forcing("mod.ts", "createServerOnlyFn()", 'createServerOnlyFn(() => "SENTINEL_ENV")');
 	await expect(build(root, "client", [force])).rejects.toThrow(/B45/);
-	await expect(build(root, "worker", [force])).rejects.toThrow(/B45/);
 });
 
 it("client only body", async () => {
@@ -137,7 +137,7 @@ it("client only body", async () => {
 	expect(await build(root, "ssr")).not.toContain("SENTINEL_CLIENT");
 	expect(await build(root, "client")).toContain("SENTINEL_CLIENT");
 	const force = forcing("mod.ts", "createClientOnlyFn()", 'createClientOnlyFn(() => "SENTINEL_CLIENT")');
-	await expect(build(root, "ssr", [force])).rejects.toThrow(/the ssr graph must not contain/);
+	await expect(build(root, "ssr", [force])).rejects.toThrow(/the server graph must not contain/);
 });
 
 it("iso server body", async () => {
@@ -145,7 +145,7 @@ it("iso server body", async () => {
 		app(`${ENV}export const pick = createIsomorphicFn().server(() => "SENTINEL_ISO").client(() => "CLIENT_SIDE");\n`),
 	);
 	expect(await build(root, "client")).not.toContain("SENTINEL_ISO");
-	expect(await build(root, "worker")).not.toContain("SENTINEL_ISO");
+	expect(await build(root, "worker")).toContain("SENTINEL_ISO");
 	expect(await build(root, "ssr")).toContain("SENTINEL_ISO");
 	const force = forcing("mod.ts", ".server()", '.server(() => "SENTINEL_ISO")');
 	await expect(build(root, "client", [force])).rejects.toThrow(/B45/);
@@ -179,12 +179,12 @@ export const numbers = createServerFn().stream(async function* () {
 `;
 	const root = fixture(app(module));
 	const sentinels = ["SENTINEL_INPUT", "SENTINEL_AUTH", "SENTINEL_FN", "SENTINEL_STREAM"];
-	for (const graph of ["client", "worker"] as const) {
-		const code = await build(root, graph);
-		for (const sentinel of sentinels) expect(code).not.toContain(sentinel);
+	const client = await build(root, "client");
+	for (const sentinel of sentinels) expect(client).not.toContain(sentinel);
+	for (const server of ["ssr", "worker"] as const) {
+		const code = await build(root, server);
+		for (const sentinel of sentinels) expect(code).toContain(sentinel);
 	}
-	const ssr = await build(root, "ssr");
-	for (const sentinel of sentinels) expect(ssr).toContain(sentinel);
 	const bodies: Array<[string, string]> = [
 		[".input(undefined)", '.input(() => "SENTINEL_INPUT")'],
 		[".authorize(undefined)", '.authorize(({ auth }) => auth === "SENTINEL_AUTH")'],
