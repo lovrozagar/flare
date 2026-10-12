@@ -24,6 +24,21 @@ export type ChainAuth = { mode: true | "optional"; callerData: readonly string[]
 
 type Step = (ctx: StepContext) => unknown;
 
+type Raw = Record<string, string | string[]>;
+
+export type EffectPlace = { hash: string; pathname: string; search: string; params: Raw };
+
+// `effects` on the client (dx/builder.md). Both read the raw records, never a validated search (B31).
+export type Effects = {
+	loaderDeps?: (ctx: { search: Raw; params: Raw }) => unknown[];
+	shouldRefetch?: (ctx: {
+		trigger: "initial" | "navigation" | "revalidation";
+		location: { current: EffectPlace; next: EffectPlace };
+		params: Raw;
+		search: Raw;
+	}) => boolean;
+};
+
 // The loader alone gets `defer` (dx/defer.md).
 export type LoaderContext = StepContext & {
 	defer: <T>(fn: () => Promise<T>, options?: { key?: string; prerender?: "resolve" | "stream" }) => Deferred<T>;
@@ -44,6 +59,7 @@ export type ChainRecord = {
 	cache?: CacheConfig;
 	auth?: ChainAuth;
 	authorize?: Authorize;
+	effects?: Effects;
 	preloader?: Step;
 	loader?: Load;
 	response?: Respond;
@@ -56,6 +72,7 @@ export type Chain = {
 	authenticate: (...callerData: readonly string[]) => Chain;
 	authenticateOptional: (...callerData: readonly string[]) => Chain;
 	authorize: (fn: Authorize) => Chain;
+	effects: (effects: Effects) => Chain;
 	preloader: (fn: Step) => Chain;
 	loader: (fn: Load) => Chain;
 	response: (fn: Respond) => Chain;
@@ -70,6 +87,7 @@ const ORDER = {
 	authenticate: 3,
 	authenticateOptional: 4,
 	authorize: 5,
+	effects: 6,
 	preloader: 7,
 	loader: 8,
 	response: 8,
@@ -91,59 +109,37 @@ function advance(state: ChainState, step: Name): void {
 	state.used.add(step);
 }
 
-export function createChain(id: string): Chain {
-	void id;
+export function createChain(_id: string): Chain {
 	const state: ChainState = { used: new Set(), record: {}, at: 0 };
 	const record = state.record;
+	// Every step checks its place in the order, then stores one record field.
+	const put = <K extends keyof ChainRecord>(step: Name, key: K, value: ChainRecord[K]): Chain => {
+		advance(state, step);
+		record[key] = value;
+		return chain;
+	};
 	const chain: Chain = {
 		cache(config) {
-			const modes = MODES.filter((key) => Object.hasOwn(config, key));
-			if (modes.length > 1) throw new Error("one cache mode");
-			advance(state, "cache");
-			record.cache = config;
-			return chain;
+			if (MODES.filter((key) => Object.hasOwn(config, key)).length > 1) throw new Error("one cache mode");
+			return put("cache", "cache", config);
 		},
 		authenticate(...callerData) {
 			if (callerData.includes("optional")) throw new Error("The method is authenticateOptional");
-			advance(state, "authenticate");
-			record.auth = { mode: true, callerData };
-			return chain;
+			return put("authenticate", "auth", { mode: true, callerData });
 		},
-		authenticateOptional(...callerData) {
-			advance(state, "authenticateOptional");
-			record.auth = { mode: "optional", callerData };
-			return chain;
+		authenticateOptional: (...callerData) => put("authenticateOptional", "auth", { mode: "optional", callerData }),
+		authorize: (fn) => put("authorize", "authorize", fn),
+		effects(effects) {
+			if (effects.loaderDeps === undefined && effects.shouldRefetch === undefined) {
+				throw new Error("effects needs loaderDeps or shouldRefetch");
+			}
+			return put("effects", "effects", effects);
 		},
-		authorize(fn) {
-			advance(state, "authorize");
-			record.authorize = fn;
-			return chain;
-		},
-		preloader(fn) {
-			advance(state, "preloader");
-			record.preloader = fn;
-			return chain;
-		},
-		loader(fn) {
-			advance(state, "loader");
-			record.loader = fn;
-			return chain;
-		},
-		response(fn) {
-			advance(state, "response");
-			record.response = fn;
-			return chain;
-		},
-		head(fn) {
-			advance(state, "head");
-			record.head = fn;
-			return chain;
-		},
-		render(fn) {
-			advance(state, "render");
-			record.render = fn;
-			return chain;
-		},
+		preloader: (fn) => put("preloader", "preloader", fn),
+		loader: (fn) => put("loader", "loader", fn),
+		response: (fn) => put("response", "response", fn),
+		head: (fn) => put("head", "head", fn),
+		render: (fn) => put("render", "render", fn),
 		record: () => ({ ...record }),
 	};
 	return chain;
@@ -154,6 +150,7 @@ export type Steps<B> = {
 	authenticate: (...callerData: readonly string[]) => B;
 	authenticateOptional: (...callerData: readonly string[]) => B;
 	authorize: (fn: Authorize) => B;
+	effects: (effects: Effects) => B;
 	preloader: (fn: Step) => B;
 	loader: (fn: Load) => B;
 	head: (fn: Head) => B;
@@ -176,6 +173,10 @@ export function chainSteps<B>(chain: Chain, self: () => B): Steps<B> {
 		},
 		authorize(fn) {
 			chain.authorize(fn);
+			return self();
+		},
+		effects(effects) {
+			chain.effects(effects);
 			return self();
 		},
 		preloader(fn) {
