@@ -78,11 +78,28 @@ Corpus-driven, one line per frame.
 | `loader e` | a page loader throws on a data request, in dev | HTTP 200: the layout `l`, the loader `e` with `{ message, stack }` and no `k`, the layout `h`, `r`, `d`. The overlay sender is called once |
 | `head throw` | a page `.head()` throws on a data request | that `h` is omitted, the other frames stay, and the throw is a dev bug sent to the overlay (B82) |
 
-### `client/navigation/navigate.test.ts`
+### `client/navigation/target.test.ts`
+
+These rows moved here from `navigate.test.ts` when navigate was split (bit 06). `createRouter({ rewrite })` holds the client rewrite as `router.rewrite`.
 
 | test | case | result |
 | --- | --- | --- |
 | `foreign origin` | `https://evil/` | throw, no fetch |
+| `data url` | navigate to `/about` | the fetch URL is `/about?_flare=data` |
+| `missing param` | `to` a route with `[id]` and no `params` | throw before the fetch |
+| `strips reserved` | `search` contains `_flare` | the fetch URL does not contain it |
+| `hash` | `hash: "x"` | the URL ends in `#x` and the fetch does not |
+| `shallow other route` | `shallow` and a different pathname | throw |
+| `location shape` | rewrite sees `/old?q=1#h` | the argument is `{ pathname: "/old", search: "?q=1", hash: "#h" }`, and returning `{ pathname: "/new", search: "?q=1", hash: "#h" }` matches `/new` |
+| `rewrite off origin` | the result points at another origin | throw, no fetch |
+| `other root` | the target route's root-layout is not the current one | a document load, and no `_flare=data` request |
+| `rewrite throws` | the client `rewrite` throws | the navigation fails. The previous URL stays |
+| `response page` | `navigate` or `Link` to a `.response()` page | a full document load |
+
+### `client/navigation/navigate.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
 | `commit then push` | a successful data response | the DOM updates, then `history.pushState` |
 | `network` | the fetch fails and has no status | the screen and the history stay |
 | `auth error` | HTTP 401, and HTTP 403 | the auth error is committed on the target, the outlet paints the walked auth boundary or its built-in `div`, then history is pushed |
@@ -100,21 +117,11 @@ Corpus-driven, one line per frame.
 | `reload other href` | a different href inside that window | the document loads |
 | `reload no storage` | `sessionStorage` throws | no document load |
 | `revalidation` | navigate to the current URL | no push |
-| `data url` | navigate to `/about` | the fetch URL is `/about?_flare=data` |
-| `missing param` | `to` a route with `[id]` and no `params` | throw before the fetch |
-| `strips reserved` | `search` contains `_flare` | the fetch URL does not contain it |
-| `hash` | `hash: "x"` | the URL ends in `#x` and the fetch does not |
-| `shallow other route` | `shallow` and a different pathname | throw |
 | `replace` | `replace: true` | `replaceState` |
-| `location shape` | rewrite sees `/old?q=1#h` | the argument is `{ pathname: "/old", search: "?q=1", hash: "#h" }`, and returning `{ pathname: "/new", search: "?q=1", hash: "#h" }` matches `/new` |
-| `rewrite off origin` | the result points at another origin | throw, no fetch |
-| `other root` | the target route's root-layout is not the current one | a document load, and no `_flare=data` request |
-| `rewrite throws` | the client `rewrite` throws | the navigation fails. The previous URL stays |
 | `abort` | a second navigation starts before the first data request settles | the first request is aborted. It does not commit, does not push, and is not a network failure. Only the latest may commit |
 | `reuse prefetch` | an in-flight prefetch of the same URL | that response is reused, unless `revalidate` is set or a deferred placeholder still needs the enter request |
 | `build mismatch` | the response `flare-build` and `self.flare.build` are both non-empty and differ | a document load, and the frames are not applied. A prefetch mismatch is ignored. The server does not read a `flare-build` request header |
 | `chunk` | the dynamic import rejects with one of the five chunk messages | one document load under `flare_chunk_reload`. No retry. A storage throw does not load |
-| `response page` | `navigate` or `Link` to a `.response()` page | a full document load |
 
 ### `client/navigation/pending.test.ts`
 
