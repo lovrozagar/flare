@@ -67,7 +67,7 @@ These exist under today's `packages/core/src` and have no row in `files.tsv`.
 
 | gone | why |
 | --- | --- |
-| `await.ts`, `components/await.tsx` | Solid `<Loading>` and `createMemo(async () => deferred.promise)` (B80). No `<Await>`, no skeleton component |
+| `await.ts`, `components/await.tsx` | Solid `<Loading>` and `useDeferred(deferred)` (B80). No `<Await>`, no skeleton component |
 | `broadcast/` | D43. The generic bus stays gone. Live updates post from `client/sync` on `BroadcastChannel` `"flare.sync"` (B72) |
 | `form/` | D50 |
 | `lazy/` | Solid `lazy` |
