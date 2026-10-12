@@ -16,7 +16,8 @@ it("one route", () => {
 	const source = routesOf(["_root_/home.page.tsx"]).source;
 	expect(source).toContain('from "./_root_/home.page.tsx"');
 	expect(source).toContain("export const routeTree");
-	expect(source).toContain("export const layouts");
+	expect(source).toContain('export const routeTree = [{ id: "_root_", path: "/", module: route0 }];');
+	expect(source).toContain('export const layouts = { "_root_": layout0 };');
 });
 
 it("filename", () => {
