@@ -4,14 +4,21 @@ import { runLoaders, type LoaderRoute, type RunInput } from "./run.ts";
 
 const session = { id: "ada" };
 const issue: Issue = { message: "required", path: ["email"] };
+const boom = new Error("boom");
 
 function noop(): void {}
 
 function request(routes: readonly LoaderRoute[], extra: Partial<RunInput> = {}): RunInput {
-	return { kind: "document", routes, ...extra };
+	return { kind: "document", auth: { requires: false, reads: false }, authenticate: () => null, routes, ...extra };
 }
 
-it("order", async () => {
+function throws(): never {
+	throw boom;
+}
+
+type Traced = { seen: string[]; status: number };
+
+async function traced(extra: Partial<RunInput>, authorized = true): Promise<Traced> {
 	const seen: string[] = [];
 	const route: LoaderRoute = {
 		id: "page",
@@ -19,26 +26,51 @@ it("order", async () => {
 			seen.push("validate");
 			return undefined;
 		},
-		authenticate: () => seen.push("authenticate"),
 		preloader: () => seen.push("preloader"),
 		authorize: () => {
 			seen.push("authorize");
-			return true;
+			return authorized;
 		},
 		loader: () => seen.push("loader"),
 		head: () => seen.push("head"),
 		headers: () => seen.push("headers"),
 	};
-	await runLoaders(
+	const run = await runLoaders(
 		request([route], {
+			auth: { requires: false, reads: true },
+			authenticate: () => {
+				seen.push("authenticate");
+				return session;
+			},
 			shared: true,
 			readStore: () => seen.push("store"),
+			...extra,
 		}),
 	);
-	expect(seen).toEqual(["validate", "authenticate", "preloader", "authorize", "store", "loader", "head", "headers"]);
-	expect(seen.indexOf("validate")).toBe(0);
-	expect(seen.indexOf("preloader")).toBeLessThan(seen.indexOf("store"));
-	expect(seen.indexOf("authorize")).toBeLessThan(seen.indexOf("store"));
+	return { seen, status: run.response.status };
+}
+
+it("order", async () => {
+	const shared = await traced({});
+	expect(shared.seen).toEqual([
+		"validate",
+		"authenticate",
+		"preloader",
+		"authorize",
+		"store",
+		"loader",
+		"head",
+		"headers",
+	]);
+	const data = await traced({ kind: "data" });
+	expect(data.seen).toEqual(["validate", "authenticate", "preloader", "authorize", "loader", "head", "headers"]);
+	const prefetch = await traced({ kind: "prefetch" });
+	expect(prefetch.seen).not.toContain("store");
+	const notShared = await traced({ shared: false });
+	expect(notShared.seen).toEqual(["validate", "authenticate", "preloader", "authorize", "loader", "head", "headers"]);
+	const denied = await traced({}, false);
+	expect(denied.status).toBe(403);
+	expect(denied.seen).toEqual(["validate", "authenticate", "preloader", "authorize"]);
 });
 
 it("auth args", async () => {
@@ -56,7 +88,7 @@ it("auth args", async () => {
 					loader: (ctx) => seen.push(ctx.auth),
 				},
 			],
-			{ session },
+			{ auth: { requires: true, reads: true }, authenticate: () => session },
 		),
 	);
 	expect(seen).toEqual([session, session, session]);
@@ -133,26 +165,13 @@ it("data input", async () => {
 });
 
 it("preloader throw", async () => {
-	const page = await runLoaders(
-		request([
-			{
-				id: "page",
-				preloader: () => {
-					throw new Error("boom");
-				},
-			},
-		]),
-	);
+	const page = await runLoaders(request([{ id: "page", preloader: throws }]));
 	expect(page.response.status).toBe(500);
+	expect(page.failed).toEqual({ m: "page", status: 500, boundary: "errorRender", error: boom });
 	let descendant = false;
 	const layout = await runLoaders(
 		request([
-			{
-				id: "layout",
-				preloader: () => {
-					throw new Error("boom");
-				},
-			},
+			{ id: "layout", preloader: throws },
 			{
 				id: "page",
 				loader: () => {
@@ -163,6 +182,12 @@ it("preloader throw", async () => {
 	);
 	expect(layout.response.status).toBe(500);
 	expect(descendant).toBe(false);
+	const data = await runLoaders(request([{ id: "page", preloader: throws }], { kind: "data" }));
+	expect(data.response.status).toBe(200);
+	expect(data.frames).toEqual([{ t: "e", m: "page", e: boom }]);
+	const authorize = await runLoaders(request([{ id: "page", authorize: throws }]));
+	expect(authorize.response.status).toBe(500);
+	expect(authorize.failed?.boundary).toBe("errorRender");
 });
 
 async function fail(kind: RunInput["kind"]): Promise<{
@@ -175,23 +200,17 @@ async function fail(kind: RunInput["kind"]): Promise<{
 	let authenticated = false;
 	let overlay = false;
 	const { response } = await runLoaders(
-		request(
-			[
-				{
-					id: "page",
-					validate: () => [issue],
-					authenticate: () => {
-						authenticated = true;
-					},
-				},
-			],
-			{
-				kind,
-				overlay: () => {
-					overlay = true;
-				},
+		request([{ id: "page", validate: () => [issue] }], {
+			kind,
+			auth: { requires: true, reads: true },
+			authenticate: () => {
+				authenticated = true;
+				return session;
 			},
-		),
+			overlay: () => {
+				overlay = true;
+			},
+		}),
 	);
 	return {
 		status: response.status,
@@ -202,7 +221,7 @@ async function fail(kind: RunInput["kind"]): Promise<{
 	};
 }
 
-async function flush(): Promise<void> {
-	await Promise.resolve();
-	await Promise.resolve();
+// A macrotask: every microtask the gate and the loaders queue has run before this resolves.
+function flush(): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, 0));
 }
