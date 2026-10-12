@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 import { createLayout } from "./layout.ts";
 
+const authorize = (): boolean => true;
+const preloader = (): string => "pre";
+const render = (): string => "child";
+
 type Layout = ReturnType<typeof createLayout>;
 
 it("layout has no response", () => {
@@ -9,4 +13,17 @@ it("layout has no response", () => {
 	expect(absent).toBe(true);
 	expect("response" in layout).toBe(false);
 	expect(layout.render(() => "child").document).toBe(false);
+});
+
+it("layout chain", () => {
+	expect(
+		createLayout("_root_/admin").authenticateOptional().authorize(authorize).preloader(preloader).render(render),
+	).toEqual({
+		id: "_root_/admin",
+		document: false,
+		auth: { mode: "optional", callerData: [] },
+		authorize,
+		preloader,
+		render,
+	});
 });

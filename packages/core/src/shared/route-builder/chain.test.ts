@@ -1,6 +1,11 @@
 import { expect, it } from "vitest";
 import { createChain } from "./chain.ts";
 
+const authorize = (): boolean => true;
+const preloader = (): string => "pre";
+const loader = (): string => "data";
+const render = (): string => "view";
+
 const noop = () => null;
 
 it("second render throws", () => {
@@ -36,4 +41,38 @@ it("no author key", () => {
 
 it("optional argument", () => {
 	expect(() => createChain("_root_").authenticate("optional")).toThrow(/authenticateOptional/);
+});
+
+it("stores in order", () => {
+	const record = createChain("_root_")
+		.cache({ ssr: { ttl: "1m" } })
+		.authenticate("admin")
+		.authorize(authorize)
+		.preloader(preloader)
+		.loader(loader)
+		.render(render)
+		.record();
+	expect(record).toEqual({
+		cache: { ssr: { ttl: "1m" } },
+		auth: { mode: true, callerData: ["admin"] },
+		authorize,
+		preloader,
+		loader,
+		render,
+	});
+	expect(() =>
+		createChain("_root_")
+			.preloader(noop)
+			.authorize(() => true),
+	).toThrow(/order/);
+	expect(() => createChain("_root_").response(noop).loader(noop)).toThrow(/loader/);
+	expect(createChain("_root_").response(noop).record()).toEqual({ response: noop });
+});
+
+it("authenticate records", () => {
+	expect(createChain("_root_").authenticate().record()).toEqual({ auth: { mode: true, callerData: [] } });
+	expect(createChain("_root_").authenticateOptional("a", "b").record()).toEqual({
+		auth: { mode: "optional", callerData: ["a", "b"] },
+	});
+	expect(() => createChain("_root_").authenticate().authenticateOptional()).toThrow(/authenticate/);
 });
