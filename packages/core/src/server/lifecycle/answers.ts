@@ -2,6 +2,7 @@
 import { createComponent } from "solid-js";
 import { escape } from "@solidjs/web";
 import { Matches, type OutletState } from "../../shared/components/index.ts";
+import { builtSheet } from "../../shared/css/sheet.ts";
 import { RedirectError } from "../../shared/errors/redirect.ts";
 import { mergeHead } from "../../shared/head/index.ts";
 import type { FrameError } from "../../shared/protocol/index.ts";
@@ -224,6 +225,8 @@ export async function drawn(
 			// flare() defines the client entry URL for the server environments. Without the plugin there is none.
 			client: import.meta.env.FLARE_CLIENT_ENTRY,
 			fill: rendered.run.holes === true,
+			// Dev inlines nothing: Vite serves the CSS it injects (B15).
+			sheet: exchange.sink.dev ? "" : builtSheet,
 		});
 		if (thrownInRender.length > 0) {
 			void body.cancel();

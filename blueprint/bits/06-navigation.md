@@ -318,7 +318,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | test | case | result |
 | --- | --- | --- |
 | `raw values` | a title and a description with `<`, `&`, and quotes | the descriptor holds them unescaped |
-| `order` | title, canonical, keywords, css with a `javascript:` entry, languages, meta, and an app stylesheet | the server's document order. The `javascript:` sheet is dropped. A non-https canonical throws |
+| `order` | title, canonical, keywords, css with a `javascript:` entry, languages, and meta | the server's document order. The `javascript:` sheet is dropped. A non-https canonical throws |
 | `viewport false` | a parent viewport and a child `viewport: false` | no viewport tag |
 | `og images` | `images`, then `openGraph.images`, audio, and video | `og:image*` in array order, `images` first. No `twitter:image` |
 | `favicons` | ico, svg, and 192 | ico has `sizes="any"`, the png has `type="image/png"` and its size |

@@ -12,6 +12,14 @@ import { createMemoryStore } from "./memory.ts";
 import { newSentinel } from "./nonce.ts";
 import { storedPageOf } from "./read.ts";
 import type { StoredPage } from "./write.ts";
+import { withCritical } from "../render/critical-style.ts";
+
+// The server build's sheet. The source module is empty.
+vi.mock("../../shared/css/sheet.ts", () => ({ builtSheet: ".a{color:red}.unused{color:blue}" }));
+vi.mock("../render/critical-style.ts", async (original) => {
+	const actual = await original<typeof import("../render/critical-style.ts")>();
+	return { ...actual, withCritical: vi.fn<typeof actual.withCritical>(actual.withCritical) };
+});
 
 afterEach(() => {
 	vi.useRealTimers();
@@ -248,4 +256,20 @@ it("bad record", async () => {
 	const store = createMemoryStore();
 	await store.set(KEY, { data: { html: "not a page" }, storedAt: 10_000 });
 	expect((await serve(counted().page, store).fetch(get())).headers.get("flare-cache")).toBe("miss");
+});
+
+// A hit serves the stored critical style under this request's nonce, and the extractor does not run.
+it("critical hit", async () => {
+	vi.useFakeTimers({ now: 10_000, toFake: ["Date"] });
+	vi.mocked(withCritical).mockClear();
+	const entry = record({}, 10_000);
+	const page = entry.data as StoredPage;
+	const style = `<style id="flare-critical" nonce="${page.sentinel}">.a{color:red}</style>`;
+	const store = createMemoryStore();
+	await store.set(KEY, { ...entry, data: { ...page, html: page.html.replace("</head>", `${style}</head>`) } });
+	const response = await serve(counted().page, store).fetch(get());
+	expect(response.headers.get("flare-cache")).toBe("hit");
+	const nonce = cspNonce(response);
+	expect(await response.text()).toContain(`<style id="flare-critical" nonce="${nonce}">.a{color:red}</style>`);
+	expect(withCritical).not.toHaveBeenCalled();
 });

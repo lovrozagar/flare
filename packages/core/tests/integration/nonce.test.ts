@@ -1,6 +1,6 @@
 import { createComponent, type Element } from "solid-js";
 import { Dynamic } from "@solidjs/web";
-import { expect, it, vi, type Mock } from "vitest";
+import { afterEach, expect, it, vi, type Mock } from "vitest";
 import type { FlareStore, FlareStoreEntry } from "../../src/server/cache/contract.ts";
 import { createMemoryStore } from "../../src/server/cache/memory.ts";
 import type { StoredPage } from "../../src/server/cache/write.ts";
@@ -12,6 +12,13 @@ import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import { createRouter, type Router } from "../../src/shared/router/create-router.ts";
 import type { Head } from "../../src/server/render/head.ts";
+
+// The server build's sheet. The source module is empty.
+vi.mock("../../src/shared/css/sheet.ts", () => ({ builtSheet: ".a{color:red}.unused{color:blue}" }));
+
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
 
 const head: Head = {
 	jsonLd: [{ "@type": "Thing" }],
@@ -223,4 +230,12 @@ it("hit matches", async () => {
 	expect(tagNonces(body)).toEqual({ script: nonce, json: nonce, style: nonce });
 	expect(body).toContain(`"nonce":"${nonce}"`);
 	expect(body).not.toContain(firstNonce);
+});
+
+// A production document's critical style carries the CSP header's nonce.
+it("critical", async () => {
+	vi.stubEnv("DEV", false);
+	const response = await document(() => createComponent(Dynamic, { component: "p", class: "a", children: "x" }));
+	const body = await response.text();
+	expect(body).toContain(`<style id="flare-critical" nonce="${headerNonce(response.headers)}">.a{color:red}</style>`);
 });

@@ -26,7 +26,7 @@ function documentOf(children?: JSX.Element): JSX.Element {
 }
 
 // The head Solid writes through the real render, before Flare's capture script. `tags` strips `data-dh`.
-async function written(head: Head, nonce = "", appStylesheet?: string): Promise<string> {
+async function written(head: Head, nonce = ""): Promise<string> {
 	const request = new Request("http://localhost/");
 	const body = await renderDocument({
 		request,
@@ -34,7 +34,6 @@ async function written(head: Head, nonce = "", appStylesheet?: string): Promise<
 		nonce,
 		matches: [],
 		head,
-		appStylesheet,
 		render: () => documentOf(),
 	});
 	const html = await new Response(body).text();
@@ -42,8 +41,8 @@ async function written(head: Head, nonce = "", appStylesheet?: string): Promise<
 	return inner.slice(0, inner.lastIndexOf("<script"));
 }
 
-async function tags(head: Head, nonce?: string, appStylesheet?: string): Promise<string> {
-	return (await written(head, nonce, appStylesheet)).replaceAll(/ data-dh="[^"]*"/g, "");
+async function tags(head: Head, nonce?: string): Promise<string> {
+	return (await written(head, nonce)).replaceAll(/ data-dh="[^"]*"/g, "");
 }
 
 it("description", async () => {
@@ -60,8 +59,8 @@ it("keywords", async () => {
 });
 
 it("css url", async () => {
-	const html = await tags({ css: ["/a.css", "javascript:alert(1)"] }, undefined, "/app.css");
-	expect(html.indexOf("/app.css")).toBeLessThan(html.indexOf("/a.css"));
+	const html = await tags({ css: ["/a.css", "javascript:alert(1)"] });
+	expect(html).toContain('href="/a.css"');
 	expect(html).not.toContain("javascript:");
 	expect(await tags({ css: "/one.css" })).toContain('href="/one.css"');
 });

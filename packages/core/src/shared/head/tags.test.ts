@@ -10,22 +10,18 @@ it("raw values", () => {
 });
 
 it("order", () => {
-	const tags = headTags(
-		{
-			title: "T",
-			canonical: "https://ex.com/a",
-			keywords: "k",
-			css: ["/a.css", "javascript:x"],
-			languages: { fr: "https://ex.com/fr" },
-			meta: { viewport: "width=device-width", charset: "utf-8", manifest: "/m.json", author: "A" },
-		},
-		{ appStylesheet: "/app.css" },
-	);
+	const tags = headTags({
+		title: "T",
+		canonical: "https://ex.com/a",
+		keywords: "k",
+		css: ["/a.css", "javascript:x"],
+		languages: { fr: "https://ex.com/fr" },
+		meta: { viewport: "width=device-width", charset: "utf-8", manifest: "/m.json", author: "A" },
+	});
 	expect(tags.map((tag) => `${tag.tag}:${tag.props.rel ?? tag.props.name ?? tag.props.charset ?? ""}`)).toEqual([
 		"title:",
 		"link:canonical",
 		"meta:keywords",
-		"link:stylesheet",
 		"link:stylesheet",
 		"link:alternate",
 		"meta:utf-8",

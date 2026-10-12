@@ -5,6 +5,7 @@ import { appTree, NO_OVERLAY } from "../../shared/components/index.ts";
 import { IDLE_NAVIGATION, NO_BLOCKERS } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { raceAbort } from "./abort.ts";
+import { withCritical } from "./critical-style.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
 import { DocumentHead, type Head } from "./head.ts";
@@ -27,7 +28,8 @@ export type DocumentInput = {
 	stream?: Stream;
 	nonce?: string;
 	head?: Head;
-	appStylesheet?: string;
+	// The built stylesheet a production document inlines its critical rules from. Dev and data pass none.
+	sheet?: string;
 	matches: readonly StateMatch[];
 	client?: string | undefined;
 	fill?: boolean;
@@ -43,8 +45,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// The state is serialized first. A value JSON cannot hold, such as a bigint, fails before the shell.
 	const tail = stateScript({ matches: input.matches, nonce, fill: input.fill }) + clientScript(input.client, nonce);
 	const head = captureScript(nonce);
-	const tags =
-		input.head === undefined ? undefined : headTags(input.head, { nonce, appStylesheet: input.appStylesheet });
+	const tags = input.head === undefined ? undefined : headTags(input.head, { nonce });
 	const piped = new TransformStream<Chunk, Chunk>();
 	// The render stops on a request abort or on a consumer cancel, whichever comes first.
 	const halt = new AbortController();
@@ -55,8 +56,10 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined);
 	const reader = piped.readable.getReader();
-	// The state and client scripts go in the shell before `</body>` (02-system), so the shell ends at `</html>`.
-	const shell = insertState(withDoctype(withHead(chunkText((await reader.read()).value), head)), tail);
+	// The critical style follows the capture script as the head's last element (B83). The state and client scripts go
+	// in the shell before `</body>` (02-system), so the shell ends at `</html>`.
+	const headed = withHead(chunkText((await reader.read()).value), head);
+	const shell = insertState(withDoctype(withCritical(headed, { css: input.sheet ?? "", nonce })), tail);
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(encoder.encode(shell));
