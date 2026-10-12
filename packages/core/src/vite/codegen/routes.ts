@@ -1,7 +1,10 @@
+import { posix } from "path";
 import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts";
 import { escapeSource } from "./escape.ts";
 import { scanRoute } from "./scan.ts";
 
+// Where the generated files are written, under the app root (dx/plugin.md).
+const OUT_DIR = "src/_gen";
 const PAGE = ".page.tsx";
 const LAYOUT = ".layout.tsx";
 const ROOT_LAYOUT = ".root-layout.tsx";
@@ -205,22 +208,23 @@ function last(id: string): string {
 }
 
 // Every route module is a lazy import that resolves its `route` export, so a route's code loads only when a
-// match needs it. `chunks` maps each id to that module's project-relative source path, the dev chunk URL that
+// match needs it. The import is relative from src/_gen, where routes.gen.ts is written. `chunks` maps each id to that module's project-relative source path, the dev chunk URL that
 // bit 12 rewrites to the hashed file (02-system).
 function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[], routesDir: string): string {
 	const tree = routes.map(
 		(route) =>
-			`{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", ${route.response ? "response: true, " : ""}module: ${lazy(route.file)} }`,
+			`{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", ${route.response ? "response: true, " : ""}module: ${lazy(routesDir, route.file)} }`,
 	);
-	const record = layouts.map((layout) => `"${escapeSource(layout.id)}": ${lazy(layout.file)}`);
+	const record = layouts.map((layout) => `"${escapeSource(layout.id)}": ${lazy(routesDir, layout.file)}`);
 	const chunks = [...routes, ...layouts].map(
 		(item) => `"${escapeSource(item.id)}": "/${escapeSource(`${routesDir}/${item.file}`)}"`,
 	);
 	return `export const routeTree = [${tree.join(", ")}];\nexport const layouts = { ${record.join(", ")} };\nexport const chunks = { ${chunks.join(", ")} };\n`;
 }
 
-function lazy(file: string): string {
-	return `() => import("./${escapeSource(file)}").then((loaded) => loaded.route)`;
+function lazy(routesDir: string, file: string): string {
+	const from = posix.relative(OUT_DIR, `${routesDir}/${file}`);
+	return `() => import("${escapeSource(from)}").then((loaded) => loaded.route)`;
 }
 
 // In a client build, each source path of the `chunks` map becomes the chunk its lazy import loads: an emitted chunk
