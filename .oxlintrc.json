@@ -19,7 +19,16 @@
 		"**/*.gen.ts",
 		"**/*.gen.d.ts",
 		"**/target/**",
-		"_v0/**"
+		"_v0/**",
+		".agents/**",
+		".claude/**",
+		".codex/**",
+		".gemini/**",
+		".grok/**",
+		".rulesync/**",
+		".githooks/**",
+		"scripts/*.mjs",
+		"scripts/scrub-text"
 	],
 	"categories": {
 		"correctness": "error",
