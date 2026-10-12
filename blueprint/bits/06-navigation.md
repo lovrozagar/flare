@@ -107,6 +107,21 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `reload no storage` | `sessionStorage` throws | no document load |
 | `chunk` | the dynamic import rejects with one of the five chunk messages | one document load under `flare_chunk_reload`. No retry. A storage throw does not load |
 
+### `client/navigation/frames.test.ts`
+
+`dev overlay` and `prod no overlay` moved here from `navigate.test.ts` when navigate was split (bit 06). The `h` frame's `d` is typed `HeadConfig` in `shared/protocol/frames.ts`.
+
+| test | case | result |
+| --- | --- | --- |
+| `landed at r` | `l`, `l`, `h`, then `r` | the data and heads by route id, resolved at `r`. Frames after `r` do not hold the commit |
+| `deferred resolve` | an `l` with placeholders in an object and in an array, then `c` frames in any order | each placeholder is a live deferred value that still serializes as `{ __deferred, key }`, and its promise resolves with its own `c`. A `c` for another route is ignored |
+| `deferred reject` | an `e` with `k`, then the stream ends | that promise rejects with the rebuilt Error. A value whose frame never came rejects. The overlay is not sent |
+| `dev overlay` | a loader `e` frame, no `k`, with `stack` in dev | `error.stack` is that stack, and the hot channel is sent `{ type: "error", err: { message, stack } }` |
+| `prod no overlay` | a loader `e` frame in production | `error.stack` is `""`, and nothing is sent |
+| `redirect` | an `x` frame | resolves with `{ status, url, replace }` and no commit data |
+| `ended early` | the stream ends before `r` | rejects |
+| `frames of a body` | an NDJSON body split mid-line | the frames in order |
+
 ### `client/navigation/navigate.test.ts`
 
 | test | case | result |
@@ -119,8 +134,6 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `two slots` | two `<Loading>` boundaries, and `r` arrives before either `c` | history is pushed at `r`, while both fallbacks are showing. The fast `c` replaces its fallback and leaves the slow fallback. The slow `c` replaces that one. Neither frame pushes |
 | `slot catches` | a deferred `e`, and that slot is inside `<Errored>` | the `<Errored>` fallback is shown. The sibling slot still swaps when its `c` arrives. `errorRender` is not called. The overlay sender is not called |
 | `slot escapes` | a deferred `e`, and the slot has no `<Errored>` | the outlet paints the walked `errorRender` or the `Something went wrong` div. The layout render text stays. In dev the overlay sender is called |
-| `dev overlay` | a loader `e` frame, no `k`, with `stack` in dev | `error.stack` is that stack, and the hot channel is sent `{ type: "error", err: { message, stack } }` |
-| `prod no overlay` | a loader `e` frame in production | `error.stack` is `""`, and nothing is sent |
 | `same origin` | an `x` frame whose `u` is a same-origin path | followed as a navigation |
 | `href load` | an `x` frame whose `u` is `https://example.com/a` | a full page load. `navigate` does not push history |
 | `input 400` | a data request whose `input()` failed | no commit and no push |
