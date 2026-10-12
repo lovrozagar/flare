@@ -8,13 +8,14 @@ const render = (): string => "view";
 const head = (): { title: string } => ({ title: "Home" });
 
 const noop = () => null;
+const answer = (): Response => new Response(null);
 
 it("second render throws", () => {
 	expect(() => createChain("_root_").render(noop).render(noop)).toThrow(/render/);
 });
 
 it("loader then response throws", () => {
-	expect(() => createChain("_root_").loader(noop).response(noop)).toThrow(/loader/);
+	expect(() => createChain("_root_").loader(noop).response(answer)).toThrow(/loader/);
 });
 
 it("order", () => {
@@ -68,8 +69,8 @@ it("stores in order", () => {
 			.preloader(noop)
 			.authorize(() => true),
 	).toThrow(/order/);
-	expect(() => createChain("_root_").response(noop).loader(noop)).toThrow(/loader/);
-	expect(createChain("_root_").response(noop).record()).toEqual({ response: noop });
+	expect(() => createChain("_root_").response(answer).loader(noop)).toThrow(/loader/);
+	expect(createChain("_root_").response(answer).record()).toEqual({ response: answer });
 });
 
 it("authenticate records", () => {

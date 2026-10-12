@@ -1,7 +1,8 @@
 import type { FlareRegister, RegisteredEnv, RegisteredServerContext } from "../../shared/route-builder/register.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import type { RawParams } from "../../shared/route-tree/index.ts";
-import type { ChainEntry, Router } from "../../shared/router/create-router.ts";
+import type { Respond } from "../../shared/route-builder/chain.ts";
+import type { ChainEntry, Match, Router } from "../../shared/router/create-router.ts";
 import { readSearch } from "../../shared/url/search.ts";
 import { resolveCaller, type Caller } from "../auth/caller.ts";
 import { withServerContext, type ServerContextInput } from "../context/ctx.ts";
@@ -12,7 +13,7 @@ import type { StateMatch } from "../render/state.ts";
 import { applySecurity, type SecurityConfig } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { finalize } from "./finalize.ts";
-import { routeMethod } from "./methods.ts";
+import { routeMethod, type MethodMatch } from "./methods.ts";
 
 type Authenticate = (ctx: { request: Request; env: unknown } & Caller) => unknown;
 
@@ -80,12 +81,27 @@ function route(exchange: Exchange): Promise<Response> {
 	const method = exchange.request.method;
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) return notFound(exchange, matched.chain);
 	return routeMethod(exchange.request, {
-		match: () =>
-			matched.id === undefined
-				? undefined
-				: { kind: "page", render: () => page(exchange, matched.chain, matched.params) },
+		match: () => methodMatch(exchange, matched),
 		headers: exchange.secured.headers,
 	});
+}
+
+// A .response() page has no method list, so every method reaches it (02-system step 9).
+function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefined {
+	if (matched.id === undefined) return undefined;
+	const respond = matched.chain[matched.chain.length - 1].module.response;
+	if (respond !== undefined) return { kind: "response", handle: () => answered(exchange, matched.chain, respond) };
+	return { kind: "page", render: () => page(exchange, matched.chain, matched.params) };
+}
+
+// The answer still passes through finalize, and the request's security set wins over its headers.
+async function answered(exchange: Exchange, chain: readonly ChainEntry[], respond: Respond): Promise<Response> {
+	const run = await runLoaders({ ...loaderInput(exchange, chain), response: respond });
+	if (run.answer === undefined) return failed(exchange, run);
+	const headers = new Headers(run.answer.headers);
+	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
+	const body = await run.answer.text();
+	return finalize({ status: run.answer.status, body, headers, url: exchange.request.url });
 }
 
 // An unknown path runs the loaders of its not-found chain: the root layout, or the fuzzy owner and its

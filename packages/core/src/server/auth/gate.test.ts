@@ -78,6 +78,7 @@ it("response route", async () => {
 			readStore: store.readStore,
 			response: () => {
 				called = true;
+				return new Response("never");
 			},
 		}),
 	);
@@ -89,15 +90,19 @@ it("response route", async () => {
 it("response route passes", async () => {
 	const seen: unknown[] = [];
 	const store = storeSpy();
+	const answered = new Response("answered");
 	const result = await gate(
 		input({
 			authenticate: () => session,
 			routes: [{ id: "admin", auth: required, authorize: () => true }],
 			readStore: store.readStore,
-			response: (ctx) => seen.push(ctx.auth),
+			response: (ctx) => {
+				seen.push(ctx.auth);
+				return answered;
+			},
 		}),
 	);
-	expect(result.kind).toBe("proceed");
+	expect(result).toMatchObject({ kind: "proceed", answer: answered });
 	expect(seen).toEqual([session]);
 	expect(store.reads).toBe(0);
 });

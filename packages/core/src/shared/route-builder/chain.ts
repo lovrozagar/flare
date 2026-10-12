@@ -24,6 +24,9 @@ type Step = (ctx: StepContext) => unknown;
 
 type Authorize = (ctx: StepContext) => boolean | Promise<boolean>;
 
+// A .response() page answers with its own Response. It still passes through finalize (dx/builder.md).
+export type Respond = (ctx: StepContext) => Response | Promise<Response>;
+
 type Head = (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
 
 type Render = (props: { loaderData: unknown }) => unknown;
@@ -34,7 +37,7 @@ export type ChainRecord = {
 	authorize?: Authorize;
 	preloader?: Step;
 	loader?: Step;
-	response?: Step;
+	response?: Respond;
 	head?: Head;
 	render?: Render;
 };
@@ -46,7 +49,7 @@ export type Chain = {
 	authorize: (fn: Authorize) => Chain;
 	preloader: (fn: Step) => Chain;
 	loader: (fn: Step) => Chain;
-	response: (fn: Step) => Chain;
+	response: (fn: Respond) => Chain;
 	head: (fn: Head) => Chain;
 	render: (fn: Render) => Chain;
 	record: () => ChainRecord;

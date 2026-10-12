@@ -1,6 +1,6 @@
 import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts";
 import { statusOf } from "../../shared/errors/status.ts";
-import type { ChainAuth, PreloaderContext, StepContext } from "../../shared/route-builder/chain.ts";
+import type { ChainAuth, PreloaderContext, Respond, StepContext } from "../../shared/route-builder/chain.ts";
 import type { RequestKind } from "../loaders/cascade.ts";
 import { effectiveAuth } from "./effective.ts";
 import { identity, type PolicyClass } from "./identity.ts";
@@ -20,14 +20,20 @@ export type GateInput = {
 	routes: readonly GateRoute[];
 	shared?: boolean;
 	readStore?: () => void;
-	response?: (ctx: StepContext) => void;
+	response?: Respond;
 };
 
 // "status" is an authenticate failure, a bare HTTP status for the whole chain. "stopped" fails the match at
 // `index` and skips everything inside it. Matches outside it still load (B27, B29, B82).
 // `contexts` holds the preloader context accumulated through each match that passed, root down.
 export type GateResult =
-	| { kind: "proceed"; session: unknown; class: PolicyClass; contexts: PreloaderContext[] }
+	| {
+			kind: "proceed";
+			session: unknown;
+			class: PolicyClass;
+			contexts: PreloaderContext[];
+			answer?: Response | Promise<Response>;
+	  }
 	| { kind: "status"; status: number }
 	| { kind: "stopped"; index: number; session: unknown; error: unknown; contexts: PreloaderContext[] };
 
@@ -52,8 +58,12 @@ export async function gate(input: GateInput): Promise<GateResult> {
 		contexts.push(latest);
 	}
 	const policy = identity(auth, session).class;
-	if (input.response !== undefined) input.response({ ...base, preloaderContext: latest });
-	else if (readsStore(input, policy)) input.readStore?.();
+	// A .response() page answers here. It never reads the store.
+	if (input.response !== undefined) {
+		const answer = input.response({ ...base, preloaderContext: latest });
+		return { kind: "proceed", session, class: policy, contexts, answer };
+	}
+	if (readsStore(input, policy)) input.readStore?.();
 	return { kind: "proceed", session, class: policy, contexts };
 }
 
