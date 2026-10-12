@@ -197,7 +197,8 @@ The corpus file feeds the test.
 | --- | --- | --- |
 | `one route` | the minimal home page | `routes.gen.ts` imports its named `route` export as `{ route as route0 }` and exports `routeTree` and `layouts` |
 | `missing route export` | a page file with no `route` export | build error naming the file |
-| `filename` | `home.page.tsx` directly in `_root_` | id `_root_`, URL `/` |
+| `filename` | `home.page.tsx` directly in `_root_`, beside `root.root-layout.tsx` | the page id is `_root_/` and the root layout id is `_root_`. URL `/`. Under `[locale]/_root_` the home page id is `[locale]/_root_/` |
+| `layout beside page` | `blog.layout.tsx` and `blog.page.tsx` in one non-root folder | build error naming both files |
 | `about` | `_root_/about/about.page.tsx` | id `_root_/about`, URL `/about` |
 | `group` | layout `_root_/(blog)` and page `_root_/(blog)/post` | the page URL is `/post` |
 | `param` | `_root_/users/[id]` | URL `/users/[id]`, param `id: string` |
