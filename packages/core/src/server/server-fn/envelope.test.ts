@@ -4,6 +4,11 @@ import { markSafeError } from "../../shared/errors/safe.ts";
 import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
 import type { Logger } from "../lifecycle/logger.ts";
 import type { ErrorSink } from "../render/projector.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
+import { serveWith } from "../lifecycle/create.ts";
+import type { Authenticate } from "../lifecycle/options.ts";
+import { createServerFn, type ServerFn } from "./builder.ts";
 import { errorEnvelope, okEnvelope } from "./envelope.ts";
 
 function noop(): void {}
@@ -92,4 +97,51 @@ it("helpers", () => {
 		expect(answer.envelope).not.toHaveProperty("stack");
 	}
 	expect(dev.send).not.toHaveBeenCalled();
+});
+
+// The rows below go through createServer, so dispatch and finalize both run.
+const router = createRouter({ layouts: { _root_: createRootLayout("_root_").render(() => "root") }, routeTree: [] });
+
+function call(fn: ServerFn, authenticate?: Authenticate): Promise<Response> {
+	const app = serveWith({ router, authenticate, serverFns: { [fn.id]: async () => fn } }, sink(false));
+	const headers = { origin: "http://localhost", "content-type": "application/json" };
+	return app.fetch(new Request(`http://localhost/_flare/fn/${fn.id}`, { method: "POST", body: "null", headers }));
+}
+
+function named(name: string) {
+	return { method: "post" as const, __id: `${name}-id`, __name: name };
+}
+
+it("null session", async () => {
+	const handler = vi.fn<() => string>(() => "secret");
+	const guarded = createServerFn(named("guarded")).authenticate().handler(handler);
+	for (const answer of [await call(guarded, () => null), await call(guarded)]) {
+		expect(answer.status).toBe(401);
+		expect(await answer.json()).toEqual({ name: "guarded", status: 401, message: "Unauthenticated" });
+	}
+	expect(handler).not.toHaveBeenCalled();
+});
+
+it("returned response", async () => {
+	const made = createServerFn(named("made")).handler(
+		() => new Response("made", { status: 201, headers: { "x-own": "1", "cache-control": "public, max-age=60" } }),
+	);
+	const answer = await call(made);
+	expect(answer.status).toBe(201);
+	expect(await answer.text()).toBe("made");
+	expect(answer.headers.get("x-own")).toBe("1");
+	expect(answer.headers.get("cache-control")).toBe("private, no-store");
+	expect(answer.headers.get("x-content-type-options")).toBe("nosniff");
+});
+
+it("thrown response", async () => {
+	const thrower = createServerFn(named("thrower")).handler(() => {
+		throw new Response("hidden", { status: 418 });
+	});
+	const answer = await call(thrower);
+	expect(answer.status).toBe(500);
+	const envelope = await answer.json();
+	expect(envelope).toMatchObject({ name: "thrower", status: 500 });
+	expect(JSON.stringify(envelope)).not.toContain("hidden");
+	expect(envelope.digest).toMatch(/^[0-9a-f]{12}$/);
 });

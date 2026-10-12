@@ -4,13 +4,13 @@ import { escape } from "@solidjs/web";
 import { Matches, type OutletState } from "../../shared/components/index.ts";
 import type { FlareRegister } from "../../shared/route-builder/register.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
-import type { FrameError, RequestKind } from "../../shared/protocol/index.ts";
+import type { FrameError } from "../../shared/protocol/index.ts";
 import { matchId } from "../../shared/route-tree/index.ts";
 import { loadChain, notFoundRenderOf, type LoadedEntry, type Match } from "../../shared/router/create-router.ts";
 import { RedirectError } from "../../shared/errors/redirect.ts";
 import { resolveCaller } from "../auth/caller.ts";
 import { withServerContext } from "../context/ctx.ts";
-import { runLoaders, type LoaderRun, type RunInput } from "../loaders/run.ts";
+import { runLoaders, type RunInput } from "../loaders/run.ts";
 import { dataBody, dataFrames, NDJSON, redirectBody, skippedRoutes } from "../navigation/index.ts";
 import { renderDocument } from "../render/document.ts";
 import { mergeHead } from "../../shared/head/index.ts";
@@ -20,7 +20,9 @@ import { redirectLocation } from "../redirect/index.ts";
 import { readSearch } from "../../shared/url/search.ts";
 import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
-import { classify } from "./classify.ts";
+import { dispatch } from "../server-fn/dispatch.ts";
+import { classify, isServerFn } from "./classify.ts";
+import { answer, bare, secure, typed, type Exchange } from "./exchange.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
@@ -35,21 +37,6 @@ declare global {
 }
 
 export type { FlareServer, ServerOptions } from "./options.ts";
-
-type Secured = { headers: Headers; nonce: string };
-
-// `secured` is resolved once per request, before the status is known, so every answer carries the same
-// security set (bit 03).
-// `request` carries the URL the router and the loaders see: both internal params are removed (bit 06).
-type Exchange = {
-	options: RuntimeOptions;
-	request: Request;
-	env: unknown;
-	secured: Secured;
-	sink: ErrorSink;
-	kind: RequestKind;
-	stale: string | null;
-};
 
 // The stages of order.ts, in that order: canonical, serverContext, match, method, then validate, the auth
 // gate, and the loaders inside runLoaders, then render and finalize.
@@ -77,16 +64,12 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 			});
 			if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
 			return withServerContext(
-				{ request, env, serverContext: options.serverContext },
-				() => route(exchange),
+				{ request, env, serverContext: options.serverContext, authenticate: options.authenticate },
+				(scope) => route({ ...exchange, session: scope.session }),
 				() => answer(exchange, 500),
 			);
 		},
 	};
-}
-
-function answer(exchange: Exchange, status: number, location?: string): Response {
-	return finalize({ status, body: "", location, url: exchange.request.url, headers: exchange.secured.headers });
 }
 
 // A match whose modules are loaded (02-system step 10).
@@ -95,7 +78,9 @@ type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
 // The method check runs on the match alone (02-system step 9). Route code loads only for the handler that runs
 // (step 10), so an OPTIONS, a 405, or an unmatched method imports nothing.
 function route(exchange: Exchange): Promise<Response> {
-	const matched = exchange.options.router.match(new URL(exchange.request.url).pathname);
+	const url = new URL(exchange.request.url);
+	if (isServerFn(url)) return serverFn(exchange);
+	const matched = exchange.options.router.match(url.pathname);
 	const method = exchange.request.method;
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {
 		// A data or prefetch request for an unknown URL is that status alone, with no frame (B73).
@@ -163,13 +148,6 @@ function stage(exchange: Exchange, body: BodyInit, status: number): StageResult 
 	return { status, body, headers: typed(exchange, NDJSON), url: exchange.request.url };
 }
 
-// The request's headers with the body's media type. A document is HTML, a data response NDJSON.
-function typed(exchange: Exchange, type: string): Headers {
-	const headers = new Headers(exchange.secured.headers);
-	headers.set("content-type", type);
-	return headers;
-}
-
 // The answer still passes through finalize, and the request's security set wins over its headers. A node
 // flagged as .response() whose module has none is a codegen bug: projected, then 500.
 async function answered(exchange: Exchange, matched: Loaded): Promise<Response> {
@@ -180,9 +158,7 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 	}
 	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond });
 	if (run.answer === undefined) return bare(exchange, run);
-	const headers = new Headers(run.answer.headers);
-	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
-	return finalize({ status: run.answer.status, body: run.answer.body, headers, url: exchange.request.url });
+	return secure(exchange, { status: run.answer.status, body: run.answer.body, headers: run.answer.headers });
 }
 
 // An unknown path runs the loaders of its not-found chain: the root layout, or the fuzzy owner and its
@@ -266,13 +242,6 @@ function renderFailed(exchange: Exchange, projected: Projected): Response {
 	return finalize({ status: projected.status, body, url: exchange.request.url, headers: typed(exchange, HTML) });
 }
 
-async function bare(exchange: Exchange, run: LoaderRun): Promise<Response> {
-	const headers = new Headers(exchange.secured.headers);
-	run.response.headers.forEach((value, name) => headers.set(name, value));
-	const body = await run.response.text();
-	return finalize({ status: run.response.status, body, headers, url: exchange.request.url });
-}
-
 // The validators read the raw records: defined params, and the search as one string or a `string[]` per key.
 function loaderInput(exchange: Exchange, matched: Loaded): RunInput {
 	const routes = matched.chain.map((entry) => ({ ...entry.module, id: entry.id }));
@@ -283,14 +252,15 @@ function loaderInput(exchange: Exchange, matched: Loaded): RunInput {
 		dev: exchange.sink.dev,
 		request: exchange.request,
 		env: exchange.env,
-		authenticate: () => authenticate(exchange, routes),
+		// The request's one session, shared with every server function it calls.
+		authenticate: () => resolveCaller(routes, exchange.session),
 		routes,
 	};
 }
 
-// The app function runs once, when the chain reads identity. No function means no session.
-function authenticate(exchange: Exchange, routes: RunInput["routes"]): unknown {
-	const app = exchange.options.authenticate;
-	if (app === undefined) return null;
-	return resolveCaller(routes, (caller) => app({ request: exchange.request, env: exchange.env, ...caller }));
+// Step 7: a server function is dispatched and never reaches the router (B42).
+async function serverFn(exchange: Exchange): Promise<Response> {
+	const { serverFns = {}, sameSite = [], bodyLimit, router } = exchange.options;
+	const input = { request: exchange.request, serverFns, sameSite, sink: exchange.sink, basePath: router.basePath };
+	return secure(exchange, await dispatch({ ...input, bodyLimit }));
 }

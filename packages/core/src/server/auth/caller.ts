@@ -24,3 +24,8 @@ export function resolveCaller<T>(routes: readonly AuthRoute[], app: (caller: Cal
 	const callerData = routes.at(-1)?.auth?.callerData ?? [];
 	return app({ callerData, callerChain });
 }
+
+// A server function that calls authenticate(): no arguments, and its export name is the one route (dx/server.md).
+export function fnCaller(name: string): Caller {
+	return { callerData: [], callerChain: [{ route: name, args: [] }] };
+}
