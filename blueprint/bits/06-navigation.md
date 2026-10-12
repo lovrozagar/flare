@@ -32,6 +32,7 @@ Creates every `P6` row. Document responses stay HTML. `_flare=data` and `_flare=
 | `other` | `_flare=isr` | 400 |
 | `stripped` | the URL also has `q=1` | the user search is `{ q: "1" }` and `_flare` is not in it |
 | `stale cap` | `_flare_stale` longer than 8 KiB | the all-page-loaders-stale fallback from bit 04 |
+| `raw kept` | `?q=a%20b&x=~'!*()&b&_flare=data&_flare_stale=k` | the search is exactly the parsed request's own pairs, `?q=a%20b&x=~%27!*()&b` (the URL parser writes `'` as `%27` in an http query). A document with no internal param is byte-identical. The internal pairs are removed from the raw query, never through a URLSearchParams write (B31) |
 
 ### `shared/protocol/frames.test.ts`
 
