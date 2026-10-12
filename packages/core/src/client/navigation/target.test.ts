@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRouter, type RouterOptions } from "../../shared/router/create-router.ts";
-import { resolveTarget, type TargetContext } from "./target.ts";
+import { resolveTarget, resolveUrl, type TargetContext } from "./target.ts";
 
 const pages: RouterOptions["routeTree"] = [
 	{ id: "_root_/", path: "/", module: {} },
@@ -86,4 +86,15 @@ it("rewrite throws", () => {
 
 it("response page", () => {
 	expect(resolveTarget({ to: "_root_/api" }, context())).toEqual({ kind: "document", url: "/api" });
+});
+
+it("url target", () => {
+	expect(resolveUrl("/about?q=1#h", context())).toMatchObject({
+		kind: "data",
+		url: "/about?q=1#h",
+		dataUrl: "/about?q=1&_flare=data",
+		route: "_root_/about",
+	});
+	expect(resolveUrl("/dashboard", context())).toEqual({ kind: "document", url: "/dashboard" });
+	expect(() => resolveUrl("https://evil.example/a", context())).toThrow(/origin/);
 });

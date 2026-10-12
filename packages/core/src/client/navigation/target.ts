@@ -35,6 +35,17 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 	if (input.shallow === true && location.pathname !== context.current.pathname) {
 		throw new Error("navigate: a shallow navigation keeps the pathname");
 	}
+	return fromLocation(location, context);
+}
+
+// A URL the server built, such as an `x` frame's `u`. It is not rewritten again. Another origin throws.
+export function resolveUrl(href: string, context: TargetContext): Target {
+	const url = new URL(href, context.origin);
+	if (url.origin !== context.origin) throw new Error("navigate: the URL is not on this origin");
+	return fromLocation(locationOf(url), context);
+}
+
+function fromLocation(location: Location, context: TargetContext): Target {
 	const url = `${location.pathname}${location.search}${location.hash}`;
 	const match = context.router.match(location.pathname);
 	if (match.response === true || rootOf(match) !== rootOf(context.router.match(context.current.pathname))) {

@@ -95,6 +95,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `other root` | the target route's root-layout is not the current one | a document load, and no `_flare=data` request |
 | `rewrite throws` | the client `rewrite` throws | the navigation fails. The previous URL stays |
 | `response page` | `navigate` or `Link` to a `.response()` page | a full document load |
+| `url target` | a built URL, such as an `x` frame's `u` | the same target rules without a second rewrite. Another origin throws |
 
 ### `client/navigation/reload.test.ts`
 
