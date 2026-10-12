@@ -11,10 +11,15 @@ import { createRouter } from "../../src/shared/router/create-router.ts";
 
 const calls: string[] = [];
 
+// Loader data is an object or nothing (dx/builder.md).
+function nameOf(data: unknown): string {
+	return typeof data === "object" && data !== null && "name" in data ? String(data.name) : "";
+}
+
 const root = createRootLayout("_root_")
 	.loader(() => {
 		calls.push("root");
-		return "root";
+		return { name: "root" };
 	})
 	.render((props) =>
 		createComponent(Dynamic, {
@@ -35,10 +40,10 @@ const root = createRootLayout("_root_")
 const about = createPage("_root_/about")
 	.loader(() => {
 		calls.push("about");
-		return "about data";
+		return { name: "about data" };
 	})
 	.head(() => ({ title: "About" }))
-	.render((props) => `about:${String(props.loaderData)}`);
+	.render((props) => `about:${nameOf(props.loaderData)}`);
 
 const app = createServer({
 	router: createRouter({
@@ -72,8 +77,8 @@ it("data is ndjson", async () => {
 	const body = await response.text();
 	expect(response.headers.get("content-type")).toMatch(/^application\/x-ndjson/);
 	expect(framesOf(body)).toEqual([
-		{ t: "l", m: "_root_", d: "root" },
-		{ t: "l", m: "_root_/about", d: "about data" },
+		{ t: "l", m: "_root_", d: { name: "root" } },
+		{ t: "l", m: "_root_/about", d: { name: "about data" } },
 		{ t: "h", m: "_root_/about", d: { title: "About" } },
 		{ t: "r" },
 		{ t: "d" },
@@ -93,5 +98,5 @@ it("stale layout", async () => {
 	const frames = framesOf(await response.text());
 	expect(calls).toEqual(["root"]);
 	expect(frames.map((frame) => frame.t)).toEqual(["l", "r", "d"]);
-	expect(frames[0]).toEqual({ t: "l", m: "_root_", d: "root" });
+	expect(frames[0]).toEqual({ t: "l", m: "_root_", d: { name: "root" } });
 });

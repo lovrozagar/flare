@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { createRootLayout } from "./root-layout.ts";
 
 const render = (): string => "<html>";
-const loader = (): string => "root data";
+const loader = (): { data: string } => ({ data: "root data" });
 
 it("root render is the document", () => {
 	expect(createRootLayout("_root_").render(render).document).toBe(true);

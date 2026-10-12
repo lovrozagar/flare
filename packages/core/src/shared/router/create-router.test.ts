@@ -33,7 +33,7 @@ it("defaults", () => {
 	});
 });
 
-const post = { loader: () => "post" };
+const post = { loader: () => ({ id: "post" }) };
 const pages = [{ id: "_root_/blog/post", path: "/blog/post", module: post }];
 
 it("not found root", async () => {
@@ -106,8 +106,8 @@ it("not found chain", () => {
 });
 
 it("params and base path", () => {
-	const user = { loader: () => "user" };
-	const fresh = { loader: () => "new" };
+	const user = { loader: () => ({ id: "user" }) };
+	const fresh = { loader: () => ({ id: "new" }) };
 	const router = createRouter({
 		layouts: { _root_: {} },
 		routeTree: [
@@ -178,7 +178,7 @@ it("prefixed root", async () => {
 
 it("lazy chain", async () => {
 	const root = { boundaries: { notFoundRender: rootNotFound } };
-	const page = { loader: () => "page" };
+	const page = { loader: () => ({ id: "page" }) };
 	const router = createRouter({
 		layouts: { _root_: () => Promise.resolve(root) },
 		routeTree: [{ id: "_root_/a", path: "/a", module: () => Promise.resolve(page) }],

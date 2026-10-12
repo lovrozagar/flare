@@ -483,7 +483,7 @@ it("head throw", async () => {
 		.head(() => ({ title: "Root" }))
 		.render((props) => documentOf(["root[", props.children, "]"]));
 	const page = createPage("_root_/")
-		.loader(() => "data")
+		.loader(() => ({ text: "data" }))
 		.head(headBroke)
 		.render(() => "page")
 		.errorRender(errorRender);

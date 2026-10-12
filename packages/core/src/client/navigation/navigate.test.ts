@@ -5,6 +5,7 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { createMatchCache } from "../router/match-cache.ts";
+import { useLoaderData } from "../../shared/components/index.ts";
 import { mountNavigator, unmountAll, type Fetch } from "./navigate.fixture.ts";
 import type { Landing, NavigatorDeps } from "./navigate.ts";
 
@@ -15,6 +16,12 @@ const about = createPage("_root_/about").render((props) => `about:${String(props
 const refetching = createPage("_root_/refetch")
 	.effects({ shouldRefetch: () => true })
 	.render((props) => `refetch:${String(props.loaderData)}`);
+const mounts = { live: 0 };
+const live = createPage("_root_/live").render(() => {
+	mounts.live += 1;
+	const data = useLoaderData({ from: "_root_/live" });
+	return [() => `live:${String(Reflect.get(Object(data), "title"))}`];
+});
 const tabs = createPage("_root_/tabs/[[tab]]").render((props) => `tabs:${String(props.loaderData)}`);
 const router = createRouter({
 	layouts: { _root_: root, _admin_: root },
@@ -29,6 +36,7 @@ const router = createRouter({
 		},
 		{ id: "_root_/broken", path: "/broken", module: () => Promise.reject(new SyntaxError("Unexpected token")) },
 		{ id: "_root_/refetch", path: "/refetch", module: () => Promise.resolve(refetching) },
+		{ id: "_root_/live", path: "/live", module: live },
 		{ id: "_admin_/panel", path: "/panel", module: about },
 	],
 });
@@ -361,4 +369,21 @@ it("preloader", async () => {
 	expect(app.store.snapshot().matches.map((match) => match.preloader)).toEqual([{}, {}]);
 	await app.navigator.navigate({ to: "_root_/about" });
 	expect(app.store.snapshot().matches[1].preloader).toEqual({ site: "s", role: "admin" });
+});
+
+function liveFrames(title: string): Frame[] {
+	return [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/live", d: { title } }, { t: "r" }];
+}
+
+it("live hook", async () => {
+	const responses = [ndjson(liveFrames("First")), ndjson(liveFrames("Second"))];
+	const app = await setup(async () => responses.shift() ?? ndjson(liveFrames("Third")));
+	await app.navigator.navigate({ to: "_root_/live" });
+	flush();
+	expect(app.text()).toBe("root[live:First]");
+	const mounted = mounts.live;
+	await app.navigator.navigate({ to: "_root_/live" });
+	flush();
+	expect(app.text()).toBe("root[live:Second]");
+	expect(mounts.live).toBe(mounted);
 });

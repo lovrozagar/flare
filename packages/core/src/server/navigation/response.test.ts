@@ -16,7 +16,7 @@ function noop(): void {}
 const quiet: Logger = { level: "error", error: noop, warn: noop, log: noop };
 
 const root = createRootLayout("_root_")
-	.loader(() => "root")
+	.loader(() => ({ text: "root" }))
 	.head(() => ({ title: "Root" }))
 	.render((props) => ["root[", props.children, "]"]);
 
@@ -250,7 +250,7 @@ it("loader e", async () => {
 	expect(response.status).toBe(200);
 	const frames = await rest(lines(response));
 	expect(frames).toEqual([
-		{ t: "l", m: "_root_", d: "root" },
+		{ t: "l", m: "_root_", d: { text: "root" } },
 		{ t: "e", m: "_root_/about", e: { message: "loader broke", stack: expect.stringContaining("loader broke") } },
 		{ t: "h", m: "_root_", d: { title: "Root" } },
 		{ t: "r" },
@@ -266,7 +266,7 @@ function headBroke(): never {
 it("head throw", async () => {
 	const send = vi.fn<(payload: DevErrorPayload) => void>();
 	const page = createPage("_root_/about")
-		.loader(() => "about")
+		.loader(() => ({ text: "about" }))
 		.head(headBroke)
 		.render(() => "about");
 	const frames = await rest(lines(await app(page, { send }).fetch(data())));

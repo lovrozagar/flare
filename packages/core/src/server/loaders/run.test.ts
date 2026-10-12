@@ -398,3 +398,24 @@ it("preloader merge", async () => {
 	expect(last).toEqual({});
 	expect(none.contexts).toEqual([{}]);
 });
+
+function text(): string {
+	return "text";
+}
+
+it("primitive loader", async () => {
+	const dev = await runLoaders(request([{ id: "_root_/about", loader: text }], { dev: true }));
+	expect(dev.failed?.error).toEqual(new Error("_root_/about: a loader returns an object or nothing, not a string"));
+	const prod = await runLoaders(request([{ id: "_root_/about", loader: text }]));
+	expect(prod.data).toEqual(["text"]);
+	const fine = await runLoaders(
+		request(
+			[
+				{ id: "a", loader: () => ({ ok: 1 }) },
+				{ id: "b", loader: () => null },
+			],
+			{ dev: true },
+		),
+	);
+	expect(fine.data).toEqual([{ ok: 1 }, null]);
+});
