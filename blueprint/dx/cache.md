@@ -25,12 +25,12 @@ Rendered at `vite build`. The build fails, and names the route, when this route 
 
 | form | when | outcome |
 | --- | --- | --- |
-| `true` | the route has no dynamic segment, or it inherits `params` from a parent | one page |
+| `true` | the route has no dynamic segment | one page |
 | `{ defer? }` | same | `defer` defaults to `"resolve"` |
 | `(ctx) => params[]` | the route has a dynamic segment | shorthand for `{ params }` |
 | `{ params, defer? }` | the route has a dynamic segment | `params` is required |
 
-`params` is `(ctx: { params }) => FlatParams[] | Promise<...>`. The parent params are in `ctx.params`. A dynamic segment without `params`, and without a parent that provides them, is a build error (`vite/prerender/run.test.ts` `missing params`).
+`params` is `(ctx: { params }) => FlatParams[] | Promise<...>`. It lists every dynamic segment of the route, the ones above the page included: `/[locale]/blog/[slug]` returns `{ locale, slug }` objects. `ctx.params` is `{}`, because a mode lives on the page alone (How the decision is made) and no layout provides params. A dynamic segment without `params` is a build error (`vite/prerender/run.test.ts` `missing params`).
 
 A static route is not revalidated on a timer. Purge does not apply. `revalidate` does not delete files under `_flare-static`. The next deploy replaces the files because the directory includes the build id. The seed's `tags` field is `[]` when the route declares none, and that build succeeds (`vite/prerender/artifacts.test.ts` `empty tags`). On a request, SSG checks the chain's `params()` and 404s when the slug is absent. A listed slug whose seed file is missing renders once and is not written to the asset store (`server/cache/seed.test.ts` `absent slug`, `missing file`). `authorize` anywhere on the chain fails prerender and names the route. `authenticateOptional` without `authorize` still prerenders the anonymous body (`vite/prerender/run.test.ts` `authorize`, `optional auth`).
 
