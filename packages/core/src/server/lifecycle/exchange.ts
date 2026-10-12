@@ -3,6 +3,7 @@ import type { Session } from "../context/ctx.ts";
 import type { LoaderRun } from "../loaders/run.ts";
 import type { MountContext } from "../mount/mount.ts";
 import { projectError, type ErrorSink } from "../render/projector.ts";
+import { applySecurity, type SecurityConfig } from "../security/apply.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import type { RuntimeOptions } from "./options.ts";
 
@@ -23,11 +24,13 @@ export type Exchange = {
 	session: Session;
 };
 
+// Every answer here carries the request's resolved security set, which already holds the defaults, so finalize
+// gets no `url` and does not add them again: a `false` in that set stays removed.
 type Answering = Pick<Exchange, "request" | "secured">;
 
 // A status alone, with the request's security set.
 export function answer(exchange: Answering, status: number, location?: string): Response {
-	return finalize({ status, body: "", location, url: exchange.request.url, headers: exchange.secured.headers });
+	return finalize({ status, body: "", location, headers: exchange.secured.headers });
 }
 
 // A loader run that answered without a render: validation, a gate status, or a named failure.
@@ -35,10 +38,22 @@ export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">
 	const headers = new Headers(exchange.secured.headers);
 	run.response.headers.forEach((value, name) => headers.set(name, value));
 	const body = await run.response.text();
-	return finalize({ status: run.response.status, body, headers, url: exchange.request.url });
+	return finalize({ status: run.response.status, body, headers });
 }
 
 // The request's headers with the body's media type. A document is HTML, a data response NDJSON.
+// A route's `.security()` rebuilds the request's set before the body is written, so the nonce the render stamps and
+// the header agree (B68). A route that sets none keeps the set.
+export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "options">>(
+	exchange: E,
+	security: SecurityConfig,
+): E {
+	if (Object.keys(security).length === 0) return exchange;
+	const url = exchange.request.url;
+	const secured = applySecurity({ url, headers: new Headers(), security: exchange.options.security, route: security });
+	return { ...exchange, secured };
+}
+
 // The route's merged `.headers()` come first, so the security set and the media type win over them.
 export function typed(
 	exchange: Answering,
@@ -62,7 +77,7 @@ export function passed(exchange: Answering, response: Response): Response {
 export function secure(exchange: Answering, result: StageResult): Response {
 	const headers = new Headers(result.headers);
 	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
-	return finalize({ ...result, headers, url: exchange.request.url });
+	return finalize({ ...result, headers });
 }
 
 // Without an adapter context, background work still runs, and a rejection is projected like any bug.

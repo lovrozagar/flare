@@ -1,11 +1,13 @@
 import http from "node:http";
+import { createComponent, type Element } from "solid-js";
+import { Dynamic } from "@solidjs/web";
 import net from "node:net";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createNodeListener } from "../../src/adapters/node/listener.ts";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
-import { createRouter } from "../../src/shared/router/create-router.ts";
+import { createRouter, type RouteModule } from "../../src/shared/router/create-router.ts";
 
 const home = createPage("_root_/")
 	.loader(() => ({ title: "Home" }))
@@ -182,4 +184,61 @@ it("headers cannot secure", async () => {
 		expect(response.headers.get("x-route")).toBe("1");
 		expect(response.headers.getSetCookie()).toEqual(["a=1", "b=2"]);
 	}
+});
+
+// Solid writes the head into the document's head element, so the root renders a full document.
+function documentOf(children: Element): Element {
+	return createComponent(Dynamic, {
+		component: "html",
+		get children() {
+			return [
+				createComponent(Dynamic, { component: "head" }),
+				createComponent(Dynamic, { component: "body", children }),
+			];
+		},
+	});
+}
+
+function serveOne(page: RouteModule, id = "_root_/"): ReturnType<typeof createServer> {
+	return createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => documentOf(props.children)) },
+			routeTree: [{ id, path: "/", module: page }],
+		}),
+	});
+}
+
+// A page's `.security()` reaches its document and its data response. `false` removes a header.
+it("route security", async () => {
+	const framed = serveOne(
+		createPage("_root_/")
+			.security({ "X-Frame-Options": "SAMEORIGIN" })
+			.render(() => "home"),
+	);
+	for (const path of ["/", "/?_flare=data"]) {
+		expect((await framed.fetch(new Request(`http://localhost${path}`))).headers.get("x-frame-options")).toBe(
+			"SAMEORIGIN",
+		);
+	}
+	const open = serveOne(
+		createPage("_root_/")
+			.security({ "X-Frame-Options": false })
+			.render(() => "home"),
+	);
+	expect((await open.fetch(new Request("http://localhost/"))).headers.has("x-frame-options")).toBe(false);
+});
+
+// A string CSP is the header as written, and no script or style tag carries a nonce (B68).
+it("route string csp", async () => {
+	const csp = "default-src 'self'; script-src 'self' 'unsafe-inline'";
+	const page = createPage("_root_/")
+		.head(() => ({ custom: { styles: [{ children: "p{}" }] } }))
+		.security({ "Content-Security-Policy": csp })
+		.render(() => "home");
+	const response = await serveOne(page).fetch(new Request("http://localhost/"));
+	expect(response.headers.get("content-security-policy")).toBe(csp);
+	const html = await response.text();
+	expect(html).toMatch(/<script/);
+	expect(html).toMatch(/<style/);
+	expect(html).not.toMatch(/<(script|style)\b[^>]*\bnonce=/);
 });

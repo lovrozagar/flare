@@ -23,7 +23,7 @@ import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
 import { classify, isServerFn } from "./classify.ts";
-import { answer, background, bare, failed, passed, secure, typed, type Exchange } from "./exchange.ts";
+import { answer, background, bare, failed, passed, routeSecured, secure, typed, type Exchange } from "./exchange.ts";
 import { dispatchMount, mountTable } from "../mount/mount.ts";
 import { runMiddleware } from "../middleware/run.ts";
 import type { MiddlewareKind } from "../middleware/types.ts";
@@ -159,7 +159,9 @@ async function data(exchange: Exchange, matched: Loaded): Promise<Response> {
 	const thrown = run.thrown ?? run.failed?.error;
 	if (thrown instanceof RedirectError) {
 		const u = redirectLocation(thrown, exchange.options.router.basePath);
-		return finalize({ ...stage(exchange, redirectBody({ s: thrown.status, u, r: thrown.replace }), run) });
+		return finalize({
+			...stage(routeSecured(exchange, run.security), redirectBody({ s: thrown.status, u, r: thrown.replace }), run),
+		});
 	}
 	if (run.response.status !== 200) return bare(exchange, run);
 	for (const bug of run.bugs) projectError(bug, exchange.sink);
@@ -168,12 +170,12 @@ async function data(exchange: Exchange, matched: Loaded): Promise<Response> {
 		return { message: wire.message, stack: wire.stack, digest: wire.digest };
 	};
 	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project });
-	return finalize(stage(exchange, body, run));
+	return finalize(stage(routeSecured(exchange, run.security), body, run));
 }
 
 // A data answer is HTTP 200 with the route's headers, whatever its frames say (B73).
 function stage(exchange: Exchange, body: BodyInit, run: LoaderRun): StageResult {
-	return { status: 200, body, headers: typed(exchange, NDJSON, run.headers), url: exchange.request.url };
+	return { status: 200, body, headers: typed(exchange, NDJSON, run.headers) };
 }
 
 // The answer still passes through finalize, and the request's security set wins over its headers. A node
@@ -224,7 +226,8 @@ function settle(exchange: Exchange, rendered: Rendered): Promise<Response> {
 	return paint(exchange, { ...rendered, failed: projected }, projected.status);
 }
 
-async function paint(exchange: Exchange, rendered: Rendered, status: number): Promise<Response> {
+async function paint(outer: Exchange, rendered: Rendered, status: number): Promise<Response> {
+	const exchange = routeSecured(outer, rendered.run.security);
 	for (const bug of rendered.run.bugs) projectError(bug, exchange.sink);
 	const state: OutletState = {
 		matches: outletMatches(rendered),
@@ -258,8 +261,7 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 	} catch (thrown) {
 		return renderFailed(exchange, projectError(thrown, exchange.sink));
 	}
-	const url = exchange.request.url;
-	return finalize({ status, body, render: "ssr", url, headers: typed(exchange, HTML, rendered.run.headers) });
+	return finalize({ status, body, render: "ssr", headers: typed(exchange, HTML, rendered.run.headers) });
 }
 
 // The stream rejected before the shell, so nothing was written (B93). Only a dev bug shows its message and
@@ -267,7 +269,7 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 function renderFailed(exchange: Exchange, projected: Projected): Response {
 	const stack = projected.wire.stack;
 	const body = stack === undefined ? "" : `<pre>${escape(`${projected.wire.message}\n${stack}`)}</pre>`;
-	return finalize({ status: projected.status, body, url: exchange.request.url, headers: typed(exchange, HTML) });
+	return finalize({ status: projected.status, body, headers: typed(exchange, HTML) });
 }
 
 // The validators read the raw records: defined params, and the search as one string or a `string[]` per key.

@@ -17,6 +17,7 @@ const VERDICTS: ReadonlyMap<string, RouteVerdict> = new Map<string, RouteVerdict
 	["authenticateOptional", "remove"],
 	["authorize", "remove"],
 	["headers", "remove"],
+	["security", "remove"],
 	["head", "remove"],
 	["response", "remove"],
 	["input", "remove"],

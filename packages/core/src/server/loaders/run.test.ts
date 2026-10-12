@@ -474,3 +474,23 @@ it("headers throw", async () => {
 	expect(run.headers).toEqual({ "x-root": "1" });
 	expect(run.bugs).toContain(boom);
 });
+
+// Outside-in: a set key replaces, `false` removes a parent value, and a function gets the four fields, no nonce.
+it("security merge", async () => {
+	const seen: unknown[] = [];
+	const routes: LoaderRoute[] = [
+		{ id: "_root_", security: { "X-Frame-Options": "SAMEORIGIN", "Content-Security-Policy": "default-src 'self'" } },
+		{
+			id: "_root_/(g)",
+			loader: () => ({ section: "s" }),
+			security: (ctx) => {
+				seen.push(Object.keys(ctx).sort());
+				return { "Content-Security-Policy": false };
+			},
+		},
+		{ id: "_root_/(g)/p", security: { "X-Frame-Options": "DENY" } },
+	];
+	const run = await runLoaders(request(routes));
+	expect(run.security).toEqual({ "X-Frame-Options": "DENY", "Content-Security-Policy": false });
+	expect(seen).toEqual([["loaderData", "params", "preloaderContext", "search"]]);
+});
