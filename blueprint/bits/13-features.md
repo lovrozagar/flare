@@ -4,6 +4,8 @@ Creates every `P13` row. Features do not import each other. The core pipeline do
 
 ## Extends
 
+`tests/types/app` gains the rows bit 07 could not hold: `query options input`, `query options void`, and `query client present` in `checks.ts`, plus the fixture's `src/query.ts` importing `@lovrozagar/flare/query`, and `app.test.ts` asserts the generated `hasQueryClient` is `true`. Bit 13 is not done until `app.test.ts` is green with them.
+
 `tests/integration/nonce.test.ts` gains `features`: `ThemeScript`, `DirectionScript`, `LocaleScript`, and `FontCSS` each carry the CSP header nonce.
 
 `shared/router/create-router.test.ts` gains the theme and direction rows. The outcomes are `dx/features.md`.
