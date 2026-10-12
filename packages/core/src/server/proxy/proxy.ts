@@ -17,18 +17,17 @@ export function proxy(request: Request, upstream: string, options: ProxyOptions 
 	return send(request, base, options).then((response) => answer(response, prefix, options));
 }
 
-async function send(request: Request, base: URL, options: ProxyOptions): Promise<Response> {
+// The body streams to the upstream as bytes and is never read into memory, so a mount body needs no cap here.
+// `duplex: "half"` is what fetch requires for a stream body. GET and HEAD send none.
+function send(request: Request, base: URL, options: ProxyOptions): Promise<Response> {
 	const url = new URL(request.url);
 	const headers = withoutHops(request.headers, false);
 	if (options.forwardCookies !== true) headers.delete("cookie");
 	if (options.forwardAuthorization !== true) headers.delete("authorization");
-	const body = request.method === "GET" || request.method === "HEAD" ? null : await request.arrayBuffer();
-	return fetch(new URL(`${url.pathname}${url.search}`, base.origin), {
-		method: request.method,
-		headers,
-		body,
-		redirect: "manual",
-	});
+	const init: RequestInit = { method: request.method, headers, redirect: "manual" };
+	if (request.method !== "GET" && request.method !== "HEAD")
+		Object.assign(init, { body: request.body, duplex: "half" });
+	return fetch(new URL(`${url.pathname}${url.search}`, base.origin), init);
 }
 
 // A Location that is a single-slash path is put back under the mount. Any other Location, absolute or
