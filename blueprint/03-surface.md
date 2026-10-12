@@ -34,7 +34,7 @@ JSX entries (` . `, `./client`, `./query`, `./i18n`, `./testing`) ship `types`, 
 
 ## `./server`
 
-`createServer`, `serverCtx`, `withFetchDedupe`, the middleware types (`defineMiddleware` is not a function; the type is `Middleware`), `mount`, `proxy`, `security` config type, `revalidate`, `createRevalidateFn`, `FlareStore`, `createMemoryStore`, `createAssetsStore`.
+`createServer`, `serverCtx`, `withFetchDedupe`, `createMiddleware` and the middleware types (`Middleware`, `MiddlewareEntry`, `MiddlewareFilter`), `mount`, `proxy`, `security` config type, `revalidate`, `createRevalidateFn`, `FlareStore`, `createMemoryStore`, `createAssetsStore`.
 
 ## `./server-fn`
 

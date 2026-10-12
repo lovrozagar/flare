@@ -205,13 +205,14 @@ Anything other than GET or HEAD clears the request map and is not memoized. A re
 
 ## Middleware
 
-A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user writes the function. `ctx` is:
+A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user writes the function, either wrapped in `createMiddleware(fn)`, which returns `fn` typed as `Middleware` and does nothing else, or annotated `const m: Middleware = …`. Both are the same value. `createMiddleware` takes no filter: the filter is set where the middleware is listed, so one handler can be listed under several filters (`server/middleware/run.test.ts` `create middleware`). `createServer({ middleware })` takes a list whose entries are a middleware or `{ filter, handler }`, run in list order, each wrapping the rest. Middleware passes no typed context to handlers. Per-request data for every handler is `serverContext`, the user is `authenticate`, and per-section context is a layout's `.preloader()`. `ctx` is:
 
 | field | outcome |
 | --- | --- |
 | `request` | the request, canonical URL |
 | `path` | the canonical pathname |
-| `env` | the fetch env |
+| `env` | the fetch env, typed by `FlareRegister["env"]` |
+| `kind` | `"page"` for a document, a data, or a prefetch request; `"serverFn"` for a server-function call |
 | `next()` | resolves to the router `Response`. A second call is 500 |
 | `respond(response)` | returns void, stashes that response, and skips `next()`. Finalize still runs |
 | `bypass(response)` | the same stash. The name means "I produced the response" |
@@ -222,8 +223,11 @@ A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user 
 | --- | --- | --- | --- | --- | --- | --- |
 | `exact` | no | `[]` | path strings | the pathname must equal one of them | | `server/middleware/filters.test.ts` `exact` |
 | `prefix` | no | `[]` | path strings | the pathname equals the prefix or continues with `/` | `"/api"` does not match `"/apiv2"`. A regular expression does not type-check | `filters.test.ts` `prefix boundary` |
+| `kind` | no | both | `"page"`, `"serverFn"` | the request kind must be one of them | a server-function filter does not name `/_flare/fn`, so it holds under any `basePath` | `filters.test.ts` `kind` |
 
-Both omitted means every path. `onPage`, `onServerFn`, and `virtualPath` do not exist. A page-only or server-function-only middleware is an `exact` or `prefix` filter.
+`exact` and `prefix` together match a path that either one matches. `kind` must match as well. All omitted means every request. `onPage`, `onServerFn`, and `virtualPath` do not exist: a page-only or server-function-only middleware is a `kind` filter. A layout's pages, including a group or root layout that adds no URL segment, are reached through that layout's own chain, not a middleware filter.
+
+A middleware that returns without calling `next()`, `respond()`, or `bypass()` continues the chain, as if it had returned `await ctx.next()`. That is how a middleware skips some paths (`run.test.ts` `skip continues`).
 
 `onResponse` is not a separate hook. `next()` resolves to the `Response`, including a 3xx, 401, 403, 404, and a 500 the pipeline produced. Returning a `Response` replaces it. Returning void keeps it. Any other return is ignored. A throw before any response rejects `next()`, and the code after it does not run. A throw after a response is 500 and the original body is discarded (`server/middleware/run.test.ts` `onResponse throw`, `after sees redirect`, `throw before`, `return replaces`).
 
