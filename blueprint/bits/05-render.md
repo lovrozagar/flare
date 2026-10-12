@@ -108,6 +108,31 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 | `dev before shell` | the root throws immediately in dev | status 500, the body contains the message and a stack frame, the sender is called |
 | `cancel disposes` | the readable is cancelled | the render's dispose ran |
 
+### `shared/url/href.test.ts` (extended)
+
+`buildUrl` turns a route id into its URL with `idPattern` and `patternSegments` from `shared/route-tree`. It has no parser of its own, so a built URL is always one the router matches.
+
+| test | case | result |
+| --- | --- | --- |
+| `group and root` | `_root_/(blog)/post`, `_admin_/dashboard`, `site/_root_/about`, `_shop_/cart` | `/post`, `/dashboard`, `/about`, `/cart` |
+| `param before root` | `[locale]/_root_/about` with `{ locale: "en" }` | `/en/about` |
+| `literal bracket` | `_root_/[_]id]` | `/[id]`. The brackets are a static segment and are path-encoded the way the matcher compares them |
+| `optional` | `_root_/optional-locale/[[locale]]` with and without `locale` | `/optional-locale/fr` and `/optional-locale` |
+| `catch-all` | `_root_/files/[...path]` with `{ path: ["a", "b c"] }` | `/files/a/b%20c`. Each value is one encoded segment. A value containing `/` throws. An empty array throws for a required catch-all and gives `/files` for an optional one |
+| `round trip` | each URL above | `router.match()` returns that route id and the same raw params |
+| `search and hash` | `{ to, search: { q: "a b" }, hash: "top" }` | the search is written by `writeUrl` and the hash keeps one leading `#` |
+
+### `server/lifecycle/create.test.ts` (extended)
+
+A thrown `redirect()` from `authenticate`, a preloader, `authorize`, or a loader on a document request answers the redirect status (B73). The data-request `x` frame is bit 06.
+
+| test | case | result |
+| --- | --- | --- |
+| `loader redirect` | a loader throws `redirect({ to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" }, hash: "x", status: 302 })` | 302. `Location` is `buildUrl`'s URL under `basePath`, here `/users/7?tab=a#x`. The body is empty, no `render` or boundary runs, the security set is present, and the overlay sender is not called |
+| `redirect href` | `redirect({ href: "https://example.com/a", status: 303 })` | 303 and `Location: https://example.com/a` |
+| `redirect from auth` | `authenticate` and `authorize` each throw `redirect({ to: "_root_/login" })` | 307, the `redirect()` default, and `Location: /login` for both |
+| `target kept` | `redirect({ to, params, search, hash })` | the thrown `RedirectError` carries `params`, `search`, and `hash` as well as `to`, `href`, `status`, and `replace`, so the server can build `Location` from it |
+
 ## Done
 
 A thrown secret does not leave the process in production. In dev the stack is in the uncommitted body and Vite's overlay opens. Aborting the client ends the server stream.
