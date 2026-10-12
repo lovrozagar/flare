@@ -1,5 +1,6 @@
 import { parseDuration } from "../../shared/duration/index.ts";
 import type { EffectiveAuth } from "../auth/effective.ts";
+import { foreignCookies } from "../cacheability/cookies.ts";
 import type { Decision } from "../cacheability/decide.ts";
 
 // Every answer that no rule makes public. finalize starts from it.
@@ -35,5 +36,27 @@ export function policyHeaders(decision: Decision, answer: PolicyAnswer): Headers
 export function responseHeaders(source: Headers, auth: EffectiveAuth): Headers {
 	const headers = new Headers(source);
 	if (auth.requires || auth.reads) headers.set("cache-control", NO_STORE);
+	return headers;
+}
+
+// The Set-Cookie values each answer finalize built left its stage with. A rendered page's are its route's own.
+const staged = new WeakMap<Response, readonly string[]>();
+
+export function recordCookies(response: Response): Response {
+	staged.set(response, response.headers.getSetCookie());
+	return response;
+}
+
+// The exit of a mount and of the middleware chain. An answer a shared cache may store that carries a cookie its
+// stage did not set, such as one a middleware added, leaves `private, no-store`. A Response with no record, such as
+// a middleware's rewrap, fails closed: every cookie on it is late, even under `allowCookies` (dx/cache.md).
+export function exitHeaders(response: Response): Headers {
+	const headers = new Headers(response.headers);
+	const control = headers.get("cache-control");
+	if (control === null || /\b(?:private|no-store)\b/i.test(control)) return headers;
+	const late = foreignCookies({ route: staged.get(response) ?? [], all: headers.getSetCookie() });
+	if (late.length === 0) return headers;
+	headers.set("cache-control", NO_STORE);
+	headers.delete("cache-tag");
 	return headers;
 }

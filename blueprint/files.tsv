@@ -160,6 +160,8 @@ packages/core/src/server/lifecycle/create.test.ts	P1	test	server	Unit cases for 
 packages/core/src/server/lifecycle/create-input.test.ts	P7	test	server	Route `.input()` cases for create.ts
 packages/core/src/server/lifecycle/exchange.ts	P7	src	server	The request exchange and the finalized answers every stage shares. The security set wins over an app-built answer
 packages/core/src/server/lifecycle/exchange.test.ts	P7	test	server	Unit cases for exchange.ts
+packages/core/src/server/lifecycle/answers.ts	P9	src	server	The rendered-page answers: document, data, and not-found. Decides the cache policy before the loaders and writes it on the answer. Split from create.ts at the 300-line limit
+packages/core/src/server/lifecycle/answers.test.ts	P9	test	server	Unit cases for answers.ts
 packages/core/src/server/lifecycle/options.ts	P6	types	server	createServer option and server types, split from create.ts at the 300-line limit
 packages/core/src/server/lifecycle/order.ts	P1	src	server	The ordered stage list from 02-system
 packages/core/src/server/lifecycle/order.test.ts	P1	test	server	Unit cases for order.ts

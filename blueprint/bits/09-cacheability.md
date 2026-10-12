@@ -100,6 +100,29 @@ Neither step grows `createPage` past its 1100 budget. Both are server-only and t
 | `headers cannot` | `.headers()` returns `Cache-Control: public, max-age=60` and `Cache-Tag: x` on a page with no `cache` | `private, no-store` and no `Cache-Tag` |
 | `response auth` | a `.response()` page under `authenticateOptional` returns `Cache-Control: public, max-age=60` | `private, no-store`. The same page with no auth keeps `public, max-age=60` |
 
+### `server/lifecycle/policies.test.ts` (exit)
+
+| test | case | result |
+| --- | --- | --- |
+| `exit headers` | `exitHeaders` on a public answer finalize recorded with its cookie, the same answer after a middleware appends a cookie, a rebuilt copy, a public answer with no cookie, and a private answer with a cookie | the recorded answer and the cookieless one keep the public header. The late cookie and the rebuilt copy leave `private, no-store` with no `Cache-Tag`. The private answer is untouched |
+
+### `server/lifecycle/answers.test.ts`
+
+The rendered-page answers move out of `create.ts` unchanged at the 300-line limit. The decision is made here, before `runLoaders`.
+
+| test | case | result |
+| --- | --- | --- |
+| `one session` | a public `cache` on a chain that reads, with a session | `private, no-store`, and authenticate runs once: the decision and the gate share the memoized session |
+| `public chain` | a public `cache` on a chain that does not read auth | the public header, and authenticate is never called |
+| `session throw` | a chain that reads, whose authenticate throws | the gate's 500 and `private, no-store`. The decision counts a throw as a session |
+| `data error frame` | a public page whose loader throws, on a data request | HTTP 200 with an `e` frame, `private, no-store`, and no `Cache-Tag` |
+
+### `server/middleware/run.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `rewrap keeps body` | a middleware returns `new Response(res.body, res)` | the router's body arrives. Before this row, the runner cancelled the router's stream whenever the returned Response was another object, so the rewrap failed with a disturbed body |
+
 ### `tests/integration/cacheability.test.ts`
 
 | test | case | result |

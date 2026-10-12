@@ -8,13 +8,17 @@ export type SetCookies = { route: readonly string[]; all: readonly string[] };
 // a middleware added after the page stage, downgrades anyway (dx/cache.md "How the decision is made").
 export function withCookies(decision: Decision, cookies: SetCookies): Decision {
 	if (decision.policy !== "shared") return decision;
+	const routeSets = cookies.route.length > 0 && decision.cdn.allowCookies !== true;
+	return foreignCookies(cookies).length > 0 || routeSets ? { policy: "private", cdn: decision.cdn } : decision;
+}
+
+// The values in `all` the route did not set, counted as a multiset: a second copy of a route cookie is foreign.
+export function foreignCookies(cookies: SetCookies): string[] {
 	const own = [...cookies.route];
-	const foreign = cookies.all.filter((value) => {
+	return cookies.all.filter((value) => {
 		const at = own.indexOf(value);
 		if (at === -1) return true;
 		own.splice(at, 1);
 		return false;
 	});
-	const routeSets = cookies.route.length > 0 && decision.cdn.allowCookies !== true;
-	return foreign.length > 0 || routeSets ? { policy: "private", cdn: decision.cdn } : decision;
 }
