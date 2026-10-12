@@ -110,6 +110,7 @@ Neither step grows `createPage` past its 1100 budget. Both are server-only and t
 | `route cookie` | the public page's `.headers()` sets a cookie | `private, no-store` |
 | `middleware cookie` | a middleware adds `Set-Cookie` to the public page's response | `private, no-store` |
 | `not found` | the public page's loader throws `notFound()` | 404 and `private, no-store` |
+| `rewrapped answer` | a middleware returns `new Response(res.body, res)` for the public page, whose `.headers()` sets a cookie under `allowCookies: true` | `private, no-store`. The exit knows the route's cookies only on the answer the page built, so a rewrapped answer that carries a public header and any `Set-Cookie` fails closed |
 
 ## Done
 
