@@ -44,6 +44,33 @@ it("loader data reaches the component", async () => {
 	expect(html).toContain("hi");
 });
 
+it("nonce option", async () => {
+	let seen: string | undefined;
+	await renderDocument({
+		request: request(),
+		router,
+		nonce: "abc",
+		render: () => "home",
+		stream(_fn, options) {
+			seen = options.nonce;
+			return Promise.resolve("home");
+		},
+	});
+	expect(seen).toBe("abc");
+	seen = undefined;
+	await renderDocument({
+		request: request(),
+		router,
+		nonce: "",
+		render: () => "home",
+		stream(_fn, options) {
+			seen = options.nonce;
+			return Promise.resolve("home");
+		},
+	});
+	expect(seen).toBeUndefined();
+});
+
 it("router context", async () => {
 	let seen: unknown;
 	await renderDocument({

@@ -27,6 +27,26 @@ it("one script", async () => {
 	]);
 });
 
+it("nonce field", async () => {
+	const html = await renderDocument({
+		request: new Request("http://localhost/"),
+		router: createRouter({ layouts: {}, routeTree: [] }),
+		nonce: "abc",
+		render: () => "page",
+	});
+	expect(html).toContain('"nonce":"abc"');
+});
+
+it("empty nonce", async () => {
+	const html = await renderDocument({
+		request: new Request("http://localhost/"),
+		router: createRouter({ layouts: {}, routeTree: [] }),
+		nonce: "",
+		render: () => "page",
+	});
+	expect(html).toContain('"nonce":""');
+});
+
 it("insertion", () => {
 	const script = "<script>self.flare=1</script>";
 	const html = insertState("<body>hi</body>", script);

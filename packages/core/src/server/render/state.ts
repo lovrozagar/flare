@@ -10,8 +10,9 @@ export type StateMatch = {
 	error: unknown;
 };
 
-export function stateScript(state: { matches: readonly StateMatch[] }): string {
-	return `<script>self.flare=${escapeInlineScript(JSON.stringify(state))}</script>`;
+export function stateScript(state: { matches: readonly StateMatch[]; nonce: string }): string {
+	const payload = JSON.stringify({ matches: state.matches, nonce: state.nonce });
+	return `<script>self.flare=${escapeInlineScript(payload)}</script>`;
 }
 
 export function insertState(shell: string, script: string): string {
