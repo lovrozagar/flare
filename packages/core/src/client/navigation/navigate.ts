@@ -257,8 +257,10 @@ function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	const earlier = (id: string) => next.previous.matches.findIndex((match) => match.id === id);
 	const matches = next.chain.map((entry, index): OutletMatch => {
 		const previous = next.previous.matches[earlier(entry.id)];
-		const data = entry.id in landing.data ? landing.data[entry.id] : (held[index] ?? previous)?.data;
-		return { id: entry.id, kind: entry.kind, module: entry.module, params, search, data };
+		const landed = entry.id in landing.data;
+		const data = landed ? landing.data[entry.id] : (held[index] ?? previous)?.data;
+		const kept = landed ? landing.preloaders?.[entry.id] : (held[index] ?? previous)?.preloader;
+		return { id: entry.id, kind: entry.kind, module: entry.module, params, search, data, preloader: kept ?? {} };
 	});
 	const heads = next.chain.map(
 		(entry, index) => landing.heads[entry.id] ?? held[index]?.head ?? next.previous.heads[earlier(entry.id)],

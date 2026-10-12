@@ -341,3 +341,24 @@ it("restore", async () => {
 	push.mockRestore();
 	replace.mockRestore();
 });
+
+it("preloader", async () => {
+	const frames: Frame[] = [
+		{ t: "l", m: "_root_", d: null, p: { site: "s" } },
+		{ t: "l", m: "_root_/about", d: "fresh", p: { site: "s", role: "admin" } },
+		{ t: "r" },
+	];
+	const responses = [ndjson(frames), ndjson(aboutFrames)];
+	const app = await setup(async () => responses.shift() ?? ndjson([{ t: "l", m: "_root_", d: null }, { t: "r" }]), {
+		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
+	});
+	await app.navigator.navigate({ to: "_root_/about" });
+	expect(app.store.snapshot().matches.map((match) => match.preloader)).toEqual([
+		{ site: "s" },
+		{ site: "s", role: "admin" },
+	]);
+	await app.navigator.navigate({ to: "_root_/" });
+	expect(app.store.snapshot().matches.map((match) => match.preloader)).toEqual([{}, {}]);
+	await app.navigator.navigate({ to: "_root_/about" });
+	expect(app.store.snapshot().matches[1].preloader).toEqual({ site: "s", role: "admin" });
+});

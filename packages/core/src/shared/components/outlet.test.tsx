@@ -249,3 +249,8 @@ it("reset wired", () => {
 	mount(failing(matches, 2, 500));
 	expect(() => resets[1]()).not.toThrow();
 });
+
+it("layout alone", () => {
+	const text = mount(() => ({ matches: [entry("_root_", "layout", root)], onBoundaryError: report })).textContent;
+	expect(text).toBe("root[]");
+});

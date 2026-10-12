@@ -73,7 +73,14 @@ export type Respond = (ctx: StepContext) => Response | Promise<Response>;
 
 type Head = (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
 
-export type Render = (props: { loaderData: unknown; children?: JSX.Element }) => JSX.Element;
+// A page gets no children. A layout and the root also get the next slot (dx/types.md).
+export type Render = (props: {
+	loaderData: unknown;
+	params: Record<string, string | string[]>;
+	search: Record<string, string | string[]>;
+	preloaderContext: Record<string, unknown>;
+	children?: JSX.Element;
+}) => JSX.Element;
 
 // A client navigation from one of `from` opens the target in `InterceptOutlet`. `render` is a label (dx/builder.md).
 export type Intercept = { from: readonly string[]; render: string };

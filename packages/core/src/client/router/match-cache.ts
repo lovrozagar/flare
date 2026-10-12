@@ -30,6 +30,7 @@ export type CacheEntry = {
 	deferred: boolean;
 	deps?: string;
 	head?: HeadConfig;
+	preloader?: Record<string, unknown>;
 	staleTime?: number;
 	gcTime?: number;
 };
@@ -149,8 +150,10 @@ function entryOf(match: CachedMatch, landing: Landed): CacheEntry {
 	const data = landing.data[match.route];
 	const entry: CacheEntry = { data, deferred: holds(data) };
 	const head = landing.heads[match.route];
+	const preloader = landing.preloaders?.[match.route];
 	const client = clientOf(match.client);
 	if (head !== undefined) entry.head = head;
+	if (preloader !== undefined) entry.preloader = preloader;
 	if (client.staleTime !== undefined) entry.staleTime = parseDuration(client.staleTime);
 	if (client.gcTime !== undefined) entry.gcTime = parseDuration(client.gcTime);
 	return entry;

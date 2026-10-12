@@ -28,6 +28,7 @@ export function outletMatches(request: Request, rendered: Rendered): OutletMatch
 		params,
 		search,
 		data: rendered.run.data[index],
+		preloader: rendered.run.contexts[index] ?? {},
 	}));
 }
 

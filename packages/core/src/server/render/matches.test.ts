@@ -15,8 +15,8 @@ const request = new Request("http://localhost/users/7?q=a");
 it("outlet", () => {
 	const rendered: Rendered = { chain: [root, users], run: run(["root", "user"]), params: { id: "7", tab: undefined } };
 	expect(outletMatches(request, rendered)).toEqual([
-		{ ...root, params: { id: "7" }, search: { q: "a" }, data: "root" },
-		{ ...users, params: { id: "7" }, search: { q: "a" }, data: "user" },
+		{ ...root, params: { id: "7" }, search: { q: "a" }, data: "root", preloader: {} },
+		{ ...users, params: { id: "7" }, search: { q: "a" }, data: "user", preloader: {} },
 	]);
 	expect(outletMatches(request, { ...rendered, run: run([]) })).toEqual([]);
 	expect(definedParams({ a: "1", b: undefined, c: ["x"] })).toEqual({ a: "1", c: ["x"] });

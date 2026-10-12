@@ -79,6 +79,7 @@ export function snapshotFromState(input: {
 			params: match.params,
 			search: match.search,
 			data: match.data,
+			preloader: isRecord(match.preloader) ? match.preloader : {},
 		};
 	});
 	const failed = input.matches.findIndex((match) => match.error !== null);
@@ -124,4 +125,8 @@ export function landedFailure(
 		status: failure.status,
 		error: failure.error,
 	};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
