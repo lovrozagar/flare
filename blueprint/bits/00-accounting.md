@@ -32,6 +32,8 @@ Each rule is run through oxlint on a fixture.
 | `boundaries` | `shared/` imports `node:fs`; a feature imports another feature | `server/` imports `shared/` |
 | `no-module-side-effects` | a top-level call | the same call with `/* @__PURE__ */` |
 | `no-module-state` | `let n = 0` at module scope | a `const` and a `let` carrying `// per-process-constant: build id` |
+
+`no-module-side-effects` guards library code, which must stay tree-shakeable. It does not run on `packages/core/tests/e2e/apps/**`: an app's client entry calls `createClient(router)` at module top (`dx/client.md`), and that call exists for its side effect. Marking it `/* @__PURE__ */` would let a bundler drop it.
 | `no-v8-ignore` | a `v8 ignore` comment | a file with no such comment |
 
 ### Coverage proof

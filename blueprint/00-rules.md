@@ -95,7 +95,7 @@ shared → shared
 client → shared, client
 server → shared, server
 adapters → shared, server
-vite → shared, vite, features/*/vite
+vite → shared, vite, features/*/vite, and adapters/node from vite/dev/ only: the dev handler hosts the app server through the same Node bridge an app uses
 features/F/shared → shared, features/F/shared
 features/F/client → shared, client, features/F/shared, features/F/client
 features/F/server → shared, server, features/F/shared, features/F/server
