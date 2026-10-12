@@ -281,13 +281,21 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `purged listed` | a listed slug whose tombstone is newer | a live render, and the body may be stored again |
 | `set-cookie` | a shared page that sets a cookie | the response is private and the store spy is not called |
 
+### `shared/components/use-deferred.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `live value` | a live document render of a page that reads a `"stream"` value through `useDeferred`, the value resolving after the shell | the value is streamed into the document by Solid. No `ssrSource: "client"` boundary is emitted |
+| `stored hole` | a stored render of the same page, so the value is a hole | the stored HTML holds the `<Loading>` fallback as a client boundary, and hydration completes (`_$HY.done`) with the hole still pending. Resolving the promise on the client renders the value |
+
 ### `tests/e2e/navigation.test.ts` (extended)
 
 Moved from bit 06. It adds a page under `minimal` whose cache config leaves `/` and `/about` unchanged. It does not add an app.
 
 | test | case | result |
 | --- | --- | --- |
-| `stored stream fills` | a stored page whose defer mode is `stream` | the HTML has the placeholder, then a `no-store` `?_flare=fill` request fills it |
+| `stored stream fills` | a stored page whose defer mode is `stream`, read through `useDeferred` | the HTML has the fallback, then one `no-store` `?_flare=fill` request fills it, and the value renders with no console error |
+| `live stream ssr` | the same page with no store | the value is in the document HTML with no fill request |
 | `stored hit hydrates` | a second load of a stored page whose `"resolve"` defer sits under two nested `<Loading>` boundaries | the hit's HTML holds the value, the page hydrates with no console error or hydration warning, and a client navigation away and back works |
 
 ## Done

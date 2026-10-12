@@ -41,21 +41,25 @@ The stored document is still required to contain `<html>` and `</body>`. `"strea
 
 ## What the component does
 
-The type of `loaderData.reviews` is `Deferred<T>`, which is `{ __deferred: true; key: string; promise: Promise<T> }`. It has no `then`. `Awaited` does not unwrap it. `T` is on `.promise`. The type cases are `propagation.test.ts` `defer field` and `defer nested`.
+The type of `loaderData.reviews` is `Deferred<T>`, which is `{ __deferred: true; key: string; promise: Promise<T>; hole?: true }`. It has no `then`. `Awaited` does not unwrap it. `T` is on `.promise`. The type cases are `propagation.test.ts` `defer field` and `defer nested`.
 
-The pending UI is Solid `<Loading>`. The read that suspends is Solid `createMemo`:
+The pending UI is Solid `<Loading>`. The read that suspends is `useDeferred`, from `@lovrozagar/flare`:
 
 ```tsx
-const reviews = createMemo(async () => loaderData.reviews.promise);
+const reviews = useDeferred(loaderData.reviews);
 
 <Loading fallback={<p>Loading reviews</p>}>
   <Reviews items={reviews()} />
 </Loading>
 ```
 
+`useDeferred(deferred)` is `createMemo(() => deferred.promise, { ssrSource })`. `ssrSource` is Solid's public option, and it is `"client"` only when `deferred.hole` is true. A hole is a `"stream"` value a stored render did not run. The server and the client read the same `hole`, because the `l` marker carries it. On a live render, and on a client navigation, the memo is an ordinary async memo, so the server streams the value into the document. On a stored hole, Solid renders the `<Loading>` fallback on the server and hands that boundary to the client. The client computes after hydration, when the `?_flare=fill` frame resolves the promise (`shared/components/use-deferred.test.ts` `live value`, `stored hole`).
+
+A plain `createMemo(async () => loaderData.reviews.promise)` still works on a page that is never stored. Over a stored hole, it waits on a server promise that never settles, and the fallback stays. Use `useDeferred` for every deferred read.
+
 `fallback` is the skeleton the app writes. While the promise is pending, that fallback is what the boundary renders. When the promise resolves, the boundary renders the children and the fallback is gone. `reviews()` is then `T`. Two boundaries swap on their own. `<Reveal>` is Solid's. Flare does not render one, so each boundary reveals when its own promise settles. An `order` other than `"natural"` holds a fast boundary until an earlier one settles. Reading `.promise` in JSX, or passing that promise as a prop, does not suspend. The async computation has to be under the `<Loading>`.
 
-Flare ships no `<Await>`, no skeleton, and no content-swap component (B80).
+Flare ships no `<Await>`, no skeleton, and no content-swap component. `useDeferred` is its one deferred hook (B80).
 
 The client builds the promise when it applies the `l` placeholder. A `c` frame resolves the promise for that `m` and `k`. A deferred `e` rejects it. The navigation commits and pushes at `r`, and these later frames do not push again. The document render awaits the same promise the loader started. Solid appends that boundary's fragment. Flare does not write a `c` frame into the HTML.
 

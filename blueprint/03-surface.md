@@ -25,6 +25,7 @@ JSX entries (` . `, `./client`, `./query`, `./i18n`, `./testing`) ship `types`, 
 | `DirectionProvider`, `DirectionScript`, `useDirection` | `features/direction` |
 | `createFont`, `FontCSS` | `features/fonts` |
 | `Image` | `features/image` |
+| `useDeferred` | `shared/components/use-deferred.ts`. The one deferred read (B80) |
 
 `createServerOnlyFn`, `createClientOnlyFn`, and `createIsomorphicFn` are on the root because app code on both graphs imports them. The boundary transform deletes the illegal body (B9). `nonce` is on the root for the same reason: server render and client navigation read one value.
 
