@@ -1,3 +1,3 @@
 import { createRootLayout } from "@lovrozagar/flare";
 
-export default createRootLayout("_root_").render(() => "");
+export const route = createRootLayout("_root_").render(() => "");

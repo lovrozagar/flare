@@ -7,14 +7,16 @@ export type Scan = {
 	auth?: true | "optional";
 	intercept?: { from: string[]; render: string; spans: Array<{ start: number; end: number }> };
 	query: boolean;
+	route: boolean;
 };
 
 export function scanRoute(file: string, source: string): Scan {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
 	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
-	const scan: Scan = { file, query: false };
+	const scan: Scan = { file, query: false, route: false };
 	walk(parsed.program, (node) => {
 		if (node.type === "ImportDeclaration") readImport(scan, node);
+		if (node.type === "ExportNamedDeclaration" && exportsRoute(node)) scan.route = true;
 		if (node.type === "CallExpression") readCall(scan, node);
 	});
 	return scan;
@@ -33,13 +35,25 @@ function walk(node: unknown, visit: (node: Ast) => void): void {
 	}
 }
 
+// `export const route = …` or `export { route }`: the builder record codegen imports (dx/routes.md).
+function exportsRoute(node: Ast): boolean {
+	const declaration = node.declaration as Ast | null;
+	const declared = (declaration?.declarations as Ast[] | undefined) ?? [];
+	const specifiers = node.specifiers as Ast[];
+	return (
+		declared.some((item) => (item.id as Ast).name === "route") ||
+		specifiers.some((item) => (item.exported as Ast).name === "route")
+	);
+}
+
 function readImport(scan: Scan, node: Ast): void {
 	if ((node.source as Ast).value === "@lovrozagar/flare/query") scan.query = true;
 }
 
 function readCall(scan: Scan, node: Ast): void {
-	const callee = node.callee as Ast;
-	const name = (callee.property as Ast).name;
+	// A bare call such as createPage("…") has no property. Only a method name can mark auth or intercept.
+	const property = (node.callee as Ast).property as Ast | undefined;
+	const name = property?.name;
 	if (name === "authenticate") scan.auth = true;
 	if (name === "authenticateOptional") scan.auth = "optional";
 	if (name === "intercept") scan.intercept = readIntercept(scan.file, node.arguments as Ast[]);
