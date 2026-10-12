@@ -1,6 +1,9 @@
 import type { JSX } from "@solidjs/web";
 
-export type SegmentCache = { cdn: { maxAge: string } };
+import type { CdnCache } from "./chain.ts";
+
+// A segment stores nothing. Its `cdn` is a default for the pages under it (dx/cache.md).
+export type SegmentCache = { cdn: CdnCache };
 
 export type SegmentRender = (props: { children: JSX.Element }) => JSX.Element;
 

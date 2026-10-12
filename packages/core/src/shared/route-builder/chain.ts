@@ -21,14 +21,26 @@ export type ClientCache =
 			cacheDeferred?: boolean;
 	  };
 
+// The CDN policy (dx/cache.md `cdn`). It reaches the header only for a shared answer of class public. On a
+// layout, a root layout, or a segment it is a default for the pages under it.
+export type CdnCache = {
+	maxAge?: string | undefined;
+	swr?: string | undefined;
+	private?: boolean | undefined;
+	tags?: readonly string[] | ((ctx: { params: Record<string, string | string[]> }) => readonly string[]) | undefined;
+	allowCookies?: boolean | undefined;
+};
+
 type CacheMode =
 	| { ssr: SsrCache; isr?: never; ssg?: never }
 	| { isr: true | { revalidate?: string }; ssr?: never; ssg?: never }
 	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
 
+// One mode at most. `cdn` and `client` sit beside it or stand alone.
 export type CacheConfig =
-	| (CacheMode & { client?: ClientCache })
-	| { client: ClientCache; ssr?: never; isr?: never; ssg?: never };
+	| (CacheMode & { client?: ClientCache | undefined; cdn?: CdnCache | undefined })
+	| { client: ClientCache; cdn?: CdnCache | undefined; ssr?: never; isr?: never; ssg?: never }
+	| { cdn: CdnCache; client?: ClientCache | undefined; ssr?: never; isr?: never; ssg?: never };
 
 import type { JSX } from "@solidjs/web";
 import { withBoundaries, type Located } from "./boundaries.ts";
