@@ -1,7 +1,7 @@
 import { statusOf } from "../../shared/errors/status.ts";
 import { BUILD_HEADER, RENDER_HEADER } from "../../shared/protocol/index.ts";
 import { defaultHeaders } from "../security/defaults.ts";
-import { assignPolicy } from "./policies.ts";
+import { NO_STORE } from "./policies.ts";
 
 // `body` may be a stream or bytes: a .response() answer passes through unread (dx/server.md).
 export type StageResult = {
@@ -17,7 +17,7 @@ export type StageResult = {
 
 export function finalize(stage: StageResult): Response {
 	const settled = settle(stage);
-	const headers = new Headers({ "cache-control": assignPolicy({ kind: "document" }) });
+	const headers = new Headers({ "cache-control": NO_STORE });
 	if (settled.render !== undefined) headers.set(RENDER_HEADER, settled.render);
 	if (settled.build !== undefined) headers.set(BUILD_HEADER, settled.build);
 	if (settled.location !== undefined) headers.set("location", settled.location);
