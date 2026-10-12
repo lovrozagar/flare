@@ -120,11 +120,13 @@ function isRoot(node: CallExpression, names: Names): boolean {
 	);
 }
 
-// `export const name = chain` declarators whose chain starts at createServerFn.
+// `export const name = chain` declarators whose chain starts at createServerFn. A `let` or `var` export could be
+// reassigned, so the id would no longer name the body the build split. It counts as no export.
 function exported(program: Program, names: Names): Array<[string, Chain]> {
 	const found: Array<[string, Chain]> = [];
 	for (const statement of program.body) {
 		if (statement.type !== "ExportNamedDeclaration" || statement.declaration?.type !== "VariableDeclaration") continue;
+		if (statement.declaration.kind !== "const") continue;
 		for (const declarator of statement.declaration.declarations) {
 			const chain = declarator.init === null ? undefined : chainOf(declarator.init, names);
 			if (chain !== undefined && declarator.id.type === "Identifier") found.push([declarator.id.name, chain]);

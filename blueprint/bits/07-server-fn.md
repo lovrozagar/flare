@@ -170,6 +170,7 @@ Run against oxc, not a regex.
 | `optional call` | `.handler?.()` | build error |
 | `element call` | `["handler"]()` | build error |
 | `non literal config` | `.cache(sharedConfig)` | build error |
+| `let export` | `export let echo = createServerFn().handler(...)`, and the same with `var` | build error: the direct-export message. A reassignable export could stop naming the body the id was assigned to |
 
 ### `vite/route-meta/literals.test.ts`
 
