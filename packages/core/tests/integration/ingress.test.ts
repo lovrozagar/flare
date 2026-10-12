@@ -5,7 +5,7 @@ import { createNodeListener } from "../../src/adapters/node/listener.ts";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import { createRouter } from "../../src/shared/router/create-router.ts";
 
-const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/" }] });
+const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: {} }] });
 const app = createServer({ router, page: { id: "_root_", loader: () => ({ sentinel: "Home" }) } });
 let fetches = 0;
 const listener = createNodeListener({

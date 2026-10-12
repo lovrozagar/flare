@@ -8,7 +8,7 @@ import { serverCtx, withServerContext } from "./ctx.ts";
 type ContextApp = FlareRegister & { serverContext: { requestId: string } };
 
 const request = new Request("http://localhost/");
-const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/" }] });
+const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: {} }] });
 const page = { id: "_root_", loader: () => ({ sentinel: "Home" }) };
 
 function unreachable(): never {
