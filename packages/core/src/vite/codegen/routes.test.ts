@@ -22,16 +22,18 @@ it("one route", () => {
 	const source = routesOf(["_root_/home.page.tsx"]).source;
 	expect(source).not.toContain("import { route");
 	expect(source).toContain(
-		'export const routeTree = [{ id: "_root_/", path: "/", module: () => import("./_root_/home.page.tsx").then((loaded) => loaded.route) }];',
+		'export const routeTree = [{ id: "_root_/", path: "/", module: () => import("../routes/_root_/home.page.tsx").then((loaded) => loaded.route) }];',
 	);
 	expect(source).toContain(
-		'export const layouts = { "_root_": () => import("./_root_/root.root-layout.tsx").then((loaded) => loaded.route) };',
+		'export const layouts = { "_root_": () => import("../routes/_root_/root.root-layout.tsx").then((loaded) => loaded.route) };',
 	);
 	expect(source).toContain(
 		'export const chunks = { "_root_/": "/src/routes/_root_/home.page.tsx", "_root_": "/src/routes/_root_/root.root-layout.tsx" };',
 	);
 	const moved = generateRoutes(["_root_/home.page.tsx", rootLayout], read, { routesDir: "app/routes" }).source;
 	expect(moved).toContain('"_root_/": "/app/routes/_root_/home.page.tsx"');
+	// The file is src/_gen/routes.gen.ts, so each import is relative from there, as types.gen.d.ts's are.
+	expect(moved).toContain('import("../../app/routes/_root_/home.page.tsx")');
 });
 
 it("filename", () => {
