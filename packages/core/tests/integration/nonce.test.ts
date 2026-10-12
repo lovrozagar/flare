@@ -1,4 +1,5 @@
 import { createComponent, type Element } from "solid-js";
+import { Dynamic } from "@solidjs/web";
 import { expect, it } from "vitest";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import type { SecurityConfig } from "../../src/server/security/apply.ts";
@@ -34,13 +35,26 @@ function Page(): Element {
 
 type Render = () => Element;
 
+// Solid writes the head into the document's head element, so the root renders a full document.
+function documentOf(children: Element): Element {
+	return createComponent(Dynamic, {
+		component: "html",
+		get children() {
+			return [
+				createComponent(Dynamic, { component: "head" }),
+				createComponent(Dynamic, { component: "body", children }),
+			];
+		},
+	});
+}
+
 function router(render: Render): Router {
 	const page = createPage("_root_/")
 		.loader(() => "Home")
 		.head(() => head)
 		.render(render);
 	return createRouter({
-		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+		layouts: { _root_: createRootLayout("_root_").render((props) => documentOf(props.children)) },
 		routeTree: [{ id: "_root_/", path: "/", module: page }],
 	});
 }
@@ -66,9 +80,9 @@ function capture(body: string, pattern: RegExp): string {
 
 function tagNonces(body: string): { script: string; json: string; style: string } {
 	return {
-		script: capture(body, /<script nonce="([^"]+)">var x = 1<\/script>/),
-		json: capture(body, /<script type="application\/ld\+json" nonce="([^"]+)">/),
-		style: capture(body, /<style nonce="([^"]+)">a\{\}<\/style>/),
+		script: capture(body, /<script nonce="([^"]+)"[^>]*>var x = 1<\/script>/),
+		json: capture(body, /<script type="application\/ld\+json" nonce="([^"]+)"[^>]*>/),
+		style: capture(body, /<style nonce="([^"]+)"[^>]*>a\{\}<\/style>/),
 	};
 }
 

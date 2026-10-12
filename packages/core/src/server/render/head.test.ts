@@ -6,53 +6,85 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { serveWith } from "../lifecycle/create.ts";
 import type { Logger } from "../lifecycle/logger.ts";
-import { mergeHead, renderHead, type Head } from "./head.ts";
+import { createComponent } from "solid-js";
+import { Dynamic, type JSX } from "@solidjs/web";
+import { mergeHead } from "../../shared/head/index.ts";
+import { renderDocument } from "./document.ts";
+import type { Head } from "./head.ts";
 
 const https = "https://ex.com";
 
-function tags(head: Head, nonce?: string, appStylesheet?: string): string {
-	return renderHead(head, { nonce, appStylesheet });
+const router = createRouter({ layouts: {}, routeTree: [] });
+
+// Solid writes the head into a document's head element, so every render here is a full document.
+function documentOf(children?: JSX.Element): JSX.Element {
+	const body = createComponent(Dynamic, { component: "body", children });
+	return createComponent(Dynamic, {
+		component: "html",
+		children: [createComponent(Dynamic, { component: "head" }), body],
+	});
 }
 
-it("description", () => {
-	expect(tags({ description: "Hi" })).toContain('<meta name="description" content="Hi">');
+// The head Solid writes through the real render, before Flare's capture script. `tags` strips `data-dh`.
+async function written(head: Head, nonce = "", appStylesheet?: string): Promise<string> {
+	const request = new Request("http://localhost/");
+	const body = await renderDocument({
+		request,
+		router,
+		nonce,
+		matches: [],
+		head,
+		appStylesheet,
+		render: () => documentOf(),
+	});
+	const html = await new Response(body).text();
+	const inner = html.slice(html.indexOf(">", html.indexOf("<head")) + 1, html.indexOf("</head>"));
+	return inner.slice(0, inner.lastIndexOf("<script"));
+}
+
+async function tags(head: Head, nonce?: string, appStylesheet?: string): Promise<string> {
+	return (await written(head, nonce, appStylesheet)).replaceAll(/ data-dh="[^"]*"/g, "");
+}
+
+it("description", async () => {
+	expect(await tags({ description: "Hi" })).toContain('<meta name="description" content="Hi">');
 });
 
-it("canonical", () => {
-	expect(tags({ canonical: `${https}/a` })).toContain(`<link rel="canonical" href="${https}/a">`);
-	expect(() => tags({ canonical: "/a" })).toThrow(/canonical/);
+it("canonical", async () => {
+	expect(await tags({ canonical: `${https}/a` })).toContain(`<link rel="canonical" href="${https}/a">`);
+	await expect(tags({ canonical: "/a" })).rejects.toThrow(/canonical/);
 });
 
-it("keywords", () => {
-	expect(tags({ keywords: "a, b" })).toContain('<meta name="keywords" content="a, b">');
+it("keywords", async () => {
+	expect(await tags({ keywords: "a, b" })).toContain('<meta name="keywords" content="a, b">');
 });
 
-it("css url", () => {
-	const html = tags({ css: ["/a.css", "javascript:alert(1)"] }, undefined, "/app.css");
+it("css url", async () => {
+	const html = await tags({ css: ["/a.css", "javascript:alert(1)"] }, undefined, "/app.css");
 	expect(html.indexOf("/app.css")).toBeLessThan(html.indexOf("/a.css"));
 	expect(html).not.toContain("javascript:");
-	expect(tags({ css: "/one.css" })).toContain('href="/one.css"');
+	expect(await tags({ css: "/one.css" })).toContain('href="/one.css"');
 });
 
-it("hreflang", () => {
-	expect(tags({ languages: { en: `${https}/en` } })).toContain(
+it("hreflang", async () => {
+	expect(await tags({ languages: { en: `${https}/en` } })).toContain(
 		`<link rel="alternate" hreflang="en" href="${https}/en">`,
 	);
 });
 
-it("jsonld escape", () => {
-	const html = tags({ jsonLd: [{ name: "</ScRiPt>" }] });
+it("jsonld escape", async () => {
+	const html = await tags({ jsonLd: [{ name: "</ScRiPt>" }] });
 	expect(html).not.toContain("</ScRiPt>");
 	expect(html).toContain("<\\/script>");
 	expect(html).not.toContain("&lt;");
 });
 
-it("jsonld nonce", () => {
-	expect(tags({ jsonLd: [{ "@type": "Thing" }] }, "abc")).toContain('nonce="abc"');
+it("jsonld nonce", async () => {
+	expect(await tags({ jsonLd: [{ "@type": "Thing" }] }, "abc")).toContain('nonce="abc"');
 });
 
-it("images", () => {
-	const html = tags({
+it("images", async () => {
+	const html = await tags({
 		images: [{ url: `${https}/a.jpg`, alt: "A" }],
 		openGraph: { images: [{ url: `${https}/b.jpg` }] },
 	});
@@ -60,38 +92,42 @@ it("images", () => {
 	expect(html).not.toContain("twitter:image");
 });
 
-it("image url", () => {
-	expect(tags({ images: [{ url: `${https}/a.jpg` }] })).toContain(
+it("image url", async () => {
+	expect(await tags({ images: [{ url: `${https}/a.jpg` }] })).toContain(
 		`<meta property="og:image" content="${https}/a.jpg">`,
 	);
 });
 
-it("image alt", () => {
-	expect(tags({ images: [{ url: `${https}/a.jpg`, alt: "Alt" }] })).toContain('property="og:image:alt" content="Alt"');
+it("image alt", async () => {
+	expect(await tags({ images: [{ url: `${https}/a.jpg`, alt: "Alt" }] })).toContain(
+		'property="og:image:alt" content="Alt"',
+	);
 });
 
-it("image width", () => {
-	expect(tags({ images: [{ url: `${https}/a.jpg`, width: 10 }] })).toContain('property="og:image:width" content="10"');
+it("image width", async () => {
+	expect(await tags({ images: [{ url: `${https}/a.jpg`, width: 10 }] })).toContain(
+		'property="og:image:width" content="10"',
+	);
 });
 
-it("image height", () => {
-	expect(tags({ images: [{ url: `${https}/a.jpg`, height: 20 }] })).toContain(
+it("image height", async () => {
+	expect(await tags({ images: [{ url: `${https}/a.jpg`, height: 20 }] })).toContain(
 		'property="og:image:height" content="20"',
 	);
 });
 
-it("image type", () => {
-	expect(tags({ images: [{ url: `${https}/a.jpg`, type: "image/png" }] })).toContain(
+it("image type", async () => {
+	expect(await tags({ images: [{ url: `${https}/a.jpg`, type: "image/png" }] })).toContain(
 		'property="og:image:type" content="image/png"',
 	);
 });
 
-it("image scheme", () => {
-	expect(tags({ images: [{ url: "javascript:alert(1)" }] })).not.toContain("og:image");
+it("image scheme", async () => {
+	expect(await tags({ images: [{ url: "javascript:alert(1)" }] })).not.toContain("og:image");
 });
 
-it("favicons", () => {
-	const html = tags({
+it("favicons", async () => {
+	const html = await tags({
 		favicons: {
 			ico: "/a.ico",
 			svg: "/a.svg",
@@ -107,33 +143,35 @@ it("favicons", () => {
 	expect(html).toContain('sizes="512x512"');
 });
 
-it("favicon ico", () => {
-	expect(tags({ favicons: { ico: "/a.ico" } })).toContain('<link rel="icon" href="/a.ico" sizes="any">');
+it("favicon ico", async () => {
+	expect(await tags({ favicons: { ico: "/a.ico" } })).toContain('<link rel="icon" href="/a.ico" sizes="any">');
 });
 
-it("favicon svg", () => {
-	expect(tags({ favicons: { svg: "/a.svg" } })).toContain('<link rel="icon" href="/a.svg" type="image/svg+xml">');
+it("favicon svg", async () => {
+	expect(await tags({ favicons: { svg: "/a.svg" } })).toContain('<link rel="icon" href="/a.svg" type="image/svg+xml">');
 });
 
-it("favicon apple", () => {
-	expect(tags({ favicons: { appleTouchIcon: "/a.png" } })).toContain('<link rel="apple-touch-icon" href="/a.png">');
+it("favicon apple", async () => {
+	expect(await tags({ favicons: { appleTouchIcon: "/a.png" } })).toContain(
+		'<link rel="apple-touch-icon" href="/a.png">',
+	);
 });
 
-it("favicon 96", () => {
-	expect(tags({ favicons: { "96x96": "/96.png" } })).toContain('sizes="96x96"');
+it("favicon 96", async () => {
+	expect(await tags({ favicons: { "96x96": "/96.png" } })).toContain('sizes="96x96"');
 });
 
-it("favicon 192", () => {
-	expect(tags({ favicons: { "192x192": "/192.png" } })).toContain('sizes="192x192"');
+it("favicon 192", async () => {
+	expect(await tags({ favicons: { "192x192": "/192.png" } })).toContain('sizes="192x192"');
 });
 
-it("favicon 512", () => {
-	expect(tags({ favicons: { "512x512": "/512.png" } })).toContain('sizes="512x512"');
+it("favicon 512", async () => {
+	expect(await tags({ favicons: { "512x512": "/512.png" } })).toContain('sizes="512x512"');
 });
 
-it("robots", () => {
+it("robots", async () => {
 	expect(
-		tags({
+		await tags({
 			robots: {
 				index: false,
 				noarchive: true,
@@ -147,79 +185,79 @@ it("robots", () => {
 	);
 });
 
-it("robots index default", () => {
-	expect(tags({ robots: {} })).toContain("index");
-	expect(tags({ robots: {} })).not.toContain("noindex");
+it("robots index default", async () => {
+	expect(await tags({ robots: {} })).toContain("index");
+	expect(await tags({ robots: {} })).not.toContain("noindex");
 });
 
-it("robots follow default", () => {
-	expect(tags({ robots: {} })).toContain("follow");
-	expect(tags({ robots: { follow: false } })).toContain("nofollow");
+it("robots follow default", async () => {
+	expect(await tags({ robots: {} })).toContain("follow");
+	expect(await tags({ robots: { follow: false } })).toContain("nofollow");
 });
 
-it("robots noarchive", () => {
-	expect(tags({ robots: { noarchive: true } })).toContain("noarchive");
-	expect(tags({ robots: { noarchive: false } })).not.toContain("noarchive");
+it("robots noarchive", async () => {
+	expect(await tags({ robots: { noarchive: true } })).toContain("noarchive");
+	expect(await tags({ robots: { noarchive: false } })).not.toContain("noarchive");
 });
 
-it("robots noimageindex", () => {
-	expect(tags({ robots: { noimageindex: true } })).toContain("noimageindex");
-	expect(tags({ robots: { noimageindex: false } })).not.toContain("noimageindex");
+it("robots noimageindex", async () => {
+	expect(await tags({ robots: { noimageindex: true } })).toContain("noimageindex");
+	expect(await tags({ robots: { noimageindex: false } })).not.toContain("noimageindex");
 });
 
-it("robots preview", () => {
-	expect(tags({ robots: { "max-image-preview": "large" } })).toContain("max-image-preview:large");
+it("robots preview", async () => {
+	expect(await tags({ robots: { "max-image-preview": "large" } })).toContain("max-image-preview:large");
 });
 
-it("robots snippet", () => {
-	expect(tags({ robots: { "max-snippet": -1 } })).toContain("max-snippet:-1");
+it("robots snippet", async () => {
+	expect(await tags({ robots: { "max-snippet": -1 } })).toContain("max-snippet:-1");
 });
 
-it("robots video", () => {
-	expect(tags({ robots: { "max-video-preview": 0 } })).toContain("max-video-preview:0");
+it("robots video", async () => {
+	expect(await tags({ robots: { "max-video-preview": 0 } })).toContain("max-video-preview:0");
 });
 
-it("og", () => {
-	const html = tags({ openGraph: { type: "article", title: "T", images: [{ url: `${https}/b.jpg` }] } });
+it("og", async () => {
+	const html = await tags({ openGraph: { type: "article", title: "T", images: [{ url: `${https}/b.jpg` }] } });
 	expect(html).toContain('property="og:type" content="article"');
 	expect(html).toContain('property="og:title" content="T"');
 });
 
-it("og type default", () => {
-	expect(tags({ openGraph: {} })).toContain('property="og:type" content="website"');
+it("og type default", async () => {
+	expect(await tags({ openGraph: {} })).toContain('property="og:type" content="website"');
 });
 
-it("og title", () => {
-	expect(tags({ openGraph: { title: "T" } })).toContain('property="og:title" content="T"');
+it("og title", async () => {
+	expect(await tags({ openGraph: { title: "T" } })).toContain('property="og:title" content="T"');
 });
 
-it("og description", () => {
-	expect(tags({ openGraph: { description: "D" } })).toContain('property="og:description" content="D"');
+it("og description", async () => {
+	expect(await tags({ openGraph: { description: "D" } })).toContain('property="og:description" content="D"');
 });
 
-it("og url", () => {
-	expect(tags({ openGraph: { url: `${https}/p` } })).toContain(`property="og:url" content="${https}/p"`);
+it("og url", async () => {
+	expect(await tags({ openGraph: { url: `${https}/p` } })).toContain(`property="og:url" content="${https}/p"`);
 });
 
-it("og site", () => {
-	expect(tags({ openGraph: { siteName: "Ex" } })).toContain('property="og:site_name" content="Ex"');
+it("og site", async () => {
+	expect(await tags({ openGraph: { siteName: "Ex" } })).toContain('property="og:site_name" content="Ex"');
 });
 
-it("og locale", () => {
-	expect(tags({ openGraph: { locale: "en_US" } })).toContain('property="og:locale" content="en_US"');
+it("og locale", async () => {
+	expect(await tags({ openGraph: { locale: "en_US" } })).toContain('property="og:locale" content="en_US"');
 });
 
-it("og alternate", () => {
-	expect(tags({ openGraph: { alternateLocale: ["fr_FR", "de_DE"] } })).toContain(
+it("og alternate", async () => {
+	expect(await tags({ openGraph: { alternateLocale: ["fr_FR", "de_DE"] } })).toContain(
 		'property="og:locale:alternate" content="fr_FR"',
 	);
-	expect(tags({ openGraph: { alternateLocale: ["fr_FR", "de_DE"] } })).toContain(
+	expect(await tags({ openGraph: { alternateLocale: ["fr_FR", "de_DE"] } })).toContain(
 		'property="og:locale:alternate" content="de_DE"',
 	);
 });
 
-it("og audio", () => {
-	const html = tags({
+it("og audio", async () => {
+	const html = await tags({
 		openGraph: {
 			audio: [{ url: `${https}/a.mp3` }, { url: `${https}/b.mp3`, type: "audio/mpeg", secureUrl: `${https}/b.mp3` }],
 		},
@@ -229,8 +267,8 @@ it("og audio", () => {
 	expect(html).toContain(`property="og:audio:secure_url" content="${https}/b.mp3"`);
 });
 
-it("og video", () => {
-	const html = tags({
+it("og video", async () => {
+	const html = await tags({
 		openGraph: {
 			videos: [{ url: `${https}/v.mp4`, width: 1, height: 2, type: "video/mp4", secureUrl: `${https}/v.mp4` }],
 		},
@@ -242,103 +280,103 @@ it("og video", () => {
 	expect(html).toContain(`property="og:video:secure_url" content="${https}/v.mp4"`);
 });
 
-it("twitter", () => {
-	expect(tags({ twitter: { card: "player", title: "T" } })).toContain('name="twitter:card" content="player"');
+it("twitter", async () => {
+	expect(await tags({ twitter: { card: "player", title: "T" } })).toContain('name="twitter:card" content="player"');
 });
 
-it("twitter card", () => {
-	expect(tags({ twitter: {} })).toContain('name="twitter:card" content="summary"');
+it("twitter card", async () => {
+	expect(await tags({ twitter: {} })).toContain('name="twitter:card" content="summary"');
 });
 
-it("twitter site", () => {
-	expect(tags({ twitter: { site: "@ex" } })).toContain('name="twitter:site" content="@ex"');
+it("twitter site", async () => {
+	expect(await tags({ twitter: { site: "@ex" } })).toContain('name="twitter:site" content="@ex"');
 });
 
-it("twitter creator", () => {
-	expect(tags({ twitter: { creator: "@me" } })).toContain('name="twitter:creator" content="@me"');
+it("twitter creator", async () => {
+	expect(await tags({ twitter: { creator: "@me" } })).toContain('name="twitter:creator" content="@me"');
 });
 
-it("twitter title", () => {
-	expect(tags({ twitter: { title: "T" } })).toContain('name="twitter:title" content="T"');
+it("twitter title", async () => {
+	expect(await tags({ twitter: { title: "T" } })).toContain('name="twitter:title" content="T"');
 });
 
-it("twitter description", () => {
-	expect(tags({ twitter: { description: "D" } })).toContain('name="twitter:description" content="D"');
+it("twitter description", async () => {
+	expect(await tags({ twitter: { description: "D" } })).toContain('name="twitter:description" content="D"');
 });
 
-it("twitter image", () => {
-	const html = tags({ twitter: { images: [{ url: `${https}/t.jpg` }, { url: `${https}/u.jpg`, alt: "U" }] } });
+it("twitter image", async () => {
+	const html = await tags({ twitter: { images: [{ url: `${https}/t.jpg` }, { url: `${https}/u.jpg`, alt: "U" }] } });
 	expect(html).toContain(`name="twitter:image" content="${https}/t.jpg"`);
 	expect(html).toContain('name="twitter:image:alt" content="U"');
 });
 
-it("meta", () => {
-	expect(tags({ meta: { author: "A" } })).toContain('<meta name="author" content="A">');
+it("meta", async () => {
+	expect(await tags({ meta: { author: "A" } })).toContain('<meta name="author" content="A">');
 });
 
-it("meta charset", () => {
-	expect(tags({ meta: { charset: "utf-8" } })).toContain('<meta charset="utf-8">');
+it("meta charset", async () => {
+	expect(await tags({ meta: { charset: "utf-8" } })).toContain('<meta charset="utf-8">');
 });
 
-it("meta viewport", () => {
-	expect(tags({ meta: { viewport: "width=device-width" } })).toContain(
+it("meta viewport", async () => {
+	expect(await tags({ meta: { viewport: "width=device-width" } })).toContain(
 		'<meta name="viewport" content="width=device-width">',
 	);
-	expect(tags({ meta: { viewport: false } })).not.toContain("viewport");
+	expect(await tags({ meta: { viewport: false } })).not.toContain("viewport");
 });
 
-it("meta application", () => {
-	expect(tags({ meta: { applicationName: "App" } })).toContain('<meta name="application-name" content="App">');
+it("meta application", async () => {
+	expect(await tags({ meta: { applicationName: "App" } })).toContain('<meta name="application-name" content="App">');
 });
 
-it("meta author", () => {
-	expect(tags({ meta: { author: "A" } })).toContain('<meta name="author" content="A">');
+it("meta author", async () => {
+	expect(await tags({ meta: { author: "A" } })).toContain('<meta name="author" content="A">');
 });
 
-it("meta creator", () => {
-	expect(tags({ meta: { creator: "C" } })).toContain('<meta name="creator" content="C">');
+it("meta creator", async () => {
+	expect(await tags({ meta: { creator: "C" } })).toContain('<meta name="creator" content="C">');
 });
 
-it("meta publisher", () => {
-	expect(tags({ meta: { publisher: "P" } })).toContain('<meta name="publisher" content="P">');
+it("meta publisher", async () => {
+	expect(await tags({ meta: { publisher: "P" } })).toContain('<meta name="publisher" content="P">');
 });
 
-it("meta generator", () => {
-	expect(tags({ meta: { generator: "G" } })).toContain('<meta name="generator" content="G">');
+it("meta generator", async () => {
+	expect(await tags({ meta: { generator: "G" } })).toContain('<meta name="generator" content="G">');
 });
 
-it("meta manifest", () => {
-	expect(tags({ meta: { manifest: "/manifest.webmanifest" } })).toContain(
+it("meta manifest", async () => {
+	expect(await tags({ meta: { manifest: "/manifest.webmanifest" } })).toContain(
 		'<link rel="manifest" href="/manifest.webmanifest">',
 	);
 });
 
-it("meta apple capable", () => {
-	expect(tags({ meta: { appleMobileWebAppCapable: "yes" } })).toContain(
+it("meta apple capable", async () => {
+	expect(await tags({ meta: { appleMobileWebAppCapable: "yes" } })).toContain(
 		'<meta name="apple-mobile-web-app-capable" content="yes">',
 	);
 });
 
-it("meta apple title", () => {
-	expect(tags({ meta: { appleMobileWebAppTitle: "App" } })).toContain(
+it("meta apple title", async () => {
+	expect(await tags({ meta: { appleMobileWebAppTitle: "App" } })).toContain(
 		'<meta name="apple-mobile-web-app-title" content="App">',
 	);
 });
 
-it("meta apple bar", () => {
-	expect(tags({ meta: { appleMobileWebAppStatusBarStyle: "black" } })).toContain(
+it("meta apple bar", async () => {
+	expect(await tags({ meta: { appleMobileWebAppStatusBarStyle: "black" } })).toContain(
 		'<meta name="apple-mobile-web-app-status-bar-style" content="black">',
 	);
 });
 
-it("meta mobile", () => {
-	expect(tags({ meta: { mobileWebAppCapable: "yes" } })).toContain(
+it("meta mobile", async () => {
+	expect(await tags({ meta: { mobileWebAppCapable: "yes" } })).toContain(
 		'<meta name="mobile-web-app-capable" content="yes">',
 	);
 });
 
-it("custom nonce", () => {
-	const html = tags(
+it("custom nonce", async () => {
+	const html = await tags(
 		{
 			custom: {
 				scripts: [
@@ -357,26 +395,26 @@ it("custom nonce", () => {
 	expect(html).not.toContain('src="/a.js" nonce');
 });
 
-it("custom both", () => {
-	expect(() => tags({ custom: { scripts: [{ src: "/a.js", children: "x" }] } })).toThrow(/src and children/);
+it("custom both", async () => {
+	await expect(tags({ custom: { scripts: [{ src: "/a.js", children: "x" }] } })).rejects.toThrow(/src and children/);
 });
 
-it("custom style", () => {
-	const html = tags({ custom: { styles: [{ children: "a{}" }, { children: "</StYlE>" }] } }, "abc");
+it("custom style", async () => {
+	const html = await tags({ custom: { styles: [{ children: "a{}" }, { children: "</StYlE>" }] } }, "abc");
 	expect(html).toContain('<style nonce="abc">a{}</style>');
 	expect(html).not.toContain("</StYlE>");
 	expect(html).toContain("<\\/style>");
-	expect(tags({ custom: { styles: [{ children: "a{}" }] } })).not.toContain("nonce");
+	expect(await tags({ custom: { styles: [{ children: "a{}" }] } })).not.toContain("nonce");
 });
 
-it("script close", () => {
-	const html = tags({ custom: { scripts: [{ children: "</ScRiPt>" }] } });
+it("script close", async () => {
+	const html = await tags({ custom: { scripts: [{ children: "</ScRiPt>" }] } });
 	expect(html).not.toContain("</ScRiPt>");
 	expect(html).toContain("<\\/script>");
 });
 
-it("custom key dropped", () => {
-	const html = tags({
+it("custom key dropped", async () => {
+	const html = await tags({
 		custom: {
 			links: [{ rel: "preconnect", href: https, "http-equiv": "x", "data-a1": "1", "bad name": "no" }],
 			meta: [{ name: "theme-color", content: "black" }],
@@ -389,17 +427,17 @@ it("custom key dropped", () => {
 	expect(html).toContain('<meta name="theme-color" content="black">');
 });
 
-it("custom on dropped", () => {
-	expect(tags({ custom: { links: [{ onclick: "alert(1)", href: https }] } })).not.toContain("onclick");
+it("custom on dropped", async () => {
+	expect(await tags({ custom: { links: [{ onclick: "alert(1)", href: https }] } })).not.toContain("onclick");
 });
 
-it("merge", () => {
+it("merge", async () => {
 	const kept = mergeHead(
 		{ title: "Parent", description: "D", css: ["/a.css"], custom: { links: [{ rel: "prev" }] } },
 		{ title: "Child" },
 	);
 	expect(kept.title).toBe("Child");
-	expect(tags(kept)).toContain("<title>Child</title>");
+	expect(await tags(kept)).toContain("<title>Child</title>");
 	expect(kept.description).toBe("D");
 	expect(kept.css).toEqual(["/a.css"]);
 	const replacedCss = mergeHead(
@@ -416,19 +454,19 @@ it("merge", () => {
 	expect(joined.custom?.links?.map((link) => link.rel)).toEqual(["prev", "next"]);
 });
 
-it("replace", () => {
+it("replace", async () => {
 	const head = mergeHead({ title: "Parent", description: "D" }, { description: "Child" }, true);
 	expect(head.title).toBeUndefined();
 	expect(head.description).toBe("Child");
 });
 
-it("viewport false", () => {
+it("viewport false", async () => {
 	const head = mergeHead({ meta: { viewport: "width=device-width" } }, { meta: { viewport: false } });
-	expect(renderHead(head)).not.toContain("viewport");
+	expect(await tags(head)).not.toContain("viewport");
 });
 
-it("unknown field", () => {
-	expect(renderHead({ nope: "secret" } as Head)).not.toContain("secret");
+it("unknown field", async () => {
+	expect(await tags({ nope: "secret" } as Head)).not.toContain("secret");
 });
 
 function quietLog(): void {}
@@ -443,7 +481,7 @@ it("head throw", async () => {
 	const errorRender = vi.fn<ErrorRender>(() => "painted");
 	const root = createRootLayout("_root_")
 		.head(() => ({ title: "Root" }))
-		.render((props) => ["root[", props.children, "]"]);
+		.render((props) => documentOf(["root[", props.children, "]"]));
 	const page = createPage("_root_/")
 		.loader(() => "data")
 		.head(headBroke)
@@ -453,7 +491,7 @@ it("head throw", async () => {
 	const response = await serveWith({ router }, { dev: true, send, log }).fetch(new Request("http://localhost/"));
 	expect(response.status).toBe(200);
 	const body = await response.text();
-	expect(body).toContain("<title>Root</title>");
+	expect(body).toMatch(/<title[^>]*>Root<\/title>/);
 	expect(body).toContain("page");
 	expect(errorRender).not.toHaveBeenCalled();
 	expect(send).toHaveBeenCalledExactlyOnceWith(

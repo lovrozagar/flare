@@ -15,7 +15,7 @@ import { withServerContext } from "../context/ctx.ts";
 import { runLoaders, type LoaderRun, type RunInput } from "../loaders/run.ts";
 import { dataBody, dataFrames, NDJSON, redirectBody, skippedRoutes } from "../navigation/index.ts";
 import { renderDocument } from "../render/document.ts";
-import { mergeHead } from "../render/head.ts";
+import { mergeHead } from "../../shared/head/index.ts";
 import { devSink, projectError, type ErrorSink, type Projected } from "../render/projector.ts";
 import type { StateMatch } from "../render/state.ts";
 import { redirectLocation } from "../redirect/index.ts";

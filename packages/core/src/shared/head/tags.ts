@@ -1,8 +1,12 @@
 import type { HeadConfig, HeadScript, SeoImage } from "../route-builder/types.ts";
 
-// One head element. Values are raw: the server serializer escapes them, the client sets DOM properties.
-// `children` is the element text. `true` is an attribute with no value.
-export type HeadTag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<string, string | true> };
+type Tag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<string, string | boolean> };
+
+// One head element for Solid's useHead. Values are raw: Solid escapes them on the server and sets DOM properties
+// on the client. `children` is the element text, `true` an attribute with no value, and `false` an attribute
+// that is not written. `key` is the index in the list, so the server's `data-dh` identity is the one the client
+// computes, and Solid adopts and removes these exact elements (B83).
+export type HeadTag = Tag & { key: string };
 
 export type HeadTagOptions = { nonce?: string; appStylesheet?: string };
 
@@ -34,7 +38,7 @@ const DATA = /^data-[a-zA-Z][a-zA-Z0-9-]*$/;
 
 // The order is the server's document order, and the client applies the same list (B83).
 export function headTags(head: HeadConfig, options: HeadTagOptions = {}): HeadTag[] {
-	return [
+	const tags: Tag[] = [
 		...textTag(head.title),
 		...metaName("description", head.description),
 		...canonical(head.canonical),
@@ -50,6 +54,7 @@ export function headTags(head: HeadConfig, options: HeadTagOptions = {}): HeadTa
 		...jsonLd(head.jsonLd, options.nonce),
 		...customTags(head.custom, options.nonce),
 	];
+	return tags.map((tag, index) => ({ ...tag, key: `h${index}` }));
 }
 
 // The replace rules of B83. Single values replace, records shallow-merge with the child key winning, and lists
@@ -84,42 +89,42 @@ export function mergeHead(parent: HeadConfig, child: HeadConfig, replace = false
 const pick = <T>(child: T | undefined, parent: T | undefined): T | undefined => (child === undefined ? parent : child);
 const list = <T>(value: readonly T[] | undefined): T[] => (value ? [...value] : []);
 
-function textTag(value: string | undefined): HeadTag[] {
+function textTag(value: string | undefined): Tag[] {
 	return value ? [{ tag: "title", props: { children: value } }] : [];
 }
 
-function metaName(name: string, content: unknown): HeadTag[] {
+function metaName(name: string, content: unknown): Tag[] {
 	return typeof content === "string" ? [{ tag: "meta", props: { name, content } }] : [];
 }
 
-function property(name: string, content: string): HeadTag {
+function property(name: string, content: string): Tag {
 	return { tag: "meta", props: { property: name, content } };
 }
 
-function canonical(url: string | undefined): HeadTag[] {
+function canonical(url: string | undefined): Tag[] {
 	if (!url) return [];
 	if (!url.startsWith("https://")) throw new Error("canonical");
 	return [{ tag: "link", props: { rel: "canonical", href: url } }];
 }
 
-function stylesheets(css: HeadConfig["css"], app: string | undefined): HeadTag[] {
+function stylesheets(css: HeadConfig["css"], app: string | undefined): Tag[] {
 	const hrefs = css === undefined ? [] : Array.isArray(css) ? css : [css];
 	const routes = hrefs.filter((href) => !href.trim().toLowerCase().startsWith("javascript:")).map(sheet);
 	return [...(app ? [sheet(app)] : []), ...routes];
 }
 
-const sheet = (href: string): HeadTag => ({ tag: "link", props: { rel: "stylesheet", href } });
+const sheet = (href: string): Tag => ({ tag: "link", props: { rel: "stylesheet", href } });
 
-function languages(map: Record<string, string> | undefined): HeadTag[] {
+function languages(map: Record<string, string> | undefined): Tag[] {
 	if (!map) return [];
 	return Object.entries(map).map(([hreflang, href]) => ({ tag: "link", props: { rel: "alternate", hreflang, href } }));
 }
 
-function imageList(images: readonly SeoImage[] | undefined): HeadTag[] {
+function imageList(images: readonly SeoImage[] | undefined): Tag[] {
 	return list(images).flatMap(imageTags);
 }
 
-function imageTags(image: SeoImage): HeadTag[] {
+function imageTags(image: SeoImage): Tag[] {
 	if (image.url.trim().toLowerCase().startsWith("javascript:")) return [];
 	return [
 		property("og:image", image.url),
@@ -130,7 +135,7 @@ function imageTags(image: SeoImage): HeadTag[] {
 	];
 }
 
-function graph(og: HeadConfig["openGraph"]): HeadTag[] {
+function graph(og: HeadConfig["openGraph"]): Tag[] {
 	if (!og) return [];
 	return [
 		property("og:type", typeof og.type === "string" ? og.type : "website"),
@@ -148,11 +153,11 @@ function graph(og: HeadConfig["openGraph"]): HeadTag[] {
 	];
 }
 
-function metaProperty(name: string, content: unknown): HeadTag[] {
+function metaProperty(name: string, content: unknown): Tag[] {
 	return typeof content === "string" ? [property(name, content)] : [];
 }
 
-function media(prefix: string, items: readonly Media[] | undefined, fields: readonly string[]): HeadTag[] {
+function media(prefix: string, items: readonly Media[] | undefined, fields: readonly string[]): Tag[] {
 	return list(items).flatMap((item) => {
 		const tags = [property(prefix, item.url)];
 		for (const field of fields) {
@@ -164,7 +169,7 @@ function media(prefix: string, items: readonly Media[] | undefined, fields: read
 	});
 }
 
-function twitter(card: HeadConfig["twitter"]): HeadTag[] {
+function twitter(card: HeadConfig["twitter"]): Tag[] {
 	if (!card) return [];
 	return [
 		...metaName("twitter:card", typeof card.card === "string" ? card.card : "summary"),
@@ -179,9 +184,9 @@ function twitter(card: HeadConfig["twitter"]): HeadTag[] {
 	];
 }
 
-function faviconTags(icons: HeadConfig["favicons"]): HeadTag[] {
+function faviconTags(icons: HeadConfig["favicons"]): Tag[] {
 	if (!icons) return [];
-	return FAVICONS.flatMap(([key, rel, type, sizes]): HeadTag[] => {
+	return FAVICONS.flatMap(([key, rel, type, sizes]): Tag[] => {
 		const href = icons[key];
 		if (!href) return [];
 		const props: Record<string, string> = { rel, href };
@@ -191,7 +196,7 @@ function faviconTags(icons: HeadConfig["favicons"]): HeadTag[] {
 	});
 }
 
-function robotTags(value: HeadConfig["robots"]): HeadTag[] {
+function robotTags(value: HeadConfig["robots"]): Tag[] {
 	if (!value) return [];
 	const tokens = [value.index === false ? "noindex" : "index", value.follow === false ? "nofollow" : "follow"];
 	if (value.noarchive) tokens.push("noarchive");
@@ -203,49 +208,49 @@ function robotTags(value: HeadConfig["robots"]): HeadTag[] {
 }
 
 // `viewport: false` removes a parent viewport: only a string writes the tag (B83).
-function metaTags(value: HeadConfig["meta"]): HeadTag[] {
+function metaTags(value: HeadConfig["meta"]): Tag[] {
 	if (!value) return [];
-	const charset: HeadTag[] =
-		typeof value.charset === "string" ? [{ tag: "meta", props: { charset: value.charset } }] : [];
+	const charset: Tag[] = typeof value.charset === "string" ? [{ tag: "meta", props: { charset: value.charset } }] : [];
 	const viewport = typeof value.viewport === "string" ? metaName("viewport", value.viewport) : [];
 	const names = META_NAMES.flatMap(([key, name]) => metaName(name, value[key]));
-	const manifest: HeadTag[] =
+	const manifest: Tag[] =
 		typeof value.manifest === "string" && value.manifest
 			? [{ tag: "link", props: { rel: "manifest", href: value.manifest } }]
 			: [];
 	return [...charset, ...viewport, ...names, ...manifest];
 }
 
-function jsonLd(blocks: HeadConfig["jsonLd"], nonce: string | undefined): HeadTag[] {
+function jsonLd(blocks: HeadConfig["jsonLd"], nonce: string | undefined): Tag[] {
 	return list(blocks).map((block) => ({
 		tag: "script",
-		props: { type: "application/ld+json", ...nonceProp(nonce), children: JSON.stringify(block) },
+		props: { type: "application/ld+json", ...nonceProp(nonce), children: keepOpen(JSON.stringify(block), "script") },
 	}));
 }
 
-function customTags(custom: HeadConfig["custom"], nonce: string | undefined): HeadTag[] {
+function customTags(custom: HeadConfig["custom"], nonce: string | undefined): Tag[] {
 	if (!custom) return [];
 	return [
-		...list(custom.links).map((link): HeadTag => ({ tag: "link", props: allowed(link) })),
-		...list(custom.meta).map((entry): HeadTag => ({ tag: "meta", props: allowed(entry) })),
+		...list(custom.links).map((link): Tag => ({ tag: "link", props: allowed(link) })),
+		...list(custom.meta).map((entry): Tag => ({ tag: "meta", props: allowed(entry) })),
 		...list(custom.scripts).flatMap((script) => scriptTag(script, nonce)),
-		...list(custom.styles).map((style): HeadTag => ({
+		...list(custom.styles).map((style): Tag => ({
 			tag: "style",
-			props: { ...nonceProp(nonce), children: style.children },
+			props: { ...nonceProp(nonce), children: keepOpen(style.children, "style") },
 		})),
 	];
 }
 
-// An external script carries no nonce, and `extra.nonce` is ignored (dx/server.md).
-function scriptTag(script: HeadScript, nonce: string | undefined): HeadTag[] {
+// An external script carries no nonce, and `extra.nonce` is ignored (dx/server.md). `nonce: false` stops Solid
+// from stamping the request nonce on it.
+function scriptTag(script: HeadScript, nonce: string | undefined): Tag[] {
 	if (script.src !== undefined && script.children !== undefined) throw new Error("src and children");
 	if (script.src !== undefined) {
-		const props: Record<string, string | true> = { src: script.src };
+		const props: Record<string, string | boolean> = { src: script.src };
 		if (script.async) props.async = true;
-		return [{ tag: "script", props: { ...props, ...allowed(script.extra, true) } }];
+		return [{ tag: "script", props: { ...props, ...allowed(script.extra, true), nonce: false } }];
 	}
 	if (script.children === undefined) return [];
-	return [{ tag: "script", props: { ...nonceProp(nonce), children: script.children } }];
+	return [{ tag: "script", props: { ...nonceProp(nonce), children: keepOpen(script.children, "script") } }];
 }
 
 const nonceProp = (nonce: string | undefined): Record<string, string> => (nonce ? { nonce } : {});
@@ -261,4 +266,10 @@ function allowed(record: Record<string, string> | undefined, skipNonce = false):
 function allowedName(name: string): boolean {
 	if (name.toLowerCase().startsWith("on")) return false;
 	return NAME.test(name) || DATA.test(name);
+}
+
+// A case-insensitive `</script` or `</style` in the text is rewritten so it cannot close the tag (B83). The client
+// sets text as a DOM property, where `<\/` reads the same.
+function keepOpen(value: string, tag: "script" | "style"): string {
+	return value.replaceAll(new RegExp(`</${tag}`, "gi"), `<\\/${tag}`);
 }

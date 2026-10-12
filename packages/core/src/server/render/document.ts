@@ -5,7 +5,8 @@ import { RouterContext } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { raceAbort } from "./abort.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
-import { renderHead, type Head } from "./head.ts";
+import { headTags, type HeadTag } from "../../shared/head/index.ts";
+import { DocumentHead, type Head } from "./head.ts";
 import { stateScript, type StateMatch } from "./state.ts";
 
 type Chunk = string | Uint8Array;
@@ -31,6 +32,7 @@ export type DocumentInput = {
 	stream?: Stream;
 	nonce?: string;
 	head?: Head;
+	appStylesheet?: string;
 	matches: readonly StateMatch[];
 	client?: string;
 };
@@ -46,13 +48,15 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	const nonce = input.nonce ?? "";
 	// The state is serialized first. A value JSON cannot hold, such as a bigint, fails before the shell.
 	const tail = stateScript({ matches: input.matches, nonce }) + clientScript(input.client, nonce);
-	const head = headHtml(input.head, nonce);
+	const head = captureScript(nonce);
+	const tags =
+		input.head === undefined ? undefined : headTags(input.head, { nonce, appStylesheet: input.appStylesheet });
 	const piped = new TransformStream<Chunk, Chunk>();
 	// The render stops on a request abort or on a consumer cancel, whichever comes first.
 	const halt = new AbortController();
 	const signal = AbortSignal.any([input.request.signal, halt.signal]);
 	const render = withRequest({ path: new URL(input.request.url).pathname, nonce }, () =>
-		(input.stream ?? defaultStream)(() => tree(input), streamOptions(signal, tail, nonce)),
+		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, tail, nonce)),
 	);
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined);
@@ -85,11 +89,11 @@ function defaultStream(fn: () => unknown, options: StreamOptions): ReturnType<St
 	return web.renderToStream(fn, options as Parameters<typeof web.renderToStream>[1]);
 }
 
-function tree(input: DocumentInput): Element {
+function tree(input: DocumentInput, tags: readonly HeadTag[] | undefined): Element {
 	return createComponent(RouterContext, {
 		value: input.router,
 		get children() {
-			return input.render();
+			return tags === undefined ? input.render() : [createComponent(DocumentHead, { tags }), input.render()];
 		},
 	});
 }
@@ -113,11 +117,9 @@ function clientScript(client: string | undefined, nonce: string): string {
 	return `<script type="module" async${nonceAttr(nonce)}>${escapeInlineScript(`import(${JSON.stringify(client)})`)}</script>`;
 }
 
-// The route head and Solid's hydration capture script (B91). The capture script is the last element Flare
-// writes into the head, where bit 11's critical style follows it.
-function headHtml(head: Head | undefined, nonce: string): string {
-	const routeHead = head === undefined ? "" : renderHead(head, { nonce });
-	return routeHead + web.generateHydrationScript(nonce === "" ? {} : { nonce });
+// Solid's hydration capture script (B91). It follows the route head, and bit 11's critical style follows it.
+function captureScript(nonce: string): string {
+	return web.generateHydrationScript(nonce === "" ? {} : { nonce });
 }
 
 // A shell without a head, such as a root that renders only text, gets the head in front of it.

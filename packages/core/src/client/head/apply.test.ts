@@ -56,3 +56,30 @@ it("nonce", async () => {
 	const script = [...document.head.querySelectorAll("script")].find((node) => node.textContent === "window.x = 1");
 	expect(script?.getAttribute("nonce")).toBe("n");
 });
+
+// The head Solid's server writes for [{ title: "Root", description: "D" }]: the identities headTags' keys give.
+const serverHead = '<title data-dh="title">Root</title><meta name="description" content="D" data-dh="meta:key:h1">';
+
+it("adopt", async () => {
+	document.head.innerHTML = serverHead;
+	const title = document.head.querySelector("title");
+	const description = document.head.querySelector('meta[name="description"]');
+	mount([{ title: "Root", description: "D" }]);
+	await settle();
+	expect(document.head.querySelectorAll("title")).toHaveLength(1);
+	expect(document.head.querySelectorAll('meta[name="description"]')).toHaveLength(1);
+	expect(document.head.querySelector("title")).toBe(title);
+	expect(document.head.querySelector('meta[name="description"]')).toBe(description);
+});
+
+it("navigate removes", async () => {
+	document.head.innerHTML = serverHead;
+	const view = mount([{ title: "Root", description: "D" }]);
+	await settle();
+	view.setHeads([{ title: "Next" }]);
+	flush();
+	await settle();
+	expect([...document.head.querySelectorAll("title")].map((node) => node.textContent)).toEqual(["Next"]);
+	expect(document.head.querySelector('meta[name="description"]')).toBeNull();
+	expect(document.title).toBe("Next");
+});
