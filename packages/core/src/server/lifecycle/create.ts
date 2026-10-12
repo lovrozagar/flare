@@ -1,15 +1,13 @@
 /// <reference types="vite/client" />
 import { createComponent } from "solid-js";
 import { escape } from "@solidjs/web";
-import { Matches, type OutletMatch, type OutletState } from "../../shared/components/index.ts";
+import { Matches, type OutletState } from "../../shared/components/index.ts";
 import type { FlareRegister } from "../../shared/route-builder/register.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import type { FrameError, RequestKind } from "../../shared/protocol/index.ts";
-import { matchId, type RawParams } from "../../shared/route-tree/index.ts";
-import type { Respond } from "../../shared/route-builder/chain.ts";
+import { matchId } from "../../shared/route-tree/index.ts";
 import { loadChain, notFoundRenderOf, type LoadedEntry, type Match } from "../../shared/router/create-router.ts";
 import { RedirectError } from "../../shared/errors/redirect.ts";
-import { readSearch } from "../../shared/url/search.ts";
 import { resolveCaller } from "../auth/caller.ts";
 import { withServerContext } from "../context/ctx.ts";
 import { runLoaders, type LoaderRun, type RunInput } from "../loaders/run.ts";
@@ -17,7 +15,7 @@ import { dataBody, dataFrames, NDJSON, redirectBody, skippedRoutes } from "../na
 import { renderDocument } from "../render/document.ts";
 import { mergeHead } from "../../shared/head/index.ts";
 import { devSink, projectError, type ErrorSink, type Projected } from "../render/projector.ts";
-import type { StateMatch } from "../render/state.ts";
+import { definedParams, outletMatches, stateMatches, type Rendered } from "../render/matches.ts";
 import { redirectLocation } from "../redirect/index.ts";
 import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
@@ -41,16 +39,6 @@ type Exchange = {
 	sink: ErrorSink;
 	kind: RequestKind;
 	stale: string | null;
-};
-
-// One rendered document: the chain, its loader run, and what fills the slot below the kept matches. `failed`
-// is the projected root-most failure. `unknown` is an unknown URL and its not-found function (B77).
-type Rendered = {
-	chain: readonly LoadedEntry[];
-	run: LoaderRun;
-	params: RawParams;
-	failed?: Projected;
-	unknown?: true;
 };
 
 // The stages of order.ts, in that order: canonical, serverContext, match, method, then validate, the auth
@@ -94,21 +82,15 @@ function answer(exchange: Exchange, status: number, location?: string): Response
 // A match whose modules are loaded (02-system step 10).
 type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
 
-// The chain's modules load before the method check, because a .response() page is known only from its module.
-// An import that fails on the server is a bug: projected, then 500.
-async function route(exchange: Exchange): Promise<Response> {
-	const found = exchange.options.router.match(new URL(exchange.request.url).pathname);
-	let matched: Loaded;
-	try {
-		matched = { ...found, chain: await loadChain(found.chain) };
-	} catch (error) {
-		projectError(error, exchange.sink);
-		return answer(exchange, 500);
-	}
+// The method check runs on the match alone (02-system step 9). Route code loads only for the handler that runs
+// (step 10), so an OPTIONS, a 405, or an unmatched method imports nothing.
+function route(exchange: Exchange): Promise<Response> {
+	const matched = exchange.options.router.match(new URL(exchange.request.url).pathname);
 	const method = exchange.request.method;
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {
 		// A data or prefetch request for an unknown URL is that status alone, with no frame (B73).
-		return exchange.kind === "document" ? notFound(exchange, matched) : Promise.resolve(answer(exchange, 404));
+		if (exchange.kind !== "document") return Promise.resolve(answer(exchange, 404));
+		return loaded(exchange, matched, (chain) => notFound(exchange, chain));
 	}
 	return routeMethod(exchange.request, {
 		match: () => methodMatch(exchange, matched),
@@ -117,12 +99,31 @@ async function route(exchange: Exchange): Promise<Response> {
 }
 
 // A .response() page has no method list, so every method reaches it (02-system step 9).
-function methodMatch(exchange: Exchange, matched: Loaded): MethodMatch | undefined {
+function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefined {
 	if (matched.id === undefined) return undefined;
-	const respond = matched.chain[matched.chain.length - 1].module.response;
-	if (respond !== undefined) return { kind: "response", handle: () => answered(exchange, matched.chain, respond) };
-	if (exchange.kind !== "document") return { kind: "page", render: () => data(exchange, matched) };
-	return { kind: "page", render: () => page(exchange, matched.chain, matched.params) };
+	if (matched.response === true) {
+		return { kind: "response", handle: () => loaded(exchange, matched, (chain) => answered(exchange, chain)) };
+	}
+	if (exchange.kind !== "document")
+		return { kind: "page", render: () => loaded(exchange, matched, (chain) => data(exchange, chain)) };
+	return { kind: "page", render: () => loaded(exchange, matched, (chain) => page(exchange, chain)) };
+}
+
+// Awaits the chain's modules, then runs the handler. An import that fails on the server is a bug: projected,
+// then 500.
+async function loaded(
+	exchange: Exchange,
+	matched: Match,
+	run: (chain: Loaded) => Promise<Response>,
+): Promise<Response> {
+	let chain: Loaded;
+	try {
+		chain = { ...matched, chain: await loadChain(matched.chain) };
+	} catch (error) {
+		projectError(error, exchange.sink);
+		return answer(exchange, 500);
+	}
+	return run(chain);
 }
 
 // A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one
@@ -154,9 +155,15 @@ function stage(exchange: Exchange, body: BodyInit, status: number): StageResult 
 	return { status, body, headers, url: exchange.request.url };
 }
 
-// The answer still passes through finalize, and the request's security set wins over its headers.
-async function answered(exchange: Exchange, chain: readonly LoadedEntry[], respond: Respond): Promise<Response> {
-	const run = await runLoaders({ ...loaderInput(exchange, chain), response: respond });
+// The answer still passes through finalize, and the request's security set wins over its headers. A node
+// flagged as .response() whose module has none is a codegen bug: projected, then 500.
+async function answered(exchange: Exchange, matched: Loaded): Promise<Response> {
+	const respond = matched.chain[matched.chain.length - 1].module.response;
+	if (respond === undefined) {
+		projectError(new Error(`${matched.id} is flagged as a .response() page but has no response`), exchange.sink);
+		return answer(exchange, 500);
+	}
+	const run = await runLoaders({ ...loaderInput(exchange, matched.chain), response: respond });
 	if (run.answer === undefined) return bare(exchange, run);
 	const headers = new Headers(run.answer.headers);
 	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
@@ -173,7 +180,8 @@ async function notFound(exchange: Exchange, matched: Loaded): Promise<Response> 
 	return settle(exchange, rendered);
 }
 
-async function page(exchange: Exchange, chain: readonly LoadedEntry[], params: RawParams): Promise<Response> {
+async function page(exchange: Exchange, matched: Loaded): Promise<Response> {
+	const { chain, params } = matched;
 	const run = await runLoaders(loaderInput(exchange, chain));
 	// "buffer" holds the document until every defer this render started has settled. Solid then writes the
 	// settled values in the shell (B92).
@@ -238,44 +246,6 @@ async function bare(exchange: Exchange, run: LoaderRun): Promise<Response> {
 	run.response.headers.forEach((value, name) => headers.set(name, value));
 	const body = await run.response.text();
 	return finalize({ status: run.response.status, body, headers, url: exchange.request.url });
-}
-
-// The kept matches, then the failed match, root down. A layout sees the page's raw params, and an absent
-// optional param is left out.
-function outletMatches(request: Request, rendered: Rendered): OutletMatch[] {
-	const search = readSearch(new URL(request.url).search);
-	const params = definedParams(rendered.params);
-	const count = rendered.run.data.length + (rendered.failed === undefined ? 0 : 1);
-	return rendered.chain.slice(0, count).map((entry, index) => ({
-		id: entry.id,
-		kind: entry.kind,
-		module: entry.module,
-		params,
-		search,
-		data: rendered.run.data[index],
-	}));
-}
-
-// One entry per painted match in the B83 shape. The failed match carries the projected error and no data.
-function stateMatches(matches: readonly OutletMatch[], rendered: Rendered): StateMatch[] {
-	const run = rendered.run;
-	const failure = rendered.failed?.wire ?? null;
-	return matches.map((match, index) => ({
-		id: match.id,
-		params: match.params,
-		search: match.search,
-		data: match.data ?? null,
-		preloader: run.contexts[index] ?? null,
-		head: run.heads[index] ?? null,
-		error: index < run.data.length ? null : failure,
-	}));
-}
-
-// An absent optional param is left out.
-function definedParams(params: RawParams): Record<string, string | string[]> {
-	return Object.fromEntries(
-		Object.entries(params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
-	);
 }
 
 function loaderInput(exchange: Exchange, chain: readonly LoadedEntry[]): RunInput {

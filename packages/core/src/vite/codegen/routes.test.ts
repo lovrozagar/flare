@@ -174,3 +174,16 @@ it("missing route export", () => {
 	sources["_root_/root.root-layout.tsx"] = `export const page = createRootLayout("_root_");\n`;
 	expect(() => generateRoutes(files, (file) => sources[file])).toThrow("_root_/root.root-layout.tsx");
 });
+
+it("response flag", () => {
+	const sources: Record<string, string> = {
+		"_root_/api/api.page.tsx": 'export const route = createPage("_root_/api").response(() => new Response("ok"));\n',
+	};
+	const generated = generateRoutes(
+		["_root_/api/api.page.tsx", "_root_/home.page.tsx", rootLayout],
+		(file) => sources[file] ?? routeSource,
+	);
+	expect(generated.source).toContain('{ id: "_root_/api", path: "/api", response: true, module: () =>');
+	expect(generated.source).toContain('{ id: "_root_/", path: "/", module: () =>');
+	expect(generated.routes.map((route) => route.response)).toEqual([true, false]);
+});

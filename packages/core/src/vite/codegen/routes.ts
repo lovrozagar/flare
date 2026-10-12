@@ -10,7 +10,14 @@ const SEGMENT = ".segment.ts";
 type Item = { id: string; file: string };
 
 // `path` is the bracket pattern the router matches. `urls` are display strings for errors and types.
-export type RouteGen = { id: string; file: string; path: string; urls: string[]; params: Record<string, string> };
+export type RouteGen = {
+	id: string;
+	file: string;
+	path: string;
+	urls: string[];
+	params: Record<string, string>;
+	response: boolean;
+};
 
 export type LayoutGen = { id: string; file: string };
 
@@ -44,9 +51,9 @@ export function generateRoutes(
 	}
 	assertRoot(files, pages);
 	assertApart(files);
-	assertExports([...pages, ...layouts], read);
+	const scans = assertExports([...pages, ...layouts], read);
 	assertOne(pages);
-	const routes = pages.map(toRoute);
+	const routes = pages.map((page) => toRoute(page, scans.get(page.file) === true));
 	assertUnique(routes);
 	assertShadow(routes);
 	assertKinds(routes);
@@ -66,7 +73,7 @@ function item(file: string, suffix: string): Item {
 }
 
 // The URL comes from idPattern, the same rule the router matches with, so the two cannot drift.
-function toRoute(page: Item): RouteGen {
+function toRoute(page: Item, response: boolean): RouteGen {
 	const path = idPattern(page.id);
 	const segments = patternSegments(path);
 	const params: Record<string, string> = {};
@@ -75,7 +82,7 @@ function toRoute(page: Item): RouteGen {
 		if (Object.hasOwn(params, segment.name)) throw new Error(`${page.file} repeated param ${segment.name}`);
 		params[segment.name] = paramType(segment);
 	}
-	return { id: page.id, file: page.file, path, urls: urlsOf(segments), params };
+	return { id: page.id, file: page.file, path, urls: urlsOf(segments), params, response };
 }
 
 function paramType(segment: Exclude<Segment, { kind: "static" }>): string {
@@ -125,10 +132,15 @@ function assertApart(files: readonly string[]): void {
 	}
 }
 
-function assertExports(items: readonly Item[], read: (file: string) => string): void {
+// Each file is parsed once. The result maps a file to whether its chain calls .response().
+function assertExports(items: readonly Item[], read: (file: string) => string): Map<string, boolean> {
+	const responses = new Map<string, boolean>();
 	for (const entry of items) {
-		if (!scanRoute(entry.file, read(entry.file)).route) throw new Error(`${entry.file}: no route export`);
+		const scan = scanRoute(entry.file, read(entry.file));
+		if (!scan.route) throw new Error(`${entry.file}: no route export`);
+		responses.set(entry.file, scan.response);
 	}
+	return responses;
 }
 
 function assertOne(pages: readonly Item[]): void {
@@ -196,7 +208,8 @@ function last(id: string): string {
 // bit 12 rewrites to the hashed file (02-system).
 function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[], routesDir: string): string {
 	const tree = routes.map(
-		(route) => `{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", module: ${lazy(route.file)} }`,
+		(route) =>
+			`{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", ${route.response ? "response: true, " : ""}module: ${lazy(route.file)} }`,
 	);
 	const record = layouts.map((layout) => `"${escapeSource(layout.id)}": ${lazy(layout.file)}`);
 	const chunks = [...routes, ...layouts].map(

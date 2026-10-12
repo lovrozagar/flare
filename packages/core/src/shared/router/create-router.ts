@@ -19,9 +19,12 @@ export type ModuleRef = RouteModule | (() => Promise<RouteModule>);
 
 export type LayoutModule = ModuleRef;
 
+// `response` marks a .response() page. Codegen sets it from the source, so routing knows it before the lazy module
+// loads. A static record says so itself.
 export type RouteNode = {
 	id: string;
 	path: string;
+	response?: boolean;
 	module: ModuleRef;
 };
 
@@ -51,6 +54,7 @@ export type RouterOptions = {
 export type Match = {
 	id?: string;
 	params: RawParams;
+	response?: boolean;
 	chain: readonly ChainEntry[];
 };
 
@@ -115,7 +119,8 @@ function resolve(router: Router, path: string): Match {
 			...layoutChain(router.layouts, page.id),
 			{ id: page.id, kind: "page" as const, module: page.module },
 		];
-		return { id: page.id, params, chain };
+		const response = page.response ?? (typeof page.module === "object" && page.module.response !== undefined);
+		return { id: page.id, params, response, chain };
 	}
 	const owner = notFoundOwner(router, local ?? path);
 	if (owner === undefined) return { params: {}, chain: [] };

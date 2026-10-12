@@ -209,6 +209,8 @@ packages/core/src/server/render/shape.ts	P1	src	server	A production body without
 packages/core/src/server/render/shape.test.ts	P1	test	server	Unit cases for shape.ts
 packages/core/src/server/render/head.ts	P1	src	server	Render the merged .head() descriptors through Solid's SSR useHead, so each tag carries its data-dh identity
 packages/core/src/server/render/head.test.ts	P1	test	server	Unit cases for head.ts
+packages/core/src/server/render/matches.ts	P6	src	server	The outlet matches and the B83 state matches of a document, from its chain and loader run
+packages/core/src/server/render/matches.test.ts	P6	test	server	Unit cases for matches.ts
 packages/core/src/server/render/projector.ts	P5	src	server	Map a thrown value to the public error body
 packages/core/src/server/render/projector.test.ts	P5	test	server	Unit cases for projector.ts
 packages/core/src/server/render/abort.ts	P5	src	server	Race the request signal against chunk 0 and every later pull
