@@ -178,6 +178,7 @@ Corpus-driven, one line per frame.
 | `dev throw` | two element children, dev | throw |
 | `scope` | `scope: "auto"` and a boundary around the outlet | the transition scope is that element |
 | `no name` | a `name` prop | does not type-check |
+| `production skips` | two element children in production | no throw, and nothing is registered: the scope stays the document |
 
 ### `shared/components/view-transition-css.test.tsx`
 
