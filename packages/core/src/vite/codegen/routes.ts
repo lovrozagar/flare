@@ -1,5 +1,6 @@
 import { idPattern, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts";
 import { escapeSource } from "./escape.ts";
+import { scanRoute } from "./scan.ts";
 
 const PAGE = ".page.tsx";
 const LAYOUT = ".layout.tsx";
@@ -22,7 +23,13 @@ export function defineLayouts<T>(layouts: T): T {
 	return layouts;
 }
 
-export function generateRoutes(files: readonly string[]): GeneratedRoutes {
+// The page id a file path gives, or undefined when the file is not a page.
+export function pageId(file: string): string | undefined {
+	return file.endsWith(PAGE) ? item(file, PAGE).id : undefined;
+}
+
+// `read` returns a route file's source. Each page and layout file must export `route` (dx/routes.md).
+export function generateRoutes(files: readonly string[], read: (file: string) => string): GeneratedRoutes {
 	const pages: Item[] = [];
 	const layouts: LayoutGen[] = [];
 	for (const file of files) {
@@ -31,6 +38,7 @@ export function generateRoutes(files: readonly string[]): GeneratedRoutes {
 		else if (file.endsWith(LAYOUT)) layouts.push(item(file, LAYOUT));
 	}
 	assertRoot(files, pages);
+	assertExports([...pages, ...layouts], read);
 	assertOne(pages);
 	const routes = pages.map(toRoute);
 	assertUnique(routes);
@@ -87,6 +95,12 @@ function assertRoot(files: readonly string[], pages: readonly Item[]): void {
 	if (pages.length === 0) return;
 	if (files.some((file) => file.endsWith(".root-layout.tsx"))) return;
 	throw new Error(`no root: ${pages.map((page) => page.file).join(", ")}`);
+}
+
+function assertExports(items: readonly Item[], read: (file: string) => string): void {
+	for (const entry of items) {
+		if (!scanRoute(entry.file, read(entry.file)).route) throw new Error(`${entry.file}: no route export`);
+	}
 }
 
 function assertOne(pages: readonly Item[]): void {
@@ -151,8 +165,8 @@ function last(id: string): string {
 
 function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[]): string {
 	const imports = [
-		...routes.map((route, index) => `import * as route${index} from "./${escapeSource(route.file)}";`),
-		...layouts.map((layout, index) => `import * as layout${index} from "./${escapeSource(layout.file)}";`),
+		...routes.map((route, index) => `import { route as route${index} } from "./${escapeSource(route.file)}";`),
+		...layouts.map((layout, index) => `import { route as layout${index} } from "./${escapeSource(layout.file)}";`),
 	];
 	const tree = routes.map(
 		(route, index) => `{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", module: route${index} }`,

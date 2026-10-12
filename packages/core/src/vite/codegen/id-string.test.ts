@@ -3,7 +3,7 @@ import { assertId, writeId } from "./id-string.ts";
 
 const home = "_root_/home.page.tsx";
 const about = "_root_/about/about.page.tsx";
-const source = `export default createPage("");\n`;
+const source = `export const route = createPage("");\n`;
 
 it("writes the key", () => {
 	const next = writeId(source, home);
@@ -18,7 +18,7 @@ it("rewrites on move", () => {
 });
 
 it("mismatch fails", () => {
-	expect(() => assertId(`export default createPage("hand-edited");\n`, home)).toThrow(home);
+	expect(() => assertId(`export const route = createPage("hand-edited");\n`, home)).toThrow(home);
 	expect(() => assertId(`export default function Page() {}`, home)).toThrow(home);
 });
 

@@ -3,8 +3,14 @@ import { defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts";
 
 const rootLayout = "_root_/root.root-layout.tsx";
 
+const routeSource = `export const route = createPage("");\n`;
+
+function read(): string {
+	return routeSource;
+}
+
 function routesOf(files: readonly string[]) {
-	return generateRoutes([...files, rootLayout]);
+	return generateRoutes([...files, rootLayout], read);
 }
 
 it("define helpers", () => {
@@ -14,7 +20,8 @@ it("define helpers", () => {
 
 it("one route", () => {
 	const source = routesOf(["_root_/home.page.tsx"]).source;
-	expect(source).toContain('from "./_root_/home.page.tsx"');
+	expect(source).toContain('import { route as route0 } from "./_root_/home.page.tsx";');
+	expect(source).toContain('import { route as layout0 } from "./_root_/root.root-layout.tsx";');
 	expect(source).toContain("export const routeTree");
 	expect(source).toContain('export const routeTree = [{ id: "_root_", path: "/", module: route0 }];');
 	expect(source).toContain('export const layouts = { "_root_": layout0 };');
@@ -78,7 +85,7 @@ it("literal brackets", () => {
 });
 
 it("ignored", () => {
-	expect(generateRoutes(["_parts/widget.tsx"]).routes).toEqual([]);
+	expect(generateRoutes(["_parts/widget.tsx"], read).routes).toEqual([]);
 });
 
 it("repeated param", () => {
@@ -107,8 +114,8 @@ it("index folder", () => {
 
 it("no root", () => {
 	const pages = ["_root_/home.page.tsx", "_root_/about/about.page.tsx"];
-	expect(() => generateRoutes(pages)).toThrow("home.page.tsx");
-	expect(() => generateRoutes(pages)).toThrow("about/about.page.tsx");
+	expect(() => generateRoutes(pages, read)).toThrow("home.page.tsx");
+	expect(() => generateRoutes(pages, read)).toThrow("about/about.page.tsx");
 	expect(routesOf(pages).routes).toHaveLength(2);
 });
 
@@ -128,4 +135,18 @@ it("two pages", () => {
 	const files = ["_root_/home.page.tsx", "_root_/index.page.tsx"];
 	expect(() => routesOf(files)).toThrow(/home\.page\.tsx/);
 	expect(() => routesOf(files)).toThrow(/index\.page\.tsx/);
+});
+
+it("missing route export", () => {
+	const sources: Record<string, string> = {
+		"_root_/root.root-layout.tsx": `export const route = createRootLayout("_root_");\n`,
+		"_root_/home.page.tsx": `export default createPage("_root_");\n`,
+		"_root_/about/about.page.tsx": `const route = createPage("_root_/about");\nexport { route };\n`,
+	};
+	const files = Object.keys(sources);
+	expect(() => generateRoutes(files, (file) => sources[file])).toThrow("_root_/home.page.tsx");
+	sources["_root_/home.page.tsx"] = `export const route = createPage("_root_");\n`;
+	expect(generateRoutes(files, (file) => sources[file]).routes).toHaveLength(2);
+	sources["_root_/root.root-layout.tsx"] = `export const page = createRootLayout("_root_");\n`;
+	expect(() => generateRoutes(files, (file) => sources[file])).toThrow("_root_/root.root-layout.tsx");
 });
