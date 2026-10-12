@@ -20,7 +20,7 @@ import { definedParams, outletMatches, stateMatches, type Rendered } from "../re
 import { projectError, type Projected } from "../render/projector.ts";
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts";
 import { finalize, type StageResult } from "./finalize.ts";
-import { policyHeaders } from "./policies.ts";
+import { isPublic, policyHeaders } from "./policies.ts";
 
 // The rendered-page answers: a document, a data or prefetch response, and the not-found page (02-system steps 10 to
 // 13). createServer routes to them.
@@ -37,8 +37,9 @@ declare global {
 // A match whose modules are loaded (02-system step 10).
 export type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
 
-// The request's decision, and the raw params a `cdn.tags` function reads (B32).
-type Policy = { decision: Decision; params: Record<string, string | string[]> };
+// The request's decision, and the raw params a `cdn.tags` function reads (B32). `rejected` is a deferred value that
+// rejected before a public answer was sent.
+type Policy = { decision: Decision; params: Record<string, string | string[]>; rejected?: boolean };
 
 // An unknown path answers 404, which no policy makes public.
 const UNDECIDED: Policy = { decision: { policy: "no-store", cdn: {} }, params: {} };
@@ -68,12 +69,24 @@ async function decided(exchange: Exchange, matched: Loaded): Promise<{ input: Ru
 	};
 }
 
+// A public answer, document or data, waits for every deferred value it started, whatever documentResponseDefer
+// says, so a CDN copy holds no hole and no deferred error. A rejection is an error frame, so the answer leaves
+// `private, no-store` (dx/cache.md). "buffer" holds any document the same way. Solid then writes the settled values
+// in the shell (B92). Any other answer streams.
+async function awaited(run: LoaderRun, policy: Policy, buffer: boolean): Promise<Policy> {
+	const route = [run.headers["set-cookie"] ?? []].flat();
+	if (!buffer && !isPublic(withCookies(policy.decision, { route, all: route }))) return policy;
+	const results = await Promise.allSettled(run.deferred.map((entry) => entry.promise));
+	return { ...policy, rejected: results.some((result) => result.status === "rejected") };
+}
+
 // The decision, downgraded by a cookie the route sets, writes Cache-Control and Cache-Tag over the answer's
 // headers. `errored` is an error frame on a data answer, or a painted failure.
 function cached(result: Staged, policy: Policy, answer: { run: LoaderRun; errored: boolean }): Response {
 	const route = [answer.run.headers["set-cookie"] ?? []].flat();
 	const decision = withCookies(policy.decision, { route, all: result.headers.getSetCookie() });
-	const written = policyHeaders(decision, { status: result.status, params: policy.params, errored: answer.errored });
+	const errored = answer.errored || policy.rejected === true;
+	const written = policyHeaders(decision, { status: result.status, params: policy.params, errored });
 	written.forEach((value, name) => result.headers.set(name, value));
 	return finalize(result);
 }
@@ -100,9 +113,10 @@ export async function data(exchange: Exchange, matched: Loaded): Promise<Respons
 		const wire = projectError(error, exchange.sink).wire;
 		return { message: wire.message, stack: wire.stack, digest: wire.digest };
 	};
+	const settled = await awaited(run, policy, false);
 	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project });
 	const errored = run.frames.some((frame) => frame.t === "e");
-	return cached(stage(routeSecured(exchange, run.security), body, run), policy, { run, errored });
+	return cached(stage(routeSecured(exchange, run.security), body, run), settled, { run, errored });
 }
 
 // A data answer is HTTP 200 with the route's headers, whatever its frames say (B73).
@@ -124,12 +138,9 @@ export async function page(exchange: Exchange, matched: Loaded): Promise<Respons
 	const chain = matched.chain;
 	const { input, policy } = await decided(exchange, matched);
 	const run = await runLoaders(input);
-	// "buffer" holds the document until every defer this render started has settled. Solid then writes the
-	// settled values in the shell (B92).
-	if (exchange.options.documentResponseDefer === "buffer")
-		await Promise.allSettled(run.deferred.map((entry) => entry.promise));
-	if (run.response.status === 200) return paint(exchange, { chain, run, policy }, 200);
-	return settle(exchange, { chain, run, policy });
+	const settled = await awaited(run, policy, exchange.options.documentResponseDefer === "buffer");
+	if (run.response.status === 200) return paint(exchange, { chain, run, policy: settled }, 200);
+	return settle(exchange, { chain, run, policy: settled });
 }
 
 // A thrown redirect() answers its status and Location, with no render and no boundary (B73). A failed match

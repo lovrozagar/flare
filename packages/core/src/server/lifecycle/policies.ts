@@ -20,7 +20,7 @@ function seconds(duration: string): number {
 export function policyHeaders(decision: Decision, answer: PolicyAnswer): Headers {
 	const headers = new Headers({ "cache-control": NO_STORE });
 	const { maxAge, swr, tags } = decision.cdn;
-	if (decision.policy !== "shared" || decision.class !== "public" || maxAge === undefined) return headers;
+	if (!isPublic(decision) || maxAge === undefined) return headers;
 	if (answer.status < 200 || answer.status > 299 || answer.errored === true) return headers;
 	headers.set(
 		"cache-control",
@@ -29,6 +29,11 @@ export function policyHeaders(decision: Decision, answer: PolicyAnswer): Headers
 	const list = typeof tags === "function" ? tags({ params: answer.params }) : (tags ?? []);
 	if (list.length > 0) headers.set("cache-tag", list.join(", "));
 	return headers;
+}
+
+// Whether a 2xx answer with no error frame would carry the public header.
+export function isPublic(decision: Decision): boolean {
+	return decision.policy === "shared" && decision.class === "public" && decision.cdn.maxAge !== undefined;
 }
 
 // A .response() page keeps its own Cache-Control, except on a chain that requires or reads auth, which is
