@@ -102,6 +102,7 @@ The test imports the options builder, not `Bun.serve`, so it runs under Node.
 | `assets POST` | no route matches, method POST | 405, the binding is not called |
 | `assets escape` | the path is canonicalized before the binding sees it | the binding receives the canonical path |
 | `assets missing` | `assets: "ASSETS"` and the env has no such binding | 500, logged once |
+| `assets miss` | no route matches, and the binding answers 404, for GET and HEAD; then a path the binding has | the app's own 404 answer, its body and headers, as on Node and Bun. The binding's file is returned untouched, with none of the app's headers |
 | `connecting ip` | `CF-Connecting-IP` is `1.2.3.4`, and a request where the header is absent | `clientIp` is `1.2.3.4`, or absent |
 
 ### `tests/workerd/handler.test.ts`

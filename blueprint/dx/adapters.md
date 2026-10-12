@@ -40,6 +40,6 @@ createWorkersHandler(server, { assets? }): { fetch(request, env, ctx) }
 | `server` | yes | — | the `createServer` return | `fetch` calls `server.fetch` | | `adapters/workers/handler.test.ts` `waitUntil` |
 | `assets` | no | absent | the env binding name, a string | after routing, an unmatched `GET` or `HEAD` is forwarded to `env[assets].fetch` with the canonical path | a missing binding is 500, logged once. It is not a silent 404 | `handler.test.ts` `assets GET`, `assets missing` |
 
-An unmatched `POST` is 405 and the binding is not called (`assets POST`). The path is canonical before the binding sees it (`assets escape`). `ctx.waitUntil` receives the promises the handler scheduled (`waitUntil`). There is no `staticAssets` middleware (B13).
+A file the binding has is its response, untouched. A path the binding answers with 404 is the app's own not-found answer, with its security headers, as on Node and Bun (`assets miss`). An unmatched `POST` is 405 and the binding is not called (`assets POST`). The path is canonical before the binding sees it (`assets escape`). `ctx.waitUntil` receives the promises the handler scheduled (`waitUntil`). There is no `staticAssets` middleware (B13).
 
 This binding is not the SSG store. A route that matched is read from `createServer({ static })`, which on Workers is `createAssetsStore` (`store.md`). The binding runs only after the router found no route.

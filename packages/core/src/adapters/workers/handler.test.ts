@@ -131,3 +131,39 @@ it("connecting ip", async () => {
 	expect(absent.status).toBe(404);
 	expect(seen).toEqual(["1.2.3.4", undefined]);
 });
+
+// The app's own not-found answer, with a security header.
+function notFound(): Response {
+	return new Response("<p>not found</p>", {
+		status: 404,
+		headers: { "x-frame-options": "DENY", "content-type": "text/html" },
+	});
+}
+
+// A path neither the router nor the binding has is the app's own 404 document, with its headers, as on Node and Bun.
+// A real static asset is still the binding's response, untouched.
+it("assets miss", async () => {
+	const env: WorkerEnv = {
+		ASSETS: {
+			fetch(request) {
+				const path = new URL(request.url).pathname;
+				return path === "/app.js"
+					? new Response("file", { headers: { "x-asset": "1" } })
+					: new Response(null, { status: 404 });
+			},
+		},
+	};
+	const handler = createWorkersHandler({ fetch: notFound }, { assets: "ASSETS" });
+	const missing = await handler.fetch(new Request("https://example.com/nothing"), env, ctx());
+	expect(missing.status).toBe(404);
+	expect(missing.headers.get("x-frame-options")).toBe("DENY");
+	expect(await missing.text()).toBe("<p>not found</p>");
+	const head = await handler.fetch(new Request("https://example.com/nothing", { method: "HEAD" }), env, ctx());
+	expect(head.status).toBe(404);
+	expect(head.headers.get("content-type")).toBe("text/html");
+	const asset = await handler.fetch(new Request("https://example.com/app.js"), env, ctx());
+	expect(asset.status).toBe(200);
+	expect(asset.headers.get("x-asset")).toBe("1");
+	expect(asset.headers.has("x-frame-options")).toBe(false);
+	expect(await asset.text()).toBe("file");
+});
