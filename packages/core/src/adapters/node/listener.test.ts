@@ -170,3 +170,55 @@ it("set-cookie", async () => {
 	await settle();
 	expect(cookies.flat()).toEqual(["a=1", "b=2"]);
 });
+
+// A response whose close event the test fires, finished or not.
+function closable(finished: boolean): {
+	res: Parameters<ReturnType<typeof createNodeListener>>[1];
+	close: () => void;
+	ended: Promise<void>;
+} {
+	const closers: (() => void)[] = [];
+	const ended = Promise.withResolvers<void>();
+	const res = {
+		writeHead: noop,
+		setHeader: noop,
+		write: () => true,
+		end: () => ended.resolve(),
+		once(event: "drain" | "close", callback: () => void) {
+			if (event === "close") closers.push(callback);
+		},
+		get writableFinished() {
+			return finished;
+		},
+	};
+	return { res, close: () => closers.forEach((callback) => callback()), ended: ended.promise };
+}
+
+function capture(): { listener: ReturnType<typeof createNodeListener>; seen: Request[] } {
+	const seen: Request[] = [];
+	const listener = createNodeListener({
+		fetch: (request) => {
+			seen.push(request);
+			return new Response("done");
+		},
+	});
+	return { listener, seen };
+}
+
+it("finish keeps signal", async () => {
+	const { listener, seen } = capture();
+	const done = closable(true);
+	listener(req(), done.res);
+	await done.ended;
+	done.close();
+	expect(seen[0].signal.aborted).toBe(false);
+});
+
+it("disconnect aborts", async () => {
+	const { listener, seen } = capture();
+	const gone = closable(false);
+	listener(req(), gone.res);
+	await gone.ended;
+	gone.close();
+	expect(seen[0].signal.aborted).toBe(true);
+});

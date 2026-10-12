@@ -22,6 +22,7 @@ type NodeRes = {
 	write: (chunk: Uint8Array) => boolean;
 	end: () => void;
 	once: (event: "drain" | "close", callback: () => void) => void;
+	writableFinished?: boolean;
 };
 
 export function createNodeListener(server: Server, options?: unknown): (req: NodeReq, res: NodeRes) => void {
@@ -41,9 +42,12 @@ async function pump(job: Job): Promise<void> {
 		return;
 	}
 	const body = requestBody(job.req);
-	// A client that disconnects closes the response. The request signal tells the render to stop.
+	// Node emits close after a normal finish too. Only a close before the finish is a client disconnect, and
+	// only that aborts the request signal, so background work after a full response keeps it (as on Workers).
 	const disconnect = new AbortController();
-	job.res.once("close", () => disconnect.abort());
+	job.res.once("close", () => {
+		if (job.res.writableFinished !== true) disconnect.abort();
+	});
 	const init: RequestInit = {
 		method: job.req.method,
 		headers: requestHeaders(job.req.headers),

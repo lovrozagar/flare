@@ -68,6 +68,9 @@ it("abort closes", async () => {
 				write: (chunk) => res.write(chunk),
 				end: () => res.end(),
 				once: (event, callback) => res.once(event, callback),
+				get writableFinished() {
+					return res.writableFinished;
+				},
 			},
 		);
 	});
