@@ -17,3 +17,4 @@ export { Matches, Outlet, type OutletMatch, type OutletState } from "./outlet.ts
 export { ViewTransitionCSS } from "./view-transition-css.tsx";
 export { TransitionScopeContext, ViewTransitionBoundary } from "./view-transition-boundary.tsx";
 export { useDeferred } from "./use-deferred.ts";
+export { Stylesheet } from "./stylesheet.tsx";

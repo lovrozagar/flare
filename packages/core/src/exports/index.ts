@@ -23,6 +23,6 @@ export {
 	type InterceptState,
 	type LinkProps,
 } from "../shared/components/index.ts";
-export { ViewTransitionCSS } from "../shared/components/index.ts";
+export { Stylesheet, ViewTransitionCSS } from "../shared/components/index.ts";
 export { ViewTransitionBoundary } from "../shared/components/index.ts";
 export { useBlocker } from "../client/navigation/index.ts";

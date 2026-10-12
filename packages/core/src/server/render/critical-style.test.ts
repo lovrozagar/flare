@@ -24,8 +24,10 @@ it("empty nonce", () => {
 	expect(withCritical(shell, { css: SHEET, nonce: "" })).not.toContain("nonce=");
 });
 
+// An empty sheet, as in dev, or one with no rule the shell uses, writes no style.
 it("no css", () => {
 	expect(withCritical(shell, { css: "", nonce: "n" })).toBe(shell);
+	expect(withCritical(shell, { css: ".b{color:blue}", nonce: "n" })).toBe(shell);
 });
 
 it("one", () => {

@@ -12,7 +12,14 @@ export type Statement = Rule | AtRule;
 
 const GROUPS = new Set(["media", "supports", "container", "layer", "scope", "starting-style", "document"]);
 
-const REFUSED = new Set(["import", "charset"]);
+// Why each refused at-rule throws. A Google Fonts `@import` is the common case, so its message says what to use.
+const REFUSED = new Map([
+	[
+		"import",
+		"css: @import is not supported in the app stylesheet; use createFont, or a <link> in the root layout head",
+	],
+	["charset", "css: @charset is not allowed in the built stylesheet"],
+]);
 
 export function parseCss(css: string): Statement[] {
 	return statements(stripComments(css));
@@ -124,7 +131,8 @@ function atRule(head: string, inner: string | undefined, nested: boolean): AtRul
 	if (match === null) throw new Error(`css: a declaration outside a rule: ${head}`);
 	const name = defined(match[1], "the at-rule name").toLowerCase();
 	const prelude = defined(match[2], "the at-rule prelude").trim();
-	if (REFUSED.has(name)) throw new Error(`css: @${name} is not allowed in the built stylesheet`);
+	const refused = REFUSED.get(name);
+	if (refused !== undefined) throw new Error(refused);
 	if (inner === undefined) return { kind: "at", name, prelude };
 	if (GROUPS.has(name) && !nested) return { kind: "at", name, prelude, children: statements(inner) };
 	return { kind: "at", name, prelude, body: inner.trim() };
