@@ -9,12 +9,23 @@ export type Scan = {
 	query: boolean;
 	route: boolean;
 	response: boolean;
+	// `.authorize()` without `.authenticate()` reads identity (B26).
+	authorize: boolean;
+	// The sides this file's `.input()` validates (dx/types.md).
+	input: { params: boolean; search: boolean };
 };
 
 export function scanRoute(file: string, source: string): Scan {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
 	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
-	const scan: Scan = { file, query: false, route: false, response: false };
+	const scan: Scan = {
+		file,
+		query: false,
+		route: false,
+		response: false,
+		authorize: false,
+		input: { params: false, search: false },
+	};
 	walk(parsed.program, (node) => {
 		if (node.type === "ImportDeclaration") readImport(scan, node);
 		if (node.type === "ExportNamedDeclaration" && exportsRoute(node)) scan.route = true;
@@ -60,6 +71,8 @@ function readCall(scan: Scan, node: Ast): void {
 	if (name === "intercept") scan.intercept = readIntercept(scan.file, node.arguments as Ast[]);
 	// A .response() page answers every method itself, so routing must know it before its code loads.
 	if (name === "response") scan.response = true;
+	if (name === "authorize") scan.authorize = true;
+	if (name === "input") scan.input = inputSides(node.arguments);
 }
 
 function readIntercept(file: string, args: readonly Ast[]): Scan["intercept"] {
@@ -77,4 +90,15 @@ function readIntercept(file: string, args: readonly Ast[]): Scan["intercept"] {
 	}
 	const renderValue = (render as Ast).value as Ast;
 	return { from: fromIds, render: String(renderValue.value), spans };
+}
+
+// The keys of `.input({ params?, searchParams? })`, named or quoted. A non-literal argument validates neither as far
+// as types go.
+function inputSides(args: unknown): Scan["input"] {
+	const properties: unknown = Reflect.get(Object(Reflect.get(Object(args), 0)), "properties");
+	const keys = (Array.isArray(properties) ? properties : []).map((property: unknown) => {
+		const key = Object(Reflect.get(Object(property), "key"));
+		return String(Reflect.get(key, "name") ?? Reflect.get(key, "value"));
+	});
+	return { params: keys.includes("params"), search: keys.includes("searchParams") };
 }
