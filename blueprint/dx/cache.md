@@ -17,7 +17,7 @@ A live render stored in the `FlareStore` passed to `createServer({ store })`.
 | `tags` | no | `[]` | `string[]` or `(ctx: { params }) => string[]` | tag purge bumps these epochs | a function that reads the request is a build error. The argument is `params` only | `server/cache/epoch.test.ts` `tag purge` |
 | `defer` | no | `"resolve"` | `"resolve"`, `"stream"` | see `defer.md` | | `server/cache/write.test.ts` `resolved defer` |
 
-There is no `key` function. The framework builds the key (B32, B86). It is `static:<build>:<routeId>:<rawParams>`. Route-order param values are joined with `/`. A catch-all joins its segments with `/`. Empty params omit that last segment. `/` and `%` inside a value are percent-encoded. There is no identity class. A `key` field does not type-check (`chain.test.ts` `no author key`; `server/cache/key.test.ts` `shape`, `catch all`, `encode`).
+There is no `key` function. The framework builds the key (B32, B86). It is `static:<build>:<routeId>:<rawParams>`. Route-order param values are joined with `/`. The order is the route's declared params, not the record's key order. Every declared param keeps its slot, and an absent optional is the empty string, so `/static/x` and `/x/static` on `/[[a]]/static/[[b]]` cannot share a key. A catch-all joins its segments with `/`. A route that declares no params omits that last segment. `/` and `%` inside a value are percent-encoded. There is no identity class. A `key` field does not type-check (`chain.test.ts` `no author key`; `server/cache/key.test.ts` `shape`, `catch all`, `encode`).
 
 ## ssg
 
