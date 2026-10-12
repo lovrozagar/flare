@@ -78,6 +78,7 @@ Route chunks (from bit 06). Codegen's `chunks` map gives each route id the proje
 | `dev` | no client manifest, or `vite dev` | the id is `dev` |
 | `hash` | a manifest with two JS files and one CSS file | the id is the first 12 hex digits of sha256 over the sorted deduped root-relative URLs |
 | `missing` | a production build and the manifest path is absent | the build fails and names that path |
+| `wired` | a server built with that id | every pipeline response carries `flare-build: <id>` from finalize, and `self.flare.build` in the document state is the same id. Bit 06's client mismatch check then runs on real values (it passes `""` until this row lands) |
 
 ### `vite/dev/handler.test.ts`
 
