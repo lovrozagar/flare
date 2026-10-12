@@ -2,6 +2,34 @@
 
 Creates every `P9` row. This bit decides the policy. It does not write a store. Bit 10 is the only writer, and it refuses anything this bit did not mark `shared`.
 
+## Route header steps
+
+`.headers()` and `.security()` (`dx/builder.md`) were not built by bits 01 to 03. Bit 03's `route security`, `false removes`, `headers() cannot`, and `both cookies` rows exercised `server/security/apply.ts` alone. This bit builds both steps before the policy header, because the decision overwrites what `.headers()` returns. They take the slots after `head` and before `render`. Each runs per match after its loader, on a document and on a data or prefetch response alike, and receives `{ params, search, loaderData, preloaderContext }` (`dx/types.md`).
+
+### `shared/route-builder/chain.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `headers step` | `.head().headers(fn).security(config).render()` | builds. `.headers()` after `.security()` or after `.render()` throws `order`, and a second `.headers()` throws |
+| `security step` | `.security(config)` and `.security((ctx) => config)` | both build. A layout and a root layout have both steps. A segment has neither |
+
+### `server/loaders/run.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `headers merge` | the root, a layout, and the page each return headers | parent to child. A child key wins. `set-cookie` appends parent values then child values. An undefined child value keeps the parent |
+| `headers after throw` | the layout loader throws | the layout's `.headers()` is not called. The page's still runs when its loader resolved |
+| `headers throw` | the page's `.headers()` throws | that match's headers are omitted and the status is unchanged (B82) |
+| `security merge` | server, layout, and page configs | outside-in. A set key replaces. `false` removes, including a parent value. A function receives the four fields and no `nonce` |
+
+### `tests/integration/ingress.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `route security` | the page's `.security({ "X-Frame-Options": "SAMEORIGIN" })` | the document and its data response carry `SAMEORIGIN`. `.security({ "X-Frame-Options": false })` on another page removes it |
+| `route string csp` | the page's `.security()` sets a string CSP | the header is that string, and no script or style tag in the document has a `nonce` attribute (B68) |
+| `headers cannot secure` | the page's `.headers()` sets `Content-Security-Policy` and `X-Frame-Options` | the security values win |
+
 ## Extends
 
 `server/lifecycle/policies.test.ts` now calls `decide` instead of returning the skeleton default for every document.
