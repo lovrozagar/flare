@@ -1,0 +1,148 @@
+import { expect, expectTypeOf, it, vi } from "vitest";
+import { createMiddleware, runMiddleware, type RunInput } from "./run.ts";
+import type { Middleware, MiddlewareEntry } from "./types.ts";
+
+const ok = (body: string, status = 200): Response => new Response(body, { status });
+
+function input(extra: Partial<RunInput> = {}): RunInput {
+	return {
+		request: new Request("http://localhost/about?q=1"),
+		env: { site: "s" },
+		kind: "page",
+		fail: () => ok("", 500),
+		...extra,
+	};
+}
+
+const twice: Middleware = async (ctx) => {
+	await ctx.next();
+	await ctx.next();
+};
+
+const throwsAfter: Middleware = async (ctx) => {
+	await ctx.next();
+	throw new Error("after");
+};
+
+const keep: Middleware = async (ctx) => {
+	await ctx.next();
+	return undefined;
+};
+
+const odd: Middleware = async (ctx) => {
+	await ctx.next();
+	return JSON.parse("1");
+};
+
+it("order", async () => {
+	const seen: string[] = [];
+	const first: Middleware = async (ctx) => {
+		seen.push("first");
+		const response = await ctx.next();
+		seen.push("first after");
+		return response;
+	};
+	const second: Middleware = () => void seen.push("second");
+	const result = await runMiddleware([first, second], input(), async () => {
+		seen.push("router");
+		return ok("page");
+	});
+	expect(seen).toEqual(["first", "second", "router", "first after"]);
+	expect(await result.text()).toBe("page");
+});
+
+it("respond", async () => {
+	const second = vi.fn<Middleware>();
+	const router = vi.fn<() => Promise<Response>>(async () => ok("page"));
+	const result = await runMiddleware([(ctx) => ctx.respond(ok("early")), second], input(), router);
+	expect(await result.text()).toBe("early");
+	expect(second).not.toHaveBeenCalled();
+	expect(router).not.toHaveBeenCalled();
+});
+
+it("bypass", async () => {
+	const router = vi.fn<() => Promise<Response>>(async () => ok("page"));
+	const result = await runMiddleware([(ctx) => ctx.bypass(ok("mine", 202))], input(), router);
+	expect(result.status).toBe(202);
+	expect(router).not.toHaveBeenCalled();
+});
+
+it("second next", async () => {
+	const fail = vi.fn<RunInput["fail"]>(() => ok("", 500));
+	const result = await runMiddleware([twice], input({ fail }), async () => ok("page"));
+	expect(result.status).toBe(500);
+	expect(String(fail.mock.calls[0]?.[0])).toMatch(/next\(\) twice/);
+});
+
+it("onResponse throw", async () => {
+	const cancel = vi.fn<() => void>();
+	const body = new ReadableStream({ cancel });
+	const result = await runMiddleware([throwsAfter], input(), async () => new Response(body));
+	expect(result.status).toBe(500);
+	expect(cancel).toHaveBeenCalledOnce();
+});
+
+it("after sees redirect", async () => {
+	const statuses: number[] = [];
+	const watch: Middleware = async (ctx) => void statuses.push((await ctx.next()).status);
+	const result = await runMiddleware([watch], input(), async () => new Response(null, { status: 303 }));
+	expect(statuses).toEqual([303]);
+	expect(result.status).toBe(303);
+});
+
+it("throw before", async () => {
+	const after = vi.fn<() => void>();
+	const fail = vi.fn<RunInput["fail"]>(() => ok("", 500));
+	const wrap: Middleware = async (ctx) => {
+		await ctx.next();
+		after();
+	};
+	const result = await runMiddleware([wrap], input({ fail }), async () => {
+		throw new Error("router broke");
+	});
+	expect(after).not.toHaveBeenCalled();
+	expect(result.status).toBe(500);
+	expect(String(fail.mock.calls[0]?.[0])).toMatch(/router broke/);
+});
+
+// The canonical step runs first (02-system step 2), so `path` is the canonical pathname, without the query.
+it("path is canonical", async () => {
+	const paths: string[] = [];
+	await runMiddleware([(ctx) => void paths.push(ctx.path)], input(), async () => ok("page"));
+	expect(paths).toEqual(["/about"]);
+});
+
+it("return replaces", async () => {
+	const cancel = vi.fn<() => void>();
+	const replace: Middleware = async (ctx) => {
+		await ctx.next();
+		return ok("replaced");
+	};
+	const result = await runMiddleware([replace], input(), async () => new Response(new ReadableStream({ cancel })));
+	expect(await result.text()).toBe("replaced");
+	expect(cancel).toHaveBeenCalledOnce();
+	expect(await (await runMiddleware([keep], input(), async () => ok("page"))).text()).toBe("page");
+	// Any other return is ignored. An untyped caller can return a number.
+	expect(await (await runMiddleware([odd], input(), async () => ok("page"))).text()).toBe("page");
+});
+
+// Returning without next, respond, or bypass continues the chain (dx/server.md).
+it("skip continues", async () => {
+	const skip: Middleware = (ctx) => {
+		if (ctx.path === "/other") ctx.respond(ok("other"));
+	};
+	expect(await (await runMiddleware([skip], input(), async () => ok("page"))).text()).toBe("page");
+});
+
+it("create middleware", async () => {
+	const handler = createMiddleware((ctx) => ctx.respond(ok(`kind:${ctx.kind}`)));
+	expectTypeOf(handler).toEqualTypeOf<Middleware>();
+	const entries: MiddlewareEntry[] = [
+		{ filter: { prefix: ["/admin"] }, handler },
+		{ filter: { kind: ["page"] }, handler },
+	];
+	const result = await runMiddleware(entries, input(), async () => ok("page"));
+	expect(await result.text()).toBe("kind:page");
+	const filtered = await runMiddleware([{ filter: { prefix: ["/admin"] }, handler }], input(), async () => ok("x"));
+	expect(await filtered.text()).toBe("x");
+});
