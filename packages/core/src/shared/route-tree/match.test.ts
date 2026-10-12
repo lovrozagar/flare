@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { matchParams, matchPath } from "./match.ts";
+import { idPattern } from "./segments.ts";
 
 it("static match", () => {
 	expect(matchPath("/about", "/about")).toBe(true);
@@ -7,6 +8,11 @@ it("static match", () => {
 
 it("encoded static", () => {
 	expect(matchPath("/a b", "/a%20b")).toBe(true);
+	expect(matchPath("/a@b", "/a@b")).toBe(true);
+	expect(matchPath("/c++", "/c++")).toBe(true);
+	expect(matchPath("/a:b,c=d$e;f&g", "/a:b,c=d$e;f&g")).toBe(true);
+	expect(matchPath("/é^", "/%c3%a9%5e")).toBe(true);
+	expect(matchPath("/É", "/%C3%89", { caseSensitive: true })).toBe(true);
 });
 
 it("case fold", () => {
@@ -55,7 +61,7 @@ it("catch-all", () => {
 });
 
 it("group and root", () => {
-	expect(matchParams("_root_/(blog)/post", "/post")).toEqual({});
-	expect(matchParams("[locale]/_root_/about", "/en/about")).toEqual({ locale: "en" });
-	expect(matchPath("_admin_/dashboard", "/dashboard")).toBe(true);
+	expect(matchParams(idPattern("_root_/(blog)/post"), "/post")).toEqual({});
+	expect(matchParams(idPattern("[locale]/_root_/about"), "/en/about")).toEqual({ locale: "en" });
+	expect(matchPath(idPattern("_admin_/dashboard"), "/dashboard")).toBe(true);
 });
