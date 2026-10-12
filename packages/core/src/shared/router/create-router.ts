@@ -1,5 +1,5 @@
 import type { BoundaryRecord, ClientCache, NotFoundRender, PrefetchTrigger } from "../route-builder/index.ts";
-import type { ChainRecord } from "../route-builder/chain.ts";
+import type { ChainRecord, Intercept } from "../route-builder/chain.ts";
 import type { LocationRewrite } from "../url/index.ts";
 import {
 	idPattern,
@@ -29,6 +29,7 @@ export type RouteNode = {
 	path: string;
 	response?: boolean;
 	client?: ClientCache;
+	intercept?: Intercept;
 	module: ModuleRef;
 };
 
@@ -65,6 +66,7 @@ export type Match = {
 	params: RawParams;
 	response?: boolean;
 	client?: ClientCache;
+	intercept?: Intercept;
 	chain: readonly ChainEntry[];
 };
 
@@ -125,19 +127,7 @@ function resolve(router: Router, path: string): Match {
 					options,
 				);
 	const page = router.routeTree.find((node) => node.path === picked);
-	if (page !== undefined && local !== undefined) {
-		const params = readParams(page.path, local);
-		const chain = [
-			...layoutChain(router.layouts, page.id),
-			{ id: page.id, kind: "page" as const, module: page.module },
-		];
-		const record = typeof page.module === "object" ? page.module : undefined;
-		const response = page.response ?? record?.response !== undefined;
-		const client = page.client ?? record?.cache?.client;
-		return client === undefined
-			? { id: page.id, params, response, chain }
-			: { id: page.id, params, response, client, chain };
-	}
+	if (page !== undefined && local !== undefined) return pageMatch(router, page, local);
 	const owner = notFoundOwner(router, local ?? path);
 	if (owner === undefined) return { params: {}, chain: [] };
 	return { params: {}, chain: layoutChain(router.layouts, owner) };
@@ -172,6 +162,19 @@ export function notFoundRenderOf(chain: readonly LoadedEntry[]): NotFoundRender 
 function prefetchOf(value: RouterPrefetch = {}): Router["prefetch"] {
 	const fields = typeof value === "object" ? value : { data: value, modules: value };
 	return { modules: fields.modules ?? "all", data: fields.data ?? false };
+}
+
+// The node's codegen literals win. A static record carries its own response, `cache.client`, and intercept.
+function pageMatch(router: Router, page: RouteNode, local: string): Match {
+	const chain = [...layoutChain(router.layouts, page.id), { id: page.id, kind: "page" as const, module: page.module }];
+	const record = typeof page.module === "object" ? page.module : undefined;
+	const response = page.response ?? record?.response !== undefined;
+	const matched: Match = { id: page.id, params: readParams(page.path, local), response, chain };
+	const client = page.client ?? record?.cache?.client;
+	const intercept = page.intercept ?? record?.intercept;
+	if (client !== undefined) matched.client = client;
+	if (intercept !== undefined) matched.intercept = intercept;
+	return matched;
 }
 
 function stripBase(path: string, basePath: string): string | undefined {

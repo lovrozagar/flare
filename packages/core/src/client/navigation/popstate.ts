@@ -2,7 +2,7 @@ import type { FlareHistory } from "../history/index.ts";
 
 type PopDeps = {
 	history: FlareHistory;
-	restore: (url: string) => Promise<void>;
+	restore: (url: string, index: number) => Promise<void>;
 	save: (index: number) => void;
 	current: () => string;
 };
@@ -18,7 +18,7 @@ export function createPopstate(deps: PopDeps): (state: unknown) => Promise<void>
 		if (steps === null) return;
 		for (const [step, index] of steps.entries()) {
 			const url = step === steps.length - 1 ? deps.current() : deps.history.urlAt(index);
-			if (url !== undefined) await deps.restore(url);
+			if (url !== undefined) await deps.restore(url, index);
 		}
 	};
 }

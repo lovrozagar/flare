@@ -31,3 +31,11 @@ it("empty hash", () => {
 	expect(writeUrl({ path: "/p", hash: "" })).toBe("/p");
 	expect(writeUrl({ path: "/p", hash: "top" })).toBe("/p#top");
 });
+
+it("read shapes", () => {
+	expect(readSearch("")).toEqual({});
+	expect(readSearch("?")).toEqual({});
+	expect(readSearch("?flag&a=1&&b=")).toEqual({ flag: "", a: "1", b: "" });
+	expect(readSearch("?tag=a&x=1&tag=b&tag=c")).toEqual({ tag: ["a", "b", "c"], x: "1" });
+	expect(readSearch("?q=a%20b")).toEqual({ q: "a%20b" });
+});

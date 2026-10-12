@@ -329,13 +329,13 @@ it("restore", async () => {
 	const restore = vi.spyOn(app.deps.scroll, "restore");
 	const push = vi.spyOn(history, "pushState");
 	const replace = vi.spyOn(history, "replaceState");
-	await app.navigator.restore("/about");
+	await app.navigator.restore("/about", app.deps.history.index());
 	flush();
 	expect(app.text()).toBe("root[about:fresh]");
 	expect(push).not.toHaveBeenCalled();
 	expect(replace).not.toHaveBeenCalled();
 	expect(restore).toHaveBeenCalledOnce();
-	await app.navigator.restore("/about#part");
+	await app.navigator.restore("/about#part", app.deps.history.index());
 	expect(app.store.snapshot().location.hash).toBe("#part");
 	expect(restore).toHaveBeenCalledTimes(2);
 	push.mockRestore();

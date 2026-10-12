@@ -75,7 +75,11 @@ type Head = (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) =
 
 export type Render = (props: { loaderData: unknown; children?: JSX.Element }) => JSX.Element;
 
+// A client navigation from one of `from` opens the target in `InterceptOutlet`. `render` is a label (dx/builder.md).
+export type Intercept = { from: readonly string[]; render: string };
+
 export type ChainRecord = {
+	intercept?: Intercept;
 	cache?: CacheConfig;
 	auth?: ChainAuth;
 	authorize?: Authorize;
@@ -88,6 +92,7 @@ export type ChainRecord = {
 };
 
 export type Chain = {
+	intercept: (config: Intercept) => Chain;
 	cache: (config: CacheConfig) => Chain;
 	authenticate: (...callerData: readonly string[]) => Chain;
 	authenticateOptional: (...callerData: readonly string[]) => Chain;
@@ -103,6 +108,7 @@ export type Chain = {
 
 // The order of dx/builder.md. loader and response share a slot because they are mutually exclusive.
 const ORDER = {
+	intercept: 0,
 	cache: 1,
 	authenticate: 3,
 	authenticateOptional: 4,
@@ -139,6 +145,12 @@ export function createChain(_id: string): Chain {
 		return chain;
 	};
 	const chain: Chain = {
+		intercept(config) {
+			if (config.from.length === 0 || typeof config.render !== "string") {
+				throw new Error("intercept needs route ids in from and a render label");
+			}
+			return put("intercept", "intercept", { from: [...config.from], render: config.render });
+		},
 		cache(config) {
 			if (MODES.filter((key) => Object.hasOwn(config, key)).length > 1) throw new Error("one cache mode");
 			return put("cache", "cache", config);

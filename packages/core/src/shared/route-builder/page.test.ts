@@ -31,3 +31,19 @@ it("page chain", () => {
 		response: handle,
 	});
 });
+
+it("page intercept", () => {
+	const page = createPage("_root_/photos/[id]")
+		.intercept({ from: ["_root_/gallery"], render: "preview" })
+		.cache({ client: { prefetch: "intent" } })
+		.render(render);
+	expect(page.intercept).toEqual({ from: ["_root_/gallery"], render: "preview" });
+	expect(() => createPage("_root_/x").intercept({ from: [], render: "preview" })).toThrow(/from/);
+	expect(() =>
+		createPage("_root_/x")
+			.cache({ ssr: { ttl: "1m" } })
+			.intercept({ from: ["_root_/"], render: "preview" }),
+	).toThrow(/order: intercept/);
+	const twice = createPage("_root_/x").intercept({ from: ["_root_/"], render: "a" });
+	expect(() => twice.intercept({ from: ["_root_/"], render: "b" })).toThrow(/intercept twice/);
+});
