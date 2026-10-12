@@ -16,15 +16,20 @@ Component styles are Vite CSS modules, authored by the app, imported from the co
 
 ## Cases
 
-### `vite/css/manifest.test.ts`
+### `vite/css/bundle.test.ts`
+
+The client bundle's one stylesheet. Vite 8 writes it as the `style.css` asset when CSS code splitting is off.
 
 | test | case | result |
 | --- | --- | --- |
-| `one href` | a manifest with one CSS file | that href |
-| `none` | a manifest with no CSS | `undefined` |
-| `two` | a manifest with two CSS files | throw. One stylesheet is the contract |
+| `one href` | a bundle with one CSS asset | its file name, its href, and its text, from a string or bytes |
+| `none` | a bundle with no CSS | `undefined` |
+| `two` | a bundle with two CSS assets | throw, naming both. One stylesheet is the contract |
+| `base` | base `/app/` | the href is `/app/assets/style-<hash>.css`. The href joins the client environment's resolved `base` and the file name |
 
-### `vite/css/delivery.test.ts`
+### `shared/css/delivery.test.ts`
+
+The markup is per-request runtime code the `Stylesheet` component renders, so it lives in `shared`.
 
 | test | case | result |
 | --- | --- | --- |
@@ -38,7 +43,7 @@ Component styles are Vite CSS modules, authored by the app, imported from the co
 | test | case | result |
 | --- | --- | --- |
 | `dev` | `import.meta.env.DEV` | the component renders nothing |
-| `prod` | dev false and a manifest href | the markup from `delivery` |
+| `prod` | dev false and a `builtHref` | the markup from `delivery` |
 | `nonce` | `nonce()` returns `n` | the swap script's nonce is `n` |
 | `prod without css` | dev false and no href | nothing |
 
@@ -123,7 +128,7 @@ Split from `match.ts` at the 300-line limit.
 
 | test | case | result |
 | --- | --- | --- |
-| `empty` | the source module | `builtSheet` is `""` |
+| `empty` | the source module | `builtSheet` and `builtHref` are `""` |
 
 ### `server/render/critical-style.test.ts`
 
@@ -147,8 +152,9 @@ Split from `match.ts` at the 300-line limit.
 | test | case | result |
 | --- | --- | --- |
 | `reset off` | `css` omitted | the built CSS does not start with `@layer reset` |
-| `reset on` | `css: { reset: true }` | the built CSS starts with that preflight |
-| `server sheet` | the client build produced `body{color:red}` | the server module source is that text |
+| `reset on` | `css: { reset: true }`, a real Vite build | the built CSS starts with `@layer reset{` and holds the preflight's rules before the app's. The client entry imports the preflight as a virtual CSS module first, so it is in the hashed file and in dev. Vite's CSS pipeline may reformat its bytes, and `reset.test` `bytes` pins the exported string |
+| `server sheet` | the client build produced `body{color:red}` | the `ssr` and `worker` module source exports that text as `builtSheet` and its href as `builtHref`. A server build before the client build fails, and dev keeps the empty module |
+| `one sheet` | the client environment config, and a lazy chunk that imports its own CSS | flare() sets `build.cssCodeSplit: false` on the client environment, so the lazy chunk's CSS is in the one stylesheet |
 | `client graph` | the same build | the client JavaScript does not contain that text. The browser loads the file |
 | `build parse` | the client CSS holds `@import`, `@charset`, or a rule the parser cannot read | the build fails and names the file. A request never parses a sheet the build did not accept |
 
