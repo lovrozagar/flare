@@ -118,9 +118,16 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 | --- | --- | --- |
 | `client literals` | a route whose `cache.client` and `intercept` are literals | the generated record carries `prefetch`, `staleTime`, `gcTime`, `prefetchStaleTime`, `prefetchGcTime`, `cacheDeferred`, `intercept.from`, and `intercept.render` |
 | `no auth copy` | the route calls `authenticate` and sets `ssg` | those fields are not on the generated record. A non-literal client field is omitted and is not a build error |
-| `watch` | a route file under `src/routes` changes during `vite dev` | both generated files are rewritten after a short debounce. A startup failure fails the build. A watch failure is reported and the process stays up. File order is UTF-16 code unit |
-| `unchanged` | the scan result is the same | the files are not written |
-| `empty` | the route set becomes empty | both generated files are removed |
+
+### `vite/codegen/write.test.ts`
+
+The writer the plugin and `flare codegen` share. It writes `src/_gen/routes.gen.ts`, `types.gen.d.ts`, and `server-fns.gen.ts`. The plugin calls it in `buildStart`, so a build and `vite dev` write first and a failure fails the start. The e2e apps commit their generated files, so a run writes nothing in the app directory (B70).
+
+| test | case | result |
+| --- | --- | --- |
+| `unchanged` | the scan result is the same | the files are not written again, and they keep their time |
+| `empty` | the route set becomes empty; then two pages whose folders differ only in case | the route and type files are removed, and the server function list stays. Files are read in UTF-16 code unit order |
+| `watch` | a source under `src` changes during `vite dev`, twice; a change inside `src/_gen` or outside `src`; then a change that fails codegen | the files are written once after a 50 ms debounce. A generated file or an outside path does not trigger. A failure is reported as `[flare:codegen]` and the watch goes on |
 
 ## Done
 

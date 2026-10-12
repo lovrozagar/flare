@@ -1,7 +1,7 @@
 import { posix } from "path";
 import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts";
 import { escapeSource } from "./escape.ts";
-import { scanRoute } from "./scan.ts";
+import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts";
 
 // Where the generated files are written, under the app root (dx/plugin.md).
 const OUT_DIR = "src/_gen";
@@ -20,6 +20,9 @@ export type RouteGen = {
 	urls: string[];
 	params: Record<string, string>;
 	response: boolean;
+	// The literal `cache.client` and the intercept the record carries (B89).
+	client?: ClientLiteral;
+	intercept?: { from: string[]; render: string };
 };
 
 export type LayoutGen = { id: string; file: string };
@@ -56,7 +59,7 @@ export function generateRoutes(
 	assertApart(files);
 	const scans = assertExports([...pages, ...layouts], read);
 	assertOne(pages);
-	const routes = pages.map((page) => toRoute(page, scans.get(page.file) === true));
+	const routes = pages.map((page) => toRoute(page, scans.get(page.file)));
 	assertUnique(routes);
 	assertShadow(routes);
 	assertKinds(routes);
@@ -76,7 +79,7 @@ function item(file: string, suffix: string): Item {
 }
 
 // The URL comes from idPattern, the same rule the router matches with, so the two cannot drift.
-function toRoute(page: Item, response: boolean): RouteGen {
+function toRoute(page: Item, scan: Scan | undefined): RouteGen {
 	const path = idPattern(page.id);
 	const segments = patternSegments(path);
 	const params: Record<string, string> = {};
@@ -85,7 +88,17 @@ function toRoute(page: Item, response: boolean): RouteGen {
 		if (Object.hasOwn(params, segment.name)) throw new Error(`${page.file} repeated param ${segment.name}`);
 		params[segment.name] = paramType(segment);
 	}
-	return { id: page.id, file: page.file, path, urls: urlsOf(segments), params, response };
+	const route: RouteGen = {
+		id: page.id,
+		file: page.file,
+		path,
+		urls: urlsOf(segments),
+		params,
+		response: scan?.response === true,
+	};
+	if (scan?.client !== undefined) route.client = scan.client;
+	if (scan?.intercept !== undefined) route.intercept = { from: scan.intercept.from, render: scan.intercept.render };
+	return route;
 }
 
 function paramType(segment: Exclude<Segment, { kind: "static" }>): string {
@@ -136,14 +149,14 @@ function assertApart(files: readonly string[]): void {
 }
 
 // Each file is parsed once. The result maps a file to whether its chain calls .response().
-function assertExports(items: readonly Item[], read: (file: string) => string): Map<string, boolean> {
-	const responses = new Map<string, boolean>();
+function assertExports(items: readonly Item[], read: (file: string) => string): Map<string, Scan> {
+	const scans = new Map<string, Scan>();
 	for (const entry of items) {
 		const scan = scanRoute(entry.file, read(entry.file));
 		if (!scan.route) throw new Error(`${entry.file}: no route export`);
-		responses.set(entry.file, scan.response);
+		scans.set(entry.file, scan);
 	}
-	return responses;
+	return scans;
 }
 
 function assertOne(pages: readonly Item[]): void {
@@ -213,13 +226,20 @@ function last(id: string): string {
 function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[], routesDir: string): string {
 	const tree = routes.map(
 		(route) =>
-			`{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", ${route.response ? "response: true, " : ""}module: ${lazy(routesDir, route.file)} }`,
+			`{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", ${route.response ? "response: true, " : ""}${literals(route)}module: ${lazy(routesDir, route.file)} }`,
 	);
 	const record = layouts.map((layout) => `"${escapeSource(layout.id)}": ${lazy(routesDir, layout.file)}`);
 	const chunks = [...routes, ...layouts].map(
 		(item) => `"${escapeSource(item.id)}": "/${escapeSource(`${routesDir}/${item.file}`)}"`,
 	);
 	return `export const routeTree = [${tree.join(", ")}];\nexport const layouts = { ${record.join(", ")} };\nexport const chunks = { ${chunks.join(", ")} };\n`;
+}
+
+// JSON is valid JavaScript, and a string field is escaped by it.
+function literals(route: RouteGen): string {
+	const client = route.client === undefined ? "" : `client: ${JSON.stringify(route.client)}, `;
+	const intercept = route.intercept === undefined ? "" : `intercept: ${JSON.stringify(route.intercept)}, `;
+	return `${client}${intercept}`;
 }
 
 function lazy(routesDir: string, file: string): string {

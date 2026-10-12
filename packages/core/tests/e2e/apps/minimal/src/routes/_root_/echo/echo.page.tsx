@@ -1,6 +1,6 @@
 import { createPage } from "@lovrozagar/flare";
 import { createSignal } from "solid-js";
-import { echo } from "../../fns/echo.ts";
+import { echo } from "../../../fns/echo.ts";
 
 // A click calls the server function from an event, the place a client call belongs, and prints its answer.
 export const route = createPage("_root_/echo").render(() => {

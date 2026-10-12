@@ -11,8 +11,16 @@ import {
 
 const QUERY = "@lovrozagar/flare/query";
 
+// The literal fields of `cache.client` that reach the route record: a string, a boolean, or a `prefetch` object of
+// string triggers. `false` turns the client cache off for the route.
+export type ClientValue = string | boolean | Record<string, string>;
+export type ClientLiteral = false | Record<string, ClientValue>;
+
+const CLIENT_KEYS = ["prefetch", "staleTime", "gcTime", "prefetchStaleTime", "prefetchGcTime", "cacheDeferred"];
+
 export type Scan = {
 	file: string;
+	client?: ClientLiteral;
 	auth?: true | "optional";
 	intercept?: { from: string[]; render: string; spans: Array<{ start: number; end: number }> };
 	query: boolean;
@@ -68,6 +76,38 @@ function readCall(scan: Scan, node: CallExpression): void {
 	if (name === "response") scan.response = true;
 	if (name === "authorize") scan.authorize = true;
 	if (name === "input") scan.input = inputSides(node.arguments);
+	if (name === "cache") readClient(scan, node.arguments);
+}
+
+// `.cache({ client })`: only the literal fields are copied, and a non-literal one is left out without an error (B89).
+// Auth and the server modes are never read here.
+function readClient(scan: Scan, args: readonly Argument[]): void {
+	const [config] = args;
+	const client = config?.type === "ObjectExpression" ? valueOf(config.properties, "client") : undefined;
+	if (client?.type === "Literal" && client.value === false) {
+		scan.client = false;
+		return;
+	}
+	if (client?.type !== "ObjectExpression") return;
+	const fields = CLIENT_KEYS.flatMap((key) => {
+		const value = literalOf(valueOf(client.properties, key));
+		return value === undefined ? [] : [[key, value] as const];
+	});
+	if (fields.length > 0) scan.client = Object.fromEntries(fields);
+}
+
+function literalOf(node: Expression | undefined): ClientValue | undefined {
+	if (node?.type === "Literal" && (typeof node.value === "string" || typeof node.value === "boolean"))
+		return node.value;
+	if (node?.type !== "ObjectExpression") return undefined;
+	const triggers: Record<string, string> = {};
+	for (const property of node.properties) {
+		if (property.type !== "Property" || property.computed) return undefined;
+		const value = property.value;
+		if (value.type !== "Literal" || typeof value.value !== "string") return undefined;
+		triggers[keyName(property.key)] = value.value;
+	}
+	return triggers;
 }
 
 // `from` is an array of route id literals and `render` a literal label. Anything else names the file and the method

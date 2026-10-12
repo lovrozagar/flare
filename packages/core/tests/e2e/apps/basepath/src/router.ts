@@ -1,9 +1,4 @@
 import { createRouter } from "@lovrozagar/flare";
-import { route as home } from "./routes/_root_/home.page.tsx";
-import { route as root } from "./routes/_root_/root.root-layout.tsx";
+import { chunks, layouts, routeTree } from "./_gen/routes.gen.ts";
 
-export const router = createRouter({
-	basePath: "/app",
-	layouts: { _root_: root },
-	routeTree: [{ id: "_root_/", path: "/", module: home }],
-});
+export const router = createRouter({ basePath: "/app", layouts, routeTree, chunks });

@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import solid from "@solidjs/vite-plugin";
 import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts";
-import { chunkReferences } from "../codegen/index.ts";
+import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
@@ -83,6 +83,10 @@ function core(parsed: ParsedOptions): Plugin {
 		configResolved(config) {
 			base = config.base;
 		},
+		// Codegen is always on: a build and `vite dev` write src/_gen first, and a failure fails the start (B89).
+		buildStart() {
+			writeGenerated(this.environment.config.root);
+		},
 		resolveId(id) {
 			return id === WORKER_ENTRY && workerSource !== "" ? RESOLVED_WORKER : null;
 		},
@@ -95,6 +99,7 @@ function core(parsed: ParsedOptions): Plugin {
 			return buildInfoSource({ command: config.command, entry: parsed.entry.client, manifest, urls });
 		},
 		configureServer(server) {
+			watchGenerated(server, server.config.root);
 			return installDevHandler(server, parsed.entry.server);
 		},
 	};

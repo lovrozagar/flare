@@ -105,7 +105,8 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 	};
 }
 
-// One ES module, `<outDir>/worker/index.js`, with every dependency bundled. Node built-ins stay imports, which
+// One ES module, `<outDir>/worker/index.js`, with every dependency bundled and every lazy route inlined: a Workers
+// script is one module, and miniflare refuses a dynamic module specifier. Node built-ins stay imports, which
 // `nodejs_compat` provides.
 function workerEnvironment(entry: string, serverOutDir: string): EnvironmentOptions {
 	return {
@@ -115,7 +116,10 @@ function workerEnvironment(entry: string, serverOutDir: string): EnvironmentOpti
 			outDir: serverOutDir.replace(/server$/, "worker"),
 			minify: true,
 			sourcemap: true,
-			rolldownOptions: { input: { index: entry }, output: { entryFileNames: "index.js", format: "es" } },
+			rolldownOptions: {
+				input: { index: entry },
+				output: { entryFileNames: "index.js", format: "es", codeSplitting: false },
+			},
 		},
 	};
 }

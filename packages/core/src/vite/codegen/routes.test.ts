@@ -192,3 +192,44 @@ it("response flag", () => {
 	expect(generated.source).toContain('{ id: "_root_/", path: "/", module: () =>');
 	expect(generated.routes.map((route) => route.response)).toEqual([true, false]);
 });
+
+// The route record carries the literal `cache.client` fields and the intercept, which Link and navigation read before
+// the route's code loads (B89).
+it("client literals", () => {
+	const page = `export const route = createPage("_root_/")
+	.cache({ client: { prefetch: { data: "hover", modules: "viewport" }, staleTime: "30s", gcTime: "5m", prefetchStaleTime: "10s", prefetchGcTime: "1m", cacheDeferred: true } })
+	.intercept({ from: ["_root_/list"], render: "modal" })
+	.render(() => "x");
+`;
+	const off = 'export const route = createPage("_root_/off").cache({ client: false }).render(() => "x");\n';
+	const sources: Record<string, string> = { "_root_/home.page.tsx": page, "_root_/off/off.page.tsx": off };
+	const generated = generateRoutes(
+		["_root_/home.page.tsx", "_root_/off/off.page.tsx", rootLayout],
+		(file) => sources[file] ?? routeSource,
+	).source;
+	expect(generated).toContain(
+		'{ id: "_root_/", path: "/", client: {"prefetch":{"data":"hover","modules":"viewport"},"staleTime":"30s","gcTime":"5m","prefetchStaleTime":"10s","prefetchGcTime":"1m","cacheDeferred":true}, intercept: {"from":["_root_/list"],"render":"modal"}, module: () =>',
+	);
+	expect(generated).toContain('{ id: "_root_/off", path: "/off", client: false, module: () =>');
+});
+
+// Auth and the server cache modes stay off the record. A non-literal client field is left out and is not an error.
+it("no auth copy", () => {
+	const page = `const ttl = "30s";
+export const route = createPage("_root_/")
+	.authenticate(() => null)
+	.cache({ ssg: true, client: { staleTime: ttl, gcTime: "5m", prefetch: { data: mode }, prefetchStaleTime: { ...base }, prefetchGcTime: { [key]: "1m" } } })
+	.render(() => "x");
+`;
+	const generated = generateRoutes(["_root_/home.page.tsx", rootLayout], (file) =>
+		file === rootLayout ? routeSource : page,
+	).source;
+	expect(generated).toContain('{ id: "_root_/", path: "/", client: {"gcTime":"5m"}, module: () =>');
+	expect(generated).not.toMatch(/auth|ssg|staleTime|prefetch/);
+	const none =
+		'export const route = createPage("_root_/").cache({ client: { staleTime: ttl } }).cache(config).render(() => "x");\n';
+	const bare = generateRoutes(["_root_/home.page.tsx", rootLayout], (file) =>
+		file === rootLayout ? routeSource : none,
+	);
+	expect(bare.source).toContain('{ id: "_root_/", path: "/", module: () =>');
+});
