@@ -111,3 +111,13 @@ it("vite node", () => {
 	expect(vite).toBe(0);
 	expect(server).not.toBe(0);
 });
+
+// The Node adapter and the filesystem store may import Node builtins. The Workers adapter and the Cache API store
+// may not.
+it("node adapters", () => {
+	const fs = 'import { readFile } from "node:fs/promises";\nexport const read = readFile;\n';
+	expect(lint({ "src/adapters/node/disk.ts": fs })).toBe(0);
+	expect(lint({ "src/adapters/stores/fs/disk.ts": fs })).toBe(0);
+	expect(lint({ "src/adapters/workers/disk.ts": fs })).not.toBe(0);
+	expect(lint({ "src/adapters/stores/cache-api/disk.ts": fs })).not.toBe(0);
+});

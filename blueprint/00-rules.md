@@ -86,6 +86,8 @@ Names are kebab-case files, camelCase functions, PascalCase components and error
 | `client/`, `features/*/client/` | the above, plus DOM | `process`, `Buffer`, `node:*`, `Bun` |
 | `server/`, `features/*/server/` | the above minus DOM, plus Fetch, streams, WebCrypto | DOM globals, `process`, `node:*`, `Bun`, `caches`. Env arrives as `fetch(request, env, ctx)` |
 | `adapters/<runtime>/` | server, plus that runtime | any other runtime's builtins |
+| `adapters/stores/fs/` | server, plus Node | any other runtime's builtins |
+| `adapters/stores/cache-api/` | server, plus `caches` | `node:*`, `Bun` |
 | `vite/`, `features/*/vite/` | Node | imported from a runtime entry |
 
 Import arrows, and no others, except the three providers named below:

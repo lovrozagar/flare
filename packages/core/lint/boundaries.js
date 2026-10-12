@@ -75,6 +75,9 @@ function sideOf(bucketName) {
 	return bucketName.split(":")[2];
 }
 
+// An adapter may use its own runtime's builtins (00-rules environments). The filesystem store is Node's.
+const NODE_ADAPTERS = ["adapters/node/", "adapters/stores/fs/"];
+
 // The dev handler hosts the app server through the Node bridge an app uses (00-rules). No other vite file may.
 function devHost(fromRel, spec) {
 	return (
@@ -86,6 +89,7 @@ function allowed(fromRel, spec) {
 	const from = bucket(fromRel);
 	const to = target(fromRel, spec);
 	if (to === "pkg" || devHost(fromRel, spec)) return true;
+	if (to === "node" && NODE_ADAPTERS.some((prefix) => fromRel.startsWith(prefix))) return true;
 	const fromFeature = featureOf(from);
 	const toFeature = featureOf(to);
 	if (fromFeature && toFeature) return FEATURE_SIDES[sideOf(from)].has(sideOf(to)) && fromFeature === toFeature;
