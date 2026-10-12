@@ -147,6 +147,7 @@ packages/core/src/server/redirect/builder.test.ts	P2	test	server	Unit cases for 
 packages/core/src/server/redirect/index.ts	P2	index	server	Re-exports
 packages/core/src/server/lifecycle/create.ts	P1	src	server	createServer. Wires the ordered stages and returns fetch
 packages/core/src/server/lifecycle/create.test.ts	P1	test	server	Unit cases for create.ts
+packages/core/src/server/lifecycle/options.ts	P6	types	server	createServer option and server types, split from create.ts at the 300-line limit
 packages/core/src/server/lifecycle/order.ts	P1	src	server	The ordered stage list from 02-system
 packages/core/src/server/lifecycle/order.test.ts	P1	test	server	Unit cases for order.ts
 packages/core/src/server/lifecycle/classify.ts	P1	src	server	Classify document, data, prefetch, and server-fn from the stripped URL

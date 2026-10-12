@@ -14,3 +14,8 @@ it("same id", () => {
 	expect(server).toBe(client);
 	expect(typeof server).toBe("string");
 });
+
+it("catch-all", () => {
+	expect(matchId({ path: ["a", "b%20c"] }, "")).toBe(matchId({ path: "a/b%20c" }, ""));
+	expect(matchId({ path: ["a", "b%20c"] }, "")).toContain("path=a/b%20c");
+});

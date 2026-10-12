@@ -2,57 +2,46 @@
 import { createComponent } from "solid-js";
 import { escape } from "@solidjs/web";
 import { Matches, type OutletMatch, type OutletState } from "../../shared/components/index.ts";
-import type { FlareRegister, RegisteredEnv, RegisteredServerContext } from "../../shared/route-builder/register.ts";
+import type { FlareRegister } from "../../shared/route-builder/register.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
-import type { RawParams } from "../../shared/route-tree/index.ts";
+import type { FrameError, RequestKind } from "../../shared/protocol/index.ts";
+import { matchId, type RawParams } from "../../shared/route-tree/index.ts";
 import type { Respond } from "../../shared/route-builder/chain.ts";
-import type { ChainEntry, Match, Router } from "../../shared/router/create-router.ts";
+import type { ChainEntry, Match } from "../../shared/router/create-router.ts";
 import { RedirectError } from "../../shared/errors/redirect.ts";
 import { readSearch } from "../../shared/url/search.ts";
-import { resolveCaller, type Caller } from "../auth/caller.ts";
-import { withServerContext, type ServerContextInput } from "../context/ctx.ts";
+import { resolveCaller } from "../auth/caller.ts";
+import { withServerContext } from "../context/ctx.ts";
 import { runLoaders, type LoaderRun, type RunInput } from "../loaders/run.ts";
+import { dataBody, dataFrames, NDJSON, redirectBody, skippedRoutes } from "../navigation/index.ts";
 import { renderDocument } from "../render/document.ts";
 import { mergeHead } from "../render/head.ts";
 import { devSink, projectError, type ErrorSink, type Projected } from "../render/projector.ts";
 import type { StateMatch } from "../render/state.ts";
 import { redirectLocation } from "../redirect/index.ts";
-import { applySecurity, type SecurityConfig } from "../security/apply.ts";
+import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
-import { finalize } from "./finalize.ts";
+import { classify } from "./classify.ts";
+import { finalize, type StageResult } from "./finalize.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
+import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
 
-type Authenticate = (ctx: { request: Request; env: unknown } & Caller) => unknown;
-
-type BaseOptions = {
-	router: Router;
-	authenticate?: Authenticate;
-	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig);
-};
-
-type ContextFn<R extends FlareRegister> = (ctx: {
-	request: Request;
-	env: RegisteredEnv<R>;
-}) => RegisteredServerContext<R>;
-
-// Required once the app's FlareRegister declares serverContext (B75).
-type ContextOption<R extends FlareRegister> = unknown extends R["serverContext"]
-	? { serverContext?: ContextFn<R> }
-	: { serverContext: ContextFn<R> };
-
-export type ServerOptions<R extends FlareRegister = FlareRegister> = BaseOptions & ContextOption<R>;
-
-type RuntimeOptions = BaseOptions & { serverContext?: ServerContextInput["serverContext"] };
-
-export type FlareServer = {
-	fetch: (request: Request, env?: unknown) => Promise<Response>;
-};
+export type { FlareServer, ServerOptions } from "./options.ts";
 
 type Secured = { headers: Headers; nonce: string };
 
 // `secured` is resolved once per request, before the status is known, so every answer carries the same
 // security set (bit 03).
-type Exchange = { options: RuntimeOptions; request: Request; env: unknown; secured: Secured; sink: ErrorSink };
+// `request` carries the URL the router and the loaders see: both internal params are removed (bit 06).
+type Exchange = {
+	options: RuntimeOptions;
+	request: Request;
+	env: unknown;
+	secured: Secured;
+	sink: ErrorSink;
+	kind: RequestKind;
+	stale: string | null;
+};
 
 // One rendered document: the chain, its loader run, and what fills the slot below the kept matches. `failed`
 // is the projected root-most failure. `unknown` is an unknown URL and its not-found function (B77).
@@ -77,7 +66,12 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	return {
 		fetch(request, env) {
 			const secured = applySecurity({ url: request.url, headers: new Headers(), security: options.security });
-			const exchange = { options, request, env, secured, sink };
+			const internal = classify(new URL(request.url));
+			const outer = { options, request, env, secured, sink, kind: "document" as const, stale: null };
+			if (internal.status !== 200) return Promise.resolve(answer(outer, internal.status));
+			// Rebuilt only when an internal param was removed: a new Request would take over the body stream.
+			const inner = internal.url.href === request.url ? request : new Request(internal.url, request);
+			const exchange = { ...outer, request: inner, kind: internal.kind, stale: internal.stale };
 			const step = applyCanonical({
 				url: request.url,
 				trailingSlash: options.router.trailingSlash,
@@ -100,7 +94,10 @@ function answer(exchange: Exchange, status: number, location?: string): Response
 function route(exchange: Exchange): Promise<Response> {
 	const matched = exchange.options.router.match(new URL(exchange.request.url).pathname);
 	const method = exchange.request.method;
-	if (matched.id === undefined && (method === "GET" || method === "HEAD")) return notFound(exchange, matched);
+	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {
+		// A data or prefetch request for an unknown URL is that status alone, with no frame (B73).
+		return exchange.kind === "document" ? notFound(exchange, matched) : Promise.resolve(answer(exchange, 404));
+	}
 	return routeMethod(exchange.request, {
 		match: () => methodMatch(exchange, matched),
 		headers: exchange.secured.headers,
@@ -112,7 +109,37 @@ function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefine
 	if (matched.id === undefined) return undefined;
 	const respond = matched.chain[matched.chain.length - 1].module.response;
 	if (respond !== undefined) return { kind: "response", handle: () => answered(exchange, matched.chain, respond) };
+	if (exchange.kind !== "document") return { kind: "page", render: () => data(exchange, matched) };
 	return { kind: "page", render: () => page(exchange, matched.chain, matched.params) };
+}
+
+// A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one
+// `x` line. Validation, a gate status, and a named failure answer bare. Anything else is the NDJSON stream.
+async function data(exchange: Exchange, matched: Match): Promise<Response> {
+	const raw = new URL(exchange.request.url).search.slice(1);
+	const id = matchId(definedParams(matched.params), raw);
+	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind === "layout" }));
+	const skip = skippedRoutes(matches, exchange.stale);
+	const run = await runLoaders({ ...loaderInput(exchange, matched.chain), skip });
+	const thrown = run.thrown ?? run.failed?.error;
+	if (thrown instanceof RedirectError) {
+		const u = redirectLocation(thrown, exchange.options.router.basePath);
+		return finalize({ ...stage(exchange, redirectBody({ s: thrown.status, u, r: thrown.replace }), 200) });
+	}
+	if (run.response.status !== 200) return bare(exchange, run);
+	for (const bug of run.bugs) projectError(bug, exchange.sink);
+	const project = (error: unknown): FrameError => {
+		const wire = projectError(error, exchange.sink).wire;
+		return { message: wire.message, stack: wire.stack, digest: wire.digest };
+	};
+	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project });
+	return finalize(stage(exchange, body, 200));
+}
+
+function stage(exchange: Exchange, body: BodyInit, status: number): StageResult {
+	const headers = new Headers(exchange.secured.headers);
+	headers.set("content-type", NDJSON);
+	return { status, body, headers, url: exchange.request.url };
 }
 
 // The answer still passes through finalize, and the request's security set wins over its headers.
@@ -136,6 +163,10 @@ async function notFound(exchange: Exchange, matched: Match): Promise<Response> {
 
 async function page(exchange: Exchange, chain: readonly ChainEntry[], params: RawParams): Promise<Response> {
 	const run = await runLoaders(loaderInput(exchange, chain));
+	// "buffer" holds the document until every defer this render started has settled. Solid then writes the
+	// settled values in the shell (B92).
+	if (exchange.options.documentResponseDefer === "buffer")
+		await Promise.allSettled(run.deferred.map((entry) => entry.promise));
 	if (run.response.status === 200) return paint(exchange, { chain, run, params }, 200);
 	return settle(exchange, { chain, run, params });
 }
@@ -201,9 +232,7 @@ async function bare(exchange: Exchange, run: LoaderRun): Promise<Response> {
 // optional param is left out.
 function outletMatches(request: Request, rendered: Rendered): OutletMatch[] {
 	const search = readSearch(new URL(request.url).search);
-	const params = Object.fromEntries(
-		Object.entries(rendered.params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
-	);
+	const params = definedParams(rendered.params);
 	const count = rendered.run.data.length + (rendered.failed === undefined ? 0 : 1);
 	return rendered.chain.slice(0, count).map((entry, index) => ({
 		id: entry.id,
@@ -230,10 +259,18 @@ function stateMatches(matches: readonly OutletMatch[], rendered: Rendered): Stat
 	}));
 }
 
+// An absent optional param is left out.
+function definedParams(params: RawParams): Record<string, string | string[]> {
+	return Object.fromEntries(
+		Object.entries(params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
+	);
+}
+
 function loaderInput(exchange: Exchange, chain: readonly ChainEntry[]): RunInput {
 	const routes = chain.map((entry) => ({ ...entry.module, id: entry.id }));
 	return {
-		kind: "document",
+		kind: exchange.kind,
+		dev: exchange.sink.dev,
 		request: exchange.request,
 		env: exchange.env,
 		authenticate: () => authenticate(exchange, routes),

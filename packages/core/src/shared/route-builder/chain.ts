@@ -11,6 +11,7 @@ export type CacheConfig =
 	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
 
 import type { JSX } from "@solidjs/web";
+import type { Deferred } from "./register.ts";
 import type { HeadConfig } from "./types.ts";
 
 export type PreloaderContext = Record<string, unknown>;
@@ -22,6 +23,13 @@ export type StepContext = { auth: unknown; request: Request; env: unknown; prelo
 export type ChainAuth = { mode: true | "optional"; callerData: readonly string[] };
 
 type Step = (ctx: StepContext) => unknown;
+
+// The loader alone gets `defer` (dx/defer.md).
+export type LoaderContext = StepContext & {
+	defer: <T>(fn: () => Promise<T>, options?: { key?: string; prerender?: "resolve" | "stream" }) => Deferred<T>;
+};
+
+type Load = (ctx: LoaderContext) => unknown;
 
 type Authorize = (ctx: StepContext) => boolean | Promise<boolean>;
 
@@ -37,7 +45,7 @@ export type ChainRecord = {
 	auth?: ChainAuth;
 	authorize?: Authorize;
 	preloader?: Step;
-	loader?: Step;
+	loader?: Load;
 	response?: Respond;
 	head?: Head;
 	render?: Render;
@@ -49,7 +57,7 @@ export type Chain = {
 	authenticateOptional: (...callerData: readonly string[]) => Chain;
 	authorize: (fn: Authorize) => Chain;
 	preloader: (fn: Step) => Chain;
-	loader: (fn: Step) => Chain;
+	loader: (fn: Load) => Chain;
 	response: (fn: Respond) => Chain;
 	head: (fn: Head) => Chain;
 	render: (fn: Render) => Chain;
@@ -147,7 +155,7 @@ export type Steps<B> = {
 	authenticateOptional: (...callerData: readonly string[]) => B;
 	authorize: (fn: Authorize) => B;
 	preloader: (fn: Step) => B;
-	loader: (fn: Step) => B;
+	loader: (fn: Load) => B;
 	head: (fn: Head) => B;
 };
 

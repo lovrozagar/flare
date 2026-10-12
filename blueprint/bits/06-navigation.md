@@ -14,6 +14,8 @@ Creates every `P6` row. Document responses stay HTML. `_flare=data` and `_flare=
 
 `server/loaders/hints.test.ts` is now also reached through `internal-params` rather than only by a direct call.
 
+`server/loaders/defer.test.ts` gains `started` (every value whose function ran is listed in creation order, a repeated key is not listed twice, and a stored `stream` value is not listed) and `prefetch skip` (a prefetch scope runs no function and lists nothing). `shared/route-tree/match-id.test.ts` gains `catch-all`: an array value is its raw segments joined with `/`. `server/lifecycle/create.test.ts` gains `internal kinds`: `_flare=isr` is 400, a server-fn path is 404, a data request for an unknown URL is a bare 404, a data `notFound()` is a bare 404, and a data request whose `_flare_stale` lists the page match id writes the layout `l`, `r`, and `d` and does not run the page loader. `server/navigation/data.ts` builds the `l`, loader `e`, and `h` frames from the loader run. `runLoaders` takes `skip`, `dev`, and `stored`. A skipped match runs no loader and no `.head()`. Each loader gets its own `defer` scope, and the run returns the kept matches' started values. `createServer` gains `documentResponseDefer`: `"buffer"` awaits those values before the render, so Solid writes them in the shell, and the HTML has no `<Loading>` fallback (the `document buffer` placeholder). `stored stream stays a hole` runs `runLoaders` with `stored: true` until bit 10 adds the stored render. `server/lifecycle/options.ts` is born here, holding the createServer option types.
+
 ## Cases
 
 ### `shared/protocol/constants.test.ts`
@@ -70,6 +72,9 @@ Corpus-driven, one line per frame.
 | `document stream` | the option omitted, or `"stream"` | the shell is sent before the defer settles |
 | `data ignores buffer` | `documentResponseDefer: "buffer"`, a data request, one slow defer | the fast frame order stays. The slow `c` is not held |
 | `stored stream stays a hole` | the route `defer` is `"stream"` and `documentResponseDefer` is `"buffer"` | the stored body is the placeholder. The function is not run at store time |
+| `cancel` | the client cancels a data body before its defers settle | nothing is written after the cancel and nothing throws |
+| `loader e` | a page loader throws on a data request, in dev | HTTP 200: the layout `l`, the loader `e` with `{ message, stack }` and no `k`, the layout `h`, `r`, `d`. The overlay sender is called once |
+| `head throw` | a page `.head()` throws on a data request | that `h` is omitted, the other frames stay, and the throw is a dev bug sent to the overlay (B82) |
 
 ### `client/navigation/navigate.test.ts`
 

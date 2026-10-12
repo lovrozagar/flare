@@ -4,15 +4,22 @@ export type DeferMode = "resolve" | "stream";
 
 export type DeferOptions = { key?: string; prerender?: DeferMode };
 
+// `prefetch` never runs a function: the prefetch entry is the shell only (dx/defer.md).
 export type DeferScope = {
 	stored: boolean;
 	route?: DeferMode;
 	dev: boolean;
+	prefetch?: boolean;
 };
 
+export type Started = { key: string; promise: Promise<unknown> };
+
+// `held` is what a stored render waits for. `started` is every value whose function ran, in creation order,
+// which a live response writes as `c` or `e` frames.
 export type LoaderDefer = {
 	defer: <T>(fn: () => Promise<T>, options?: DeferOptions) => Deferred<T>;
 	held: readonly Promise<unknown>[];
+	started: readonly Started[];
 };
 
 class Placeholder<T> implements Deferred<T> {
@@ -35,6 +42,7 @@ class Placeholder<T> implements Deferred<T> {
 export function createDefer(scope: DeferScope): LoaderDefer {
 	const seen = new Map<string, Deferred<unknown>>();
 	const held: Promise<unknown>[] = [];
+	const started: Started[] = [];
 	const state = { next: 0, running: false };
 
 	function start<T>(fn: () => Promise<T>): Promise<T> {
@@ -55,15 +63,21 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 		if (state.running && scope.dev) throw new Error("defer: called inside a deferred function");
 		const now = runs(options) && !state.running;
 		const value = new Placeholder(key, now ? start(fn) : new Promise<T>(() => undefined));
+		if (now) {
+			// The frame writer or the render reads the outcome. A rejection nobody reads is not a process crash.
+			value.promise.catch(() => undefined);
+			started.push({ key, promise: value.promise });
+		}
 		if (scope.stored && now) held.push(value.promise);
 		seen.set(key, value);
 		return value;
 	}
 
 	function runs(options: DeferOptions): boolean {
+		if (scope.prefetch === true) return false;
 		if (!scope.stored) return true;
 		return (options.prerender ?? scope.route ?? "resolve") === "resolve";
 	}
 
-	return { defer, held };
+	return { defer, held, started };
 }
