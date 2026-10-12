@@ -287,7 +287,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | --- | --- | --- |
 | `live value` | a live document render of a page that reads a `"stream"` value through `useDeferred`, the value resolving after the shell | the value is streamed into the document by Solid. No `ssrSource: "client"` boundary is emitted |
 | `stored hole` | a stored render of the same page, so the value is a hole | the stored HTML holds the `<Loading>` fallback as a client boundary, and hydration completes (`_$HY.done`) with the hole still pending. Resolving the promise on the client renders the value |
-| `plain value` | `useDeferred` given a plain `Deferred` instead of an accessor | the same read: the live value streams into the document |
+| `plain value` | `useDeferred` given a plain `Deferred` instead of an accessor | does not type-check. Its parameter is `() => Deferred<T>` only |
 
 ### The fill request (extended)
 

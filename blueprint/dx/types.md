@@ -60,7 +60,7 @@ A type is born in one place. Later readers do not invent a second copy.
 | `[[id]]` inside the object | the key is present. The value may be `undefined`. `{}` is missing that key |
 | loader data | `Awaited` of this route's loader only. A parent loader is a second `useLoaderData({ from: parentId })`. No loader is `void` |
 | `Promise<{ n: number }>` | `{ n: number }` |
-| `Deferred<T>` | stays `Deferred<T>`: `{ __deferred: true; key: string; promise: Promise<T>; hole?: true }`. It has no `then`, so `Awaited` does not unwrap it. `T` is on `.promise`. `hole` is set only on a `"stream"` value a stored render did not run. `useDeferred(d)` returns `Accessor<T>` |
+| `Deferred<T>` | stays `Deferred<T>`: `{ __deferred: true; key: string; promise: Promise<T>; hole?: true }`. It has no `then`, so `Awaited` does not unwrap it. `T` is on `.promise`. `hole` is set only on a `"stream"` value a stored render did not run. `useDeferred(() => d)` returns `Accessor<T>`. A plain `Deferred` does not type-check |
 | preloader | parents intersect with `&`, outside-in, self excluded, then this route's own return on later callbacks. The preloader callback and `authorize` see the parents only |
 | the same preloader key | the narrower type survives. `("admin" \| "editor") & "admin"` is `"admin"` |
 | incompatible preloader types | that property is `never`. Sibling keys stay. `{}` does not erase other keys |
