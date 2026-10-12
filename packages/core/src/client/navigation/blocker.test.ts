@@ -53,6 +53,9 @@ it("fields", () => {
 	off();
 	blockers.run(navigation, steps());
 	expect(first).toHaveBeenCalledOnce();
+	off();
+	blockers.run(navigation, steps());
+	expect(first).toHaveBeenCalledTimes(2);
 });
 
 it("initial", () => {
