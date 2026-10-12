@@ -1,5 +1,5 @@
 import { createSignal } from "solid-js";
-import type { OutletMatch, OutletState } from "../../shared/components/index.ts";
+import type { OutletMatch, OutletState, Overlay } from "../../shared/components/index.ts";
 import type { FrameError } from "../../shared/protocol/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { notFoundRenderOf, type LoadedEntry } from "../../shared/router/create-router.ts";
@@ -23,6 +23,7 @@ export type StoreSnapshot = {
 	failure?: OutletState["failure"];
 	unknown?: OutletState["unknown"];
 	location: Location;
+	overlay?: Overlay;
 };
 
 export type RouterStore = {

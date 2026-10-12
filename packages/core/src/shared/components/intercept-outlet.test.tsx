@@ -1,0 +1,246 @@
+import { createComponent, flush } from "solid-js";
+import { render, type JSX } from "@solidjs/web";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { mountNavigator, settled, unmountAll, type Fetch } from "../../client/navigation/navigate.fixture.ts";
+import type { NavigatorDeps } from "../../client/navigation/navigate.ts";
+import { createMatchCache } from "../../client/router/match-cache.ts";
+import { createPopstate } from "../../client/navigation/popstate.ts";
+import { createRouterStore, snapshotFromState } from "../../client/router/store.ts";
+import { encodeFrame, type Frame } from "../protocol/index.ts";
+import { createPage } from "../route-builder/page.ts";
+import { createRootLayout } from "../route-builder/root-layout.ts";
+import { createRouter, loadChain } from "../router/create-router.ts";
+import { InterceptOutlet, OverlayContext, type InterceptState } from "./intercept-outlet.tsx";
+import { Matches } from "./outlet.tsx";
+
+const counts = { home: 0, photo: 0 };
+const seen: { state?: InterceptState } = {};
+let view: (state: InterceptState) => JSX.Element = () => "";
+
+const root = createRootLayout("_root_").render((props) => [
+	"root[",
+	props.children,
+	"|",
+	createComponent(InterceptOutlet, {
+		children: (state: InterceptState) => {
+			seen.state = state;
+			return view(state);
+		},
+	}),
+	"]",
+]);
+const home = createPage("_root_/").render((props) => {
+	counts.home += 1;
+	return [() => `home:${String(props.loaderData)}`];
+});
+const photo = createPage("_root_/photos/[id]")
+	.intercept({ from: ["_root_/"], render: "preview" })
+	.render((props) => {
+		counts.photo += 1;
+		return [() => `photo:${String(props.loaderData)}`];
+	});
+const router = createRouter({
+	layouts: { _root_: root },
+	routeTree: [
+		{ id: "_root_/", path: "/", module: home },
+		{ id: "_root_/photos/[id]", path: "/photos/[id]", module: photo },
+		{ id: "_root_/bare", path: "/bare", module: { intercept: { from: ["_root_/"], render: "bare" } } },
+	],
+});
+
+function photoFrames(data: string): Frame[] {
+	return [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/photos/[id]", d: data },
+		{ t: "h", m: "_root_/photos/[id]", d: { title: "Photo" } },
+		{ t: "r" },
+		{ t: "d" },
+	];
+}
+
+function ndjson(frames: readonly Frame[]): Response {
+	return new Response(frames.map(encodeFrame).join(""), { headers: { "content-type": "application/x-ndjson" } });
+}
+
+const stops: (() => void)[] = [];
+
+// Popstate reaches the navigator as boot wires it.
+async function setup(fetch: Fetch, extra: Partial<NavigatorDeps> = {}) {
+	const app = await mountNavigator(router, fetch, { extra });
+	const pop = createPopstate({
+		history: app.deps.history,
+		restore: app.navigator.restore,
+		save: () => undefined,
+		current: () => `${location.pathname}${location.search}${location.hash}`,
+	});
+	const onPop = (event: PopStateEvent): void => void pop(event.state);
+	window.addEventListener("popstate", onPop);
+	stops.push(() => window.removeEventListener("popstate", onPop));
+	return app;
+}
+
+function popped(): Promise<void> {
+	return new Promise((resolve) =>
+		window.addEventListener("popstate", () => void setTimeout(resolve, 0), { once: true }),
+	);
+}
+
+function entry(id: string, data: unknown) {
+	return { id, params: {}, search: {}, data, preloader: {}, head: null, error: null };
+}
+
+const open = { to: "_root_/photos/[id]", params: { id: "1" } };
+
+beforeEach(() => {
+	history.replaceState(null, "", "/");
+	sessionStorage.clear();
+	seen.state = undefined;
+	view = (state) => [`${state.render}:${String(state.match.loaderData)}:`, state.match.render()];
+});
+
+afterEach(() => {
+	for (const stop of stops.splice(0)) stop();
+	unmountAll();
+});
+
+it("shows intercepted", async () => {
+	const app = await setup(async () => ndjson(photoFrames("P1")));
+	const homes = counts.home;
+	await app.navigator.navigate(open);
+	flush();
+	expect(app.text()).toBe("root[home:start|preview:P1:photo:P1]");
+	expect(counts.home).toBe(homes);
+	expect(location.pathname).toBe("/photos/1");
+	expect(seen.state?.params).toEqual({ id: "1" });
+	expect(seen.state?.search).toEqual({});
+	expect(seen.state?.backgroundLocation).toEqual({ pathname: "/", search: "", hash: "", params: {} });
+});
+
+it("custom", async () => {
+	view = (state) => `card:${String(state.match.loaderData)}`;
+	const app = await setup(async () => ndjson(photoFrames("P1")));
+	const photos = counts.photo;
+	await app.navigator.navigate(open);
+	flush();
+	expect(app.text()).toBe("root[home:start|card:P1]");
+	expect(counts.photo).toBe(photos);
+	view = (state) => [`${state.render}:`, state.match.render()];
+	await app.navigator.navigate({ to: "_root_/bare" });
+	flush();
+	expect(app.text()).toBe("root[home:start|bare:]");
+});
+
+it("no provider", () => {
+	const child = vi.fn<(state: InterceptState) => JSX.Element>(() => "card");
+	const host = document.createElement("div");
+	stops.push(render(() => createComponent(InterceptOutlet, { children: child }), host));
+	flush();
+	expect(host.textContent).toBe("");
+	expect(child).not.toHaveBeenCalled();
+});
+
+it("direct visit", async () => {
+	const child = vi.fn<(state: InterceptState) => JSX.Element>(() => "card");
+	view = child;
+	const pathname = "/photos/1";
+	const chain = await loadChain(router.match(pathname).chain);
+	const matches = [entry("_root_", null), { ...entry("_root_/photos/[id]", "P1"), params: { id: "1" } }];
+	const store = createRouterStore(
+		snapshotFromState({ matches, chain, unknown: false, location: { pathname, search: "", hash: "" } }),
+		() => undefined,
+	);
+	const host = document.createElement("div");
+	stops.push(
+		render(
+			() =>
+				createComponent(OverlayContext, {
+					value: () => store.snapshot().overlay,
+					get children() {
+						return createComponent(Matches, { state: store.outlet });
+					},
+				}),
+			host,
+		),
+	);
+	flush();
+	expect(host.textContent).toBe("root[photo:P1|]");
+	expect(child).not.toHaveBeenCalled();
+});
+
+it("reload", async () => {
+	history.replaceState({ index: 3, usr: undefined, intercepted: true }, "", "/photos/1");
+	const app = await setup(async () => ndjson(photoFrames("P1")));
+	expect(app.deps.history.index()).toBe(3);
+	expect(app.store.snapshot().overlay).toBeUndefined();
+	expect(seen.state).toBeUndefined();
+});
+
+it("dismiss", async () => {
+	const app = await setup(async () => ndjson(photoFrames("P1")));
+	const restore = vi.spyOn(app.deps.scroll, "restore");
+	const homes = counts.home;
+	await app.navigator.navigate(open);
+	flush();
+	const back = popped();
+	seen.state?.dismiss();
+	await back;
+	flush();
+	expect(location.pathname).toBe("/");
+	expect(app.text()).toBe("root[home:start|]");
+	expect(app.deps.fetch).toHaveBeenCalledOnce();
+	expect(restore).not.toHaveBeenCalled();
+	expect(counts.home).toBe(homes);
+});
+
+it("forward", async () => {
+	const layoutOnly: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "r" }, { t: "d" }];
+	const responses = [ndjson(photoFrames("P1")), ndjson(layoutOnly)];
+	const app = await setup(async () => responses.shift() ?? ndjson(photoFrames("P3")), {
+		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
+	});
+	const homes = counts.home;
+	await app.navigator.navigate(open);
+	const back = popped();
+	history.back();
+	await back;
+	const forward = popped();
+	history.forward();
+	await forward;
+	await settled();
+	expect(location.pathname).toBe("/photos/1");
+	expect(app.text()).toBe("root[home:start|preview:P1:photo:P1]");
+	expect(app.deps.fetch).toHaveBeenLastCalledWith("/photos/1?_flare=data&_flare_stale=id%3D1%26", expect.anything());
+	expect(counts.home).toBe(homes);
+});
+
+it("fetch fails", async () => {
+	const app = await setup(async () => new Response(null, { status: 500 }));
+	await app.navigator.navigate(open);
+	flush();
+	expect(app.text()).toBe("root[Something went wrong|]");
+	expect(location.pathname).toBe("/photos/1");
+	expect(history.state).toEqual({ index: 1, usr: undefined });
+	expect(app.store.snapshot().overlay).toBeUndefined();
+});
+
+it("head stays", async () => {
+	const responses = [ndjson(photoFrames("P1")), ndjson(photoFrames("P2"))];
+	const app = await setup(async () => responses.shift() ?? ndjson(photoFrames("P3")));
+	const heads = app.store.snapshot().heads;
+	const length = history.length;
+	await app.navigator.navigate({ ...open, replace: true });
+	flush();
+	expect(app.store.snapshot().heads).toBe(heads);
+	expect(history.state).toEqual({ index: 1, usr: undefined, intercepted: true });
+	expect(history.length).toBe(length + 1);
+	await app.navigator.navigate(open);
+	flush();
+	expect(history.length).toBe(length + 1);
+	expect(app.text()).toBe("root[home:start|preview:P2:photo:P2]");
+	const back = popped();
+	history.back();
+	await back;
+	flush();
+	expect(app.text()).toBe("root[home:start|]");
+	expect(app.deps.fetch).toHaveBeenCalledTimes(2);
+});

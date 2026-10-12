@@ -1,7 +1,7 @@
 import { createComponent, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { vi } from "vitest";
-import { Matches } from "../../shared/components/index.ts";
+import { Matches, OverlayContext } from "../../shared/components/index.ts";
 import { loadChain, type Router } from "../../shared/router/create-router.ts";
 import { createHistory } from "../history/index.ts";
 import { createMatchCache } from "../router/match-cache.ts";
@@ -49,7 +49,18 @@ export async function mountNavigator(router: Router, fetch: Fetch, options: Moun
 		options.onBoundaryError ?? (() => undefined),
 	);
 	const host = document.createElement("div");
-	unmounts.push(render(() => createComponent(Matches, { state: store.outlet }), host));
+	unmounts.push(
+		render(
+			() =>
+				createComponent(OverlayContext, {
+					value: () => store.snapshot().overlay,
+					get children() {
+						return createComponent(Matches, { state: store.outlet });
+					},
+				}),
+			host,
+		),
+	);
 	flush();
 	const flareHistory = createHistory(history);
 	flareHistory.adopt();

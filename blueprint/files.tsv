@@ -312,6 +312,8 @@ packages/core/src/client/navigation/blocker.ts	P6	src	dom	useBlocker. Cancel wal
 packages/core/src/client/navigation/blocker.test.ts	P6	test	dom	Unit cases for blocker.ts
 packages/core/src/client/navigation/popstate.ts	P6	src	dom	A multi-entry popstate is replayed one entry at a time
 packages/core/src/client/navigation/popstate.test.ts	P6	test	dom	Unit cases for popstate.ts
+packages/core/src/client/navigation/overlay.ts	P6	src	dom	When a navigation opens an intercept overlay, the overlay commit and push, and back onto the background
+packages/core/src/client/navigation/overlay.test.ts	P6	test	dom	Unit cases for overlay.ts
 packages/core/src/client/navigation/prefetch.ts	P6	src	dom	Intent and viewport prefetch of the module and the data URL
 packages/core/src/client/navigation/prefetch.test.ts	P6	test	dom	Unit cases for prefetch.ts
 packages/core/src/client/navigation/index.ts	P6	index	client	Re-exports
