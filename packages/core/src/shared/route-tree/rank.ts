@@ -1,3 +1,4 @@
+import { defined } from "../errors/defined.ts";
 import { matchParams, patternSegments, type MatchOptions } from "./match.ts";
 import type { Segment } from "./segments.ts";
 
@@ -18,7 +19,9 @@ function compare(left: string, right: string): number {
 	const a = patternSegments(left).map(weight);
 	const b = patternSegments(right).map(weight);
 	for (let index = 0; index < Math.min(a.length, b.length); index += 1) {
-		if (a[index] !== b[index]) return a[index] - b[index];
+		const left = defined(a[index], "the left weight");
+		const right = defined(b[index], "the right weight");
+		if (left !== right) return left - right;
 	}
 	return a.length - b.length;
 }

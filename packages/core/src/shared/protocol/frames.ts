@@ -1,7 +1,7 @@
 import type { HeadConfig } from "../route-builder/types.ts";
 
 // `stack` in dev, `digest` in production, and never both (B76).
-export type FrameError = { message: string; stack?: string; digest?: string };
+export type FrameError = { message: string; stack?: string | undefined; digest?: string | undefined };
 
 // The seven NDJSON frames of 02-system. There is no `q` frame (B6, B16).
 export type Frame =

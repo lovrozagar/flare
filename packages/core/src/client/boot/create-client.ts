@@ -23,7 +23,7 @@ export type ClientEnv = {
 	fetch: NavigatorDeps["fetch"];
 	assign: (href: string) => void;
 	dev: boolean;
-	send?: (payload: DevErrorPayload) => void;
+	send?: ((payload: DevErrorPayload) => void) | undefined;
 	idle: IdleEnv;
 	network: object;
 	observe: PrefetchEnv["observe"];

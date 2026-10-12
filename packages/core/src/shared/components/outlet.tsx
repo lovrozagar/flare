@@ -1,3 +1,4 @@
+import { defined } from "../errors/index.ts";
 import { createComponent, createContext, createMemo, Errored, merge, onCleanup, untrack, useContext } from "solid-js";
 import { Dynamic, isServer, type JSX } from "@solidjs/web";
 import type { ChainRecord, Render } from "../route-builder/chain.ts";
@@ -21,11 +22,11 @@ export type OutletMatch = Located & {
 // paints the not-found the router chose (B77). A boundary function that throws is reported, then skipped.
 export type OutletState = {
 	matches: readonly OutletMatch[];
-	failure?: { index: number; status: number; error: Error };
-	unknown?: { render?: NotFoundRender };
+	failure?: { index: number; status: number; error: Error } | undefined;
+	unknown?: { render?: NotFoundRender | undefined } | undefined;
 	onBoundaryError: (error: unknown) => void;
 	// The server records a render throw here and answers it as a status (B93).
-	failRender?: (error: unknown) => void;
+	failRender?: ((error: unknown) => void) | undefined;
 	// The browser keeps each slot's view-transition scope, the innermost boundary around that outlet.
 	onSlot?: (depth: number, scope: () => Element | undefined) => () => void;
 };
@@ -75,7 +76,7 @@ function paintSlot(state: () => OutletState, depth: number): JSX.Element {
 	const match = current.matches[depth];
 	if (match !== undefined) return renderMatch(state, depth, match);
 	if (current.unknown === undefined) return undefined;
-	const owner = current.matches[depth - 1];
+	const owner = defined(current.matches[depth - 1], "the not-found owner");
 	const notFound = current.unknown.render;
 	if (notFound === undefined) return builtin(404);
 	return notFound({ params: owner.params, search: owner.search });
@@ -98,7 +99,7 @@ function renderMatch(state: () => OutletState, depth: number, match: OutletMatch
 // A page gets its params, search, loader data, and preloader context. A layout also gets its children, the
 // next slot (dx/types.md).
 function renderProps(state: () => OutletState, depth: number, kind: OutletMatch["kind"]): Parameters<Render>[0] {
-	const own = () => state().matches[depth];
+	const own = () => defined(state().matches[depth], "the slot's match");
 	const props = {
 		get loaderData() {
 			return own().data;
@@ -150,9 +151,9 @@ function paintFailure(state: OutletState, failure: NonNullable<OutletState["fail
 	const slots = state.matches.map((match) => ({ kind: match.kind, module: match.module.boundaries ?? NONE }));
 	for (let from = failure.index; ;) {
 		const at = boundaryAt(slots, from, failure.status);
-		const paint = at === null ? undefined : slots[at].module[kind];
+		const paint = at === null ? undefined : defined(slots[at], "the boundary slot").module[kind];
 		if (at === null || paint === undefined) return builtin(failure.status);
-		const owner = state.matches[at];
+		const owner = defined(state.matches[at], "the boundary owner");
 		try {
 			return paint({ error: failure.error, reset, params: owner.params, search: owner.search });
 		} catch (error) {
@@ -166,12 +167,11 @@ function paintFailure(state: OutletState, failure: NonNullable<OutletState["fail
 // URL is rebuilt from the raw records, not from an `.input()` output.
 function resetOf(state: OutletState): () => void {
 	const navigate = useContext(NavigateContext);
-	const page = state.matches[state.matches.length - 1];
 	if (navigate === null) return () => undefined;
 	const router = useRouter();
 	const location = useContext(LocationContext);
 	return boundaryReset(navigate, () => ({
-		to: page.id,
+		to: defined(state.matches.at(-1), "the page on screen").id,
 		params: rawParams(router, location().pathname),
 		search: readSearch(location().search),
 	}));

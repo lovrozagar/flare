@@ -3,9 +3,12 @@ import { devErrorPayload, statusOf, type DevErrorPayload } from "../../shared/er
 import { createLogger, type Logger } from "../lifecycle/logger.ts";
 
 // The two fields of `import.meta` that B93 reads. Vite replaces `env.DEV`, and `hot` exists only in dev.
-export type DevMeta = { env: { DEV: boolean }; hot?: { send: (event: string, payload: unknown) => void } };
+export type DevMeta = {
+	env: { DEV: boolean };
+	hot?: { send: (event: string, payload: unknown) => void } | undefined;
+};
 
-export type ErrorSink = { dev: boolean; send?: (payload: DevErrorPayload) => void; log: Logger };
+export type ErrorSink = { dev: boolean; send?: ((payload: DevErrorPayload) => void) | undefined; log: Logger };
 
 // The `error` of a state match and of an `e` frame (B76, B83): `stack` in dev, `digest` in production.
 export type WireError = { name: string; message: string; stack?: string; digest?: string };

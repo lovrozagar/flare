@@ -16,7 +16,12 @@ export function href(value: string): Href {
 
 type Params = Record<string, string | readonly string[] | undefined>;
 
-export type BuildInput = { to: string; params?: Params; search?: Record<string, SearchValue>; hash?: string };
+export type BuildInput = {
+	to: string;
+	params?: Params | undefined;
+	search?: Record<string, SearchValue> | undefined;
+	hash?: string | undefined;
+};
 
 // The URL of a route id. The pattern comes from the same idPattern and segment parser the router matches with,
 // so a built URL is always one the router matches (bit 05).

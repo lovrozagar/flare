@@ -312,6 +312,8 @@ Run against oxc, not a regex. `SECRET`, `SERVER`, and `CLIENT` are the bodies un
 
 ### `tests/types/app.test.ts`
 
+Before this heading, `packages/core/tsconfig.src.json` turns on `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `noPropertyAccessFromIndexSignature`, and `verbatimModuleSyntax`, because the package exports point at `src` and a consumer with those flags compiles it. An index read an invariant guarantees goes through `shared/errors/defined.ts`, which throws and names what was missing, so no `!` or cast hides it. `tests/` stays on the base flags. Bit 14's `consumer strict` stays the packed-tarball proof.
+
 Runs the types generator on `packages/core/tests/types/app` and then `tsc --noEmit` with that app's tsconfig. Exit 0. A temp copy of `src/checks.ts` with an unused `@ts-expect-error` above a valid line exits non-zero. The generator writes `types.gen.d.ts` into a temp dir. The committed app has no `_gen`. `src/checks.ts` repeats every matrix row marked `app` in `dx/types.md`. The tsconfig sets `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, and `noPropertyAccessFromIndexSignature`.
 
 `server/auth/caller.test.ts` gains `server fn`: a function named `echo` that calls `authenticate()` runs the app function once, with `callerData` `[]` and `callerChain` `[{ route: "echo", args: [] }]`.

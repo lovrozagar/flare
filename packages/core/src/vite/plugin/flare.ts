@@ -74,7 +74,8 @@ function boundary(): Plugin {
 // A script module of the app: under the root, outside its dependencies, and with no query but Vite's own. The path
 // is root-relative with forward slashes, the form the B41 id hashes.
 function appModule(root: string, id: string): string | undefined {
-	const [path, query = ""] = id.split("?", 2);
+	const path = id.replace(/\?.*$/s, "");
+	const query = id.slice(path.length + 1);
 	if (![...new URLSearchParams(query).keys()].every((key) => VITE_QUERY.has(key))) return undefined;
 	if (path.startsWith("\0") || !/\.[cm]?[jt]sx?$/.test(path)) return undefined;
 	const file = relative(root, path).split(sep).join("/");

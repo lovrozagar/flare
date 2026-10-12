@@ -1,3 +1,4 @@
+import { defined } from "../../shared/errors/index.ts";
 import { createSignal } from "solid-js";
 import type { OutletMatch, OutletState, Overlay } from "../../shared/components/index.ts";
 import type { FrameError } from "../../shared/protocol/index.ts";
@@ -71,7 +72,7 @@ export function snapshotFromState(input: {
 	location: Location;
 }): StoreSnapshot {
 	const matches = input.matches.map((match, index): OutletMatch => {
-		const entry = input.chain[index];
+		const entry = defined(input.chain[index], "the chain entry");
 		return {
 			id: match.id,
 			kind: entry.kind,

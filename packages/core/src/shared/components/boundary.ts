@@ -1,3 +1,5 @@
+import { defined } from "../errors/defined.ts";
+
 export type BoundaryKind = "errorRender" | "notFoundRender" | "unauthenticatedRender" | "unauthorizedRender";
 
 // A segment has no boundary of its own, so the walk skips it even when its module carries one.
@@ -28,7 +30,7 @@ export function boundaryKind(status: number): BoundaryKind {
 export function boundaryAt(slots: readonly BoundarySlot[], from: number, status: number): number | null {
 	const kind = boundaryKind(status);
 	for (let index = from; index >= 0; index -= 1) {
-		const slot = slots[index];
+		const slot = defined(slots[index], "the boundary slot");
 		if (slot.kind !== "segment" && slot.module[kind] !== undefined) return index;
 	}
 	return null;

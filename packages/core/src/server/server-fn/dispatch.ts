@@ -22,7 +22,7 @@ export type DispatchInput = {
 	sameSite: readonly string[];
 	sink: ErrorSink;
 	basePath: string;
-	bodyLimit?: number;
+	bodyLimit?: number | undefined;
 };
 
 // An in-request call whose input fails its validator. Over HTTP the same failure is a 400 envelope.
@@ -93,7 +93,8 @@ async function prepared(fn: ServerFn, input: unknown, scope: RequestScope): Prom
 // Own keys only, so an id such as `constructor` is unknown too.
 async function lookup(input: DispatchInput): Promise<ServerFn | undefined> {
 	const id = new URL(input.request.url).pathname.slice(fnPrefix(input.basePath).length);
-	return Object.hasOwn(input.serverFns, id) ? input.serverFns[id]() : undefined;
+	const load = Object.hasOwn(input.serverFns, id) ? input.serverFns[id] : undefined;
+	return load?.();
 }
 
 async function run(fn: ServerFn, input: DispatchInput): Promise<StageResult> {

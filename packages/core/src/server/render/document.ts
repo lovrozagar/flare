@@ -12,14 +12,8 @@ import { stateScript, type StateMatch } from "./state.ts";
 
 type Chunk = string | Uint8Array;
 
-type StreamOptions = {
-	nonce?: string;
-	signal?: AbortSignal;
-	manifest?: Record<string, { imports?: readonly string[] }>;
-	onError?: () => void;
-	onHead?: (head: string) => void;
-	onCompleteShell?: (info: { write: (chunk: string) => void }) => void;
-};
+// Solid's own render options, so the render passes them through as they are.
+type StreamOptions = NonNullable<Parameters<typeof web.renderToStream>[1]>;
 
 type Stream = (
 	fn: () => unknown,
@@ -35,7 +29,7 @@ export type DocumentInput = {
 	head?: Head;
 	appStylesheet?: string;
 	matches: readonly StateMatch[];
-	client?: string;
+	client?: string | undefined;
 };
 
 const encoder = new TextEncoder();
@@ -76,7 +70,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 }
 
 function defaultStream(fn: () => unknown, options: StreamOptions): ReturnType<Stream> {
-	return web.renderToStream(fn, options as Parameters<typeof web.renderToStream>[1]);
+	return web.renderToStream(fn, options);
 }
 
 // The tree the client hydrates: the same providers with the server's values, then the matches, then the head.

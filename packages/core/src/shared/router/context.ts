@@ -11,15 +11,15 @@ export const LocationContext: Context<() => Location> = createContext<() => Loca
 // What `Link` asks of the client navigator (dx/navigate.md).
 export type NavigateTo = {
 	to: string;
-	params?: Record<string, string | readonly string[] | undefined>;
-	search?: Record<string, SearchValue>;
-	hash?: string;
-	replace?: boolean;
-	revalidate?: boolean;
-	scroll?: boolean;
-	shallow?: boolean;
-	state?: unknown;
-	viewTransition?: boolean | ViewTransitionOptions;
+	params?: Record<string, string | readonly string[] | undefined> | undefined;
+	search?: Record<string, SearchValue> | undefined;
+	hash?: string | undefined;
+	replace?: boolean | undefined;
+	revalidate?: boolean | undefined;
+	scroll?: boolean | undefined;
+	shallow?: boolean | undefined;
+	state?: unknown | undefined;
+	viewTransition?: boolean | ViewTransitionOptions | undefined;
 };
 
 // The browser provides both. The server has no navigator and no prefetch, so they default to null.

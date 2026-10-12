@@ -28,7 +28,8 @@ export function requireLiteral(file: string, label: string, node: Argument | und
 function scalarValue(node: Expression): Literal {
 	if (node.type === "Literal") return "regex" in node || "bigint" in node ? NOT : { ok: true, value: node.value };
 	if (node.type === "TemplateLiteral") {
-		return node.expressions.length === 0 ? { ok: true, value: node.quasis[0].value.cooked } : NOT;
+		const [quasi] = node.quasis;
+		return node.expressions.length === 0 && quasi !== undefined ? { ok: true, value: quasi.value.cooked } : NOT;
 	}
 	if (node.type === "UnaryExpression" && node.operator === "-" && node.argument.type === "Literal") {
 		const value: unknown = node.argument.value;

@@ -21,7 +21,8 @@ type Step = { name: string; call: CallExpression };
 // One module rewritten for one graph (B9, dx/env.md), or undefined when nothing changed.
 export function rewriteEnv(file: string, source: string, graph: Graph): { code: string; map: SourceMap } | undefined {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
-	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
+	const [error] = parsed.errors;
+	if (error !== undefined) throw new Error(`${file}: ${error.message}`);
 	const out = new MagicString(source);
 	envEdits({ file, program: parsed.program, graph, out });
 	if (!out.hasChanged()) return undefined;
@@ -71,11 +72,14 @@ export function wrongSideBodies(program: Program, graph: Graph): Span[] {
 	const side = graph === "ssr" ? "client" : "server";
 	const bodies: Span[] = [];
 	for (const [call, called] of directCalls(program, names)) {
-		if (called === helper && call.arguments.length > 0) bodies.push(call.arguments[0]);
+		const [body] = call.arguments;
+		if (called === helper && body !== undefined) bodies.push(body);
 	}
 	for (const steps of isomorphicChains(program, names).values()) {
-		for (const step of steps)
-			if (step.name === side && step.call.arguments.length > 0) bodies.push(step.call.arguments[0]);
+		for (const step of steps) {
+			const [body] = step.call.arguments;
+			if (step.name === side && body !== undefined) bodies.push(body);
+		}
 	}
 	return bodies;
 }
@@ -138,7 +142,11 @@ function requireDirect(at: { file: string; program: Program; names: Names }, cal
 // The argument of a body helper or a side: one inline function expression or arrow.
 function inline(file: string, label: string, args: readonly Argument[]): Span {
 	const [body] = args;
-	if (args.length !== 1 || (body.type !== "FunctionExpression" && body.type !== "ArrowFunctionExpression")) {
+	if (
+		args.length !== 1 ||
+		body === undefined ||
+		(body.type !== "FunctionExpression" && body.type !== "ArrowFunctionExpression")
+	) {
 		throw new Error(`${file}: ${label} takes an inline function expression or arrow`);
 	}
 	return body;

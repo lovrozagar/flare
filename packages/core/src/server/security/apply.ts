@@ -8,7 +8,7 @@ export function applySecurity(input: {
 	url: string;
 	headers: Headers;
 	routeHeaders?: Record<string, string>;
-	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig);
+	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig) | undefined;
 	route?: SecurityConfig;
 }): { headers: Headers; nonce: string } {
 	const headers = new Headers(input.headers);

@@ -11,9 +11,9 @@ type NodeReq = {
 	method: string;
 	url: string;
 	headers: Record<string, string>;
-	resume?: () => void;
-	on?: (event: "data" | "end", listener: (chunk: Uint8Array) => void) => void;
-	readableEnded?: boolean;
+	resume?: (() => void) | undefined;
+	on?: ((event: "data" | "end", listener: (chunk: Uint8Array) => void) => unknown) | undefined;
+	readableEnded?: boolean | undefined;
 };
 
 type NodeRes = {

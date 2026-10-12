@@ -1,3 +1,4 @@
+import { defined as required } from "../../shared/errors/index.ts";
 import { parseDuration } from "../../shared/duration/index.ts";
 import type { ClientCache, EffectPlace, Effects } from "../../shared/route-builder/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
@@ -79,7 +80,7 @@ export function createMatchCache(options: {
 		store(match, entry) {
 			entries.delete(keyOf(match));
 			entries.set(keyOf(match), { ...entry, at: now(), touched: now() });
-			if (entries.size > max) entries.delete([...entries.keys()][0]);
+			if (entries.size > max) entries.delete(required(entries.keys().next().value, "the oldest entry"));
 		},
 		evict: (match) => void entries.delete(keyOf(match)),
 		read,

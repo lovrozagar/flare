@@ -1,3 +1,4 @@
+import { defined } from "./defined.ts";
 import { NotFoundError, UnauthenticatedError, UnauthorizedError } from "./http.ts";
 import { RedirectError } from "./redirect.ts";
 
@@ -13,5 +14,5 @@ export function statusOf(error: unknown): number {
 // the root-most failure stands, so a descendant notFound() never downgrades an ancestor's 500.
 export function rankStatus(statuses: readonly number[]): number {
 	for (const named of [401, 403]) if (statuses.includes(named)) return named;
-	return statuses[0];
+	return defined(statuses[0], "a failure status");
 }

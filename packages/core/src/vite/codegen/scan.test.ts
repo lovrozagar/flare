@@ -36,6 +36,21 @@ it("computed from", () => {
 	const source = 'const id = "_root_/gallery"; page.intercept({ from: id, render: "preview" });';
 	expect(() => scanRoute("computed.tsx", source)).toThrow(/computed\.tsx/);
 	expect(() => scanRoute("computed.tsx", source)).toThrow(/intercept/);
+	// Every other non-literal shape names the file and the method too. A spread beside the literals is skipped.
+	for (const config of [
+		"config",
+		'{ render: "preview" }',
+		'{ from: ["_root_/a"] }',
+		'{ from: ["_root_/a"], render: label }',
+		'{ from: [id], render: "preview" }',
+		'{ ["from"]: ["_root_/a"], render: "preview" }',
+	]) {
+		expect(() => scanRoute("shape.tsx", `page.intercept(${config});`)).toThrow(
+			"shape.tsx: intercept takes a literal from array and a literal render",
+		);
+	}
+	const spread = scanRoute("spread.tsx", 'page.intercept({ ...base, from: ["_root_/a"], render: "preview" });');
+	expect(spread.intercept?.render).toBe("preview");
 });
 
 it("query import", () => {
@@ -51,6 +66,7 @@ it("input sides", () => {
 	expect(sides(".input({ params: p, searchParams: s }).render(r)")).toEqual({ params: true, search: true });
 	expect(sides('.input({ searchParams: s, ...rest, "params": p }).render(r)')).toEqual({ params: true, search: true });
 	expect(sides(".input(config).render(r)")).toEqual({ params: false, search: false });
+	expect(sides(".input({ [params]: p }).render(r)")).toEqual({ params: false, search: false });
 	expect(sides(".render(r)")).toEqual({ params: false, search: false });
 	expect(scanRoute("a.page.tsx", 'export const route = createPage("x").authorize(a).render(r);').authorize).toBe(true);
 });

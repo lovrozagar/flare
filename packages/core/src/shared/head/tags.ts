@@ -8,7 +8,7 @@ type Tag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<
 // and Solid adopts, keeps, and removes these exact elements (B83).
 export type HeadTag = Tag & { key: string };
 
-export type HeadTagOptions = { nonce?: string; appStylesheet?: string };
+export type HeadTagOptions = { nonce?: string | undefined; appStylesheet?: string | undefined };
 
 type Media = { url: string; type?: string; secureUrl?: string; width?: number; height?: number };
 
@@ -68,9 +68,10 @@ export function headTags(head: HeadConfig, options: HeadTagOptions = {}): HeadTa
 // equal tags are told apart by their occurrence (dx/head.md).
 function identity(tag: Tag): string {
 	const props = tag.props;
-	if (tag.tag === "meta") return `meta:${String(props.name ?? props.property ?? props["http-equiv"] ?? props.charset)}`;
-	if (tag.tag === "link") return `link:${String(props.rel)}:${String(props.hreflang ?? props.href)}`;
-	return `${tag.tag}:${typeof props.src === "string" ? props.src : hash(String(props.children))}`;
+	if (tag.tag === "meta")
+		return `meta:${String(props["name"] ?? props["property"] ?? props["http-equiv"] ?? props["charset"])}`;
+	if (tag.tag === "link") return `link:${String(props["rel"])}:${String(props["hreflang"] ?? props["href"])}`;
+	return `${tag.tag}:${typeof props["src"] === "string" ? props["src"] : hash(String(props["children"]))}`;
 }
 
 // FNV-1a, base 36. A short stable name for a script, style, or JSON-LD body.
@@ -134,18 +135,18 @@ function imageTags(image: SeoImage): Tag[] {
 function graph(og: HeadConfig["openGraph"]): Tag[] {
 	if (!og) return [];
 	return [
-		property("og:type", typeof og.type === "string" ? og.type : "website"),
-		...metaProperty("og:title", og.title),
-		...metaProperty("og:description", og.description),
-		...metaProperty("og:url", og.url),
-		...metaProperty("og:site_name", og.siteName),
-		...metaProperty("og:locale", og.locale),
-		...list(og.alternateLocale as readonly string[] | undefined).map((locale) =>
+		property("og:type", typeof og["type"] === "string" ? og["type"] : "website"),
+		...metaProperty("og:title", og["title"]),
+		...metaProperty("og:description", og["description"]),
+		...metaProperty("og:url", og["url"]),
+		...metaProperty("og:site_name", og["siteName"]),
+		...metaProperty("og:locale", og["locale"]),
+		...list(og["alternateLocale"] as readonly string[] | undefined).map((locale) =>
 			property("og:locale:alternate", locale),
 		),
-		...imageList(og.images as readonly SeoImage[] | undefined),
-		...media("og:audio", og.audio as readonly Media[] | undefined, ["type", "secureUrl"]),
-		...media("og:video", og.videos as readonly Media[] | undefined, ["width", "height", "type", "secureUrl"]),
+		...imageList(og["images"] as readonly SeoImage[] | undefined),
+		...media("og:audio", og["audio"] as readonly Media[] | undefined, ["type", "secureUrl"]),
+		...media("og:video", og["videos"] as readonly Media[] | undefined, ["width", "height", "type", "secureUrl"]),
 	];
 }
 
@@ -168,12 +169,12 @@ function media(prefix: string, items: readonly Media[] | undefined, fields: read
 function twitter(card: HeadConfig["twitter"]): Tag[] {
 	if (!card) return [];
 	return [
-		...metaName("twitter:card", typeof card.card === "string" ? card.card : "summary"),
-		...metaName("twitter:site", card.site),
-		...metaName("twitter:creator", card.creator),
-		...metaName("twitter:title", card.title),
-		...metaName("twitter:description", card.description),
-		...list(card.images as ReadonlyArray<{ url: string; alt?: string }> | undefined).flatMap((image) => [
+		...metaName("twitter:card", typeof card["card"] === "string" ? card["card"] : "summary"),
+		...metaName("twitter:site", card["site"]),
+		...metaName("twitter:creator", card["creator"]),
+		...metaName("twitter:title", card["title"]),
+		...metaName("twitter:description", card["description"]),
+		...list(card["images"] as ReadonlyArray<{ url: string; alt?: string }> | undefined).flatMap((image) => [
 			...metaName("twitter:image", image.url),
 			...(image.alt ? metaName("twitter:image:alt", image.alt) : []),
 		]),
@@ -186,17 +187,17 @@ function faviconTags(icons: HeadConfig["favicons"]): Tag[] {
 		const href = icons[key];
 		if (!href) return [];
 		const props: Record<string, string> = { rel, href };
-		if (type) props.type = type;
-		if (sizes) props.sizes = sizes;
+		if (type) props["type"] = type;
+		if (sizes) props["sizes"] = sizes;
 		return [{ tag: "link", props }];
 	});
 }
 
 function robotTags(value: HeadConfig["robots"]): Tag[] {
 	if (!value) return [];
-	const tokens = [value.index === false ? "noindex" : "index", value.follow === false ? "nofollow" : "follow"];
-	if (value.noarchive) tokens.push("noarchive");
-	if (value.noimageindex) tokens.push("noimageindex");
+	const tokens = [value["index"] === false ? "noindex" : "index", value["follow"] === false ? "nofollow" : "follow"];
+	if (value["noarchive"]) tokens.push("noarchive");
+	if (value["noimageindex"]) tokens.push("noimageindex");
 	if (typeof value["max-image-preview"] === "string") tokens.push(`max-image-preview:${value["max-image-preview"]}`);
 	if (typeof value["max-snippet"] === "number") tokens.push(`max-snippet:${value["max-snippet"]}`);
 	if (typeof value["max-video-preview"] === "number") tokens.push(`max-video-preview:${value["max-video-preview"]}`);
@@ -206,12 +207,13 @@ function robotTags(value: HeadConfig["robots"]): Tag[] {
 // `viewport: false` removes a parent viewport: only a string writes the tag (B83).
 function metaTags(value: HeadConfig["meta"]): Tag[] {
 	if (!value) return [];
-	const charset: Tag[] = typeof value.charset === "string" ? [{ tag: "meta", props: { charset: value.charset } }] : [];
+	const charset: Tag[] =
+		typeof value["charset"] === "string" ? [{ tag: "meta", props: { charset: value["charset"] } }] : [];
 	const viewport = typeof value.viewport === "string" ? metaName("viewport", value.viewport) : [];
 	const names = META_NAMES.flatMap(([key, name]) => metaName(name, value[key]));
 	const manifest: Tag[] =
-		typeof value.manifest === "string" && value.manifest
-			? [{ tag: "link", props: { rel: "manifest", href: value.manifest } }]
+		typeof value["manifest"] === "string" && value["manifest"]
+			? [{ tag: "link", props: { rel: "manifest", href: value["manifest"] } }]
 			: [];
 	return [...charset, ...viewport, ...names, ...manifest];
 }
@@ -242,7 +244,7 @@ function scriptTag(script: HeadScript, nonce: string | undefined): Tag[] {
 	if (script.src !== undefined && script.children !== undefined) throw new Error("src and children");
 	if (script.src !== undefined) {
 		const props: Record<string, string | boolean> = { src: script.src };
-		if (script.async) props.async = true;
+		if (script.async) props["async"] = true;
 		return [{ tag: "script", props: { ...props, ...allowed(script.extra, true), nonce: false } }];
 	}
 	if (script.children === undefined) return [];

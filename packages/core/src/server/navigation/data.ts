@@ -1,3 +1,4 @@
+import { defined } from "../../shared/errors/index.ts";
 import type { Frame } from "../../shared/protocol/index.ts";
 import type { DataFrame, LoaderFrame } from "../loaders/cascade.ts";
 import { hints } from "../loaders/hints.ts";
@@ -34,7 +35,7 @@ export function dataFrames(
 
 function carried(frame: DataFrame, run: Pick<LoaderRun, "contexts" | "inputs">, index: number): DataFrame {
 	const context = run.contexts[index];
-	const input = run.inputs[index];
+	const input = defined(run.inputs[index], "the frame's input");
 	const out: DataFrame = { ...frame };
 	if (context !== undefined && Object.keys(context).length > 0) out.p = context;
 	if (input.validated) out.v = { params: input.params, search: input.search };

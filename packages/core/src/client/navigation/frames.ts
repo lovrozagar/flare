@@ -17,7 +17,7 @@ export type Landed = {
 
 export type Values = { params: unknown; search: unknown };
 
-export type LandOptions = { dev: boolean; send?: (payload: DevErrorPayload) => void };
+export type LandOptions = { dev: boolean; send?: ((payload: DevErrorPayload) => void) | undefined };
 
 type Slots = Map<string, PromiseWithResolvers<unknown>>;
 
@@ -66,7 +66,7 @@ function land(frame: Frame, landed: Landed, context: { slots: Slots; options: La
 	if (frame.t === "l") landed.data[frame.m] = withDeferreds(frame.d, frame.m, context.slots);
 	if (frame.t === "l" && isRecord(frame.p)) landed.preloaders = { ...landed.preloaders, [frame.m]: frame.p };
 	if (frame.t === "l" && isRecord(frame.v)) {
-		landed.values = { ...landed.values, [frame.m]: { params: frame.v.params, search: frame.v.search } };
+		landed.values = { ...landed.values, [frame.m]: { params: frame.v["params"], search: frame.v["search"] } };
 	}
 	if (frame.t === "h") landed.heads[frame.m] = frame.d;
 	if (frame.t === "e") {

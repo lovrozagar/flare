@@ -1,3 +1,4 @@
+import { defined } from "../../shared/errors/index.ts";
 import { parseDuration } from "../../shared/duration/index.ts";
 import { BUILD_HEADER } from "../../shared/protocol/index.ts";
 import type { PrefetchTrigger, RoutePrefetch } from "../../shared/route-builder/index.ts";
@@ -61,7 +62,8 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 		const next: Held = { landing: request(deps, target), keep };
 		held.delete(target.dataUrl);
 		held.set(target.dataUrl, next);
-		if (held.size > deps.router.routeCacheMaxEntries) held.delete([...held.keys()][0]);
+		if (held.size > deps.router.routeCacheMaxEntries)
+			held.delete(defined(held.keys().next().value, "the oldest prefetch"));
 		void next.landing.then((landing) => {
 			if (landing !== undefined) next.at = deps.env.now();
 			else if (held.get(target.dataUrl) === next) held.delete(target.dataUrl);
@@ -171,13 +173,12 @@ function lowData(network: object): boolean {
 
 function prefetchLink(href: string): HTMLLinkElement {
 	const link = document.createElement("link");
-	for (const [name, value] of [
+	const attributes: ReadonlyArray<readonly [string, string]> = [
 		["rel", "prefetch"],
 		["as", "script"],
 		["crossorigin", ""],
 		["href", href],
-	]) {
-		link.setAttribute(name, value);
-	}
+	];
+	for (const [name, value] of attributes) link.setAttribute(name, value);
 	return link;
 }

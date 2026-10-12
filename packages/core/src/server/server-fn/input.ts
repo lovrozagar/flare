@@ -15,7 +15,7 @@ export type InputResult = { status: 200; input: unknown } | { status: 400; error
 export async function readInput(
 	request: Request,
 	record: Pick<ServerFnRecord, "method" | "input">,
-	options: { dev: boolean; limit?: number },
+	options: { dev: boolean; limit?: number | undefined },
 ): Promise<InputResult> {
 	const raw = record.method === "get" ? fromQuery(request) : await fromBody(request, options.limit ?? BODY_LIMIT);
 	if (raw.status !== 200) return raw;

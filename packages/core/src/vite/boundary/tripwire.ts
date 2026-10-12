@@ -24,13 +24,14 @@ export function checkChunk(input: {
 		throw new Error(`${input.chunk}: ${path} ${reason} (B45)`);
 	};
 	for (const module of input.modules) {
-		const path = module.id.split("?")[0];
+		const path = module.id.replace(/\?.*$/s, "");
 		if (input.graph !== "ssr" && SERVER_DIRS.some((dir) => path.startsWith(`${input.packageSrc}/${dir}/`))) {
 			fail(path, `is server code and cannot be in the ${input.graph} graph`);
 		}
 		if (module.code === null) continue;
 		const parsed = parseSync(path, module.code, { sourceType: "module", lang: "js" });
-		if (parsed.errors.length > 0) fail(path, `could not be read by the tripwire: ${parsed.errors[0].message}`);
+		const [error] = parsed.errors;
+		if (error !== undefined) fail(path, `could not be read by the tripwire: ${error.message}`);
 		const leaks =
 			input.graph === "ssr"
 				? wrongSideBodies(parsed.program, "ssr")

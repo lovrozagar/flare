@@ -31,11 +31,11 @@ import { resolveTarget, resolveUrl, type NavigateInput, type Target } from "./ta
 export type Landing = Landed;
 
 export type NavigateOptions = NavigateInput & {
-	replace?: boolean;
-	revalidate?: boolean;
-	scroll?: boolean;
-	state?: unknown;
-	viewTransition?: boolean | ViewTransitionOptions;
+	replace?: boolean | undefined;
+	revalidate?: boolean | undefined;
+	scroll?: boolean | undefined;
+	state?: unknown | undefined;
+	viewTransition?: boolean | ViewTransitionOptions | undefined;
 };
 
 export type NavigatorDeps = {
@@ -52,7 +52,7 @@ export type NavigatorDeps = {
 	reload: (href: string) => boolean;
 	build: string;
 	dev: boolean;
-	send?: (payload: DevErrorPayload) => void;
+	send?: ((payload: DevErrorPayload) => void) | undefined;
 	prefetched?: (dataUrl: string) => Promise<Landing | undefined> | undefined;
 };
 

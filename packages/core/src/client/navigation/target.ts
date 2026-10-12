@@ -5,10 +5,10 @@ import { isHashOnly } from "./scroll.ts";
 
 export type NavigateInput = {
 	to: string;
-	params?: Record<string, string | readonly string[] | undefined>;
-	search?: Record<string, SearchValue>;
-	hash?: string;
-	shallow?: boolean;
+	params?: Record<string, string | readonly string[] | undefined> | undefined;
+	search?: Record<string, SearchValue> | undefined;
+	hash?: string | undefined;
+	shallow?: boolean | undefined;
 };
 
 export type TargetContext = { router: Router; origin: string; current: Location };
@@ -18,7 +18,7 @@ export type TargetContext = { router: Router; origin: string; current: Location 
 export type Target =
 	| { kind: "document"; url: string }
 	| { kind: "hash"; url: string; location: Location }
-	| { kind: "data"; url: string; dataUrl: string; location: Location; route?: string; match: Match };
+	| { kind: "data"; url: string; dataUrl: string; location: Location; route?: string | undefined; match: Match };
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 

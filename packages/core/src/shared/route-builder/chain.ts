@@ -50,7 +50,7 @@ export type StepContext = {
 	env: unknown;
 	params: unknown;
 	search: unknown;
-	preloaderContext?: PreloaderContext;
+	preloaderContext?: PreloaderContext | undefined;
 };
 
 export type ChainAuth = { mode: true | "optional"; callerData: readonly string[] };

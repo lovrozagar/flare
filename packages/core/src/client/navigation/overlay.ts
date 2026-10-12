@@ -1,3 +1,4 @@
+import { defined } from "../../shared/errors/index.ts";
 import { flush } from "solid-js";
 import type { Overlay } from "../../shared/components/index.ts";
 import type { Intercept } from "../../shared/route-builder/chain.ts";
@@ -39,7 +40,7 @@ export function overlayFor(
 	if (intercept === undefined) return undefined;
 	if (mode.pop === true) return mode.overlay === true ? intercept : undefined;
 	if (mode.trigger === "revalidation") return snapshot.overlay === undefined ? undefined : intercept;
-	const page = snapshot.matches[snapshot.matches.length - 1];
+	const page = defined(snapshot.matches.at(-1), "the page on screen");
 	return intercept.from.includes(page.id) ? intercept : undefined;
 }
 
@@ -49,9 +50,9 @@ export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 	const { target, previous, landing } = shown;
 	const cached = cachedMatches(target.match, target.location);
 	remember(deps.cache, cached, landing);
-	const page = shown.chain[shown.chain.length - 1];
-	const pageMatch = cached[cached.length - 1];
-	const owner = previous.matches[previous.matches.length - 1];
+	const page = defined(shown.chain.at(-1), "the overlay page");
+	const pageMatch = defined(cached.at(-1), "the overlay page match");
+	const owner = defined(previous.matches.at(-1), "the background page");
 	const landed = page.id in landing.data;
 	const stored = landed ? undefined : deps.cache.read(pageMatch);
 	const values = (landed ? landing.values?.[page.id] : stored?.values) ?? pageMatch;

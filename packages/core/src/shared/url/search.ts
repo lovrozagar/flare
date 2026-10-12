@@ -18,7 +18,11 @@ export function readSearch(search: string): Record<string, string | string[]> {
 	return record;
 }
 
-export function writeUrl(input: { path: string; search?: Record<string, SearchValue>; hash?: string }): string {
+export function writeUrl(input: {
+	path: string;
+	search?: Record<string, SearchValue> | undefined;
+	hash?: string | undefined;
+}): string {
 	return `${input.path}${writeQuery(input.search)}${writeHash(input.hash)}`;
 }
 
