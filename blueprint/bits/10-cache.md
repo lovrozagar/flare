@@ -16,6 +16,7 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | --- | --- | --- |
 | `store function` | `store: (env) => store` | the function is called once on that request with that `env`, and the returned store is the one read |
 | `static function` | `static: (env) => store` | the same, for the SSG read |
+| `store without site` | `createServer({ store })` with no `site` | throws at the call and names `site`. `site` is validated there too: absolute, `https` (`http` only in dev), no path |
 
 ## Cases
 
@@ -44,8 +45,8 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `ttl` | `revalidate: "60s"` | TTL is 120s |
 | `ttl cap` | `revalidate: "30d"` | TTL is 24h |
 | `ssr ttl` | `ssr: { ttl: "60s" }` | TTL is 60s, not 120s |
-| `ssr ttl missing` | `ssr: {}` | throw when the chain is built |
-| `stale over ttl` | `staleTime` greater than `ttl` | throw when the chain is built |
+| `ssr ttl missing` | `ssr: {}` | does not type-check. Untyped, the server throws when it loads that chain, before any render, and the request is a 500 that names the route. The check is server-side so createPage carries no bytes for it |
+| `stale over ttl` | `staleTime` greater than `ttl` | the server throws when it loads that chain, before any render, and the request is a 500 that names the route |
 | `resolved defer` | `defer: "resolve"` and a promise of `1` | the stored HTML and NDJSON contain `1` and no placeholder |
 | `streamed defer` | `defer: "stream"` | the stored HTML contains the placeholder and no `c` frame. The function was not called |
 | `on demand` | `isr: true` | TTL is 24h. After that the read is a miss. No refresh starts before the TTL |
@@ -211,7 +212,8 @@ Moved from bit 06. It adds a page under `minimal` whose cache config leaves `/` 
 
 | test | case | result |
 | --- | --- | --- |
-| `stored stream fills` | a stored page whose defer mode is `stream` | the HTML has the placeholder, then a `no-store` data request fills it |
+| `stored stream fills` | a stored page whose defer mode is `stream` | the HTML has the placeholder, then a `no-store` `?_flare=fill` request fills it |
+| `stored hit hydrates` | a second load of a stored page whose `"resolve"` defer sits under two nested `<Loading>` boundaries | the hit's HTML holds the value, the page hydrates with no console error or hydration warning, and a client navigation away and back works |
 
 ## Done
 
