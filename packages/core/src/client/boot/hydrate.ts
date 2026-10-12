@@ -6,6 +6,7 @@ import type { Router } from "../../shared/router/create-router.ts";
 import { applyHeads } from "../head/index.ts";
 import { BlockerContext, type Blockers } from "../navigation/blocker.ts";
 import { NavigationContext, type NavigationState } from "../navigation/pending.ts";
+import { PrefetchContext, type Prefetcher } from "../navigation/prefetch.ts";
 import type { RouterStore, ScriptMatch } from "../router/store.ts";
 
 export type ClientState = { matches: ScriptMatch[]; nonce: string };
@@ -13,7 +14,14 @@ export type ClientState = { matches: ScriptMatch[]; nonce: string };
 // Solid's hydrate in the browser. A test passes a client render instead.
 export type Mount = (code: () => JSX.Element, root: Document) => () => void;
 
-export type App = { router: Router; store: RouterStore; navigation: NavigationState; blockers: Blockers; mount: Mount };
+export type App = {
+	router: Router;
+	store: RouterStore;
+	navigation: NavigationState;
+	blockers: Blockers;
+	prefetcher: Prefetcher;
+	mount: Mount;
+};
 
 export function readState(): ClientState {
 	const script = [...document.querySelectorAll("script")].find((node) => node.textContent.includes("self.flare="));
@@ -36,10 +44,15 @@ export function mountApp(app: App): () => void {
 							return createComponent(BlockerContext, {
 								value: app.blockers,
 								get children() {
-									return [
-										createComponent(Heads, { store: app.store }),
-										createComponent(Matches, { state: app.store.outlet }),
-									];
+									return createComponent(PrefetchContext, {
+										value: app.prefetcher,
+										get children() {
+											return [
+												createComponent(Heads, { store: app.store }),
+												createComponent(Matches, { state: app.store.outlet }),
+											];
+										},
+									});
 								},
 							});
 						},

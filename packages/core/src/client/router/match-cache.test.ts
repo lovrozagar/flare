@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { createPage } from "../../shared/route-builder/page.ts";
-import { createMatchCache, type CachedMatch, type Effects } from "./match-cache.ts";
+import { cachedMatches, cacheFor, createMatchCache, remember, type CachedMatch, type Effects } from "./match-cache.ts";
 
 function clock(): { now: () => number; at: (ms: number) => void } {
 	let current = 0;
@@ -117,7 +117,7 @@ it("deferred placeholder", () => {
 	const { cache } = cacheAt();
 	cache.store(page(), { data: { slow: { __deferred: true, key: "d0" } }, deferred: true });
 	expect(plan(cache, [page()]).stale).toEqual([]);
-	expect(plan(cache, [page(undefined, { cacheDeferred: true })]).stale).toEqual(["id=7&"]);
+	expect(plan(cache, [page(undefined, { client: { cacheDeferred: true } })]).stale).toEqual(["id=7&"]);
 });
 
 it("cap", () => {
@@ -147,4 +147,42 @@ it("stale list", () => {
 	expect(plan(cache, [layout, page()])).toEqual({ fetch: true, stale: ["id=7&"] });
 	expect(plan(cache, [layout, page({ shouldRefetch: () => true })]).stale).toEqual([]);
 	expect(plan(cache, [layout]).stale).toEqual([]);
+});
+
+it("route clock", () => {
+	const { cache, time } = cacheAt({ staleTime: 0, gcTime: 60_000 });
+	const landing = { data: { "_root_/users/[id]": "user" }, heads: {} };
+	remember(cache, [page(undefined, { client: { staleTime: "1m", gcTime: "2m" } })], landing);
+	time.at(59_000);
+	expect(plan(cache, [page()]).stale).toEqual(["id=7&"]);
+	time.at(180_000);
+	expect(cache.read(page())).toBeUndefined();
+	remember(cache, [page(undefined, { client: false })], landing);
+	expect(cache.read(page())).toBeUndefined();
+	remember(cache, [page(undefined, { client: {} })], landing);
+	expect(cache.read(page())?.data).toBe("user");
+});
+
+it("router cache", () => {
+	const landing = { data: { "_root_/users/[id]": "user" }, heads: {} };
+	const off = cacheFor(false, 100);
+	remember(off, [page()], landing);
+	expect(off.read(page())).toBeUndefined();
+	const on = cacheFor({ staleTime: 60_000, gcTime: "5m" }, 100);
+	remember(on, [page()], landing);
+	expect(plan(on, [page()]).stale).toEqual(["id=7&"]);
+});
+
+it("cached client", () => {
+	const page = { cache: { client: { cacheDeferred: true } } };
+	const match = {
+		params: {},
+		client: { staleTime: "1m" },
+		chain: [
+			{ id: "_root_", kind: "layout" as const, module: page },
+			{ id: "_root_/", kind: "page" as const, module: {} },
+		],
+	};
+	const cached = cachedMatches(match, { pathname: "/", search: "", hash: "" });
+	expect(cached.map((entry) => entry.client)).toEqual([{ cacheDeferred: true }, { staleTime: "1m" }]);
 });

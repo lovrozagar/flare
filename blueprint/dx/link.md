@@ -32,7 +32,7 @@ Hashed assets must be served `immutable`. A prefetched URL that the browser has 
 | route `prefetch: "viewport"` | both fields are viewport. It does not mean modules only | `prefetch.test.ts` `route string` |
 | link `modules: "all"` | type error. A cast throws in dev | `link.test.tsx` `all rejected` |
 | foreign origin | the anchor renders, prefetch does not run | `link.test.tsx` `foreign` |
-| data prefetch of a deferred loader | the shell is fetched, the deferred function does not run | `prefetch.test.ts` `defer not run` |
+| data prefetch of a deferred loader | the shell is fetched, the deferred function does not run | `prefetch.test.ts` `defer not run`; `server/lifecycle/create.test.ts` `prefetch defer` |
 | save-data | `"all"` does not run | `prefetch.test.ts` `save data` |
 
 ## Link props

@@ -1,4 +1,4 @@
-import type { BoundaryRecord, NotFoundRender } from "../route-builder/index.ts";
+import type { BoundaryRecord, ClientCache, NotFoundRender, PrefetchTrigger } from "../route-builder/index.ts";
 import type { ChainRecord } from "../route-builder/chain.ts";
 import type { LocationRewrite } from "../url/index.ts";
 import {
@@ -22,10 +22,13 @@ export type LayoutModule = ModuleRef;
 
 // `response` marks a .response() page. Codegen sets it from the source, so routing knows it before the lazy module
 // loads. A static record says so itself.
+// `client` is the route's literal `cache.client`, which codegen copies onto the node so prefetch reads it before
+// the lazy module loads (bit 12).
 export type RouteNode = {
 	id: string;
 	path: string;
 	response?: boolean;
+	client?: ClientCache;
 	module: ModuleRef;
 };
 
@@ -41,6 +44,9 @@ export type RouterCache = {
 	client?: { staleTime: number; gcTime: string } | false;
 };
 
+// `modules: "all"` is legal only here (B64).
+export type RouterPrefetch = PrefetchTrigger | { data?: PrefetchTrigger; modules?: PrefetchTrigger | "all" };
+
 export type RouterOptions = {
 	layouts: Record<string, LayoutModule>;
 	routeTree: readonly RouteNode[];
@@ -48,6 +54,7 @@ export type RouterOptions = {
 	notFoundMode?: "root" | "fuzzy";
 	cache?: RouterCache;
 	chunks?: Record<string, string>;
+	prefetch?: RouterPrefetch;
 	rewrite?: LocationRewrite;
 };
 
@@ -57,6 +64,7 @@ export type Match = {
 	id?: string;
 	params: RawParams;
 	response?: boolean;
+	client?: ClientCache;
 	chain: readonly ChainEntry[];
 };
 
@@ -71,7 +79,7 @@ export type Router = {
 	scrollRestorationBehavior: "instant" | "auto" | "smooth";
 	scrollRestorationMaxEntries: number;
 	routeCacheMaxEntries: number;
-	prefetch: { modules: "all" | boolean; data: boolean };
+	prefetch: { modules: PrefetchTrigger | "all"; data: PrefetchTrigger };
 	cache: { client: { staleTime: number; gcTime: string } | false };
 	viewTransitions: boolean;
 	chunks: Record<string, string>;
@@ -93,7 +101,7 @@ export function createRouter(options: RouterOptions): Router {
 		scrollRestorationBehavior: "instant",
 		scrollRestorationMaxEntries: 50,
 		routeCacheMaxEntries: 100,
-		prefetch: { modules: "all", data: false },
+		prefetch: prefetchOf(options.prefetch),
 		cache: { client: CLIENT_CACHE },
 		viewTransitions: false,
 		chunks: options.chunks ?? {},
@@ -123,8 +131,12 @@ function resolve(router: Router, path: string): Match {
 			...layoutChain(router.layouts, page.id),
 			{ id: page.id, kind: "page" as const, module: page.module },
 		];
-		const response = page.response ?? (typeof page.module === "object" && page.module.response !== undefined);
-		return { id: page.id, params, response, chain };
+		const record = typeof page.module === "object" ? page.module : undefined;
+		const response = page.response ?? record?.response !== undefined;
+		const client = page.client ?? record?.cache?.client;
+		return client === undefined
+			? { id: page.id, params, response, chain }
+			: { id: page.id, params, response, client, chain };
 	}
 	const owner = notFoundOwner(router, local ?? path);
 	if (owner === undefined) return { params: {}, chain: [] };
@@ -154,6 +166,12 @@ export function loadedModule(ref: ModuleRef): RouteModule | undefined {
 // An unknown URL paints the selected layout's notFoundRender, else its root's (B77).
 export function notFoundRenderOf(chain: readonly LoadedEntry[]): NotFoundRender | undefined {
 	return chain.at(-1)?.module.boundaries?.notFoundRender ?? chain[0]?.module.boundaries?.notFoundRender;
+}
+
+// A string sets both fields. An object sets the fields it names and keeps the default for the other.
+function prefetchOf(value: RouterPrefetch = {}): Router["prefetch"] {
+	const fields = typeof value === "object" ? value : { data: value, modules: value };
+	return { modules: fields.modules ?? "all", data: fields.data ?? false };
 }
 
 function stripBase(path: string, basePath: string): string | undefined {

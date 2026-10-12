@@ -38,7 +38,7 @@ export type NavigatorDeps = {
 	build: string;
 	dev: boolean;
 	send?: (payload: DevErrorPayload) => void;
-	prefetched?: (dataUrl: string) => Promise<Landing> | undefined;
+	prefetched?: (dataUrl: string) => Promise<Landing | undefined> | undefined;
 };
 
 type DataTarget = Extract<Target, { kind: "data" }>;
