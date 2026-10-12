@@ -45,6 +45,9 @@ Filters are `exact` or `prefix`. There is no regular expression.
 | `longer prefix wins` | mounts `/api` and `/api/v2` | `/api/v2/x` hits `/api/v2` |
 | `equal prefix` | two mounts with the same prefix | throw at startup |
 | `strip` | prefix `/api`, path `/api/x?q=1` | `fetch` sees `/x?q=1`. After the strip, `//`, a backslash, or a control character is 400 |
+| `sync handler` | a handler that returns a plain `Response`, and one that throws synchronously | the `Response` is the answer. The throw is the projected 500 |
+| `env` | a handler reading its second and third arguments | it receives `createServer`'s env and the adapter's `ctx`, whose `waitUntil` runs the work |
+| `server context` | `serverContext` set and `serverCtx()` called in the mount | the value is returned, and `serverContext` ran once |
 
 ### `server/proxy/proxy.test.ts`
 

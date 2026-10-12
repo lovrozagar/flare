@@ -24,7 +24,7 @@ import { applyCanonical } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
 import { classify, isServerFn } from "./classify.ts";
 import { answer, bare, passed, secure, typed, type Exchange } from "./exchange.ts";
-import { dispatchMount, mountTable } from "../mount/mount.ts";
+import { dispatchMount, mountTable, type MountContext } from "../mount/mount.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
@@ -53,7 +53,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	const { trailingSlash, caseSensitive } = options.router;
 	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive });
 	return {
-		fetch(request, env) {
+		fetch(request, env, ctx) {
 			const secured = applySecurity({ url: request.url, headers: new Headers(), security: options.security });
 			const internal = classify(new URL(request.url), options.router.basePath);
 			const outer = { options, request, env, secured, sink, kind: "document" as const, stale: null };
@@ -69,16 +69,25 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 				caseSensitive: options.router.caseSensitive,
 			});
 			if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
-			// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
-			const mounted = dispatchMount(mounts, inner);
-			if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
+			// serverContext runs once, before mounts (02-system step 2). A mount never calls authenticate.
+			const call = { env, ctx: ctx ?? background(sink) };
 			return withServerContext(
 				{ request, env, serverContext: options.serverContext, authenticate: options.authenticate },
-				(scope) => route({ ...exchange, session: scope.session }),
+				(scope) => {
+					// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
+					const mounted = dispatchMount(mounts, inner, call);
+					if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
+					return route({ ...exchange, session: scope.session });
+				},
 				() => answer(exchange, 500),
 			);
 		},
 	};
+}
+
+// Without an adapter context, background work still runs, and a rejection is projected like any bug.
+function background(sink: ErrorSink): MountContext {
+	return { waitUntil: (promise) => void promise.catch((error: unknown) => projectError(error, sink)) };
 }
 
 // A stage's throw is a bug: projected, then the 500 every exit shares.
