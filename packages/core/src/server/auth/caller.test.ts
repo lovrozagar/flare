@@ -1,5 +1,6 @@
-import { expect, it } from "vitest";
-import { resolveCaller, type AuthRoute, type Caller } from "./caller.ts";
+import { expect, it, vi } from "vitest";
+import { withServerContext } from "../context/ctx.ts";
+import { fnCaller, resolveCaller, type AuthRoute, type Caller } from "./caller.ts";
 
 const leafRoutes: readonly AuthRoute[] = [
 	{ id: "layout", auth: { mode: true, callerData: ["a"] } },
@@ -42,4 +43,21 @@ it("authorize only", () => {
 	const seen: Caller[] = [];
 	resolveCaller([{ id: "page", authorize: () => true }], (caller) => seen.push(caller));
 	expect(seen).toEqual([{ callerData: [], callerChain: [] }]);
+});
+
+it("server fn", async () => {
+	const app = vi.fn<(ctx: unknown) => unknown>(() => ({ id: "ada" }));
+	const request = new Request("http://localhost/_flare/fn/0123456789abcdef", { method: "POST" });
+	const sessions = await withServerContext(
+		{ request, env: {}, authenticate: app },
+		(scope) => Promise.all([scope.session(fnCaller("echo")), scope.session(fnCaller("other"))]),
+		() => [],
+	);
+	expect(sessions).toEqual([{ id: "ada" }, { id: "ada" }]);
+	expect(app).toHaveBeenCalledExactlyOnceWith({
+		request,
+		env: {},
+		callerData: [],
+		callerChain: [{ route: "echo", args: [] }],
+	});
 });

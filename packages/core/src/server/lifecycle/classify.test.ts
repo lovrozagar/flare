@@ -1,12 +1,15 @@
 import { expect, it } from "vitest";
-import { classify } from "./classify.ts";
+import { classify, isServerFn } from "./classify.ts";
 
 it("no param is a document", () => {
 	expect(classify(new URL("http://localhost/"))).toMatchObject({ status: 200, kind: "document" });
 });
 
 it("server fn path", () => {
-	expect(classify(new URL("http://localhost/_flare/fn/abc"))).toEqual({ status: 404 });
+	const url = new URL("http://localhost/_flare/fn/abc?_i=1&_flare=data");
+	expect(classify(url)).toEqual({ status: 200, kind: "document", url, stale: null });
+	expect(isServerFn(url)).toBe(true);
+	expect(isServerFn(new URL("http://localhost/_flare/other"))).toBe(false);
 });
 
 it("data", () => {
