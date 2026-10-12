@@ -2,9 +2,24 @@ import { getRequestEvent, createRequestEvent, type RequestEvent } from "@solidjs
 import { provideRequestEvent } from "@solidjs/web/storage";
 import { canonicalPath, type CanonicalOptions } from "../../shared/url/canonical.ts";
 
-// A sub-app on a canonical path prefix (dx/server.md `mounts`). It gets the stripped request and its answer
-// still passes through finalize.
-export type Mount = { prefix: string; fetch: (request: Request) => Promise<Response> };
+// The adapter's `waitUntil`, as a fetch handler's third argument.
+export type MountContext = { waitUntil: (promise: Promise<unknown>) => void };
+
+// A fetch app's handler, in method form so one whose `env` parameter is narrower, such as Hono's `app.fetch`, is
+// accepted as it is. It may answer synchronously.
+type MountFetch = {
+	fetch(request: Request, env: unknown, ctx: MountContext): Response | Promise<Response>;
+}["fetch"];
+
+// A sub-app on a canonical path prefix (dx/server.md `mounts`). It gets the stripped request, createServer's env,
+// and the adapter's context, and its answer still passes through finalize.
+export type Mount = { prefix: string; fetch: MountFetch };
+
+// What the pipeline hands a mount besides the request.
+export type MountCall = { env: unknown; ctx: MountContext };
+
+// The request event fields a mount keeps from the request's scope, so `serverCtx()` works inside it.
+const SCOPE_FIELDS = ["flareServerContext", "flareScope"];
 
 type MountEvent = RequestEvent & { flareMount: string };
 
@@ -28,8 +43,13 @@ export function mountTable(entries: readonly Mount[], canonical: CanonicalOption
 }
 
 // 02-system step 3. The matching mount's fetch sees the path with the prefix removed and the query kept, while
-// its prefix is the active mount `proxy` reads. No match is undefined, and the router runs.
-export function dispatchMount(table: readonly Mount[], request: Request): Promise<Response> | undefined {
+// its prefix is the active mount `proxy` reads. A sync answer and a sync throw both become the promise. No match
+// is undefined, and the router runs.
+export function dispatchMount(
+	table: readonly Mount[],
+	request: Request,
+	call: MountCall,
+): Promise<Response> | undefined {
 	const url = new URL(request.url);
 	const entry = table.find((item) => url.pathname === item.prefix || url.pathname.startsWith(`${item.prefix}/`));
 	if (entry === undefined) return undefined;
@@ -38,9 +58,16 @@ export function dispatchMount(table: readonly Mount[], request: Request): Promis
 	// control characters, so `//` is the form either one takes here.
 	if (rest.startsWith("//")) return Promise.resolve(new Response(null, { status: 400 }));
 	const stripped = new Request(new URL(`${rest}${url.search}`, url.origin), request);
-	const event: MountEvent = Object.assign(createRequestEvent(stripped), { flareMount: entry.prefix });
+	const outer: RequestEvent | undefined = getRequestEvent();
+	const kept = SCOPE_FIELDS.filter((name) => outer !== undefined && name in outer);
+	const scope = Object.fromEntries(kept.map((name) => [name, Reflect.get(Object(outer), name)]));
+	const event: MountEvent = Object.assign(createRequestEvent(stripped), scope, { flareMount: entry.prefix });
 	return new Promise((resolve, reject) => {
-		provideRequestEvent(event, () => entry.fetch(stripped).then(resolve, reject));
+		provideRequestEvent(event, () => {
+			Promise.resolve()
+				.then(() => entry.fetch(stripped, call.env, call.ctx))
+				.then(resolve, reject);
+		});
 	});
 }
 

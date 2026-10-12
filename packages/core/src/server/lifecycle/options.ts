@@ -8,7 +8,7 @@ import type { Router } from "../../shared/router/create-router.ts";
 import type { Caller } from "../auth/caller.ts";
 import type { ServerContextInput } from "../context/ctx.ts";
 import type { MiddlewareEntry } from "../middleware/types.ts";
-import type { Mount } from "../mount/mount.ts";
+import type { Mount, MountContext } from "../mount/mount.ts";
 import type { SecurityConfig } from "../security/apply.ts";
 import type { ServerFns } from "../server-fn/dispatch.ts";
 
@@ -46,6 +46,7 @@ export type ServerOptions<R extends FlareRegister = FlareRegister> = BaseOptions
 
 export type RuntimeOptions = BaseOptions & { serverContext?: ServerContextInput["serverContext"] };
 
+// `ctx` is the adapter's: `waitUntil` keeps background work alive after the response.
 export type FlareServer = {
-	fetch: (request: Request, env?: unknown) => Promise<Response>;
+	fetch: (request: Request, env?: unknown, ctx?: MountContext) => Promise<Response>;
 };

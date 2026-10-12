@@ -1,9 +1,11 @@
 import { expect, it, vi } from "vitest";
-import { createServer } from "../lifecycle/create.ts";
+import { createServer, serveWith } from "../lifecycle/create.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
-import { activeMount, dispatchMount, mount, mountTable, type Mount } from "./mount.ts";
+import { serverCtx } from "../context/ctx.ts";
+import type { Logger } from "../lifecycle/logger.ts";
+import { activeMount, dispatchMount, mount, mountTable, type Mount, type MountCall } from "./mount.ts";
 
 const router = createRouter({
 	layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
@@ -13,6 +15,8 @@ const router = createRouter({
 function serve(mounts: readonly Mount[]): ReturnType<typeof createServer> {
 	return createServer({ router, mounts });
 }
+
+const call: MountCall = { env: { site: "s" }, ctx: { waitUntil: () => undefined } };
 
 function echoing(name: string): Mount["fetch"] {
 	return async (request) => new Response(`${name} ${new URL(request.url).pathname}${new URL(request.url).search}`);
@@ -51,6 +55,15 @@ it("root prefix", () => {
 const sniffing: Mount["fetch"] = async () =>
 	new Response("body", { headers: { "x-content-type-options": "sniff", "x-own": "1" } });
 
+const later: Mount["fetch"] = (_request, _env, ctx) => {
+	ctx.waitUntil(Promise.reject(new Error("later")));
+	return new Response("ok");
+};
+
+const syncThrow: Mount["fetch"] = () => {
+	throw new Error("sync broke");
+};
+
 const broken: Mount["fetch"] = async () => {
 	throw new Error("mount broke");
 };
@@ -80,17 +93,65 @@ it("equal prefix", () => {
 // The fetch sees the canonical path with the prefix removed and the query kept. The prefix alone is `/`.
 it("strip", async () => {
 	const table = mountTable([mount("/api", echoing("api"))], {});
-	expect(await (await dispatchMount(table, new Request("http://localhost/api/x?q=1")))?.text()).toBe("api /x?q=1");
-	expect(await (await dispatchMount(table, new Request("http://localhost/api")))?.text()).toBe("api /");
-	expect((await dispatchMount(table, new Request("http://localhost/api//x")))?.status).toBe(400);
+	expect(await (await dispatchMount(table, new Request("http://localhost/api/x?q=1"), call))?.text()).toBe(
+		"api /x?q=1",
+	);
+	expect(await (await dispatchMount(table, new Request("http://localhost/api"), call))?.text()).toBe("api /");
+	expect((await dispatchMount(table, new Request("http://localhost/api//x"), call))?.status).toBe(400);
 	// A parsed URL turns `\` into `/` and encodes a control character, so neither survives to the strip.
-	expect(await (await dispatchMount(table, new Request("http://localhost/api/\\x")))?.status).toBe(400);
-	expect(await (await dispatchMount(table, new Request("http://localhost/api/a\u0001b")))?.text()).toBe("api /a%01b");
-	expect(await dispatchMount(table, new Request("http://localhost/other"))).toBeUndefined();
+	expect(await (await dispatchMount(table, new Request("http://localhost/api/\\x"), call))?.status).toBe(400);
+	expect(await (await dispatchMount(table, new Request("http://localhost/api/a\u0001b"), call))?.text()).toBe(
+		"api /a%01b",
+	);
+	expect(await dispatchMount(table, new Request("http://localhost/other"), call)).toBeUndefined();
 	// The prefix is the active mount while its fetch runs, and only then.
 	const seen: Array<string | undefined> = [];
 	const watch = mountTable([mount("/api", async () => new Response(String(seen.push(activeMount()))))], {});
-	await dispatchMount(watch, new Request("http://localhost/api/x"));
+	await dispatchMount(watch, new Request("http://localhost/api/x"), call);
 	expect(seen).toEqual(["/api"]);
 	expect(activeMount()).toBeUndefined();
+});
+
+// A fetch app may answer synchronously, as Hono's `app.fetch` does, and a sync throw is the projected 500.
+it("sync handler", async () => {
+	const server = serve([mount("/api", () => new Response("sync")), mount("/boom", syncThrow)]);
+	expect(await (await server.fetch(new Request("http://localhost/api/x"))).text()).toBe("sync");
+	expect((await server.fetch(new Request("http://localhost/boom/x"))).status).toBe(500);
+});
+
+// The handler gets createServer's env and the adapter's context, so `mount(prefix, app.fetch)` works unchanged.
+it("env", async () => {
+	const seen: unknown[] = [];
+	const waitUntil = vi.fn<(promise: Promise<unknown>) => void>();
+	const fetch: Mount["fetch"] = (_request, env, ctx) => {
+		seen.push(env);
+		ctx.waitUntil(Promise.resolve());
+		return new Response("ok");
+	};
+	await serve([mount("/api", fetch)]).fetch(new Request("http://localhost/api/x"), { site: "s" }, { waitUntil });
+	expect(seen).toEqual([{ site: "s" }]);
+	expect(waitUntil).toHaveBeenCalledOnce();
+	// Without an adapter context, the work still runs, and a rejection is projected like any bug.
+	await serve([mount("/api", fetch)]).fetch(new Request("http://localhost/api/x"));
+	expect(seen).toHaveLength(2);
+	const error = vi.fn<Logger["error"]>();
+	const log: Logger = { level: "error", error, warn: () => undefined, log: () => undefined };
+	await serveWith({ router, mounts: [mount("/api", later)] }, { dev: true, log }).fetch(
+		new Request("http://localhost/api/x"),
+	);
+	await vi.waitFor(() => expect(error).toHaveBeenCalledWith("render", "later", expect.any(String)));
+});
+
+// serverContext runs once, before the mount, and serverCtx() reads it inside the mount.
+it("server context", async () => {
+	const make = vi.fn<() => { tenant: string }>(() => ({ tenant: "t" }));
+	const seen: unknown[] = [];
+	const read: Mount["fetch"] = () => {
+		seen.push(serverCtx());
+		return new Response("ok");
+	};
+	const server = createServer({ router, mounts: [mount("/api", read)], serverContext: make });
+	await server.fetch(new Request("http://localhost/api/x"));
+	expect(make).toHaveBeenCalledOnce();
+	expect(seen).toEqual([{ tenant: "t" }]);
 });
