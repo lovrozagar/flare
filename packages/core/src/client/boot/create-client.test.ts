@@ -188,3 +188,21 @@ it("chunk reload", async () => {
 	await navigates[0]({ to: "_root_/lazy" });
 	expect(client.assign).toHaveBeenCalledExactlyOnceWith("/lazy");
 });
+
+it("popstate", async () => {
+	const host = install();
+	const frames = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/about", d: "back" },
+		{ t: "r" },
+		{ t: "d" },
+	] as const;
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
+	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+	await bootClient(routerOf(), createReady(), env(host, fetch));
+	history.pushState({ index: 1 }, "", "/about");
+	window.dispatchEvent(new PopStateEvent("popstate", { state: { index: 1 } }));
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	flush();
+	expect(host.textContent).toBe("root[about:back]");
+});

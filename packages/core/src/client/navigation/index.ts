@@ -15,3 +15,4 @@ export { resolveTarget, resolveUrl, type NavigateInput, type Target, type Target
 export { isChunkError, loadDocument, type ReloadEnv } from "./reload.ts";
 export { framesOf, landFrames, type LandOptions, type Landed } from "./frames.ts";
 export { createNavigator, type Landing, type NavigateOptions, type NavigatorDeps } from "./navigate.ts";
+export { createPopstate } from "./popstate.ts";

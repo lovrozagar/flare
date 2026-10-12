@@ -452,3 +452,22 @@ it("slot escapes", async () => {
 	// The slow value never came either, so it rejects when the stream ends: a second report.
 	expect(send).toHaveBeenNthCalledWith(1, expect.objectContaining({ message: "fast failed" }));
 });
+
+it("restore", async () => {
+	const app = await setup(async () => ndjson(aboutFrames));
+	app.deps.blockers.register(() => false);
+	const restore = vi.spyOn(app.deps.scroll, "restore");
+	const push = vi.spyOn(history, "pushState");
+	const replace = vi.spyOn(history, "replaceState");
+	await app.navigator.restore("/about");
+	flush();
+	expect(app.text()).toBe("root[about:fresh]");
+	expect(push).not.toHaveBeenCalled();
+	expect(replace).not.toHaveBeenCalled();
+	expect(restore).toHaveBeenCalledOnce();
+	await app.navigator.restore("/about#part");
+	expect(app.store.snapshot().location.hash).toBe("#part");
+	expect(restore).toHaveBeenCalledTimes(2);
+	push.mockRestore();
+	replace.mockRestore();
+});

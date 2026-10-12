@@ -3,29 +3,35 @@ import type { HistoryState } from "./state.ts";
 type Target = Pick<History, "state" | "pushState" | "replaceState">;
 
 export type FlareHistory = {
-	adopt: () => void;
+	adopt: (url?: string) => void;
 	push: (url: string, usr?: unknown) => void;
 	replace: (url: string, usr?: unknown) => void;
 	pop: (state: unknown) => number[] | null;
 	index: () => number;
+	urlAt: (index: number) => string | undefined;
 };
 
 // The entries of one document carry an increasing index. Hydrate adopts the entry it lands on and never
 // pushes, so a reload or a restored tab keeps its place.
 export function createHistory(target: Target): FlareHistory {
 	let current = 0;
+	// The URL of each entry this document wrote, so a popstate over several entries can replay each one.
+	const urls = new Map<number, string>();
 	return {
-		adopt() {
+		adopt(url) {
 			const state: unknown = target.state;
 			if (isFlareState(state)) current = state.index;
 			else target.replaceState({ index: 0, usr: undefined } satisfies HistoryState, "");
+			if (url !== undefined) urls.set(current, url);
 		},
 		push(url, usr) {
 			current += 1;
 			target.pushState({ index: current, usr } satisfies HistoryState, "", url);
+			urls.set(current, url);
 		},
 		replace(url, usr) {
 			target.replaceState({ index: current, usr } satisfies HistoryState, "", url);
+			urls.set(current, url);
 		},
 		// A popstate moves to an entry the browser already holds: nothing is pushed or replaced. A jump of
 		// several entries is replayed one entry at a time, and an entry with no index is not Flare's.
@@ -40,6 +46,7 @@ export function createHistory(target: Target): FlareHistory {
 			return steps;
 		},
 		index: () => current,
+		urlAt: (index) => urls.get(index),
 	};
 }
 
