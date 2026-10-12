@@ -74,6 +74,7 @@ Filters are `exact` or `prefix`. There is no regular expression.
 | test | case | result |
 | --- | --- | --- |
 | `filter` | a middleware filtered to `/admin` | a request to `/about` does not enter it |
+| `middleware finalize` | a middleware that stashes its own response, and one that returns its own, each with `X-Content-Type-Options: sniff` | both responses carry the security set, `nosniff` and the CSP, because finalize is the only exit |
 | `mount and page` | a mount and a page | each path hits its handler, and both responses have the security set |
 | `proxy` | a mount that proxies to a local test server | the body round-trips and hop-by-hop headers do not |
 
