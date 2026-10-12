@@ -6,6 +6,7 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
 import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
 import { redirect } from "../../shared/errors/redirect.ts";
+import { notFound } from "../../shared/errors/http.ts";
 import { createServer, serveWith } from "./create.ts";
 import type { Logger } from "./logger.ts";
 
@@ -342,4 +343,40 @@ it("authenticate throw", async () => {
 	expect(response.status).toBe(500);
 	expect(response.headers.get("location")).toBeNull();
 	expect(await response.text()).toBe("");
+});
+
+it("internal kinds", async () => {
+	const calls: string[] = [];
+	const user = createPage("_root_/users/[id]")
+		.loader(() => {
+			calls.push("user");
+			return "user";
+		})
+		.render(show);
+	const missing = createPage("_root_/gone")
+		.loader(() => notFound())
+		.render(show);
+	const router = createRouter({
+		layouts: { _root_: framed },
+		routeTree: [
+			{ id: "_root_/users/[id]", path: "/users/[id]", module: user },
+			{ id: "_root_/gone", path: "/gone", module: missing },
+		],
+	});
+	const app = serveWith({ router }, { dev: false, log: quiet });
+	const fetchAt = (path: string): Promise<Response> => app.fetch(new Request(`http://localhost${path}`));
+	expect((await fetchAt("/users/7?_flare=isr")).status).toBe(400);
+	expect((await fetchAt("/_flare/fn/abc")).status).toBe(404);
+	expect((await fetchAt("/nowhere?_flare=data")).status).toBe(404);
+	const named = await fetchAt("/gone?_flare=data");
+	expect(named.status).toBe(404);
+	expect(await named.text()).toBe("");
+	const stale = await fetchAt("/users/7?q=1&_flare=data&_flare_stale=id%3D7%26q%3D1");
+	expect((await stale.text()).split("\n").map((line) => line.slice(0, 30))).toEqual([
+		'{"t":"l","m":"_root_","d":null',
+		'{"t":"r"}',
+		'{"t":"d"}',
+		"",
+	]);
+	expect(calls).toEqual([]);
 });

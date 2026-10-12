@@ -98,3 +98,29 @@ it("call overrides route", async () => {
 	await expect(notStored.defer(() => Promise.resolve(4), { prerender: "stream" }).promise).resolves.toBe(4);
 	expect(notStored.held).toEqual([]);
 });
+
+it("started", async () => {
+	const loader = createDefer(live);
+	const first = loader.defer(() => Promise.resolve("a"));
+	loader.defer(() => Promise.reject(new Error("b")));
+	loader.defer(() => Promise.resolve("again"), { key: "d0" });
+	expect(loader.started.map((entry) => entry.key)).toEqual(["d0", "d1"]);
+	expect(loader.started[0].promise).toBe(first.promise);
+	await expect(loader.started[1].promise).rejects.toThrow("b");
+	const stored = createDefer({ stored: true, route: "stream", dev: false });
+	stored.defer(() => Promise.resolve(1));
+	expect(stored.started).toEqual([]);
+});
+
+it("prefetch skip", async () => {
+	const calls: string[] = [];
+	const loader = createDefer({ stored: false, dev: false, prefetch: true });
+	const value = loader.defer(() => {
+		calls.push("ran");
+		return Promise.resolve(1);
+	});
+	expect(wire(value)).toEqual({ __deferred: true, key: "d0" });
+	expect(calls).toEqual([]);
+	expect(loader.started).toEqual([]);
+	expect(await settledYet(value.promise)).toBe(false);
+});

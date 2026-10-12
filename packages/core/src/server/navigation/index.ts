@@ -1,1 +1,2 @@
-export { dataFrames, skippedRoutes, type DataEntry, type DataMatch } from "./data.ts";
+export { dataFrames, skippedRoutes, type DataMatch } from "./data.ts";
+export { dataBody, NDJSON, redirectBody, type DataBody } from "./response.ts";

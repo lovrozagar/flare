@@ -1,4 +1,11 @@
-import type { ChainAuth, PreloaderContext, Respond, StepContext } from "../../shared/route-builder/chain.ts";
+import type {
+	CacheConfig,
+	ChainAuth,
+	LoaderContext,
+	PreloaderContext,
+	Respond,
+	StepContext,
+} from "../../shared/route-builder/chain.ts";
 import { statusOf } from "../../shared/errors/status.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { shapeIssues, type Issue } from "../../shared/validation/issues.ts";
@@ -6,6 +13,7 @@ import { gate } from "../auth/gate.ts";
 import type { PolicyClass } from "../auth/identity.ts";
 import { finalize } from "../lifecycle/finalize.ts";
 import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts";
+import { createDefer, type DeferMode, type Started } from "./defer.ts";
 
 export type LoaderRoute = {
 	id: string;
@@ -13,7 +21,8 @@ export type LoaderRoute = {
 	validate?: () => readonly Issue[] | undefined;
 	preloader?: (ctx: StepContext) => unknown;
 	authorize?: (ctx: StepContext) => boolean | Promise<boolean>;
-	loader?: (ctx: StepContext) => unknown;
+	loader?: (ctx: LoaderContext) => unknown;
+	cache?: CacheConfig;
 	head?: (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
 	headers?: () => void;
 };
@@ -28,10 +37,21 @@ export type RunInput = {
 	overlay?: (error: unknown) => void;
 	response?: Respond;
 	routes: readonly LoaderRoute[];
+	dev?: boolean;
+	stored?: boolean;
+	skip?: ReadonlySet<string>;
 };
 
+// One deferred value a kept match started. A live response writes it as a `c` or `e` frame.
+export type DeferredFrame = { m: string; k: string; promise: Promise<unknown> };
+
+type Loaded = Outcome & { started: readonly Started[] };
+
+type Loading = { routes: readonly LoaderRoute[]; base: StepContext; contexts: readonly PreloaderContext[] };
+
 // `data`, `heads`, and `contexts` are the root-down matches above the first failure, the ones that render.
-// `thrown` is what authenticate threw when the gate answered with its status. `bugs` are .head() throws: that
+// `thrown` is what authenticate threw when the gate answered with its status. `deferred` is what the kept
+// matches started. A match in `skip` runs no loader: the client still holds it (B30). `bugs` are .head() throws: that
 // head is omitted and the status stays the loader status (B82). The caller reports them as dev bugs.
 // A match with no .head() has an undefined head. `contexts` is the preloader context through each match.
 export type LoaderRun = {
@@ -45,6 +65,7 @@ export type LoaderRun = {
 	answer?: Response;
 	thrown?: unknown;
 	bugs: readonly unknown[];
+	deferred: readonly DeferredFrame[];
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
@@ -60,23 +81,29 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	const base = { auth: gated.session, request: input.request, env: input.env };
 	const contexts = gated.contexts;
 	if (gated.kind === "proceed") {
-		return { ...conclude(input, await load(input.routes, base, contexts), contexts), class: gated.class };
+		const loaded = await load(input, { routes: input.routes, base, contexts });
+		return { ...conclude(input, loaded, contexts), class: gated.class };
 	}
 	// Matches outside the stopped one still load. It and everything inside it do not (B27, B29).
-	const outer = await load(input.routes.slice(0, gated.index), base, contexts);
-	const stopped = { id: input.routes[gated.index].id, settled: { ok: false as const, error: gated.error } };
+	const outer = await load(input, { routes: input.routes.slice(0, gated.index), base, contexts });
+	const error = gated.error;
+	const stopped = { id: input.routes[gated.index].id, settled: { ok: false as const, error }, started: [] };
 	return conclude(input, [...outer, stopped], contexts);
 }
 
 function bare(response: Response): LoaderRun {
-	return { response, frames: [], data: [], heads: [], contexts: [], bugs: [] };
+	return { response, frames: [], data: [], heads: [], contexts: [], bugs: [], deferred: [] };
 }
 
-function conclude(input: RunInput, outcomes: readonly Outcome[], contexts: readonly PreloaderContext[]): LoaderRun {
+function conclude(input: RunInput, outcomes: readonly Loaded[], contexts: readonly PreloaderContext[]): LoaderRun {
 	const result = cascade(input.kind, outcomes);
 	const kept = contexts.slice(0, result.kept.length);
 	const bugs: unknown[] = [];
-	const heads = result.kept.map((frame, index) => finish(input.routes[index], { frame, kept: kept[index], bugs }));
+	// A skipped match ran no loader, so its head would read no data. It writes no `h` either.
+	const heads = result.kept.map((frame, index) => {
+		const route = input.routes[index];
+		return input.skip?.has(route.id) === true ? undefined : finish(route, { frame, kept: kept[index], bugs });
+	});
 	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
 	if (result.failed?.status === 500) input.overlay?.(result.failed.error);
 	return {
@@ -87,6 +114,9 @@ function conclude(input: RunInput, outcomes: readonly Outcome[], contexts: reado
 		contexts: kept,
 		failed: result.failed,
 		bugs,
+		deferred: outcomes
+			.slice(0, result.kept.length)
+			.flatMap((outcome) => outcome.started.map((entry) => ({ m: outcome.id, k: entry.key, promise: entry.promise }))),
 	};
 }
 
@@ -99,21 +129,32 @@ function collectIssues(routes: readonly LoaderRoute[]): readonly Issue[] | undef
 	return undefined;
 }
 
-// Each loader sees the preloader context through its own match: parents, then its own return.
-function load(
-	routes: readonly LoaderRoute[],
-	base: StepContext,
-	contexts: readonly PreloaderContext[],
-): Promise<Outcome[]> {
+// Each loader sees the preloader context through its own match: parents, then its own return. Each gets its
+// own defer scope, so default keys count from d0 per loader.
+function load(input: RunInput, loading: Loading): Promise<Loaded[]> {
 	return Promise.all(
-		routes.map(async (route, index): Promise<Outcome> => ({
-			id: route.id,
-			settled: await settle(route, { ...base, preloaderContext: contexts[index] }),
-		})),
+		loading.routes.map(async (route, index): Promise<Loaded> => {
+			const scope = createDefer({
+				stored: input.stored ?? false,
+				route: deferMode(route.cache),
+				dev: input.dev ?? false,
+				prefetch: input.kind === "prefetch",
+			});
+			const ctx = { ...loading.base, preloaderContext: loading.contexts[index], defer: scope.defer };
+			const settled =
+				input.skip?.has(route.id) === true ? { ok: true as const, data: undefined } : await settle(route, ctx);
+			return { id: route.id, settled, started: scope.started };
+		}),
 	);
 }
 
-async function settle(route: LoaderRoute, ctx: StepContext): Promise<Settled> {
+// The route's stored defer mode, from `cache.ssr.defer` or `cache.ssg.defer`.
+function deferMode(cache: CacheConfig | undefined): DeferMode | undefined {
+	if (cache?.ssr !== undefined) return cache.ssr.defer;
+	return typeof cache?.ssg === "object" ? cache.ssg.defer : undefined;
+}
+
+async function settle(route: LoaderRoute, ctx: LoaderContext): Promise<Settled> {
 	try {
 		return { ok: true, data: await route.loader?.(ctx) };
 	} catch (error) {
