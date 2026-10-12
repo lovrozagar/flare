@@ -5,6 +5,7 @@ description: >
   /commit-push-deploy, "commit push deploy", "deploy this". Must push. Never
   force-push. Never invent infra.
 ---
+
 Inspect `git status` + `git diff` (staged and unstaged) before the message.
 
 Stage only user intent. Never blind `git add -A` / `git add .`. Split unrelated concerns into multiple commits.

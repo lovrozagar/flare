@@ -2,6 +2,7 @@
 name: browser
 description: Browse via node scripts/browser.mjs (Lightpanda). App e2e uses Playwright.
 ---
+
 Zero-config. `node scripts/browser.mjs <verb>`.
 
 Verbs: `nav <url>` · `snap` · `click <ref>` · `fill <ref> <text>` · `scroll [ref|down|up|N]` · `wait [ms]` · `hover <ref>` · `select <ref> <value>` · `shot` · `pdf` · `stop` · `doctor` · `ensure`.

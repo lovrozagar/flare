@@ -5,4 +5,5 @@ targets:
 globs:
   - "**/*"
 ---
+
 @AGENTS.md

@@ -2,6 +2,7 @@
 name: jev
 description: "Yes/no or named-option decision on text already saved. Run node scripts/jev.mjs --available first. On yes, one decision call. On no, decide yourself and do not mention Jev."
 ---
+
 # jev
 
 Use this when the source text is already saved and the leftover question is a yes/no or a choice among options the research already named. Spec: `.rulesync/reference/jev.md`.

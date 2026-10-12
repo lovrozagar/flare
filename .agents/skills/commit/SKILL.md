@@ -4,6 +4,7 @@ description: >
   Inspect the diff and commit with a Conventional Commits subject line. Use for
   /commit, "commit this", "commit these changes". Never git push.
 ---
+
 Inspect `git status` + `git diff` (staged and unstaged) before the message.
 
 Stage only user intent. Never blind `git add -A` / `git add .`. Split unrelated concerns into multiple commits.

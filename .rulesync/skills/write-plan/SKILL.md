@@ -2,6 +2,7 @@
 name: write-plan
 description: "Write a local checklist under .tmp/grunt/plans/. Then /implement-plan {n}."
 ---
+
 # write-plan
 
 You author the plan. Persist under `.tmp/grunt/plans/` via Write (hook runs `scripts/persist-plan.mjs`). Format: `.rulesync/reference/plan-format.md`.
