@@ -8,7 +8,7 @@ export type AuthContext = { auth: unknown };
 
 export type GateRoute = {
 	id: string;
-	auth?: AuthModule;
+	auth?: Omit<AuthModule, "authorize">;
 	preloader?: (ctx: AuthContext) => unknown;
 	authorize?: (ctx: AuthContext) => boolean | Promise<boolean>;
 };
@@ -34,7 +34,7 @@ type Taken = { kind: "session"; session: unknown } | { kind: "status"; status: n
 // Steps 10 and 11 of 02-system: authenticate once, then per match from the root down a null-session check,
 // preloader, and authorize, then the store read.
 export async function gate(input: GateInput): Promise<GateResult> {
-	const auth = effectiveAuth(input.routes.map((route) => route.auth ?? {}));
+	const auth = effectiveAuth(input.routes.map(moduleOf));
 	const taken = await takeSession(auth.reads, input.authenticate);
 	if (taken.kind === "status") return taken;
 	const session = taken.session;
@@ -43,9 +43,21 @@ export async function gate(input: GateInput): Promise<GateResult> {
 		const failed = await guard(route, ctx);
 		if (failed !== undefined) return { kind: "stopped", index, session, error: failed.error };
 	}
+	const policy = identity(auth, session).class;
 	if (input.response !== undefined) input.response(ctx);
-	else if (input.kind === "document" && input.shared === true) input.readStore?.();
-	return { kind: "proceed", session, class: identity(auth, session).class };
+	else if (readsStore(input, policy)) input.readStore?.();
+	return { kind: "proceed", session, class: policy };
+}
+
+// An authorize function reads identity by itself, so the function is the only source of that flag.
+function moduleOf(route: GateRoute): AuthModule {
+	if (route.authorize === undefined) return route.auth ?? {};
+	return { ...route.auth, authorize: true };
+}
+
+// Only a shared document reads the store, and a required chain never does (B27).
+function readsStore(input: GateInput, policy: PolicyClass): boolean {
+	return input.kind === "document" && input.shared === true && policy !== "required";
 }
 
 // A public chain does not call authenticate. Returning null is the only anonymous signal.

@@ -42,8 +42,9 @@ it("missing session", async () => {
 	expect(seen).toEqual(["outer"]);
 	expect(missing.reads).toBe(0);
 	const present = storeSpy();
-	await gate(input({ authenticate: () => session, readStore: present.readStore }));
-	expect(present.reads).toBe(1);
+	const signedIn = await gate(input({ authenticate: () => session, readStore: present.readStore }));
+	expect(signedIn).toEqual({ kind: "proceed", session, class: "required" });
+	expect(present.reads).toBe(0);
 });
 
 it("optional anonymous", async () => {
@@ -53,6 +54,11 @@ it("optional anonymous", async () => {
 	);
 	expect(result).toEqual({ kind: "proceed", session: null, class: "anonymous" });
 	expect(store.reads).toBe(1);
+	const signedIn = await gate(
+		input({ authenticate: () => session, routes: [{ id: "page", auth: optional }], readStore: store.readStore }),
+	);
+	expect(signedIn).toEqual({ kind: "proceed", session, class: "anonymous" });
+	expect(store.reads).toBe(2);
 });
 
 it("response route", async () => {
