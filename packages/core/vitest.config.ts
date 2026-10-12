@@ -14,6 +14,8 @@ export default defineConfig({
 			exclude: [
 				"**/*.test.ts",
 				"**/*.test.tsx",
+				// Test support: the navigation tests share one mounted app.
+				"**/*.fixture.ts",
 				"**/*.d.ts",
 				"**/index.ts",
 				"src/exports/**",
