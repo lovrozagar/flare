@@ -1,7 +1,6 @@
 import type { OutletMatch } from "../../shared/components/index.ts";
 import type { RawParams } from "../../shared/route-tree/index.ts";
 import type { LoadedEntry } from "../../shared/router/create-router.ts";
-import { readSearch } from "../../shared/url/search.ts";
 import type { LoaderRun } from "../loaders/run.ts";
 import type { Projected } from "./projector.ts";
 import type { StateMatch } from "./state.ts";
@@ -11,22 +10,19 @@ import type { StateMatch } from "./state.ts";
 export type Rendered = {
 	chain: readonly LoadedEntry[];
 	run: LoaderRun;
-	params: RawParams;
 	failed?: Projected;
 	unknown?: true;
 };
 
-// The kept matches, then the failed match, root down. A layout sees the page's raw params.
-export function outletMatches(request: Request, rendered: Rendered): OutletMatch[] {
-	const search = readSearch(new URL(request.url).search);
-	const params = definedParams(rendered.params);
+// The kept matches, then the failed match, root down. Each sees the page's params and search after its own
+// `.input()`.
+export function outletMatches(rendered: Rendered): OutletMatch[] {
 	const count = rendered.run.data.length + (rendered.failed === undefined ? 0 : 1);
 	return rendered.chain.slice(0, count).map((entry, index) => ({
 		id: entry.id,
 		kind: entry.kind,
 		module: entry.module,
-		params,
-		search,
+		...rendered.run.inputs[index],
 		data: rendered.run.data[index],
 		preloader: rendered.run.contexts[index] ?? {},
 	}));

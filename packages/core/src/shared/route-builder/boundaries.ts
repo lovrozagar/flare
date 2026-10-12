@@ -1,6 +1,8 @@
 import type { JSX } from "@solidjs/web";
 
-type Params = Record<string, string | string[]>;
+// The raw record, or whatever that side's `.input()` validator returned (dx/builder.md). The generated route
+// types narrow it per route id (dx/types.md).
+type Params = unknown;
 
 // The function's own route, not the failed match's (B77).
 export type Located = { params: Params; search: Params };

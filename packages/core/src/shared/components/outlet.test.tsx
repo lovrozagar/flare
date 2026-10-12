@@ -12,7 +12,7 @@ import {
 	type ChainEntry,
 	type RouteModule,
 } from "../router/create-router.ts";
-import { NavigateContext, type NavigateTo } from "../router/context.ts";
+import { LocationContext, NavigateContext, RouterContext, type NavigateTo } from "../router/context.ts";
 import { Matches, Outlet, type OutletMatch, type OutletState } from "./outlet.tsx";
 
 const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
@@ -21,7 +21,7 @@ const page = createPage("_root_/users/[id]/posts").render((props) => `page:${Str
 const located =
 	(name: string) =>
 	(props: Located): JSX.Element =>
-		`${name}:${String(props.params.id)}`;
+		`${name}:${String(Reflect.get(Object(props.params), "id"))}`;
 const thrower: ErrorRender = () => {
 	throw new Error("boundary broke");
 };
@@ -223,15 +223,35 @@ it("reset wired", () => {
 			resets.push(props.reset);
 			return "failed";
 		});
-	const matches = chain(layout, own).map((match) => ({ ...match, search: { tab: "a" } }));
+	// The painted records are an `.input()` output. Reset rebuilds the URL from the raw ones.
+	const matches = chain(layout, own).map((match) => ({ ...match, params: { id: 9 }, search: { tab: 1 } }));
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/users/[id]/posts", path: "/users/[id]/posts", module: own }],
+	});
+	const location = { pathname: "/users/P/posts", search: "?tab=a&tab=b", hash: "" };
 	const navigate = vi.fn<(options: NavigateTo) => Promise<void>>(async () => undefined);
 	const host = document.createElement("div");
+	const navigated = (): JSX.Element =>
+		createComponent(NavigateContext, {
+			value: navigate,
+			get children() {
+				return createComponent(Matches, { state: failing(matches, 2, 500) });
+			},
+		});
+	const located = (): JSX.Element =>
+		createComponent(LocationContext, {
+			value: () => location,
+			get children() {
+				return navigated();
+			},
+		});
 	render(
 		() =>
-			createComponent(NavigateContext, {
-				value: navigate,
+			createComponent(RouterContext, {
+				value: router,
 				get children() {
-					return createComponent(Matches, { state: failing(matches, 2, 500) });
+					return located();
 				},
 			}),
 		host,
@@ -242,7 +262,7 @@ it("reset wired", () => {
 	expect(navigate).toHaveBeenCalledExactlyOnceWith({
 		to: "_root_/users/[id]/posts",
 		params: { id: "P" },
-		search: { tab: "a" },
+		search: { tab: ["a", "b"] },
 		replace: true,
 		revalidate: true,
 	});

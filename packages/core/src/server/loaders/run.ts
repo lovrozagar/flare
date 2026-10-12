@@ -4,11 +4,12 @@ import type {
 	LoaderContext,
 	PreloaderContext,
 	Respond,
+	RouteInput,
 	StepContext,
 } from "../../shared/route-builder/chain.ts";
 import { statusOf } from "../../shared/errors/status.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
-import { shapeIssues, type Issue } from "../../shared/validation/issues.ts";
+import { runValidator, type Validated, type Validator } from "../../shared/validation/index.ts";
 import { gate } from "../auth/gate.ts";
 import type { PolicyClass } from "../auth/identity.ts";
 import { finalize } from "../lifecycle/finalize.ts";
@@ -18,12 +19,17 @@ import { createDefer, type DeferMode, type Started } from "./defer.ts";
 export type LoaderRoute = {
 	id: string;
 	auth?: ChainAuth;
-	validate?: () => readonly Issue[] | undefined;
+	input?: RouteInput;
 	preloader?: (ctx: StepContext) => unknown;
 	authorize?: (ctx: StepContext) => boolean | Promise<boolean>;
 	loader?: (ctx: LoaderContext) => unknown;
 	cache?: CacheConfig;
-	head?: (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
+	head?: (ctx: {
+		params: unknown;
+		search: unknown;
+		loaderData: unknown;
+		preloaderContext: PreloaderContext;
+	}) => HeadConfig;
 	headers?: () => void;
 };
 
@@ -37,6 +43,9 @@ export type RunInput = {
 	overlay?: (error: unknown) => void;
 	response?: Respond;
 	routes: readonly LoaderRoute[];
+	// The raw records every match's `.input()` validators read.
+	params?: Readonly<Record<string, unknown>>;
+	search?: Readonly<Record<string, unknown>>;
 	dev?: boolean;
 	stored?: boolean;
 	skip?: ReadonlySet<string>;
@@ -47,7 +56,16 @@ export type DeferredFrame = { m: string; k: string; promise: Promise<unknown> };
 
 type Loaded = Outcome & { started: readonly Started[] };
 
-type Loading = { routes: readonly LoaderRoute[]; base: StepContext; contexts: readonly PreloaderContext[] };
+// A route after its `.input()`: `params` and `search` are the raw records or that side's validator output.
+type ValidRoute = LoaderRoute & { params: unknown; search: unknown };
+
+type ValidRun = Omit<RunInput, "routes"> & { routes: readonly ValidRoute[] };
+
+type Loading = {
+	routes: readonly ValidRoute[];
+	base: Pick<StepContext, "auth" | "request" | "env">;
+	contexts: readonly PreloaderContext[];
+};
 
 // `data`, `heads`, and `contexts` are the root-down matches above the first failure, the ones that render.
 // `thrown` is what authenticate threw when the gate answered with its status. `deferred` is what the kept
@@ -60,6 +78,8 @@ export type LoaderRun = {
 	data: readonly unknown[];
 	heads: readonly (HeadConfig | undefined)[];
 	contexts: readonly PreloaderContext[];
+	// Each match's params and search, after its `.input()`.
+	inputs: readonly { params: unknown; search: unknown }[];
 	failed?: Failed;
 	class?: PolicyClass;
 	answer?: Response;
@@ -69,9 +89,10 @@ export type LoaderRun = {
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
-	const invalid = collectIssues(input.routes);
-	if (invalid !== undefined) return bare(json(shapeIssues(invalid)));
-	const gated = await gate(input);
+	const validated = await validateInputs(input);
+	if (!validated.ok) return bare(json(validated.errors));
+	const routes = validated.routes;
+	const gated = await gate({ ...input, routes });
 	if (gated.kind === "status") return { ...bare(finalize({ status: gated.status, body: "" })), thrown: gated.thrown };
 	// A .response() page runs no loader and no render. A stopped gate answers with its status alone.
 	if (input.response !== undefined) {
@@ -80,22 +101,23 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	}
 	const base = { auth: gated.session, request: input.request, env: input.env };
 	const contexts = gated.contexts;
+	const run = { ...input, routes };
 	if (gated.kind === "proceed") {
-		const loaded = await load(input, { routes: input.routes, base, contexts });
-		return { ...conclude(input, loaded, contexts), class: gated.class };
+		const loaded = await load(run, { routes, base, contexts });
+		return { ...conclude(run, loaded, contexts), class: gated.class };
 	}
 	// Matches outside the stopped one still load. It and everything inside it do not (B27, B29).
-	const outer = await load(input, { routes: input.routes.slice(0, gated.index), base, contexts });
+	const outer = await load(run, { routes: routes.slice(0, gated.index), base, contexts });
 	const error = gated.error;
-	const stopped = { id: input.routes[gated.index].id, settled: { ok: false as const, error }, started: [] };
-	return conclude(input, [...outer, stopped], contexts);
+	const stopped = { id: routes[gated.index].id, settled: { ok: false as const, error }, started: [] };
+	return conclude(run, [...outer, stopped], contexts);
 }
 
 function bare(response: Response): LoaderRun {
-	return { response, frames: [], data: [], heads: [], contexts: [], bugs: [], deferred: [] };
+	return { response, frames: [], data: [], heads: [], contexts: [], inputs: [], bugs: [], deferred: [] };
 }
 
-function conclude(input: RunInput, outcomes: readonly Loaded[], contexts: readonly PreloaderContext[]): LoaderRun {
+function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readonly PreloaderContext[]): LoaderRun {
 	const result = cascade(input.kind, outcomes);
 	const kept = contexts.slice(0, result.kept.length);
 	const bugs: unknown[] = [];
@@ -112,6 +134,7 @@ function conclude(input: RunInput, outcomes: readonly Loaded[], contexts: readon
 		data: result.kept.map((frame) => frame.d),
 		heads,
 		contexts: kept,
+		inputs: input.routes.map((route) => ({ params: route.params, search: route.search })),
 		failed: result.failed,
 		bugs,
 		deferred: outcomes
@@ -120,18 +143,30 @@ function conclude(input: RunInput, outcomes: readonly Loaded[], contexts: readon
 	};
 }
 
-function collectIssues(routes: readonly LoaderRoute[]): readonly Issue[] | undefined {
-	for (const route of routes) {
-		if (route.validate === undefined) continue;
-		const found = route.validate();
-		if (found !== undefined) return found;
+// Every match's validators run root-down on the raw records, before authenticate (02-system step 10). The first
+// failure is the whole answer.
+async function validateInputs(
+	input: RunInput,
+): Promise<{ ok: true; routes: ValidRoute[] } | Extract<Validated, { ok: false }>> {
+	const dev = input.dev ?? false;
+	const routes: ValidRoute[] = [];
+	for (const route of input.routes) {
+		const params = await side(route.input?.params, input.params ?? {}, dev);
+		if (!params.ok) return params;
+		const search = await side(route.input?.searchParams, input.search ?? {}, dev);
+		if (!search.ok) return search;
+		routes.push({ ...route, params: params.value, search: search.value });
 	}
-	return undefined;
+	return { ok: true, routes };
+}
+
+function side(validator: Validator | undefined, raw: unknown, dev: boolean): Promise<Validated> {
+	return validator === undefined ? Promise.resolve({ ok: true, value: raw }) : runValidator(validator, raw, { dev });
 }
 
 // Each loader sees the preloader context through its own match: parents, then its own return. Each gets its
 // own defer scope, so default keys count from d0 per loader.
-function load(input: RunInput, loading: Loading): Promise<Loaded[]> {
+function load(input: ValidRun, loading: Loading): Promise<Loaded[]> {
 	return Promise.all(
 		loading.routes.map(async (route, index): Promise<Loaded> => {
 			const scope = createDefer({
@@ -140,7 +175,13 @@ function load(input: RunInput, loading: Loading): Promise<Loaded[]> {
 				dev: input.dev ?? false,
 				prefetch: input.kind === "prefetch",
 			});
-			const ctx = { ...loading.base, preloaderContext: loading.contexts[index], defer: scope.defer };
+			const ctx = {
+				...loading.base,
+				params: route.params,
+				search: route.search,
+				preloaderContext: loading.contexts[index],
+				defer: scope.defer,
+			};
 			const settled =
 				input.skip?.has(route.id) === true
 					? { ok: true as const, data: undefined }
@@ -171,15 +212,16 @@ async function settle(route: LoaderRoute, ctx: LoaderContext, dev: boolean): Pro
 
 type Finish = { frame: { d: unknown }; kept: PreloaderContext; bugs: unknown[] };
 
-function finish(route: LoaderRoute, at: Finish): HeadConfig | undefined {
+function finish(route: ValidRoute, at: Finish): HeadConfig | undefined {
 	const head = headOf(route, at);
 	route.headers?.();
 	return head;
 }
 
-function headOf(route: LoaderRoute, at: Finish): HeadConfig | undefined {
+function headOf(route: ValidRoute, at: Finish): HeadConfig | undefined {
 	try {
-		return route.head?.({ loaderData: at.frame.d, preloaderContext: at.kept });
+		const values = { params: route.params, search: route.search };
+		return route.head?.({ ...values, loaderData: at.frame.d, preloaderContext: at.kept });
 	} catch (error) {
 		at.bugs.push(error);
 		return undefined;

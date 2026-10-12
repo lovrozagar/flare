@@ -1,9 +1,11 @@
 import { createComponent, createContext, createMemo, untrack, useContext, type Context } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import type { ChainRecord } from "../route-builder/chain.ts";
+import type { Located } from "../route-builder/index.ts";
 import type { Location } from "../url/index.ts";
 
-type Raw = Record<string, string | string[]>;
+// Raw, or what that file's `.input()` returned.
+type Values = Located["params"];
 
 // The page an intercepting navigation opened over the background (B84). `location` is the URL in the address
 // bar. `background` is the page underneath, which stays mounted.
@@ -12,20 +14,20 @@ export type Overlay = {
 	label: string;
 	render?: ChainRecord["render"];
 	data: unknown;
-	params: Raw;
-	search: Raw;
+	params: Values;
+	search: Values;
 	preloader: Record<string, unknown>;
 	location: Location;
-	background: Location & { params: Raw };
+	background: Location & { params: Values };
 };
 
 // What the outlet child receives (dx/navigate.md).
 export type InterceptState = {
 	render: string;
 	match: { loaderData: unknown; render: () => JSX.Element };
-	params: Raw;
-	search: Raw;
-	backgroundLocation: Location & { params: Raw };
+	params: Values;
+	search: Values;
+	backgroundLocation: Location & { params: Values };
 	dismiss: () => void;
 };
 

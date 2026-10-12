@@ -31,14 +31,27 @@ export type CacheConfig =
 	| { client: ClientCache; ssr?: never; isr?: never; ssg?: never };
 
 import type { JSX } from "@solidjs/web";
+import type { Located } from "./boundaries.ts";
 import type { Deferred } from "./register.ts";
+import type { Validator } from "../validation/index.ts";
 import type { HeadConfig } from "./types.ts";
+
+// `.input()`: each side's validator receives the raw record, and its output replaces that side for the match's
+// later callbacks and render props (dx/builder.md).
+export type RouteInput = { params?: Validator; searchParams?: Validator };
 
 export type PreloaderContext = Record<string, unknown>;
 
 // What preloader, authorize, and loader receive (dx/types.md). Render does not receive auth. The root's
 // preloader and authorize get no preloaderContext; every later callback does.
-export type StepContext = { auth: unknown; request: Request; env: unknown; preloaderContext?: PreloaderContext };
+export type StepContext = {
+	auth: unknown;
+	request: Request;
+	env: unknown;
+	params: unknown;
+	search: unknown;
+	preloaderContext?: PreloaderContext;
+};
 
 export type ChainAuth = { mode: true | "optional"; callerData: readonly string[] };
 
@@ -76,13 +89,18 @@ type Authorize = (ctx: StepContext) => boolean | Promise<boolean>;
 // A .response() page answers with its own Response. It still passes through finalize (dx/builder.md).
 export type Respond = (ctx: StepContext) => Response | Promise<Response>;
 
-type Head = (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
+type Head = (ctx: {
+	params: unknown;
+	search: unknown;
+	loaderData: unknown;
+	preloaderContext: PreloaderContext;
+}) => HeadConfig;
 
 // A page gets no children. A layout and the root also get the next slot (dx/types.md).
 export type Render = (props: {
 	loaderData: unknown;
-	params: Record<string, string | string[]>;
-	search: Record<string, string | string[]>;
+	params: Located["params"];
+	search: Located["search"];
 	preloaderContext: Record<string, unknown>;
 	children?: JSX.Element;
 }) => JSX.Element;
@@ -93,6 +111,7 @@ export type Intercept = { from: readonly string[]; render: string };
 export type ChainRecord = {
 	intercept?: Intercept;
 	cache?: CacheConfig;
+	input?: RouteInput;
 	auth?: ChainAuth;
 	authorize?: Authorize;
 	effects?: Effects;
@@ -106,6 +125,7 @@ export type ChainRecord = {
 export type Chain = {
 	intercept: (config: Intercept) => Chain;
 	cache: (config: CacheConfig) => Chain;
+	input: (config: RouteInput) => Chain;
 	authenticate: (...callerData: readonly string[]) => Chain;
 	authenticateOptional: (...callerData: readonly string[]) => Chain;
 	authorize: (fn: Authorize) => Chain;
@@ -122,6 +142,7 @@ export type Chain = {
 const ORDER = {
 	intercept: 0,
 	cache: 1,
+	input: 2,
 	authenticate: 3,
 	authenticateOptional: 4,
 	authorize: 5,
@@ -167,6 +188,12 @@ export function createChain(_id: string): Chain {
 			if (MODES.filter((key) => Object.hasOwn(config, key)).length > 1) throw new Error("one cache mode");
 			return put("cache", "cache", config);
 		},
+		input(config) {
+			if (config.params === undefined && config.searchParams === undefined) {
+				throw new Error("input needs params or searchParams");
+			}
+			return put("input", "input", config);
+		},
 		authenticate(...callerData) {
 			if (callerData.includes("optional")) throw new Error("The method is authenticateOptional");
 			return put("authenticate", "auth", { mode: true, callerData });
@@ -191,6 +218,7 @@ export function createChain(_id: string): Chain {
 
 export type Steps<B> = {
 	cache: (config: CacheConfig) => B;
+	input: (config: RouteInput) => B;
 	authenticate: (...callerData: readonly string[]) => B;
 	authenticateOptional: (...callerData: readonly string[]) => B;
 	authorize: (fn: Authorize) => B;
@@ -205,6 +233,10 @@ export function chainSteps<B>(chain: Chain, self: () => B): Steps<B> {
 	return {
 		cache(config) {
 			chain.cache(config);
+			return self();
+		},
+		input(config) {
+			chain.input(config);
 			return self();
 		},
 		authenticate(...callerData) {

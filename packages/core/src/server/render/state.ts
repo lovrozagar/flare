@@ -1,9 +1,10 @@
+import type { Located } from "../../shared/route-builder/index.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 
 export type StateMatch = {
 	id: string;
-	params: Record<string, string | string[]>;
-	search: Record<string, string | string[]>;
+	params: Located["params"];
+	search: Located["search"];
 	data: unknown;
 	preloader: unknown;
 	head: unknown;

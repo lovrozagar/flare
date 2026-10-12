@@ -1,9 +1,10 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { Issue } from "../../shared/validation/issues.ts";
 import { runLoaders, type LoaderRoute, type RunInput } from "./run.ts";
 
 const session = { id: "ada" };
 const issue: Issue = { message: "required", path: ["email"] };
+const rejects = { "~standard": { validate: () => ({ issues: [issue] }) } };
 const boom = new Error("boom");
 
 function noop(): void {}
@@ -30,9 +31,11 @@ async function traced(extra: Partial<RunInput>, authorized = true): Promise<Trac
 	const route: LoaderRoute = {
 		id: "page",
 		auth: { mode: "optional", callerData: [] },
-		validate: () => {
-			seen.push("validate");
-			return undefined;
+		input: {
+			params: (raw) => {
+				seen.push("validate");
+				return raw;
+			},
 		},
 		preloader: () => seen.push("preloader"),
 		authorize: () => {
@@ -211,6 +214,16 @@ it("input failure", async () => {
 	});
 	expect(result.authenticated).toBe(false);
 	expect(result.overlay).toBe(false);
+	// Root-down: a layout's params failure answers before the page's validators run.
+	const later = vi.fn<(raw: unknown) => unknown>((raw) => raw);
+	const routes = [
+		{ id: "_root_", input: { params: rejects } },
+		{ id: "page", input: { params: later, searchParams: later } },
+	];
+	const rooted = await runLoaders(request(routes, { params: { id: "7" } }));
+	expect(rooted.response.status).toBe(400);
+	expect(JSON.parse(await rooted.response.text())).toEqual({ issues: [issue], fieldErrors: { email: ["required"] } });
+	expect(later).not.toHaveBeenCalled();
 });
 
 it("data input", async () => {
@@ -260,7 +273,7 @@ async function fail(kind: RunInput["kind"]): Promise<{
 	let authenticated = false;
 	let overlay = false;
 	const { response } = await runLoaders(
-		request([{ id: "page", auth: { mode: true, callerData: [] }, validate: () => [issue] }], {
+		request([{ id: "page", auth: { mode: true, callerData: [] }, input: { searchParams: rejects } }], {
 			kind,
 			authenticate: () => {
 				authenticated = true;
