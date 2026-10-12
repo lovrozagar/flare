@@ -283,7 +283,7 @@ The file calls `boot` (B70). `beforeAll` reads the project name `<runtime>-<mode
 
 | test | case | result |
 | --- | --- | --- |
-| `createPage alone` | a bundle that imports only `createPage` | the budget row is written in this commit, and the bundle does not contain `client/navigation` |
+| `createPage alone` | a bundle that imports only `createPage` | the budget row is written in this commit, and the bundle does not contain `client/navigation`. The size is what ships: the minified bundle (`bun build --minify`), gzipped, so a checkout path or an identifier name cannot move it. A raise of a budget row comes with `tests/size/breakdown.ts` output (each module's and each step's marginal gzip) in the commit message |
 
 ### `server/render/head.test.ts`
 
