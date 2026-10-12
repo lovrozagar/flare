@@ -7,7 +7,18 @@ import type { Validator } from "../validation/index.ts";
 import type { CacheConfig, HeadConfig, SecurityConfig } from "./types.ts";
 
 // The cache types live in types.ts. These names stay importable from here.
-export type { CacheConfig, CdnCache, ClientCache, PrefetchTrigger, RoutePrefetch, SsrCache } from "./types.ts";
+export type {
+	CacheConfig,
+	CacheTags,
+	CdnCache,
+	ClientCache,
+	IsrCache,
+	ParamsFn,
+	PrefetchTrigger,
+	RoutePrefetch,
+	SsgCache,
+	SsrCache,
+} from "./types.ts";
 
 // `.input()`: each side's validator receives the raw record, and its output replaces that side for the match's
 // later callbacks and render props (dx/builder.md).
