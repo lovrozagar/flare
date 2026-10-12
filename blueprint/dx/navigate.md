@@ -46,7 +46,7 @@ A build-id mismatch and a missing chunk share one document load. `sessionStorage
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `children` | yes | — | one element | that element is rendered. The component adds no wrapper. `scope: "auto"` uses the innermost boundary around the swapped outlet | an empty child (`false`, `null`, `""`) registers nothing. In dev, more than one node, or a node that is not an element, throws. In production that case logs once and registers nothing | `shared/components/view-transition-boundary.test.tsx` `one element`, `empty`, `dev throw`, `scope` |
+| `children` | yes | — | one element | that element is rendered. The component adds no wrapper. `scope: "auto"` uses the innermost boundary around the swapped outlet | an empty child (`false`, `null`, `""`) registers nothing. In dev, more than one node, or a node that is not an element, throws. In production that case registers nothing and logs nothing. The client has no logger (00-rules) | `shared/components/view-transition-boundary.test.tsx` `one element`, `empty`, `dev throw`, `scope` |
 
 No other prop exists. A `name` or `class` prop does not type-check (`view-transition-boundary.test.tsx` `no name`).
 
