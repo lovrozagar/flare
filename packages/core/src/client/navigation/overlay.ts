@@ -52,12 +52,15 @@ export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 	const page = shown.chain[shown.chain.length - 1];
 	const pageMatch = cached[cached.length - 1];
 	const owner = previous.matches[previous.matches.length - 1];
+	const landed = page.id in landing.data;
+	const stored = landed ? undefined : deps.cache.read(pageMatch);
+	const values = (landed ? landing.values?.[page.id] : stored?.values) ?? pageMatch;
 	const overlay: Overlay = {
 		route: page.id,
 		label: shown.intercept.render,
-		data: page.id in landing.data ? landing.data[page.id] : deps.cache.read(pageMatch)?.data,
-		params: pageMatch.params,
-		search: pageMatch.search,
+		data: landed ? landing.data[page.id] : stored?.data,
+		params: values.params,
+		search: values.search,
 		preloader: landing.preloaders?.[page.id] ?? {},
 		location: target.location,
 		background: previous.overlay?.background ?? { ...previous.location, params: owner.params },

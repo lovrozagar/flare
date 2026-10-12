@@ -10,8 +10,12 @@ export type Landed = {
 	failure?: { route: string; status: number; error: Error };
 	// A match's preloader context, when its `l` frame carried `p`.
 	preloaders?: Record<string, Record<string, unknown>>;
+	// A match's `.input()` output, when its `l` frame carried `v`. Without it the raw records apply.
+	values?: Record<string, Values>;
 	redirect?: { status: number; url: string; replace: boolean };
 };
+
+export type Values = { params: unknown; search: unknown };
 
 export type LandOptions = { dev: boolean; send?: (payload: DevErrorPayload) => void };
 
@@ -61,6 +65,9 @@ export async function* framesOf(body: ReadableStream<Uint8Array>): AsyncIterable
 function land(frame: Frame, landed: Landed, context: { slots: Slots; options: LandOptions }): void {
 	if (frame.t === "l") landed.data[frame.m] = withDeferreds(frame.d, frame.m, context.slots);
 	if (frame.t === "l" && isRecord(frame.p)) landed.preloaders = { ...landed.preloaders, [frame.m]: frame.p };
+	if (frame.t === "l" && isRecord(frame.v)) {
+		landed.values = { ...landed.values, [frame.m]: { params: frame.v.params, search: frame.v.search } };
+	}
 	if (frame.t === "h") landed.heads[frame.m] = frame.d;
 	if (frame.t === "e") {
 		// A loader `e` is a bug the dev overlay shows. A deferred `e` reaches it only through errorRender.

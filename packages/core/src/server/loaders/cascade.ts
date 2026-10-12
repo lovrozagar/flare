@@ -7,7 +7,13 @@ export type Settled = { ok: true; data: unknown } | { ok: false; error: unknown 
 
 export type Outcome = { id: string; settled: Settled };
 
-export type DataFrame = { t: "l"; m: string; d: unknown; p?: Record<string, unknown> };
+export type DataFrame = {
+	t: "l";
+	m: string;
+	d: unknown;
+	p?: Record<string, unknown>;
+	v?: { params: unknown; search: unknown };
+};
 
 export type LoaderFrame = DataFrame | { t: "e"; m: string; e: unknown };
 

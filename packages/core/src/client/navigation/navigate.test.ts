@@ -5,7 +5,7 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { createMatchCache } from "../router/match-cache.ts";
-import { useLoaderData } from "../../shared/components/index.ts";
+import { useLoaderData, useSearch } from "../../shared/components/index.ts";
 import { mountNavigator, unmountAll, type Fetch } from "./navigate.fixture.ts";
 import type { Landing, NavigatorDeps } from "./navigate.ts";
 
@@ -22,6 +22,13 @@ const live = createPage("_root_/live").render(() => {
 	const data = useLoaderData({ from: "_root_/live" });
 	return [() => `live:${String(Reflect.get(Object(data), "title"))}`];
 });
+// The client never runs this validator (B8). What it paints comes from the `l` frame's `v`.
+const searched = createPage("_root_/search")
+	.input({ searchParams: (raw) => raw })
+	.render(() => {
+		const search = useSearch({ from: "_root_/search" });
+		return [() => `search:${typeof Reflect.get(Object(search), "page")}`];
+	});
 const tabs = createPage("_root_/tabs/[[tab]]").render((props) => `tabs:${String(props.loaderData)}`);
 const router = createRouter({
 	layouts: { _root_: root, _admin_: root },
@@ -37,6 +44,7 @@ const router = createRouter({
 		{ id: "_root_/broken", path: "/broken", module: () => Promise.reject(new SyntaxError("Unexpected token")) },
 		{ id: "_root_/refetch", path: "/refetch", module: () => Promise.resolve(refetching) },
 		{ id: "_root_/live", path: "/live", module: live },
+		{ id: "_root_/search", path: "/search", module: searched },
 		{ id: "_admin_/panel", path: "/panel", module: about },
 	],
 });
@@ -386,4 +394,27 @@ it("live hook", async () => {
 	flush();
 	expect(app.text()).toBe("root[live:Second]");
 	expect(mounts.live).toBe(mounted);
+});
+
+it("input output", async () => {
+	const output: Frame[] = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/search", d: null, v: { params: {}, search: { page: 2 } } },
+		{ t: "r" },
+	];
+	const homeFrames: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/", d: "home" }, { t: "r" }];
+	const responses = [ndjson(output), ndjson(homeFrames)];
+	const app = await setup(async () => responses.shift() ?? ndjson([{ t: "l", m: "_root_", d: null }, { t: "r" }]), {
+		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
+	});
+	await app.navigator.navigate({ to: "_root_/search", search: { page: "2" } });
+	flush();
+	expect(app.text()).toBe("root[search:number]");
+	// A match without `v` keeps the raw record.
+	expect(app.store.snapshot().matches[0].search).toEqual({ page: "2" });
+	await app.navigator.navigate({ to: "_root_/" });
+	// The page is stale-skipped, so it keeps the `v` its cache entry holds.
+	await app.navigator.navigate({ to: "_root_/search", search: { page: "2" } });
+	flush();
+	expect(app.text()).toBe("root[search:number]");
 });

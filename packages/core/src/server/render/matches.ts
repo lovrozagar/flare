@@ -22,7 +22,8 @@ export function outletMatches(rendered: Rendered): OutletMatch[] {
 		id: entry.id,
 		kind: entry.kind,
 		module: entry.module,
-		...rendered.run.inputs[index],
+		params: rendered.run.inputs[index].params,
+		search: rendered.run.inputs[index].search,
 		data: rendered.run.data[index],
 		preloader: rendered.run.contexts[index] ?? {},
 	}));

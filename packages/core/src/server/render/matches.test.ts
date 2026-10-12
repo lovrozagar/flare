@@ -7,8 +7,8 @@ const users = { id: "_root_/users/[id]/[[tab]]", kind: "page" as const, module: 
 
 // The root kept the raw records. The page's `.input()` replaced both sides.
 const inputs = [
-	{ params: { id: "7" }, search: { q: "a" } },
-	{ params: { id: 7 }, search: { q: ["a"] } },
+	{ params: { id: "7" }, search: { q: "a" }, validated: false },
+	{ params: { id: 7 }, search: { q: ["a"] }, validated: true },
 ];
 
 function run(data: unknown[]): LoaderRun {

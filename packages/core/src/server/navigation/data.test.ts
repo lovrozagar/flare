@@ -13,6 +13,10 @@ const run = {
 	] as const,
 	heads: [{ title: "Root" }, { title: "User" }],
 	contexts: [{}, {}],
+	inputs: [
+		{ params: { id: "7" }, search: {}, validated: false },
+		{ params: { id: "7" }, search: {}, validated: false },
+	],
 };
 
 it("all matches", () => {
@@ -35,6 +39,7 @@ it("skipped head", () => {
 		frames: [run.frames[0], { t: "e", m: "_root_/users/[id]", e: new Error("x") }] as const,
 		heads: [undefined],
 		contexts: [{}],
+		inputs: run.inputs,
 	};
 	expect(dataFrames(failed, new Set())).toEqual({ loaded: failed.frames, heads: [] });
 });
@@ -42,4 +47,12 @@ it("skipped head", () => {
 it("preloader", () => {
 	const carried = { ...run, contexts: [{}, { role: "admin" }] };
 	expect(dataFrames(carried, new Set()).loaded).toEqual([run.frames[0], { ...run.frames[1], p: { role: "admin" } }]);
+});
+
+it("input output", () => {
+	const inputs = [run.inputs[0], { params: { id: 7 }, search: { page: 2 }, validated: true }];
+	expect(dataFrames({ ...run, inputs }, new Set()).loaded).toEqual([
+		run.frames[0],
+		{ ...run.frames[1], v: { params: { id: 7 }, search: { page: 2 } } },
+	]);
 });

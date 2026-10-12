@@ -78,8 +78,8 @@ export type LoaderRun = {
 	data: readonly unknown[];
 	heads: readonly (HeadConfig | undefined)[];
 	contexts: readonly PreloaderContext[];
-	// Each match's params and search, after its `.input()`.
-	inputs: readonly { params: unknown; search: unknown }[];
+	// Each match's params and search, after its `.input()`. `validated` is a match that has one.
+	inputs: readonly { params: unknown; search: unknown; validated: boolean }[];
 	failed?: Failed;
 	class?: PolicyClass;
 	answer?: Response;
@@ -134,7 +134,11 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 		data: result.kept.map((frame) => frame.d),
 		heads,
 		contexts: kept,
-		inputs: input.routes.map((route) => ({ params: route.params, search: route.search })),
+		inputs: input.routes.map((route) => ({
+			params: route.params,
+			search: route.search,
+			validated: route.input !== undefined,
+		})),
 		failed: result.failed,
 		bugs,
 		deferred: outcomes
