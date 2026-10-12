@@ -27,7 +27,10 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `shape` | build `b`, route `home`, params `{ id: "042" }`, policy class `anonymous`, search `?q=1` | `static:b:home:042`. The key has no class segment and no search. Empty params omit the last segment |
 | `catch all` | a catch-all whose segments are `a` and `b` | those segments are joined with `/` inside the raw-params segment |
 | `encode` | a param value containing `/` and `%` | both characters are percent-encoded in the key |
+| `route order` | route `/[a]/[b]` and the record `{ b: "two", a: "one" }`, the order the matcher builds | `static:b:<route>:one/two`. The order comes from the route's declared params, never from the record's key order, so a prerender seed keyed from `params()` and a runtime lookup agree |
+| `absent optional` | route `/[[a]]/static/[[b]]` at `/static/x` and at `/x/static` | two different keys, `…:/x` and `…:x/`. Every declared param keeps its slot. An absent optional is the empty string. Only a route that declares no params omits the segment |
 | `required` | class `required` | throw. There is no key |
+| `build id` | no `FLARE_BUILD_ID` defined, then one defined | `dev`, then the defined id. Bit 12's `flare()` defines it in production |
 | `no callback` | the module's exports | there is no function that accepts an author key |
 
 ### `server/cache/write.test.ts`
@@ -113,7 +116,8 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `key purge` | `revalidate({ keys: [key] })` | a tombstone for that key |
 | `delete writes` | `delete(key)` on a mutable store | a tombstone for that key. The next `get` returns `{ data: { tombstone: true }, storedAt }`, not null |
 | `tag purge` | `revalidate({ tags: ["p"] })` | gets and sets `epoch:p`, a number. `revalidate` does not call `deleteByTags` |
-| `get cost` | a read of an entry with two tags | two store gets plus one per tag, and no list operation |
+| `get cost` | a read of an entry with two tags | one get for the key plus one per tag, so three gets, and no list operation |
+| `epoch newer` | an entry at `storedAt` 100 and its tag's epoch at 100, then at 101 | not purged, then purged. A missing key is a miss, and an entry with no tags is never purged by an epoch |
 
 ### `server/cache/memory.test.ts`
 
@@ -121,6 +125,7 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | --- | --- | --- |
 | `round trip` | put then get | the entry |
 | `isolated` | two stores | a write to one is invisible to the other |
+| `ttl` | `set` with a ttl of 1000 ms | the entry is read until 1000 ms have passed, then the read is a miss |
 
 ### `server/cache/inflight.test.ts`
 
