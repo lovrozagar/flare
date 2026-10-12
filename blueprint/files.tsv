@@ -389,6 +389,8 @@ packages/core/src/vite/codegen/types-gen.ts	P7	src	vite	Write types.gen.d.ts
 packages/core/src/vite/codegen/types-gen.test.ts	P7	test	vite	Unit cases for types-gen.ts
 packages/core/src/vite/codegen/auth-hint.ts	P7	src	vite	Write the hint. The runtime does not read it
 packages/core/src/vite/codegen/auth-hint.test.ts	P7	test	vite	Unit cases for auth-hint.ts
+packages/core/src/vite/codegen/server-fns.ts	P7	src	vite	Write server-fns.gen.ts: every exported createServerFn as a lazy import keyed by its B41 id
+packages/core/src/vite/codegen/server-fns.test.ts	P7	test	vite	Unit cases for server-fns.ts
 packages/core/src/vite/codegen/index.ts	P1	index	vite	Re-exports
 packages/core/src/vite/boundary/allow.ts	P7	src	vite	The B8 allow-list
 packages/core/src/vite/boundary/allow.test.ts	P7	test	vite	Unit cases for allow.ts
