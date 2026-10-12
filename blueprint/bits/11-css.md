@@ -80,6 +80,21 @@ Pseudo-classes and pseudo-elements stay in the output and do not have to be acti
 | `attr` | `[title="x"]` | match only that value |
 | `root` | `:root` | match |
 | `nesting` | `.card { & h2 { color: red } }` and `<div class="card"><h2>` | the nested rule is kept |
+| `host` | `:host`, `:host(.a) p`, `:host-context(.b)`, and `:host, html` | no match, except `html` in the same list |
+| `quoted gt` | `<div data-x="a > b">` and a single-quoted `c>d` | the `>` in a quoted value does not end the tag |
+| `attr ops` | `~=`, `\|=`, `^=`, `$=`, `*=`, `=` unquoted, and the `i` flag | each matches as CSS defines it, and a wrong value does not |
+| `siblings` | `+` and `~` across a comment | `+` is the element just before and `~` any element before, under one parent |
+| `shell` | script, style, and textarea text; void and self-closing elements; a stray end tag; `ctx.present` | none of that text is markup, void elements take no children, and an attribute named in `present` matches whatever its value |
+| `malformed` | an unclosed parenthesis, an unsplittable attribute, a lone combinator, a trailing backslash, `:not` with no argument | none throws. A lone combinator matches nothing |
+
+### `shared/css/shell.test.ts`
+
+Split from `match.ts` at the 300-line limit.
+
+| test | case | result |
+| --- | --- | --- |
+| `tree` | a shell with text, a comment, a script, and nesting | each element knows its parent and its previous element sibling, its classes, and its attributes |
+| `loose markup` | unquoted and empty values, a boolean attribute, and an unterminated comment, doctype, or end tag | the attributes read as written, and the shell ends there |
 
 ### `shared/css/critical.test.ts`
 
