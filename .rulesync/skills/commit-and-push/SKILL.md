@@ -8,4 +8,3 @@ description: >
 Thin alias → `.rulesync/skills/commit-push/SKILL.md`. Must push. Do not load /commit.
 
 Protocol: `.rulesync/reference/cascade.md`. Do not paste cascade.
-

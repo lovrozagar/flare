@@ -3,4 +3,4 @@
 enabled = []
 
 [permission]
-deny = [ "MCPTool" ]
+deny = ["MCPTool"]

@@ -16,4 +16,5 @@ disallowedTools:
 permissionMode: bypassPermissions
 effort: low
 ---
+
 Return isolation facts (≤8 lines, stash receipt when needed). A browse snap is the payload.

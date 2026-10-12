@@ -14,21 +14,21 @@ Default engine: **Lightpanda** (`lightpanda` on PATH). Chromium when a rule belo
 
 ## Verbs
 
-| verb | purpose |
-| --- | --- |
-| `nav <url>` | launch or reuse session; go to URL |
-| `snap` | markdown + numbered AX refs (default read) |
-| `click <ref>` | click a ref from last `snap` |
-| `fill <ref> <text>` | fill a ref from last `snap` |
-| `scroll [ref|down|up|N]` | scroll a snap ref into view, or the window |
-| `wait [ms]` | pause (default 1000, cap 15000) |
-| `hover <ref>` | hover a snap ref |
-| `select <ref> <value>` | set a select/option value |
-| `shot` | screenshot (Chromium paint) |
-| `pdf` | PDF (Chromium paint) |
-| `stop` | reap engine pid; clear session; idempotent |
-| `doctor` | unified prereq doctor (`scripts/doctor.mjs`); alias `ensure` |
-| `ensure` | alias of `doctor` |
+| verb                   | purpose                                                      |
+| ---------------------- | ------------------------------------------------------------ |
+| `nav <url>`            | launch or reuse session; go to URL                           |
+| `snap`                 | markdown + numbered AX refs (default read)                   |
+| `click <ref>`          | click a ref from last `snap`                                 |
+| `fill <ref> <text>`    | fill a ref from last `snap`                                  |
+| `scroll [ref           | down                                                         | up  | N]` | scroll a snap ref into view, or the window |
+| `wait [ms]`            | pause (default 1000, cap 15000)                              |
+| `hover <ref>`          | hover a snap ref                                             |
+| `select <ref> <value>` | set a select/option value                                    |
+| `shot`                 | screenshot (Chromium paint)                                  |
+| `pdf`                  | PDF (Chromium paint)                                         |
+| `stop`                 | reap engine pid; clear session; idempotent                   |
+| `doctor`               | unified prereq doctor (`scripts/doctor.mjs`); alias `ensure` |
+| `ensure`               | alias of `doctor`                                            |
 
 Session + profile + artifacts: `.tmp/grunt/browser/` only.
 

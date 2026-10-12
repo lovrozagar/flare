@@ -38,14 +38,14 @@ Named choice:
 
 ```json
 {
-  "endpoint": {
-    "type": "choice",
-    "instructions": "Which endpoint should the app call?",
-    "criteria": {
-      "typesafe": "Vendor host, path, and key",
-      "other": "A different host, path, or key"
-    }
-  }
+	"endpoint": {
+		"type": "choice",
+		"instructions": "Which endpoint should the app call?",
+		"criteria": {
+			"typesafe": "Vendor host, path, and key",
+			"other": "A different host, path, or key"
+		}
+	}
 }
 ```
 

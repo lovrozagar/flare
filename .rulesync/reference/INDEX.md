@@ -14,38 +14,38 @@ Upgrade copies the current package trees and product scripts, then deletes cumul
 
 # Skills
 
-| name | origin | description | task | commandPath | refs |
-| --- | --- | --- | --- | --- | --- |
-| ask | grunt | Session flag. Finish one step, recap, then ask before the next. |  |  |  |
-| auto | grunt | Session flag. Default. Work the task through. Ask on blockers instead of monkey-patching. |  |  |  |
-| browser | grunt | Browse via node scripts/browser.mjs (Lightpanda). App e2e uses Playwright. |  |  |  |
-| commit | grunt | Inspect the diff and commit with a Conventional Commits subject line. Use for /commit, "commit this", "commit these cha… |  |  |  |
-| commit-and-push | grunt | Alias of commit-push (1-release stub). Use for /commit-and-push, "commit and push", "commit this and push". Must push.… |  |  |  |
-| commit-push | grunt | Commit with a Conventional Commits subject, then push. Use for /commit-push, "commit and push", "commit this and push".… |  |  |  |
-| commit-push-deploy | grunt | Commit, push, then deploy only if allowlisted infra already exists. Use for /commit-push-deploy, "commit push deploy",… |  |  |  |
-| commit-push-release | grunt | Commit, push, bump package.json, tag vX.Y.Z, push the tag. CI publishes. Use for /commit-push-release, "commit push rel… |  |  |  |
-| explain | grunt | Longer human recap this reply only. |  |  |  |
-| handoff | grunt | Write a session handoff under .tmp/grunt/handoffs/. Continue with /pickup. |  |  |  |
-| implement-plan | grunt | Execute remaining leaves in a .tmp/grunt/plans checklist. Skip [x]. |  |  |  |
-| jev | grunt | Yes/no or named-option decision on text already saved. Run node scripts/jev.mjs --available first. On yes, one decision… |  |  |  |
-| pickup | grunt | Continue a handoff under .tmp/grunt/handoffs/. |  |  |  |
-| su | grunt | Short status update: done, next, and blockers or on-track ETA. |  |  |  |
-| tmp | grunt | Dump a one-off convo artifact under .tmp/grunt/. |  |  |  |
-| write-plan | grunt | Write a local checklist under .tmp/grunt/plans/. Then /implement-plan {n}. |  |  |  |
+| name                | origin | description                                                                                                              | task | commandPath | refs |
+| ------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------ | ---- | ----------- | ---- |
+| ask                 | grunt  | Session flag. Finish one step, recap, then ask before the next.                                                          |      |             |      |
+| auto                | grunt  | Session flag. Default. Work the task through. Ask on blockers instead of monkey-patching.                                |      |             |      |
+| browser             | grunt  | Browse via node scripts/browser.mjs (Lightpanda). App e2e uses Playwright.                                               |      |             |      |
+| commit              | grunt  | Inspect the diff and commit with a Conventional Commits subject line. Use for /commit, "commit this", "commit these cha… |      |             |      |
+| commit-and-push     | grunt  | Alias of commit-push (1-release stub). Use for /commit-and-push, "commit and push", "commit this and push". Must push.…  |      |             |      |
+| commit-push         | grunt  | Commit with a Conventional Commits subject, then push. Use for /commit-push, "commit and push", "commit this and push".… |      |             |      |
+| commit-push-deploy  | grunt  | Commit, push, then deploy only if allowlisted infra already exists. Use for /commit-push-deploy, "commit push deploy",…  |      |             |      |
+| commit-push-release | grunt  | Commit, push, bump package.json, tag vX.Y.Z, push the tag. CI publishes. Use for /commit-push-release, "commit push rel… |      |             |      |
+| explain             | grunt  | Longer human recap this reply only.                                                                                      |      |             |      |
+| handoff             | grunt  | Write a session handoff under .tmp/grunt/handoffs/. Continue with /pickup.                                               |      |             |      |
+| implement-plan      | grunt  | Execute remaining leaves in a .tmp/grunt/plans checklist. Skip [x].                                                      |      |             |      |
+| jev                 | grunt  | Yes/no or named-option decision on text already saved. Run node scripts/jev.mjs --available first. On yes, one decision… |      |             |      |
+| pickup              | grunt  | Continue a handoff under .tmp/grunt/handoffs/.                                                                           |      |             |      |
+| su                  | grunt  | Short status update: done, next, and blockers or on-track ETA.                                                           |      |             |      |
+| tmp                 | grunt  | Dump a one-off convo artifact under .tmp/grunt/.                                                                         |      |             |      |
+| write-plan          | grunt  | Write a local checklist under .tmp/grunt/plans/. Then /implement-plan {n}.                                               |      |             |      |
 
 # Refs
 
-| path | title | tags | summary |
-| --- | --- | --- | --- |
-| .rulesync/reference/browser.md | Browser | browser | Zero-config in-tree session rail. Not MCP. Not env. Not raw Playwright. Lightpanda first; swap to Chromium when blocked. |
-| .rulesync/reference/cascade.md | Protocol | cascade | The session agent has tools. Fat Read/Grep/Bash dumps are rewritten to `scripts/grunt-job.mjs` (squeez + stash). Isolat… |
-| .rulesync/reference/hooks.md | Hooks | hooks | SessionStart carries only the folder map: Claude / Codex run `../../scripts/session-map.mjs`, which injects the code-on… |
-| .rulesync/reference/implementation-format.md | Implementation format (SSOT) |  | Local session journal for `/implement-plan`. Not a plan, handoff, or git commit. |
-| .rulesync/reference/jev.md | Jev | jev | Closed external decision. The source text is already saved. The question is a yes/no or a named choice. One call. Not o… |
-| .rulesync/reference/law.md | Law |  | Protocol stays overview; domain fills this. |
-| .rulesync/reference/map.md | Map | map | Cheap outline. Not a file dump. |
-| .rulesync/reference/output.md | Output | output | en-US unless asked. Concise complete sentences with natural grammar. Skip filler and fluff. Examples are a class. |
-| .rulesync/reference/plan-format.md | Plan format (SSOT) |  | Local session checklist. Not a design doc, PR stack, or DAG. |
-| .rulesync/reference/rtk.md | RTK | rtk | Shell stdout compression. PreToolUse: Bash → `rtk <cmd>`. Not Read/Grep/Glob/prompts/images. |
-| .rulesync/reference/scope.md | Scope | scope | Default: do the work. Escalate only when it is not a straight shot. This file is the size-gate SSOT. |
-| .rulesync/reference/setup.md | Setup | setup | Handheld machine setup for optional integrations. Any OS. Secrets stay in `~/.grunt/` (Windows `%USERPROFILE%\.grunt`).… |
+| path                                         | title                        | tags    | summary                                                                                                                  |
+| -------------------------------------------- | ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------ |
+| .rulesync/reference/browser.md               | Browser                      | browser | Zero-config in-tree session rail. Not MCP. Not env. Not raw Playwright. Lightpanda first; swap to Chromium when blocked. |
+| .rulesync/reference/cascade.md               | Protocol                     | cascade | The session agent has tools. Fat Read/Grep/Bash dumps are rewritten to `scripts/grunt-job.mjs` (squeez + stash). Isolat… |
+| .rulesync/reference/hooks.md                 | Hooks                        | hooks   | SessionStart carries only the folder map: Claude / Codex run `../../scripts/session-map.mjs`, which injects the code-on… |
+| .rulesync/reference/implementation-format.md | Implementation format (SSOT) |         | Local session journal for `/implement-plan`. Not a plan, handoff, or git commit.                                         |
+| .rulesync/reference/jev.md                   | Jev                          | jev     | Closed external decision. The source text is already saved. The question is a yes/no or a named choice. One call. Not o… |
+| .rulesync/reference/law.md                   | Law                          |         | Protocol stays overview; domain fills this.                                                                              |
+| .rulesync/reference/map.md                   | Map                          | map     | Cheap outline. Not a file dump.                                                                                          |
+| .rulesync/reference/output.md                | Output                       | output  | en-US unless asked. Concise complete sentences with natural grammar. Skip filler and fluff. Examples are a class.        |
+| .rulesync/reference/plan-format.md           | Plan format (SSOT)           |         | Local session checklist. Not a design doc, PR stack, or DAG.                                                             |
+| .rulesync/reference/rtk.md                   | RTK                          | rtk     | Shell stdout compression. PreToolUse: Bash → `rtk <cmd>`. Not Read/Grep/Glob/prompts/images.                             |
+| .rulesync/reference/scope.md                 | Scope                        | scope   | Default: do the work. Escalate only when it is not a straight shot. This file is the size-gate SSOT.                     |
+| .rulesync/reference/setup.md                 | Setup                        | setup   | Handheld machine setup for optional integrations. Any OS. Secrets stay in `~/.grunt/` (Windows `%USERPROFILE%\.grunt`).… |

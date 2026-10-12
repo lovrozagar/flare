@@ -1,7 +1,8 @@
 ---
 name: su
-description: 'Short status update: done, next, and blockers or on-track ETA.'
+description: "Short status update: done, next, and blockers or on-track ETA."
 ---
+
 This reply only: a status update in two to four short lines. No process narration.
 
 - Done: what is finished. Flag anything unverified.

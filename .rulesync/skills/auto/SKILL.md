@@ -2,6 +2,7 @@
 name: auto
 description: "Session flag. Default. Work the task through. Ask on blockers instead of monkey-patching."
 ---
+
 # auto
 
 Session flag. Default. Slash `/auto` unlinks any `/ask` stamp on this session.
