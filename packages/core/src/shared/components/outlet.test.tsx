@@ -12,6 +12,7 @@ import {
 	type ChainEntry,
 	type RouteModule,
 } from "../router/create-router.ts";
+import { NavigateContext, type NavigateTo } from "../router/context.ts";
 import { Matches, Outlet, type OutletMatch, type OutletState } from "./outlet.tsx";
 
 const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
@@ -212,4 +213,39 @@ it("uncaught throw", () => {
 	const host = mount(() => ({ matches, onBoundaryError: (error) => reported.push(error) }));
 	expect(host.innerHTML).toBe("root[layout[<div>Something went wrong</div>]]");
 	expect(reported).toEqual(["not an error"]);
+});
+
+it("reset wired", () => {
+	const resets: (() => void)[] = [];
+	const own = createPage("_root_/users/[id]/posts")
+		.render(() => "page")
+		.errorRender((props) => {
+			resets.push(props.reset);
+			return "failed";
+		});
+	const matches = chain(layout, own).map((match) => ({ ...match, search: { tab: "a" } }));
+	const navigate = vi.fn<(options: NavigateTo) => Promise<void>>(async () => undefined);
+	const host = document.createElement("div");
+	render(
+		() =>
+			createComponent(NavigateContext, {
+				value: navigate,
+				get children() {
+					return createComponent(Matches, { state: failing(matches, 2, 500) });
+				},
+			}),
+		host,
+	);
+	flush();
+	expect(host.textContent).toBe("root[layout[failed]]");
+	resets[0]();
+	expect(navigate).toHaveBeenCalledExactlyOnceWith({
+		to: "_root_/users/[id]/posts",
+		params: { id: "P" },
+		search: { tab: "a" },
+		replace: true,
+		revalidate: true,
+	});
+	mount(failing(matches, 2, 500));
+	expect(() => resets[1]()).not.toThrow();
 });

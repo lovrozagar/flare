@@ -2,7 +2,8 @@ import { createComponent, createContext, createMemo, Errored, untrack, useContex
 import { Dynamic, isServer, type JSX } from "@solidjs/web";
 import type { ChainRecord } from "../route-builder/chain.ts";
 import type { BoundaryRecord, Located, NotFoundRender } from "../route-builder/index.ts";
-import { boundaryAt, boundaryFallback, boundaryKind } from "./boundary.ts";
+import { NavigateContext } from "../router/context.ts";
+import { boundaryAt, boundaryFallback, boundaryKind, boundaryReset } from "./boundary.ts";
 
 export type OutletMatch = Located & {
 	id: string;
@@ -108,6 +109,7 @@ function guard(state: () => OutletState, depth: number, content: () => JSX.Eleme
 // paints the failed slot with its own route's params and search (B77).
 function paintFailure(state: OutletState, failure: NonNullable<OutletState["failure"]>): JSX.Element {
 	const kind = boundaryKind(failure.status);
+	const reset = resetOf(state);
 	const slots = state.matches.map((match) => ({ kind: match.kind, module: match.module.boundaries ?? NONE }));
 	for (let from = failure.index; ;) {
 		const at = boundaryAt(slots, from, failure.status);
@@ -115,12 +117,20 @@ function paintFailure(state: OutletState, failure: NonNullable<OutletState["fail
 		if (at === null || paint === undefined) return builtin(failure.status);
 		const owner = state.matches[at];
 		try {
-			return paint({ error: failure.error, params: owner.params, search: owner.search });
+			return paint({ error: failure.error, reset, params: owner.params, search: owner.search });
 		} catch (error) {
 			state.onBoundaryError(error);
 			from = at - 1;
 		}
 	}
+}
+
+// The browser's navigator revalidates the page on screen. The server has none, and a render never calls it.
+function resetOf(state: OutletState): () => void {
+	const navigate = useContext(NavigateContext);
+	const page = state.matches[state.matches.length - 1];
+	if (navigate === null) return () => undefined;
+	return boundaryReset(navigate, () => ({ to: page.id, params: page.params, search: page.search }));
 }
 
 function builtin(status: number): JSX.Element {
