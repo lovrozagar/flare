@@ -10,7 +10,7 @@ Creates every `P6` row. Document responses stay HTML. `_flare=data` and `_flare=
 
 `src/exports/index.ts` re-exports `useNavigationProgress`.
 
-`tests/integration/nonce.test.ts` gains `client head`: after a client navigation, a new inline head script carries `self.flare.nonce`. It also gains `view transition`: `ViewTransitionCSS` carries that same nonce.
+`tests/integration/nonce-client.test.tsx` holds `client head`: after a client navigation, a new inline head script carries `self.flare.nonce`. It runs in the dom project, because the server cannot run there and the client head cannot run in node. `tests/integration/nonce.test.ts` gains `view transition`: `ViewTransitionCSS` carries the CSP header nonce. A document response is `content-type: text/html; charset=utf-8`, and a data response stays NDJSON (`tests/integration/navigation.test.ts` `document is html`, `data is ndjson`). A document had no content type before this test.
 
 `server/loaders/hints.test.ts` is now also reached through `internal-params` rather than only by a direct call.
 

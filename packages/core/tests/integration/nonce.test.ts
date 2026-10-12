@@ -3,6 +3,7 @@ import { Dynamic } from "@solidjs/web";
 import { expect, it } from "vitest";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import type { SecurityConfig } from "../../src/server/security/apply.ts";
+import { ViewTransitionCSS } from "../../src/shared/components/index.ts";
 import { nonce } from "../../src/shared/csp/nonce.ts";
 import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
@@ -155,4 +156,10 @@ it("false omits", async () => {
 	expect(response.headers.get("content-security-policy")).toBeNull();
 	expect(body).not.toContain("nonce=");
 	expect(body).toContain("NONCE[]");
+});
+
+it("view transition", async () => {
+	const response = await document(() => createComponent(ViewTransitionCSS, {}));
+	const body = await response.text();
+	expect(capture(body, /<style[^>]*nonce="([^"]+)"[^>]*>@view-transition/)).toBe(headerNonce(response.headers));
 });

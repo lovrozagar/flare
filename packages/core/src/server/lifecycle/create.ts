@@ -24,6 +24,8 @@ import { finalize, type StageResult } from "./finalize.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
 
+const HTML = "text/html; charset=utf-8";
+
 export type { FlareServer, ServerOptions } from "./options.ts";
 
 type Secured = { headers: Headers; nonce: string };
@@ -150,9 +152,14 @@ async function data(exchange: Exchange, matched: Loaded): Promise<Response> {
 }
 
 function stage(exchange: Exchange, body: BodyInit, status: number): StageResult {
+	return { status, body, headers: typed(exchange, NDJSON), url: exchange.request.url };
+}
+
+// The request's headers with the body's media type. A document is HTML, a data response NDJSON.
+function typed(exchange: Exchange, type: string): Headers {
 	const headers = new Headers(exchange.secured.headers);
-	headers.set("content-type", NDJSON);
-	return { status, body, headers, url: exchange.request.url };
+	headers.set("content-type", type);
+	return headers;
 }
 
 // The answer still passes through finalize, and the request's security set wins over its headers. A node
@@ -230,7 +237,7 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 		return renderFailed(exchange, projectError(thrown, exchange.sink));
 	}
 	const url = exchange.request.url;
-	return finalize({ status, body, render: "ssr", url, headers: exchange.secured.headers });
+	return finalize({ status, body, render: "ssr", url, headers: typed(exchange, HTML) });
 }
 
 // The stream rejected before the shell, so nothing was written (B93). Only a dev bug shows its message and
@@ -238,7 +245,7 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 function renderFailed(exchange: Exchange, projected: Projected): Response {
 	const stack = projected.wire.stack;
 	const body = stack === undefined ? "" : `<pre>${escape(`${projected.wire.message}\n${stack}`)}</pre>`;
-	return finalize({ status: projected.status, body, url: exchange.request.url, headers: exchange.secured.headers });
+	return finalize({ status: projected.status, body, url: exchange.request.url, headers: typed(exchange, HTML) });
 }
 
 async function bare(exchange: Exchange, run: LoaderRun): Promise<Response> {
