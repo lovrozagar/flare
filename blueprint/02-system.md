@@ -64,7 +64,7 @@ Flare does not depend on `@solidjs/diagnostics` and does not enable attribution.
 The adapter has already rejected a malformed request target and attached `clientIp`, `secure`, and `resolvedOrigin`. Then, in this order, and no other:
 
 1. **Internal params.** Read `_flare` and `_flare_stale`. Delete them from the URL. Classify `document`, `data`, or `prefetch`. A bad `_flare` value is 400.
-2. **Canonical path.** Compute it. A hostile path is 400. A non-canonical safe path is 301 or 308 (B22). `Location` is the canonical pathname plus the query that remains after step 1. The request has no hash, and none is added. Later stages see only the canonical path. A request that passes this step runs `serverContext` once, before mounts, when that option is set (B75).
+2. **Canonical path.** Compute it. A hostile path is 400. A non-canonical safe path is 301 for GET and HEAD and 308 for every other method (B22). A `/_flare/fn/` path is exempt from the trailing-slash and case redirects, so a server-function POST is never redirected; a hostile one is still 400 (`server/lifecycle/canonical-redirect.test.ts` `method kept`, `fn path exempt`). `Location` is the canonical pathname plus the query that remains after step 1. The request has no hash, and none is added. Later stages see only the canonical path. A request that passes this step runs `serverContext` once, before mounts, when that option is set (B75).
 3. **Mounts.** A matching mount handles the request. Its response still passes through finalize.
 4. **Rewrite.** Optional `createServer({ rewrite })`. The replacement path is canonicalized again. A rewrite that does not terminate in one step is 500.
 5. **Locale.** `createServer({ locale })`, if set (B55).

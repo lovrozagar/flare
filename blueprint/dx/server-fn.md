@@ -48,7 +48,7 @@ The client type of `.stream()` returns `AsyncIterable<TChunk>`, the yielded valu
 
 There is no `.authenticateOptional`. Skipping `.authenticate()` types `ctx.auth` as `null`. `.authenticate()` takes no arguments and types `ctx.auth` as the registered session. Until the app augments `auth`, that session type is `null`.
 
-Calling the client function during a component or route render type-checks. The stub throws at runtime for that direct call. `queryFn` is not that call (B85).
+Calling the client function during a component or route render type-checks. The stub throws at runtime for that direct call. `queryFn` is not that call (B85). The guard is an owned, untracked call: an owner exists and no reactive observer is running, which is a component or route body. A call inside a `createMemo` or an effect compute, an event handler, an effect callback, or async code after an `await` does not throw. Solid offers no public way to tell an `onSettled` callback from a render body, so a direct call there throws too; call it after an `await`, or from an event or `queryFn` (`dispatch.test.ts` `client stub`, `memo call`, `on settled`).
 
 The cases are `propagation.test.ts` (`server fn input`, `server fn input void`, `server fn return`, `server fn stream`, `server fn no optional`, `server fn auth null`, `server fn auth required`, `server fn render call`).
 
