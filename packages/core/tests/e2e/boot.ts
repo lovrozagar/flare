@@ -45,7 +45,8 @@ const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", impo
 function bootChild(appDir: string, cacheDir: string): Promise<Boot> {
 	const child = spawn(viteBin, ["--host", "127.0.0.1", "--port", "0"], {
 		cwd: appDir,
-		env: { ...process.env, FLARE_VITE_CACHE: cacheDir },
+		// Playwright sets FORCE_COLOR. A colored URL would never match readOrigin, and NO_COLOR wins over it.
+		env: { ...process.env, FLARE_VITE_CACHE: cacheDir, NO_COLOR: "1" },
 		stdio: ["ignore", "pipe", "pipe"],
 	});
 	const origin = readOrigin(child);
