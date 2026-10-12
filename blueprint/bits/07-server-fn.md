@@ -188,7 +188,7 @@ Run against oxc, not a regex.
 
 ### `vite/boundary/split.test.ts`
 
-`splitClient(file, source)` parses once and returns `{ code, map }`, or undefined when nothing changed. A name counts as read only when an identifier in reference position has it, outside every import and every removed span. A member property, a non-computed key, a JSX attribute name, a label, a declared binding, and the exported side of a renamed export specifier are not reads, so a module only removed code reads leaves the client graph. A local that shadows the import and reads it still keeps the import. A bare `import "x"` and an `import type` stay. `vite/route-meta/index.ts` is born here, and `extract.ts` gains `serverFnsOf(file, program)` so the transform does not parse twice.
+`splitClient(file, source)` parses once and returns `{ code, map }`, or undefined when nothing changed. A name counts as read only when an identifier in reference position has it, outside every import and every removed span. A member property, a non-computed key, a JSX attribute name, a label, a declared binding, and the exported side of a renamed export specifier are not reads, so a module only removed code reads leaves the client graph. The walk is exact: `vite/boundary/reads.ts` resolves each reference through function, arrow, block, catch, class, `for`, and `switch` scopes. `var` and a parameter belong to the nearest function, `let`, `const`, a class, an enum, and a function declaration to their block, and a named function or class expression's name to itself. A reference reads the import only when the nearest scope declaring its name is the module. A bare `import "x"` and an `import type` stay. `vite/route-meta/index.ts` is born here, and `extract.ts` gains `serverFnsOf(file, program)` so the transform does not parse twice.
 
 | test | case | result |
 | --- | --- | --- |
@@ -201,9 +201,13 @@ Run against oxc, not a regex.
 | `source map` | a loader cut above a render that throws | the generated line maps back to the throw's original line and column (`magic-string`, `hires`) |
 | `member property` | the loader reads `db`; the render has `p.loaderData.db` and `<ui.db />` | the `db` import is removed |
 | `object key` | the loader reads `db`; the render has `({ db: 1 }).db`, a class field and method named `db`, a type literal key, a label, and `import.meta` | the import is removed |
-| `declaration` | the loader reads `db`; the render declares `db` as a class, a catch parameter, a pattern binding, a parameter property, or names it in `ns.db` or `continue db` | the import is removed. A local that shadows the import and then reads it still keeps the import |
+| `declaration` | the loader reads `db`; the render declares `db` as a class, a catch parameter, a pattern binding, a parameter property, or names it in `ns.db` or `continue db` | the import is removed |
 | `jsx attribute` | the loader reads `db`; the render has `<div db="1" />` and `<svg db:x="1" />` | the import is removed |
 | `real read` | the render reads `db.name`, `({ db })`, `<db.Panel />`, `p[db]`, `({ [db]: 1 })`, `<C x={db} />`, or the module has `export { db }` | the import stays. `export { other as db }` is not a read |
+| `shadowed param` | the loader reads `db`; the render has `[1].map((db) => db)` or a function expression named `db` that reads itself | the import is removed |
+| `shadowed block` | the loader reads `db`; the render reads a block `const db`, a `for (const db of ...)`, or a `catch (db)` inside its own scope | the import is removed |
+| `hoisted var` | the loader reads `db`; the render has `function f() { db; var db; }` or a hoisted function declaration `db` read above it | the import is removed |
+| `outer read` | the render reads `db.name` beside an unrelated local, or reads `db` after a block whose own `const db` or `function db` ended | the import stays |
 
 ### `vite/boundary/tripwire.test.ts`
 

@@ -394,6 +394,8 @@ packages/core/src/vite/boundary/allow.ts	P7	src	vite	The B8 allow-list
 packages/core/src/vite/boundary/allow.test.ts	P7	test	vite	Unit cases for allow.ts
 packages/core/src/vite/boundary/split.ts	P7	src	vite	Remove stripped methods and the imports that become unused
 packages/core/src/vite/boundary/split.test.ts	P7	test	vite	Unit cases for split.ts
+packages/core/src/vite/boundary/reads.ts	P7	src	vite	Which module-scope names kept code reads: references only, resolved through function, block, catch, class, for, and switch scopes
+packages/core/src/vite/boundary/reads.test.ts	P7	test	vite	Unit cases for reads.ts
 packages/core/src/vite/boundary/env.ts	P7	src	vite	oxc rewrite of createServerOnlyFn, createClientOnlyFn, and createIsomorphicFn
 packages/core/src/vite/boundary/env.test.ts	P7	test	vite	Unit cases for env.ts
 packages/core/src/vite/boundary/tripwire.ts	P7	src	vite	Fail the build when an emitted chunk contains a server body or an env helper body that belongs in another graph

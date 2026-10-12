@@ -188,3 +188,27 @@ export const route = createPage("_root_/a").loader(() => db.read()).render(() =>
 `;
 	expect(split(renamed)).not.toContain("db.server");
 });
+
+it("shadowed param", () => {
+	expect(mentions("[1].map((db) => db)")).not.toContain("db.server");
+	expect(mentions("[1].map(function db() { return db; })")).not.toContain("db.server");
+});
+
+it("shadowed block", () => {
+	expect(mentions("(() => { { const db = 1; return db; } })()")).not.toContain("db.server");
+	expect(mentions("(() => { for (const db of []) db; try {} catch (db) { db; } return 1; })()")).not.toContain(
+		"db.server",
+	);
+});
+
+it("hoisted var", () => {
+	expect(mentions("(() => { function f() { db; var db; } return f; })()")).not.toContain("db.server");
+	expect(mentions("(() => { if (p) { db(); } function db() {} })()")).not.toContain("db.server");
+});
+
+it("outer read", () => {
+	expect(mentions("(() => { const x = 1; return db.name; })()")).toContain('import { db } from "./db.server.ts";');
+	// A block's own declaration does not reach a read outside it.
+	expect(mentions("(() => { { const db = 1; } return db; })()")).toContain('import { db } from "./db.server.ts";');
+	expect(mentions("(() => { { function db() {} } return db; })()")).toContain('import { db } from "./db.server.ts";');
+});
