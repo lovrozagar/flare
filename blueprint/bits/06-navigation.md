@@ -146,6 +146,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `hash move` | `navigate` to the current page with only a new `hash` | no fetch. The URL and the store's location take the hash |
 | `visit` | `visit(url, replace)`, the entry an `x` frame and a popstate use | the URL is resolved by `resolveUrl`, fetched, and committed |
 | `stale param` | a page cached fresh is the target again | the fetch URL carries `_flare_stale` with that page's match id |
+| `search keyed` | one page at two searches, then the first again | each search is cached under its own match id (raw params plus raw search, B31), and the fresh one is listed in `_flare_stale` |
 | `document load` | the target is under another root layout | `assign` the URL, and no data request |
 | `blocked` | the last blocker returns `false` | no fetch and no history write |
 | `chunk import` | the target's lazy module rejects with a chunk message | one guarded document load of the target URL, and no commit |
@@ -241,6 +242,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `one step` | back one entry | one data fetch |
 | `skipped entries` | a popstate whose index delta is 3 | three fetches, in order |
 | `unknown entries` | a jump over entries this document did not write | only the URL the browser now shows is restored. A popstate with no Flare index is ignored |
+| `save on pop` | `y=400` on the entry being left, back, then forward | the position is saved under that entry's index before the index moves (B84), so forward restores 400 |
 
 ### `client/navigation/prefetch.test.ts`
 

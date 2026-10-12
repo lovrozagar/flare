@@ -81,6 +81,7 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	const pop = createPopstate({
 		history,
 		restore: navigator.restore,
+		save: (index) => scroll.save(index, store.snapshot().location),
 		current: here,
 	});
 	window.addEventListener("popstate", (event) => void pop(event.state));

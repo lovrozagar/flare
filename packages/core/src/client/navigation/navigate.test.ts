@@ -347,6 +347,23 @@ it("stale param", async () => {
 	expect(app.deps.fetch).toHaveBeenLastCalledWith("/about?_flare=data&_flare_stale=%26", expect.anything());
 });
 
+it("search keyed", async () => {
+	const app = await setup(async () => ndjson(aboutFrames), {
+		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
+	});
+	await app.navigator.navigate({ to: "_root_/about", search: { page: "1" } });
+	await app.navigator.navigate({ to: "_root_/about", search: { page: "2" } });
+	const cached = (search: string) =>
+		app.deps.cache.read({ route: "_root_/about", id: `&page=${search}`, layout: false, params: {}, search: {} });
+	expect(cached("1")?.data).toBe("fresh");
+	expect(cached("2")?.data).toBe("fresh");
+	await app.navigator.navigate({ to: "_root_/about", search: { page: "1" } });
+	expect(app.deps.fetch).toHaveBeenLastCalledWith(
+		"/about?page=1&_flare=data&_flare_stale=%26page%3D1",
+		expect.anything(),
+	);
+});
+
 it("document load", async () => {
 	const app = await setup(async () => ndjson(aboutFrames));
 	await app.navigator.navigate({ to: "_admin_/panel" });

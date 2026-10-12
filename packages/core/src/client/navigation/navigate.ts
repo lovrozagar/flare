@@ -6,7 +6,7 @@ import { matchId } from "../../shared/route-tree/index.ts";
 import { loadChain, type LoadedEntry, type Router } from "../../shared/router/create-router.ts";
 import { readSearch, type Location } from "../../shared/url/index.ts";
 import type { FlareHistory } from "../history/index.ts";
-import type { MatchCache } from "../router/match-cache.ts";
+import type { CachedMatch, MatchCache } from "../router/match-cache.ts";
 import type { RouterStore, StoreSnapshot } from "../router/store.ts";
 import type { Blockers } from "./blocker.ts";
 import { framesOf, landFrames, type Landed } from "./frames.ts";
@@ -141,16 +141,7 @@ function holds(data: Record<string, unknown>): boolean {
 
 // The page ids the client holds fresh ride along as _flare_stale, so the server skips those loaders (B30).
 function dataUrl(deps: NavigatorDeps, trip: Trip): string {
-	const params = defined(trip.target.match.params);
-	const search = readSearch(trip.target.location.search);
-	const id = matchId(params, trip.target.location.search.slice(1));
-	const matches = trip.target.match.chain.map((entry) => ({
-		route: entry.id,
-		id,
-		layout: entry.kind === "layout",
-		params,
-		search,
-	}));
+	const matches = cachedMatches(trip.target);
 	const current = deps.store.snapshot().location;
 	const plan = deps.cache.plan({
 		matches,
@@ -188,8 +179,16 @@ function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 			? statusFailure(next.arrival.status, matches.length - 1)
 			: landedFailure(landing, matches);
 	if (failure !== undefined) snapshot.failure = failure;
-	remember(deps, matches, landing);
+	remember(deps, cachedMatches(next.target), landing);
 	return snapshot;
+}
+
+// The cache and the stale plan key a match alike: raw params plus the raw search (B31).
+function cachedMatches(target: DataTarget): CachedMatch[] {
+	const params = defined(target.match.params);
+	const search = readSearch(target.location.search);
+	const id = matchId(params, target.location.search.slice(1));
+	return target.match.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind === "layout", params, search }));
 }
 
 function statusFailure(status: number, index: number): StoreSnapshot["failure"] {
@@ -210,18 +209,11 @@ function landedFailure(landing: Landing, matches: readonly OutletMatch[]): Store
 }
 
 // Only successful `l` payloads are cached. A failed match is evicted (match-cache.ts).
-function remember(deps: NavigatorDeps, matches: readonly OutletMatch[], landing: Landing): void {
+function remember(deps: NavigatorDeps, matches: readonly CachedMatch[], landing: Landing): void {
 	for (const match of matches) {
-		const cached = {
-			route: match.id,
-			id: matchId(match.params, ""),
-			layout: match.kind === "layout",
-			params: match.params,
-			search: match.search,
-		};
-		if (landing.failure?.route === match.id) deps.cache.evict(cached);
-		else if (match.id in landing.data)
-			deps.cache.store(cached, { data: landing.data[match.id], deferred: holds({ d: landing.data[match.id] }) });
+		const data = landing.data[match.route];
+		if (landing.failure?.route === match.route) deps.cache.evict(match);
+		else if (match.route in landing.data) deps.cache.store(match, { data, deferred: holds({ d: data }) });
 	}
 }
 
