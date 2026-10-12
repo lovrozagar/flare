@@ -1,31 +1,10 @@
 import { escapeAttr } from "./escape.ts";
+import type { HeadConfig, HeadScript, SeoImage } from "../../shared/route-builder/types.ts";
 
-export type SeoImage = { url: string; alt?: string; width?: number; height?: number; type?: string };
-type Script = { src?: string; children?: string; async?: boolean; extra?: Record<string, string> };
+// The route .head() result. The type lives beside the builder that returns it.
+export type Head = HeadConfig;
+
 type Media = { url: string; type?: string; secureUrl?: string; width?: number; height?: number };
-type Bag = Record<string, unknown>;
-
-export type Head = {
-	title?: string;
-	description?: string;
-	canonical?: string;
-	keywords?: string;
-	css?: string | readonly string[];
-	languages?: Record<string, string>;
-	jsonLd?: ReadonlyArray<Record<string, unknown>>;
-	images?: readonly SeoImage[];
-	favicons?: Record<string, string>;
-	robots?: Bag;
-	openGraph?: Bag;
-	twitter?: Bag;
-	meta?: Bag & { viewport?: string | false };
-	custom?: {
-		links?: ReadonlyArray<Record<string, string>>;
-		meta?: ReadonlyArray<Record<string, string>>;
-		scripts?: readonly Script[];
-		styles?: ReadonlyArray<{ children: string }>;
-	};
-};
 
 export type HeadOptions = { nonce?: string; appStylesheet?: string };
 
@@ -262,7 +241,7 @@ function customTags(custom: Head["custom"], nonce: string | undefined): string {
 	].join("");
 }
 
-function scriptTag(script: Script, nonce: string | undefined): string {
+function scriptTag(script: HeadScript, nonce: string | undefined): string {
 	if (script.src !== undefined && script.children !== undefined) throw new Error("src and children");
 	if (script.src !== undefined) {
 		const asyncAttr = script.async ? " async" : "";

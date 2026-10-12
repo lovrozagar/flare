@@ -1,15 +1,23 @@
 import { getRequestEvent } from "@solidjs/web";
 import { expect, it } from "vitest";
 import type { FlareRegister } from "../../shared/route-builder/register.ts";
-import { createRouter } from "../../shared/router/create-router.ts";
+import { createPage } from "../../shared/route-builder/page.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter, type Router } from "../../shared/router/create-router.ts";
 import { createServer } from "../lifecycle/create.ts";
 import { serverCtx, withServerContext } from "./ctx.ts";
 
 type ContextApp = FlareRegister & { serverContext: { requestId: string } };
 
 const request = new Request("http://localhost/");
-const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: {} }] });
-const page = { id: "_root_", loader: () => ({ sentinel: "Home" }) };
+function routerWith(loader: () => string): Router {
+	return createRouter({
+		layouts: { _root_: createRootLayout("_root_").render(() => "") },
+		routeTree: [{ id: "_root_", path: "/", module: createPage("_root_").loader(loader).render(() => "") }],
+	});
+}
+
+const router = routerWith(() => "Home");
 
 function unreachable(): never {
 	throw new Error("serverContext did not throw");
@@ -46,7 +54,6 @@ it("redirect skips", async () => {
 	const calls: string[] = [];
 	const server = createServer({
 		router,
-		page,
 		serverContext: ({ request: seen }) => {
 			calls.push(new URL(seen.url).pathname);
 			return {};
@@ -64,8 +71,8 @@ it("redirect skips", async () => {
 
 it("required", () => {
 	// @ts-expect-error FlareRegister declares serverContext, so the option is required
-	const missing = createServer<ContextApp>({ router, page });
-	const given = createServer<ContextApp>({ router, page, serverContext: () => ({ requestId: "r1" }) });
+	const missing = createServer<ContextApp>({ router });
+	const given = createServer<ContextApp>({ router, serverContext: () => ({ requestId: "r1" }) });
 	expect(typeof missing.fetch).toBe("function");
 	expect(typeof given.fetch).toBe("function");
 });
@@ -73,14 +80,10 @@ it("required", () => {
 it("throw is 500", async () => {
 	let loaded = false;
 	const server = createServer({
-		router,
-		page: {
-			id: "_root_",
-			loader: () => {
-				loaded = true;
-				return { sentinel: "Home" };
-			},
-		},
+		router: routerWith(() => {
+			loaded = true;
+			return "Home";
+		}),
 		serverContext: () => {
 			throw new Error("ctx boom");
 		},

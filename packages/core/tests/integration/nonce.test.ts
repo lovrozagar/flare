@@ -1,8 +1,10 @@
 import { createComponent, type Element } from "solid-js";
 import { expect, it } from "vitest";
-import { createServer, type ServerPage } from "../../src/server/lifecycle/create.ts";
+import { createServer } from "../../src/server/lifecycle/create.ts";
 import type { SecurityConfig } from "../../src/server/security/apply.ts";
 import { nonce } from "../../src/shared/csp/nonce.ts";
+import { createPage } from "../../src/shared/route-builder/page.ts";
+import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import { createRouter, type Router } from "../../src/shared/router/create-router.ts";
 import type { Head } from "../../src/server/render/head.ts";
 
@@ -13,8 +15,6 @@ const head: Head = {
 		styles: [{ children: "a{}" }],
 	},
 };
-
-const router: Router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: {} }] });
 
 function printed(): string {
 	return `NONCE[${nonce()}]`;
@@ -32,15 +32,21 @@ function Page(): Element {
 	return createComponent(Child, {});
 }
 
-function page(render: ServerPage["render"]): ServerPage {
-	return { id: "_root_", loader: () => ({ sentinel: "Home" }), head, render };
+type Render = () => Element;
+
+function router(render: Render): Router {
+	const page = createPage("_root_")
+		.loader(() => "Home")
+		.head(() => head)
+		.render(render);
+	return createRouter({
+		layouts: { _root_: createRootLayout("_root_").render(() => "") },
+		routeTree: [{ id: "_root_", path: "/", module: page }],
+	});
 }
 
-function server(
-	render: ServerPage["render"],
-	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig),
-) {
-	return createServer({ router, page: page(render), security });
+function server(render: Render, security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig)) {
+	return createServer({ router: router(render), security });
 }
 
 function headerNonce(headers: Headers): string {
@@ -67,7 +73,7 @@ function tagNonces(body: string): { script: string; json: string; style: string 
 }
 
 async function document(
-	render: ServerPage["render"],
+	render: Render,
 	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig),
 ): Promise<Response> {
 	return server(render, security).fetch(new Request("http://localhost/"));

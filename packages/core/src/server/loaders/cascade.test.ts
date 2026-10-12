@@ -21,13 +21,18 @@ async function spied(
 	let pageRan = false;
 	const run = await runLoaders({
 		kind,
+		request: new Request("http://localhost/"),
+		env: {},
 		authenticate: () => null,
 		overlay: (error) => overlay.push(error),
 		routes: [
 			{
 				id: "layout",
 				loader: layout,
-				head: () => finished.push("layout head"),
+				head: () => {
+					finished.push("layout head");
+					return {};
+				},
 				headers: () => finished.push("layout headers"),
 			},
 			{
@@ -36,7 +41,10 @@ async function spied(
 					pageRan = true;
 					return page?.(ctx);
 				},
-				head: () => finished.push("page head"),
+				head: () => {
+					finished.push("page head");
+					return {};
+				},
 				headers: () => finished.push("page headers"),
 			},
 		],

@@ -3,10 +3,18 @@ import net from "node:net";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createNodeListener } from "../../src/adapters/node/listener.ts";
 import { createServer } from "../../src/server/lifecycle/create.ts";
+import { createPage } from "../../src/shared/route-builder/page.ts";
+import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import { createRouter } from "../../src/shared/router/create-router.ts";
 
-const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: {} }] });
-const app = createServer({ router, page: { id: "_root_", loader: () => ({ sentinel: "Home" }) } });
+const home = createPage("_root_")
+	.loader(() => "Home")
+	.render((props) => String(props.loaderData));
+const router = createRouter({
+	layouts: { _root_: createRootLayout("_root_").render(() => "") },
+	routeTree: [{ id: "_root_", path: "/", module: home }],
+});
+const app = createServer({ router });
 let fetches = 0;
 const listener = createNodeListener({
 	fetch(request) {

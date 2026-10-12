@@ -1,7 +1,9 @@
-export type AuthModule = {
-	authenticate?: true;
-	authenticateOptional?: true;
-	authorize?: true;
+import type { ChainAuth } from "../../shared/route-builder/chain.ts";
+
+// The fields of a stored route record that decide auth. `hint` is the generated hint, and it never wins.
+export type AuthSource = {
+	auth?: ChainAuth;
+	authorize?: unknown;
 	hint?: "public";
 };
 
@@ -10,16 +12,9 @@ export type EffectiveAuth = {
 	reads: boolean;
 };
 
-export function effectiveAuth(modules: readonly AuthModule[]): EffectiveAuth {
-	let requires = false;
-	let reads = false;
-	for (const loaded of modules) {
-		if (loaded.authenticate === true) {
-			requires = true;
-			reads = true;
-		}
-		if (loaded.authenticateOptional === true) reads = true;
-		if (loaded.authorize === true) reads = true;
-	}
+// An authorize function reads identity by itself, so the function is the only source of that fact.
+export function effectiveAuth(routes: readonly AuthSource[]): EffectiveAuth {
+	const requires = routes.some((route) => route.auth?.mode === true);
+	const reads = routes.some((route) => route.auth !== undefined || route.authorize !== undefined);
 	return { requires, reads };
 }

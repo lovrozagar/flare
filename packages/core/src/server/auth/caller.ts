@@ -1,7 +1,9 @@
+import type { ChainAuth } from "../../shared/route-builder/chain.ts";
+
 export type AuthRoute = {
-	route: string;
-	authenticate?: readonly string[];
-	authorize?: true;
+	id: string;
+	auth?: ChainAuth;
+	authorize?: unknown;
 };
 
 export type CallerEntry = {
@@ -14,16 +16,11 @@ export type Caller = {
 	callerChain: readonly CallerEntry[];
 };
 
-export function resolveCaller(routes: readonly AuthRoute[], app: (caller: Caller) => void): Caller {
-	const callerChain: CallerEntry[] = [];
-	let callerData: readonly string[] = [];
-	let index = 0;
-	for (const route of routes) {
-		if (route.authenticate !== undefined) callerChain.push({ route: route.route, args: route.authenticate });
-		if (index === routes.length - 1) callerData = route.authenticate ?? [];
-		index += 1;
-	}
-	const caller = { callerData, callerChain };
-	app(caller);
-	return caller;
+// callerData is the leaf's own arguments. callerChain is every route that called authenticate, root down.
+export function resolveCaller<T>(routes: readonly AuthRoute[], app: (caller: Caller) => T): T {
+	const callerChain = routes.flatMap((route) =>
+		route.auth === undefined ? [] : [{ route: route.id, args: route.auth.callerData }],
+	);
+	const callerData = routes.at(-1)?.auth?.callerData ?? [];
+	return app({ callerData, callerChain });
 }

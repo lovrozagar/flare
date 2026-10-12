@@ -5,6 +5,7 @@ const authorize = (): boolean => true;
 const preloader = (): string => "pre";
 const loader = (): string => "data";
 const render = (): string => "view";
+const head = (): { title: string } => ({ title: "Home" });
 
 const noop = () => null;
 
@@ -50,6 +51,7 @@ it("stores in order", () => {
 		.authorize(authorize)
 		.preloader(preloader)
 		.loader(loader)
+		.head(head)
 		.render(render)
 		.record();
 	expect(record).toEqual({
@@ -58,6 +60,7 @@ it("stores in order", () => {
 		authorize,
 		preloader,
 		loader,
+		head,
 		render,
 	});
 	expect(() =>
