@@ -1,5 +1,9 @@
 import { expect, it } from "vitest";
-import { createRouter } from "./create-router.ts";
+import { createRouter, loadChain, notFoundRenderOf, type Match } from "./create-router.ts";
+
+async function notFoundOf(match: Match): Promise<unknown> {
+	return notFoundRenderOf(await loadChain(match.chain));
+}
 
 const rootNotFound = () => "root";
 const blogNotFound = () => "blog";
@@ -32,17 +36,17 @@ it("defaults", () => {
 const post = { loader: () => "post" };
 const pages = [{ id: "_root_/blog/post", path: "/blog/post", module: post }];
 
-it("not found root", () => {
+it("not found root", async () => {
 	const router = createRouter({ layouts, routeTree: pages });
-	expect(router.match("/missing").notFoundRender).toBe(rootNotFound);
+	expect(await notFoundOf(router.match("/missing"))).toBe(rootNotFound);
 });
 
-it("not found fuzzy", () => {
+it("not found fuzzy", async () => {
 	const router = createRouter({ layouts, routeTree: pages, notFoundMode: "fuzzy" });
-	expect(router.match("/blog/missing").notFoundRender).toBe(blogNotFound);
-	expect(router.match("/blog").notFoundRender).toBe(blogNotFound);
-	expect(router.match("/blog/drafts/missing").notFoundRender).toBe(rootNotFound);
-	expect(router.match("/missing").notFoundRender).toBe(rootNotFound);
+	expect(await notFoundOf(router.match("/blog/missing"))).toBe(blogNotFound);
+	expect(await notFoundOf(router.match("/blog"))).toBe(blogNotFound);
+	expect(await notFoundOf(router.match("/blog/drafts/missing"))).toBe(rootNotFound);
+	expect(await notFoundOf(router.match("/missing"))).toBe(rootNotFound);
 });
 
 it("cache client only", () => {
@@ -120,7 +124,7 @@ it("params and base path", () => {
 	expect(router.match("/application/about").id).toBeUndefined();
 });
 
-it("not found roots", () => {
+it("not found roots", async () => {
 	const locale = createRouter({
 		layouts: { "[locale]/_root_": { boundaries: { notFoundRender: localeNotFound } } },
 		routeTree: [{ id: "[locale]/_root_/about", path: "/[locale]/about", module: {} }],
@@ -131,9 +135,9 @@ it("not found roots", () => {
 	]);
 	const missing = locale.match("/en/missing");
 	expect(missing.chain.map((entry) => entry.id)).toEqual(["[locale]/_root_"]);
-	expect(missing.notFoundRender).toBe(localeNotFound);
+	expect(await notFoundOf(missing)).toBe(localeNotFound);
 	expect(locale.match("/").chain).toEqual([]);
-	expect(locale.match("/").notFoundRender).toBeUndefined();
+	expect(await notFoundOf(locale.match("/"))).toBeUndefined();
 	const admin = createRouter({ layouts: { _admin_: {} }, routeTree: [], notFoundMode: "fuzzy" });
 	expect(admin.match("/x").chain.map((entry) => entry.id)).toEqual(["_admin_"]);
 	const both = createRouter({
@@ -143,7 +147,7 @@ it("not found roots", () => {
 	expect(both.match("/x").chain.map((entry) => entry.id)).toEqual(["_root_"]);
 });
 
-it("fuzzy group", () => {
+it("fuzzy group", async () => {
 	const router = createRouter({
 		layouts: {
 			_root_: { boundaries: { notFoundRender: rootNotFound } },
@@ -159,15 +163,36 @@ it("fuzzy group", () => {
 	]);
 	const missing = router.match("/post/missing");
 	expect(missing.chain.map((entry) => entry.id)).toEqual(["_root_", "_root_/(blog)"]);
-	expect(missing.notFoundRender).toBe(groupNotFound);
+	expect(await notFoundOf(missing)).toBe(groupNotFound);
 });
 
-it("prefixed root", () => {
+it("prefixed root", async () => {
 	const router = createRouter({
 		layouts: { "site/_root_": { boundaries: { notFoundRender: rootNotFound } } },
 		routeTree: [{ id: "site/_root_/about", path: "/about", module: {} }],
 	});
 	const missing = router.match("/missing");
 	expect(missing.chain.map((entry) => entry.id)).toEqual(["site/_root_"]);
-	expect(missing.notFoundRender).toBe(rootNotFound);
+	expect(await notFoundOf(missing)).toBe(rootNotFound);
+});
+
+it("lazy chain", async () => {
+	const root = { boundaries: { notFoundRender: rootNotFound } };
+	const page = { loader: () => "page" };
+	const router = createRouter({
+		layouts: { _root_: () => Promise.resolve(root) },
+		routeTree: [{ id: "_root_/a", path: "/a", module: () => Promise.resolve(page) }],
+		chunks: { _root_: "/src/routes/_root_/root.root-layout.tsx" },
+	});
+	const match = router.match("/a");
+	expect(match.chain.map((entry) => typeof entry.module)).toEqual(["function", "function"]);
+	expect((await loadChain(match.chain)).map((entry) => entry.module)).toEqual([root, page]);
+	expect(await notFoundOf(router.match("/nope"))).toBe(rootNotFound);
+	expect(router.chunks).toEqual({ _root_: "/src/routes/_root_/root.root-layout.tsx" });
+	expect(createRouter({ layouts: {}, routeTree: [] }).chunks).toEqual({});
+	const broken = createRouter({
+		layouts: { _root_: () => Promise.reject(new Error("Failed to fetch dynamically imported module")) },
+		routeTree: [],
+	});
+	await expect(loadChain(broken.match("/x").chain)).rejects.toThrow(/dynamically imported/);
 });

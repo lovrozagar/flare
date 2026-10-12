@@ -7,7 +7,7 @@ import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import type { FrameError, RequestKind } from "../../shared/protocol/index.ts";
 import { matchId, type RawParams } from "../../shared/route-tree/index.ts";
 import type { Respond } from "../../shared/route-builder/chain.ts";
-import type { ChainEntry, Match } from "../../shared/router/create-router.ts";
+import { loadChain, notFoundRenderOf, type LoadedEntry, type Match } from "../../shared/router/create-router.ts";
 import { RedirectError } from "../../shared/errors/redirect.ts";
 import { readSearch } from "../../shared/url/search.ts";
 import { resolveCaller } from "../auth/caller.ts";
@@ -46,11 +46,11 @@ type Exchange = {
 // One rendered document: the chain, its loader run, and what fills the slot below the kept matches. `failed`
 // is the projected root-most failure. `unknown` is an unknown URL and its not-found function (B77).
 type Rendered = {
-	chain: readonly ChainEntry[];
+	chain: readonly LoadedEntry[];
 	run: LoaderRun;
 	params: RawParams;
 	failed?: Projected;
-	unknown?: Pick<Match, "notFoundRender">;
+	unknown?: true;
 };
 
 // The stages of order.ts, in that order: canonical, serverContext, match, method, then validate, the auth
@@ -91,8 +91,20 @@ function answer(exchange: Exchange, status: number, location?: string): Response
 	return finalize({ status, body: "", location, url: exchange.request.url, headers: exchange.secured.headers });
 }
 
-function route(exchange: Exchange): Promise<Response> {
-	const matched = exchange.options.router.match(new URL(exchange.request.url).pathname);
+// A match whose modules are loaded (02-system step 10).
+type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
+
+// The chain's modules load before the method check, because a .response() page is known only from its module.
+// An import that fails on the server is a bug: projected, then 500.
+async function route(exchange: Exchange): Promise<Response> {
+	const found = exchange.options.router.match(new URL(exchange.request.url).pathname);
+	let matched: Loaded;
+	try {
+		matched = { ...found, chain: await loadChain(found.chain) };
+	} catch (error) {
+		projectError(error, exchange.sink);
+		return answer(exchange, 500);
+	}
 	const method = exchange.request.method;
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {
 		// A data or prefetch request for an unknown URL is that status alone, with no frame (B73).
@@ -105,7 +117,7 @@ function route(exchange: Exchange): Promise<Response> {
 }
 
 // A .response() page has no method list, so every method reaches it (02-system step 9).
-function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefined {
+function methodMatch(exchange: Exchange, matched: Loaded): MethodMatch | undefined {
 	if (matched.id === undefined) return undefined;
 	const respond = matched.chain[matched.chain.length - 1].module.response;
 	if (respond !== undefined) return { kind: "response", handle: () => answered(exchange, matched.chain, respond) };
@@ -115,7 +127,7 @@ function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefine
 
 // A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one
 // `x` line. Validation, a gate status, and a named failure answer bare. Anything else is the NDJSON stream.
-async function data(exchange: Exchange, matched: Match): Promise<Response> {
+async function data(exchange: Exchange, matched: Loaded): Promise<Response> {
 	const raw = new URL(exchange.request.url).search.slice(1);
 	const id = matchId(definedParams(matched.params), raw);
 	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind === "layout" }));
@@ -143,7 +155,7 @@ function stage(exchange: Exchange, body: BodyInit, status: number): StageResult 
 }
 
 // The answer still passes through finalize, and the request's security set wins over its headers.
-async function answered(exchange: Exchange, chain: readonly ChainEntry[], respond: Respond): Promise<Response> {
+async function answered(exchange: Exchange, chain: readonly LoadedEntry[], respond: Respond): Promise<Response> {
 	const run = await runLoaders({ ...loaderInput(exchange, chain), response: respond });
 	if (run.answer === undefined) return bare(exchange, run);
 	const headers = new Headers(run.answer.headers);
@@ -153,15 +165,15 @@ async function answered(exchange: Exchange, chain: readonly ChainEntry[], respon
 
 // An unknown path runs the loaders of its not-found chain: the root layout, or the fuzzy owner and its
 // ancestors (B73). The selected layout renders, and its outlet is the not-found the router chose (B77).
-async function notFound(exchange: Exchange, matched: Match): Promise<Response> {
+async function notFound(exchange: Exchange, matched: Loaded): Promise<Response> {
 	if (matched.chain.length === 0) return answer(exchange, 404);
 	const run = await runLoaders(loaderInput(exchange, matched.chain));
 	const rendered = { chain: matched.chain, run, params: matched.params };
-	if (run.response.status === 200) return paint(exchange, { ...rendered, unknown: matched }, 404);
+	if (run.response.status === 200) return paint(exchange, { ...rendered, unknown: true }, 404);
 	return settle(exchange, rendered);
 }
 
-async function page(exchange: Exchange, chain: readonly ChainEntry[], params: RawParams): Promise<Response> {
+async function page(exchange: Exchange, chain: readonly LoadedEntry[], params: RawParams): Promise<Response> {
 	const run = await runLoaders(loaderInput(exchange, chain));
 	// "buffer" holds the document until every defer this render started has settled. Solid then writes the
 	// settled values in the shell (B92).
@@ -190,7 +202,7 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 	const state: OutletState = {
 		matches: outletMatches(exchange.request, rendered),
 		failure: rendered.failed && { index: rendered.run.data.length, ...rendered.failed },
-		unknown: rendered.unknown && { render: rendered.unknown.notFoundRender },
+		unknown: rendered.unknown && { render: notFoundRenderOf(rendered.chain) },
 		onBoundaryError: (error) => void projectError(error, exchange.sink),
 	};
 	let body: ReadableStream<Uint8Array>;
@@ -266,7 +278,7 @@ function definedParams(params: RawParams): Record<string, string | string[]> {
 	);
 }
 
-function loaderInput(exchange: Exchange, chain: readonly ChainEntry[]): RunInput {
+function loaderInput(exchange: Exchange, chain: readonly LoadedEntry[]): RunInput {
 	const routes = chain.map((entry) => ({ ...entry.module, id: entry.id }));
 	return {
 		kind: exchange.kind,

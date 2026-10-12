@@ -380,3 +380,22 @@ it("internal kinds", async () => {
 	]);
 	expect(calls).toEqual([]);
 });
+
+it("lazy modules", async () => {
+	const send = vi.fn<(payload: DevErrorPayload) => void>();
+	const router = createRouter({
+		layouts: { _root_: () => Promise.resolve(framed) },
+		routeTree: [
+			{ id: "_root_/", path: "/", module: () => Promise.resolve(home) },
+			{ id: "_root_/broken", path: "/broken", module: () => Promise.reject(new Error("chunk missing")) },
+		],
+	});
+	const app = serveWith({ router }, { dev: true, send, log: quiet });
+	const ok = await app.fetch(new Request("http://localhost/"));
+	expect(unmarked(await ok.text())).toContain("root[[Home]]");
+	const broken = await app.fetch(new Request("http://localhost/broken"));
+	expect(broken.status).toBe(500);
+	expect(send).toHaveBeenCalledExactlyOnceWith(
+		expect.objectContaining({ err: expect.objectContaining({ message: "chunk missing" }) }),
+	);
+});
