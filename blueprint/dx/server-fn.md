@@ -16,6 +16,8 @@ An in-request call, a server function called from a loader, another server funct
 
 `.stream(async function* (ctx) { yield value })` replaces `.handler`. Setting both throws.
 
+Each method may be called once, as on a route builder (`dx/builder.md`). A second `.input()`, `.authorize()`, `.cache()`, or `.authenticate()` throws when the chain is built, and the type no longer offers a method once it is called. A second `.input()` would otherwise silently replace the first validator. The call order is free; the run order is always authenticate, input, authorize, handler (`server/server-fn/builder.test.ts` `once`).
+
 | call | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
 | `method` | no | `"post"` | `"get"` or `"post"` | | `builder.test.ts` `default method` |
