@@ -10,6 +10,10 @@ export const echo = createServerFn({ method: "post" })
 
 `name` is not a config field (B85). The id is the B41 hash of the root-relative path and the export name. A `createServerFn` that is not a direct export fails the build (`vite/route-meta/ids.test.ts` `export name`, `not exported`).
 
+The boundary transform rewrites each `createServerFn({ method })` to `createServerFn({ method, __id, __name })` in every graph, and adds `__client: true` in the client and worker graphs. These fields are internal and are not part of the typed config. `.handler()` and `.stream()` return a callable that carries `{ id, name, record }`. With `__client`, the callable is the HTTP stub; called directly during a client render, it throws before any work (B45, `dispatch.test.ts` `client stub`). Without it, the callable is the in-request call.
+
+An in-request call, a server function called from a loader, another server function, or `.response()`, runs authenticate, input, authorize, then the handler in-process, with no HTTP and no CSRF check. It uses the active request's `env`, `request`, `serverContext`, and session. The session is one memoized `authenticate` per request, shared by the page gate and every server function, so `authenticate` still runs once (`dx/server.md`). It returns the handler value, or throws the thrown error unprojected. Called with no active request it throws `server function called outside a request` (`dispatch.test.ts` `in request`, `no request`).
+
 `.stream(async function* (ctx) { yield value })` replaces `.handler`. Setting both throws.
 
 | call | required | default | outcome | pitfall | test |
