@@ -29,6 +29,8 @@ import { runMiddleware } from "../middleware/run.ts";
 import type { MiddlewareKind } from "../middleware/types.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
+import { responseHeaders } from "./policies.ts";
+import { effectiveAuth } from "../auth/effective.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
 
 const HTML = "text/html; charset=utf-8";
@@ -188,7 +190,8 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 	}
 	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond });
 	if (run.answer === undefined) return bare(exchange, run);
-	return secure(exchange, { status: run.answer.status, body: run.answer.body, headers: run.answer.headers });
+	const headers = responseHeaders(run.answer.headers, effectiveAuth(matched.chain.map((entry) => entry.module)));
+	return secure(exchange, { status: run.answer.status, body: run.answer.body, headers });
 }
 
 // An unknown path runs the loaders of its not-found chain: the root layout, or the fuzzy owner and its

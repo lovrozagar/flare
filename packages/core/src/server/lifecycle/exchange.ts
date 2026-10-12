@@ -54,6 +54,9 @@ export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "o
 	return { ...exchange, secured };
 }
 
+// The cacheability decision writes these on a rendered page. `.headers()` cannot (dx/cache.md).
+const DECIDED = new Set(["cache-control", "cache-tag"]);
+
 // The route's merged `.headers()` come first, so the security set and the media type win over them.
 export function typed(
 	exchange: Answering,
@@ -61,7 +64,10 @@ export function typed(
 	route: Readonly<Record<string, string | string[]>> = {},
 ): Headers {
 	const headers = new Headers();
-	for (const [name, value] of Object.entries(route)) for (const item of [value].flat()) headers.append(name, item);
+	for (const [name, value] of Object.entries(route)) {
+		if (DECIDED.has(name)) continue;
+		for (const item of [value].flat()) headers.append(name, item);
+	}
 	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
 	headers.set("content-type", type);
 	return headers;

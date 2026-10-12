@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
 import { finalize } from "../lifecycle/finalize.ts";
+import { policyHeaders } from "../lifecycle/policies.ts";
 import { variantId } from "./variant.ts";
 
 const at = (path: string): URL => new URL(`http://localhost${path}`);
@@ -21,4 +22,12 @@ it("user search stays", () => {
 // Variants are URLs, not headers: nothing Flare finalizes carries Vary.
 it("no vary", () => {
 	expect(finalize({ status: 200, body: "", url: "http://localhost/a" }).headers.has("vary")).toBe(false);
+	const decisions = [
+		{ policy: "shared", class: "public", cdn: { maxAge: "60s", tags: ["a"] } },
+		{ policy: "private", cdn: {} },
+		{ policy: "no-store", cdn: {} },
+	] as const;
+	for (const decision of decisions) {
+		expect(policyHeaders(decision, { status: 200, params: {} }).has("vary")).toBe(false);
+	}
 });
