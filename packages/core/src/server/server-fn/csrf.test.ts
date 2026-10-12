@@ -61,3 +61,19 @@ it("origin wins", () => {
 	expect(check({ "sec-fetch-site": "cross-site", referer: `${origin}/` })).toBe(403);
 	expect(check({ "sec-fetch-site": "unknown-value" })).toBe(403);
 });
+
+it("same site scheme", () => {
+	const listed = { sameSite: ["blog.example.com"] };
+	expect(check({ origin: "http://blog.example.com" }, listed)).toBe(403);
+	expect(check({ "sec-fetch-site": "same-site", referer: "http://blog.example.com/post" }, listed)).toBe(403);
+});
+
+it("same site port", () => {
+	const listed = { sameSite: ["blog.example.com"] };
+	expect(check({ origin: "https://blog.example.com:8443" }, listed)).toBe(403);
+	expect(check({ origin: "https://blog.example.com:443" }, listed)).toBe(200);
+	const local = { sameSite: ["blog.localhost"], origin: "http://app.localhost:5173" };
+	expect(check({ origin: "http://blog.localhost:5173" }, local)).toBe(200);
+	expect(check({ origin: "http://blog.localhost" }, local)).toBe(200);
+	expect(check({ origin: "http://blog.localhost:9000" }, local)).toBe(403);
+});

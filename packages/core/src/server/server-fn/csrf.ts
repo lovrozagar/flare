@@ -26,16 +26,22 @@ function siteAllowed(site: string, input: CsrfInput): boolean {
 	if (site === "none") return input.method === "get";
 	if (site !== "same-site") return false;
 	const referer = input.headers.get("referer");
-	return referer !== null && listed(referer, input.sameSite);
+	return referer !== null && listed(referer, input);
 }
 
 // The sender's own origin, or a host on the same-site list.
 function allowed(url: string, input: CsrfInput): boolean {
-	return originOf(url) === input.origin || listed(url, input.sameSite);
+	return originOf(url) === input.origin || listed(url, input);
 }
 
-function listed(url: string, sameSite: readonly string[]): boolean {
-	return URL.canParse(url) && sameSite.includes(new URL(url).hostname);
+// A listed host passes only on the app's scheme, and on the default port or the app's own. An http page on a
+// listed host could be injected by anyone on the network, so it does not pass for an https app.
+function listed(url: string, input: CsrfInput): boolean {
+	if (!URL.canParse(url)) return false;
+	const sender = new URL(url);
+	const app = new URL(input.origin);
+	if (sender.protocol !== app.protocol || !input.sameSite.includes(sender.hostname)) return false;
+	return sender.port === "" || sender.port === app.port;
 }
 
 function originOf(url: string): string | undefined {
