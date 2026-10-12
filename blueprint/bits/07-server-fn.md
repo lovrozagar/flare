@@ -22,6 +22,8 @@ The ids are build-time work, so `ids.ts` lives in `vite/route-meta/` beside `ext
 
 Order: the env helpers (`shared/env` server-only, client-only, isomorphic) and `vite/boundary/env.ts` land before the tripwire, then one commit wires the boundary transform into `flare()` (split in client and worker, the env rewrite in all three graphs, and the `__id`, `__name`, and client-and-worker `__client` injection into the config span), then the tripwire, because every tripwire row builds through that transform. `server-fns.gen.ts` lands with types-gen.
 
+Typed builders. The route builders were untyped through bit 06, so `shared/route-builder/types.ts` (P1) gets its generics here, in two steps. The types-gen heading types `.input()` and `.loader()` enough for `SearchOutput`, `ParamsOutput`, and `routeModules` to resolve, and writes `types.gen.d.ts` with `typeof import("<file>").route` values, so the generator never derives a type from text. The `tests/types/app` heading completes the chain (preloader context, auth resolution, every `app` row of the `dx/types.md` matrix) and `app.test.ts` proves it with `tsc`. Bit 07 is not done until that heading is green. `routes` is keyed by the public URL with a `{ params }` value as `dx/types.md` says, and the hand-written `PropagationApp` in `register.ts` moves to that shape.
+
 ## Cases
 
 ### `shared/protocol/get-codec.test.ts`

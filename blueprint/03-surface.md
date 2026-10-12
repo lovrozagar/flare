@@ -20,6 +20,7 @@ JSX entries (` . `, `./client`, `./query`, `./i18n`, `./testing`) ship `types`, 
 | `Href` | `shared/url/href.ts` |
 | `LocationRewrite` | type from `shared/url/types.ts` |
 | `FlareRegister` | type from `shared/route-builder/register.ts` |
+| `SearchOutput`, `ParamsOutput` | types from `shared/route-builder/register.ts`. They read the output type a route's typed `.input()` step records, so `types.gen.d.ts` can name `routeSearchParams` and `routeParams` as `SearchOutput<typeof import("<file>").route>` without deriving types from text |
 | `ThemeProvider`, `ThemeScript`, `useTheme` | `features/theme` |
 | `DirectionProvider`, `DirectionScript`, `useDirection` | `features/direction` |
 | `createFont`, `FontCSS` | `features/fonts` |
