@@ -86,6 +86,7 @@ An SSG route with no tags still prerenders. Purge does not apply to `_flare-stat
 | `stream` | a non-HTML body | the bytes are streamed. A client abort cancels the response |
 | `middleware mode` | Vite `middlewareMode` | this handler is not installed |
 | `set-cookie` | two `Set-Cookie` values | both are separate headers |
+| `error relay` | the SSR graph sends `flare:error` with `{ type: "error", err: { message, stack } }` over `import.meta.hot` (B93) | the handler relays that payload to Vite's client socket once, and Vite's overlay receives it. A production build installs no relay |
 
 ### `vite/plugin/environments.test.ts` (build shape)
 
