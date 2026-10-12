@@ -69,7 +69,7 @@ The adapter has already rejected a malformed request target and attached `client
 4. **Rewrite.** Optional `createServer({ rewrite })`. The replacement path is canonicalized again. A rewrite that does not terminate in one step is 500.
 5. **Locale.** `createServer({ locale })`, if set (B55).
 6. **Middleware.** User list, in declared order.
-7. **Server function.** Path `/_flare/fn/<id>` is dispatched and does not enter the router.
+7. **Server function.** Path `/_flare/fn/<id>` is dispatched through `createServer({ serverFns })` and does not enter the router. An unknown id is 404 before the method check.
 8. **Match.** The canonical path is matched against the route tree.
 9. **Method.** A normal page allows GET, HEAD, and OPTIONS. OPTIONS is 204 with `Allow: GET, HEAD, OPTIONS`. Anything else is 405 with that `Allow`, and a POST body is drained. A `.response()` page has no method list. An unmatched GET or HEAD is not-found. Any other unmatched method is 405 with that `Allow` (B87).
 10. **Validate, then authenticate.** Load the matched modules. Compute effective auth (B25, B26). `input` validators run first. A failure is 400 and does not call `authenticate`, and the store is not read. When the chain reads identity, `authenticate` runs once. A public chain does not call it. A null session skips preloader, `authorize`, and loader on the first required match and everything inside it. Public matches outside that match still run. A required chain with a null session is 401 and does not read the store (B27, B73).
