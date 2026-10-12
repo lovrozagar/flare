@@ -1,12 +1,27 @@
 import { defined } from "../../shared/errors/index.ts";
 import { CACHE_HEADER } from "../../shared/protocol/index.ts";
 import { withCookies } from "../cacheability/index.ts";
-import { cached, data, decided, HTML, page, type Loaded, type Policy, type Prepared } from "../lifecycle/answers.ts";
+import {
+	cached,
+	data,
+	dataFrom,
+	decided,
+	HTML,
+	page,
+	painted,
+	type Loaded,
+	type Policy,
+	type Prepared,
+} from "../lifecycle/answers.ts";
+import { runLoaders } from "../loaders/run.ts";
 import { routeSecured, typed, type Exchange } from "../lifecycle/exchange.ts";
 import type { StoreOption } from "../lifecycle/options.ts";
 import { NDJSON } from "../navigation/index.ts";
 import type { FlareStore } from "./contract.ts";
+import { lookup, type Lookup } from "./epoch.ts";
+import { inflight, type Flight } from "./inflight.ts";
 import { buildId, storeKey } from "./key.ts";
+import { hitOf } from "./read.ts";
 import { fromSentinel } from "./nonce.ts";
 import { sharedRender, type SharedRender } from "./scrub.ts";
 import {
@@ -17,6 +32,7 @@ import {
 	storeTiming,
 	type EntryInput,
 	type StoredPage,
+	type StoreTiming,
 } from "./write.ts";
 
 // The request's mutable store. A function is called once, on the first read, with the request's env.
@@ -43,20 +59,67 @@ function live(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<
 
 type Stored = { prepared: Prepared; store: FlareStore; mode: "isr" | "ssr" };
 
-// A miss runs one shared render that writes both variants, then serves the variant this request asked for exactly
-// as a hit serves the entry (dx/cache.md). A render that is not a clean 200 answers as a live render of this request,
-// and stores nothing.
+// What a read and a shared render of one key share: its store key and timing.
+type Keyed = Stored & { key: string; timing: StoreTiming };
+
+const NOTHING_STALE: ReadonlySet<string> = new Set();
+
+// A stored page's answer. A chain with `authorize` runs it, after preloader, on this request before the read, so a
+// `false` is 403 and the stored body is not used (B73). A hit is served as stored. A stale hit is still served, and
+// one refresh starts behind it. A miss runs one shared render, coalesced per key, that writes both variants and
+// serves this request's variant exactly as a hit would. A render with nothing to serve answers live.
 async function stored(exchange: Exchange, matched: Loaded, at: Stored): Promise<Response> {
+	const id = defined(matched.id, "the stored page");
+	const timing = defined(storeTiming(id, matched.chain.at(-1)?.module.cache), "the stored page's timing");
+	const keyed = { ...at, key: keyOf(exchange, matched, id), timing };
+	const looked = await lookedUp(exchange, matched, keyed);
+	if (looked instanceof Response) return looked;
+	const hit = hitOf(looked, timing, Date.now());
+	if (hit !== undefined) {
+		if (hit.stale) exchange.waitUntil(inflight(keyed.key, () => flight(exchange, matched, keyed)));
+		return served(exchange, hit.page, { policy: at.prepared.policy, cache: "hit", cookies: [] });
+	}
+	const landed = await inflight(keyed.key, () => flight(exchange, matched, keyed));
+	if (landed === undefined) return live(exchange, matched, at.prepared);
+	const cookies = [landed.shared.run.headers["set-cookie"] ?? []].flat();
+	const policy = { ...at.prepared.policy, rejected: !landed.shared.settled };
+	return served(exchange, landed.page, { policy, cache: "miss", cookies });
+}
+
+// The key has no identity class segment: a shared chain never requires auth, so its class is `anonymous` (B32).
+function keyOf(exchange: Exchange, matched: Loaded, id: string): string {
+	const node = defined(
+		exchange.options.router.routeTree.find((route) => route.id === id),
+		"the stored route",
+	);
+	return storeKey({ build: buildId(), route: id, pattern: node.path, params: matched.params, class: "anonymous" });
+}
+
+// The store read. Behind `authorize` it is the gate's last step, and a gate that stops answers here.
+async function lookedUp(exchange: Exchange, matched: Loaded, at: Keyed): Promise<Lookup | null | Response> {
+	const read = (): Promise<Lookup | null> => lookup(at.store, at.key);
+	if (!matched.chain.some((entry) => entry.module.authorize !== undefined)) return read();
+	const run = await runLoaders({ ...at.prepared.input, readStore: read });
+	if (run.looked !== undefined) return run.looked;
+	const policy = at.prepared.policy;
+	if (exchange.kind === "document") return painted(exchange, { chain: matched.chain, run, policy });
+	return dataFrom(exchange, run, { skip: NOTHING_STALE, policy });
+}
+
+// One shared render and its write. Only a decision still `shared` after the route's own cookies is stored, and
+// only when the render passes the write rule (B46).
+async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<Flight> {
 	const shared = await sharedRender(exchange, matched);
-	if (shared === undefined) return live(exchange, matched, at.prepared);
-	const cookies = [shared.run.headers["set-cookie"] ?? []].flat();
+	if (shared === undefined) return undefined;
 	const policy: Policy = { ...at.prepared.policy, rejected: !shared.settled };
 	const input = entryInput(shared, matched, { mode: at.mode, policy });
-	const stored = storedPage(input);
-	if (withCookies(policy.decision, { route: cookies, all: cookies }).policy === "shared") {
-		write(exchange, matched, { store: at.store, input, page: stored, run: shared.run });
+	const page = storedPage(input);
+	const cookies = [shared.run.headers["set-cookie"] ?? []].flat();
+	const entry = buildEntry(input, page);
+	if (entry !== undefined && withCookies(policy.decision, { route: cookies, all: cookies }).policy === "shared") {
+		exchange.waitUntil(at.store.set(at.key, entry, at.timing.ttl));
 	}
-	return served(exchange, stored, { policy, cache: "miss", cookies });
+	return { shared, page };
 }
 
 function entryInput(shared: SharedRender, matched: Loaded, at: { mode: "isr" | "ssr"; policy: Policy }): EntryInput {
@@ -89,26 +152,4 @@ export function served(
 	const errored = at.policy.rejected === true || (!document && stored.ndjson.includes('{"t":"e"'));
 	const run = { headers: { "set-cookie": [...at.cookies] } };
 	return cached({ status: 200, body, render: stored.render, headers }, at.policy, { run, errored });
-}
-
-type Written = { store: FlareStore; input: EntryInput; page: StoredPage; run: SharedRender["run"] };
-
-// The write runs in the background, under the page's ttl, when the render passes the write rule (B46).
-function write(exchange: Exchange, matched: Loaded, written: Written): void {
-	const entry = buildEntry(written.input, written.page);
-	if (entry === undefined) return;
-	const id = defined(matched.id, "the stored page");
-	const pattern = defined(
-		exchange.options.router.routeTree.find((node) => node.id === id),
-		"the stored route",
-	).path;
-	const key = storeKey({
-		build: buildId(),
-		route: id,
-		pattern,
-		params: matched.params,
-		class: defined(written.run.class, "the policy class of a rendered run"),
-	});
-	const timing = defined(storeTiming(id, matched.chain.at(-1)?.module.cache), "the stored page's timing");
-	exchange.waitUntil(written.store.set(key, entry, timing.ttl));
 }

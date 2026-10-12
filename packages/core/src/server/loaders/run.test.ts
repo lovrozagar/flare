@@ -62,33 +62,28 @@ async function traced(extra: Partial<RunInput>, authorized = true): Promise<Trac
 				return session;
 			},
 			shared: true,
-			readStore: () => seen.push("store"),
+			readStore: () => {
+				seen.push("store");
+				return Promise.resolve(null);
+			},
 			...extra,
 		}),
 	);
 	return { seen, status: run.response.status, data: run.data, heads: run.heads };
 }
 
+// A shared run reads the store after authorize, a document, data, or prefetch alike (02-system step 11). A run
+// that read the store runs no loader: the caller serves the hit, or renders the miss on the shared request.
 it("order", async () => {
-	const shared = await traced({});
-	expect(shared.seen).toEqual([
-		"validate",
-		"authenticate",
-		"preloader",
-		"authorize",
-		"store",
-		"loader",
-		"head",
-		"headers",
-	]);
-	expect(shared.data).toEqual(["page data"]);
-	expect(shared.heads).toEqual([{}]);
-	const data = await traced({ kind: "data" });
-	expect(data.seen).toEqual(["validate", "authenticate", "preloader", "authorize", "loader", "head", "headers"]);
-	const prefetch = await traced({ kind: "prefetch" });
-	expect(prefetch.seen).not.toContain("store");
+	for (const kind of ["document", "data", "prefetch"] as const) {
+		const shared = await traced({ kind });
+		expect(shared.seen).toEqual(["validate", "authenticate", "preloader", "authorize", "store"]);
+		expect(shared.data).toEqual([]);
+	}
 	const notShared = await traced({ shared: false });
 	expect(notShared.seen).toEqual(["validate", "authenticate", "preloader", "authorize", "loader", "head", "headers"]);
+	expect(notShared.data).toEqual(["page data"]);
+	expect(notShared.heads).toEqual([{}]);
 	const denied = await traced({}, false);
 	expect(denied.status).toBe(403);
 	expect(denied.seen).toEqual(["validate", "authenticate", "preloader", "authorize"]);

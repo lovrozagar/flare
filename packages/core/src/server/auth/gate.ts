@@ -2,6 +2,7 @@ import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/htt
 import { statusOf } from "../../shared/errors/status.ts";
 import type { ChainAuth, PreloaderContext, Respond, StepContext } from "../../shared/route-builder/chain.ts";
 import type { RequestKind } from "../loaders/cascade.ts";
+import type { Lookup } from "../cache/epoch.ts";
 import { effectiveAuth } from "./effective.ts";
 import { identity, type PolicyClass } from "./identity.ts";
 
@@ -22,7 +23,8 @@ export type GateInput = {
 	authenticate: () => unknown;
 	routes: readonly GateRoute[];
 	shared?: boolean;
-	readStore?: () => void;
+	// The store read, after authorize, for a shared chain that does not require auth. `null` is a miss.
+	readStore?: () => Promise<Lookup | null>;
 	response?: Respond;
 };
 
@@ -36,6 +38,7 @@ export type GateResult =
 			class: PolicyClass;
 			contexts: PreloaderContext[];
 			answer?: Response | Promise<Response>;
+			looked?: Lookup | null;
 	  }
 	| { kind: "status"; status: number; thrown?: unknown }
 	| { kind: "stopped"; index: number; session: unknown; error: unknown; contexts: PreloaderContext[] };
@@ -69,13 +72,11 @@ export async function gate(input: GateInput): Promise<GateResult> {
 		const answer = input.response({ ...base, params: page?.params, search: page?.search, preloaderContext: latest });
 		return { kind: "proceed", session, class: policy, contexts, answer };
 	}
-	if (readsStore(input, policy)) input.readStore?.();
-	return { kind: "proceed", session, class: policy, contexts };
-}
-
-// Only a shared document reads the store, and a required chain never does (B27).
-function readsStore(input: GateInput, policy: PolicyClass): boolean {
-	return input.kind === "document" && input.shared === true && policy !== "required";
+	const read = input.readStore;
+	if (read === undefined || input.shared !== true || policy === "required") {
+		return { kind: "proceed", session, class: policy, contexts };
+	}
+	return { kind: "proceed", session, class: policy, contexts, looked: await read() };
 }
 
 // A shallow merge, outside-in: the child key wins, and a return that is not an object adds nothing.

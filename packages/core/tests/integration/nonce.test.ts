@@ -208,3 +208,19 @@ it("text kept", async () => {
 	const first = headerNonce(response.headers);
 	expect((await storedPage(set)).html).toContain(`NONCE[${first}]`);
 });
+
+// A hit's nonce attributes and `self.flare.nonce` equal that hit's CSP nonce, never the first request's.
+it("hit matches", async () => {
+	const { app, set } = storing(() => "page");
+	const first = await app.fetch(new Request("http://localhost/"));
+	const firstNonce = headerNonce(first.headers);
+	await storedPage(set);
+	const hit = await app.fetch(new Request("http://localhost/"));
+	expect(hit.headers.get("flare-cache")).toBe("hit");
+	const nonce = headerNonce(hit.headers);
+	const body = await hit.text();
+	expect(nonce).not.toBe(firstNonce);
+	expect(tagNonces(body)).toEqual({ script: nonce, json: nonce, style: nonce });
+	expect(body).toContain(`"nonce":"${nonce}"`);
+	expect(body).not.toContain(firstNonce);
+});

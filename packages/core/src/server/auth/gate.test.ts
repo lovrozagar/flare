@@ -20,11 +20,13 @@ function input(partial: Partial<GateInput> & Pick<GateInput, "authenticate">): G
 	return { kind: "document", request, env: {}, shared: true, routes: [{ id: "page", auth: required }], ...partial };
 }
 
-function storeSpy(): { reads: number; readStore: () => void } {
+// A store read that counts its calls and misses.
+function storeSpy(): { reads: number; readStore: () => Promise<null> } {
 	const spy = {
 		reads: 0,
 		readStore: () => {
 			spy.reads += 1;
+			return Promise.resolve(null);
 		},
 	};
 	return spy;
@@ -59,13 +61,32 @@ it("optional anonymous", async () => {
 	const result = await gate(
 		input({ authenticate: () => null, routes: [{ id: "page", auth: optional }], readStore: store.readStore }),
 	);
-	expect(result).toEqual({ kind: "proceed", session: null, class: "anonymous", contexts: [{}] });
+	expect(result).toEqual({ kind: "proceed", session: null, class: "anonymous", contexts: [{}], looked: null });
 	expect(store.reads).toBe(1);
 	const signedIn = await gate(
 		input({ authenticate: () => session, routes: [{ id: "page", auth: optional }], readStore: store.readStore }),
 	);
-	expect(signedIn).toEqual({ kind: "proceed", session, class: "anonymous", contexts: [{}] });
+	expect(signedIn).toEqual({ kind: "proceed", session, class: "anonymous", contexts: [{}], looked: null });
 	expect(store.reads).toBe(2);
+	// A data or prefetch request reads the same entry (02-system step 11). A run that is not shared reads nothing.
+	await gate(
+		input({
+			authenticate: () => null,
+			kind: "data",
+			routes: [{ id: "page", auth: optional }],
+			readStore: store.readStore,
+		}),
+	);
+	expect(store.reads).toBe(3);
+	await gate(
+		input({
+			authenticate: () => null,
+			shared: false,
+			routes: [{ id: "page", auth: optional }],
+			readStore: store.readStore,
+		}),
+	);
+	expect(store.reads).toBe(3);
 });
 
 it("response route", async () => {
