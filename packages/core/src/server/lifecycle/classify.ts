@@ -1,17 +1,10 @@
-export type Classified = {
-	kind?: "document";
-	status?: 404 | 400;
-};
+import { FN_PREFIX, readInternal, type InternalRequest } from "../../shared/protocol/index.ts";
 
-export function classify(input: { path: string; router?: () => void }): Classified {
-	void input.router;
-	if (input.path.startsWith("/_flare/fn/")) return { status: 404 };
-	if (earlyMode(input.path)) return { status: 400 };
-	return { kind: "document" };
-}
+export type Classified = { status: 404 } | InternalRequest;
 
-function earlyMode(path: string): boolean {
-	const query = path.split("?")[1] ?? "";
-	const mode = new URLSearchParams(query).get("_flare");
-	return mode === "data" || mode === "prefetch";
+// A server-function path never reaches the router. Any other request is a document, data, or prefetch
+// request by its query alone (bit 06).
+export function classify(url: URL): Classified {
+	if (url.pathname.startsWith(FN_PREFIX)) return { status: 404 };
+	return readInternal(url);
 }

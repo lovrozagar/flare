@@ -2,25 +2,17 @@ import { expect, it } from "vitest";
 import { classify } from "./classify.ts";
 
 it("no param is a document", () => {
-	expect(classify({ path: "/" }).kind).toBe("document");
+	expect(classify(new URL("http://localhost/"))).toMatchObject({ status: 200, kind: "document" });
 });
 
 it("server fn path", () => {
-	let calls = 0;
-	const result = classify({
-		path: "/_flare/fn/abc",
-		router() {
-			calls += 1;
-		},
-	});
-	expect(result.status).toBe(404);
-	expect(calls).toBe(0);
+	expect(classify(new URL("http://localhost/_flare/fn/abc"))).toEqual({ status: 404 });
 });
 
-it("data is 400", () => {
-	expect(classify({ path: "/?_flare=data" }).status).toBe(400);
+it("data", () => {
+	expect(classify(new URL("http://localhost/?_flare=data"))).toMatchObject({ status: 200, kind: "data" });
 });
 
-it("prefetch is 400", () => {
-	expect(classify({ path: "/?_flare=prefetch" }).status).toBe(400);
+it("prefetch", () => {
+	expect(classify(new URL("http://localhost/?_flare=prefetch"))).toMatchObject({ status: 200, kind: "prefetch" });
 });
