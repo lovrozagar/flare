@@ -14,7 +14,7 @@ const head: Head = {
 	},
 };
 
-const router: Router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/" }] });
+const router: Router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: {} }] });
 
 function printed(): string {
 	return `NONCE[${nonce()}]`;

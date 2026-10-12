@@ -1,12 +1,23 @@
+import type { ChainRecord } from "../route-builder/chain.ts";
+
 type Handler = () => unknown;
 
-export type LayoutModule = {
+export type RouteModule = ChainRecord & {
 	notFoundRender?: Handler;
 };
+
+export type LayoutModule = RouteModule;
 
 export type RouteNode = {
 	id: string;
 	path: string;
+	module: RouteModule;
+};
+
+export type ChainEntry = {
+	id: string;
+	kind: "layout" | "page";
+	module: RouteModule;
 };
 
 export type RouterCache = {
@@ -21,9 +32,11 @@ export type RouterOptions = {
 	cache?: RouterCache;
 };
 
+// `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page.
 export type Match = {
 	id?: string;
 	notFoundRender?: Handler;
+	chain: readonly ChainEntry[];
 };
 
 export type Router = {
@@ -69,10 +82,24 @@ export function createRouter(options: RouterOptions): Router {
 
 function resolve(router: Router, path: string): Match {
 	const normalized = normalize(path, router.basePath);
-	if (normalized === undefined) return { notFoundRender: notFoundFor(router, path) };
-	const page = router.routeTree.find((route) => route.path === normalized);
-	if (page) return { id: page.id };
-	return { notFoundRender: notFoundFor(router, normalized) };
+	const page = normalized === undefined ? undefined : router.routeTree.find((route) => route.path === normalized);
+	if (page) {
+		const chain = [
+			...layoutChain(router.layouts, page.id),
+			{ id: page.id, kind: "page" as const, module: page.module },
+		];
+		return { id: page.id, chain };
+	}
+	const owner = notFoundOwner(router, normalized ?? path);
+	return { notFoundRender: notFoundFor(router, owner), chain: layoutChain(router.layouts, owner) };
+}
+
+// Every layout whose id is the given id or a segment prefix of it, root first.
+function layoutChain(layouts: RouterOptions["layouts"], id: string): ChainEntry[] {
+	return Object.keys(layouts)
+		.filter((layout) => id === layout || id.startsWith(`${layout}/`))
+		.sort((left, right) => left.length - right.length)
+		.map((layout) => ({ id: layout, kind: "layout" as const, module: layouts[layout] }));
 }
 
 function normalize(path: string, basePath: string): string | undefined {
@@ -81,11 +108,14 @@ function normalize(path: string, basePath: string): string | undefined {
 	return undefined;
 }
 
-function notFoundFor(router: Router, path: string): Handler | undefined {
-	const root = router.layouts._root_;
-	if (router.notFoundMode === "root") return root.notFoundRender;
-	const chosen = router.layouts[longestLayout(path, router.layouts)];
-	return chosen.notFoundRender ?? root.notFoundRender;
+// "root" is the root layout. "fuzzy" is the longest layout that owns the path (B73).
+function notFoundOwner(router: Router, path: string): string {
+	if (router.notFoundMode === "root") return "_root_";
+	return longestLayout(path, router.layouts);
+}
+
+function notFoundFor(router: Router, owner: string): Handler | undefined {
+	return router.layouts[owner].notFoundRender ?? router.layouts._root_.notFoundRender;
 }
 
 function longestLayout(path: string, layouts: RouterOptions["layouts"]): string {

@@ -27,7 +27,8 @@ it("defaults", () => {
 	});
 });
 
-const pages = [{ id: "_root_/blog/post", path: "/blog/post" }] as const;
+const post = { loader: () => "post" };
+const pages = [{ id: "_root_/blog/post", path: "/blog/post", module: post }];
 
 it("not found root", () => {
 	const router = createRouter({ layouts, routeTree: pages });
@@ -53,7 +54,7 @@ it("cache client only", () => {
 it("base path is a route", () => {
 	const router = createRouter({
 		layouts: { _root_: {} },
-		routeTree: [{ id: "_root_", path: "/" }],
+		routeTree: [{ id: "_root_", path: "/", module: {} }],
 		basePath: "/app",
 	});
 	expect(router.match("/app").id).toBe("_root_");
@@ -69,4 +70,31 @@ it("theme absent", () => {
 it("direction absent", () => {
 	const router = createRouter({ layouts: {}, routeTree: [] });
 	expect(router).not.toHaveProperty("direction");
+});
+
+it("matched chain", () => {
+	const router = createRouter({ layouts, routeTree: pages });
+	expect(router.match("/blog/post").chain).toEqual([
+		{ id: "_root_", kind: "layout", module: layouts._root_ },
+		{ id: "_root_/blog", kind: "layout", module: layouts["_root_/blog"] },
+		{ id: "_root_/blog/post", kind: "page", module: post },
+	]);
+	const home = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: post }] });
+	expect(home.match("/").chain.map((entry) => [entry.id, entry.kind])).toEqual([
+		["_root_", "layout"],
+		["_root_", "page"],
+	]);
+});
+
+it("not found chain", () => {
+	const root = createRouter({ layouts, routeTree: pages });
+	expect(root.match("/blog/missing").chain.map((entry) => entry.id)).toEqual(["_root_"]);
+	const fuzzy = createRouter({ layouts, routeTree: pages, notFoundMode: "fuzzy" });
+	expect(fuzzy.match("/blog/missing").chain.map((entry) => entry.id)).toEqual(["_root_", "_root_/blog"]);
+	expect(fuzzy.match("/blog/drafts/missing").chain.map((entry) => entry.id)).toEqual([
+		"_root_",
+		"_root_/blog",
+		"_root_/blog/drafts",
+	]);
+	expect(fuzzy.match("/missing").chain.map((entry) => entry.kind)).toEqual(["layout"]);
 });

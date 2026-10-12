@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { createServer } from "./create.ts";
 
-const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/" }] });
+const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: {} }] });
 const server = createServer({ router, page: { id: "_root_", loader: () => ({ sentinel: "Home" }) } });
 
 it("page", async () => {

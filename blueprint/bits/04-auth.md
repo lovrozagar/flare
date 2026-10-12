@@ -8,6 +8,8 @@ Creates every `P4` row. Effective auth is computed from the loaded modules befor
 
 The route builder stores what it accepts, because `tests/integration/auth.test.ts` boots real route modules. `shared/route-builder/chain.test.ts` gains `stores in order`: `cache`, `authenticate`, `authorize`, `preloader`, `loader`, and `render` land on the record in the `dx/builder.md` order, a later method called early throws `order`, and `response` excludes `loader` both ways. It also gains `authenticate records`: `authenticate(...callerData)` records `{ mode: true, callerData }`, `authenticateOptional(...callerData)` records `{ mode: "optional", callerData }`, and calling both throws. `page.test.ts` gains `page chain`: the page record carries the stored methods, and `.response()` ends the chain with no render. `layout.test.ts` gains `layout chain`. `root-layout.test.ts` gains `root chain`: the record keeps `document: true` and the stored loader.
 
+`shared/router/create-router.test.ts` gains `matched chain`: a tree node carries its route record as `module`, and `match()` returns `chain` root-down, the layouts whose id is the page id or a segment prefix of it, then the page. The home page `_root_` has the root layout and the page as two entries. It also gains `not found chain`: in `"root"` mode an unknown path's chain is the root layout only. In `"fuzzy"` mode it is the longest owning layout and its ancestors.
+
 ## Cases
 
 ### `server/auth/effective.test.ts`
