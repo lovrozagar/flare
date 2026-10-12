@@ -66,6 +66,7 @@ Pseudo-classes and pseudo-elements stay in the output and do not have to be acti
 | --- | --- | --- |
 | `class` | `class="foo bar"` and `.foo` | match |
 | `prefix` | `class="foo"` and `.fo` | no match |
+| `escaped class` | `class="md:flex"` and `.md\:flex`; `class="w-[50%]"` and `.w-\[50\%\]` | match. Class and id names are unescaped before they are compared |
 | `id` | `id="a"` and `#a` | match |
 | `type` | `<DIV>` and `div` | match |
 | `compound` | `<div class="card">` and `div.card` | match |
