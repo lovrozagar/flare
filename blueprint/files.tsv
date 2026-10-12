@@ -207,7 +207,7 @@ packages/core/src/server/render/state.ts	P1	src	server	Build the one state scrip
 packages/core/src/server/render/state.test.ts	P1	test	server	Unit cases for state.ts
 packages/core/src/server/render/shape.ts	P1	src	server	A production body without html and body close is a 500
 packages/core/src/server/render/shape.test.ts	P1	test	server	Unit cases for shape.ts
-packages/core/src/server/render/head.ts	P1	src	server	Serialize the shared head descriptors into the shell head. Escaping and the script and style close rewrite live here
+packages/core/src/server/render/head.ts	P1	src	server	Render the merged .head() descriptors through Solid's SSR useHead, so each tag carries its data-dh identity
 packages/core/src/server/render/head.test.ts	P1	test	server	Unit cases for head.ts
 packages/core/src/server/render/projector.ts	P5	src	server	Map a thrown value to the public error body
 packages/core/src/server/render/projector.test.ts	P5	test	server	Unit cases for projector.ts
