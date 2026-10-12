@@ -10,6 +10,7 @@ export type CacheConfig =
 	| { isr: true | { revalidate?: string }; ssr?: never; ssg?: never }
 	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
 
+import type { JSX } from "@solidjs/web";
 import type { HeadConfig } from "./types.ts";
 
 export type PreloaderContext = Record<string, unknown>;
@@ -29,7 +30,7 @@ export type Respond = (ctx: StepContext) => Response | Promise<Response>;
 
 type Head = (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
 
-type Render = (props: { loaderData: unknown }) => unknown;
+export type Render = (props: { loaderData: unknown; children?: JSX.Element }) => JSX.Element;
 
 export type ChainRecord = {
 	cache?: CacheConfig;

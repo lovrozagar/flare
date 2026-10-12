@@ -7,8 +7,8 @@ const localeNotFound = () => "locale";
 const groupNotFound = () => "group";
 
 const layouts = {
-	_root_: { notFoundRender: rootNotFound },
-	"_root_/blog": { notFoundRender: blogNotFound },
+	_root_: { boundaries: { notFoundRender: rootNotFound } },
+	"_root_/blog": { boundaries: { notFoundRender: blogNotFound } },
 	"_root_/blog/drafts": {},
 };
 
@@ -122,7 +122,7 @@ it("params and base path", () => {
 
 it("not found roots", () => {
 	const locale = createRouter({
-		layouts: { "[locale]/_root_": { notFoundRender: localeNotFound } },
+		layouts: { "[locale]/_root_": { boundaries: { notFoundRender: localeNotFound } } },
 		routeTree: [{ id: "[locale]/_root_/about", path: "/[locale]/about", module: {} }],
 	});
 	expect(locale.match("/en/about").chain.map((entry) => entry.id)).toEqual([
@@ -136,13 +136,19 @@ it("not found roots", () => {
 	expect(locale.match("/").notFoundRender).toBeUndefined();
 	const admin = createRouter({ layouts: { _admin_: {} }, routeTree: [], notFoundMode: "fuzzy" });
 	expect(admin.match("/x").chain.map((entry) => entry.id)).toEqual(["_admin_"]);
-	const both = createRouter({ layouts: { _admin_: {}, _root_: { notFoundRender: rootNotFound } }, routeTree: [] });
+	const both = createRouter({
+		layouts: { _admin_: {}, _root_: { boundaries: { notFoundRender: rootNotFound } } },
+		routeTree: [],
+	});
 	expect(both.match("/x").chain.map((entry) => entry.id)).toEqual(["_root_"]);
 });
 
 it("fuzzy group", () => {
 	const router = createRouter({
-		layouts: { _root_: { notFoundRender: rootNotFound }, "_root_/(blog)": { notFoundRender: groupNotFound } },
+		layouts: {
+			_root_: { boundaries: { notFoundRender: rootNotFound } },
+			"_root_/(blog)": { boundaries: { notFoundRender: groupNotFound } },
+		},
 		routeTree: [{ id: "_root_/(blog)/post", path: "/post", module: {} }],
 		notFoundMode: "fuzzy",
 	});
@@ -158,7 +164,7 @@ it("fuzzy group", () => {
 
 it("prefixed root", () => {
 	const router = createRouter({
-		layouts: { "site/_root_": { notFoundRender: rootNotFound } },
+		layouts: { "site/_root_": { boundaries: { notFoundRender: rootNotFound } } },
 		routeTree: [{ id: "site/_root_/about", path: "/about", module: {} }],
 	});
 	const missing = router.match("/missing");

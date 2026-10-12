@@ -1,18 +1,44 @@
-type Handler = () => unknown;
+import type { JSX } from "@solidjs/web";
 
-export type Boundaries = {
-	errorRender: (render: Handler) => Boundaries;
+type Params = Record<string, string | string[]>;
+
+// The function's own route, not the failed match's (B77).
+export type Located = { params: Params; search: Params };
+
+export type ErrorRender = (props: Located & { error: Error }) => JSX.Element;
+
+export type NotFoundRender = (props: Located) => JSX.Element;
+
+export type BoundaryRecord = {
+	errorRender?: ErrorRender;
+	notFoundRender?: NotFoundRender;
+	unauthenticatedRender?: ErrorRender;
+	unauthorizedRender?: ErrorRender;
 };
 
-export function createBoundaries(): Boundaries {
-	const used = new Set<string>();
-	const api: Boundaries = {
-		errorRender(render) {
-			void render;
-			if (used.has("errorRender")) throw new Error("errorRender twice");
-			used.add("errorRender");
-			return api;
-		},
+type Methods<R> = {
+	errorRender: (fn: ErrorRender) => Bounded<R>;
+	notFoundRender: (fn: NotFoundRender) => Bounded<R>;
+	unauthenticatedRender: (fn: ErrorRender) => Bounded<R>;
+	unauthorizedRender: (fn: ErrorRender) => Bounded<R>;
+};
+
+export type Bounded<R> = R & { boundaries?: BoundaryRecord } & Methods<R>;
+
+// The boundary methods come after render. They are not enumerable, so the record a route exports stays plain
+// data and spreading it does not copy builder steps.
+export function withBoundaries<R extends { boundaries?: BoundaryRecord }>(record: R): Bounded<R> {
+	const add = (kind: keyof BoundaryRecord, added: BoundaryRecord): Bounded<R> => {
+		if (record.boundaries?.[kind] !== undefined) throw new Error(`${kind} twice`);
+		return withBoundaries({ ...record, boundaries: { ...record.boundaries, ...added } });
 	};
-	return api;
+	const methods: Methods<R> = {
+		errorRender: (fn) => add("errorRender", { errorRender: fn }),
+		notFoundRender: (fn) => add("notFoundRender", { notFoundRender: fn }),
+		unauthenticatedRender: (fn) => add("unauthenticatedRender", { unauthenticatedRender: fn }),
+		unauthorizedRender: (fn) => add("unauthorizedRender", { unauthorizedRender: fn }),
+	};
+	const bounded = Object.assign({ ...record }, methods);
+	for (const name of Object.keys(methods)) Object.defineProperty(bounded, name, { enumerable: false });
+	return bounded;
 }

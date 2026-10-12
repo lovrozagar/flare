@@ -4,7 +4,7 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 
 ## Extends
 
-`server/render/document.test.ts` gains the abort and shell cases. `shared/errors/status.test.ts` gains the render-phase 404. `server/render/head.test.ts` gains `head throw`: a throw omits that match's head, the document status stays the loader status, it is a dev bug, and it does not open `errorRender`. `shared/errors/index.ts` re-exports `devErrorPayload` and `reportDevError` from `dev-report.ts`. `shared/components/index.ts` re-exports `boundaryAt`, `boundaryFallback`, and `boundaryKind`. `server/loaders/cascade.ts` reads `boundaryKind` from it, so the status-to-function table exists once. The public entry does not.
+`server/render/document.test.ts` gains the abort and shell cases. `shared/errors/status.test.ts` gains the render-phase 404. `server/render/head.test.ts` gains `head throw`: a throw omits that match's head, the document status stays the loader status, it is a dev bug, and it does not open `errorRender`. `shared/errors/index.ts` re-exports `devErrorPayload` and `reportDevError` from `dev-report.ts`. `shared/route-builder/boundaries.test.ts` gains `four kinds`: the record that a page, layout, or root layout `render` returns has `errorRender`, `notFoundRender`, `unauthenticatedRender`, and `unauthorizedRender`, each stores its function under `boundaries`, and the methods are not enumerable. `boundary once` covers each method. The router reads `boundaries.notFoundRender`. `shared/components/index.ts` re-exports `boundaryAt`, `boundaryFallback`, and `boundaryKind`. `server/loaders/cascade.ts` reads `boundaryKind` from it, so the status-to-function table exists once. The public entry does not.
 
 ## Cases
 
@@ -39,6 +39,7 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 | `unknown admin` | `notFoundMode` `"fuzzy"`, the longest prefix is under `_admin_` and omits `notFoundRender`, and that root defines it | the admin root's `notFoundRender` text is present and its `render` text is present |
 | `layout stays` | a navigation whose layout match id is unchanged | the layout stays mounted, including its component state. `<Outlet />` has no props and renders no `<Loading>` and no `<Reveal>` |
 | `page remounts` | the page match id changes, and a loader refresh that keeps the id | the page remounts when the id changes. A loader refresh does not remount |
+| `no render` | a layout module with no `render` | its slot paints the next slot, as a segment does |
 
 ### `shared/errors/safe.test.ts`
 
