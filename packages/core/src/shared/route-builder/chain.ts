@@ -5,10 +5,30 @@ export type SsrCache = {
 	defer?: "resolve" | "stream";
 };
 
-export type CacheConfig =
+// When a link prefetches (dx/link.md). A string sets both fields. An object sets the fields it names.
+export type PrefetchTrigger = false | "intent" | "viewport" | "render";
+export type RoutePrefetch = PrefetchTrigger | { data?: PrefetchTrigger; modules?: PrefetchTrigger };
+
+// The route's in-memory match cache (dx/cache.md). `false` turns it off for that route. Durations are strings.
+export type ClientCache =
+	| false
+	| {
+			prefetch?: RoutePrefetch;
+			staleTime?: string;
+			gcTime?: string;
+			prefetchStaleTime?: string;
+			prefetchGcTime?: string;
+			cacheDeferred?: boolean;
+	  };
+
+type CacheMode =
 	| { ssr: SsrCache; isr?: never; ssg?: never }
 	| { isr: true | { revalidate?: string }; ssr?: never; ssg?: never }
 	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
+
+export type CacheConfig =
+	| (CacheMode & { client?: ClientCache })
+	| { client: ClientCache; ssr?: never; isr?: never; ssg?: never };
 
 import type { JSX } from "@solidjs/web";
 import type { Deferred } from "./register.ts";

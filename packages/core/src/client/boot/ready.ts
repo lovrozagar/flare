@@ -72,7 +72,7 @@ export function createReady(): {
 	};
 }
 
-function whenIdle(env: IdleEnv, run: () => void): void {
+export function whenIdle(env: IdleEnv, run: () => void): void {
 	if (env.requestIdle === undefined) env.setTimeout(run, IDLE_TIMEOUT);
 	else env.requestIdle(run, { timeout: IDLE_TIMEOUT });
 }
@@ -86,4 +86,15 @@ function onFirstInteraction(target: EventTarget, run: () => void): void {
 	};
 	target.addEventListener("pointerdown", once);
 	target.addEventListener("keydown", once);
+}
+
+// `modules: "all"` waits for the window's load event, then idle (dx/link.md). A document already loaded runs now.
+export function afterLoad(idle: IdleEnv, run: () => void): void {
+	if (document.readyState === "complete") return run();
+	window.addEventListener("load", () => whenIdle(idle, run), { once: true });
+}
+
+// The "render" prefetch trigger: after the current page's load and idle.
+export function loadedIdle(idle: IdleEnv): (run: () => void) => void {
+	return (run) => whenIdle(idle, () => afterLoad(idle, run));
 }

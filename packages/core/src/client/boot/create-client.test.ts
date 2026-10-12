@@ -1,4 +1,4 @@
-import { flush } from "solid-js";
+import { flush, useContext } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { encodeFrame } from "../../shared/protocol/index.ts";
@@ -6,16 +6,18 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { useRouter } from "../../shared/router/context.ts";
 import { createRouter, type Router } from "../../shared/router/create-router.ts";
+import { PrefetchContext, type Prefetcher } from "../navigation/prefetch.ts";
 import { bootClient, createClient, devSend, type ClientEnv } from "./create-client.ts";
 import { createReady, type ReadyContext } from "./ready.ts";
 
 type Dom = typeof globalThis & { _$HY?: unknown; flare?: unknown };
 
-const seen: { router?: Router } = {};
+const seen: { router?: Router; prefetcher?: Prefetcher } = {};
 
 const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
 const home = createPage("_root_/").render((props) => {
 	seen.router = useRouter();
+	seen.prefetcher = useContext(PrefetchContext);
 	return `home:${String(props.loaderData)}`;
 });
 const about = createPage("_root_/about").render((props) => `about:${String(props.loaderData)}`);
@@ -23,8 +25,9 @@ const broken = createPage("_root_/broken").render(() => {
 	throw new Error("render broke");
 });
 
-function routerOf(): Router {
+function routerOf(chunks: Record<string, string> = {}): Router {
 	return createRouter({
+		chunks,
 		layouts: { _root_: root },
 		routeTree: [
 			{ id: "_root_/", path: "/", module: () => Promise.resolve(home) },
@@ -63,6 +66,8 @@ function env(host: HTMLElement, fetch: ClientEnv["fetch"] = vi.fn<ClientEnv["fet
 		assign: vi.fn<(href: string) => void>(),
 		dev: false,
 		idle: { requestIdle: undefined, setTimeout: (run) => run() },
+		network: {},
+		observe: () => () => undefined,
 	};
 }
 
@@ -205,4 +210,20 @@ it("popstate", async () => {
 	await new Promise((resolve) => setTimeout(resolve, 10));
 	flush();
 	expect(host.textContent).toBe("root[about:back]");
+});
+
+it("prefetch all", async () => {
+	const host = install();
+	const client = env(
+		host,
+		vi.fn<ClientEnv["fetch"]>(async () => new Response(null, { status: 500 })),
+	);
+	await bootClient(routerOf({ "_root_/about": "/src/about.tsx" }), createReady(), client);
+	const links = [...document.head.querySelectorAll('link[rel="prefetch"]')];
+	expect(links.map((link) => link.getAttribute("href"))).toEqual(["/src/about.tsx"]);
+	for (const link of links) link.remove();
+	const anchor = document.createElement("a");
+	seen.prefetcher?.watch(anchor, "/about", "intent");
+	anchor.dispatchEvent(new Event("pointerenter"));
+	expect(client.fetch).toHaveBeenCalledExactlyOnceWith("/about?_flare=prefetch", expect.anything());
 });

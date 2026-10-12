@@ -8,12 +8,13 @@ import { createBlockers } from "../navigation/blocker.ts";
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts";
 import { createNavigationState } from "../navigation/pending.ts";
 import { createPopstate } from "../navigation/popstate.ts";
+import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts";
 import { loadDocument } from "../navigation/reload.ts";
 import { createScroll, type ScrollStore } from "../navigation/scroll.ts";
-import { createMatchCache } from "../router/match-cache.ts";
-import { createRouterStore, snapshotFromState } from "../router/store.ts";
+import { cacheFor } from "../router/match-cache.ts";
+import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts";
 import { mountApp, readState, type Mount } from "./hydrate.ts";
-import { createReady, type IdleEnv, type ReadyApi } from "./ready.ts";
+import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts";
 
 // The browser surface the client uses, passed in so a test can observe it.
 export type ClientEnv = {
@@ -23,6 +24,8 @@ export type ClientEnv = {
 	dev: boolean;
 	send?: (payload: DevErrorPayload) => void;
 	idle: IdleEnv;
+	network: object;
+	observe: PrefetchEnv["observe"];
 };
 
 type Ready = ReturnType<typeof createReady>;
@@ -62,6 +65,7 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	const navigation = createNavigationState();
 	const blockers = createBlockers();
 	const scroll = browserScroll(router);
+	const prefetcher = browserPrefetcher(router, store, env);
 	const navigator = createNavigator({
 		router,
 		store,
@@ -69,7 +73,7 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 		scroll,
 		blockers,
 		navigation,
-		cache: createMatchCache({ staleTime: 0, gcTime: 300_000 }),
+		cache: cacheFor(router.cache.client, router.routeCacheMaxEntries),
 		fetch: env.fetch,
 		origin: window.location.origin,
 		assign: env.assign,
@@ -77,6 +81,7 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 		build: "",
 		dev: env.dev,
 		send: env.send,
+		prefetched: prefetcher.prefetched,
 	});
 	const pop = createPopstate({
 		history,
@@ -86,10 +91,10 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	});
 	window.addEventListener("popstate", (event) => void pop(event.state));
 	ready.ready({ navigate: navigator.navigate, location });
-	mountApp({ router, store, navigation, blockers, mount: env.mount });
+	mountApp({ router, store, navigation, blockers, prefetcher, mount: env.mount });
 	document.documentElement.setAttribute("data-flare-hydrated", "");
 	ready.hydrated();
-	ready.idle(env.idle, () => undefined);
+	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all));
 	ready.interaction(document);
 }
 
@@ -104,7 +109,22 @@ function browserEnv(): ClientEnv {
 			requestIdle: globalThis.requestIdleCallback?.bind(globalThis),
 			setTimeout: globalThis.setTimeout.bind(globalThis),
 		},
+		network: globalThis.navigator,
+		observe: observeViewport,
 	};
+}
+
+// The prefetcher over the window. A link resolves against the page on screen.
+function browserPrefetcher(router: Router, store: RouterStore, env: ClientEnv): Prefetcher {
+	return createPrefetcher({
+		router,
+		origin: window.location.origin,
+		current: () => store.snapshot().location,
+		fetch: env.fetch,
+		build: "",
+		land: { dev: env.dev, send: env.send },
+		env: { network: env.network, observe: env.observe, idle: loadedIdle(env.idle), head: document.head, now: Date.now },
+	});
 }
 
 function here(): string {

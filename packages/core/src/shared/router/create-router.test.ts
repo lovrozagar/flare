@@ -199,3 +199,25 @@ it("lazy chain", async () => {
 	});
 	await expect(loadChain(broken.match("/x").chain)).rejects.toThrow(/dynamically imported/);
 });
+
+it("prefetch option", () => {
+	const tree = { layouts: {}, routeTree: [] };
+	expect(createRouter({ ...tree, prefetch: "intent" }).prefetch).toEqual({ modules: "intent", data: "intent" });
+	expect(createRouter({ ...tree, prefetch: { data: "viewport" } }).prefetch).toEqual({
+		modules: "all",
+		data: "viewport",
+	});
+	expect(createRouter({ ...tree, prefetch: false }).prefetch).toEqual({ modules: false, data: false });
+	const page = { cache: { client: { prefetch: "render" as const } } };
+	const router = createRouter({
+		layouts: { _root_: {} },
+		routeTree: [
+			{ id: "_root_/a", path: "/a", module: page },
+			{ id: "_root_/b", path: "/b", client: { prefetch: "intent" }, module: () => Promise.resolve(page) },
+			{ id: "_root_/c", path: "/c", module: {} },
+		],
+	});
+	expect(router.match("/a").client).toEqual({ prefetch: "render" });
+	expect(router.match("/b").client).toEqual({ prefetch: "intent" });
+	expect(router.match("/c")).not.toHaveProperty("client");
+});

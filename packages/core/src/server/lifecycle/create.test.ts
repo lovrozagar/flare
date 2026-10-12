@@ -425,3 +425,22 @@ it("method before load", async () => {
 	expect(imported).toEqual(["root", "api"]);
 	expect((await app.fetch(new Request("http://localhost/lie", { method: "POST" }))).status).toBe(500);
 });
+
+it("prefetch defer", async () => {
+	const late = vi.fn<() => Promise<string>>(async () => "late");
+	const slow = createPage("_root_/slow")
+		.loader(({ defer }) => ({ late: defer(late) }))
+		.render(show);
+	const app = createServer({
+		router: createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/slow", path: "/slow", module: slow }],
+		}),
+	});
+	const response = await app.fetch(new Request("http://localhost/slow?_flare=prefetch"));
+	const body = await response.text();
+	expect(response.status).toBe(200);
+	expect(body).toContain('"__deferred":true');
+	expect(body).not.toContain('"t":"c"');
+	expect(late).not.toHaveBeenCalled();
+});

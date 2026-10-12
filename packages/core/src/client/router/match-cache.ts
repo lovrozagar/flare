@@ -1,15 +1,19 @@
-import type { EffectPlace, Effects } from "../../shared/route-builder/index.ts";
+import { parseDuration } from "../../shared/duration/index.ts";
+import type { ClientCache, EffectPlace, Effects } from "../../shared/route-builder/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { matchId } from "../../shared/route-tree/index.ts";
-import { loadedModule, type Match } from "../../shared/router/create-router.ts";
+import { loadedModule, type Match, type Router } from "../../shared/router/create-router.ts";
 import { readSearch, type Location } from "../../shared/url/index.ts";
 import type { Landed } from "../navigation/frames.ts";
 
 type Raw = Record<string, string | string[]>;
 
+type RouterClientCache = Router["cache"]["client"];
+
 export type { Effects } from "../../shared/route-builder/index.ts";
 
-// One match of a navigation target. `route` is the route id and `id` the match id (B31).
+// One match of a navigation target. `route` is the route id and `id` the match id (B31). `client` is the route's
+// `cache.client`.
 export type CachedMatch = {
 	route: string;
 	id: string;
@@ -17,10 +21,18 @@ export type CachedMatch = {
 	params: Raw;
 	search: Raw;
 	effects?: Effects;
-	cacheDeferred?: boolean;
+	client?: ClientCache;
 };
 
-export type CacheEntry = { data: unknown; deferred: boolean; deps?: string; head?: HeadConfig };
+// `staleTime` and `gcTime` are the entry's own clock in ms, when its route sets one. Else the cache's applies.
+export type CacheEntry = {
+	data: unknown;
+	deferred: boolean;
+	deps?: string;
+	head?: HeadConfig;
+	staleTime?: number;
+	gcTime?: number;
+};
 
 type Stored = CacheEntry & { at: number; touched: number };
 
@@ -57,7 +69,7 @@ export function createMatchCache(options: {
 		const entry = entries.get(key);
 		if (entry === undefined) return undefined;
 		entries.delete(key);
-		if (now() - entry.touched > options.gcTime) return undefined;
+		if (now() - entry.touched > (entry.gcTime ?? options.gcTime)) return undefined;
 		entries.set(key, { ...entry, touched: now() });
 		return entry;
 	};
@@ -82,8 +94,10 @@ export function createMatchCache(options: {
 				}) === true;
 			const held = (match: CachedMatch): boolean => {
 				const entry = read(match);
-				if (entry === undefined || plan.revalidate || now() - entry.at > options.staleTime) return false;
-				return entry.deps === deps(match) && (!entry.deferred || match.cacheDeferred === true);
+				if (entry === undefined || plan.revalidate || now() - entry.at > (entry.staleTime ?? options.staleTime)) {
+					return false;
+				}
+				return entry.deps === deps(match) && (!entry.deferred || clientOf(match.client).cacheDeferred === true);
 			};
 			const pages = plan.matches.filter((match) => !match.layout);
 			const stale = pages.filter((match) => held(match) && !asks(match)).map((match) => match.id);
@@ -106,31 +120,45 @@ function deps(match: CachedMatch): string | undefined {
 }
 
 // The cache and the stale plan key a match alike: raw params plus the raw search (B31). A module loadChain already
-// imported gives its effects. One not yet imported has no entry to hold, so it needs none.
+// imported gives its effects and its `cache.client`. One not yet imported has no entry to hold. The page's
+// `cache.client` also comes from the tree node, so a prefetch reads it before the import.
 export function cachedMatches(match: Match, location: Location): CachedMatch[] {
 	const params = defined(match.params);
 	const search = readSearch(location.search);
 	const id = matchId(params, location.search.slice(1));
 	return match.chain.map((entry) => {
 		const cached: CachedMatch = { route: entry.id, id, layout: entry.kind === "layout", params, search };
-		const effects = loadedModule(entry.module)?.effects;
-		if (effects !== undefined) cached.effects = effects;
+		const record = loadedModule(entry.module);
+		const client = (entry.kind === "page" ? match.client : undefined) ?? record?.cache?.client;
+		if (record?.effects !== undefined) cached.effects = record.effects;
+		if (client !== undefined) cached.client = client;
 		return cached;
 	});
 }
 
-// Only successful `l` payloads are cached, with their head. A failed match is evicted.
+// Only successful `l` payloads are cached, with their head, on the route's clock. A failed match is evicted. A
+// route whose `cache.client` is false is not cached.
 export function remember(cache: MatchCache, matches: readonly CachedMatch[], landing: Landed): void {
 	for (const match of matches) {
-		const data = landing.data[match.route];
-		if (landing.failure?.route === match.route) cache.evict(match);
-		else if (match.route in landing.data) {
-			const entry: CacheEntry = { data, deferred: holds(data) };
-			const head = landing.heads[match.route];
-			if (head !== undefined) entry.head = head;
-			cache.store(match, entry);
-		}
+		if (landing.failure?.route === match.route || match.client === false) cache.evict(match);
+		else if (match.route in landing.data) cache.store(match, entryOf(match, landing));
 	}
+}
+
+function entryOf(match: CachedMatch, landing: Landed): CacheEntry {
+	const data = landing.data[match.route];
+	const entry: CacheEntry = { data, deferred: holds(data) };
+	const head = landing.heads[match.route];
+	const client = clientOf(match.client);
+	if (head !== undefined) entry.head = head;
+	if (client.staleTime !== undefined) entry.staleTime = parseDuration(client.staleTime);
+	if (client.gcTime !== undefined) entry.gcTime = parseDuration(client.gcTime);
+	return entry;
+}
+
+// The fields of a route's `cache.client`. Absent and `false` both set none.
+export function clientOf(client: ClientCache | undefined): Exclude<ClientCache, false> {
+	return client === undefined || client === false ? {} : client;
 }
 
 // A value that still holds a deferred placeholder (B80).
@@ -142,4 +170,10 @@ function defined(params: Record<string, string | string[] | undefined>): Raw {
 	return Object.fromEntries(
 		Object.entries(params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
 	);
+}
+
+// The router's client cache. `false` keeps nothing.
+export function cacheFor(client: RouterClientCache, max: number): MatchCache {
+	if (client === false) return createMatchCache({ staleTime: 0, gcTime: 0, max: 0 });
+	return createMatchCache({ staleTime: client.staleTime, gcTime: parseDuration(client.gcTime), max });
 }

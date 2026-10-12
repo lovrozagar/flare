@@ -5,4 +5,4 @@ export { createChain } from "./chain.ts";
 export { createPathSegment } from "./segment.ts";
 export type { BoundaryRecord, ErrorRender, Located, NotFoundRender } from "./boundaries.ts";
 export type { AuthenticateMode, CacheConfig, HeadConfig } from "./types.ts";
-export type { EffectPlace, Effects } from "./chain.ts";
+export type { ClientCache, EffectPlace, Effects, PrefetchTrigger, RoutePrefetch } from "./chain.ts";

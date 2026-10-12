@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { createReady, type IdleEnv } from "./ready.ts";
+import { afterLoad, loadedIdle, createReady, type IdleEnv } from "./ready.ts";
 
 afterEach(() => {
 	vi.useRealTimers();
@@ -85,4 +85,22 @@ it("idle timeout", async () => {
 		() => undefined,
 	);
 	expect(timeouts).toEqual([1000]);
+});
+
+it("after load", () => {
+	const log: string[] = [];
+	const idle: (() => void)[] = [];
+	const env = { requestIdle: undefined, setTimeout: (run: () => void) => void idle.push(run) };
+	afterLoad(env, () => log.push("now"));
+	expect(log).toEqual(["now"]);
+	Object.defineProperty(document, "readyState", { configurable: true, get: () => "loading" });
+	afterLoad(env, () => log.push("all"));
+	loadedIdle(env)(() => log.push("render"));
+	idle.shift()?.();
+	expect(log).toEqual(["now"]);
+	window.dispatchEvent(new Event("load"));
+	for (const run of idle.splice(0)) run();
+	expect(log).toEqual(["now", "all", "render"]);
+	Reflect.deleteProperty(document, "readyState");
+	expect(document.readyState).toBe("complete");
 });
