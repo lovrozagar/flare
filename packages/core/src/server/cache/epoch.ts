@@ -7,26 +7,32 @@ export function epochKey(tag: string): string {
 	return `epoch:${tag}`;
 }
 
+// A key purge also sets the key's own epoch, so a render that started before the purge and writes after its
+// tombstone is still a miss (dx/cache.md). A tag named `key:<key>` shares that epoch, which can only purge more.
+export function keyEpochKey(key: string): string {
+	return `epoch:key:${key}`;
+}
+
 export type Lookup = { entry: FlareStoreEntry; purged: boolean };
 
-// One get for the key, then one per tag of the entry, in parallel.
+// One get for the key and one for its own epoch, in parallel, then one per tag of the entry, in parallel.
 export async function lookup(store: FlareStore, key: string): Promise<Lookup | null> {
-	const entry = await store.get(key);
+	const [entry, own] = await Promise.all([store.get(key), store.get(keyEpochKey(key))]);
 	if (entry === null) return null;
 	const epochs = await Promise.all((entry.tags ?? []).map((tag) => store.get(epochKey(tag))));
-	const purged = epochs.some((epoch) => typeof epoch?.data === "number" && epoch.data >= entry.storedAt);
+	const purged = [own, ...epochs].some((epoch) => typeof epoch?.data === "number" && epoch.data >= entry.storedAt);
 	return { entry, purged };
 }
 
-// A tag purge: each `epoch:<tag>` becomes now, and never goes back past a later epoch already there. One get and
-// one set per tag. It never calls `deleteByTags` and never lists keys.
-export async function bumpEpochs(store: FlareStore, tags: readonly string[]): Promise<void> {
+// Each epoch key becomes now, and never goes back past a later epoch already there. One get and one set per key.
+// A purge never calls `deleteByTags` and never lists keys.
+export async function bumpEpochs(store: FlareStore, keys: readonly string[]): Promise<void> {
 	const now = Date.now();
 	await Promise.all(
-		tags.map(async (tag) => {
-			const previous = await store.get(epochKey(tag));
+		keys.map(async (key) => {
+			const previous = await store.get(key);
 			const epoch = Math.max(typeof previous?.data === "number" ? previous.data : 0, now);
-			await store.set(epochKey(tag), { data: epoch, storedAt: now });
+			await store.set(key, { data: epoch, storedAt: now });
 		}),
 	);
 }

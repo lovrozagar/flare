@@ -20,7 +20,8 @@ function counted(store: FlareStore): { store: FlareStore; calls: string[] } {
 	return { store: spied, calls };
 }
 
-// One get for the key plus one per tag. There is no list operation and no tag index (dx/store.md).
+// One get for the key and one for its own epoch, in parallel, then one per tag. There is no list operation and no tag
+// index (dx/store.md).
 it("get cost", async () => {
 	const memory = createMemoryStore();
 	await memory.set("k", { data: { html: "a" }, storedAt: 100, tags: ["a", "b"] });
@@ -29,7 +30,7 @@ it("get cost", async () => {
 		entry: { data: { html: "a" }, storedAt: 100, tags: ["a", "b"] },
 		purged: false,
 	});
-	expect(calls).toEqual(["get", "get", "get"]);
+	expect(calls).toEqual(["get", "get", "get", "get"]);
 });
 
 // An epoch at or after the entry's render start purges it: a purge in that same millisecond may follow the data
