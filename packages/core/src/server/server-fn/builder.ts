@@ -1,4 +1,4 @@
-import { getOwner } from "solid-js";
+import { getObserver, getOwner } from "solid-js";
 import type { Validator } from "../../shared/validation/index.ts";
 import { callInRequest } from "./dispatch.ts";
 
@@ -110,12 +110,13 @@ function required(client: ClientCall | undefined): ClientCall {
 	return client;
 }
 
-// A direct client call while a component or a computation runs is a render call, and it throws before any work
-// (B45). An event handler, an effect callback, and a queryFn run with no owner.
+// A direct client call in a component or route body throws before any work (B45, B85): an owner exists and no
+// reactive observer runs. A memo or effect compute has an observer. An event handler, an effect callback, and code
+// after an await have no owner. An onSettled callback looks like a body, so it throws too (dx/server-fn.md).
 function callable(internal: Internal, record: ServerFnRecord, transport: ClientCall | undefined): ServerFn {
 	const call = (input?: unknown): unknown => {
 		if (transport === undefined) return callInRequest(fn, input);
-		if (getOwner() !== null) {
+		if (getOwner() !== null && getObserver() === null) {
 			throw new Error(`${internal.name} was called during a render. Call it from an event, an effect, or a queryFn`);
 		}
 		return transport(fn, input);

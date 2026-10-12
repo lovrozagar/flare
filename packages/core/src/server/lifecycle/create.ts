@@ -58,6 +58,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 			const inner = internal.url.href === request.url ? request : new Request(internal.url, request);
 			const exchange = { ...outer, request: inner, kind: internal.kind, stale: internal.stale };
 			const step = applyCanonical({
+				method: request.method,
 				url: request.url,
 				trailingSlash: options.router.trailingSlash,
 				caseSensitive: options.router.caseSensitive,

@@ -232,6 +232,7 @@ packages/core/src/server/server-fn/builder.ts	P7	src	server	createServerFn chain
 packages/core/src/server/server-fn/builder.test.ts	P7	test	server	Unit cases for builder.ts
 packages/core/src/server/server-fn/dispatch.ts	P7	src	server	The B42 order
 packages/core/src/server/server-fn/dispatch.test.ts	P7	test	server	Unit cases for dispatch.ts
+packages/core/src/server/server-fn/client-stub.test.tsx	P7	test	server	The client callable's render guard, under Solid's browser build
 packages/core/src/server/server-fn/csrf.ts	P7	src	server	Origin, Sec-Fetch-Site, Referer, and the same-site allow-list
 packages/core/src/server/server-fn/csrf.test.ts	P7	test	server	Unit cases for csrf.ts
 packages/core/src/server/server-fn/input.ts	P7	src	server	POST body cap and the GET _i parser
