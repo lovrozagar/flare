@@ -5,7 +5,8 @@ type Params = Record<string, string | string[]>;
 // The function's own route, not the failed match's (B77).
 export type Located = { params: Params; search: Params };
 
-export type ErrorRender = (props: Located & { error: Error }) => JSX.Element;
+// `reset()` revalidates the current URL in place (dx/builder.md).
+export type ErrorRender = (props: Located & { error: Error; reset: () => void }) => JSX.Element;
 
 export type NotFoundRender = (props: Located) => JSX.Element;
 
