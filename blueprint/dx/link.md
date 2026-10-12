@@ -77,3 +77,19 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 | a leading control byte, or whitespace before the scheme | rejected |
 
 `Link` uses the same classification and renders `href="#"` instead of throwing (`link.test.tsx` `dangerous`). `redirect({ href })` throws on a rejected value.
+
+## URL values
+
+`params` and `search` take the validator output, so a value that a validator produced can go back into a `Link`, `navigate()`, `redirect()`, or `buildUrl` and parse back to the same value. One rule turns a value into URL text, in `shared/url`, for all four:
+
+| value | URL text | read back with |
+| --- | --- | --- |
+| string | as is, then percent-encoded | — |
+| number, boolean, bigint | `String(value)` | `z.coerce.number()`, `z.coerce.boolean()`, or the same in another schema |
+| `Date` | `toISOString()` | `z.coerce.date()` |
+| array | one entry per element: `?tag=a&tag=b`; a catch-all param joins its segments with `/` | the array |
+| plain object | `JSON.stringify` | a JSON parse step in the validator |
+| `null`, `undefined` | omitted from search; a missing value for a path param, so an optional one drops and a required one throws | an optional field |
+| function, symbol | throws, naming the key | — |
+
+A plain value stays readable text, not JSON. A typed URL, a `<form method="get">`, and a `Link` produce the same text for the same value, so the match id and the cache key agree (B31). There is no custom serializer: a caller that wants another format passes the string it built (`href.test.ts` `typed values`, `date value`, `object value`, `nullish value`).
