@@ -17,6 +17,21 @@ import type {
 
 type UsersLink = LinkProps<App, "_root_/users/[id]">;
 
+// @ts-expect-error null has no userId
+const readOptionalUser = (session: ResolvedAuth<App, "optional">): string => session.userId;
+
+// @ts-expect-error a public authorize still needs a null check
+const readAuthorizedUser = (session: ResolvedAuth<App, "optional">): string => session.userId;
+
+const hook: (args: { from: From<App> }) => void = () => undefined;
+
+const call: () => Promise<void> = async () => undefined;
+function renderCall(): Promise<{ secret: string }> {
+	throw new Error("stub");
+}
+// @ts-expect-error authenticate takes no caller argument on a server function
+const noCaller: () => void = (_user: string) => undefined;
+
 it("param types", () => {
 	expectTypeOf<ExtractPathParams<"[id]">>().toEqualTypeOf<{ id: string }>();
 	// @ts-expect-error id is not a number
@@ -232,8 +247,7 @@ it("auth required", () => {
 });
 it("auth optional", () => {
 	expectTypeOf<ResolvedAuth<App, "optional">>().toEqualTypeOf<{ userId: string } | null>();
-	// @ts-expect-error null has no userId
-	const _read = (session: ResolvedAuth<App, "optional">): string => session.userId;
+	expectTypeOf(readOptionalUser).toBeFunction();
 });
 it("auth unaugmented", () => {
 	expectTypeOf<ResolvedAuth<FlareRegister, true>>().toEqualTypeOf<null>();
@@ -257,8 +271,7 @@ it("grandchild strict", () => {
 });
 it("authorize reads", () => {
 	expectTypeOf<ResolvedAuth<App, "optional">>().toEqualTypeOf<{ userId: string } | null>();
-	// @ts-expect-error a public authorize still needs a null check
-	const _read = (session: ResolvedAuth<App, "optional">): string => session.userId;
+	expectTypeOf(readAuthorizedUser).toBeFunction();
 });
 it("authorize keeps required", () => {
 	expectTypeOf<ResolvedAuth<App, true>>().toEqualTypeOf<{ userId: string }>();
@@ -288,18 +301,15 @@ it("server fn auth null", () => {
 });
 it("server fn auth required", () => {
 	expectTypeOf<ResolvedAuth<App, true>["userId"]>().toEqualTypeOf<string>();
-	// @ts-expect-error authenticate takes no caller argument on a server function
-	const _bad: () => void = (_user: string) => undefined;
+	expectTypeOf(noCaller).toBeFunction();
 });
 it("hook from", () => {
-	const hook: (args: { from: From<App> }) => void = () => undefined;
 	expectTypeOf(hook).toBeFunction();
 	hook({ from: "_root_/about" });
 	// @ts-expect-error from is required
 	hook();
 });
 it("hook unknown", () => {
-	const hook: (args: { from: From<App> }) => void = () => undefined;
 	expectTypeOf(hook).toBeFunction();
 	// @ts-expect-error an unknown id is rejected
 	hook({ from: "nope" });
@@ -359,7 +369,6 @@ it("server fn input", () => {
 	const _bad: { q: string } = { q: "a", extra: true };
 });
 it("server fn input void", () => {
-	const call: () => Promise<void> = async () => undefined;
 	expectTypeOf(call()).toEqualTypeOf<Promise<void>>();
 	// @ts-expect-error a void input takes no argument
 	call({ q: "a" });
@@ -379,10 +388,7 @@ it("server fn stream", () => {
 	const _bad: { revalidate?: never } = { revalidate: () => undefined };
 });
 it("server fn render call", () => {
-	const call = (): Promise<{ secret: string }> => {
-		throw new Error("server fn stub");
-	};
-	expectTypeOf(call).toEqualTypeOf<() => Promise<{ secret: string }>>();
+	expectTypeOf(renderCall).toEqualTypeOf<() => Promise<{ secret: string }>>();
 });
 it("server fn methods", () => {
 	type AfterAuth = { input: () => unknown; authorize: () => unknown; handler: () => unknown; stream: () => unknown };

@@ -5,10 +5,12 @@ import { server } from "../e2e/apps/minimal/src/server.ts";
 
 const listener = createNodeListener(server);
 
+function noop(): void {}
+
 function call(path: string, headers: Record<string, string> = {}): Promise<{ status: number; body: string }> {
 	const chunks: Uint8Array[] = [];
 	let status = 0;
-	let finish = (): void => undefined;
+	let finish: () => void = noop;
 	const done = new Promise<void>((resolve) => {
 		finish = resolve;
 	});
