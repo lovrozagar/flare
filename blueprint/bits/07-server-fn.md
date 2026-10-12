@@ -105,7 +105,7 @@ The ids are build-time work, so `ids.ts` lives in `vite/route-meta/` beside `ext
 | `thrown secret` | handler throws `Error("secret")` in production | `message` does not contain `secret`, `digest` is set, `stack` is absent, the overlay sender is not called |
 | `dev stack` | handler throws `Error("secret")` in dev | `message` is `secret`, `stack` contains a frame, `digest` is absent, the sender is called |
 | `safe` | `markSafeError(new Error("visible"))` in production | `message` is `visible`, `digest` is set, `stack` is absent |
-| `redirect` | the handler throws `redirect({ to, search, hash })` | HTTP 200, `{ name, status: 303, redirect: { to, status: 303, replace: true } }`, no `data`. `to` is the built URL, with the search and the hash. The overlay sender is not called |
+| `redirect` | the handler throws `redirect({ to, search, hash })` | HTTP 200, `{ name, status: 303, redirect: { to, status: 303, replace: true } }`, no `data`. `to` is the built URL, with the search and the hash. The overlay sender is not called. 303 is the default only for a server function: `RedirectError.defaulted` marks a thrown redirect with no status, an explicit status stays as thrown, and a document keeps 307 |
 | `href` | the handler throws `redirect({ href: "https://example.com/a" })` | HTTP 200. `redirect.to` is that URL. The client performs a full page load |
 | `helpers` | `notFound()`, `unauthenticated()`, and `unauthorized()` | JSON at 404, 401, and 403. They do not walk the page and do not open the overlay |
 | `null session` | `.authenticate()` and the session is null, or the authenticate option is missing | 401. The handler is not called |
