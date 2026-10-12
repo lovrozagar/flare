@@ -90,6 +90,8 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 | `reject keeps shell` | one of those promises rejects and the other resolves | status stays 200. The shell is not replaced by an error document. The resolved fragment contains its string |
 | `client import` | the document | beside the state script, `<script type="module" async>import("<url>")</script>`. The dev URL is `/` plus the project-relative client entry. The production URL is that entry's hashed file. A missing production entry fails the build |
 | `hydration capture` | an HTML document | one capture script in `head`, before `#flare-critical`, emitted by `generateHydrationScript`. It contains `_$HY`, the listeners `click` and `input`, and `<!--xs-->`. With a nonce, the script has that nonce. With a string CSP, it has no nonce attribute. A data response does not contain `_$HY` |
+| `abort after shell` | the request aborts after the shell, while a fragment is pending | the next read is done. The pending fragment is not written |
+| `failure after shell` | the render fails after writing the shell | the shell bytes are read unchanged, then the body errors. Flushed bytes are not rewritten (B76) |
 
 ### `shared/errors/status.test.ts` (extended)
 

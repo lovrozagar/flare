@@ -194,7 +194,9 @@ it("unknown failure", async () => {
 		.render((props) => ["root[", props.children, "]"]);
 	const response = await framedServer(broken).fetch(new Request("http://localhost/nope"));
 	expect(response.status).toBe(500);
-	expect(await response.text()).toMatch(/^<div[^>]*>Something went wrong<\/div>/);
+	const body = unmarked(await response.text());
+	expect(body).toMatch(/<div[^>]*>Something went wrong<\/div>/);
+	expect(body).not.toContain("root[");
 });
 
 it("boundary throw", async () => {
