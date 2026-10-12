@@ -1,6 +1,6 @@
 import { decodeGetInput } from "../../shared/protocol/index.ts";
 import { runValidator, shapeIssues, type Issue } from "../../shared/validation/index.ts";
-import type { ServerFnRecord } from "./builder.ts";
+import type { ServerFnRecord } from "../../shared/server-fn/builder.ts";
 
 // The POST body cap, unless createServer's `bodyLimit` says otherwise (B43).
 export const BODY_LIMIT: number = 1024 * 1024;

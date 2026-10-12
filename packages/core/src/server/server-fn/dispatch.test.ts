@@ -9,8 +9,8 @@ import type { ErrorSink } from "../render/projector.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { serveWith } from "../lifecycle/create.ts";
-import { createServerFn, type ServerFnRef } from "./builder.ts";
-import { InputError, dispatch } from "./dispatch.ts";
+import type { ServerFnRef } from "../../shared/server-fn/builder.ts";
+import { createServerFn, InputError, dispatch } from "./dispatch.ts";
 
 function noop(): void {}
 

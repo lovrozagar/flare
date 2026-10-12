@@ -1,6 +1,6 @@
 import { createComponent, createEffect, createMemo, createRoot, flush, onSettled } from "solid-js";
 import { expect, it, vi } from "vitest";
-import { createServerFn, type ServerFnRef } from "./builder.ts";
+import { bindServerFn, type ServerFnRef } from "./builder.ts";
 
 // The client graph's callable runs Solid's browser build, so these rows live in the jsdom project.
 
@@ -15,7 +15,7 @@ const raw = (value: unknown): unknown => value;
 function stubbed() {
 	const secret = vi.fn<() => string>(() => "secret");
 	const transport = vi.fn<Transport>(async () => "sent");
-	return { secret, transport, stub: createServerFn(clientConfig, transport).input(raw).handler(secret) };
+	return { secret, transport, stub: bindServerFn(transport)(clientConfig).input(raw).handler(secret) };
 }
 
 function caught(run: () => unknown): unknown {
@@ -41,7 +41,6 @@ it("client stub", async () => {
 	expect(await stub(1)).toBe("sent");
 	expect(transport).toHaveBeenCalledExactlyOnceWith(stub, 1);
 	expect(secret).not.toHaveBeenCalled();
-	expect(() => createServerFn(clientConfig).handler(secret)).toThrow(/client transport/);
 });
 
 it("memo call", async () => {

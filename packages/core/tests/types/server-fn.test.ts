@@ -1,11 +1,7 @@
 import { expectTypeOf, it } from "vitest";
 import type { PropagationApp as App } from "../../src/shared/route-builder/register.ts";
-import {
-	createServerFn,
-	type FnContext,
-	type FnStart,
-	type ServerFnBuilder,
-} from "../../src/server/server-fn/builder.ts";
+import { createServerFn } from "../../src/server/server-fn/dispatch.ts";
+import type { FnContext, FnStart, ServerFnBuilder } from "../../src/shared/server-fn/builder.ts";
 
 // The dx/types.md matrix rows whose producer is `createServerFn`. The other rows are in `propagation.test.ts`. A
 // chain here is built, never called: a call outside a request throws.

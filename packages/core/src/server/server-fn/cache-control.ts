@@ -1,5 +1,5 @@
 import { parseDuration } from "../../shared/duration/index.ts";
-import type { ServerFnRecord } from "./builder.ts";
+import type { ServerFnRecord } from "../../shared/server-fn/builder.ts";
 
 const PRIVATE = "private, no-store";
 

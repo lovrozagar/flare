@@ -1,4 +1,5 @@
 import { BUILD_HEADER, FN_HEADER } from "../../shared/protocol/index.ts";
+import { bindServerFn, type CreateServerFn, type ServerFnCall } from "../../shared/server-fn/builder.ts";
 import { shapeIssues, type Issue } from "../../shared/validation/index.ts";
 import { fnRequest } from "./codec.ts";
 
@@ -14,6 +15,17 @@ export type CallDeps = {
 	go: (url: string, replace: boolean) => unknown;
 	assign: (href: string) => void;
 };
+
+// The client entry's call: `bootClient` writes the transport onto `self.flare`, and it is read at call time, so a
+// module that defines a server function loads before boot (bits/07, 03-surface `./server-fn`).
+export const bootedCall: ServerFnCall = (fn, input) => {
+	const call: unknown = Reflect.get(Object(Reflect.get(globalThis, "flare")), "call");
+	if (typeof call !== "function") throw new Error("server function called before the client booted");
+	return Reflect.apply(call, undefined, [fn, input]);
+};
+
+// The client entry's `createServerFn`.
+export const createServerFn: CreateServerFn = bindServerFn(bootedCall);
 
 export type CallTarget = { id: string; name: string; record: { method: "get" | "post" } };
 

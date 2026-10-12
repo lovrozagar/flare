@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { StandardIssue, Validator } from "./builder.ts";
+import type { StandardIssue, Validator } from "../../shared/server-fn/builder.ts";
 import { readInput } from "./input.ts";
 
 const MIB = 1024 * 1024;

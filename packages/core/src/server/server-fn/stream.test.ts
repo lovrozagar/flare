@@ -2,7 +2,8 @@ import { expect, it } from "vitest";
 import { withServerContext } from "../context/ctx.ts";
 import type { StageResult } from "../lifecycle/finalize.ts";
 import type { Logger } from "../lifecycle/logger.ts";
-import { createServerFn, type ServerFnRef } from "./builder.ts";
+import type { ServerFnRef } from "../../shared/server-fn/builder.ts";
+import { createServerFn } from "./dispatch.ts";
 import { dispatch } from "./dispatch.ts";
 import { streamEnvelopes } from "./stream.ts";
 

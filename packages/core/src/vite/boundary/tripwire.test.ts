@@ -196,6 +196,39 @@ export const numbers = createServerFn().stream(async function* () {
 	}
 });
 
+// A page that imports a server function, built for the browser with the package itself in the chunk. The client
+// entry of `./server-fn` holds no `src/server` module (03-surface). The fixture sits under the repo's ignored .tmp
+// so the package resolves through its export conditions.
+it("server fn import", async () => {
+	const repo = resolve(PACKAGE_SRC, "../../..");
+	mkdirSync(join(repo, ".tmp"), { recursive: true });
+	const root = mkdtempSync(join(repo, ".tmp", "flare-tripwire-"));
+	roots.push(root);
+	for (const [path, source] of Object.entries(
+		app(`${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`),
+	)) {
+		mkdirSync(dirname(join(root, path)), { recursive: true });
+		writeFileSync(join(root, path), source);
+	}
+	const bundled = (id: string): boolean => external(id) && !id.startsWith("@lovrozagar/flare");
+	const builder = await createBuilder({
+		root,
+		configFile: false,
+		logLevel: "silent",
+		plugins: [boundary()],
+		environments: {
+			client: {
+				build: {
+					write: false,
+					minify: false,
+					rollupOptions: { input: join(root, "src/client.ts"), external: bundled },
+				},
+			},
+		},
+	});
+	await expect(builder.build(builder.environments.client)).resolves.toBeDefined();
+});
+
 it("outside root", async () => {
 	// A workspace module outside the app root is never transformed, so its body reaches the chunk and fails it.
 	const workspace = fixture({

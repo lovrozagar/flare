@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { callServerFn, ServerFnError, type CallDeps } from "./call.ts";
+import { callServerFn, createServerFn, ServerFnError, type CallDeps } from "./call.ts";
 
 const echo = { id: "0123456789abcdef", name: "echo", record: { method: "post" as const } };
 
@@ -140,4 +140,25 @@ it("build mismatch", async () => {
 	expect(await callServerFn(echo, 1, unbuilt)).toBe(2);
 	expect(missing.reload).not.toHaveBeenCalled();
 	expect(unbuilt.reload).not.toHaveBeenCalled();
+});
+
+// The client entry's callable reads the booted transport, `self.flare.call`, when it is called (dx/server-fn.md).
+it("before boot", () => {
+	Reflect.deleteProperty(globalThis, "flare");
+	const ping = createServerFn().handler(() => "never");
+	expect(() => ping()).toThrow("server function called before the client booted");
+});
+
+it("booted", async () => {
+	const call = vi.fn<(fn: unknown, input: unknown) => Promise<string>>(async () => "pong");
+	Reflect.set(globalThis, "flare", { build: "b1", call });
+	try {
+		const ping = createServerFn()
+			.input((value: unknown) => value)
+			.handler(() => "never");
+		expect(await ping("x")).toBe("pong");
+		expect(call).toHaveBeenCalledExactlyOnceWith(ping, "x");
+	} finally {
+		Reflect.deleteProperty(globalThis, "flare");
+	}
 });

@@ -231,11 +231,11 @@ packages/core/src/server/navigation/data.test.ts	P6	test	server	Unit cases for d
 packages/core/src/server/navigation/response.ts	P6	src	server	Write the NDJSON body in the 02-system order
 packages/core/src/server/navigation/response.test.ts	P6	test	server	Unit cases for response.ts
 packages/core/src/server/navigation/index.ts	P6	index	server	Re-exports
-packages/core/src/server/server-fn/builder.ts	P7	src	server	createServerFn chain
-packages/core/src/server/server-fn/builder.test.ts	P7	test	server	Unit cases for builder.ts
+packages/core/src/shared/server-fn/builder.ts	P7	src	shared	The createServerFn chain, the call-once rule, the render guard, and the types. bindServerFn takes the call, so it imports no server module
+packages/core/src/shared/server-fn/builder.test.ts	P7	test	shared	Unit cases for builder.ts
 packages/core/src/server/server-fn/dispatch.ts	P7	src	server	The B42 order
 packages/core/src/server/server-fn/dispatch.test.ts	P7	test	server	Unit cases for dispatch.ts
-packages/core/src/server/server-fn/client-stub.test.tsx	P7	test	server	The client callable's render guard, under Solid's browser build
+packages/core/src/shared/server-fn/client-stub.test.tsx	P7	test	shared	The client callable's render guard, under Solid's browser build
 packages/core/src/server/server-fn/csrf.ts	P7	src	server	Origin, Sec-Fetch-Site, Referer, and the same-site allow-list
 packages/core/src/server/server-fn/csrf.test.ts	P7	test	server	Unit cases for csrf.ts
 packages/core/src/server/server-fn/input.ts	P7	src	server	POST body cap and the GET _i parser
@@ -519,7 +519,8 @@ packages/core/src/exports/adapters-node.ts	P1	index	-	Node adapter
 packages/core/src/exports/vite.ts	P1	index	-	flare plugin. Composes feature vite factories
 packages/core/src/exports/adapters-bun.ts	P3	index	-	Bun adapter
 packages/core/src/exports/adapters-workers.ts	P3	index	-	Workers adapter
-packages/core/src/exports/server-fn.ts	P7	index	-	createServerFn
+packages/core/src/exports/server-fn.ts	P7	index	-	createServerFn bound to the in-request call. The default and workerd conditions
+packages/core/src/exports/server-fn-client.ts	P7	index	-	createServerFn bound to the booted transport. The browser and worker conditions
 packages/core/src/exports/stores-fs.ts	P10	index	-	Filesystem store
 packages/core/src/exports/stores-cache-api.ts	P10	index	-	Cache API store
 packages/core/src/exports/query.ts	P13	index	-	Query feature

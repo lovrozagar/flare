@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import type { ServerFnRecord } from "./builder.ts";
+import type { ServerFnRecord } from "../../shared/server-fn/builder.ts";
 import { fnCacheControl, setCacheControl } from "./cache-control.ts";
 
 const post: ServerFnRecord = { method: "post", authenticate: false };

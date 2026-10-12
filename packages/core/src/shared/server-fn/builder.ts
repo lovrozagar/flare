@@ -1,15 +1,9 @@
 import { getObserver, getOwner } from "solid-js";
-import type {
-	FlareRegister,
-	RegisteredEnv,
-	RegisteredServerContext,
-	ResolvedAuth,
-} from "../../shared/route-builder/register.ts";
-import type { ValidatorInput, ValidatorOutput } from "../../shared/route-builder/types.ts";
-import type { Validator } from "../../shared/validation/index.ts";
-import { callInRequest } from "./dispatch.ts";
+import type { FlareRegister, RegisteredEnv, RegisteredServerContext, ResolvedAuth } from "../route-builder/register.ts";
+import type { ValidatorInput, ValidatorOutput } from "../route-builder/types.ts";
+import type { Validator } from "../validation/index.ts";
 
-export type { StandardIssue, Validator } from "../../shared/validation/index.ts";
+export type { StandardIssue, Validator } from "../validation/index.ts";
 
 export type ServerFnContext = {
 	input: unknown;
@@ -40,8 +34,12 @@ export type ServerFnRecord = {
 // both injected by the boundary transform (dx/server-fn.md). The registry holds these, so a typed callable fits.
 export type ServerFnRef = { readonly id: string; readonly name: string; readonly record: ServerFnRecord };
 
-// How a client graph's callable reaches the server: the HTTP stub (client/server-fn/call.ts).
-export type ClientCall = (fn: ServerFnRef, input: unknown) => unknown;
+// How a callable runs. The server entry binds the in-request call and the client entry the booted transport, so
+// this module imports neither side (03-surface `./server-fn`).
+export type ServerFnCall = (fn: ServerFnRef, input: unknown) => unknown;
+
+// The public `createServerFn` each entry exports.
+export type CreateServerFn = (config?: { method?: "get" | "post" }) => ServerFnBuilder<FlareRegister, FnStart>;
 
 // What a typed chain knows: whether `.authenticate()` ran, what the caller passes (`input`) and the handler reads
 // (`output`), and the methods already called. The validator runs on the server between the two (dx/server-fn.md).
@@ -111,19 +109,21 @@ type Chain = {
 	stream: (fn: StreamHandler) => Callable;
 };
 
+// The typed signature is the public one. The chain under it is untyped, as each step only stores its callback.
+export function bindServerFn(call: ServerFnCall): CreateServerFn {
+	function createServerFn(config?: { method?: "get" | "post" }): ServerFnBuilder<FlareRegister, FnStart>;
+	function createServerFn(config: { method?: "get" | "post" } = {}): unknown {
+		return chainOf(config, call);
+	}
+	return createServerFn;
+}
+
 // `method` defaults to "post". The chain ends with `.handler` or `.stream`, never both. `cache.maxAge` is legal only
 // on a GET with no `authenticate` and no `authorize`, and any other combination throws when the chain ends (B43).
-// A client graph's call goes through `client`. Every other graph's call runs in-process in the active request. The
-// typed signature is the public one. The chain under it is untyped, as each step only stores its callback.
-export function createServerFn(
-	config?: { method?: "get" | "post" },
-	client?: ClientCall,
-): ServerFnBuilder<FlareRegister, FnStart>;
-export function createServerFn(config: { method?: "get" | "post" } = {}, client?: ClientCall): unknown {
+function chainOf(config: { method?: "get" | "post" }, call: ServerFnCall): Chain {
 	const method = config.method ?? "post";
 	if (method !== "get" && method !== "post") throw new Error(`createServerFn method is "get" or "post", not ${method}`);
 	const internal = internalOf(config);
-	const transport = internal.client ? required(client) : undefined;
 	const record: ServerFnRecord = { method, authenticate: false };
 	const used = new Set<string>();
 	// A second call would silently replace the first (dx/server-fn.md).
@@ -138,7 +138,7 @@ export function createServerFn(config: { method?: "get" | "post" } = {}, client?
 		if (record.cache !== undefined && shared) {
 			throw new Error("cache.maxAge needs a GET server function with no authenticate and no authorize");
 		}
-		return callable(internal, record, transport);
+		return callable(internal, record, call);
 	};
 	const chain: Chain = {
 		authenticate: () => {
@@ -183,24 +183,18 @@ function internalOf(config: object): Internal {
 	};
 }
 
-function required(client: ClientCall | undefined): ClientCall {
-	if (client === undefined) throw new Error("A client server function needs the client transport");
-	return client;
-}
-
 // A direct client call in a component or route body throws before any work (B45, B85): an owner exists and no
 // reactive observer runs. A memo or effect compute has an observer. An event handler, an effect callback, and code
 // after an await have no owner. An onSettled callback looks like a body, so it throws too (dx/server-fn.md).
-function callable(internal: Internal, record: ServerFnRecord, transport: ClientCall | undefined): Callable {
-	const call = (input?: unknown): unknown => {
-		if (transport === undefined) return callInRequest(fn, input);
-		if (getOwner() !== null && getObserver() === null) {
+function callable(internal: Internal, record: ServerFnRecord, call: ServerFnCall): Callable {
+	const invoke = (input?: unknown): unknown => {
+		if (internal.client && getOwner() !== null && getObserver() === null) {
 			throw new Error(`${internal.name} was called during a render. Call it from an event, an effect, or a queryFn`);
 		}
-		return transport(fn, input);
+		return call(fn, input);
 	};
 	// A function's own `name` is read-only, so it is defined, not assigned.
-	Object.defineProperty(call, "name", { value: internal.name });
-	const fn = Object.assign(call, { id: internal.id, record });
+	Object.defineProperty(invoke, "name", { value: internal.name });
+	const fn = Object.assign(invoke, { id: internal.id, record });
 	return fn;
 }

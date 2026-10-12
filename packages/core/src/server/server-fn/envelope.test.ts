@@ -8,7 +8,8 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { serveWith } from "../lifecycle/create.ts";
 import type { Authenticate } from "../lifecycle/options.ts";
-import { createServerFn, type ServerFnRef } from "./builder.ts";
+import type { ServerFnRef } from "../../shared/server-fn/builder.ts";
+import { createServerFn } from "./dispatch.ts";
 import { errorEnvelope, okEnvelope } from "./envelope.ts";
 
 function noop(): void {}
