@@ -22,7 +22,7 @@ function styleOf(props: { duration?: number }, requestNonce = "n"): HTMLStyleEle
 it("default duration", () => {
 	const style = styleOf({});
 	expect(style.textContent).toBe(
-		"@view-transition{navigation:auto}::view-transition-old(*),::view-transition-new(*){animation-duration:175ms}",
+		"@view-transition{navigation:auto}::view-transition-old(*),::view-transition-new(*){animation-duration:175ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
 	);
 	expect(style.getAttribute("nonce")).toBe("n");
 	expect(styleOf({}, "").hasAttribute("nonce")).toBe(false);
@@ -30,4 +30,10 @@ it("default duration", () => {
 
 it("custom duration", () => {
 	expect(styleOf({ duration: 300 }).textContent).toContain("animation-duration:300ms");
+});
+
+it("reduced motion", () => {
+	expect(styleOf({}).textContent).toMatch(
+		/@media \(prefers-reduced-motion:reduce\)\{::view-transition-group\(\*\),::view-transition-old\(\*\),::view-transition-new\(\*\)\{animation:none\}\}$/,
+	);
 });
