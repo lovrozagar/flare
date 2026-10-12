@@ -33,7 +33,7 @@ SSG, ISR build, ISR populate, and a shared SSR write. The route field `cache.ssg
 | mode | outcome | pitfall | test |
 | --- | --- | --- | --- |
 | `"resolve"` | the promise is awaited. The stored HTML and the stored NDJSON contain the value, not a placeholder. A rejection fails the SSG build with the route id, and an ISR or SSR populate is not stored | a slow promise holds the build. That is the point: a stored page must not contain a hole | `server/cache/write.test.ts` `resolved defer`; `vite/prerender/run.test.ts` `defer rejected` |
-| `"stream"` | the function is not run at store time. The stored HTML and NDJSON contain the placeholder and no `c` frame. After hydrate the client requests `?_flare=data` for that match. That request is `no-store` and runs the function | the field is empty for a user with no JavaScript. Do not put the page's primary content here | `server/cache/write.test.ts` `streamed defer`; `tests/e2e/navigation.test.ts` `stored stream fills` |
+| `"stream"` | the function is not run at store time. The stored HTML and NDJSON contain the placeholder and no `c` frame. After hydrate, and after a data landing whose `d` frame leaves a placeholder unfilled, the client requests `?_flare=fill` for that URL. A fill is its own URL so a CDN's public data copy, which holds the hole, cannot answer it. It is `no-store`, renders live, never reads or writes the store, and commits without a history write | the field is empty for a user with no JavaScript. Do not put the page's primary content here | `server/cache/write.test.ts` `streamed defer`; `tests/e2e/navigation.test.ts` `stored stream fills` |
 
 One route may mix them. A call with `prerender: "resolve"` is awaited even when the route says `"stream"`, and the opposite too.
 
