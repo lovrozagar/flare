@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { withServerContext } from "../context/ctx.ts";
 import type { StageResult } from "../lifecycle/finalize.ts";
 import type { Logger } from "../lifecycle/logger.ts";
-import { createServerFn, type ServerFn } from "./builder.ts";
+import { createServerFn, type ServerFnRef } from "./builder.ts";
 import { dispatch } from "./dispatch.ts";
 import { streamEnvelopes } from "./stream.ts";
 
@@ -56,7 +56,7 @@ it("two yields", async () => {
 		body: "null",
 		headers: { origin: "http://localhost" },
 	});
-	const serverFns = { [counted.id]: async (): Promise<ServerFn> => counted };
+	const serverFns = { [counted.id]: async (): Promise<ServerFnRef> => counted };
 	const failed: StageResult = { status: 500, body: null };
 	const run = () => dispatch({ request, serverFns, sameSite: [], sink, basePath: "/" });
 	const result = await within(request, run, failed);

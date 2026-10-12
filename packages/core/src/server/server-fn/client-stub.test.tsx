@@ -1,18 +1,21 @@
 import { createComponent, createEffect, createMemo, createRoot, flush, onSettled } from "solid-js";
 import { expect, it, vi } from "vitest";
-import { createServerFn, type ServerFn } from "./builder.ts";
+import { createServerFn, type ServerFnRef } from "./builder.ts";
 
 // The client graph's callable runs Solid's browser build, so these rows live in the jsdom project.
 
-type Transport = (fn: ServerFn, input: unknown) => Promise<unknown>;
+type Transport = (fn: ServerFnRef, input: unknown) => Promise<unknown>;
 
 // The transform writes `__client` in the client graph. It is not typed config, so it arrives untyped.
 const clientConfig = { method: "post" as const, __id: "stub-id", __name: "stub", __client: true };
 
+// The client graph never runs the validator. It is here so the stub takes an argument.
+const raw = (value: unknown): unknown => value;
+
 function stubbed() {
 	const secret = vi.fn<() => string>(() => "secret");
 	const transport = vi.fn<Transport>(async () => "sent");
-	return { secret, transport, stub: createServerFn(clientConfig, transport).handler(secret) };
+	return { secret, transport, stub: createServerFn(clientConfig, transport).input(raw).handler(secret) };
 }
 
 function caught(run: () => unknown): unknown {

@@ -24,11 +24,6 @@ const readOptionalUser = (session: ResolvedAuth<App, "optional">): string => ses
 // @ts-expect-error a public authorize still needs a null check
 const readAuthorizedUser = (session: ResolvedAuth<App, "optional">): string => session.userId;
 
-const call: () => Promise<void> = async () => undefined;
-const renderCall = (): Promise<{ secret: string }> => Promise.reject(new Error("stub"));
-// @ts-expect-error authenticate takes no caller argument on a server function
-const noCaller: () => void = (_user: string) => undefined;
-
 it("param types", () => {
 	expectTypeOf<ExtractPathParams<"[id]">>().toEqualTypeOf<{ id: string }>();
 	// @ts-expect-error id is not a number
@@ -300,20 +295,6 @@ it("auth mode", () => {
 	// @ts-expect-error a route that does not call authenticate is absent
 	const _missing: keyof NonNullable<App["authModes"]> = "_root_/users/[id]";
 });
-it("server fn no optional", () => {
-	type Builder = { authenticate: () => void; input: () => void };
-	expectTypeOf<Builder>().toHaveProperty("authenticate");
-	expectTypeOf<Builder>().not.toHaveProperty("authenticateOptional");
-});
-it("server fn auth null", () => {
-	expectTypeOf<{ auth: null }["auth"]>().toEqualTypeOf<null>();
-	// @ts-expect-error skipping authenticate is null, not the session
-	const _bad: { auth: null }["auth"] = { userId: "a" };
-});
-it("server fn auth required", () => {
-	expectTypeOf<ResolvedAuth<App, true>["userId"]>().toEqualTypeOf<string>();
-	expectTypeOf(noCaller).toBeFunction();
-});
 it("i18n t hooks", () => {
 	expectTypeOf<(key: string) => string>().not.toEqualTypeOf<(args: { from: string }) => unknown>();
 });
@@ -349,38 +330,6 @@ it("mutation options", () => {
 	expectTypeOf<Parameters<Options["onSuccess"]>[0]>().toEqualTypeOf<{ id: string }>();
 	// @ts-expect-error mutationKey is required
 	const _bad: Pick<Options, "mutationKey"> = { onSuccess: () => undefined };
-});
-it("server fn input", () => {
-	expectTypeOf<{ q: string }>().toEqualTypeOf<{ q: string }>();
-	// @ts-expect-error extra keys are rejected
-	const _bad: { q: string } = { q: "a", extra: true };
-});
-it("server fn input void", () => {
-	expectTypeOf(call()).toEqualTypeOf<Promise<void>>();
-	// @ts-expect-error a void input takes no argument
-	call({ q: "a" });
-});
-it("server fn schema unknown", () => {
-	const value = { bad: true } as unknown;
-	expectTypeOf(value).toEqualTypeOf<unknown>();
-});
-it("server fn return", () => {
-	expectTypeOf<Awaited<Promise<{ secret: string }>>>().toEqualTypeOf<{ secret: string }>();
-	// @ts-expect-error the client does not see an envelope
-	const _bad: { secret: string } = { data: { secret: "a" } };
-});
-it("server fn stream", () => {
-	expectTypeOf<AsyncIterable<{ n: number }>>().toEqualTypeOf<AsyncIterable<{ n: number }>>();
-	// @ts-expect-error a stream context has no revalidate
-	const _bad: { revalidate?: never } = { revalidate: () => undefined };
-});
-it("server fn render call", () => {
-	expectTypeOf(renderCall).toEqualTypeOf<() => Promise<{ secret: string }>>();
-});
-it("server fn methods", () => {
-	type AfterAuth = { input: () => unknown; authorize: () => unknown; handler: () => unknown; stream: () => unknown };
-	expectTypeOf<AfterAuth>().toHaveProperty("handler");
-	expectTypeOf<AfterAuth>().not.toHaveProperty("authenticate");
 });
 it("query client present", () => {
 	expectTypeOf<{ queryClient: unknown }>().toHaveProperty("queryClient");

@@ -1,5 +1,6 @@
-import { expect, it } from "vitest";
-import { createServerFn } from "./builder.ts";
+import { expect, expectTypeOf, it } from "vitest";
+import type { FlareRegister } from "../../shared/route-builder/register.ts";
+import { createServerFn, type FnStart, type ServerFn, type ServerFnBuilder } from "./builder.ts";
 
 const handler = async (): Promise<{ n: number }> => ({ n: 1 });
 
@@ -41,4 +42,29 @@ it("stream or handler", () => {
 		.handler(handler).record;
 	expect(validated.authenticate).toBe(true);
 	expect(typeof validated.input).toBe("function");
+});
+
+const validator = (value: unknown): unknown => value;
+
+// Each method once, as on a route builder: a second call would silently replace the first (dx/server-fn.md).
+it("once", () => {
+	const twice = {
+		// @ts-expect-error the type drops a method once it is called
+		authenticate: () => createServerFn().authenticate().authenticate(),
+		// @ts-expect-error the type drops a method once it is called
+		input: () => createServerFn().input(validator).input(validator),
+		// @ts-expect-error the type drops a method once it is called
+		authorize: () => createServerFn().authorize(allowed).authorize(allowed),
+		// @ts-expect-error the type drops a method once it is called
+		cache: () => createServerFn({ method: "get" }).cache({ maxAge: "1s" }).cache({ maxAge: "1s" }),
+	};
+	for (const [method, build] of Object.entries(twice)) expect(build).toThrow(`${method} twice`);
+	const anyOrder = createServerFn().authorize(allowed).input(validator).authenticate().handler(handler).record;
+	expect(anyOrder).toMatchObject({ authenticate: true, input: validator, authorize: allowed });
+});
+
+// The public signature is the generic that tests/types proves, bound to the app's register.
+it("typed", () => {
+	expectTypeOf(createServerFn).returns.toEqualTypeOf<ServerFnBuilder<FlareRegister, FnStart>>();
+	expectTypeOf(createServerFn().handler(handler)).toEqualTypeOf<ServerFn<void, { n: number }>>();
 });

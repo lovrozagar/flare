@@ -110,6 +110,22 @@ export type ValidatorOutput<V> = V extends { "~standard": infer S }
 			? Awaited<O>
 			: unknown;
 
+type StandardInput<S> =
+	NonNullable<S extends { types?: infer T } ? T : undefined> extends { input: infer I } ? I : unknown;
+
+// What a validator accepts: a Standard Schema's `types.input`, or the parameter of `parse` or of the function. A
+// server function's caller passes this, because the validator runs on the server (dx/server-fn.md).
+export type ValidatorInput<V> = V extends { "~standard": infer S }
+	? StandardInput<S>
+	: V extends { parse: (value: infer I) => unknown }
+		? Known<I>
+		: V extends (value: infer I) => unknown
+			? Known<I>
+			: unknown;
+
+// An unannotated parameter is `never` from its constraint, and it accepts anything.
+type Known<I> = [I] extends [never] ? unknown : I;
+
 // Each side `.input()` validates replaces that side. The other keeps its default.
 export type InputTypes<I> = (I extends { params: infer P } ? { params: ValidatorOutput<P> } : {}) &
 	(I extends { searchParams: infer S } ? { search: ValidatorOutput<S> } : {});

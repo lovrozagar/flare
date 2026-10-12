@@ -6,7 +6,7 @@ import { requestScope, type RequestScope } from "../context/ctx.ts";
 import type { StageResult } from "../lifecycle/finalize.ts";
 import { NDJSON } from "../navigation/index.ts";
 import type { ErrorSink } from "../render/projector.ts";
-import type { ServerFn, ServerFnContext } from "./builder.ts";
+import type { ServerFnRef, ServerFnContext } from "./builder.ts";
 import { setCacheControl } from "./cache-control.ts";
 import { checkCsrf } from "./csrf.ts";
 import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts";
@@ -14,7 +14,7 @@ import { readInput, type InputErrors } from "./input.ts";
 import { streamEnvelopes } from "./stream.ts";
 
 // `serverFns` from src/_gen/server-fns.gen.ts: one lazy import per exported createServerFn, keyed by its B41 id.
-export type ServerFns = Readonly<Record<string, () => Promise<ServerFn>>>;
+export type ServerFns = Readonly<Record<string, () => Promise<ServerFnRef>>>;
 
 export type DispatchInput = {
 	request: Request;
@@ -68,7 +68,7 @@ export async function dispatch(input: DispatchInput): Promise<StageResult> {
 // A server function called from a loader, `.response()`, or another server function: the same steps without HTTP
 // and without CSRF, against the active request. A handler's call resolves to its value. A stream's call is the
 // iterator of its yielded values. Either throws what a step threw.
-export function callInRequest(fn: ServerFn, input: unknown): unknown {
+export function callInRequest(fn: ServerFnRef, input: unknown): unknown {
 	const stream = fn.record.stream;
 	if (stream === undefined) return handled(fn, input);
 	const scope = active();
@@ -78,11 +78,11 @@ export function callInRequest(fn: ServerFn, input: unknown): unknown {
 	})();
 }
 
-async function handled(fn: ServerFn, input: unknown): Promise<unknown> {
+async function handled(fn: ServerFnRef, input: unknown): Promise<unknown> {
 	return fn.record.handler?.(await prepared(fn, input, active()));
 }
 
-async function prepared(fn: ServerFn, input: unknown, scope: RequestScope): Promise<ServerFnContext> {
+async function prepared(fn: ServerFnRef, input: unknown, scope: RequestScope): Promise<ServerFnContext> {
 	const auth = await authOf(fn, scope);
 	const value = await validated(fn, input);
 	const ctx = { input: value, auth, env: scope.env, request: scope.request, serverContext: scope.serverContext };
@@ -91,13 +91,13 @@ async function prepared(fn: ServerFn, input: unknown, scope: RequestScope): Prom
 }
 
 // Own keys only, so an id such as `constructor` is unknown too.
-async function lookup(input: DispatchInput): Promise<ServerFn | undefined> {
+async function lookup(input: DispatchInput): Promise<ServerFnRef | undefined> {
 	const id = new URL(input.request.url).pathname.slice(fnPrefix(input.basePath).length);
 	const load = Object.hasOwn(input.serverFns, id) ? input.serverFns[id] : undefined;
 	return load?.();
 }
 
-async function run(fn: ServerFn, input: DispatchInput): Promise<StageResult> {
+async function run(fn: ServerFnRef, input: DispatchInput): Promise<StageResult> {
 	const scope = active();
 	const auth = await authOf(fn, scope);
 	const read = await readInput(input.request, fn.record, { dev: input.sink.dev, limit: input.bodyLimit });
@@ -115,7 +115,7 @@ async function run(fn: ServerFn, input: DispatchInput): Promise<StageResult> {
 }
 
 // The NDJSON body starts once every step before the generator has passed. Its lines are envelopes.
-function streamed(fn: ServerFn, source: AsyncIterable<unknown>, input: DispatchInput): StageResult {
+function streamed(fn: ServerFnRef, source: AsyncIterable<unknown>, input: DispatchInput): StageResult {
 	const body = streamEnvelopes(fn.name, source, { sink: input.sink, basePath: input.basePath });
 	const headers = new Headers({ "content-type": NDJSON });
 	setCacheControl(headers, fn.record);
@@ -129,7 +129,7 @@ function active(): RequestScope {
 }
 
 // `.authenticate()` reads the request's one session. Without it `auth` is null and authenticate does not run.
-async function authOf(fn: ServerFn, scope: RequestScope): Promise<unknown> {
+async function authOf(fn: ServerFnRef, scope: RequestScope): Promise<unknown> {
 	if (!fn.record.authenticate) return null;
 	const session = await scope.session(fnCaller(fn.name));
 	if (session === undefined) throw new Error("authenticate returned undefined. Return null for no session");
@@ -138,23 +138,23 @@ async function authOf(fn: ServerFn, scope: RequestScope): Promise<unknown> {
 }
 
 // In-process, a thrown validator message stays: the error is projected where it lands.
-async function validated(fn: ServerFn, raw: unknown): Promise<unknown> {
+async function validated(fn: ServerFnRef, raw: unknown): Promise<unknown> {
 	if (fn.record.input === undefined) return undefined;
 	const result = await runValidator(fn.record.input, raw, { dev: true });
 	if (!result.ok) throw new InputError(result.errors);
 	return result.value;
 }
 
-async function allowed(fn: ServerFn, ctx: ServerFnContext): Promise<boolean> {
+async function allowed(fn: ServerFnRef, ctx: ServerFnContext): Promise<boolean> {
 	return fn.record.authorize === undefined || (await fn.record.authorize(ctx));
 }
 
 // A CSRF failure and an `authorize` false are JSON, not the page walk, and open no overlay.
-function forbidden(fn: ServerFn): StageResult {
+function forbidden(fn: ServerFnRef): StageResult {
 	return reply(fn, { name: fn.name, status: 403, message: "Forbidden" }, 403);
 }
 
-function reply(fn: ServerFn, envelope: Envelope, status: number): StageResult {
+function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult {
 	const headers = new Headers({ "content-type": "application/json" });
 	setCacheControl(headers, fn.record);
 	return { status, body: JSON.stringify(envelope), headers };
@@ -162,7 +162,7 @@ function reply(fn: ServerFn, envelope: Envelope, status: number): StageResult {
 
 // A returned Response is the HTTP response: its status, body, and other headers stay, and Cache-Control is
 // overwritten (B43). `flare-fn: response` tells the client not to read it as an envelope, whatever the handler set.
-function passThrough(fn: ServerFn, response: Response): StageResult {
+function passThrough(fn: ServerFnRef, response: Response): StageResult {
 	const headers = new Headers(response.headers);
 	setCacheControl(headers, fn.record);
 	headers.set(FN_HEADER, "response");
