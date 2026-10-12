@@ -12,15 +12,30 @@ export type ServerContextInput = {
 
 type ContextEvent = RequestEvent & { flareServerContext: ServerContext };
 
+type Taken = { ok: true; value: unknown } | { ok: false; error: unknown };
+
 // Solid owns the request event (B1). Its AsyncLocalStorage keeps the value across awaits and apart from a
-// concurrent request, which a module slot cannot.
-export function withServerContext<T>(input: ServerContextInput, run: () => Promise<T>): Promise<T> {
-	const value =
-		input.serverContext === undefined ? {} : input.serverContext({ request: input.request, env: input.env });
-	const event = Object.assign(createRequestEvent(input.request), { flareServerContext: value });
+// concurrent request, which a module slot cannot. A serverContext throw is answered by `fail` (500).
+export function withServerContext<T>(
+	input: ServerContextInput,
+	run: () => Promise<T>,
+	fail: (error: unknown) => T,
+): Promise<T> {
+	const taken = takeContext(input);
+	if (!taken.ok) return Promise.resolve(fail(taken.error));
+	const event = Object.assign(createRequestEvent(input.request), { flareServerContext: taken.value });
 	return new Promise<T>((resolve, reject) => {
 		provideRequestEvent(event, () => run().then(resolve, reject));
 	});
+}
+
+function takeContext(input: ServerContextInput): Taken {
+	if (input.serverContext === undefined) return { ok: true, value: {} };
+	try {
+		return { ok: true, value: input.serverContext({ request: input.request, env: input.env }) };
+	} catch (error) {
+		return { ok: false, error };
+	}
 }
 
 export function serverCtx(): ServerContext {

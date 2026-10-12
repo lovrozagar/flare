@@ -1,19 +1,20 @@
+import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts";
 import { statusOf } from "../../shared/errors/status.ts";
 import type { RequestKind } from "../loaders/cascade.ts";
-import type { EffectiveAuth } from "./effective.ts";
+import { effectiveAuth, type AuthModule } from "./effective.ts";
 import { identity, type PolicyClass } from "./identity.ts";
 
 export type AuthContext = { auth: unknown };
 
 export type GateRoute = {
 	id: string;
+	auth?: AuthModule;
 	preloader?: (ctx: AuthContext) => unknown;
 	authorize?: (ctx: AuthContext) => boolean | Promise<boolean>;
 };
 
 export type GateInput = {
 	kind: RequestKind;
-	auth: EffectiveAuth;
 	authenticate: () => unknown;
 	routes: readonly GateRoute[];
 	shared?: boolean;
@@ -21,34 +22,37 @@ export type GateInput = {
 	response?: (ctx: AuthContext) => void;
 };
 
-// "status" is a bare HTTP status. "failed" is a preloader or authorize throw, which is the loader-throw
-// outcome and is not 403 (B82).
+// "status" is an authenticate failure, a bare HTTP status for the whole chain. "stopped" fails the match at
+// `index` and skips everything inside it. Matches outside it still load (B27, B29, B82).
 export type GateResult =
 	| { kind: "proceed"; session: unknown; class: PolicyClass }
 	| { kind: "status"; status: number }
-	| { kind: "failed"; id: string; error: unknown };
+	| { kind: "stopped"; index: number; session: unknown; error: unknown };
 
 type Taken = { kind: "session"; session: unknown } | { kind: "status"; status: number };
 
-// Steps 10 and 11 of 02-system, in order: authenticate, 401, preloader, authorize, then the store read.
+// Steps 10 and 11 of 02-system: authenticate once, then per match from the root down a null-session check,
+// preloader, and authorize, then the store read.
 export async function gate(input: GateInput): Promise<GateResult> {
-	const taken = await takeSession(input);
+	const auth = effectiveAuth(input.routes.map((route) => route.auth ?? {}));
+	const taken = await takeSession(auth.reads, input.authenticate);
 	if (taken.kind === "status") return taken;
 	const session = taken.session;
-	if (session === null && input.auth.requires) return { kind: "status", status: 401 };
 	const ctx = { auth: session };
-	const blocked = (await preloadAll(input.routes, ctx)) ?? (await authorizeAll(input.routes, ctx));
-	if (blocked !== undefined) return blocked;
+	for (const [index, route] of input.routes.entries()) {
+		const failed = await guard(route, ctx);
+		if (failed !== undefined) return { kind: "stopped", index, session, error: failed.error };
+	}
 	if (input.response !== undefined) input.response(ctx);
 	else if (input.kind === "document" && input.shared === true) input.readStore?.();
-	return { kind: "proceed", session, class: identity(input.auth, session).class };
+	return { kind: "proceed", session, class: identity(auth, session).class };
 }
 
 // A public chain does not call authenticate. Returning null is the only anonymous signal.
-async function takeSession(input: GateInput): Promise<Taken> {
-	if (!input.auth.reads) return { kind: "session", session: null };
+async function takeSession(reads: boolean, authenticate: () => unknown): Promise<Taken> {
+	if (!reads) return { kind: "session", session: null };
 	try {
-		const session = await input.authenticate();
+		const session = await authenticate();
 		if (session === undefined) return { kind: "status", status: 500 };
 		return { kind: "session", session };
 	} catch (error) {
@@ -56,24 +60,14 @@ async function takeSession(input: GateInput): Promise<Taken> {
 	}
 }
 
-async function preloadAll(routes: readonly GateRoute[], ctx: AuthContext): Promise<GateResult | undefined> {
-	for (const route of routes) {
-		try {
-			await route.preloader?.(ctx);
-		} catch (error) {
-			return { kind: "failed", id: route.id, error };
-		}
+// Parent before child: this match's preloader and authorize settle before the next match starts.
+async function guard(route: GateRoute, ctx: AuthContext): Promise<{ error: unknown } | undefined> {
+	if (ctx.auth === null && route.auth?.authenticate === true) return { error: new UnauthenticatedError() };
+	try {
+		await route.preloader?.(ctx);
+		if (route.authorize !== undefined && !(await route.authorize(ctx))) return { error: new UnauthorizedError() };
+		return undefined;
+	} catch (error) {
+		return { error };
 	}
-	return undefined;
-}
-
-async function authorizeAll(routes: readonly GateRoute[], ctx: AuthContext): Promise<GateResult | undefined> {
-	for (const route of routes) {
-		try {
-			if (route.authorize !== undefined && !(await route.authorize(ctx))) return { kind: "status", status: 403 };
-		} catch (error) {
-			return { kind: "failed", id: route.id, error };
-		}
-	}
-	return undefined;
 }

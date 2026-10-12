@@ -21,7 +21,6 @@ async function spied(
 	let pageRan = false;
 	const run = await runLoaders({
 		kind,
-		auth: { requires: false, reads: false },
 		authenticate: () => null,
 		overlay: (error) => overlay.push(error),
 		routes: [
