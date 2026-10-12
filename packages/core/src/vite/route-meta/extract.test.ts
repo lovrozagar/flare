@@ -35,7 +35,9 @@ it("direct", () => {
 	expect(bare.slice(records[0].config.start - 1, records[0].config.end + 1)).toBe("()");
 	expect(records[0].config.literal).toEqual({});
 	expect(extractServerFns("x.ts", "export const a = 1;\n")).toEqual([]);
-	expect(extractServerFns("x.ts", `${IMPORT}export let unset;\nexport const made = make()(h);\n`)).toEqual([]);
+	expect(
+		extractServerFns("x.ts", `${IMPORT}export declare const unset: number;\nexport const made = make()(h);\n`),
+	).toEqual([]);
 });
 
 it("alias", () => {
@@ -113,4 +115,12 @@ it("non literal config", () => {
 	expect(() => extractServerFns("a.ts", `${IMPORT}export const echo = createServerFn(config).handler(h);\n`)).toThrow(
 		"a.ts: echo createServerFn() takes a literal object",
 	);
+});
+
+it("let export", () => {
+	for (const kind of ["let", "var"]) {
+		expect(() => extractServerFns("a.ts", `${IMPORT}export ${kind} echo = createServerFn().handler(h);\n`)).toThrow(
+			"a.ts: createServerFn must be a direct export: export const name = createServerFn()…",
+		);
+	}
 });
