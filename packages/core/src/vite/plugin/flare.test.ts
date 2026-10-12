@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import solid from "@solidjs/vite-plugin";
 import { expect, it, vi } from "vitest";
+import { fnId } from "../route-meta/index.ts";
 import { flare } from "./flare.ts";
 
 vi.mock("@solidjs/vite-plugin", () => ({
@@ -120,4 +121,38 @@ it("dev server", () => {
 	expect(hook.call(null as never, server(true) as never)).toBeUndefined();
 	const post = hook.call(null as never, server(false) as never);
 	expect(typeof post).toBe("function");
+});
+
+// The map carries the original source, so only the code is checked.
+function code(result: unknown): string {
+	return String(Reflect.get(Object(result), "code"));
+}
+
+it("boundary transform", () => {
+	const plugin = flare().find((item) => item.name === "flare:boundary");
+	expect(plugin?.enforce).toBe("pre");
+	const hook = plugin?.transform;
+	if (typeof hook !== "function") throw new Error("transform");
+	const root = "/app";
+	const run = (name: string, id: string, code: string): unknown =>
+		Reflect.apply(hook, { environment: { name, config: { root } } }, [code, id]);
+	const source =
+		'import { createServerOnlyFn } from "@lovrozagar/flare";\nexport const read = createServerOnlyFn(() => SECRET);\n';
+	expect(code(run("client", "/app/src/lib/read.ts", source))).not.toContain("SECRET");
+	expect(run("ssr", "/app/src/lib/read.ts", source)).toBeNull();
+	expect(code(run("worker", "/app/src/lib/read.ts", source))).not.toContain("SECRET");
+	// The id hashes the root-relative path.
+	const fn =
+		'import { createServerFn } from "@lovrozagar/flare/server-fn";\nexport const echo = createServerFn().handler(h);\n';
+	expect(code(run("ssr", "/app/src/fns/echo.ts", fn))).toContain(`__id: "${fnId("src/fns/echo.ts", "echo")}"`);
+	for (const id of [
+		"/app/src/lib/read.ts?raw",
+		"\0virtual:x.ts",
+		"/app/src/style.css",
+		"/elsewhere/read.ts",
+		"/app/node_modules/x/read.ts",
+	]) {
+		expect(run("client", id, source)).toBeNull();
+	}
+	expect(run("client", "/app/src/plain.ts", "export const a = 1;\n")).toBeNull();
 });

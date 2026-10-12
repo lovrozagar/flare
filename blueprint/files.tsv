@@ -396,6 +396,8 @@ packages/core/src/vite/boundary/split.ts	P7	src	vite	Remove stripped methods and
 packages/core/src/vite/boundary/split.test.ts	P7	test	vite	Unit cases for split.ts
 packages/core/src/vite/boundary/reads.ts	P7	src	vite	Which module-scope names kept code reads: references only, resolved through function, block, catch, class, for, and switch scopes
 packages/core/src/vite/boundary/reads.test.ts	P7	test	vite	Unit cases for reads.ts
+packages/core/src/vite/boundary/transform.ts	P7	src	vite	The boundary transform of one module per graph: one parse for split, the env rewrite, the server function ids, and import pruning
+packages/core/src/vite/boundary/transform.test.ts	P7	test	vite	Unit cases for transform.ts
 packages/core/src/vite/boundary/env.ts	P7	src	vite	oxc rewrite of createServerOnlyFn, createClientOnlyFn, and createIsomorphicFn
 packages/core/src/vite/boundary/env.test.ts	P7	test	vite	Unit cases for env.ts
 packages/core/src/vite/boundary/tripwire.ts	P7	src	vite	Fail the build when an emitted chunk contains a server body or an env helper body that belongs in another graph

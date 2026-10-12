@@ -1,7 +1,8 @@
 import { existsSync } from "fs";
-import { isAbsolute, resolve } from "path";
+import { isAbsolute, relative, resolve, sep } from "path";
 import solid from "@solidjs/vite-plugin";
 import type { Plugin, UserConfig } from "vite";
+import { boundaryTransform, type Graph } from "../boundary/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { clientUrl } from "./environments.ts";
 import { parseOptions, type FlareOptions } from "./options.ts";
@@ -12,6 +13,7 @@ const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
 export function flare(options?: FlareOptions): Plugin[] {
 	const parsed = parseOptions(options);
 	return [
+		boundary(),
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
 		{
 			name: "flare",
@@ -39,6 +41,33 @@ export function flare(options?: FlareOptions): Plugin[] {
 			},
 		},
 	];
+}
+
+// Before Solid compiles JSX, each app module is rewritten for the graph that loads it: split, the env helpers, and
+// the server function ids (B8, B9, B41).
+function boundary(): Plugin {
+	return {
+		name: "flare:boundary",
+		enforce: "pre",
+		transform(code, id) {
+			const file = appModule(this.environment.config.root, id);
+			if (file === undefined) return null;
+			return boundaryTransform(file, code, graphOf(this.environment.name)) ?? null;
+		},
+	};
+}
+
+// A script module of the app: under the root, outside its dependencies, and with no query. The path is
+// root-relative with forward slashes, the form the B41 id hashes.
+function appModule(root: string, id: string): string | undefined {
+	if (id.includes("?") || id.startsWith("\0") || !/\.[cm]?[jt]sx?$/.test(id)) return undefined;
+	const file = relative(root, id).split(sep).join("/");
+	if (file.startsWith("../") || isAbsolute(file) || file.split("/").includes("node_modules")) return undefined;
+	return file;
+}
+
+function graphOf(name: string): Graph {
+	return name === "ssr" || name === "worker" ? name : "client";
 }
 
 // A public bind would expose the dev server.

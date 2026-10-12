@@ -32,8 +32,15 @@ export function rewriteEnv(file: string, source: string, graph: Graph): { code: 
 // worker graphs, and a client-only body and an isomorphic `.client()` body in the ssr graph. Every use must be a
 // direct call with an inline function, and an isomorphic chain one expression with both sides, or the build fails.
 // Returns the removed spans.
-export function envEdits(edit: { file: string; program: Program; graph: Graph; out: MagicString }): Span[] {
-	const { file, program, graph, out } = edit;
+// `skip` holds spans an earlier step already deleted: a call inside one is still checked but not edited again.
+export function envEdits(edit: {
+	file: string;
+	program: Program;
+	graph: Graph;
+	out: MagicString;
+	skip?: readonly Span[];
+}): Span[] {
+	const { file, program, graph, out, skip = [] } = edit;
 	const names = helperNames(program);
 	if (names.locals.size === 0 && names.namespace === undefined) return [];
 	for (const local of names.locals.keys()) {
@@ -43,6 +50,7 @@ export function envEdits(edit: { file: string; program: Program; graph: Graph; o
 	requireDirect({ file, program, names }, calls);
 	const removed: Span[] = [];
 	const drop = (span: Span): void => {
+		if (skip.some((gone) => span.start >= gone.start && span.end <= gone.end)) return;
 		out.remove(span.start, span.end);
 		removed.push(span);
 	};
