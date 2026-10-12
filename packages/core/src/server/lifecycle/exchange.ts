@@ -5,6 +5,7 @@ import type { MountContext } from "../mount/mount.ts";
 import { projectError, type ErrorSink } from "../render/projector.ts";
 import { applySecurity, type SecurityConfig } from "../security/apply.ts";
 import { finalize, type StageResult } from "./finalize.ts";
+import { exitHeaders } from "./policies.ts";
 import type { RuntimeOptions } from "./options.ts";
 
 type Secured = { headers: Headers; nonce: string };
@@ -73,9 +74,10 @@ export function typed(
 	return headers;
 }
 
-// A whole Response from a mount or a middleware passes through finalize the same way: the security set wins.
+// A whole Response from a mount or a middleware passes through finalize the same way: the security set wins, and a
+// late cookie takes a shared answer's cache headers away.
 export function passed(exchange: Answering, response: Response): Response {
-	return secure(exchange, { status: response.status, body: response.body, headers: response.headers });
+	return secure(exchange, { status: response.status, body: response.body, headers: exitHeaders(response) });
 }
 
 // An answer the app built, a `.response()` page or a server function, still passes through finalize, and the

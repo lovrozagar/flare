@@ -77,7 +77,8 @@ async function call(handler: Handler, base: Base, rest: () => Promise<Response>)
 	}
 }
 
-// A router body no one will read is cancelled, so a streaming render stops.
+// A router body no one will read is cancelled, so a streaming render stops. A rewrap such as
+// `new Response(res.body, res)` keeps the router's stream, so that body is still read.
 function discard(routed: Response | undefined, kept: Response | undefined): void {
-	if (routed !== undefined && routed !== kept) void routed.body?.cancel();
+	if (routed !== undefined && routed !== kept && routed.body !== kept?.body) void routed.body?.cancel();
 }

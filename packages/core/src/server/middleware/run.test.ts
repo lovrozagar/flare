@@ -126,6 +126,16 @@ it("return replaces", async () => {
 	expect(await (await runMiddleware([odd], input(), async () => ok("page"))).text()).toBe("page");
 });
 
+const rewrap: Middleware = async (ctx) => {
+	const response = await ctx.next();
+	return new Response(response.body, response);
+};
+
+// `new Response(res.body, res)` carries the router's own stream, so it is not cancelled.
+it("rewrap keeps body", async () => {
+	expect(await (await runMiddleware([rewrap], input(), async () => ok("page"))).text()).toBe("page");
+});
+
 // Returning without next, respond, or bypass continues the chain (dx/server.md).
 it("skip continues", async () => {
 	const skip: Middleware = (ctx) => {

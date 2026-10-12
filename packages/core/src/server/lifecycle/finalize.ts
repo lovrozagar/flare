@@ -1,7 +1,7 @@
 import { statusOf } from "../../shared/errors/status.ts";
 import { BUILD_HEADER, RENDER_HEADER } from "../../shared/protocol/index.ts";
 import { defaultHeaders } from "../security/defaults.ts";
-import { NO_STORE } from "./policies.ts";
+import { NO_STORE, recordCookies } from "./policies.ts";
 
 // `body` may be a stream or bytes: a .response() answer passes through unread (dx/server.md).
 export type StageResult = {
@@ -23,7 +23,7 @@ export function finalize(stage: StageResult): Response {
 	if (settled.location !== undefined) headers.set("location", settled.location);
 	if (settled.url !== undefined) copySecurity(headers, settled.url);
 	if (settled.headers !== undefined) copyHeaders(headers, settled.headers);
-	return new Response(settled.body === "" ? null : settled.body, { status: settled.status, headers });
+	return recordCookies(new Response(settled.body === "" ? null : settled.body, { status: settled.status, headers }));
 }
 
 function settle(stage: StageResult): StageResult {

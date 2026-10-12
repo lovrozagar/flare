@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { decide, type DecideInput } from "../cacheability/decide.ts";
 import { createServer } from "./create.ts";
-import { NO_STORE, policyHeaders } from "./policies.ts";
+import { exitHeaders, NO_STORE, policyHeaders, recordCookies } from "./policies.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
@@ -112,4 +112,20 @@ it("response auth", async () => {
 	expect(withAuth.headers.get("cache-control")).toBe("private, no-store");
 	const without = await createServer({ router: plain }).fetch(request());
 	expect(without.headers.get("cache-control")).toBe("public, max-age=60");
+});
+
+// The exit compares an answer's cookies with the ones it left its stage with. A rebuilt Response has no record.
+it("exit headers", () => {
+	const PUBLIC = "public, max-age=0, s-maxage=60, stale-while-revalidate=0";
+	const staged = (): Response =>
+		recordCookies(new Response(null, { headers: { "cache-control": PUBLIC, "cache-tag": "t", "set-cookie": "r=1" } }));
+	expect(exitHeaders(staged()).get("cache-control")).toBe(PUBLIC);
+	const late = staged();
+	late.headers.append("set-cookie", "m=1");
+	expect(exitHeaders(late).get("cache-control")).toBe(NO_STORE);
+	expect(exitHeaders(late).has("cache-tag")).toBe(false);
+	expect(exitHeaders(new Response(null, staged())).get("cache-control")).toBe(NO_STORE);
+	expect(exitHeaders(new Response(null, { headers: { "cache-control": PUBLIC } })).get("cache-control")).toBe(PUBLIC);
+	const kept = new Response(null, { headers: { "cache-control": "private, max-age=60", "set-cookie": "r=1" } });
+	expect(exitHeaders(kept).get("cache-control")).toBe("private, max-age=60");
 });
