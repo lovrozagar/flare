@@ -139,7 +139,7 @@ The order is steps 10 through 12 (B73).
 
 Preloader, `authorize`, and loader receive the session or `null`. Render does not. A null session skips those three on the first required match and on everything inside it. Public matches outside that match still run. When the chain has `authorize`, preloader and then `authorize` run before a shared hit. `false` is 403 and the stored body is not used. A chain with no `authorize` may serve that hit without running them.
 
-Page and layout loaders that do run are parallel. A loader may call `defer()`. On a response that will be stored, `defer` defaults to `resolve` (B65). `stream` stores the placeholder and fills it later with a `no-store` data request. The tables are `dx/defer.md`.
+Page and layout loaders that do run are parallel. A loader may call `defer()`. On a response that will be stored, `defer` defaults to `resolve` (B65). `stream` stores the placeholder and fills it later with a `no-store` data request. `createServer({ documentResponseDefer })` defaults to `stream` and applies only to a rendered HTML document. `buffer` holds that document until the running defers settle. A stored hit, a data request, a prefetch, and a client navigation ignore it. It does not change the route `defer` field (B92). The tables are `dx/defer.md`.
 
 `.response()` runs validation, `authenticate`, preloader, and `authorize`, then the response function. It does not render. The response function receives `auth` and `preloaderContext`. Render still does not.
 

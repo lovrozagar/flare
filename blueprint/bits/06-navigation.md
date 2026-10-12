@@ -65,6 +65,10 @@ Corpus-driven, one line per frame.
 | `redirect` | the chain redirects | HTTP 200, the only line is `x`. `s` is the status, `u` is the built URL with search and hash, and `r` is present. The overlay sender is not called |
 | `defer rejected` | a deferred function rejects on a response that is not stored | an `e` frame with that `k`, and the shell stays |
 | `one rejects` | one defer rejects and the other resolves | the `e` with that `k` and the other `c` are both written before `d`. The `l` frames stay. The rejection does not cancel the other |
+| `document buffer` | `documentResponseDefer: "buffer"`, a document request, one slow defer | the HTML is not sent until the defer settles. The body contains the value, not the placeholder |
+| `document stream` | the option omitted, or `"stream"` | the shell is sent before the defer settles |
+| `data ignores buffer` | `documentResponseDefer: "buffer"`, a data request, one slow defer | the fast frame order stays. The slow `c` is not held |
+| `stored stream stays a hole` | the route `defer` is `"stream"` and `documentResponseDefer` is `"buffer"` | the stored body is the placeholder. The function is not run at store time |
 
 ### `client/navigation/navigate.test.ts`
 

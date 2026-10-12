@@ -12,6 +12,12 @@ Called inside a loader. The return value is what the component sees in `loaderDa
 | `key` | no | `d0`, `d1`, … per loader | a string unique inside that loader | the `c` frame's `k`, and the match id plus the key identify the value | two calls with the same key return the first promise and do not call the second function | `server/loaders/defer.test.ts` `dedupe` |
 | `prerender` | no | the route's `defer` field | `"resolve"`, `"stream"` | overrides the route for this call, and only when the response will be stored | ignored on a `no-store` response and on a prefetch | `server/loaders/defer.test.ts` `call overrides route` |
 
+## Document response
+
+`createServer({ documentResponseDefer })` applies only when the response being rendered is the HTML document. The default is `"stream"`. `"buffer"` holds that document until every defer running for that render has settled, then sends one HTML document that contains the values. A rejection is the document error. A stored hit ignores the option and replays the stored body. A data request, a prefetch, and a client navigation ignore it. It does not change `cache.ssr.defer`, `cache.ssg.defer`, or `cache.isr.defer`. A stored `"stream"` write still stores the placeholder and does not run the function (B92).
+
+Tests: `server/navigation/response.test.ts` `document buffer`, `document stream`, `data ignores buffer`, `stored stream stays a hole`.
+
 ## A response that is not stored
 
 SSR with no `cache.ssr`, a private response, a `no-store` response. The function runs immediately. Loader data contains `{ __deferred: true, key }`. The document shell goes out. The value follows in the document stream. A data request sends all `l` frames and loader-level `e` frames, then all `h` frames, then `r`, then one `c` frame per settled defer or a deferred `e`, then `d`. Each `c` is written when that promise settles. A slow promise does not hold a fast one. `d` waits for the last of them. A rejection is an `e` frame with that `k`, the other defers still settle, and the shell stays (`server/navigation/response.test.ts` `order`, `two settle`, `one rejects`).
