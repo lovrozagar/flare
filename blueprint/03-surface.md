@@ -10,7 +10,6 @@ JSX entries (` . `, `./client`, `./query`, `./i18n`, `./testing`) ship `types`, 
 | --- | --- |
 | `createPage`, `createLayout`, `createRootLayout`, `createPathSegment` | `shared/route-builder` |
 | `createRouter` | `shared/router` |
-| `defer` | `server/loaders/defer.ts` |
 | `redirect`, `notFound`, `unauthenticated`, `unauthorized` | `shared/errors` |
 | `markSafeError` | re-export of Solid's, via `shared/errors/safe.ts` |
 | `Link`, `Outlet`, `InterceptOutlet`, `ViewTransitionBoundary`, `ViewTransitionCSS`, `Stylesheet` | `shared/components` |
@@ -25,8 +24,6 @@ JSX entries (` . `, `./client`, `./query`, `./i18n`, `./testing`) ship `types`, 
 | `DirectionProvider`, `DirectionScript`, `useDirection` | `features/direction` |
 | `createFont`, `FontCSS` | `features/fonts` |
 | `Image` | `features/image` |
-
-`defer` is safe on the root. The boundary transform deletes the import from client graphs when the only calls were inside stripped methods (B8).
 
 `createServerOnlyFn`, `createClientOnlyFn`, and `createIsomorphicFn` are on the root because app code on both graphs imports them. The boundary transform deletes the illegal body (B9). `nonce` is on the root for the same reason: server render and client navigation read one value.
 
