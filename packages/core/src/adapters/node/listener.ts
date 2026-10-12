@@ -43,7 +43,9 @@ export function createNodeListener(server: Server, options?: unknown): (req: Nod
 type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<unknown>>; sent: boolean };
 
 async function pump(job: Job): Promise<void> {
-	if (toRequest({ url: job.req.url }).status === 400) {
+	// The origin comes from Host, as the adapter resolves it, so CSRF compares a browser's Origin with it (B44).
+	const adapted = toRequest({ url: job.req.url, headers: job.req.headers });
+	if (adapted.status === 400) {
 		job.res.writeHead(400);
 		job.res.end();
 		return;
@@ -64,7 +66,7 @@ async function pump(job: Job): Promise<void> {
 		init.body = body.stream;
 		Object.assign(init, { duplex: "half" });
 	}
-	const request = new Request(`http://localhost${job.req.url}`, init);
+	const request = new Request(adapted.url, init);
 	const response = await job.server.fetch(request, undefined, {
 		waitUntil(promise) {
 			job.retained.add(promise);
