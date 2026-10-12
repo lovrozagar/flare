@@ -4,7 +4,6 @@ description: >
   Commit with a Conventional Commits subject, then push. Use for /commit-push,
   "commit and push", "commit this and push". Must push. Never force-push.
 ---
-
 Inspect `git status` + `git diff` (staged and unstaged) before the message.
 
 Stage only user intent. Never blind `git add -A` / `git add .`. Split unrelated concerns into multiple commits.

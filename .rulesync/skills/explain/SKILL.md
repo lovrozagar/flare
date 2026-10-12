@@ -2,7 +2,6 @@
 name: explain
 description: "Longer human recap this reply only."
 ---
-
 This reply only: explain for a human. Not a mode switch or session flag. After this reply, revert to output.md.
 
 Still concise. Complete sentences. Prioritize clarity over token compression. Do not dump, sprawl, or narrate process.

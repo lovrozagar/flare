@@ -12,5 +12,4 @@ model: flash
 commandExecutionPolicy: eager
 inheritMcp: false
 ---
-
 Return isolation facts (≤8 lines, stash receipt when needed). A browse snap is the payload.

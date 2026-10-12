@@ -46,8 +46,8 @@ Collision: if target path exists, increment and retry (max 5).
 ---
 serial: 1
 name: add-auth
-status: ready # ready | in-progress | done | blocked
-created: 2026-08-26T14:30:00Z # UTC ISO-8601 seconds + Z; no milliseconds
+status: ready          # ready | in-progress | done | blocked
+created: 2026-08-26T14:30:00Z    # UTC ISO-8601 seconds + Z; no milliseconds
 source: "<≤120 chars of user task>"
 ---
 ```
@@ -87,12 +87,12 @@ No required Why heading. Optional why footnote only (not a `##`). Pick2 file pla
 
 ## Prose vs steps
 
-| Section                            | Amount                                                                    |
-| ---------------------------------- | ------------------------------------------------------------------------- |
-| Goal                               | 1–3 sentences. What “done” means.                                         |
+| Section | Amount |
+|---|---|
+| Goal | 1–3 sentences. What “done” means. |
 | Context / Constraints / Watch-outs | bullets only. Watch-outs: non-obvious footguns; empty allowed (`(none)`). |
-| Steps                              | bulk of the file; each leaf = one coherent edit or one file-level action  |
-| Verify                             | 1–5 runnable leaves (cmd or observable)                                   |
+| Steps | bulk of the file; each leaf = one coherent edit or one file-level action |
+| Verify | 1–5 runnable leaves (cmd or observable) |
 
 Tests live in Steps (not a new heading). New behavior or a bug: a failing test leaf before the impl leaf. Other behavior change: a test leaf immediately after the impl leaf. Docs, rename-only, config-only, generated: no test leaf. Verify is the end gate (project cmd or named subset), not a substitute for those leaves. Do not re-run the whole suite after every leaf unless it is cheap.
 
@@ -125,28 +125,23 @@ source: "gitignore .tmp so local plans stay untracked"
 # add-tmp-ignore
 
 ## Goal
-
 Repo `.gitignore` ignores `.tmp/` so files under `.tmp/grunt/plans/` stay untracked. Existing ignore entries stay.
 
 ## Context
-
 - `/home/ecomet/Development/example-app/.gitignore` may be missing or lack `.tmp/`
 - Plans live at `/home/ecomet/Development/example-app/.tmp/grunt/plans/`
 - No python helpers; bash only
 
 ## Constraints
-
 - Do not clobber other `.gitignore` lines
 - Do not create sample plans under `.tmp/grunt/plans` for git
 - Do not edit `AGENTS.md`
 
 ## Watch-outs
-
 - Duplicate `.tmp/` if append without grep
 - Use directory form `.tmp/`, not `.tmp`
 
 ## Steps
-
 1 [ ] gitignore
 1.1 [ ] read `/home/ecomet/Development/example-app/.gitignore` if it exists
 1.2 [ ] create `/home/ecomet/Development/example-app/.gitignore` when missing, body `.tmp/`
@@ -160,7 +155,6 @@ Repo `.gitignore` ignores `.tmp/` so files under `.tmp/grunt/plans/` stay untrac
 3.3 [ ] `git check-ignore -v /home/ecomet/Development/example-app/.tmp/grunt/plans` from repo root
 
 ## Verify
-
 4 [ ] Verify
 4.1 [ ] `git check-ignore -v .tmp/grunt/plans` reports ignored
 4.2 [ ] `git status --short -- .gitignore` shows only the ignore edit

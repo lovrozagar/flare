@@ -5,7 +5,6 @@ description: >
   for /commit-push-release, "commit push release", "release". Must push. Never
   force-push. No npm/gh publish.
 ---
-
 Inspect `git status` + `git diff` (staged and unstaged) before the message.
 
 Stage only user intent. Never blind `git add -A` / `git add .`. Split unrelated concerns into multiple commits.

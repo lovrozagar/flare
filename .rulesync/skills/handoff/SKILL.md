@@ -2,7 +2,6 @@
 name: handoff
 description: "Write a session handoff under .tmp/grunt/handoffs/. Continue with /pickup."
 ---
-
 # handoff
 
 One turn. Author from this session. Write once, report path, stop.
@@ -33,21 +32,21 @@ Nothing done yet (no edits, no findings) → `nothing to hand off` and stop. Do 
 ---
 serial: 1
 name: <slug>
-status: open # open | resumed | done
-created: 2026-08-27T14:30:00Z # UTC, seconds, no ms
+status: open        # open | resumed | done
+created: 2026-08-27T14:30:00Z   # UTC, seconds, no ms
 source: "<≤120 chars of the session task>"
 ---
 ```
 
 Headings, this order only: `# {slug}`, `## Goal`, `## State`, `## Context`, `## Next`, `## Watch-outs`.
 
-| Section    | Amount                                                                          |
-| ---------- | ------------------------------------------------------------------------------- |
-| Goal       | 1–3 sentences. What the session is trying to land.                              |
-| State      | bullets. Past tense for landed work / changed / green-red, with absolute paths. |
-| Context    | bullets. Abs paths, decisions, verdict facts the next session needs.            |
-| Next       | checkbox steps, `N [ ]` phase + `N.M [ ]` leaf, all `[ ]` fresh                 |
-| Watch-outs | bullets. Footguns. `(none)` allowed.                                            |
+| Section | Amount |
+|---|---|
+| Goal | 1–3 sentences. What the session is trying to land. |
+| State | bullets. Past tense for landed work / changed / green-red, with absolute paths. |
+| Context | bullets. Abs paths, decisions, verdict facts the next session needs. |
+| Next | checkbox steps, `N [ ]` phase + `N.M [ ]` leaf, all `[ ]` fresh |
+| Watch-outs | bullets. Footguns. `(none)` allowed. |
 
 Boxes: `^{id} [ ] {text}$`, id `N` / `N.M` / `N.M.K`. Not `- [ ]`, not `1. [ ]`. Every phase has ≥1 leaf. Fresh handoff has zero `[x]`.
 
@@ -57,9 +56,9 @@ Facts only. Absolute paths. No transcript paste, no dump, no secrets/tokens.
 
 Line 1 of the body: `HANDOFF_NAME: <3-6 word name>`, then the body only.
 
-Write under `.tmp/grunt/handoffs/` (any filename in that dir). Grok `orchestrate-parent.js` runs `scripts/persist-handoff.mjs`: serial/slug from `HANDOFF_NAME:` / heading, injects frontmatter, rewrites path + content. Invalid handoff or a write outside that dir is denied — fix the body, do not retry elsewhere.
+Write under `.tmp/grunt/handoffs/` (any filename in that dir). Grok `orchestrate-parent.js` runs `.rulesync/scripts/persist-handoff.mjs`: serial/slug from `HANDOFF_NAME:` / heading, injects frontmatter, rewrites path + content. Invalid handoff or a write outside that dir is denied — fix the body, do not retry elsewhere.
 
-Host without that hook: name the file per **Path** yourself, or pipe the body to `node scripts/persist-handoff.mjs --workspace {repo}` and use its `path`.
+Host without that hook: name the file per **Path** yourself, or pipe the body to `node .rulesync/scripts/persist-handoff.mjs --workspace {repo}` and use its `path`.
 
 ## Report
 
