@@ -38,7 +38,9 @@ JSX entries (` . `, `./client`, `./query`, `./i18n`, `./testing`) ship `types`, 
 
 ## `./server-fn`
 
-`createServerFn`.
+`createServerFn`, plus the types `ServerFn`, `StreamFn`, `ServerFnBuilder`, and `FnContext`.
+
+The entry has conditional exports, because the in-request call imports the server dispatch path and a client chunk may not contain `src/server` (B45). The chain, the call-once rule, and the render guard live in `shared/server-fn/builder.ts`, which imports no server module. `browser` and `worker` resolve to `src/exports/server-fn-client.ts`, which binds the chain to the booted transport: it reads `self.flare.call` at call time and throws `server function called before the client booted` before boot. `default` resolves to `src/exports/server-fn.ts`, which binds it to the in-request call. A client build that imports a server function passes the tripwire (`vite/boundary/tripwire.test.ts` `server fn import`).
 
 ## `./query`
 
