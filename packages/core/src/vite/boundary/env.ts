@@ -3,7 +3,14 @@ import { parseSync, Visitor, type Argument, type CallExpression, type Expression
 import { boundNames, type Span } from "../route-meta/index.ts";
 import { nonReferences } from "./reads.ts";
 
-export type Graph = "client" | "ssr" | "worker";
+// The graphs are roles (B9, B45). `client` is the browser, and a Web Worker bundled from it. `server` is the ssr
+// environment and the Workers bundle.
+export type Graph = "client" | "server";
+
+// The graph of a Vite environment: the ssr and worker environments serve requests, so both are server graphs.
+export function graphOf(environment: string): Graph {
+	return environment === "ssr" || environment === "worker" ? "server" : "client";
+}
 
 type Helper = "createServerOnlyFn" | "createClientOnlyFn" | "createIsomorphicFn";
 
@@ -29,8 +36,8 @@ export function rewriteEnv(file: string, source: string, graph: Graph): { code: 
 	return { code: out.toString(), map: out.generateMap({ hires: true, source: file, includeContent: true }) };
 }
 
-// Deletes the body a graph must not hold: a server-only body and an isomorphic `.server()` body in the client and
-// worker graphs, and a client-only body and an isomorphic `.client()` body in the ssr graph. Every use must be a
+// Deletes the body a graph must not hold: a server-only body and an isomorphic `.server()` body in the client graph,
+// and a client-only body and an isomorphic `.client()` body in the server graph. Every use must be a
 // direct call with an inline function, and an isomorphic chain one expression with both sides, or the build fails.
 // Returns the removed spans.
 // `skip` holds spans an earlier step already deleted: a call inside one is still checked but not edited again.
@@ -68,8 +75,8 @@ export function envEdits(edit: {
 // body outside ssr, a client-only body and a `.client()` body in ssr. The tripwire reads a chunk's modules with it.
 export function wrongSideBodies(program: Program, graph: Graph): Span[] {
 	const names = helperNames(program);
-	const helper: Helper = graph === "ssr" ? "createClientOnlyFn" : "createServerOnlyFn";
-	const side = graph === "ssr" ? "client" : "server";
+	const helper: Helper = graph === "server" ? "createClientOnlyFn" : "createServerOnlyFn";
+	const side = graph === "server" ? "client" : "server";
 	const bodies: Span[] = [];
 	for (const [call, called] of directCalls(program, names)) {
 		const [body] = call.arguments;

@@ -17,7 +17,7 @@ export type Split = { code: string; map: SourceMap };
 
 type Step = { name: string; call: CallExpression; object: Expression };
 
-// The client and worker graphs of one module (B8, B45). A route chain loses every server method: a middle call is
+// The client graph of one module (B8, B45). A route chain loses every server method: a middle call is
 // cut, and a removed call that ends the chain keeps the call with `undefined`, so the export is still a record. A
 // server function's input, authorize, handler, and stream arguments become `undefined`. An import no kept code
 // reads is then dropped. A bare `import "x"` stays. Undefined when nothing changed.
@@ -35,7 +35,7 @@ export function splitClient(file: string, source: string): Split | undefined {
 // One module's edits, shared by every step of the boundary transform. `removed` is every span a step deleted.
 export type Edit = { file: string; source: string; out: MagicString; removed: Span[] };
 
-// The route chains and the server function bodies of the client and worker graphs, into a shared edit.
+// The route chains and the server function bodies of the client graph, into a shared edit.
 export function splitEdits(edit: Edit, program: Program): void {
 	for (const [name, steps] of routeChains(program)) stripRoute(edit, name, steps);
 	for (const record of serverFnsOf(edit.file, program)) {
@@ -47,7 +47,7 @@ export function splitEdits(edit: Edit, program: Program): void {
 
 const BODIES = new Set(["input", "authorize", "handler", "stream"]);
 
-// The server code a client or worker module still holds, found by the same walk split uses: a B8-removed route
+// The server code a client module still holds, found by the same walk split uses: a B8-removed route
 // method that is not the chain's end or still has an argument other than `undefined`, and a server function body
 // that is not `undefined`. The tripwire reads a chunk's modules with it.
 export function serverCode(file: string, source: string, program: Program): Span[] {

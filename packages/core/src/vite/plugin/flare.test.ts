@@ -163,7 +163,7 @@ it("boundary transform", () => {
 		'import { createServerOnlyFn } from "@lovrozagar/flare";\nexport const read = createServerOnlyFn(() => SECRET);\n';
 	expect(code(run("client", "/app/src/lib/read.ts", source))).not.toContain("SECRET");
 	expect(run("ssr", "/app/src/lib/read.ts", source)).toBeNull();
-	expect(code(run("worker", "/app/src/lib/read.ts", source))).not.toContain("SECRET");
+	expect(run("worker", "/app/src/lib/read.ts", source)).toBeNull();
 	// The id hashes the root-relative path.
 	const fn =
 		'import { createServerFn } from "@lovrozagar/flare/server-fn";\nexport const echo = createServerFn().handler(h);\n';

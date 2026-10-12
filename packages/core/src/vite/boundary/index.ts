@@ -1,5 +1,5 @@
 export { cacheKeyKept, routeMethod, type RouteVerdict } from "./allow.ts";
-export { envEdits, rewriteEnv, wrongSideBodies, type Graph } from "./env.ts";
+export { envEdits, graphOf, rewriteEnv, wrongSideBodies, type Graph } from "./env.ts";
 export { moduleReads, nonReferences } from "./reads.ts";
 export { pruneImports, serverCode, splitClient, splitEdits, type Edit, type Split } from "./split.ts";
 export { boundaryTransform } from "./transform.ts";
