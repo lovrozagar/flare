@@ -218,15 +218,17 @@ it("abort after shell", async () => {
 	slow.resolve("SLOW");
 });
 
+// Writes the shell, then fails the way a render that throws after the shell does.
+const failing: DocumentInput["stream"] = () => ({
+	async pipeTo(writable) {
+		const writer = writable.getWriter();
+		await writer.write("<html><head></head><body>shell</body></html>");
+		await writer.abort(new Error("late"));
+		throw new Error("late");
+	},
+});
+
 it("failure after shell", async () => {
-	const failing: DocumentInput["stream"] = () => ({
-		async pipeTo(writable) {
-			const writer = writable.getWriter();
-			await writer.write("<html><head></head><body>shell</body></html>");
-			await writer.abort(new Error("late"));
-			throw new Error("late");
-		},
-	});
 	const body = await renderDocument({ request: request(), router, render: () => "home", stream: failing });
 	const reader = body.getReader();
 	expect(decoder.decode((await reader.read()).value)).toContain("shell");
