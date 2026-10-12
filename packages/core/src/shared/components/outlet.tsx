@@ -2,9 +2,10 @@ import { createComponent, createContext, createMemo, Errored, merge, onCleanup, 
 import { Dynamic, isServer, type JSX } from "@solidjs/web";
 import type { ChainRecord, Render } from "../route-builder/chain.ts";
 import type { BoundaryRecord, Located, NotFoundRender } from "../route-builder/index.ts";
-import { NavigateContext } from "../router/context.ts";
+import { LocationContext, NavigateContext, useRouter } from "../router/context.ts";
+import { readSearch } from "../url/index.ts";
 import { boundaryAt, boundaryFallback, boundaryKind, boundaryReset } from "./boundary.ts";
-import { MatchesContext } from "./outlet-nodes.ts";
+import { MatchesContext, rawParams } from "./outlet-nodes.ts";
 import { TransitionScopeContext } from "./view-transition-boundary.tsx";
 
 // `preloader` is the preloader context accumulated through this match. Absent is `{}`.
@@ -161,12 +162,19 @@ function paintFailure(state: OutletState, failure: NonNullable<OutletState["fail
 	}
 }
 
-// The browser's navigator revalidates the page on screen. The server has none, and a render never calls it.
+// The browser's navigator revalidates the page on screen. The server has none, and a render never calls it. The
+// URL is rebuilt from the raw records, not from an `.input()` output.
 function resetOf(state: OutletState): () => void {
 	const navigate = useContext(NavigateContext);
 	const page = state.matches[state.matches.length - 1];
 	if (navigate === null) return () => undefined;
-	return boundaryReset(navigate, () => ({ to: page.id, params: page.params, search: page.search }));
+	const router = useRouter();
+	const location = useContext(LocationContext);
+	return boundaryReset(navigate, () => ({
+		to: page.id,
+		params: rawParams(router, location().pathname),
+		search: readSearch(location().search),
+	}));
 }
 
 function builtin(status: number): JSX.Element {

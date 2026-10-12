@@ -17,6 +17,7 @@ import { mergeHead } from "../../shared/head/index.ts";
 import { devSink, projectError, type ErrorSink, type Projected } from "../render/projector.ts";
 import { definedParams, outletMatches, stateMatches, type Rendered } from "../render/matches.ts";
 import { redirectLocation } from "../redirect/index.ts";
+import { readSearch } from "../../shared/url/search.ts";
 import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { classify } from "./classify.ts";
@@ -142,7 +143,7 @@ async function data(exchange: Exchange, matched: Loaded): Promise<Response> {
 	const id = matchId(definedParams(matched.params), raw);
 	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind === "layout" }));
 	const skip = skippedRoutes(matches, exchange.stale);
-	const run = await runLoaders({ ...loaderInput(exchange, matched.chain), skip });
+	const run = await runLoaders({ ...loaderInput(exchange, matched), skip });
 	const thrown = run.thrown ?? run.failed?.error;
 	if (thrown instanceof RedirectError) {
 		const u = redirectLocation(thrown, exchange.options.router.basePath);
@@ -177,7 +178,7 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 		projectError(new Error(`${matched.id} is flagged as a .response() page but has no response`), exchange.sink);
 		return answer(exchange, 500);
 	}
-	const run = await runLoaders({ ...loaderInput(exchange, matched.chain), response: respond });
+	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond });
 	if (run.answer === undefined) return bare(exchange, run);
 	const headers = new Headers(run.answer.headers);
 	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
@@ -188,21 +189,21 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 // ancestors (B73). The selected layout renders, and its outlet is the not-found the router chose (B77).
 async function notFound(exchange: Exchange, matched: Loaded): Promise<Response> {
 	if (matched.chain.length === 0) return answer(exchange, 404);
-	const run = await runLoaders(loaderInput(exchange, matched.chain));
-	const rendered = { chain: matched.chain, run, params: matched.params };
+	const run = await runLoaders(loaderInput(exchange, matched));
+	const rendered = { chain: matched.chain, run };
 	if (run.response.status === 200) return paint(exchange, { ...rendered, unknown: true }, 404);
 	return settle(exchange, rendered);
 }
 
 async function page(exchange: Exchange, matched: Loaded): Promise<Response> {
-	const { chain, params } = matched;
-	const run = await runLoaders(loaderInput(exchange, chain));
+	const chain = matched.chain;
+	const run = await runLoaders(loaderInput(exchange, matched));
 	// "buffer" holds the document until every defer this render started has settled. Solid then writes the
 	// settled values in the shell (B92).
 	if (exchange.options.documentResponseDefer === "buffer")
 		await Promise.allSettled(run.deferred.map((entry) => entry.promise));
-	if (run.response.status === 200) return paint(exchange, { chain, run, params }, 200);
-	return settle(exchange, { chain, run, params });
+	if (run.response.status === 200) return paint(exchange, { chain, run }, 200);
+	return settle(exchange, { chain, run });
 }
 
 // A thrown redirect() answers its status and Location, with no render and no boundary (B73). A failed match
@@ -222,7 +223,7 @@ function settle(exchange: Exchange, rendered: Rendered): Promise<Response> {
 async function paint(exchange: Exchange, rendered: Rendered, status: number): Promise<Response> {
 	for (const bug of rendered.run.bugs) projectError(bug, exchange.sink);
 	const state: OutletState = {
-		matches: outletMatches(exchange.request, rendered),
+		matches: outletMatches(rendered),
 		failure: rendered.failed && { index: rendered.run.data.length, ...rendered.failed },
 		unknown: rendered.unknown && { render: notFoundRenderOf(rendered.chain) },
 		onBoundaryError: (error) => void projectError(error, exchange.sink),
@@ -272,9 +273,12 @@ async function bare(exchange: Exchange, run: LoaderRun): Promise<Response> {
 	return finalize({ status: run.response.status, body, headers, url: exchange.request.url });
 }
 
-function loaderInput(exchange: Exchange, chain: readonly LoadedEntry[]): RunInput {
-	const routes = chain.map((entry) => ({ ...entry.module, id: entry.id }));
+// The validators read the raw records: defined params, and the search as one string or a `string[]` per key.
+function loaderInput(exchange: Exchange, matched: Loaded): RunInput {
+	const routes = matched.chain.map((entry) => ({ ...entry.module, id: entry.id }));
 	return {
+		params: definedParams(matched.params),
+		search: readSearch(new URL(exchange.request.url).search),
 		kind: exchange.kind,
 		dev: exchange.sink.dev,
 		request: exchange.request,

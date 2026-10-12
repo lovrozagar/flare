@@ -29,8 +29,8 @@ const user = createPage(page).render((props) => {
 	seen.pageProps = { ...props };
 	seen.layoutData = useLoaderData({ from: "_root_" });
 	seen.ownData = useLoaderData({ from: page });
-	seen.params = { ...useParams({ from: page }) };
-	seen.search = { ...useSearch({ from: page }) };
+	seen.params = Object.assign({}, useParams({ from: page }));
+	seen.search = Object.assign({}, useSearch({ from: page }));
 	seen.preloader = { ...usePreloaderContext({ from: page }) };
 	seen.rootPreloader = { ...usePreloaderContext({ from: "_root_" }) };
 	const match = useMatch({ from: page });
@@ -139,7 +139,7 @@ it("params", () => {
 	});
 	html({ at: { pathname: "/users/7", search: "", hash: "" } });
 	expect(seen.location).toEqual({ pathname: "/users/7", search: {}, hash: "", params: { id: "7" } });
-	const stray = createPage("_root_/stray").render(() => useParams({ from: "_root_/missing" }) && "x");
+	const stray = createPage("_root_/stray").render(() => String(useParams({ from: "_root_/missing" })));
 	const strayRouter = createRouter({
 		layouts: { _root_: root },
 		routeTree: [{ id: "_root_/stray", path: "/stray", module: stray }],

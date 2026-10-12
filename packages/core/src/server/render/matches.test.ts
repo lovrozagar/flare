@@ -5,27 +5,31 @@ import { definedParams, outletMatches, stateMatches, type Rendered } from "./mat
 const root = { id: "_root_", kind: "layout" as const, module: {} };
 const users = { id: "_root_/users/[id]/[[tab]]", kind: "page" as const, module: {} };
 
+// The root kept the raw records. The page's `.input()` replaced both sides.
+const inputs = [
+	{ params: { id: "7" }, search: { q: "a" } },
+	{ params: { id: 7 }, search: { q: ["a"] } },
+];
+
 function run(data: unknown[]): LoaderRun {
 	const response = new Response(null);
-	return { response, frames: [], data, heads: [{ title: "Root" }], contexts: [{}], bugs: [], deferred: [] };
+	return { response, frames: [], data, heads: [{ title: "Root" }], contexts: [{}], inputs, bugs: [], deferred: [] };
 }
 
-const request = new Request("http://localhost/users/7?q=a");
-
 it("outlet", () => {
-	const rendered: Rendered = { chain: [root, users], run: run(["root", "user"]), params: { id: "7", tab: undefined } };
-	expect(outletMatches(request, rendered)).toEqual([
+	const rendered: Rendered = { chain: [root, users], run: run(["root", "user"]) };
+	expect(outletMatches(rendered)).toEqual([
 		{ ...root, params: { id: "7" }, search: { q: "a" }, data: "root", preloader: {} },
-		{ ...users, params: { id: "7" }, search: { q: "a" }, data: "user", preloader: {} },
+		{ ...users, params: { id: 7 }, search: { q: ["a"] }, data: "user", preloader: {} },
 	]);
-	expect(outletMatches(request, { ...rendered, run: run([]) })).toEqual([]);
+	expect(outletMatches({ ...rendered, run: run([]) })).toEqual([]);
 	expect(definedParams({ a: "1", b: undefined, c: ["x"] })).toEqual({ a: "1", c: ["x"] });
 });
 
 it("state", () => {
 	const failed = { status: 500, error: new Error("x"), wire: { name: "Error", message: "x", digest: "0123456789ab" } };
-	const rendered: Rendered = { chain: [root, users], run: run(["root"]), params: { id: "7" }, failed };
-	const state = stateMatches(outletMatches(request, rendered), rendered);
+	const rendered: Rendered = { chain: [root, users], run: run(["root"]), failed };
+	const state = stateMatches(outletMatches(rendered), rendered);
 	expect(state).toEqual([
 		{
 			id: "_root_",
@@ -38,8 +42,8 @@ it("state", () => {
 		},
 		{
 			id: users.id,
-			params: { id: "7" },
-			search: { q: "a" },
+			params: { id: 7 },
+			search: { q: ["a"] },
 			data: null,
 			preloader: null,
 			head: null,

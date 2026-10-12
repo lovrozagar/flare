@@ -5,9 +5,12 @@ import type { RequestKind } from "../loaders/cascade.ts";
 import { effectiveAuth } from "./effective.ts";
 import { identity, type PolicyClass } from "./identity.ts";
 
+// `params` and `search` are this match's: raw, or its `.input()` output.
 export type GateRoute = {
 	id: string;
 	auth?: ChainAuth;
+	params?: unknown;
+	search?: unknown;
 	preloader?: (ctx: StepContext) => unknown;
 	authorize?: (ctx: StepContext) => boolean | Promise<boolean>;
 };
@@ -53,7 +56,8 @@ export async function gate(input: GateInput): Promise<GateResult> {
 	const contexts: PreloaderContext[] = [];
 	let latest: PreloaderContext = {};
 	for (const [index, route] of input.routes.entries()) {
-		const guarded = await guard(route, index === 0 ? base : { ...base, preloaderContext: latest });
+		const own = { ...base, params: route.params, search: route.search };
+		const guarded = await guard(route, index === 0 ? own : { ...own, preloaderContext: latest });
 		if (!guarded.ok) return { kind: "stopped", index, session, error: guarded.error, contexts };
 		latest = merge(latest, guarded.added);
 		contexts.push(latest);
@@ -61,7 +65,8 @@ export async function gate(input: GateInput): Promise<GateResult> {
 	const policy = identity(auth, session).class;
 	// A .response() page answers here. It never reads the store.
 	if (input.response !== undefined) {
-		const answer = input.response({ ...base, preloaderContext: latest });
+		const page = input.routes[input.routes.length - 1];
+		const answer = input.response({ ...base, params: page?.params, search: page?.search, preloaderContext: latest });
 		return { kind: "proceed", session, class: policy, contexts, answer };
 	}
 	if (readsStore(input, policy)) input.readStore?.();

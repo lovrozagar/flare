@@ -1,5 +1,3 @@
-import type { Located } from "../route-builder/index.ts";
-
 export type BoundaryKind = "errorRender" | "notFoundRender" | "unauthenticatedRender" | "unauthorizedRender";
 
 // A segment has no boundary of its own, so the walk skips it even when its module carries one.
@@ -8,7 +6,9 @@ export type BoundarySlot = {
 	module: Partial<Record<BoundaryKind, unknown>>;
 };
 
-type Current = { to: string; params: Located["params"]; search: Located["search"] };
+type Raw = Record<string, string | string[]>;
+
+type Current = { to: string; params: Raw; search: Raw };
 
 type Navigate = (options: Current & { replace: true; revalidate: true }) => void;
 

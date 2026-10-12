@@ -80,3 +80,18 @@ it("authenticate records", () => {
 	});
 	expect(() => createChain("_root_").authenticate().authenticateOptional()).toThrow(/authenticate/);
 });
+
+function params(raw: unknown): unknown {
+	return raw;
+}
+
+it("input", () => {
+	expect(createChain("_root_").input({ params }).record().input).toEqual({ params });
+	expect(() => createChain("_root_").input({})).toThrow(/params or searchParams/);
+	expect(() => createChain("_root_").authenticate().input({ params })).toThrow(/order/);
+	expect(() =>
+		createChain("_root_")
+			.cache({ ssr: { ttl: "1m" } })
+			.input({ searchParams: params }),
+	).not.toThrow();
+});

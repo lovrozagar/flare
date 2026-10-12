@@ -254,7 +254,7 @@ it("response passes", async () => {
 	expect(response.headers.get("content-security-policy")).toMatch(/script-src/);
 	expect(seen.calls).toEqual(["authorize", "fn"]);
 	expect(seen.contexts).toEqual([
-		{ auth: { id: "ada" }, request, env: { region: "eu" }, preloaderContext: { scope: "api" } },
+		{ auth: { id: "ada" }, request, env: { region: "eu" }, params: {}, search: {}, preloaderContext: { scope: "api" } },
 	]);
 	expect(seen.loaded).toBe(false);
 });
