@@ -1,16 +1,19 @@
-import { createComponent, createContext, createMemo, Errored, onCleanup, untrack, useContext } from "solid-js";
+import { createComponent, createContext, createMemo, Errored, merge, onCleanup, untrack, useContext } from "solid-js";
 import { Dynamic, isServer, type JSX } from "@solidjs/web";
-import type { ChainRecord } from "../route-builder/chain.ts";
+import type { ChainRecord, Render } from "../route-builder/chain.ts";
 import type { BoundaryRecord, Located, NotFoundRender } from "../route-builder/index.ts";
 import { NavigateContext } from "../router/context.ts";
 import { boundaryAt, boundaryFallback, boundaryKind, boundaryReset } from "./boundary.ts";
+import { MatchesContext } from "./outlet-nodes.ts";
 import { TransitionScopeContext } from "./view-transition-boundary.tsx";
 
+// `preloader` is the preloader context accumulated through this match. Absent is `{}`.
 export type OutletMatch = Located & {
 	id: string;
 	kind: "layout" | "page";
 	module: { render?: ChainRecord["render"]; boundaries?: BoundaryRecord };
 	data: unknown;
+	preloader?: Record<string, unknown>;
 };
 
 // `failure.index` is the root-most failed match. `unknown` is an unknown URL: the slot after the last layout
@@ -36,7 +39,12 @@ export function Outlet(): JSX.Element {
 }
 
 export function Matches(props: { state: () => OutletState }): JSX.Element {
-	return renderSlot(props.state, 0);
+	return createComponent(MatchesContext, {
+		value: props.state,
+		get children() {
+			return renderSlot(props.state, 0);
+		},
+	});
 }
 
 // A slot remounts only when its key changes: a new match id at that depth, or a failure painted there. A loader
@@ -78,16 +86,34 @@ function renderMatch(state: () => OutletState, depth: number, match: OutletMatch
 		value: { state, depth: depth + 1 },
 		// The provider reads its children in a tracked scope. createComponent untracks the route's own reads.
 		get children() {
-			const content = (): JSX.Element =>
-				createComponent(render, {
-					get loaderData() {
-						return state().matches[depth].data;
-					},
-					get children() {
-						return renderSlot(state, depth + 1);
-					},
-				});
+			const content = (): JSX.Element => createComponent(render, renderProps(state, depth, match.kind));
 			return isServer ? content() : guard(state, depth, content);
+		},
+	});
+}
+
+// A page gets its params, search, loader data, and preloader context. A layout also gets its children, the
+// next slot (dx/types.md).
+function renderProps(state: () => OutletState, depth: number, kind: OutletMatch["kind"]): Parameters<Render>[0] {
+	const own = () => state().matches[depth];
+	const props = {
+		get loaderData() {
+			return own().data;
+		},
+		get params() {
+			return own().params;
+		},
+		get search() {
+			return own().search;
+		},
+		get preloaderContext() {
+			return own().preloader ?? {};
+		},
+	};
+	if (kind === "page") return props;
+	return merge(props, {
+		get children() {
+			return renderSlot(state, depth + 1);
 		},
 	});
 }

@@ -8,6 +8,8 @@ export type Landed = {
 	data: Record<string, unknown>;
 	heads: Record<string, HeadConfig>;
 	failure?: { route: string; status: number; error: Error };
+	// A match's preloader context, when its `l` frame carried `p`.
+	preloaders?: Record<string, Record<string, unknown>>;
 	redirect?: { status: number; url: string; replace: boolean };
 };
 
@@ -58,6 +60,7 @@ export async function* framesOf(body: ReadableStream<Uint8Array>): AsyncIterable
 
 function land(frame: Frame, landed: Landed, context: { slots: Slots; options: LandOptions }): void {
 	if (frame.t === "l") landed.data[frame.m] = withDeferreds(frame.d, frame.m, context.slots);
+	if (frame.t === "l" && isRecord(frame.p)) landed.preloaders = { ...landed.preloaders, [frame.m]: frame.p };
 	if (frame.t === "h") landed.heads[frame.m] = frame.d;
 	if (frame.t === "e") {
 		// A loader `e` is a bug the dev overlay shows. A deferred `e` reaches it only through errorRender.
@@ -88,4 +91,8 @@ function withDeferreds(value: unknown, route: string, slots: Slots): unknown {
 		return new ClientDeferred(value.key, slot.promise);
 	}
 	return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, withDeferreds(item, route, slots)]));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }

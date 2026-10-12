@@ -58,6 +58,7 @@ export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 		data: page.id in landing.data ? landing.data[page.id] : deps.cache.read(pageMatch)?.data,
 		params: pageMatch.params,
 		search: pageMatch.search,
+		preloader: landing.preloaders?.[page.id] ?? {},
 		location: target.location,
 		background: previous.overlay?.background ?? { ...previous.location, params: owner.params },
 	};

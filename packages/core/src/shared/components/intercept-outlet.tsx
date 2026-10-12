@@ -14,6 +14,7 @@ export type Overlay = {
 	data: unknown;
 	params: Raw;
 	search: Raw;
+	preloader: Record<string, unknown>;
 	location: Location;
 	background: Location & { params: Raw };
 };
@@ -51,7 +52,15 @@ function stateOf(overlay: Overlay): InterceptState {
 		render: overlay.label,
 		match: {
 			loaderData: overlay.data,
-			render: () => (render === undefined ? undefined : createComponent(render, { loaderData: overlay.data })),
+			render: () =>
+				render === undefined
+					? undefined
+					: createComponent(render, {
+							loaderData: overlay.data,
+							params: overlay.params,
+							search: overlay.search,
+							preloaderContext: overlay.preloader,
+						}),
 		},
 		params: overlay.params,
 		search: overlay.search,

@@ -148,3 +148,13 @@ it("frames of a body", async () => {
 	for await (const frame of framesOf(body)) seen.push(frame);
 	expect(seen).toEqual([{ t: "l", m: "_root_", d: "root" }, { t: "r" }]);
 });
+
+it("preloader", async () => {
+	const source = (async function* (): AsyncIterable<Frame> {
+		yield { t: "l", m: "_root_", d: null };
+		yield { t: "l", m: "_root_/a", d: "a", p: { role: "admin" } };
+		yield { t: "r" };
+	})();
+	const landed = await landFrames(source, { dev: false });
+	expect(landed.preloaders).toEqual({ "_root_/a": { role: "admin" } });
+});

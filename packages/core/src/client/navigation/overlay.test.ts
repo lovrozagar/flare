@@ -28,6 +28,7 @@ const open: Overlay = {
 	data: "P1",
 	params: { id: "1" },
 	search: {},
+	preloader: {},
 	location: { pathname: "/photos/1", search: "", hash: "" },
 	background: { ...home, params: {} },
 };

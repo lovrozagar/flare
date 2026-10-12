@@ -51,7 +51,7 @@ const router = createRouter({
 function photoFrames(data: string): Frame[] {
 	return [
 		{ t: "l", m: "_root_", d: null },
-		{ t: "l", m: "_root_/photos/[id]", d: data },
+		{ t: "l", m: "_root_/photos/[id]", d: data, p: { album: "a" } },
 		{ t: "h", m: "_root_/photos/[id]", d: { title: "Photo" } },
 		{ t: "r" },
 		{ t: "d" },
@@ -112,6 +112,7 @@ it("shows intercepted", async () => {
 	expect(counts.home).toBe(homes);
 	expect(location.pathname).toBe("/photos/1");
 	expect(seen.state?.params).toEqual({ id: "1" });
+	expect(app.store.snapshot().overlay?.preloader).toEqual({ album: "a" });
 	expect(seen.state?.search).toEqual({});
 	expect(seen.state?.backgroundLocation).toEqual({ pathname: "/", search: "", hash: "", params: {} });
 });

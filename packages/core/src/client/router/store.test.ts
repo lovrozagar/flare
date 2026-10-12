@@ -53,6 +53,16 @@ it("from script", () => {
 	expect(snapshot.location).toEqual(location);
 	const bare = snapshotFromState({ matches: [entry("_root_", "bare")], chain, unknown: false, location });
 	expect(bare.heads).toEqual([undefined]);
+	const carried = snapshotFromState({
+		matches: [
+			{ ...entry("_root_", "root"), preloader: null },
+			{ ...entry("_root_/users/[id]", "u"), preloader: { role: "a" } },
+		],
+		chain,
+		unknown: false,
+		location,
+	});
+	expect(carried.matches.map((match) => match.preloader)).toEqual([{}, { role: "a" }]);
 });
 
 it("failure", () => {

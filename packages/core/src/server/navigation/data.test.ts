@@ -12,6 +12,7 @@ const run = {
 		{ t: "l", m: "_root_/users/[id]", d: "user" },
 	] as const,
 	heads: [{ title: "Root" }, { title: "User" }],
+	contexts: [{}, {}],
 };
 
 it("all matches", () => {
@@ -33,6 +34,12 @@ it("skipped head", () => {
 	const failed = {
 		frames: [run.frames[0], { t: "e", m: "_root_/users/[id]", e: new Error("x") }] as const,
 		heads: [undefined],
+		contexts: [{}],
 	};
 	expect(dataFrames(failed, new Set())).toEqual({ loaded: failed.frames, heads: [] });
+});
+
+it("preloader", () => {
+	const carried = { ...run, contexts: [{}, { role: "admin" }] };
+	expect(dataFrames(carried, new Set()).loaded).toEqual([run.frames[0], { ...run.frames[1], p: { role: "admin" } }]);
 });

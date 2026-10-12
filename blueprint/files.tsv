@@ -123,7 +123,7 @@ packages/core/src/shared/router/context.test.ts	P1	test	shared	Unit cases for co
 packages/core/src/shared/router/create-router.ts	P1	src	shared	createRouter. Holds the tree, base path, client cache defaults, and theme and direction config. Does not import those features
 packages/core/src/shared/router/create-router.test.ts	P1	test	shared	Unit cases for create-router.ts
 packages/core/src/shared/router/index.ts	P1	index	shared	Re-exports
-packages/core/src/shared/components/outlet-nodes.ts	P1	src	shared	Choose the matched layout and page nodes. No JSX
+packages/core/src/shared/components/outlet-nodes.ts	P1	src	shared	Choose the matched layout and page nodes, and the route hooks useLoaderData, useParams, useSearch, usePreloaderContext, useMatch, useLocation, useNavigate. No JSX
 packages/core/src/shared/components/outlet-nodes.test.ts	P1	test	shared	Unit cases for outlet-nodes.ts
 packages/core/src/shared/head/tags.ts	P6	src	shared	headTags: a merged head config to { tag, key, props } descriptors with raw values and semantic keys, for Solid's useHead
 packages/core/src/shared/head/tags.test.ts	P6	test	shared	Unit cases for tags.ts
