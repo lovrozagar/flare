@@ -105,3 +105,29 @@ it("throw is 500", async () => {
 it("outside a request", () => {
 	expect(() => serverCtx()).toThrow("serverCtx");
 });
+
+// The scope carries the request's store and the adapter's waitUntil for `revalidate()`. Without them there is no
+// store, and background work still settles without crashing the process.
+it("scope store", async () => {
+	const store = { get: async () => null, set: async () => {}, delete: async () => {}, deleteByTags: async () => {} };
+	const handed: Promise<unknown>[] = [];
+	const given = await withServerContext(
+		{ request, env: {}, store: () => store, waitUntil: (promise) => void handed.push(promise) },
+		async (scope) => {
+			scope.waitUntil(Promise.resolve("done"));
+			return scope.store();
+		},
+		unreachable,
+	);
+	expect(given).toBe(store);
+	expect(handed).toHaveLength(1);
+	const bare = await withServerContext(
+		{ request, env: {} },
+		async (scope) => {
+			scope.waitUntil(Promise.reject(new Error("late")));
+			return scope.store();
+		},
+		unreachable,
+	);
+	expect(bare).toBeUndefined();
+});

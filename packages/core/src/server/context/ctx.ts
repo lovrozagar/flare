@@ -2,6 +2,7 @@ import { createRequestEvent, getRequestEvent, type RequestEvent } from "@solidjs
 import { provideRequestEvent } from "@solidjs/web/storage";
 import type { FlareRegister, RegisteredServerContext } from "../../shared/route-builder/register.ts";
 import type { Caller } from "../auth/caller.ts";
+import type { FlareStore } from "../cache/contract.ts";
 
 type ServerContext = RegisteredServerContext<FlareRegister>;
 
@@ -16,10 +17,27 @@ export type ServerContextInput = {
 	env: unknown;
 	serverContext?: ((ctx: { request: Request; env: unknown }) => unknown) | undefined;
 	authenticate?: AppAuthenticate | undefined;
+	// The request's mutable store, and the adapter's waitUntil. `revalidate()` reads both from the scope.
+	store?: (() => FlareStore | undefined) | undefined;
+	waitUntil?: ((promise: Promise<unknown>) => void) | undefined;
 };
 
 // What the page gate and an in-request server function call read (dx/server-fn.md).
-export type RequestScope = { request: Request; env: unknown; serverContext: unknown; session: Session };
+export type RequestScope = {
+	request: Request;
+	env: unknown;
+	serverContext: unknown;
+	session: Session;
+	store: () => FlareStore | undefined;
+	waitUntil: (promise: Promise<unknown>) => void;
+};
+
+const NO_STORE = (): undefined => undefined;
+
+// Without an adapter, background work still runs. A rejection there is not a process crash.
+function settles(promise: Promise<unknown>): void {
+	void promise.catch(() => undefined);
+}
 
 type ContextEvent = RequestEvent & { flareServerContext: ServerContext; flareScope: RequestScope };
 
@@ -34,7 +52,14 @@ export function withServerContext<T>(
 ): Promise<T> {
 	const taken = takeContext(input);
 	if (!taken.ok) return Promise.resolve(fail(taken.error));
-	const scope = { request: input.request, env: input.env, serverContext: taken.value, session: memoSession(input) };
+	const scope = {
+		request: input.request,
+		env: input.env,
+		serverContext: taken.value,
+		session: memoSession(input),
+		store: input.store ?? NO_STORE,
+		waitUntil: input.waitUntil ?? settles,
+	};
 	const event = Object.assign(createRequestEvent(input.request), {
 		flareServerContext: taken.value,
 		flareScope: scope,

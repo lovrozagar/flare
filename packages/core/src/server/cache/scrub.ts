@@ -30,7 +30,8 @@ const NOTHING_STALE: ReadonlySet<string> = new Set();
 // HTML and the NDJSON. A run that is not a clean 200, or a render that fails, gives nothing to store.
 export function sharedRender(exchange: Exchange, matched: Loaded): Promise<SharedRender | undefined> {
 	const request = sharedRequest(defined(exchange.options.site, "the site a store requires"), exchange.request);
-	const context = { request, env: exchange.env, serverContext: exchange.options.serverContext };
+	const { env, store, waitUntil } = exchange;
+	const context = { request, env, serverContext: exchange.options.serverContext, store, waitUntil };
 	return withServerContext(
 		context,
 		(scope) => rendered({ ...exchange, request, session: scope.session, kind: "document", stale: null }, matched),

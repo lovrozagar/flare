@@ -17,3 +17,16 @@ export async function lookup(store: FlareStore, key: string): Promise<Lookup | n
 	const purged = epochs.some((epoch) => typeof epoch?.data === "number" && epoch.data >= entry.storedAt);
 	return { entry, purged };
 }
+
+// A tag purge: each `epoch:<tag>` becomes now, and never goes back past a later epoch already there. One get and
+// one set per tag. It never calls `deleteByTags` and never lists keys.
+export async function bumpEpochs(store: FlareStore, tags: readonly string[]): Promise<void> {
+	const now = Date.now();
+	await Promise.all(
+		tags.map(async (tag) => {
+			const previous = await store.get(epochKey(tag));
+			const epoch = Math.max(typeof previous?.data === "number" ? previous.data : 0, now);
+			await store.set(epochKey(tag), { data: epoch, storedAt: now });
+		}),
+	);
+}
