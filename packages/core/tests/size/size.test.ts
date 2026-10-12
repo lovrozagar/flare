@@ -1,27 +1,14 @@
-import { spawnSync } from "node:child_process";
-import { gzipSync } from "node:zlib";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
+import { breakdown } from "./breakdown.ts";
 
 const budgetPath = new URL("./budget.json", import.meta.url);
 
-it("createPage alone", async () => {
-	const dir = mkdtempSync(join(tmpdir(), "flare-size-"));
-	try {
-		const entry = join(dir, "entry.ts");
-		const page = fileURLToPath(new URL("../../src/shared/route-builder/page.ts", import.meta.url));
-		writeFileSync(entry, `import { createPage } from ${JSON.stringify(page)};\nexport const page = createPage;\n`);
-		const built = spawnSync("bun", ["build", entry, "--outdir", dir, "--format=esm"], { encoding: "utf8" });
-		expect(built.status).toBe(0);
-		const output = readFileSync(join(dir, "entry.js"), "utf8");
-		expect(output).not.toContain("client/navigation");
-		const budget = JSON.parse(readFileSync(budgetPath, "utf8")) as Record<string, number>;
-		expect(budget.createPage).toBeTypeOf("number");
-		expect(gzipSync(output).length).toBeLessThanOrEqual(budget.createPage);
-	} finally {
-		rmSync(dir, { recursive: true, force: true });
-	}
+// The budget measures what ships: the minified bundle, gzipped. The plain build's module list shows what it holds.
+it("createPage alone", () => {
+	const result = breakdown("shared/route-builder/page.ts", "createPage");
+	expect(result.modules.map((share) => share.name).filter((name) => name.includes("client/navigation"))).toEqual([]);
+	const budget = JSON.parse(readFileSync(budgetPath, "utf8")) as Record<string, number>;
+	expect(budget.createPage).toBeTypeOf("number");
+	expect(result.minified).toBeLessThanOrEqual(budget.createPage);
 });
