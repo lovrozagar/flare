@@ -16,7 +16,7 @@ type Secured = { headers: Headers; nonce: string };
 // `request` carries the URL the router and the loaders see: both internal params are removed (bit 06).
 // `session` is the request's one authenticate, shared by the gate and every server function it calls.
 // `waitUntil` keeps background work alive after the answer, a store write or a refresh. `store` is the request's
-// mutable store, resolved on the first read.
+// mutable store and `seeds` its `static` one, each resolved on its first read.
 export type Exchange = {
 	options: RuntimeOptions;
 	request: Request;
@@ -28,6 +28,7 @@ export type Exchange = {
 	session: Session;
 	waitUntil: (promise: Promise<unknown>) => void;
 	store: () => FlareStore | undefined;
+	seeds: () => FlareStore | undefined;
 };
 
 // Every answer here carries the request's resolved security set, which already holds the defaults, so finalize

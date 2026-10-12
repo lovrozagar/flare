@@ -158,3 +158,44 @@ it("two users", async () => {
 		expect(bob).not.toContain("alice-token");
 	}
 });
+
+const listed = () => [{ slug: "a" }];
+
+function post(store = createMemoryStore()): {
+	app: ReturnType<typeof createServer>;
+	set: Mock<FlareStore["set"]>;
+	store: FlareStore;
+} {
+	const set = vi.fn<FlareStore["set"]>(store.set);
+	const page = createPage("_root_/post/[slug]")
+		.cache({ isr: { params: listed, dynamicParams: false } })
+		.render(() => "post");
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/post/[slug]", path: "/post/[slug]", module: page }],
+	});
+	return { app: createServer({ router, site: SITE, store: { ...store, set } }), set, store };
+}
+
+// `dynamicParams: false` 404s a slug `params()` did not return, on the document and the data URL, and never
+// stores it: a second request is still the router's 404, not a stored 200.
+it("not found", async () => {
+	const { app, set } = post();
+	for (let round = 0; round < 2; round += 1) {
+		expect((await app.fetch(new Request(`${SITE}/post/b`))).status).toBe(404);
+		expect((await app.fetch(new Request(`${SITE}/post/b?_flare=data`))).status).toBe(404);
+	}
+	expect(set).not.toHaveBeenCalled();
+	expect((await app.fetch(new Request(`${SITE}/post/a`))).status).toBe(200);
+});
+
+// A listed slug whose tombstone is newer renders live, and the body may be stored again.
+it("purged listed", async () => {
+	const memory = createMemoryStore();
+	await memory.delete("static:dev:_root_/post/[slug]:a");
+	const { app, set } = post(memory);
+	const response = await app.fetch(new Request(`${SITE}/post/a`));
+	expect(response.headers.get("flare-cache")).toBe("miss");
+	expect(await response.text()).toContain("post");
+	await vi.waitFor(() => expect(set).toHaveBeenCalledOnce());
+});

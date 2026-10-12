@@ -65,7 +65,8 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 					// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
 					const mounted = dispatchMount(mounts, inner, call);
 					if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
-					return route({ ...exchange, session: scope.session, waitUntil, store });
+					const seeds = requestStore(options.static, env);
+					return route({ ...exchange, session: scope.session, waitUntil, store, seeds });
 				},
 				() => answer(exchange, 500),
 			);

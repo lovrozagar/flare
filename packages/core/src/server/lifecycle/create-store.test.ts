@@ -5,6 +5,7 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import type { FlareStore } from "../cache/contract.ts";
+import { createAssetsStore } from "../cache/assets.ts";
 import { createMemoryStore } from "../cache/memory.ts";
 import { createServer, serveWith } from "./create.ts";
 import type { Logger } from "./logger.ts";
@@ -55,4 +56,24 @@ it("store without site", () => {
 		serveWith({ router: stored, store, site: "http://localhost:5173" }, { dev: true, log: quiet }),
 	).not.toThrow();
 	expect(() => serveWith({ router: stored, store, site: "https://example.com/" }, prod)).not.toThrow();
+});
+
+// The SSG read takes `static` the same way: called once on that request with its env, and the store it returns is
+// the one read.
+it("static function", async () => {
+	const page = createPage("_root_/")
+		.cache({ ssg: true })
+		.render(() => "home");
+	const router = createRouter({ layouts: { _root_: whole }, routeTree: [{ id: "_root_/", path: "/", module: page }] });
+	const reads: string[] = [];
+	const envs: unknown[] = [];
+	const seeds = createAssetsStore(async (path) => {
+		reads.push(path);
+		return null;
+	});
+	const app = createServer({ router, static: (env) => (envs.push(env), seeds) });
+	const env = { ASSETS: "assets" };
+	expect((await app.fetch(new Request("http://localhost/"), env)).status).toBe(200);
+	expect(envs).toEqual([env]);
+	expect(reads).toEqual(["/assets/_flare-static/dev/_root_%2F.json"]);
 });

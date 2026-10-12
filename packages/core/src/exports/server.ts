@@ -10,6 +10,7 @@ export {
 export { mount } from "../server/mount/index.ts";
 export { proxy } from "../server/proxy/index.ts";
 export {
+	createAssetsStore,
 	createMemoryStore,
 	createRevalidateFn,
 	revalidate,

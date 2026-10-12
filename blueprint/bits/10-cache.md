@@ -155,6 +155,9 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `absent slug` | an SSG request whose slug `params()` did not return | 404 |
 | `missing file` | a listed slug whose seed file is missing | one live render. The body is not written to the asset store |
 | `ssg ignores tombstone` | an SSG seed and a newer tombstone in the mutable store | the SSG read returns the seed |
+| `listed slugs` | a page's `params()` list, against a catch-all, a param the URL lacks, and two params; `isr` with and without `dynamicParams: false`; no list | a listed entry matches when each of its own params equals the URL's, a catch-all by its joined segments. `isr` checks only under `dynamicParams: false`. No list takes any slug |
+| `seed epochs` | an ISR seed with no file, one no newer than the store's record, one a key epoch or a tag epoch passed, and one with no tags | no stand-in for the first two. The epochs purge it. A seed with no tags is checked against the key epoch alone |
+| `ssg authorize` | an SSG page whose `authorize` returns `false`, with its seed present | 403. `authorize` runs before a static seed is read, as before a stored one (B73) |
 
 ### `server/cache/tombstone.test.ts` and `epoch.test.ts`
 

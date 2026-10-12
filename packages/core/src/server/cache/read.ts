@@ -27,7 +27,7 @@ export function storedPageOf(data: unknown): StoredPage | undefined {
 	const render: unknown = Reflect.get(data, "render");
 	const headers: unknown = Reflect.get(data, "headers");
 	if (typeof html !== "string" || typeof ndjson !== "string" || typeof sentinel !== "string") return undefined;
-	if ((render !== "isr" && render !== "ssr") || !Array.isArray(headers)) return undefined;
+	if ((render !== "isr" && render !== "ssr" && render !== "ssg") || !Array.isArray(headers)) return undefined;
 	const pairs = headers.flatMap((pair: unknown) =>
 		Array.isArray(pair) && typeof pair[0] === "string" && typeof pair[1] === "string"
 			? [[pair[0], pair[1]] as const]

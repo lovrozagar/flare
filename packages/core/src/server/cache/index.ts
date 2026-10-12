@@ -6,3 +6,5 @@ export { isTombstone, tombstone } from "./tombstone.ts";
 export { fromSentinel, newSentinel, toSentinel } from "./nonce.ts";
 export { storeTiming, type StoreTiming } from "./write.ts";
 export { createRevalidateFn, revalidate, type RevalidateOptions } from "./revalidate.ts";
+export { createAssetsStore, type AssetRead } from "./assets.ts";
+export { acceptSeed, listed, seedLookup } from "./seed.ts";
