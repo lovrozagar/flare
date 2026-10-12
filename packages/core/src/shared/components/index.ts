@@ -4,4 +4,4 @@ export { delegateClicks, Link, type LinkProps } from "./link.tsx";
 export { chooseNodes } from "./outlet-nodes.ts";
 export { Matches, Outlet, type OutletMatch, type OutletState } from "./outlet.tsx";
 export { ViewTransitionCSS } from "./view-transition-css.tsx";
-export { transitionScope, ViewTransitionBoundary } from "./view-transition-boundary.tsx";
+export { TransitionScopeContext, ViewTransitionBoundary } from "./view-transition-boundary.tsx";

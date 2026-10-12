@@ -116,13 +116,20 @@ function realPrefetch() {
 }
 
 it("href", async () => {
-	const { anchor, navigate } = mount({ to: "_root_/about", replace: true, scroll: false, children: "About" });
+	const { anchor, navigate } = mount({
+		to: "_root_/about",
+		replace: true,
+		scroll: false,
+		viewTransition: { types: ["slide"] },
+		children: "About",
+	});
+	expect(anchor.hasAttribute("viewTransition")).toBe(false);
 	expect(anchor.getAttribute("href")).toBe("/about");
 	expect(anchor.textContent).toBe("About");
 	const event = click(anchor);
 	expect(event.defaultPrevented).toBe(true);
 	expect(navigate).toHaveBeenCalledExactlyOnceWith(
-		expect.objectContaining({ to: "_root_/about", replace: true, scroll: false }),
+		expect.objectContaining({ to: "_root_/about", replace: true, scroll: false, viewTransition: { types: ["slide"] } }),
 	);
 	const guarded = mount({ to: "_root_/about", onClick: (event) => event.preventDefault(), children: "x" });
 	click(guarded.anchor);

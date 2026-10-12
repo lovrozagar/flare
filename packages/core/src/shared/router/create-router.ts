@@ -1,6 +1,6 @@
 import type { BoundaryRecord, ClientCache, NotFoundRender, PrefetchTrigger } from "../route-builder/index.ts";
 import type { ChainRecord, Intercept } from "../route-builder/chain.ts";
-import type { LocationRewrite } from "../url/index.ts";
+import type { Location, LocationRewrite } from "../url/index.ts";
 import {
 	idPattern,
 	isRootFolder,
@@ -45,6 +45,20 @@ export type RouterCache = {
 	client?: { staleTime: number; gcTime: string } | false;
 };
 
+// A view transition's direction comes from the history index delta. `info` is what an option function reads
+// (dx/navigate.md).
+export type TransitionDirection = "forward" | "back" | "same";
+export type TransitionInfo = {
+	direction: TransitionDirection;
+	fromLocation: Location;
+	toLocation: Location;
+	pathChanged: boolean;
+};
+export type ViewTransitionOptions = {
+	scope?: "auto" | "document" | ((info: TransitionInfo) => "auto" | "document");
+	types?: string[] | ((info: TransitionInfo) => string[] | false);
+};
+
 // `modules: "all"` is legal only here (B64).
 export type RouterPrefetch = PrefetchTrigger | { data?: PrefetchTrigger; modules?: PrefetchTrigger | "all" };
 
@@ -56,6 +70,7 @@ export type RouterOptions = {
 	cache?: RouterCache;
 	chunks?: Record<string, string>;
 	prefetch?: RouterPrefetch;
+	viewTransitions?: boolean | ViewTransitionOptions;
 	rewrite?: LocationRewrite;
 };
 
@@ -83,7 +98,7 @@ export type Router = {
 	routeCacheMaxEntries: number;
 	prefetch: { modules: PrefetchTrigger | "all"; data: PrefetchTrigger };
 	cache: { client: { staleTime: number; gcTime: string } | false };
-	viewTransitions: boolean;
+	viewTransitions: false | ViewTransitionOptions;
 	chunks: Record<string, string>;
 	rewrite?: LocationRewrite;
 	match: (path: string) => Match;
@@ -105,7 +120,7 @@ export function createRouter(options: RouterOptions): Router {
 		routeCacheMaxEntries: 100,
 		prefetch: prefetchOf(options.prefetch),
 		cache: { client: CLIENT_CACHE },
-		viewTransitions: false,
+		viewTransitions: options.viewTransitions === true ? {} : (options.viewTransitions ?? false),
 		chunks: options.chunks ?? {},
 		rewrite: options.rewrite,
 		match(path) {

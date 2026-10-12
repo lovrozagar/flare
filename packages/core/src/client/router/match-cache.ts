@@ -166,7 +166,8 @@ export function holds(data: unknown): boolean {
 	return JSON.stringify({ d: data }).includes('"__deferred":true');
 }
 
-function defined(params: Record<string, string | string[] | undefined>): Raw {
+// Route params without the optional ones that are absent.
+export function defined(params: Record<string, string | string[] | undefined>): Raw {
 	return Object.fromEntries(
 		Object.entries(params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
 	);

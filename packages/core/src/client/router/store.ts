@@ -30,6 +30,7 @@ export type RouterStore = {
 	snapshot: () => StoreSnapshot;
 	outlet: () => OutletState;
 	commit: (next: StoreSnapshot) => void;
+	scopeAt: (depth: number) => Element | Document;
 };
 
 export type WireError = FrameError & { name?: string };
@@ -39,14 +40,27 @@ const NAMED: Record<string, number> = { NotFoundError: 404, UnauthenticatedError
 // One signal the outlet reads. A commit swaps the whole snapshot.
 export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (error: unknown) => void): RouterStore {
 	const [snapshot, setSnapshot] = createSignal(initial);
+	const slots = new Map<number, () => Element | undefined>();
+	const onSlot = (depth: number, scope: () => Element | undefined): (() => void) => {
+		slots.set(depth, scope);
+		return () => void (slots.get(depth) === scope && slots.delete(depth));
+	};
 	return {
 		snapshot,
 		outlet: () => {
 			const current = snapshot();
-			return { matches: current.matches, failure: current.failure, unknown: current.unknown, onBoundaryError };
+			return { matches: current.matches, failure: current.failure, unknown: current.unknown, onBoundaryError, onSlot };
 		},
 		commit: (next) => void setSnapshot(next),
+		// The innermost boundary around the outlet at that depth, or the document.
+		scopeAt: (depth) => slots.get(depth)?.() ?? document,
 	};
+}
+
+// The first slot whose match changed, else the deepest. A view transition scopes to the outlet there.
+export function swappedDepth(previous: StoreSnapshot, next: StoreSnapshot): number {
+	const changed = next.matches.findIndex((match, index) => previous.matches[index]?.id !== match.id);
+	return changed === -1 ? next.matches.length - 1 : changed;
 }
 
 // Hydrate reads the state script and the loaded chain. A match whose `error` is set is the painted failure.
@@ -86,4 +100,28 @@ export function errorFromWire(wire: WireError): { status: number; error: Error }
 	error.name = wire.name ?? "Error";
 	error.stack = wire.stack ?? "";
 	return { status: NAMED[error.name] ?? 500, error };
+}
+
+const NAMED_STATUS: Record<number, string> = { 401: "UnauthenticatedError", 403: "UnauthorizedError" };
+
+// A bare status paints its walked boundary. 401 and 403 keep their names, so the walk finds the auth render.
+export function statusFailure(status: number, index: number): StoreSnapshot["failure"] {
+	const error = new Error("Request failed");
+	error.name = NAMED_STATUS[status] ?? "Error";
+	error.stack = "";
+	return { index, status: status in NAMED_STATUS ? status : 500, error };
+}
+
+// A loader `e` frame paints at the failed match.
+export function landedFailure(
+	landing: { failure?: { route: string; status: number; error: Error } },
+	matches: readonly OutletMatch[],
+): StoreSnapshot["failure"] {
+	const failure = landing.failure;
+	if (failure === undefined) return undefined;
+	return {
+		index: matches.findIndex((match) => match.id === failure.route),
+		status: failure.status,
+		error: failure.error,
+	};
 }

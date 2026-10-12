@@ -294,6 +294,7 @@ packages/core/src/client/boot/ready.test.ts	P6	test	dom	Unit cases for ready.ts
 packages/core/src/client/boot/index.ts	P1	index	client	Re-exports
 packages/core/src/client/navigation/navigate.ts	P6	src	dom	navigate. Same-origin only. Commit, then push. Revalidation does not push
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
+packages/core/src/client/navigation/navigate-transition.test.ts	P6	test	dom	View-transition cases for navigate.ts
 packages/core/src/client/navigation/navigate-slots.test.ts	P6	test	dom	Deferred slot cases for navigate.ts
 packages/core/src/client/navigation/navigate.fixture.ts	P6	test	dom	The mounted app and navigator the navigation tests share
 packages/core/src/client/navigation/target.ts	P6	src	dom	navigate and Link input to a target: the built URL, the data URL, a hash-only move, or a document load
@@ -324,7 +325,7 @@ packages/core/src/client/history/index.ts	P6	index	client	Re-exports
 packages/core/src/client/head/apply.ts	P6	src	dom	Apply h frames through useHead in the same slot order the server used
 packages/core/src/client/head/apply.test.ts	P6	test	dom	Unit cases for apply.ts
 packages/core/src/client/head/index.ts	P6	index	client	Re-exports
-packages/core/src/client/view-transition/direction.ts	P6	src	dom	Choose the view-transition direction from the history index delta
+packages/core/src/client/view-transition/direction.ts	P6	src	dom	Choose the view-transition direction from the history index delta, resolve the option, and run the commit inside the transition
 packages/core/src/client/view-transition/direction.test.ts	P6	test	dom	Unit cases for direction.ts
 packages/core/src/client/view-transition/index.ts	P6	index	client	Re-exports
 packages/core/src/client/server-fn/call.ts	P7	src	dom	Send a server-fn call and read the envelope
