@@ -1,9 +1,12 @@
+import solid from "@solidjs/vite-plugin";
 import { defineConfig } from "vitest/config";
 
 const nodeInclude = ["src/**/*.test.ts", "lint/**/*.test.ts", "tests/**/*.test.ts", "../../scripts/**/*.test.ts"];
 
 export default defineConfig({
 	root: import.meta.dirname,
+	// App fixtures are written in JSX, as an app is. Framework sources do not use JSX.
+	plugins: [solid({ ssr: true, include: ["tests/e2e/apps/**/*.tsx"] })],
 	test: {
 		coverage: {
 			provider: "v8",

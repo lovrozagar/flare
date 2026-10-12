@@ -39,11 +39,13 @@ it("GET /", async () => {
 	expect(response.status).toBe(200);
 	expect(response.body).toContain(title);
 	expect(response.body).toContain("self.flare=");
+	expect(response.body).toMatch(/<html[^>]*>[\s\S]*<body[^>]*>[\s\S]*Home[\s\S]*<\/body>[\s\S]*<\/html>/);
 });
 
 it("GET /nope", async () => {
 	const response = await call("/nope");
 	expect(response.status).toBe(404);
+	expect(response.body).toMatch(/<body[^>]*>[\s\S]*<div[^>]*>Page not found<\/div>[\s\S]*<\/body>/);
 });
 
 it("two concurrent renders", async () => {

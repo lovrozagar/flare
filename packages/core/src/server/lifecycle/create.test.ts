@@ -1,12 +1,17 @@
-import { expect, it } from "vitest";
+import type { JSX } from "@solidjs/web";
+import { expect, it, vi } from "vitest";
 import { createLayout } from "../../shared/route-builder/layout.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
-import { createRouter } from "../../shared/router/create-router.ts";
-import { createServer } from "./create.ts";
+import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
+import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
+import { redirect } from "../../shared/errors/redirect.ts";
+import { createServer, serveWith } from "./create.ts";
+import type { Logger } from "./logger.ts";
 
-function show(props: { loaderData: unknown }): string {
-	return `[${String(props.loaderData)}]`;
+// A layout shows its data, then its outlet. A page has no children.
+function show(props: { loaderData: unknown; children?: JSX.Element }): JSX.Element {
+	return [`[${String(props.loaderData)}]`, props.children];
 }
 
 const root = createRootLayout("_root_").render(show);
@@ -151,4 +156,96 @@ it("state preloader", async () => {
 	});
 	expect(await preloaders(chained, "/shop/cart")).toEqual([{ a: 1 }, { a: 1, b: 2 }, { a: 1, b: 2, c: 3 }]);
 	expect(await preloaders(server, "/")).toEqual([{}, {}]);
+});
+
+const framed = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
+const quiet: Logger = { level: "error", error: noop, warn: noop, log: noop };
+
+function noop(): void {}
+
+// Solid marks dynamic children with hydration comments.
+function unmarked(html: string): string {
+	return html.replaceAll(/<!--.*?-->/g, "");
+}
+
+function framedServer(module: RouteModule, sink = { dev: false, log: quiet }): ReturnType<typeof createServer> {
+	return serveWith(
+		{ router: createRouter({ layouts: { _root_: module }, routeTree: [{ id: "_root_", path: "/", module: home }] }) },
+		sink,
+	);
+}
+
+it("root children", async () => {
+	const body = await (await framedServer(framed).fetch(new Request("http://localhost/"))).text();
+	expect(unmarked(body)).toContain("root[[Home]]");
+});
+
+it("unknown render", async () => {
+	const response = await framedServer(framed).fetch(new Request("http://localhost/nope"));
+	expect(response.status).toBe(404);
+	expect(await response.text()).toMatch(/root\[<div[^>]*>Page not found<\/div>\]/);
+});
+
+it("unknown failure", async () => {
+	const broken = createRootLayout("_root_")
+		.loader(() => {
+			throw new Error("root broke");
+		})
+		.render((props) => ["root[", props.children, "]"]);
+	const response = await framedServer(broken).fetch(new Request("http://localhost/nope"));
+	expect(response.status).toBe(500);
+	expect(await response.text()).toMatch(/^<div[^>]*>Something went wrong<\/div>/);
+});
+
+it("boundary throw", async () => {
+	const send = vi.fn<(payload: DevErrorPayload) => void>();
+	const guarded = createRootLayout("_root_")
+		.render((props) => ["root[", props.children, "]"])
+		.errorRender(() => "root error");
+	const failing = createPage("_root_")
+		.loader(() => {
+			throw new Error("loader broke");
+		})
+		.render(show)
+		.errorRender(() => {
+			throw new Error("boundary broke");
+		});
+	const app = serveWith(
+		{
+			router: createRouter({ layouts: { _root_: guarded }, routeTree: [{ id: "_root_", path: "/", module: failing }] }),
+		},
+		{ dev: true, send, log: quiet },
+	);
+	const response = await app.fetch(new Request("http://localhost/"));
+	expect(response.status).toBe(500);
+	expect(unmarked(await response.text())).toContain("root[root error]");
+	expect(send.mock.calls.map(([payload]) => payload.err.message)).toEqual(["loader broke", "boundary broke"]);
+});
+
+it("unknown no owner", async () => {
+	const locale = createRootLayout("[locale]/_root_").render((props) => props.children);
+	const app = serveWith(
+		{ router: createRouter({ layouts: { "[locale]/_root_": locale }, routeTree: [] }) },
+		{
+			dev: false,
+			log: quiet,
+		},
+	);
+	const response = await app.fetch(new Request("http://localhost/"));
+	expect(response.status).toBe(404);
+	expect(await response.text()).toBe("");
+});
+
+it("loader redirect", async () => {
+	const moved = createPage("_root_")
+		.loader(() => redirect({ href: "https://example.com/next" }))
+		.render(show)
+		.errorRender(() => "painted");
+	const app = serveWith(
+		{ router: createRouter({ layouts: { _root_: framed }, routeTree: [{ id: "_root_", path: "/", module: moved }] }) },
+		{ dev: false, log: quiet },
+	);
+	const response = await app.fetch(new Request("http://localhost/"));
+	expect(response.status).toBe(307);
+	expect(await response.text()).toBe("");
 });
