@@ -26,9 +26,7 @@ const readAuthorizedUser = (session: ResolvedAuth<App, "optional">): string => s
 const hook: (args: { from: From<App> }) => void = () => undefined;
 
 const call: () => Promise<void> = async () => undefined;
-function renderCall(): Promise<{ secret: string }> {
-	throw new Error("stub");
-}
+const renderCall = (): Promise<{ secret: string }> => Promise.reject(new Error("stub"));
 // @ts-expect-error authenticate takes no caller argument on a server function
 const noCaller: () => void = (_user: string) => undefined;
 
