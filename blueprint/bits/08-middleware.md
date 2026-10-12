@@ -67,6 +67,7 @@ Filters are `exact` or `prefix`. There is no regular expression.
 | `set-cookie many` | `relaySetCookie: true` and two `getSetCookie()` values, including on a 302 | both values are appended unchanged. `Path` and `Domain` are not rewritten. A `Connection` token of `set-cookie` does not remove them. `false` deletes every `Set-Cookie` |
 | `no mount` | `proxy` with no active mount | throw |
 | `absolute location` | upstream `Location` is `https://example.com/a` | 502. The `Location` is not forwarded. A single-slash path is still prefixed |
+| `decoded body` | upstream sends `Content-Encoding: gzip` and a `Content-Length` | both are absent on the way back and the body is the decoded text, because `fetch` decompressed it |
 
 ### `tests/integration/middleware.test.ts`
 
