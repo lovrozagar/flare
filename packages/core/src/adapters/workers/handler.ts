@@ -1,4 +1,5 @@
 import { canonicalPath } from "../../shared/url/canonical.ts";
+import { finalize } from "../../server/lifecycle/finalize.ts";
 import { createLogger } from "../../server/lifecycle/logger.ts";
 
 export type WorkerCtx = {
@@ -24,7 +25,7 @@ export function createWorkersHandler(
 	return {
 		async fetch(request, env, ctx) {
 			const next = canonicalRequest(request);
-			if (next === undefined) return new Response(null, { status: 400 });
+			if (next === undefined) return finalize({ status: 400, body: "" });
 			const response = await server.fetch(next, env, {
 				waitUntil(promise) {
 					ctx.waitUntil(promise);
@@ -33,12 +34,12 @@ export function createWorkersHandler(
 			});
 			if (response.status !== 404 || assets === undefined) return response;
 			if (request.method !== "GET" && request.method !== "HEAD") {
-				return new Response(null, { status: 405, headers: { allow: "GET, HEAD, OPTIONS" } });
+				return finalize({ status: 405, body: "", headers: new Headers({ allow: "GET, HEAD, OPTIONS" }) });
 			}
 			const binding = env[assets];
 			if (binding === undefined) {
 				createLogger({ dev: false }).error("assets", "missing binding");
-				return new Response(null, { status: 500 });
+				return finalize({ status: 500, body: "" });
 			}
 			return binding.fetch(next);
 		},
