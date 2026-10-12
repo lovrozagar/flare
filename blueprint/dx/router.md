@@ -42,4 +42,4 @@ createRouter({
 });
 ```
 
-`location` is `{ pathname, search, hash }`. `search` is the raw search string and includes the leading `?`, or `""` when there is none. `hash` includes the leading `#`, or `""`. `undefined` leaves the location alone. A returned location replaces `pathname`, `search`, and `hash`, and that pathname is matched. A throw fails the navigation and does not keep the previous URL (`navigate.test.ts` `rewrite throws`). A result whose origin is not the page's origin throws (`location shape`, `rewrite off origin`).
+`location` is `{ pathname, search, hash }`. `search` is the raw search string and includes the leading `?`, or `""` when there is none. `hash` includes the leading `#`, or `""`. `undefined` leaves the location alone. A returned location replaces `pathname`, `search`, and `hash`, and that pathname is matched. A throw fails the navigation before any history write: nothing commits and the previous URL stays (`target.test.ts` `rewrite throws`). A result whose origin is not the page's origin throws (`location shape`, `rewrite off origin`).
