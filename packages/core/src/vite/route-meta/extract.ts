@@ -74,7 +74,7 @@ function readImport(node: ImportDeclaration, names: Names): void {
 }
 
 // Every name a declaration, a parameter, a class, or a catch clause binds.
-function boundNames(program: Program): Set<string> {
+export function boundNames(program: Program): Set<string> {
 	const bound = new Set<string>();
 	const add = (pattern: Pattern): void => {
 		for (const name of patternNames(pattern)) bound.add(name);
