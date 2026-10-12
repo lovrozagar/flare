@@ -5,6 +5,7 @@ import { createRootLayout } from "./root-layout.ts";
 import { createPage } from "./page.ts";
 import type { BuilderSteps, RouteState } from "./route-types.ts";
 import { createPathSegment } from "./segment.ts";
+import type { CacheConfig } from "./types.ts";
 
 const authorize = (): boolean => true;
 const preloader = (): string => "pre";
@@ -44,6 +45,25 @@ it("no author key", () => {
 	// @ts-expect-error ssr has no author key
 	const chain = built.cache({ ssr: { ttl: "1m", key: () => "x" } });
 	expect(typeof chain.render).toBe("function");
+});
+
+const slugs = ({ params: parent }: { params: Record<string, string | string[]> }) => [{ ...parent, id: "1" }];
+
+// The dx/cache.md forms: ssr tags as a list or a function of params, isr's fields, and ssg's params forms.
+it("cache forms", () => {
+	const configs: CacheConfig[] = [
+		{ ssr: { ttl: "1m", tags: ({ params: values }) => [`p:${String(values["id"])}`], defer: "stream" } },
+		{ isr: { revalidate: "60s", defer: "stream", params: slugs, dynamicParams: false } },
+		{ isr: { params: async () => [{ id: "1" }] } },
+		{ ssg: slugs },
+		{ ssg: { params: slugs, defer: "resolve" } },
+		{ ssg: { defer: "stream" } },
+	];
+	for (const config of configs) expect(typeof createChain("_root_").cache(config).render).toBe("function");
+	// @ts-expect-error ttl is required
+	expectTypeOf<{ ssr: {} }>().toExtend<CacheConfig>();
+	// @ts-expect-error isr has no tags field: store tags are ssr.tags and cdn.tags
+	expectTypeOf<{ isr: { tags: string[] } }>().toExtend<CacheConfig>();
 });
 
 it("optional argument", () => {

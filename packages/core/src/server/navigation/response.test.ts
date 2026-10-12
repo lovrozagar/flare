@@ -226,6 +226,30 @@ it("stored stream stays a hole", async () => {
 	expect(held.calls).toEqual([]);
 });
 
+// `cache.isr.defer` decides a stored ISR render the way `ssr.defer` and `ssg.defer` do (dx/defer.md).
+it("isr stream stays a hole", async () => {
+	const held = slots();
+	const page = createPage("_root_/isr")
+		.cache({ isr: { defer: "stream" } })
+		.loader(({ defer }) => ({
+			fast: defer(() => {
+				held.calls.push("fast");
+				return held.fast.promise;
+			}),
+		}))
+		.render(() => "isr");
+	const run = await runLoaders({
+		kind: "document",
+		request: new Request("http://localhost/isr"),
+		env: {},
+		authenticate: () => null,
+		stored: true,
+		routes: [{ ...page, id: "_root_/isr" }],
+	});
+	expect(run.data).toEqual([{ fast: { __deferred: true, key: "d0" } }]);
+	expect(held.calls).toEqual([]);
+});
+
 it("cancel", async () => {
 	const held = slots();
 	const response = await app(deferring(held)).fetch(data());

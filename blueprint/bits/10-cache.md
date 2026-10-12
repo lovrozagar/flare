@@ -20,6 +20,18 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 
 ## Cases
 
+### `shared/route-builder/chain.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `cache forms` | `ssr.tags` as a function of params, `isr: { revalidate, defer, params, dynamicParams }`, `ssg` as a params function and as `{ params, defer }` | each builds. `ssr: {}` does not type-check, and `isr` has no `tags` field |
+
+### `server/navigation/response.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `isr stream stays a hole` | a stored run of `isr: { defer: "stream" }` | the placeholder stays and the function is not called. Before this row, `cache.isr.defer` was ignored |
+
 ### `server/cache/key.test.ts`
 
 | test | case | result |
@@ -55,6 +67,7 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `on demand` | `isr: true` | TTL is 24h. After that the read is a miss. No refresh starts before the TTL |
 | `empty object` | `isr: {}` | not rendered at build. TTL is 24h. Same expiry as `isr: true` |
 | `revalidate omitted` | `isr: { params }` and no `revalidate` | rendered at build because `params` exist. TTL is 24h. After that the read is a miss. No refresh starts before the TTL. Purge still misses sooner |
+| `no timing` | `ssg: true`, and a page with no `cache` | no mutable-store timing. `ssg` reads only the static seeds |
 | `shared request` | a miss, a stale refresh, and a prerender | each request URL is `site` plus the canonical pathname. It has no search and no request headers. The stored body is the body served for that miss |
 | `location stripped` | the render set `Location` | the stored headers have no `Location` |
 | `security stripped` | the render set `Content-Security-Policy` | the stored headers do not contain it |

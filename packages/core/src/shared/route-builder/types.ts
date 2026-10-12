@@ -1,9 +1,26 @@
+// The raw params a `tags` or `params` function reads, the values the store key uses (B32).
+export type RawParamsOf = Record<string, string | string[]>;
+
+// A list of tags, or a function of the raw params. The argument is `params` only (dx/cache.md).
+export type CacheTags = readonly string[] | ((ctx: { params: RawParamsOf }) => readonly string[]);
+
+type DeferMode = "resolve" | "stream";
+
+// The slugs a static or build-time ISR route renders. `ctx.params` holds the parent params.
+export type ParamsFn = (ctx: { params: RawParamsOf }) => readonly RawParamsOf[] | Promise<readonly RawParamsOf[]>;
+
 export type SsrCache = {
 	ttl: string;
 	staleTime?: string;
-	tags?: readonly string[];
-	defer?: "resolve" | "stream";
+	tags?: CacheTags;
+	defer?: DeferMode;
 };
+
+// `true` and `{}` are on demand. A set `revalidate` stores for twice that, capped at 24h (B47).
+export type IsrCache = true | { revalidate?: string; defer?: DeferMode; params?: ParamsFn; dynamicParams?: boolean };
+
+// A function is shorthand for `{ params }`.
+export type SsgCache = true | { defer?: DeferMode } | ParamsFn | { params: ParamsFn; defer?: DeferMode };
 
 // When a link prefetches (dx/link.md). A string sets both fields. An object sets the fields it names.
 export type PrefetchTrigger = false | "intent" | "viewport" | "render";
@@ -27,14 +44,14 @@ export type CdnCache = {
 	maxAge?: string | undefined;
 	swr?: string | undefined;
 	private?: boolean | undefined;
-	tags?: readonly string[] | ((ctx: { params: Record<string, string | string[]> }) => readonly string[]) | undefined;
+	tags?: CacheTags | undefined;
 	allowCookies?: boolean | undefined;
 };
 
 type CacheMode =
 	| { ssr: SsrCache; isr?: never; ssg?: never }
-	| { isr: true | { revalidate?: string }; ssr?: never; ssg?: never }
-	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
+	| { isr: IsrCache; ssr?: never; ssg?: never }
+	| { ssg: SsgCache; ssr?: never; isr?: never };
 
 // One mode at most. `cdn` and `client` sit beside it or stand alone.
 export type CacheConfig =

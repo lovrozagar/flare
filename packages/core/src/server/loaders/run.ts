@@ -223,10 +223,10 @@ function load(input: ValidRun, loading: Loading): Promise<Loaded[]> {
 	);
 }
 
-// The route's stored defer mode, from `cache.ssr.defer` or `cache.ssg.defer`.
+// The route's stored defer mode, from `cache.ssr.defer`, `cache.isr.defer`, or `cache.ssg.defer`.
 function deferMode(cache: CacheConfig | undefined): DeferMode | undefined {
-	if (cache?.ssr !== undefined) return cache.ssr.defer;
-	return typeof cache?.ssg === "object" ? cache.ssg.defer : undefined;
+	const mode = cache?.ssr ?? cache?.isr ?? cache?.ssg;
+	return typeof mode === "object" ? mode.defer : undefined;
 }
 
 async function settle(route: LoaderRoute, ctx: LoaderContext, dev: boolean): Promise<Settled> {
