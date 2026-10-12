@@ -2,16 +2,18 @@
 
 Routes are files under `src/routes`. There is no virtual route table (B21). Codegen writes the id. The runtime matches the pattern in the generated record. A file whose `createPage`, `createLayout`, `createRootLayout`, or `createPathSegment` string disagrees with that id is a build error (`vite/codegen/id-string.test.ts` `mismatch fails`).
 
-The id is the directory path under `src/routes`. The filename is not a segment. `home.page.tsx` placed directly in `_root_` has id `_root_` and serves `/` (`vite/codegen/routes.test.ts` `filename`).
+The id is the directory path under `src/routes`. The filename is not a segment. A root's home page is the one exception: `home.page.tsx` placed directly in `_root_` has id `_root_/` and serves `/`, because the root layout in that folder already has id `_root_`. The same holds for every root, so `[locale]/_root_/` and `_admin_/` are home page ids. Every id is unique across pages, layouts, root layouts, and segments (`vite/codegen/routes.test.ts` `filename`).
 
 Each route file exports its builder record as the named export `route`: `export const route = createPage("_root_/about")…`. The same holds for `createLayout`, `createRootLayout`, and `createPathSegment`. There is no default export. Codegen imports `{ route as routeN }` and sets `module: routeN`. A route file with no `route` export is a build error that names the file (`routes.test.ts` `one route`, `missing route export`). The file may export other names. The boundary transform strips the server methods from `route` on the client graph (B8).
 
-A folder holds at most one file of each suffix. Two `*.page.tsx` files in one folder are a build error (`two pages`). A `*.layout.tsx` in a folder wraps the page in that folder and the pages in child folders. It has no URL of its own. A `*.root-layout.tsx` is the document for that root. A `*.segment.ts` is `createPathSegment` for that folder.
+A folder holds at most one file of each suffix. Two `*.page.tsx` files in one folder are a build error (`two pages`). A `*.layout.tsx` wraps the pages in its child folders. It has no URL of its own. A layout lives in its own folder, usually a group such as `(blog)`. A `*.layout.tsx` beside a `*.page.tsx` or a `*.segment.ts` in one folder is a build error that names both files, because they would share one id (`layout beside page`). Only a root folder holds both its root layout and its home page. A `*.root-layout.tsx` is the document for that root. A `*.segment.ts` is `createPathSegment` for that folder.
 
 ## File, id, URL
 
 | file | id | URL | params |
 | --- | --- | --- | --- |
+| `src/routes/_root_/root.root-layout.tsx` | `_root_` | none. The document for `_root_` | |
+| `src/routes/_root_/home.page.tsx` | `_root_/` | `/` | |
 | `src/routes/_root_/about/about.page.tsx` | `_root_/about` | `/about` | |
 | `src/routes/_root_/(blog)/blog.layout.tsx` | `_root_/(blog)` | none. `(blog)` adds no segment | |
 | `src/routes/_root_/(blog)/post/post.page.tsx` | `_root_/(blog)/post` | `/post` | |
