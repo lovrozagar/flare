@@ -12,6 +12,8 @@ This bit starts by running the extractor against a fixture that contains every s
 
 `shared/protocol/constants.ts` gains `INPUT_PARAM` (`_i`), and `constants.test.ts` `names` lists it.
 
+The ids are build-time work, so `ids.ts` lives in `vite/route-meta/` beside `extract.ts` and hashes with Node's `crypto`. The runtime only looks up the literal ids the transform injects. `lint/boundaries.js` permits `vite>node`, as the 00-rules environment table already allows Node in `vite/` (`boundaries.test.ts` `vite node`).
+
 ## Cases
 
 ### `shared/protocol/get-codec.test.ts`
@@ -24,7 +26,7 @@ This bit starts by running the extractor against a fixture that contains every s
 | `missing` | a GET with no `_i` | input is `undefined` |
 | `void input` | an undefined input | the encoder refuses it, so the caller omits `_i` (`client/server-fn/codec.test.ts` `builds _i`), and the server reads `undefined` |
 
-### `server/server-fn/ids.test.ts`
+### `vite/route-meta/ids.test.ts`
 
 | test | case | result |
 | --- | --- | --- |

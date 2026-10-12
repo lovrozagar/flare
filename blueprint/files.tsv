@@ -227,8 +227,6 @@ packages/core/src/server/navigation/response.test.ts	P6	test	server	Unit cases f
 packages/core/src/server/navigation/index.ts	P6	index	server	Re-exports
 packages/core/src/server/server-fn/builder.ts	P7	src	server	createServerFn chain
 packages/core/src/server/server-fn/builder.test.ts	P7	test	server	Unit cases for builder.ts
-packages/core/src/server/server-fn/ids.ts	P7	src	server	Hash path and export name. Reject a collision
-packages/core/src/server/server-fn/ids.test.ts	P7	test	server	Unit cases for ids.ts
 packages/core/src/server/server-fn/dispatch.ts	P7	src	server	The B42 order
 packages/core/src/server/server-fn/dispatch.test.ts	P7	test	server	Unit cases for dispatch.ts
 packages/core/src/server/server-fn/csrf.ts	P7	src	server	Origin, Sec-Fetch-Site, Referer, and the same-site allow-list
@@ -372,6 +370,8 @@ packages/core/src/vite/route-meta/extract.ts	P7	src	vite	oxc extraction of chain
 packages/core/src/vite/route-meta/extract.test.ts	P7	test	vite	Unit cases for extract.ts
 packages/core/src/vite/route-meta/literals.ts	P7	src	vite	Fail the build when cache or auth config is not a literal
 packages/core/src/vite/route-meta/literals.test.ts	P7	test	vite	Unit cases for literals.ts
+packages/core/src/vite/route-meta/ids.ts	P7	src	vite	Build-time B41 ids: hash the path and export name with node:crypto. Reject a collision and a call that is not a direct export
+packages/core/src/vite/route-meta/ids.test.ts	P7	test	vite	Unit cases for ids.ts
 packages/core/src/vite/route-meta/index.ts	P7	index	vite	Re-exports
 packages/core/src/vite/codegen/routes.ts	P1	src	vite	Write routes.gen.ts, including literal cache.client and intercept fields (B89)
 packages/core/src/vite/codegen/routes.test.ts	P1	test	vite	Unit cases for routes.ts
