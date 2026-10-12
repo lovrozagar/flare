@@ -55,8 +55,13 @@ function value(kind: "dynamic" | "catch-all", taken: readonly string[]): string 
 // The characters a URL parser percent-encodes in a pathname, beside C0 controls, DEL, and non-ASCII.
 const PATH_ENCODED = ' "#<>?^`{}';
 
+// A static segment as a URL parser writes it. The matcher compares against this form, and buildUrl emits it.
+export function encodeStatic(text: string): string {
+	return upperHex(pathEncode(text));
+}
+
 function sameStatic(text: string, part: string, sensitive: boolean): boolean {
-	const expected = upperHex(pathEncode(text));
+	const expected = encodeStatic(text);
 	const actual = upperHex(part);
 	return sensitive ? expected === actual : expected.toLowerCase() === actual.toLowerCase();
 }
