@@ -1,5 +1,5 @@
 import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts";
-import { fnPrefix } from "../../shared/protocol/index.ts";
+import { FN_HEADER, fnPrefix } from "../../shared/protocol/index.ts";
 import { runValidator } from "../../shared/validation/index.ts";
 import { fnCaller } from "../auth/caller.ts";
 import { requestScope, type RequestScope } from "../context/ctx.ts";
@@ -160,9 +160,10 @@ function reply(fn: ServerFn, envelope: Envelope, status: number): StageResult {
 }
 
 // A returned Response is the HTTP response: its status, body, and other headers stay, and Cache-Control is
-// overwritten (B43).
+// overwritten (B43). `flare-fn: response` tells the client not to read it as an envelope, whatever the handler set.
 function passThrough(fn: ServerFn, response: Response): StageResult {
 	const headers = new Headers(response.headers);
 	setCacheControl(headers, fn.record);
+	headers.set(FN_HEADER, "response");
 	return { status: response.status, body: response.body, headers };
 }

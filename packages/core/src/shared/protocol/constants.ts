@@ -11,3 +11,6 @@ export const INPUT_PARAM = "_i";
 export const BUILD_HEADER = "flare-build";
 export const RENDER_HEADER = "flare-render";
 export const CACHE_HEADER = "flare-cache";
+
+// Marks a server function's returned Response, so the client resolves it untouched instead of reading an envelope.
+export const FN_HEADER = "flare-fn";
