@@ -6,7 +6,12 @@ import { requestScope, type RequestScope } from "../context/ctx.ts";
 import type { StageResult } from "../lifecycle/finalize.ts";
 import { NDJSON } from "../navigation/index.ts";
 import type { ErrorSink } from "../render/projector.ts";
-import type { ServerFnRef, ServerFnContext } from "./builder.ts";
+import {
+	bindServerFn,
+	type CreateServerFn,
+	type ServerFnContext,
+	type ServerFnRef,
+} from "../../shared/server-fn/builder.ts";
 import { setCacheControl } from "./cache-control.ts";
 import { checkCsrf } from "./csrf.ts";
 import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts";
@@ -64,6 +69,9 @@ export async function dispatch(input: DispatchInput): Promise<StageResult> {
 		return reply(fn, answer.envelope, answer.http);
 	}
 }
+
+// The server entry's `createServerFn`: every call runs in-process in the active request (03-surface `./server-fn`).
+export const createServerFn: CreateServerFn = bindServerFn(callInRequest);
 
 // A server function called from a loader, `.response()`, or another server function: the same steps without HTTP
 // and without CSRF, against the active request. A handler's call resolves to its value. A stream's call is the

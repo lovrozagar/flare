@@ -32,6 +32,9 @@
 		},
 		"./server-fn": {
 			"types": "./src/exports/server-fn.ts",
+			"workerd": "./src/exports/server-fn.ts",
+			"browser": "./src/exports/server-fn-client.ts",
+			"worker": "./src/exports/server-fn-client.ts",
 			"default": "./src/exports/server-fn.ts"
 		},
 		"./query": {

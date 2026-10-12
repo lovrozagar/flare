@@ -1,7 +1,2 @@
-export {
-	createServerFn,
-	type FnContext,
-	type ServerFn,
-	type ServerFnBuilder,
-	type StreamFn,
-} from "../server/server-fn/builder.ts";
+export { createServerFn } from "../server/server-fn/dispatch.ts";
+export type { FnContext, ServerFn, ServerFnBuilder, StreamFn } from "../shared/server-fn/builder.ts";

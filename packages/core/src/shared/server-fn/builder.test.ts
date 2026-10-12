@@ -1,6 +1,20 @@
 import { expect, expectTypeOf, it } from "vitest";
-import type { FlareRegister } from "../../shared/route-builder/register.ts";
-import { createServerFn, type FnStart, type ServerFn, type ServerFnBuilder } from "./builder.ts";
+import type { FlareRegister } from "../route-builder/register.ts";
+import {
+	bindServerFn,
+	type CreateServerFn,
+	type FnStart,
+	type ServerFn,
+	type ServerFnBuilder,
+	type ServerFnRef,
+} from "./builder.ts";
+
+// Each entry binds its own call. This one records it, so a row can see what a callable passes on.
+const calls: Array<[ServerFnRef, unknown]> = [];
+const createServerFn = bindServerFn((fn, input) => {
+	calls.push([fn, input]);
+	return "called";
+});
 
 const handler = async (): Promise<{ n: number }> => ({ n: 1 });
 
@@ -65,6 +79,16 @@ it("once", () => {
 
 // The public signature is the generic that tests/types proves, bound to the app's register.
 it("typed", () => {
+	expectTypeOf(bindServerFn).returns.toEqualTypeOf<CreateServerFn>();
 	expectTypeOf(createServerFn).returns.toEqualTypeOf<ServerFnBuilder<FlareRegister, FnStart>>();
 	expectTypeOf(createServerFn().handler(handler)).toEqualTypeOf<ServerFn<void, { n: number }>>();
+});
+
+// The callable hands itself and its input to the entry's call. A chain without `__client` runs no render guard.
+it("bound", () => {
+	const fn = createServerFn({ method: "get" })
+		.input((value: unknown) => value)
+		.handler(handler);
+	expect(fn(4)).toBe("called");
+	expect(calls.at(-1)).toEqual([fn, 4]);
 });
