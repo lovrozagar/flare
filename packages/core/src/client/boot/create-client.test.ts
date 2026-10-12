@@ -1,7 +1,7 @@
 import { createComponent, flush, useContext } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { Link } from "../../shared/components/index.ts";
+import { InterceptOutlet, Link, type InterceptState } from "../../shared/components/index.ts";
 import { encodeFrame } from "../../shared/protocol/index.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
@@ -14,7 +14,15 @@ type Dom = typeof globalThis & { _$HY?: unknown; flare?: unknown };
 
 const seen: { router?: Router; prefetcher?: LinkPrefetch | null } = {};
 
-const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
+const root = createRootLayout("_root_").render((props) => [
+	"root[",
+	props.children,
+	createComponent(InterceptOutlet, { children: (state: InterceptState) => `|overlay:${state.render}` }),
+	"]",
+]);
+const photo = createPage("_root_/photo")
+	.intercept({ from: ["_root_/"], render: "preview" })
+	.render(() => "photo");
 const home = createPage("_root_/").render((props) => {
 	seen.router = useRouter();
 	seen.prefetcher = useContext(PrefetchContext);
@@ -33,6 +41,7 @@ function routerOf(chunks: Record<string, string> = {}): Router {
 			{ id: "_root_/", path: "/", module: () => Promise.resolve(home) },
 			{ id: "_root_/about", path: "/about", module: about },
 			{ id: "_root_/broken", path: "/broken", module: broken },
+			{ id: "_root_/photo", path: "/photo", module: photo },
 			{
 				id: "_root_/lazy",
 				path: "/lazy",
@@ -238,4 +247,18 @@ it("delegates", async () => {
 	flush();
 	expect(fetch).toHaveBeenCalledWith("/about?_flare=data", expect.anything());
 	expect(host.textContent).toBe("root[about:linked]");
+});
+
+it("overlay", async () => {
+	const host = install();
+	const frames = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/photo", d: "P" }, { t: "r" }] as const;
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
+	const ready = createReady();
+	const navigates: ReadyContext["navigate"][] = [];
+	ready.api.onReady((ctx) => navigates.push(ctx.navigate));
+	stops.push(await bootClient(routerOf(), ready, env(host, fetch)));
+	await navigates[0]({ to: "_root_/photo" });
+	flush();
+	expect(host.textContent).toBe("root[home:start|overlay:preview]");
+	expect(history.state).toEqual({ index: 1, usr: undefined, intercepted: true });
 });
