@@ -1,6 +1,7 @@
+import type { NavigateOptions } from "../navigation/index.ts";
 import type { Location } from "../../shared/url/index.ts";
 
-export type ReadyContext = { navigate: (options: { to: string }) => Promise<void>; location: Location };
+export type ReadyContext = { navigate: (options: NavigateOptions) => Promise<void>; location: Location };
 
 export type ReadyApi = {
 	onReady: (run: (ctx: ReadyContext) => void) => ReadyApi;
