@@ -296,6 +296,8 @@ packages/core/src/client/navigation/navigate.ts	P6	src	dom	navigate. Same-origin
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
 packages/core/src/client/navigation/target.ts	P6	src	dom	navigate and Link input to a target: the built URL, the data URL, a hash-only move, or a document load
 packages/core/src/client/navigation/target.test.ts	P6	test	dom	Unit cases for target.ts
+packages/core/src/client/navigation/reload.ts	P6	src	dom	The guarded document load under flare_chunk_reload, and the five route-chunk error messages
+packages/core/src/client/navigation/reload.test.ts	P6	test	dom	Unit cases for reload.ts
 packages/core/src/client/navigation/pending.ts	P6	src	dom	useNavigation().pending
 packages/core/src/client/navigation/pending.test.ts	P6	test	dom	Unit cases for pending.ts
 packages/core/src/client/navigation/progress.ts	P6	src	dom	useNavigationProgress. Value only. No element
