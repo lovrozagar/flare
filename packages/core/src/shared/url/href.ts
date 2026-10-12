@@ -1,3 +1,6 @@
+import { encodeStatic, idPattern, patternSegments, type Segment } from "../route-tree/index.ts";
+import { writeUrl, type SearchValue } from "./search.ts";
+
 declare const hrefBrand: unique symbol;
 
 export type Href = string & { readonly [hrefBrand]: never };
@@ -11,29 +14,28 @@ export function href(value: string): Href {
 	throw new Error("href");
 }
 
-export function buildUrl(input: { to: string; params?: Record<string, string> }): Href {
-	return href(fill(input.to, input.params ?? {}));
+type Params = Record<string, string | readonly string[] | undefined>;
+
+export type BuildInput = { to: string; params?: Params; search?: Record<string, SearchValue>; hash?: string };
+
+// The URL of a route id. The pattern comes from the same idPattern and segment parser the router matches with,
+// so a built URL is always one the router matches (bit 05).
+export function buildUrl(input: BuildInput): Href {
+	const params = input.params ?? {};
+	const parts = patternSegments(idPattern(input.to)).flatMap((segment) => urlParts(segment, params));
+	const hash = input.hash?.replace(/^#/, "");
+	return href(writeUrl({ path: `/${parts.join("/")}`, search: input.search, hash }));
 }
 
-function fill(id: string, params: Record<string, string>): string {
-	const parts: string[] = [];
-	for (const part of id.split("/")) {
-		if (part.startsWith("_")) continue;
-		const name = readParam(part);
-		if (name === undefined) {
-			parts.push(part);
-			continue;
-		}
-		const value = params[name];
-		if (value === undefined) throw new Error(name);
-		parts.push(encodeParam(value));
-	}
-	return `/${parts.join("/")}`;
-}
-
-function readParam(part: string): string | undefined {
-	if (!part.startsWith("[")) return undefined;
-	return part.slice(1, -1);
+// A static segment is path-encoded. A param value is one encoded segment, and a catch-all value is one per
+// item. A missing optional value, or an empty optional catch-all, adds nothing.
+function urlParts(segment: Segment, params: Params): string[] {
+	if (segment.kind === "static") return [encodeStatic(segment.text)];
+	const value = params[segment.name];
+	const values = typeof value === "string" ? [value] : (value ?? []);
+	if (values.length === 0 && segment.optional) return [];
+	if (values.length === 0 || (segment.kind === "dynamic" && typeof value !== "string")) throw new Error(segment.name);
+	return values.map(encodeParam);
 }
 
 function encodeParam(value: string): string {
