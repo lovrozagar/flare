@@ -7,12 +7,12 @@ import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import { createRouter } from "../../src/shared/router/create-router.ts";
 
-const home = createPage("_root_")
+const home = createPage("_root_/")
 	.loader(() => "Home")
 	.render((props) => String(props.loaderData));
 const router = createRouter({
 	layouts: { _root_: createRootLayout("_root_").render(() => "") },
-	routeTree: [{ id: "_root_", path: "/", module: home }],
+	routeTree: [{ id: "_root_/", path: "/", module: home }],
 });
 const app = createServer({ router });
 let fetches = 0;

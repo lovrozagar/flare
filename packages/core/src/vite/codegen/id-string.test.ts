@@ -7,14 +7,14 @@ const source = `export const route = createPage("");\n`;
 
 it("writes the key", () => {
 	const next = writeId(source, home);
-	expect(next).toContain('createPage("_root_")');
+	expect(next).toContain('createPage("_root_/")');
 	expect(() => assertId(next, home)).not.toThrow();
 });
 
 it("rewrites on move", () => {
 	const moved = writeId(writeId(source, home), about);
 	expect(moved).toContain('createPage("_root_/about")');
-	expect(moved).not.toContain('createPage("_root_")');
+	expect(moved).not.toContain('createPage("_root_/")');
 });
 
 it("mismatch fails", () => {

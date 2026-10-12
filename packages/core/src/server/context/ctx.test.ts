@@ -17,7 +17,7 @@ function routerWith(loader: () => string): Router {
 			{
 				id: "_root_",
 				path: "/",
-				module: createPage("_root_")
+				module: createPage("_root_/")
 					.loader(loader)
 					.render(() => ""),
 			},

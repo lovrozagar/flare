@@ -8,7 +8,7 @@ const fallback = (): string => "fallback";
 const missing = (): string => "missing";
 
 it("boundary once", () => {
-	const page = createPage("_root_").render(render);
+	const page = createPage("_root_/").render(render);
 	expect(() => page.errorRender(fallback).errorRender(fallback)).toThrow(/errorRender twice/);
 	expect(() => page.notFoundRender(missing).unauthorizedRender(fallback).notFoundRender(missing)).toThrow(
 		/notFoundRender twice/,
@@ -33,5 +33,5 @@ it("four kinds", () => {
 		});
 		expect(Object.keys(bounded)).not.toContain("errorRender");
 	}
-	expect(createPage("_root_").render(render)).not.toHaveProperty("boundaries");
+	expect(createPage("_root_/").render(render)).not.toHaveProperty("boundaries");
 });

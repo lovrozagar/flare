@@ -1,10 +1,11 @@
-import { idPattern, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts";
+import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts";
 import { escapeSource } from "./escape.ts";
 import { scanRoute } from "./scan.ts";
 
 const PAGE = ".page.tsx";
 const LAYOUT = ".layout.tsx";
 const ROOT_LAYOUT = ".root-layout.tsx";
+const SEGMENT = ".segment.ts";
 
 type Item = { id: string; file: string };
 
@@ -25,7 +26,7 @@ export function defineLayouts<T>(layouts: T): T {
 
 // The page id a file path gives, or undefined when the file is not a page.
 export function pageId(file: string): string | undefined {
-	return file.endsWith(PAGE) ? item(file, PAGE).id : undefined;
+	return file.endsWith(PAGE) ? pageItem(file).id : undefined;
 }
 
 // `read` returns a route file's source. Each page and layout file must export `route` (dx/routes.md).
@@ -33,11 +34,12 @@ export function generateRoutes(files: readonly string[], read: (file: string) =>
 	const pages: Item[] = [];
 	const layouts: LayoutGen[] = [];
 	for (const file of files) {
-		if (file.endsWith(PAGE)) pages.push(item(file, PAGE));
+		if (file.endsWith(PAGE)) pages.push(pageItem(file));
 		else if (file.endsWith(ROOT_LAYOUT)) layouts.push(item(file, ROOT_LAYOUT));
 		else if (file.endsWith(LAYOUT)) layouts.push(item(file, LAYOUT));
 	}
 	assertRoot(files, pages);
+	assertApart(files);
 	assertExports([...pages, ...layouts], read);
 	assertOne(pages);
 	const routes = pages.map(toRoute);
@@ -45,6 +47,13 @@ export function generateRoutes(files: readonly string[], read: (file: string) =>
 	assertShadow(routes);
 	assertKinds(routes);
 	return { source: render(routes, layouts), routes, layouts };
+}
+
+// A root's home page shares its folder with the root layout, so its id ends in "/": `_root_/` (dx/routes.md).
+function pageItem(file: string): Item {
+	const page = item(file, PAGE);
+	const folder = page.id.slice(page.id.lastIndexOf("/") + 1);
+	return isRootFolder(folder) ? { ...page, id: `${page.id}/` } : page;
 }
 
 function item(file: string, suffix: string): Item {
@@ -95,6 +104,21 @@ function assertRoot(files: readonly string[], pages: readonly Item[]): void {
 	if (pages.length === 0) return;
 	if (files.some((file) => file.endsWith(".root-layout.tsx"))) return;
 	throw new Error(`no root: ${pages.map((page) => page.file).join(", ")}`);
+}
+
+// A layout in the folder of a page or a segment would share its id. Only a root folder holds both.
+function assertApart(files: readonly string[]): void {
+	for (const layout of files) {
+		if (!layout.endsWith(LAYOUT) || layout.endsWith(ROOT_LAYOUT)) continue;
+		const folder = layout.slice(0, layout.lastIndexOf("/") + 1);
+		const beside = files.find(
+			(file) =>
+				file.startsWith(folder) &&
+				!file.slice(folder.length).includes("/") &&
+				(file.endsWith(PAGE) || file.endsWith(SEGMENT)),
+		);
+		if (beside !== undefined) throw new Error(`layout beside page: ${layout}, ${beside}`);
+	}
 }
 
 function assertExports(items: readonly Item[], read: (file: string) => string): void {

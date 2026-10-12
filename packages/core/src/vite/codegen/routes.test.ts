@@ -23,14 +23,31 @@ it("one route", () => {
 	expect(source).toContain('import { route as route0 } from "./_root_/home.page.tsx";');
 	expect(source).toContain('import { route as layout0 } from "./_root_/root.root-layout.tsx";');
 	expect(source).toContain("export const routeTree");
-	expect(source).toContain('export const routeTree = [{ id: "_root_", path: "/", module: route0 }];');
+	expect(source).toContain('export const routeTree = [{ id: "_root_/", path: "/", module: route0 }];');
 	expect(source).toContain('export const layouts = { "_root_": layout0 };');
 });
 
 it("filename", () => {
-	const route = routesOf(["_root_/home.page.tsx"]).routes[0];
-	expect(route?.id).toBe("_root_");
-	expect(route?.urls).toEqual(["/"]);
+	const generated = routesOf(["_root_/home.page.tsx"]);
+	expect(generated.routes[0]?.id).toBe("_root_/");
+	expect(generated.routes[0]?.path).toBe("/");
+	expect(generated.routes[0]?.urls).toEqual(["/"]);
+	expect(generated.layouts[0]?.id).toBe("_root_");
+	const locale = generateRoutes(["[locale]/_root_/home.page.tsx", "[locale]/_root_/root.root-layout.tsx"], read);
+	expect(locale.routes[0]?.id).toBe("[locale]/_root_/");
+	expect(locale.routes[0]?.urls).toEqual(["/[locale]"]);
+	expect(routesOf(["_admin_/home.page.tsx"]).routes[0]?.id).toBe("_admin_/");
+	expect(routesOf(["_root_/about/about.page.tsx"]).routes[0]?.id).toBe("_root_/about");
+});
+
+it("layout beside page", () => {
+	expect(() => routesOf(["_root_/blog/blog.layout.tsx", "_root_/blog/blog.page.tsx"])).toThrow(
+		"layout beside page: _root_/blog/blog.layout.tsx, _root_/blog/blog.page.tsx",
+	);
+	expect(() => routesOf(["_root_/docs/docs.layout.tsx", "_root_/docs/docs.segment.ts"])).toThrow(
+		"layout beside page: _root_/docs/docs.layout.tsx, _root_/docs/docs.segment.ts",
+	);
+	expect(() => routesOf(["_root_/(blog)/(blog).layout.tsx", "_root_/(blog)/post/post.page.tsx"])).not.toThrow();
 });
 
 it("about", () => {
@@ -140,12 +157,12 @@ it("two pages", () => {
 it("missing route export", () => {
 	const sources: Record<string, string> = {
 		"_root_/root.root-layout.tsx": `export const route = createRootLayout("_root_");\n`,
-		"_root_/home.page.tsx": `export default createPage("_root_");\n`,
+		"_root_/home.page.tsx": `export default createPage("_root_/");\n`,
 		"_root_/about/about.page.tsx": `const route = createPage("_root_/about");\nexport { route };\n`,
 	};
 	const files = Object.keys(sources);
 	expect(() => generateRoutes(files, (file) => sources[file])).toThrow("_root_/home.page.tsx");
-	sources["_root_/home.page.tsx"] = `export const route = createPage("_root_");\n`;
+	sources["_root_/home.page.tsx"] = `export const route = createPage("_root_/");\n`;
 	expect(generateRoutes(files, (file) => sources[file]).routes).toHaveLength(2);
 	sources["_root_/root.root-layout.tsx"] = `export const page = createRootLayout("_root_");\n`;
 	expect(() => generateRoutes(files, (file) => sources[file])).toThrow("_root_/root.root-layout.tsx");

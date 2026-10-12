@@ -131,7 +131,7 @@ it("interleaved", async () => {
 			{
 				id: "_root_",
 				path: "/",
-				module: createPage("_root_")
+				module: createPage("_root_/")
 					.loader(async (ctx) => {
 						const sentinel = ctx.request.headers.get("x-sentinel");
 						if (sentinel === "alpha") await held;
@@ -160,7 +160,7 @@ it("header identity", async () => {
 				{
 					id: "_root_",
 					path: "/",
-					module: createPage("_root_")
+					module: createPage("_root_/")
 						.authenticateOptional()
 						.loader((ctx) => {
 							sessions.push(ctx.auth);
