@@ -23,8 +23,10 @@ import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
 import { classify, isServerFn } from "./classify.ts";
-import { answer, bare, passed, secure, typed, type Exchange } from "./exchange.ts";
-import { dispatchMount, mountTable, type MountContext } from "../mount/mount.ts";
+import { answer, background, bare, failed, passed, secure, typed, type Exchange } from "./exchange.ts";
+import { dispatchMount, mountTable } from "../mount/mount.ts";
+import { runMiddleware } from "../middleware/run.ts";
+import type { MiddlewareKind } from "../middleware/types.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
@@ -85,27 +87,26 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	};
 }
 
-// Without an adapter context, background work still runs, and a rejection is projected like any bug.
-function background(sink: ErrorSink): MountContext {
-	return { waitUntil: (promise) => void promise.catch((error: unknown) => projectError(error, sink)) };
-}
-
-// A stage's throw is a bug: projected, then the 500 every exit shares.
-function failed(exchange: Pick<Exchange, "request" | "secured" | "sink">): (error: unknown) => Response {
-	return (error) => {
-		projectError(error, exchange.sink);
-		return answer(exchange, 500);
-	};
-}
-
 // A match whose modules are loaded (02-system step 10).
 type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
 
 // The method check runs on the match alone (02-system step 9). Route code loads only for the handler that runs
 // (step 10), so an OPTIONS, a 405, or an unmatched method imports nothing.
+// 02-system step 6: the middleware list wraps the server function and the router. Whatever answers, the router,
+// a returned Response, or a stash, leaves through finalize with the security set (B34).
 function route(exchange: Exchange): Promise<Response> {
 	const url = new URL(exchange.request.url);
-	if (isServerFn(url, exchange.options.router.basePath)) return serverFn(exchange);
+	const fn = isServerFn(url, exchange.options.router.basePath);
+	const inner = (): Promise<Response> => (fn ? serverFn(exchange) : routed(exchange, url));
+	const middleware = exchange.options.middleware ?? [];
+	if (middleware.length === 0) return inner();
+	const kind: MiddlewareKind = fn ? "serverFn" : "page";
+	const input = { request: exchange.request, env: exchange.env, kind, fail: failed(exchange) };
+	return runMiddleware(middleware, input, inner).then((response) => passed(exchange, response));
+}
+
+// 02-system steps 8 and 9: match, then the method rule.
+function routed(exchange: Exchange, url: URL): Promise<Response> {
 	const matched = exchange.options.router.match(url.pathname);
 	const method = exchange.request.method;
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {

@@ -1,7 +1,8 @@
 import type { RequestKind } from "../../shared/protocol/index.ts";
 import type { Session } from "../context/ctx.ts";
 import type { LoaderRun } from "../loaders/run.ts";
-import type { ErrorSink } from "../render/projector.ts";
+import type { MountContext } from "../mount/mount.ts";
+import { projectError, type ErrorSink } from "../render/projector.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import type { RuntimeOptions } from "./options.ts";
 
@@ -55,4 +56,17 @@ export function secure(exchange: Answering, result: StageResult): Response {
 	const headers = new Headers(result.headers);
 	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
 	return finalize({ ...result, headers, url: exchange.request.url });
+}
+
+// Without an adapter context, background work still runs, and a rejection is projected like any bug.
+export function background(sink: ErrorSink): MountContext {
+	return { waitUntil: (promise) => void promise.catch((error: unknown) => projectError(error, sink)) };
+}
+
+// A stage's throw is a bug: projected, then the 500 every exit shares.
+export function failed(exchange: Pick<Exchange, "request" | "secured" | "sink">): (error: unknown) => Response {
+	return (error) => {
+		projectError(error, exchange.sink);
+		return answer(exchange, 500);
+	};
 }
