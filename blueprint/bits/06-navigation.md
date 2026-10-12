@@ -240,6 +240,21 @@ Corpus-driven, one line per frame.
 | `replace` | the next navigation has a different title | the old title is gone |
 | `nonce` | an `h` frame with an inline script, and `self.flare.nonce` is `n` | the applied script's nonce is `n` |
 
+### `shared/head/tags.test.ts`
+
+`mergeHead` and the tag rules move from `server/render/head.ts` to `shared/head/tags.ts`, so the server and the client share one builder. Descriptors hold raw values. `server/render/head.ts` serializes them, and `server/render/head.test.ts` passes unchanged, which proves the move changed no output. `client/head/apply.ts` calls `useHead` with the same descriptors.
+
+| test | case | result |
+| --- | --- | --- |
+| `raw values` | a title and a description with `<`, `&`, and quotes | the descriptor holds them unescaped |
+| `order` | title, canonical, keywords, css with a `javascript:` entry, languages, meta, and an app stylesheet | the server's document order. The `javascript:` sheet is dropped. A non-https canonical throws |
+| `viewport false` | a parent viewport and a child `viewport: false` | no viewport tag |
+| `og images` | `images`, then `openGraph.images`, audio, and video | `og:image*` in array order, `images` first. No `twitter:image` |
+| `favicons` | ico, svg, and 192 | ico has `sizes="any"`, the png has `type="image/png"` and its size |
+| `twitter and robots` | a twitter card with two images and robots fields | the card defaults to `summary`, and robots joins its tokens |
+| `on attributes dropped` | custom tags with `on*` attributes, a bad name, `extra.nonce`, and a nonce | those attributes are gone. Inline script, style, and JSON-LD carry the nonce. An external script carries none. `src` and `children` together throw |
+| `replace` | `replace: true`, then the default merge | the child alone, then title kept, images concatenated, and meta's child key winning |
+
 ### `client/view-transition/direction.test.ts`
 
 | test | case | result |

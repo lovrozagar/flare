@@ -125,6 +125,9 @@ packages/core/src/shared/router/create-router.test.ts	P1	test	shared	Unit cases 
 packages/core/src/shared/router/index.ts	P1	index	shared	Re-exports
 packages/core/src/shared/components/outlet-nodes.ts	P1	src	shared	Choose the matched layout and page nodes. No JSX
 packages/core/src/shared/components/outlet-nodes.test.ts	P1	test	shared	Unit cases for outlet-nodes.ts
+packages/core/src/shared/head/tags.ts	P6	src	shared	mergeHead and headTags: a merged head config to { tag, props } descriptors with raw values, in the server's order
+packages/core/src/shared/head/tags.test.ts	P6	test	shared	Unit cases for tags.ts
+packages/core/src/shared/head/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary toward the root, and the builtin text (B77)
 packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts
 packages/core/src/shared/components/outlet.tsx	P1	src	dom	Outlet
@@ -204,7 +207,7 @@ packages/core/src/server/render/state.ts	P1	src	server	Build the one state scrip
 packages/core/src/server/render/state.test.ts	P1	test	server	Unit cases for state.ts
 packages/core/src/server/render/shape.ts	P1	src	server	A production body without html and body close is a 500
 packages/core/src/server/render/shape.test.ts	P1	test	server	Unit cases for shape.ts
-packages/core/src/server/render/head.ts	P1	src	server	Pass .head() results to useHead
+packages/core/src/server/render/head.ts	P1	src	server	Serialize the shared head descriptors into the shell head. Escaping and the script and style close rewrite live here
 packages/core/src/server/render/head.test.ts	P1	test	server	Unit cases for head.ts
 packages/core/src/server/render/projector.ts	P5	src	server	Map a thrown value to the public error body
 packages/core/src/server/render/projector.test.ts	P5	test	server	Unit cases for projector.ts
