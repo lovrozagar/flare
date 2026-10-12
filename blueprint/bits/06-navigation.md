@@ -243,6 +243,8 @@ Corpus-driven, one line per frame.
 | `nonce` | an `h` frame with an inline script, and `self.flare.nonce` is `n` | the applied script's nonce is `n` |
 | `adopt` | a server-rendered head, then hydrate with the same `h` results | the head has exactly one `title` and one description `meta`, and they are the server's own elements |
 | `navigate removes` | from that head, the next commit has a new title and no description | one `title` with the new text, and no description `meta` |
+| `keep` | the next commit keeps the same description and adds a `meta` before it | the description element is the same DOM node, and it is not removed and re-added |
+| `script changed` | a custom inline script stays the same while a tag is added before it, then its body changes | the unchanged script is not inserted again and does not run again. The changed body is inserted once. Head identities are semantic, not positional: `title`; a meta by its `name` or `property` plus its occurrence among equal names (`og:image` 0, 1, …); a link by `rel` plus `href` or `hreflang`; a script, style, or JSON-LD by its `src` or a hash of its body (dx/head.md) |
 
 ### `shared/head/tags.test.ts`
 
