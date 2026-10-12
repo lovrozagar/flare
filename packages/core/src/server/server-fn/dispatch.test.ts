@@ -9,7 +9,7 @@ import type { ErrorSink } from "../render/projector.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { serveWith } from "../lifecycle/create.ts";
-import { createServerFn, type ServerFn } from "./builder.ts";
+import { createServerFn, type ServerFnRef } from "./builder.ts";
 import { InputError, dispatch } from "./dispatch.ts";
 
 function noop(): void {}
@@ -39,7 +39,7 @@ function post(fn: { id: string }, input: unknown, headers: Record<string, string
 	});
 }
 
-async function send(fns: readonly ServerFn[], request: Request, scope: Scope = {}): Promise<Answer> {
+async function send(fns: readonly ServerFnRef[], request: Request, scope: Scope = {}): Promise<Answer> {
 	const serverFns = Object.fromEntries(
 		fns.map((fn) => [
 			fn.id,
@@ -196,7 +196,7 @@ it("in request", async () => {
 	expect(
 		await within(
 			() => null,
-			() => plain("ignored"),
+			() => Reflect.apply(plain, undefined, ["ignored"]),
 		),
 	).toBeUndefined();
 	await expect(
@@ -226,14 +226,14 @@ it("in request", async () => {
 	await expect(
 		within(
 			() => null,
-			() => denied(1),
+			() => denied(),
 		),
 	).rejects.toBeInstanceOf(UnauthorizedError);
 });
 
 it("no request", async () => {
 	const lone = createServerFn(named("lone")).handler(() => "never");
-	await expect(lone(1)).rejects.toThrow("server function called outside a request");
+	await expect(lone()).rejects.toThrow("server function called outside a request");
 });
 
 it("base path", async () => {

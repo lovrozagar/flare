@@ -52,7 +52,7 @@ There is no `.authenticateOptional`. Skipping `.authenticate()` types `ctx.auth`
 
 Calling the client function during a component or route render type-checks. The stub throws at runtime for that direct call. `queryFn` is not that call (B85). The guard is an owned, untracked call: an owner exists and no reactive observer is running, which is a component or route body. A call inside a `createMemo` or an effect compute, an event handler, an effect callback, or async code after an `await` does not throw. Solid offers no public way to tell an `onSettled` callback from a render body, so a direct call there throws too; call it after an `await`, or from an event or `queryFn` (`client-stub.test.tsx` `client stub`, `memo call`, `on settled`).
 
-The cases are `propagation.test.ts` (`server fn input`, `server fn input void`, `server fn return`, `server fn stream`, `server fn no optional`, `server fn auth null`, `server fn auth required`, `server fn render call`).
+The cases are `tests/types/server-fn.test.ts` (`server fn input`, `server fn input void`, `server fn schema unknown`, `server fn return`, `server fn stream`, `server fn no optional`, `server fn auth null`, `server fn auth required`, `server fn render call`, `server fn methods`).
 
 ## Wire
 

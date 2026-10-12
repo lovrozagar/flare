@@ -8,7 +8,7 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { serveWith } from "../lifecycle/create.ts";
 import type { Authenticate } from "../lifecycle/options.ts";
-import { createServerFn, type ServerFn } from "./builder.ts";
+import { createServerFn, type ServerFnRef } from "./builder.ts";
 import { errorEnvelope, okEnvelope } from "./envelope.ts";
 
 function noop(): void {}
@@ -102,7 +102,7 @@ it("helpers", () => {
 // The rows below go through createServer, so dispatch and finalize both run.
 const router = createRouter({ layouts: { _root_: createRootLayout("_root_").render(() => "root") }, routeTree: [] });
 
-function call(fn: ServerFn, authenticate?: Authenticate): Promise<Response> {
+function call(fn: ServerFnRef, authenticate?: Authenticate): Promise<Response> {
 	const app = serveWith({ router, authenticate, serverFns: { [fn.id]: async () => fn } }, sink(false));
 	const headers = { origin: "http://localhost", "content-type": "application/json" };
 	return app.fetch(new Request(`http://localhost/_flare/fn/${fn.id}`, { method: "POST", body: "null", headers }));
