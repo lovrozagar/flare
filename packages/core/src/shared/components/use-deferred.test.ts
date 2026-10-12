@@ -1,5 +1,5 @@
 import { createComponent, Loading, type Element } from "solid-js";
-import { expect, it } from "vitest";
+import { expect, expectTypeOf, it } from "vitest";
 import { createRouter } from "../router/create-router.ts";
 import { renderDocument } from "../../server/render/document.ts";
 import { createDefer } from "../../server/loaders/defer.ts";
@@ -64,22 +64,13 @@ it("stored hole", async () => {
 	expect(whole).not.toContain("never run");
 });
 
-// A plain deferred value reads the same way, for a caller that holds one outside loader data.
-it("plain value", async () => {
-	const held = Promise.withResolvers<string>();
-	const document = await renderDocument({
-		request: new Request("http://localhost/"),
-		router,
-		matches: [],
-		render: () =>
-			createComponent(Loading, {
-				fallback: "waiting",
-				get children() {
-					const value = useDeferred(createDefer({ stored: false, dev: false }).defer(() => held.promise));
-					return [() => value()];
-				},
-			}),
-	});
-	held.resolve("PLAIN");
-	expect(await new Response(document).text()).toContain("PLAIN");
+// Only an accessor type-checks. A plain value would read loader data untracked in the component body and keep the
+// first value, so it is not accepted.
+it("plain value", () => {
+	const deferred = createDefer({ stored: false, dev: false }).defer(() => Promise.resolve("x"));
+	expectTypeOf(useDeferred<string>)
+		.parameter(0)
+		.toEqualTypeOf<() => Deferred<string>>();
+	// @ts-expect-error a plain Deferred is not an accessor
+	expectTypeOf(useDeferred<string>).toBeCallableWith(deferred);
 });
