@@ -96,6 +96,22 @@ it("auth args", async () => {
 		),
 	);
 	expect(seen).toEqual([session, session, session]);
+	const authorizeOnly: unknown[] = [];
+	await runLoaders(
+		request(
+			[
+				{
+					id: "page",
+					authorize: (ctx) => {
+						authorizeOnly.push(ctx.auth);
+						return true;
+					},
+				},
+			],
+			{ authenticate: () => session },
+		),
+	);
+	expect(authorizeOnly).toEqual([session]);
 });
 
 it("authorize is sequential", async () => {

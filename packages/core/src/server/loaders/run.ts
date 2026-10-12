@@ -6,7 +6,7 @@ import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind,
 
 export type LoaderRoute = {
 	id: string;
-	auth?: AuthModule;
+	auth?: Omit<AuthModule, "authorize">;
 	validate?: () => readonly Issue[] | undefined;
 	preloader?: (ctx: AuthContext) => unknown;
 	authorize?: (ctx: AuthContext) => boolean | Promise<boolean>;
