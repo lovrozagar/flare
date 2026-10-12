@@ -54,6 +54,7 @@ The parser keeps source order. A string or `url()` may contain braces and commen
 | `string` | a declaration whose string contains `{` | one rule |
 | `import` | `@import` | throw |
 | `charset` | `@charset` | throw |
+| `escaped brace` | `.a\{b{color:red}`, `.content-\[\'\{\'\]{content:'{'}`, and `.a\}b{color:red}` | each is one rule whose selector round-trips. A backslash escapes the next character anywhere, not only inside a string. Tailwind escapes `{` and `}` in arbitrary-value class names |
 | `nesting kept` | `.card{color:blue;& h2{color:red}}` | one rule whose child is the nested rule, each with its own declarations |
 | `at-rules` | `@media`, `@supports`, `@container`, `@layer` with and without a block, `@keyframes`, `@font-face`, `@property` | each round-trips through `printCss`. Grouping rules hold statements, the others their body as written. An unclosed block, string, comment, or statement, and a declaration outside a rule, throw |
 
