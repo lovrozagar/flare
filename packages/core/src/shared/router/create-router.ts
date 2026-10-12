@@ -133,12 +133,22 @@ function resolve(router: Router, path: string): Match {
 
 // Awaits every lazy module of a chain, in parallel. A rejected import rejects the whole chain.
 export function loadChain(chain: readonly ChainEntry[]): Promise<LoadedEntry[]> {
-	return Promise.all(
-		chain.map(async (entry) => ({
-			...entry,
-			module: typeof entry.module === "function" ? await entry.module() : entry.module,
-		})),
-	);
+	return Promise.all(chain.map(async (entry) => ({ ...entry, module: await load(entry.module) })));
+}
+
+const imported = new WeakMap<() => Promise<RouteModule>, RouteModule>();
+
+async function load(ref: ModuleRef): Promise<RouteModule> {
+	if (typeof ref !== "function") return ref;
+	const module = await ref();
+	imported.set(ref, module);
+	return module;
+}
+
+// The record behind a ModuleRef once loadChain imported it, so a later navigation reads its effects without
+// waiting for the import again.
+export function loadedModule(ref: ModuleRef): RouteModule | undefined {
+	return typeof ref === "function" ? imported.get(ref) : ref;
 }
 
 // An unknown URL paints the selected layout's notFoundRender, else its root's (B77).

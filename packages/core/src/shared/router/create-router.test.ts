@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { createRouter, loadChain, notFoundRenderOf, type Match } from "./create-router.ts";
+import { createRouter, loadChain, loadedModule, notFoundRenderOf, type Match } from "./create-router.ts";
 
 async function notFoundOf(match: Match): Promise<unknown> {
 	return notFoundRenderOf(await loadChain(match.chain));
@@ -186,7 +186,10 @@ it("lazy chain", async () => {
 	});
 	const match = router.match("/a");
 	expect(match.chain.map((entry) => typeof entry.module)).toEqual(["function", "function"]);
+	expect(match.chain.map((entry) => loadedModule(entry.module))).toEqual([undefined, undefined]);
 	expect((await loadChain(match.chain)).map((entry) => entry.module)).toEqual([root, page]);
+	expect(match.chain.map((entry) => loadedModule(entry.module))).toEqual([root, page]);
+	expect(loadedModule(page)).toBe(page);
 	expect(await notFoundOf(router.match("/nope"))).toBe(rootNotFound);
 	expect(router.chunks).toEqual({ _root_: "/src/routes/_root_/root.root-layout.tsx" });
 	expect(createRouter({ layouts: {}, routeTree: [] }).chunks).toEqual({});

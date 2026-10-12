@@ -1,4 +1,9 @@
 import type { EffectPlace, Effects } from "../../shared/route-builder/index.ts";
+import type { HeadConfig } from "../../shared/route-builder/types.ts";
+import { matchId } from "../../shared/route-tree/index.ts";
+import { loadedModule, type Match } from "../../shared/router/create-router.ts";
+import { readSearch, type Location } from "../../shared/url/index.ts";
+import type { Landed } from "../navigation/frames.ts";
 
 type Raw = Record<string, string | string[]>;
 
@@ -15,7 +20,7 @@ export type CachedMatch = {
 	cacheDeferred?: boolean;
 };
 
-export type CacheEntry = { data: unknown; deferred: boolean; deps?: string };
+export type CacheEntry = { data: unknown; deferred: boolean; deps?: string; head?: HeadConfig };
 
 type Stored = CacheEntry & { at: number; touched: number };
 
@@ -98,4 +103,43 @@ function deps(match: CachedMatch): string | undefined {
 	return loaderDeps === undefined
 		? undefined
 		: JSON.stringify(loaderDeps({ search: match.search, params: match.params }));
+}
+
+// The cache and the stale plan key a match alike: raw params plus the raw search (B31). A module loadChain already
+// imported gives its effects. One not yet imported has no entry to hold, so it needs none.
+export function cachedMatches(match: Match, location: Location): CachedMatch[] {
+	const params = defined(match.params);
+	const search = readSearch(location.search);
+	const id = matchId(params, location.search.slice(1));
+	return match.chain.map((entry) => {
+		const cached: CachedMatch = { route: entry.id, id, layout: entry.kind === "layout", params, search };
+		const effects = loadedModule(entry.module)?.effects;
+		if (effects !== undefined) cached.effects = effects;
+		return cached;
+	});
+}
+
+// Only successful `l` payloads are cached, with their head. A failed match is evicted.
+export function remember(cache: MatchCache, matches: readonly CachedMatch[], landing: Landed): void {
+	for (const match of matches) {
+		const data = landing.data[match.route];
+		if (landing.failure?.route === match.route) cache.evict(match);
+		else if (match.route in landing.data) {
+			const entry: CacheEntry = { data, deferred: holds(data) };
+			const head = landing.heads[match.route];
+			if (head !== undefined) entry.head = head;
+			cache.store(match, entry);
+		}
+	}
+}
+
+// A value that still holds a deferred placeholder (B80).
+export function holds(data: unknown): boolean {
+	return JSON.stringify({ d: data }).includes('"__deferred":true');
+}
+
+function defined(params: Record<string, string | string[] | undefined>): Raw {
+	return Object.fromEntries(
+		Object.entries(params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
+	);
 }

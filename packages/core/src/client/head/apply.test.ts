@@ -110,17 +110,17 @@ function script(body: string): HeadConfig {
 }
 
 it("script changed", async () => {
-	const view = mount([script("run(1)")]);
+	const view = mount([script("void 1")]);
 	await settle();
-	const first = [...document.head.querySelectorAll("script")].find((node) => node.textContent === "run(1)");
-	view.setHeads([{ description: "added before" }, script("run(1)")]);
+	const first = [...document.head.querySelectorAll("script")].find((node) => node.textContent === "void 1");
+	view.setHeads([{ description: "added before" }, script("void 1")]);
 	flush();
 	await settle();
-	expect([...document.head.querySelectorAll("script")].find((node) => node.textContent === "run(1)")).toBe(first);
-	view.setHeads([script("run(2)")]);
+	expect([...document.head.querySelectorAll("script")].find((node) => node.textContent === "void 1")).toBe(first);
+	view.setHeads([script("void 2")]);
 	flush();
 	await settle();
 	const bodies = [...document.head.querySelectorAll("script")].map((node) => node.textContent);
-	expect(bodies.filter((body) => body === "run(2)")).toHaveLength(1);
-	expect(bodies).not.toContain("run(1)");
+	expect(bodies.filter((body) => body === "void 2")).toHaveLength(1);
+	expect(bodies).not.toContain("void 1");
 });

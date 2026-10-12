@@ -1,60 +1,20 @@
-import { createComponent, createMemo, Errored, flush, Loading } from "solid-js";
-import { render, type JSX } from "@solidjs/web";
+import { flush } from "solid-js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { Matches } from "../../shared/components/index.ts";
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
-import type { Deferred } from "../../shared/route-builder/register.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
-import { createRouter, loadChain } from "../../shared/router/create-router.ts";
-import { createHistory } from "../history/index.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
 import { createMatchCache } from "../router/match-cache.ts";
-import { createRouterStore, snapshotFromState, type ScriptMatch } from "../router/store.ts";
-import { createBlockers } from "./blocker.ts";
-import { createNavigator, type Landing, type NavigatorDeps } from "./navigate.ts";
-import { createNavigationState } from "./pending.ts";
-import { createScroll } from "./scroll.ts";
+import { mountNavigator, unmountAll, type Fetch } from "./navigate.fixture.ts";
+import type { Landing, NavigatorDeps } from "./navigate.ts";
 
 const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
 // A refresh keeps the component mounted, so the text reads loaderData reactively.
 const home = createPage("_root_/").render((props) => [() => `home:${String(props.loaderData)}`]);
 const about = createPage("_root_/about").render((props) => `about:${String(props.loaderData)}`);
-type Slots = { fast: Deferred<string>; slow: Deferred<string> };
-
-function slot(deferred: Deferred<string>, fallback: string): JSX.Element {
-	return createComponent(Loading, {
-		fallback,
-		get children() {
-			const value = createMemo(async () => deferred.promise);
-			return [() => value()];
-		},
-	});
-}
-
-const slotted = createPage("_root_/slots")
-	.render((props) => {
-		const data = props.loaderData as Slots;
-		return [slot(data.fast, "wait-fast"), "|", slot(data.slow, "wait-slow")];
-	})
-	.errorRender(() => "page-error");
-const caught = createPage("_root_/caught").render((props) => {
-	const data = props.loaderData as Slots;
-	return [
-		createComponent(Errored, {
-			fallback: () => "caught",
-			get children() {
-				return slot(data.fast, "wait-fast");
-			},
-		}),
-		"|",
-		slot(data.slow, "wait-slow"),
-	];
-});
-const escaped = createPage("_root_/escaped").render((props) => {
-	const data = props.loaderData as Slots;
-	return [slot(data.fast, "wait-fast"), "|", slot(data.slow, "wait-slow")];
-});
-
+const refetching = createPage("_root_/refetch")
+	.effects({ shouldRefetch: () => true })
+	.render((props) => `refetch:${String(props.loaderData)}`);
 const tabs = createPage("_root_/tabs/[[tab]]").render((props) => `tabs:${String(props.loaderData)}`);
 const router = createRouter({
 	layouts: { _root_: root, _admin_: root },
@@ -62,34 +22,23 @@ const router = createRouter({
 		{ id: "_root_/", path: "/", module: home },
 		{ id: "_root_/about", path: "/about", module: about },
 		{ id: "_root_/tabs/[[tab]]", path: "/tabs/[[tab]]", module: tabs },
-		{ id: "_root_/slots", path: "/slots", module: slotted },
-		{ id: "_root_/caught", path: "/caught", module: caught },
-		{ id: "_root_/escaped", path: "/escaped", module: escaped },
 		{
 			id: "_root_/lazy",
 			path: "/lazy",
 			module: () => Promise.reject(new TypeError("Failed to fetch dynamically imported module")),
 		},
+		{ id: "_root_/broken", path: "/broken", module: () => Promise.reject(new SyntaxError("Unexpected token")) },
+		{ id: "_root_/refetch", path: "/refetch", module: () => Promise.resolve(refetching) },
 		{ id: "_admin_/panel", path: "/panel", module: about },
 	],
 });
-
-const unmounts: (() => void)[] = [];
 
 beforeEach(() => {
 	history.replaceState(null, "", "/");
 	sessionStorage.clear();
 });
 
-afterEach(() => {
-	for (const unmount of unmounts.splice(0)) unmount();
-});
-
-function ndjson(frames: readonly Frame[], headers: Record<string, string> = {}): Response {
-	return new Response(frames.map(encodeFrame).join(""), {
-		headers: { "content-type": "application/x-ndjson", ...headers },
-	});
-}
+afterEach(unmountAll);
 
 const aboutFrames: Frame[] = [
 	{ t: "l", m: "_root_", d: null },
@@ -98,61 +47,14 @@ const aboutFrames: Frame[] = [
 	{ t: "d" },
 ];
 
-type Fetch = (url: string, init: RequestInit) => Promise<Response>;
-
-function entry(id: string, data: unknown): ScriptMatch {
-	return { id, params: {}, search: {}, data, preloader: {}, head: null, error: null };
+function ndjson(frames: readonly Frame[], headers: Record<string, string> = {}): Response {
+	return new Response(frames.map(encodeFrame).join(""), {
+		headers: { "content-type": "application/x-ndjson", ...headers },
+	});
 }
 
-async function settled(): Promise<void> {
-	await new Promise((resolve) => setTimeout(resolve, 0));
-	flush();
-}
-
-async function setup(
-	fetch: Fetch,
-	extra: Partial<NavigatorDeps> = {},
-	onBoundaryError: (error: unknown) => void = () => undefined,
-) {
-	const chain = await loadChain(router.match("/").chain);
-	const location = { pathname: "/", search: "", hash: "" };
-	const store = createRouterStore(
-		snapshotFromState({ matches: [entry("_root_", null), entry("_root_/", "start")], chain, unknown: false, location }),
-		onBoundaryError,
-	);
-	const host = document.createElement("div");
-	unmounts.push(render(() => createComponent(Matches, { state: store.outlet }), host));
-	flush();
-	const flareHistory = createHistory(history);
-	flareHistory.adopt();
-	const deps: NavigatorDeps = {
-		router,
-		store,
-		history: flareHistory,
-		scroll: createScroll(
-			{ enabled: true, behavior: "instant", maxEntries: 50 },
-			{
-				history: { scrollRestoration: "auto" },
-				storage: sessionStorage,
-				position: () => ({ x: 0, y: 0 }),
-				scrollTo: () => undefined,
-				element: () => null,
-			},
-		),
-		blockers: createBlockers(),
-		navigation: createNavigationState(),
-		cache: createMatchCache({ staleTime: 0, gcTime: 60_000 }),
-		fetch: vi.fn<Fetch>(fetch),
-		origin: location.pathname === "/" ? globalThis.location.origin : "",
-		assign: vi.fn<(href: string) => void>(),
-		reload: vi.fn<(href: string) => boolean>(() => true),
-		build: "b1",
-		dev: false,
-		...extra,
-	};
-	const navigator = createNavigator(deps);
-	const text = (): string => host.textContent ?? "";
-	return { deps, navigator, host, text, settled, store };
+function setup(fetch: Fetch, extra: Partial<NavigatorDeps> = {}) {
+	return mountNavigator(router, fetch, { extra });
 }
 
 it("commit then push", async () => {
@@ -338,13 +240,33 @@ it("visit", async () => {
 });
 
 it("stale param", async () => {
-	const app = await setup(async () => ndjson(aboutFrames), {
+	const titled: Frame[] = [
+		...aboutFrames.slice(0, 2),
+		{ t: "h", m: "_root_/about", d: { title: "About" } },
+		{ t: "r" },
+	];
+	const responses = [ndjson(titled), ndjson(aboutFrames)];
+	const app = await setup(async () => responses.shift() ?? ndjson([{ t: "l", m: "_root_", d: null }, { t: "r" }]), {
 		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
 	});
 	await app.navigator.navigate({ to: "_root_/about" });
 	await app.navigator.navigate({ to: "_root_/" });
 	await app.navigator.navigate({ to: "_root_/about" });
 	expect(app.deps.fetch).toHaveBeenLastCalledWith("/about?_flare=data&_flare_stale=%26", expect.anything());
+	flush();
+	expect(app.text()).toBe("root[about:fresh]");
+	expect(app.store.snapshot().heads[1]).toEqual({ title: "About" });
+});
+
+it("effects read", async () => {
+	const frames: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/refetch", d: "x" }, { t: "r" }];
+	const app = await setup(async () => ndjson(frames), {
+		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
+	});
+	await app.navigator.navigate({ to: "_root_/refetch" });
+	await app.navigator.navigate({ to: "_root_/refetch", search: { again: "1" } });
+	await app.navigator.navigate({ to: "_root_/refetch" });
+	expect(app.deps.fetch).toHaveBeenLastCalledWith("/refetch?_flare=data", expect.anything());
 });
 
 it("search keyed", async () => {
@@ -384,6 +306,9 @@ it("chunk import", async () => {
 	await app.navigator.navigate({ to: "_root_/lazy" });
 	expect(app.deps.reload).toHaveBeenCalledExactlyOnceWith("/lazy");
 	expect(location.pathname).toBe("/");
+	await app.navigator.navigate({ to: "_root_/broken" });
+	expect(app.deps.reload).toHaveBeenCalledOnce();
+	expect(location.pathname).toBe("/");
 });
 
 it("optional param", async () => {
@@ -396,78 +321,6 @@ it("optional param", async () => {
 	expect(app.store.snapshot().matches[1].params).toEqual({});
 	await app.navigator.navigate({ to: "_root_/tabs/[[tab]]", params: { tab: "x" } });
 	expect(app.store.snapshot().matches[1].params).toEqual({ tab: "x" });
-});
-
-// A data response the test writes into frame by frame.
-function streamed(route: string): { response: Response; write: (frame: Frame) => void; close: () => void } {
-	const encoder = new TextEncoder();
-	let controller!: ReadableStreamDefaultController<Uint8Array>;
-	const body = new ReadableStream<Uint8Array>({ start: (opened) => void (controller = opened) });
-	const write = (frame: Frame): void => controller.enqueue(encoder.encode(encodeFrame(frame)));
-	write({ t: "l", m: "_root_", d: null });
-	write({ t: "l", m: route, d: { fast: { __deferred: true, key: "d0" }, slow: { __deferred: true, key: "d1" } } });
-	return {
-		response: new Response(body, { headers: { "content-type": "application/x-ndjson" } }),
-		write,
-		close: () => controller.close(),
-	};
-}
-
-it("two slots", async () => {
-	const data = streamed("_root_/slots");
-	const app = await setup(async () => data.response);
-	const pushes: string[] = [];
-	const push = vi.spyOn(history, "pushState").mockImplementation(function (this: History, ...args) {
-		pushes.push(app.text());
-		History.prototype.pushState.apply(this, args);
-	});
-	const navigated = app.navigator.navigate({ to: "_root_/slots" });
-	data.write({ t: "r" });
-	await navigated;
-	await settled();
-	expect(pushes).toEqual(["root[wait-fast|wait-slow]"]);
-	data.write({ t: "c", m: "_root_/slots", k: "d0", d: "FAST" });
-	await settled();
-	expect(app.text()).toBe("root[FAST|wait-slow]");
-	data.write({ t: "c", m: "_root_/slots", k: "d1", d: "SLOW" });
-	data.write({ t: "d" });
-	data.close();
-	await settled();
-	expect(app.text()).toBe("root[FAST|SLOW]");
-	expect(pushes).toHaveLength(1);
-	push.mockRestore();
-});
-
-it("slot catches", async () => {
-	const data = streamed("_root_/caught");
-	const send = vi.fn<(error: unknown) => void>();
-	const app = await setup(async () => data.response, {}, send);
-	const navigated = app.navigator.navigate({ to: "_root_/caught" });
-	data.write({ t: "r" });
-	await navigated;
-	data.write({ t: "e", m: "_root_/caught", k: "d0", e: { message: "fast failed", digest: "0" } });
-	data.write({ t: "c", m: "_root_/caught", k: "d1", d: "SLOW" });
-	data.close();
-	await settled();
-	await settled();
-	expect(app.text()).toBe("root[caught|SLOW]");
-	expect(send).not.toHaveBeenCalled();
-});
-
-it("slot escapes", async () => {
-	const data = streamed("_root_/escaped");
-	const send = vi.fn<(error: unknown) => void>();
-	const app = await setup(async () => data.response, {}, send);
-	const navigated = app.navigator.navigate({ to: "_root_/escaped" });
-	data.write({ t: "r" });
-	await navigated;
-	data.write({ t: "e", m: "_root_/escaped", k: "d0", e: { message: "fast failed", digest: "0" } });
-	data.close();
-	await settled();
-	await settled();
-	expect(app.text()).toBe("root[Something went wrong]");
-	// The slow value never came either, so it rejects when the stream ends: a second report.
-	expect(send).toHaveBeenNthCalledWith(1, expect.objectContaining({ message: "fast failed" }));
 });
 
 it("restore", async () => {

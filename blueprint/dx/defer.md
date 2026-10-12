@@ -61,6 +61,6 @@ The client builds the promise when it applies the `l` placeholder. A `c` frame r
 
 `<Errored>` around the slot renders its fallback for that rejection. The route `errorRender` is not called, and a sibling `<Loading>` still swaps. An uncaught rejection is a failure of that match, and the walk in `dx/builder.md` runs (B77). A loader `e` frame has no `k` and is that walk as soon as it arrives.
 
-Tests: `server/render/document.test.ts` `two fragments`, `reject keeps shell`. `client/navigation/navigate.test.ts` `two slots`, `slot catches`, `slot escapes`. `tests/e2e/navigation.test.ts` `two skeletons`.
+Tests: `server/render/document.test.ts` `two fragments`, `reject keeps shell`. `client/navigation/navigate-slots.test.ts` `two slots`, `slot catches`, `slot escapes`. `tests/e2e/navigation.test.ts` `two skeletons`.
 
 A client cache entry that still holds a placeholder is not reused unless the route sets `cache.client.cacheDeferred: true` (`cache.md`).
