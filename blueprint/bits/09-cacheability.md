@@ -30,6 +30,12 @@ Neither step grows `createPage` past its 1100 budget. Both are server-only and t
 | `headers throw` | the page's `.headers()` throws | that match's headers are omitted and the status is unchanged (B82) |
 | `security merge` | server, layout, and page configs | outside-in. A set key replaces. `false` removes, including a parent value. A function receives the four fields and no `nonce` |
 
+### `server/lifecycle/finalize.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `cookies kept` | an answer with two `Set-Cookie` values | both arrive. finalize appends each `getSetCookie()` value. A `set()` kept only the last |
+
 ### `tests/integration/ingress.test.ts` (extended)
 
 | test | case | result |
