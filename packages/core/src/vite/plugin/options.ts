@@ -11,7 +11,7 @@ export type ParsedOptions = {
 	assetsBase: string;
 	entry: { client: string; server: string };
 	image?: { widths: readonly number[]; quality: number } | undefined;
-	css?: { reset: boolean } | undefined;
+	css: { reset: boolean };
 	broadcast: boolean;
 };
 
@@ -58,8 +58,9 @@ function parseImage(image: FlareOptions["image"]): ParsedOptions["image"] {
 	return { widths: WIDTHS, quality: 75 };
 }
 
+// Omission, `{}`, and `reset: false` are the same: no preflight.
 function parseCss(css: FlareOptions["css"]): ParsedOptions["css"] {
-	if (css === undefined) return undefined;
+	if (css === undefined) return { reset: false };
 	for (const key of Object.keys(css)) {
 		if (key !== "reset") throw new Error(key);
 	}

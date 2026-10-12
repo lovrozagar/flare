@@ -113,8 +113,10 @@ packages/core/src/shared/css/shell.ts	P11	src	shared	The shell HTML as elements 
 packages/core/src/shared/css/shell.test.ts	P11	test	shared	Unit cases for shell.ts
 packages/core/src/shared/css/critical.ts	P11	src	shared	criticalCss. Rules from the built file that match the shell
 packages/core/src/shared/css/critical.test.ts	P11	test	shared	Unit cases for critical.ts
-packages/core/src/shared/css/sheet.ts	P11	src	shared	builtSheet. Source is empty. The server build replaces this module
+packages/core/src/shared/css/sheet.ts	P11	src	shared	builtSheet and builtHref. Source is empty. The server build replaces this module
 packages/core/src/shared/css/sheet.test.ts	P11	test	shared	Unit cases for sheet.ts
+packages/core/src/shared/css/delivery.ts	P11	src	shared	The preload, noscript, and swap markup. The script text is a constant
+packages/core/src/shared/css/delivery.test.ts	P11	test	shared	Unit cases for delivery.ts
 packages/core/src/shared/css/index.ts	P11	index	shared	Re-exports
 packages/core/src/shared/env/server-only.ts	P7	src	shared	createServerOnlyFn
 packages/core/src/shared/env/server-only.test.ts	P7	test	shared	Unit cases for server-only.ts
@@ -442,10 +444,8 @@ packages/core/src/vite/css/reset.ts	P11	src	vite	The preflight string flare({ cs
 packages/core/src/vite/css/reset.test.ts	P11	test	vite	Unit cases for reset.ts
 packages/core/src/vite/css/inject.ts	P11	src	vite	Prepend the preflight when reset is on. Replace the server sheet module with the built CSS
 packages/core/src/vite/css/inject.test.ts	P11	test	vite	Unit cases for inject.ts
-packages/core/src/vite/css/manifest.ts	P11	src	vite	Read the built stylesheet href from the Vite manifest
-packages/core/src/vite/css/manifest.test.ts	P11	test	vite	Unit cases for manifest.ts
-packages/core/src/vite/css/delivery.ts	P11	src	vite	The preload, noscript, and swap markup. The script text is a constant
-packages/core/src/vite/css/delivery.test.ts	P11	test	vite	Unit cases for delivery.ts
+packages/core/src/vite/css/bundle.ts	P11	src	vite	The client bundle's one stylesheet: its file, its href under the resolved base, and its text
+packages/core/src/vite/css/bundle.test.ts	P11	test	vite	Unit cases for bundle.ts
 packages/core/src/vite/css/index.ts	P11	index	vite	Re-exports
 packages/core/src/vite/bin/codegen.ts	P12	src	vite	flare codegen
 packages/core/src/vite/bin/codegen.test.ts	P12	test	vite	Unit cases for codegen.ts

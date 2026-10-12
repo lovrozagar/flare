@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import solid from "@solidjs/vite-plugin";
 import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, type Graph } from "../boundary/index.ts";
+import { inject } from "../css/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { clientUrl } from "./environments.ts";
 import { parseOptions, type FlareOptions } from "./options.ts";
@@ -23,6 +24,7 @@ export function flare(options?: FlareOptions): Plugin[] {
 	return [
 		boundary(),
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
+		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client }),
 		{
 			name: "flare",
 			config(config: UserConfig): UserConfig {

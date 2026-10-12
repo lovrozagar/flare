@@ -24,14 +24,23 @@ it("css key", () => {
 		// @ts-expect-error css only accepts reset
 		parseOptions({ css: { nope: true } });
 	}).toThrow(/nope/);
+});
+
+it("top level", () => {
 	expect(() => {
 		// @ts-expect-error reset is css.reset, not a top-level option
 		parseOptions({ reset: true });
 	}).toThrow(/reset/);
 });
 
+it("reset on", () => {
+	expect(parseOptions({ css: { reset: true } }).css).toEqual({ reset: true });
+});
+
+// Omission, an empty object, and `reset: false` parse to the same value.
 it("reset off", () => {
-	expect(parseOptions().css).toBeUndefined();
+	expect(parseOptions().css).toEqual({ reset: false });
+	expect(parseOptions({ css: {} }).css).toEqual({ reset: false });
 	expect(parseOptions({ css: { reset: false } }).css).toEqual({ reset: false });
 });
 
