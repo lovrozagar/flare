@@ -12,3 +12,4 @@ export {
 	type BlockerSteps,
 } from "./blocker.ts";
 export { resolveTarget, type NavigateInput, type Target, type TargetContext } from "./target.ts";
+export { isChunkError, loadDocument, type ReloadEnv } from "./reload.ts";

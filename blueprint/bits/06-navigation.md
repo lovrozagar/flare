@@ -96,6 +96,17 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `rewrite throws` | the client `rewrite` throws | the navigation fails. The previous URL stays |
 | `response page` | `navigate` or `Link` to a `.response()` page | a full document load |
 
+### `client/navigation/reload.test.ts`
+
+These rows moved here from `navigate.test.ts` when navigate was split (bit 06). The five chunk messages are `Failed to fetch dynamically imported module`, `error loading dynamically imported module`, `Importing a module script failed`, `Loading chunk`, and `Loading CSS chunk`. A store value that is not JSON counts as no previous load.
+
+| test | case | result |
+| --- | --- | --- |
+| `reload guard` | the same href again within 10 seconds | no second document load, history unchanged. The storage key is `flare_chunk_reload` and the value is `{ at, href }` |
+| `reload other href` | a different href inside that window | the document loads |
+| `reload no storage` | `sessionStorage` throws | no document load |
+| `chunk` | the dynamic import rejects with one of the five chunk messages | one document load under `flare_chunk_reload`. No retry. A storage throw does not load |
+
 ### `client/navigation/navigate.test.ts`
 
 | test | case | result |
@@ -113,15 +124,11 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `same origin` | an `x` frame whose `u` is a same-origin path | followed as a navigation |
 | `href load` | an `x` frame whose `u` is `https://example.com/a` | a full page load. `navigate` does not push history |
 | `input 400` | a data request whose `input()` failed | no commit and no push |
-| `reload guard` | the same href again within 10 seconds | no second document load, history unchanged. The storage key is `flare_chunk_reload` and the value is `{ at, href }` |
-| `reload other href` | a different href inside that window | the document loads |
-| `reload no storage` | `sessionStorage` throws | no document load |
 | `revalidation` | navigate to the current URL | no push |
 | `replace` | `replace: true` | `replaceState` |
 | `abort` | a second navigation starts before the first data request settles | the first request is aborted. It does not commit, does not push, and is not a network failure. Only the latest may commit |
 | `reuse prefetch` | an in-flight prefetch of the same URL | that response is reused, unless `revalidate` is set or a deferred placeholder still needs the enter request |
 | `build mismatch` | the response `flare-build` and `self.flare.build` are both non-empty and differ | a document load, and the frames are not applied. A prefetch mismatch is ignored. The server does not read a `flare-build` request header |
-| `chunk` | the dynamic import rejects with one of the five chunk messages | one document load under `flare_chunk_reload`. No retry. A storage throw does not load |
 
 ### `client/navigation/pending.test.ts`
 
