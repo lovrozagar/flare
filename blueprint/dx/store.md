@@ -55,7 +55,7 @@ createAssetsStore(read, { base? })
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
 | `read` | yes | — | `(path: string) => Promise<Response \| Uint8Array \| null \| undefined>` | `get` calls `read` with the artifact path. `Uint8Array` is the file bytes. A `Response` that is ok is read as text. `null` and `undefined` are a miss | a `Response` that is not ok is a miss, and its body is cancelled. A throw from `read` propagates. A missing file is a miss, not a 500 | `assets.test.ts` `workers read`, `node read`, `not ok` |
-| `base` | no | `"/assets/_flare-static"` | a path that starts with `/` and does not end with `/` | the directory prefix | a query, a hash, a trailing slash, or `..` throws when the store is created. Changing `flare({ assetsBase })` without passing the same prefix here makes every SSG `get` miss | `assets.test.ts` `custom base`, `bad base` |
+| `base` | no | `"/assets/_flare-static"` | a path that starts with `/` and does not end with `/` | the directory prefix. The default is the seeds' path inside the client output, `/<assetsDir>/_flare-static`, without Vite `base`, which `fileAssets` and the Workers assets binding read. A `read` that fetches seeds by their public URL passes that public prefix as `base` | a query, a hash, a trailing slash, or `..` throws when the store is created. Changing `flare({ assetsBase })` without passing the same prefix here makes every SSG `get` miss | `assets.test.ts` `custom base`, `bad base` |
 
 Workers, where the binding is on `env`:
 

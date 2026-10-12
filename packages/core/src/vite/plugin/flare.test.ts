@@ -2,9 +2,11 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "vite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import solid from "@solidjs/vite-plugin";
 import { expect, it, vi } from "vitest";
 import { fnId } from "../route-meta/index.ts";
+import { buildIdOf } from "./build-id.ts";
 import { flare } from "./flare.ts";
 
 vi.mock("@solidjs/vite-plugin", () => ({
@@ -69,7 +71,7 @@ it("solid options", () => {
 	expect(vi.mocked(solid)).toHaveBeenCalledWith({ ssr: true, extensions: [".tsx", ".jsx"] });
 });
 
-type EnvHook = (name: string, config: object, env: { command: "serve" | "build"; mode: string }) => unknown;
+const BUILD_INFO = fileURLToPath(new URL("../../server/lifecycle/build-info.ts", import.meta.url));
 
 function flarePlugin(options?: Parameters<typeof flare>[0]) {
 	const plugin = flare(options).find((item) => item.name === "flare");
@@ -77,34 +79,50 @@ function flarePlugin(options?: Parameters<typeof flare>[0]) {
 	return plugin;
 }
 
-function defineFor(plugin: ReturnType<typeof flarePlugin>, name: string, command: "serve" | "build"): unknown {
-	const hook = plugin.configEnvironment;
-	if (typeof hook !== "function") throw new Error("configEnvironment");
-	return (hook as EnvHook).call(null, name, {}, { command, mode: "development" });
+// The plugin's config hook for this root, then its load hook as the named environment would call it.
+function loader(plugin: ReturnType<typeof flarePlugin>, root: string) {
+	const config = plugin.config;
+	if (typeof config !== "function") throw new Error("config");
+	const returned = config.call(null as never, { root } as never, { command: "build", mode: "production" } as never);
+	const load = plugin.load;
+	if (typeof load !== "function") throw new Error("load");
+	return {
+		returned,
+		load: (name: string, command: "serve" | "build", id = BUILD_INFO): unknown =>
+			Reflect.apply(load, { environment: { name, config: { command, root } } }, [id]),
+	};
 }
 
+// The server environments load build-info.ts as the dev entry in serve and as the client build's id and hashed entry in
+// a build, after the client wrote its manifest. No define is set.
 it("client entry define", () => {
-	const plugin = flarePlugin();
-	const define = { define: { "import.meta.env.FLARE_CLIENT_ENTRY": JSON.stringify("/src/client.tsx") } };
-	expect(defineFor(plugin, "ssr", "serve")).toEqual(define);
-	expect(defineFor(plugin, "worker", "serve")).toEqual(define);
-	expect(defineFor(plugin, "client", "serve")).toBeUndefined();
-	expect(defineFor(plugin, "ssr", "build")).toBeUndefined();
-	expect(defineFor(flarePlugin({ entry: { client: "src/entry.tsx" } }), "ssr", "serve")).toEqual({
-		define: { "import.meta.env.FLARE_CLIENT_ENTRY": JSON.stringify("/src/entry.tsx") },
-	});
 	const root = project();
 	try {
-		const config = plugin.config;
-		if (typeof config !== "function") throw new Error("config");
-		expect(
-			config.call(null as never, { root } as never, { command: "serve", mode: "development" } as never),
-		).toMatchObject({
+		const { returned, load } = loader(flarePlugin(), root);
+		expect(returned).toMatchObject({
 			appType: "custom",
 			resolve: { dedupe: ["solid-js", "@solidjs/web"] },
 			ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
 			optimizeDeps: { exclude: ["@lovrozagar/flare"] },
 		});
+		expect(returned).not.toHaveProperty("define");
+		expect(flarePlugin().configEnvironment).toBeUndefined();
+		const dev = 'export const buildId = "dev";\nexport const clientEntry = "/src/client.tsx";\n';
+		expect(load("ssr", "serve")).toBe(dev);
+		expect(load("worker", "serve")).toBe(dev);
+		expect(load("client", "serve")).toBeNull();
+		expect(load("ssr", "serve", join(root, "src/other.ts"))).toBeNull();
+		writeFileSync(join(root, "src/entry.tsx"), "");
+		expect(loader(flarePlugin({ entry: { client: "src/entry.tsx" } }), root).load("ssr", "serve")).toBe(
+			'export const buildId = "dev";\nexport const clientEntry = "/src/entry.tsx";\n',
+		);
+		const manifest = join(root, "dist/client/.vite/manifest.json");
+		expect(() => load("ssr", "build")).toThrow(manifest);
+		mkdirSync(join(root, "dist/client/.vite"), { recursive: true });
+		writeFileSync(manifest, JSON.stringify({ "src/client.tsx": { file: "assets/client-a1.js" } }));
+		expect(load("ssr", "build")).toBe(
+			`export const buildId = "${buildIdOf({ "src/client.tsx": { file: "assets/client-a1.js" } })}";\nexport const clientEntry = "/assets/client-a1.js";\n`,
+		);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
 	}

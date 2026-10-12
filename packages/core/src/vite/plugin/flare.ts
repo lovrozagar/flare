@@ -4,9 +4,11 @@ import { fileURLToPath } from "url";
 import solid from "@solidjs/vite-plugin";
 import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, type Graph } from "../boundary/index.ts";
+import { chunkReferences } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
-import { assetUrl, buildConfig, clientUrl } from "./environments.ts";
+import { buildInfoSource } from "./build-id.ts";
+import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
 import { parseOptions, type FlareOptions } from "./options.ts";
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
@@ -16,14 +18,22 @@ const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 // marker. Any other query, such as `?raw`, `?url`, `?worker`, or `?inline`, asks for something that is not the module.
 const VITE_QUERY = new Set(["t", "v", "import"]);
 
-// The environments that run the server entry. Each gets the client entry URL as a literal (dx/plugin.md).
+// The environments that run the server entry. Each loads build-info.ts with the build id and the client entry URL.
 const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
+
+// The module the server reads its build id and client entry from. The package ships its source.
+const BUILD_INFO = fileURLToPath(new URL("../../server/lifecycle/build-info.ts", import.meta.url));
+
+// The generated route module, whose `chunks` map the client build points at hashed files.
+const ROUTES_GEN = "src/_gen/routes.gen.ts";
 
 export function flare(options?: FlareOptions): Plugin[] {
 	const parsed = parseOptions(options);
-	// Vite's resolved `base`, which every built URL starts with.
+	// Vite's resolved `base`, which every built URL starts with, and where the client build writes its manifest.
 	let base = "/";
+	let manifest = "";
 	return [
+		chunks(),
 		boundary(),
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
 		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client, assetsBase: parsed.assetsBase }),
@@ -36,6 +46,11 @@ export function flare(options?: FlareOptions): Plugin[] {
 				assertEntry(root, parsed.entry.server, "entry.server");
 				const entry = { client: resolve(root, parsed.entry.client), server: resolve(root, parsed.entry.server) };
 				const user = { outDir: config.build?.outDir, assetsDir: config.build?.assetsDir };
+				manifest = resolve(
+					root,
+					environmentBuild({ assetsBase: parsed.assetsBase, ...user }).client.outDir,
+					".vite/manifest.json",
+				);
 				// Flare owns the entries and the dev server, so Vite serves no index.html (B89).
 				return {
 					appType: "custom",
@@ -50,17 +65,31 @@ export function flare(options?: FlareOptions): Plugin[] {
 			configResolved(config) {
 				base = config.base;
 			},
-			// A build defines the manifest's hashed file once the client is built (bit 12).
-			configEnvironment(name, _config, env) {
-				if (env.command !== "serve" || !SERVER_ENVIRONMENTS.has(name)) return undefined;
-				const url = clientUrl({ entry: parsed.entry.client });
-				return { define: { "import.meta.env.FLARE_CLIENT_ENTRY": JSON.stringify(url) } };
+			// A build's server environments read the manifest the client build wrote, so the client builds first.
+			load(id) {
+				const { name, config } = this.environment;
+				if (id !== BUILD_INFO || !SERVER_ENVIRONMENTS.has(name)) return null;
+				const urls = { base, assetsBase: parsed.assetsBase };
+				return buildInfoSource({ command: config.command, entry: parsed.entry.client, manifest, urls });
 			},
 			configureServer(server) {
 				return installDevHandler(server, parsed.entry.server);
 			},
 		},
 	];
+}
+
+// A client build points the generated `chunks` map at the hashed files, before any other transform reprints the module.
+function chunks(): Plugin {
+	return {
+		name: "flare:chunks",
+		enforce: "pre",
+		transform(code, id) {
+			const { name, config } = this.environment;
+			if (name !== "client" || config.command !== "build" || id !== resolve(config.root, ROUTES_GEN)) return null;
+			return chunkReferences(code, (path) => this.emitFile({ type: "chunk", id: resolve(config.root, path.slice(1)) }));
+		},
+	};
 }
 
 // Before Solid compiles JSX, each app module is rewritten for the graph that loads it: split, the env helpers, and

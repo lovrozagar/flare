@@ -6,6 +6,7 @@ const state = (nonce: string, data: unknown = { text: "abc" }): string =>
 	stateScript({
 		matches: [{ id: "p", params: {}, search: {}, data, preloader: undefined, head: undefined, error: undefined }],
 		nonce,
+		build: "dev",
 	});
 
 // One entry's sentinel, as a write makes it.

@@ -63,10 +63,12 @@ it("insertion", () => {
 });
 
 // A render that left a `"stream"` hole says so, so the client sends one fill after hydrate. Without a hole the field
-// is absent.
+// is absent. `build` is the id `flare-build` carries.
 it("fill flag", () => {
-	expect(stateScript({ matches: [], nonce: "", fill: true })).toBe(
-		'<script>self.flare={"matches":[],"nonce":"","fill":true}</script>',
+	expect(stateScript({ matches: [], nonce: "", build: "b", fill: true })).toBe(
+		'<script>self.flare={"matches":[],"nonce":"","build":"b","fill":true}</script>',
 	);
-	expect(stateScript({ matches: [], nonce: "" })).toBe('<script>self.flare={"matches":[],"nonce":""}</script>');
+	expect(stateScript({ matches: [], nonce: "", build: "b" })).toBe(
+		'<script>self.flare={"matches":[],"nonce":"","build":"b"}</script>',
+	);
 });

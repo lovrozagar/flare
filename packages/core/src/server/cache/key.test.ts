@@ -3,6 +3,15 @@ import * as keys from "./key.ts";
 import { buildId, storeKey, type KeyInput } from "./key.ts";
 
 // The policy class and the search change nothing: the key has no slot for either (B32, B73).
+
+const info = vi.hoisted(() => ({ id: "dev" }));
+vi.mock("../lifecycle/build-info.ts", () => ({
+	get buildId() {
+		return info.id;
+	},
+	clientEntry: undefined,
+}));
+
 it("shape", () => {
 	expect(storeKey({ build: "b", route: "home", pattern: "/[id]", params: { id: "042" }, class: "anonymous" })).toBe(
 		"static:b:home:042",
@@ -49,12 +58,12 @@ it("no callback", () => {
 	expectTypeOf<KeyInput>().not.toHaveProperty("key");
 });
 
-// `flare()` defines the build id. Without the plugin it is `dev` (dx/plugin.md).
+// `flare()` writes the build id into build-info.ts. Without the plugin it is `dev` (dx/plugin.md).
 it("build id", () => {
 	expect(buildId()).toBe("dev");
-	vi.stubEnv("FLARE_BUILD_ID", "abc123");
+	info.id = "abc123";
 	expect(buildId()).toBe("abc123");
-	vi.unstubAllEnvs();
+	info.id = "dev";
 });
 
 // The order is the route's declared params, never the record's: the matcher builds the record innermost first.
