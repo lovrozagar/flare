@@ -24,13 +24,20 @@ const GENERATED_GLOB = "packages/core/src/features/fonts/shared/generated/*.ts";
 const REGISTRY = "packages/core/src/features/fonts/registry.json";
 const RE_EXPORT_FILE = /^(?:export\s+(?:type\s+)?\{[^{}]*\}\s+from\s+["'][^"']+["']\s*;?\s*)*$/;
 
-export function checkTree(root: string, tsvPath: string): TreeResult {
+// `complete` names a phase whose every non-glob row must exist, even while it is the highest phase present. A
+// bit's Done runs it for that bit's phase.
+export type TreeOptions = { complete?: string };
+
+export function checkTree(root: string, tsvPath: string, options: TreeOptions = {}): TreeResult {
+	if (options.complete !== undefined && !PHASES.includes(options.complete)) {
+		throw new Error(`--complete ${options.complete} is not a phase`);
+	}
 	const parsed = parseTsv(readFileSync(tsvPath, "utf8"));
 	const generated = readGenerated(root);
 	const rows = generated.length === 0 ? parsed : expandGenerated(parsed, generated);
 	const errors = [
 		...extraFiles(root, rows, generated.length > 0),
-		...missingFiles(root, rows),
+		...missingFiles(root, rows, options.complete),
 		...badIndexes(root, rows),
 		...missingSiblings(rows),
 		...generatedMismatch(root, generated),
@@ -79,7 +86,7 @@ function extraFiles(root: string, rows: Row[], registryPresent: boolean): string
 	return errors;
 }
 
-function missingFiles(root: string, rows: Row[]): string[] {
+function missingFiles(root: string, rows: Row[], complete: string | undefined): string[] {
 	const concrete = rows.filter((row) => !row.path.includes("*"));
 	let highest = -1;
 	let lastListed = -1;
@@ -91,12 +98,10 @@ function missingFiles(root: string, rows: Row[]): string[] {
 	}
 	const errors: string[] = [];
 	const limit = highest === lastListed ? highest : highest - 1;
-	for (let index = 0; index <= limit; index += 1) {
-		const phase = PHASES[index];
-		for (const row of concrete) {
-			if (row.phase !== phase) continue;
-			if (!exists(join(root, row.path))) errors.push(row.path);
-		}
+	const checked = new Set(PHASES.slice(0, limit + 1));
+	if (complete !== undefined) checked.add(complete);
+	for (const row of concrete) {
+		if (checked.has(row.phase) && !exists(join(root, row.path))) errors.push(row.path);
 	}
 	return errors;
 }
@@ -199,9 +204,15 @@ const invoked = process.argv[1] !== undefined && import.meta.url === pathToFileU
 
 if (invoked) {
 	const root = fileURLToPath(new URL("..", import.meta.url));
-	const result = checkTree(root, join(root, "blueprint/files.tsv"));
+	const result = checkTree(root, join(root, "blueprint/files.tsv"), { complete: completeArg(process.argv) });
 	if (!result.ok) {
 		for (const error of result.errors) process.stderr.write(`${error}\n`);
 		process.exitCode = 1;
 	}
+}
+
+function completeArg(argv: readonly string[]): string | undefined {
+	const at = argv.indexOf("--complete");
+	if (at !== -1) return argv[at + 1];
+	return argv.find((arg) => arg.startsWith("--complete="))?.slice("--complete=".length);
 }

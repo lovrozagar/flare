@@ -23,7 +23,8 @@ import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
 import { classify, isServerFn } from "./classify.ts";
-import { answer, bare, secure, typed, type Exchange } from "./exchange.ts";
+import { answer, bare, passed, secure, typed, type Exchange } from "./exchange.ts";
+import { dispatchMount, mountTable } from "../mount/mount.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
@@ -49,6 +50,8 @@ export function createServer(options: RuntimeOptions): FlareServer {
 
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
+	const { trailingSlash, caseSensitive } = options.router;
+	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive });
 	return {
 		fetch(request, env) {
 			const secured = applySecurity({ url: request.url, headers: new Headers(), security: options.security });
@@ -66,12 +69,23 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 				caseSensitive: options.router.caseSensitive,
 			});
 			if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
+			// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
+			const mounted = dispatchMount(mounts, inner);
+			if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
 			return withServerContext(
 				{ request, env, serverContext: options.serverContext, authenticate: options.authenticate },
 				(scope) => route({ ...exchange, session: scope.session }),
 				() => answer(exchange, 500),
 			);
 		},
+	};
+}
+
+// A stage's throw is a bug: projected, then the 500 every exit shares.
+function failed(exchange: Pick<Exchange, "request" | "secured" | "sink">): (error: unknown) => Response {
+	return (error) => {
+		projectError(error, exchange.sink);
+		return answer(exchange, 500);
 	};
 }
 

@@ -7,6 +7,8 @@ import type {
 import type { Router } from "../../shared/router/create-router.ts";
 import type { Caller } from "../auth/caller.ts";
 import type { ServerContextInput } from "../context/ctx.ts";
+import type { MiddlewareEntry } from "../middleware/types.ts";
+import type { Mount } from "../mount/mount.ts";
 import type { SecurityConfig } from "../security/apply.ts";
 import type { ServerFns } from "../server-fn/dispatch.ts";
 
@@ -22,6 +24,10 @@ type BaseOptions = {
 	bodyLimit?: number;
 	// From src/_gen/server-fns.gen.ts. Without it every `/_flare/fn/<id>` is 404.
 	serverFns?: ServerFns;
+	// Sub-apps on canonical prefixes, checked at startup. The longer prefix wins (dx/server.md `mounts`).
+	mounts?: readonly Mount[];
+	// Runs in list order around server functions and the router (02-system step 6).
+	middleware?: readonly MiddlewareEntry[];
 	documentResponseDefer?: "stream" | "buffer";
 };
 
