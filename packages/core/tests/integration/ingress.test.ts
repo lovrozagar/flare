@@ -138,7 +138,7 @@ function nodeRes(res: http.ServerResponse) {
 		end() {
 			res.end();
 		},
-		once(event: "drain", callback: () => void) {
+		once(event: "drain" | "close", callback: () => void) {
 			res.once(event, callback);
 		},
 	};

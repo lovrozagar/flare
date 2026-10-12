@@ -61,3 +61,13 @@ it("idempotent", async () => {
 	});
 	expect(late).toHaveBeenCalledOnce();
 });
+
+it("cancel", async () => {
+	const render = pending();
+	const dispose = vi.fn<() => void>();
+	const abort = new AbortController();
+	await raceAbort(render.stream, abort.signal, dispose).cancel();
+	abort.abort();
+	expect(dispose).toHaveBeenCalledOnce();
+	expect(render.cancel).toHaveBeenCalledOnce();
+});

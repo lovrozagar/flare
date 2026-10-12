@@ -21,7 +21,7 @@ type NodeRes = {
 	setHeader: (name: string, value: string | readonly string[]) => void;
 	write: (chunk: Uint8Array) => boolean;
 	end: () => void;
-	once: (event: "drain", callback: () => void) => void;
+	once: (event: "drain" | "close", callback: () => void) => void;
 };
 
 export function createNodeListener(server: Server, options?: unknown): (req: NodeReq, res: NodeRes) => void {
@@ -41,9 +41,13 @@ async function pump(job: Job): Promise<void> {
 		return;
 	}
 	const body = requestBody(job.req);
+	// A client that disconnects closes the response. The request signal tells the render to stop.
+	const disconnect = new AbortController();
+	job.res.once("close", () => disconnect.abort());
 	const init: RequestInit = {
 		method: job.req.method,
 		headers: requestHeaders(job.req.headers),
+		signal: disconnect.signal,
 	};
 	if (body !== undefined) {
 		init.body = body.stream;

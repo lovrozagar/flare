@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { createComponent } from "solid-js";
+import { escape } from "@solidjs/web";
 import { Matches, type OutletMatch, type OutletState } from "../../shared/components/index.ts";
 import type { FlareRegister, RegisteredEnv, RegisteredServerContext } from "../../shared/route-builder/register.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
@@ -173,9 +174,12 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 	return finalize({ status, body, render: "ssr", url, headers: exchange.secured.headers });
 }
 
-// The stream rejected before the shell, so nothing was written (B93).
+// The stream rejected before the shell, so nothing was written (B93). Only a dev bug shows its message and
+// stack. Production and a named status answer an empty body.
 function renderFailed(exchange: Exchange, projected: Projected): Response {
-	return answer(exchange, projected.status);
+	const stack = projected.wire.stack;
+	const body = stack === undefined ? "" : `<pre>${escape(`${projected.wire.message}\n${stack}`)}</pre>`;
+	return finalize({ status: projected.status, body, url: exchange.request.url, headers: exchange.secured.headers });
 }
 
 async function bare(exchange: Exchange, run: LoaderRun): Promise<Response> {
