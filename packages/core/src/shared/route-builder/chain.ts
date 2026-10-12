@@ -1,54 +1,13 @@
-export type SsrCache = {
-	ttl: string;
-	staleTime?: string;
-	tags?: readonly string[];
-	defer?: "resolve" | "stream";
-};
-
-// When a link prefetches (dx/link.md). A string sets both fields. An object sets the fields it names.
-export type PrefetchTrigger = false | "intent" | "viewport" | "render";
-export type RoutePrefetch = PrefetchTrigger | { data?: PrefetchTrigger; modules?: PrefetchTrigger };
-
-// The route's in-memory match cache (dx/cache.md). `false` turns it off for that route. Durations are strings.
-export type ClientCache =
-	| false
-	| {
-			prefetch?: RoutePrefetch;
-			staleTime?: string;
-			gcTime?: string;
-			prefetchStaleTime?: string;
-			prefetchGcTime?: string;
-			cacheDeferred?: boolean;
-	  };
-
-// The CDN policy (dx/cache.md `cdn`). It reaches the header only for a shared answer of class public. On a
-// layout, a root layout, or a segment it is a default for the pages under it.
-export type CdnCache = {
-	maxAge?: string | undefined;
-	swr?: string | undefined;
-	private?: boolean | undefined;
-	tags?: readonly string[] | ((ctx: { params: Record<string, string | string[]> }) => readonly string[]) | undefined;
-	allowCookies?: boolean | undefined;
-};
-
-type CacheMode =
-	| { ssr: SsrCache; isr?: never; ssg?: never }
-	| { isr: true | { revalidate?: string }; ssr?: never; ssg?: never }
-	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
-
-// One mode at most. `cdn` and `client` sit beside it or stand alone.
-export type CacheConfig =
-	| (CacheMode & { client?: ClientCache | undefined; cdn?: CdnCache | undefined })
-	| { client: ClientCache; cdn?: CdnCache | undefined; ssr?: never; isr?: never; ssg?: never }
-	| { cdn: CdnCache; client?: ClientCache | undefined; ssr?: never; isr?: never; ssg?: never };
-
 import type { JSX } from "@solidjs/web";
 import { withBoundaries, type Located } from "./boundaries.ts";
 import type { RouteRecord } from "./page.ts";
 import type { BuilderSteps, RouteBuilder, RouteKind, RouteState, TypedRecord } from "./route-types.ts";
 import type { Deferred } from "./register.ts";
 import type { Validator } from "../validation/index.ts";
-import type { HeadConfig } from "./types.ts";
+import type { CacheConfig, HeadConfig } from "./types.ts";
+
+// The cache types live in types.ts. These names stay importable from here.
+export type { CacheConfig, CdnCache, ClientCache, PrefetchTrigger, RoutePrefetch, SsrCache } from "./types.ts";
 
 // `.input()`: each side's validator receives the raw record, and its output replaces that side for the match's
 // later callbacks and render props (dx/builder.md).
@@ -111,7 +70,15 @@ type Authorize = Callback<StepContext, boolean | Promise<boolean>>;
 // A .response() page answers with its own Response. It still passes through finalize (dx/builder.md).
 export type Respond = Callback<StepContext, Response | Promise<Response>>;
 
-type Head = Callback<{ params: unknown; search: unknown; loaderData: unknown; preloaderContext: unknown }, HeadConfig>;
+// What `.head()`, `.headers()`, and `.security()` read (dx/types.md).
+type View = { params: unknown; search: unknown; loaderData: unknown; preloaderContext: unknown };
+
+type Head = Callback<View, HeadConfig>;
+
+// Response headers for a match. An undefined value keeps the parent's (dx/builder.md `headers(fn)`).
+export type RouteHeaders = Record<string, string | readonly string[] | undefined>;
+
+type Headers = Callback<View, RouteHeaders>;
 
 // A page gets no children. A layout and the root also get the next slot (dx/types.md).
 export type Render = Callback<
@@ -139,6 +106,7 @@ export type ChainRecord = {
 	loader?: Load;
 	response?: Respond;
 	head?: Head;
+	headers?: Headers;
 	render?: Render;
 };
 
@@ -154,6 +122,7 @@ export type Chain = {
 	loader: (fn: Load) => Chain;
 	response: (fn: Respond) => Chain;
 	head: (fn: Head) => Chain;
+	headers: (fn: Headers) => Chain;
 	render: (fn: Render) => Chain;
 	record: () => ChainRecord;
 };
@@ -173,6 +142,7 @@ const ORDER = {
 	preloader: 7,
 	loader: 8,
 	head: 10,
+	headers: 11,
 	render: 13,
 } as const;
 type Name = keyof typeof ORDER;
@@ -193,10 +163,16 @@ function advance(state: ChainState, step: Name): void {
 export function createChain(_id: string): Chain {
 	const state: ChainState = { used: new Set(), record: {}, at: 0 };
 	const record = state.record;
-	// Every step checks its place in the order, then stores one record field.
-	const put = <K extends keyof ChainRecord>(step: Name, key: K, value: ChainRecord[K]): Chain => {
+	// Every step checks its place in the order, then stores one record field under its own name. The two auth
+	// steps store `auth`.
+	const put = <K extends keyof ChainRecord & Name>(step: K, value: ChainRecord[K]): Chain => {
 		advance(state, step);
-		record[key] = value;
+		record[step] = value;
+		return chain;
+	};
+	const auth = (step: "authenticate" | "authenticateOptional", value: ChainAuth): Chain => {
+		advance(state, step);
+		record.auth = value;
 		return chain;
 	};
 	const chain: Chain = {
@@ -204,35 +180,36 @@ export function createChain(_id: string): Chain {
 			if (config.from.length === 0 || typeof config.render !== "string") {
 				throw new Error("intercept needs route ids in from and a render label");
 			}
-			return put("intercept", "intercept", { from: [...config.from], render: config.render });
+			return put("intercept", { from: [...config.from], render: config.render });
 		},
 		cache(config) {
 			if (MODES.filter((key) => Object.hasOwn(config, key)).length > 1) throw new Error("one cache mode");
-			return put("cache", "cache", config);
+			return put("cache", config);
 		},
 		input(config) {
 			if (config.params === undefined && config.searchParams === undefined) {
 				throw new Error("input needs params or searchParams");
 			}
-			return put("input", "input", config);
+			return put("input", config);
 		},
 		authenticate(...callerData) {
 			if (callerData.includes("optional")) throw new Error("The method is authenticateOptional");
-			return put("authenticate", "auth", { mode: true, callerData });
+			return auth("authenticate", { mode: true, callerData });
 		},
-		authenticateOptional: (...callerData) => put("authenticateOptional", "auth", { mode: "optional", callerData }),
-		authorize: (fn) => put("authorize", "authorize", fn),
+		authenticateOptional: (...callerData) => auth("authenticateOptional", { mode: "optional", callerData }),
+		authorize: (fn) => put("authorize", fn),
 		effects(effects) {
 			if (effects.loaderDeps === undefined && effects.shouldRefetch === undefined) {
 				throw new Error("effects needs loaderDeps or shouldRefetch");
 			}
-			return put("effects", "effects", effects);
+			return put("effects", effects);
 		},
-		preloader: (fn) => put("preloader", "preloader", fn),
-		loader: (fn) => put("loader", "loader", fn),
-		response: (fn) => put("response", "response", fn),
-		head: (fn) => put("head", "head", fn),
-		render: (fn) => put("render", "render", fn),
+		preloader: (fn) => put("preloader", fn),
+		loader: (fn) => put("loader", fn),
+		response: (fn) => put("response", fn),
+		head: (fn) => put("head", fn),
+		headers: (fn) => put("headers", fn),
+		render: (fn) => put("render", fn),
 		record: () => ({ ...record }),
 	};
 	return chain;

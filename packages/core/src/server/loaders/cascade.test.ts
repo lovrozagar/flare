@@ -33,7 +33,10 @@ async function spied(
 					finished.push("layout head");
 					return {};
 				},
-				headers: () => finished.push("layout headers"),
+				headers: () => {
+					finished.push("layout headers");
+					return {};
+				},
 			},
 			{
 				id: "page",
@@ -45,7 +48,10 @@ async function spied(
 					finished.push("page head");
 					return {};
 				},
-				headers: () => finished.push("page headers"),
+				headers: () => {
+					finished.push("page headers");
+					return {};
+				},
 			},
 		],
 	});
@@ -112,7 +118,9 @@ it("failed layout", async () => {
 	const { run, finished } = await spied("data", throws(boom), () => ({ secret: 1 }));
 	expect(run.response.status).toBe(200);
 	expect(run.frames).toEqual([{ t: "e", m: "layout", e: boom }]);
-	expect(finished).toEqual([]);
+	// The failed layout writes no head and no headers. The page's loader resolved, so its `.headers()` still runs
+	// (run.test `headers after throw`), though nothing renders it.
+	expect(finished).toEqual(["page headers"]);
 });
 
 it("page loader did run", async () => {

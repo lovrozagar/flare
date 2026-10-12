@@ -74,3 +74,11 @@ it("flare-build", () => {
 it("no server timing", () => {
 	expect(finalize({ status: 200, body: "ok", build: "build-42", url }).headers.has("server-timing")).toBe(false);
 });
+
+// Every Set-Cookie value arrives. A `set()` per header kept only the last.
+it("cookies kept", () => {
+	const headers = new Headers();
+	headers.append("set-cookie", "a=1");
+	headers.append("set-cookie", "b=2");
+	expect(finalize({ status: 200, body: "", url, headers }).headers.getSetCookie()).toEqual(["a=1", "b=2"]);
+});

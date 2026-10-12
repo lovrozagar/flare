@@ -5,6 +5,7 @@ import type {
 	LoaderContext,
 	PreloaderContext,
 	Respond,
+	RouteHeaders,
 	RouteInput,
 	StepContext,
 } from "../../shared/route-builder/chain.ts";
@@ -14,6 +15,7 @@ import { runValidator, type Validated, type Validator } from "../../shared/valid
 import { gate } from "../auth/gate.ts";
 import type { PolicyClass } from "../auth/identity.ts";
 import { finalize } from "../lifecycle/finalize.ts";
+import { mergeHeaders } from "../security/apply.ts";
 import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts";
 import { createDefer, type DeferMode, type Started } from "./defer.ts";
 
@@ -25,14 +27,11 @@ export type LoaderRoute = {
 	authorize?: (ctx: StepContext) => boolean | Promise<boolean>;
 	loader?: (ctx: LoaderContext) => unknown;
 	cache?: CacheConfig;
-	head?: (ctx: {
-		params: unknown;
-		search: unknown;
-		loaderData: unknown;
-		preloaderContext: PreloaderContext;
-	}) => HeadConfig;
-	headers?: () => void;
+	head?: (ctx: View) => HeadConfig;
+	headers?: (ctx: View) => RouteHeaders;
 };
+
+type View = { params: unknown; search: unknown; loaderData: unknown; preloaderContext: PreloaderContext };
 
 export type RunInput = {
 	kind: RequestKind;
@@ -88,6 +87,8 @@ export type LoaderRun = {
 	thrown?: unknown;
 	bugs: readonly unknown[];
 	deferred: readonly DeferredFrame[];
+	// The `.headers()` of every match whose loader resolved, merged root to page.
+	headers: Readonly<Record<string, string | string[]>>;
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
@@ -120,7 +121,7 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 }
 
 function bare(response: Response): LoaderRun {
-	return { response, frames: [], data: [], heads: [], contexts: [], inputs: [], bugs: [], deferred: [] };
+	return { response, frames: [], data: [], heads: [], contexts: [], inputs: [], bugs: [], deferred: [], headers: {} };
 }
 
 function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readonly PreloaderContext[]): LoaderRun {
@@ -148,6 +149,7 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 			validated: route.input !== undefined,
 		})),
 		failed: result.failed,
+		headers: routeHeaders(input, { outcomes, contexts, bugs }),
 		bugs,
 		deferred: outcomes
 			.slice(0, result.kept.length)
@@ -229,12 +231,6 @@ async function settle(route: LoaderRoute, ctx: LoaderContext, dev: boolean): Pro
 type Finish = { frame: { d: unknown }; kept: PreloaderContext; bugs: unknown[] };
 
 function finish(route: ValidRoute, at: Finish): HeadConfig | undefined {
-	const head = headOf(route, at);
-	route.headers?.();
-	return head;
-}
-
-function headOf(route: ValidRoute, at: Finish): HeadConfig | undefined {
 	try {
 		const values = { params: route.params, search: route.search };
 		return route.head?.({ ...values, loaderData: at.frame.d, preloaderContext: at.kept });
@@ -242,6 +238,29 @@ function headOf(route: ValidRoute, at: Finish): HeadConfig | undefined {
 		at.bugs.push(error);
 		return undefined;
 	}
+}
+
+// Each match whose loader resolved writes its `.headers()`, root to page (dx/builder.md). A match whose loader threw
+// writes none, though a later match may, and a `.headers()` throw omits that match's alone (B82).
+function routeHeaders(
+	input: ValidRun,
+	{ outcomes, contexts, bugs }: { outcomes: readonly Loaded[]; contexts: readonly PreloaderContext[]; bugs: unknown[] },
+): Record<string, string | string[]> {
+	let merged: Record<string, string | string[]> = {};
+	for (const [index, outcome] of outcomes.entries()) {
+		const route = defined(input.routes[index], "the loaded match");
+		if (!outcome.settled.ok || route.headers === undefined || input.skip?.has(route.id) === true) continue;
+		const view = { params: route.params, search: route.search, loaderData: outcome.settled.data };
+		try {
+			merged = mergeHeaders(
+				merged,
+				route.headers({ ...view, preloaderContext: defined(contexts[index], "the loaded context") }),
+			);
+		} catch (error) {
+			bugs.push(error);
+		}
+	}
+	return merged;
 }
 
 function json(value: unknown): Response {

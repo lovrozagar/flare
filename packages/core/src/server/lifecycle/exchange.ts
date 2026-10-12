@@ -39,8 +39,15 @@ export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">
 }
 
 // The request's headers with the body's media type. A document is HTML, a data response NDJSON.
-export function typed(exchange: Answering, type: string): Headers {
-	const headers = new Headers(exchange.secured.headers);
+// The route's merged `.headers()` come first, so the security set and the media type win over them.
+export function typed(
+	exchange: Answering,
+	type: string,
+	route: Readonly<Record<string, string | string[]>> = {},
+): Headers {
+	const headers = new Headers();
+	for (const [name, value] of Object.entries(route)) for (const item of [value].flat()) headers.append(name, item);
+	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
 	headers.set("content-type", type);
 	return headers;
 }

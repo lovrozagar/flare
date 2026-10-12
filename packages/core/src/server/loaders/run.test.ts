@@ -50,7 +50,10 @@ async function traced(extra: Partial<RunInput>, authorized = true): Promise<Trac
 			seen.push("head");
 			return {};
 		},
-		headers: () => seen.push("headers"),
+		headers: () => {
+			seen.push("headers");
+			return {};
+		},
 	};
 	const run = await runLoaders(
 		request([route], {
@@ -431,4 +434,43 @@ it("primitive loader", async () => {
 		),
 	);
 	expect(fine.data).toEqual([{ ok: 1 }, null]);
+});
+
+// `.headers()` merges root to page: a child key wins, `set-cookie` appends, and an undefined value keeps the parent's.
+it("headers merge", async () => {
+	const routes: LoaderRoute[] = [
+		{ id: "_root_", headers: () => ({ "X-A": "root", "set-cookie": "r=1", "x-keep": "root" }) },
+		{ id: "_root_/(g)", headers: () => ({ "x-a": "layout", "set-cookie": ["l=1", "l=2"] }) },
+		{ id: "_root_/(g)/p", headers: () => ({ "x-keep": undefined, "Set-Cookie": "p=1" }) },
+	];
+	const run = await runLoaders(request(routes));
+	expect(run.headers).toEqual({ "x-a": "layout", "set-cookie": ["r=1", "l=1", "l=2", "p=1"], "x-keep": "root" });
+});
+
+// A match whose loader threw writes no headers. A match whose loader resolved still does.
+it("headers after throw", async () => {
+	const layout = vi.fn<() => Record<string, string>>(() => ({ "x-layout": "1" }));
+	const page = vi.fn<() => Record<string, string>>(() => ({ "x-page": "1" }));
+	const run = await runLoaders(
+		request([
+			{ id: "_root_/(g)", loader: throws, headers: layout },
+			{ id: "_root_/(g)/p", loader: () => ({ ok: true }), headers: page },
+		]),
+	);
+	expect(layout).not.toHaveBeenCalled();
+	expect(page).toHaveBeenCalledOnce();
+	expect(run.headers).toEqual({ "x-page": "1" });
+});
+
+// A `.headers()` throw omits that match's headers and leaves the status (B82). It is a dev bug.
+it("headers throw", async () => {
+	const run = await runLoaders(
+		request([
+			{ id: "_root_", headers: () => ({ "x-root": "1" }) },
+			{ id: "_root_/p", headers: throws },
+		]),
+	);
+	expect(run.response.status).toBe(200);
+	expect(run.headers).toEqual({ "x-root": "1" });
+	expect(run.bugs).toContain(boom);
 });
