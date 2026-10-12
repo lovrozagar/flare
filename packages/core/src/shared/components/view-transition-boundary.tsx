@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { children, createComponent, createContext, createEffect, type Context } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
