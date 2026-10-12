@@ -23,3 +23,8 @@ it("missing", () => {
 	expect(decodeGetInput("")).toEqual({ status: 200, input: undefined });
 	expect(decodeGetInput("?")).toEqual({ status: 200, input: undefined });
 });
+
+it("void input", () => {
+	expect(() => encodeGetInput(undefined)).toThrow(/Omit _i/);
+	expect(decodeGetInput("")).toEqual({ status: 200, input: undefined });
+});

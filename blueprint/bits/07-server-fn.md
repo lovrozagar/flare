@@ -22,6 +22,7 @@ This bit starts by running the extractor against a fixture that contains every s
 | `cap` | an encoded string of 8193 characters | the encoder throws, the decoder returns 400 |
 | `extra param` | `?_i=%7B%7D&x=1` | 400 |
 | `missing` | a GET with no `_i` | input is `undefined` |
+| `void input` | an undefined input | the encoder refuses it, so the caller omits `_i` (`client/server-fn/codec.test.ts` `builds _i`), and the server reads `undefined` |
 
 ### `server/server-fn/ids.test.ts`
 

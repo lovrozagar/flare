@@ -4,7 +4,9 @@ import { INPUT_PARAM } from "./constants.ts";
 export const MAX_GET_INPUT = 8192;
 
 // The client refuses before sending, so a request never reaches the server over the cap.
+// A void input has no JSON form: the caller omits `_i`, and the server reads `undefined`.
 export function encodeGetInput(input: unknown): string {
+	if (input === undefined) throw new Error("A void GET input has no _i value. Omit _i");
 	const encoded = encodeURIComponent(JSON.stringify(input));
 	if (encoded.length > MAX_GET_INPUT) throw new Error(`The GET input is ${encoded.length} characters. The cap is 8192`);
 	return encoded;
