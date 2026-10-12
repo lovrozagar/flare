@@ -69,4 +69,10 @@ it("fn path exempt", () => {
 	expect(applyCanonical({ ...options, url: "/_flare/fn/0123456789ABCDEF" })).toEqual({ status: 200 });
 	expect(applyCanonical({ ...options, url: "/_flare/fn/%2f" }).status).toBe(400);
 	expect(applyCanonical({ ...options, url: "/About" })).toEqual({ status: 308, location: "/about/" });
+	const based = { ...options, basePath: "/app" };
+	expect(applyCanonical({ ...based, url: "/app/_flare/fn/0123456789ABCDEF" })).toEqual({ status: 200 });
+	expect(applyCanonical({ ...based, url: "/_flare/fn/0123456789ABCDEF" })).toEqual({
+		status: 308,
+		location: "/_flare/fn/0123456789abcdef/",
+	});
 });

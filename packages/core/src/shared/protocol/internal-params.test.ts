@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { readInternal, staleList } from "./internal-params.ts";
+import { fnPrefix, readInternal, staleList } from "./internal-params.ts";
 
 it("absent", () => {
 	const read = readInternal(new URL("http://localhost/about?_flare_stale=page"));
@@ -49,4 +49,9 @@ it("raw kept", () => {
 	if (document.status !== 200) throw new Error("status");
 	expect(document.url.href).toBe(plain.href);
 	expect(document.url).not.toBe(plain);
+});
+
+it("fn prefix", () => {
+	expect(fnPrefix("/")).toBe("/_flare/fn/");
+	expect(fnPrefix("/app")).toBe("/app/_flare/fn/");
 });

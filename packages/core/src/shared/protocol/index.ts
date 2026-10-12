@@ -9,6 +9,7 @@ export {
 } from "./constants.ts";
 export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts";
 export {
+	fnPrefix,
 	readInternal,
 	staleList,
 	withoutInternalKeys,

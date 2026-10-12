@@ -1,4 +1,4 @@
-import { FN_PREFIX } from "../../shared/protocol/index.ts";
+import { fnPrefix } from "../../shared/protocol/index.ts";
 import { canonicalPath, type CanonicalOptions, type CanonicalPath } from "../../shared/url/canonical.ts";
 
 export type PathRewrite = (path: string) => string | undefined;
@@ -11,12 +11,14 @@ export type CanonicalStep = { status: number; location?: string };
 export function applyCanonical(input: {
 	method: string;
 	url: string;
+	// The router's base, which the server-function prefix sits under. "/" when omitted.
+	basePath?: string;
 	trailingSlash?: CanonicalOptions["trailingSlash"];
 	caseSensitive?: boolean;
 	rewrite?: PathRewrite;
 }): CanonicalStep {
 	const parsed = new URL(input.url, "http://localhost");
-	const fn = parsed.pathname.startsWith(FN_PREFIX);
+	const fn = parsed.pathname.startsWith(fnPrefix(input.basePath ?? "/"));
 	const options = fn
 		? { trailingSlash: "preserve" as const, caseSensitive: true }
 		: { trailingSlash: input.trailingSlash, caseSensitive: input.caseSensitive };

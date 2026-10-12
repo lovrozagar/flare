@@ -1,5 +1,5 @@
 import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts";
-import { FN_PREFIX } from "../../shared/protocol/index.ts";
+import { fnPrefix } from "../../shared/protocol/index.ts";
 import { runValidator } from "../../shared/validation/index.ts";
 import { fnCaller } from "../auth/caller.ts";
 import { requestScope, type RequestScope } from "../context/ctx.ts";
@@ -92,7 +92,7 @@ async function prepared(fn: ServerFn, input: unknown, scope: RequestScope): Prom
 
 // Own keys only, so an id such as `constructor` is unknown too.
 async function lookup(input: DispatchInput): Promise<ServerFn | undefined> {
-	const id = new URL(input.request.url).pathname.slice(FN_PREFIX.length);
+	const id = new URL(input.request.url).pathname.slice(fnPrefix(input.basePath).length);
 	return Object.hasOwn(input.serverFns, id) ? input.serverFns[id]() : undefined;
 }
 

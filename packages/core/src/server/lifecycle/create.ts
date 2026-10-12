@@ -51,7 +51,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	return {
 		fetch(request, env) {
 			const secured = applySecurity({ url: request.url, headers: new Headers(), security: options.security });
-			const internal = classify(new URL(request.url));
+			const internal = classify(new URL(request.url), options.router.basePath);
 			const outer = { options, request, env, secured, sink, kind: "document" as const, stale: null };
 			if (internal.status !== 200) return Promise.resolve(answer(outer, internal.status));
 			// Rebuilt only when an internal param was removed: a new Request would take over the body stream.
@@ -60,6 +60,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 			const step = applyCanonical({
 				method: request.method,
 				url: request.url,
+				basePath: options.router.basePath,
 				trailingSlash: options.router.trailingSlash,
 				caseSensitive: options.router.caseSensitive,
 			});
@@ -80,7 +81,7 @@ type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
 // (step 10), so an OPTIONS, a 405, or an unmatched method imports nothing.
 function route(exchange: Exchange): Promise<Response> {
 	const url = new URL(exchange.request.url);
-	if (isServerFn(url)) return serverFn(exchange);
+	if (isServerFn(url, exchange.options.router.basePath)) return serverFn(exchange);
 	const matched = exchange.options.router.match(url.pathname);
 	const method = exchange.request.method;
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {

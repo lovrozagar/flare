@@ -6,6 +6,9 @@ import { withServerContext } from "../context/ctx.ts";
 import type { StageResult } from "../lifecycle/finalize.ts";
 import type { Logger } from "../lifecycle/logger.ts";
 import type { ErrorSink } from "../render/projector.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
+import { serveWith } from "../lifecycle/create.ts";
 import { createServerFn, type ServerFn } from "./builder.ts";
 import { InputError, dispatch } from "./dispatch.ts";
 
@@ -231,4 +234,21 @@ it("in request", async () => {
 it("no request", async () => {
 	const lone = createServerFn(named("lone")).handler(() => "never");
 	await expect(lone(1)).rejects.toThrow("server function called outside a request");
+});
+
+it("base path", async () => {
+	const root = createRootLayout("_root_").render(() => "root");
+	const router = createRouter({ basePath: "/app", layouts: { _root_: root }, routeTree: [] });
+	const app = serveWith({ router, serverFns: { [echo.id]: async () => echo } }, { dev: false, log: quiet });
+	const at = (path: string) =>
+		app.fetch(
+			new Request(`http://localhost${path}`, { method: "POST", body: "1", headers: { origin: "http://localhost" } }),
+		);
+	const based = await at(`/app/_flare/fn/${echo.id}`);
+	expect(based.status).toBe(200);
+	expect(await based.json()).toEqual({ name: "echo", status: 200, data: {} });
+	// The root prefix is an ordinary path under a base: the router answers it, and dispatch never sees it.
+	const rooted = await at(`/_flare/fn/${echo.id}`);
+	expect(rooted.status).toBe(405);
+	expect(rooted.headers.get("allow")).toBe("GET, HEAD, OPTIONS");
 });

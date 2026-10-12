@@ -1,4 +1,4 @@
-import { KIND_PARAM, STALE_PARAM } from "./constants.ts";
+import { FN_PREFIX, KIND_PARAM, STALE_PARAM } from "./constants.ts";
 
 export type RequestKind = "document" | "data" | "prefetch";
 
@@ -12,6 +12,11 @@ const KINDS: Record<string, RequestKind> = { data: "data", prefetch: "prefetch" 
 const INTERNAL = new Set([KIND_PARAM, STALE_PARAM]);
 
 const CAP_BYTES = 8 * 1024;
+
+// The server-function endpoint sits under the router's basePath like every route (B41).
+export function fnPrefix(basePath: string): string {
+	return basePath === "/" ? FN_PREFIX : `${basePath}${FN_PREFIX}`;
+}
 
 // Only the query selects a data response. A request header never does (bit 06).
 export function readInternal(request: URL): InternalRequest {
