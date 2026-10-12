@@ -1,4 +1,5 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -196,6 +197,29 @@ it("chunk urls", async () => {
 	if (typeof transform !== "function") throw new Error("transform");
 	const serve = { environment: { name: "client", config: { command: "serve", root } } };
 	expect(Reflect.apply(transform, serve, [generated, join(root, "src/_gen/routes.gen.ts")])).toBeNull();
+}, 60_000);
+
+// Inside the repo's node_modules, so a config file's import of the plugin resolves as an app's would.
+const FIXTURES = fileURLToPath(new URL("../../../../../node_modules/.flare-fixtures/", import.meta.url));
+const VITE = fileURLToPath(new URL("../../../../../node_modules/vite/bin/vite.js", import.meta.url));
+
+// `vite build` from a config file, as the CLI runs it, in a child process. One config and one plugin set serve every
+// environment, so what the client build captures reaches the server build. Vite would otherwise load the config
+// again per environment, and its flare() call would make new plugins.
+it("config file", () => {
+	mkdirSync(FIXTURES, { recursive: true });
+	const root = mkdtempSync(join(FIXTURES, "config-"));
+	roots.push(root);
+	mkdirSync(join(root, "src"));
+	for (const [name, source] of Object.entries(APP)) writeFileSync(join(root, "src", name), source);
+	const config =
+		'import { flare } from "@lovrozagar/flare/vite";\nexport default { logLevel: "silent", build: { assetsInlineLimit: 0 }, plugins: [flare()] };\n';
+	writeFileSync(join(root, "vite.config.mjs"), config);
+	const run = spawnSync(process.execPath, [VITE, "build"], { cwd: root, encoding: "utf8" });
+	expect(run.stderr).toBe("");
+	expect(run.status).toBe(0);
+	const server = readFileSync(join(root, "dist/server/server.js"), "utf8");
+	expect(server).toMatch(/\.a\{background:url\(\/assets\/dot-[\w-]+\.svg\)\}/);
 }, 60_000);
 
 function never(): never {
