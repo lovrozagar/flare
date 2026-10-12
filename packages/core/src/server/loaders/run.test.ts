@@ -319,14 +319,14 @@ it("policy class", async () => {
 	expect(required.class).toBe("required");
 });
 
-type Seen = Record<string, unknown>;
+type Seen = unknown;
 
-function contextOf(ctx: { preloaderContext?: Seen }): Seen | "absent" {
+function contextOf(ctx: { preloaderContext?: unknown }): Seen {
 	return "preloaderContext" in ctx ? (ctx.preloaderContext ?? {}) : "absent";
 }
 
 it("preloader context", async () => {
-	const seen: Record<string, Seen | "absent"> = {};
+	const seen: Record<string, Seen> = {};
 	const mark =
 		(name: string, value?: Seen) =>
 		(ctx: { preloaderContext?: Seen }): Seen | undefined => {

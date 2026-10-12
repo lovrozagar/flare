@@ -1,43 +1,19 @@
-import { withBoundaries, type Bounded } from "./boundaries.ts";
-import {
-	chainSteps,
-	createChain,
-	type Chain,
-	type ChainRecord,
-	type LoaderContext,
-	type LoaderData,
-	type RouteInput,
-	type Steps,
-} from "./chain.ts";
+import { createChain, typedSteps, type Chain } from "./chain.ts";
 import type { RouteRecord } from "./page.ts";
-import type { InputTypes, RouteTypes, Typed } from "./types.ts";
+import type { InitialState, RouteBuilder, RouteState } from "./route-types.ts";
 
-export interface LayoutBuilder<T extends RouteTypes = {}> extends Steps<LayoutBuilder<T>> {
-	input: <I extends RouteInput>(config: I) => LayoutBuilder<T & InputTypes<I>>;
-	loader: <L extends LoaderData>(fn: (ctx: LoaderContext) => L | Promise<L>) => LayoutBuilder<T & { loaderData: L }>;
-	render: (render: NonNullable<ChainRecord["render"]>) => Bounded<RouteRecord & Typed<T>>;
-}
+export type LayoutBuilder<S extends RouteState> = RouteBuilder<S, "layout">;
 
-export function createLayout(id: string): LayoutBuilder {
+export function createLayout<Id extends string>(id: Id): LayoutBuilder<InitialState<Id, false>> {
 	return layoutBuilder(id, createChain(id));
 }
 
-// One builder per step over the same chain, so a typed step returns a builder of the new type without a cast.
-function layoutBuilder<T extends RouteTypes>(id: string, chain: Chain): LayoutBuilder<T> {
-	const builder: LayoutBuilder<T> = {
-		...chainSteps(chain, () => builder),
-		input<I extends RouteInput>(config: I) {
-			chain.input(config);
-			return layoutBuilder<T & InputTypes<I>>(id, chain);
-		},
-		loader<L extends LoaderData>(fn: (ctx: LoaderContext) => L | Promise<L>) {
-			chain.loader(fn);
-			return layoutBuilder<T & { loaderData: L }>(id, chain);
-		},
-		render(render) {
-			chain.render(render);
-			return withBoundaries<RouteRecord & Typed<T>>({ id, document: false, ...chain.record() });
-		},
-	};
-	return builder;
+function layoutBuilder<S extends RouteState>(id: string, chain: Chain): LayoutBuilder<S> {
+	const record = (): RouteRecord & { readonly _type: "layout" } => ({
+		_type: "layout",
+		id,
+		document: false,
+		...chain.record(),
+	});
+	return typedSteps<S, "layout">(chain, () => layoutBuilder(id, chain), record);
 }

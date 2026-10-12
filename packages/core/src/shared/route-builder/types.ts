@@ -4,7 +4,61 @@ export type AuthenticateMode = true | "optional";
 
 export type SeoImage = { url: string; alt?: string; width?: number; height?: number; type?: string };
 export type HeadScript = { src?: string; children?: string; async?: boolean; extra?: Record<string, string> };
-type Bag = Record<string, unknown>;
+
+// An `og:audio` entry. A video adds its size (dx/head.md).
+export type OgAudio = { url: string; type?: string | undefined; secureUrl?: string | undefined };
+export type OgVideo = OgAudio & { width?: number | undefined; height?: number | undefined };
+
+// The record shapes of dx/head.md, so a typo or a wrong value fails in the route, not as a missing tag.
+export type OpenGraph = {
+	type?: "website" | "article" | "profile" | "product" | undefined;
+	title?: string | undefined;
+	description?: string | undefined;
+	url?: string | undefined;
+	siteName?: string | undefined;
+	locale?: string | undefined;
+	alternateLocale?: readonly string[] | undefined;
+	images?: readonly SeoImage[] | undefined;
+	audio?: readonly OgAudio[] | undefined;
+	videos?: readonly OgVideo[] | undefined;
+};
+
+export type TwitterCard = {
+	card?: "summary" | "summary_large_image" | "player" | "app" | undefined;
+	site?: string | undefined;
+	creator?: string | undefined;
+	title?: string | undefined;
+	description?: string | undefined;
+	images?: ReadonlyArray<{ url: string; alt?: string | undefined }> | undefined;
+};
+
+export type Robots = {
+	index?: boolean | undefined;
+	follow?: boolean | undefined;
+	noarchive?: boolean | undefined;
+	noimageindex?: boolean | undefined;
+	"max-image-preview"?: "none" | "standard" | "large" | undefined;
+	"max-snippet"?: number | undefined;
+	"max-video-preview"?: number | undefined;
+};
+
+type YesNo = "yes" | "no" | undefined;
+
+export type HeadMeta = {
+	charset?: string | undefined;
+	// `false` removes a parent viewport (B83).
+	viewport?: string | false | undefined;
+	applicationName?: string | undefined;
+	author?: string | undefined;
+	creator?: string | undefined;
+	publisher?: string | undefined;
+	generator?: string | undefined;
+	manifest?: string | undefined;
+	appleMobileWebAppCapable?: YesNo;
+	appleMobileWebAppTitle?: string | undefined;
+	appleMobileWebAppStatusBarStyle?: "default" | "black" | "black-translucent" | undefined;
+	mobileWebAppCapable?: YesNo;
+};
 
 export type HeadConfig = {
 	title?: string | undefined;
@@ -16,10 +70,10 @@ export type HeadConfig = {
 	jsonLd?: ReadonlyArray<Record<string, unknown>> | undefined;
 	images?: readonly SeoImage[] | undefined;
 	favicons?: Record<string, string> | undefined;
-	robots?: Bag | undefined;
-	openGraph?: Bag | undefined;
-	twitter?: Bag | undefined;
-	meta?: (Bag & { viewport?: string | false }) | undefined;
+	robots?: Robots | undefined;
+	openGraph?: OpenGraph | undefined;
+	twitter?: TwitterCard | undefined;
+	meta?: HeadMeta | undefined;
 	custom?: {
 		links?: ReadonlyArray<Record<string, string>>;
 		meta?: ReadonlyArray<Record<string, string>> | undefined;
@@ -33,7 +87,7 @@ declare const ROUTE_TYPES: unique symbol;
 
 // What a typed step recorded: the `.input()` outputs and the `.loader()` data (dx/types.md). The record never holds
 // it at runtime. `SearchOutput`, `ParamsOutput`, and the generated register read it.
-export type RouteTypes = { params?: unknown; search?: unknown; loaderData?: unknown };
+export type RouteTypes = { params?: unknown; search?: unknown; loaderData?: unknown; preloader?: unknown };
 
 export type Typed<T extends RouteTypes> = { readonly [ROUTE_TYPES]?: T };
 

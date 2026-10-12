@@ -76,6 +76,7 @@ packages/core/src/shared/route-tree/index.ts	P1	index	shared	Re-exports
 packages/core/src/shared/route-builder/types.ts	P1	types	shared	Chain context types, HeadConfig, CacheConfig, AuthenticateMode
 packages/core/src/shared/route-builder/register.ts	P1	types	shared	FlareRegister and the Resolved* types
 packages/core/src/shared/route-builder/chain.ts	P1	src	shared	Shared builder state. Each method once, in the 03-surface order
+packages/core/src/shared/route-builder/route-types.ts	P7	types	shared	Typed builder state: parent auth and context, step contexts, and the typed record
 packages/core/src/shared/route-builder/chain.test.ts	P1	test	shared	Unit cases for chain.ts
 packages/core/src/shared/route-builder/page.ts	P1	src	shared	createPage
 packages/core/src/shared/route-builder/page.test.ts	P1	test	shared	Unit cases for page.ts

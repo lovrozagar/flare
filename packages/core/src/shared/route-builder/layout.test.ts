@@ -25,6 +25,7 @@ it("layout chain", () => {
 			.head(head)
 			.render(render),
 	).toEqual({
+		_type: "layout",
 		id: "_root_/admin",
 		document: false,
 		auth: { mode: "optional", callerData: [] },

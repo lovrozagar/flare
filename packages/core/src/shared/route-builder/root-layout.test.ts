@@ -10,6 +10,7 @@ it("root render is the document", () => {
 
 it("root chain", () => {
 	expect(createRootLayout("_root_").loader(loader).render(render)).toEqual({
+		_type: "root",
 		id: "_root_",
 		document: true,
 		loader,
