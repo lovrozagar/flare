@@ -83,6 +83,11 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 			},
 		},
 		builder: {
+			// One config and one plugin set for every environment, so what the client build captures, its stylesheet,
+			// reaches the server builds. Without it Vite resolves the config again per environment, and a config file's
+			// flare() call makes new plugins.
+			sharedConfigBuild: true,
+			sharedPlugins: true,
 			// Solid's `solid:client-build-first` may already have built the client. Each environment builds once.
 			async buildApp(builder) {
 				for (const name of environmentOrder(false)) {
