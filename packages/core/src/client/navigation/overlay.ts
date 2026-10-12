@@ -9,8 +9,8 @@ import type { RouterStore, StoreSnapshot } from "../router/store.ts";
 import type { Landed } from "./frames.ts";
 import type { ScrollStore } from "./scroll.ts";
 
-// `pop` is a popstate step. `overlay` marks the overlay entry it moved onto.
-export type Mode = { pop?: boolean; overlay?: boolean };
+// `pop` is a popstate step, `index` its history index. `overlay` marks the overlay entry it moved onto.
+export type Mode = { pop?: boolean; overlay?: boolean; index?: number };
 
 type Trigger = "navigation" | "revalidation";
 

@@ -1,7 +1,7 @@
 import { createContext, useContext, type Context } from "solid-js";
 import type { RoutePrefetch } from "../route-builder/index.ts";
 import type { Location, SearchValue } from "../url/index.ts";
-import type { Router } from "./create-router.ts";
+import type { Router, ViewTransitionOptions } from "./create-router.ts";
 
 export const RouterContext: Context<Router> = createContext<Router>();
 
@@ -19,6 +19,7 @@ export type NavigateTo = {
 	scroll?: boolean;
 	shallow?: boolean;
 	state?: unknown;
+	viewTransition?: boolean | ViewTransitionOptions;
 };
 
 // The browser provides both. The server has no navigator and no prefetch, so they default to null.

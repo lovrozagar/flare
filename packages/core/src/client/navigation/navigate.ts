@@ -3,11 +3,23 @@ import type { OutletMatch } from "../../shared/components/index.ts";
 import type { DevErrorPayload } from "../../shared/errors/index.ts";
 import { BUILD_HEADER, STALE_PARAM } from "../../shared/protocol/index.ts";
 import type { Intercept } from "../../shared/route-builder/chain.ts";
-import { loadChain, type LoadedEntry, type Router } from "../../shared/router/create-router.ts";
+import {
+	loadChain,
+	type LoadedEntry,
+	type Router,
+	type ViewTransitionOptions,
+} from "../../shared/router/create-router.ts";
 import { readSearch, type Location } from "../../shared/url/index.ts";
 import type { FlareHistory } from "../history/index.ts";
-import { cachedMatches, holds, remember, type MatchCache } from "../router/match-cache.ts";
-import type { RouterStore, StoreSnapshot } from "../router/store.ts";
+import { cachedMatches, defined, holds, remember, type MatchCache } from "../router/match-cache.ts";
+import { landedFailure, statusFailure, swappedDepth, type RouterStore, type StoreSnapshot } from "../router/store.ts";
+import {
+	runTransition,
+	stepDirection,
+	transitionInfo,
+	transitionOption,
+	type Direction,
+} from "../view-transition/index.ts";
 import type { Blockers } from "./blocker.ts";
 import { framesOf, landFrames, type Landed } from "./frames.ts";
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts";
@@ -23,6 +35,7 @@ export type NavigateOptions = NavigateInput & {
 	revalidate?: boolean;
 	scroll?: boolean;
 	state?: unknown;
+	viewTransition?: boolean | ViewTransitionOptions;
 };
 
 export type NavigatorDeps = {
@@ -50,8 +63,6 @@ type Trigger = "navigation" | "revalidation";
 // What came back for one navigation: frames to commit, a bare status to paint, or nothing to do.
 type Arrival = { kind: "landed"; landing: Landing } | { kind: "status"; status: number } | { kind: "none" };
 
-const NAMED_STATUS: Record<number, string> = { 401: "UnauthenticatedError", 403: "UnauthorizedError" };
-
 // Same-origin only. The DOM commits, then history is written. A revalidation of the current URL writes no
 // history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
 // restore is one popstate step: the browser already moved, so no blocker runs, nothing is written, and the
@@ -62,6 +73,8 @@ export function createNavigator(deps: NavigatorDeps): {
 	restore: (url: string, index: number) => Promise<void>;
 } {
 	let latest: AbortController | undefined;
+	// The history index the screen shows, so a popstate step knows its view-transition direction.
+	let at = deps.history.index();
 	const context = () => ({ router: deps.router, origin: deps.origin, current: deps.store.snapshot().location });
 	const go = async (target: Target, options: NavigateOptions, mode: Mode = {}): Promise<void> => {
 		if (target.kind === "document") return void deps.assign(target.url);
@@ -71,7 +84,7 @@ export function createNavigator(deps: NavigatorDeps): {
 			deps.store.commit({ ...snapshot, location: target.location });
 			return land(deps, target, { options, pop, write: true });
 		}
-		const plan = planOf({ target, options, snapshot, mode });
+		const plan = planOf({ target, options, snapshot, mode: { ...mode, at } });
 		if (!pop && !deps.blockers.run(blockerArgs(snapshot.location, target.location, plan.trigger), noWrite())) return;
 		latest?.abort();
 		const controller = new AbortController();
@@ -79,7 +92,11 @@ export function createNavigator(deps: NavigatorDeps): {
 		const settled = await deps.navigation.track(arrive(deps, { ...plan, signal: controller.signal }));
 		if (latest !== controller || settled === undefined || settled.arrival.kind === "none") return;
 		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined;
-		if (redirect === undefined) return settle(deps, plan, { chain: settled.chain, arrival: settled.arrival });
+		if (redirect === undefined) {
+			await settle(deps, plan, { chain: settled.chain, arrival: settled.arrival });
+			at = deps.history.index();
+			return;
+		}
 		if (new URL(redirect.url, deps.origin).origin !== deps.origin) return void deps.assign(redirect.url);
 		return go(resolveUrl(redirect.url, context()), { ...options, replace: redirect.replace });
 	};
@@ -88,8 +105,15 @@ export function createNavigator(deps: NavigatorDeps): {
 		visit: (url, replace) => go(resolveUrl(url, context()), { to: url, replace }),
 		restore: async (url, index) => {
 			const closed = closesOverlay(deps.store.snapshot(), url);
-			if (closed !== undefined) return deps.store.commit(closed);
-			return go(resolveUrl(url, context()), { to: url }, { pop: true, overlay: deps.history.interceptedAt(index) });
+			if (closed !== undefined) {
+				at = index;
+				return deps.store.commit(closed);
+			}
+			return go(
+				resolveUrl(url, context()),
+				{ to: url },
+				{ pop: true, overlay: deps.history.interceptedAt(index), index },
+			);
 		},
 	};
 }
@@ -101,22 +125,33 @@ type Plan = {
 	trigger: Trigger;
 	pop: boolean;
 	previous: StoreSnapshot;
+	direction: Direction;
 	intercept?: Intercept;
 };
 
-function planOf(input: { target: DataTarget; options: NavigateOptions; snapshot: StoreSnapshot; mode: Mode }): Plan {
+function planOf(input: {
+	target: DataTarget;
+	options: NavigateOptions;
+	snapshot: StoreSnapshot;
+	mode: Mode & { at: number };
+}): Plan {
 	const { target, snapshot } = input;
 	// With an overlay open, the URL in the bar is the overlay's.
 	const here = snapshot.overlay?.location ?? snapshot.location;
 	const trigger: Trigger = sameUrl(here, target.location) ? "revalidation" : "navigation";
-	const plan: Plan = { target, options: input.options, trigger, pop: input.mode.pop === true, previous: snapshot };
+	const pop = input.mode.pop === true;
+	const step = input.mode.index ?? input.mode.at;
+	// A push moves forward. A popstate step moves by its index. A replace and a revalidation stay.
+	const forward = !pop && trigger === "navigation" && input.options.replace !== true;
+	const direction = forward ? "forward" : stepDirection(input.mode.at, step);
+	const plan: Plan = { target, options: input.options, trigger, pop, previous: snapshot, direction };
 	const intercept = overlayFor(target, snapshot, { trigger, ...input.mode });
 	if (intercept !== undefined) plan.intercept = intercept;
 	return plan;
 }
 
 // A landed overlay keeps the background. Anything else, a failed overlay fetch included, commits as a visit.
-function settle(
+async function settle(
 	deps: NavigatorDeps,
 	plan: Plan,
 	settled: { chain: LoadedEntry[]; arrival: Exclude<Arrival, { kind: "none" }> },
@@ -134,9 +169,17 @@ function settle(
 			state: plan.options.state,
 		});
 	}
-	deps.store.commit(nextSnapshot(deps, { target, chain: settled.chain, arrival, previous }));
-	// The DOM updates before history is written (02-system).
-	flush();
+	const next = nextSnapshot(deps, { target, chain: settled.chain, arrival, previous });
+	// The DOM updates, inside a view transition when one is on, before history is written (02-system).
+	await runTransition({
+		option: transitionOption(plan.options.viewTransition, deps.router.viewTransitions),
+		info: transitionInfo(plan.direction, previous.overlay?.location ?? previous.location, target.location),
+		auto: () => deps.store.scopeAt(swappedDepth(previous, next)),
+		update: () => {
+			deps.store.commit(next);
+			flush();
+		},
+	});
 	land(deps, target, { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" });
 }
 
@@ -230,23 +273,6 @@ function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	return snapshot;
 }
 
-function statusFailure(status: number, index: number): StoreSnapshot["failure"] {
-	const error = new Error("Request failed");
-	error.name = NAMED_STATUS[status] ?? "Error";
-	error.stack = "";
-	return { index, status: status in NAMED_STATUS ? status : 500, error };
-}
-
-function landedFailure(landing: Landing, matches: readonly OutletMatch[]): StoreSnapshot["failure"] {
-	const failure = landing.failure;
-	if (failure === undefined) return undefined;
-	return {
-		index: matches.findIndex((match) => match.id === failure.route),
-		status: failure.status,
-		error: failure.error,
-	};
-}
-
 function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions): void {
 	deps.scroll.save(deps.history.index(), deps.store.snapshot().location);
 	if (options.replace === true) deps.history.replace(url, options.state);
@@ -268,10 +294,4 @@ function blockerArgs(current: Location, next: Location, trigger: Trigger) {
 function noWrite() {
 	// navigate asks the blocker before it writes anything, so nothing was pushed and history.go is not reached.
 	return { write: () => undefined, pushed: 0, go: history.go.bind(history) };
-}
-
-function defined(params: Record<string, string | string[] | undefined>): Record<string, string | string[]> {
-	return Object.fromEntries(
-		Object.entries(params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
-	);
 }

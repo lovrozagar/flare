@@ -38,6 +38,7 @@ const OWN = [
 	"scroll",
 	"shallow",
 	"state",
+	"viewTransition",
 	"activeClass",
 	"inactiveClass",
 	"activeProps",
@@ -177,5 +178,6 @@ function pick(props: LinkProps): Omit<NavigateTo, "to"> {
 		scroll: props.scroll,
 		shallow: props.shallow,
 		state: props.state,
+		viewTransition: props.viewTransition,
 	};
 }

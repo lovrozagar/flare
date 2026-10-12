@@ -7,6 +7,7 @@ import {
 	createRouterStore,
 	errorFromWire,
 	snapshotFromState,
+	swappedDepth,
 	type ScriptMatch,
 	type StoreSnapshot,
 	type WireError,
@@ -104,4 +105,31 @@ it("commit", () => {
 	expect(store.snapshot().location.pathname).toBe("/next");
 	store.outlet().onBoundaryError("x");
 	expect(onBoundaryError).toHaveBeenCalledWith("x");
+});
+
+it("slot scopes", () => {
+	const first = snapshotFromState({ matches: [entry("_root_", "root")], chain: [chain[0]], unknown: false, location });
+	const store = createRoot(() => createRouterStore(first, () => undefined));
+	const main = document.createElement("main");
+	const stop = store.outlet().onSlot?.(1, () => main);
+	store.outlet().onSlot?.(2, () => undefined);
+	expect(store.scopeAt(1)).toBe(main);
+	expect(store.scopeAt(2)).toBe(document);
+	expect(store.scopeAt(3)).toBe(document);
+	const replaced = store.outlet().onSlot?.(1, () => document.body);
+	stop?.();
+	expect(store.scopeAt(1)).toBe(document.body);
+	replaced?.();
+	expect(store.scopeAt(1)).toBe(document);
+});
+
+it("swapped depth", () => {
+	const at = (...ids: string[]): StoreSnapshot => ({
+		matches: ids.map((id) => ({ id, kind: "page" as const, module: {}, params: {}, search: {}, data: null })),
+		heads: [],
+		location,
+	});
+	expect(swappedDepth(at("_root_", "_root_/a"), at("_root_", "_root_/b"))).toBe(1);
+	expect(swappedDepth(at("_root_", "_root_/a"), at("_admin_", "_admin_/a"))).toBe(0);
+	expect(swappedDepth(at("_root_", "_root_/a"), at("_root_", "_root_/a"))).toBe(1);
 });

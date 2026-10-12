@@ -1,9 +1,10 @@
-import { createComponent, createContext, createMemo, Errored, untrack, useContext } from "solid-js";
+import { createComponent, createContext, createMemo, Errored, onCleanup, untrack, useContext } from "solid-js";
 import { Dynamic, isServer, type JSX } from "@solidjs/web";
 import type { ChainRecord } from "../route-builder/chain.ts";
 import type { BoundaryRecord, Located, NotFoundRender } from "../route-builder/index.ts";
 import { NavigateContext } from "../router/context.ts";
 import { boundaryAt, boundaryFallback, boundaryKind, boundaryReset } from "./boundary.ts";
+import { TransitionScopeContext } from "./view-transition-boundary.tsx";
 
 export type OutletMatch = Located & {
 	id: string;
@@ -19,6 +20,8 @@ export type OutletState = {
 	failure?: { index: number; status: number; error: Error };
 	unknown?: { render?: NotFoundRender };
 	onBoundaryError: (error: unknown) => void;
+	// The browser keeps each slot's view-transition scope, the innermost boundary around that outlet.
+	onSlot?: (depth: number, scope: () => Element | undefined) => () => void;
 };
 
 const NONE: BoundaryRecord = {};
@@ -44,6 +47,8 @@ function renderSlot(state: () => OutletState, depth: number): JSX.Element {
 		key();
 		return untrack(() => paintSlot(state, depth));
 	});
+	const unregister = untrack(state).onSlot?.(depth, useContext(TransitionScopeContext));
+	if (unregister !== undefined) onCleanup(unregister);
 	// JSX.Element types a reactive child only inside an array, the shape compiled JSX gives a fragment.
 	return [slot];
 }

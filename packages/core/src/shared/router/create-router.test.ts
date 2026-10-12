@@ -221,3 +221,10 @@ it("prefetch option", () => {
 	expect(router.match("/b").client).toEqual({ prefetch: "intent" });
 	expect(router.match("/c")).not.toHaveProperty("client");
 });
+
+it("view transitions option", () => {
+	const tree = { layouts: {}, routeTree: [] };
+	expect(createRouter({ ...tree, viewTransitions: true }).viewTransitions).toEqual({});
+	expect(createRouter({ ...tree, viewTransitions: { types: ["fade"] } }).viewTransitions).toEqual({ types: ["fade"] });
+	expect(createRouter({ ...tree, viewTransitions: false }).viewTransitions).toBe(false);
+});
