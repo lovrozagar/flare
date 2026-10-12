@@ -94,6 +94,7 @@ Split from `match.ts` at the 300-line limit.
 | test | case | result |
 | --- | --- | --- |
 | `tree` | a shell with text, a comment, a script, and nesting | each element knows its parent and its previous element sibling, its classes, and its attributes |
+| `entities` | `class="[&amp;>*]:p-2 content-[&#39;x&#39;] q-[&quot;y&quot;]"` and `data-x="&#x41;&lt;"`, as Solid writes attributes | the classes are `[&>*]:p-2`, `content-['x']`, and `q-["y"]`, and `data-x` is `A<`. Named (`amp`, `lt`, `gt`, `quot`, `apos`, `nbsp`), decimal, and hex references are decoded before matching, so `.\[\&\>\*\]\:p-2` matches |
 | `loose markup` | unquoted and empty values, a boolean attribute, and an unterminated comment, doctype, or end tag | the attributes read as written, and the shell ends there |
 
 ### `shared/css/critical.test.ts`
