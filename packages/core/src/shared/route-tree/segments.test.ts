@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { parseSegment } from "./segments.ts";
+import { idPattern, parseSegment } from "./segments.ts";
 
 it("static segment", () => {
 	expect(parseSegment("about")).toEqual([{ kind: "static", text: "about" }]);
@@ -31,8 +31,12 @@ it("bad brackets", () => {
 	expect(() => parseSegment("[_]blog")).toThrow(/bad brackets/);
 });
 
-it("root is not a segment", () => {
-	expect(parseSegment("_root_")).toEqual([]);
-	expect(parseSegment("_admin_")).toEqual([]);
-	expect(parseSegment("__")).toEqual([{ kind: "static", text: "__" }]);
+it("id pattern", () => {
+	expect(idPattern("site/_root_/about")).toBe("/about");
+	expect(idPattern("[locale]/_root_/about")).toBe("/[locale]/about");
+	expect(idPattern("_shop_/cart")).toBe("/cart");
+	expect(idPattern("_root_/(blog)/post")).toBe("/post");
+	expect(idPattern("_root_")).toBe("/");
+	expect(idPattern("__/x")).toBe("/__/x");
+	expect(idPattern("(site)/[_]x]/_root_/[_]id]")).toBe("/[_]id]");
 });

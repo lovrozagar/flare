@@ -1,5 +1,6 @@
 import type { ChainRecord } from "../route-builder/chain.ts";
 import {
+	idPattern,
 	isRootFolder,
 	matchParams,
 	patternSegments,
@@ -130,8 +131,8 @@ function layoutChain(layouts: RouterOptions["layouts"], id: string): ChainEntry[
 		.map((layout) => ({ id: layout, kind: "layout" as const, module: layouts[layout] }));
 }
 
-// "root" is the root layout that owns the path. "fuzzy" is the longest layout that owns it (B73). A layout id
-// is its URL prefix pattern, because groups and root folders add no segment.
+// "root" is the root layout that owns the path. "fuzzy" is the longest layout that owns it (B73). A layout's
+// URL prefix is idPattern of its id, the same rule codegen uses for a page.
 function notFoundOwner(router: Router, path: string): string | undefined {
 	const candidates = Object.keys(router.layouts).filter((id) => router.notFoundMode === "fuzzy" || isRoot(id));
 	const owners = candidates.filter((id) => owns(id, path, router.caseSensitive));
@@ -143,12 +144,12 @@ function isRoot(id: string): boolean {
 }
 
 function owns(id: string, path: string, caseSensitive: boolean): boolean {
-	return matchParams(`${id}/[[...flareTail]]`, path, { caseSensitive }) !== undefined;
+	return matchParams(`${idPattern(id)}/[[...flareTail]]`, path, { caseSensitive }) !== undefined;
 }
 
 // More URL segments first, then the deeper id (a group inside its parent), then `_root_` over another root.
 function specific(left: string, right: string): number {
-	const segments = patternSegments(right).length - patternSegments(left).length;
+	const segments = patternSegments(idPattern(right)).length - patternSegments(idPattern(left)).length;
 	if (segments !== 0) return segments;
 	const depth = right.split("/").length - left.split("/").length;
 	if (depth !== 0) return depth;

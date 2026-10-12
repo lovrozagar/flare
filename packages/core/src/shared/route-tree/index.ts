@@ -1,4 +1,4 @@
-export { isRootFolder, parseSegment } from "./segments.ts";
+export { idPattern, isRootFolder, parseSegment } from "./segments.ts";
 export { matchParams, matchPath, patternSegments, type RawParams } from "./match.ts";
 export { matchId } from "./match-id.ts";
 export { readParams } from "./params.ts";

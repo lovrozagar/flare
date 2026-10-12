@@ -155,3 +155,13 @@ it("fuzzy group", () => {
 	expect(missing.chain.map((entry) => entry.id)).toEqual(["_root_", "_root_/(blog)"]);
 	expect(missing.notFoundRender).toBe(groupNotFound);
 });
+
+it("prefixed root", () => {
+	const router = createRouter({
+		layouts: { "site/_root_": { notFoundRender: rootNotFound } },
+		routeTree: [{ id: "site/_root_/about", path: "/about", module: {} }],
+	});
+	const missing = router.match("/missing");
+	expect(missing.chain.map((entry) => entry.id)).toEqual(["site/_root_"]);
+	expect(missing.notFoundRender).toBe(rootNotFound);
+});

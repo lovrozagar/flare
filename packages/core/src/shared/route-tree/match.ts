@@ -52,9 +52,23 @@ function value(kind: "dynamic" | "catch-all", taken: readonly string[]): string 
 	return taken.map(upperHex);
 }
 
+// The characters a URL parser percent-encodes in a pathname, beside C0 controls, DEL, and non-ASCII.
+const PATH_ENCODED = ' "#<>?^`{}';
+
 function sameStatic(text: string, part: string, sensitive: boolean): boolean {
-	const expected = encodeURIComponent(text);
-	return sensitive ? expected === part : expected.toLowerCase() === part.toLowerCase();
+	const expected = upperHex(pathEncode(text));
+	const actual = upperHex(part);
+	return sensitive ? expected === actual : expected.toLowerCase() === actual.toLowerCase();
+}
+
+function pathEncode(text: string): string {
+	let out = "";
+	for (const char of text) {
+		const code = char.charCodeAt(0);
+		const encoded = code < 0x20 || code > 0x7e || PATH_ENCODED.includes(char);
+		out += encoded ? encodeURIComponent(char) : char;
+	}
+	return out;
 }
 
 // A valid %HH is uppercased and not decoded. %ZZ, a trailing %, and %2 stay as written (B81).
