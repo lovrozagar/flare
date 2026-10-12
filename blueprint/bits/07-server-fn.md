@@ -148,6 +148,8 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 | test | case | result |
 | --- | --- | --- |
 | `posts` | a POST function | the request URL is `/_flare/fn/<id>` and the method is POST |
+| `returned response` | a handler returns `new Response("x", { status: 418 })` | the server sets `flare-fn: response`, and the call resolves with that Response: status 418, body `x` still readable |
+| `json response` | a handler returns `Response.json({ status: 200, items: [1] })` | the call resolves with the Response, and `await res.json()` gives `{ status: 200, items: [1] }`; it is not read as an envelope |
 | `iterator` | a stream function | the async iterator yields both values |
 | `reject` | the client receives a failure envelope | the promise rejects with an `Error` whose message, stack, and digest are the envelope's. A 400 puts `{ issues, fieldErrors }` on that error. A same-origin redirect is the internal URL navigation with the envelope's `replace`, not public `navigate({ to })`, and the promise still rejects |
 | `untrusted envelope` | an issue with no message, a non-array path, a non-array `issues`, an object with no `status` | an issue with a message keeps it, with an empty path when its path is not an array. `fieldErrors` is derived from the kept issues. No `status` rejects as the bare HTTP status |
