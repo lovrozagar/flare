@@ -227,6 +227,8 @@ Run against oxc, not a regex.
 
 Each row is a fixture built with Vite. The mutation is inserting the bad pattern.
 
+The tripwire is structural. `flare:boundary`'s `renderChunk` passes every module of every chunk, with its final code after every plugin (`getModuleInfo(id).code`), to `checkChunk`. A client or worker chunk fails when a module holds a server function body that is not `undefined`, a B8-removed route method, a server-only body, or a `.server()` body, or is a module of the package's `src/server`, `src/adapters`, or `src/vite`. An ssr chunk fails when a module holds a client-only body or a `.client()` body. Every module is read, inside the app root or not, and a module that cannot be parsed fails closed. It reuses the transform's walk (`serverCode`, `wrongSideBodies`), and that is enough because B85 and dx/env.md make every shape the walk does not know a build error, so the walk covers all legal code and the tripwire catches a body a later plugin put back. Text fingerprints are not used, because a literal a loader and a render share would fail a real build. The sentinels only assert absence or presence in the emitted text. A mutation fixture puts a body back with an `enforce: "post"` plugin. The transform runs on a module whose only queries are Vite's own (`t`, `v`, `import`) and skips any other query (`?raw`, `?url`, `?worker`, `?inline`). Vite 8 strips `t` and `import` before `transform`, and `v` reaches it. `vite/plugin/flare.test.ts` `hmr keeps split` edits a route file in a running dev server and re-requests it with `?t=` and `?v=`: the loader body stays out.
+
 | test | case | result |
 | --- | --- | --- |
 | `handler body` | the handler returns the string `SENTINEL_FN` | the client chunk does not contain it, and a fixture that forces it into the chunk fails the build |
@@ -237,6 +239,8 @@ Each row is a fixture built with Vite. The mutation is inserting the bad pattern
 | `iso server body` | the `.server()` body is `SENTINEL_ISO` | absent from the client chunk and the worker chunk, present in the ssr chunk |
 | `clean` | the minimal app | the build passes |
 | `four bodies` | a sentinel in the handler, the stream generator, the `authorize` callback, and the input validator | absent from the client chunk and the worker chunk. Present in the SSR chunk. A fixture that forces any of the four into the client or worker chunk fails the build |
+| `outside root` | a workspace module outside the app root with a server function handler, imported by the client entry | it is never transformed, so its body reaches the client chunk and fails the build |
+| `route method` | a client module whose route chain still calls `.loader()`, or ends in `.response(answer)`, and one that cannot be parsed | each fails. `.response(undefined)` and a render-only chain pass |
 
 ### `shared/env/server-only.test.ts`
 

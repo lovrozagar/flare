@@ -1,4 +1,5 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "vite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import solid from "@solidjs/vite-plugin";
@@ -125,7 +126,9 @@ it("dev server", () => {
 
 // The map carries the original source, so only the code is checked.
 function code(result: unknown): string {
-	return String(Reflect.get(Object(result), "code"));
+	const text: unknown = typeof result === "object" && result !== null ? Reflect.get(result, "code") : undefined;
+	if (typeof text !== "string") throw new Error("the module was not transformed");
+	return text;
 }
 
 it("boundary transform", () => {
@@ -145,8 +148,14 @@ it("boundary transform", () => {
 	const fn =
 		'import { createServerFn } from "@lovrozagar/flare/server-fn";\nexport const echo = createServerFn().handler(h);\n';
 	expect(code(run("ssr", "/app/src/fns/echo.ts", fn))).toContain(`__id: "${fnId("src/fns/echo.ts", "echo")}"`);
+	// Vite's own queries leave the module the module. Any other asks for something else.
+	expect(code(run("client", "/app/src/lib/read.ts?v=abc123", source))).not.toContain("SECRET");
+	expect(code(run("client", "/app/src/lib/read.ts?import&t=1", source))).not.toContain("SECRET");
 	for (const id of [
 		"/app/src/lib/read.ts?raw",
+		"/app/src/lib/read.ts?url",
+		"/app/src/lib/read.ts?worker",
+		"/app/src/lib/read.ts?inline",
 		"\0virtual:x.ts",
 		"/app/src/style.css",
 		"/elsewhere/read.ts",
@@ -156,3 +165,37 @@ it("boundary transform", () => {
 	}
 	expect(run("client", "/app/src/plain.ts", "export const a = 1;\n")).toBeNull();
 });
+
+it("hmr keeps split", async () => {
+	const root = mkdtempSync(join(tmpdir(), "flare-hmr-"));
+	mkdirSync(join(root, "src"));
+	writeFileSync(join(root, "flare-stub.ts"), "export const createPage = (id: string) => ({ id });\n");
+	const file = join(root, "src/a.page.ts");
+	const source =
+		'import { createPage } from "@lovrozagar/flare";\nexport const route = createPage("_root_/a").loader(() => "LOADER_BODY").render(() => "page");\n';
+	writeFileSync(file, source);
+	const boundary = flare().find((item) => item.name === "flare:boundary");
+	const server = await createServer({
+		root,
+		configFile: false,
+		logLevel: "silent",
+		plugins: boundary === undefined ? [] : [boundary],
+		resolve: { alias: { "@lovrozagar/flare": join(root, "flare-stub.ts") } },
+		server: { middlewareMode: true, hmr: false, ws: false },
+	});
+	try {
+		const client = server.environments.client;
+		expect((await client.transformRequest("/src/a.page.ts"))?.code).not.toContain("LOADER_BODY");
+		// An edit, then the re-request a hot update makes.
+		writeFileSync(file, source.replace("LOADER_BODY", "LOADER_EDIT"));
+		const changed = await client.moduleGraph.getModuleByUrl("/src/a.page.ts");
+		if (changed !== undefined) client.moduleGraph.invalidateModule(changed);
+		const hot = (await client.transformRequest("/src/a.page.ts?t=1700000000000"))?.code ?? "";
+		expect(hot).toContain('createPage("_root_/a").render(');
+		expect(hot).not.toContain("LOADER_EDIT");
+		expect((await client.transformRequest("/src/a.page.ts?v=abc123"))?.code).not.toContain("LOADER_EDIT");
+	} finally {
+		await server.close();
+		rmSync(root, { recursive: true, force: true });
+	}
+}, 30_000);
