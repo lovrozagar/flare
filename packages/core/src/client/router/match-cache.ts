@@ -4,7 +4,7 @@ import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { matchId } from "../../shared/route-tree/index.ts";
 import { loadedModule, type Match, type Router } from "../../shared/router/create-router.ts";
 import { readSearch, type Location } from "../../shared/url/index.ts";
-import type { Landed } from "../navigation/frames.ts";
+import type { Landed, Values } from "../navigation/frames.ts";
 
 type Raw = Record<string, string | string[]>;
 
@@ -31,6 +31,7 @@ export type CacheEntry = {
 	deps?: string;
 	head?: HeadConfig;
 	preloader?: Record<string, unknown>;
+	values?: Values;
 	staleTime?: number;
 	gcTime?: number;
 };
@@ -151,9 +152,11 @@ function entryOf(match: CachedMatch, landing: Landed): CacheEntry {
 	const entry: CacheEntry = { data, deferred: holds(data) };
 	const head = landing.heads[match.route];
 	const preloader = landing.preloaders?.[match.route];
+	const values = landing.values?.[match.route];
 	const client = clientOf(match.client);
 	if (head !== undefined) entry.head = head;
 	if (preloader !== undefined) entry.preloader = preloader;
+	if (values !== undefined) entry.values = values;
 	if (client.staleTime !== undefined) entry.staleTime = parseDuration(client.staleTime);
 	if (client.gcTime !== undefined) entry.gcTime = parseDuration(client.gcTime);
 	return entry;

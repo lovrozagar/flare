@@ -1,5 +1,5 @@
 import type { Frame } from "../../shared/protocol/index.ts";
-import type { LoaderFrame } from "../loaders/cascade.ts";
+import type { DataFrame, LoaderFrame } from "../loaders/cascade.ts";
 import { hints } from "../loaders/hints.ts";
 import type { LoaderRun } from "../loaders/run.ts";
 
@@ -15,21 +15,28 @@ export function skippedRoutes(matches: readonly DataMatch[], stale: string | nul
 
 // The `l` frames and the loader `e` frame, then the `h` frames, root down. A skipped match writes neither
 // `l` nor `h`.
-// A match whose preloader context has keys carries it as `p` (02-system).
+// A match whose preloader context has keys carries it as `p`. A match with `.input()` carries its output as `v`,
+// because the client never runs validators (02-system, B8).
 export function dataFrames(
-	run: Pick<LoaderRun, "frames" | "heads" | "contexts">,
+	run: Pick<LoaderRun, "frames" | "heads" | "contexts" | "inputs">,
 	skipped: ReadonlySet<string>,
 ): { loaded: LoaderFrame[]; heads: Frame[] } {
 	const kept = run.frames.filter((frame) => frame.t === "l");
 	const loaded = run.frames
 		.filter((frame) => frame.t !== "l" || !skipped.has(frame.m))
-		.map((frame) => {
-			const context = frame.t === "l" ? run.contexts[kept.indexOf(frame)] : undefined;
-			return context === undefined || Object.keys(context).length === 0 ? frame : { ...frame, p: context };
-		});
+		.map((frame) => (frame.t === "l" ? carried(frame, run, kept.indexOf(frame)) : frame));
 	const heads = kept.flatMap((frame, index): Frame[] => {
 		const head = run.heads[index];
 		return head === undefined || skipped.has(frame.m) ? [] : [{ t: "h", m: frame.m, d: head }];
 	});
 	return { loaded, heads };
+}
+
+function carried(frame: DataFrame, run: Pick<LoaderRun, "contexts" | "inputs">, index: number): DataFrame {
+	const context = run.contexts[index];
+	const input = run.inputs[index];
+	const out: DataFrame = { ...frame };
+	if (context !== undefined && Object.keys(context).length > 0) out.p = context;
+	if (input.validated) out.v = { params: input.params, search: input.search };
+	return out;
 }

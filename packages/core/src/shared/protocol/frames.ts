@@ -5,7 +5,7 @@ export type FrameError = { message: string; stack?: string; digest?: string };
 
 // The seven NDJSON frames of 02-system. There is no `q` frame (B6, B16).
 export type Frame =
-	| { t: "l"; m: string; d: unknown; p?: unknown }
+	| { t: "l"; m: string; d: unknown; p?: unknown; v?: unknown }
 	| { t: "e"; m: string; e: FrameError; k?: string }
 	| { t: "h"; m: string; d: HeadConfig }
 	| { t: "r" }

@@ -247,7 +247,7 @@ type Next = {
 };
 
 // A match the response sent nothing for keeps what the client holds: a page skipped as stale takes its cached
-// data and head, and any other match keeps the previous screen's (B30, B83).
+// data, head, and `v`, and any other match keeps the previous screen's (B30, B83). No `v` paints the raw records.
 function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	const params = defined(next.target.match.params);
 	const search = readSearch(next.target.location.search);
@@ -260,7 +260,8 @@ function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 		const landed = entry.id in landing.data;
 		const data = landed ? landing.data[entry.id] : (held[index] ?? previous)?.data;
 		const kept = landed ? landing.preloaders?.[entry.id] : (held[index] ?? previous)?.preloader;
-		return { id: entry.id, kind: entry.kind, module: entry.module, params, search, data, preloader: kept ?? {} };
+		const values = (landed ? landing.values?.[entry.id] : held[index]?.values) ?? { params, search };
+		return { id: entry.id, kind: entry.kind, module: entry.module, ...values, data, preloader: kept ?? {} };
 	});
 	const heads = next.chain.map(
 		(entry, index) => landing.heads[entry.id] ?? held[index]?.head ?? next.previous.heads[earlier(entry.id)],
