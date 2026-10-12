@@ -37,7 +37,11 @@ function stripComments(css: string): string {
 	let at = 0;
 	while (at < css.length) {
 		const char = css.charAt(at);
-		if (char === '"' || char === "'") {
+		if (char === "\\") {
+			// A backslash escapes the next character anywhere in CSS, as Tailwind's `\{` does.
+			out += css.slice(at, at + 2);
+			at += 2;
+		} else if (char === '"' || char === "'") {
 			const end = stringEnd(css, at);
 			out += css.slice(at, end);
 			at = end;
@@ -63,12 +67,14 @@ function stringEnd(text: string, start: number): number {
 	throw new Error("css: unclosed string");
 }
 
-// The first of `stops` outside strings and parentheses, or -1. Braces in `url(x{y})` are not structure.
+// The first of `stops` outside strings, parentheses, and escapes, or -1. Braces in `url(x{y})` and in `.a\{b` are
+// not structure.
 function scan(text: string, start: number, stops: string): number {
 	let depth = 0;
 	for (let at = start; at < text.length; at += 1) {
 		const char = text.charAt(at);
-		if (char === '"' || char === "'") at = stringEnd(text, at) - 1;
+		if (char === "\\") at += 1;
+		else if (char === '"' || char === "'") at = stringEnd(text, at) - 1;
 		else if (char === "(") depth += 1;
 		else if (char === ")") depth -= 1;
 		else if (depth === 0 && stops.includes(char)) return at;
