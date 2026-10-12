@@ -11,6 +11,6 @@ export {
 	type Blockers,
 	type BlockerSteps,
 } from "./blocker.ts";
-export { resolveTarget, type NavigateInput, type Target, type TargetContext } from "./target.ts";
+export { resolveTarget, resolveUrl, type NavigateInput, type Target, type TargetContext } from "./target.ts";
 export { isChunkError, loadDocument, type ReloadEnv } from "./reload.ts";
 export { framesOf, landFrames, type LandOptions, type Landed } from "./frames.ts";
