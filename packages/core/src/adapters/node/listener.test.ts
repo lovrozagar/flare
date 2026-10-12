@@ -244,3 +244,19 @@ it("fetch throws", async () => {
 	expect(statuses).toEqual([500]);
 	expect(ended).toBe(true);
 });
+
+// The request's origin is the one the adapter resolved from Host, so a browser's same-origin POST passes CSRF (B44).
+it("host origin", async () => {
+	const urls: string[] = [];
+	const listener = createNodeListener({
+		fetch: async (request) => {
+			urls.push(request.url);
+			return new Response("ok");
+		},
+	});
+	const res = { writeHead() {}, setHeader() {}, write: () => true, end() {}, once() {} };
+	listener({ ...req(), url: "/a?b=1", headers: { host: "127.0.0.1:5173" } }, res);
+	listener(req(), res);
+	await settle();
+	expect(urls).toEqual(["http://127.0.0.1:5173/a?b=1", "http://localhost/"]);
+});
