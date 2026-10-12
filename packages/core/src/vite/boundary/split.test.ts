@@ -132,3 +132,59 @@ export const route = createPage("_root_/a")
 	const entry = new SourceMap(JSON.parse(result.map.toString())).findEntry(generated, column);
 	expect(entry).toMatchObject({ originalLine: original, originalColumn: column });
 });
+
+// The loader is the only real read of `db`. The render only mentions the name.
+function mentions(render: string): string {
+	return split(`${BUILDER}import { db } from "./db.server.ts";
+export const route = createPage("_root_/a")
+	.loader(() => db.read())
+	.render((p) => ${render});
+`);
+}
+
+it("member property", () => {
+	expect(mentions("p.loaderData.db")).not.toContain("db.server");
+	expect(mentions("<ui.db />")).not.toContain("db.server");
+});
+
+it("object key", () => {
+	expect(mentions("({ db: 1 }).db")).not.toContain("db.server");
+	expect(mentions("new (class { db = 1; db2() {} })()")).not.toContain("db.server");
+	expect(mentions("((q: { db: string; db3(): void }) => q)")).not.toContain("db.server");
+	expect(mentions("(() => { db: for (;;) break db; })()")).not.toContain("db.server");
+	expect(mentions("import.meta.env")).not.toContain("db.server");
+});
+
+it("declaration", () => {
+	for (const render of [
+		"((q: ns.db) => q)",
+		"(() => { db: for (;;) continue db; })()",
+		"(() => { class db {} try {} catch (db) {} try {} catch {} return 1; })()",
+		"(([a, ...db], { x: db2 = 1 }: T) => a)",
+		"new (class { constructor(private db: number) {} })(1)",
+	]) {
+		expect(mentions(render)).not.toContain("db.server");
+	}
+});
+
+it("jsx attribute", () => {
+	expect(mentions('<div db="1" />')).not.toContain("db.server");
+	expect(mentions('<svg db:x="1" />')).not.toContain("db.server");
+});
+
+it("real read", () => {
+	for (const render of ["db.name", "({ db })", "<db.Panel />", "p[db]", "({ [db]: 1 })", "<C x={db} />"]) {
+		expect(mentions(render)).toContain('import { db } from "./db.server.ts";');
+	}
+	// A re-export of the import is a read.
+	const exported = `${BUILDER}import { db } from "./db.server.ts";
+export { db };
+export const route = createPage("_root_/a").loader(() => db.read()).render(() => 1);
+`;
+	expect(split(exported)).toContain('import { db } from "./db.server.ts";');
+	const renamed = `${BUILDER}import { db } from "./db.server.ts";
+export { other as db };
+export const route = createPage("_root_/a").loader(() => db.read()).render(() => 1);
+`;
+	expect(split(renamed)).not.toContain("db.server");
+});
