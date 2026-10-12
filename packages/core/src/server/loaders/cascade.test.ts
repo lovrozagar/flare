@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { notFound, unauthenticated, unauthorized } from "../../shared/errors/http.ts";
+import { UnauthenticatedError, notFound, unauthenticated, unauthorized } from "../../shared/errors/http.ts";
 import { runLoaders, type LoaderRun, type LoaderRoute, type RunInput } from "./run.ts";
 
 const boom = new Error("boom");
@@ -118,4 +118,28 @@ it("failed layout", async () => {
 it("page loader did run", async () => {
 	const { pageRan } = await spied("data", throws(boom), () => ({ secret: 1 }));
 	expect(pageRan).toBe(true);
+});
+
+function throwing(error: unknown): () => never {
+	return () => {
+		throw error;
+	};
+}
+
+it("ranked", async () => {
+	const run = await runLoaders({
+		kind: "document",
+		request: new Request("http://localhost/"),
+		env: {},
+		authenticate: () => null,
+		routes: [
+			{ id: "root", loader: throwing(boom) },
+			{ id: "layout", loader: throwing(new UnauthenticatedError()) },
+			{ id: "page", loader: () => notFound() },
+		],
+	});
+	expect(run.response.status).toBe(401);
+	expect(run.failed).toMatchObject({ m: "root", status: 401, boundary: "unauthenticatedRender" });
+	expect(run.failed?.error).toBeInstanceOf(UnauthenticatedError);
+	expect(run.data).toEqual([]);
 });

@@ -1,5 +1,5 @@
 import { boundaryKind, type BoundaryKind } from "../../shared/components/index.ts";
-import { statusOf } from "../../shared/errors/status.ts";
+import { rankStatus, statusOf } from "../../shared/errors/status.ts";
 
 export type RequestKind = "document" | "data" | "prefetch";
 
@@ -23,19 +23,29 @@ export type Cascade = {
 };
 
 // Outcomes are root-down. Everything below the first failed match is dropped, even when its loader
-// returned data (B29): a failed layout gate must not leak a descendant's data.
+// returned data (B29): a failed layout gate must not leak a descendant's data. The status ranks every failure
+// (B82). The paint slot stays the root-most failure.
 export function cascade(kind: RequestKind, outcomes: readonly Outcome[]): Cascade {
+	const failures = outcomes.flatMap((outcome) =>
+		outcome.settled.ok
+			? []
+			: [{ m: outcome.id, error: outcome.settled.error, status: statusOf(outcome.settled.error) }],
+	);
 	const kept: DataFrame[] = [];
 	for (const outcome of outcomes) {
-		const settled = outcome.settled;
-		if (!settled.ok) return failAt(kind, kept, { m: outcome.id, error: settled.error });
-		kept.push({ t: "l", m: outcome.id, d: settled.data });
+		if (!outcome.settled.ok) break;
+		kept.push({ t: "l", m: outcome.id, d: outcome.settled.data });
 	}
-	return { status: 200, frames: kept, kept };
+	if (failures.length === 0) return { status: 200, frames: kept, kept };
+	return failAt(kind, kept, failures);
 }
 
-function failAt(kind: RequestKind, kept: readonly DataFrame[], at: { m: string; error: unknown }): Cascade {
-	const status = statusOf(at.error);
+type Failure = { m: string; error: unknown; status: number };
+
+function failAt(kind: RequestKind, kept: readonly DataFrame[], failures: readonly Failure[]): Cascade {
+	const status = rankStatus(failures.map((failure) => failure.status));
+	const ranked = failures.filter((failure) => failure.status === status)[0];
+	const at = { m: failures[0].m, error: ranked.error };
 	const failed = { ...at, status, boundary: boundaryKind(status) };
 	if (kind === "document") return { status, frames: kept, kept, failed };
 	if (status !== 500) return { status, frames: [], kept, failed };
