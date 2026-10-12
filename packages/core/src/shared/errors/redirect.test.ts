@@ -14,12 +14,14 @@ it("route", () => {
 	const error = thrown({ to: "_root_/about" });
 	expect(error).toBeInstanceOf(RedirectError);
 	expect(error.status).toBe(307);
+	expect(error.defaulted).toBe(true);
 	expect(error.replace).toBe(true);
 	expect(error.to).toBe("_root_/about");
 });
 
 it("status", () => {
 	expect(thrown({ to: "_root_", status: 301 }).status).toBe(301);
+	expect(thrown({ to: "_root_", status: 301 }).defaulted).toBe(false);
 	expect(() => redirect({ to: "_root_", status: 200 })).toThrow("200");
 });
 
