@@ -18,6 +18,8 @@ const PHASES = ["P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10
 const NEEDS_TEST = new Set(["src", "lint", "script"]);
 const SCAN_ROOTS = ["packages/core", "scripts"];
 const SKIP_DIR = new Set(["node_modules", "dist", "coverage", "test-results", "playwright-report", ".wrangler"]);
+// Framework scripts are TypeScript. Anything else under scripts/ is agent tooling and is not in files.tsv.
+const SCRIPTS_DIR = "scripts/";
 const GENERATED_GLOB = "packages/core/src/features/fonts/shared/generated/*.ts";
 const REGISTRY = "packages/core/src/features/fonts/registry.json";
 const RE_EXPORT_FILE = /^(?:export\s+(?:type\s+)?\{[^{}]*\}\s+from\s+["'][^"']+["']\s*;?\s*)*$/;
@@ -165,8 +167,14 @@ function walk(dir: string, root: string, files: string[]): void {
 			walk(full, root, files);
 			continue;
 		}
-		files.push(relative(root, full).split(sep).join("/"));
+		const file = relative(root, full).split(sep).join("/");
+		if (isTooling(file)) continue;
+		files.push(file);
 	}
+}
+
+function isTooling(file: string): boolean {
+	return file.startsWith(SCRIPTS_DIR) && !file.endsWith(".ts");
 }
 
 function matchGlob(glob: string, file: string): boolean {

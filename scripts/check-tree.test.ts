@@ -99,3 +99,17 @@ it("generated pattern matches keys", () => {
 	expect(result.ok).toBe(true);
 	expect(result.generated).toEqual(["abel.ts", "inter.ts"]);
 });
+
+it("tooling scripts skipped", () => {
+	const root = makeRoot();
+	const tracked = "scripts/tracked.ts";
+	write(root, tracked, "export const tracked = 1;\n");
+	write(root, "scripts/tool.mjs", "export const tool = 1;\n");
+	write(root, "scripts/scrub-text", "#!/usr/bin/env node\n");
+	const tsvPath = join(root, "files.tsv");
+	writeFileSync(tsvPath, tsv([row(tracked, "P0", "script"), row("scripts/tracked.test.ts", "P0", "test")]));
+	write(root, "scripts/tracked.test.ts", "export {};\n");
+	expect(checkTree(root, tsvPath)).toEqual({ ok: true, errors: [], generated: [] });
+	write(root, "scripts/untracked.ts", "export const untracked = 1;\n");
+	expect(checkTree(root, tsvPath).errors).toEqual(["scripts/untracked.ts"]);
+});

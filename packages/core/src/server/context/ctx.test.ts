@@ -13,7 +13,15 @@ const request = new Request("http://localhost/");
 function routerWith(loader: () => string): Router {
 	return createRouter({
 		layouts: { _root_: createRootLayout("_root_").render(() => "") },
-		routeTree: [{ id: "_root_", path: "/", module: createPage("_root_").loader(loader).render(() => "") }],
+		routeTree: [
+			{
+				id: "_root_",
+				path: "/",
+				module: createPage("_root_")
+					.loader(loader)
+					.render(() => ""),
+			},
+		],
 	});
 }
 
