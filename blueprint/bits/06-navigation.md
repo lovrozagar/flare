@@ -241,10 +241,12 @@ Corpus-driven, one line per frame.
 | `slot order` | an `h` frame with a title | `useHead` is called with that title |
 | `replace` | the next navigation has a different title | the old title is gone |
 | `nonce` | an `h` frame with an inline script, and `self.flare.nonce` is `n` | the applied script's nonce is `n` |
+| `adopt` | a server-rendered head, then hydrate with the same `h` results | the head has exactly one `title` and one description `meta`, and they are the server's own elements |
+| `navigate removes` | from that head, the next commit has a new title and no description | one `title` with the new text, and no description `meta` |
 
 ### `shared/head/tags.test.ts`
 
-`mergeHead` and the tag rules move from `server/render/head.ts` to `shared/head/tags.ts`, so the server and the client share one builder. Descriptors hold raw values. `server/render/head.ts` serializes them, and `server/render/head.test.ts` passes unchanged, which proves the move changed no output. `client/head/apply.ts` calls `useHead` with the same descriptors.
+`mergeHead` and the tag rules move from `server/render/head.ts` to `shared/head/tags.ts`, so the server and the client share one builder. Descriptors hold raw values. The server passes them to Solid's SSR `useHead`, and the client passes them to `useHead`, so every head tag carries Solid's `data-dh` identity on both sides and the client adopts the server's tags on hydrate (B1, B83). The case-insensitive `</script` and `</style` rewrite runs on descriptor text in `tags.ts`. `server/render/head.test.ts` keeps its cases; its expected strings change only by Solid's `data-dh` attributes.
 
 | test | case | result |
 | --- | --- | --- |
