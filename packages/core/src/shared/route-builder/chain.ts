@@ -158,9 +158,12 @@ export type Chain = {
 	record: () => ChainRecord;
 };
 
-// The order of dx/builder.md. loader and response share a slot because they are mutually exclusive.
+// The order of dx/builder.md. loader and response share a slot because they are mutually exclusive. The key
+// order is not the step order: a page's own `intercept` and `response` come first and `render` last, so the steps
+// between them are the ones every typed builder forwards.
 const ORDER = {
 	intercept: 0,
+	response: 8,
 	cache: 1,
 	input: 2,
 	authenticate: 3,
@@ -169,7 +172,6 @@ const ORDER = {
 	effects: 6,
 	preloader: 7,
 	loader: 8,
-	response: 8,
 	head: 10,
 	render: 13,
 } as const;
@@ -238,6 +240,24 @@ export function createChain(_id: string): Chain {
 
 type Next<K extends RouteKind> = <T extends RouteState>() => RouteBuilder<T, K>;
 
+// Every typed step but `render` forwards to the chain and returns the next builder. The names are ORDER's keys
+// between a page's own two steps and `render`.
+function forwarded<S extends RouteState, K extends RouteKind>(
+	chain: Chain,
+	next: Next<K>,
+): Pick<BuilderSteps<S, K>, Exclude<keyof BuilderSteps<S, K>, "render">>;
+function forwarded(chain: Chain, next: () => unknown): object {
+	return Object.fromEntries(
+		Object.keys(ORDER)
+			.slice(2, -1)
+			.map((name) => [
+				name,
+				// The chain's steps are closures and never read `this`.
+				(...args: unknown[]): unknown => (Reflect.get(chain, name)(...args), next()),
+			]),
+	);
+}
+
 // One chain behind every typed builder. A typed step stores on the chain and returns `next()`, a builder of the new
 // state over the same chain, so the type changes without a cast. `finish` builds the record render returns.
 export function typedSteps<S extends RouteState, K extends RouteKind>(
@@ -246,42 +266,7 @@ export function typedSteps<S extends RouteState, K extends RouteKind>(
 	finish: () => RouteRecord & { readonly _type: K },
 ): BuilderSteps<S, K> {
 	return {
-		cache(config) {
-			chain.cache(config);
-			return next();
-		},
-		input(config) {
-			chain.input(config);
-			return next();
-		},
-		authenticate(...callerData) {
-			chain.authenticate(...callerData);
-			return next();
-		},
-		authenticateOptional(...callerData: readonly string[]) {
-			chain.authenticateOptional(...callerData);
-			return next();
-		},
-		authorize(fn) {
-			chain.authorize(fn);
-			return next();
-		},
-		effects(effects) {
-			chain.effects(effects);
-			return next();
-		},
-		preloader(fn) {
-			chain.preloader(fn);
-			return next();
-		},
-		loader(fn) {
-			chain.loader(fn);
-			return next();
-		},
-		head(fn) {
-			chain.head(fn);
-			return next();
-		},
+		...forwarded<S, K>(chain, next),
 		render(fn) {
 			chain.render(fn);
 			return withBoundaries<RouteRecord & TypedRecord<S, K>, { params: S["params"]; search: S["search"] }>(finish());
