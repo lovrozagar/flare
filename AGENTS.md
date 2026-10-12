@@ -39,16 +39,14 @@ assume it can.
 ## Before you call it done
 
 From the repo root; CI runs the same set, with `fmt:check` in place of `fmt`.
+Judge each by its exit code, not by the printed count.
 
-    bun run fmt          # oxfmt, rewrites in place
-    bun run lint         # oxlint
-    bun run typecheck
-    bun run typecheck:consumers
-    bun run typecheck:harness   # e2e runners, run-build/run-env, scripts/
-    bun run typecheck:consumer-strict   # packed tarball under strict consumer flags
-    bun run test
-    bun run test:cli
-    bun run test:build   # builds every e2e app for every deploy target
+    bun run fmt               # oxfmt, rewrites in place
+    bun run lint              # oxlint
+    bun run typecheck         # core, src under consumer-strict flags, scripts/
+    bun run test              # vitest, 100% per-file coverage
+    bun scripts/check-tree.ts # the tree matches blueprint/files.tsv
 
-Per-runtime e2e (`test:e2e`, `:bun`, `:deno`, `:workers`) needs Playwright
-browsers — leave to CI.
+`bun run test:e2e` runs the Playwright projects this OS owns (Linux: chromium
+and firefox) when the browsers are installed. A bit's Done also needs a fresh
+worktree that passes `bun install --frozen-lockfile` and all five gates.
