@@ -27,13 +27,22 @@ Creates every `P1` row. At the end, the minimal app answers `GET /` with a docum
 | `case fold` | `caseSensitive: false`, path `/About` | match |
 | `case strict` | `caseSensitive: true`, path `/About` | no match |
 | `no match` | path `/missing` | no match |
+| `dynamic` | pattern `/users/[id]`, path `/users/42` | match. `/users` and `/users/42/x` do not |
+| `optional` | pattern `/optional-locale/[[locale]]` | `/optional-locale` and `/optional-locale/fr` match. `/optional-locale/fr/x` does not |
+| `catch-all` | pattern `/files/[...path]` | `/files/a/b` matches with `path` `["a", "b"]`. `/files` does not |
+| `group and root` | id `_root_/(blog)/post`, pattern `/post` | `/post` matches. A group or root folder adds no segment |
 
 ### `shared/route-tree/rank.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
-| `static wins` | `/about` and `/:id` both match | the static route |
-| `dynamic wins over catch-all` | `/:id` and `/*rest` | the dynamic route |
+| `static wins` | `/users/new` and `/users/[id]`, path `/users/new` | `/users/new` |
+| `dynamic wins over optional` | `/x/[id]` and `/x/[[locale]]`, path `/x/a` | `/x/[id]` |
+| `dynamic wins over catch-all` | `/files/[id]` and `/files/[...rest]`, path `/files/a` | `/files/[id]` |
+| `catch-all wins over optional catch-all` | `/docs/[...rest]` and `/docs/[[...rest]]`, path `/docs/a` | `/docs/[...rest]` |
+| `leftmost segment decides` | `/a/[id]/c` and `/a/b/[...rest]`, path `/a/b/c` | `/a/b/[...rest]`. Segments compare left to right and the first difference decides |
+
+Patterns use the codegen bracket syntax. There is no `:id` or `*rest` form. Groups and root folders add no segment.
 
 ### `shared/route-tree/params.test.ts`
 
