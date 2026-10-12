@@ -246,6 +246,6 @@ it("head identity", async () => {
 	const bare = (): JSX.Element => element("html", () => [element("head", () => []), element("body", () => "home")]);
 	const html = await text(await renderDocument({ ...base(), nonce: "n", head, render: bare }));
 	expect(html).toContain('<title data-dh="title">T</title>');
-	expect(html).toContain('<meta name="description" content="D" data-dh="meta:key:h1">');
-	expect(html).toMatch(/<script type="application\/ld\+json" nonce="n" data-dh="script:key:h2">/);
+	expect(html).toContain('<meta name="description" content="D" data-dh="meta:key:meta:description:0">');
+	expect(html).toMatch(/<script type="application\/ld\+json" nonce="n" data-dh="script:key:script:[0-9a-z]+:0">/);
 });

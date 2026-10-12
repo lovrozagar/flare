@@ -13,7 +13,10 @@ beforeEach(() => {
 	(globalThis as FlareScope).flare = { nonce: "" };
 });
 
+const mounted: (() => void)[] = [];
+
 afterEach(() => {
+	for (const dispose of mounted.splice(0)) dispose();
 	delete (globalThis as FlareScope).flare;
 	document.head.innerHTML = "";
 });
@@ -27,6 +30,7 @@ function mount(initial: readonly (HeadConfig | undefined)[]) {
 		},
 		document.body.appendChild(document.createElement("div")),
 	);
+	mounted.push(dispose);
 	flush();
 	return { setHeads, dispose };
 }
@@ -58,7 +62,8 @@ it("nonce", async () => {
 });
 
 // The head Solid's server writes for [{ title: "Root", description: "D" }]: the identities headTags' keys give.
-const serverHead = '<title data-dh="title">Root</title><meta name="description" content="D" data-dh="meta:key:h1">';
+const serverHead =
+	'<title data-dh="title">Root</title><meta name="description" content="D" data-dh="meta:key:meta:description:0">';
 
 it("adopt", async () => {
 	document.head.innerHTML = serverHead;
@@ -82,4 +87,40 @@ it("navigate removes", async () => {
 	expect([...document.head.querySelectorAll("title")].map((node) => node.textContent)).toEqual(["Next"]);
 	expect(document.head.querySelector('meta[name="description"]')).toBeNull();
 	expect(document.title).toBe("Next");
+});
+
+it("keep", async () => {
+	const view = mount([{ title: "Root", description: "D" }]);
+	await settle();
+	const description = document.head.querySelector('meta[name="description"]');
+	const removed: Node[] = [];
+	new MutationObserver((records) => records.forEach((record) => removed.push(...record.removedNodes))).observe(
+		document.head,
+		{ childList: true },
+	);
+	view.setHeads([{ title: "Root", keywords: "k", description: "D" }]);
+	flush();
+	await settle();
+	expect(document.head.querySelector('meta[name="description"]')).toBe(description);
+	expect(removed).not.toContain(description);
+});
+
+function script(body: string): HeadConfig {
+	return { custom: { scripts: [{ children: body }] } };
+}
+
+it("script changed", async () => {
+	const view = mount([script("run(1)")]);
+	await settle();
+	const first = [...document.head.querySelectorAll("script")].find((node) => node.textContent === "run(1)");
+	view.setHeads([{ description: "added before" }, script("run(1)")]);
+	flush();
+	await settle();
+	expect([...document.head.querySelectorAll("script")].find((node) => node.textContent === "run(1)")).toBe(first);
+	view.setHeads([script("run(2)")]);
+	flush();
+	await settle();
+	const bodies = [...document.head.querySelectorAll("script")].map((node) => node.textContent);
+	expect(bodies.filter((body) => body === "run(2)")).toHaveLength(1);
+	expect(bodies).not.toContain("run(1)");
 });

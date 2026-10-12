@@ -4,8 +4,8 @@ type Tag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<
 
 // One head element for Solid's useHead. Values are raw: Solid escapes them on the server and sets DOM properties
 // on the client. `children` is the element text, `true` an attribute with no value, and `false` an attribute
-// that is not written. `key` is the index in the list, so the server's `data-dh` identity is the one the client
-// computes, and Solid adopts and removes these exact elements (B83).
+// that is not written. `key` is semantic, so the server's `data-dh` identity is the one the client computes,
+// and Solid adopts, keeps, and removes these exact elements (B83).
 export type HeadTag = Tag & { key: string };
 
 export type HeadTagOptions = { nonce?: string; appStylesheet?: string };
@@ -54,39 +54,35 @@ export function headTags(head: HeadConfig, options: HeadTagOptions = {}): HeadTa
 		...jsonLd(head.jsonLd, options.nonce),
 		...customTags(head.custom, options.nonce),
 	];
-	return tags.map((tag, index) => ({ ...tag, key: `h${index}` }));
+	const seen = new Map<string, number>();
+	return tags.map((tag) => {
+		if (tag.tag === "title") return { ...tag, key: "title" };
+		const base = identity(tag);
+		const occurrence = seen.get(base) ?? 0;
+		seen.set(base, occurrence + 1);
+		return { ...tag, key: `${base}:${occurrence}` };
+	});
 }
 
-// The replace rules of B83. Single values replace, records shallow-merge with the child key winning, and lists
-// concatenate. `replace` makes the child the whole head.
-export function mergeHead(parent: HeadConfig, child: HeadConfig, replace = false): HeadConfig {
-	if (replace) return child;
-	const parentCustom = parent.custom ?? {};
-	const childCustom = child.custom ?? {};
-	return {
-		title: pick(child.title, parent.title),
-		description: pick(child.description, parent.description),
-		keywords: pick(child.keywords, parent.keywords),
-		canonical: pick(child.canonical, parent.canonical),
-		css: pick(child.css, parent.css),
-		languages: { ...parent.languages, ...child.languages },
-		meta: { ...parent.meta, ...child.meta },
-		robots: { ...parent.robots, ...child.robots },
-		openGraph: { ...parent.openGraph, ...child.openGraph },
-		twitter: { ...parent.twitter, ...child.twitter },
-		favicons: { ...parent.favicons, ...child.favicons },
-		images: [...list(parent.images), ...list(child.images)],
-		jsonLd: [...list(parent.jsonLd), ...list(child.jsonLd)],
-		custom: {
-			links: [...list(parentCustom.links), ...list(childCustom.links)],
-			meta: [...list(parentCustom.meta), ...list(childCustom.meta)],
-			scripts: [...list(parentCustom.scripts), ...list(childCustom.scripts)],
-			styles: [...list(parentCustom.styles), ...list(childCustom.styles)],
-		},
-	};
+// What a tag is, never where it sits, so adding a tag earlier in the next merge leaves the others alone. Two
+// equal tags are told apart by their occurrence (dx/head.md).
+function identity(tag: Tag): string {
+	const props = tag.props;
+	if (tag.tag === "meta") return `meta:${String(props.name ?? props.property ?? props["http-equiv"] ?? props.charset)}`;
+	if (tag.tag === "link") return `link:${String(props.rel)}:${String(props.hreflang ?? props.href)}`;
+	return `${tag.tag}:${typeof props.src === "string" ? props.src : hash(String(props.children))}`;
 }
 
-const pick = <T>(child: T | undefined, parent: T | undefined): T | undefined => (child === undefined ? parent : child);
+// FNV-1a, base 36. A short stable name for a script, style, or JSON-LD body.
+function hash(text: string): string {
+	let value = 0x811c9dc5;
+	for (let index = 0; index < text.length; index += 1) {
+		value ^= text.charCodeAt(index);
+		value = Math.imul(value, 0x01000193);
+	}
+	return (value >>> 0).toString(36);
+}
+
 const list = <T>(value: readonly T[] | undefined): T[] => (value ? [...value] : []);
 
 function textTag(value: string | undefined): Tag[] {
