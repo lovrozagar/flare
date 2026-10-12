@@ -39,12 +39,18 @@ it("missing session", async () => {
 		{ id: "page", preloader: () => seen.push("page") },
 	];
 	const result = await gate(input({ authenticate: () => null, routes, readStore: missing.readStore }));
-	expect(result).toEqual({ kind: "stopped", index: 1, session: null, error: new UnauthenticatedError() });
+	expect(result).toEqual({
+		kind: "stopped",
+		index: 1,
+		session: null,
+		error: new UnauthenticatedError(),
+		contexts: [{}],
+	});
 	expect(seen).toEqual(["outer"]);
 	expect(missing.reads).toBe(0);
 	const present = storeSpy();
 	const signedIn = await gate(input({ authenticate: () => session, readStore: present.readStore }));
-	expect(signedIn).toEqual({ kind: "proceed", session, class: "required" });
+	expect(signedIn).toEqual({ kind: "proceed", session, class: "required", contexts: [{}] });
 	expect(present.reads).toBe(0);
 });
 
@@ -53,12 +59,12 @@ it("optional anonymous", async () => {
 	const result = await gate(
 		input({ authenticate: () => null, routes: [{ id: "page", auth: optional }], readStore: store.readStore }),
 	);
-	expect(result).toEqual({ kind: "proceed", session: null, class: "anonymous" });
+	expect(result).toEqual({ kind: "proceed", session: null, class: "anonymous", contexts: [{}] });
 	expect(store.reads).toBe(1);
 	const signedIn = await gate(
 		input({ authenticate: () => session, routes: [{ id: "page", auth: optional }], readStore: store.readStore }),
 	);
-	expect(signedIn).toEqual({ kind: "proceed", session, class: "anonymous" });
+	expect(signedIn).toEqual({ kind: "proceed", session, class: "anonymous", contexts: [{}] });
 	expect(store.reads).toBe(2);
 });
 
@@ -75,7 +81,7 @@ it("response route", async () => {
 			},
 		}),
 	);
-	expect(result).toEqual({ kind: "stopped", index: 0, session, error: new UnauthorizedError() });
+	expect(result).toEqual({ kind: "stopped", index: 0, session, error: new UnauthorizedError(), contexts: [] });
 	expect(called).toBe(false);
 	expect(store.reads).toBe(0);
 });
@@ -114,7 +120,7 @@ it("authorize throw", async () => {
 			readStore: store.readStore,
 		}),
 	);
-	expect(thrown).toEqual({ kind: "stopped", index: 0, session, error: boom });
+	expect(thrown).toEqual({ kind: "stopped", index: 0, session, error: boom, contexts: [] });
 	const denied = await gate(
 		input({
 			authenticate: () => session,
@@ -122,7 +128,7 @@ it("authorize throw", async () => {
 			readStore: store.readStore,
 		}),
 	);
-	expect(denied).toEqual({ kind: "stopped", index: 0, session, error: new UnauthorizedError() });
+	expect(denied).toEqual({ kind: "stopped", index: 0, session, error: new UnauthorizedError(), contexts: [] });
 	expect(store.reads).toBe(0);
 });
 

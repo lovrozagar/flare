@@ -305,3 +305,90 @@ it("policy class", async () => {
 	);
 	expect(required.class).toBe("required");
 });
+
+type Seen = Record<string, unknown>;
+
+function contextOf(ctx: { preloaderContext?: Seen }): Seen | "absent" {
+	return "preloaderContext" in ctx ? (ctx.preloaderContext ?? {}) : "absent";
+}
+
+it("preloader context", async () => {
+	const seen: Record<string, Seen | "absent"> = {};
+	const mark =
+		(name: string, value?: Seen) =>
+		(ctx: { preloaderContext?: Seen }): Seen | undefined => {
+			seen[name] = contextOf(ctx);
+			return value;
+		};
+	const run = await runLoaders(
+		request(
+			[
+				{
+					id: "root",
+					preloader: mark("root preloader", { a: 1 }),
+					authorize: (ctx) => {
+						seen["root authorize"] = contextOf(ctx);
+						return true;
+					},
+				},
+				{
+					id: "layout",
+					preloader: mark("layout preloader", { b: 2 }),
+					authorize: (ctx) => {
+						seen["layout authorize"] = contextOf(ctx);
+						return true;
+					},
+					loader: mark("layout loader"),
+				},
+				{
+					id: "page",
+					preloader: mark("page preloader", { c: 3 }),
+					loader: mark("page loader"),
+					head: (ctx) => {
+						seen["page head"] = ctx.preloaderContext;
+						return {};
+					},
+				},
+			],
+			{ response: (ctx) => (seen["page response"] = contextOf(ctx)) },
+		),
+	);
+	expect(seen).toEqual({
+		"root preloader": "absent",
+		"root authorize": "absent",
+		"layout preloader": { a: 1 },
+		"layout authorize": { a: 1 },
+		"page preloader": { a: 1, b: 2 },
+		"page response": { a: 1, b: 2, c: 3 },
+		"layout loader": { a: 1, b: 2 },
+		"page loader": { a: 1, b: 2, c: 3 },
+		"page head": { a: 1, b: 2, c: 3 },
+	});
+	expect(run.contexts).toEqual([{ a: 1 }, { a: 1, b: 2 }, { a: 1, b: 2, c: 3 }]);
+});
+
+it("preloader merge", async () => {
+	let last: Seen | "absent" = "absent";
+	const merged = await runLoaders(
+		request([
+			{ id: "root", preloader: () => ({ role: "editor", x: 1 }) },
+			{ id: "layout", preloader: () => undefined },
+			{
+				id: "page",
+				preloader: () => ({ role: "admin" }),
+				loader: (ctx) => {
+					last = contextOf(ctx);
+				},
+			},
+		]),
+	);
+	expect(last).toEqual({ role: "admin", x: 1 });
+	expect(merged.contexts).toEqual([
+		{ role: "editor", x: 1 },
+		{ role: "editor", x: 1 },
+		{ role: "admin", x: 1 },
+	]);
+	const none = await runLoaders(request([{ id: "page", loader: (ctx) => (last = contextOf(ctx)) }]));
+	expect(last).toEqual({});
+	expect(none.contexts).toEqual([{}]);
+});

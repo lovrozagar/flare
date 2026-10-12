@@ -12,8 +12,11 @@ export type CacheConfig =
 
 import type { HeadConfig } from "./types.ts";
 
-// What preloader, authorize, and loader receive (dx/types.md). Render does not receive auth.
-export type StepContext = { auth: unknown; request: Request; env: unknown };
+export type PreloaderContext = Record<string, unknown>;
+
+// What preloader, authorize, and loader receive (dx/types.md). Render does not receive auth. The root's
+// preloader and authorize get no preloaderContext; every later callback does.
+export type StepContext = { auth: unknown; request: Request; env: unknown; preloaderContext?: PreloaderContext };
 
 export type ChainAuth = { mode: true | "optional"; callerData: readonly string[] };
 
@@ -21,7 +24,7 @@ type Step = (ctx: StepContext) => unknown;
 
 type Authorize = (ctx: StepContext) => boolean | Promise<boolean>;
 
-type Head = (ctx: { loaderData: unknown }) => HeadConfig;
+type Head = (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
 
 type Render = (props: { loaderData: unknown }) => unknown;
 

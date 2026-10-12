@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { createLayout } from "../../shared/route-builder/layout.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
@@ -98,8 +99,8 @@ it("state matches", async () => {
 	const payload = /self\.flare=(.*?)<\/script>/.exec(body)?.[1];
 	if (payload === undefined) throw new Error("state script");
 	expect(JSON.parse(payload).matches).toEqual([
-		{ id: "_root_", params: {}, search: { q: "1" }, data: null, preloader: null, head: null, error: null },
-		{ id: "_root_", params: {}, search: { q: "1" }, data: "Home", preloader: null, head: null, error: null },
+		{ id: "_root_", params: {}, search: { q: "1" }, data: null, preloader: {}, head: null, error: null },
+		{ id: "_root_", params: {}, search: { q: "1" }, data: "Home", preloader: {}, head: null, error: null },
 	]);
 	const tab = createPage("_root_/users/[id]/[[tab]]")
 		.loader(() => "user")
@@ -117,4 +118,37 @@ it("state matches", async () => {
 		{ id: "42" },
 		{ id: "42" },
 	]);
+});
+
+async function preloaders(app: ReturnType<typeof createServer>, path: string): Promise<unknown[]> {
+	const body = await (await app.fetch(new Request(`http://localhost${path}`))).text();
+	const payload = /self\.flare=(.*?)<\/script>/.exec(body)?.[1];
+	if (payload === undefined) throw new Error("state script");
+	return JSON.parse(payload).matches.map((match: { preloader: unknown }) => match.preloader);
+}
+
+it("state preloader", async () => {
+	const chained = createServer({
+		router: createRouter({
+			layouts: {
+				_root_: createRootLayout("_root_")
+					.preloader(() => ({ a: 1 }))
+					.render(show),
+				"_root_/shop": createLayout("_root_/shop")
+					.preloader(() => ({ b: 2 }))
+					.render(show),
+			},
+			routeTree: [
+				{
+					id: "_root_/shop/cart",
+					path: "/shop/cart",
+					module: createPage("_root_/shop/cart")
+						.preloader(() => ({ c: 3 }))
+						.render(show),
+				},
+			],
+		}),
+	});
+	expect(await preloaders(chained, "/shop/cart")).toEqual([{ a: 1 }, { a: 1, b: 2 }, { a: 1, b: 2, c: 3 }]);
+	expect(await preloaders(server, "/")).toEqual([{}, {}]);
 });

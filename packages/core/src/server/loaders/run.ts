@@ -1,4 +1,4 @@
-import type { ChainAuth, StepContext } from "../../shared/route-builder/chain.ts";
+import type { ChainAuth, PreloaderContext, StepContext } from "../../shared/route-builder/chain.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { shapeIssues, type Issue } from "../../shared/validation/issues.ts";
 import { gate } from "../auth/gate.ts";
@@ -13,7 +13,7 @@ export type LoaderRoute = {
 	preloader?: (ctx: StepContext) => unknown;
 	authorize?: (ctx: StepContext) => boolean | Promise<boolean>;
 	loader?: (ctx: StepContext) => unknown;
-	head?: (ctx: { loaderData: unknown }) => HeadConfig;
+	head?: (ctx: { loaderData: unknown; preloaderContext: PreloaderContext }) => HeadConfig;
 	headers?: () => void;
 };
 
@@ -25,16 +25,18 @@ export type RunInput = {
 	shared?: boolean;
 	readStore?: () => void;
 	overlay?: (error: unknown) => void;
+	response?: (ctx: StepContext) => void;
 	routes: readonly LoaderRoute[];
 };
 
-// `data` and `heads` are the root-down matches above the first failure, the ones that render. A match
-// with no .head() has an undefined head.
+// `data`, `heads`, and `contexts` are the root-down matches above the first failure, the ones that render.
+// A match with no .head() has an undefined head. `contexts` is the preloader context through each match.
 export type LoaderRun = {
 	response: Response;
 	frames: readonly LoaderFrame[];
 	data: readonly unknown[];
 	heads: readonly (HeadConfig | undefined)[];
+	contexts: readonly PreloaderContext[];
 	failed?: Failed;
 	class?: PolicyClass;
 };
@@ -44,21 +46,25 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	if (invalid !== undefined) return bare(json(shapeIssues(invalid)));
 	const gated = await gate(input);
 	if (gated.kind === "status") return bare(finalize({ status: gated.status, body: "" }));
-	const ctx = { auth: gated.session, request: input.request, env: input.env };
-	if (gated.kind === "proceed") return { ...conclude(input, await load(input.routes, ctx)), class: gated.class };
+	const base = { auth: gated.session, request: input.request, env: input.env };
+	const contexts = gated.contexts;
+	if (gated.kind === "proceed") {
+		return { ...conclude(input, await load(input.routes, base, contexts), contexts), class: gated.class };
+	}
 	// Matches outside the stopped one still load. It and everything inside it do not (B27, B29).
-	const outer = await load(input.routes.slice(0, gated.index), ctx);
+	const outer = await load(input.routes.slice(0, gated.index), base, contexts);
 	const stopped = { id: input.routes[gated.index].id, settled: { ok: false as const, error: gated.error } };
-	return conclude(input, [...outer, stopped]);
+	return conclude(input, [...outer, stopped], contexts);
 }
 
 function bare(response: Response): LoaderRun {
-	return { response, frames: [], data: [], heads: [] };
+	return { response, frames: [], data: [], heads: [], contexts: [] };
 }
 
-function conclude(input: RunInput, outcomes: readonly Outcome[]): LoaderRun {
+function conclude(input: RunInput, outcomes: readonly Outcome[], contexts: readonly PreloaderContext[]): LoaderRun {
 	const result = cascade(input.kind, outcomes);
-	const heads = result.kept.map((frame, index) => finish(input.routes[index], frame.d));
+	const kept = contexts.slice(0, result.kept.length);
+	const heads = result.kept.map((frame, index) => finish(input.routes[index], frame.d, kept[index]));
 	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
 	if (result.failed?.status === 500) input.overlay?.(result.failed.error);
 	return {
@@ -66,6 +72,7 @@ function conclude(input: RunInput, outcomes: readonly Outcome[]): LoaderRun {
 		frames: result.frames,
 		data: result.kept.map((frame) => frame.d),
 		heads,
+		contexts: kept,
 		failed: result.failed,
 	};
 }
@@ -79,9 +86,17 @@ function collectIssues(routes: readonly LoaderRoute[]): readonly Issue[] | undef
 	return undefined;
 }
 
-function load(routes: readonly LoaderRoute[], ctx: StepContext): Promise<Outcome[]> {
+// Each loader sees the preloader context through its own match: parents, then its own return.
+function load(
+	routes: readonly LoaderRoute[],
+	base: StepContext,
+	contexts: readonly PreloaderContext[],
+): Promise<Outcome[]> {
 	return Promise.all(
-		routes.map(async (route): Promise<Outcome> => ({ id: route.id, settled: await settle(route, ctx) })),
+		routes.map(async (route, index): Promise<Outcome> => ({
+			id: route.id,
+			settled: await settle(route, { ...base, preloaderContext: contexts[index] }),
+		})),
 	);
 }
 
@@ -93,8 +108,8 @@ async function settle(route: LoaderRoute, ctx: StepContext): Promise<Settled> {
 	}
 }
 
-function finish(route: LoaderRoute, loaderData: unknown): HeadConfig | undefined {
-	const head = route.head?.({ loaderData });
+function finish(route: LoaderRoute, loaderData: unknown, preloaderContext: PreloaderContext): HeadConfig | undefined {
+	const head = route.head?.({ loaderData, preloaderContext });
 	route.headers?.();
 	return head;
 }

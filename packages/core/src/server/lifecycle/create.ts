@@ -95,11 +95,7 @@ async function notFound(exchange: Exchange, chain: readonly ChainEntry[]): Promi
 	return answer(exchange, 404);
 }
 
-async function page(
-	exchange: Exchange,
-	chain: readonly ChainEntry[],
-	params: RawParams,
-): Promise<Response> {
+async function page(exchange: Exchange, chain: readonly ChainEntry[], params: RawParams): Promise<Response> {
 	const run = await runLoaders(loaderInput(exchange, chain));
 	if (run.response.status !== 200) return failed(exchange, run);
 	const html = await renderDocument({
@@ -134,7 +130,7 @@ function stateMatches(request: Request, rendered: Rendered): StateMatch[] {
 		params,
 		search,
 		data: data ?? null,
-		preloader: null,
+		preloader: rendered.run.contexts[index],
 		head: rendered.run.heads[index] ?? null,
 		error: null,
 	}));
