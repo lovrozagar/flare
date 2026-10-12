@@ -151,7 +151,7 @@ The app paints the bar. Flare returns the number. These v0 props do not exist: `
 | each `trickle` tick, while the current value is below `0.2` | add `0.1` |
 | below `0.5` | add `0.04` |
 | below `0.8` | add `0.02` |
-| below `0.99` | add `0.005` |
+| below `0.994` | add `0.005` |
 | otherwise | add `0` |
 | after the add | at most `0.994`. It stays below `1` while `pending` is true |
 
