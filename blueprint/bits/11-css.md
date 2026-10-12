@@ -31,6 +31,7 @@ Component styles are Vite CSS modules, authored by the app, imported from the co
 | `prod markup` | href `/assets/app.css`, nonce `n` | a preload link, a noscript stylesheet link, and a script whose nonce is `n` |
 | `script constant` | the script text | it sets the preloaded link's `rel` to `stylesheet` and does not read the network |
 | `no inline style` | the swap markup | it contains no `<style>`. The critical block is inserted by `critical-style`, not by this markup |
+| `no nonce` | href `/assets/app.css` and nonce `""`, the case of a string or `false` CSP (B68) | one plain `<link rel="stylesheet">` and no script. An un-nonced swap script would be blocked by a string CSP and leave the page on its critical CSS alone |
 
 ### `shared/components/stylesheet.test.tsx`
 
@@ -94,6 +95,8 @@ Pseudo-classes and pseudo-elements stay in the output and do not have to be acti
 | `escape` | the CSS contains `</style>` | the result contains no raw `</style>` |
 | `empty` | css `""` | `""` |
 | `reset inlined` | the CSS starts with the preflight and the shell is `<html><body>` | the result contains the `*` rule from that preflight |
+| `parse once` | two `criticalCss` calls with the same sheet | the sheet is parsed once per process. Each call only matches the shell |
+| `candidates` | a sheet of 5,000 class rules and a shell using 3 of those classes | only rules keyed by the shell's classes, ids, and tags, plus rules with no such key, are tested against the shell. Rules are indexed by the rightmost compound's class, id, or tag |
 
 ### `shared/css/sheet.test.ts`
 
@@ -126,7 +129,8 @@ Pseudo-classes and pseudo-elements stay in the output and do not have to be acti
 | `reset on` | `css: { reset: true }` | the built CSS starts with that preflight |
 | `server sheet` | the client build produced `body{color:red}` | the server module source is that text |
 | `client graph` | the same build | the client JavaScript does not contain that text. The browser loads the file |
+| `build parse` | the client CSS holds `@import`, `@charset`, or a rule the parser cannot read | the build fails and names the file. A request never parses a sheet the build did not accept |
 
 ## Done
 
-A production SSR, SSG, or ISR document flushes a shell whose head starts with the nonced critical style for that shell, then loads the one stylesheet without blocking. A stored hit serves that style and does not extract again. A data response has neither. A development document has no critical style. `css: { reset: true }` is the only way Flare adds a preflight.
+A production SSR, SSG, or ISR document flushes a shell whose head ends with the nonced critical style for that shell (B15: the last element in `head`), then loads the one stylesheet without blocking. A stored hit serves that style and does not extract again. A data response has neither. A development document has no critical style. `css: { reset: true }` is the only way Flare adds a preflight.
