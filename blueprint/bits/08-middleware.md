@@ -60,6 +60,7 @@ Filters are `exact` or `prefix`. There is no regular expression.
 | `location rewritten` | upstream `Location: /secret` and the mount prefix is `/api` | `Location: /api/secret` |
 | `hostile location` | upstream `Location: //evil` | 502, the `Location` is not forwarded |
 | `raw body` | a POST body with bytes that are not valid UTF-8 | the upstream receives the same bytes |
+| `streamed body` | a POST whose body stream sends one chunk and stays open | the upstream receives that chunk before the stream closes. The request is not buffered |
 | `set-cookie relay` | upstream sends `Set-Cookie` | the client response has it only when `relaySetCookie: true` |
 | `named connection` | `Connection: x-custom` and upstream sends `X-Custom` | `X-Custom` is dropped |
 | `cookie on` | `forwardCookies: true` | the upstream request has the `Cookie` header |
