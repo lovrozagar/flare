@@ -35,7 +35,7 @@ function lint(code: string, relative: string): number {
 		});
 		walk(parsed.program, null, visitors);
 		const allowed = relative.endsWith("/finalize.ts");
-		expect(reports.length).toBe(allowed ? 0 : 2);
+		expect(reports.length).toBe(allowed ? 0 : 4);
 		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" });
 		return proc.status ?? 1;
 	} finally {
@@ -60,7 +60,7 @@ function walk(node: unknown, parent: unknown, visitors: Record<string, (node: ne
 
 it("request header", () => {
 	const status = lint(
-		'export function read(request, headers, name) {\n\tother();\n\trequest.headers.get(name);\n\trequest.headers.get("accept");\n\theaders.set("flare-cache", "hit");\n\treturn request.headers.get("flare-isr");\n}\n',
+		'export function read(request, headers, seen, name) {\n\tother();\n\tseen.get("flare-isr");\n\trequest.foo.get("flare-isr");\n\theaders.set(name, "1");\n\trequest.headers.get(name);\n\trequest.headers.get("accept");\n\trequest.headers.get("Flare-ISR");\n\theaders.set("flare-cache", "hit");\n\treturn request.headers.get("flare-isr");\n}\n',
 		"src/server/lifecycle/order.ts",
 	);
 	expect(status).not.toBe(0);
