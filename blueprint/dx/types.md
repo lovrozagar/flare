@@ -142,6 +142,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `search empty` | validator returns `{}` | `Link` | `search` omitted | `search: {}` | app |
 | `parent search hidden` | layout validates `{ section: string }`, page does not | page `search` | the page stays raw | the page requires `section` | app |
 | `loader deep` | loader returns `{ user: { name: string } }` | `loaderData.user.name`, `useLoaderData({ from })` | `name` is `string` | `user.age`; `loaderData.missing` | app |
+| `loader primitive` | loader returns `"text"` or `1` | the loader | an object or no return | a primitive return | app |
 | `loader awaited` | loader returns `Promise<{ n: number }>` | `loaderData` | `{ n: number }` | the `Promise` remaining | app |
 | `loader absent` | render and no `.loader()` | `loaderData` | `void` | reading a field | app |
 | `parent loader hidden` | layout loader `{ section: string }`, page loader `{ title: string }` | `useLoaderData({ from: pageId })` | `title` | `section` on the page call | app |
