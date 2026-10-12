@@ -3,3 +3,4 @@ export { createLayout } from "../shared/route-builder/layout.ts";
 export { createRootLayout } from "../shared/route-builder/root-layout.ts";
 export { createRouter } from "../shared/router/create-router.ts";
 export { nonce } from "../shared/csp/nonce.ts";
+export { markSafeError } from "../shared/errors/index.ts";
