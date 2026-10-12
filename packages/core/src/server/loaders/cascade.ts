@@ -1,3 +1,4 @@
+import { boundaryKind, type BoundaryKind } from "../../shared/components/index.ts";
 import { statusOf } from "../../shared/errors/status.ts";
 
 export type RequestKind = "document" | "data" | "prefetch";
@@ -10,9 +11,7 @@ export type DataFrame = { t: "l"; m: string; d: unknown };
 
 export type LoaderFrame = DataFrame | { t: "e"; m: string; e: unknown };
 
-export type Boundary = "errorRender" | "notFoundRender" | "unauthenticatedRender" | "unauthorizedRender";
-
-export type Failed = { m: string; status: number; boundary: Boundary; error: unknown };
+export type Failed = { m: string; status: number; boundary: BoundaryKind; error: unknown };
 
 // `kept` is the root-down prefix above the first failure, whatever the request kind. Those matches render
 // and run .head() and .headers(). `frames` is what the request kind may serialize.
@@ -37,15 +36,8 @@ export function cascade(kind: RequestKind, outcomes: readonly Outcome[]): Cascad
 
 function failAt(kind: RequestKind, kept: readonly DataFrame[], at: { m: string; error: unknown }): Cascade {
 	const status = statusOf(at.error);
-	const failed = { ...at, status, boundary: boundaryOf(status) };
+	const failed = { ...at, status, boundary: boundaryKind(status) };
 	if (kind === "document") return { status, frames: kept, kept, failed };
 	if (status !== 500) return { status, frames: [], kept, failed };
 	return { status: 200, frames: [...kept, { t: "e", m: at.m, e: at.error }], kept, failed };
-}
-
-function boundaryOf(status: number): Boundary {
-	if (status === 404) return "notFoundRender";
-	if (status === 401) return "unauthenticatedRender";
-	if (status === 403) return "unauthorizedRender";
-	return "errorRender";
 }
