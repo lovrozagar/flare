@@ -35,6 +35,12 @@
 			}
 		},
 		{
+			"files": ["tests/e2e/apps/**"],
+			"rules": {
+				"flare/no-module-side-effects": "off"
+			}
+		},
+		{
 			"files": ["tests/e2e/**"],
 			"plugins": ["typescript", "unicorn", "oxc"],
 			"rules": {

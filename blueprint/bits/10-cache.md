@@ -205,6 +205,14 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `purged listed` | a listed slug whose tombstone is newer | a live render, and the body may be stored again |
 | `set-cookie` | a shared page that sets a cookie | the response is private and the store spy is not called |
 
+### `tests/e2e/navigation.test.ts` (extended)
+
+Moved from bit 06. It adds a page under `minimal` whose cache config leaves `/` and `/about` unchanged. It does not add an app.
+
+| test | case | result |
+| --- | --- | --- |
+| `stored stream fills` | a stored page whose defer mode is `stream` | the HTML has the placeholder, then a `no-store` data request fills it |
+
 ## Done
 
 A 401 cannot be read back as a 200. A second user cannot receive the first user's body. Purge does not depend on listing keys.

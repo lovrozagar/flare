@@ -144,18 +144,19 @@ it("params", () => {
 		layouts: { _root_: root },
 		routeTree: [{ id: "_root_/stray", path: "/stray", module: stray }],
 	});
-	expect(() =>
-		renderToString(() =>
-			provide(RouterContext, strayRouter, () =>
-				createComponent(Matches, {
-					state: () => ({
-						matches: [matches[0], { ...matches[1], id: "_root_/stray", module: stray }],
-						onBoundaryError: () => undefined,
-					}),
+	const thrown: unknown[] = [];
+	renderToString(() =>
+		provide(RouterContext, strayRouter, () =>
+			createComponent(Matches, {
+				state: () => ({
+					matches: [matches[0], { ...matches[1], id: "_root_/stray", module: stray }],
+					onBoundaryError: () => undefined,
+					failRender: (error: unknown) => void thrown.push(error),
 				}),
-			),
+			}),
 		),
-	).toThrow(/_root_\/missing/);
+	);
+	expect(String(thrown[0])).toMatch(/_root_\/missing/);
 });
 
 it("preloader", () => {

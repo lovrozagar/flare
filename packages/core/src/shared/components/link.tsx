@@ -1,4 +1,4 @@
-import { createComponent, createEffect, createMemo, merge, omit, useContext } from "solid-js";
+import { createComponent, createEffect, createMemo, merge, omit, untrack, useContext } from "solid-js";
 import { Dynamic, type JSX } from "@solidjs/web";
 import { withoutInternalKeys } from "../protocol/index.ts";
 import type { RoutePrefetch } from "../route-builder/index.ts";
@@ -64,8 +64,12 @@ export function Link(props: LinkProps): JSX.Element {
 	let element: HTMLAnchorElement | undefined;
 	createEffect(
 		() => (props.to !== undefined && props.disabled !== true ? url() : undefined),
-		(href) =>
-			href === undefined || element === undefined ? undefined : prefetcher?.watch(element, href, props.prefetch),
+		(href) => {
+			const anchor = element;
+			if (href === undefined || anchor === undefined) return undefined;
+			// The watch reads the location on screen once. It is not a dependency of this effect.
+			return untrack(() => prefetcher?.watch(anchor, href, props.prefetch));
+		},
 	);
 	const onClick = (event: Click): void => {
 		props.onClick?.(event);

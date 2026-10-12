@@ -222,3 +222,25 @@ it("disconnect aborts", async () => {
 	gone.close();
 	expect(seen[0].signal.aborted).toBe(true);
 });
+
+it("fetch throws", async () => {
+	const statuses: number[] = [];
+	let ended = false;
+	const listener = createNodeListener({
+		fetch: () => Promise.reject(new Error("server broke")),
+	});
+	listener(req(), {
+		writeHead(status) {
+			statuses.push(status);
+		},
+		setHeader() {},
+		write: () => true,
+		end() {
+			ended = true;
+		},
+		once() {},
+	});
+	await settle();
+	expect(statuses).toEqual([500]);
+	expect(ended).toBe(true);
+});

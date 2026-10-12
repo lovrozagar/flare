@@ -1,30 +1,14 @@
-import { createContext, onCleanup, useContext, type Context } from "solid-js";
+import { onCleanup, useContext } from "solid-js";
+import {
+	BlockerContext,
+	type Blocker,
+	type BlockerArgs,
+	type BlockerPlace,
+	type Blockers,
+	type BlockerSteps,
+} from "../../shared/router/context.ts";
 
-export type BlockerPlace = {
-	hash: string;
-	pathname: string;
-	search: string;
-	params: Record<string, string | string[]>;
-};
-
-export type BlockerArgs = {
-	current: BlockerPlace;
-	next: BlockerPlace;
-	trigger: "initial" | "navigation" | "revalidation";
-};
-
-export type Blocker = (args: BlockerArgs) => boolean;
-
-// `write` is the history write this attempt would make. `pushed` counts entries it already pushed.
-export type BlockerSteps = { write: () => void; pushed: number; go: (delta: number) => void };
-
-export type Blockers = {
-	register: (blocker: Blocker) => () => void;
-	run: (args: BlockerArgs & { popstate?: boolean }, steps: BlockerSteps) => boolean;
-	beforeUnload: (event: Event, current: BlockerPlace) => void;
-};
-
-export const BlockerContext: Context<Blockers> = createContext<Blockers>();
+export { BlockerContext, type Blocker, type BlockerArgs, type BlockerPlace, type Blockers, type BlockerSteps };
 
 // One stack per client. Only the last registered blocker runs (B84).
 export function createBlockers(): Blockers {

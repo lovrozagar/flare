@@ -82,3 +82,21 @@ it("boundaries", () => {
 	expect(offender).not.toBe(0);
 	expect(clean).toBe(0);
 });
+
+it("vite dev adapters", () => {
+	const dev = lint({
+		"src/vite/dev/handler.ts":
+			'import { createNodeListener } from "../../adapters/node/index.ts";\nexport const listen = createNodeListener;\n',
+	});
+	const plugin = lint({
+		"src/vite/plugin/flare.ts":
+			'import { createNodeListener } from "../../adapters/node/index.ts";\nexport const listen = createNodeListener;\n',
+	});
+	const bun = lint({
+		"src/vite/dev/handler.ts":
+			'import { createBunFetch } from "../../adapters/bun/index.ts";\nexport const serve = createBunFetch;\n',
+	});
+	expect(dev).toBe(0);
+	expect(plugin).not.toBe(0);
+	expect(bun).not.toBe(0);
+});

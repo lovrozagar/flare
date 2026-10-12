@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { environmentBuild, environmentOrder } from "./environments.ts";
+import { clientUrl, environmentBuild, environmentOrder } from "./environments.ts";
 
 it("defaults", () => {
 	const build = environmentBuild();
@@ -18,4 +18,11 @@ it("order", () => {
 
 it("no worker", () => {
 	expect(environmentOrder(false)).toEqual(["client", "ssr"]);
+});
+
+it("client url", () => {
+	expect(clientUrl({ entry: "src/client.tsx" })).toBe("/src/client.tsx");
+	const manifest = { "src/client.tsx": { file: "assets/client-1a2b3c.js" } };
+	expect(clientUrl({ entry: "src/client.tsx", manifest })).toBe("/assets/client-1a2b3c.js");
+	expect(() => clientUrl({ entry: "src/main.tsx", manifest })).toThrow(/src\/main\.tsx/);
 });

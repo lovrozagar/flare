@@ -3,7 +3,6 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createServer } from "vite";
 
 const apps = fileURLToPath(new URL("./apps/", import.meta.url));
 
@@ -20,24 +19,8 @@ export async function boot(input: { app: string; runtime: string; mode: string }
 	if (input.mode !== "dev") throw new Error(input.mode);
 	const appDir = join(apps, input.app);
 	const cacheDir = await mkdtemp(join(tmpdir(), "flare-vite-"));
-	if (input.app === "basepath") return bootChild(appDir, cacheDir);
-	const vite = await createServer({
-		configFile: join(appDir, "vite.config.ts"),
-		cacheDir,
-		server: { host: "127.0.0.1", port: 0 },
-	});
-	await vite.listen();
-	const address = vite.httpServer?.address();
-	if (!address || typeof address === "string") throw new Error("port");
-	return {
-		origin: `http://127.0.0.1:${address.port}`,
-		appDir,
-		cacheDir,
-		async close() {
-			await vite.close();
-			await rm(cacheDir, { recursive: true, force: true });
-		},
-	};
+	// A child process, so the app's Vite and the framework it loads stay out of the test process.
+	return bootChild(appDir, cacheDir);
 }
 
 const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", import.meta.url));

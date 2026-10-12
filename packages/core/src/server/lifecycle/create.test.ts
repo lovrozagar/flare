@@ -449,3 +449,12 @@ it("prefetch defer", async () => {
 	expect(body).not.toContain('"t":"c"');
 	expect(late).not.toHaveBeenCalled();
 });
+
+it("client script", async () => {
+	vi.stubEnv("FLARE_CLIENT_ENTRY", "/src/client.tsx");
+	const withEntry = await (await createServer({ router }).fetch(new Request("http://localhost/"))).text();
+	expect(withEntry).toContain('import("/src/client.tsx")');
+	vi.unstubAllEnvs();
+	const without = await (await createServer({ router }).fetch(new Request("http://localhost/"))).text();
+	expect(without).not.toContain("import(");
+});

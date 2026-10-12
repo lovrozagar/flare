@@ -73,10 +73,17 @@ function sideOf(bucketName) {
 	return bucketName.split(":")[2];
 }
 
+// The dev handler hosts the app server through the Node bridge an app uses (00-rules). No other vite file may.
+function devHost(fromRel, spec) {
+	return (
+		fromRel.startsWith("vite/dev/") && spec.startsWith(".") && resolveRel(fromRel, spec).startsWith("adapters/node/")
+	);
+}
+
 function allowed(fromRel, spec) {
 	const from = bucket(fromRel);
 	const to = target(fromRel, spec);
-	if (to === "pkg") return true;
+	if (to === "pkg" || devHost(fromRel, spec)) return true;
 	const fromFeature = featureOf(from);
 	const toFeature = featureOf(to);
 	if (fromFeature && toFeature) return FEATURE_SIDES[sideOf(from)].has(sideOf(to)) && fromFeature === toFeature;

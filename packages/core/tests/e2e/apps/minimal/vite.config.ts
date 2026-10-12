@@ -1,18 +1,9 @@
-import { defineConfig, type ViteDevServer } from "vite";
+import { flare } from "@lovrozagar/flare/vite";
+import { defineConfig } from "vite";
 
+// The real dev path: flare() serves src/server.ts through the SSR runner and the client hydrates (B89).
 export default defineConfig({
+	cacheDir: process.env.FLARE_VITE_CACHE,
 	server: { host: "127.0.0.1" },
-	plugins: [
-		{
-			name: "minimal-dev",
-			configureServer(dev: ViteDevServer) {
-				dev.middlewares.use((_req, res) => {
-					res.statusCode = 200;
-					res.end(
-						'<!doctype html><html><body><div id="app">Home</div><script>document.documentElement.setAttribute("data-flare-hydrated","")</script></body></html>',
-					);
-				});
-			},
-		},
-	],
+	plugins: [flare()],
 });

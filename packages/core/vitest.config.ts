@@ -16,6 +16,8 @@ export default defineConfig({
 				"**/*.test.tsx",
 				// Test support: the navigation tests share one mounted app.
 				"**/*.fixture.ts",
+				// The e2e apps have their own src/ folders. 00-rules covers packages/core/src only.
+				"tests/**",
 				"**/*.d.ts",
 				"**/index.ts",
 				"src/exports/**",
@@ -36,7 +38,8 @@ export default defineConfig({
 					name: "unit-node",
 					environment: "node",
 					include: nodeInclude,
-					exclude: ["src/client/**/*.test.ts", "tests/e2e/minimal.test.ts"],
+					// Playwright runs the e2e specs. boot.test.ts is a vitest file.
+					exclude: ["src/client/**/*.test.ts", "tests/e2e/minimal.test.ts", "tests/e2e/navigation.test.ts"],
 				},
 			},
 			{
