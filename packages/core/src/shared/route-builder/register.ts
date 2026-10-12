@@ -1,3 +1,5 @@
+import type { TypesOf } from "./types.ts";
+
 export interface FlareRegister {
 	auth?: unknown;
 	env?: unknown;
@@ -126,14 +128,14 @@ export type PropagationApp = FlareRegister & {
 	authModes: { "_root_/about": "optional" };
 	hasQueryClient: true;
 	routes: {
-		"_root_/about": "/about";
-		"_root_/users/[id]": "/users/:id";
-		"_root_/files/[...path]": "/files/*path";
-		"_root_/[[locale]]": "/:locale?";
-		"_root_/[[...rest]]": "/*rest?";
-		"_root_/[_]id]": "/id";
-		"_root_/(blog)/post": "/post";
-		"[locale]/_root_/about": "/about";
+		"/about": { params: {} };
+		"/users/[id]": { params: { id: string } };
+		"/files/[...path]": { params: { path: string[] } };
+		"/[[locale]]": { params: { locale: string | undefined } };
+		"/[[...rest]]": { params: { rest: string[] | undefined } };
+		"/[_]id]": { params: {} };
+		"/post": { params: {} };
+		"/[locale]/about": { params: { locale: string } };
 	};
 };
 
@@ -142,3 +144,13 @@ export type ResolvedAuth<R extends FlareRegister, Mode extends true | "optional"
 	: Mode extends "optional"
 		? RegisteredAuth<R> | null
 		: null;
+
+// The validated search a route's `.input()` recorded, or the raw record (dx/types.md). The generated register names
+// `routeSearchParams` with it, so no type is derived from text.
+export type SearchOutput<Route> = TypesOf<Route> extends { search: infer S } ? S : RawSearch;
+
+// The validated params a route's `.input()` recorded, or `never` when that file does not validate params.
+export type ParamsOutput<Route> = TypesOf<Route> extends { params: infer P } ? P : never;
+
+// The awaited data a route's `.loader()` recorded, or `void` when it has none.
+export type LoaderDataOf<Route> = TypesOf<Route> extends { loaderData: infer D } ? D : void;

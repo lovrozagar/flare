@@ -216,15 +216,14 @@ export function createChain(_id: string): Chain {
 	return chain;
 }
 
+// The steps every builder shares. `.input()` and `.loader()` change the builder's type, so each builder types them.
 export type Steps<B> = {
 	cache: (config: CacheConfig) => B;
-	input: (config: RouteInput) => B;
 	authenticate: (...callerData: readonly string[]) => B;
 	authenticateOptional: (...callerData: readonly string[]) => B;
 	authorize: (fn: Authorize) => B;
 	effects: (effects: Effects) => B;
 	preloader: (fn: Step) => B;
-	loader: (fn: Load) => B;
 	head: (fn: Head) => B;
 };
 
@@ -233,10 +232,6 @@ export function chainSteps<B>(chain: Chain, self: () => B): Steps<B> {
 	return {
 		cache(config) {
 			chain.cache(config);
-			return self();
-		},
-		input(config) {
-			chain.input(config);
 			return self();
 		},
 		authenticate(...callerData) {
@@ -257,10 +252,6 @@ export function chainSteps<B>(chain: Chain, self: () => B): Steps<B> {
 		},
 		preloader(fn) {
 			chain.preloader(fn);
-			return self();
-		},
-		loader(fn) {
-			chain.loader(fn);
 			return self();
 		},
 		head(fn) {

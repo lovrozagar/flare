@@ -119,8 +119,9 @@ it("segment to", () => {
 it("response route id", () => {
 	const ok: LinkProps<App, "_root_/echo"> = { to: "_root_/echo" };
 	expectTypeOf(ok.to).toEqualTypeOf<"_root_/echo">();
-	// @ts-expect-error a response page is not a public routes key by default
-	const _listed: keyof NonNullable<App["routes"]> = "_root_/echo";
+	// @ts-expect-error a response page has no public URL in routes, which is keyed by URL
+	const _listed: keyof NonNullable<App["routes"]> = "/echo";
+	expectTypeOf<NonNullable<App["routes"]>["/users/[id]"]>().toEqualTypeOf<{ params: { id: string } }>();
 });
 it("unregistered fallback", () => {
 	expectTypeOf<To<FlareRegister>>().toEqualTypeOf<string>();

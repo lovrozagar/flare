@@ -16,3 +16,11 @@ it("root chain", () => {
 		render,
 	});
 });
+
+function searchParams(raw: unknown): unknown {
+	return raw;
+}
+
+it("root input", () => {
+	expect(createRootLayout("_root_").input({ searchParams }).render(render).input).toEqual({ searchParams });
+});
