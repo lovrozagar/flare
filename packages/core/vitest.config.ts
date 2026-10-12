@@ -39,7 +39,12 @@ export default defineConfig({
 					environment: "node",
 					include: nodeInclude,
 					// Playwright runs the e2e specs. boot.test.ts is a vitest file.
-					exclude: ["src/client/**/*.test.ts", "tests/e2e/minimal.test.ts", "tests/e2e/navigation.test.ts"],
+					exclude: [
+						"src/client/**/*.test.ts",
+						"tests/e2e/minimal.test.ts",
+						"tests/e2e/navigation.test.ts",
+						"tests/e2e/server-fn.test.ts",
+					],
 				},
 			},
 			{
