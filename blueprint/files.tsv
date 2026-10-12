@@ -599,6 +599,7 @@ packages/core/tests/e2e/apps/minimal/src/routes/_root_/about.page.tsx	P6	app	-	S
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons.page.tsx	P6	app	-	Two deferred reads, each under its own Loading, for two skeletons
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/styled.page.tsx	P6	app	-	A multi-key style object, for style object
 packages/core/tests/e2e/apps/minimal/src/fns/echo.ts	P7	app	-	One server function
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/echo.page.tsx	P7	app	-	A button that calls the echo function from a click and prints its answer, for server-fn.test click
 packages/core/tests/e2e/apps/basepath/package.json	P2	app	-	App package
 packages/core/tests/e2e/apps/basepath/tsconfig.json	P2	app	-	App tsconfig
 packages/core/tests/e2e/apps/basepath/vite.config.ts	P2	app	-	App vite config
