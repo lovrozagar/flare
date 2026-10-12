@@ -72,7 +72,7 @@ The in-memory match cache. `false` turns it off for that route.
 | `staleTime` | no | the router's, which is `0` | duration | a cached match younger than this is reused and no data request is sent | `0` means every navigation hits the server | `client/router/match-cache.test.ts` `stale time` |
 | `gcTime` | no | the router's, which is `"5m"` | duration | the entry is dropped after this with no read | | `client/router/match-cache.test.ts` `gc` |
 | `prefetch` | no | the router's `prefetch` | `link.md` | the route layer of prefetch precedence | a string sets both `modules` and `data`. It does not mean "modules only" | `client/navigation/prefetch.test.ts` `route string` |
-| `prefetchStaleTime` | no | `staleTime` | duration | how long a prefetched data entry is fresh | | `client/navigation/prefetch.test.ts` `prefetch stale` |
+| `prefetchStaleTime` | no | `"30s"` | duration | how long a prefetched data entry is fresh, on its own clock. A navigation that uses the entry turns it into a normal entry on `staleTime`. The default does not follow `staleTime`: with `staleTime` 0, a completed intent prefetch would be stale before the click and the opt-in would do nothing | | `client/navigation/prefetch.test.ts` `prefetch stale` |
 | `prefetchGcTime` | no | `gcTime` | duration | how long a prefetched entry is kept | | same |
 | `cacheDeferred` | no | `false` | boolean | `false`: a match that still contains a deferred placeholder is never reused. Back-navigation refetches. `true`: once the `c` frame fills the value, the match is cached like any other | `true` plus a placeholder that never resolves shows the fallback forever on back | `client/router/match-cache.test.ts` `deferred placeholder` |
 

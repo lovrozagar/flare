@@ -263,6 +263,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `defer not run` | a data prefetch of a loader that calls `defer` | the shell is fetched and the deferred function is not called |
 | `save data` | `Save-Data` or an effective type of `2g` | `"all"` does not run. Viewport module prefetch does |
 | `prefetch stale` | `prefetchStaleTime` shorter than `staleTime` | the prefetched entry is stale on its own clock |
+| `prefetch default` | the router defaults (`staleTime` 0), and an intent data prefetch completes 2 s before the click | the click reuses the prefetched entry and sends no second data request. After 30 s the entry is stale and the click fetches |
 | `no commit` | the prefetch returns | the current page is unchanged |
 
 ### `client/router/match-cache.test.ts`
