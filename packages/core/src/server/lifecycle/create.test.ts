@@ -238,16 +238,105 @@ it("unknown no owner", async () => {
 	expect(await response.text()).toBe("");
 });
 
+function redirecting(page: RouteModule, basePath = "/") {
+	const send = vi.fn<(payload: DevErrorPayload) => void>();
+	const users = createPage("_root_/users/[id]").render(show);
+	const router = createRouter({
+		basePath,
+		layouts: { _root_: framed },
+		routeTree: [
+			{ id: "_root_", path: "/", module: page },
+			{ id: "_root_/users/[id]", path: "/users/[id]", module: users },
+		],
+	});
+	return { app: serveWith({ router }, { dev: true, send, log: quiet }), send };
+}
+
 it("loader redirect", async () => {
+	const rendered = vi.fn<() => string>(() => "page");
+	const painted = vi.fn<() => string>(() => "painted");
 	const moved = createPage("_root_")
-		.loader(() => redirect({ href: "https://example.com/next" }))
-		.render(show)
-		.errorRender(() => "painted");
-	const app = serveWith(
-		{ router: createRouter({ layouts: { _root_: framed }, routeTree: [{ id: "_root_", path: "/", module: moved }] }) },
-		{ dev: false, log: quiet },
+		.loader(() =>
+			redirect({ to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" }, hash: "x", status: 302 }),
+		)
+		.render(rendered)
+		.errorRender(painted);
+	const { app, send } = redirecting(moved);
+	const response = await app.fetch(new Request("https://localhost/"));
+	expect(response.status).toBe(302);
+	expect(response.headers.get("location")).toBe("/users/7?tab=a#x");
+	expect(await response.text()).toBe("");
+	expect(rendered).not.toHaveBeenCalled();
+	expect(painted).not.toHaveBeenCalled();
+	expect(response.headers.get("content-security-policy")).toMatch(/script-src/);
+	expect(send).not.toHaveBeenCalled();
+	const based = await redirecting(moved, "/app").app.fetch(new Request("https://localhost/app"));
+	expect(based.headers.get("location")).toBe("/app/users/7?tab=a#x");
+});
+
+it("redirect href", async () => {
+	const away = createPage("_root_")
+		.loader(() => redirect({ href: "https://example.com/a", status: 303 }))
+		.render(show);
+	const response = await redirecting(away).app.fetch(new Request("http://localhost/"));
+	expect(response.status).toBe(303);
+	expect(response.headers.get("location")).toBe("https://example.com/a");
+});
+
+function toLogin(): never {
+	return redirect({ to: "_root_/login" });
+}
+
+it("redirect from auth", async () => {
+	const login = createPage("_root_/login").render(show);
+	const guarded = createPage("_root_").authenticate().render(show);
+	const authorized = createPage("_root_").authorize(toLogin).render(show);
+	for (const [page, authenticate] of [
+		[guarded, toLogin],
+		[authorized, () => ({ user: "u" })],
+	] as const) {
+		const router = createRouter({
+			layouts: { _root_: framed },
+			routeTree: [
+				{ id: "_root_", path: "/", module: page },
+				{ id: "_root_/login", path: "/login", module: login },
+			],
+		});
+		const response = await serveWith({ router, authenticate }, { dev: false, log: quiet }).fetch(
+			new Request("http://localhost/"),
+		);
+		expect(response.status).toBe(307);
+		expect(response.headers.get("location")).toBe("/login");
+	}
+});
+
+function thrownBy(run: () => unknown): unknown {
+	try {
+		run();
+	} catch (error) {
+		return error;
+	}
+	throw new Error("returned");
+}
+
+it("target kept", () => {
+	const target = { to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" }, hash: "x" };
+	expect(thrownBy(() => redirect(target))).toMatchObject({ ...target, href: undefined, status: 307, replace: true });
+});
+
+function brokenAuth(): never {
+	throw new Error("auth down");
+}
+
+it("authenticate throw", async () => {
+	const router = createRouter({
+		layouts: { _root_: framed },
+		routeTree: [{ id: "_root_", path: "/", module: createPage("_root_").authenticate().render(show) }],
+	});
+	const response = await serveWith({ router, authenticate: brokenAuth }, { dev: false, log: quiet }).fetch(
+		new Request("http://localhost/"),
 	);
-	const response = await app.fetch(new Request("http://localhost/"));
-	expect(response.status).toBe(307);
+	expect(response.status).toBe(500);
+	expect(response.headers.get("location")).toBeNull();
 	expect(await response.text()).toBe("");
 });

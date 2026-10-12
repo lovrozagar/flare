@@ -34,10 +34,11 @@ export type GateResult =
 			contexts: PreloaderContext[];
 			answer?: Response | Promise<Response>;
 	  }
-	| { kind: "status"; status: number }
+	| { kind: "status"; status: number; thrown?: unknown }
 	| { kind: "stopped"; index: number; session: unknown; error: unknown; contexts: PreloaderContext[] };
 
-type Taken = { kind: "session"; session: unknown } | { kind: "status"; status: number };
+// `thrown` is what authenticate threw, so a redirect() there can still build its Location.
+type Taken = { kind: "session"; session: unknown } | { kind: "status"; status: number; thrown?: unknown };
 
 type Guarded = { ok: true; added: unknown } | { ok: false; error: unknown };
 
@@ -86,7 +87,7 @@ async function takeSession(reads: boolean, authenticate: () => unknown): Promise
 		if (session === undefined) return { kind: "status", status: 500 };
 		return { kind: "session", session };
 	} catch (error) {
-		return { kind: "status", status: statusOf(error) };
+		return { kind: "status", status: statusOf(error), thrown: error };
 	}
 }
 
