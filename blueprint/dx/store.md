@@ -32,7 +32,7 @@ createFilesystemStore({ dir? })
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `dir` | no | `".flare/cache"` | a directory path | one file per key under that directory | the default is relative to the process cwd. Production passes an absolute directory | `adapters/stores/fs/store.test.ts` `dir` |
+| `dir` | no | `".flare/cache"` | a directory path | one file per key under that directory, named by the SHA-256 hex of the key. The record holds the key, and a mismatch is a miss | the default is relative to the process cwd. Production passes an absolute directory | `adapters/stores/fs/store.test.ts` `dir` |
 
 Keys `a/b` and `a_b` are two files (`no collision`). A key containing `\` throws and nothing is written (`backslash`). A key the filesystem would truncate throws (`long key`). The implementation does not shorten the name.
 
@@ -76,14 +76,14 @@ createServer({
 `get` returns `null` without calling `read` when the key's build id is not the build that is running (`other build`). The path for a key `static:<build>:<tail>` is:
 
 ```
-${base}/${build}/${encodeURIComponent(tail)}.json
+${base}/${build}/${sha256Hex(tail)}.json
 ```
 
-`tail` is everything after `static:<build>:`. Encoding it keeps a route id that contains `/` inside one path segment. `shared/cache/artifact-path.ts` is the only function that builds this path. Prerender writes the file there (`vite/prerender/artifacts.test.ts` `path`). The store does not format a path of its own.
+`tail` is everything after `static:<build>:`. Hashing it keeps the name to one 64-character segment whatever the route id or param holds, and keeps two tails that differ only in case apart on a case-insensitive file system (APFS, NTFS), where a readable name would let one slug's seed overwrite another's. The seed JSON holds its `key`, and a seed whose key differs from the one asked for is a miss. `shared/cache/artifact-path.ts` is the only function that builds this path. Prerender writes the file there (`vite/prerender/artifacts.test.ts` `path`). The store does not format a path of its own.
 
-A key `static:b:_root_/about` and the default base produce `/assets/_flare-static/b/_root_%2Fabout.json` (`artifact-path.test.ts` `about`). A key `static:b:home:042` produces `/assets/_flare-static/b/home%3A042.json` (`params`).
+A key `static:b:_root_/about` and the default base produce `/assets/_flare-static/b/<sha256 hex of _root_/about>.json` (`artifact-path.test.ts` `about`, `params`, `case`). The path is async, because it uses Web Crypto.
 
-The JSON is `{ seed: true, renderedAt, tags, data }`. `data` is the value the write path stored. The entry returned from `get` is `{ data, tags, storedAt: renderedAt }`. JSON that does not parse, or a seed the checker refuses, is a miss and not a throw (`bad seed`). `storedAt` is `renderedAt` from the file. The store does not invent `0`.
+The JSON is `{ seed: true, key, renderedAt, tags, data }`. `data` is the value the write path stored. The entry returned from `get` is `{ data, tags, storedAt: renderedAt }`. JSON that does not parse, or a seed the checker refuses, is a miss and not a throw (`bad seed`). `storedAt` is `renderedAt` from the file. The store does not invent `0`.
 
 `createWorkersHandler({ assets })` is a different mechanism. That binding serves an unmatched `GET` or `HEAD` (`adapters.md`). A route that matched is served from this store.
 

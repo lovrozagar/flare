@@ -207,8 +207,10 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | --- | --- | --- |
 | `dir` | no argument | the directory is `.flare/cache` under the cwd |
 | `no collision` | keys `a/b` and `a_b` | two files |
-| `backslash` | a key containing `\\` | throw, nothing written |
-| `long key` | a key that would exceed the filesystem name limit | throw, the key is not truncated |
+| `backslash` | a key containing `\\` | stored and read back. The file name is the SHA-256 hex of the key, so no key character reaches the file system |
+| `long key` | a 1,000-byte key | stored and read back under a 64-character file name, not truncated |
+| `case` | keys `static:b:p:ABC` and `static:b:p:abc` | two files, and each reads back its own entry. A case-insensitive file system (APFS, NTFS) cannot merge them |
+| `key check` | a file whose record holds another key | a miss. The record stores its key, and a read whose key differs is not served |
 | `ttl and purge` | `set` with a ttl, then `delete`, `deleteByKeys`, and `deleteByTags` | the entry expires on read. `delete` and `deleteByKeys` write tombstones. `deleteByTags` bumps the tag's epoch and lists no file |
 | `unreadable` | the key's file is a directory | the read rejects. Only a missing file is a miss |
 
@@ -225,8 +227,9 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 
 | test | case | result |
 | --- | --- | --- |
-| `about` | key `static:b:_root_/about`, build `b`, default base | `/assets/_flare-static/b/_root_%2Fabout.json` |
-| `params` | key `static:b:home:042` | `/assets/_flare-static/b/home%3A042.json` |
+| `about` | key `static:b:_root_/about`, build `b`, default base | `/assets/_flare-static/b/<sha256 hex of "_root_/about">.json` |
+| `params` | key `static:b:home:042` | `/assets/_flare-static/b/<sha256 hex of "home:042">.json` |
+| `case` | tails `p:ABC` and `p:abc` | two different paths, so a run on a case-insensitive file system writes two files |
 | `other build` | the key's build id is `other` | `null` |
 | `empty tail` | key `static:b:` | `null` |
 | `one segment` | a route id containing `/` | the path after the build id contains no raw `/` and no raw `..` |
