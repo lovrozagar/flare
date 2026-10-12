@@ -144,3 +144,26 @@ it("decoded body", async () => {
 	expect(response.headers.get("content-length")).toBeNull();
 	expect(await response.text()).toBe("plain");
 });
+
+// The body streams to the upstream and is never read into memory: the first chunk arrives while the client's
+// stream is still open (dx/server.md `proxy`).
+it("streamed body", async () => {
+	const { readable: body, writable } = new TransformStream<Uint8Array, Uint8Array>();
+	const writer = writable.getWriter();
+	const first = new Promise<Uint8Array | undefined>((resolve) => {
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+			const stream = init?.body;
+			if (!(stream instanceof ReadableStream)) throw new Error("the body is not a stream");
+			const read = await stream.getReader().read();
+			resolve(read.value);
+			return new Response("ok");
+		});
+	});
+	const init: RequestInit = { method: "POST", body };
+	const request = new Request("http://localhost/api/up", Object.assign(init, { duplex: "half" }));
+	const response = through(request);
+	void writer.write(new Uint8Array([1, 2, 3]));
+	const timeout = new Promise<string>((resolve) => setTimeout(() => resolve("buffered"), 500));
+	expect(await Promise.race([first, timeout])).toEqual(new Uint8Array([1, 2, 3]));
+	expect((await response).status).toBe(200);
+});
