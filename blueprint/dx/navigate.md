@@ -59,7 +59,7 @@ No other prop exists. A `name` or `class` prop does not type-check (`view-transi
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `duration` | no | `175` | a number of milliseconds | a style tag whose nonce is the request nonce (`server.md`) and whose text is `@view-transition{navigation:auto}::view-transition-old(*),::view-transition-new(*){animation-duration:<duration>ms}` | a duration string does not type-check. This prop is milliseconds | `shared/components/view-transition-css.test.tsx` `default duration`, `custom duration` |
+| `duration` | no | `175` | a number of milliseconds | a style tag whose nonce is the request nonce (`server.md`) and whose text is `@view-transition{navigation:auto}::view-transition-old(*),::view-transition-new(*){animation-duration:<duration>ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}`. A user who asks for reduced motion gets the swap with no animation | a duration string does not type-check. This prop is milliseconds | `shared/components/view-transition-css.test.tsx` `default duration`, `custom duration` |
 
 ## Hooks
 

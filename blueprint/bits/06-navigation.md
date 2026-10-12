@@ -242,6 +242,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | --- | --- | --- |
 | `default duration` | no prop | the style text uses `175ms` and the tag's nonce is the request nonce |
 | `custom duration` | `duration={300}` | the style text uses `300ms` |
+| `reduced motion` | the style text | it ends with `@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}` |
 
 ### `client/navigation/popstate.test.ts`
 
