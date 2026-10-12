@@ -99,6 +99,7 @@ Creates every `P4` row. Effective auth is computed from the loaded modules befor
 | `not the event` | the request event has `locals.user` and `serverContext` returns `{}` | `serverCtx()` is `{}` |
 | `redirect skips` | the path is not canonical | the function is not called |
 | `required` | `FlareRegister` declares `serverContext` and the option is omitted | type error |
+| `throw is 500` | `serverContext` throws | HTTP 500. The body does not contain the message. The page loader is not called |
 | `outside a request` | a call with no event | throw |
 
 ### `server/context/fetch-dedupe.test.ts`
