@@ -1,5 +1,6 @@
 import type { BoundaryRecord, NotFoundRender } from "../route-builder/index.ts";
 import type { ChainRecord } from "../route-builder/chain.ts";
+import type { LocationRewrite } from "../url/index.ts";
 import {
 	idPattern,
 	isRootFolder,
@@ -47,6 +48,7 @@ export type RouterOptions = {
 	notFoundMode?: "root" | "fuzzy";
 	cache?: RouterCache;
 	chunks?: Record<string, string>;
+	rewrite?: LocationRewrite;
 };
 
 // `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page, and its
@@ -73,6 +75,7 @@ export type Router = {
 	cache: { client: { staleTime: number; gcTime: string } | false };
 	viewTransitions: boolean;
 	chunks: Record<string, string>;
+	rewrite?: LocationRewrite;
 	match: (path: string) => Match;
 };
 
@@ -94,6 +97,7 @@ export function createRouter(options: RouterOptions): Router {
 		cache: { client: CLIENT_CACHE },
 		viewTransitions: false,
 		chunks: options.chunks ?? {},
+		rewrite: options.rewrite,
 		match(path) {
 			return resolve(router, path);
 		},
