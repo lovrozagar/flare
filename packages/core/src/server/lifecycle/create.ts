@@ -153,9 +153,9 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 		unknown: rendered.unknown && { render: rendered.unknown.notFoundRender },
 		onBoundaryError: (error) => void projectError(error, exchange.sink),
 	};
-	let html: string;
+	let body: ReadableStream<Uint8Array>;
 	try {
-		html = await renderDocument({
+		body = await renderDocument({
 			request: exchange.request,
 			router: exchange.options.router,
 			nonce: exchange.secured.nonce,
@@ -170,7 +170,7 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 		return renderFailed(exchange, projectError(thrown, exchange.sink));
 	}
 	const url = exchange.request.url;
-	return finalize({ status, body: html, render: "ssr", url, headers: exchange.secured.headers });
+	return finalize({ status, body, render: "ssr", url, headers: exchange.secured.headers });
 }
 
 // The stream rejected before the shell, so nothing was written (B93).

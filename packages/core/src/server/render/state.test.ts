@@ -4,14 +4,16 @@ import { renderDocument } from "./document.ts";
 import { insertState } from "./state.ts";
 
 it("one script", async () => {
-	const html = await renderDocument({
+	const body = await renderDocument({
 		request: new Request("http://localhost/"),
 		router: createRouter({ layouts: {}, routeTree: [] }),
 		loader: () => ({ n: 1 }),
 		render: () => "page",
 	});
+	const html = await new Response(body).text();
 	expect(html.match(/self\.flare/g)).toHaveLength(1);
-	const source = html.slice(html.indexOf("self.flare="), html.indexOf("</script>"));
+	const start = html.indexOf("self.flare=");
+	const source = html.slice(start, html.indexOf("</script>", start));
 	const value = Function(`const self = {}; ${source}; return self.flare;`)() as {
 		matches: Array<Record<string, unknown> & { data: { n: number } }>;
 	};
@@ -28,22 +30,26 @@ it("one script", async () => {
 });
 
 it("nonce field", async () => {
-	const html = await renderDocument({
-		request: new Request("http://localhost/"),
-		router: createRouter({ layouts: {}, routeTree: [] }),
-		nonce: "abc",
-		render: () => "page",
-	});
+	const html = await new Response(
+		await renderDocument({
+			request: new Request("http://localhost/"),
+			router: createRouter({ layouts: {}, routeTree: [] }),
+			nonce: "abc",
+			render: () => "page",
+		}),
+	).text();
 	expect(html).toContain('"nonce":"abc"');
 });
 
 it("empty nonce", async () => {
-	const html = await renderDocument({
-		request: new Request("http://localhost/"),
-		router: createRouter({ layouts: {}, routeTree: [] }),
-		nonce: "",
-		render: () => "page",
-	});
+	const html = await new Response(
+		await renderDocument({
+			request: new Request("http://localhost/"),
+			router: createRouter({ layouts: {}, routeTree: [] }),
+			nonce: "",
+			render: () => "page",
+		}),
+	).text();
 	expect(html).toContain('"nonce":""');
 });
 
