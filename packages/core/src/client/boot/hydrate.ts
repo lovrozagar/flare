@@ -1,49 +1,56 @@
 import { createComponent } from "solid-js";
-import { hydrate } from "@solidjs/web";
-import { RouterContext, useRouter } from "../../shared/router/context.ts";
+import type { JSX } from "@solidjs/web";
+import { Matches } from "../../shared/components/index.ts";
+import { RouterContext } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
+import { applyHeads } from "../head/index.ts";
+import { BlockerContext, type Blockers } from "../navigation/blocker.ts";
+import { NavigationContext, type NavigationState } from "../navigation/pending.ts";
+import type { RouterStore, ScriptMatch } from "../router/store.ts";
 
-type Dom = {
-	document: Document;
-	_$HY?: { done?: boolean; events: unknown[]; completed: WeakSet<object>; r: Record<string, unknown> };
-};
+export type ClientState = { matches: ScriptMatch[]; nonce: string };
 
-export type ClientMatch = {
-	id: string;
-	params: Record<string, string | string[]>;
-	search: Record<string, string | string[]>;
-	data: unknown;
-	preloader: unknown;
-	head: unknown;
-	error: unknown;
-};
+// Solid's hydrate in the browser. A test passes a client render instead.
+export type Mount = (code: () => JSX.Element, root: Document) => () => void;
 
-export type ClientState = { matches: ClientMatch[] };
-
-const dom = globalThis as unknown as Dom;
+export type App = { router: Router; store: RouterStore; navigation: NavigationState; blockers: Blockers; mount: Mount };
 
 export function readState(): ClientState {
-	const script = [...dom.document.querySelectorAll("script")].find((node) => node.textContent.includes("self.flare="));
-	const text = (script as HTMLScriptElement).textContent;
-	return JSON.parse(text.slice(text.indexOf("=") + 1)) as ClientState;
+	const script = [...document.querySelectorAll("script")].find((node) => node.textContent.includes("self.flare="));
+	if (script === undefined) throw new Error("The document has no self.flare state script");
+	const text = script.textContent;
+	return JSON.parse(text.slice(text.indexOf("=") + 1));
 }
 
-export function hydrateDocument(router: Router): void {
-	// Solid treats `_$HY.done` as "already hydrated" and then calls render(), which drops server markup.
-	const runtime: NonNullable<Dom["_$HY"]> = { done: false, events: [], completed: new WeakSet(), r: {} };
-	dom._$HY = runtime;
-	const root = dom.document.getElementById("app") as HTMLElement;
-	hydrate(
+// The providers, the head, and the matches, over the whole document. The server's `_$HY` capture object stays
+// as it is: hydrate reads it and replays the events it stored (B91).
+export function mountApp(app: App): () => void {
+	return app.mount(
 		() =>
 			createComponent(RouterContext, {
-				value: router,
+				value: app.router,
 				get children() {
-					(dom.document.documentElement as HTMLElement & { flareRouter?: Router }).flareRouter = useRouter();
-					return null;
+					return createComponent(NavigationContext, {
+						value: app.navigation,
+						get children() {
+							return createComponent(BlockerContext, {
+								value: app.blockers,
+								get children() {
+									return [
+										createComponent(Heads, { store: app.store }),
+										createComponent(Matches, { state: app.store.outlet }),
+									];
+								},
+							});
+						},
+					});
 				},
 			}),
-		root,
+		document,
 	);
-	runtime.done = true;
-	dom.document.documentElement.setAttribute("data-flare-hydrated", "");
+}
+
+function Heads(props: { store: RouterStore }): JSX.Element {
+	applyHeads(() => props.store.snapshot().heads);
+	return undefined;
 }
