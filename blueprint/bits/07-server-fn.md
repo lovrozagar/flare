@@ -97,6 +97,7 @@ The ids are build-time work, so `ids.ts` lives in `vite/route-meta/` beside `ext
 | `forbidden` | `authorize` returns false | 403, message `Forbidden`, the handler is not called. JSON, not the page walk, and the overlay does not open |
 | `in request` | a server function calls another during a request | the inner call uses that request's session, env, request, and `serverContext` |
 | `no request` | the same call with no active request | throw. There is no `http://localhost` fallback |
+| `base path` | basePath `/app` | `/app/_flare/fn/<id>` dispatches. `/_flare/fn/<id>` is an ordinary path the router answers |
 
 ### `server/server-fn/client-stub.test.tsx`
 
@@ -120,10 +121,8 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 | `href` | the handler throws `redirect({ href: "https://example.com/a" })` | HTTP 200. `redirect.to` is that URL. The client performs a full page load |
 | `helpers` | `notFound()`, `unauthenticated()`, and `unauthorized()` | JSON at 404, 401, and 403. They do not walk the page and do not open the overlay |
 | `null session` | `.authenticate()` and the session is null, or the authenticate option is missing | 401. The handler is not called |
-| `reject` | the client receives a failure envelope | the promise rejects with an `Error` whose message, stack, and digest are the envelope's. A 400 puts `{ issues, fieldErrors }` on that error. A same-origin redirect is the internal URL navigation with the envelope's `replace`, not public `navigate({ to })`, and the promise still rejects |
 | `returned response` | the handler returns a `Response` | that status and body are the HTTP response. Other headers are kept, finalize runs, and `Cache-Control` is overwritten |
 | `thrown response` | the handler throws a `Response` | an ordinary thrown error |
-| `build mismatch` | the response `flare-build` differs from `self.flare.build` and both are non-empty | one document load under `flare_chunk_reload`, and the promise rejects. The handler has already run |
 
 ### `server/server-fn/stream.test.ts`
 
@@ -140,13 +139,19 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 | --- | --- | --- |
 | `builds _i` | `{ a: 1 }` | the URL contains only `_i` |
 | `cap` | a value whose encoding exceeds 8192 | throw before fetch |
+| `base path` | basePath `/app` | the URL is `/app/_flare/fn/<id>` |
 
 ### `client/server-fn/call.test.ts` and `stream.test.ts`
+
+`reject` and `build mismatch` test the client call, which a server test may not import (`lint/boundaries.js`), so they live in `call.test.ts`. The client's deps are explicit: `bootClient` sets `self.flare.call` over the navigator's deps when exports land, and the exported callable reads it at call time. Before boot it throws `server function called before the client booted`.
 
 | test | case | result |
 | --- | --- | --- |
 | `posts` | a POST function | the request URL is `/_flare/fn/<id>` and the method is POST |
 | `iterator` | a stream function | the async iterator yields both values |
+| `reject` | the client receives a failure envelope | the promise rejects with an `Error` whose message, stack, and digest are the envelope's. A 400 puts `{ issues, fieldErrors }` on that error. A same-origin redirect is the internal URL navigation with the envelope's `replace`, not public `navigate({ to })`, and the promise still rejects |
+| `untrusted envelope` | an issue with no message, a non-array path, a non-array `issues`, an object with no `status` | an issue with a message keeps it, with an empty path when its path is not an array. `fieldErrors` is derived from the kept issues. No `status` rejects as the bare HTTP status |
+| `build mismatch` | the response `flare-build` differs from `self.flare.build` and both are non-empty | one document load under `flare_chunk_reload`, and the promise rejects. The handler has already run |
 
 ### `vite/route-meta/extract.test.ts`
 
