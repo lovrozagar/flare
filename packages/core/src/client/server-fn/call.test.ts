@@ -88,10 +88,28 @@ it("reject", async () => {
 		status: 405,
 	});
 	expect(await rejection(callServerFn(echo, 1, deps(json([1], 500))))).toMatchObject({ message: "HTTP 500" });
-	// A returned Response is the HTTP response, so the call resolves to it.
-	const made = await callServerFn(echo, 1, deps({ body: "made", status: 201 }));
-	expect(made).toBeInstanceOf(Response);
-	expect(made instanceof Response && (await made.text())).toBe("made");
+});
+
+// The server marks a returned Response. The call resolves with it untouched, whatever its status.
+async function returned(answer: Answer): Promise<Response> {
+	const marked = { ...answer, headers: { ...answer.headers, "flare-fn": "response" } };
+	const value = await callServerFn(echo, 1, deps(marked));
+	if (!(value instanceof Response)) throw new Error("did not resolve with the Response");
+	return value;
+}
+
+it("returned response", async () => {
+	const teapot = await returned({ body: "x", status: 418 });
+	expect(teapot.status).toBe(418);
+	expect(await teapot.text()).toBe("x");
+	// Unmarked, the same answer is a bare framework status.
+	expect(await rejection(callServerFn(echo, 1, deps({ body: "x", status: 418 })))).toMatchObject({ status: 418 });
+});
+
+it("json response", async () => {
+	const listed = await returned(json({ status: 200, items: [1] }));
+	expect(listed.bodyUsed).toBe(false);
+	expect(await listed.json()).toEqual({ status: 200, items: [1] });
 });
 
 it("untrusted envelope", async () => {

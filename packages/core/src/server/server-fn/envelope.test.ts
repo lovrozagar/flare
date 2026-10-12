@@ -124,12 +124,17 @@ it("null session", async () => {
 
 it("returned response", async () => {
 	const made = createServerFn(named("made")).handler(
-		() => new Response("made", { status: 201, headers: { "x-own": "1", "cache-control": "public, max-age=60" } }),
+		() =>
+			new Response("made", {
+				status: 201,
+				headers: { "x-own": "1", "cache-control": "public, max-age=60", "flare-fn": "envelope" },
+			}),
 	);
 	const answer = await call(made);
 	expect(answer.status).toBe(201);
 	expect(await answer.text()).toBe("made");
 	expect(answer.headers.get("x-own")).toBe("1");
+	expect(answer.headers.get("flare-fn")).toBe("response");
 	expect(answer.headers.get("cache-control")).toBe("private, no-store");
 	expect(answer.headers.get("x-content-type-options")).toBe("nosniff");
 });

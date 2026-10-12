@@ -1,4 +1,4 @@
-import { BUILD_HEADER } from "../../shared/protocol/index.ts";
+import { BUILD_HEADER, FN_HEADER } from "../../shared/protocol/index.ts";
 import { shapeIssues, type Issue } from "../../shared/validation/index.ts";
 import { fnRequest } from "./codec.ts";
 
@@ -57,13 +57,12 @@ export async function callServerFn(fn: CallTarget, input: unknown, deps: CallDep
 	return answerOf(await send(fn, input, deps), deps);
 }
 
-// One JSON envelope, or a body that is not one: a returned Response when ok, else its bare status.
+// A returned Response, marked by the server, resolves untouched, body unread, whatever its status. Otherwise a JSON
+// body is the envelope, and anything else is a bare framework status, such as an unknown id or a wrong method.
 export async function answerOf(response: Response, deps: CallDeps): Promise<unknown> {
+	if (response.headers.get(FN_HEADER) === "response") return response;
 	const wire = envelopeOf(await readJson(response));
-	if (wire === undefined) {
-		if (response.ok) return response;
-		throw new ServerFnError({ status: response.status });
-	}
+	if (wire === undefined) throw new ServerFnError({ status: response.status });
 	return settle(wire, deps);
 }
 
