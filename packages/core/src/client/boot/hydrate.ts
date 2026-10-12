@@ -1,12 +1,18 @@
-import { createComponent } from "solid-js";
+import { createComponent, type Context } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { Matches } from "../../shared/components/index.ts";
-import { RouterContext } from "../../shared/router/context.ts";
+import {
+	LocationContext,
+	NavigateContext,
+	PrefetchContext,
+	RouterContext,
+	type LinkPrefetch,
+	type NavigateTo,
+} from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { applyHeads } from "../head/index.ts";
 import { BlockerContext, type Blockers } from "../navigation/blocker.ts";
 import { NavigationContext, type NavigationState } from "../navigation/pending.ts";
-import { PrefetchContext, type Prefetcher } from "../navigation/prefetch.ts";
 import type { RouterStore, ScriptMatch } from "../router/store.ts";
 
 export type ClientState = { matches: ScriptMatch[]; nonce: string };
@@ -19,7 +25,8 @@ export type App = {
 	store: RouterStore;
 	navigation: NavigationState;
 	blockers: Blockers;
-	prefetcher: Prefetcher;
+	prefetcher: LinkPrefetch;
+	navigate: (options: NavigateTo) => Promise<void>;
 	mount: Mount;
 };
 
@@ -33,34 +40,34 @@ export function readState(): ClientState {
 // The providers, the head, and the matches, over the whole document. The server's `_$HY` capture object stays
 // as it is: hydrate reads it and replays the events it stored (B91).
 export function mountApp(app: App): () => void {
+	const location = () => app.store.snapshot().location;
 	return app.mount(
 		() =>
-			createComponent(RouterContext, {
-				value: app.router,
-				get children() {
-					return createComponent(NavigationContext, {
-						value: app.navigation,
-						get children() {
-							return createComponent(BlockerContext, {
-								value: app.blockers,
-								get children() {
-									return createComponent(PrefetchContext, {
-										value: app.prefetcher,
-										get children() {
-											return [
-												createComponent(Heads, { store: app.store }),
-												createComponent(Matches, { state: app.store.outlet }),
-											];
-										},
-									});
-								},
-							});
-						},
-					});
-				},
-			}),
+			provider(RouterContext, app.router, () =>
+				provider(LocationContext, location, () =>
+					provider(NavigateContext, app.navigate, () =>
+						provider(NavigationContext, app.navigation, () =>
+							provider(BlockerContext, app.blockers, () =>
+								provider(PrefetchContext, app.prefetcher, () => [
+									createComponent(Heads, { store: app.store }),
+									createComponent(Matches, { state: app.store.outlet }),
+								]),
+							),
+						),
+					),
+				),
+			),
 		document,
 	);
+}
+
+function provider<T>(context: Context<T>, value: T, children: () => JSX.Element): JSX.Element {
+	return createComponent(context, {
+		value,
+		get children() {
+			return children();
+		},
+	});
 }
 
 function Heads(props: { store: RouterStore }): JSX.Element {

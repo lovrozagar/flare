@@ -1,24 +1,24 @@
-import { flush, useContext } from "solid-js";
+import { createComponent, flush, useContext } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { Link } from "../../shared/components/index.ts";
 import { encodeFrame } from "../../shared/protocol/index.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
-import { useRouter } from "../../shared/router/context.ts";
+import { PrefetchContext, useRouter, type LinkPrefetch } from "../../shared/router/context.ts";
 import { createRouter, type Router } from "../../shared/router/create-router.ts";
-import { PrefetchContext, type Prefetcher } from "../navigation/prefetch.ts";
 import { bootClient, createClient, devSend, type ClientEnv } from "./create-client.ts";
 import { createReady, type ReadyContext } from "./ready.ts";
 
 type Dom = typeof globalThis & { _$HY?: unknown; flare?: unknown };
 
-const seen: { router?: Router; prefetcher?: Prefetcher } = {};
+const seen: { router?: Router; prefetcher?: LinkPrefetch | null } = {};
 
 const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
 const home = createPage("_root_/").render((props) => {
 	seen.router = useRouter();
 	seen.prefetcher = useContext(PrefetchContext);
-	return `home:${String(props.loaderData)}`;
+	return [`home:${String(props.loaderData)}`, createComponent(Link, { to: "_root_/about", children: "" })];
 });
 const about = createPage("_root_/about").render((props) => `about:${String(props.loaderData)}`);
 const broken = createPage("_root_/broken").render(() => {
@@ -42,7 +42,7 @@ function routerOf(chunks: Record<string, string> = {}): Router {
 	});
 }
 
-const unmounts: (() => void)[] = [];
+const stops: (() => void)[] = [];
 
 function install(): HTMLElement {
 	const matches = [
@@ -57,11 +57,7 @@ function install(): HTMLElement {
 
 function env(host: HTMLElement, fetch: ClientEnv["fetch"] = vi.fn<ClientEnv["fetch"]>()): ClientEnv {
 	return {
-		mount: (code) => {
-			const dispose = render(code, host);
-			unmounts.push(dispose);
-			return dispose;
-		},
+		mount: (code) => render(code, host),
 		fetch,
 		assign: vi.fn<(href: string) => void>(),
 		dev: false,
@@ -77,7 +73,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	for (const unmount of unmounts.splice(0)) unmount();
+	for (const stop of stops.splice(0)) stop();
 	delete (globalThis as Dom).flare;
 });
 
@@ -85,7 +81,7 @@ it("adopts history", async () => {
 	const host = install();
 	history.replaceState({ index: 4 }, "");
 	const length = history.length;
-	await bootClient(routerOf(), createReady(), env(host));
+	stops.push(await bootClient(routerOf(), createReady(), env(host)));
 	expect(history.length).toBe(length);
 	expect(history.state).toEqual({ index: 4 });
 });
@@ -93,7 +89,7 @@ it("adopts history", async () => {
 it("router context", async () => {
 	const host = install();
 	const router = routerOf();
-	await bootClient(router, createReady(), env(host));
+	stops.push(await bootClient(router, createReady(), env(host)));
 	expect(seen.router).toBe(router);
 	expect(history.state).toEqual({ index: 0, usr: undefined });
 });
@@ -104,7 +100,7 @@ it("hydrates matches", async () => {
 	const order: string[] = [];
 	ready.api.onReady(() => order.push(`ready ${document.documentElement.hasAttribute("data-flare-hydrated")}`));
 	ready.api.onHydrated(() => order.push(`hydrated ${document.documentElement.hasAttribute("data-flare-hydrated")}`));
-	await bootClient(routerOf(), ready, env(host));
+	stops.push(await bootClient(routerOf(), ready, env(host)));
 	flush();
 	expect(host.textContent).toBe("root[home:start]");
 	expect(order).toEqual(["ready false", "hydrated true"]);
@@ -116,7 +112,7 @@ it("keeps capture", async () => {
 	const host = install();
 	const capture = { events: [], completed: new WeakSet(), r: {}, fe() {} };
 	(globalThis as Dom)._$HY = capture;
-	await bootClient(routerOf(), createReady(), env(host));
+	stops.push(await bootClient(routerOf(), createReady(), env(host)));
 	expect((globalThis as Dom)._$HY).toBe(capture);
 });
 
@@ -133,7 +129,7 @@ it("navigates", async () => {
 	const navigates: ReadyContext["navigate"][] = [];
 	ready.api.onReady((ctx) => navigates.push(ctx.navigate));
 	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-	await bootClient(routerOf(), ready, env(host, fetch));
+	stops.push(await bootClient(routerOf(), ready, env(host, fetch)));
 	await navigates[0]({ to: "_root_/about", hash: "top" });
 	flush();
 	expect(host.textContent).toBe("root[about:fresh]");
@@ -173,7 +169,7 @@ it("dev report", async () => {
 	const navigates: ReadyContext["navigate"][] = [];
 	ready.api.onReady((ctx) => navigates.push(ctx.navigate));
 	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-	await bootClient(routerOf(), ready, { ...env(host, fetch), dev: true, send });
+	stops.push(await bootClient(routerOf(), ready, { ...env(host, fetch), dev: true, send }));
 	await navigates[0]({ to: "_root_/broken" });
 	flush();
 	expect(host.textContent).toBe("root[Something went wrong]");
@@ -189,7 +185,7 @@ it("chunk reload", async () => {
 	ready.api.onReady((ctx) => navigates.push(ctx.navigate));
 	const client = env(host);
 	sessionStorage.clear();
-	await bootClient(routerOf(), ready, client);
+	stops.push(await bootClient(routerOf(), ready, client));
 	await navigates[0]({ to: "_root_/lazy" });
 	expect(client.assign).toHaveBeenCalledExactlyOnceWith("/lazy");
 });
@@ -204,7 +200,7 @@ it("popstate", async () => {
 	] as const;
 	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
 	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
-	await bootClient(routerOf(), createReady(), env(host, fetch));
+	stops.push(await bootClient(routerOf(), createReady(), env(host, fetch)));
 	history.pushState({ index: 1 }, "", "/about");
 	window.dispatchEvent(new PopStateEvent("popstate", { state: { index: 1 } }));
 	await new Promise((resolve) => setTimeout(resolve, 10));
@@ -218,7 +214,7 @@ it("prefetch all", async () => {
 		host,
 		vi.fn<ClientEnv["fetch"]>(async () => new Response(null, { status: 500 })),
 	);
-	await bootClient(routerOf({ "_root_/about": "/src/about.tsx" }), createReady(), client);
+	stops.push(await bootClient(routerOf({ "_root_/about": "/src/about.tsx" }), createReady(), client));
 	const links = [...document.head.querySelectorAll('link[rel="prefetch"]')];
 	expect(links.map((link) => link.getAttribute("href"))).toEqual(["/src/about.tsx"]);
 	for (const link of links) link.remove();
@@ -226,4 +222,20 @@ it("prefetch all", async () => {
 	seen.prefetcher?.watch(anchor, "/about", "intent");
 	anchor.dispatchEvent(new Event("pointerenter"));
 	expect(client.fetch).toHaveBeenCalledExactlyOnceWith("/about?_flare=prefetch", expect.anything());
+});
+
+it("delegates", async () => {
+	const host = install();
+	const frames = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/about", d: "linked" }, { t: "r" }] as const;
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
+	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+	stops.push(await bootClient(routerOf(), createReady(), env(host, fetch)));
+	const anchor = document.createElement("a");
+	anchor.setAttribute("href", "/about");
+	document.body.append(anchor);
+	anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, button: 0 }));
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	flush();
+	expect(fetch).toHaveBeenCalledWith("/about?_flare=data", expect.anything());
+	expect(host.textContent).toBe("root[about:linked]");
 });

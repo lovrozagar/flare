@@ -1,7 +1,7 @@
 import { createComponent, type Element } from "solid-js";
 import * as web from "@solidjs/web";
 import { withRequest } from "../../shared/csp/nonce.ts";
-import { RouterContext } from "../../shared/router/context.ts";
+import { LocationContext, RouterContext } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { raceAbort } from "./abort.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
@@ -89,11 +89,19 @@ function defaultStream(fn: () => unknown, options: StreamOptions): ReturnType<St
 	return web.renderToStream(fn, options as Parameters<typeof web.renderToStream>[1]);
 }
 
+// The request's location is the one on screen, so a Link paints its active state on the server too.
 function tree(input: DocumentInput, tags: readonly HeadTag[] | undefined): Element {
+	const url = new URL(input.request.url);
+	const location = { pathname: url.pathname, search: url.search, hash: "" };
 	return createComponent(RouterContext, {
 		value: input.router,
 		get children() {
-			return tags === undefined ? input.render() : [createComponent(DocumentHead, { tags }), input.render()];
+			return createComponent(LocationContext, {
+				value: () => location,
+				get children() {
+					return tags === undefined ? input.render() : [createComponent(DocumentHead, { tags }), input.render()];
+				},
+			});
 		},
 	});
 }
