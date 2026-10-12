@@ -26,7 +26,7 @@ export function createServer(options: ServerOptions): {
 	return {
 		async fetch(request) {
 			const matched = options.router.match(new URL(request.url).pathname);
-			if (!matched.id) return finalize({ status: 404, body: "Not found" });
+			if (!matched.id) return finalize({ status: 404, body: "Not found", url: request.url });
 			return renderPage(options, request);
 		},
 	};

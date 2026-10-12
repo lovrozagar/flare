@@ -1,4 +1,5 @@
 import { settleRequestBody } from "./body.ts";
+import { toRequest } from "./request.ts";
 
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void };
 
@@ -34,6 +35,11 @@ export function createNodeListener(server: Server, options?: unknown): (req: Nod
 type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<unknown>> };
 
 async function pump(job: Job): Promise<void> {
+	if (toRequest({ url: job.req.url }).status === 400) {
+		job.res.writeHead(400);
+		job.res.end();
+		return;
+	}
 	const body = requestBody(job.req);
 	const init: RequestInit = {
 		method: job.req.method,
