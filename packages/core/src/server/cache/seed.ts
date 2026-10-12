@@ -2,10 +2,11 @@ import type { CacheConfig, ParamsFn } from "../../shared/route-builder/chain.ts"
 import type { FlareStore, FlareStoreEntry } from "./contract.ts";
 import { keyEpochKey, epochKey, type Lookup } from "./epoch.ts";
 
-// A seed file, `{ seed: true, renderedAt, tags, data }`, as the entry it stands for: `storedAt` is `renderedAt`.
-// A seed with no flag, no numeric `renderedAt`, or no `tags` list is refused. `tags: []` is a seed with no tags.
-export function acceptSeed(json: unknown): FlareStoreEntry | undefined {
-	if (typeof json !== "object" || json === null) return undefined;
+// A seed file, `{ seed: true, key, renderedAt, tags, data }`, as the entry it stands for: `storedAt` is
+// `renderedAt`. A seed with no flag, no numeric `renderedAt`, no `tags` list, or a key other than the one asked
+// for is refused. `tags: []` is a seed with no tags.
+export function acceptSeed(json: unknown, key: string): FlareStoreEntry | undefined {
+	if (typeof json !== "object" || json === null || Reflect.get(json, "key") !== key) return undefined;
 	const flag: unknown = Reflect.get(json, "seed");
 	const renderedAt: unknown = Reflect.get(json, "renderedAt");
 	const tags: unknown = Reflect.get(json, "tags");

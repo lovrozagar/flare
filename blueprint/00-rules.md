@@ -82,7 +82,7 @@ Names are kebab-case files, camelCase functions, PascalCase components and error
 
 | folder | may use | must not use |
 | --- | --- | --- |
-| `shared/`, `features/*/shared/` | ECMAScript, `Intl`, `URL`, `TextEncoder`, Solid and `@solidjs/web` isomorphic exports | DOM globals, `process`, `Buffer`, `node:*`, `Bun`, `caches` |
+| `shared/`, `features/*/shared/` | ECMAScript, `Intl`, `URL`, `TextEncoder`, `crypto.subtle`, Solid and `@solidjs/web` isomorphic exports | DOM globals, `process`, `Buffer`, `node:*`, `Bun`, `caches` |
 | `client/`, `features/*/client/` | the above, plus DOM | `process`, `Buffer`, `node:*`, `Bun` |
 | `server/`, `features/*/server/` | the above minus DOM, plus Fetch, streams, WebCrypto | DOM globals, `process`, `node:*`, `Bun`, `caches`. Env arrives as `fetch(request, env, ctx)` |
 | `adapters/<runtime>/` | server, plus that runtime | any other runtime's builtins |

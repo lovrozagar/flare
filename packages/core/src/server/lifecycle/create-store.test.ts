@@ -5,6 +5,7 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import type { FlareStore } from "../cache/contract.ts";
+import { artifactPath } from "../../shared/cache/index.ts";
 import { createAssetsStore } from "../cache/assets.ts";
 import { createMemoryStore } from "../cache/memory.ts";
 import { createServer, serveWith } from "./create.ts";
@@ -75,5 +76,5 @@ it("static function", async () => {
 	const env = { ASSETS: "assets" };
 	expect((await app.fetch(new Request("http://localhost/"), env)).status).toBe(200);
 	expect(envs).toEqual([env]);
-	expect(reads).toEqual(["/assets/_flare-static/dev/_root_%2F.json"]);
+	expect(reads).toEqual([await artifactPath("static:dev:_root_/", { build: "dev" })]);
 });
