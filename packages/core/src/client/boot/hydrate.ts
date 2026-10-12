@@ -1,18 +1,11 @@
-import { createComponent, type Context } from "solid-js";
+import { createComponent } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import { Matches, OverlayContext } from "../../shared/components/index.ts";
-import {
-	LocationContext,
-	NavigateContext,
-	PrefetchContext,
-	RouterContext,
-	type LinkPrefetch,
-	type NavigateTo,
-} from "../../shared/router/context.ts";
+import { appTree, Matches } from "../../shared/components/index.ts";
+import type { LinkPrefetch, NavigateTo } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { applyHeads } from "../head/index.ts";
-import { BlockerContext, type Blockers } from "../navigation/blocker.ts";
-import { NavigationContext, type NavigationState } from "../navigation/pending.ts";
+import type { Blockers } from "../navigation/blocker.ts";
+import type { NavigationState } from "../navigation/pending.ts";
 import type { RouterStore, ScriptMatch } from "../router/store.ts";
 
 export type ClientState = { matches: ScriptMatch[]; nonce: string };
@@ -37,40 +30,26 @@ export function readState(): ClientState {
 	return JSON.parse(text.slice(text.indexOf("=") + 1));
 }
 
-// The providers, the head, and the matches, over the whole document. The server's `_$HY` capture object stays
-// as it is: hydrate reads it and replays the events it stored (B91).
+// The tree the server rendered, over the whole document: the same providers, then the matches, then the head
+// (B91). The server's `_$HY` capture object stays as it is: hydrate reads it and replays the events it stored.
 export function mountApp(app: App): () => void {
-	const location = () => app.store.snapshot().location;
-	const overlay = () => app.store.snapshot().overlay;
+	const values = {
+		router: app.router,
+		location: () => app.store.snapshot().location,
+		navigate: app.navigate,
+		navigation: app.navigation,
+		blockers: app.blockers,
+		prefetcher: app.prefetcher,
+		overlay: () => app.store.snapshot().overlay,
+	};
 	return app.mount(
 		() =>
-			provider(RouterContext, app.router, () =>
-				provider(LocationContext, location, () =>
-					provider(NavigateContext, app.navigate, () =>
-						provider(NavigationContext, app.navigation, () =>
-							provider(BlockerContext, app.blockers, () =>
-								provider(PrefetchContext, app.prefetcher, () =>
-									provider(OverlayContext, overlay, () => [
-										createComponent(Heads, { store: app.store }),
-										createComponent(Matches, { state: app.store.outlet }),
-									]),
-								),
-							),
-						),
-					),
-				),
-			),
+			appTree(values, () => [
+				createComponent(Matches, { state: app.store.outlet }),
+				createComponent(Heads, { store: app.store }),
+			]),
 		document,
 	);
-}
-
-function provider<T>(context: Context<T>, value: T, children: () => JSX.Element): JSX.Element {
-	return createComponent(context, {
-		value,
-		get children() {
-			return children();
-		},
-	});
 }
 
 function Heads(props: { store: RouterStore }): JSX.Element {

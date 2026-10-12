@@ -413,17 +413,61 @@ The intercept rules the navigator applies (B84). `navigate.ts` passed 300 lines 
 | `header ignored` | `flare-data: 1` with no param | a document |
 | `stale layout` | `_flare_stale` names the layout | the layout loader still ran |
 
+### `vite/dev/handler.test.ts`
+
+The real dev path moves here from bit 12, because the e2e navigation rows need a document that loads and hydrates the client. The server and the client render one tree, `shared/components/app-tree.ts`: the same seven providers in the same order, then the matches, then the head, so Solid's hydration keys match. `NavigationContext` and `BlockerContext` live in `shared/router/context.ts` with the server's values as defaults (`IDLE_NAVIGATION`, `NO_BLOCKERS`). Each slot is wrapped in `Errored` on both sides. Solid's server boundary contains a rethrow, so the server fallback records the throw through `OutletState.failRender`, and `paint` answers it as the failure it was (B93). The Node listener cancels the body when the client disconnects, destroys the socket on a failure after the headers, and answers 500 before them (`adapters/node/listener.test.ts` `fetch throws`). `lint/boundaries.test.ts` gains `vite dev adapters` and `lint/funnel-only.test.ts` gains `dev handler` (00-rules, B34). Coverage excludes `packages/core/tests/**`: the e2e apps have their own `src/` folders. `vite dev` on Node and Bun loads `entry.server` through the SSR runner and answers through the Node adapter's listener. The minimal and basepath apps use `flare()` and their own `src/server.ts`, with no static middleware, so bit 01 `hydrate` and basepath pass on the real document.
+
+| test | case | result |
+| --- | --- | --- |
+| `peel` | an HTML body with an inline script and an inline style | `transformIndexHtml` sees the document without those tags, and the response puts them back |
+| `dot path` | a request whose last segment contains a dot | `transformIndexHtml` is called with `/` |
+| `stream` | a non-HTML body | the bytes are streamed. A client abort cancels the response |
+| `middleware mode` | Vite `middlewareMode` | this handler is not installed |
+| `set-cookie` | two `Set-Cookie` values | both are separate headers |
+| `streamed html` | an HTML body whose shell ends at `</head>`, then more chunks | `transformIndexHtml` sees the shell only, and the later chunks stream unchanged |
+| `html edges` | an HTML body with no `</head>`, an HTML response with no body, and a client cancel | the whole body is transformed, the empty response passes through, and the cancel reaches the app's stream |
+| `load error` | `entry.server` fails to load, with an Error, a string, and an Error with no stack | a dev 500 page with the escaped message and stack, and Vite's overlay gets the payload. A failure after the headers destroys the socket |
+| `entry export` | the server module exports no `server`, then the SSR environment has no runner | a 500 naming `entry.server`, then one saying the environment cannot run modules (Workers dev stays unsupported) |
+| `error relay` | the SSR graph sends `flare:error` with `{ type: "error", err: { message, stack } }` over `import.meta.hot` (B93) | the handler relays that payload to Vite's client socket once, and Vite's overlay receives it. A production build installs no relay |
+
+
+### `vite/plugin/flare.test.ts` (dev path)
+
+| test | case | result |
+| --- | --- | --- |
+| `dev server` | `configureServer` with `middlewareMode`, then without | no handler, then a post hook that installs it |
+| `client entry define` | `vite dev` | the `ssr` and `worker` environments define `import.meta.env.FLARE_CLIENT_ENTRY` as `clientUrl({ entry })`, `/src/client.tsx` by default. A build compiles the client first, then defines the manifest's hashed file for the server environments (bit 12 build shape) |
+
+### `vite/plugin/environments.test.ts` (client url)
+
+| test | case | result |
+| --- | --- | --- |
+| `client url` | the dev entry, a manifest entry, a missing manifest entry | `/src/client.tsx`, the hashed file, a throw naming the entry. It moved here from `server/render/document.ts`, because Node's config loader cannot load the `.tsx` graph `document.ts` imports |
+
+### `shared/components/app-tree.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `providers` | `appTree` over the seven values | each context reads its value inside the tree |
+| `server defaults` | `IDLE_NAVIGATION` and `NO_BLOCKERS` | never pending, `track` returns the work, no blocker is asked |
+
+### `server/lifecycle/create.test.ts` (client script)
+
+| test | case | result |
+| --- | --- | --- |
+| `client script` | `import.meta.env.FLARE_CLIENT_ENTRY` set, then unset | the document carries `import("<url>")` beside the state script, then no client script. There is no public option |
+
 ### `tests/e2e/navigation.test.ts`
 
-This file calls `boot` for the `minimal` app (B70). The project name selects `runtime`, `mode`, and the browser. `boot` receives `runtime` and `mode`. It does not start a server of its own. `stored stream fills` adds a page under `minimal` when that page's cache config leaves `/` and `/about` unchanged. It does not add an app.
+This file calls `boot` for the `minimal` app (B70). `boot` starts each app's `vite` in a child process with `NO_COLOR=1`, so the framework it loads stays out of the test process and its URL is plain text. The project name selects `runtime`, `mode`, and the browser. `boot` receives `runtime` and `mode`. It does not start a server of its own. `stored stream fills` moved to bit 10, which owns the stored render.
 
 | test | case | result |
 | --- | --- | --- |
 | `click` | click the about link | the URL changes, the root layout element is the same DOM node |
 | `back` | browser back | the home text returns |
 | `scroll` | scroll, navigate, back | the saved scroll position returns |
-| `stored stream fills` | a stored page whose defer mode is `stream` | the HTML has the placeholder, then a `no-store` data request fills it |
 | `two skeletons` | a document with two deferred reads, each under its own `<Loading>` | the first HTML contains both fallbacks and neither resolved string. The fast string appears in a later chunk while the slow fallback is still showing. Then the slow string appears. The status stays 200 |
+| `style object` | a multi-key `style={{ … }}` object in a page | SSR renders it and the client hydrates it with no page error |
 
 ## Done
 

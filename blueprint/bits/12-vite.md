@@ -82,14 +82,7 @@ Route chunks (from bit 06). Codegen's `chunks` map gives each route id the proje
 
 ### `vite/dev/handler.test.ts`
 
-| test | case | result |
-| --- | --- | --- |
-| `peel` | an HTML body with an inline script and an inline style | `transformIndexHtml` sees the document without those tags, and the response puts them back |
-| `dot path` | a request whose last segment contains a dot | `transformIndexHtml` is called with `/` |
-| `stream` | a non-HTML body | the bytes are streamed. A client abort cancels the response |
-| `middleware mode` | Vite `middlewareMode` | this handler is not installed |
-| `set-cookie` | two `Set-Cookie` values | both are separate headers |
-| `error relay` | the SSR graph sends `flare:error` with `{ type: "error", err: { message, stack } }` over `import.meta.hot` (B93) | the handler relays that payload to Vite's client socket once, and Vite's overlay receives it. A production build installs no relay |
+Moved to bit 06, which needs a real client document for its e2e navigation rows. The dev handler, its rows, and the `error relay` are born there.
 
 ### `vite/plugin/environments.test.ts` (build shape)
 

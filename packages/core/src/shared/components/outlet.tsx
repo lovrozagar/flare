@@ -23,6 +23,8 @@ export type OutletState = {
 	failure?: { index: number; status: number; error: Error };
 	unknown?: { render?: NotFoundRender };
 	onBoundaryError: (error: unknown) => void;
+	// The server records a render throw here and answers it as a status (B93).
+	failRender?: (error: unknown) => void;
 	// The browser keeps each slot's view-transition scope, the innermost boundary around that outlet.
 	onSlot?: (depth: number, scope: () => Element | undefined) => () => void;
 };
@@ -87,7 +89,7 @@ function renderMatch(state: () => OutletState, depth: number, match: OutletMatch
 		// The provider reads its children in a tracked scope. createComponent untracks the route's own reads.
 		get children() {
 			const content = (): JSX.Element => createComponent(render, renderProps(state, depth, match.kind));
-			return isServer ? content() : guard(state, depth, content);
+			return guard(state, depth, content);
 		},
 	});
 }
@@ -126,6 +128,9 @@ function guard(state: () => OutletState, depth: number, content: () => JSX.Eleme
 		fallback: (read: () => unknown) => {
 			const error = untrack(read);
 			const current = untrack(state);
+			// The server keeps a render throw as a status (B93). It still renders the boundary, so the tree and its
+			// hydration keys match the client's, and Solid's server boundary contains a rethrow, so it records it.
+			if (isServer) return void current.failRender?.(error);
 			current.onBoundaryError(error);
 			const thrown = error instanceof Error ? error : new Error(String(error));
 			return paintFailure(current, { index: depth, status: 500, error: thrown });

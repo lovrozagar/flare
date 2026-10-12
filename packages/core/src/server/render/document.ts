@@ -1,7 +1,8 @@
 import { createComponent, type Element } from "solid-js";
 import * as web from "@solidjs/web";
 import { withRequest } from "../../shared/csp/nonce.ts";
-import { LocationContext, RouterContext } from "../../shared/router/context.ts";
+import { appTree, NO_OVERLAY } from "../../shared/components/index.ts";
+import { IDLE_NAVIGATION, NO_BLOCKERS } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { raceAbort } from "./abort.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
@@ -36,8 +37,6 @@ export type DocumentInput = {
 	matches: readonly StateMatch[];
 	client?: string;
 };
-
-type ViteManifest = Record<string, { file: string }>;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -76,34 +75,25 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	return raceAbort(body, input.request.signal, () => halt.abort());
 }
 
-// The dev URL is the project-relative entry. A production URL is the entry's hashed file, and a missing entry
-// is a build error.
-export function clientUrl(input: { entry: string; manifest?: ViteManifest }): string {
-	if (input.manifest === undefined) return `/${input.entry}`;
-	const built = input.manifest[input.entry];
-	if (built === undefined) throw new Error(`The client entry ${input.entry} is not in the Vite manifest`);
-	return `/${built.file}`;
-}
-
 function defaultStream(fn: () => unknown, options: StreamOptions): ReturnType<Stream> {
 	return web.renderToStream(fn, options as Parameters<typeof web.renderToStream>[1]);
 }
 
+// The tree the client hydrates: the same providers with the server's values, then the matches, then the head.
 // The request's location is the one on screen, so a Link paints its active state on the server too.
 function tree(input: DocumentInput, tags: readonly HeadTag[] | undefined): Element {
 	const url = new URL(input.request.url);
 	const location = { pathname: url.pathname, search: url.search, hash: "" };
-	return createComponent(RouterContext, {
-		value: input.router,
-		get children() {
-			return createComponent(LocationContext, {
-				value: () => location,
-				get children() {
-					return tags === undefined ? input.render() : [createComponent(DocumentHead, { tags }), input.render()];
-				},
-			});
-		},
-	});
+	const values = {
+		router: input.router,
+		location: () => location,
+		navigate: null,
+		navigation: IDLE_NAVIGATION,
+		blockers: NO_BLOCKERS,
+		prefetcher: null,
+		overlay: NO_OVERLAY,
+	};
+	return appTree(values, () => [input.render(), createComponent(DocumentHead, { tags: tags ?? [] })]);
 }
 
 function streamOptions(signal: AbortSignal, tail: string, nonce: string): StreamOptions {

@@ -1,13 +1,7 @@
-import { createContext, createSignal, useContext, type Context } from "solid-js";
+import { createSignal, useContext } from "solid-js";
+import { NavigationContext, type NavigationState } from "../../shared/router/context.ts";
 
-// One per client. `track` wraps a navigation's fetch: pending stays true while any tracked fetch is in flight.
-// A prefetch is never tracked (dx/navigate.md).
-export type NavigationState = {
-	pending: () => boolean;
-	track: <T>(work: Promise<T>) => Promise<T>;
-};
-
-export const NavigationContext: Context<NavigationState> = createContext<NavigationState>();
+export { NavigationContext, type NavigationState };
 
 export function createNavigationState(): NavigationState {
 	const [inFlight, setInFlight] = createSignal(0);

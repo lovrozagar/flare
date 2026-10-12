@@ -134,6 +134,8 @@ packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary t
 packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts
 packages/core/src/shared/components/outlet.tsx	P1	src	dom	Outlet
 packages/core/src/shared/components/outlet.test.tsx	P1	test	dom	Unit cases for outlet.tsx
+packages/core/src/shared/components/app-tree.ts	P6	src	shared	The provider tree the server renders and the client hydrates, so hydration keys match
+packages/core/src/shared/components/app-tree.test.ts	P6	test	shared	Unit cases for app-tree.ts
 packages/core/src/shared/components/link.tsx	P6	src	dom	Link. Prefetch on intent. Reject a foreign origin
 packages/core/src/shared/components/link.test.tsx	P6	test	dom	Unit cases for link.tsx
 packages/core/src/shared/components/intercept-outlet.tsx	P6	src	dom	InterceptOutlet renders the intercepted match and keeps the background match
@@ -404,9 +406,9 @@ packages/core/src/vite/plugin/build-id.test.ts	P12	test	vite	Unit cases for buil
 packages/core/src/vite/plugin/index.ts	P1	index	vite	Re-exports
 packages/core/src/vite/dev/guard.ts	P12	src	vite	Dev-only endpoints require a same-origin request. No Access-Control-Allow-Origin star
 packages/core/src/vite/dev/guard.test.ts	P12	test	vite	Unit cases for guard.ts
-packages/core/src/vite/dev/handler.ts	P12	src	vite	Node and Bun vite dev HTTP handler. middlewareMode skips it (B89)
-packages/core/src/vite/dev/handler.test.ts	P12	test	vite	Unit cases for handler.ts
-packages/core/src/vite/dev/index.ts	P12	index	vite	Re-exports
+packages/core/src/vite/dev/handler.ts	P6	src	vite	Node and Bun vite dev HTTP handler. middlewareMode skips it (B89)
+packages/core/src/vite/dev/handler.test.ts	P6	test	vite	Unit cases for handler.ts
+packages/core/src/vite/dev/index.ts	P6	index	vite	Re-exports
 packages/core/src/vite/prerender/run.ts	P12	src	vite	Render static routes. Non-zero exit names the route on a bad status
 packages/core/src/vite/prerender/run.test.ts	P12	test	vite	Unit cases for run.ts
 packages/core/src/vite/prerender/artifacts.ts	P12	src	vite	Write seed JSON at the artifact path, with renderedAt, tags, and seed true
@@ -574,6 +576,7 @@ packages/core/tests/e2e/apps/minimal/src/routes/_root_/root.root-layout.tsx	P1	a
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/home.page.tsx	P1	app	-	Home page
 packages/core/tests/e2e/apps/minimal/wrangler.jsonc	P3	app	-	Workers config for the same app
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/about.page.tsx	P6	app	-	Second page for navigation
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons.page.tsx	P6	app	-	Two deferred reads, each under its own Loading, for two skeletons
 packages/core/tests/e2e/apps/minimal/src/fns/echo.ts	P7	app	-	One server function
 packages/core/tests/e2e/apps/basepath/package.json	P2	app	-	App package
 packages/core/tests/e2e/apps/basepath/tsconfig.json	P2	app	-	App tsconfig

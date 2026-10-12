@@ -23,17 +23,24 @@ type NodeRes = {
 	end: () => void;
 	once: (event: "drain" | "close", callback: () => void) => void;
 	writableFinished?: boolean;
+	destroy?: () => void;
 };
 
 export function createNodeListener(server: Server, options?: unknown): (req: NodeReq, res: NodeRes) => void {
 	if (options !== undefined) throw new Error("createNodeListener takes no options");
 	const retained = new Set<Promise<unknown>>();
 	return (req, res) => {
-		void pump({ server, req, res, retained });
+		const job = { server, req, res, retained, sent: false };
+		// A failure before the headers is a bare 500. After them the socket is destroyed: the status is gone.
+		void pump(job).catch(() => {
+			if (job.sent) return res.destroy?.();
+			res.writeHead(500);
+			res.end();
+		});
 	};
 }
 
-type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<unknown>> };
+type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<unknown>>; sent: boolean };
 
 async function pump(job: Job): Promise<void> {
 	if (toRequest({ url: job.req.url }).status === 400) {
@@ -65,7 +72,8 @@ async function pump(job: Job): Promise<void> {
 	});
 	writeHeaders(job.res, response.headers);
 	job.res.writeHead(response.status);
-	await writeBody(job.res, response.body);
+	job.sent = true;
+	await writeBody(job.res, response.body, disconnect.signal);
 	if (body !== undefined && job.req.readableEnded !== true) await body.release();
 }
 
@@ -101,12 +109,14 @@ function writeHeaders(res: NodeRes, headers: Headers): void {
 	if (cookies.length > 0) res.setHeader("set-cookie", cookies);
 }
 
-async function writeBody(res: NodeRes, body: ReadableStream<Uint8Array> | null): Promise<void> {
+// A client that disconnects cancels the body, so the producer stops instead of writing into a closed socket.
+async function writeBody(res: NodeRes, body: ReadableStream<Uint8Array> | null, gone: AbortSignal): Promise<void> {
 	if (body === null) {
 		res.end();
 		return;
 	}
 	const reader = body.getReader();
+	gone.addEventListener("abort", () => void reader.cancel(), { once: true });
 	for (;;) {
 		const step = await reader.read();
 		if (step.done) {

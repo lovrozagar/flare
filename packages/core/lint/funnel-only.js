@@ -10,6 +10,9 @@ export const rule = {
 				const file = String(context.filename).replaceAll("\\", "/");
 				if (file.endsWith("/finalize.ts")) return;
 				if (file.endsWith("/proxy.ts")) return;
+				// The dev host answers outside the pipeline: a server entry that fails to load, and HTML re-wrapped
+				// after transformIndexHtml (B34).
+				if (file.endsWith("/vite/dev/handler.ts")) return;
 				context.report({ node, message: "return new Response only from finalize" });
 			},
 		};

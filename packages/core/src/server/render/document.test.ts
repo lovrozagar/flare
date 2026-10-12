@@ -5,7 +5,7 @@ import { Link } from "../../shared/components/index.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { useRouter } from "../../shared/router/context.ts";
 import { createDefer } from "../loaders/defer.ts";
-import { clientUrl, renderDocument, type DocumentInput } from "./document.ts";
+import { renderDocument, type DocumentInput } from "./document.ts";
 
 const router = createRouter({ layouts: {}, routeTree: [] });
 
@@ -179,10 +179,6 @@ it("client import", async () => {
 	);
 	const plain = await text(await renderDocument({ ...base(), client: "/src/client.tsx", render: () => "home" }));
 	expect(plain).toContain('<script type="module" async>import("/src/client.tsx")</script>');
-	expect(clientUrl({ entry: "src/client.tsx" })).toBe("/src/client.tsx");
-	const manifest = { "src/client.tsx": { file: "assets/client-1a2b3c.js" } };
-	expect(clientUrl({ entry: "src/client.tsx", manifest })).toBe("/assets/client-1a2b3c.js");
-	expect(() => clientUrl({ entry: "src/main.tsx", manifest })).toThrow(/src\/main\.tsx/);
 });
 
 it("hydration capture", async () => {

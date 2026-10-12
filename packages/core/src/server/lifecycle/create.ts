@@ -26,6 +26,13 @@ import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
 
 const HTML = "text/html; charset=utf-8";
 
+declare global {
+	interface ImportMetaEnv {
+		// The client entry URL flare() defines in the server environments (dx/plugin.md).
+		readonly FLARE_CLIENT_ENTRY?: string;
+	}
+}
+
 export type { FlareServer, ServerOptions } from "./options.ts";
 
 type Secured = { headers: Headers; nonce: string };
@@ -219,7 +226,11 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 		failure: rendered.failed && { index: rendered.run.data.length, ...rendered.failed },
 		unknown: rendered.unknown && { render: notFoundRenderOf(rendered.chain) },
 		onBoundaryError: (error) => void projectError(error, exchange.sink),
+		failRender: (error) => void thrownInRender.push(error),
 	};
+	// A render throw is caught by the slot's boundary, so the tree matches the client's. It still answers as the
+	// failure it was (B93).
+	const thrownInRender: unknown[] = [];
 	let body: ReadableStream<Uint8Array>;
 	try {
 		body = await renderDocument({
@@ -232,7 +243,13 @@ async function paint(exchange: Exchange, rendered: Rendered, status: number): Pr
 			),
 			matches: stateMatches(state.matches, rendered),
 			render: () => createComponent(Matches, { state: () => state }),
+			// flare() defines the client entry URL for the server environments. Without the plugin there is none.
+			client: import.meta.env.FLARE_CLIENT_ENTRY,
 		});
+		if (thrownInRender.length > 0) {
+			void body.cancel();
+			throw thrownInRender[0];
+		}
 	} catch (thrown) {
 		return renderFailed(exchange, projectError(thrown, exchange.sink));
 	}

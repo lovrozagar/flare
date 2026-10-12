@@ -30,9 +30,9 @@ export type InterceptState = {
 };
 
 // The browser provides the store's overlay. The server and a document load have none.
-export const OverlayContext: Context<() => Overlay | undefined> = createContext<() => Overlay | undefined>(
-	() => undefined,
-);
+export const NO_OVERLAY = (): Overlay | undefined => undefined;
+
+export const OverlayContext: Context<() => Overlay | undefined> = createContext<() => Overlay | undefined>(NO_OVERLAY);
 
 // The layout owns it. With no overlay the child is not called. The page component runs only when the child
 // calls `state.match.render`, and the target's layouts are not mounted here.
