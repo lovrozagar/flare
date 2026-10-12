@@ -1,12 +1,6 @@
 import { patternSegments, type RawParams } from "../../shared/route-tree/index.ts";
 import type { PolicyClass } from "../auth/identity.ts";
-
-declare global {
-	interface ImportMetaEnv {
-		// The build id flare() defines in the server environments (dx/plugin.md).
-		readonly FLARE_BUILD_ID?: string;
-	}
-}
+import { buildId as built } from "../lifecycle/build-info.ts";
 
 // What a key is built from: the route's path pattern names the params in route order, and `params` is the raw
 // record the matcher built. There is no search, no identity class segment, and no author key (B32, B73).
@@ -18,9 +12,9 @@ export type KeyInput = {
 	class: PolicyClass;
 };
 
-// `dev` until flare() defines the production id (B84).
+// The id flare() writes into build-info.ts. Without the plugin, and in dev, it is `dev` (B84).
 export function buildId(): string {
-	return import.meta.env.FLARE_BUILD_ID ?? "dev";
+	return built;
 }
 
 // `static:<build>:<routeId>:<rawParams>` (B86). The values follow the route's declared params, never the record's

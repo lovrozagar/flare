@@ -222,3 +222,11 @@ function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[], rout
 function lazy(file: string): string {
 	return `() => import("./${escapeSource(file)}").then((loaded) => loaded.route)`;
 }
+
+// In a client build, each source path of the `chunks` map becomes the chunk its lazy import loads: an emitted chunk
+// reference, which Rolldown renders as a URL relative to the importing chunk, so the content hash covers it (bits/12).
+export function chunkReferences(source: string, emit: (path: string) => string): string {
+	return source.replace(/^export const chunks = \{.*\};$/m, (line) =>
+		line.replace(/: "(\/[^"]+)"/g, (_all: string, path: string) => `: import.meta.ROLLUP_FILE_URL_${emit(path)}`),
+	);
+}

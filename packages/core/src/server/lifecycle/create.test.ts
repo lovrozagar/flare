@@ -10,6 +10,15 @@ import { notFound } from "../../shared/errors/http.ts";
 import { createServer, serveWith } from "./create.ts";
 import type { Logger } from "./logger.ts";
 
+// flare() writes the client entry into build-info.ts. Without the plugin there is none.
+const info = vi.hoisted((): { entry: string | undefined } => ({ entry: undefined }));
+vi.mock("./build-info.ts", () => ({
+	buildId: "dev",
+	get clientEntry() {
+		return info.entry;
+	},
+}));
+
 // A layout shows its data, then its outlet. A page has no children.
 function show(props: { loaderData: unknown; children?: JSX.Element }): JSX.Element {
 	return [`[${label(props.loaderData)}]`, props.children];
@@ -451,10 +460,10 @@ it("prefetch defer", async () => {
 });
 
 it("client script", async () => {
-	vi.stubEnv("FLARE_CLIENT_ENTRY", "/src/client.tsx");
+	info.entry = "/src/client.tsx";
 	const withEntry = await (await createServer({ router }).fetch(new Request("http://localhost/"))).text();
 	expect(withEntry).toContain('import("/src/client.tsx")');
-	vi.unstubAllEnvs();
+	info.entry = undefined;
 	const without = await (await createServer({ router }).fetch(new Request("http://localhost/"))).text();
 	expect(without).not.toContain("import(");
 });

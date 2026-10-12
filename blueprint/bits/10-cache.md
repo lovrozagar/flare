@@ -44,7 +44,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `route order` | route `/[a]/[b]` and the record `{ b: "two", a: "one" }`, the order the matcher builds | `static:b:<route>:one/two`. The order comes from the route's declared params, never from the record's key order, so a prerender seed keyed from `params()` and a runtime lookup agree |
 | `absent optional` | route `/[[a]]/static/[[b]]` at `/static/x` and at `/x/static` | two different keys, `…:/x` and `…:x/`. Every declared param keeps its slot. An absent optional is the empty string. Only a route that declares no params omits the segment |
 | `required` | class `required` | throw. There is no key |
-| `build id` | no `FLARE_BUILD_ID` defined, then one defined | `dev`, then the defined id. Bit 12's `flare()` defines it in production |
+| `build id` | `build-info.ts`'s source `buildId`, then another id | `dev`, then that id. Bit 12's `flare()` writes the manifest's id into that module in production |
 | `no callback` | the module's exports | there is no function that accepts an author key |
 
 ### `server/cache/write.test.ts`

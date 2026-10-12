@@ -1,6 +1,6 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBuilder, type InlineConfig, type Rollup, type ViteBuilder } from "vite";
 import { afterEach, expect, it, vi } from "vitest";
@@ -29,7 +29,10 @@ function project(files: Record<string, string> = APP): string {
 	const root = mkdtempSync(join(tmpdir(), "flare-env-"));
 	roots.push(root);
 	mkdirSync(join(root, "src"));
-	for (const [name, text] of Object.entries(files)) writeFileSync(join(root, "src", name), text);
+	for (const [name, text] of Object.entries(files)) {
+		mkdirSync(dirname(join(root, "src", name)), { recursive: true });
+		writeFileSync(join(root, "src", name), text);
+	}
 	return root;
 }
 
@@ -147,6 +150,53 @@ it("css order", async () => {
 	const app = await builder(project());
 	await expect(app.build(app.environments.ssr ?? never())).rejects.toThrow(/client build must run before/);
 }, 30_000);
+
+// The server holds the client's one stylesheet as text and its URL. No client chunk holds the CSS: the browser loads
+// the file.
+it("css server only", async () => {
+	const app = await builder(project());
+	const client = outputs(await app.build(app.environments.client ?? never()));
+	const sheet = client.find((file) => file.fileName.endsWith(".css")) ?? never();
+	const css = sheet.type === "asset" ? String(sheet.source) : never();
+	const rule = css.slice(0, css.indexOf("}") + 1);
+	expect(rule).toMatch(/^\.a\{background:url\(/);
+	const server = text(outputs(await app.build(app.environments.ssr ?? never())), "server.js");
+	expect(server).toContain(rule);
+	expect(server).toContain(`/${sheet.fileName}`);
+	const scripts = client.flatMap((file) => (file.type === "chunk" ? [file.code] : []));
+	expect(scripts.length).toBeGreaterThan(0);
+	for (const code of scripts) expect(code).not.toContain(rule);
+}, 60_000);
+
+// The client build turns each source path of the generated `chunks` map into the hashed file the lazy import loads,
+// as a URL relative to the entry chunk. Serve keeps the source paths, which are the dev URLs.
+it("chunk urls", async () => {
+	const generated = [
+		'export const tree = [() => import("../routes/a.page.ts"), () => import("../routes/root.root-layout.ts")];',
+		'export const chunks = { "_root_/a": "/src/routes/a.page.ts", "_root_": "/src/routes/root.root-layout.ts" };',
+	].join("\n");
+	const root = project({
+		"client.tsx": 'import { chunks, tree } from "./_gen/routes.gen.ts";\nconsole.log(chunks, tree);\n',
+		"server.ts": "export const server = {};\n",
+		"_gen/routes.gen.ts": `${generated}\n`,
+		"routes/a.page.ts": 'export const route = "a";\n',
+		"routes/root.root-layout.ts": 'export const route = "root";\n',
+	});
+	const app = await builder(root);
+	const client = outputs(await app.build(app.environments.client ?? never()));
+	const manifest: Record<string, { file: string }> = JSON.parse(text(client, ".vite/manifest.json"));
+	const entry = text(client, basename(manifest["src/client.tsx"]?.file ?? never()));
+	for (const source of ["src/routes/a.page.ts", "src/routes/root.root-layout.ts"]) {
+		const file = basename(manifest[source]?.file ?? never());
+		expect(entry).toMatch(new RegExp(`new URL\\([\`'"]${file.replace(".", "\\.")}[\`'"],\\s*import\\.meta\\.url\\)`));
+	}
+	expect(entry).not.toContain("/src/routes/");
+	const plugin = flare().find((item) => item.name === "flare:chunks");
+	const transform = plugin?.transform;
+	if (typeof transform !== "function") throw new Error("transform");
+	const serve = { environment: { name: "client", config: { command: "serve", root } } };
+	expect(Reflect.apply(transform, serve, [generated, join(root, "src/_gen/routes.gen.ts")])).toBeNull();
+}, 60_000);
 
 function never(): never {
 	throw new Error("missing");

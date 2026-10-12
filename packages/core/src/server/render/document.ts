@@ -1,6 +1,7 @@
 import { createComponent, type Element } from "solid-js";
 import * as web from "@solidjs/web";
 import { withRequest } from "../../shared/csp/nonce.ts";
+import { buildId } from "../lifecycle/build-info.ts";
 import { appTree, NO_OVERLAY } from "../../shared/components/index.ts";
 import { IDLE_NAVIGATION, NO_BLOCKERS } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
@@ -43,7 +44,9 @@ const decoder = new TextDecoder();
 export async function renderDocument(input: DocumentInput): Promise<ReadableStream<Uint8Array>> {
 	const nonce = input.nonce ?? "";
 	// The state is serialized first. A value JSON cannot hold, such as a bigint, fails before the shell.
-	const tail = stateScript({ matches: input.matches, nonce, fill: input.fill }) + clientScript(input.client, nonce);
+	const tail =
+		stateScript({ matches: input.matches, nonce, build: buildId, fill: input.fill }) +
+		clientScript(input.client, nonce);
 	const head = captureScript(nonce);
 	const tags = input.head === undefined ? undefined : headTags(input.head, { nonce });
 	const piped = new TransformStream<Chunk, Chunk>();

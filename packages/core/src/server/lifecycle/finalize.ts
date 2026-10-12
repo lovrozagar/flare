@@ -1,6 +1,7 @@
 import { statusOf } from "../../shared/errors/status.ts";
 import { BUILD_HEADER, RENDER_HEADER } from "../../shared/protocol/index.ts";
 import { defaultHeaders } from "../security/defaults.ts";
+import { buildId } from "./build-info.ts";
 import { NO_STORE, recordCookies } from "./policies.ts";
 
 // `body` may be a stream or bytes: a .response() answer passes through unread (dx/server.md).
@@ -19,7 +20,8 @@ export function finalize(stage: StageResult): Response {
 	const settled = settle(stage);
 	const headers = new Headers({ "cache-control": NO_STORE });
 	if (settled.render !== undefined) headers.set(RENDER_HEADER, settled.render);
-	if (settled.build !== undefined) headers.set(BUILD_HEADER, settled.build);
+	// Every pipeline response names the build that answered it (B84).
+	headers.set(BUILD_HEADER, settled.build ?? buildId);
 	if (settled.location !== undefined) headers.set("location", settled.location);
 	if (settled.url !== undefined) copySecurity(headers, settled.url);
 	if (settled.headers !== undefined) copyHeaders(headers, settled.headers);

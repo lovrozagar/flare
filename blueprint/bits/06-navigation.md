@@ -437,7 +437,7 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 | test | case | result |
 | --- | --- | --- |
 | `dev server` | `configureServer` with `middlewareMode`, then without | no handler, then a post hook that installs it |
-| `client entry define` | `vite dev` | the `ssr` and `worker` environments define `import.meta.env.FLARE_CLIENT_ENTRY` as `clientUrl({ entry })`, `/src/client.tsx` by default. A build compiles the client first, then defines the manifest's hashed file for the server environments (bit 12 build shape) |
+| `client entry define` | `vite dev`, then a build after the client wrote its manifest | the `ssr` and `worker` environments load `server/lifecycle/build-info.ts` with `clientEntry` as `clientUrl({ entry })`, `/src/client.tsx` by default, and `buildId` `dev`. A build loads the manifest's hashed entry and its build id, and fails naming the manifest path when it is absent. The client environment never loads it. No `define` is set (bit 12) |
 
 ### `server/render/document.test.ts` (doctype)
 
@@ -462,7 +462,7 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 
 | test | case | result |
 | --- | --- | --- |
-| `client script` | `import.meta.env.FLARE_CLIENT_ENTRY` set, then unset | the document carries `import("<url>")` beside the state script, then no client script. There is no public option |
+| `client script` | `build-info.ts`'s `clientEntry` set, then unset | the document carries `import("<url>")` beside the state script, then no client script. There is no public option |
 
 ### `tests/e2e/navigation.test.ts`
 

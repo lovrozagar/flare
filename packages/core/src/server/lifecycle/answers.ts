@@ -20,6 +20,7 @@ import { renderDocument } from "../render/document.ts";
 import { definedParams, outletMatches, stateMatches, type Rendered } from "../render/matches.ts";
 import { projectError, type Projected } from "../render/projector.ts";
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts";
+import { clientEntry } from "./build-info.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import { isPublic, policyHeaders } from "./policies.ts";
 
@@ -27,13 +28,6 @@ import { isPublic, policyHeaders } from "./policies.ts";
 // 13). createServer routes to them.
 
 export const HTML = "text/html; charset=utf-8";
-
-declare global {
-	interface ImportMetaEnv {
-		// The client entry URL flare() defines in the server environments (dx/plugin.md).
-		readonly FLARE_CLIENT_ENTRY?: string;
-	}
-}
 
 // A match whose modules are loaded (02-system step 10).
 export type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
@@ -222,8 +216,8 @@ export async function drawn(
 			),
 			matches: stateMatches(state.matches, rendered),
 			render: () => createComponent(Matches, { state: () => state }),
-			// flare() defines the client entry URL for the server environments. Without the plugin there is none.
-			client: import.meta.env.FLARE_CLIENT_ENTRY,
+			// flare() writes the client entry URL into build-info.ts. Without the plugin there is none.
+			client: clientEntry,
 			fill: rendered.run.holes === true,
 			// Dev inlines nothing: Vite serves the CSS it injects (B15).
 			sheet: exchange.sink.dev ? "" : builtSheet,
