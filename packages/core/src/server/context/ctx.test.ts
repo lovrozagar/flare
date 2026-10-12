@@ -11,22 +11,34 @@ const request = new Request("http://localhost/");
 const router = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/" }] });
 const page = { id: "_root_", loader: () => ({ sentinel: "Home" }) };
 
+function unreachable(): never {
+	throw new Error("serverContext did not throw");
+}
+
 it("returns the value", async () => {
 	const value = { user: "ada" };
-	const seen = await withServerContext({ request, env: {}, serverContext: () => value }, async () => {
-		await Promise.resolve();
-		return serverCtx();
-	});
+	const seen = await withServerContext(
+		{ request, env: {}, serverContext: () => value },
+		async () => {
+			await Promise.resolve();
+			return serverCtx();
+		},
+		unreachable,
+	);
 	expect(seen).toBe(value);
 });
 
 it("not the event", async () => {
-	const seen = await withServerContext({ request, env: {}, serverContext: () => ({}) }, async () => {
-		const event = getRequestEvent();
-		if (event === undefined) throw new Error("no request event");
-		Object.assign(event.locals, { user: "ada" });
-		return serverCtx();
-	});
+	const seen = await withServerContext(
+		{ request, env: {}, serverContext: () => ({}) },
+		async () => {
+			const event = getRequestEvent();
+			if (event === undefined) throw new Error("no request event");
+			Object.assign(event.locals, { user: "ada" });
+			return serverCtx();
+		},
+		unreachable,
+	);
 	expect(seen).toEqual({});
 });
 
@@ -56,6 +68,27 @@ it("required", () => {
 	const given = createServer<ContextApp>({ router, page, serverContext: () => ({ requestId: "r1" }) });
 	expect(typeof missing.fetch).toBe("function");
 	expect(typeof given.fetch).toBe("function");
+});
+
+it("throw is 500", async () => {
+	let loaded = false;
+	const server = createServer({
+		router,
+		page: {
+			id: "_root_",
+			loader: () => {
+				loaded = true;
+				return { sentinel: "Home" };
+			},
+		},
+		serverContext: () => {
+			throw new Error("ctx boom");
+		},
+	});
+	const response = await server.fetch(new Request("http://localhost/"));
+	expect(response.status).toBe(500);
+	expect(await response.text()).not.toContain("ctx boom");
+	expect(loaded).toBe(false);
 });
 
 it("outside a request", () => {

@@ -53,7 +53,11 @@ export function createServer(options: RuntimeOptions): FlareServer {
 			if (step.status !== 200) {
 				return Promise.resolve(finalize({ status: step.status, body: "", location: step.location, url: request.url }));
 			}
-			return withServerContext({ request, env, serverContext: options.serverContext }, () => route(options, request));
+			return withServerContext(
+				{ request, env, serverContext: options.serverContext },
+				() => route(options, request),
+				() => finalize({ status: 500, body: "", url: request.url }),
+			);
 		},
 	};
 }

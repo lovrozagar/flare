@@ -9,7 +9,7 @@ const boom = new Error("boom");
 function noop(): void {}
 
 function request(routes: readonly LoaderRoute[], extra: Partial<RunInput> = {}): RunInput {
-	return { kind: "document", auth: { requires: false, reads: false }, authenticate: () => null, routes, ...extra };
+	return { kind: "document", authenticate: () => null, routes, ...extra };
 }
 
 function throws(): never {
@@ -22,6 +22,7 @@ async function traced(extra: Partial<RunInput>, authorized = true): Promise<Trac
 	const seen: string[] = [];
 	const route: LoaderRoute = {
 		id: "page",
+		auth: { authenticateOptional: true },
 		validate: () => {
 			seen.push("validate");
 			return undefined;
@@ -37,7 +38,6 @@ async function traced(extra: Partial<RunInput>, authorized = true): Promise<Trac
 	};
 	const run = await runLoaders(
 		request([route], {
-			auth: { requires: false, reads: true },
 			authenticate: () => {
 				seen.push("authenticate");
 				return session;
@@ -71,6 +71,9 @@ it("order", async () => {
 	const denied = await traced({}, false);
 	expect(denied.status).toBe(403);
 	expect(denied.seen).toEqual(["validate", "authenticate", "preloader", "authorize"]);
+	const broken = await traced({ authenticate: throws });
+	expect(broken.status).toBe(500);
+	expect(broken.seen).toEqual(["validate"]);
 });
 
 it("auth args", async () => {
@@ -80,6 +83,7 @@ it("auth args", async () => {
 			[
 				{
 					id: "page",
+					auth: { authenticate: true },
 					preloader: (ctx) => seen.push(ctx.auth),
 					authorize: (ctx) => {
 						seen.push(ctx.auth);
@@ -88,7 +92,7 @@ it("auth args", async () => {
 					loader: (ctx) => seen.push(ctx.auth),
 				},
 			],
-			{ auth: { requires: true, reads: true }, authenticate: () => session },
+			{ authenticate: () => session },
 		),
 	);
 	expect(seen).toEqual([session, session, session]);
@@ -116,6 +120,31 @@ it("authorize is sequential", async () => {
 	release();
 	await pending;
 	expect(loaderStarted).toBe(true);
+	const seen: string[] = [];
+	const denied = await runLoaders(
+		request([
+			{
+				id: "root",
+				loader: () => {
+					seen.push("root loader");
+					return "root data";
+				},
+			},
+			{
+				id: "layout",
+				preloader: () => seen.push("layout pre"),
+				authorize: () => {
+					seen.push("layout authz");
+					return false;
+				},
+				loader: () => seen.push("layout loader"),
+			},
+			{ id: "page", preloader: () => seen.push("page pre"), loader: () => seen.push("page loader") },
+		]),
+	);
+	expect(denied.response.status).toBe(403);
+	expect(seen).toEqual(["layout pre", "layout authz", "root loader"]);
+	expect(denied.frames).toEqual([{ t: "l", m: "root", d: "root data" }]);
 });
 
 it("loaders are parallel", async () => {
@@ -200,9 +229,8 @@ async function fail(kind: RunInput["kind"]): Promise<{
 	let authenticated = false;
 	let overlay = false;
 	const { response } = await runLoaders(
-		request([{ id: "page", validate: () => [issue] }], {
+		request([{ id: "page", auth: { authenticate: true }, validate: () => [issue] }], {
 			kind,
-			auth: { requires: true, reads: true },
 			authenticate: () => {
 				authenticated = true;
 				return session;

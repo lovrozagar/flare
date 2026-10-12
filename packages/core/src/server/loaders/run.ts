@@ -1,11 +1,12 @@
 import { shapeIssues, type Issue } from "../../shared/validation/issues.ts";
-import type { EffectiveAuth } from "../auth/effective.ts";
+import type { AuthModule } from "../auth/effective.ts";
 import { gate, type AuthContext } from "../auth/gate.ts";
 import { finalize } from "../lifecycle/finalize.ts";
 import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts";
 
 export type LoaderRoute = {
 	id: string;
+	auth?: AuthModule;
 	validate?: () => readonly Issue[] | undefined;
 	preloader?: (ctx: AuthContext) => unknown;
 	authorize?: (ctx: AuthContext) => boolean | Promise<boolean>;
@@ -16,7 +17,6 @@ export type LoaderRoute = {
 
 export type RunInput = {
 	kind: RequestKind;
-	auth: EffectiveAuth;
 	authenticate: () => unknown;
 	shared?: boolean;
 	readStore?: () => void;
@@ -35,8 +35,11 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	if (invalid !== undefined) return { response: json(shapeIssues(invalid)), frames: [] };
 	const gated = await gate(input);
 	if (gated.kind === "status") return { response: finalize({ status: gated.status, body: "" }), frames: [] };
-	if (gated.kind === "failed") return conclude(input, [{ id: gated.id, settled: { ok: false, error: gated.error } }]);
-	return conclude(input, await load(input.routes, { auth: gated.session }));
+	if (gated.kind === "proceed") return conclude(input, await load(input.routes, { auth: gated.session }));
+	// Matches outside the stopped one still load. It and everything inside it do not (B27, B29).
+	const outer = await load(input.routes.slice(0, gated.index), { auth: gated.session });
+	const stopped = { id: input.routes[gated.index].id, settled: { ok: false as const, error: gated.error } };
+	return conclude(input, [...outer, stopped]);
 }
 
 function conclude(input: RunInput, outcomes: readonly Outcome[]): LoaderRun {
