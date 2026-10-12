@@ -67,3 +67,15 @@ it("at-rules", () => {
 		expect(() => parseCss(css)).toThrow(error);
 	}
 });
+
+// A backslash escapes the next character anywhere in CSS. Tailwind writes `\{` and `\}` in arbitrary-value classes.
+it("escaped brace", () => {
+	for (const selector of [String.raw`.a\{b`, String.raw`.content-\[\'\{\'\]`, String.raw`.a\}b`, String.raw`.a\;b`]) {
+		const css = `${selector}{color:red}`;
+		const statements = parseCss(css);
+		expect(statements).toHaveLength(1);
+		expect(statements[0]).toMatchObject({ kind: "rule", selector });
+		expect(printCss(statements)).toBe(css);
+	}
+	expect(printCss(parseCss(".a{content:\\{}"))).toBe(".a{content:\\{}");
+});
