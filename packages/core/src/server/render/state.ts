@@ -1,4 +1,4 @@
-import { escapeInlineScript } from "./escape.ts";
+import { escapeAttr, escapeInlineScript } from "./escape.ts";
 
 export type StateMatch = {
 	id: string;
@@ -12,7 +12,9 @@ export type StateMatch = {
 
 export function stateScript(state: { matches: readonly StateMatch[]; nonce: string }): string {
 	const payload = JSON.stringify({ matches: state.matches, nonce: state.nonce });
-	return `<script>self.flare=${escapeInlineScript(payload)}</script>`;
+	// A string CSP has no nonce, and then the tag has no attribute (B68).
+	const attr = state.nonce === "" ? "" : ` nonce="${escapeAttr(state.nonce)}"`;
+	return `<script${attr}>self.flare=${escapeInlineScript(payload)}</script>`;
 }
 
 export function insertState(shell: string, script: string): string {
