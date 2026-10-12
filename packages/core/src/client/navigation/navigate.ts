@@ -52,23 +52,30 @@ type Arrival = { kind: "landed"; landing: Landing } | { kind: "status"; status: 
 const NAMED_STATUS: Record<number, string> = { 401: "UnauthenticatedError", 403: "UnauthorizedError" };
 
 // Same-origin only. The DOM commits, then history is written. A revalidation of the current URL writes no
-// history. Starting a navigation aborts the previous one, and only the latest may commit (02-system).
+// history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
+// restore is one popstate step: the browser already moved, so no blocker runs, nothing is written, and the
+// saved scroll comes back.
 export function createNavigator(deps: NavigatorDeps): {
 	navigate: (options: NavigateOptions) => Promise<void>;
 	visit: (url: string, replace: boolean) => Promise<void>;
+	restore: (url: string) => Promise<void>;
 } {
 	let latest: AbortController | undefined;
 	const context = () => ({ router: deps.router, origin: deps.origin, current: deps.store.snapshot().location });
-	const go = async (target: Target, options: NavigateOptions): Promise<void> => {
+	const land = (location: Location, url: string, step: Step): void => {
+		if (step.pop) return deps.scroll.restore(deps.history.index(), location);
+		if (step.write) writeHistory(deps, url, step.options);
+		deps.scroll.afterCommit({ hash: location.hash, scroll: step.options.scroll !== false });
+	};
+	const go = async (target: Target, options: NavigateOptions, pop = false): Promise<void> => {
 		if (target.kind === "document") return void deps.assign(target.url);
 		const snapshot = deps.store.snapshot();
 		if (target.kind === "hash") {
 			deps.store.commit({ ...snapshot, location: target.location });
-			writeHistory(deps, target.url, options);
-			return deps.scroll.afterCommit({ hash: target.location.hash, scroll: options.scroll !== false });
+			return land(target.location, target.url, { options, pop, write: true });
 		}
 		const trigger: Trigger = sameUrl(snapshot.location, target.location) ? "revalidation" : "navigation";
-		if (!deps.blockers.run(blockerArgs(snapshot.location, target.location, trigger), noWrite())) return;
+		if (!pop && !deps.blockers.run(blockerArgs(snapshot.location, target.location, trigger), noWrite())) return;
 		latest?.abort();
 		const controller = new AbortController();
 		latest = controller;
@@ -84,14 +91,16 @@ export function createNavigator(deps: NavigatorDeps): {
 		deps.store.commit(nextSnapshot(deps, { target, chain, arrival, previous: snapshot }));
 		// The DOM updates before history is written (02-system).
 		flush();
-		if (trigger === "navigation") writeHistory(deps, target.url, options);
-		deps.scroll.afterCommit({ hash: target.location.hash, scroll: options.scroll !== false });
+		land(target.location, target.url, { options, pop, write: trigger === "navigation" });
 	};
 	return {
 		navigate: (options) => go(resolveTarget(options, context()), options),
 		visit: (url, replace) => go(resolveUrl(url, context()), { to: url, replace }),
+		restore: (url) => go(resolveUrl(url, context()), { to: url }, true),
 	};
 }
+
+type Step = { options: NavigateOptions; pop: boolean; write: boolean };
 
 type Trip = { target: DataTarget; options: NavigateOptions; trigger: Trigger; signal: AbortSignal };
 
