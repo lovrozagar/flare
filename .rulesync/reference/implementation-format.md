@@ -27,9 +27,9 @@ Same as plans (`slugify`, `nextSerial` on this dir). Body line 1: `IMPL_NAME: <3
 ```yaml
 ---
 serial: 1
-plan: 6 # unpadded int or none
+plan: 6                 # unpadded int or none
 name: add-auth
-status: in-progress # in-progress | done | blocked
+status: in-progress     # in-progress | done | blocked
 created: 2026-08-26T14:30:00Z
 source: "<≤120 chars of user task>"
 ---
@@ -49,20 +49,20 @@ source: "<≤120 chars of user task>"
 
 No other `##` headings.
 
-| Section  | Amount                                                                                                                  |
-| -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Done     | bullets. What landed and why. Past tense. Fresh: `(none)`                                                               |
-| Issue    | bug root cause bullets, or `(none)`                                                                                     |
-| Files    | repo-relative product paths as `- path` bullets. Default `/commit` stage set. No abs paths. No `.tmp/`. Fresh: `(none)` |
-| Log      | append-only. Fresh: `(none)`. After each plan leaf: `N.M [x] one line` (notes, fail, skip). `[x]` allowed               |
-| Blockers | open problems. `(none)` unless `status: blocked`                                                                        |
-| Notes    | short leftovers, or `(none)`                                                                                            |
+| Section | Amount |
+|---|---|
+| Done | bullets. What landed and why. Past tense. Fresh: `(none)` |
+| Issue | bug root cause bullets, or `(none)` |
+| Files | repo-relative product paths as `- path` bullets. Default `/commit` stage set. No abs paths. No `.tmp/`. Fresh: `(none)` |
+| Log | append-only. Fresh: `(none)`. After each plan leaf: `N.M [x] one line` (notes, fail, skip). `[x]` allowed |
+| Blockers | open problems. `(none)` unless `status: blocked` |
+| Notes | short leftovers, or `(none)` |
 
 ## Write
 
-Write under `.tmp/grunt/implementations/` (any filename in that dir). Grok `orchestrate-parent.js` runs `scripts/persist-implementation.mjs` on create (`IMPL_NAME:`): serial/slug from the name, injects frontmatter, rewrites path + content. Updates to an existing file keep the path; full-body writes are validated in place. Invalid create/update denies — fix the body, do not retry elsewhere.
+Write under `.tmp/grunt/implementations/` (any filename in that dir). Grok `orchestrate-parent.js` runs `.rulesync/scripts/persist-implementation.mjs` on create (`IMPL_NAME:`): serial/slug from the name, injects frontmatter, rewrites path + content. Updates to an existing file keep the path; full-body writes are validated in place. Invalid create/update denies — fix the body, do not retry elsewhere.
 
-Host without that hook: name the file per **Path**, or pipe the body to `node scripts/persist-implementation.mjs --workspace {repo}` and use its `path`.
+Host without that hook: name the file per **Path**, or pipe the body to `node .rulesync/scripts/persist-implementation.mjs --workspace {repo}` and use its `path`.
 
 Never allocate a new serial to log a leaf. Append Log, update Files/Done, flip the plan box.
 
@@ -93,27 +93,21 @@ source: "gitignore .tmp so local plans stay untracked"
 # add-tmp-ignore
 
 ## Done
-
 - Repo `.gitignore` ignores `.tmp/` so plans stay untracked
 
 ## Issue
-
 (none)
 
 ## Files
-
 - .gitignore
 
 ## Log
-
 1.1 [x] read existing gitignore
 1.2 [x] appended .tmp/
 
 ## Blockers
-
 (none)
 
 ## Notes
-
 (none)
 ```

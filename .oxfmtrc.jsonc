@@ -35,8 +35,6 @@
 		"CLAUDE.md",
 		"GEMINI.md",
 		".mcp.json",
-		"scripts/*.mjs",
-		"scripts/scrub-text",
 		"package.json",
 	],
 }
