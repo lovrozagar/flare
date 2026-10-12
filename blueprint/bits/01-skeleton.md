@@ -195,7 +195,8 @@ The corpus file feeds the test.
 
 | test | case | result |
 | --- | --- | --- |
-| `one route` | the minimal home page | `routes.gen.ts` imports it and exports `routeTree` and `layouts` |
+| `one route` | the minimal home page | `routes.gen.ts` imports its named `route` export as `{ route as route0 }` and exports `routeTree` and `layouts` |
+| `missing route export` | a page file with no `route` export | build error naming the file |
 | `filename` | `home.page.tsx` directly in `_root_` | id `_root_`, URL `/` |
 | `about` | `_root_/about/about.page.tsx` | id `_root_/about`, URL `/about` |
 | `group` | layout `_root_/(blog)` and page `_root_/(blog)/post` | the page URL is `/post` |

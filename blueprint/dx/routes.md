@@ -4,6 +4,8 @@ Routes are files under `src/routes`. There is no virtual route table (B21). Code
 
 The id is the directory path under `src/routes`. The filename is not a segment. `home.page.tsx` placed directly in `_root_` has id `_root_` and serves `/` (`vite/codegen/routes.test.ts` `filename`).
 
+Each route file exports its builder record as the named export `route`: `export const route = createPage("_root_/about")…`. The same holds for `createLayout`, `createRootLayout`, and `createPathSegment`. There is no default export. Codegen imports `{ route as routeN }` and sets `module: routeN`. A route file with no `route` export is a build error that names the file (`routes.test.ts` `one route`, `missing route export`). The file may export other names. The boundary transform strips the server methods from `route` on the client graph (B8).
+
 A folder holds at most one file of each suffix. Two `*.page.tsx` files in one folder are a build error (`two pages`). A `*.layout.tsx` in a folder wraps the page in that folder and the pages in child folders. It has no URL of its own. A `*.root-layout.tsx` is the document for that root. A `*.segment.ts` is `createPathSegment` for that folder.
 
 ## File, id, URL
