@@ -1,0 +1,25 @@
+// On @solidjs/web 2.0.0-rc.13, aborting renderToStream's signal does not close its writable (N3-2). Every pull,
+// the chunk-0 wait included, races the request signal. An abort disposes the render once, cancels the
+// source, and ends the response.
+export function raceAbort(
+	source: ReadableStream<Uint8Array>,
+	signal: AbortSignal,
+	dispose: () => void,
+): ReadableStream<Uint8Array> {
+	const reader = source.getReader();
+	const { promise: aborted, resolve } = Promise.withResolvers<undefined>();
+	const stop = (): void => {
+		dispose();
+		void reader.cancel();
+		resolve(undefined);
+	};
+	if (signal.aborted) stop();
+	else signal.addEventListener("abort", stop, { once: true });
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			const result = await Promise.race([reader.read(), aborted]);
+			if (result === undefined || result.done) controller.close();
+			else controller.enqueue(result.value);
+		},
+	});
+}

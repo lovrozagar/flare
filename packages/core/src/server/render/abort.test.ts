@@ -1,0 +1,63 @@
+import { expect, it, vi } from "vitest";
+import { raceAbort } from "./abort.ts";
+
+const encoder = new TextEncoder();
+
+// A render that writes only what the test pushes, and never ends by itself.
+function pending(): { stream: ReadableStream<Uint8Array>; push: (text: string) => void; cancel: () => void } {
+	const started: ReadableStreamDefaultController<Uint8Array>[] = [];
+	const cancel = vi.fn<() => void>();
+	const stream = new ReadableStream<Uint8Array>({
+		start(controller) {
+			started.push(controller);
+		},
+		cancel,
+	});
+	return { stream, push: (text) => started[0].enqueue(encoder.encode(text)), cancel };
+}
+
+it("before shell", async () => {
+	const render = pending();
+	const dispose = vi.fn<() => void>();
+	const abort = new AbortController();
+	const reader = raceAbort(render.stream, abort.signal, dispose).getReader();
+	const first = reader.read();
+	abort.abort();
+	expect(await first).toEqual({ done: true, value: undefined });
+	expect(dispose).toHaveBeenCalledOnce();
+	expect(render.cancel).toHaveBeenCalledOnce();
+});
+
+it("mid stream", async () => {
+	const render = pending();
+	const dispose = vi.fn<() => void>();
+	const abort = new AbortController();
+	const reader = raceAbort(render.stream, abort.signal, dispose).getReader();
+	render.push("shell");
+	expect(new TextDecoder().decode((await reader.read()).value)).toBe("shell");
+	const next = reader.read();
+	abort.abort();
+	expect(await next).toEqual({ done: true, value: undefined });
+	await expect(reader.closed).resolves.toBeUndefined();
+	expect(dispose).toHaveBeenCalledOnce();
+});
+
+it("idempotent", async () => {
+	const render = pending();
+	const dispose = vi.fn<() => void>();
+	const abort = new AbortController();
+	const reader = raceAbort(render.stream, abort.signal, dispose).getReader();
+	const first = reader.read();
+	abort.abort();
+	abort.signal.dispatchEvent(new Event("abort"));
+	await first;
+	expect(dispose).toHaveBeenCalledOnce();
+	const already = new AbortController();
+	already.abort();
+	const late = vi.fn<() => void>();
+	expect(await raceAbort(pending().stream, already.signal, late).getReader().read()).toEqual({
+		done: true,
+		value: undefined,
+	});
+	expect(late).toHaveBeenCalledOnce();
+});
