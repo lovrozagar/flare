@@ -146,4 +146,6 @@ Any other devDependency is an exact version too, and it is not a peer. Solid's `
 
 ## Gates that exist from the first source file
 
-`bun run typecheck`, `bun run lint`, `bun run test`, the coverage thresholds, `scripts/check-tree.ts` (the tree matches `files.tsv`), and the boundary lint. `bun run test` does not start Playwright. `bun run test:e2e` runs the projects this OS owns (B70). Linux owns chromium and firefox. macOS owns webkit. CI runs both jobs. Browser e2e is part of the bit that names it. A bit is not complete while one of its named tests is red.
+`bun run typecheck`, `bun run lint`, `bun run test`, the coverage thresholds, `scripts/check-tree.ts` (the tree matches `files.tsv`), and the boundary lint. `bun run test` does not start Playwright. `bun run test:e2e` runs the projects this OS owns (B70). Linux owns chromium and firefox. macOS owns webkit. CI runs both jobs. Browser e2e is part of the bit that names it. A bit is not complete while one of its named tests is red. A heading is not done while `bun run typecheck` or `bun run lint` is red. The next heading does not start until both are clear. Run both at the end of every heading.
+
+The list, login, download, inbox, and rejected-next-call checks are for a product route that changes data. They do not run on test files. A test file asserts the row in its bit table.

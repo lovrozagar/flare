@@ -148,6 +148,7 @@ Crossing from one `*.root-layout.tsx` to another is a full document load, not a 
 | `store` | no | `FlareStore`. Absent means no shared cache |
 | `static` | no | read-only `FlareStore` of SSG artifacts, or `(env) => FlareStore`. `dx/server.md`, `dx/store.md` |
 | `serverContext` | when `FlareRegister` declares it | `(ctx: { request, env }) => value`. `serverCtx()` returns it (B75) |
+| `documentResponseDefer` | no | `"stream"` or `"buffer"`. Default `"stream"`. A rendered HTML document only (B92). The full table is `dx/server.md` |
 
 ## `createRouter` fields
 
