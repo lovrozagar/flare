@@ -102,8 +102,8 @@
 	"devDependencies": {
 		"@formatjs/intl-localematcher": "0.8.11",
 		"@playwright/test": "1.61.1",
-		"@solidjs/vite-plugin": "3.0.0-next.47",
-		"@solidjs/web": "2.0.0-rc.13",
+		"@solidjs/vite-plugin": "3.0.0-next.49",
+		"@solidjs/web": "2.0.0-rc.14",
 		"@tanstack/solid-query": "6.0.0-rc.5",
 		"@types/node": "26.1.1",
 		"@vitest/coverage-v8": "4.1.10",
@@ -114,22 +114,22 @@
 		"negotiator": "1.0.0",
 		"oxc-parser": "0.139.0",
 		"sharp": "0.35.3",
-		"solid-js": "2.0.0-rc.13",
+		"solid-js": "2.0.0-rc.14",
 		"typescript": "7.0.2",
 		"vite": "8.1.4",
 		"vitest": "4.1.10"
 	},
 	"peerDependencies": {
 		"@formatjs/intl-localematcher": ">=0.8.11",
-		"@solidjs/vite-plugin": ">=3.0.0-next.47",
-		"@solidjs/web": ">=2.0.0-rc.13",
+		"@solidjs/vite-plugin": ">=3.0.0-next.49",
+		"@solidjs/web": ">=2.0.0-rc.14",
 		"@tanstack/solid-query": ">=6.0.0-rc.5",
 		"isbot": ">=5.2.0",
 		"magic-string": ">=0.30.21",
 		"negotiator": ">=1.0.0",
 		"oxc-parser": ">=0.139.0",
 		"sharp": ">=0.35.3",
-		"solid-js": ">=2.0.0-rc.13",
+		"solid-js": ">=2.0.0-rc.14",
 		"vite": ">=8.1.4"
 	},
 	"peerDependenciesMeta": {

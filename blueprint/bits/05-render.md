@@ -1,6 +1,6 @@
 # Bit 05 — Render
 
-Creates every `P5` row. The projector and the abort race. `renderToStream`'s `signal` option is passed, and the adapter also races the chunk-0 wait and every later pull, because on `@solidjs/web` 2.0.0-rc.13 aborting the signal does not close the writable (N3-2). The race stays if a later pin starts closing it.
+Creates every `P5` row. The projector and the abort race. `renderToStream`'s `signal` option is passed, and the adapter also races the chunk-0 wait and every later pull, because on `@solidjs/web` 2.0.0-rc.13 and rc.14 aborting the signal does not close the writable (N3-2, rechecked on rc.14). The race stays if a later pin starts closing it.
 
 ## Extends
 

@@ -1,4 +1,4 @@
-// On @solidjs/web 2.0.0-rc.13, aborting renderToStream's signal does not close its writable (N3-2). Every pull,
+// On @solidjs/web 2.0.0-rc.13 and rc.14, aborting renderToStream's signal does not close its writable (N3-2). Every pull,
 // the chunk-0 wait included, races the request signal. An abort or a consumer cancel disposes the render
 // once, cancels the source, and ends the response.
 export function raceAbort(
