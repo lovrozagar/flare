@@ -429,6 +429,8 @@ packages/core/src/vite/plugin/options.ts	P1	src	vite	Parse the flare() options
 packages/core/src/vite/plugin/options.test.ts	P1	test	vite	Unit cases for options.ts
 packages/core/src/vite/plugin/environments.ts	P1	src	vite	Declare client, ssr, and worker environments and their order
 packages/core/src/vite/plugin/environments.test.ts	P1	test	vite	Unit cases for environments.ts
+packages/core/src/vite/plugin/wrangler.ts	P12	src	vite	Read the Workers config: the assets binding, the compatibility date and flags. wrangler.toml throws
+packages/core/src/vite/plugin/wrangler.test.ts	P12	test	vite	Unit cases for wrangler.ts
 packages/core/src/vite/plugin/build-id.ts	P12	src	vite	Dev build id is dev. Production is the 12-hex manifest hash (B84, B89)
 packages/core/src/vite/plugin/build-id.test.ts	P12	test	vite	Unit cases for build-id.ts
 packages/core/src/vite/plugin/index.ts	P1	index	vite	Re-exports
