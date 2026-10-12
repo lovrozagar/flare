@@ -55,12 +55,14 @@ it("calls renderToStream", async () => {
 	expect(html).toContain("self.flare=");
 });
 
-it("signal is the request signal", async () => {
+it("signal follows the request signal", async () => {
 	const controller = new AbortController();
 	const incoming = new Request("http://localhost/", { signal: controller.signal });
 	const seen: Parameters<NonNullable<DocumentInput["stream"]>>[1][] = [];
 	await renderDocument({ ...base(), request: incoming, render: () => "home", stream: writes("home", seen) });
-	expect(seen[0].signal).toBe(incoming.signal);
+	expect(seen[0].signal?.aborted).toBe(false);
+	controller.abort();
+	expect(seen[0].signal?.aborted).toBe(true);
 	seen[0].onError?.();
 	seen[0].onHead?.("");
 });

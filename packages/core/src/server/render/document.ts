@@ -48,8 +48,11 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	const tail = stateScript({ matches: input.matches, nonce }) + clientScript(input.client, nonce);
 	const head = headHtml(input.head, nonce);
 	const piped = new TransformStream<Chunk, Chunk>();
+	// The render stops on a request abort or on a consumer cancel, whichever comes first.
+	const halt = new AbortController();
+	const signal = AbortSignal.any([input.request.signal, halt.signal]);
 	const render = withRequest({ path: new URL(input.request.url).pathname, nonce }, () =>
-		(input.stream ?? defaultStream)(() => tree(input), streamOptions(input, tail, nonce)),
+		(input.stream ?? defaultStream)(() => tree(input), streamOptions(signal, tail, nonce)),
 	);
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined);
@@ -64,8 +67,9 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 			if (next.done) controller.close();
 			else controller.enqueue(encoder.encode(chunkText(next.value)));
 		},
+		cancel: (reason) => reader.cancel(reason),
 	});
-	return raceAbort(body, input.request.signal, () => void reader.cancel());
+	return raceAbort(body, input.request.signal, () => halt.abort());
 }
 
 // The dev URL is the project-relative entry. A production URL is the entry's hashed file, and a missing entry
@@ -90,9 +94,9 @@ function tree(input: DocumentInput): Element {
 	});
 }
 
-function streamOptions(input: DocumentInput, tail: string, nonce: string): StreamOptions {
+function streamOptions(signal: AbortSignal, tail: string, nonce: string): StreamOptions {
 	const options: StreamOptions = {
-		signal: input.request.signal,
+		signal,
 		manifest: {},
 		onError: () => undefined,
 		onHead: () => undefined,
