@@ -22,6 +22,7 @@
 		"flare/path-prefix": "error",
 		"flare/location-only-in-redirect": "error",
 		"flare/funnel-only": "error",
+		"flare/no-flare-header-branching": "error",
 		"unicorn/consistent-function-scoping": "error"
 	},
 	"overrides": [
@@ -29,7 +30,8 @@
 			"files": ["**/*.test.ts", "**/*.test.tsx"],
 			"rules": {
 				"max-lines": ["error", 500],
-				"flare/funnel-only": "off"
+				"flare/funnel-only": "off",
+				"flare/no-flare-header-branching": "off"
 			}
 		},
 		{
