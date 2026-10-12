@@ -1,23 +1,28 @@
-import { createChain } from "./chain.ts";
+import { chainSteps, createChain, type ChainRecord, type Steps } from "./chain.ts";
 
-type Handler = () => unknown;
-
-export type RouteRecord = {
+export type RouteRecord = ChainRecord & {
 	id: string;
-	render: Handler;
 	document: boolean;
 };
 
-export type PageBuilder = {
-	render: (render: Handler) => RouteRecord;
-};
+export interface PageBuilder extends Steps<PageBuilder> {
+	response: (fn: NonNullable<ChainRecord["response"]>) => RouteRecord;
+	render: (render: NonNullable<ChainRecord["render"]>) => RouteRecord;
+}
 
 export function createPage(id: string): PageBuilder {
 	const chain = createChain(id);
-	return {
+	// A .response() chain has no render, so response ends the chain.
+	const builder: PageBuilder = {
+		...chainSteps(chain, () => builder),
+		response(fn) {
+			chain.response(fn);
+			return { id, document: false, ...chain.record() };
+		},
 		render(render) {
 			chain.render(render);
-			return { id, render, document: false };
+			return { id, document: false, ...chain.record() };
 		},
 	};
+	return builder;
 }
