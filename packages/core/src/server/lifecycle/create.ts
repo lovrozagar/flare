@@ -155,6 +155,7 @@ function settle(exchange: Exchange, rendered: Rendered): Promise<Response> {
 }
 
 async function paint(exchange: Exchange, rendered: Rendered, status: number): Promise<Response> {
+	for (const bug of rendered.run.bugs) projectError(bug, exchange.sink);
 	const state: OutletState = {
 		matches: outletMatches(exchange.request, rendered),
 		failure: rendered.failed && { index: rendered.run.data.length, ...rendered.failed },

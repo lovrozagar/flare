@@ -31,7 +31,8 @@ export type RunInput = {
 };
 
 // `data`, `heads`, and `contexts` are the root-down matches above the first failure, the ones that render.
-// `thrown` is what authenticate threw when the gate answered with its status.
+// `thrown` is what authenticate threw when the gate answered with its status. `bugs` are .head() throws: that
+// head is omitted and the status stays the loader status (B82). The caller reports them as dev bugs.
 // A match with no .head() has an undefined head. `contexts` is the preloader context through each match.
 export type LoaderRun = {
 	response: Response;
@@ -43,6 +44,7 @@ export type LoaderRun = {
 	class?: PolicyClass;
 	answer?: Response;
 	thrown?: unknown;
+	bugs: readonly unknown[];
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
@@ -67,13 +69,14 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 }
 
 function bare(response: Response): LoaderRun {
-	return { response, frames: [], data: [], heads: [], contexts: [] };
+	return { response, frames: [], data: [], heads: [], contexts: [], bugs: [] };
 }
 
 function conclude(input: RunInput, outcomes: readonly Outcome[], contexts: readonly PreloaderContext[]): LoaderRun {
 	const result = cascade(input.kind, outcomes);
 	const kept = contexts.slice(0, result.kept.length);
-	const heads = result.kept.map((frame, index) => finish(input.routes[index], frame.d, kept[index]));
+	const bugs: unknown[] = [];
+	const heads = result.kept.map((frame, index) => finish(input.routes[index], { frame, kept: kept[index], bugs }));
 	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
 	if (result.failed?.status === 500) input.overlay?.(result.failed.error);
 	return {
@@ -83,6 +86,7 @@ function conclude(input: RunInput, outcomes: readonly Outcome[], contexts: reado
 		heads,
 		contexts: kept,
 		failed: result.failed,
+		bugs,
 	};
 }
 
@@ -117,10 +121,21 @@ async function settle(route: LoaderRoute, ctx: StepContext): Promise<Settled> {
 	}
 }
 
-function finish(route: LoaderRoute, loaderData: unknown, preloaderContext: PreloaderContext): HeadConfig | undefined {
-	const head = route.head?.({ loaderData, preloaderContext });
+type Finish = { frame: { d: unknown }; kept: PreloaderContext; bugs: unknown[] };
+
+function finish(route: LoaderRoute, at: Finish): HeadConfig | undefined {
+	const head = headOf(route, at);
 	route.headers?.();
 	return head;
+}
+
+function headOf(route: LoaderRoute, at: Finish): HeadConfig | undefined {
+	try {
+		return route.head?.({ loaderData: at.frame.d, preloaderContext: at.kept });
+	} catch (error) {
+		at.bugs.push(error);
+		return undefined;
+	}
 }
 
 function json(value: unknown): Response {
