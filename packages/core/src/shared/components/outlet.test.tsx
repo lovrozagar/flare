@@ -202,3 +202,14 @@ it("no render", () => {
 		"root[page:_root_/users/[id]/posts-data]",
 	);
 });
+
+it("uncaught throw", () => {
+	const reported: unknown[] = [];
+	const thrower = createPage("_root_/users/[id]/posts").render(() => {
+		throw "not an error";
+	});
+	const matches = chain(layout, thrower);
+	const host = mount(() => ({ matches, onBoundaryError: (error) => reported.push(error) }));
+	expect(host.innerHTML).toBe("root[layout[<div>Something went wrong</div>]]");
+	expect(reported).toEqual(["not an error"]);
+});

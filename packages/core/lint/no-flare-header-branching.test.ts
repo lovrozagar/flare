@@ -34,7 +34,7 @@ function lint(code: string, relative: string): number {
 			sourceCode: { getText: () => code },
 		});
 		walk(parsed.program, null, visitors);
-		const allowed = relative.endsWith("/finalize.ts");
+		const allowed = relative.endsWith("/finalize.ts") || relative.startsWith("src/client/");
 		expect(reports.length).toBe(allowed ? 0 : 4);
 		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" });
 		return proc.status ?? 1;
@@ -70,6 +70,14 @@ it("response header", () => {
 	const status = lint(
 		'export function done(headers) {\n\theaders.set("flare-render", "ssr");\n}\n',
 		"src/server/lifecycle/finalize.ts",
+	);
+	expect(status).toBe(0);
+});
+
+it("client response header", () => {
+	const status = lint(
+		'export function read(response, BUILD) {\n\tresponse.headers.get("flare-build");\n\tresponse.headers.get(BUILD);\n\tresponse.headers.get("Flare-Render");\n\treturn response.headers.get("flare-cache");\n}\n',
+		"src/client/navigation/navigate.ts",
 	);
 	expect(status).toBe(0);
 });

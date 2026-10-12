@@ -125,6 +125,7 @@ The test imports the options builder, not `Bun.serve`, so it runs under Node.
 | --- | --- | --- |
 | `request header` | `request.headers.get("flare-isr")` | lint error |
 | `response header` | `headers.set("flare-render", "ssr")` inside `finalize.ts` | no error |
+| `client response header` | `response.headers.get("flare-build")`, or a name in a constant, in a file under `src/client/` (bit 06) | no error. The client reads `flare-` headers on a response. Only the server must not branch on one a request sent |
 
 ### `shared/csp/nonce.test.ts`
 

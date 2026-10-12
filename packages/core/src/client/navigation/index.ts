@@ -14,3 +14,4 @@ export {
 export { resolveTarget, resolveUrl, type NavigateInput, type Target, type TargetContext } from "./target.ts";
 export { isChunkError, loadDocument, type ReloadEnv } from "./reload.ts";
 export { framesOf, landFrames, type LandOptions, type Landed } from "./frames.ts";
+export { createNavigator, type Landing, type NavigateOptions, type NavigatorDeps } from "./navigate.ts";
