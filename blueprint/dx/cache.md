@@ -53,7 +53,7 @@ An ISR page under a required-auth layout is `no-store`. The build fails if prere
 
 ## cdn
 
-Applied only when the policy is `shared`.
+Applied only when the policy is `shared` and the class is `public` (How the decision is made, below).
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -62,6 +62,31 @@ Applied only when the policy is `shared`.
 | `private` | no | `false` | boolean | `true` forces policy `private` and `Cache-Control: private, no-store` | this wins over `ssr` / `isr` | `server/cacheability/decide.test.ts` `cdn private` |
 | `tags` | no | `[]` | `string[]` or `(ctx: { params }) => string[]` | sent as `Cache-Tag`, comma-separated | there is no `vary` field. Variants are URLs | `server/lifecycle/policies.test.ts` `cache tag`; `server/cacheability/variant.test.ts` `no vary` |
 | `allowCookies` | no | `false` | boolean | `false`: a `Set-Cookie` on this response downgrades it to `private` and it is not stored. `true`: the cookie is stored with the shared body | `true` is how a locale cookie poisoned a CDN. Leave it false | `server/cacheability/cookies.test.ts` |
+
+### How the decision is made
+
+`decide` covers a rendered page: its document, data, and prefetch responses. All three take one decision, and each is its own URL, so each is its own CDN entry (`variant.test.ts` `three urls`). A `.response()` page, a server function (B43), and a mount are outside it.
+
+| input | decision | test |
+| --- | --- | --- |
+| no `ssr`, `ssg`, or `isr` on the page | `no-store` | `decide.test.ts` `no config` |
+| a mode, and the chain neither requires nor reads auth (B26) | `shared`, class `public` | `ssr public`, `isr`, `ssg` |
+| a mode, and the chain requires | `no-store` (B27) | `required auth`, `isr under auth`, `ssg under auth` |
+| a mode, the chain reads, and the request has no session | `shared`, class `anonymous`. The store may hold it. `Cache-Control` is still `private, no-store` and no `Cache-Tag` is sent, because Flare sends no `Vary` and a CDN cannot tell a session from none | `optional auth`; `policies.test.ts` `anonymous header` |
+| a mode, the chain reads, and the request has a session | `private`. Only the anonymous answer is shared (B27) | `optional with session` |
+| `cdn.private: true` on any match of the chain | `private`. A child cannot turn it off | `cdn private`, `private sticky` |
+
+The mode comes from the page. A mode on a layout or a root layout does not store the pages under it. `cdn` on a layout, a root layout, or a segment is a default for the pages under it. The chain merges each field from the root to the page, and the nearer match wins, except `private` (`decide.test.ts` `segment cdn`). That is why a segment's `cache` holds only `cdn`.
+
+The public header (`public, max-age=0, s-maxage=…`, plus `Cache-Tag`) is sent only for class `public` with `cdn.maxAge`. Everything else is `private, no-store`. These also send `private, no-store`, whatever the decision:
+
+- a status that is not 2xx (`policies.test.ts` `error status`);
+- a data or prefetch response that carries an `e` frame or a redirect, because it stays HTTP 200 (B73) (`data error frame`);
+- a `Set-Cookie` the route did not set, such as one a middleware added after the page stage, even with `allowCookies` (`cookies.test.ts` `late cookie`). `allowCookies` covers only the route's own `.headers()` cookies.
+
+`.headers()` cannot set `Cache-Control` or `Cache-Tag` on a rendered page. The decision overwrites them, as finalize does the security headers (`policies.test.ts` `headers cannot`). A `.response()` page keeps the `Cache-Control` of the `Response` it returns, except on a chain that requires or reads auth, where it is `private, no-store`, as B43 does for a server function (`policies.test.ts` `response auth`).
+
+A `tags` function on `cdn` receives the raw params, the values the store key uses (B32).
 
 ## client
 

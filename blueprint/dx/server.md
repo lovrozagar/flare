@@ -184,7 +184,7 @@ Finalize sets these. A request header of the same name is ignored (`packages/cor
 | `flare-render` | `ssr`, `ssg`, or `isr` | the mode that produced the body. A live render is `ssr`. A static hit is `ssg`. An ISR hit or populate is `isr` | `finalize.test.ts` `flare-render` |
 | `flare-cache` | `hit` or `miss` | a shared lookup ran. Absent when the route is not stored | `server/cache/read.test.ts` `hit`, `miss` |
 | `Cache-Control` | `cache.md` | | `policies.test.ts` `header` |
-| `Cache-Tag` | `cache.md` | `cdn.tags` is set and the policy is `shared` | `policies.test.ts` `cache tag` |
+| `Cache-Tag` | `cache.md` | `cdn.tags` is set and the public header is sent (`cache.md` How the decision is made) | `policies.test.ts` `cache tag` |
 | `Allow` | the methods | an `OPTIONS` response and a `405` | `methods.test.ts` `OPTIONS` |
 | `Server-Timing` | absent | Flare writes no `Server-Timing` field. Solid owns tracing and may set the header. The `tracing/` module does not come back | `finalize.test.ts` `no server timing` |
 
