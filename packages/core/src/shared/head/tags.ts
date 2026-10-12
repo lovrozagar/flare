@@ -8,7 +8,7 @@ type Tag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<
 // and Solid adopts, keeps, and removes these exact elements (B83).
 export type HeadTag = Tag & { key: string };
 
-export type HeadTagOptions = { nonce?: string | undefined; appStylesheet?: string | undefined };
+export type HeadTagOptions = { nonce?: string | undefined };
 
 const FAVICONS = [
 	["ico", "icon", "", "any"],
@@ -41,7 +41,7 @@ export function headTags(head: HeadConfig, options: HeadTagOptions = {}): HeadTa
 		...metaName("description", head.description),
 		...canonical(head.canonical),
 		...metaName("keywords", head.keywords),
-		...stylesheets(head.css, options.appStylesheet),
+		...stylesheets(head.css),
 		...languages(head.languages),
 		...imageList(head.images),
 		...graph(head.openGraph),
@@ -102,13 +102,12 @@ function canonical(url: string | undefined): Tag[] {
 	return [{ tag: "link", props: { rel: "canonical", href: url } }];
 }
 
-function stylesheets(css: HeadConfig["css"], app: string | undefined): Tag[] {
+function stylesheets(css: HeadConfig["css"]): Tag[] {
 	const hrefs = css === undefined ? [] : Array.isArray(css) ? css : [css];
-	const routes = hrefs.filter((href) => !href.trim().toLowerCase().startsWith("javascript:")).map(sheet);
-	return [...(app ? [sheet(app)] : []), ...routes];
+	return hrefs
+		.filter((href) => !href.trim().toLowerCase().startsWith("javascript:"))
+		.map((href) => ({ tag: "link", props: { rel: "stylesheet", href } }));
 }
-
-const sheet = (href: string): Tag => ({ tag: "link", props: { rel: "stylesheet", href } });
 
 function languages(map: Record<string, string> | undefined): Tag[] {
 	if (!map) return [];

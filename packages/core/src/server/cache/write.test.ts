@@ -12,6 +12,9 @@ import { createMemoryStore } from "./memory.ts";
 import { fromSentinel } from "./nonce.ts";
 import { buildEntry, entryTags, storeTiming, type EntryInput, type StoredPage } from "./write.ts";
 
+// The server build's sheet. The source module is empty.
+vi.mock("../../shared/css/sheet.ts", () => ({ builtSheet: ".a{color:red}.unused{color:blue}" }));
+
 const SECOND = 1000;
 const HOUR = 3600 * SECOND;
 
@@ -83,8 +86,11 @@ const root = createRootLayout("_root_").render((props) => documentOf(props.child
 
 const SITE = "https://example.com";
 
-// A server with one page at /p, a memory store whose `set` is watched, and a dev sink that keeps each bug.
-function storing(page: RouteModule): {
+// A server with one page at /p, a memory store whose `set` is watched, and a sink that keeps each bug.
+function storing(
+	page: RouteModule,
+	dev = true,
+): {
 	server: ReturnType<typeof serveWith>;
 	set: Mock<FlareStore["set"]>;
 	bugs: string[];
@@ -95,7 +101,7 @@ function storing(page: RouteModule): {
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] });
 	const server = serveWith(
 		{ router, site: SITE, store: { ...store, set } },
-		{ dev: true, log: quiet, send: (payload) => void bugs.push(payload.err.message) },
+		{ dev, log: quiet, send: (payload) => void bugs.push(payload.err.message) },
 	);
 	return { server, set, bugs };
 }
@@ -298,3 +304,14 @@ async function answers500(cache: unknown): Promise<void> {
 	expect(render).not.toHaveBeenCalled();
 	expect(bugs.join("\n")).toContain("_root_/p: cache.ssr");
 }
+
+// The shared render writes the critical style into the stored HTML, nonced with the entry's sentinel.
+it("critical stored", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.render(() => createComponent(Dynamic, { component: "p", class: "a", children: "x" }));
+	const { server, set } = storing(page, false);
+	await server.fetch(new Request(`${SITE}/p`));
+	const { page: entry } = await stored(set);
+	expect(entry.html).toContain(`<style id="flare-critical" nonce="${entry.sentinel}">.a{color:red}</style></head>`);
+});

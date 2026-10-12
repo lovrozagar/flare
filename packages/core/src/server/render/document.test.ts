@@ -1,11 +1,24 @@
 import { createComponent, createMemo, Loading } from "solid-js";
 import { Dynamic, renderToStream, type JSX } from "@solidjs/web";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { Link } from "../../shared/components/index.ts";
-import { createRouter } from "../../shared/router/create-router.ts";
+import type { CacheConfig } from "../../shared/route-builder/chain.ts";
+import { createPage } from "../../shared/route-builder/page.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
 import { useRouter } from "../../shared/router/context.ts";
+import { createMemoryStore } from "../cache/memory.ts";
+import { serveWith } from "../lifecycle/create.ts";
 import { createDefer } from "../loaders/defer.ts";
+import * as critical from "./critical-style.ts";
 import { renderDocument, type DocumentInput } from "./document.ts";
+
+// The server build's sheet. The source module is empty.
+vi.mock("../../shared/css/sheet.ts", () => ({ builtSheet: ".a{color:red}.unused{color:blue}" }));
+vi.mock("./critical-style.ts", async (original) => {
+	const actual = await original<typeof import("./critical-style.ts")>();
+	return { ...actual, withCritical: vi.fn<typeof actual.withCritical>(actual.withCritical) };
+});
 
 const router = createRouter({ layouts: {}, routeTree: [] });
 
@@ -290,4 +303,68 @@ it("doctype", async () => {
 	expect(written.match(/<!doctype html>/gi)).toHaveLength(1);
 	const fragment = await text(await renderDocument({ ...base(), render: () => "fragment" }));
 	expect(fragment.startsWith("<!DOCTYPE")).toBe(false);
+});
+
+const SHEET = ".a{color:red}.unused{color:blue}";
+
+function classed(): JSX.Element {
+	return createComponent(Dynamic, { component: "p", class: "a", children: "used" });
+}
+
+// The first flushed chunk ends its head with the critical style, after the hydration capture script.
+it("critical shell", async () => {
+	const body = await renderDocument({ ...base(), nonce: "n", sheet: SHEET, render: () => page(() => classed()) });
+	const shell = decoder.decode((await body.getReader().read()).value);
+	const head = shell.slice(0, shell.indexOf("</head>"));
+	expect(head.endsWith('<style id="flare-critical" nonce="n">.a{color:red}</style>')).toBe(true);
+	expect(head.indexOf("$HY")).toBeLessThan(head.indexOf("flare-critical"));
+	expect(shell).not.toContain(".unused");
+});
+
+const SITE = "https://example.com";
+const root = createRootLayout("_root_").render((props) => page(() => props.children));
+
+function module(id: string, cache?: CacheConfig): RouteModule {
+	const builder = createPage(id);
+	return (cache === undefined ? builder : builder.cache(cache)).render(classed);
+}
+
+function server(dev: boolean): ReturnType<typeof serveWith> {
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [
+			{ id: "_root_/ssr", path: "/ssr", module: module("_root_/ssr") },
+			{ id: "_root_/isr", path: "/isr", module: module("_root_/isr", { isr: true }) },
+			{ id: "_root_/ssg", path: "/ssg", module: module("_root_/ssg", { ssg: true }) },
+		],
+	});
+	const log = { level: "error" as const, error: () => undefined, warn: () => undefined, log: () => undefined };
+	return serveWith({ router, site: SITE, store: createMemoryStore() }, { dev, log, send: () => undefined });
+}
+
+// A live SSR render, the ISR populate, and an SSG page each carry the style. Bit 12's prerender is the shared render
+// the ISR populate runs.
+it("modes", async () => {
+	const app = server(false);
+	for (const [path, render] of [
+		["/ssr", "ssr"],
+		["/isr", "isr"],
+		["/ssg", "ssr"],
+	]) {
+		const response = await app.fetch(new Request(`${SITE}${path}`));
+		expect(response.headers.get("flare-render")).toBe(render);
+		expect(await response.text()).toContain('<style id="flare-critical"');
+	}
+});
+
+it("data skips", async () => {
+	vi.mocked(critical.withCritical).mockClear();
+	const response = await server(false).fetch(new Request(`${SITE}/ssr?_flare=data`));
+	expect(await response.text()).not.toContain("flare-critical");
+	expect(critical.withCritical).not.toHaveBeenCalled();
+});
+
+it("dev", async () => {
+	const response = await server(true).fetch(new Request(`${SITE}/ssr`));
+	expect(await response.text()).not.toContain("flare-critical");
 });
