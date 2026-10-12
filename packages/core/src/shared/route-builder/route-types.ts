@@ -3,7 +3,16 @@ import type { Bounded } from "./boundaries.ts";
 import type { CacheConfig, Effects, Intercept, LoaderContext, LoaderData, RouteInput } from "./chain.ts";
 import type { RouteRecord } from "./page.ts";
 import type { HeadConfig } from "./types.ts";
-import type { Deferred, ExtractPathParams, FlareRegister, RawSearch, RegisteredEnv, ResolvedAuth } from "./register.ts";
+import type {
+	Deferred,
+	ExtractPathParams,
+	FlareRegister,
+	From,
+	RawSearch,
+	Registered,
+	RegisteredEnv,
+	ResolvedAuth,
+} from "./register.ts";
 import type { InputTypes, Typed, TypesOf, ValidatorOutput } from "./types.ts";
 
 // The auth a route resolves to: required, optional, or none (dx/types.md).
@@ -85,6 +94,10 @@ type Intersect<R, List> = List extends readonly [infer Head, ...infer Tail]
 
 // Every parent's return, outside-in. The same key narrows, and incompatible types make that key `never`.
 export type ParentContext<R, Id> = Intersect<R, Parents<R, Id>>;
+
+// What `usePreloaderContext({ from })` reads: the parents, then that route's own return. Unregistered, a record.
+export type PreloaderFrom<R extends FlareRegister, Id extends From<R>> =
+	Registered<R> extends true ? ParentContext<R, Id> & OwnPreloader<R, Id> : Record<string, unknown>;
 
 // Parents, then this route's own return. The root has no parent, so its own return replaces `{}`.
 export type Accumulated<S extends RouteState> = S["root"] extends true

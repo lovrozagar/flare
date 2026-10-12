@@ -3,10 +3,10 @@ import type {
 	Deferred,
 	ExtractPathParams,
 	FlareRegister,
-	From,
 	InferParams,
 	InferSearch,
-	LinkProps,
+	LoaderDataFrom,
+	RouteTarget,
 	RawSearch,
 	RegisteredEnv,
 	RegisteredServerContext,
@@ -14,16 +14,15 @@ import type {
 	ResolvedAuth,
 	To,
 } from "../../src/shared/route-builder/register.ts";
+import type { PreloaderFrom } from "../../src/shared/route-builder/route-types.ts";
 
-type UsersLink = LinkProps<App, "_root_/users/[id]">;
+type UsersLink = RouteTarget<App, "_root_/users/[id]">;
 
 // @ts-expect-error null has no userId
 const readOptionalUser = (session: ResolvedAuth<App, "optional">): string => session.userId;
 
 // @ts-expect-error a public authorize still needs a null check
 const readAuthorizedUser = (session: ResolvedAuth<App, "optional">): string => session.userId;
-
-const hook: (args: { from: From<App> }) => void = () => undefined;
 
 const call: () => Promise<void> = async () => undefined;
 const renderCall = (): Promise<{ secret: string }> => Promise.reject(new Error("stub"));
@@ -36,29 +35,32 @@ it("param types", () => {
 	const _bad: ExtractPathParams<"[id]"> = { id: 1 };
 });
 it("no params", () => {
-	expectTypeOf<LinkProps<App, "_root_/about">>().toMatchTypeOf<{ to: "_root_/about"; params?: never }>();
+	expectTypeOf<RouteTarget<App, "_root_/about">>().toMatchTypeOf<{ to: "_root_/about"; params?: never }>();
 	// @ts-expect-error params are omitted on a static page
-	const _bad: LinkProps<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 }, params: { id: "1" } };
+	const _bad: RouteTarget<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 }, params: { id: "1" } };
 });
 it("optional param", () => {
-	const withValue: LinkProps<App, "_root_/[[locale]]"> = { to: "_root_/[[locale]]", params: { locale: "en" } };
-	const withUndefined: LinkProps<App, "_root_/[[locale]]"> = { to: "_root_/[[locale]]", params: { locale: undefined } };
+	const withValue: RouteTarget<App, "_root_/[[locale]]"> = { to: "_root_/[[locale]]", params: { locale: "en" } };
+	const withUndefined: RouteTarget<App, "_root_/[[locale]]"> = {
+		to: "_root_/[[locale]]",
+		params: { locale: undefined },
+	};
 	expectTypeOf(withValue.params.locale).toEqualTypeOf<string | undefined>();
 	expectTypeOf(withUndefined.params.locale).toEqualTypeOf<string | undefined>();
 	// @ts-expect-error the locale key is required inside params
-	const _empty: LinkProps<App, "_root_/[[locale]]"> = { to: "_root_/[[locale]]", params: {} };
+	const _empty: RouteTarget<App, "_root_/[[locale]]"> = { to: "_root_/[[locale]]", params: {} };
 });
 it("catch-all", () => {
-	const ok: LinkProps<App, "_root_/files/[...path]"> = { to: "_root_/files/[...path]", params: { path: ["a", "b"] } };
+	const ok: RouteTarget<App, "_root_/files/[...path]"> = { to: "_root_/files/[...path]", params: { path: ["a", "b"] } };
 	expectTypeOf(ok.params.path).toEqualTypeOf<string[]>();
 	// @ts-expect-error a catch-all is an array
-	const _bad: LinkProps<App, "_root_/files/[...path]"> = { to: "_root_/files/[...path]", params: { path: "a" } };
+	const _bad: RouteTarget<App, "_root_/files/[...path]"> = { to: "_root_/files/[...path]", params: { path: "a" } };
 });
 it("optional catch-all", () => {
-	const ok: LinkProps<App, "_root_/[[...rest]]"> = { to: "_root_/[[...rest]]", params: { rest: undefined } };
+	const ok: RouteTarget<App, "_root_/[[...rest]]"> = { to: "_root_/[[...rest]]", params: { rest: undefined } };
 	expectTypeOf(ok.params.rest).toEqualTypeOf<string[] | undefined>();
 	// @ts-expect-error an empty object drops the rest key
-	const _bad: LinkProps<App, "_root_/[[...rest]]"> = { to: "_root_/[[...rest]]", params: {} };
+	const _bad: RouteTarget<App, "_root_/[[...rest]]"> = { to: "_root_/[[...rest]]", params: {} };
 });
 it("literal brackets", () => {
 	expectTypeOf<ExtractPathParams<"_root_/[_]id]">>().toEqualTypeOf<{}>();
@@ -90,34 +92,34 @@ it("input empty", () => {
 	const _empty: Side = {};
 });
 it("missing param", () => {
-	const ok: LinkProps<App, "_root_/users/[id]"> = { to: "_root_/users/[id]", params: { id: 1 } };
+	const ok: RouteTarget<App, "_root_/users/[id]"> = { to: "_root_/users/[id]", params: { id: 1 } };
 	expectTypeOf(ok.params.id).toEqualTypeOf<number>();
 	// @ts-expect-error params are required
-	const _bad: LinkProps<App, "_root_/users/[id]"> = { to: "_root_/users/[id]" };
+	const _bad: RouteTarget<App, "_root_/users/[id]"> = { to: "_root_/users/[id]" };
 });
 it("extra param", () => {
-	expectTypeOf<LinkProps<App, "_root_/users/[id]">["params"]>().toEqualTypeOf<{ id: number }>();
+	expectTypeOf<RouteTarget<App, "_root_/users/[id]">["params"]>().toEqualTypeOf<{ id: number }>();
 	// @ts-expect-error extra keys are rejected
-	const _bad: LinkProps<App, "_root_/users/[id]"> = { to: "_root_/users/[id]", params: { id: 1, extra: "x" } };
+	const _bad: RouteTarget<App, "_root_/users/[id]"> = { to: "_root_/users/[id]", params: { id: 1, extra: "x" } };
 });
 it("unknown route", () => {
-	const ok: LinkProps<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 } };
+	const ok: RouteTarget<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 } };
 	expectTypeOf(ok.to).toEqualTypeOf<"_root_/about">();
 	// @ts-expect-error unknown ids are rejected after augmentation
-	const _bad: LinkProps<App, "_root_/about"> = { to: "nope", search: { page: 1 } };
+	const _bad: RouteTarget<App, "_root_/about"> = { to: "nope", search: { page: 1 } };
 });
 it("layout to", () => {
 	expectTypeOf<"_root_/layout" extends To<App> ? true : false>().toEqualTypeOf<false>();
 	// @ts-expect-error a layout id is not a page target
-	const _bad: LinkProps<App, "_root_/layout"> = { to: "_root_/layout" };
+	const _bad: RouteTarget<App, "_root_/layout"> = { to: "_root_/layout" };
 });
 it("segment to", () => {
 	expectTypeOf<"_root_/seg" extends To<App> ? true : false>().toEqualTypeOf<false>();
 	// @ts-expect-error a segment id is not a page target
-	const _bad: LinkProps<App, "_root_/seg"> = { to: "_root_/seg" };
+	const _bad: RouteTarget<App, "_root_/seg"> = { to: "_root_/seg" };
 });
 it("response route id", () => {
-	const ok: LinkProps<App, "_root_/echo"> = { to: "_root_/echo" };
+	const ok: RouteTarget<App, "_root_/echo"> = { to: "_root_/echo" };
 	expectTypeOf(ok.to).toEqualTypeOf<"_root_/echo">();
 	// @ts-expect-error a response page has no public URL in routes, which is keyed by URL
 	const _listed: keyof NonNullable<App["routes"]> = "/echo";
@@ -125,13 +127,21 @@ it("response route id", () => {
 });
 it("unregistered fallback", () => {
 	expectTypeOf<To<FlareRegister>>().toEqualTypeOf<string>();
+	// The package declares no field, so the generated augmentation never redeclares one with another type.
+	expectTypeOf<keyof FlareRegister>().toBeNever();
 	expectTypeOf<0 extends 1 & InferParams<FlareRegister, string> ? true : false>().toEqualTypeOf<false>();
+	expectTypeOf<RouteTarget<FlareRegister, string>["params"]>().toEqualTypeOf<
+		Readonly<Record<string, unknown>> | undefined
+	>();
+	expectTypeOf<RouteTarget<FlareRegister, string>["search"]>().toEqualTypeOf<RawSearch | undefined>();
+	expectTypeOf<LoaderDataFrom<FlareRegister, string>>().toBeUnknown();
+	expectTypeOf<PreloaderFrom<FlareRegister, string>>().toEqualTypeOf<Record<string, unknown>>();
 });
 it("hash not generic", () => {
-	const ok: LinkProps<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 }, hash: "top", replace: true };
+	const ok: RouteTarget<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 }, hash: "top", replace: true };
 	expectTypeOf(ok.hash).toEqualTypeOf<string | undefined>();
 	// @ts-expect-error hash is a string, not a number
-	const _bad: LinkProps<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 }, hash: 1 };
+	const _bad: RouteTarget<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 }, hash: 1 };
 });
 it("search raw", () => {
 	const one: UsersLink = { to: "_root_/users/[id]", params: { id: 1 }, search: { q: "a" } };
@@ -147,20 +157,20 @@ it("search validated", () => {
 	const _bad: InferSearch<App, "_root_/about"> = { page: "1" };
 });
 it("search required key", () => {
-	const ok: LinkProps<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 } };
+	const ok: RouteTarget<App, "_root_/about"> = { to: "_root_/about", search: { page: 1 } };
 	expectTypeOf(ok.search.page).toEqualTypeOf<number>();
 	// @ts-expect-error a required search key makes search required
-	const _bad: LinkProps<App, "_root_/about"> = { to: "_root_/about" };
+	const _bad: RouteTarget<App, "_root_/about"> = { to: "_root_/about" };
 });
 it("search optional keys", () => {
 	type Loose = FlareRegister & { routeSearchParams: { page: { tag?: string } } };
 	type Pages = Loose & { routeModules: { page: { _type: "page" } } };
-	const omitted: LinkProps<Pages, "page"> = { to: "page" };
-	const empty: LinkProps<Pages, "page"> = { to: "page", search: {} };
+	const omitted: RouteTarget<Pages, "page"> = { to: "page" };
+	const empty: RouteTarget<Pages, "page"> = { to: "page", search: {} };
 	expectTypeOf(omitted.to).toEqualTypeOf<"page">();
 	expectTypeOf(empty.to).toEqualTypeOf<"page">();
 	// @ts-expect-error extra search keys are rejected
-	const _bad: LinkProps<Pages, "page"> = { to: "page", search: { extra: "x" } };
+	const _bad: RouteTarget<Pages, "page"> = { to: "page", search: { extra: "x" } };
 });
 it("search extra key", () => {
 	expectTypeOf<InferSearch<App, "_root_/about">>().toEqualTypeOf<{ page: number }>();
@@ -169,10 +179,10 @@ it("search extra key", () => {
 });
 it("search empty", () => {
 	type EmptySearch = FlareRegister & { routeSearchParams: { page: {} }; routeModules: { page: { _type: "page" } } };
-	const omitted: LinkProps<EmptySearch, "page"> = { to: "page" };
+	const omitted: RouteTarget<EmptySearch, "page"> = { to: "page" };
 	expectTypeOf(omitted.to).toEqualTypeOf<"page">();
 	// @ts-expect-error an empty validator forbids a search object
-	const _bad: LinkProps<EmptySearch, "page"> = { to: "page", search: {} };
+	const _bad: RouteTarget<EmptySearch, "page"> = { to: "page", search: {} };
 });
 it("parent search hidden", () => {
 	expectTypeOf<InferSearch<App, "_root_/users/[id]">>().toEqualTypeOf<RawSearch>();
@@ -180,9 +190,9 @@ it("parent search hidden", () => {
 	const _bad: InferSearch<App, "_root_/users/[id]"> = { section: 1 };
 });
 it("loader deep", () => {
-	expectTypeOf<{ user: { name: string } }["user"]["name"]>().toEqualTypeOf<string>();
+	expectTypeOf<LoaderDataFrom<App, "_root_/users/[id]">["user"]["name"]>().toEqualTypeOf<string>();
 	// @ts-expect-error age is not on the loader
-	const _bad: { user: { name: string } }["user"] = { name: "a", age: 1 };
+	const _bad: LoaderDataFrom<App, "_root_/users/[id]">["user"] = { name: "a", age: 1 };
 });
 it("loader awaited", () => {
 	expectTypeOf<Awaited<Promise<{ n: number }>>>().toEqualTypeOf<{ n: number }>();
@@ -190,34 +200,36 @@ it("loader awaited", () => {
 	const _bad: { n: number } = Promise.resolve({ n: 1 });
 });
 it("loader absent", () => {
-	expectTypeOf<void>().toEqualTypeOf<void>();
+	expectTypeOf<LoaderDataFrom<App, "_root_/echo">>().toEqualTypeOf<void>();
 	// @ts-expect-error there is no field without a loader
-	const _bad: void = { n: 1 };
+	const _bad: LoaderDataFrom<App, "_root_/echo"> = { n: 1 };
 });
 it("parent loader hidden", () => {
-	expectTypeOf<{ title: string }["title"]>().toEqualTypeOf<string>();
+	expectTypeOf<LoaderDataFrom<App, "_root_/about">>().toEqualTypeOf<{ title: string }>();
 	// @ts-expect-error the page loader does not include the layout field
-	const _bad: { title: string } = { title: "a", section: "b" };
+	const _bad: LoaderDataFrom<App, "_root_/about"> = { title: "a", section: "b" };
 });
 it("layout data", () => {
-	expectTypeOf<{ section: string }["section"]>().toEqualTypeOf<string>();
+	expectTypeOf<LoaderDataFrom<App, "_root_/layout">>().toEqualTypeOf<{ section: string }>();
 	// @ts-expect-error the layout loader does not include the page field
-	const _bad: { section: string } = { section: "a", title: "b" };
+	const _bad: LoaderDataFrom<App, "_root_/layout"> = { section: "a", title: "b" };
 });
 it("preloader accumulate", () => {
-	type Ctx = { requestId: string } & { role: "admin" | "editor" } & { n: number };
+	type Ctx = PreloaderFrom<App, "_root_/about">;
 	expectTypeOf<Ctx["requestId"]>().toEqualTypeOf<string>();
+	expectTypeOf<Ctx["theme"]>().toEqualTypeOf<string>();
+	expectTypeOf<Ctx["n"]>().toEqualTypeOf<1>();
 	// @ts-expect-error a parent key is not erased
-	const _bad: Ctx = { role: "admin", n: 1 };
+	const _bad: Ctx = { role: "admin", theme: "t", n: 1 };
 });
 it("preloader narrow", () => {
-	expectTypeOf<("admin" | "editor") & "admin">().toEqualTypeOf<"admin">();
+	expectTypeOf<PreloaderFrom<App, "_root_/about">["role"]>().toEqualTypeOf<"admin">();
 	// @ts-expect-error the wider parent member does not survive
-	const _bad: ("admin" | "editor") & "admin" = "editor";
+	const _bad: PreloaderFrom<App, "_root_/about">["role"] = "editor";
 });
 it("preloader clash", () => {
-	expectTypeOf<{ theme: string & number; title: string }["title"]>().toEqualTypeOf<string>();
-	expectTypeOf<{ theme: string & number; title: string }["theme"]>().toEqualTypeOf<never>();
+	expectTypeOf<PreloaderFrom<App, "_root_/clash">["requestId"]>().toEqualTypeOf<string>();
+	expectTypeOf<PreloaderFrom<App, "_root_/clash">["theme"]>().toEqualTypeOf<never>();
 });
 it("preloader empty keeps", () => {
 	expectTypeOf<({ requestId: string } & {})["requestId"]>().toEqualTypeOf<string>();
@@ -235,9 +247,9 @@ it("root preloader", () => {
 	const _bad: { requestId?: never } = { requestId: "a" };
 });
 it("missing parent", () => {
-	expectTypeOf<never>().toEqualTypeOf<never>();
+	expectTypeOf<PreloaderFrom<App, "_root_/orphan">>().toEqualTypeOf<never>();
 	// @ts-expect-error a missing parent is never, not an empty object
-	const _bad: never = {};
+	const _bad: PreloaderFrom<App, "_root_/orphan"> = {};
 });
 it("auth required", () => {
 	expectTypeOf<ResolvedAuth<App, true>>().toEqualTypeOf<{ userId: string }>();
@@ -301,30 +313,6 @@ it("server fn auth null", () => {
 it("server fn auth required", () => {
 	expectTypeOf<ResolvedAuth<App, true>["userId"]>().toEqualTypeOf<string>();
 	expectTypeOf(noCaller).toBeFunction();
-});
-it("hook from", () => {
-	expectTypeOf(hook).toBeFunction();
-	hook({ from: "_root_/about" });
-	// @ts-expect-error from is required
-	hook();
-});
-it("hook unknown", () => {
-	expectTypeOf(hook).toBeFunction();
-	// @ts-expect-error an unknown id is rejected
-	hook({ from: "nope" });
-});
-it("use match untyped", () => {
-	expectTypeOf<{ id: string; routeId: string }>().toEqualTypeOf<{ id: string; routeId: string }>();
-	// @ts-expect-error params are not on the untyped match
-	const _bad: { id: string; routeId: string } = { id: "a", routeId: "a", params: {} };
-});
-it("use location raw", () => {
-	expectTypeOf<{ params: ExtractPathParams<string>; search: RawSearch }["search"]>().toEqualTypeOf<RawSearch>();
-	// @ts-expect-error location search is not a validator output
-	const _bad: RawSearch = { page: 1 };
-});
-it("use navigate", () => {
-	expectTypeOf<<Id extends To<App>>(props: LinkProps<App, Id>) => void>().not.toEqualTypeOf<(to: string) => void>();
 });
 it("i18n t hooks", () => {
 	expectTypeOf<(key: string) => string>().not.toEqualTypeOf<(args: { from: string }) => unknown>();

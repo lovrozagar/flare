@@ -1,29 +1,19 @@
-import type { TypesOf } from "./types.ts";
+import type { Typed, TypesOf } from "./types.ts";
 
-export interface FlareRegister {
-	auth?: unknown;
-	env?: unknown;
-	serverContext?: unknown;
-	routes?: object;
-	routeModules?: object;
-	routeParents?: object;
-	authModes?: object;
-	routeParams?: object;
-	routeSearchParams?: object;
-	hasQueryClient?: true;
-}
+// The app's generated file and its own augmentation fill this (dx/types.md). The package declares no field, because
+// a merged interface cannot redeclare a field with another type, so every reader below infers the field.
+export interface FlareRegister {}
 
-export type RegisteredAuth<R extends FlareRegister> = R["auth"] extends infer Auth
-	? unknown extends Auth
-		? null
-		: Auth
-	: null;
+// One field of the register, or `unknown` when the app did not declare it.
+export type RegisterField<R, K extends string> = R extends { [P in K]: infer V } ? V : unknown;
 
-export type RegisteredEnv<R extends FlareRegister> = unknown extends R["env"] ? unknown : R["env"];
+export type RegisteredAuth<R extends FlareRegister> =
+	unknown extends RegisterField<R, "auth"> ? null : RegisterField<R, "auth">;
 
-export type RegisteredServerContext<R extends FlareRegister> = unknown extends R["serverContext"]
-	? Record<string, unknown>
-	: R["serverContext"];
+export type RegisteredEnv<R extends FlareRegister> = RegisterField<R, "env">;
+
+export type RegisteredServerContext<R extends FlareRegister> =
+	unknown extends RegisterField<R, "serverContext"> ? Record<string, unknown> : RegisterField<R, "serverContext">;
 
 type RootMarker<Part extends string> = Part extends `_${infer Body}_` ? (Body extends "" ? false : true) : false;
 
@@ -72,6 +62,10 @@ export type InferSearch<R extends FlareRegister, Id extends string> = R extends 
 
 type Modules<R extends FlareRegister> = R extends { routeModules: infer M extends object } ? M : {};
 
+// An app whose generated file filled `routeModules`. Before that, every route type stays loose (dx/types.md
+// `unregistered fallback`).
+export type Registered<R extends FlareRegister> = [keyof Modules<R>] extends [never] ? false : true;
+
 type PageIds<R extends FlareRegister> = {
 	[Id in keyof Modules<R> & string]: Modules<R>[Id] extends { _type: "page" } ? Id : never;
 }[keyof Modules<R> & string];
@@ -93,14 +87,30 @@ type SearchField<T> = [keyof T] extends [never]
 		? { search?: T }
 		: { search: T };
 
-export type LinkProps<R extends FlareRegister, Id extends To<R>> = (Empty<InferParams<R, Id & string>> extends true
+type Checked<R extends FlareRegister, Id extends string> = (Empty<InferParams<R, Id>> extends true
 	? { params?: never }
-	: { params: InferParams<R, Id & string> }) &
-	SearchField<InferSearch<R, Id & string>> & {
-		to: Id;
-		hash?: string;
-		replace?: boolean;
-	};
+	: { params: InferParams<R, Id> }) &
+	SearchField<InferSearch<R, Id>>;
+
+// What `Link`, `navigate`, and `redirect` aim at: a page id with its params and search (dx/types.md). Unregistered,
+// `to` is any string, params are not checked, and search is the raw record.
+export type RouteTarget<R extends FlareRegister, Id extends To<R>> = (Registered<R> extends true
+	? Checked<R, Id & string>
+	: { params?: Readonly<Record<string, unknown>>; search?: RawSearch }) & {
+	to: Id;
+	hash?: string | undefined;
+	replace?: boolean | undefined;
+};
+
+// What the data hooks return for `from`. Unregistered, the values are not known.
+export type LoaderDataFrom<R extends FlareRegister, Id extends From<R>> =
+	Registered<R> extends true ? (Id extends keyof Modules<R> ? LoaderDataOf<Modules<R>[Id]> : never) : unknown;
+
+export type ParamsFrom<R extends FlareRegister, Id extends From<R>> =
+	Registered<R> extends true ? InferParams<R, Id> : unknown;
+
+export type SearchFrom<R extends FlareRegister, Id extends From<R>> =
+	Registered<R> extends true ? InferSearch<R, Id> : unknown;
 
 export type Deferred<T> = { readonly __deferred: true; readonly key: string; readonly promise: Promise<T> };
 
@@ -109,20 +119,31 @@ export type PropagationApp = FlareRegister & {
 	env: { site: string };
 	serverContext: { requestId: string };
 	routeModules: {
-		_root_: { _type: "root" };
-		"_root_/about": { _type: "page" };
-		"_root_/users/[id]": { _type: "page" };
+		_root_: { _type: "root" } & Typed<{ preloader: { requestId: string } }>;
+		"_root_/about": { _type: "page" } & Typed<{ loaderData: { title: string }; preloader: { role: "admin"; n: 1 } }>;
+		"_root_/users/[id]": { _type: "page" } & Typed<{ loaderData: { user: { name: string } } }>;
 		"_root_/files/[...path]": { _type: "page" };
 		"_root_/[[locale]]": { _type: "page" };
 		"_root_/[[...rest]]": { _type: "page" };
 		"_root_/[_]id]": { _type: "page" };
 		"_root_/(blog)/post": { _type: "page" };
 		"[locale]/_root_/about": { _type: "page" };
-		"_root_/layout": { _type: "layout" };
+		"_root_/layout": { _type: "layout" } & Typed<{
+			loaderData: { section: string };
+			preloader: { role: "admin" | "editor"; theme: string };
+		}>;
 		"_root_/seg": { _type: "segment" };
 		"_root_/echo": { _type: "page" };
+		"_root_/clash": { _type: "page" } & Typed<{ preloader: { theme: number } }>;
+		"_root_/orphan": { _type: "page" };
 	};
-	routeParents: { "_root_/about": ["_root_"] };
+	routeParents: {
+		"_root_/layout": ["_root_"];
+		"_root_/about": ["_root_", "_root_/layout"];
+		"_root_/users/[id]": ["_root_"];
+		"_root_/clash": ["_root_", "_root_/layout"];
+		"_root_/orphan": ["_root_", "_root_/gone"];
+	};
 	routeParams: { "_root_/users/[id]": { id: number } };
 	routeSearchParams: { "_root_/about": { page: number } };
 	authModes: { "_root_/about": "optional" };
@@ -136,6 +157,8 @@ export type PropagationApp = FlareRegister & {
 		"/[_]id]": { params: {} };
 		"/post": { params: {} };
 		"/[locale]/about": { params: { locale: string } };
+		"/clash": { params: {} };
+		"/orphan": { params: {} };
 	};
 };
 

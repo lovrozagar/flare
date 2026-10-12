@@ -1,13 +1,31 @@
+import type { FlareRegister, RouteTarget, To } from "../route-builder/register.ts";
+
 const STATUSES = [301, 302, 303, 307, 308];
 
+export type RedirectStatus = 301 | 302 | 303 | 307 | 308;
+
+// A page id with that route's params and search, or an absolute `href` alone (dx/types.md).
+export type RedirectTo<R extends FlareRegister, Id extends To<R>> =
+	| (RouteTarget<R, Id> & { status?: RedirectStatus | undefined; href?: never })
+	| {
+			href: string;
+			status?: RedirectStatus | undefined;
+			replace?: boolean | undefined;
+			to?: never;
+			params?: never;
+			search?: never;
+			hash?: never;
+	  };
+
+// What the throw carries. `params` and `search` are the validator output (dx/link.md URL values).
 export type RedirectTarget = {
-	to?: string;
-	href?: string;
-	status?: number;
-	replace?: boolean;
-	params?: Record<string, string>;
-	search?: Record<string, string>;
-	hash?: string;
+	to?: string | undefined;
+	href?: string | undefined;
+	status?: number | undefined;
+	replace?: boolean | undefined;
+	params?: object | undefined;
+	search?: object | undefined;
+	hash?: string | undefined;
 };
 
 export class RedirectError extends Error {
@@ -17,8 +35,8 @@ export class RedirectError extends Error {
 	readonly replace: boolean;
 	readonly to: string | undefined;
 	readonly href: string | undefined;
-	readonly params: Record<string, string> | undefined;
-	readonly search: Record<string, string> | undefined;
+	readonly params: object | undefined;
+	readonly search: object | undefined;
 	readonly hash: string | undefined;
 
 	// The whole target travels with the throw, so the server can build Location from it.
@@ -36,6 +54,7 @@ export class RedirectError extends Error {
 	}
 }
 
+export function redirect<Id extends To<FlareRegister>>(target: RedirectTo<FlareRegister, Id>): never;
 export function redirect(target: RedirectTarget): never {
 	if (target.href !== undefined) assertHref(target, target.href);
 	else if (target.to === undefined) throw new Error("to");

@@ -1,5 +1,5 @@
 import { encodeStatic, idPattern, patternSegments, type Segment } from "../route-tree/index.ts";
-import { writeUrl, type SearchValue } from "./search.ts";
+import { entries, urlText, writeUrl } from "./search.ts";
 
 declare const hrefBrand: unique symbol;
 
@@ -15,19 +15,18 @@ export function href(value: string): Href {
 	throw new Error("href");
 }
 
-type Params = Record<string, string | readonly string[] | undefined>;
-
+// `params` and `search` are the validator output, whatever its type (dx/link.md URL values).
 export type BuildInput = {
 	to: string;
-	params?: Params | undefined;
-	search?: Record<string, SearchValue> | undefined;
+	params?: object | undefined;
+	search?: object | undefined;
 	hash?: string | undefined;
 };
 
 // The URL of a route id. The pattern comes from the same idPattern and segment parser the router matches with,
 // so a built URL is always one the router matches (bit 05).
 export function buildUrl(input: BuildInput): Href {
-	const params = input.params ?? {};
+	const params = entries(input.params ?? {});
 	const parts = patternSegments(idPattern(input.to)).flatMap((segment) => urlParts(segment, params));
 	const hash = input.hash?.replace(/^#/, "");
 	return href(writeUrl({ path: `/${parts.join("/")}`, search: input.search, hash }));
@@ -35,12 +34,12 @@ export function buildUrl(input: BuildInput): Href {
 
 // A static segment is path-encoded. A param value is one encoded segment, and a catch-all value is one per
 // item. A missing optional value, or an empty optional catch-all, adds nothing.
-function urlParts(segment: Segment, params: Params): string[] {
+function urlParts(segment: Segment, params: Record<string, unknown>): string[] {
 	if (segment.kind === "static") return [encodeStatic(segment.text)];
 	const value = params[segment.name];
-	const values = typeof value === "string" ? [value] : (value ?? []);
+	const values = urlText(segment.name, value);
 	if (values.length === 0 && segment.optional) return [];
-	if (values.length === 0 || (segment.kind === "dynamic" && typeof value !== "string")) throw new Error(segment.name);
+	if (values.length === 0 || (segment.kind === "dynamic" && Array.isArray(value))) throw new Error(segment.name);
 	return values.map(encodeParam);
 }
 

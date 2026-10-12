@@ -1,9 +1,11 @@
 import { createComponent, type Context } from "solid-js";
 import { renderToString, type JSX } from "@solidjs/web";
-import { expect, it } from "vitest";
+import { expect, expectTypeOf, it } from "vitest";
 import { createPage } from "../route-builder/page.ts";
 import { createRootLayout } from "../route-builder/root-layout.ts";
-import { LocationContext, NavigateContext, RouterContext, type NavigateTo } from "../router/context.ts";
+import type { FlareRegister, From, LoaderDataFrom, ParamsFrom, SearchFrom } from "../route-builder/register.ts";
+import type { PreloaderFrom } from "../route-builder/route-types.ts";
+import { LocationContext, NavigateContext, RouterContext, type Navigate, type NavigateTo } from "../router/context.ts";
 import { createRouter } from "../router/create-router.ts";
 import type { Location } from "../url/index.ts";
 import { Matches, type OutletMatch } from "./outlet.tsx";
@@ -18,7 +20,7 @@ import {
 	useSearch,
 } from "./outlet-nodes.ts";
 
-const seen: { navigate?: (options: NavigateTo) => Promise<void>; [key: string]: unknown } = {};
+const seen: { navigate?: Navigate<FlareRegister>; [key: string]: unknown } = {};
 const page = "_root_/users/[id]";
 
 const root = createRootLayout("_root_").render((props) => {
@@ -199,4 +201,15 @@ it("live data", () => {
 	painted = [matches[0], { ...matches[1], data: { title: "Second" } }];
 	expect(views.data).toEqual({ title: "Second" });
 	expect("title" in Object(views.data)).toBe(true);
+});
+
+// Each hook is the generic that tests/types proves, bound to the app's register (dx/types.md `hook from`).
+it("typed", () => {
+	type R = FlareRegister;
+	expectTypeOf(useLoaderData).toEqualTypeOf<<Id extends From<R>>(input: { from: Id }) => LoaderDataFrom<R, Id>>();
+	expectTypeOf(useParams).toEqualTypeOf<<Id extends From<R>>(input: { from: Id }) => ParamsFrom<R, Id>>();
+	expectTypeOf(useSearch).toEqualTypeOf<<Id extends From<R>>(input: { from: Id }) => SearchFrom<R, Id>>();
+	expectTypeOf(usePreloaderContext).toEqualTypeOf<<Id extends From<R>>(input: { from: Id }) => PreloaderFrom<R, Id>>();
+	expectTypeOf(useMatch).parameter(0).toEqualTypeOf<{ from: From<R> }>();
+	expectTypeOf(useNavigate).returns.toEqualTypeOf<Navigate<R>>();
 });

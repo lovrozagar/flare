@@ -2,7 +2,14 @@ import { createComponent, createEffect, createMemo, merge, omit, untrack, useCon
 import { Dynamic, type JSX } from "@solidjs/web";
 import { withoutInternalKeys } from "../protocol/index.ts";
 import type { RoutePrefetch } from "../route-builder/index.ts";
-import { LocationContext, NavigateContext, PrefetchContext, type NavigateTo } from "../router/context.ts";
+import type { FlareRegister, RouteTarget, To } from "../route-builder/register.ts";
+import {
+	LocationContext,
+	NavigateContext,
+	PrefetchContext,
+	type NavigateOptions,
+	type NavigateTo,
+} from "../router/context.ts";
 import type { Router } from "../router/create-router.ts";
 import { buildUrl, href as checkHref, readSearch, type Location } from "../url/index.ts";
 
@@ -10,21 +17,30 @@ type Anchor = JSX.AnchorHTMLAttributes<HTMLAnchorElement> & { [data: `data-${str
 
 type Click = MouseEvent & { currentTarget: HTMLAnchorElement };
 
-// An internal link has `to`. An external link has `href` and no `to` (dx/link.md).
-export type LinkProps = Omit<Anchor, "href" | "onClick"> &
-	Omit<NavigateTo, "to"> &
-	({ to: string; href?: never } | { href: string; to?: never }) & {
-		prefetch?: RoutePrefetch;
-		activeClass?: string;
-		inactiveClass?: string;
-		activeProps?: Anchor;
-		inactiveProps?: Anchor;
-		isActive?: (location: { pathname: string; search: Record<string, string | string[]> }) => boolean;
-		disabled?: boolean;
-		force?: boolean;
-		onClick?: (event: Click) => void;
-		children: JSX.Element;
-	};
+type Own = Omit<Anchor, "href" | "onClick"> & {
+	prefetch?: RoutePrefetch;
+	activeClass?: string;
+	inactiveClass?: string;
+	activeProps?: Anchor;
+	inactiveProps?: Anchor;
+	isActive?: (location: { pathname: string; search: Record<string, string | string[]> }) => boolean;
+	disabled?: boolean;
+	force?: boolean;
+	onClick?: (event: Click) => void;
+	children: JSX.Element;
+};
+
+// An internal link has `to`, a page id whose params and search are that route's (dx/types.md). An external link has
+// `href` and no `to` (dx/link.md).
+export type LinkProps<Id extends To<FlareRegister> = To<FlareRegister>> = Own &
+	NavigateOptions &
+	(
+		| (RouteTarget<FlareRegister, Id> & { href?: never })
+		| { href: string; to?: never; params?: never; search?: never; hash?: never; replace?: never }
+	);
+
+// What the body reads. The typed signature above it is the public one.
+type AnyLinkProps = Own & Omit<NavigateTo, "to"> & { to?: string | undefined; href?: string | undefined };
 
 const OWN = [
 	"to",
@@ -54,7 +70,8 @@ const OWN = [
 
 // An anchor in every render. In the browser a click on an internal link navigates on the client, and the link
 // prefetches by its `prefetch` setting. An external or dangerous href never prefetches (B84).
-export function Link(props: LinkProps): JSX.Element {
+export function Link<Id extends To<FlareRegister>>(props: LinkProps<Id>): JSX.Element;
+export function Link(props: AnyLinkProps): JSX.Element {
 	rejectAll(props.prefetch);
 	const location = useContext(LocationContext);
 	const navigate = useContext(NavigateContext);
@@ -146,7 +163,7 @@ function rejectAll(prefetch: RoutePrefetch | undefined): void {
 	if (import.meta.env.DEV && modules === "all") throw new Error('Link prefetch cannot use modules: "all"');
 }
 
-function internalHref(props: LinkProps, to: string): string {
+function internalHref(props: AnyLinkProps, to: string): string {
 	return buildUrl({ to, params: props.params, search: withoutInternalKeys(props.search), hash: props.hash });
 }
 
@@ -160,7 +177,7 @@ function safeHref(value: string | undefined): string {
 }
 
 // The default compares the exact pathname and the search as a multiset of pairs. The hash is not compared.
-function isActive(props: LinkProps, href: string, location: Location): boolean {
+function isActive(props: AnyLinkProps, href: string, location: Location): boolean {
 	if (props.isActive !== undefined) {
 		return props.isActive({ pathname: location.pathname, search: readSearch(location.search) });
 	}
@@ -172,7 +189,7 @@ function pairs(search: string): string {
 	return JSON.stringify([...new URLSearchParams(search)].map((pair) => JSON.stringify(pair)).sort());
 }
 
-function pick(props: LinkProps): Omit<NavigateTo, "to"> {
+function pick(props: AnyLinkProps): Omit<NavigateTo, "to"> {
 	return {
 		params: props.params,
 		search: props.search,
