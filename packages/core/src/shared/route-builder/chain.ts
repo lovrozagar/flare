@@ -31,7 +31,9 @@ export type CacheConfig =
 	| { client: ClientCache; ssr?: never; isr?: never; ssg?: never };
 
 import type { JSX } from "@solidjs/web";
-import type { Located } from "./boundaries.ts";
+import { withBoundaries, type Located } from "./boundaries.ts";
+import type { RouteRecord } from "./page.ts";
+import type { BuilderSteps, RouteBuilder, RouteKind, RouteState, TypedRecord } from "./route-types.ts";
 import type { Deferred } from "./register.ts";
 import type { Validator } from "../validation/index.ts";
 import type { HeadConfig } from "./types.ts";
@@ -50,12 +52,17 @@ export type StepContext = {
 	env: unknown;
 	params: unknown;
 	search: unknown;
-	preloaderContext?: PreloaderContext | undefined;
+	// A typed route reads its own accumulated shape. The runtime only passes it through.
+	preloaderContext?: unknown;
 };
 
 export type ChainAuth = { mode: true | "optional"; callerData: readonly string[] };
 
-type Step = (ctx: StepContext) => unknown;
+// A callback the chain stores. Method syntax checks its parameter bivariantly, so a typed route's callback, whose
+// context is narrower than the runtime one, is stored as it is and is called with the runtime context.
+export type Callback<Ctx, Out> = { bivarianceHack(ctx: Ctx): Out }["bivarianceHack"];
+
+type Step = Callback<StepContext, unknown>;
 
 type Raw = Record<string, string | string[]>;
 
@@ -82,28 +89,26 @@ export type LoaderContext = StepContext & {
 // A thenable is excluded, so an async loader's value is checked too: every Promise is an object.
 export type LoaderData = (object & { then?: never }) | null | undefined;
 
-type Load = (ctx: LoaderContext) => LoaderData | Promise<LoaderData>;
+type Load = Callback<LoaderContext, LoaderData | Promise<LoaderData>>;
 
-type Authorize = (ctx: StepContext) => boolean | Promise<boolean>;
+type Authorize = Callback<StepContext, boolean | Promise<boolean>>;
 
 // A .response() page answers with its own Response. It still passes through finalize (dx/builder.md).
-export type Respond = (ctx: StepContext) => Response | Promise<Response>;
+export type Respond = Callback<StepContext, Response | Promise<Response>>;
 
-type Head = (ctx: {
-	params: unknown;
-	search: unknown;
-	loaderData: unknown;
-	preloaderContext: PreloaderContext;
-}) => HeadConfig;
+type Head = Callback<{ params: unknown; search: unknown; loaderData: unknown; preloaderContext: unknown }, HeadConfig>;
 
 // A page gets no children. A layout and the root also get the next slot (dx/types.md).
-export type Render = (props: {
-	loaderData: unknown;
-	params: Located["params"];
-	search: Located["search"];
-	preloaderContext: Record<string, unknown>;
-	children?: JSX.Element;
-}) => JSX.Element;
+export type Render = Callback<
+	{
+		loaderData: unknown;
+		params: Located["params"];
+		search: Located["search"];
+		preloaderContext: unknown;
+		children?: JSX.Element;
+	},
+	JSX.Element
+>;
 
 // A client navigation from one of `from` opens the target in `InterceptOutlet`. `render` is a label (dx/builder.md).
 export type Intercept = { from: readonly string[]; render: string };
@@ -216,47 +221,55 @@ export function createChain(_id: string): Chain {
 	return chain;
 }
 
-// The steps every builder shares. `.input()` and `.loader()` change the builder's type, so each builder types them.
-export type Steps<B> = {
-	cache: (config: CacheConfig) => B;
-	authenticate: (...callerData: readonly string[]) => B;
-	authenticateOptional: (...callerData: readonly string[]) => B;
-	authorize: (fn: Authorize) => B;
-	effects: (effects: Effects) => B;
-	preloader: (fn: Step) => B;
-	head: (fn: Head) => B;
-};
+type Next<K extends RouteKind> = <T extends RouteState>() => RouteBuilder<T, K>;
 
-// The methods a page, a layout, and a root layout share. Each stores on the chain and returns the builder.
-export function chainSteps<B>(chain: Chain, self: () => B): Steps<B> {
+// One chain behind every typed builder. A typed step stores on the chain and returns `next()`, a builder of the new
+// state over the same chain, so the type changes without a cast. `finish` builds the record render returns.
+export function typedSteps<S extends RouteState, K extends RouteKind>(
+	chain: Chain,
+	next: Next<K>,
+	finish: () => RouteRecord & { readonly _type: K },
+): BuilderSteps<S, K> {
 	return {
 		cache(config) {
 			chain.cache(config);
-			return self();
+			return next();
+		},
+		input(config) {
+			chain.input(config);
+			return next();
 		},
 		authenticate(...callerData) {
 			chain.authenticate(...callerData);
-			return self();
+			return next();
 		},
-		authenticateOptional(...callerData) {
+		authenticateOptional(...callerData: readonly string[]) {
 			chain.authenticateOptional(...callerData);
-			return self();
+			return next();
 		},
 		authorize(fn) {
 			chain.authorize(fn);
-			return self();
+			return next();
 		},
 		effects(effects) {
 			chain.effects(effects);
-			return self();
+			return next();
 		},
 		preloader(fn) {
 			chain.preloader(fn);
-			return self();
+			return next();
+		},
+		loader(fn) {
+			chain.loader(fn);
+			return next();
 		},
 		head(fn) {
 			chain.head(fn);
-			return self();
+			return next();
+		},
+		render(fn) {
+			chain.render(fn);
+			return withBoundaries<RouteRecord & TypedRecord<S, K>, { params: S["params"]; search: S["search"] }>(finish());
 		},
 	};
 }

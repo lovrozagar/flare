@@ -57,7 +57,8 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 	function defer<T>(fn: () => Promise<T>, options: DeferOptions = {}): Deferred<T> {
 		const key = options.key ?? `d${state.next++}`;
 		const first = seen.get(key);
-		// The key identifies the value: a repeated key is the first call's value whatever its function.
+		// The key identifies the value: a repeated key is the first call's value whatever its function. The map holds
+		// every key's value, so `T` is the caller's claim about that key, which the cast states.
 		if (first !== undefined) return first as Deferred<T>;
 		// A nested defer has no frame to resolve it, so the client would wait forever.
 		if (state.running && scope.dev) throw new Error("defer: called inside a deferred function");

@@ -132,3 +132,17 @@ it("semantic keys", () => {
 		"meta:refresh:0",
 	]);
 });
+
+// The records have the shapes of dx/head.md, so a wrong value fails in the route.
+it("typed records", () => {
+	// @ts-expect-error an og:type outside the four
+	expect(headTags({ openGraph: { type: "blog" } })).toHaveLength(1);
+	// @ts-expect-error a card outside the four
+	expect(headTags({ twitter: { card: "large" } })).toHaveLength(1);
+	// @ts-expect-error a twitter image needs its url
+	expect(headTags({ twitter: { images: [{ alt: "A" }] } })).toHaveLength(2);
+	// @ts-expect-error robots tokens are booleans
+	expect(headTags({ robots: { index: "no" } })).toHaveLength(1);
+	// @ts-expect-error a misspelled meta key
+	expect(headTags({ meta: { autor: "A" } })).toEqual([]);
+});

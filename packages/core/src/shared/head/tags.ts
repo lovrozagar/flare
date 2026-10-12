@@ -1,4 +1,4 @@
-import type { HeadConfig, HeadScript, SeoImage } from "../route-builder/types.ts";
+import type { HeadConfig, HeadScript, OgAudio, SeoImage } from "../route-builder/types.ts";
 
 type Tag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<string, string | boolean> };
 
@@ -9,8 +9,6 @@ type Tag = { tag: "title" | "meta" | "link" | "script" | "style"; props: Record<
 export type HeadTag = Tag & { key: string };
 
 export type HeadTagOptions = { nonce?: string | undefined; appStylesheet?: string | undefined };
-
-type Media = { url: string; type?: string; secureUrl?: string; width?: number; height?: number };
 
 const FAVICONS = [
 	["ico", "icon", "", "any"],
@@ -135,18 +133,16 @@ function imageTags(image: SeoImage): Tag[] {
 function graph(og: HeadConfig["openGraph"]): Tag[] {
 	if (!og) return [];
 	return [
-		property("og:type", typeof og["type"] === "string" ? og["type"] : "website"),
-		...metaProperty("og:title", og["title"]),
-		...metaProperty("og:description", og["description"]),
-		...metaProperty("og:url", og["url"]),
-		...metaProperty("og:site_name", og["siteName"]),
-		...metaProperty("og:locale", og["locale"]),
-		...list(og["alternateLocale"] as readonly string[] | undefined).map((locale) =>
-			property("og:locale:alternate", locale),
-		),
-		...imageList(og["images"] as readonly SeoImage[] | undefined),
-		...media("og:audio", og["audio"] as readonly Media[] | undefined, ["type", "secureUrl"]),
-		...media("og:video", og["videos"] as readonly Media[] | undefined, ["width", "height", "type", "secureUrl"]),
+		property("og:type", og.type ?? "website"),
+		...metaProperty("og:title", og.title),
+		...metaProperty("og:description", og.description),
+		...metaProperty("og:url", og.url),
+		...metaProperty("og:site_name", og.siteName),
+		...metaProperty("og:locale", og.locale),
+		...list(og.alternateLocale).map((locale) => property("og:locale:alternate", locale)),
+		...imageList(og.images),
+		...media("og:audio", og.audio, ["type", "secureUrl"]),
+		...media("og:video", og.videos, ["width", "height", "type", "secureUrl"]),
 	];
 }
 
@@ -154,11 +150,15 @@ function metaProperty(name: string, content: unknown): Tag[] {
 	return typeof content === "string" ? [property(name, content)] : [];
 }
 
-function media(prefix: string, items: readonly Media[] | undefined, fields: readonly string[]): Tag[] {
+function media<M extends OgAudio>(
+	prefix: string,
+	items: readonly M[] | undefined,
+	fields: ReadonlyArray<keyof M & string>,
+): Tag[] {
 	return list(items).flatMap((item) => {
 		const tags = [property(prefix, item.url)];
 		for (const field of fields) {
-			const value = item[field as keyof Media];
+			const value = item[field];
 			if (value !== undefined)
 				tags.push(property(`${prefix}:${field === "secureUrl" ? "secure_url" : field}`, String(value)));
 		}
@@ -169,12 +169,12 @@ function media(prefix: string, items: readonly Media[] | undefined, fields: read
 function twitter(card: HeadConfig["twitter"]): Tag[] {
 	if (!card) return [];
 	return [
-		...metaName("twitter:card", typeof card["card"] === "string" ? card["card"] : "summary"),
-		...metaName("twitter:site", card["site"]),
-		...metaName("twitter:creator", card["creator"]),
-		...metaName("twitter:title", card["title"]),
-		...metaName("twitter:description", card["description"]),
-		...list(card["images"] as ReadonlyArray<{ url: string; alt?: string }> | undefined).flatMap((image) => [
+		...metaName("twitter:card", card.card ?? "summary"),
+		...metaName("twitter:site", card.site),
+		...metaName("twitter:creator", card.creator),
+		...metaName("twitter:title", card.title),
+		...metaName("twitter:description", card.description),
+		...list(card.images).flatMap((image) => [
 			...metaName("twitter:image", image.url),
 			...(image.alt ? metaName("twitter:image:alt", image.alt) : []),
 		]),
@@ -195,26 +195,22 @@ function faviconTags(icons: HeadConfig["favicons"]): Tag[] {
 
 function robotTags(value: HeadConfig["robots"]): Tag[] {
 	if (!value) return [];
-	const tokens = [value["index"] === false ? "noindex" : "index", value["follow"] === false ? "nofollow" : "follow"];
-	if (value["noarchive"]) tokens.push("noarchive");
-	if (value["noimageindex"]) tokens.push("noimageindex");
-	if (typeof value["max-image-preview"] === "string") tokens.push(`max-image-preview:${value["max-image-preview"]}`);
-	if (typeof value["max-snippet"] === "number") tokens.push(`max-snippet:${value["max-snippet"]}`);
-	if (typeof value["max-video-preview"] === "number") tokens.push(`max-video-preview:${value["max-video-preview"]}`);
+	const tokens = [value.index === false ? "noindex" : "index", value.follow === false ? "nofollow" : "follow"];
+	if (value.noarchive) tokens.push("noarchive");
+	if (value.noimageindex) tokens.push("noimageindex");
+	if (value["max-image-preview"] !== undefined) tokens.push(`max-image-preview:${value["max-image-preview"]}`);
+	if (value["max-snippet"] !== undefined) tokens.push(`max-snippet:${value["max-snippet"]}`);
+	if (value["max-video-preview"] !== undefined) tokens.push(`max-video-preview:${value["max-video-preview"]}`);
 	return [{ tag: "meta", props: { name: "robots", content: tokens.join(", ") } }];
 }
 
 // `viewport: false` removes a parent viewport: only a string writes the tag (B83).
 function metaTags(value: HeadConfig["meta"]): Tag[] {
 	if (!value) return [];
-	const charset: Tag[] =
-		typeof value["charset"] === "string" ? [{ tag: "meta", props: { charset: value["charset"] } }] : [];
+	const charset: Tag[] = value.charset !== undefined ? [{ tag: "meta", props: { charset: value.charset } }] : [];
 	const viewport = typeof value.viewport === "string" ? metaName("viewport", value.viewport) : [];
 	const names = META_NAMES.flatMap(([key, name]) => metaName(name, value[key]));
-	const manifest: Tag[] =
-		typeof value["manifest"] === "string" && value["manifest"]
-			? [{ tag: "link", props: { rel: "manifest", href: value["manifest"] } }]
-			: [];
+	const manifest: Tag[] = value.manifest ? [{ tag: "link", props: { rel: "manifest", href: value.manifest } }] : [];
 	return [...charset, ...viewport, ...names, ...manifest];
 }
 

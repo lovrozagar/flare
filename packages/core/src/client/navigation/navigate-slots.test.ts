@@ -14,6 +14,11 @@ const root = createRootLayout("_root_").render((props) => ["root[", props.childr
 const home = createPage("_root_/").render((props) => `home:${String(props.loaderData)}`);
 type Slots = { fast: Deferred<string>; slow: Deferred<string> };
 
+// The client lands the data as frames and never runs a loader. The loader only types it.
+async function slots(): Promise<Slots> {
+	throw new Error("the client does not run loaders");
+}
+
 function slot(deferred: Deferred<string>, fallback: string): JSX.Element {
 	return createComponent(Loading, {
 		fallback,
@@ -25,28 +30,33 @@ function slot(deferred: Deferred<string>, fallback: string): JSX.Element {
 }
 
 const slotted = createPage("_root_/slots")
+	.loader(slots)
 	.render((props) => {
-		const data = props.loaderData as Slots;
+		const data = props.loaderData;
 		return [slot(data.fast, "wait-fast"), "|", slot(data.slow, "wait-slow")];
 	})
 	.errorRender(() => "page-error");
-const caught = createPage("_root_/caught").render((props) => {
-	const data = props.loaderData as Slots;
-	return [
-		createComponent(Errored, {
-			fallback: () => "caught",
-			get children() {
-				return slot(data.fast, "wait-fast");
-			},
-		}),
-		"|",
-		slot(data.slow, "wait-slow"),
-	];
-});
-const escaped = createPage("_root_/escaped").render((props) => {
-	const data = props.loaderData as Slots;
-	return [slot(data.fast, "wait-fast"), "|", slot(data.slow, "wait-slow")];
-});
+const caught = createPage("_root_/caught")
+	.loader(slots)
+	.render((props) => {
+		const data = props.loaderData;
+		return [
+			createComponent(Errored, {
+				fallback: () => "caught",
+				get children() {
+					return slot(data.fast, "wait-fast");
+				},
+			}),
+			"|",
+			slot(data.slow, "wait-slow"),
+		];
+	});
+const escaped = createPage("_root_/escaped")
+	.loader(slots)
+	.render((props) => {
+		const data = props.loaderData;
+		return [slot(data.fast, "wait-fast"), "|", slot(data.slow, "wait-slow")];
+	});
 
 const router = createRouter({
 	layouts: { _root_: root },

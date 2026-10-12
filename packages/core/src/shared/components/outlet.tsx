@@ -155,7 +155,9 @@ function paintFailure(state: OutletState, failure: NonNullable<OutletState["fail
 		if (at === null || paint === undefined) return builtin(failure.status);
 		const owner = defined(state.matches[at], "the boundary owner");
 		try {
-			return paint({ error: failure.error, reset, params: owner.params, search: owner.search });
+			// One props object serves every kind. An auth boundary ignores `reset`.
+			const props = { error: failure.error, reset, params: owner.params, search: owner.search };
+			return paint(props);
 		} catch (error) {
 			state.onBoundaryError(error);
 			from = at - 1;

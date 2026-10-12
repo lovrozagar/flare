@@ -5,6 +5,7 @@ declare const hrefBrand: unique symbol;
 
 export type Href = string & { readonly [hrefBrand]: never };
 
+// A brand has no runtime value, so the checks below are the only way to make one, and each `as Href` follows them.
 export function href(value: string): Href {
 	if (value.charCodeAt(0) <= 0x20) throw new Error("href");
 	if (value.startsWith("//")) throw new Error("href");
