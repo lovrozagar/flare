@@ -69,10 +69,13 @@ const OWN = [
 	"children",
 ] as const;
 
+// The public `Link` is generic on the page id. It is one declaration, not an overload: Solid's dev refresh rewrites a
+// component function into a `const`, and an overload signature beside it would then be declared twice.
+export const Link: <Id extends To<FlareRegister>>(props: LinkProps<Id>) => JSX.Element = anchor;
+
 // An anchor in every render. In the browser a click on an internal link navigates on the client, and the link
 // prefetches by its `prefetch` setting. An external or dangerous href never prefetches (B84).
-export function Link<Id extends To<FlareRegister>>(props: LinkProps<Id>): JSX.Element;
-export function Link(props: AnyLinkProps): JSX.Element {
+function anchor(props: AnyLinkProps): JSX.Element {
 	rejectAll(props.prefetch);
 	const location = useContext(LocationContext);
 	const navigate = useContext(NavigateContext);
