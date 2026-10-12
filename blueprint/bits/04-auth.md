@@ -145,6 +145,9 @@ The route builder stores what it accepts, because `tests/integration/auth.test.t
 | `root loaders` | the default mode, an unknown path | only the root layout's loaders run |
 | `interleaved` | request A loader waits, request B loader returns a different sentinel | each body contains only its own sentinel |
 | `header identity` | two requests with different `Authorization` headers on an optional-auth page | the gate class is `anonymous` for both, and neither body contains the other's header |
+| `response denied` | `createServer` serves a page `.authenticate().authorize(() => false).response(fn)` with a session | 403 with the security set. `fn` is not called |
+| `response no session` | the same page, and `authenticate` returns null | 401. Neither `authorize` nor `fn` is called |
+| `response passes` | the same page, and `authorize` returns true | `fn` receives `{ auth, request, env, preloaderContext }`. Its status and body are served through finalize: the security set is present and `fn` cannot replace a security header. No loader and no render run. A `POST` reaches `fn`, because a `.response()` page has no method list |
 
 ## Done
 
