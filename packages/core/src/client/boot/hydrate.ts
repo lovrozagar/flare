@@ -8,7 +8,9 @@ import type { Blockers } from "../navigation/blocker.ts";
 import type { NavigationState } from "../navigation/pending.ts";
 import type { RouterStore, ScriptMatch } from "../router/store.ts";
 
-export type ClientState = { matches: ScriptMatch[]; nonce: string };
+// `build` is the deploy's id, written by the server once bit 12 lands. Until then it is absent, and an empty id
+// disables the mismatch check on both sides (B7, B84).
+export type ClientState = { matches: ScriptMatch[]; nonce: string; build?: string };
 
 // Solid's hydrate in the browser. A test passes a client render instead.
 export type Mount = (code: () => JSX.Element, root: Document) => () => void;
