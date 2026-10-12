@@ -3,4 +3,4 @@ export { buildId, storeKey, type KeyInput } from "./key.ts";
 export { epochKey, lookup, type Lookup } from "./epoch.ts";
 export { createMemoryStore } from "./memory.ts";
 export { isTombstone, tombstone } from "./tombstone.ts";
-export { fromSentinel, NONCE_SENTINEL, toSentinel } from "./nonce.ts";
+export { fromSentinel, newSentinel, toSentinel } from "./nonce.ts";
