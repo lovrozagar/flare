@@ -2,6 +2,7 @@ import type { ChainAuth, StepContext } from "../../shared/route-builder/chain.ts
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { shapeIssues, type Issue } from "../../shared/validation/issues.ts";
 import { gate } from "../auth/gate.ts";
+import type { PolicyClass } from "../auth/identity.ts";
 import { finalize } from "../lifecycle/finalize.ts";
 import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts";
 
@@ -27,13 +28,15 @@ export type RunInput = {
 	routes: readonly LoaderRoute[];
 };
 
-// `data` and `heads` are the root-down matches above the first failure, the ones that render.
+// `data` and `heads` are the root-down matches above the first failure, the ones that render. A match
+// with no .head() has an undefined head.
 export type LoaderRun = {
 	response: Response;
 	frames: readonly LoaderFrame[];
 	data: readonly unknown[];
-	heads: readonly HeadConfig[];
+	heads: readonly (HeadConfig | undefined)[];
 	failed?: Failed;
+	class?: PolicyClass;
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
@@ -42,7 +45,7 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	const gated = await gate(input);
 	if (gated.kind === "status") return bare(finalize({ status: gated.status, body: "" }));
 	const ctx = { auth: gated.session, request: input.request, env: input.env };
-	if (gated.kind === "proceed") return conclude(input, await load(input.routes, ctx));
+	if (gated.kind === "proceed") return { ...conclude(input, await load(input.routes, ctx)), class: gated.class };
 	// Matches outside the stopped one still load. It and everything inside it do not (B27, B29).
 	const outer = await load(input.routes.slice(0, gated.index), ctx);
 	const stopped = { id: input.routes[gated.index].id, settled: { ok: false as const, error: gated.error } };
@@ -55,7 +58,7 @@ function bare(response: Response): LoaderRun {
 
 function conclude(input: RunInput, outcomes: readonly Outcome[]): LoaderRun {
 	const result = cascade(input.kind, outcomes);
-	const heads = result.kept.flatMap((frame, index) => finish(input.routes[index], frame.d));
+	const heads = result.kept.map((frame, index) => finish(input.routes[index], frame.d));
 	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
 	if (result.failed?.status === 500) input.overlay?.(result.failed.error);
 	return {
@@ -90,10 +93,10 @@ async function settle(route: LoaderRoute, ctx: StepContext): Promise<Settled> {
 	}
 }
 
-function finish(route: LoaderRoute, loaderData: unknown): HeadConfig[] {
+function finish(route: LoaderRoute, loaderData: unknown): HeadConfig | undefined {
 	const head = route.head?.({ loaderData });
 	route.headers?.();
-	return head === undefined ? [] : [head];
+	return head;
 }
 
 function json(value: unknown): Response {

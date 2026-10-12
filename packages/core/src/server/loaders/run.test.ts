@@ -284,3 +284,24 @@ async function fail(kind: RunInput["kind"]): Promise<{
 function flush(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
 }
+
+it("policy class", async () => {
+	const optional: LoaderRoute = { id: "page", auth: { mode: "optional", callerData: [] }, loader: () => "page" };
+	const classes = await Promise.all(
+		["Bearer ada", "Bearer bob"].map(async (authorization) => {
+			const incoming = new Request("http://localhost/", { headers: { authorization } });
+			const run = await runLoaders(
+				request([optional], {
+					request: incoming,
+					authenticate: () => ({ token: incoming.headers.get("authorization") }),
+				}),
+			);
+			return run.class;
+		}),
+	);
+	expect(classes).toEqual(["anonymous", "anonymous"]);
+	const required = await runLoaders(
+		request([{ id: "page", auth: { mode: true, callerData: [] } }], { authenticate: () => ({ id: "ada" }) }),
+	);
+	expect(required.class).toBe("required");
+});
