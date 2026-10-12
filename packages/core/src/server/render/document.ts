@@ -8,7 +8,7 @@ import { raceAbort } from "./abort.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
 import { DocumentHead, type Head } from "./head.ts";
-import { stateScript, type StateMatch } from "./state.ts";
+import { insertState, stateScript, type StateMatch } from "./state.ts";
 
 type Chunk = string | Uint8Array;
 
@@ -49,12 +49,13 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	const halt = new AbortController();
 	const signal = AbortSignal.any([input.request.signal, halt.signal]);
 	const render = withRequest({ path: new URL(input.request.url).pathname, nonce }, () =>
-		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, tail, nonce)),
+		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, nonce)),
 	);
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined);
 	const reader = piped.readable.getReader();
-	const shell = withDoctype(withHead(chunkText((await reader.read()).value), head));
+	// The state and client scripts go in the shell before `</body>` (02-system), so the shell ends at `</html>`.
+	const shell = insertState(withDoctype(withHead(chunkText((await reader.read()).value), head)), tail);
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(encoder.encode(shell));
@@ -90,15 +91,12 @@ function tree(input: DocumentInput, tags: readonly HeadTag[] | undefined): Eleme
 	return appTree(values, () => [input.render(), createComponent(DocumentHead, { tags: tags ?? [] })]);
 }
 
-function streamOptions(signal: AbortSignal, tail: string, nonce: string): StreamOptions {
+function streamOptions(signal: AbortSignal, nonce: string): StreamOptions {
 	const options: StreamOptions = {
 		signal,
 		manifest: {},
 		onError: () => undefined,
 		onHead: () => undefined,
-		onCompleteShell(info) {
-			info.write(tail);
-		},
 	};
 	if (nonce !== "") options.nonce = nonce;
 	return options;

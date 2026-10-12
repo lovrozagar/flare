@@ -7,7 +7,7 @@ import { createRouter } from "../../shared/router/create-router.ts";
 import { createServer } from "../lifecycle/create.ts";
 import type { FlareStore, FlareStoreEntry } from "./contract.ts";
 import { createMemoryStore } from "./memory.ts";
-import { sharedRequest } from "./scrub.ts";
+import { sharedRequest, shellOf } from "./scrub.ts";
 import type { StoredPage } from "./write.ts";
 
 // The populate request carries no credential, and no other request header either (dx/cache.md).
@@ -62,4 +62,24 @@ it("anonymous render", async () => {
 	expect((entry.data as StoredPage).html).toContain("anonymous");
 	expect(seen).toEqual([null]);
 	expect(authenticate).toHaveBeenCalledOnce();
+});
+
+function streamOf(chunks: readonly string[], close: boolean): ReadableStream<Uint8Array> {
+	const encoder = new TextEncoder();
+	return new ReadableStream({
+		start(controller) {
+			for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+			if (close) controller.close();
+		},
+	});
+}
+
+// The shell is read until `</html>`, across chunks, and the open stream behind a hole is not waited on. A root with
+// no `<html>` stops after its first chunk, and a stream that ends first gives what it sent.
+it("shell chunks", async () => {
+	expect(await shellOf(streamOf(["<html><body>a", "b</body></html>", "<template>late</template>"], false))).toBe(
+		"<html><body>ab</body></html>",
+	);
+	expect(await shellOf(streamOf(["just text", "more"], false))).toBe("just text");
+	expect(await shellOf(streamOf(["<html><body>cut"], true))).toBe("<html><body>cut");
 });

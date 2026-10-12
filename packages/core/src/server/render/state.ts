@@ -18,7 +18,9 @@ export function stateScript(state: { matches: readonly StateMatch[]; nonce: stri
 	return `<script${attr}>self.flare=${escapeInlineScript(payload)}</script>`;
 }
 
+// Before `</body>`. A root that renders no body, such as one that renders only text, gets it at the end.
 export function insertState(shell: string, script: string): string {
-	const close = shell.indexOf("</body>");
+	const close = shell.lastIndexOf("</body>");
+	if (close === -1) return `${shell}${script}`;
 	return `${shell.slice(0, close)}${script}${shell.slice(close)}`;
 }

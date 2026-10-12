@@ -85,7 +85,11 @@ async function awaited(run: LoaderRun, policy: Policy, buffer: boolean): Promise
 
 // The decision, downgraded by a cookie the route sets, writes Cache-Control and Cache-Tag over the answer's
 // headers. `errored` is an error frame on a data answer, or a painted failure.
-export function cached(result: Staged, policy: Policy, answer: { run: LoaderRun; errored: boolean }): Response {
+export function cached(
+	result: Staged,
+	policy: Policy,
+	answer: { run: Pick<LoaderRun, "headers">; errored: boolean },
+): Response {
 	const route = [answer.run.headers["set-cookie"] ?? []].flat();
 	const decision = withCookies(policy.decision, { route, all: result.headers.getSetCookie() });
 	const errored = answer.errored || policy.rejected === true;
@@ -187,7 +191,7 @@ async function paint(outer: Exchange, rendered: Decided, status: number): Promis
 // shell (B93).
 export async function drawn(
 	outer: Exchange,
-	rendered: Decided,
+	rendered: Rendered,
 ): Promise<{ exchange: Exchange; body: ReadableStream<Uint8Array> } | { failed: Response }> {
 	const exchange = routeSecured(outer, rendered.run.security);
 	for (const bug of rendered.run.bugs) projectError(bug, exchange.sink);
