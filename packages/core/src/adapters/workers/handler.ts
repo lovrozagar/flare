@@ -41,7 +41,12 @@ export function createWorkersHandler(
 				createLogger({ dev: false }).error("assets", "missing binding");
 				return finalize({ status: 500, body: "" });
 			}
-			return binding.fetch(next);
+			// A file the binding has is its response, untouched. A path it does not have either is the app's own
+			// not-found answer, as on Node and Bun (dx/adapters.md).
+			const asset = await binding.fetch(next);
+			const [kept, dropped] = asset.status === 404 ? [response, asset] : [asset, response];
+			void dropped.body?.cancel();
+			return kept;
 		},
 	};
 }
