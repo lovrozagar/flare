@@ -473,7 +473,7 @@ This file calls `boot` for the `minimal` app (B70). `boot` starts each app's `vi
 | `back` | browser back | the home text returns |
 | `scroll` | scroll, navigate, back | the saved scroll position returns |
 | `two skeletons` | a document with two deferred reads, each under its own `<Loading>` | the first HTML contains both fallbacks and neither resolved string. The fast string appears in a later chunk while the slow fallback is still showing. Then the slow string appears. The status stays 200 |
-| `style object` | a multi-key `style={{ … }}` object in a page | SSR renders it and the client hydrates it with no page error or console warning. The Solid compiler and the runtime are one release: the root `package.json` overrides `@solidjs/compiler`, `@solidjs/babel-plugin`, and `@solidjs/signals` to the B90 pin, because the plugin's caret ranges had pulled a newer compiler whose `ssrStyleProperties` call the pinned `@solidjs/web` does not export |
+| `style object` | a multi-key `style={{ … }}` object in a page | SSR renders it and the client hydrates it with no page error or console warning. The Solid compiler and the runtime are one release (B90, rc.14): on rc.13 the plugin's caret ranges pulled the rc.14 compiler, whose `ssrStyleProperties` call `@solidjs/web` rc.13 does not export. The minimal layout uses multi-key style objects too |
 
 ## Done
 

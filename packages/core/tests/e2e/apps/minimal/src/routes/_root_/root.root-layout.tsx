@@ -8,12 +8,12 @@ export const route = createRootLayout("_root_").render((props) => (
 			<title>Minimal</title>
 		</head>
 		<body>
-			<nav id="nav" style="position:fixed;top:0;left:0">
+			<nav id="nav" style={{ position: "fixed", top: "0", left: "0" }}>
 				<Link to="_root_/">Home</Link>
 				<Link to="_root_/about">About</Link>
 			</nav>
 			<div id="app">{props.children}</div>
-			<div id="spacer" style="height:4000px" />
+			<div id="spacer" style={{ height: "4000px" }} />
 		</body>
 	</html>
 ));
