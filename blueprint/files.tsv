@@ -298,6 +298,8 @@ packages/core/src/client/navigation/target.ts	P6	src	dom	navigate and Link input
 packages/core/src/client/navigation/target.test.ts	P6	test	dom	Unit cases for target.ts
 packages/core/src/client/navigation/reload.ts	P6	src	dom	The guarded document load under flare_chunk_reload, and the five route-chunk error messages
 packages/core/src/client/navigation/reload.test.ts	P6	test	dom	Unit cases for reload.ts
+packages/core/src/client/navigation/frames.ts	P6	src	dom	One data response to the next commit: data, heads, a loader failure, or a redirect at r, then the deferred values
+packages/core/src/client/navigation/frames.test.ts	P6	test	dom	Unit cases for frames.ts
 packages/core/src/client/navigation/pending.ts	P6	src	dom	useNavigation().pending
 packages/core/src/client/navigation/pending.test.ts	P6	test	dom	Unit cases for pending.ts
 packages/core/src/client/navigation/progress.ts	P6	src	dom	useNavigationProgress. Value only. No element

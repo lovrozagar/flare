@@ -1,3 +1,5 @@
+import type { HeadConfig } from "../route-builder/types.ts";
+
 // `stack` in dev, `digest` in production, and never both (B76).
 export type FrameError = { message: string; stack?: string; digest?: string };
 
@@ -5,7 +7,7 @@ export type FrameError = { message: string; stack?: string; digest?: string };
 export type Frame =
 	| { t: "l"; m: string; d: unknown; p?: unknown }
 	| { t: "e"; m: string; e: FrameError; k?: string }
-	| { t: "h"; m: string; d: unknown }
+	| { t: "h"; m: string; d: HeadConfig }
 	| { t: "r" }
 	| { t: "c"; m: string; k: string; d: unknown }
 	| { t: "x"; s: number; u: string; r: boolean }
