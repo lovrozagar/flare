@@ -44,6 +44,27 @@ export function splitEdits(edit: Edit, program: Program): void {
 	}
 }
 
+const BODIES = new Set(["input", "authorize", "handler", "stream"]);
+
+// The server code a client or worker module still holds, found by the same walk split uses: a B8-removed route
+// method that is not the chain's end or still has an argument other than `undefined`, and a server function body
+// that is not `undefined`. The tripwire reads a chunk's modules with it.
+export function serverCode(file: string, source: string, program: Program): Span[] {
+	const leaks: Span[] = [];
+	const blank = (args: readonly Span[]): boolean =>
+		args.every((arg) => source.slice(arg.start, arg.end) === "undefined");
+	for (const [, steps] of routeChains(program)) {
+		steps.forEach((step, index) => {
+			const removed = routeMethod(step.name) === "remove";
+			if (removed && (index < steps.length - 1 || !blank(step.call.arguments))) leaks.push(step.call);
+		});
+	}
+	for (const record of serverFnsOf(file, program)) {
+		for (const method of record.methods) if (BODIES.has(method.name) && !blank(method.args)) leaks.push(method);
+	}
+	return leaks;
+}
+
 // `export const name = builder(...)...` chains whose root is a route builder imported from the package.
 function routeChains(program: Program): Array<[string, Step[]]> {
 	const builders = builderNames(program);

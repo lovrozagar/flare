@@ -55,13 +55,29 @@ export function envEdits(edit: {
 		removed.push(span);
 	};
 	// Every createIsomorphicFn() call has an entry, empty when nothing is chained on it.
-	for (const steps of isomorphicChains(program, names).values()) isomorphic({ file, graph, drop }, steps);
+	for (const steps of isomorphicChains(program, names).values()) isomorphic(file, steps);
 	for (const [call, helper] of calls) {
-		if (helper === "createIsomorphicFn") continue;
-		const body = inline(file, helper, call.arguments);
-		if ((helper === "createServerOnlyFn") === (graph !== "ssr")) drop(body);
+		if (helper !== "createIsomorphicFn") inline(file, helper, call.arguments);
 	}
+	for (const body of wrongSideBodies(program, graph)) drop(body);
 	return removed;
+}
+
+// The bodies a graph must not hold, found by the same walk the rewrite uses: a server-only body and a `.server()`
+// body outside ssr, a client-only body and a `.client()` body in ssr. The tripwire reads a chunk's modules with it.
+export function wrongSideBodies(program: Program, graph: Graph): Span[] {
+	const names = helperNames(program);
+	const helper: Helper = graph === "ssr" ? "createClientOnlyFn" : "createServerOnlyFn";
+	const side = graph === "ssr" ? "client" : "server";
+	const bodies: Span[] = [];
+	for (const [call, called] of directCalls(program, names)) {
+		if (called === helper && call.arguments.length > 0) bodies.push(call.arguments[0]);
+	}
+	for (const steps of isomorphicChains(program, names).values()) {
+		for (const step of steps)
+			if (step.name === side && step.call.arguments.length > 0) bodies.push(step.call.arguments[0]);
+	}
+	return bodies;
 }
 
 function helperNames(program: Program): Names {
@@ -149,14 +165,10 @@ function isomorphicChains(program: Program, names: Names): Map<number, Step[]> {
 	return chains;
 }
 
-function isomorphic(at: { file: string; graph: Graph; drop: (span: Span) => void }, steps: readonly Step[]): void {
-	const { file, graph, drop } = at;
+function isomorphic(file: string, steps: readonly Step[]): void {
 	const sides = steps.map((step) => step.name).sort();
 	if (sides.length !== 2 || sides[0] !== "client" || sides[1] !== "server") {
 		throw new Error(`${file}: createIsomorphicFn needs .server() and .client() in one expression`);
 	}
-	for (const step of steps) {
-		const body = inline(file, `createIsomorphicFn .${step.name}()`, step.call.arguments);
-		if (step.name === (graph === "ssr" ? "client" : "server")) drop(body);
-	}
+	for (const step of steps) inline(file, `createIsomorphicFn .${step.name}()`, step.call.arguments);
 }

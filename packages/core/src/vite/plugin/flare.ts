@@ -1,11 +1,19 @@
 import { existsSync } from "fs";
 import { isAbsolute, relative, resolve, sep } from "path";
+import { fileURLToPath } from "url";
 import solid from "@solidjs/vite-plugin";
 import type { Plugin, UserConfig } from "vite";
-import { boundaryTransform, type Graph } from "../boundary/index.ts";
+import { boundaryTransform, checkChunk, type Graph } from "../boundary/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { clientUrl } from "./environments.ts";
 import { parseOptions, type FlareOptions } from "./options.ts";
+
+// The package's `src`, whose server folders a client or worker chunk may not hold (B45).
+const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)));
+
+// The query keys Vite itself adds to an app module: a hot update's timestamp, a dependency hash, and an import
+// marker. Any other query, such as `?raw`, `?url`, `?worker`, or `?inline`, asks for something that is not the module.
+const VITE_QUERY = new Set(["t", "v", "import"]);
 
 // The environments that run the server entry. Each gets the client entry URL as a literal (dx/plugin.md).
 const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
@@ -54,14 +62,22 @@ function boundary(): Plugin {
 			if (file === undefined) return null;
 			return boundaryTransform(file, code, graphOf(this.environment.name)) ?? null;
 		},
+		// Every module of every chunk, with its final code, before the chunk is written.
+		renderChunk(_code, chunk) {
+			const modules = chunk.moduleIds.map((id) => ({ id, code: this.getModuleInfo(id)?.code ?? null }));
+			checkChunk({ graph: graphOf(this.environment.name), chunk: chunk.fileName, modules, packageSrc: PACKAGE_SRC });
+			return null;
+		},
 	};
 }
 
-// A script module of the app: under the root, outside its dependencies, and with no query. The path is
-// root-relative with forward slashes, the form the B41 id hashes.
+// A script module of the app: under the root, outside its dependencies, and with no query but Vite's own. The path
+// is root-relative with forward slashes, the form the B41 id hashes.
 function appModule(root: string, id: string): string | undefined {
-	if (id.includes("?") || id.startsWith("\0") || !/\.[cm]?[jt]sx?$/.test(id)) return undefined;
-	const file = relative(root, id).split(sep).join("/");
+	const [path, query = ""] = id.split("?", 2);
+	if (![...new URLSearchParams(query).keys()].every((key) => VITE_QUERY.has(key))) return undefined;
+	if (path.startsWith("\0") || !/\.[cm]?[jt]sx?$/.test(path)) return undefined;
+	const file = relative(root, path).split(sep).join("/");
 	if (file.startsWith("../") || isAbsolute(file) || file.split("/").includes("node_modules")) return undefined;
 	return file;
 }
