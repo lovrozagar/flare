@@ -160,10 +160,11 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 
 | test | case | result |
 | --- | --- | --- |
-| `key purge` | `revalidate({ keys: [key] })` | a tombstone for that key |
+| `key purge` | `revalidate({ keys: [key] })` | a tombstone for that key, and the key's own epoch `epoch:key:<key>` set to now |
+| `purge during render` | a shared render starts at T0, `revalidate({ keys: [key] })` runs at T1, then the render writes its entry with `storedAt` T0 | the next read is a miss: the key's epoch T1 is at or after T0. A late write cannot undo a purge |
 | `delete writes` | `delete(key)` on a mutable store | a tombstone for that key. The next `get` returns `{ data: { tombstone: true }, storedAt }`, not null |
 | `tag purge` | `revalidate({ tags: ["p"] })` | gets and sets `epoch:p`, a number. `revalidate` does not call `deleteByTags` |
-| `get cost` | a read of an entry with two tags | one get for the key plus one per tag, so three gets, and no list operation |
+| `get cost` | a read of an entry with two tags | one get for the key and one for its own epoch, in parallel, then one per tag: four gets, and no list operation |
 | `epoch newer` | an entry at `storedAt` 100 and its tag's epoch at 99, then at 100 | not purged, then purged. A tie is purged: a purge in the render's start millisecond may follow the data read, and one extra render is the safe cost. A missing key is a miss, and an entry with no tags is never purged by an epoch |
 
 ### `server/cache/memory.test.ts`
