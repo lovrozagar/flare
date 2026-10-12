@@ -1,14 +1,6 @@
-// A Standard Schema issue. A path segment is a key, or `{ key }`.
-export type StandardIssue = { message: string; path?: ReadonlyArray<PropertyKey | { key: PropertyKey }> };
+import type { Validator } from "../../shared/validation/index.ts";
 
-export type StandardResult = { value: unknown; issues?: undefined } | { issues: readonly StandardIssue[] };
-
-// What a validator may be: a Standard Schema, `{ parse }`, or a function. Each may return a promise. The input step
-// runs it (dx/server-fn.md).
-export type Validator =
-	| { "~standard": { validate: (value: unknown) => StandardResult | Promise<StandardResult> } }
-	| { parse: (value: unknown) => unknown }
-	| ((value: unknown) => unknown);
+export type { StandardIssue, Validator } from "../../shared/validation/index.ts";
 
 export type ServerFnContext = {
 	input: unknown;
