@@ -23,7 +23,8 @@ export type ScrollStore = {
 	afterCommit: (target: { hash: string; scroll: boolean }) => void;
 };
 
-type Saved = Record<string, { x: number; y: number }>;
+// Oldest first. An array keeps insertion order, which an object with integer-like keys does not.
+type Saved = Array<[key: string, spot: { x: number; y: number }]>;
 
 const STORAGE_KEY = "flare_scroll";
 
@@ -43,21 +44,20 @@ export function createScroll(options: ScrollOptions, env: ScrollEnv): ScrollStor
 		save(index, location) {
 			if (!options.enabled) return;
 			const key = keyOf(index, location);
-			const saved = read(env.storage);
-			delete saved[key];
-			saved[key] = env.position();
-			const entries = Object.entries(saved).slice(-options.maxEntries);
-			env.storage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(entries)));
+			const saved = read(env.storage).filter(([stored]) => stored !== key);
+			saved.push([key, env.position()]);
+			write(env.storage, saved.slice(-options.maxEntries));
 		},
 		restore(index, location) {
 			if (!options.enabled) return;
-			const spot = read(env.storage)[keyOf(index, location)] ?? { x: 0, y: 0 };
+			const key = keyOf(index, location);
+			const [, spot] = read(env.storage).find(([stored]) => stored === key) ?? [key, { x: 0, y: 0 }];
 			move(spot.x, spot.y);
 		},
 		// After a commit the page goes to the hash target, or to the top, unless the navigation kept the scroll.
 		afterCommit(target) {
 			if (!target.scroll) return;
-			const element = target.hash === "" ? null : env.element(target.hash.slice(1));
+			const element = target.hash === "" ? null : env.element(decodeHash(target.hash.slice(1)));
 			if (element === null) move(0, 0);
 			else element.scrollIntoView();
 		},
@@ -69,9 +69,30 @@ export function isHashOnly(from: Location, to: Location): boolean {
 	return from.pathname === to.pathname && from.search === to.search && from.hash !== to.hash;
 }
 
+// Storage can be disabled, full, or hold a value Flare did not write. None of that may break a navigation:
+// an unreadable store counts as empty, and a failed write is skipped.
 function read(storage: Storage): Saved {
-	const raw = storage.getItem(STORAGE_KEY);
-	if (raw === null) return {};
-	const saved: Saved = JSON.parse(raw);
-	return saved;
+	try {
+		const parsed: unknown = JSON.parse(storage.getItem(STORAGE_KEY) ?? "[]");
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+}
+
+function write(storage: Storage, saved: Saved): void {
+	try {
+		storage.setItem(STORAGE_KEY, JSON.stringify(saved));
+	} catch {
+		// Quota or a disabled store: this position is not kept.
+	}
+}
+
+// `#caf%C3%A9` names the element `café`. A malformed escape is looked up as written.
+function decodeHash(hash: string): string {
+	try {
+		return decodeURIComponent(hash);
+	} catch {
+		return hash;
+	}
 }
