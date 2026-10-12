@@ -4,7 +4,7 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 
 ## Extends
 
-`server/render/document.test.ts` gains the abort and shell cases. `shared/errors/status.test.ts` gains the render-phase 404. `server/render/head.test.ts` gains `head throw`: a throw omits that match's head, the document status stays the loader status, it is a dev bug, and it does not open `errorRender`. `shared/errors/index.ts` re-exports `devErrorPayload` and `reportDevError` from `dev-report.ts`. `shared/components/index.ts` re-exports `boundaryAt` and `boundaryFallback`. The public entry does not.
+`server/render/document.test.ts` gains the abort and shell cases. `shared/errors/status.test.ts` gains the render-phase 404. `server/render/head.test.ts` gains `head throw`: a throw omits that match's head, the document status stays the loader status, it is a dev bug, and it does not open `errorRender`. `shared/errors/index.ts` re-exports `devErrorPayload` and `reportDevError` from `dev-report.ts`. `shared/components/index.ts` re-exports `boundaryAt`, `boundaryFallback`, and `boundaryKind`. `server/loaders/cascade.ts` reads `boundaryKind` from it, so the status-to-function table exists once. The public entry does not.
 
 ## Cases
 
