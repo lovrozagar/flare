@@ -8,7 +8,7 @@ export const echo = createServerFn({ method: "post" })
   .handler(async ({ input, auth, env, request, serverContext, revalidate }) => data)
 ```
 
-`name` is not a config field (B85). The id is the B41 hash of the root-relative path and the export name. A `createServerFn` that is not a direct export fails the build (`server/server-fn/ids.test.ts` `export name`, `not exported`).
+`name` is not a config field (B85). The id is the B41 hash of the root-relative path and the export name. A `createServerFn` that is not a direct export fails the build (`vite/route-meta/ids.test.ts` `export name`, `not exported`).
 
 `.stream(async function* (ctx) { yield value })` replaces `.handler`. Setting both throws.
 

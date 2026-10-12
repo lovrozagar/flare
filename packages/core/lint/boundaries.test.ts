@@ -100,3 +100,14 @@ it("vite dev adapters", () => {
 	expect(plugin).not.toBe(0);
 	expect(bun).not.toBe(0);
 });
+
+it("vite node", () => {
+	const vite = lint({
+		"src/vite/route-meta/hash.ts": 'import { createHash } from "node:crypto";\nexport const hash = createHash;\n',
+	});
+	const server = lint({
+		"src/server/hash.ts": 'import { createHash } from "node:crypto";\nexport const hash = createHash;\n',
+	});
+	expect(vite).toBe(0);
+	expect(server).not.toBe(0);
+});

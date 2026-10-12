@@ -15,6 +15,8 @@ const PERMIT = new Set([
 	"server>shared",
 	"adapters>adapters",
 	"vite>vite",
+	// vite/ runs in Node (00-rules environments).
+	"vite>node",
 	"adapters>shared",
 	"adapters>server",
 	"vite>shared",
