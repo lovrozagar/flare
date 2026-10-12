@@ -72,12 +72,15 @@ it("peel", async () => {
 	);
 });
 
+// Vite's own head-prepend: its tags go right after the head open tag.
+async function vite(_url: string, input: string): Promise<string> {
+	return input.replace(/<head[^>]*>/, (open) => `${open}\n<script type="module" src="/@vite/client"></script>\n`);
+}
+
 // Vite prepends its tags to the head. A component the root layout renders in `<head>` hydrates by walking the head's
 // children from the first, so the tags Vite adds go last, before `</head>`.
 it("head order", async () => {
 	const shell = '<html><head _hk=1><title _hk=2>T</title><link rel="icon" href="/i.png"></head><body>x</body></html>';
-	const vite = async (_url: string, input: string): Promise<string> =>
-		input.replace(/<head[^>]*>/, (open) => `${open}\n<script type="module" src="/@vite/client"></script>\n`);
 	const fetch = devFetch({ load: async () => app(async () => html(shell)), transform: vite });
 	expect(await (await fetch(new Request("http://localhost/"))).text()).toBe(
 		'<html><head _hk=1><title _hk=2>T</title><link rel="icon" href="/i.png">\n<script type="module" src="/@vite/client"></script>\n</head><body>x</body></html>',
