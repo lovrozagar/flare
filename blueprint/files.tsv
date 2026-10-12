@@ -517,6 +517,7 @@ packages/core/tests/integration/ingress.test.ts	P3	test	node	Hostile targets, me
 packages/core/tests/integration/nonce.test.ts	P3	test	node	One nonce on the CSP header, the head, the render, and a stored hit
 packages/core/tests/integration/auth.test.ts	P4	test	node	Layout auth in front of a public page, response() routes, and two interleaved requests
 packages/core/tests/integration/stream.test.ts	P5	test	node	Abort closes the stream. A throw before the shell is a 500 with no body bytes
+packages/core/tests/integration/nonce-client.test.tsx	P6	test	dom	The client half of the nonce cases: a head tag applied after a data navigation carries self.flare.nonce
 packages/core/tests/integration/navigation.test.ts	P6	test	node	A data URL returns NDJSON. A document URL returns HTML. Stale skips page loaders only
 packages/core/tests/integration/server-fn.test.ts	P7	test	node	Dispatch order, CSRF, and the no-store default
 packages/core/tests/integration/middleware.test.ts	P8	test	node	Filter case, mount, and proxy
