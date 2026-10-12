@@ -251,3 +251,37 @@ it("response passes", async () => {
 	]);
 	expect(seen.loaded).toBe(false);
 });
+
+function answering(respond: () => Response): ReturnType<typeof createServer> {
+	return createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render(show) },
+			routeTree: [{ id: "_root_/file", path: "/file", module: createPage("_root_/file").response(respond) }],
+		}),
+	});
+}
+
+it("response binary", async () => {
+	const bytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0xff, 0xfe, 0x00, 0x80]);
+	const server = answering(() => new Response(bytes, { headers: { "content-type": "image/png" } }));
+	const response = await server.fetch(new Request("http://localhost/file"));
+	expect(response.headers.get("content-type")).toBe("image/png");
+	expect([...new Uint8Array(await response.arrayBuffer())]).toEqual([...bytes]);
+});
+
+it("response stream", async () => {
+	const encoder = new TextEncoder();
+	const endless = new ReadableStream<Uint8Array>({
+		pull(controller) {
+			controller.enqueue(encoder.encode("data: tick\n\n"));
+		},
+	});
+	const server = answering(() => new Response(endless, { headers: { "content-type": "text/event-stream" } }));
+	const response = await server.fetch(new Request("http://localhost/file"));
+	const body = response.body;
+	if (body === null) throw new Error("stream body");
+	const reader = body.getReader();
+	const first = await reader.read();
+	expect(new TextDecoder().decode(first.value)).toBe("data: tick\n\n");
+	await reader.cancel();
+});

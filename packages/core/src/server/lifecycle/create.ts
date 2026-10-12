@@ -100,8 +100,7 @@ async function answered(exchange: Exchange, chain: readonly ChainEntry[], respon
 	if (run.answer === undefined) return failed(exchange, run);
 	const headers = new Headers(run.answer.headers);
 	exchange.secured.headers.forEach((value, name) => headers.set(name, value));
-	const body = await run.answer.text();
-	return finalize({ status: run.answer.status, body, headers, url: exchange.request.url });
+	return finalize({ status: run.answer.status, body: run.answer.body, headers, url: exchange.request.url });
 }
 
 // An unknown path runs the loaders of its not-found chain: the root layout, or the fuzzy owner and its

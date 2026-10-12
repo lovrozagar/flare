@@ -2,9 +2,10 @@ import { statusOf } from "../../shared/errors/status.ts";
 import { defaultHeaders } from "../security/defaults.ts";
 import { assignPolicy } from "./policies.ts";
 
+// `body` may be a stream or bytes: a .response() answer passes through unread (dx/server.md).
 export type StageResult = {
 	status: number;
-	body: string;
+	body: BodyInit | null;
 	render?: "ssr";
 	url?: string;
 	build?: string;
