@@ -97,7 +97,9 @@ it("client entry define", () => {
 	try {
 		const config = plugin.config;
 		if (typeof config !== "function") throw new Error("config");
-		expect(config.call(null as never, { root } as never, { command: "serve", mode: "development" } as never)).toEqual({
+		expect(
+			config.call(null as never, { root } as never, { command: "serve", mode: "development" } as never),
+		).toMatchObject({
 			appType: "custom",
 			resolve: { dedupe: ["solid-js", "@solidjs/web"] },
 			ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },

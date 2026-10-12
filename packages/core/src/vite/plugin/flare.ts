@@ -6,7 +6,7 @@ import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, type Graph } from "../boundary/index.ts";
 import { inject } from "../css/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
-import { clientUrl } from "./environments.ts";
+import { assetUrl, buildConfig, clientUrl } from "./environments.ts";
 import { parseOptions, type FlareOptions } from "./options.ts";
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
@@ -21,10 +21,12 @@ const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
 
 export function flare(options?: FlareOptions): Plugin[] {
 	const parsed = parseOptions(options);
+	// Vite's resolved `base`, which every built URL starts with.
+	let base = "/";
 	return [
 		boundary(),
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
-		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client }),
+		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client, assetsBase: parsed.assetsBase }),
 		{
 			name: "flare",
 			config(config: UserConfig): UserConfig {
@@ -32,13 +34,21 @@ export function flare(options?: FlareOptions): Plugin[] {
 				const root = config.root ?? process.cwd();
 				assertEntry(root, parsed.entry.client, "entry.client");
 				assertEntry(root, parsed.entry.server, "entry.server");
+				const entry = { client: resolve(root, parsed.entry.client), server: resolve(root, parsed.entry.server) };
+				const user = { outDir: config.build?.outDir, assetsDir: config.build?.assetsDir };
 				// Flare owns the entries and the dev server, so Vite serves no index.html (B89).
 				return {
 					appType: "custom",
 					resolve: { dedupe: ["solid-js", "@solidjs/web"] },
 					ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
 					optimizeDeps: { exclude: ["@lovrozagar/flare"] },
+					...buildConfig({ assetsBase: parsed.assetsBase, entry, user }),
+					// Every URL Vite writes into CSS and JavaScript comes from the same resolver as the server's.
+					experimental: { renderBuiltUrl: (file) => assetUrl(file, { base, assetsBase: parsed.assetsBase }) },
 				};
+			},
+			configResolved(config) {
+				base = config.base;
 			},
 			// A build defines the manifest's hashed file once the client is built (bit 12).
 			configEnvironment(name, _config, env) {

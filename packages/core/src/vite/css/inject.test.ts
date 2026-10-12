@@ -25,7 +25,7 @@ async function built(files: Record<string, string>, reset: boolean): Promise<{ c
 		root,
 		configFile: false,
 		logLevel: "silent",
-		plugins: inject({ reset, clientEntry: "src/client.ts" }),
+		plugins: inject({ reset, clientEntry: "src/client.ts", assetsBase: "/assets" }),
 		build: { write: false, rollupOptions: { input: join(root, "src/client.ts") } },
 	});
 	// A one-environment build without watch is one output.
@@ -73,7 +73,7 @@ it("reset on", async () => {
 // The server environments load the sheet module as the client build's one stylesheet and its href. A server build
 // before the client build has nothing to load, and dev keeps the empty module.
 it("server sheet", () => {
-	const plugins = inject({ reset: false, clientEntry: "src/client.ts" });
+	const plugins = inject({ reset: false, clientEntry: "src/client.ts", assetsBase: "/assets" });
 	const [main, capture] = plugins;
 	expect(() => call(main?.load, context("ssr"), [SHEET])).toThrow(/client build/);
 	const bundle = { "style.css": asset("assets/style-1.css", "body{color:red}") };
@@ -92,7 +92,7 @@ it("client graph", async () => {
 	const { css, js } = await built({ "client.ts": client, "app.css": "body{color:red}" }, false);
 	expect(css[0]).toContain("color:red");
 	expect(js).not.toContain("color:red");
-	const plugins = inject({ reset: false, clientEntry: "src/client.ts" });
+	const plugins = inject({ reset: false, clientEntry: "src/client.ts", assetsBase: "/assets" });
 	call(plugins[1]?.generateBundle, context("client"), [{}, {}]);
 	expect(call(plugins[0]?.load, context("client"), [SHEET])).toBeNull();
 	expect(call(plugins[0]?.load, context("ssr"), [SHEET])).toContain('builtSheet = ""');
@@ -100,7 +100,7 @@ it("client graph", async () => {
 
 // flare() turns CSS code splitting off for the client, so a lazy chunk's CSS is in the one file too.
 it("one sheet", async () => {
-	const plugin = inject({ reset: false, clientEntry: "src/client.ts" })[0];
+	const plugin = inject({ reset: false, clientEntry: "src/client.ts", assetsBase: "/assets" })[0];
 	expect(call(plugin?.configEnvironment, {}, ["client", {}, { command: "build" }])).toEqual({
 		build: { cssCodeSplit: false },
 	});
@@ -120,7 +120,7 @@ it("one sheet", async () => {
 it("build parse", async () => {
 	const files = { "client.ts": 'import "./app.css";', "app.css": '@import url("https://example.com/x.css");.a{top:0}' };
 	await expect(built(files, false)).rejects.toThrow(/assets\/style-[\w-]+\.css.*@import/s);
-	const capture = inject({ reset: false, clientEntry: "src/client.ts" })[1];
+	const capture = inject({ reset: false, clientEntry: "src/client.ts", assetsBase: "/assets" })[1];
 	for (const source of ['@charset "utf-8";.a{top:0}', ".a{top:0"]) {
 		const bundle = { "style.css": asset("assets/style-1.css", source) };
 		expect(() => call(capture?.generateBundle, context("client"), [{}, bundle])).toThrow(/assets\/style-1\.css/);

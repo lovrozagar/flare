@@ -13,7 +13,7 @@ const SHEET = fileURLToPath(new URL("../../shared/css/sheet.ts", import.meta.url
 
 const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
 
-export type CssOptions = { reset: boolean; clientEntry: string };
+export type CssOptions = { reset: boolean; clientEntry: string; assetsBase: string };
 
 // The one stylesheet (B15). The client environment builds without CSS code splitting, and with `reset` its entry
 // imports the preflight first, so the preflight is in the hashed file and in dev. The client build's stylesheet is
@@ -50,7 +50,7 @@ export function inject(options: CssOptions): Plugin[] {
 		enforce: "post",
 		generateBundle(_output, bundle) {
 			if (this.environment.name !== "client") return;
-			const sheet = stylesheetOf(bundle, this.environment.config.base);
+			const sheet = stylesheetOf(bundle, { base: this.environment.config.base, assetsBase: options.assetsBase });
 			if (sheet !== undefined) checked(sheet, (message) => this.error(message));
 			built = sheet;
 		},
