@@ -8,7 +8,7 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 
 `server/lifecycle/create.ts` calls the read path only when the policy is `shared`.
 
-`tests/integration/nonce.test.ts` gains `stored sentinel` and `hit matches`. The stored bytes contain `__FLARE_NONCE__` and do not contain the first request's nonce in a nonce attribute or in the state field. The hit body's nonce attributes and `self.flare.nonce` equal the hit's CSP nonce. `text kept`: a text node equal to the first nonce is unchanged.
+`tests/integration/nonce.test.ts` gains `stored sentinel` and `hit matches`. The stored bytes contain the entry's sentinel and do not contain the first request's nonce in a nonce attribute or in the state field. The hit body's nonce attributes and `self.flare.nonce` equal the hit's CSP nonce. `text kept`: a text node equal to the first nonce is unchanged.
 
 ### `server/lifecycle/create.test.ts` (extended)
 
@@ -59,7 +59,7 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `location stripped` | the render set `Location` | the stored headers have no `Location` |
 | `security stripped` | the render set `Content-Security-Policy` | the stored headers do not contain it |
 | `host` | the request `Host` is `evil` and `site` is `https://example.com` | the stored body contains `https://example.com` and does not contain `evil` |
-| `sentinel` | the rendered body has `nonce="abc"` and the state field `abc` | the stored body has `__FLARE_NONCE__` in both places |
+| `sentinel` | the rendered body has `nonce="abc"` and the state field `abc` | the stored body has the entry's sentinel in both places, and the entry records that sentinel |
 
 ### `server/cache/read.test.ts`
 
@@ -88,6 +88,8 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `state field` | the state assignment contains `"nonce":"abc"` | that field is the sentinel |
 | `round trip` | the sentinel rewritten to `def` | attributes and the state field are `def` |
 | `strip` | the sentinel rewritten to empty | the nonce attributes are removed and the state field is `""` |
+| `per entry` | two writes of the same page | two different sentinels, each 16 random bytes in hex with a fixed prefix. A constant sentinel would let stored content carry it |
+| `planted sentinel` | stored content (raw HTML from loader data) holds `<script nonce="__FLARE_NONCE__">` or a nonce attribute holding another entry's sentinel | on a hit that attribute is unchanged. Only the entry's own sentinel becomes the hit nonce, so stored markup can never be granted the CSP nonce |
 
 ### `server/cache/scrub.test.ts`
 
