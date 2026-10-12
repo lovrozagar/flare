@@ -2,6 +2,7 @@
 import { rule as noModuleSideEffects } from "./no-module-side-effects.js";
 import { rule as noModuleState } from "./no-module-state.js";
 import { rule as funnelOnly } from "./funnel-only.js";
+import { rule as noFlareHeaderBranching } from "./no-flare-header-branching.js";
 import { rule as locationOnlyInRedirect } from "./location-only-in-redirect.js";
 import { rule as noV8Ignore } from "./no-v8-ignore.js";
 import { rule as pathPrefix } from "./path-prefix.js";
@@ -108,5 +109,6 @@ export default {
 		"path-prefix": pathPrefix,
 		"location-only-in-redirect": locationOnlyInRedirect,
 		"funnel-only": funnelOnly,
+		"no-flare-header-branching": noFlareHeaderBranching,
 	},
 };
