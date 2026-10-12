@@ -27,7 +27,7 @@ Creates every `P12` row. `flare codegen` writes the same files the plugin writes
 | test | case | result |
 | --- | --- | --- |
 | `200` | a static page | exit 0, the body stored through the write path |
-| `401` | a static page under an auth layout | exit 1, stderr contains the route id, nothing written |
+| `401` | an `ssg` page, or an `isr` page rendered at the build, whose chain requires auth, on a layout or on the page itself | exit 1, stderr contains the route id, nothing written. Seeds are public files under the assets path |
 | `500` | the loader throws | exit 1, the route id on stderr |
 | `hint mismatch` | the hint says public and the module requires auth | exit 1 before rendering |
 | `credential less` | the populate request | the URL is `site` plus the pathname. No search, no cookie, no authorization, and no copied request headers |
