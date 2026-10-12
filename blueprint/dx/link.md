@@ -41,7 +41,7 @@ An internal link has `to`. An external link has `href` and must not have `to`.
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `to` | one of `to` or `href` | — | a page route id, including a `.response()` page (`dx/types.md`) | the href is built from `to`, `params`, `search`, `hash`. A `.response()` page is a full document load (B84) | a layout id, the root id, and a segment id do not type-check. A missing required param throws when the link renders | `link.test.tsx` `href`; `propagation.test.ts` `layout to`; `navigate.test.ts` `response page` |
+| `to` | one of `to` or `href` | — | a page route id, including a `.response()` page (`dx/types.md`) | the href is built from `to`, `params`, `search`, `hash`. A `.response()` page is a full document load (B84) | a layout id, the root id, and a segment id do not type-check. A missing required param throws when the link renders | `link.test.tsx` `href`; `propagation.test.ts` `layout to`; `target.test.ts` `response page` |
 | `href` | one of `to` or `href` | — | a string | rendered as the anchor href. Prefetch does not run | `javascript:`, `data:`, `blob:`, `vbscript:`, and a leading control or whitespace-hidden scheme render `href="#"` and do not navigate | `link.test.tsx` `dangerous` |
 | `params` | when the param type has any key | — | the object. A key whose type includes `undefined` is still present | | `params: {}` on `[[id]]` is missing that key (`dx/types.md`) | `link.test.tsx` `params`; `propagation.test.ts` `optional param` |
 | `search` | when the validator output has a required key | — | the validator output, or the raw record when that route did not validate search | serialized onto the query | reserved `_flare`, `_flare_stale`, and on a server-fn URL `_i`, are stripped if a caller puts them here | `link.test.tsx` `strips reserved`; `propagation.test.ts` `search required key` |
@@ -50,7 +50,7 @@ An internal link has `to`. An external link has `href` and must not have `to`.
 | `replace` | no | `false` | boolean | `history.replaceState` instead of push | | `client/navigation/navigate.test.ts` `replace` |
 | `revalidate` | no | `false` | boolean | the current match is refetched even inside `staleTime` | | `match-cache.test.ts` `revalidate` |
 | `scroll` | no | `true` | boolean | `false` keeps the scroll position | | `scroll.test.ts` `no scroll` |
-| `shallow` | no | `false` | boolean | `true` changes the URL and does not run loaders | a shallow navigation to a different route throws. Shallow is for search and hash on the current route | `navigate.test.ts` `shallow other route` |
+| `shallow` | no | `false` | boolean | `true` changes the URL and does not run loaders | a shallow navigation to a different route throws. Shallow is for search and hash on the current route | `target.test.ts` `shallow other route` |
 | `activeClass` | no | — | string | added when the link is active | | `link.test.tsx` `active` |
 | `inactiveClass` | no | — | string | added when it is not | | same |
 | `activeProps` | no | — | anchor attributes | spread when active | | same |
