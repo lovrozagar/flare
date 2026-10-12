@@ -1,6 +1,9 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
-import { boot } from "./boot.ts";
+import { boot, bootChild } from "./boot.ts";
 
 it("serves", async () => {
 	const session = await boot({ app: "minimal", runtime: "node", mode: "dev" });
@@ -75,4 +78,21 @@ it("temp", async () => {
 	expect(existsSync(session.cacheDir)).toBe(true);
 	await session.close();
 	expect(existsSync(session.cacheDir)).toBe(false);
+});
+
+it("failed boot", async () => {
+	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
+	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
+	await expect(bootChild({ appDir, cacheDir, bin: "/bin/false" })).rejects.toThrow(/vite exited/);
+	expect(existsSync(cacheDir)).toBe(false);
+	const missing = mkdtempSync(join(tmpdir(), "flare-vite-"));
+	await expect(bootChild({ appDir, cacheDir: missing, bin: "/nonexistent/vite" })).rejects.toThrow(/ENOENT/);
+	expect(existsSync(missing)).toBe(false);
+});
+
+it("exit cleans", async () => {
+	const session = await boot({ app: "minimal", runtime: "node", mode: "dev" });
+	process.emit("exit", 0);
+	expect(existsSync(session.cacheDir)).toBe(false);
+	await session.close();
 });

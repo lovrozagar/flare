@@ -60,7 +60,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined);
 	const reader = piped.readable.getReader();
-	const shell = withHead(chunkText((await reader.read()).value), head);
+	const shell = withDoctype(withHead(chunkText((await reader.read()).value), head));
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(encoder.encode(shell));
@@ -121,6 +121,11 @@ function captureScript(nonce: string): string {
 }
 
 // A shell without a head, such as a root that renders only text, gets the head in front of it.
+// The root layout writes `<html>` and no doctype. Without one the browser renders in quirks mode (02-system).
+function withDoctype(shell: string): string {
+	return /<html[\s>]/i.test(shell) && !/<!doctype/i.test(shell) ? `<!DOCTYPE html>${shell}` : shell;
+}
+
 function withHead(shell: string, head: string): string {
 	const close = shell.indexOf("</head>");
 	if (close === -1) return `${head}${shell}`;
