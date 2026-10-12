@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { effectiveAuth } from "./effective.ts";
+import { effectiveAuth, type AuthModule } from "./effective.ts";
 
 it("authenticate requires", () => {
 	expect(effectiveAuth([{ authenticate: true }])).toEqual({ requires: true, reads: true });
@@ -14,7 +14,9 @@ it("authorize reads", () => {
 });
 
 it("layout requires", () => {
-	expect(effectiveAuth([{ authenticate: true }, {}])).toEqual({ requires: true, reads: true });
+	const page: AuthModule = {};
+	const layout: AuthModule = { authenticate: true };
+	expect(effectiveAuth([page, layout])).toEqual({ requires: true, reads: true });
 });
 
 it("hint is ignored", () => {
