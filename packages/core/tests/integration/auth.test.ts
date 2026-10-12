@@ -180,3 +180,74 @@ it("header identity", async () => {
 	expect(bob.body).toContain("bob-token");
 	expect(bob.body).not.toContain("ada-token");
 });
+
+type Responded = { calls: string[]; contexts: unknown[]; loaded: boolean };
+
+function responseServer(
+	session: unknown,
+	allowed: boolean,
+): { server: ReturnType<typeof createServer>; seen: Responded } {
+	const seen: Responded = { calls: [], contexts: [], loaded: false };
+	const api = createPage("_root_/api")
+		.authenticate()
+		.authorize(() => {
+			seen.calls.push("authorize");
+			return allowed;
+		})
+		.preloader(() => ({ scope: "api" }))
+		.response((ctx) => {
+			seen.calls.push("fn");
+			seen.contexts.push(ctx);
+			return new Response("answered", {
+				status: 202,
+				headers: { "x-frame-options": "ALLOWALL", "x-api": "1" },
+			});
+		});
+	const server = createServer({
+		router: createRouter({
+			layouts: {
+				_root_: createRootLayout("_root_")
+					.loader(() => {
+						seen.loaded = true;
+						return "root";
+					})
+					.render(show),
+			},
+			routeTree: [{ id: "_root_/api", path: "/api", module: api }],
+		}),
+		authenticate: () => session,
+	});
+	return { server, seen };
+}
+
+it("response denied", async () => {
+	const { server, seen } = responseServer({ id: "ada" }, false);
+	const response = await server.fetch(new Request("https://localhost/api"));
+	expect(response.status).toBe(403);
+	expect(response.headers.get("content-security-policy")).toMatch(/script-src/);
+	expect(seen.calls).toEqual(["authorize"]);
+	expect(seen.loaded).toBe(false);
+});
+
+it("response no session", async () => {
+	const { server, seen } = responseServer(null, true);
+	const response = await server.fetch(new Request("https://localhost/api"));
+	expect(response.status).toBe(401);
+	expect(seen.calls).toEqual([]);
+});
+
+it("response passes", async () => {
+	const { server, seen } = responseServer({ id: "ada" }, true);
+	const request = new Request("https://localhost/api", { method: "POST", body: "x" });
+	const response = await server.fetch(request, { region: "eu" });
+	expect(response.status).toBe(202);
+	expect(await response.text()).toBe("answered");
+	expect(response.headers.get("x-api")).toBe("1");
+	expect(response.headers.get("x-frame-options")).toBe("DENY");
+	expect(response.headers.get("content-security-policy")).toMatch(/script-src/);
+	expect(seen.calls).toEqual(["authorize", "fn"]);
+	expect(seen.contexts).toEqual([
+		{ auth: { id: "ada" }, request, env: { region: "eu" }, preloaderContext: { scope: "api" } },
+	]);
+	expect(seen.loaded).toBe(false);
+});

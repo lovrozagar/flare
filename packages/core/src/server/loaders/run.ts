@@ -1,4 +1,5 @@
-import type { ChainAuth, PreloaderContext, StepContext } from "../../shared/route-builder/chain.ts";
+import type { ChainAuth, PreloaderContext, Respond, StepContext } from "../../shared/route-builder/chain.ts";
+import { statusOf } from "../../shared/errors/status.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { shapeIssues, type Issue } from "../../shared/validation/issues.ts";
 import { gate } from "../auth/gate.ts";
@@ -25,7 +26,7 @@ export type RunInput = {
 	shared?: boolean;
 	readStore?: () => void;
 	overlay?: (error: unknown) => void;
-	response?: (ctx: StepContext) => void;
+	response?: Respond;
 	routes: readonly LoaderRoute[];
 };
 
@@ -39,6 +40,7 @@ export type LoaderRun = {
 	contexts: readonly PreloaderContext[];
 	failed?: Failed;
 	class?: PolicyClass;
+	answer?: Response;
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
@@ -46,6 +48,11 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	if (invalid !== undefined) return bare(json(shapeIssues(invalid)));
 	const gated = await gate(input);
 	if (gated.kind === "status") return bare(finalize({ status: gated.status, body: "" }));
+	// A .response() page runs no loader and no render. A stopped gate answers with its status alone.
+	if (input.response !== undefined) {
+		if (gated.kind === "stopped") return bare(finalize({ status: statusOf(gated.error), body: "" }));
+		return { ...bare(finalize({ status: 200, body: "" })), class: gated.class, answer: await gated.answer };
+	}
 	const base = { auth: gated.session, request: input.request, env: input.env };
 	const contexts = gated.contexts;
 	if (gated.kind === "proceed") {

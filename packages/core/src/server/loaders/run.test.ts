@@ -320,39 +320,45 @@ it("preloader context", async () => {
 			seen[name] = contextOf(ctx);
 			return value;
 		};
-	const run = await runLoaders(
-		request(
-			[
-				{
-					id: "root",
-					preloader: mark("root preloader", { a: 1 }),
-					authorize: (ctx) => {
-						seen["root authorize"] = contextOf(ctx);
-						return true;
-					},
-				},
-				{
-					id: "layout",
-					preloader: mark("layout preloader", { b: 2 }),
-					authorize: (ctx) => {
-						seen["layout authorize"] = contextOf(ctx);
-						return true;
-					},
-					loader: mark("layout loader"),
-				},
-				{
-					id: "page",
-					preloader: mark("page preloader", { c: 3 }),
-					loader: mark("page loader"),
-					head: (ctx) => {
-						seen["page head"] = ctx.preloaderContext;
-						return {};
-					},
-				},
-			],
-			{ response: (ctx) => (seen["page response"] = contextOf(ctx)) },
-		),
+	const chain: LoaderRoute[] = [
+		{
+			id: "root",
+			preloader: mark("root preloader", { a: 1 }),
+			authorize: (ctx) => {
+				seen["root authorize"] = contextOf(ctx);
+				return true;
+			},
+		},
+		{
+			id: "layout",
+			preloader: mark("layout preloader", { b: 2 }),
+			authorize: (ctx) => {
+				seen["layout authorize"] = contextOf(ctx);
+				return true;
+			},
+			loader: mark("layout loader"),
+		},
+		{
+			id: "page",
+			preloader: mark("page preloader", { c: 3 }),
+			loader: mark("page loader"),
+			head: (ctx) => {
+				seen["page head"] = ctx.preloaderContext;
+				return {};
+			},
+		},
+	];
+	const run = await runLoaders(request(chain));
+	const responder = { ...chain[2], loader: undefined, head: undefined };
+	const answered = await runLoaders(
+		request([chain[0], chain[1], responder], {
+			response: (ctx) => {
+				seen["page response"] = contextOf(ctx);
+				return new Response("ok");
+			},
+		}),
 	);
+	expect(answered.answer?.status).toBe(200);
 	expect(seen).toEqual({
 		"root preloader": "absent",
 		"root authorize": "absent",
