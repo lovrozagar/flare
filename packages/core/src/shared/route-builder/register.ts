@@ -100,7 +100,7 @@ export type LinkProps<R extends FlareRegister, Id extends To<R>> = (Empty<InferP
 		replace?: boolean;
 	};
 
-export type Deferred<T> = { readonly promise: Promise<T> };
+export type Deferred<T> = { readonly __deferred: true; readonly key: string; readonly promise: Promise<T> };
 
 export type PropagationApp = FlareRegister & {
 	auth: { userId: string };
