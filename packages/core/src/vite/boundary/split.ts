@@ -25,18 +25,24 @@ export function splitClient(file: string, source: string): Split | undefined {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
 	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
 	const edit: Edit = { file, source, out: new MagicString(source), removed: [] };
-	for (const [name, steps] of routeChains(parsed.program)) stripRoute(edit, name, steps);
-	for (const record of serverFnsOf(file, parsed.program)) {
-		for (const method of record.methods) {
-			if (["input", "authorize", "handler", "stream"].includes(method.name)) blank(edit, method.args);
-		}
-	}
+	splitEdits(edit, parsed.program);
 	if (!edit.out.hasChanged()) return undefined;
 	pruneImports(edit, parsed.program);
 	return { code: edit.out.toString(), map: edit.out.generateMap({ hires: true, source: file, includeContent: true }) };
 }
 
-type Edit = { file: string; source: string; out: MagicString; removed: Span[] };
+// One module's edits, shared by every step of the boundary transform. `removed` is every span a step deleted.
+export type Edit = { file: string; source: string; out: MagicString; removed: Span[] };
+
+// The route chains and the server function bodies of the client and worker graphs, into a shared edit.
+export function splitEdits(edit: Edit, program: Program): void {
+	for (const [name, steps] of routeChains(program)) stripRoute(edit, name, steps);
+	for (const record of serverFnsOf(edit.file, program)) {
+		for (const method of record.methods) {
+			if (["input", "authorize", "handler", "stream"].includes(method.name)) blank(edit, method.args);
+		}
+	}
+}
 
 // `export const name = builder(...)...` chains whose root is a route builder imported from the package.
 function routeChains(program: Program): Array<[string, Step[]]> {
@@ -126,7 +132,7 @@ function blank(edit: Edit, args: readonly Span[]): void {
 
 // An import stays only when kept code reads it: a reference outside every import and every removed span that
 // resolves to the module scope (reads.ts). So a module only removed code reads leaves the client graph.
-function pruneImports(edit: Edit, program: Program): void {
+export function pruneImports(edit: Edit, program: Program): void {
 	const imports = program.body.filter((node): node is ImportDeclaration => node.type === "ImportDeclaration");
 	const outside = (node: Span): boolean =>
 		!imports.some((entry) => inside(node, entry)) && !edit.removed.some((span) => inside(node, span));

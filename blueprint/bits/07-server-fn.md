@@ -211,6 +211,18 @@ Run against oxc, not a regex.
 | `hoisted var` | the loader reads `db`; the render has `function f() { db; var db; }` or a hoisted function declaration `db` read above it | the import is removed |
 | `outer read` | the render reads `db.name` beside an unrelated local, or reads `db` after a block whose own `const db` or `function db` ended | the import stays |
 
+### `vite/boundary/transform.test.ts`
+
+`flare()` gains the `flare:boundary` plugin, `enforce: "pre"`, ahead of Solid. Its transform runs on an app module (under the root, outside its dependencies, a script extension, no query) and calls `boundaryTransform(file, source, graph)` with the root-relative path and the graph from `this.environment.name`. One parse and one MagicString serve split (client and worker), the env rewrite (all three graphs, skipping a call inside a span split already removed), the `__id` and `__name` injection (plus `__client: true` in client and worker), and import pruning over every removed span. `vite/plugin/flare.test.ts` `boundary transform` covers the plugin.
+
+| test | case | result |
+| --- | --- | --- |
+| `env prunes import` | `createServerOnlyFn(() => db.query())` with `db` from `./db.server` | the client and worker output have no `./db.server`. The ssr output keeps it |
+| `ssr prunes client import` | a browser-only import read only in `.client()` | gone from the ssr output, kept in the client output |
+| `shared import kept` | the same import also read outside the removed body | the import stays |
+| `ids` | `createServerFn({ method: "get" })`, `createServerFn()`, a trailing comma, `{}`, and a non-object config | the B41 `__id` and `__name` written into the literal, `__client: true` only in client and worker, and a build error for a non-object config |
+| `env inside a removed body` | a `createServerOnlyFn` call inside a handler | the handler is `undefined` and the call is checked but not edited twice |
+
 ### `vite/boundary/tripwire.test.ts`
 
 Each row is a fixture built with Vite. The mutation is inserting the bad pattern.
