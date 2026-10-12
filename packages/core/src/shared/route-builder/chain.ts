@@ -4,7 +4,7 @@ import type { RouteRecord } from "./page.ts";
 import type { BuilderSteps, RouteBuilder, RouteKind, RouteState, TypedRecord } from "./route-types.ts";
 import type { Deferred } from "./register.ts";
 import type { Validator } from "../validation/index.ts";
-import type { CacheConfig, HeadConfig } from "./types.ts";
+import type { CacheConfig, HeadConfig, SecurityConfig } from "./types.ts";
 
 // The cache types live in types.ts. These names stay importable from here.
 export type { CacheConfig, CdnCache, ClientCache, PrefetchTrigger, RoutePrefetch, SsrCache } from "./types.ts";
@@ -80,6 +80,9 @@ export type RouteHeaders = Record<string, string | readonly string[] | undefined
 
 type Headers = Callback<View, RouteHeaders>;
 
+// A config, or a function of the four view fields. It gets no nonce: the policy decides the nonce (B68).
+export type RouteSecurity = SecurityConfig | Callback<View, SecurityConfig>;
+
 // A page gets no children. A layout and the root also get the next slot (dx/types.md).
 export type Render = Callback<
 	{
@@ -107,6 +110,7 @@ export type ChainRecord = {
 	response?: Respond;
 	head?: Head;
 	headers?: Headers;
+	security?: RouteSecurity;
 	render?: Render;
 };
 
@@ -123,6 +127,7 @@ export type Chain = {
 	response: (fn: Respond) => Chain;
 	head: (fn: Head) => Chain;
 	headers: (fn: Headers) => Chain;
+	security: (config: RouteSecurity) => Chain;
 	render: (fn: Render) => Chain;
 	record: () => ChainRecord;
 };
@@ -143,6 +148,7 @@ const ORDER = {
 	loader: 8,
 	head: 10,
 	headers: 11,
+	security: 12,
 	render: 13,
 } as const;
 type Name = keyof typeof ORDER;
@@ -209,6 +215,7 @@ export function createChain(_id: string): Chain {
 		response: (fn) => put("response", fn),
 		head: (fn) => put("head", fn),
 		headers: (fn) => put("headers", fn),
+		security: (config) => put("security", config),
 		render: (fn) => put("render", fn),
 		record: () => ({ ...record }),
 	};

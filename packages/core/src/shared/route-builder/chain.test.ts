@@ -109,6 +109,7 @@ it("headers step", () => {
 	expect(() => createChain("_root_").render(render).headers(headers)).toThrow(/order: headers/);
 	expect(() => createChain("_root_").headers(headers).head(head)).toThrow(/order: head/);
 	expect(() => createChain("_root_").headers(headers).headers(headers)).toThrow(/headers twice/);
+	expect(() => createChain("_root_").security({}).headers(headers)).toThrow(/order: headers/);
 	expect(typeof createLayout("_root_/(g)").headers).toBe("function");
 	expect(typeof createRootLayout("_root_").headers).toBe("function");
 	expect(createPathSegment("_root_/seg")).not.toHaveProperty("headers");
@@ -117,7 +118,7 @@ it("headers step", () => {
 // The typed builders forward every step between ORDER's first two keys and `render`. A reordered key fails here.
 it("forwarded steps", () => {
 	const forwarded = ["cache", "input", "authenticate", "authenticateOptional", "authorize", "effects"];
-	const steps = [...forwarded, "preloader", "loader", "head", "headers"];
+	const steps = [...forwarded, "preloader", "loader", "head", "headers", "security"];
 	expect(Object.keys(createLayout("_root_/(g)")).sort()).toEqual([...steps, "render"].sort());
 	expect(Object.keys(createPage("_root_/p")).sort()).toEqual([...steps, "render", "intercept", "response"].sort());
 	type Steps = Exclude<keyof BuilderSteps<RouteState, "layout">, "render">;
@@ -132,5 +133,21 @@ it("forwarded steps", () => {
 		| "loader"
 		| "head"
 		| "headers"
+		| "security"
 	>();
+});
+
+const fromView = (): { "X-Frame-Options": false } => ({ "X-Frame-Options": false });
+
+// `.security()` takes a config or a function of the four view fields (dx/builder.md).
+it("security step", () => {
+	const config = { "X-Frame-Options": "SAMEORIGIN" } as const;
+	expect(createChain("_root_").head(head).headers(headers).security(config).render(render).record().security).toBe(
+		config,
+	);
+	expect(createChain("_root_").security(fromView).record().security).toBe(fromView);
+	expect(() => createChain("_root_").render(render).security(config)).toThrow(/order: security/);
+	expect(typeof createLayout("_root_/(g)").security).toBe("function");
+	expect(typeof createRootLayout("_root_").security).toBe("function");
+	expect(createPathSegment("_root_/seg")).not.toHaveProperty("security");
 });

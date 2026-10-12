@@ -1,8 +1,10 @@
+import type { SecurityConfig } from "../../shared/route-builder/types.ts";
 import { buildCsp } from "./csp.ts";
 
 const KEYS = ["X-Frame-Options", "Content-Security-Policy"] as const;
 
-export type SecurityConfig = Partial<Record<(typeof KEYS)[number], string | false>>;
+// One shape for the server's and a route's `.security()` (shared/route-builder/types.ts).
+export type { SecurityConfig };
 
 export function applySecurity(input: {
 	url: string;

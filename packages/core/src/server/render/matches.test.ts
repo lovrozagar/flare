@@ -14,7 +14,18 @@ const inputs = [
 function run(data: unknown[]): LoaderRun {
 	const response = new Response(null);
 	const heads = [{ title: "Root" }];
-	return { response, frames: [], data, heads, contexts: [{}], inputs, bugs: [], deferred: [], headers: {} };
+	return {
+		response,
+		frames: [],
+		data,
+		heads,
+		contexts: [{}],
+		inputs,
+		bugs: [],
+		deferred: [],
+		headers: {},
+		security: {},
+	};
 }
 
 it("outlet", () => {

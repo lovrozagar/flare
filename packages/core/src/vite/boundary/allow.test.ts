@@ -37,3 +37,8 @@ it("removed", () => {
 	expect(routeMethod("middleware")).toBe("unknown");
 	expect(routeMethod("constructor")).toBe("unknown");
 });
+
+// `.security()` is server policy, so the client graph drops it. Before, it was an unknown method and failed the build.
+it("security removed", () => {
+	expect(routeMethod("security")).toBe("remove");
+});

@@ -7,10 +7,11 @@ import type {
 	Respond,
 	RouteHeaders,
 	RouteInput,
+	RouteSecurity,
 	StepContext,
 } from "../../shared/route-builder/chain.ts";
 import { statusOf } from "../../shared/errors/status.ts";
-import type { HeadConfig } from "../../shared/route-builder/types.ts";
+import type { HeadConfig, SecurityConfig } from "../../shared/route-builder/types.ts";
 import { runValidator, type Validated, type Validator } from "../../shared/validation/index.ts";
 import { gate } from "../auth/gate.ts";
 import type { PolicyClass } from "../auth/identity.ts";
@@ -29,6 +30,7 @@ export type LoaderRoute = {
 	cache?: CacheConfig;
 	head?: (ctx: View) => HeadConfig;
 	headers?: (ctx: View) => RouteHeaders;
+	security?: RouteSecurity;
 };
 
 type View = { params: unknown; search: unknown; loaderData: unknown; preloaderContext: PreloaderContext };
@@ -87,8 +89,9 @@ export type LoaderRun = {
 	thrown?: unknown;
 	bugs: readonly unknown[];
 	deferred: readonly DeferredFrame[];
-	// The `.headers()` of every match whose loader resolved, merged root to page.
+	// The `.headers()` and `.security()` of every match whose loader resolved, merged root to page.
 	headers: Readonly<Record<string, string | string[]>>;
+	security: SecurityConfig;
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
@@ -121,7 +124,18 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 }
 
 function bare(response: Response): LoaderRun {
-	return { response, frames: [], data: [], heads: [], contexts: [], inputs: [], bugs: [], deferred: [], headers: {} };
+	return {
+		response,
+		frames: [],
+		data: [],
+		heads: [],
+		contexts: [],
+		inputs: [],
+		bugs: [],
+		deferred: [],
+		headers: {},
+		security: {},
+	};
 }
 
 function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readonly PreloaderContext[]): LoaderRun {
@@ -149,7 +163,7 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 			validated: route.input !== undefined,
 		})),
 		failed: result.failed,
-		headers: routeHeaders(input, { outcomes, contexts, bugs }),
+		...routeSteps(input, { outcomes, contexts, bugs }),
 		bugs,
 		deferred: outcomes
 			.slice(0, result.kept.length)
@@ -240,27 +254,33 @@ function finish(route: ValidRoute, at: Finish): HeadConfig | undefined {
 	}
 }
 
-// Each match whose loader resolved writes its `.headers()`, root to page (dx/builder.md). A match whose loader threw
-// writes none, though a later match may, and a `.headers()` throw omits that match's alone (B82).
-function routeHeaders(
+// Each match whose loader resolved writes its `.headers()` and `.security()`, root to page (dx/builder.md). A match
+// whose loader threw writes neither, though a later match may, and a throw omits that match's step alone (B82).
+// Headers merge with `set-cookie` appending. Security merges outside-in: a set key replaces, and `false` removes.
+function routeSteps(
 	input: ValidRun,
 	{ outcomes, contexts, bugs }: { outcomes: readonly Loaded[]; contexts: readonly PreloaderContext[]; bugs: unknown[] },
-): Record<string, string | string[]> {
-	let merged: Record<string, string | string[]> = {};
-	for (const [index, outcome] of outcomes.entries()) {
-		const route = defined(input.routes[index], "the loaded match");
-		if (!outcome.settled.ok || route.headers === undefined || input.skip?.has(route.id) === true) continue;
-		const view = { params: route.params, search: route.search, loaderData: outcome.settled.data };
+): Pick<LoaderRun, "headers" | "security"> {
+	let headers: Record<string, string | string[]> = {};
+	let security: SecurityConfig = {};
+	const step = (run: () => void): void => {
 		try {
-			merged = mergeHeaders(
-				merged,
-				route.headers({ ...view, preloaderContext: defined(contexts[index], "the loaded context") }),
-			);
+			run();
 		} catch (error) {
 			bugs.push(error);
 		}
+	};
+	for (const [index, outcome] of outcomes.entries()) {
+		const route = defined(input.routes[index], "the loaded match");
+		if (!outcome.settled.ok || input.skip?.has(route.id) === true) continue;
+		const preloaderContext = defined(contexts[index], "the loaded context");
+		const view = { params: route.params, search: route.search, loaderData: outcome.settled.data, preloaderContext };
+		const { headers: own, security: policy } = route;
+		if (own !== undefined) step(() => (headers = mergeHeaders(headers, own(view))));
+		if (policy !== undefined)
+			step(() => (security = { ...security, ...(typeof policy === "function" ? policy(view) : policy) }));
 	}
-	return merged;
+	return { headers, security };
 }
 
 function json(value: unknown): Response {

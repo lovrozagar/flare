@@ -2,7 +2,7 @@ import type { JSX } from "@solidjs/web";
 import type { Bounded } from "./boundaries.ts";
 import type { CacheConfig, Effects, Intercept, LoaderContext, LoaderData, RouteHeaders, RouteInput } from "./chain.ts";
 import type { RouteRecord } from "./page.ts";
-import type { HeadConfig } from "./types.ts";
+import type { HeadConfig, SecurityConfig } from "./types.ts";
 import type {
 	Deferred,
 	ExtractPathParams,
@@ -171,6 +171,7 @@ export type BuilderSteps<S extends RouteState, K extends RouteKind> = {
 	): RouteBuilder<With<S, "loaderData", L>, K>;
 	head(fn: (ctx: ViewContext<S>) => HeadConfig): RouteBuilder<S, K>;
 	headers(fn: (ctx: ViewContext<S>) => RouteHeaders): RouteBuilder<S, K>;
+	security(config: SecurityConfig | ((ctx: ViewContext<S>) => SecurityConfig)): RouteBuilder<S, K>;
 	render(fn: (props: RenderProps<S, K>) => JSX.Element): Bounded<RouteRecord & TypedRecord<S, K>, Located<S>>;
 };
 

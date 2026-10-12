@@ -44,6 +44,9 @@ export type CacheConfig =
 
 export type AuthenticateMode = true | "optional";
 
+// The security headers a server or a route sets. `false` removes one. A string CSP sends no nonce (B68).
+export type SecurityConfig = Partial<Record<"X-Frame-Options" | "Content-Security-Policy", string | false>>;
+
 export type SeoImage = { url: string; alt?: string; width?: number; height?: number; type?: string };
 export type HeadScript = { src?: string; children?: string; async?: boolean; extra?: Record<string, string> };
 
