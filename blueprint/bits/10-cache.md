@@ -191,6 +191,12 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `empty` | `revalidate({})` | throw at the call |
 | `no tiers` | `revalidate({ tags: ["p"], tiers: ["cdn"] })` | throw. `tiers` is not a field |
 
+### `server/context/ctx.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `scope store` | `withServerContext` given a store and a waitUntil, and given neither | the scope returns that store and hands that waitUntil the promise. Without them there is no store, and a rejected background promise settles without a crash |
+
 ### `adapters/stores/fs/store.test.ts`
 
 | test | case | result |

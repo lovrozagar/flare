@@ -9,4 +9,11 @@ export {
 } from "../server/middleware/index.ts";
 export { mount } from "../server/mount/index.ts";
 export { proxy } from "../server/proxy/index.ts";
-export { createMemoryStore, type FlareStore, type FlareStoreEntry } from "../server/cache/index.ts";
+export {
+	createMemoryStore,
+	createRevalidateFn,
+	revalidate,
+	type FlareStore,
+	type FlareStoreEntry,
+	type RevalidateOptions,
+} from "../server/cache/index.ts";

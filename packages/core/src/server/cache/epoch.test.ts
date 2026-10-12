@@ -1,7 +1,8 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { FlareStore } from "./contract.ts";
 import { epochKey, lookup } from "./epoch.ts";
 import { createMemoryStore } from "./memory.ts";
+import { createRevalidateFn } from "./revalidate.ts";
 
 // Every store call, by method.
 function counted(store: FlareStore): { store: FlareStore; calls: string[] } {
@@ -43,4 +44,18 @@ it("epoch newer", async () => {
 	expect(await lookup(store, "missing")).toBeNull();
 	await store.set("bare", { data: { html: "b" }, storedAt: 1 });
 	expect((await lookup(store, "bare"))?.purged).toBe(false);
+});
+
+// A tag purge gets and sets `epoch:<tag>`, a number that never goes back. It never calls `deleteByTags` and never
+// lists keys: there is no tag index (dx/store.md).
+it("tag purge", async () => {
+	const memory = createMemoryStore();
+	await memory.set(epochKey("later"), { data: Number.MAX_SAFE_INTEGER, storedAt: 1 });
+	const deleteByTags = vi.fn<FlareStore["deleteByTags"]>();
+	const { store, calls } = counted({ ...memory, deleteByTags });
+	await createRevalidateFn(store)({ tags: ["p", "later"] });
+	expect(calls.toSorted()).toEqual(["get", "get", "set", "set"]);
+	expect(deleteByTags).not.toHaveBeenCalled();
+	expect(typeof (await memory.get(epochKey("p")))?.data).toBe("number");
+	expect((await memory.get(epochKey("later")))?.data).toBe(Number.MAX_SAFE_INTEGER);
 });

@@ -56,14 +56,16 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 			if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
 			// serverContext runs once, before mounts (02-system step 2). A mount never calls authenticate.
 			const call = { env, ctx: ctx ?? background(sink) };
+			const waitUntil = (promise: Promise<unknown>): void => call.ctx.waitUntil(promise);
+			const store = requestStore(options.store, env);
+			const { serverContext, authenticate } = options;
 			return withServerContext(
-				{ request, env, serverContext: options.serverContext, authenticate: options.authenticate },
+				{ request, env, serverContext, authenticate, store, waitUntil },
 				(scope) => {
 					// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
 					const mounted = dispatchMount(mounts, inner, call);
 					if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
-					const waitUntil = (promise: Promise<unknown>): void => call.ctx.waitUntil(promise);
-					return route({ ...exchange, session: scope.session, waitUntil, store: requestStore(options.store, env) });
+					return route({ ...exchange, session: scope.session, waitUntil, store });
 				},
 				() => answer(exchange, 500),
 			);
