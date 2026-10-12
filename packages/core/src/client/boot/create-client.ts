@@ -1,9 +1,10 @@
 /// <reference types="vite/client" />
 import { hydrate } from "@solidjs/web";
+import { delegateClicks } from "../../shared/components/index.ts";
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts";
 import { loadChain, type Router } from "../../shared/router/create-router.ts";
 import type { Location } from "../../shared/url/index.ts";
-import { createHistory } from "../history/index.ts";
+import { createHistory, type FlareHistory } from "../history/index.ts";
 import { createBlockers } from "../navigation/blocker.ts";
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts";
 import { createNavigationState } from "../navigation/pending.ts";
@@ -30,6 +31,10 @@ export type ClientEnv = {
 
 type Ready = ReturnType<typeof createReady>;
 
+type Navigator = ReturnType<typeof createNavigator>;
+
+type Parts = { history: FlareHistory; scroll: ScrollStore; store: RouterStore };
+
 // Hydrate starts on the next microtask, after the app chained its callbacks (dx/client.md).
 export function createClient(router: Router): ReadyApi {
 	const ready = createReady();
@@ -46,7 +51,8 @@ export function devSend(hot: { send: (event: string, payload: unknown) => void }
 	return hot === undefined ? undefined : (payload) => hot.send("flare:error", payload);
 }
 
-export async function bootClient(router: Router, ready: Ready, env: ClientEnv): Promise<void> {
+// Resolves to a dispose that removes the listeners and unmounts the app.
+export async function bootClient(router: Router, ready: Ready, env: ClientEnv): Promise<() => void> {
 	const state = readState();
 	const location: Location = {
 		pathname: window.location.pathname,
@@ -83,19 +89,47 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 		send: env.send,
 		prefetched: prefetcher.prefetched,
 	});
-	const pop = createPopstate({
-		history,
-		restore: navigator.restore,
-		save: (index) => scroll.save(index, store.snapshot().location),
-		current: here,
-	});
-	window.addEventListener("popstate", (event) => void pop(event.state));
 	ready.ready({ navigate: navigator.navigate, location });
-	mountApp({ router, store, navigation, blockers, prefetcher, mount: env.mount });
+	const unmount = mountApp({
+		router,
+		store,
+		navigation,
+		blockers,
+		prefetcher,
+		navigate: navigator.navigate,
+		mount: env.mount,
+	});
+	// After the mount, so a Link's own click handler runs first and the delegate sees it handled.
+	const unlisten = listen(router, navigator, { history, scroll, store });
 	document.documentElement.setAttribute("data-flare-hydrated", "");
 	ready.hydrated();
 	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all));
 	ready.interaction(document);
+	return () => {
+		unlisten();
+		unmount();
+	};
+}
+
+// Popstate and anchor clicks reach the navigator from here.
+function listen(router: Router, navigator: Navigator, parts: Parts): () => void {
+	const pop = createPopstate({
+		history: parts.history,
+		restore: navigator.restore,
+		save: (index) => parts.scroll.save(index, parts.store.snapshot().location),
+		current: here,
+	});
+	const onPop = (event: PopStateEvent): void => void pop(event.state);
+	window.addEventListener("popstate", onPop);
+	const undelegate = delegateClicks(document, {
+		router,
+		origin: window.location.origin,
+		visit: (url) => void navigator.visit(url, false),
+	});
+	return () => {
+		window.removeEventListener("popstate", onPop);
+		undelegate();
+	};
 }
 
 function browserEnv(): ClientEnv {

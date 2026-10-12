@@ -5,6 +5,7 @@ export { createRouter } from "../shared/router/create-router.ts";
 export { nonce } from "../shared/csp/nonce.ts";
 export { markSafeError } from "../shared/errors/index.ts";
 export { useNavigationProgress } from "../client/navigation/index.ts";
+export { Link, type LinkProps } from "../shared/components/index.ts";
 export { ViewTransitionCSS } from "../shared/components/index.ts";
 export { ViewTransitionBoundary } from "../shared/components/index.ts";
 export { useBlocker } from "../client/navigation/index.ts";

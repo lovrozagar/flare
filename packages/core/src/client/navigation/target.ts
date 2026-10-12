@@ -1,4 +1,4 @@
-import { KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts";
+import { KIND_PARAM, withoutInternalKeys } from "../../shared/protocol/index.ts";
 import type { Match, Router } from "../../shared/router/create-router.ts";
 import { buildUrl, type Location, type SearchValue } from "../../shared/url/index.ts";
 import { isHashOnly } from "./scroll.ts";
@@ -28,7 +28,7 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 	const built = buildUrl({
 		to: input.to,
 		params: input.params,
-		search: withoutReserved(input.search),
+		search: withoutInternalKeys(input.search),
 		hash: input.hash,
 	});
 	const location = rewrite(locationOf(new URL(built, context.origin)), context);
@@ -55,12 +55,6 @@ function fromLocation(location: Location, context: TargetContext): Target {
 	const query = location.search === "" ? "?" : `${location.search}&`;
 	const dataUrl = `${location.pathname}${query}${KIND_PARAM}=data`;
 	return { kind: "data", url, dataUrl, location, route: match.id, match };
-}
-
-// The internal params never come from the app's search (bit 06 `strips reserved`).
-function withoutReserved(search: NavigateInput["search"]): NavigateInput["search"] {
-	if (search === undefined) return undefined;
-	return Object.fromEntries(Object.entries(search).filter(([key]) => key !== KIND_PARAM && key !== STALE_PARAM));
 }
 
 function locationOf(url: URL): Location {

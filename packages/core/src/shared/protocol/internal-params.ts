@@ -23,6 +23,12 @@ export function readInternal(request: URL): InternalRequest {
 	return { status: 200, kind, url: withoutInternal(request), stale };
 }
 
+// The internal params never come from an app's search record (bit 06 `strips reserved`).
+export function withoutInternalKeys<T>(search: Record<string, T> | undefined): Record<string, T> | undefined {
+	if (search === undefined) return undefined;
+	return Object.fromEntries(Object.entries(search).filter(([key]) => !INTERNAL.has(key)));
+}
+
 // The user's pairs are kept byte for byte. A URLSearchParams write would re-serialize the whole query as form
 // data, and the match ids, raw params plus raw search, would then differ from the client's (B31).
 function withoutInternal(request: URL): URL {

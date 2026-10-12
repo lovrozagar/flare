@@ -1,6 +1,7 @@
 import { createComponent, createMemo, Loading } from "solid-js";
 import { Dynamic, renderToStream, type JSX } from "@solidjs/web";
 import { expect, it } from "vitest";
+import { Link } from "../../shared/components/index.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { useRouter } from "../../shared/router/context.ts";
 import { createDefer } from "../loaders/defer.ts";
@@ -248,4 +249,30 @@ it("head identity", async () => {
 	expect(html).toContain('<title data-dh="title">T</title>');
 	expect(html).toContain('<meta name="description" content="D" data-dh="meta:key:meta:description:0">');
 	expect(html).toMatch(/<script type="application\/ld\+json" nonce="n" data-dh="script:key:script:[0-9a-z]+:0">/);
+});
+
+it("link active", async () => {
+	const linked = createRouter({
+		layouts: { _root_: {} },
+		routeTree: [
+			{ id: "_root_/", path: "/", module: {} },
+			{ id: "_root_/about", path: "/about", module: {} },
+		],
+	});
+	const html = await text(
+		await renderDocument({
+			...base(),
+			router: linked,
+			request: new Request("http://localhost/about?q=1"),
+			render: () => [
+				createComponent(Link, { to: "_root_/about", search: { q: "1" }, activeClass: "on", children: "about" }),
+				createComponent(Link, { to: "_root_/", activeClass: "on", children: "home" }),
+			],
+		}),
+	);
+	expect(html).toMatch(
+		/<a[^>]*href="\/about\?q=1"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*href="\/about\?q=1"/,
+	);
+	expect(html).toMatch(/<a[^>]*href="\/"[^>]*>home/);
+	expect(html.match(/aria-current/g)).toHaveLength(1);
 });

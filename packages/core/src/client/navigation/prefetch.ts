@@ -1,4 +1,3 @@
-import { createContext, type Context } from "solid-js";
 import { parseDuration } from "../../shared/duration/index.ts";
 import { BUILD_HEADER } from "../../shared/protocol/index.ts";
 import type { PrefetchTrigger, RoutePrefetch } from "../../shared/route-builder/index.ts";
@@ -33,9 +32,6 @@ export type Prefetcher = {
 	watch: (element: HTMLElement, href: string, input?: RoutePrefetch) => () => void;
 	prefetched: (dataUrl: string) => Promise<Landed | undefined> | undefined;
 };
-
-// One per client. `Link` reads it to watch its anchor.
-export const PrefetchContext: Context<Prefetcher | undefined> = createContext<Prefetcher | undefined>();
 
 type DataTarget = Extract<Target, { kind: "data" }>;
 
