@@ -7,12 +7,13 @@ type Server = {
 	fetch: (request: Request, env: undefined, ctx: Ctx) => Promise<Response> | Response;
 };
 
+// What the listener reads of a Node `IncomingMessage`. `on` and `resume` are methods, called on the request itself.
 type NodeReq = {
-	method: string;
-	url: string;
-	headers: Record<string, string>;
-	resume?: (() => void) | undefined;
-	on?: ((event: "data" | "end", listener: (chunk: Uint8Array) => void) => unknown) | undefined;
+	method?: string | undefined;
+	url?: string | undefined;
+	headers: Readonly<Record<string, string | readonly string[] | undefined>>;
+	resume?(): unknown;
+	on?(event: "data" | "end", listener: (chunk: Uint8Array) => void): unknown;
 	readableEnded?: boolean | undefined;
 };
 
@@ -44,7 +45,8 @@ type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<u
 
 async function pump(job: Job): Promise<void> {
 	// The origin comes from Host, as the adapter resolves it, so CSRF compares a browser's Origin with it (B44).
-	const adapted = toRequest({ url: job.req.url, headers: job.req.headers });
+	const headers = joinedHeaders(job.req.headers);
+	const adapted = toRequest({ url: job.req.url ?? "/", headers });
 	if (adapted.status === 400) {
 		job.res.writeHead(400);
 		job.res.end();
@@ -57,11 +59,7 @@ async function pump(job: Job): Promise<void> {
 	job.res.once("close", () => {
 		if (job.res.writableFinished !== true) disconnect.abort();
 	});
-	const init: RequestInit = {
-		method: job.req.method,
-		headers: requestHeaders(job.req.headers),
-		signal: disconnect.signal,
-	};
+	const init: RequestInit = { method: job.req.method ?? "GET", headers, signal: disconnect.signal };
 	if (body !== undefined) {
 		init.body = body.stream;
 		Object.assign(init, { duplex: "half" });
@@ -79,15 +77,21 @@ async function pump(job: Job): Promise<void> {
 	if (body !== undefined && job.req.readableEnded !== true) await body.release();
 }
 
-function requestHeaders(headers: NodeReq["headers"]): Headers {
-	return new Headers(headers);
+// Node keeps a repeated header as a list. The request carries it joined with ", ", as fetch Headers would.
+function joinedHeaders(headers: NodeReq["headers"]): Record<string, string> {
+	return Object.fromEntries(
+		Object.entries(headers).flatMap(([name, value]) =>
+			value === undefined ? [] : [[name, typeof value === "string" ? value : value.join(", ")]],
+		),
+	);
 }
 
+// `on` and `resume` stay calls on the request: a real `IncomingMessage` needs its receiver.
 function requestBody(req: NodeReq): { stream: ReadableStream<Uint8Array>; release: () => Promise<void> } | undefined {
 	if (req.method === "GET" || req.method === "HEAD") return undefined;
-	const on = req.on;
-	const resume = req.resume;
-	if (on === undefined || resume === undefined) return undefined;
+	if (req.on === undefined || req.resume === undefined) return undefined;
+	const on = (event: "data" | "end", listener: (chunk: Uint8Array) => void): unknown => req.on?.(event, listener);
+	const resume = (): unknown => req.resume?.();
 	return {
 		stream: new ReadableStream<Uint8Array>({
 			start(controller) {
