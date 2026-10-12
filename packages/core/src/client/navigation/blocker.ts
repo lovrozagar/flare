@@ -33,8 +33,10 @@ export function createBlockers(): Blockers {
 	return {
 		register(blocker) {
 			stack.push(blocker);
+			// A second dispose must not remove another blocker: lastIndexOf is -1 once this one is gone.
 			return () => {
-				stack.splice(stack.lastIndexOf(blocker), 1);
+				const at = stack.lastIndexOf(blocker);
+				if (at !== -1) stack.splice(at, 1);
 			};
 		},
 		// `false` cancels before the history write. An attempt that already pushed walks back with history.go.
