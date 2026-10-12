@@ -64,6 +64,21 @@ it("filter", async () => {
 	expect(calls).toEqual(["serverFn /_flare/fn/abc"]);
 });
 
+// A middleware's own answer, stashed or returned, still leaves through finalize: the security set wins.
+it("middleware finalize", async () => {
+	const sniff = { "x-content-type-options": "sniff" };
+	const stash = createMiddleware((ctx) => ctx.respond(new Response("stashed", { headers: sniff })));
+	const replace = createMiddleware(async (ctx) => {
+		await ctx.next();
+		return new Response("replaced", { headers: sniff });
+	});
+	for (const handler of [stash, replace]) {
+		const response = await createServer({ router, middleware: [handler] }).fetch(new Request("http://localhost/about"));
+		expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+		expect(response.headers.get("content-security-policy")).not.toBeNull();
+	}
+});
+
 it("mount and page", async () => {
 	const server = createServer({ router, mounts: [mount("/api", () => new Response("api"))] });
 	const page = await server.fetch(new Request("http://localhost/about"));
