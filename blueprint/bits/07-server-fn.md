@@ -20,6 +20,8 @@ Dispatch adds the `/_flare/fn/<id>` branch to `createServer`, so `server/lifecyc
 
 The ids are build-time work, so `ids.ts` lives in `vite/route-meta/` beside `extract.ts` and hashes with Node's `crypto`. The runtime only looks up the literal ids the transform injects. `lint/boundaries.js` permits `vite>node`, as the 00-rules environment table already allows Node in `vite/` (`boundaries.test.ts` `vite node`).
 
+Order: the env helpers (`shared/env` server-only, client-only, isomorphic) and `vite/boundary/env.ts` land before the tripwire, then one commit wires the boundary transform into `flare()` (split in client and worker, the env rewrite in all three graphs, and the `__id`, `__name`, and client-and-worker `__client` injection into the config span), then the tripwire, because every tripwire row builds through that transform. `server-fns.gen.ts` lands with types-gen.
+
 ## Cases
 
 ### `shared/protocol/get-codec.test.ts`
