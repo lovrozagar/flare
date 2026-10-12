@@ -143,7 +143,7 @@ it("preloader throw", async () => {
 			},
 		]),
 	);
-	expect(page.status).toBe(500);
+	expect(page.response.status).toBe(500);
 	let descendant = false;
 	const layout = await runLoaders(
 		request([
@@ -161,7 +161,7 @@ it("preloader throw", async () => {
 			},
 		]),
 	);
-	expect(layout.status).toBe(500);
+	expect(layout.response.status).toBe(500);
 	expect(descendant).toBe(false);
 });
 
@@ -174,7 +174,7 @@ async function fail(kind: RunInput["kind"]): Promise<{
 }> {
 	let authenticated = false;
 	let overlay = false;
-	const response = await runLoaders(
+	const { response } = await runLoaders(
 		request(
 			[
 				{

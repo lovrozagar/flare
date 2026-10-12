@@ -1,6 +1,6 @@
-import { statusOf } from "../../shared/errors/status.ts";
 import { shapeIssues, type Issue } from "../../shared/validation/issues.ts";
 import { finalize } from "../lifecycle/finalize.ts";
+import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts";
 
 export type LoaderContext = { auth: unknown };
 
@@ -16,26 +16,40 @@ export type LoaderRoute = {
 };
 
 export type RunInput = {
-	kind: "document" | "data";
+	kind: RequestKind;
 	session?: unknown;
 	shared?: boolean;
 	readStore?: () => void;
-	overlay?: () => void;
+	overlay?: (error: unknown) => void;
 	routes: readonly LoaderRoute[];
 };
 
-export async function runLoaders(input: RunInput): Promise<Response> {
+export type LoaderRun = {
+	response: Response;
+	frames: readonly LoaderFrame[];
+	failed?: Failed;
+};
+
+export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	const invalid = collectIssues(input.routes);
-	if (invalid !== undefined) return json(shapeIssues(invalid));
+	if (invalid !== undefined) return { response: json(shapeIssues(invalid)), frames: [] };
 	const ctx = { auth: input.session ?? null };
 	for (const route of input.routes) route.authenticate?.();
-	const failed = await preload(input.routes, ctx);
-	if (failed !== undefined) return failed;
+	const blocked = await preload(input.routes, ctx);
+	if (blocked !== undefined) return conclude(input, [blocked]);
 	await authorizeAll(input.routes, ctx);
 	input.readStore?.();
-	await load(input.routes, ctx);
-	for (const route of input.routes) finish(route);
-	return finalize({ status: 200, body: "" });
+	return conclude(input, await load(input.routes, ctx));
+}
+
+function conclude(input: RunInput, outcomes: readonly Outcome[]): LoaderRun {
+	const result = cascade(input.kind, outcomes);
+	for (const route of input.routes) {
+		if (result.finished.includes(route.id)) finish(route);
+	}
+	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
+	if (result.failed?.status === 500) input.overlay?.(result.failed.error);
+	return { response: finalize({ status: result.status, body: "" }), frames: result.frames, failed: result.failed };
 }
 
 function collectIssues(routes: readonly LoaderRoute[]): readonly Issue[] | undefined {
@@ -47,13 +61,13 @@ function collectIssues(routes: readonly LoaderRoute[]): readonly Issue[] | undef
 	return undefined;
 }
 
-async function preload(routes: readonly LoaderRoute[], ctx: LoaderContext): Promise<Response | undefined> {
+async function preload(routes: readonly LoaderRoute[], ctx: LoaderContext): Promise<Outcome | undefined> {
 	for (const route of routes) {
 		if (route.preloader === undefined) continue;
 		try {
 			await route.preloader(ctx);
 		} catch (error) {
-			return finalize({ status: statusOf(error), body: "" });
+			return { id: route.id, settled: { ok: false, error } };
 		}
 	}
 	return undefined;
@@ -66,13 +80,18 @@ async function authorizeAll(routes: readonly LoaderRoute[], ctx: LoaderContext):
 	}
 }
 
-async function load(routes: readonly LoaderRoute[], ctx: LoaderContext): Promise<void> {
-	const pending: Promise<unknown>[] = [];
-	for (const route of routes) {
-		if (route.loader === undefined) continue;
-		pending.push(Promise.resolve(route.loader(ctx)));
+function load(routes: readonly LoaderRoute[], ctx: LoaderContext): Promise<Outcome[]> {
+	return Promise.all(
+		routes.map(async (route): Promise<Outcome> => ({ id: route.id, settled: await settle(route, ctx) })),
+	);
+}
+
+async function settle(route: LoaderRoute, ctx: LoaderContext): Promise<Settled> {
+	try {
+		return { ok: true, data: await route.loader?.(ctx) };
+	} catch (error) {
+		return { ok: false, error };
 	}
-	await Promise.all(pending);
 }
 
 function finish(route: LoaderRoute): void {
