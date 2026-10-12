@@ -323,3 +323,27 @@ it("one build", async () => {
 	await expect(Reflect.apply(call, undefined, [echo, null])).rejects.toThrow("The app was updated");
 	expect(browser.assign).toHaveBeenLastCalledWith(window.location.href);
 });
+
+// A stored document that left a `"stream"` hole says so in its state. After hydrate the client sends one
+// `_flare=fill` revalidation of the same URL, which writes no history (dx/defer.md). The e2e row sees the value land.
+it("fill on hydrate", async () => {
+	const host = install();
+	const filled = { ...Object((globalThis as Dom).flare), fill: true };
+	(globalThis as Dom).flare = filled;
+	const script = document.querySelector("script");
+	if (script !== null) script.textContent = `self.flare=${JSON.stringify(filled)}`;
+	const frames = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/", d: "filled" },
+		{ t: "r" },
+		{ t: "d" },
+	] as const;
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
+	const length = history.length;
+	stops.push(await bootClient(routerOf(), createReady(), env(host, fetch)));
+	await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith("/?_flare=fill", expect.anything()));
+	await new Promise((resolve) => setTimeout(resolve, 20));
+	expect(fetch).toHaveBeenCalledOnce();
+	expect(history.length).toBe(length);
+	expect(location.pathname).toBe("/");
+});

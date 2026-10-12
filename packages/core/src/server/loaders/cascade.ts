@@ -2,7 +2,7 @@ import { defined } from "../../shared/errors/index.ts";
 import { boundaryKind, type BoundaryKind } from "../../shared/components/index.ts";
 import { rankStatus, statusOf } from "../../shared/errors/status.ts";
 
-export type RequestKind = "document" | "data" | "prefetch";
+export type RequestKind = "document" | "data" | "prefetch" | "fill";
 
 export type Settled = { ok: true; data: unknown } | { ok: false; error: unknown };
 

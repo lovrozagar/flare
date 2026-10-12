@@ -136,6 +136,8 @@ packages/core/src/shared/head/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary toward the root, and the builtin text (B77)
 packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts
 packages/core/src/shared/components/outlet.tsx	P1	src	dom	Outlet
+packages/core/src/shared/components/use-deferred.ts	P10	src	shared	useDeferred: reads a deferred value under Loading. A stored stream hole is a client source, so the server hands its boundary to the client
+packages/core/src/shared/components/use-deferred.test.ts	P10	test	shared	Unit cases for use-deferred.ts
 packages/core/src/shared/components/outlet.test.tsx	P1	test	dom	Unit cases for outlet.tsx
 packages/core/src/shared/components/app-tree.ts	P6	src	shared	The provider tree the server renders and the client hydrates, so hydration keys match
 packages/core/src/shared/components/app-tree.test.ts	P6	test	shared	Unit cases for app-tree.ts
@@ -305,6 +307,8 @@ packages/core/src/client/boot/ready.ts	P6	src	dom	onReady, onHydrated, onIdle, o
 packages/core/src/client/boot/ready.test.ts	P6	test	dom	Unit cases for ready.ts
 packages/core/src/client/boot/index.ts	P1	index	client	Re-exports
 packages/core/src/client/navigation/navigate.ts	P6	src	dom	navigate. Same-origin only. Commit, then push. Revalidation does not push
+packages/core/src/client/navigation/request.ts	P10	src	dom	One navigation's data request: loads the chain beside it, asks `_flare=fill` for a fill, and hears a stored landing's holes. Split from navigate.ts at the 300-line limit
+packages/core/src/client/navigation/request.test.ts	P10	test	dom	Unit cases for request.ts
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
 packages/core/src/client/navigation/navigate-transition.test.ts	P6	test	dom	View-transition cases for navigate.ts
 packages/core/src/client/navigation/navigate-slots.test.ts	P6	test	dom	Deferred slot cases for navigate.ts
@@ -599,12 +603,14 @@ packages/core/tests/e2e/apps/minimal/src/client.tsx	P1	app	-	createClient
 packages/core/tests/e2e/apps/minimal/src/server.ts	P1	app	-	createServer
 packages/core/tests/e2e/apps/minimal/src/router.ts	P1	app	-	createRouter
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/root.root-layout.tsx	P1	app	-	Document root
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/holed.page.tsx	P10	app	-	An ISR page whose stream defer is a hole in the stored body, for stored stream fills
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/home.page.tsx	P1	app	-	Home page
 packages/core/tests/e2e/apps/minimal/wrangler.jsonc	P3	app	-	Workers config for the same app
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/about.page.tsx	P6	app	-	Second page for navigation
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons.page.tsx	P6	app	-	Two deferred reads, each under its own Loading, for two skeletons
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/stored.page.tsx	P10	app	-	An ISR page whose resolve defer sits under two nested Loading boundaries, for stored hit hydrates
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/styled.page.tsx	P6	app	-	A multi-key style object, for style object
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/unstored.page.tsx	P10	app	-	The holed page with no cache mode, for live stream ssr
 packages/core/tests/e2e/apps/minimal/src/fns/echo.ts	P7	app	-	One server function
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/echo.page.tsx	P7	app	-	A button that calls the echo function from a click and prints its answer, for server-fn.test click
 packages/core/tests/e2e/apps/basepath/package.json	P2	app	-	App package

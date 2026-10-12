@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { renderDocument } from "./document.ts";
-import { insertState } from "./state.ts";
+import { insertState, stateScript } from "./state.ts";
 
 it("one script", async () => {
 	const body = await renderDocument({
@@ -60,4 +60,13 @@ it("insertion", () => {
 	const html = insertState("<body>hi</body>", script);
 	expect(html.indexOf(script)).toBeGreaterThan(-1);
 	expect(html.indexOf(script)).toBeLessThan(html.indexOf("</body>"));
+});
+
+// A render that left a `"stream"` hole says so, so the client sends one fill after hydrate. Without a hole the field
+// is absent.
+it("fill flag", () => {
+	expect(stateScript({ matches: [], nonce: "", fill: true })).toBe(
+		'<script>self.flare={"matches":[],"nonce":"","fill":true}</script>',
+	);
+	expect(stateScript({ matches: [], nonce: "" })).toBe('<script>self.flare={"matches":[],"nonce":""}</script>');
 });

@@ -19,6 +19,7 @@ export {
 	useParams,
 	usePreloaderContext,
 	useSearch,
+	useDeferred,
 	type InterceptState,
 	type LinkProps,
 } from "../shared/components/index.ts";

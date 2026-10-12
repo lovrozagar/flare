@@ -63,7 +63,7 @@ Flare does not depend on `@solidjs/diagnostics` and does not enable attribution.
 
 The adapter has already rejected a malformed request target and attached `clientIp`, `secure`, and `resolvedOrigin`. Then, in this order, and no other:
 
-1. **Internal params.** Read `_flare` and `_flare_stale`. Delete them from the URL. Classify `document`, `data`, or `prefetch`. A bad `_flare` value is 400.
+1. **Internal params.** Read `_flare` and `_flare_stale`. Delete them from the URL. Classify `document`, `data`, `prefetch`, or `fill`. A `fill` asks for a stored page's `"stream"` values: it is `no-store`, renders live, and never reads or writes the store (`dx/defer.md`). A bad `_flare` value is 400.
 2. **Canonical path.** Compute it. A hostile path is 400. A non-canonical safe path is 301 for GET and HEAD and 308 for every other method (B22). A `/_flare/fn/` path is exempt from the trailing-slash and case redirects, so a server-function POST is never redirected; a hostile one is still 400 (`server/lifecycle/canonical-redirect.test.ts` `method kept`, `fn path exempt`). `Location` is the canonical pathname plus the query that remains after step 1. The request has no hash, and none is added. Later stages see only the canonical path. A request that passes this step runs `serverContext` once, before mounts, when that option is set (B75).
 3. **Mounts.** A matching mount handles the request. Its response still passes through finalize.
 4. **Rewrite.** Optional `createServer({ rewrite })`. The replacement path is canonicalized again. A rewrite that does not terminate in one step is 500.
@@ -96,7 +96,8 @@ The state object contains:
 - `nonce` — the request nonce, or `""` when the policy has none. Client code reads it with `nonce()`
 - `matches` — `{ id, params, search, data, preloader, head, error }`. `error` is `{ name, message }` plus `stack` in dev or `digest` in production. The client builds the `Error` before hydrate. There is no short key (B83)
 - `queries` — the request's query cache. The client seeds the getter before hydrate. This is not a `q` frame (B6, B16)
-- deferred placeholders `{ __deferred: true, key }` where a loader returned `defer()`
+- deferred placeholders `{ __deferred: true, key }` where a loader returned `defer()`, with `hole: true` on a stored `"stream"` value the render did not run
+- `fill` — `true` when the render left such a hole. After hydrate the client sends one `?_flare=fill` revalidation of the same URL
 
 Deferred values that resolve during the stream are appended by Solid's own stream mechanism as instructions the client already understands. Flare does not invent a second HTML streaming protocol. Values that are not yet resolved when the document ends are delivered on the next data request for that URL; the placeholder stays a placeholder. Bit 05 names the exact Solid APIs used, taken from the installed `renderToStream` types, not from memory of an older release.
 
@@ -129,7 +130,8 @@ Order: all `l` and loader-level `e`, then all `h`, then `r`, then zero or more `
 5. The commit is the `r` frame. History is pushed then. A later `c` or deferred `e` updates the committed page and does not push (B80). Revalidation of the current URL does not push. A popstate commit does not push or replace.
 6. `useBlocker` returns void. Only the last registered callback runs, and it does not run for `"initial"`, popstate, or a same-URL revalidation. `false` cancels before the history write. Popstate that skips more than one entry is replayed one entry at a time (B84).
 7. Scroll positions live in `sessionStorage`, keyed by the history index unless `getScrollRestorationKey` is set. `history.scrollRestoration` is `"manual"`. Hydrate `replaceState`s index `0` when `history.state` has no index. It does not push. A document load does not read the store.
-8. `useNavigationProgress` reads the same pending flag as `useNavigation`. Prefetch leaves it idle. The return is `{ pending, value }`. It renders nothing (`dx/navigate.md`).
+8. A data landing whose `d` arrives with a placeholder no frame settled holds a stored `"stream"` hole. Once it commits, and while that page is still on screen, the client sends one `?_flare=fill` revalidation of the same URL, which writes no history and settles those same values. A `fill` landing never asks again.
+9. `useNavigationProgress` reads the same pending flag as `useNavigation`. Prefetch leaves it idle. The return is `{ pending, value }`. It renders nothing (`dx/navigate.md`).
 
 Prefetch is two fields (B64). `modules` loads route code and does no server work. `data` runs loaders and loads the modules too. The router default is `{ modules: "all", data: false }`: after load and idle, every route chunk is `<link rel="prefetch">` and no loader runs. A string sets both fields. Data Saver and 2G skip `"all"` and fall back to viewport module prefetch. A data prefetch requests `_flare=prefetch`, uses the same cache entry as a navigation, and does not commit the screen. It does not call `defer`. The tables are `dx/link.md`.
 

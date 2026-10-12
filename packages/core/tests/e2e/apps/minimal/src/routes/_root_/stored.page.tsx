@@ -1,13 +1,8 @@
 import { createMemo, Loading } from "solid-js";
-import { createPage } from "@lovrozagar/flare";
+import { createPage, useDeferred } from "@lovrozagar/flare";
 
 function after(ms: number, value: string): Promise<string> {
 	return new Promise((resolve) => setTimeout(() => resolve(value), ms));
-}
-
-// The deferred value under `key`, as the client and the server both hand it to the render.
-function read(data: unknown, key: string): Promise<string> {
-	return Reflect.get(Reflect.get(Object(data), key), "promise");
 }
 
 // The inner boundary waits on a value derived from the outer one, so the stored shell must hold both resolved.
@@ -21,7 +16,7 @@ export const route = createPage("_root_/stored")
 	.cache({ isr: true })
 	.loader(({ defer }) => ({ value: defer(() => after(50, "STORED-VALUE")) }))
 	.render((props) => {
-		const outer = createMemo(async () => read(props.loaderData, "value"));
+		const outer = useDeferred(() => props.loaderData.value);
 		return (
 			<p id="stored">
 				<Loading fallback="wait-outer">

@@ -1,3 +1,4 @@
+import type { Pending } from "./frames.ts";
 import { defined } from "../../shared/errors/index.ts";
 import { flush } from "solid-js";
 import type { Overlay } from "../../shared/components/index.ts";
@@ -11,7 +12,9 @@ import type { Landed } from "./frames.ts";
 import type { ScrollStore } from "./scroll.ts";
 
 // `pop` is a popstate step, `index` its history index. `overlay` marks the overlay entry it moved onto.
-export type Mode = { pop?: boolean; overlay?: boolean; index?: number };
+// `fill` is a same-URL revalidation that asks for a stored page's `"stream"` values and settles the slots its holes
+// left (dx/defer.md).
+export type Mode = { pop?: boolean; overlay?: boolean; index?: number; fill?: Pending };
 
 type Trigger = "navigation" | "revalidation";
 

@@ -287,6 +287,20 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | --- | --- | --- |
 | `live value` | a live document render of a page that reads a `"stream"` value through `useDeferred`, the value resolving after the shell | the value is streamed into the document by Solid. No `ssrSource: "client"` boundary is emitted |
 | `stored hole` | a stored render of the same page, so the value is a hole | the stored HTML holds the `<Loading>` fallback as a client boundary, and hydration completes (`_$HY.done`) with the hole still pending. Resolving the promise on the client renders the value |
+| `plain value` | `useDeferred` given a plain `Deferred` instead of an accessor | the same read: the live value streams into the document |
+
+### The fill request (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| classify `fill kind` | `?_flare=fill` | kind `fill` |
+| state `fill flag` | `stateScript` with and without `fill: true` | the field is written only when true |
+| answers `fill no-store` | `?_flare=fill` on a stored `isr` page whose defer is `"stream"` | the function runs, `private, no-store`, no `flare-cache`, and the store is neither read nor written |
+| create-client `fill on hydrate` | a state with `fill: true` | one `?_flare=fill` request of the same URL, and no history entry |
+| navigate `fill on hole landing` | a data landing whose `d` leaves a placeholder unsettled | one `?_flare=fill` revalidation of the same URL after the commit, and no history entry beyond the navigation's |
+| navigate `no fill after leaving` | the holed landing's `d` arrives after the user navigated away | no fill request |
+| request `fill request` | a fill trip carrying the slots a revived hole left | the request asks `?_flare=fill`, and its `c` frame resolves the promise the first value held |
+| response `stored stream stays a hole`, `isr stream stays a hole` (extended) | a stored run's unrun `"stream"` value | its placeholder carries `hole: true` |
 
 ### `tests/e2e/navigation.test.ts` (extended)
 
