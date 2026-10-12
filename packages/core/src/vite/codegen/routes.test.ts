@@ -128,6 +128,9 @@ it("two params", () => {
 	expect(routesOf(catchAlls).routes).toHaveLength(3);
 	const otherParent = ["_root_/users/[id]/a.page.tsx", "_root_/posts/[slug]/b.page.tsx"];
 	expect(routesOf(otherParent).routes).toHaveLength(2);
+	// Two pages under one param folder share that folder: it is one param, not two.
+	const nested = ["_root_/post/[slug]/a.page.tsx", "_root_/post/[slug]/comments/b.page.tsx"];
+	expect(routesOf(nested).routes).toHaveLength(2);
 });
 
 it("index folder", () => {

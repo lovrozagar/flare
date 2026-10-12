@@ -550,7 +550,9 @@ packages/core/tests/types/app.test.ts	P7	test	node	Runs the types generator on t
 packages/core/tests/types/app/package.json	P7	app	-	Type fixture package. Not a Playwright app (B74)
 packages/core/tests/types/app/tsconfig.json	P7	app	-	strict, exactOptionalPropertyTypes, noUncheckedIndexedAccess, verbatimModuleSyntax, noPropertyAccessFromIndexSignature
 packages/core/tests/types/app/src/register.d.ts	P7	app	-	Augments auth, env, and serverContext. Does not write the route maps
-packages/core/tests/types/app/src/checks.ts	P7	app	-	One positive assignment and one @ts-expect-error for every matrix row marked app
+packages/core/tests/types/app/src/checks.ts	P7	app	-	One positive assignment and one @ts-expect-error for every matrix row marked app: the params, `to`, and search rows. checks-data.ts and checks-fns.ts hold the rest, for the 300-line cap
+packages/core/tests/types/app/src/checks-data.ts	P7	app	-	The app rows for loader data, the preloader context, auth, head, defer, and effects
+packages/core/tests/types/app/src/checks-fns.ts	P7	app	-	The app rows for the hooks, server functions, and the path segment
 packages/core/tests/types/app/src/query.ts	P7	app	-	Imports @lovrozagar/flare/query so the generator sets hasQueryClient
 packages/core/tests/types/app/src/fns/echo.ts	P7	app	-	Server function with input and a handler, plus a stream export
 packages/core/tests/types/app/src/routes/_root_/root.root-layout.tsx	P7	app	-	Root preloader returns { requestId: string }. No auth

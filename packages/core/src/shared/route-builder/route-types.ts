@@ -148,6 +148,9 @@ export type RouteKind = "page" | "layout" | "root";
 // The params and search a route's boundaries read.
 type Located<S extends RouteState> = { params: S["params"]; search: S["search"] };
 
+// After `.authorize()`: a public route reads the registered session or `null`. A stricter seed stays (dx/types.md).
+type Authorized<S extends RouteState> = S["auth"] extends false ? With<S, "auth", "optional"> : S;
+
 // The steps every route builder has. A typed step returns a builder of the new state. `.authenticateOptional()` on a
 // route whose parents already require auth takes an argument it can never get, so it does not type-check (dx/types.md).
 export type BuilderSteps<S extends RouteState, K extends RouteKind> = {
@@ -157,9 +160,8 @@ export type BuilderSteps<S extends RouteState, K extends RouteKind> = {
 	authenticateOptional(
 		...callerData: S["auth"] extends true ? [never] : readonly string[]
 	): RouteBuilder<With<S, "auth", "optional">, K>;
-	authorize(
-		fn: (ctx: GuardContext<S>) => boolean | Promise<boolean>,
-	): RouteBuilder<S["auth"] extends false ? With<S, "auth", "optional"> : S, K>;
+	// On a public route, `authorize` makes the chain read the session, so its own context already has it (B26).
+	authorize(fn: (ctx: GuardContext<Authorized<S>>) => boolean | Promise<boolean>): RouteBuilder<Authorized<S>, K>;
 	effects(effects: Effects): RouteBuilder<S, K>;
 	preloader<P>(
 		fn: (ctx: GuardContext<S>) => P | Promise<P>,

@@ -173,8 +173,9 @@ function assertShadow(routes: readonly RouteGen[]): void {
 	}
 }
 
+// Routes nested under one param folder share it. Only a second folder of that kind under the same parent clashes.
 function assertKinds(routes: readonly RouteGen[]): void {
-	const seen = new Map<string, string>();
+	const seen = new Map<string, { folder: string; file: string }>();
 	for (const route of routes) {
 		const parts = route.id.split("/");
 		for (const [index, folder] of parts.entries()) {
@@ -182,8 +183,8 @@ function assertKinds(routes: readonly RouteGen[]): void {
 			if (kind === undefined) continue;
 			const key = `${parts.slice(0, index).join("/")}:${kind}`;
 			const prior = seen.get(key);
-			if (prior !== undefined) throw new Error(`two params: ${prior}, ${route.file}`);
-			seen.set(key, route.file);
+			if (prior !== undefined && prior.folder !== folder) throw new Error(`two params: ${prior.file}, ${route.file}`);
+			seen.set(key, prior ?? { folder, file: route.file });
 		}
 	}
 }

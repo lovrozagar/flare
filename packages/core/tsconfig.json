@@ -9,5 +9,7 @@
 		"noFallthroughCasesInSwitch": true,
 		"noImplicitReturns": true
 	},
-	"include": ["src/**/*", "tests/**/*", "lint/**/*.ts"]
+	"include": ["src/**/*", "tests/**/*", "lint/**/*.ts"],
+	// The types fixture compiles under its own tsconfig with a generated register (tests/types/app.test.ts).
+	"exclude": ["tests/types/app/**"]
 }

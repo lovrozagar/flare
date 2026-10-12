@@ -45,8 +45,9 @@ export type RunInput = {
 	response?: Respond;
 	routes: readonly LoaderRoute[];
 	// The raw records every match's `.input()` validators read.
-	params?: Readonly<Record<string, unknown>>;
-	search?: Readonly<Record<string, unknown>>;
+	// The raw records each validator receives (dx/types.md): no absent optional param, and search as read.
+	params?: Readonly<Record<string, string | string[]>>;
+	search?: Readonly<Record<string, string | string[]>>;
 	dev?: boolean;
 	stored?: boolean;
 	skip?: ReadonlySet<string>;
@@ -171,7 +172,11 @@ async function validateInputs(
 	return { ok: true, routes };
 }
 
-function side(validator: Validator | undefined, raw: unknown, dev: boolean): Promise<Validated> {
+function side(
+	validator: Validator<Record<string, string | string[]>> | undefined,
+	raw: Readonly<Record<string, string | string[]>>,
+	dev: boolean,
+): Promise<Validated> {
 	return validator === undefined ? Promise.resolve({ ok: true, value: raw }) : runValidator(validator, raw, { dev });
 }
 

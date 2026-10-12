@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import { createComponent, createEffect, createMemo, merge, omit, untrack, useContext } from "solid-js";
 import { Dynamic, type JSX } from "@solidjs/web";
 import { withoutInternalKeys } from "../protocol/index.ts";

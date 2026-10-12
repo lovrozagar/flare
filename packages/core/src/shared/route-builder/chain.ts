@@ -40,7 +40,10 @@ import type { HeadConfig } from "./types.ts";
 
 // `.input()`: each side's validator receives the raw record, and its output replaces that side for the match's
 // later callbacks and render props (dx/builder.md).
-export type RouteInput = { params?: Validator; searchParams?: Validator };
+// Each side's validator receives that side's raw record (dx/types.md), so it may type its parameter with it.
+export type RouteInput = { params?: Validator<RawRecord>; searchParams?: Validator<RawRecord> };
+
+type RawRecord = Record<string, string | string[]>;
 
 export type PreloaderContext = Record<string, unknown>;
 
