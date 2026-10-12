@@ -64,7 +64,12 @@ export type LoaderContext = StepContext & {
 	defer: <T>(fn: () => Promise<T>, options?: { key?: string; prerender?: "resolve" | "stream" }) => Deferred<T>;
 };
 
-type Load = (ctx: LoaderContext) => unknown;
+// Loader data is an object or nothing. A primitive cannot stay live through the hooks, so it does not
+// type-check and throws in dev (dx/builder.md).
+// A thenable is excluded, so an async loader's value is checked too: every Promise is an object.
+export type LoaderData = (object & { then?: never }) | null | undefined;
+
+type Load = (ctx: LoaderContext) => LoaderData | Promise<LoaderData>;
 
 type Authorize = (ctx: StepContext) => boolean | Promise<boolean>;
 

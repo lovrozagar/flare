@@ -8,8 +8,12 @@ import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter } from "../../src/shared/router/create-router.ts";
 
 const home = createPage("_root_/")
-	.loader(() => "Home")
-	.render((props) => String(props.loaderData));
+	.loader(() => ({ title: "Home" }))
+	.render((props) =>
+		typeof props.loaderData === "object" && props.loaderData !== null && "title" in props.loaderData
+			? String(props.loaderData.title)
+			: "",
+	);
 const router = createRouter({
 	layouts: { _root_: createRootLayout("_root_").render(() => "") },
 	routeTree: [{ id: "_root_/", path: "/", module: home }],

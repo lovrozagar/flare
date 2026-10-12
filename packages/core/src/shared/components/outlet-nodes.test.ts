@@ -176,3 +176,26 @@ it("search repeated", () => {
 	html();
 	expect(seen.search).toEqual({ tab: "a", tag: ["x", "y"] });
 });
+
+it("live data", () => {
+	let painted: OutletMatch[] = [matches[0], { ...matches[1], data: { title: "First" } }];
+	const views: { data?: unknown } = {};
+	const live = createPage(page).render(() => {
+		views.data = useLoaderData({ from: page });
+		return "page";
+	});
+	renderToString(() =>
+		provide(RouterContext, router, () =>
+			createComponent(Matches, {
+				state: () => ({
+					matches: painted.map((match, index) => (index === 1 ? { ...match, module: live } : match)),
+					onBoundaryError: () => undefined,
+				}),
+			}),
+		),
+	);
+	expect(views.data).toEqual({ title: "First" });
+	painted = [matches[0], { ...matches[1], data: { title: "Second" } }];
+	expect(views.data).toEqual({ title: "Second" });
+	expect("title" in Object(views.data)).toBe(true);
+});

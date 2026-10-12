@@ -12,12 +12,17 @@ import type { Logger } from "./logger.ts";
 
 // A layout shows its data, then its outlet. A page has no children.
 function show(props: { loaderData: unknown; children?: JSX.Element }): JSX.Element {
-	return [`[${String(props.loaderData)}]`, props.children];
+	return [`[${label(props.loaderData)}]`, props.children];
+}
+
+// Loader data is an object or nothing (dx/builder.md). These loaders return { text }.
+function label(data: unknown): string {
+	return typeof data === "object" && data !== null && "text" in data ? String(data.text) : String(data);
 }
 
 const root = createRootLayout("_root_").render(show);
 const home = createPage("_root_/")
-	.loader(() => "Home")
+	.loader(() => ({ text: "Home" }))
 	.render(show);
 const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: home }] });
 const server = createServer({ router });
@@ -41,7 +46,7 @@ it("no authenticate", async () => {
 		.authenticateOptional()
 		.loader((ctx) => {
 			seen.push(ctx.auth);
-			return "anonymous";
+			return { text: "anonymous" };
 		})
 		.render(show);
 	const app = createServer({
@@ -106,10 +111,10 @@ it("state matches", async () => {
 	if (payload === undefined) throw new Error("state script");
 	expect(JSON.parse(payload).matches).toEqual([
 		{ id: "_root_", params: {}, search: { q: "1" }, data: null, preloader: {}, head: null, error: null },
-		{ id: "_root_/", params: {}, search: { q: "1" }, data: "Home", preloader: {}, head: null, error: null },
+		{ id: "_root_/", params: {}, search: { q: "1" }, data: { text: "Home" }, preloader: {}, head: null, error: null },
 	]);
 	const tab = createPage("_root_/users/[id]/[[tab]]")
-		.loader(() => "user")
+		.loader(() => ({ text: "user" }))
 		.render(show);
 	const users = createServer({
 		router: createRouter({
@@ -350,7 +355,7 @@ it("internal kinds", async () => {
 	const user = createPage("_root_/users/[id]")
 		.loader(() => {
 			calls.push("user");
-			return "user";
+			return { text: "user" };
 		})
 		.render(show);
 	const missing = createPage("_root_/gone")

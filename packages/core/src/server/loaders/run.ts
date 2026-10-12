@@ -142,7 +142,9 @@ function load(input: RunInput, loading: Loading): Promise<Loaded[]> {
 			});
 			const ctx = { ...loading.base, preloaderContext: loading.contexts[index], defer: scope.defer };
 			const settled =
-				input.skip?.has(route.id) === true ? { ok: true as const, data: undefined } : await settle(route, ctx);
+				input.skip?.has(route.id) === true
+					? { ok: true as const, data: undefined }
+					: await settle(route, ctx, input.dev ?? false);
 			return { id: route.id, settled, started: scope.started };
 		}),
 	);
@@ -154,9 +156,14 @@ function deferMode(cache: CacheConfig | undefined): DeferMode | undefined {
 	return typeof cache?.ssg === "object" ? cache.ssg.defer : undefined;
 }
 
-async function settle(route: LoaderRoute, ctx: LoaderContext): Promise<Settled> {
+async function settle(route: LoaderRoute, ctx: LoaderContext, dev: boolean): Promise<Settled> {
 	try {
-		return { ok: true, data: await route.loader?.(ctx) };
+		const data: unknown = await route.loader?.(ctx);
+		// `null` is an object here. A primitive cannot stay live through the hooks (dx/builder.md).
+		if (dev && data !== undefined && typeof data !== "object") {
+			throw new Error(`${route.id}: a loader returns an object or nothing, not a ${typeof data}`);
+		}
+		return { ok: true, data };
 	} catch (error) {
 		return { ok: false, error };
 	}

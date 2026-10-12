@@ -51,7 +51,7 @@ function documentOf(children: Element): Element {
 
 function router(render: Render): Router {
 	const page = createPage("_root_/")
-		.loader(() => "Home")
+		.loader(() => ({ title: "Home" }))
 		.head(() => head)
 		.render(render);
 	return createRouter({

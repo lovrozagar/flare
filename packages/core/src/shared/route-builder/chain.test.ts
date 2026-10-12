@@ -3,7 +3,7 @@ import { createChain } from "./chain.ts";
 
 const authorize = (): boolean => true;
 const preloader = (): string => "pre";
-const loader = (): string => "data";
+const loader = (): { data: string } => ({ data: "data" });
 const render = (): string => "view";
 const head = (): { title: string } => ({ title: "Home" });
 

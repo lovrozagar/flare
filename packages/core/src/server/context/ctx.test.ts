@@ -10,7 +10,7 @@ import { serverCtx, withServerContext } from "./ctx.ts";
 type ContextApp = FlareRegister & { serverContext: { requestId: string } };
 
 const request = new Request("http://localhost/");
-function routerWith(loader: () => string): Router {
+function routerWith(loader: () => { title: string }): Router {
 	return createRouter({
 		layouts: { _root_: createRootLayout("_root_").render(() => "") },
 		routeTree: [
@@ -25,7 +25,7 @@ function routerWith(loader: () => string): Router {
 	});
 }
 
-const router = routerWith(() => "Home");
+const router = routerWith(() => ({ title: "Home" }));
 
 function unreachable(): never {
 	throw new Error("serverContext did not throw");
@@ -90,7 +90,7 @@ it("throw is 500", async () => {
 	const server = createServer({
 		router: routerWith(() => {
 			loaded = true;
-			return "Home";
+			return { title: "Home" };
 		}),
 		serverContext: () => {
 			throw new Error("ctx boom");

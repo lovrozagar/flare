@@ -6,7 +6,7 @@ import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import { createRouter, type RouterOptions } from "../../src/shared/router/create-router.ts";
 
-type Spy = { seen: string[]; mark: (name: string) => () => string };
+type Spy = { seen: string[]; mark: (name: string) => () => { text: string } };
 
 function spy(): Spy {
 	const seen: string[] = [];
@@ -14,7 +14,7 @@ function spy(): Spy {
 		seen,
 		mark: (name) => () => {
 			seen.push(name);
-			return name;
+			return { text: name };
 		},
 	};
 }
@@ -23,7 +23,12 @@ function noop(): void {}
 
 // A layout shows its data, then its outlet. A page has no children.
 function show(props: { loaderData: unknown; children?: JSX.Element }): JSX.Element {
-	return [`[${String(props.loaderData)}]`, props.children];
+	return [`[${label(props.loaderData)}]`, props.children];
+}
+
+// Loader data is an object or nothing (dx/builder.md). These loaders return { text }.
+function label(data: unknown): string {
+	return typeof data === "object" && data !== null && "text" in data ? String(data.text) : String(data);
 }
 
 function serve(options: RouterOptions, authenticate: () => unknown = () => null): ReturnType<typeof createServer> {
@@ -135,7 +140,7 @@ it("interleaved", async () => {
 					.loader(async (ctx) => {
 						const sentinel = ctx.request.headers.get("x-sentinel");
 						if (sentinel === "alpha") await held;
-						return sentinel;
+						return { text: sentinel };
 					})
 					.render(show),
 			},
@@ -164,7 +169,7 @@ it("header identity", async () => {
 						.authenticateOptional()
 						.loader((ctx) => {
 							sessions.push(ctx.auth);
-							return ctx.request.headers.get("authorization");
+							return { text: ctx.request.headers.get("authorization") };
 						})
 						.render(show),
 				},
@@ -211,7 +216,7 @@ function responseServer(
 				_root_: createRootLayout("_root_")
 					.loader(() => {
 						seen.loaded = true;
-						return "root";
+						return { text: "root" };
 					})
 					.render(show),
 			},

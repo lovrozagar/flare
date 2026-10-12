@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import { createPage } from "./page.ts";
 
-const loader = (): string => "data";
+const loader = (): { data: string } => ({ data: "data" });
 const handle = (): Response => new Response("ok");
 
 const render = (): string => "home";
