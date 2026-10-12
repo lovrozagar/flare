@@ -39,7 +39,7 @@ export type StoredPage = {
 	headers: readonly (readonly [string, string])[];
 	security: SecurityConfig;
 	sentinel: string;
-	render: "isr" | "ssr";
+	render: "isr" | "ssr" | "ssg";
 };
 
 // What a finished shared render hands the write. `settled` is every "resolve" value fulfilled.

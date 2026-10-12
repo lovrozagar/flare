@@ -12,16 +12,19 @@ import {
 	type Loaded,
 	type Policy,
 	type Prepared,
+	notFound,
 } from "../lifecycle/answers.ts";
+import { definedParams } from "../render/matches.ts";
 import { runLoaders } from "../loaders/run.ts";
-import { routeSecured, typed, type Exchange } from "../lifecycle/exchange.ts";
+import { answer, routeSecured, typed, type Exchange } from "../lifecycle/exchange.ts";
 import type { StoreOption } from "../lifecycle/options.ts";
 import { NDJSON } from "../navigation/index.ts";
 import type { FlareStore } from "./contract.ts";
 import { lookup, type Lookup } from "./epoch.ts";
 import { inflight, type Flight } from "./inflight.ts";
 import { buildId, storeKey } from "./key.ts";
-import { hitOf } from "./read.ts";
+import { hitOf, storedPageOf, type Hit } from "./read.ts";
+import { listed, seedLookup } from "./seed.ts";
 import { fromSentinel } from "./nonce.ts";
 import { sharedRender, type SharedRender } from "./scrub.ts";
 import {
@@ -41,15 +44,46 @@ export function requestStore(option: StoreOption | undefined, env: unknown): () 
 	return () => (resolved ??= { store: typeof option === "function" ? option(env) : option }).store;
 }
 
-// A page's answer. A `shared` decision on an `ssr` or `isr` page with a store goes through the store. Every other
-// answer renders live (bit 09).
+// A page's answer. A slug the page does not list is the normal 404. A `shared` decision on an `ssg` page with
+// `static` reads its seed. One on an `ssr` or `isr` page with a store goes through the store. Every other answer
+// renders live (bit 09).
 export async function pageAnswer(exchange: Exchange, matched: Loaded): Promise<Response> {
-	const prepared = await decided(exchange, matched);
 	const cache = matched.chain.at(-1)?.module.cache;
+	if (!(await listed(cache, definedParams(matched.params)))) return unlisted(exchange, matched);
+	const prepared = await decided(exchange, matched);
+	const shared = prepared.policy.decision.policy === "shared";
+	const seeds = shared && cache?.ssg !== undefined ? exchange.seeds() : undefined;
+	if (seeds !== undefined) return seeded(exchange, matched, { prepared, seeds });
 	const mode = cache?.ssr === undefined ? (cache?.isr === undefined ? undefined : "isr") : "ssr";
-	const store = prepared.policy.decision.policy === "shared" && mode !== undefined ? exchange.store() : undefined;
+	const store = shared && mode !== undefined ? exchange.store() : undefined;
 	if (store !== undefined && mode !== undefined) return stored(exchange, matched, { prepared, store, mode });
 	return live(exchange, matched, prepared);
+}
+
+// The normal 404, as for an unknown path: a document paints the layouts' not-found, and a data request is the status
+// alone (B73, B86). Nothing is stored.
+function unlisted(exchange: Exchange, matched: Loaded): Promise<Response> {
+	if (exchange.kind !== "document") return Promise.resolve(answer(exchange, 404));
+	return notFound(exchange, { ...matched, chain: matched.chain.filter((entry) => entry.kind === "layout") });
+}
+
+// An SSG page reads only its static seed, so a tombstone or an epoch never hides it. A listed slug with no seed
+// renders live, and nothing is written.
+async function seeded(
+	exchange: Exchange,
+	matched: Loaded,
+	at: { prepared: Prepared; seeds: FlareStore },
+): Promise<Response> {
+	const key = keyOf(exchange, matched, defined(matched.id, "the static page"));
+	const read = async (): Promise<Lookup | null> => {
+		const seed = await at.seeds.get(key);
+		return seed === null ? null : { entry: seed, purged: false };
+	};
+	const looked = await gated(exchange, matched, { prepared: at.prepared, read });
+	if (looked instanceof Response) return looked;
+	const page = looked === null ? undefined : storedPageOf(looked.entry.data);
+	if (page === undefined) return live(exchange, matched, at.prepared);
+	return served(exchange, page, { policy: at.prepared.policy, cache: "hit", cookies: [] });
 }
 
 function live(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
@@ -72,9 +106,9 @@ async function stored(exchange: Exchange, matched: Loaded, at: Stored): Promise<
 	const id = defined(matched.id, "the stored page");
 	const timing = defined(storeTiming(id, matched.chain.at(-1)?.module.cache), "the stored page's timing");
 	const keyed = { ...at, key: keyOf(exchange, matched, id), timing };
-	const looked = await lookedUp(exchange, matched, keyed);
+	const looked = await gated(exchange, matched, { prepared: at.prepared, read: () => lookup(at.store, keyed.key) });
 	if (looked instanceof Response) return looked;
-	const hit = hitOf(looked, timing, Date.now());
+	const hit = hitOf(looked, timing, Date.now()) ?? (await seedHit(exchange, { ...keyed, looked }));
 	if (hit !== undefined) {
 		if (hit.stale) exchange.waitUntil(inflight(keyed.key, () => flight(exchange, matched, keyed)));
 		return served(exchange, hit.page, { policy: at.prepared.policy, cache: "hit", cookies: [] });
@@ -95,11 +129,22 @@ function keyOf(exchange: Exchange, matched: Loaded, id: string): string {
 	return storeKey({ build: buildId(), route: id, pattern: node.path, params: matched.params, class: "anonymous" });
 }
 
+// A build-time ISR seed stands in when the mutable read gives no hit and the seed is newer than what the store holds
+// (B86). It turns stale and expires on the same timing.
+async function seedHit(exchange: Exchange, at: Keyed & { looked: Lookup | null }): Promise<Hit | undefined> {
+	const seeds = at.mode === "isr" ? exchange.seeds() : undefined;
+	if (seeds === undefined) return undefined;
+	return hitOf(await seedLookup(seeds, at), at.timing, Date.now());
+}
+
 // The store read. Behind `authorize` it is the gate's last step, and a gate that stops answers here.
-async function lookedUp(exchange: Exchange, matched: Loaded, at: Keyed): Promise<Lookup | null | Response> {
-	const read = (): Promise<Lookup | null> => lookup(at.store, at.key);
-	if (!matched.chain.some((entry) => entry.module.authorize !== undefined)) return read();
-	const run = await runLoaders({ ...at.prepared.input, readStore: read });
+async function gated(
+	exchange: Exchange,
+	matched: Loaded,
+	at: { prepared: Prepared; read: () => Promise<Lookup | null> },
+): Promise<Lookup | null | Response> {
+	if (!matched.chain.some((entry) => entry.module.authorize !== undefined)) return at.read();
+	const run = await runLoaders({ ...at.prepared.input, readStore: at.read });
 	if (run.looked !== undefined) return run.looked;
 	const policy = at.prepared.policy;
 	if (exchange.kind === "document") return painted(exchange, { chain: matched.chain, run, policy });
