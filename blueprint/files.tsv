@@ -125,8 +125,10 @@ packages/core/src/shared/router/create-router.test.ts	P1	test	shared	Unit cases 
 packages/core/src/shared/router/index.ts	P1	index	shared	Re-exports
 packages/core/src/shared/components/outlet-nodes.ts	P1	src	shared	Choose the matched layout and page nodes. No JSX
 packages/core/src/shared/components/outlet-nodes.test.ts	P1	test	shared	Unit cases for outlet-nodes.ts
-packages/core/src/shared/head/tags.ts	P6	src	shared	mergeHead and headTags: a merged head config to { tag, props } descriptors with raw values, in the server's order
+packages/core/src/shared/head/tags.ts	P6	src	shared	headTags: a merged head config to { tag, key, props } descriptors with raw values and semantic keys, for Solid's useHead
 packages/core/src/shared/head/tags.test.ts	P6	test	shared	Unit cases for tags.ts
+packages/core/src/shared/head/merge.ts	P6	src	shared	mergeHead: the B83 replace rules, keeping a record neither side set absent
+packages/core/src/shared/head/merge.test.ts	P6	test	shared	Unit cases for merge.ts
 packages/core/src/shared/head/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary toward the root, and the builtin text (B77)
 packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts

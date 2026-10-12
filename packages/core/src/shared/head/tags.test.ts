@@ -1,10 +1,11 @@
 import { expect, it } from "vitest";
-import { headTags, mergeHead } from "./tags.ts";
+import { mergeHead } from "./merge.ts";
+import { headTags } from "./tags.ts";
 
 it("raw values", () => {
 	expect(headTags({ title: 'A <b> & "c"', description: "d<" })).toEqual([
-		{ tag: "title", key: "h0", props: { children: 'A <b> & "c"' } },
-		{ tag: "meta", key: "h1", props: { name: "description", content: "d<" } },
+		{ tag: "title", key: "title", props: { children: 'A <b> & "c"' } },
+		{ tag: "meta", key: "meta:description:0", props: { name: "description", content: "d<" } },
 	]);
 });
 
@@ -58,9 +59,13 @@ it("og images", () => {
 
 it("favicons", () => {
 	expect(headTags({ favicons: { ico: "/f.ico", "192x192": "/f.png", svg: "/f.svg" } })).toEqual([
-		{ tag: "link", key: "h0", props: { rel: "icon", href: "/f.ico", sizes: "any" } },
-		{ tag: "link", key: "h1", props: { rel: "icon", href: "/f.svg", type: "image/svg+xml" } },
-		{ tag: "link", key: "h2", props: { rel: "icon", href: "/f.png", type: "image/png", sizes: "192x192" } },
+		{ tag: "link", key: "link:icon:/f.ico:0", props: { rel: "icon", href: "/f.ico", sizes: "any" } },
+		{ tag: "link", key: "link:icon:/f.svg:0", props: { rel: "icon", href: "/f.svg", type: "image/svg+xml" } },
+		{
+			tag: "link",
+			key: "link:icon:/f.png:0",
+			props: { rel: "icon", href: "/f.png", type: "image/png", sizes: "192x192" },
+		},
 	]);
 });
 
@@ -97,21 +102,33 @@ it("on attributes dropped", () => {
 		{ nonce: "n" },
 	);
 	expect(tags).toEqual([
-		{ tag: "script", key: "h0", props: { type: "application/ld+json", nonce: "n", children: '{"@type":"Thing"}' } },
-		{ tag: "link", key: "h1", props: { rel: "preconnect", href: "https://cdn" } },
-		{ tag: "meta", key: "h2", props: { name: "m", content: "c", "data-x": "1" } },
-		{ tag: "script", key: "h3", props: { src: "/s.js", async: true, "data-k": "v", nonce: false } },
-		{ tag: "script", key: "h4", props: { nonce: "n", children: "1" } },
-		{ tag: "style", key: "h5", props: { nonce: "n", children: "a{}" } },
+		{
+			tag: "script",
+			key: expect.stringMatching(/^script:[0-9a-z]+:0$/),
+			props: { type: "application/ld+json", nonce: "n", children: '{"@type":"Thing"}' },
+		},
+		{ tag: "link", key: "link:preconnect:https://cdn:0", props: { rel: "preconnect", href: "https://cdn" } },
+		{ tag: "meta", key: "meta:m:0", props: { name: "m", content: "c", "data-x": "1" } },
+		{ tag: "script", key: "script:/s.js:0", props: { src: "/s.js", async: true, "data-k": "v", nonce: false } },
+		{ tag: "script", key: expect.stringMatching(/^script:[0-9a-z]+:0$/), props: { nonce: "n", children: "1" } },
+		{ tag: "style", key: expect.stringMatching(/^style:[0-9a-z]+:0$/), props: { nonce: "n", children: "a{}" } },
 	]);
 	expect(() => headTags({ custom: { scripts: [{ src: "/a", children: "b" }] } })).toThrow(/src and children/);
 });
 
-it("replace", () => {
-	const parent = { title: "P", images: [{ url: "/p.png" }], meta: { author: "P" } };
-	expect(mergeHead(parent, { title: "C" }, true)).toEqual({ title: "C" });
-	const merged = mergeHead(parent, { images: [{ url: "/c.png" }], meta: { author: "C" } });
-	expect(merged.title).toBe("P");
-	expect(merged.images).toEqual([{ url: "/p.png" }, { url: "/c.png" }]);
-	expect(merged.meta).toEqual({ author: "C" });
+function keys(head: Parameters<typeof headTags>[0]): string[] {
+	return headTags(head).map((tag) => tag.key);
+}
+
+it("semantic keys", () => {
+	const og = keys({ images: [{ url: "/a.png" }, { url: "/b.png" }], languages: { fr: "https://ex.com/fr" } });
+	expect(og).toEqual(["link:alternate:fr:0", "meta:og:image:0", "meta:og:image:1"]);
+	const script = { custom: { scripts: [{ children: "run()" }] } };
+	const before = keys(script)[0];
+	expect(keys({ description: "new", ...script }).at(-1)).toBe(before);
+	expect(keys({ custom: { scripts: [{ children: "run(2)" }] } })[0]).not.toBe(before);
+	expect(keys({ meta: { charset: "utf-8" }, custom: { meta: [{ "http-equiv": "refresh", content: "5" }] } })).toEqual([
+		"meta:utf-8:0",
+		"meta:refresh:0",
+	]);
 });
