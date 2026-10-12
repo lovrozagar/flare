@@ -3,8 +3,8 @@ import { headTags, mergeHead } from "./tags.ts";
 
 it("raw values", () => {
 	expect(headTags({ title: 'A <b> & "c"', description: "d<" })).toEqual([
-		{ tag: "title", props: { children: 'A <b> & "c"' } },
-		{ tag: "meta", props: { name: "description", content: "d<" } },
+		{ tag: "title", key: "h0", props: { children: 'A <b> & "c"' } },
+		{ tag: "meta", key: "h1", props: { name: "description", content: "d<" } },
 	]);
 });
 
@@ -58,9 +58,9 @@ it("og images", () => {
 
 it("favicons", () => {
 	expect(headTags({ favicons: { ico: "/f.ico", "192x192": "/f.png", svg: "/f.svg" } })).toEqual([
-		{ tag: "link", props: { rel: "icon", href: "/f.ico", sizes: "any" } },
-		{ tag: "link", props: { rel: "icon", href: "/f.svg", type: "image/svg+xml" } },
-		{ tag: "link", props: { rel: "icon", href: "/f.png", type: "image/png", sizes: "192x192" } },
+		{ tag: "link", key: "h0", props: { rel: "icon", href: "/f.ico", sizes: "any" } },
+		{ tag: "link", key: "h1", props: { rel: "icon", href: "/f.svg", type: "image/svg+xml" } },
+		{ tag: "link", key: "h2", props: { rel: "icon", href: "/f.png", type: "image/png", sizes: "192x192" } },
 	]);
 });
 
@@ -97,12 +97,12 @@ it("on attributes dropped", () => {
 		{ nonce: "n" },
 	);
 	expect(tags).toEqual([
-		{ tag: "script", props: { type: "application/ld+json", nonce: "n", children: '{"@type":"Thing"}' } },
-		{ tag: "link", props: { rel: "preconnect", href: "https://cdn" } },
-		{ tag: "meta", props: { name: "m", content: "c", "data-x": "1" } },
-		{ tag: "script", props: { src: "/s.js", async: true, "data-k": "v" } },
-		{ tag: "script", props: { nonce: "n", children: "1" } },
-		{ tag: "style", props: { nonce: "n", children: "a{}" } },
+		{ tag: "script", key: "h0", props: { type: "application/ld+json", nonce: "n", children: '{"@type":"Thing"}' } },
+		{ tag: "link", key: "h1", props: { rel: "preconnect", href: "https://cdn" } },
+		{ tag: "meta", key: "h2", props: { name: "m", content: "c", "data-x": "1" } },
+		{ tag: "script", key: "h3", props: { src: "/s.js", async: true, "data-k": "v", nonce: false } },
+		{ tag: "script", key: "h4", props: { nonce: "n", children: "1" } },
+		{ tag: "style", key: "h5", props: { nonce: "n", children: "a{}" } },
 	]);
 	expect(() => headTags({ custom: { scripts: [{ src: "/a", children: "b" }] } })).toThrow(/src and children/);
 });
