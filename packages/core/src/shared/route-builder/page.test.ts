@@ -7,7 +7,7 @@ const handle = (): Response => new Response("ok");
 const render = (): string => "home";
 
 it("page render", () => {
-	expect(createPage("_root_").render(render)).toEqual({ id: "_root_", render, document: false });
+	expect(createPage("_root_/").render(render)).toEqual({ id: "_root_/", render, document: false });
 });
 
 it("page chain", () => {

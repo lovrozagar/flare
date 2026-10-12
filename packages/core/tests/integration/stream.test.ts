@@ -21,7 +21,7 @@ const quiet: Logger = { level: "error", error: noop, warn: noop, log: noop };
 function pendingApp(sink: ErrorSink): { app: ReturnType<typeof serveWith>; disposed: PromiseWithResolvers<void> } {
 	const disposed = Promise.withResolvers<void>();
 	const never = new Promise<string>(noop);
-	const page = createPage("_root_").render((): JSX.Element => {
+	const page = createPage("_root_/").render((): JSX.Element => {
 		onCleanup(() => disposed.resolve());
 		return createComponent(Loading, {
 			fallback: "waiting",
@@ -32,7 +32,7 @@ function pendingApp(sink: ErrorSink): { app: ReturnType<typeof serveWith>; dispo
 		});
 	});
 	const root = createRootLayout("_root_").render((props) => props.children);
-	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_", path: "/", module: page }] });
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: page }] });
 	return { app: serveWith({ router }, sink), disposed };
 }
 
@@ -40,9 +40,9 @@ function throwingApp(sink: ErrorSink): ReturnType<typeof serveWith> {
 	const root = createRootLayout("_root_").render((): never => {
 		throw new Error("root broke");
 	});
-	const page = createPage("_root_").render(() => "page");
+	const page = createPage("_root_/").render(() => "page");
 	return serveWith(
-		{ router: createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_", path: "/", module: page }] }) },
+		{ router: createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: page }] }) },
 		sink,
 	);
 }

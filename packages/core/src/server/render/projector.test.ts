@@ -28,7 +28,7 @@ function probe(dev: boolean): { sink: ErrorSink; send: ReturnType<typeof vi.fn>;
 }
 
 async function get(page: RouteRecord, sink: ErrorSink): Promise<{ status: number; body: string }> {
-	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_", path: "/", module: page }] });
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: page }] });
 	const response = await serveWith({ router, authenticate: () => ({ user: "u" }) }, sink).fetch(
 		new Request("http://localhost/"),
 	);
@@ -36,7 +36,7 @@ async function get(page: RouteRecord, sink: ErrorSink): Promise<{ status: number
 }
 
 function throwing(error: unknown): RouteRecord {
-	return createPage("_root_")
+	return createPage("_root_/")
 		.loader(() => {
 			throw error;
 		})
@@ -68,7 +68,7 @@ it("prod safe", async () => {
 
 it("dev detail", async () => {
 	const dev = probe(true);
-	const page = createPage("_root_")
+	const page = createPage("_root_/")
 		.loader(() => {
 			throw new Error("secret");
 		})
@@ -97,21 +97,21 @@ it("string thrown", async () => {
 
 it("not found in render", async () => {
 	const dev = probe(true);
-	const page = createPage("_root_").render(() => notFound());
+	const page = createPage("_root_/").render(() => notFound());
 	expect((await get(page, dev.sink)).status).toBe(404);
 	expect(dev.send).not.toHaveBeenCalled();
 });
 
 it("unauthenticated in render", async () => {
 	const dev = probe(true);
-	const page = createPage("_root_").render(() => unauthenticated());
+	const page = createPage("_root_/").render(() => unauthenticated());
 	expect((await get(page, dev.sink)).status).toBe(401);
 	expect(dev.send).not.toHaveBeenCalled();
 });
 
 it("render has no auth", async () => {
 	const seen: object[] = [];
-	const page = createPage("_root_")
+	const page = createPage("_root_/")
 		.authenticate()
 		.render((props) => {
 			seen.push(props);
@@ -124,14 +124,14 @@ it("render has no auth", async () => {
 
 it("bigint", async () => {
 	const prod = probe(false);
-	const page = createPage("_root_")
+	const page = createPage("_root_/")
 		.loader(() => ({ count: 1n }))
 		.render(() => "page");
 	expect(await get(page, prod.sink)).toEqual({ status: 500, body: "" });
 });
 
 it("null title", async () => {
-	const page = createPage("_root_")
+	const page = createPage("_root_/")
 		.head(() => JSON.parse('{"title":null}'))
 		.render(() => "page");
 	const { status, body } = await get(page, probe(false).sink);

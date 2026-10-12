@@ -35,13 +35,13 @@ function Page(): Element {
 type Render = () => Element;
 
 function router(render: Render): Router {
-	const page = createPage("_root_")
+	const page = createPage("_root_/")
 		.loader(() => "Home")
 		.head(() => head)
 		.render(render);
 	return createRouter({
 		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
-		routeTree: [{ id: "_root_", path: "/", module: page }],
+		routeTree: [{ id: "_root_/", path: "/", module: page }],
 	});
 }
 

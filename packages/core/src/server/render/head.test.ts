@@ -444,12 +444,12 @@ it("head throw", async () => {
 	const root = createRootLayout("_root_")
 		.head(() => ({ title: "Root" }))
 		.render((props) => ["root[", props.children, "]"]);
-	const page = createPage("_root_")
+	const page = createPage("_root_/")
 		.loader(() => "data")
 		.head(headBroke)
 		.render(() => "page")
 		.errorRender(errorRender);
-	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_", path: "/", module: page }] });
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: page }] });
 	const response = await serveWith({ router }, { dev: true, send, log }).fetch(new Request("http://localhost/"));
 	expect(response.status).toBe(200);
 	const body = await response.text();

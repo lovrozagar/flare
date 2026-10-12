@@ -15,10 +15,10 @@ function show(props: { loaderData: unknown; children?: JSX.Element }): JSX.Eleme
 }
 
 const root = createRootLayout("_root_").render(show);
-const home = createPage("_root_")
+const home = createPage("_root_/")
 	.loader(() => "Home")
 	.render(show);
-const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_", path: "/", module: home }] });
+const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: home }] });
 const server = createServer({ router });
 
 it("page", async () => {
@@ -36,7 +36,7 @@ it("miss", async () => {
 
 it("no authenticate", async () => {
 	const seen: unknown[] = [];
-	const optional = createPage("_root_")
+	const optional = createPage("_root_/")
 		.authenticateOptional()
 		.loader((ctx) => {
 			seen.push(ctx.auth);
@@ -44,7 +44,7 @@ it("no authenticate", async () => {
 		})
 		.render(show);
 	const app = createServer({
-		router: createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_", path: "/", module: optional }] }),
+		router: createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: optional }] }),
 	});
 	const response = await app.fetch(new Request("http://localhost/"));
 	expect(response.status).toBe(200);
@@ -52,7 +52,7 @@ it("no authenticate", async () => {
 	const denied = createServer({
 		router: createRouter({
 			layouts: { _root_: root },
-			routeTree: [{ id: "_root_", path: "/", module: createPage("_root_").authenticate().render(show) }],
+			routeTree: [{ id: "_root_/", path: "/", module: createPage("_root_/").authenticate().render(show) }],
 		}),
 	});
 	expect((await denied.fetch(new Request("http://localhost/"))).status).toBe(401);
@@ -74,7 +74,7 @@ it("security on every status", async () => {
 		router: createRouter({
 			layouts: { _root_: root },
 			routeTree: [
-				{ id: "_root_", path: "/", module: home },
+				{ id: "_root_/", path: "/", module: home },
 				{ id: "_root_/account", path: "/account", module: required },
 			],
 		}),
@@ -105,7 +105,7 @@ it("state matches", async () => {
 	if (payload === undefined) throw new Error("state script");
 	expect(JSON.parse(payload).matches).toEqual([
 		{ id: "_root_", params: {}, search: { q: "1" }, data: null, preloader: {}, head: null, error: null },
-		{ id: "_root_", params: {}, search: { q: "1" }, data: "Home", preloader: {}, head: null, error: null },
+		{ id: "_root_/", params: {}, search: { q: "1" }, data: "Home", preloader: {}, head: null, error: null },
 	]);
 	const tab = createPage("_root_/users/[id]/[[tab]]")
 		.loader(() => "user")
@@ -170,7 +170,7 @@ function unmarked(html: string): string {
 
 function framedServer(module: RouteModule, sink = { dev: false, log: quiet }): ReturnType<typeof createServer> {
 	return serveWith(
-		{ router: createRouter({ layouts: { _root_: module }, routeTree: [{ id: "_root_", path: "/", module: home }] }) },
+		{ router: createRouter({ layouts: { _root_: module }, routeTree: [{ id: "_root_/", path: "/", module: home }] }) },
 		sink,
 	);
 }
@@ -204,7 +204,7 @@ it("boundary throw", async () => {
 	const guarded = createRootLayout("_root_")
 		.render((props) => ["root[", props.children, "]"])
 		.errorRender(() => "root error");
-	const failing = createPage("_root_")
+	const failing = createPage("_root_/")
 		.loader(() => {
 			throw new Error("loader broke");
 		})
@@ -214,7 +214,10 @@ it("boundary throw", async () => {
 		});
 	const app = serveWith(
 		{
-			router: createRouter({ layouts: { _root_: guarded }, routeTree: [{ id: "_root_", path: "/", module: failing }] }),
+			router: createRouter({
+				layouts: { _root_: guarded },
+				routeTree: [{ id: "_root_/", path: "/", module: failing }],
+			}),
 		},
 		{ dev: true, send, log: quiet },
 	);
@@ -245,7 +248,7 @@ function redirecting(page: RouteModule, basePath = "/") {
 		basePath,
 		layouts: { _root_: framed },
 		routeTree: [
-			{ id: "_root_", path: "/", module: page },
+			{ id: "_root_/", path: "/", module: page },
 			{ id: "_root_/users/[id]", path: "/users/[id]", module: users },
 		],
 	});
@@ -255,7 +258,7 @@ function redirecting(page: RouteModule, basePath = "/") {
 it("loader redirect", async () => {
 	const rendered = vi.fn<() => string>(() => "page");
 	const painted = vi.fn<() => string>(() => "painted");
-	const moved = createPage("_root_")
+	const moved = createPage("_root_/")
 		.loader(() =>
 			redirect({ to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" }, hash: "x", status: 302 }),
 		)
@@ -275,7 +278,7 @@ it("loader redirect", async () => {
 });
 
 it("redirect href", async () => {
-	const away = createPage("_root_")
+	const away = createPage("_root_/")
 		.loader(() => redirect({ href: "https://example.com/a", status: 303 }))
 		.render(show);
 	const response = await redirecting(away).app.fetch(new Request("http://localhost/"));
@@ -289,8 +292,8 @@ function toLogin(): never {
 
 it("redirect from auth", async () => {
 	const login = createPage("_root_/login").render(show);
-	const guarded = createPage("_root_").authenticate().render(show);
-	const authorized = createPage("_root_").authorize(toLogin).render(show);
+	const guarded = createPage("_root_/").authenticate().render(show);
+	const authorized = createPage("_root_/").authorize(toLogin).render(show);
 	for (const [page, authenticate] of [
 		[guarded, toLogin],
 		[authorized, () => ({ user: "u" })],
@@ -298,7 +301,7 @@ it("redirect from auth", async () => {
 		const router = createRouter({
 			layouts: { _root_: framed },
 			routeTree: [
-				{ id: "_root_", path: "/", module: page },
+				{ id: "_root_/", path: "/", module: page },
 				{ id: "_root_/login", path: "/login", module: login },
 			],
 		});
@@ -331,7 +334,7 @@ function brokenAuth(): never {
 it("authenticate throw", async () => {
 	const router = createRouter({
 		layouts: { _root_: framed },
-		routeTree: [{ id: "_root_", path: "/", module: createPage("_root_").authenticate().render(show) }],
+		routeTree: [{ id: "_root_/", path: "/", module: createPage("_root_/").authenticate().render(show) }],
 	});
 	const response = await serveWith({ router, authenticate: brokenAuth }, { dev: false, log: quiet }).fetch(
 		new Request("http://localhost/"),

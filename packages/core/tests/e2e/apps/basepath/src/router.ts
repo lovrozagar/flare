@@ -5,5 +5,5 @@ import { route as root } from "./routes/_root_/root.root-layout.tsx";
 export const router = createRouter({
 	basePath: "/app",
 	layouts: { _root_: root },
-	routeTree: [{ id: "_root_", path: "/", module: home }],
+	routeTree: [{ id: "_root_/", path: "/", module: home }],
 });

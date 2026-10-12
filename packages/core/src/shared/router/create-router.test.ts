@@ -56,11 +56,11 @@ it("cache client only", () => {
 it("base path is a route", () => {
 	const router = createRouter({
 		layouts: { _root_: {} },
-		routeTree: [{ id: "_root_", path: "/", module: {} }],
+		routeTree: [{ id: "_root_/", path: "/", module: {} }],
 		basePath: "/app",
 	});
-	expect(router.match("/app").id).toBe("_root_");
-	expect(router.match("/app/").id).toBe("_root_");
+	expect(router.match("/app").id).toBe("_root_/");
+	expect(router.match("/app/").id).toBe("_root_/");
 	expect(router.match("/").id).toBeUndefined();
 });
 
@@ -81,10 +81,10 @@ it("matched chain", () => {
 		{ id: "_root_/blog", kind: "layout", module: layouts["_root_/blog"] },
 		{ id: "_root_/blog/post", kind: "page", module: post },
 	]);
-	const home = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_", path: "/", module: post }] });
+	const home = createRouter({ layouts: { _root_: {} }, routeTree: [{ id: "_root_/", path: "/", module: post }] });
 	expect(home.match("/").chain.map((entry) => [entry.id, entry.kind])).toEqual([
 		["_root_", "layout"],
-		["_root_", "page"],
+		["_root_/", "page"],
 	]);
 });
 

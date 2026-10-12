@@ -80,6 +80,8 @@ it("group and root", () => {
 	expect(buildUrl({ to: ids.admin })).toBe("/dashboard");
 	expect(buildUrl({ to: ids.site })).toBe("/about");
 	expect(buildUrl({ to: ids.shop })).toBe("/cart");
+	expect(buildUrl({ to: "_root_/" })).toBe("/");
+	expect(buildUrl({ to: "[locale]/_root_/", params: { locale: "fr" } })).toBe("/fr");
 });
 
 it("param before root", () => {
@@ -106,6 +108,7 @@ it("catch-all", () => {
 it("round trip", () => {
 	const rows: { to: string; params?: Record<string, string | string[]>; raw: Record<string, unknown> }[] = [
 		{ to: ids.group, raw: {} },
+		{ to: "_root_/", raw: {} },
 		{ to: ids.locale, params: { locale: "en" }, raw: { locale: "en" } },
 		{ to: ids.bracket, raw: {} },
 		{ to: ids.optional, params: { locale: "fr" }, raw: { locale: "fr" } },
