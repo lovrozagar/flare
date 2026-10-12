@@ -216,3 +216,23 @@ function matchPseudo(pseudo: Pseudo, context: Context): boolean {
 	if (pseudo.name === "is" || pseudo.name === "where" || pseudo.name === "matches") return inner();
 	return true;
 }
+
+// The keys a rule is indexed by: each complex selector's rightmost compound gives its first class, else its id, else
+// its tag. A list with an unkeyed item, such as `*` or `:root`, is unkeyed: every shell tests it.
+export function selectorKeys(selector: string): string[] | undefined {
+	const keys: string[] = [];
+	for (const complex of selectorList(selector)) {
+		const key = compoundKey(complex.compounds[0]);
+		if (key === undefined) return undefined;
+		keys.push(key);
+	}
+	return keys;
+}
+
+function compoundKey(compound: Compound | undefined): string | undefined {
+	const name = compound?.classes[0];
+	if (name !== undefined) return `.${name}`;
+	const id = compound?.ids[0];
+	if (id !== undefined) return `#${id}`;
+	return compound?.type === undefined || compound.type === "*" ? undefined : compound.type;
+}

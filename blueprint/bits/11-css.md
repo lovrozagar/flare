@@ -107,9 +107,10 @@ Split from `match.ts` at the 300-line limit.
 | `unused` | `.b` is not | the rule is absent |
 | `media` | `@media (min-width: 1px)` around a used rule | the media wrap is kept |
 | `media empty` | the same around an unused rule | the wrap is absent |
-| `keyframes` | a kept rule's `animation-name` is `spin` | `@keyframes spin` is kept |
-| `font` | a kept rule's `font-family` is `Ada` | that `@font-face` is kept |
+| `keyframes` | a kept rule's `animation` or `animation-name` names `spin`, directly or through a kept custom property such as Tailwind's `--animate-spin` | `@keyframes spin` is kept, and an unnamed `@keyframes` is absent |
+| `font` | a kept rule's `font-family` or `font` shorthand names `Ada`, quoted or not, directly or through a kept custom property such as `--font-sans` | that `@font-face` is kept, and an unnamed one is absent |
 | `layer` | a bare `@layer a;` | it is kept |
+| `other at-rules` | `@property` and `@counter-style` beside an unused rule | both are kept. Only `@keyframes` and `@font-face` are filtered by use |
 | `order` | three kept rules | source order |
 | `theme attr` | `[data-theme="dark"]` and `ctx.themeAttribute` is `data-theme` | the rule is kept though the HTML has no such attribute |
 | `escape` | the CSS contains `</style>` | the result contains no raw `</style>` |
