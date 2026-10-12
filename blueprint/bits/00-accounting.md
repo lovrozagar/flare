@@ -20,6 +20,7 @@ One commit. `git mv` of `packages/core`, `packages/cli`, `e2e`, and `benchmark` 
 | `src without a sibling test fails` | a `kind=src` row has no test row | non-zero |
 | `generated pattern matches keys` | a fixture registry of two families | exactly those two generated modules |
 | `tooling scripts skipped` | `scripts/tool.mjs` and an extensionless `scripts/scrub-text` with no tsv row | zero. A `scripts/*.ts` file with no row still fails. Framework scripts are TypeScript; anything else under `scripts/` is agent tooling and not in the tsv |
+| `complete phase` | `checkTree(root, tsv, { complete: "P1" })` while P1 is the highest phase present and a later phase is listed | non-zero, each missing P1 path named. Without `complete` the same tree passes, because only the phases below the highest one present are held complete. An unknown phase throws. The CLI flag is `--complete <phase>` or `--complete=<phase>`, and a bit's Done runs `bun scripts/check-tree.ts --complete P<n>` in the fresh worktree |
 
 The generated-pattern case uses a temp directory. The real font registry does not exist until bit 14.
 

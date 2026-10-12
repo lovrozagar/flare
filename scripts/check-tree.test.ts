@@ -113,3 +113,30 @@ it("tooling scripts skipped", () => {
 	write(root, "scripts/untracked.ts", "export const untracked = 1;\n");
 	expect(checkTree(root, tsvPath).errors).toEqual(["scripts/untracked.ts"]);
 });
+
+// A bit's Done names its phase: every non-glob row of it must exist, even while it is the highest phase present.
+it("complete phase", () => {
+	const root = makeRoot();
+	const kept = "packages/core/src/shared/kept.ts";
+	const later = "packages/core/src/shared/later.ts";
+	write(root, kept, "export const kept = 1;\n");
+	write(root, kept.replace(/\.ts$/, ".test.ts"), "");
+	const tsvPath = join(root, "files.tsv");
+	writeFileSync(
+		tsvPath,
+		tsv([
+			row(kept, "P1", "src"),
+			row(kept.replace(/\.ts$/, ".test.ts"), "P1", "test"),
+			row(later, "P1", "src"),
+			row(later.replace(/\.ts$/, ".test.ts"), "P1", "test"),
+			row("packages/core/src/shared/future.ts", "P2", "src"),
+			row("packages/core/src/shared/future.test.ts", "P2", "test"),
+		]),
+	);
+	// P1 is the highest phase present and P2 is listed, so the default check stops below P1.
+	expect(checkTree(root, tsvPath).ok).toBe(true);
+	const complete = checkTree(root, tsvPath, { complete: "P1" });
+	expect(complete.ok).toBe(false);
+	expect(complete.errors).toEqual([later, later.replace(/\.ts$/, ".test.ts")]);
+	expect(() => checkTree(root, tsvPath, { complete: "P99" })).toThrow("P99");
+});

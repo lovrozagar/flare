@@ -44,6 +44,11 @@ export function typed(exchange: Answering, type: string): Headers {
 	return headers;
 }
 
+// A whole Response from a mount or a middleware passes through finalize the same way: the security set wins.
+export function passed(exchange: Answering, response: Response): Response {
+	return secure(exchange, { status: response.status, body: response.body, headers: response.headers });
+}
+
 // An answer the app built, a `.response()` page or a server function, still passes through finalize, and the
 // request's security set wins over its headers.
 export function secure(exchange: Answering, result: StageResult): Response {
