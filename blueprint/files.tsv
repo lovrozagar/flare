@@ -109,6 +109,8 @@ packages/core/src/shared/css/parse.ts	P11	src	shared	Split one stylesheet into o
 packages/core/src/shared/css/parse.test.ts	P11	test	shared	Unit cases for parse.ts
 packages/core/src/shared/css/match.ts	P11	src	shared	Does a selector match the shell HTML
 packages/core/src/shared/css/match.test.ts	P11	test	shared	Unit cases for match.ts
+packages/core/src/shared/css/shell.ts	P11	src	shared	The shell HTML as elements that know their parent and previous sibling, for the matcher. Split from match.ts at the 300-line limit
+packages/core/src/shared/css/shell.test.ts	P11	test	shared	Unit cases for shell.ts
 packages/core/src/shared/css/critical.ts	P11	src	shared	criticalCss. Rules from the built file that match the shell
 packages/core/src/shared/css/critical.test.ts	P11	test	shared	Unit cases for critical.ts
 packages/core/src/shared/css/sheet.ts	P11	src	shared	builtSheet. Source is empty. The server build replaces this module
