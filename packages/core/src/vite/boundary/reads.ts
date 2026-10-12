@@ -88,7 +88,7 @@ function scopesOf(program: Program): Scope[] {
 }
 
 // The start of every identifier that names something rather than reading a binding.
-function nonReferences(program: Program): Set<number> {
+export function nonReferences(program: Program): Set<number> {
 	const starts = new Set<number>();
 	const add = (node: Span | null | undefined): void => void (node && starts.add(node.start));
 	const key = (node: { key: Span; computed: boolean }): void => {
