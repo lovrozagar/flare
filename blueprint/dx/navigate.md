@@ -4,18 +4,18 @@
 navigate({ to, params?, search?, hash?, replace?, revalidate?, scroll?, shallow?, state?, viewTransition? })
 ```
 
-`to` is required and is a page route id, including a `.response()` page (`dx/types.md`). A string that is an absolute URL throws (`client/navigation/navigate.test.ts` `foreign origin`).
+`to` is required and is a page route id, including a `.response()` page (`dx/types.md`). A string that is an absolute URL throws (`client/navigation/target.test.ts` `foreign origin`).
 
 | prop | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
-| `to` | yes | — | the target route | | `navigate.test.ts` `data url` |
-| `params` | when the param type has any key | — | the object. A key whose type includes `undefined` is still present. The value may be `undefined` | a missing one throws before the fetch. `params: {}` on `[[id]]` is missing that key. The types are `dx/types.md` | `navigate.test.ts` `missing param`; `propagation.test.ts` `optional param` |
-| `search` | when the validator output has a required key | the empty search, when the prop is optional | the validator output, or the raw record when this route did not validate search (`dx/types.md`) | reserved params are stripped | `navigate.test.ts` `strips reserved`; `propagation.test.ts` `search required key` |
-| `hash` | no | — | | | `navigate.test.ts` `hash` |
+| `to` | yes | — | the target route | | `target.test.ts` `data url` |
+| `params` | when the param type has any key | — | the object. A key whose type includes `undefined` is still present. The value may be `undefined` | a missing one throws before the fetch. `params: {}` on `[[id]]` is missing that key. The types are `dx/types.md` | `target.test.ts` `missing param`; `propagation.test.ts` `optional param` |
+| `search` | when the validator output has a required key | the empty search, when the prop is optional | the validator output, or the raw record when this route did not validate search (`dx/types.md`) | reserved params are stripped | `target.test.ts` `strips reserved`; `propagation.test.ts` `search required key` |
+| `hash` | no | — | | | `target.test.ts` `hash` |
 | `replace` | no | `false` | `replaceState` | | `navigate.test.ts` `replace` |
 | `revalidate` | no | `false` | refetch even inside `staleTime`. Does not push history when the URL does not change | | `navigate.test.ts` `revalidation` |
 | `scroll` | no | `true` | `false` keeps the current scroll | | `scroll.test.ts` `no scroll` |
-| `shallow` | no | `false` | search or hash only. A different pathname throws | | `navigate.test.ts` `shallow other route` |
+| `shallow` | no | `false` | search or hash only. A different pathname throws | | `target.test.ts` `shallow other route` |
 | `state` | no | — | stored on the history entry. It must be structured-cloneable. A function throws | | `client/history/history.test.ts` `state` |
 | `viewTransition` | no | the router default | `false` skips the transition. `{ scope, types }` is below | | `direction.test.ts` |
 
@@ -25,7 +25,7 @@ A network failure, which has no HTTP status, leaves the screen and the history u
 
 An `input()` failure on a data request is HTTP 400 JSON (`builder.md`). The client does not commit and does not push (`navigate.test.ts` `input 400`).
 
-A build-id mismatch and a missing chunk share one document load. `sessionStorage` key `flare_chunk_reload` holds `{ at, href }`. The same href within 10 seconds returns without a second load, and history stays (`navigate.test.ts` `reload guard`). A different href loads (`navigate.test.ts` `reload other href`). When `sessionStorage` throws, the load does not happen (`navigate.test.ts` `reload no storage`).
+A build-id mismatch and a missing chunk share one document load. `sessionStorage` key `flare_chunk_reload` holds `{ at, href }`. The same href within 10 seconds returns without a second load, and history stays (`reload.test.ts` `reload guard`). A different href loads (`reload.test.ts` `reload other href`). When `sessionStorage` throws, the load does not happen (`reload.test.ts` `reload no storage`).
 
 ## viewTransition
 
@@ -96,9 +96,9 @@ Starting a navigation aborts the previous data request. The aborted attempt does
 
 `_flare_stale` lists page match ids that are inside `staleTime` and whose `shouldRefetch` did not return `true`. Layout ids are never listed. The param is omitted when every page loader will run. `trigger` is `"initial"` on hydrate, `"revalidation"` when the stay is a revalidate or a `loaderDeps` change, and `"navigation"` otherwise, including popstate. Returning `true` omits that page id even inside `staleTime` (`match-cache.test.ts` `stale list`, `should refetch`).
 
-The client compares the response header `flare-build` to `self.flare.build` only when both are non-empty. A navigation mismatch document-loads and does not apply frames. A prefetch mismatch is ignored. The server does not read a request header of that name (B7). Dev id is `dev`. A missing chunk is an `Error` whose message contains one of `Failed to fetch dynamically imported module`, `error loading dynamically imported module`, `Importing a module script failed`, `Loading chunk`, or `Loading CSS chunk`. The first match uses the same `flare_chunk_reload` guard. There is no retry (`navigate.test.ts` `build mismatch`, `chunk`).
+The client compares the response header `flare-build` to `self.flare.build` only when both are non-empty. A navigation mismatch document-loads and does not apply frames. A prefetch mismatch is ignored. The server does not read a request header of that name (B7). Dev id is `dev`. A missing chunk is an `Error` whose message contains one of `Failed to fetch dynamically imported module`, `error loading dynamically imported module`, `Importing a module script failed`, `Loading chunk`, or `Loading CSS chunk`. The first match uses the same `flare_chunk_reload` guard. There is no retry (`navigate.test.ts` `build mismatch`; `reload.test.ts` `chunk`).
 
-A click on a same-origin `<a>` that matches a route follows `Link`, except a non-primary button, `meta`, `ctrl`, `shift`, `alt`, a `target` other than `_self`, `download`, `rel="external"`, `data-flare-skip`, or `defaultPrevented`. An active link does not navigate unless `force` is set or the hash differs. Disabled stays an `<a>` with `aria-disabled="true"` and `tabindex="-1"`. Active sets `aria-current="page"` (`link.test.tsx` `delegate`, `disabled`, `active`). A client `navigate` or `Link` to a `.response()` page is a full document load (`navigate.test.ts` `response page`).
+A click on a same-origin `<a>` that matches a route follows `Link`, except a non-primary button, `meta`, `ctrl`, `shift`, `alt`, a `target` other than `_self`, `download`, `rel="external"`, `data-flare-skip`, or `defaultPrevented`. An active link does not navigate unless `force` is set or the hash differs. Disabled stays an `<a>` with `aria-disabled="true"` and `tabindex="-1"`. Active sets `aria-current="page"` (`link.test.tsx` `delegate`, `disabled`, `active`). A client `navigate` or `Link` to a `.response()` page is a full document load (`target.test.ts` `response page`).
 
 ## Outlet
 

@@ -79,4 +79,4 @@ A folder that starts with `_` and does not end with `_` is ignored. `src/routes/
 
 ## More than one root
 
-Each `*.root-layout.tsx` is its own document. A navigation from one root to another is a full document load (`client/navigation/navigate.test.ts` `other root`). It is not a data request. Two roots that compute to the same URL are the duplicate-url error above.
+Each `*.root-layout.tsx` is its own document. A navigation from one root to another is a full document load (`client/navigation/target.test.ts` `other root`). It is not a data request. Two roots that compute to the same URL are the duplicate-url error above.
