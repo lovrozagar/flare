@@ -40,6 +40,12 @@ export type DevDeps = {
 // server wrote it.
 const INLINE = /<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>|<style[^>]*>[\s\S]*?<\/style>/g;
 
+// Vite prepends its client right after `<head …>`. A component the root layout renders in `<head>` hydrates by walking
+// the head from its first child, so a marker shows where Vite's tags end, and they move to just before `</head>`.
+const HEAD_OPEN = /<head(?:\s[^>]*)?>/i;
+const HEAD_MARK = "<!--flare-head-->";
+const PREPENDED = /(<head(?:\s[^>]*)?>)([\s\S]*?)<!--flare-head-->([\s\S]*?)(<\/head>)/i;
+
 // On Node and Bun, `vite dev` answers every request the Vite middlewares did not (B89). Embedded in another server,
 // `middlewareMode`, it is not installed. The SSR graph's `flare:error` reaches Vite's overlay (B93).
 export function installDevHandler(server: DevServer, entry: string): (() => void) | undefined {
@@ -123,10 +129,20 @@ async function transformedHead(
 
 async function withVite(deps: DevDeps, url: string, html: string): Promise<string> {
 	const peeled: string[] = [];
-	const marked = html.replace(INLINE, (tag) => `<!--flare-peel-${peeled.push(tag) - 1}-->`);
-	const transformed = await deps.transform(url, marked);
+	const marked = html
+		.replace(INLINE, (tag) => `<!--flare-peel-${peeled.push(tag) - 1}-->`)
+		.replace(HEAD_OPEN, (open) => `${open}${HEAD_MARK}`);
+	const transformed = headTagsLast(await deps.transform(url, marked));
 	// A replacer function, so a `$` in a peeled tag is not read as a pattern.
 	return peeled.reduce((out, tag, index) => out.replace(`<!--flare-peel-${index}-->`, () => tag), transformed);
+}
+
+function headTagsLast(html: string): string {
+	return html
+		.replace(PREPENDED, (_all: string, open: string, added: string, rest: string, close: string) =>
+			[open, rest, added, close].join(""),
+		)
+		.replace(HEAD_MARK, "");
 }
 
 // A path whose last segment has a dot is transformed as `/`, so Vite does not treat it as a file (B89).

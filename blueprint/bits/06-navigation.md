@@ -425,6 +425,7 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 | `middleware mode` | Vite `middlewareMode` | this handler is not installed |
 | `set-cookie` | two `Set-Cookie` values | both are separate headers |
 | `streamed html` | an HTML body whose shell ends at `</head>`, then more chunks | `transformIndexHtml` sees the shell only, and the later chunks stream unchanged |
+| `head order` | Vite prepends its client right after `<head …>` | the tags Vite adds move to just before `</head>`. A component the root layout renders in `<head>`, such as `Stylesheet`, hydrates by walking the head from its first child, so the head must start as the server wrote it |
 | `html edges` | an HTML body with no `</head>`, an HTML response with no body, and a client cancel | the whole body is transformed, the empty response passes through, and the cancel reaches the app's stream |
 | `load error` | `entry.server` fails to load, with an Error, a string, and an Error with no stack | a dev 500 page with the escaped message and stack, and Vite's overlay gets the payload. A failure after the headers destroys the socket |
 | `entry export` | the server module exports no `server`, then the SSR environment has no runner | a 500 naming `entry.server`, then one saying the environment cannot run modules (Workers dev stays unsupported) |

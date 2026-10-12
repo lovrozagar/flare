@@ -68,7 +68,19 @@ it("peel", async () => {
 	expect(seen[0].html).not.toContain("a{}");
 	expect(seen[0].html).toContain('<script src="/x.js"></script>');
 	expect(body).toBe(
-		'<html><head><script type="module" src="/@vite/client"></script><script nonce="n">self.flare={"a":1}</script><style>a{}</style><script src="/x.js"></script></head><body>hi</body></html>',
+		'<html><head><script nonce="n">self.flare={"a":1}</script><style>a{}</style><script src="/x.js"></script><script type="module" src="/@vite/client"></script></head><body>hi</body></html>',
+	);
+});
+
+// Vite prepends its tags to the head. A component the root layout renders in `<head>` hydrates by walking the head's
+// children from the first, so the tags Vite adds go last, before `</head>`.
+it("head order", async () => {
+	const shell = '<html><head _hk=1><title _hk=2>T</title><link rel="icon" href="/i.png"></head><body>x</body></html>';
+	const vite = async (_url: string, input: string): Promise<string> =>
+		input.replace(/<head[^>]*>/, (open) => `${open}\n<script type="module" src="/@vite/client"></script>\n`);
+	const fetch = devFetch({ load: async () => app(async () => html(shell)), transform: vite });
+	expect(await (await fetch(new Request("http://localhost/"))).text()).toBe(
+		'<html><head _hk=1><title _hk=2>T</title><link rel="icon" href="/i.png">\n<script type="module" src="/@vite/client"></script>\n</head><body>x</body></html>',
 	);
 });
 
@@ -240,9 +252,9 @@ it("streamed html", async () => {
 	const reader = (await fetch(new Request("http://localhost/"))).body?.getReader();
 	const first = await reader?.read();
 	expect(new TextDecoder().decode(first?.value)).toBe(
-		'<html><head><script type="module" src="/@vite/client"></script><title>t</title></head><body>wait',
+		'<html><head><title>t</title><script type="module" src="/@vite/client"></script></head><body>wait',
 	);
-	expect(seen[0].html).toBe("<html><head><title>t</title></head><body>wait");
+	expect(seen[0].html).toBe("<html><head><!--flare-head--><title>t</title></head><body>wait");
 	later?.("DONE</body></html>");
 	const second = await reader?.read();
 	expect(new TextDecoder().decode(second?.value)).toBe("DONE</body></html>");
