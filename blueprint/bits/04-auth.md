@@ -10,6 +10,8 @@ The route builder stores what it accepts, because `tests/integration/auth.test.t
 
 `shared/router/create-router.test.ts` gains `matched chain`: a tree node carries its route record as `module`, and `match()` returns `chain` root-down, the layouts whose id is the page id or a segment prefix of it, then the page. The home page `_root_` has the root layout and the page as two entries. It also gains `not found chain`: in `"root"` mode an unknown path's chain is the root layout only. In `"fuzzy"` mode it is the longest owning layout and its ancestors.
 
+`create-router.test.ts` also gains `params and base path`: the router strips `basePath`, then ranks the tree with the bracket matcher from bit 01, and returns the raw params. `/app/users/42` under `/app` is `_root_/users/[id]` with `{ id: "42" }`, `/app/users/new` is the static page, and a path outside the base matches nothing. It gains `not found roots`: the root is the root layout that owns the path by its root folder, so a `[locale]/_root_` tree resolves `/en/missing` to `[locale]/_root_` and its `notFoundRender`, an `_admin_`-only tree resolves to `_admin_`, `_root_` wins a tie with another root, and a path no root owns has an empty chain. It gains `fuzzy group`: a layout id is its URL prefix, so `_root_/(blog)` owns `/post/missing` and its `notFoundRender` runs. `shared/route-tree/segments.test.ts` gains `root is not a segment`: `_root_` and `_admin_` parse to no segment, and `__` stays static.
+
 ## Cases
 
 ### `server/auth/effective.test.ts`
