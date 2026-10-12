@@ -54,6 +54,8 @@ The parser keeps source order. A string or `url()` may contain braces and commen
 | `string` | a declaration whose string contains `{` | one rule |
 | `import` | `@import` | throw |
 | `charset` | `@charset` | throw |
+| `nesting kept` | `.card{color:blue;& h2{color:red}}` | one rule whose child is the nested rule, each with its own declarations |
+| `at-rules` | `@media`, `@supports`, `@container`, `@layer` with and without a block, `@keyframes`, `@font-face`, `@property` | each round-trips through `printCss`. Grouping rules hold statements, the others their body as written. An unclosed block, string, comment, or statement, and a declaration outside a rule, throw |
 
 ### `shared/css/match.test.ts`
 
