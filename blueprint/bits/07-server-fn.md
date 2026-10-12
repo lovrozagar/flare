@@ -130,6 +130,9 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 | test | case | result |
 | --- | --- | --- |
 | `two yields` | the handler yields 1 then 2 | two lines, then the stream ends |
+| `thrown yield` | the generator yields 1, then throws `Error("secret")` in production | the `1` envelope, then the projected error envelope as the last line. `secret` is not in it |
+| `in request` | a stream function called in-process | the call is an iterator of the yielded values. With no active request the call throws |
+| `cancel` | the client cancels the body after one line | the generator's `finally` runs |
 
 ### `client/server-fn/codec.test.ts`
 

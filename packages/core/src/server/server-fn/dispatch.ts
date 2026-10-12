@@ -4,12 +4,14 @@ import { runValidator } from "../../shared/validation/index.ts";
 import { fnCaller } from "../auth/caller.ts";
 import { requestScope, type RequestScope } from "../context/ctx.ts";
 import type { StageResult } from "../lifecycle/finalize.ts";
+import { NDJSON } from "../navigation/index.ts";
 import type { ErrorSink } from "../render/projector.ts";
 import type { ServerFn, ServerFnContext } from "./builder.ts";
 import { setCacheControl } from "./cache-control.ts";
 import { checkCsrf } from "./csrf.ts";
 import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts";
 import { readInput, type InputErrors } from "./input.ts";
+import { streamEnvelopes } from "./stream.ts";
 
 // `serverFns` from src/_gen/server-fns.gen.ts: one lazy import per exported createServerFn, keyed by its B41 id.
 export type ServerFns = Readonly<Record<string, () => Promise<ServerFn>>>;
@@ -64,14 +66,28 @@ export async function dispatch(input: DispatchInput): Promise<StageResult> {
 }
 
 // A server function called from a loader, `.response()`, or another server function: the same steps without HTTP
-// and without CSRF, against the active request. It returns the handler value or throws what a step threw.
-export async function callInRequest(fn: ServerFn, input: unknown): Promise<unknown> {
+// and without CSRF, against the active request. A handler's call resolves to its value. A stream's call is the
+// iterator of its yielded values. Either throws what a step threw.
+export function callInRequest(fn: ServerFn, input: unknown): unknown {
+	const stream = fn.record.stream;
+	if (stream === undefined) return handled(fn, input);
 	const scope = active();
+	return (async function* () {
+		const ctx = await prepared(fn, input, scope);
+		yield* stream({ ...ctx, signal: scope.request.signal });
+	})();
+}
+
+async function handled(fn: ServerFn, input: unknown): Promise<unknown> {
+	return fn.record.handler?.(await prepared(fn, input, active()));
+}
+
+async function prepared(fn: ServerFn, input: unknown, scope: RequestScope): Promise<ServerFnContext> {
 	const auth = await authOf(fn, scope);
 	const value = await validated(fn, input);
 	const ctx = { input: value, auth, env: scope.env, request: scope.request, serverContext: scope.serverContext };
 	if (!(await allowed(fn, ctx))) throw new UnauthorizedError();
-	return fn.record.handler?.(ctx);
+	return ctx;
 }
 
 // Own keys only, so an id such as `constructor` is unknown too.
@@ -90,9 +106,19 @@ async function run(fn: ServerFn, input: DispatchInput): Promise<StageResult> {
 	}
 	const ctx = { input: read.input, auth, env: scope.env, request: input.request, serverContext: scope.serverContext };
 	if (!(await allowed(fn, ctx))) return forbidden(fn);
+	const stream = fn.record.stream;
+	if (stream !== undefined) return streamed(fn, stream({ ...ctx, signal: input.request.signal }), input);
 	const value = await fn.record.handler?.(ctx);
 	if (value instanceof Response) return passThrough(fn, value);
 	return reply(fn, okEnvelope(fn.name, value), 200);
+}
+
+// The NDJSON body starts once every step before the generator has passed. Its lines are envelopes.
+function streamed(fn: ServerFn, source: AsyncIterable<unknown>, input: DispatchInput): StageResult {
+	const body = streamEnvelopes(fn.name, source, { sink: input.sink, basePath: input.basePath });
+	const headers = new Headers({ "content-type": NDJSON });
+	setCacheControl(headers, fn.record);
+	return { status: 200, body, headers };
 }
 
 function active(): RequestScope {
