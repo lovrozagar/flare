@@ -49,7 +49,7 @@ Creates every `P12` row. `flare codegen` writes the same files the plugin writes
 | test | case | result |
 | --- | --- | --- |
 | `seed shape` | a successful prerender | the JSON has `renderedAt`, `tags`, `seed: true`, and `data` |
-| `path` | route id `_root_/about`, build `b`, default `assetsBase` | the file is `<client>/assets/_flare-static/b/_root_%2Fabout.json` |
+| `path` | route id `_root_/about`, build `b`, default `assetsBase` | the file is `<client>/assets/_flare-static/b/<sha256 hex of _root_/about>.json`, the path `artifactPath` returns (dx/store.md) |
 | `base follows assets` | `assetsBase: "/cdn"` | the file is under `/cdn/_flare-static/` |
 | `empty tags` | an SSG route that declares no tags | the file is written and `tags` is `[]`. `revalidate` does not delete it |
 
@@ -69,6 +69,7 @@ An SSG route with no tags still prerenders. Purge does not apply to `_flare-stat
 | `order` | client, ssr, and worker configs present | client builds before ssr, worker is last |
 | `no worker` | no wrangler config | the worker environment is absent |
 | `css order` | the ssr environment built before the client | the build fails: the server reads the client build's stylesheet (`vite/css/inject`), so the client must build first |
+| `urls agree` | `assetsBase: "/cdn/"`, and separately Vite `base: "/app/"` | the client entry URL, every route chunk URL, the stylesheet `builtHref`, and the seed path all start with the same prefix. One function resolves that prefix, and `clientUrl` and `stylesheetOf` both use it |
 | `css server only` | a real client and ssr build of an app with CSS | the ssr bundle's `builtSheet` is the client's one stylesheet and its `builtHref` that file's URL. No client JavaScript chunk contains the CSS text |
 
 Route chunks (from bit 06). Codegen's `chunks` map gives each route id the project-relative source path of its lazy module, which is the dev chunk URL, by the same rule as `clientUrl`. The production build rewrites each entry to that module's hashed file from the Vite manifest, and a missing entry fails the build. Prefetch `all modules` reads `router.chunks`.
