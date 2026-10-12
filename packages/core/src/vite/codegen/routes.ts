@@ -1,17 +1,18 @@
+import { idPattern, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts";
 import { escapeSource } from "./escape.ts";
 
 const PAGE = ".page.tsx";
 const LAYOUT = ".layout.tsx";
+const ROOT_LAYOUT = ".root-layout.tsx";
 
 type Item = { id: string; file: string };
 
-export type RouteGen = { id: string; file: string; urls: string[]; params: Record<string, string> };
+// `path` is the bracket pattern the router matches. `urls` are display strings for errors and types.
+export type RouteGen = { id: string; file: string; path: string; urls: string[]; params: Record<string, string> };
 
 export type LayoutGen = { id: string; file: string };
 
 export type GeneratedRoutes = { source: string; routes: RouteGen[]; layouts: LayoutGen[] };
-
-type Part = { text?: string; optional?: string; params: Record<string, string> };
 
 export function defineRouteTree<T>(tree: T): T {
 	return tree;
@@ -26,6 +27,7 @@ export function generateRoutes(files: readonly string[]): GeneratedRoutes {
 	const layouts: LayoutGen[] = [];
 	for (const file of files) {
 		if (file.endsWith(PAGE)) pages.push(item(file, PAGE));
+		else if (file.endsWith(ROOT_LAYOUT)) layouts.push(item(file, ROOT_LAYOUT));
 		else if (file.endsWith(LAYOUT)) layouts.push(item(file, LAYOUT));
 	}
 	assertRoot(files, pages);
@@ -42,38 +44,43 @@ function item(file: string, suffix: string): Item {
 	return { file, id: stem.slice(0, stem.lastIndexOf("/")) };
 }
 
+// The URL comes from idPattern, the same rule the router matches with, so the two cannot drift.
 function toRoute(page: Item): RouteGen {
-	const segments: string[] = [];
+	const path = idPattern(page.id);
+	const segments = patternSegments(path);
 	const params: Record<string, string> = {};
-	const names = new Set<string>();
-	let optional = "";
-	for (const part of page.id.split("/")) {
-		const read = readPart(part);
-		for (const name of Object.keys(read.params)) {
-			if (names.has(name)) throw new Error(`${page.file} repeated param ${name}`);
-			names.add(name);
-		}
-		if (read.text) segments.push(read.text);
-		if (read.optional) optional = read.optional;
-		Object.assign(params, read.params);
+	for (const segment of segments) {
+		if (segment.kind === "static") continue;
+		if (Object.hasOwn(params, segment.name)) throw new Error(`${page.file} repeated param ${segment.name}`);
+		params[segment.name] = paramType(segment);
 	}
-	const base = segments.length === 0 ? "/" : `/${segments.join("/")}`;
-	const urls = optional === "" ? [base] : [base, `${base === "/" ? "" : base}/${optional}`];
-	return { id: page.id, file: page.file, urls, params };
+	return { id: page.id, file: page.file, path, urls: urlsOf(segments), params };
 }
 
-function readPart(part: string): Part {
-	if (isRoot(part) || part.startsWith("(")) return { params: {} };
-	if (part.startsWith("[[...")) return { optional: "<rest>", params: { [part.slice(5, -2)]: "string[] | undefined" } };
-	if (part.startsWith("[...")) return { text: part, params: { [part.slice(4, -1)]: "string[]" } };
-	if (part.startsWith("[[")) return { optional: "<tag>", params: { [part.slice(2, -2)]: "string | undefined" } };
-	if (part.startsWith("[_]")) return { text: `[${part.slice(3, -1)}]`, params: {} };
-	if (part.startsWith("[")) return { text: part, params: { [part.slice(1, -1)]: "string" } };
-	return { text: part, params: {} };
+function paramType(segment: Exclude<Segment, { kind: "static" }>): string {
+	const base = segment.kind === "dynamic" ? "string" : "string[]";
+	return segment.optional ? `${base} | undefined` : base;
 }
 
-function isRoot(part: string): boolean {
-	return part === "_root_" || part === "_admin_";
+// An optional segment gives two display URLs: without it, and with a `<tag>` or `<rest>` placeholder.
+function urlsOf(segments: readonly Segment[]): string[] {
+	const short = segments.flatMap((segment) => (isOptional(segment) ? [] : [display(segment)]));
+	const long = segments.map(display);
+	return segments.some(isOptional) ? [join(short), join(long)] : [join(long)];
+}
+
+function join(parts: readonly string[]): string {
+	return `/${parts.join("/")}`;
+}
+
+function isOptional(segment: Segment): boolean {
+	return segment.kind !== "static" && segment.optional;
+}
+
+function display(segment: Segment): string {
+	if (segment.kind === "static") return segment.text;
+	if (segment.optional) return segment.kind === "dynamic" ? "<tag>" : "<rest>";
+	return segment.kind === "dynamic" ? `[${segment.name}]` : `[...${segment.name}]`;
 }
 
 function assertRoot(files: readonly string[], pages: readonly Item[]): void {
@@ -104,10 +111,9 @@ function assertUnique(routes: readonly RouteGen[]): void {
 
 function assertShadow(routes: readonly RouteGen[]): void {
 	for (const route of routes) {
-		const leaf = last(route.id);
-		if (!leaf.startsWith("[...")) continue;
+		if (paramKind(last(route.id)) !== "catch-all") continue;
 		const sibling = routes.find(
-			(other) => other !== route && parent(other.id) === parent(route.id) && !last(other.id).startsWith("["),
+			(other) => other !== route && parent(other.id) === parent(route.id) && paramKind(last(other.id)) === undefined,
 		);
 		if (sibling) throw new Error(`shadow: ${route.file}, ${sibling.file}`);
 	}
@@ -128,13 +134,11 @@ function assertKinds(routes: readonly RouteGen[]): void {
 	}
 }
 
+// One bracket parser: a static folder, a group, and a root folder have no param kind.
 function paramKind(folder: string): string | undefined {
-	if (folder.startsWith("[[...")) return "optional-catch-all";
-	if (folder.startsWith("[...")) return "catch-all";
-	if (folder.startsWith("[[")) return "optional";
-	if (folder.startsWith("[_]")) return undefined;
-	if (folder.startsWith("[")) return "dynamic";
-	return undefined;
+	const segment = parseSegment(folder)[0];
+	if (segment === undefined || segment.kind === "static") return undefined;
+	return segment.optional ? `optional-${segment.kind}` : segment.kind;
 }
 
 function parent(id: string): string {
@@ -150,7 +154,9 @@ function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[]): str
 		...routes.map((route, index) => `import * as route${index} from "./${escapeSource(route.file)}";`),
 		...layouts.map((layout, index) => `import * as layout${index} from "./${escapeSource(layout.file)}";`),
 	];
-	const tree = routes.map((route, index) => `{ id: "${escapeSource(route.id)}", module: route${index} }`);
-	const layoutList = layouts.map((layout, index) => `{ id: "${escapeSource(layout.id)}", module: layout${index} }`);
-	return `${imports.join("\n")}\nexport const routeTree = [${tree.join(", ")}];\nexport const layouts = [${layoutList.join(", ")}];\n`;
+	const tree = routes.map(
+		(route, index) => `{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", module: route${index} }`,
+	);
+	const record = layouts.map((layout, index) => `"${escapeSource(layout.id)}": layout${index}`);
+	return `${imports.join("\n")}\nexport const routeTree = [${tree.join(", ")}];\nexport const layouts = { ${record.join(", ")} };\n`;
 }
