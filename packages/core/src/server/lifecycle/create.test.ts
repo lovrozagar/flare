@@ -399,3 +399,29 @@ it("lazy modules", async () => {
 		expect.objectContaining({ err: expect.objectContaining({ message: "chunk missing" }) }),
 	);
 });
+
+it("method before load", async () => {
+	const imported: string[] = [];
+	const lazy = (name: string, module: RouteModule) => () => {
+		imported.push(name);
+		return Promise.resolve(module);
+	};
+	const api = createPage("_root_/api").response(() => new Response("api"));
+	const router = createRouter({
+		layouts: { _root_: lazy("root", framed) },
+		routeTree: [
+			{ id: "_root_/", path: "/", module: lazy("home", home) },
+			{ id: "_root_/api", path: "/api", response: true, module: lazy("api", api) },
+			{ id: "_root_/lie", path: "/lie", response: true, module: lazy("lie", home) },
+		],
+	});
+	const app = serveWith({ router }, { dev: false, log: quiet });
+	const post = await app.fetch(new Request("http://localhost/", { method: "POST" }));
+	expect(post.status).toBe(405);
+	expect((await app.fetch(new Request("http://localhost/", { method: "OPTIONS" }))).status).toBe(204);
+	expect(imported).toEqual([]);
+	const answered = await app.fetch(new Request("http://localhost/api", { method: "POST" }));
+	expect(await answered.text()).toBe("api");
+	expect(imported).toEqual(["root", "api"]);
+	expect((await app.fetch(new Request("http://localhost/lie", { method: "POST" }))).status).toBe(500);
+});

@@ -8,12 +8,13 @@ export type Scan = {
 	intercept?: { from: string[]; render: string; spans: Array<{ start: number; end: number }> };
 	query: boolean;
 	route: boolean;
+	response: boolean;
 };
 
 export function scanRoute(file: string, source: string): Scan {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
 	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
-	const scan: Scan = { file, query: false, route: false };
+	const scan: Scan = { file, query: false, route: false, response: false };
 	walk(parsed.program, (node) => {
 		if (node.type === "ImportDeclaration") readImport(scan, node);
 		if (node.type === "ExportNamedDeclaration" && exportsRoute(node)) scan.route = true;
@@ -57,6 +58,8 @@ function readCall(scan: Scan, node: Ast): void {
 	if (name === "authenticate") scan.auth = true;
 	if (name === "authenticateOptional") scan.auth = "optional";
 	if (name === "intercept") scan.intercept = readIntercept(scan.file, node.arguments as Ast[]);
+	// A .response() page answers every method itself, so routing must know it before its code loads.
+	if (name === "response") scan.response = true;
 }
 
 function readIntercept(file: string, args: readonly Ast[]): Scan["intercept"] {
