@@ -5,6 +5,10 @@ import { notFound } from "../../shared/errors/http.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
+import { useLocation } from "../../shared/components/outlet-nodes.ts";
+import { serverCtx } from "../context/ctx.ts";
+import type { FlareStoreEntry } from "./contract.ts";
+import type { StoredPage } from "./write.ts";
 import { serveWith } from "../lifecycle/create.ts";
 import type { Logger } from "../lifecycle/logger.ts";
 import type { FlareStore } from "./contract.ts";
@@ -39,7 +43,7 @@ function serve(page: RouteModule, store = true): { app: ReturnType<typeof serveW
 	return { app: serveWith(options, { dev: false, log: quiet }), set };
 }
 
-const get = (path = "/p"): Request => new Request(`${SITE}${path}`);
+const get = (path = "/p", init?: RequestInit): Request => new Request(`${SITE}${path}`, init);
 
 // Long enough for a background write to have run.
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 20));
@@ -119,6 +123,110 @@ it("rejected resolve", async () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get("cache-control")).toBe("private, no-store");
 	}
+	await settle();
+	expect(set).not.toHaveBeenCalled();
+});
+
+// What the store received, once the background write has run.
+async function written(set: Mock<FlareStore["set"]>): Promise<StoredPage> {
+	await vi.waitFor(() => expect(set).toHaveBeenCalled());
+	const entry: FlareStoreEntry | undefined = set.mock.calls.at(-1)?.[1];
+	return entry?.data as StoredPage;
+}
+
+// The render, not only the loaders, runs on the shared request: the visitor's search never reaches the entry.
+it("render location", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.render(() => `SEARCH${JSON.stringify(useLocation().search)}`);
+	const { app, set } = serve(page);
+	const body = await (await app.fetch(get("/p?secret=alice"))).text();
+	const stored = await written(set);
+	expect(stored.html).not.toContain("alice");
+	expect(body).not.toContain("alice");
+	expect(stored.html).toContain("SEARCH{}");
+});
+
+// serverContext runs again for the shared request, with the same env, so no visitor cookie reaches the entry.
+it("server context", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.loader(() => ({ who: String(serverCtx()) }))
+		.render((props) => `WHO[${props.loaderData.who}|${String(serverCtx())}]`);
+	const memory = createMemoryStore();
+	const set = vi.fn<FlareStore["set"]>(memory.set);
+	const envs: unknown[] = [];
+	const app = serveWith(
+		{
+			router: createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] }),
+			site: SITE,
+			store: { ...memory, set },
+			serverContext: ({ request, env }) => {
+				envs.push(env);
+				return request.headers.get("cookie") ?? "nobody";
+			},
+		},
+		{ dev: false, log: quiet },
+	);
+	const env = { E: 1 };
+	const body = await (await app.fetch(get("/p", { headers: { cookie: "user=alice" } }), env)).text();
+	const stored = await written(set);
+	expect(stored.html).toContain("WHO[nobody|nobody]");
+	expect(body).toContain("WHO[nobody|nobody]");
+	expect(envs).toEqual([env, env]);
+});
+
+// A miss serves exactly what a hit would: the entry's HTML with its sentinel replaced by this request's nonce.
+it("miss as hit", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.render(() => "p");
+	const { app, set } = serve(page);
+	const response = await app.fetch(get());
+	const body = await response.text();
+	const stored = await written(set);
+	const nonce = /'nonce-([^']+)'/.exec(response.headers.get("content-security-policy") ?? "")?.[1] ?? "";
+	expect(body).toBe(stored.html.replaceAll(stored.sentinel, nonce));
+	expect([...body.matchAll(/nonce="([^"]+)"/g)].map((found) => found[1])).not.toContain(undefined);
+	for (const found of body.matchAll(/nonce="([^"]+)"/g)) expect(found[1]).toBe(nonce);
+});
+
+// The shell is read until `</html>`, however Solid chunks it.
+it("long shell", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.render(() => "x".repeat(300_000));
+	const { app, set } = serve(page);
+	const body = await (await app.fetch(get())).text();
+	const stored = await written(set);
+	expect(stored.html.trimEnd().endsWith("</html>")).toBe(true);
+	expect(body.trimEnd().endsWith("</html>")).toBe(true);
+	expect(body).toContain("x".repeat(300_000));
+});
+
+// A `serverContext` that throws for the shared request gives nothing to store: the visitor's request renders live.
+it("shared context throws", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.render(() => `CTX[${String(serverCtx())}]`);
+	const memory = createMemoryStore();
+	const set = vi.fn<FlareStore["set"]>(memory.set);
+	const app = serveWith(
+		{
+			router: createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] }),
+			site: SITE,
+			store: { ...memory, set },
+			serverContext: ({ request }) => {
+				const cookie = request.headers.get("cookie");
+				if (cookie === null) throw new Error("no cookie");
+				return cookie;
+			},
+		},
+		{ dev: false, log: quiet },
+	);
+	const response = await app.fetch(get("/p", { headers: { cookie: "user=alice" } }));
+	expect(await response.text()).toContain("CTX[user=alice]");
+	expect(response.headers.has("flare-cache")).toBe(false);
 	await settle();
 	expect(set).not.toHaveBeenCalled();
 });

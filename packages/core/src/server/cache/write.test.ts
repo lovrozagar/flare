@@ -123,12 +123,13 @@ function slot(read: () => Promise<unknown>, fallback: string): Element {
 const entryOf = (input: Partial<EntryInput> = {}): FlareStoreEntry | undefined =>
 	buildEntry({
 		status: 200,
-		html: '<html><body><script nonce="abc">x()</script><script>self.flare={"matches":[],"nonce":"abc"}</script></body></html>',
+		// Not hex, so no random sentinel can contain it.
+		html: '<html><body><script nonce="xyz">x()</script><script>self.flare={"matches":[],"nonce":"xyz"}</script></body></html>',
 		ndjson: '{"t":"l","m":"p","d":{}}\n{"t":"r"}\n{"t":"d"}\n',
 		settled: true,
 		headers: { "x-robots-tag": "noindex" },
 		security: {},
-		nonce: "abc",
+		nonce: "xyz",
 		render: "isr",
 		startedAt: 1000,
 		tags: ["t"],
@@ -212,7 +213,7 @@ it("sentinel", () => {
 	expect(page.sentinel).toMatch(/^__FLARE_NONCE_[0-9a-f]{32}$/);
 	expect(page.html).toContain(`nonce="${page.sentinel}"`);
 	expect(page.html).toContain(`"nonce":"${page.sentinel}"`);
-	expect(page.html).not.toContain("abc");
+	expect(page.html).not.toContain("xyz");
 });
 
 // The settled value is in the stored HTML and NDJSON, under two nested boundaries. No key is left unfilled.

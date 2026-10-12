@@ -67,25 +67,33 @@ const NEVER_STORED = new Set([
 	...defaultHeaders("https://flare.invalid").keys(),
 ]);
 
-// The one write rule (B46, B47): a 2xx document holding `<html` and `</body>`, a data variant with no error frame,
-// and every "resolve" value fulfilled. `storedAt` is the render's start. A body that fails any of these is not
-// stored. Its nonce becomes this entry's own sentinel.
-export function buildEntry(input: EntryInput): FlareStoreEntry | undefined {
-	if (input.status < 200 || input.status > 299 || !input.settled) return undefined;
-	if (!input.html.includes("<html") || !input.html.includes("</body>")) return undefined;
-	if (input.ndjson.split("\n").some((line) => line.startsWith('{"t":"e"'))) return undefined;
+// The page a shared render left: its nonce becomes this page's own sentinel. Never-stored headers are dropped.
+export function storedPage(input: EntryInput): StoredPage {
 	const sentinel = newSentinel();
-	const headers = Object.entries(input.headers).flatMap(([name, value]) =>
-		NEVER_STORED.has(name) ? [] : [[name, [value].flat().join(", ")] as const],
-	);
-	const page: StoredPage = {
+	return {
 		html: toSentinel(input.html, input.nonce, sentinel),
 		ndjson: input.ndjson,
-		headers,
+		headers: replayable(
+			Object.entries(input.headers).map(([name, value]) => [name, [value].flat().join(", ")] as const),
+		),
 		security: input.security,
 		sentinel,
 		render: input.render,
 	};
+}
+
+// The headers a stored page may carry back, whatever a record holds.
+export function replayable(headers: readonly (readonly [string, string])[]): (readonly [string, string])[] {
+	return headers.filter(([name]) => !NEVER_STORED.has(name.toLowerCase()));
+}
+
+// The one write rule (B46, B47): a 2xx document holding `<html` and `</body>`, a data variant with no error frame,
+// and every "resolve" value fulfilled. `storedAt` is the render's start. A body that fails any of these is not
+// stored.
+export function buildEntry(input: EntryInput, page: StoredPage = storedPage(input)): FlareStoreEntry | undefined {
+	if (input.status < 200 || input.status > 299 || !input.settled) return undefined;
+	if (!input.html.includes("<html") || !input.html.includes("</body>")) return undefined;
+	if (input.ndjson.split("\n").some((line) => line.startsWith('{"t":"e"'))) return undefined;
 	return { data: page, storedAt: input.startedAt, tags: input.tags };
 }
 

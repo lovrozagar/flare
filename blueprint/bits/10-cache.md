@@ -89,6 +89,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `server context` | `serverContext` reads the request's `Cookie`, the request sends `user=alice`, and the loader and the render print `serverCtx()` | the stored and served bodies hold the value for a request with no headers. `serverContext` runs again for the shared request, with the same `env` |
 | `miss as hit` | a document miss | its body is the entry's HTML with the entry's sentinel replaced by this request's nonce, the same bytes a hit would serve, and its nonce attributes equal the CSP header's |
 | `long shell` | a page whose shell is larger than one stream chunk | the stored and served HTML end with `</html>`. The shell is read until `</html>`, not as one chunk |
+| `shared context throws` | `serverContext` throws for the shared request, which has no cookie, and not for the visitor's | the visitor's request renders live, with no `flare-cache`, and nothing is written |
 
 ### `server/cache/read.test.ts`
 
@@ -126,6 +127,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | --- | --- | --- |
 | `no cookie` | the populate request | `cookie` is null and `authorization` is null |
 | `anonymous render` | an optional-auth page | the stored body is the anonymous render |
+| `shell chunks` | `shellOf` over a stream that splits the shell across chunks and stays open, a root with no `<html>`, and a stream that ends first | the shell through `</html>` without waiting on the open stream, the first chunk alone, and what was sent |
 
 ### `server/cache/seed.test.ts`
 
