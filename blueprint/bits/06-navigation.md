@@ -168,6 +168,7 @@ Corpus-driven, one line per frame.
 | `initial` | hydrate, and a same-URL revalidation | the callback is not called |
 | `beforeunload` | the page unloads | the last callback runs with `next` equal to `current`. `preventDefault` runs when it returns false |
 | `popstate skips` | a popstate, including one that only clears an overlay | the blocker is not called |
+| `hook` | `useBlocker(fn)` inside a component, then the component is disposed | `fn` is registered while mounted and removed on dispose |
 
 ### `shared/components/view-transition-boundary.test.tsx`
 
