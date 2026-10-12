@@ -209,6 +209,8 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `no collision` | keys `a/b` and `a_b` | two files |
 | `backslash` | a key containing `\\` | throw, nothing written |
 | `long key` | a key that would exceed the filesystem name limit | throw, the key is not truncated |
+| `ttl and purge` | `set` with a ttl, then `delete`, `deleteByKeys`, and `deleteByTags` | the entry expires on read. `delete` and `deleteByKeys` write tombstones. `deleteByTags` bumps the tag's epoch and lists no file |
+| `unreadable` | the key's file is a directory | the read rejects. Only a missing file is a miss |
 
 ### `adapters/stores/fs/assets.test.ts`
 
@@ -217,6 +219,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `inside` | `root/a.txt` | the bytes |
 | `missing` | a path inside `root` that is not a file | `null` |
 | `escape` | `root/../secret` | throw |
+| `unreadable` | a file the process may not read | the read rejects. A missing file, a directory, and a path under a file are `null` |
 
 ### `shared/cache/artifact-path.test.ts`
 
@@ -248,6 +251,13 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `round trip` | a fake `caches` object | put and get |
 | `no list` | the module source | it does not call `keys()` |
 | `tombstone in cache` | a purge | `get` returns the tombstone object and does not list keys. The cache layer does not serve it |
+| `global caches` | no `caches` option | the store opens the global `caches` |
+
+### `lint/boundaries.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `node adapters` | a `node:fs` import in `adapters/node/`, `adapters/stores/fs/`, `adapters/workers/`, and `adapters/stores/cache-api/` | the first two pass, the last two fail. An adapter may use its own runtime's builtins (00-rules) |
 
 ### `tests/workerd/cache-api.test.ts`
 
