@@ -25,3 +25,13 @@ it("loose markup", () => {
 	expect(shellTree(`<p></p><!DOCTYPE`)).toHaveLength(1);
 	expect(shellTree(`<p></p></p`)).toHaveLength(1);
 });
+
+// Solid's SSR writes `&` as `&amp;` and quotes as `&quot;` or `&#39;` in attributes. Values are decoded before
+// classes and attributes are read, so Tailwind's arbitrary variants match.
+it("entities", () => {
+	const [element] = shellTree(
+		`<p class="[&amp;>*]:p-2 content-[&#39;x&#39;] a&amp;b q-[&quot;y&quot;] n&nbsp;b" data-x="&#x41;&lt;&gt;&apos;&unknown;"></p>`,
+	);
+	expect([...(element?.classes ?? [])]).toEqual(["[&>*]:p-2", "content-['x']", "a&b", 'q-["y"]', "n b"]);
+	expect(element?.attributes.get("data-x")).toBe("A<>'&unknown;");
+});
