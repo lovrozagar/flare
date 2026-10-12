@@ -7,7 +7,7 @@ it("one script", async () => {
 	const body = await renderDocument({
 		request: new Request("http://localhost/"),
 		router: createRouter({ layouts: {}, routeTree: [] }),
-		loader: () => ({ n: 1 }),
+		matches: [{ id: "_root_", params: {}, search: {}, data: { n: 1 }, preloader: {}, head: null, error: null }],
 		render: () => "page",
 	});
 	const html = await new Response(body).text();
@@ -34,6 +34,7 @@ it("nonce field", async () => {
 		await renderDocument({
 			request: new Request("http://localhost/"),
 			router: createRouter({ layouts: {}, routeTree: [] }),
+			matches: [],
 			nonce: "abc",
 			render: () => "page",
 		}),
@@ -46,6 +47,7 @@ it("empty nonce", async () => {
 		await renderDocument({
 			request: new Request("http://localhost/"),
 			router: createRouter({ layouts: {}, routeTree: [] }),
+			matches: [],
 			nonce: "",
 			render: () => "page",
 		}),

@@ -27,12 +27,11 @@ type Stream = (
 export type DocumentInput = {
 	request: Request;
 	router: Router;
-	loader?: () => unknown;
-	render: (data: unknown) => Element;
+	render: () => Element;
 	stream?: Stream;
 	nonce?: string;
 	head?: Head;
-	matches?: readonly StateMatch[];
+	matches: readonly StateMatch[];
 	client?: string;
 };
 
@@ -44,14 +43,13 @@ const decoder = new TextDecoder();
 // Resolves once the shell is written, so the caller knows the status before the body is read. A throw
 // before the shell rejects. Flushed bytes are never rewritten (B76).
 export async function renderDocument(input: DocumentInput): Promise<ReadableStream<Uint8Array>> {
-	const data = input.loader ? input.loader() : undefined;
 	const nonce = input.nonce ?? "";
 	// The state is serialized first. A value JSON cannot hold, such as a bigint, fails before the shell.
-	const tail = stateScript({ matches: input.matches ?? [stateMatch(data)], nonce }) + clientScript(input.client, nonce);
+	const tail = stateScript({ matches: input.matches, nonce }) + clientScript(input.client, nonce);
 	const head = headHtml(input.head, nonce);
 	const piped = new TransformStream<Chunk, Chunk>();
 	const render = withRequest({ path: new URL(input.request.url).pathname, nonce }, () =>
-		(input.stream ?? defaultStream)(() => tree(input, data), streamOptions(input, tail, nonce)),
+		(input.stream ?? defaultStream)(() => tree(input), streamOptions(input, tail, nonce)),
 	);
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined);
@@ -83,11 +81,11 @@ function defaultStream(fn: () => unknown, options: StreamOptions): ReturnType<St
 	return web.renderToStream(fn, options as Parameters<typeof web.renderToStream>[1]);
 }
 
-function tree(input: DocumentInput, data: unknown): Element {
+function tree(input: DocumentInput): Element {
 	return createComponent(RouterContext, {
 		value: input.router,
 		get children() {
-			return input.render(data);
+			return input.render();
 		},
 	});
 }
@@ -132,16 +130,4 @@ function chunkText(chunk: Chunk | undefined): string {
 
 function nonceAttr(nonce: string): string {
 	return nonce === "" ? "" : ` nonce="${escapeAttr(nonce)}"`;
-}
-
-function stateMatch(data: unknown): StateMatch {
-	return {
-		id: "",
-		params: {},
-		search: {},
-		data: data ?? null,
-		preloader: null,
-		head: null,
-		error: null,
-	};
 }
