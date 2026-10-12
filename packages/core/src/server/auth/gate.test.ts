@@ -8,98 +8,119 @@ const required: EffectiveAuth = { requires: true, reads: true };
 const optional: EffectiveAuth = { requires: false, reads: true };
 const session = { id: "ada" };
 
-function input(partial: Omit<GateInput, "readStore"> & { readStore?: () => void }): GateInput {
-	return { readStore: () => undefined, ...partial };
+function input(partial: Partial<GateInput> & Pick<GateInput, "auth" | "authenticate">): GateInput {
+	return { kind: "document", shared: true, routes: [], ...partial };
 }
 
-it("missing session", () => {
-	let reads = 0;
-	const result = gate(
-		input({
-			auth: required,
-			authenticate: () => null,
-			readStore: () => {
-				reads += 1;
-			},
-		}),
-	);
-	expect(result.status).toBe(401);
-	expect(reads).toBe(0);
+function storeSpy(): { reads: number; readStore: () => void } {
+	const spy = {
+		reads: 0,
+		readStore: () => {
+			spy.reads += 1;
+		},
+	};
+	return spy;
+}
+
+it("missing session", async () => {
+	const missing = storeSpy();
+	const result = await gate(input({ auth: required, authenticate: () => null, readStore: missing.readStore }));
+	expect(result).toEqual({ kind: "status", status: 401 });
+	expect(missing.reads).toBe(0);
+	const present = storeSpy();
+	await gate(input({ auth: required, authenticate: () => session, readStore: present.readStore }));
+	expect(present.reads).toBe(1);
 });
 
-it("optional anonymous", () => {
-	const result = gate(input({ auth: optional, authenticate: () => null }));
-	expect(result.proceed).toBe(true);
-	expect(result.class).toBe("anonymous");
+it("optional anonymous", async () => {
+	const store = storeSpy();
+	const result = await gate(input({ auth: optional, authenticate: () => null, readStore: store.readStore }));
+	expect(result).toEqual({ kind: "proceed", session: null, class: "anonymous" });
+	expect(store.reads).toBe(1);
 });
 
-it("response route", () => {
+it("response route", async () => {
+	const store = storeSpy();
 	let called = false;
-	const result = gate(
+	const result = await gate(
 		input({
 			auth: required,
 			authenticate: () => session,
-			authorize: () => false,
+			routes: [{ id: "admin", authorize: () => false }],
+			readStore: store.readStore,
 			response: () => {
 				called = true;
 			},
 		}),
 	);
-	expect(result.status).toBe(403);
+	expect(result).toEqual({ kind: "status", status: 403 });
 	expect(called).toBe(false);
+	expect(store.reads).toBe(0);
 });
 
-it("response route passes", () => {
-	let seen: unknown;
-	gate(
+it("response route passes", async () => {
+	const seen: unknown[] = [];
+	const store = storeSpy();
+	const result = await gate(
 		input({
 			auth: required,
 			authenticate: () => session,
-			authorize: () => true,
-			response(ctx) {
-				seen = ctx.auth;
-			},
+			routes: [{ id: "admin", authorize: () => true }],
+			readStore: store.readStore,
+			response: (ctx) => seen.push(ctx.auth),
 		}),
 	);
-	expect(seen).toBe(session);
+	expect(result.kind).toBe("proceed");
+	expect(seen).toEqual([session]);
+	expect(store.reads).toBe(0);
 });
 
-it("authorize throw", () => {
-	const thrown = gate(
+it("authorize throw", async () => {
+	const boom = new Error("boom");
+	const store = storeSpy();
+	const thrown = await gate(
 		input({
 			auth: required,
 			authenticate: () => session,
-			authorize: () => {
-				throw new Error("boom");
-			},
-		}),
-	);
-	expect(thrown.status).toBe(500);
-	const denied = gate(
-		input({
-			auth: required,
-			authenticate: () => session,
-			authorize: () => false,
-		}),
-	);
-	expect(denied.status).toBe(403);
-});
-
-it("authenticate throw", () => {
-	expect(
-		gate(
-			input({
-				auth: required,
-				authenticate: () => {
-					throw new Error("boom");
+			routes: [
+				{
+					id: "admin",
+					authorize: () => {
+						throw boom;
+					},
 				},
-			}),
-		).status,
+			],
+			readStore: store.readStore,
+		}),
+	);
+	expect(thrown).toEqual({ kind: "failed", id: "admin", error: boom });
+	const denied = await gate(
+		input({
+			auth: required,
+			authenticate: () => session,
+			routes: [{ id: "admin", authorize: () => Promise.resolve(false) }],
+			readStore: store.readStore,
+		}),
+	);
+	expect(denied).toEqual({ kind: "status", status: 403 });
+	expect(store.reads).toBe(0);
+});
+
+async function statusOf(authenticate: () => unknown): Promise<unknown> {
+	const result = await gate(input({ auth: required, authenticate }));
+	return result.kind === "status" ? result.status : result.kind;
+}
+
+it("authenticate throw", async () => {
+	expect(
+		await statusOf(() => {
+			throw new Error("boom");
+		}),
 	).toBe(500);
-	expect(gate(input({ auth: required, authenticate: () => redirect({ to: "/login", status: 302 }) })).status).toBe(302);
-	expect(gate(input({ auth: required, authenticate: () => notFound() })).status).toBe(404);
-	expect(gate(input({ auth: required, authenticate: () => unauthenticated() })).status).toBe(401);
-	expect(gate(input({ auth: required, authenticate: () => unauthorized() })).status).toBe(403);
-	expect(gate(input({ auth: required, authenticate: () => undefined })).status).toBe(500);
-	expect(gate(input({ auth: required, authenticate: () => null })).status).toBe(401);
+	expect(await statusOf(() => redirect({ to: "/login", status: 302 }))).toBe(302);
+	expect(await statusOf(() => notFound())).toBe(404);
+	expect(await statusOf(() => unauthenticated())).toBe(401);
+	expect(await statusOf(() => unauthorized())).toBe(403);
+	expect(await statusOf(() => undefined)).toBe(500);
+	expect(await statusOf(() => null)).toBe(401);
 });
