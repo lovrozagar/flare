@@ -51,8 +51,8 @@ The ids are build-time work, so `ids.ts` lives in `vite/route-meta/` beside `ext
 | --- | --- | --- |
 | `same origin` | Origin matches the adapter origin | pass |
 | `cross site` | `Sec-Fetch-Site: cross-site` | 403 |
-| `same site listed` | host `app.example.com` on the allow-list, site `same-site` | pass |
-| `same site unlisted` | the same host not on the list | 403 |
+| `same site listed` | host `blog.example.com` on the allow-list, site `same-site`, and that host in `Referer`. An `Origin` or a `Referer` from a listed host passes the same way | pass |
+| `same site unlisted` | the same host not on the list, or `same-site` with no `Referer` host to check | 403 |
 | `none is GET only` | `Sec-Fetch-Site: none` on POST | 403 |
 | `none on GET` | the same on GET | pass |
 | `fail open` | Origin, Sec-Fetch-Site, and Referer all absent, no auth | pass |
