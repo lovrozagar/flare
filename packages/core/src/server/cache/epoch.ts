@@ -1,7 +1,8 @@
 import type { FlareStore, FlareStoreEntry } from "./contract.ts";
 
-// A tag purge writes `epoch:<tag>`, a number. An entry stored before its tag's epoch is purged. There is no tag
-// index and no key listing (dx/store.md).
+// A tag purge writes `epoch:<tag>`, a number. An entry whose render started at or before its tag's epoch is purged:
+// a purge in the render's start millisecond may follow its data read. There is no tag index and no key listing
+// (dx/store.md).
 export function epochKey(tag: string): string {
 	return `epoch:${tag}`;
 }
@@ -13,6 +14,6 @@ export async function lookup(store: FlareStore, key: string): Promise<Lookup | n
 	const entry = await store.get(key);
 	if (entry === null) return null;
 	const epochs = await Promise.all((entry.tags ?? []).map((tag) => store.get(epochKey(tag))));
-	const purged = epochs.some((epoch) => typeof epoch?.data === "number" && epoch.data > entry.storedAt);
+	const purged = epochs.some((epoch) => typeof epoch?.data === "number" && epoch.data >= entry.storedAt);
 	return { entry, purged };
 }
