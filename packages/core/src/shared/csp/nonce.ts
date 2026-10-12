@@ -1,3 +1,5 @@
+import { FN_PREFIX } from "../protocol/index.ts";
+
 type RequestEvent = { path: string; nonce: string };
 
 const slot: { event: RequestEvent | undefined } = { event: undefined };
@@ -36,6 +38,6 @@ function nonceFrom(scope: object): string | undefined {
 function serverNonce(): string {
 	const event = slot.event;
 	if (event === undefined) throw new Error("nonce");
-	if (event.path.startsWith("/_flare/fn/")) throw new Error("nonce");
+	if (event.path.startsWith(FN_PREFIX)) throw new Error("nonce");
 	return event.nonce;
 }

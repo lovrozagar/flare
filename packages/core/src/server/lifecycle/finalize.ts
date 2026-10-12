@@ -1,4 +1,5 @@
 import { statusOf } from "../../shared/errors/status.ts";
+import { BUILD_HEADER, RENDER_HEADER } from "../../shared/protocol/index.ts";
 import { defaultHeaders } from "../security/defaults.ts";
 import { assignPolicy } from "./policies.ts";
 
@@ -17,8 +18,8 @@ export type StageResult = {
 export function finalize(stage: StageResult): Response {
 	const settled = settle(stage);
 	const headers = new Headers({ "cache-control": assignPolicy({ kind: "document" }) });
-	if (settled.render !== undefined) headers.set("flare-render", settled.render);
-	if (settled.build !== undefined) headers.set("flare-build", settled.build);
+	if (settled.render !== undefined) headers.set(RENDER_HEADER, settled.render);
+	if (settled.build !== undefined) headers.set(BUILD_HEADER, settled.build);
 	if (settled.location !== undefined) headers.set("location", settled.location);
 	if (settled.url !== undefined) copySecurity(headers, settled.url);
 	if (settled.headers !== undefined) copyHeaders(headers, settled.headers);
