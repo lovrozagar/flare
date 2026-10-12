@@ -47,7 +47,7 @@ createClient(router);
 
 ## Solid 2.0 purity
 
-The installed pin is `solid-js` 2.0.0-rc.13. Its dev server prints `[SERVER_WRITE]` when a setter runs during a server render, and names the owner path root first. The repair guide shipped in the package is `node_modules/solid-js/skills/reactivity-diagnostics/SKILL.md`. A later Solid release throws on that call (B90).
+The installed pin is `solid-js` 2.0.0-rc.14 (B90). Its dev server prints `[SERVER_WRITE]` when a setter runs during a server render, and names the owner path root first. The repair guide shipped in the package is `node_modules/solid-js/skills/reactivity-diagnostics/SKILL.md`. A later Solid release throws on that call (B90).
 
 Flare's server render seeds state and does not call a signal setter, a store setter, or an optimistic setter. A value that only mirrors a prop is a memo. Theme and direction are signals because client storage and `flare.sync` write them after the seed. The server passes `defaultTheme` or `defaultDir`. `setTheme` and `setDirection` throw on the server. After the client graph settles, an `onSettled` callback may write the stored value. That callback does not run during a server render. It reserves a hydration id. `matchMedia` and `BroadcastChannel` are registered in that callback. A message or a media-query event is an event write.
 
