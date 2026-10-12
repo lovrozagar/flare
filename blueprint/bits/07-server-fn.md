@@ -8,6 +8,10 @@ This bit starts by running the extractor against a fixture that contains every s
 
 `src/exports/server.ts` does not re-export `createServerFn`. That name lives on `./server-fn`.
 
+One validator runner. `shared/validation/schema.ts` `runValidator` accepts a function, a `{ parse }`, or a Standard Schema `~standard.validate`, awaits it, and returns `{ ok: true, value }` or `{ ok: false, errors: { issues, fieldErrors } }`. A throw becomes its `issues` when it has them, else its message at an empty path. It reads no `process.env`: the caller passes `dev`, and outside dev a thrown message is the generic one (B76). `server/server-fn/input.ts` and the route input stage both call it, and neither carries its own runner. bit 02's `schema.test.ts` rows stay and gain `parse validator` and `async validator`.
+
+Route `.input()` lands in this bit, because it shares the runner. The builder stores `.input({ params?, searchParams? })` (both omitted throws, `dx/builder.md`). `createServer` runs every match's validators root-down on the raw records before `authenticate`, as 02-system step 10 requires. A failure is HTTP 400 `application/json` `{ issues, fieldErrors }` on a document and on a data request, with no HTML shell and no `e` frame, and `authenticate` is not called. The output replaces that side for the match's later callbacks and render props. `server/lifecycle/create.test.ts` gains `page input` (a bad search param is the 400 JSON on a document and on `_flare=data`, and the authenticate spy is not called) and `input output` (the loader, the render props, and `useSearch({ from })` see the validator output, not the raw record).
+
 `src/exports/index.ts` re-exports `createServerOnlyFn`, `createClientOnlyFn`, and `createIsomorphicFn`.
 
 `shared/protocol/constants.ts` gains `INPUT_PARAM` (`_i`), and `constants.test.ts` `names` lists it.
