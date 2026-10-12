@@ -3,6 +3,7 @@ import { hydrate } from "@solidjs/web";
 import { delegateClicks } from "../../shared/components/index.ts";
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts";
 import { loadChain, type Router } from "../../shared/router/create-router.ts";
+import type { ServerFnCall } from "../../shared/server-fn/builder.ts";
 import type { Location } from "../../shared/url/index.ts";
 import { createHistory, type FlareHistory } from "../history/index.ts";
 import { createBlockers } from "../navigation/blocker.ts";
@@ -13,6 +14,8 @@ import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } 
 import { loadDocument } from "../navigation/reload.ts";
 import { createScroll, type ScrollStore } from "../navigation/scroll.ts";
 import { cacheFor } from "../router/match-cache.ts";
+import { callServerFn, type CallDeps } from "../server-fn/call.ts";
+import { streamServerFn } from "../server-fn/stream.ts";
 import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts";
 import { mountApp, readState, type Mount } from "./hydrate.ts";
 import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts";
@@ -72,6 +75,7 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	const blockers = createBlockers();
 	const scroll = browserScroll(router);
 	const prefetcher = browserPrefetcher(router, store, env);
+	const reload = browserReload(env);
 	const navigator = createNavigator({
 		router,
 		store,
@@ -83,12 +87,13 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 		fetch: env.fetch,
 		origin: window.location.origin,
 		assign: env.assign,
-		reload: (href) => loadDocument(href, { storage: () => window.sessionStorage, now: Date.now, assign: env.assign }),
+		reload,
 		build: "",
 		dev: env.dev,
 		send: env.send,
 		prefetched: prefetcher.prefetched,
 	});
+	installCall(router, env, { reload, visit: navigator.visit });
 	ready.ready({ navigate: navigator.navigate, location });
 	const unmount = mountApp({
 		router,
@@ -109,6 +114,32 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 		unlisten();
 		unmount();
 	};
+}
+
+// The guarded document load a chunk error and a server function's build mismatch share (flare_chunk_reload).
+function browserReload(env: ClientEnv): (href: string) => boolean {
+	return (href) => loadDocument(href, { storage: () => window.sessionStorage, now: Date.now, assign: env.assign });
+}
+
+// The booted transport the client entry's createServerFn reads at call time (bits/07). It goes onto the state
+// object the document wrote, which keeps its other fields. A stream iterates, and any other function resolves. A
+// response from another build reloads the page under the chunk guard, so `build` is the document's `self.flare.build`.
+function installCall(router: Router, env: ClientEnv, nav: Pick<CallDeps, "reload"> & Pick<Navigator, "visit">): void {
+	const flare: object = Object(Reflect.get(globalThis, "flare"));
+	const build: unknown = Reflect.get(flare, "build");
+	const deps: CallDeps = {
+		fetch: env.fetch,
+		origin: window.location.origin,
+		basePath: router.basePath,
+		build: typeof build === "string" ? build : "",
+		href: () => window.location.href,
+		reload: nav.reload,
+		go: (url, replace) => nav.visit(url, replace),
+		assign: env.assign,
+	};
+	const call: ServerFnCall = (fn, input) =>
+		fn.record.stream === undefined ? callServerFn(fn, input, deps) : streamServerFn(fn, input, deps);
+	Reflect.set(globalThis, "flare", Object.assign(flare, { call }));
 }
 
 // Popstate and anchor clicks reach the navigator from here.

@@ -262,3 +262,46 @@ it("overlay", async () => {
 	expect(host.textContent).toBe("root[home:start|overlay:preview]");
 	expect(history.state).toEqual({ index: 1, usr: undefined, intercepted: true });
 });
+
+// A stream record: the transport sends it to the NDJSON reader. Its body never runs on the client.
+async function* stream(): AsyncGenerator<number> {
+	yield 0;
+}
+
+// bootClient writes the transport onto self.flare: a handler posts and resolves its data, and a stream iterates its
+// NDJSON lines (bits/07). The state already on self.flare stays.
+it("server fn call", async () => {
+	const host = install();
+	const ndjson = '{"name":"ticks","status":200,"data":1}\n{"name":"ticks","status":200,"data":2}\n';
+	const answers: Record<string, () => Response> = {
+		"/_flare/fn/echo": () => Response.json({ name: "echo", status: 200, data: { n: 1 } }),
+		"/_flare/fn/ticks": () => new Response(ndjson, { headers: { "content-type": "application/x-ndjson" } }),
+		"/_flare/fn/moved": () =>
+			Response.json({ name: "moved", status: 303, redirect: { to: "/#top", status: 303, replace: true } }),
+		"/_flare/fn/stale": () =>
+			Response.json({ name: "stale", status: 200, data: 1 }, { headers: { "flare-build": "b2" } }),
+	};
+	const fetch = vi.fn<ClientEnv["fetch"]>(async (url) => (answers[String(url)] ?? (() => Response.error()))());
+	Reflect.set(Object((globalThis as Dom).flare), "build", "b1");
+	const browser = env(host, fetch);
+	stops.push(await bootClient(routerOf(), createReady(), browser));
+	const flare = Object((globalThis as Dom).flare);
+	const call: unknown = Reflect.get(flare, "call");
+	if (typeof call !== "function") throw new Error("no self.flare.call");
+	expect(Reflect.get(flare, "nonce")).toBe("");
+	const echo = { id: "echo", name: "echo", record: { method: "post", authenticate: false } };
+	expect(await Reflect.apply(call, undefined, [echo, { a: 1 }])).toEqual({ n: 1 });
+	expect(fetch.mock.calls[0]?.[0]).toBe("/_flare/fn/echo");
+	const ticks = { id: "ticks", name: "ticks", record: { method: "post", authenticate: false, stream } };
+	const seen: unknown[] = [];
+	for await (const value of Reflect.apply(call, undefined, [ticks, null])) seen.push(value);
+	expect(seen).toEqual([1, 2]);
+	// A same-origin redirect is the internal URL navigation, and the call still rejects.
+	const moved = { id: "moved", name: "moved", record: { method: "post", authenticate: false } };
+	await expect(Reflect.apply(call, undefined, [moved, null])).rejects.toThrow("HTTP 303");
+	await vi.waitFor(() => expect(window.location.hash).toBe("#top"));
+	// Another build's answer reloads the page on screen once, under the chunk guard.
+	const stale = { id: "stale", name: "stale", record: { method: "post", authenticate: false } };
+	await expect(Reflect.apply(call, undefined, [stale, null])).rejects.toThrow("The app was updated");
+	expect(browser.assign).toHaveBeenCalledWith(window.location.href);
+});
