@@ -85,6 +85,10 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `data miss` | a data and a prefetch request for a stored page | each runs the shared render and serves the NDJSON it stored, with `flare-cache: miss` and the public header |
 | `not stored` | the shared render throws `notFound()`, or the render throws before the shell | the document is 404 or 500, the data variant 404, and nothing is written |
 | `rejected resolve` | a `"resolve"` value rejects | the document and the data variant leave `private, no-store`, and nothing is written |
+| `render location` | a request `/p?secret=alice` to a stored page whose render prints `useLocation()` | the stored HTML and the served miss show search `{}`. The render, not only the loaders, runs on the shared request |
+| `server context` | `serverContext` reads the request's `Cookie`, the request sends `user=alice`, and the loader and the render print `serverCtx()` | the stored and served bodies hold the value for a request with no headers. `serverContext` runs again for the shared request, with the same `env` |
+| `miss as hit` | a document miss | its body is the entry's HTML with the entry's sentinel replaced by this request's nonce, the same bytes a hit would serve, and its nonce attributes equal the CSP header's |
+| `long shell` | a page whose shell is larger than one stream chunk | the stored and served HTML end with `</html>`. The shell is read until `</html>`, not as one chunk |
 
 ### `server/cache/read.test.ts`
 
