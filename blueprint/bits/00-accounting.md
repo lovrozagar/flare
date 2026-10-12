@@ -19,6 +19,7 @@ One commit. `git mv` of `packages/core`, `packages/cli`, `e2e`, and `benchmark` 
 | `index with a statement fails` | an `index.ts` contains anything but a re-export | non-zero |
 | `src without a sibling test fails` | a `kind=src` row has no test row | non-zero |
 | `generated pattern matches keys` | a fixture registry of two families | exactly those two generated modules |
+| `tooling scripts skipped` | `scripts/tool.mjs` and an extensionless `scripts/scrub-text` with no tsv row | zero. A `scripts/*.ts` file with no row still fails. Framework scripts are TypeScript; anything else under `scripts/` is agent tooling and not in the tsv |
 
 The generated-pattern case uses a temp directory. The real font registry does not exist until bit 14.
 
