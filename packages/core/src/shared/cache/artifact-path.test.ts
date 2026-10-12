@@ -1,31 +1,42 @@
+import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
 import { artifactPath } from "./artifact-path.ts";
 
-it("about", () => {
-	expect(artifactPath("static:b:_root_/about", { build: "b" })).toBe("/assets/_flare-static/b/_root_%2Fabout.json");
+const hex = (text: string): string => createHash("sha256").update(text).digest("hex");
+
+it("about", async () => {
+	expect(await artifactPath("static:b:_root_/about", { build: "b" })).toBe(
+		`/assets/_flare-static/b/${hex("_root_/about")}.json`,
+	);
 });
 
-it("params", () => {
-	expect(artifactPath("static:b:home:042", { build: "b" })).toBe("/assets/_flare-static/b/home%3A042.json");
+it("params", async () => {
+	expect(await artifactPath("static:b:home:042", { build: "b" })).toBe(
+		`/assets/_flare-static/b/${hex("home:042")}.json`,
+	);
 });
 
-it("other build", () => {
-	expect(artifactPath("static:other:home", { build: "b" })).toBeNull();
-	expect(artifactPath("epoch:t", { build: "b" })).toBeNull();
+// Two tails that differ only in case are two paths, so a case-insensitive file system writes two files.
+it("case", async () => {
+	const upper = await artifactPath("static:b:p:ABC", { build: "b" });
+	const lower = await artifactPath("static:b:p:abc", { build: "b" });
+	expect(upper).not.toBe(lower);
+	expect(upper?.toLowerCase()).not.toBe(lower?.toLowerCase());
 });
 
-it("empty tail", () => {
-	expect(artifactPath("static:b:", { build: "b" })).toBeNull();
+it("other build", async () => {
+	expect(await artifactPath("static:other:home", { build: "b" })).toBeNull();
+	expect(await artifactPath("epoch:t", { build: "b" })).toBeNull();
 });
 
-// The tail is one path segment: a route id's `/` and a param's `..` cannot climb out of the build directory.
-it("one segment", () => {
+it("empty tail", async () => {
+	expect(await artifactPath("static:b:", { build: "b" })).toBeNull();
+});
+
+// The tail is one hashed segment: no route id or param can climb out of the build directory.
+it("one segment", async () => {
 	for (const key of ["static:b:_root_/(blog)/post:a%2F..%2Fx", "static:b:..", "static:b:a/../../x"]) {
-		const path = artifactPath(key, { build: "b", base: "/cdn/_flare-static" }) ?? "";
-		const after = path.slice("/cdn/_flare-static/b/".length);
-		expect(path.startsWith("/cdn/_flare-static/b/")).toBe(true);
-		expect(after).not.toContain("/");
-		expect(after).not.toBe("..");
-		expect(new URL(path, "http://assets").pathname.startsWith("/cdn/_flare-static/b/")).toBe(true);
+		const path = (await artifactPath(key, { build: "b", base: "/cdn/_flare-static" })) ?? "";
+		expect(path).toMatch(/^\/cdn\/_flare-static\/b\/[0-9a-f]{64}\.json$/);
 	}
 });

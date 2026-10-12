@@ -1,22 +1,17 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { FlareStore, FlareStoreEntry } from "../../../server/cache/contract.ts";
 import { bumpEpochs, epochKey } from "../../../server/cache/epoch.ts";
 import { tombstone } from "../../../server/cache/tombstone.ts";
 
-// The longest file name most filesystems take, in bytes.
-const NAME_LIMIT = 255;
+// The record holds its key, so a file that holds another key is a miss.
+type Record = { key: string; entry: FlareStoreEntry; expiresAt: number | null };
 
-type Record = { entry: FlareStoreEntry; expiresAt: number | null };
-
-// One file per key. The name is the key percent-encoded, so `a/b` and `a_b` stay two files, and a key it would
-// have to shorten throws instead (dx/store.md).
+// One file per key, named by the SHA-256 hex of the key: no key character reaches the file system, a long key keeps
+// a 64-character name, and keys that differ only in case stay two files on a case-insensitive one (dx/store.md).
 function fileOf(dir: string, key: string): string {
-	if (key.includes("\\")) throw new Error(`createFilesystemStore: a key holds a backslash: ${key}`);
-	const name = `${encodeURIComponent(key)}.json`;
-	if (new TextEncoder().encode(name).length > NAME_LIMIT)
-		throw new Error(`createFilesystemStore: key too long: ${key}`);
-	return join(dir, name);
+	return join(dir, `${createHash("sha256").update(key).digest("hex")}.json`);
 }
 
 // A filesystem store, for Node. `dir` defaults to `.flare/cache` under the process cwd: production passes an
@@ -26,7 +21,7 @@ export function createFilesystemStore(options: { dir?: string } = {}): FlareStor
 	const write = async (key: string, entry: FlareStoreEntry, ttl?: number): Promise<void> => {
 		const file = fileOf(dir, key);
 		await mkdir(dir, { recursive: true });
-		const record: Record = { entry, expiresAt: ttl === undefined ? null : Date.now() + ttl };
+		const record: Record = { key, entry, expiresAt: ttl === undefined ? null : Date.now() + ttl };
 		// A reader never sees half a file: the write lands under another name, then takes this one.
 		const pending = `${file}.${crypto.randomUUID()}.tmp`;
 		await writeFile(pending, JSON.stringify(record));
@@ -37,6 +32,7 @@ export function createFilesystemStore(options: { dir?: string } = {}): FlareStor
 			const text = await readFile(fileOf(dir, key), "utf8").catch((error: unknown) => missing(error));
 			if (text === null) return null;
 			const record: Record = JSON.parse(text);
+			if (record.key !== key) return null;
 			return record.expiresAt !== null && record.expiresAt <= Date.now() ? null : record.entry;
 		},
 		set: write,

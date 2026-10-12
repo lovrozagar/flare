@@ -15,7 +15,7 @@ import { epochKey, keyEpochKey } from "./epoch.ts";
 import { acceptSeed, listed, seedLookup } from "./seed.ts";
 
 it("valid", () => {
-	expect(acceptSeed({ seed: true, renderedAt: 5, tags: ["a"], data: "page" })).toEqual({
+	expect(acceptSeed({ seed: true, key: "k", renderedAt: 5, tags: ["a"], data: "page" }, "k")).toEqual({
 		data: "page",
 		tags: ["a"],
 		storedAt: 5,
@@ -23,18 +23,21 @@ it("valid", () => {
 });
 
 it("no flag", () => {
-	expect(acceptSeed({ renderedAt: 5, tags: ["a"], data: "page" })).toBeUndefined();
-	expect(acceptSeed(null)).toBeUndefined();
-	expect(acceptSeed({ seed: true, renderedAt: "5", tags: [], data: "page" })).toBeUndefined();
+	expect(acceptSeed({ key: "k", renderedAt: 5, tags: ["a"], data: "page" }, "k")).toBeUndefined();
+	expect(acceptSeed(null, "k")).toBeUndefined();
+	expect(acceptSeed({ seed: true, key: "k", renderedAt: "5", tags: [], data: "page" }, "k")).toBeUndefined();
+	// A seed holds its key, and one written for another key is refused.
+	expect(acceptSeed({ seed: true, key: "other", renderedAt: 5, tags: [], data: "page" }, "k")).toBeUndefined();
+	expect(acceptSeed({ seed: true, renderedAt: 5, tags: [], data: "page" }, "k")).toBeUndefined();
 });
 
 it("no tags", () => {
-	expect(acceptSeed({ seed: true, renderedAt: 5, data: "page" })).toBeUndefined();
-	expect(acceptSeed({ seed: true, renderedAt: 5, tags: [1], data: "page" })).toBeUndefined();
+	expect(acceptSeed({ seed: true, key: "k", renderedAt: 5, data: "page" }, "k")).toBeUndefined();
+	expect(acceptSeed({ seed: true, key: "k", renderedAt: 5, tags: [1], data: "page" }, "k")).toBeUndefined();
 });
 
 it("empty tags", () => {
-	expect(acceptSeed({ seed: true, renderedAt: 5, tags: [], data: "page" })).toEqual({
+	expect(acceptSeed({ seed: true, key: "k", renderedAt: 5, tags: [], data: "page" }, "k")).toEqual({
 		data: "page",
 		tags: [],
 		storedAt: 5,
@@ -60,12 +63,13 @@ function documentOf(children: Element): Element {
 const SITE = "https://example.com";
 const root = createRootLayout("_root_").render((props) => documentOf(props.children));
 
-// A seed file as prerender writes it, holding a stored page.
-function seedFile(text: string, renderedAt: number, render: "isr" | "ssg"): Uint8Array {
+// A seed file as prerender writes it, holding a stored page under its key.
+function seedFile(key: string, text: string, at: { renderedAt: number; render: "isr" | "ssg" }): Uint8Array {
+	const { renderedAt, render } = at;
 	const sentinel = "__FLARE_NONCE_11111111111111111111111111111111";
 	const html = `<html><head></head><body>${text}<script nonce="${sentinel}">self.flare={"matches":[],"nonce":"${sentinel}"}</script></body></html>`;
 	const data = { html, ndjson: '{"t":"r"}\n{"t":"d"}\n', headers: [], security: {}, sentinel, render };
-	return new TextEncoder().encode(JSON.stringify({ seed: true, renderedAt, tags: [], data }));
+	return new TextEncoder().encode(JSON.stringify({ seed: true, key, renderedAt, tags: [], data }));
 }
 
 type Served = { app: ReturnType<typeof serveWith>; store: FlareStore; set: ReturnType<typeof vi.fn>; reads: string[] };
@@ -86,7 +90,7 @@ function serve(page: RouteModule, at: { id: string; path: string; seeds: Record<
 	return { app, store, set, reads };
 }
 
-const pathOf = (key: string): string => artifactPath(key, { build: "dev" }) ?? "";
+const pathOf = async (key: string): Promise<string> => (await artifactPath(key, { build: "dev" })) ?? "";
 
 // A purge `get` hides an ISR seed unless the seed was rendered after it (B86).
 it("purged beats seed", async () => {
@@ -101,7 +105,7 @@ it("purged beats seed", async () => {
 		const { app, store } = serve(page, {
 			id: "_root_/p",
 			path: "/p",
-			seeds: { [pathOf(key)]: seedFile("seeded", renderedAt, "isr") },
+			seeds: { [await pathOf(key)]: seedFile(key, "seeded", { renderedAt: renderedAt, render: "isr" }) },
 		});
 		vi.useFakeTimers({ now: 1000, toFake: ["Date"] });
 		await store.delete(key);
@@ -134,7 +138,7 @@ it("missing file", async () => {
 	const response = await app.fetch(new Request(`${SITE}/post/a`));
 	expect(response.status).toBe(200);
 	expect(await response.text()).toContain("rendered live");
-	expect(reads).toEqual([pathOf("static:dev:_root_/post/[slug]:a")]);
+	expect(reads).toEqual([await pathOf("static:dev:_root_/post/[slug]:a")]);
 	await new Promise((resolve) => setTimeout(resolve, 10));
 	expect(set).not.toHaveBeenCalled();
 });
@@ -148,7 +152,7 @@ it("ssg ignores tombstone", async () => {
 	const { app, store } = serve(page, {
 		id: "_root_/about",
 		path: "/about",
-		seeds: { [pathOf(key)]: seedFile("seeded", 1, "ssg") },
+		seeds: { [await pathOf(key)]: seedFile(key, "seeded", { renderedAt: 1, render: "ssg" }) },
 	});
 	await store.delete(key);
 	const response = await app.fetch(new Request(`${SITE}/about`));
@@ -176,7 +180,7 @@ it("listed slugs", async () => {
 // tag epoch has passed give no hit.
 it("seed epochs", async () => {
 	const key = "static:dev:_root_/p";
-	const seeds = createAssetsStore(async () => seedFile("seeded", 100, "isr"));
+	const seeds = createAssetsStore(async () => seedFile(key, "seeded", { renderedAt: 100, render: "isr" }));
 	const store = createMemoryStore();
 	expect(
 		await seedLookup(
@@ -190,7 +194,7 @@ it("seed epochs", async () => {
 	await store.set(keyEpochKey(key), { data: 100, storedAt: 100 });
 	expect((await seedLookup(seeds, { store, key, looked: null }))?.purged).toBe(true);
 	const tagged = createAssetsStore(async () =>
-		new TextEncoder().encode(JSON.stringify({ seed: true, renderedAt: 200, tags: ["t"], data: null })),
+		new TextEncoder().encode(JSON.stringify({ seed: true, key, renderedAt: 200, tags: ["t"], data: null })),
 	);
 	await store.set(epochKey("t"), { data: 300, storedAt: 300 });
 	expect((await seedLookup(tagged, { store, key, looked: null }))?.purged).toBe(true);
@@ -209,7 +213,7 @@ it("ssg authorize", async () => {
 	const { app } = serve(page, {
 		id: "_root_/about",
 		path: "/about",
-		seeds: { [pathOf(key)]: seedFile("SEEDED", 1, "ssg") },
+		seeds: { [await pathOf(key)]: seedFile(key, "SEEDED", { renderedAt: 1, render: "ssg" }) },
 	});
 	const response = await app.fetch(new Request(`${SITE}/about`));
 	expect(response.status).toBe(403);

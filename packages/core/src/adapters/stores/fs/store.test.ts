@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -23,7 +24,9 @@ it("dir", async () => {
 	vi.spyOn(process, "cwd").mockReturnValue(dir);
 	const store = createFilesystemStore();
 	await store.set("k", entry);
-	expect(await readdir(join(dir, ".flare", "cache"))).toEqual(["k.json"]);
+	expect(await readdir(join(dir, ".flare", "cache"))).toEqual([
+		`${createHash("sha256").update("k").digest("hex")}.json`,
+	]);
 	expect(await store.get("k")).toEqual(entry);
 	expect(await store.get("missing")).toBeNull();
 });
@@ -38,17 +41,42 @@ it("no collision", async () => {
 	expect((await store.get("a_b"))?.data).toBe("underscore");
 });
 
+// The file name is the SHA-256 hex of the key, so no key character reaches the file system.
 it("backslash", async () => {
 	const store = createFilesystemStore({ dir });
-	await expect(store.set("a\\b", entry)).rejects.toThrow(/backslash/);
-	expect(await readdir(dir)).toEqual([]);
+	await store.set("a\\b", entry);
+	expect(await store.get("a\\b")).toEqual(entry);
+	expect(await readdir(dir)).toEqual([expect.stringMatching(/^[0-9a-f]{64}\.json$/)]);
 });
 
-// A key the filesystem would truncate throws. The store never shortens a name.
+// A long key is stored whole, under a 64-character name. Nothing is truncated.
 it("long key", async () => {
 	const store = createFilesystemStore({ dir });
-	await expect(store.set("k".repeat(300), entry)).rejects.toThrow(/too long/);
-	expect(await readdir(dir)).toEqual([]);
+	const key = "k".repeat(1000);
+	await store.set(key, entry);
+	expect(await store.get(key)).toEqual(entry);
+	expect((await readdir(dir))[0]).toHaveLength(64 + ".json".length);
+});
+
+// Keys that differ only in case are two files, so a case-insensitive file system (APFS, NTFS) cannot merge them.
+it("case", async () => {
+	const store = createFilesystemStore({ dir });
+	await store.set("static:b:p:ABC", { ...entry, data: "upper" });
+	await store.set("static:b:p:abc", { ...entry, data: "lower" });
+	const names = await readdir(dir);
+	expect(new Set(names.map((name) => name.toLowerCase())).size).toBe(2);
+	expect((await store.get("static:b:p:ABC"))?.data).toBe("upper");
+	expect((await store.get("static:b:p:abc"))?.data).toBe("lower");
+});
+
+// The record holds its key. A file whose record holds another key is a miss.
+it("key check", async () => {
+	const store = createFilesystemStore({ dir });
+	await store.set("a", entry);
+	const [name = ""] = await readdir(dir);
+	const record = JSON.parse(await readFile(join(dir, name), "utf8"));
+	await writeFile(join(dir, name), JSON.stringify({ ...record, key: "b" }));
+	expect(await store.get("a")).toBeNull();
 });
 
 // `ttl` expires the entry, `delete` writes a tombstone, and a tag delete bumps the tag's epoch, never a listing.
@@ -68,6 +96,6 @@ it("ttl and purge", async () => {
 
 // A file that is missing is a miss. Any other read failure is the caller's.
 it("unreadable", async () => {
-	await mkdir(join(dir, "k.json"));
+	await mkdir(join(dir, `${createHash("sha256").update("k").digest("hex")}.json`));
 	await expect(createFilesystemStore({ dir }).get("k")).rejects.toThrow(/EISDIR/);
 });

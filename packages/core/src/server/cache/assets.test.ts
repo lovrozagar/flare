@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { createAssetsStore } from "./assets.ts";
 
 const KEY = "static:dev:_root_/about";
-const PATH = "/assets/_flare-static/dev/_root_%2Fabout.json";
-const SEED = { seed: true, renderedAt: 1234, tags: ["a"], data: { html: "<html></html>" } };
+const HASH = createHash("sha256").update("_root_/about").digest("hex");
+const PATH = `/assets/_flare-static/dev/${HASH}.json`;
+const SEED = { seed: true, key: KEY, renderedAt: 1234, tags: ["a"], data: { html: "<html></html>" } };
 const ENTRY = { data: SEED.data, tags: ["a"], storedAt: 1234 };
 
 // Workers hands back the ASSETS binding's Response. `storedAt` is the seed's `renderedAt`.
@@ -41,6 +43,8 @@ it("bad seed", async () => {
 	const unflagged = { ...SEED, seed: false };
 	expect(await createAssetsStore(async () => Response.json(unflagged)).get(KEY)).toBeNull();
 	expect(await createAssetsStore(async () => new Response("{nope")).get(KEY)).toBeNull();
+	// A seed holds its key. One written for another key is a miss.
+	expect(await createAssetsStore(async () => Response.json({ ...SEED, key: "static:dev:other" })).get(KEY)).toBeNull();
 });
 
 it("read only", async () => {
@@ -55,7 +59,7 @@ it("read only", async () => {
 it("custom base", async () => {
 	const read = vi.fn<(path: string) => Promise<null>>(async () => null);
 	await createAssetsStore(read, { base: "/cdn/_flare-static" }).get(KEY);
-	expect(read).toHaveBeenCalledWith("/cdn/_flare-static/dev/_root_%2Fabout.json");
+	expect(read).toHaveBeenCalledWith(`/cdn/_flare-static/dev/${HASH}.json`);
 });
 
 // A base that would point anywhere but one fixed directory throws when the store is created.

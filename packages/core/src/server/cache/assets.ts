@@ -24,12 +24,12 @@ export function createAssetsStore(read: AssetRead, options: { base?: string } = 
 	checkBase(base);
 	return {
 		async get(key) {
-			const path = artifactPath(key, { build: buildId(), base });
+			const path = await artifactPath(key, { build: buildId(), base });
 			if (path === null) return null;
 			const text = await textOf(await read(path));
 			if (text === undefined) return null;
 			try {
-				return acceptSeed(JSON.parse(text)) ?? null;
+				return acceptSeed(JSON.parse(text), key) ?? null;
 			} catch {
 				return null;
 			}
