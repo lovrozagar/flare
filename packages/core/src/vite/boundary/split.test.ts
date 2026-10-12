@@ -1,0 +1,134 @@
+import { SourceMap } from "node:module";
+import { expect, it } from "vitest";
+import { splitClient } from "./split.ts";
+
+const BUILDER = 'import { createPage } from "@lovrozagar/flare";\n';
+
+function split(source: string): string {
+	const result = splitClient("src/routes/a.page.tsx", source);
+	if (result === undefined) throw new Error("nothing was split");
+	return result.code;
+}
+
+const loaded = `${BUILDER}import { db } from "../server/db.ts";
+import { Card } from "./card.tsx";
+export const route = createPage("_root_/a")
+	.loader(() => db.read())
+	.render(() => <Card />);
+`;
+
+it("drops the import", () => {
+	const code = split(loaded);
+	expect(code).not.toContain("../server/db.ts");
+	expect(code).not.toContain("db.read");
+	expect(code).not.toContain(".loader");
+	// A name used in kept code and in removed code stays imported.
+	const shared = `${BUILDER}import { db, other } from "./db.ts";
+export const route = createPage("_root_/a").loader(() => other()).render(() => db.name);
+`;
+	expect(split(shared)).toContain('import { db } from "./db.ts";');
+});
+
+it("keeps render import", () => {
+	const code = split(loaded);
+	expect(code).toContain('import { Card } from "./card.tsx";');
+	expect(code).toContain('import { createPage } from "@lovrozagar/flare";');
+	expect(code).toContain(".render(() => <Card />)");
+	const named = `${BUILDER}import Shell, * as parts from "./shell.tsx";
+import "./side-effect.css";
+import type { Props } from "./types.ts";
+export const route = createPage("_root_/a").loader(() => parts.load()).render((p: Props) => <Shell {...p} />);
+`;
+	const kept = split(named);
+	expect(kept).toContain('import Shell from "./shell.tsx";');
+	expect(kept).toContain('import "./side-effect.css";');
+	expect(kept).toContain('import type { Props } from "./types.ts";');
+	expect(splitClient("x.tsx", 'export const route = 1;\nimport "./a.css";\n')).toBeUndefined();
+	// Only a route builder imported from the package starts a route chain.
+	const imports = `import * as all from "@lovrozagar/flare";
+import { Link, "createPage" as page } from "@lovrozagar/flare";
+export declare const typed: number;
+export const made = make()(x);
+export const route = page("_root_/a").loader(l).render(() => <Link />);
+`;
+	const quoted = split(imports);
+	expect(quoted).toContain('page("_root_/a").render(() => <Link />)');
+	expect(quoted).not.toContain("import * as all");
+});
+
+it("unknown method", () => {
+	expect(() => split(`${BUILDER}export const route = createPage("_root_/a").middleware(m).render(r);\n`)).toThrow(
+		"src/routes/a.page.tsx: .middleware() is not a route chain method",
+	);
+	expect(() => split(`${BUILDER}export const route = createPage("_root_/a")["loader"](l).render(r);\n`)).toThrow(
+		"src/routes/a.page.tsx: route calls a chain method by element access. Call each method by name",
+	);
+	expect(() => splitClient("x.tsx", "export const = ;")).toThrow(/^x\.tsx: /);
+});
+
+it("response page", () => {
+	const source = `${BUILDER}import { secret } from "./secret.ts";
+export const route = createPage("_root_/api").authenticate().response(async () => secret());
+`;
+	const code = split(source);
+	expect(code).toContain('createPage("_root_/api").response(undefined)');
+	expect(code).not.toContain("secret");
+	expect(code).not.toContain("authenticate");
+	// A removed call with no argument has nothing to blank.
+	expect(split(`${BUILDER}export const route = createPage("_root_/api").authenticate().response();\n`)).toContain(
+		'createPage("_root_/api").response();',
+	);
+});
+
+it("cache client", () => {
+	const source = `${BUILDER}export const route = createPage("_root_/a")
+	.cache({ ssr: { ttl: "1m" }, client: { staleTime: "1s" } })
+	.render(r);
+export const other = createPage("_root_/b").cache({ ssr: { ttl: "1m" } }).render(r);
+`;
+	const code = split(source);
+	expect(code).toContain('.cache({ client: { staleTime: "1s" } })');
+	expect(code).not.toContain("ttl");
+	for (const argument of ["shared", '"1m"', ""]) {
+		expect(() =>
+			split(`${BUILDER}export const route = createPage("_root_/a").cache(${argument}).render(r);\n`),
+		).toThrow("src/routes/a.page.tsx: route .cache() takes a literal object");
+	}
+});
+
+it("server fn bodies", () => {
+	const source = `import { createServerFn } from "@lovrozagar/flare/server-fn";
+import { db } from "../server/db.ts";
+export const echo = createServerFn({ method: "get" })
+	.authenticate()
+	.input((raw) => raw)
+	.authorize(({ auth }) => db.can(auth))
+	.handler(async () => db.read());
+`;
+	const code = split(source);
+	expect(code).toContain(
+		'createServerFn({ method: "get" })\n\t.authenticate()\n\t.input(undefined)\n\t.authorize(undefined)\n\t.handler(undefined)',
+	);
+	expect(code).not.toContain("db");
+});
+
+it("source map", () => {
+	const source = `${BUILDER}import { db } from "../server/db.ts";
+export const route = createPage("_root_/a")
+	.loader(async () => {
+		const rows = await db.read();
+		return { rows };
+	})
+	.render(() => {
+		throw new Error("boom");
+	});
+`;
+	const result = splitClient("src/routes/a.page.tsx", source);
+	if (result === undefined) throw new Error("nothing was split");
+	const generated = result.code.split("\n").findIndex((line) => line.includes('throw new Error("boom")'));
+	const original = source.split("\n").findIndex((line) => line.includes('throw new Error("boom")'));
+	expect(generated).toBeLessThan(original);
+	const column = result.code.split("\n")[generated].indexOf("throw");
+	const entry = new SourceMap(JSON.parse(result.map.toString())).findEntry(generated, column);
+	expect(entry).toMatchObject({ originalLine: original, originalColumn: column });
+});
