@@ -44,7 +44,7 @@ export type RouterOptions = {
 // `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page.
 export type Match = {
 	id?: string;
-	params?: RawParams;
+	params: RawParams;
 	notFoundRender?: Handler;
 	chain: readonly ChainEntry[];
 };
@@ -111,9 +111,9 @@ function resolve(router: Router, path: string): Match {
 		return { id: page.id, params, chain };
 	}
 	const owner = notFoundOwner(router, local ?? path);
-	if (owner === undefined) return { chain: [] };
+	if (owner === undefined) return { params: {}, chain: [] };
 	const chain = layoutChain(router.layouts, owner);
-	return { notFoundRender: router.layouts[owner].notFoundRender ?? chain[0].module.notFoundRender, chain };
+	return { params: {}, notFoundRender: router.layouts[owner].notFoundRender ?? chain[0].module.notFoundRender, chain };
 }
 
 function stripBase(path: string, basePath: string): string | undefined {

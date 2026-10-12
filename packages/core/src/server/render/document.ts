@@ -25,6 +25,7 @@ export type DocumentInput = {
 	stream?: Stream;
 	nonce?: string;
 	head?: Head;
+	matches?: readonly StateMatch[];
 };
 
 export async function renderDocument(input: DocumentInput): Promise<string> {
@@ -57,7 +58,7 @@ function streamOptions(input: DocumentInput, data: unknown, nonce: string): Stre
 		onError: () => undefined,
 		onHead: () => undefined,
 		onCompleteShell(info) {
-			info.write(stateScript({ matches: [stateMatch(data)], nonce }));
+			info.write(stateScript({ matches: input.matches ?? [stateMatch(data)], nonce }));
 		},
 	};
 	if (nonce !== "") options.nonce = nonce;
