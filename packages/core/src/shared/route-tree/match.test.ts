@@ -31,5 +31,31 @@ it("optional catch-all empty", () => {
 	expect(matchPath("[[...rest]]", "/")).toBe(true);
 	expect(matchParams("[[...rest]]", "/a/b")).toEqual({ rest: ["a", "b"] });
 	expect(matchParams("[...rest]", "/a")).toEqual({ rest: ["a"] });
-	expect(() => matchParams("(blog)", "/")).toThrow("(blog)");
+	expect(matchParams("(blog)", "/")).toEqual({});
+});
+
+it("dynamic", () => {
+	expect(matchParams("/users/[id]", "/users/42")).toEqual({ id: "42" });
+	expect(matchPath("/users/[id]", "/users")).toBe(false);
+	expect(matchPath("/users/[id]", "/users/42/x")).toBe(false);
+	expect(matchPath("/users/[id]", "/")).toBe(false);
+});
+
+it("optional", () => {
+	expect(matchParams("/optional-locale/[[locale]]", "/optional-locale")).toEqual({ locale: undefined });
+	expect(matchParams("/optional-locale/[[locale]]", "/optional-locale/fr")).toEqual({ locale: "fr" });
+	expect(matchPath("/optional-locale/[[locale]]", "/optional-locale/fr/x")).toBe(false);
+	expect(matchParams("/[[lang]]/about", "/about")).toEqual({ lang: undefined });
+});
+
+it("catch-all", () => {
+	expect(matchParams("/files/[...path]", "/files/a/b")).toEqual({ path: ["a", "b"] });
+	expect(matchPath("/files/[...path]", "/files")).toBe(false);
+	expect(matchParams("/docs/[[...rest]]/edit", "/docs/a/b/edit")).toEqual({ rest: ["a", "b"] });
+});
+
+it("group and root", () => {
+	expect(matchParams("_root_/(blog)/post", "/post")).toEqual({});
+	expect(matchParams("[locale]/_root_/about", "/en/about")).toEqual({ locale: "en" });
+	expect(matchPath("_admin_/dashboard", "/dashboard")).toBe(true);
 });

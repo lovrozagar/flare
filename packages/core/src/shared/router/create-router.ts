@@ -1,4 +1,12 @@
 import type { ChainRecord } from "../route-builder/chain.ts";
+import {
+	isRootFolder,
+	matchParams,
+	patternSegments,
+	pickRoute,
+	readParams,
+	type RawParams,
+} from "../route-tree/index.ts";
 
 type Handler = () => unknown;
 
@@ -35,6 +43,7 @@ export type RouterOptions = {
 // `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page.
 export type Match = {
 	id?: string;
+	params?: RawParams;
 	notFoundRender?: Handler;
 	chain: readonly ChainEntry[];
 };
@@ -81,17 +90,36 @@ export function createRouter(options: RouterOptions): Router {
 }
 
 function resolve(router: Router, path: string): Match {
-	const normalized = normalize(path, router.basePath);
-	const page = normalized === undefined ? undefined : router.routeTree.find((route) => route.path === normalized);
-	if (page) {
+	const options = { caseSensitive: router.caseSensitive };
+	const local = stripBase(path, router.basePath);
+	const picked =
+		local === undefined
+			? undefined
+			: pickRoute(
+					router.routeTree.map((node) => node.path),
+					local,
+					options,
+				);
+	const page = router.routeTree.find((node) => node.path === picked);
+	if (page !== undefined && local !== undefined) {
+		const params = readParams(page.path, local);
 		const chain = [
 			...layoutChain(router.layouts, page.id),
 			{ id: page.id, kind: "page" as const, module: page.module },
 		];
-		return { id: page.id, chain };
+		return { id: page.id, params, chain };
 	}
-	const owner = notFoundOwner(router, normalized ?? path);
-	return { notFoundRender: notFoundFor(router, owner), chain: layoutChain(router.layouts, owner) };
+	const owner = notFoundOwner(router, local ?? path);
+	if (owner === undefined) return { chain: [] };
+	const chain = layoutChain(router.layouts, owner);
+	return { notFoundRender: router.layouts[owner].notFoundRender ?? chain[0].module.notFoundRender, chain };
+}
+
+function stripBase(path: string, basePath: string): string | undefined {
+	if (basePath === "/") return path;
+	if (path === basePath) return "/";
+	if (path.startsWith(`${basePath}/`)) return path.slice(basePath.length);
+	return undefined;
 }
 
 // Every layout whose id is the given id or a segment prefix of it, root first.
@@ -102,38 +130,27 @@ function layoutChain(layouts: RouterOptions["layouts"], id: string): ChainEntry[
 		.map((layout) => ({ id: layout, kind: "layout" as const, module: layouts[layout] }));
 }
 
-function normalize(path: string, basePath: string): string | undefined {
-	if (basePath === "/") return path;
-	if (path === basePath || path === `${basePath}/`) return "/";
-	return undefined;
+// "root" is the root layout that owns the path. "fuzzy" is the longest layout that owns it (B73). A layout id
+// is its URL prefix pattern, because groups and root folders add no segment.
+function notFoundOwner(router: Router, path: string): string | undefined {
+	const candidates = Object.keys(router.layouts).filter((id) => router.notFoundMode === "fuzzy" || isRoot(id));
+	const owners = candidates.filter((id) => owns(id, path, router.caseSensitive));
+	return owners.toSorted(specific)[0];
 }
 
-// "root" is the root layout. "fuzzy" is the longest layout that owns the path (B73).
-function notFoundOwner(router: Router, path: string): string {
-	if (router.notFoundMode === "root") return "_root_";
-	return longestLayout(path, router.layouts);
+function isRoot(id: string): boolean {
+	return isRootFolder(id.slice(id.lastIndexOf("/") + 1));
 }
 
-function notFoundFor(router: Router, owner: string): Handler | undefined {
-	return router.layouts[owner].notFoundRender ?? router.layouts._root_.notFoundRender;
+function owns(id: string, path: string, caseSensitive: boolean): boolean {
+	return matchParams(`${id}/[[...flareTail]]`, path, { caseSensitive }) !== undefined;
 }
 
-function longestLayout(path: string, layouts: RouterOptions["layouts"]): string {
-	const ids = Object.keys(layouts).sort((left, right) => layoutPath(right).length - layoutPath(left).length);
-	for (const id of ids) {
-		if (owns(path, layoutPath(id))) return id;
-	}
-	return "_root_";
-}
-
-function layoutPath(id: string): string {
-	const slash = id.indexOf("/");
-	if (slash === -1) return "/";
-	return `/${id.slice(slash + 1)}`;
-}
-
-function owns(path: string, prefix: string): boolean {
-	if (path === prefix) return true;
-	if (prefix === "/") return false;
-	return path.startsWith(`${prefix}/`);
+// More URL segments first, then the deeper id (a group inside its parent), then `_root_` over another root.
+function specific(left: string, right: string): number {
+	const segments = patternSegments(right).length - patternSegments(left).length;
+	if (segments !== 0) return segments;
+	const depth = right.split("/").length - left.split("/").length;
+	if (depth !== 0) return depth;
+	return Number(right.endsWith("_root_")) - Number(left.endsWith("_root_"));
 }

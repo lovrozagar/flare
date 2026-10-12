@@ -10,7 +10,7 @@ it("encoded upper", () => {
 });
 
 it("missing segment", () => {
-	expect(() => readParams("/(auth)/[id]", "/x")).toThrow("(auth)");
+	expect(readParams("/(auth)/[id]", "/x")).toEqual({ id: "x" });
 });
 
 it("missing value", () => {

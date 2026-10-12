@@ -1,33 +1,78 @@
 import { parseSegment, type Segment } from "./segments.ts";
 
-export function matchPath(pattern: string, path: string, options: { caseSensitive?: boolean } = {}): boolean {
-	if (matchParams(pattern, path) !== undefined) return true;
-	if (pattern.includes("[...")) return false;
-	const sensitive = options.caseSensitive === true;
-	return segmentKey(pattern, sensitive, true) === segmentKey(path, sensitive, false);
+export type RawParams = Record<string, string | string[] | undefined>;
+
+export type MatchOptions = { caseSensitive?: boolean };
+
+type Walk = { segments: readonly Segment[]; parts: readonly string[]; sensitive: boolean };
+
+export function matchPath(pattern: string, path: string, options: MatchOptions = {}): boolean {
+	return matchParams(pattern, path, options) !== undefined;
 }
 
-export function matchParams(pattern: string, path: string): Record<string, string[] | undefined> | undefined {
-	const segment = parseSegment(pattern)[0];
-	if (segment === undefined) throw new Error(pattern);
-	if (!isCatchAll(segment)) return undefined;
-	const parts = path.split("/").filter((part) => part !== "");
-	if (parts.length !== 0) return { [segment.name]: parts };
-	if (!segment.optional) return undefined;
-	return { [segment.name]: undefined };
+// Segment by segment over the bracket syntax codegen emits. An optional or catch-all segment tries the
+// longest take first and backs off. Values stay raw (B81).
+export function matchParams(pattern: string, path: string, options: MatchOptions = {}): RawParams | undefined {
+	const walk = {
+		segments: patternSegments(pattern),
+		parts: path.split("/").filter((part) => part !== ""),
+		sensitive: options.caseSensitive === true,
+	};
+	return step(walk, 0, 0);
 }
 
-function isCatchAll(segment: Segment): segment is { kind: "catch-all"; name: string; optional: boolean } {
-	return segment.kind === "catch-all";
-}
-
-function segmentKey(value: string, sensitive: boolean, encode: boolean): string {
-	return value
+export function patternSegments(pattern: string): Segment[] {
+	return pattern
 		.split("/")
-		.filter((part) => part !== "")
-		.map((part) => {
-			const text = encode ? encodeURIComponent(part) : part;
-			return sensitive ? text : text.toLowerCase();
-		})
-		.join("/");
+		.filter((folder) => folder !== "")
+		.flatMap((folder) => parseSegment(folder));
+}
+
+function step(walk: Walk, at: number, from: number): RawParams | undefined {
+	const segment = walk.segments[at];
+	if (segment === undefined) return from === walk.parts.length ? {} : undefined;
+	if (segment.kind === "static") {
+		const part = walk.parts[from];
+		if (part === undefined || !sameStatic(segment.text, part, walk.sensitive)) return undefined;
+		return step(walk, at + 1, from + 1);
+	}
+	const most = segment.kind === "dynamic" ? Math.min(1, walk.parts.length - from) : walk.parts.length - from;
+	const least = segment.optional ? 0 : 1;
+	for (let take = most; take >= least; take -= 1) {
+		const rest = step(walk, at + 1, from + take);
+		if (rest !== undefined)
+			return { ...rest, [segment.name]: value(segment.kind, walk.parts.slice(from, from + take)) };
+	}
+	return undefined;
+}
+
+function value(kind: "dynamic" | "catch-all", taken: readonly string[]): string | string[] | undefined {
+	if (taken.length === 0) return undefined;
+	if (kind === "dynamic") return upperHex(taken[0]);
+	return taken.map(upperHex);
+}
+
+function sameStatic(text: string, part: string, sensitive: boolean): boolean {
+	const expected = encodeURIComponent(text);
+	return sensitive ? expected === part : expected.toLowerCase() === part.toLowerCase();
+}
+
+// A valid %HH is uppercased and not decoded. %ZZ, a trailing %, and %2 stay as written (B81).
+function upperHex(value: string): string {
+	let out = "";
+	for (let index = 0; index < value.length; index += 1) {
+		const char = value.charAt(index);
+		if (char !== "%") {
+			out += char;
+			continue;
+		}
+		const hex = value.slice(index + 1, index + 3);
+		if (!/^[0-9A-Fa-f]{2}$/.test(hex)) {
+			out += "%";
+			continue;
+		}
+		out += `%${hex.toUpperCase()}`;
+		index += 2;
+	}
+	return out;
 }

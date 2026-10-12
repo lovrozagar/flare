@@ -30,3 +30,9 @@ it("bad brackets", () => {
 	expect(() => parseSegment("[user-id]")).toThrow(/bad brackets/);
 	expect(() => parseSegment("[_]blog")).toThrow(/bad brackets/);
 });
+
+it("root is not a segment", () => {
+	expect(parseSegment("_root_")).toEqual([]);
+	expect(parseSegment("_admin_")).toEqual([]);
+	expect(parseSegment("__")).toEqual([{ kind: "static", text: "__" }]);
+});

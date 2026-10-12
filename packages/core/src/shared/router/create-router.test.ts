@@ -3,6 +3,8 @@ import { createRouter } from "./create-router.ts";
 
 const rootNotFound = () => "root";
 const blogNotFound = () => "blog";
+const localeNotFound = () => "locale";
+const groupNotFound = () => "group";
 
 const layouts = {
 	_root_: { notFoundRender: rootNotFound },
@@ -97,4 +99,59 @@ it("not found chain", () => {
 		"_root_/blog/drafts",
 	]);
 	expect(fuzzy.match("/missing").chain.map((entry) => entry.kind)).toEqual(["layout"]);
+});
+
+it("params and base path", () => {
+	const user = { loader: () => "user" };
+	const fresh = { loader: () => "new" };
+	const router = createRouter({
+		layouts: { _root_: {} },
+		routeTree: [
+			{ id: "_root_/users/[id]", path: "/users/[id]", module: user },
+			{ id: "_root_/users/new", path: "/users/new", module: fresh },
+			{ id: "_root_/about", path: "/about", module: {} },
+		],
+		basePath: "/app",
+	});
+	expect(router.match("/app/users/42")).toMatchObject({ id: "_root_/users/[id]", params: { id: "42" } });
+	expect(router.match("/app/users/new").id).toBe("_root_/users/new");
+	expect(router.match("/app/about").id).toBe("_root_/about");
+	expect(router.match("/about").id).toBeUndefined();
+	expect(router.match("/application/about").id).toBeUndefined();
+});
+
+it("not found roots", () => {
+	const locale = createRouter({
+		layouts: { "[locale]/_root_": { notFoundRender: localeNotFound } },
+		routeTree: [{ id: "[locale]/_root_/about", path: "/[locale]/about", module: {} }],
+	});
+	expect(locale.match("/en/about").chain.map((entry) => entry.id)).toEqual([
+		"[locale]/_root_",
+		"[locale]/_root_/about",
+	]);
+	const missing = locale.match("/en/missing");
+	expect(missing.chain.map((entry) => entry.id)).toEqual(["[locale]/_root_"]);
+	expect(missing.notFoundRender).toBe(localeNotFound);
+	expect(locale.match("/").chain).toEqual([]);
+	expect(locale.match("/").notFoundRender).toBeUndefined();
+	const admin = createRouter({ layouts: { _admin_: {} }, routeTree: [], notFoundMode: "fuzzy" });
+	expect(admin.match("/x").chain.map((entry) => entry.id)).toEqual(["_admin_"]);
+	const both = createRouter({ layouts: { _admin_: {}, _root_: { notFoundRender: rootNotFound } }, routeTree: [] });
+	expect(both.match("/x").chain.map((entry) => entry.id)).toEqual(["_root_"]);
+});
+
+it("fuzzy group", () => {
+	const router = createRouter({
+		layouts: { _root_: { notFoundRender: rootNotFound }, "_root_/(blog)": { notFoundRender: groupNotFound } },
+		routeTree: [{ id: "_root_/(blog)/post", path: "/post", module: {} }],
+		notFoundMode: "fuzzy",
+	});
+	expect(router.match("/post").chain.map((entry) => entry.id)).toEqual([
+		"_root_",
+		"_root_/(blog)",
+		"_root_/(blog)/post",
+	]);
+	const missing = router.match("/post/missing");
+	expect(missing.chain.map((entry) => entry.id)).toEqual(["_root_", "_root_/(blog)"]);
+	expect(missing.notFoundRender).toBe(groupNotFound);
 });
