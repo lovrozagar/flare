@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { expect, it } from "vitest";
 import { createNodeListener } from "./listener.ts";
 
@@ -259,4 +260,51 @@ it("host origin", async () => {
 	listener(req(), res);
 	await settle();
 	expect(urls).toEqual(["http://127.0.0.1:5173/a?b=1", "http://localhost/"]);
+});
+
+// A real `node:http` server: the listener is its request handler as written, and a POST body is read through the
+// `IncomingMessage` itself, whose `on` and `resume` need their receiver. A repeated header reaches the request.
+it("node request", async () => {
+	const http = createServer(
+		createNodeListener({
+			fetch: async (request) => new Response(`${request.headers.get("x-pair")} ${await request.text()}`),
+		}),
+	);
+	await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+	const address = http.address();
+	const port = typeof address === "object" && address !== null ? address.port : 0;
+	try {
+		const headers: Array<[string, string]> = [
+			["x-pair", "a"],
+			["x-pair", "b"],
+		];
+		const response = await fetch(`http://127.0.0.1:${port}/echo`, { method: "POST", body: "ping", headers });
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("a, b ping");
+	} finally {
+		await new Promise((resolve) => http.close(resolve));
+	}
+	// A bare request object: no method or url is `GET /`, a listed header is joined, and an absent one is dropped.
+	const seen: Request[] = [];
+	const bare = createNodeListener({
+		fetch: async (request) => {
+			seen.push(request);
+			return new Response(null);
+		},
+	});
+	bare(
+		{ headers: { "x-list": ["a", "b"], "x-gone": undefined } },
+		{
+			writeHead() {},
+			setHeader() {},
+			write: () => true,
+			end() {},
+			once() {},
+		},
+	);
+	await settle();
+	expect(seen[0]?.method).toBe("GET");
+	expect(seen[0]?.url).toBe("http://localhost/");
+	expect(seen[0]?.headers.get("x-list")).toBe("a, b");
+	expect(seen[0]?.headers.has("x-gone")).toBe(false);
 });
