@@ -6,15 +6,19 @@ const all: Project[] = [
 	{ name: "node-dev-webkit", use: { browserName: "webkit" } },
 ];
 
-const requested = projectArg(process.argv);
-if (process.platform !== "darwin" && requested?.includes("webkit")) throw new Error("webkit runs on macOS");
+// Every `--project` value counts, so `--project=a --project=b` runs both.
+const requested = projectArgs(process.argv);
+if (process.platform !== "darwin" && [...requested].some((name) => name.includes("webkit"))) {
+	throw new Error("webkit runs on macOS");
+}
 
-const projects = requested
-	? all.filter((project) => project.name === requested)
-	: all.filter((project) => {
-			const name = project.name ?? "";
-			return process.platform === "darwin" ? name.endsWith("webkit") : !name.endsWith("webkit");
-		});
+const projects =
+	requested.size > 0
+		? all.filter((project) => requested.has(project.name ?? ""))
+		: all.filter((project) => {
+				const name = project.name ?? "";
+				return process.platform === "darwin" ? name.endsWith("webkit") : !name.endsWith("webkit");
+			});
 
 export default defineConfig({
 	testDir: import.meta.dirname,
@@ -24,11 +28,13 @@ export default defineConfig({
 	projects,
 });
 
-function projectArg(argv: readonly string[]): string | undefined {
+function projectArgs(argv: readonly string[]): Set<string> {
+	const names = new Set<string>();
 	for (let index = 0; index < argv.length; index += 1) {
 		const arg = argv[index] ?? "";
-		if (arg === "--project") return argv[index + 1];
-		if (arg.startsWith("--project=")) return arg.slice("--project=".length);
+		const next = argv[index + 1];
+		if (arg === "--project" && next !== undefined) names.add(next);
+		if (arg.startsWith("--project=")) names.add(arg.slice("--project=".length));
 	}
-	return undefined;
+	return names;
 }
