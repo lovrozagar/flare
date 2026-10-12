@@ -53,14 +53,15 @@ function routerOf(chunks: Record<string, string> = {}): Router {
 
 const stops: (() => void)[] = [];
 
-function install(): HTMLElement {
+function install(build?: string): HTMLElement {
 	const matches = [
 		{ id: "_root_", params: {}, search: {}, data: null, preloader: {}, head: null, error: null },
 		{ id: "_root_/", params: {}, search: {}, data: "start", preloader: {}, head: { title: "Home" }, error: null },
 	];
 	// jsdom does not run a script set through innerHTML. A browser would, so the test assigns self.flare too.
-	document.body.innerHTML = `<script>self.flare=${JSON.stringify({ matches, nonce: "" })}</script><div id="app"></div>`;
-	(globalThis as Dom).flare = { matches, nonce: "" };
+	const state = build === undefined ? { matches, nonce: "" } : { matches, nonce: "", build };
+	document.body.innerHTML = `<script>self.flare=${JSON.stringify(state)}</script><div id="app"></div>`;
+	(globalThis as Dom).flare = { ...state };
 	return document.getElementById("app") as HTMLElement;
 }
 
@@ -271,7 +272,7 @@ async function* stream(): AsyncGenerator<number> {
 // bootClient writes the transport onto self.flare: a handler posts and resolves its data, and a stream iterates its
 // NDJSON lines (bits/07). The state already on self.flare stays.
 it("server fn call", async () => {
-	const host = install();
+	const host = install("b1");
 	const ndjson = '{"name":"ticks","status":200,"data":1}\n{"name":"ticks","status":200,"data":2}\n';
 	const answers: Record<string, () => Response> = {
 		"/_flare/fn/echo": () => Response.json({ name: "echo", status: 200, data: { n: 1 } }),
@@ -282,7 +283,6 @@ it("server fn call", async () => {
 			Response.json({ name: "stale", status: 200, data: 1 }, { headers: { "flare-build": "b2" } }),
 	};
 	const fetch = vi.fn<ClientEnv["fetch"]>(async (url) => (answers[String(url)] ?? (() => Response.error()))());
-	Reflect.set(Object((globalThis as Dom).flare), "build", "b1");
 	const browser = env(host, fetch);
 	stops.push(await bootClient(routerOf(), createReady(), browser));
 	const flare = Object((globalThis as Dom).flare);
@@ -304,4 +304,22 @@ it("server fn call", async () => {
 	const stale = { id: "stale", name: "stale", record: { method: "post", authenticate: false } };
 	await expect(Reflect.apply(call, undefined, [stale, null])).rejects.toThrow("The app was updated");
 	expect(browser.assign).toHaveBeenCalledWith(window.location.href);
+});
+
+// The navigator and the transport read the one id the document wrote: both reload on another build's answer.
+it("one build", async () => {
+	const host = install("b1");
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response("", { headers: { "flare-build": "b2" } }));
+	const ready = createReady();
+	const navigates: ReadyContext["navigate"][] = [];
+	ready.api.onReady((ctx) => navigates.push(ctx.navigate));
+	const browser = env(host, fetch);
+	stops.push(await bootClient(routerOf(), ready, browser));
+	await navigates[0]({ to: "_root_/about" });
+	expect(browser.assign).toHaveBeenCalledWith("/about");
+	const call: unknown = Reflect.get(Object((globalThis as Dom).flare), "call");
+	if (typeof call !== "function") throw new Error("no self.flare.call");
+	const echo = { id: "echo", name: "echo", record: { method: "post", authenticate: false } };
+	await expect(Reflect.apply(call, undefined, [echo, null])).rejects.toThrow("The app was updated");
+	expect(browser.assign).toHaveBeenLastCalledWith(window.location.href);
 });

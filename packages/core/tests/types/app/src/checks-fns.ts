@@ -1,6 +1,9 @@
 // The dx/types.md `app` rows for the hooks, server functions, and the path segment. See checks.ts.
 import {
+	createClientOnlyFn,
+	createIsomorphicFn,
 	createPathSegment,
+	createServerOnlyFn,
 	useLoaderData,
 	useLocation,
 	useMatch,
@@ -125,4 +128,14 @@ import { echo, measure, ticks } from "./fns/echo.ts";
 	void createPathSegment("_root_/seg").input;
 	// @ts-expect-error a segment has no head
 	void createPathSegment("_root_/seg").head;
+}
+
+// The env helpers come from the root entry (bits/07 Extends). Each call is rewritten per graph by the boundary.
+{
+	const read: () => string = createServerOnlyFn(() => "server");
+	const focus: () => number = createClientOnlyFn(() => 1);
+	const side: () => string = createIsomorphicFn()
+		.server(() => "server")
+		.client(() => "client");
+	void [read, focus, side];
 }

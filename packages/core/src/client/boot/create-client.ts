@@ -57,11 +57,7 @@ export function devSend(hot: { send: (event: string, payload: unknown) => void }
 // Resolves to a dispose that removes the listeners and unmounts the app.
 export async function bootClient(router: Router, ready: Ready, env: ClientEnv): Promise<() => void> {
 	const state = readState();
-	const location: Location = {
-		pathname: window.location.pathname,
-		search: window.location.search,
-		hash: window.location.hash,
-	};
+	const location = windowLocation();
 	const match = router.match(location.pathname);
 	const chain = await loadChain(match.chain);
 	const report = (error: unknown): void => void (env.dev && env.send?.(devErrorPayload(error)));
@@ -76,6 +72,8 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	const scroll = browserScroll(router);
 	const prefetcher = browserPrefetcher(router, store, env);
 	const reload = browserReload(env);
+	// One id for the navigator and the server function transport, so the two never disagree on a mismatch.
+	const build = state.build ?? "";
 	const navigator = createNavigator({
 		router,
 		store,
@@ -88,12 +86,12 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 		origin: window.location.origin,
 		assign: env.assign,
 		reload,
-		build: "",
+		build,
 		dev: env.dev,
 		send: env.send,
 		prefetched: prefetcher.prefetched,
 	});
-	installCall(router, env, { reload, visit: navigator.visit });
+	installCall(router, env, { reload, build, visit: navigator.visit });
 	ready.ready({ navigate: navigator.navigate, location });
 	const unmount = mountApp({
 		router,
@@ -123,15 +121,18 @@ function browserReload(env: ClientEnv): (href: string) => boolean {
 
 // The booted transport the client entry's createServerFn reads at call time (bits/07). It goes onto the state
 // object the document wrote, which keeps its other fields. A stream iterates, and any other function resolves. A
-// response from another build reloads the page under the chunk guard, so `build` is the document's `self.flare.build`.
-function installCall(router: Router, env: ClientEnv, nav: Pick<CallDeps, "reload"> & Pick<Navigator, "visit">): void {
+// response from another build reloads the page under the chunk guard.
+function installCall(
+	router: Router,
+	env: ClientEnv,
+	nav: Pick<CallDeps, "reload" | "build"> & Pick<Navigator, "visit">,
+): void {
 	const flare: object = Object(Reflect.get(globalThis, "flare"));
-	const build: unknown = Reflect.get(flare, "build");
 	const deps: CallDeps = {
 		fetch: env.fetch,
 		origin: window.location.origin,
 		basePath: router.basePath,
-		build: typeof build === "string" ? build : "",
+		build: nav.build,
 		href: () => window.location.href,
 		reload: nav.reload,
 		go: (url, replace) => nav.visit(url, replace),
@@ -190,6 +191,10 @@ function browserPrefetcher(router: Router, store: RouterStore, env: ClientEnv): 
 		land: { dev: env.dev, send: env.send },
 		env: { network: env.network, observe: env.observe, idle: loadedIdle(env.idle), head: document.head, now: Date.now },
 	});
+}
+
+function windowLocation(): Location {
+	return { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash };
 }
 
 function here(): string {
