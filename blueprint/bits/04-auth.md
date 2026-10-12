@@ -66,6 +66,14 @@ The route builder stores what it accepts, because `tests/integration/auth.test.t
 | `input failure` | the validator fails on a document | 400, `application/json`, body `{ issues, fieldErrors }`, no HTML shell, authenticate is not called, the overlay sender is not called |
 | `data input` | the same failure on `_flare=data` | the same JSON, not an `e` frame |
 | `preloader throw` | `preloader` throws `Error` | the loader-throw outcome. The status is not 403. A layout or root throw also fails its descendants |
+| `preloader context` | the root preloader returns `{ a: 1 }`, the layout preloader `{ b: 2 }`, the page preloader `{ c: 3 }` | the root preloader and the root `authorize` receive no `preloaderContext`. The layout preloader and the layout `authorize` receive `{ a: 1 }`. The layout loader receives `{ a: 1, b: 2 }`. The page loader, the page `.response()`, and the page `.head()` receive `{ a: 1, b: 2, c: 3 }` (`dx/types.md`) |
+| `preloader merge` | a parent returns `{ role: "editor", x: 1 }` and the child returns `{ role: "admin" }`. Another preloader returns `undefined` | later callbacks see `{ role: "admin", x: 1 }`: a shallow merge, outside-in, where the child key wins. An `undefined` return adds nothing. A chain with no preloader gives `{}` |
+
+### `server/lifecycle/create.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `state preloader` | GET a page whose chain has the preloaders of `preloader context` | each `self.flare.matches` entry's `preloader` is the context accumulated through that match: `{ a: 1 }` for the root, then `{ a: 1, b: 2 }`, then `{ a: 1, b: 2, c: 3 }`. A chain with no preloader writes `{}`, not `null` (B83) |
 
 ### `server/loaders/cascade.test.ts`
 
