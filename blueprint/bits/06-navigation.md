@@ -157,6 +157,9 @@ Corpus-driven, one line per frame.
 | `no scroll` | `scroll: false` | `scrollY` does not change |
 | `hash` | the URL changes only in the hash | no fetch. The URL updates and the page scrolls to that id |
 | `document load` | a full document load | the scroll store is not read. `history.scrollRestoration` is `"manual"` when restoration is on |
+| `recent kept` | `maxEntries: 2`, then saves at index 5, 9, 5, 7 | 5 and 7 are kept and 9 is dropped. The store is an ordered list, oldest first |
+| `bad storage` | a corrupt, non-list, or unreadable store, or a write that throws | it counts as empty, the write is skipped, and nothing throws into the navigation |
+| `encoded hash` | `#caf%C3%A9`, and a malformed `#%E0` | the element `café` is found, and the malformed one is looked up as written |
 
 ### `client/navigation/blocker.test.ts`
 

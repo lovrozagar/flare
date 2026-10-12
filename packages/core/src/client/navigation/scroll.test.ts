@@ -69,7 +69,7 @@ it("cap", () => {
 	scroll.restore(0, at("/0"));
 	scroll.restore(50, at("/50"));
 	expect(window.moves.map((spot) => spot.top)).toEqual([0, 50]);
-	expect(Object.keys(JSON.parse(sessionStorage.getItem("flare_scroll") ?? "{}"))).toHaveLength(50);
+	expect(JSON.parse(sessionStorage.getItem("flare_scroll") ?? "[]")).toHaveLength(50);
 });
 
 it("custom key", () => {
@@ -125,4 +125,60 @@ it("document load", () => {
 	expect(sessionStorage.length).toBe(0);
 	expect(off.moves).toEqual([]);
 	vi.restoreAllMocks();
+});
+
+it("recent kept", () => {
+	const place = { x: 0, y: 0 };
+	const window = env(place);
+	const scroll = createScroll({ ...defaults, maxEntries: 2 }, window);
+	for (const index of [5, 9, 5, 7]) {
+		place.y = index * 10;
+		scroll.save(index, at(`/${index}`));
+	}
+	scroll.restore(5, at("/5"));
+	scroll.restore(7, at("/7"));
+	scroll.restore(9, at("/9"));
+	expect(window.moves.map((spot) => spot.top)).toEqual([50, 70, 0]);
+});
+
+it("bad storage", () => {
+	sessionStorage.setItem("flare_scroll", "{not json");
+	const window = env({ x: 0, y: 12 });
+	const scroll = createScroll(defaults, window);
+	scroll.restore(1, at("/a"));
+	expect(window.moves).toEqual([{ left: 0, top: 0, behavior: "instant" }]);
+	scroll.save(1, at("/a"));
+	scroll.restore(1, at("/a"));
+	expect(window.moves[1].top).toBe(12);
+	sessionStorage.setItem("flare_scroll", '{"1":{"x":0,"y":5}}');
+	scroll.restore(1, at("/a"));
+	expect(window.moves[2].top).toBe(0);
+	const broken: Storage = {
+		...sessionStorage,
+		getItem: () => {
+			throw new Error("SecurityError");
+		},
+		setItem: () => {
+			throw new Error("QuotaExceededError");
+		},
+	};
+	const locked = { ...env({ x: 0, y: 3 }), storage: broken };
+	const guarded = createScroll(defaults, locked);
+	expect(() => guarded.save(1, at("/a"))).not.toThrow();
+	expect(() => guarded.restore(1, at("/a"))).not.toThrow();
+	expect(locked.moves).toEqual([{ left: 0, top: 0, behavior: "instant" }]);
+});
+
+it("encoded hash", () => {
+	document.body.innerHTML = '<h2 id="café">Café</h2><h2 id="%E0">Bad</h2>';
+	const [cafe, bad] = document.querySelectorAll("h2");
+	const intoCafe = vi.fn<() => void>();
+	const intoBad = vi.fn<() => void>();
+	cafe.scrollIntoView = intoCafe;
+	bad.scrollIntoView = intoBad;
+	const scroll = createScroll(defaults, env({ x: 0, y: 0 }));
+	scroll.afterCommit({ hash: "#caf%C3%A9", scroll: true });
+	scroll.afterCommit({ hash: "#%E0", scroll: true });
+	expect(intoCafe).toHaveBeenCalledOnce();
+	expect(intoBad).toHaveBeenCalledOnce();
 });
