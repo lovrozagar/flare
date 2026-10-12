@@ -24,6 +24,7 @@ export function applySecurity(input: {
 		const header = key.toLowerCase();
 		if (value === false) {
 			headers.delete(header);
+			if (header === "content-security-policy") nonce = "";
 			continue;
 		}
 		headers.set(header, value);

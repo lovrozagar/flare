@@ -1,8 +1,10 @@
-import { createComponent } from "solid-js";
+import { createComponent, type Element } from "solid-js";
 import * as web from "@solidjs/web";
+import { withRequest } from "../../shared/csp/nonce.ts";
 import { RouterContext } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
-import { stateScript } from "./state.ts";
+import { renderHead, type Head } from "./head.ts";
+import { stateScript, type StateMatch } from "./state.ts";
 
 type StreamOptions = {
 	nonce?: string;
@@ -19,46 +21,57 @@ export type DocumentInput = {
 	request: Request;
 	router: Router;
 	loader?: () => unknown;
-	render: (data: unknown) => string;
+	render: (data: unknown) => Element;
 	stream?: Stream;
+	nonce?: string;
+	head?: Head;
 };
 
 export async function renderDocument(input: DocumentInput): Promise<string> {
 	const data = input.loader ? input.loader() : undefined;
-	const stream =
-		input.stream ?? ((fn, options) => web.renderToStream(fn, options as Parameters<typeof web.renderToStream>[1]));
-	return stream(
-		() =>
-			createComponent(RouterContext, {
-				value: input.router,
-				get children() {
-					return input.render(data);
-				},
-			}),
-		{
-			nonce: "",
-			signal: input.request.signal,
-			manifest: {},
-			onError: () => undefined,
-			onHead: () => undefined,
-			// Solid has already flushed the shell. This write is the state script (B83).
-			onCompleteShell(info) {
-				info.write(
-					stateScript({
-						matches: [
-							{
-								id: "",
-								params: {},
-								search: {},
-								data: data ?? null,
-								preloader: null,
-								head: null,
-								error: null,
-							},
-						],
-					}),
-				);
-			},
-		},
+	const nonce = input.nonce ?? "";
+	const body = await withRequest({ path: new URL(input.request.url).pathname, nonce }, () =>
+		(input.stream ?? defaultStream)(() => tree(input, data), streamOptions(input, data, nonce)),
 	);
+	const prefix = input.head === undefined ? "" : renderHead(input.head, { nonce });
+	return `${prefix}${body}`;
+}
+
+function defaultStream(fn: () => unknown, options: StreamOptions): PromiseLike<string> {
+	return web.renderToStream(fn, options as Parameters<typeof web.renderToStream>[1]);
+}
+
+function tree(input: DocumentInput, data: unknown): Element {
+	return createComponent(RouterContext, {
+		value: input.router,
+		get children() {
+			return input.render(data);
+		},
+	});
+}
+
+function streamOptions(input: DocumentInput, data: unknown, nonce: string): StreamOptions {
+	const options: StreamOptions = {
+		signal: input.request.signal,
+		manifest: {},
+		onError: () => undefined,
+		onHead: () => undefined,
+		onCompleteShell(info) {
+			info.write(stateScript({ matches: [stateMatch(data)], nonce }));
+		},
+	};
+	if (nonce !== "") options.nonce = nonce;
+	return options;
+}
+
+function stateMatch(data: unknown): StateMatch {
+	return {
+		id: "",
+		params: {},
+		search: {},
+		data: data ?? null,
+		preloader: null,
+		head: null,
+		error: null,
+	};
 }
