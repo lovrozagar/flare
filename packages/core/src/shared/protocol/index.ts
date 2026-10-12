@@ -1,4 +1,13 @@
-export { BUILD_HEADER, CACHE_HEADER, FN_PREFIX, KIND_PARAM, RENDER_HEADER, STALE_PARAM } from "./constants.ts";
+export {
+	BUILD_HEADER,
+	CACHE_HEADER,
+	FN_PREFIX,
+	INPUT_PARAM,
+	KIND_PARAM,
+	RENDER_HEADER,
+	STALE_PARAM,
+} from "./constants.ts";
+export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts";
 export {
 	readInternal,
 	staleList,

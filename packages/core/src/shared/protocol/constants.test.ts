@@ -6,6 +6,7 @@ it("names", () => {
 		KIND_PARAM: "_flare",
 		STALE_PARAM: "_flare_stale",
 		FN_PREFIX: "/_flare/fn/",
+		INPUT_PARAM: "_i",
 		BUILD_HEADER: "flare-build",
 		RENDER_HEADER: "flare-render",
 		CACHE_HEADER: "flare-cache",
