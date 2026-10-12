@@ -40,6 +40,8 @@ export default defineConfig({
 				test: {
 					name: "unit-dom",
 					environment: "jsdom",
+					// Inlined so Vite resolves the browser builds. Externalized, Node loads Solid's server build.
+					server: { deps: { inline: ["solid-js", "@solidjs/web"] } },
 					include: ["src/**/*.test.tsx", "lint/**/*.test.tsx", "tests/**/*.test.tsx", "src/client/**/*.test.ts"],
 					exclude: ["tests/e2e/**"],
 					passWithNoTests: true,

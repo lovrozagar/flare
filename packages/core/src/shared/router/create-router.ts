@@ -1,3 +1,4 @@
+import type { BoundaryRecord, NotFoundRender } from "../route-builder/index.ts";
 import type { ChainRecord } from "../route-builder/chain.ts";
 import {
 	idPattern,
@@ -9,10 +10,8 @@ import {
 	type RawParams,
 } from "../route-tree/index.ts";
 
-type Handler = () => unknown;
-
 export type RouteModule = ChainRecord & {
-	notFoundRender?: Handler;
+	boundaries?: BoundaryRecord;
 };
 
 export type LayoutModule = RouteModule;
@@ -45,7 +44,7 @@ export type RouterOptions = {
 export type Match = {
 	id?: string;
 	params: RawParams;
-	notFoundRender?: Handler;
+	notFoundRender?: NotFoundRender;
 	chain: readonly ChainEntry[];
 };
 
@@ -113,7 +112,11 @@ function resolve(router: Router, path: string): Match {
 	const owner = notFoundOwner(router, local ?? path);
 	if (owner === undefined) return { params: {}, chain: [] };
 	const chain = layoutChain(router.layouts, owner);
-	return { params: {}, notFoundRender: router.layouts[owner].notFoundRender ?? chain[0].module.notFoundRender, chain };
+	return {
+		params: {},
+		notFoundRender: router.layouts[owner].boundaries?.notFoundRender ?? chain[0].module.boundaries?.notFoundRender,
+		chain,
+	};
 }
 
 function stripBase(path: string, basePath: string): string | undefined {
