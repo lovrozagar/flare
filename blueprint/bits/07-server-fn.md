@@ -10,6 +10,8 @@ This bit starts by running the extractor against a fixture that contains every s
 
 `src/exports/index.ts` re-exports `createServerOnlyFn`, `createClientOnlyFn`, and `createIsomorphicFn`.
 
+`shared/protocol/constants.ts` gains `INPUT_PARAM` (`_i`), and `constants.test.ts` `names` lists it.
+
 ## Cases
 
 ### `shared/protocol/get-codec.test.ts`
