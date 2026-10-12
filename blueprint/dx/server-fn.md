@@ -42,7 +42,7 @@ There is no `piggyback`. The query helpers are in `features.md`.
 
 ## Types
 
-`.input()` replaces the input type. The start is `void`: the client function takes no argument, and `ctx.input` is `undefined`. After `.input()`, the handler's `ctx.input` and the client argument are the validator output. A fresh extra key fails when that output is a closed object. A Standard Schema whose output is `unknown` does not reject a bad key.
+`.input()` replaces the input type. The start is `void`: the client function takes no argument, and `ctx.input` is `undefined`. After `.input()`, the client argument is the validator's input type and the handler's `ctx.input` is its output, because the validator runs on the server: a Standard Schema's `types.input` and `types.output`, the parameter and return of `{ parse }`, or of a function. A transforming validator such as `z.string().transform(Number)` takes a string from the caller and hands the handler a number. The argument crosses as JSON, so a validator should accept the JSON form (`z.coerce.date()`, not `z.date()`). A fresh extra key fails when that input is a closed object. A Standard Schema whose input is `unknown`, or a function typed `(value: unknown)`, does not reject a bad key.
 
 The client type is `(input: TInput) => Promise<TOutput>`, or `() => Promise<TOutput>` while the input is `void`. The promise resolves to the handler's return. No field is stripped. The type is not the envelope.
 

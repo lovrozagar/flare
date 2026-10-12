@@ -180,7 +180,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `query options input` | a server function whose input is `{ q: string }` and whose handler returns `{ q: string }` | `serverFnQueryOptions(fn, { queryKey, input })` | `queryFn` is `() => Promise<{ q: string }>`. `input` is `{ q: string }` | `input` omitted; a fresh extra key | app |
 | `query options void` | a server function with no `.input()` | the same helper | `input` omitted. `queryFn` calls `fn()` | `input` passed | app |
 | `mutation options` | a handler that returns `{ id: string }` | `serverFnMutationOptions(fn, { mutationKey })` | `onSuccess` receives `{ id: string }` | the envelope type; `onSuccess` present when `mutationKey` is omitted | |
-| `server fn input` | `.input()` output `{ q: string }` | handler `ctx.input` and the client argument | both are `{ q: string }` | a fresh extra key; the argument omitted | app |
+| `server fn input` | `.input()` with a schema whose input and output are `{ q: string }`; and a transforming one, input `string`, output `number` | the client argument and handler `ctx.input` | the argument is the input (`{ q: string }`, then `string`); `ctx.input` is the output (`{ q: string }`, then `number`) | a fresh extra key; the argument omitted | app |
 | `server fn input void` | no `.input()` | the client function | called with no argument. `ctx.input` is `undefined` | a value passed | app |
 | `server fn schema unknown` | a Standard Schema whose output is `unknown` | the client argument | | a bad key is not rejected. This row documents that limit | |
 | `server fn return` | handler returns `{ secret: string }` | the client | `Promise<{ secret: string }>`. The field stays | the envelope type; `secret` stripped | app |
