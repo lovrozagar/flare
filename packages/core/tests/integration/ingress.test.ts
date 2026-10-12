@@ -141,6 +141,9 @@ function nodeRes(res: http.ServerResponse) {
 		once(event: "drain" | "close", callback: () => void) {
 			res.once(event, callback);
 		},
+		get writableFinished() {
+			return res.writableFinished;
+		},
 	};
 }
 
