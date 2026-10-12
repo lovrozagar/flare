@@ -92,8 +92,21 @@ function readTag(html: string, start: number): Tag {
 			closed = found[5] === "/>";
 			break;
 		}
-		attributes.set(String(found[1]).toLowerCase(), found[2] ?? found[3] ?? found[4] ?? "");
+		attributes.set(String(found[1]).toLowerCase(), decode(found[2] ?? found[3] ?? found[4] ?? ""));
 	}
-	const classes = new Set((attributes.get("class") ?? "").split(/\s+/).filter((item) => item !== ""));
+	// HTML splits a class list on ASCII whitespace only, so a decoded no-break space stays inside its class.
+	const classes = new Set((attributes.get("class") ?? "").split(/[\t\n\f\r ]+/).filter((item) => item !== ""));
 	return { tag: html.slice(start + 1, nameEnd).toLowerCase(), attributes, classes, end: pattern.lastIndex, closed };
+}
+
+const NAMED: Readonly<Record<string, string>> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\u00a0" };
+
+// Solid's SSR writes `&`, `<`, and quotes in attributes as character references. Decimal and hex references decode,
+// and so do the named ones it writes. Any other reference stays as written.
+function decode(value: string): string {
+	return value.replaceAll(/&(#[xX][0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (whole: string, reference: string) => {
+		if (/^#x/i.test(reference)) return String.fromCodePoint(Number.parseInt(reference.slice(2), 16));
+		if (reference.startsWith("#")) return String.fromCodePoint(Number(reference.slice(1)));
+		return NAMED[reference] ?? whole;
+	});
 }
