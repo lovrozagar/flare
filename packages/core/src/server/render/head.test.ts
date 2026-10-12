@@ -1,4 +1,11 @@
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
+import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
+import type { ErrorRender } from "../../shared/route-builder/index.ts";
+import { createPage } from "../../shared/route-builder/page.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
+import { serveWith } from "../lifecycle/create.ts";
+import type { Logger } from "../lifecycle/logger.ts";
 import { mergeHead, renderHead, type Head } from "./head.ts";
 
 const https = "https://ex.com";
@@ -422,4 +429,34 @@ it("viewport false", () => {
 
 it("unknown field", () => {
 	expect(renderHead({ nope: "secret" } as Head)).not.toContain("secret");
+});
+
+function quietLog(): void {}
+
+function headBroke(): never {
+	throw new Error("head broke");
+}
+
+it("head throw", async () => {
+	const log: Logger = { level: "error", error: quietLog, warn: quietLog, log: quietLog };
+	const send = vi.fn<(payload: DevErrorPayload) => void>();
+	const errorRender = vi.fn<ErrorRender>(() => "painted");
+	const root = createRootLayout("_root_")
+		.head(() => ({ title: "Root" }))
+		.render((props) => ["root[", props.children, "]"]);
+	const page = createPage("_root_")
+		.loader(() => "data")
+		.head(headBroke)
+		.render(() => "page")
+		.errorRender(errorRender);
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_", path: "/", module: page }] });
+	const response = await serveWith({ router }, { dev: true, send, log }).fetch(new Request("http://localhost/"));
+	expect(response.status).toBe(200);
+	const body = await response.text();
+	expect(body).toContain("<title>Root</title>");
+	expect(body).toContain("page");
+	expect(errorRender).not.toHaveBeenCalled();
+	expect(send).toHaveBeenCalledExactlyOnceWith(
+		expect.objectContaining({ err: expect.objectContaining({ message: "head broke" }) }),
+	);
 });
