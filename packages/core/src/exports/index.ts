@@ -4,3 +4,4 @@ export { createRootLayout } from "../shared/route-builder/root-layout.ts";
 export { createRouter } from "../shared/router/create-router.ts";
 export { nonce } from "../shared/csp/nonce.ts";
 export { markSafeError } from "../shared/errors/index.ts";
+export { useNavigationProgress } from "../client/navigation/index.ts";
