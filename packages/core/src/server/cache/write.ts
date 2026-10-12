@@ -1,5 +1,9 @@
 import { parseDuration } from "../../shared/duration/index.ts";
-import type { CacheConfig } from "../../shared/route-builder/chain.ts";
+import type { CacheConfig, CacheTags } from "../../shared/route-builder/chain.ts";
+import type { SecurityConfig } from "../../shared/route-builder/types.ts";
+import { defaultHeaders } from "../security/defaults.ts";
+import type { FlareStoreEntry } from "./contract.ts";
+import { newSentinel, toSentinel } from "./nonce.ts";
 
 // How long a stored entry lives, and when it turns stale, in milliseconds.
 export type StoreTiming = { ttl: number; stale: number };
@@ -24,4 +28,73 @@ export function storeTiming(route: string, cache: CacheConfig | undefined): Stor
 	if (revalidate === undefined) return { ttl: DAY, stale: DAY };
 	const ttl = Math.min(parseDuration(revalidate) * 2, DAY);
 	return { ttl, stale: Math.min(parseDuration(revalidate), ttl) };
+}
+
+// One stored page: the document and the data variant of one URL, from one shared render. `headers` are the route's
+// replayable headers. `security` is the route's merged `.security()` config, so a hit rebuilds the set with its own
+// nonce. `sentinel` is this entry's nonce placeholder.
+export type StoredPage = {
+	html: string;
+	ndjson: string;
+	headers: readonly (readonly [string, string])[];
+	security: SecurityConfig;
+	sentinel: string;
+	render: "isr" | "ssr";
+};
+
+// What a finished shared render hands the write. `settled` is every "resolve" value fulfilled.
+export type EntryInput = {
+	status: number;
+	html: string;
+	ndjson: string;
+	settled: boolean;
+	headers: Readonly<Record<string, string | string[]>>;
+	security: SecurityConfig;
+	nonce: string;
+	render: "isr" | "ssr";
+	startedAt: number;
+	tags: readonly string[];
+};
+
+// Never stored: a redirect target, a cookie, the decision's own headers, and the security set, which finalize
+// writes on every answer (B46).
+const NEVER_STORED = new Set([
+	"location",
+	"set-cookie",
+	"cache-control",
+	"cache-tag",
+	"content-security-policy",
+	...defaultHeaders("https://flare.invalid").keys(),
+]);
+
+// The one write rule (B46, B47): a 2xx document holding `<html` and `</body>`, a data variant with no error frame,
+// and every "resolve" value fulfilled. `storedAt` is the render's start. A body that fails any of these is not
+// stored. Its nonce becomes this entry's own sentinel.
+export function buildEntry(input: EntryInput): FlareStoreEntry | undefined {
+	if (input.status < 200 || input.status > 299 || !input.settled) return undefined;
+	if (!input.html.includes("<html") || !input.html.includes("</body>")) return undefined;
+	if (input.ndjson.split("\n").some((line) => line.startsWith('{"t":"e"'))) return undefined;
+	const sentinel = newSentinel();
+	const headers = Object.entries(input.headers).flatMap(([name, value]) =>
+		NEVER_STORED.has(name) ? [] : [[name, [value].flat().join(", ")] as const],
+	);
+	const page: StoredPage = {
+		html: toSentinel(input.html, input.nonce, sentinel),
+		ndjson: input.ndjson,
+		headers,
+		security: input.security,
+		sentinel,
+		render: input.render,
+	};
+	return { data: page, storedAt: input.startedAt, tags: input.tags };
+}
+
+// An entry's tags: `cache.ssr.tags` and the merged `cdn.tags`, each resolved with the raw params, deduped. A store
+// tag and a `Cache-Tag` share one vocabulary.
+export function entryTags(
+	sources: readonly (CacheTags | undefined)[],
+	params: Record<string, string | string[]>,
+): string[] {
+	const tags = sources.flatMap((source) => (typeof source === "function" ? source({ params }) : (source ?? [])));
+	return [...new Set(tags)];
 }

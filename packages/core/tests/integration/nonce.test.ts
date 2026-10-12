@@ -1,6 +1,9 @@
 import { createComponent, type Element } from "solid-js";
 import { Dynamic } from "@solidjs/web";
-import { expect, it } from "vitest";
+import { expect, it, vi, type Mock } from "vitest";
+import type { FlareStore, FlareStoreEntry } from "../../src/server/cache/contract.ts";
+import { createMemoryStore } from "../../src/server/cache/memory.ts";
+import type { StoredPage } from "../../src/server/cache/write.ts";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import type { SecurityConfig } from "../../src/server/security/apply.ts";
 import { ViewTransitionCSS } from "../../src/shared/components/index.ts";
@@ -162,4 +165,46 @@ it("view transition", async () => {
 	const response = await document(() => createComponent(ViewTransitionCSS, {}));
 	const body = await response.text();
 	expect(capture(body, /<style[^>]*nonce="([^"]+)"[^>]*>@view-transition/)).toBe(headerNonce(response.headers));
+});
+
+// The page stored for every visitor, and a watched memory store.
+function storing(render: Render): { app: ReturnType<typeof createServer>; set: Mock<FlareStore["set"]> } {
+	const store = createMemoryStore();
+	const set = vi.fn<FlareStore["set"]>(store.set);
+	const page = createPage("_root_/")
+		.cache({ isr: true })
+		.head(() => head)
+		.render(render);
+	const routes = createRouter({
+		layouts: { _root_: createRootLayout("_root_").render((props) => documentOf(props.children)) },
+		routeTree: [{ id: "_root_/", path: "/", module: page }],
+	});
+	return { app: createServer({ router: routes, site: "https://example.com", store: { ...store, set } }), set };
+}
+
+async function storedPage(set: Mock<FlareStore["set"]>): Promise<StoredPage> {
+	await vi.waitFor(() => expect(set).toHaveBeenCalled());
+	const entry = set.mock.calls.at(-1)?.[1] as FlareStoreEntry;
+	return entry.data as StoredPage;
+}
+
+// The stored bytes hold the entry's sentinel in every nonce attribute and in the state field, never the nonce of the
+// request that rendered them.
+it("stored sentinel", async () => {
+	const { app, set } = storing(() => "page");
+	const response = await app.fetch(new Request("http://localhost/"));
+	const first = headerNonce(response.headers);
+	const stored = await storedPage(set);
+	expect(tagNonces(stored.html)).toEqual({ script: stored.sentinel, json: stored.sentinel, style: stored.sentinel });
+	expect(stored.html).toContain(`"nonce":"${stored.sentinel}"`);
+	expect(stored.html).not.toContain(`nonce="${first}"`);
+	expect(stored.html).not.toContain(`"nonce":"${first}"`);
+});
+
+// Text that equals the nonce is content. It is stored as it was rendered.
+it("text kept", async () => {
+	const { app, set } = storing(() => printed());
+	const response = await app.fetch(new Request("http://localhost/"));
+	const first = headerNonce(response.headers);
+	expect((await storedPage(set)).html).toContain(`NONCE[${first}]`);
 });

@@ -12,6 +12,8 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 
 ### `server/lifecycle/create.test.ts` (extended)
 
+These rows live in `server/lifecycle/create-store.test.ts`, split from `create.test.ts` at the 500-line limit.
+
 | test | case | result |
 | --- | --- | --- |
 | `store function` | `store: (env) => store` | the function is called once on that request with that `env`, and the returned store is the one read |
@@ -73,6 +75,16 @@ Creates every `P10` row. One write function. Memory, filesystem, and Cache API s
 | `security stripped` | the render set `Content-Security-Policy` | the stored headers do not contain it |
 | `host` | the request `Host` is `evil` and `site` is `https://example.com` | the stored body contains `https://example.com` and does not contain `evil` |
 | `sentinel` | the rendered body has `nonce="abc"` and the state field `abc` | the stored body has the entry's sentinel in both places, and the entry records that sentinel |
+| `entry tags` | `ssr.tags` `["posts", "home"]`, a `cdn.tags` function of params, and an absent source | `posts`, `home`, `post:7`: resolved with the raw params and deduped |
+
+### `server/cache/serve.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `no store` | a shared public page and no `store` | a live render of the real request, the public header, and no `flare-cache` |
+| `data miss` | a data and a prefetch request for a stored page | each runs the shared render and serves the NDJSON it stored, with `flare-cache: miss` and the public header |
+| `not stored` | the shared render throws `notFound()`, or the render throws before the shell | the document is 404 or 500, the data variant 404, and nothing is written |
+| `rejected resolve` | a `"resolve"` value rejects | the document and the data variant leave `private, no-store`, and nothing is written |
 
 ### `server/cache/read.test.ts`
 

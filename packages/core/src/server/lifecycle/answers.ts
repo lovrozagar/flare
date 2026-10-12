@@ -25,7 +25,7 @@ import { isPublic, policyHeaders } from "./policies.ts";
 // The rendered-page answers: a document, a data or prefetch response, and the not-found page (02-system steps 10 to
 // 13). createServer routes to them.
 
-const HTML = "text/html; charset=utf-8";
+export const HTML = "text/html; charset=utf-8";
 
 declare global {
 	interface ImportMetaEnv {
@@ -39,19 +39,22 @@ export type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] };
 
 // The request's decision, and the raw params a `cdn.tags` function reads (B32). `rejected` is a deferred value that
 // rejected before a public answer was sent.
-type Policy = { decision: Decision; params: Record<string, string | string[]>; rejected?: boolean };
+export type Policy = { decision: Decision; params: Record<string, string | string[]>; rejected?: boolean };
+
+// What the decision hands the loaders, and the policy the answer writes.
+export type Prepared = { input: RunInput; policy: Policy };
 
 // An unknown path answers 404, which no policy makes public.
 const UNDECIDED: Policy = { decision: { policy: "no-store", cdn: {} }, params: {} };
 
-type Decided = Rendered & { policy: Policy };
+export type Decided = Rendered & { policy: Policy };
 
-type Staged = StageResult & { headers: Headers };
+export type Staged = StageResult & { headers: Headers };
 
 // The policy is decided before the loaders run, so bit 10's store read sees `shared` (dx/cache.md). A chain that
 // reads auth and does not require it resolves the request's one session first, through the memoized authenticate
 // the gate calls next. A throw there answers a status, which no policy makes public.
-async function decided(exchange: Exchange, matched: Loaded): Promise<{ input: RunInput; policy: Policy }> {
+export async function decided(exchange: Exchange, matched: Loaded): Promise<Prepared> {
 	const input = loaderInput(exchange, matched);
 	const modules = matched.chain.map((entry) => entry.module);
 	const auth = effectiveAuth(modules);
@@ -82,7 +85,7 @@ async function awaited(run: LoaderRun, policy: Policy, buffer: boolean): Promise
 
 // The decision, downgraded by a cookie the route sets, writes Cache-Control and Cache-Tag over the answer's
 // headers. `errored` is an error frame on a data answer, or a painted failure.
-function cached(result: Staged, policy: Policy, answer: { run: LoaderRun; errored: boolean }): Response {
+export function cached(result: Staged, policy: Policy, answer: { run: LoaderRun; errored: boolean }): Response {
 	const route = [answer.run.headers["set-cookie"] ?? []].flat();
 	const decision = withCookies(policy.decision, { route, all: result.headers.getSetCookie() });
 	const errored = answer.errored || policy.rejected === true;
@@ -93,13 +96,21 @@ function cached(result: Staged, policy: Policy, answer: { run: LoaderRun; errore
 
 // A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one
 // `x` line. Validation, a gate status, and a named failure answer bare. Anything else is the NDJSON stream.
-export async function data(exchange: Exchange, matched: Loaded): Promise<Response> {
+export async function data(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	const raw = new URL(exchange.request.url).search.slice(1);
 	const id = matchId(definedParams(matched.params), raw);
 	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind === "layout" }));
 	const skip = skippedRoutes(matches, exchange.stale);
-	const { input, policy } = await decided(exchange, matched);
-	const run = await runLoaders({ ...input, skip });
+	const run = await runLoaders({ ...prepared.input, skip });
+	return dataFrom(exchange, run, { skip, policy: prepared.policy });
+}
+
+// The data answer for a finished loader run.
+export async function dataFrom(
+	exchange: Exchange,
+	run: LoaderRun,
+	{ skip, policy }: { skip: ReadonlySet<string>; policy: Policy },
+): Promise<Response> {
 	const thrown = run.thrown ?? run.failed?.error;
 	if (thrown instanceof RedirectError) {
 		const u = redirectLocation(thrown, exchange.options.router.basePath);
@@ -109,14 +120,18 @@ export async function data(exchange: Exchange, matched: Loaded): Promise<Respons
 	}
 	if (run.response.status !== 200) return bare(exchange, run);
 	for (const bug of run.bugs) projectError(bug, exchange.sink);
-	const project = (error: unknown): FrameError => {
+	const settled = await awaited(run, policy, false);
+	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project: framed(exchange) });
+	const errored = run.frames.some((frame) => frame.t === "e");
+	return cached(stage(routeSecured(exchange, run.security), body, run), settled, { run, errored });
+}
+
+// A deferred failure's `e` frame: the projected wire error.
+export function framed(exchange: Exchange): (error: unknown) => FrameError {
+	return (error) => {
 		const wire = projectError(error, exchange.sink).wire;
 		return { message: wire.message, stack: wire.stack, digest: wire.digest };
 	};
-	const settled = await awaited(run, policy, false);
-	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project });
-	const errored = run.frames.some((frame) => frame.t === "e");
-	return cached(stage(routeSecured(exchange, run.security), body, run), settled, { run, errored });
 }
 
 // A data answer is HTTP 200 with the route's headers, whatever its frames say (B73).
@@ -134,13 +149,16 @@ export async function notFound(exchange: Exchange, matched: Loaded): Promise<Res
 	return settle(exchange, rendered);
 }
 
-export async function page(exchange: Exchange, matched: Loaded): Promise<Response> {
-	const chain = matched.chain;
-	const { input, policy } = await decided(exchange, matched);
-	const run = await runLoaders(input);
-	const settled = await awaited(run, policy, exchange.options.documentResponseDefer === "buffer");
-	if (run.response.status === 200) return paint(exchange, { chain, run, policy: settled }, 200);
-	return settle(exchange, { chain, run, policy: settled });
+export async function page(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
+	const run = await runLoaders(prepared.input);
+	const settled = await awaited(run, prepared.policy, exchange.options.documentResponseDefer === "buffer");
+	return painted(exchange, { chain: matched.chain, run, policy: settled });
+}
+
+// The document for a finished loader run: the page, or what its failure answers.
+export function painted(exchange: Exchange, rendered: Decided): Promise<Response> {
+	if (rendered.run.response.status === 200) return paint(exchange, rendered, 200);
+	return settle(exchange, rendered);
 }
 
 // A thrown redirect() answers its status and Location, with no render and no boundary (B73). A failed match
@@ -158,6 +176,19 @@ function settle(exchange: Exchange, rendered: Decided): Promise<Response> {
 }
 
 async function paint(outer: Exchange, rendered: Decided, status: number): Promise<Response> {
+	const document = await drawn(outer, rendered);
+	if ("failed" in document) return document.failed;
+	const headers = typed(document.exchange, HTML, rendered.run.headers);
+	const result = { status, body: document.body, render: "ssr" as const, headers };
+	return cached(result, rendered.policy, { run: rendered.run, errored: rendered.failed !== undefined });
+}
+
+// The document body, rendered under the route's security set, or the answer for a render that failed before the
+// shell (B93).
+export async function drawn(
+	outer: Exchange,
+	rendered: Decided,
+): Promise<{ exchange: Exchange; body: ReadableStream<Uint8Array> } | { failed: Response }> {
 	const exchange = routeSecured(outer, rendered.run.security);
 	for (const bug of rendered.run.bugs) projectError(bug, exchange.sink);
 	const state: OutletState = {
@@ -190,10 +221,9 @@ async function paint(outer: Exchange, rendered: Decided, status: number): Promis
 			throw thrownInRender[0];
 		}
 	} catch (thrown) {
-		return renderFailed(exchange, projectError(thrown, exchange.sink));
+		return { failed: renderFailed(exchange, projectError(thrown, exchange.sink)) };
 	}
-	const result = { status, body, render: "ssr" as const, headers: typed(exchange, HTML, rendered.run.headers) };
-	return cached(result, rendered.policy, { run: rendered.run, errored: rendered.failed !== undefined });
+	return { exchange, body };
 }
 
 // The stream rejected before the shell, so nothing was written (B93). Only a dev bug shows its message and

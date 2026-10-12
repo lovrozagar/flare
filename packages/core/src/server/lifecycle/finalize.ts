@@ -7,7 +7,7 @@ import { NO_STORE, recordCookies } from "./policies.ts";
 export type StageResult = {
 	status: number;
 	body: BodyInit | null;
-	render?: "ssr";
+	render?: "ssr" | "isr" | "ssg";
 	url?: string;
 	build?: string;
 	location?: string | undefined;

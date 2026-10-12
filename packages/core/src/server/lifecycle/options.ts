@@ -11,6 +11,10 @@ import type { MiddlewareEntry } from "../middleware/types.ts";
 import type { Mount, MountContext } from "../mount/mount.ts";
 import type { SecurityConfig } from "../security/apply.ts";
 import type { ServerFns } from "../server-fn/dispatch.ts";
+import type { FlareStore } from "../cache/contract.ts";
+
+// A store, or a function the request's env picks it with. The function runs once per request that reads it.
+export type StoreOption = FlareStore | ((env: unknown) => FlareStore);
 
 export type Authenticate = (ctx: { request: Request; env: unknown } & Caller) => unknown;
 
@@ -29,6 +33,12 @@ type BaseOptions = {
 	// Runs in list order around server functions and the router (02-system step 6).
 	middleware?: readonly MiddlewareEntry[];
 	documentResponseDefer?: "stream" | "buffer";
+	// The origin every shared render requests and writes into stored HTML. Required with `store` (dx/server.md).
+	site?: string;
+	// ISR and shared SSR storage. Absent, those modes render and are not stored.
+	store?: StoreOption;
+	// The read-only SSG seeds (dx/store.md).
+	static?: StoreOption;
 };
 
 type ContextFn<R extends FlareRegister> = (ctx: {

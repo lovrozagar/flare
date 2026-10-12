@@ -17,7 +17,10 @@ import { routeMethod, type MethodMatch } from "./methods.ts";
 import { responseHeaders } from "./policies.ts";
 import { effectiveAuth } from "../auth/effective.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
-import { data, loaderInput, notFound, page, type Loaded } from "./answers.ts";
+import { loaderInput, notFound, type Loaded } from "./answers.ts";
+import { checkSite } from "../cache/scrub.ts";
+import { pageAnswer, requestStore } from "../cache/serve.ts";
+import { storeTiming } from "../cache/write.ts";
 
 export type { FlareServer, ServerOptions } from "./options.ts";
 
@@ -31,6 +34,7 @@ export function createServer(options: RuntimeOptions): FlareServer {
 
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
+	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev });
 	const { trailingSlash, caseSensitive } = options.router;
 	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive });
 	return {
@@ -58,7 +62,8 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 					// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
 					const mounted = dispatchMount(mounts, inner, call);
 					if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
-					return route({ ...exchange, session: scope.session });
+					const waitUntil = (promise: Promise<unknown>): void => call.ctx.waitUntil(promise);
+					return route({ ...exchange, session: scope.session, waitUntil, store: requestStore(options.store, env) });
 				},
 				() => answer(exchange, 500),
 			);
@@ -102,9 +107,7 @@ function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefine
 	if (matched.response === true) {
 		return { kind: "response", handle: () => loaded(exchange, matched, (chain) => answered(exchange, chain)) };
 	}
-	if (exchange.kind !== "document")
-		return { kind: "page", render: () => loaded(exchange, matched, (chain) => data(exchange, chain)) };
-	return { kind: "page", render: () => loaded(exchange, matched, (chain) => page(exchange, chain)) };
+	return { kind: "page", render: () => loaded(exchange, matched, (chain) => pageAnswer(exchange, chain)) };
 }
 
 // Awaits the chain's modules, then runs the handler. An import that fails on the server is a bug: projected,
@@ -117,6 +120,8 @@ async function loaded(
 	let chain: Loaded;
 	try {
 		chain = { ...matched, chain: await loadChain(matched.chain) };
+		// A bad store timing is a bug of this page, found before any render (dx/cache.md).
+		if (matched.id !== undefined) storeTiming(matched.id, chain.chain.at(-1)?.module.cache);
 	} catch (error) {
 		projectError(error, exchange.sink);
 		return answer(exchange, 500);

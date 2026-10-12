@@ -1,6 +1,16 @@
-import { expect, expectTypeOf, it } from "vitest";
+import { createComponent, createMemo, Loading, type Element } from "solid-js";
+import { Dynamic } from "@solidjs/web";
+import { expect, expectTypeOf, it, vi, type Mock } from "vitest";
 import type { CacheConfig } from "../../shared/route-builder/chain.ts";
-import { storeTiming } from "./write.ts";
+import { createPage } from "../../shared/route-builder/page.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
+import { serveWith } from "../lifecycle/create.ts";
+import type { Logger } from "../lifecycle/logger.ts";
+import type { FlareStore, FlareStoreEntry } from "./contract.ts";
+import { createMemoryStore } from "./memory.ts";
+import { fromSentinel } from "./nonce.ts";
+import { buildEntry, entryTags, storeTiming, type EntryInput, type StoredPage } from "./write.ts";
 
 const SECOND = 1000;
 const HOUR = 3600 * SECOND;
@@ -20,16 +30,18 @@ it("ssr ttl", () => {
 });
 
 // `ttl` is required in the type. Untyped, the server's check names the route.
-it("ssr ttl missing", () => {
+it("ssr ttl missing", async () => {
 	expectTypeOf<{ ssr: object }>().not.toExtend<CacheConfig>();
 	const untyped: unknown = { ssr: {} };
 	expect(() => storeTiming("_root_/p", untyped as CacheConfig)).toThrow(/_root_\/p: cache\.ssr needs a ttl/);
+	await answers500(untyped);
 });
 
-it("stale over ttl", () => {
+it("stale over ttl", async () => {
 	expect(() => storeTiming("_root_/p", { ssr: { ttl: "1m", staleTime: "2m" } })).toThrow(
 		/_root_\/p: cache\.ssr\.staleTime is longer than its ttl/,
 	);
+	await answers500({ ssr: { ttl: "1m", staleTime: "2m" } });
 });
 
 // On demand: 24 hours, and nothing turns stale before then (B47).
@@ -50,3 +62,238 @@ it("no timing", () => {
 	expect(storeTiming("r", { ssg: true })).toBeUndefined();
 	expect(storeTiming("r", undefined)).toBeUndefined();
 });
+
+function noop(): void {}
+
+const quiet: Logger = { level: "error", error: noop, warn: noop, log: noop };
+
+function documentOf(children: Element): Element {
+	return createComponent(Dynamic, {
+		component: "html",
+		get children() {
+			return [
+				createComponent(Dynamic, { component: "head" }),
+				createComponent(Dynamic, { component: "body", children }),
+			];
+		},
+	});
+}
+
+const root = createRootLayout("_root_").render((props) => documentOf(props.children));
+
+const SITE = "https://example.com";
+
+// A server with one page at /p, a memory store whose `set` is watched, and a dev sink that keeps each bug.
+function storing(page: RouteModule): {
+	server: ReturnType<typeof serveWith>;
+	set: Mock<FlareStore["set"]>;
+	bugs: string[];
+} {
+	const store = createMemoryStore();
+	const set = vi.fn<FlareStore["set"]>(store.set);
+	const bugs: string[] = [];
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] });
+	const server = serveWith(
+		{ router, site: SITE, store: { ...store, set } },
+		{ dev: true, log: quiet, send: (payload) => void bugs.push(payload.err.message) },
+	);
+	return { server, set, bugs };
+}
+
+// The entry the store received, once the background write has run.
+async function stored(
+	set: Mock<FlareStore["set"]>,
+): Promise<{ key: string; entry: FlareStoreEntry; page: StoredPage }> {
+	await vi.waitFor(() => expect(set).toHaveBeenCalled());
+	const [key, entry] = set.mock.calls.at(-1) as [string, FlareStoreEntry];
+	return { key, entry, page: entry.data as StoredPage };
+}
+
+// A slot under `<Loading>` that reads one deferred value, the way dx/defer.md shows.
+function slot(read: () => Promise<unknown>, fallback: string): Element {
+	return createComponent(Loading, {
+		fallback,
+		get children() {
+			const value = createMemo(async () => read());
+			return [() => String(value())];
+		},
+	});
+}
+
+const entryOf = (input: Partial<EntryInput> = {}): FlareStoreEntry | undefined =>
+	buildEntry({
+		status: 200,
+		html: '<html><body><script nonce="abc">x()</script><script>self.flare={"matches":[],"nonce":"abc"}</script></body></html>',
+		ndjson: '{"t":"l","m":"p","d":{}}\n{"t":"r"}\n{"t":"d"}\n',
+		settled: true,
+		headers: { "x-robots-tag": "noindex" },
+		security: {},
+		nonce: "abc",
+		render: "isr",
+		startedAt: 1000,
+		tags: ["t"],
+		...input,
+	});
+
+it("2xx complete", () => {
+	const entry = entryOf();
+	expect(entry?.storedAt).toBe(1000);
+	expect(entry?.tags).toEqual(["t"]);
+	expect((entry as FlareStoreEntry).data).toMatchObject({ render: "isr" });
+});
+
+const byId = ({ params }: { params: Record<string, string | string[]> }) => [`post:${String(params["id"])}`, "posts"];
+
+// The entry's tags are `ssr.tags` and the merged `cdn.tags`, resolved with the raw params, deduped.
+it("entry tags", () => {
+	expect(entryTags([["posts", "home"], byId, undefined], { id: "7" })).toEqual(["posts", "home", "post:7"]);
+});
+
+it("401", () => {
+	expect(entryOf({ status: 401 })).toBeUndefined();
+});
+
+it("403", () => {
+	expect(entryOf({ status: 403 })).toBeUndefined();
+});
+
+it("404", () => {
+	expect(entryOf({ status: 404 })).toBeUndefined();
+});
+
+it("redirect", () => {
+	expect(entryOf({ status: 302 })).toBeUndefined();
+});
+
+it("incomplete", () => {
+	expect(entryOf({ html: "<div>" })).toBeUndefined();
+	expect(entryOf({ html: "<html><body>" })).toBeUndefined();
+});
+
+// A data variant with an error frame, or a "resolve" value that rejected, is not a finished body (B46, B92).
+it("data not ok", () => {
+	expect(
+		entryOf({ ndjson: '{"t":"l","m":"p","d":{}}\n{"t":"e","m":"p","e":{"message":"x"}}\n{"t":"d"}\n' }),
+	).toBeUndefined();
+	expect(entryOf({ settled: false })).toBeUndefined();
+});
+
+it("storedAt", () => {
+	vi.useFakeTimers({ now: 6000 });
+	expect(entryOf({ startedAt: 1000 })?.storedAt).toBe(1000);
+	vi.useRealTimers();
+});
+
+it("location stripped", () => {
+	const page = entryOf({ headers: { location: "/x", "x-robots-tag": "noindex" } })?.data as StoredPage;
+	expect(page.headers).toEqual([["x-robots-tag", "noindex"]]);
+});
+
+// Security headers, Set-Cookie, Cache-Control, and Cache-Tag are never stored. The route's `.security()` config is,
+// so a hit rebuilds the set with its own nonce.
+it("security stripped", () => {
+	const page = entryOf({
+		headers: {
+			"content-security-policy": "default-src 'none'",
+			"x-frame-options": "DENY",
+			"set-cookie": ["a=1"],
+			"cache-control": "public",
+			"cache-tag": "x",
+			"x-robots-tag": "noindex",
+		},
+		security: { "X-Frame-Options": "SAMEORIGIN" },
+	})?.data as StoredPage;
+	expect(page.headers).toEqual([["x-robots-tag", "noindex"]]);
+	expect(page.security).toEqual({ "X-Frame-Options": "SAMEORIGIN" });
+});
+
+it("sentinel", () => {
+	const page = entryOf()?.data as StoredPage;
+	expect(page.sentinel).toMatch(/^__FLARE_NONCE_[0-9a-f]{32}$/);
+	expect(page.html).toContain(`nonce="${page.sentinel}"`);
+	expect(page.html).toContain(`"nonce":"${page.sentinel}"`);
+	expect(page.html).not.toContain("abc");
+});
+
+// The settled value is in the stored HTML and NDJSON, under two nested boundaries. No key is left unfilled.
+it("resolved defer", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.loader(({ defer }) => ({ one: defer(async () => 1) }))
+		.render((props) =>
+			slot(() => props.loaderData.one.promise.then((value) => slot(async () => value * 41, "inner")), "outer"),
+		);
+	const { server, set } = storing(page);
+	const response = await server.fetch(new Request(`${SITE}/p`));
+	expect(response.status).toBe(200);
+	const { page: entry } = await stored(set);
+	expect(entry.html).toContain("41");
+	expect(entry.html).not.toContain("outer");
+	expect(entry.html).not.toContain("inner");
+	expect(entry.ndjson).toContain('{"t":"c","m":"_root_/p","k":"d0","d":1}');
+});
+
+// A "stream" value is a hole: the placeholder is stored, no `c` frame, and the function never ran.
+it("streamed defer", async () => {
+	const late = vi.fn<() => Promise<string>>(async () => "late");
+	const page = createPage("_root_/p")
+		.cache({ isr: { defer: "stream" } })
+		.loader(({ defer }) => ({ late: defer(late) }))
+		.render((props) => slot(() => props.loaderData.late.promise, "waiting"));
+	const { server, set } = storing(page);
+	await server.fetch(new Request(`${SITE}/p`));
+	const { page: entry } = await stored(set);
+	expect(entry.html).toContain("waiting");
+	expect(entry.ndjson).not.toContain('"t":"c"');
+	expect(late).not.toHaveBeenCalled();
+});
+
+// Every shared render requests `site` plus the canonical pathname: no search and no request headers. The miss serves
+// the body it stored.
+it("shared request", async () => {
+	const seen: Request[] = [];
+	const page = createPage("_root_/p")
+		.cache({ ssr: { ttl: "1m" } })
+		.loader(({ request }) => {
+			seen.push(request);
+			return { text: "page" };
+		})
+		.render(() => "page");
+	const { server, set } = storing(page);
+	const response = await server.fetch(new Request(`${SITE}/p?q=1`, { headers: { "accept-language": "fr" } }));
+	const html = await response.text();
+	expect(seen.map((request) => request.url)).toEqual([`${SITE}/p`]);
+	expect([...(seen[0]?.headers.keys() ?? [])]).toEqual([]);
+	const { page: entry } = await stored(set);
+	expect(html).toContain("page");
+	const nonce = /'nonce-([^']+)'/.exec(response.headers.get("content-security-policy") ?? "")?.[1] ?? "";
+	expect(fromSentinel(entry.html, entry.sentinel, nonce)).toBe(html);
+	expect(response.headers.get("flare-cache")).toBe("miss");
+	expect(response.headers.get("flare-render")).toBe("ssr");
+});
+
+// The origin in a stored body is `site`, never the request's Host.
+it("host", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.loader(({ request }) => ({ origin: new URL(request.url).origin }))
+		.render((props) => props.loaderData.origin);
+	const { server, set } = storing(page);
+	await server.fetch(new Request("https://evil/p", { headers: { host: "evil" } }));
+	const { page: entry } = await stored(set);
+	expect(entry.html).toContain(SITE);
+	expect(entry.html).not.toContain("evil");
+});
+
+// The server checks the page's timing when it loads the chain, before any render, and answers 500 naming the route.
+async function answers500(cache: unknown): Promise<void> {
+	const render = vi.fn<() => string>(() => "p");
+	const page = createPage("_root_/p")
+		.cache(cache as CacheConfig)
+		.render(render);
+	const { server, bugs } = storing(page);
+	const response = await server.fetch(new Request(`${SITE}/p`));
+	expect(response.status).toBe(500);
+	expect(render).not.toHaveBeenCalled();
+	expect(bugs.join("\n")).toContain("_root_/p: cache.ssr");
+}

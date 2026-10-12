@@ -1,4 +1,5 @@
 import type { RequestKind } from "../../shared/protocol/index.ts";
+import type { FlareStore } from "../cache/contract.ts";
 import type { Session } from "../context/ctx.ts";
 import type { LoaderRun } from "../loaders/run.ts";
 import type { MountContext } from "../mount/mount.ts";
@@ -14,6 +15,8 @@ type Secured = { headers: Headers; nonce: string };
 // security set (bit 03).
 // `request` carries the URL the router and the loaders see: both internal params are removed (bit 06).
 // `session` is the request's one authenticate, shared by the gate and every server function it calls.
+// `waitUntil` keeps background work alive after the answer, a store write or a refresh. `store` is the request's
+// mutable store, resolved on the first read.
 export type Exchange = {
 	options: RuntimeOptions;
 	request: Request;
@@ -23,6 +26,8 @@ export type Exchange = {
 	kind: RequestKind;
 	stale: string | null;
 	session: Session;
+	waitUntil: (promise: Promise<unknown>) => void;
+	store: () => FlareStore | undefined;
 };
 
 // Every answer here carries the request's resolved security set, which already holds the defaults, so finalize
