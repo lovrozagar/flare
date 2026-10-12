@@ -51,14 +51,17 @@ function tree(input: DocumentInput, data: unknown): Element {
 	});
 }
 
+// The state is serialized before the render starts. A value JSON cannot hold, such as a bigint, then fails
+// the document before the shell is committed instead of inside the stream.
 function streamOptions(input: DocumentInput, data: unknown, nonce: string): StreamOptions {
+	const script = stateScript({ matches: input.matches ?? [stateMatch(data)], nonce });
 	const options: StreamOptions = {
 		signal: input.request.signal,
 		manifest: {},
 		onError: () => undefined,
 		onHead: () => undefined,
 		onCompleteShell(info) {
-			info.write(stateScript({ matches: input.matches ?? [stateMatch(data)], nonce }));
+			info.write(script);
 		},
 	};
 	if (nonce !== "") options.nonce = nonce;

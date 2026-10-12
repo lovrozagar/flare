@@ -1,3 +1,4 @@
+import type { JSX } from "@solidjs/web";
 import { expect, it } from "vitest";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import { createLayout } from "../../src/shared/route-builder/layout.ts";
@@ -20,8 +21,9 @@ function spy(): Spy {
 
 function noop(): void {}
 
-function show(props: { loaderData: unknown }): string {
-	return `[${String(props.loaderData)}]`;
+// A layout shows its data, then its outlet. A page has no children.
+function show(props: { loaderData: unknown; children?: JSX.Element }): JSX.Element {
+	return [`[${String(props.loaderData)}]`, props.children];
 }
 
 function serve(options: RouterOptions, authenticate: () => unknown = () => null): ReturnType<typeof createServer> {
