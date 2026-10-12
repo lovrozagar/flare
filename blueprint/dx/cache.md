@@ -84,6 +84,8 @@ The public header (`public, max-age=0, s-maxage=…`, plus `Cache-Tag`) is sent 
 - a data or prefetch response that carries an `e` frame or a redirect, because it stays HTTP 200 (B73) (`data error frame`);
 - a `Set-Cookie` the route did not set, such as one a middleware added after the page stage, even with `allowCookies` (`cookies.test.ts` `late cookie`). `allowCookies` covers only the route's own `.headers()` cookies.
 
+A public answer, document or data, is sent only after every deferred value it started has settled, whatever `documentResponseDefer` says. A rejection is an error frame, so the answer leaves `private, no-store`. A CDN copy never holds a hole or a deferred error, and a CDN hit serves it without that wait (`answers.test.ts` `public waits`, `deferred rejection`). A `"stream"` deferred is not run in a shared render from bit 10 on (`defer.md`), so it adds no wait there.
+
 `.headers()` cannot set `Cache-Control` or `Cache-Tag` on a rendered page. The decision overwrites them, as finalize does the security headers (`policies.test.ts` `headers cannot`). A `.response()` page keeps the `Cache-Control` of the `Response` it returns, except on a chain that requires or reads auth, where it is `private, no-store`, as B43 does for a server function (`policies.test.ts` `response auth`).
 
 A `tags` function on `cdn` receives the raw params, the values the store key uses (B32).
