@@ -133,7 +133,8 @@ it("dev server", () => {
 	if (typeof hook !== "function") throw new Error("configureServer");
 	const used: unknown[] = [];
 	const server = (middlewareMode: boolean) => ({
-		config: { server: { middlewareMode } },
+		config: { root: "/app", server: { middlewareMode }, logger: { error: () => undefined } },
+		watcher: { on: () => undefined },
 		middlewares: { use: (handler: unknown) => void used.push(handler) },
 		transformIndexHtml: async (_url: string, html: string) => html,
 		ws: { send: () => undefined },

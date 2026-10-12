@@ -215,26 +215,25 @@ it("css server only", async () => {
 // The client build turns each source path of the generated `chunks` map into the hashed file the lazy import loads,
 // as a URL relative to the entry chunk. Serve keeps the source paths, which are the dev URLs.
 it("chunk urls", async () => {
-	const generated = [
-		'export const tree = [() => import("../routes/a.page.ts"), () => import("../routes/root.root-layout.ts")];',
-		'export const chunks = { "_root_/a": "/src/routes/a.page.ts", "_root_": "/src/routes/root.root-layout.ts" };',
-	].join("\n");
 	const root = project({
-		"client.tsx": 'import { chunks, tree } from "./_gen/routes.gen.ts";\nconsole.log(chunks, tree);\n',
+		"client.tsx":
+			'import { chunks, layouts, routeTree } from "./_gen/routes.gen.ts";\nconsole.log(chunks, layouts, routeTree);\n',
 		"server.ts": "export const server = {};\n",
-		"_gen/routes.gen.ts": `${generated}\n`,
-		"routes/a.page.ts": 'export const route = "a";\n',
-		"routes/root.root-layout.ts": 'export const route = "root";\n',
+		"routes/_root_/root.root-layout.tsx": 'export const route = "root";\n',
+		"routes/_root_/a/a.page.tsx": 'export const route = "a";\n',
 	});
 	const app = await builder(root);
 	const client = outputs(await app.build(app.environments.client ?? never()));
 	const manifest: Record<string, { file: string }> = JSON.parse(text(client, ".vite/manifest.json"));
 	const entry = text(client, basename(manifest["src/client.tsx"]?.file ?? never()));
-	for (const source of ["src/routes/a.page.ts", "src/routes/root.root-layout.ts"]) {
+	for (const source of ["src/routes/_root_/a/a.page.tsx", "src/routes/_root_/root.root-layout.tsx"]) {
 		const file = basename(manifest[source]?.file ?? never());
 		expect(entry).toMatch(new RegExp(`new URL\\([\`'"]${file.replace(".", "\\.")}[\`'"],\\s*import\\.meta\\.url\\)`));
 	}
 	expect(entry).not.toContain("/src/routes/");
+	// Codegen wrote the map at the start of the build. `vite dev` keeps its source paths, which are the dev URLs.
+	const generated = readFileSync(join(root, "src/_gen/routes.gen.ts"), "utf8");
+	expect(generated).toContain('"_root_/a": "/src/routes/_root_/a/a.page.tsx"');
 	const plugin = flare().find((item) => item.name === "flare:chunks");
 	const transform = plugin?.transform;
 	if (typeof transform !== "function") throw new Error("transform");

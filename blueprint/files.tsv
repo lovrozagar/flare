@@ -409,6 +409,8 @@ packages/core/src/vite/codegen/auth-hint.ts	P7	src	vite	Write the hint. The runt
 packages/core/src/vite/codegen/auth-hint.test.ts	P7	test	vite	Unit cases for auth-hint.ts
 packages/core/src/vite/codegen/server-fns.ts	P7	src	vite	Write server-fns.gen.ts: every exported createServerFn as a lazy import keyed by its B41 id
 packages/core/src/vite/codegen/server-fns.test.ts	P7	test	vite	Unit cases for server-fns.ts
+packages/core/src/vite/codegen/write.ts	P12	src	vite	Write src/_gen from the app's sources: only changed output, an empty route set removes the route and type files, and the dev watch
+packages/core/src/vite/codegen/write.test.ts	P12	test	vite	Unit cases for write.ts
 packages/core/src/vite/codegen/index.ts	P1	index	vite	Re-exports
 packages/core/src/vite/boundary/allow.ts	P7	src	vite	The B8 allow-list
 packages/core/src/vite/boundary/allow.test.ts	P7	test	vite	Unit cases for allow.ts
@@ -608,23 +610,29 @@ packages/core/tests/e2e/apps/minimal/vite.config.ts	P1	app	-	App vite config
 packages/core/tests/e2e/apps/minimal/src/client.tsx	P1	app	-	createClient
 packages/core/tests/e2e/apps/minimal/src/server.ts	P1	app	-	createServer
 packages/core/tests/e2e/apps/minimal/src/router.ts	P1	app	-	createRouter
+packages/core/tests/e2e/apps/minimal/src/_gen/routes.gen.ts	P12	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/minimal/src/_gen/types.gen.d.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/minimal/src/_gen/server-fns.gen.ts	P12	app	-	Generated server function list, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/root.root-layout.tsx	P1	app	-	Document root
-packages/core/tests/e2e/apps/minimal/src/routes/_root_/holed.page.tsx	P10	app	-	An ISR page whose stream defer is a hole in the stored body, for stored stream fills
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/holed/holed.page.tsx	P10	app	-	An ISR page whose stream defer is a hole in the stored body, for stored stream fills
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/home.page.tsx	P1	app	-	Home page
 packages/core/tests/e2e/apps/minimal/wrangler.jsonc	P3	app	-	Workers config for the same app
-packages/core/tests/e2e/apps/minimal/src/routes/_root_/about.page.tsx	P6	app	-	Second page for navigation
-packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons.page.tsx	P6	app	-	Two deferred reads, each under its own Loading, for two skeletons
-packages/core/tests/e2e/apps/minimal/src/routes/_root_/stored.page.tsx	P10	app	-	An ISR page whose resolve defer sits under two nested Loading boundaries, for stored hit hydrates
-packages/core/tests/e2e/apps/minimal/src/routes/_root_/styled.page.tsx	P6	app	-	A multi-key style object, for style object
-packages/core/tests/e2e/apps/minimal/src/routes/_root_/unstored.page.tsx	P10	app	-	The holed page with no cache mode, for live stream ssr
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/about/about.page.tsx	P6	app	-	Second page for navigation
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons/skeletons.page.tsx	P6	app	-	Two deferred reads, each under its own Loading, for two skeletons
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/stored/stored.page.tsx	P10	app	-	An ISR page whose resolve defer sits under two nested Loading boundaries, for stored hit hydrates
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/styled/styled.page.tsx	P6	app	-	A multi-key style object, for style object
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/unstored/unstored.page.tsx	P10	app	-	The holed page with no cache mode, for live stream ssr
 packages/core/tests/e2e/apps/minimal/src/fns/echo.ts	P7	app	-	One server function
-packages/core/tests/e2e/apps/minimal/src/routes/_root_/echo.page.tsx	P7	app	-	A button that calls the echo function from a click and prints its answer, for server-fn.test click
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/echo/echo.page.tsx	P7	app	-	A button that calls the echo function from a click and prints its answer, for server-fn.test click
 packages/core/tests/e2e/apps/basepath/package.json	P2	app	-	App package
 packages/core/tests/e2e/apps/basepath/tsconfig.json	P2	app	-	App tsconfig
 packages/core/tests/e2e/apps/basepath/vite.config.ts	P2	app	-	App vite config
 packages/core/tests/e2e/apps/basepath/src/client.tsx	P2	app	-	createClient
 packages/core/tests/e2e/apps/basepath/src/server.ts	P2	app	-	createServer
 packages/core/tests/e2e/apps/basepath/src/router.ts	P2	app	-	createRouter
+packages/core/tests/e2e/apps/basepath/src/_gen/routes.gen.ts	P12	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/basepath/src/_gen/types.gen.d.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/basepath/src/_gen/server-fns.gen.ts	P12	app	-	Generated server function list, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/root.root-layout.tsx	P2	app	-	Document root
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/home.page.tsx	P2	app	-	Home page
 packages/core/tests/e2e/apps/basepath/wrangler.jsonc	P12	app	-	Workers config so workers-prod can boot this app (B70)
