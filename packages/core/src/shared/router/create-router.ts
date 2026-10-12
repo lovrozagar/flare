@@ -14,19 +14,24 @@ export type RouteModule = ChainRecord & {
 	boundaries?: BoundaryRecord;
 };
 
-export type LayoutModule = RouteModule;
+// A route module, or the lazy import codegen emits for it. loadChain awaits it (02-system step 10).
+export type ModuleRef = RouteModule | (() => Promise<RouteModule>);
+
+export type LayoutModule = ModuleRef;
 
 export type RouteNode = {
 	id: string;
 	path: string;
-	module: RouteModule;
+	module: ModuleRef;
 };
 
 export type ChainEntry = {
 	id: string;
 	kind: "layout" | "page";
-	module: RouteModule;
+	module: ModuleRef;
 };
+
+export type LoadedEntry = Omit<ChainEntry, "module"> & { module: RouteModule };
 
 export type RouterCache = {
 	client?: { staleTime: number; gcTime: string } | false;
@@ -38,13 +43,14 @@ export type RouterOptions = {
 	basePath?: string;
 	notFoundMode?: "root" | "fuzzy";
 	cache?: RouterCache;
+	chunks?: Record<string, string>;
 };
 
-// `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page.
+// `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page, and its
+// chain ends at the selected layout.
 export type Match = {
 	id?: string;
 	params: RawParams;
-	notFoundRender?: NotFoundRender;
 	chain: readonly ChainEntry[];
 };
 
@@ -62,6 +68,7 @@ export type Router = {
 	prefetch: { modules: "all" | boolean; data: boolean };
 	cache: { client: { staleTime: number; gcTime: string } | false };
 	viewTransitions: boolean;
+	chunks: Record<string, string>;
 	match: (path: string) => Match;
 };
 
@@ -82,6 +89,7 @@ export function createRouter(options: RouterOptions): Router {
 		prefetch: { modules: "all", data: false },
 		cache: { client: CLIENT_CACHE },
 		viewTransitions: false,
+		chunks: options.chunks ?? {},
 		match(path) {
 			return resolve(router, path);
 		},
@@ -111,12 +119,22 @@ function resolve(router: Router, path: string): Match {
 	}
 	const owner = notFoundOwner(router, local ?? path);
 	if (owner === undefined) return { params: {}, chain: [] };
-	const chain = layoutChain(router.layouts, owner);
-	return {
-		params: {},
-		notFoundRender: router.layouts[owner].boundaries?.notFoundRender ?? chain[0].module.boundaries?.notFoundRender,
-		chain,
-	};
+	return { params: {}, chain: layoutChain(router.layouts, owner) };
+}
+
+// Awaits every lazy module of a chain, in parallel. A rejected import rejects the whole chain.
+export function loadChain(chain: readonly ChainEntry[]): Promise<LoadedEntry[]> {
+	return Promise.all(
+		chain.map(async (entry) => ({
+			...entry,
+			module: typeof entry.module === "function" ? await entry.module() : entry.module,
+		})),
+	);
+}
+
+// An unknown URL paints the selected layout's notFoundRender, else its root's (B77).
+export function notFoundRenderOf(chain: readonly LoadedEntry[]): NotFoundRender | undefined {
+	return chain.at(-1)?.module.boundaries?.notFoundRender ?? chain[0]?.module.boundaries?.notFoundRender;
 }
 
 function stripBase(path: string, basePath: string): string | undefined {

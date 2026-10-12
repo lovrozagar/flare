@@ -5,7 +5,13 @@ import type { ErrorRender, Located } from "../route-builder/index.ts";
 import { createLayout } from "../route-builder/layout.ts";
 import { createPage } from "../route-builder/page.ts";
 import { createRootLayout } from "../route-builder/root-layout.ts";
-import { createRouter, type ChainEntry, type RouteModule } from "../router/create-router.ts";
+import {
+	createRouter,
+	loadChain,
+	notFoundRenderOf,
+	type ChainEntry,
+	type RouteModule,
+} from "../router/create-router.ts";
 import { Matches, Outlet, type OutletMatch, type OutletState } from "./outlet.tsx";
 
 const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
@@ -118,18 +124,18 @@ it("boundary throws", () => {
 	expect(sender).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: "boundary broke" }));
 });
 
-function unknownState(router: ReturnType<typeof createRouter>, path: string): () => OutletState {
-	const match = router.match(path);
-	const matches = match.chain.map((link) => entry(link.id, link.kind, link.module));
-	return () => ({ matches, unknown: { render: match.notFoundRender }, onBoundaryError: report });
+async function unknownState(router: ReturnType<typeof createRouter>, path: string): Promise<() => OutletState> {
+	const chain = await loadChain(router.match(path).chain);
+	const matches = chain.map((link) => entry(link.id, link.kind, link.module));
+	return () => ({ matches, unknown: { render: notFoundRenderOf(chain) }, onBoundaryError: report });
 }
 
-it("unknown builtin", () => {
+it("unknown builtin", async () => {
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [] });
-	expect(mount(unknownState(router, "/nope")).innerHTML).toBe("root[<div>Page not found</div>]");
+	expect(mount(await unknownState(router, "/nope")).innerHTML).toBe("root[<div>Page not found</div>]");
 });
 
-it("unknown admin", () => {
+it("unknown admin", async () => {
 	const admin = createRootLayout("_admin_")
 		.render((props) => ["admin[", props.children, "]"])
 		.notFoundRender(located("admin-missing"));
@@ -139,7 +145,7 @@ it("unknown admin", () => {
 		routeTree: [],
 		notFoundMode: "fuzzy",
 	});
-	expect(mount(unknownState(router, "/users/nope")).textContent).toBe("admin[users[admin-missing:L]]");
+	expect(mount(await unknownState(router, "/users/nope")).textContent).toBe("admin[users[admin-missing:L]]");
 });
 
 function counted(name: string, log: string[]): (props: { loaderData: unknown; children?: JSX.Element }) => JSX.Element {

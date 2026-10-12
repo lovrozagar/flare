@@ -30,7 +30,11 @@ export function pageId(file: string): string | undefined {
 }
 
 // `read` returns a route file's source. Each page and layout file must export `route` (dx/routes.md).
-export function generateRoutes(files: readonly string[], read: (file: string) => string): GeneratedRoutes {
+export function generateRoutes(
+	files: readonly string[],
+	read: (file: string) => string,
+	options: { routesDir?: string } = {},
+): GeneratedRoutes {
 	const pages: Item[] = [];
 	const layouts: LayoutGen[] = [];
 	for (const file of files) {
@@ -46,7 +50,7 @@ export function generateRoutes(files: readonly string[], read: (file: string) =>
 	assertUnique(routes);
 	assertShadow(routes);
 	assertKinds(routes);
-	return { source: render(routes, layouts), routes, layouts };
+	return { source: render(routes, layouts, options.routesDir ?? "src/routes"), routes, layouts };
 }
 
 // A root's home page shares its folder with the root layout, so its id ends in "/": `_root_/` (dx/routes.md).
@@ -187,14 +191,20 @@ function last(id: string): string {
 	return id.slice(id.lastIndexOf("/") + 1);
 }
 
-function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[]): string {
-	const imports = [
-		...routes.map((route, index) => `import { route as route${index} } from "./${escapeSource(route.file)}";`),
-		...layouts.map((layout, index) => `import { route as layout${index} } from "./${escapeSource(layout.file)}";`),
-	];
+// Every route module is a lazy import that resolves its `route` export, so a route's code loads only when a
+// match needs it. `chunks` maps each id to that module's project-relative source path, the dev chunk URL that
+// bit 12 rewrites to the hashed file (02-system).
+function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[], routesDir: string): string {
 	const tree = routes.map(
-		(route, index) => `{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", module: route${index} }`,
+		(route) => `{ id: "${escapeSource(route.id)}", path: "${escapeSource(route.path)}", module: ${lazy(route.file)} }`,
 	);
-	const record = layouts.map((layout, index) => `"${escapeSource(layout.id)}": layout${index}`);
-	return `${imports.join("\n")}\nexport const routeTree = [${tree.join(", ")}];\nexport const layouts = { ${record.join(", ")} };\n`;
+	const record = layouts.map((layout) => `"${escapeSource(layout.id)}": ${lazy(layout.file)}`);
+	const chunks = [...routes, ...layouts].map(
+		(item) => `"${escapeSource(item.id)}": "/${escapeSource(`${routesDir}/${item.file}`)}"`,
+	);
+	return `export const routeTree = [${tree.join(", ")}];\nexport const layouts = { ${record.join(", ")} };\nexport const chunks = { ${chunks.join(", ")} };\n`;
+}
+
+function lazy(file: string): string {
+	return `() => import("./${escapeSource(file)}").then((loaded) => loaded.route)`;
 }

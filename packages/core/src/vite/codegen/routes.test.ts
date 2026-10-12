@@ -20,11 +20,18 @@ it("define helpers", () => {
 
 it("one route", () => {
 	const source = routesOf(["_root_/home.page.tsx"]).source;
-	expect(source).toContain('import { route as route0 } from "./_root_/home.page.tsx";');
-	expect(source).toContain('import { route as layout0 } from "./_root_/root.root-layout.tsx";');
-	expect(source).toContain("export const routeTree");
-	expect(source).toContain('export const routeTree = [{ id: "_root_/", path: "/", module: route0 }];');
-	expect(source).toContain('export const layouts = { "_root_": layout0 };');
+	expect(source).not.toContain("import { route");
+	expect(source).toContain(
+		'export const routeTree = [{ id: "_root_/", path: "/", module: () => import("./_root_/home.page.tsx").then((loaded) => loaded.route) }];',
+	);
+	expect(source).toContain(
+		'export const layouts = { "_root_": () => import("./_root_/root.root-layout.tsx").then((loaded) => loaded.route) };',
+	);
+	expect(source).toContain(
+		'export const chunks = { "_root_/": "/src/routes/_root_/home.page.tsx", "_root_": "/src/routes/_root_/root.root-layout.tsx" };',
+	);
+	const moved = generateRoutes(["_root_/home.page.tsx", rootLayout], read, { routesDir: "app/routes" }).source;
+	expect(moved).toContain('"_root_/": "/app/routes/_root_/home.page.tsx"');
 });
 
 it("filename", () => {
