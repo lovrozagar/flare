@@ -108,7 +108,7 @@ A document-less root is 500 in production (B37).
 
 | `t` | when | fields |
 | --- | --- | --- |
-| `l` | one per matched route, immediately | `m` match id, `d` loader data (promises replaced by placeholders), `p` preloader context when present |
+| `l` | one per matched route, immediately | `m` match id, `d` loader data (promises replaced by placeholders), `p` preloader context when present, `v` `{ params, search }` validator output when that match has `.input()` (the client never runs validators, B8). A match without `.input()` sends no `v` and the client uses the raw records. A stale-skipped page keeps the `v` its cache entry holds |
 | `e` | loader or deferred failure | `m`, `e` `{ message, stack }` in dev and `{ message, digest }` in production (no `stack` key). `k` is present only for a deferred failure. A loader failure has no `k` |
 | `h` | one per matched route that has a head result | `m`, `d` head config. A skipped route emits no `h` and no `l`. A match whose loader threw emits no `h` and no `l` |
 | `r` | loaders have settled | none |
