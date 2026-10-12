@@ -1,3 +1,5 @@
+import { finalize } from "./finalize.ts";
+
 const ALLOW = "GET, HEAD, OPTIONS";
 
 export type MethodMatch =
@@ -7,10 +9,10 @@ export type MethodMatch =
 export function applyMethod(request: Request, document: Response): Response {
 	if (request.method === "GET") return document;
 	if (request.method === "HEAD") {
-		return new Response(null, { status: document.status, headers: document.headers });
+		return finalize({ status: document.status, body: "", headers: document.headers });
 	}
-	if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: { allow: ALLOW } });
-	return new Response(null, { status: 405, headers: { allow: ALLOW } });
+	if (request.method === "OPTIONS") return finalize({ status: 204, body: "", headers: allow() });
+	return finalize({ status: 405, body: "", headers: allow() });
 }
 
 export async function routeMethod(
@@ -25,6 +27,10 @@ export async function routeMethod(
 }
 
 function unmatched(request: Request): Response {
-	if (request.method === "GET" || request.method === "HEAD") return new Response(null, { status: 404 });
-	return new Response(null, { status: 405, headers: { allow: ALLOW } });
+	if (request.method === "GET" || request.method === "HEAD") return finalize({ status: 404, body: "" });
+	return finalize({ status: 405, body: "", headers: allow() });
+}
+
+function allow(): Headers {
+	return new Headers({ allow: ALLOW });
 }

@@ -10,6 +10,7 @@ export type StageResult = {
 	build?: string;
 	location?: string;
 	run?: () => void;
+	headers?: Headers;
 };
 
 export function finalize(stage: StageResult): Response {
@@ -19,7 +20,8 @@ export function finalize(stage: StageResult): Response {
 	if (settled.build !== undefined) headers.set("flare-build", settled.build);
 	if (settled.location !== undefined) headers.set("location", settled.location);
 	if (settled.url !== undefined) copySecurity(headers, settled.url);
-	return new Response(settled.body, { status: settled.status, headers });
+	if (settled.headers !== undefined) copyHeaders(headers, settled.headers);
+	return new Response(settled.body === "" ? null : settled.body, { status: settled.status, headers });
 }
 
 function settle(stage: StageResult): StageResult {
@@ -30,6 +32,10 @@ function settle(stage: StageResult): StageResult {
 	} catch (error) {
 		return { ...stage, status: statusOf(error), body: "" };
 	}
+}
+
+function copyHeaders(target: Headers, extra: Headers): void {
+	extra.forEach((value, name) => target.set(name, value));
 }
 
 function copySecurity(headers: Headers, url: string): void {
