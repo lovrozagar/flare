@@ -1,12 +1,13 @@
 import { KIND_PARAM, withoutInternalKeys } from "../../shared/protocol/index.ts";
 import type { Match, Router } from "../../shared/router/create-router.ts";
-import { buildUrl, type Location, type SearchValue } from "../../shared/url/index.ts";
+import { buildUrl, type Location } from "../../shared/url/index.ts";
 import { isHashOnly } from "./scroll.ts";
 
 export type NavigateInput = {
 	to: string;
-	params?: Record<string, string | readonly string[] | undefined> | undefined;
-	search?: Record<string, SearchValue> | undefined;
+	// The validator output, written by the URL values rule (dx/link.md).
+	params?: object | undefined;
+	search?: object | undefined;
 	hash?: string | undefined;
 	shallow?: boolean | undefined;
 };

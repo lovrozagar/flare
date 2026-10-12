@@ -109,7 +109,7 @@ A method called before its step is absent from the type and throws (`chain.test.
 
 ## Matrix
 
-Each row is one case in `packages/core/tests/types/propagation.test.ts`. The case name is the first column. `expectTypeOf` covers the positive program. `@ts-expect-error` covers the negative program. Rows marked `app` are also assignments in `packages/core/tests/types/app/src/checks.ts`. Rows marked `gen` are also text cases in `vite/codegen/types-gen.test.ts`.
+Each row is one case in `packages/core/tests/types/propagation.test.ts`, except `hook from`, `hook unknown`, `use match untyped`, `use location raw`, and `use navigate`, which are in `packages/core/tests/types/navigation.test.ts`. The case name is the first column. `expectTypeOf` covers the positive program. `@ts-expect-error` covers the negative program. Rows marked `app` are also assignments in `packages/core/tests/types/app/src/checks.ts`. Rows marked `gen` are also text cases in `vite/codegen/types-gen.test.ts`.
 
 An augmented register is the precondition, except `unregistered fallback` and `auth unaugmented`.
 

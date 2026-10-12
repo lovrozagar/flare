@@ -197,6 +197,17 @@ it("params", () => {
 	);
 });
 
+// A param is the validator output, and the URL values rule writes it (dx/link.md). Unregistered, params are not
+// checked against the route.
+it("typed values", () => {
+	const { anchor, navigate } = mount({ to: "_root_/users/[id]", params: { id: 7 }, children: "x" });
+	expect(anchor.getAttribute("href")).toBe("/users/7");
+	click(anchor);
+	expect(navigate.mock.calls[0]?.[0]).toMatchObject({ to: "_root_/users/[id]", params: { id: 7 } });
+	// @ts-expect-error an external link takes no params
+	expect(mount({ href: "https://ex.com/a", params: { id: "1" }, children: "x" }).anchor.href).toBe("https://ex.com/a");
+});
+
 it("strips reserved", () => {
 	const { anchor } = mount({
 		to: "_root_/about",

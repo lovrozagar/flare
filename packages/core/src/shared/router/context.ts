@@ -1,6 +1,7 @@
 import { createContext, useContext, type Context } from "solid-js";
 import type { RoutePrefetch } from "../route-builder/index.ts";
-import type { Location, SearchValue } from "../url/index.ts";
+import type { FlareRegister, RouteTarget, To } from "../route-builder/register.ts";
+import type { Location } from "../url/index.ts";
 import type { Router, ViewTransitionOptions } from "./create-router.ts";
 
 export const RouterContext: Context<Router> = createContext<Router>();
@@ -11,8 +12,9 @@ export const LocationContext: Context<() => Location> = createContext<() => Loca
 // What `Link` asks of the client navigator (dx/navigate.md).
 export type NavigateTo = {
 	to: string;
-	params?: Record<string, string | readonly string[] | undefined> | undefined;
-	search?: Record<string, SearchValue> | undefined;
+	// The validator output, written by the URL values rule (dx/link.md).
+	params?: object | undefined;
+	search?: object | undefined;
 	hash?: string | undefined;
 	replace?: boolean | undefined;
 	revalidate?: boolean | undefined;
@@ -21,6 +23,14 @@ export type NavigateTo = {
 	state?: unknown | undefined;
 	viewTransition?: boolean | ViewTransitionOptions | undefined;
 };
+
+// The flags a navigation takes besides its target. They are not generic on the route (dx/types.md).
+export type NavigateOptions = Omit<NavigateTo, "to" | "params" | "search" | "hash" | "replace">;
+
+// `useNavigate()`'s function, generic on a page id like `Link` (dx/types.md `use navigate`).
+export type Navigate<R extends FlareRegister> = <Id extends To<R>>(
+	options: RouteTarget<R, Id> & NavigateOptions,
+) => Promise<void>;
 
 // The browser provides both. The server has no navigator and no prefetch, so they default to null.
 export const NavigateContext: Context<((options: NavigateTo) => Promise<void>) | null> = createContext<

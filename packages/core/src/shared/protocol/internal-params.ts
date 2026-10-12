@@ -29,7 +29,7 @@ export function readInternal(request: URL): InternalRequest {
 }
 
 // The internal params never come from an app's search record (bit 06 `strips reserved`).
-export function withoutInternalKeys<T>(search: Record<string, T> | undefined): Record<string, T> | undefined {
+export function withoutInternalKeys(search: object | undefined): Record<string, unknown> | undefined {
 	if (search === undefined) return undefined;
 	return Object.fromEntries(Object.entries(search).filter(([key]) => !INTERNAL.has(key)));
 }

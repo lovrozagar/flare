@@ -1,4 +1,9 @@
-import type { FlareRegister, RegisteredEnv, RegisteredServerContext } from "../../shared/route-builder/register.ts";
+import type {
+	FlareRegister,
+	RegisterField,
+	RegisteredEnv,
+	RegisteredServerContext,
+} from "../../shared/route-builder/register.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import type { Caller } from "../auth/caller.ts";
 import type { ServerContextInput } from "../context/ctx.ts";
@@ -26,9 +31,10 @@ type ContextFn<R extends FlareRegister> = (ctx: {
 }) => RegisteredServerContext<R>;
 
 // Required once the app's FlareRegister declares serverContext (B75).
-type ContextOption<R extends FlareRegister> = unknown extends R["serverContext"]
-	? { serverContext?: ContextFn<R> }
-	: { serverContext: ContextFn<R> };
+type ContextOption<R extends FlareRegister> =
+	unknown extends RegisterField<R, "serverContext">
+		? { serverContext?: ContextFn<R> }
+		: { serverContext: ContextFn<R> };
 
 export type ServerOptions<R extends FlareRegister = FlareRegister> = BaseOptions & ContextOption<R>;
 

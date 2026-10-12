@@ -1,15 +1,13 @@
 import { createContext, useContext, type Context } from "solid-js";
 import { matchId } from "../route-tree/index.ts";
-import { LocationContext, NavigateContext, useRouter, type NavigateTo } from "../router/context.ts";
+import { LocationContext, NavigateContext, useRouter, type Navigate } from "../router/context.ts";
 import type { Router } from "../router/create-router.ts";
 import { readSearch } from "../url/index.ts";
-import type { Located } from "../route-builder/index.ts";
+import type { FlareRegister, From, LoaderDataFrom, ParamsFrom, SearchFrom } from "../route-builder/register.ts";
+import type { PreloaderFrom } from "../route-builder/route-types.ts";
 import type { OutletMatch, OutletState } from "./outlet.tsx";
 
 type Raw = Record<string, string | string[]>;
-
-// What `.input()` returned for that side, or the raw record when that file has none (dx/navigate.md).
-type Values = Located["params"];
 
 // `Matches` provides the painted state, so a hook anywhere below reads any route on screen by id.
 export const MatchesContext: Context<() => OutletState> = createContext<() => OutletState>();
@@ -25,32 +23,42 @@ export function chooseNodes(
 	};
 }
 
+// Each hook reads by route id, so its type is that route's in the generated register (dx/types.md `hook from`). The
+// state holds whatever the server sent, so the typed signature sits over an untyped one.
+
 // That route's own loader data. A parent's is a second call with the parent's id (dx/navigate.md).
+export function useLoaderData<Id extends From<FlareRegister>>(input: { from: Id }): LoaderDataFrom<FlareRegister, Id>;
 export function useLoaderData(input: { from: string }): unknown {
 	const match = matchOf(input.from);
 	return live(() => match().data);
 }
 
-export function useParams(input: { from: string }): Values {
+// What `.input()` returned for params, or the raw record when that file has none (dx/navigate.md).
+export function useParams<Id extends From<FlareRegister>>(input: { from: Id }): ParamsFrom<FlareRegister, Id>;
+export function useParams(input: { from: string }): unknown {
 	const match = matchOf(input.from);
 	return live(() => match().params);
 }
 
 // Without `.input({ searchParams })`, the raw record: one occurrence of a key is a string, two or more a `string[]`
 // in appearance order.
-export function useSearch(input: { from: string }): Values {
+export function useSearch<Id extends From<FlareRegister>>(input: { from: Id }): SearchFrom<FlareRegister, Id>;
+export function useSearch(input: { from: string }): unknown {
 	const match = matchOf(input.from);
 	return live(() => match().search);
 }
 
 // The context accumulated through that route. An empty chain is `{}`.
+export function usePreloaderContext<Id extends From<FlareRegister>>(input: {
+	from: Id;
+}): PreloaderFrom<FlareRegister, Id>;
 export function usePreloaderContext(input: { from: string }): Record<string, unknown> {
 	const match = matchOf(input.from);
 	return live(() => match().preloader ?? {});
 }
 
 // `id` is the match id, raw params plus raw search (B31). It has no typed params and no loader data.
-export function useMatch(input: { from: string }): { readonly id: string; readonly routeId: string } {
+export function useMatch(input: { from: From<FlareRegister> }): { readonly id: string; readonly routeId: string } {
 	matchOf(input.from);
 	const location = useContext(LocationContext);
 	const router = useRouter();
@@ -96,7 +104,7 @@ export function rawParams(router: Router, pathname: string): Raw {
 }
 
 // The client navigator. A server render has none, and calling it there rejects.
-export function useNavigate(): (options: NavigateTo) => Promise<void> {
+export function useNavigate(): Navigate<FlareRegister> {
 	return useContext(NavigateContext) ?? (() => Promise.reject(new Error("navigate runs in the browser")));
 }
 

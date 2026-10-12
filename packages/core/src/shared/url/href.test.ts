@@ -130,3 +130,37 @@ it("search and hash", () => {
 	);
 	expect(buildUrl({ to: users, params: { id: "7" }, hash: "#top" })).toBe("/users/7#top");
 });
+
+// One rule turns a validator output back into URL text (dx/link.md URL values).
+it("typed values", () => {
+	const search = { page: 2, on: true, big: 9n, ids: [1, 2] };
+	expect(buildUrl({ to: users, params: { id: 7 }, search })).toBe("/users/7?big=9&ids=1&ids=2&on=true&page=2");
+	expect(buildUrl({ to: ids.files, params: { path: [1, "b"] } })).toBe("/files/1/b");
+	expect(() => buildUrl({ to: users, params: { id: () => "1" } })).toThrow(/id/);
+	expect(() => buildUrl({ to: users, params: { id: "1" }, search: { q: Symbol("q") } })).toThrow(/q/);
+});
+
+it("date value", () => {
+	const at = new Date(Date.UTC(2026, 0, 2, 3, 4, 5));
+	expect(buildUrl({ to: users, params: { id: at }, search: { at } })).toBe(
+		"/users/2026-01-02T03%3A04%3A05.000Z?at=2026-01-02T03%3A04%3A05.000Z",
+	);
+});
+
+it("object value", () => {
+	const filter = { tag: "a", n: 1n, at: new Date(0), nested: [[1], { b: null }] };
+	const text = JSON.stringify({ tag: "a", n: "1", at: "1970-01-01T00:00:00.000Z", nested: [[1], { b: null }] });
+	expect(buildUrl({ to: users, params: { id: "1" }, search: { filter } })).toBe(
+		`/users/1?filter=${encodeURIComponent(text)}`,
+	);
+	expect(buildUrl({ to: users, params: { id: "1" }, search: { rows: [[1, 2], { a: 1 }] } })).toBe(
+		`/users/1?rows=${encodeURIComponent("[1,2]")}&rows=${encodeURIComponent('{"a":1}')}`,
+	);
+});
+
+it("nullish value", () => {
+	const search = { a: null, b: undefined, c: ["x", null, undefined] };
+	expect(buildUrl({ to: users, params: { id: "1" }, search })).toBe("/users/1?c=x");
+	expect(buildUrl({ to: ids.optional, params: { locale: null } })).toBe("/optional-locale");
+	expect(() => buildUrl({ to: users, params: { id: null } })).toThrow(/id/);
+});
