@@ -1,4 +1,4 @@
-import type { BuilderOptions, UserConfig } from "vite";
+import type { BuilderOptions, EnvironmentOptions, UserConfig } from "vite";
 
 export type EnvName = "client" | "ssr" | "worker";
 
@@ -54,9 +54,14 @@ export type BuildInput = {
 	assetsBase: string;
 	entry: { client: string; server: string };
 	user: { outDir?: string | undefined; assetsDir?: string | undefined };
+	// The worker environment's entry module, present when the app has a Workers config.
+	worker?: string | undefined;
 };
 
-// The client and ssr environments and the order the builder runs them in (B89). The client entry is
+// The conditions a Workers bundle resolves with: the server builds of Solid and of flare's server-fn entry.
+const WORKER_CONDITIONS = ["workerd", "worker", "module", "development|production"];
+
+// The client, ssr, and, with a Workers config, worker environments and the order the builder runs them in (B89). The client entry is
 // `<assetsDir>/client-[hash].js` and its chunks `<assetsDir>/[hash].js`. The server is one minified file with
 // sourcemaps.
 export function buildConfig(input: BuildInput): Pick<UserConfig, "environments"> & { builder: BuilderOptions } {
@@ -81,6 +86,7 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 					rolldownOptions: { input: { server: input.entry.server }, output: { entryFileNames: build.ssr.input } },
 				},
 			},
+			...(input.worker === undefined ? {} : { worker: workerEnvironment(input.worker, build.ssr.outDir) }),
 		},
 		builder: {
 			// One config and one plugin set for every environment, so what the client build captures, its stylesheet,
@@ -90,11 +96,26 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 			sharedPlugins: true,
 			// Solid's `solid:client-build-first` may already have built the client. Each environment builds once.
 			async buildApp(builder) {
-				for (const name of environmentOrder(false)) {
+				for (const name of environmentOrder(input.worker !== undefined)) {
 					const environment = builder.environments[name];
 					if (environment !== undefined && !environment.isBuilt) await builder.build(environment);
 				}
 			},
+		},
+	};
+}
+
+// One ES module, `<outDir>/worker/index.js`, with every dependency bundled. Node built-ins stay imports, which
+// `nodejs_compat` provides.
+function workerEnvironment(entry: string, serverOutDir: string): EnvironmentOptions {
+	return {
+		consumer: "server",
+		resolve: { conditions: WORKER_CONDITIONS, externalConditions: WORKER_CONDITIONS, noExternal: true },
+		build: {
+			outDir: serverOutDir.replace(/server$/, "worker"),
+			minify: true,
+			sourcemap: true,
+			rolldownOptions: { input: { index: entry }, output: { entryFileNames: "index.js", format: "es" } },
 		},
 	};
 }

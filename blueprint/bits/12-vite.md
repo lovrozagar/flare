@@ -6,7 +6,7 @@ Creates every `P12` row. `flare codegen` writes the same files the plugin writes
 
 `vite/codegen/auth-hint.test.ts` is now also executed from `vite/prerender/run.ts`.
 
-`tests/e2e/playwright.config.ts` gains `node-prod-chromium`, `node-prod-firefox`, `node-prod-webkit`, and the same three browsers for `bun-prod` and for `workers-prod` (B70). `boot.test.ts` gains `node prod`, `bun prod`, and `workers prod`: each answers GET `/` with 200, and the HTML contains no `@vite/client`. `workers` with `mode: "dev"` still throws. Each prod call runs `vite build` on Node into its own temp `outDir`. `createBunFetch` and miniflare serve that output. They do not run the build. `apps/basepath/wrangler.jsonc` is born in this bit so `workers-prod` can boot `basepath`. `vite preview` is not a project. The Playwright files that already exist run on those nine projects with no new cases.
+`tests/e2e/playwright.config.ts` gains `node-prod-chromium`, `node-prod-firefox`, `node-prod-webkit`, and the same three browsers for `bun-prod` and for `workers-prod` (B70). `boot.test.ts` gains `node prod`, `bun prod`, and `workers prod`: each answers GET `/` with 200, and the HTML contains no `@vite/client`. `workers` with `mode: "dev"` still throws. Each prod call runs `vite build` on Node, with `NODE_ENV=production` so a test runner's `test` cannot select Solid's development server build, into its own temp `outDir` under the repo's `node_modules/.flare-e2e/`, so the built server's external imports resolve as a deploy's would. That is not the app directory. The Node listener and `createBunFetch` serve that output in a child process behind a test-only static layer for the client files, since the adapters serve none (B13). miniflare runs the worker bundle in process with `modulesRoot`, the app's compatibility settings, and the assets binding with `has_user_worker`. They do not run the build. `apps/basepath/wrangler.jsonc` is born in this bit so `workers-prod` can boot `basepath`. `vite preview` is not a project. The Playwright files that already exist run on those nine projects with no new cases.
 
 ## Cases
 
@@ -66,8 +66,9 @@ An SSG route with no tags still prerenders. Purge does not apply to `_flare-stat
 
 | test | case | result |
 | --- | --- | --- |
-| `order` | client, ssr, and worker configs present | client builds before ssr, worker is last |
-| `no worker` | no wrangler config | the worker environment is absent |
+| `order` | a real builder with a `wrangler.jsonc` | buildApp builds client, ssr, then worker, each once. The worker environment is the Workers bundle, a server graph with `workerd` conditions, written to `<outDir>/worker/index.js` |
+| `no worker` | no wrangler config | the worker environment is absent, and buildApp builds client and ssr |
+| `web worker` | a client that starts a Vite `?worker` from a module that imports the package's server code, then one with a `createServerOnlyFn` body | the first build fails and names the server module (B45). The second builds without the body. flare() puts the boundary into `worker.plugins` with the client graph |
 | `css order` | the ssr environment built before the client | the build fails: the server reads the client build's stylesheet (`vite/css/inject`), so the client must build first |
 | `urls agree` | a real client and ssr run with Vite `base: "/app/"`, then `assetsBase: "/cdn"`, then `assetsBase: "/"` | the client entry URL, a lazy chunk URL as the entry resolves it, the stylesheet `builtHref`, a CSS `url()` asset, and the seeds' public URL all start with the same prefix (`/app/assets/`, `/cdn/`, `/`). One function, `assetUrl`, resolves it: `clientUrl`, `stylesheetOf`, and Vite's `renderBuiltUrl` call it. A chunk URL is relative to the entry chunk. The seed directory `createAssetsStore` reads is the path inside the client output, `/<assetsDir>/_flare-static`, without Vite `base` |
 | `chunk urls` | a real client build of a generated `routes.gen.ts` | each `chunks` source path becomes the chunk its lazy import loads, an emitted chunk reference rendered relative to the entry chunk, so the content hash covers it. No `/src/routes/` path is left. `vite dev` keeps the source paths, which are the dev URLs |
@@ -75,6 +76,15 @@ An SSG route with no tags still prerenders. Purge does not apply to `_flare-stat
 | `css server only` | a real client and ssr build of an app with CSS | the ssr bundle's `builtSheet` is the client's one stylesheet and its `builtHref` that file's URL. No client JavaScript chunk contains the CSS text |
 
 Route chunks (from bit 06). Codegen's `chunks` map gives each route id the project-relative source path of its lazy module, which is the dev chunk URL, by the same rule as `clientUrl`. The production build rewrites each entry to that module's hashed file from the Vite manifest, and a missing entry fails the build. Prefetch `all modules` reads `router.chunks`.
+
+### `vite/plugin/wrangler.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `jsonc` | comments, a `//` and `/*` and `,}` inside strings, an escaped quote, and trailing commas | the JSON a parser reads, with the strings kept |
+| `fields` | `compatibility_date`, `compatibility_flags` with a non-string, and `assets.binding`; then a config without them, and one that is not an object | the binding, the date, and the string flags; then none of them; then a throw |
+| `absent` | no Workers config | `undefined`: no worker environment |
+| `toml` | a `wrangler.toml` | throws and names `wrangler.jsonc` |
 
 ### `vite/plugin/build-id.test.ts`
 

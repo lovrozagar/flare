@@ -1,10 +1,13 @@
 import { defineConfig, type Project } from "@playwright/test";
 
-const all: Project[] = [
-	{ name: "node-dev-chromium", use: { browserName: "chromium" } },
-	{ name: "node-dev-firefox", use: { browserName: "firefox" } },
-	{ name: "node-dev-webkit", use: { browserName: "webkit" } },
-];
+// Every server is crossed with all three browsers (B70). A prod project builds the app once per file and serves the
+// output with that runtime's adapter.
+const SERVERS = ["node-dev", "node-prod", "bun-prod", "workers-prod"];
+const BROWSERS = ["chromium", "firefox", "webkit"] as const;
+
+const all: Project[] = SERVERS.flatMap((server) =>
+	BROWSERS.map((browserName) => ({ name: `${server}-${browserName}`, use: { browserName } })),
+);
 
 // Every `--project` value counts, so `--project=a --project=b` runs both.
 const requested = projectArgs(process.argv);

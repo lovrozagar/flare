@@ -70,7 +70,8 @@ test("scroll", async ({ page }) => {
 });
 
 test("two skeletons", async ({ page }) => {
-	const response = await fetch(`${session.origin}/skeletons`);
+	// Identity: this measures Flare's stream, not a runtime's compressor. Miniflare's gzip buffers the whole body.
+	const response = await fetch(`${session.origin}/skeletons`, { headers: { "accept-encoding": "identity" } });
 	expect(response.status).toBe(200);
 	const reader = response.body?.getReader();
 	if (reader === undefined) throw new Error("body");

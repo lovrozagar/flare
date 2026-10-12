@@ -11,6 +11,9 @@ import type { FlareOptions } from "./options.ts";
 
 const SHEET = fileURLToPath(new URL("../../shared/css/sheet.ts", import.meta.url));
 
+// Inside the repo's node_modules, so a config file's import of the plugin resolves as an app's would.
+const FIXTURES = fileURLToPath(new URL("../../../../../node_modules/.flare-fixtures/", import.meta.url));
+
 // A client entry with a stylesheet, a CSS asset, and a lazy chunk, and a server entry that keeps the sheet module.
 const APP = {
 	"client.tsx": 'import "./app.css";\nvoid import("./lazy.ts");\n',
@@ -89,9 +92,9 @@ it("assets dir", async () => {
 	await expect(builder(project(), { assetsBase: "/" }, { build: { assetsDir: "static" } })).rejects.toThrow("assets");
 });
 
-it("order", async () => {
-	expect(environmentOrder(true)).toEqual(["client", "ssr", "worker"]);
-	const app = await builder(project());
+// The environments buildApp builds, in order, each once.
+async function order(root: string): Promise<string[]> {
+	const app = await builder(root);
 	const built: string[] = [];
 	vi.spyOn(app, "build").mockImplementation(async (environment) => {
 		built.push(environment.name);
@@ -99,11 +102,51 @@ it("order", async () => {
 		return { output: [] } as never;
 	});
 	await app.buildApp();
-	expect(built).toEqual(["client", "ssr"]);
-});
+	return built;
+}
 
-it("no worker", () => {
+// A Workers config adds the worker environment, the Workers bundle, built last into `<outDir>/worker/index.js`.
+it("order", async () => {
+	expect(environmentOrder(true)).toEqual(["client", "ssr", "worker"]);
+	const root = project();
+	writeFileSync(join(root, "wrangler.jsonc"), '{ "name": "app", "assets": { "binding": "ASSETS" } }\n');
+	expect(await order(root)).toEqual(["client", "ssr", "worker"]);
+	const app = await builder(root);
+	expect(app.environments.worker?.config.build).toMatchObject({
+		outDir: "dist/worker",
+		minify: "oxc",
+		sourcemap: true,
+	});
+	expect(app.environments.worker?.config.build.rolldownOptions.output).toMatchObject({ entryFileNames: "index.js" });
+	expect(app.environments.worker?.config.resolve.conditions).toContain("workerd");
+	// The worker entry is the app's server behind createWorkersHandler, with the config's assets binding when it has one.
+	// The server reads the manifest the client build wrote, so the client builds first, to disk.
+	for (const [config, binding] of [
+		['{ "name": "app", "assets": { "binding": "ASSETS" } }', true],
+		['{ "name": "app" }', false],
+	] as const) {
+		const worker = project({
+			"client.tsx": "",
+			"server.ts": 'export const server = { fetch: () => new Response("ok") };\n',
+		});
+		writeFileSync(join(worker, "wrangler.jsonc"), config);
+		const built = await builder(worker, {}, { build: { write: true } });
+		await built.build(built.environments.client ?? never());
+		const bundle = text(outputs(await built.build(built.environments.worker ?? never())), "index.js");
+		expect(bundle).toContain("export");
+		expect(bundle.includes('"ASSETS"') || bundle.includes("`ASSETS`")).toBe(binding);
+	}
+}, 60_000);
+
+it("no worker", async () => {
 	expect(environmentOrder(false)).toEqual(["client", "ssr"]);
+	const app = await builder(project());
+	expect(app.environments.worker).toBeUndefined();
+	const plugin = flare().find((item) => item.name === "flare");
+	const resolveId = plugin?.resolveId;
+	if (typeof resolveId !== "function") throw new Error("resolveId");
+	expect(Reflect.apply(resolveId, {}, ["virtual:flare/worker"])).toBeNull();
+	expect(await order(project())).toEqual(["client", "ssr"]);
 });
 
 it("client url", () => {
@@ -199,8 +242,6 @@ it("chunk urls", async () => {
 	expect(Reflect.apply(transform, serve, [generated, join(root, "src/_gen/routes.gen.ts")])).toBeNull();
 }, 60_000);
 
-// Inside the repo's node_modules, so a config file's import of the plugin resolves as an app's would.
-const FIXTURES = fileURLToPath(new URL("../../../../../node_modules/.flare-fixtures/", import.meta.url));
 const VITE = fileURLToPath(new URL("../../../../../node_modules/vite/bin/vite.js", import.meta.url));
 
 // `vite build` from a config file, as the CLI runs it, in a child process. One config and one plugin set serve every
@@ -220,6 +261,44 @@ it("config file", () => {
 	expect(run.status).toBe(0);
 	const server = readFileSync(join(root, "dist/server/server.js"), "utf8");
 	expect(server).toMatch(/\.a\{background:url\(\/assets\/dot-[\w-]+\.svg\)\}/);
+}, 60_000);
+
+// An app whose client starts a Web Worker from `work.ts`.
+function workerApp(worker: string): Record<string, string> {
+	return {
+		"client.tsx": 'import Work from "./work.ts?worker";\nnew Work();\n',
+		"server.ts": "export const server = {};\n",
+		"work.ts": worker,
+	};
+}
+
+// A Vite `?worker` bundle is a client graph: the boundary rewrites it and the tripwire scans it, so a Web Worker that
+// reaches the package's server code fails the build and names the module, and a clean one builds.
+it("web worker", async () => {
+	const SERVER = fileURLToPath(new URL("../../server/context/ctx.ts", import.meta.url));
+	const leaking = await builder(
+		project(workerApp(`import { serverCtx } from ${JSON.stringify(SERVER)};\npostMessage(String(serverCtx));\n`)),
+	);
+	await expect(leaking.build(leaking.environments.client ?? never())).rejects.toThrow(
+		/server\/context\/ctx\.ts is server code and cannot be in the client graph \(B45\)/,
+	);
+	// Under the repo's node_modules, so the worker's import of the package resolves.
+	mkdirSync(FIXTURES, { recursive: true });
+	const root = mkdtempSync(join(FIXTURES, "worker-"));
+	roots.push(root);
+	const env = 'import { createServerOnlyFn } from "@lovrozagar/flare";\n';
+	const worker = `${env}export const read = createServerOnlyFn(() => "SECRET_IN_WORKER");\npostMessage(1);\n`;
+	for (const [name, source] of Object.entries(workerApp(worker))) {
+		mkdirSync(join(root, "src"), { recursive: true });
+		writeFileSync(join(root, "src", name), source);
+	}
+	const clean = await builder(root);
+	const client = outputs(await clean.build(clean.environments.client ?? never()));
+	const code = client.flatMap((file) =>
+		file.type === "chunk" ? [file.code] : file.fileName.endsWith(".js") ? [String(file.source)] : [],
+	);
+	expect(code.join("\n")).toContain("postMessage");
+	expect(code.join("\n")).not.toContain("SECRET_IN_WORKER");
 }, 60_000);
 
 function never(): never {
