@@ -77,12 +77,25 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `sentinel` | the rendered body has `nonce="abc"` and the state field `abc` | the stored body has the entry's sentinel in both places, and the entry records that sentinel |
 | `entry tags` | `ssr.tags` `["posts", "home"]`, a `cdn.tags` function of params, and an absent source | `posts`, `home`, `post:7`: resolved with the raw params and deduped |
 
+### `server/auth/gate.test.ts` and `server/loaders/run.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| gate `optional anonymous` | the same chain as a data request, and as a run that is not shared | the data request reads the store too (02-system step 11). A run that is not shared reads nothing. The read's result rides on the proceed result as `looked` |
+| run `order` | a shared run of a document, a data, and a prefetch request | validate, authenticate, preloader, authorize, then the store read, for all three. A run that read the store runs no loader: the caller serves the hit, or renders the miss on the shared request |
+
+### `client/navigation/navigate.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `stale data` | a stored NDJSON that carries the `l` frame of a page the client sent in `_flare_stale` | the landed frame wins over the cached match |
+
 ### `server/cache/serve.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
 | `no store` | a shared public page and no `store` | a live render of the real request, the public header, and no `flare-cache` |
-| `data miss` | a data and a prefetch request for a stored page | each runs the shared render and serves the NDJSON it stored, with `flare-cache: miss` and the public header |
+| `data miss` | a data request for a stored page, then a prefetch | the data request runs the shared render and serves the NDJSON it stored, with `flare-cache: miss` and the public header. The prefetch is a hit on that same entry |
 | `not stored` | the shared render throws `notFound()`, or the render throws before the shell | the document is 404 or 500, the data variant 404, and nothing is written |
 | `rejected resolve` | a `"resolve"` value rejects | the document and the data variant leave `private, no-store`, and nothing is written |
 | `render location` | a request `/p?secret=alice` to a stored page whose render prints `useLocation()` | the stored HTML and the served miss show search `{}`. The render, not only the loaders, runs on the shared request |
@@ -106,6 +119,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `refresh fails` | the background refresh throws | the previous entry stays. The in-flight slot is cleared |
 | `no etag` | a hit, and the request sends `If-None-Match` | status 200. No `ETag`. The conditional header is ignored. A stale serve is still `flare-cache: hit` |
 | `hit nonce` | the stored body contains `__FLARE_NONCE__` and this request's nonce is `def` | the sent body has `def` in the nonce attributes and in the state field, and the CSP header contains `def` |
+| `bad record` | a store record whose data is not a stored page: not an object, a field of the wrong type, an unknown `render`, headers that are not a list | a miss. Header pairs that are not two strings, and security values that are not a string or `false`, are dropped |
 
 ### `server/cache/nonce.test.ts`
 
@@ -236,7 +250,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | test | case | result |
 | --- | --- | --- |
 | `401 not stored` | an ISR page under an auth layout, no session | 401, a second request runs authenticate again |
-| `authorize before hit` | a shared route with `authorize` returning `false`, and a stored body | 403. The stored body is not served |
+| `authorize before hit` | a shared route with `authorize` returning `false`, and a stored body | 403 on the document and on the data URL. The stored body is not served. An `authorize` returning `true` reaches the read, and the hit is served |
 | `hit without authorize` | a shared route with no `authorize`, and a stored body | the stored body is served |
 | `anonymous stored` | an optional-auth ISR page | the second request is a hit and the body has no session text |
 | `two users` | two `Authorization` values | neither hit contains the other's token |

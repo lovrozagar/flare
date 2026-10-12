@@ -61,23 +61,23 @@ it("no store", async () => {
 	expect(seen).toEqual([`${SITE}/p?q=1`]);
 });
 
-// A data request's miss runs the same shared render and serves the NDJSON it stored.
+// A data request's miss runs the same shared render and serves the NDJSON it stored. A prefetch then reads that
+// same entry: one key holds both variants (02-system step 11).
 it("data miss", async () => {
 	const page = createPage("_root_/p")
 		.cache({ isr: true, cdn: { maxAge: "60s" } })
 		.loader(() => ({ text: "p" }))
 		.render(() => "p");
 	const { app, set } = serve(page);
-	for (const path of ["/p?_flare=data", "/p?_flare=prefetch"]) {
-		const response = await app.fetch(get(path));
-		const body = await response.text();
-		expect(response.headers.get("content-type")).toContain("ndjson");
-		expect(response.headers.get("flare-cache")).toBe("miss");
-		expect(response.headers.get("cache-control")).toBe(PUBLIC);
-		await vi.waitFor(() => expect(set).toHaveBeenCalled());
-		const entry = set.mock.calls.at(-1)?.[1];
-		expect(entry?.data).toMatchObject({ ndjson: body });
-	}
+	const miss = await app.fetch(get("/p?_flare=data"));
+	const body = await miss.text();
+	expect(miss.headers.get("content-type")).toContain("ndjson");
+	expect(miss.headers.get("flare-cache")).toBe("miss");
+	expect(miss.headers.get("cache-control")).toBe(PUBLIC);
+	expect((await written(set)).ndjson).toBe(body);
+	const hit = await app.fetch(get("/p?_flare=prefetch"));
+	expect(hit.headers.get("flare-cache")).toBe("hit");
+	expect(await hit.text()).toBe(body);
 });
 
 // A shared render that is not a clean 200 answers as a live one would and stores nothing.

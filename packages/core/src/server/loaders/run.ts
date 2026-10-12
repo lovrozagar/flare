@@ -14,6 +14,7 @@ import { statusOf } from "../../shared/errors/status.ts";
 import type { HeadConfig, SecurityConfig } from "../../shared/route-builder/types.ts";
 import { runValidator, type Validated, type Validator } from "../../shared/validation/index.ts";
 import { gate } from "../auth/gate.ts";
+import type { Lookup } from "../cache/epoch.ts";
 import type { PolicyClass } from "../auth/identity.ts";
 import { finalize } from "../lifecycle/finalize.ts";
 import { mergeHeaders } from "../security/apply.ts";
@@ -41,7 +42,7 @@ export type RunInput = {
 	env: unknown;
 	authenticate: () => unknown;
 	shared?: boolean;
-	readStore?: () => void;
+	readStore?: () => Promise<Lookup | null>;
 	overlay?: (error: unknown) => void;
 	response?: Respond;
 	routes: readonly LoaderRoute[];
@@ -86,6 +87,8 @@ export type LoaderRun = {
 	failed?: Failed | undefined;
 	class?: PolicyClass;
 	answer?: Response | undefined;
+	// The store read after the gate. A run that read the store ran no loader: the caller serves the hit or renders.
+	looked?: Lookup | null;
 	thrown?: unknown;
 	bugs: readonly unknown[];
 	deferred: readonly DeferredFrame[];
@@ -108,6 +111,9 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	const base = { auth: gated.session, request: input.request, env: input.env };
 	const contexts = gated.contexts;
 	const run = { ...input, routes };
+	if (gated.kind === "proceed" && gated.looked !== undefined) {
+		return { ...bare(finalize({ status: 200, body: "" })), class: gated.class, looked: gated.looked };
+	}
 	if (gated.kind === "proceed") {
 		const loaded = await load(run, { routes, base, contexts });
 		return { ...conclude(run, loaded, contexts), class: gated.class };

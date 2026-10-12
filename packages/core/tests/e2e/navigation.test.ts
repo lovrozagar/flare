@@ -94,6 +94,30 @@ test("two skeletons", async ({ page }) => {
 	expect(errors).toEqual([]);
 });
 
+// The second load of a stored page is a hit whose HTML holds the value under both boundaries. It hydrates with no
+// console error or warning, and a client navigation away and back still fills it.
+test("stored hit hydrates", async ({ page }) => {
+	let hit: Response | undefined;
+	for (let attempt = 0; attempt < 20 && hit === undefined; attempt += 1) {
+		const response = await fetch(`${session.origin}/stored`);
+		if (response.headers.get("flare-cache") === "hit") hit = response;
+		else await response.text();
+	}
+	if (hit === undefined) throw new Error("no stored hit");
+	const html = await hit.text();
+	expect(html).toContain("STORED-VALUE!");
+	expect(html).not.toContain("wait-outer");
+	expect(html).not.toContain("wait-inner");
+	const errors = await open(page, "/stored");
+	await expect(page.locator("#stored")).toHaveText("STORED-VALUE!");
+	await page.getByRole("link", { name: "About" }).click();
+	await expect(page.locator("#app")).toHaveText("About");
+	await page.goBack();
+	await expect(page).toHaveURL(`${session.origin}/stored`);
+	await expect(page.locator("#stored")).toHaveText("STORED-VALUE!");
+	expect(errors).toEqual([]);
+});
+
 test("style object", async ({ page }) => {
 	const response = await fetch(`${session.origin}/styled`);
 	expect(response.status).toBe(200);

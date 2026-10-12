@@ -274,6 +274,21 @@ it("stale param", async () => {
 	expect(app.store.snapshot().heads[1]).toEqual({ title: "About" });
 });
 
+// A stored NDJSON carries every page `l` frame, even for a page the client sent as stale. The landed frame wins.
+it("stale data", async () => {
+	const stored: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/about", d: "stored" }, { t: "r" }];
+	const responses = [ndjson(aboutFrames), ndjson(aboutFrames), ndjson(stored)];
+	const app = await setup(async () => responses.shift() ?? ndjson(stored), {
+		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
+	});
+	await app.navigator.navigate({ to: "_root_/about" });
+	await app.navigator.navigate({ to: "_root_/" });
+	await app.navigator.navigate({ to: "_root_/about" });
+	expect(app.deps.fetch).toHaveBeenLastCalledWith("/about?_flare=data&_flare_stale=%26", expect.anything());
+	flush();
+	expect(app.text()).toBe("root[about:stored]");
+});
+
 it("effects read", async () => {
 	const frames: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/refetch", d: "x" }, { t: "r" }];
 	const app = await setup(async () => ndjson(frames), {
