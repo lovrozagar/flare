@@ -36,8 +36,12 @@ function settle(stage: StageResult): StageResult {
 	}
 }
 
+// Every Set-Cookie value is kept. Any other header replaces.
 function copyHeaders(target: Headers, extra: Headers): void {
-	extra.forEach((value, name) => target.set(name, value));
+	extra.forEach((value, name) => {
+		if (name !== "set-cookie") target.set(name, value);
+	});
+	for (const cookie of extra.getSetCookie()) target.append("set-cookie", cookie);
 }
 
 function copySecurity(headers: Headers, url: string): void {

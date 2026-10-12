@@ -13,7 +13,8 @@ const inputs = [
 
 function run(data: unknown[]): LoaderRun {
 	const response = new Response(null);
-	return { response, frames: [], data, heads: [{ title: "Root" }], contexts: [{}], inputs, bugs: [], deferred: [] };
+	const heads = [{ title: "Root" }];
+	return { response, frames: [], data, heads, contexts: [{}], inputs, bugs: [], deferred: [], headers: {} };
 }
 
 it("outlet", () => {

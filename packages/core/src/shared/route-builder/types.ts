@@ -1,4 +1,46 @@
-export type { CacheConfig } from "./chain.ts";
+export type SsrCache = {
+	ttl: string;
+	staleTime?: string;
+	tags?: readonly string[];
+	defer?: "resolve" | "stream";
+};
+
+// When a link prefetches (dx/link.md). A string sets both fields. An object sets the fields it names.
+export type PrefetchTrigger = false | "intent" | "viewport" | "render";
+export type RoutePrefetch = PrefetchTrigger | { data?: PrefetchTrigger; modules?: PrefetchTrigger };
+
+// The route's in-memory match cache (dx/cache.md). `false` turns it off for that route. Durations are strings.
+export type ClientCache =
+	| false
+	| {
+			prefetch?: RoutePrefetch;
+			staleTime?: string;
+			gcTime?: string;
+			prefetchStaleTime?: string;
+			prefetchGcTime?: string;
+			cacheDeferred?: boolean;
+	  };
+
+// The CDN policy (dx/cache.md `cdn`). It reaches the header only for a shared answer of class public. On a
+// layout, a root layout, or a segment it is a default for the pages under it.
+export type CdnCache = {
+	maxAge?: string | undefined;
+	swr?: string | undefined;
+	private?: boolean | undefined;
+	tags?: readonly string[] | ((ctx: { params: Record<string, string | string[]> }) => readonly string[]) | undefined;
+	allowCookies?: boolean | undefined;
+};
+
+type CacheMode =
+	| { ssr: SsrCache; isr?: never; ssg?: never }
+	| { isr: true | { revalidate?: string }; ssr?: never; ssg?: never }
+	| { ssg: true | { defer?: "resolve" | "stream" }; ssr?: never; isr?: never };
+
+// One mode at most. `cdn` and `client` sit beside it or stand alone.
+export type CacheConfig =
+	| (CacheMode & { client?: ClientCache | undefined; cdn?: CdnCache | undefined })
+	| { client: ClientCache; cdn?: CdnCache | undefined; ssr?: never; isr?: never; ssg?: never }
+	| { cdn: CdnCache; client?: ClientCache | undefined; ssr?: never; isr?: never; ssg?: never };
 
 export type AuthenticateMode = true | "optional";
 

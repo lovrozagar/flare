@@ -38,19 +38,23 @@ function writeRoute(headers: Headers, routeHeaders: Record<string, string> | und
 	for (const [key, value] of Object.entries(routeHeaders)) headers.set(key, value);
 }
 
+// Parent to child (dx/builder.md `headers(fn)`): names are case-insensitive, a child key wins, `set-cookie` appends
+// the child's values after the parent's, and an undefined child value keeps the parent's.
 export function mergeHeaders(
-	parent: Record<string, string>,
-	child: Record<string, string | undefined>,
+	parent: Readonly<Record<string, string | readonly string[]>>,
+	child: Readonly<Record<string, string | readonly string[] | undefined>>,
 ): Record<string, string | string[]> {
-	const result: Record<string, string | string[]> = { ...parent };
-	for (const [key, value] of Object.entries(child)) {
+	const result: Record<string, string | string[]> = {};
+	for (const [key, value] of Object.entries(parent)) result[key.toLowerCase()] = copy(value);
+	for (const [name, value] of Object.entries(child)) {
 		if (value === undefined) continue;
-		if (key === "set-cookie") {
-			const prior = result[key];
-			result[key] = typeof prior === "string" ? [prior, value] : value;
-			continue;
-		}
-		result[key] = value;
+		const key = name.toLowerCase();
+		const prior = result[key];
+		result[key] = key === "set-cookie" && prior !== undefined ? [...[prior].flat(), ...[value].flat()] : copy(value);
 	}
 	return result;
+}
+
+function copy(value: string | readonly string[]): string | string[] {
+	return typeof value === "string" ? value : [...value];
 }

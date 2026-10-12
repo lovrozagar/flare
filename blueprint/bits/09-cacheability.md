@@ -19,6 +19,7 @@ Neither step grows `createPage` past its 1100 budget. Both are server-only and t
 | test | case | result |
 | --- | --- | --- |
 | `headers step` | `.head().headers(fn).security(config).render()` | builds. `.headers()` after `.security()` or after `.render()` throws `order`, and a second `.headers()` throws |
+| `forwarded steps` | the keys of a layout and a page builder, and `keyof BuilderSteps` | a layout's keys are the forwarded steps plus `render`, a page's add `intercept` and `response`, and the type's keys minus `render` are the same forwarded steps. This pins ORDER's key arrangement: a page's own steps first, `render` last |
 | `security step` | `.security(config)` and `.security((ctx) => config)` | both build. A layout and a root layout have both steps. A segment has neither |
 
 ### `server/loaders/run.test.ts`

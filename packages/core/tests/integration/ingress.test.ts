@@ -158,3 +158,28 @@ function headerRecord(headers: http.IncomingHttpHeaders): Record<string, string>
 	}
 	return out;
 }
+
+// A page's `.headers()` reach the document and its data response, and the security set still wins over them.
+it("headers cannot secure", async () => {
+	const page = createPage("_root_/")
+		.headers(() => ({
+			"Content-Security-Policy": "default-src *",
+			"X-Frame-Options": "ALLOWALL",
+			"x-route": "1",
+			"set-cookie": ["a=1", "b=2"],
+		}))
+		.render(() => "home");
+	const secured = createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [{ id: "_root_/", path: "/", module: page }],
+		}),
+	});
+	for (const path of ["/", "/?_flare=data"]) {
+		const response = await secured.fetch(new Request(`http://localhost${path}`));
+		expect(response.headers.get("content-security-policy")).not.toBe("default-src *");
+		expect(response.headers.get("x-frame-options")).not.toBe("ALLOWALL");
+		expect(response.headers.get("x-route")).toBe("1");
+		expect(response.headers.getSetCookie()).toEqual(["a=1", "b=2"]);
+	}
+});

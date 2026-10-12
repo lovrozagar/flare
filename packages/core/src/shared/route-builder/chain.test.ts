@@ -1,5 +1,10 @@
-import { expect, it } from "vitest";
+import { expect, expectTypeOf, it } from "vitest";
 import { createChain } from "./chain.ts";
+import { createLayout } from "./layout.ts";
+import { createRootLayout } from "./root-layout.ts";
+import { createPage } from "./page.ts";
+import type { BuilderSteps, RouteState } from "./route-types.ts";
+import { createPathSegment } from "./segment.ts";
 
 const authorize = (): boolean => true;
 const preloader = (): string => "pre";
@@ -94,4 +99,38 @@ it("input", () => {
 			.cache({ ssr: { ttl: "1m" } })
 			.input({ searchParams: params }),
 	).not.toThrow();
+});
+
+const headers = (): Record<string, string> => ({ "x-a": "1" });
+
+// `.headers()` sits after `.head()` and before `.render()`, once (dx/builder.md).
+it("headers step", () => {
+	expect(createChain("_root_").head(head).headers(headers).render(render).record().headers).toBe(headers);
+	expect(() => createChain("_root_").render(render).headers(headers)).toThrow(/order: headers/);
+	expect(() => createChain("_root_").headers(headers).head(head)).toThrow(/order: head/);
+	expect(() => createChain("_root_").headers(headers).headers(headers)).toThrow(/headers twice/);
+	expect(typeof createLayout("_root_/(g)").headers).toBe("function");
+	expect(typeof createRootLayout("_root_").headers).toBe("function");
+	expect(createPathSegment("_root_/seg")).not.toHaveProperty("headers");
+});
+
+// The typed builders forward every step between ORDER's first two keys and `render`. A reordered key fails here.
+it("forwarded steps", () => {
+	const forwarded = ["cache", "input", "authenticate", "authenticateOptional", "authorize", "effects"];
+	const steps = [...forwarded, "preloader", "loader", "head", "headers"];
+	expect(Object.keys(createLayout("_root_/(g)")).sort()).toEqual([...steps, "render"].sort());
+	expect(Object.keys(createPage("_root_/p")).sort()).toEqual([...steps, "render", "intercept", "response"].sort());
+	type Steps = Exclude<keyof BuilderSteps<RouteState, "layout">, "render">;
+	expectTypeOf<Steps>().toEqualTypeOf<
+		| "cache"
+		| "input"
+		| "authenticate"
+		| "authenticateOptional"
+		| "authorize"
+		| "effects"
+		| "preloader"
+		| "loader"
+		| "head"
+		| "headers"
+	>();
 });
