@@ -1,4 +1,16 @@
+import type { RedirectError } from "../../shared/errors/redirect.ts";
 import { canonicalPath, type CanonicalOptions } from "../../shared/url/canonical.ts";
+import { buildUrl } from "../../shared/url/index.ts";
+
+// A thrown redirect() on a document. `href` is used as written. A route id is built by buildUrl and placed
+// under the router's basePath (B73).
+export function redirectLocation(error: RedirectError, basePath: string): string {
+	const to = error.to;
+	// redirect() throws with exactly one of `to` and `href`.
+	if (to === undefined) return `${error.href}`;
+	const url = buildUrl({ to, params: error.params, search: error.search, hash: error.hash });
+	return basePath === "/" ? url : `${basePath}${url}`;
+}
 
 export type CanonicalRedirect = {
 	status: number;

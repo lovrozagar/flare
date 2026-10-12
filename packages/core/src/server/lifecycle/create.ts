@@ -7,6 +7,7 @@ import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import type { RawParams } from "../../shared/route-tree/index.ts";
 import type { Respond } from "../../shared/route-builder/chain.ts";
 import type { ChainEntry, Match, Router } from "../../shared/router/create-router.ts";
+import { RedirectError } from "../../shared/errors/redirect.ts";
 import { readSearch } from "../../shared/url/search.ts";
 import { resolveCaller, type Caller } from "../auth/caller.ts";
 import { withServerContext, type ServerContextInput } from "../context/ctx.ts";
@@ -15,6 +16,7 @@ import { renderDocument } from "../render/document.ts";
 import { mergeHead } from "../render/head.ts";
 import { devSink, projectError, type ErrorSink, type Projected } from "../render/projector.ts";
 import type { StateMatch } from "../render/state.ts";
+import { redirectLocation } from "../redirect/index.ts";
 import { applySecurity, type SecurityConfig } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { finalize } from "./finalize.ts";
@@ -138,11 +140,16 @@ async function page(exchange: Exchange, chain: readonly ChainEntry[], params: Ra
 	return settle(exchange, { chain, run, params });
 }
 
-// A failed match paints the walked boundary at the failure's status. Validation, a gate status, and a redirect
-// have no failed match to paint and answer bare.
+// A thrown redirect() answers its status and Location, with no render and no boundary (B73). A failed match
+// paints the walked boundary at the failure's status. Validation and a gate status answer bare.
 function settle(exchange: Exchange, rendered: Rendered): Promise<Response> {
+	const thrown = rendered.run.thrown ?? rendered.run.failed?.error;
+	if (thrown instanceof RedirectError) {
+		const location = redirectLocation(thrown, exchange.options.router.basePath);
+		return Promise.resolve(answer(exchange, thrown.status, location));
+	}
 	const failed = rendered.run.failed;
-	if (failed === undefined || failed.status < 400) return bare(exchange, rendered.run);
+	if (failed === undefined) return bare(exchange, rendered.run);
 	const projected = projectError(failed.error, exchange.sink);
 	return paint(exchange, { ...rendered, failed: projected }, projected.status);
 }

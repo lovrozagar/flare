@@ -15,14 +15,21 @@ export class RedirectError extends Error {
 	readonly replace: boolean;
 	readonly to: string | undefined;
 	readonly href: string | undefined;
+	readonly params: Record<string, string> | undefined;
+	readonly search: Record<string, string> | undefined;
+	readonly hash: string | undefined;
 
-	constructor(target: { status: number; replace: boolean; to?: string; href?: string }) {
+	// The whole target travels with the throw, so the server can build Location from it.
+	constructor(target: RedirectTarget & { status: number; replace: boolean }) {
 		super("redirect");
 		this.name = "RedirectError";
 		this.status = target.status;
 		this.replace = target.replace;
 		this.to = target.to;
 		this.href = target.href;
+		this.params = target.params;
+		this.search = target.search;
+		this.hash = target.hash;
 	}
 }
 
@@ -31,12 +38,7 @@ export function redirect(target: RedirectTarget): never {
 	else if (target.to === undefined) throw new Error("to");
 	const status = target.status ?? 307;
 	if (!STATUSES.includes(status)) throw new Error(String(status));
-	throw new RedirectError({
-		status,
-		replace: target.replace ?? true,
-		to: target.to,
-		href: target.href,
-	});
+	throw new RedirectError({ ...target, status, replace: target.replace ?? true });
 }
 
 function assertHref(target: RedirectTarget, href: string): void {

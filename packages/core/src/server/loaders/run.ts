@@ -31,6 +31,7 @@ export type RunInput = {
 };
 
 // `data`, `heads`, and `contexts` are the root-down matches above the first failure, the ones that render.
+// `thrown` is what authenticate threw when the gate answered with its status.
 // A match with no .head() has an undefined head. `contexts` is the preloader context through each match.
 export type LoaderRun = {
 	response: Response;
@@ -41,13 +42,14 @@ export type LoaderRun = {
 	failed?: Failed;
 	class?: PolicyClass;
 	answer?: Response;
+	thrown?: unknown;
 };
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	const invalid = collectIssues(input.routes);
 	if (invalid !== undefined) return bare(json(shapeIssues(invalid)));
 	const gated = await gate(input);
-	if (gated.kind === "status") return bare(finalize({ status: gated.status, body: "" }));
+	if (gated.kind === "status") return { ...bare(finalize({ status: gated.status, body: "" })), thrown: gated.thrown };
 	// A .response() page runs no loader and no render. A stopped gate answers with its status alone.
 	if (input.response !== undefined) {
 		if (gated.kind === "stopped") return bare(finalize({ status: statusOf(gated.error), body: "" }));
