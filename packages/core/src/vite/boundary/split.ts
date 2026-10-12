@@ -2,10 +2,14 @@ import MagicString, { type SourceMap } from "magic-string";
 import {
 	parseSync,
 	Visitor,
+	type BindingPattern,
+	type BindingProperty,
+	type BindingRestElement,
 	type CallExpression,
 	type Expression,
 	type ImportDeclaration,
 	type ObjectProperty,
+	type ParamPattern,
 	type Program,
 } from "oxc-parser";
 import { requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts";
@@ -124,15 +128,17 @@ function blank(edit: Edit, args: readonly Span[]): void {
 	edit.removed.push({ start: first.start, end: last.end });
 }
 
-// A name counts as read when an identifier with it sits outside every import and every removed span. That is
-// conservative: a shadowing local keeps the import, which the tripwire still checks.
+// A name counts as read when an identifier in reference position has it, outside every import and every removed
+// span. A member property, a key, a JSX attribute name, a label, and a declaration are not reads, so a module only
+// removed code reads leaves the client graph. A local that shadows the import still keeps it.
 function pruneImports(edit: Edit, program: Program): void {
 	const imports = program.body.filter((node): node is ImportDeclaration => node.type === "ImportDeclaration");
+	const named = nonReferences(program);
 	const read = new Set<string>();
 	const outside = (node: Span): boolean =>
 		!imports.some((entry) => inside(node, entry)) && !edit.removed.some((span) => inside(node, span));
 	const note = (node: Span & { name: string }): void => {
-		if (outside(node)) read.add(node.name);
+		if (!named.has(node.start) && outside(node)) read.add(node.name);
 	};
 	new Visitor({ Identifier: note, JSXIdentifier: note }).visit(program);
 	for (const declaration of imports) {
@@ -153,6 +159,61 @@ function prune(edit: Edit, declaration: ImportDeclaration, read: ReadonlySet<str
 		declaration.end,
 		`import ${parts.join(", ")} from ${text(declaration.source)};`,
 	);
+}
+
+// The start of every identifier that names something rather than reading a binding.
+function nonReferences(program: Program): Set<number> {
+	const starts = new Set<number>();
+	const add = (node: Span | null | undefined): void => void (node && starts.add(node.start));
+	const key = (node: { key: Span; computed: boolean }): void => {
+		if (!node.computed) add(node.key);
+	};
+	const bind = (pattern: Pattern): void => {
+		for (const node of patternNodes(pattern)) add(node);
+	};
+	const fn = (node: { id: Span | null; params: ParamPattern[] }): void => {
+		add(node.id);
+		for (const param of node.params) bind(param);
+	};
+	new Visitor({
+		MemberExpression: (node) => !node.computed && add(node.property),
+		JSXMemberExpression: (node) => add(node.property),
+		JSXAttribute: (node) => add(node.name),
+		JSXNamespacedName: (node) => [node.namespace, node.name].forEach(add),
+		MetaProperty: (node) => [node.meta, node.property].forEach(add),
+		Property: (node) => !node.shorthand && key(node),
+		MethodDefinition: key,
+		PropertyDefinition: key,
+		TSPropertySignature: key,
+		TSMethodSignature: key,
+		TSQualifiedName: (node) => add(node.right),
+		LabeledStatement: (node) => add(node.label),
+		BreakStatement: (node) => add(node.label),
+		ContinueStatement: (node) => add(node.label),
+		ExportSpecifier: (node) => node.exported.start !== node.local.start && add(node.exported),
+		VariableDeclarator: (node) => bind(node.id),
+		FunctionDeclaration: fn,
+		FunctionExpression: fn,
+		ArrowFunctionExpression: fn,
+		ClassDeclaration: (node) => add(node.id),
+		ClassExpression: (node) => add(node.id),
+		CatchClause: (node) => bind(node.param),
+	}).visit(program);
+	return starts;
+}
+
+type Pattern = ParamPattern | BindingPattern | BindingRestElement | BindingProperty | null;
+
+// The identifiers a pattern declares. A default value is a read, so it is not one of them.
+function patternNodes(pattern: Pattern): Span[] {
+	if (pattern === null) return [];
+	if (pattern.type === "Identifier") return [pattern];
+	if (pattern.type === "TSParameterProperty") return patternNodes(pattern.parameter);
+	if (pattern.type === "RestElement") return patternNodes(pattern.argument);
+	if (pattern.type === "AssignmentPattern") return patternNodes(pattern.left);
+	if (pattern.type === "Property") return patternNodes(pattern.value);
+	if (pattern.type === "ArrayPattern") return pattern.elements.flatMap(patternNodes);
+	return pattern.properties.flatMap(patternNodes);
 }
 
 function inside(node: Span, span: Span): boolean {
