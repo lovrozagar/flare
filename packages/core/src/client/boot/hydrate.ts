@@ -1,6 +1,6 @@
 import { createComponent, type Context } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import { Matches } from "../../shared/components/index.ts";
+import { Matches, OverlayContext } from "../../shared/components/index.ts";
 import {
 	LocationContext,
 	NavigateContext,
@@ -41,6 +41,7 @@ export function readState(): ClientState {
 // as it is: hydrate reads it and replays the events it stored (B91).
 export function mountApp(app: App): () => void {
 	const location = () => app.store.snapshot().location;
+	const overlay = () => app.store.snapshot().overlay;
 	return app.mount(
 		() =>
 			provider(RouterContext, app.router, () =>
@@ -48,10 +49,12 @@ export function mountApp(app: App): () => void {
 					provider(NavigateContext, app.navigate, () =>
 						provider(NavigationContext, app.navigation, () =>
 							provider(BlockerContext, app.blockers, () =>
-								provider(PrefetchContext, app.prefetcher, () => [
-									createComponent(Heads, { store: app.store }),
-									createComponent(Matches, { state: app.store.outlet }),
-								]),
+								provider(PrefetchContext, app.prefetcher, () =>
+									provider(OverlayContext, overlay, () => [
+										createComponent(Heads, { store: app.store }),
+										createComponent(Matches, { state: app.store.outlet }),
+									]),
+								),
 							),
 						),
 					),
