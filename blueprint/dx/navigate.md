@@ -10,7 +10,7 @@ navigate({ to, params?, search?, hash?, replace?, revalidate?, scroll?, shallow?
 | --- | --- | --- | --- | --- | --- |
 | `to` | yes | — | the target route | | `target.test.ts` `data url` |
 | `params` | when the param type has any key | — | the object. A key whose type includes `undefined` is still present. The value may be `undefined` | a missing one throws before the fetch. `params: {}` on `[[id]]` is missing that key. The types are `dx/types.md` | `target.test.ts` `missing param`; `propagation.test.ts` `optional param` |
-| `search` | when the validator output has a required key | the empty search, when the prop is optional | the validator output, or the raw record when this route did not validate search (`dx/types.md`) | reserved params are stripped | `target.test.ts` `strips reserved`; `propagation.test.ts` `search required key` |
+| `search` | when the validator output has a required key | the empty search, when the prop is optional | the validator output, or the raw record when this route did not validate search (`dx/types.md`) | serialized by the `dx/link.md` URL values rule. Reserved params are stripped | `target.test.ts` `strips reserved`; `propagation.test.ts` `search required key` |
 | `hash` | no | — | | | `target.test.ts` `hash` |
 | `replace` | no | `false` | `replaceState` | | `navigate.test.ts` `replace` |
 | `revalidate` | no | `false` | refetch even inside `staleTime`. Does not push history when the URL does not change | | `navigate.test.ts` `revalidation` |
