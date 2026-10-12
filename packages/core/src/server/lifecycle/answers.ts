@@ -65,7 +65,11 @@ export async function decided(exchange: Exchange, matched: Loaded): Promise<Prep
 			(value) => value !== null,
 			() => true,
 		));
-	const decision = decide({ chain: modules.map((module) => module.cache), auth, session });
+	// A fill is never stored and never cached: it carries a stored page's `"stream"` values (dx/defer.md).
+	const decision: Decision =
+		exchange.kind === "fill"
+			? { policy: "no-store", cdn: {} }
+			: decide({ chain: modules.map((module) => module.cache), auth, session });
 	return {
 		input: { ...input, shared: decision.policy === "shared" },
 		policy: { decision, params: definedParams(matched.params) },
@@ -219,6 +223,7 @@ export async function drawn(
 			render: () => createComponent(Matches, { state: () => state }),
 			// flare() defines the client entry URL for the server environments. Without the plugin there is none.
 			client: import.meta.env.FLARE_CLIENT_ENTRY,
+			fill: rendered.run.holes === true,
 		});
 		if (thrownInRender.length > 0) {
 			void body.cancel();

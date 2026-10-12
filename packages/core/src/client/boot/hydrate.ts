@@ -10,7 +10,8 @@ import type { RouterStore, ScriptMatch } from "../router/store.ts";
 
 // `build` is the deploy's id, written by the server once bit 12 lands. Until then it is absent, and an empty id
 // disables the mismatch check on both sides (B7, B84).
-export type ClientState = { matches: ScriptMatch[]; nonce: string; build?: string };
+// `fill` marks a stored document that left a `"stream"` hole: one fill follows hydrate (dx/defer.md).
+export type ClientState = { matches: ScriptMatch[]; nonce: string; build?: string; fill?: boolean };
 
 // Solid's hydrate in the browser. A test passes a client render instead.
 export type Mount = (code: () => JSX.Element, root: Document) => () => void;

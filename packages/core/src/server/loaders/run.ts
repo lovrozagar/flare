@@ -58,7 +58,7 @@ export type RunInput = {
 // One deferred value a kept match started. A live response writes it as a `c` or `e` frame.
 export type DeferredFrame = { m: string; k: string; promise: Promise<unknown> };
 
-type Loaded = Outcome & { started: readonly Started[] };
+type Loaded = Outcome & { started: readonly Started[]; holes: number };
 
 // A route after its `.input()`: `params` and `search` are the raw records or that side's validator output.
 type ValidRoute = LoaderRoute & { params: unknown; search: unknown };
@@ -92,6 +92,7 @@ export type LoaderRun = {
 	thrown?: unknown;
 	bugs: readonly unknown[];
 	deferred: readonly DeferredFrame[];
+	holes?: boolean; // A kept match left a stored "stream" hole (defer.ts). The client sends one fill.
 	// The `.headers()` and `.security()` of every match whose loader resolved, merged root to page.
 	headers: Readonly<Record<string, string | string[]>>;
 	security: SecurityConfig;
@@ -120,11 +121,11 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	}
 	// Matches outside the stopped one still load. It and everything inside it do not (B27, B29).
 	const outer = await load(run, { routes: routes.slice(0, gated.index), base, contexts });
-	const error = gated.error;
 	const stopped = {
 		id: defined(routes[gated.index], "the stopped match").id,
-		settled: { ok: false as const, error },
+		settled: { ok: false as const, error: gated.error },
 		started: [],
+		holes: 0,
 	};
 	return conclude(run, [...outer, stopped], contexts);
 }
@@ -174,6 +175,7 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 		deferred: outcomes
 			.slice(0, result.kept.length)
 			.flatMap((outcome) => outcome.started.map((entry) => ({ m: outcome.id, k: entry.key, promise: entry.promise }))),
+		holes: outcomes.slice(0, result.kept.length).some((outcome) => outcome.holes > 0),
 	};
 }
 
@@ -224,7 +226,7 @@ function load(input: ValidRun, loading: Loading): Promise<Loaded[]> {
 				input.skip?.has(route.id) === true
 					? { ok: true as const, data: undefined }
 					: await settle(route, ctx, input.dev ?? false);
-			return { id: route.id, settled, started: scope.started };
+			return { id: route.id, settled, started: scope.started, holes: scope.holes };
 		}),
 	);
 }

@@ -15,20 +15,25 @@ export type DeferScope = {
 export type Started = { key: string; promise: Promise<unknown> };
 
 // `held` is what a stored render waits for. `started` is every value whose function ran, in creation order,
-// which a live response writes as `c` or `e` frames.
+// which a live response writes as `c` or `e` frames. `holes` counts the stored `"stream"` values whose function did
+// not run: a fill request runs them.
 export type LoaderDefer = {
 	defer: <T>(fn: () => Promise<T>, options?: DeferOptions) => Deferred<T>;
 	held: readonly Promise<unknown>[];
 	started: readonly Started[];
+	readonly holes: number;
 };
 
 class Placeholder<T> implements Deferred<T> {
 	readonly __deferred: true = true;
 	readonly key: string;
+	readonly hole?: true;
 	readonly #promise: Promise<T>;
 
-	constructor(key: string, promise: Promise<T>) {
+	// A hole travels on the wire, so the server render and the client's read take the same source (useDeferred).
+	constructor(key: string, promise: Promise<T>, hole: boolean) {
 		this.key = key;
+		if (hole) this.hole = true;
 		this.#promise = promise;
 	}
 
@@ -43,7 +48,7 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 	const seen = new Map<string, Deferred<unknown>>();
 	const held: Promise<unknown>[] = [];
 	const started: Started[] = [];
-	const state = { next: 0, running: false };
+	const state = { next: 0, running: false, holes: 0 };
 
 	function start<T>(fn: () => Promise<T>): Promise<T> {
 		state.running = true;
@@ -63,13 +68,15 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 		// A nested defer has no frame to resolve it, so the client would wait forever.
 		if (state.running && scope.dev) throw new Error("defer: called inside a deferred function");
 		const now = runs(options) && !state.running;
-		const value = new Placeholder(key, now ? start(fn) : new Promise<T>(() => undefined));
+		const hole = scope.stored && !now && scope.prefetch !== true;
+		const value = new Placeholder(key, now ? start(fn) : new Promise<T>(() => undefined), hole);
 		if (now) {
 			// The frame writer or the render reads the outcome. A rejection nobody reads is not a process crash.
 			value.promise.catch(() => undefined);
 			started.push({ key, promise: value.promise });
 		}
 		if (scope.stored && now) held.push(value.promise);
+		if (hole) state.holes += 1;
 		seen.set(key, value);
 		return value;
 	}
@@ -80,5 +87,12 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 		return (options.prerender ?? scope.route ?? "resolve") === "resolve";
 	}
 
-	return { defer, held, started };
+	return {
+		defer,
+		held,
+		started,
+		get holes() {
+			return state.holes;
+		},
+	};
 }

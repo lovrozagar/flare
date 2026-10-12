@@ -11,8 +11,14 @@ export type StateMatch = {
 	error: unknown;
 };
 
-export function stateScript(state: { matches: readonly StateMatch[]; nonce: string }): string {
-	const payload = JSON.stringify({ matches: state.matches, nonce: state.nonce });
+// `fill` marks a render that left a stored `"stream"` hole: the client sends one fill after hydrate.
+export function stateScript(state: {
+	matches: readonly StateMatch[];
+	nonce: string;
+	fill?: boolean | undefined;
+}): string {
+	const fill = state.fill === true ? { fill: true } : {};
+	const payload = JSON.stringify({ matches: state.matches, nonce: state.nonce, ...fill });
 	// A string CSP has no nonce, and then the tag has no attribute (B68).
 	const attr = state.nonce === "" ? "" : ` nonce="${escapeAttr(state.nonce)}"`;
 	return `<script${attr}>self.flare=${escapeInlineScript(payload)}</script>`;

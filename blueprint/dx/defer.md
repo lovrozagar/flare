@@ -46,14 +46,14 @@ The type of `loaderData.reviews` is `Deferred<T>`, which is `{ __deferred: true;
 The pending UI is Solid `<Loading>`. The read that suspends is `useDeferred`, from `@lovrozagar/flare`:
 
 ```tsx
-const reviews = useDeferred(loaderData.reviews);
+const reviews = useDeferred(() => props.loaderData.reviews);
 
 <Loading fallback={<p>Loading reviews</p>}>
   <Reviews items={reviews()} />
 </Loading>
 ```
 
-`useDeferred(deferred)` is `createMemo(() => deferred.promise, { ssrSource })`. `ssrSource` is Solid's public option, and it is `"client"` only when `deferred.hole` is true. A hole is a `"stream"` value a stored render did not run. The server and the client read the same `hole`, because the `l` marker carries it. On a live render, and on a client navigation, the memo is an ordinary async memo, so the server streams the value into the document. On a stored hole, Solid renders the `<Loading>` fallback on the server and hands that boundary to the client. The client computes after hydration, when the `?_flare=fill` frame resolves the promise (`shared/components/use-deferred.test.ts` `live value`, `stored hole`).
+`useDeferred(() => deferred)` is `createMemo(() => deferred.promise, { ssrSource })`. It takes an accessor, so the memo reads loader data in its own tracking scope: a component body that reads `props.loaderData` directly gets Solid's `STRICT_READ_UNTRACKED` warning, and its value would not follow a later loader run. A plain `Deferred` is accepted too. `ssrSource` is Solid's public option, and it is `"client"` only when `deferred.hole` is true. A hole is a `"stream"` value a stored render did not run. The server and the client read the same `hole`, because the `l` marker carries it. On a live render, and on a client navigation, the memo is an ordinary async memo, so the server streams the value into the document. On a stored hole, Solid renders the `<Loading>` fallback on the server and hands that boundary to the client. The client computes after hydration. It revives the state's placeholders as pending values, and the `?_flare=fill` landing resolves those same promises, so the read that holds the first value sees the fill's (`shared/components/use-deferred.test.ts` `live value`, `stored hole`; `client/navigation/request.test.ts` `fill request`).
 
 A plain `createMemo(async () => loaderData.reviews.promise)` still works on a page that is never stored. Over a stored hole, it waits on a server promise that never settles, and the fallback stays. Use `useDeferred` for every deferred read.
 

@@ -1,17 +1,11 @@
 import { flush } from "solid-js";
 import type { OutletMatch } from "../../shared/components/index.ts";
 import type { DevErrorPayload } from "../../shared/errors/index.ts";
-import { BUILD_HEADER, STALE_PARAM } from "../../shared/protocol/index.ts";
 import type { Intercept } from "../../shared/route-builder/chain.ts";
-import {
-	loadChain,
-	type LoadedEntry,
-	type Router,
-	type ViewTransitionOptions,
-} from "../../shared/router/create-router.ts";
+import type { LoadedEntry, Router, ViewTransitionOptions } from "../../shared/router/create-router.ts";
 import { readSearch, type Location } from "../../shared/url/index.ts";
 import type { FlareHistory } from "../history/index.ts";
-import { cachedMatches, defined, holds, remember, type MatchCache } from "../router/match-cache.ts";
+import { cachedMatches, defined, remember, type MatchCache } from "../router/match-cache.ts";
 import { landedFailure, statusFailure, swappedDepth, type RouterStore, type StoreSnapshot } from "../router/store.ts";
 import {
 	runTransition,
@@ -21,11 +15,11 @@ import {
 	type Direction,
 } from "../view-transition/index.ts";
 import type { Blockers } from "./blocker.ts";
-import { framesOf, landFrames, type Landed } from "./frames.ts";
+import type { Landed, Pending } from "./frames.ts";
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts";
 import type { NavigationState } from "./pending.ts";
-import { isChunkError } from "./reload.ts";
 import type { ScrollStore } from "./scroll.ts";
+import { arrive, type Arrival } from "./request.ts";
 import { resolveTarget, resolveUrl, type NavigateInput, type Target } from "./target.ts";
 
 export type Landing = Landed;
@@ -60,9 +54,6 @@ type DataTarget = Extract<Target, { kind: "data" }>;
 
 type Trigger = "navigation" | "revalidation";
 
-// What came back for one navigation: frames to commit, a bare status to paint, or nothing to do.
-type Arrival = { kind: "landed"; landing: Landing } | { kind: "status"; status: number } | { kind: "none" };
-
 // Same-origin only. The DOM commits, then history is written. A revalidation of the current URL writes no
 // history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
 // restore is one popstate step: the browser already moved, so no blocker runs, nothing is written, and the
@@ -71,6 +62,7 @@ export function createNavigator(deps: NavigatorDeps): {
 	navigate: (options: NavigateOptions) => Promise<void>;
 	visit: (url: string, replace: boolean) => Promise<void>;
 	restore: (url: string, index: number) => Promise<void>;
+	fill: (pending: Pending) => Promise<void>;
 } {
 	let latest: AbortController | undefined;
 	// The history index the screen shows, so a popstate step knows its view-transition direction.
@@ -89,18 +81,26 @@ export function createNavigator(deps: NavigatorDeps): {
 		latest?.abort();
 		const controller = new AbortController();
 		latest = controller;
-		const settled = await deps.navigation.track(arrive(deps, { ...plan, signal: controller.signal }));
+		// A stored landing can end with a `"stream"` hole. Once this page commits, one fill asks for its values.
+		const watch = holeWatch(deps, target.location, fill);
+		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes };
+		const settled = await deps.navigation.track(arrive(deps, trip));
 		if (latest !== controller || settled === undefined || settled.arrival.kind === "none") return;
 		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined;
 		if (redirect === undefined) {
 			await settle(deps, plan, { chain: settled.chain, arrival: settled.arrival });
 			at = deps.history.index();
-			return;
+			return watch.committed();
 		}
 		if (new URL(redirect.url, deps.origin).origin !== deps.origin) return void deps.assign(redirect.url);
 		return go(resolveUrl(redirect.url, context()), { ...options, replace: redirect.replace });
 	};
+	const fill = (pending: Pending): Promise<void> => {
+		const options = fillOptions(deps);
+		return go(resolveUrl(options.to, context()), options, { fill: pending });
+	};
 	return {
+		fill,
 		navigate: (options) => go(resolveTarget(options, context()), options),
 		visit: (url, replace) => go(resolveUrl(url, context()), { to: url, replace }),
 		restore: async (url, index) => {
@@ -127,6 +127,8 @@ type Plan = {
 	previous: StoreSnapshot;
 	direction: Direction;
 	intercept?: Intercept;
+	// A same-URL revalidation that asks for a stored page's `"stream"` values (request.ts).
+	fill: boolean;
 };
 
 function planOf(input: {
@@ -144,7 +146,8 @@ function planOf(input: {
 	// A push moves forward. A popstate step moves by its index. A replace and a revalidation stay.
 	const forward = !pop && trigger === "navigation" && input.options.replace !== true;
 	const direction = forward ? "forward" : stepDirection(input.mode.at, step);
-	const plan: Plan = { target, options: input.options, trigger, pop, previous: snapshot, direction };
+	const fill = input.mode.fill !== undefined;
+	const plan: Plan = { target, options: input.options, trigger, pop, previous: snapshot, direction, fill };
 	const intercept = overlayFor(target, snapshot, { trigger, ...input.mode });
 	if (intercept !== undefined) plan.intercept = intercept;
 	return plan;
@@ -191,54 +194,6 @@ function land(deps: NavigatorDeps, target: { url: string; location: Location }, 
 
 type Step = { options: NavigateOptions; pop: boolean; write: boolean };
 
-type Trip = Plan & { signal: AbortSignal };
-
-// The route modules load in parallel with the data request. An aborted request and a network failure commit
-// nothing. A missing chunk or a build mismatch is a guarded document load. A chunk error wins whichever of the
-// two fails first.
-async function arrive(
-	deps: NavigatorDeps,
-	trip: Trip,
-): Promise<{ chain: LoadedEntry[]; arrival: Arrival } | undefined> {
-	const [chain, arrival] = await Promise.allSettled([loadChain(trip.target.match.chain), request(deps, trip)]);
-	if (chain.status === "rejected") {
-		if (isChunkError(chain.reason)) deps.reload(trip.target.url);
-		return undefined;
-	}
-	return arrival.status === "fulfilled" ? { chain: chain.value, arrival: arrival.value } : undefined;
-}
-
-async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
-	const reused = trip.options.revalidate === true ? undefined : await deps.prefetched?.(trip.target.dataUrl);
-	// A prefetch never ran its deferred functions, so a landing still holding a placeholder needs the enter request.
-	if (reused !== undefined && !holds(reused.data)) return { kind: "landed", landing: reused };
-	const response = await deps.fetch(dataUrl(deps, trip), { signal: trip.signal });
-	const build = response.headers.get(BUILD_HEADER) ?? "";
-	if (build !== "" && deps.build !== "" && build !== deps.build) {
-		deps.reload(trip.target.url);
-		return { kind: "none" };
-	}
-	// An input failure does not commit (dx/builder.md). Any other status paints the target's failure.
-	if (response.status === 400) return { kind: "none" };
-	if (response.status !== 200 || response.body === null) return { kind: "status", status: response.status };
-	return { kind: "landed", landing: await landFrames(framesOf(response.body), { dev: deps.dev, send: deps.send }) };
-}
-
-// The page ids the client holds fresh ride along as _flare_stale, so the server skips those loaders (B30).
-function dataUrl(deps: NavigatorDeps, trip: Trip): string {
-	const matches = cachedMatches(trip.target.match, trip.target.location);
-	const current = deps.store.snapshot().location;
-	const plan = deps.cache.plan({
-		matches,
-		trigger: trip.trigger,
-		revalidate: trip.options.revalidate === true,
-		current: place(current),
-		next: place(trip.target.location),
-	});
-	if (plan.stale.length === 0) return trip.target.dataUrl;
-	return `${trip.target.dataUrl}&${STALE_PARAM}=${encodeURIComponent(plan.stale.join(" "))}`;
-}
-
 type Next = {
 	target: DataTarget;
 	chain: readonly LoadedEntry[];
@@ -274,6 +229,36 @@ function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	if (failure !== undefined) snapshot.failure = failure;
 	remember(deps.cache, cached, landing);
 	return snapshot;
+}
+
+// The values of the page on screen, through a same-URL revalidation that writes no history (dx/defer.md).
+function fillOptions(deps: NavigatorDeps): NavigateOptions & { to: string } {
+	const here = deps.store.snapshot().location;
+	return { to: `${here.pathname}${here.search}${here.hash}`, revalidate: true, replace: true, scroll: false };
+}
+
+// Holes heard before the commit wait for it, so the fill revalidates the page the navigation landed, and only while
+// that page is still on screen.
+function holeWatch(
+	deps: NavigatorDeps,
+	landed: Location,
+	fill: (pending: Pending) => Promise<void>,
+): { holes: (pending: Pending) => void; committed: () => void } {
+	let held: Pending | undefined;
+	let committed = false;
+	const run = (pending: Pending): void => {
+		if (sameUrl(deps.store.snapshot().location, landed)) void fill(pending);
+	};
+	return {
+		holes: (pending) => {
+			if (committed) run(pending);
+			else held = pending;
+		},
+		committed: () => {
+			committed = true;
+			if (held !== undefined) run(held);
+		},
+	};
 }
 
 function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions): void {

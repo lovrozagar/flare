@@ -112,7 +112,14 @@ export type ParamsFrom<R extends FlareRegister, Id extends From<R>> =
 export type SearchFrom<R extends FlareRegister, Id extends From<R>> =
 	Registered<R> extends true ? InferSearch<R, Id> : unknown;
 
-export type Deferred<T> = { readonly __deferred: true; readonly key: string; readonly promise: Promise<T> };
+// `hole` marks a stored `"stream"` value the render did not run. useDeferred reads it as a client source, and a fill
+// request brings the value (dx/defer.md).
+export type Deferred<T> = {
+	readonly __deferred: true;
+	readonly key: string;
+	readonly promise: Promise<T>;
+	readonly hole?: true;
+};
 
 export type PropagationApp = FlareRegister & {
 	auth: { userId: string };

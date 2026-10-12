@@ -1,13 +1,14 @@
 import { FN_PREFIX, KIND_PARAM, STALE_PARAM } from "./constants.ts";
 
-export type RequestKind = "document" | "data" | "prefetch";
+// `fill` asks for a stored page's `"stream"` values. It is its own URL, so a CDN never answers it with the data copy.
+export type RequestKind = "document" | "data" | "prefetch" | "fill";
 
 // `url` is what the router and the loaders see: both internal params are removed, the user's search stays.
 export type InternalRequest = { status: 400 } | { status: 200; kind: RequestKind; url: URL; stale: string | null };
 
 export type StaleList = { all: boolean; ids: ReadonlySet<string> };
 
-const KINDS: Record<string, RequestKind> = { data: "data", prefetch: "prefetch" };
+const KINDS: Record<string, RequestKind> = { data: "data", prefetch: "prefetch", fill: "fill" };
 
 const INTERNAL = new Set([KIND_PARAM, STALE_PARAM]);
 

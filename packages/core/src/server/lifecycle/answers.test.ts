@@ -4,6 +4,8 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
 import { createServer } from "./create.ts";
 import { NO_STORE } from "./policies.ts";
+import type { FlareStore } from "../cache/contract.ts";
+import { createMemoryStore } from "../cache/memory.ts";
 
 const root = createRootLayout("_root_").render((props) => props.children);
 const cdn = { maxAge: "60s", tags: ["t"] };
@@ -114,4 +116,27 @@ it("deferred rejection", async () => {
 	expect(state.settled).toBe(false);
 	expect(response.headers.get("cache-control")).toBe(NO_STORE);
 	await response.text();
+});
+
+// The fill of a stored `"stream"` hole runs the function live, leaves `private, no-store`, carries no
+// `flare-cache`, and never reads or writes the store (dx/defer.md).
+it("fill no-store", async () => {
+	const late = vi.fn<() => Promise<string>>(async () => "late");
+	const page = createPage("_root_/p")
+		.cache({ isr: { defer: "stream" }, cdn: { maxAge: "60s" } })
+		.loader(({ defer }) => ({ late: defer(late) }))
+		.render(() => "p");
+	const memory = createMemoryStore();
+	const reads = vi.fn<FlareStore["get"]>(memory.get);
+	const set = vi.fn<FlareStore["set"]>(memory.set);
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] });
+	const app = createServer({ router, site: "https://example.com", store: { ...memory, get: reads, set } });
+	const response = await app.fetch(get("/p?_flare=fill"));
+	const body = await response.text();
+	expect(response.headers.get("cache-control")).toBe(NO_STORE);
+	expect(response.headers.has("flare-cache")).toBe(false);
+	expect(body).toContain('"t":"c"');
+	expect(late).toHaveBeenCalledOnce();
+	expect(reads).not.toHaveBeenCalled();
+	expect(set).not.toHaveBeenCalled();
 });

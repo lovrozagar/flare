@@ -21,3 +21,8 @@ it("data", () => {
 it("prefetch", () => {
 	expect(classify(new URL("http://localhost/?_flare=prefetch"), "/")).toMatchObject({ status: 200, kind: "prefetch" });
 });
+
+// The request that fills a stored page's `"stream"` holes is its own kind and its own URL (dx/defer.md).
+it("fill kind", () => {
+	expect(classify(new URL("http://localhost/?_flare=fill"), "/")).toMatchObject({ status: 200, kind: "fill" });
+});

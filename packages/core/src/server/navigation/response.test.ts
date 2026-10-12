@@ -221,7 +221,11 @@ it("stored stream stays a hole", async () => {
 			{ ...built, id: "_root_/built" },
 		],
 	});
-	expect(run.data).toEqual([{ fast: { __deferred: true, key: "d0" } }, { slow: { __deferred: true, key: "d0" } }]);
+	// A hole travels on the wire, so the client reads it as a client source (useDeferred).
+	expect(run.data).toEqual([
+		{ fast: { __deferred: true, key: "d0", hole: true } },
+		{ slow: { __deferred: true, key: "d0", hole: true } },
+	]);
 	expect(run.deferred).toEqual([]);
 	expect(held.calls).toEqual([]);
 });
@@ -246,7 +250,7 @@ it("isr stream stays a hole", async () => {
 		stored: true,
 		routes: [{ ...page, id: "_root_/isr" }],
 	});
-	expect(run.data).toEqual([{ fast: { __deferred: true, key: "d0" } }]);
+	expect(run.data).toEqual([{ fast: { __deferred: true, key: "d0", hole: true } }]);
 	expect(held.calls).toEqual([]);
 });
 

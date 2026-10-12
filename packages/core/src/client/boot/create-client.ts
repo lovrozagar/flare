@@ -7,6 +7,7 @@ import type { ServerFnCall } from "../../shared/server-fn/builder.ts";
 import type { Location } from "../../shared/url/index.ts";
 import { createHistory, type FlareHistory } from "../history/index.ts";
 import { createBlockers } from "../navigation/blocker.ts";
+import { revive, type Pending } from "../navigation/frames.ts";
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts";
 import { createNavigationState } from "../navigation/pending.ts";
 import { createPopstate } from "../navigation/popstate.ts";
@@ -17,7 +18,7 @@ import { cacheFor } from "../router/match-cache.ts";
 import { callServerFn, type CallDeps } from "../server-fn/call.ts";
 import { streamServerFn } from "../server-fn/stream.ts";
 import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts";
-import { mountApp, readState, type Mount } from "./hydrate.ts";
+import { mountApp, readState, type ClientState, type Mount } from "./hydrate.ts";
 import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts";
 
 // The browser surface the client uses, passed in so a test can observe it.
@@ -61,8 +62,9 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	const match = router.match(location.pathname);
 	const chain = await loadChain(match.chain);
 	const report = (error: unknown): void => void (env.dev && env.send?.(devErrorPayload(error)));
+	const { matches, pending } = holesOf(state);
 	const store = createRouterStore(
-		snapshotFromState({ matches: state.matches, chain, unknown: match.id === undefined, location }),
+		snapshotFromState({ matches, chain, unknown: match.id === undefined, location }),
 		report,
 	);
 	const history = createHistory(window.history);
@@ -106,6 +108,7 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	const unlisten = listen(router, navigator, { history, scroll, store });
 	document.documentElement.setAttribute("data-flare-hydrated", "");
 	ready.hydrated();
+	if (state.fill === true) void navigator.fill(pending);
 	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all));
 	ready.interaction(document);
 	return () => {
@@ -219,4 +222,12 @@ function browserScroll(router: Router): ScrollStore {
 	);
 	scroll.setup();
 	return scroll;
+}
+
+// A stored document's holes are live values the fill settles after hydrate (dx/defer.md).
+function holesOf(state: ClientState): { matches: ClientState["matches"]; pending: Pending } {
+	const pending: Pending = new Map();
+	if (state.fill !== true) return { matches: state.matches, pending };
+	const matches = state.matches.map((match) => ({ ...match, data: revive(match.data, match.id, pending) }));
+	return { matches, pending };
 }

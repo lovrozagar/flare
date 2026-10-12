@@ -118,6 +118,37 @@ test("stored hit hydrates", async ({ page }) => {
 	expect(errors).toEqual([]);
 });
 
+// A stored page's "stream" value is a hole: the HTML holds the fallback, and after hydrate one no-store
+// `_flare=fill` request fills it.
+test("stored stream fills", async ({ page }) => {
+	const html = await (await fetch(`${session.origin}/holed`)).text();
+	expect(html).toContain("wait-hole");
+	expect(html).not.toContain("FILLED");
+	const fills: string[] = [];
+	page.on("response", (response) => {
+		if (response.url().includes("_flare=fill")) fills.push(response.headers()["cache-control"] ?? "");
+	});
+	const errors = await open(page, "/holed");
+	await expect(page.locator("#holed")).toHaveText("FILLED");
+	expect(fills).toEqual(["private, no-store"]);
+	expect(errors).toEqual([]);
+});
+
+// The same page with no cache mode streams the value into the live document and sends no fill.
+test("live stream ssr", async ({ page }) => {
+	const html = await (await fetch(`${session.origin}/unstored`)).text();
+	expect(html).toContain("STREAMED");
+	const fills: string[] = [];
+	page.on("request", (request) => {
+		if (request.url().includes("_flare=fill")) fills.push(request.url());
+	});
+	const errors = await open(page, "/unstored");
+	await expect(page.locator("#unstored")).toHaveText("STREAMED");
+	await page.waitForTimeout(200);
+	expect(fills).toEqual([]);
+	expect(errors).toEqual([]);
+});
+
 test("style object", async ({ page }) => {
 	const response = await fetch(`${session.origin}/styled`);
 	expect(response.status).toBe(200);

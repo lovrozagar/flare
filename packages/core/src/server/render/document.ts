@@ -30,6 +30,7 @@ export type DocumentInput = {
 	appStylesheet?: string;
 	matches: readonly StateMatch[];
 	client?: string | undefined;
+	fill?: boolean;
 };
 
 const encoder = new TextEncoder();
@@ -40,7 +41,7 @@ const decoder = new TextDecoder();
 export async function renderDocument(input: DocumentInput): Promise<ReadableStream<Uint8Array>> {
 	const nonce = input.nonce ?? "";
 	// The state is serialized first. A value JSON cannot hold, such as a bigint, fails before the shell.
-	const tail = stateScript({ matches: input.matches, nonce }) + clientScript(input.client, nonce);
+	const tail = stateScript({ matches: input.matches, nonce, fill: input.fill }) + clientScript(input.client, nonce);
 	const head = captureScript(nonce);
 	const tags =
 		input.head === undefined ? undefined : headTags(input.head, { nonce, appStylesheet: input.appStylesheet });
