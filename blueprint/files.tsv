@@ -577,6 +577,7 @@ packages/core/tests/e2e/apps/minimal/src/routes/_root_/home.page.tsx	P1	app	-	Ho
 packages/core/tests/e2e/apps/minimal/wrangler.jsonc	P3	app	-	Workers config for the same app
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/about.page.tsx	P6	app	-	Second page for navigation
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons.page.tsx	P6	app	-	Two deferred reads, each under its own Loading, for two skeletons
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/styled.page.tsx	P6	app	-	A multi-key style object, for style object
 packages/core/tests/e2e/apps/minimal/src/fns/echo.ts	P7	app	-	One server function
 packages/core/tests/e2e/apps/basepath/package.json	P2	app	-	App package
 packages/core/tests/e2e/apps/basepath/tsconfig.json	P2	app	-	App tsconfig

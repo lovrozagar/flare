@@ -15,13 +15,19 @@ test.afterAll(async () => {
 	await session.close();
 });
 
-// A page error fails the test: a hydration mismatch halts Solid without changing the text.
+// A page error, a console error, or a console warning fails the test: a Solid hydration mismatch or warning
+// arrives on the console without throwing, and halts the page without changing its text. Vite's own lines are
+// debug messages and are not collected. No test here expects a 4xx resource.
 async function open(page: Page, path: string): Promise<string[]> {
-	const errors: string[] = [];
-	page.on("pageerror", (error) => errors.push(error.message));
+	const problems: string[] = [];
+	page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
+	page.on("console", (message) => {
+		if (message.type() === "error" || message.type() === "warning")
+			problems.push(`${message.type()}: ${message.text()}`);
+	});
 	await page.goto(`${session.origin}${path}`);
 	await expect(page.locator("html")).toHaveAttribute("data-flare-hydrated", "");
-	return errors;
+	return problems;
 }
 
 test("click", async ({ page }) => {
@@ -85,5 +91,15 @@ test("two skeletons", async ({ page }) => {
 	const errors = await open(page, "/skeletons");
 	await expect(page.locator("#fast")).toHaveText("FAST");
 	await expect(page.locator("#slow")).toHaveText("SLOW");
+	expect(errors).toEqual([]);
+});
+
+test("style object", async ({ page }) => {
+	const response = await fetch(`${session.origin}/styled`);
+	expect(response.status).toBe(200);
+	const errors = await open(page, "/styled");
+	const styled = page.locator("#styled");
+	await expect(styled).toHaveCSS("color", "rgb(255, 0, 0)");
+	await expect(styled).toHaveCSS("font-weight", "700");
 	expect(errors).toEqual([]);
 });

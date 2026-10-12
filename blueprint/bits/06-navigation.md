@@ -438,6 +438,12 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 | `dev server` | `configureServer` with `middlewareMode`, then without | no handler, then a post hook that installs it |
 | `client entry define` | `vite dev` | the `ssr` and `worker` environments define `import.meta.env.FLARE_CLIENT_ENTRY` as `clientUrl({ entry })`, `/src/client.tsx` by default. A build compiles the client first, then defines the manifest's hashed file for the server environments (bit 12 build shape) |
 
+### `server/render/document.test.ts` (doctype)
+
+| test | case | result |
+| --- | --- | --- |
+| `doctype` | a shell with `<html>` and no doctype, one that has a doctype, and a fragment | `<!DOCTYPE html>` is prefixed once, a written doctype is not doubled, and a fragment gets none (02-system). Without it Firefox renders the e2e document in quirks mode |
+
 ### `vite/plugin/environments.test.ts` (client url)
 
 | test | case | result |
@@ -459,7 +465,7 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 
 ### `tests/e2e/navigation.test.ts`
 
-This file calls `boot` for the `minimal` app (B70). `boot` starts each app's `vite` in a child process with `NO_COLOR=1`, so the framework it loads stays out of the test process and its URL is plain text. The project name selects `runtime`, `mode`, and the browser. `boot` receives `runtime` and `mode`. It does not start a server of its own. `stored stream fills` moved to bit 10, which owns the stored render.
+This file calls `boot` for the `minimal` app (B70). `boot` starts each app's `vite` in a child process with `NO_COLOR=1`, so the framework it loads stays out of the test process and its URL is plain text. The cache dir goes when the child exits for any reason, when it cannot start, and when the test process exits first (`boot.test.ts` `failed boot`, `exit cleans`), so a failed or timed-out run leaves no `flare-vite-*` dir. Each case fails on a page error, a console error, or a console warning: a Solid hydration mismatch or warning arrives on the console without throwing. The project name selects `runtime`, `mode`, and the browser. `boot` receives `runtime` and `mode`. It does not start a server of its own. `stored stream fills` moved to bit 10, which owns the stored render.
 
 | test | case | result |
 | --- | --- | --- |
@@ -467,7 +473,7 @@ This file calls `boot` for the `minimal` app (B70). `boot` starts each app's `vi
 | `back` | browser back | the home text returns |
 | `scroll` | scroll, navigate, back | the saved scroll position returns |
 | `two skeletons` | a document with two deferred reads, each under its own `<Loading>` | the first HTML contains both fallbacks and neither resolved string. The fast string appears in a later chunk while the slow fallback is still showing. Then the slow string appears. The status stays 200 |
-| `style object` | a multi-key `style={{ … }}` object in a page | SSR renders it and the client hydrates it with no page error |
+| `style object` | a multi-key `style={{ … }}` object in a page | SSR renders it and the client hydrates it with no page error or console warning. The Solid compiler and the runtime are one release: the root `package.json` overrides `@solidjs/compiler`, `@solidjs/babel-plugin`, and `@solidjs/signals` to the B90 pin, because the plugin's caret ranges had pulled a newer compiler whose `ssrStyleProperties` call the pinned `@solidjs/web` does not export |
 
 ## Done
 

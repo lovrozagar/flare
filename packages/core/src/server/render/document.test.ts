@@ -272,3 +272,21 @@ it("link active", async () => {
 	expect(html).toMatch(/<a[^>]*href="\/"[^>]*>home/);
 	expect(html.match(/aria-current/g)).toHaveLength(1);
 });
+
+it("doctype", async () => {
+	const page = await text(
+		await renderDocument({ ...base(), render: () => element("html", () => element("body", () => "x")) }),
+	);
+	expect(page.startsWith("<!DOCTYPE html>")).toBe(true);
+	expect(page.match(/<!DOCTYPE html>/gi)).toHaveLength(1);
+	const written = await text(
+		await renderDocument({
+			...base(),
+			render: () => "x",
+			stream: writes("<!doctype html><html><body>x</body></html>", []),
+		}),
+	);
+	expect(written.match(/<!doctype html>/gi)).toHaveLength(1);
+	const fragment = await text(await renderDocument({ ...base(), render: () => "fragment" }));
+	expect(fragment.startsWith("<!DOCTYPE")).toBe(false);
+});
