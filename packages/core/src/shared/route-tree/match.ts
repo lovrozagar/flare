@@ -47,8 +47,9 @@ function step(walk: Walk, at: number, from: number): RawParams | undefined {
 }
 
 function value(kind: "dynamic" | "catch-all", taken: readonly string[]): string | string[] | undefined {
-	if (taken.length === 0) return undefined;
-	if (kind === "dynamic") return upperHex(taken[0]);
+	const [first] = taken;
+	if (first === undefined) return undefined;
+	if (kind === "dynamic") return upperHex(first);
 	return taken.map(upperHex);
 }
 

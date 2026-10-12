@@ -7,22 +7,22 @@ export type HeadScript = { src?: string; children?: string; async?: boolean; ext
 type Bag = Record<string, unknown>;
 
 export type HeadConfig = {
-	title?: string;
-	description?: string;
-	canonical?: string;
-	keywords?: string;
-	css?: string | readonly string[];
-	languages?: Record<string, string>;
-	jsonLd?: ReadonlyArray<Record<string, unknown>>;
-	images?: readonly SeoImage[];
-	favicons?: Record<string, string>;
-	robots?: Bag;
-	openGraph?: Bag;
-	twitter?: Bag;
-	meta?: Bag & { viewport?: string | false };
+	title?: string | undefined;
+	description?: string | undefined;
+	canonical?: string | undefined;
+	keywords?: string | undefined;
+	css?: string | readonly string[] | undefined;
+	languages?: Record<string, string> | undefined;
+	jsonLd?: ReadonlyArray<Record<string, unknown>> | undefined;
+	images?: readonly SeoImage[] | undefined;
+	favicons?: Record<string, string> | undefined;
+	robots?: Bag | undefined;
+	openGraph?: Bag | undefined;
+	twitter?: Bag | undefined;
+	meta?: (Bag & { viewport?: string | false }) | undefined;
 	custom?: {
 		links?: ReadonlyArray<Record<string, string>>;
-		meta?: ReadonlyArray<Record<string, string>>;
+		meta?: ReadonlyArray<Record<string, string>> | undefined;
 		scripts?: readonly HeadScript[];
 		styles?: ReadonlyArray<{ children: string }>;
 	};

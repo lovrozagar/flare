@@ -49,6 +49,8 @@ packages/core/src/shared/errors/redirect.ts	P1	src	shared	redirect() throw carry
 packages/core/src/shared/errors/redirect.test.ts	P1	test	shared	Unit cases for redirect.ts
 packages/core/src/shared/errors/status.ts	P1	src	shared	Map a thrown value to an HTTP status, including a render-phase NotFoundError
 packages/core/src/shared/errors/status.test.ts	P1	test	shared	Unit cases for status.ts
+packages/core/src/shared/errors/defined.ts	P7	src	shared	A value an invariant guarantees. A broken invariant throws and names what was missing
+packages/core/src/shared/errors/defined.test.ts	P7	test	shared	Unit cases for defined.ts
 packages/core/src/shared/errors/safe.ts	P5	src	shared	markSafeError delegates to Solid and does not sanitize on its own
 packages/core/src/shared/errors/safe.test.ts	P5	test	shared	Unit cases for safe.ts
 packages/core/src/shared/errors/dev-report.ts	P5	src	shared	Vite error-overlay payload for a dev runtime bug. Production does not send it (B76)

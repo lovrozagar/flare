@@ -21,7 +21,7 @@ export function decodeGetInput(search: string): { status: 200; input: unknown } 
 		.filter((pair) => pair !== "");
 	if (pairs.length === 0) return { status: 200, input: undefined };
 	const [pair] = pairs;
-	if (pairs.length > 1 || !pair.startsWith(`${INPUT_PARAM}=`)) return { status: 400 };
+	if (pairs.length > 1 || pair === undefined || !pair.startsWith(`${INPUT_PARAM}=`)) return { status: 400 };
 	const raw = pair.slice(INPUT_PARAM.length + 1);
 	if (raw.length > MAX_GET_INPUT) return { status: 400 };
 	try {

@@ -7,7 +7,7 @@ export type DeferOptions = { key?: string; prerender?: DeferMode };
 // `prefetch` never runs a function: the prefetch entry is the shell only (dx/defer.md).
 export type DeferScope = {
 	stored: boolean;
-	route?: DeferMode;
+	route?: DeferMode | undefined;
 	dev: boolean;
 	prefetch?: boolean;
 };

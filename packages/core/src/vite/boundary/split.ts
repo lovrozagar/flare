@@ -23,7 +23,8 @@ type Step = { name: string; call: CallExpression; object: Expression };
 // reads is then dropped. A bare `import "x"` stays. Undefined when nothing changed.
 export function splitClient(file: string, source: string): Split | undefined {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
-	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
+	const [error] = parsed.errors;
+	if (error !== undefined) throw new Error(`${file}: ${error.message}`);
 	const edit: Edit = { file, source, out: new MagicString(source), removed: [] };
 	splitEdits(edit, parsed.program);
 	if (!edit.out.hasChanged()) return undefined;

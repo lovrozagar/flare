@@ -10,8 +10,8 @@ export type FlareOptions = {
 export type ParsedOptions = {
 	assetsBase: string;
 	entry: { client: string; server: string };
-	image?: { widths: readonly number[]; quality: number };
-	css?: { reset: boolean };
+	image?: { widths: readonly number[]; quality: number } | undefined;
+	css?: { reset: boolean } | undefined;
 	broadcast: boolean;
 };
 

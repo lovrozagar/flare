@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { defined } from "../../shared/errors/index.ts";
 import { createComponent } from "solid-js";
 import { escape } from "@solidjs/web";
 import { Matches, type OutletState } from "../../shared/components/index.ts";
@@ -153,7 +154,7 @@ function stage(exchange: Exchange, body: BodyInit, status: number): StageResult 
 // The answer still passes through finalize, and the request's security set wins over its headers. A node
 // flagged as .response() whose module has none is a codegen bug: projected, then 500.
 async function answered(exchange: Exchange, matched: Loaded): Promise<Response> {
-	const respond = matched.chain[matched.chain.length - 1].module.response;
+	const respond = defined(matched.chain.at(-1), "the .response() page").module.response;
 	if (respond === undefined) {
 		projectError(new Error(`${matched.id} is flagged as a .response() page but has no response`), exchange.sink);
 		return answer(exchange, 500);

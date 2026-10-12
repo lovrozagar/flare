@@ -16,10 +16,10 @@ export type DevServer = {
 
 // Node's IncomingMessage, as much of it as the listener reads.
 export type DevRequest = {
-	method?: string;
-	url?: string;
+	method?: string | undefined;
+	url?: string | undefined;
 	headers: Record<string, string | string[] | undefined>;
-	readableEnded?: boolean;
+	readableEnded?: boolean | undefined;
 	resume?(): void;
 	on?(event: "data" | "end", listener: (chunk: Uint8Array) => void): unknown;
 };
@@ -139,7 +139,7 @@ function transformUrl(href: string): string {
 async function loadEntry(server: DevServer, entry: string): Promise<AppServer> {
 	const runner = server.environments.ssr.runner;
 	if (runner === undefined) throw new Error("The SSR environment cannot run modules. Workers dev is unsupported");
-	const loaded = (await runner.import(`/${entry}`)).server;
+	const loaded = (await runner.import(`/${entry}`))["server"];
 	if (typeof loaded !== "object" || loaded === null || !("fetch" in loaded) || typeof loaded.fetch !== "function") {
 		throw new Error(`${entry} exports no server`);
 	}

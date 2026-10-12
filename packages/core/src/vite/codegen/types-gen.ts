@@ -43,7 +43,8 @@ export function generateTypes(input: TypesInput): {
 		}))
 		.sort((left, right) => (left.id < right.id ? -1 : 1));
 	const layouts = generated.layouts.map((layout) => layout.id);
-	const parents = Object.fromEntries(modules.map((module) => [module.id, parentsOf(module.id, layouts)]));
+	const parents: Record<string, string[]> = {};
+	for (const module of modules) parents[module.id] = parentsOf(module.id, layouts);
 	const fields = [
 		map("routes", pageUrls(generated.routes)),
 		map(
@@ -52,7 +53,7 @@ export function generateTypes(input: TypesInput): {
 		),
 		map(
 			"routeParents",
-			modules.map((module) => [module.id, tuple(parents[module.id])]),
+			modules.map((module) => [module.id, tuple(parentsOf(module.id, layouts))]),
 		),
 		optional("authModes", authModes(modules)),
 		optional("routeSearchParams", outputs(modules, "search")),
@@ -113,7 +114,8 @@ function tuple(ids: readonly string[]): string {
 // The import counts, not the text: a comment or a string that names the package does not (dx/types.md).
 function importsQuery(file: string, source: string): boolean {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
-	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
+	const [error] = parsed.errors;
+	if (error !== undefined) throw new Error(`${file}: ${error.message}`);
 	return parsed.program.body.some(
 		(statement) => statement.type === "ImportDeclaration" && statement.source.value === QUERY,
 	);

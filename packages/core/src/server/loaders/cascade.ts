@@ -1,3 +1,4 @@
+import { defined } from "../../shared/errors/index.ts";
 import { boundaryKind, type BoundaryKind } from "../../shared/components/index.ts";
 import { rankStatus, statusOf } from "../../shared/errors/status.ts";
 
@@ -50,8 +51,11 @@ type Failure = { m: string; error: unknown; status: number };
 
 function failAt(kind: RequestKind, kept: readonly DataFrame[], failures: readonly Failure[]): Cascade {
 	const status = rankStatus(failures.map((failure) => failure.status));
-	const ranked = failures.filter((failure) => failure.status === status)[0];
-	const at = { m: failures[0].m, error: ranked.error };
+	const ranked = defined(
+		failures.find((failure) => failure.status === status),
+		"the ranked failure",
+	);
+	const at = { m: defined(failures[0], "the root-most failure").m, error: ranked.error };
 	const failed = { ...at, status, boundary: boundaryKind(status) };
 	if (kind === "document") return { status, frames: kept, kept, failed };
 	if (status !== 500) return { status, frames: [], kept, failed };

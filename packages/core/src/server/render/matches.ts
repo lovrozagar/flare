@@ -1,3 +1,4 @@
+import { defined } from "../../shared/errors/index.ts";
 import type { OutletMatch } from "../../shared/components/index.ts";
 import type { RawParams } from "../../shared/route-tree/index.ts";
 import type { LoadedEntry } from "../../shared/router/create-router.ts";
@@ -22,8 +23,7 @@ export function outletMatches(rendered: Rendered): OutletMatch[] {
 		id: entry.id,
 		kind: entry.kind,
 		module: entry.module,
-		params: rendered.run.inputs[index].params,
-		search: rendered.run.inputs[index].search,
+		...pick(defined(rendered.run.inputs[index], "the match's input")),
 		data: rendered.run.data[index],
 		preloader: rendered.run.contexts[index] ?? {},
 	}));
@@ -49,4 +49,8 @@ export function definedParams(params: RawParams): Record<string, string | string
 	return Object.fromEntries(
 		Object.entries(params).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]])),
 	);
+}
+
+function pick(input: { params: unknown; search: unknown }): { params: unknown; search: unknown } {
+	return { params: input.params, search: input.search };
 }

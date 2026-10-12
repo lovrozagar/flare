@@ -10,7 +10,8 @@ import { pruneImports, splitEdits, type Edit, type Split } from "./split.ts";
 // removed code read is then dropped, in all three graphs. Undefined when nothing changed.
 export function boundaryTransform(file: string, source: string, graph: Graph): Split | undefined {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
-	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
+	const [error] = parsed.errors;
+	if (error !== undefined) throw new Error(`${file}: ${error.message}`);
 	const program = parsed.program;
 	const edit: Edit = { file, source, out: new MagicString(source), removed: [] };
 	if (graph !== "ssr") splitEdits(edit, program);

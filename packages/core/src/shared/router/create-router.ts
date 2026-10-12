@@ -71,7 +71,7 @@ export type RouterOptions = {
 	chunks?: Record<string, string>;
 	prefetch?: RouterPrefetch;
 	viewTransitions?: boolean | ViewTransitionOptions;
-	rewrite?: LocationRewrite;
+	rewrite?: LocationRewrite | undefined;
 };
 
 // `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page, and its
@@ -100,7 +100,7 @@ export type Router = {
 	cache: { client: { staleTime: number; gcTime: string } | false };
 	viewTransitions: false | ViewTransitionOptions;
 	chunks: Record<string, string>;
-	rewrite?: LocationRewrite;
+	rewrite?: LocationRewrite | undefined;
 	match: (path: string) => Match;
 };
 
@@ -201,10 +201,10 @@ function stripBase(path: string, basePath: string): string | undefined {
 
 // Every layout whose id is the given id or a segment prefix of it, root first.
 function layoutChain(layouts: RouterOptions["layouts"], id: string): ChainEntry[] {
-	return Object.keys(layouts)
-		.filter((layout) => id === layout || id.startsWith(`${layout}/`))
-		.sort((left, right) => left.length - right.length)
-		.map((layout) => ({ id: layout, kind: "layout" as const, module: layouts[layout] }));
+	return Object.entries(layouts)
+		.filter(([layout]) => id === layout || id.startsWith(`${layout}/`))
+		.sort(([left], [right]) => left.length - right.length)
+		.map(([layout, module]) => ({ id: layout, kind: "layout" as const, module }));
 }
 
 // "root" is the root layout that owns the path. "fuzzy" is the longest layout that owns it (B73). A layout's

@@ -4,7 +4,7 @@ import { createLogger } from "../../server/lifecycle/logger.ts";
 
 export type WorkerCtx = {
 	waitUntil: (promise: Promise<unknown>) => void;
-	clientIp?: string;
+	clientIp?: string | undefined;
 };
 
 export type AssetBinding = {

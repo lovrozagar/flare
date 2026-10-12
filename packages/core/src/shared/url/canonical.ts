@@ -1,7 +1,7 @@
 export type CanonicalOptions = {
-	trailingSlash?: "preserve" | "never" | "always";
-	caseSensitive?: boolean;
-	basePath?: string;
+	trailingSlash?: "preserve" | "never" | "always" | undefined;
+	caseSensitive?: boolean | undefined;
+	basePath?: string | undefined;
 };
 
 export type CanonicalPath = { path: string } | { hostile: true };

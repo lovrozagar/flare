@@ -14,8 +14,8 @@ export type Session = (caller: Caller) => Promise<unknown>;
 export type ServerContextInput = {
 	request: Request;
 	env: unknown;
-	serverContext?: (ctx: { request: Request; env: unknown }) => unknown;
-	authenticate?: AppAuthenticate;
+	serverContext?: ((ctx: { request: Request; env: unknown }) => unknown) | undefined;
+	authenticate?: AppAuthenticate | undefined;
 };
 
 // What the page gate and an in-request server function call read (dx/server-fn.md).

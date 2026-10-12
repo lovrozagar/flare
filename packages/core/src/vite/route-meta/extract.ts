@@ -31,13 +31,14 @@ type Names = { local?: string; namespace?: string };
 
 type Step = { name: string; call: CallExpression };
 
-type Chain = { root: CallExpression; steps: Step[]; problem?: string };
+type Chain = { root: CallExpression; steps: Step[]; problem?: string | undefined };
 
 // One oxc parse per file. A chain counts only as call nodes, so a comment, a string, or a regex never does
 // (dx/plugin.md). Every createServerFn call must be a direct export ending in .handler() or .stream() (B85).
 export function extractServerFns(file: string, source: string): FnRecord[] {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
-	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
+	const [error] = parsed.errors;
+	if (error !== undefined) throw new Error(`${file}: ${error.message}`);
 	return serverFnsOf(file, parsed.program);
 }
 

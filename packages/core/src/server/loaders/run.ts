@@ -1,3 +1,4 @@
+import { defined } from "../../shared/errors/index.ts";
 import type {
 	CacheConfig,
 	ChainAuth,
@@ -80,9 +81,9 @@ export type LoaderRun = {
 	contexts: readonly PreloaderContext[];
 	// Each match's params and search, after its `.input()`. `validated` is a match that has one.
 	inputs: readonly { params: unknown; search: unknown; validated: boolean }[];
-	failed?: Failed;
+	failed?: Failed | undefined;
 	class?: PolicyClass;
-	answer?: Response;
+	answer?: Response | undefined;
 	thrown?: unknown;
 	bugs: readonly unknown[];
 	deferred: readonly DeferredFrame[];
@@ -109,7 +110,11 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	// Matches outside the stopped one still load. It and everything inside it do not (B27, B29).
 	const outer = await load(run, { routes: routes.slice(0, gated.index), base, contexts });
 	const error = gated.error;
-	const stopped = { id: routes[gated.index].id, settled: { ok: false as const, error }, started: [] };
+	const stopped = {
+		id: defined(routes[gated.index], "the stopped match").id,
+		settled: { ok: false as const, error },
+		started: [],
+	};
 	return conclude(run, [...outer, stopped], contexts);
 }
 
@@ -123,8 +128,10 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 	const bugs: unknown[] = [];
 	// A skipped match ran no loader, so its head would read no data. It writes no `h` either.
 	const heads = result.kept.map((frame, index) => {
-		const route = input.routes[index];
-		return input.skip?.has(route.id) === true ? undefined : finish(route, { frame, kept: kept[index], bugs });
+		const route = defined(input.routes[index], "the kept match");
+		return input.skip?.has(route.id) === true
+			? undefined
+			: finish(route, { frame, kept: defined(kept[index], "the kept context"), bugs });
 	});
 	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
 	if (result.failed?.status === 500) input.overlay?.(result.failed.error);

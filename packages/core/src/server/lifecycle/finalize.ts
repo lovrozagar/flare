@@ -10,9 +10,9 @@ export type StageResult = {
 	render?: "ssr";
 	url?: string;
 	build?: string;
-	location?: string;
+	location?: string | undefined;
 	run?: () => void;
-	headers?: Headers;
+	headers?: Headers | undefined;
 };
 
 export function finalize(stage: StageResult): Response {

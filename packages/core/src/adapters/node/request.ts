@@ -21,7 +21,7 @@ export function toRequest(input: NodeIncoming): AdaptedRequest {
 	const hops = input.trustProxy ?? 0;
 	const socket = input.socketAddress ?? "";
 	const secure = hops > 0 && headers["x-forwarded-proto"] === "https";
-	const origin = `${secure ? "https" : "http"}://${headers.host ?? "localhost"}`;
+	const origin = `${secure ? "https" : "http"}://${headers["host"] ?? "localhost"}`;
 	return {
 		status: 200,
 		secure,
