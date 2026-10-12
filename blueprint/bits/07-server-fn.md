@@ -188,11 +188,17 @@ Run against oxc, not a regex.
 
 ### `vite/boundary/split.test.ts`
 
+`splitClient(file, source)` parses once and returns `{ code, map }`, or undefined when nothing changed. A name counts as read when an identifier with it sits outside every import and every removed span, so a name used only in removed code drops its import, and a shadowing local conservatively keeps it. A bare `import "x"` and an `import type` stay. `vite/route-meta/index.ts` is born here, and `extract.ts` gains `serverFnsOf(file, program)` so the transform does not parse twice.
+
 | test | case | result |
 | --- | --- | --- |
 | `drops the import` | a loader that imports a module the render does not import | the client graph does not contain that module |
 | `keeps render import` | the render imports a component | the component stays |
 | `unknown method` | `.middleware()` on the chain | build error |
+| `response page` | `.authenticate().response(fn)` on a page | the client output keeps `.response(undefined)`, the export is still a record, and the response function's source is absent. A removed call that ends the chain keeps the call; a middle one is cut whole |
+| `cache client` | `.cache({ ssr, client })`, `.cache({ ssr })`, and a non-literal argument | `.cache({ client })`; the call cut when there is no `client`; a build error for anything but a literal object |
+| `server fn bodies` | a server function with `input`, `authorize`, and `handler` in the client graph | each argument is `undefined`, the calls stay, and an import only those bodies read is dropped |
+| `source map` | a loader cut above a render that throws | the generated line maps back to the throw's original line and column (`magic-string`, `hires`) |
 
 ### `vite/boundary/tripwire.test.ts`
 

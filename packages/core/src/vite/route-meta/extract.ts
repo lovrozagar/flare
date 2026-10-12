@@ -38,13 +38,18 @@ type Chain = { root: CallExpression; steps: Step[]; problem?: string };
 export function extractServerFns(file: string, source: string): FnRecord[] {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
 	if (parsed.errors.length > 0) throw new Error(`${file}: ${parsed.errors[0].message}`);
-	const names = importedNames(parsed.program);
+	return serverFnsOf(file, parsed.program);
+}
+
+// The same walk over a program the caller already parsed, so a transform parses each file once.
+export function serverFnsOf(file: string, program: Program): FnRecord[] {
+	const names = importedNames(program);
 	if (names.local === undefined && names.namespace === undefined) return [];
-	if (names.local !== undefined && boundNames(parsed.program).has(names.local)) {
+	if (names.local !== undefined && boundNames(program).has(names.local)) {
 		throw new Error(`${file}: a local binding shadows ${names.local}`);
 	}
-	const roots = rootCalls(parsed.program, names);
-	const records = exported(parsed.program, names).map(([name, chain]) => record(file, name, chain));
+	const roots = rootCalls(program, names);
+	const records = exported(program, names).map(([name, chain]) => record(file, name, chain));
 	if (records.length < roots.size) {
 		throw new Error(`${file}: createServerFn must be a direct export: export const name = createServerFn()…`);
 	}
