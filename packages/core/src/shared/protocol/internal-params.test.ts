@@ -39,3 +39,14 @@ it("stale cap", () => {
 	expect(staleList(read.stale)).toEqual({ all: true, ids: new Set() });
 	expect(staleList("p".repeat(8 * 1024))?.all).toBe(false);
 });
+
+it("raw kept", () => {
+	const read = readInternal(new URL("http://localhost/a?q=a%20b&x=~'!*()&b&_flare=data&_flare_stale=k"));
+	if (read.status !== 200) throw new Error("status");
+	expect(read.url.search).toBe("?q=a%20b&x=~%27!*()&b");
+	const plain = new URL("http://localhost/a?q=a%20b&a=1&a=2&b&tag=c%2B%2B");
+	const document = readInternal(plain);
+	if (document.status !== 200) throw new Error("status");
+	expect(document.url.href).toBe(plain.href);
+	expect(document.url).not.toBe(plain);
+});

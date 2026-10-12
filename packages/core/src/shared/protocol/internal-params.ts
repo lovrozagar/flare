@@ -9,18 +9,32 @@ export type StaleList = { all: boolean; ids: ReadonlySet<string> };
 
 const KINDS: Record<string, RequestKind> = { data: "data", prefetch: "prefetch" };
 
+const INTERNAL = new Set([KIND_PARAM, STALE_PARAM]);
+
 const CAP_BYTES = 8 * 1024;
 
 // Only the query selects a data response. A request header never does (bit 06).
 export function readInternal(request: URL): InternalRequest {
-	const url = new URL(request);
-	const mode = url.searchParams.get(KIND_PARAM);
+	const values = new URLSearchParams(request.search);
+	const mode = values.get(KIND_PARAM);
 	const kind = mode === null ? "document" : KINDS[mode];
 	if (kind === undefined) return { status: 400 };
-	const stale = kind === "document" ? null : url.searchParams.get(STALE_PARAM);
-	url.searchParams.delete(KIND_PARAM);
-	url.searchParams.delete(STALE_PARAM);
-	return { status: 200, kind, url, stale };
+	const stale = kind === "document" ? null : values.get(STALE_PARAM);
+	return { status: 200, kind, url: withoutInternal(request), stale };
+}
+
+// The user's pairs are kept byte for byte. A URLSearchParams write would re-serialize the whole query as form
+// data, and the match ids, raw params plus raw search, would then differ from the client's (B31).
+function withoutInternal(request: URL): URL {
+	const url = new URL(request);
+	const pairs = url.search.slice(1).split("&");
+	const kept = pairs.filter((pair) => !INTERNAL.has(nameOf(pair)));
+	if (kept.length < pairs.length) url.search = kept.join("&");
+	return url;
+}
+
+function nameOf(pair: string): string {
+	return [...new URLSearchParams(pair).keys()].join("");
 }
 
 // The page ids the client already holds, space-joined (B30). Past 8 KiB of UTF-8 the list is not read and
