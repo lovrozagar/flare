@@ -14,17 +14,10 @@ export type DevServer = {
 	};
 };
 
-// Node's IncomingMessage, as much of it as the listener reads.
-export type DevRequest = {
-	method?: string | undefined;
-	url?: string | undefined;
-	headers: Record<string, string | string[] | undefined>;
-	readableEnded?: boolean | undefined;
-	resume?(): void;
-	on?(event: "data" | "end", listener: (chunk: Uint8Array) => void): unknown;
-};
-
 type Listener = ReturnType<typeof createNodeListener>;
+
+// Node's IncomingMessage, as much of it as the listener reads. The listener takes it as it is.
+export type DevRequest = Parameters<Listener>[0];
 
 type NodeResponse = Parameters<Listener>[1];
 
@@ -57,27 +50,12 @@ export function installDevHandler(server: DevServer, entry: string): (() => void
 		report: (error) => server.ws.send(overlayPayload(error)),
 	});
 	// A post hook: Vite serves modules and assets first, and the app answers the rest.
-	return () => server.middlewares.use((req, res) => listener(nodeRequest(req), res));
+	return () => server.middlewares.use((req, res) => listener(req, res));
 }
 
 // The Node adapter's listener over the dev fetch: streaming, `Set-Cookie`, and a client abort as in production.
 export function devListener(deps: DevDeps): ReturnType<typeof createNodeListener> {
 	return createNodeListener({ fetch: devFetch(deps) });
-}
-
-// Repeated request headers join with ", " as fetch Headers would.
-function nodeRequest(req: DevRequest): Parameters<Listener>[0] {
-	const headers = Object.fromEntries(
-		Object.entries(req.headers).flatMap(([name, value]) => (value === undefined ? [] : [[name, String(value)]])),
-	);
-	return {
-		method: req.method ?? "GET",
-		url: req.url ?? "/",
-		headers,
-		readableEnded: req.readableEnded,
-		resume: req.resume?.bind(req),
-		on: req.on?.bind(req),
-	};
 }
 
 // HTML is buffered and goes through `transformIndexHtml` with its inline tags peeled. Other bodies stream.
