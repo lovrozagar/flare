@@ -57,7 +57,7 @@ The parser keeps source order. A string or `url()` may contain braces and commen
 | --- | --- | --- |
 | `order` | two rules | the same order |
 | `string` | a declaration whose string contains `{` | one rule |
-| `import` | `@import` | throw |
+| `import` | `@import` | throw: "@import is not supported in the app stylesheet; use createFont, or a <link> in the root layout head". A Google Fonts `@import` is the common case |
 | `charset` | `@charset` | throw |
 | `escaped brace` | `.a\{b{color:red}`, `.content-\[\'\{\'\]{content:'{'}`, and `.a\}b{color:red}` | each is one rule whose selector round-trips. A backslash escapes the next character anywhere, not only inside a string. Tailwind escapes `{` and `}` in arbitrary-value class names |
 | `nesting kept` | `.card{color:blue;& h2{color:red}}` | one rule whose child is the nested rule, each with its own declarations |
@@ -137,7 +137,7 @@ Split from `match.ts` at the 300-line limit.
 | `insert` | a shell with `<head>` and a used class | `<style id="flare-critical"` is the last element in the head, it has no `data-dh`, and the unused rule is absent |
 | `nonce` | nonce `n` | the style nonce is `n` |
 | `empty nonce` | nonce `""` | the style has no nonce attribute |
-| `no css` | the sheet is `""` | the shell is unchanged and has no `flare-critical` |
+| `no css` | the sheet is `""`, or no rule in it matches the shell | the shell is unchanged and has no `flare-critical` |
 | `one` | called once | one such style tag |
 
 ### `vite/css/reset.test.ts`

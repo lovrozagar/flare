@@ -6,7 +6,7 @@ import { createMemoryStore } from "../../src/server/cache/memory.ts";
 import type { StoredPage } from "../../src/server/cache/write.ts";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import type { SecurityConfig } from "../../src/server/security/apply.ts";
-import { ViewTransitionCSS } from "../../src/shared/components/index.ts";
+import { Stylesheet, ViewTransitionCSS } from "../../src/shared/components/index.ts";
 import { nonce } from "../../src/shared/csp/nonce.ts";
 import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
@@ -14,7 +14,10 @@ import { createRouter, type Router } from "../../src/shared/router/create-router
 import type { Head } from "../../src/server/render/head.ts";
 
 // The server build's sheet. The source module is empty.
-vi.mock("../../src/shared/css/sheet.ts", () => ({ builtSheet: ".a{color:red}.unused{color:blue}" }));
+vi.mock("../../src/shared/css/sheet.ts", () => ({
+	builtSheet: ".a{color:red}.unused{color:blue}",
+	builtHref: "/assets/app.css",
+}));
 
 afterEach(() => {
 	vi.unstubAllEnvs();
@@ -238,4 +241,13 @@ it("critical", async () => {
 	const response = await document(() => createComponent(Dynamic, { component: "p", class: "a", children: "x" }));
 	const body = await response.text();
 	expect(body).toContain(`<style id="flare-critical" nonce="${headerNonce(response.headers)}">.a{color:red}</style>`);
+});
+
+// A production document's swap script carries the CSP header's nonce.
+it("stylesheet", async () => {
+	vi.stubEnv("DEV", false);
+	const response = await document(() => createComponent(Stylesheet, {}));
+	const body = await response.text();
+	expect(body).toContain(`<script nonce="${headerNonce(response.headers)}">document.getElementById(`);
+	expect(body).toContain('<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css" />');
 });

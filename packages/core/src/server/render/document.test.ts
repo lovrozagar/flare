@@ -1,7 +1,7 @@
 import { createComponent, createMemo, Loading } from "solid-js";
 import { Dynamic, renderToStream, type JSX } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
-import { Link } from "../../shared/components/index.ts";
+import { Link, Stylesheet } from "../../shared/components/index.ts";
 import type { CacheConfig } from "../../shared/route-builder/chain.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
@@ -14,7 +14,10 @@ import * as critical from "./critical-style.ts";
 import { renderDocument, type DocumentInput } from "./document.ts";
 
 // The server build's sheet. The source module is empty.
-vi.mock("../../shared/css/sheet.ts", () => ({ builtSheet: ".a{color:red}.unused{color:blue}" }));
+vi.mock("../../shared/css/sheet.ts", () => ({
+	builtSheet: ".a{color:red}.unused{color:blue}",
+	builtHref: "/assets/app.css",
+}));
 vi.mock("./critical-style.ts", async (original) => {
 	const actual = await original<typeof import("./critical-style.ts")>();
 	return { ...actual, withCritical: vi.fn<typeof actual.withCritical>(actual.withCritical) };
@@ -311,13 +314,19 @@ function classed(): JSX.Element {
 	return createComponent(Dynamic, { component: "p", class: "a", children: "used" });
 }
 
-// The first flushed chunk ends its head with the critical style, after the hydration capture script.
+// The first flushed chunk holds the stylesheet preload, and ends its head with the critical style, after the
+// hydration capture script.
 it("critical shell", async () => {
-	const body = await renderDocument({ ...base(), nonce: "n", sheet: SHEET, render: () => page(() => classed()) });
+	vi.stubEnv("DEV", false);
+	const head = (): JSX.Element => element("head", () => [element("title", () => "T"), createComponent(Stylesheet, {})]);
+	const render = (): JSX.Element => element("html", () => [head(), element("body", classed)]);
+	const body = await renderDocument({ ...base(), nonce: "n", sheet: SHEET, render });
+	vi.unstubAllEnvs();
 	const shell = decoder.decode((await body.getReader().read()).value);
-	const head = shell.slice(0, shell.indexOf("</head>"));
-	expect(head.endsWith('<style id="flare-critical" nonce="n">.a{color:red}</style>')).toBe(true);
-	expect(head.indexOf("$HY")).toBeLessThan(head.indexOf("flare-critical"));
+	const inHead = shell.slice(0, shell.indexOf("</head>"));
+	expect(inHead.endsWith('<style id="flare-critical" nonce="n">.a{color:red}</style>')).toBe(true);
+	expect(inHead.indexOf("$HY")).toBeLessThan(inHead.indexOf("flare-critical"));
+	expect(inHead).toContain('<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css" />');
 	expect(shell).not.toContain(".unused");
 });
 

@@ -18,7 +18,10 @@ it("string", () => {
 });
 
 it("import", () => {
-	expect(() => parseCss(`@import "a.css";.a{color:red}`)).toThrow(/@import/);
+	// A Google Fonts `@import` is the common case, so the error says what to use instead.
+	expect(() => parseCss(`@import "a.css";.a{color:red}`)).toThrow(
+		"css: @import is not supported in the app stylesheet; use createFont, or a <link> in the root layout head",
+	);
 });
 
 it("charset", () => {
