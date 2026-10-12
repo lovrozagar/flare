@@ -6,6 +6,14 @@ Creates every `P9` row. This bit decides the policy. It does not write a store. 
 
 `.headers()` and `.security()` (`dx/builder.md`) were not built by bits 01 to 03. Bit 03's `route security`, `false removes`, `headers() cannot`, and `both cookies` rows exercised `server/security/apply.ts` alone. This bit builds both steps before the policy header, because the decision overwrites what `.headers()` returns. They take the slots after `head` and before `render`. Each runs per match after its loader, on a document and on a data or prefetch response alike, and receives `{ params, search, loaderData, preloaderContext }` (`dx/types.md`).
 
+Neither step grows `createPage` past its 1100 budget. Both are server-only and the client graph removes them, so a raise would pay for code no browser calls. Before either step lands, `chain.ts` builds its plain steps (a stored value and the order check, with no argument rule) and the matching `typedSteps` wrappers from one list of names, so a new plain step costs one list entry. Steps with an argument rule (`cache`, `input`, `authenticate`, `effects`, `render`) stay written out. The existing chain, page, layout, and propagation tests pass unchanged on that refactor, and `createPage` measures below 1095 after it.
+
+### `vite/boundary/allow.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `security removed` | `routeMethod("security")` | `remove`. Before this row, `.security()` in a route file was an unknown method and failed the client build |
+
 ### `shared/route-builder/chain.test.ts`
 
 | test | case | result |
