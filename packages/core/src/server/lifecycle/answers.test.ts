@@ -66,3 +66,52 @@ it("data error frame", async () => {
 	expect(response.headers.get("cache-control")).toBe(NO_STORE);
 	expect(response.headers.has("cache-tag")).toBe(false);
 });
+
+// A loader that defers one value settling after 50 ms. `settled` turns true when it does.
+function deferring(cache: Parameters<ReturnType<typeof createPage<"_root_/p">>["cache"]>[0], rejects = false) {
+	const state = { settled: false };
+	const late = (): Promise<string> =>
+		new Promise((resolve, reject) =>
+			setTimeout(() => {
+				state.settled = true;
+				if (rejects) reject(new Error("late"));
+				else resolve("v");
+			}, 50),
+		);
+	const page = createPage("_root_/p")
+		.cache(cache)
+		.loader(({ defer }) => ({ late: defer(late) }))
+		.render(() => "p");
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] });
+	return { state, server: createServer({ router, documentResponseDefer: "stream" }) };
+}
+
+// A public answer is sent only after every deferred value it started has settled, whatever documentResponseDefer
+// says (dx/cache.md).
+it("public waits", async () => {
+	for (const path of ["/p", "/p?_flare=data"]) {
+		const { state, server } = deferring({ isr: true, cdn });
+		const response = await server.fetch(get(path));
+		expect(state.settled).toBe(true);
+		expect(response.headers.get("cache-control")).toBe(PUBLIC);
+		expect(response.headers.get("cache-tag")).toBe("t");
+		await response.text();
+	}
+});
+
+// A rejection is an error frame. A private page keeps streaming its shell first.
+it("deferred rejection", async () => {
+	for (const path of ["/p", "/p?_flare=data"]) {
+		const { state, server } = deferring({ isr: true, cdn }, true);
+		const response = await server.fetch(get(path));
+		expect(state.settled).toBe(true);
+		expect(response.headers.get("cache-control")).toBe(NO_STORE);
+		expect(response.headers.has("cache-tag")).toBe(false);
+		await response.text();
+	}
+	const { state, server } = deferring({ isr: true, cdn: { ...cdn, private: true } }, true);
+	const response = await server.fetch(get());
+	expect(state.settled).toBe(false);
+	expect(response.headers.get("cache-control")).toBe(NO_STORE);
+	await response.text();
+});
