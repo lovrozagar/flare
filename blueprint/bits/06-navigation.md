@@ -234,6 +234,15 @@ Corpus-driven, one line per frame.
 | `revalidate` | `revalidate: true` inside `staleTime` | a data request is sent |
 | `stale list` | a page loader inside `staleTime` whose `shouldRefetch` did not return true | `_flare_stale` lists that page id. Layout ids are never listed. The param is omitted when every page loader will run. `true` omits that page id |
 
+### `client/router/store.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `from script` | the state script's matches and the loaded chain | outlet matches with each module, kind, params, search, and data, and the heads per match. A null head is undefined |
+| `failure` | a match whose `error` is set | the painted failure at that index. The status comes from the class name: `NotFoundError` 404, `UnauthenticatedError` 401, `UnauthorizedError` 403, anything else 500. The Error keeps the dev stack. A production error has `stack: ""` |
+| `unknown` | an unknown URL | the not-found the loaded chain gives (B77) |
+| `commit` | `commit(next)` | the snapshot the outlet reads is the next one, and a boundary throw reaches the reporter |
+
 ### `client/head/apply.test.ts`
 
 | test | case | result |

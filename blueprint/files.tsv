@@ -324,6 +324,8 @@ packages/core/src/client/server-fn/codec.test.ts	P7	test	dom	Unit cases for code
 packages/core/src/client/server-fn/index.ts	P7	index	client	Re-exports
 packages/core/src/client/router/match-cache.ts	P6	src	dom	Store successful l payloads only. An e payload evicts the entry
 packages/core/src/client/router/match-cache.test.ts	P6	test	dom	Unit cases for match-cache.ts
+packages/core/src/client/router/store.ts	P6	src	dom	The client's current matches, heads, failure, and location as one signal the outlet reads. Built from self.flare on hydrate
+packages/core/src/client/router/store.test.ts	P6	test	dom	Unit cases for store.ts
 packages/core/src/client/router/index.ts	P6	index	client	Re-exports
 packages/core/src/client/sync/enabled.ts	P13	src	client	broadcastEnabled. Source is true. flare({ broadcast: false }) replaces this module in the client environment
 packages/core/src/client/sync/enabled.test.ts	P13	test	client	Unit cases for enabled.ts
