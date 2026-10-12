@@ -94,10 +94,19 @@ The ids are build-time work, so `ids.ts` lives in `vite/route-meta/` beside `ext
 | `OPTIONS` | OPTIONS | 204, `Allow` lists the declared method and OPTIONS |
 | `wrong method` | GET on a POST function | 405, `Allow` set |
 | `order` | spies | parse, lookup, method, csrf, auth, input, handler |
-| `client stub` | the stub is called and `__client` is true | throw, no secret work. The throw is a direct call during render. `queryFn` is not that call |
 | `forbidden` | `authorize` returns false | 403, message `Forbidden`, the handler is not called. JSON, not the page walk, and the overlay does not open |
 | `in request` | a server function calls another during a request | the inner call uses that request's session, env, request, and `serverContext` |
 | `no request` | the same call with no active request | throw. There is no `http://localhost` fallback |
+
+### `server/server-fn/client-stub.test.tsx`
+
+The client graph's callable runs Solid's browser build, so these rows run in the jsdom project. `dispatch.test.ts` stays in the node project, where `withServerContext` runs.
+
+| test | case | result |
+| --- | --- | --- |
+| `client stub` | the stub is called and `__client` is true | throw, no secret work. The throw is a direct call during render. `queryFn` is not that call |
+| `memo call` | the stub is called in a `createMemo` compute, an effect compute, and an effect callback | no throw. Each reaches the transport |
+| `on settled` | the stub is called in an `onSettled` callback | throw, as in a render body |
 
 ### `server/server-fn/envelope.test.ts`
 

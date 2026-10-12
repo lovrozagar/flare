@@ -1,4 +1,3 @@
-import { createRoot } from "solid-js";
 import { expect, it, vi } from "vitest";
 import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
 import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts";
@@ -152,20 +151,6 @@ it("order", async () => {
 	expect(JSON.parse(invalid.body)).toEqual({ name: "checked", status: 400, message: "Invalid input", errors: failed });
 	expect((await send([checked], post(checked, "long"), { bodyLimit: 2 })).status).toBe(413);
 	expect(seen).toEqual([]);
-});
-
-it("client stub", async () => {
-	const secret = vi.fn<() => string>(() => "secret");
-	const transport = vi.fn<(fn: ServerFn, input: unknown) => Promise<unknown>>(async () => "sent");
-	// The transform writes `__client` in the client graph. It is not typed config, so it arrives untyped.
-	const clientConfig = { ...named("stub"), __client: true };
-	const stub = createServerFn(clientConfig, transport).handler(secret);
-	expect(() => createRoot(() => stub(1))).toThrow(/stub was called during a render/);
-	expect(transport).not.toHaveBeenCalled();
-	expect(await stub(1)).toBe("sent");
-	expect(transport).toHaveBeenCalledExactlyOnceWith(stub, 1);
-	expect(secret).not.toHaveBeenCalled();
-	expect(() => createServerFn(clientConfig).handler(secret)).toThrow(/client transport/);
 });
 
 it("forbidden", async () => {
