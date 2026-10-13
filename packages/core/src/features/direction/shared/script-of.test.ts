@@ -21,6 +21,8 @@ it("script data", () => {
 // `und` parses, so it does not take the default.
 it("unknown", () => {
 	expect(dirOf("und", "rtl")).toBe("ltr");
+	// A language with no likely script maximizes to none, and no script is a right-to-left one.
+	expect(dirOf("xx", "rtl")).toBe("ltr");
 });
 
 it("absent", () => {
@@ -32,14 +34,21 @@ it("throws", () => {
 	expect(dirOf("en_US", "rtl")).toBe("rtl");
 });
 
-it("text info", () => {
-	const info = vi.spyOn(Intl.Locale.prototype, "getTextInfo");
-	info.mockImplementation(() => {
-		throw new Error("no text info");
-	});
-	expect(dirOf("ar", "rtl")).toBe("rtl");
-	expect(dirOf("ar", "ltr")).toBe("ltr");
-	// A direction other than ltr or rtl is the default too.
-	info.mockReturnValue({ direction: "ttb" });
-	expect(dirOf("ar", "rtl")).toBe("rtl");
+// Firefox 151 has no getTextInfo. The result comes from the maximized script, so it never depends on it.
+it("no text info", () => {
+	const descriptor = Object.getOwnPropertyDescriptor(Intl.Locale.prototype, "getTextInfo");
+	Reflect.deleteProperty(Intl.Locale.prototype, "getTextInfo");
+	try {
+		expect(["ar", "he", "fa", "ur", "en", "hr"].map((tag) => dirOf(tag, "ltr"))).toEqual([
+			"rtl",
+			"rtl",
+			"rtl",
+			"rtl",
+			"ltr",
+			"ltr",
+		]);
+		expect(dirOf("en", "rtl")).toBe("ltr");
+	} finally {
+		if (descriptor !== undefined) Object.defineProperty(Intl.Locale.prototype, "getTextInfo", descriptor);
+	}
 });
