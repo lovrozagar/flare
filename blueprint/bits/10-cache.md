@@ -145,7 +145,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | --- | --- | --- |
 | `no cookie` | the populate request | `cookie` is null and `authorization` is null |
 | `anonymous render` | an optional-auth page | the stored body is the anonymous render |
-| `shell chunks` | `shellOf` over a stream that splits the shell across chunks and stays open, a root with no `<html>`, and a stream that ends first | the shell through `</html>` without waiting on the open stream, the first chunk alone, and what was sent |
+| `shell chunks` | `shellOf` over a stream that splits the shell across chunks and then closes with a late boundary template after `</html>`, a root with no `<html>`, a stream that ends first, and a stream still open 10 s after `</html>` (fake timers) | the whole body including the late template, the first chunk alone, what was sent, and `undefined` for the one still open (revised by BUGS.md B15: a stored body is the completed render) |
 
 ### `server/cache/seed.test.ts`
 
