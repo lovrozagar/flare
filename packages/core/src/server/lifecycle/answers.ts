@@ -219,6 +219,8 @@ export async function drawn(
 			// flare() writes the client entry URL into build-info.ts. Without the plugin there is none.
 			client: clientEntry,
 			fill: rendered.run.holes === true,
+			// The query hash is the app's own key, so the log names it in production too.
+			onBug: (bug) => exchange.sink.log.error("queries", bug.message),
 			// Dev inlines nothing: Vite serves the CSS it injects (B15).
 			sheet: exchange.sink.dev ? "" : builtSheet,
 		});
