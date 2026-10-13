@@ -1,6 +1,6 @@
 import { dirname, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ENGINES, startHarness, type Harness } from "./hydrate.harness.ts";
+import { ENGINES, startHarness, type Api, type Harness, type Side } from "./hydrate.harness.ts";
 
 // A server render hydrated by the client build in a real browser, in every engine (bits/15). Solid's hydration
 // messages are the failure. Each tree is compiled into both sides from its source, so it reads only `api` and `side`.
@@ -15,51 +15,110 @@ afterAll(async () => {
 	await harness.close();
 });
 
-describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
-	// The harness is not vacuous: a client tree with one more element than the server's fails it.
-	it("harness bites", async () => {
-		const result = await harness.hydrate(engine, (api, side) =>
-			side === "server" ? [api.h("div", "one")] : [api.h("p", "extra"), api.h("div", "one")],
+// A client tree with one more element than the server's.
+function mismatched(api: Api, side: Side) {
+	return side === "server" ? [api.h("div", "one")] : [api.h("p", "extra"), api.h("div", "one")];
+}
+
+// The progress hook in a component, then a sibling element.
+function progressBeside(api: Api) {
+	function Bar() {
+		const progress = api.progress.useNavigationProgress();
+		return api.h("div", "bar", () => String(progress.value));
+	}
+	return [api.solid.createComponent(Bar, {}), api.h("div", "sibling", () => "after")];
+}
+
+// A root with its boundary renders declared, a progress bar, and a page that does not fail.
+function idleBoundaries(api: Api) {
+	function Bar() {
+		const progress = api.progress.useNavigationProgress();
+		return api.h("div", "bar", () => String(progress.value));
+	}
+	const root = api.rootLayout
+		.createRootLayout("_root_")
+		.render((props) => [api.solid.createComponent(Bar, {}), api.h("main", "main", () => props.children)])
+		.errorRender(() => api.h("h1", "root-error", () => "broke"))
+		.notFoundRender(() => api.h("h1", "root-missing", () => "missing"));
+	const home = api.page.createPage("_root_/").render(() => "home");
+	const matches = [
+		{ id: "_root_", kind: "layout", module: root, params: {}, search: {}, data: null },
+		{ id: "_root_/", kind: "page", module: home, params: {}, search: {}, data: null },
+	] as const;
+	return api.solid.createComponent(api.outlet.Matches, {
+		state: () => ({ matches: [...matches], onBoundaryError: () => undefined }),
+	});
+}
+
+// A page whose component calls the five data hooks in its body, under the router's reactive match state.
+function dataHooks(api: Api) {
+	const from = "_root_/users/[id]";
+	function Hooks() {
+		const params = api.outletNodes.useParams({ from });
+		const search = api.outletNodes.useSearch({ from });
+		const data = api.outletNodes.useLoaderData({ from });
+		const context = api.outletNodes.usePreloaderContext({ from });
+		const match = api.outletNodes.useMatch({ from });
+		return api.h("p", "hooks", () =>
+			[
+				Reflect.get(Object(params), "id"),
+				Reflect.get(Object(search), "tab"),
+				Reflect.get(Object(data), "name"),
+				Reflect.get(Object(context), "role"),
+				match.routeId,
+			].join(","),
 		);
-		expect(result.problems).not.toEqual([]);
+	}
+	const root = api.rootLayout.createRootLayout("_root_").render((props) => props.children);
+	const page = api.page.createPage(from).render(() => api.solid.createComponent(Hooks, {}));
+	const user = { params: { id: "7" }, search: { tab: "a" }, data: { name: "ada" }, preloader: { role: "admin" } };
+	const matches = [
+		{ id: "_root_", kind: "layout", module: root, params: {}, search: {}, data: null },
+		{ id: from, kind: "page", module: page, ...user },
+	] as const;
+	const [state] = api.solid.createSignal({ matches: [...matches], onBoundaryError: () => undefined });
+	const routes = api.router.createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: from, path: "/users/[id]", module: page }],
+	});
+	return api.solid.createComponent(api.routerContext.RouterContext, {
+		value: routes,
+		get children() {
+			return api.solid.createComponent(api.routerContext.LocationContext, {
+				value: () => ({ pathname: "/users/7", search: "?tab=a", hash: "" }),
+				get children() {
+					return api.solid.createComponent(api.outlet.Matches, { state });
+				},
+			});
+		},
+	});
+}
+
+describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
+	// The harness is not vacuous: a mismatched tree fails it.
+	it("harness bites", async () => {
+		expect((await harness.hydrate(engine, mismatched)).problems).not.toEqual([]);
 	});
 
 	// useNavigationProgress creates the same owners on both sides, so a sibling after it keeps its key (BUGS.md B2).
 	it("navigation progress beside a sibling", async () => {
-		const result = await harness.hydrate(engine, (api) => {
-			function Bar() {
-				const progress = api.progress.useNavigationProgress();
-				return api.h("div", "bar", () => String(progress.value));
-			}
-			return [api.solid.createComponent(Bar, {}), api.h("div", "sibling", () => "after")];
-		});
+		const result = await harness.hydrate(engine, progressBeside);
 		expect(result.problems).toEqual([]);
 		expect(result.text).toBe("nullafter");
 	});
 
 	// A root that declares its boundary renders and does not fail creates none of them at hydrate (BUGS.md B3).
 	it("root boundaries idle", async () => {
-		const result = await harness.hydrate(engine, (api) => {
-			function Bar() {
-				const progress = api.progress.useNavigationProgress();
-				return api.h("div", "bar", () => String(progress.value));
-			}
-			const root = api.rootLayout
-				.createRootLayout("_root_")
-				.render((props) => [api.solid.createComponent(Bar, {}), api.h("main", "main", () => props.children)])
-				.errorRender(() => api.h("h1", "root-error", () => "broke"))
-				.notFoundRender(() => api.h("h1", "root-missing", () => "missing"));
-			const home = api.page.createPage("_root_/").render(() => "home");
-			const matches = [
-				{ id: "_root_", kind: "layout", module: root, params: {}, search: {}, data: null },
-				{ id: "_root_/", kind: "page", module: home, params: {}, search: {}, data: null },
-			] as const;
-			return api.solid.createComponent(api.outlet.Matches, {
-				state: () => ({ matches: [...matches], onBoundaryError: () => undefined }),
-			});
-		});
+		const result = await harness.hydrate(engine, idleBoundaries);
 		expect(result.problems).toEqual([]);
 		expect(result.html).not.toContain("root-error");
 		expect(result.text).toBe("nullhome");
+	});
+
+	// Each data hook called in a component body reads the store once, untracked by design (BUGS.md B4).
+	it("data hooks read untracked", async () => {
+		const result = await harness.hydrate(engine, dataHooks);
+		expect(result.problems).toEqual([]);
+		expect(result.text).toBe("7,a,ada,admin,_root_/users/[id]");
 	});
 });

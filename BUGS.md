@@ -58,6 +58,7 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 4.2 [ ] Expected: hooks are called in a component body, so the call is silent. Actual: `[STRICT_READ_UNTRACKED] Reactive value "createRouterStore.snapshot" read directly in <Header> will not update`. `packages/core/src/shared/components/outlet-nodes.ts:119` (`matchOf`) calls `read()` once at the hook call, which reads `state()` untracked, and `live()` (`:126`) reads it again.
 4.3 [ ] Write a failing case that mounts a component calling each hook under Solid dev and asserts no `STRICT_READ_UNTRACKED`. Then check that the route is on screen without an untracked reactive read (for example `untrack`, or a check inside the proxy's first access).
 4.4 [ ] Verify: `docs-smoke` `every page hydrates` has no `STRICT_READ_UNTRACKED` warning.
+4.5 [ ] The five hooks are fixed: `matchOf`'s on-screen check and `live`'s first value read untracked (`tests/integration/hydrate.test.tsx` `data hooks read untracked`, chromium, firefox, webkit). On node-dev-chromium, `docs-smoke` `every page hydrates` now shows one STRICT_READ_UNTRACKED, on `/search?q=route` only, and it is the app's: the search page's render runs `createSignal(props.search.q)`, a one-time read of a reactive prop in the component body, so the draft would not follow a later `q`. The tester fixes the app (Constraints), then 4.4 can pass.
 
 5 [ ] B5 `.head({ meta: { charset } })` warns on the client
 5.1 [ ] Repro: the docs root `.head()` sets `meta.charset: "utf-8"`, a documented head field. Load any page in dev.

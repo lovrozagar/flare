@@ -1,4 +1,4 @@
-import { createContext, useContext, type Context } from "solid-js";
+import { createContext, untrack, useContext, type Context } from "solid-js";
 import { matchId } from "../route-tree/index.ts";
 import { LocationContext, NavigateContext, useRouter, type Navigate } from "../router/context.ts";
 import type { Router } from "../router/create-router.ts";
@@ -108,7 +108,8 @@ export function useNavigate(): Navigate<FlareRegister> {
 	return useContext(NavigateContext) ?? (() => Promise.reject(new Error("navigate runs in the browser")));
 }
 
-// The match must be on screen when the hook runs. Its value is read live afterwards.
+// The match must be on screen when the hook runs. Its value is read live afterwards. The check is a one-time read in
+// the component body, so it is untracked on purpose (BUGS.md B4).
 function matchOf(from: string): () => OutletMatch {
 	const state = useContext(MatchesContext);
 	const read = (): OutletMatch => {
@@ -116,14 +117,14 @@ function matchOf(from: string): () => OutletMatch {
 		if (found === undefined) throw new Error(`${from} is not a route on screen`);
 		return found;
 	};
-	read();
+	untrack(read);
 	return read;
 }
 
 // An object is a view that reads the current value on every access, so a loader refresh reaches a component
-// that stays mounted. A primitive is its value at the call.
+// that stays mounted. A primitive is its value at the call, an untracked one-time read (B4).
 function live<T>(read: () => T): T {
-	const first = read();
+	const first = untrack(read);
 	if (typeof first !== "object" || first === null) return first;
 	return new Proxy(first, {
 		get: (_, key) => Reflect.get(Object(read()), key),
