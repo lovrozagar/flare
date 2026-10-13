@@ -98,7 +98,8 @@ test("view transition off", async ({ page, docs }) => {
 
 test("progress bar", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
-	await page.route("**/*_flare=data*", async (route) => {
+	// The click's hover starts an intent prefetch, and the navigation takes it over, so both kinds wait (BUGS.md B43).
+	await page.route(/_flare=(data|prefetch)/, async (route) => {
 		await new Promise((resolve) => setTimeout(resolve, 700));
 		await route.continue();
 	});
