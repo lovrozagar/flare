@@ -203,6 +203,10 @@ withFetchDedupe(target, { maxBytes? })
 
 Anything other than GET or HEAD clears the request map and is not memoized. A rejection is not reused. Outside a request, calls pass through and do not throw (`fetch-dedupe.test.ts` `post clears`, `rejection`, `outside`). `globalThis.fetch` is not patched. A call that does not go through `withFetchDedupe` is not deduped (`fetch-dedupe.test.ts` `no global patch`).
 
+## Client disconnect
+
+When a client leaves mid-response, the render stops and Solid disposes it under the same request it rendered under, so an `onCleanup` that reads the request, `serverCtx()`, or the query client still sees it, and the server keeps serving (BUGS.md B28). An app `onCleanup` that throws during that disposal is reported by the runtime as an uncaught exception, because Solid disposes inside an abort dispatch that no caller can wrap. On Node and Bun that ends the process unless the app handles `uncaughtException`, as an app timer that throws would. Keep cleanup functions from throwing.
+
 ## Middleware
 
 A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user writes the function, either wrapped in `createMiddleware(fn)`, which returns `fn` typed as `Middleware` and does nothing else, or annotated `const m: Middleware = …`. Both are the same value. `createMiddleware` takes no filter: the filter is set where the middleware is listed, so one handler can be listed under several filters (`server/middleware/run.test.ts` `create middleware`). `createServer({ middleware })` takes a list whose entries are a middleware or `{ filter, handler }`, run in list order, each wrapping the rest. Middleware passes no typed context to handlers. Per-request data for every handler is `serverContext`, the user is `authenticate`, and per-section context is a layout's `.preloader()`. `ctx` is:
