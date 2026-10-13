@@ -17,7 +17,7 @@ Corpus-driven. Each line of `canonical.corpus.txt` is one assertion.
 | `empty segments` | `/a//b` | canonical `/a/b` |
 | `trailing slash preserve` | `/a/` with `preserve` | unchanged |
 | `trailing slash never` | `/a/` with `never` | `/a` |
-| `case fold` | `/About` with `caseSensitive: false` | `/about` |
+| `case fold` | `/About` with `caseSensitive: false`, matched by the static route `/about` | `/about`. `canonicalPath` alone does not fold case. The fold uses the matched route (`canonical-redirect.test.ts` `param case kept`, `static case`) |
 | `scheme-relative` | `//evil.com/a` | hostile |
 | `backslash` | `/\\evil` | hostile |
 | `encoded slashes` | `/%2f%2fevil` | hostile |
@@ -115,6 +115,11 @@ Accepted units are `ms`, `s`, `m`, `h`, `d`. Anything else throws. No silent zer
 | `rewrite recanonical` | rewrite returns `/A/` | one redirect, then stop |
 | `path string` | rewrite is called | the argument is the pathname `/old`, and a returned location object does not type-check |
 | `search kept` | `/About?q=1&q=2` with case fold | one redirect, `Location` is `/about?q=1&q=2`, and the hash is absent |
+| `param case kept` | route `/users/[id]`, GET `/users/AbC123` | 200 with `id` `AbC123`. No redirect: folding never touches a segment a param consumed |
+| `static case` | route `/users/[id]`, GET `/Users/AbC123` | one 301 to `/users/AbC123`. Only the static segment takes the route's spelling |
+| `hex kept` | route `/[slug]`, GET `/%C4%8D` | 200, no redirect. Folding never lowercases a percent-escape (B81 uppercases them) |
+| `unmatched case` | GET `/NOWHERE` with no such route | 404, not a redirect. Case is folded only toward a matched route |
+| `locale case` | locales `en-US`, `hr`, a route `/[[locale]]/pricing`, GET `/EN-us/Pricing`, then GET `/en-us/pricing` | each is one 301 to `/en-US/pricing`, then 200. A locale param that case-insensitively equals a configured tag takes that tag's spelling, so the canonical and locale casing rules cannot loop |
 
 ### `vite/codegen/id-string.test.ts`
 
