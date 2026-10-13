@@ -35,6 +35,22 @@ it(
 	VITE_BOOT,
 );
 
+// The i18n app boots like the others (B70): its shared home answers in the path's locale.
+it(
+	"i18n app",
+	async () => {
+		const session = await boot({ app: "i18n", runtime: "node", mode: "dev" });
+		try {
+			const response = await fetch(`${session.origin}/hr`);
+			expect(response.status).toBe(200);
+			expect(await response.text()).toContain("Bok");
+		} finally {
+			await session.close();
+		}
+	},
+	VITE_BOOT,
+);
+
 it("unknown app", async () => {
 	await expect(boot({ app: "product", runtime: "node", mode: "dev" })).rejects.toThrow(/product/);
 });

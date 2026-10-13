@@ -1,0 +1,7 @@
+{
+	"name": "i18n",
+	"compatibility_date": "2026-07-01",
+	"compatibility_flags": ["nodejs_compat"],
+	// The built client. flare's worker entry forwards an unmatched GET to this binding (dx/adapters.md).
+	"assets": { "binding": "ASSETS", "directory": "dist/client" },
+}

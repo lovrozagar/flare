@@ -22,7 +22,7 @@ export type Boot = {
 	close: () => Promise<void>;
 };
 
-const APPS = new Set(["minimal", "basepath"]);
+const APPS = new Set(["minimal", "basepath", "i18n"]);
 const RUNTIMES = new Set(["node", "bun", "workers"]);
 
 // `dev` is `vite dev` on Node. `prod` is `vite build` on Node, then the runtime's adapter over the output: the Node

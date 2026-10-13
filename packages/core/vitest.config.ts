@@ -46,6 +46,7 @@ export default defineConfig({
 						"tests/e2e/navigation.test.ts",
 						"tests/e2e/server-fn.test.ts",
 						"tests/e2e/static.test.ts",
+						"tests/e2e/i18n.test.ts",
 					],
 				},
 			},
