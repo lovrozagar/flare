@@ -251,7 +251,7 @@ packages/core/src/server/render/matches.ts	P6	src	server	The outlet matches and 
 packages/core/src/server/render/matches.test.ts	P6	test	server	Unit cases for matches.ts
 packages/core/src/server/render/projector.ts	P5	src	server	Map a thrown value to the public error body
 packages/core/src/server/render/projector.test.ts	P5	test	server	Unit cases for projector.ts
-packages/core/src/server/render/abort.ts	P5	src	server	Race the request signal against chunk 0 and every later pull
+packages/core/src/server/render/abort.ts	P5	src	server	How a render stops: race the request signal against chunk 0 and every later pull, and stop the render once under the request event
 packages/core/src/server/render/abort.test.ts	P5	test	server	Unit cases for abort.ts
 packages/core/src/server/render/index.ts	P1	index	server	Re-exports
 packages/core/src/server/navigation/data.ts	P6	src	server	Choose which matches produce l frames
