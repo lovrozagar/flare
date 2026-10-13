@@ -47,17 +47,17 @@ it("hydrated", async () => {
 	expectTypeOf<Page>().toMatchTypeOf<FlarePageInput>();
 });
 
-it("console filter", () => {
+// Nothing is hidden: a hydration mismatch is the bug class an app's e2e is there to catch.
+it("console all", () => {
 	const { page, emit } = fakePage();
 	const helper = flarePage(page);
 	emit("console", message("error", "Hydration Mismatch. Unable to find DOM nodes for hydration key: 0-1"));
-	emit("console", message("warning", 'Hydration tag mismatch for key "0": expected <p> but found'));
-	emit("console", message("error", "Hydration structure mismatch: expected <p> after"));
 	emit("console", message("log", "hello"));
-	emit("console", message("error", "Failed to load resource: 500"));
 	emit("pageerror", new Error("boom"));
-	emit("pageerror", new Error("Hydration Mismatch. Unable to find DOM nodes for hydration key: 2"));
-	expect(helper.consoleErrors()).toEqual(["Failed to load resource: 500", "boom"]);
+	expect(helper.consoleErrors()).toEqual([
+		"Hydration Mismatch. Unable to find DOM nodes for hydration key: 0-1",
+		"boom",
+	]);
 	// The list is a copy, collected from the moment the helper was made.
 	helper.consoleErrors().push("x");
 	expect(helper.consoleErrors()).toHaveLength(2);
