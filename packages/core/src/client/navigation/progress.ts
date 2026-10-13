@@ -1,5 +1,4 @@
 import { createEffect, createSignal, onCleanup } from "solid-js";
-import { isServer } from "@solidjs/web";
 import { useNavigation } from "./pending.ts";
 
 export type ProgressOptions = { trickle?: number; minDisplay?: number };
@@ -23,7 +22,8 @@ export function useNavigationProgress(options: ProgressOptions = {}): Progress {
 	const minDisplay = options.minDisplay ?? 0;
 	if (!Number.isInteger(trickle) || trickle < 16) throw new Error("trickle is an integer of at least 16 ms");
 	if (!Number.isInteger(minDisplay) || minDisplay < 0) throw new Error("minDisplay is an integer of at least 0 ms");
-	if (isServer) return { pending: false, value: null };
+	// The server creates the same owners as the client, so every later sibling keeps its hydration key (BUGS.md B2). Its
+	// navigation never pends, so the effect starts no timer there.
 	const navigation = useNavigation();
 	const [value, setValue] = createSignal<number | null>(null);
 	const timers: {

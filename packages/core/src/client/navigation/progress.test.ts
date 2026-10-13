@@ -1,4 +1,4 @@
-import { createComponent, flush } from "solid-js";
+import { createComponent, createRoot, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as progressModule from "./progress.ts";
@@ -144,15 +144,17 @@ it("failure", async () => {
 	expect(progress.value).toBeNull();
 });
 
-it("ssr", async () => {
-	vi.resetModules();
-	vi.doMock("@solidjs/web", async (original) => ({ ...(await original<object>()), isServer: true }));
-	const server = await import("./progress.ts");
+// A server render runs the hook under its owner with navigation idle: the same owners as the client (B2), and no
+// timer. tests/integration/hydrate.test.tsx renders it with Solid's server build and hydrates it.
+it("ssr", () => {
 	const timers = vi.getTimerCount();
-	expect({ ...server.useNavigationProgress() }).toEqual({ pending: false, value: null });
+	const seen = createRoot((dispose) => {
+		const progress = { ...useNavigationProgress() };
+		dispose();
+		return progress;
+	});
+	expect(seen).toEqual({ pending: false, value: null });
 	expect(vi.getTimerCount()).toBe(timers);
-	vi.doUnmock("@solidjs/web");
-	vi.resetModules();
 });
 
 it("trickle 0", () => {
