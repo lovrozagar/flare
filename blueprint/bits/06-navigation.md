@@ -127,6 +127,8 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 
 | test | case | result |
 | --- | --- | --- |
+| `shallow` | a shallow navigate to the current route with new search, then again with `replace` | no request and no loader run, the URL and the page's search values are the call's, loader data is unchanged, history gains one entry then replaces it, and `pending` stays false (BUGS.md B18) |
+| `shallow blocked` | the same with a blocker that returns `false` | the URL and the search stay, and no history entry is written |
 | `commit then push` | a successful data response | the DOM updates, then `history.pushState` |
 | `network` | the fetch fails and has no status | the screen and the history stay |
 | `auth error` | HTTP 401, and HTTP 403 | the auth error is committed on the target, the outlet paints the walked auth boundary or its built-in `div`, then history is pushed |
