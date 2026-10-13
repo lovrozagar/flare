@@ -17,11 +17,18 @@ export type EmitFontsOptions = {
 // `/fonts/<family>/<file>.woff2`. A file name cannot start with a dot, so no segment is `.` or `..`.
 const FONT_URL = /^\/fonts\/([a-z0-9-]+\/[A-Za-z0-9_-][A-Za-z0-9._-]*\.woff2)$/;
 
+// The one file a font url names inside `source`, or undefined for a url that would leave it. The build and the dev
+// server share this check (dx/plugin.md fonts).
+export function fontFile(source: string, url: string): string | undefined {
+	const inner = FONT_URL.exec(url)?.[1];
+	return inner === undefined ? undefined : join(source, inner);
+}
+
 // A url maps to one file inside `source`. Any other url throws.
 function fileOf(source: string, url: string): string {
-	const inner = FONT_URL.exec(url)?.[1];
-	if (inner === undefined) throw new Error(`font url ${url} leaves the font directory`);
-	return join(source, inner);
+	const path = fontFile(source, url);
+	if (path === undefined) throw new Error(`font url ${url} leaves the font directory`);
+	return path;
 }
 
 // Copies the woff2 files of the families the app uses into the build output. Every url is checked before any file
