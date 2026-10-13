@@ -532,6 +532,7 @@ packages/core/src/features/image/vite/dev-endpoint.ts	P13	src	vite	Dev image end
 packages/core/src/features/image/vite/dev-endpoint.test.ts	P13	test	vite	Unit cases for dev-endpoint.ts
 packages/core/src/features/image/shared/index.ts	P13	index	shared	Re-exports
 packages/core/src/features/image/vite/index.ts	P13	index	vite	Re-exports
+packages/core/src/features/image/vite/modules.d.ts	P13	types	vite	The ?image module types the ./vite entry references. A plain image import stays vite/client's URL string
 packages/core/src/features/fonts/shared/create-font.ts	P13	src	shared	createFont for a local src
 packages/core/src/features/fonts/shared/create-font.test.ts	P13	test	shared	Unit cases for create-font.ts
 packages/core/src/features/fonts/shared/css.ts	P13	src	shared	Build @font-face text. Escape family, src, and unicode-range
@@ -601,6 +602,7 @@ packages/core/tests/types/app/src/checks.ts	P7	app	-	One positive assignment and
 packages/core/tests/types/app/src/checks-data.ts	P7	app	-	The app rows for loader data, the preloader context, auth, head, defer, and effects
 packages/core/tests/types/app/src/checks-fns.ts	P7	app	-	The app rows for the hooks, server functions, and the path segment
 packages/core/tests/types/app/src/query.ts	P13	app	-	Imports @lovrozagar/flare/query so the generator sets hasQueryClient
+packages/core/tests/types/app/src/image.ts	P13	app	-	A ?image import is the binding and a plain one stays vite/client's string
 packages/core/tests/types/app/src/fns/echo.ts	P7	app	-	Server function with input and a handler, plus a stream export
 packages/core/tests/types/app/src/routes/_root_/root.root-layout.tsx	P7	app	-	Root preloader returns { requestId: string }. No auth
 packages/core/tests/types/app/src/routes/_root_/about/about.page.tsx	P7	app	-	No params. Loader returns { title: string }. No search validator

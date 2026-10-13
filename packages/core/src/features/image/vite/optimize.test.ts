@@ -67,15 +67,16 @@ it("other width", async () => {
 });
 
 it("svg", async () => {
+	expect((await load(join(root, "src", "c.svg?image"), { command: "build" })).code).toBeNull();
 	expect((await load(join(root, "src", "c.svg"), { command: "build" })).code).toBeNull();
 });
 
 it("gif", async () => {
-	expect((await load(join(root, "src", "d.gif"), { command: "build" })).code).toBeNull();
+	expect((await load(join(root, "src", "d.gif?image"), { command: "build" })).code).toBeNull();
 });
 
 it("prod name", async () => {
-	const { emitted } = await load(png, { command: "build" });
+	const { emitted } = await load(`${png}?image`, { command: "build" });
 	const at640 = emitted.find((file) => file.fileName.includes("-640-"));
 	if (at640 === undefined) throw new Error("no 640 variant");
 	const hash = createHash("sha256").update(at640.source).digest("hex").slice(0, 8);
@@ -83,7 +84,7 @@ it("prod name", async () => {
 });
 
 it("dev url", async () => {
-	const { binding, emitted } = await load(png, { command: "serve" });
+	const { binding, emitted } = await load(`${png}?image`, { command: "serve" });
 	expect(binding).toMatchObject({
 		variants: [{ width: 320 }, { width: 640, src: "/_flare/image?src=/src/a.png&w=640" }],
 	});
@@ -108,16 +109,17 @@ it("quality", () => {
 
 it("exclude", async () => {
 	const excluded = { ...settings, exclude: /^src\/a\.png$/ };
-	expect((await load(png, { command: "build", with: excluded })).code).toBeNull();
-	// An import with a query asks for something else, such as `?url`. A file outside the project, and a virtual
-	// module, are not app images.
-	expect((await load(`${png}?url`, { command: "build" })).code).toBeNull();
-	expect((await load(join(tmpdir(), "outside.png"), { command: "build" })).code).toBeNull();
-	expect((await load("\0virtual.png", { command: "build" })).code).toBeNull();
+	expect((await load(`${png}?image`, { command: "build", with: excluded })).code).toBeNull();
+	// Only `?image` opts in. A plain import, another query, and a query beyond `?image` stay Vite's. A file outside the
+	// project, and a virtual module, are not app images.
+	for (const id of [png, `${png}?url`, `${png}?url&image`, `${png}?image&w=320`, `${png}?a?image`])
+		expect((await load(id, { command: "build" })).code).toBeNull();
+	expect((await load(join(tmpdir(), "outside.png?image"), { command: "build" })).code).toBeNull();
+	expect((await load("\0virtual.png?image", { command: "build" })).code).toBeNull();
 });
 
 it("binding", async () => {
-	const client = await load(png, { command: "build" });
+	const client = await load(`${png}?image`, { command: "build" });
 	expect(client.binding).toEqual({
 		src: expect.stringMatching(/^\/assets\/a-640-[0-9a-f]{8}\.webp$/),
 		width: 1000,
@@ -129,7 +131,7 @@ it("binding", async () => {
 	});
 	expect(client.emitted.map((file) => file.fileName.split("-")[1])).toEqual(["320", "640"]);
 	// The server build references the same files and emits none.
-	const server = await load(png, { env: "ssr", command: "build" });
+	const server = await load(`${png}?image`, { env: "ssr", command: "build" });
 	expect(server.binding).toEqual(client.binding);
 	expect(server.emitted).toEqual([]);
 	// The plugin config replaces config.ts with the app's widths and quality.
@@ -140,24 +142,24 @@ it("binding", async () => {
 // An image narrower than every configured width has no variant: dev serves the file, a build emits it as it is.
 it("no variant", async () => {
 	const tiny = join(root, "src", "tiny.png");
-	expect((await load(tiny, { command: "serve" })).binding).toEqual({
+	expect((await load(`${tiny}?image`, { command: "serve" })).binding).toEqual({
 		src: "/src/tiny.png",
 		width: 100,
 		height: 50,
 		variants: [],
 	});
-	const built = await load(tiny, { command: "build" });
+	const built = await load(`${tiny}?image`, { command: "build" });
 	expect(built.binding).toMatchObject({
 		src: expect.stringMatching(/^\/assets\/tiny-[0-9a-f]{8}\.png$/),
 		variants: [],
 	});
 	expect(Buffer.from(built.emitted[0]?.source ?? []).equals(readFileSync(tiny))).toBe(true);
-	expect((await load(tiny, { env: "ssr", command: "build" })).emitted).toEqual([]);
+	expect((await load(`${tiny}?image`, { env: "ssr", command: "build" })).emitted).toEqual([]);
 });
 
 it("webp", async () => {
 	const source = readFileSync(join(root, "src", "b.webp"));
-	const { emitted } = await load(join(root, "src", "b.webp"), { command: "build" });
+	const { emitted } = await load(join(root, "src", "b.webp?image"), { command: "build" });
 	const at320 = emitted.find((file) => file.fileName.includes("-320-"));
 	expect(at320?.source).toBeDefined();
 	expect(Buffer.from(at320?.source ?? []).equals(source)).toBe(false);

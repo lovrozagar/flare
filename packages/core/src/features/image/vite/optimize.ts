@@ -11,12 +11,14 @@ export type ImageSettings = { widths: readonly number[]; quality: number; exclud
 type Binding = { src: string; width: number; height: number; variants: Array<{ width: number; src: string }> };
 
 // The extensions the plugin converts to webp. `.svg` and `.gif` keep the URL Vite gives them.
-const OPTIMIZED = /\.(?:avif|jpe?g|png|tiff|webp)$/i;
+export const OPTIMIZED: RegExp = /\.(?:avif|jpe?g|png|tiff|webp)$/i;
 
 // The module the Image component reads its widths and quality from.
 const CONFIG = fileURLToPath(new URL("../shared/config.ts", import.meta.url));
 
 export const IMAGE_ENDPOINT = "/_flare/image";
+
+const IMAGE_QUERY = "?image";
 
 // One variant's webp bytes at the plugin quality. A width the plugin did not list is a build error. sharp loads only
 // here, so an app without `image` never loads it.
@@ -58,9 +60,10 @@ export function imagePlugin(settings: ImageSettings, assetsBase: string): Plugin
 		},
 		load(id) {
 			if (id === CONFIG) return configModule(settings);
-			const path = projectPath(state.root, id);
-			if (path === undefined || !OPTIMIZED.test(id) || settings.exclude?.test(path) === true) return null;
-			return bindingModule(this, { id, path }, { settings, assetsBase, base: state.base });
+			const file = imageImport(id);
+			const path = file === undefined ? undefined : projectPath(state.root, file);
+			if (file === undefined || path === undefined || settings.exclude?.test(path) === true) return null;
+			return bindingModule(this, { id: file, path }, { settings, assetsBase, base: state.base });
 		},
 	};
 }
@@ -100,9 +103,17 @@ function variantName(file: string, width: number, bytes: Uint8Array): string {
 	return `${basename(file, extname(file))}-${width}-${hash}.webp`;
 }
 
-// An app module's path under the root, with forward slashes. A query, or a file outside the root, is not one.
+// An optimized import opts in with exactly `?image` on an optimized extension (B88). Any other query, and a plain
+// import, stay Vite's.
+function imageImport(id: string): string | undefined {
+	if (!id.endsWith(IMAGE_QUERY)) return undefined;
+	const file = id.slice(0, -IMAGE_QUERY.length);
+	return OPTIMIZED.test(file) && !file.includes("?") ? file : undefined;
+}
+
+// An app module's path under the root, with forward slashes. A file outside the root, or a virtual module, is not one.
 function projectPath(root: string, id: string): string | undefined {
-	if (id.includes("?") || id.startsWith("\0")) return undefined;
+	if (id.startsWith("\0")) return undefined;
 	const path = relative(root, id);
 	if (path.startsWith("..") || isAbsolute(path)) return undefined;
 	return path.split(sep).join("/");
