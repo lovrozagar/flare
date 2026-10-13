@@ -237,6 +237,7 @@ One `oxc-parser` walk (B75). Babel is not imported.
 | `reads the script` | HTML with the state script | the router match equals that state |
 | `adopts history` | `history.state` already has an index | no new history entry |
 | `router context` | a component under hydrate reads the router context | it is the same object `createClient` received |
+| `prefetch build` | a document of build b1. An intent prefetch of /about is answered with `flare-build: b2`, then the app navigates to /about, also answered b2 | the navigation loads the document once (`assign("/about")`) and never paints the prefetched frames. One build value feeds the navigator, the prefetcher, and the server-function transport, so a mismatched prefetch is dropped (BUGS.md B30) |
 
 ### `tests/integration/skeleton.test.ts`
 
