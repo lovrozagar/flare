@@ -2,7 +2,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { StringDecoder } from "node:string_decoder";
 import { join } from "node:path";
+import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
 import { readWrangler } from "../../src/vite/plugin/wrangler.ts";
@@ -19,8 +21,28 @@ export type Boot = {
 	cacheDir: string;
 	// A prod boot's build output: `client`, `server`, and `worker` under it.
 	outDir?: string | undefined;
+	// What the runtime printed so far, stdout and stderr, one entry per line in the order it arrived. In memory only.
+	logs: () => readonly string[];
 	close: () => Promise<void>;
 };
+
+// A runtime's output, split into lines as it arrives. A line still being written is the last entry.
+function capture(): { attach: (stream: Readable | null) => void; logs: () => readonly string[] } {
+	const lines: string[] = [];
+	const pending: string[] = [];
+	return {
+		attach(stream) {
+			const decoder = new StringDecoder("utf8");
+			const slot = pending.push("") - 1;
+			stream?.on("data", (chunk: Buffer) => {
+				const parts = `${pending[slot]}${decoder.write(chunk)}`.split("\n");
+				pending[slot] = parts.pop() ?? "";
+				lines.push(...parts);
+			});
+		},
+		logs: () => [...lines, ...pending.filter((line) => line !== "")],
+	};
+}
 
 const APPS = new Set(["minimal", "basepath", "docs"]);
 const RUNTIMES = new Set(["node", "bun", "workers"]);
@@ -73,6 +95,9 @@ export function bootChild(input: {
 		env: { ...process.env, FLARE_VITE_CACHE: cacheDir, NO_COLOR: "1" },
 		stdio: ["ignore", "pipe", "pipe"],
 	});
+	const output = capture();
+	output.attach(child.stdout);
+	output.attach(child.stderr);
 	const clean = (): void => remove([cacheDir, ...(input.dirs ?? [])]);
 	const onExit = (): void => {
 		child.kill("SIGTERM");
@@ -85,6 +110,7 @@ export function bootChild(input: {
 		origin: url,
 		appDir,
 		cacheDir,
+		logs: output.logs,
 		async close() {
 			process.off("exit", onExit);
 			child.kill("SIGTERM");
@@ -123,8 +149,14 @@ async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: st
 	if (config === undefined) throw new Error(`${input.appDir} has no wrangler.jsonc`);
 	const worker = join(input.outDir, "worker");
 	const assets = { directory: join(input.outDir, "client"), routerConfig: { has_user_worker: true } };
+	const output = capture();
 	const runtime = new Miniflare({
 		modules: true,
+		// workerd's own stdout and stderr, where the worker's console goes, are captured like a child's.
+		handleRuntimeStdio: (stdout: Readable, stderr: Readable) => {
+			output.attach(stdout);
+			output.attach(stderr);
+		},
 		scriptPath: join(worker, "index.js"),
 		modulesRoot: worker,
 		...(config.compatibilityDate === undefined ? {} : { compatibilityDate: config.compatibilityDate }),
@@ -138,6 +170,7 @@ async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: st
 			origin: url.origin,
 			appDir: input.appDir,
 			cacheDir: input.cacheDir,
+			logs: output.logs,
 			async close() {
 				await runtime.dispose();
 				clean();
