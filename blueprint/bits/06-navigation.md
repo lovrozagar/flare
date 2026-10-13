@@ -127,6 +127,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 
 | test | case | result |
 | --- | --- | --- |
+| `fresh no request` | `/` then `/a` (with `staleTime: "30s"`) then `/` then `/a` again within 30 s, under a shared mounted layout | the last navigation sends no request and paints `/a`'s cached data, head, and values; with `revalidate: true` it fetches (BUGS.md B19) |
 | `commit then push` | a successful data response | the DOM updates, then `history.pushState` |
 | `network` | the fetch fails and has no status | the screen and the history stay |
 | `auth error` | HTTP 401, and HTTP 403 | the auth error is committed on the target, the outlet paints the walked auth boundary or its built-in `div`, then history is pushed |
@@ -284,6 +285,8 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
+| `loader deps held` | a page with `loaderDeps`, stored, then planned with the same deps, and with different deps | the same deps are fresh (and listed stale on a partial request); different deps are not. The entry stores the deps it was cached under (BUGS.md B19) |
+| `deferred filled cached` | a `cacheDeferred: true` page whose `c` frames land after the commit | the entry is rewritten with the filled values and no longer counts as deferred; a revisit within `staleTime` paints the values with no fill (BUGS.md B19) |
 | `store success` | an `l` payload | the cache returns it |
 | `evict error` | an `e` payload for that id | the cache has no entry |
 | `stale time` | `staleTime: 1000`, read at 1001 ms | miss |
