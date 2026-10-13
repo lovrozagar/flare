@@ -85,6 +85,17 @@ export function localeConfig(options: LocaleOptions): LocaleConfig {
 	};
 }
 
+// A segment `Intl` accepts as a language tag (B73).
+export function localeLike(segment: string): boolean {
+	return canonical(segment) !== undefined;
+}
+
+// With a locale config, the `paramName` param holds only a locale-like segment, so `/favicon.ico` is no locale page
+// (B73). Configured tags are canonical, so they are locale-like too.
+export function localeParam(config: LocaleConfig): (name: string, value: string) => boolean {
+	return (name, value) => name !== config.paramName || localeLike(value);
+}
+
 // The canonical spelling of a tag, or nothing when `Intl` rejects it.
 function canonical(tag: string): string | undefined {
 	try {

@@ -1,4 +1,5 @@
 import type { RequestKind } from "../../shared/protocol/index.ts";
+import { NDJSON, redirectBody } from "../navigation/index.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { secure, type Exchange } from "./exchange.ts";
 import { finalize } from "./finalize.ts";
@@ -47,6 +48,8 @@ export async function withLocale(exchange: Exchange, chain: () => Promise<Respon
 	return secure(exchange, { status: response.status, body: response.body, headers });
 }
 
+// A document gets the 3xx. A data request gets HTTP 200 with the one `x` frame to the same target, as a loader
+// redirect does. A prefetch never redirects, so it is a 404 with no frames (B73).
 function redirected(
 	exchange: Exchange,
 	to: { status: number; location: string },
@@ -54,8 +57,11 @@ function redirected(
 ): Response {
 	const headers = new Headers(exchange.secured.headers);
 	headers.set("cache-control", NO_STORE);
+	if (exchange.kind === "prefetch") return finalize({ status: 404, body: "", headers });
 	if (cookie !== undefined) headers.append("set-cookie", cookie);
-	return finalize({ status: to.status, body: "", location: to.location, headers });
+	if (exchange.kind === "document") return finalize({ status: to.status, body: "", location: to.location, headers });
+	headers.set("content-type", NDJSON);
+	return finalize({ status: 200, body: redirectBody({ s: to.status, u: to.location, r: true }), headers });
 }
 
 function isPrivate(response: Response): boolean {

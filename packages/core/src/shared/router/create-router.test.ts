@@ -315,3 +315,26 @@ it("view transitions option", () => {
 	expect(createRouter({ ...tree, viewTransitions: { types: ["fade"] } }).viewTransitions).toEqual({ types: ["fade"] });
 	expect(createRouter({ ...tree, viewTransitions: false }).viewTransitions).toBe(false);
 });
+
+// With a locale config, the locale param holds only a locale-like segment. Anything else is not a tag, so the
+// optional param stays empty and the segment goes to the next one, or no route matches (B73).
+it("locale param", () => {
+	const routeTree = [
+		{ id: "_root_/[[locale]]", path: "/[[locale]]", module: {} },
+		{ id: "_root_/[[locale]]/[[slug]]", path: "/[[locale]]/[[slug]]", module: {} },
+		{ id: "_root_/[locale]/docs", path: "/[locale]/docs", module: {} },
+	];
+	const locale = { locales: ["en", "hr"], defaultLocale: "en" };
+	const routed = createRouter({ layouts: {}, routeTree, locale });
+	expect(routed.match("/favicon.ico")).toMatchObject({
+		id: "_root_/[[locale]]/[[slug]]",
+		params: { locale: undefined, slug: "favicon.ico" },
+	});
+	expect(routed.match("/hr").params).toEqual({ locale: "hr" });
+	expect(routed.match("/fr").params).toEqual({ locale: "fr" });
+	expect(routed.match("/hr/x").params).toEqual({ locale: "hr", slug: "x" });
+	expect(routed.match("/x.y/docs").id).toBeUndefined();
+	expect(routed.match("/fr/docs").params).toEqual({ locale: "fr" });
+	// Without a locale config the param is an ordinary one.
+	expect(createRouter({ layouts: {}, routeTree }).match("/x.y/docs").params).toEqual({ locale: "x.y" });
+});
