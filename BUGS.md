@@ -66,11 +66,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 5.3 [x] Write a failing `client/head/apply.test.ts` case (charset in the merge, no `useHead` call for it on the client). Then emit charset in the server shell only.
 5.4 [x] Verify: no `useHead` warning in `docs-smoke`.
 
-6 [ ] B6 The dev overlay opens for a deferred rejection that `<Errored>` caught
-6.1 [ ] Repro: `/changelog`'s `broken` defer rejects with `The stats service is down` under `<Errored>`. Load it in dev after B3 is fixed, or with the root boundaries removed.
-6.2 [ ] Expected (`dx/defer.md`, `dx/navigate.md`): a slot inside `<Errored>` does not send Vite's overlay payload. Actual: Vite's overlay opens with that error and its stack, while the `<Errored>` fallback also renders.
-6.3 [ ] Write a failing case in `client/navigation/navigate-slots.test.ts` or the document fill path for a caught rejection that must not call the dev sink. Then send the payload only when the rejection reaches `errorRender`.
-6.4 [ ] Verify: `docs-data` `defer rejects` sees no `vite-error-overlay` element on `node-dev-chromium`.
+6 [x] B6 The dev overlay opens for a deferred rejection that `<Errored>` caught
+6.1 [x] Repro: `/changelog`'s `broken` defer rejects with `The stats service is down` under `<Errored>`. Load it in dev after B3 is fixed, or with the root boundaries removed.
+6.2 [x] Expected (`dx/defer.md`, `dx/navigate.md`): a slot inside `<Errored>` does not send Vite's overlay payload. Actual: Vite's overlay opens with that error and its stack, while the `<Errored>` fallback also renders.
+6.3 [x] Cause: the server projected every `e` frame through `framed` with the dev sink, so a deferred rejection in a data or fill answer sent the overlay payload, which the dev handler broadcast (B38, B42), whether or not an `<Errored>` on the client caught it. Seen: the overlay payload arrived over the websocket right after the document's `?_flare=fill`. Fix: `dataBody` marks a deferred value's `e`, and `framed` projects it with no send; it is still logged, and a loader `e` still sends. A deferred rejection no app boundary catches reaches the B77 walk and is reported from the client (B42). Failing test first: `answers.test.ts` `deferred no overlay`.
+6.4 [x] Verify: `docs-data` `defer rejects`, `stream fill`, `stream`, and `stream abort` are green 3 of 3 on node-dev-chromium, with no `vite-error-overlay`.
 
 7 [ ] B7 `flare({ fonts: { dir } })` 404s every font in dev
 7.1 [ ] Repro: the docs config sets `fonts: { dir: "assets/fonts" }` and the root renders `<FontCSS font={inter} />`. Load `/` in dev.
