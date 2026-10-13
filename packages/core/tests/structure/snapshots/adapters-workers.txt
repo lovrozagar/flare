@@ -1,0 +1,3 @@
+
+import { createWorkersHandler } from "../adapters/workers/handler.js";
+export { createWorkersHandler };

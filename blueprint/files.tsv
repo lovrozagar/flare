@@ -26,6 +26,9 @@ packages/core/tests/structure/tree.test.ts	P0	test	node	check-tree fails on an e
 packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball
 packages/core/tests/structure/api.test.ts	P14	test	node	Each entry's public d.ts matches its snapshot
 packages/core/tests/structure/snapshots/*.txt	P14	generated	-	One snapshot per public entry, written by api.test.ts
+packages/core/tests/structure/consumer/tsconfig.json	P14	app	-	An app's strictest settings, compiled against the packed types only (consumer strict)
+packages/core/tests/structure/consumer/src/index.ts	P14	app	-	Every public entry, a font module, and a ?image import, as an app imports them from the installed tarball
+packages/core/tsdown.config.ts	P14	config	-	The packager the bits/14 spike chose: unbundled ESM mirroring src, declarations, the image module types copied and referenced
 packages/core/src/features/seo/server/google.fixture.txt	P13	corpus	server	The fixed Google JWT the signer test compares against
 packages/core/src/shared/url/types.ts	P2	types	shared	Location and LocationRewrite types
 packages/core/src/shared/url/canonical.ts	P2	src	shared	Compute the canonical path or a hostile-path rejection. Does not build a response

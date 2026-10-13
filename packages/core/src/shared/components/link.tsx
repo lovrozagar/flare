@@ -164,7 +164,7 @@ function followable(event: MouseEvent, anchor: Element): boolean {
 // `modules: "all"` is the router's alone. The type rejects it, and a cast throws in dev (B64).
 function rejectAll(prefetch: RoutePrefetch | undefined): void {
 	const modules: unknown = typeof prefetch === "object" ? prefetch.modules : undefined;
-	if (import.meta.env.DEV && modules === "all") throw new Error('Link prefetch cannot use modules: "all"');
+	if (import.meta.env?.DEV && modules === "all") throw new Error('Link prefetch cannot use modules: "all"');
 }
 
 function internalHref(props: AnyLinkProps, to: string): string {

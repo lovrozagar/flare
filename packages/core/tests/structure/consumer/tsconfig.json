@@ -1,0 +1,19 @@
+{
+	// An app's strictest settings, compiled against the packed types only (bits/14 `consumer strict`).
+	"compilerOptions": {
+		"strict": true,
+		"exactOptionalPropertyTypes": true,
+		"verbatimModuleSyntax": true,
+		"noUncheckedIndexedAccess": true,
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"target": "ESNext",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"jsx": "preserve",
+		"jsxImportSource": "@solidjs/web",
+		"types": ["vite/client", "node"],
+		"skipLibCheck": false,
+		"noEmit": true
+	},
+	"include": ["src"]
+}

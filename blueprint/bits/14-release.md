@@ -1,6 +1,6 @@
 # Bit 14 — Packaging and release
 
-Creates every `P14` row. Chooses the packager by running the contract below, then adds that packager's config file to `files.tsv` in the same commit. The candidates are `tsdown` and `tsc` with the Solid JSX-preserve transform (B18).
+Creates every `P14` row. Chooses the packager by running the contract below, then adds that packager's config file to `files.tsv` in the same commit. The candidates are `tsdown` and plain `tsc` (B18). The framework sources hold no JSX, so no JSX transform is a candidate's concern.
 
 ## Packager spike
 

@@ -115,7 +115,7 @@ function configured(width: number): number {
 }
 
 function url(src: string, props: ImageProps): string {
-	return withQuality(src, props.quality, import.meta.env.DEV === true);
+	return withQuality(src, props.quality, import.meta.env?.DEV === true);
 }
 
 function srcset(props: ImageProps): string | undefined {

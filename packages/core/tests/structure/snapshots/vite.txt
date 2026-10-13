@@ -1,0 +1,3 @@
+/// <reference path="../features/image/vite/modules.d.ts" preserve="true" />
+import { flare } from "../vite/plugin/flare.js";
+export { flare };

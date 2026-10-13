@@ -11,6 +11,7 @@
 	},
 	"include": ["src/**/*", "tests/**/*", "lint/**/*.ts"],
 	// The types fixture compiles under its own tsconfig with a generated register (tests/types/app.test.ts). An e2e
-	// app's generated register belongs to that app, not to the package's own tests.
-	"exclude": ["tests/types/app/**", "tests/e2e/apps/*/src/_gen/types.gen.d.ts"]
+	// app's generated register belongs to that app, not to the package's own tests. The consumer fixture compiles against
+	// the packed types only (tests/structure/exports.test.ts).
+	"exclude": ["tests/types/app/**", "tests/e2e/apps/*/src/_gen/types.gen.d.ts", "tests/structure/consumer/**"]
 }

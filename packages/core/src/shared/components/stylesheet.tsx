@@ -11,7 +11,7 @@ import { builtHref } from "../css/sheet.ts";
 export function Stylesheet(): JSX.Element {
 	return createComponent(NoHydration, {
 		get children() {
-			if (import.meta.env.DEV || builtHref === "") return undefined;
+			if (import.meta.env?.DEV || builtHref === "") return undefined;
 			return stylesheetMarkup(builtHref, nonce()).map(element);
 		},
 	});

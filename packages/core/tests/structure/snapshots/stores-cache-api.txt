@@ -1,0 +1,3 @@
+
+import { createCacheApiStore } from "../adapters/stores/cache-api/store.js";
+export { createCacheApiStore };
