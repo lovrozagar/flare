@@ -40,8 +40,9 @@ export type LocaleMatch = {
 
 type RouterLike = Pick<Router, "match" | "basePath">;
 
-// The page's locale segment, read from the matched route's pattern.
-type Page = { id: string; params: Record<string, string | string[] | undefined>; optional: boolean };
+// The page's locale segment, read from the matched route's pattern. `response` marks a `.response()` route, which is
+// never negotiated: it is no rendered document (dx/features.md i18n, BUGS.md B23).
+type Page = { id: string; params: Record<string, string | string[] | undefined>; optional: boolean; response: boolean };
 
 const MAX_TAGS = 8;
 
@@ -61,7 +62,7 @@ export function matchLocale(request: LocaleRequest, config: I18nConfig, router: 
 
 // A document under an optional locale param with no tag, where more than one locale is configured.
 function untagged(request: LocaleRequest, config: I18nConfig, page: Page | undefined): boolean {
-	return request.kind === "document" && page !== undefined && config.locales.length > 1;
+	return request.kind === "document" && page !== undefined && !page.response && config.locales.length > 1;
 }
 
 // No tag on the path. On an optional segment the URL shows the default.
@@ -70,7 +71,7 @@ function negotiated(input: Omit<RedirectInput, "page">, page: Page | undefined):
 	const shown = page === undefined ? undefined : config.defaultLocale;
 	const stored = cookieTag(request.cookieHeader, config);
 	const chosen = stored ?? headerTag(request.acceptLanguage, config) ?? config.defaultLocale;
-	if (request.kind === "document" && page !== undefined && chosen !== shown) {
+	if (request.kind === "document" && page !== undefined && !page.response && chosen !== shown) {
 		return redirect({ ...input, page }, { tag: chosen, status: 302, cookie: chosen });
 	}
 	const persist = request.kind === "data" && shown !== undefined && shown !== stored;
@@ -96,11 +97,12 @@ function pathTag(input: PathInput): LocaleMatch {
 	const cased = config.locales.find((tag) => tag.toLowerCase() === raw.toLowerCase());
 	if (cased !== undefined) {
 		if (request.kind !== "document") return { locale: config.defaultLocale };
-		return redirect(input, { tag: cased, status: 301, cookie: bot ? undefined : cased });
+		return redirect(input, { tag: cased, status: 301, cookie: bot || input.page.response ? undefined : cased });
 	}
 	if (!localeLike(raw)) return { locale: config.defaultLocale };
 	// An unconfigured tag redirects on every kind, so a layout never renders it (B73). A prefetch persists nothing.
-	const cookie = bot || request.kind === "prefetch" ? undefined : config.defaultLocale;
+	const quiet = bot || request.kind === "prefetch" || input.page.response;
+	const cookie = quiet ? undefined : config.defaultLocale;
 	return redirect(input, { tag: input.page.optional ? undefined : config.defaultLocale, status: 302, cookie });
 }
 
@@ -126,7 +128,7 @@ function localePage(router: RouterLike, pathname: string, name: string): Page | 
 	if (matched.id === undefined) return undefined;
 	const segment = patternSegments(idPattern(matched.id)).find((item) => item.kind === "dynamic" && item.name === name);
 	if (segment === undefined || segment.kind !== "dynamic") return undefined;
-	return { id: matched.id, params: matched.params, optional: segment.optional };
+	return { id: matched.id, params: matched.params, optional: segment.optional, response: matched.response === true };
 }
 
 // The cookie, through Solid's parser, followed only when it is a configured tag byte for byte.
