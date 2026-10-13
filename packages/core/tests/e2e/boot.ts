@@ -29,10 +29,15 @@ const RUNTIMES = new Set(["node", "bun", "workers"]);
 // listener, `Bun.serve`, or miniflare from the app's wrangler.jsonc (B70). Workers dev is unsupported.
 export async function boot(input: { app: string; runtime: string; mode: string }): Promise<Boot> {
 	if (!APPS.has(input.app)) throw new Error(input.app);
+	return bootApp({ appDir: join(apps, input.app), runtime: input.runtime, mode: input.mode });
+}
+
+// The same boot over any app directory. The golden test boots an app staged with the installed tarball (bits/14).
+export async function bootApp(input: { appDir: string; runtime: string; mode: string }): Promise<Boot> {
 	if (!RUNTIMES.has(input.runtime)) throw new Error(input.runtime);
 	if (input.mode !== "dev" && input.mode !== "prod") throw new Error(input.mode);
 	if (input.mode === "dev" && input.runtime !== "node") throw new Error(`${input.runtime} dev is unsupported`);
-	const appDir = join(apps, input.app);
+	const appDir = input.appDir;
 	const cacheDir = await mkdtemp(join(tmpdir(), "flare-vite-"));
 	// A child process, so the app's Vite and the framework it loads stay out of the test process.
 	if (input.mode === "dev") return bootChild({ appDir, cacheDir, bin: viteBin });

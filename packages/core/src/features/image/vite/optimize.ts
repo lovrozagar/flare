@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { basename, extname, isAbsolute, relative, sep } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
-import { assetsDirOf, assetUrl } from "../../../vite/plugin/index.ts";
+import { assetsDirOf, assetUrl, ownModule } from "../../../vite/plugin/index.ts";
 
 // `flare({ image })` after parsing (dx/plugin.md image).
 export type ImageSettings = { widths: readonly number[]; quality: number; exclude?: RegExp | undefined };
@@ -14,7 +13,7 @@ type Binding = { src: string; width: number; height: number; variants: Array<{ w
 export const OPTIMIZED: RegExp = /\.(?:avif|jpe?g|png|tiff|webp)$/i;
 
 // The module the Image component reads its widths and quality from.
-const CONFIG = fileURLToPath(new URL("../shared/config.ts", import.meta.url));
+const CONFIG = ownModule("../shared/config.ts", import.meta.url);
 
 export const IMAGE_ENDPOINT = "/_flare/image";
 
