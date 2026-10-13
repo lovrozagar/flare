@@ -121,6 +121,8 @@ Two files may call `console`: `server/lifecycle/logger.ts` on the server, and `s
 
 The published package has no `dependencies` key (B79). A nested copy of Solid, Vite, or a parser is the thing an app then installs twice. A library this package imports is a `peerDependency`, and the same library is a `devDependency` at the exact version this repo tests. The peer range is `>=` that version. A `^`, a `~`, or an exact peer version does not. An app may depend on these libraries. `@lovrozagar/flare` does not.
 
+Source under `packages/core/src` imports only Node builtins through `node:`, the package's own name, and the names in `dependencies` and `peerDependencies`. `lint/boundaries.js` reads that set from `package.json` and checks every import form, `import type`, re-exports, and literal `import()` included. Test code (`*.test.*`, `*.fixture.*`, `tests/`) may import devDependencies, and the published package ships none of it.
+
 Required peers:
 
 | package | devDependency | peerDependency |

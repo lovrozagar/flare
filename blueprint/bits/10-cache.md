@@ -267,6 +267,8 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 
 | test | case | result |
 | --- | --- | --- |
+| `package imports` | a src file importing `fflate` (a devDependency), `left-pad` (unlisted), and bare `fs`, each through `import`, `import type`, `export { x } from`, and a literal `import()` | each is reported. `node:fs`, a peer, a subpath of a peer (`@solidjs/web/x`, `solid-js/store`), and the package's own name (`@lovrozagar/flare/...`) pass. The allowed set is `dependencies` and `peerDependencies` read from packages/core/package.json (plan 14 leaf 8.16) |
+| `fixture exempt` | a `*.fixture.ts` importing `vitest` | not reported: a fixture is test code, as files.tsv kind `test` says |
 | `node adapters` | a `node:fs` import in `adapters/node/`, `adapters/stores/fs/`, `adapters/workers/`, and `adapters/stores/cache-api/` | the first two pass, the last two fail. An adapter may use its own runtime's builtins (00-rules) |
 
 ### `tests/workerd/cache-api.test.ts`
