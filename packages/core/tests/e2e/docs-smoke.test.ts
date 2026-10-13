@@ -1,8 +1,9 @@
-import { documents, expect, open, test } from "./docs.fixture.ts";
+import { documents, expect, isProd, open, test } from "./docs.fixture.ts";
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
-// A document whose own status is not 200 logs that resource failure, and nothing else.
-const PAGES: readonly { path: string; status: number }[] = [
+// A document whose own status is not 200 logs that resource failure, and nothing else. `logs` are the flare errors
+// the page's server logs on purpose.
+const PAGES: readonly { path: string; status: number; logs?: readonly string[] }[] = [
 	{ path: "/", status: 200 },
 	{ path: "/hr", status: 200 },
 	{ path: "/ar", status: 200 },
@@ -13,7 +14,7 @@ const PAGES: readonly { path: string; status: number }[] = [
 	{ path: "/examples", status: 200 },
 	{ path: "/examples/a/b?tab=data", status: 200 },
 	{ path: "/search?q=route", status: 200 },
-	{ path: "/changelog", status: 200 },
+	{ path: "/changelog", status: 200, logs: ["The stats service is down"] },
 	{ path: "/playground", status: 200 },
 	{ path: "/login", status: 200 },
 	{ path: "/[flare]", status: 200 },
@@ -72,4 +73,26 @@ test("public files", async ({ request, docs }) => {
 		expect(response.headers()["content-type"], path).toMatch(type);
 		expect((await response.body()).byteLength, path).toBeGreaterThan(0);
 	}
+});
+
+// While every page of the route map loads, each in its own tab, the dev server logs no HTML it could not parse and no
+// uncaught error, and its flare error lines are exactly the ones the pages declare (BUGS.md B8). Only the lines this
+// test adds are read: the boot is shared with the other specs.
+test("dev log clean", async ({ context, docs }, info) => {
+	test.skip(isProd(info), "reads the dev server's log");
+	// Every page in one test, each a cold dev compile the first time.
+	test.setTimeout(120_000);
+	const start = docs.logs().length;
+	for (const { path } of PAGES) {
+		const page = await context.newPage();
+		await open(page, docs.origin, path);
+		await page.waitForLoadState("networkidle");
+		await page.close();
+	}
+	const lines = docs.logs().slice(start);
+	expect(lines.filter((line) => /Unable to parse|uncaught|unhandled/i.test(line))).toEqual([]);
+	const declared = PAGES.flatMap((entry) => entry.logs ?? []);
+	const flare = lines.filter((line) => line.startsWith("[flare:"));
+	// A line no page declares stays whole, so an extra one shows as itself.
+	expect(flare.map((line) => declared.find((message) => line.includes(message)) ?? line)).toEqual(declared);
 });
