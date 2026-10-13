@@ -315,6 +315,51 @@ it("stream call", async () => {
 	expect(fetch.mock.calls[0]?.[0]).toBe("/_flare/fn/ticks");
 });
 
+function echoed(): Response {
+	return Response.json({ name: "echo", status: 200, data: 1 });
+}
+
+function aboutData(): Response {
+	const frames = [encodeFrame({ t: "l", m: "_root_", d: null }), encodeFrame({ t: "l", m: "_root_/about", d: 1 })];
+	return new Response([...frames, encodeFrame({ t: "r" })].join(""), {
+		headers: { "content-type": "application/x-ndjson" },
+	});
+}
+
+function tabOf(call: Parameters<ClientEnv["fetch"]> | undefined): string | null {
+	return new Headers(call?.[1].headers).get("flare-dev-tab");
+}
+
+// In dev the client announces the dev server's tab token and names it on its own requests, so a server bug opens
+// the overlay in this tab only. Without a hot channel, as in production, neither happens (dx/plugin.md, B42).
+it("dev tab", async () => {
+	const echo = { id: "echo", name: "echo", record: { kind: "handler", method: "post", authenticate: false } };
+	for (const [hot, meta, token] of [
+		[{ send: vi.fn<(event: string, payload: unknown) => void>() }, "T9", "T9"],
+		[undefined, "T9", null],
+		[{ send: vi.fn<(event: string, payload: unknown) => void>() }, undefined, null],
+	] as const) {
+		const host = install("b1");
+		if (meta !== undefined)
+			document.head.insertAdjacentHTML("beforeend", `<meta name="flare-dev-tab" content="${meta}">`);
+		const fetch = vi.fn<ClientEnv["fetch"]>(async (url) =>
+			String(url).includes("_flare=data") ? aboutData() : echoed(),
+		);
+		const ready = createReady();
+		const navigates: ReadyContext["navigate"][] = [];
+		ready.api.onReady((ctx) => navigates.push(ctx.navigate));
+		stops.push(await bootClient(routerOf(), ready, { ...env(host, fetch), hot }));
+		const call: unknown = Reflect.get(Object((globalThis as Dom).flare), "call");
+		if (typeof call !== "function") throw new Error("no self.flare.call");
+		await Reflect.apply(call, undefined, [echo, null]);
+		await navigates[0]({ to: "_root_/about" });
+		expect(fetch.mock.calls.map((seen) => tabOf(seen))).toEqual([token, token]);
+		expect(hot?.send.mock.calls ?? []).toEqual(token === null ? [] : [["flare:tab", { token }]]);
+		document.head.querySelector('meta[name="flare-dev-tab"]')?.remove();
+		for (const stop of stops.splice(0)) stop();
+	}
+});
+
 // The navigator and the transport read the one id the document wrote: both reload on another build's answer.
 it("one build", async () => {
 	const host = install("b1");

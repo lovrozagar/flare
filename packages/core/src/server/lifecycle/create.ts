@@ -6,7 +6,7 @@ import { loadChain, type Match } from "../../shared/router/create-router.ts";
 import { foldCase } from "../../shared/router/fold.ts";
 import { withServerContext } from "../context/ctx.ts";
 import { runLoaders } from "../loaders/run.ts";
-import { devSink, projectError, type ErrorSink } from "../render/projector.ts";
+import { devSink, projectError, requestSink, type ErrorSink } from "../render/projector.ts";
 import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
@@ -59,8 +59,9 @@ type Call = {
 
 // One request through the pipeline (02-system).
 function serveOne(at: Serving, call: Call): Promise<Response> {
-	const { options, sink } = at;
 	const { request, env } = call;
+	const options = at.options;
+	const sink = requestSink(at.sink, request);
 	const secured = applySecurity({
 		url: request.url,
 		headers: new Headers(),

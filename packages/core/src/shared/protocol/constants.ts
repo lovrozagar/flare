@@ -14,3 +14,7 @@ export const CACHE_HEADER = "flare-cache";
 
 // Marks a server function's returned Response, so the client resolves it untouched instead of reading an envelope.
 export const FN_HEADER = "flare-fn";
+
+// Dev only: the request header that names the tab a request came from, so a dev error reaches that tab (B42). The dev
+// server writes it, and a production server never sees it.
+export const TAB_HEADER = "flare-dev-tab";

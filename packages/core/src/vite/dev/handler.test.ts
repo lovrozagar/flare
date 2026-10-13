@@ -139,7 +139,7 @@ it("set-cookie", async () => {
 });
 
 it("load error", async () => {
-	const report = vi.fn<(error: unknown) => void>();
+	const report = vi.fn<(error: unknown, token: string | undefined) => void>();
 	const fetch = devFetch({
 		load: () => Promise.reject(new SyntaxError("Unexpected <token>")),
 		transform: transform([]),
@@ -148,7 +148,7 @@ it("load error", async () => {
 	const answer = await fetch(new Request("http://localhost/"));
 	expect(answer.status).toBe(500);
 	expect(await answer.text()).toContain("Unexpected &lt;token&gt;");
-	expect(report).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: "Unexpected <token>" }));
+	expect(report).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: "Unexpected <token>" }), undefined);
 	const odd = devFetch({ load: () => Promise.reject("text"), transform: transform([]), report });
 	expect(await (await odd(new Request("http://localhost/"))).text()).toContain("text");
 	const bare = new Error("no stack");
@@ -176,7 +176,6 @@ function devServer(middlewareMode: boolean) {
 		config: { server: { middlewareMode } },
 		middlewares: { use: (handler) => void used.push(handler) },
 		transformIndexHtml: async (_url, input) => input,
-		ws: { send: vi.fn<(payload: unknown) => void>() },
 		environments: {
 			ssr: {
 				hot: { on: (event, listener) => void (listeners[event] = listener) },
@@ -209,12 +208,78 @@ it("middleware mode", async () => {
 	expect(new TextDecoder().decode(partial.sent.chunks[0])).toBe("<p>real</p>");
 });
 
-it("error relay", () => {
-	const { server, listeners } = devServer(false);
+function tab(): Tab & { send: ReturnType<typeof vi.fn<(payload: unknown) => void>> } {
+	return { send: vi.fn<(payload: unknown) => void>() };
+}
+
+const bug = { type: "error", err: { message: "boom", stack: "at x" } };
+
+// An SSR payload carries the token of the tab whose request caused it, and only that tab gets it. A tab that
+// disconnects gets nothing more (BUGS.md B38, B42).
+it("other tab silent", () => {
+	const { server, listeners, clientListeners } = devServer(false);
 	installDevHandler(server, "src/server.ts");
-	const payload = { type: "error", err: { message: "boom", stack: "at x" } };
-	listeners["flare:error"]?.(payload);
-	expect(server.ws.send).toHaveBeenCalledExactlyOnceWith(payload);
+	const [a, b] = [tab(), tab()];
+	clientListeners["flare:tab"]?.({ token: "A" }, a);
+	clientListeners["flare:tab"]?.({ token: "B" }, b);
+	listeners["flare:error"]?.({ token: "A", payload: bug });
+	expect(a.send).toHaveBeenCalledExactlyOnceWith(bug);
+	expect(b.send).not.toHaveBeenCalled();
+	clientListeners["vite:client:disconnect"]?.(undefined, a);
+	listeners["flare:error"]?.({ token: "A", payload: bug });
+	clientListeners["flare:tab"]?.({ token: 7 }, b);
+	expect(a.send).toHaveBeenCalledOnce();
+	expect(b.send).not.toHaveBeenCalled();
+});
+
+// A document's error comes before its tab connects: it waits for that token's announce, at most 30 s and 20
+// payloads. A payload with no token reaches no tab. The handler mints the token, hands it to the app as a header,
+// and writes it into the page it serves (dx/plugin.md, BUGS.md B42).
+it("document error after connect", async () => {
+	vi.useFakeTimers({ now: 0, toFake: ["Date"] });
+	const { server, listeners, clientListeners } = devServer(false);
+	installDevHandler(server, "src/server.ts");
+	listeners["flare:error"]?.({ token: "late", payload: bug });
+	listeners["flare:error"]?.({ token: "never", payload: bug });
+	listeners["flare:error"]?.({ payload: bug });
+	listeners["flare:error"]?.("not a message");
+	const late = tab();
+	clientListeners["flare:tab"]?.({ token: "late" }, late);
+	expect(late.send).toHaveBeenCalledExactlyOnceWith(bug);
+	vi.setSystemTime(30_001);
+	const never = tab();
+	clientListeners["flare:tab"]?.({ token: "never" }, never);
+	expect(never.send).not.toHaveBeenCalled();
+	for (let index = 0; index < 21; index += 1) listeners["flare:error"]?.({ token: "busy", payload: { n: index } });
+	const busy = tab();
+	clientListeners["flare:tab"]?.({ token: "busy" }, busy);
+	expect(busy.send.mock.calls.map(([payload]) => payload)).toEqual(
+		Array.from({ length: 20 }, (_, n) => ({ n: n + 1 })),
+	);
+	vi.useRealTimers();
+	const seen: string[] = [];
+	const report = vi.fn<(error: unknown, token: string | undefined) => void>();
+	const minted = devFetch({
+		load: async () =>
+			app(async (request) => html(`<html><head></head><body>${request.headers.get("flare-dev-tab")}</body></html>`)),
+		transform: async (_url, input) => input,
+		tab: () => "T1",
+		report,
+	});
+	const served = await (await minted(new Request("http://localhost/"))).text();
+	expect(served).toBe('<html><head><meta name="flare-dev-tab" content="T1"></head><body>T1</body></html>');
+	const kept = await minted(new Request("http://localhost/x", { headers: { "flare-dev-tab": "T0" } }));
+	seen.push(await kept.text());
+	expect(seen[0]).toContain("<body>T0</body>");
+	const broken = devFetch({
+		load: () => Promise.reject(new Error("no entry")),
+		transform: transform([]),
+		tab: () => "T2",
+		report,
+	});
+	const failure = await (await broken(new Request("http://localhost/"))).text();
+	expect(failure).toContain('<meta name="flare-dev-tab" content="T2">');
+	expect(report).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: "no entry" }), "T2");
 });
 
 // A client's `flare:error` (a boundary error, an applied `e` frame) goes back to that tab only (BUGS.md B42).
@@ -225,7 +290,6 @@ it("client error relayed", () => {
 	const tab = { send: vi.fn<(payload: unknown) => void>() };
 	clientListeners["flare:error"]?.(payload, tab);
 	expect(tab.send).toHaveBeenCalledExactlyOnceWith(payload);
-	expect(server.ws.send).not.toHaveBeenCalled();
 });
 
 it("entry export", async () => {

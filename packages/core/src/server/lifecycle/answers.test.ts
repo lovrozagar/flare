@@ -180,3 +180,39 @@ it("deferred no overlay", async () => {
 	expect(sink.send).toHaveBeenCalledOnce();
 	expect(sink.log.error.mock.calls.filter((call) => call[1] === "late")).toHaveLength(2);
 });
+
+function mask(text: string): string {
+	return text.replaceAll(/[0-9a-f]{12,}/g, "#");
+}
+
+// A production server has no dev sink, so it never reads the dev tab header: a request carrying it is answered, logged,
+// and reported exactly as one without it (B40, BUGS.md B42). Digests and nonces are random hex, so they are masked.
+it("prod tab header", async () => {
+	const page = createPage("_root_/p")
+		.loader(() => {
+			throw new Error("boom");
+		})
+		.render(() => "p");
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] });
+	const seen: unknown[] = [];
+	const variants: Record<string, string>[] = [{}, { "flare-dev-tab": "x" }];
+	for (const headers of variants) {
+		const log = { level: "error" as const, error: vi.fn<Logged>(), warn: vi.fn<Logged>(), log: vi.fn<Logged>() };
+		const app = serveWith({ router }, { dev: false, log });
+		const read = vi.spyOn(Headers.prototype, "get");
+		const answers = [];
+		for (const path of ["/p", "/p?_flare=data"]) {
+			const response = await app.fetch(new Request(`http://localhost${path}`, { headers }));
+			const own = [...response.headers].map(([name, value]) => `${name}: ${mask(value)}`);
+			answers.push({ status: response.status, headers: own, body: mask(await response.text()) });
+		}
+		const tabReads = read.mock.calls.filter(([name]) => name.toLowerCase() === "flare-dev-tab").length;
+		read.mockRestore();
+		const logged = [log.error, log.warn, log.log].map((spy) =>
+			spy.mock.calls.map((call) => mask(JSON.stringify(call))),
+		);
+		seen.push({ answers, logged, tabReads });
+	}
+	expect(seen[1]).toEqual(seen[0]);
+	expect(Reflect.get(Object(seen[0]), "tabReads")).toBe(0);
+});
