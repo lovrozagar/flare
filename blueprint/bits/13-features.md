@@ -6,6 +6,12 @@ A component's rows run on the Solid build they are about. Rows that render on th
 
 ## Extends
 
+`server/loaders/scope.ts` is born here. Each loader and preloader call runs under a child of the request event, through Solid's `provideRequestEvent`, carrying `{ kind, params, locale }`, so i18n's hooks read the running call without core importing the feature. `server/loaders/scope.test.ts` holds the row. `run.test.ts` is at its 500-line cap.
+
+| test | case | result |
+| --- | --- | --- |
+| `loader scope` | two runs at once under one request, with different params, each with a preloader and a loader that awaits | each loader reads its own `{ kind: "loader", params, locale }` across the await, and `serverCtx()` still answers inside it. A preloader reads `kind` `"preloader"`. After the loaders return, `getRequestEvent()` is the parent again with no scope. A run with no raw params gives `{}` |
+
 `tests/types/app` gains the rows bit 07 could not hold: `query options input`, `query options void`, and `query client present` in `checks.ts`, plus the fixture's `src/query.ts` importing `@lovrozagar/flare/query`, and `app.test.ts` asserts the generated `hasQueryClient` is `true`. Bit 13 is not done until `app.test.ts` is green with them.
 
 `tests/integration/nonce.test.ts` gains `features`: `ThemeScript`, `DirectionScript`, `LocaleScript`, and `FontCSS` each carry the CSP header nonce.
@@ -253,7 +259,7 @@ This file calls `boot({ app: "i18n", runtime, mode })` (B70). The project name s
 | `locale channel fail` | the navigation does not commit | the screen stays, and nothing is posted |
 | `locale channel quiet` | `BroadcastChannel` is absent, or `broadcastEnabled` is false | this tab still navigates, and nothing is posted |
 | `config` | the `i18n()` object | the provider renders the children |
-| `outside` | `useLoaderT` during render | throw |
+| `outside` | `useLoaderT(translations)` during render, in a request outside any loader, inside a preloader, with no request, and with no router locale config; `usePreloaderT` the same way | throw. Inside a loader, `t` is bound to that run's `paramName` param when it is a configured tag, else `defaultLocale`. Inside a preloader, `usePreloaderT` does the same |
 | `locale outside` | `useLocale` with no provider | throw |
 | `lang` | `LocaleScript` inside the provider, tag `hr` | `lang` is `hr`, including when the element already had another lang. The script nonce equals the request nonce |
 | `script outside` | `LocaleScript` with no provider | throw |

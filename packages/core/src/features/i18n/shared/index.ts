@@ -5,3 +5,4 @@ export { LocaleProvider, type LocaleConfigInput, type LocaleProviderProps, type 
 export type { RichComponent, RichComponents } from "./rich.ts";
 export { LocaleScript } from "./script.tsx";
 export { createTranslations, type Messages, type Translate, type Translations } from "./translate.ts";
+export { useLoaderT, usePreloaderT } from "./hooks.ts";

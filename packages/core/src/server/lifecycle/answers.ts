@@ -245,6 +245,7 @@ export function loaderInput(exchange: Exchange, matched: Loaded): RunInput {
 	const routes = matched.chain.map((entry) => ({ ...entry.module, id: entry.id }));
 	return {
 		params: definedParams(matched.params),
+		locale: exchange.options.router.locale,
 		search: readSearch(new URL(exchange.request.url).search),
 		kind: exchange.kind,
 		dev: exchange.sink.dev,
