@@ -1,4 +1,7 @@
+/// <reference types="vite/client" />
+
 import { getObserver, getOwner } from "solid-js";
+import { devWarn } from "../dev/warn.ts";
 import type { FlareRegister, RegisteredEnv, RegisteredServerContext, ResolvedAuth } from "../route-builder/register.ts";
 import type { ValidatorInput, ValidatorOutput } from "../route-builder/types.ts";
 import type { Validator } from "../validation/index.ts";
@@ -183,13 +186,17 @@ function internalOf(config: object): Internal {
 	};
 }
 
-// A direct client call in a component or route body throws before any work (B45, B85): an owner exists and no
-// reactive observer runs. A memo or effect compute has an observer. An event handler, an effect callback, and code
-// after an await have no owner. An onSettled callback looks like a body, so it throws too (dx/server-fn.md).
+// A direct client call in a component or route body warns in dev, then calls (B45): an owner exists and no reactive
+// observer runs. The check is a heuristic, so it never throws: a suspense query's first queryFn and an onSettled
+// callback match it too (BUGS.md B36). A memo or effect compute has an observer. An event handler, an effect callback,
+// and code after an await have no owner. A production bundle drops the check with `import.meta.env.DEV`.
 function callable(internal: Internal, record: ServerFnRecord, call: ServerFnCall): Callable {
 	const invoke = (input?: unknown): unknown => {
-		if (internal.client && getOwner() !== null && getObserver() === null) {
-			throw new Error(`${internal.name} was called during a render. Call it from an event, an effect, or a queryFn`);
+		if (import.meta.env?.DEV && internal.client && getOwner() !== null && getObserver() === null) {
+			devWarn(
+				"server-fn",
+				`${internal.name} was called during a render. Call it from an event or an effect, or fetch it with serverFnQueryOptions`,
+			);
 		}
 		return call(fn, input);
 	};

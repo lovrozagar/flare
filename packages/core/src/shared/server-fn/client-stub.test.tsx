@@ -27,20 +27,30 @@ function caught(run: () => unknown): unknown {
 	}
 }
 
+// The render check is a heuristic, so a direct call in a render warns in dev and still calls (BUGS.md B36). Vite
+// replaces `import.meta.env.DEV` with false in a production bundle, which drops the check.
 it("client stub", async () => {
 	const { secret, transport, stub } = stubbed();
-	const thrown: unknown[] = [];
+	const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+	const sent: unknown[] = [];
 	createRoot(() => {
 		createComponent(() => {
-			thrown.push(caught(() => stub(1)));
+			sent.push(stub(1));
 			return null;
 		}, {});
 	});
-	expect(String(thrown[0])).toMatch(/stub was called during a render/);
-	expect(transport).not.toHaveBeenCalled();
-	expect(await stub(1)).toBe("sent");
+	expect(await sent[0]).toBe("sent");
+	expect(warn).toHaveBeenCalledExactlyOnceWith(
+		expect.stringMatching(/^\[flare:server-fn\] stub was called during a render/),
+	);
 	expect(transport).toHaveBeenCalledExactlyOnceWith(stub, 1);
+	vi.stubEnv("DEV", false);
+	createRoot(() => createComponent(() => void stub(2), {}));
+	vi.unstubAllEnvs();
+	expect(warn).toHaveBeenCalledOnce();
+	expect(transport).toHaveBeenCalledTimes(2);
 	expect(secret).not.toHaveBeenCalled();
+	warn.mockRestore();
 });
 
 it("memo call", async () => {
@@ -68,6 +78,7 @@ it("memo call", async () => {
 
 it("on settled", () => {
 	const { transport, stub } = stubbed();
+	const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 	const thrown: unknown[] = [];
 	const dispose = createRoot((done) => {
 		createComponent(() => {
@@ -77,7 +88,9 @@ it("on settled", () => {
 		return done;
 	});
 	flush();
-	expect(String(thrown[0])).toMatch(/during a render/);
-	expect(transport).not.toHaveBeenCalled();
+	expect(thrown).toEqual([undefined]);
+	expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/during a render/));
+	expect(transport).toHaveBeenCalledExactlyOnceWith(stub, 1);
+	warn.mockRestore();
 	dispose();
 });
