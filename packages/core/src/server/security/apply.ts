@@ -6,16 +6,18 @@ const KEYS = ["X-Frame-Options", "Content-Security-Policy"] as const;
 // One shape for the server's and a route's `.security()` (shared/route-builder/types.ts).
 export type { SecurityConfig };
 
+// `dev` is the server's dev mode: the policy then allows what Vite's client needs (csp.ts `applyDev`).
 export function applySecurity(input: {
 	url: string;
 	headers: Headers;
+	dev?: boolean;
 	routeHeaders?: Record<string, string>;
 	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig) | undefined;
 	route?: SecurityConfig;
 }): { headers: Headers; nonce: string } {
 	const headers = new Headers(input.headers);
 	writeRoute(headers, input.routeHeaders);
-	const built = buildCsp({ url: input.url });
+	const built = buildCsp({ url: input.url, dev: input.dev === true });
 	for (const [name, value] of built.headers) headers.set(name, value);
 	let nonce = built.nonce;
 	const server = typeof input.security === "function" ? input.security({ nonce }) : input.security;

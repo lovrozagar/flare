@@ -60,7 +60,12 @@ type Call = {
 function serveOne(at: Serving, call: Call): Promise<Response> {
 	const { options, sink } = at;
 	const { request, env } = call;
-	const secured = applySecurity({ url: request.url, headers: new Headers(), security: options.security });
+	const secured = applySecurity({
+		url: request.url,
+		headers: new Headers(),
+		dev: sink.dev,
+		security: options.security,
+	});
 	const internal = classify(new URL(request.url), options.router.basePath);
 	const capture = call.prerender === undefined ? {} : { prerender: call.prerender };
 	const outer = { options, request, env, secured, sink, kind: "document" as const, stale: null, ...capture };
