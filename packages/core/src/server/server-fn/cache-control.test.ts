@@ -1,8 +1,7 @@
 import { expect, it } from "vitest";
-import type { ServerFnRecord } from "../../shared/server-fn/builder.ts";
 import { fnCacheControl, setCacheControl } from "./cache-control.ts";
 
-const post: ServerFnRecord = { method: "post", authenticate: false };
+const post: Parameters<typeof fnCacheControl>[0] = { method: "post", authenticate: false };
 
 it("default", () => {
 	expect(fnCacheControl(post)).toBe("private, no-store");

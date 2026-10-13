@@ -116,13 +116,18 @@ test("stream", async ({ page, docs }) => {
 	await expect(page.locator("#stream-status")).toHaveText("done");
 });
 
+// A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
 test("stream abort", async ({ page, docs }) => {
 	await open(page, docs.origin, "/playground");
+	const log = page.locator("#stream-log li");
 	await page.locator("#stream-start").click();
-	await expect(page.locator("#stream-log li")).toHaveCount(2);
+	await page.waitForFunction(() => document.querySelectorAll("#stream-log li").length >= 2);
 	await page.locator("#stream-stop").click();
 	await expect(page.locator("#stream-status")).toHaveText("aborted");
-	expect(await page.locator("#stream-log li").count()).toBeLessThan(6);
+	// 500 ms is more than three lines: a count that holds means the stream stopped.
+	const stopped = await log.count();
+	await page.waitForTimeout(500);
+	expect(await log.count()).toBe(stopped);
 });
 
 test("server context", async ({ page, docs }) => {

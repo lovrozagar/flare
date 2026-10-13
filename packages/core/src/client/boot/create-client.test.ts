@@ -3,6 +3,7 @@ import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { InterceptOutlet, Link, type InterceptState } from "../../shared/components/index.ts";
 import { encodeFrame } from "../../shared/protocol/index.ts";
+import { createServerFn } from "../server-fn/call.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { PrefetchContext, useRouter, type LinkPrefetch } from "../../shared/router/context.ts";
@@ -264,19 +265,12 @@ it("overlay", async () => {
 	expect(history.state).toEqual({ index: 1, usr: undefined, intercepted: true });
 });
 
-// A stream record: the transport sends it to the NDJSON reader. Its body never runs on the client.
-async function* stream(): AsyncGenerator<number> {
-	yield 0;
-}
-
-// bootClient writes the transport onto self.flare: a handler posts and resolves its data, and a stream iterates its
-// NDJSON lines (bits/07). The state already on self.flare stays.
+// bootClient writes the transport onto self.flare: a handler posts and resolves its data (bits/07). The state already
+// on self.flare stays.
 it("server fn call", async () => {
 	const host = install("b1");
-	const ndjson = '{"name":"ticks","status":200,"data":1}\n{"name":"ticks","status":200,"data":2}\n';
 	const answers: Record<string, () => Response> = {
 		"/_flare/fn/echo": () => Response.json({ name: "echo", status: 200, data: { n: 1 } }),
-		"/_flare/fn/ticks": () => new Response(ndjson, { headers: { "content-type": "application/x-ndjson" } }),
 		"/_flare/fn/moved": () =>
 			Response.json({ name: "moved", status: 303, redirect: { to: "/#top", status: 303, replace: true } }),
 		"/_flare/fn/stale": () =>
@@ -292,10 +286,6 @@ it("server fn call", async () => {
 	const echo = { id: "echo", name: "echo", record: { method: "post", authenticate: false } };
 	expect(await Reflect.apply(call, undefined, [echo, { a: 1 }])).toEqual({ n: 1 });
 	expect(fetch.mock.calls[0]?.[0]).toBe("/_flare/fn/echo");
-	const ticks = { id: "ticks", name: "ticks", record: { method: "post", authenticate: false, stream } };
-	const seen: unknown[] = [];
-	for await (const value of Reflect.apply(call, undefined, [ticks, null])) seen.push(value);
-	expect(seen).toEqual([1, 2]);
 	// A same-origin redirect is the internal URL navigation, and the call still rejects.
 	const moved = { id: "moved", name: "moved", record: { method: "post", authenticate: false } };
 	await expect(Reflect.apply(call, undefined, [moved, null])).rejects.toThrow("HTTP 303");
@@ -304,6 +294,25 @@ it("server fn call", async () => {
 	const stale = { id: "stale", name: "stale", record: { method: "post", authenticate: false } };
 	await expect(Reflect.apply(call, undefined, [stale, null])).rejects.toThrow("The app was updated");
 	expect(browser.assign).toHaveBeenCalledWith(window.location.href);
+});
+
+// The client graph's stream function as the boundary transform emits it: the generator is stripped to `undefined`, and
+// the booted transport still sends it to the NDJSON reader by its kind (BUGS.md B14). A variable, so the internal
+// fields type-check.
+it("stream call", async () => {
+	const host = install("b1");
+	const ndjson = '{"name":"ticks","status":200,"data":1}\n{"name":"ticks","status":200,"data":2}\n';
+	const fetch = vi.fn<ClientEnv["fetch"]>(
+		async () => new Response(ndjson, { headers: { "content-type": "application/x-ndjson" } }),
+	);
+	stops.push(await bootClient(routerOf(), createReady(), env(host, fetch)));
+	const config = { method: "post" as const, __id: "ticks", __name: "ticks", __client: true };
+	const ticks = createServerFn(config).stream(undefined as never);
+	const seen: unknown[] = [];
+	for await (const value of ticks()) seen.push(value);
+	expect(seen).toEqual([1, 2]);
+	expect(fetch).toHaveBeenCalledOnce();
+	expect(fetch.mock.calls[0]?.[0]).toBe("/_flare/fn/ticks");
 });
 
 // The navigator and the transport read the one id the document wrote: both reload on another build's answer.

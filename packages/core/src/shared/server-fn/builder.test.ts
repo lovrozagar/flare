@@ -27,7 +27,12 @@ async function* numbers(): AsyncGenerator<number> {
 }
 
 it("default method", () => {
-	expect(createServerFn().handler(handler).record).toEqual({ method: "post", authenticate: false, handler });
+	expect(createServerFn().handler(handler).record).toEqual({
+		kind: "handler",
+		method: "post",
+		authenticate: false,
+		handler,
+	});
 	expect(createServerFn({ method: "get" }).handler(handler).record.method).toBe("get");
 });
 
@@ -56,6 +61,12 @@ it("stream or handler", () => {
 		.handler(handler).record;
 	expect(validated.authenticate).toBe(true);
 	expect(typeof validated.input).toBe("function");
+});
+
+// The client graph's transform strips the generator to `undefined`, so the kind comes from the method (BUGS.md B14).
+it("stream kind", () => {
+	expect(createServerFn().stream(numbers).record.kind).toBe("stream");
+	expect(createServerFn().stream(undefined as never).record.kind).toBe("stream");
 });
 
 const validator = (value: unknown): unknown => value;

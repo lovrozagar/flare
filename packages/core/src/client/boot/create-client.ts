@@ -142,7 +142,7 @@ function installCall(
 		assign: env.assign,
 	};
 	const call: ServerFnCall = (fn, input) =>
-		fn.record.stream === undefined ? callServerFn(fn, input, deps) : streamServerFn(fn, input, deps);
+		fn.record.kind === "stream" ? streamServerFn(fn, input, deps) : callServerFn(fn, input, deps);
 	Reflect.set(globalThis, "flare", Object.assign(flare, { call }));
 }
 
