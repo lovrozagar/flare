@@ -238,6 +238,8 @@ Core reads the registered getter by its symbol and never imports TanStack (00-ru
 
 | test | case | result |
 | --- | --- | --- |
+| `response route` | an untagged `.response()` route under an optional locale, with `Accept-Language: hr` and a `flare.locale=hr` cookie, whose handler sets `public, max-age=300` | 200, the handler's `Cache-Control` kept, no `Set-Cookie`, no redirect (BUGS.md B23) |
+| `response route tagged` | `/hr/llms.txt` on the same route | its own `Cache-Control` kept, no `Set-Cookie` |
 | `slot` | the object is passed as `createServer({ locale })` | it runs between rewrite and middleware |
 | `not a middleware` | the return type | it is not assignable to the middleware list |
 | `redirect is a route` | the folded locale target does not match a route | 404, no redirect |
