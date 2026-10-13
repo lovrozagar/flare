@@ -112,6 +112,9 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 
 | test | case | result |
 | --- | --- | --- |
+| `concurrent miss` | 8 overlapping misses of one key, with a store whose `set` resolves late | one render, one write, and all 8 bodies from that render; each answers `flare-cache: miss` (BUGS.md B31) |
+| `miss after render` | a request whose lookup ran before another flight's write landed, arriving after that render settled | it renders nothing and serves the stored entry as `flare-cache: hit` (BUGS.md B33) |
+| `slot frees after write` | a flight's write settles; a render that throws; a write that throws | a later stale refresh starts a new flight in each case, so no slot is left held |
 | `hit` | a fresh entry | status 200, the body, and `flare-cache: hit`. Loaders and `.headers()` do not run |
 | `miss` | no entry | the rendered body, and `flare-cache: miss` |
 | `tombstone` | a tombstone newer than `storedAt` | miss |
