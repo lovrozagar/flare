@@ -475,8 +475,10 @@ packages/core/src/features/direction/shared/script-of.ts	P13	src	shared	dirOf. I
 packages/core/src/features/direction/shared/script-of.test.ts	P13	test	shared	Unit cases for script-of.ts
 packages/core/src/features/direction/shared/script.tsx	P13	src	dom	DirectionScript. Optional locale prop. Storage beats dirOf. Nonced
 packages/core/src/features/direction/shared/script.test.tsx	P13	test	dom	Unit cases for script.tsx
+packages/core/src/features/direction/shared/script.ssr.test.ts	P13	test	dom	script.tsx on Solid's server build: the nonce, the escape, and the before-paint script run in jsdom
 packages/core/src/features/direction/shared/provider.tsx	P13	src	dom	DirectionProvider and useDirection. Locale prop. Does not import i18n. Posts direction on flare.sync. No storage listener
 packages/core/src/features/direction/shared/provider.test.tsx	P13	test	dom	Unit cases for provider.tsx
+packages/core/src/features/direction/shared/provider.ssr.test.ts	P13	test	dom	provider.tsx on Solid's server build: server set, server pure, outside
 packages/core/src/features/direction/shared/index.ts	P13	index	shared	Re-exports
 packages/core/src/features/query/shared/options.ts	P13	src	shared	serverFnQueryOptions and serverFnMutationOptions. The client writes the cache from the function result
 packages/core/src/features/query/shared/options.test.ts	P13	test	shared	Unit cases for options.ts
