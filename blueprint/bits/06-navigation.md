@@ -127,7 +127,6 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 
 | test | case | result |
 | --- | --- | --- |
-| `fresh no request` | `/` then `/a` (with `staleTime: "30s"`) then `/` then `/a` again within 30 s, under a shared mounted layout | the last navigation sends no request and paints `/a`'s cached data, head, and values; with `revalidate: true` it fetches (BUGS.md B19) |
 | `commit then push` | a successful data response | the DOM updates, then `history.pushState` |
 | `network` | the fetch fails and has no status | the screen and the history stay |
 | `auth error` | HTTP 401, and HTTP 403 | the auth error is committed on the target, the outlet paints the walked auth boundary or its built-in `div`, then history is pushed |
@@ -161,6 +160,13 @@ navigate.test.ts is near the test-file limit, so the shallow cases live beside i
 | --- | --- | --- |
 | `shallow` | a shallow navigate to the current route with new search, then again with `replace` | no request and no loader run, the URL and the page's search values are the call's, loader data is unchanged, history gains one entry then replaces it, and `pending` stays false (BUGS.md B18) |
 | `shallow blocked` | the same with a blocker that returns `false` | the URL and the search stay, and no history entry is written |
+
+### `client/navigation/navigate-cache.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `fresh no request` | `/` then `/a` (with `staleTime: "30s"`) then `/` then `/a` again within 30 s, under a root with `staleTime: "30s"` | the last navigation sends no request and paints `/a`'s cached data, head, and values; with `revalidate: true` it fetches (BUGS.md B19) |
+| `mounted layout stale` | the same, but the root keeps the default `staleTime` | the last navigation sends a request: a mounted layout is not fresh by being mounted (BUGS.md B19) |
 
 ### `client/navigation/navigate-slots.test.ts`
 
@@ -289,7 +295,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `deferred filled cached` | a `cacheDeferred: true` page whose `c` frames land after the commit | the entry is rewritten with the filled values and no longer counts as deferred; a revisit within `staleTime` paints the values with no fill (BUGS.md B19) |
 | `store success` | an `l` payload | the cache returns it |
 | `evict error` | an `e` payload for that id | the cache has no entry |
-| `stale time` | `staleTime: 1000`, read at 1001 ms | miss |
+| `stale time` | `staleTime: 1000`, read at 1001 ms; `staleTime: 0`, read in the same millisecond it was stored | miss; miss. A zero `staleTime` is never fresh (found with BUGS.md B19) |
 | `gc` | `gcTime: "1s"` and no read for 1s | the entry is gone |
 | `loader deps` | `loaderDeps` returns a new array whose values differ | the loader refetches on a stay |
 | `loader deps same` | `loaderDeps` returns a new array with the same values | the loader does not refetch. The match id is unchanged |
