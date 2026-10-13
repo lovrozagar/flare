@@ -1,4 +1,4 @@
-import { dataRequests, deepOnly, expect, fnId, isProd, open, test } from "./docs.fixture.ts";
+import { dataRequests, deepOnly, expect, fnId, isProd, open, serverOf, test } from "./docs.fixture.ts";
 
 // Deferred data, TanStack Query, server functions, server context, and the env helpers (bits/15 docs-data).
 deepOnly();
@@ -117,7 +117,11 @@ test("stream", async ({ page, docs }) => {
 });
 
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
-test("stream abort", async ({ page, docs }) => {
+test("stream abort", async ({ page, docs }, info) => {
+	test.skip(
+		serverOf(info).startsWith("workers"),
+		"Miniflare never reports a client disconnect to the worker (BUGS.md B45, dx/adapters.md)",
+	);
 	await open(page, docs.origin, "/playground");
 	const log = page.locator("#stream-log li");
 	await page.locator("#stream-start").click();
