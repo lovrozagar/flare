@@ -20,6 +20,7 @@ import { finalize } from "../lifecycle/finalize.ts";
 import { mergeHeaders } from "../security/apply.ts";
 import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts";
 import { createDefer, type DeferMode, type Started } from "./defer.ts";
+import { inLoaderScope, type ScopeSource } from "./scope.ts";
 
 export type LoaderRoute = {
 	id: string;
@@ -36,7 +37,9 @@ export type LoaderRoute = {
 
 type View = { params: unknown; search: unknown; loaderData: unknown; preloaderContext: PreloaderContext };
 
-export type RunInput = {
+// `params` are the raw records each validator receives (dx/types.md): no absent optional param, and search as read.
+// They and the router's `locale` config are what each loader and preloader call sees in its scope.
+export type RunInput = ScopeSource & {
 	kind: RequestKind;
 	request: Request;
 	env: unknown;
@@ -46,9 +49,6 @@ export type RunInput = {
 	overlay?: (error: unknown) => void;
 	response?: Respond;
 	routes: readonly LoaderRoute[];
-	// The raw records every match's `.input()` validators read.
-	// The raw records each validator receives (dx/types.md): no absent optional param, and search as read.
-	params?: Readonly<Record<string, string | string[]>>;
 	search?: Readonly<Record<string, string | string[]>>;
 	dev?: boolean;
 	stored?: boolean;
@@ -225,7 +225,7 @@ function load(input: ValidRun, loading: Loading): Promise<Loaded[]> {
 			const settled =
 				input.skip?.has(route.id) === true
 					? { ok: true as const, data: undefined }
-					: await settle(route, ctx, input.dev ?? false);
+					: await inLoaderScope("loader", input, () => settle(route, ctx, input.dev ?? false));
 			return { id: route.id, settled, started: scope.started, holes: scope.holes };
 		}),
 	);

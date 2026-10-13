@@ -3,6 +3,7 @@ import { statusOf } from "../../shared/errors/status.ts";
 import type { ChainAuth, PreloaderContext, Respond, StepContext } from "../../shared/route-builder/chain.ts";
 import type { RequestKind } from "../loaders/cascade.ts";
 import type { Lookup } from "../cache/epoch.ts";
+import { inLoaderScope, type ScopeSource } from "../loaders/scope.ts";
 import { effectiveAuth } from "./effective.ts";
 import { identity, type PolicyClass } from "./identity.ts";
 
@@ -16,7 +17,8 @@ export type GateRoute = {
 	authorize?: (ctx: StepContext) => boolean | Promise<boolean>;
 };
 
-export type GateInput = {
+// `params` and `locale` are the run's, for each preloader call's scope.
+export type GateInput = ScopeSource & {
 	kind: RequestKind;
 	request: Request;
 	env: unknown;
@@ -60,7 +62,7 @@ export async function gate(input: GateInput): Promise<GateResult> {
 	let latest: PreloaderContext = {};
 	for (const [index, route] of input.routes.entries()) {
 		const own = { ...base, params: route.params, search: route.search };
-		const guarded = await guard(route, index === 0 ? own : { ...own, preloaderContext: latest });
+		const guarded = await guard(route, index === 0 ? own : { ...own, preloaderContext: latest }, input);
 		if (!guarded.ok) return { kind: "stopped", index, session, error: guarded.error, contexts };
 		latest = merge(latest, guarded.added);
 		contexts.push(latest);
@@ -99,10 +101,10 @@ async function takeSession(reads: boolean, authenticate: () => unknown): Promise
 
 // Parent before child: this match's preloader and authorize settle before the next match starts. Both see
 // the parents' context, not this match's own return (dx/types.md).
-async function guard(route: GateRoute, ctx: StepContext): Promise<Guarded> {
+async function guard(route: GateRoute, ctx: StepContext, source: ScopeSource): Promise<Guarded> {
 	if (ctx.auth === null && route.auth?.mode === true) return { ok: false, error: new UnauthenticatedError() };
 	try {
-		const added = await route.preloader?.(ctx);
+		const added = await inLoaderScope("preloader", source, () => route.preloader?.(ctx));
 		if (route.authorize !== undefined && !(await route.authorize(ctx))) {
 			return { ok: false, error: new UnauthorizedError() };
 		}

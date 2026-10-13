@@ -173,7 +173,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `use match untyped` | `useMatch({ from })` | the return | `{ id: string, routeId: string }` | `match.params`; `match.loaderData.user` | app |
 | `use location raw` | `useLocation()` | `params`, `search` | the raw records. No `{ from }` | the validator output assigned to `search` | app |
 | `use navigate` | `useNavigate()` | the return | the same generic as `navigate` | a separate untyped `(to: string) => void` | |
-| `i18n t hooks` | `useLoaderT`, `usePreloaderT` | the binding | `t` for that loader or preloader | either hook used as `useLoaderData` | |
+| `i18n t hooks` | `useLoaderT(translations)`, `usePreloaderT(translations)` | the binding | `t` for that loader or preloader: `(key, values?) => string`, plus `t.rich` | either hook used as `useLoaderData`; a call with no translations | |
 | `defer field` | `ctx.defer(async () => ({ quote: string }))` | `loaderData.reviews` | `Deferred<{ quote: string }>` | the field assigned `{ quote: string }`; the field awaited | app |
 | `defer nested` | the same | `.promise` | `(await reviews.promise).quote` is `string` | `reviews.quote`; `reviews.message` | app |
 | `defer no then` | `Deferred<T>` | `Awaited` | the deferred field stays wrapped | `Awaited<Deferred<T>>` equals `T` | |
