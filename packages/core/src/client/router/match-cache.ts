@@ -52,6 +52,8 @@ export type Plan = {
 export type MatchCache = {
 	store: (match: CachedMatch, entry: CacheEntry) => void;
 	evict: (match: CachedMatch) => void;
+	// The entry still holding this data now has every deferred value settled. It keeps its clock.
+	filled: (match: CachedMatch, data: unknown) => void;
 	read: (match: CachedMatch) => Stored | undefined;
 	deps: (match: CachedMatch) => string | undefined;
 	plan: (plan: Plan) => { fetch: boolean; stale: string[]; fresh: boolean };
@@ -85,6 +87,7 @@ export function createMatchCache(options: {
 			if (entries.size > max) entries.delete(required(entries.keys().next().value, "the oldest entry"));
 		},
 		evict: (match) => void entries.delete(matchKey(match)),
+		filled: (match, data) => fill(entries, matchKey(match), data),
 		read,
 		deps,
 		// A page the client holds fresh is listed in _flare_stale, so the server skips its loader (B30). A layout
@@ -102,7 +105,8 @@ export function createMatchCache(options: {
 				// `0` is never fresh, not even within the millisecond the entry was stored (dx/cache.md, B19).
 				const staleTime = entry?.staleTime ?? options.staleTime;
 				if (entry === undefined || plan.revalidate || staleTime === 0 || now() - entry.at > staleTime) return false;
-				return entry.deps === deps(match) && (!entry.deferred || clientOf(match.client).cacheDeferred === true);
+				// A deferred entry is reused only once filled, which only `cacheDeferred: true` marks (B19).
+				return entry.deps === deps(match) && !entry.deferred;
 			};
 			const pages = plan.matches.filter((match) => !match.layout);
 			const kept = pages.filter((match) => held(match) && !asks(match));
@@ -114,6 +118,12 @@ export function createMatchCache(options: {
 			return { fetch, stale: kept.map((match) => match.id), fresh };
 		},
 	};
+}
+
+// A newer landing replaced the entry when its data is not this one, and the newer entry has its own watch.
+function fill(entries: Map<string, Stored>, key: string, data: unknown): void {
+	const entry = entries.get(key);
+	if (entry !== undefined && entry.data === data) entries.set(key, { ...entry, deferred: false });
 }
 
 // One match of one URL: the route id and the match id.
@@ -151,8 +161,24 @@ export function cachedMatches(match: Match, location: Location): CachedMatch[] {
 export function remember(cache: MatchCache, matches: readonly CachedMatch[], landing: Landed): void {
 	for (const match of matches) {
 		if (landing.failure?.route === match.route || match.client === false) cache.evict(match);
-		else if (match.route in landing.data) cache.store(match, entryOf(match, landing));
+		else if (match.route in landing.data) {
+			const entry = entryOf(match, landing);
+			cache.store(match, entry);
+			// `cacheDeferred: true`: once every deferred value settles, the entry counts as filled (dx/cache.md, B19).
+			if (entry.deferred && clientOf(match.client).cacheDeferred === true) {
+				void Promise.allSettled(deferredOf(entry.data)).then(() => cache.filled(match, entry.data));
+			}
+		}
 	}
+}
+
+// The live promises a match's data still waits on. A raw placeholder never settles on its own.
+function deferredOf(value: unknown): Promise<unknown>[] {
+	if (Array.isArray(value)) return value.flatMap(deferredOf);
+	if (typeof value !== "object" || value === null) return [];
+	if (Reflect.get(value, "__deferred") !== true) return Object.values(value).flatMap(deferredOf);
+	const promise: unknown = Reflect.get(value, "promise");
+	return [promise instanceof Promise ? promise : new Promise<never>(() => undefined)];
 }
 
 function entryOf(match: CachedMatch, landing: Landed): CacheEntry {
