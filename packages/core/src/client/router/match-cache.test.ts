@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest";
 import { createPage } from "../../shared/route-builder/page.ts";
+import { revive, type Pending } from "../navigation/frames.ts";
 import { cachedMatches, cacheFor, createMatchCache, remember, type CachedMatch, type Effects } from "./match-cache.ts";
 
 function clock(): { now: () => number; at: (ms: number) => void } {
@@ -132,7 +133,40 @@ it("deferred placeholder", () => {
 	const { cache } = cacheAt();
 	cache.store(page(), { data: { slow: { __deferred: true, key: "d0" } }, deferred: true });
 	expect(plan(cache, [page()]).stale).toEqual([]);
-	expect(plan(cache, [page(undefined, { client: { cacheDeferred: true } })]).stale).toEqual(["id=7&"]);
+	expect(plan(cache, [page(undefined, { client: { cacheDeferred: true } })]).stale).toEqual([]);
+});
+
+// `cacheDeferred: true` reuses an entry only once its deferred values settle. The entry then counts as filled, on its
+// first clock, and the revisit paints the values with no request (dx/cache.md, B19).
+it("deferred filled cached", async () => {
+	const { cache, time } = cacheAt({ staleTime: 60_000 });
+	const slots: Pending = new Map();
+	const data = revive({ title: "t", slow: { __deferred: true, key: "d0" } }, "_root_/users/[id]", slots);
+	const deferring = page(undefined, { client: { cacheDeferred: true } });
+	remember(cache, [deferring], { data: { "_root_/users/[id]": data }, heads: {} });
+	expect(plan(cache, [deferring])).toEqual({ fetch: true, stale: [], fresh: false });
+	time.at(500);
+	slots.get("_root_/users/[id]\nd0")?.resolve("filled");
+	await Promise.resolve();
+	await Promise.resolve();
+	expect(cache.read(deferring)?.deferred).toBe(false);
+	expect(plan(cache, [deferring])).toEqual({ fetch: true, stale: ["id=7&"], fresh: true });
+	time.at(60_001);
+	expect(plan(cache, [deferring]).fresh).toBe(false);
+	expect(await Reflect.get(Object(Reflect.get(Object(cache.read(deferring)?.data), "slow")), "promise")).toBe("filled");
+	const raw = page(undefined, { id: "raw", client: { cacheDeferred: true } });
+	remember(cache, [raw], { data: { "_root_/users/[id]": [{ __deferred: true, key: "d1" }] }, heads: {} });
+	await Promise.resolve();
+	expect(cache.read(raw)?.deferred).toBe(true);
+	// An entry evicted before its values settle stays gone.
+	const gone = page(undefined, { id: "gone", client: { cacheDeferred: true } });
+	const later = revive({ __deferred: true, key: "d2" }, "_root_/users/[id]", slots);
+	remember(cache, [gone], { data: { "_root_/users/[id]": later }, heads: {} });
+	cache.evict(gone);
+	slots.get("_root_/users/[id]\nd2")?.resolve("late");
+	await Promise.resolve();
+	await Promise.resolve();
+	expect(cache.read(gone)).toBeUndefined();
 });
 
 it("cap", () => {
