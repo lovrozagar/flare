@@ -45,12 +45,15 @@ it("page intercept", () => {
 		.render(render);
 	expect(page.intercept).toEqual({ from: ["_root_/gallery"], render: "preview" });
 	expect(() => createPage("_root_/x").intercept({ from: [], render: "preview" })).toThrow(/from/);
+	// An untyped caller can still call a step out of order or twice. The type has removed it (B9).
 	expect(() =>
 		createPage("_root_/x")
 			.cache({ ssr: { ttl: "1m" } })
+			// @ts-expect-error intercept is gone after cache
 			.intercept({ from: ["_root_/"], render: "preview" }),
 	).toThrow(/order: intercept/);
 	const twice = createPage("_root_/x").intercept({ from: ["_root_/"], render: "a" });
+	// @ts-expect-error intercept is gone after intercept
 	expect(() => twice.intercept({ from: ["_root_/"], render: "b" })).toThrow(/intercept twice/);
 });
 

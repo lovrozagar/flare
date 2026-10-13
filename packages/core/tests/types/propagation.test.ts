@@ -1,4 +1,6 @@
 import { expectTypeOf, it } from "vitest";
+import { createPage } from "../../src/shared/route-builder/page.ts";
+import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import type {
 	Deferred,
 	ExtractPathParams,
@@ -382,21 +384,49 @@ it("auth boundary", () => {
 	expectTypeOf<Props["error"]>().toEqualTypeOf<Error>();
 	expectTypeOf<Props>().not.toHaveProperty("reset");
 });
+// The real builders: each step removes itself and every step before it, so an out-of-order chain does not type-check
+// instead of throwing `order:` on the first request (BUGS.md B9).
 it("method order", () => {
-	expectTypeOf<{ render: () => void }>().not.toHaveProperty("cache");
+	const loaded = createPage("_root_/").loader(() => ({ ok: true }));
+	expectTypeOf(loaded).not.toHaveProperty("cache");
+	expectTypeOf(loaded).not.toHaveProperty("response");
+	expectTypeOf(loaded).toHaveProperty("head");
+	const secured = createRootLayout("_admin_")
+		.headers(() => ({}))
+		.security({});
+	expectTypeOf(secured).not.toHaveProperty("head");
+	expectTypeOf(secured).not.toHaveProperty("headers");
+	expectTypeOf(secured).toHaveProperty("render");
+	const guarded = createPage("_admin_/admin")
+		.authenticate()
+		.preloader(() => ({}));
+	expectTypeOf(guarded).not.toHaveProperty("authorize");
+	expectTypeOf(guarded).not.toHaveProperty("authenticateOptional");
+	expectTypeOf(guarded).toHaveProperty("loader");
 });
 it("boundary remains", () => {
-	type Left = { notFoundRender: () => void };
-	expectTypeOf<Left>().toHaveProperty("notFoundRender");
-	expectTypeOf<Left>().not.toHaveProperty("errorRender");
+	const left = createPage("_root_/")
+		.render(() => "page")
+		.errorRender(() => "error");
+	expectTypeOf(left).toHaveProperty("notFoundRender");
+	expectTypeOf(left).not.toHaveProperty("errorRender");
 });
 it("boundaries done", () => {
-	expectTypeOf<"errorRender" extends keyof { render?: never } ? true : false>().toEqualTypeOf<false>();
+	const done = createPage("_root_/")
+		.render(() => "page")
+		.errorRender(() => "error")
+		.notFoundRender(() => "missing")
+		.unauthenticatedRender(() => "guest")
+		.unauthorizedRender(() => "denied");
+	expectTypeOf(done).not.toHaveProperty("errorRender");
+	expectTypeOf(done).not.toHaveProperty("notFoundRender");
+	expectTypeOf(done).not.toHaveProperty("unauthenticatedRender");
+	expectTypeOf(done).not.toHaveProperty("unauthorizedRender");
 });
 it("intercept remains", () => {
-	type Left = { cache: () => void };
-	expectTypeOf<Left>().toHaveProperty("cache");
-	expectTypeOf<Left>().not.toHaveProperty("intercept");
+	const left = createPage("_root_/search").intercept({ from: ["_root_/"], render: "search-modal" });
+	expectTypeOf(left).toHaveProperty("cache");
+	expectTypeOf(left).not.toHaveProperty("intercept");
 });
 it("segment no data", () => {
 	type Segment = { _type: "segment"; render: (props: { children: unknown }) => unknown };

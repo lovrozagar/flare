@@ -9,7 +9,10 @@ const missing = (): string => "missing";
 
 it("boundary once", () => {
 	const page = createPage("_root_/").render(render);
+	// An untyped caller can still call a boundary method twice. The type has removed it.
+	// @ts-expect-error errorRender is gone after errorRender
 	expect(() => page.errorRender(fallback).errorRender(fallback)).toThrow(/errorRender twice/);
+	// @ts-expect-error notFoundRender is gone after notFoundRender
 	expect(() => page.notFoundRender(missing).unauthorizedRender(fallback).notFoundRender(missing)).toThrow(
 		/notFoundRender twice/,
 	);
