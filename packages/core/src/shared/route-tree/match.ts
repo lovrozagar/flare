@@ -2,9 +2,20 @@ import { parseSegment, type Segment } from "./segments.ts";
 
 export type RawParams = Record<string, string | string[] | undefined>;
 
-export type MatchOptions = { caseSensitive?: boolean };
+// `accepts` may refuse a value for a named single segment, such as a locale param that holds no tag. A refused
+// optional segment stays empty, and a refused required one does not match.
+export type MatchOptions = { caseSensitive?: boolean; accepts?: (name: string, value: string) => boolean };
 
-type Walk = { segments: readonly Segment[]; parts: readonly string[]; sensitive: boolean };
+type Walk = {
+	segments: readonly Segment[];
+	parts: readonly string[];
+	sensitive: boolean;
+	accepts: (name: string, value: string) => boolean;
+};
+
+function acceptsAll(): boolean {
+	return true;
+}
 
 export function matchPath(pattern: string, path: string, options: MatchOptions = {}): boolean {
 	return matchParams(pattern, path, options) !== undefined;
@@ -17,6 +28,7 @@ export function matchParams(pattern: string, path: string, options: MatchOptions
 		segments: patternSegments(pattern),
 		parts: path.split("/").filter((part) => part !== ""),
 		sensitive: options.caseSensitive === true,
+		accepts: options.accepts ?? acceptsAll,
 	};
 	return step(walk, 0, 0);
 }
@@ -39,6 +51,8 @@ function step(walk: Walk, at: number, from: number): RawParams | undefined {
 	const most = segment.kind === "dynamic" ? Math.min(1, walk.parts.length - from) : walk.parts.length - from;
 	const least = segment.optional ? 0 : 1;
 	for (let take = most; take >= least; take -= 1) {
+		const first = walk.parts[from];
+		if (segment.kind === "dynamic" && take === 1 && first !== undefined && !walk.accepts(segment.name, first)) continue;
 		const rest = step(walk, at + 1, from + take);
 		if (rest !== undefined)
 			return { ...rest, [segment.name]: value(segment.kind, walk.parts.slice(from, from + take)) };

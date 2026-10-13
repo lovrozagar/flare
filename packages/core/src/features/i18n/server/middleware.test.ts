@@ -168,3 +168,52 @@ it("negotiated private", async () => {
 		/^public/,
 	);
 });
+
+// A server whose router has the locale config, with every loader's locale param recorded.
+function localeServer(): { server: ReturnType<typeof createServer>; tags: unknown[] } {
+	const tags: unknown[] = [];
+	const tagged = (id: string) =>
+		createPage(id)
+			.loader(({ params }) => {
+				tags.push(Reflect.get(params, "locale"));
+				return {};
+			})
+			.render(() => id);
+	const routed = createRouter({
+		layouts: { _root_: root },
+		routeTree: [
+			node("_root_/[[locale]]", "/[[locale]]", tagged("_root_/[[locale]]")),
+			node("_root_/[[locale]]/pricing", "/[[locale]]/pricing", tagged("_root_/[[locale]]/pricing")),
+		],
+		locale: { locales: ["en", "hr"], defaultLocale: "en" },
+	});
+	return { server: createServer({ router: routed, locale }), tags };
+}
+
+it("locale param", async () => {
+	const { server: routed, tags } = localeServer();
+	const at = (path: string): Promise<Response> => routed.fetch(new Request(`http://site.test${path}`));
+	for (const path of ["/favicon.ico", "/x.y"]) expect((await at(path)).status).toBe(404);
+	expect(tags).toEqual([]);
+	expect((await at("/hr")).status).toBe(200);
+	expect(tags).toEqual(["hr"]);
+	const stripped = await at("/fr");
+	expect([stripped.status, stripped.headers.get("location")]).toEqual([302, "/"]);
+	expect(tags).toEqual(["hr"]);
+});
+
+it("data unconfigured tag", async () => {
+	const { server: routed, tags } = localeServer();
+	const at = (path: string): Promise<Response> => routed.fetch(new Request(`http://site.test${path}`));
+	const data = await at("/fr/pricing?_flare=data");
+	expect(data.status).toBe(200);
+	expect(data.headers.get("content-type")).toBe("application/x-ndjson");
+	expect(data.headers.get("cache-control")).toBe("private, no-store");
+	expect(await data.text()).toBe('{"t":"x","s":302,"u":"/pricing","r":true}\n');
+	const prefetch = await at("/fr/pricing?_flare=prefetch");
+	expect(prefetch.status).toBe(404);
+	expect(await prefetch.text()).toBe("");
+	expect(prefetch.headers.get("location")).toBeNull();
+	expect(prefetch.headers.getSetCookie()).toEqual([]);
+	expect(tags).toEqual([]);
+});

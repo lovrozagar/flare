@@ -4,6 +4,7 @@ import type { Location, LocationRewrite } from "../url/index.ts";
 import {
 	directionConfig,
 	localeConfig,
+	localeParam,
 	themeConfig,
 	type DirectionConfig,
 	type DirectionOptions,
@@ -19,6 +20,7 @@ import {
 	patternSegments,
 	pickRoute,
 	readParams,
+	type MatchOptions,
 	type RawParams,
 } from "../route-tree/index.ts";
 
@@ -151,8 +153,15 @@ export function createRouter(options: RouterOptions): Router {
 	return router;
 }
 
+// The matcher options every lookup of this router shares: its case rule, and the locale param's filter.
+function matchOptions(router: Pick<Router, "caseSensitive" | "locale">): MatchOptions {
+	const options: MatchOptions = { caseSensitive: router.caseSensitive };
+	if (router.locale !== undefined) options.accepts = localeParam(router.locale);
+	return options;
+}
+
 function resolve(router: Router, path: string): Match {
-	const options = { caseSensitive: router.caseSensitive };
+	const options = matchOptions(router);
 	const local = stripBase(path, router.basePath);
 	const picked =
 		local === undefined
@@ -205,7 +214,7 @@ function pageMatch(router: Router, page: RouteNode, local: string): Match {
 	const chain = [...layoutChain(router.layouts, page.id), { id: page.id, kind: "page" as const, module: page.module }];
 	const record = typeof page.module === "object" ? page.module : undefined;
 	const response = page.response ?? record?.response !== undefined;
-	const matched: Match = { id: page.id, params: readParams(page.path, local), response, chain };
+	const matched: Match = { id: page.id, params: readParams(page.path, local, matchOptions(router)), response, chain };
 	const client = page.client ?? record?.cache?.client;
 	const intercept = page.intercept ?? record?.intercept;
 	if (client !== undefined) matched.client = client;
@@ -232,7 +241,7 @@ export function layoutChain(layouts: RouterOptions["layouts"], id: string): Chai
 // URL prefix is idPattern of its id, the same rule codegen uses for a page.
 function notFoundOwner(router: Router, path: string): string | undefined {
 	const candidates = Object.keys(router.layouts).filter((id) => router.notFoundMode === "fuzzy" || isRoot(id));
-	const owners = candidates.filter((id) => owns(id, path, router.caseSensitive));
+	const owners = candidates.filter((id) => owns(id, path, matchOptions(router)));
 	return owners.toSorted(specific)[0];
 }
 
@@ -240,8 +249,8 @@ function isRoot(id: string): boolean {
 	return isRootFolder(id.slice(id.lastIndexOf("/") + 1));
 }
 
-function owns(id: string, path: string, caseSensitive: boolean): boolean {
-	return matchParams(`${idPattern(id)}/[[...flareTail]]`, path, { caseSensitive }) !== undefined;
+function owns(id: string, path: string, options: MatchOptions): boolean {
+	return matchParams(`${idPattern(id)}/[[...flareTail]]`, path, options) !== undefined;
 }
 
 // More URL segments first, then the deeper id (a group inside its parent), then `_root_` over another root.

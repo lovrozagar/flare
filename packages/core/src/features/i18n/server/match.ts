@@ -5,6 +5,7 @@ import Negotiator from "negotiator";
 import type { RequestKind } from "../../../shared/protocol/index.ts";
 import { idPattern, patternSegments } from "../../../shared/route-tree/index.ts";
 import type { Router } from "../../../shared/router/index.ts";
+import { localeLike } from "../../../shared/router/features.ts";
 import { buildUrl } from "../../../shared/url/index.ts";
 
 // The server's i18n config, as i18n() resolves it (dx/features.md i18n).
@@ -89,9 +90,13 @@ function pathTag(input: PathInput): LocaleMatch {
 		return { locale: raw, ...(persist && { cookie: raw }) };
 	}
 	const cased = config.locales.find((tag) => tag.toLowerCase() === raw.toLowerCase());
-	if (request.kind !== "document" || (cased === undefined && !localeLike(raw))) return { locale: config.defaultLocale };
-	const cookie = bot ? undefined : (cased ?? config.defaultLocale);
-	if (cased !== undefined) return redirect(input, { tag: cased, status: 301, cookie });
+	if (cased !== undefined) {
+		if (request.kind !== "document") return { locale: config.defaultLocale };
+		return redirect(input, { tag: cased, status: 301, cookie: bot ? undefined : cased });
+	}
+	if (!localeLike(raw)) return { locale: config.defaultLocale };
+	// An unconfigured tag redirects on every kind, so a layout never renders it (B73). A prefetch persists nothing.
+	const cookie = bot || request.kind === "prefetch" ? undefined : config.defaultLocale;
 	return redirect(input, { tag: input.page.optional ? undefined : config.defaultLocale, status: 302, cookie });
 }
 
@@ -136,13 +141,4 @@ function headerTag(header: string | null, config: I18nConfig): string | undefine
 	const NONE = "";
 	const found = match(requested, config.locales, NONE);
 	return found === NONE ? undefined : config.locales.find((tag) => tag.toLowerCase() === found.toLowerCase());
-}
-
-export function localeLike(segment: string): boolean {
-	try {
-		void new Intl.Locale(segment);
-		return true;
-	} catch {
-		return false;
-	}
 }

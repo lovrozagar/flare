@@ -226,6 +226,12 @@ Core reads the registered getter by its symbol and never imports TanStack (00-ru
 | `language spelling` | the header's tag differs in case from the configured tag | the result is the configured spelling |
 | `bot unconfigured` | a bot, an optional unconfigured locale-like segment | the segment is removed. No `Set-Cookie` |
 
+### `shared/router/create-router.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `locale param` | `createRouter({ locale })` with `/[[locale]]`, `/[[locale]]/[[slug]]`, and `/[locale]/docs` | `/favicon.ico` leaves the optional locale empty and is the slug. `/x.y/docs` matches nothing. `/hr` and `/fr` are the locale param. Without a locale config, `x.y` is an ordinary param value (B73) |
+
 ### `features/i18n/server/middleware.test.ts`
 
 | test | case | result |

@@ -136,6 +136,16 @@ it("optional strip", () => {
 	});
 	// A segment that is not locale-like is not a locale.
 	expect(ask("/not_a_tag/pricing")).toEqual({ locale: "en" });
+	// An unconfigured tag redirects on every kind, so a layout never renders it. A prefetch persists nothing.
+	expect(ask("/fr/pricing", { kind: "data" })).toEqual({
+		locale: "en",
+		redirect: { status: 302, location: "/pricing" },
+		cookie: "en",
+	});
+	expect(ask("/fr/pricing", { kind: "prefetch" })).toEqual({
+		locale: "en",
+		redirect: { status: 302, location: "/pricing" },
+	});
 });
 
 it("required keeps", () => {
