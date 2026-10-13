@@ -1,15 +1,12 @@
 name: Release
 
+# A pushed `v*` tag verifies, then publishes the one verified tarball of @lovrozagar/flare (bits/14). A dispatch only
+# verifies: `scripts/release.ts --publish` refuses anywhere but a tag ref, so a publish is re-run from that tag's run.
 on:
   push:
     tags:
       - "v*"
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Existing tag to publish (e.g. v0.1.2). Empty = this ref."
-        required: false
-        default: ""
 
 concurrency:
   group: release-${{ github.ref }}
@@ -23,31 +20,33 @@ permissions:
 env:
   BUN_VERSION: "1.3.11"
   PACKAGE_NAME: "@lovrozagar/flare"
-  PACKAGE_DIR: packages/core
 
 jobs:
-  test:
-    name: test
+  verify:
+    name: verify
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      - run: bun run fmt:check
-      - run: bun run lint
-      - run: bun run typecheck
-      - run: bun run test
-      # The finished tree: every phase complete, the last one included.
-      - run: bun scripts/check-tree.ts --complete P14
+      - run: bunx playwright install --with-deps chromium firefox
+      # The gates, the finished tree, the e2e, the packed tarball, the golden proof on it, and `npm publish --dry-run`.
+      - run: bun scripts/release.ts --out "$RUNNER_TEMP/release"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/release/lovrozagar-flare-*.tgz
+          if-no-files-found: error
 
   npmjs:
     name: npmjs.com
-    needs: test
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -55,41 +54,28 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          bun-version: ${{ env.BUN_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           package-manager-cache: false
       - run: npm install -g npm@latest
-      - name: Check tag matches package.json
-        run: |
-          ref="${{ inputs.tag || github.ref_name }}"
-          tag="${ref#v}"
-          pkg="$(node -p "require('./${{ env.PACKAGE_DIR }}/package.json').version")"
-          if [ "$tag" != "$pkg" ]; then
-            echo "tag v$tag does not match ${{ env.PACKAGE_DIR }}/package.json version $pkg"
-            exit 1
-          fi
-      - name: Sync package README and license
-        run: |
-          cp README.md ${{ env.PACKAGE_DIR }}/README.md
-          cp LICENSE ${{ env.PACKAGE_DIR }}/LICENSE
-      - name: Publish to registry.npmjs.org
-        working-directory: ${{ env.PACKAGE_DIR }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/release
+      - name: Publish the verified tarball to registry.npmjs.org
         run: |
           set -euo pipefail
-          ref="${{ inputs.tag || github.ref_name }}"
-          tag="${ref#v}"
+          tag="${GITHUB_REF_NAME#v}"
           name="${{ env.PACKAGE_NAME }}"
+          tarball="$RUNNER_TEMP/release/lovrozagar-flare-${tag}.tgz"
           encoded="$(node -p 'encodeURIComponent(process.argv[1])' "$name")"
 
           if npm view "${name}@${tag}" version >/dev/null 2>&1; then
             echo "npm already has ${name}@${tag} — skipping"
-            exit 0
-          fi
-          if curl -fsSIL "https://registry.npmjs.org/${name}/-/${name##*/}-${tag}.tgz" >/dev/null 2>&1; then
-            echo "npm tarball for ${name}@${tag} already exists — skipping"
             exit 0
           fi
 
@@ -103,21 +89,6 @@ jobs:
             "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${audience}" \
             -o /tmp/oidc.json
           node -e 'const j=require("/tmp/oidc.json"); if(!j.value) process.exit(2)'
-          node -e '
-            const t = require("/tmp/oidc.json").value
-            const p = JSON.parse(Buffer.from(t.split(".")[1], "base64url").toString())
-            console.log(JSON.stringify({
-              iss: p.iss,
-              aud: p.aud,
-              sub: p.sub,
-              workflow: p.workflow,
-              job_workflow_ref: p.job_workflow_ref,
-              repository: p.repository,
-              ref: p.ref,
-              environment: p.environment ?? null,
-            }))
-          '
-
           oidc_jwt="$(node -e 'process.stdout.write(require("/tmp/oidc.json").value)')"
           code=$(curl -sS -o /tmp/npm-ex.json -w "%{http_code}" \
             -X POST \
@@ -125,7 +96,6 @@ jobs:
             -H "Content-Type: application/json" \
             "https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/${encoded}")
           echo "oidc exchange HTTP $code"
-          node -e 'const j=require("/tmp/npm-ex.json"); console.log(JSON.stringify({error:j.error,message:j.message,token_type:j.token_type,expires:j.expires}))'
           if [ "$code" != "201" ]; then
             echo "npm rejected the GitHub OIDC token."
             echo "On https://www.npmjs.com/package/${name} → Settings → Trusted Publisher"
@@ -140,7 +110,7 @@ jobs:
           fi
           echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > "${HOME}/.npmrc"
           set +e
-          npm publish --access public --provenance
+          bun scripts/release.ts --publish --tarball "$tarball"
           pub=$?
           set -e
           if [ "$pub" -eq 0 ]; then
@@ -154,41 +124,38 @@ jobs:
 
   gh-pkg:
     name: GitHub Packages
-    needs: test
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           registry-url: https://npm.pkg.github.com
           scope: "@lovrozagar"
           package-manager-cache: false
-      - name: Sync package README and license
-        run: |
-          cp README.md ${{ env.PACKAGE_DIR }}/README.md
-          cp LICENSE ${{ env.PACKAGE_DIR }}/LICENSE
-      - name: Publish to GitHub Packages
-        working-directory: ${{ env.PACKAGE_DIR }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: tarball
+          path: ${{ runner.temp }}/release
+      - name: Publish the verified tarball to GitHub Packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          ref="${{ inputs.tag || github.ref_name }}"
-          tag="${ref#v}"
+          tag="${GITHUB_REF_NAME#v}"
           name="${{ env.PACKAGE_NAME }}"
+          tarball="$RUNNER_TEMP/release/lovrozagar-flare-${tag}.tgz"
           if npm view "${name}@${tag}" --registry https://npm.pkg.github.com version >/dev/null 2>&1; then
             echo "GitHub Packages already has ${name}@${tag} — skipping"
             exit 0
           fi
           set +e
-          npm publish --access public --registry https://npm.pkg.github.com
+          npm publish "$tarball" --access public --registry https://npm.pkg.github.com
           pub=$?
           set -e
           if [ "$pub" -eq 0 ]; then
@@ -209,13 +176,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag || github.ref }}
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="${{ inputs.tag || github.ref_name }}"
+          tag="${GITHUB_REF_NAME}"
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "GitHub release $tag already exists"
           else
