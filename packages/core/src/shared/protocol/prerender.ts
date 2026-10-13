@@ -18,6 +18,9 @@ export type PrerenderPage = {
 export type PrerenderRoute = {
 	id: string;
 	path: string | undefined;
+	// When every param segment is optional: the URL with each absent, then one per other configured locale when one of
+	// them is the locale param. Empty otherwise (B101, BUGS.md B10).
+	bare: string[];
 	response: boolean;
 	auth: { requires: boolean; reads: boolean };
 	authorize: boolean;

@@ -90,11 +90,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 9.3 [x] Write a failing `tests/types/propagation.test.ts` case (`method order`: `head` after `headers` is `@ts-expect-error`). Then remove earlier methods from `RouteBuilder` as each step is called (`shared/route-builder/route-types.ts:158`).
 9.4 [x] Verify: `bun run typecheck` passes with the new negative case. Fixed in 4457caf. Its verify waited on a green typecheck, which B25 and B37 give.
 
-10 [ ] B10 The sitemap drops every non-SSG page under an optional locale root
-10.1 [ ] Repro: the docs app's main root is `[[locale]]/_root_`. Build with `prerender.sitemap` and read `client/sitemap.xml`.
-10.2 [ ] Expected: a public page whose only param is the absent optional locale (`/search`, `/changelog`, `/playground`, `/examples`, `/[flare]`) is one entry, as a URL with no param segment is (`dx/seo.md`). Actual: 40 entries, all SSG docs and home pages plus `additionalEntries`. Every page that is not built at prerender is missing, so an i18n app's sitemap is SSG-only.
-10.3 [ ] Decide in `blueprint/01-decisions.md` whether an absent optional param counts as resolved. Then write a failing `features/seo/vite/sitemap.test.ts` case (`optional absent`) and implement it.
-10.4 [ ] Verify: `docs-features` `sitemap` lists `/search` and excludes `/admin`.
+10 [x] B10 The sitemap drops every non-SSG page under an optional locale root
+10.1 [x] Repro: the docs app's main root is `[[locale]]/_root_`. Build with `prerender.sitemap` and read `client/sitemap.xml`.
+10.2 [x] Expected: a public page whose only param is the absent optional locale (`/search`, `/changelog`, `/playground`, `/examples`, `/[flare]`) is one entry, as a URL with no param segment is (`dx/seo.md`). Actual: 40 entries, all SSG docs and home pages plus `additionalEntries`. Every page that is not built at prerender is missing, so an i18n app's sitemap is SSG-only.
+10.3 [x] Decided (B101): an absent optional param counts as resolved. Cause: prerender gave a route a `path` only when its pattern had no param segment, and the sitemap otherwise listed only prerendered paths, so every page under `[[locale]]/_root_` that is not prerendered was dropped. Fix: `PrerenderRoute.bare` is the URL with every optional segment absent, plus one per other configured tag when the locale param is among them (the tags come with the locale slot); the sitemap lists `path`, else rendered paths and `bare`, each once. A required param stays prerender-only. Failing tests first: `sitemap.test.ts` `optional absent`, `prerender.test.ts` `bare path`.
+10.4 [x] Verify: `docs-features` `sitemap` lists `/search` and `/hr/search` and excludes `/admin`, and `robots` passes, on node-prod-chromium.
 
 11 [ ] B11 `public/` is copied into the server and worker outputs
 11.1 [ ] Repro: build the docs app and list the output.

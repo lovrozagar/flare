@@ -18,7 +18,13 @@ export type LocaleDecision = {
 	negotiated?: boolean | undefined;
 };
 
-export type LocaleSlot = { readonly [LOCALE_SLOT]: (input: LocaleInput) => LocaleDecision };
+// The configured tags and the param name come with the slot, so the sitemap lists each locale's URL (B101).
+export type LocaleSlot = {
+	readonly [LOCALE_SLOT]: (input: LocaleInput) => LocaleDecision;
+	readonly locales: readonly string[];
+	readonly defaultLocale: string;
+	readonly paramName: string;
+};
 
 // The locale slot, between rewrite and middleware, around the middleware chain of a page request (02-system). The
 // feature decides. The cookie rule is the core's: the locale cookie rides the slot's own redirects, which are

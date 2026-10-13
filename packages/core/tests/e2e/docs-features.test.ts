@@ -236,6 +236,8 @@ test("sitemap", async ({ request, docs }, info) => {
 	const body = await (await request.get(`${docs.origin}/sitemap.xml`)).text();
 	expect(body).toContain("<loc>https://flare.test/docs/routing</loc>");
 	expect(body).toContain("<loc>https://flare.test/search</loc>");
+	// Every other locale of a page whose only param is the optional locale is listed too (B101).
+	expect(body).toContain("<loc>https://flare.test/hr/search</loc>");
 	expect(body).not.toContain("/admin");
 	expect(body).not.toContain("/login");
 	expect(body).toContain(

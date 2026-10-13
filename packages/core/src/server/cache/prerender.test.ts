@@ -9,6 +9,7 @@ import { createRouter, type RouteNode } from "../../shared/router/create-router.
 import { createMiddleware } from "../middleware/index.ts";
 import { serveWith } from "../lifecycle/create.ts";
 import type { Logger } from "../lifecycle/logger.ts";
+import { LOCALE_SLOT } from "../lifecycle/locale-slot.ts";
 import { fromSentinel } from "./nonce.ts";
 import type { StoredPage } from "./write.ts";
 
@@ -266,6 +267,7 @@ it("routes", async () => {
 	expect(routes[0]).toEqual({
 		id: "_root_/",
 		path: "/app",
+		bare: [],
 		response: false,
 		auth: { requires: false, reads: false },
 		authorize: false,
@@ -278,4 +280,34 @@ it("routes", async () => {
 	expect(loaders).toEqual([]);
 	expect((await prerenderer().routes())[0]?.path).toBe("/");
 	expect(prerenderer({ site: undefined }).site).toBeUndefined();
+});
+
+function page(id: string) {
+	return createPage(id).render(() => "x");
+}
+
+// A page whose dynamic segments are all optional has a bare URL with each of them absent, plus one per other locale
+// when one of them is the locale param. A required param has none (B101, BUGS.md B10).
+it("bare path", async () => {
+	const tree = [
+		node("[[locale]]/_root_/search", "/[[locale]]/search", page("[[locale]]/_root_/search")),
+		node(
+			"[[locale]]/_root_/examples/[[...rest]]",
+			"/[[locale]]/examples/[[...rest]]",
+			page("[[locale]]/_root_/examples/[[...rest]]"),
+		),
+		node("[[locale]]/_root_/docs/[slug]", "/[[locale]]/docs/[slug]", page("[[locale]]/_root_/docs/[slug]")),
+		node("_root_/tags/[[tag]]", "/tags/[[tag]]", page("_root_/tags/[[tag]]")),
+	];
+	const layouts = { "[[locale]]/_root_": createRootLayout("[[locale]]/_root_").render(() => "x"), _root_: root };
+	const router = createRouter({ layouts, routeTree: tree });
+	const locale = { [LOCALE_SLOT]: () => ({}), locales: ["en", "hr", "ar"], defaultLocale: "en", paramName: "locale" };
+	const found = prerendererOf(serveWith({ router, site: SITE, locale }, { dev: false, log: quiet }));
+	const bare = Object.fromEntries(((await found?.routes()) ?? []).map((item) => [item.id, item.bare]));
+	expect(bare).toEqual({
+		"[[locale]]/_root_/search": ["/search", "/hr/search", "/ar/search"],
+		"[[locale]]/_root_/examples/[[...rest]]": ["/examples", "/hr/examples", "/ar/examples"],
+		"[[locale]]/_root_/docs/[slug]": [],
+		"_root_/tags/[[tag]]": ["/tags"],
+	});
 });
