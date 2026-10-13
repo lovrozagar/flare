@@ -12,6 +12,10 @@ import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import { createRouter, type Router } from "../../src/shared/router/create-router.ts";
 import type { Head } from "../../src/server/render/head.ts";
+import { DirectionScript } from "../../src/features/direction/shared/index.ts";
+import { createFont, FontCSS } from "../../src/features/fonts/shared/index.ts";
+import { LocaleProvider, LocaleScript } from "../../src/features/i18n/shared/index.ts";
+import { ThemeScript } from "../../src/features/theme/shared/index.ts";
 
 // The server build's sheet. The source module is empty.
 vi.mock("../../src/shared/css/sheet.ts", () => ({
@@ -250,4 +254,40 @@ it("stylesheet", async () => {
 	const body = await response.text();
 	expect(body).toContain(`<script nonce="${headerNonce(response.headers)}">document.getElementById(`);
 	expect(body).toContain('<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css" />');
+});
+
+// Every feature's inline tag carries the CSP header's nonce: the theme, direction, and locale scripts, and the font CSS.
+it("features", async () => {
+	const locale = { locales: ["en", "hr"], defaultLocale: "en" };
+	const font = createFont({ family: "Brand", src: "/fonts/brand.woff2", category: "serif" });
+	const page = createPage("_root_/").render(() =>
+		createComponent(LocaleProvider, {
+			config: locale,
+			initial: "hr",
+			get children() {
+				return [
+					createComponent(ThemeScript, {}),
+					createComponent(DirectionScript, { locale: "hr" }),
+					createComponent(LocaleScript, {}),
+					createComponent(FontCSS, { font }),
+				];
+			},
+		}),
+	);
+	const featured = createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => documentOf(props.children)) },
+			routeTree: [{ id: "_root_/", path: "/", module: page }],
+			theme: {},
+			direction: {},
+			locale,
+		}),
+	});
+	const response = await featured.fetch(new Request("http://localhost/"));
+	const body = await response.text();
+	const expected = headerNonce(response.headers);
+	expect(capture(body, /<script nonce="([^"]+)">[^<]*flare\.theme/)).toBe(expected);
+	expect(capture(body, /<script nonce="([^"]+)">[^<]*flare\.dir/)).toBe(expected);
+	expect(capture(body, /<script nonce="([^"]+)">[^<]*\.lang=/)).toBe(expected);
+	expect(capture(body, /<style[^>]*nonce="([^"]+)"[^>]*>@font-face/)).toBe(expected);
 });
