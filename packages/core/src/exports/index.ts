@@ -34,3 +34,4 @@ export { useBlocker } from "../client/navigation/index.ts";
 export { ThemeProvider, ThemeScript, useTheme } from "../features/theme/shared/index.ts";
 export { DirectionProvider, DirectionScript, useDirection } from "../features/direction/shared/index.ts";
 export { Image, type ImageBinding, type ImageProps } from "../features/image/shared/index.ts";
+export { createFont, FontCSS, type Font, type FontCSSProps, type FontOptions } from "../features/fonts/shared/index.ts";
