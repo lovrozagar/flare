@@ -124,6 +124,7 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 
 | test | case | result |
 | --- | --- | --- |
+| `public once` | `buildConfig`, and a real build of a fixture with `public/x.txt` and a worker config | the ssr and worker environments set `build.copyPublicDir: false` and the client keeps the default; the output has `client/x.txt` and neither `server/x.txt` nor `worker/x.txt` (BUGS.md B11) |
 | `client error relayed` | a client sends `flare:error` | that payload goes to that client only (BUGS.md B42) |
 | `other tab silent` | an SSR payload tagged with tab A's token, tabs A and B connected | A receives it and B does not (BUGS.md B38) |
 | `document error after connect` | a payload for a token announced later; one never announced; one with no token | the first is held and sent on the `flare:tab` announce; the second is dropped after 30 s (and the 21st held payload drops the oldest); the third is sent to no one and still logged |
