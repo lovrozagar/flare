@@ -42,6 +42,18 @@ Install from the packed tarball, not from the workspace.
 | `bun` | the same build, served with `createBunFetch` | the same three requests |
 | `workers` | the same build under miniflare | the same three requests |
 
+## Font file emit
+
+`emitFonts` (bit 13, `features/fonts/vite/emit.ts`) is composed into `flare()` here, once the generated modules exist. `flare({ fonts: { dir } })` names the directory that holds `<family>/<file>.woff2`. The plugin collects the `features/fonts/shared/generated/<id>.ts` modules the client bundle contains and, in `generateBundle`, emits only those families' files at their registry url. Without `fonts`, it emits nothing and the app serves `/fonts/...` itself (`public/fonts` works). `dx/plugin.md` gains the `fonts` row.
+
+### `vite/plugin/fonts.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `fonts emit` | a real client run of an app that imports one registry family, with `fonts.dir` holding two families | the output holds that family's woff2 at its url and not the other family's |
+| `fonts absent` | the same app without `fonts` | no woff2 is emitted and the run succeeds |
+| `fonts dir missing file` | `fonts.dir` lacks a file the used family lists | the run fails and names the file |
+
 ## `features/fonts/generate.test.ts`
 
 | test | case | result |
