@@ -122,6 +122,12 @@ function renderProps(state: () => OutletState, depth: number, kind: OutletMatch[
 	});
 }
 
+// InterceptOutlet's child paints a throw by the walk from the layout that owns the outlet, as a slot does (B41).
+export function ownerGuard(content: () => JSX.Element): JSX.Element {
+	const slot = defined(useContext(SlotContext), "the layout that owns the outlet");
+	return guard(slot.state, slot.depth - 1, content);
+}
+
 // On the client, a rejection the app's own <Errored> did not catch, such as a deferred `e`, is the B77 walk from
 // this slot (B80), and in dev it is a bug the overlay shows. A server render throw is a status instead (B93).
 function guard(state: () => OutletState, depth: number, content: () => JSX.Element): JSX.Element {

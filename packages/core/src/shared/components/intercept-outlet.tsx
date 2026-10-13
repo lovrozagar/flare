@@ -3,7 +3,7 @@ import type { JSX } from "@solidjs/web";
 import type { ChainRecord } from "../route-builder/chain.ts";
 import type { Located } from "../route-builder/index.ts";
 import type { Location } from "../url/index.ts";
-import type { OutletMatch, OutletState } from "./outlet.tsx";
+import { ownerGuard, type OutletMatch, type OutletState } from "./outlet.tsx";
 import { MatchesContext } from "./outlet-nodes.ts";
 
 // Raw, or what that file's `.input()` returned.
@@ -46,7 +46,8 @@ export function InterceptOutlet(props: { children: (state: InterceptState) => JS
 		const current = overlay();
 		if (current === undefined) return undefined;
 		const shown = withOverlay(useContext(MatchesContext), current);
-		return untrack(() => props.children(stateOf(current, shown)));
+		// Each overlay gets its own boundary, so a throw paints in the outlet and closing the overlay clears it (B41).
+		return untrack(() => ownerGuard(() => props.children(stateOf(current, shown))));
 	});
 	// JSX.Element types a reactive child only inside an array, the shape compiled JSX gives a fragment.
 	return [view];

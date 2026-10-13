@@ -7,6 +7,7 @@ import { createMatchCache } from "../../client/router/match-cache.ts";
 import { createPopstate } from "../../client/navigation/popstate.ts";
 import { createRouterStore, snapshotFromState } from "../../client/router/store.ts";
 import { encodeFrame, type Frame } from "../protocol/index.ts";
+import { createLayout } from "../route-builder/layout.ts";
 import { createPage } from "../route-builder/page.ts";
 import { createRootLayout } from "../route-builder/root-layout.ts";
 import { createRouter, loadChain } from "../router/create-router.ts";
@@ -162,6 +163,56 @@ it("page hooks", async () => {
 	expect(location.pathname).toBe("/notes/7");
 	expect(counts.home).toBe(homes);
 	expect(seen.rootData).toBe(rootData);
+});
+
+// A root whose errorRender owns the outlet, and a target whose own layout is not mounted in the overlay (B41).
+const guarded = createRootLayout("_root_")
+	.render((props) => [
+		"root[",
+		props.children,
+		"|",
+		createComponent(InterceptOutlet, { children: (state: InterceptState) => state.match.render() }),
+		"]",
+	])
+	.errorRender((props) => `caught:${props.error.message}`);
+const shelf = createLayout("_root_/shelf").render((props) => props.children);
+const book = createPage("_root_/shelf/[id]")
+	.intercept({ from: ["_root_/"], render: "book" })
+	.render(() => String(useLoaderData({ from: "_root_/shelf" })));
+const shelved = createRouter({
+	layouts: { _root_: guarded, "_root_/shelf": shelf },
+	routeTree: [
+		{ id: "_root_/", path: "/", module: home },
+		{ id: "_root_/shelf/[id]", path: "/shelf/[id]", module: book },
+	],
+});
+
+it("layout hook throws", async () => {
+	const frames: Frame[] = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/shelf", d: "S" },
+		{ t: "l", m: "_root_/shelf/[id]", d: "B1" },
+		{ t: "r" },
+		{ t: "d" },
+	];
+	const app = await mountNavigator(shelved, async () => ndjson(frames));
+	await app.navigator.navigate({ to: "_root_/shelf/[id]", params: { id: "1" } });
+	flush();
+	expect(app.text()).toBe("root[home:start|caught:_root_/shelf is not a route on screen]");
+});
+
+// No errorRender on the chain: the built-in div paints, and the dev overlay payload is sent once.
+it("child throw reported", async () => {
+	const thrown = new Error("child broke");
+	view = () => {
+		throw thrown;
+	};
+	const reported = vi.fn<(error: unknown) => void>();
+	const app = await mountNavigator(router, async () => ndjson(photoFrames("P1")), { onBoundaryError: reported });
+	await app.navigator.navigate(open);
+	flush();
+	expect(app.text()).toBe("root[home:start|Something went wrong]");
+	expect(reported).toHaveBeenCalledExactlyOnceWith(thrown);
 });
 
 it("no provider", () => {
