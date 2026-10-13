@@ -78,7 +78,8 @@ it("preview", async () => {
 // the output.
 const PROD_BOOT = 120_000;
 
-async function prod(runtime: "node" | "bun" | "workers"): Promise<void> {
+// Returns what the boot captured from its runtime.
+async function prod(runtime: "node" | "bun" | "workers"): Promise<readonly string[]> {
 	const session = await boot({ app: "minimal", runtime, mode: "prod" });
 	try {
 		const response = await fetch(`${session.origin}/`);
@@ -96,11 +97,13 @@ async function prod(runtime: "node" | "bun" | "workers"): Promise<void> {
 	}
 	expect(existsSync(session.cacheDir)).toBe(false);
 	await expect(fetch(`${session.origin}/`)).rejects.toThrow(/fetch failed|ECONNREFUSED/);
+	return session.logs();
 }
 
-it("node prod", () => prod("node"), PROD_BOOT);
+// A prod server's child is captured like a dev one: the origin it prints is the first line.
+it("node prod", async () => expect((await prod("node"))[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/), PROD_BOOT);
 
-it("bun prod", () => prod("bun"), PROD_BOOT);
+it("bun prod", async () => expect((await prod("bun"))[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/), PROD_BOOT);
 
 it("workers prod", () => prod("workers"), PROD_BOOT);
 
@@ -190,6 +193,33 @@ it(
 	},
 	VITE_BOOT,
 );
+
+// The boot keeps what its child prints, stdout and stderr, in memory in the order it arrived, one entry per line,
+// and writes none of it to disk (BUGS.md B8).
+it("logs captured", async () => {
+	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
+	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
+	const script = [
+		"const later = (ms, fn) => new Promise((resolve) => setTimeout(() => resolve(fn()), ms));",
+		'process.stdout.write("one\\ntw");',
+		'await later(50, () => process.stdout.write("o\\n"));',
+		'await later(50, () => process.stderr.write("three\\n"));',
+		'await later(50, () => console.log("http://127.0.0.1:1"));',
+		"setInterval(() => undefined, 1000);",
+	].join("\n");
+	const session = await bootChild({
+		appDir,
+		cacheDir,
+		bin: process.execPath,
+		args: ["--input-type=module", "-e", script],
+	});
+	try {
+		expect(session.logs()).toEqual(["one", "two", "three", "http://127.0.0.1:1"]);
+		expect(readdirSync(cacheDir)).toEqual([]);
+	} finally {
+		await session.close();
+	}
+});
 
 it("failed boot", async () => {
 	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
