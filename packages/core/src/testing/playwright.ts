@@ -26,8 +26,6 @@ export type FlarePage = {
 	state(): Promise<FlareState>;
 };
 
-// Solid's hydration-mismatch texts. Every other error, a thrown `Error` included, is kept.
-const MISMATCH = /^Hydration (Mismatch\.|tag mismatch|structure mismatch|key miss)/;
 const MATCH_KEYS = ["id", "params", "search", "data", "preloader", "head", "error"];
 const BAD_STATE = "self.flare is not Flare's document state: { build, nonce, matches, queries }";
 
@@ -58,16 +56,14 @@ function stateOf(value: unknown): FlareState {
 	return { build, nonce, matches: checked, queries: Reflect.get(flare, "queries") };
 }
 
-// Playwright helpers for an app's e2e (dx/testing.md). Errors are collected from the moment the helper is made.
+// Playwright helpers for an app's e2e (dx/testing.md). Every console error and page error is collected from the
+// moment the helper is made, a hydration mismatch included.
 export function flarePage(page: FlarePageInput): FlarePage {
 	const errors: string[] = [];
-	const keep = (text: string): void => {
-		if (!MISMATCH.test(text)) errors.push(text);
-	};
 	page.on("console", (message) => {
-		if (message.type() === "error") keep(message.text());
+		if (message.type() === "error") errors.push(message.text());
 	});
-	page.on("pageerror", (error) => keep(error.message));
+	page.on("pageerror", (error) => void errors.push(error.message));
 	return {
 		async load(path = "/") {
 			await page.goto(path);
