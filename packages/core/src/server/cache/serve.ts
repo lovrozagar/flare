@@ -62,12 +62,31 @@ export async function pageAnswer(exchange: Exchange, matched: Loaded): Promise<R
 function modeAnswer(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	const cache = matched.chain.at(-1)?.module.cache;
 	const shared = prepared.policy.decision.policy === "shared";
-	const seeds = shared && cache?.ssg !== undefined ? exchange.seeds() : undefined;
+	const seeds = shared && cache?.ssg !== undefined ? staticSeeds(exchange, matched) : undefined;
 	if (seeds !== undefined) return seeded(exchange, matched, { prepared, seeds });
 	const mode = cache?.ssr === undefined ? (cache?.isr === undefined ? undefined : "isr") : "ssr";
 	const store = shared && mode !== undefined ? exchange.store() : undefined;
 	if (store !== undefined && mode !== undefined) return stored(exchange, matched, { prepared, store, mode });
 	return live(exchange, matched, prepared);
+}
+
+// per-process-constant: the ssg routes each server has reported as having no static store
+const reported = new WeakMap<Exchange["options"], Set<string>>();
+
+// The `static` store of an ssg page. Without one the page renders per request (dx/cache.md), and the server says so
+// once per route, at error level, so a production log shows it (B89).
+function staticSeeds(exchange: Exchange, matched: Loaded): FlareStore | undefined {
+	const seeds = exchange.seeds();
+	if (seeds === undefined) reportNoStatic(exchange, defined(matched.id, "the ssg page"));
+	return seeds;
+}
+
+function reportNoStatic(exchange: Exchange, id: string): void {
+	const seen = reported.get(exchange.options) ?? new Set<string>();
+	reported.set(exchange.options, seen);
+	if (seen.has(id)) return;
+	seen.add(id);
+	exchange.sink.log.error("cache", `${id} is ssg and createServer has no static store: it renders per request`);
 }
 
 // The normal 404, as for an unknown path: a document paints the layouts' not-found, and a data request is the status

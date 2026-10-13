@@ -1,14 +1,17 @@
+import type { PrerenderConfig } from "../prerender/run.ts";
+
 export type FlareOptions = {
 	assetsBase?: string;
 	entry?: { client?: string; server?: string };
 	image?: { widths?: readonly number[]; quality?: number; exclude?: RegExp };
-	prerender?: boolean | Record<string, unknown>;
+	prerender?: boolean | (PrerenderConfig & { sitemap?: unknown });
 	css?: { reset?: boolean };
 	broadcast?: boolean;
 };
 
 export type ParsedOptions = {
 	assetsBase: string;
+	prerender: PrerenderConfig | false;
 	entry: { client: string; server: string };
 	image?: { widths: readonly number[]; quality: number } | undefined;
 	css: { reset: boolean };
@@ -26,6 +29,7 @@ export function parseOptions(input?: FlareOptions): ParsedOptions {
 	}
 	return {
 		assetsBase: parseAssetsBase(options.assetsBase),
+		prerender: parsePrerender(options.prerender),
 		entry: {
 			client: entryPath(options.entry, "client"),
 			server: entryPath(options.entry, "server"),
@@ -65,6 +69,24 @@ function parseCss(css: FlareOptions["css"]): ParsedOptions["css"] {
 		if (key !== "reset") throw new Error(key);
 	}
 	return { reset: Boolean(css.reset) };
+}
+
+const PRERENDER_KEYS = new Set(["concurrency", "env", "exclude", "sitemap"]);
+
+// Omitted and `false` are off. `true` is every default. An object is checked key by key (dx/plugin.md prerender).
+// `sitemap` is read by bit 13.
+function parsePrerender(value: FlareOptions["prerender"]): PrerenderConfig | false {
+	if (value === undefined || value === false) return false;
+	if (value === true) return {};
+	for (const key of Object.keys(value)) if (!PRERENDER_KEYS.has(key)) throw new Error(`prerender.${key}`);
+	const checks: Array<[string, unknown, (field: unknown) => boolean]> = [
+		["concurrency", value.concurrency, (field) => Number.isInteger(field) && Number(field) >= 1],
+		["exclude", value.exclude, (field) => Array.isArray(field) && field.every((id) => typeof id === "string")],
+		["env", value.env, (field) => typeof field === "function" || (typeof field === "object" && field !== null)],
+	];
+	for (const [key, field, valid] of checks)
+		if (field !== undefined && !valid(field)) throw new Error(`prerender.${key}`);
+	return { ...value };
 }
 
 function parseBroadcast(value: boolean | undefined): boolean {

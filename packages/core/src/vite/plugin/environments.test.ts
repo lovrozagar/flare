@@ -6,7 +6,11 @@ import { fileURLToPath } from "node:url";
 import { createBuilder, type InlineConfig, type Rollup, type ViteBuilder } from "vite";
 import { afterEach, expect, it, vi } from "vitest";
 import { assetUrl, clientUrl, environmentBuild, environmentOrder, seedBase } from "./environments.ts";
+import { prerenderApp } from "../prerender/index.ts";
 import { flare } from "./flare.ts";
+
+// Prerender loads the built server, which these builds do not write. Its rows are vite/prerender/run.test.ts.
+vi.mock("../prerender/index.ts", () => ({ prerenderApp: vi.fn<typeof prerenderApp>(async () => undefined) }));
 import type { FlareOptions } from "./options.ts";
 
 const SHEET = fileURLToPath(new URL("../../shared/css/sheet.ts", import.meta.url));
@@ -104,6 +108,20 @@ async function order(root: string): Promise<string[]> {
 	await app.buildApp();
 	return built;
 }
+
+// After every environment, prerender runs with the client output and the built server.
+it("after build", async () => {
+	const root = project();
+	vi.mocked(prerenderApp).mockClear();
+	await order(root);
+	expect(vi.mocked(prerenderApp)).toHaveBeenCalledWith({
+		root,
+		clientDir: join(root, "dist/client"),
+		serverFile: join(root, "dist/server/server.js"),
+		assetsBase: "/assets",
+		config: false,
+	});
+});
 
 // A Workers config adds the worker environment, the Workers bundle, built last into `<outDir>/worker/index.js`.
 it("order", async () => {
@@ -252,10 +270,19 @@ it("config file", () => {
 	roots.push(root);
 	mkdirSync(join(root, "src"));
 	for (const [name, source] of Object.entries(APP)) writeFileSync(join(root, "src", name), source);
+	// The server entry is a real server, as prerender loads it after the server build.
+	writeFileSync(
+		join(root, "src/server.ts"),
+		'import { createServer } from "@lovrozagar/flare/server";\nimport { createRouter } from "@lovrozagar/flare";\nexport const server = createServer({ router: createRouter({ layouts: {}, routeTree: [] }) });\n',
+	);
+	writeFileSync(join(root, "src/app.css"), ".a{background:url(./dot.svg)}\n");
+	writeFileSync(join(root, "src/client.tsx"), 'import "./app.css";\n');
 	const config =
 		'import { flare } from "@lovrozagar/flare/vite";\nexport default { logLevel: "silent", build: { assetsInlineLimit: 0 }, plugins: [flare()] };\n';
 	writeFileSync(join(root, "vite.config.mjs"), config);
-	const run = spawnSync(process.execPath, [VITE, "build"], { cwd: root, encoding: "utf8" });
+	// A deploy builds with NODE_ENV production. The test runner's `test` would select Solid's development server build.
+	const env = { ...process.env, NODE_ENV: "production" };
+	const run = spawnSync(process.execPath, [VITE, "build"], { cwd: root, encoding: "utf8", env });
 	expect(run.stderr).toBe("");
 	expect(run.status).toBe(0);
 	const server = readFileSync(join(root, "dist/server/server.js"), "utf8");
