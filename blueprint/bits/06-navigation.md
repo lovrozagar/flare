@@ -297,7 +297,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `route clock` | the route's `cache.client` sets `staleTime: "1m"` and `gcTime: "2m"` over a router `staleTime` of 0 | the entry is fresh at 59 s and gone after 2 min unread. `client: false` stores nothing |
 | `router cache` | `cacheFor(router.cache.client, max)` | `false` keeps nothing. An object sets `staleTime` and `gcTime` |
 | `cached client` | `cachedMatches` over a tree node with `client` and an imported layout whose record sets `cache.client` | the page takes the node's `client`, the layout its record's |
-| `deferred placeholder` | the match still holds a placeholder and `cacheDeferred` is false | the match is not reused |
+| `deferred placeholder` | the match held a placeholder when cached: `cacheDeferred` false; `cacheDeferred` true with a value still pending; `cacheDeferred` true once every value settled | not reused; not reused; reused (BUGS.md B19) |
 | `cap` | entry 101 with the default max of 100 | the least recently used entry is gone |
 | `revalidate` | `revalidate: true` inside `staleTime` | a data request is sent |
 | `stale list` | a page loader inside `staleTime` whose `shouldRefetch` did not return true | `_flare_stale` lists that page id. Layout ids are never listed. The param is omitted when every page loader will run. `true` omits that page id |
