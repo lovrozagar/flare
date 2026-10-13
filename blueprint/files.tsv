@@ -472,6 +472,8 @@ packages/core/src/vite/css/index.ts	P11	index	vite	Re-exports
 packages/core/src/vite/bin/codegen.ts	P12	src	vite	flare codegen
 packages/core/src/vite/bin/codegen.test.ts	P12	test	vite	Unit cases for codegen.ts
 packages/core/src/vite/bin/index.ts	P12	index	vite	Re-exports
+packages/core/src/vite/bin/flare.ts	P14	src	vite	The flare bin: runs one command and sets the exit code. No entry imports it
+packages/core/src/vite/bin/flare.test.ts	P14	test	vite	Unit cases for flare.ts
 packages/core/src/features/theme/shared/script.tsx	P13	src	dom	ThemeScript. No props. Reads router.theme. Sets the attribute before paint. Nonced
 packages/core/src/features/theme/shared/script.test.tsx	P13	test	dom	Unit cases for script.tsx
 packages/core/src/features/theme/shared/script.ssr.test.ts	P13	test	dom	script.tsx on Solid's server build: the nonce, the escape, and the before-paint script run in jsdom
