@@ -140,13 +140,29 @@ it("direction storage", () => {
 
 it("locale types", () => {
 	const locale = { locales: ["en", "hr"], defaultLocale: "en" };
-	expect(createRouter({ ...bare, locale }).locale).toEqual({ ...locale, paramName: "locale" });
-	expect(createRouter({ ...bare, locale: { ...locale, paramName: "lang" } }).locale?.paramName).toBe("lang");
+	expect(createRouter({ ...bare, locale }).locale).toEqual({
+		...locale,
+		paramName: "locale",
+		cookieName: "flare.locale",
+	});
+	const named = { ...locale, paramName: "lang", cookieName: "c" };
+	expect(createRouter({ ...bare, locale: named }).locale).toEqual(named);
 	expect(createRouter(bare)).not.toHaveProperty("locale");
-	// @ts-expect-error the cookie name is the server's
-	createRouter({ ...bare, locale: { ...locale, cookieName: "c" } });
 	// @ts-expect-error bot detection is the server's
 	createRouter({ ...bare, locale: { ...locale, botDetection: false } });
+});
+
+it("locale invalid", () => {
+	const locale =
+		(locales: string[], defaultLocale = "en") =>
+		() =>
+			createRouter({ ...bare, locale: { locales, defaultLocale } });
+	expect(locale([])).toThrow("locale.locales");
+	expect(locale(["en", "en"])).toThrow("locale.locales");
+	expect(locale(["en", "en-us"])).toThrow("locale.locales en-us");
+	expect(locale(["en", "en_US"])).toThrow("locale.locales en_US");
+	expect(locale(["hr"])).toThrow("locale.defaultLocale");
+	expect(locale(["en", "en-US", "zh-Hant-TW", "sr-Latn"])).not.toThrow();
 });
 
 it("matched chain", () => {

@@ -234,7 +234,7 @@ This file calls `boot({ app: "i18n", runtime, mode })` (B70). The project name s
 | `rtl client` | chromium and firefox; a client-side `setLocale` to an Arabic-script locale configured in the app | `dir` becomes `rtl` and `useDirection().direction()` is `rtl` in both browsers |
 | `tabs sync` | two pages in one browser context; `setTheme("light")`, `setDir("rtl")`, and `setLocale("hr")` in the first | the second page shows each value without a reload. A `storage` event alone, from writing `localStorage` in the second page, changes nothing there |
 
-### `features/i18n/shared/provider.test.tsx`, `script.test.tsx`, `hooks.test.ts`
+### `features/i18n/shared/provider.test.tsx`, `provider.ssr.test.ts`, `script.test.tsx`, `script.ssr.test.ts`, `hooks.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
@@ -242,8 +242,8 @@ This file calls `boot({ app: "i18n", runtime, mode })` (B70). The project name s
 | `server pure` | an SSR render of `LocaleProvider` | `OBSERVE.diagnostics` reports no `SERVER_WRITE` |
 | `param` | `initial` is `"hr"`, then a render that omits `initial` | the locale is `hr`, then `defaultLocale`. The provider does not read `useParams`, the cookie, or `Accept-Language` |
 | `initial changes` | `initial` changes from `en` to `hr` | `locale()` becomes `hr` and `lang` becomes `hr` |
-| `set locale` | `setLocale` of another configured tag | a navigation to that tag. No cookie is written here |
-| `no cookie` | the provider renders and `setLocale` runs | `document.cookie` is not written |
+| `set locale` | `setLocale` of another configured tag | a navigation to that tag. Once it commits, `document.cookie` holds the tag under the config's `cookieName`, with the server's attributes |
+| `no cookie` | the provider renders, and a `setLocale` whose navigation does not commit | `document.cookie` is not written |
 | `locale channel` | `setLocale("hr")` commits | `{ type: "locale", tag: "hr" }` is posted on `BroadcastChannel` `"flare.sync"` |
 | `locale channel replace` | another tab receives that message while showing `en` | it navigates to `hr` on its current route with `replace`, and posts nothing |
 | `locale channel same` | the message tag is the tag already showing, the tag is outside `locales`, or the message has another shape | no navigation |
@@ -279,7 +279,13 @@ The outcomes are the rows in `dx/features.md`.
 
 `post` opens a channel, sends, and closes it. `subscribe` opens one channel and returns a function that closes it. The module has no module-scope `let`.
 
-`shared/router/create-router.test.ts` gains `locale types`: `createRouter({ locale })` accepts `{ locales, defaultLocale, paramName? }` and does not accept `cookieName` or `botDetection`.
+`shared/router/create-router.test.ts` gains `locale types`: `createRouter({ locale })` accepts `{ locales, defaultLocale, paramName?, cookieName? }`, `cookieName` defaults to `"flare.locale"`, and `botDetection` does not type-check. It also gains `locale invalid`: an empty `locales`, a duplicate, a non-canonical tag such as `en-us` or `en_US`, or a `defaultLocale` outside `locales` throws at `createRouter`. `en-US`, `zh-Hant-TW`, and `sr-Latn` pass.
+
+### `features/i18n/shared/cookie.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `cookie string` | `localeCookie(name, tag, secure)` | `<name>=<tag>; Path=/; SameSite=Lax; Max-Age=31536000`, plus `; Secure` when secure. No `Domain`. The server and `setLocale` both write this string |
 
 ## Image
 

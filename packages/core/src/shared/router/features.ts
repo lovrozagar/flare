@@ -30,9 +30,14 @@ export type DirectionOptions = {
 
 export type DirectionConfig = { defaultDir: Dir; attribute: string; storageKey: string };
 
-export type LocaleOptions = { locales: readonly string[]; defaultLocale: string; paramName?: string };
+export type LocaleOptions = {
+	locales: readonly string[];
+	defaultLocale: string;
+	paramName?: string;
+	cookieName?: string;
+};
 
-export type LocaleConfig = { locales: readonly string[]; defaultLocale: string; paramName: string };
+export type LocaleConfig = { locales: readonly string[]; defaultLocale: string; paramName: string; cookieName: string };
 
 const THEMES: readonly ThemeName[] = ["light", "dark", "system"];
 const DIRS: readonly string[] = ["ltr", "rtl"];
@@ -65,8 +70,28 @@ export function directionConfig(options: DirectionOptions): DirectionConfig {
 	return { defaultDir, attribute, storageKey: storageKey(options.storageKey ?? "flare.dir", "direction") };
 }
 
+// `locales` is non-empty, unique, and canonical BCP 47 (`en-US`, not `en-us`), and holds `defaultLocale`. The cookie
+// name defaults to the server's, so setLocale and i18n() write the same cookie.
 export function localeConfig(options: LocaleOptions): LocaleConfig {
-	return { locales: options.locales, defaultLocale: options.defaultLocale, paramName: options.paramName ?? "locale" };
+	const { locales, defaultLocale } = options;
+	if (locales.length === 0 || new Set(locales).size !== locales.length) throw new Error("locale.locales");
+	for (const tag of locales) if (canonical(tag) !== tag) throw new Error(`locale.locales ${tag}`);
+	if (!locales.includes(defaultLocale)) throw new Error("locale.defaultLocale");
+	return {
+		locales,
+		defaultLocale,
+		paramName: options.paramName ?? "locale",
+		cookieName: options.cookieName ?? "flare.locale",
+	};
+}
+
+// The canonical spelling of a tag, or nothing when `Intl` rejects it.
+function canonical(tag: string): string | undefined {
+	try {
+		return Intl.getCanonicalLocales(tag)[0];
+	} catch {
+		return undefined;
+	}
 }
 
 function storageKey(key: string, feature: string): string {

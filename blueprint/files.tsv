@@ -495,11 +495,15 @@ packages/core/src/features/i18n/shared/plural.test.ts	P13	test	shared	Unit cases
 packages/core/src/features/i18n/shared/rich.ts	P13	src	shared	Rich-text tags. No prototype property is callable
 packages/core/src/features/i18n/shared/rich.test.ts	P13	test	shared	Unit cases for rich.ts
 packages/core/src/features/i18n/shared/format.ts	P13	src	shared	formatMessage
+packages/core/src/features/i18n/shared/cookie.ts	P13	src	shared	localeCookie: the one locale cookie string the server and setLocale write
+packages/core/src/features/i18n/shared/cookie.test.ts	P13	test	shared	Unit cases for cookie.ts
 packages/core/src/features/i18n/shared/format.test.ts	P13	test	shared	Unit cases for format.ts
 packages/core/src/features/i18n/shared/provider.tsx	P13	src	dom	LocaleProvider. initial is the route param or omitted. Does not write the cookie. Posts locale on flare.sync after a local setLocale commit
 packages/core/src/features/i18n/shared/provider.test.tsx	P13	test	dom	Unit cases for provider.tsx
+packages/core/src/features/i18n/shared/provider.ssr.test.ts	P13	test	dom	provider.tsx on Solid's server build: server pure, and setLocale has no navigator there
 packages/core/src/features/i18n/shared/script.tsx	P13	src	dom	LocaleScript. No props. Must sit inside LocaleProvider. Sets lang. Nonced
 packages/core/src/features/i18n/shared/script.test.tsx	P13	test	dom	Unit cases for script.tsx
+packages/core/src/features/i18n/shared/script.ssr.test.ts	P13	test	dom	script.tsx on Solid's server build: lang, the nonce, and script outside
 packages/core/src/features/i18n/shared/hooks.ts	P13	src	dom	useLocale, useLoaderT, usePreloaderT. locale is an accessor. No useRequestLocale
 packages/core/src/features/i18n/shared/hooks.test.ts	P13	test	dom	Unit cases for hooks.ts
 packages/core/src/features/i18n/server/match.ts	P13	src	server	Pick a locale from the path, then the cookie, then Accept-Language capped at 8 tags
