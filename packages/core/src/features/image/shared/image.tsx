@@ -1,4 +1,4 @@
-import { createComponent, createSignal } from "solid-js";
+import { createComponent, createSignal, onSettled } from "solid-js";
 import { Dynamic, type JSX } from "@solidjs/web";
 import { imageQuality, imageWidths } from "./config.ts";
 
@@ -89,6 +89,13 @@ export function Image(props: ImageProps): JSX.Element {
 			return { ...layout(props), ...(loaded() ? {} : blur(props)) };
 		},
 		onLoad: () => setLoaded(true),
+		// A priority image often finishes before hydrate attaches onLoad, so its event is never heard. After the
+		// commit, an image that is already complete clears the blur too (BUGS.md B20).
+		ref: (element: HTMLImageElement) => {
+			onSettled(() => {
+				if (element.complete) setLoaded(true);
+			});
+		},
 	});
 }
 
