@@ -82,8 +82,10 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 				},
 			},
 			ssr: {
+				// `public/` ships once, with the client (BUGS.md B11).
 				build: {
 					outDir: build.ssr.outDir,
+					copyPublicDir: false,
 					minify: true,
 					sourcemap: true,
 					rolldownOptions: { input: { server: input.entry.server }, output: { entryFileNames: build.ssr.input } },
@@ -120,6 +122,7 @@ function workerEnvironment(entry: string, serverOutDir: string): EnvironmentOpti
 		resolve: { conditions: WORKER_CONDITIONS, externalConditions: WORKER_CONDITIONS, noExternal: true },
 		build: {
 			outDir: serverOutDir.replace(/server$/, "worker"),
+			copyPublicDir: false,
 			minify: true,
 			sourcemap: true,
 			rolldownOptions: {
