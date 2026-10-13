@@ -34,9 +34,13 @@ function lint(code: string, relative: string): number {
 			sourceCode: { getText: () => code },
 		});
 		walk(parsed.program, null, visitors);
-		const allowed = ["/finalize.ts", "/proxy.ts", "/vite/dev/handler.ts", "/vite/dev/guard.ts"].some((end) =>
-			relative.endsWith(end),
-		);
+		const allowed = [
+			"/finalize.ts",
+			"/proxy.ts",
+			"/vite/dev/handler.ts",
+			"/vite/dev/guard.ts",
+			"/features/image/vite/dev-endpoint.ts",
+		].some((end) => relative.endsWith(end));
 		expect(reports.length).toBe(allowed ? 0 : 1);
 		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" });
 		return proc.status ?? 1;
@@ -93,6 +97,15 @@ it("dev guard", () => {
 	const status = lint(
 		"export function denied() {\n\treturn new Response(null, { status: 403 });\n}\n",
 		"src/vite/dev/guard.ts",
+	);
+	expect(status).toBe(0);
+});
+
+// The image dev endpoint answers on the dev server, outside the pipeline, behind the dev guard (bits/13).
+it("image endpoint", () => {
+	const status = lint(
+		"export function missing() {\n\treturn new Response(null, { status: 404 });\n}\n",
+		"src/features/image/vite/dev-endpoint.ts",
 	);
 	expect(status).toBe(0);
 });

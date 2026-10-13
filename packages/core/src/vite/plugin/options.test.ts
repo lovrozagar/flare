@@ -17,6 +17,9 @@ it("assets base", () => {
 });
 
 it("image empty", () => {
+	// `{}` turns the image plugin on. Absent, there is none, and sharp never loads.
+	expect(flare({ image: {} }).map((plugin) => plugin.name)).toContain("flare:image");
+	expect(flare().map((plugin) => plugin.name)).not.toContain("flare:image");
 	expect(parseOptions().image).toBeUndefined();
 	expect(parseOptions({ image: {} }).image).toEqual({ widths, quality: 75 });
 });

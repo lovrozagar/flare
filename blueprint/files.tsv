@@ -523,6 +523,8 @@ packages/core/src/features/i18n/server/middleware.test.ts	P13	test	server	Unit c
 packages/core/src/features/i18n/shared/index.ts	P13	index	shared	Re-exports
 packages/core/src/features/i18n/server/index.ts	P13	index	server	Re-exports
 packages/core/src/features/image/shared/image.tsx	P13	src	dom	Image. Srcset is the configured widths only
+packages/core/src/features/image/shared/config.ts	P13	src	shared	The plugin's image widths and quality. flare({ image }) replaces this module with the app's values
+packages/core/src/features/image/shared/config.test.ts	P13	test	shared	Unit cases for config.ts
 packages/core/src/features/image/shared/image.test.tsx	P13	test	dom	Unit cases for image.tsx
 packages/core/src/features/image/vite/optimize.ts	P13	src	vite	Build-time resize. A width outside the set fails the build
 packages/core/src/features/image/vite/optimize.test.ts	P13	test	vite	Unit cases for optimize.ts

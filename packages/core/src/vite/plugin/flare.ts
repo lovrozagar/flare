@@ -6,6 +6,7 @@ import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts";
 import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
+import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts";
 import { devEndpoints } from "../dev/guard.ts";
 import { prerenderApp } from "../prerender/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
@@ -41,24 +42,26 @@ const ROUTES_GEN = "src/_gen/routes.gen.ts";
 
 export function flare(options?: FlareOptions): Plugin[] {
 	const parsed = parseOptions(options);
+	const state: State = { base: "/", manifest: "", workerSource: "", root: process.cwd() };
+	// `image` turns optimization on. Absent, no image plugin runs and sharp is never loaded (dx/plugin.md image).
+	const image = parsed.image;
 	return [
 		chunks(),
 		boundary(),
+		...(image === undefined ? [] : [imagePlugin(image, parsed.assetsBase)]),
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
 		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client, assetsBase: parsed.assetsBase }),
-		core(parsed),
-		// No endpoint is dev-only yet. Bit 13's image endpoint registers here.
-		devEndpoints([]),
+		core(parsed, state),
+		devEndpoints(image === undefined ? [] : [imageEndpoint(image, state)]),
 	];
 }
 
 // The config, the build environments, the server's build info, the worker entry, and the dev server.
 // What the config hook settles for the later hooks: Vite's resolved `base`, which every built URL starts with, where
 // the client build writes its manifest, and the worker entry's source.
-type State = { base: string; manifest: string; workerSource: string };
+type State = { base: string; manifest: string; workerSource: string; root: string };
 
-function core(parsed: ParsedOptions): Plugin {
-	const state: State = { base: "/", manifest: "", workerSource: "" };
+function core(parsed: ParsedOptions, state: State): Plugin {
 	return {
 		name: "flare",
 		config(config: UserConfig): UserConfig {
@@ -66,6 +69,7 @@ function core(parsed: ParsedOptions): Plugin {
 		},
 		configResolved(config) {
 			state.base = config.base;
+			state.root = config.root;
 		},
 		// Codegen is always on: a build and `vite dev` write src/_gen first, and a failure fails the start (B89).
 		buildStart() {

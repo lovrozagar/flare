@@ -135,3 +135,12 @@ it("node adapters", () => {
 	expect(lint({ "src/adapters/workers/disk.ts": fs })).not.toBe(0);
 	expect(lint({ "src/adapters/stores/cache-api/disk.ts": fs })).not.toBe(0);
 });
+
+// vite/ composes a feature's vite factory. It reaches no other side of a feature.
+it("vite features", () => {
+	const factory =
+		'import { imagePlugin } from "../../features/image/vite/index.ts";\nexport const plugin = imagePlugin;\n';
+	expect(lint({ "src/vite/plugin/flare.ts": factory })).toBe(0);
+	const shared = 'import { Image } from "../../features/image/shared/index.ts";\nexport const image = Image;\n';
+	expect(lint({ "src/vite/plugin/flare.ts": shared })).not.toBe(0);
+});

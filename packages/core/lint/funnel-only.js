@@ -16,6 +16,8 @@ export const rule = {
 				// A dev-only endpoint answers on the dev server, outside the pipeline: the guard's 403, and its answer
 				// without a CORS star (B75).
 				if (file.endsWith("/vite/dev/guard.ts")) return;
+				// The image dev endpoint is one of those (bits/13).
+				if (file.endsWith("/features/image/vite/dev-endpoint.ts")) return;
 				context.report({ node, message: "return new Response only from finalize" });
 			},
 		};
