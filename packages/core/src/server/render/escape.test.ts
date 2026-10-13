@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
-import { escapeAttr, escapeInlineJson, escapeInlineScript } from "./escape.ts";
+import { escapeInlineJson } from "../../shared/csp/index.ts";
+import { escapeAttr, escapeInlineScript } from "./escape.ts";
 
 const corpus = readFileSync(new URL("./escape.corpus.txt", import.meta.url), "utf8");
 
