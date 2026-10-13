@@ -5,10 +5,10 @@ Imported from `@lovrozagar/flare/testing`. These are for the app's tests. They a
 ## createTestServer
 
 ```ts
-createTestServer(router): { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> }
+createTestServer(router, options?): { fetch(input: RequestInfo, init?: RequestInit): Promise<Response> }
 ```
 
-`router` is required. There is no second argument. The helper calls `createServer({ router })`. A test that needs `site`, `store`, `authenticate`, or `locale` constructs `createServer` itself and calls `fetch`. The helper does not listen on a port (`testing/harness.test.ts` `boots`).
+`router` is required. `options` is `{ serverContext }` and nothing else: required when `FlareRegister` declares `serverContext`, and optional otherwise, because without it the app's loaders cannot call `serverCtx()` (revised 2026-10-13, BUGS.md B25). Any other key does not type-check and throws. The helper calls `createServer({ router, serverContext })`. A test that needs `site`, `store`, `authenticate`, or `locale` constructs `createServer` itself and calls `fetch`. The helper does not listen on a port (`testing/harness.test.ts` `boots`).
 
 ## flarePage
 
