@@ -157,11 +157,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 20.3 [x] Write a failing `features/image/shared/image.test.tsx` case (an already-complete image at hydrate clears the placeholder). Then check `complete` after mount.
 20.4 [x] Verify: `docs-features` `image responsive` is green.
 
-21 [ ] B21 `withFetchDedupe` does not dedupe across loaders of one request
-21.1 [ ] Repro: the docs layout loader and the doc page loader both call `withFetchDedupe(serverCtx().upstream)("https://upstream.flare.test/stats")` (`apps/docs/src/stats.ts`). The upstream counts calls per request, and the page prints it.
-21.2 [ ] Expected (`dx/server.md` withFetchDedupe): the second identical GET in one request reuses the first, so `#fetch-calls` is `1`. Actual: `2`. Each loader runs under a child event (`server/loaders/scope.ts:26`, `Object.create(parent)`), and the first dedupe call inside a loader writes its store onto that child (`server/context/fetch-dedupe.ts` `reset` → `Reflect.set(event, STORE_KEY, …)`), so siblings never share it.
-21.3 [ ] Write a failing `server/context/fetch-dedupe.test.ts` case: two calls under two loader-scope children of one request event make one upstream call. Then keep the store on the root request event.
-21.4 [ ] Verify: `docs-data` `fetch dedupe` is green.
+21 [x] B21 `withFetchDedupe` does not dedupe across loaders of one request
+21.1 [x] Repro: the docs layout loader and the doc page loader both call `withFetchDedupe(serverCtx().upstream)("https://upstream.flare.test/stats")` (`apps/docs/src/stats.ts`). The upstream counts calls per request, and the page prints it.
+21.2 [x] Expected (`dx/server.md` withFetchDedupe): the second identical GET in one request reuses the first, so `#fetch-calls` is `1`. Actual: `2`. Each loader runs under a child event (`server/loaders/scope.ts:26`, `Object.create(parent)`), and the first dedupe call inside a loader writes its store onto that child (`server/context/fetch-dedupe.ts` `reset` → `Reflect.set(event, STORE_KEY, …)`), so siblings never share it.
+21.3 [x] Write a failing `server/context/fetch-dedupe.test.ts` case: two calls under two loader-scope children of one request event make one upstream call. Then keep the store on the root request event. Fix: `loaders/scope.ts` exports `requestEvent(event)`, which walks up from a loader or preloader child to the request's own event, and the dedupe store is read from and reset on it, so every loader, preloader, and the render share it. Failing tests first: `fetch-dedupe.test.ts` `loader siblings` (2 calls before), `loader reset` (a POST in a loader now resets the request's store; 2 calls before, 3 now).
+21.4 [x] Verify: `docs-data` `fetch dedupe` is green 2 of 2 on node-prod-chromium, node-prod-firefox, and node-dev-chromium.
 
 22 [ ] B22 A segment's `cdn` default is not applied
 22.1 [ ] Repro: `(guide)/api/api.segment.ts` is `createPathSegment(…).cache({ cdn: { maxAge: "1m", swr: "10m", tags: ["api-reference"] } })`. Its page `api/[...path]` sets `cache: { ssr: { ttl: "10m", tags: ["api"] } }`. GET `/hr/api/server/create-server` twice (a tag in the URL, so no locale negotiation applies).

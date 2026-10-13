@@ -29,6 +29,14 @@ export function inLoaderScope<T>(kind: ScopeKind, source: ScopeSource, run: () =
 	return provideRequestEvent(child, run);
 }
 
+// The request's own event under any loader or preloader child: the one place request-wide state lives, so every
+// loader, preloader, and the render of one request share it (dx/server.md withFetchDedupe, BUGS.md B21).
+export function requestEvent(event: RequestEvent): RequestEvent {
+	let current: object = event;
+	while (Object.hasOwn(current, "flareLoader")) current = Object.getPrototypeOf(current);
+	return current as RequestEvent;
+}
+
 // The scope of the call running now, as a feature hook reads it. Undefined outside a loader or preloader.
 export function loaderScope(): LoaderScope | undefined {
 	const event: RequestEvent | undefined = getRequestEvent();

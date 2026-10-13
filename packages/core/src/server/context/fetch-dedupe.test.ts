@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { inLoaderScope } from "../loaders/scope.ts";
 import { withServerContext } from "./ctx.ts";
 import { withFetchDedupe } from "./fetch-dedupe.ts";
 
@@ -177,4 +178,30 @@ it("outside", async () => {
 	await expect(get(url)).resolves.toBeInstanceOf(Response);
 	await get(url);
 	expect(api.calls).toBe(2);
+});
+
+// Each loader runs under its own child of the request event. The store belongs to the request, so two sibling loaders
+// share one upstream call (dx/server.md, BUGS.md B21).
+it("loader siblings", async () => {
+	const api = upstream();
+	const bodies = await inRequest(async () => {
+		const get = withFetchDedupe(api);
+		const layout = inLoaderScope("loader", {}, () => get(url));
+		const page = inLoaderScope("loader", {}, () => get(url));
+		return Promise.all([layout, page].map(async (response) => (await response).text()));
+	});
+	expect(bodies).toEqual(["ok", "ok"]);
+	expect(api.calls).toBe(1);
+});
+
+// A non-GET from one loader resets the request's whole store, so the render's next GET goes upstream again.
+it("loader reset", async () => {
+	const api = upstream();
+	await inRequest(async () => {
+		const get = withFetchDedupe(api);
+		await (await get(url)).text();
+		await inLoaderScope("loader", {}, () => get(url, { method: "POST" }));
+		await (await get(url)).text();
+	});
+	expect(api.calls).toBe(3);
 });
