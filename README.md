@@ -1355,6 +1355,7 @@ Do not weaken `strict` or add `as any` to make typecheck pass.
 | `bun run test`                  | Core unit + integration                    |
 | `bun run test:cli`              | CLI unit                                   |
 | `bun run test:e2e`              | Playwright, every app × node, Vite **dev** |
+| `bun run docs:dev`              | The docs e2e app in dev, to check by eye   |
 | `bun run test:e2e:prod`         | Same tests, `vite build` + **preview**     |
 | `bun run test:e2e:bun`          | Same tests, Bun listen (dev)               |
 | `bun run test:e2e:bun:prod`     | Bun listen, prod preview                   |

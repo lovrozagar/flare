@@ -648,7 +648,6 @@ packages/core/tests/e2e/boot.test.ts	P1	test	node	Unit cases for boot.ts
 packages/core/tests/e2e/minimal.test.ts	P1	test	node	Playwright: the minimal app renders and hydrates. Calls boot
 packages/core/tests/e2e/navigation.test.ts	P6	test	node	Playwright: client navigation, back, and scroll. Calls boot
 packages/core/tests/e2e/server-fn.test.ts	P7	test	node	Playwright: a server function round-trip. Calls boot
-packages/core/tests/e2e/i18n.test.ts	P13	test	node	Playwright: locale prefix, cookie, a shared page without Set-Cookie, theme, direction, cross-tab sync, and a persisted setLocale. Calls boot
 packages/core/tests/e2e/golden.test.ts	P14	test	node	Packed tarball over HTTP: dev, vite build, then createNodeListener, createBunFetch, and miniflare. Not Playwright (B70)
 packages/core/tests/e2e/apps/minimal/package.json	P1	app	-	App package
 packages/core/tests/e2e/apps/minimal/tsconfig.json	P1	app	-	App tsconfig
@@ -684,21 +683,20 @@ packages/core/tests/e2e/apps/basepath/src/_gen/server-fns.gen.ts	P12	app	-	Gener
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/root.root-layout.tsx	P2	app	-	Document root
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/home.page.tsx	P2	app	-	Home page
 packages/core/tests/e2e/apps/basepath/wrangler.jsonc	P12	app	-	Workers config so workers-prod can boot this app (B70)
-packages/core/tests/e2e/apps/i18n/package.json	P13	app	-	i18n app
-packages/core/tests/e2e/apps/i18n/tsconfig.json	P13	app	-	i18n app tsconfig
-packages/core/tests/e2e/apps/i18n/vite.config.ts	P13	app	-	i18n app vite config
-packages/core/tests/e2e/apps/i18n/src/client.tsx	P13	app	-	createClient
-packages/core/tests/e2e/apps/i18n/src/server.ts	P13	app	-	createServer with the locale slot
-packages/core/tests/e2e/apps/i18n/src/router.ts	P13	app	-	createRouter with theme, direction, and the locale config both graphs import
-packages/core/tests/e2e/apps/i18n/src/routes/[[locale]]/_root_/locale.root-layout.tsx	P13	app	-	Document root under the optional locale: the scripts and providers for theme, direction, and locale
-packages/core/tests/e2e/apps/i18n/src/routes/[[locale]]/_root_/home.page.tsx	P13	app	-	Shared localized home: the loader's message, each hook's value, and a control per feature
-packages/core/tests/e2e/apps/i18n/src/_gen/routes.gen.ts	P13	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
-packages/core/tests/e2e/apps/i18n/src/_gen/types.gen.d.ts	P13	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
-packages/core/tests/e2e/apps/i18n/src/_gen/server-fns.gen.ts	P13	app	-	Generated server function list, committed so a run writes nothing in the app
-packages/core/tests/e2e/apps/i18n/wrangler.jsonc	P13	app	-	Workers config so workers-prod can boot this app (B70)
 packages/core/src/features/fonts/generate.ts	P14	src	node	Turn registry.json into one module per family. No runtime entry imports it (B78)
 packages/core/src/features/fonts/generate.test.ts	P14	test	node	Unit cases for generate.ts
 packages/core/src/features/fonts/registry.json	P14	config	-	Family metadata. The only hand-written font data
 packages/core/src/features/fonts/shared/generated/*.ts	P14	generated	-	One module per registry key. Produced only by generate.ts. Default export (B78)
 scripts/release.ts	P14	script	node	Pack, run the golden test, and publish from a green tag
 scripts/release.test.ts	P14	test	node	Unit cases for release.ts
+packages/core/tests/e2e/apps/docs/**	P15	app	-	The docs app (B94): a short Flare docs site that uses every exported feature. One row for the tree; the docs specs own its behavior
+packages/core/tests/e2e/docs.fixture.ts	P15	test	node	Worker-scoped docs boot, the deep-set skip, and the page helpers the docs specs share (B94)
+packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs page answers its status, hydrates, and leaves the console empty, on every project
+packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
+packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context
+packages/core/tests/e2e/docs-data.test.ts	P15	test	node	Playwright: defer, TanStack Query, server functions and streams, server context, fetch dedupe, env helpers
+packages/core/tests/e2e/docs-cache.test.ts	P15	test	node	Playwright: SSG seeds, ISR, shared SSR, CDN headers, tag purge, the client match cache, the store per runtime
+packages/core/tests/e2e/docs-server.test.ts	P15	test	node	Playwright: auth boundaries, login, CSRF, body cap, middleware, mounts, .response(), route headers, security
+packages/core/tests/e2e/docs-features.test.ts	P15	test	node	Playwright: locale, theme, direction, cross-tab sync, image, fonts, head, sitemap, robots, Tailwind and CSS modules. Holds bit 13's seven i18n cases
+packages/core/tests/integration/docs.test.ts	P15	test	node	createTestServer over the docs router
+packages/core/tests/e2e/docs-resilience.test.ts	P15	test	node	Playwright: deploy and chunk reloads, network failure, aborts, overlay history, concurrent misses, negotiation, CSRF headers, a phone

@@ -15,8 +15,15 @@ if (process.platform !== "darwin" && [...requested].some((name) => name.includes
 	throw new Error("webkit runs on macOS");
 }
 
-const projects =
-	requested.size > 0
+// A worker process loads this file again without the runner's argv, so it must know every project the runner may
+// have chosen. The runner, which owns the choice, sees the filter, and tells the workers that the projects were
+// named (docs.fixture.ts runs its deep specs on named projects).
+const inWorker = process.env["TEST_WORKER_INDEX"] !== undefined;
+if (!inWorker && requested.size > 0) process.env["FLARE_E2E_PROJECTS_CHOSEN"] = "1";
+
+const projects = inWorker
+	? all
+	: requested.size > 0
 		? all.filter((project) => requested.has(project.name ?? ""))
 		: all.filter((project) => {
 				const name = project.name ?? "";

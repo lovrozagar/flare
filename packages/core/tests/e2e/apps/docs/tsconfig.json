@@ -1,0 +1,10 @@
+{
+	"extends": "../../../../../../tsconfig.base.json",
+	"compilerOptions": {
+		"jsx": "preserve",
+		"jsxImportSource": "@solidjs/web",
+		"types": ["node", "vite/client"]
+	},
+	// The integration test over this router compiles here, with this app's register (B94).
+	"include": ["src", "vite.config.ts", "../../../integration/docs.test.ts"]
+}
