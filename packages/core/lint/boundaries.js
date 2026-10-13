@@ -97,8 +97,15 @@ function syncImport(fromRel, spec) {
 	return SYNC_IMPORTERS.has(fromRel) && spec.startsWith(".") && resolveRel(fromRel, spec) === "client/sync/index.ts";
 }
 
+// The font generator runs in Node at authoring time (bits/14): builtins, and its own feature's shared side.
+function fontGenerator(fromRel, spec) {
+	if (fromRel !== "features/fonts/generate.ts") return false;
+	if (spec.startsWith("node:")) return true;
+	return spec.startsWith(".") && resolveRel(fromRel, spec).startsWith("features/fonts/shared/");
+}
+
 function allowed(fromRel, spec) {
-	if (syncImport(fromRel, spec)) return true;
+	if (syncImport(fromRel, spec) || fontGenerator(fromRel, spec)) return true;
 	const from = bucket(fromRel);
 	const to = target(fromRel, spec);
 	if (to === "pkg" || devHost(fromRel, spec)) return true;

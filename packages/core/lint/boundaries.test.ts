@@ -144,3 +144,14 @@ it("vite features", () => {
 	const shared = 'import { Image } from "../../features/image/shared/index.ts";\nexport const image = Image;\n';
 	expect(lint({ "src/vite/plugin/flare.ts": shared })).not.toBe(0);
 });
+
+// The font generator runs in Node at authoring time: it may read and write files and import its own feature's shared
+// side. No other file outside a feature side may import a builtin, and it may not reach another feature.
+it("font generate", () => {
+	const generator =
+		'import { readFileSync } from "node:fs";\nimport type { Font } from "./shared/create-font.ts";\nexport const read = readFileSync;\nexport type F = Font;\n';
+	expect(lint({ "src/features/fonts/generate.ts": generator })).toBe(0);
+	expect(lint({ "src/features/image/generate.ts": generator })).not.toBe(0);
+	const other = 'import { Image } from "../image/shared/index.ts";\nexport const image = Image;\n';
+	expect(lint({ "src/features/fonts/generate.ts": other })).not.toBe(0);
+});

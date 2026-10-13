@@ -59,7 +59,10 @@ it("missing file fails", () => {
 			row(gone.replace(/\.ts$/, ".test.ts"), "P0", "test"),
 		]),
 	);
-	const result = checkTree(root, tsvPath);
+	// P0 is the highest phase present, so the default check holds only the phases below it. `--complete` holds P0 too,
+	// which is how a finished tree stays strict in CI.
+	expect(checkTree(root, tsvPath).ok).toBe(true);
+	const result = checkTree(root, tsvPath, { complete: "P0" });
 	expect(result.ok).toBe(false);
 	expect(result.errors.some((error) => error.includes(gone))).toBe(true);
 });
@@ -98,6 +101,13 @@ it("generated pattern matches keys", () => {
 	const result = checkTree(root, tsvPath);
 	expect(result.ok).toBe(true);
 	expect(result.generated).toEqual(["abel.ts", "inter.ts"]);
+	// A key that prefixes another sorts as a filename does: `noto-sans-jp.ts` before `noto-sans.ts`.
+	write(root, registry, JSON.stringify({ "noto-sans": {}, "noto-sans-jp": {} }));
+	rmSync(join(root, abel));
+	rmSync(join(root, inter));
+	write(root, "packages/core/src/features/fonts/shared/generated/noto-sans.ts", "export default {};\n");
+	write(root, "packages/core/src/features/fonts/shared/generated/noto-sans-jp.ts", "export default {};\n");
+	expect(checkTree(root, tsvPath)).toMatchObject({ ok: true, generated: ["noto-sans-jp.ts", "noto-sans.ts"] });
 });
 
 it("tooling scripts skipped", () => {

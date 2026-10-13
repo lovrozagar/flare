@@ -100,7 +100,8 @@
 	"scripts": {
 		"test": "vitest run --coverage",
 		"type:check": "tsc -p tsconfig.json --noEmit",
-		"type:check:src": "tsc -p tsconfig.src.json --noEmit"
+		"type:check:src": "tsc -p tsconfig.src.json --noEmit",
+		"fonts:generate": "bun -e \"import('./src/features/fonts/generate.ts').then((generate) => generate.writeFonts('.'))\""
 	},
 	"devDependencies": {
 		"@formatjs/intl-localematcher": "0.8.11",

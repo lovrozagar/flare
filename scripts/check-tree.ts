@@ -59,9 +59,10 @@ function parseTsv(text: string): Row[] {
 function readGenerated(root: string): string[] {
 	if (!exists(join(root, REGISTRY))) return [];
 	const registry = JSON.parse(readFileSync(join(root, REGISTRY), "utf8")) as Record<string, unknown>;
+	// Sorted as filenames, the way the directory listing is: `noto-sans-jp.ts` before `noto-sans.ts`.
 	return Object.keys(registry)
-		.sort()
-		.map((key) => `${key}.ts`);
+		.map((key) => `${key}.ts`)
+		.sort();
 }
 
 function expandGenerated(rows: Row[], names: string[]): Row[] {
@@ -86,20 +87,18 @@ function extraFiles(root: string, rows: Row[], registryPresent: boolean): string
 	return errors;
 }
 
+// Every phase below the highest one present must be complete. The highest is a bit in progress, so it is held only
+// when `complete` names it, which a bit's Done and CI do.
 function missingFiles(root: string, rows: Row[], complete: string | undefined): string[] {
 	const concrete = rows.filter((row) => !row.path.includes("*"));
 	let highest = -1;
-	let lastListed = -1;
 	for (let index = 0; index < PHASES.length; index += 1) {
 		const phase = PHASES[index];
-		const inPhase = concrete.filter((row) => row.phase === phase);
-		if (inPhase.length > 0) lastListed = index;
-		if (inPhase.some((row) => exists(join(root, row.path)))) highest = index;
+		if (concrete.some((row) => row.phase === phase && exists(join(root, row.path)))) highest = index;
 	}
-	const errors: string[] = [];
-	const limit = highest === lastListed ? highest : highest - 1;
-	const checked = new Set(PHASES.slice(0, limit + 1));
+	const checked = new Set(PHASES.slice(0, highest));
 	if (complete !== undefined) checked.add(complete);
+	const errors: string[] = [];
 	for (const row of concrete) {
 		if (checked.has(row.phase) && !exists(join(root, row.path))) errors.push(row.path);
 	}

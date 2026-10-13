@@ -58,7 +58,9 @@ it("missing file", () => {
 			`${missing.replace(/\.ts$/, ".test.ts")}\tP0\ttest\tnode\tfixture`,
 		]),
 	);
-	const result = checkTree(root, tsvPath);
+	// P0 is the highest phase present, a bit in progress, so only `--complete` holds it.
+	expect(checkTree(root, tsvPath).ok).toBe(true);
+	const result = checkTree(root, tsvPath, { complete: "P0" });
 	expect(result.ok).toBe(false);
 	expect(result.errors.some((error) => error.includes(missing))).toBe(true);
 });

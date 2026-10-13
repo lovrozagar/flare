@@ -42,7 +42,8 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
-      - run: bun scripts/check-tree.ts
+      # The finished tree: every phase complete, the last one included.
+      - run: bun scripts/check-tree.ts --complete P14
 
   npmjs:
     name: npmjs.com

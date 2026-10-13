@@ -37,7 +37,7 @@ Tests that boot a server, a browser, or workerd span many files. They live under
 Vitest, `@vitest/coverage-v8`.
 
 - Include: `packages/core/src/**`, `packages/core/lint/**`.
-- Exclude: `**/*.test.ts`, `**/*.test.tsx`, `**/*.d.ts`, `**/index.ts`, `src/exports/**`, `packages/core/src/features/fonts/shared/generated/**`.
+- Exclude: `**/*.test.ts`, `**/*.test.tsx`, `**/*.d.ts`, `**/index.ts`, `src/exports/**`, `packages/core/src/features/fonts/shared/generated/**`, `packages/core/src/features/fonts/registry.json`.
 - Thresholds, per file: lines 100, branches 100, functions 100, statements 100.
 - `v8 ignore` is forbidden. The lint rule `flare/no-v8-ignore` rejects the comment. Uncovered code is deleted or given a case.
 - A branch that can run only inside workerd is written so the decision function is pure and covered under Node. The workerd test proves the adapter calls that function. No file depends on workerd for its coverage number.

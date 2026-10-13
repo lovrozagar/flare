@@ -15,12 +15,12 @@ One commit. `git mv` of `packages/core`, `packages/cli`, `e2e`, and `benchmark` 
 | test | case | result |
 | --- | --- | --- |
 | `missing row fails` | a file on disk is not in the tsv | non-zero, path named |
-| `missing file fails` | a tsv row has no file | non-zero, path named |
+| `missing file fails` | a tsv row has no file, in the highest phase present | `--complete` of that phase is non-zero and names the path. The default check passes, because the highest phase present is a bit in progress |
 | `index with a statement fails` | an `index.ts` contains anything but a re-export | non-zero |
 | `src without a sibling test fails` | a `kind=src` row has no test row | non-zero |
-| `generated pattern matches keys` | a fixture registry of two families | exactly those two generated modules |
+| `generated pattern matches keys` | a fixture registry of two families, then keys where one prefixes another | exactly those generated modules, in filename order (`noto-sans-jp.ts` before `noto-sans.ts`) |
 | `tooling scripts skipped` | `scripts/tool.mjs` and an extensionless `scripts/scrub-text` with no tsv row | zero. A `scripts/*.ts` file with no row still fails. Framework scripts are TypeScript; anything else under `scripts/` is agent tooling and not in the tsv |
-| `complete phase` | `checkTree(root, tsv, { complete: "P1" })` while P1 is the highest phase present and a later phase is listed | non-zero, each missing P1 path named. Without `complete` the same tree passes, because only the phases below the highest one present are held complete. An unknown phase throws. The CLI flag is `--complete <phase>` or `--complete=<phase>`, and a bit's Done runs `bun scripts/check-tree.ts --complete P<n>` in the fresh worktree |
+| `complete phase` | `checkTree(root, tsv, { complete: "P1" })` while P1 is the highest phase present | non-zero, each missing P1 path named. Without `complete` the same tree passes, because only the phases below the highest one present are held complete, the last listed phase included. An unknown phase throws. CI and the release workflow run `--complete` of the last phase, so a finished tree stays strict. The CLI flag is `--complete <phase>` or `--complete=<phase>`, and a bit's Done runs `bun scripts/check-tree.ts --complete P<n>` in the fresh worktree |
 
 The generated-pattern case uses a temp directory. The real font registry does not exist until bit 14.
 
