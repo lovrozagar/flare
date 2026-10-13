@@ -1,10 +1,13 @@
 import { createComponent, createMemo, Loading, type Element } from "solid-js";
 import { Dynamic } from "@solidjs/web";
 import { expect, expectTypeOf, it, vi, type Mock } from "vitest";
+import { useDeferred } from "../../shared/components/index.ts";
 import type { CacheConfig } from "../../shared/route-builder/chain.ts";
+import type { Deferred } from "../../shared/route-builder/register.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
+import { prerendererOf } from "../../shared/protocol/prerender.ts";
 import { serveWith } from "../lifecycle/create.ts";
 import type { Logger } from "../lifecycle/logger.ts";
 import type { FlareStore, FlareStoreEntry } from "./contract.ts";
@@ -90,6 +93,7 @@ const SITE = "https://example.com";
 function storing(
 	page: RouteModule,
 	dev = true,
+	log: Logger = quiet,
 ): {
 	server: ReturnType<typeof serveWith>;
 	set: Mock<FlareStore["set"]>;
@@ -101,7 +105,7 @@ function storing(
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] });
 	const server = serveWith(
 		{ router, site: SITE, store: { ...store, set } },
-		{ dev, log: quiet, send: (payload) => void bugs.push(payload.err.message) },
+		{ dev, log, send: (payload) => void bugs.push(payload.err.message) },
 	);
 	return { server, set, bugs };
 }
@@ -115,12 +119,24 @@ async function stored(
 	return { key, entry, page: entry.data as StoredPage };
 }
 
-// A slot under `<Loading>` that reads one deferred value, the way dx/defer.md shows.
+// A slot under `<Loading>` that reads one async value.
 function slot(read: () => Promise<unknown>, fallback: string): Element {
 	return createComponent(Loading, {
 		fallback,
 		get children() {
 			const value = createMemo(async () => read());
+			return [() => String(value())];
+		},
+	});
+}
+
+// A slot that reads a deferred value through useDeferred, the way dx/defer.md shows. A stored `"stream"` hole is then
+// a client source, so the server renders its fallback and holds no boundary open.
+function deferredSlot(read: () => Deferred<unknown>, fallback: string): Element {
+	return createComponent(Loading, {
+		fallback,
+		get children() {
+			const value = useDeferred(read);
 			return [() => String(value())];
 		},
 	});
@@ -246,13 +262,87 @@ it("streamed defer", async () => {
 	const page = createPage("_root_/p")
 		.cache({ isr: { defer: "stream" } })
 		.loader(({ defer }) => ({ late: defer(late) }))
-		.render((props) => slot(() => props.loaderData.late.promise, "waiting"));
+		.render((props) => deferredSlot(() => props.loaderData.late, "waiting"));
 	const { server, set } = storing(page);
 	await server.fetch(new Request(`${SITE}/p`));
 	const { page: entry } = await stored(set);
 	expect(entry.html).toContain("waiting");
 	expect(entry.ndjson).not.toContain('"t":"c"');
 	expect(late).not.toHaveBeenCalled();
+});
+
+// A stored write waits until Solid's render completes, so a suspense value that settles after the shell is stored
+// as its resolved fragment, not as a fallback whose fragment never comes (BUGS.md B15).
+it("render completes before store", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.render(() => slot(() => new Promise((resolve) => setTimeout(() => resolve("ready-value"), 50)), "waiting"));
+	const { server, set } = storing(page);
+	await (await server.fetch(new Request(`${SITE}/p`))).text();
+	const { page: entry } = await stored(set);
+	expect(entry.html).toContain("ready-value");
+});
+
+// A Flare `"stream"` defer stays a hole beside it: its fallback is stored, and the app's own async is awaited.
+it("stream defer stays a hole", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: { defer: "stream" } })
+		.loader(({ defer }) => ({ late: defer(async () => "late") }))
+		.render((props) => [
+			deferredSlot(() => props.loaderData.late, "hole-fallback"),
+			slot(() => new Promise((resolve) => setTimeout(() => resolve("app-value"), 50)), "app-fallback"),
+		]);
+	const { server, set } = storing(page);
+	await (await server.fetch(new Request(`${SITE}/p`))).text();
+	const { page: entry } = await stored(set);
+	expect(entry.html).toContain("hole-fallback");
+	expect(entry.html).toContain("app-value");
+});
+
+// An app value that never settles leaves the render incomplete. 10 s after the shell the miss is served live and
+// uncached, nothing is written, and one warn names the route (BUGS.md B15).
+function forever(cache: CacheConfig = { isr: true }): RouteModule {
+	return createPage("_root_/p")
+		.cache(cache)
+		.render(() => slot(() => new Promise(() => undefined), "forever"));
+}
+
+function warnings(): { log: Logger; seen: string[] } {
+	const seen: string[] = [];
+	return { log: { ...quiet, warn: (_tag, message) => void seen.push(message) }, seen };
+}
+
+it("incomplete render not stored", async () => {
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+	try {
+		const { log, seen } = warnings();
+		const { server, set } = storing(forever(), true, log);
+		const answer = server.fetch(new Request(`${SITE}/p`));
+		await vi.advanceTimersByTimeAsync(10_001);
+		const response = await answer;
+		expect(response.headers.get("cache-control")).toBe("private, no-store");
+		expect(set).not.toHaveBeenCalled();
+		expect(seen).toEqual([expect.stringContaining("_root_/p")]);
+		await response.body?.cancel();
+	} finally {
+		vi.useRealTimers();
+	}
+});
+
+it("prerender incomplete fails", async () => {
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+	try {
+		const { log, seen } = warnings();
+		const { server } = storing(forever({ ssg: true }), true, log);
+		const pages = prerendererOf(server);
+		const rendered = pages?.render({ id: "_root_/p", params: {}, env: {} });
+		await vi.advanceTimersByTimeAsync(10_001);
+		const result = await rendered;
+		expect(result?.entry).toBeUndefined();
+		expect(seen).toEqual([expect.stringContaining("_root_/p")]);
+	} finally {
+		vi.useRealTimers();
+	}
 });
 
 // Every shared render requests `site` plus the canonical pathname: no search and no request headers. The miss serves

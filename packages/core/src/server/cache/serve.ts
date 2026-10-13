@@ -27,7 +27,7 @@ import { hitOf, storedPageOf, type Hit } from "./read.ts";
 import type { Capture } from "./prerender.ts";
 import { listed, seedLookup } from "./seed.ts";
 import { fromSentinel } from "./nonce.ts";
-import { sharedRender, type SharedRender } from "./scrub.ts";
+import { INCOMPLETE, sharedRender, type SharedRender } from "./scrub.ts";
 import {
 	buildEntry,
 	entryTags,
@@ -126,6 +126,7 @@ async function prerendered(
 	if (at.prepared.policy.decision.policy !== "shared") return live(exchange, matched, at.prepared);
 	const shared = await sharedRender(exchange, matched);
 	if (shared === undefined) return live(exchange, matched, at.prepared);
+	if (shared === INCOMPLETE) return live(exchange, matched, uncached(at.prepared));
 	const mode = matched.chain.at(-1)?.module.cache?.ssg === undefined ? "isr" : "ssg";
 	const policy: Policy = { ...at.prepared.policy, rejected: !shared.settled };
 	const input = entryInput(shared, matched, { mode, policy });
@@ -138,6 +139,11 @@ async function prerendered(
 function live(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	if (exchange.kind === "document") return page(exchange, matched, prepared);
 	return data(exchange, matched, prepared);
+}
+
+// A shared render that did not complete is served as the live render it is, `private, no-store` (B15).
+function uncached(prepared: Prepared): Prepared {
+	return { ...prepared, policy: { ...prepared.policy, rejected: true } };
 }
 
 type Stored = { prepared: Prepared; store: FlareStore; mode: "isr" | "ssr" };
@@ -164,6 +170,7 @@ async function stored(exchange: Exchange, matched: Loaded, at: Stored): Promise<
 	}
 	const landed = await inflight(keyed.key, () => flight(exchange, matched, keyed));
 	if (landed === undefined) return live(exchange, matched, at.prepared);
+	if (landed === INCOMPLETE) return live(exchange, matched, uncached(at.prepared));
 	const cookies = [landed.shared.run.headers["set-cookie"] ?? []].flat();
 	const policy = { ...at.prepared.policy, rejected: !landed.shared.settled };
 	return served(exchange, landed.page, { policy, cache: "miss", cookies });
@@ -204,7 +211,7 @@ async function gated(
 // only when the render passes the write rule (B46).
 async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<Flight> {
 	const shared = await sharedRender(exchange, matched);
-	if (shared === undefined) return undefined;
+	if (shared === undefined || shared === INCOMPLETE) return shared;
 	const policy: Policy = { ...at.prepared.policy, rejected: !shared.settled };
 	const input = entryInput(shared, matched, { mode: at.mode, policy });
 	const page = storedPage(input);

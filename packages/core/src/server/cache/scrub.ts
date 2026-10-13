@@ -22,13 +22,22 @@ export type SharedRender = {
 	startedAt: number;
 };
 
+// A shared render whose body did not complete within SETTLE_MS after its shell: it is served live and never stored.
+export const INCOMPLETE = "incomplete";
+
+// How long a stored render may take to complete after its shell (dx/cache.md). Fixed, not an option.
+export const SETTLE_MS = 10_000;
+
 const NOTHING_STALE: ReadonlySet<string> = new Set();
 
 // The loaders, the render, and `serverContext` all run on the shared request. `serverContext` is called again for
 // it with the same env, so `serverCtx()` there never holds the visitor's cookie. Its session is null, so an
 // optional-auth chain stores its anonymous render (B27). It renders as a document, so one run writes both the
 // HTML and the NDJSON. A run that is not a clean 200, or a render that fails, gives nothing to store.
-export function sharedRender(exchange: Exchange, matched: Loaded): Promise<SharedRender | undefined> {
+export function sharedRender(
+	exchange: Exchange,
+	matched: Loaded,
+): Promise<SharedRender | typeof INCOMPLETE | undefined> {
 	const request = sharedRequest(defined(exchange.options.site, "the site a store requires"), exchange.request);
 	const { env, store, waitUntil } = exchange;
 	const context = { request, env, serverContext: exchange.options.serverContext, store, waitUntil };
@@ -39,7 +48,7 @@ export function sharedRender(exchange: Exchange, matched: Loaded): Promise<Share
 	);
 }
 
-async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender | undefined> {
+async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender | typeof INCOMPLETE | undefined> {
 	const startedAt = Date.now();
 	const run = await runLoaders({ ...loaderInput(shared, matched), shared: true, stored: true });
 	// "resolve" values are awaited. "stream" functions never ran, so their holes stay placeholders.
@@ -48,6 +57,13 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 	const document = await drawn(shared, { chain: matched.chain, run });
 	if ("failed" in document) return undefined;
 	const html = await shellOf(document.body);
+	if (html === undefined) {
+		shared.sink.log.warn(
+			"cache",
+			`${String(matched.id)} did not complete its render within 10 s of its shell: served live, not stored`,
+		);
+		return INCOMPLETE;
+	}
 	const project = framed(shared);
 	const ndjson = await new Response(
 		dataBody({ ...dataFrames(run, NOTHING_STALE), deferred: run.deferred, project }),
@@ -56,19 +72,31 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 	return { run, html, ndjson, nonce: document.exchange.secured.nonce, settled, startedAt };
 }
 
-// The shell holds every settled value and each `"stream"` hole's fallback. A hole never closes the stream, so the
-// read stops at `</html>`, however the stream is chunked, and the render is cancelled. A root that renders no
-// `<html>` never closes one, so the read stops after its first chunk. Its body is never stored.
-export async function shellOf(body: ReadableStream<Uint8Array>): Promise<string> {
+// A stored write waits until Solid's render completes (BUGS.md B15). A `"stream"` hole renders its fallback on the
+// client's side (`ssrSource: "client"`), so it holds no boundary open, and every other boundary, the app's own async
+// included, flushes its fragment before the stream ends. A render still open SETTLE_MS after its shell (`</html>`)
+// gives nothing, and the render is cancelled. A root that renders no `<html>` stops after its first chunk. Its body is
+// never stored.
+export async function shellOf(body: ReadableStream<Uint8Array>): Promise<string | undefined> {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();
 	let html = "";
-	for (let next = await reader.read(); !next.done; next = await reader.read()) {
-		html += decoder.decode(next.value, { stream: true });
-		if (html.includes("</html>") || !html.includes("<html")) break;
+	let late: Promise<undefined> | undefined;
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		for (;;) {
+			const next = await (late === undefined ? reader.read() : Promise.race([reader.read(), late]));
+			if (next === undefined) return undefined;
+			if (next.done) return html + decoder.decode();
+			html += decoder.decode(next.value, { stream: true });
+			if (!html.includes("<html")) return html + decoder.decode();
+			if (late === undefined && html.includes("</html>"))
+				late = new Promise((resolve) => (timer = setTimeout(() => resolve(undefined), SETTLE_MS)));
+		}
+	} finally {
+		clearTimeout(timer);
+		void reader.cancel();
 	}
-	void reader.cancel();
-	return html + decoder.decode();
 }
 
 // `store` needs `site`, checked at the call. `site` is an absolute origin with no path, search, or hash, and it is
