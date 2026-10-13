@@ -1,4 +1,4 @@
-import { fileURLToPath } from "url";
+import { fileURLToPath } from "node:url";
 
 // A module of this package named by its source path, resolved from the module asking. From source the file is `.ts`.
 // From the installed package it is the compiled `.js`, so the asking module's own extension decides (bits/14).

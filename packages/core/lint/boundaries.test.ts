@@ -159,3 +159,38 @@ it("font generate", () => {
 	expect(lint({ "src/features/fonts/vite/registry.ts": registry })).toBe(0);
 	expect(lint({ "src/features/image/vite/registry.ts": registry })).not.toBe(0);
 });
+
+// src imports only `node:` builtins, its own package, and the dependencies and peers its manifest declares, in every
+// import form: a devDependency, an unlisted package, or a bare builtin would ship a broken package (00-rules
+// Dependencies).
+it("package imports", () => {
+	const file = "src/vite/plugin/deps.ts";
+	const reported = [
+		'import { zip } from "fflate";\nexport const pack = zip;\n',
+		'import pad from "left-pad";\nexport const left = pad;\n',
+		'import fs from "fs";\nexport const disk = fs;\n',
+		'export { zip } from "fflate";\n',
+		'export * from "fflate";\n',
+		'export const pack = () => import("fflate");\n',
+		'import type { Zippable } from "fflate";\nexport type Input = Zippable;\n',
+	];
+	expect(reported.filter((code) => lint({ [file]: code }) === 0)).toEqual([]);
+	const passing = [
+		'import fs from "node:fs";\nexport const disk = fs;\n',
+		'import { render } from "@solidjs/web";\nexport const mount = render;\n',
+		'import { createStore } from "solid-js/store";\nexport const store = createStore;\n',
+		'import negotiator from "negotiator";\nexport const parse = negotiator;\n',
+		'export * from "solid-js";\n',
+		'export const resize = () => import("sharp");\n',
+		'import type { Plugin } from "vite";\nexport type P = Plugin;\n',
+		'export type { QueryClient } from "@lovrozagar/flare/query";\n',
+	];
+	expect(lint(Object.fromEntries(passing.map((code, index) => [`src/vite/plugin/ok${index}.ts`, code])))).toBe(0);
+});
+
+// A fixture is test code, as files.tsv kinds it: it may import a devDependency, and the release leaves it out.
+it("fixture exempt", () => {
+	const code = 'import { vi } from "vitest";\nexport const mock = vi;\n';
+	expect(lint({ "src/client/navigation/mock.fixture.ts": code })).toBe(0);
+	expect(lint({ "src/client/navigation/mock.ts": code })).not.toBe(0);
+});

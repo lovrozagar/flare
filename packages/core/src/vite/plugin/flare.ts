@@ -1,6 +1,6 @@
-import { existsSync } from "fs";
-import { isAbsolute, relative, resolve, sep } from "path";
-import { fileURLToPath } from "url";
+import { existsSync } from "node:fs";
+import { isAbsolute, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import solid from "@solidjs/vite-plugin";
 import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts";

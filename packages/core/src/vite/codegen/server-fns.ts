@@ -1,4 +1,4 @@
-import { posix } from "path";
+import { posix } from "node:path";
 import { assignIds, extractServerFns, fnId, type FnSite } from "../route-meta/index.ts";
 import { escapeSource } from "./escape.ts";
 

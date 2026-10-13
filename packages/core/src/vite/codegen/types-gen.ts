@@ -1,4 +1,4 @@
-import { posix } from "path";
+import { posix } from "node:path";
 import { parseSync } from "oxc-parser";
 import { escapeSource } from "./escape.ts";
 import { generateRoutes } from "./routes.ts";

@@ -1,4 +1,4 @@
-import { posix } from "path";
+import { posix } from "node:path";
 import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts";
 import { escapeSource } from "./escape.ts";
 import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts";
