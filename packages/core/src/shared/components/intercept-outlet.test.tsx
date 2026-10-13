@@ -12,23 +12,27 @@ import { createRootLayout } from "../route-builder/root-layout.ts";
 import { createRouter, loadChain } from "../router/create-router.ts";
 import { InterceptOutlet, OverlayContext, type InterceptState } from "./intercept-outlet.tsx";
 import { Matches } from "./outlet.tsx";
+import { useLoaderData, useParams, useSearch } from "./outlet-nodes.ts";
 
 const counts = { home: 0, photo: 0 };
-const seen: { state?: InterceptState } = {};
+const seen: { state?: InterceptState; rootData?: unknown } = {};
 let view: (state: InterceptState) => JSX.Element = () => "";
 
-const root = createRootLayout("_root_").render((props) => [
-	"root[",
-	props.children,
-	"|",
-	createComponent(InterceptOutlet, {
-		children: (state: InterceptState) => {
-			seen.state = state;
-			return view(state);
-		},
-	}),
-	"]",
-]);
+const root = createRootLayout("_root_").render((props) => {
+	seen.rootData = useLoaderData({ from: "_root_" });
+	return [
+		"root[",
+		props.children,
+		"|",
+		createComponent(InterceptOutlet, {
+			children: (state: InterceptState) => {
+				seen.state = state;
+				return view(state);
+			},
+		}),
+		"]",
+	];
+});
 const home = createPage("_root_/").render((props) => {
 	counts.home += 1;
 	return [() => `home:${String(props.loaderData)}`];
@@ -39,11 +43,21 @@ const photo = createPage("_root_/photos/[id]")
 		counts.photo += 1;
 		return [() => `photo:${String(props.loaderData)}`];
 	});
+// The overlay page reads its own route with its own id: the overlay's params, search, and loader data (B16).
+const note = createPage("_root_/notes/[id]")
+	.intercept({ from: ["_root_/"], render: "note" })
+	.render(() => {
+		const params = useParams({ from: "_root_/notes/[id]" });
+		const search = useSearch({ from: "_root_/notes/[id]" });
+		const data = useLoaderData({ from: "_root_/notes/[id]" });
+		return `note:${String(Reflect.get(Object(params), "id"))}:${String(Reflect.get(Object(search), "q"))}:${String(data)}`;
+	});
 const router = createRouter({
 	layouts: { _root_: root },
 	routeTree: [
 		{ id: "_root_/", path: "/", module: home },
 		{ id: "_root_/photos/[id]", path: "/photos/[id]", module: photo },
+		{ id: "_root_/notes/[id]", path: "/notes/[id]", module: note },
 		{ id: "_root_/bare", path: "/bare", module: { intercept: { from: ["_root_/"], render: "bare" } } },
 	],
 });
@@ -129,6 +143,25 @@ it("custom", async () => {
 	await app.navigator.navigate({ to: "_root_/bare" });
 	flush();
 	expect(app.text()).toBe("root[home:start|bare:]");
+});
+
+// The page's own hooks find the overlay match, and the root, which stays mounted, still reads its own data (B16).
+it("page hooks", async () => {
+	const frames: Frame[] = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/notes/[id]", d: "N1" },
+		{ t: "r" },
+		{ t: "d" },
+	];
+	const app = await setup(async () => ndjson(frames));
+	const rootData = seen.rootData;
+	const homes = counts.home;
+	await app.navigator.navigate({ to: "_root_/notes/[id]", params: { id: "7" }, search: { q: "x" } });
+	flush();
+	expect(app.text()).toBe("root[home:start|note:N1:note:7:x:N1]");
+	expect(location.pathname).toBe("/notes/7");
+	expect(counts.home).toBe(homes);
+	expect(seen.rootData).toBe(rootData);
 });
 
 it("no provider", () => {

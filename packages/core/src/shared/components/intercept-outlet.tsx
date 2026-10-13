@@ -3,6 +3,8 @@ import type { JSX } from "@solidjs/web";
 import type { ChainRecord } from "../route-builder/chain.ts";
 import type { Located } from "../route-builder/index.ts";
 import type { Location } from "../url/index.ts";
+import type { OutletMatch, OutletState } from "./outlet.tsx";
+import { MatchesContext } from "./outlet-nodes.ts";
 
 // Raw, or what that file's `.input()` returned.
 type Values = Located["params"];
@@ -42,13 +44,33 @@ export function InterceptOutlet(props: { children: (state: InterceptState) => JS
 	const overlay = useContext(OverlayContext);
 	const view = createMemo(() => {
 		const current = overlay();
-		return current === undefined ? undefined : untrack(() => props.children(stateOf(current)));
+		if (current === undefined) return undefined;
+		const shown = withOverlay(useContext(MatchesContext), current);
+		return untrack(() => props.children(stateOf(current, shown)));
 	});
 	// JSX.Element types a reactive child only inside an array, the shape compiled JSX gives a fragment.
 	return [view];
 }
 
-function stateOf(overlay: Overlay): InterceptState {
+// The page's own hooks read the overlay as a match on screen, after the background chain. The target's layouts are
+// not mounted, so they are not added, and a hook naming one still throws (dx/navigate.md, BUGS.md B16).
+function withOverlay(outer: () => OutletState, overlay: Overlay): () => OutletState {
+	const match: OutletMatch = {
+		id: overlay.route,
+		kind: "page",
+		module: {},
+		params: overlay.params,
+		search: overlay.search,
+		data: overlay.data,
+		preloader: overlay.preloader,
+	};
+	return () => {
+		const state = outer();
+		return { ...state, matches: [...state.matches, match] };
+	};
+}
+
+function stateOf(overlay: Overlay, shown: () => OutletState): InterceptState {
 	const render = overlay.render;
 	return {
 		render: overlay.label,
@@ -57,11 +79,16 @@ function stateOf(overlay: Overlay): InterceptState {
 			render: () =>
 				render === undefined
 					? undefined
-					: createComponent(render, {
-							loaderData: overlay.data,
-							params: overlay.params,
-							search: overlay.search,
-							preloaderContext: overlay.preloader,
+					: createComponent(MatchesContext, {
+							value: shown,
+							get children() {
+								return createComponent(render, {
+									loaderData: overlay.data,
+									params: overlay.params,
+									search: overlay.search,
+									preloaderContext: overlay.preloader,
+								});
+							},
 						}),
 		},
 		params: overlay.params,
