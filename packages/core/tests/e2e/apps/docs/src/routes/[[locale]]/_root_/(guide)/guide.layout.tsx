@@ -5,6 +5,7 @@ import { docs } from "../../../../content.ts";
 // The docs chrome. The group adds no URL segment. On a client navigation only the article animates: the boundary
 // scopes the view transition to it, so the sidebar stays still.
 export const route = createLayout("[[locale]]/_root_/(guide)")
+	.cache({ client: { staleTime: "30s" } })
 	.preloader(() => ({ section: "guide", sidebar: "docs" }))
 	.render((props) => {
 		const match = useMatch({ from: "[[locale]]/_root_/(guide)" });

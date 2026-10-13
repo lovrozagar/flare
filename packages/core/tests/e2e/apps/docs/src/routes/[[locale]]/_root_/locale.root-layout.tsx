@@ -27,6 +27,8 @@ const SITE = "https://flare.test";
 // The document for every main page. The optional `[[locale]]` param is the tag: `initial` for the locale and
 // `locale` for the direction. The scripts run before paint under the request nonce.
 export const route = createRootLayout("[[locale]]/_root_")
+	// A revisit inside 30 s reuses the layout's client copy, so a fully fresh navigation sends no request (dx/cache.md).
+	.cache({ client: { staleTime: "30s" } })
 	.preloader(() => ({ version: "1.0", site: "Flare" }))
 	.loader(() => ({ requestId: serverCtx().requestId, runtime: serverRuntime() }))
 	.head(() => ({
