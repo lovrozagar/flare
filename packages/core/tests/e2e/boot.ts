@@ -17,6 +17,8 @@ export type Boot = {
 	origin: string;
 	appDir: string;
 	cacheDir: string;
+	// A prod boot's build output: `client`, `server`, and `worker` under it.
+	outDir?: string | undefined;
 	close: () => Promise<void>;
 };
 
@@ -42,9 +44,9 @@ export async function boot(input: { app: string; runtime: string; mode: string }
 		remove([cacheDir, outDir]);
 		throw error;
 	}
-	if (input.runtime === "workers") return bootWorkers({ appDir, cacheDir, outDir });
+	if (input.runtime === "workers") return { ...(await bootWorkers({ appDir, cacheDir, outDir })), outDir };
 	const [bin, args] = input.runtime === "bun" ? ["bun", ["-e", BUN_SERVE]] : [process.execPath, NODE_ARGS];
-	return bootChild({ appDir, cacheDir, bin, args: [...args, outDir], dirs: [outDir] });
+	return { ...(await bootChild({ appDir, cacheDir, bin, args: [...args, outDir], dirs: [outDir] })), outDir };
 }
 
 const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", import.meta.url));

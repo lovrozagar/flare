@@ -601,6 +601,7 @@ packages/core/tests/types/app/src/routes/_root_/seg/seg.segment.ts	P7	app	-	Segm
 packages/core/tests/types/app/src/routes/[locale]/_root_/locale.root-layout.tsx	P7	app	-	Second document root. No auth
 packages/core/tests/types/app/src/routes/[locale]/_root_/about/about.page.tsx	P7	app	-	Param locale before the root marker
 packages/core/tests/e2e/playwright.config.ts	P1	config	-	One Playwright config. Linux runs chromium and firefox. macOS runs webkit. CI runs both (B70)
+packages/core/tests/e2e/static.test.ts	P12	test	node	Playwright: SSG seeds read through the static store on every prod runtime, and a live render in dev. Calls boot
 packages/core/tests/e2e/boot.ts	P1	script	node	Start one e2e app on an ephemeral port. Does not copy the app (B70)
 packages/core/tests/e2e/boot.test.ts	P1	test	node	Unit cases for boot.ts
 packages/core/tests/e2e/minimal.test.ts	P1	test	node	Playwright: the minimal app renders and hydrates. Calls boot
@@ -626,6 +627,8 @@ packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons/skeletons.page.
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/stored/stored.page.tsx	P10	app	-	An ISR page whose resolve defer sits under two nested Loading boundaries, for stored hit hydrates
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/styled/styled.page.tsx	P6	app	-	A multi-key style object, for style object
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/unstored/unstored.page.tsx	P10	app	-	The holed page with no cache mode, for live stream ssr
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/static/static.page.tsx	P12	app	-	An ssg page prerendered at build, for static.test
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/static/[slug]/slug.page.tsx	P12	app	-	An ssg page listing slugs a and b, for static.test
 packages/core/tests/e2e/apps/minimal/src/fns/echo.ts	P7	app	-	One server function
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/echo/echo.page.tsx	P7	app	-	A button that calls the echo function from a click and prints its answer, for server-fn.test click
 packages/core/tests/e2e/apps/basepath/package.json	P2	app	-	App package
