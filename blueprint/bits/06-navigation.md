@@ -127,8 +127,6 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 
 | test | case | result |
 | --- | --- | --- |
-| `shallow` | a shallow navigate to the current route with new search, then again with `replace` | no request and no loader run, the URL and the page's search values are the call's, loader data is unchanged, history gains one entry then replaces it, and `pending` stays false (BUGS.md B18) |
-| `shallow blocked` | the same with a blocker that returns `false` | the URL and the search stay, and no history entry is written |
 | `commit then push` | a successful data response | the DOM updates, then `history.pushState` |
 | `network` | the fetch fails and has no status | the screen and the history stay |
 | `auth error` | HTTP 401, and HTTP 403 | the auth error is committed on the target, the outlet paints the walked auth boundary or its built-in `div`, then history is pushed |
@@ -153,6 +151,16 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `chunk import` | the target's lazy module rejects with a chunk message | one guarded document load of the target URL, and no commit. The chunk error wins even when the data request fails first |
 | `optional param` | a route with an optional param, absent and then present | the absent param is not in the match params. The present one is |
 | `restore` | `restore(url)`, one popstate step | the target commits with no blocker and no history write, and the saved scroll comes back. A hash-only step restores too |
+
+### `client/navigation/navigate-shallow.test.ts`
+
+navigate.test.ts is near the test-file limit, so the shallow cases live beside it, as navigate-transition and navigate-slots do.
+
+| test | case | result |
+| --- | --- | --- |
+| `shallow` | a shallow navigate to the current route with new search, then again with `replace` | no request and no loader run, the URL and the page's search values are the call's, loader data is unchanged, history gains one entry then replaces it, and `pending` stays false (BUGS.md B18) |
+| `shallow blocked` | the same with a blocker that returns `false` | the URL and the search stay, and no history entry is written |
+| `hash push index` | a hash-only navigate (push), then `history.back()` | the navigator's history index follows the push, so the popstate's view-transition direction is `back`, not `same` (found with BUGS.md B18) |
 
 ### `client/navigation/navigate-slots.test.ts`
 
