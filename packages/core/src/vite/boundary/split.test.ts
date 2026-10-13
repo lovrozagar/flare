@@ -89,11 +89,23 @@ export const other = createPage("_root_/b").cache({ ssr: { ttl: "1m" } }).render
 	const code = split(source);
 	expect(code).toContain('.cache({ client: { staleTime: "1s" } })');
 	expect(code).not.toContain("ttl");
-	for (const argument of ["shared", '"1m"', ""]) {
+	for (const argument of ["shared", '"1m"', "", "{ ...shared }", "{ [key]: true }"]) {
 		expect(() =>
 			split(`${BUILDER}export const route = createPage("_root_/a").cache(${argument}).render(r);\n`),
 		).toThrow("src/routes/a.page.tsx: route .cache() takes a literal object");
 	}
+	// A server field's value may be a function, as an ssg or isr `params` or a `tags` function is (dx/cache.md). It
+	// goes with the server fields.
+	const listed = `${BUILDER}export const route = createPage("_root_/p/[slug]")
+	.cache({ ssg: () => [{ slug: "a" }], cdn: { tags: ({ params }) => [params.slug] }, client: { staleTime: "1s" } })
+	.render(r);
+export const isr = createPage("_root_/i/[id]").cache({ isr: { params: list } }).render(r);
+`;
+	const kept = split(listed);
+	expect(kept).toContain('.cache({ client: { staleTime: "1s" } })');
+	expect(kept).not.toContain('slug: "a"');
+	expect(kept).not.toContain("params: list");
+	expect(kept).toContain('createPage("_root_/i/[id]").render(r)');
 });
 
 it("server fn bodies", () => {

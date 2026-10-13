@@ -200,7 +200,7 @@ Run against oxc, not a regex.
 | `keeps render import` | the render imports a component | the component stays |
 | `unknown method` | `.middleware()` on the chain | build error |
 | `response page` | `.authenticate().response(fn)` on a page | the client output keeps `.response(undefined)`, the export is still a record, and the response function's source is absent. A removed call that ends the chain keeps the call; a middle one is cut whole |
-| `cache client` | `.cache({ ssr, client })`, `.cache({ ssr })`, and a non-literal argument | `.cache({ client })`; the call cut when there is no `client`; a build error for anything but a literal object |
+| `cache client` | `.cache({ ssr, client })`, `.cache({ ssr })`, a server field whose value is a function (an ssg or isr `params`, a `tags` function), and a non-literal argument | `.cache({ client })`; the call cut when there is no `client`; a function value goes with its server field; a build error for anything but an object literal with named fields, so a spread or a computed key fails |
 | `server fn bodies` | a server function with `input`, `authorize`, and `handler` in the client graph | each argument is `undefined`, the calls stay, and an import only those bodies read is dropped |
 | `source map` | a loader cut above a render that throws | the generated line maps back to the throw's original line and column (`magic-string`, `hires`) |
 | `member property` | the loader reads `db`; the render has `p.loaderData.db` and `<ui.db />` | the `db` import is removed |
