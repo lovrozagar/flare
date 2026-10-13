@@ -81,6 +81,7 @@ The attribute is `"light"` or `"dark"`. The string `"system"` is never written. 
 
 | test | case | result |
 | --- | --- | --- |
+| `aran` | a tag whose maximized script is `Aran` (Nastaliq), as Bun's ICU gives for `ur` and `ks` | `rtl`. `Aran` is in the right-to-left set, so the server and every browser agree whatever their ICU maximizes to (BUGS.md B26) |
 | `latin` | `en` | `ltr` |
 | `arabic` | `ar` | `rtl` |
 | `script data` | `xx-Arab` | `rtl` |
