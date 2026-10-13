@@ -41,8 +41,17 @@ it("public only", () => {
 
 it("optional included", () => {
 	const optional = route("_root_/feed", "/feed", { auth: { requires: false, reads: true } });
-	const authorized = route("_root_/gate", "/gate", { authorize: true });
-	expect(locs(xmlOf(build([optional, authorized])))).toEqual(["https://example.com/feed", "https://example.com/gate"]);
+	expect(locs(xmlOf(build([optional])))).toEqual(["https://example.com/feed"]);
+});
+
+// `authorize` anywhere on the chain gates who may see the page, so a crawler could get 403. `authorize` here is the
+// chain's: a layout's counts.
+it("authorize omitted", () => {
+	const gated = route("_root_/team/page", "/team/page", { auth: { requires: false, reads: true }, authorize: true });
+	const optional = route("_root_/feed", "/feed", { auth: { requires: false, reads: true } });
+	const result = build([gated, optional]);
+	expect(locs(xmlOf(result))).toEqual(["https://example.com/feed"]);
+	expect(result.errors).toEqual([]);
 });
 
 it("param listed", () => {

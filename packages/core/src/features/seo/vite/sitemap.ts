@@ -108,7 +108,8 @@ function routeUrls(options: SitemapOptions, input: SitemapInput, errors: string[
 			errors.push(`${route.id}: the codegen auth hint says ${hint}, the loaded modules say ${runtime} (B25)`);
 			continue;
 		}
-		if (runtime === "requires") continue;
+		// `authorize` gates who may see the page, so a crawler could get 403 (dx/seo.md).
+		if (runtime === "requires" || route.authorize) continue;
 		const changefreq = forRoute(options.changefreq, route.id);
 		const priority = forRoute(options.priority, route.id);
 		for (const path of pathsOf(route, input)) {
