@@ -153,35 +153,71 @@ type Located<S extends RouteState> = { params: S["params"]; search: S["search"] 
 // After `.authorize()`: a public route reads the registered session or `null`. A stricter seed stays (dx/types.md).
 type Authorized<S extends RouteState> = S["auth"] extends false ? With<S, "auth", "optional"> : S;
 
+// The steps in their order (dx/builder.md, chain.ts ORDER). A step removes itself and every step before it, so a
+// method called too early is absent from the type as it throws at runtime (BUGS.md B9). The loader and `.response()`
+// exclude each other, and a route has one authenticate step.
+type Sequence = [
+	"intercept",
+	"cache",
+	"input",
+	"authenticate",
+	"authenticateOptional",
+	"authorize",
+	"effects",
+	"preloader",
+	"loader",
+	"head",
+	"headers",
+	"security",
+];
+
+type Through<Step, Steps, Gone extends string = never> = Steps extends [infer First extends string, ...infer Rest]
+	? First extends Step
+		? Gone | First
+		: Through<Step, Rest, Gone | First>
+	: Gone;
+
+export type StepsGone<Step extends string> =
+	| Through<Step, Sequence>
+	| (Step extends "loader" ? "response" : never)
+	| (Step extends "authenticate" ? "authenticateOptional" : never);
+
 // The steps every route builder has. A typed step returns a builder of the new state. `.authenticateOptional()` on a
 // route whose parents already require auth takes an argument it can never get, so it does not type-check (dx/types.md).
-export type BuilderSteps<S extends RouteState, K extends RouteKind> = {
-	cache(config: CacheConfig): RouteBuilder<S, K>;
-	input<I extends RouteInput>(config: I): RouteBuilder<WithInput<S, I>, K>;
-	authenticate(...callerData: readonly string[]): RouteBuilder<With<S, "auth", true>, K>;
+// `G` is the steps already gone.
+export type BuilderSteps<S extends RouteState, K extends RouteKind, G extends string = never> = {
+	cache(config: CacheConfig): RouteBuilder<S, K, G | StepsGone<"cache">>;
+	input<I extends RouteInput>(config: I): RouteBuilder<WithInput<S, I>, K, G | StepsGone<"input">>;
+	authenticate(...callerData: readonly string[]): RouteBuilder<With<S, "auth", true>, K, G | StepsGone<"authenticate">>;
 	authenticateOptional(
 		...callerData: S["auth"] extends true ? [never] : readonly string[]
-	): RouteBuilder<With<S, "auth", "optional">, K>;
+	): RouteBuilder<With<S, "auth", "optional">, K, G | StepsGone<"authenticateOptional">>;
 	// On a public route, `authorize` makes the chain read the session, so its own context already has it (B26).
-	authorize(fn: (ctx: GuardContext<Authorized<S>>) => boolean | Promise<boolean>): RouteBuilder<Authorized<S>, K>;
-	effects(effects: Effects): RouteBuilder<S, K>;
+	authorize(
+		fn: (ctx: GuardContext<Authorized<S>>) => boolean | Promise<boolean>,
+	): RouteBuilder<Authorized<S>, K, G | StepsGone<"authorize">>;
+	effects(effects: Effects): RouteBuilder<S, K, G | StepsGone<"effects">>;
 	preloader<P>(
 		fn: (ctx: GuardContext<S>) => P | Promise<P>,
-	): RouteBuilder<With<S, "preloader", P extends object ? P : {}>, K>;
+	): RouteBuilder<With<S, "preloader", P extends object ? P : {}>, K, G | StepsGone<"preloader">>;
 	loader<L extends LoaderData>(
 		fn: (ctx: LoaderStepContext<S>) => L | Promise<L>,
-	): RouteBuilder<With<S, "loaderData", L>, K>;
-	head(fn: (ctx: ViewContext<S>) => HeadConfig): RouteBuilder<S, K>;
-	headers(fn: (ctx: ViewContext<S>) => RouteHeaders): RouteBuilder<S, K>;
-	security(config: SecurityConfig | ((ctx: ViewContext<S>) => SecurityConfig)): RouteBuilder<S, K>;
+	): RouteBuilder<With<S, "loaderData", L>, K, G | StepsGone<"loader">>;
+	head(fn: (ctx: ViewContext<S>) => HeadConfig): RouteBuilder<S, K, G | StepsGone<"head">>;
+	headers(fn: (ctx: ViewContext<S>) => RouteHeaders): RouteBuilder<S, K, G | StepsGone<"headers">>;
+	security(
+		config: SecurityConfig | ((ctx: ViewContext<S>) => SecurityConfig),
+	): RouteBuilder<S, K, G | StepsGone<"security">>;
 	render(fn: (props: RenderProps<S, K>) => JSX.Element): Bounded<RouteRecord & TypedRecord<S, K>, Located<S>>;
 };
 
 // Only a page intercepts and answers with `.response()`.
-export type PageSteps<S extends RouteState> = {
-	intercept(config: Intercept): RouteBuilder<S, "page">;
+export type PageSteps<S extends RouteState, G extends string = never> = {
+	intercept(config: Intercept): RouteBuilder<S, "page", G | StepsGone<"intercept">>;
 	response(fn: (ctx: ResponseContext<S>) => Response | Promise<Response>): RouteRecord & TypedRecord<S, "page">;
 };
 
-export type RouteBuilder<S extends RouteState, K extends RouteKind> = BuilderSteps<S, K> &
-	(K extends "page" ? PageSteps<S> : {});
+export type RouteBuilder<S extends RouteState, K extends RouteKind, G extends string = never> = Omit<
+	BuilderSteps<S, K, G> & (K extends "page" ? PageSteps<S, G> : {}),
+	G
+>;

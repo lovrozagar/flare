@@ -24,15 +24,21 @@ export type BoundaryRecord = {
 };
 
 // `L` is the route's own params and search, typed when its builder knows them (dx/types.md). An auth boundary
-// gets the error and no `reset`.
-type Methods<R, L extends Located> = {
-	errorRender: (fn: (props: L & { error: Error; reset: () => void }) => JSX.Element) => Bounded<R, L>;
-	notFoundRender: (fn: (props: L) => JSX.Element) => Bounded<R, L>;
-	unauthenticatedRender: (fn: (props: L & { error: Error }) => JSX.Element) => Bounded<R, L>;
-	unauthorizedRender: (fn: (props: L & { error: Error }) => JSX.Element) => Bounded<R, L>;
+// gets the error and no `reset`. `U` is the methods already called: each is gone from the type, as it throws twice.
+type Methods<R, L extends Located, U extends keyof BoundaryRecord> = {
+	errorRender: (
+		fn: (props: L & { error: Error; reset: () => void }) => JSX.Element,
+	) => Bounded<R, L, U | "errorRender">;
+	notFoundRender: (fn: (props: L) => JSX.Element) => Bounded<R, L, U | "notFoundRender">;
+	unauthenticatedRender: (
+		fn: (props: L & { error: Error }) => JSX.Element,
+	) => Bounded<R, L, U | "unauthenticatedRender">;
+	unauthorizedRender: (fn: (props: L & { error: Error }) => JSX.Element) => Bounded<R, L, U | "unauthorizedRender">;
 };
 
-export type Bounded<R, L extends Located = Located> = R & { boundaries?: BoundaryRecord } & Methods<R, L>;
+export type Bounded<R, L extends Located = Located, U extends keyof BoundaryRecord = never> = R & {
+	boundaries?: BoundaryRecord;
+} & Omit<Methods<R, L, U>, U>;
 
 // The boundary methods come after render. They are not enumerable, so the record a route exports stays plain
 // data and spreading it does not copy builder steps.
@@ -43,7 +49,7 @@ export function withBoundaries<R extends { boundaries?: BoundaryRecord }, L exte
 		if (record.boundaries?.[kind] !== undefined) throw new Error(`${kind} twice`);
 		return withBoundaries<R, L>({ ...record, boundaries: { ...record.boundaries, ...added } });
 	};
-	const methods: Methods<R, L> = {
+	const methods: Methods<R, L, never> = {
 		errorRender: (fn) => add("errorRender", { errorRender: fn }),
 		notFoundRender: (fn) => add("notFoundRender", { notFoundRender: fn }),
 		unauthenticatedRender: (fn) => add("unauthenticatedRender", { unauthenticatedRender: fn }),
