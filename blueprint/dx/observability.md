@@ -122,7 +122,7 @@ Only `vite dev` has it. A production bundle contains no bridge code (`log-bridge
 
 | direction | what | how | shown as |
 | --- | --- | --- | --- |
-| server to browser | every line a request's child writes, Flare's and the app's | the hot channel event `flare:log` with the request id, the level, the message, the fields, and for app lines `file:line` | the browser console at the same level, prefixed `[server]` and `file:line`, only for requests this tab made (its document, data, prefetch, and server-function requests, matched by `x-request-id`) |
+| server to browser | every line a request's child writes, Flare's and the app's | the hot channel event `flare:log` with the request id, the level, the message, the fields, and for app lines `file:line` | the browser console at the same level, prefixed `[server]` and `file:line`, only in the tab that made the request, routed by the dev tab token `plugin.md` defines for the overlay |
 | browser to server | `console.warn`, `console.error`, a `window` `error`, and an `unhandledrejection` | the hot channel event `flare:client-log` | the terminal through Vite's logger, prefixed `[browser]` with the page path |
 
 The bridge reads lines before the app's logger, so it works with a custom logger and with `logger: false`. It does not use the NDJSON wire (B6). `flare({ devLogs })` is `{ server?: boolean, browser?: false | "error" | "warn" | "all" }`, default `{ server: true, browser: "warn" }` (`plugin.md`).
