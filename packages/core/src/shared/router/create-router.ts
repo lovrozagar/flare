@@ -2,6 +2,17 @@ import type { BoundaryRecord, ClientCache, NotFoundRender, PrefetchTrigger } fro
 import type { ChainRecord, Intercept } from "../route-builder/chain.ts";
 import type { Location, LocationRewrite } from "../url/index.ts";
 import {
+	directionConfig,
+	localeConfig,
+	themeConfig,
+	type DirectionConfig,
+	type DirectionOptions,
+	type LocaleConfig,
+	type LocaleOptions,
+	type ThemeConfig,
+	type ThemeOptions,
+} from "./features.ts";
+import {
 	idPattern,
 	isRootFolder,
 	matchParams,
@@ -72,6 +83,9 @@ export type RouterOptions = {
 	prefetch?: RouterPrefetch;
 	viewTransitions?: boolean | ViewTransitionOptions;
 	rewrite?: LocationRewrite | undefined;
+	theme?: ThemeOptions;
+	direction?: DirectionOptions;
+	locale?: LocaleOptions;
 };
 
 // `chain` is root-down: the layouts that own the match, then the page. An unknown path has no page, and its
@@ -101,6 +115,9 @@ export type Router = {
 	viewTransitions: false | ViewTransitionOptions;
 	chunks: Record<string, string>;
 	rewrite?: LocationRewrite | undefined;
+	theme?: ThemeConfig;
+	direction?: DirectionConfig;
+	locale?: LocaleConfig;
 	match: (path: string) => Match;
 };
 
@@ -123,6 +140,10 @@ export function createRouter(options: RouterOptions): Router {
 		viewTransitions: options.viewTransitions === true ? {} : (options.viewTransitions ?? false),
 		chunks: options.chunks ?? {},
 		rewrite: options.rewrite,
+		// Each feature config is absent unless the app passed it (dx/router.md).
+		...(options.theme && { theme: themeConfig(options.theme) }),
+		...(options.direction && { direction: directionConfig(options.direction) }),
+		...(options.locale && { locale: localeConfig(options.locale) }),
 		match(path) {
 			return resolve(router, path);
 		},
