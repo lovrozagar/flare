@@ -52,7 +52,11 @@ export type ChainEntry = {
 	module: ModuleRef;
 };
 
-export type LoadedEntry = Omit<ChainEntry, "module"> & { module: RouteModule };
+// A loaded path segment is kind "segment": it renders its children, and the boundary walk skips it (dx/builder.md).
+export type LoadedEntry = Omit<ChainEntry, "module" | "kind"> & {
+	kind: ChainEntry["kind"] | "segment";
+	module: RouteModule;
+};
 
 export type RouterCache = {
 	client?: { staleTime: number; gcTime: string } | false;
@@ -180,7 +184,13 @@ function resolve(router: Router, path: string): Match {
 
 // Awaits every lazy module of a chain, in parallel. A rejected import rejects the whole chain.
 export function loadChain(chain: readonly ChainEntry[]): Promise<LoadedEntry[]> {
-	return Promise.all(chain.map(async (entry) => ({ ...entry, module: await load(entry.module) })));
+	return Promise.all(
+		chain.map(async (entry) => {
+			const module = await load(entry.module);
+			const kind = Reflect.get(module, "_type") === "segment" ? "segment" : entry.kind;
+			return { ...entry, kind, module };
+		}),
+	);
 }
 
 const imported = new WeakMap<() => Promise<RouteModule>, RouteModule>();

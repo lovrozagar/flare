@@ -102,7 +102,7 @@ export function cached(
 export async function data(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	const raw = new URL(exchange.request.url).search.slice(1);
 	const id = matchId(definedParams(matched.params), raw);
-	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind === "layout" }));
+	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind !== "page" }));
 	const skip = skippedRoutes(matches, exchange.stale);
 	const run = await runLoaders({ ...prepared.input, skip });
 	return dataFrom(exchange, run, { skip, policy: prepared.policy });

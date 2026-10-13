@@ -1,5 +1,8 @@
 import { expect, it } from "vitest";
 import { createRouter, loadChain, loadedModule, notFoundRenderOf, type Match } from "./create-router.ts";
+import { cachedMatches } from "../../client/router/match-cache.ts";
+import { boundaryAt } from "../components/boundary.ts";
+import { createPathSegment } from "../route-builder/segment.ts";
 
 async function notFoundOf(match: Match): Promise<unknown> {
 	return notFoundRenderOf(await loadChain(match.chain));
@@ -337,4 +340,29 @@ it("locale param", () => {
 	expect(routed.match("/fr/docs").params).toEqual({ locale: "fr" });
 	// Without a locale config the param is an ordinary one.
 	expect(createRouter({ layouts: {}, routeTree }).match("/x.y/docs").params).toEqual({ locale: "x.y" });
+});
+
+// A path segment is a chain entry of kind "segment" once loaded. The boundary walk skips it, and the match cache keys
+// it as a layout, never a page (BUGS.md B22).
+it("segment chain", async () => {
+	const segment = createPathSegment("_root_/docs").cache({ cdn: { maxAge: "1m" } });
+	const shown = { ...segment, boundaries: { errorRender: () => "segment error" } };
+	const router = createRouter({
+		layouts: {
+			_root_: { boundaries: { errorRender: () => "root error" } },
+			"_root_/docs": () => Promise.resolve(shown),
+		},
+		routeTree: [{ id: "_root_/docs/[slug]", path: "/docs/[slug]", module: { render: () => "doc" } }],
+	});
+	const match = router.match("/docs/a");
+	const chain = await loadChain(match.chain);
+	expect(chain.map((entry) => [entry.id, entry.kind])).toEqual([
+		["_root_", "layout"],
+		["_root_/docs", "segment"],
+		["_root_/docs/[slug]", "page"],
+	]);
+	const slots = chain.map((entry) => ({ kind: entry.kind, module: entry.module.boundaries ?? {} }));
+	expect(boundaryAt(slots, 2, 500)).toBe(0);
+	const cached = cachedMatches(match, { pathname: "/docs/a", search: "", hash: "" });
+	expect(cached.map((entry) => entry.layout)).toEqual([true, true, false]);
 });

@@ -12,7 +12,7 @@ import { TransitionScopeContext } from "./view-transition-boundary.tsx";
 // `preloader` is the preloader context accumulated through this match. Absent is `{}`.
 export type OutletMatch = Located & {
 	id: string;
-	kind: "layout" | "page";
+	kind: "layout" | "page" | "segment";
 	module: { render?: ChainRecord["render"]; boundaries?: BoundaryRecord };
 	data: unknown;
 	preloader?: Record<string, unknown>;

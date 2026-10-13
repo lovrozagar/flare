@@ -5,13 +5,7 @@ import type { ErrorRender, Located } from "../route-builder/index.ts";
 import { createLayout } from "../route-builder/layout.ts";
 import { createPage } from "../route-builder/page.ts";
 import { createRootLayout } from "../route-builder/root-layout.ts";
-import {
-	createRouter,
-	loadChain,
-	notFoundRenderOf,
-	type ChainEntry,
-	type RouteModule,
-} from "../router/create-router.ts";
+import { createRouter, loadChain, notFoundRenderOf, type RouteModule } from "../router/create-router.ts";
 import { LocationContext, NavigateContext, RouterContext, type NavigateTo } from "../router/context.ts";
 import { Matches, Outlet, type OutletMatch, type OutletState } from "./outlet.tsx";
 
@@ -27,7 +21,7 @@ const thrower: ErrorRender = () => {
 };
 const report = (): void => undefined;
 
-function entry(id: string, kind: ChainEntry["kind"], module: RouteModule): OutletMatch {
+function entry(id: string, kind: OutletMatch["kind"], module: RouteModule): OutletMatch {
 	return { id, kind, module, params: { id: "L" }, search: {}, data: `${id}-data` };
 }
 

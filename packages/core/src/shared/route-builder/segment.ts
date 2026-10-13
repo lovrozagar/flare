@@ -5,7 +5,8 @@ import type { CdnCache } from "./chain.ts";
 // A segment stores nothing. Its `cdn` is a default for the pages under it (dx/cache.md).
 export type SegmentCache = { cdn: CdnCache };
 
-export type SegmentRender = (props: { children: JSX.Element }) => JSX.Element;
+// `children` is optional as on any chain render, so a segment record is a route module (BUGS.md B22).
+export type SegmentRender = (props: { children?: JSX.Element }) => JSX.Element;
 
 // `_type` names the kind for the generated register, which keeps a segment out of `to` (dx/types.md).
 export type SegmentRecord<Id extends string = string> = {
@@ -21,7 +22,7 @@ export type SegmentBuilder<Id extends string = string> = {
 	cache: (config: SegmentCache) => SegmentRecord<Id>;
 };
 
-function render(props: { children: JSX.Element }): JSX.Element {
+function render(props: { children?: JSX.Element }): JSX.Element {
 	return props.children;
 }
 
