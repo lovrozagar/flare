@@ -16,13 +16,12 @@ it("off", () => {
 
 function stub() {
 	const calls: { types?: string[] }[] = [];
-	const start = vi.fn<(options: { update: () => void; types?: string[] }) => { updateCallbackDone: Promise<void> }>(
-		(options) => {
-			calls.push({ types: options.types });
-			options.update();
-			return { updateCallbackDone: Promise.resolve() };
-		},
-	);
+	type Started = { updateCallbackDone: Promise<void>; ready: Promise<void> };
+	const start = vi.fn<(options: { update: () => void; types?: string[] }) => Started>((options) => {
+		calls.push({ types: options.types });
+		options.update();
+		return { updateCallbackDone: Promise.resolve(), ready: Promise.resolve() };
+	});
 	return { start, calls };
 }
 
@@ -72,6 +71,28 @@ it("scope", async () => {
 	const plain = vi.fn<() => void>();
 	await runTransition({ option: {}, info, auto: () => document, update: plain });
 	expect(plain).toHaveBeenCalledOnce();
+});
+
+// A skipped transition rejects `ready` with an AbortError. The update still completes, and the skip is expected,
+// so the rejection is handled (BUGS.md B17).
+it("skipped transition", async () => {
+	const unhandled: unknown[] = [];
+	const onUnhandled = (reason: unknown): void => void unhandled.push(reason);
+	process.on("unhandledRejection", onUnhandled);
+	const skipped = new DOMException("Transition was skipped", "AbortError");
+	const start = vi.fn<(options: { update: () => void }) => { updateCallbackDone: Promise<void>; ready: Promise<void> }>(
+		(options) => {
+			options.update();
+			return { updateCallbackDone: Promise.resolve(), ready: Promise.reject(skipped) };
+		},
+	);
+	Object.defineProperty(document, "startViewTransition", { configurable: true, value: start });
+	const update = vi.fn<() => void>();
+	await runTransition({ option: {}, info, auto, update });
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	process.off("unhandledRejection", onUnhandled);
+	expect(update).toHaveBeenCalledOnce();
+	expect(unhandled).toEqual([]);
 });
 
 it("options", () => {
