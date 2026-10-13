@@ -238,6 +238,8 @@ Core reads the registered getter by its symbol and never imports TanStack (00-ru
 | `cookie on private` | a private 200 | `Set-Cookie` is allowed |
 | `cookie attrs` | a response that sets the cookie | `Path=/`, `SameSite=Lax`, no `Domain`, `Max-Age` of one year, `Secure` only on https |
 | `cookie replaced` | the incoming cookie is `nope` and the response sets the cookie | the `Set-Cookie` value is the resolved tag. `nope` is not in the response |
+| `locale param` | locales `en`, `hr`; routes `/[[locale]]/` and `/[[locale]]/pricing`; GET `/favicon.ico`, `/x.y`, `/hr`, `/fr` | `/favicon.ico` and `/x.y` are the router's 404, never a render with that value as the locale. `/hr` renders. `/fr` is the strip redirect |
+| `data unconfigured tag` | `/fr/pricing?_flare=data`, and the same as `_flare=prefetch` | the data answer is the redirect frame to `/pricing`. The prefetch is 404 with no frames. The layout never receives `fr` |
 | `negotiate 302` | a document at `/` with a cookie or `Accept-Language` that chooses `hr`, and `hr` is not the default | 302, `no-store`, `Location` keeps the query, and the path shows `hr` |
 | `negotiated private` | locales `en` (default) and `hr`, a route `/[[locale]]/pricing` with `cache.isr` and `cdn.maxAge`, and a document at `/pricing` that does not redirect | `private, no-store`, and the shared decision still reaches the Flare store, so a later visitor who also stays on the default reads it. `/hr/pricing` leaves public. The data answer for `/pricing` leaves public. A CDN copy of a URL with no tag would skip the cookie and `Accept-Language` |
 | `data cookie` | a private data response whose URL does not show the chosen tag | no redirect. `Set-Cookie` may be set |
