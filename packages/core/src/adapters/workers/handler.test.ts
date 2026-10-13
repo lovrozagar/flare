@@ -88,10 +88,10 @@ it("assets escape", async () => {
 		},
 	};
 	await handler.fetch(new Request("https://example.com/A//B"), env, ctx());
-	expect(pathname).toBe("/a/b");
+	expect(pathname).toBe("/A/B");
 	const hostile = await handler.fetch(new Request("https://example.com/%2f"), env, ctx());
 	expect(hostile.status).toBe(400);
-	expect(pathname).toBe("/a/b");
+	expect(pathname).toBe("/A/B");
 });
 
 it("assets missing", async () => {

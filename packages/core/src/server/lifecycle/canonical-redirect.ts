@@ -16,12 +16,12 @@ export function applyCanonical(input: {
 	trailingSlash?: CanonicalOptions["trailingSlash"];
 	caseSensitive?: boolean;
 	rewrite?: PathRewrite;
+	// The router's case fold toward the matched route, which runs when `caseSensitive` is false (B22).
+	fold?: (path: string) => string;
 }): CanonicalStep {
 	const parsed = new URL(input.url, "http://localhost");
 	const fn = parsed.pathname.startsWith(fnPrefix(input.basePath ?? "/"));
-	const options = fn
-		? { trailingSlash: "preserve" as const, caseSensitive: true }
-		: { trailingSlash: input.trailingSlash, caseSensitive: input.caseSensitive };
+	const options = { trailingSlash: fn ? ("preserve" as const) : input.trailingSlash };
 	const first = readPath(canonicalPath(parsed.pathname, options));
 	if (first === undefined) return { status: 400 };
 	let path = first;
@@ -33,6 +33,7 @@ export function applyCanonical(input: {
 			path = rewritten;
 		}
 	}
+	if (!fn && input.caseSensitive !== true && input.fold !== undefined) path = input.fold(path);
 	if (path === parsed.pathname) return { status: 200 };
 	const status = input.method === "GET" || input.method === "HEAD" ? 301 : 308;
 	return { status, location: `${path}${parsed.search}` };

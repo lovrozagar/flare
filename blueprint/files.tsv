@@ -135,6 +135,8 @@ packages/core/src/shared/router/create-router.ts	P1	src	shared	createRouter. Hol
 packages/core/src/shared/router/create-router.test.ts	P1	test	shared	Unit cases for create-router.ts
 packages/core/src/shared/router/features.ts	P13	src	shared	Parse the theme, direction, and locale configs createRouter stores. A bad value throws at createRouter
 packages/core/src/shared/router/features.test.ts	P13	test	shared	Unit cases for features.ts
+packages/core/src/shared/router/fold.ts	P2	src	shared	foldCase: the path in the matched route's spelling. Static segments and a configured locale tag take their spelling. Params and escapes stay (B22)
+packages/core/src/shared/router/fold.test.ts	P2	test	shared	Unit cases for fold.ts
 packages/core/src/shared/router/index.ts	P1	index	shared	Re-exports
 packages/core/src/shared/components/outlet-nodes.ts	P1	src	shared	Choose the matched layout and page nodes, and the route hooks useLoaderData, useParams, useSearch, usePreloaderContext, useMatch, useLocation, useNavigate. No JSX
 packages/core/src/shared/components/outlet-nodes.test.ts	P1	test	shared	Unit cases for outlet-nodes.ts

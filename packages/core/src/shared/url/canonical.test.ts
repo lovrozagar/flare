@@ -30,9 +30,10 @@ it("trailing slash never", () => {
 	expect(canonicalPath("/a", { trailingSlash: "never" })).toEqual({ path: "/a" });
 });
 
+// canonicalPath alone does not fold case. The fold uses the matched route (canonical-redirect.test.ts).
 it("case fold", () => {
-	expect(path("case fold", { caseSensitive: false })).toBe("/about");
-	expect(canonicalPath("/About", { caseSensitive: true })).toEqual({ path: "/About" });
+	expect(path("case fold")).toBe("/About");
+	expect(canonicalPath("/%C4%8D/About/")).toEqual({ path: "/%C4%8D/About/" });
 });
 
 it("scheme-relative", () => {

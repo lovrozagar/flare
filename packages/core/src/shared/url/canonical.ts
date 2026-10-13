@@ -1,6 +1,6 @@
+// Case is not folded here: the fold follows the matched route (B22, shared/router/fold.ts).
 export type CanonicalOptions = {
 	trailingSlash?: "preserve" | "never" | "always" | undefined;
-	caseSensitive?: boolean | undefined;
 	basePath?: string | undefined;
 };
 
@@ -10,7 +10,7 @@ export function canonicalPath(path: string, options: CanonicalOptions = {}): Can
 	if (isHostile(path)) return { hostile: true };
 	const collapsed = collapse(path);
 	if (typeof collapsed !== "string") return collapsed;
-	let next = options.caseSensitive === true ? collapsed : collapsed.toLowerCase();
+	let next = collapsed;
 	if (options.trailingSlash === "never" && next.length > 1 && next.endsWith("/")) next = next.slice(0, -1);
 	if (options.basePath !== undefined && next === options.basePath) return { path: "/" };
 	if (options.trailingSlash === "always" && next !== "/" && !next.endsWith("/")) next = `${next}/`;
