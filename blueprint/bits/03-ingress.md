@@ -57,6 +57,7 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 | `false removes` | `.security({ "X-Frame-Options": false })` | the header is absent |
 | `headers() cannot` | `.headers()` sets `Content-Security-Policy` | the security value still wins |
 | `both cookies` | the parent sets `set-cookie` to `a` and the child sets it to `b` | both values, parent then child. An undefined child value keeps the parent. Every other header is child-wins |
+| `dev policy` | the server's dev mode, then production | dev's `worker-src` is `'self' blob:`, so Vite's ping worker runs. Production's stays `'self'`. The server and a route's `.security()` both pass the mode |
 
 ### `server/lifecycle/finalize.test.ts` (extended)
 

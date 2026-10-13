@@ -54,13 +54,18 @@ export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">
 // The request's headers with the body's media type. A document is HTML, a data response NDJSON.
 // A route's `.security()` rebuilds the request's set before the body is written, so the nonce the render stamps and
 // the header agree (B68). A route that sets none keeps the set.
-export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "options">>(
+export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "options" | "sink">>(
 	exchange: E,
 	security: SecurityConfig,
 ): E {
 	if (Object.keys(security).length === 0) return exchange;
-	const url = exchange.request.url;
-	const secured = applySecurity({ url, headers: new Headers(), security: exchange.options.security, route: security });
+	const secured = applySecurity({
+		url: exchange.request.url,
+		headers: new Headers(),
+		dev: exchange.sink.dev,
+		security: exchange.options.security,
+		route: security,
+	});
 	return { ...exchange, secured };
 }
 

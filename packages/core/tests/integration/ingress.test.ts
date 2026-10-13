@@ -4,7 +4,8 @@ import { Dynamic } from "@solidjs/web";
 import net from "node:net";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { createNodeListener } from "../../src/adapters/node/listener.ts";
-import { createServer } from "../../src/server/lifecycle/create.ts";
+import { createServer, serveWith } from "../../src/server/lifecycle/create.ts";
+import type { Logger } from "../../src/server/lifecycle/logger.ts";
 import { createPage } from "../../src/shared/route-builder/page.ts";
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../src/shared/router/create-router.ts";
@@ -20,7 +21,9 @@ const router = createRouter({
 	layouts: { _root_: createRootLayout("_root_").render(() => "") },
 	routeTree: [{ id: "_root_/", path: "/", module: home }],
 });
-const app = createServer({ router });
+// Production ingress: the dev sink would drop HSTS and COOP for Vite's dev server (csp.ts).
+const quiet: Logger = { level: "error", error: () => undefined, warn: () => undefined, log: () => undefined };
+const app = serveWith({ router }, { dev: false, log: quiet });
 let fetches = 0;
 const listener = createNodeListener({
 	fetch(request) {

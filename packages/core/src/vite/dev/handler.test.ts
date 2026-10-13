@@ -289,3 +289,19 @@ it("html edges", async () => {
 	await body?.cancel("gone");
 	expect(cancel).toHaveBeenCalledExactlyOnceWith("gone");
 });
+
+// Vite's client reads the nonce from this meta for the styles it injects and its error overlay, so a nonce CSP does
+// not block them. A response with no nonce policy gets none.
+it("csp nonce", async () => {
+	const policy = "script-src 'self' 'nonce-abc123'; style-src-elem 'self' 'nonce-abc123'";
+	const nonced = devFetch({
+		load: async () => app(async () => html(page, { "content-security-policy": policy })),
+		transform: transform([]),
+	});
+	const text = await (await nonced(new Request("http://127.0.0.1/"))).text();
+	expect(text).toContain(
+		'<script type="module" src="/@vite/client"></script><meta property="csp-nonce" nonce="abc123"></head>',
+	);
+	const bare = devFetch({ load: async () => app(async () => html(page)), transform: transform([]) });
+	expect(await (await bare(new Request("http://127.0.0.1/"))).text()).not.toContain("csp-nonce");
+});

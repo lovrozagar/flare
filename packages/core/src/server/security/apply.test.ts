@@ -61,3 +61,14 @@ it("both cookies", () => {
 	expect(mergeHeaders({ "set-cookie": "a" }, { "set-cookie": undefined })["set-cookie"]).toBe("a");
 	expect(mergeHeaders({ "x-other": "parent" }, { "set-cookie": "b" })["set-cookie"]).toBe("b");
 });
+
+// Dev adds what Vite's client needs, such as its ping worker's blob: URL. Production keeps worker-src 'self'.
+it("dev policy", () => {
+	const worker = (dev?: boolean): string | undefined => {
+		const result = applySecurity({ url, headers: new Headers(), ...(dev !== undefined && { dev }) });
+		return /worker-src ([^;]*)/.exec(result.headers.get("content-security-policy") ?? "")?.[1];
+	};
+	expect(worker(true)).toBe("'self' blob:");
+	expect(worker(false)).toBe("'self'");
+	expect(worker()).toBe("'self'");
+});

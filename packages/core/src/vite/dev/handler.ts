@@ -39,6 +39,12 @@ const HEAD_OPEN = /<head(?:\s[^>]*)?>/i;
 const HEAD_MARK = "<!--flare-head-->";
 const PREPENDED = /(<head(?:\s[^>]*)?>)([\s\S]*?)<!--flare-head-->([\s\S]*?)(<\/head>)/i;
 
+// The request nonce, read from the policy the app answered with. Vite's client reads it from a `csp-nonce` meta for
+// the styles it injects and its error overlay, so a nonce CSP does not block them. Dev only: production has no client.
+const POLICY_NONCE = /'nonce-([A-Za-z0-9+/=_-]+)'/;
+
+type Shell = { url: string; nonce: string | undefined };
+
 // On Node and Bun, `vite dev` answers every request the Vite middlewares did not (B89). Embedded in another server,
 // `middlewareMode`, it is not installed. The SSR graph's `flare:error` reaches Vite's overlay (B93).
 export function installDevHandler(server: DevServer, entry: string): (() => void) | undefined {
@@ -73,7 +79,8 @@ export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?:
 		}
 		const headers = new Headers(response.headers);
 		headers.delete("content-length");
-		const body = await transformedHead(deps, transformUrl(request.url), response.body);
+		const nonce = POLICY_NONCE.exec(headers.get("content-security-policy") ?? "")?.[1];
+		const body = await transformedHead(deps, { url: transformUrl(request.url), nonce }, response.body);
 		return new Response(body, { status: response.status, headers });
 	};
 }
@@ -82,7 +89,7 @@ export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?:
 // such as a deferred value, still streams in dev.
 async function transformedHead(
 	deps: DevDeps,
-	url: string,
+	shell: Shell,
 	body: ReadableStream<Uint8Array>,
 ): Promise<ReadableStream<Uint8Array>> {
 	const reader = body.getReader();
@@ -93,7 +100,7 @@ async function transformedHead(
 		if (step.done || head.includes("</head>")) break;
 	}
 	const encoder = new TextEncoder();
-	const first = encoder.encode(await withVite(deps, url, head));
+	const first = encoder.encode(await withVite(deps, shell, head));
 	return new ReadableStream<Uint8Array>({
 		start: (controller) => controller.enqueue(first),
 		async pull(controller) {
@@ -105,12 +112,13 @@ async function transformedHead(
 	});
 }
 
-async function withVite(deps: DevDeps, url: string, html: string): Promise<string> {
+async function withVite(deps: DevDeps, shell: Shell, html: string): Promise<string> {
 	const peeled: string[] = [];
 	const marked = html
 		.replace(INLINE, (tag) => `<!--flare-peel-${peeled.push(tag) - 1}-->`)
 		.replace(HEAD_OPEN, (open) => `${open}${HEAD_MARK}`);
-	const transformed = headTagsLast(await deps.transform(url, marked));
+	const meta = shell.nonce === undefined ? "" : `<meta property="csp-nonce" nonce="${shell.nonce}">`;
+	const transformed = headTagsLast(await deps.transform(shell.url, marked)).replace("</head>", `${meta}</head>`);
 	// A replacer function, so a `$` in a peeled tag is not read as a pattern.
 	return peeled.reduce((out, tag, index) => out.replace(`<!--flare-peel-${index}-->`, () => tag), transformed);
 }
