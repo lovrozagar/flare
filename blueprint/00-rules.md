@@ -36,6 +36,8 @@ A test that asserts a dev-time throw from a component also asserts that Solid re
 
 ## Coverage
 
+Coverage is measured under Node. The same suite also runs under the Bun runtime without coverage (`bun run test:bun`), because Bun's V8 coverage of identical passing tests reports gaps Node does not.
+
 Vitest, `@vitest/coverage-v8`.
 
 - Include: `packages/core/src/**`, `packages/core/lint/**`.
