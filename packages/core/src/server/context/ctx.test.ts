@@ -60,8 +60,13 @@ it("not the event", async () => {
 
 it("redirect skips", async () => {
 	const calls: string[] = [];
+	// The case fold follows a matched route, so `/About` needs an `/about` page to redirect (B22).
+	const about = createRouter({
+		layouts: { _root_: createRootLayout("_root_").render(() => "") },
+		routeTree: [{ id: "_root_/about", path: "/about", module: createPage("_root_/about").render(() => "") }],
+	});
 	const server = createServer({
-		router,
+		router: about,
 		serverContext: ({ request: seen }) => {
 			calls.push(new URL(seen.url).pathname);
 			return {};

@@ -3,6 +3,7 @@ import { defined } from "../../shared/errors/index.ts";
 import { PRERENDER } from "../../shared/protocol/prerender.ts";
 import type { FlareRegister } from "../../shared/route-builder/register.ts";
 import { loadChain, type Match } from "../../shared/router/create-router.ts";
+import { foldCase } from "../../shared/router/fold.ts";
 import { withServerContext } from "../context/ctx.ts";
 import { runLoaders } from "../loaders/run.ts";
 import { devSink, projectError, type ErrorSink } from "../render/projector.ts";
@@ -72,6 +73,7 @@ function serveOne(at: Serving, call: Call): Promise<Response> {
 		basePath: options.router.basePath,
 		trailingSlash: options.router.trailingSlash,
 		caseSensitive: options.router.caseSensitive,
+		fold: (path) => foldCase(options.router, path),
 	});
 	if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
 	// serverContext runs once, before mounts (02-system step 2). A mount never calls authenticate.

@@ -72,7 +72,7 @@ afterAll(async () => {
 });
 
 it("real binding", async () => {
-	const response = await mf.dispatchFetch("https://example.com/A//static.txt");
+	const response = await mf.dispatchFetch("https://example.com/a//static.txt");
 	expect(response.status).toBe(200);
 	expect(await response.text()).toBe("canonical-asset");
 }, 20000);

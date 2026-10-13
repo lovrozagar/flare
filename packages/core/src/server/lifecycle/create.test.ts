@@ -101,7 +101,7 @@ it("security on every status", async () => {
 		await fetchAt("/missing"),
 		await fetchAt("/account"),
 		await fetchAt("/", "POST"),
-		await fetchAt("/About"),
+		await fetchAt("/Account"),
 	];
 	expect(answers.map((response) => response.status)).toEqual([404, 401, 405, 301]);
 	const policy = ok.headers.get("permissions-policy");

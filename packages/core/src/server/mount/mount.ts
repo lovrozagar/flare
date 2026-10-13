@@ -32,7 +32,11 @@ export function mount(prefix: string, fetch: Mount["fetch"]): Mount {
 
 // createServer's startup check. Each prefix is canonical for the router, so it can match a canonical path, and
 // two equal prefixes throw. The longer prefix wins, so the table is longest first.
-export function mountTable(entries: readonly Mount[], canonical: CanonicalOptions): Mount[] {
+// A mount prefix is canonical and, under the router's default `caseSensitive: false`, lowercase: mounts are not
+// routes, so no route spelling folds a request toward them.
+type MountCanonical = CanonicalOptions & { caseSensitive?: boolean | undefined };
+
+export function mountTable(entries: readonly Mount[], canonical: MountCanonical): Mount[] {
 	const seen = new Set<string>();
 	for (const entry of entries) {
 		assertPrefix(entry.prefix, canonical);
@@ -78,9 +82,10 @@ export function activeMount(): string | undefined {
 	return typeof prefix === "string" ? prefix : undefined;
 }
 
-function assertPrefix(prefix: string, canonical: CanonicalOptions): void {
+function assertPrefix(prefix: string, canonical: MountCanonical): void {
 	const result = canonicalPath(prefix, { ...canonical, trailingSlash: "never" });
-	const same = "path" in result && result.path === prefix;
+	const folded = canonical.caseSensitive === true || prefix === prefix.toLowerCase();
+	const same = "path" in result && result.path === prefix && folded;
 	if (!same || prefix === "/" || prefix.endsWith("/"))
 		throw new Error(`mount prefix ${prefix} is not a canonical path`);
 }
