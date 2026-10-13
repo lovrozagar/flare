@@ -133,16 +133,30 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 | `mutation no key` | `serverFnMutationOptions(fn)` | the result has `mutationFn` and no `onSuccess` |
 | `no side channel` | the server envelope from bit 07 | it has no `queries` field, and this module does not read one |
 
-### `features/query/client/getter.test.ts` and `use-suspense-query.test.ts`
+### `features/query/client/getter.test.ts`, `getter.ssr.test.ts`, and `use-suspense-query.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
 | `one client` | two calls on the client | the same client |
 | `per request` | two calls during one server request | the same client. A second request gets another |
 | `outside` | a server call with no request | throw |
+| `getter registered once` | `createQueryClientGetter()` called twice | the second call returns the first getter, which is the registered one. The registry holds a function, not request data |
+| `client seed` | the document state's `queries` hold a resolved query | the client's first getter call hydrates its client from them before hydrate, so the query does not run again on the client. No `queries` is an empty client |
+| `dehydrate` | the registered getter's `dehydrate()` in a request that made a client, in one that made none, and outside a request | the request's cache, then `undefined`, then `undefined` |
 | `suspense` | a query that has not resolved | the hook suspends |
 | `resolved` | a query that has resolved | the data is returned |
 | `loading swap` | the hook is under `<Loading fallback={<p>Loading query</p>}>` | the fallback is shown, then the data, and the fallback is gone |
+
+### The core's half: `shared/protocol/query.test.ts`, `server/loaders/scope.test.ts`, and `server/render/document.test.ts`
+
+Core reads the registered getter by its symbol and never imports TanStack (00-rules Module state).
+
+| test | case | result |
+| --- | --- | --- |
+| `registry` | two registrations, and a symbol holding something other than a getter | the first wins and the second gets it back. A value that is not a getter with `dehydrate` is no registration |
+| `loader query client` | a getter is registered and a loader reads `ctx.queryClient` | the getter's client for this request |
+| `query client unregistered` | no getter is registered and a loader reads `ctx.queryClient` | throw `call createQueryClientGetter() in a module your router imports`, never `undefined` |
+| `state queries` | a registered getter, and a render that resolves before the shell | the document state carries `"queries"`, the getter's `dehydrate()` taken after the shell rendered. No getter is `"queries":null`. The matches still serialize before the shell |
 
 ## i18n
 

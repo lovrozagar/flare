@@ -100,6 +100,8 @@ packages/core/src/shared/protocol/get-codec.ts	P7	src	shared	Encode and decode t
 packages/core/src/shared/protocol/get-codec.test.ts	P7	test	shared	Unit cases for get-codec.ts
 packages/core/src/shared/protocol/prerender.ts	P12	src	shared	The registry symbol and types of the internal channel between prerender and a built server
 packages/core/src/shared/protocol/prerender.test.ts	P12	test	shared	Unit cases for prerender.ts
+packages/core/src/shared/protocol/query.ts	P13	src	shared	The query getter registry: one stateless getter per process under a registry symbol, read by core for ctx.queryClient and the state queries
+packages/core/src/shared/protocol/query.test.ts	P13	test	shared	Unit cases for query.ts
 packages/core/src/shared/protocol/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/cache/artifact-path.ts	P10	src	shared	Turn a store key into the SSG artifact URL. The only path formatter
 packages/core/src/shared/cache/artifact-path.test.ts	P10	test	shared	Unit cases for artifact-path.ts
@@ -488,8 +490,9 @@ packages/core/src/features/direction/shared/provider.ssr.test.ts	P13	test	dom	pr
 packages/core/src/features/direction/shared/index.ts	P13	index	shared	Re-exports
 packages/core/src/features/query/shared/options.ts	P13	src	shared	serverFnQueryOptions and serverFnMutationOptions. The client writes the cache from the function result
 packages/core/src/features/query/shared/options.test.ts	P13	test	shared	Unit cases for options.ts
-packages/core/src/features/query/client/getter.ts	P13	src	dom	createQueryClientGetter
+packages/core/src/features/query/client/getter.ts	P13	src	dom	createQueryClientGetter: one registered getter per process, a client per request on the server and per document on the client, seeded from the state queries
 packages/core/src/features/query/client/getter.test.ts	P13	test	dom	Unit cases for getter.ts
+packages/core/src/features/query/client/getter.ssr.test.ts	P13	test	dom	getter.ts on Solid's server build: per request, outside, dehydrate
 packages/core/src/features/query/client/use-suspense-query.ts	P13	src	dom	useSuspenseQuery
 packages/core/src/features/query/client/use-suspense-query.test.ts	P13	test	dom	Unit cases for use-suspense-query.ts
 packages/core/src/features/query/shared/index.ts	P13	index	shared	Re-exports

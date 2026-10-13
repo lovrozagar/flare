@@ -113,7 +113,7 @@ Three files may import `client/sync` through `client/sync/index.ts`: `features/t
 
 ## Module state
 
-A module-scope `let`, `map`, or cache is forbidden unless the line carries `// per-process-constant: <reason>` and the reason is one of: build id, the in-flight render map in `server/cache/inflight.ts`. Request data lives on the request context or on Solid's request event.
+A module-scope `let`, `map`, or cache is forbidden unless the line carries `// per-process-constant: <reason>` and the reason is one of: build id, the in-flight render map in `server/cache/inflight.ts`. The app's query client getter is the one process-wide registration: `createQueryClientGetter()` stores a stateless getter under `Symbol.for("flare.query")` on `globalThis` (`shared/protocol/query.ts`), the first registration wins, and the getter keeps each request's client on that request event's `locals`. Request data lives on the request context or on Solid's request event.
 
 The only file allowed to call `console` is `server/lifecycle/logger.ts`.
 

@@ -20,7 +20,7 @@ import { finalize } from "../lifecycle/finalize.ts";
 import { mergeHeaders } from "../security/apply.ts";
 import { cascade, type Failed, type LoaderFrame, type Outcome, type RequestKind, type Settled } from "./cascade.ts";
 import { createDefer, type DeferMode, type Started } from "./defer.ts";
-import { inLoaderScope, type ScopeSource } from "./scope.ts";
+import { inLoaderScope, withQueryClient, type ScopeSource } from "./scope.ts";
 
 export type LoaderRoute = {
 	id: string;
@@ -215,13 +215,13 @@ function load(input: ValidRun, loading: Loading): Promise<Loaded[]> {
 				dev: input.dev ?? false,
 				prefetch: input.kind === "prefetch",
 			});
-			const ctx = {
+			const ctx = withQueryClient({
 				...loading.base,
 				params: route.params,
 				search: route.search,
 				preloaderContext: loading.contexts[index],
 				defer: scope.defer,
-			};
+			});
 			const settled =
 				input.skip?.has(route.id) === true
 					? { ok: true as const, data: undefined }

@@ -10,7 +10,8 @@ import { withCritical } from "./critical-style.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
 import { DocumentHead, type Head } from "./head.ts";
-import { insertState, stateScript, type StateMatch } from "./state.ts";
+import { registeredQuery } from "../../shared/protocol/index.ts";
+import { insertState, stateWriter, type StateMatch } from "./state.ts";
 
 type Chunk = string | Uint8Array;
 
@@ -43,10 +44,8 @@ const decoder = new TextDecoder();
 // before the shell rejects. Flushed bytes are never rewritten (B76).
 export async function renderDocument(input: DocumentInput): Promise<ReadableStream<Uint8Array>> {
 	const nonce = input.nonce ?? "";
-	// The state is serialized first. A value JSON cannot hold, such as a bigint, fails before the shell.
-	const tail =
-		stateScript({ matches: input.matches, nonce, build: buildId, fill: input.fill }) +
-		clientScript(input.client, nonce);
+	// The state's matches serialize first. A value JSON cannot hold, such as a bigint, fails before the shell.
+	const state = stateWriter({ matches: input.matches, nonce, build: buildId, fill: input.fill });
 	const head = captureScript(nonce);
 	const tags = input.head === undefined ? undefined : headTags(input.head, { nonce });
 	const piped = new TransformStream<Chunk, Chunk>();
@@ -62,6 +61,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// The critical style follows the capture script as the head's last element (B83). The state and client scripts go
 	// in the shell before `</body>` (02-system), so the shell ends at `</html>`.
 	const headed = withHead(chunkText((await reader.read()).value), head);
+	const tail = state(registeredQuery()?.dehydrate()) + clientScript(input.client, nonce);
 	const shell = insertState(withDoctype(withCritical(headed, { css: input.sheet ?? "", nonce })), tail);
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {

@@ -1,8 +1,20 @@
 // One positive program and one @ts-expect-error per `app` row of the dx/types.md matrix, against the generated
 // register (B74). Nothing here runs: tsc checks it. This file holds the target rows: params, `to`, and search.
 // `checks-data.ts` holds loaders, preloaders, and auth, and `checks-fns.ts` the hooks, server functions, and the
-// segment. The three query rows wait for bit 13 and its ./query entry.
-import { Link, useLoaderData, useNavigate, useParams, useSearch, type FlareRegister } from "@lovrozagar/flare";
+// segment. The query rows are at the end of this file.
+import {
+	createPage,
+	Link,
+	useLoaderData,
+	useNavigate,
+	useParams,
+	useSearch,
+	type FlareRegister,
+} from "@lovrozagar/flare";
+import { createServerFn } from "@lovrozagar/flare/server-fn";
+import { serverFnQueryOptions } from "@lovrozagar/flare/query";
+import type { QueryClient } from "@tanstack/solid-query";
+import { echo } from "./fns/echo.ts";
 
 const navigate = useNavigate();
 const wide: string = "_root_/about";
@@ -193,4 +205,38 @@ const wide: string = "_root_/about";
 	void search;
 	// @ts-expect-error the layout's validator does not apply to the page
 	const _section: { section: string } = useSearch({ from: "_root_/(blog)/post/[slug]" });
+}
+
+// query options input
+{
+	const options = serverFnQueryOptions(echo, { queryKey: ["echo"], input: { q: "a" } });
+	const queryFn: () => Promise<{ q: string; secret: string }> = options.queryFn;
+	void queryFn;
+	// @ts-expect-error the input is required
+	void serverFnQueryOptions(echo, { queryKey: ["echo"] });
+	// @ts-expect-error a fresh extra key
+	void serverFnQueryOptions(echo, { queryKey: ["echo"], input: { q: "a", extra: 1 } });
+}
+
+// query options void
+{
+	const now = createServerFn().handler(() => 1);
+	const queryFn: () => Promise<number> = serverFnQueryOptions(now, { queryKey: ["now"] }).queryFn;
+	void queryFn;
+	// @ts-expect-error a void input is not passed
+	void serverFnQueryOptions(now, { queryKey: ["now"], input: 1 });
+}
+
+// query client present
+{
+	void createPage("_root_/public").loader((ctx) => {
+		const client: QueryClient = ctx.queryClient;
+		void client;
+		return {};
+	});
+	void createPage("_root_/public").render((props) => {
+		// @ts-expect-error a render has no query client
+		void props.queryClient;
+		return "x";
+	});
 }

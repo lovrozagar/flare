@@ -76,3 +76,37 @@ it("loader scope", async () => {
 	);
 	expect(scope?.data[0]).toEqual({ scope: { kind: "loader", params: {}, locale } });
 });
+
+const QUERY = Symbol.for("flare.query");
+
+// A loader's `ctx.queryClient` is the registered getter's client for this request (dx/types.md `query client present`).
+it("loader query client", async () => {
+	const client = { name: "client" };
+	Reflect.set(
+		globalThis,
+		QUERY,
+		Object.assign(() => client, { dehydrate: () => undefined }),
+	);
+	try {
+		const run = await runLoaders(
+			input([{ id: "page", loader: (ctx) => ({ client: Reflect.get(ctx, "queryClient") }) }], {}),
+		);
+		expect(run.data[0]).toEqual({ client });
+	} finally {
+		Reflect.deleteProperty(globalThis, QUERY);
+	}
+});
+
+// A loader that reads `ctx.queryClient` and returns what it read, or the message it threw.
+function readClient(ctx: object): { message: string } {
+	try {
+		return { message: String(Reflect.get(ctx, "queryClient")) };
+	} catch (error) {
+		return { message: error instanceof Error ? error.message : "" };
+	}
+}
+
+it("query client unregistered", async () => {
+	const run = await runLoaders(input([{ id: "page", loader: readClient }], {}));
+	expect(run.data[0]).toEqual({ message: "call createQueryClientGetter() in a module your router imports" });
+});

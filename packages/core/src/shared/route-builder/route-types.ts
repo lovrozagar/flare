@@ -8,6 +8,7 @@ import type {
 	ExtractPathParams,
 	FlareRegister,
 	From,
+	QueryClientField,
 	RawSearch,
 	Registered,
 	RegisteredEnv,
@@ -117,10 +118,11 @@ export type GuardContext<S extends RouteState> = Shared<S> &
 	(S["root"] extends true ? {} : { preloaderContext: ParentContext<FlareRegister, S["id"]> });
 
 // What the loader reads: the accumulated context and `defer`.
-export type LoaderStepContext<S extends RouteState> = Shared<S> & {
-	preloaderContext: Accumulated<S>;
-	defer: <T>(fn: () => Promise<T>, options?: Parameters<LoaderContext["defer"]>[1]) => Deferred<T>;
-};
+export type LoaderStepContext<S extends RouteState> = Shared<S> &
+	QueryClientField<FlareRegister> & {
+		preloaderContext: Accumulated<S>;
+		defer: <T>(fn: () => Promise<T>, options?: Parameters<LoaderContext["defer"]>[1]) => Deferred<T>;
+	};
 
 // What `.response()` reads: no loader data and no `defer`.
 export type ResponseContext<S extends RouteState> = Shared<S> & { preloaderContext: Accumulated<S> };

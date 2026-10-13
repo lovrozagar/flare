@@ -12,6 +12,14 @@ export type RegisteredAuth<R extends FlareRegister> =
 
 export type RegisteredEnv<R extends FlareRegister> = RegisterField<R, "env">;
 
+// The query client type. The `./query` entry fills it by module augmentation, so core never names TanStack.
+export interface QueryClientRegister {}
+
+// A loader's `ctx.queryClient`, present when codegen found an import of `@lovrozagar/flare/query` (dx/types.md).
+export type QueryClientField<R extends FlareRegister> = R extends { hasQueryClient: true }
+	? { queryClient: QueryClientRegister extends { client: infer C } ? C : unknown }
+	: {};
+
 export type RegisteredServerContext<R extends FlareRegister> =
 	unknown extends RegisterField<R, "serverContext"> ? Record<string, unknown> : RegisterField<R, "serverContext">;
 
