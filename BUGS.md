@@ -306,9 +306,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 45.2 [x] Cause, a platform limit, not Flare: a probe with no Flare code (miniflare 4.20260708.1, workerd 1.20260708.1) streams a line every 100 ms and records its `request.signal` abort and its body's `cancel()`. After the client aborts, both stay unreported, with and without `enable_request_signal`, and with and without the `new Request(url, request)` rebuild the adapter does. Cloudflare documents the flag as what makes `request.signal` abort on disconnect in production.
 45.3 [x] Done: dx/adapters.md "Client disconnect on Workers"; the docs app sets `enable_request_signal`; `stream abort` skips the workers projects with that reason; the canary `tests/workerd/disconnect.test.ts` `miniflare drops disconnect` turns red when a Miniflare release starts reporting a disconnect, which is the cue to un-skip.
 
-46 [ ] B46 Under the Bun runtime, the fs store's default directory lands in the repo
-46.1 [ ] Repro (from B27.5, Linux, Bun 1.4.3): `bun --bun run --filter @lovrozagar/flare test`. `adapters/stores/fs/store.test.ts` `dir` fails and leaves `packages/core/.flare/cache` in the repo. Under Node 24 it passes. Re-measure on the current tree first. Plan leaf 8.17.
-46.2 [ ] Verify: the case passes under the Bun runtime and leaves no `.flare` directory in the repo.
+46 [x] B46 Under the Bun runtime, the fs store's default directory lands in the repo
+46.1 [x] Repro (from B27.5, Linux, Bun 1.4.3): `bun --bun run --filter @lovrozagar/flare test`. `adapters/stores/fs/store.test.ts` `dir` fails and leaves `packages/core/.flare/cache` in the repo. Under Node 24 it passes. Re-measure on the current tree first. Plan leaf 8.17.
+46.2 [x] Cause: `createFilesystemStore` resolved its default with `resolve(".flare/cache")`. Node's `path.resolve` calls `process.cwd()`, Bun's reads the native cwd, so the test's cwd mock was ignored under Bun and the store wrote into the package. Fix: `resolve(process.cwd(), ...)`. Failing case first: `store.test.ts` `dir` also asserts nothing was written under the real cwd (red under Bun 1.4.3). Verify: `dir` passes under Node and under the Bun runtime, and the Bun run leaves no `.flare` directory.
 
 47 [ ] B47 Under the Bun runtime, the font export cases fail on a URL scheme
 47.1 [ ] Repro (from B27.5): the same Bun run fails `exports.test.ts` `font subpath` and `font barrel` with "The URL must be of scheme file". Under Node 24 they pass. Re-measure on the current tree first. Plan leaf 8.18.
