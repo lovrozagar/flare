@@ -41,6 +41,8 @@ type Stored = CacheEntry & { at: number; touched: number };
 
 export type Plan = {
 	matches: readonly CachedMatch[];
+	// The keys (`matchKey`) of the matches on screen. A layout mounted under the same match id needs no data.
+	mounted?: ReadonlySet<string>;
 	trigger: "initial" | "navigation" | "revalidation";
 	revalidate: boolean;
 	current: EffectPlace;
@@ -52,7 +54,7 @@ export type MatchCache = {
 	evict: (match: CachedMatch) => void;
 	read: (match: CachedMatch) => Stored | undefined;
 	deps: (match: CachedMatch) => string | undefined;
-	plan: (plan: Plan) => { fetch: boolean; stale: string[] };
+	plan: (plan: Plan) => { fetch: boolean; stale: string[]; fresh: boolean };
 };
 
 // Only successful `l` payloads are stored. An `e` evicts. `staleTime` decides whether a held page may skip its
@@ -68,7 +70,7 @@ export function createMatchCache(options: {
 	const max = options.max ?? 100;
 	const entries = new Map<string, Stored>();
 	const read = (match: CachedMatch): Stored | undefined => {
-		const key = keyOf(match);
+		const key = matchKey(match);
 		const entry = entries.get(key);
 		if (entry === undefined) return undefined;
 		entries.delete(key);
@@ -78,11 +80,11 @@ export function createMatchCache(options: {
 	};
 	return {
 		store(match, entry) {
-			entries.delete(keyOf(match));
-			entries.set(keyOf(match), { ...entry, at: now(), touched: now() });
+			entries.delete(matchKey(match));
+			entries.set(matchKey(match), { ...entry, at: now(), touched: now() });
 			if (entries.size > max) entries.delete(required(entries.keys().next().value, "the oldest entry"));
 		},
-		evict: (match) => void entries.delete(keyOf(match)),
+		evict: (match) => void entries.delete(matchKey(match)),
 		read,
 		deps,
 		// A page the client holds fresh is listed in _flare_stale, so the server skips its loader (B30). A layout
@@ -97,20 +99,25 @@ export function createMatchCache(options: {
 				}) === true;
 			const held = (match: CachedMatch): boolean => {
 				const entry = read(match);
-				if (entry === undefined || plan.revalidate || now() - entry.at > (entry.staleTime ?? options.staleTime)) {
-					return false;
-				}
+				// `0` is never fresh, not even within the millisecond the entry was stored (dx/cache.md, B19).
+				const staleTime = entry?.staleTime ?? options.staleTime;
+				if (entry === undefined || plan.revalidate || staleTime === 0 || now() - entry.at > staleTime) return false;
 				return entry.deps === deps(match) && (!entry.deferred || clientOf(match.client).cacheDeferred === true);
 			};
 			const pages = plan.matches.filter((match) => !match.layout);
-			const stale = pages.filter((match) => held(match) && !asks(match)).map((match) => match.id);
+			const kept = pages.filter((match) => held(match) && !asks(match));
 			const fetch = plan.trigger !== "initial" || pages.some(asks);
-			return { fetch, stale };
+			// Every page fresh, and every layout mounted under the same match id or fresh: no request at all (B19).
+			const layouts = plan.matches.filter((match) => match.layout);
+			const ready = layouts.every((match) => plan.mounted?.has(matchKey(match)) === true || held(match));
+			const fresh = kept.length === pages.length && ready;
+			return { fetch, stale: kept.map((match) => match.id), fresh };
 		},
 	};
 }
 
-function keyOf(match: CachedMatch): string {
+// One match of one URL: the route id and the match id.
+export function matchKey(match: CachedMatch): string {
 	return `${match.route}\n${match.id}`;
 }
 

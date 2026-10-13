@@ -255,6 +255,13 @@ it("visit", async () => {
 	expect(location.pathname).toBe("/about");
 });
 
+// Only the page is fresh: the screen's root is another match id, and the root's own entry is gone, so the request
+// carries _flare_stale (B30). A fully fresh navigation sends none (navigate-cache.test.ts).
+async function pageOnlyFresh(app: Awaited<ReturnType<typeof setup>>, search: Record<string, string> = {}) {
+	await app.navigator.navigate({ to: "_root_/", search: { q: "1" } });
+	app.deps.cache.evict({ route: "_root_", id: `&${new URLSearchParams(search)}`, layout: true, params: {}, search });
+}
+
 it("stale param", async () => {
 	const titled: Frame[] = [
 		...aboutFrames.slice(0, 2),
@@ -266,7 +273,7 @@ it("stale param", async () => {
 		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
 	});
 	await app.navigator.navigate({ to: "_root_/about" });
-	await app.navigator.navigate({ to: "_root_/" });
+	await pageOnlyFresh(app);
 	await app.navigator.navigate({ to: "_root_/about" });
 	expect(app.deps.fetch).toHaveBeenLastCalledWith("/about?_flare=data&_flare_stale=%26", expect.anything());
 	flush();
@@ -282,7 +289,7 @@ it("stale data", async () => {
 		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
 	});
 	await app.navigator.navigate({ to: "_root_/about" });
-	await app.navigator.navigate({ to: "_root_/" });
+	await pageOnlyFresh(app);
 	await app.navigator.navigate({ to: "_root_/about" });
 	expect(app.deps.fetch).toHaveBeenLastCalledWith("/about?_flare=data&_flare_stale=%26", expect.anything());
 	flush();
@@ -310,6 +317,7 @@ it("search keyed", async () => {
 		app.deps.cache.read({ route: "_root_/about", id: `&page=${search}`, layout: false, params: {}, search: {} });
 	expect(cached("1")?.data).toBe("fresh");
 	expect(cached("2")?.data).toBe("fresh");
+	await pageOnlyFresh(app, { page: "1" });
 	await app.navigator.navigate({ to: "_root_/about", search: { page: "1" } });
 	expect(app.deps.fetch).toHaveBeenLastCalledWith(
 		"/about?page=1&_flare=data&_flare_stale=%26page%3D1",

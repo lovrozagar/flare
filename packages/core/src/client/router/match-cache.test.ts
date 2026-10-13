@@ -56,6 +56,10 @@ it("stale time", () => {
 	time.at(1001);
 	expect(plan(cache, [page()]).stale).toEqual([]);
 	expect(cache.read(page())?.data).toBe("user");
+	// `0` is never fresh, even read in the millisecond it was stored (B19).
+	const zero = cacheAt({ staleTime: 0 });
+	zero.cache.store(page(), { data: "user", deferred: false });
+	expect(plan(zero.cache, [page()])).toEqual({ fetch: true, stale: [], fresh: false });
 });
 
 it("gc", () => {
@@ -116,7 +120,7 @@ it("should refetch", () => {
 		current: place,
 		next: place,
 	});
-	expect(hydrate).toEqual({ fetch: true, stale: [] });
+	expect(hydrate).toEqual({ fetch: true, stale: [], fresh: false });
 	expect(shouldRefetch).toHaveBeenCalledWith(
 		expect.objectContaining({ trigger: "initial", location: { current: place, next: place }, params: { id: "7" } }),
 	);
@@ -145,7 +149,7 @@ it("cap", () => {
 it("revalidate", () => {
 	const { cache } = cacheAt();
 	cache.store(page(), { data: "user", deferred: false });
-	expect(plan(cache, [page()], { revalidate: true })).toEqual({ fetch: true, stale: [] });
+	expect(plan(cache, [page()], { revalidate: true })).toEqual({ fetch: true, stale: [], fresh: false });
 	const trigger = vi.fn<NonNullable<Effects["shouldRefetch"]>>(() => false);
 	plan(cache, [page({ shouldRefetch: trigger })], { trigger: "revalidation" });
 	expect(trigger).toHaveBeenCalledWith(expect.objectContaining({ trigger: "revalidation" }));
@@ -155,7 +159,7 @@ it("stale list", () => {
 	const { cache } = cacheAt();
 	cache.store(layout, { data: "root", deferred: false });
 	cache.store(page(), { data: "user", deferred: false });
-	expect(plan(cache, [layout, page()])).toEqual({ fetch: true, stale: ["id=7&"] });
+	expect(plan(cache, [layout, page()])).toEqual({ fetch: true, stale: ["id=7&"], fresh: true });
 	expect(plan(cache, [layout, page({ shouldRefetch: () => true })]).stale).toEqual([]);
 	expect(plan(cache, [layout]).stale).toEqual([]);
 });

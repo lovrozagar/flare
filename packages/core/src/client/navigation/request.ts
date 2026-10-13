@@ -1,6 +1,6 @@
 import { BUILD_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts";
 import { loadChain, type LoadedEntry } from "../../shared/router/create-router.ts";
-import { cachedMatches, holds } from "../router/match-cache.ts";
+import { cachedMatches, holds, matchKey } from "../router/match-cache.ts";
 import { framesOf, landFrames, type Landed, type Pending } from "./frames.ts";
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts";
 import { isChunkError } from "./reload.ts";
@@ -38,10 +38,13 @@ export async function arrive(
 }
 
 async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
+	const plan = planOf(deps, trip);
+	// Every page and layout is fresh in the client cache, so the commit reads them all from it (dx/cache.md, B19).
+	if (plan.fresh && !trip.fill) return { kind: "landed", landing: { data: {}, heads: {} } };
 	const reused = trip.options.revalidate === true ? undefined : await deps.prefetched?.(trip.target.dataUrl);
 	// A prefetch never ran its deferred functions, so a landing still holding a placeholder needs the enter request.
 	if (reused !== undefined && !holds(reused.data)) return { kind: "landed", landing: reused };
-	const response = await deps.fetch(dataUrl(deps, trip), { signal: trip.signal });
+	const response = await deps.fetch(dataUrl(trip, plan.stale), { signal: trip.signal });
 	const build = response.headers.get(BUILD_HEADER) ?? "";
 	if (build !== "" && deps.build !== "" && build !== deps.build) {
 		deps.reload(trip.target.url);
@@ -54,19 +57,25 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	return { kind: "landed", landing: await landFrames(framesOf(response.body), options) };
 }
 
-// The page ids the client holds fresh ride along as _flare_stale, so the server skips those loaders (B30). A fill
-// asks for the same URL as its own kind.
-function dataUrl(deps: NavigatorDeps, trip: Trip): string {
-	const matches = cachedMatches(trip.target.match, trip.target.location);
+// The cache's verdict for this trip. The matches on screen are keyed alike, so a mounted layout under the same
+// match id counts as held.
+function planOf(deps: NavigatorDeps, trip: Trip): ReturnType<NavigatorDeps["cache"]["plan"]> {
 	const current = deps.store.snapshot().location;
-	const plan = deps.cache.plan({
-		matches,
+	const mounted = cachedMatches(deps.router.match(current.pathname), current).map(matchKey);
+	return deps.cache.plan({
+		matches: cachedMatches(trip.target.match, trip.target.location),
+		mounted: new Set(mounted),
 		trigger: trip.trigger,
 		revalidate: trip.options.revalidate === true,
 		current: { ...current, params: {} },
 		next: { ...trip.target.location, params: {} },
 	});
+}
+
+// The page ids the client holds fresh ride along as _flare_stale, so the server skips those loaders (B30). A fill
+// asks for the same URL as its own kind.
+function dataUrl(trip: Trip, stale: readonly string[]): string {
 	const url = trip.fill ? trip.target.dataUrl.replace(`${KIND_PARAM}=data`, `${KIND_PARAM}=fill`) : trip.target.dataUrl;
-	if (plan.stale.length === 0) return url;
-	return `${url}&${STALE_PARAM}=${encodeURIComponent(plan.stale.join(" "))}`;
+	if (stale.length === 0) return url;
+	return `${url}&${STALE_PARAM}=${encodeURIComponent(stale.join(" "))}`;
 }
