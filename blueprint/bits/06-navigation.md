@@ -303,6 +303,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
+| `charset shell only` | a merged head with `meta.charset` | the client passes no `<meta charset>` to `useHead`, so Solid logs no shell-only warning and no `meta[charset]` is added; the server shell still writes it, and the rest of the head applies (BUGS.md B5) |
 | `slot order` | an `h` frame with a title | `useHead` is called with that title |
 | `replace` | the next navigation has a different title | the old title is gone |
 | `nonce` | an `h` frame with an inline script, and `self.flare.nonce` is `n` | the applied script's nonce is `n` |
