@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -154,6 +154,25 @@ it("order", async () => {
 		expect(bundle).toContain("export");
 		expect(bundle.includes('"ASSETS"') || bundle.includes("`ASSETS`")).toBe(binding);
 	}
+}, 60_000);
+
+// `public/` ships once, with the client: the server and worker builds leave it out (BUGS.md B11).
+it("public once", async () => {
+	const root = project({
+		"client.tsx": "",
+		"server.ts": 'export const server = { fetch: () => new Response("ok") };\n',
+	});
+	writeFileSync(join(root, "wrangler.jsonc"), '{ "name": "app", "assets": { "binding": "ASSETS" } }\n');
+	mkdirSync(join(root, "public"));
+	writeFileSync(join(root, "public", "x.txt"), "x\n");
+	const app = await builder(root, {}, { build: { write: true } });
+	expect(app.environments.client?.config.build.copyPublicDir).toBe(true);
+	expect(app.environments.ssr?.config.build.copyPublicDir).toBe(false);
+	expect(app.environments.worker?.config.build.copyPublicDir).toBe(false);
+	await app.buildApp();
+	expect(existsSync(join(root, "dist/client/x.txt"))).toBe(true);
+	expect(existsSync(join(root, "dist/server/x.txt"))).toBe(false);
+	expect(existsSync(join(root, "dist/worker/x.txt"))).toBe(false);
 }, 60_000);
 
 it("no worker", async () => {

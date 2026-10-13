@@ -96,11 +96,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 10.3 [x] Decided (B101): an absent optional param counts as resolved. Cause: prerender gave a route a `path` only when its pattern had no param segment, and the sitemap otherwise listed only prerendered paths, so every page under `[[locale]]/_root_` that is not prerendered was dropped. Fix: `PrerenderRoute.bare` is the URL with every optional segment absent, plus one per other configured tag when the locale param is among them (the tags come with the locale slot); the sitemap lists `path`, else rendered paths and `bare`, each once. A required param stays prerender-only. Failing tests first: `sitemap.test.ts` `optional absent`, `prerender.test.ts` `bare path`.
 10.4 [x] Verify: `docs-features` `sitemap` lists `/search` and `/hr/search` and excludes `/admin`, and `robots` passes, on node-prod-chromium.
 
-11 [ ] B11 `public/` is copied into the server and worker outputs
-11.1 [ ] Repro: build the docs app and list the output.
-11.2 [ ] Expected: public files ship once, with the client. Actual: `server/` and `worker/` each also hold `favicon.ico`, `icon.svg`, `apple-touch-icon.png`, `icons/*`, `manifest.webmanifest`, and `fonts/mono.woff2`. The worker bundle uploads them as script assets for nothing.
-11.3 [ ] Write a failing `vite/plugin/environments.test.ts` case (`ssr` and `worker` set `copyPublicDir: false`). Then set it.
-11.4 [ ] Verify: the build output has public files under `client/` only.
+11 [x] B11 `public/` is copied into the server and worker outputs
+11.1 [x] Repro: build the docs app and list the output.
+11.2 [x] Expected: public files ship once, with the client. Actual: `server/` and `worker/` each also hold `favicon.ico`, `icon.svg`, `apple-touch-icon.png`, `icons/*`, `manifest.webmanifest`, and `fonts/mono.woff2`. The worker bundle uploads them as script assets for nothing.
+11.3 [x] Cause: Vite copies `public/` into every environment's `outDir` unless `build.copyPublicDir` is false, and the `ssr` and `worker` builds left it on. Fix: both set `copyPublicDir: false`; the client build still copies it. Failing test first: `vite/plugin/environments.test.ts` `public once` (the three environments' config, and a real build with `public/x.txt` writes it under `client/` only).
+11.4 [x] Verify: the docs app's prod output holds `favicon.ico`, `icon.svg`, `apple-touch-icon.png`, `manifest.webmanifest`, and `fonts/mono.woff2` under `client/` only, and each is served 200 on Node and on Workers prod; `docs-smoke`, `fonts`, and `head full` pass on node-prod-chromium and workers-prod-chromium (38 of 38).
 
 12 [x] B12 A route `.security()` makes the CSP nonce differ from the document's, and the page never hydrates
 12.1 [x] Repro: the docs `_admin_` root layout has `.security({ "X-Frame-Options": "DENY" })`. On a production build (`node-prod`), GET `/admin` as a guest (401), as `docs.session=bob.reader` (403), and as `docs.session=ada.admin` (200).
