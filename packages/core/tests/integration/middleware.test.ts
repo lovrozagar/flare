@@ -1,6 +1,9 @@
 import { createServer as createHttpServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { createComponent, type Element } from "solid-js";
+import { Dynamic } from "@solidjs/web";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
+import { i18n } from "../../src/features/i18n/server/middleware.ts";
 import { createServer } from "../../src/server/lifecycle/create.ts";
 import { createMiddleware, type MiddlewareEntry } from "../../src/server/middleware/index.ts";
 import { mount } from "../../src/server/mount/index.ts";
@@ -105,4 +108,137 @@ it("proxy", async () => {
 	expect(response.headers.get("connection")).toBeNull();
 	expect(response.headers.get("x-up")).toBe("1");
 	expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+});
+
+// Solid writes the head into the document's head element, so a root renders a full document and the body carries
+// nonces.
+function documentOf(children: Element): Element {
+	return createComponent(Dynamic, {
+		component: "html",
+		get children() {
+			return [
+				createComponent(Dynamic, { component: "head" }),
+				createComponent(Dynamic, { component: "body", children }),
+			];
+		},
+	});
+}
+
+// A root that sets its own `.security()`, gated by session, around a full document so the body carries nonces. The
+// session is the `x-user` header: none is a guest, `bob` a reader, `ada` the admin (BUGS.md B12, B13).
+function secured(middleware: MiddlewareEntry[]): ReturnType<typeof createServer> {
+	const root = createRootLayout("_root_")
+		.authenticate()
+		.authorize(({ auth }) => auth === "ada")
+		.security({ "X-Frame-Options": "DENY" })
+		.render((props) => documentOf(props.children));
+	const admin = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/", path: "/", module: createPage("_root_/").render(() => "admin") }],
+	});
+	return createServer({
+		router: admin,
+		middleware,
+		security: { "X-Frame-Options": "SAMEORIGIN" },
+		authenticate: ({ request }) => request.headers.get("x-user"),
+	});
+}
+
+function as(user?: string): Request {
+	return new Request("http://localhost/", { headers: user === undefined ? {} : { "x-user": user } });
+}
+
+// The CSP header's nonce and every nonce the body carries.
+async function nonces(response: Response): Promise<{ header: string | undefined; body: string[] }> {
+	const header = /'nonce-([^']+)'/.exec(response.headers.get("content-security-policy") ?? "")?.[1];
+	const body = [...(await response.text()).matchAll(/nonce="([^"]+)"/g)].map((found) => found[1]);
+	return { header, body };
+}
+
+const passThrough = createMiddleware((ctx) => ctx.next());
+
+const rewrapping = createMiddleware(async (ctx) => {
+	const response = await ctx.next();
+	return new Response(response.body, response);
+});
+
+it("route security keeps nonce", async () => {
+	const { header, body } = await nonces(await secured([passThrough]).fetch(as("ada")));
+	expect(body.length).toBeGreaterThan(0);
+	expect(new Set(body)).toEqual(new Set([header]));
+});
+
+it("root security beats server with middleware", async () => {
+	const server = secured([passThrough]);
+	const answers = await Promise.all([as("ada"), as(), as("bob")].map((request) => server.fetch(request)));
+	expect(answers.map((response) => [response.status, response.headers.get("x-frame-options")])).toEqual([
+		[200, "DENY"],
+		[401, "DENY"],
+		[403, "DENY"],
+	]);
+});
+
+it("rewrap keeps route security", async () => {
+	const response = await secured([rewrapping]).fetch(as("ada"));
+	expect(response.headers.get("x-frame-options")).toBe("DENY");
+	const { header, body } = await nonces(response);
+	expect(new Set(body)).toEqual(new Set([header]));
+});
+
+it("short circuit keeps server security", async () => {
+	const answering = createMiddleware(() => new Response("maintenance"));
+	const response = await secured([answering]).fetch(as("ada"));
+	expect(await response.text()).toBe("maintenance");
+	expect(response.headers.get("x-frame-options")).toBe("SAMEORIGIN");
+});
+
+it("security fn waits for its loader", async () => {
+	const root = createRootLayout("_root_")
+		.authenticate()
+		.security(() => ({ "X-Frame-Options": "DENY" }))
+		.render((props) => props.children);
+	const gated = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/", path: "/", module: createPage("_root_/").render(() => "home") }],
+	});
+	const server = createServer({
+		router: gated,
+		security: { "X-Frame-Options": "SAMEORIGIN" },
+		authenticate: () => null,
+	});
+	const response = await server.fetch(new Request("http://localhost/"));
+	expect([response.status, response.headers.get("x-frame-options")]).toEqual([401, "SAMEORIGIN"]);
+});
+
+// An i18n root with its own `.security()`. A shared page with no tag is the negotiated downgrade, and a private page
+// under a tag appends the locale cookie: both leave through the locale slot's exit.
+it("locale exit keeps route security", async () => {
+	const root = createRootLayout("_root_")
+		.security({ "X-Frame-Options": "DENY" })
+		.render((props) => documentOf(props.children));
+	const shared = createPage("_root_/[[locale]]")
+		.cache({ ssr: { ttl: "1h" }, cdn: { maxAge: "60s" } })
+		.render(() => "home");
+	const owned = createPage("_root_/[[locale]]/account").render(() => "account");
+	const localized = createRouter({
+		layouts: { _root_: root },
+		routeTree: [
+			{ id: "_root_/[[locale]]", path: "/[[locale]]", module: shared },
+			{ id: "_root_/[[locale]]/account", path: "/[[locale]]/account", module: owned },
+		],
+	});
+	const server = createServer({
+		router: localized,
+		locale: i18n({ locales: ["en", "hr"], defaultLocale: "en" }),
+		security: { "X-Frame-Options": "SAMEORIGIN" },
+	});
+	const negotiated = await server.fetch(new Request("http://localhost/"));
+	expect(negotiated.headers.get("cache-control")).toContain("no-store");
+	expect(negotiated.headers.get("x-frame-options")).toBe("DENY");
+	const { header, body } = await nonces(negotiated);
+	expect(new Set(body)).toEqual(new Set([header]));
+	// A data answer for a tag the cookie lacks persists it.
+	const cookied = await server.fetch(new Request("http://localhost/hr/account?_flare=data"));
+	expect(cookied.headers.get("set-cookie")).toContain("flare.locale=hr");
+	expect(cookied.headers.get("x-frame-options")).toBe("DENY");
 });

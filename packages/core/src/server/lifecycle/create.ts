@@ -69,7 +69,8 @@ function serveOne(at: Serving, call: Call): Promise<Response> {
 	});
 	const internal = classify(new URL(request.url), options.router.basePath);
 	const capture = call.prerender === undefined ? {} : { prerender: call.prerender };
-	const outer = { options, request, env, secured, sink, kind: "document" as const, stale: null, ...capture };
+	const built = {};
+	const outer = { options, request, env, secured, built, sink, kind: "document" as const, stale: null, ...capture };
 	if (internal.status !== 200) return Promise.resolve(answer(outer, internal.status));
 	// Rebuilt only when an internal param was removed: a new Request would take over the body stream.
 	const inner = internal.url.href === request.url ? request : new Request(internal.url, request);
@@ -115,12 +116,16 @@ function route(exchange: Exchange): Promise<Response> {
 	return fn ? chain() : withLocale(exchange, chain);
 }
 
+// Once the router ran, its answer's set leaves on whatever Response the middleware returns, a rewrap included. A
+// middleware that answers without the router leaves with the server's set.
 function withMiddleware(exchange: Exchange, fn: boolean, inner: () => Promise<Response>): Promise<Response> {
 	const middleware = exchange.options.middleware ?? [];
 	if (middleware.length === 0) return inner();
 	const kind: MiddlewareKind = fn ? "serverFn" : "page";
 	const input = { request: exchange.request, env: exchange.env, kind, fail: failed(exchange) };
-	return runMiddleware(middleware, input, inner).then((response) => passed(exchange, response));
+	return runMiddleware(middleware, input, inner).then((response) =>
+		passed({ ...exchange, secured: exchange.built.secured ?? exchange.secured }, response),
+	);
 }
 
 // 02-system steps 8 and 9: match, then the method rule.

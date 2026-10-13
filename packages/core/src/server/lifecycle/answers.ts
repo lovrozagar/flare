@@ -121,7 +121,7 @@ export async function dataFrom(
 			...stage(routeSecured(exchange, run.security), redirectBody({ s: thrown.status, u, r: thrown.replace }), run),
 		});
 	}
-	if (run.response.status !== 200) return bare(exchange, run);
+	if (run.response.status !== 200) return bare(routeSecured(exchange, run.security), run);
 	for (const bug of run.bugs) projectError(bug, exchange.sink);
 	const settled = await awaited(run, policy, false);
 	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project: framed(exchange) });
@@ -170,10 +170,10 @@ function settle(exchange: Exchange, rendered: Decided): Promise<Response> {
 	const thrown = rendered.run.thrown ?? rendered.run.failed?.error;
 	if (thrown instanceof RedirectError) {
 		const location = redirectLocation(thrown, exchange.options.router.basePath);
-		return Promise.resolve(answer(exchange, thrown.status, location));
+		return Promise.resolve(answer(routeSecured(exchange, rendered.run.security), thrown.status, location));
 	}
 	const failed = rendered.run.failed;
-	if (failed === undefined) return bare(exchange, rendered.run);
+	if (failed === undefined) return bare(routeSecured(exchange, rendered.run.security), rendered.run);
 	const projected = projectError(failed.error, exchange.sink);
 	return paint(exchange, { ...rendered, failed: projected }, projected.status);
 }
