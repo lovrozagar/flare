@@ -325,6 +325,7 @@ The outcomes are the rows in `dx/features.md`.
 
 | test | case | result |
 | --- | --- | --- |
+| `complete before hydrate` | a `priority` Image with `placeholder: "blur"` whose `<img>` reports `complete` at mount, and no `load` event is ever dispatched | after the commit the blur background is gone. The check runs in a post-commit callback, so the server render and the hydration render call no setter (B90). A `complete` image that failed to decode also drops the blur (BUGS.md B20) |
 | `srcset` | widths `320` and `640` | the srcset lists those two and no others |
 | `alt required` | no alt | the type of the props requires `alt` |
 | `sizes` | `sizes` set | the attribute is passed through |
