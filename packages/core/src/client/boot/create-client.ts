@@ -72,10 +72,10 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 	const navigation = createNavigationState();
 	const blockers = createBlockers();
 	const scroll = browserScroll(router);
-	const prefetcher = browserPrefetcher(router, store, env);
 	const reload = browserReload(env);
-	// One id for the navigator and the server function transport, so the two never disagree on a mismatch.
+	// One id for the navigator, the prefetcher, and the server function transport, so none disagrees on a mismatch (B30).
 	const build = state.build ?? "";
+	const prefetcher = browserPrefetcher(router, store, { env, build });
 	const navigator = createNavigator({
 		router,
 		store,
@@ -184,13 +184,17 @@ function browserEnv(): ClientEnv {
 }
 
 // The prefetcher over the window. A link resolves against the page on screen.
-function browserPrefetcher(router: Router, store: RouterStore, env: ClientEnv): Prefetcher {
+function browserPrefetcher(
+	router: Router,
+	store: RouterStore,
+	{ env, build }: { env: ClientEnv; build: string },
+): Prefetcher {
 	return createPrefetcher({
 		router,
 		origin: window.location.origin,
 		current: () => store.snapshot().location,
 		fetch: env.fetch,
-		build: "",
+		build,
 		land: { dev: env.dev, send: env.send },
 		env: { network: env.network, observe: env.observe, idle: loadedIdle(env.idle), head: document.head, now: Date.now },
 	});
