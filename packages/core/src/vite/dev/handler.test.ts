@@ -336,11 +336,57 @@ it("streamed html", async () => {
 	expect(new TextDecoder().decode(first?.value)).toBe(
 		'<html><head><title>t</title><script type="module" src="/@vite/client"></script></head><body>wait',
 	);
-	expect(seen[0].html).toBe("<html><head><!--flare-head--><title>t</title></head><body>wait");
+	expect(seen[0].html).toBe("<html><head><!--flare-head--><title>t</title></head>");
 	later?.("DONE</body></html>");
 	const second = await reader?.read();
 	expect(new TextDecoder().decode(second?.value)).toBe("DONE</body></html>");
 	expect((await reader?.read())?.done).toBe(true);
+});
+
+// A body that streams its chunks, then closes.
+function chunked(chunks: readonly Uint8Array[]): ReadableStream<Uint8Array> {
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			for (const chunk of chunks) controller.enqueue(chunk);
+			controller.close();
+		},
+	});
+}
+
+// transformIndexHtml sees the document through `</head>` only, so a chunk that ends mid-tag after it is never handed
+// to its HTML parser. The bytes after `</head>` reach the client unchanged (BUGS.md B8).
+it("head split", async () => {
+	const encoder = new TextEncoder();
+	const seen: { url: string; html: string }[] = [];
+	const body = chunked([
+		encoder.encode('<html><head></head><body><a class="x opa'),
+		encoder.encode('city-50">a</a></body></html>'),
+	]);
+	const fetch = devFetch({
+		load: async () => app(async () => new Response(body, { headers: { "content-type": "text/html" } })),
+		transform: transform(seen),
+	});
+	const text = await (await fetch(new Request("http://localhost/"))).text();
+	expect(seen[0].html).toBe("<html><head><!--flare-head--></head>");
+	expect(text).toBe(
+		'<html><head><script type="module" src="/@vite/client"></script></head><body><a class="x opacity-50">a</a></body></html>',
+	);
+});
+
+// A multibyte character split across the chunk that holds `</head>` arrives whole: the tail goes through the same
+// decoder, flushed at the end (BUGS.md B8).
+it("utf8 boundary", async () => {
+	const bytes = new TextEncoder().encode("<html><head></head><body>é</body></html>");
+	const at = bytes.indexOf(0xc3) + 1;
+	const fetch = devFetch({
+		load: async () =>
+			app(
+				async () =>
+					new Response(chunked([bytes.slice(0, at), bytes.slice(at)]), { headers: { "content-type": "text/html" } }),
+			),
+		transform: async (_url, html) => html,
+	});
+	expect(await (await fetch(new Request("http://localhost/"))).text()).toBe("<html><head></head><body>é</body></html>");
 });
 
 it("html edges", async () => {

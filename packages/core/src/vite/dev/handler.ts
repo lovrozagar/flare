@@ -41,6 +41,7 @@ const INLINE = /<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>|<style[^>]*>[\s\S
 // the head from its first child, so a marker shows where Vite's tags end, and they move to just before `</head>`.
 const HEAD_OPEN = /<head(?:\s[^>]*)?>/i;
 const HEAD_MARK = "<!--flare-head-->";
+const HEAD_CLOSE = "</head>";
 const PREPENDED = /(<head(?:\s[^>]*)?>)([\s\S]*?)<!--flare-head-->([\s\S]*?)(<\/head>)/i;
 
 // The request nonce, read from the policy the app answered with. Vite's client reads it from a `csp-nonce` meta for
@@ -105,8 +106,9 @@ export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?:
 	};
 }
 
-// The document is buffered through `</head>`, the part `transformIndexHtml` changes. What streams after the shell,
-// such as a deferred value, still streams in dev.
+// The document is buffered through `</head>`, the part `transformIndexHtml` changes, and only that part is handed to
+// it: a chunk may end mid-tag after it (BUGS.md B8). What follows, such as a deferred value, still streams in dev,
+// through the same decoder, so a character split across the boundary arrives whole.
 async function transformedHead(
 	deps: DevDeps,
 	shell: Shell,
@@ -114,19 +116,23 @@ async function transformedHead(
 ): Promise<ReadableStream<Uint8Array>> {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();
-	let head = "";
-	for (let step = await reader.read(); ; step = await reader.read()) {
-		if (!step.done) head += decoder.decode(step.value, { stream: true });
-		if (step.done || head.includes("</head>")) break;
-	}
 	const encoder = new TextEncoder();
-	const first = encoder.encode(await withVite(deps, shell, head));
+	let text = "";
+	let close = -1;
+	for (let step = await reader.read(); ; step = await reader.read()) {
+		text += step.done ? decoder.decode() : decoder.decode(step.value, { stream: true });
+		close = text.indexOf(HEAD_CLOSE);
+		if (step.done || close !== -1) break;
+	}
+	const cut = close === -1 ? text.length : close + HEAD_CLOSE.length;
+	const first = encoder.encode((await withVite(deps, shell, text.slice(0, cut))) + text.slice(cut));
 	return new ReadableStream<Uint8Array>({
 		start: (controller) => controller.enqueue(first),
 		async pull(controller) {
 			const next = await reader.read();
+			const tail = next.done ? decoder.decode() : decoder.decode(next.value, { stream: true });
+			if (tail !== "") controller.enqueue(encoder.encode(tail));
 			if (next.done) controller.close();
-			else controller.enqueue(next.value);
 		},
 		cancel: (reason) => reader.cancel(reason),
 	});
