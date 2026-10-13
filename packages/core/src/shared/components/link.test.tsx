@@ -16,6 +16,7 @@ import {
 } from "../router/context.ts";
 import type { Location, LocationRewrite } from "../url/index.ts";
 import { delegateClicks, Link, type LinkProps } from "./link.tsx";
+import { expectReported } from "../dev/reported.fixture.ts";
 
 const root = createRootLayout("_root_").render((props) => props.children);
 const about = createPage("_root_/about").render(() => "about");
@@ -170,7 +171,7 @@ it("off", async () => {
 it("all rejected", () => {
 	// @ts-expect-error a link cannot say modules: "all" (B64)
 	const all: LinkProps = { to: "_root_/about", prefetch: { modules: "all" }, children: "x" };
-	expect(() => mount(all)).toThrow(/modules: "all"/);
+	expectReported(() => mount(all), /modules: "all"/);
 	vi.stubEnv("DEV", false);
 	expect(mount(all).anchor.getAttribute("href")).toBe("/about");
 });
@@ -191,7 +192,7 @@ it("neither", () => {
 });
 
 it("params", () => {
-	expect(() => mount({ to: "_root_/users/[id]", children: "x" })).toThrow("id");
+	expectReported(() => mount({ to: "_root_/users/[id]", children: "x" }), "id");
 	expect(mount({ to: "_root_/users/[id]", params: { id: "7" }, children: "x" }).anchor.getAttribute("href")).toBe(
 		"/users/7",
 	);

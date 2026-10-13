@@ -11,7 +11,10 @@
 		"max-lines": ["error", 300],
 		"max-lines-per-function": ["error", 60],
 		"max-params": ["error", 3],
-		"vitest/expect-expect": "error",
+		"vitest/expect-expect": [
+			"error",
+			{ "assertFunctionNames": ["expect", "expectTypeOf", "assert", "assertType", "expectReported"] }
+		],
 		"vitest/no-conditional-expect": "error",
 		"vitest/no-focused-tests": "error",
 		"vitest/no-disabled-tests": "error",

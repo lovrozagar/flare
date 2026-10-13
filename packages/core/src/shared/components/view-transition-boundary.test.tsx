@@ -2,6 +2,7 @@ import { createComponent, flush, useContext } from "solid-js";
 import { Dynamic, render, type JSX } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
 import { TransitionScopeContext, ViewTransitionBoundary } from "./view-transition-boundary.tsx";
+import { expectReported } from "../dev/reported.fixture.ts";
 
 // A child that renders nothing and keeps the scope its outlet would read.
 function probe(seen: { scope?: () => Element | undefined }): JSX.Element {
@@ -54,8 +55,8 @@ it("empty", () => {
 });
 
 it("dev throw", () => {
-	expect(() => mount(() => [element("main"), element("aside")])).toThrow(/one element/);
-	expect(() => mount(() => "text")).toThrow(/one element/);
+	expectReported(() => mount(() => [element("main"), element("aside")]), /one element/);
+	expectReported(() => mount(() => "text"), /one element/);
 });
 
 it("scope", () => {
