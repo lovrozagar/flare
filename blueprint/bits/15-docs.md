@@ -71,3 +71,12 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 ## Harness
 
 `docs.fixture.ts` boots the app once per project per worker. Every docs spec runs on every project of the B70 grid; `deepOnly()` and the `FLARE_E2E_PROJECTS_CHOSEN` hand-off are removed (B70 revision, plan 14). A production-only case skips the `*-dev-*` projects by name. Node projects run under genuine Node 22.18 or later (B3), never under `bunx --bun`.
+
+## `tests/integration/hydrate.test.tsx`
+
+The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydrate.harness.ts` renders a tree with Solid's server build and hydrates the same tree with its client build in jsdom, inside `bun run test`. A case fails on any console message that names `Hydration`, a key miss, unclaimed server nodes, or `STRICT_READ_UNTRACKED`. The harness writes nothing into the repo and removes its temp directory.
+
+| test | case | result |
+| --- | --- | --- |
+| `navigation progress beside a sibling` | a root whose body renders `useNavigationProgress` output before a sibling element | no hydration warning or key miss, and the sibling is the server's node (BUGS.md B2) |
+| `root boundaries idle` | a root with `errorRender` and `notFoundRender`, no failure, and a `useNavigationProgress` sibling | no key miss, and neither boundary function is called on the client (BUGS.md B3, closed as a consequence of B2) |
