@@ -14,6 +14,10 @@ const shared = createPage("_root_/[[locale]]/pricing")
 const owned = createPage("_root_/[[locale]]/account").render(() => "account");
 const home = createPage("_root_/[[locale]]").render(() => "home");
 const docs = createPage("_root_/[locale]/docs").render(() => "docs");
+// A machine-read `.response()` route under the optional locale: it answers with its own Cache-Control.
+const llms = createPage("_root_/[[locale]]/llms.txt").response(
+	() => new Response("# llms", { headers: { "content-type": "text/plain", "cache-control": "public, max-age=300" } }),
+);
 
 const node = (id: string, path: string, module: RouteModule) => ({ id, path, module });
 const router = createRouter({
@@ -23,6 +27,7 @@ const router = createRouter({
 		node("_root_/[[locale]]/pricing", "/[[locale]]/pricing", shared),
 		node("_root_/[[locale]]/account", "/[[locale]]/account", owned),
 		node("_root_/[locale]/docs", "/[locale]/docs", docs),
+		{ ...node("_root_/[[locale]]/llms.txt", "/[[locale]]/llms.txt", llms), response: true },
 	],
 });
 const locale = i18n({ locales: ["en", "hr"], defaultLocale: "en" });
@@ -216,4 +221,28 @@ it("data unconfigured tag", async () => {
 	expect(prefetch.headers.get("location")).toBeNull();
 	expect(prefetch.headers.getSetCookie()).toEqual([]);
 	expect(tags).toEqual([]);
+});
+
+// A `.response()` route is never negotiated: no cookie or Accept-Language 302, no locale cookie, no negotiated
+// downgrade, so it keeps its own Cache-Control. The URL-shape rules still apply (dx/features.md i18n, BUGS.md B23).
+it("response route", async () => {
+	for (const ask of [{ language: "hr" }, { cookie: "hr" }, {}]) {
+		const response = await get("/llms.txt", ask);
+		expect(response.status).toBe(200);
+		expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+		expect(response.headers.get("set-cookie")).toBeNull();
+	}
+	const cased = await get("/HR/llms.txt");
+	expect(cased.status).toBe(301);
+	expect(cased.headers.get("location")).toBe("/hr/llms.txt");
+	const unknown = await get("/xx/llms.txt");
+	expect(unknown.status).toBe(302);
+	expect(unknown.headers.get("location")).toBe("/llms.txt");
+});
+
+it("response route tagged", async () => {
+	const response = await get("/hr/llms.txt", { language: "en" });
+	expect(response.status).toBe(200);
+	expect(response.headers.get("cache-control")).toBe("public, max-age=300");
+	expect(response.headers.get("set-cookie")).toBeNull();
 });
