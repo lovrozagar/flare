@@ -34,7 +34,9 @@ function lint(code: string, relative: string): number {
 			sourceCode: { getText: () => code },
 		});
 		walk(parsed.program, null, visitors);
-		const allowed = ["/finalize.ts", "/proxy.ts", "/vite/dev/handler.ts"].some((end) => relative.endsWith(end));
+		const allowed = ["/finalize.ts", "/proxy.ts", "/vite/dev/handler.ts", "/vite/dev/guard.ts"].some((end) =>
+			relative.endsWith(end),
+		);
 		expect(reports.length).toBe(allowed ? 0 : 1);
 		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" });
 		return proc.status ?? 1;
@@ -83,6 +85,14 @@ it("dev handler", () => {
 	const status = lint(
 		'export function failed() {\n\treturn new Response("<pre>x</pre>", { status: 500 });\n}\n',
 		"src/vite/dev/handler.ts",
+	);
+	expect(status).toBe(0);
+});
+
+it("dev guard", () => {
+	const status = lint(
+		"export function denied() {\n\treturn new Response(null, { status: 403 });\n}\n",
+		"src/vite/dev/guard.ts",
 	);
 	expect(status).toBe(0);
 });

@@ -6,6 +6,7 @@ import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts";
 import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
+import { devEndpoints } from "../dev/guard.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
 import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
@@ -41,6 +42,8 @@ export function flare(options?: FlareOptions): Plugin[] {
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
 		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client, assetsBase: parsed.assetsBase }),
 		core(parsed),
+		// No endpoint is dev-only yet. Bit 13's image endpoint registers here.
+		devEndpoints([]),
 	];
 }
 
