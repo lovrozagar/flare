@@ -32,7 +32,12 @@ export type Exchange = {
 	seeds: () => FlareStore | undefined;
 	// A prerender request's capture: the stored miss's entry goes here, not to a store (bits/12).
 	prerender?: Capture | undefined;
+	// The set the router's answer was built under, one slot per request. routeSecured fills it, so the middleware and
+	// locale exits keep the route's set and its nonce on whatever Response leaves (BUGS.md B12, B13).
+	built: Built;
 };
+
+export type Built = { secured?: Secured | undefined };
 
 // Every answer here carries the request's resolved security set, which already holds the defaults, so finalize
 // gets no `url` and does not add them again: a `false` in that set stays removed.
@@ -54,7 +59,7 @@ export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">
 // The request's headers with the body's media type. A document is HTML, a data response NDJSON.
 // A route's `.security()` rebuilds the request's set before the body is written, so the nonce the render stamps and
 // the header agree (B68). A route that sets none keeps the set.
-export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "options" | "sink">>(
+export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "options" | "sink" | "built">>(
 	exchange: E,
 	security: SecurityConfig,
 ): E {
@@ -66,6 +71,7 @@ export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "o
 		security: exchange.options.security,
 		route: security,
 	});
+	exchange.built.secured = secured;
 	return { ...exchange, secured };
 }
 

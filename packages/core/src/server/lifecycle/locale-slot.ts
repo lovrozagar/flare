@@ -45,7 +45,9 @@ export async function withLocale(exchange: Exchange, chain: () => Promise<Respon
 		headers.delete("cache-tag");
 	}
 	if (cookie !== undefined) headers.append("set-cookie", cookie);
-	return secure(exchange, { status: response.status, body: response.body, headers });
+	// The router's answer leaves with the set it was built under, as the middleware exit's does (BUGS.md B12).
+	const secured = exchange.built.secured ?? exchange.secured;
+	return secure({ ...exchange, secured }, { status: response.status, body: response.body, headers });
 }
 
 // A document gets the 3xx. A data request gets HTTP 200 with the one `x` frame to the same target, as a loader
