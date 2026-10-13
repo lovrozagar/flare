@@ -255,9 +255,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 36.4 [x] Verify: `docs-smoke` `click through` is green on node-prod-chromium and node-prod-firefox, and `docs-navigation` `scroll restoration` is green on node-prod-chromium. On node-dev-chromium both Back steps land, and the spec's empty-console check still fails, only on B7's font 404 and B39's two diagnostics.
 
 37 [ ] B37 The docs typecheck depends on a stale `@types/negotiator`
-37.1 [ ] Repro: a fresh clone, `bun install --frozen-lockfile`, `bun run typecheck`. The docs tsconfig step fails with `features/i18n/server/match.ts(4,24) TS7016: no declaration file for 'negotiator'`, next to B25's harness error.
-37.2 [ ] Cause: bun.lock has no `@types/negotiator` (removed in 8aa05f3). Core's tsconfig includes the `negotiator.d.ts` shim, and the docs app's tsconfig does not. A worktree inside the repo resolves the repo root's stale `node_modules/@types/negotiator`, so gates run there passed.
-37.3 [ ] Fix with B25 (plan 8.11): the docs tsconfig picks up the shim, and nothing depends on types the lockfile does not install.
+37.1 [x] Repro: a fresh clone, `bun install --frozen-lockfile`, `bun run typecheck`. The docs tsconfig step fails with `features/i18n/server/match.ts(4,24) TS7016: no declaration file for 'negotiator'`, next to B25's harness error.
+37.2 [x] Cause: bun.lock has no `@types/negotiator` (removed in 8aa05f3). Core's tsconfig includes the `negotiator.d.ts` shim, and the docs app's tsconfig does not. A worktree inside the repo resolves the repo root's stale `node_modules/@types/negotiator`, so gates run there passed.
+37.3 [x] Fix: match.ts references its own shim (`/// <reference path="./negotiator.d.ts" />`, with a line-scoped `typescript/triple-slash-reference` disable, as exports/vite.ts does), so every project that compiles it loads the shim: Flare's own, the docs app's, and an app's through the shipped `src` (`npm pack --dry-run` lists both files, and `skipLibCheck` does not cover `.ts` sources). Red: every fresh outside-worktree gate this session showed TS7016; after the fix it is gone.
 37.4 [ ] Verify: `bun run typecheck` exits 0 in a worktree outside the repo.
 
 38 [x] B38 An intermittent Vite error overlay on a docs page in dev
