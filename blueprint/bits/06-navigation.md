@@ -189,6 +189,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
+| `no tear` | a painter effect reading `pending` and `value` over one navigation | every pair it sees is consistent: `value` is never the previous phase's value beside a new `pending`, so Solid reports no `EFFECT_RELAY_TEAR` (BUGS.md B39) |
 | `start` | `pending` becomes true | `value` is `0.08` and `pending` is true |
 | `first trickle` | one default interval, `200` ms | `value` is `0.18` |
 | `cap` | intervals until the value stops changing | `value` is `0.994` and it is not `1` |
