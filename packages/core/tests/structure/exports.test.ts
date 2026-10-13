@@ -34,7 +34,7 @@ function exportsOf(): Record<string, unknown> {
 	return Object(Reflect.get(packed.manifest, "exports"));
 }
 
-// Node's own resolver, run from the stage, so `default` resolves through the packed manifest.
+// The runtime's own resolver, run from the stage, so `default` resolves through the packed manifest.
 function resolveFromStage(specs: readonly string[]): Record<string, string> {
 	const script = join(packed.stage, "resolve.mjs");
 	writeFileSync(
@@ -42,6 +42,20 @@ function resolveFromStage(specs: readonly string[]): Record<string, string> {
 		"const out = {};\nfor (const spec of JSON.parse(process.argv[2])) {\n\ttry {\n\t\tout[spec] = import.meta.resolve(spec);\n\t} catch (error) {\n\t\tout[spec] = `ERR ${error.code}`;\n\t}\n}\nconsole.log(JSON.stringify(out));\n",
 	);
 	return JSON.parse(execFileSync(process.execPath, [script, JSON.stringify(specs)], { encoding: "utf8" }));
+}
+
+// The stage resolves with the runtime under test, so each runtime's own answer is the expectation (BUGS.md B47). Node
+// refuses an unexported subpath with ERR_PACKAGE_PATH_NOT_EXPORTED and maps a pattern to a URL whether or not its file
+// exists. Bun answers both with ERR_MODULE_NOT_FOUND.
+const RESOLVER =
+	process.versions["bun"] === undefined
+		? { notExported: "ERR ERR_PACKAGE_PATH_NOT_EXPORTED", missingPattern: "absent file" }
+		: { notExported: "ERR ERR_MODULE_NOT_FOUND", missingPattern: "ERR ERR_MODULE_NOT_FOUND" };
+
+// What a resolution names: its error, or whether the file it maps to exists.
+function outcome(resolved: string): string {
+	if (resolved.startsWith("ERR ")) return resolved;
+	return existsSync(fileURLToPath(resolved)) ? "file" : "absent file";
 }
 
 function specifier(key: string): string {
@@ -79,13 +93,11 @@ it("font subpath", () => {
 	expect(statSync(join(packed.root, String(pattern.types).replace("*", String(id)))).isFile()).toBe(true);
 	// A pattern export maps any id to a path, so an id that is not a key names a file the tarball does not hold.
 	const missing = resolveFromStage(["@lovrozagar/flare/fonts/not-a-family"])["@lovrozagar/flare/fonts/not-a-family"];
-	expect(existsSync(fileURLToPath(String(missing)))).toBe(false);
+	expect(outcome(String(missing))).toBe(RESOLVER.missingPattern);
 });
 
 it("font barrel", () => {
-	expect(resolveFromStage(["@lovrozagar/flare/fonts"])["@lovrozagar/flare/fonts"]).toBe(
-		"ERR ERR_PACKAGE_PATH_NOT_EXPORTED",
-	);
+	expect(resolveFromStage(["@lovrozagar/flare/fonts"])["@lovrozagar/flare/fonts"]).toBe(RESOLVER.notExported);
 });
 
 it("no solid condition", () => {

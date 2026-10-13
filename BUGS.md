@@ -310,9 +310,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 46.1 [x] Repro (from B27.5, Linux, Bun 1.4.3): `bun --bun run --filter @lovrozagar/flare test`. `adapters/stores/fs/store.test.ts` `dir` fails and leaves `packages/core/.flare/cache` in the repo. Under Node 24 it passes. Re-measure on the current tree first. Plan leaf 8.17.
 46.2 [x] Cause: `createFilesystemStore` resolved its default with `resolve(".flare/cache")`. Node's `path.resolve` calls `process.cwd()`, Bun's reads the native cwd, so the test's cwd mock was ignored under Bun and the store wrote into the package. Fix: `resolve(process.cwd(), ...)`. Failing case first: `store.test.ts` `dir` also asserts nothing was written under the real cwd (red under Bun 1.4.3). Verify: `dir` passes under Node and under the Bun runtime, and the Bun run leaves no `.flare` directory.
 
-47 [ ] B47 Under the Bun runtime, the font export cases fail on a URL scheme
-47.1 [ ] Repro (from B27.5): the same Bun run fails `exports.test.ts` `font subpath` and `font barrel` with "The URL must be of scheme file". Under Node 24 they pass. Re-measure on the current tree first. Plan leaf 8.18.
-47.2 [ ] Verify: both cases pass under the Bun runtime.
+47 [x] B47 Under the Bun runtime, the font export cases fail on a URL scheme
+47.1 [x] Repro (from B27.5): the same Bun run fails `exports.test.ts` `font subpath` and `font barrel` with "The URL must be of scheme file". Under Node 24 they pass. Re-measure on the current tree first. Plan leaf 8.18.
+47.2 [x] Cause: the test's stage resolver runs `process.execPath`, which under `--bun` is Bun, and Bun's `import.meta.resolve` answers differently: an unexported subpath (`./fonts`) is ERR_MODULE_NOT_FOUND, not Node's ERR_PACKAGE_PATH_NOT_EXPORTED, and a pattern id with no file is ERR_MODULE_NOT_FOUND, where Node returns the URL of the absent file. Real ids resolve the same on both. Fix: the package is unchanged; `exports.test.ts` keeps the runtime's own resolver and names each runtime's answer. Verify: `font subpath` and `font barrel` pass under Node and under the Bun runtime.
 
 48 [ ] B48 Under the Bun runtime, vitest reports 12 unhandled errors from the dev-throw cases
 48.1 [ ] Repro (from B27.5): the same Bun run reports 12 unhandled errors, one per "dev throw" case in the `view-transition-boundary`, `image`, `link`, and i18n tests. Under Node 24 there are none. Re-measure on the current tree first. Plan leaf 8.19. Once B46 to B48 are green, CI's check job also runs the unit suite under the Bun runtime (plan 8.20).
