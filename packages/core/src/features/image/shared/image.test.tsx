@@ -2,6 +2,7 @@ import { createComponent, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, expect, it, vi } from "vitest";
 import { Image, type ImageBinding, type ImageProps } from "./image.tsx";
+import { expectReported } from "../../../shared/dev/reported.fixture.ts";
 
 // The plugin's widths, as flare({ image: { widths } }) writes them into config.ts.
 const plugin = vi.hoisted(() => ({ widths: [320, 640, 1280, 1920] as readonly number[] }));
@@ -53,7 +54,7 @@ it("srcset", () => {
 		"",
 	]);
 	// A width the plugin did not list throws.
-	expect(mount({ alt: "a", src: photo, widths: [321] })).toThrow("Image width 321 is not one of the plugin widths");
+	expectReported(mount({ alt: "a", src: photo, widths: [321] }), "Image width 321 is not one of the plugin widths");
 });
 
 it("alt required", () => {
@@ -83,7 +84,7 @@ it("priority", () => {
 });
 
 it("blur missing", () => {
-	expect(mount({ alt: "a", src: photo, placeholder: "blur" })).toThrow("Image placeholder blur needs a blurDataURL");
+	expectReported(mount({ alt: "a", src: photo, placeholder: "blur" }), "Image placeholder blur needs a blurDataURL");
 });
 
 it("blur until load", () => {
@@ -132,17 +133,19 @@ it("fill", () => {
 	expect(element.getAttribute("srcset")).toBe(
 		"/a-320.webp 320w, /a-640.webp 640w, /a-1280.webp 1280w, /a-1920.webp 1920w",
 	);
-	expect(mount({ alt: "a", src: photo, fill: true, ...({ width: 10 } as object) })).toThrow(
+	expectReported(
+		mount({ alt: "a", src: photo, fill: true, ...({ width: 10 } as object) }),
 		"Image fill takes no width",
 	);
 });
 
 it("fixed", () => {
-	expect(mount({ alt: "a", src: photo, ...({ fixed: true } as object) })).toThrow("Image fixed needs width and height");
+	expectReported(mount({ alt: "a", src: photo, ...({ fixed: true } as object) }), "Image fixed needs width and height");
 	const element = img({ alt: "a", src: photo, fixed: true, width: 640, height: 320 });
 	expect([element.getAttribute("width"), element.getAttribute("height")]).toEqual(["640", "320"]);
 	expect([element.style.width, element.style.height]).toEqual(["640px", "320px"]);
-	expect(mount({ alt: "a", src: photo, fixed: true, width: 600, height: 300 })).toThrow(
+	expectReported(
+		mount({ alt: "a", src: photo, fixed: true, width: 600, height: 300 }),
 		"Image width 600 is not one of the plugin widths",
 	);
 });
@@ -176,10 +179,12 @@ it("responsive", () => {
 });
 
 it("two modes", () => {
-	expect(mount({ alt: "a", src: photo, ...({ fill: true, maxWidth: 400 } as object) })).toThrow(
+	expectReported(
+		mount({ alt: "a", src: photo, ...({ fill: true, maxWidth: 400 } as object) }),
 		"Image takes one of fill, fixed, and maxWidth",
 	);
-	expect(mount({ alt: "a", src: photo, ...({ fixed: true, width: 640, height: 1, fill: true } as object) })).toThrow(
+	expectReported(
+		mount({ alt: "a", src: photo, ...({ fixed: true, width: 640, height: 1, fill: true } as object) }),
 		"Image takes one of fill, fixed, and maxWidth",
 	);
 });

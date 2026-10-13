@@ -6,6 +6,7 @@ import { createRouter, type RouteNode } from "../../../shared/router/create-rout
 import { buildUrl, type Location } from "../../../shared/url/index.ts";
 import { useLocale } from "./hooks.ts";
 import { LocaleProvider, type LocaleConfigInput, type LocaleState } from "./provider.tsx";
+import { expectReported } from "../../../shared/dev/reported.fixture.ts";
 
 // LocaleProvider on Solid's client build. The server rows are provider.ssr.test.ts.
 const flags = vi.hoisted(() => ({ enabled: true }));
@@ -163,7 +164,7 @@ it("initial changes", () => {
 	expect(app.state.locale()).toBe("hr");
 	expect(document.documentElement.lang).toBe("hr");
 	app.dispose();
-	expect(() => mount("/pricing", { initial: "fr" })).toThrow("fr is not one of the configured locales");
+	expectReported(() => mount("/pricing", { initial: "fr" }), "fr is not one of the configured locales");
 });
 
 it("set locale", async () => {
