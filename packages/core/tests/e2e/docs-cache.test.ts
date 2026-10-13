@@ -21,8 +21,8 @@ test("isr stored", async ({ request, docs }, info) => {
 	prodOnly(info);
 	const first = await request.get(`${docs.origin}/changelog`);
 	expect(first.headers()["flare-render"]).toBe("isr");
-	// The store write runs after the response (waitUntil), so a later request may still miss (BUGS.md B33).
-	await expect.poll(async () => (await request.get(`${docs.origin}/changelog`)).headers()["flare-cache"]).toBe("hit");
+	// The first request's write lands before its slot frees, so the next request is a hit, never a second miss (B33).
+	expect((await request.get(`${docs.origin}/changelog`)).headers()["flare-cache"]).toBe("hit");
 });
 
 test("shared ssr", async ({ request, docs }, info) => {
@@ -32,12 +32,12 @@ test("shared ssr", async ({ request, docs }, info) => {
 		const by = /id="api-rendered-by"[^>]*>([0-9a-f]+)</.exec(await response.text())?.[1];
 		return { cache: response.headers()["flare-cache"], by };
 	};
-	await read();
-	await expect.poll(async () => (await read()).cache).toBe("hit");
+	const rendered = await read();
+	// One render serves both: the repeat is a hit from the same render, never a second miss (BUGS.md B33).
 	const first = await read();
 	const second = await read();
-	expect(first.cache).toBe("hit");
-	expect(second.by).toBe(first.by);
+	expect([first.cache, second.cache]).toEqual(["hit", "hit"]);
+	expect([first.by, second.by]).toEqual([rendered.by, rendered.by]);
 });
 
 test("revalidate tag", async ({ page, request, docs, context }, info) => {

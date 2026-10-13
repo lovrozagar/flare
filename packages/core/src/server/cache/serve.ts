@@ -21,7 +21,7 @@ import type { StoreOption } from "../lifecycle/options.ts";
 import { NDJSON } from "../navigation/index.ts";
 import type { FlareStore } from "./contract.ts";
 import { lookup, type Lookup } from "./epoch.ts";
-import { inflight, type Flight } from "./inflight.ts";
+import { inflight, type Landing } from "./inflight.ts";
 import { buildId, storeKey } from "./key.ts";
 import { hitOf, storedPageOf, type Hit } from "./read.ts";
 import type { Capture } from "./prerender.ts";
@@ -171,6 +171,8 @@ async function stored(exchange: Exchange, matched: Loaded, at: Stored): Promise<
 	const landed = await inflight(keyed.key, () => flight(exchange, matched, keyed));
 	if (landed === undefined) return live(exchange, matched, at.prepared);
 	if (landed === INCOMPLETE) return live(exchange, matched, uncached(at.prepared));
+	if ("stored" in landed)
+		return served(exchange, landed.stored, { policy: at.prepared.policy, cache: "hit", cookies: [] });
 	const cookies = [landed.shared.run.headers["set-cookie"] ?? []].flat();
 	const policy = { ...at.prepared.policy, rejected: !landed.shared.settled };
 	return served(exchange, landed.page, { policy, cache: "miss", cookies });
@@ -208,19 +210,22 @@ async function gated(
 }
 
 // One shared render and its write. Only a decision still `shared` after the route's own cookies is stored, and
-// only when the render passes the write rule (B46).
-async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<Flight> {
+// only when the render passes the write rule (B46). The store is read again first: a fresh entry written since this
+// request's own read is served as it is, and nothing renders (B31).
+async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<Landing> {
+	const fresh = hitOf(await lookup(at.store, at.key), at.timing, Date.now());
+	if (fresh !== undefined && !fresh.stale) return { flight: { stored: fresh.page }, written: Promise.resolve() };
 	const shared = await sharedRender(exchange, matched);
-	if (shared === undefined || shared === INCOMPLETE) return shared;
+	if (shared === undefined || shared === INCOMPLETE) return { flight: shared, written: Promise.resolve() };
 	const policy: Policy = { ...at.prepared.policy, rejected: !shared.settled };
 	const input = entryInput(shared, matched, { mode: at.mode, policy });
 	const page = storedPage(input);
 	const cookies = [shared.run.headers["set-cookie"] ?? []].flat();
 	const entry = buildEntry(input, page);
-	if (entry !== undefined && withCookies(policy.decision, { route: cookies, all: cookies }).policy === "shared") {
-		exchange.waitUntil(at.store.set(at.key, entry, at.timing.ttl));
-	}
-	return { shared, page };
+	const shareable = withCookies(policy.decision, { route: cookies, all: cookies }).policy === "shared";
+	const written = entry !== undefined && shareable ? at.store.set(at.key, entry, at.timing.ttl) : Promise.resolve();
+	exchange.waitUntil(written);
+	return { flight: { shared, page }, written };
 }
 
 function entryInput(
