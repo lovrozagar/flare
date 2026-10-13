@@ -171,11 +171,13 @@ test("rtl layout", async ({ page, docs }) => {
 	await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
 });
 
+// An omitted locale inside LocaleProvider is the provider's tag. The plural category shows it on every CLDR version:
+// Arabic's for 14 is `many`, English's `other`. The digits follow the runtime's CLDR, so they prove nothing (B29).
 test("format message", async ({ page, docs }) => {
-	await open(page, docs.origin, "/ar/search?q=r");
-	await expect(page.locator("#result-count")).not.toHaveText("");
-	// Omitted locale inside LocaleProvider is the provider's tag, so Arabic digits.
-	await expect(page.locator("#release-count")).toHaveText("١٤ releases");
+	await open(page, docs.origin, "/ar");
+	await expect(page.locator("#release-count")).toHaveText("14 releases (many)");
+	await open(page, docs.origin, "/");
+	await expect(page.locator("#release-count")).toHaveText("14 releases");
 });
 
 test("image responsive", async ({ page, docs }) => {
