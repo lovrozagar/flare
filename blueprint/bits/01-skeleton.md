@@ -234,7 +234,7 @@ One `oxc-parser` walk (B75). Babel is not imported.
 
 | test | case | result |
 | --- | --- | --- |
-| `dev tab` | dev, a document whose state carries a tab token | the client announces it with `flare:tab` and adds `flare-dev-tab` to its data, fill, prefetch, and server-function requests; in production neither happens and the state has no token (BUGS.md B42) |
+| `dev tab` | dev, a document carrying the `flare-dev-tab` meta the dev handler injects | the client announces it with `flare:tab` and adds `flare-dev-tab` to its data, fill, prefetch, and server-function requests; in production neither happens (BUGS.md B42) |
 | `reads the script` | HTML with the state script | the router match equals that state |
 | `adopts history` | `history.state` already has an index | no new history entry |
 | `router context` | a component under hydrate reads the router context | it is the same object `createClient` received |
