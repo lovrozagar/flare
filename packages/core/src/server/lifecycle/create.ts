@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { defined } from "../../shared/errors/index.ts";
+import { PRERENDER } from "../../shared/protocol/prerender.ts";
 import type { FlareRegister } from "../../shared/route-builder/register.ts";
 import { loadChain, type Match } from "../../shared/router/create-router.ts";
 import { withServerContext } from "../context/ctx.ts";
@@ -18,6 +19,7 @@ import { responseHeaders } from "./policies.ts";
 import { effectiveAuth } from "../auth/effective.ts";
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts";
 import { loaderInput, notFound, type Loaded } from "./answers.ts";
+import { prerenderer, type Capture } from "../cache/prerender.ts";
 import { checkSite } from "../cache/scrub.ts";
 import { pageAnswer, requestStore } from "../cache/serve.ts";
 import { storeTiming } from "../cache/write.ts";
@@ -36,42 +38,58 @@ export function createServer(options: RuntimeOptions): FlareServer {
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev });
 	const { trailingSlash, caseSensitive } = options.router;
-	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive });
-	return {
-		fetch(request, env, ctx) {
-			const secured = applySecurity({ url: request.url, headers: new Headers(), security: options.security });
-			const internal = classify(new URL(request.url), options.router.basePath);
-			const outer = { options, request, env, secured, sink, kind: "document" as const, stale: null };
-			if (internal.status !== 200) return Promise.resolve(answer(outer, internal.status));
-			// Rebuilt only when an internal param was removed: a new Request would take over the body stream.
-			const inner = internal.url.href === request.url ? request : new Request(internal.url, request);
-			const exchange = { ...outer, request: inner, kind: internal.kind, stale: internal.stale };
-			const step = applyCanonical({
-				method: request.method,
-				url: request.url,
-				basePath: options.router.basePath,
-				trailingSlash: options.router.trailingSlash,
-				caseSensitive: options.router.caseSensitive,
-			});
-			if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
-			// serverContext runs once, before mounts (02-system step 2). A mount never calls authenticate.
-			const call = { env, ctx: ctx ?? background(sink) };
-			const waitUntil = (promise: Promise<unknown>): void => call.ctx.waitUntil(promise);
-			const store = requestStore(options.store, env);
-			const { serverContext, authenticate } = options;
-			return withServerContext(
-				{ request, env, serverContext, authenticate, store, waitUntil },
-				(scope) => {
-					// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
-					const mounted = dispatchMount(mounts, inner, call);
-					if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
-					const seeds = requestStore(options.static, env);
-					return route({ ...exchange, session: scope.session, waitUntil, store, seeds });
-				},
-				() => answer(exchange, 500),
-			);
+	const at: Serving = { options, sink, mounts: mountTable(options.mounts ?? [], { trailingSlash, caseSensitive }) };
+	const server: FlareServer = { fetch: (request, env, ctx) => serveOne(at, { request, env, ctx }) };
+	// The internal channel `vite build`'s prerender reads. It runs the same pipeline with a capture (bits/12).
+	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }));
+	return Object.assign(server, { [PRERENDER]: prerender });
+}
+
+type Serving = { options: RuntimeOptions; sink: ErrorSink; mounts: ReturnType<typeof mountTable> };
+
+type Call = {
+	request: Request;
+	env: unknown;
+	ctx?: Parameters<FlareServer["fetch"]>[2] | undefined;
+	prerender?: Capture | undefined;
+};
+
+// One request through the pipeline (02-system).
+function serveOne(at: Serving, call: Call): Promise<Response> {
+	const { options, sink } = at;
+	const { request, env } = call;
+	const secured = applySecurity({ url: request.url, headers: new Headers(), security: options.security });
+	const internal = classify(new URL(request.url), options.router.basePath);
+	const capture = call.prerender === undefined ? {} : { prerender: call.prerender };
+	const outer = { options, request, env, secured, sink, kind: "document" as const, stale: null, ...capture };
+	if (internal.status !== 200) return Promise.resolve(answer(outer, internal.status));
+	// Rebuilt only when an internal param was removed: a new Request would take over the body stream.
+	const inner = internal.url.href === request.url ? request : new Request(internal.url, request);
+	const exchange = { ...outer, request: inner, kind: internal.kind, stale: internal.stale };
+	const step = applyCanonical({
+		method: request.method,
+		url: request.url,
+		basePath: options.router.basePath,
+		trailingSlash: options.router.trailingSlash,
+		caseSensitive: options.router.caseSensitive,
+	});
+	if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
+	// serverContext runs once, before mounts (02-system step 2). A mount never calls authenticate.
+	const ctx = { env, ctx: call.ctx ?? background(sink) };
+	const waitUntil = (promise: Promise<unknown>): void => ctx.ctx.waitUntil(promise);
+	const store = requestStore(options.store, env);
+	const { serverContext, authenticate } = options;
+	return withServerContext(
+		{ request, env, serverContext, authenticate, store, waitUntil },
+		(scope) => {
+			// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
+			const mounted = dispatchMount(at.mounts, inner, ctx);
+			if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
+			const seeds = requestStore(options.static, env);
+			return route({ ...exchange, session: scope.session, waitUntil, store, seeds });
 		},
-	};
+		() => answer(exchange, 500),
+	);
 }
 
 // The method check runs on the match alone (02-system step 9). Route code loads only for the handler that runs

@@ -24,6 +24,7 @@ import { lookup, type Lookup } from "./epoch.ts";
 import { inflight, type Flight } from "./inflight.ts";
 import { buildId, storeKey } from "./key.ts";
 import { hitOf, storedPageOf, type Hit } from "./read.ts";
+import type { Capture } from "./prerender.ts";
 import { listed, seedLookup } from "./seed.ts";
 import { fromSentinel } from "./nonce.ts";
 import { sharedRender, type SharedRender } from "./scrub.ts";
@@ -44,13 +45,22 @@ export function requestStore(option: StoreOption | undefined, env: unknown): () 
 	return () => (resolved ??= { store: typeof option === "function" ? option(env) : option }).store;
 }
 
-// A page's answer. A slug the page does not list is the normal 404. A `shared` decision on an `ssg` page with
-// `static` reads its seed. One on an `ssr` or `isr` page with a store goes through the store. Every other answer
-// renders live (bit 09).
+// A page's answer. A slug the page does not list is the normal 404. A prerender request captures what a stored miss
+// writes (bit 12). Otherwise the cache mode picks the answer.
 export async function pageAnswer(exchange: Exchange, matched: Loaded): Promise<Response> {
 	const cache = matched.chain.at(-1)?.module.cache;
 	if (!(await listed(cache, definedParams(matched.params)))) return unlisted(exchange, matched);
 	const prepared = await decided(exchange, matched);
+	if (exchange.prerender !== undefined) {
+		return prerendered(exchange, matched, { prepared, capture: exchange.prerender });
+	}
+	return modeAnswer(exchange, matched, prepared);
+}
+
+// A `shared` decision on an `ssg` page with `static` reads its seed. One on an `ssr` or `isr` page with a store goes
+// through the store. Every other answer renders live (bit 09).
+function modeAnswer(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
+	const cache = matched.chain.at(-1)?.module.cache;
 	const shared = prepared.policy.decision.policy === "shared";
 	const seeds = shared && cache?.ssg !== undefined ? exchange.seeds() : undefined;
 	if (seeds !== undefined) return seeded(exchange, matched, { prepared, seeds });
@@ -84,6 +94,26 @@ async function seeded(
 	const page = looked === null ? undefined : storedPageOf(looked.entry.data);
 	if (page === undefined) return live(exchange, matched, at.prepared);
 	return served(exchange, page, { policy: at.prepared.policy, cache: "hit", cookies: [] });
+}
+
+// A prerender (bit 12): the shared render and the entry a stored miss writes, handed to prerender instead of a store.
+// Prerender asks only for an ssg page or an isr page with params. An answer that is not shared, or a render with
+// nothing to store, answers live, and its status tells prerender why nothing was captured.
+async function prerendered(
+	exchange: Exchange,
+	matched: Loaded,
+	at: { prepared: Prepared; capture: Capture },
+): Promise<Response> {
+	if (at.prepared.policy.decision.policy !== "shared") return live(exchange, matched, at.prepared);
+	const shared = await sharedRender(exchange, matched);
+	if (shared === undefined) return live(exchange, matched, at.prepared);
+	const mode = matched.chain.at(-1)?.module.cache?.ssg === undefined ? "isr" : "ssg";
+	const policy: Policy = { ...at.prepared.policy, rejected: !shared.settled };
+	const input = entryInput(shared, matched, { mode, policy });
+	const page = storedPage(input);
+	const entry = buildEntry(input, page);
+	if (entry !== undefined) at.capture(keyOf(exchange, matched, defined(matched.id, "the prerendered page")), entry);
+	return served(exchange, page, { policy, cache: "miss", cookies: [] });
 }
 
 function live(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
@@ -167,7 +197,11 @@ async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<F
 	return { shared, page };
 }
 
-function entryInput(shared: SharedRender, matched: Loaded, at: { mode: "isr" | "ssr"; policy: Policy }): EntryInput {
+function entryInput(
+	shared: SharedRender,
+	matched: Loaded,
+	at: { mode: "isr" | "ssr" | "ssg"; policy: Policy },
+): EntryInput {
 	const cache = matched.chain.at(-1)?.module.cache;
 	return {
 		...shared,

@@ -44,6 +44,25 @@ Creates every `P12` row. `flare codegen` writes the same files the plugin writes
 | `authorize` | `authorize` anywhere on the chain | exit 1, stderr names the route, nothing written |
 | `optional auth` | `authenticateOptional` and no `authorize` | the anonymous body is prerendered |
 
+### `server/cache/prerender.test.ts`
+
+What prerender reads of a built server, under the registry symbol `Symbol.for("flare.prerender")` on the `server` object (`shared/protocol/prerender.ts`). No package entry exports it. A render runs the whole pipeline, middleware and mounts included, on `site` plus the page's path under the router's base. A shared answer of an ssg page, or an isr page, goes through `sharedRender` and `buildEntry`, the same shared render and entry an ISR populate writes, and the entry is captured instead of stored.
+
+| test | case | result |
+| --- | --- | --- |
+| `pages` | ssg pages static and listed, isr pages with and without params, a live page, a `.response()` page, and chains with `authenticate`, `authorize`, and an authenticated layout | every ssg and isr page, with its mode, whether its pattern is dynamic, whether it lists params, its effective auth, and whether it has `authorize`. The live and `.response()` pages are not listed |
+| `params` | an ssg function, ssg `{ params }`, isr `params`, and a page without them | each function is called with `{ params: {} }`, and a page without one is one page, `[{}]` |
+| `render` | a listed ssg slug, an isr slug, and the home page and a page under base path `/app` | status 200, the key `static:<build>:<route>:<params>`, and the entry a stored miss writes: the HTML under the entry's sentinel, the NDJSON, the render mode, and the tags |
+| `refused` | a live page, an isr page without params, an unknown id, and a server without `site` | each throws and names the route, or names `site` |
+| `not stored` | a chain that requires auth, on the page or on a layout; a `resolve` value that rejects; a render that throws; a middleware redirect | 401 with no entry; no entry; 500 with no entry; the redirect status with no entry |
+
+### `shared/protocol/prerender.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `registry key` | the key | `Symbol.for("flare.prerender")`, so a built server's own copy of the module and prerender's agree |
+| `prerenderer of` | a server with a whole prerenderer, and values without one | the prerenderer, else `undefined` |
+
 ### `vite/prerender/artifacts.test.ts`
 
 | test | case | result |

@@ -200,7 +200,7 @@ function stripBase(path: string, basePath: string): string | undefined {
 }
 
 // Every layout whose id is the given id or a segment prefix of it, root first.
-function layoutChain(layouts: RouterOptions["layouts"], id: string): ChainEntry[] {
+export function layoutChain(layouts: RouterOptions["layouts"], id: string): ChainEntry[] {
 	return Object.entries(layouts)
 		.filter(([layout]) => id === layout || id.startsWith(`${layout}/`))
 		.sort(([left], [right]) => left.length - right.length)

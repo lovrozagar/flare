@@ -1,0 +1,244 @@
+import { createComponent, type Element } from "solid-js";
+import { Dynamic } from "@solidjs/web";
+import { expect, it } from "vitest";
+import { prerendererOf, type Prerenderer } from "../../shared/protocol/prerender.ts";
+import { createLayout } from "../../shared/route-builder/layout.ts";
+import { createPage } from "../../shared/route-builder/page.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter, type RouteNode } from "../../shared/router/create-router.ts";
+import { createMiddleware } from "../middleware/index.ts";
+import { serveWith } from "../lifecycle/create.ts";
+import type { Logger } from "../lifecycle/logger.ts";
+import { fromSentinel } from "./nonce.ts";
+import type { StoredPage } from "./write.ts";
+
+const SITE = "https://example.com";
+
+function noop(): void {}
+
+const quiet: Logger = { level: "error", error: noop, warn: noop, log: noop };
+
+function documentOf(children: Element): Element {
+	return createComponent(Dynamic, {
+		component: "html",
+		get children() {
+			return [
+				createComponent(Dynamic, { component: "head" }),
+				createComponent(Dynamic, { component: "body", children }),
+			];
+		},
+	});
+}
+
+const root = createRootLayout("_root_").render((props) => documentOf(props.children));
+const node = (id: string, path: string, module: RouteNode["module"]): RouteNode => ({ id, path, module });
+
+// Pages in every mode: ssg static and listed, isr with and without params, live ssr, a .response() page, a chain that
+// requires auth, one with authorize, and one under a layout that requires auth.
+const TREE: RouteNode[] = [
+	node(
+		"_root_/",
+		"/",
+		createPage("_root_/")
+			.cache({ ssg: true })
+			.render(() => "home"),
+	),
+	node(
+		"_root_/s",
+		"/s",
+		createPage("_root_/s")
+			.cache({ ssg: true })
+			.render(() => "static page"),
+	),
+	node(
+		"_root_/p/[slug]",
+		"/p/[slug]",
+		createPage("_root_/p/[slug]")
+			.cache({ ssg: ({ params }) => [{ slug: "a" }, { slug: `b${Object.keys(params).length}` }] })
+			.loader(({ params }) => ({ slug: params.slug }))
+			.render((props) => `post ${props.loaderData.slug}`),
+	),
+	node(
+		"_root_/i/[id]",
+		"/i/[id]",
+		createPage("_root_/i/[id]")
+			.cache({ isr: { params: () => [{ id: "1" }] } })
+			.render(() => "isr page"),
+	),
+	node(
+		"_root_/open",
+		"/open",
+		createPage("_root_/open")
+			.cache({ isr: true })
+			.render(() => "open"),
+	),
+	node(
+		"_root_/doc/[name]",
+		"/doc/[name]",
+		createPage("_root_/doc/[name]")
+			.cache({ ssg: { params: () => [{ name: "intro" }] } })
+			.render(() => "doc"),
+	),
+	node(
+		"_root_/broken",
+		"/broken",
+		createPage("_root_/broken")
+			.cache({ ssg: true })
+			.render(() => {
+				throw new Error("broken");
+			}),
+	),
+	node(
+		"_root_/live",
+		"/live",
+		createPage("_root_/live").render(() => "live"),
+	),
+	node(
+		"_root_/private",
+		"/private",
+		createPage("_root_/private")
+			.cache({ ssg: true })
+			.authenticate()
+			.render(() => "x"),
+	),
+	node(
+		"_root_/guarded",
+		"/guarded",
+		createPage("_root_/guarded")
+			.cache({ ssg: true })
+			.authorize(() => true)
+			.render(() => "guarded"),
+	),
+	node(
+		"_root_/team/home",
+		"/team/home",
+		createPage("_root_/team/home")
+			.cache({ ssg: true })
+			.render(() => "team"),
+	),
+	node(
+		"_root_/late",
+		"/late",
+		createPage("_root_/late")
+			.cache({ ssg: { defer: "resolve" } })
+			.loader(({ defer }) => ({ late: defer(() => Promise.reject(new Error("late"))) }))
+			.render(() => "late"),
+	),
+];
+
+type Extra = { middleware?: ReturnType<typeof createMiddleware>[]; basePath?: string; site?: string | undefined };
+
+function prerenderer(extra: Extra = {}): Prerenderer {
+	const router = createRouter({
+		layouts: {
+			_root_: root,
+			"_root_/team": createLayout("_root_/team")
+				.authenticate()
+				.render((props) => props.children),
+		},
+		routeTree: TREE,
+		basePath: extra.basePath ?? "/",
+	});
+	const middleware = extra.middleware ?? [];
+	const site = "site" in extra ? extra.site : SITE;
+	const server = serveWith({ router, site, middleware }, { dev: false, log: quiet });
+	const found = prerendererOf(server);
+	if (found === undefined) throw new Error("no prerenderer");
+	return found;
+}
+
+// Every ssg page and every isr page, with what prerender checks before it renders. A live page, an isr page without
+// params, and a .response() page are not listed.
+it("pages", async () => {
+	const pages = await prerenderer().pages();
+	expect(pages.map((page) => page.id)).toEqual([
+		"_root_/",
+		"_root_/s",
+		"_root_/p/[slug]",
+		"_root_/i/[id]",
+		"_root_/open",
+		"_root_/doc/[name]",
+		"_root_/broken",
+		"_root_/private",
+		"_root_/guarded",
+		"_root_/team/home",
+		"_root_/late",
+	]);
+	expect(pages[1]).toEqual({
+		id: "_root_/s",
+		mode: "ssg",
+		dynamic: false,
+		listed: false,
+		auth: { requires: false, reads: false },
+		authorize: false,
+	});
+	expect(pages[2]).toMatchObject({ mode: "ssg", dynamic: true, listed: true });
+	expect(pages[3]).toMatchObject({ mode: "isr", dynamic: true, listed: true });
+	expect(pages[4]).toMatchObject({ mode: "isr", dynamic: false, listed: false });
+	expect(pages[5]).toMatchObject({ mode: "ssg", dynamic: true, listed: true });
+	expect(pages[7]?.auth).toEqual({ requires: true, reads: true });
+	expect(pages[8]).toMatchObject({ authorize: true, auth: { requires: false, reads: true } });
+	expect(pages[9]?.auth.requires).toBe(true);
+});
+
+// `params()` runs with `{ params: {} }`: no parent provides params (dx/cache.md). A page with no params function is
+// one page.
+it("params", async () => {
+	const pages = prerenderer();
+	expect(await pages.params("_root_/p/[slug]")).toEqual([{ slug: "a" }, { slug: "b0" }]);
+	expect(await pages.params("_root_/i/[id]")).toEqual([{ id: "1" }]);
+	expect(await pages.params("_root_/doc/[name]")).toEqual([{ name: "intro" }]);
+	expect(await pages.params("_root_/s")).toEqual([{}]);
+});
+
+// The entry a stored miss writes: the shared render's HTML under the entry's sentinel, its NDJSON, the render mode,
+// and the key of that slug in this build.
+it("render", async () => {
+	const pages = prerenderer();
+	const result = await pages.render({ id: "_root_/p/[slug]", params: { slug: "a" }, env: {} });
+	expect(result.status).toBe(200);
+	expect(result.key).toBe("static:dev:_root_/p/[slug]:a");
+	const page = result.entry?.data as StoredPage;
+	expect(page.render).toBe("ssg");
+	expect(fromSentinel(page.html, page.sentinel, "n")).toContain("post a");
+	expect(page.html).not.toContain('nonce="n"');
+	expect(page.ndjson).toContain('"slug":"a"');
+	expect(result.entry?.tags).toEqual([]);
+	expect(typeof result.entry?.storedAt).toBe("number");
+	const isr = await pages.render({ id: "_root_/i/[id]", params: { id: "1" }, env: {} });
+	const isrPage = isr.entry?.data as StoredPage | undefined;
+	expect(isrPage?.render).toBe("isr");
+	// Under the router's base path: `/app` for the home page, `/app/s` for a page below it.
+	const based = prerenderer({ basePath: "/app" });
+	expect((await based.render({ id: "_root_/", params: {}, env: {} })).key).toBe("static:dev:_root_/");
+	expect((await based.render({ id: "_root_/s", params: {}, env: {} })).status).toBe(200);
+});
+
+// Only an ssg page, or an isr page with params, is prerendered. Anything else is refused by name.
+it("refused", async () => {
+	const pages = prerenderer();
+	for (const id of ["_root_/live", "_root_/open", "_root_/missing"]) {
+		await expect(pages.render({ id, params: {}, env: {} })).rejects.toThrow(id);
+	}
+	// Every shared render requests `site` plus the path, so a server without one cannot prerender.
+	await expect(prerenderer({ site: undefined }).render({ id: "_root_/s", params: {}, env: {} })).rejects.toThrow(
+		/site/,
+	);
+});
+
+// Nothing is captured when the shared render cannot be stored: a chain that requires auth answers 401, a middleware
+// redirect answers its status, and a `resolve` value that rejects leaves the render unsettled.
+it("not stored", async () => {
+	const pages = prerenderer();
+	const denied = await pages.render({ id: "_root_/private", params: {}, env: {} });
+	expect(denied).toEqual({ status: 401 });
+	expect(await pages.render({ id: "_root_/team/home", params: {}, env: {} })).toEqual({ status: 401 });
+	const late = await pages.render({ id: "_root_/late", params: {}, env: {} });
+	expect(late.entry).toBeUndefined();
+	expect(await pages.render({ id: "_root_/broken", params: {}, env: {} })).toEqual({ status: 500 });
+	const moved = createMiddleware(() => Response.redirect(`${SITE}/elsewhere`, 302));
+	const redirected = await prerenderer({ middleware: [moved] }).render({ id: "_root_/s", params: {}, env: {} });
+	expect(redirected.status).toBeGreaterThanOrEqual(300);
+	expect(redirected.status).toBeLessThan(400);
+	expect(redirected.entry).toBeUndefined();
+});
