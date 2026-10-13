@@ -150,3 +150,34 @@ it("complete phase", () => {
 	expect(complete.errors).toEqual([later, later.replace(/\.ts$/, ".test.ts")]);
 	expect(() => checkTree(root, tsvPath, { complete: "P99" })).toThrow("P99");
 });
+
+// An e2e app tree is one `**` row (B94): it matches files at any depth under its prefix and nothing outside it.
+it("deep glob", () => {
+	const root = makeRoot();
+	const inside = "packages/core/tests/e2e/apps/docs/src/routes/a/b.page.tsx";
+	const outside = "packages/core/tests/e2e/apps/other/src/c.ts";
+	write(root, inside, "");
+	write(root, outside, "");
+	const tsvPath = join(root, "files.tsv");
+	writeFileSync(tsvPath, tsv([row("packages/core/tests/e2e/apps/docs/**", "P15", "app")]));
+	expect(checkTree(root, tsvPath).errors).toEqual([outside]);
+});
+
+// A single `*` stays inside one directory.
+it("single glob stays one segment", () => {
+	const root = makeRoot();
+	const flat = "packages/core/tests/structure/snapshots/a.txt";
+	const nested = "packages/core/tests/structure/snapshots/deep/b.txt";
+	write(root, flat, "");
+	write(root, nested, "");
+	const tsvPath = join(root, "files.tsv");
+	writeFileSync(tsvPath, tsv([row("packages/core/tests/structure/snapshots/*.txt", "P14", "generated")]));
+	expect(checkTree(root, tsvPath).errors).toEqual([nested]);
+});
+
+it("p15", () => {
+	const root = makeRoot();
+	const tsvPath = join(root, "files.tsv");
+	writeFileSync(tsvPath, tsv([]));
+	expect(checkTree(root, tsvPath, { complete: "P15" }).ok).toBe(true);
+});

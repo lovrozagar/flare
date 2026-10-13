@@ -1,0 +1,116 @@
+import { createHash } from "node:crypto";
+import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
+import { flarePage } from "../../src/testing/index.ts";
+import { boot, type Boot } from "./boot.ts";
+
+// The docs app's shared boot (B94). The fixture is worker-scoped, so the docs spec files of one project share one
+// build per worker instead of one per file.
+export const test = base.extend<{ docs: Boot }, { docsBoot: Boot }>({
+	docsBoot: [
+		async ({ browserName }, use, workerInfo) => {
+			const [runtime, mode] = (workerInfo.project.name || `node-dev-${browserName}`).split("-");
+			const session = await boot({ app: "docs", runtime: runtime ?? "node", mode: mode ?? "dev" });
+			await use(session);
+			await session.close();
+		},
+		{ scope: "worker", timeout: 240_000 },
+	],
+	docs: async ({ docsBoot }, use) => {
+		await use(docsBoot);
+	},
+});
+
+export { expect };
+
+// The platform's first browser: Linux runs chromium and firefox, macOS runs webkit (B70).
+const FIRST_BROWSER = process.platform === "darwin" ? "webkit" : "chromium";
+const DEEP_SERVERS = ["node-dev", "node-prod", "workers-prod"];
+
+export function serverOf(info: TestInfo): string {
+	const [runtime, mode] = info.project.name.split("-");
+	return `${runtime}-${mode}`;
+}
+
+export function isProd(info: TestInfo): boolean {
+	return serverOf(info).endsWith("-prod");
+}
+
+// Every spec but the smoke spec runs on the deep set only (B94). The skip runs in a hook that reads no boot, so a
+// skipped project never builds the app. A run that names its projects (`--project`, which playwright.config.ts passes on) chose them on purpose, so the
+// deep specs run on every named project: that is how a tester runs a deep spec on another browser or on bun-prod.
+const chosen = process.env["FLARE_E2E_PROJECTS_CHOSEN"] === "1";
+
+export function deepOnly(): void {
+	test.beforeEach(({ browserName }, info) => {
+		const deep = chosen || (browserName === FIRST_BROWSER && DEEP_SERVERS.includes(serverOf(info)));
+		test.skip(!deep, "deep set only (B94)");
+	});
+}
+
+// A case that reads what a production build wrote: SSG seeds, the sitemap, critical CSS, optimized images.
+export function prodOnly(info: TestInfo): void {
+	test.skip(!isProd(info), "needs a production build (B94)");
+}
+
+// A page error, a console error, or a console warning is a problem: a Solid hydration mismatch arrives on the
+// console without throwing. The returned list grows for the life of the page.
+export function watch(page: Page): string[] {
+	const problems: string[] = [];
+	page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
+	page.on("console", (message) => {
+		if (message.type() === "error" || message.type() === "warning")
+			problems.push(`${message.type()}: ${message.text()}`);
+	});
+	return problems;
+}
+
+// Load a path and wait for hydrate. The problems list starts before the navigation.
+export async function open(page: Page, origin: string, path: string): Promise<string[]> {
+	const problems = watch(page);
+	await flarePage(page).load(`${origin}${path}`);
+	return problems;
+}
+
+// Document requests a page makes from now on. A client navigation adds none.
+export function documents(page: Page): string[] {
+	const urls: string[] = [];
+	page.on("request", (request) => {
+		if (request.resourceType() === "document") urls.push(new URL(request.url()).pathname);
+	});
+	return urls;
+}
+
+// Data requests (`?_flare=data`, `prefetch`, `fill`) a page makes from now on, by their `_flare` value.
+export function dataRequests(page: Page): { kind: string; path: string }[] {
+	const seen: { kind: string; path: string }[] = [];
+	page.on("request", (request) => {
+		const url = new URL(request.url());
+		const kind = url.searchParams.get("_flare");
+		if (kind !== null) seen.push({ kind, path: url.pathname });
+	});
+	return seen;
+}
+
+// A desktop browser user agent. Headless Chromium says "HeadlessChrome", which isbot counts as a bot, and a bot
+// never follows the locale cookie or Accept-Language.
+export const DESKTOP_UA =
+	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36";
+
+// A server function's id: sha256 of the root-relative path, NUL, and the export name, as 16 hex characters (B41).
+export function fnId(file: string, name: string): string {
+	return createHash("sha256").update(`${file}\0${name}`).digest("hex").slice(0, 16);
+}
+
+// The CSP header nonce and every nonce attribute in the body of one document response.
+export function nonces(csp: string | undefined, body: string): { header: string; body: string[] } {
+	const header = /'nonce-([0-9a-f]+)'/.exec(csp ?? "")?.[1] ?? "";
+	return { header, body: [...new Set([...body.matchAll(/nonce="([^"]*)"/g)].map((match) => String(match[1])))] };
+}
+
+// The docs session cookie for a context, as the login server function writes it.
+export function sessionCookie(origin: string, user: string, role: "admin" | "reader") {
+	return { name: "docs.session", value: encodeURIComponent(`${user}.${role}`), url: origin };
+}
+
+// The IndexNow key the docs server answers at `/<key>.txt` (apps/docs/src/server.ts).
+export const INDEX_NOW_KEY = "docs-indexnow-key-2026";

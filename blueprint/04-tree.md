@@ -53,7 +53,7 @@ packages/core/
 
 ## `tests/e2e`
 
-The split is B70. This directory holds the Playwright files, `playwright.config.ts`, `boot.ts`, and `apps/`. A new file inside `apps/minimal`, `apps/basepath`, or `apps/i18n` does not add a directory here. A fourth app is a change to B70. The Playwright config is `kind = config` and has no sibling test. `boot.ts` is `kind = script` and has `boot.test.ts`.
+The split is B70. This directory holds the Playwright files, `playwright.config.ts`, `boot.ts`, and `apps/`. A new file inside `apps/minimal`, `apps/basepath`, or `apps/docs` does not add a directory here. A fourth app is a change to B70. `apps/docs` is one `**` row in `files.tsv` (B94). `docs.fixture.ts` is `kind = test` and holds the shared docs boot. The Playwright config is `kind = config` and has no sibling test. `boot.ts` is `kind = script` and has `boot.test.ts`.
 
 ## Repo around the packages
 

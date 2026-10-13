@@ -252,9 +252,9 @@ Core reads the registered getter by its symbol and never imports TanStack (00-ru
 | `prefetch quiet` | a prefetch of a URL that does not show the chosen tag | no redirect and no `Set-Cookie` |
 | `default missing` | `defaultLocale` is not in `locales` | throw when `i18n()` is called |
 
-### `tests/e2e/i18n.test.ts`
+### `tests/e2e/docs-features.test.ts` (was `tests/e2e/i18n.test.ts`)
 
-This file calls `boot({ app: "i18n", runtime, mode })` (B70). The project name selects `runtime`, `mode`, and the browser. `boot` receives `runtime` and `mode`. The app is born with `wrangler.jsonc` so `workers-prod` can boot it. The locale slot stays on this app. `minimal` does not gain it.
+B94 moved these seven cases, under the same names, into the docs app's `docs-features.test.ts`, which boots `boot({ app: "docs", runtime, mode })`. The `i18n` app is retired. The rest of this section is the original contract. It called `boot({ app: "i18n", runtime, mode })` (B70). The project name selects `runtime`, `mode`, and the browser. `boot` receives `runtime` and `mode`. The app is born with `wrangler.jsonc` so `workers-prod` can boot it. The locale slot stays on this app. `minimal` does not gain it.
 
 | test | case | result |
 | --- | --- | --- |

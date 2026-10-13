@@ -22,7 +22,7 @@ export type Boot = {
 	close: () => Promise<void>;
 };
 
-const APPS = new Set(["minimal", "basepath", "i18n"]);
+const APPS = new Set(["minimal", "basepath", "docs"]);
 const RUNTIMES = new Set(["node", "bun", "workers"]);
 
 // `dev` is `vite dev` on Node. `prod` is `vite build` on Node, then the runtime's adapter over the output: the Node
@@ -158,7 +158,7 @@ import { extname, join, normalize, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 const out = process.argv[1];
 const client = join(out, "client");
-const TYPES = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json", ".map": "application/json", ".ico": "image/x-icon", ".png": "image/png", ".woff2": "font/woff2" };
+const TYPES = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json", ".map": "application/json", ".ico": "image/x-icon", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".woff2": "font/woff2", ".txt": "text/plain", ".xml": "application/xml", ".webmanifest": "application/manifest+json" };
 const { server } = await import(pathToFileURL(join(out, "server/server.js")).href);
 async function file(pathname) {
 	const path = normalize(join(client, decodeURIComponent(pathname)));

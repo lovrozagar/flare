@@ -36,6 +36,7 @@ Nothing in `packages/` has been moved or rewritten by this directory. `_v0/` doe
 | `bits/12-vite.md` | Dev guard, prerender, codegen bin |
 | `bits/13-features.md` | Theme, direction, query, i18n, image, fonts, seo |
 | `bits/14-release.md` | Packager, font catalog, golden install |
+| `bits/15-docs.md` | The docs app: every feature on one viewable site (B94) |
 
 ## Rules for changing the blueprint
 

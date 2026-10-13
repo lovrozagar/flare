@@ -35,11 +35,11 @@ it(
 	VITE_BOOT,
 );
 
-// The i18n app boots like the others (B70): its shared home answers in the path's locale.
+// The docs app boots like the others (B94): its home answers in the path's locale.
 it(
-	"i18n app",
+	"docs app",
 	async () => {
-		const session = await boot({ app: "i18n", runtime: "node", mode: "dev" });
+		const session = await boot({ app: "docs", runtime: "node", mode: "dev" });
 		try {
 			const response = await fetch(`${session.origin}/hr`);
 			expect(response.status).toBe(200);
@@ -50,6 +50,11 @@ it(
 	},
 	VITE_BOOT,
 );
+
+// B94 retired the i18n app into docs.
+it("i18n retired", async () => {
+	await expect(boot({ app: "i18n", runtime: "node", mode: "dev" })).rejects.toThrow(/i18n/);
+});
 
 it("unknown app", async () => {
 	await expect(boot({ app: "product", runtime: "node", mode: "dev" })).rejects.toThrow(/product/);

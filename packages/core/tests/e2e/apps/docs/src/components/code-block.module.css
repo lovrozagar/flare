@@ -1,0 +1,25 @@
+/* A Vite CSS module: the class names are hashed, and the rules land in the one built stylesheet. */
+.block {
+	position: relative;
+	overflow-x: auto;
+	border-radius: 0.75rem;
+	padding: 1rem 1.25rem;
+	background: #12121a;
+	color: #fde68a;
+	font-family: var(--font-mono);
+	font-size: 0.8125rem;
+	line-height: 1.6;
+	border: 1px solid #1c1c27;
+}
+
+.copy {
+	position: absolute;
+	inset-block-start: 0.5rem;
+	inset-inline-end: 0.5rem;
+	border-radius: 0.375rem;
+	padding: 0.125rem 0.5rem;
+	font-family: var(--font-sans);
+	font-size: 0.6875rem;
+	color: #a8a29e;
+	background: #1c1c27;
+}

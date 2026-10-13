@@ -53,3 +53,4 @@ ISSUES.md
 
 # Temp consumer apps from optimize-deps-consumer.test.ts
 packages/core/tests/fixtures/.consumer-dev-*/
+.tmp/

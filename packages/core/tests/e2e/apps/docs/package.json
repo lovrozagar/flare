@@ -1,0 +1,14 @@
+{
+	"name": "docs",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build"
+	},
+	"devDependencies": {
+		"@tailwindcss/vite": "catalog:",
+		"@tanstack/solid-query": "catalog:",
+		"tailwindcss": "catalog:"
+	}
+}
