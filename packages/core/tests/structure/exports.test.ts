@@ -129,6 +129,13 @@ it("compiled default", () => {
 		'import { createComponent } from "solid-js";\nimport { renderToString } from "@solidjs/web";\nimport { Image } from "@lovrozagar/flare";\nconsole.log(renderToString(() => createComponent(Image, { src: "/a.png", alt: "server" })));\n',
 	);
 	expect(execFileSync(process.execPath, [server], { encoding: "utf8" })).toContain('alt="server"');
+	// The plugin graph loads in plain Node from the tarball, the font registry data included.
+	const plugin = join(packed.stage, "load-vite.mjs");
+	writeFileSync(
+		plugin,
+		'const { flare } = await import("@lovrozagar/flare/vite");\nconsole.log(flare({ fonts: { dir: "fonts" } }).length);\n',
+	);
+	expect(Number(execFileSync(process.execPath, [plugin], { encoding: "utf8" }))).toBeGreaterThan(0);
 });
 
 it("no src path in dts", () => {

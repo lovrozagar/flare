@@ -97,11 +97,13 @@ function syncImport(fromRel, spec) {
 	return SYNC_IMPORTERS.has(fromRel) && spec.startsWith(".") && resolveRel(fromRel, spec) === "client/sync/index.ts";
 }
 
-// The font generator runs in Node at authoring time (bits/14): builtins, and its own feature's shared side.
+// The font generator runs in Node at authoring time (bits/14): builtins, and its own feature's shared side. The
+// registry is the fonts feature's data: its vite side reads it for the build-time copy, and no other feature does.
 function fontGenerator(fromRel, spec) {
+	const target = spec.startsWith(".") ? resolveRel(fromRel, spec) : "";
+	if (fromRel.startsWith("features/fonts/vite/") && target === "features/fonts/registry.json") return true;
 	if (fromRel !== "features/fonts/generate.ts") return false;
-	if (spec.startsWith("node:")) return true;
-	return spec.startsWith(".") && resolveRel(fromRel, spec).startsWith("features/fonts/shared/");
+	return spec.startsWith("node:") || target.startsWith("features/fonts/shared/");
 }
 
 function allowed(fromRel, spec) {

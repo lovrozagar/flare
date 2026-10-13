@@ -218,3 +218,13 @@ it("prerender", () => {
 		expect(() => parseOptions({ prerender } as unknown as FlareOptions)).toThrow(error);
 	}
 });
+
+// `fonts.dir` names the directory that holds `<family>/<file>.woff2`. Absent, the plugin emits no font file.
+it("fonts", () => {
+	expect(parseOptions().fonts).toBeUndefined();
+	expect(parseOptions({ fonts: { dir: "fonts" } }).fonts).toEqual({ dir: "fonts" });
+	expect(flare({ fonts: { dir: "fonts" } }).map((plugin) => plugin.name)).toContain("flare:fonts");
+	expect(flare().map((plugin) => plugin.name)).not.toContain("flare:fonts");
+	const bad: unknown[] = ["fonts", null, {}, { dir: "" }, { dir: 1 }, { dir: "fonts", extra: true }];
+	for (const fonts of bad) expect(() => parseOptions({ fonts } as unknown as FlareOptions)).toThrow(/^fonts/);
+});
