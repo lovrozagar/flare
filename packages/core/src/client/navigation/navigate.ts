@@ -73,6 +73,7 @@ export function createNavigator(deps: NavigatorDeps): {
 		const snapshot = deps.store.snapshot();
 		const pop = mode.pop === true;
 		if (target.kind !== "data") {
+			// Invariant upkeep with no observable effect: only a data pop reads `at`, and a pop off a hash entry is a hash move.
 			at = inPlace(deps, target, { options, snapshot, pop }) ?? at;
 			return;
 		}
