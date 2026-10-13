@@ -54,3 +54,22 @@ test("click through", async ({ page, docs }) => {
 	expect(await page.evaluate(() => Reflect.get(document.getElementById("nav") ?? {}, "docsMark"))).toBe(1);
 	expect(problems).toEqual([]);
 });
+
+// `public/` ships with the client and is served from it on every project (BUGS.md B11). An `.ico` is either of its
+// registered types: Node's static layer says `image/x-icon`, the Workers assets binding `image/vnd.microsoft.icon`.
+const PUBLIC: readonly { path: string; type: RegExp }[] = [
+	{ path: "/favicon.ico", type: /^image\/(x-icon|vnd\.microsoft\.icon)/ },
+	{ path: "/icon.svg", type: /^image\/svg\+xml/ },
+	{ path: "/apple-touch-icon.png", type: /^image\/png/ },
+	{ path: "/manifest.webmanifest", type: /^application\/manifest\+json/ },
+	{ path: "/fonts/mono.woff2", type: /^font\/woff2/ },
+];
+
+test("public files", async ({ request, docs }) => {
+	for (const { path, type } of PUBLIC) {
+		const response = await request.get(`${docs.origin}${path}`);
+		expect(response.status(), path).toBe(200);
+		expect(response.headers()["content-type"], path).toMatch(type);
+		expect((await response.body()).byteLength, path).toBeGreaterThan(0);
+	}
+});
