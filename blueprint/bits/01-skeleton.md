@@ -263,6 +263,7 @@ Kind `config`. No sibling test. One export. `testDir` is this directory. `webSer
 
 | test | case | result |
 | --- | --- | --- |
+| `logs captured` | a dev boot whose server writes to stdout and stderr | `session.logs()` returns those lines in order; a prod boot captures its child the same way. Nothing is written to disk |
 | `serves` | `{ app: "minimal", runtime: "node", mode: "dev" }` | `origin` answers GET `/` with 200. After `close`, the origin refuses connections |
 | `port` | two calls overlap | two origins, two ports |
 | `unknown app` | `app: "product"` | throw, and the message names `product` |

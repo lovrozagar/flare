@@ -124,6 +124,8 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 
 | test | case | result |
 | --- | --- | --- |
+| `head split` | chunks that split a tag right after `</head>` | `transformIndexHtml` receives exactly the document through `</head>`, and the client gets the original bytes after it unchanged, with Vite's tags added (BUGS.md B8) |
+| `utf8 boundary` | a multibyte character split across the chunk that holds `</head>` | the client receives the character intact: the tail goes through the same decoder and is flushed at the end |
 | `public once` | `buildConfig`, and a real build of a fixture with `public/x.txt` and a worker config | the ssr and worker environments set `build.copyPublicDir: false` and the client keeps the default; the output has `client/x.txt` and neither `server/x.txt` nor `worker/x.txt` (BUGS.md B11) |
 | `client error relayed` | a client sends `flare:error` | that payload goes to that client only (BUGS.md B42) |
 | `other tab silent` | an SSR payload tagged with tab A's token, tabs A and B connected | A receives it and B does not (BUGS.md B38) |
