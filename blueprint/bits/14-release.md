@@ -41,6 +41,7 @@ Install from the packed tarball, not from the workspace.
 | `node` | install the packed tarball, then `codegen`, `dev`, `build`, and `createNodeListener` on `apps/minimal` | `/` is 200. `POST /_flare/fn/<id>` of `src/fns/echo.ts` export `echo` returns the envelope whose `data` equals the JSON input. The id is the B41 hash. A data URL returns NDJSON |
 | `bun` | the same build, served with `createBunFetch` | the same three requests |
 | `workers` | the same build under miniflare | the same three requests |
+| `dev from tarball` | the installed tarball under `vite dev`, in Chromium | `/` hydrates with no console error or hydration warning. The response carries the dev policy (`worker-src` with `blob:`) and the `csp-nonce` meta, and `<Stylesheet />` renders nothing, so the packed code's `import.meta.env?.DEV` was replaced on the server and the client alike |
 
 ## Font file emit
 
