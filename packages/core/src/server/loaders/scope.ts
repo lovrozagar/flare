@@ -16,7 +16,9 @@ type ScopedEvent = RequestEvent & { flareLoader: LoaderScope };
 
 // Runs one loader or preloader call under a child of the request event. The child inherits everything the request
 // carries, serverCtx() included, and Solid's async-local storage keeps each call's scope apart across awaits. Once
-// the call returns, the request event is the parent again. Outside a request the call runs with no scope.
+// the call returns, the request event is the parent again. Outside a request the call runs with no scope. A top-level
+// write to the event inside the scope lands on the child and is gone after that call, so nothing caches on the event
+// from a loader. A nested object is the parent's, shared by reference.
 export function inLoaderScope<T>(kind: ScopeKind, source: ScopeSource, run: () => T): T {
 	const parent: RequestEvent | undefined = getRequestEvent();
 	if (parent === undefined) return run();

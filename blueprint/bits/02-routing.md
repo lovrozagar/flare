@@ -120,6 +120,7 @@ Accepted units are `ms`, `s`, `m`, `h`, `d`. Anything else throws. No silent zer
 | `hex kept` | route `/[slug]`, GET `/%C4%8D` | 200, no redirect. Folding never lowercases a percent-escape (B81 uppercases them) |
 | `unmatched case` | GET `/NOWHERE` with no such route | 404, not a redirect. Case is folded only toward a matched route |
 | `locale case` | locales `en-US`, `hr`, a route `/[[locale]]/pricing`, GET `/EN-us/Pricing`, then GET `/en-us/pricing` | each is one 301 to `/en-US/pricing`, then 200. A locale param that case-insensitively equals a configured tag takes that tag's spelling, so the canonical and locale casing rules cannot loop |
+| `mount case` | mount `/api`, GET `/API/Users?x=1` | one 301 to `/api/Users?x=1`, then the mount's answer. A mount prefix folds like a static segment, before the route fold, and the rest of the path stays as sent. `/APIX` is not that mount |
 | `mount case` | mount `/api`, GET `/API/Users?x=1` | one 301 to `/api/Users?x=1`, then the mount's answer. A mount prefix folds like a static segment, and the rest of the path stays as sent |
 
 ### `vite/codegen/id-string.test.ts`

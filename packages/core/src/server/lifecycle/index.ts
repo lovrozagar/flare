@@ -5,3 +5,4 @@ export { classify } from "./classify.ts";
 export { createLogger } from "./logger.ts";
 export { NO_STORE, policyHeaders, type PolicyAnswer } from "./policies.ts";
 export { STAGES } from "./order.ts";
+export { LOCALE_SLOT, type LocaleDecision, type LocaleInput, type LocaleSlot } from "./locale-slot.ts";

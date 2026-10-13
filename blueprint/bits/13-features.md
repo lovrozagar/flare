@@ -198,7 +198,7 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 | `cookie ignored on path` | path `hr`, cookie `nope` | locale `hr`, no `Set-Cookie` |
 | `header` | neither, `Accept-Language: de, hr;q=0.5` and `hr` is configured | `hr` |
 | `cap` | a header with 20 tags | only the first 8 are parsed |
-| `casing` | path `EN`, configured `en` | the matcher reports a redirect to `en` |
+| `casing` | path `EN`, configured `en` | the matcher reports a 301 to `en`. In the pipeline the canonical step already folds a locale param to its configured spelling (B22), so this redirect is the matcher's contract only |
 | `bot path` | a bot user agent, path `/hr`, cookie `en`, `Accept-Language: en` | locale `hr`, no redirect, no `Set-Cookie` |
 | `bot root` | a bot, path `/`, `Accept-Language: hr`, `hr` configured | locale is `defaultLocale`, no redirect, no `Set-Cookie` |
 | `bot off` | `botDetection: false`, path `/`, `Accept-Language: hr` | the header negotiation runs |
@@ -218,7 +218,7 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 | `slot` | the object is passed as `createServer({ locale })` | it runs between rewrite and middleware |
 | `not a middleware` | the return type | it is not assignable to the middleware list |
 | `redirect is a route` | the folded locale target does not match a route | 404, no redirect |
-| `cookie on redirect` | a 301 to the locale path | `Set-Cookie` is present and the response is `no-store` |
+| `cookie on redirect` | a redirect the slot makes: an unconfigured optional tag stripped with a 302 | `Set-Cookie` is present and the response is `no-store`. No `Vary` |
 | `cookie on shared` | a shared 200 | no `Set-Cookie` |
 | `cookie on private` | a private 200 | `Set-Cookie` is allowed |
 | `cookie attrs` | a response that sets the cookie | `Path=/`, `SameSite=Lax`, no `Domain`, `Max-Age` of one year, `Secure` only on https |
