@@ -78,6 +78,77 @@ it("direction absent", () => {
 	expect(router).not.toHaveProperty("direction");
 });
 
+const bare = { layouts: {}, routeTree: [] };
+
+it("theme stored", () => {
+	expect(createRouter({ ...bare, theme: {} }).theme).toEqual({
+		defaultTheme: "system",
+		attribute: "data-theme",
+		storageKey: "flare.theme",
+		themes: ["light", "dark", "system"],
+		disableTransitionOnChange: true,
+	});
+	const custom = { defaultTheme: "dark", attribute: "data-mode", storageKey: "k", themes: ["dark", "light"] } as const;
+	expect(createRouter({ ...bare, theme: { ...custom, disableTransitionOnChange: false } }).theme).toEqual({
+		...custom,
+		disableTransitionOnChange: false,
+	});
+});
+
+it("theme themes", () => {
+	expect(() => createRouter({ ...bare, theme: { themes: [] } })).toThrow(/themes/);
+	expect(() => createRouter({ ...bare, theme: { themes: ["light", "light"] } })).toThrow(/themes/);
+	// @ts-expect-error a theme outside the three
+	expect(() => createRouter({ ...bare, theme: { themes: ["light", "blue"] } })).toThrow(/themes/);
+	expect(() => createRouter({ ...bare, theme: { themes: ["light", "dark"] } })).toThrow(/defaultTheme/);
+	// @ts-expect-error a default outside the three
+	expect(() => createRouter({ ...bare, theme: { defaultTheme: "blue" } })).toThrow(/defaultTheme/);
+});
+
+it("theme attribute", () => {
+	for (const attribute of ["class", "style", "id", "dir", "data-", "Data-Theme"])
+		// @ts-expect-error only a data-* name
+		expect(() => createRouter({ ...bare, theme: { attribute } })).toThrow(/attribute/);
+	expect(createRouter({ ...bare, theme: { attribute: "data-scheme" } }).theme?.attribute).toBe("data-scheme");
+});
+
+it("theme storage", () => {
+	expect(() => createRouter({ ...bare, theme: { storageKey: "" } })).toThrow(/storageKey/);
+});
+
+it("direction stored", () => {
+	expect(createRouter({ ...bare, direction: {} }).direction).toEqual({
+		defaultDir: "ltr",
+		attribute: "dir",
+		storageKey: "flare.dir",
+	});
+	const custom = { defaultDir: "rtl", attribute: "data-dir", storageKey: "d" } as const;
+	expect(createRouter({ ...bare, direction: custom }).direction).toEqual(custom);
+	// @ts-expect-error a dir outside ltr and rtl
+	expect(() => createRouter({ ...bare, direction: { defaultDir: "auto" } })).toThrow(/defaultDir/);
+});
+
+it("direction attribute", () => {
+	for (const attribute of ["class", "style", "id", "lang"])
+		// @ts-expect-error `dir` or a data-* name
+		expect(() => createRouter({ ...bare, direction: { attribute } })).toThrow(/attribute/);
+});
+
+it("direction storage", () => {
+	expect(() => createRouter({ ...bare, direction: { storageKey: "" } })).toThrow(/storageKey/);
+});
+
+it("locale types", () => {
+	const locale = { locales: ["en", "hr"], defaultLocale: "en" };
+	expect(createRouter({ ...bare, locale }).locale).toEqual({ ...locale, paramName: "locale" });
+	expect(createRouter({ ...bare, locale: { ...locale, paramName: "lang" } }).locale?.paramName).toBe("lang");
+	expect(createRouter(bare)).not.toHaveProperty("locale");
+	// @ts-expect-error the cookie name is the server's
+	createRouter({ ...bare, locale: { ...locale, cookieName: "c" } });
+	// @ts-expect-error bot detection is the server's
+	createRouter({ ...bare, locale: { ...locale, botDetection: false } });
+});
+
 it("matched chain", () => {
 	const router = createRouter({ layouts, routeTree: pages });
 	expect(router.match("/blog/post").chain).toEqual([
