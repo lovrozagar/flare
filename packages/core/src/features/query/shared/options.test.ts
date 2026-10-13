@@ -1,8 +1,9 @@
 import { readFileSync } from "node:fs";
+import { createComponent, createRoot } from "solid-js";
 import { QueryClient } from "@tanstack/solid-query";
 import { afterEach, expect, it, vi } from "vitest";
 import { QUERY_GETTER } from "../../../shared/protocol/query.ts";
-import type { ServerFn } from "../../../shared/server-fn/builder.ts";
+import { bindServerFn, type ServerFn, type ServerFnRef } from "../../../shared/server-fn/builder.ts";
 import { serverFnMutationOptions, serverFnQueryOptions } from "./options.ts";
 
 afterEach(() => {
@@ -20,6 +21,36 @@ it("query", async () => {
 	expect(options.queryKey).toEqual(["search", "a"]);
 	expect(await options.queryFn()).toEqual({ hits: ["a"] });
 	expect(search).toHaveBeenCalledWith({ q: "a" });
+});
+
+// solid-query starts a suspense query's first fetch inside the component's render: an owner, no observer. The
+// helper's queryFn runs the call outside any owner, so it does not warn. A hand-written queryFn that calls the
+// function directly matches the render check, so it warns in dev. Both reach the transport (BUGS.md B36).
+it("queryFn inside a render", async () => {
+	const transport = vi.fn<(fn: ServerFnRef, input: unknown) => Promise<unknown>>(async () => ({ up: 1 }));
+	const config = { method: "post" as const, __id: "count-id", __name: "count", __client: true };
+	const count = bindServerFn(transport)(config)
+		.input((value: unknown) => value)
+		.handler(() => ({ up: 0 }));
+	const helper = serverFnQueryOptions(count, { queryKey: ["count"], input: 1 });
+	const handWritten = { queryKey: ["count", "hand"], queryFn: () => count(2) };
+	const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+	const fetched: Promise<unknown>[] = [];
+	createRoot(() =>
+		createComponent(() => {
+			fetched.push(helper.queryFn());
+			expect(warn).not.toHaveBeenCalled();
+			fetched.push(handWritten.queryFn());
+			return null;
+		}, {}),
+	);
+	expect(await Promise.all(fetched)).toEqual([{ up: 1 }, { up: 1 }]);
+	expect(transport.mock.calls).toEqual([
+		[count, 1],
+		[count, 2],
+	]);
+	expect(warn).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/count was called during a render/));
+	warn.mockRestore();
 });
 
 it("query void", async () => {

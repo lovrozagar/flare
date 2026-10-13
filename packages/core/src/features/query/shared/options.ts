@@ -1,3 +1,4 @@
+import { runWithOwner } from "solid-js";
 import { QueryClient } from "@tanstack/solid-query";
 import { registeredQuery } from "../../../shared/protocol/index.ts";
 import type { ServerFn } from "../../../shared/server-fn/builder.ts";
@@ -11,13 +12,18 @@ export type QueryOptionsInput<I> = [I] extends [void] ? { queryKey: QueryKey } :
 export type ServerFnQueryOptions<O> = { queryKey: QueryKey; queryFn: () => Promise<O> };
 
 // `queryFn` calls the server function and returns the handler's value. Query data rides the document state and the
-// app's own requests. There is no side channel in a server function's envelope.
+// app's own requests. There is no side channel in a server function's envelope. solid-query starts a suspense query's
+// first fetch inside the component's render, where the client stub refuses a direct call (B45), so the queryFn calls
+// it outside any owner: a queryFn is not that call (B85, BUGS.md B36).
 export function serverFnQueryOptions<I, O>(
 	fn: ServerFn<I, O>,
 	options: QueryOptionsInput<NoInfer<I>>,
 ): ServerFnQueryOptions<O> {
 	const args = "input" in options ? [options.input] : [];
-	return { queryKey: options.queryKey, queryFn: () => Reflect.apply(fn, undefined, args) };
+	return {
+		queryKey: options.queryKey,
+		queryFn: () => runWithOwner(null, () => Reflect.apply(fn, undefined, args)),
+	};
 }
 
 type MutationFn<I, O> = [I] extends [void] ? () => Promise<O> : (input: I) => Promise<O>;
