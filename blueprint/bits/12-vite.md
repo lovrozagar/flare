@@ -124,6 +124,9 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 
 | test | case | result |
 | --- | --- | --- |
+| `client error relayed` | a client sends `flare:error` | that payload goes to that client only (BUGS.md B42) |
+| `other tab silent` | an SSR payload tagged with tab A's token, tabs A and B connected | A receives it and B does not (BUGS.md B38) |
+| `document error after connect` | a payload for a token announced later; one never announced; one with no token | the first is held and sent on the `flare:tab` announce; the second is dropped after 30 s (and the 21st held payload drops the oldest); the third is sent to no one and still logged |
 | `defaults` | `flare()` with no outDir override | client output is `dist/client` with the manifest on. SSR output is `dist/server/server.js`. `cssCodeSplit` is false |
 | `assets dir` | `assetsBase: "/"` and `build.assetsDir` set to something other than `assets` | the plugin throws. The URL prefix is `/` and the on-disk directory is `assets` |
 
