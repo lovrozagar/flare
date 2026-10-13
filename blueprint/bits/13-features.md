@@ -176,6 +176,7 @@ Core reads the registered getter by its symbol and never imports TanStack (00-ru
 
 | test | case | result |
 | --- | --- | --- |
+| `numbering from tag` | the release message with `n` = 14 under `ar-u-nu-arab` and under `ar-u-nu-latn` | `١٤ releases` and `14 releases`: the tag's `-u-nu-` decides the digits on every runtime (BUGS.md B29) |
 | `placeholder left` | `{name}` and no value, or a `null` value | the output still contains `{name}` |
 | `number` | a number value and locale `de` | `Intl.NumberFormat("de")` |
 | `plural locale` | a plural message and locale `ar` | the category comes from `Intl.PluralRules` for `ar` |
