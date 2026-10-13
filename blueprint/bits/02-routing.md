@@ -172,6 +172,7 @@ The basepath e2e is `packages/core/tests/e2e/minimal.test.ts` run a second time 
 
 | test | case | result |
 | --- | --- | --- |
+| `segment emitted` | `_root_/docs/docs.segment.ts` beside `_root_/docs/[slug]/slug.page.tsx` | the generated `layouts` map holds `_root_/docs` pointing at the segment file and `chunks` lists it, so a segment joins every chain under it at runtime as B17 says (BUGS.md B22) |
 | `repeated param` | the same param name twice in one id | build error |
 | `two params` | two folders of the same param kind under one parent | build error. One folder of each kind is allowed |
 | `index folder` | `_root_/index/home.page.tsx` | id `_root_/index`, URL `/index` |

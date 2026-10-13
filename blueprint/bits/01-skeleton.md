@@ -78,6 +78,7 @@ The core tsconfig includes this file. Every case name in the matrix in `dx/types
 
 | test | case | result |
 | --- | --- | --- |
+| `segment chain` | a page under a segment | the loaded chain is the root, then the segment with kind `"segment"`, then the page. The boundary walk skips the segment, the client match cache treats it as a layout, and its `l` frame carries `d: null` (BUGS.md B22) |
 | `defaults` | only `layouts` and `routeTree` | `basePath` `/`, `caseSensitive` false, `trailingSlash` `preserve`, `notFoundMode` `root`, `scrollRestoration` true, `scrollRestorationBehavior` `instant`, `scrollRestorationMaxEntries` 50, `routeCacheMaxEntries` 100, `prefetch` `{ modules: "all", data: false }`, `cache.client` `staleTime` 0 and `gcTime` `"5m"`, `viewTransitions` false |
 | `not found root` | the default, an unknown path | the root not-found renders |
 | `not found fuzzy` | `notFoundMode: "fuzzy"` | the longest layout prefix's not-found renders, including a layout-only directory. A layout with no `notFoundRender` uses the root's |

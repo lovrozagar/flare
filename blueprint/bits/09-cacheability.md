@@ -55,6 +55,7 @@ Neither step grows `createPage` past its 1100 budget. Both are server-only and t
 
 | test | case | result |
 | --- | --- | --- |
+| `segment cdn served` | through `serveWith`, a segment with `cdn: { maxAge: "1m", swr: "10m", tags: ["api-reference"] }` over a page with `ssr` | the shared public hit answers `public, max-age=0, s-maxage=60, stale-while-revalidate=600` and `Cache-Tag: api-reference`. The existing `segment cdn` case built the chain by hand, so it never caught that codegen dropped the segment (BUGS.md B22) |
 | `no config` | a page with no `cache` | `no-store` |
 | `ssr public` | `cache.ssr` and the chain does not require or read auth | `shared` |
 | `required auth` | `cache.ssr` and the chain requires | `no-store` |
