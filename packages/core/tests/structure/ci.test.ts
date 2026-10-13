@@ -1,0 +1,32 @@
+import { readFileSync } from "node:fs";
+import { load } from "js-yaml";
+import { expect, it } from "vitest";
+
+type Step = { uses?: string; run?: string; with?: Record<string, unknown> };
+type Workflow = { jobs: Record<string, { "runs-on": string; steps: Step[] }> };
+
+const workflow = load(
+	readFileSync(new URL("../../../../.github/workflows/ci.yml", import.meta.url), "utf8"),
+) as Workflow;
+
+// B3: every CI job runs on Node 24, set right after checkout, so no job runs on the runner's own Node (BUGS.md B24).
+it("ci node", () => {
+	for (const [name, job] of Object.entries(workflow.jobs)) {
+		const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@") === true);
+		const node = job.steps[checkout + 1];
+		expect({ name, uses: node?.uses, version: node?.with?.["node-version"] }).toEqual({
+			name,
+			uses: "actions/setup-node@v4",
+			version: 24,
+		});
+	}
+});
+
+// B3 covers Linux and macOS, so the unit suite runs on both (BUGS.md B27).
+it("ci unit on both oses", () => {
+	const runsTests = (name: string): boolean =>
+		workflow.jobs[name]?.steps.some((step) => step.run === "bun run test") === true;
+	expect(workflow.jobs["check"]?.["runs-on"]).toBe("ubuntu-latest");
+	expect(workflow.jobs["e2e-mac"]?.["runs-on"]).toBe("macos-latest");
+	expect([runsTests("check"), runsTests("e2e-mac")]).toEqual([true, true]);
+});
