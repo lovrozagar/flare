@@ -5,7 +5,7 @@ import { buildId } from "../lifecycle/build-info.ts";
 import { appTree, NO_OVERLAY } from "../../shared/components/index.ts";
 import { IDLE_NAVIGATION, NO_BLOCKERS } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
-import { raceAbort } from "./abort.ts";
+import { raceAbort, renderStop } from "./abort.ts";
 import { withCritical } from "./critical-style.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
@@ -51,9 +51,8 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	const head = captureScript(nonce);
 	const tags = input.head === undefined ? undefined : headTags(input.head, { nonce });
 	const piped = new TransformStream<Chunk, Chunk>();
-	// The render stops on a request abort or on a consumer cancel, whichever comes first.
-	const halt = new AbortController();
-	const signal = AbortSignal.any([input.request.signal, halt.signal]);
+	// The render stops on a request abort or on a consumer cancel, whichever comes first, under the request's event.
+	const { signal, stop } = renderStop(input.request.signal, web.getRequestEvent());
 	const render = withRequest({ path: new URL(input.request.url).pathname, nonce }, () =>
 		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, nonce)),
 	);
@@ -76,7 +75,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 		},
 		cancel: (reason) => reader.cancel(reason),
 	});
-	return raceAbort(body, input.request.signal, () => halt.abort());
+	return raceAbort(body, input.request.signal, stop);
 }
 
 function defaultStream(fn: () => unknown, options: StreamOptions): ReturnType<Stream> {

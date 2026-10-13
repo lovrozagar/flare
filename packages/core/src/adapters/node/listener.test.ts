@@ -1,5 +1,14 @@
 import { createServer } from "node:http";
+import { connect } from "node:net";
+import { createComponent, Loading, onCleanup } from "solid-js";
+import { QueryClientProvider } from "@tanstack/solid-query";
 import { expect, it } from "vitest";
+import { useDeferred } from "../../shared/components/index.ts";
+import { createPage } from "../../shared/route-builder/page.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
+import { createQueryClientGetter } from "../../features/query/client/getter.ts";
+import { createServer as createFlareServer, type FlareServer } from "../../server/lifecycle/create.ts";
 import { createNodeListener } from "./listener.ts";
 
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void };
@@ -307,4 +316,75 @@ it("node request", async () => {
 	expect(seen[0]?.url).toBe("http://localhost/");
 	expect(seen[0]?.headers.get("x-list")).toBe("a, b");
 	expect(seen[0]?.headers.has("x-gone")).toBe(false);
+});
+
+// A root under TanStack's provider, whose cleanup reads the client through the request-scoped getter, and a page
+// whose `"stream"` defer never settles. Each client below leaves mid-response (BUGS.md B28). Under vitest the
+// provider's own cleanup never runs, so the root's cleanup reads the client as the provider's does in an app build.
+function streamingApp(): FlareServer {
+	const getQueryClient = createQueryClientGetter();
+	const root = createRootLayout("_root_").render((props) => {
+		onCleanup(() => void getQueryClient());
+		return createComponent(QueryClientProvider, {
+			get client() {
+				return getQueryClient();
+			},
+			get children() {
+				return props.children;
+			},
+		});
+	});
+	const page = createPage("_root_/")
+		.loader(({ defer }) => ({ tip: defer(() => new Promise<string>(noop)) }))
+		.render((props) =>
+			createComponent(Loading, {
+				fallback: "waiting",
+				get children() {
+					const tip = useDeferred(() => props.loaderData.tip);
+					return [() => tip()];
+				},
+			}),
+		);
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: page }] });
+	return createFlareServer({ router });
+}
+
+function drop(port: number, after: "headers" | "connect"): Promise<void> {
+	return new Promise((resolve) => {
+		const socket = connect(port, "127.0.0.1", () => {
+			socket.write("GET / HTTP/1.1\r\nHost: 127.0.0.1\r\nAccept: text/html\r\n\r\n");
+			if (after === "connect") socket.destroy();
+		});
+		socket.on("data", (chunk: Buffer) => {
+			if (chunk.toString().includes("\r\n\r\n")) socket.destroy();
+		});
+		socket.on("close", () => resolve());
+	});
+}
+
+it("disconnect mid-stream", async () => {
+	const escaped: unknown[] = [];
+	const record = (error: unknown): void => void escaped.push(error);
+	process.on("uncaughtException", record);
+	process.on("unhandledRejection", record);
+	const http = createServer(createNodeListener(streamingApp()));
+	await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+	const address = http.address();
+	const port = typeof address === "object" && address !== null ? address.port : 0;
+	try {
+		for (let index = 0; index < 5; index += 1) await drop(port, "headers");
+		await drop(port, "connect");
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		const next = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(2000) }).catch(
+			(error: unknown) => error,
+		);
+		expect(next instanceof Response ? next.status : next).toBe(200);
+		if (next instanceof Response) await next.body?.cancel();
+		expect(escaped).toEqual([]);
+	} finally {
+		process.off("uncaughtException", record);
+		process.off("unhandledRejection", record);
+		http.closeAllConnections();
+		await new Promise((resolve) => http.close(resolve));
+	}
 });
