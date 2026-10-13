@@ -56,7 +56,7 @@ function decide(input: LocaleInput, config: I18nConfig): LocaleDecision {
 	);
 	const setCookie =
 		found.cookie === undefined ? undefined : localeCookie(config.cookieName, found.cookie, url.protocol === "https:");
-	return { redirect: found.redirect, setCookie };
+	return { redirect: found.redirect, setCookie, negotiated: found.negotiated };
 }
 
 function canonical(tag: string): string | undefined {

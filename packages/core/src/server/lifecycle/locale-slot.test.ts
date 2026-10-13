@@ -51,4 +51,11 @@ it("locale slot", async () => {
 	expect((await get("/quiet")).headers.getSetCookie()).toEqual([]);
 	// The security set rides every slot answer.
 	expect(moved.headers.get("content-security-policy")).toMatch(/script-src/);
+	// A negotiated public answer leaves private. A private one is left as it is.
+	const negotiated = serve((path) => ({ negotiated: true, ...(path === "/closed" && { setCookie: COOKIE }) }));
+	const open = await negotiated("/open");
+	expect(open.headers.get("cache-control")).toBe("private, no-store");
+	expect(open.headers.get("cache-tag")).toBeNull();
+	expect(await open.text()).toContain("open");
+	expect((await negotiated("/closed")).headers.getSetCookie()).toEqual([COOKIE]);
 });

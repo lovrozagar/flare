@@ -50,18 +50,18 @@ it("cookie next", () => {
 });
 
 it("cookie bad", () => {
-	expect(ask("/pricing", { cookie: "fr" })).toEqual({ locale: "en" });
+	expect(ask("/pricing", { cookie: "fr" })).toEqual({ locale: "en", negotiated: true });
 });
 
 // The cookie is a configured tag byte for byte, or it is absent.
 it("cookie case", () => {
 	expect(ask("/pricing", { cookie: "EN", language: "hr" }).redirect?.location).toBe("/hr/pricing");
-	expect(ask("/pricing", { cookie: "HR" })).toEqual({ locale: "en" });
+	expect(ask("/pricing", { cookie: "HR" })).toEqual({ locale: "en", negotiated: true });
 });
 
 it("cookie junk", () => {
 	const found = ask("/pricing", { cookie: "en%0D%0AX%3A%20y" });
-	expect(found).toEqual({ locale: "en" });
+	expect(found).toEqual({ locale: "en", negotiated: true });
 	expect(JSON.stringify(found)).not.toContain("X:");
 });
 
@@ -72,13 +72,13 @@ it("cookie ignored on path", () => {
 it("header", () => {
 	expect(ask("/pricing", { language: "de, hr;q=0.5" }).redirect?.location).toBe("/hr/pricing");
 	// A header that names no configured tag, or holds none, is the default.
-	expect(ask("/pricing", { language: "de, fr" })).toEqual({ locale: "en" });
-	expect(ask("/pricing", { language: "*, ;q=1" })).toEqual({ locale: "en" });
+	expect(ask("/pricing", { language: "de, fr" })).toEqual({ locale: "en", negotiated: true });
+	expect(ask("/pricing", { language: "*, ;q=1" })).toEqual({ locale: "en", negotiated: true });
 });
 
 it("cap", () => {
 	const twenty = ["aa", "ab", "af", "ak", "am", "an", "as", "av", "hr", ...Array.from({ length: 11 }, () => "zu")];
-	expect(ask("/pricing", { language: twenty.join(", ") })).toEqual({ locale: "en" });
+	expect(ask("/pricing", { language: twenty.join(", ") })).toEqual({ locale: "en", negotiated: true });
 	expect(ask("/pricing", { language: twenty.slice(1).join(", ") }).redirect?.location).toBe("/hr/pricing");
 });
 
@@ -102,7 +102,10 @@ it("bot path", () => {
 });
 
 it("bot root", () => {
-	expect(ask("/", { agent: BOT, language: "hr" })).toEqual({ locale: "en" });
+	expect(ask("/", { agent: BOT, language: "hr" })).toEqual({ locale: "en", negotiated: true });
+	// A data answer, and a bot on a page with no locale segment, are not negotiated.
+	expect(ask("/", { agent: BOT, kind: "data" })).toEqual({ locale: "en" });
+	expect(ask("/de", { agent: BOT })).toEqual({ locale: "en" });
 });
 
 it("bot off", () => {
