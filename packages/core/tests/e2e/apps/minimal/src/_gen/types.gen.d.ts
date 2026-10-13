@@ -9,6 +9,8 @@ declare module "@lovrozagar/flare" {
 			"/holed": { params: {} };
 			"/": { params: {} };
 			"/skeletons": { params: {} };
+			"/static/[slug]": { params: { slug: string } };
+			"/static": { params: {} };
 			"/stored": { params: {} };
 			"/styled": { params: {} };
 			"/unstored": { params: {} };
@@ -20,6 +22,8 @@ declare module "@lovrozagar/flare" {
 			"_root_/echo": typeof import("../routes/_root_/echo/echo.page.tsx").route;
 			"_root_/holed": typeof import("../routes/_root_/holed/holed.page.tsx").route;
 			"_root_/skeletons": typeof import("../routes/_root_/skeletons/skeletons.page.tsx").route;
+			"_root_/static": typeof import("../routes/_root_/static/static.page.tsx").route;
+			"_root_/static/[slug]": typeof import("../routes/_root_/static/[slug]/slug.page.tsx").route;
 			"_root_/stored": typeof import("../routes/_root_/stored/stored.page.tsx").route;
 			"_root_/styled": typeof import("../routes/_root_/styled/styled.page.tsx").route;
 			"_root_/unstored": typeof import("../routes/_root_/unstored/unstored.page.tsx").route;
@@ -31,6 +35,8 @@ declare module "@lovrozagar/flare" {
 			"_root_/echo": ["_root_"];
 			"_root_/holed": ["_root_"];
 			"_root_/skeletons": ["_root_"];
+			"_root_/static": ["_root_"];
+			"_root_/static/[slug]": ["_root_"];
 			"_root_/stored": ["_root_"];
 			"_root_/styled": ["_root_"];
 			"_root_/unstored": ["_root_"];
