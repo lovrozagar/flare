@@ -1,4 +1,4 @@
-import { createComponent, createRoot, flush } from "solid-js";
+import { createComponent, createEffect, createRoot, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import * as progressModule from "./progress.ts";
@@ -59,6 +59,40 @@ it("start", () => {
 	start();
 	expect(progress.value).toBe(0.08);
 	expect(progress.pending).toBe(true);
+});
+
+// A painter reads both fields, and each change reaches it in one flush: a navigation's first frame is already the
+// start value, and the first frame after it is already 1. No pair mixes a new flag with an old value (BUGS.md B39).
+it("no tear", async () => {
+	const state = createNavigationState();
+	const seen: string[] = [];
+	render(
+		() =>
+			createComponent(NavigationContext, {
+				value: state,
+				get children() {
+					const progress = useNavigationProgress();
+					createEffect(
+						() => `${String(progress.pending)}:${String(progress.value)}`,
+						(pair) => void seen.push(pair),
+					);
+					return "";
+				},
+			}),
+		document.createElement("div"),
+	);
+	flush();
+	const fetch = Promise.withResolvers<void>();
+	void state.track(fetch.promise);
+	flush();
+	vi.advanceTimersByTime(200);
+	flush();
+	fetch.resolve();
+	await vi.advanceTimersByTimeAsync(0);
+	flush();
+	await vi.advanceTimersByTimeAsync(0);
+	flush();
+	expect(seen).toEqual(["false:null", "true:0.08", "true:0.18", "false:1", "false:null"]);
 });
 
 it("first trickle", () => {
