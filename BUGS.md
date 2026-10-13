@@ -72,11 +72,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 6.3 [x] Cause: the server projected every `e` frame through `framed` with the dev sink, so a deferred rejection in a data or fill answer sent the overlay payload, which the dev handler broadcast (B38, B42), whether or not an `<Errored>` on the client caught it. Seen: the overlay payload arrived over the websocket right after the document's `?_flare=fill`. Fix: `dataBody` marks a deferred value's `e`, and `framed` projects it with no send; it is still logged, and a loader `e` still sends. A deferred rejection no app boundary catches reaches the B77 walk and is reported from the client (B42). Failing test first: `answers.test.ts` `deferred no overlay`.
 6.4 [x] Verify: `docs-data` `defer rejects`, `stream fill`, `stream`, and `stream abort` are green 3 of 3 on node-dev-chromium, with no `vite-error-overlay`.
 
-7 [ ] B7 `flare({ fonts: { dir } })` 404s every font in dev
-7.1 [ ] Repro: the docs config sets `fonts: { dir: "assets/fonts" }` and the root renders `<FontCSS font={inter} />`. Load `/` in dev.
-7.2 [ ] Expected: the font files the build emits are also served in dev, at the same registry URL. Actual: `Failed to load resource: 404` for `/fonts/inter/latin.woff2`, the preload, on every page. `packages/core/src/vite/plugin/fonts.ts:23` applies to the client build only (`generateBundle`). It has no dev middleware.
-7.3 [ ] Write a failing `vite/plugin/fonts.test.ts` case: a dev server with `fonts.dir` answers the registry URL with the woff2 bytes. Then add the dev serve.
-7.4 [ ] Verify: `docs-features` `fonts` is green on `node-dev-chromium`, and `docs-smoke` has no 404.
+7 [x] B7 `flare({ fonts: { dir } })` 404s every font in dev
+7.1 [x] Repro: the docs config sets `fonts: { dir: "assets/fonts" }` and the root renders `<FontCSS font={inter} />`. Load `/` in dev.
+7.2 [x] Expected: the font files the build emits are also served in dev, at the same registry URL. Actual: `Failed to load resource: 404` for `/fonts/inter/latin.woff2`, the preload, on every page. `packages/core/src/vite/plugin/fonts.ts:23` applies to the client build only (`generateBundle`). It has no dev middleware.
+7.3 [x] Write a failing `vite/plugin/fonts.test.ts` case: a dev server with `fonts.dir` answers the registry URL with the woff2 bytes. Then add the dev serve. Fix: `fontsPlugin` gains `configureServer`, a middleware that answers a GET or HEAD for a registry file url from `dir` (`font/woff2`, `no-cache`), and passes anything else, a missing file included, to the app. The url check is emit.ts's `fontFile`, shared with the build. Failing tests first: `fonts.test.ts` `dev serve`, `dev fallthrough`.
+7.4 [x] Verify: `docs-features` `fonts` and every `docs-smoke` page are green on node-dev-chromium with no 404. A full node-dev-chromium run went from 23 failures to 6: B21, B22, B23, B29, B39.4, and one `abort keeps latest` hydration timeout that passed 5 of 5 alone.
 
 8 [ ] B8 Dev HTML transform gets a partial document
 8.1 [ ] Repro: in dev, load `/api/server/create-server`, a shared `ssr` page under a segment with `cdn`, after one prior load.

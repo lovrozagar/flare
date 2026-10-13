@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { createBuilder } from "vite";
 import { afterEach, expect, it } from "vitest";
 import { flare } from "./flare.ts";
+import { fontsPlugin } from "./fonts.ts";
 import type { FlareOptions } from "./options.ts";
 
 // A real client build of an app under the repo's node_modules, so its imports resolve as an app's would.
@@ -95,3 +96,73 @@ it(
 	},
 	BUILD,
 );
+
+type Answer = { status?: number; headers: Record<string, string>; body?: string; ended: boolean };
+type Middleware = (req: { url?: string; method?: string }, res: object, next: () => void) => unknown;
+
+// The middleware `vite dev` installs for `fonts: { dir }`, and one request through it.
+function devMiddleware(root: string): Middleware {
+	const used: Middleware[] = [];
+	const hook: unknown = fontsPlugin("woff").configureServer;
+	if (typeof hook !== "function") throw new Error("no configureServer");
+	Reflect.apply(hook, undefined, [
+		{ config: { root }, middlewares: { use: (handler: Middleware) => used.push(handler) } },
+	]);
+	const middleware = used[0];
+	if (middleware === undefined) throw new Error("no middleware");
+	return middleware;
+}
+
+async function serve(middleware: Middleware, url: string, method = "GET"): Promise<Answer | "next"> {
+	const answer: Answer = { headers: {}, ended: false };
+	const res = {
+		set statusCode(status: number) {
+			answer.status = status;
+		},
+		setHeader: (name: string, value: string) => void (answer.headers[name] = value),
+		end: (body?: Uint8Array) => {
+			answer.ended = true;
+			if (body !== undefined) answer.body = new TextDecoder().decode(body);
+		},
+	};
+	let passed = false;
+	await middleware({ url, method }, res, () => void (passed = true));
+	return passed ? "next" : answer;
+}
+
+// `vite dev` serves a registry url from `dir`, so the preload and `@font-face` load in dev too (BUGS.md B7).
+it("dev serve", async () => {
+	const middleware = devMiddleware(fixture());
+	expect(await serve(middleware, "/fonts/abeezee/latin-400.woff2")).toEqual({
+		status: 200,
+		headers: { "content-type": "font/woff2", "cache-control": "no-cache" },
+		body: "abeezee latin",
+		ended: true,
+	});
+	const head = await serve(middleware, "/fonts/abel/latin-400.woff2?v=1", "HEAD");
+	expect(head).toEqual({
+		status: 200,
+		headers: { "content-type": "font/woff2", "cache-control": "no-cache" },
+		ended: true,
+	});
+});
+
+// A url that is not a registry file, or a registry file `dir` lacks, is the app's: `public/fonts` or its 404.
+it("dev fallthrough", async () => {
+	const app = fixture();
+	rmSync(join(app, "woff/abeezee/latin-ext-i-400.woff2"));
+	const middleware = devMiddleware(app);
+	for (const url of [
+		"/fonts/abeezee/latin-ext-i-400.woff2",
+		"/fonts/not-a-family/x.woff2",
+		"/fonts/abeezee/../secret.woff2",
+		"/fonts/abeezee/latin-400.ttf",
+		"/about",
+	]) {
+		expect(await serve(middleware, url)).toBe("next");
+	}
+	expect(await serve(middleware, "/fonts/abeezee/latin-400.woff2", "POST")).toBe("next");
+	let passed = false;
+	await middleware({ method: "GET" }, {}, () => void (passed = true));
+	expect(passed).toBe(true);
+});
