@@ -27,6 +27,10 @@ const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
 // The module the server reads its build id and client entry from. The package ships its source.
 const BUILD_INFO = fileURLToPath(new URL("../../server/lifecycle/build-info.ts", import.meta.url));
 
+// The cross-tab switch. `flare({ broadcast: false })` replaces it in the client environment (dx/plugin.md).
+const SYNC_ENABLED = fileURLToPath(new URL("../../client/sync/enabled.ts", import.meta.url));
+const BROADCAST_OFF = "export const broadcastEnabled = false;\n";
+
 // The worker environment's entry: the app's server behind the Workers adapter.
 const WORKER_ENTRY = "virtual:flare/worker";
 const RESOLVED_WORKER = `\0${WORKER_ENTRY}`;
@@ -74,6 +78,7 @@ function core(parsed: ParsedOptions): Plugin {
 		load(id) {
 			if (id === RESOLVED_WORKER) return state.workerSource;
 			const { name, config } = this.environment;
+			if (id === SYNC_ENABLED) return parsed.broadcast || graphOf(name) !== "client" ? null : BROADCAST_OFF;
 			if (id !== BUILD_INFO || !SERVER_ENVIRONMENTS.has(name)) return null;
 			const urls = { base: state.base, assetsBase: parsed.assetsBase };
 			const input = { command: config.command, entry: parsed.entry.client, manifest: state.manifest, urls };

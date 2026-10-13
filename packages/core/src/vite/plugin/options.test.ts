@@ -1,4 +1,6 @@
+import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
+import { flare } from "./flare.ts";
 import { parseOptions, type FlareOptions } from "./options.ts";
 
 const widths = [640, 750, 828, 1080, 1200, 1920];
@@ -44,14 +46,37 @@ it("reset off", () => {
 	expect(parseOptions({ css: { reset: false } }).css).toEqual({ reset: false });
 });
 
+const ENABLED = fileURLToPath(new URL("../../client/sync/enabled.ts", import.meta.url));
+
+// The core plugin's load hook, as the named environment calls it for `id`.
+type Load = { options?: FlareOptions; name: string; command: "serve" | "build"; id?: string };
+
+function loaded({ options, name, command, id = ENABLED }: Load): unknown {
+	const core = flare(options).find((plugin) => plugin.name === "flare");
+	const load = core?.load;
+	if (typeof load !== "function") throw new Error("load");
+	return Reflect.apply(load, { environment: { name, config: { command, root: "/app" } } }, [id]);
+}
+
+// Omitted and `true` leave client/sync/enabled.ts as its source, `broadcastEnabled = true`, in every environment.
 it("broadcast on", () => {
 	expect(parseOptions().broadcast).toBe(true);
 	expect(parseOptions({ broadcast: true }).broadcast).toBe(true);
+	for (const options of [{}, { broadcast: true }])
+		for (const command of ["serve", "build"] as const) expect(loaded({ options, name: "client", command })).toBeNull();
 });
 
+// `false` replaces the module in the client environment, in dev and in the client build. The server copy stays.
 it("broadcast off", () => {
 	expect(parseOptions({ broadcast: false }).broadcast).toBe(false);
 	expect(() => parseOptions({ broadcast: "no" } as unknown as FlareOptions)).toThrow(/broadcast/);
+	const off = { broadcast: false };
+	for (const command of ["serve", "build"] as const) {
+		expect(loaded({ options: off, name: "client", command })).toBe("export const broadcastEnabled = false;\n");
+		expect(loaded({ options: off, name: "ssr", command })).toBeNull();
+		expect(loaded({ options: off, name: "worker", command })).toBeNull();
+	}
+	expect(loaded({ options: off, name: "client", command: "serve", id: "/app/src/enabled.ts" })).toBeNull();
 });
 
 const banned = [

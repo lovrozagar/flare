@@ -112,6 +112,20 @@ it("vite node", () => {
 	expect(server).not.toBe(0);
 });
 
+// The three providers may import the cross-tab channel through its index. No other feature file may import client/,
+// and a provider may not reach past that index (00-rules).
+it("sync import", () => {
+	const index = 'import { post } from "../../../client/sync/index.ts";\nexport const send = post;\n';
+	for (const feature of ["theme", "direction", "i18n"])
+		expect(lint({ [`src/features/${feature}/shared/provider.tsx`]: index })).toBe(0);
+	expect(lint({ "src/features/theme/shared/script.tsx": index })).not.toBe(0);
+	expect(lint({ "src/features/image/shared/provider.tsx": index })).not.toBe(0);
+	const channel = 'import { post } from "../../../client/sync/channel.ts";\nexport const send = post;\n';
+	expect(lint({ "src/features/theme/shared/provider.tsx": channel })).not.toBe(0);
+	const navigation = 'import { navigate } from "../../../client/navigation/index.ts";\nexport const go = navigate;\n';
+	expect(lint({ "src/features/i18n/shared/provider.tsx": navigation })).not.toBe(0);
+});
+
 // The Node adapter and the filesystem store may import Node builtins. The Workers adapter and the Cache API store
 // may not.
 it("node adapters", () => {
