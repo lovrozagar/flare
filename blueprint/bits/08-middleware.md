@@ -82,6 +82,8 @@ Filters are `exact` or `prefix`. There is no regular expression.
 | `root security beats server with middleware` | the same server with `security: { "X-Frame-Options": "SAMEORIGIN" }` | the response has `X-Frame-Options: DENY`, on 200, 401, and 403 (BUGS.md B13) |
 | `rewrap keeps route security` | the same root, and a middleware that returns `new Response(res.body, res)` | the nonce still matches, and `X-Frame-Options` is `DENY`: once the router ran, its secured set applies to whatever Response the middleware returns, whatever object it is |
 | `short circuit keeps server security` | a middleware that returns its own Response without calling `next()` | the server-level set applies, because no route ran |
+| `security fn waits for its loader` | a root with `.security(() => ({ "X-Frame-Options": "DENY" }))` and `.authenticate()`, no session | the 401 has the server set's `X-Frame-Options`, because a function config applies only after its match's loader resolved |
+| `locale exit keeps route security` | an i18n root with `.security({ "X-Frame-Options": "DENY" })` under an optional locale param with two locales; a document with no tag (the negotiated private downgrade) and a response that appends the locale cookie | both keep `DENY`, and the CSP nonce equals the body's: the locale slot's exit applies the set the router built, as the middleware exit does |
 
 ## Done
 
