@@ -1,3 +1,7 @@
+// negotiator ships no types. Its ambient shim sits in a script file, and a reference is how a module loads one (B37).
+// oxlint-disable-next-line typescript/triple-slash-reference
+/// <reference path="./negotiator.d.ts" />
+
 import { parseCookieHeader } from "@solidjs/web";
 import { match } from "@formatjs/intl-localematcher";
 import { isbot } from "isbot";
