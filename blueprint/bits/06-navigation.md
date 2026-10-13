@@ -384,6 +384,9 @@ The intercept rules the navigator applies (B84). `navigate.ts` passed 300 lines 
 
 | test | case | result |
 | --- | --- | --- |
+| `page hooks` | an overlay page that calls `useSearch`, `useParams`, and `useLoaderData` with its own id, under a root layout that calls `useLoaderData` with the root's id | the page renders the overlay's values, the root reads its own data, and the background stays mounted (BUGS.md B16) |
+| `layout hook throws` | the overlay page calls `useLoaderData` with one of its own (unmounted) layouts' ids | the throw paints the owning layout's `errorRender` in the overlay slot (BUGS.md B41) |
+| `child throw reported` | the child throws while rendering the overlay, with no `errorRender` on the chain | the built-in `Something went wrong` div paints, and in dev the overlay payload is sent once; nothing is silently detached (BUGS.md B41) |
 | `shows intercepted` | `from` includes the current route id | the outlet child is called, the background page stays mounted, and the URL is the target |
 | `custom` | the child paints a card from `loaderData` and does not call `match.render` | the card is shown. The page component is not mounted. A target record with no render paints nothing from `match.render` |
 | `no provider` | `InterceptOutlet` with no overlay context, as on the server | the child is not called and nothing renders |
