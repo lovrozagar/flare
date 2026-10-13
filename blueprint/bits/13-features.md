@@ -224,6 +224,7 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 | `cookie attrs` | a response that sets the cookie | `Path=/`, `SameSite=Lax`, no `Domain`, `Max-Age` of one year, `Secure` only on https |
 | `cookie replaced` | the incoming cookie is `nope` and the response sets the cookie | the `Set-Cookie` value is the resolved tag. `nope` is not in the response |
 | `negotiate 302` | a document at `/` with a cookie or `Accept-Language` that chooses `hr`, and `hr` is not the default | 302, `no-store`, `Location` keeps the query, and the path shows `hr` |
+| `negotiated private` | locales `en` (default) and `hr`, a route `/[[locale]]/pricing` with `cache.isr` and `cdn.maxAge`, and a document at `/pricing` that does not redirect | `private, no-store`, and the shared decision still reaches the Flare store, so a later visitor who also stays on the default reads it. `/hr/pricing` leaves public. The data answer for `/pricing` leaves public. A CDN copy of a URL with no tag would skip the cookie and `Accept-Language` |
 | `data cookie` | a private data response whose URL does not show the chosen tag | no redirect. `Set-Cookie` may be set |
 | `prefetch quiet` | a prefetch of a URL that does not show the chosen tag | no redirect and no `Set-Cookie` |
 | `default missing` | `defaultLocale` is not in `locales` | throw when `i18n()` is called |
