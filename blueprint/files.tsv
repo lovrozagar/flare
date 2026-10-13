@@ -539,6 +539,7 @@ packages/core/src/features/fonts/shared/css.ts	P13	src	shared	Build @font-face t
 packages/core/src/features/fonts/shared/css.test.ts	P13	test	shared	Unit cases for css.ts
 packages/core/src/features/fonts/shared/font-css.tsx	P13	src	dom	FontCSS renders the escaped CSS and the preload links
 packages/core/src/features/fonts/shared/font-css.test.tsx	P13	test	dom	Unit cases for font-css.tsx
+packages/core/src/features/fonts/shared/font-css.ssr.test.ts	P13	test	dom	FontCSS on Solid's server build: the request nonce
 packages/core/src/features/fonts/vite/emit.ts	P13	src	vite	Copy registry woff2 files into the build output
 packages/core/src/features/fonts/vite/emit.test.ts	P13	test	vite	Unit cases for emit.ts
 packages/core/src/features/fonts/shared/index.ts	P13	index	shared	Re-exports
