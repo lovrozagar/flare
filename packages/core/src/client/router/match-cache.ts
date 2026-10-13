@@ -155,6 +155,9 @@ function entryOf(match: CachedMatch, landing: Landed): CacheEntry {
 	const preloader = landing.preloaders?.[match.route];
 	const values = landing.values?.[match.route];
 	const client = clientOf(match.client);
+	// The deps the page was cached under. Without them a page with `loaderDeps` never counts as fresh (B19).
+	const cachedDeps = deps(match);
+	if (cachedDeps !== undefined) entry.deps = cachedDeps;
 	if (head !== undefined) entry.head = head;
 	if (preloader !== undefined) entry.preloader = preloader;
 	if (values !== undefined) entry.values = values;
