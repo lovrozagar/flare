@@ -1,3 +1,3 @@
 export { flare } from "./flare.ts";
 export { parseOptions } from "./options.ts";
-export { environmentBuild, environmentOrder } from "./environments.ts";
+export { assetsDirOf, assetUrl, environmentBuild, environmentOrder } from "./environments.ts";

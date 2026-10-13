@@ -33,3 +33,4 @@ export { ViewTransitionBoundary } from "../shared/components/index.ts";
 export { useBlocker } from "../client/navigation/index.ts";
 export { ThemeProvider, ThemeScript, useTheme } from "../features/theme/shared/index.ts";
 export { DirectionProvider, DirectionScript, useDirection } from "../features/direction/shared/index.ts";
+export { Image, type ImageBinding, type ImageProps } from "../features/image/shared/index.ts";

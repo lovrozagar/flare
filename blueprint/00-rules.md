@@ -101,7 +101,7 @@ vite → shared, vite, features/*/vite, and adapters/node from vite/dev/ only: t
 features/F/shared → shared, features/F/shared
 features/F/client → shared, client, features/F/shared, features/F/client
 features/F/server → shared, server, features/F/shared, features/F/server
-features/F/vite → shared, vite, features/F/shared, features/F/vite
+features/F/vite → shared, vite, features/F/shared, features/F/vite, and Node builtins, because it runs in Node as vite does
 src/exports/<entry> → the modules that entry is allowed to publish
 ```
 

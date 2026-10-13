@@ -35,7 +35,8 @@ const FEATURE_SIDES = {
 	shared: new Set(["shared"]),
 	client: new Set(["shared", "client"]),
 	server: new Set(["shared", "server"]),
-	vite: new Set(["shared", "vite"]),
+	// A feature's vite side runs in Node, as vite/ does (00-rules environments).
+	vite: new Set(["shared", "vite", "node"]),
 };
 
 function srcRel(filename) {
@@ -106,6 +107,8 @@ function allowed(fromRel, spec) {
 	const toFeature = featureOf(to);
 	if (fromFeature && toFeature) return FEATURE_SIDES[sideOf(from)].has(sideOf(to)) && fromFeature === toFeature;
 	if (fromFeature) return FEATURE_SIDES[sideOf(from)].has(to);
+	// vite/ composes a feature's vite side when the app passed that option (00-rules).
+	if (from === "vite" && toFeature) return sideOf(to) === "vite";
 	return PERMIT.has(`${from}>${to}`);
 }
 

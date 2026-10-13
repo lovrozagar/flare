@@ -13,7 +13,7 @@ export type ParsedOptions = {
 	assetsBase: string;
 	prerender: PrerenderConfig | false;
 	entry: { client: string; server: string };
-	image?: { widths: readonly number[]; quality: number } | undefined;
+	image?: { widths: readonly number[]; quality: number; exclude?: RegExp } | undefined;
 	css: { reset: boolean };
 	broadcast: boolean;
 };
@@ -57,9 +57,16 @@ function entryPath(entry: FlareOptions["entry"], key: "client" | "server"): stri
 	return value === undefined ? ENTRY[key] : value;
 }
 
+// Unique integer widths from 1 to 4096, an integer quality from 1 to 100, and a RegExp to exclude (dx/plugin.md image).
 function parseImage(image: FlareOptions["image"]): ParsedOptions["image"] {
 	if (image === undefined) return undefined;
-	return { widths: WIDTHS, quality: 75 };
+	const widths = image.widths ?? WIDTHS;
+	const whole = widths.every((width) => Number.isInteger(width) && width >= 1 && width <= 4096);
+	if (!whole || new Set(widths).size !== widths.length) throw new Error("image.widths");
+	const quality = image.quality ?? 75;
+	if (!Number.isInteger(quality) || quality < 1 || quality > 100) throw new Error("image.quality");
+	if (image.exclude !== undefined && !(image.exclude instanceof RegExp)) throw new Error("image.exclude");
+	return { widths, quality, ...(image.exclude && { exclude: image.exclude }) };
 }
 
 // Omission, `{}`, and `reset: false` are the same: no preflight.
