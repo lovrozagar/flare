@@ -12,11 +12,22 @@ type Node =
 
 type Context = { values: Values; tag: string; hash: string | undefined };
 
+// A piece of a formatted message. `template` text came from the message as written, where t.rich may find tags. A
+// value, and the number `#` stands for, is never template text, so a value cannot become markup.
+export type Part = { text: string; template: boolean };
+
 const KINDS: ReadonlySet<string> = new Set(["plural", "selectordinal", "select"]);
 
 // Substitutes values into a message for a tag (dx/features.md i18n). Omitted `locale` during a render inside
 // LocaleProvider is that provider's tag. A tag `Intl.Locale` rejects throws.
 export function formatMessage(message: string, values?: Values, locale?: string): string {
+	return formatParts(message, values, locale)
+		.map((part) => part.text)
+		.join("");
+}
+
+// The formatted message as template and value parts, for t.rich.
+export function formatParts(message: string, values?: Values, locale?: string): Part[] {
 	const tag = locale ?? providerTag("formatMessage needs a locale outside LocaleProvider");
 	void new Intl.Locale(tag);
 	return render(parseMessage(message), { values: values ?? {}, tag, hash: undefined });
@@ -98,12 +109,22 @@ function parseBranches(source: string): Map<string, Node[]> | undefined {
 	}
 }
 
-function render(nodes: readonly Node[], context: Context): string {
-	return nodes.map((node) => renderNode(node, context)).join("");
+function render(nodes: readonly Node[], context: Context): Part[] {
+	return nodes.flatMap((node) => renderNode(node, context));
 }
 
-function renderNode(node: Node, context: Context): string {
-	if (node.type === "text") return context.hash === undefined ? node.text : node.text.replaceAll("#", context.hash);
+const template = (text: string): Part[] => [{ text, template: true }];
+
+// Inside a plural branch, each `#` is the formatted number: a value part between template parts.
+function renderText(text: string, hash: string | undefined): Part[] {
+	if (hash === undefined) return template(text);
+	return text
+		.split("#")
+		.flatMap((piece, index) => [...(index === 0 ? [] : [{ text: hash, template: false }]), ...template(piece)]);
+}
+
+function renderNode(node: Node, context: Context): Part[] {
+	if (node.type === "text") return renderText(node.text, context.hash);
 	const value = Object.hasOwn(context.values, node.name) ? context.values[node.name] : undefined;
 	return node.type === "arg" ? renderArg(node, value, context) : renderBranch(node, value, context);
 }
@@ -113,19 +134,20 @@ type Branch = Extract<Node, { type: "branch" }>;
 type Value = Values[string];
 
 // A missing or `null` value, or a non-number for `{name, number}`, leaves the token as written.
-function renderArg(node: Arg, value: Value, context: Context): string {
-	if (value === undefined || value === null || (node.number && typeof value !== "number")) return node.raw;
-	return typeof value === "number" ? new Intl.NumberFormat(context.tag).format(value) : value;
+function renderArg(node: Arg, value: Value, context: Context): Part[] {
+	if (value === undefined || value === null || (node.number && typeof value !== "number")) return template(node.raw);
+	const text = typeof value === "number" ? new Intl.NumberFormat(context.tag).format(value) : value;
+	return [{ text, template: false }];
 }
 
 // A select takes a string, a plural or selectordinal a number. Anything else leaves the token as written.
-function renderBranch(node: Branch, value: Value, context: Context): string {
+function renderBranch(node: Branch, value: Value, context: Context): Part[] {
 	if (typeof value !== (node.kind === "select" ? "string" : "number") || value === undefined || value === null) {
-		return node.raw;
+		return template(node.raw);
 	}
 	const key = branchFor({ kind: node.kind, value, tag: context.tag, branches: new Set(node.branches.keys()) });
 	const branch = node.branches.get(key);
-	if (branch === undefined) return node.raw;
+	if (branch === undefined) return template(node.raw);
 	const hash = typeof value === "number" ? new Intl.NumberFormat(context.tag).format(value) : context.hash;
 	return render(branch, { ...context, hash });
 }

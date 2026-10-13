@@ -1,6 +1,6 @@
 import { createComponent } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import { formatMessage, type Values } from "./format.ts";
+import { formatParts, type Part, type Values } from "./format.ts";
 
 export type RichComponent = (props: { children?: JSX.Element }) => JSX.Element;
 export type RichComponents = Readonly<Record<string, RichComponent>>;
@@ -12,17 +12,24 @@ const TAG = /\{(\/?)([A-Za-z_$][\w$-]*)\}/g;
 
 // A message with component tags (dx/features.md i18n `t.rich`). ICU runs first, so a placeholder wins over a
 // component of the same name. Then `{tag}...{/tag}`, or a lone `{tag}`, calls the component when `tag` is its own key.
-// Every other piece is text, which the renderer escapes.
+// Tags are found in the message template only: a value, often user content, stays text and never becomes markup. A
+// plural or select branch is template, so its tags work once the branch is chosen. Every other piece is text, which
+// the renderer escapes.
 export function richText(
 	message: string,
 	components: RichComponents,
 	icu?: { values: Values; tag: string },
 ): JSX.Element {
-	const text = icu === undefined ? message : formatMessage(message, icu.values, icu.tag);
-	return build(tokens(text, components), components);
+	const parts = icu === undefined ? [{ text: message, template: true }] : formatParts(message, icu.values, icu.tag);
+	return build(
+		parts.flatMap((part) => tokens(part, components)),
+		components,
+	);
 }
 
-function tokens(text: string, components: RichComponents): Token[] {
+function tokens(part: Part, components: RichComponents): Token[] {
+	if (!part.template) return [{ text: part.text }];
+	const text = part.text;
 	const out: Token[] = [];
 	let last = 0;
 	for (const match of text.matchAll(TAG)) {
