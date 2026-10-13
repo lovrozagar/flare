@@ -23,3 +23,12 @@ it("catch-all wins over optional catch-all", () => {
 it("leftmost segment decides", () => {
 	expect(pickRoute(["/a/[id]/c", "/a/b/[...rest]"], "/a/b/c")).toBe("/a/b/[...rest]");
 });
+
+// Rank reads the segment that consumed each path segment. An optional param that consumed nothing does not count.
+it("optional absent", () => {
+	const patterns = ["/[[locale]]", "/[[locale]]/pricing"];
+	expect(pickRoute(patterns, "/pricing")).toBe("/[[locale]]/pricing");
+	expect(pickRoute(patterns, "/hr/pricing")).toBe("/[[locale]]/pricing");
+	expect(pickRoute(patterns, "/hr")).toBe("/[[locale]]");
+	expect(pickRoute(["/[[...rest]]", "/[[locale]]/docs"], "/docs")).toBe("/[[locale]]/docs");
+});
