@@ -194,3 +194,19 @@ it("fixture exempt", () => {
 	expect(lint({ "src/client/navigation/mock.fixture.ts": code })).toBe(0);
 	expect(lint({ "src/client/navigation/mock.ts": code })).not.toBe(0);
 });
+
+// A re-export and a literal `import()` meet the module boundaries as a declaration does. The barrels' relations are
+// permitted: exports/ re-exports any feature side, and testing/ its own files (00-rules).
+it("every import form", () => {
+	expect(lint({ "src/client/reach.ts": 'export { secret } from "../server/secret.ts";\n' })).not.toBe(0);
+	expect(lint({ "src/client/reach.ts": 'export * from "../server/secret.ts";\n' })).not.toBe(0);
+	expect(lint({ "src/client/reach.ts": 'export const load = () => import("../server/secret.ts");\n' })).not.toBe(0);
+	const barrels = lint({
+		"src/exports/query.ts": 'export { useSuspenseQuery } from "../features/query/client/index.ts";\n',
+		"src/exports/seo.ts": 'export { sitemap } from "../features/seo/vite/index.ts";\n',
+		"src/exports/i18n-server.ts": 'export { i18n } from "../features/i18n/server/index.ts";\n',
+		"src/testing/index.ts": 'export { createTestServer } from "./harness.ts";\n',
+		"src/client/lazy.ts": 'export const load = () => import("../shared/page.ts");\n',
+	});
+	expect(barrels).toBe(0);
+});
