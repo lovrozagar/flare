@@ -16,14 +16,10 @@
 	"exports": {
 		".": {
 			"types": "./src/exports/index.ts",
-			"solid": "./src/exports/index.ts",
-			"browser": "./src/exports/index.ts",
 			"default": "./src/exports/index.ts"
 		},
 		"./client": {
 			"types": "./src/exports/client.ts",
-			"solid": "./src/exports/client.ts",
-			"browser": "./src/exports/client.ts",
 			"default": "./src/exports/client.ts"
 		},
 		"./server": {
@@ -39,14 +35,10 @@
 		},
 		"./query": {
 			"types": "./src/exports/query.ts",
-			"solid": "./src/exports/query.ts",
-			"browser": "./src/exports/query.ts",
 			"default": "./src/exports/query.ts"
 		},
 		"./i18n": {
 			"types": "./src/exports/i18n.ts",
-			"solid": "./src/exports/i18n.ts",
-			"browser": "./src/exports/i18n.ts",
 			"default": "./src/exports/i18n.ts"
 		},
 		"./i18n/server": {
@@ -88,8 +80,6 @@
 		},
 		"./testing": {
 			"types": "./src/exports/testing.ts",
-			"solid": "./src/exports/testing.ts",
-			"browser": "./src/exports/testing.ts",
 			"default": "./src/exports/testing.ts"
 		},
 		"./package.json": "./package.json"
@@ -119,6 +109,7 @@
 		"oxc-parser": "0.139.0",
 		"sharp": "0.35.3",
 		"solid-js": "2.0.0-rc.14",
+		"tsdown": "0.23.1",
 		"typescript": "7.0.2",
 		"vite": "8.1.4",
 		"vitest": "4.1.10"

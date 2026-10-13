@@ -1,0 +1,4 @@
+
+import { I18n, I18nOptions, i18n } from "../features/i18n/server/middleware.js";
+import "../features/i18n/server/index.js";
+export { type I18n, type I18nOptions, i18n };

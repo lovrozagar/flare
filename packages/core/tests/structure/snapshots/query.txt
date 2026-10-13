@@ -1,0 +1,6 @@
+
+import { createQueryClientGetter } from "../features/query/client/getter.js";
+import { useSuspenseQuery } from "../features/query/client/use-suspense-query.js";
+import "../features/query/client/index.js";
+import { QueryOptionsInput, ServerFnKeyedMutationOptions, ServerFnMutationOptions, ServerFnQueryOptions, serverFnMutationOptions, serverFnQueryOptions } from "../features/query/shared/options.js";
+export { type QueryOptionsInput, type ServerFnKeyedMutationOptions, type ServerFnMutationOptions, type ServerFnQueryOptions, createQueryClientGetter, serverFnMutationOptions, serverFnQueryOptions, useSuspenseQuery };

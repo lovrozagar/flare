@@ -172,7 +172,7 @@ function browserEnv(): ClientEnv {
 		mount: hydrate,
 		fetch: globalThis.fetch.bind(globalThis),
 		assign: window.location.assign.bind(window.location),
-		dev: import.meta.env.DEV,
+		dev: import.meta.env?.DEV === true,
 		send: devSend(import.meta.hot),
 		idle: {
 			requestIdle: globalThis.requestIdleCallback?.bind(globalThis),

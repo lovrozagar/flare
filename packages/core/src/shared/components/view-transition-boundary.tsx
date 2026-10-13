@@ -40,6 +40,6 @@ function boundaryElement(nodes: readonly unknown[]): Element | undefined {
 	if (present.length === 0) return undefined;
 	const [only] = present;
 	if (present.length === 1 && only instanceof Element) return only;
-	if (import.meta.env.DEV) throw new Error("ViewTransitionBoundary takes one element child");
+	if (import.meta.env?.DEV) throw new Error("ViewTransitionBoundary takes one element child");
 	return undefined;
 }

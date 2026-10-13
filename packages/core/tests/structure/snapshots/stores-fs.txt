@@ -1,0 +1,4 @@
+
+import { createFilesystemStore } from "../adapters/stores/fs/store.js";
+import { fileAssets } from "../adapters/stores/fs/assets.js";
+export { createFilesystemStore, fileAssets };

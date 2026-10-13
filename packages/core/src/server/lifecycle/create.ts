@@ -32,8 +32,9 @@ export type { FlareServer, ServerOptions } from "./options.ts";
 // gate, and the loaders inside runLoaders, then render and finalize.
 export function createServer<R extends FlareRegister = FlareRegister>(options: ServerOptions<R>): FlareServer;
 export function createServer(options: RuntimeOptions): FlareServer {
-	// Literal reads: Vite replaces only `import.meta.env.DEV`, and its runner rejects passing `import.meta` whole.
-	return serveWith(options, devSink({ env: { DEV: import.meta.env.DEV }, hot: import.meta.hot }));
+	// Literal reads: Vite replaces only `import.meta.env.DEV`, and its runner rejects passing `import.meta` whole. Outside
+	// Vite, as when Node loads the packed `dist`, `import.meta.env` is absent, and that is production.
+	return serveWith(options, devSink({ env: { DEV: import.meta.env?.DEV }, hot: import.meta.hot }));
 }
 
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
