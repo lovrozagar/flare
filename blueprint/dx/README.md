@@ -38,5 +38,6 @@ A name from v0 that no file here lists is not a v1 prop. The cuts are B4 and B10
 | `store.md` | `FlareStore`, the stores, `createAssetsStore`, `revalidate` |
 | `adapters.md` | Node, Bun, Workers |
 | `seo.md` | sitemap, IndexNow, Google, Bing |
+| `observability.md` | logger, `onError`, request log, request id, tracing, the dev log bridge, the configuration matrix, privacy |
 | `testing.md` | `createTestServer`, `flarePage` |
 | `features.md` | theme, direction, i18n, image, fonts, query |
