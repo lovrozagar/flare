@@ -96,10 +96,25 @@ async function described(options: RuntimeOptions, node: RouteNode): Promise<Prer
 	return {
 		id: node.id,
 		path: dynamicPath(node) ? undefined : based(options.router.basePath, node.path),
+		bare: bareUrls(options, node),
 		response: node.response === true,
 		auth: effectiveAuth(modules),
 		authorize: modules.some((module) => module.authorize !== undefined),
 	};
+}
+
+// An absent optional param counts as resolved: a URL whose param segments are all optional has a bare URL, and one
+// per other configured tag when the locale param is among them. A required param has none (B101, BUGS.md B10).
+function bareUrls(options: RuntimeOptions, node: RouteNode): string[] {
+	const params = patternSegments(node.path).filter((segment) => segment.kind !== "static");
+	if (params.length === 0 || params.some((segment) => !segment.optional)) return [];
+	const locale = options.locale;
+	const tagged = locale !== undefined && params.some((segment) => segment.name === locale.paramName);
+	const tags = tagged ? locale.locales.filter((tag) => tag !== locale.defaultLocale) : [];
+	return [undefined, ...tags].map((tag) => {
+		const values = tag === undefined || locale === undefined ? {} : { [locale.paramName]: tag };
+		return based(options.router.basePath, buildUrl({ to: node.id, params: values }));
+	});
 }
 
 // A path under the router's base.

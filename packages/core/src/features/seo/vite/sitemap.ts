@@ -91,10 +91,12 @@ function runtimeHint(route: PrerenderRoute): Hint {
 	return route.auth.reads || route.authorize ? "reads" : "public";
 }
 
-// The route's public paths: its own when static, else the ones prerender rendered.
+// The route's public paths: its own when static, else the ones prerender rendered and its bare URLs, each once
+// (B101, BUGS.md B10).
 function pathsOf(route: PrerenderRoute, input: SitemapInput): string[] {
 	if (route.path !== undefined) return [route.path];
-	return input.rendered.filter((item) => item.id === route.id).map((item) => item.path);
+	const rendered = input.rendered.filter((item) => item.id === route.id).map((item) => item.path);
+	return [...new Set([...rendered, ...route.bare])];
 }
 
 function routeUrls(options: SitemapOptions, input: SitemapInput, errors: string[]): Url[] {

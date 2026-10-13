@@ -19,7 +19,12 @@ const router = createRouter({
 });
 
 function serve(decide: (path: string) => LocaleDecision): (path: string) => Promise<Response> {
-	const locale: LocaleSlot = { [LOCALE_SLOT]: ({ request }) => decide(new URL(request.url).pathname) };
+	const locale: LocaleSlot = {
+		[LOCALE_SLOT]: ({ request }) => decide(new URL(request.url).pathname),
+		locales: ["en", "hr"],
+		defaultLocale: "en",
+		paramName: "locale",
+	};
 	const server = createServer({ router, locale });
 	return (path) => server.fetch(new Request(`https://site.test${path}`));
 }

@@ -6,7 +6,7 @@ import { sitemap, type SitemapInput, type SitemapOptions } from "./sitemap.ts";
 const SITE = "https://example.com";
 
 function route(id: string, path: string | undefined, auth: Partial<PrerenderRoute> = {}): PrerenderRoute {
-	return { id, path, response: false, auth: { requires: false, reads: false }, authorize: false, ...auth };
+	return { id, path, bare: [], response: false, auth: { requires: false, reads: false }, authorize: false, ...auth };
 }
 
 const open = route("_root_/about", "/about");
@@ -230,4 +230,24 @@ it("lastmod", () => {
 			`sitemap lastmod "${lastmod}" is not an ISO date`,
 		);
 	}
+});
+
+// An absent optional param counts as resolved: a page whose dynamic segments are all optional is listed at its bare
+// URL and once per other configured locale. A required param stays prerender-only, and a rendered path is listed once
+// (B101, dx/seo.md, BUGS.md B10).
+it("optional absent", () => {
+	const search = route("[[locale]]/_root_/search", undefined, { bare: ["/search", "/hr/search", "/ar/search"] });
+	const doc = route("[[locale]]/_root_/docs/[slug]", undefined);
+	const home = route("[[locale]]/_root_/", undefined, { bare: ["/", "/hr", "/ar"] });
+	const rendered = ["/", "/hr", "/ar"].map((path) => ({ id: home.id, path }));
+	const result = build([search, doc, home], {}, { rendered });
+	expect(result.errors).toEqual([]);
+	expect(locs(xmlOf(result))).toEqual([
+		"https://example.com/search",
+		"https://example.com/hr/search",
+		"https://example.com/ar/search",
+		"https://example.com/",
+		"https://example.com/hr",
+		"https://example.com/ar",
+	]);
 });
