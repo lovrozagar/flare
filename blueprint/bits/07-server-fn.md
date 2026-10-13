@@ -111,7 +111,7 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 | --- | --- | --- |
 | `client stub` | the stub is called directly in a component render and `__client` is true | in dev, one `console.warn` naming the function, then the transport is called once; no throw. In a production bundle, no warn. No secret work either way (revised by BUGS.md B36) |
 | `memo call` | the stub is called in a `createMemo` compute, an effect compute, and an effect callback | no throw. Each reaches the transport |
-| `on settled` | the stub is called in an `onSettled` callback | throw, as in a render body |
+| `on settled` | the stub is called in an `onSettled` callback | in dev, one warning, as in a render body, then the call is made; no throw (revised by BUGS.md B36) |
 
 ### `server/server-fn/envelope.test.ts`
 
