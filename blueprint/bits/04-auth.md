@@ -122,6 +122,8 @@ The route builder stores what it accepts, because `tests/integration/auth.test.t
 
 | test | case | result |
 | --- | --- | --- |
+| `loader siblings` | two identical GETs, each under its own loader-scope child of one request event | one upstream call, and both read the body: the store lives on the request event, not on a loader's child (BUGS.md B21) |
+| `loader reset` | a POST under one loader child, then a GET under another | the GET goes upstream again: the reset reaches the request's one store |
 | `same GET` | two GETs of the same URL in one request | one upstream call |
 | `POST not deduped` | two POSTs | two upstream calls |
 | `next request` | the same GET on a second request | a new upstream call |
