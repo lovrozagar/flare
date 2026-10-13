@@ -30,3 +30,11 @@ it("ci unit on both oses", () => {
 	expect(workflow.jobs["e2e-mac"]?.["runs-on"]).toBe("macos-latest");
 	expect([runsTests("check"), runsTests("e2e-mac")]).toEqual([true, true]);
 });
+
+// The check job runs the unit suite under the Bun runtime right after the Node run, so a Bun-only regression fails
+// CI. Coverage is measured under Node; the Bun run carries no coverage gate (00-rules Coverage, BUGS.md B46-B48).
+it("ci unit on bun", () => {
+	const runs = workflow.jobs["check"]?.steps.map((step) => step.run) ?? [];
+	const node = runs.indexOf("bun run test");
+	expect(runs.slice(node, node + 2)).toEqual(["bun run test", "bun run test:bun"]);
+});

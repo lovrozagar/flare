@@ -59,6 +59,8 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
+      # The same suite under the Bun runtime, without the coverage gate: coverage is measured under Node (00-rules).
+      - run: bun run test:bun
       # The finished tree: every phase complete, the last one included.
       - run: bun scripts/check-tree.ts --complete P14
 
