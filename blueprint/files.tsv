@@ -552,6 +552,8 @@ packages/core/src/features/seo/server/google.ts	P13	src	server	Google Indexing J
 packages/core/src/features/seo/server/google.test.ts	P13	test	server	Unit cases for google.ts
 packages/core/src/features/seo/server/bing.ts	P13	src	server	Bing IndexNow-compatible submit
 packages/core/src/features/seo/server/bing.test.ts	P13	test	server	Unit cases for bing.ts
+packages/core/src/features/seo/server/request.ts	P13	src	server	The submitters' one request: a non-2xx or a thrown fetch is { ok: false } with no key in it, and the https checks
+packages/core/src/features/seo/server/request.test.ts	P13	test	server	Unit cases for request.ts
 packages/core/src/features/seo/server/index.ts	P13	index	server	Re-exports
 packages/core/src/testing/harness.ts	P13	src	node	createTestServer over Solid server-mock
 packages/core/src/testing/harness.test.ts	P13	test	node	Unit cases for harness.ts
