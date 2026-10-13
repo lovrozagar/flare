@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
 import { breakdown } from "./breakdown.ts";
 
-it("per module shape", () => {
-	const result = breakdown("shared/route-builder/page.ts", "createPage");
+it("per module shape", async () => {
+	const result = await breakdown("shared/route-builder/page.ts", "createPage");
 	expect(result.modules.map((share) => share.name)).toEqual([
 		"src/shared/route-builder/boundaries.ts",
 		"src/shared/route-builder/chain.ts",
