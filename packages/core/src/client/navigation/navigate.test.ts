@@ -255,10 +255,10 @@ it("visit", async () => {
 	expect(location.pathname).toBe("/about");
 });
 
-// Only the page is fresh: the screen's root is another match id, and the root's own entry is gone, so the request
-// carries _flare_stale (B30). A fully fresh navigation sends none (navigate-cache.test.ts).
+// Only the page is fresh: the root's own entry is gone, so the request carries _flare_stale (B30). A fully fresh
+// navigation sends none (navigate-cache.test.ts).
 async function pageOnlyFresh(app: Awaited<ReturnType<typeof setup>>, search: Record<string, string> = {}) {
-	await app.navigator.navigate({ to: "_root_/", search: { q: "1" } });
+	await app.navigator.navigate({ to: "_root_/" });
 	app.deps.cache.evict({ route: "_root_", id: `&${new URLSearchParams(search)}`, layout: true, params: {}, search });
 }
 

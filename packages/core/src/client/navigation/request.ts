@@ -1,6 +1,6 @@
 import { BUILD_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts";
 import { loadChain, type LoadedEntry } from "../../shared/router/create-router.ts";
-import { cachedMatches, holds, matchKey } from "../router/match-cache.ts";
+import { cachedMatches, holds } from "../router/match-cache.ts";
 import { framesOf, landFrames, type Landed, type Pending } from "./frames.ts";
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts";
 import { isChunkError } from "./reload.ts";
@@ -57,14 +57,11 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	return { kind: "landed", landing: await landFrames(framesOf(response.body), options) };
 }
 
-// The cache's verdict for this trip. The matches on screen are keyed alike, so a mounted layout under the same
-// match id counts as held.
+// The cache's verdict for this trip.
 function planOf(deps: NavigatorDeps, trip: Trip): ReturnType<NavigatorDeps["cache"]["plan"]> {
 	const current = deps.store.snapshot().location;
-	const mounted = cachedMatches(deps.router.match(current.pathname), current).map(matchKey);
 	return deps.cache.plan({
 		matches: cachedMatches(trip.target.match, trip.target.location),
-		mounted: new Set(mounted),
 		trigger: trip.trigger,
 		revalidate: trip.options.revalidate === true,
 		current: { ...current, params: {} },

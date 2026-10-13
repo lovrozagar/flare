@@ -6,8 +6,8 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { mountNavigator, unmountAll, type Fetch } from "./navigate.fixture.ts";
 
-// A navigation whose pages and layouts are all fresh in the client cache sends no request (dx/cache.md, B19). A
-// layout's match id is the whole URL's, so across pages it is fresh only on its own `staleTime`.
+// A navigation whose pages and layouts are all fresh in the client cache, each on its own clock, sends no request
+// (dx/cache.md, B19). A mounted layout is not fresh by being mounted.
 const fresh = { client: { staleTime: "30s" } } as const;
 const root = createRootLayout("_root_")
 	.cache(fresh)
@@ -18,13 +18,14 @@ const home = createPage("_root_/")
 const other = createPage("_root_/a")
 	.cache(fresh)
 	.render((props) => [() => `a:${String(props.loaderData)}:${String(Reflect.get(Object(props.search), "v"))}`]);
-const router = createRouter({
-	layouts: { _root_: root },
-	routeTree: [
-		{ id: "_root_/", path: "/", module: home },
-		{ id: "_root_/a", path: "/a", module: other },
-	],
-});
+const routes = [
+	{ id: "_root_/", path: "/", module: home },
+	{ id: "_root_/a", path: "/a", module: other },
+];
+const router = createRouter({ layouts: { _root_: root }, routeTree: routes });
+// The same pages under a root at the default `staleTime`, 0.
+const plainRoot = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
+const plain = createRouter({ layouts: { _root_: plainRoot }, routeTree: routes });
 
 function frames(page: string, data: string): Response {
 	const list: Frame[] = [
@@ -59,10 +60,28 @@ it("fresh no request", async () => {
 	expect(location.pathname).toBe("/a");
 	expect(app.text()).toBe("root[a:A1:A1]");
 	expect(app.store.snapshot().heads.at(-1)).toEqual({ title: "A1" });
-	// `/` and `/a` share the empty match id (no params, no search), so the root is the mounted match and keeps its data.
+	// The root's entry is keyed by its match id, which `/` and `/a` share, so the fresh copy is the latest landing's.
 	expect(app.store.snapshot().matches[0]?.data).toBe("root-H2");
 	await app.navigator.navigate({ to: "_root_/a", revalidate: true });
 	flush();
 	expect(fetch).toHaveBeenCalledTimes(3);
 	expect(app.text()).toBe("root[a:A3:A3]");
+});
+
+// `/` and `/a` share the root's match id (no params, no search), and the root stays mounted, but at `staleTime` 0 it
+// is never fresh, so the last navigation still asks the server (dx/cache.md, B19).
+it("mounted layout stale", async () => {
+	let served = 0;
+	const fetch = vi.fn<Fetch>(async (url) => {
+		served += 1;
+		return url.startsWith("/a") ? frames("_root_/a", `A${served}`) : frames("_root_/", `H${served}`);
+	});
+	const app = await mountNavigator(plain, fetch);
+	await app.navigator.navigate({ to: "_root_/a" });
+	await app.navigator.navigate({ to: "_root_/" });
+	await app.navigator.navigate({ to: "_root_/a" });
+	flush();
+	expect(fetch).toHaveBeenCalledTimes(3);
+	expect(fetch).toHaveBeenLastCalledWith("/a?_flare=data&_flare_stale=%26", expect.anything());
+	expect(app.store.snapshot().matches[0]?.data).toBe("root-A3");
 });
