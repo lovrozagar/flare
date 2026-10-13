@@ -62,7 +62,7 @@ Threat labels used in bits: **AR** anonymous remote, **AU** authenticated user, 
 | B37 | A root layout whose SSR output has no `<html>` and no `</body>` is a 500 in production and is left as-is in dev (D22). |
 | B38 | Thrown non-safe values become a generic message plus a digest in production. `markSafeError` values pass through. Render-phase `NotFoundError` is 404 (D14, N3-20). |
 | B39 | The request `AbortSignal` is raced against the chunk-0 wait and every later pull. Solid's `signal` option alone does not close the stream (N3-2). |
-| B40 | A request header is never read to choose an internal mode. `flare/no-flare-header-branching` enforces it. Response headers Flare sets are `flare-build`, `flare-render` (`ssr`, `ssg`, `isr`), and `flare-cache` (`hit`, `miss`). |
+| B40 | A request header is never read to choose an internal mode. `flare/no-flare-header-branching` enforces it. The one exception is the dev-only `flare-dev-tab` (`TAB_HEADER`), which routes a dev error payload or log line to the tab that made the request and changes no response, status, cache key, or frame (BUGS.md B42). It is read only where a dev sink exists; a production server never reads it, so a client that sends it changes nothing. The lint rule allows `get`/`set` of exactly that literal or `TAB_HEADER`. Response headers Flare sets are `flare-build`, `flare-render` (`ssr`, `ssg`, `isr`), and `flare-cache` (`hit`, `miss`). |
 
 ## Server functions
 
