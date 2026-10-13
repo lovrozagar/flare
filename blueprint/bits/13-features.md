@@ -230,6 +230,8 @@ This file calls `boot({ app: "i18n", runtime, mode })` (B70). The project name s
 | `prefix` | open `/hr` | the Croatian message |
 | `shared cookie` | a public page | the response has no `Set-Cookie` |
 | `unknown locale` | `/fr` when `fr` is not configured | the default locale, via a redirect that is `no-store` |
+| `theme no flash` | `localStorage` holds `dark`, then a document load of a page under `ThemeScript` and `ThemeProvider` | the theme attribute is `dark` on `<html>` in the first paint (read before any module script runs), the page hydrates with no console error or hydration warning, and `useTheme().theme()` is `dark` after hydrate |
+| `tabs sync` | two pages in one browser context; `setTheme("light")`, `setDir("rtl")`, and `setLocale("hr")` in the first | the second page shows each value without a reload. A `storage` event alone, from writing `localStorage` in the second page, changes nothing there |
 
 ### `features/i18n/shared/provider.test.tsx`, `script.test.tsx`, `hooks.test.ts`
 
