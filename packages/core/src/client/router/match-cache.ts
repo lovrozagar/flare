@@ -41,8 +41,6 @@ type Stored = CacheEntry & { at: number; touched: number };
 
 export type Plan = {
 	matches: readonly CachedMatch[];
-	// The keys (`matchKey`) of the matches on screen. A layout mounted under the same match id needs no data.
-	mounted?: ReadonlySet<string>;
 	trigger: "initial" | "navigation" | "revalidation";
 	revalidate: boolean;
 	current: EffectPlace;
@@ -111,10 +109,9 @@ export function createMatchCache(options: {
 			const pages = plan.matches.filter((match) => !match.layout);
 			const kept = pages.filter((match) => held(match) && !asks(match));
 			const fetch = plan.trigger !== "initial" || pages.some(asks);
-			// Every page fresh, and every layout mounted under the same match id or fresh: no request at all (B19).
+			// Every match fresh on its own clock, layouts included: no request at all. Mounted is not fresh (B19).
 			const layouts = plan.matches.filter((match) => match.layout);
-			const ready = layouts.every((match) => plan.mounted?.has(matchKey(match)) === true || held(match));
-			const fresh = kept.length === pages.length && ready;
+			const fresh = kept.length === pages.length && layouts.every(held);
 			return { fetch, stale: kept.map((match) => match.id), fresh };
 		},
 	};
@@ -127,7 +124,7 @@ function fill(entries: Map<string, Stored>, key: string, data: unknown): void {
 }
 
 // One match of one URL: the route id and the match id.
-export function matchKey(match: CachedMatch): string {
+function matchKey(match: CachedMatch): string {
 	return `${match.route}\n${match.id}`;
 }
 
