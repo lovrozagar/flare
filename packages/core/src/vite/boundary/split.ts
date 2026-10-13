@@ -122,13 +122,17 @@ function stripRoute(edit: Edit, name: string, steps: readonly Step[]): void {
 	});
 }
 
-// `.cache()` keeps its `client` field alone, or goes when it has none.
+// `.cache()` keeps its `client` field alone, or goes when it has none. The argument is an object literal with named
+// fields, so the fields are found without running the module. A field's value may be anything: a server field's
+// `params` or `tags` function goes with that field (dx/cache.md).
 function cache(edit: Edit, name: string, step: Step): void {
 	const [argument] = step.call.arguments;
-	// Anything but a literal object fails with the literal message.
-	const label = `${name} .cache()`;
-	if (argument?.type !== "ObjectExpression") return void requireLiteral(edit.file, label, undefined);
-	requireLiteral(edit.file, label, argument);
+	const named =
+		argument?.type === "ObjectExpression" &&
+		argument.properties.every((property) => property.type === "Property" && !property.computed);
+	// Anything else, a spread or a computed key included, fails with the literal message.
+	if (argument?.type !== "ObjectExpression" || !named)
+		return void requireLiteral(edit.file, `${name} .cache()`, undefined);
 	const client = argument.properties.find(
 		(property): property is ObjectProperty =>
 			property.type === "Property" && property.key.type === "Identifier" && cacheKeyKept(property.key.name),
