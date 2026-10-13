@@ -78,6 +78,10 @@ Filters are `exact` or `prefix`. There is no regular expression.
 | `middleware finalize` | a middleware that stashes its own response, and one that returns its own, each with `X-Content-Type-Options: sniff` | both responses carry the security set, `nosniff` and the CSP, because finalize is the only exit |
 | `mount and page` | a mount and a page | each path hits its handler, and both responses have the security set |
 | `proxy` | a mount that proxies to a local test server | the body round-trips and hop-by-hop headers do not |
+| `route security keeps nonce` | a server with one pass-through middleware (`(ctx) => ctx.next()`) and a root layout with `.security({ "X-Frame-Options": "DENY" })`, GET a page under it | the CSP header's nonce equals every nonce in the body, and the page's inline scripts would run (BUGS.md B12). The router built the answer under the route's secured set, and the middleware exit keeps that set |
+| `root security beats server with middleware` | the same server with `security: { "X-Frame-Options": "SAMEORIGIN" }` | the response has `X-Frame-Options: DENY`, on 200, 401, and 403 (BUGS.md B13) |
+| `rewrap keeps route security` | the same root, and a middleware that returns `new Response(res.body, res)` | the nonce still matches, and `X-Frame-Options` is `DENY`: once the router ran, its secured set applies to whatever Response the middleware returns, whatever object it is |
+| `short circuit keeps server security` | a middleware that returns its own Response without calling `next()` | the server-level set applies, because no route ran |
 
 ## Done
 
