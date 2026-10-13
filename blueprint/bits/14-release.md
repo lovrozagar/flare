@@ -20,6 +20,7 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `tarball contents` | `npm pack` | exactly `dist`, `src`, `README.md`, `LICENSE`, `package.json` |
 | `consumer strict` | a fixture with `exactOptionalPropertyTypes` and `verbatimModuleSyntax` | `tsc` exits 0 against the packed types |
 | `no dependencies` | the packed `package.json` | the `dependencies` key is absent |
+| `image module types` | the packed `dist` | `features/image/vite/modules.d.ts` sits where the emitted `exports/vite.d.ts` reference resolves, and the consumer-strict fixture with `vite/client` types `./a.png?image` as the binding. tsc does not copy `.d.ts` inputs, so the packager must |
 | `peer floors` | the same manifest | each peer in the B79 table is `>=` its devDependency version. `optional` is true only for `sharp`, `@tanstack/solid-query`, `negotiator`, `isbot`, and `@formatjs/intl-localematcher` |
 | `not a peer` | the same manifest | `@babel/parser`, `tailwindcss`, `oxc-resolver`, `node-html-markdown`, `@tanstack/query-broadcast-client-experimental`, and `@types/negotiator` are absent from both peer and dependency keys |
 
