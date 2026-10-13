@@ -26,7 +26,10 @@ export function Footer(props: { requestId: string; runtime: string; version: str
 				<span>
 					rendered on <code id="rendered-on">{where()}</code>
 				</span>
-				<span id="release-count">{formatMessage("{n, plural, one {# release} other {# releases}}", { n: 14 })}</span>
+				{/* The provider's tag picks the plural category: Arabic's for 14 is `many`, English's `other` (BUGS.md B29). */}
+				<span id="release-count">
+					{formatMessage("{n, plural, one {# release} many {# releases (many)} other {# releases}}", { n: 14 })}
+				</span>
 				<Lifecycle />
 			</div>
 		</footer>
