@@ -1,6 +1,7 @@
 import { createSignal, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it } from "vitest";
+import { headTags } from "../../shared/head/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { applyHeads } from "./apply.ts";
 
@@ -123,4 +124,23 @@ it("script changed", async () => {
 	const bodies = [...document.head.querySelectorAll("script")].map((node) => node.textContent);
 	expect(bodies.filter((body) => body === "void 2")).toHaveLength(1);
 	expect(bodies).not.toContain("void 1");
+});
+
+// `meta.charset` is the shell's: the server writes it in the document, and the client never hands it to useHead,
+// which would warn that it is shell-only (BUGS.md B5).
+it("charset shell only", async () => {
+	const warnings: string[] = [];
+	const warn = console.warn;
+	console.warn = (...args: unknown[]) => void warnings.push(args.map(String).join(" "));
+	try {
+		mount([{ title: "Root", meta: { charset: "utf-8" } }]);
+		await settle();
+	} finally {
+		console.warn = warn;
+	}
+	expect(warnings.filter((text) => /charset/.test(text))).toEqual([]);
+	expect(document.title).toBe("Root");
+	expect(document.head.querySelector("meta[charset]")).toBeNull();
+	// The shell renders headTags unfiltered (server/render/document.ts), so the server still writes the charset.
+	expect(headTags({ meta: { charset: "utf-8" } }).map((tag) => tag.props)).toContainEqual({ charset: "utf-8" });
 });

@@ -60,11 +60,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 4.4 [x] Verify: `docs-smoke` `every page hydrates` has no `STRICT_READ_UNTRACKED` warning.
 4.5 [x] The five hooks are fixed: `matchOf`'s on-screen check and `live`'s first value read untracked (`tests/integration/hydrate.test.tsx` `data hooks read untracked`, chromium, firefox, webkit). On node-dev-chromium, `docs-smoke` `every page hydrates` now shows one STRICT_READ_UNTRACKED, on `/search?q=route` only, and it is the app's: the search page's render runs `createSignal(props.search.q)`, a one-time read of a reactive prop in the component body, so the draft would not follow a later `q`. The tester fixes the app (Constraints), then 4.4 can pass.
 
-5 [ ] B5 `.head({ meta: { charset } })` warns on the client
-5.1 [ ] Repro: the docs root `.head()` sets `meta.charset: "utf-8"`, a documented head field. Load any page in dev.
-5.2 [ ] Expected: no warning. Actual: `useHead: <meta> (charset) is shell-only and ignored on the client`, from the client head apply passing charset to `useHead`.
-5.3 [ ] Write a failing `client/head/apply.test.ts` case (charset in the merge, no `useHead` call for it on the client). Then emit charset in the server shell only.
-5.4 [ ] Verify: no `useHead` warning in `docs-smoke`.
+5 [x] B5 `.head({ meta: { charset } })` warns on the client
+5.1 [x] Repro: the docs root `.head()` sets `meta.charset: "utf-8"`, a documented head field. Load any page in dev.
+5.2 [x] Expected: no warning. Actual: `useHead: <meta> (charset) is shell-only and ignored on the client`, from the client head apply passing charset to `useHead`.
+5.3 [x] Write a failing `client/head/apply.test.ts` case (charset in the merge, no `useHead` call for it on the client). Then emit charset in the server shell only.
+5.4 [x] Verify: no `useHead` warning in `docs-smoke`.
 
 6 [ ] B6 The dev overlay opens for a deferred rejection that `<Errored>` caught
 6.1 [ ] Repro: `/changelog`'s `broken` defer rejects with `The stats service is down` under `<Errored>`. Load it in dev after B3 is fixed, or with the root boundaries removed.
