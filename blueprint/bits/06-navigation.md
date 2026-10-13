@@ -24,7 +24,7 @@ Lazy route modules. A tree node's or layout's `module` is a route record or `() 
 
 | test | case | result |
 | --- | --- | --- |
-| `names` | the module | `_flare`, `_flare_stale`, `/_flare/fn/`, response headers `flare-build`, `flare-render`, `flare-cache` |
+| `names` | the module | `_flare`, `_flare_stale`, `/_flare/fn/`, response headers `flare-build`, `flare-render`, `flare-cache`, and the dev-only request header `TAB_HEADER` (`flare-dev-tab`) |
 
 ### `shared/protocol/internal-params.test.ts`
 
