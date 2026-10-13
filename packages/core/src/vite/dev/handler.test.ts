@@ -166,8 +166,11 @@ it("load error", async () => {
 	expect(written.res.destroy).toHaveBeenCalledOnce();
 });
 
+type Tab = { send: (payload: unknown) => void };
+
 function devServer(middlewareMode: boolean) {
 	const listeners: Record<string, (payload: unknown) => void> = {};
+	const clientListeners: Record<string, (payload: unknown, client: Tab) => void> = {};
 	const used: unknown[] = [];
 	const server: DevServer = {
 		config: { server: { middlewareMode } },
@@ -179,9 +182,10 @@ function devServer(middlewareMode: boolean) {
 				hot: { on: (event, listener) => void (listeners[event] = listener) },
 				runner: { import: async () => ({ server: app(async () => html("<p>real</p>")) }) },
 			},
+			client: { hot: { on: (event, listener) => void (clientListeners[event] = listener) } },
 		},
 	};
-	return { server, used, listeners };
+	return { server, used, listeners, clientListeners };
 }
 
 it("middleware mode", async () => {
@@ -211,6 +215,17 @@ it("error relay", () => {
 	const payload = { type: "error", err: { message: "boom", stack: "at x" } };
 	listeners["flare:error"]?.(payload);
 	expect(server.ws.send).toHaveBeenCalledExactlyOnceWith(payload);
+});
+
+// A client's `flare:error` (a boundary error, an applied `e` frame) goes back to that tab only (BUGS.md B42).
+it("client error relayed", () => {
+	const { server, clientListeners } = devServer(false);
+	installDevHandler(server, "src/server.ts");
+	const payload = { type: "error", err: { message: "boom", stack: "at x" } };
+	const tab = { send: vi.fn<(payload: unknown) => void>() };
+	clientListeners["flare:error"]?.(payload, tab);
+	expect(tab.send).toHaveBeenCalledExactlyOnceWith(payload);
+	expect(server.ws.send).not.toHaveBeenCalled();
 });
 
 it("entry export", async () => {
