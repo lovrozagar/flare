@@ -340,6 +340,7 @@ packages/core/src/client/navigation/request.ts	P10	src	dom	One navigation's data
 packages/core/src/client/navigation/request.test.ts	P10	test	dom	Unit cases for request.ts
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
 packages/core/src/client/navigation/navigate-transition.test.ts	P6	test	dom	View-transition cases for navigate.ts
+packages/core/src/client/navigation/navigate-shallow.test.ts	P6	test	dom	Shallow navigation cases for navigate.ts
 packages/core/src/client/navigation/navigate-slots.test.ts	P6	test	dom	Deferred slot cases for navigate.ts
 packages/core/src/client/navigation/navigate.fixture.ts	P6	test	dom	The mounted app and navigator the navigation tests share
 packages/core/src/client/navigation/target.ts	P6	src	dom	navigate and Link input to a target: the built URL, the data URL, a hash-only move, or a document load

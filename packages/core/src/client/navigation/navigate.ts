@@ -14,7 +14,7 @@ import {
 	transitionOption,
 	type Direction,
 } from "../view-transition/index.ts";
-import type { Blockers } from "./blocker.ts";
+import { allowsNavigation, type Blockers } from "./blocker.ts";
 import type { Landed, Pending } from "./frames.ts";
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts";
 import type { NavigationState } from "./pending.ts";
@@ -72,12 +72,13 @@ export function createNavigator(deps: NavigatorDeps): {
 		if (target.kind === "document") return void deps.assign(target.url);
 		const snapshot = deps.store.snapshot();
 		const pop = mode.pop === true;
-		if (target.kind === "hash") {
-			deps.store.commit({ ...snapshot, location: target.location });
-			return land(deps, target, { options, pop, write: true });
+		if (target.kind !== "data") {
+			at = inPlace(deps, target, { options, snapshot, pop }) ?? at;
+			return;
 		}
 		const plan = planOf({ target, options, snapshot, mode: { ...mode, at } });
-		if (!pop && !deps.blockers.run(blockerArgs(snapshot.location, target.location, plan.trigger), noWrite())) return;
+		const move = { current: snapshot.location, next: target.location, trigger: plan.trigger };
+		if (!pop && !allowsNavigation(deps.blockers, move)) return;
 		latest?.abort();
 		const controller = new AbortController();
 		latest = controller;
@@ -194,6 +195,27 @@ function land(deps: NavigatorDeps, target: { url: string; location: Location }, 
 
 type Step = { options: NavigateOptions; pop: boolean; write: boolean };
 
+// A hash move and a shallow navigation stay on the page: no request and no loader. A shallow one asks the blocker
+// first, and the page's search becomes the call's, the validator output the URL was written from, since the client
+// graph has no validator. Layouts keep theirs until their next loader run (dx/navigate.md `shallow`, BUGS.md B18).
+function inPlace(
+	deps: NavigatorDeps,
+	target: Exclude<Target, { kind: "document" | "data" }>,
+	step: { options: NavigateOptions; snapshot: StoreSnapshot; pop: boolean },
+): number | undefined {
+	const { snapshot } = step;
+	let matches = snapshot.matches;
+	if (target.kind === "shallow") {
+		const move = { current: snapshot.location, next: target.location, trigger: "navigation" as const };
+		if (!allowsNavigation(deps.blockers, move)) return undefined;
+		const search = { ...target.search } as OutletMatch["search"];
+		matches = matches.map((match, index) => (index === matches.length - 1 ? { ...match, search } : match));
+	}
+	deps.store.commit({ ...snapshot, location: target.location, matches });
+	land(deps, target, { options: step.options, pop: step.pop, write: true });
+	return deps.history.index();
+}
+
 type Next = {
 	target: DataTarget;
 	chain: readonly LoadedEntry[];
@@ -269,17 +291,4 @@ function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions
 
 function sameUrl(left: Location, right: Location): boolean {
 	return left.pathname === right.pathname && left.search === right.search;
-}
-
-function place(location: Location) {
-	return { ...location, params: {} };
-}
-
-function blockerArgs(current: Location, next: Location, trigger: Trigger) {
-	return { current: place(current), next: place(next), trigger };
-}
-
-function noWrite() {
-	// navigate asks the blocker before it writes anything, so nothing was pushed and history.go is not reached.
-	return { write: () => undefined, pushed: 0, go: history.go.bind(history) };
 }

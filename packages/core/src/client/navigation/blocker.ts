@@ -7,6 +7,7 @@ import {
 	type Blockers,
 	type BlockerSteps,
 } from "../../shared/router/context.ts";
+import type { Location } from "../../shared/url/index.ts";
 
 export { BlockerContext, type Blocker, type BlockerArgs, type BlockerPlace, type Blockers, type BlockerSteps };
 
@@ -56,4 +57,17 @@ function withoutPopstate(args: BlockerArgs & { popstate?: boolean }): BlockerArg
 
 function href(place: BlockerPlace): string {
 	return `${place.pathname}${place.search}${place.hash}`;
+}
+
+// navigate asks the blocker before it writes anything, so nothing was pushed and history.go is not reached.
+export function allowsNavigation(
+	blockers: Blockers,
+	move: { current: Location; next: Location; trigger: BlockerArgs["trigger"] },
+): boolean {
+	const steps = { write: () => undefined, pushed: 0, go: history.go.bind(history) };
+	return blockers.run({ current: place(move.current), next: place(move.next), trigger: move.trigger }, steps);
+}
+
+function place(location: Location): BlockerPlace {
+	return { ...location, params: {} };
 }

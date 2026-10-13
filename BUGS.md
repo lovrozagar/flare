@@ -139,11 +139,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 17.3 [x] Write a failing `client/navigation` case: a same-origin anchor whose href matches only after `rewrite` follows the client router. Separately, handle the skipped-transition rejection. Causes: `delegateClicks` checked the raw href against the routes before any rewrite, and its `visit` goes through `resolveUrl`, which never rewrites (it serves server-built URLs). The view transition's `ready` rejects with an AbortError when the transition is skipped, and nothing handled it. Fixes: `rewriteLocation` in `shared/router/create-router.ts` is the one rewrite step for `navigate`, `Link`, and anchor clicks, and the delegate gates the match on the rewritten pathname and visits the rewritten URL (d2b10df). `runTransition` marks `ready` handled. Failing tests first: `link.test.tsx` `delegate rewrite`, `direction.test.ts` `skipped transition`.
 17.4 [x] Verify: `docs-routing` `client rewrite`, now with the empty-problems check, is green on node-prod-chromium and node-prod-firefox. On node-dev-chromium the navigation lands and the only problem is B7's font 404. `view transition scoped` and `view transition off` stay green on all three.
 
-18 [ ] B18 A `shallow` link runs the loader
-18.1 [ ] Repro: on `/examples?tab=cache`, click the `shallow` link that adds `note=shallow`.
-18.2 [ ] Expected (`dx/link.md`): `shallow` changes the URL and does not run loaders. Actual: `GET /examples?note=shallow&tab=cache&_flare=data` is sent and `#examples-request` changes (a new loader run).
-18.3 [ ] Write a failing `client/navigation/navigate.test.ts` case (`shallow` sends no request). Then fix it.
-18.4 [ ] Verify: `docs-navigation` `shallow search` is green.
+18 [x] B18 A `shallow` link runs the loader
+18.1 [x] Repro: on `/examples?tab=cache`, click the `shallow` link that adds `note=shallow`.
+18.2 [x] Expected (`dx/link.md`): `shallow` changes the URL and does not run loaders. Actual: `GET /examples?note=shallow&tab=cache&_flare=data` is sent and `#examples-request` changes (a new loader run).
+18.3 [x] Cause: `shallow` was never implemented. Only `resolveTarget`'s different-pathname throw read it, so a shallow target was an ordinary data navigation. Fix (dx/navigate.md `shallow`): `resolveTarget` returns a `shallow` target for a same-page move that is not hash-only, and the navigator's `inPlace` step, shared with the hash move, asks the blocker, commits the URL with the page's search set to the call's validator output, writes history, and sends nothing. The cases live in `navigate-shallow.test.ts` (`navigate.test.ts` is at its line limit). Failing test first: `shallow`; `shallow blocked` passed before, since the blocker already ran.
+18.4 [x] Verify: `docs-navigation` `shallow search` is green on node-prod-chromium, node-prod-firefox, and node-dev-chromium.
 
 19 [ ] B19 The route `cache.client.staleTime` is ignored
 19.1 [ ] Repro: examples has `.cache({ client: { staleTime: "30s" } })`, and codegen writes `client: {"staleTime":"30s",…}` on the record. Go `/` → Examples (client nav) → Routing → Examples, within a few seconds.
