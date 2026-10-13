@@ -465,7 +465,7 @@ The fixture JWT is produced once, checked by hand against an independent verifie
 | test | case | result |
 | --- | --- | --- |
 | `hydrated` | `load("/")` | the helper resolves after `data-flare-hydrated` |
-| `console filter` | a hydration-mismatch message and an `Error` | the mismatch is omitted. The `Error` is returned |
+| `console all` | a hydration-mismatch message and an `Error` | both are returned. A hydration mismatch is an app bug, and Flare's own pages emit none, so the helper never hides one |
 | `state` | a document with `self.flare` | `state()` returns `build`, `nonce`, `matches`, and `queries`. A match is `{ id, params, search, data, preloader, head, error }`. A `{ p, r, c }` object is not accepted |
 
 ## Done
