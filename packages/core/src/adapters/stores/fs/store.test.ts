@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,14 +20,17 @@ afterEach(async () => {
 
 const entry = { data: { html: "<p>a</p>" }, storedAt: 1, tags: ["t"] };
 
-// With no argument the directory is `.flare/cache` under the process cwd.
+// With no argument the directory is `.flare/cache` under the process cwd, read through `process.cwd()` on every
+// runtime: Bun's `path.resolve` reads the native cwd instead, so a bare relative resolve would write outside the temp
+// dir (BUGS.md B46).
 it("dir", async () => {
+	const real = process.cwd();
 	vi.spyOn(process, "cwd").mockReturnValue(dir);
 	const store = createFilesystemStore();
 	await store.set("k", entry);
-	expect(await readdir(join(dir, ".flare", "cache"))).toEqual([
-		`${createHash("sha256").update("k").digest("hex")}.json`,
-	]);
+	const file = `${createHash("sha256").update("k").digest("hex")}.json`;
+	expect(existsSync(join(real, ".flare", "cache", file))).toBe(false);
+	expect(await readdir(join(dir, ".flare", "cache"))).toEqual([file]);
 	expect(await store.get("k")).toEqual(entry);
 	expect(await store.get("missing")).toBeNull();
 });

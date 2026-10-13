@@ -16,8 +16,9 @@ function fileOf(dir: string, key: string): string {
 
 // A filesystem store, for Node. `dir` defaults to `.flare/cache` under the process cwd: production passes an
 // absolute directory. `delete` writes a tombstone, and a tag delete bumps the tag's epoch, so nothing lists files.
+// The cwd is read through `process.cwd()`, which Bun's `path.resolve` does not call (BUGS.md B46).
 export function createFilesystemStore(options: { dir?: string } = {}): FlareStore {
-	const dir = resolve(options.dir ?? ".flare/cache");
+	const dir = resolve(process.cwd(), options.dir ?? ".flare/cache");
 	const write = async (key: string, entry: FlareStoreEntry, ttl?: number): Promise<void> => {
 		const file = fileOf(dir, key);
 		await mkdir(dir, { recursive: true });
