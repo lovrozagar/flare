@@ -44,7 +44,7 @@ function stubStart(target: Element | Document, started: Started[], name: string)
 			const length = history.length;
 			options.update();
 			started.push({ scope: name, types: options.types, pushedBeforeUpdate: history.length !== length });
-			return { updateCallbackDone: Promise.resolve() };
+			return { updateCallbackDone: Promise.resolve(), ready: Promise.resolve() };
 		},
 	});
 }

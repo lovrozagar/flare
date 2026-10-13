@@ -4,7 +4,10 @@ import type { Location } from "../../shared/url/index.ts";
 export type Direction = TransitionDirection;
 export type { TransitionInfo, ViewTransitionOptions } from "../../shared/router/create-router.ts";
 
-type Start = (options: { update: () => void; types: string[] }) => { updateCallbackDone: Promise<void> };
+type Start = (options: { update: () => void; types: string[] }) => {
+	updateCallbackDone: Promise<void>;
+	ready: Promise<void>;
+};
 
 // The history index delta names the view-transition type. With transitions off there is none.
 export function transitionDirection(input: { from: number; to: number; enabled: boolean }): Direction | undefined {
@@ -48,7 +51,10 @@ export async function runTransition(input: {
 	const scope = typeof option.scope === "function" ? option.scope(info) : (option.scope ?? "auto");
 	const start = starter(scope === "auto" ? input.auto() : document) ?? starter(document);
 	if (start === undefined) return input.update();
-	await start({ update: input.update, types }).updateCallbackDone;
+	const transition = start({ update: input.update, types });
+	// A skipped transition (an unload, a newer one, a hidden page) rejects `ready`. The update still runs (B17).
+	transition.ready.catch(() => undefined);
+	await transition.updateCallbackDone;
 }
 
 // Element-scoped transitions are newer than the document's, so both are read as a plain property.
