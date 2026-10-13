@@ -18,6 +18,12 @@ it("script data", () => {
 	expect(dirOf("xx-Arab", "ltr")).toBe("rtl");
 });
 
+// Arabic in Nastaliq is right-to-left. Bun's ICU maximizes `ur` and `ks` to `Aran`, where Node's gives `Arab`, so a
+// Bun server would otherwise render Urdu ltr (BUGS.md B26).
+it("aran", () => {
+	expect(dirOf("ur-Aran", "ltr")).toBe("rtl");
+});
+
 // `und` parses, so it does not take the default.
 it("unknown", () => {
 	expect(dirOf("und", "rtl")).toBe("ltr");

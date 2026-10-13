@@ -4,6 +4,7 @@ import type { Dir } from "../../../shared/router/index.ts";
 const RTL_SCRIPTS: ReadonlySet<string> = new Set([
 	"Adlm",
 	"Arab",
+	"Aran",
 	"Armi",
 	"Avst",
 	"Chrs",
