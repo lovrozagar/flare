@@ -1,8 +1,8 @@
-import type { SharedRender } from "./scrub.ts";
+import type { INCOMPLETE, SharedRender } from "./scrub.ts";
 import type { StoredPage } from "./write.ts";
 
 // A shared render that finished, with the page it left, or nothing a waiter can serve from it.
-export type Flight = { shared: SharedRender; page: StoredPage } | undefined;
+export type Flight = { shared: SharedRender; page: StoredPage } | typeof INCOMPLETE | undefined;
 
 // per-process-constant: in-flight renders
 const flights = new Map<string, Promise<Flight>>();

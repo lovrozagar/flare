@@ -74,12 +74,21 @@ function streamOf(chunks: readonly string[], close: boolean): ReadableStream<Uin
 	});
 }
 
-// The shell is read until `</html>`, across chunks, and the open stream behind a hole is not waited on. A root with
-// no `<html>` stops after its first chunk, and a stream that ends first gives what it sent.
+// The body is read to the stream's end, across chunks, so a boundary's fragment after `</html>` is kept (B15). A
+// stream still open 10 s after `</html>` gives nothing. A root with no `<html>` stops after its first chunk, and a
+// stream that ends first gives what it sent.
 it("shell chunks", async () => {
-	expect(await shellOf(streamOf(["<html><body>a", "b</body></html>", "<template>late</template>"], false))).toBe(
-		"<html><body>ab</body></html>",
+	expect(await shellOf(streamOf(["<html><body>a", "b</body></html>", "<template>late</template>"], true))).toBe(
+		"<html><body>ab</body></html><template>late</template>",
 	);
 	expect(await shellOf(streamOf(["just text", "more"], false))).toBe("just text");
 	expect(await shellOf(streamOf(["<html><body>cut"], true))).toBe("<html><body>cut");
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+	try {
+		const open = shellOf(streamOf(["<html><body>a</body></html>", "<template>late</template>"], false));
+		await vi.advanceTimersByTimeAsync(10_001);
+		expect(await open).toBeUndefined();
+	} finally {
+		vi.useRealTimers();
+	}
 });
