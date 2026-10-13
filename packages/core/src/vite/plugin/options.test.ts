@@ -209,6 +209,10 @@ it("prerender", () => {
 		[{ env: "TOKEN" }, /prerender\.env/],
 		[{ env: null }, /prerender\.env/],
 		[{ origin: "x" }, /prerender\.origin/],
+		[{ sitemap: true }, /prerender\.sitemap/],
+		[{ sitemap: [] }, /prerender\.sitemap/],
+		[{ sitemap: null }, /prerender\.sitemap/],
+		[{ sitemap: { priority: 2 } }, /sitemap priority 2 is not a number from 0 to 1/],
 	];
 	for (const [prerender, error] of bad) {
 		expect(() => parseOptions({ prerender } as unknown as FlareOptions)).toThrow(error);

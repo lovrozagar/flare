@@ -15,6 +15,7 @@ import { createRouter, type RouteModule } from "../../shared/router/create-route
 import type { AuthHint } from "../codegen/auth-hint.ts";
 import { createBuilder } from "vite";
 import { flare } from "../plugin/flare.ts";
+import type { FlareOptions } from "../plugin/options.ts";
 import { hintsOf, runPrerender, type RunInput } from "./run.ts";
 
 const SITE = "https://example.com";
@@ -53,7 +54,9 @@ function server(pages: readonly Page[], extra: Partial<RuntimeOptions> = {}): { 
 	if (found === undefined) throw new Error("no prerenderer");
 	const renders: string[] = [];
 	const pre: Prerenderer = {
+		site: found.site,
 		pages: () => found.pages(),
+		routes: () => found.routes(),
 		params: (id) => found.params(id),
 		render: (input) => {
 			renders.push(`${input.id} ${JSON.stringify(input.params)}`);
@@ -79,6 +82,7 @@ async function run(pre: Prerenderer, config: RunInput["config"] = {}, hint?: Run
 		config,
 		hint: hint ?? (await truthful(pre)()),
 		write: async (key) => void written.push(key),
+		writeFile: async (name) => void written.push(name),
 	});
 	return { ...result, written };
 }
@@ -114,21 +118,23 @@ function fixture(files: Record<string, string>): string {
 	return app;
 }
 
-function build(app: string): Promise<void> {
-	return createBuilder({ root: app, configFile: false, logLevel: "silent", plugins: flare({ prerender: true }) }).then(
+function build(app: string, prerender: FlareOptions["prerender"] = true): Promise<void> {
+	return createBuilder({ root: app, configFile: false, logLevel: "silent", plugins: flare({ prerender }) }).then(
 		(builder) => builder.buildApp(),
 	);
 }
 
 // A real build with `prerender: true`: the seed is written through the write path, the build's own id names its
 // directory, and the assets store of that build reads it. A failing page fails the build by name, and a server
-// entry with no `server` fails it too.
+// entry with no `server` fails it too. A sitemap lands at the client output root (dx/seo.md).
 it("200", async () => {
 	const app = fixture({
 		"src/routes/_root_/about/about.page.tsx":
 			'import { createPage } from "@lovrozagar/flare";\nexport const route = createPage("_root_/about").cache({ ssg: true }).render(() => "about page");\n',
 	});
-	await build(app);
+	await build(app, { sitemap: { robotsTxt: true } });
+	expect(readFileSync(join(app, "dist/client/sitemap.xml"), "utf8")).toContain(`<loc>${SITE}/about</loc>`);
+	expect(readFileSync(join(app, "dist/client/robots.txt"), "utf8")).toBe(`Sitemap: ${SITE}/sitemap.xml\n`);
 	const dir = join(app, "dist/client/assets/_flare-static");
 	const [id] = readdirSync(dir);
 	const [file] = readdirSync(join(dir, id ?? ""));
@@ -195,9 +201,9 @@ it("hint mismatch", async () => {
 	const hint = hintsOf(app);
 	expect(hint("_root_/team/home")).toBe("requires");
 	expect(hint("_root_/open")).toBe("reads");
-	expect(hint("_root_/unknown")).toBe("public");
+	expect(hint("_root_/unknown")).toBeUndefined();
 	// An app with no route files has no hint to disagree with.
-	expect(hintsOf(join(fixture({}), "none"))("_root_/x")).toBe("public");
+	expect(hintsOf(join(fixture({}), "none"))("_root_/x")).toBeUndefined();
 });
 
 // The populate request is `site` plus the pathname: no search, no cookie, no authorization, no copied headers.

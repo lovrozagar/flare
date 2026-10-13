@@ -4,7 +4,7 @@ Imported from `@lovrozagar/flare/seo`. None of them are loaded by `createServer`
 
 ## sitemap
 
-Written by `flare({ prerender: { sitemap } })`. Also callable:
+Written by `flare({ prerender: { sitemap } })`, which checks the options when the plugin is created. Also callable: `sitemap(options)` checks them and returns the build step prerender runs.
 
 ```ts
 sitemap({ additionalEntries?, changefreq?, exclude?, priority?, robotsTxt? })

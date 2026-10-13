@@ -197,6 +197,7 @@ it("render", async () => {
 	const pages = prerenderer();
 	const result = await pages.render({ id: "_root_/p/[slug]", params: { slug: "a" }, env: {} });
 	expect(result.status).toBe(200);
+	expect(result.path).toBe("/p/a");
 	expect(result.key).toBe("static:dev:_root_/p/[slug]:a");
 	const page = result.entry?.data as StoredPage;
 	expect(page.render).toBe("ssg");
@@ -210,8 +211,11 @@ it("render", async () => {
 	expect(isrPage?.render).toBe("isr");
 	// Under the router's base path: `/app` for the home page, `/app/s` for a page below it.
 	const based = prerenderer({ basePath: "/app" });
-	expect((await based.render({ id: "_root_/", params: {}, env: {} })).key).toBe("static:dev:_root_/");
-	expect((await based.render({ id: "_root_/s", params: {}, env: {} })).status).toBe(200);
+	expect(await based.render({ id: "_root_/", params: {}, env: {} })).toMatchObject({
+		path: "/app",
+		key: "static:dev:_root_/",
+	});
+	expect(await based.render({ id: "_root_/s", params: {}, env: {} })).toMatchObject({ status: 200, path: "/app/s" });
 });
 
 // Only an ssg page, or an isr page with params, is prerendered. Anything else is refused by name.
@@ -231,14 +235,47 @@ it("refused", async () => {
 it("not stored", async () => {
 	const pages = prerenderer();
 	const denied = await pages.render({ id: "_root_/private", params: {}, env: {} });
-	expect(denied).toEqual({ status: 401 });
-	expect(await pages.render({ id: "_root_/team/home", params: {}, env: {} })).toEqual({ status: 401 });
+	expect(denied).toEqual({ status: 401, path: "/private" });
+	expect(await pages.render({ id: "_root_/team/home", params: {}, env: {} })).toEqual({
+		status: 401,
+		path: "/team/home",
+	});
 	const late = await pages.render({ id: "_root_/late", params: {}, env: {} });
 	expect(late.entry).toBeUndefined();
-	expect(await pages.render({ id: "_root_/broken", params: {}, env: {} })).toEqual({ status: 500 });
+	expect(await pages.render({ id: "_root_/broken", params: {}, env: {} })).toEqual({ status: 500, path: "/broken" });
 	const moved = createMiddleware(() => Response.redirect(`${SITE}/elsewhere`, 302));
 	const redirected = await prerenderer({ middleware: [moved] }).render({ id: "_root_/s", params: {}, env: {} });
 	expect(redirected.status).toBeGreaterThanOrEqual(300);
 	expect(redirected.status).toBeLessThan(400);
 	expect(redirected.entry).toBeUndefined();
+});
+
+// Every route node for the sitemap, in tree order: a static page's public path under the base, none for a param URL,
+// the .response() flag, and the chain's auth. Describing a route renders nothing and runs no loader.
+it("routes", async () => {
+	const loaders: string[] = [];
+	const feed = createPage("_root_/feed.xml")
+		.loader(() => void loaders.push("feed"))
+		.render(() => "x");
+	const tree = [...TREE, { ...node("_root_/feed.xml", "/feed.xml", feed), response: true }];
+	const router = createRouter({ layouts: { _root_: root }, routeTree: tree, basePath: "/app" });
+	const found = prerendererOf(serveWith({ router, site: SITE }, { dev: false, log: quiet }));
+	expect(found?.site).toBe(SITE);
+	const routes = (await found?.routes()) ?? [];
+	expect(routes.map((item) => item.id)).toEqual([...TREE.map((item) => item.id), "_root_/feed.xml"]);
+	expect(routes[0]).toEqual({
+		id: "_root_/",
+		path: "/app",
+		response: false,
+		auth: { requires: false, reads: false },
+		authorize: false,
+	});
+	expect(routes[1]?.path).toBe("/app/s");
+	expect(routes[2]?.path).toBeUndefined();
+	expect(routes.find((item) => item.id === "_root_/private")?.auth.requires).toBe(true);
+	expect(routes.find((item) => item.id === "_root_/guarded")?.authorize).toBe(true);
+	expect(routes.at(-1)).toMatchObject({ path: "/app/feed.xml", response: true });
+	expect(loaders).toEqual([]);
+	expect((await prerenderer().routes())[0]?.path).toBe("/");
+	expect(prerenderer({ site: undefined }).site).toBeUndefined();
 });
