@@ -414,6 +414,7 @@ The registry data itself is bit 14. This test uses a two-family fixture.
 
 | test | case | result |
 | --- | --- | --- |
+| `optional absent` | a non-SSG `[[locale]]/search` with locales `en`, `hr`, `ar` (default `en`); a `[[locale]]/docs/[slug]` with no rendered paths; an SSG optional-only home rendered at `/` and `/hr` | `/search`, `/hr/search`, and `/ar/search` once each; the docs page absent; `/`, `/hr`, `/ar` once each (BUGS.md B10) |
 | `public only` | one public route and one required-auth route | the sitemap contains only the public route |
 | `optional included` | a route whose auth is optional | the route is included |
 | `authorize omitted` | a public page whose layout has `authorize`, and an optional-auth page with no `authorize` | the first is absent, the second is listed |
@@ -435,6 +436,7 @@ The registry data itself is bit 14. This test uses a two-family fixture.
 
 | test | case | result |
 | --- | --- | --- |
+| `bare path` | `[[locale]]/search`, `[[locale]]/examples/[[...rest]]`, and a route with a required param | `bare` is `/search`, `/examples`, and `undefined` |
 | `routes` | a tree with static, param, `.response()`, required-auth, and `authorize` routes under a base path | every route node in tree order, with its public path under the base, no path for a param URL, the `.response()` flag, and the chain's auth. No loader runs. `site` is `createServer({ site })` |
 
 ### `features/seo/server/google.test.ts`
