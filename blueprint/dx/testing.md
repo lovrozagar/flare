@@ -21,7 +21,7 @@ flarePage(page): { load, consoleErrors, state }
 | method | args | outcome | pitfall | test |
 | --- | --- | --- | --- | --- |
 | `load` | `path = "/"` | `goto` that path and resolves when `<html data-flare-hydrated>` is set | it does not wait for a deferred `c` frame. A `stream` defer is still a placeholder here | `testing/playwright.test.ts` `hydrated` |
-| `consoleErrors` | none | console errors and page errors, minus hydration-mismatch messages the allowlist names | an `Error` is still returned. The allowlist is the mismatch text only | `playwright.test.ts` `console filter` |
+| `consoleErrors` | none | every console error and page error since the helper was created, hydration mismatches included | there is no allowlist. A test that expects a message asserts it | `playwright.test.ts` `console all` |
 | `state` | none | `self.flare` from the document | the v0 shape `{ p, r, c }` is not what this checks. The fields are `build`, `nonce`, `matches`, and `queries`. A match is `{ id, params, search, data, preloader, head, error }` (B83) | `playwright.test.ts` `state` |
 
 These v0 methods do not exist: `wasClientNavigation`, `setNavigationMarker`, `navigateNdjson`, `assertFlareStateValid`. Client navigation is asserted by the URL and the DOM, which the e2e already does.
