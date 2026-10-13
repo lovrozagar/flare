@@ -70,8 +70,8 @@ A response `flare-build` that differs from `self.flare.build`, when both are non
 
 A client chunk contains neither the handler, the stream generator, the `authorize` callback, nor the input validator. A server chunk, ssr or the Workers bundle, keeps all four. A sentinel in each fails the build (`vite/boundary/tripwire.test.ts` `four bodies`). The server still runs validation and `authorize`.
 
-`.stream()` writes one envelope per yielded value as NDJSON. The client function returns an async iterator.
+`.stream()` writes one envelope per yielded value as NDJSON. The client function returns an async iterator. The record carries `kind: "handler"` or `kind: "stream"`, which survives the client strip, and the client routes a stream function to the streaming transport by it (BUGS.md B14). Stopping the iteration, by `break`, `return()`, or a thrown consumer, aborts the request at once, and a `next()` still pending resolves `{ done: true }`, not an `AbortError`, so a stream that yields rarely stops when asked and the server sees the disconnect in every engine (BUGS.md B40).
 
 CSRF uses the adapter's origin. The first present header wins, in order `Origin`, `Sec-Fetch-Site`, `Referer`. A present header that fails is 403, and the later headers are not consulted. The table is in bit 07 and is not repeated here. The tests in `server/server-fn/csrf.test.ts` are the contract.
 
-The client calls `echo(input)`. The stub throws if that direct call runs during a component or route render on the client. `queryFn` does not throw for that reason. The build fails if the handler, the stream generator, the `authorize` callback, or the input validator is in a client chunk.
+The client calls `echo(input)`. In dev, the stub warns if that direct call runs during a component or route render, then makes the call; it never throws (B45). The build fails if the handler, the stream generator, the `authorize` callback, or the input validator is in a client chunk.

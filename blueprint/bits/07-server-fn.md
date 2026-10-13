@@ -51,7 +51,8 @@ Typed builders. The route builders were untyped through bit 06, so `shared/route
 
 | test | case | result |
 | --- | --- | --- |
-| `default method` | no method | `post` |
+| `default method` | no method | `post`, and the record's `kind` is `"handler"` |
+| `stream kind` | `.stream(fn)` and, as the client graph emits it, `.stream(undefined)` | the record's `kind` is `"stream"` in both (BUGS.md B14) |
 | `get with auth and maxAge` | `.authenticate().cache({ maxAge: "1s" })` on GET | throw when the chain is built |
 | `stream or handler` | both set | throw |
 
@@ -151,6 +152,8 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 
 | test | case | result |
 | --- | --- | --- |
+| `stream call` | a client function built as the transform emits it (`createServerFn({ …, __client: true }).stream(undefined)`), iterated with `for await` | it goes through the streaming transport and yields each value; no `not async iterable` error and no unhandled rejection (BUGS.md B14) |
+| `stop aborts` | a stream whose body yields once and then never again; the consumer calls `return()` while a `next()` is pending | the fetch's signal aborts at once and the pending `next()` resolves `{ done: true }`, with no rejection (BUGS.md B40) |
 | `posts` | a POST function | the request URL is `/_flare/fn/<id>` and the method is POST |
 | `returned response` | a handler returns `new Response("x", { status: 418 })` | the server sets `flare-fn: response`, and the call resolves with that Response: status 418, body `x` still readable |
 | `json response` | a handler returns `Response.json({ status: 200, items: [1] })` | the call resolves with the Response, and `await res.json()` gives `{ status: 200, items: [1] }`; it is not read as an envelope |
