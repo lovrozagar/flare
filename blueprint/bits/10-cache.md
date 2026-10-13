@@ -51,6 +51,10 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 
 | test | case | result |
 | --- | --- | --- |
+| `render completes before store` | a stored page whose component reads a suspense query under `<Loading>`, the query resolving 50 ms after the shell | the stored body holds the resolved boundary's fragment and its `$R` resolution, not the fallback, and a hit hydrates to the value with no client request (BUGS.md B15) |
+| `stream defer stays a hole` | the same page plus a Flare `"stream"` defer | the defer's boundary is stored as the fallback hole and the query's boundary as resolved |
+| `incomplete render not stored` | a suspense query that never settles, the clock advanced past 10 s after the shell | nothing is written, the response is `private, no-store`, and one `warn` names the route id |
+| `prerender incomplete fails` | prerender of a page with a never-settling query | the build fails and names the route |
 | `2xx complete` | 200, body contains `<html>` and `</body>` | written |
 | `401` | 401 | not written |
 | `403` | 403 | not written |
