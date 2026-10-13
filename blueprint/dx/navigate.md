@@ -123,7 +123,7 @@ The layout owns the outlet. With no overlay the child is not called, including d
 | `backgroundLocation` | `{ pathname, search, hash, params }` of the page underneath |
 | `dismiss()` | `history.back()` |
 
-The child paints the preview. The page component runs only when the child calls `state.match.render`. The target route's layouts are not mounted in the overlay. The background chain stays mounted, so its scroll stays.
+The child paints the preview. The page component runs only when the child calls `state.match.render`. The target route's layouts are not mounted in the overlay. The background chain stays mounted, so its scroll stays. Inside `state.match.render`, the page's own hooks (`useParams`, `useSearch`, `useLoaderData`, `usePreloaderContext`, `useMatch`) with `from` set to the page's id read the overlay's params, search, loader data, and preloader context, and hooks naming a background route read the background. A `from` naming one of the target's own layouts throws, since that layout is not mounted (BUGS.md B16). The child renders inside the same boundary walk as `Outlet` (`builder.md` Boundaries): a throw in the child or in the page paints the nearest `errorRender` of the layout that owns the outlet, sends the dev overlay payload in dev, and never vanishes (BUGS.md B41).
 
 A client navigation whose current route id is in `from` fetches the target, pushes its URL, and saves the background scroll. The overlay entry is `{ index, intercepted: true }` and is always a push, even when `replace` is true. The same path and search, a revalidation, and a popstate do not open a second overlay and do not clear the one that is open. A navigation into another root is a document load. A failed overlay fetch continues as a normal navigation.
 
