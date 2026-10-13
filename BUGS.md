@@ -84,11 +84,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 8.3 [ ] Write a failing `vite/dev/handler.test.ts` case with a stored hit body that arrives as one chunk, or a chunk that splits a tag. Then split at `</head>` exactly.
 8.4 [ ] Verify: no parse5 error in the dev log while `docs-cache` runs on `node-dev`.
 
-9 [ ] B9 Route builder types do not enforce method order
-9.1 [ ] Repro: `createRootLayout("_admin_").headers(...).security(...).head(...)` type-checks under the app tsconfig, then throws `order: head` from `packages/core/src/shared/route-builder/chain.ts:38` on the first request (a 500 on `/admin`).
-9.2 [ ] Expected (`dx/builder.md`): a method called after a later one is absent from the type. Actual: `head` stays on the type after `headers` and `security`. The same holds for `createPage("_admin_/admin").authenticate().preloader(...).authorize(...)`: it type-checks, then throws `order: authorize`. Because prerender imports every route module, that one wrong order fails the whole production build, even for a page that is never prerendered.
-9.3 [ ] Write a failing `tests/types/propagation.test.ts` case (`method order`: `head` after `headers` is `@ts-expect-error`). Then remove earlier methods from `RouteBuilder` as each step is called (`shared/route-builder/route-types.ts:158`).
-9.4 [ ] Verify: `bun run typecheck` passes with the new negative case.
+9 [x] B9 Route builder types do not enforce method order
+9.1 [x] Repro: `createRootLayout("_admin_").headers(...).security(...).head(...)` type-checks under the app tsconfig, then throws `order: head` from `packages/core/src/shared/route-builder/chain.ts:38` on the first request (a 500 on `/admin`).
+9.2 [x] Expected (`dx/builder.md`): a method called after a later one is absent from the type. Actual: `head` stays on the type after `headers` and `security`. The same holds for `createPage("_admin_/admin").authenticate().preloader(...).authorize(...)`: it type-checks, then throws `order: authorize`. Because prerender imports every route module, that one wrong order fails the whole production build, even for a page that is never prerendered.
+9.3 [x] Write a failing `tests/types/propagation.test.ts` case (`method order`: `head` after `headers` is `@ts-expect-error`). Then remove earlier methods from `RouteBuilder` as each step is called (`shared/route-builder/route-types.ts:158`).
+9.4 [x] Verify: `bun run typecheck` passes with the new negative case. Fixed in 4457caf. Its verify waited on a green typecheck, which B25 and B37 give.
 
 10 [ ] B10 The sitemap drops every non-SSG page under an optional locale root
 10.1 [ ] Repro: the docs app's main root is `[[locale]]/_root_`. Build with `prerender.sitemap` and read `client/sitemap.xml`.
@@ -181,11 +181,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 24.3 [ ] Decide: pin Node ≥ 22.18 (or 24) for the e2e jobs and in the documented floor for working in the repo, or have `boot.ts` start vite with `--configLoader native` under Bun. Record it in B70.
 24.4 [ ] Verify: `bun run test:e2e -- --project=node-dev-chromium` boots on the pinned runtime.
 
-25 [ ] B25 `createTestServer` is unusable once the app declares `serverContext`
-25.1 [ ] Repro: the docs app's `FlareRegister` declares `serverContext`, and `tests/integration/docs.test.ts` calls `createTestServer(router)`. Run `bun run typecheck`, whose last step compiles `packages/core/tests/e2e/apps/docs/tsconfig.json`.
-25.2 [ ] Expected (`dx/testing.md`): the helper boots any app's router for its tests. Actual: `packages/core/src/testing/harness.ts(17,30): error TS2345: Argument of type '{ router: Router; }' is not assignable to parameter of type 'ServerOptions<FlareRegister>'`. `ServerOptions` requires `serverContext` once the register declares it (`server/lifecycle/options.ts` `ContextOption`). At runtime, any loader that calls `serverCtx()` would throw, because the helper has no way to pass one.
-25.3 [ ] Decide in `dx/testing.md`: either `createTestServer(router, { serverContext? })` (a revision, since the doc says there is no second argument), or a documented and typed refusal. Then make `harness.ts` type-check under any register.
-25.4 [ ] Verify: `bun run typecheck` exits 0, and `tests/integration/docs.test.ts` passes.
+25 [x] B25 `createTestServer` is unusable once the app declares `serverContext`
+25.1 [x] Repro: the docs app's `FlareRegister` declares `serverContext`, and `tests/integration/docs.test.ts` calls `createTestServer(router)`. Run `bun run typecheck`, whose last step compiles `packages/core/tests/e2e/apps/docs/tsconfig.json`.
+25.2 [x] Expected (`dx/testing.md`): the helper boots any app's router for its tests. Actual: `packages/core/src/testing/harness.ts(17,30): error TS2345: Argument of type '{ router: Router; }' is not assignable to parameter of type 'ServerOptions<FlareRegister>'`. `ServerOptions` requires `serverContext` once the register declares it (`server/lifecycle/options.ts` `ContextOption`). At runtime, any loader that calls `serverCtx()` would throw, because the helper has no way to pass one.
+25.3 [x] Decided (dx/testing.md, revised): `createTestServer(router, options?)`, where `options` is `{ serverContext }` only, required when the register declares it and optional otherwise. Any other key fails the type and throws, naming the key. `harness.ts` is generic over the register, as `createServer` is, and `docs.test.ts` passes the docs app's context. Failing tests first: `harness.test.ts` `server context`, `other keys refused`; `propagation.test.ts` `test server context` (TS2558 before: the helper took no type argument).
+25.4 [x] Verify: `bun run typecheck` exits 0 in a fresh worktree outside the repo (with B37), and `tests/integration/docs.test.ts` passes.
 
 26 [x] B26 `dirOf` says `ltr` for Urdu and Kashmiri on Bun
 26.1 [x] Repro: `bun -e 'console.log(new Intl.Locale("ur").maximize().script)'` prints `Aran`. Node prints `Arab`. Under `bun --bun run --filter @lovrozagar/flare test`, `features/direction/shared/script-of.test.ts` `no text info` fails: `ur` maps to `ltr`. `ks` maximizes to `Aran` too.
@@ -254,11 +254,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 36.3 [x] Root cause (no longer blocked on B15): on a quick forward visit, solid-query starts the doc page's suspense query's first fetch inside the committing component's render, where an owner exists and no observer runs. The client stub's render guard (B45) threw `feedbackCount was called during a render` there, so no request was sent, TanStack counted one failure, and its 1 s, 2 s, and 4 s retry backoff kept the query `pending, fetching`. Back rendered that page again into the pending query, and Solid's transition held the store write (Solid's dev build reports it as `[SILENT_HOLD]`). With a pause on the page, the retry ran from the retryer's timer outside any owner and succeeded, which is why the failure depended on timing. Fix (B45 as revised in ff82e5b): the render check warns in dev through `devWarn` and never throws, and `serverFnQueryOptions` runs its call outside any owner. Failing tests first: `client-stub.test.tsx` `client stub` and `on settled`, and `options.test.ts` `queryFn inside a render`.
 36.4 [x] Verify: `docs-smoke` `click through` is green on node-prod-chromium and node-prod-firefox, and `docs-navigation` `scroll restoration` is green on node-prod-chromium. On node-dev-chromium both Back steps land, and the spec's empty-console check still fails, only on B7's font 404 and B39's two diagnostics.
 
-37 [ ] B37 The docs typecheck depends on a stale `@types/negotiator`
+37 [x] B37 The docs typecheck depends on a stale `@types/negotiator`
 37.1 [x] Repro: a fresh clone, `bun install --frozen-lockfile`, `bun run typecheck`. The docs tsconfig step fails with `features/i18n/server/match.ts(4,24) TS7016: no declaration file for 'negotiator'`, next to B25's harness error.
 37.2 [x] Cause: bun.lock has no `@types/negotiator` (removed in 8aa05f3). Core's tsconfig includes the `negotiator.d.ts` shim, and the docs app's tsconfig does not. A worktree inside the repo resolves the repo root's stale `node_modules/@types/negotiator`, so gates run there passed.
 37.3 [x] Fix: match.ts references its own shim (`/// <reference path="./negotiator.d.ts" />`, with a line-scoped `typescript/triple-slash-reference` disable, as exports/vite.ts does), so every project that compiles it loads the shim: Flare's own, the docs app's, and an app's through the shipped `src` (`npm pack --dry-run` lists both files, and `skipLibCheck` does not cover `.ts` sources). Red: every fresh outside-worktree gate this session showed TS7016; after the fix it is gone.
-37.4 [ ] Verify: `bun run typecheck` exits 0 in a worktree outside the repo.
+37.4 [x] Verify: `bun run typecheck` exits 0 in a worktree outside the repo.
 
 38 [x] B38 An intermittent Vite error overlay on a docs page in dev
 38.1 [x] Seen once: `docs-data` `mutation sets data` on node-dev-chromium after 3357ca8. The `#vote-up` click timed out because `<vite-error-overlay>` intercepted pointer events on `/docs/auth`. A probe of `/docs/auth` in dev right after showed no overlay, no page error, a 404 (B7's font), and Solid's `[SILENT_HOLD]` warning (B36). Not attributed: record the overlay's message the next time it appears, then split it into a real phase or close it.
