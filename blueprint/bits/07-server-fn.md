@@ -109,7 +109,7 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 
 | test | case | result |
 | --- | --- | --- |
-| `client stub` | the stub is called and `__client` is true | throw, no secret work. The throw is a direct call during render. `queryFn` is not that call |
+| `client stub` | the stub is called directly in a component render and `__client` is true | in dev, one `console.warn` naming the function, then the transport is called once; no throw. In a production bundle, no warn. No secret work either way (revised by BUGS.md B36) |
 | `memo call` | the stub is called in a `createMemo` compute, an effect compute, and an effect callback | no throw. Each reaches the transport |
 | `on settled` | the stub is called in an `onSettled` callback | throw, as in a render body |
 

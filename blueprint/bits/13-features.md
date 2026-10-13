@@ -128,6 +128,7 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 
 | test | case | result |
 | --- | --- | --- |
+| `queryFn inside a render` | a `serverFnQueryOptions` `queryFn` first invoked inside a component render (an owner and no observer, as a suspense query's first fetch is), and a hand-written `queryFn` that calls the server function directly in the same place | both call the transport once and neither throws. The helper's call logs no warning; the hand-written one logs the dev warning (BUGS.md B36) |
 | `query` | `serverFnQueryOptions(fn, { queryKey, input })` | `queryFn` calls `fn` with that input and returns its `data` |
 | `query void` | a server function with no `.input()`, and no `input` argument | `queryFn` calls `fn` with no argument |
 | `mutation` | `serverFnMutationOptions(fn, { mutationKey })` | `onSuccess` calls `setQueryData` with that key and the returned data |
