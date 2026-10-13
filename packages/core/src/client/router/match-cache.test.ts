@@ -94,6 +94,17 @@ it("loader deps same", () => {
 	expect(cache.deps(page())).toBeUndefined();
 });
 
+// A landing stores the deps the page was cached under, so the same deps are fresh and different ones are not (B19).
+it("loader deps held", () => {
+	const { cache } = cacheAt();
+	const loaderDeps: Effects["loaderDeps"] = byQuery;
+	const landing = { data: { "_root_/users/[id]": "a" }, heads: {} };
+	remember(cache, [page({ loaderDeps }, { search: { q: "a" } })], landing);
+	expect(cache.read(page({ loaderDeps }, { search: { q: "a" } }))?.deps).toBe(JSON.stringify(["a"]));
+	expect(plan(cache, [page({ loaderDeps }, { search: { q: "a" } })]).stale).toEqual(["id=7&"]);
+	expect(plan(cache, [page({ loaderDeps }, { search: { q: "b" } })]).stale).toEqual([]);
+});
+
 it("should refetch", () => {
 	const { cache } = cacheAt();
 	cache.store(page(), { data: "user", deferred: false });
