@@ -1,4 +1,5 @@
 import { getRequestEvent, type RequestEvent } from "@solidjs/web";
+import { requestEvent } from "../loaders/scope.ts";
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
 
@@ -121,8 +122,9 @@ function entriesOf(event: RequestEvent, target: object): Entries {
 	return created;
 }
 
+// The store is the request's, not one loader's: sibling loaders and the render share it (B21).
 function storeOf(event: RequestEvent): Store {
-	const found: unknown = Reflect.get(event, STORE_KEY);
+	const found: unknown = Reflect.get(requestEvent(event), STORE_KEY);
 	if (isStore(found)) return found;
 	return reset(event);
 }
@@ -135,6 +137,6 @@ function isStore(value: unknown): value is Store {
 // Anything other than GET or HEAD may change what a later GET returns, so the request starts over.
 function reset(event: RequestEvent): Store {
 	const store: Store = new WeakMap();
-	Reflect.set(event, STORE_KEY, store);
+	Reflect.set(requestEvent(event), STORE_KEY, store);
 	return store;
 }
