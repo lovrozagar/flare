@@ -13,8 +13,8 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `subpath resolves` | every key in `03-surface.md` except the `./fonts/*` pattern | `types` and `default` resolve to files inside the tarball |
 | `font subpath` | a real key of `registry.json`, imported as `@lovrozagar/flare/fonts/<id>` | the default export resolves to that generated module. The module does not import another family |
 | `font barrel` | `@lovrozagar/flare/fonts` | does not resolve |
-| `solid condition` | the four JSX entries | the `solid` condition resolves to source, and the source still contains JSX |
-| `compiled default` | the same entries | `default` resolves to compiled ESM with no JSX |
+| `no solid condition` | every entry | no `solid` and no `browser` key, except `./server-fn`'s conditional exports |
+| `compiled default` | every entry | `default` resolves to compiled ESM with no TypeScript syntax, and the root entry renders in both a DOM and a server Solid build from that one file |
 | `no src path in dts` | every `.d.ts` | the text contains no `virtual:` and no `packages/core/src` |
 | `snapshot` | each entry's public `.d.ts` | matches the committed snapshot. A change is a commit of its own |
 | `tarball contents` | `npm pack` | exactly `dist`, `src`, `README.md`, `LICENSE`, `package.json` |

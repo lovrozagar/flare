@@ -2,7 +2,7 @@
 
 A subpath exists because the entry is a different runtime, an optional peer, or a build transform (S2). `./seo` is the one extra, and B58 records why.
 
-JSX entries (` . `, `./client`, `./query`, `./i18n`, `./testing`) ship `types`, `solid` (source, JSX preserved), `browser` (compiled DOM), and `default` (compiled SSR). Every other entry ships `types` and `default` (compiled ESM).
+Every entry ships `types` and `default` (compiled ESM). Framework sources contain no JSX, so one compiled file serves the DOM and the server, and Solid's own packages pick their build by the app's conditions (B18). `./server-fn` alone keeps conditional exports.
 
 ## `.`
 
