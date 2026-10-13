@@ -138,7 +138,7 @@ it("dev server", () => {
 		middlewares: { use: (handler: unknown) => void used.push(handler) },
 		transformIndexHtml: async (_url: string, html: string) => html,
 		ws: { send: () => undefined },
-		environments: { ssr: { hot: { on: () => undefined } } },
+		environments: { ssr: { hot: { on: () => undefined } }, client: { hot: { on: () => undefined } } },
 	});
 	expect(hook.call(null as never, server(true) as never)).toBeUndefined();
 	const post = hook.call(null as never, server(false) as never);
