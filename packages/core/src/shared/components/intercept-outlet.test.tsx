@@ -277,9 +277,9 @@ it("dismiss", async () => {
 	expect(counts.home).toBe(homes);
 });
 
+// The overlay page and the root are both fresh, so Forward reopens the overlay from the cache with no request (B19).
 it("forward", async () => {
-	const layoutOnly: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "r" }, { t: "d" }];
-	const responses = [ndjson(photoFrames("P1")), ndjson(layoutOnly)];
+	const responses = [ndjson(photoFrames("P1"))];
 	const app = await setup(async () => responses.shift() ?? ndjson(photoFrames("P3")), {
 		cache: createMatchCache({ staleTime: 60_000, gcTime: 60_000 }),
 	});
@@ -294,7 +294,7 @@ it("forward", async () => {
 	await settled();
 	expect(location.pathname).toBe("/photos/1");
 	expect(app.text()).toBe("root[home:start|preview:P1:photo:P1]");
-	expect(app.deps.fetch).toHaveBeenLastCalledWith("/photos/1?_flare=data&_flare_stale=id%3D1%26", expect.anything());
+	expect(app.deps.fetch).toHaveBeenCalledExactlyOnceWith("/photos/1?_flare=data", expect.anything());
 	expect(counts.home).toBe(homes);
 });
 
