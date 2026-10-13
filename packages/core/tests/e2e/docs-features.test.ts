@@ -69,10 +69,16 @@ test("rtl client", async ({ page, docs }) => {
 	await expect(page.locator("#message")).toHaveText("مرحبا");
 });
 
-function nextStorageEvent(page: Page): Promise<void> {
-	return page.evaluate(
-		() => new Promise<void>((resolve) => addEventListener("storage", () => resolve(), { once: true })),
-	);
+// The listener is in place before this returns, so a write from another tab cannot fire its event first. The
+// returned wait settles on that event.
+async function nextStorageEvent(page: Page): Promise<() => Promise<void>> {
+	await page.evaluate(() => {
+		const heard = new Promise<void>((resolve) => addEventListener("storage", () => resolve(), { once: true }));
+		Reflect.set(globalThis, "__docsStorageEvent", heard);
+	});
+	return async () => {
+		await page.evaluate(() => Reflect.get(globalThis, "__docsStorageEvent"));
+	};
 }
 
 test("tabs sync", async ({ context, docs }: { context: BrowserContext; docs: { origin: string } }) => {
@@ -81,12 +87,12 @@ test("tabs sync", async ({ context, docs }: { context: BrowserContext; docs: { o
 	await flarePage(first).load(`${docs.origin}/`);
 	await flarePage(second).load(`${docs.origin}/`);
 	// A storage write alone moves no tab: the providers listen on flare.sync, not on `storage`.
-	const heard = nextStorageEvent(first);
+	const heard = await nextStorageEvent(first);
 	await second.evaluate(() => {
 		localStorage.setItem("flare.theme", "dark");
 		localStorage.setItem("flare.dir", "rtl");
 	});
-	await heard;
+	await heard();
 	for (const page of [first, second]) {
 		await expect(page.locator("#theme")).toHaveText("system");
 		await expect(page.locator("#dir")).toHaveText("ltr");
