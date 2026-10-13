@@ -38,9 +38,10 @@ export default defineConfig({
 					name: "unit-node",
 					environment: "node",
 					include: nodeInclude,
-					// Playwright runs the e2e specs. boot.test.ts is a vitest file.
+					// Playwright runs the e2e specs. boot.test.ts is a vitest file. Client tests run in unit-dom.
 					exclude: [
 						"src/client/**/*.test.ts",
+						"src/features/*/client/**/!(*.ssr).test.ts",
 						"tests/e2e/minimal.test.ts",
 						"tests/e2e/navigation.test.ts",
 						"tests/e2e/server-fn.test.ts",
@@ -56,7 +57,13 @@ export default defineConfig({
 					environment: "jsdom",
 					// Inlined so Vite resolves the browser builds. Externalized, Node loads Solid's server build.
 					server: { deps: { inline: ["solid-js", "@solidjs/web"] } },
-					include: ["src/**/*.test.tsx", "lint/**/*.test.tsx", "tests/**/*.test.tsx", "src/client/**/*.test.ts"],
+					include: [
+						"src/**/*.test.tsx",
+						"lint/**/*.test.tsx",
+						"tests/**/*.test.tsx",
+						"src/client/**/*.test.ts",
+						"src/features/*/client/**/!(*.ssr).test.ts",
+					],
 					exclude: ["tests/e2e/**"],
 					passWithNoTests: true,
 				},

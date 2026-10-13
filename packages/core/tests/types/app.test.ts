@@ -49,6 +49,14 @@ it("app compiles", () => {
 	}
 }, 120_000);
 
+// The fixture's src/query.ts imports the ./query entry, so the generated register sets `hasQueryClient`.
+it("query client generated", () => {
+	const appFiles = filesIn(join(app, "src"));
+	const routeFiles = appFiles.filter((file) => file.startsWith("src/routes/")).map((file) => file.slice(11));
+	const read = (file: string): string => readFileSync(join(app, file), "utf8");
+	expect(generateTypes({ routeFiles, appFiles, read }).source).toContain("hasQueryClient: true;");
+});
+
 it("no committed gen", () => {
 	expect(existsSync(join(app, "src", "_gen"))).toBe(false);
 });

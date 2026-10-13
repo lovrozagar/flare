@@ -1,5 +1,6 @@
 import { getRequestEvent, type RequestEvent } from "@solidjs/web";
 import { provideRequestEvent } from "@solidjs/web/storage";
+import { registeredQuery } from "../../shared/protocol/index.ts";
 import type { LocaleConfig } from "../../shared/router/index.ts";
 
 export type ScopeKind = "loader" | "preloader";
@@ -37,4 +38,16 @@ export function loaderScope(): LoaderScope | undefined {
 // The field is written only by inLoaderScope.
 function scoped(event: RequestEvent | undefined): event is ScopedEvent {
 	return event !== undefined && "flareLoader" in event;
+}
+
+// A loader's `ctx.queryClient`: the registered getter's client for this request, read when the loader reads it. With no
+// getter registered the read throws a named error, never an undefined (dx/types.md `query client present`).
+export function withQueryClient<C extends object>(ctx: C): C {
+	return Object.defineProperty(ctx, "queryClient", {
+		get() {
+			const getter = registeredQuery();
+			if (getter === undefined) throw new Error("call createQueryClientGetter() in a module your router imports");
+			return getter();
+		},
+	});
 }

@@ -377,3 +377,25 @@ it("dev", async () => {
 	const response = await server(true).fetch(new Request(`${SITE}/ssr`));
 	expect(await response.text()).not.toContain("flare-critical");
 });
+
+// The document state carries the request's query cache, taken after the shell rendered, so queries the shell
+// resolved are in it. No registered getter is `null` (B83).
+it("state queries", async () => {
+	const QUERY = Symbol.for("flare.query");
+	let rendered = false;
+	const render = (): string => {
+		rendered = true;
+		return "home";
+	};
+	Reflect.set(
+		globalThis,
+		QUERY,
+		Object.assign(() => undefined, { dehydrate: () => ({ shell: rendered }) }),
+	);
+	try {
+		expect(await text(await renderDocument({ ...base(), render }))).toContain('"queries":{"shell":true}');
+	} finally {
+		Reflect.deleteProperty(globalThis, QUERY);
+	}
+	expect(await text(await renderDocument({ ...base(), render }))).toContain('"queries":null');
+});

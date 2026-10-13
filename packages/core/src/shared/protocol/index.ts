@@ -19,3 +19,4 @@ export {
 	type StaleList,
 } from "./internal-params.ts";
 export { decodeLine, encodeFrame, frameDecoder, MAX_LINE, type Frame, type FrameError } from "./frames.ts";
+export { QUERY_GETTER, registeredQuery, registerQuery, type QueryGetter } from "./query.ts";
