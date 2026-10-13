@@ -273,3 +273,83 @@ it("critical hit", async () => {
 	expect(await response.text()).toContain(`<style id="flare-critical" nonce="${nonce}">.a{color:red}</style>`);
 	expect(withCritical).not.toHaveBeenCalled();
 });
+
+// A store whose writes wait for `written`, so a test controls when an entry lands.
+function slowWrites(): { store: FlareStore; set: Mock<FlareStore["set"]>; written: PromiseWithResolvers<void> } {
+	const memory = createMemoryStore();
+	const written = Promise.withResolvers<void>();
+	const set = vi.fn<FlareStore["set"]>(async (key, entry, ttl) => {
+		await written.promise;
+		await memory.set(key, entry, ttl);
+	});
+	return { store: { ...memory, set }, set, written };
+}
+
+// One shared render serves every miss of a key, including requests that arrive after it settles but before its write
+// lands: the slot spans the render and the write (dx/cache.md, BUGS.md B31, B33).
+it("concurrent miss", async () => {
+	const { store, set, written } = slowWrites();
+	const { page, loads } = counted();
+	const app = serve(page, store);
+	const overlapping = await Promise.all([app.fetch(get()), app.fetch(get())]);
+	const later = await Promise.all(Array.from({ length: 6 }, () => app.fetch(get())));
+	written.resolve();
+	const responses = [...overlapping, ...later];
+	const bodies = await Promise.all(responses.map((response) => response.text()));
+	expect(loads).toHaveBeenCalledOnce();
+	expect(set).toHaveBeenCalledOnce();
+	expect(bodies.every((body) => body.includes("fresh"))).toBe(true);
+	expect(responses.map((response) => response.headers.get("flare-cache"))).toEqual(Array(8).fill("miss"));
+});
+
+// A request read the store before the first render's write landed, and reaches the slot after it freed. Its flight
+// re-reads the store first, so it serves the written entry as a hit and renders nothing.
+it("miss after render", async () => {
+	const { store, written } = slowWrites();
+	const gate = Promise.withResolvers<void>();
+	const hold = { on: false };
+	const read = vi.fn<FlareStore["get"]>(async (key) => {
+		const value = await store.get(key);
+		if (hold.on) await gate.promise;
+		return value;
+	});
+	const { page, loads } = counted();
+	const app = serve(page, { ...store, get: read });
+	await (await app.fetch(get())).text();
+	hold.on = true;
+	const before = read.mock.calls.length;
+	const second = app.fetch(get());
+	await vi.waitFor(() => expect(read.mock.calls.length).toBeGreaterThan(before));
+	written.resolve();
+	await vi.waitFor(async () => expect(await store.get(KEY)).not.toBeNull());
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	hold.on = false;
+	gate.resolve();
+	const late = await second;
+	expect(late.headers.get("flare-cache")).toBe("hit");
+	expect(await late.text()).toContain("fresh");
+	expect(loads).toHaveBeenCalledOnce();
+});
+
+// The slot frees once the write settles: a failed write lets the next miss render, and a written entry that turns
+// stale starts its own refresh.
+it("slot frees after write", async () => {
+	vi.useFakeTimers({ now: 10_000, toFake: ["Date"] });
+	const memory = createMemoryStore();
+	const set = vi.fn<FlareStore["set"]>(async (key, entry, ttl) => {
+		if (set.mock.calls.length === 1) throw new Error("disk full");
+		await memory.set(key, entry, ttl);
+	});
+	const { page, loads } = counted();
+	const app = serve(page, { ...memory, set });
+	await (await app.fetch(get())).text();
+	await vi.waitFor(() => expect(set).toHaveBeenCalledOnce());
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	await (await app.fetch(get())).text();
+	await vi.waitFor(async () => expect(await memory.get(KEY)).not.toBeNull());
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	expect(loads).toHaveBeenCalledTimes(2);
+	vi.setSystemTime(10_000 + 61_000);
+	expect((await app.fetch(get())).headers.get("flare-cache")).toBe("hit");
+	await vi.waitFor(() => expect(loads).toHaveBeenCalledTimes(3));
+});
