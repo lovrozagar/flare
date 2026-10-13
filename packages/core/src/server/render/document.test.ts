@@ -399,3 +399,62 @@ it("state queries", async () => {
 	}
 	expect(await text(await renderDocument({ ...base(), render }))).toContain('"queries":null');
 });
+
+// The cache joins after the shell. One that JSON cannot hold is a bug that names the query, and the state carries
+// `null`, so the document completes and the client fetches the query itself.
+it("queries unserializable", async () => {
+	const QUERY = Symbol.for("flare.query");
+	const bigint = { queries: [{ queryHash: '["n"]', state: { data: 1n } }] };
+	Reflect.set(
+		globalThis,
+		QUERY,
+		Object.assign(() => undefined, { dehydrate: () => bigint }),
+	);
+	const bugs: unknown[] = [];
+	try {
+		const html = await text(await renderDocument({ ...base(), render: () => "home", onBug: (bug) => bugs.push(bug) }));
+		expect(html).toContain('"queries":null');
+		expect(html).toMatch(/home.*self\.flare=/s);
+	} finally {
+		Reflect.deleteProperty(globalThis, QUERY);
+	}
+	expect(String(bugs[0])).toContain('the query ["n"] does not serialize');
+	// Through a live answer the bug is projected like any other, and the page still answers 200.
+	Reflect.set(
+		globalThis,
+		QUERY,
+		Object.assign(() => undefined, { dehydrate: () => bigint }),
+	);
+	const logged: unknown[] = [];
+	const log = {
+		level: "error" as const,
+		error: (...line: unknown[]) => logged.push(line),
+		warn: () => undefined,
+		log: () => undefined,
+	};
+	try {
+		const router = createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/ssr", path: "/ssr", module: module("_root_/ssr") }],
+		});
+		const answer = await serveWith({ router }, { dev: false, log, send: () => undefined }).fetch(
+			new Request(`${SITE}/ssr`),
+		);
+		expect(answer.status).toBe(200);
+		expect(await answer.text()).toContain('"queries":null');
+		expect(JSON.stringify(logged)).toContain("does not serialize");
+		// A cache that is not a list of queries is named as the cache.
+		Reflect.set(
+			globalThis,
+			QUERY,
+			Object.assign(() => undefined, { dehydrate: () => 1n }),
+		);
+		const named: unknown[] = [];
+		await text(await renderDocument({ ...base(), render: () => "home", onBug: (bug) => named.push(bug) }));
+		expect(String(named[0])).toContain("the query cache does not serialize");
+		// A caller that passes no `onBug` still gets the document.
+		expect(await text(await renderDocument({ ...base(), render: () => "home" }))).toContain('"queries":null');
+	} finally {
+		Reflect.deleteProperty(globalThis, QUERY);
+	}
+});

@@ -157,6 +157,7 @@ Core reads the registered getter by its symbol and never imports TanStack (00-ru
 | `loader query client` | a getter is registered and a loader reads `ctx.queryClient` | the getter's client for this request |
 | `query client unregistered` | no getter is registered and a loader reads `ctx.queryClient` | throw `call createQueryClientGetter() in a module your router imports`, never `undefined` |
 | `state queries` | a registered getter, and a render that resolves before the shell | the document state carries `"queries"`, the getter's `dehydrate()` taken after the shell rendered. No getter is `"queries":null`. The matches still serialize before the shell |
+| `queries unserializable` | a query whose data JSON cannot hold, such as a bigint | the bug names the query by its hash in the server log, in production too, and the state carries `"queries":null`, so the document completes and the client fetches that query itself. A cache that is not a list of queries is named as the cache |
 
 ## i18n
 

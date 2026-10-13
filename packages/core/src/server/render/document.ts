@@ -35,6 +35,8 @@ export type DocumentInput = {
 	matches: readonly StateMatch[];
 	client?: string | undefined;
 	fill?: boolean;
+	// A bug found while writing the document, such as a query cache JSON cannot hold. It does not stop the document.
+	onBug?: (bug: Error) => void;
 };
 
 const encoder = new TextEncoder();
@@ -61,7 +63,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// The critical style follows the capture script as the head's last element (B83). The state and client scripts go
 	// in the shell before `</body>` (02-system), so the shell ends at `</html>`.
 	const headed = withHead(chunkText((await reader.read()).value), head);
-	const tail = state(registeredQuery()?.dehydrate()) + clientScript(input.client, nonce);
+	const tail = state(registeredQuery()?.dehydrate(), input.onBug ?? ignore) + clientScript(input.client, nonce);
 	const shell = insertState(withDoctype(withCritical(headed, { css: input.sheet ?? "", nonce })), tail);
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
@@ -139,3 +141,5 @@ function chunkText(chunk: Chunk | undefined): string {
 function nonceAttr(nonce: string): string {
 	return nonce === "" ? "" : ` nonce="${escapeAttr(nonce)}"`;
 }
+
+function ignore(): void {}

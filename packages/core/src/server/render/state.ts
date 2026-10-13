@@ -21,10 +21,36 @@ export function stateScript(state: State): string {
 
 // The document's state in two steps: the matches serialize now, so a value JSON cannot hold fails before the shell,
 // and the request's query cache joins after the shell rendered, so the queries it resolved are in it (B83). No query
-// getter is `"queries":null`.
-export function stateWriter(state: State): (queries: unknown) => string {
+// getter is `"queries":null`. A cache JSON cannot hold is a bug that names the query, and `null`, so the document still
+// completes and the client fetches that query itself.
+export function stateWriter(state: State): (queries: unknown, onBug: (bug: Error) => void) => string {
 	const base = payload(state);
-	return (queries) => script(`${base.slice(0, -1)},"queries":${JSON.stringify(queries ?? null)}}`, state.nonce);
+	return (queries, onBug) => script(`${base.slice(0, -1)},"queries":${queriesJson(queries, onBug)}}`, state.nonce);
+}
+
+function queriesJson(queries: unknown, onBug: (bug: Error) => void): string {
+	try {
+		return JSON.stringify(queries ?? null);
+	} catch (cause) {
+		const hash = failingQuery(queries);
+		const what = hash === undefined ? "the query cache" : `the query ${hash}`;
+		onBug(new Error(`${what} does not serialize into the document state`, { cause }));
+		return "null";
+	}
+}
+
+// The first dehydrated query JSON cannot hold, by its hash. A cache with no such list names none.
+function failingQuery(queries: unknown): string | undefined {
+	const list: unknown = Reflect.get(Object(queries), "queries");
+	const found = (Array.isArray(list) ? list : []).find((query: unknown) => {
+		try {
+			JSON.stringify(query);
+			return false;
+		} catch {
+			return true;
+		}
+	});
+	return found === undefined ? undefined : String(Reflect.get(Object(found), "queryHash"));
 }
 
 function payload(state: State): string {
