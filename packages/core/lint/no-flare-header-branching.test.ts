@@ -9,7 +9,7 @@ import plugin from "./no-flare-header-branching.js";
 const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint");
 const rule = plugin.rules["no-flare-header-branching"];
 
-function lint(code: string, relative: string): number {
+function lint(code: string, relative: string, reported?: number): number {
 	const dir = mkdtempSync(join(tmpdir(), "flare-header-"));
 	const file = join(dir, relative);
 	try {
@@ -35,7 +35,7 @@ function lint(code: string, relative: string): number {
 		});
 		walk(parsed.program, null, visitors);
 		const allowed = relative.endsWith("/finalize.ts") || relative.startsWith("src/client/");
-		expect(reports.length).toBe(allowed ? 0 : 4);
+		expect(reports.length).toBe(reported ?? (allowed ? 0 : 4));
 		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" });
 		return proc.status ?? 1;
 	} finally {
@@ -80,4 +80,15 @@ it("client response header", () => {
 		"src/client/navigation/navigate.ts",
 	);
 	expect(status).toBe(0);
+});
+
+// B40's one exception: the dev-only tab header routes a dev payload and changes no response (BUGS.md B42). Only that
+// literal or the `TAB_HEADER` identifier passes. Another flare- header and a non-literal are still reported.
+it("dev tab header", () => {
+	const status = lint(
+		'export function tab(request, TAB_HEADER, name) {\n\trequest.headers.get(TAB_HEADER);\n\trequest.headers.set("flare-dev-tab", "t");\n\trequest.headers.get("flare-data");\n\treturn request.headers.get(name);\n}\n',
+		"src/vite/dev/handler.ts",
+		2,
+	);
+	expect(status).not.toBe(0);
 });

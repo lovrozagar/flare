@@ -3,6 +3,12 @@ function headerLiteral(node) {
 	return typeof value === "string" ? value : undefined;
 }
 
+// B40's one exception: the dev-only tab header, which routes a dev payload and changes no response (B42).
+function isDevTab(node) {
+	const argument = node.arguments?.[0];
+	return argument?.value === "flare-dev-tab" || (argument?.type === "Identifier" && argument.name === "TAB_HEADER");
+}
+
 function isHeaders(callee) {
 	const object = callee?.object;
 	if (object?.type === "Identifier") return object.name === "headers";
@@ -15,7 +21,7 @@ export const rule = {
 			CallExpression(node) {
 				const name = node.callee?.property?.name;
 				if (name !== "get" && name !== "set") return;
-				if (!isHeaders(node.callee)) return;
+				if (!isHeaders(node.callee) || isDevTab(node)) return;
 				const file = String(context.filename).replaceAll("\\", "/");
 				if (name === "set" && file.endsWith("/finalize.ts")) return;
 				// The client reads flare- headers on a response, such as flare-build (bit 06). Only the server must

@@ -8,7 +8,7 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import type { Logger } from "../lifecycle/logger.ts";
 import { serveWith } from "../lifecycle/create.ts";
-import { devSink, type ErrorSink } from "./projector.ts";
+import { devSink, requestSink, type ErrorSink } from "./projector.ts";
 
 const FRAME = /\n\s+at /;
 
@@ -143,9 +143,17 @@ it("dev sink", () => {
 	const send = vi.fn<(event: string, payload: unknown) => void>();
 	const hot = devSink({ env: { DEV: true }, hot: { send } });
 	expect(hot.dev).toBe(true);
-	hot.send?.({ type: "error", err: { message: "m", stack: "" } });
-	expect(send).toHaveBeenCalledExactlyOnceWith("flare:error", { type: "error", err: { message: "m", stack: "" } });
+	const payload = { type: "error" as const, err: { message: "m", stack: "" } };
+	hot.send?.(payload);
+	expect(send).toHaveBeenCalledExactlyOnceWith("flare:error", { token: undefined, payload });
+	// A request's sink tags its payloads with the dev tab that made it (B42).
+	const tagged = new Request("http://localhost/", { headers: { "flare-dev-tab": "T1" } });
+	requestSink(hot, tagged).send?.(payload);
+	expect(send).toHaveBeenLastCalledWith("flare:error", { token: "T1", payload });
+	requestSink(hot, new Request("http://localhost/")).send?.(payload);
+	expect(send).toHaveBeenLastCalledWith("flare:error", { token: undefined, payload });
 	const built = devSink({ env: { DEV: false } });
 	expect(built.dev).toBe(false);
 	expect(built.send).toBeUndefined();
+	expect(requestSink(built, tagged)).toBe(built);
 });

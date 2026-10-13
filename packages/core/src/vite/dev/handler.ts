@@ -1,22 +1,20 @@
 import { createNodeListener } from "../../adapters/node/index.ts";
+import { TAB_HEADER } from "../../shared/protocol/index.ts";
+import { createTabs, TAB_EVENT, tabbedPayload, tabMeta, tabToken, type TabClient } from "./tabs.ts";
 
 // What the handler needs from Vite's dev server. A real `ViteDevServer` is one. A test passes a small object.
 export type DevServer = {
 	config: { server: { middlewareMode?: unknown } };
 	middlewares: { use(handler: (req: DevRequest, res: NodeResponse) => void): unknown };
 	transformIndexHtml(url: string, html: string): Promise<string>;
-	ws: { send(payload: unknown): void };
 	environments: {
 		ssr: {
 			hot: { on(event: "flare:error", listener: (payload: unknown) => void): void };
 			runner?: { import(id: string): Promise<Record<string, unknown>> };
 		};
-		client: { hot: { on(event: "flare:error", listener: (payload: unknown, client: DevClient) => void): void } };
+		client: { hot: { on(event: string, listener: (payload: unknown, client: TabClient) => void): void } };
 	};
 };
-
-// One connected tab on Vite's client channel.
-export type DevClient = { send(payload: unknown): void };
 
 type Listener = ReturnType<typeof createNodeListener>;
 
@@ -30,7 +28,9 @@ type AppServer = { fetch: (request: Request, env?: unknown, ctx?: unknown) => Pr
 export type DevDeps = {
 	load: () => Promise<AppServer>;
 	transform: (url: string, html: string) => Promise<string>;
-	report?: (error: unknown) => void;
+	// The token minted for a document with no `flare-dev-tab` header (B42). Without it, no token is minted or written.
+	tab?: () => string;
+	report?: (error: unknown, token: string | undefined) => void;
 };
 
 // An inline script or style, one with no `src`. Vite would rewrite it, and a nonced inline tag must stay as the
@@ -47,19 +47,30 @@ const PREPENDED = /(<head(?:\s[^>]*)?>)([\s\S]*?)<!--flare-head-->([\s\S]*?)(<\/
 // the styles it injects and its error overlay, so a nonce CSP does not block them. Dev only: production has no client.
 const POLICY_NONCE = /'nonce-([A-Za-z0-9+/=_-]+)'/;
 
-type Shell = { url: string; nonce: string | undefined };
+type Shell = { url: string; nonce: string | undefined; token: string | undefined };
 
 // On Node and Bun, `vite dev` answers every request the Vite middlewares did not (B89). Embedded in another server,
-// `middlewareMode`, it is not installed. The SSR graph's `flare:error` reaches Vite's overlay (B93).
+// `middlewareMode`, it is not installed. A dev error opens Vite's overlay only in the tab that caused it: the SSR
+// graph's `flare:error` by its request's tab token, and a client's own `flare:error` back to that client (B93, B42).
 export function installDevHandler(server: DevServer, entry: string): (() => void) | undefined {
 	if (server.config.server.middlewareMode) return undefined;
-	server.environments.ssr.hot.on("flare:error", (payload) => server.ws.send(payload));
-	// A client's own error, a boundary error or an applied `e` frame, opens the overlay in that tab only (B42).
-	server.environments.client.hot.on("flare:error", (payload, client) => client.send(payload));
+	const tabs = createTabs();
+	const client = server.environments.client.hot;
+	server.environments.ssr.hot.on("flare:error", (message) => {
+		const { token, payload } = tabbedPayload(message);
+		tabs.deliver(token, payload);
+	});
+	client.on("flare:error", (payload, tab) => tab.send(payload));
+	client.on(TAB_EVENT, (announced, tab) => {
+		const token: unknown = Reflect.get(Object(announced), "token");
+		if (typeof token === "string") tabs.announce(token, tab);
+	});
+	client.on("vite:client:disconnect", (_payload, tab) => tabs.drop(tab));
 	const listener = devListener({
 		load: () => loadEntry(server, entry),
 		transform: (url, html) => server.transformIndexHtml(url, html),
-		report: (error) => server.ws.send(overlayPayload(error)),
+		tab: tabToken,
+		report: (error, token) => tabs.deliver(token, overlayPayload(error)),
 	});
 	// A post hook: Vite serves modules and assets first, and the app answers the rest.
 	return () => server.middlewares.use((req, res) => listener(req, res));
@@ -73,12 +84,15 @@ export function devListener(deps: DevDeps): ReturnType<typeof createNodeListener
 // HTML is buffered and goes through `transformIndexHtml` with its inline tags peeled. Other bodies stream.
 export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?: unknown) => Promise<Response> {
 	return async (request, env, ctx) => {
+		// A tab's own request names it. A document gets a fresh token, which the page below carries back (B42).
+		const token = deps.tab === undefined ? undefined : (request.headers.get(TAB_HEADER) ?? deps.tab());
+		if (token !== undefined) request.headers.set(TAB_HEADER, token);
 		let response: Response;
 		try {
 			response = await (await deps.load()).fetch(request, env, ctx);
 		} catch (error) {
-			deps.report?.(error);
-			return failed(error);
+			deps.report?.(error, token);
+			return failed(error, token);
 		}
 		if (!(response.headers.get("content-type") ?? "").startsWith("text/html") || response.body === null) {
 			return response;
@@ -86,7 +100,7 @@ export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?:
 		const headers = new Headers(response.headers);
 		headers.delete("content-length");
 		const nonce = POLICY_NONCE.exec(headers.get("content-security-policy") ?? "")?.[1];
-		const body = await transformedHead(deps, { url: transformUrl(request.url), nonce }, response.body);
+		const body = await transformedHead(deps, { url: transformUrl(request.url), nonce, token }, response.body);
 		return new Response(body, { status: response.status, headers });
 	};
 }
@@ -123,7 +137,8 @@ async function withVite(deps: DevDeps, shell: Shell, html: string): Promise<stri
 	const marked = html
 		.replace(INLINE, (tag) => `<!--flare-peel-${peeled.push(tag) - 1}-->`)
 		.replace(HEAD_OPEN, (open) => `${open}${HEAD_MARK}`);
-	const meta = shell.nonce === undefined ? "" : `<meta property="csp-nonce" nonce="${shell.nonce}">`;
+	const nonce = shell.nonce === undefined ? "" : `<meta property="csp-nonce" nonce="${shell.nonce}">`;
+	const meta = `${nonce}${shell.token === undefined ? "" : tabMeta(shell.token)}`;
 	const transformed = headTagsLast(await deps.transform(shell.url, marked)).replace("</head>", `${meta}</head>`);
 	// A replacer function, so a `$` in a peeled tag is not read as a pattern.
 	return peeled.reduce((out, tag, index) => out.replace(`<!--flare-peel-${index}-->`, () => tag), transformed);
@@ -156,10 +171,11 @@ async function loadEntry(server: DevServer, entry: string): Promise<AppServer> {
 	return { fetch: (request, env, ctx) => fetch(request, env, ctx) };
 }
 
-// A module that failed to load is a dev page with the message and the stack, and Vite's overlay opens.
-function failed(error: unknown): Response {
+// A module that failed to load is a dev page with the message and the stack, and Vite's overlay opens in its tab.
+function failed(error: unknown, token: string | undefined): Response {
 	const { err } = overlayPayload(error);
-	const body = `<pre>${escape(`${err.message}\n${err.stack}`)}</pre>`;
+	const tag = token === undefined ? "" : tabMeta(token);
+	const body = `${tag}<pre>${escape(`${err.message}\n${err.stack}`)}</pre>`;
 	return new Response(body, { status: 500, headers: { "content-type": "text/html; charset=utf-8" } });
 }
 

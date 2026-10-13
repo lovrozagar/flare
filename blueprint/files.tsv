@@ -329,6 +329,8 @@ packages/core/src/server/cache/prerender.ts	P12	src	server	What vite build's pre
 packages/core/src/server/cache/prerender.test.ts	P12	test	server	Unit cases for prerender.ts
 packages/core/src/server/cache/index.ts	P10	index	server	Re-exports
 packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates and adopts history.state
+packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token, announce it, and name it on the client's requests (B42)
+packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
 packages/core/src/client/boot/hydrate.ts	P1	src	dom	Read the state script, provide the router context, and call Solid hydrate
 packages/core/src/client/boot/hydrate.test.ts	P1	test	dom	Unit cases for hydrate.ts
@@ -468,6 +470,8 @@ packages/core/src/vite/plugin/index.ts	P1	index	vite	Re-exports
 packages/core/src/vite/dev/guard.ts	P12	src	vite	Dev-only endpoints require a same-origin request. No Access-Control-Allow-Origin star
 packages/core/src/vite/dev/guard.test.ts	P12	test	vite	Unit cases for guard.ts
 packages/core/src/vite/dev/handler.ts	P6	src	vite	Node and Bun vite dev HTTP handler. middlewareMode skips it (B89)
+packages/core/src/vite/dev/tabs.ts	P15	src	vite	Dev tab routing: the token a dev server mints per document, its meta, and the hub that sends a payload to the tab that announced it (B42). Server-agnostic
+packages/core/src/vite/dev/tabs.test.ts	P15	test	vite	Unit cases for tabs.ts
 packages/core/src/vite/dev/handler.test.ts	P6	test	vite	Unit cases for handler.ts
 packages/core/src/vite/dev/index.ts	P6	index	vite	Re-exports
 packages/core/src/vite/prerender/run.ts	P12	src	vite	Render static routes. Non-zero exit names the route on a bad status

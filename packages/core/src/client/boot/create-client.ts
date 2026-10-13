@@ -17,6 +17,7 @@ import { createScroll, type ScrollStore } from "../navigation/scroll.ts";
 import { cacheFor } from "../router/match-cache.ts";
 import { callServerFn, type CallDeps } from "../server-fn/call.ts";
 import { streamServerFn } from "../server-fn/stream.ts";
+import { tabbedFetch, type DevHot } from "../dev/tab.ts";
 import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts";
 import { mountApp, readState, type ClientState, type Mount } from "./hydrate.ts";
 import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts";
@@ -28,6 +29,8 @@ export type ClientEnv = {
 	assign: (href: string) => void;
 	dev: boolean;
 	send?: ((payload: DevErrorPayload) => void) | undefined;
+	// Vite's hot channel in dev. Production has none.
+	hot?: DevHot | undefined;
 	idle: IdleEnv;
 	network: object;
 	observe: PrefetchEnv["observe"];
@@ -56,16 +59,16 @@ export function devSend(hot: { send: (event: string, payload: unknown) => void }
 }
 
 // Resolves to a dispose that removes the listeners and unmounts the app.
-export async function bootClient(router: Router, ready: Ready, env: ClientEnv): Promise<() => void> {
+export async function bootClient(router: Router, ready: Ready, given: ClientEnv): Promise<() => void> {
+	const env = devTabbed(given);
 	const state = readState();
 	const location = windowLocation();
 	const match = router.match(location.pathname);
 	const chain = await loadChain(match.chain);
-	const report = (error: unknown): void => void (env.dev && env.send?.(devErrorPayload(error)));
 	const { matches, pending } = holesOf(state);
 	const store = createRouterStore(
 		snapshotFromState({ matches, chain, unknown: match.id === undefined, location }),
-		report,
+		reporter(env),
 	);
 	const history = createHistory(window.history);
 	history.adopt(here());
@@ -115,6 +118,16 @@ export async function bootClient(router: Router, ready: Ready, env: ClientEnv): 
 		unlisten();
 		unmount();
 	};
+}
+
+// Every request the client makes, data, fill, prefetch, and server function, names its dev tab (B42).
+function devTabbed(env: ClientEnv): ClientEnv {
+	return { ...env, fetch: tabbedFetch(env.fetch, env.hot, document) };
+}
+
+// A boundary error the app's own <Errored> did not catch is a bug the dev overlay shows (B80).
+function reporter(env: ClientEnv): (error: unknown) => void {
+	return (error) => void (env.dev && env.send?.(devErrorPayload(error)));
 }
 
 // The guarded document load a chunk error and a server function's build mismatch share (flare_chunk_reload).
@@ -174,6 +187,7 @@ function browserEnv(): ClientEnv {
 		assign: window.location.assign.bind(window.location),
 		dev: import.meta.env?.DEV === true,
 		send: devSend(import.meta.hot),
+		hot: import.meta.hot,
 		idle: {
 			requestIdle: globalThis.requestIdleCallback?.bind(globalThis),
 			setTimeout: globalThis.setTimeout.bind(globalThis),
