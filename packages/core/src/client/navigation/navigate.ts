@@ -73,7 +73,6 @@ export function createNavigator(deps: NavigatorDeps): {
 		const snapshot = deps.store.snapshot();
 		const pop = mode.pop === true;
 		if (target.kind !== "data") {
-			// Invariant upkeep with no observable effect: only a data pop reads `at`, and a pop off a hash entry is a hash move.
 			at = inPlace(deps, target, { options, snapshot, pop }) ?? at;
 			return;
 		}
@@ -199,6 +198,8 @@ type Step = { options: NavigateOptions; pop: boolean; write: boolean };
 // A hash move and a shallow navigation stay on the page: no request and no loader. A shallow one asks the blocker
 // first, and the page's search becomes the call's, the validator output the URL was written from, since the client
 // graph has no validator. Layouts keep theirs until their next loader run (dx/navigate.md `shallow`, BUGS.md B18).
+// The returned history index keeps the navigator's `at`: invariant upkeep with no observable effect, since only a
+// data pop reads `at` and a pop off a hash entry is a hash move.
 function inPlace(
 	deps: NavigatorDeps,
 	target: Exclude<Target, { kind: "document" | "data" }>,
