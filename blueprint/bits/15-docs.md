@@ -89,3 +89,18 @@ The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydra
 | `dev warns` | `devWarn("server-fn", "m")` with `import.meta.env.DEV` true | one `console.warn` with `[flare:server-fn]` and the message |
 | `prod silent` | the same with `DEV` false | no console call, and a production client bundle that imports it contains no `console.warn` |
 
+## `vite/dev/tabs.test.ts`
+
+The dev tab hub (BUGS.md B42), independent of the Node and Bun handler so the Workers dev seam (B95) and the dev log bridge (plan 15) reuse it.
+
+| test | case | result |
+| --- | --- | --- |
+| `hub` | announce, deliver to an announced token, deliver to an unknown token, the 30 s expiry, the 21st held payload, a disconnect | delivered to that client only; held then flushed on announce; dropped after 30 s; the oldest dropped first; a disconnected token is forgotten |
+| `message` | a well-formed `{ token, payload }`, a missing token, a non-object | accepted; rejected; rejected |
+
+## `client/dev/tab.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `tabbed fetch` | a document with the `flare-dev-tab` meta and a hot channel; no hot channel; no meta | the token is announced once and set on every request, the request's own headers kept; `fetch` is returned unchanged in the other two |
+
