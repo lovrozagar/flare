@@ -17,6 +17,8 @@ import type {
 	To,
 } from "../../src/shared/route-builder/register.ts";
 import type { PreloaderFrom } from "../../src/shared/route-builder/route-types.ts";
+import type { Router } from "../../src/shared/router/create-router.ts";
+import { createTestServer } from "../../src/testing/harness.ts";
 
 type UsersLink = RouteTarget<App, "_root_/users/[id]">;
 
@@ -464,4 +466,20 @@ it("server context omitted", () => {
 	expectTypeOf(ctx).toEqualTypeOf<Record<string, unknown>>();
 	type Open = RegisteredServerContext<FlareRegister>;
 	expectTypeOf<Open extends { requestId: string } ? true : false>().toEqualTypeOf<false>();
+});
+
+// A register that declares `serverContext` makes the test server's option required, and nothing else fits it (B25).
+function testServerTypes(router: Router): void {
+	// @ts-expect-error the register declares serverContext
+	createTestServer<App>(router);
+	createTestServer<App>(router, { serverContext: () => ({ requestId: "r" }) });
+	// @ts-expect-error the context is the register's shape
+	createTestServer<App>(router, { serverContext: () => ({ requestId: 1 }) });
+	// @ts-expect-error only serverContext
+	createTestServer<App>(router, { serverContext: () => ({ requestId: "r" }), site: "https://x" });
+	createTestServer(router);
+}
+
+it("test server context", () => {
+	expectTypeOf(testServerTypes).toBeFunction();
 });
