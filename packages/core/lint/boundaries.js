@@ -30,6 +30,8 @@ const PERMIT = new Set([
 	"exports>adapters",
 	"exports>vite",
 	"exports>testing",
+	// testing/index.ts re-exports the harness and the Playwright helpers beside it.
+	"testing>testing",
 ]);
 
 const FEATURE_SIDES = {
@@ -131,6 +133,8 @@ function allowed(fromRel, spec) {
 	if (fromFeature) return FEATURE_SIDES[sideOf(from)].has(to);
 	// vite/ composes a feature's vite side when the app passed that option (00-rules).
 	if (from === "vite" && toFeature) return sideOf(to) === "vite";
+	// exports/ is the public barrel: each subpath re-exports a feature's side for its environment.
+	if (from === "exports" && toFeature) return true;
 	return PERMIT.has(`${from}>${to}`);
 }
 
@@ -142,19 +146,19 @@ function testCode(filename) {
 const rule = {
 	create(context) {
 		const from = testCode(context.filename) ? null : srcRel(context.filename);
-		// A declaration (types too, since src ships as source) meets the module boundaries. A re-export and a literal
-		// `import()` meet the package check only: the barrels re-export across buckets by design.
-		const check = (node, source, buckets) => {
+		// Every import form meets the boundaries: a declaration (types too, since src ships as source), a re-export, and
+		// a literal `import()`.
+		const check = (node) => {
+			const source = node.source;
 			if (from === null || source?.type !== "Literal" || typeof source.value !== "string") return;
-			const spec = source.value;
-			if (buckets ? allowed(from, spec) : target(from, spec) !== "pkg" || declared(spec)) return;
+			if (allowed(from, source.value)) return;
 			context.report({ node, message: "import is outside the module boundaries" });
 		};
 		return {
-			ImportDeclaration: (node) => check(node, node.source, true),
-			ExportNamedDeclaration: (node) => check(node, node.source, false),
-			ExportAllDeclaration: (node) => check(node, node.source, false),
-			ImportExpression: (node) => check(node, node.source, false),
+			ImportDeclaration: check,
+			ExportNamedDeclaration: check,
+			ExportAllDeclaration: check,
+			ImportExpression: check,
 		};
 	},
 };
