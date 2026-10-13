@@ -204,6 +204,8 @@ withFetchDedupe(target, { maxBytes? })
 
 Anything other than GET or HEAD clears the request map and is not memoized. A rejection is not reused. Outside a request, calls pass through and do not throw (`fetch-dedupe.test.ts` `post clears`, `rejection`, `outside`). `globalThis.fetch` is not patched. A call that does not go through `withFetchDedupe` is not deduped (`fetch-dedupe.test.ts` `no global patch`).
 
+
+The dedupe store belongs to the request, not to a loader: every loader, preloader, and render of one request shares it, and a non-GET from any of them resets it for all (BUGS.md B21).
 ## Client disconnect
 
 When a client leaves mid-response, the render stops and Solid disposes it under the same request it rendered under, so an `onCleanup` that reads the request, `serverCtx()`, or the query client still sees it, and the server keeps serving (BUGS.md B28). An app `onCleanup` that throws during that disposal is reported by the runtime as an uncaught exception, because Solid disposes inside an abort dispatch that no caller can wrap. On Node and Bun that ends the process unless the app handles `uncaughtException`, as an app timer that throws would. Keep cleanup functions from throwing.
