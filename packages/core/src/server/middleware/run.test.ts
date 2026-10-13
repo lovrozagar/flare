@@ -136,6 +136,45 @@ it("rewrap keeps body", async () => {
 	expect(await (await runMiddleware([rewrap], input(), async () => ok("page"))).text()).toBe("page");
 });
 
+// Unhandled rejections raised while `run` settles: a `void` promise that rejects ends a Node or Bun server (B1).
+async function rejections(run: () => Promise<Response>): Promise<{ text: string; escaped: unknown[] }> {
+	const escaped: unknown[] = [];
+	const record = (reason: unknown): void => void escaped.push(reason);
+	process.on("unhandledRejection", record);
+	try {
+		const text = await (await run()).text();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		return { text, escaped };
+	} finally {
+		process.off("unhandledRejection", record);
+	}
+}
+
+// Bun's `new Response(res.body, res)` is another stream object, and the hand-off locks the router's.
+const piped: Middleware = async (ctx) => {
+	const response = await ctx.next();
+	return new Response(response.body?.pipeThrough(new TransformStream()), response);
+};
+
+it("rewrap new stream", async () => {
+	const result = await rejections(() => runMiddleware([piped], input(), async () => ok("page")));
+	expect(result).toEqual({ text: "page", escaped: [] });
+});
+
+it("discard rejection ignored", async () => {
+	const replace: Middleware = async (ctx) => {
+		await ctx.next();
+		return ok("replaced");
+	};
+	const errored = new ReadableStream({
+		start(controller) {
+			controller.error(new Error("render broke"));
+		},
+	});
+	const result = await rejections(() => runMiddleware([replace], input(), async () => new Response(errored)));
+	expect(result).toEqual({ text: "replaced", escaped: [] });
+});
+
 // Returning without next, respond, or bypass continues the chain (dx/server.md).
 it("skip continues", async () => {
 	const skip: Middleware = (ctx) => {
