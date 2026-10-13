@@ -56,7 +56,8 @@ export const route = createPage(ID)
 	.head((ctx) => ({ title: ctx.search.q === "" ? "Search — Flare docs" : `${ctx.search.q} — Search — Flare docs` }))
 	.render((props) => {
 		const navigate = useNavigate();
-		const [draft, setDraft] = createSignal(props.search.q);
+		// A draft the user edits, reset whenever the URL's q changes: back, forward, or another search.
+		const [draft, setDraft] = createSignal(() => props.search.q);
 		const submit = (event: SubmitEvent): void => {
 			event.preventDefault();
 			void navigate({

@@ -153,6 +153,25 @@ test("search intercept", async ({ page, docs }) => {
 	await expect(page.locator("#search-page")).toBeVisible();
 });
 
+// The search page's input follows the URL's `q` across client navigations, back and forward included, while the page
+// stays mounted.
+test("search draft follows q", async ({ page, docs }) => {
+	await open(page, docs.origin, "/search?q=route");
+	const draft = page.locator("#search-page-input");
+	await expect(draft).toHaveValue("route");
+	const loads = documents(page);
+	await page.locator("#search-input").fill("cache");
+	await page.locator("#search-input").press("Enter");
+	await expect(page).toHaveURL(`${docs.origin}/search?q=cache`);
+	await expect(draft).toHaveValue("cache");
+	await page.goBack();
+	await expect(page).toHaveURL(`${docs.origin}/search?q=route`);
+	await expect(draft).toHaveValue("route");
+	await page.goForward();
+	await expect(draft).toHaveValue("cache");
+	expect(loads).toEqual([]);
+});
+
 test("navigate state replace", async ({ page, docs }) => {
 	await open(page, docs.origin, "/examples");
 	const depth = await page.evaluate(() => history.length);
