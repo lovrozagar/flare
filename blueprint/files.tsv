@@ -106,6 +106,8 @@ packages/core/src/shared/cache/artifact-path.test.ts	P10	test	shared	Unit cases 
 packages/core/src/shared/cache/index.ts	P10	index	shared	Re-exports
 packages/core/src/shared/csp/nonce.ts	P3	src	shared	nonce(). The one request nonce. Empty means omit the attribute
 packages/core/src/shared/csp/nonce.test.ts	P3	test	shared	Unit cases for nonce.ts
+packages/core/src/shared/csp/inline.ts	P13	src	shared	escapeInlineJson and scriptLiteral: a value an inline script may hold. Shared by the server state script and the feature scripts
+packages/core/src/shared/csp/inline.test.ts	P13	test	shared	Unit cases for inline.ts
 packages/core/src/shared/csp/index.ts	P3	index	shared	Re-exports
 packages/core/src/shared/css/parse.ts	P11	src	shared	Split one stylesheet into ordered statements. @import and @charset throw
 packages/core/src/shared/css/parse.test.ts	P11	test	shared	Unit cases for parse.ts
@@ -225,7 +227,7 @@ packages/core/src/server/render/document.ts	P1	src	server	Call renderToStream wi
 packages/core/src/server/render/document.test.ts	P1	test	server	Unit cases for document.ts
 packages/core/src/server/render/critical-style.ts	P11	src	server	Insert the critical style into the shell head, then the shell may flush
 packages/core/src/server/render/critical-style.test.ts	P11	test	server	Unit cases for critical-style.ts
-packages/core/src/server/render/escape.ts	P1	src	server	escapeInlineJson, escapeInlineScript, escapeAttr
+packages/core/src/server/render/escape.ts	P1	src	server	escapeInlineScript over shared/csp's escapeInlineJson, and escapeAttr
 packages/core/src/server/render/escape.test.ts	P1	test	server	Unit cases for escape.ts
 packages/core/src/server/render/escape.corpus.txt	P1	corpus	server	Script-escape corpus including dollar-brace, script close, and line separators
 packages/core/src/server/render/state.ts	P1	src	server	Build the one state script and the insertion point
@@ -464,8 +466,10 @@ packages/core/src/vite/bin/codegen.test.ts	P12	test	vite	Unit cases for codegen.
 packages/core/src/vite/bin/index.ts	P12	index	vite	Re-exports
 packages/core/src/features/theme/shared/script.tsx	P13	src	dom	ThemeScript. No props. Reads router.theme. Sets the attribute before paint. Nonced
 packages/core/src/features/theme/shared/script.test.tsx	P13	test	dom	Unit cases for script.tsx
+packages/core/src/features/theme/shared/script.ssr.test.ts	P13	test	dom	script.tsx on Solid's server build: the nonce, the escape, and the before-paint script run in jsdom
 packages/core/src/features/theme/shared/provider.tsx	P13	src	dom	ThemeProvider and useTheme. Children only. Reads router.theme. Posts theme on flare.sync. No storage listener
 packages/core/src/features/theme/shared/provider.test.tsx	P13	test	dom	Unit cases for provider.tsx
+packages/core/src/features/theme/shared/provider.ssr.test.ts	P13	test	dom	provider.tsx on Solid's server build: server set, server pure, outside
 packages/core/src/features/theme/shared/index.ts	P13	index	shared	Re-exports
 packages/core/src/features/direction/shared/script-of.ts	P13	src	shared	dirOf. Intl.Locale.getTextInfo().direction. No language list. Not a public export
 packages/core/src/features/direction/shared/script-of.test.ts	P13	test	shared	Unit cases for script-of.ts

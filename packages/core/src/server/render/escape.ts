@@ -1,17 +1,6 @@
-const SCRIPT: ReadonlyArray<readonly [string, string]> = [
-	["<", "\\u003c"],
-	["`", "\\u0060"],
-	["$", "\\u0024"],
-	["\u2028", "\\u2028"],
-	["\u2029", "\\u2029"],
-];
+import { escapeInlineJson } from "../../shared/csp/index.ts";
 
-export function escapeInlineJson(value: string): string {
-	let out = value;
-	for (const [from, to] of SCRIPT) out = out.replaceAll(from, to);
-	return out;
-}
-
+// The table lives in shared/csp, where the feature scripts read it too.
 export function escapeInlineScript(value: string): string {
 	return escapeInlineJson(value);
 }

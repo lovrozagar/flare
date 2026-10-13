@@ -2,6 +2,8 @@
 
 Creates every `P13` row. Features do not import each other. The core pipeline does not import them. `src/exports/vite.ts` is the file that composes their vite factories, and only when the app passed the matching `flare({ ... })` option.
 
+A component's rows run on the Solid build they are about. Rows that render on the server, such as a nonce, an escape, or `server pure`, live in a sibling `*.ssr.test.ts`. It runs in the node project on Solid's server build with a jsdom document, so a before-paint script can also run there. Rows that mount, hydrate, or post stay in the `.test.tsx`, which runs on the client build. A table names both files.
+
 ## Extends
 
 `tests/types/app` gains the rows bit 07 could not hold: `query options input`, `query options void`, and `query client present` in `checks.ts`, plus the fixture's `src/query.ts` importing `@lovrozagar/flare/query`, and `app.test.ts` asserts the generated `hasQueryClient` is `true`. Bit 13 is not done until `app.test.ts` is green with them.
@@ -27,7 +29,7 @@ Creates every `P13` row. Features do not import each other. The core pipeline do
 
 ## Theme
 
-### `features/theme/shared/script.test.tsx`
+### `features/theme/shared/script.test.tsx` and `script.ssr.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
@@ -44,7 +46,7 @@ Creates every `P13` row. Features do not import each other. The core pipeline do
 
 The attribute is `"light"` or `"dark"`. The string `"system"` is never written. Values the app may store are `light`, `dark`, and `system`.
 
-### `provider.test.tsx`
+### `provider.test.tsx` and `provider.ssr.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
@@ -53,7 +55,7 @@ The attribute is `"light"` or `"dark"`. The string `"system"` is never written. 
 | `set theme` | `setTheme("dark")` | `theme()` is `"dark"`, `resolvedTheme()` is `"dark"`, storage is `"dark"`, the attribute is `dark` |
 | `set theme rejects` | `setTheme("blue")` | throw. Storage is unchanged |
 | `server set` | `setTheme` during SSR | throw |
-| `server pure` | an SSR render of `ThemeProvider` | `DEV.diagnostics` reports no `SERVER_WRITE`. The signal is seeded with `defaultTheme` |
+| `server pure` | an SSR render of `ThemeProvider` | `OBSERVE.diagnostics` reports no `SERVER_WRITE`. The signal is seeded with `defaultTheme` |
 | `outside` | `useTheme` with no provider | throw |
 | `no config` | the provider renders and `theme` is absent | the children render. `useTheme` throws |
 | `hydrate` | stored `dark`, `defaultTheme` `"system"`, during the hydration render | `theme()` is `"system"`. After hydration commits, `theme()` is `"dark"` |
@@ -104,7 +106,7 @@ The function is `new Intl.Locale(tag).getTextInfo().direction`. The module conta
 | `clear` | `setDirection()` while storage is `ltr` and locale is `ar` | the key is gone and `dir` is `rtl` |
 | `bad set` | `setDirection("auto")` | throw. Storage is unchanged |
 | `server set` | `setDirection` during SSR | throw |
-| `server pure` | an SSR render of `DirectionProvider` | `DEV.diagnostics` reports no `SERVER_WRITE`. The signal is seeded with the default dir |
+| `server pure` | an SSR render of `DirectionProvider` | `OBSERVE.diagnostics` reports no `SERVER_WRITE`. The signal is seeded with the default dir |
 | `outside` | `useDirection` with no provider | throw |
 | `no config` | `direction` absent | children render. `useDirection` throws |
 | `hydrate` | storage `rtl`, locale `en`, during the hydration render | `direction()` is `ltr`. After hydration commits it is `rtl` |
@@ -234,7 +236,7 @@ This file calls `boot({ app: "i18n", runtime, mode })` (B70). The project name s
 | test | case | result |
 | --- | --- | --- |
 | `initial` | `initial` is a configured tag | that tag is the locale. `locale` is a memo of `initial`, not a setter copy |
-| `server pure` | an SSR render of `LocaleProvider` | `DEV.diagnostics` reports no `SERVER_WRITE` |
+| `server pure` | an SSR render of `LocaleProvider` | `OBSERVE.diagnostics` reports no `SERVER_WRITE` |
 | `param` | `initial` is `"hr"`, then a render that omits `initial` | the locale is `hr`, then `defaultLocale`. The provider does not read `useParams`, the cookie, or `Accept-Language` |
 | `initial changes` | `initial` changes from `en` to `hr` | `locale()` becomes `hr` and `lang` becomes `hr` |
 | `set locale` | `setLocale` of another configured tag | a navigation to that tag. No cookie is written here |

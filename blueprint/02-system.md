@@ -57,7 +57,7 @@ Document `queries` are serialized into the state script. The client applies that
 
 `useHead`, `Set-Cookie`, and every other response header are written before the first shell flush. A `<Loading>` fallback can flush that shell, so a tag or a cookie from inside the fallback does not reach the browser. A component does not place an async iterable in the document. A server-function stream is the NDJSON response. A child position receives a value or a call, not a bare function. The document shell is legal HTML, so Solid's frame markers stay paired.
 
-Flare does not depend on `@solidjs/diagnostics` and does not enable attribution. An app component that calls a setter during SSR still warns. The owner path lists every ancestor, including Flare's providers. The setter belongs to the component that called it. `provider.test.tsx` `server pure` renders `ThemeProvider`, `DirectionProvider`, and `LocaleProvider` on the server, subscribes to `DEV.diagnostics`, and fails when the code is `SERVER_WRITE`.
+Flare does not depend on `@solidjs/diagnostics` and does not enable attribution. An app component that calls a setter during SSR still warns. The owner path lists every ancestor, including Flare's providers. The setter belongs to the component that called it. `provider.test.tsx` `server pure` renders `ThemeProvider`, `DirectionProvider`, and `LocaleProvider` on the server, subscribes to `OBSERVE.diagnostics`, and fails when the code is `SERVER_WRITE`.
 
 ## Ingress
 
