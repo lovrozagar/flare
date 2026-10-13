@@ -1,10 +1,11 @@
+import { sitemap } from "../../features/seo/vite/index.ts";
 import type { PrerenderConfig } from "../prerender/run.ts";
 
 export type FlareOptions = {
 	assetsBase?: string;
 	entry?: { client?: string; server?: string };
 	image?: { widths?: readonly number[]; quality?: number; exclude?: RegExp };
-	prerender?: boolean | (PrerenderConfig & { sitemap?: unknown });
+	prerender?: boolean | PrerenderConfig;
 	css?: { reset?: boolean };
 	broadcast?: boolean;
 };
@@ -81,7 +82,7 @@ function parseCss(css: FlareOptions["css"]): ParsedOptions["css"] {
 const PRERENDER_KEYS = new Set(["concurrency", "env", "exclude", "sitemap"]);
 
 // Omitted and `false` are off. `true` is every default. An object is checked key by key (dx/plugin.md prerender).
-// `sitemap` is read by bit 13.
+// `sitemap` is checked by its own builder now, so a bad value fails before the build starts.
 function parsePrerender(value: FlareOptions["prerender"]): PrerenderConfig | false {
 	if (value === undefined || value === false) return false;
 	if (value === true) return {};
@@ -90,9 +91,11 @@ function parsePrerender(value: FlareOptions["prerender"]): PrerenderConfig | fal
 		["concurrency", value.concurrency, (field) => Number.isInteger(field) && Number(field) >= 1],
 		["exclude", value.exclude, (field) => Array.isArray(field) && field.every((id) => typeof id === "string")],
 		["env", value.env, (field) => typeof field === "function" || (typeof field === "object" && field !== null)],
+		["sitemap", value.sitemap, (field) => typeof field === "object" && field !== null && !Array.isArray(field)],
 	];
 	for (const [key, field, valid] of checks)
 		if (field !== undefined && !valid(field)) throw new Error(`prerender.${key}`);
+	if (value.sitemap !== undefined) sitemap(value.sitemap);
 	return { ...value };
 }
 

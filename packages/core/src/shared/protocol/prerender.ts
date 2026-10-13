@@ -13,16 +13,29 @@ export type PrerenderPage = {
 	authorize: boolean;
 };
 
+// Every route node, for the sitemap (dx/seo.md). `path` is the public path under the router's base, absent when the
+// URL has a param segment. Describing a route loads its chain's modules and runs nothing else.
+export type PrerenderRoute = {
+	id: string;
+	path: string | undefined;
+	response: boolean;
+	auth: { requires: boolean; reads: boolean };
+	authorize: boolean;
+};
+
 export type PrerenderParams = Record<string, string | string[]>;
 
 // The entry a stored miss writes: the seed's data, its time, and its tags.
 export type PrerenderEntry = { data: unknown; storedAt: number; tags?: readonly string[] };
 
-// The answer's status, and the key and entry when the shared render could be stored.
-export type PrerenderResult = { status: number; key?: string; entry?: PrerenderEntry };
+// The answer's status, the public path it rendered, and the key and entry when the shared render could be stored.
+export type PrerenderResult = { status: number; path: string; key?: string; entry?: PrerenderEntry };
 
+// `site` is `createServer({ site })`.
 export type Prerenderer = {
+	site: string | undefined;
 	pages(): Promise<PrerenderPage[]>;
+	routes(): Promise<PrerenderRoute[]>;
 	params(id: string): Promise<readonly PrerenderParams[]>;
 	render(input: { id: string; params: PrerenderParams; env: unknown }): Promise<PrerenderResult>;
 };
@@ -36,5 +49,5 @@ export function prerendererOf(server: unknown): Prerenderer | undefined {
 
 function isPrerenderer(value: unknown): value is Prerenderer {
 	if (typeof value !== "object" || value === null) return false;
-	return ["pages", "params", "render"].every((name) => typeof Reflect.get(value, name) === "function");
+	return ["pages", "routes", "params", "render"].every((name) => typeof Reflect.get(value, name) === "function");
 }

@@ -8,8 +8,17 @@ it("registry key", () => {
 
 // Only a value that carries a whole prerenderer under the key is one.
 it("prerenderer of", () => {
-	const whole = { pages: async () => [], params: async () => [{}], render: async () => ({ status: 200 }) };
+	const whole = {
+		site: undefined,
+		pages: async () => [],
+		routes: async () => [],
+		params: async () => [{}],
+		render: async () => ({ status: 200, path: "/" }),
+	};
 	expect(prerendererOf({ [PRERENDER]: whole })).toBe(whole);
+	// A server built before `routes` existed is not a whole prerenderer.
+	const { routes: _routes, ...older } = whole;
+	expect(prerendererOf({ [PRERENDER]: older })).toBeUndefined();
 	expect(prerendererOf(null)).toBeUndefined();
 	expect(prerendererOf("server")).toBeUndefined();
 	expect(prerendererOf({})).toBeUndefined();

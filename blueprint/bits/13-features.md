@@ -396,7 +396,7 @@ The registry data itself is bit 14. This test uses a two-family fixture.
 
 ## SEO
 
-### `features/seo/server/sitemap.test.ts`
+### `features/seo/vite/sitemap.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
@@ -415,6 +415,12 @@ The registry data itself is bit 14. This test uses a two-family fixture.
 | `robots host` | `robotsTxt` is a string naming another host, with other lines and more than one `Sitemap:` line | the other lines stay. Every `Sitemap:` line is dropped. One `Sitemap: ${site}/sitemap.xml` line is appended |
 | `robots true` | `robotsTxt: true` | the file is one line, `Sitemap: ${site}/sitemap.xml` |
 | `lastmod` | an ISO instant, and a value that does not parse | the instant is UTC `YYYY-MM-DD`. A value that does not parse throws |
+
+### `server/cache/prerender.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `routes` | a tree with static, param, `.response()`, required-auth, and `authorize` routes under a base path | every route node in tree order, with its public path under the base, no path for a param URL, the `.response()` flag, and the chain's auth. No loader runs. `site` is `createServer({ site })` |
 
 ### `features/seo/server/google.test.ts`
 

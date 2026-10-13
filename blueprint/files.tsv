@@ -98,7 +98,7 @@ packages/core/src/shared/protocol/internal-params.ts	P6	src	shared	Parse and str
 packages/core/src/shared/protocol/internal-params.test.ts	P6	test	shared	Unit cases for internal-params.ts
 packages/core/src/shared/protocol/get-codec.ts	P7	src	shared	Encode and decode the _i GET payload. 8192 cap
 packages/core/src/shared/protocol/get-codec.test.ts	P7	test	shared	Unit cases for get-codec.ts
-packages/core/src/shared/protocol/prerender.ts	P12	src	shared	The registry symbol and types of the internal channel between prerender and a built server
+packages/core/src/shared/protocol/prerender.ts	P12	src	shared	The registry symbol and types of the internal channel between prerender and a built server: site, pages, routes, params, and render
 packages/core/src/shared/protocol/prerender.test.ts	P12	test	shared	Unit cases for prerender.ts
 packages/core/src/shared/protocol/query.ts	P13	src	shared	The query getter registry: one stateless getter per process under a registry symbol, read by core for ctx.queryClient and the state queries
 packages/core/src/shared/protocol/query.test.ts	P13	test	shared	Unit cases for query.ts
@@ -318,7 +318,7 @@ packages/core/src/server/cache/revalidate.ts	P10	src	server	revalidate({ keys, t
 packages/core/src/server/cache/revalidate.test.ts	P10	test	server	Unit cases for revalidate.ts
 packages/core/src/server/cache/assets.ts	P10	src	server	createAssetsStore. Read-only get of an SSG seed. set and delete reject
 packages/core/src/server/cache/assets.test.ts	P10	test	server	Unit cases for assets.ts
-packages/core/src/server/cache/prerender.ts	P12	src	server	What vite build's prerender reads of a built server: its ssg and isr pages, their params, and a render that captures the stored miss's entry
+packages/core/src/server/cache/prerender.ts	P12	src	server	What vite build's prerender reads of a built server: site, its ssg and isr pages, every route node for the sitemap, their params, and a render that captures the stored miss's entry and names the path it rendered
 packages/core/src/server/cache/prerender.test.ts	P12	test	server	Unit cases for prerender.ts
 packages/core/src/server/cache/index.ts	P10	index	server	Re-exports
 packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates and adopts history.state
@@ -544,8 +544,9 @@ packages/core/src/features/fonts/vite/emit.ts	P13	src	vite	Copy registry woff2 f
 packages/core/src/features/fonts/vite/emit.test.ts	P13	test	vite	Unit cases for emit.ts
 packages/core/src/features/fonts/shared/index.ts	P13	index	shared	Re-exports
 packages/core/src/features/fonts/vite/index.ts	P13	index	vite	Re-exports
-packages/core/src/features/seo/server/sitemap.ts	P13	src	server	Build the sitemap from pages that are not .response() routes, whose URL has no param segment, and whose effective auth is not required. Optional auth is included. The hint is checked first
-packages/core/src/features/seo/server/sitemap.test.ts	P13	test	server	Unit cases for sitemap.ts
+packages/core/src/features/seo/vite/sitemap.ts	P13	src	vite	Build the sitemap from routes that are not .response() routes and whose effective auth is not required, one entry per static path and per param set prerender rendered. Optional auth is included. The hint is checked first. vite/prerender composes it
+packages/core/src/features/seo/vite/sitemap.test.ts	P13	test	vite	Unit cases for sitemap.ts
+packages/core/src/features/seo/vite/index.ts	P13	index	vite	Re-exports
 packages/core/src/features/seo/server/index-now.ts	P13	src	server	IndexNow client
 packages/core/src/features/seo/server/index-now.test.ts	P13	test	server	Unit cases for index-now.ts
 packages/core/src/features/seo/server/google.ts	P13	src	server	Google Indexing JWT. WebCrypto. The key is not logged

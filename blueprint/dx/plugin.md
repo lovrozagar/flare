@@ -61,7 +61,7 @@ Prerender reads `site` from the built server module's `createServer({ site })`. 
 | `concurrency` | no | `1` | integer `≥ 1` | how many routes render at once | the default is one so a shared store is not written by two renders of the same key | `vite/prerender/run.test.ts` `concurrency` |
 | `env` | no | `{}` | a record, or `() => record \| Promise<record>` | passed as `env` on each prerender `fetch` | the function is called when prerender starts, not when the config file is evaluated | `run.test.ts` `env` |
 | `exclude` | no | `[]` | route ids | those routes are not rendered | an excluded SSG route then renders per request and warns once when `static` is absent | `run.test.ts` `exclude` |
-| `sitemap` | no | absent | `seo.md` | writes `sitemap.xml` at the root of the client static output, served at `/sitemap.xml` | there is no `origin` on this object. The origin is `site`. The public URL is `site` + `/sitemap.xml` | `features/seo/server/sitemap.test.ts` `site`, `file` |
+| `sitemap` | no | absent | `seo.md` | writes `sitemap.xml` at the root of the client static output, served at `/sitemap.xml`, after every page rendered | there is no `origin` on this object. The origin is `site`. The public URL is `site` + `/sitemap.xml`. A server without `site` fails the build with `prerender.sitemap reads createServer({ site })`, and nothing is written | `features/seo/vite/sitemap.test.ts` `site`, `file` |
 
 ## Vite config the plugin rejects
 
