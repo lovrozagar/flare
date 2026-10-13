@@ -62,12 +62,18 @@ export function publishManifest(source: Manifest): Manifest {
 	return { ...kept, bin, exports, files: ["dist", "src", "README.md", "LICENSE"] };
 }
 
+// A source file that ships: not test code as files.tsv kinds it, a test or a test's fixture of any extension
+// (00-rules Dependencies).
+export function shipped(path: string): boolean {
+	return !/\.(test\.tsx?|fixture\.[^/]+)$/.test(path);
+}
+
 // The package directory npm packs: dist, the non-test sources, the root README and LICENSE, and the rewritten manifest.
 export function stagePackage(out: string): string {
 	const dir = join(out, "package");
 	mkdirSync(dir, { recursive: true });
 	buildDist(join(dir, "dist"));
-	cpSync(join(CORE, "src"), join(dir, "src"), { recursive: true, filter: (path) => !/\.test\.tsx?$/.test(path) });
+	cpSync(join(CORE, "src"), join(dir, "src"), { recursive: true, filter: shipped });
 	cpSync(join(REPO, "README.md"), join(dir, "README.md"));
 	cpSync(join(REPO, "LICENSE"), join(dir, "LICENSE"));
 	const source: Manifest = JSON.parse(readFileSync(join(CORE, "package.json"), "utf8"));
