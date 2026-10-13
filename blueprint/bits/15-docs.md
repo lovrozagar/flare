@@ -58,7 +58,7 @@ Production cases skip the `*-dev-*` projects: `ssg seed`, `ssg public cdn`, `isr
 
 ## `tests/e2e/docs-features.test.ts`
 
-Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl client`, `tabs sync`, `set locale persists`, then `theme system` (Firefox skips: its emulation ignores `colorScheme`), `theme transition`, `rtl layout`, `format message` (the provider's tag formats digits), `image responsive`, `image fixed`, `fonts`, `head full`, `sitemap`, `robots`, `tailwind critical`, `css module`, `reset`.
+Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl client`, `tabs sync`, `set locale persists`, then `theme system` (Firefox skips: its emulation ignores `colorScheme`), `theme transition`, `rtl layout`, `format message` (an omitted locale inside `LocaleProvider` is the provider's tag, shown by the plural category: `/ar` prints `14 releases (many)` and `/` prints `14 releases`, stable across CLDR versions; BUGS.md B29), `image responsive`, `image fixed`, `fonts`, `head full`, `sitemap`, `robots`, `tailwind critical`, `css module`, `reset`.
 
 ## `tests/e2e/docs-resilience.test.ts`
 
