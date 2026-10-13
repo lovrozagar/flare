@@ -186,11 +186,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 25.3 [ ] Decide in `dx/testing.md`: either `createTestServer(router, { serverContext? })` (a revision, since the doc says there is no second argument), or a documented and typed refusal. Then make `harness.ts` type-check under any register.
 25.4 [ ] Verify: `bun run typecheck` exits 0, and `tests/integration/docs.test.ts` passes.
 
-26 [ ] B26 `dirOf` says `ltr` for Urdu and Kashmiri on Bun
-26.1 [ ] Repro: `bun -e 'console.log(new Intl.Locale("ur").maximize().script)'` prints `Aran`. Node prints `Arab`. Under `bun --bun run --filter @lovrozagar/flare test`, `features/direction/shared/script-of.test.ts` `no text info` fails: `ur` maps to `ltr`. `ks` maximizes to `Aran` too.
-26.2 [ ] Expected (`dx/features.md` Direction): the server and every browser compute the same dir from `maximize().script`. Actual: Bun's ICU gives the Nastaliq script `Aran`, which is right-to-left but missing from the RTL set in `packages/core/src/features/direction/shared/script-of.ts`. A Bun server renders `dir="ltr"` for an Urdu page that Chromium resolves `rtl`, so direction is wrong and hydration disagrees.
-26.3 [ ] Add a failing `script-of.test.ts` case (`aran`: a maximized `Aran` script is `rtl`). Then add `Aran` to the set.
-26.4 [ ] Verify: `script-of.test.ts` passes under both `bun run test` and `bun --bun run --filter @lovrozagar/flare test`.
+26 [x] B26 `dirOf` says `ltr` for Urdu and Kashmiri on Bun
+26.1 [x] Repro: `bun -e 'console.log(new Intl.Locale("ur").maximize().script)'` prints `Aran`. Node prints `Arab`. Under `bun --bun run --filter @lovrozagar/flare test`, `features/direction/shared/script-of.test.ts` `no text info` fails: `ur` maps to `ltr`. `ks` maximizes to `Aran` too.
+26.2 [x] Expected (`dx/features.md` Direction): the server and every browser compute the same dir from `maximize().script`. Actual: Bun's ICU gives the Nastaliq script `Aran`, which is right-to-left but missing from the RTL set in `packages/core/src/features/direction/shared/script-of.ts`. A Bun server renders `dir="ltr"` for an Urdu page that Chromium resolves `rtl`, so direction is wrong and hydration disagrees.
+26.3 [x] Add a failing `script-of.test.ts` case (`aran`: a maximized `Aran` script is `rtl`). Then add `Aran` to the set.
+26.4 [x] Verify: `script-of.test.ts` passes under both `bun run test` and `bun --bun run --filter @lovrozagar/flare test`.
 
 27 [ ] B27 The unit suite is red on macOS at `HEAD` before any docs change
 27.1 [ ] Repro: a detached worktree of `746b8d1`, `bun install --frozen-lockfile`, then `bun run test` (Node 22.12) and `bun --bun run --filter @lovrozagar/flare test` (Bun 1.4.2). The docs work changes neither failing set: the Bun runs on `HEAD` and on this tree list the same 21 failures.
