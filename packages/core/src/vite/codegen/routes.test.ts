@@ -233,3 +233,11 @@ export const route = createPage("_root_/")
 	);
 	expect(bare.source).toContain('{ id: "_root_/", path: "/", module: () =>');
 });
+
+// A path segment joins the chain of the pages under it, as a layout does (B17, B21; BUGS.md B22).
+it("segment emitted", () => {
+	const generated = routesOf(["_root_/docs/docs.segment.ts", "_root_/docs/[slug]/slug.page.tsx"]);
+	expect(generated.layouts.map((layout) => layout.id)).toContain("_root_/docs");
+	expect(generated.source).toContain('"_root_/docs": () => import("../routes/_root_/docs/docs.segment.ts")');
+	expect(generated.source).toContain('"_root_/docs": "/src/routes/_root_/docs/docs.segment.ts"');
+});

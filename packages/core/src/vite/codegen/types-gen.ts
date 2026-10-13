@@ -31,10 +31,8 @@ export function generateTypes(input: TypesInput): {
 	const routesDir = input.routesDir ?? "src/routes";
 	const path = (file: string): string => `${routesDir}/${file}`;
 	const generated = generateRoutes(input.routeFiles, (file) => input.read(path(file)), { routesDir });
-	const segments = input.routeFiles
-		.filter((file) => file.endsWith(SEGMENT))
-		.map((file) => ({ id: file.slice(0, file.lastIndexOf("/")), file }));
-	const modules: Module[] = [...generated.layouts, ...generated.routes, ...segments]
+	// generateRoutes lists a segment with the layouts, since it joins the chain (BUGS.md B22).
+	const modules: Module[] = [...generated.layouts, ...generated.routes]
 		.map((item) => ({
 			id: item.id,
 			file: item.file,
@@ -42,7 +40,7 @@ export function generateTypes(input: TypesInput): {
 			type: `typeof import("${escapeSource(posix.relative(OUT_DIR, path(item.file)))}").route`,
 		}))
 		.sort((left, right) => (left.id < right.id ? -1 : 1));
-	const layouts = generated.layouts.map((layout) => layout.id);
+	const layouts = generated.layouts.filter((layout) => !layout.file.endsWith(SEGMENT)).map((layout) => layout.id);
 	const parents: Record<string, string[]> = {};
 	for (const module of modules) parents[module.id] = parentsOf(module.id, layouts);
 	const fields = [

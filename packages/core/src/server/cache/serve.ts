@@ -93,7 +93,7 @@ function reportNoStatic(exchange: Exchange, id: string): void {
 // alone (B73, B86). Nothing is stored.
 function unlisted(exchange: Exchange, matched: Loaded): Promise<Response> {
 	if (exchange.kind !== "document") return Promise.resolve(answer(exchange, 404));
-	return notFound(exchange, { ...matched, chain: matched.chain.filter((entry) => entry.kind === "layout") });
+	return notFound(exchange, { ...matched, chain: matched.chain.filter((entry) => entry.kind !== "page") });
 }
 
 // An SSG page reads only its static seed, so a tombstone or an epoch never hides it. A listed slug with no seed

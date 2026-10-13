@@ -54,6 +54,8 @@ export function generateRoutes(
 		if (file.endsWith(PAGE)) pages.push(pageItem(file));
 		else if (file.endsWith(ROOT_LAYOUT)) layouts.push(item(file, ROOT_LAYOUT));
 		else if (file.endsWith(LAYOUT)) layouts.push(item(file, LAYOUT));
+		// A path segment joins the chain of the pages under it, as a layout does (B17, BUGS.md B22).
+		else if (file.endsWith(SEGMENT)) layouts.push(item(file, SEGMENT));
 	}
 	assertRoot(files, pages);
 	assertApart(files);
