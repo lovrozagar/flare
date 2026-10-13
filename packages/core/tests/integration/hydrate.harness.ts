@@ -11,6 +11,9 @@ import type * as web from "@solidjs/web";
 import { createServer, isRunnableDevEnvironment, type Plugin, type ViteDevServer } from "vite";
 import type * as progress from "../../src/client/navigation/progress.ts";
 import type * as outlet from "../../src/shared/components/outlet.tsx";
+import type * as outletNodes from "../../src/shared/components/outlet-nodes.ts";
+import type * as router from "../../src/shared/router/create-router.ts";
+import type * as routerContext from "../../src/shared/router/context.ts";
 import type * as page from "../../src/shared/route-builder/page.ts";
 import type * as rootLayout from "../../src/shared/route-builder/root-layout.ts";
 
@@ -21,6 +24,9 @@ export type Api = {
 	web: typeof web;
 	progress: typeof progress;
 	outlet: typeof outlet;
+	outletNodes: typeof outletNodes;
+	router: typeof router;
+	routerContext: typeof routerContext;
 	page: typeof page;
 	rootLayout: typeof rootLayout;
 	// An element with an id and lazy children, so a tree needs no JSX transform.
@@ -51,6 +57,9 @@ const PROBLEM = /hydration|key miss|unclaimed|STRICT_READ_UNTRACKED/i;
 const MODULES: Record<keyof Omit<Api, "solid" | "web" | "h">, string> = {
 	progress: "/src/client/navigation/progress.ts",
 	outlet: "/src/shared/components/outlet.tsx",
+	outletNodes: "/src/shared/components/outlet-nodes.ts",
+	router: "/src/shared/router/create-router.ts",
+	routerContext: "/src/shared/router/context.ts",
 	page: "/src/shared/route-builder/page.ts",
 	rootLayout: "/src/shared/route-builder/root-layout.ts",
 };
