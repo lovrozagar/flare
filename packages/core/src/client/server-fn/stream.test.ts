@@ -60,3 +60,19 @@ it("iterator", async () => {
 	const bare = new Response(null, { status: 404 });
 	await expect(collect(streamServerFn(numbers, undefined, deps(bare)))).rejects.toThrow("HTTP 404");
 });
+
+// The body yields one line and then never again. `return()` while a `next()` is pending aborts the fetch at once, and
+// the pending `next()` resolves done, with no rejection (BUGS.md B40).
+it("stop aborts", async () => {
+	const line = new TextEncoder().encode('{"name":"numbers","status":200,"data":1}\n');
+	const body = new ReadableStream<Uint8Array>({ start: (controller) => controller.enqueue(line) });
+	const calls = deps(new Response(body, { headers: { "content-type": "application/x-ndjson" } }));
+	const iterator = streamServerFn(numbers, undefined, calls)[Symbol.asyncIterator]();
+	expect(await iterator.next()).toEqual({ value: 1, done: false });
+	const pending = iterator.next();
+	const stopping = iterator.return?.();
+	expect(vi.mocked(calls.fetch).mock.calls[0]?.[1].signal?.aborted).toBe(true);
+	expect(await stopping).toEqual({ value: undefined, done: true });
+	expect(await pending).toEqual({ value: undefined, done: true });
+	expect(await iterator.next()).toEqual({ value: undefined, done: true });
+});
