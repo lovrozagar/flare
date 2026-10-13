@@ -129,6 +129,7 @@ The rendered-page answers move out of `create.ts` unchanged at the 300-line limi
 
 | test | case | result |
 | --- | --- | --- |
+| `deferred no overlay` | a deferred rejection's `e` frame in a data answer and in a fill answer, in dev | it is logged and no overlay payload is sent; a loader throw in the same answer still sends one (BUGS.md B6) |
 | `public waits` | a public page whose loader defers a value that resolves after 50 ms, with `documentResponseDefer` `"stream"` | the document's and the data answer's headers are written after the value settles, and both carry the public header |
 | `deferred rejection` | the same page, and the deferred value rejects | the document and the data answer leave `private, no-store` with no `Cache-Tag`. A private page with the same defer still streams its shell before the value settles |
 
