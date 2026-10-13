@@ -74,7 +74,7 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 
 ## `tests/integration/hydrate.test.tsx`
 
-The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydrate.harness.ts` renders a tree with Solid's server build and hydrates the same tree with its client build in jsdom, inside `bun run test`. A case fails on any console message that names `Hydration`, a key miss, unclaimed server nodes, or `STRICT_READ_UNTRACKED`. The harness writes nothing into the repo and removes its temp directory.
+The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydrate.harness.ts` renders a tree with Solid's server build and hydrates the same tree with its client build in a real browser, inside `bun run test`. jsdom is not used: under jsdom Solid's client `hydrate()` neither claimed the server nodes nor reported a deliberate mismatch, so a jsdom check passed vacuously. Each case runs in chromium, firefox, and webkit from the B70 pinned image, reached through `FLARE_BROWSER_WS` or the run-server the global setup starts. The suite includes `harness bites`: a server tree and a client tree that differ must fail the check in every engine. A case fails on any console message that names `Hydration`, a key miss, unclaimed server nodes, or `STRICT_READ_UNTRACKED`. The harness writes nothing into the repo and removes its temp directory.
 
 | test | case | result |
 | --- | --- | --- |
