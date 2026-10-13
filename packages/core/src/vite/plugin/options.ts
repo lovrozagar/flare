@@ -8,6 +8,7 @@ export type FlareOptions = {
 	prerender?: boolean | PrerenderConfig;
 	css?: { reset?: boolean };
 	broadcast?: boolean;
+	fonts?: { dir: string };
 };
 
 export type ParsedOptions = {
@@ -17,9 +18,10 @@ export type ParsedOptions = {
 	image?: { widths: readonly number[]; quality: number; exclude?: RegExp } | undefined;
 	css: { reset: boolean };
 	broadcast: boolean;
+	fonts?: { dir: string } | undefined;
 };
 
-const KNOWN = new Set(["assetsBase", "entry", "image", "prerender", "css", "broadcast"]);
+const KNOWN = new Set(["assetsBase", "entry", "image", "prerender", "css", "broadcast", "fonts"]);
 const WIDTHS = [640, 750, 828, 1080, 1200, 1920];
 const ENTRY = { client: "src/client.tsx", server: "src/server.ts" };
 
@@ -38,7 +40,18 @@ export function parseOptions(input?: FlareOptions): ParsedOptions {
 		image: parseImage(options.image),
 		css: parseCss(options.css),
 		broadcast: parseBroadcast(options.broadcast),
+		fonts: parseFonts(options.fonts),
 	};
+}
+
+// `{ dir }`, a non-empty path relative to the root, and nothing else (dx/plugin.md fonts).
+function parseFonts(value: unknown): ParsedOptions["fonts"] {
+	if (value === undefined) return undefined;
+	if (typeof value !== "object" || value === null) throw new Error("fonts");
+	const keys = Object.keys(value);
+	const dir: unknown = Reflect.get(value, "dir");
+	if (keys.length !== 1 || typeof dir !== "string" || dir === "") throw new Error("fonts.dir");
+	return { dir };
 }
 
 function parseAssetsBase(value: string | undefined): string {

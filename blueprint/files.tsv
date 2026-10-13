@@ -446,6 +446,8 @@ packages/core/src/vite/boundary/tripwire.test.ts	P7	test	vite	Unit cases for tri
 packages/core/src/vite/boundary/index.ts	P7	index	vite	Re-exports
 packages/core/src/vite/plugin/flare.ts	P1	src	vite	The Vite plugin. Calls solid with ssr true and does not pass start (B89)
 packages/core/src/vite/plugin/flare.test.ts	P1	test	vite	Unit cases for flare.ts
+packages/core/src/vite/plugin/fonts.ts	P14	src	vite	flare({ fonts: { dir } }): the client build emits the used registry families' woff2 files
+packages/core/src/vite/plugin/fonts.test.ts	P14	test	vite	Unit cases for fonts.ts: real client builds
 packages/core/src/vite/plugin/options.ts	P1	src	vite	Parse the flare() options
 packages/core/src/vite/plugin/options.test.ts	P1	test	vite	Unit cases for options.ts
 packages/core/src/vite/plugin/environments.ts	P1	src	vite	Declare client, ssr, and worker environments and their order
@@ -549,6 +551,8 @@ packages/core/src/features/fonts/vite/emit.ts	P13	src	vite	Copy registry woff2 f
 packages/core/src/features/fonts/vite/emit.test.ts	P13	test	vite	Unit cases for emit.ts
 packages/core/src/features/fonts/shared/index.ts	P13	index	shared	Re-exports
 packages/core/src/features/fonts/vite/index.ts	P13	index	vite	Re-exports
+packages/core/src/features/fonts/vite/registry.ts	P14	src	vite	The registry's file urls for the build-time copy
+packages/core/src/features/fonts/vite/registry.test.ts	P14	test	vite	Unit cases for registry.ts
 packages/core/src/features/seo/vite/sitemap.ts	P13	src	vite	Build the sitemap from routes that are not .response() routes, whose effective auth is not required, and whose chain has no authorize, one entry per static path and per param set prerender rendered. Optional auth is included. The hint is checked first. vite/prerender composes it
 packages/core/src/features/seo/vite/sitemap.test.ts	P13	test	vite	Unit cases for sitemap.ts
 packages/core/src/features/seo/vite/index.ts	P13	index	vite	Re-exports

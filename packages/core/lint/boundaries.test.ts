@@ -154,4 +154,8 @@ it("font generate", () => {
 	expect(lint({ "src/features/image/generate.ts": generator })).not.toBe(0);
 	const other = 'import { Image } from "../image/shared/index.ts";\nexport const image = Image;\n';
 	expect(lint({ "src/features/fonts/generate.ts": other })).not.toBe(0);
+	// The registry is the fonts feature's data: its vite side reads it, and no other feature does.
+	const registry = 'import registry from "../registry.json" with { type: "json" };\nexport const data = registry;\n';
+	expect(lint({ "src/features/fonts/vite/registry.ts": registry })).toBe(0);
+	expect(lint({ "src/features/image/vite/registry.ts": registry })).not.toBe(0);
 });
