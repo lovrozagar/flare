@@ -261,3 +261,14 @@ function specific(left: string, right: string): number {
 	if (depth !== 0) return depth;
 	return Number(right.endsWith("_root_")) - Number(left.endsWith("_root_"));
 }
+
+// The client rewrite, once per navigation: navigate, Link, and an anchor click alike. It sees and returns
+// { pathname, search, hash }. A result off this origin throws, and a throw fails the navigation before anything is
+// written (dx/router.md). A server-built URL is not rewritten again.
+export function rewriteLocation(router: Pick<Router, "rewrite">, location: Location, origin: string): Location {
+	const next = router.rewrite?.(location);
+	if (next === undefined) return location;
+	const url = new URL(`${next.pathname}${next.search}${next.hash}`, origin);
+	if (url.origin !== origin) throw new Error("rewrite: the result is not on this origin");
+	return { pathname: url.pathname, search: url.search, hash: url.hash };
+}

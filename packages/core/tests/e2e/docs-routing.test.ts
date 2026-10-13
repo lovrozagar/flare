@@ -63,11 +63,12 @@ test("response redirect", async ({ request, docs }) => {
 });
 
 test("client rewrite", async ({ page, docs }) => {
-	await open(page, docs.origin, "/examples");
+	const problems = await open(page, docs.origin, "/examples");
 	const loads = documents(page);
 	await page.locator("#guide-alias").click();
 	await expect(page.locator("#doc-title")).toHaveText("Routing");
 	expect(loads).toEqual([]);
+	expect(problems).toEqual([]);
 });
 
 test("second root full load", async ({ page, docs, context }) => {
