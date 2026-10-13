@@ -85,7 +85,7 @@ The attribute is `"light"` or `"dark"`. The string `"system"` is never written. 
 
 The function is `new Intl.Locale(tag).getTextInfo().direction`. The module contains no array of language codes. A throw from the constructor or from `getTextInfo`, and a direction other than `ltr` or `rtl`, returns `defaultDir`. `und` parses, so it does not use `defaultDir`.
 
-### `script.test.tsx`
+### `script.test.tsx` and `script.ssr.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
@@ -96,7 +96,7 @@ The function is `new Intl.Locale(tag).getTextInfo().direction`. The module conta
 | `escape` | `storageKey` contains `</script>` | the HTML has no raw `</script>` |
 | `once` | two client renders | one script tag |
 
-### `provider.test.tsx`
+### `provider.test.tsx` and `provider.ssr.test.ts`
 
 | test | case | result |
 | --- | --- | --- |

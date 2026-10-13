@@ -27,3 +27,4 @@ export { Stylesheet, ViewTransitionCSS } from "../shared/components/index.ts";
 export { ViewTransitionBoundary } from "../shared/components/index.ts";
 export { useBlocker } from "../client/navigation/index.ts";
 export { ThemeProvider, ThemeScript, useTheme } from "../features/theme/shared/index.ts";
+export { DirectionProvider, DirectionScript, useDirection } from "../features/direction/shared/index.ts";
