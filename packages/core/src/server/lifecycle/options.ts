@@ -12,6 +12,7 @@ import type { Mount, MountContext } from "../mount/mount.ts";
 import type { SecurityConfig } from "../security/apply.ts";
 import type { ServerFns } from "../server-fn/dispatch.ts";
 import type { FlareStore } from "../cache/contract.ts";
+import type { LocaleSlot } from "./locale-slot.ts";
 
 // A store, or a function the request's env picks it with. The function runs once per request that reads it.
 export type StoreOption = FlareStore | ((env: unknown) => FlareStore);
@@ -32,6 +33,8 @@ type BaseOptions = {
 	mounts?: readonly Mount[];
 	// Runs in list order around server functions and the router (02-system step 6).
 	middleware?: readonly MiddlewareEntry[];
+	// The object `i18n()` returns. It runs in the locale slot, not as a middleware (dx/server.md).
+	locale?: LocaleSlot;
 	documentResponseDefer?: "stream" | "buffer";
 	// The origin every shared render requests and writes into stored HTML. Required with `store` (dx/server.md).
 	site?: string;

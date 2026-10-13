@@ -32,8 +32,8 @@ export function mount(prefix: string, fetch: Mount["fetch"]): Mount {
 
 // createServer's startup check. Each prefix is canonical for the router, so it can match a canonical path, and
 // two equal prefixes throw. The longer prefix wins, so the table is longest first.
-// A mount prefix is canonical and, under the router's default `caseSensitive: false`, lowercase: mounts are not
-// routes, so no route spelling folds a request toward them.
+// A mount prefix is canonical and, under the router's default `caseSensitive: false`, lowercase. A request folds
+// toward it like a static segment (mountSpelling).
 type MountCanonical = CanonicalOptions & { caseSensitive?: boolean | undefined };
 
 export function mountTable(entries: readonly Mount[], canonical: MountCanonical): Mount[] {
@@ -44,6 +44,14 @@ export function mountTable(entries: readonly Mount[], canonical: MountCanonical)
 		seen.add(entry.prefix);
 	}
 	return [...entries].sort((left, right) => right.prefix.length - left.prefix.length);
+}
+
+// The path with a mount prefix it starts with, ignoring case, in the prefix's spelling. The rest stays as sent. No
+// mount is undefined, and the route fold runs (B22).
+export function mountSpelling(table: readonly Mount[], path: string): string | undefined {
+	const lower = path.toLowerCase();
+	const entry = table.find((item) => lower === item.prefix || lower.startsWith(`${item.prefix}/`));
+	return entry === undefined ? undefined : `${entry.prefix}${path.slice(entry.prefix.length)}`;
 }
 
 // 02-system step 3. The matching mount's fetch sees the path with the prefix removed and the query kept, while

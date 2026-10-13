@@ -137,3 +137,18 @@ it("locale case", async () => {
 	}
 	expect((await get("/en-US/pricing")).status).toBe(200);
 });
+
+// A mount prefix folds like a static segment: one redirect to its spelling, the rest of the path as sent.
+it("mount case", async () => {
+	const root = createRootLayout("_root_").render((props) => props.children);
+	const server = createServer({
+		router: createRouter({ layouts: { _root_: root }, routeTree: [] }),
+		mounts: [{ prefix: "/api", fetch: (request) => new Response(`api ${new URL(request.url).pathname}`) }],
+	});
+	const moved = await server.fetch(new Request("http://site.test/API/Users?x=1"));
+	expect(moved.status).toBe(301);
+	expect(moved.headers.get("location")).toBe("/api/Users?x=1");
+	const answered = await server.fetch(new Request("http://site.test/api/Users?x=1"));
+	expect(await answered.text()).toBe("api /Users");
+	expect((await server.fetch(new Request("http://site.test/APIX"))).status).toBe(404);
+});

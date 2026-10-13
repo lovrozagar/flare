@@ -180,6 +180,8 @@ packages/core/src/server/lifecycle/answers.test.ts	P9	test	server	Unit cases for
 packages/core/src/server/lifecycle/options.ts	P6	types	server	createServer option and server types, split from create.ts at the 300-line limit
 packages/core/src/server/lifecycle/order.ts	P1	src	server	The ordered stage list from 02-system
 packages/core/src/server/lifecycle/order.test.ts	P1	test	server	Unit cases for order.ts
+packages/core/src/server/lifecycle/locale-slot.ts	P13	src	server	The locale slot around the middleware chain of a page request. The cookie rides a redirect or an answer already private
+packages/core/src/server/lifecycle/locale-slot.test.ts	P13	test	server	Unit cases for locale-slot.ts, with a fake slot
 packages/core/src/server/lifecycle/classify.ts	P1	src	server	Classify document, data, prefetch, and server-fn from the stripped URL
 packages/core/src/server/lifecycle/classify.test.ts	P1	test	server	Unit cases for classify.ts
 packages/core/src/server/lifecycle/build-info.ts	P12	src	server	The build id and the client entry URL. flare() replaces this module in the ssr and worker environments
@@ -511,6 +513,7 @@ packages/core/src/features/i18n/shared/script.ssr.test.ts	P13	test	dom	script.ts
 packages/core/src/features/i18n/shared/hooks.ts	P13	src	dom	useLocale, useLoaderT, usePreloaderT. locale is an accessor. No useRequestLocale
 packages/core/src/features/i18n/shared/hooks.test.ts	P13	test	dom	Unit cases for hooks.ts
 packages/core/src/features/i18n/server/match.ts	P13	src	server	Pick a locale from the path, then the cookie, then Accept-Language capped at 8 tags
+packages/core/src/features/i18n/server/negotiator.d.ts	P13	types	server	The one negotiator call match.ts makes, for Flare's own compile only. No emitted declaration names negotiator (B79)
 packages/core/src/features/i18n/server/match.test.ts	P13	test	server	Unit cases for match.ts
 packages/core/src/features/i18n/server/middleware.ts	P13	src	server	The locale slot. Configured casing. Cookie rules. Redirect targets must be routes
 packages/core/src/features/i18n/server/middleware.test.ts	P13	test	server	Unit cases for middleware.ts

@@ -12,7 +12,8 @@ import { applyCanonical } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
 import { classify, isServerFn } from "./classify.ts";
 import { answer, background, bare, failed, passed, secure, type Exchange } from "./exchange.ts";
-import { dispatchMount, mountTable } from "../mount/mount.ts";
+import { dispatchMount, mountSpelling, mountTable } from "../mount/mount.ts";
+import { withLocale } from "./locale-slot.ts";
 import { runMiddleware } from "../middleware/run.ts";
 import type { MiddlewareKind } from "../middleware/types.ts";
 import { routeMethod, type MethodMatch } from "./methods.ts";
@@ -73,7 +74,8 @@ function serveOne(at: Serving, call: Call): Promise<Response> {
 		basePath: options.router.basePath,
 		trailingSlash: options.router.trailingSlash,
 		caseSensitive: options.router.caseSensitive,
-		fold: (path) => foldCase(options.router, path),
+		// A mount prefix folds first, then the matched route (B22).
+		fold: (path) => mountSpelling(at.mounts, path) ?? foldCase(options.router, path),
 	});
 	if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
 	// serverContext runs once, before mounts (02-system step 2). A mount never calls authenticate.
@@ -98,10 +100,16 @@ function serveOne(at: Serving, call: Call): Promise<Response> {
 // (step 10), so an OPTIONS, a 405, or an unmatched method imports nothing.
 // 02-system step 6: the middleware list wraps the server function and the router. Whatever answers, the router,
 // a returned Response, or a stash, leaves through finalize with the security set (B34).
+// Step 5, the locale slot, runs for a page request around that list. A server function has no locale.
 function route(exchange: Exchange): Promise<Response> {
 	const url = new URL(exchange.request.url);
 	const fn = isServerFn(url, exchange.options.router.basePath);
 	const inner = (): Promise<Response> => (fn ? serverFn(exchange) : routed(exchange, url));
+	const chain = (): Promise<Response> => withMiddleware(exchange, fn, inner);
+	return fn ? chain() : withLocale(exchange, chain);
+}
+
+function withMiddleware(exchange: Exchange, fn: boolean, inner: () => Promise<Response>): Promise<Response> {
 	const middleware = exchange.options.middleware ?? [];
 	if (middleware.length === 0) return inner();
 	const kind: MiddlewareKind = fn ? "serverFn" : "page";
