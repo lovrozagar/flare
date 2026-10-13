@@ -469,6 +469,8 @@ The fixture JWT is produced once, checked by hand against an independent verifie
 
 | test | case | result |
 | --- | --- | --- |
+| `server context` | a router whose loader calls `serverCtx()`, and `createTestServer(router, { serverContext })` | the loader reads that context (BUGS.md B25) |
+| `other keys refused` | `createTestServer(router, { site: "https://x" })` through a cast | throws, naming the key |
 | `boots` | `createTestServer` with the minimal router | `fetch("/")` returns the page |
 | `no options` | a second argument | throw |
 
