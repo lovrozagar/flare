@@ -611,6 +611,7 @@ packages/core/tests/integration/middleware.test.ts	P8	test	node	Filter case, mou
 packages/core/tests/integration/cacheability.test.ts	P9	test	node	The decision reaches document, data, and prefetch headers. A session, a late Set-Cookie, or an error frame takes the public header away
 packages/core/tests/integration/cache.test.ts	P10	test	node	A 401 is not stored. A second user does not receive the first user's body
 packages/core/tests/workerd/handler.test.ts	P3	test	workers	The workers handler delegates unmatched GET to the assets binding and calls waitUntil
+packages/core/tests/workerd/disconnect.test.ts	P15	test	node	Canary: local Miniflare does not report a client disconnect to the worker (BUGS.md B45, dx/adapters.md)
 packages/core/tests/workerd/cache-api.test.ts	P10	test	workers	Tombstones and epochs round-trip in workerd's cache
 packages/core/tests/size/budget.json	P1	config	-	Gzip budget per export. Starts empty and gains a row when the export is born
 packages/core/tests/size/size.test.ts	P1	test	node	A row over budget fails. An export missing from the budget fails
