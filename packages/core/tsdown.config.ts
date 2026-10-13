@@ -29,4 +29,7 @@ export default defineConfig({
 		{ from: "src/features/image/vite/modules.d.ts", to: join(config.outDir, "features/image/vite"), flatten: true },
 	],
 	report: false,
+	// flare() replaces whole modules by path at load time: build-info, the sync switch, the sheet, and the image config.
+	// Inlining their constants into importers would leave nothing to replace, so every module keeps its own file.
+	inputOptions: { optimization: { inlineConst: false } },
 });

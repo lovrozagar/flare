@@ -11,6 +11,7 @@ import { devEndpoints } from "../dev/guard.ts";
 import { prerenderApp } from "../prerender/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
+import { ownModule } from "./own-module.ts";
 import { fontsPlugin } from "./fonts.ts";
 import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
 import { readWrangler } from "./wrangler.ts";
@@ -27,16 +28,16 @@ const VITE_QUERY = new Set(["t", "v", "import"]);
 const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
 
 // The module the server reads its build id and client entry from. The package ships its source.
-const BUILD_INFO = fileURLToPath(new URL("../../server/lifecycle/build-info.ts", import.meta.url));
+const BUILD_INFO = ownModule("../../server/lifecycle/build-info.ts", import.meta.url);
 
 // The cross-tab switch. `flare({ broadcast: false })` replaces it in the client environment (dx/plugin.md).
-const SYNC_ENABLED = fileURLToPath(new URL("../../client/sync/enabled.ts", import.meta.url));
+const SYNC_ENABLED = ownModule("../../client/sync/enabled.ts", import.meta.url);
 const BROADCAST_OFF = "export const broadcastEnabled = false;\n";
 
 // The worker environment's entry: the app's server behind the Workers adapter.
 const WORKER_ENTRY = "virtual:flare/worker";
 const RESOLVED_WORKER = `\0${WORKER_ENTRY}`;
-const WORKERS_HANDLER = fileURLToPath(new URL("../../adapters/workers/handler.ts", import.meta.url));
+const WORKERS_HANDLER = ownModule("../../adapters/workers/handler.ts", import.meta.url);
 
 // The generated route module, whose `chunks` map the client build points at hashed files.
 const ROUTES_GEN = "src/_gen/routes.gen.ts";

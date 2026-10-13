@@ -448,6 +448,8 @@ packages/core/src/vite/plugin/flare.ts	P1	src	vite	The Vite plugin. Calls solid 
 packages/core/src/vite/plugin/flare.test.ts	P1	test	vite	Unit cases for flare.ts
 packages/core/src/vite/plugin/fonts.ts	P14	src	vite	flare({ fonts: { dir } }): the client build emits the used registry families' woff2 files
 packages/core/src/vite/plugin/fonts.test.ts	P14	test	vite	Unit cases for fonts.ts: real client builds
+packages/core/src/vite/plugin/own-module.ts	P14	src	vite	A module of this package by its source path, .ts from source and .js from the installed package
+packages/core/src/vite/plugin/own-module.test.ts	P14	test	vite	Unit cases for own-module.ts
 packages/core/src/vite/plugin/options.ts	P1	src	vite	Parse the flare() options
 packages/core/src/vite/plugin/options.test.ts	P1	test	vite	Unit cases for options.ts
 packages/core/src/vite/plugin/environments.ts	P1	src	vite	Declare client, ssr, and worker environments and their order

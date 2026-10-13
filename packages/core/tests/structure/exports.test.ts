@@ -129,6 +129,13 @@ it("compiled default", () => {
 		'import { createComponent } from "solid-js";\nimport { renderToString } from "@solidjs/web";\nimport { Image } from "@lovrozagar/flare";\nconsole.log(renderToString(() => createComponent(Image, { src: "/a.png", alt: "server" })));\n',
 	);
 	expect(execFileSync(process.execPath, [server], { encoding: "utf8" })).toContain('alt="server"');
+	// flare() swaps these modules by path at load time, so each stays its own file and its importers still import it.
+	for (const file of ["server/lifecycle/build-info.js", "client/sync/enabled.js", "shared/css/sheet.js"]) {
+		expect([file, existsSync(join(packed.root, "dist", file))]).toEqual([file, true]);
+	}
+	expect(readFileSync(join(packed.root, "dist/server/render/document.js"), "utf8")).toContain(
+		'from "../lifecycle/build-info.js"',
+	);
 	// The plugin graph loads in plain Node from the tarball, the font registry data included.
 	const plugin = join(packed.stage, "load-vite.mjs");
 	writeFileSync(

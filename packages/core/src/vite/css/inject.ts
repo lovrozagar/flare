@@ -1,16 +1,16 @@
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import { parseCss } from "../../shared/css/parse.ts";
 import { stylesheetOf, type BuiltStylesheet } from "./bundle.ts";
 import { RESET } from "./reset.ts";
+import { ownModule } from "../plugin/own-module.ts";
 
 // Typed as a string, so no declaration file carries a `virtual:` id (bits/14 `no src path in dts`).
 export const RESET_ID: string = "virtual:flare/reset.css";
 const RESOLVED_RESET = `\0${RESET_ID}`;
 
 // The module the server reads the built stylesheet from. The package ships its source, so this is the file Vite loads.
-const SHEET = fileURLToPath(new URL("../../shared/css/sheet.ts", import.meta.url));
+const SHEET = ownModule("../../shared/css/sheet.ts", import.meta.url);
 
 const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
 
