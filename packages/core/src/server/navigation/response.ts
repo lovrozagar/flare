@@ -8,7 +8,8 @@ export type DataBody = {
 	loaded: readonly LoaderFrame[];
 	heads: readonly Frame[];
 	deferred: readonly DeferredFrame[];
-	project: (error: unknown) => FrameError;
+	// `deferred` marks a deferred value's rejection, which the client reports if no <Errored> catches it (B6).
+	project: (error: unknown, deferred?: boolean) => FrameError;
 };
 
 const encoder = new TextEncoder();
@@ -31,7 +32,7 @@ export function dataBody(body: DataBody): ReadableStream<Uint8Array> {
 			const settled = body.deferred.map(({ m, k, promise }) =>
 				promise.then(
 					(d) => write({ t: "c", m, k, d }),
-					(error: unknown) => write({ t: "e", m, k, e: body.project(error) }),
+					(error: unknown) => write({ t: "e", m, k, e: body.project(error, true) }),
 				),
 			);
 			void Promise.all(settled).then(() => {

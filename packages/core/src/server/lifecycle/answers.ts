@@ -129,10 +129,12 @@ export async function dataFrom(
 	return cached(stage(routeSecured(exchange, run.security), body, run), settled, { run, errored });
 }
 
-// A deferred failure's `e` frame: the projected wire error.
-export function framed(exchange: Exchange): (error: unknown) => FrameError {
-	return (error) => {
-		const wire = projectError(error, exchange.sink).wire;
+// An `e` frame's projected wire error. A deferred value's is logged and sends no overlay payload, since an <Errored>
+// on the client may catch it. One that reaches errorRender is reported from the client (B6).
+export function framed(exchange: Exchange): (error: unknown, deferred?: boolean) => FrameError {
+	const quiet = { ...exchange.sink, send: undefined };
+	return (error, deferred) => {
+		const wire = projectError(error, deferred === true ? quiet : exchange.sink).wire;
 		return { message: wire.message, stack: wire.stack, digest: wire.digest };
 	};
 }

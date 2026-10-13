@@ -2,7 +2,8 @@ import { expect, it, vi } from "vitest";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
-import { createServer } from "./create.ts";
+import { createLayout } from "../../shared/route-builder/layout.ts";
+import { createServer, serveWith } from "./create.ts";
 import { NO_STORE } from "./policies.ts";
 import type { FlareStore } from "../cache/contract.ts";
 import { createMemoryStore } from "../cache/memory.ts";
@@ -139,4 +140,43 @@ it("fill no-store", async () => {
 	expect(late).toHaveBeenCalledOnce();
 	expect(reads).not.toHaveBeenCalled();
 	expect(set).not.toHaveBeenCalled();
+});
+
+type Logged = (tag: string, message: string, data?: unknown) => void;
+
+const rejected = (): Promise<string> => Promise.reject(new Error("late"));
+
+// A deferred rejection is the client's to report, since an <Errored> may catch it there: its `e` frame is logged and
+// sends no overlay payload. A loader throw in the same answer still sends one (dx/plugin.md, BUGS.md B6).
+it("deferred no overlay", async () => {
+	const sink = {
+		dev: true,
+		send: vi.fn<(payload: { err: { message: string } }) => void>(),
+		log: { level: "warn" as const, error: vi.fn<Logged>(), warn: vi.fn<Logged>(), log: vi.fn<Logged>() },
+	};
+	const shell = createLayout("_root_/s")
+		.loader(({ defer }) => ({ late: defer(rejected) }))
+		.render((props) => props.children);
+	const page = createPage("_root_/s/p")
+		.loader(() => {
+			throw new Error("boom");
+		})
+		.render(() => "p");
+	const filled = createPage("_root_/f")
+		.cache({ isr: { defer: "stream" } })
+		.loader(({ defer }) => ({ late: defer(rejected) }))
+		.render(() => "f");
+	const router = createRouter({
+		layouts: { _root_: root, "_root_/s": shell },
+		routeTree: [
+			{ id: "_root_/s/p", path: "/s/p", module: page },
+			{ id: "_root_/f", path: "/f", module: filled },
+		],
+	});
+	const app = serveWith({ router, site: "https://example.com", store: createMemoryStore() }, sink);
+	expect(await (await app.fetch(get("/s/p?_flare=data"))).text()).toContain('"message":"late"');
+	expect(sink.send.mock.calls.map(([payload]) => payload.err.message)).toEqual(["boom"]);
+	expect(await (await app.fetch(get("/f?_flare=fill"))).text()).toContain('"message":"late"');
+	expect(sink.send).toHaveBeenCalledOnce();
+	expect(sink.log.error.mock.calls.filter((call) => call[1] === "late")).toHaveLength(2);
 });
