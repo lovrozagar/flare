@@ -85,7 +85,19 @@ function devHost(fromRel, spec) {
 	);
 }
 
+// The three providers that tell other tabs may import the channel through its index (00-rules).
+const SYNC_IMPORTERS = new Set([
+	"features/theme/shared/provider.tsx",
+	"features/direction/shared/provider.tsx",
+	"features/i18n/shared/provider.tsx",
+]);
+
+function syncImport(fromRel, spec) {
+	return SYNC_IMPORTERS.has(fromRel) && spec.startsWith(".") && resolveRel(fromRel, spec) === "client/sync/index.ts";
+}
+
 function allowed(fromRel, spec) {
+	if (syncImport(fromRel, spec)) return true;
 	const from = bucket(fromRel);
 	const to = target(fromRel, spec);
 	if (to === "pkg" || devHost(fromRel, spec)) return true;
