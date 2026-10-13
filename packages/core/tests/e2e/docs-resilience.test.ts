@@ -7,11 +7,12 @@ deepOnly();
 const ECHO = fnId("src/fns/echo.ts", "echo");
 
 test("build mismatch reload", async ({ page, docs }) => {
-	await open(page, docs.origin, "/docs/routing");
-	await page.route("**/*_flare=data*", async (route) => {
+	// The newer deploy answers every data and prefetch request from the start, as a real deploy would.
+	await page.route(/[?&]_flare=(data|prefetch)/, async (route) => {
 		const response = await route.fetch();
 		await route.fulfill({ response, headers: { ...response.headers(), "flare-build": "a-newer-deploy" } });
 	});
+	await open(page, docs.origin, "/docs/routing");
 	const loads = documents(page);
 	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
 	await expect.poll(() => loads).toEqual(["/docs/caching"]);
