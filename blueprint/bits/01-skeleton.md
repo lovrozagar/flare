@@ -183,6 +183,7 @@ The corpus file feeds the test.
 | `no options` | a second argument | throw |
 | `wait until` | a handler calls `background` | `server.fetch` is called as `fetch(request, undefined, { waitUntil })`. The promise is retained. The response is not delayed for it |
 | `set-cookie` | two `getSetCookie()` values | each is its own `Set-Cookie`. The listener does not rebuild the header with `headers.forEach` |
+| `disconnect mid-stream` | `node:http` serving a real `createServer` whose root sits under `QueryClientProvider client={getQueryClient()}` and whose page holds a pending `"stream"` defer. The client socket is destroyed after the headers, five times, and once before them | the process keeps serving: the next GET answers 200, and no uncaught exception or unhandled rejection is raised (BUGS.md B28) |
 | `node request` | `node:http`'s `createServer(createNodeListener(server))`, a POST with a body and a repeated header, then a bare request object | the listener type-checks as the request handler. The body is read through the `IncomingMessage` itself, whose `on` and `resume` need their receiver, and the handler sees it. A listed header is joined with `, `, an absent one is dropped, and no method or url is `GET /` |
 
 ### `vite/codegen/escape.test.ts`
