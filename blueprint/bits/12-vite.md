@@ -26,15 +26,15 @@ Creates every `P12` row. `flare codegen` writes the same files the plugin writes
 
 | test | case | result |
 | --- | --- | --- |
-| `200` | a static page | exit 0, the body stored through the write path |
+| `200` | a real build of an app with an ssg page and `prerender: true`; then one with an `authorize` page, and one whose server entry exports no `server` | the seed is written through the write path under the build's own id, and the assets store of that build reads it. The second build fails naming the route, the third naming the entry |
 | `401` | an `ssg` page, or an `isr` page rendered at the build, whose chain requires auth, on a layout or on the page itself | exit 1, stderr contains the route id, nothing written. Seeds are public files under the assets path |
 | `500` | the loader throws | exit 1, the route id on stderr |
-| `hint mismatch` | the hint says public and the module requires auth | exit 1 before rendering |
+| `hint mismatch` | codegen's hint and the loaded modules' effective auth disagree, either way | exit 1 before rendering, naming the route. The hint is the codegen scan of the chain's files, so a layout that authenticates makes its pages `requires` |
 | `credential less` | the populate request | the URL is `site` plus the pathname. No search, no cookie, no authorization, and no copied request headers |
 | `dynamic false` | `dynamicParams: false` and a slug that was not listed | that slug is not rendered and is not written |
 | `defer rejected` | `defer: "resolve"` and the promise rejects | exit 1, stderr contains the route id, nothing written |
 | `missing params` | a dynamic SSG route with no `params` and no parent params | exit 1 before rendering |
-| `no static store` | an SSG route and `createServer` has no `static` | the server renders per request and warns once |
+| `no static store` | an SSG route and `createServer` has no `static` | the server renders per request and reports it once per route, at error level so production shows it (B89) |
 | `concurrency` | the default | one route renders at a time |
 | `env` | `env: () => ({ TOKEN: "t" })` | the function is called at prerender, and the request env is `{ TOKEN: "t" }` |
 | `exclude` | the route id is in `exclude` | that route is not rendered |
@@ -43,6 +43,7 @@ Creates every `P12` row. `flare codegen` writes the same files the plugin writes
 | `isr empty` | `isr: {}` and `prerender` omitted | exit 0, that route is not rendered |
 | `authorize` | `authorize` anywhere on the chain | exit 1, stderr names the route, nothing written |
 | `optional auth` | `authenticateOptional` and no `authorize` | the anonymous body is prerendered |
+| `middleware runs` | a middleware redirect on a prerendered route | exit 1 naming the route and the status, nothing written: a seed never holds a page the middleware would have changed |
 
 ### `server/cache/prerender.test.ts`
 
@@ -91,6 +92,7 @@ An SSG route with no tags still prerenders. Purge does not apply to `_flare-stat
 | `css order` | the ssr environment built before the client | the build fails: the server reads the client build's stylesheet (`vite/css/inject`), so the client must build first |
 | `urls agree` | a real client and ssr run with Vite `base: "/app/"`, then `assetsBase: "/cdn"`, then `assetsBase: "/"` | the client entry URL, a lazy chunk URL as the entry resolves it, the stylesheet `builtHref`, a CSS `url()` asset, and the seeds' public URL all start with the same prefix (`/app/assets/`, `/cdn/`, `/`). One function, `assetUrl`, resolves it: `clientUrl`, `stylesheetOf`, and Vite's `renderBuiltUrl` call it. A chunk URL is relative to the entry chunk. The seed directory `createAssetsStore` reads is the path inside the client output, `/<assetsDir>/_flare-static`, without Vite `base` |
 | `chunk urls` | a real client build of a generated `routes.gen.ts` | each `chunks` source path becomes the chunk its lazy import loads, an emitted chunk reference rendered relative to the entry chunk, so the content hash covers it. No `/src/routes/` path is left. `vite dev` keeps the source paths, which are the dev URLs |
+| `after build` | buildApp once every environment is built | prerender runs with the app root, the client output, the built server file, the assets base, and the parsed `prerender` option |
 | `config file` | a builder from a `vite.config` file that calls `flare()` | the ssr bundle holds the client's stylesheet. The builder shares one config and one plugin set across environments (`sharedConfigBuild`, `sharedPlugins`): Vite would otherwise load the config file again per environment, and its `flare()` call would make new plugins that never saw the client build |
 | `css server only` | a real client and ssr build of an app with CSS | the ssr bundle's `builtSheet` is the client's one stylesheet and its `builtHref` that file's URL. No client JavaScript chunk contains the CSS text |
 
@@ -124,6 +126,12 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 | --- | --- | --- |
 | `defaults` | `flare()` with no outDir override | client output is `dist/client` with the manifest on. SSR output is `dist/server/server.js`. `cssCodeSplit` is false |
 | `assets dir` | `assetsBase: "/"` and `build.assetsDir` set to something other than `assets` | the plugin throws. The URL prefix is `/` and the on-disk directory is `assets` |
+
+### `vite/plugin/options.test.ts` (extended)
+
+| test | case | result |
+| --- | --- | --- |
+| `prerender` | omitted, `false`, `true`, a whole object, a record `env`, and bad values | `false`, `false`, `{}`, the object as given; a non-integer or zero `concurrency`, a non-list or non-string `exclude`, a non-object `env`, and an unknown key throw and name the key |
 
 ### `vite/plugin/flare.test.ts` (extended)
 

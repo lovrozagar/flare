@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import type { BuilderOptions, EnvironmentOptions, UserConfig } from "vite";
 
 export type EnvName = "client" | "ssr" | "worker";
@@ -56,6 +57,8 @@ export type BuildInput = {
 	user: { outDir?: string | undefined; assetsDir?: string | undefined };
 	// The worker environment's entry module, present when the app has a Workers config.
 	worker?: string | undefined;
+	// What runs once every environment is built: prerender (bits/12).
+	afterBuild?: ((built: { clientDir: string; serverFile: string }) => Promise<void>) | undefined;
 };
 
 // The conditions a Workers bundle resolves with: the server builds of Solid and of flare's server-fn entry.
@@ -100,6 +103,9 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 					const environment = builder.environments[name];
 					if (environment !== undefined && !environment.isBuilt) await builder.build(environment);
 				}
+				const root = builder.config.root;
+				const serverFile = resolve(root, build.ssr.outDir, build.ssr.input);
+				await input.afterBuild?.({ clientDir: resolve(root, build.client.outDir), serverFile });
 			},
 		},
 	};

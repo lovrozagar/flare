@@ -7,6 +7,7 @@ import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/
 import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
 import { devEndpoints } from "../dev/guard.ts";
+import { prerenderApp } from "../prerender/index.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
 import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
@@ -48,63 +49,69 @@ export function flare(options?: FlareOptions): Plugin[] {
 }
 
 // The config, the build environments, the server's build info, the worker entry, and the dev server.
+// What the config hook settles for the later hooks: Vite's resolved `base`, which every built URL starts with, where
+// the client build writes its manifest, and the worker entry's source.
+type State = { base: string; manifest: string; workerSource: string };
+
 function core(parsed: ParsedOptions): Plugin {
-	// Vite's resolved `base`, which every built URL starts with, and where the client build writes its manifest.
-	let base = "/";
-	let manifest = "";
-	let workerSource = "";
+	const state: State = { base: "/", manifest: "", workerSource: "" };
 	return {
 		name: "flare",
 		config(config: UserConfig): UserConfig {
-			assertHost(config.server?.host);
-			const root = config.root ?? process.cwd();
-			assertEntry(root, parsed.entry.client, "entry.client");
-			assertEntry(root, parsed.entry.server, "entry.server");
-			const entry = { client: resolve(root, parsed.entry.client), server: resolve(root, parsed.entry.server) };
-			const user = { outDir: config.build?.outDir, assetsDir: config.build?.assetsDir };
-			manifest = resolve(
-				root,
-				environmentBuild({ assetsBase: parsed.assetsBase, ...user }).client.outDir,
-				".vite/manifest.json",
-			);
-			const workers = readWrangler(root);
-			workerSource = workers === undefined ? "" : workerModule(entry.server, workers.binding);
-			const worker = workers === undefined ? undefined : WORKER_ENTRY;
-			// Flare owns the entries and the dev server, so Vite serves no index.html (B89).
-			return {
-				appType: "custom",
-				resolve: { dedupe: ["solid-js", "@solidjs/web"] },
-				ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
-				optimizeDeps: { exclude: ["@lovrozagar/flare"] },
-				...buildConfig({ assetsBase: parsed.assetsBase, entry, user, worker }),
-				// A Web Worker bundle is a client graph: rewritten and scanned like the client (B9, B45).
-				worker: { plugins: () => [boundary("client")] },
-				// Every URL Vite writes into CSS and JavaScript comes from the same resolver as the server's.
-				experimental: { renderBuiltUrl: (file) => assetUrl(file, { base, assetsBase: parsed.assetsBase }) },
-			};
+			return flareConfig(config, parsed, state);
 		},
 		configResolved(config) {
-			base = config.base;
+			state.base = config.base;
 		},
 		// Codegen is always on: a build and `vite dev` write src/_gen first, and a failure fails the start (B89).
 		buildStart() {
 			writeGenerated(this.environment.config.root);
 		},
 		resolveId(id) {
-			return id === WORKER_ENTRY && workerSource !== "" ? RESOLVED_WORKER : null;
+			return id === WORKER_ENTRY && state.workerSource !== "" ? RESOLVED_WORKER : null;
 		},
 		// A build's server environments read the manifest the client build wrote, so the client builds first.
 		load(id) {
-			if (id === RESOLVED_WORKER) return workerSource;
+			if (id === RESOLVED_WORKER) return state.workerSource;
 			const { name, config } = this.environment;
 			if (id !== BUILD_INFO || !SERVER_ENVIRONMENTS.has(name)) return null;
-			const urls = { base, assetsBase: parsed.assetsBase };
-			return buildInfoSource({ command: config.command, entry: parsed.entry.client, manifest, urls });
+			const urls = { base: state.base, assetsBase: parsed.assetsBase };
+			const input = { command: config.command, entry: parsed.entry.client, manifest: state.manifest, urls };
+			return buildInfoSource(input);
 		},
 		configureServer(server) {
 			watchGenerated(server, server.config.root);
 			return installDevHandler(server, parsed.entry.server);
 		},
+	};
+}
+
+// The Vite config flare owns. Flare owns the entries and the dev server, so Vite serves no index.html (B89).
+function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): UserConfig {
+	assertHost(config.server?.host);
+	const root = config.root ?? process.cwd();
+	assertEntry(root, parsed.entry.client, "entry.client");
+	assertEntry(root, parsed.entry.server, "entry.server");
+	const entry = { client: resolve(root, parsed.entry.client), server: resolve(root, parsed.entry.server) };
+	const user = { outDir: config.build?.outDir, assetsDir: config.build?.assetsDir };
+	const client = environmentBuild({ assetsBase: parsed.assetsBase, ...user }).client.outDir;
+	state.manifest = resolve(root, client, ".vite/manifest.json");
+	const workers = readWrangler(root);
+	state.workerSource = workers === undefined ? "" : workerModule(entry.server, workers.binding);
+	const worker = workers === undefined ? undefined : WORKER_ENTRY;
+	// Prerender runs once the server is built, and writes its seeds into the client output (bits/12).
+	const afterBuild = (built: { clientDir: string; serverFile: string }): Promise<void> =>
+		prerenderApp({ root, ...built, assetsBase: parsed.assetsBase, config: parsed.prerender });
+	return {
+		appType: "custom",
+		resolve: { dedupe: ["solid-js", "@solidjs/web"] },
+		ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
+		optimizeDeps: { exclude: ["@lovrozagar/flare"] },
+		...buildConfig({ assetsBase: parsed.assetsBase, entry, user, worker, afterBuild }),
+		// A Web Worker bundle is a client graph: rewritten and scanned like the client (B9, B45).
+		worker: { plugins: () => [boundary("client")] },
+		// Every URL Vite writes into CSS and JavaScript comes from the same resolver as the server's.
+		experimental: { renderBuiltUrl: (file) => assetUrl(file, { base: state.base, assetsBase: parsed.assetsBase }) },
 	};
 }
 

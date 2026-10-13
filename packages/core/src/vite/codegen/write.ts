@@ -16,7 +16,7 @@ export const GENERATED = ["routes.gen.ts", "types.gen.d.ts", "server-fns.gen.ts"
 // output is not written. An empty route set removes the route and type files. Files are read in UTF-16 code unit
 // order, so the output does not depend on the file system's listing. A failure throws and names the file.
 export function writeGenerated(root: string): string[] {
-	const routeFiles = filesUnder(join(root, ROUTES_DIR));
+	const routeFiles = routeFilesOf(root);
 	const appFiles = filesUnder(join(root, "src"))
 		.map((file) => `src/${file}`)
 		.filter((file) => SCRIPT.test(file) && !file.startsWith(`${OUT_DIR}/`));
@@ -28,6 +28,11 @@ export function writeGenerated(root: string): string[] {
 		generateServerFns(appFiles, read).source,
 	];
 	return GENERATED.flatMap((name, index) => (settle(root, name, sources[index]) ? [`${OUT_DIR}/${name}`] : []));
+}
+
+// The files under src/routes, relative to it, in UTF-16 code unit order.
+export function routeFilesOf(root: string): string[] {
+	return filesUnder(join(root, ROUTES_DIR));
 }
 
 // Writes `source` when it differs, or removes the file when there is none. True when the file changed.

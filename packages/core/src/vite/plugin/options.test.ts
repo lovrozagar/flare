@@ -160,3 +160,29 @@ it("unknown", () => {
 	for (const key of banned) expect(() => parseOptions({ [key]: true } as unknown as FlareOptions)).toThrow(key);
 	for (const [key, run] of typed) expect(run).toThrow(new RegExp(key));
 });
+
+function tokenEnv(): Record<string, unknown> {
+	return { TOKEN: "t" };
+}
+
+// Omitted and `false` are off, `true` is every default, and an object is checked key by key (dx/plugin.md).
+it("prerender", () => {
+	expect(parseOptions().prerender).toBe(false);
+	expect(parseOptions({ prerender: false }).prerender).toBe(false);
+	expect(parseOptions({ prerender: true }).prerender).toEqual({});
+	const full = { concurrency: 2, exclude: ["_root_/a"], env: tokenEnv, sitemap: {} };
+	expect(parseOptions({ prerender: full }).prerender).toEqual(full);
+	expect(parseOptions({ prerender: { env: { TOKEN: "t" } } }).prerender).toEqual({ env: { TOKEN: "t" } });
+	const bad: Array<[unknown, RegExp]> = [
+		[{ concurrency: 0 }, /prerender\.concurrency/],
+		[{ concurrency: 1.5 }, /prerender\.concurrency/],
+		[{ exclude: "_root_/a" }, /prerender\.exclude/],
+		[{ exclude: [1] }, /prerender\.exclude/],
+		[{ env: "TOKEN" }, /prerender\.env/],
+		[{ env: null }, /prerender\.env/],
+		[{ origin: "x" }, /prerender\.origin/],
+	];
+	for (const [prerender, error] of bad) {
+		expect(() => parseOptions({ prerender } as unknown as FlareOptions)).toThrow(error);
+	}
+});
