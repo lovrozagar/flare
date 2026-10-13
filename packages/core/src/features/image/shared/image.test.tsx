@@ -96,6 +96,23 @@ it("blur until load", () => {
 	expect(element.style.backgroundSize).toBe("");
 });
 
+// A priority image often finishes before hydrate attaches onLoad, so its load event is never heard. The blur clears
+// once the mounted image reports it is complete (BUGS.md B20).
+it("complete before hydrate", async () => {
+	const complete = vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true);
+	const element = img({
+		alt: "a",
+		src: photo,
+		priority: true,
+		placeholder: "blur",
+		blurDataURL: "data:image/png;base64,AAAA",
+	});
+	await Promise.resolve();
+	flush();
+	complete.mockRestore();
+	expect(element.style.backgroundImage).toBe("");
+});
+
 it("blur scheme", () => {
 	const element = img({ alt: "a", src: photo, placeholder: "blur", blurDataURL: "https://evil.test/a.png" });
 	expect(element.style.backgroundImage).toBe("");

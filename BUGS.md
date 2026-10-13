@@ -150,11 +150,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 19.3 [ ] Write a failing `client/router/match-cache.test.ts` case with a route `staleTime: "30s"` string. Then parse durations.
 19.4 [ ] Verify: `docs-cache` `client cache stale` and `cache deferred` are green.
 
-20 [ ] B20 The Image blur placeholder never clears when the image loads before hydrate
-20.1 [ ] Repro: the home hero is `<Image fill priority placeholder="blur" blurDataURL={…}>`. Load `/` in prod.
-20.2 [ ] Expected (`dx/features.md` Image): the blur is the background until load, then it is removed. Actual: `img.complete` is true, and the inline `background-image:url("data:image/svg+xml…")` stays forever. A priority image usually loads before hydration attaches `onLoad`, so the event is missed.
-20.3 [ ] Write a failing `features/image/shared/image.test.tsx` case (an already-complete image at hydrate clears the placeholder). Then check `complete` after mount.
-20.4 [ ] Verify: `docs-features` `image responsive` is green.
+20 [x] B20 The Image blur placeholder never clears when the image loads before hydrate
+20.1 [x] Repro: the home hero is `<Image fill priority placeholder="blur" blurDataURL={…}>`. Load `/` in prod.
+20.2 [x] Expected (`dx/features.md` Image): the blur is the background until load, then it is removed. Actual: `img.complete` is true, and the inline `background-image:url("data:image/svg+xml…")` stays forever. A priority image usually loads before hydration attaches `onLoad`, so the event is missed.
+20.3 [x] Write a failing `features/image/shared/image.test.tsx` case (an already-complete image at hydrate clears the placeholder). Then check `complete` after mount.
+20.4 [x] Verify: `docs-features` `image responsive` is green.
 
 21 [ ] B21 `withFetchDedupe` does not dedupe across loaders of one request
 21.1 [ ] Repro: the docs layout loader and the doc page loader both call `withFetchDedupe(serverCtx().upstream)("https://upstream.flare.test/stats")` (`apps/docs/src/stats.ts`). The upstream counts calls per request, and the page prints it.
