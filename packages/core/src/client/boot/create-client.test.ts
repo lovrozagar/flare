@@ -324,6 +324,34 @@ it("one build", async () => {
 	expect(browser.assign).toHaveBeenLastCalledWith(window.location.href);
 });
 
+// The prefetcher checks the same build. A prefetch a newer deploy answered is dropped, so the navigation makes its
+// own request, sees the mismatch, and loads the document once instead of committing the other build's frames (B30).
+it("prefetch build", async () => {
+	const host = install("b1");
+	const frames = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/about", d: "newer" },
+		{ t: "r" },
+		{ t: "d" },
+	] as const;
+	const body = frames.map(encodeFrame).join("");
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(body, { headers: { "flare-build": "b2" } }));
+	const ready = createReady();
+	const navigates: ReadyContext["navigate"][] = [];
+	ready.api.onReady((ctx) => navigates.push(ctx.navigate));
+	const browser = env(host, fetch);
+	sessionStorage.clear();
+	stops.push(await bootClient(routerOf(), ready, browser));
+	const anchor = document.createElement("a");
+	seen.prefetcher?.watch(anchor, "/about", "intent");
+	anchor.dispatchEvent(new Event("pointerenter"));
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	await navigates[0]({ to: "_root_/about" });
+	flush();
+	expect(browser.assign).toHaveBeenCalledWith("/about");
+	expect(host.textContent).not.toContain("newer");
+});
+
 // A stored document that left a `"stream"` hole says so in its state. After hydrate the client sends one
 // `_flare=fill` revalidation of the same URL, which writes no history (dx/defer.md). The e2e row sees the value land.
 it("fill on hydrate", async () => {

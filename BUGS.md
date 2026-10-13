@@ -213,11 +213,12 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 29.3 [ ] Decide whether `formatMessage` pins a numbering system (for example `nu` from the tag, or `Intl.NumberFormat(tag, { numberingSystem })`) so every runtime agrees. Then write a failing `features/i18n/shared/format.test.ts` case that runs the same message under each runtime's expectations.
 29.4 [ ] Verify: `docs-features` `format message` is green on workers-prod.
 
-30 [ ] B30 A data answer from a newer deploy does not reload the document
-30.1 [ ] Repro: on `/docs/routing`, let every `?_flare=data` response carry `flare-build: a-newer-deploy` (Playwright `route.fulfill` with the real body), then click a sidebar link. This was seen on bun-prod, workers-prod, and node-dev Firefox and WebKit, with hydration working (B2 and B3 sidestepped).
-30.2 [ ] Expected (`dx/navigate.md`): a navigation whose response `flare-build` differs from `self.flare.build` document-loads once under the `flare_chunk_reload` guard, and does not apply frames. Actual: no document request. The client applies the frames from the other build. With the real app, the case falsely passes, because dead clicks (B2, B3) fall through to a native page load.
-30.3 [ ] Write a failing `client/navigation/navigate.test.ts` case (`build mismatch`) through the real fetch path. Then compare the header on every data response.
-30.4 [ ] Verify: `docs-resilience` `build mismatch reload` is green with hydration working.
+30 [x] B30 A data answer from a newer deploy does not reload the document
+30.1 [x] Repro: on `/docs/routing`, let every `?_flare=data` response carry `flare-build: a-newer-deploy` (Playwright `route.fulfill` with the real body), then click a sidebar link. This was seen on bun-prod, workers-prod, and node-dev Firefox and WebKit, with hydration working (B2 and B3 sidestepped).
+30.2 [x] Expected (`dx/navigate.md`): a navigation whose response `flare-build` differs from `self.flare.build` document-loads once under the `flare_chunk_reload` guard, and does not apply frames. Actual: no document request. The client applies the frames from the other build. With the real app, the case falsely passes, because dead clicks (B2, B3) fall through to a native page load.
+30.3 [x] Write a failing `client/navigation/navigate.test.ts` case (`build mismatch`) through the real fetch path. Then compare the header on every data response.
+30.4 [x] Verify: `docs-resilience` `build mismatch reload` is green with hydration working.
+30.5 [x] Cause: the browser prefetcher was created with an empty build id, which turned its check off, so a prefetch a newer deploy answered was held and taken whole by the next navigation with no request of its own. One id now feeds the navigator, the prefetcher, and the server-function transport. The spec also simulated the deploy on `_flare=data` only and after load; a real deploy stamps prefetches too, so it now marks both from the start.
 
 31 [ ] B31 Concurrent misses of one shared key render once each
 31.1 [ ] Repro: on a production build, send 8 parallel GETs to a never-requested shared SSR URL, `/hr/api/routes/create-page`, and read `#api-rendered-by` from each body.
