@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
-import { release, type ReleaseDeps } from "./release.ts";
+import { release, shipped, type ReleaseDeps } from "./release.ts";
 
 const VERSION: string = JSON.parse(
 	readFileSync(new URL("../packages/core/package.json", import.meta.url), "utf8"),
@@ -98,4 +98,18 @@ it("publish wrong tag", () => {
 	expect(real.published().map((call) => call.args)).toEqual([
 		["publish", TARBALL, "--access", "public", "--provenance"],
 	]);
+});
+
+// The staged src leaves out test code, as files.tsv kinds it: tests and their fixtures, whatever the extension
+// (00-rules Dependencies).
+it("fixtures dropped", () => {
+	const paths = [
+		"src/client/navigation/navigate.fixture.ts",
+		"src/features/seo/server/google.fixture.txt",
+		"src/client/navigation/navigate.test.ts",
+		"src/shared/head.ssr.test.tsx",
+		"src/client/navigation/navigate.ts",
+		"src/features/fonts/registry.json",
+	];
+	expect(paths.filter(shipped)).toEqual(["src/client/navigation/navigate.ts", "src/features/fonts/registry.json"]);
 });
