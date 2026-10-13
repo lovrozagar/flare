@@ -331,6 +331,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
+| `skipped transition` | a transition whose `ready` rejects with an `AbortError` ("Transition was skipped") | `runTransition` resolves once the update is done, and no rejection goes unhandled (BUGS.md B17) |
 | `forward` | index increases | `forward` |
 | `back` | index decreases | `back` |
 | `off` | `viewTransitions: false` | no transition class |
@@ -348,6 +349,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
+| `delegate rewrite` | an anchor whose href matches a route only after the router's `rewrite`; a rewrite that throws; a rewrite that returns another origin | the first is visited with the rewritten URL, rewritten exactly once; the other two prevent the default and visit nothing (BUGS.md B17) |
 | `href` | `to` the about route | an anchor whose href is `/about`. A click navigates on the client with the link's options. An `onClick` that calls `preventDefault` stops it |
 | `foreign` | `href="https://evil/"` | the anchor is rendered and prefetch does not run |
 | `intent` | hover on `prefetch="intent"` | prefetch is called for modules and data |
