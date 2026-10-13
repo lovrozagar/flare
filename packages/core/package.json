@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"license": "MIT",
 	"bin": {
-		"flare": "./dist/bin/codegen.js"
+		"flare": "./src/vite/bin/flare.ts"
 	},
 	"files": [
 		"dist",
