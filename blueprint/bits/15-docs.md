@@ -104,3 +104,9 @@ The dev tab hub (BUGS.md B42), independent of the Node and Bun handler so the Wo
 | --- | --- | --- |
 | `tabbed fetch` | a document with the `flare-dev-tab` meta and a hot channel; no hot channel; no meta | the token is announced once and set on every request, the request's own headers kept; `fetch` is returned unchanged in the other two |
 
+## `tests/workerd/disconnect.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `miniflare drops disconnect` | a worker that streams a line every 100 ms and records its `request.signal` abort and its body's `cancel()`; the client reads one chunk and aborts, then reads the recorded status after 500 ms; with and without `enable_request_signal` | the status is still `running` in all four runs. A Miniflare that reports the disconnect fails this case, which is the cue to re-enable `stream abort` on `workers-*` (BUGS.md B45) |
+
