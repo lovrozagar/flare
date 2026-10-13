@@ -1,5 +1,6 @@
 import { existsSync, mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { connect } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
@@ -102,6 +103,44 @@ it("node prod", () => prod("node"), PROD_BOOT);
 it("bun prod", () => prod("bun"), PROD_BOOT);
 
 it("workers prod", () => prod("workers"), PROD_BOOT);
+
+// A raw request to a page with a live defer, whose socket closes after the headers or before them, as a closed tab's
+// does (BUGS.md B28).
+function drop(origin: string, after: "headers" | "connect"): Promise<void> {
+	const { hostname, port } = new URL(origin);
+	return new Promise((resolve) => {
+		const socket = connect(Number(port), hostname, () => {
+			socket.write(`GET /playground HTTP/1.1\r\nHost: ${hostname}:${port}\r\nAccept: text/html\r\n\r\n`);
+			if (after === "connect") socket.destroy();
+		});
+		socket.on("data", (chunk: Buffer) => {
+			if (chunk.toString().includes("\r\n\r\n")) socket.destroy();
+		});
+		socket.on("close", () => resolve());
+	});
+}
+
+async function survives(runtime: "node" | "bun" | "workers"): Promise<unknown[]> {
+	const session = await boot({ app: "docs", runtime, mode: "prod" });
+	try {
+		for (let index = 0; index < 5; index += 1) await drop(session.origin, "headers");
+		await drop(session.origin, "connect");
+		const health = await fetch(`${session.origin}/healthz`).catch((error: unknown) => error);
+		return [runtime, health instanceof Response ? health.status : String(health)];
+	} finally {
+		await session.close();
+	}
+}
+
+it(
+	"disconnect survives",
+	async () => {
+		expect(await survives("node")).toEqual(["node", 200]);
+		expect(await survives("bun")).toEqual(["bun", 200]);
+		expect(await survives("workers")).toEqual(["workers", 200]);
+	},
+	3 * PROD_BOOT,
+);
 
 it("workers", async () => {
 	await expect(boot({ app: "minimal", runtime: "workers", mode: "dev" })).rejects.toThrow(/workers/);

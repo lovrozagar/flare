@@ -1,3 +1,6 @@
+import type { RequestEvent } from "@solidjs/web";
+import { provideRequestEvent } from "@solidjs/web/storage";
+
 // On @solidjs/web 2.0.0-rc.13 and rc.14, aborting renderToStream's signal does not close its writable (N3-2). Every pull,
 // the chunk-0 wait included, races the request signal. An abort or a consumer cancel disposes the render
 // once, cancels the source, and ends the response.
@@ -27,4 +30,18 @@ export function raceAbort(
 		},
 		cancel: stop,
 	});
+}
+
+// Solid disposes the tree, and runs every cleanup, inside the abort listener of the signal the render gives it. A
+// socket close fires outside the request's scope, where a cleanup that reads the request (the query client getter)
+// throws, and a listener's throw ends the process. So Solid gets a signal this owns, never the request's, and a
+// request abort or a consumer cancel stops it under the request event the render ran under (BUGS.md B28).
+export function renderStop(
+	requestSignal: AbortSignal,
+	event: RequestEvent | undefined,
+): { signal: AbortSignal; stop: () => void } {
+	const halt = new AbortController();
+	const stop = event === undefined ? () => halt.abort() : () => void provideRequestEvent(event, () => halt.abort());
+	requestSignal.addEventListener("abort", stop, { once: true });
+	return { signal: halt.signal, stop };
 }

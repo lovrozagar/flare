@@ -1,5 +1,6 @@
-import { createComponent, createMemo, Loading } from "solid-js";
-import { Dynamic, renderToStream, type JSX } from "@solidjs/web";
+import { createComponent, createMemo, Loading, onCleanup } from "solid-js";
+import { createRequestEvent, Dynamic, getRequestEvent, renderToStream, type JSX } from "@solidjs/web";
+import { provideRequestEvent } from "@solidjs/web/storage";
 import { expect, it, vi } from "vitest";
 import { Link, Stylesheet } from "../../shared/components/index.ts";
 import type { CacheConfig } from "../../shared/route-builder/chain.ts";
@@ -217,6 +218,29 @@ it("abort after shell", async () => {
 	expect(decoder.decode((await reader.read()).value)).toContain("wait-slow");
 	controller.abort();
 	expect(await reader.read()).toEqual({ done: true, value: undefined });
+	slow.resolve("SLOW");
+});
+
+// A streaming document under its own request event, stopped from the test's scope, as a socket close stops it. Every
+// cleanup runs under the event the render had (B28).
+it("abort cleanup in request", async () => {
+	const { slow, render } = twoSlots();
+	const controller = new AbortController();
+	const incoming = new Request("http://localhost/", { signal: controller.signal });
+	const event = createRequestEvent(incoming);
+	const seen: unknown[] = [];
+	const tree = (): JSX.Element => {
+		onCleanup(() => void seen.push(getRequestEvent()));
+		return render();
+	};
+	const body = await new Promise<ReadableStream<Uint8Array>>((resolve, reject) => {
+		provideRequestEvent(event, () =>
+			renderDocument({ ...base(), request: incoming, render: tree }).then(resolve, reject),
+		);
+	});
+	await body.getReader().read();
+	controller.abort();
+	expect(seen).toEqual([event]);
 	slow.resolve("SLOW");
 });
 
