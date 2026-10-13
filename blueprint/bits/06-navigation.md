@@ -160,7 +160,6 @@ navigate.test.ts is near the test-file limit, so the shallow cases live beside i
 | --- | --- | --- |
 | `shallow` | a shallow navigate to the current route with new search, then again with `replace` | no request and no loader run, the URL and the page's search values are the call's, loader data is unchanged, history gains one entry then replaces it, and `pending` stays false (BUGS.md B18) |
 | `shallow blocked` | the same with a blocker that returns `false` | the URL and the search stay, and no history entry is written |
-| `hash push index` | a hash-only navigate (push), then `history.back()` | the navigator's history index follows the push, so the popstate's view-transition direction is `back`, not `same` (found with BUGS.md B18) |
 
 ### `client/navigation/navigate-slots.test.ts`
 
