@@ -22,6 +22,8 @@ export default defineConfig({
 				"**/index.ts",
 				"src/exports/**",
 				"src/features/fonts/shared/generated/**",
+				// The font registry is data that generate.ts reads, not code.
+				"src/features/fonts/registry.json",
 			],
 			thresholds: {
 				perFile: true,

@@ -16,6 +16,8 @@
 		"**/.flare/**",
 		"**/.output/**",
 		"**/_gen/**",
+		// One module per font registry key, written by features/fonts/generate.ts (B78).
+		"packages/core/src/features/fonts/shared/generated/**",
 		"**/*.gen.ts",
 		"**/*.gen.d.ts",
 		"**/target/**",
