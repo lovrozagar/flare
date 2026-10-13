@@ -98,6 +98,8 @@ packages/core/src/shared/protocol/internal-params.ts	P6	src	shared	Parse and str
 packages/core/src/shared/protocol/internal-params.test.ts	P6	test	shared	Unit cases for internal-params.ts
 packages/core/src/shared/protocol/get-codec.ts	P7	src	shared	Encode and decode the _i GET payload. 8192 cap
 packages/core/src/shared/protocol/get-codec.test.ts	P7	test	shared	Unit cases for get-codec.ts
+packages/core/src/shared/protocol/prerender.ts	P12	src	shared	The registry symbol and types of the internal channel between prerender and a built server
+packages/core/src/shared/protocol/prerender.test.ts	P12	test	shared	Unit cases for prerender.ts
 packages/core/src/shared/protocol/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/cache/artifact-path.ts	P10	src	shared	Turn a store key into the SSG artifact URL. The only path formatter
 packages/core/src/shared/cache/artifact-path.test.ts	P10	test	shared	Unit cases for artifact-path.ts
@@ -304,6 +306,8 @@ packages/core/src/server/cache/revalidate.ts	P10	src	server	revalidate({ keys, t
 packages/core/src/server/cache/revalidate.test.ts	P10	test	server	Unit cases for revalidate.ts
 packages/core/src/server/cache/assets.ts	P10	src	server	createAssetsStore. Read-only get of an SSG seed. set and delete reject
 packages/core/src/server/cache/assets.test.ts	P10	test	server	Unit cases for assets.ts
+packages/core/src/server/cache/prerender.ts	P12	src	server	What vite build's prerender reads of a built server: its ssg and isr pages, their params, and a render that captures the stored miss's entry
+packages/core/src/server/cache/prerender.test.ts	P12	test	server	Unit cases for prerender.ts
 packages/core/src/server/cache/index.ts	P10	index	server	Re-exports
 packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates and adopts history.state
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts

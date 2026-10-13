@@ -1,5 +1,6 @@
 import type { RequestKind } from "../../shared/protocol/index.ts";
 import type { FlareStore } from "../cache/contract.ts";
+import type { Capture } from "../cache/prerender.ts";
 import type { Session } from "../context/ctx.ts";
 import type { LoaderRun } from "../loaders/run.ts";
 import type { MountContext } from "../mount/mount.ts";
@@ -29,6 +30,8 @@ export type Exchange = {
 	waitUntil: (promise: Promise<unknown>) => void;
 	store: () => FlareStore | undefined;
 	seeds: () => FlareStore | undefined;
+	// A prerender request's capture: the stored miss's entry goes here, not to a store (bits/12).
+	prerender?: Capture | undefined;
 };
 
 // Every answer here carries the request's resolved security set, which already holds the defaults, so finalize

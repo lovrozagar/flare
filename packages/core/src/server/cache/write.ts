@@ -51,7 +51,7 @@ export type EntryInput = {
 	headers: Readonly<Record<string, string | string[]>>;
 	security: SecurityConfig;
 	nonce: string;
-	render: "isr" | "ssr";
+	render: "isr" | "ssr" | "ssg";
 	startedAt: number;
 	tags: readonly string[];
 };
