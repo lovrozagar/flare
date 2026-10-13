@@ -81,3 +81,11 @@ The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydra
 | `navigation progress beside a sibling` | a root whose body renders `useNavigationProgress` output before a sibling element | no hydration warning or key miss, and the sibling is the server's node (BUGS.md B2) |
 | `root boundaries idle` | a root with `errorRender` and `notFoundRender`, no failure, and a `useNavigationProgress` sibling | no key miss, and neither boundary function is called on the client (BUGS.md B3, closed as a consequence of B2) |
 | `data hooks read untracked` | a root and a page on screen. The page's component calls `useParams({ from })`, `useSearch({ from })`, `useLoaderData({ from })`, `usePreloaderContext({ from })`, and `useMatch({ from })` in its body and renders their values | no `STRICT_READ_UNTRACKED` and no hydration warning in chromium, firefox, and webkit, and the rendered values match the server's (BUGS.md B4) |
+
+## `shared/dev/warn.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `dev warns` | `devWarn("server-fn", "m")` with `import.meta.env.DEV` true | one `console.warn` with `[flare:server-fn]` and the message |
+| `prod silent` | the same with `DEV` false | no console call, and a production client bundle that imports it contains no `console.warn` |
+
