@@ -263,6 +263,7 @@ packages/core/src/server/navigation/response.test.ts	P6	test	server	Unit cases f
 packages/core/src/server/navigation/index.ts	P6	index	server	Re-exports
 packages/core/src/shared/dev/warn.ts	P15	src	shared	The client graph's one console caller: dev-only warnings, compiled out of production (00-rules)
 packages/core/src/shared/dev/warn.test.ts	P15	test	shared	Unit cases for warn.ts
+packages/core/src/shared/dev/reported.fixture.ts	P15	test	shared	Assert a dev throw and Solid's matching reportError call, the same on Node and the Bun runtime (BUGS.md B48)
 packages/core/src/shared/server-fn/builder.ts	P7	src	shared	The createServerFn chain, the call-once rule, the render guard, and the types. bindServerFn takes the call, so it imports no server module
 packages/core/src/shared/server-fn/builder.test.ts	P7	test	shared	Unit cases for builder.ts
 packages/core/src/server/server-fn/dispatch.ts	P7	src	server	The B42 order

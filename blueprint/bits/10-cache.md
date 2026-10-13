@@ -212,7 +212,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 
 | test | case | result |
 | --- | --- | --- |
-| `dir` | no argument | the directory is `.flare/cache` under the cwd |
+| `dir` | no argument, with `process.cwd` pointed at a temp dir | the directory is `.flare/cache` under that cwd, on Node and on the Bun runtime alike, and nothing is written outside the temp dir. The default is resolved from `process.cwd()` explicitly, because Bun's `path.resolve` reads the native cwd (BUGS.md B46) |
 | `no collision` | keys `a/b` and `a_b` | two files |
 | `backslash` | a key containing `\\` | stored and read back. The file name is the SHA-256 hex of the key, so no key character reaches the file system |
 | `long key` | a 1,000-byte key | stored and read back under a 64-character file name, not truncated |

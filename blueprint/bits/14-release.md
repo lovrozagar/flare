@@ -11,8 +11,8 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | test | case | result |
 | --- | --- | --- |
 | `subpath resolves` | every key in `03-surface.md` except the `./fonts/*` pattern | `types` and `default` resolve to files inside the tarball |
-| `font subpath` | a real key of `registry.json`, imported as `@lovrozagar/flare/fonts/<id>` | the default export resolves to that generated module. The module does not import another family |
-| `font barrel` | `@lovrozagar/flare/fonts` | does not resolve |
+| `font subpath` | a real key of `registry.json`, imported as `@lovrozagar/flare/fonts/<id>` | the default export resolves to that generated module. The module does not import another family. An id that is not a key resolves to no existing file: Node gives a URL to an absent file and the Bun runtime `ERR_MODULE_NOT_FOUND` (BUGS.md B47) |
+| `font barrel` | `@lovrozagar/flare/fonts`, resolved by the runtime under test | does not resolve: Node answers `ERR_PACKAGE_PATH_NOT_EXPORTED`, the Bun runtime `ERR_MODULE_NOT_FOUND`; the case names each runtime's answer (BUGS.md B47) |
 | `no solid condition` | every entry | no `solid` and no `browser` key, except `./server-fn`'s conditional exports |
 | `compiled default` | every entry | `default` resolves to compiled ESM with no TypeScript syntax, and the root entry renders in both a DOM and a server Solid build from that one file |
 | `no src path in dts` | every `.d.ts` | the text contains no `virtual:` and no `packages/core/src` |
