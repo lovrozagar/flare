@@ -9,10 +9,12 @@ export const LOCALE_SLOT: unique symbol = Symbol.for("flare.locale-slot");
 
 export type LocaleInput = { request: Request; kind: RequestKind; router: Router };
 
-// What the slot decided for one page request. `setCookie` is a whole `Set-Cookie` value.
+// What the slot decided for one page request. `setCookie` is a whole `Set-Cookie` value. `negotiated` marks a document
+// whose content depended on the cookie and Accept-Language although its URL names no tag.
 export type LocaleDecision = {
 	redirect?: { status: 301 | 302; location: string } | undefined;
 	setCookie?: string | undefined;
+	negotiated?: boolean | undefined;
 };
 
 export type LocaleSlot = { readonly [LOCALE_SLOT]: (input: LocaleInput) => LocaleDecision };
@@ -32,9 +34,16 @@ export async function withLocale(exchange: Exchange, chain: () => Promise<Respon
 	const cookie = decision.setCookie;
 	if (decision.redirect !== undefined) return redirected(exchange, decision.redirect, cookie);
 	const response = await chain();
-	if (cookie === undefined || !isPrivate(response)) return response;
+	// A negotiated public document leaves `private, no-store`: a CDN copy would answer without the slot. Its shared
+	// decision already reached the Flare store, which sits behind the slot (dx/features.md i18n).
+	const downgrade = decision.negotiated === true && !isPrivate(response);
+	if (!downgrade && (cookie === undefined || !isPrivate(response))) return response;
 	const headers = new Headers(response.headers);
-	headers.append("set-cookie", cookie);
+	if (downgrade) {
+		headers.set("cache-control", NO_STORE);
+		headers.delete("cache-tag");
+	}
+	if (cookie !== undefined) headers.append("set-cookie", cookie);
 	return secure(exchange, { status: response.status, body: response.body, headers });
 }
 

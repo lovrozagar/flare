@@ -24,11 +24,13 @@ export type LocaleRequest = {
 	userAgent: string;
 };
 
-// `cookie` is the tag a response may persist. The slot writes it only where the cookie rules allow.
+// `cookie` is the tag a response may persist. The slot writes it only where the cookie rules allow. `negotiated` is a
+// document whose URL shows no tag: what it shows depended on the cookie and Accept-Language, so it leaves private.
 export type LocaleMatch = {
 	locale: string;
 	redirect?: { status: 301 | 302; location: string };
 	cookie?: string;
+	negotiated?: true;
 };
 
 type RouterLike = Pick<Router, "match" | "basePath">;
@@ -48,8 +50,13 @@ export function matchLocale(request: LocaleRequest, config: I18nConfig, router: 
 	const raw = page?.params[config.paramName];
 	const bot = config.botDetection && isbot(request.userAgent);
 	if (page !== undefined && typeof raw === "string") return pathTag({ request, config, router, page, raw, bot });
-	if (bot) return { locale: config.defaultLocale };
+	if (bot) return { locale: config.defaultLocale, ...(untagged(request, config, page) && { negotiated: true }) };
 	return negotiated({ request, config, router }, page);
+}
+
+// A document under an optional locale param with no tag, where more than one locale is configured.
+function untagged(request: LocaleRequest, config: I18nConfig, page: Page | undefined): boolean {
+	return request.kind === "document" && page !== undefined && config.locales.length > 1;
 }
 
 // No tag on the path. On an optional segment the URL shows the default.
@@ -62,7 +69,8 @@ function negotiated(input: Omit<RedirectInput, "page">, page: Page | undefined):
 		return redirect({ ...input, page }, { tag: chosen, status: 302, cookie: chosen });
 	}
 	const persist = request.kind === "data" && shown !== undefined && shown !== stored;
-	return { locale: shown ?? chosen, ...(persist && { cookie: shown }) };
+	const locale = shown ?? chosen;
+	return { locale, ...(persist && { cookie: shown }), ...(untagged(request, config, page) && { negotiated: true }) };
 }
 
 type PathInput = {

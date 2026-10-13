@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { createMemoryStore } from "../../../server/cache/index.ts";
 import { createServer } from "../../../server/lifecycle/create.ts";
 import { createMiddleware } from "../../../server/middleware/index.ts";
 import { createPage } from "../../../shared/route-builder/page.ts";
@@ -134,4 +135,36 @@ it("prefetch quiet", async () => {
 
 it("default missing", () => {
 	expect(() => i18n({ locales: ["en"], defaultLocale: "hr" })).toThrow("i18n defaultLocale hr is not in locales");
+});
+
+// A document with no tag under an optional locale depended on the cookie and Accept-Language, so a CDN copy would
+// skip them. It leaves private. Its shared decision still writes the Flare store, which sits behind the slot.
+it("negotiated private", async () => {
+	const isr = createPage("_root_/[[locale]]/pricing")
+		.cache({ isr: true, cdn: { maxAge: "60s" } })
+		.render(() => "pricing");
+	const stored = createServer({
+		router: createRouter({
+			layouts: { _root_: root },
+			routeTree: [node("_root_/[[locale]]/pricing", "/[[locale]]/pricing", isr)],
+		}),
+		locale,
+		store: createMemoryStore(),
+		site: "https://site.test",
+	});
+	const fetchAt = (path: string): Promise<Response> => stored.fetch(new Request(`https://site.test${path}`));
+	const bare = await fetchAt("/pricing");
+	expect(bare.status).toBe(200);
+	expect(bare.headers.get("cache-control")).toBe("private, no-store");
+	expect(bare.headers.get("cache-tag")).toBeNull();
+	// The shared decision reached the Flare store: the answer is the store's miss, rendered as ISR.
+	expect([bare.headers.get("flare-cache"), bare.headers.get("flare-render")]).toEqual(["miss", "isr"]);
+	expect(await bare.text()).toContain("pricing");
+	expect((await fetchAt("/hr/pricing")).headers.get("cache-control")).toMatch(/^public/);
+	expect((await fetchAt("/pricing?_flare=data")).headers.get("cache-control")).toMatch(/^public/);
+	// With one locale there is nothing to negotiate.
+	const single = createServer({ router, locale: i18n({ locales: ["en"], defaultLocale: "en" }) });
+	expect((await single.fetch(new Request("https://site.test/pricing"))).headers.get("cache-control")).toMatch(
+		/^public/,
+	);
 });
