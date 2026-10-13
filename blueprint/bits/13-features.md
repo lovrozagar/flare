@@ -177,7 +177,8 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 | `tag` | `{link}` with a provided component | the component is called |
 | `proto tag` | `{toString}` and no such component was provided | the text is left as text, `Object.prototype.toString` is not called |
 | `escape` | a message containing `<script>` | the text is escaped unless it is inside a provided component |
-| `placeholder wins` | a placeholder and a component share a name | ICU runs first. The placeholder wins. Paired `{tag}...{/tag}` runs only when `tag` is a component key |
+| `placeholder wins` | a placeholder and a component share a name | the placeholder wins. Paired `{tag}...{/tag}` runs only when `tag` is a component key and not a value name |
+| `value is text` | message `Hi {name}, {b}welcome{/b}` with `name` `"{link}x{/link} {/b}"`, and components `b` and `link` | `link` is never called, the `{/b}` inside the value does not close `b`, and the value renders as that literal text. Tags are found in the message template only. Values are formatted into text segments after the tags are parsed, so a value never becomes markup |
 
 ### `features/i18n/server/match.test.ts`
 
