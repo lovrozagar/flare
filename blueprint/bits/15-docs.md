@@ -48,7 +48,7 @@ The server has `serverContext`, `authenticate`, `i18n()`, middleware (`next`, `r
 
 ## `tests/e2e/docs-cache.test.ts`
 
-Production cases skip `node-dev`: `ssg seed`, `ssg public cdn`, `isr stored`, `shared ssr`, `revalidate tag` (the admin republish purges the `api` tag). Every deep server: `client cache stale`, `cache deferred`, `store per runtime`.
+Production cases skip the `*-dev-*` projects: `ssg seed`, `ssg public cdn`, `isr stored`, `shared ssr`, `revalidate tag` (the admin republish purges the `api` tag). Every deep server: `client cache stale`, `cache deferred`, `store per runtime`.
 
 ## `tests/e2e/docs-server.test.ts`
 
@@ -70,4 +70,4 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 
 ## Harness
 
-`docs.fixture.ts` boots the app once per project per worker. `deepOnly()` skips a case off the deep set unless the run named its projects, in which case every named project runs it; `playwright.config.ts` passes that choice to its workers, and a worker loads every project because it has no runner argv. On a Node without type stripping, run Playwright under `bunx --bun` (BUGS.md B24).
+`docs.fixture.ts` boots the app once per project per worker. Every docs spec runs on every project of the B70 grid; `deepOnly()` and the `FLARE_E2E_PROJECTS_CHOSEN` hand-off are removed (B70 revision, plan 14). A production-only case skips the `*-dev-*` projects by name. Node projects run under genuine Node 22.18 or later (B3), never under `bunx --bun`.
