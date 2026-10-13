@@ -122,6 +122,8 @@ The rendered-page answers move out of `create.ts` unchanged at the 300-line limi
 | test | case | result |
 | --- | --- | --- |
 | `rewrap keeps body` | a middleware returns `new Response(res.body, res)` | the router's body arrives. Before this row, the runner cancelled the router's stream whenever the returned Response was another object, so the rewrap failed with a disturbed body |
+| `rewrap new stream` | a middleware returns a Response whose body is a different stream object from the router's, while the router's body is locked by that hand-off (Bun's `new Response(res.body, res)`, simulated with `res.body.pipeThrough(new TransformStream())`) | the router's body arrives through the returned Response. The runner never cancels a locked body (it is handed on, or a reader holds it), and no unhandled rejection is raised (BUGS.md B1) |
+| `discard rejection ignored` | a middleware returns another Response and the router's unread body is already errored | the runner cancels that body and ignores the cancel's rejection, so no unhandled rejection is raised (BUGS.md B1) |
 
 ### `server/lifecycle/answers.test.ts` (deferred values)
 
