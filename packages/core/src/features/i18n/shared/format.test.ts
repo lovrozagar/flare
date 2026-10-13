@@ -101,3 +101,11 @@ it("exact", () => {
 	// Without `other`, a value no branch names leaves the token too. createTranslations refuses such a message.
 	expect(formatMessage("{n, plural, one {x}}", { n: 5 }, "en")).toBe("{n, plural, one {x}}");
 });
+
+// Digits follow the runtime's CLDR data for the tag, and Flare pins no numbering system. A `-u-nu-` tag decides them
+// on every runtime: CLDR 46 moved plain `ar` to Latin digits, so `ar` alone differs across ICU versions (BUGS.md B29).
+it("numbering from tag", () => {
+	const message = "{n, plural, one {# release} other {# releases}}";
+	expect(formatMessage(message, { n: 14 }, "ar-u-nu-arab")).toBe("١٤ releases");
+	expect(formatMessage(message, { n: 14 }, "ar-u-nu-latn")).toBe("14 releases");
+});
