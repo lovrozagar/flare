@@ -1,5 +1,5 @@
 import { KIND_PARAM, withoutInternalKeys } from "../../shared/protocol/index.ts";
-import type { Match, Router } from "../../shared/router/create-router.ts";
+import { rewriteLocation, type Match, type Router } from "../../shared/router/create-router.ts";
 import { buildUrl, type Location } from "../../shared/url/index.ts";
 import { isHashOnly } from "./scroll.ts";
 
@@ -32,7 +32,7 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 		search: withoutInternalKeys(input.search),
 		hash: input.hash,
 	});
-	const location = rewrite(locationOf(new URL(built, context.origin)), context);
+	const location = rewriteLocation(context.router, locationOf(new URL(built, context.origin)), context.origin);
 	if (input.shallow === true && location.pathname !== context.current.pathname) {
 		throw new Error("navigate: a shallow navigation keeps the pathname");
 	}
@@ -60,16 +60,6 @@ function fromLocation(location: Location, context: TargetContext): Target {
 
 function locationOf(url: URL): Location {
 	return { pathname: url.pathname, search: url.search, hash: url.hash };
-}
-
-// The client rewrite sees and returns { pathname, search, hash }. A result off this origin throws, and a throw
-// fails the navigation before anything is written (dx/router.md).
-function rewrite(location: Location, context: TargetContext): Location {
-	const next = context.router.rewrite?.(location);
-	if (next === undefined) return location;
-	const url = new URL(`${next.pathname}${next.search}${next.hash}`, context.origin);
-	if (url.origin !== context.origin) throw new Error("rewrite: the result is not on this origin");
-	return locationOf(url);
 }
 
 // A target in another root layout is a document load: the root is the document (02-system).

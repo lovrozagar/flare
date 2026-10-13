@@ -11,7 +11,7 @@ import {
 	type NavigateOptions,
 	type NavigateTo,
 } from "../router/context.ts";
-import type { Router } from "../router/create-router.ts";
+import { rewriteLocation, type Router } from "../router/create-router.ts";
 import { buildUrl, href as checkHref, readSearch, type Location } from "../url/index.ts";
 
 type Anchor = JSX.AnchorHTMLAttributes<HTMLAnchorElement> & { [data: `data-${string}`]: string | undefined };
@@ -142,9 +142,22 @@ export function delegateClicks(
 		const href = anchor?.getAttribute("href");
 		if (anchor === null || typeof href !== "string" || !followable(event, anchor)) return;
 		const url = new URL(href, root.baseURI);
-		if (url.origin !== deps.origin || deps.router.match(url.pathname).id === undefined) return;
+		if (url.origin !== deps.origin) return;
+		// The rewrite runs once, before the route check. A throw fails the click and leaves the URL (B17).
+		let location: Location;
+		try {
+			location = rewriteLocation(
+				deps.router,
+				{ pathname: url.pathname, search: url.search, hash: url.hash },
+				deps.origin,
+			);
+		} catch (error) {
+			event.preventDefault();
+			throw error;
+		}
+		if (deps.router.match(location.pathname).id === undefined) return;
 		event.preventDefault();
-		deps.visit(`${url.pathname}${url.search}${url.hash}`);
+		deps.visit(`${location.pathname}${location.search}${location.hash}`);
 	};
 	root.addEventListener("click", listener);
 	return () => root.removeEventListener("click", listener);

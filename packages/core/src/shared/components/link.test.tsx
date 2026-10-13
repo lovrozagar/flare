@@ -14,7 +14,7 @@ import {
 	type LinkPrefetch,
 	type NavigateTo,
 } from "../router/context.ts";
-import type { Location } from "../url/index.ts";
+import type { Location, LocationRewrite } from "../url/index.ts";
 import { delegateClicks, Link, type LinkProps } from "./link.tsx";
 
 const root = createRootLayout("_root_").render((props) => props.children);
@@ -332,6 +332,34 @@ it("delegate", () => {
 	stop();
 	click(anchor({ href: "/about" }));
 	expect(visit).toHaveBeenCalledTimes(2);
+});
+
+// The router's rewrite runs once on an anchor's location, before the route check. A throw or another origin
+// fails the click: the default is prevented and nothing is visited (dx/router.md, BUGS.md B17).
+it("delegate rewrite", () => {
+	const rewrite = vi.fn<LocationRewrite>((at) => {
+		if (at.pathname.startsWith("/guide/")) return { ...at, pathname: at.pathname.replace("/guide/", "/") };
+		if (at.pathname === "/broken") throw new Error("rewrite broke");
+		return at.pathname === "/away" ? { pathname: "//elsewhere.example/about", search: "", hash: "" } : undefined;
+	});
+	const rewriting = createRouter({ layouts: { _root_: root }, routeTree: router.routeTree, rewrite });
+	const visit = vi.fn<(url: string) => void>();
+	const errors: unknown[] = [];
+	const onError = (event: ErrorEvent): void => {
+		errors.push(event.error);
+		event.preventDefault();
+	};
+	window.addEventListener("error", onError);
+	const stop = delegateClicks(document, { router: rewriting, origin: location.origin, visit });
+	expect(click(anchor({ href: "/guide/about?q=1#h" })).defaultPrevented).toBe(true);
+	expect(visit).toHaveBeenCalledExactlyOnceWith("/about?q=1#h");
+	expect(rewrite).toHaveBeenCalledExactlyOnceWith({ pathname: "/guide/about", search: "?q=1", hash: "#h" });
+	expect(click(anchor({ href: "/broken" })).defaultPrevented).toBe(true);
+	expect(click(anchor({ href: "/away" })).defaultPrevented).toBe(true);
+	expect(visit).toHaveBeenCalledOnce();
+	expect(errors.map(String)).toEqual(["Error: rewrite broke", "Error: rewrite: the result is not on this origin"]);
+	stop();
+	window.removeEventListener("error", onError);
 });
 
 it("force", () => {
