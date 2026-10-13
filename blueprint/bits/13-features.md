@@ -402,6 +402,7 @@ The registry data itself is bit 14. This test uses a two-family fixture.
 | --- | --- | --- |
 | `public only` | one public route and one required-auth route | the sitemap contains only the public route |
 | `optional included` | a route whose auth is optional | the route is included |
+| `authorize omitted` | a public page whose layout has `authorize`, and an optional-auth page with no `authorize` | the first is absent, the second is listed |
 | `param listed` | `ssg` `/blog/[slug]` resolving `a` and `b`, `isr` `/docs/[id]` with params `1`, a dynamic `ssr` `/u/[id]`, and an `additionalEntries` loc equal to `/blog/a` | `/blog/a`, `/blog/b`, and `/docs/1` once each. `/u/[id]` is absent. The duplicate `additionalEntries` loc is not listed twice |
 | `response omitted` | a `.response()` route with a static URL and no required auth | the route is omitted |
 | `hint checked` | the hint says public and the module requires | the route is omitted and the function returns an error the prerender treats as a failure |
