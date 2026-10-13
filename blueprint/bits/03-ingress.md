@@ -119,6 +119,7 @@ The test imports the options builder, not `Bun.serve`, so it runs under Node.
 | `new Response in loaders` | `return new Response()` under `server/loaders` | lint error |
 | `new Response in finalize` | the same under `finalize.ts` | no error |
 | `new Response in proxy` | the upstream `fetch` result | no error |
+| `dev guard` | `return new Response` in `vite/dev/guard.ts` | no error: a dev-only endpoint answers outside the pipeline (bit 12) |
 
 ### `packages/core/lint/no-flare-header-branching.test.ts`
 
