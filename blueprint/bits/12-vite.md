@@ -156,6 +156,16 @@ The writer the plugin and `flare codegen` share. It writes `src/_gen/routes.gen.
 | `empty` | the route set becomes empty; then two pages whose folders differ only in case | the route and type files are removed, and the server function list stays. Files are read in UTF-16 code unit order |
 | `watch` | a source under `src` changes during `vite dev`, twice; a change inside `src/_gen` or outside `src`; then a change that fails codegen | the files are written once after a 50 ms debounce. A generated file or an outside path does not trigger. A failure is reported as `[flare:codegen]` and the watch goes on |
 
+### `tests/e2e/static.test.ts`
+
+The minimal app gains `/static` (`ssg: true`) and `/static/[slug]` (`ssg` with `params` returning `a` and `b`). Its server passes `static`: `createAssetsStore(fileAssets(<client output>))` on Node and Bun, and on Workers a `read` over the `ASSETS` binding.
+
+| test | case | result |
+| --- | --- | --- |
+| `ssg served` | node-prod, bun-prod, and workers-prod load `/static` and `/static/a` | 200, `flare-render: ssg`, the seeded body, a nonce equal to the CSP header, and the page hydrates with no console error. The seed files exist under the client output at the hashed `artifactPath` |
+| `ssg unlisted` | `/static/zzz` on the same projects | 404 from the router, nothing served from a seed |
+| `ssg dev` | node-dev loads `/static/a` | a live render, no `flare-render: ssg` |
+
 ## Done
 
 A prerender that produces a 401 fails the build and writes nothing. Dev endpoints are absent from the production plugin. `vite dev` on Node and Bun is `vite/dev/handler.ts`.
