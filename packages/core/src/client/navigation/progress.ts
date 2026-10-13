@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { useNavigation } from "./pending.ts";
 
 export type ProgressOptions = { trickle?: number; minDisplay?: number };
@@ -25,7 +25,15 @@ export function useNavigationProgress(options: ProgressOptions = {}): Progress {
 	// The server creates the same owners as the client, so every later sibling keeps its hydration key (BUGS.md B2). Its
 	// navigation never pends, so the effect starts no timer there.
 	const navigation = useNavigation();
-	const [value, setValue] = createSignal<number | null>(null);
+	// `value` is derived in the same flush as `pending`, so no frame pairs a new flag with an old value (BUGS.md B39).
+	// While pending it is the creep `level`, which each completion resets to the start ahead of the next navigation.
+	// Once pending falls it is 1 until the hold ends and `idle` turns true.
+	const [level, setLevel] = createSignal(START);
+	const [idle, setIdle] = createSignal(true);
+	const value = createMemo<number | null>(() => {
+		if (navigation.pending) return level();
+		return idle() ? null : 1;
+	});
 	const timers: {
 		creep?: ReturnType<typeof setInterval>;
 		hold?: ReturnType<typeof setTimeout>;
@@ -44,16 +52,16 @@ export function useNavigationProgress(options: ProgressOptions = {}): Progress {
 			if (pending) {
 				timers.at = Date.now();
 				timers.level = START;
-				setValue(START);
+				setIdle(false);
 				timers.creep = setInterval(() => {
 					timers.level = creep(timers.level);
-					setValue(timers.level);
+					setLevel(timers.level);
 				}, trickle);
 				return;
 			}
 			// A failed navigation completes the same way a commit does.
-			setValue(1);
-			timers.hold = setTimeout(() => setValue(null), Math.max(0, timers.at + minDisplay - Date.now()));
+			setLevel(START);
+			timers.hold = setTimeout(() => setIdle(true), Math.max(0, timers.at + minDisplay - Date.now()));
 		},
 	);
 	onCleanup(stop);
