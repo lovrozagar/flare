@@ -81,9 +81,9 @@ The attribute is `"light"` or `"dark"`. The string `"system"` is never written. 
 | `unknown` | `und` | `ltr` |
 | `absent` | no locale, `defaultDir` `"rtl"` | `rtl` |
 | `throws` | `en_US`, `defaultDir` `"rtl"` | `rtl` |
-| `text info` | `getTextInfo` throws, `defaultDir` `"rtl"` | `rtl` |
+| `no text info` | `Intl.Locale.prototype.getTextInfo` deleted, as in Firefox 151; `ar`, `he`, `fa`, `ur`, `en`, `hr` | `rtl`, `rtl`, `rtl`, `rtl`, `ltr`, `ltr`. The result never depends on `getTextInfo` |
 
-The function is `new Intl.Locale(tag).getTextInfo().direction`. The module contains no array of language codes. A throw from the constructor or from `getTextInfo`, and a direction other than `ltr` or `rtl`, returns `defaultDir`. `und` parses, so it does not use `defaultDir`.
+The function maps `new Intl.Locale(tag).maximize().script` through the right-to-left script set in `dx/features.md`. The module contains no array of language codes. A throw from the constructor returns `defaultDir`.
 
 ### `script.test.tsx` and `script.ssr.test.ts`
 
@@ -231,6 +231,7 @@ This file calls `boot({ app: "i18n", runtime, mode })` (B70). The project name s
 | `shared cookie` | a public page | the response has no `Set-Cookie` |
 | `unknown locale` | `/fr` when `fr` is not configured | the default locale, via a redirect that is `no-store` |
 | `theme no flash` | `localStorage` holds `dark`, then a document load of a page under `ThemeScript` and `ThemeProvider` | the theme attribute is `dark` on `<html>` in the first paint (read before any module script runs), the page hydrates with no console error or hydration warning, and `useTheme().theme()` is `dark` after hydrate |
+| `rtl client` | chromium and firefox; a client-side `setLocale` to an Arabic-script locale configured in the app | `dir` becomes `rtl` and `useDirection().direction()` is `rtl` in both browsers |
 | `tabs sync` | two pages in one browser context; `setTheme("light")`, `setDir("rtl")`, and `setLocale("hr")` in the first | the second page shows each value without a reload. A `storage` event alone, from writing `localStorage` in the second page, changes nothing there |
 
 ### `features/i18n/shared/provider.test.tsx`, `script.test.tsx`, `hooks.test.ts`
