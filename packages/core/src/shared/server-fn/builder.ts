@@ -23,7 +23,10 @@ export type StreamHandler = (ctx: ServerFnContext & { signal: AbortSignal }) => 
 export type Authorize = (ctx: ServerFnContext) => boolean | Promise<boolean>;
 
 // One registration. The transform injects its id. `authenticate` is a required session: there is no optional mode.
+// `kind` is the method that ended the chain. The client graph's transform strips the body to `undefined`, so the
+// client transport reads the kind, never the body (BUGS.md B14).
 export type ServerFnRecord = {
+	kind: "handler" | "stream";
 	method: "get" | "post";
 	authenticate: boolean;
 	input?: Validator;
@@ -127,7 +130,7 @@ function chainOf(config: { method?: "get" | "post" }, call: ServerFnCall): Chain
 	const method = config.method ?? "post";
 	if (method !== "get" && method !== "post") throw new Error(`createServerFn method is "get" or "post", not ${method}`);
 	const internal = internalOf(config);
-	const record: ServerFnRecord = { method, authenticate: false };
+	const record: ServerFnRecord = { kind: "handler", method, authenticate: false };
 	const used = new Set<string>();
 	// A second call would silently replace the first (dx/server-fn.md).
 	const once = (step: string): void => {
@@ -169,6 +172,7 @@ function chainOf(config: { method?: "get" | "post" }, call: ServerFnCall): Chain
 			return end();
 		},
 		stream: (fn) => {
+			record.kind = "stream";
 			record.stream = fn;
 			return end();
 		},
