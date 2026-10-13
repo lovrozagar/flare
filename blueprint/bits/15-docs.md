@@ -31,7 +31,7 @@ The server has `serverContext`, `authenticate`, `i18n()`, middleware (`next`, `r
 
 | test | case | result |
 | --- | --- | --- |
-| `dev log clean` | every page in the route map, on the `*-dev-*` projects | the dev server's captured log has no `Unable to parse`, no uncaught error, and no `[flare:` error line after the run (BUGS.md B8) |
+| `dev log clean` | every page in the route map, each in a fresh tab, on the `*-dev-*` projects | the dev server's captured log has no `Unable to parse` and no uncaught error, and its `[flare:` error lines are exactly the ones the page entries declare they log on purpose (`/changelog` declares "The stats service is down"): an extra line or a missing declared one fails (BUGS.md B8) |
 | `public files` | GET `/favicon.ico`, `/icon.svg`, `/apple-touch-icon.png`, `/manifest.webmanifest`, and `/fonts/mono.woff2` | each answers 200 with a non-empty body and its content type, on every project (BUGS.md B11) |
 | `every page hydrates` | one case per page of the route map | the document status is the listed one, the page hydrates, and the console holds no error or warning besides that status |
 | `click through` | home → a feature card → a sidebar link → back → back | no document request, and the header node is the same node |
