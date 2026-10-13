@@ -28,6 +28,7 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 
 | test | case | result |
 | --- | --- | --- |
+| `fixtures dropped` | a src `x.fixture.ts` and `y.fixture.txt` beside `x.ts` | the staged package holds `x.ts` and neither fixture: test-only files never ship |
 | `refuses dirty` | a dirty tree | non-zero |
 | `refuses red` | the command is invoked with a flag that points at a failing test fixture | non-zero, nothing published |
 | `tag` | a clean green tree | the gates run, the golden test runs on the packed tarball, and that tarball, whose version equals the git tag, goes to `npm publish --dry-run`. `@lovrozagar/flare-fonts` is not published. A tag that is not the manifest's version is refused before anything is packed |
