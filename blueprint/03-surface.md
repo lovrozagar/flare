@@ -81,7 +81,7 @@ Peers `negotiator`, `isbot`, `@formatjs/intl-localematcher`. `i18n`.
 
 ## `./vite`
 
-`flare`. Peers `vite`, `@solidjs/vite-plugin`, `oxc-parser`, `magic-string`. `sharp` is an optional peer, loaded only when `flare({ image })` is set. The options are `dx/plugin.md`. The types condition declares `*.avif`, `*.jpg`, `*.jpeg`, `*.png`, `*.tiff`, and `*.webp` as `{ src, width, height, variants }` (B88). `./validation`, `./generators`, and `./virtual-types` are not exports. No public type names a `virtual:` module (B89).
+`flare`. Peers `vite`, `@solidjs/vite-plugin`, `oxc-parser`, `magic-string`. `sharp` is an optional peer, loaded only when `flare({ image })` is set. The options are `dx/plugin.md`. The types condition declares `*.avif?image`, `*.jpg?image`, `*.jpeg?image`, `*.png?image`, `*.tiff?image`, and `*.webp?image` as `{ src, width, height, variants }` (B88). A plain image import stays `vite/client`'s URL string. `./validation`, `./generators`, and `./virtual-types` are not exports. No public type names a `virtual:` module (B89).
 
 ## `./fonts/<id>`
 

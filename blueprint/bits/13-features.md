@@ -12,7 +12,7 @@ A component's rows run on the Solid build they are about. Rows that render on th
 | --- | --- | --- |
 | `loader scope` | two runs at once under one request, with different params, each with a preloader and a loader that awaits | each loader reads its own `{ kind: "loader", params, locale }` across the await, and `serverCtx()` still answers inside it. A preloader reads `kind` `"preloader"`. After the loaders return, `getRequestEvent()` is the parent again with no scope. A run with no raw params gives `{}` |
 
-`tests/types/app` gains the rows bit 07 could not hold: `query options input`, `query options void`, and `query client present` in `checks.ts`, plus the fixture's `src/query.ts` importing `@lovrozagar/flare/query`, and `app.test.ts` asserts the generated `hasQueryClient` is `true`. Bit 13 is not done until `app.test.ts` is green with them.
+`tests/types/app` gains `src/image.ts` under `vite/client`: `./photo.png?image` is `{ src, width, height, variants }` and `./photo.png` stays `string` (B88). It also gains the rows bit 07 could not hold: `query options input`, `query options void`, and `query client present` in `checks.ts`, plus the fixture's `src/query.ts` importing `@lovrozagar/flare/query`, and `app.test.ts` asserts the generated `hasQueryClient` is `true`. Bit 13 is not done until `app.test.ts` is green with them.
 
 `tests/integration/nonce.test.ts` gains `features`: `ThemeScript`, `DirectionScript`, `LocaleScript`, and `FontCSS` each carry the CSP header nonce.
 
@@ -335,13 +335,13 @@ The outcomes are the rows in `dx/features.md`.
 | --- | --- | --- |
 | `configured` | width 320, and 320 is configured | a resized file |
 | `other width` | width 321 | build error |
-| `svg` | an `.svg` import | the original URL. The file is not converted to webp |
-| `gif` | a `.gif` import | the original URL. The file is not converted to webp |
+| `svg` | an `.svg` import, with or without `?image` | the original URL. The file is not converted to webp |
+| `gif` | a `.gif?image` import | the original URL. The file is not converted to webp |
 | `prod name` | a png at width 640 | the emitted name is `<stem>-640-<8 hex sha256 of the webp bytes>.webp` under `assetsBase` |
 | `dev url` | the same image in dev, quality left at the plugin default | `/_flare/image?src=<path>&w=640`. A quality other than the default adds `&q=` |
 | `quality` | `quality: 0` | throw at plugin creation. `75` is the default |
-| `exclude` | a path the regexp matches | that file is copied unchanged |
-| `binding` | an optimized import | the binding is `{ src, width, height, variants }` at the intrinsic pixel size. There is no generated blur. Only configured widths that fit are generated. The intrinsic width is not an extra variant. Production `src` is the largest variant. Component `quality` does not change those bytes |
+| `exclude` | a path the regexp matches; a plain import, another query, or a query beyond `?image` | that file is copied unchanged, and the others stay Vite's |
+| `binding` | an optimized `?image` import | the binding is `{ src, width, height, variants }` at the intrinsic pixel size. There is no generated blur. Only configured widths that fit are generated. The intrinsic width is not an extra variant. Production `src` is the largest variant. Component `quality` does not change those bytes |
 | `webp` | a `.webp` source | re-encoded at the plugin quality |
 | `missing` | a path inside the project with no file | 404. A bad `q`, an unknown width, or a path outside the project is 400 |
 | `dev q` | component `quality` differs from the plugin default | the dev URL adds `&q=`. Production bytes stay the plugin quality |
@@ -354,6 +354,7 @@ The outcomes are the rows in `dx/features.md`.
 | `escape` | `src=../../etc/passwd` | 400 |
 | `bad width` | a width that is not configured | 400 |
 | `guard` | a cross-site request | 403 from the dev guard |
+| `endpoint refuses` | a `src` that leaves the project after decoding `%2e%2e`, and an existing file that is not an optimized image | 400, before any file is read |
 
 ## Fonts
 

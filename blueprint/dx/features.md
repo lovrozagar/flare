@@ -204,11 +204,11 @@ The modes `fill`, `fixed`, and responsive (`maxWidth`) are mutually exclusive. T
 
 A responsive srcset is `<url> <width>w`, ascending, comma-separated. Widths above `maxWidth * 2` are left out when `maxWidth` is set.
 
-The optimized import binding is `{ src, width, height, variants }` at the intrinsic pixel size. There is no generated blur on that binding. Only configured widths that fit the bitmap are generated. The intrinsic width is not invented as an extra variant. A `.webp` source is re-encoded at the plugin quality. Production `src` is the largest generated variant. A bad `q`, an unknown width, or a path outside the project is 400. A missing file inside the project is 404 (`optimize.test.ts` `binding`, `webp`, `missing`).
+An optimized import opts in with `?image`: `import photo from "./a.png?image"`. A plain `./a.png`, and any other query, stay Vite's URL string, so an app keeps `vite/client` in its `types`. The `./vite` entry carries the `?image` module types. The optimized import binding is `{ src, width, height, variants }` at the intrinsic pixel size. There is no generated blur on that binding. Only configured widths that fit the bitmap are generated. The intrinsic width is not invented as an extra variant. A `.webp` source is re-encoded at the plugin quality. Production `src` is the largest generated variant. A bad `q`, an unknown width, or a path outside the project is 400. A missing file inside the project is 404 (`optimize.test.ts` `binding`, `webp`, `missing`).
 
 Production files are `<assetsBase>/<stem>-<width>-<8 hex sha256 of the webp bytes>.webp`. Quality is in those bytes, so a different plugin quality is a different hash. Component `quality` does not change those bytes. The dev URL is `GET /_flare/image?src=<project path>&w=<width>`. `&q=<quality>` is added only when that quality differs from the plugin default (`optimize.test.ts` `prod name`, `dev url`).
 
-Optimized extensions are `.avif`, `.jpeg`, `.jpg`, `.png`, `.tiff`, and `.webp`. `.svg` and `.gif` keep the URL the app imported and are not converted to webp (`optimize.test.ts` `svg`, `gif`). `configureImage` does not exist. A `loader` option does not exist (`options.test.ts` `unknown`).
+Optimized extensions are `.avif`, `.jpeg`, `.jpg`, `.png`, `.tiff`, and `.webp`. `.svg` and `.gif` keep the URL the app imported and are not converted to webp, with or without `?image` (`optimize.test.ts` `svg`, `gif`). The dev endpoint refuses a path that leaves the project after decoding and a file that is not an optimized image, before reading any file (`dev-endpoint.test.ts` `endpoint refuses`). `configureImage` does not exist. A `loader` option does not exist (`options.test.ts` `unknown`).
 
 ## Fonts
 
