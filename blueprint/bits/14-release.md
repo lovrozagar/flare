@@ -53,6 +53,8 @@ Install from the packed tarball, not from the workspace.
 
 | test | case | result |
 | --- | --- | --- |
+| `dev serve` | a dev server with `fonts: { dir }`, GET and HEAD of `/fonts/inter/latin.woff2` | 200, the file's bytes, `content-type: font/woff2`, `cache-control: no-cache`; HEAD has no body (BUGS.md B7) |
+| `dev fallthrough` | a registry url whose file `dir` lacks, `/fonts/not-a-family/x.woff2`, `/fonts/inter/../secret.woff2`, and a non-woff2 url | each reaches `next()` unanswered |
 | `fonts emit` | a real client run of an app that imports one registry family, with `fonts.dir` holding two families | the output holds that family's woff2 at its url and not the other family's |
 | `fonts absent` | the same app without `fonts` | no woff2 is emitted and the run succeeds |
 | `fonts dir missing file` | `fonts.dir` lacks a file the used family lists | the run fails and names the file |
