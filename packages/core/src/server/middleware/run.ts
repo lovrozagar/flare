@@ -78,7 +78,13 @@ async function call(handler: Handler, base: Base, rest: () => Promise<Response>)
 }
 
 // A router body no one will read is cancelled, so a streaming render stops. A rewrap such as
-// `new Response(res.body, res)` keeps the router's stream, so that body is still read.
+// `new Response(res.body, res)` hands the router's stream on: Node keeps the same stream object, and Bun wraps it in
+// another one and locks it, so a locked body is never cancelled (BUGS.md B1). A cancel that rejects, as an errored
+// stream's does, is ignored, because an unhandled rejection ends a Node or Bun server.
 function discard(routed: Response | undefined, kept: Response | undefined): void {
-	if (routed !== undefined && routed !== kept && routed.body !== kept?.body) void routed.body?.cancel();
+	const body = routed?.body;
+	if (routed === kept || body === undefined || body === null || body === kept?.body || body.locked) return;
+	body.cancel().catch(ignore);
 }
+
+function ignore(): void {}
