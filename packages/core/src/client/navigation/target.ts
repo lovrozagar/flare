@@ -19,6 +19,7 @@ export type TargetContext = { router: Router; origin: string; current: Location 
 export type Target =
 	| { kind: "document"; url: string }
 	| { kind: "hash"; url: string; location: Location }
+	| { kind: "shallow"; url: string; location: Location; search: object | undefined }
 	| { kind: "data"; url: string; dataUrl: string; location: Location; route?: string | undefined; match: Match };
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -36,7 +37,10 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 	if (input.shallow === true && location.pathname !== context.current.pathname) {
 		throw new Error("navigate: a shallow navigation keeps the pathname");
 	}
-	return fromLocation(location, context);
+	// A shallow move on the page runs no loader. A hash-only one is a hash move (BUGS.md B18).
+	const target = fromLocation(location, context);
+	if (input.shallow !== true || target.kind !== "data") return target;
+	return { kind: "shallow", url: target.url, location, search: input.search };
 }
 
 // A URL the server built, such as an `x` frame's `u`. It is not rewritten again. Another origin throws.

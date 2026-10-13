@@ -49,7 +49,7 @@ it("hash", () => {
 
 it("shallow other route", () => {
 	expect(() => resolveTarget({ to: "_root_/about", shallow: true }, context())).toThrow(/shallow/);
-	expect(resolveTarget({ to: "_root_/", shallow: true, search: { q: "1" } }, context()).kind).toBe("data");
+	expect(resolveTarget({ to: "_root_/", shallow: true, search: { q: "1" } }, context()).kind).toBe("shallow");
 });
 
 it("location shape", () => {
