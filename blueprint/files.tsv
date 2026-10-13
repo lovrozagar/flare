@@ -637,7 +637,7 @@ packages/core/tests/e2e/boot.test.ts	P1	test	node	Unit cases for boot.ts
 packages/core/tests/e2e/minimal.test.ts	P1	test	node	Playwright: the minimal app renders and hydrates. Calls boot
 packages/core/tests/e2e/navigation.test.ts	P6	test	node	Playwright: client navigation, back, and scroll. Calls boot
 packages/core/tests/e2e/server-fn.test.ts	P7	test	node	Playwright: a server function round-trip. Calls boot
-packages/core/tests/e2e/i18n.test.ts	P13	test	node	Playwright: locale prefix, cookie, and a shared page without Set-Cookie. Calls boot
+packages/core/tests/e2e/i18n.test.ts	P13	test	node	Playwright: locale prefix, cookie, a shared page without Set-Cookie, theme, direction, cross-tab sync, and a persisted setLocale. Calls boot
 packages/core/tests/e2e/golden.test.ts	P14	test	node	Packed tarball over HTTP: dev, vite build, then createNodeListener, createBunFetch, and miniflare. Not Playwright (B70)
 packages/core/tests/e2e/apps/minimal/package.json	P1	app	-	App package
 packages/core/tests/e2e/apps/minimal/tsconfig.json	P1	app	-	App tsconfig
@@ -678,10 +678,12 @@ packages/core/tests/e2e/apps/i18n/tsconfig.json	P13	app	-	i18n app tsconfig
 packages/core/tests/e2e/apps/i18n/vite.config.ts	P13	app	-	i18n app vite config
 packages/core/tests/e2e/apps/i18n/src/client.tsx	P13	app	-	createClient
 packages/core/tests/e2e/apps/i18n/src/server.ts	P13	app	-	createServer with the locale slot
-packages/core/tests/e2e/apps/i18n/src/router.ts	P13	app	-	createRouter
-packages/core/tests/e2e/apps/i18n/src/routes/_root_/root.root-layout.tsx	P13	app	-	Document root
-packages/core/tests/e2e/apps/i18n/src/routes/_root_/[locale]/locale.segment.ts	P13	app	-	Locale segment
-packages/core/tests/e2e/apps/i18n/src/routes/_root_/[locale]/home.page.tsx	P13	app	-	Localized home
+packages/core/tests/e2e/apps/i18n/src/router.ts	P13	app	-	createRouter with theme, direction, and the locale config both graphs import
+packages/core/tests/e2e/apps/i18n/src/routes/[[locale]]/_root_/locale.root-layout.tsx	P13	app	-	Document root under the optional locale: the scripts and providers for theme, direction, and locale
+packages/core/tests/e2e/apps/i18n/src/routes/[[locale]]/_root_/home.page.tsx	P13	app	-	Shared localized home: the loader's message, each hook's value, and a control per feature
+packages/core/tests/e2e/apps/i18n/src/_gen/routes.gen.ts	P13	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/i18n/src/_gen/types.gen.d.ts	P13	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/i18n/src/_gen/server-fns.gen.ts	P13	app	-	Generated server function list, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/i18n/wrangler.jsonc	P13	app	-	Workers config so workers-prod can boot this app (B70)
 packages/core/src/features/fonts/generate.ts	P14	src	node	Turn registry.json into one module per family. No runtime entry imports it (B78)
 packages/core/src/features/fonts/generate.test.ts	P14	test	node	Unit cases for generate.ts
