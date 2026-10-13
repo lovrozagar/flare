@@ -11,8 +11,12 @@ export type DevServer = {
 			hot: { on(event: "flare:error", listener: (payload: unknown) => void): void };
 			runner?: { import(id: string): Promise<Record<string, unknown>> };
 		};
+		client: { hot: { on(event: "flare:error", listener: (payload: unknown, client: DevClient) => void): void } };
 	};
 };
+
+// One connected tab on Vite's client channel.
+export type DevClient = { send(payload: unknown): void };
 
 type Listener = ReturnType<typeof createNodeListener>;
 
@@ -50,6 +54,8 @@ type Shell = { url: string; nonce: string | undefined };
 export function installDevHandler(server: DevServer, entry: string): (() => void) | undefined {
 	if (server.config.server.middlewareMode) return undefined;
 	server.environments.ssr.hot.on("flare:error", (payload) => server.ws.send(payload));
+	// A client's own error, a boundary error or an applied `e` frame, opens the overlay in that tab only (B42).
+	server.environments.client.hot.on("flare:error", (payload, client) => client.send(payload));
 	const listener = devListener({
 		load: () => loadEntry(server, entry),
 		transform: (url, html) => server.transformIndexHtml(url, html),
