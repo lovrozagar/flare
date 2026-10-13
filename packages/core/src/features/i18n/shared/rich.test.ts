@@ -62,3 +62,17 @@ it("placeholder wins", () => {
 	expect(rendered).toBe("Hi Ana <b>you</b>");
 	expect(name).not.toHaveBeenCalled();
 });
+
+// A value is often user content. It is text, never markup, and a plural branch still holds tags.
+it("value is text", () => {
+	const link = vi.fn<RichComponent>(() => "LINK");
+	const values = { values: { name: "{link}x{/link} {/b}" }, tag: "en" };
+	expect(html(() => richText("Hi {name}, {b}welcome{/b}", { b: bold, link }, values))).toBe(
+		"Hi {link}x{/link} {/b}, <b>welcome</b>",
+	);
+	expect(link).not.toHaveBeenCalled();
+	const plural = "{n, plural, one {{b}# new{/b} item from {who}} other {{b}# new{/b} items}}";
+	const one = { values: { n: 1, who: "{b}evil{/b}" }, tag: "en" };
+	expect(html(() => richText(plural, { b: bold }, one))).toBe("<b>1 new</b> item from {b}evil{/b}");
+	expect(html(() => richText(plural, { b: bold }, { values: { n: 3 }, tag: "en" }))).toBe("<b>3 new</b> items");
+});
