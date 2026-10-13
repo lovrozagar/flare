@@ -1,4 +1,5 @@
 // Oxlint registers one plugin name. This module publishes every flare rule.
+import { readFileSync } from "node:fs";
 import { rule as noModuleSideEffects } from "./no-module-side-effects.js";
 import { rule as noModuleState } from "./no-module-state.js";
 import { rule as funnelOnly } from "./funnel-only.js";
@@ -67,6 +68,17 @@ function target(fromRel, spec) {
 	return "pkg";
 }
 
+// The packages src may import: its own, and the dependencies and peers its manifest declares. A devDependency, an
+// unlisted package, and a builtin without `node:` are not among them (00-rules Dependencies).
+const MANIFEST = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+// The core package declares only peers today; a spread of an absent map adds nothing.
+const PACKAGES = new Set([MANIFEST.name, ...Object.keys({ ...MANIFEST.dependencies, ...MANIFEST.peerDependencies })]);
+
+function declared(spec) {
+	const parts = spec.split("/");
+	return PACKAGES.has(spec.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0]);
+}
+
 function featureOf(bucketName) {
 	if (!bucketName.startsWith("f:")) return null;
 	return bucketName.split(":")[1];
@@ -110,7 +122,8 @@ function allowed(fromRel, spec) {
 	if (syncImport(fromRel, spec) || fontGenerator(fromRel, spec)) return true;
 	const from = bucket(fromRel);
 	const to = target(fromRel, spec);
-	if (to === "pkg" || devHost(fromRel, spec)) return true;
+	if (to === "pkg") return declared(spec);
+	if (devHost(fromRel, spec)) return true;
 	if (to === "node" && NODE_ADAPTERS.some((prefix) => fromRel.startsWith(prefix))) return true;
 	const fromFeature = featureOf(from);
 	const toFeature = featureOf(to);
@@ -121,17 +134,27 @@ function allowed(fromRel, spec) {
 	return PERMIT.has(`${from}>${to}`);
 }
 
+// Test code, as files.tsv kinds it, may import anything: none of it ships.
+function testCode(filename) {
+	return filename.includes(".test.") || filename.includes(".fixture.") || filename.includes("/tests/");
+}
+
 const rule = {
 	create(context) {
+		const from = testCode(context.filename) ? null : srcRel(context.filename);
+		// A declaration (types too, since src ships as source) meets the module boundaries. A re-export and a literal
+		// `import()` meet the package check only: the barrels re-export across buckets by design.
+		const check = (node, source, buckets) => {
+			if (from === null || source?.type !== "Literal" || typeof source.value !== "string") return;
+			const spec = source.value;
+			if (buckets ? allowed(from, spec) : target(from, spec) !== "pkg" || declared(spec)) return;
+			context.report({ node, message: "import is outside the module boundaries" });
+		};
 		return {
-			ImportDeclaration(node) {
-				if (context.filename.includes(".test.")) return;
-				if (context.filename.includes("/tests/")) return;
-				const from = srcRel(context.filename);
-				if (from === null) return;
-				if (allowed(from, String(node.source.value))) return;
-				context.report({ node, message: "import is outside the module boundaries" });
-			},
+			ImportDeclaration: (node) => check(node, node.source, true),
+			ExportNamedDeclaration: (node) => check(node, node.source, false),
+			ExportAllDeclaration: (node) => check(node, node.source, false),
+			ImportExpression: (node) => check(node, node.source, false),
 		};
 	},
 };

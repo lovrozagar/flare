@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { resolve } from "path";
+import { resolve } from "node:path";
 import type { Plugin } from "vite";
 import { emitFonts, fontFile, fontRegistry } from "../../features/fonts/vite/index.ts";
 
