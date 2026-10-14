@@ -1,14 +1,12 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, type Server } from "node:http";
-import { createRequire } from "node:module";
-import { connect } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { chromium, firefox, webkit, type Browser, type BrowserType } from "@playwright/test";
 import type * as solid from "solid-js";
 import type * as web from "@solidjs/web";
 import { createServer, isRunnableDevEnvironment, type Plugin, type ViteDevServer } from "vite";
+import { browserEndpoint } from "../../../../scripts/browser-server.ts";
 import type * as progress from "../../src/client/navigation/progress.ts";
 import type * as outlet from "../../src/shared/components/outlet.tsx";
 import type * as outletNodes from "../../src/shared/components/outlet-nodes.ts";
@@ -92,14 +90,14 @@ export async function startHarness(core: string): Promise<Harness> {
 	});
 	await listen(http, vite, cases);
 	const origin = `http://127.0.0.1:${portOf(http)}`;
-	const source = await browserSource();
+	const endpoint = await browserEndpoint();
 	const browsers = new Map<Engine, Browser>();
 	const browser = async (engine: Engine): Promise<Browser> => {
 		const open =
 			browsers.get(engine) ??
-			(source.endpoint === undefined
+			(endpoint === undefined
 				? await TYPES[engine].launch()
-				: await TYPES[engine].connect(source.endpoint, { timeout: 60_000 }));
+				: await TYPES[engine].connect(endpoint, { timeout: 60_000 }));
 		browsers.set(engine, open);
 		return open;
 	};
@@ -225,71 +223,4 @@ async function hydrateIn(
 	} finally {
 		await context.close();
 	}
-}
-
-// The pinned image every machine runs the browsers from (B70). Its tag is the lockfile's Playwright version, and an
-// upgrade changes the digest with it.
-const DIGEST = "5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48";
-const PORT = 3333;
-const CONTAINER = "flare-browsers";
-
-// Where the engines come from (bits/15): `FLARE_BROWSER_WS`, else the pinned container when Docker is present, else
-// Playwright's locally installed engines, as on the macOS runners, which have no Docker. With none of the three, one
-// error names all three.
-async function browserSource(): Promise<{ endpoint: string | undefined }> {
-	const set = process.env["FLARE_BROWSER_WS"];
-	if (set !== undefined) return { endpoint: set };
-	if (spawnSync(dockerBin(), ["--version"]).error === undefined) return { endpoint: await browserServer() };
-	if (ENGINES.every((engine) => existsSync(TYPES[engine].executablePath()))) return { endpoint: undefined };
-	throw new Error(
-		"The hydrate harness has no browsers: set FLARE_BROWSER_WS to a Playwright run-server, install Docker for the " +
-			"pinned container, or install Playwright's engines (bunx playwright install chromium firefox webkit)",
-	);
-}
-
-function dockerBin(): string {
-	return process.env["FLARE_DOCKER"] ?? "docker";
-}
-
-// A run-server on 127.0.0.1, started from the pinned image with host networking, or the one already running. The
-// server is the lockfile's own playwright-core, mounted read-only, so the container downloads nothing and its version
-// is the one the image's browsers were built for.
-async function browserServer(): Promise<string> {
-	const endpoint = `ws://127.0.0.1:${PORT}/`;
-	if (await reachable(PORT)) return endpoint;
-	const core = playwrightCore();
-	const image = `mcr.microsoft.com/playwright:v${core.version}-noble@sha256:${DIGEST}`;
-	const docker = dockerBin();
-	const run = ["run", "-d", "--rm", "--init", "--network", "host", "--name", CONTAINER];
-	const mount = ["-v", `${core.dir}:/playwright-core:ro`, image];
-	const serve = ["node", "/playwright-core/cli.js", "run-server", "--port", String(PORT), "--host", "127.0.0.1"];
-	const started = spawnSync(docker, [...run, ...mount, ...serve], { encoding: "utf8" });
-	if (started.status !== 0 && !(started.stderr ?? "").includes("already in use")) {
-		throw new Error(`the browser container did not start (${docker}): ${started.stderr || String(started.error)}`);
-	}
-	for (let waited = 0; waited < 120; waited += 1) {
-		if (await reachable(PORT)) return endpoint;
-		await new Promise((resolve) => setTimeout(resolve, 250));
-	}
-	throw new Error(`the browser run-server did not answer on ${endpoint}`);
-}
-
-// The playwright-core @playwright/test resolves, and its version.
-function playwrightCore(): { dir: string; version: string } {
-	const test = createRequire(import.meta.url).resolve("@playwright/test/package.json");
-	const manifest = createRequire(test).resolve("playwright-core/package.json");
-	const version = Reflect.get(Object(JSON.parse(readFileSync(manifest, "utf8"))), "version");
-	if (typeof version !== "string") throw new Error("playwright-core has no version");
-	return { dir: dirname(manifest), version };
-}
-
-function reachable(port: number): Promise<boolean> {
-	return new Promise((resolve) => {
-		const socket = connect(port, "127.0.0.1");
-		socket.once("connect", () => {
-			socket.destroy();
-			resolve(true);
-		});
-		socket.once("error", () => resolve(false));
-	});
 }

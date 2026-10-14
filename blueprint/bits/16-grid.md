@@ -86,7 +86,8 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | test | case | result |
 | --- | --- | --- |
 | `endpoint env` | `FLARE_BROWSER_WS` set | that endpoint, and no container is started |
-| `container` | Docker present and no endpoint | the pinned image's run-server on `127.0.0.1:3333`, started or reused |
+| `container` | Docker present and no endpoint | the pinned image's run-server on `127.0.0.1:3333`, started or reused: `docker run -d --rm --init --network host --name flare-browsers`, the lockfile's `playwright-core` mounted read-only, the image by tag and digest |
+| `container fails` | `docker run` refused, then a name already in use whose run-server never answers | `the browser container did not start` with Docker's message; `the browser run-server did not answer on ws://127.0.0.1:3333/` |
 | `local engines` | no Docker, every engine installed | Playwright's local engines |
 | `none` | no endpoint, no Docker, an engine missing | one error that names all three options |
 
