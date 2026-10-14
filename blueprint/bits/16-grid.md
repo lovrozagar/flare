@@ -86,7 +86,8 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | test | case | result |
 | --- | --- | --- |
 | `endpoint env` | `FLARE_BROWSER_WS` set | that endpoint, and no container is started |
-| `container` | Docker present and no endpoint | the pinned image's run-server on `127.0.0.1:3333`, started or reused: `docker run -d --rm --init --network host --name flare-browsers`, the lockfile's `playwright-core` mounted read-only, the image by tag and digest |
+| `container` | Docker present and no endpoint | the pinned image's run-server on `127.0.0.1:3333`, started or reused: `docker run -d --rm --init --ipc=host --network host --name flare-browsers`, the lockfile's `playwright-core` mounted read-only, the image by tag and digest. `--ipc=host` gives Chromium the host's shared memory instead of Docker's 64 MB `/dev/shm` (leaf 4.6). A `flare-browsers` whose `docker inspect` shows that image and `host` IPC is reused |
+| `container stale` | a `flare-browsers` running the pinned image without host IPC, or another image | it is removed (`docker rm -f`) and the pinned one started: only this script creates that name |
 | `container fails` | `docker run` refused, then a name already in use whose run-server never answers | `the browser container did not start` with Docker's message; `the browser run-server did not answer on ws://127.0.0.1:3333/` |
 | `local engines` | no Docker, every engine installed | Playwright's local engines |
 | `none` | no endpoint, no Docker, an engine missing | one error that names all three options |
