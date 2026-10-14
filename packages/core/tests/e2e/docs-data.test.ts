@@ -204,11 +204,16 @@ test("stream", async ({ page, docs }, info) => {
 // saw is set beside what reached a client that is not the browser: the server stack, or the engine's network layer
 // (BUGS.md 100).
 async function nodeChunks(origin: string): Promise<string[]> {
-	const response = await fetch(`${origin}/_flare/fn/${BUILD_LOG}`, {
+	return timedChunks(`${origin}/_flare/fn/${BUILD_LOG}`, {
 		method: "POST",
 		headers: { origin, "content-type": "application/json" },
 		body: JSON.stringify({ run: "node-probe" }),
 	});
+}
+
+// A response's chunks as Node's fetch reads them, each timed from the first.
+async function timedChunks(url: string, init: RequestInit): Promise<string[]> {
+	const response = await fetch(url, init);
 	const reader = response.body?.getReader();
 	const chunks: { at: number; bytes: number }[] = [];
 	for (let next = await reader?.read(); next !== undefined && !next.done; next = await reader?.read()) {
@@ -216,6 +221,46 @@ async function nodeChunks(origin: string): Promise<string[]> {
 	}
 	return chunks.map((chunk) => `${Math.round(chunk.at - (chunks[0]?.at ?? 0))}ms:${chunk.bytes}B`);
 }
+
+// The transport probe for BUGS.md 100, a measurement with no pass bar: each candidate for macOS WebKit's coalesced
+// stream chunks, read by the page with a plain reader and by the test process's own Node fetch, for a streamed server
+// function and for a fill's defer frames. Every run writes `stream-variants.json`, which e2e-mac uploads.
+test("stream transport", async ({ page, docs }, info) => {
+	await open(page, docs.origin, "/playground");
+	const targets = [
+		...["plain", "sse", "pad", "sse+pad"].map((variant) => ({
+			name: `fn ${variant}`,
+			url: `/_flare/fn/${BUILD_LOG}`,
+			init: {
+				method: "POST",
+				headers: { origin: docs.origin, "content-type": "application/json", "x-docs-stream-variant": variant },
+				body: JSON.stringify({ run: `variant-${variant}` }),
+			},
+		})),
+		...["plain", "sse", "pad"].map((variant) => ({
+			name: `fill ${variant}`,
+			url: "/changelog?_flare=fill",
+			init: { method: "GET", headers: { "x-docs-stream-variant": variant } },
+		})),
+	];
+	const report: Record<string, { page: string[]; node: string[] }> = {};
+	for (const target of targets) {
+		const inPage = await page.evaluate(async ({ url, init }) => {
+			const response = await fetch(url, init);
+			const reader = response.body?.getReader();
+			const chunks: { at: number; bytes: number }[] = [];
+			for (let next = await reader?.read(); next !== undefined && !next.done; next = await reader?.read()) {
+				chunks.push({ at: performance.now(), bytes: next.value.byteLength });
+			}
+			return chunks.map((chunk) => `${Math.round(chunk.at - (chunks[0]?.at ?? 0))}ms:${chunk.bytes}B`);
+		}, target);
+		report[target.name] = { page: inPage, node: await timedChunks(`${docs.origin}${target.url}`, target.init) };
+	}
+	const path = info.outputPath("stream-variants.json");
+	writeFileSync(path, `${JSON.stringify(report, null, 1)}\n`);
+	await info.attach("stream variants", { path, contentType: "application/json" });
+	expect(Object.values(report).every((entry) => entry.page.length > 0 && entry.node.length > 0)).toBe(true);
+});
 
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
 test("stream abort", async ({ page, docs }, info) => {
