@@ -236,6 +236,7 @@ The tripwire is structural. `flare:boundary`'s `renderChunk` passes every module
 
 | test | case | result |
 | --- | --- | --- |
+| `symlinked root` | `boundary()` over an app whose root is reached through a symlink | the handler body is still stripped from the client graph: a module is in the app when it is under the root or under the root's real path (BUGS.md B51) |
 | `handler body` | the handler returns the string `SENTINEL_FN` | the client chunk does not contain it, and a fixture that forces it into the chunk fails the build |
 | `server path` | a chunk that imports `src/server/lifecycle/create.ts` | build error |
 | `worker` | the `worker` environment build, the Workers bundle | a server graph: it holds a server function body and a module of the package's `src/server`, and a client-only body forced into it fails the build as in the ssr chunk |

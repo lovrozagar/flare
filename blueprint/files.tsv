@@ -454,6 +454,8 @@ packages/core/src/vite/boundary/tripwire.ts	P7	src	vite	Fail the build when an e
 packages/core/src/vite/boundary/tripwire.test.ts	P7	test	vite	Unit cases for tripwire.ts
 packages/core/src/vite/boundary/index.ts	P7	index	vite	Re-exports
 packages/core/src/vite/plugin/flare.ts	P1	src	vite	The Vite plugin. Calls solid with ssr true and does not pass start (B89)
+packages/core/src/vite/plugin/real-path.ts	P15	src	vite	The real path of a root reached through a symlink, so Vite's ids, the manifest, and the boundary agree (BUGS.md B51)
+packages/core/src/vite/plugin/real-path.test.ts	P15	test	vite	Unit cases for real-path.ts
 packages/core/src/vite/plugin/flare.test.ts	P1	test	vite	Unit cases for flare.ts
 packages/core/src/vite/plugin/fonts.ts	P14	src	vite	flare({ fonts: { dir } }): the client build emits the used registry families' woff2 files
 packages/core/src/vite/plugin/fonts.test.ts	P14	test	vite	Unit cases for fonts.ts: real client builds
