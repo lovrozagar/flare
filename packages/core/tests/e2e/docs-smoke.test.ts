@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { documents, expect, isProd, open, test } from "./docs.fixture.ts";
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
@@ -184,21 +184,24 @@ test("dev styles adopted", async ({ page, docs }, info) => {
 	expect(tailwind).toMatch(/\.mx-auto\s*\{/);
 	expect(tailwind).not.toContain('@import "tailwindcss"');
 	expect(new Set(first).size).toBe(first.length);
+	// Every dev project edits this one file, at the same time on a parallel run: each appends its own rule and then
+	// removes exactly that rule from what the file holds then, so no run restores over another's edit (BUGS.md 99).
 	const file = `${docs.appDir}/src/styles.css`;
-	const source = readFileSync(file, "utf8");
+	const name = `b59-hmr-probe-${Math.random().toString(36).slice(2, 10)}`;
+	const rule = `\n.${name} { color: rgb(1, 2, 3); }\n`;
 	try {
-		writeFileSync(file, `${source}\n.b59-hmr-probe { color: rgb(1, 2, 3); }\n`);
-		await page.evaluate(() => {
+		appendFileSync(file, rule);
+		await page.evaluate((probeClass) => {
 			const probe = document.createElement("p");
-			probe.className = "b59-hmr-probe";
+			probe.className = probeClass;
 			probe.id = "b59-probe";
 			document.body.append(probe);
-		});
+		}, name);
 		await expect(page.locator("#b59-probe")).toHaveCSS("color", "rgb(1, 2, 3)");
 		const after = await ids();
 		expect(after.filter((id) => id.endsWith("/src/styles.css"))).toHaveLength(1);
 		expect(new Set(after).size).toBe(after.length);
 	} finally {
-		writeFileSync(file, source);
+		writeFileSync(file, readFileSync(file, "utf8").replace(rule, ""));
 	}
 });

@@ -11,6 +11,7 @@ import { devEndpoints } from "../dev/guard.ts";
 import { prerenderApp } from "../prerender/index.ts";
 import { devHead as devHeadOf } from "../dev/dev-head.ts";
 import { installDevStyles } from "../dev/dev-styles.ts";
+import { cssUpdate } from "../dev/css-update.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
 import { ownModule } from "./own-module.ts";
@@ -72,6 +73,7 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
 		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client, assetsBase: parsed.assetsBase }),
 		core(parsed, state),
+		cssUpdate(),
 		devEndpoints(image === undefined ? [] : [imageEndpoint(image, state)]),
 		// `fonts` turns the build-time font copy on. Absent, the app serves `/fonts/...` itself (dx/plugin.md fonts).
 		...(parsed.fonts === undefined ? [] : [fontsPlugin(parsed.fonts.dir)]),

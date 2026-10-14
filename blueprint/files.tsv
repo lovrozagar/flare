@@ -739,6 +739,8 @@ packages/core/src/server/render/dev-styles.ts	P16	src	server	Asks the dev server
 packages/core/src/server/render/dev-styles.test.ts	P16	test	server	Unit cases for dev-styles.ts
 packages/core/src/vite/dev/dev-styles.ts	P16	src	vite	Answers `flare:styles`: the client entry's and the chain's CSS modules in import order, read with `?direct`, cached per chain (B104)
 packages/core/src/vite/dev/dev-styles.test.ts	P16	test	vite	Unit cases for dev-styles.ts
+packages/core/src/vite/dev/css-update.ts	P16	src	vite	A plain stylesheet edit is handled in every server environment, so Vite sends the server no full reload (BUGS.md 99)
+packages/core/src/vite/dev/css-update.test.ts	P16	test	vite	Unit cases for css-update.ts, and a real dev server
 scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and the e2e grid: FLARE_BROWSER_WS, else the pinned container, else local engines (B97)
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run
