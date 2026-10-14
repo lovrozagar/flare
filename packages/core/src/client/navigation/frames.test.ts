@@ -87,6 +87,29 @@ it("deferred reject", async () => {
 	expect(send).not.toHaveBeenCalled();
 });
 
+// A body that lands one deferred value at `r`, then breaks with `reason`.
+async function* broken(reason: Error): AsyncGenerator<Frame> {
+	yield { t: "l", m: "_root_/a", d: { a: { __deferred: true, key: "d0" } } };
+	yield { t: "r" };
+	throw reason;
+}
+
+// A body that breaks after `r`: a network failure rejects the pending value with its reason, while a request a newer
+// navigation aborted leaves it pending for the page that is leaving. Neither escapes as a rejection (BUGS.md B58).
+it("broken body", async () => {
+	const failed = await landFrames(broken(new TypeError("network error")), quiet);
+	await expect((failed.data["_root_/a"] as { a: Deferred<string> }).a.promise).rejects.toThrow("network error");
+	const stop = new AbortController();
+	stop.abort();
+	const aborted = await landFrames(broken(new DOMException("aborted", "AbortError")), {
+		...quiet,
+		signal: stop.signal,
+	});
+	const value = (aborted.data["_root_/a"] as { a: Deferred<string> }).a.promise;
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	expect(await Promise.race([value, Promise.resolve("pending")])).toBe("pending");
+});
+
 it("dev overlay", async () => {
 	const stream = feed();
 	const send = vi.fn<(payload: DevErrorPayload) => void>();

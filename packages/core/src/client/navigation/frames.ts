@@ -20,11 +20,13 @@ export type Values = { params: unknown; search: unknown };
 // `holes` hears that the response ended with placeholders no frame settled: stored `"stream"` holes, which a fill
 // request fills. It gets those pending values, and the fill's landing resolves the same ones through `reuse`, because
 // a component's read holds the value it was first given (useDeferred). Without `holes`, such a value rejects.
+// `signal` is the request's: once it aborts, a newer navigation owns the screen, so the values still pending stay so.
 export type LandOptions = {
 	dev: boolean;
 	send?: ((payload: DevErrorPayload) => void) | undefined;
 	holes?: ((pending: Pending) => void) | undefined;
 	reuse?: Pending | undefined;
+	signal?: AbortSignal | undefined;
 };
 
 // The deferred values a landing has not settled yet, by `${route}\n${key}`.
@@ -61,7 +63,7 @@ export async function landFrames(source: AsyncIterable<Frame>, options: LandOpti
 		const frame = next.value;
 		if (frame.t === "x") return { ...landed, redirect: { status: frame.s, url: frame.u, replace: frame.r } };
 		if (frame.t === "r") {
-			void settleLater(frames, { slots, holes: options.holes });
+			void settleLater(frames, { slots, holes: options.holes, signal: options.signal });
 			return landed;
 		}
 		land(frame, landed, { slots, options });
@@ -92,18 +94,25 @@ function land(frame: Frame, landed: Landed, context: { slots: Slots; options: La
 
 async function settleLater(
 	frames: AsyncIterator<Frame>,
-	{ slots, holes }: { slots: Slots; holes: ((pending: Pending) => void) | undefined },
+	{ slots, holes, signal }: Pick<LandOptions, "holes" | "signal"> & { slots: Slots },
 ): Promise<void> {
-	for (let next = await frames.next(); !next.done; next = await frames.next()) {
-		const frame = next.value;
-		if (frame.t === "c") {
-			slots.get(`${frame.m}\n${frame.k}`)?.resolve(frame.d);
-			slots.delete(`${frame.m}\n${frame.k}`);
+	try {
+		for (let next = await frames.next(); !next.done; next = await frames.next()) {
+			const frame = next.value;
+			if (frame.t === "c") {
+				slots.get(`${frame.m}\n${frame.k}`)?.resolve(frame.d);
+				slots.delete(`${frame.m}\n${frame.k}`);
+			}
+			if (frame.t === "e" && frame.k !== undefined) {
+				slots.get(`${frame.m}\n${frame.k}`)?.reject(errorFromWire(frame.e).error);
+				slots.delete(`${frame.m}\n${frame.k}`);
+			}
 		}
-		if (frame.t === "e" && frame.k !== undefined) {
-			slots.get(`${frame.m}\n${frame.k}`)?.reject(errorFromWire(frame.e).error);
-			slots.delete(`${frame.m}\n${frame.k}`);
-		}
+	} catch (error) {
+		// The body broke after `r`. Nothing escapes as an unhandled rejection (B105). A newer navigation aborted it, so
+		// the page that shows these values is leaving and they stay pending. Otherwise each one rejects with the reason.
+		if (signal?.aborted !== true) for (const slot of slots.values()) slot.reject(error);
+		return;
 	}
 	// A value whose frame never came is a stored hole the fill fills. Without a fill it rejects, never waiting forever.
 	if (slots.size > 0 && holes !== undefined) return holes(slots);
