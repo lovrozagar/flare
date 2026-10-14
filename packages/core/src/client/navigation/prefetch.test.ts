@@ -4,6 +4,7 @@ import { encodeFrame, type Frame } from "../../shared/protocol/index.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule, type RouterOptions } from "../../shared/router/create-router.ts";
+import { loadChain } from "../../shared/router/load-chain.ts";
 import { mountNavigator, settled, unmountAll, type Fetch } from "./navigate.fixture.ts";
 import { createPrefetcher, observeViewport, type PrefetchEnv } from "./prefetch.ts";
 
@@ -99,15 +100,37 @@ it("all modules", async () => {
 	await settled();
 	expect(app.env.observe).not.toHaveBeenCalled();
 	expect(importAbout).not.toHaveBeenCalled();
+	// The root's and home's records are loaded (static here), so only `/about`'s file is prefetched (BUGS.md 80).
 	app.prefetcher.all();
 	const links = [...document.head.querySelectorAll('link[rel="prefetch"]')];
 	expect(
 		links.map((node) => [node.getAttribute("href"), node.getAttribute("as"), node.hasAttribute("crossorigin")]),
-	).toEqual([
-		["/src/root.tsx", "script", true],
-		["/src/about.tsx", "script", true],
-	]);
+	).toEqual([["/src/about.tsx", "script", true]]);
 	expect(app.fetch).not.toHaveBeenCalled();
+});
+
+// A chunk the client already imported is not prefetched again: the browser holds it in its module map, and a prefetch
+// would fetch it a second time. A file that also holds an unloaded route's module counts as loaded (BUGS.md 80).
+it("loaded chunks skipped", async () => {
+	const router = createRouter({
+		layouts: { _root_: async () => root },
+		routeTree: [
+			{ id: "_root_/", path: "/", module: async () => home },
+			{ id: "_root_/about", path: "/about", module: async () => about },
+			{ id: "_root_/slow", path: "/slow", module: async () => slow },
+		],
+		chunks: {
+			_root_: "/assets/root.js",
+			"_root_/": "/assets/home.js",
+			"_root_/about": "/assets/about.js",
+			"_root_/slow": "/assets/home.js",
+		},
+	});
+	await loadChain(router.match("/").chain);
+	setup(router).prefetcher.all();
+	expect([...document.head.querySelectorAll('link[rel="prefetch"]')].map((node) => node.getAttribute("href"))).toEqual([
+		"/assets/about.js",
+	]);
 });
 
 it("intent", async () => {
@@ -195,7 +218,13 @@ it("save data", async () => {
 		expect(importAbout).toHaveBeenCalled();
 		expect(app.fetch).not.toHaveBeenCalled();
 	}
-	const plain = setup(routerOf({ chunks }), { env: { network: { connection: { effectiveType: "4g" } } } });
+	// A fresh router: the loop above imported `/about`, whose chunk is then loaded and not prefetched (BUGS.md 80).
+	const fresh = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/about", path: "/about", module: async () => about }],
+		chunks,
+	});
+	const plain = setup(fresh, { env: { network: { connection: { effectiveType: "4g" } } } });
 	plain.prefetcher.all();
 	expect(document.head.querySelectorAll('link[rel="prefetch"]')).toHaveLength(1);
 });

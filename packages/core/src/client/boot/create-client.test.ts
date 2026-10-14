@@ -225,9 +225,11 @@ it("prefetch all", async () => {
 		host,
 		vi.fn<ClientEnv["fetch"]>(async () => new Response(null, { status: 500 })),
 	);
-	stops.push(await bootClient(routerOf({ "_root_/about": "/src/about.tsx" }), createReady(), client));
+	const chunks = { "_root_/": "/src/home.tsx", "_root_/lazy": "/src/lazy.tsx" };
+	stops.push(await bootClient(routerOf(chunks), createReady(), client));
+	// The hydrated home's file is loaded already, so only the unloaded route's is prefetched (BUGS.md 80).
 	const links = [...document.head.querySelectorAll('link[rel="prefetch"]')];
-	expect(links.map((link) => link.getAttribute("href"))).toEqual(["/src/about.tsx"]);
+	expect(links.map((link) => link.getAttribute("href"))).toEqual(["/src/lazy.tsx"]);
 	for (const link of links) link.remove();
 	const anchor = document.createElement("a");
 	seen.prefetcher?.watch(anchor, "/about", "intent");
