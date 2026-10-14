@@ -14,6 +14,20 @@ test("active link", async ({ page, docs }) => {
 	await expect(page.locator("#nav").getByRole("link", { name: "Docs" })).toHaveClass(/bg-stone-200\/70/);
 });
 
+// /hr/docs/i18n renders with its feedback tally, loaded directly and reached from the sidebar: its slug passes the
+// feedback input, and nothing replaces the page with "Something broke" (BUGS.md 64).
+test("i18n page", async ({ page, docs }) => {
+	const problems = await open(page, docs.origin, "/hr/docs/i18n");
+	await expect(page.locator("#doc-title")).toHaveText("Locales, theme, direction");
+	await expect(page.locator("#votes-up")).toHaveText("0");
+	await open(page, docs.origin, "/hr/docs/styling");
+	await page.locator('#sidebar a[href="/hr/docs/i18n"]').click();
+	await expect(page.locator("#doc-title")).toHaveText("Locales, theme, direction");
+	await expect(page.locator("#votes-up")).toBeVisible();
+	await expect(page.getByText("Something broke")).toHaveCount(0);
+	expect(problems).toEqual([]);
+});
+
 test("disabled link", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/media");
 	const next = page.locator("#next");
