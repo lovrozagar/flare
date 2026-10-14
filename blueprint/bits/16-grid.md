@@ -71,8 +71,8 @@ The dev error page for a server module that failed to load and the tab hub keep 
 
 | test | case | result |
 | --- | --- | --- |
-| `bun dev` | `minimal` booted as `vite dev` under the Bun runtime | GET `/` answers 200 and the document's `flare-build` is `dev` |
-| `workers dev` | `minimal` booted with `workersDev: true` | GET `/` answers 200 from workerd. It runs where the test runtime has `registerHooks`; under the Bun run (`test:bun`) the child Vite is Bun too, so the case is skipped there by that feature check, and the skip names B95 |
+| `bun dev` | `minimal` booted as `vite dev` under the Bun runtime | GET `/` answers 200, the document's `flare-build` is `dev`, and its `x-runtime` is `Bun/…` |
+| `workers dev` | `minimal` booted with `workersDev: true` | GET `/` answers 200 from workerd: its `x-runtime` is `Cloudflare-Workers`, which the minimal app's middleware sets from `navigator.userAgent` (with B76's bug back it is `Node.js/24`, BUGS.md 76). It runs where the test runtime has `registerHooks`; under the Bun run (`test:bun`) the child Vite is Bun too, so the case is skipped there by that feature check, and the skip names B95 |
 
 ## `scripts/browser-server.test.ts` (B97)
 

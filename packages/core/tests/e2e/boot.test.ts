@@ -83,6 +83,14 @@ it("preview", async () => {
 const PROD_BOOT = 120_000;
 
 // Returns what the boot captured from its runtime.
+// The user agent each prod server renders with. The Node server runs on the test's own runtime, which is Bun under
+// the Bun run.
+const RUNTIME = {
+	node: new RegExp(`^${navigator.userAgent.split("/")[0]}/`),
+	bun: /^Bun\//,
+	workers: /^Cloudflare-Workers$/,
+};
+
 async function prod(runtime: "node" | "bun" | "workers"): Promise<readonly string[]> {
 	const session = await boot({ app: "minimal", runtime, mode: "prod" });
 	try {
@@ -91,6 +99,7 @@ async function prod(runtime: "node" | "bun" | "workers"): Promise<readonly strin
 		expect(response.status).toBe(200);
 		expect(html).not.toContain("@vite/client");
 		expect(response.headers.get("flare-build")).toMatch(/^[0-9a-f]{12}$/);
+		expect(response.headers.get("x-runtime")).toMatch(RUNTIME[runtime]);
 		const entry = /import\("([^"]+)"\)/.exec(html)?.[1] ?? "";
 		expect(entry).toMatch(/^\/assets\/client-[\w-]+\.js$/);
 		const script = await fetch(`${session.origin}${entry}`);
@@ -158,6 +167,7 @@ it(
 			const response = await fetch(`${session.origin}/`);
 			expect(response.status).toBe(200);
 			expect(response.headers.get("flare-build")).toBe("dev");
+			expect(response.headers.get("x-runtime")).toMatch(/^Bun\//);
 		} finally {
 			await session.close();
 		}
@@ -176,6 +186,8 @@ it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
 			const response = await fetch(`${session.origin}/`);
 			expect(response.status).toBe(200);
 			expect(response.headers.get("flare-build")).toBe("dev");
+			// workerd rendered it, not the dev server's own Node listener (BUGS.md 76).
+			expect(response.headers.get("x-runtime")).toBe("Cloudflare-Workers");
 			expect(session.logs().some((line) => line.includes("/__debug"))).toBe(true);
 		} finally {
 			await session.close();
