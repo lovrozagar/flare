@@ -60,7 +60,7 @@ Production cases skip the `*-dev-*` projects: `ssg seed`, `ssg public cdn`, `isr
 
 ## `tests/e2e/docs-server.test.ts`
 
-`unauthenticated` (401 boundary, hydrates), `unauthorized` (403), `auth throws` (`/admin/audit` reads an optional session and its loader throws `unauthenticated()` for a guest and `unauthorized()` for a reader, which paint the admin root's 401 and 403; an admin gets the page; BUGS.md 105), `login cookie`, `authenticate optional`, `csrf`, `body limit` (a small body answers 200; a 70 KB body sent with `Expect: 100-continue` answers 413, so nothing is left unread for workerd to reset; BUGS.md 104), `middleware next`, `middleware respond`, `middleware bypass`, `middleware prefix`, `mount`, `response route` (keeps its own Cache-Control), `route headers`, `route security` (the root's `X-Frame-Options`, one nonce), `security defaults`, `indexnow key file`.
+`unauthenticated` (401 boundary, hydrates), `unauthorized` (403), `auth throws` (`/admin/audit` reads an optional session and its loader throws `unauthenticated()` for a guest and `unauthorized()` for a reader, which paint the admin root's 401 and 403; an admin gets the page; BUGS.md 105), `login cookie`, `authenticate optional`, `csrf`, `body limit` (a small body answers 200; an 8 MiB body sent with `Expect: 100-continue` answers 413, so nothing is left unread for workerd to reset, and no loopback buffer absorbs a cut; BUGS.md 104, 114), `middleware next`, `middleware respond`, `middleware bypass`, `middleware prefix`, `mount`, `response route` (keeps its own Cache-Control), `route headers`, `route security` (the root's `X-Frame-Options`, one nonce), `security defaults`, `indexnow key file`.
 
 ## `tests/e2e/docs-features.test.ts`
 

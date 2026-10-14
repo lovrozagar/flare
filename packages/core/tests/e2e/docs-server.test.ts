@@ -86,11 +86,15 @@ function postExpectingContinue(url: string, origin: string, body: string): Promi
 	});
 }
 
+// The docs server's cap is 64 KiB. The oversized body is 8 MiB, so no loopback buffer absorbs it: on Bun a platform
+// cap at the server's limit cut the connection before the 413, which macOS showed and Linux hid at 70 KiB (BUGS.md 114).
 test("body limit", async ({ request, docs }) => {
 	const url = `${docs.origin}/_flare/fn/${ECHO}`;
 	const small = await request.post(url, { headers: { origin: docs.origin }, data: { text: "hi" } });
 	expect(small.status()).toBe(200);
-	expect(await postExpectingContinue(url, docs.origin, JSON.stringify({ text: "x".repeat(70 * 1024) }))).toBe(413);
+	expect(await postExpectingContinue(url, docs.origin, JSON.stringify({ text: "x".repeat(8 * 1024 * 1024) }))).toBe(
+		413,
+	);
 });
 
 test("middleware next", async ({ request, docs }) => {

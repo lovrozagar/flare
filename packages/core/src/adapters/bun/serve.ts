@@ -1,10 +1,13 @@
 import { forwardedHttps, trustedHops } from "../../shared/url/index.ts";
 
-const MIB = 1024 * 1024;
+// Bun's own default `maxRequestBodySize`, kept as the platform ceiling. Flare's capped reader answers a body over
+// `bodyLimit` with 413 (`server-fn/input.ts`), and that limit is at most 32 MiB, so the 413 always comes first. A
+// body over this ceiling makes Bun cut the connection, which a client reads as EPIPE or ECONNRESET, not a status
+// (BUGS.md 114).
+const BUN_CEILING = 128 * 1024 * 1024;
 
 export type BunServer = {
 	fetch: (request: Request) => Response | Promise<Response>;
-	bodyLimit?: number;
 };
 
 // `trustProxy` as on the Node listener: with a trusted hop, `X-Forwarded-Proto: https` makes the request https, so its
@@ -23,7 +26,7 @@ export function createBunFetch(
 		fetch(request) {
 			return Promise.resolve(server.fetch(forwarded(request, hops)));
 		},
-		maxRequestBodySize: server.bodyLimit === undefined ? MIB : server.bodyLimit,
+		maxRequestBodySize: BUN_CEILING,
 	};
 }
 
