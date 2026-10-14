@@ -14,4 +14,4 @@ adapters.md#Node#prop:trustProxy	packages/core/tests/integration/adapters.test.t
 adapters.md#Bun#	packages/core/tests/integration/adapters.test.ts::bun serve; packages/core/src/adapters/bun/serve.test.ts::bun oversized post	packages/core/tests/e2e/docs-server.test.ts::body limit; packages/core/tests/e2e/docs-server.test.ts::forwarded proto untrusted
 adapters.md#Workers#	packages/core/tests/workerd/server.test.ts::worker server; packages/core/tests/workerd/server.test.ts::worker assets	packages/core/tests/e2e/docs-features.test.ts::page state; packages/core/tests/e2e/docs-server.test.ts::forwarded proto untrusted
 adapters.md#Workers#prop:server	packages/core/tests/workerd/server.test.ts::worker server	packages/core/tests/e2e/docs-features.test.ts::page state
-adapters.md#Workers#prop:assets	packages/core/tests/workerd/server.test.ts::worker assets	packages/core/tests/e2e/docs-features.test.ts::page state
+adapters.md#Workers#prop:assets	packages/core/tests/workerd/server.test.ts::worker assets	packages/core/tests/e2e/docs-features.test.ts::page state; packages/core/tests/e2e/docs-server.test.ts::canonical ingress

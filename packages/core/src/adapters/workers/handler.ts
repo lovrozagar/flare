@@ -1,4 +1,3 @@
-import { canonicalPath } from "../../shared/url/canonical.ts";
 import { finalize } from "../../server/lifecycle/finalize.ts";
 import { createLogger } from "../../server/lifecycle/logger.ts";
 
@@ -24,9 +23,9 @@ export function createWorkersHandler(
 	const assets = options?.assets;
 	return {
 		async fetch(request, env, ctx) {
-			const next = canonicalRequest(request);
-			if (next === undefined) return finalize({ status: 400, body: "" });
-			const response = await server.fetch(next, env, {
+			// The server's ingress computes the canonical path once (B22): a non-canonical one is its 301 or 400 here, as
+			// on Node and Bun.
+			const response = await server.fetch(request, env, {
 				waitUntil(promise) {
 					ctx.waitUntil(promise);
 				},
@@ -42,21 +41,14 @@ export function createWorkersHandler(
 				return finalize({ status: 500, body: "" });
 			}
 			// A file the binding has is its response, untouched. A path it does not have either is the app's own
-			// not-found answer, as on Node and Bun (dx/adapters.md).
-			const asset = await binding.fetch(next);
+			// not-found answer, as on Node and Bun (dx/adapters.md). A 404 passed the server's ingress, so the path is
+			// already canonical.
+			const asset = await binding.fetch(request);
 			const [kept, dropped] = asset.status === 404 ? [response, asset] : [asset, response];
 			void dropped.body?.cancel();
 			return kept;
 		},
 	};
-}
-
-function canonicalRequest(request: Request): Request | undefined {
-	const url = new URL(request.url);
-	const canonical = canonicalPath(url.pathname);
-	if (!("path" in canonical)) return undefined;
-	url.pathname = canonical.path;
-	return new Request(url, request);
 }
 
 function connectingIp(request: Request): string | undefined {

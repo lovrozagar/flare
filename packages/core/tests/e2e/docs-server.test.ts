@@ -105,6 +105,18 @@ test("forwarded proto untrusted", async ({ request, docs }) => {
 	expect(response.headers()["strict-transport-security"]).toBeUndefined();
 });
 
+// B22's canonical path comes from the server's ingress on every runtime, Workers included: `//x` is refused, and an
+// empty segment or an upper-case path redirects to the canonical one (dx/adapters.md). A file is the platform's: the
+// harness's static layer and Cloudflare's assets answer it before Flare, so these paths are routes.
+test("canonical ingress", async ({ request, docs }) => {
+	const raw = { maxRedirects: 0 };
+	expect((await request.get(`${docs.origin}//x`, raw)).status()).toBe(400);
+	const empty = await request.get(`${docs.origin}/docs//routing`, raw);
+	expect([empty.status(), empty.headers()["location"]]).toEqual([301, "/docs/routing"]);
+	const upper = await request.get(`${docs.origin}/CHANGELOG`, raw);
+	expect([upper.status(), upper.headers()["location"]]).toEqual([301, "/changelog"]);
+});
+
 test("middleware next", async ({ request, docs }) => {
 	const response = await request.get(`${docs.origin}/`);
 	expect(response.headers()["x-docs-time"]).toMatch(/^\d+ms$/);
