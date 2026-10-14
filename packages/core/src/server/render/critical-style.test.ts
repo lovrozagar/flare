@@ -1,3 +1,4 @@
+import { SWAP_SCRIPT } from "../../shared/css/index.ts";
 import { expect, it } from "vitest";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { criticalContext, withCritical } from "./critical-style.ts";
@@ -15,7 +16,7 @@ it("insert", () => {
 	expect(withCritical(shell, { css: SHEET, nonce: "n", stylesheet: "/app.css" })).toContain(
 		'.a{color:red}</style><link id="flare-stylesheet" rel="preload" as="style" href="/app.css">' +
 			'<noscript><link rel="stylesheet" href="/app.css"></noscript>' +
-			'<script nonce="n">document.getElementById("flare-stylesheet").rel="stylesheet"</script></head>',
+			`<script nonce="n">${SWAP_SCRIPT}</script></head>`,
 	);
 	expect(html).not.toContain("data-dh");
 	expect(html).not.toContain(".b{");

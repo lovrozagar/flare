@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
 import { flarePage } from "../../src/testing/index.ts";
 import { boot, type Boot } from "./boot.ts";
-import { engineNoise } from "./console.ts";
 
 // The docs app's shared boot (B94). The fixture is worker-scoped, so the docs spec files of one project share one
 // build per worker instead of one per file.
@@ -55,13 +54,12 @@ export function prodOnly(info: TestInfo): void {
 }
 
 // A page error, a console error, or a console warning is a problem: a Solid hydration mismatch arrives on the
-// console without throwing. WebKit's stylesheet preload notice is engine noise (console.ts). The returned list grows
-// for the life of the page.
+// console without throwing. The returned list grows for the life of the page.
 export function watch(page: Page): string[] {
 	const problems: string[] = [];
 	page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
 	page.on("console", (message) => {
-		if ((message.type() === "error" || message.type() === "warning") && !engineNoise(message.text()))
+		if (message.type() === "error" || message.type() === "warning")
 			problems.push(`${message.type()}: ${message.text()}`);
 	});
 	return problems;

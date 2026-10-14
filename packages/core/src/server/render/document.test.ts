@@ -353,7 +353,7 @@ it("critical shell", async () => {
 	const critical =
 		'<style id="flare-critical" nonce="n">.a{color:red}.a:where([data-theme="dark"] *){color:blue}</style>';
 	expect(inHead).toContain(`${critical}<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css">`);
-	expect(inHead.endsWith('.rel="stylesheet"</script>')).toBe(true);
+	expect(inHead.endsWith("document.currentScript.after(l)}</script>")).toBe(true);
 	expect(inHead.match(/flare-stylesheet" rel="preload"/g)).toHaveLength(1);
 	expect(inHead.indexOf("$HY")).toBeLessThan(inHead.indexOf("flare-critical"));
 	expect(shell).not.toContain(".unused");

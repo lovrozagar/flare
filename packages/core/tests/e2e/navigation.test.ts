@@ -1,6 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
 import { boot, type Boot } from "./boot.ts";
-import { engineNoise } from "./console.ts";
 
 // Client navigation on the minimal app's real dev path (B70): flare() serves src/server.ts and the client hydrates.
 
@@ -18,13 +17,12 @@ test.afterAll(async () => {
 
 // A page error, a console error, or a console warning fails the test: a Solid hydration mismatch or warning
 // arrives on the console without throwing, and halts the page without changing its text. Vite's own lines are
-// debug messages and are not collected, nor is WebKit's stylesheet preload notice (console.ts). No test here expects a
-// 4xx resource.
+// debug messages and are not collected. No test here expects a 4xx resource.
 async function open(page: Page, path: string): Promise<string[]> {
 	const problems: string[] = [];
 	page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`));
 	page.on("console", (message) => {
-		if ((message.type() === "error" || message.type() === "warning") && !engineNoise(message.text()))
+		if (message.type() === "error" || message.type() === "warning")
 			problems.push(`${message.type()}: ${message.text()}`);
 	});
 	await page.goto(`${session.origin}${path}`);

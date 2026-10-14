@@ -51,7 +51,7 @@ it("prod", () => {
 	expect(rendered().innerHTML).toBe(
 		'<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css">' +
 			'<noscript><link rel="stylesheet" href="/assets/app.css"></noscript>' +
-			'<script nonce="n">document.getElementById("flare-stylesheet").rel="stylesheet"</script>',
+			'<script nonce="n">{const l=document.createElement("link");l.rel="stylesheet";l.href=document.getElementById("flare-stylesheet").getAttribute("href");document.currentScript.after(l)}</script>',
 	);
 	expect(rendered("").innerHTML).toBe('<link rel="stylesheet" href="/assets/app.css">');
 });

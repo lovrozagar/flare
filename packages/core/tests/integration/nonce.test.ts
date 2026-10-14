@@ -252,7 +252,7 @@ it("stylesheet", async () => {
 	vi.stubEnv("DEV", false);
 	const response = await document(() => createComponent(Stylesheet, {}));
 	const body = await response.text();
-	expect(body).toContain(`<script nonce="${headerNonce(response.headers)}">document.getElementById(`);
+	expect(body).toContain(`<script nonce="${headerNonce(response.headers)}">{const l=document.createElement(`);
 	expect(body).toContain('<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css">');
 });
 

@@ -34,7 +34,8 @@ The markup is per-request runtime code the `Stylesheet` component renders, so it
 | test | case | result |
 | --- | --- | --- |
 | `prod markup` | href `/assets/app.css`, nonce `n` | a preload link, a noscript stylesheet link, and a script whose nonce is `n` |
-| `script constant` | the script text | it sets the preloaded link's `rel` to `stylesheet` and does not read the network |
+| `script constant` | the script text | it does not read the network and does not hold the href: the text is the same for every page |
+| `swap keeps the preload` | the markup parsed by jsdom with scripts on | the preload keeps `rel="preload"`, and one `<link rel="stylesheet">` with the preload's href sits right after the script (BUGS.md 87) |
 | `no inline style` | the swap markup | it contains no `<style>`. The critical block is inserted by `critical-style`, not by this markup |
 | `no nonce` | href `/assets/app.css` and nonce `""`, the case of a string or `false` CSP (B68) | one plain `<link rel="stylesheet">` and no script. An un-nonced swap script would be blocked by a string CSP and leave the page on its critical CSS alone |
 

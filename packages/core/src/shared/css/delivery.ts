@@ -5,9 +5,13 @@ export type DeliveryTag = {
 	children?: DeliveryTag | string;
 };
 
-// Turns the preloaded link into the stylesheet. The browser already fetches the file, and a stylesheet a script
-// enables does not block the first paint. The text is constant, so a CSP hash can allow it as well as the nonce.
-export const SWAP_SCRIPT = 'document.getElementById("flare-stylesheet").rel="stylesheet"';
+// Adds the stylesheet right after itself, with the preload's href: the browser already fetches the file, the new link
+// takes the preloaded response, and a stylesheet a script adds does not block the first paint. The preload itself is
+// left alone: flipping its rel made WebKit cancel it in flight, and under load the loads after that cancel failed
+// (BUGS.md 87). A block keeps its binding off the global scope. The text is constant, so a CSP hash can allow it as
+// well as the nonce.
+export const SWAP_SCRIPT =
+	'{const l=document.createElement("link");l.rel="stylesheet";l.href=document.getElementById("flare-stylesheet").getAttribute("href");document.currentScript.after(l)}';
 
 // How a production document loads the one stylesheet without blocking (B15): a preload, the nonced swap script, and
 // a noscript link. Without a nonce, as under a string or `false` CSP (B68), a swap script would be blocked and leave
