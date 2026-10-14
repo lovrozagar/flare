@@ -13,8 +13,12 @@ function Tally(props: { slug: string }): JSX.Element {
 	);
 	// With a mutation key, the helper writes the returned tally into the query under that key: no refetch.
 	const mutation = useMutation(() => serverFnMutationOptions(vote, { mutationKey: key() }));
-	const button =
-		"rounded-md border border-stone-300 px-3 py-1 text-sm hover:border-flame-500 disabled:opacity-50 dark:border-ink-800";
+	// A pending vote ignores further clicks and changes neither button's look: dimming both on every vote read as a
+	// flash (BUGS.md 119.1).
+	const cast = (helpful: boolean): void => {
+		if (!mutation.isPending) mutation.mutate({ slug: props.slug, helpful });
+	};
+	const button = "rounded-md border border-stone-300 px-3 py-1 text-sm hover:border-flame-500 dark:border-ink-800";
 	return (
 		<div class="flex items-center gap-3 text-sm">
 			<span class="text-stone-500">{ui("helpful")}</span>
@@ -22,8 +26,8 @@ function Tally(props: { slug: string }): JSX.Element {
 				id="vote-up"
 				type="button"
 				class={button}
-				disabled={mutation.isPending}
-				onClick={() => mutation.mutate({ slug: props.slug, helpful: true })}
+				aria-disabled={mutation.isPending ? "true" : "false"}
+				onClick={() => cast(true)}
 			>
 				Yes <span id="votes-up">{count.data?.up}</span>
 			</button>
@@ -31,8 +35,8 @@ function Tally(props: { slug: string }): JSX.Element {
 				id="vote-down"
 				type="button"
 				class={button}
-				disabled={mutation.isPending}
-				onClick={() => mutation.mutate({ slug: props.slug, helpful: false })}
+				aria-disabled={mutation.isPending ? "true" : "false"}
+				onClick={() => cast(false)}
 			>
 				No <span id="votes-down">{count.data?.down}</span>
 			</button>
@@ -54,8 +58,7 @@ export function Feedback(props: { slug: string }): JSX.Element {
 			)}
 		>
 			<Loading
-				// A static skeleton: it renders inside the named article, where a running animation makes Firefox drop frames
-				// during the entrance (dx/navigate.md, BUGS.md B61).
+				// A static skeleton: no animation runs during the navigation's view transition.
 				fallback={<div id="feedback-loading" class="h-8 w-64 rounded bg-stone-200 dark:bg-ink-800" />}
 			>
 				<Tally slug={props.slug} />

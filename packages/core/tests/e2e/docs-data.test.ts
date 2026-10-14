@@ -5,6 +5,7 @@ deepOnly();
 
 const SEARCH = fnId("src/fns/search.ts", "searchDocs");
 const FEEDBACK_COUNT = fnId("src/fns/feedback.ts", "feedbackCount");
+const VOTE = fnId("src/fns/feedback.ts", "vote");
 const HOLD_STATS = fnId("src/fns/stats-gate.ts", "holdStats");
 const RELEASE_STATS = fnId("src/fns/stats-gate.ts", "releaseStats");
 const HOLD_BUILD = fnId("src/fns/build-log.ts", "holdBuild");
@@ -111,6 +112,38 @@ test("mutation sets data", async ({ page, docs }) => {
 	await page.locator("#vote-up").click();
 	await expect(up).toHaveText(String(before + 1));
 	expect(counts).toEqual([]);
+});
+
+// A pending vote changes neither button's look, where both used to dim and so flash on every vote, and a second click
+// while it is pending sends nothing (BUGS.md 119.1). The test holds the vote until it has checked both.
+test("vote holds still", async ({ page, docs }) => {
+	await open(page, docs.origin, "/docs/server-functions");
+	const up = page.locator("#votes-up");
+	await expect(up).toHaveText(/^\d+$/);
+	const before = Number(await up.textContent());
+	const held = Promise.withResolvers<void>();
+	const votes: string[] = [];
+	await page.route(`**/_flare/fn/${VOTE}`, async (route) => {
+		votes.push(route.request().url());
+		await held.promise;
+		await route.continue();
+	});
+	const look = (): Promise<string[]> =>
+		page.evaluate(() =>
+			["vote-up", "vote-down"].map((id) => {
+				const button = document.getElementById(id);
+				return button === null ? "gone" : getComputedStyle(button).opacity;
+			}),
+		);
+	await page.locator("#vote-up").click();
+	await expect.poll(() => votes.length).toBe(1);
+	expect(await look()).toEqual(["1", "1"]);
+	// The busy button is `aria-disabled`, which Playwright will not click unless forced: the point is that it sends nothing.
+	await page.locator("#vote-down").click({ force: true });
+	held.resolve();
+	await expect(up).toHaveText(String(before + 1));
+	expect(votes).toHaveLength(1);
+	expect(await look()).toEqual(["1", "1"]);
 });
 
 test("server fn get cached", async ({ request, docs }) => {
