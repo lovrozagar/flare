@@ -1,6 +1,6 @@
 import { serverFnMutationOptions, serverFnQueryOptions, useSuspenseQuery } from "@lovrozagar/flare/query";
 import { useMutation } from "@tanstack/solid-query";
-import { Errored, Loading, Show } from "solid-js";
+import { Errored, Loading } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { feedbackCount, vote } from "../fns/feedback.ts";
 import { useUi } from "../i18n.ts";
@@ -41,10 +41,9 @@ function Tally(props: { slug: string }): JSX.Element {
 }
 
 // The query suspends under this boundary. The fallback is the skeleton. A failing widget shows its own line inside its
-// own <Errored>, and the rest of the page stays (BUGS.md 64). A new slug remounts the tally rather than
-// changing its query key in place: @tanstack/solid-query 6.0.0-rc.5 relays a key change through an effect, which
-// tears and abandons flights in dev, while a remounted stale query is silent (BUGS.md B39, upstream report to
-// TanStack/query pending; plan 14 leaf 15.6 removes this once the adapter is fixed).
+// own <Errored>, and the rest of the page stays (BUGS.md 64). A new slug is a new page, which the outlet remounts
+// (B106), so the tally's query key never changes in place and solid-query's key-change relay (BUGS.md B39,
+// TanStack/query#11903) is never reached.
 export function Feedback(props: { slug: string }): JSX.Element {
 	return (
 		<Errored
@@ -57,9 +56,7 @@ export function Feedback(props: { slug: string }): JSX.Element {
 			<Loading
 				fallback={<div id="feedback-loading" class="h-8 w-64 animate-pulse rounded bg-stone-200 dark:bg-ink-800" />}
 			>
-				<Show when={props.slug} keyed>
-					{(slug) => <Tally slug={slug} />}
-				</Show>
+				<Tally slug={props.slug} />
 			</Loading>
 		</Errored>
 	);
