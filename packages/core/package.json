@@ -95,6 +95,7 @@
 		"fonts:generate": "bun -e \"import('./src/features/fonts/generate.ts').then((generate) => generate.writeFonts('.'))\""
 	},
 	"devDependencies": {
+		"@cloudflare/vite-plugin": "1.44.0",
 		"@formatjs/intl-localematcher": "0.8.11",
 		"@playwright/test": "1.61.1",
 		"@solidjs/vite-plugin": "3.0.0-next.49",
@@ -118,6 +119,7 @@
 		"vitest": "4.1.10"
 	},
 	"peerDependencies": {
+		"@cloudflare/vite-plugin": ">=1.44.0",
 		"@formatjs/intl-localematcher": ">=0.8.11",
 		"@solidjs/vite-plugin": ">=3.0.0-next.49",
 		"@solidjs/web": ">=2.0.0-rc.14",
@@ -131,6 +133,9 @@
 		"vite": ">=8.1.4"
 	},
 	"peerDependenciesMeta": {
+		"@cloudflare/vite-plugin": {
+			"optional": true
+		},
 		"@formatjs/intl-localematcher": {
 			"optional": true
 		},

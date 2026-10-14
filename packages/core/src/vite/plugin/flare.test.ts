@@ -8,6 +8,10 @@ import { expect, it, vi } from "vitest";
 import { fnId } from "../route-meta/index.ts";
 import { buildIdOf } from "./build-id.ts";
 import { flare } from "./flare.ts";
+import type { FlareOptions } from "./options.ts";
+
+// The options of a flare() that composes no Cloudflare plugin, so it returns its own plugins (B95).
+type OwnOptions = Omit<FlareOptions, "workersDev">;
 
 vi.mock("@solidjs/vite-plugin", () => ({
 	default: vi.fn<() => Array<{ name: string }>>(() => [{ name: "solid" }]),
@@ -21,10 +25,7 @@ function project(): string {
 	return root;
 }
 
-function apply(
-	config: { root?: string; server?: { host?: string | boolean } },
-	options?: Parameters<typeof flare>[0],
-): void {
+function apply(config: { root?: string; server?: { host?: string | boolean } }, options?: OwnOptions): void {
 	const plugin = flare(options).find((item) => item.name === "flare");
 	const hook = plugin?.config;
 	if (typeof hook !== "function") throw new Error("config");
@@ -73,7 +74,7 @@ it("solid options", () => {
 
 const BUILD_INFO = fileURLToPath(new URL("../../server/lifecycle/build-info.ts", import.meta.url));
 
-function flarePlugin(options?: Parameters<typeof flare>[0]) {
+function flarePlugin(options?: OwnOptions) {
 	const plugin = flare(options).find((item) => item.name === "flare");
 	if (plugin === undefined) throw new Error("plugin");
 	return plugin;
@@ -220,3 +221,39 @@ it("hmr keeps split", async () => {
 		rmSync(root, { recursive: true, force: true });
 	}
 }, 30_000);
+
+// Each plugin's name, whatever the option's element type.
+function names(plugins: readonly unknown[]): unknown[] {
+	return plugins.map((plugin) => Reflect.get(Object(plugin), "name"));
+}
+
+// `workersDev: true` composes the Cloudflare plugins before flare's own. `false` or absent composes none (B95).
+it("workers dev", async () => {
+	const [first, ...rest] = flare({ workersDev: true });
+	const composed = (await first) as unknown[];
+	expect(names(composed)[0]).toBe("vite-plugin-cloudflare");
+	expect(names(rest)).toEqual(names(flare()));
+	expect(names(flare({ workersDev: false }))).toEqual(names(flare()));
+});
+
+// Without the peer, flare({ workersDev: true }) throws when the plugin is created and names the install (B95).
+it("workers dev missing peer", async () => {
+	vi.resetModules();
+	vi.doMock("./workers-dev.ts", async (original) => {
+		const actual = await original<typeof import("./workers-dev.ts")>();
+		const missing = {
+			resolve: (): string => {
+				throw new Error("ERR_MODULE_NOT_FOUND");
+			},
+			load: async () => ({}),
+		};
+		return { ...actual, workersDevPlugins: (entry: string) => actual.workersDevPlugins(entry, missing) };
+	});
+	try {
+		const fresh = await import("./flare.ts");
+		expect(() => fresh.flare({ workersDev: true })).toThrow("npm install -D @cloudflare/vite-plugin");
+	} finally {
+		vi.doUnmock("./workers-dev.ts");
+		vi.resetModules();
+	}
+});
