@@ -2,8 +2,8 @@ import { createLayout, Link, useMatch, ViewTransitionBoundary } from "@lovrozaga
 import { For } from "solid-js";
 import { docs } from "../../../../content.ts";
 
-// The docs chrome. The group adds no URL segment. On a client navigation only the article animates: the boundary
-// scopes the view transition to it, so the sidebar stays still.
+// The docs chrome. The group adds no URL segment. Where the browser scopes view transitions to an element, the
+// boundary scopes a client navigation's to the article, so the sidebar stays still; no named group (B119).
 export const route = createLayout("[[locale]]/_root_/(guide)")
 	.cache({ client: { staleTime: "30s" } })
 	.preloader(() => ({ section: "guide", sidebar: "docs" }))
@@ -35,7 +35,7 @@ export const route = createLayout("[[locale]]/_root_/(guide)")
 					</ul>
 				</aside>
 				<ViewTransitionBoundary>
-					<article id="article" class="min-w-0 flex-1" style={{ "view-transition-name": "article" }}>
+					<article id="article" class="min-w-0 flex-1">
 						{props.children}
 					</article>
 				</ViewTransitionBoundary>

@@ -217,8 +217,8 @@ it("scroll inside transition", async () => {
 	const window = env(place);
 	window.scrollTo = (spot) => void (place.y = spot.top);
 	const atUpdate: number[] = [];
-	Reflect.set(document, "startViewTransition", (options: { update: () => void }) => {
-		options.update();
+	Reflect.set(document, "startViewTransition", (update: () => void) => {
+		update();
 		atUpdate.push(place.y);
 		const done = Promise.resolve();
 		return { ready: done, updateCallbackDone: done, finished: done, skipTransition: () => undefined };

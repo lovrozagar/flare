@@ -77,8 +77,6 @@ test("back keeps scroll", async ({ page, docs }) => {
 		Document.prototype.startViewTransition = function (this: Document, arg?: never) {
 			const transition = start.call(this, arg);
 			void transition.ready.then(() => {
-				const old = getComputedStyle(document.documentElement, "::view-transition-old(article)").display;
-				Reflect.set(window, "__oldArticle", old);
 				seen.push(`ready ${Math.round(scrollY)}`);
 				requestAnimationFrame(() => seen.push(`frame ${Math.round(scrollY)}`));
 			});
@@ -104,8 +102,6 @@ test("back keeps scroll", async ({ page, docs }) => {
 	expect(back.length).toBeGreaterThan(0);
 	expect(back).toEqual(back.map((entry) => `${entry.split(" ")[0]} ${home}`));
 	expect(await page.evaluate(() => Math.round(scrollY))).toBe(home);
-	// The article only the doc page had does not draw over home's header while it leaves (BUGS.md 65).
-	expect(await page.evaluate(() => Reflect.get(window, "__oldArticle"))).toBe("none");
 });
 
 test("disabled link", async ({ page, docs }) => {
@@ -175,7 +171,8 @@ test("view transition scoped", async ({ page, docs }) => {
 	await expect(page.locator("#doc-title")).toHaveText("Caching");
 	const calls: { on: string; types: string[] }[] = await page.evaluate(() => Reflect.get(window, "__transitions"));
 	expect(calls).toHaveLength(1);
-	expect(calls[0]?.types).toEqual(["forward"]);
+	// The plain callback: no type unless the app configures one (B119).
+	expect(calls[0]?.types).toEqual([]);
 	const elementScoped = await page.evaluate(
 		() => typeof Reflect.get(Element.prototype, "startViewTransition") === "function",
 	);

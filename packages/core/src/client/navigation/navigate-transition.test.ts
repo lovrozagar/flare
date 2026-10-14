@@ -35,16 +35,20 @@ const router = createRouter({
 
 const aboutFrames: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/about", d: "x" }, { t: "r" }];
 
-type Started = { scope: string; types: string[]; pushedBeforeUpdate: boolean };
+// `types` is set only when the start got the object form: the plain callback is the default (B119).
+type Started = { scope: string; types: string[] | undefined; pushedBeforeUpdate: boolean };
 
 function stubStart(target: Element | Document, started: Started[], name: string): void {
 	Object.defineProperty(target, "startViewTransition", {
 		configurable: true,
-		value: (options: { update: () => void; types: string[] }) => {
+		value: (arg: (() => void) | { update: () => void; types: string[] }) => {
 			const length = history.length;
-			options.update();
-			started.push({ scope: name, types: options.types, pushedBeforeUpdate: history.length !== length });
-			return { updateCallbackDone: Promise.resolve(), ready: Promise.resolve() };
+			if (typeof arg === "function") arg();
+			else arg.update();
+			const types = typeof arg === "function" ? undefined : arg.types;
+			started.push({ scope: name, types, pushedBeforeUpdate: history.length !== length });
+			const done = Promise.resolve();
+			return { updateCallbackDone: done, ready: done, finished: done, skipTransition: () => undefined };
 		},
 	});
 }
@@ -69,7 +73,7 @@ it("view transition", async () => {
 	await app.navigator.navigate({ to: "_root_/about" });
 	flush();
 	expect(app.text()).toBe("root[about]");
-	expect(started).toEqual([{ scope: "main", types: ["forward"], pushedBeforeUpdate: false }]);
+	expect(started).toEqual([{ scope: "main", types: undefined, pushedBeforeUpdate: false }]);
 	expect(push).toHaveBeenCalledOnce();
 	await app.navigator.navigate({
 		to: "_root_/about",
@@ -77,9 +81,9 @@ it("view transition", async () => {
 		search: { q: "1" },
 		viewTransition: { scope: "document" },
 	});
-	expect(started[1]).toEqual({ scope: "document", types: ["same"], pushedBeforeUpdate: false });
+	expect(started[1]).toEqual({ scope: "document", types: undefined, pushedBeforeUpdate: false });
 	await app.navigator.restore("/", 0);
-	expect(started[2]).toMatchObject({ types: ["back"] });
+	expect(started[2]).toMatchObject({ types: undefined });
 	await app.navigator.navigate({ to: "_root_/about", viewTransition: false });
 	expect(started).toHaveLength(3);
 	expect(app.text()).toBe("root[about]");
@@ -114,16 +118,17 @@ it("superseded update", async () => {
 	let started = 0;
 	Object.defineProperty(document, "startViewTransition", {
 		configurable: true,
-		value: (options: { update: () => void }) => {
+		value: (update: () => void) => {
 			started += 1;
 			pending?.();
 			const { promise, resolve } = Promise.withResolvers<void>();
 			pending = () => {
 				pending = undefined;
-				options.update();
+				update();
 				resolve();
 			};
-			return { updateCallbackDone: promise, ready: promise };
+			// Skipping a transition whose update has not run still runs it first, as the spec orders.
+			return { updateCallbackDone: promise, ready: promise, finished: promise, skipTransition: () => pending?.() };
 		},
 	});
 	const push = vi.spyOn(history, "pushState");

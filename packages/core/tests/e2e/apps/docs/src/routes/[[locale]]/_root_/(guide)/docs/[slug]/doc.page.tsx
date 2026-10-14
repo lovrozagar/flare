@@ -40,8 +40,7 @@ export const route = createPage("[[locale]]/_root_/(guide)/docs/[slug]")
 		description: ctx.loaderData.doc.summary,
 		canonical: `https://flare.test/docs/${ctx.params.slug}`,
 	}))
-	// No entrance animation: the article is a named view-transition group, and Firefox drops frames when content
-	// inside an entering named element animates (dx/navigate.md, BUGS.md B61). The transition is the entrance.
+	// No entrance animation of its own: the navigation's view transition is the entrance (B119).
 	.render((props) => (
 		<div>
 			<p class="text-sm text-flame-600 dark:text-flame-400">Guide</p>
