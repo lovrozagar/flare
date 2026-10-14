@@ -174,8 +174,12 @@ test("stream", async ({ page, docs }, info) => {
 			return decode.call(this, input, options);
 		};
 	});
+	await watchFrames(page);
 	await open(page, docs.origin, "/playground");
-	await page.evaluate(() => Reflect.set(window, "streamTimed", true));
+	await page.evaluate(() => {
+		Reflect.set(window, "streamTimed", true);
+		Reflect.set(window, "streamClick", performance.now());
+	});
 	await page.locator("#stream-start").click();
 	await expect(page.locator("#stream-log li")).toHaveCount(6);
 	await expect(page.locator("#stream-status")).toHaveText("done");
@@ -189,6 +193,7 @@ test("stream", async ({ page, docs }, info) => {
 		lines: arrivals.map((arrival) => Math.round(arrival.at - (arrivals[0]?.at ?? 0))),
 		chunks: timed.reads.map((chunk) => `${Math.round(chunk.at - (arrivals[0]?.at ?? 0))}ms:${chunk.bytes}B`),
 		node: await nodeChunks(docs.origin),
+		main: await mainThread(page, arrivals[0]?.at ?? 0),
 	});
 	// Every run keeps its timing, a pass too, so macOS runs show how close a pass comes (BUGS.md 100).
 	const timing = info.outputPath("stream-timing.json");
@@ -200,6 +205,50 @@ test("stream", async ({ page, docs }, info) => {
 	).toEqual([1, 2, 3, 4, 5, 6]);
 	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0), evidence).toBeGreaterThanOrEqual(600);
 });
+
+// Every frame's time while the case is timed: a gap far past a frame is the main thread held, which delivers queued
+// chunks together (BUGS.md 100).
+async function watchFrames(page: Page): Promise<void> {
+	await page.addInitScript(() => {
+		const frames: number[] = [];
+		Reflect.set(window, "streamFrames", frames);
+		const tick = (): void => {
+			if (Reflect.get(window, "streamTimed") === true) frames.push(performance.now());
+			requestAnimationFrame(tick);
+		};
+		requestAnimationFrame(tick);
+	});
+}
+
+// What held the page's main thread while the case was timed, each time from the first line's arrival (BUGS.md 100):
+// every frame gap over 50 ms as `<start>+<length>`, the window's load, the click, and the scripts fetched from the load on as
+// `<start>-<end>:<file>`, which the idle `modules: "all"` prefetch is. A coalesced sample with a long gap beside a
+// script names the stall.
+function mainThread(
+	page: Page,
+	origin: number,
+): Promise<{ gaps: string[]; load: number; click: number; scripts: string[] }> {
+	return page.evaluate((zero) => {
+		const frames: number[] = Reflect.get(window, "streamFrames");
+		const click = Number(Reflect.get(window, "streamClick"));
+		const gaps = frames.flatMap((at, index) => {
+			const gap = at - (frames[index - 1] ?? at);
+			return gap > 50 ? [`${Math.round(at - gap - zero)}+${Math.round(gap)}`] : [];
+		});
+		const [navigation] = performance.getEntriesByType("navigation");
+		const loaded = navigation instanceof PerformanceNavigationTiming ? navigation.loadEventEnd : 0;
+		const load = Math.round(loaded - zero);
+		const scripts = performance
+			.getEntriesByType("resource")
+			.filter((entry) => entry instanceof PerformanceResourceTiming)
+			.filter((entry) => entry.startTime >= loaded && entry.name.endsWith(".js"))
+			.map(
+				(entry) =>
+					`${Math.round(entry.startTime - zero)}-${Math.round(entry.responseEnd - zero)}:${entry.name.split("/").at(-1)}`,
+			);
+		return { gaps, load, click: Math.round(click - zero), scripts };
+	}, origin);
+}
 
 // A response's chunks as the page reads them, each timed from the first: with a reader, or with `for await` and the
 // fetch carrying an AbortSignal, as the flare client reads (BUGS.md 100).
