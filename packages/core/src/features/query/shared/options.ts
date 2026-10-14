@@ -1,5 +1,5 @@
 import { runWithOwner } from "solid-js";
-import { QueryClient } from "@tanstack/solid-query";
+import { isServer, QueryClient } from "@tanstack/solid-query";
 import { registeredQuery } from "../../../shared/protocol/index.ts";
 import type { ServerFn } from "../../../shared/server-fn/builder.ts";
 
@@ -9,9 +9,16 @@ type QueryKey = readonly unknown[];
 // append it to `queryKey` (dx/features.md Query).
 export type QueryOptionsInput<I> = [I] extends [void] ? { queryKey: QueryKey } : { queryKey: QueryKey; input: I };
 
-export type ServerFnQueryOptions<O> = { queryKey: QueryKey; queryFn: () => Promise<O> };
+export type ServerFnQueryOptions<O> = {
+	queryKey: QueryKey;
+	queryFn: () => Promise<O>;
+	retry: (failureCount: number, error: unknown) => boolean;
+};
 
-// `queryFn` calls the server function and returns the handler's value. Query data rides the document state and the
+// TanStack's default retry count in a browser. On the server it never retries.
+const RETRIES = 3;
+
+// `queryFn` calls the server function and returns the handler's value. `retry` skips a deterministic rejection. Query data rides the document state and the
 // app's own requests. There is no side channel in a server function's envelope. solid-query starts a suspense query's
 // first fetch inside the component's render, where the client stub refuses a direct call (B45), so the queryFn calls
 // it outside any owner: a queryFn is not that call (B85, BUGS.md B36).
@@ -23,7 +30,18 @@ export function serverFnQueryOptions<I, O>(
 	return {
 		queryKey: options.queryKey,
 		queryFn: () => runWithOwner(null, () => Reflect.apply(fn, undefined, args)),
+		retry,
 	};
+}
+
+// A server function's rejection with a 4xx status (an input issue, `unauthenticated`, `unauthorized`, `notFound`) is
+// deterministic, so the query fails at once. A network failure or a 5xx keeps TanStack's default. An app's own
+// `retry` on the options wins (B107).
+function retry(failureCount: number, error: unknown): boolean {
+	if (isServer) return false;
+	const status: unknown = Reflect.get(Object(error), "status");
+	const rejected = typeof status === "number" && status >= 400 && status < 500;
+	return !rejected && failureCount < RETRIES;
 }
 
 type MutationFn<I, O> = [I] extends [void] ? () => Promise<O> : (input: I) => Promise<O>;

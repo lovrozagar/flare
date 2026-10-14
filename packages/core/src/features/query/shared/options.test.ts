@@ -6,6 +6,12 @@ import { QUERY_GETTER } from "../../../shared/protocol/query.ts";
 import { bindServerFn, type ServerFn, type ServerFnRef } from "../../../shared/server-fn/builder.ts";
 import { serverFnMutationOptions, serverFnQueryOptions } from "./options.ts";
 
+// The browser's defaults: TanStack retries 3 times in a browser and never on the server.
+vi.mock("@tanstack/solid-query", async (original) => ({
+	...(await original<typeof import("@tanstack/solid-query")>()),
+	isServer: false,
+}));
+
 afterEach(() => {
 	Reflect.deleteProperty(globalThis, QUERY_GETTER);
 });
@@ -89,4 +95,39 @@ it("no side channel", () => {
 	expect(source).not.toMatch(/queries/);
 	const envelope = readFileSync(new URL("../../../server/server-fn/envelope.ts", import.meta.url), "utf8");
 	expect(envelope).not.toMatch(/queries/);
+});
+
+// A server function that fails `failures` times with `error`, then answers.
+function failing(error: unknown): ServerFn<void, string> {
+	return vi.fn<() => Promise<string>>(() => Promise.reject(error)) as unknown as ServerFn<void, string>;
+}
+
+// A 4xx rejection is deterministic, so the query fails at once. A network failure keeps TanStack's default 3 retries,
+// and the app's own `retry` wins (B107, BUGS.md 64).
+it("no retry on 4xx", async () => {
+	const client = new QueryClient({ defaultOptions: { queries: { retryDelay: 0 } } });
+	const input = Object.assign(new Error("Invalid input"), { status: 400 });
+	const rejected = failing(input);
+	await expect(client.fetchQuery(serverFnQueryOptions(rejected, { queryKey: ["a"] }))).rejects.toBe(input);
+	expect(rejected).toHaveBeenCalledOnce();
+	const offline = failing(new TypeError("Failed to fetch"));
+	await expect(client.fetchQuery(serverFnQueryOptions(offline, { queryKey: ["b"] }))).rejects.toThrow(
+		"Failed to fetch",
+	);
+	expect(offline).toHaveBeenCalledTimes(4);
+	const crashed = failing(Object.assign(new Error("boom"), { status: 500 }));
+	await expect(client.fetchQuery(serverFnQueryOptions(crashed, { queryKey: ["c"] }))).rejects.toThrow("boom");
+	expect(crashed).toHaveBeenCalledTimes(4);
+	const own = failing(input);
+	await expect(client.fetchQuery({ ...serverFnQueryOptions(own, { queryKey: ["d"] }), retry: 2 })).rejects.toBe(input);
+	expect(own).toHaveBeenCalledTimes(3);
+	// On the server, as TanStack's default, nothing retries.
+	vi.resetModules();
+	vi.doMock("@tanstack/solid-query", async (original) => ({
+		...(await original<typeof import("@tanstack/solid-query")>()),
+		isServer: true,
+	}));
+	const server = await import("./options.ts");
+	expect(server.serverFnQueryOptions(offline, { queryKey: ["e"] }).retry(0, new TypeError("x"))).toBe(false);
+	vi.doUnmock("@tanstack/solid-query");
 });
