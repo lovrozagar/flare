@@ -14,6 +14,7 @@ import { devSink, devStyles, projectError, requestSink, type ErrorSink } from ".
 import { applySecurity } from "../security/apply.ts";
 import { applyCanonical, type CanonicalStep, type PathRewrite } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
+import { bodyLimitOf } from "../server-fn/input.ts";
 import { classify, isServerFn } from "./classify.ts";
 import { answer, background, bare, failed, passed, secure, type Exchange } from "./exchange.ts";
 import { dispatchMount, mountSpelling, mountTable } from "../mount/mount.ts";
@@ -51,8 +52,11 @@ const STYLES = devStyles(import.meta.hot);
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev });
 	const { trailingSlash, caseSensitive } = options.router;
-	const at: Serving = { options, sink, mounts: mountTable(options.mounts ?? [], { trailingSlash, caseSensitive }) };
-	const server: FlareServer = { fetch: (request, env, ctx) => serveOne(at, { request, env, ctx }) };
+	const bodyLimit = bodyLimitOf(options.bodyLimit);
+	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive });
+	const at: Serving = { options: { ...options, bodyLimit }, sink, mounts };
+	// The Bun adapter reads `bodyLimit` here, so its platform cap and the server-function cap agree (dx/adapters.md).
+	const server: FlareServer = { fetch: (request, env, ctx) => serveOne(at, { request, env, ctx }), bodyLimit };
 	// The internal channel `vite build`'s prerender reads. It runs the same pipeline with a capture (bits/12).
 	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }));
 	return Object.assign(server, { [PRERENDER]: prerender });

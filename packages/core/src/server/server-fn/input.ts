@@ -5,6 +5,17 @@ import type { ServerFnRecord } from "../../shared/server-fn/builder.ts";
 // The POST body cap, unless createServer's `bodyLimit` says otherwise (B43).
 export const BODY_LIMIT: number = 1024 * 1024;
 
+const MAX_BODY_LIMIT = 32 * 1024 * 1024;
+
+// createServer's `bodyLimit`: an integer number of bytes from 1 to 32 MiB, else the call throws (dx/server.md).
+export function bodyLimitOf(value: number | undefined): number {
+	if (value === undefined) return BODY_LIMIT;
+	if (!Number.isInteger(value) || value < 1 || value > MAX_BODY_LIMIT) {
+		throw new Error(`bodyLimit is an integer from 1 to ${MAX_BODY_LIMIT} bytes`);
+	}
+	return value;
+}
+
 export type InputErrors = ReturnType<typeof shapeIssues>;
 
 export type InputResult = { status: 200; input: unknown } | { status: 400; errors: InputErrors } | { status: 413 };

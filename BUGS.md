@@ -576,6 +576,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 108.2 [x] Fix: `ServerOptions` takes `rewrite`, and `createServer` passes it to the canonical step, skipping a path a mount handles (mounts run first). The step runs the function again on the canonicalized replacement and throws when it changes; that and any throw from the function are a projected 500.
 108.3 [x] Test: canonical-redirect `rewrite option` (red: `/old` was 404, not 301), `rewrite loop`; `rewrite recanonical` now counts the second call.
 
+110 [x] B110 Bun's body cap ignored createServer's `bodyLimit`
+110.1 [x] Found with 106: `createBunFetch(server)` reads `server.bodyLimit`, but the object `createServer` returns had only `fetch`, so `maxRequestBodySize` was always 1 MiB, whatever `createServer({ bodyLimit })` said. A larger limit was unreachable on Bun, which refused the POST first; a smaller one left the platform cap at 1 MiB, above flare's. serve.test passed a hand-made `{ fetch, bodyLimit }`, so it never met the real object. createServer also took any number, though dx gives 1 to 32 MiB.
+110.2 [x] Fix: `FlareServer` carries `bodyLimit`, the checked value; createServer throws on a value that is not an integer from 1 to 32 MiB (`server-fn/input.ts` `bodyLimitOf`), and the server-function cap reads the same value.
+110.3 [x] Test: bun serve `server limit` (red: `maxRequestBodySize` 1048576, not 2048), through the real createServer, with the range.
+
 ## Verify
 
 97 [ ] Verify
