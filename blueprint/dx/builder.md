@@ -70,7 +70,7 @@ A function that throws is skipped and the walk continues at the next ancestor. T
 
 When the walk finds no function, the slot is one `div` and nothing else.
 
-| failure | text |
+| failure with no function | text |
 | --- | --- |
 | anything else | `Something went wrong` |
 | `notFound()` | `Page not found` |
