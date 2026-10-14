@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createBuilder } from "vite";
 import { afterEach, expect, it } from "vitest";
+import { targetGuard } from "../dev/guard.ts";
 import { checkCloudflare, composesCloudflare, WORKER_MAIN } from "./cloudflare.ts";
 import { flare } from "./flare.ts";
 
@@ -95,7 +96,8 @@ it("plugin present", () => {
 		environments: { ssr: { hot }, client: { hot } },
 	};
 	expect(hook("configureServer")(server)).toBeUndefined();
-	expect(used).toEqual([]);
+	// Only the target guard: no Node listener, so workerd answers, and `//x` is refused before the plugin parses it.
+	expect(used).toEqual([targetGuard]);
 	const resolved = (conditions: string[], plugins: unknown[] = cloudflare) => ({
 		base: "/",
 		root,

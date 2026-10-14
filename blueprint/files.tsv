@@ -482,7 +482,7 @@ packages/core/src/vite/plugin/wrangler.test.ts	P12	test	vite	Unit cases for wran
 packages/core/src/vite/plugin/build-id.ts	P12	src	vite	Dev build id is dev. Production is the 12-hex manifest hash (B84, B89)
 packages/core/src/vite/plugin/build-id.test.ts	P12	test	vite	Unit cases for build-id.ts
 packages/core/src/vite/plugin/index.ts	P1	index	vite	Re-exports
-packages/core/src/vite/dev/guard.ts	P12	src	vite	Dev-only endpoints require a same-origin request. No Access-Control-Allow-Origin star
+packages/core/src/vite/dev/guard.ts	P12	src	vite	Dev-only endpoints require a same-origin request. No Access-Control-Allow-Origin star. A Workers dev server refuses the request-targets the Node listener refuses
 packages/core/src/vite/dev/guard.test.ts	P12	test	vite	Unit cases for guard.ts
 packages/core/src/vite/dev/handler.ts	P6	src	vite	Node and Bun vite dev HTTP handler. middlewareMode skips it (B89)
 packages/core/src/vite/dev/tabs.ts	P15	src	vite	Dev tab routing: the token a dev server mints per document, its meta, and the hub that sends a payload to the tab that announced it (B42). Server-agnostic

@@ -21,6 +21,7 @@ Creates every `P12` row. `flare codegen` writes the same files the plugin writes
 | `cross site` | `Sec-Fetch-Site: cross-site` | 403 |
 | `no star` | a response from a dev endpoint | no `Access-Control-Allow-Origin: *` |
 | `absent in prod` | the plugin's prod config | the dev endpoints are not registered |
+| `target guard` | `targetGuard` on a real `node:http` server, raw targets `//x`, `/a\b`, `http://evil.example/a`, then `/a//b`, `/a?x=%2f`, `/` | 400 for the first three, the Node listener's bare answer; the next middleware sees the last three untouched. flare() registers it first in its pre `configureServer` when the Cloudflare plugin is composed, since that plugin's dev server parses `//x` into the host `x` (BUGS.md 118; e2e docs-server `canonical ingress` on workers-dev) |
 
 ### `vite/prerender/run.test.ts`
 
