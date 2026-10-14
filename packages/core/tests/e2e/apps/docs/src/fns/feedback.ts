@@ -1,4 +1,5 @@
 import { createServerFn } from "@lovrozagar/flare/server-fn";
+import { docOf } from "../content.ts";
 import { invalid } from "./issues.ts";
 
 export type Tally = { slug: string; up: number; down: number };
@@ -10,8 +11,9 @@ function tallyOf(slug: string): Tally {
 	return tallies.get(slug) ?? { slug, up: 0, down: 0 };
 }
 
+// The slugs the doc route serves, so every doc page has a tally (BUGS.md 64: "i18n" failed a letters-only pattern).
 function slugInput(value: { slug: string }): { slug: string } {
-	if (typeof value.slug !== "string" || !/^[a-z-]{1,40}$/.test(value.slug)) invalid("slug", "Unknown page");
+	if (typeof value.slug !== "string" || docOf(value.slug) === undefined) invalid("slug", "Unknown page");
 	return { slug: value.slug };
 }
 
