@@ -28,6 +28,7 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | `request token` | a dev request that names a tab token | the meta carries that token, so the tab keeps its routing (B42) |
 | `no nonce` | a dev document with no nonce policy | no `csp-nonce` meta |
 | `production` | a production render | none of the three is written |
+| `dev styles` | a dev document for a route whose chain imports `app.css` (root) and a CSS module (page), with nonce `n` | `head` holds one `<style data-vite-dev-id>` per module, root first, each with the module's served CSS and nonce `n`, in `<Stylesheet />`'s place. A route that imports no CSS module gets only the root's. On a browser load the first paint is styled, and after the client runs there is still one style per module id (B104, BUGS.md B59) |
 
 ## `vite/dev/handler.test.ts` (B95 (b), (c))
 
