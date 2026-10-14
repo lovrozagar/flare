@@ -4,7 +4,8 @@ import { ENGINES, startHarness, type Api, type Harness, type Side } from "./hydr
 
 // A server render hydrated by the client build in a real browser, in every engine (bits/15). Solid's hydration
 // messages are the failure. Each tree is compiled into both sides from its source, so it reads only `api` and `side`.
-let harness: Harness;
+// Unset when the harness could not start: its own error is the failure, and there is nothing to close.
+let harness: Harness | undefined;
 
 beforeAll(async () => {
 	// packages/core, two levels above this file, whatever directory the run started in.
@@ -12,8 +13,13 @@ beforeAll(async () => {
 }, 180_000);
 
 afterAll(async () => {
-	await harness.close();
+	await harness?.close();
 });
+
+function started(): Harness {
+	if (harness === undefined) throw new Error("the hydrate harness did not start");
+	return harness;
+}
 
 // A client tree with one more element than the server's.
 function mismatched(api: Api, side: Side) {
@@ -97,19 +103,19 @@ function dataHooks(api: Api) {
 describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
 	// The harness is not vacuous: a mismatched tree fails it.
 	it("harness bites", async () => {
-		expect((await harness.hydrate(engine, mismatched)).problems).not.toEqual([]);
+		expect((await started().hydrate(engine, mismatched)).problems).not.toEqual([]);
 	});
 
 	// useNavigationProgress creates the same owners on both sides, so a sibling after it keeps its key (BUGS.md B2).
 	it("navigation progress beside a sibling", async () => {
-		const result = await harness.hydrate(engine, progressBeside);
+		const result = await started().hydrate(engine, progressBeside);
 		expect(result.problems).toEqual([]);
 		expect(result.text).toBe("nullafter");
 	});
 
 	// A root that declares its boundary renders and does not fail creates none of them at hydrate (BUGS.md B3).
 	it("root boundaries idle", async () => {
-		const result = await harness.hydrate(engine, idleBoundaries);
+		const result = await started().hydrate(engine, idleBoundaries);
 		expect(result.problems).toEqual([]);
 		expect(result.html).not.toContain("root-error");
 		expect(result.text).toBe("nullhome");
@@ -117,7 +123,7 @@ describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
 
 	// Each data hook called in a component body reads the store once, untracked by design (BUGS.md B4).
 	it("data hooks read untracked", async () => {
-		const result = await harness.hydrate(engine, dataHooks);
+		const result = await started().hydrate(engine, dataHooks);
 		expect(result.problems).toEqual([]);
 		expect(result.text).toBe("7,a,ada,admin,_root_/users/[id]");
 	});
