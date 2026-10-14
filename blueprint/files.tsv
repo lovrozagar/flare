@@ -721,6 +721,8 @@ packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported co
 packages/core/tests/e2e/docs-resilience.test.ts	P15	test	node	Playwright: deploy and chunk reloads, network failure, aborts, overlay history, concurrent misses, negotiation, CSRF headers, a phone
 packages/core/src/vite/plugin/workers-dev.ts	P16	src	vite	Compose @cloudflare/vite-plugin first for flare({ workersDev: true }), or name the install when it is missing (B95)
 packages/core/src/vite/plugin/workers-dev.test.ts	P16	test	vite	Unit cases for workers-dev.ts
+packages/core/src/vite/plugin/preload.ts	P16	src	vite	The client build's modulepreload lists leave out the client entry's static import closure (BUGS.md 79)
+packages/core/src/vite/plugin/preload.test.ts	P16	test	vite	Unit cases for preload.ts
 packages/core/src/vite/dev/dev-head.ts	P16	src	vite	devHead: the tags transformIndexHtml adds to an empty document, computed at dev server start (B95)
 packages/core/src/vite/dev/dev-head.test.ts	P16	test	vite	Unit cases for dev-head.ts
 packages/core/src/server/render/dev-document.ts	P16	src	server	Dev only: devHead, the csp-nonce meta, and the dev tab meta the server writes into its document (B95)

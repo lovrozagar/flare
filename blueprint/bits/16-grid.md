@@ -67,6 +67,13 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 
 The dev error page for a server module that failed to load and the tab hub keep their rows in `bits/12-vite.md`.
 
+## `vite/plugin/preload.test.ts` (BUGS.md 79)
+
+| test | case | result |
+| --- | --- | --- |
+| `entry closure not preloaded` | a client build whose entry imports two modules statically and lazily imports two routes that import them and a module only the routes share | no lazy import's preload list names a chunk of the entry's static closure, and the lists still name the routes' own chunks |
+| `entry closure` | a bundle where the entry and a lazy route's chunk are both marked as entries, with an import cycle and a CSS asset | the closure starts at the chunk whose facade is the client entry, holds each chunk once, and skips the asset |
+
 ## `tests/e2e/boot.test.ts`
 
 | test | case | result |
