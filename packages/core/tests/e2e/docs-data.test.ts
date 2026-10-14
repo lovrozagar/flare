@@ -5,12 +5,22 @@ deepOnly();
 
 const SEARCH = fnId("src/fns/search.ts", "searchDocs");
 const FEEDBACK_COUNT = fnId("src/fns/feedback.ts", "feedbackCount");
+const HOLD_STATS = fnId("src/fns/stats-gate.ts", "holdStats");
+const RELEASE_STATS = fnId("src/fns/stats-gate.ts", "releaseStats");
 
-test("defer two skeletons", async ({ page, docs }) => {
-	await open(page, docs.origin, "/changelog");
-	await expect(page.locator("#releases")).toBeVisible();
-	// `releases` settles at 150 ms and `stats` at 900 ms: the fast boundary does not wait for the slow one.
-	await expect(page.locator("#stats-loading")).toBeVisible();
+// The fast boundary does not wait for the slow one. `stats` is held on the server until the test has seen its skeleton
+// beside the released list, so the order holds on any machine; a slow runner once settled `stats` first (BUGS.md 69).
+test("defer two skeletons", async ({ page, request, docs }) => {
+	const call = (id: string) =>
+		request.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: {} });
+	expect((await call(HOLD_STATS)).status()).toBe(200);
+	try {
+		await open(page, docs.origin, "/changelog");
+		await expect(page.locator("#releases")).toBeVisible();
+		await expect(page.locator("#stats-loading")).toBeVisible();
+	} finally {
+		expect((await call(RELEASE_STATS)).status()).toBe(200);
+	}
 	await expect(page.locator("#stats")).toContainText("18,420 downloads");
 	await expect(page.locator("#latest")).toContainText("1.0.0");
 });
