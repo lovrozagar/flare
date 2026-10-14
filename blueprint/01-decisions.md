@@ -88,7 +88,7 @@ Threat labels used in bits: **AR** anonymous remote, **AU** authenticated user, 
 
 | id | decision |
 | --- | --- |
-| B51 | Flare's Node adapter copies Solid's writer, backpressure, and close-signal pattern. It does not use Solid's `node-entry.mjs` (D12, N3-8). `trustProxy` is a hop count, default 0. |
+| B51 | Flare's Node adapter copies Solid's writer, backpressure, and close-signal pattern. It does not use Solid's `node-entry.mjs` (D12, N3-8). `trustProxy` is a hop count, default 0, and an option of `createNodeListener` and `createBunFetch`, not of `createServer`: the adapter sees the socket and the proxy's headers (BUGS.md 109). |
 | B52 | Bun sets `maxRequestBodySize` from `createServer({ bodyLimit })`, default 1 MiB, matching the server-fn cap. The page router does not read bodies. `.response()` routes receive the body stream. |
 | B53 | `vite preview` is a dev tool. The production entry is the adapter. The adapter contract says so. |
 

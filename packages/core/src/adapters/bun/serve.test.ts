@@ -36,3 +36,24 @@ it("server limit", () => {
 		expect(() => createServer({ router, bodyLimit })).toThrow("bodyLimit is an integer from 1 to 33554432 bytes");
 	}
 });
+
+// Behind a proxy the app declares its hops: with `trustProxy: 1`, `X-Forwarded-Proto: https` makes the request the
+// server sees https, body and method kept; with none it stays http. The range is shared-url `hops` (BUGS.md 109).
+it("trust proxy", async () => {
+	const seen: string[] = [];
+	const server = {
+		async fetch(request: Request) {
+			seen.push(`${request.method} ${request.url} ${await request.text()}`);
+			return new Response("ok");
+		},
+	};
+	await createBunFetch(server, { trustProxy: 1 }).fetch(forwarded());
+	await createBunFetch(server).fetch(forwarded());
+	await createBunFetch(server, { trustProxy: 1 }).fetch(new Request("http://site.test/a"));
+	expect(seen).toEqual(["POST https://site.test/a b", "POST http://site.test/a b", "GET http://site.test/a "]);
+	expect(() => createBunFetch(server, { trustProxy: 6 })).toThrow("trustProxy is an integer from 0 to 5");
+});
+
+function forwarded(): Request {
+	return new Request("http://site.test/a", { method: "POST", body: "b", headers: { "x-forwarded-proto": "https" } });
+}

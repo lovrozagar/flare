@@ -1,4 +1,5 @@
 import { settleRequestBody } from "./body.ts";
+import { trustedHops } from "../../shared/url/index.ts";
 import { toRequest } from "./request.ts";
 
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void };
@@ -27,11 +28,18 @@ type NodeRes = {
 	destroy?: () => void;
 };
 
-export function createNodeListener(server: Server, options?: unknown): (req: NodeReq, res: NodeRes) => void {
-	if (options !== undefined) throw new Error("createNodeListener takes no options");
+// `trustProxy` is how many proxy hops in front of the server are trusted: with one or more, `X-Forwarded-Proto: https`
+// makes the request https, so its origin, redirects, and Strict-Transport-Security follow (dx/adapters.md).
+export type NodeListenerOptions = { trustProxy?: number };
+
+export function createNodeListener(
+	server: Server,
+	options: NodeListenerOptions = {},
+): (req: NodeReq, res: NodeRes) => void {
+	const trustProxy = trustedHops("createNodeListener", options);
 	const retained = new Set<Promise<unknown>>();
 	return (req, res) => {
-		const job = { server, req, res, retained, sent: false };
+		const job = { server, req, res, retained, trustProxy, sent: false };
 		// A failure before the headers is a bare 500. After them the socket is destroyed: the status is gone.
 		void pump(job).catch(() => {
 			if (job.sent) return res.destroy?.();
@@ -41,12 +49,19 @@ export function createNodeListener(server: Server, options?: unknown): (req: Nod
 	};
 }
 
-type Job = { server: Server; req: NodeReq; res: NodeRes; retained: Set<Promise<unknown>>; sent: boolean };
+type Job = {
+	server: Server;
+	req: NodeReq;
+	res: NodeRes;
+	retained: Set<Promise<unknown>>;
+	trustProxy: number;
+	sent: boolean;
+};
 
 async function pump(job: Job): Promise<void> {
 	// The origin comes from Host, as the adapter resolves it, so CSRF compares a browser's Origin with it (B44).
 	const headers = joinedHeaders(job.req.headers);
-	const adapted = toRequest({ url: job.req.url ?? "/", headers });
+	const adapted = toRequest({ url: job.req.url ?? "/", headers, trustProxy: job.trustProxy });
 	if (adapted.status === 400) {
 		job.res.writeHead(400);
 		job.res.end();

@@ -1,15 +1,21 @@
 # Adapters
 
-The production entry is one of these. `vite preview` is not (B53). `trustProxy` and `bodyLimit` are `createServer` fields (`server.md`). The adapters read them off the server object. They are not arguments here.
+The production entry is one of these. `vite preview` is not (B53). `bodyLimit` is a `createServer` field (`server.md`), which the Bun adapter reads off the server object. `trustProxy` is the Node and Bun adapters' own option, below: the adapter is what sees the socket and the proxy's headers (BUGS.md 109).
 
 ## Node
 
 ```ts
-createNodeListener(server): (req, res) => void
-toRequest(req, trustProxy?: number): Request
+createNodeListener(server, { trustProxy? }?): (req, res) => void
+toRequest({ url, headers?, socketAddress?, trustProxy? }): { status, secure, clientIp, resolvedOrigin, url }
 ```
 
-`server` is the object `createServer` returns. It is required. `createNodeListener` has no second argument. A second argument throws (`adapters/node/listener.test.ts` `no options`).
+`server` is the object `createServer` returns. It is required.
+
+| prop | required | default | accepts | outcome | pitfall | test |
+| --- | --- | --- | --- | --- | --- | --- |
+| `trustProxy` | no | `0` | hop count, integer `0`–`5` | how many proxy hops in front of the server are trusted. With at least one, `X-Forwarded-Proto: https` makes the request the server sees https, so its origin, a redirect's `Location`, and `Strict-Transport-Security` follow. With `0` a client's own `X-Forwarded-Proto` is ignored | behind a proxy that ends TLS, `0` serves the app as plain http. `true` does not type-check; v0's boolean trusted the whole chain. Any other key, `bodyLimit` included, throws, and so does a count out of range | `adapters/node/listener.test.ts` `trust proxy`; `shared/url/forwarded.test.ts` `hops`, `https` |
+
+`toRequest` is the step the listener runs: it rejects a bad target and computes `secure`, `clientIp`, and the origin (`server.md` Client address).
 
 The listener writes each chunk as it arrives and waits on backpressure. It calls `server.fetch(request, undefined, { waitUntil })`, retains that promise, and does not delay the response for it. Every `getSetCookie()` value is its own `Set-Cookie`. The listener does not rebuild that header with `headers.forEach` (`listener.test.ts` `wait until`, `set-cookie`). `toRequest` rejects a target of `//`, a backslash, an absolute-form request line, and a control character before it parses a URL (`request.test.ts`). `trustProxy` defaults to `0`. The hop count is the server's when the listener calls `toRequest`. `clientIp` follows `dx/server.md`.
 
@@ -18,7 +24,7 @@ An unread POST body is drained, or the connection is closed, before the next req
 ## Bun
 
 ```ts
-createBunFetch(server): { fetch, maxRequestBodySize }
+createBunFetch(server, { trustProxy? }?): { fetch, maxRequestBodySize }
 ```
 
 `fetch` is `(request: Request) => Promise<Response>`. `maxRequestBodySize` is the server's `bodyLimit`, read off the object `createServer` returns (default 1 MiB; `serve.test.ts` `server limit`). The app passes both to `Bun.serve`:
@@ -27,7 +33,7 @@ createBunFetch(server): { fetch, maxRequestBodySize }
 Bun.serve(createBunFetch(server));
 ```
 
-Setting a different `maxRequestBodySize` beside this object makes the platform cap and the server-fn cap disagree. The test is `adapters/bun/serve.test.ts` `body limit` and `default`. There is no options argument.
+Setting a different `maxRequestBodySize` beside this object makes the platform cap and the server-fn cap disagree. The test is `adapters/bun/serve.test.ts` `body limit` and `default`. The second argument is `trustProxy`, as on Node: with a trusted hop, `X-Forwarded-Proto: https` rebuilds the request as https, its method and body kept (`serve.test.ts` `trust proxy`).
 
 ## Workers
 

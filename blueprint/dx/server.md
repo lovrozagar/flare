@@ -1,7 +1,7 @@
 # createServer
 
 ```ts
-createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, trustProxy?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer?, logger?, onError?, requestLog?, tracer? })
+createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer?, logger?, onError?, requestLog?, tracer? })
 ```
 
 The return value's `fetch(request, env, ctx)` is the production entry, and its `bodyLimit` is the cap in bytes. `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
@@ -17,7 +17,6 @@ The return value's `fetch(request, env, ctx)` is the production entry, and its `
 | `rewrite` | no | absent | `(path) => string \| undefined` | a changed path redirects to the replacement, canonicalized again: 301 for GET and HEAD, else 308, with the query kept. The replacement must stay put: one the function changes again throws, and that, like any throw from it, is a projected 500. `path` is the canonical pathname; a path a mount handles never reaches it. This is not the client rewrite | returning a location object does not type-check. The client function takes a location (`router.md`) | `server/lifecycle/canonical-redirect.test.ts` `rewrite recanonical`, `path string`, `rewrite loop`, `rewrite option` |
 | `security` | no | the defaults below | `SecurityConfig` or `(ctx) => SecurityConfig` | the base policy. A route `.security()` merges on top (`builder.md`) | a string CSP replaces the nonce policy (B68). Prefer the directives object | `server/security/apply.test.ts` `callback override` |
 | `sameSite` | no | `[]` | hostnames | `Sec-Fetch-Site: same-site` is accepted only for these hosts | an empty list rejects `same-site` | `server/server-fn/csrf.test.ts` `same site unlisted` |
-| `trustProxy` | no | `0` | hop count, integer `0`–`5` | how many `X-Forwarded-*` hops are trusted | `true` does not type-check. v0's boolean trusted the whole chain | `adapters/node/request.test.ts` `trustProxy default` |
 | `bodyLimit` | no | `1 MiB` | bytes, `1`–`32 MiB` | server-fn POST cap and the Bun `maxRequestBodySize`. The returned server carries it as `bodyLimit`, which `createBunFetch` reads. A value that is not an integer in range throws at the call | a page POST is 405 and the body is drained. `.response()` reads the stream itself | `adapters/node/body.test.ts`; `adapters/bun/serve.test.ts` `server limit` |
 | `store` | no | absent | `FlareStore` or `(env) => FlareStore` | ISR and SSR storage. Absent means those modes render and are not stored. A function is called once per request with that request's `env` | a function that calls `createMemoryStore()` returns an empty map on every request. Construct that store outside | `server/lifecycle/create.test.ts` `store function` |
 | `static` | no | absent | `FlareStore` or `(env) => FlareStore` | read-only SSG artifacts (`store.md`). A function is called once per request with that request's `env` | a store that implements `put` is still only read. `createFilesystemStore` reads a different directory layout, so pointing it at the client output misses every seed | `vite/prerender/run.test.ts` `no static store`; `create.test.ts` `static function` |
@@ -42,10 +41,15 @@ createServer({
 | --- | --- | --- | --- |
 | `request` | the canonical request | | `caller.test.ts` `leaf` |
 | `env` | the fetch env, typed by `FlareRegister["env"]` | | same |
-| `clientIp` | the address the adapter resolved | | `request.test.ts` `trustProxy default` |
-| `secure` | true when the adapter trusts the hop as https | hop count `0` ignores `X-Forwarded-Proto` | same |
 | `callerData` | the leaf route's arguments. `.authenticate("admin")` is `["admin"]`. A call with no arguments is `[]` | a layout `.authenticate("admin")` and a page that does not call `authenticate` leaves this `[]`. The layout's arguments are on `callerChain`. v0 passed the first route's arguments | `caller.test.ts` `leaf`, `layout only`, `leaf empty` |
 | `callerChain` | `{ route, args }[]` from the root down, one entry per route that called `authenticate` or `authenticateOptional`. `route` is the route id | an `authorize` with no authenticate call still runs the function, with `callerData` `[]` and `callerChain` `[]` | `caller.test.ts` `chain`, `authorize only` |
+
+#### Planned (plan 15)
+
+| field | outcome | pitfall | test |
+| --- | --- | --- | --- |
+| `clientIp` | the address the adapter resolved (Client address below) | the Node listener computes it and no context carries it yet | `request.test.ts` `forwarded for` |
+| `secure` | true when the adapter trusts the hop as https | the request URL already carries it as `https:` | `request.test.ts` `trustProxy one` |
 
 A server function that calls `.authenticate()` uses the same function. `callerData` is `[]`, because that method takes no arguments. `callerChain` is one entry whose `route` is the function's `name` (`caller.test.ts` `server fn`).
 
@@ -256,7 +260,7 @@ proxy(request, upstream, { forwardCookies?, forwardAuthorization?, relaySetCooki
 
 ## Client address
 
-`trustProxy` of 0 uses the socket address and ignores `X-Forwarded-For`. A higher hop count splits that header on commas and trims each entry. Fewer entries than `trustProxy` uses the socket. Otherwise the entry at index `length - trustProxy` is `clientIp`. `secure` stays the `X-Forwarded-Proto` rule already tested. `resolvedOrigin` is `https` when `secure` is true, otherwise `http`, plus the `Host` header. `X-Forwarded-Host` is not read. The pipeline request URL uses that origin (`adapters/node/request.test.ts` `trustProxy default`, `forwarded for`, `no forwarded host`). On Workers, `clientIp` is `CF-Connecting-IP`, or absent when the header is missing (`adapters/workers/handler.test.ts` `connecting ip`).
+`trustProxy` is the Node listener's and the Bun fetch's option (`adapters.md`). On Node, `trustProxy` of 0 uses the socket address and ignores `X-Forwarded-For`. A higher hop count splits that header on commas and trims each entry. Fewer entries than `trustProxy` uses the socket. Otherwise the entry at index `length - trustProxy` is `clientIp`. `secure` stays the `X-Forwarded-Proto` rule already tested. `resolvedOrigin` is `https` when `secure` is true, otherwise `http`, plus the `Host` header. `X-Forwarded-Host` is not read. The pipeline request URL uses that origin (`adapters/node/request.test.ts` `trustProxy default`, `forwarded for`, `no forwarded host`; through the listener, `listener.test.ts` `trust proxy`). Bun's request URL already carries the host, and a trusted `https` hop only changes its scheme. On Workers, `clientIp` is `CF-Connecting-IP`, or absent when the header is missing (`adapters/workers/handler.test.ts` `connecting ip`).
 
 Match runs before the method rule (B87). A normal page allows GET, HEAD, and OPTIONS. OPTIONS is 204 with `Allow: GET, HEAD, OPTIONS`. Anything else is 405 with that `Allow`, and a POST body is drained. A `.response()` page has no method list. Every method, including OPTIONS and POST, reaches the function, and the adapter does not drain first. An unmatched GET or HEAD is not-found. Any other unmatched method is 405 with that `Allow`. On Workers that 405 does not call the assets binding (`server/lifecycle/methods.test.ts` `order`, `response methods`, `unmatched post`).
 

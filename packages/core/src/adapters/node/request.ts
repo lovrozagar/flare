@@ -1,3 +1,5 @@
+import { forwardedHttps } from "../../shared/url/index.ts";
+
 export type NodeIncoming = {
 	url: string;
 	headers?: Record<string, string | undefined>;
@@ -20,7 +22,7 @@ export function toRequest(input: NodeIncoming): AdaptedRequest {
 	if (badTarget(input.url)) return rejected();
 	const hops = input.trustProxy ?? 0;
 	const socket = input.socketAddress ?? "";
-	const secure = hops > 0 && headers["x-forwarded-proto"] === "https";
+	const secure = forwardedHttps(hops, headers["x-forwarded-proto"]);
 	const origin = `${secure ? "https" : "http"}://${headers["host"] ?? "localhost"}`;
 	return {
 		status: 200,

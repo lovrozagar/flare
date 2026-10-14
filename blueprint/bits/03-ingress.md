@@ -93,7 +93,16 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 | `default` | no `bodyLimit` | `maxRequestBodySize` is 1 MiB |
 | `server limit` | `createBunFetch(createServer({ router, bodyLimit: 2048 }))`, then no `bodyLimit`, then `0`, `1.5`, and 32 MiB plus one | `maxRequestBodySize` is 2048, then 1 MiB; 32 MiB is accepted; each out-of-range value throws `bodyLimit is an integer from 1 to 33554432 bytes` (BUGS.md 110) |
 
+| `trust proxy` | a POST with a body and `X-Forwarded-Proto: https`, with `{ trustProxy: 1 }` and then without; a GET without the header; then hop count `6` | the server sees `POST https://site.test/a` with its body, then `POST http://site.test/a`, then the GET unchanged; `6` throws (BUGS.md 109) |
+
 The test imports the options builder, not `Bun.serve`, so it runs under Node. `body limit` and `default` pass a hand-made server; `server limit` passes the one `createServer` returns.
+
+### `shared/url/forwarded.test.ts` (BUGS.md 109)
+
+| test | case | result |
+| --- | --- | --- |
+| `hops` | `{}`, `trustProxy` 5, then -1, 1.5, 6, then a `bodyLimit` key | 0, 5, then each throws `trustProxy is an integer from 0 to 5`, then `createBunFetch takes only trustProxy` |
+| `https` | hop counts and `X-Forwarded-Proto` values | only a trusted hop's `https` counts |
 
 ### `adapters/workers/handler.test.ts`
 

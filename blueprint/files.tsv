@@ -404,6 +404,8 @@ packages/core/src/client/sync/channel.test.ts	P13	test	client	Unit cases for cha
 packages/core/src/client/sync/index.ts	P13	index	client	Re-exports post and subscribe
 packages/core/src/adapters/node/request.ts	P1	src	node	toRequest. Reject //, backslash, absolute-form, and control characters. Apply trustProxy
 packages/core/src/adapters/node/request.test.ts	P1	test	node	Unit cases for request.ts
+packages/core/src/shared/url/forwarded.ts	P1	src	shared	The adapters' `trustProxy`: the hop count's range and whether a trusted hop forwarded https (BUGS.md 109)
+packages/core/src/shared/url/forwarded.test.ts	P1	test	shared	Unit cases for forwarded.ts
 packages/core/src/adapters/node/listener.ts	P1	src	node	createNodeListener. Flush per chunk. Honor backpressure
 packages/core/src/adapters/node/listener.test.ts	P1	test	node	Unit cases for listener.ts
 packages/core/src/adapters/node/body.ts	P3	src	node	Unread POST bodies are drained or the connection is closed

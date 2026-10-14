@@ -181,7 +181,7 @@ The corpus file feeds the test.
 | --- | --- | --- |
 | `flush` | a body of two chunks | the first chunk is written before the second is produced |
 | `backpressure` | the socket pauses | the second write waits |
-| `no options` | a second argument | throw |
+| `trust proxy` | a production server behind the listener, GET `/` with `Host: site.test` and `X-Forwarded-Proto: https`, with `{ trustProxy: 1 }` and then without; then hop counts `5`, `-1`, `1.5`, `6`, and a `bodyLimit` key | the server sees `https://site.test/` and answers `Strict-Transport-Security`, then `http://site.test/` without it; `5` is accepted, the others throw (BUGS.md 109) |
 | `wait until` | a handler calls `background` | `server.fetch` is called as `fetch(request, undefined, { waitUntil })`. The promise is retained. The response is not delayed for it |
 | `set-cookie` | two `getSetCookie()` values | each is its own `Set-Cookie`. The listener does not rebuild the header with `headers.forEach` |
 | `disconnect mid-stream` | `node:http` serving a real `createServer` whose root sits under `QueryClientProvider client={getQueryClient()}` and whose page holds a pending `"stream"` defer. The client socket is destroyed after the headers, five times, and once before them | the process keeps serving: the next GET answers 200, and no uncaught exception or unhandled rejection is raised (BUGS.md B28) |

@@ -8,7 +8,7 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { createQueryClientGetter } from "../../features/query/client/getter.ts";
-import { createServer as createFlareServer, type FlareServer } from "../../server/lifecycle/create.ts";
+import { createServer as createFlareServer, serveWith, type FlareServer } from "../../server/lifecycle/create.ts";
 import { createNodeListener } from "./listener.ts";
 
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void };
@@ -124,9 +124,44 @@ it("post without a socket", async () => {
 	}
 });
 
-it("no options", () => {
-	const server = { fetch: async () => new Response("ok") };
-	expect(() => createNodeListener(server, {})).toThrow(/options/);
+// Behind a proxy the app declares its hops: with `trustProxy: 1`, `X-Forwarded-Proto: https` makes the request the
+// server sees https, so its origin and Strict-Transport-Security follow; with none it stays http. Another option, or a
+// hop count that is not an integer from 0 to 5, throws (BUGS.md 109).
+it("trust proxy", async () => {
+	const about = createPage("_root_/").render(() => "home");
+	const root = createRootLayout("_root_").render((props) => props.children);
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: about }] });
+	// A production server: dev sends no Strict-Transport-Security.
+	const flare = serveWith({ router }, { dev: false, log: { level: "error", error: noop, warn: noop, log: noop } });
+	const seen: string[] = [];
+	const server = {
+		fetch: (request: Request, env: undefined, ctx: Ctx) => (seen.push(request.url), flare.fetch(request, env, ctx)),
+	};
+	const hsts: boolean[] = [];
+	const forwarded = { method: "GET", url: "/", headers: { host: "site.test", "x-forwarded-proto": "https" } };
+	for (const listener of [createNodeListener(server, { trustProxy: 1 }), createNodeListener(server)]) {
+		let found = false;
+		const ended = Promise.withResolvers<void>();
+		listener(forwarded, {
+			writeHead() {},
+			setHeader(name) {
+				if (name.toLowerCase() === "strict-transport-security") found = true;
+			},
+			write: () => true,
+			end: () => ended.resolve(),
+			once() {},
+		});
+		await ended.promise;
+		hsts.push(found);
+	}
+	expect(seen).toEqual(["https://site.test/", "http://site.test/"]);
+	expect(hsts).toEqual([true, false]);
+	expect(() => createNodeListener(server, { trustProxy: 5 })).not.toThrow();
+	for (const trustProxy of [-1, 1.5, 6]) {
+		expect(() => createNodeListener(server, { trustProxy })).toThrow("trustProxy is an integer from 0 to 5");
+	}
+	// @ts-expect-error bodyLimit is a createServer option
+	expect(() => createNodeListener(server, { bodyLimit: 1 })).toThrow("createNodeListener takes only trustProxy");
 });
 
 it("wait until", async () => {
