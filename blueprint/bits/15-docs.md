@@ -183,6 +183,8 @@ The dev tab hub (BUGS.md B42), independent of the Node and Bun handler so the Wo
 | `ci unit on both oses` | the same file | the Linux check job and `e2e-mac` both run `bun run test`, so the unit suite runs on Linux and macOS (B3, BUGS.md B27) |
 | `ci unit on bun` | the same file | the check job also runs `bun run test:bun` (the root script, which is `bun --bun run --filter @lovrozagar/flare test:bun`, and that is `vitest run` without coverage), so every unit test runs under the Bun runtime too. Coverage stays a Node gate: the per-file 100% is measured on Node's V8 data, and Bun's coverage of the same passing tests disagrees on 6 files (plan 14 leaf 8.20) |
 | `ci failure artifacts` | the same file | the last step of `e2e-linux` uploads `packages/core/test-results` on `failure()`, and of `e2e-mac` on `always()`, as `<job>-<shard>`, kept 7 days: each failing case's trace and server logs (BUGS.md 93), and on macOS every run's `stream` timing (BUGS.md 100). The grid's own step is found by its `bun run test:e2e` command |
+| `ci mac shards` | the same file | `e2e-mac` runs the 6 webkit projects in 3 shards, its unit run in the first only: with 2, the first ran the unit suite (3m51s) and half the grid (15m38s) and hit its 20-minute timeout, which GitHub reports as a cancelled step (CI 38611307306, BUGS.md 100.13) |
+| `ci shards independent` | the same file | `e2e-linux` and `e2e-mac` both set `fail-fast: false`, so one shard's failure never cancels another's evidence (bite: dropping it from `e2e-mac` fails) |
 
 ## `vite/plugin/real-path.test.ts`
 

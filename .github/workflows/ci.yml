@@ -99,16 +99,16 @@ jobs:
           path: packages/core/test-results
           retention-days: 7
 
-  # The Safari-engine check: the 6 webkit projects on macOS (B97), every deep spec on each, in 2 shards so each stays
+  # The Safari-engine check: the 6 webkit projects on macOS (B97), every deep spec on each, in 3 shards so each stays
   # inside its timeout. The unit suite's macOS run (B3, BUGS.md B27, B51) goes in the first shard only.
   e2e-mac:
-    name: e2e-mac (${{ matrix.shard }}/2)
+    name: e2e-mac (${{ matrix.shard }}/3)
     runs-on: macos-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -127,7 +127,7 @@ jobs:
           bun run test:e2e --
           --project node-dev-webkit --project node-prod-webkit --project bun-dev-webkit
           --project bun-prod-webkit --project workers-dev-webkit --project workers-prod-webkit
-          --shard=${{ matrix.shard }}/2
+          --shard=${{ matrix.shard }}/3
       # Every run, a pass too: `stream` keeps its line and chunk timing on macOS WebKit (BUGS.md 100).
       - if: always()
         uses: actions/upload-artifact@v4
