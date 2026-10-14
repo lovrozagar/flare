@@ -1,5 +1,5 @@
 import { writeFileSync } from "node:fs";
-import type { Page } from "@playwright/test";
+import type { APIRequestContext, Browser, Page, TestInfo } from "@playwright/test";
 import { deepOnly, expect, open, test } from "./docs.fixture.ts";
 import { BUILD_LOG, instrumentStream, pageChunks, startStream, timedChunks } from "./stream-probe.ts";
 
@@ -59,114 +59,188 @@ test("stream transport", async ({ page, docs }, info) => {
 	expect(Object.values(report).every((entry) => entry.page.length > 0 && entry.node.length > 0)).toBe(true);
 });
 
-// The main-thread probe for BUGS.md 100, a measurement with no pass bar: every frame gap over 50 ms in the 2 s after
-// a moment, each setup the first page of its own context, as `stream`'s playground is, beside every web font the page
-// started loading and each face's status at the end. `blank` is about:blank, `static` the playground's own HTML from
-// this server with every script removed (its CSS, fonts, and DOM, no page script), `live` the playground itself,
-// `live no client` the playground whose client entry is an empty module (the chunks still preload; nothing hydrates),
-// `live instrumented` the playground under `stream`'s init scripts, `live instrumented click` that page after
-// `stream`'s click, its gaps from the click, `live mono` the playground after one hidden `font-mono` span is added
-// with no click, from that insert, `static append` and `live append` the DOM change of `stream`'s first line made by
-// hand on each, from that append, and `live warm click` `stream`'s click after Docs Mono has rendered once. Every run
-// writes `main-thread.json`, which e2e-mac uploads.
-test("main thread", async ({ browser, request, docs }, info) => {
-	const live = await (await request.get(`${docs.origin}/playground`)).text();
-	const setups = { ...loadSetups(docs.origin, live), ...momentSetups(docs.origin) };
-	const report: Record<string, Sample> = {};
-	for (const [setup, run] of Object.entries(setups)) {
-		const context = await browser.newContext();
-		const page = await context.newPage();
-		await recordFonts(page);
-		report[setup] = await run(page);
-		await context.close();
-	}
-	const path = info.outputPath("main-thread.json");
-	writeFileSync(path, `${JSON.stringify(report)}\n`);
-	await info.attach("main thread", { path, contentType: "application/json" });
-	expect(Object.keys(report)).toHaveLength(10);
+// The main-thread probe for BUGS.md 100, measurements with no pass bar: every frame gap over 50 ms in the 2 s after a
+// moment, beside the page's font loads and each face's status per frame. Each setup is the first page of its own
+// context, as `stream`'s playground is, and each group writes `main-thread-<group>.json`, which e2e-mac uploads. A group
+// is its own case with room for a slow runner, so one slow setup never drops the others.
+//
+// `load` samples from the load: about:blank; the playground's HTML with every script removed (`static`: its DOM and
+// critical CSS; in dev its inline module styles too); that page with the built stylesheet applied, which production's
+// removed swap script would have done (`static full css`); the playground; the playground whose client entry is an
+// empty module (nothing hydrates); and the playground under `stream`'s init scripts.
+test("main thread load", async ({ browser, request, docs }, info) => {
+	test.setTimeout(120_000);
+	const pages = await probePages(docs.origin, request);
+	await probe(
+		{ browser, info, group: "load" },
+		{
+			blank: async (page) => (await page.goto("about:blank"), sample(page, "load")),
+			static: async (page) => (await staticPage(page, docs.origin, pages.bare), sample(page, "load")),
+			"static full css": async (page) => {
+				await staticPage(page, docs.origin, pages.styled);
+				await expectFullCss(page, pages.sheet);
+				return sample(page, "load");
+			},
+			live: async (page) => (await page.goto(pages.playground), sample(page, "load")),
+			"live no client": async (page) => {
+				await page.route(`${docs.origin}${pages.entry}`, (route) =>
+					route.fulfill({ body: "export {};", contentType: "text/javascript" }),
+				);
+				await page.goto(pages.playground);
+				const result = await sample(page, "load");
+				expect(await page.locator("html[data-flare-hydrated]").count()).toBe(0);
+				return result;
+			},
+			"live instrumented": async (page) => {
+				await instrumentStream(page);
+				await page.goto(pages.playground);
+				return sample(page, "load");
+			},
+		},
+	);
 });
 
-type Setups = Record<string, (page: Page) => Promise<Sample>>;
+// `append` samples from the DOM change of `stream`'s first line made by hand, three times each: on the script-free page
+// with only its critical CSS and with the full stylesheet, on the hydrated playground, and on the hydrated playground
+// with one observer kind made inert before any script runs (ResizeObserver, IntersectionObserver, MutationObserver).
+test("main thread append", async ({ browser, request, docs }, info) => {
+	test.setTimeout(180_000);
+	const pages = await probePages(docs.origin, request);
+	const live =
+		(observer?: string) =>
+		async (page: Page): Promise<Sample> => {
+			if (observer !== undefined) await inertObserver(page, observer);
+			await open(page, docs.origin, "/playground");
+			return appendLine(page);
+		};
+	const setups: Record<string, Setup> = {
+		"static append": async (page) => (await staticPage(page, docs.origin, pages.bare), appendLine(page)),
+		"static full css append": async (page) => {
+			await staticPage(page, docs.origin, pages.styled);
+			await expectFullCss(page, pages.sheet);
+			return appendLine(page);
+		},
+		"live append": live(),
+		"live append no resize": live("ResizeObserver"),
+		"live append no intersection": live("IntersectionObserver"),
+		"live append no mutation": live("MutationObserver"),
+	};
+	await probe({ browser, info, group: "append" }, setups, 3);
+});
 
-// The setups sampled from the load: the page's own document, without scripts, without its client, and instrumented.
-function loadSetups(origin: string, live: string): Setups {
-	const html = live.replaceAll(/<script\b[^>]*>[\s\S]*?<\/script>|<link\b[^>]*rel="modulepreload"[^>]*>/g, "");
+// `click` samples from `stream`'s click, cold and with Docs Mono warm, and from one hidden `font-mono` span's insert.
+test("main thread click", async ({ browser, docs }, info) => {
+	test.setTimeout(120_000);
+	await probe(
+		{ browser, info, group: "click" },
+		{
+			"live instrumented click": async (page) => {
+				await instrumentStream(page);
+				await open(page, docs.origin, "/playground");
+				await startStream(page);
+				return sample(page, "click");
+			},
+			"live mono": async (page) => {
+				await open(page, docs.origin, "/playground");
+				await page.evaluate(() => {
+					Reflect.set(window, "probeMark", performance.now());
+					document.body.append(Reflect.apply(Reflect.get(window, "monoSpan") as () => HTMLElement, window, []));
+				});
+				return sample(page, "mark");
+			},
+			"live warm click": async (page) => {
+				await instrumentStream(page);
+				await open(page, docs.origin, "/playground");
+				await page.evaluate(async () => {
+					document.body.append(Reflect.apply(Reflect.get(window, "monoSpan") as () => HTMLElement, window, []));
+					await document.fonts.load('12px "Docs Mono"');
+					await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+				});
+				await startStream(page);
+				return sample(page, "click");
+			},
+		},
+	);
+});
+
+// Gaps as `<start>+<length>`, and font loads as `<at>:<event>:<faces>`, each from the moment; each face's status when
+// sampling starts and every change after it, polled each frame since WebKit fires no font events, as
+// `<at>:<family> <weight>:<status>`.
+type Sample = { gaps: string[]; loads: string[]; faces: string[] };
+
+type Setup = (page: Page) => Promise<Sample>;
+
+// Each setup `times` times, each run the first page of its own context, into `main-thread-<group>.json` as
+// `{ setup: Sample[] }`.
+async function probe(
+	at: { browser: Browser; info: TestInfo; group: string },
+	setups: Record<string, Setup>,
+	times = 1,
+): Promise<void> {
+	const { browser, info, group } = at;
+	const report: Record<string, Sample[]> = {};
+	for (const [setup, run] of Object.entries(setups)) {
+		for (let round = 0; round < times; round += 1) {
+			const context = await browser.newContext();
+			const page = await context.newPage();
+			await recordFonts(page);
+			(report[setup] ??= []).push(await run(page));
+			await context.close();
+		}
+	}
+	const path = info.outputPath(`main-thread-${group}.json`);
+	writeFileSync(path, `${JSON.stringify(report)}\n`);
+	await info.attach(`main thread ${group}`, { path, contentType: "application/json" });
+	expect(Object.values(report).every((runs) => runs.length === times)).toBe(true);
+}
+
+// The playground's document as the server sends it: its URL, its client entry, its built stylesheet (production only),
+// and its HTML with every script removed, bare and with that stylesheet linked.
+async function probePages(origin: string, request: APIRequestContext) {
+	const playground = `${origin}/playground`;
+	const live = await (await request.get(playground)).text();
+	const bare = live.replaceAll(/<script\b[^>]*>[\s\S]*?<\/script>|<link\b[^>]*rel="modulepreload"[^>]*>/g, "");
 	const entry = /import\("([^"]+)"\)/.exec(live)?.[1];
 	expect(entry).toBeDefined();
-	const playground = `${origin}/playground`;
-	const docs = { origin };
-	return {
-		blank: async (page) => (await page.goto("about:blank"), sample(page, "load")),
-		static: async (page) => {
-			await page.route(`${docs.origin}/__probe`, (route) => route.fulfill({ body: html, contentType: "text/html" }));
-			await page.goto(`${docs.origin}/__probe`, { waitUntil: "load" });
-			expect(await page.locator("script").count()).toBe(0);
-			expect(await page.evaluate(() => document.styleSheets.length)).toBeGreaterThan(0);
-			return sample(page, "load");
-		},
-		"static append": async (page) => {
-			await page.route(`${docs.origin}/__probe`, (route) => route.fulfill({ body: html, contentType: "text/html" }));
-			await page.goto(`${docs.origin}/__probe`, { waitUntil: "load" });
-			await appendLine(page);
-			return sample(page, "mark");
-		},
-		live: async (page) => (await page.goto(playground), sample(page, "load")),
-		"live no client": async (page) => {
-			await page.route(`${docs.origin}${entry}`, (route) =>
-				route.fulfill({ body: "export {};", contentType: "text/javascript" }),
-			);
-			await page.goto(playground);
-			const result = await sample(page, "load");
-			expect(await page.locator("html[data-flare-hydrated]").count()).toBe(0);
-			return result;
-		},
-		"live instrumented": async (page) => {
-			await instrumentStream(page);
-			await page.goto(playground);
-			return sample(page, "load");
-		},
-	};
+	const sheet = /<link\b(?=[^>]*\bas="style")[^>]*\bhref="([^"]+)"/.exec(live)?.[1];
+	const styled = sheet === undefined ? bare : bare.replace("</head>", `<link rel="stylesheet" href="${sheet}"></head>`);
+	return { playground, entry, sheet, bare, styled };
 }
 
-// The setups sampled from a moment after hydrate: `stream`'s click, cold and with Docs Mono warm, and a mono insert.
-function momentSetups(origin: string): Setups {
-	const docs = { origin };
-	return {
-		"live instrumented click": async (page) => {
-			await instrumentStream(page);
-			await open(page, docs.origin, "/playground");
-			await startStream(page);
-			return sample(page, "click");
-		},
-		"live mono": async (page) => {
-			await open(page, docs.origin, "/playground");
-			await page.evaluate(() => {
-				Reflect.set(window, "probeMark", performance.now());
-				document.body.append(Reflect.apply(Reflect.get(window, "monoSpan") as () => HTMLElement, window, []));
-			});
-			return sample(page, "mark");
-		},
-		"live append": async (page) => {
-			await open(page, docs.origin, "/playground");
-			await appendLine(page);
-			return sample(page, "mark");
-		},
-		"live warm click": async (page) => {
-			await instrumentStream(page);
-			await open(page, docs.origin, "/playground");
-			await page.evaluate(async () => {
-				document.body.append(Reflect.apply(Reflect.get(window, "monoSpan") as () => HTMLElement, window, []));
-				await document.fonts.load('12px "Docs Mono"');
-				await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-			});
-			await startStream(page);
-			return sample(page, "click");
-		},
-	};
+async function staticPage(page: Page, origin: string, html: string): Promise<void> {
+	await page.route(`${origin}/__probe`, (route) => route.fulfill({ body: html, contentType: "text/html" }));
+	await page.goto(`${origin}/__probe`, { waitUntil: "load" });
+	expect(await page.locator("script").count()).toBe(0);
 }
 
-// The DOM change `stream`'s first line makes, with no server function and no Solid: one `<li>` in `#stream-log`.
-async function appendLine(page: Page): Promise<void> {
+// Production's built stylesheet is applied; a dev page carries its module styles inline instead.
+async function expectFullCss(page: Page, sheet: string | undefined): Promise<void> {
+	if (sheet === undefined) {
+		expect(await page.locator("style[data-vite-dev-id]").count()).toBeGreaterThan(0);
+		return;
+	}
+	const hrefs = await page.evaluate(() => [...document.styleSheets].map((each) => each.href ?? ""));
+	expect(hrefs.some((href) => href.endsWith(sheet))).toBe(true);
+}
+
+// One observer kind made inert before any page script runs: it observes nothing and never calls back.
+async function inertObserver(page: Page, name: string): Promise<void> {
+	await page.addInitScript((kind) => {
+		const inert = class {
+			observe(): void {}
+			unobserve(): void {}
+			disconnect(): void {}
+			takeRecords(): never[] {
+				return [];
+			}
+		};
+		Reflect.set(window, kind, inert);
+	}, name);
+}
+
+// The DOM change `stream`'s first line makes, with no server function and no Solid: one `<li>` in `#stream-log`, then
+// the gaps from it.
+async function appendLine(page: Page): Promise<Sample> {
 	await page.evaluate(() => {
 		const line = document.createElement("li");
 		line.textContent = "1. resolve routes";
@@ -174,13 +248,8 @@ async function appendLine(page: Page): Promise<void> {
 		document.getElementById("stream-log")?.append(line);
 	});
 	expect(await page.locator("#stream-log li").count()).toBe(1);
+	return sample(page, "mark");
 }
-
-// Gaps as `<start>+<length>`, and font loads as `<at>:<event>:<faces>`, each from the moment; each face's status when
-// sampling starts and every change after it, polled each frame since WebKit fires no font events, as
-// `<at>:<family> <weight>:<status>`.
-type Sample = { gaps: string[]; loads: string[]; faces: string[] };
-
 // Every `document.fonts` load the page starts, from the document's start (BUGS.md 100).
 async function recordFonts(page: Page): Promise<void> {
 	await page.addInitScript(() => {
