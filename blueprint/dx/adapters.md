@@ -21,7 +21,7 @@ An unread POST body is drained, or the connection is closed, before the next req
 createBunFetch(server): { fetch, maxRequestBodySize }
 ```
 
-`fetch` is `(request: Request) => Promise<Response>`. `maxRequestBodySize` is the server's `bodyLimit` (default 1 MiB). The app passes both to `Bun.serve`:
+`fetch` is `(request: Request) => Promise<Response>`. `maxRequestBodySize` is the server's `bodyLimit`, read off the object `createServer` returns (default 1 MiB; `serve.test.ts` `server limit`). The app passes both to `Bun.serve`:
 
 ```ts
 Bun.serve(createBunFetch(server));

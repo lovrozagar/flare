@@ -65,4 +65,6 @@ export type RuntimeOptions = BaseOptions & { serverContext?: ServerContextInput[
 // `ctx` is the adapter's: `waitUntil` keeps background work alive after the response.
 export type FlareServer = {
 	fetch: (request: Request, env?: unknown, ctx?: MountContext) => Promise<Response>;
+	// The server-function POST cap in bytes, which the Bun adapter also gives `Bun.serve` (dx/adapters.md).
+	readonly bodyLimit: number;
 };

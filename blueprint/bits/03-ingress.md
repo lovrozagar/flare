@@ -91,8 +91,9 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 | --- | --- | --- |
 | `body limit` | `bodyLimit: 1024` | the Bun serve options contain `maxRequestBodySize: 1024` |
 | `default` | no `bodyLimit` | `maxRequestBodySize` is 1 MiB |
+| `server limit` | `createBunFetch(createServer({ router, bodyLimit: 2048 }))`, then no `bodyLimit`, then `0`, `1.5`, and 32 MiB plus one | `maxRequestBodySize` is 2048, then 1 MiB; 32 MiB is accepted; each out-of-range value throws `bodyLimit is an integer from 1 to 33554432 bytes` (BUGS.md 110) |
 
-The test imports the options builder, not `Bun.serve`, so it runs under Node.
+The test imports the options builder, not `Bun.serve`, so it runs under Node. `body limit` and `default` pass a hand-made server; `server limit` passes the one `createServer` returns.
 
 ### `adapters/workers/handler.test.ts`
 

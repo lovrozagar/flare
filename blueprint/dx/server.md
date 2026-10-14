@@ -4,7 +4,7 @@
 createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, trustProxy?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer?, logger?, onError?, requestLog?, tracer? })
 ```
 
-The return value's `fetch(request, env, ctx)` is the production entry. `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
+The return value's `fetch(request, env, ctx)` is the production entry, and its `bodyLimit` is the cap in bytes. `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ The return value's `fetch(request, env, ctx)` is the production entry. `ctx.wait
 | `security` | no | the defaults below | `SecurityConfig` or `(ctx) => SecurityConfig` | the base policy. A route `.security()` merges on top (`builder.md`) | a string CSP replaces the nonce policy (B68). Prefer the directives object | `server/security/apply.test.ts` `callback override` |
 | `sameSite` | no | `[]` | hostnames | `Sec-Fetch-Site: same-site` is accepted only for these hosts | an empty list rejects `same-site` | `server/server-fn/csrf.test.ts` `same site unlisted` |
 | `trustProxy` | no | `0` | hop count, integer `0`–`5` | how many `X-Forwarded-*` hops are trusted | `true` does not type-check. v0's boolean trusted the whole chain | `adapters/node/request.test.ts` `trustProxy default` |
-| `bodyLimit` | no | `1 MiB` | bytes, `1`–`32 MiB` | server-fn POST cap and the Bun `maxRequestBodySize` | a page POST is 405 and the body is drained. `.response()` reads the stream itself | `adapters/node/body.test.ts` |
+| `bodyLimit` | no | `1 MiB` | bytes, `1`–`32 MiB` | server-fn POST cap and the Bun `maxRequestBodySize`. The returned server carries it as `bodyLimit`, which `createBunFetch` reads. A value that is not an integer in range throws at the call | a page POST is 405 and the body is drained. `.response()` reads the stream itself | `adapters/node/body.test.ts`; `adapters/bun/serve.test.ts` `server limit` |
 | `store` | no | absent | `FlareStore` or `(env) => FlareStore` | ISR and SSR storage. Absent means those modes render and are not stored. A function is called once per request with that request's `env` | a function that calls `createMemoryStore()` returns an empty map on every request. Construct that store outside | `server/lifecycle/create.test.ts` `store function` |
 | `static` | no | absent | `FlareStore` or `(env) => FlareStore` | read-only SSG artifacts (`store.md`). A function is called once per request with that request's `env` | a store that implements `put` is still only read. `createFilesystemStore` reads a different directory layout, so pointing it at the client output misses every seed | `vite/prerender/run.test.ts` `no static store`; `create.test.ts` `static function` |
 | `serverContext` | when `FlareRegister` declares it | absent. The value is `{}` | `(ctx: { request, env }) => FlareRegister["serverContext"]` | runs once after the canonical path is accepted and before mounts. `serverCtx()` returns that value (B75) | a redirect or a 400 does not call it. The argument has no `locals`. A throw is 500. Omitting it when the register declares the type does not type-check | `server/context/ctx.test.ts` `returns the value`, `not the event`, `redirect skips`, `required`, `throw is 500` |
