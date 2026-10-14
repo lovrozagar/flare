@@ -1301,91 +1301,54 @@ Import features from their path.
 ## Repository layout
 
 ```
-packages/core/     published `@lovrozagar/flare` (src, tests, spec)
-packages/cli/      `flare` CLI (`@flare/cli`)
-e2e/apps/          product, demo, fs-routes, tauri
-e2e/{node,bun,workers,deno}/   env hosts + Playwright
-e2e/run-env.ts     env × app runner
-benchmark/         flare vs Next vs TanStack
+packages/core/                   published `@lovrozagar/flare` (src, unit and integration tests)
+packages/core/tests/e2e/         the Playwright grid: specs, boot.ts, and the apps it boots
+packages/core/tests/e2e/apps/    `minimal`, `basepath`, and `docs`, the app every v1 feature runs in
+scripts/                         check-tree, release, and browser-server (where the e2e browsers come from)
+blueprint/                       the spec: decisions, bits, and files.tsv, the tree check's source
+_v0/                             the archived v0 tree
 ```
-
-`e2e/apps/*` own the tests. Runtimes only listen. `FLARE_E2E_APP` and `FLARE_E2E_ENV` select app and host.
 
 ## Develop
 
-Requires [Bun](https://bun.sh) 1.3+ and TypeScript 7.
+Requires [Bun](https://bun.sh) 1.4.3 (the root `packageManager`) and Node 22.18 or later; CI runs Node 24.
 
 ```bash
 bun install
-bun run test                 # core unit
-bun run test:cli             # CLI unit
-bun run test:all             # unit + build + e2e apps on node (dev then prod)
-bun run test:all -- --env bun
-bun run typecheck
-bun run typecheck:consumers
-bun run lint
-bun run fmt:check
+bun run fmt                 # oxfmt, rewrites in place (CI runs fmt:check)
+bun run lint                # oxlint
+bun run typecheck           # core, src under consumer-strict flags, scripts/
+bun run test                # vitest, 100% per-file coverage
+bun run test:bun            # the same suite under the Bun runtime, no coverage gate
+bun scripts/check-tree.ts   # the tree matches blueprint/files.tsv
+bun run docs:dev            # the docs e2e app in dev, to check by eye
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`): `test` runs typecheck, fmt, lint, unit. `e2e` is a matrix of node / bun / workers / deno, each in Vite **dev** and (except deno/firefox) **prod** (`vite preview`).
+Config: `.oxlintrc.json`, `.oxfmtrc.jsonc`. Tabs, double quotes, `printWidth` 120, semicolons. Do not weaken `strict` or add `as any` to make typecheck pass.
 
-Release: bump `packages/core/package.json`, commit, tag `vX.Y.Z` matching that version, and push the tag. `.github/workflows/release.yml` publishes `@lovrozagar/flare` to npm via GitHub Actions OIDC (no npm token) and opens the GitHub Release. The npm trusted publisher must name this file `release.yml`.
+Release: bump `packages/core/package.json`, commit, tag `vX.Y.Z` matching that version, and push the tag. `.github/workflows/release.yml` publishes `@lovrozagar/flare` to npm via GitHub Actions OIDC (no npm token) and opens the GitHub Release.
 
-### Checks
+### End-to-end grid
 
-TypeScript 7 `strict` plus [oxlint](https://oxc.rs/docs/guide/usage/linter.html) / [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html):
+`bun run test:e2e` runs all 18 projects, `<runtime>-<mode>-<browser>`: runtime `node`, `bun`, or `workers`; mode `dev` or `prod`; browser `chromium`, `firefox`, or `webkit`. Each boot starts its app on a free port with its own temp dirs and writes nothing into the app.
+
+The browsers come from one pinned Playwright image, so every machine runs the same engine builds. A global setup reuses or starts its run-server in a container named `flare-browsers` (host network, host IPC) and every project connects to it. With `FLARE_BROWSER_WS` set, the projects connect there instead. Without a Docker daemon the shell can reach, they launch Playwright's installed engines (`bunx playwright install chromium firefox webkit`), as the macOS CI job does.
+
+Docker needs no root for this once your user is in the `docker` group, a one-time setup:
 
 ```bash
-bun run typecheck
-bun run typecheck:consumers
-bun run lint
-bun run lint:fix
-bun run fmt
-bun run fmt:check
+sudo usermod -aG docker "$USER"   # then log in again, so new shells carry the group
 ```
 
-Config: `.oxlintrc.json`, `.oxfmtrc.jsonc`. Tabs, double quotes, `printWidth` 120, semicolons. Generated `_gen/` / `*.gen.ts` are ignored.
-
-Do not weaken `strict` or add `as any` to make typecheck pass.
-
-### Test matrix
-
-| Command                         | What it proves                             |
-| ------------------------------- | ------------------------------------------ |
-| `bun run test`                  | Core unit + integration                    |
-| `bun run test:cli`              | CLI unit                                   |
-| `bun run test:e2e`              | Playwright, every app × node, Vite **dev** |
-| `bun run docs:dev`              | The docs e2e app in dev, to check by eye   |
-| `bun run test:e2e:prod`         | Same tests, `vite build` + **preview**     |
-| `bun run test:e2e:bun`          | Same tests, Bun listen (dev)               |
-| `bun run test:e2e:bun:prod`     | Bun listen, prod preview                   |
-| `bun run test:e2e:workers`      | Same tests, local workerd (dev)            |
-| `bun run test:e2e:workers:prod` | workerd, prod preview                      |
-| `bun run test:e2e:deno`         | Same tests, Deno (dev)                     |
-| `bun run test:e2e:firefox`      | Same tests, Firefox (**dev only**)         |
+One project, or a few:
 
 ```bash
-bun run test:e2e -- --app product
-bun run e2e/run-env.ts --env workers --app demo
-TEST_MODE=prod bun run test:e2e:workers
+bun run test:e2e -- --project node-dev-chromium
+bun run test:e2e -- --project bun-prod-webkit --project workers-dev-firefox
+bun run test:e2e -- --project node-prod-firefox -g "isr stored"
 ```
 
-| App         | Covers                        |
-| ----------- | ----------------------------- |
-| `product`   | Full framework surface        |
-| `demo`      | Locale / i18n chrome          |
-| `fs-routes` | `fsVirtualPaths` suffix files |
-| `tauri`     | Desktop Vite shell            |
-
-Runtimes: `e2e/node`, `e2e/bun`, `e2e/workers`, `e2e/deno`. Firefox uses the node host.
-
-### Bench
-
-`benchmark/` compares Flare, Next, and TanStack. Numbers: [`benchmark/RESULTS.md`](benchmark/RESULTS.md).
-
-```bash
-bun run --filter @lovrozagar/flare bench
-```
+A run that names its projects runs the deep specs on every named project; an unnamed run runs them on the deep set only. `retries` is 0: a flaky case is a bug. CI runs the grid inside the same image on Linux in 3 shards, and the 6 webkit projects on macOS.
 
 ## License
 

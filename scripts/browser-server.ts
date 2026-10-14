@@ -14,28 +14,31 @@ const CONTAINER = "flare-browsers";
 // What the browser source reads of the machine. The native one is the real machine; a test passes its own.
 export type BrowserDeps = {
 	env: Readonly<Record<string, string | undefined>>;
-	docker: {
-		present: () => boolean;
-		run: (args: readonly string[]) => { status: number | null; stdout: string; stderr: string };
-	};
+	docker: { run: (args: readonly string[]) => { status: number | null; stdout: string; stderr: string } };
 	reachable: (port: number) => Promise<boolean>;
 	installed: () => boolean;
 	core: () => { dir: string; version: string };
 	sleep: (ms: number) => Promise<void>;
 };
 
-// Where the engines come from (B97): `FLARE_BROWSER_WS`, else the pinned container's run-server when Docker is present,
+// Where the engines come from (B97): `FLARE_BROWSER_WS`, else the pinned container's run-server when Docker answers,
 // else Playwright's installed engines, as on the macOS runners and inside the CI image, which have no Docker. The
 // endpoint, or undefined for the installed engines. With none of the three, one error names all three.
 export async function browserEndpoint(deps: BrowserDeps = NATIVE): Promise<string | undefined> {
 	const set = deps.env["FLARE_BROWSER_WS"];
 	if (set !== undefined) return set;
-	if (deps.docker.present()) return browserServer(deps);
+	if (daemon(deps)) return browserServer(deps);
 	if (deps.installed()) return undefined;
 	throw new Error(
 		"No browsers: set FLARE_BROWSER_WS to a Playwright run-server, install Docker for the pinned container, or " +
 			"install Playwright's engines (bunx playwright install chromium firefox webkit)",
 	);
+}
+
+// Docker counts only when its daemon answers this shell: a binary on PATH whose daemon is down, or refuses a user
+// outside the `docker` group, falls through to the installed engines.
+function daemon(deps: BrowserDeps): boolean {
+	return deps.docker.run(["version", "--format", "{{.Server.Version}}"]).status === 0;
 }
 
 // A run-server on 127.0.0.1 from the pinned image, on the host network and the host's IPC namespace (Chromium's shared
@@ -72,7 +75,6 @@ const DOCKER = process.env["FLARE_DOCKER"] ?? "docker";
 const NATIVE: BrowserDeps = {
 	env: process.env,
 	docker: {
-		present: () => spawnSync(DOCKER, ["--version"]).error === undefined,
 		run(args) {
 			const done = spawnSync(DOCKER, args, { encoding: "utf8" });
 			return { status: done.status, stdout: done.stdout ?? "", stderr: done.stderr || String(done.error ?? "") };

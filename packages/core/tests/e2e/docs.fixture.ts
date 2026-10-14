@@ -23,8 +23,9 @@ export const test = base.extend<{ docs: Boot }, { docsBoot: Boot }>({
 
 export { expect };
 
-// The platform's first browser: Linux runs chromium and firefox, macOS runs webkit (B70).
-const FIRST_BROWSER = process.platform === "darwin" ? "webkit" : "chromium";
+// The deep set's browser, on every machine: the OS chooses no input to a run (B70). macOS CI names its webkit projects,
+// so the deep specs run there on all of them.
+const FIRST_BROWSER = "chromium";
 const DEEP_SERVERS = ["node-dev", "node-prod", "workers-prod"];
 
 export function serverOf(info: TestInfo): string {
