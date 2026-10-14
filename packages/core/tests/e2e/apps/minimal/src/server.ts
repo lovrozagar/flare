@@ -1,4 +1,10 @@
-import { createAssetsStore, createMemoryStore, createServer, type FlareStore } from "@lovrozagar/flare/server";
+import {
+	createAssetsStore,
+	createMemoryStore,
+	createMiddleware,
+	createServer,
+	type FlareStore,
+} from "@lovrozagar/flare/server";
 import { fileURLToPath } from "node:url";
 import { fileAssets } from "@lovrozagar/flare/stores/fs";
 import { serverFns } from "./_gen/server-fns.gen.ts";
@@ -19,10 +25,18 @@ function seeds(env: unknown): FlareStore {
 	return createAssetsStore(fileAssets(fileURLToPath(new URL("../client", import.meta.url))));
 }
 
+// The runtime that rendered the response, as its user agent names it: `Node.js/…`, `Bun/…`, or `Cloudflare-Workers`.
+// boot.test asserts it, so a dev or prod boot cannot answer from another runtime unnoticed (BUGS.md 76).
+const runtime = createMiddleware(async (ctx) => {
+	const response = await ctx.next();
+	response.headers.set("x-runtime", navigator.userAgent);
+});
+
 export const server = createServer({
 	router,
 	serverFns,
 	site: "https://flare.test",
 	store,
 	static: seeds,
+	middleware: [runtime],
 });

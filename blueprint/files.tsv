@@ -670,7 +670,7 @@ packages/core/tests/e2e/apps/minimal/package.json	P1	app	-	App package
 packages/core/tests/e2e/apps/minimal/tsconfig.json	P1	app	-	App tsconfig
 packages/core/tests/e2e/apps/minimal/vite.config.ts	P1	app	-	App vite config
 packages/core/tests/e2e/apps/minimal/src/client.tsx	P1	app	-	createClient
-packages/core/tests/e2e/apps/minimal/src/server.ts	P1	app	-	createServer
+packages/core/tests/e2e/apps/minimal/src/server.ts	P1	app	-	createServer, and a middleware that names the rendering runtime in `x-runtime`
 packages/core/tests/e2e/apps/minimal/src/router.ts	P1	app	-	createRouter
 packages/core/tests/e2e/apps/minimal/src/_gen/routes.gen.ts	P12	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/minimal/src/_gen/types.gen.d.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
