@@ -8,15 +8,15 @@ Called inside a loader. The return value is what the component sees in `loaderDa
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| the function | yes | — | `() => Promise<T>` | started or not, depending on the mode below | the function must not call `defer` again. A nested deferred is a dead object on the client | `server/loaders/defer.test.ts` `nested` |
-| `key` | no | `d0`, `d1`, … per loader | a string unique inside that loader | the `c` frame's `k`, and the match id plus the key identify the value | two calls with the same key return the first promise and do not call the second function | `server/loaders/defer.test.ts` `dedupe` |
-| `prerender` | no | the route's `defer` field | `"resolve"`, `"stream"` | overrides the route for this call, and only when the response will be stored | ignored on a `no-store` response and on a prefetch | `server/loaders/defer.test.ts` `call overrides route` |
+| the function | yes | — | `() => Promise<T>` | started or not, depending on the mode below | the function must not call `defer` again. A nested deferred is a dead object on the client | `server/loaders/defer.test.ts` `nested`; `tests/integration/defer.test.ts` `not stored` |
+| `key` | no | `d0`, `d1`, … per loader | a string unique inside that loader | the `c` frame's `k`, and the match id plus the key identify the value | two calls with the same key return the first promise and do not call the second function | `server/loaders/defer.test.ts` `dedupe`; `tests/integration/defer.test.ts` `key and prefetch` |
+| `prerender` | no | the route's `defer` field | `"resolve"`, `"stream"` | overrides the route for this call, and only when the response will be stored | ignored on a `no-store` response and on a prefetch | `server/loaders/defer.test.ts` `call overrides route`; `tests/integration/defer.test.ts` `stored modes` |
 
 ## Document response
 
 `createServer({ documentResponseDefer })` applies only when the response being rendered is the HTML document. The default is `"stream"`. `"buffer"` holds that document until every defer running for that render has settled, then sends one HTML document that contains the values. A rejection is the document error. A stored hit ignores the option and replays the stored body. A data request, a prefetch, and a client navigation ignore it. It does not change `cache.ssr.defer`, `cache.ssg.defer`, or `cache.isr.defer`. A stored `"stream"` write still stores the placeholder and does not run the function (B92).
 
-Tests: `server/navigation/response.test.ts` `document buffer`, `document stream`, `data ignores buffer`, `stored stream stays a hole`.
+Tests: `server/navigation/response.test.ts` `document buffer`, `document stream`, `data ignores buffer`, `stored stream stays a hole`; `tests/integration/defer.test.ts` `document buffer`, `not stored`.
 
 ## A response that is not stored
 
@@ -24,7 +24,7 @@ SSR with no `cache.ssr`, a private response, a `no-store` response. The function
 
 Prefetch (`_flare=prefetch`) does not call the function. The placeholder never resolves. The prefetch entry is the shell only. The real navigation runs the function.
 
-Tests: `server/loaders/defer.test.ts` `placeholder`, `client/navigation/prefetch.test.ts` `defer not run`, `server/navigation/response.test.ts` `order`.
+Tests: `server/loaders/defer.test.ts` `placeholder`, `client/navigation/prefetch.test.ts` `defer not run`, `server/navigation/response.test.ts` `order`; `tests/integration/defer.test.ts` `not stored`, `key and prefetch`.
 
 ## A response that will be stored
 
@@ -32,8 +32,8 @@ SSG, ISR build, ISR populate, and a shared SSR write. The route field `cache.ssg
 
 | mode | outcome | pitfall | test |
 | --- | --- | --- | --- |
-| `"resolve"` | the promise is awaited. The stored HTML and the stored NDJSON contain the value, not a placeholder: the stored state and each `l` frame carry it inline (`{ __deferred, key, value }`), the client's one source for it, and the stored NDJSON writes no `c` frame for it (BUGS.md 94). The value is then in a stored page twice, once in Solid's hydration data and once in the state: under brotli the second copy compresses to little, but gzip's 32 KB window cannot reach the first, so on a gzip-only CDN a multi-KB `"resolve"` value costs roughly its compressed size again, and a large one is cheaper as `"stream"`. A rejection fails the SSG build with the route id, and an ISR or SSR populate is not stored | a slow promise holds the build. That is the point: a stored page must not contain a hole | `server/cache/write.test.ts` `resolved defer`; `server/cache/serve.test.ts` `resolve runs once`; `vite/prerender/run.test.ts` `defer rejected` |
-| `"stream"` | the function is not run at store time. The stored HTML and NDJSON contain the placeholder and no `c` frame. After hydrate, and after a data landing whose `d` frame leaves a placeholder unfilled, the client requests `?_flare=fill` for that URL. A fill is its own URL so a CDN's public data copy, which holds the hole, cannot answer it. It commits once its last frame is in, so the commit never waits behind a pending value (BUGS.md 89). A fill runs only the page's holes, by the store write's own rule: a value the stored page carries inline runs nothing and travels as `{ __deferred, key, kept: true }`, and the client keeps the one promise the page shows; a `kept` value the page does not hold rejects, naming it (BUGS.md 94). It is `no-store`, renders live, never reads or writes the store, and commits without a history write | the field is empty for a user with no JavaScript. Do not put the page's primary content here | `server/cache/write.test.ts` `streamed defer`; `tests/e2e/navigation.test.ts` `stored stream fills` |
+| `"resolve"` | the promise is awaited. The stored HTML and the stored NDJSON contain the value, not a placeholder: the stored state and each `l` frame carry it inline (`{ __deferred, key, value }`), the client's one source for it, and the stored NDJSON writes no `c` frame for it (BUGS.md 94). The value is then in a stored page twice, once in Solid's hydration data and once in the state: under brotli the second copy compresses to little, but gzip's 32 KB window cannot reach the first, so on a gzip-only CDN a multi-KB `"resolve"` value costs roughly its compressed size again, and a large one is cheaper as `"stream"`. A rejection fails the SSG build with the route id, and an ISR or SSR populate is not stored | a slow promise holds the build. That is the point: a stored page must not contain a hole | `server/cache/write.test.ts` `resolved defer`; `server/cache/serve.test.ts` `resolve runs once`; `vite/prerender/run.test.ts` `defer rejected`; `tests/integration/defer.test.ts` `stored modes` |
+| `"stream"` | the function is not run at store time. The stored HTML and NDJSON contain the placeholder and no `c` frame. After hydrate, and after a data landing whose `d` frame leaves a placeholder unfilled, the client requests `?_flare=fill` for that URL. A fill is its own URL so a CDN's public data copy, which holds the hole, cannot answer it. It commits once its last frame is in, so the commit never waits behind a pending value (BUGS.md 89). A fill runs only the page's holes, by the store write's own rule: a value the stored page carries inline runs nothing and travels as `{ __deferred, key, kept: true }`, and the client keeps the one promise the page shows; a `kept` value the page does not hold rejects, naming it (BUGS.md 94). It is `no-store`, renders live, never reads or writes the store, and commits without a history write | the field is empty for a user with no JavaScript. Do not put the page's primary content here | `server/cache/write.test.ts` `streamed defer`; `tests/e2e/navigation.test.ts` `stored stream fills`; `tests/integration/defer.test.ts` `stored modes` |
 
 One route may mix them. A call with `prerender: "resolve"` is awaited even when the route says `"stream"`, and the opposite too.
 
@@ -65,6 +65,6 @@ The client builds the promise when it applies the `l` placeholder. A `c` frame r
 
 `<Errored>` around the slot renders its fallback for that rejection. The route `errorRender` is not called, and a sibling `<Loading>` still swaps. An uncaught rejection is a failure of that match, and the walk in `dx/builder.md` runs (B77). A loader `e` frame has no `k` and is that walk as soon as it arrives.
 
-Tests: `server/render/document.test.ts` `two fragments`, `reject keeps shell`. `client/navigation/navigate-slots.test.ts` `two slots`, `slot catches`, `slot escapes`. `tests/e2e/navigation.test.ts` `two skeletons`.
+Tests: `server/render/document.test.ts` `two fragments`, `reject keeps shell`. `client/navigation/navigate-slots.test.ts` `two slots`, `slot catches`, `slot escapes`. `tests/e2e/navigation.test.ts` `two skeletons`; `tests/integration/defer.test.ts` `component reads`.
 
 A client cache entry that still holds a placeholder is not reused unless the route sets `cache.client.cacheDeferred: true` (`cache.md`).

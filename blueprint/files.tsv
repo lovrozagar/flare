@@ -737,6 +737,7 @@ packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported co
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
 packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
+packages/core/tests/integration/defer.test.ts	P15	test	node	`defer` through the real createServer, and `useDeferred` through the browser harness in every engine (B96, dx/defer.md)
 packages/core/tests/integration/flare-page.test.ts	P15	test	node	flarePage over a real page the harness serves and hydrates, in every engine (B96, dx/testing.md)
 packages/core/tests/e2e/docs-resilience.test.ts	P15	test	node	Playwright: deploy and chunk reloads, network failure, aborts, overlay history, concurrent misses, negotiation, CSRF headers, a phone
 packages/core/src/vite/plugin/cloudflare.ts	P16	src	vite	Find the app's own Cloudflare plugin and check it runs on ssr with flare's worker entry as Wrangler main (B109)

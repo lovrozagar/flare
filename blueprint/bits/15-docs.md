@@ -119,6 +119,18 @@ docs-features `page state` (e2e): `flarePage(page).load` of `/docs/routing`, the
 | `node trust proxy` | production stubbed (`DEV` false, `PROD` true), `X-Forwarded-Proto: https`, with `{ trustProxy: 1 }` and then without | `https:` and production HSTS, then `http:` and none (bite: a listener that ignores the option fails) |
 | `bun serve` | under the Bun runtime only: a real `Bun.serve` over `createBunFetch(server, { trustProxy: 1 })` | the 128 MiB ceiling, the page, a trusted hop's `https:`, and the echoed body |
 
+## `tests/integration/defer.test.ts` (B96)
+
+The real `createServer` with a full-document root (B46), and one browser case through the harness's app mode.
+
+| test | case | result |
+| --- | --- | --- |
+| `not stored` | a live page deferring `reviews` (keyed, 40 ms) and an unkeyed value, read through `useDeferred` in `<Loading>`: its data response, then its document | `l` frames with `{ __deferred, key }` placeholders (`reviews`, then `d0`), `r`, one `c` per value in settle order, `d`; the document's first chunk has the placeholder and not the value, and a later chunk has it |
+| `key and prefetch` | two calls with one key: a prefetch, then a data request | the prefetch called neither and sent no `c` frame; the data request called only the first and sent one `c` (bite: the dedupe or the prefetch skip removed) |
+| `document buffer` | `documentResponseDefer: "buffer"` | the document's first chunk already holds the value and `</html>` |
+| `stored modes` | production stubbed, an `isr` route with `defer: "stream"`, one call left to the route and one with `prerender: "resolve"`, a memory store | COOP on the miss; the stored `l` frame holds the hole with `hole: true` and the resolved value inline, and no `c` frame; the fill sends the hole's `c` and the resolved one as `kept` |
+| `component reads` | in every engine: a page reading a 200 ms deferred value with `useDeferred` inside `<Loading>`, hydrated by the real `createClient` | no problems; the document has the fallback before the value; after hydrate the value shows and the fallback is gone (bite: `useDeferred` with `ssrSource: "client"` fails this and the document cases). A document-less root fails the streamed swap in hydrate, so the root writes the whole document |
+
 ## `tests/workerd/server.test.ts` (B96)
 
 The real `createServer` with a full-document root and the Cache API store, behind `createWorkersHandler`, bundled by `bun build` with the `worker` condition (Solid's server build) and run by Miniflare with an assets binding.
