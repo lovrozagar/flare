@@ -46,4 +46,9 @@
 	::view-transition-new(article) {
 		animation-duration: 0.2s;
 	}
+	/* An article only the old page has (a doc page left for home) would draw above the header at its old scroll offset
+	   while it fades, because a named group paints over the root. It leaves at once instead (BUGS.md 65). */
+	::view-transition-old(article):only-child {
+		display: none;
+	}
 }

@@ -13,7 +13,7 @@ import { createNavigationState } from "../navigation/pending.ts";
 import { createPopstate } from "../navigation/popstate.ts";
 import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts";
 import { loadDocument } from "../navigation/reload.ts";
-import { createScroll, type ScrollStore } from "../navigation/scroll.ts";
+import { createScroll, pageGrowth, type ScrollStore } from "../navigation/scroll.ts";
 import { cacheFor } from "../router/match-cache.ts";
 import { callServerFn, type CallDeps } from "../server-fn/call.ts";
 import { streamServerFn } from "../server-fn/stream.ts";
@@ -236,6 +236,7 @@ function browserScroll(router: Router): ScrollStore {
 			position: () => ({ x: window.scrollX, y: window.scrollY }),
 			scrollTo: (spot) => window.scrollTo(spot),
 			element: (id) => document.getElementById(id),
+			grown: pageGrowth(globalThis),
 		},
 	);
 	scroll.setup();

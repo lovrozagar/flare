@@ -65,6 +65,49 @@ test("pending read", async ({ page, docs }) => {
 	expect(problems).toEqual([]);
 });
 
+// The scroll a navigation makes is final when the view transition captures the new page: a card from a scrolled home
+// lands at the top in the transition's first frame, and Back from a scrolled doc page shows home at its saved
+// position in the first frame and after, with no jump (B108, BUGS.md 65).
+test("back keeps scroll", async ({ page, docs }) => {
+	await page.addInitScript(() => {
+		const seen: string[] = [];
+		Reflect.set(window, "__scroll", seen);
+		const start = Document.prototype.startViewTransition;
+		if (typeof start !== "function") return;
+		Document.prototype.startViewTransition = function (this: Document, arg?: never) {
+			const transition = start.call(this, arg);
+			void transition.ready.then(() => {
+				const old = getComputedStyle(document.documentElement, "::view-transition-old(article)").display;
+				Reflect.set(window, "__oldArticle", old);
+				seen.push(`ready ${Math.round(scrollY)}`);
+				requestAnimationFrame(() => seen.push(`frame ${Math.round(scrollY)}`));
+			});
+			return transition;
+		};
+	});
+	await open(page, docs.origin, "/");
+	await page.evaluate(() => window.scrollTo(0, 500));
+	await page.waitForTimeout(200);
+	const home = await page.evaluate(() => Math.round(scrollY));
+	expect(home).toBe(500);
+	await page.evaluate(() => document.querySelector<HTMLAnchorElement>("section.grid a")?.click());
+	await expect(page.locator("#doc-title")).toBeVisible();
+	await page.waitForTimeout(600);
+	const forward = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
+	expect(forward.filter((entry) => !entry.endsWith(" 0"))).toEqual([]);
+	await page.evaluate(() => window.scrollTo(0, 400));
+	await page.waitForTimeout(200);
+	await page.evaluate(() => history.back());
+	await expect(page.locator("section.grid a").first()).toBeVisible();
+	await page.waitForTimeout(600);
+	const back = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
+	expect(back.length).toBeGreaterThan(0);
+	expect(back).toEqual(back.map((entry) => `${entry.split(" ")[0]} ${home}`));
+	expect(await page.evaluate(() => Math.round(scrollY))).toBe(home);
+	// The article only the doc page had does not draw over home's header while it leaves (BUGS.md 65).
+	expect(await page.evaluate(() => Reflect.get(window, "__oldArticle"))).toBe("none");
+});
+
 test("disabled link", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/media");
 	const next = page.locator("#next");

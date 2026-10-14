@@ -1,5 +1,10 @@
-import { beforeEach, expect, it, vi } from "vitest";
-import { createScroll, isHashOnly, type ScrollEnv, type ScrollOptions } from "./scroll.ts";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { encodeFrame, type Frame } from "../../shared/protocol/index.ts";
+import { createPage } from "../../shared/route-builder/page.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
+import { mountNavigator, unmountAll } from "./navigate.fixture.ts";
+import { createScroll, isHashOnly, pageGrowth, type ScrollEnv, type ScrollOptions } from "./scroll.ts";
 
 type Spot = { left: number; top: number; behavior: ScrollBehavior };
 
@@ -181,4 +186,128 @@ it("encoded hash", () => {
 	scroll.afterCommit({ hash: "#%E0", scroll: true });
 	expect(intoCafe).toHaveBeenCalledOnce();
 	expect(intoBad).toHaveBeenCalledOnce();
+});
+
+const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
+const page = (id: string) => createPage(id as never).render(() => id);
+const transitioned = createRouter({
+	layouts: { _root_: root },
+	routeTree: [
+		{ id: "_root_/", path: "/", module: page("_root_/") },
+		{ id: "_root_/about", path: "/about", module: page("_root_/about") },
+	],
+	viewTransitions: true,
+});
+
+function frames(id: string): Response {
+	const list: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: id, d: null }, { t: "r" }, { t: "d" }];
+	return new Response(list.map(encodeFrame).join(""), { headers: { "content-type": "application/x-ndjson" } });
+}
+
+afterEach(() => {
+	unmountAll();
+	Reflect.deleteProperty(document, "startViewTransition");
+});
+
+// Every scroll a navigation makes is final when the view transition's update returns, so the new snapshot shows it:
+// the top on a forward step, the saved position on Back. Nothing scrolls after the update (B108, BUGS.md 65).
+it("scroll inside transition", async () => {
+	history.replaceState(null, "", "/");
+	const place = { x: 0, y: 500 };
+	const window = env(place);
+	window.scrollTo = (spot) => void (place.y = spot.top);
+	const atUpdate: number[] = [];
+	Reflect.set(document, "startViewTransition", (options: { update: () => void }) => {
+		options.update();
+		atUpdate.push(place.y);
+		const done = Promise.resolve();
+		return { ready: done, updateCallbackDone: done, finished: done, skipTransition: () => undefined };
+	});
+	const scroll = createScroll(defaults, window);
+	const app = await mountNavigator(
+		transitioned,
+		async (url) => frames(url.includes("/about") ? "_root_/about" : "_root_/"),
+		{
+			extra: { scroll },
+		},
+	);
+	await app.navigator.navigate({ to: "_root_/about" });
+	expect(atUpdate).toEqual([0]);
+	expect(place.y).toBe(0);
+	const popped = new Promise((resolve) => globalThis.addEventListener("popstate", resolve, { once: true }));
+	history.back();
+	await popped;
+	// As the client's popstate handler does: the history index follows the browser, then the step restores.
+	app.deps.history.pop(history.state);
+	await app.navigator.restore("/", app.deps.history.index());
+	expect(atUpdate).toEqual([0, 500]);
+	expect(place.y).toBe(500);
+});
+
+// A saved position deeper than the page can scroll at commit is restored as far as it can be, then again each time the
+// page grows, until it is reached; the next navigation's scroll ends the wait (B108).
+it("restore grows", () => {
+	const page = { height: 300 };
+	const place = { x: 0, y: 500 };
+	const window = env(place);
+	window.scrollTo = (spot) => void (place.y = Math.min(spot.top, page.height));
+	let grow: (() => void) | undefined;
+	const stop = vi.fn<() => void>();
+	window.grown = (onGrow) => {
+		grow = onGrow;
+		return stop;
+	};
+	const scroll = createScroll(defaults, window);
+	scroll.save(4, at("/four"));
+	place.y = 0;
+	scroll.restore(4, at("/four"));
+	expect(place.y).toBe(300);
+	page.height = 400;
+	grow?.();
+	expect(place.y).toBe(400);
+	expect(stop).not.toHaveBeenCalled();
+	page.height = 900;
+	grow?.();
+	expect(place.y).toBe(500);
+	expect(stop).toHaveBeenCalledOnce();
+	// A restore still waiting ends at the next navigation's scroll.
+	page.height = 300;
+	scroll.restore(4, at("/four"));
+	scroll.afterCommit({ hash: "", scroll: false });
+	expect(stop).toHaveBeenCalledTimes(2);
+	scroll.save(5, at("/five"));
+	expect(stop).toHaveBeenCalledTimes(2);
+});
+
+// The window's growth signal: the document element's size, until user input or 10 s; none without ResizeObserver.
+it("page growth", () => {
+	vi.useFakeTimers();
+	const observed: Element[] = [];
+	let resized: (() => void) | undefined;
+	const disconnect = vi.fn<() => void>();
+	class Observer {
+		constructor(callback: () => void) {
+			resized = callback;
+		}
+		observe(element: Element) {
+			observed.push(element);
+		}
+		disconnect = disconnect;
+	}
+	vi.stubGlobal("ResizeObserver", Observer);
+	const grown = pageGrowth(globalThis);
+	const onGrow = vi.fn<() => void>();
+	const stop = grown?.(onGrow);
+	expect(observed).toEqual([document.documentElement]);
+	resized?.();
+	expect(onGrow).toHaveBeenCalledOnce();
+	globalThis.dispatchEvent(new Event("wheel"));
+	expect(disconnect).toHaveBeenCalledOnce();
+	grown?.(onGrow);
+	vi.advanceTimersByTime(10_000);
+	expect(disconnect).toHaveBeenCalledTimes(2);
+	stop?.();
+	vi.unstubAllGlobals();
+	vi.useRealTimers();
+	expect(pageGrowth({ ...globalThis, ResizeObserver: undefined } as unknown as typeof globalThis)).toBeUndefined();
 });

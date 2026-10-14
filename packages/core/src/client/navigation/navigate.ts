@@ -173,8 +173,12 @@ async function settle(
 		return true;
 	}
 	const next = nextSnapshot(deps, { target, chain: settled.chain, arrival, previous });
-	// The DOM updates, in a view transition when one is on, then history and scroll, once the commit is on screen (B106).
+	const step = { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" };
+	keepPosition(deps, previous.location, step);
+	// The DOM updates, in a view transition when one is on, and every scroll is final before the update returns, so the
+	// new snapshot shows it (B108). A commit Solid holds scrolls when it shows. History moves once it is on screen (B106).
 	let shown = Promise.resolve(false);
+	let scrolled = false;
 	await runTransition({
 		option: transitionOption(plan.options.viewTransition, deps.router.viewTransitions),
 		info: transitionInfo(plan.direction, previous.overlay?.location ?? previous.location, target.location),
@@ -182,20 +186,33 @@ async function settle(
 		update: () => {
 			shown = deps.store.commit(next);
 			flush();
+			scrolled = deps.store.onScreen() === next;
+			if (scrolled) scrollFor(deps, target.location, step);
 		},
 	});
 	if (!(await shown)) return false;
-	land(deps, target, { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" });
+	land(deps, target, { ...step, scrolled });
 	return true;
 }
 
-function land(deps: NavigatorDeps, target: { url: string; location: Location }, step: Step): void {
-	if (step.pop) return deps.scroll.restore(deps.history.index(), target.location);
-	if (step.write) writeHistory(deps, target.url, step.options);
-	deps.scroll.afterCommit({ hash: target.location.hash, scroll: step.options.scroll !== false });
+// The page being left keeps its position, read before the DOM changes. A pop's was kept at popstate.
+function keepPosition(deps: NavigatorDeps, left: Location, step: Step): void {
+	if (!step.pop && step.write) deps.scroll.save(deps.history.index(), left);
 }
 
-type Step = { options: NavigateOptions; pop: boolean; write: boolean };
+// After a commit: a step forward writes history, then the page goes to its hash, its top, or a pop's saved position.
+function land(deps: NavigatorDeps, target: { url: string; location: Location }, step: Step): void {
+	if (!step.pop && step.write) writeHistory(deps, target.url, step.options);
+	if (step.scrolled !== true) scrollFor(deps, target.location, step);
+}
+
+function scrollFor(deps: NavigatorDeps, location: Location, step: Step): void {
+	if (step.pop) return deps.scroll.restore(deps.history.index(), location);
+	deps.scroll.afterCommit({ hash: location.hash, scroll: step.options.scroll !== false });
+}
+
+// `scrolled`: the scroll already ran inside the transition's update (B108).
+type Step = { options: NavigateOptions; pop: boolean; write: boolean; scrolled?: boolean };
 
 // A hash move and a shallow navigation stay on the page: no request and no loader. A shallow one asks the blocker
 // first, and the page's search becomes the call's, the validator output the URL was written from, since the client
@@ -215,8 +232,10 @@ function inPlace(
 		const search = { ...target.search } as OutletMatch["search"];
 		matches = matches.map((match, index) => (index === matches.length - 1 ? { ...match, search } : match));
 	}
+	const moved = { options: step.options, pop: step.pop, write: true };
+	keepPosition(deps, snapshot.location, moved);
 	void deps.store.commit({ ...snapshot, location: target.location, matches });
-	land(deps, target, { options: step.options, pop: step.pop, write: true });
+	land(deps, target, moved);
 	return deps.history.index();
 }
 
@@ -264,7 +283,6 @@ function follow(deps: NavigatorDeps, url: string, next: () => Promise<void>): Pr
 }
 
 function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions): void {
-	deps.scroll.save(deps.history.index(), deps.store.snapshot().location);
 	if (options.replace === true) deps.history.replace(url, options.state);
 	else deps.history.push(url, options.state);
 }

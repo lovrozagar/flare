@@ -32,6 +32,8 @@ export type RouterStore = {
 	outlet: () => OutletState;
 	// Resolves true once that snapshot is on screen, or false when a newer commit replaced it first (B106).
 	commit: (next: StoreSnapshot) => Promise<boolean>;
+	// The snapshot the DOM shows: the last commit Solid did not hold.
+	onScreen: () => StoreSnapshot;
 	scopeAt: (depth: number) => Element | Document;
 };
 
@@ -45,8 +47,10 @@ const NAMED: Record<string, number> = { NotFoundError: 404, UnauthenticatedError
 export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (error: unknown) => void): RouterStore {
 	const [snapshot, setSnapshot] = createSignal(initial);
 	const waiting: { snapshot: StoreSnapshot; shown: (on: boolean) => void }[] = [];
+	let onScreen = initial;
 	createRoot(() =>
 		createEffect(snapshot, (shown) => {
+			onScreen = shown;
 			const at = waiting.findIndex((entry) => entry.snapshot === shown);
 			for (const entry of waiting.splice(0, at + 1)) entry.shown(entry.snapshot === shown);
 		}),
@@ -68,6 +72,7 @@ export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (erro
 			setSnapshot(next);
 			return promise;
 		},
+		onScreen: () => onScreen,
 		// The innermost boundary around the outlet at that depth, or the document.
 		scopeAt: (depth) => slots.get(depth)?.() ?? document,
 	};

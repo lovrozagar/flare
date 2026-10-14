@@ -235,6 +235,8 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `bad storage` | a corrupt, non-list, or unreadable store, or a write that throws | it counts as empty, the write is skipped, and nothing throws into the navigation |
 | `encoded hash` | `#caf%C3%A9`, and a malformed `#%E0` | the element `café` is found, and the malformed one is looked up as written |
 | `scroll inside transition` | a navigation run through a view transition (a stub `startViewTransition` that records scrollY when its update callback returns), forward from scrollY 500 to a page without a hash, then Back | the recorded scrollY is 0 on the forward step and 500 on Back, both at the moment the update returns; nothing scrolls after it (B108, BUGS.md 65) |
+| `restore grows` | a saved position of 500 on a page that can scroll to 300 at commit, then grows to 400 and to 900 | the restore reaches 300, then 400, then 500, and stops watching once reached; a restore still waiting ends at the next navigation's scroll (B108) |
+| `page growth` | the window's growth signal with a stubbed ResizeObserver, then a wheel event, then 10 s | it observes the document element, calls back on a resize, and stops on user input or after 10 s; without ResizeObserver there is none (B108) |
 
 ### `client/navigation/blocker.test.ts`
 
