@@ -18,6 +18,7 @@ import { fontsPlugin } from "./fonts.ts";
 import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
 import { readWrangler } from "./wrangler.ts";
 import { realPath } from "./real-path.ts";
+import { preloadPlugin } from "./preload.ts";
 import { workersDevPlugins } from "./workers-dev.ts";
 import { parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts";
 
@@ -67,6 +68,7 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 	const image = parsed.image;
 	return [
 		chunks(),
+		preloadPlugin(parsed.entry.client),
 		boundary(),
 		...(image === undefined ? [] : [imagePlugin(image, parsed.assetsBase)]),
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
