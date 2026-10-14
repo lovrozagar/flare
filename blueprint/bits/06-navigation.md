@@ -282,7 +282,8 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
-| `all modules` | the default router, after idle | a prefetch link for every route chunk, and no `/_flare=prefetch` request |
+| `all modules` | the default router, after idle | a prefetch link for every route chunk not yet imported, and no `/_flare=prefetch` request |
+| `loaded chunks skipped` | lazy root, home, about, and slow, with slow in home's file, after `/`'s chain loaded | one prefetch link, for about's file: a file holding a loaded module is not fetched again (BUGS.md 80) |
 | `intent` | an anchor watched with `"intent"` is hovered (the binding `Link` uses) | the module import and one `/path?_flare=prefetch` while it is in flight. A foreign href and a stopped watch prefetch nothing |
 | `object leaves the other field` | `<Link prefetch={{ data: "intent" }} />` on the default router | data on hover. Modules stay `"all"` |
 | `route string` | the route sets `prefetch: "viewport"` | both modules and data wait for the viewport. It is not modules-only |

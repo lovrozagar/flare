@@ -19,13 +19,13 @@ A trigger is `false`, `"intent"` (pointer hover, focus, or touch), `"viewport"` 
 
 A string sets both fields to that trigger. An object sets the fields it names and leaves the other to the next layer. Precedence per field is link, then route, then router.
 
-`modules: "all"` is legal only on the router. After the window fires `load` and the browser is idle, every page and layout chunk is added as `<link rel="prefetch" as="script" crossorigin>`. The scripts are not executed. CSS is prefetched the same way. Lazy components inside a route are not in this list. They load when they render. Data Saver and a 2G connection skip `"all"` and prefetch modules for links in the viewport instead.
+`modules: "all"` is legal only on the router. After the window fires `load` and the browser is idle, every page and layout chunk the client has not imported yet is added as `<link rel="prefetch" as="script" crossorigin>`; a chunk file that holds a loaded module is skipped, since the browser already has it (BUGS.md 80). The scripts are not executed. CSS is prefetched the same way. Lazy components inside a route are not in this list. They load when they render. Data Saver and a 2G connection skip `"all"` and prefetch modules for links in the viewport instead.
 
 Hashed assets must be served `immutable`. A prefetched URL that the browser has to revalidate is downloaded twice.
 
 | case | outcome | test |
 | --- | --- | --- |
-| default router | no loader is prefetched, and after idle every route chunk is | `client/navigation/prefetch.test.ts` `all modules`; `client/boot/ready.test.ts` `all after idle` |
+| default router | no loader is prefetched, and after idle every route chunk is | `client/navigation/prefetch.test.ts` `all modules`, `loaded chunks skipped`; `client/boot/ready.test.ts` `all after idle` |
 | `<Link prefetch="intent" />` | hover loads modules and data | `link.test.tsx` `intent` |
 | `<Link prefetch={{ data: "intent" }} />` | data on hover. Modules stay at the inherited value | `prefetch.test.ts` `object leaves the other field` |
 | `<Link prefetch={false} />` | this link prefetches nothing | `link.test.tsx` `off` |

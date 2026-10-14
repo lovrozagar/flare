@@ -2,8 +2,8 @@ import { defined } from "../../shared/errors/index.ts";
 import { parseDuration } from "../../shared/duration/index.ts";
 import { BUILD_HEADER } from "../../shared/protocol/index.ts";
 import type { PrefetchTrigger, RoutePrefetch } from "../../shared/route-builder/index.ts";
-import type { Router } from "../../shared/router/create-router.ts";
-import { loadChain } from "../../shared/router/load-chain.ts";
+import type { ModuleRef, Router } from "../../shared/router/create-router.ts";
+import { loadChain, loadedModule } from "../../shared/router/load-chain.ts";
 import type { Location } from "../../shared/url/index.ts";
 import { clientOf } from "../router/match-cache.ts";
 import { framesOf, landFrames, type Landed, type LandOptions } from "./frames.ts";
@@ -78,7 +78,7 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 	return {
 		all() {
 			if (lowData(deps.env.network)) return;
-			for (const href of new Set(Object.values(deps.router.chunks))) deps.env.head.append(prefetchLink(href));
+			for (const href of unloadedChunks(deps.router)) deps.env.head.append(prefetchLink(href));
 		},
 		watch(element, href, input) {
 			const target = local(href, deps);
@@ -103,6 +103,23 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 			return entry === undefined || expired(entry) ? undefined : entry.landing;
 		},
 	};
+}
+
+// Every route chunk file the client has not imported. A file one of whose modules is loaded is in the module map
+// already, and a prefetch would fetch it again (BUGS.md 80).
+function unloadedChunks(router: Router): Set<string> {
+	const modules = new Map<string, ModuleRef>(Object.entries(router.layouts));
+	for (const node of router.routeTree) modules.set(node.id, node.module);
+	const entries = Object.entries(router.chunks);
+	const loaded = new Set(
+		entries
+			.filter(([id]) => {
+				const ref = modules.get(id);
+				return ref !== undefined && loadedModule(ref) !== undefined;
+			})
+			.map(([, href]) => href),
+	);
+	return new Set(entries.map(([, href]) => href).filter((href) => !loaded.has(href)));
 }
 
 // Only a same-origin route prefetches. Another origin, or a URL that does not parse, does not (dx/link.md).
