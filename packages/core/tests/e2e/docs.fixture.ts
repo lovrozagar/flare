@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
-import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
+import { expect, test as base } from "./crash.ts";
 import { flarePage } from "../../src/testing/index.ts";
 import { boot, type Boot } from "./boot.ts";
 

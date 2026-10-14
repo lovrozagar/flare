@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./crash.ts";
 import { artifactPath } from "../../src/shared/cache/artifact-path.ts";
 import { boot, type Boot } from "./boot.ts";
 

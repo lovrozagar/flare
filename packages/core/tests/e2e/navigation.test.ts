@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
+import { expect, test } from "./crash.ts";
 import { boot, type Boot } from "./boot.ts";
 
 // Client navigation on the minimal app's real dev path (B70): flare() serves src/server.ts and the client hydrates.

@@ -116,4 +116,4 @@ The hydrate harness (`bits/15-docs.md`) and the e2e global setup both take their
 | test | case | result |
 | --- | --- | --- |
 | `grid projects` | `playwright.config.ts` with no `--project` | all 18 projects on any machine, Linux or macOS (B70: the browsers come from the pinned image, so the OS does not choose them). CI's `e2e-mac` job names the 6 webkit projects with `--project`, as the Safari-engine check |
-| `crash fails` | the docs fixture | a page `crash` event fails the test that owned the page (plan 14 leaf 4.6) |
+| `crash fails` | `crashWatch` (`tests/e2e/crash.ts`) over a context with a page, then a page it opens | a `crash` event on either fails the check, naming every crashed URL. Every e2e spec's `test`, the docs fixture's included, runs the watch around each case on its context, so a crash fails the case that owned the page even when the case never touched it again (plan 14 leaf 4.6); a Chromium page sent to `chrome://crash` failed its case with `A page crashed` |
