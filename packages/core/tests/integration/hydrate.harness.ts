@@ -74,6 +74,9 @@ const TYPES: Record<Engine, BrowserType> = { chromium, firefox, webkit };
 export async function startHarness(core: string): Promise<Harness> {
 	const cases = new Map<string, string>();
 	const cacheDir = mkdtempSync(join(tmpdir(), "flare-hydrate-"));
+	// The page's Vite client opens its socket on this server, the page's own origin. On Vite's default HMR port it would
+	// reach whatever else listens there, and a foreign server closing it fails every case with a pageerror.
+	const http = createHttpServer();
 	const vite = await createServer({
 		configFile: false,
 		root: core,
@@ -81,13 +84,13 @@ export async function startHarness(core: string): Promise<Harness> {
 		logLevel: "silent",
 		appType: "custom",
 		plugins: [casePlugin(cases)],
-		server: { middlewareMode: true, hmr: false, watch: null },
+		server: { middlewareMode: true, hmr: { server: http }, watch: null },
 		// The browser loads Solid's ES modules as they are, so no prebundle can reload a page mid-case.
 		optimizeDeps: { noDiscovery: true, include: [] },
 		// Vite's runner evaluates every dependency itself, so the server side resolves one consistent Solid build.
 		ssr: { noExternal: true },
 	});
-	const http = await listen(vite, cases);
+	await listen(http, vite, cases);
 	const origin = `http://127.0.0.1:${portOf(http)}`;
 	const source = await browserSource();
 	const browsers = new Map<Engine, Browser>();
@@ -152,8 +155,8 @@ function clientModule(id: string): string {
 	].join("\n");
 }
 
-async function listen(vite: ViteDevServer, cases: Map<string, string>): Promise<Server> {
-	const http = createHttpServer((req, res) => {
+async function listen(http: Server, vite: ViteDevServer, cases: Map<string, string>): Promise<void> {
+	http.on("request", (req, res) => {
 		const id = /^\/case\/(\w+)$/.exec(req.url ?? "")?.[1];
 		if (id === undefined || !cases.has(id)) return vite.middlewares(req, res);
 		void documentOf(vite, id).then(
@@ -168,7 +171,6 @@ async function listen(vite: ViteDevServer, cases: Map<string, string>): Promise<
 		);
 	});
 	await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
-	return http;
 }
 
 function portOf(http: Server): number {
