@@ -28,8 +28,9 @@ export type RouteModule = ChainRecord & {
 	boundaries?: BoundaryRecord;
 };
 
-// A route module, or the lazy import codegen emits for it. loadChain awaits it (02-system step 10).
-export type ModuleRef = RouteModule | (() => Promise<RouteModule>);
+// A route module, or the lazy import codegen emits for it, which resolves to the module's namespace, whose record is its
+// `route` export (a hand-written ref may resolve to the record). loadChain awaits it (02-system step 10).
+export type ModuleRef = RouteModule | (() => Promise<RouteModule | { route?: RouteModule }>);
 
 export type LayoutModule = ModuleRef;
 
@@ -180,32 +181,6 @@ function resolve(router: Router, path: string): Match {
 	const owner = notFoundOwner(router, local ?? path);
 	if (owner === undefined) return { params: {}, chain: [] };
 	return { params: {}, chain: layoutChain(router.layouts, owner) };
-}
-
-// Awaits every lazy module of a chain, in parallel. A rejected import rejects the whole chain.
-export function loadChain(chain: readonly ChainEntry[]): Promise<LoadedEntry[]> {
-	return Promise.all(
-		chain.map(async (entry) => {
-			const module = await load(entry.module);
-			const kind = Reflect.get(module, "_type") === "segment" ? "segment" : entry.kind;
-			return { ...entry, kind, module };
-		}),
-	);
-}
-
-const imported = new WeakMap<() => Promise<RouteModule>, RouteModule>();
-
-async function load(ref: ModuleRef): Promise<RouteModule> {
-	if (typeof ref !== "function") return ref;
-	const module = await ref();
-	imported.set(ref, module);
-	return module;
-}
-
-// The record behind a ModuleRef once loadChain imported it, so a later navigation reads its effects without
-// waiting for the import again.
-export function loadedModule(ref: ModuleRef): RouteModule | undefined {
-	return typeof ref === "function" ? imported.get(ref) : ref;
 }
 
 // An unknown URL paints the selected layout's notFoundRender, else its root's (B77).

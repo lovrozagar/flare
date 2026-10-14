@@ -138,6 +138,8 @@ packages/core/src/shared/router/context.ts	P1	src	shared	Router context. The val
 packages/core/src/shared/router/context.test.ts	P1	test	shared	Unit cases for context.ts
 packages/core/src/shared/router/create-router.ts	P1	src	shared	createRouter. Holds the tree, base path, client cache defaults, and theme and direction config. Does not import those features
 packages/core/src/shared/router/create-router.test.ts	P1	test	shared	Unit cases for create-router.ts
+packages/core/src/shared/router/load-chain.ts	P6	src	shared	loadChain awaits a chain's lazy route modules and reads a namespace's `route`, waiting for it in dev (BUGS.md 73); loadedModule
+packages/core/src/shared/router/load-chain.test.ts	P6	test	shared	Unit cases for load-chain.ts
 packages/core/src/shared/router/features.ts	P13	src	shared	Parse the theme, direction, and locale configs createRouter stores. A bad value throws at createRouter
 packages/core/src/shared/router/features.test.ts	P13	test	shared	Unit cases for features.ts
 packages/core/src/shared/router/fold.ts	P2	src	shared	foldCase: the path in the matched route's spelling. Static segments and a configured locale tag take their spelling. Params and escapes stay (B22)

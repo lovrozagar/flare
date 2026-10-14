@@ -1,5 +1,6 @@
 import { expect, it } from "vitest";
-import { createRouter, loadChain, loadedModule, notFoundRenderOf, type Match } from "./create-router.ts";
+import { createRouter, notFoundRenderOf, type Match } from "./create-router.ts";
+import { loadChain, loadedModule } from "./load-chain.ts";
 import { cachedMatches } from "../../client/router/match-cache.ts";
 import { boundaryAt } from "../components/boundary.ts";
 import { createPathSegment } from "../route-builder/segment.ts";

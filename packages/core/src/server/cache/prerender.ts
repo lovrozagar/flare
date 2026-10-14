@@ -6,7 +6,8 @@ import type {
 	PrerenderResult,
 } from "../../shared/protocol/prerender.ts";
 import type { CacheConfig, ParamsFn } from "../../shared/route-builder/chain.ts";
-import { layoutChain, loadChain, type RouteModule, type RouteNode } from "../../shared/router/create-router.ts";
+import { layoutChain, type RouteModule, type RouteNode } from "../../shared/router/create-router.ts";
+import { loadChain } from "../../shared/router/load-chain.ts";
 import { patternSegments } from "../../shared/route-tree/index.ts";
 import { buildUrl } from "../../shared/url/href.ts";
 import { effectiveAuth } from "../auth/effective.ts";
