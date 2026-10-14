@@ -3,3 +3,9 @@ client.md#createClient#method:onReady	packages/core/tests/integration/client.tes
 client.md#createClient#method:onHydrated	packages/core/tests/integration/client.test.ts::ready then hydrated; packages/core/tests/integration/client.test.ts::idle after hydrated	packages/core/tests/e2e/docs-navigation.test.ts::lifecycle
 client.md#createClient#method:onIdle	packages/core/tests/integration/client.test.ts::idle after hydrated	packages/core/tests/e2e/docs-navigation.test.ts::lifecycle
 client.md#createClient#method:onInteraction	packages/core/tests/integration/client.test.ts::interaction once	packages/core/tests/e2e/docs-navigation.test.ts::lifecycle
+testing.md#createTestServer#	packages/core/src/testing/harness.test.ts::boots; packages/core/src/testing/harness.test.ts::server context	n/a: a helper an app's own tests call in their process, so no browser or HTTP client reaches it
+testing.md#flarePage#	packages/core/tests/integration/flare-page.test.ts::helper on a real page	packages/core/tests/e2e/docs-features.test.ts::theme no flash; packages/core/tests/e2e/docs-features.test.ts::page state
+testing.md#flarePage#method:load	packages/core/tests/integration/flare-page.test.ts::helper on a real page	packages/core/tests/e2e/docs-features.test.ts::theme no flash; packages/core/tests/e2e/docs-features.test.ts::page state
+testing.md#flarePage#method:consoleErrors	packages/core/tests/integration/flare-page.test.ts::helper on a real page	packages/core/tests/e2e/docs-features.test.ts::theme no flash; packages/core/tests/e2e/docs-features.test.ts::page state
+testing.md#flarePage#method:state	packages/core/tests/integration/flare-page.test.ts::helper on a real page	packages/core/tests/e2e/docs-features.test.ts::page state
+testing.md#The framework's e2e grid#	packages/core/tests/structure/grid.test.ts::grid projects; scripts/browser-server.test.ts::endpoint env	n/a: contributor tooling that runs the suite; no app's browser or HTTP client observes it

@@ -59,6 +59,19 @@ test("theme no flash", async ({ context, docs }: { context: BrowserContext; docs
 	expect(warnings).toEqual([]);
 });
 
+// flarePage reads the document's `self.flare` after a real load (dx/testing.md `state`): the docs page's matches, its
+// params, and its build.
+test("page state", async ({ page, docs }) => {
+	const helper = flarePage(page);
+	await helper.load(`${docs.origin}/docs/routing`);
+	const state = await helper.state();
+	const last = state.matches.at(-1);
+	expect(last?.id).toBe("[[locale]]/_root_/(guide)/docs/[slug]");
+	expect(last?.params).toEqual({ slug: "routing" });
+	expect(state.build).not.toBe("");
+	expect(helper.consoleErrors()).toEqual([]);
+});
+
 test("rtl client", async ({ page, docs }) => {
 	await flarePage(page).load(`${docs.origin}/`);
 	await expect(page.locator("html")).toHaveAttribute("dir", "ltr");
