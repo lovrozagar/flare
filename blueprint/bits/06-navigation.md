@@ -179,6 +179,8 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `slot catches` | a deferred `e`, and that slot is inside `<Errored>` | the `<Errored>` fallback is shown. The sibling slot still swaps when its `c` arrives. `errorRender` is not called. The overlay sender is not called |
 | `slot escapes` | a deferred `e`, and the slot has no `<Errored>` | the outlet paints the walked `errorRender` or the `Something went wrong` div. The layout render text stays. In dev the overlay sender is called |
 | `superseded resolves` | the first navigation has landed at `r` with its deferred values still streaming when a second navigation aborts its body; the second's response is held, then sent; a third is stopped by a blocker | until the second commits, the first page still shows its fallbacks: the aborted values stay pending, not failed. The first and third promises resolve, neither rejects, and no `unhandledrejection` fires. The second commits (B105, BUGS.md B58) |
+| `pending read commits` | a navigation to a page whose component reads a query that stays pending, under its own `<Loading>` | the page commits with that boundary's fallback and the rest of the page in one commit, the history entry is pushed with that commit (not before), and the location every `Link` reads is the new one (B106, BUGS.md 62) |
+| `supersede pending read` | while that page is committed with its read pending, a second navigation to another page | the second page commits, exactly one link is active, the URL is the second page's, and no error escapes (B106) |
 
 ### `client/navigation/pending.test.ts`
 
