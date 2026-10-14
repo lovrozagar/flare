@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cpSync, existsSync } from "node:fs";
+import * as nodeModule from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
@@ -73,7 +74,12 @@ it(
 
 it("bun", () => served("bun", "prod", threeRequests), RUN);
 
-it("workers", () => served("workers", "prod", threeRequests), RUN);
+// The Workers build composes the Cloudflare plugin, which needs node:module's registerHooks: the Bun run skips it (B109).
+it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
+	"workers",
+	() => served("workers", "prod", threeRequests),
+	RUN,
+);
 
 // The packed code's `import.meta.env?.DEV` is replaced on both graphs under `vite dev`: the server answers with the
 // dev policy and the csp-nonce meta, Stylesheet renders nothing, and the client hydrates cleanly.

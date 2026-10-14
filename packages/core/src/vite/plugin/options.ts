@@ -9,14 +9,7 @@ export type FlareOptions = {
 	css?: { reset?: boolean };
 	broadcast?: boolean;
 	fonts?: { dir: string };
-	workersDev?: boolean | WorkersDevOptions;
 };
-
-// The Workers dev seam's own options, passed through to the Cloudflare plugin (B95, BUGS.md 85). `inspectorPort`: a
-// port, 0 for one the OS assigns, or false for none; absent, 9229 or the next free one. `persistState`: false keeps
-// the worker's state in memory, `{ path }` puts it there; absent, `.wrangler/state` in the app, which two dev servers
-// of one app then share.
-export type WorkersDevOptions = { inspectorPort?: number | false; persistState?: boolean | { path: string } };
 
 export type ParsedOptions = {
 	assetsBase: string;
@@ -26,10 +19,9 @@ export type ParsedOptions = {
 	css: { reset: boolean };
 	broadcast: boolean;
 	fonts?: { dir: string } | undefined;
-	workersDev: false | WorkersDevOptions;
 };
 
-const KNOWN = new Set(["assetsBase", "entry", "image", "prerender", "css", "broadcast", "fonts", "workersDev"]);
+const KNOWN = new Set(["assetsBase", "entry", "image", "prerender", "css", "broadcast", "fonts"]);
 const WIDTHS = [640, 750, 828, 1080, 1200, 1920];
 const ENTRY = { client: "src/client.tsx", server: "src/server.ts" };
 
@@ -49,7 +41,6 @@ export function parseOptions(input?: FlareOptions): ParsedOptions {
 		css: parseCss(options.css),
 		broadcast: parseBroadcast(options.broadcast),
 		fonts: parseFonts(options.fonts),
-		workersDev: parseWorkersDev(options.workersDev),
 	};
 }
 
@@ -125,34 +116,4 @@ function parseBroadcast(value: boolean | undefined): boolean {
 	if (typeof value === "boolean") return value;
 	if (value === undefined) return true;
 	throw new Error("broadcast");
-}
-
-// Off unless `true` or an options object: a Workers dev boot is slower, and an app with a wrangler config may still
-// develop on Node (B95).
-function parseWorkersDev(value: boolean | WorkersDevOptions | undefined): false | WorkersDevOptions {
-	if (value === undefined || value === false) return false;
-	if (value === true) return {};
-	if (typeof value !== "object" || value === null || Object.keys(value).some((key) => !WORKERS_DEV.has(key))) {
-		throw new Error("workersDev");
-	}
-	const { inspectorPort, persistState } = value;
-	if (inspectorPort !== undefined && !isInspectorPort(inspectorPort)) throw new Error("workersDev");
-	if (persistState !== undefined && !isPersistState(persistState)) throw new Error("workersDev");
-	return {
-		...(inspectorPort === undefined ? {} : { inspectorPort }),
-		...(persistState === undefined ? {} : { persistState }),
-	};
-}
-
-const WORKERS_DEV = new Set(["inspectorPort", "persistState"]);
-
-function isInspectorPort(value: unknown): boolean {
-	return value === false || (Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 65535);
-}
-
-function isPersistState(value: unknown): boolean {
-	if (typeof value === "boolean") return true;
-	if (typeof value !== "object" || value === null || Object.keys(value).some((key) => key !== "path")) return false;
-	const path: unknown = Reflect.get(value, "path");
-	return typeof path === "string" && path !== "";
 }

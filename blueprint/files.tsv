@@ -596,6 +596,7 @@ packages/core/src/exports/adapters-node.ts	P1	index	-	Node adapter
 packages/core/src/exports/vite.ts	P1	index	-	flare plugin. Composes feature vite factories
 packages/core/src/exports/adapters-bun.ts	P3	index	-	Bun adapter
 packages/core/src/exports/adapters-workers.ts	P3	index	-	Workers adapter
+packages/core/src/exports/worker.ts	P16	index	-	The Wrangler main under the Cloudflare plugin (B109)
 packages/core/src/exports/server-fn.ts	P7	index	-	createServerFn bound to the in-request call. The default and workerd conditions
 packages/core/src/exports/server-fn-client.ts	P7	index	-	createServerFn bound to the booted transport. The browser and worker conditions
 packages/core/src/exports/stores-fs.ts	P10	index	-	Filesystem store
@@ -720,8 +721,10 @@ packages/core/tests/integration/docs.test.ts	P15	test	node	createTestServer over
 packages/core/tests/integration/hydrate.harness.ts	P15	test	node	SSR then hydrate in one test: the lockfile's Vite in middleware mode renders the tree with the server build through its SSR runner and serves that HTML with a client entry; a real browser from the B70 pinned image (chromium, firefox, and webkit) loads it and hydrates with the client build, and Solid's hydration and strict-read console messages are collected (B96)
 packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported component and hook round-trips SSR to hydrate with no hydration warning, key miss, unclaimed node, or untracked strict read (B96)
 packages/core/tests/e2e/docs-resilience.test.ts	P15	test	node	Playwright: deploy and chunk reloads, network failure, aborts, overlay history, concurrent misses, negotiation, CSRF headers, a phone
-packages/core/src/vite/plugin/workers-dev.ts	P16	src	vite	Compose @cloudflare/vite-plugin first for flare({ workersDev: true }), or name the install when it is missing (B95)
-packages/core/src/vite/plugin/workers-dev.test.ts	P16	test	vite	Unit cases for workers-dev.ts
+packages/core/src/vite/plugin/cloudflare.ts	P16	src	vite	Find the app's own Cloudflare plugin and check it runs on ssr with flare's worker entry as Wrangler main (B109)
+packages/core/src/vite/plugin/cloudflare.test.ts	P16	test	vite	Unit cases for cloudflare.ts, and a real Workers run
+packages/core/src/vite/plugin/worker-main.ts	P16	src	vite	The Wrangler main's own module: flare() resolves the specifier inside Vite, and loading it anywhere else throws (B109)
+packages/core/src/vite/plugin/worker-main.test.ts	P16	test	vite	Unit cases for worker-main.ts
 packages/core/src/vite/plugin/preload.ts	P16	src	vite	The client build's modulepreload lists leave out the client entry's static import closure (BUGS.md 79)
 packages/core/src/vite/plugin/preload.test.ts	P16	test	vite	Unit cases for preload.ts
 packages/core/src/vite/dev/dev-head.ts	P16	src	vite	devHead: the tags transformIndexHtml adds to an empty document, computed at dev server start (B95)

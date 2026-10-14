@@ -34,6 +34,8 @@ export type RunInput = {
 	hint: (id: string) => AuthHint | undefined;
 	write: (key: string, entry: PrerenderEntry) => Promise<unknown>;
 	writeFile: (name: string, body: string) => Promise<unknown>;
+	// A Workers app's server, prerendered on Node (B109): a failed page names the binding cause.
+	workers?: boolean;
 };
 
 export type RunResult = { code: 0 | 1; stderr: string[] };
@@ -65,7 +67,7 @@ export async function runPrerender(input: RunInput): Promise<RunResult> {
 	const problems: string[] = [];
 	const written: Written[] = [];
 	const rendered: Rendered[] = [];
-	for (const done of results) settle({ ...done, problems, written, rendered });
+	for (const done of results) settle({ ...done, problems, written, rendered, workers: input.workers === true });
 	if (problems.length > 0) return failed(problems);
 	const map = await sitemapOf(input, input.config.sitemap, rendered);
 	if (map.errors.length > 0) return failed(map.errors);
@@ -122,12 +124,24 @@ async function inGroups<T, R>(items: readonly T[], size: number, run: (item: T) 
 	return results;
 }
 
-type Settle = { job: Job; result: PrerenderResult; problems: string[]; written: Written[]; rendered: Rendered[] };
+type Settle = {
+	job: Job;
+	result: PrerenderResult;
+	problems: string[];
+	written: Written[];
+	rendered: Rendered[];
+	workers: boolean;
+};
+
+// A Workers app prerenders on Node (B109): a loader that needs a binding fails there, and this says why.
+const WORKERS_CAUSE =
+	"prerender runs the server on Node at build time, with no Workers binding (KV, D1, R2, caches). A route whose " +
+	"loader needs one cannot be prerendered: mark it ssr or isr";
 
 function settle(at: Settle): void {
 	const where = `${at.job.id} ${JSON.stringify(at.job.params)}`;
 	const { status, key, entry } = at.result;
-	if (status !== 200) at.problems.push(`${where} answered ${status}`);
+	if (status !== 200) at.problems.push(`${where} answered ${status}${at.workers ? `: ${WORKERS_CAUSE}` : ""}`);
 	else if (key === undefined || entry === undefined) at.problems.push(`${where} rendered nothing storable`);
 	else {
 		at.written.push({ key, entry });
@@ -141,6 +155,7 @@ export type AppInput = {
 	clientDir: string;
 	assetsBase: string;
 	config: PrerenderConfig | false;
+	workers?: boolean;
 };
 
 // After the server build: load the built server, check its pages against the codegen hints, render, and write the
@@ -155,6 +170,7 @@ export async function prerenderApp(input: AppInput): Promise<void> {
 		hint: hintsOf(input.root),
 		write: (key, entry) => writeSeed({ clientDir: input.clientDir, assetsBase: input.assetsBase, key, entry }),
 		writeFile: (name, body) => writeFile(join(input.clientDir, name), body),
+		workers: input.workers === true,
 	});
 	if (result.code !== 0) throw new Error(`prerender failed\n${result.stderr.join("\n")}`);
 }

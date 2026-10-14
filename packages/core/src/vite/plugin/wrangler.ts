@@ -1,12 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-// The fields flare reads from the app's Workers config: the assets binding the worker entry forwards to, and what a
-// local runtime needs to start it. Nothing else of the file is read.
-export type WorkersConfig = { binding?: string; compatibilityDate?: string; compatibilityFlags: string[] };
+// The fields flare reads from the app's Workers config under the Cloudflare plugin (B109): its `main`, which must be
+// flare's worker entry, and the assets binding that entry forwards to. Nothing else of the file is read.
+export type WorkersConfig = { binding?: string; main?: string };
 
-// The worker environment exists when the root has `wrangler.jsonc` or `wrangler.json`. A `wrangler.toml` throws:
-// flare reads two fields and takes no TOML dependency for them.
+// The app's `wrangler.jsonc` or `wrangler.json`, or undefined without one. A `wrangler.toml` throws: flare reads two
+// fields and takes no TOML dependency for them.
 export function readWrangler(root: string): WorkersConfig | undefined {
 	if (existsSync(join(root, "wrangler.toml"))) {
 		throw new Error("wrangler.toml is not read: write the Workers config as wrangler.jsonc");
@@ -19,13 +19,8 @@ export function readWrangler(root: string): WorkersConfig | undefined {
 	}
 	const assets: unknown = Reflect.get(parsed, "assets");
 	const binding = typeof assets === "object" && assets !== null ? Reflect.get(assets, "binding") : undefined;
-	const date: unknown = Reflect.get(parsed, "compatibility_date");
-	const flags: unknown = Reflect.get(parsed, "compatibility_flags");
-	return {
-		...(typeof binding === "string" ? { binding } : {}),
-		...(typeof date === "string" ? { compatibilityDate: date } : {}),
-		compatibilityFlags: Array.isArray(flags) ? flags.filter((flag) => typeof flag === "string") : [],
-	};
+	const main: unknown = Reflect.get(parsed, "main");
+	return { ...(typeof binding === "string" ? { binding } : {}), ...(typeof main === "string" ? { main } : {}) };
 }
 
 // JSONC as JSON: comments outside strings are dropped, and so is a comma whose next token closes an object or array.

@@ -1,7 +1,11 @@
+import { rmSync } from "node:fs";
 import { resolve } from "node:path";
 import type { BuilderOptions, EnvironmentOptions, UserConfig } from "vite";
 
-export type EnvName = "client" | "ssr" | "worker";
+export type EnvName = "client" | "ssr" | typeof PRERENDER_ENV;
+
+// The Node build prerender runs when the Cloudflare plugin owns ssr, deleted once the seeds are written (B109).
+export const PRERENDER_ENV = "flare_prerender";
 
 export type ClientBuild = { outDir: string; manifest: true; cssCodeSplit: false; assetsDir: string };
 export type SsrBuild = { outDir: string; input: string };
@@ -9,9 +13,9 @@ export type SsrBuild = { outDir: string; input: string };
 // What a built file's URL is made of: Vite's resolved `base` and flare's `assetsBase`.
 export type Urls = { base: string; assetsBase: string };
 
-export function environmentOrder(worker: boolean): EnvName[] {
+export function environmentOrder(input: { cloudflare: boolean; prerender: boolean }): EnvName[] {
 	const order: EnvName[] = ["client", "ssr"];
-	if (worker) order.push("worker");
+	if (input.cloudflare && input.prerender) order.push(PRERENDER_ENV);
 	return order;
 }
 
@@ -55,21 +59,25 @@ export type BuildInput = {
 	assetsBase: string;
 	entry: { client: string; server: string };
 	user: { outDir?: string | undefined; assetsDir?: string | undefined };
-	// The worker environment's entry module, present when the app has a Workers config.
-	worker?: string | undefined;
-	// What runs once every environment is built: prerender (bits/12).
+	// The app composes the Cloudflare plugin, which then owns the ssr build: the Workers bundle and its deploy config
+	// (B109).
+	cloudflare: boolean;
+	// What runs once every environment is built: prerender (bits/12). Absent, nothing runs.
 	afterBuild?: ((built: { clientDir: string; serverFile: string }) => Promise<void>) | undefined;
 };
 
-// The conditions a Workers bundle resolves with: the server builds of Solid and of flare's server-fn entry.
-const WORKER_CONDITIONS = ["workerd", "worker", "module", "development|production"];
+// The packages the server build bundles, as `ssr.noExternal` lists them for the ssr environment.
+export const SERVER_BUNDLED: string[] = ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"];
 
-// The client, ssr, and, with a Workers config, worker environments and the order the builder runs them in (B89). The client entry is
+// The client and ssr environments and the order the builder runs them in (B89). The client entry is
 // `<assetsDir>/client-[hash].js` and its chunks `<assetsDir>/[hash].js`. The server is one minified file with
-// sourcemaps.
+// sourcemaps. With the Cloudflare plugin, the plugin names the ssr output, and prerender gets its own Node build of the
+// server, which no deploy ships (B109).
 export function buildConfig(input: BuildInput): Pick<UserConfig, "environments"> & { builder: BuilderOptions } {
 	const build = environmentBuild({ assetsBase: input.assetsBase, ...input.user });
 	const { assetsDir } = build.client;
+	const prerender = input.cloudflare && input.afterBuild !== undefined;
+	const serverDir = prerender ? build.ssr.outDir.replace(/server$/, "prerender") : build.ssr.outDir;
 	return {
 		environments: {
 			client: {
@@ -81,17 +89,19 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 					},
 				},
 			},
-			ssr: {
-				// `public/` ships once, with the client (BUGS.md B11).
-				build: {
-					outDir: build.ssr.outDir,
-					copyPublicDir: false,
-					minify: true,
-					sourcemap: true,
-					rolldownOptions: { input: { server: input.entry.server }, output: { entryFileNames: build.ssr.input } },
-				},
-			},
-			...(input.worker === undefined ? {} : { worker: workerEnvironment(input.worker, build.ssr.outDir) }),
+			// `public/` ships once, with the client (BUGS.md B11).
+			ssr: input.cloudflare
+				? { build: { outDir: build.ssr.outDir, copyPublicDir: false, minify: true, sourcemap: true } }
+				: { build: serverBuild(build.ssr.outDir, input.entry.server, build.ssr.input) },
+			...(prerender
+				? {
+						[PRERENDER_ENV]: {
+							consumer: "server",
+							resolve: { noExternal: SERVER_BUNDLED },
+							build: serverBuild(serverDir, input.entry.server, build.ssr.input),
+						},
+					}
+				: {}),
 		},
 		builder: {
 			// One config and one plugin set for every environment, so what the client build captures, its stylesheet,
@@ -101,35 +111,30 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 			sharedPlugins: true,
 			// Solid's `solid:client-build-first` may already have built the client. Each environment builds once.
 			async buildApp(builder) {
-				for (const name of environmentOrder(input.worker !== undefined)) {
+				for (const name of environmentOrder({ cloudflare: input.cloudflare, prerender })) {
 					const environment = builder.environments[name];
 					if (environment !== undefined && !environment.isBuilt) await builder.build(environment);
 				}
 				const root = builder.config.root;
-				const serverFile = resolve(root, build.ssr.outDir, build.ssr.input);
-				await input.afterBuild?.({ clientDir: resolve(root, build.client.outDir), serverFile });
+				const serverFile = resolve(root, serverDir, build.ssr.input);
+				try {
+					await input.afterBuild?.({ clientDir: resolve(root, build.client.outDir), serverFile });
+				} finally {
+					if (prerender) rmSync(resolve(root, serverDir), { recursive: true, force: true });
+				}
 			},
 		},
 	};
 }
 
-// One ES module, `<outDir>/worker/index.js`, with every dependency bundled and every lazy route inlined: a Workers
-// script is one module, and miniflare refuses a dynamic module specifier. Node built-ins stay imports, which
-// `nodejs_compat` provides.
-function workerEnvironment(entry: string, serverOutDir: string): EnvironmentOptions {
+// The server as one minified Node file with sourcemaps. `public/` ships once, with the client (BUGS.md B11).
+function serverBuild(outDir: string, entry: string, file: string): NonNullable<EnvironmentOptions["build"]> {
 	return {
-		consumer: "server",
-		resolve: { conditions: WORKER_CONDITIONS, externalConditions: WORKER_CONDITIONS, noExternal: true },
-		build: {
-			outDir: serverOutDir.replace(/server$/, "worker"),
-			copyPublicDir: false,
-			minify: true,
-			sourcemap: true,
-			rolldownOptions: {
-				input: { index: entry },
-				output: { entryFileNames: "index.js", format: "es", codeSplitting: false },
-			},
-		},
+		outDir,
+		copyPublicDir: false,
+		minify: true,
+		sourcemap: true,
+		rolldownOptions: { input: { server: entry }, output: { entryFileNames: file } },
 	};
 }
 

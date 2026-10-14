@@ -17,12 +17,13 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `compiled default` | every entry | `default` resolves to compiled ESM with no TypeScript syntax, and the root entry renders in both a DOM and a server Solid build from that one file |
 | `no src path in dts` | every `.d.ts` | the text contains no `virtual:` and no `packages/core/src` |
 | `snapshot` | each entry's public `.d.ts` | matches the committed snapshot. A change is a commit of its own |
+| `worker outside vite` | a plain import of the packed `./worker` | throws, naming it the Wrangler main that runs only inside Vite with `flare()`: the entry re-exports the worker binding, so `sideEffects: false` cannot drop the throwing module as it drops a bare re-export (B109) |
 | `tarball contents` | `npm pack` | exactly `dist`, `src`, `README.md`, `LICENSE`, `package.json` |
 | `consumer strict` | a fixture with `exactOptionalPropertyTypes` and `verbatimModuleSyntax` | `tsc` exits 0 against the packed types |
 | `no dependencies` | the packed `package.json` | the `dependencies` key is absent |
 | `image module types` | the packed `dist` | `features/image/vite/modules.d.ts` sits where the emitted `exports/vite.d.ts` reference resolves, and the consumer-strict fixture with `vite/client` types `./a.png?image` as the binding. tsc does not copy `.d.ts` inputs, so the packager must |
-| `peer floors` | the same manifest | each peer in the B79 table is `>=` its devDependency version. `optional` is true only for `sharp`, `@tanstack/solid-query`, `negotiator`, `isbot`, `@formatjs/intl-localematcher`, and `@cloudflare/vite-plugin` (B95) |
-| `not a peer` | the same manifest | `@babel/parser`, `tailwindcss`, `oxc-resolver`, `node-html-markdown`, `@tanstack/query-broadcast-client-experimental`, and `@types/negotiator` are absent from both peer and dependency keys |
+| `peer floors` | the same manifest | each peer in the B79 table is `>=` its devDependency version. `optional` is true only for `sharp`, `@tanstack/solid-query`, `negotiator`, `isbot`, and `@formatjs/intl-localematcher`. `@cloudflare/vite-plugin` is not a peer: the app depends on it and composes it beside `flare()`, which imports none of it (B109) |
+| `not a peer` | the same manifest | `@babel/parser`, `tailwindcss`, `oxc-resolver`, `node-html-markdown`, `@tanstack/query-broadcast-client-experimental`, `@types/negotiator`, and `@cloudflare/vite-plugin` (B109) are absent from both peer and dependency keys |
 
 ## `scripts/release.test.ts`
 
@@ -43,7 +44,7 @@ Install from the packed tarball, not from the workspace.
 | --- | --- | --- |
 | `node` | install the packed tarball, then `codegen`, `dev`, `build`, and `createNodeListener` on `apps/minimal` | `/` is 200. `POST /_flare/fn/<id>` of `src/fns/echo.ts` export `echo` returns the envelope whose `data` equals the JSON input. The id is the B41 hash. A data URL returns NDJSON |
 | `bun` | the same build, served with `createBunFetch` | the same three requests |
-| `workers` | the same build under miniflare | the same three requests |
+| `workers` | the same build with the Cloudflare plugin, under miniflare from its deploy config (B109) | the same three requests. Skipped on the Bun run, where the plugin cannot load |
 | `dev from tarball` | the installed tarball under `vite dev`, in Chromium | `/` hydrates with no console error or hydration warning. The response carries the dev policy (`worker-src` with `blob:`) and the `csp-nonce` meta, and `<Stylesheet />` renders nothing, so the packed code's `import.meta.env?.DEV` was replaced on the server and the client alike |
 
 ## Font file emit

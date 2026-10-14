@@ -1,5 +1,7 @@
 {
 	"name": "basepath",
+	// flare's worker entry: the app's server behind the Workers adapter (B109).
+	"main": "@lovrozagar/flare/worker",
 	"compatibility_date": "2026-07-01",
 	"compatibility_flags": ["nodejs_compat"],
 	// The built client. flare's worker entry forwards an unmatched GET to this binding (dx/adapters.md).

@@ -156,7 +156,7 @@ Split from `match.ts` at the 300-line limit.
 | --- | --- | --- |
 | `reset off` | `css` omitted | the built CSS does not start with `@layer reset` |
 | `reset on` | `css: { reset: true }`, a real Vite build | the built CSS starts with `@layer reset{` and holds the preflight's rules before the app's. The client entry imports the preflight as a virtual CSS module first, so it is in the hashed file and in dev. Vite's CSS pipeline may reformat its bytes, and `reset.test` `bytes` pins the exported string |
-| `server sheet` | the client build produced `body{color:red}` | the `ssr` and `worker` module source exports that text as `builtSheet` and its href as `builtHref`. A server build before the client build fails, and dev keeps the empty module |
+| `server sheet` | the client build produced `body{color:red}` | the `ssr` and `flare_prerender` (B109) module source exports that text as `builtSheet` and its href as `builtHref`. A server build before the client build fails, and dev keeps the empty module |
 | `one sheet` | the client environment config, and a lazy chunk that imports its own CSS | flare() sets `build.cssCodeSplit: false` on the client environment, so the lazy chunk's CSS is in the one stylesheet |
 | `client graph` | the same build | the client JavaScript does not contain that text. The browser loads the file |
 | `build parse` | the client CSS holds `@import`, `@charset`, or a rule the parser cannot read | the build fails and names the file. A request never parses a sheet the build did not accept |

@@ -1,0 +1,3 @@
+
+import worker from "../vite/plugin/worker-main.js";
+export { worker as default };

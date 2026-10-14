@@ -108,12 +108,18 @@ test("dev log clean", async ({ context, docs }, info) => {
 		await page.waitForLoadState("networkidle");
 		await page.close();
 	}
+	const declared = PAGES.flatMap((entry) => entry.logs ?? []);
+	// A line no page declares stays whole, so an extra one shows as itself. Workers dev forwards workerd's console
+	// through Miniflare's structured logs to Vite's logger, after the response, so the lines are awaited (BUGS.md 93).
+	const flare = () =>
+		docs
+			.logs()
+			.slice(start)
+			.filter((line) => line.startsWith("[flare:"))
+			.map((line) => declared.find((message) => line.includes(message)) ?? line);
+	await expect.poll(flare, { timeout: 10_000 }).toEqual(declared);
 	const lines = docs.logs().slice(start);
 	expect(lines.filter((line) => /Unable to parse|uncaught|unhandled/i.test(line))).toEqual([]);
-	const declared = PAGES.flatMap((entry) => entry.logs ?? []);
-	const flare = lines.filter((line) => line.startsWith("[flare:"));
-	// A line no page declares stays whole, so an extra one shows as itself.
-	expect(flare.map((line) => declared.find((message) => line.includes(message)) ?? line)).toEqual(declared);
 });
 
 // Five main-nav links 30 ms apart. The first, Changelog, has landed with its 900 ms stats value still streaming (or

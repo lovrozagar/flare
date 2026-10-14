@@ -52,8 +52,7 @@ it("reset off", () => {
 const ENABLED = fileURLToPath(new URL("../../client/sync/enabled.ts", import.meta.url));
 
 // The core plugin's load hook, as the named environment calls it for `id`.
-// A flare() without workersDev returns its own plugins (B95).
-type Load = { options?: Omit<FlareOptions, "workersDev">; name: string; command: "serve" | "build"; id?: string };
+type Load = { options?: FlareOptions; name: string; command: "serve" | "build"; id?: string };
 
 function loaded({ options, name, command, id = ENABLED }: Load): unknown {
 	const core = flare(options).find((plugin) => plugin.name === "flare");
@@ -78,7 +77,7 @@ it("broadcast off", () => {
 	for (const command of ["serve", "build"] as const) {
 		expect(loaded({ options: off, name: "client", command })).toBe("export const broadcastEnabled = false;\n");
 		expect(loaded({ options: off, name: "ssr", command })).toBeNull();
-		expect(loaded({ options: off, name: "worker", command })).toBeNull();
+		expect(loaded({ options: off, name: "flare_prerender", command })).toBeNull();
 	}
 	expect(loaded({ options: off, name: "client", command: "serve", id: "/app/src/enabled.ts" })).toBeNull();
 });
@@ -228,30 +227,4 @@ it("fonts", () => {
 	expect(flare().map((plugin) => plugin.name)).not.toContain("flare:fonts");
 	const bad: unknown[] = ["fonts", null, {}, { dir: "" }, { dir: 1 }, { dir: "fonts", extra: true }];
 	for (const fonts of bad) expect(() => parseOptions({ fonts } as unknown as FlareOptions)).toThrow(/^fonts/);
-});
-
-// Off unless `true` or an options object. `inspectorPort` is a port, 0 for one the OS assigns, or false for none;
-// `persistState` is a boolean or `{ path }`. Absent, the Cloudflare plugin keeps its own default. Anything else
-// throws (B95, BUGS.md 85).
-it("workers dev option", () => {
-	expect(parseOptions().workersDev).toBe(false);
-	expect(parseOptions({ workersDev: false }).workersDev).toBe(false);
-	expect(parseOptions({ workersDev: true }).workersDev).toEqual({});
-	expect(parseOptions({ workersDev: {} }).workersDev).toEqual({});
-	for (const inspectorPort of [0, 9333, 65535, false] as const) {
-		expect(parseOptions({ workersDev: { inspectorPort } }).workersDev).toEqual({ inspectorPort });
-	}
-	for (const persistState of [false, true, { path: ".state" }] as const) {
-		expect(parseOptions({ workersDev: { persistState } }).workersDev).toEqual({ persistState });
-	}
-	expect(parseOptions({ workersDev: { inspectorPort: 0, persistState: false } }).workersDev).toEqual({
-		inspectorPort: 0,
-		persistState: false,
-	});
-	const bad: unknown[] = ["yes", null, { inspectorPort: "9229" }, { inspectorPort: -1 }, { inspectorPort: 1.5 }];
-	bad.push({ inspectorPort: 65536 }, { inspectorPort: true }, { port: 0 }, { persistState: "no" });
-	bad.push({ persistState: { path: "" } }, { persistState: { path: 1 } }, { persistState: { path: "a", more: 1 } });
-	for (const workersDev of bad) {
-		expect(() => parseOptions({ workersDev } as unknown as FlareOptions)).toThrow(/workersDev/);
-	}
 });

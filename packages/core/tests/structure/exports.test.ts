@@ -208,21 +208,16 @@ it("peer floors", () => {
 		.filter(([, value]) => value.optional === true)
 		.map(([name]) => name)
 		.toSorted();
-	expect(optional).toEqual([
-		"@cloudflare/vite-plugin",
-		"@formatjs/intl-localematcher",
-		"@tanstack/solid-query",
-		"isbot",
-		"negotiator",
-		"sharp",
-	]);
+	expect(optional).toEqual(["@formatjs/intl-localematcher", "@tanstack/solid-query", "isbot", "negotiator", "sharp"]);
 });
 
 it("not a peer", () => {
 	const keys = ["peerDependencies", "dependencies", "optionalDependencies"].flatMap((field) =>
 		Object.keys(Object(Reflect.get(packed.manifest, field))),
 	);
+	// The app depends on Cloudflare's plugin itself and composes it beside flare(), which imports none of it (B109).
 	for (const name of [
+		"@cloudflare/vite-plugin",
 		"@babel/parser",
 		"tailwindcss",
 		"oxc-resolver",

@@ -22,3 +22,10 @@ it("snapshot", async () => {
 		await expect(readFileSync(join(packed.root, types), "utf8")).toMatchFileSnapshot(`snapshots/${name}.txt`);
 	}
 });
+
+// The packed `./worker` keeps its throwing module: the entry re-exports the worker binding, which the package's
+// `sideEffects: false` cannot drop as it drops a bare re-export, so a plain Node import names why it fails (B109).
+it("worker outside vite", async () => {
+	const worker = String(Reflect.get(Object(Reflect.get(Object(packed.manifest), "exports"))["./worker"], "default"));
+	await expect(import(join(packed.root, worker))).rejects.toThrow("runs only inside Vite with flare()");
+});

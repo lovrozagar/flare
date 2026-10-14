@@ -71,6 +71,10 @@ Peers `negotiator`, `isbot`, `@formatjs/intl-localematcher`. `i18n`.
 
 `createWorkersHandler`. Arguments are `dx/adapters.md`.
 
+## `./worker`
+
+The Wrangler config's `main` under the Cloudflare plugin (B109). Inside Vite, `flare()` resolves it to the app's server behind `createWorkersHandler` with the config's assets binding. Imported anywhere else, it throws and says it runs only inside Vite with `flare()`. `dx/plugin.md` Cloudflare Workers.
+
 ## `./stores/fs`
 
 `createFilesystemStore`, `fileAssets`. Arguments are `dx/store.md`.

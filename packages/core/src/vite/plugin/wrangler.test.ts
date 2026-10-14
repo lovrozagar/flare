@@ -41,21 +41,21 @@ it("jsonc", () => {
 	expect(jsonOf('{"a": 1} /* open')).toBe('{"a":1}');
 });
 
-// The fields flare reads: the assets binding, the compatibility date, and the flags.
+// The two fields flare reads: the worker entry the config names, which must be flare's (B109), and the assets binding
+// that entry forwards to.
 it("fields", () => {
 	const config = `{
 	"name": "app",
+	"main": "@lovrozagar/flare/worker",
 	"compatibility_date": "2026-07-01",
-	"compatibility_flags": ["nodejs_compat", 1],
 	"assets": { "binding": "ASSETS", "directory": "dist/client" },
 }`;
 	expect(readWrangler(root({ "wrangler.jsonc": config }))).toEqual({
+		main: "@lovrozagar/flare/worker",
 		binding: "ASSETS",
-		compatibilityDate: "2026-07-01",
-		compatibilityFlags: ["nodejs_compat"],
 	});
-	expect(readWrangler(root({ "wrangler.json": '{"name":"app"}' }))).toEqual({ compatibilityFlags: [] });
-	expect(readWrangler(root({ "wrangler.json": '{"assets":"x"}' }))).toEqual({ compatibilityFlags: [] });
+	expect(readWrangler(root({ "wrangler.json": '{"name":"app"}' }))).toEqual({});
+	expect(readWrangler(root({ "wrangler.json": '{"assets":"x","main":1}' }))).toEqual({});
 	expect(() => readWrangler(root({ "wrangler.json": "[1]" }))).toThrow(/is not an object/);
 	expect(() => readWrangler(root({ "wrangler.json": "null" }))).toThrow(/is not an object/);
 });

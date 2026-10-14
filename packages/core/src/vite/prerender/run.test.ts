@@ -180,6 +180,21 @@ it("500", async () => {
 	const result = await run(server([page("_root_/broken", "/broken", broken)]).pre);
 	expect(result.code).toBe(1);
 	expect(result.stderr.join("\n")).toMatch(/_root_\/broken.*500/);
+	expect(result.stderr.join("\n")).not.toContain("Workers binding");
+	// A Workers app prerenders on Node, where no Workers binding exists, so its failure names that cause and the fix
+	// (B109).
+	const workers = await runPrerender({
+		prerenderer: server([page("_root_/broken", "/broken", broken)]).pre,
+		config: {},
+		hint: () => undefined,
+		write: async () => undefined,
+		writeFile: async () => undefined,
+		workers: true,
+	});
+	expect(workers.stderr).toEqual([
+		"[flare:prerender] _root_/broken {} answered 500: prerender runs the server on Node at build time, with no " +
+			"Workers binding (KV, D1, R2, caches). A route whose loader needs one cannot be prerendered: mark it ssr or isr",
+	]);
 });
 
 // Codegen's hint and the loaded modules' effective auth must agree (B25). A mismatch fails before any render.

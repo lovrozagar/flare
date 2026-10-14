@@ -27,10 +27,6 @@ function fake() {
 		string,
 		(payload: unknown, client: { send: (event: string, payload: unknown) => void }) => void
 	>();
-	const workerListeners = new Map<
-		string,
-		(payload: unknown, client: { send: (event: string, payload: unknown) => void }) => void
-	>();
 	const changed: (() => void)[] = [];
 	const transformRequest = vi.fn<(url: string) => Promise<{ code: string } | null>>(async (url) => ({
 		code: `css of ${url}`,
@@ -50,9 +46,9 @@ function fake() {
 	const server: StylesServer = {
 		config: { root: ROOT },
 		watcher: { on: (_event, listener) => void changed.push(listener) },
-		environments: { client, ssr: environment(listeners), worker: environment(workerListeners) },
+		environments: { client, ssr: environment(listeners) },
 	};
-	return { server, listeners, workerListeners, changed, transformRequest };
+	return { server, listeners, changed, transformRequest };
 }
 
 async function ask(
@@ -77,7 +73,7 @@ async function ask(
 // The client entry's own CSS imports first (flare's reset), then the chain's CSS modules in import order, root first and
 // once each, read as Vite serves them with `?direct` (B104). The entry's other imports are not walked.
 it("chain styles", async () => {
-	const { server, listeners, workerListeners, transformRequest } = fake();
+	const { server, listeners, transformRequest } = fake();
 	installDevStyles(server, `${ROOT}src/client.tsx`);
 	const chain = ["[[locale]]/_root_", "[[locale]]/_root_/(guide)", "[[locale]]/_root_/(guide)/docs/[slug]"];
 	expect(await ask(listeners.get(STYLES_EVENT), chain)).toEqual([
@@ -88,8 +84,8 @@ it("chain styles", async () => {
 	]);
 	expect(transformRequest.mock.calls.map(([url]) => url)).toContain("/src/client.tsx");
 	expect(transformRequest).toHaveBeenCalledTimes(5);
-	// The worker environment answers the same way in Workers dev (B95 (c)).
-	expect(await ask(workerListeners.get(STYLES_EVENT), ["[[locale]]/_root_/unknown"])).toEqual([
+	// A route the scan does not know gets the root's styles only.
+	expect(await ask(listeners.get(STYLES_EVENT), ["[[locale]]/_root_/unknown"])).toEqual([
 		{ id: "\0virtual:flare/reset.css", css: "css of \0virtual:flare/reset.css?direct" },
 	]);
 });

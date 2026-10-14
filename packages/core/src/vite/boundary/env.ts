@@ -7,9 +7,10 @@ import { nonReferences } from "./reads.ts";
 // environment and the Workers bundle.
 export type Graph = "client" | "server";
 
-// The graph of a Vite environment: the ssr and worker environments serve requests, so both are server graphs.
+// The graph of a Vite environment: the ssr environment serves requests, and prerender's Node build of the server
+// renders pages, so both are server graphs (B109).
 export function graphOf(environment: string): Graph {
-	return environment === "ssr" || environment === "worker" ? "server" : "client";
+	return environment === "ssr" || environment === "flare_prerender" ? "server" : "client";
 }
 
 type Helper = "createServerOnlyFn" | "createClientOnlyFn" | "createIsomorphicFn";
