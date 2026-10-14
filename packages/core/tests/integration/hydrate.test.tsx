@@ -1,3 +1,4 @@
+import { createServer as createNetServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ENGINES, startHarness, type Api, type Harness, type Side } from "./hydrate.harness.ts";
@@ -127,4 +128,22 @@ describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
 		expect(result.problems).toEqual([]);
 		expect(result.text).toBe("7,a,ada,admin,_root_/users/[id]");
 	});
+});
+
+// Another process on Vite's default HMR port, 24678, that accepts and closes every socket, as a foreign dev server
+// can. The page's Vite client talks to the harness's own server, so no case sees that socket (BUGS.md B53).
+it("foreign hmr port", { timeout: 30_000 }, async () => {
+	const squat = createNetServer((socket) => socket.destroy());
+	const held = await new Promise<boolean>((resolve) => {
+		squat.once("error", () => resolve(false));
+		squat.listen(24678, "0.0.0.0", () => resolve(true));
+	});
+	try {
+		const problems: string[] = [];
+		for (const tree of [progressBeside, idleBoundaries, dataHooks])
+			problems.push(...(await started().hydrate("chromium", tree)).problems);
+		expect(problems).toEqual([]);
+	} finally {
+		if (held) await new Promise((resolve) => squat.close(resolve));
+	}
 });
