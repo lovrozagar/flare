@@ -40,6 +40,8 @@ A browser without element-scoped view transitions (Firefox 155 has no `Element.p
 
 Do not animate content inside an element that enters a view transition under a `view-transition-name`. In Firefox 155, a running CSS animation (opacity or transform) inside such an element drops frames to the page background, so the entrance flickers; Chromium is smooth (BUGS.md B61). Animate the entrance on the pseudo-element instead, and only when there is no old image: `::view-transition-new(article):only-child { animation: rise 0.4s ease-out both; }`. Measured in Firefox 155, that entrance is smooth. Without `:only-child` the rule also runs when the group has an old image, and the content dims mid-transition.
 
+While a document view transition is on screen, from its start to its end, the browser hit-tests the transition overlay, so a click lands on the document element and does not reach a link under it. In the BUGS.md 98 probe (WebKit and Firefox, the docs app's `duration={200}`), that window was 300 to 450 ms from start to `finished`, and a click inside it started no navigation. `::view-transition { pointer-events: none }` does not change it in WebKit. An element-scoped transition (Chromium, a `ViewTransitionBoundary` scope) leaves the rest of the page clickable, and a shorter `duration` narrows the window. Flare changes nothing here.
+
 A named element that only the old page has (an article left for a page without one) keeps its old snapshot above the root group while it fades, at its old scroll offset, so it draws over a sticky header. Hide that exit: `::view-transition-old(article):only-child { display: none; }` (BUGS.md 65).
 
 ## ViewTransitionBoundary

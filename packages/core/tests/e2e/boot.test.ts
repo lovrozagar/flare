@@ -122,7 +122,23 @@ it("bun prod", async () => expect((await prod("bun"))[0]).toMatch(/^http:\/\/127
 // the child Vite is Bun too, every Workers case is skipped by that feature check (B109).
 const HOOKS = typeof Reflect.get(nodeModule, "registerHooks") === "function";
 
-it.skipIf(!HOOKS)("workers prod", () => prod("workers"), PROD_BOOT);
+// The one file a Workers run may leave in the app (B70's exception, B109): the Cloudflare plugin's deploy pointer, which
+// it writes at the Vite root on every build and which only `wrangler deploy` reads. No worker state, no cached `cf`.
+const DEPLOY_POINTER = ["deploy", "deploy/config.json"];
+
+function wranglerEntries(appDir: string): string[] {
+	const dir = join(appDir, ".wrangler");
+	return existsSync(dir) ? readdirSync(dir, { recursive: true, encoding: "utf8" }).toSorted() : [];
+}
+
+it.skipIf(!HOOKS)(
+	"workers prod",
+	async () => {
+		await prod("workers");
+		expect(wranglerEntries(fileURLToPath(new URL("./apps/minimal/", import.meta.url)))).toEqual(DEPLOY_POINTER);
+	},
+	PROD_BOOT,
+);
 
 // A raw request to a page with a live defer, whose socket closes after the headers or before them, as a closed tab's
 // does (BUGS.md B28).
@@ -197,13 +213,11 @@ it.skipIf(!HOOKS)(
 			// workerd rendered it, not the dev server's own Node listener (BUGS.md 76).
 			expect(response.headers.get("x-runtime")).toBe("Cloudflare-Workers");
 			expect(session.logs().some((line) => line.includes("/__debug"))).toBe(true);
-			// The boot leaves no worker state and no cached `cf` in the app (B70, BUGS.md 85). A Workers build's own deploy
-			// pointer, `.wrangler/deploy/config.json`, is the plugin's, written at the Vite root (B109).
-			expect(existsSync(join(session.appDir, ".wrangler/state"))).toBe(false);
-			expect(existsSync(join(session.appDir, ".wrangler/cache"))).toBe(false);
 		} finally {
 			await session.close();
 		}
+		// Dev writes nothing under `.wrangler/` (BUGS.md 85): only a build before it may have left the deploy pointer.
+		expect(DEPLOY_POINTER).toEqual(expect.arrayContaining(wranglerEntries(session.appDir)));
 	},
 	2 * VITE_BOOT,
 );
