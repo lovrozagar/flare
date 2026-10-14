@@ -135,7 +135,8 @@ test("stream abort", async ({ page, docs }, info) => {
 		serverOf(info).startsWith("workers"),
 		"Miniflare never reports a client disconnect to the worker (BUGS.md B45, dx/adapters.md)",
 	);
-	await open(page, docs.origin, "/playground");
+	// A held run waits after its second line for the stop, so a slow click cannot let it finish first (BUGS.md B55).
+	await open(page, docs.origin, "/playground?hold");
 	const log = page.locator("#stream-log li");
 	await page.locator("#stream-start").click();
 	await page.waitForFunction(() => document.querySelectorAll("#stream-log li").length >= 2);
