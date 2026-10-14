@@ -3,7 +3,7 @@ import { load } from "js-yaml";
 import { expect, it } from "vitest";
 
 type Step = { uses?: string; run?: string; with?: Record<string, unknown> };
-type Workflow = { jobs: Record<string, { "runs-on": string; steps: Step[] }> };
+type Workflow = { env?: Record<string, string>; jobs: Record<string, { "runs-on": string; steps: Step[] }> };
 
 const workflow = load(
 	readFileSync(new URL("../../../../.github/workflows/ci.yml", import.meta.url), "utf8"),
@@ -29,6 +29,14 @@ it("ci unit on both oses", () => {
 	expect(workflow.jobs["check"]?.["runs-on"]).toBe("ubuntu-latest");
 	expect(workflow.jobs["e2e-mac"]?.["runs-on"]).toBe("macos-latest");
 	expect([runsTests("check"), runsTests("e2e-mac")]).toEqual([true, true]);
+});
+
+// CI runs the Bun this repo was verified on: ci.yml's BUN_VERSION is the root manifest's packageManager (BUGS.md B48).
+it("ci bun version", () => {
+	const root = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
+		packageManager?: string;
+	};
+	expect(`bun@${String(workflow.env?.["BUN_VERSION"])}`).toBe(root.packageManager);
 });
 
 // The check job runs the unit suite under the Bun runtime right after the Node run, so a Bun-only regression fails
