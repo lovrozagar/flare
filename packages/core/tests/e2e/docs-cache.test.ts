@@ -17,12 +17,24 @@ test("ssg public cdn", async ({ request, docs }, info) => {
 	expect(response.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=60, stale-while-revalidate=3600");
 });
 
+// One render serves the page until it is stored (B33). The first request is not delayed by its store write, so a repeat
+// that comes before the write lands joins that render and answers `miss` from it, and a later one is a hit: the case
+// reads which render served each answer, not when the write landed. A slow write made a strict `hit` fail (BUGS.md 88).
 test("isr stored", async ({ request, docs }, info) => {
 	prodOnly(info);
-	const first = await request.get(`${docs.origin}/changelog`);
-	expect(first.headers()["flare-render"]).toBe("isr");
-	// The first request's write lands before its slot frees, so the next request is a hit, never a second miss (B33).
-	expect((await request.get(`${docs.origin}/changelog`)).headers()["flare-cache"]).toBe("hit");
+	const get = async (): Promise<{ cache: string | undefined; render: string | undefined; renderedBy: string }> => {
+		const response = await request.get(`${docs.origin}/changelog`);
+		const renderedBy = /id="changelog-rendered-by"[^>]*>([0-9a-f]+)</.exec(await response.text())?.[1] ?? "";
+		return { cache: response.headers()["flare-cache"], render: response.headers()["flare-render"], renderedBy };
+	};
+	const first = await get();
+	expect(first.render).toBe("isr");
+	expect(first.renderedBy).toMatch(/^[0-9a-f]+$/);
+	const repeat = await get();
+	expect(["hit", "miss"]).toContain(repeat.cache);
+	expect(repeat.renderedBy).toBe(first.renderedBy);
+	await expect.poll(async () => (await get()).cache).toBe("hit");
+	expect((await get()).renderedBy).toBe(first.renderedBy);
 });
 
 test("shared ssr", async ({ request, docs }, info) => {
