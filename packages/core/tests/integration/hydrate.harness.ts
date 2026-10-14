@@ -7,6 +7,18 @@ import type * as solid from "solid-js";
 import type * as web from "@solidjs/web";
 import { createServer, isRunnableDevEnvironment, type Plugin, type ViteDevServer } from "vite";
 import { browserEndpoint } from "../../../../scripts/browser-server.ts";
+import {
+	APP,
+	APP_CLIENT,
+	appClientModule,
+	appDocument,
+	answerStyles,
+	appIn,
+	appModule,
+	isAppRequest,
+	type AppCase,
+	type AppResult,
+} from "./hydrate.app.ts";
 import type * as progress from "../../src/client/navigation/progress.ts";
 import type * as outlet from "../../src/shared/components/outlet.tsx";
 import type * as outletNodes from "../../src/shared/components/outlet-nodes.ts";
@@ -43,8 +55,15 @@ export type Hydrated = { html: string; problems: string[]; text: string };
 
 export type Harness = {
 	hydrate: (engine: Engine, tree: Tree) => Promise<Hydrated>;
+	// A real document `createServer(...).fetch` serves, hydrated by the real `createClient` (hydrate.app.ts).
+	app: (engine: Engine, input: AppCase) => Promise<AppResult>;
 	close: () => Promise<void>;
 };
+
+export type { AppCase, AppResult };
+
+// The app cases by id, and the one the page's requests go to now.
+type Apps = { cases: Map<string, AppCase>; active: string | undefined };
 
 export const ENGINES: readonly Engine[] = ["chromium", "firefox", "webkit"];
 
@@ -71,6 +90,7 @@ const TYPES: Record<Engine, BrowserType> = { chromium, firefox, webkit };
 // cache lives in a temp dir that close() removes.
 export async function startHarness(core: string): Promise<Harness> {
 	const cases = new Map<string, string>();
+	const apps: Apps = { cases: new Map(), active: undefined };
 	const cacheDir = mkdtempSync(join(tmpdir(), "flare-hydrate-"));
 	// The page's Vite client opens its socket on this server, the page's own origin. On Vite's default HMR port it would
 	// reach whatever else listens there, and a foreign server closing it fails every case with a pageerror.
@@ -81,15 +101,15 @@ export async function startHarness(core: string): Promise<Harness> {
 		cacheDir,
 		logLevel: "silent",
 		appType: "custom",
-		plugins: [casePlugin(cases)],
+		plugins: [casePlugin(cases, apps)],
 		server: { middlewareMode: true, hmr: { server: http }, watch: null },
 		// The browser loads Solid's ES modules as they are, so no prebundle can reload a page mid-case.
 		optimizeDeps: { noDiscovery: true, include: [] },
 		// Vite's runner evaluates every dependency itself, so the server side resolves one consistent Solid build.
 		ssr: { noExternal: true },
 	});
-	await listen(http, vite, cases);
-	const origin = `http://127.0.0.1:${portOf(http)}`;
+	answerStyles(vite);
+	const origin = `http://127.0.0.1:${portOf(await listen(http, vite, { cases, apps }))}`;
 	const endpoint = await browserEndpoint();
 	const browsers = new Map<Engine, Browser>();
 	const browser = async (engine: Engine): Promise<Browser> => {
@@ -103,6 +123,18 @@ export async function startHarness(core: string): Promise<Harness> {
 	};
 	return {
 		hydrate: (engine, tree) => hydrateIn({ cases, origin, browser: () => browser(engine) }, tree),
+		async app(engine, input) {
+			const id = `a${apps.cases.size + 1}`;
+			apps.cases.set(id, input);
+			apps.active = id;
+			const context = await (await browser(engine)).newContext();
+			try {
+				return await appIn({ origin, tab: await context.newPage() }, input);
+			} finally {
+				await context.close();
+				apps.active = undefined;
+			}
+		},
 		async close() {
 			for (const open of browsers.values()) await open.close();
 			await new Promise((resolve) => http.close(resolve));
@@ -113,11 +145,20 @@ export async function startHarness(core: string): Promise<Harness> {
 }
 
 // A case's tree as a module, and the client entry that hydrates it. The tree's source is the test's function text.
-function casePlugin(cases: Map<string, string>): Plugin {
+function casePlugin(cases: Map<string, string>, apps: Apps): Plugin {
+	const ours = (id: string): boolean => [CASE, CLIENT, APP, APP_CLIENT].some((prefix) => id.startsWith(prefix));
 	return {
 		name: "flare-hydrate-cases",
-		resolveId: (id) => (id.startsWith(CASE) || id.startsWith(CLIENT) ? `\0${id}` : undefined),
+		resolveId: (id) => (ours(id) ? `\0${id}` : undefined),
 		load(id) {
+			if (id.startsWith(`\0${APP_CLIENT}`)) {
+				const app = id.slice(APP_CLIENT.length + 1);
+				return appClientModule(app, apps.cases.get(app)?.client.toString() ?? "() => undefined");
+			}
+			if (id.startsWith(`\0${APP}`)) {
+				const app = apps.cases.get(id.slice(APP.length + 1));
+				return appModule(apiImports(), API_NAMES, app?.app.toString() ?? "undefined");
+			}
 			if (id.startsWith(`\0${CASE}`)) return caseModule(cases.get(id.slice(CASE.length + 1)) ?? "undefined");
 			if (id.startsWith(`\0${CLIENT}`)) return clientModule(id.slice(CLIENT.length + 1));
 			return undefined;
@@ -125,16 +166,20 @@ function casePlugin(cases: Map<string, string>): Plugin {
 	};
 }
 
-function caseModule(source: string): string {
+const API_NAMES = `solid, web, h, ${Object.keys(MODULES).join(", ")}`;
+
+function apiImports(): string[] {
 	const imports = Object.entries(MODULES).map(([name, path]) => `import * as ${name} from ${JSON.stringify(path)};`);
 	return [
 		`import * as solid from "solid-js";`,
 		`import * as web from "@solidjs/web";`,
 		...imports,
 		`const h = (tag, id, children) => solid.createComponent(web.Dynamic, { component: tag, id, get children() { return children?.(); } });`,
-		`export const api = { solid, web, h, ${Object.keys(MODULES).join(", ")} };`,
-		`export const tree = ${source};`,
-	].join("\n");
+	];
+}
+
+function caseModule(source: string): string {
+	return [...apiImports(), `export const api = { ${API_NAMES} };`, `export const tree = ${source};`].join("\n");
 }
 
 // The page hydrates its host and marks the window, so the harness knows the client finished. A hydrate that throws,
@@ -153,9 +198,28 @@ function clientModule(id: string): string {
 	].join("\n");
 }
 
-async function listen(http: Server, vite: ViteDevServer, cases: Map<string, string>): Promise<void> {
+async function listen(
+	http: Server,
+	vite: ViteDevServer,
+	{ cases, apps }: { cases: Map<string, string>; apps: Apps },
+): Promise<Server> {
 	http.on("request", (req, res) => {
-		const id = /^\/case\/(\w+)$/.exec(req.url ?? "")?.[1];
+		const url = req.url ?? "/";
+		if (apps.active !== undefined && isAppRequest(url)) {
+			const origin = `http://127.0.0.1:${portOf(http)}`;
+			void appDocument(vite, { id: apps.active, url, origin }).then(
+				(answer) => {
+					res.writeHead(answer.status, Object.fromEntries(answer.headers));
+					res.end(answer.body);
+				},
+				(error: unknown) => {
+					res.writeHead(500);
+					res.end(String(error));
+				},
+			);
+			return;
+		}
+		const id = /^\/case\/(\w+)$/.exec(url)?.[1];
 		if (id === undefined || !cases.has(id)) return vite.middlewares(req, res);
 		void documentOf(vite, id).then(
 			(body) => {
@@ -169,6 +233,7 @@ async function listen(http: Server, vite: ViteDevServer, cases: Map<string, stri
 		);
 	});
 	await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve));
+	return http;
 }
 
 function portOf(http: Server): number {
