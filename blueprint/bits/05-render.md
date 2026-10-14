@@ -39,6 +39,7 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 | `unknown admin` | `notFoundMode` `"fuzzy"`, the longest prefix is under `_admin_` and omits `notFoundRender`, and that root defines it | the admin root's `notFoundRender` text is present and its `render` text is present |
 | `layout stays` | a navigation whose layout match id is unchanged | the layout stays mounted, including its component state. `<Outlet />` has no props and renders no `<Loading>` and no `<Reveal>` |
 | `page remounts` | the page match id changes, a loader refresh that keeps the id, and new params on the same page | the page remounts when the id or the params change. A loader refresh does not remount (B106) |
+| `layout own params` | a layout whose own `[id]` changes while it reads a value keyed on it under its own `<Loading>`, below a `[[locale]]/_root_` root whose `locale` changes too | the layout remounts and shows that boundary's fallback instead of holding its old content; the root stays mounted, since it renders the document (B106, BUGS.md 68) |
 | `no render` | a layout module with no `render` | its slot paints the next slot, as a segment does |
 
 ### `shared/errors/safe.test.ts`

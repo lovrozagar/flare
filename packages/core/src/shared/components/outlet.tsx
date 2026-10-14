@@ -51,8 +51,8 @@ export function Matches(props: { state: () => OutletState }): JSX.Element {
 	});
 }
 
-// A slot remounts only when its key changes: a new match id at that depth, a page's new params, or a failure painted
-// there. A loader refresh keeps the key, so the component stays and reads the new data. A page with new params
+// A slot remounts only when its key changes: a new match id at that depth, a page's new params, a layout's new own
+// params, or a failure painted there. A loader refresh keeps the key, so the component stays and reads the new data. A page with new params
 // remounts, so its reads start under fresh <Loading> boundaries that show their fallbacks; one kept mounted would hold
 // the navigation behind boundaries it already revealed (B106).
 function renderSlot(state: () => OutletState, depth: number): JSX.Element {
@@ -71,7 +71,20 @@ function slotKey(state: OutletState, depth: number): string {
 	if (state.failure?.index === depth) return `!${state.failure.status}`;
 	const match = state.matches[depth];
 	if (match === undefined) return state.unknown === undefined ? "" : "?";
-	return match.kind === "page" ? `${match.id}${JSON.stringify(match.params)}` : match.id;
+	if (match.kind === "page") return `${match.id}${JSON.stringify(match.params)}`;
+	// A layout keys on the params its own segment introduces, which the layout above it does not name. The root renders
+	// the document itself, which a remount cannot rebuild, so it stays: its pages remount with its params anyway.
+	if (depth === 0) return match.id;
+	const inherited = new Set(paramNames(defined(state.matches[depth - 1], "the parent layout").id));
+	const own = paramNames(match.id).filter((name) => !inherited.has(name));
+	return `${match.id}${JSON.stringify(own.map((name) => Reflect.get(Object(match.params), name)))}`;
+}
+
+// The param names a route id writes: `[id]`, `[[locale]]`, `[...path]`, and `[[...rest]]`.
+const PARAM = /\[\[?(?:\.\.\.)?([^\]]+)\]\]?/g;
+
+function paramNames(id: string): string[] {
+	return [...id.matchAll(PARAM)].map((found) => String(found[1]));
 }
 
 function paintSlot(state: () => OutletState, depth: number): JSX.Element {
