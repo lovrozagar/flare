@@ -148,6 +148,9 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 | `suspense` | a query that has not resolved | the hook suspends |
 | `resolved` | a query that has resolved | the data is returned |
 | `loading swap` | the hook is under `<Loading fallback={<p>Loading query</p>}>` | the fallback is shown, then the data, and the fallback is gone |
+| `hydration mount` | the document's `queries` hold `["tally", "a"]`, and a component with `useQuery` on that key and `staleTime: 0` hydrates | the query function runs 0 times during hydration. After the hydrated phase fires, the component unmounts and mounts again: the query function runs once (B102) |
+| `hydration mount app wins` | the same, with `refetchOnMount: "always"` on the query | the query function runs once during hydration |
+| `hydration mount not in document` | a `useQuery` on a key that is not in the document's `queries` mounts during hydration | the query function runs once |
 
 ### The core's half: `shared/protocol/query.test.ts`, `server/loaders/scope.test.ts`, and `server/render/document.test.ts`
 
