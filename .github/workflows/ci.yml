@@ -93,7 +93,8 @@ jobs:
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
-      # The unit suite runs on macOS too (B3), and its golden `dev from tarball` row hydrates in Chromium (bits/14).
-      - run: bunx playwright install --with-deps chromium webkit
+      # The unit suite runs on macOS too (B3): its golden `dev from tarball` row hydrates in Chromium (bits/14), and the
+      # hydrate harness, with no Docker here, runs every engine from these local installs (bits/15).
+      - run: bunx playwright install --with-deps chromium firefox webkit
       - run: bun run test
       - run: bun run test:e2e

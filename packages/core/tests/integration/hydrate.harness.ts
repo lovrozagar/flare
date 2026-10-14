@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer as createHttpServer, type Server } from "node:http";
 import { createRequire } from "node:module";
 import { connect } from "node:net";
@@ -89,10 +89,14 @@ export async function startHarness(core: string): Promise<Harness> {
 	});
 	const http = await listen(vite, cases);
 	const origin = `http://127.0.0.1:${portOf(http)}`;
-	const endpoint = process.env["FLARE_BROWSER_WS"] ?? (await browserServer());
+	const source = await browserSource();
 	const browsers = new Map<Engine, Browser>();
 	const browser = async (engine: Engine): Promise<Browser> => {
-		const open = browsers.get(engine) ?? (await TYPES[engine].connect(endpoint, { timeout: 60_000 }));
+		const open =
+			browsers.get(engine) ??
+			(source.endpoint === undefined
+				? await TYPES[engine].launch()
+				: await TYPES[engine].connect(source.endpoint, { timeout: 60_000 }));
 		browsers.set(engine, open);
 		return open;
 	};
@@ -227,6 +231,24 @@ const DIGEST = "5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48
 const PORT = 3333;
 const CONTAINER = "flare-browsers";
 
+// Where the engines come from (bits/15): `FLARE_BROWSER_WS`, else the pinned container when Docker is present, else
+// Playwright's locally installed engines, as on the macOS runners, which have no Docker. With none of the three, one
+// error names all three.
+async function browserSource(): Promise<{ endpoint: string | undefined }> {
+	const set = process.env["FLARE_BROWSER_WS"];
+	if (set !== undefined) return { endpoint: set };
+	if (spawnSync(dockerBin(), ["--version"]).error === undefined) return { endpoint: await browserServer() };
+	if (ENGINES.every((engine) => existsSync(TYPES[engine].executablePath()))) return { endpoint: undefined };
+	throw new Error(
+		"The hydrate harness has no browsers: set FLARE_BROWSER_WS to a Playwright run-server, install Docker for the " +
+			"pinned container, or install Playwright's engines (bunx playwright install chromium firefox webkit)",
+	);
+}
+
+function dockerBin(): string {
+	return process.env["FLARE_DOCKER"] ?? "docker";
+}
+
 // A run-server on 127.0.0.1, started from the pinned image with host networking, or the one already running. The
 // server is the lockfile's own playwright-core, mounted read-only, so the container downloads nothing and its version
 // is the one the image's browsers were built for.
@@ -235,12 +257,12 @@ async function browserServer(): Promise<string> {
 	if (await reachable(PORT)) return endpoint;
 	const core = playwrightCore();
 	const image = `mcr.microsoft.com/playwright:v${core.version}-noble@sha256:${DIGEST}`;
-	const docker = process.env["FLARE_DOCKER"] ?? "docker";
+	const docker = dockerBin();
 	const run = ["run", "-d", "--rm", "--init", "--network", "host", "--name", CONTAINER];
 	const mount = ["-v", `${core.dir}:/playwright-core:ro`, image];
 	const serve = ["node", "/playwright-core/cli.js", "run-server", "--port", String(PORT), "--host", "127.0.0.1"];
 	const started = spawnSync(docker, [...run, ...mount, ...serve], { encoding: "utf8" });
-	if (started.status !== 0 && !started.stderr.includes("already in use")) {
+	if (started.status !== 0 && !(started.stderr ?? "").includes("already in use")) {
 		throw new Error(`the browser container did not start (${docker}): ${started.stderr || String(started.error)}`);
 	}
 	for (let waited = 0; waited < 120; waited += 1) {
