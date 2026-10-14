@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { load } from "js-yaml";
 import { expect, it } from "vitest";
 import { IMAGE_DIGEST } from "../../../../scripts/browser-server.ts";
@@ -12,9 +12,17 @@ type Job = {
 };
 type Workflow = { env?: Record<string, string>; jobs: Record<string, Job> };
 
-const workflow = load(
-	readFileSync(new URL("../../../../.github/workflows/ci.yml", import.meta.url), "utf8"),
-) as Workflow;
+function workflowOf(file: string): Workflow {
+	return load(readFileSync(new URL(`../../../../.github/workflows/${file}`, import.meta.url), "utf8")) as Workflow;
+}
+
+const workflow = workflowOf("ci.yml");
+// Every workflow file, so a new one is held to the same pins.
+const workflows = new Map(
+	readdirSync(new URL("../../../../.github/workflows/", import.meta.url))
+		.filter((file) => file.endsWith(".yml"))
+		.map((file) => [file, workflowOf(file)] as const),
+);
 
 // B3: every CI job runs on Node 24, set right after checkout, so no job runs on the runner's own Node (BUGS.md B24).
 it("ci node", () => {
@@ -38,12 +46,36 @@ it("ci unit on both oses", () => {
 	expect([runsTests("check"), runsTests("e2e-mac")]).toEqual([true, true]);
 });
 
-// CI runs the Bun this repo was verified on: ci.yml's BUN_VERSION is the root manifest's packageManager (BUGS.md B48).
+// Every workflow runs the Bun this repo was verified on: its BUN_VERSION is the root manifest's packageManager, and
+// every setup-bun step takes it from there (BUGS.md B48). The release workflow once kept v0's 1.3.11 after CI moved
+// on, so a v1 tag would have verified on a Bun nothing else ran (BUGS.md 115).
 it("ci bun version", () => {
 	const root = JSON.parse(readFileSync(new URL("../../../../package.json", import.meta.url), "utf8")) as {
 		packageManager?: string;
 	};
-	expect(`bun@${String(workflow.env?.["BUN_VERSION"])}`).toBe(root.packageManager);
+	for (const [file, flow] of workflows) {
+		expect([file, `bun@${String(flow.env?.["BUN_VERSION"])}`]).toEqual([file, root.packageManager]);
+		const pins = Object.values(flow.jobs).flatMap((job) =>
+			job.steps.filter((step) => step.uses?.startsWith("oven-sh/setup-bun") === true).map((step) => step.with),
+		);
+		expect([file, pins.every((pin) => pin?.["bun-version"] === "${{ env.BUN_VERSION }}")]).toEqual([file, true]);
+	}
+});
+
+// The release workflow's jobs that run Bun set Node 24 right after checkout, as every CI job does: the runner's own
+// Node is older than the 22.18 the repo needs (BUGS.md 115).
+it("release node", () => {
+	const release = workflows.get("release.yml");
+	for (const [name, job] of Object.entries(release?.jobs ?? {})) {
+		if (!job.steps.some((step) => step.uses?.startsWith("oven-sh/setup-bun") === true)) continue;
+		const checkout = job.steps.findIndex((step) => step.uses?.startsWith("actions/checkout@") === true);
+		const node = job.steps[checkout + 1];
+		expect({ name, uses: node?.uses, version: node?.with?.["node-version"] }).toEqual({
+			name,
+			uses: "actions/setup-node@v4",
+			version: 24,
+		});
+	}
 });
 
 // The check job runs the unit suite under the Bun runtime right after the Node run, so a Bun-only regression fails
