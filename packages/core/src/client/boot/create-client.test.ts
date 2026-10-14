@@ -8,6 +8,7 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { PrefetchContext, useRouter, type LinkPrefetch } from "../../shared/router/context.ts";
 import { createRouter, type Router } from "../../shared/router/create-router.ts";
+import { navigate } from "../navigation/active.ts";
 import { bootClient, createClient, devSend, type ClientEnv } from "./create-client.ts";
 import { createReady, type ReadyContext } from "./ready.ts";
 
@@ -146,6 +147,27 @@ it("navigates", async () => {
 	expect(host.textContent).toBe("root[about:fresh]");
 	expect(location.pathname).toBe("/about");
 	expect(window.scrollTo).toHaveBeenCalled();
+});
+
+// The root `navigate` drives the booted client from outside any component, and stops reaching it once the client is
+// disposed (BUGS.md 105).
+it("root navigate", async () => {
+	const host = install();
+	const frames = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/about", d: "root" },
+		{ t: "r" },
+		{ t: "d" },
+	] as const;
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
+	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+	const stop = await bootClient(routerOf(), createReady(), env(host, fetch));
+	await navigate({ to: "_root_/about" });
+	flush();
+	expect(host.textContent).toBe("root[about:root]");
+	expect(location.pathname).toBe("/about");
+	stop();
+	await expect(navigate({ to: "_root_/" })).rejects.toThrow("once createClient has booted");
 });
 
 it("create client", async () => {

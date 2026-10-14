@@ -20,6 +20,22 @@ test("unauthorized", async ({ page, docs, context }) => {
 	await expect(page.locator("#admin-403")).toBeVisible();
 });
 
+// A loader that reads an optional session throws `unauthenticated()` for a guest and `unauthorized()` for a reader,
+// which paint the admin root's 401 and 403 boundaries; an admin gets the page (BUGS.md 105).
+test("auth throws", async ({ page, docs, context }) => {
+	const guest = await page.goto(`${docs.origin}/admin/audit`);
+	expect(guest?.status()).toBe(401);
+	await expect(page.locator("#admin-401")).toBeVisible();
+	await context.addCookies([sessionCookie(docs.origin, "bob", "reader")]);
+	const reader = await page.goto(`${docs.origin}/admin/audit`);
+	expect(reader?.status()).toBe(403);
+	await expect(page.locator("#admin-403")).toBeVisible();
+	await context.addCookies([sessionCookie(docs.origin, "ada", "admin")]);
+	const admin = await page.goto(`${docs.origin}/admin/audit`);
+	expect(admin?.status()).toBe(200);
+	await expect(page.locator("#audit-title")).toHaveText("Audit log for ada");
+});
+
 test("login cookie", async ({ page, docs }) => {
 	await open(page, docs.origin, "/login");
 	await page.locator("#login-user").fill("ada");

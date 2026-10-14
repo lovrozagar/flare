@@ -17,7 +17,9 @@ test("ssg unknown slug", async ({ page, docs }) => {
 test("catch-all", async ({ page, docs }) => {
 	await open(page, docs.origin, "/api/router/create-router");
 	await expect(page.locator("#api-name")).toHaveText("createRouter");
-	await open(page, docs.origin, "/api/x/y/z");
+	// An unknown entry is a 404: the loader throws `notFound()` and the page paints its own not-found (BUGS.md 105).
+	const unknown = await page.goto(`${docs.origin}/api/x/y/z`);
+	expect(unknown?.status()).toBe(404);
 	await expect(page.locator("#api-unknown")).toHaveText("No entry at /x/y/z");
 });
 

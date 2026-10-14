@@ -107,7 +107,14 @@ export async function runLoaders(input: RunInput): Promise<LoaderRun> {
 	// A .response() page runs no loader and no render. A stopped gate answers with its status alone.
 	if (input.response !== undefined) {
 		if (gated.kind === "stopped") return bare(finalize({ status: statusOf(gated.error), body: "" }));
-		return { ...bare(finalize({ status: 200, body: "" })), class: gated.class, answer: await gated.answer };
+		const settled = await Promise.resolve(gated.answer).then(
+			(answer) => ({ answer }),
+			(thrown: unknown) => ({ thrown }),
+		);
+		if ("answer" in settled) return { ...bare(finalize({ status: 200, body: "" })), class: gated.class, ...settled };
+		// The root helpers answer as they do from a loader: `redirect()` its status and Location, the HTTP helpers their
+		// status. Anything else is a bug, a 500 the caller projects (BUGS.md 105).
+		return { ...bare(finalize({ status: statusOf(settled.thrown), body: "" })), thrown: settled.thrown };
 	}
 	const base = { auth: gated.session, request: input.request, env: input.env };
 	const contexts = gated.contexts;

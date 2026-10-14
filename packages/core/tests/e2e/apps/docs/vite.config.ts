@@ -38,7 +38,12 @@ export default defineConfig({
 					robotsTxt: "User-agent: *\nDisallow: /admin\n",
 					changefreq: { "[[locale]]/_root_/": "weekly", "[[locale]]/_root_/(guide)/docs/[slug]": "monthly" },
 					priority: { "[[locale]]/_root_/": 1 },
-					exclude: ["[[locale]]/_root_/error", "[[locale]]/_root_/login", "[[locale]]/_root_/legacy"],
+					exclude: [
+						"[[locale]]/_root_/error",
+						"[[locale]]/_root_/login",
+						"[[locale]]/_root_/legacy",
+						"_admin_/admin/audit",
+					],
 					additionalEntries: [{ loc: "https://flare.test/api/server/create-server", changefreq: "monthly" }],
 				},
 			},

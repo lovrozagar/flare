@@ -1,10 +1,12 @@
-import { createPage } from "@lovrozagar/flare";
+import { createPage, redirect } from "@lovrozagar/flare";
 
-// An old URL. A `.response()` page answers with its own permanent redirect to the new home of this content.
-export const route = createPage("[[locale]]/_root_/legacy").response(
-	({ params }) =>
-		new Response(null, {
-			status: 301,
-			headers: { location: `${params.locale === undefined ? "" : `/${params.locale}`}/docs/routing#params` },
-		}),
+// An old URL. A `.response()` page throws a permanent `redirect()` to the new home of this content, typed by the doc
+// page's id and params like a `Link` (BUGS.md 105).
+export const route = createPage("[[locale]]/_root_/legacy").response(({ params }) =>
+	redirect({
+		to: "[[locale]]/_root_/(guide)/docs/[slug]",
+		params: { locale: params.locale, slug: "routing" },
+		hash: "params",
+		status: 301,
+	}),
 );

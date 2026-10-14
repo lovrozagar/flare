@@ -312,6 +312,7 @@ Run against oxc, not a regex. `SECRET`, `SERVER`, and `CLIENT` are the bodies un
 | `query client` | an app file imports `@lovrozagar/flare/query` | `hasQueryClient: true`. A comment that mentions the package does not set it. A fixture that does not import it omits the field. The scan is the import, not the text `queryClientGetter` |
 | `no virtual` | the generated file | it contains no `virtual:` specifier |
 | `no phantom` | the generated file | it does not mention `~flare` and it does not set `auth`, `env`, or `serverContext` |
+| `page ids` | the fixture, then a fixture with only a root layout | `pageIds` is the union of every page id, a `.response()` page among them, sorted; `never` with no page (BUGS.md 105) |
 | `hint` | a page under an auth layout | the hint says requires |
 
 ### `tests/types/app.test.ts`

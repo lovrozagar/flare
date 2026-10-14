@@ -467,3 +467,27 @@ it("client script", async () => {
 	const without = await (await createServer({ router }).fetch(new Request("http://localhost/"))).text();
 	expect(without).not.toContain("import(");
 });
+
+// A `.response()` function throws the root helpers as a loader does: `redirect()` answers its status and a Location
+// built from the target, `notFound()` its status. A plain throw is still a bug, a 500 (BUGS.md 105).
+it("response throws", async () => {
+	const moved = createPage("_root_/old").response(() => redirect({ to: "_root_/", hash: "top", status: 301 }));
+	const gone = createPage("_root_/gone").response(() => notFound());
+	const broken = createPage("_root_/broken").response(() => {
+		throw new Error("bug");
+	});
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [
+			{ id: "_root_/", path: "/", module: home },
+			{ id: "_root_/old", path: "/old", response: true, module: moved },
+			{ id: "_root_/gone", path: "/gone", response: true, module: gone },
+			{ id: "_root_/broken", path: "/broken", response: true, module: broken },
+		],
+	});
+	const app = serveWith({ router }, { dev: false, log: quiet });
+	const old = await app.fetch(new Request("http://localhost/old"));
+	expect([old.status, old.headers.get("location")]).toEqual([301, "/#top"]);
+	expect((await app.fetch(new Request("http://localhost/gone"))).status).toBe(404);
+	expect((await app.fetch(new Request("http://localhost/broken"))).status).toBe(500);
+});

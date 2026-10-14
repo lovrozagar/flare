@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 import { defined } from "../../shared/errors/index.ts";
+import { RedirectError } from "../../shared/errors/redirect.ts";
+import { redirectLocation } from "../redirect/index.ts";
 import { PRERENDER } from "../../shared/protocol/prerender.ts";
 import type { FlareRegister } from "../../shared/route-builder/register.ts";
 import type { Match } from "../../shared/router/create-router.ts";
@@ -196,6 +198,12 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 		return answer(exchange, 500);
 	}
 	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond });
+	if (run.thrown instanceof RedirectError) {
+		return answer(exchange, run.thrown.status, redirectLocation(run.thrown, exchange.options.router.basePath));
+	}
+	if (run.thrown !== undefined && run.response.status === 500) {
+		return answer(exchange, projectError(run.thrown, exchange.sink).status);
+	}
 	if (run.answer === undefined) return bare(exchange, run);
 	const headers = responseHeaders(run.answer.headers, effectiveAuth(matched.chain.map((entry) => entry.module)));
 	return secure(exchange, { status: run.answer.status, body: run.answer.body, headers });

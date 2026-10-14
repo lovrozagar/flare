@@ -8,6 +8,7 @@ export {
 	type MiddlewareFilter,
 } from "../server/middleware/index.ts";
 export { mount } from "../server/mount/index.ts";
+export type { SecurityConfig } from "../server/security/index.ts";
 export { proxy } from "../server/proxy/index.ts";
 export {
 	createAssetsStore,

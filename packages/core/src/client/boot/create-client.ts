@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+import { setActiveNavigate } from "../navigation/active.ts";
 import { hydrate } from "@solidjs/web";
 import { delegateClicks } from "../../shared/components/index.ts";
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts";
@@ -111,13 +112,20 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	});
 	// After the mount, so a Link's own click handler runs first and the delegate sees it handled.
 	const unlisten = listen(router, navigator, { history, scroll, store });
+	setActiveNavigate(navigator.navigate);
 	markHydrated(ready);
 	if (state.fill === true) void navigator.fill(pending);
 	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all));
 	ready.interaction(document);
+	return disposer(unlisten, unmount);
+}
+
+// Disposing the client also clears the active navigation, so the root `navigate` no longer reaches a client that is
+// gone (BUGS.md 105).
+function disposer(...stops: (() => void)[]): () => void {
 	return () => {
-		unlisten();
-		unmount();
+		setActiveNavigate(undefined);
+		for (const stop of stops) stop();
 	};
 }
 

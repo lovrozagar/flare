@@ -71,7 +71,10 @@ export async function gate(input: GateInput): Promise<GateResult> {
 	// A .response() page answers here. It never reads the store.
 	if (input.response !== undefined) {
 		const page = input.routes[input.routes.length - 1];
-		const answer = input.response({ ...base, params: page?.params, search: page?.search, preloaderContext: latest });
+		const ctx = { ...base, params: page?.params, search: page?.search, preloaderContext: latest };
+		// A throw is a rejection whether the function is sync or async, so the run settles both one way (BUGS.md 105).
+		const respond = input.response;
+		const answer = (async () => respond(ctx))();
 		return { kind: "proceed", session, class: policy, contexts, answer };
 	}
 	const read = input.readStore;

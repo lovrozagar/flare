@@ -366,6 +366,14 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `scope` | `"auto"` with a boundary element that can start one, `"document"`, a scope function, and an element that cannot | the element, the document, the element, the document. With no API at all the update runs directly |
 | `options` | the navigate option over the router default | `undefined` keeps the router's, `true` is `{}`, `false` is off, and an object wins |
 
+### `client/navigation/active.test.ts` (BUGS.md 105)
+
+| test | case | result |
+| --- | --- | --- |
+| `active navigate` | the root `navigate` before a client booted, with an active navigation set, then cleared | rejects `navigate runs in the browser, once createClient has booted`; calls the active one with the options; rejects again |
+
+create-client `root navigate`: after `bootClient`, the root `navigate({ to: "_root_/about" })` lands the page and the URL; after the client is disposed it rejects.
+
 ### `client/navigation/navigate-transition.test.ts`
 
 | test | case | result |

@@ -45,6 +45,7 @@ export function generateTypes(input: TypesInput): {
 	for (const module of modules) parents[module.id] = parentsOf(module.id, layouts);
 	const fields = [
 		map("routes", pageUrls(generated.routes)),
+		pageIds(generated.routes.map((route) => route.id)),
 		map(
 			"routeModules",
 			modules.map((module) => [module.id, module.type]),
@@ -78,6 +79,14 @@ function pageUrls(routes: ReturnType<typeof generateRoutes>["routes"]): Entries 
 			const params = Object.entries(route.params).map(([name, type]) => `${name}: ${type}`);
 			return [route.path, `{ params: ${params.length === 0 ? "{}" : `{ ${params.join("; ")} }`} }`];
 		});
+}
+
+// Every page id as a plain union, so a page target (`Link`, `navigate`, `redirect`) is known without reading a route
+// module's type. A loader that throws `redirect()` then infers its own return type without a loop through its own
+// module (BUGS.md 105).
+function pageIds(ids: readonly string[]): string {
+	const union = ids.toSorted().map((id) => `"${escapeSource(id)}"`);
+	return `\t\tpageIds: ${union.length === 0 ? "never" : union.join(" | ")};`;
 }
 
 function authModes(modules: readonly Module[]): Entries {

@@ -15,7 +15,9 @@ declare module "@lovrozagar/flare" {
 			"/[[locale]]/playground": { params: { locale: string | undefined } };
 			"/[[locale]]/search": { params: { locale: string | undefined } };
 			"/admin": { params: {} };
+			"/admin/audit": { params: {} };
 		};
+		pageIds: "[[locale]]/_root_/" | "[[locale]]/_root_/(guide)/api/[...path]" | "[[locale]]/_root_/(guide)/docs/[slug]" | "[[locale]]/_root_/(guide)/examples/[[...rest]]" | "[[locale]]/_root_/[_]flare]" | "[[locale]]/_root_/changelog" | "[[locale]]/_root_/error" | "[[locale]]/_root_/legacy" | "[[locale]]/_root_/llms.txt" | "[[locale]]/_root_/login" | "[[locale]]/_root_/playground" | "[[locale]]/_root_/search" | "_admin_/admin" | "_admin_/admin/audit";
 		routeModules: {
 			"[[locale]]/_root_": typeof import("../routes/[[locale]]/_root_/locale.root-layout.tsx").route;
 			"[[locale]]/_root_/": typeof import("../routes/[[locale]]/_root_/home.page.tsx").route;
@@ -35,6 +37,7 @@ declare module "@lovrozagar/flare" {
 			"[[locale]]/_root_/search": typeof import("../routes/[[locale]]/_root_/search/search.page.tsx").route;
 			"_admin_": typeof import("../routes/_admin_/admin.root-layout.tsx").route;
 			"_admin_/admin": typeof import("../routes/_admin_/admin/admin.page.tsx").route;
+			"_admin_/admin/audit": typeof import("../routes/_admin_/admin/audit/audit.page.tsx").route;
 		};
 		routeParents: {
 			"[[locale]]/_root_": [];
@@ -55,10 +58,12 @@ declare module "@lovrozagar/flare" {
 			"[[locale]]/_root_/search": ["[[locale]]/_root_"];
 			"_admin_": [];
 			"_admin_/admin": ["_admin_"];
+			"_admin_/admin/audit": ["_admin_"];
 		};
 		authModes: {
 			"[[locale]]/_root_/login": "optional";
 			"_admin_/admin": true;
+			"_admin_/admin/audit": "optional";
 		};
 		routeSearchParams: {
 			"[[locale]]/_root_/(guide)/examples/[[...rest]]": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/[[locale]]/_root_/(guide)/examples/[[...rest]]/examples.page.tsx").route>;

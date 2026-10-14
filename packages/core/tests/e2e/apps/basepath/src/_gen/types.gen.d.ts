@@ -6,6 +6,7 @@ declare module "@lovrozagar/flare" {
 		routes: {
 			"/": { params: {} };
 		};
+		pageIds: "_root_/";
 		routeModules: {
 			"_root_": typeof import("../routes/_root_/root.root-layout.tsx").route;
 			"_root_/": typeof import("../routes/_root_/home.page.tsx").route;
