@@ -252,6 +252,8 @@ packages/core/src/server/render/escape.test.ts	P1	test	server	Unit cases for esc
 packages/core/src/server/render/escape.corpus.txt	P1	corpus	server	Script-escape corpus including dollar-brace, script close, and line separators
 packages/core/src/server/render/state.ts	P1	src	server	Build the one state script and the insertion point
 packages/core/src/server/render/state.test.ts	P1	test	server	Unit cases for state.ts
+packages/core/src/server/render/head-sequence.ts	P1	src	server	The final shell's <head> child sequence the client's head guard matches (B120)
+packages/core/src/server/render/head-sequence.test.ts	P1	test	server	Unit cases for head-sequence.ts
 packages/core/src/server/render/shape.ts	P1	src	server	A document holds `<html` and `</body>`: B37's production shell check and B46's write rule
 packages/core/src/server/render/shape.test.ts	P1	test	server	Unit cases for shape.ts
 packages/core/src/server/render/head.ts	P1	src	server	Render the merged .head() descriptors through Solid's SSR useHead, so each tag carries its data-dh identity
@@ -340,8 +342,11 @@ packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates
 packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token, announce it, and name it on the client's requests (B42)
 packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
+packages/core/src/client/boot/boot.fixture.ts	P1	test	dom	The app, router, document state, and browser surface the create-client tests boot
 packages/core/src/client/boot/hydrate.ts	P1	src	dom	Read the state script, provide the router context, and call Solid hydrate
 packages/core/src/client/boot/hydrate.test.ts	P1	test	dom	Unit cases for hydrate.ts
+packages/core/src/client/boot/head-guard.ts	P1	src	dom	Keep <head> nodes the server did not write out of the hydrate and put them back in the same task (B120)
+packages/core/src/client/boot/head-guard.test.ts	P1	test	dom	Unit cases for head-guard.ts
 packages/core/src/client/boot/ready.ts	P6	src	dom	onReady, onHydrated, onIdle, onInteraction
 packages/core/src/client/boot/ready.test.ts	P6	test	dom	Unit cases for ready.ts
 packages/core/src/client/boot/index.ts	P1	index	client	Re-exports

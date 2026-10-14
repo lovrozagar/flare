@@ -72,3 +72,31 @@ it("fill flag", () => {
 		'<script>self.flare={"matches":[],"nonce":"","build":"b"}</script>',
 	);
 });
+
+// The state's `head` for a document whose stream writes `shell`, or for the plain render without one.
+async function stateHead(shell: string | undefined): Promise<unknown> {
+	const html = await new Response(
+		await renderDocument({
+			request: new Request("http://localhost/"),
+			router: createRouter({ layouts: {}, routeTree: [] }),
+			matches: [],
+			render: () => "x",
+			...(shell === undefined
+				? {}
+				: {
+						stream: () => ({ pipeTo: (writable) => new Response(shell).body?.pipeTo(writable) ?? Promise.resolve() }),
+					}),
+		}),
+	).text();
+	const start = html.indexOf("self.flare=");
+	const source = html.slice(start, html.indexOf("</script>", start));
+	return Reflect.get(Function(`const self = {}; ${source}; return self.flare;`)(), "head");
+}
+
+// The state carries the final shell's head sequence, the capture script and its `xs` marker Flare adds included, for
+// the client's guard (B120). A shell with no head carries an empty one.
+it("head sequence", async () => {
+	const shell = "<html><head><title>T</title><!--$--><meta name=a><!--/--></head><body>x</body></html>";
+	expect(await stateHead(shell)).toEqual(["title", "!$", "meta", "!/", "script", "!xs"]);
+	expect(await stateHead(undefined)).toEqual([]);
+});

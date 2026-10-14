@@ -1,83 +1,12 @@
-import { createComponent, flush, useContext } from "solid-js";
-import { render } from "@solidjs/web";
+import { flush } from "solid-js";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { InterceptOutlet, Link, type InterceptState } from "../../shared/components/index.ts";
 import { encodeFrame, QUERY_GETTER, type Frame } from "../../shared/protocol/index.ts";
 import { createServerFn } from "../server-fn/call.ts";
-import { createPage } from "../../shared/route-builder/page.ts";
-import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
-import { PrefetchContext, useRouter, type LinkPrefetch } from "../../shared/router/context.ts";
-import { createRouter, type Router } from "../../shared/router/create-router.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
 import { navigate } from "../navigation/active.ts";
+import { env, install, routerOf, seen, stops, type Dom } from "./boot.fixture.ts";
 import { bootClient, createClient, devSend, type ClientEnv } from "./create-client.ts";
 import { createReady, type ReadyContext } from "./ready.ts";
-
-type Dom = typeof globalThis & { _$HY?: unknown; flare?: unknown };
-
-const seen: { router?: Router; prefetcher?: LinkPrefetch | null } = {};
-
-const root = createRootLayout("_root_").render((props) => [
-	"root[",
-	props.children,
-	createComponent(InterceptOutlet, { children: (state: InterceptState) => `|overlay:${state.render}` }),
-	"]",
-]);
-const photo = createPage("_root_/photo")
-	.intercept({ from: ["_root_/"], render: "preview" })
-	.render(() => "photo");
-const home = createPage("_root_/").render((props) => {
-	seen.router = useRouter();
-	seen.prefetcher = useContext(PrefetchContext);
-	return [`home:${String(props.loaderData)}`, createComponent(Link, { to: "_root_/about", children: "" })];
-});
-const about = createPage("_root_/about").render((props) => `about:${String(props.loaderData)}`);
-const broken = createPage("_root_/broken").render(() => {
-	throw new Error("render broke");
-});
-
-function routerOf(chunks: Record<string, string> = {}): Router {
-	return createRouter({
-		chunks,
-		layouts: { _root_: root },
-		routeTree: [
-			{ id: "_root_/", path: "/", module: () => Promise.resolve(home) },
-			{ id: "_root_/about", path: "/about", module: about },
-			{ id: "_root_/broken", path: "/broken", module: broken },
-			{ id: "_root_/photo", path: "/photo", module: photo },
-			{
-				id: "_root_/lazy",
-				path: "/lazy",
-				module: () => Promise.reject(new TypeError("Failed to fetch dynamically imported module")),
-			},
-		],
-	});
-}
-
-const stops: (() => void)[] = [];
-
-function install(build?: string): HTMLElement {
-	const matches = [
-		{ id: "_root_", params: {}, search: {}, data: null, preloader: {}, head: null, error: null },
-		{ id: "_root_/", params: {}, search: {}, data: "start", preloader: {}, head: { title: "Home" }, error: null },
-	];
-	// jsdom does not run a script set through innerHTML. A browser would, so the test assigns self.flare too.
-	const state = build === undefined ? { matches, nonce: "" } : { matches, nonce: "", build };
-	document.body.innerHTML = `<script>self.flare=${JSON.stringify(state)}</script><div id="app"></div>`;
-	(globalThis as Dom).flare = { ...state };
-	return document.getElementById("app") as HTMLElement;
-}
-
-function env(host: HTMLElement, fetch: ClientEnv["fetch"] = vi.fn<ClientEnv["fetch"]>()): ClientEnv {
-	return {
-		mount: (code) => render(code, host),
-		fetch,
-		assign: vi.fn<(href: string) => void>(),
-		dev: false,
-		idle: { requestIdle: undefined, setTimeout: (run) => run() },
-		network: {},
-		observe: () => () => undefined,
-	};
-}
 
 beforeEach(() => {
 	history.replaceState(null, "", "/");
@@ -118,6 +47,48 @@ it("hydrates matches", async () => {
 	expect(order).toEqual(["ready false", "hydrated true"]);
 	await new Promise((resolve) => setTimeout(resolve, 30));
 	expect(document.title).toBe("Home");
+});
+
+// The head the mount sees is the server's sequence; the foreign nodes are back, in place, when the boot returns, and
+// they are back even when the mount throws (B120).
+it("head guarded", async () => {
+	const host = install(undefined, { head: ["meta"] });
+	document.head.innerHTML = '<style data-ext></style><meta name="server"><link data-ext>';
+	const seenHead: string[][] = [];
+	const guarded = (throws: boolean): ClientEnv => ({
+		...env(host),
+		mount: (code, root) => {
+			seenHead.push([...document.head.children].map((node) => node.outerHTML));
+			if (throws) throw new Error("mount broke");
+			return env(host).mount(code, root);
+		},
+	});
+	stops.push(await bootClient(routerOf(), createReady(), guarded(false)));
+	expect(seenHead).toEqual([['<meta name="server">']]);
+	const after = '<style data-ext=""></style><meta name="server"><link data-ext="">';
+	expect(document.head.innerHTML.startsWith(after)).toBe(true);
+	await expect(bootClient(routerOf(), createReady(), guarded(true))).rejects.toThrow("mount broke");
+	expect(document.head.innerHTML.startsWith(after)).toBe(true);
+	document.head.innerHTML = "";
+});
+
+// A route render that throws while the document hydrates is logged in production, with no dev overlay to show it;
+// one after hydrate is the boundary's alone (B120).
+it("hydrate failure logged", async () => {
+	history.replaceState(null, "", "/broken");
+	const broken = { id: "_root_/broken", params: {}, search: {}, data: null, preloader: {}, head: null, error: null };
+	const host = install(undefined, {
+		matches: [{ id: "_root_", params: {}, search: {}, data: null, preloader: {}, head: null, error: null }, broken],
+	});
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+	stops.push(await bootClient(routerOf(), createReady(), env(host)));
+	flush();
+	expect(host.textContent).toBe("root[Something went wrong]");
+	expect(logged).toHaveBeenCalledExactlyOnceWith(
+		"[flare] a route failed to hydrate",
+		expect.objectContaining({ message: "render broke" }),
+	);
+	logged.mockRestore();
 });
 
 it("keeps capture", async () => {
@@ -220,10 +191,13 @@ it("dev report", async () => {
 	const navigates: ReadyContext["navigate"][] = [];
 	ready.api.onReady((ctx) => navigates.push(ctx.navigate));
 	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
 	stops.push(await bootClient(routerOf(), ready, { ...env(host, fetch), dev: true, send }));
 	await navigates[0]({ to: "_root_/broken" });
 	flush();
 	expect(host.textContent).toBe("root[Something went wrong]");
+	expect(logged).not.toHaveBeenCalled();
+	logged.mockRestore();
 	expect(send).toHaveBeenCalledExactlyOnceWith(
 		expect.objectContaining({ err: expect.objectContaining({ message: "render broke" }) }),
 	);
