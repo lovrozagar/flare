@@ -349,6 +349,8 @@ it("exit cleans a writer", async () => {
 		'import { mkdirSync, writeFileSync } from "node:fs";',
 		"const dir = process.env.FLARE_VITE_CACHE;",
 		'process.on("SIGTERM", () => {});',
+		// A broken exit path must not leave a writer behind: the stub ends itself.
+		"setTimeout(() => process.exit(0), 5000);",
 		'console.log("http://127.0.0.1:1");',
 		'setInterval(() => { mkdirSync(dir, { recursive: true }); writeFileSync(dir + "/dep", "x"); }, 1);',
 	].join("\n");
@@ -371,7 +373,7 @@ it("exit cleans a writer", async () => {
 it("close after a kill", async () => {
 	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
 	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
-	const script = 'console.log("http://127.0.0.1:1"); setInterval(() => undefined, 1000);';
+	const script = 'console.log("http://127.0.0.1:1"); setTimeout(() => process.exit(0), 5000);';
 	const session = await bootChild({
 		appDir,
 		cacheDir,
