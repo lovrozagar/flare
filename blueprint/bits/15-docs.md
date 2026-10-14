@@ -55,7 +55,7 @@ The server has `serverContext`, `authenticate`, `i18n()`, middleware (`next`, `r
 
 ## `tests/e2e/docs-cache.test.ts`
 
-Production cases skip the `*-dev-*` projects: `ssg seed`, `ssg public cdn`, `isr stored`, `shared ssr`, `revalidate tag` (the admin republish purges the `api` tag). Every deep server: `client cache stale`, `cache deferred`, `store per runtime`.
+Production cases skip the `*-dev-*` projects: `ssg seed`, `ssg public cdn`, `isr stored` (the changelog shows its render's request id; a repeat is a `hit` or a `miss` joined to the first render, the same id either way, and a later request is a `hit` from it; BUGS.md 88), `shared ssr`, `revalidate tag` (the admin republish purges the `api` tag). Every deep server: `client cache stale`, `cache deferred`, `store per runtime`.
 
 ## `tests/e2e/docs-server.test.ts`
 

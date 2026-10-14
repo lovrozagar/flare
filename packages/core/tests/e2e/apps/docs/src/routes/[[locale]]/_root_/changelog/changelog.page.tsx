@@ -1,4 +1,5 @@
 import { createPage, useDeferred } from "@lovrozagar/flare";
+import { serverCtx } from "@lovrozagar/flare/server";
 import { Errored, For, Loading } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { statsGate } from "../../../../stats-gate.ts";
@@ -31,6 +32,8 @@ function Skeleton(props: { id: string; lines: number }): JSX.Element {
 export const route = createPage("[[locale]]/_root_/changelog")
 	.cache({ isr: { revalidate: "1h", defer: "stream" }, client: { cacheDeferred: true, staleTime: "1m" } })
 	.loader(({ defer }) => ({
+		// The render's own id, so an e2e case tells one render's copies from a second render (BUGS.md 88).
+		renderedBy: serverCtx().requestId,
 		latest: defer(() => after(30, RELEASES[0]), { key: "latest", prerender: "resolve" }),
 		releases: defer(() => after(150, RELEASES), { key: "releases" }),
 		// The e2e can hold `stats` until it has seen the skeleton (stats-gate.ts).
@@ -48,6 +51,9 @@ export const route = createPage("[[locale]]/_root_/changelog")
 		return (
 			<main class="mx-auto max-w-3xl px-5 py-10">
 				<h1 class="text-3xl font-semibold tracking-tight">Changelog</h1>
+				<p class="mt-1 text-xs text-stone-500">
+					rendered by <code id="changelog-rendered-by">{props.loaderData.renderedBy}</code>
+				</p>
 				<Loading fallback={<Skeleton id="latest-loading" lines={1} />}>
 					<p id="latest" class="mt-3 text-lg">
 						Latest: <strong>{latest()?.version}</strong>
