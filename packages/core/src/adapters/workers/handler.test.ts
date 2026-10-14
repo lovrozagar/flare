@@ -1,4 +1,7 @@
 import { expect, it } from "vitest";
+import { createServer } from "../../server/lifecycle/create.ts";
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
+import { createRouter } from "../../shared/router/create-router.ts";
 import { createWorkersHandler, type WorkerCtx, type WorkerEnv } from "./handler.ts";
 
 const ctx = (): WorkerCtx => ({
@@ -76,22 +79,22 @@ it("assets POST", async () => {
 	expect(called).toBe(0);
 });
 
+// The server's ingress computes the canonical path (B22): a non-canonical one is its 301 or 400, as on Node and Bun,
+// and never reaches the binding. A 404 passed that ingress, so the binding gets the request as it came.
 it("assets escape", async () => {
-	let pathname = "";
-	const handler = createWorkersHandler({ fetch: () => new Response("missing", { status: 404 }) }, { assets: "ASSETS" });
-	const env: WorkerEnv = {
-		ASSETS: {
-			fetch(request) {
-				pathname = new URL(request.url).pathname;
-				return new Response("file");
-			},
-		},
-	};
-	await handler.fetch(new Request("https://example.com/A//B"), env, ctx());
-	expect(pathname).toBe("/A/B");
-	const hostile = await handler.fetch(new Request("https://example.com/%2f"), env, ctx());
-	expect(hostile.status).toBe(400);
-	expect(pathname).toBe("/A/B");
+	const forwarded: Request[] = [];
+	const root = createRootLayout("_root_").render((props) => props.children);
+	const server = createServer({ router: createRouter({ layouts: { _root_: root }, routeTree: [] }) });
+	const handler = createWorkersHandler(server, { assets: "ASSETS" });
+	const env: WorkerEnv = { ASSETS: { fetch: (request) => (forwarded.push(request), new Response("file")) } };
+	const empty = await handler.fetch(new Request("https://example.com/a//b"), env, ctx());
+	expect([empty.status, empty.headers.get("location")]).toEqual([301, "/a/b"]);
+	expect((await handler.fetch(new Request("https://example.com/%2f"), env, ctx())).status).toBe(400);
+	expect(forwarded).toEqual([]);
+	const canonical = new Request("https://example.com/a/b");
+	expect(await (await handler.fetch(canonical, env, ctx())).text()).toBe("file");
+	expect(forwarded).toEqual([canonical]);
+	expect(forwarded[0]).toBe(canonical);
 });
 
 it("assets missing", async () => {

@@ -130,6 +130,8 @@ The real `createServer` with a full-document root and a memory store, behind `cr
 
 docs-server `forwarded proto untrusted` (e2e): a client's own `X-Forwarded-Proto: https` gets no HSTS from a server that declares no hop, on every runtime (bite: a Node listener trusting one hop by default fails on node-prod).
 
+docs-server `canonical ingress` (e2e): `//x` is 400, `/docs//routing` is 301 to `/docs/routing`, and `/CHANGELOG` is 301 to `/changelog`, on every runtime (red: workers-prod answered `/docs//routing` 200, BUGS.md 117.2). The paths are routes, since a file is the platform's: the harness's static layer and Cloudflare's assets answer it before Flare (`/icons//icon-96.png` is 200 on node-prod and bun-prod, 307 on workers-prod).
+
 ## `shared/dev/warn.test.ts`
 
 | test | case | result |

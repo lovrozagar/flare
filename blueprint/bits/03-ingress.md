@@ -113,9 +113,9 @@ The cases import the options builder, so they run under Node, except `bun oversi
 | test | case | result |
 | --- | --- | --- |
 | `waitUntil` | a handler calls `background` | `ctx.waitUntil` received that promise |
-| `assets GET` | no route matches, method GET, `assets: "ASSETS"` | the binding's `fetch` is called with the canonical request |
+| `assets GET` | no route matches, method GET, `assets: "ASSETS"` | the binding's `fetch` is called with the request |
 | `assets POST` | no route matches, method POST | 405, the binding is not called |
-| `assets escape` | the path is canonicalized before the binding sees it | the binding receives the canonical path |
+| `assets escape` | the real `createServer` behind the handler: `/a//b`, `/%2f`, then the canonical `/a/b` | 301 to `/a/b`, then 400, and the binding is not called for either; then the binding's file, and the binding received that same request (revised by BUGS.md 117: the handler canonicalized before `server.fetch`, so Workers served a non-canonical path where Node and Bun redirect) |
 | `assets missing` | `assets: "ASSETS"` and the env has no such binding | 500, logged once |
 | `assets miss` | no route matches, and the binding answers 404, for GET and HEAD; then a path the binding has | the app's own 404 answer, its body and headers, as on Node and Bun. The binding's file is returned untouched, with none of the app's headers |
 | `connecting ip` | `CF-Connecting-IP` is `1.2.3.4`, and a request where the header is absent | `clientIp` is `1.2.3.4`, or absent |
