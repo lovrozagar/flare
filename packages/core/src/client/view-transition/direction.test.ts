@@ -122,11 +122,13 @@ it("scoped throw", async () => {
 		},
 	});
 	const update = vi.fn<() => void>();
-	await runTransition({ option: {}, info, auto: () => element, update });
+	await runTransition({ option: { scope: "auto" }, info, auto: () => element, update });
 	expect(fromDocument.calls).toEqual(["callback"]);
 	expect(update).toHaveBeenCalledOnce();
 });
 
+// The default scope is the document, though a boundary could start one; "auto" and a function returning it opt into the
+// boundary's element, and an element that cannot start one falls back to the document (B119 (5)).
 it("scope", async () => {
 	const fromDocument = stub();
 	Object.defineProperty(document, "startViewTransition", { configurable: true, value: fromDocument.start });
@@ -134,11 +136,12 @@ it("scope", async () => {
 	const fromElement = stub();
 	Object.defineProperty(element, "startViewTransition", { configurable: true, value: fromElement.start });
 	await runTransition({ option: {}, info, auto: () => element, update });
+	await runTransition({ option: { scope: "auto" }, info, auto: () => element, update });
 	await runTransition({ option: { scope: "document" }, info, auto: () => element, update });
 	await runTransition({ option: { scope: () => "auto" }, info, auto: () => element, update });
-	await runTransition({ option: {}, info, auto: () => document.createElement("section"), update });
+	await runTransition({ option: { scope: "auto" }, info, auto: () => document.createElement("section"), update });
 	expect(fromElement.start).toHaveBeenCalledTimes(2);
-	expect(fromDocument.start).toHaveBeenCalledTimes(2);
+	expect(fromDocument.start).toHaveBeenCalledTimes(3);
 	Reflect.deleteProperty(document, "startViewTransition");
 	const plain = vi.fn<() => void>();
 	await runTransition({ option: {}, info, auto: () => document, update: plain });
