@@ -340,6 +340,31 @@ it("failed boot", async () => {
 	expect(existsSync(missing)).toBe(false);
 });
 
+// A child that keeps writing its cache dir, as Vite's dependency optimizer can while it is told to stop: the test
+// process's exit leaves no cache dir behind however late the child's last write lands (CI 38597128404's `exit cleans`).
+it("exit cleans a writer", async () => {
+	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
+	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
+	const script = [
+		'import { mkdirSync, writeFileSync } from "node:fs";',
+		"const dir = process.env.FLARE_VITE_CACHE;",
+		'console.log("http://127.0.0.1:1");',
+		'setInterval(() => { mkdirSync(dir, { recursive: true }); writeFileSync(dir + "/dep", "x"); }, 1);',
+	].join("\n");
+	const session = await bootChild({
+		appDir,
+		cacheDir,
+		bin: process.execPath,
+		args: ["--input-type=module", "-e", script],
+	});
+	await new Promise((resolve) => setTimeout(resolve, 50));
+	process.emit("exit", 0);
+	expect(existsSync(cacheDir)).toBe(false);
+	await new Promise((resolve) => setTimeout(resolve, 100));
+	expect(existsSync(cacheDir)).toBe(false);
+	await session.close();
+});
+
 it(
 	"exit cleans",
 	async () => {

@@ -60,8 +60,7 @@ export async function boot(input: { app: string; runtime: string; mode: string }
 
 type BootInput = { appDir: string; runtime: string; mode: string; dirs?: readonly string[] };
 
-// The same boot over any app directory. The golden test boots an app staged with the installed tarball (bits/14).
-// `dirs` go when a dev boot closes.
+// The same boot over any app directory, as golden.test stages one (bits/14). `dirs` go when a dev boot closes.
 export async function bootApp(input: BootInput): Promise<Boot> {
 	if (!RUNTIMES.has(input.runtime)) throw new Error(input.runtime);
 	if (input.mode !== "dev" && input.mode !== "prod") throw new Error(input.mode);
@@ -124,8 +123,11 @@ export function bootChild(input: {
 	output.attach(child.stdout);
 	output.attach(child.stderr);
 	const clean = (): void => remove([cacheDir, ...(input.dirs ?? [])]);
+	// The exiting test process cannot await the child: SIGKILL, and a second removal after a write in flight lands.
 	const onExit = (): void => {
-		child.kill("SIGTERM");
+		child.kill("SIGKILL");
+		clean();
+		Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
 		clean();
 	};
 	child.once("exit", clean);
@@ -146,13 +148,12 @@ export function bootChild(input: {
 }
 
 function remove(dirs: readonly string[]): void {
-	for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
+	for (const dir of dirs) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
 }
 
-// `vite build` on Node into `outDir`, as a deploy runs it. A test runner's NODE_ENV of `test` would make Vite resolve
-// development builds, Solid's dev server build among them, so the build runs with `production`. The app's vite.config
-// reads FLARE_E2E_RUNTIME to compose the Cloudflare plugin for a workers boot (B109). A failed build rejects with its
-// output.
+// `vite build` on Node into `outDir`, as a deploy runs it, with NODE_ENV `production`: a runner's `test` would resolve
+// development builds, Solid's dev server among them. vite.config reads FLARE_E2E_RUNTIME to compose the Cloudflare
+// plugin for a workers boot (B109). A failed build rejects with its output.
 function viteBuild(input: { appDir: string; cacheDir: string; outDir: string; runtime: string }): Promise<void> {
 	const child = spawn(process.execPath, [viteJs, "build", "--outDir", input.outDir], {
 		cwd: input.appDir,
@@ -291,7 +292,8 @@ function readOrigin(child: ChildProcess): Promise<string> {
 }
 
 function exited(child: ChildProcess): Promise<void> {
-	if (child.exitCode !== null) return Promise.resolve();
+	// A child a signal ended has no exit code, only a signal code.
+	if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
 	return new Promise((resolve) => {
 		child.once("exit", () => resolve());
 	});
