@@ -1,8 +1,9 @@
 import { createServerFn } from "@lovrozagar/flare/server-fn";
-import { statsHold } from "../stats-gate.ts";
+import { e2eBoot, statsHold } from "../stats-gate.ts";
 
-// The e2e controls for the changelog's `stats` gate (BUGS.md 69).
-export const holdStats = createServerFn().handler(() => {
+// The e2e controls for the changelog's `stats` gate (BUGS.md 69). Outside the e2e boot they change nothing.
+export const holdStats = createServerFn().handler(({ env }) => {
+	if (!e2eBoot(env)) return { held: false };
 	statsHold.held = true;
 	return { held: true };
 });
