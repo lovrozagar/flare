@@ -15,8 +15,8 @@ function Results(): JSX.Element {
 	const ui = useUi();
 	const search = useSearch({ from: ID });
 	const params = useParams({ from: ID });
-	// The loader prefetched this key into the request's client, so hydrate starts with the answer. staleTime keeps it.
-	const query = useSuspenseQuery(() => ({ ...queryOf(search.q), staleTime: 60_000 }));
+	// The loader prefetched this key into the request's client, so hydrate starts with the answer.
+	const query = useSuspenseQuery(() => queryOf(search.q));
 	return (
 		<div>
 			<p id="result-count" class="text-sm text-stone-500">

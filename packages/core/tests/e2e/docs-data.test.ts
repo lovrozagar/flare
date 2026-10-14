@@ -52,6 +52,19 @@ test("query prefetched", async ({ page, docs }) => {
 	expect(calls).toEqual([]);
 });
 
+// A document load of a doc page hydrates with the feedback query the server filled and sends no request for it, during
+// the hydration mount or in the second after it, on TanStack's default staleTime (B102). The refetch it replaces went
+// out from the hydration mount itself, before `data-flare-hydrated`.
+test("query hydrates once", async ({ page, docs }) => {
+	const calls: string[] = [];
+	page.on("request", (request) => {
+		if (request.url().includes("/_flare/fn/")) calls.push(request.url());
+	});
+	await open(page, docs.origin, "/docs/routing");
+	await page.waitForTimeout(1000);
+	expect(calls).toEqual([]);
+});
+
 test("query suspense", async ({ page, docs }) => {
 	await open(page, docs.origin, "/search?q=route");
 	await page.locator("#search-page-input").fill("fonts");

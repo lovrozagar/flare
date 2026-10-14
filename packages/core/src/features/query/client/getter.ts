@@ -16,7 +16,7 @@ const LOCALS_KEY = "flare.queryClient";
 // Marks a getter this module made, so the registered one can be returned with its type.
 const BRAND = Symbol.for("flare.query.getter");
 
-type ClientGetter = (() => QueryClient) & { dehydrate: () => unknown };
+type ClientGetter = (() => QueryClient) & { dehydrate: () => unknown; hydrated: () => void };
 
 // One client per document on the client, one per request on the server (dx/features.md Query). The getter registers
 // once per process, and a second call returns the registered one. It takes no options. The app passes its client to
@@ -25,9 +25,10 @@ export function createQueryClientGetter(): () => QueryClient {
 	const registered = registeredQuery();
 	if (registered !== undefined && ours(registered)) return registered;
 	let documentClient: QueryClient | undefined;
+	const phase = { hydrated: false };
 	const getter = (): QueryClient => {
 		if (isServer) return requestClient() ?? createRequestClient();
-		documentClient ??= seeded();
+		documentClient ??= seeded(phase);
 		return documentClient;
 	};
 	const created = Object.assign(getter, {
@@ -35,6 +36,8 @@ export function createQueryClientGetter(): () => QueryClient {
 			const client = isServer ? requestClient() : undefined;
 			return client === undefined ? undefined : dehydrate(client);
 		},
+		// The client boot calls this once the hydration mount is over (B102).
+		hydrated: () => void (phase.hydrated = true),
 		[BRAND]: true,
 	});
 	registerQuery(created);
@@ -61,10 +64,23 @@ function createRequestClient(): QueryClient {
 }
 
 // The document's `queries`, which the server wrote into the state script, fill the client before hydrate, so a query
-// the server resolved does not run again.
-function seeded(): QueryClient {
-	const client = new QueryClient();
+// the server resolved does not run again. Until the hydrated phase, the hydration render's mount of such a query does
+// not refetch it either, whatever its staleTime; afterwards, and for any other query, TanStack's default applies. An
+// app's own `refetchOnMount` wins (B102).
+function seeded(phase: { hydrated: boolean }): QueryClient {
 	const state: unknown = Reflect.get(Object(Reflect.get(globalThis, "flare")), "queries");
+	const filled = new Set(documentHashes(state));
+	const refetchOnMount = (query: { queryHash: string }): boolean => phase.hydrated || !filled.has(query.queryHash);
+	const client = new QueryClient({ defaultOptions: { queries: { refetchOnMount } } });
 	if (typeof state === "object" && state !== null) hydrate(client, state);
 	return client;
+}
+
+// The hashes of the queries a dehydrated state holds.
+function documentHashes(state: unknown): string[] {
+	const queries: unknown = Reflect.get(Object(state), "queries");
+	if (!Array.isArray(queries)) return [];
+	return queries
+		.map((query: unknown) => Reflect.get(Object(query), "queryHash"))
+		.filter((hash) => typeof hash === "string");
 }
