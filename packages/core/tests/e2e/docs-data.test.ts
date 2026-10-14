@@ -135,23 +135,52 @@ test("unsafe error", async ({ page, docs }, info) => {
 // The lines render as they stream. An observer installed before the page loads records the time each line count first
 // shows, so the case reads the arrivals afterwards instead of racing a transient count: the six lines come one at a
 // time, spread over most of the server's 750 ms of waits. A buffered stream lands them together. A slow runner only
-// widens the spread (BUGS.md 95).
+// widens the spread (BUGS.md 95). Every body chunk the page reads after the click is timed too, so a failure names its
+// layer: chunks that came in a burst are the network's delivery, chunks spaced out with lines in a burst the page's
+// rendering (BUGS.md 100).
 test("stream", async ({ page, docs }) => {
 	await page.addInitScript(() => {
 		const arrivals: { count: number; at: number }[] = [];
+		const reads: { bytes: number; at: number }[] = [];
 		Reflect.set(window, "streamArrivals", arrivals);
+		Reflect.set(window, "streamReads", reads);
 		new MutationObserver(() => {
 			const count = document.querySelectorAll("#stream-log li").length;
 			if (count > (arrivals.at(-1)?.count ?? 0)) arrivals.push({ count, at: performance.now() });
 		}).observe(document, { childList: true, subtree: true });
+		// The client decodes each body chunk as it reads it, `{ stream: true }`, so a decode is a chunk's arrival.
+		const decode = TextDecoder.prototype.decode;
+		TextDecoder.prototype.decode = function (
+			this: TextDecoder,
+			input?: AllowSharedBufferSource,
+			options?: TextDecodeOptions,
+		) {
+			if (Reflect.get(window, "streamTimed") === true && options?.stream === true && input !== undefined) {
+				reads.push({ bytes: input.byteLength, at: performance.now() });
+			}
+			return decode.call(this, input, options);
+		};
 	});
 	await open(page, docs.origin, "/playground");
+	await page.evaluate(() => Reflect.set(window, "streamTimed", true));
 	await page.locator("#stream-start").click();
 	await expect(page.locator("#stream-log li")).toHaveCount(6);
 	await expect(page.locator("#stream-status")).toHaveText("done");
-	const arrivals: { count: number; at: number }[] = await page.evaluate(() => Reflect.get(window, "streamArrivals"));
-	expect(arrivals.map((arrival) => arrival.count)).toEqual([1, 2, 3, 4, 5, 6]);
-	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0)).toBeGreaterThanOrEqual(600);
+	const timed: { arrivals: { count: number; at: number }[]; reads: { bytes: number; at: number }[] } =
+		await page.evaluate(() => ({
+			arrivals: Reflect.get(window, "streamArrivals"),
+			reads: Reflect.get(window, "streamReads"),
+		}));
+	const { arrivals } = timed;
+	const evidence = JSON.stringify({
+		lines: arrivals.map((arrival) => Math.round(arrival.at - (arrivals[0]?.at ?? 0))),
+		chunks: timed.reads.map((chunk) => `${Math.round(chunk.at - (arrivals[0]?.at ?? 0))}ms:${chunk.bytes}B`),
+	});
+	expect(
+		arrivals.map((arrival) => arrival.count),
+		evidence,
+	).toEqual([1, 2, 3, 4, 5, 6]);
+	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0), evidence).toBeGreaterThanOrEqual(600);
 });
 
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
