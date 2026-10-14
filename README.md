@@ -152,6 +152,8 @@ export const server = createServer({ router, serverFns });
 
 `vite dev` serves it. `vite build` writes `dist/client` and `dist/server/server.js`, which exports `server`. The adapters serve no files, so a Node deploy puts its static layer in front, a CDN or this:
 
+<!-- node-serve: serve.js -->
+
 ```js
 // serve.js: `node serve.js` after `vite build`
 import { readFile } from "node:fs/promises";
@@ -164,13 +166,24 @@ const client = join(import.meta.dirname, "dist/client");
 const types = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
 const listener = createNodeListener(server);
 
+// A client file's path, or undefined for a target that names none: one `decodeURIComponent` rejects included, which the
+// listener then answers.
+function fileOf(target = "/") {
+	try {
+		const path = normalize(join(client, decodeURIComponent(new URL(target, "http://host").pathname)));
+		return path.startsWith(client + sep) ? path : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 createServer(async (req, res) => {
-	const path = normalize(join(client, decodeURIComponent(new URL(req.url ?? "/", "http://host").pathname)));
-	const file = path.startsWith(client + sep) ? await readFile(path).catch(() => undefined) : undefined;
+	const path = fileOf(req.url);
+	const file = path === undefined ? undefined : await readFile(path).catch(() => undefined);
 	if (file === undefined) return listener(req, res);
 	res.writeHead(200, { "content-type": types[extname(path)] ?? "application/octet-stream" });
 	res.end(file);
-}).listen(3000);
+}).listen(Number(process.env.PORT ?? 3000));
 ```
 
 ## Routes

@@ -206,22 +206,23 @@ test("stream", async ({ page, docs }, info) => {
 	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0), evidence).toBeGreaterThanOrEqual(600);
 });
 
-// Every frame's time while the case is timed: a gap far past a frame is the main thread held, which delivers queued
-// chunks together (BUGS.md 100).
+// Every frame's time from the document's start: a gap far past a frame is the main thread held, which delivers queued
+// chunks together. A stall that starts before the click and runs into the stream still has the frame before it
+// (BUGS.md 100).
 async function watchFrames(page: Page): Promise<void> {
 	await page.addInitScript(() => {
 		const frames: number[] = [];
 		Reflect.set(window, "streamFrames", frames);
 		const tick = (): void => {
-			if (Reflect.get(window, "streamTimed") === true) frames.push(performance.now());
+			frames.push(performance.now());
 			requestAnimationFrame(tick);
 		};
 		requestAnimationFrame(tick);
 	});
 }
 
-// What held the page's main thread while the case was timed, each time from the first line's arrival (BUGS.md 100):
-// every frame gap over 50 ms as `<start>+<length>`, the window's load, the click, and the scripts fetched from the load on as
+// What held the page's main thread from the load on, each time from the first line's arrival (BUGS.md 100): every
+// frame gap over 50 ms that ends after the load as `<start>+<length>`, the window's load, the click, and the scripts fetched from the load on as
 // `<start>-<end>:<file>`, which the idle `modules: "all"` prefetch is. A coalesced sample with a long gap beside a
 // script names the stall.
 function mainThread(
@@ -231,12 +232,13 @@ function mainThread(
 	return page.evaluate((zero) => {
 		const frames: number[] = Reflect.get(window, "streamFrames");
 		const click = Number(Reflect.get(window, "streamClick"));
-		const gaps = frames.flatMap((at, index) => {
-			const gap = at - (frames[index - 1] ?? at);
-			return gap > 50 ? [`${Math.round(at - gap - zero)}+${Math.round(gap)}`] : [];
-		});
 		const [navigation] = performance.getEntriesByType("navigation");
 		const loaded = navigation instanceof PerformanceNavigationTiming ? navigation.loadEventEnd : 0;
+		// A gap is reported when it ends after the load, so one that began before it still counts.
+		const gaps = frames.flatMap((at, index) => {
+			const gap = at - (frames[index - 1] ?? at);
+			return gap > 50 && at > loaded ? [`${Math.round(at - gap - zero)}+${Math.round(gap)}`] : [];
+		});
 		const load = Math.round(loaded - zero);
 		const scripts = performance
 			.getEntriesByType("resource")

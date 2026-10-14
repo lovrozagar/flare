@@ -22,6 +22,7 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `readme exports` | the root README's `Package exports` table, row by entry | each packed entry's exports are all in its row, and its row names nothing the entry does not export (plan 14 leaf 12.3) |
 | `readme api names` | the first column of every README table headed `export` | each name is exported by some packed entry, so a v0 name nobody thought to deny cannot survive there |
 | `readme quick start` | each README block after `<!-- quick-start: <path> -->`, written at that path in a fresh app in the stage, then the packed `flare codegen` | `tsc` with the README's own `tsconfig.json` exits 0 with no output |
+| `readme node serve` | the README block after `<!-- node-serve: serve.js -->`, run with Node in the stage beside a stub `dist/server/server.js` and a client file, on a free `PORT` | the client file is served with its type, the rest reaches the listener, and `/%E0%A4%A`, a path `decodeURIComponent` rejects, gets a status and the server keeps answering. Red: the rejection inside the async handler ended the process |
 | `tarball contents` | `npm pack` | exactly `dist`, `src`, `README.md`, `LICENSE`, `package.json` |
 | `consumer strict` | a fixture with `exactOptionalPropertyTypes` and `verbatimModuleSyntax` | `tsc` exits 0 against the packed types |
 | `no dependencies` | the packed `package.json` | the `dependencies` key is absent |
