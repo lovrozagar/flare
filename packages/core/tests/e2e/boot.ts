@@ -58,14 +58,18 @@ export async function boot(input: { app: string; runtime: string; mode: string }
 	return bootApp({ appDir: join(apps, input.app), runtime: input.runtime, mode: input.mode });
 }
 
+type BootInput = { appDir: string; runtime: string; mode: string; dirs?: readonly string[] };
+
 // The same boot over any app directory. The golden test boots an app staged with the installed tarball (bits/14).
-export async function bootApp(input: { appDir: string; runtime: string; mode: string }): Promise<Boot> {
+// `dirs` go when a dev boot closes.
+export async function bootApp(input: BootInput): Promise<Boot> {
 	if (!RUNTIMES.has(input.runtime)) throw new Error(input.runtime);
 	if (input.mode !== "dev" && input.mode !== "prod") throw new Error(input.mode);
 	const appDir = input.appDir;
 	const cacheDir = await mkdtemp(join(tmpdir(), "flare-vite-"));
 	// A child process, so the app's Vite and the framework it loads stay out of the test process.
-	if (input.mode === "dev") return bootChild({ appDir, cacheDir, ...devCommand(input.runtime) });
+	const dirs = input.dirs ?? [];
+	if (input.mode === "dev") return bootChild({ appDir, cacheDir, dirs, ...devCommand(input.runtime) });
 	mkdirSync(outputs, { recursive: true });
 	const outDir = await mkdtemp(join(outputs, "out-"));
 	try {

@@ -18,17 +18,20 @@ export type StylesEnvironment = {
 	moduleGraph: { getModulesByFile(file: string): Set<GraphNode> | undefined };
 };
 
+// The client environment, as much of it as the dev styles read and transform.
+export type StylesClient = {
+	transformRequest(url: string): Promise<{ code: string } | null>;
+	moduleGraph: {
+		getModulesByFile(file: string): Set<GraphNode> | undefined;
+		ensureEntryFromUrl(url: string, setIsSelfAccepting: boolean): Promise<unknown>;
+	};
+};
+
 // What the dev styles need of Vite's dev server.
 export type StylesServer = {
 	config: { root: string };
 	watcher: { on(event: "all", listener: () => void): unknown };
-	environments: {
-		client: {
-			transformRequest(url: string): Promise<{ code: string } | null>;
-			moduleGraph: { getModulesByFile(file: string): Set<GraphNode> | undefined };
-		};
-		ssr?: StylesEnvironment;
-	};
+	environments: { client: StylesClient; ssr?: StylesEnvironment };
 };
 
 // The dev server's answer to `flare:styles` (B104): the CSS modules the client entry imports itself (flare's reset,
@@ -91,11 +94,15 @@ async function stylesOf(
 	for (const file of chain.files) {
 		if (file !== undefined) for (const node of environment.moduleGraph.getModulesByFile(file) ?? []) walk(node);
 	}
-	return Promise.all(
-		found.map(async (node) => {
-			const direct = `${node.url}${node.url.includes("?") ? "&" : "?"}direct`;
-			const served = await server.environments.client.transformRequest(direct);
-			return { id: String(node.id), css: served?.code ?? "" };
-		}),
-	);
+	return Promise.all(found.map(async (node) => ({ id: String(node.id), css: await directStyle(client, node.url) })));
+}
+
+// The CSS Vite serves for a stylesheet (`?direct`, so Tailwind comes out compiled). The module is entered unanalyzed
+// first: one that `transformRequest` enters is not self-accepting until its transform ends, so an edit of the file
+// before then, as during a first Tailwind compile, met a dead end and sent every client a full reload. Unanalyzed, the
+// update stops at it, and the page's own stylesheet module takes the edit (BUGS.md 111).
+export async function directStyle(client: StylesClient, url: string): Promise<string> {
+	const direct = `${url}${url.includes("?") ? "&" : "?"}direct`;
+	await client.moduleGraph.ensureEntryFromUrl(direct, false);
+	return (await client.transformRequest(direct))?.code ?? "";
 }

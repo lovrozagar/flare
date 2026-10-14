@@ -51,6 +51,7 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | `chain styles` | a `flare:styles` request for the docs chain over a fake module graph, then the ssr environment's for an unknown route | the client entry's own CSS imports first (flare's reset), then the chain's CSS modules in import order, root first and once each, each read with `?direct` (`&direct` after a query); the entry's other imports are not walked |
 | `cache` | the same chain twice, then a watched file change, then again | one walk and one read per module until the change; then they run again |
 | `bad request` | a malformed request, then a read that rejects, then one that answers nothing | no answer; no styles and no cache entry; empty CSS |
+| `edit mid compile` | a real Vite dev server whose `styles.css` transform is held open; `directStyle` asks for it, the file is edited and the change emitted, then the transform is released | the served CSS arrives and the client environment sends no `full-reload`. Red: a module `transformRequest` enters is not self-accepting until its transform ends, so the edit met a dead end (BUGS.md 111) |
 
 ## `server/render/dev-styles.test.ts` (B104)
 
@@ -96,6 +97,12 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | `workers dev twice` | two `minimal` Workers dev boots started together | both answer GET `/` with 200: each worker's inspector takes a port the OS assigns, and its state stays in memory. Before BUGS.md 85 one of them failed `listen EADDRINUSE 127.0.0.1:9229` (2 of 3 runs) or, in a fresh worktree, workerd's SQLite `database is locked`. The e2e apps' `cloudflare()` passes `inspectorPort: 0` and `persistState: false` (B109). Skipped like `workers dev` without `registerHooks` |
 | `workers dev log` | `docs` in Workers dev, then the changelog's fill, which runs its failing `broken` hole | the `[flare:render]` line reaches the boot's captured log within 10 s: workerd's console goes through Miniflare's structured logs to Vite's logger, after the response (BUGS.md 93) |
 | `workers prod` | `minimal` built with the Cloudflare plugin, then booted | Miniflare runs what `wrangler deploy` would ship: `<outDir>/server/wrangler.json` read by wrangler's `unstable_getMiniflareWorkerOptions`, every module of the unbundled output, and only `FLARE_E2E` and the log capture added; GET `/` answers 200 with `x-runtime: Cloudflare-Workers` (B109). Afterwards the app's `.wrangler/` holds exactly `deploy/config.json`, the plugin's deploy pointer, which B70 excepts. Skipped on the Bun run, as every Workers case |
+
+## `tests/e2e/copy-boot.test.ts` (BUGS.md 111)
+
+| test | case | result |
+| --- | --- | --- |
+| `private copy` | `bootCopy({ app: "docs", runtime: "node" })`, GET `/hr`, then a rule appended to the copy's `src/styles.css`, then close | the copy is under the OS temp dir and answers 200 with `Bok`; the shared app's `styles.css` is unchanged; after close the copy is gone and the repo's dependencies, which the copy linked, remain |
 
 ## `scripts/browser-server.test.ts` (B97)
 
