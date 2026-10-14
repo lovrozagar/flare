@@ -4,7 +4,7 @@
 import { flare } from "@lovrozagar/flare/vite";
 
 export default defineConfig({
-  plugins: [flare({ assetsBase?, entry?, image?, prerender?, css?, broadcast?, fonts?, devLogs? })],
+  plugins: [flare({ assetsBase?, entry?, image?, prerender?, css?, broadcast?, fonts?, devLogs?, workersDev? })],
 });
 ```
 
@@ -37,6 +37,7 @@ The payload builder is `shared/errors/dev-report.ts`. It does not import Vite. C
 | `broadcast` | no | `true` | `boolean` | `true` leaves `client/sync/enabled.ts` as `broadcastEnabled = true`. `false` replaces that module in the client environment, in dev and in the client build, with `export const broadcastEnabled = false`. Post and subscribe then do nothing. This tab still writes theme and direction to `localStorage`, and `setLocale` still navigates. The server module stays `true` and still does not post, because `BroadcastChannel` is absent there | a non-boolean throws when the plugin is created. Omitted and `true` are the same. This switch is the only one, and it covers theme, direction, and locale | `vite/plugin/options.test.ts` `broadcast on`, `broadcast off`; `client/sync/enabled.test.ts` `on`; `client/sync/channel.test.ts` `off`, `missing` |
 | `fonts` | no | absent | `{ dir }`, a non-empty path relative to the root | the client build emits the woff2 files of the registry families its chunks import (`@lovrozagar/flare/fonts/<id>`), read from `dir/<family>/<file>.woff2` and written at their registry url. Absent, no font file is emitted and the app serves `/fonts/...` itself, `public/fonts` included | a file a used family lists but `dir` lacks fails the build and names it. Another key, an empty `dir`, or a non-object throws when the options are parsed. In `vite dev` the same registry urls are served from `dir` (`font/woff2`, `no-cache`), for any registry family; a url that is not a registry file, a file `dir` lacks, or a `..` segment falls through to the app (BUGS.md B7) | `vite/plugin/fonts.test.ts` `fonts emit`, `dev serve`, `dev fallthrough`, `fonts absent`, `fonts dir missing file`; `options.test.ts` `fonts` |
 | `devLogs` | no | `{ server: true, browser: "warn" }` | `{ server?: boolean, browser?: false \| "error" \| "warn" \| "all" }` | the dev log bridge both ways (`observability.md`, B100) | a production bundle contains no bridge code. Another key throws when the options are parsed | `vite/dev/log-bridge.test.ts`; `options.test.ts` `dev logs` |
+| `workersDev` | no | `false` | `boolean` | `true` runs `vite dev` in workerd through `@cloudflare/vite-plugin` (an optional peer), composed first, so the app's Wrangler bindings work in dev (B95) | `true` without the peer installed throws when the plugin is created and names the install. A dev boot is slower (about 3.3 s against 0.4 s). Production builds are unchanged and gain a deployable `dist/worker/wrangler.json` | `vite/plugin/flare.test.ts` `workers dev`, `workers dev missing peer` |
 
 ## image
 
