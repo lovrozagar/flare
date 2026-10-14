@@ -1,4 +1,5 @@
-import type { JSX } from "@solidjs/web";
+import { createComponent, type Element } from "solid-js";
+import { Dynamic, type JSX } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
 import { createLayout } from "../../shared/route-builder/layout.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
@@ -173,7 +174,11 @@ it("state preloader", async () => {
 	expect(await preloaders(server, "/")).toEqual([{}, {}]);
 });
 
-const framed = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
+// A production root renders a whole document (B37).
+const tag = (component: string, children: Element): Element => createComponent(Dynamic, { component, children });
+const whole = (children: Element): Element => tag("html", tag("body", children));
+
+const framed = createRootLayout("_root_").render((props) => whole(["root[", props.children, "]"]));
 const quiet: Logger = { level: "error", error: noop, warn: noop, log: noop };
 
 function noop(): void {}
@@ -206,7 +211,7 @@ it("unknown failure", async () => {
 		.loader(() => {
 			throw new Error("root broke");
 		})
-		.render((props) => ["root[", props.children, "]"]);
+		.render((props) => whole(["root[", props.children, "]"]));
 	const response = await framedServer(broken).fetch(new Request("http://localhost/nope"));
 	expect(response.status).toBe(500);
 	const body = unmarked(await response.text());

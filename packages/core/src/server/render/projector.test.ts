@@ -1,4 +1,5 @@
-import { markSafeError } from "@solidjs/web";
+import { createComponent, type Element } from "solid-js";
+import { Dynamic, markSafeError } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
 import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
 import { notFound, unauthenticated } from "../../shared/errors/http.ts";
@@ -15,7 +16,11 @@ const FRAME = /\n\s+at /;
 // A stack inside the state script is JSON, so its newline is the two characters \n.
 const BODY_FRAME = /(\n|\\n)\s+at /;
 
-const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
+// A production root renders a whole document (B37).
+const tag = (component: string, children: Element): Element => createComponent(Dynamic, { component, children });
+const whole = (children: Element): Element => tag("html", tag("body", children));
+
+const root = createRootLayout("_root_").render((props) => whole(["root[", props.children, "]"]));
 
 function probe(dev: boolean): { sink: ErrorSink; send: ReturnType<typeof vi.fn>; lines: string[] } {
 	const lines: string[] = [];

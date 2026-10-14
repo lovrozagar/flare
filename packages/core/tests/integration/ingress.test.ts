@@ -18,7 +18,7 @@ const home = createPage("_root_/")
 			: "",
 	);
 const router = createRouter({
-	layouts: { _root_: createRootLayout("_root_").render(() => "") },
+	layouts: { _root_: createRootLayout("_root_").render((props) => documentOf(props.children)) },
 	routeTree: [{ id: "_root_/", path: "/", module: home }],
 });
 // Production ingress: the dev sink would drop HSTS and COOP for Vite's dev server (csp.ts).

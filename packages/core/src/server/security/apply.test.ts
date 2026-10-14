@@ -1,3 +1,5 @@
+import { createComponent, type Element } from "solid-js";
+import { Dynamic } from "@solidjs/web";
 import { expect, it } from "vitest";
 import { serveWith } from "../lifecycle/create.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
@@ -127,7 +129,7 @@ it("server security", async () => {
 	const page = createPage("_root_/")
 		.security({ "Permissions-Policy": { camera: "self" } })
 		.render(() => "home");
-	const root = createRootLayout("_root_").render((props) => props.children);
+	const root = createRootLayout("_root_").render((props) => whole(props.children));
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: page }] });
 	const server = serveWith(
 		{
@@ -170,6 +172,10 @@ it("callback throws", async () => {
 	expect(response.status).toBe(500);
 	expect(logged).toEqual(["render"]);
 });
+
+// A production root renders a whole document (B37).
+const tag = (component: string, children: Element): Element => createComponent(Dynamic, { component, children });
+const whole = (children: Element): Element => tag("html", tag("body", children));
 
 function noop(): void {}
 

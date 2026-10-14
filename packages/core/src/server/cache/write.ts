@@ -4,6 +4,7 @@ import type { SecurityConfig } from "../../shared/route-builder/types.ts";
 import { defaultHeaders } from "../security/defaults.ts";
 import type { FlareStoreEntry } from "./contract.ts";
 import { newSentinel, toSentinel } from "./nonce.ts";
+import { isDocument } from "../render/shape.ts";
 
 // How long a stored entry lives, and when it turns stale, in milliseconds.
 export type StoreTiming = { ttl: number; stale: number };
@@ -92,7 +93,7 @@ export function replayable(headers: readonly (readonly [string, string])[]): (re
 // stored.
 export function buildEntry(input: EntryInput, page: StoredPage = storedPage(input)): FlareStoreEntry | undefined {
 	if (input.status < 200 || input.status > 299 || !input.settled) return undefined;
-	if (!input.html.includes("<html") || !input.html.includes("</body>")) return undefined;
+	if (!isDocument(input.html)) return undefined;
 	if (input.ndjson.split("\n").some((line) => line.startsWith('{"t":"e"'))) return undefined;
 	return { data: page, storedAt: input.startedAt, tags: input.tags };
 }
