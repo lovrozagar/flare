@@ -758,3 +758,5 @@ scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and t
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run
 packages/core/tests/structure/grid.test.ts	P16	test	node	The 18-project grid and a crashed page failing its test
+packages/core/tests/structure/coverage.ts	P16	test	node	Reads the dx features and blueprint/coverage.tsv: each table row and section's key, the map's rows, and the cases they name (B96)
+packages/core/tests/structure/coverage.test.ts	P16	test	node	The coverage gate: unit cases at plan 14 9.2, the whole-repo map at 9.7 (B96)

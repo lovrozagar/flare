@@ -104,6 +104,18 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | --- | --- | --- |
 | `private copy` | `bootCopy({ app: "docs", runtime: "node" })`, GET `/hr`, then a rule appended to the copy's `src/styles.css`, then close | the copy is under the OS temp dir and answers 200 with `Bok`; the shared app's `styles.css` is unchanged; after close the copy is gone and the repo's dependencies, which the copy linked, remain |
 
+## `tests/structure/coverage.test.ts` (B96)
+
+The gate that every documented feature has its cases. `coverage.ts` holds the reader; this file holds the cases. The whole-repo case, `coverage`, over every dx file and `blueprint/coverage.tsv`, lands at plan 14 9.7, when it passes.
+
+| test | case | result |
+| --- | --- | --- |
+| `keys` | a dx file with a prop table, a `##` section with a second table, and a `Planned` table and section | `router.md#createRouter#prop:basePath`, `prop:rewrite`, `router.md#rewrite#`, and `router.md#rewrite#failure:anything else`; nothing under `Planned` |
+| `parse` | a comment, a row with two cases and an e2e `n/a`, a row with an e2e case, a one-column line, and an integration `n/a` | the two rows and the third with no integration case; errors for the one-column line and the integration `n/a` |
+| `case lookup` | `it`, `test.skip`, and `it.runIf(x)` titles, a commented call, and a title in a plain string | the three calls and the commented one are cases; a prefix is not, and a plain string is not |
+| `check` | a complete map, then one with a duplicate dx key, a missing case and file, a key mapped twice, a stale key, a row with no integration case, and an unmapped key | no error, then exactly those seven |
+| `repo keys` | a root with the dx index, `observability.md`, and a dx file; then the real repo | only the dx file's keys; the real dx files have more than 700 keys and none twice |
+
 ## `scripts/browser-server.test.ts` (B97)
 
 | test | case | result |
