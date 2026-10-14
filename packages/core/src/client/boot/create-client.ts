@@ -18,6 +18,7 @@ import { cacheFor } from "../router/match-cache.ts";
 import { callServerFn, type CallDeps } from "../server-fn/call.ts";
 import { streamServerFn } from "../server-fn/stream.ts";
 import { tabbedFetch, type DevHot } from "../dev/tab.ts";
+import { registeredQuery } from "../../shared/protocol/index.ts";
 import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts";
 import { mountApp, readState, type ClientState, type Mount } from "./hydrate.ts";
 import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts";
@@ -109,8 +110,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	});
 	// After the mount, so a Link's own click handler runs first and the delegate sees it handled.
 	const unlisten = listen(router, navigator, { history, scroll, store });
-	document.documentElement.setAttribute("data-flare-hydrated", "");
-	ready.hydrated();
+	markHydrated(ready);
 	if (state.fill === true) void navigator.fill(pending);
 	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all));
 	ready.interaction(document);
@@ -248,4 +248,12 @@ function holesOf(state: ClientState): { matches: ClientState["matches"]; pending
 	if (state.fill !== true) return { matches: state.matches, pending };
 	const matches = state.matches.map((match) => ({ ...match, data: revive(match.data, match.id, pending) }));
 	return { matches, pending };
+}
+
+// The hydration mount is over: the document says so, the app's hydrated callbacks run, and a query the document filled
+// is TanStack's again from here (B102).
+function markHydrated(ready: Ready): void {
+	document.documentElement.setAttribute("data-flare-hydrated", "");
+	ready.hydrated();
+	registeredQuery()?.hydrated?.();
 }

@@ -4,8 +4,9 @@
 export const QUERY_GETTER: unique symbol = Symbol.for("flare.query");
 
 // The getter returns this request's client on the server and the document's on the client. `dehydrate` gives the
-// request's cache for the document state, or undefined when the request made no client.
-export type QueryGetter = (() => unknown) & { dehydrate: () => unknown };
+// request's cache for the document state, or undefined when the request made no client. `hydrated` is the client
+// boot's signal that the hydration mount is over (B102).
+export type QueryGetter = (() => unknown) & { dehydrate: () => unknown; hydrated?: () => void };
 
 export function registeredQuery(): QueryGetter | undefined {
 	const value: unknown = Reflect.get(globalThis, QUERY_GETTER);
