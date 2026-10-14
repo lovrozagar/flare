@@ -13,7 +13,8 @@ const RELEASE_STATS = fnId("src/fns/stats-gate.ts", "releaseStats");
 test("defer two skeletons", async ({ page, request, docs }) => {
 	const call = (id: string) =>
 		request.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: {} });
-	expect((await call(HOLD_STATS)).status()).toBe(200);
+	// The boot sets FLARE_E2E, without which the gate refuses to hold.
+	expect(await (await call(HOLD_STATS)).json()).toMatchObject({ data: { held: true } });
 	try {
 		await open(page, docs.origin, "/changelog");
 		await expect(page.locator("#releases")).toBeVisible();

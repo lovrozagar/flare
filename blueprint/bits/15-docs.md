@@ -70,6 +70,7 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 | test | case | result |
 | --- | --- | --- |
 | `create test server` | `createTestServer(router)` over the docs router | `/llms.txt` answers 200, and a data request for `/[flare]` answers NDJSON |
+| `stats gate refused` | the changelog's e2e gate check, without and with `FLARE_E2E=1` in the fetch env or the process env | it holds only under the flag, which the e2e boot sets for every runtime (a Miniflare binding for workerd), so a deployed docs app refuses `holdStats` (BUGS.md 69) |
 
 ## Harness
 
