@@ -193,13 +193,17 @@ test("view transition off", async ({ page, docs }) => {
 test("progress bar", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
 	// The click's hover starts an intent prefetch, and the navigation takes it over, so both kinds wait (BUGS.md B43).
+	// They wait until the bar has been seen, not for a fixed time: on a slow runner the click came more than a fixed
+	// delay after its hover, and the navigation found the prefetch already in (BUGS.md 101).
+	const release = Promise.withResolvers<void>();
 	await page.route(/_flare=(data|prefetch)/, async (route) => {
-		await new Promise((resolve) => setTimeout(resolve, 700));
+		await release.promise;
 		await route.continue();
 	});
 	await page.locator("#sidebar").getByRole("link", { name: "Auth" }).click();
 	await expect(page.locator("#progress")).toHaveAttribute("data-pending", "true");
 	await expect(page.locator("#progress")).not.toHaveCSS("opacity", "0");
+	release.resolve();
 	await expect(page.locator("#doc-title")).toHaveText("Auth");
 	await expect(page.locator("#progress")).toHaveAttribute("data-pending", "false");
 	await expect(page.locator("#progress")).toHaveCSS("opacity", "0");
