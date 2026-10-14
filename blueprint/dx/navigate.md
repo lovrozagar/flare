@@ -33,10 +33,12 @@ A build-id mismatch and a missing chunk share one document load. `sessionStorage
 
 | prop | required | default | accepts | outcome | test |
 | --- | --- | --- | --- | --- | --- |
-| `scope` | no | `"auto"` | `"auto"`, `"document"`, or `(info) =>` those | `"auto"` uses the innermost `ViewTransitionBoundary` around the swapped outlet, otherwise the document | `shared/components/view-transition-boundary.test.tsx` `scope` |
+| `scope` | no | `"document"` | `"document"`, `"auto"`, or `(info) =>` those | the document's transition. `"auto"`, an opt-in, uses the innermost `ViewTransitionBoundary` around the swapped outlet, otherwise the document; see the caveat below (B119 (5)) | `client/view-transition/direction.test.ts` `scope`; e2e `docs-navigation.test.ts` `view transition document` |
 | `types` | no | none: the plain `startViewTransition(update)` callback | `string[]`, or `(info) => string[] \| false` | given types go in the object form `{ update, types }` only where the browser supports them (it exposes `ViewTransitionTypeSet`); otherwise, and for an empty list, the plain callback. `false` skips the transition. `info.direction` is `forward`, `back`, or `same` (B119) | `client/view-transition/direction.test.ts` `types` |
 
 `info` is `{ direction, fromLocation, toLocation, pathChanged }`. Locations are `{ hash, pathname, search }`.
+
+An element-scoped transition (`scope: "auto"` in a browser with `Element.prototype.startViewTransition`, Chromium) draws the scope's old image at the box the element had before the update. A navigation that moves the window, a scrolled page going to the top or a hash, or a Back restoring a position, moves that box: the old content slides from where it was, or the area shows neither page until the new one fades in (BUGS.md 119.2, 119.3). The document's transition has no such box, and a crossfade of unchanged pixels is invisible, so a still sidebar looks still. Opt into `"auto"` only where the navigations it covers leave the scroll where it is.
 
 A navigation transition still running is skipped (`skipTransition()`) before the next one starts, since two at once both freeze content being swapped, and an element-scoped start that throws falls back to the document transition (B119, `direction.test.ts` `skips running`, `scoped throw`). The default styling is `ViewTransitionCSS`: `@view-transition { navigation: auto }` and one duration for `::view-transition-old(*)` and `::view-transition-new(*)`. A named group is the app's choice; Flare and the docs app add none. The two paragraphs on named groups below are for an app that adds one.
 

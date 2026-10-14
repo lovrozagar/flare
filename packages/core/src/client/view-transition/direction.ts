@@ -44,8 +44,9 @@ export function transitionOption(
 // The DOM update runs inside a view transition when one is on and the browser has the API (B119, v0's model). A
 // transition still running is skipped first: two at once both freeze content being swapped. The start is the plain
 // callback; the app's `types` go in the object form only where the browser supports them, and `false` from a types
-// function skips the transition. Scope "auto" is the innermost `ViewTransitionBoundary` around the swapped outlet,
-// and an element that cannot start one, or whose start throws, falls back to the document (dx/navigate.md).
+// function skips the transition. The default scope is the document (B119 (5)). Scope "auto", an opt-in, is the
+// innermost `ViewTransitionBoundary` around the swapped outlet, and an element that cannot start one, or whose start
+// throws, falls back to the document (dx/navigate.md).
 export async function runTransition(input: {
 	option: ViewTransitionOptions | false;
 	info: TransitionInfo;
@@ -56,7 +57,7 @@ export async function runTransition(input: {
 	if (option === false) return input.update();
 	const types = typeof option.types === "function" ? option.types(info) : (option.types ?? []);
 	if (types === false) return input.update();
-	const scope = typeof option.scope === "function" ? option.scope(info) : (option.scope ?? "auto");
+	const scope = typeof option.scope === "function" ? option.scope(info) : (option.scope ?? "document");
 	const arg = types.length > 0 && typesSupported() ? { update: input.update, types } : input.update;
 	const previous = transitions.running;
 	transitions.running = undefined;

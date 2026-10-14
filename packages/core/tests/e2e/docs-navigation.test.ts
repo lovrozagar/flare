@@ -164,19 +164,26 @@ async function recordTransitions(page: import("@playwright/test").Page): Promise
 	});
 }
 
-test("view transition scoped", async ({ page, docs }) => {
+// Every navigation's transition runs on the document, the default scope (B119 (5)): from the top of a doc page, from a
+// doc page scrolled to its bottom (BUGS.md 119.2), and Back to a scrolled doc page (BUGS.md 119.3). An element-scoped
+// one drew the old image at a box the navigation's scroll had moved.
+test("view transition document", async ({ page, docs }) => {
 	await recordTransitions(page);
 	await open(page, docs.origin, "/docs/routing");
+	const calls = async (): Promise<string[]> =>
+		(await page.evaluate(() => Reflect.get(window, "__transitions") as { on: string }[])).map((call) => call.on);
 	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
 	await expect(page.locator("#doc-title")).toHaveText("Caching");
-	const calls: { on: string; types: string[] }[] = await page.evaluate(() => Reflect.get(window, "__transitions"));
-	expect(calls).toHaveLength(1);
-	// The plain callback: no type unless the app configures one (B119).
-	expect(calls[0]?.types).toEqual([]);
-	const elementScoped = await page.evaluate(
-		() => typeof Reflect.get(Element.prototype, "startViewTransition") === "function",
-	);
-	expect(calls[0]?.on).toBe(elementScoped ? "article" : "document");
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	await page.locator('#sidebar a[href="/docs/defer"]').click();
+	await expect(page.locator("#doc-title")).toHaveText("Deferred data");
+	await page.evaluate(() => window.scrollTo(0, 900));
+	await page.locator('#nav a[href="/api/server/create-server"]').click();
+	await expect(page).toHaveURL(/\/api\/server\/create-server/);
+	await page.goBack();
+	await expect(page.locator("#doc-title")).toHaveText("Deferred data");
+	await expect.poll(calls).toHaveLength(4);
+	expect(await calls()).toEqual(["document", "document", "document", "document"]);
 });
 
 test("view transition off", async ({ page, docs }) => {

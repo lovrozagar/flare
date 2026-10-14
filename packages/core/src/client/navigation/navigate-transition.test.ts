@@ -73,15 +73,16 @@ it("view transition", async () => {
 	await app.navigator.navigate({ to: "_root_/about" });
 	flush();
 	expect(app.text()).toBe("root[about]");
-	expect(started).toEqual([{ scope: "main", types: undefined, pushedBeforeUpdate: false }]);
+	// The default scope is the document, though a boundary is there (B119 (5)).
+	expect(started).toEqual([{ scope: "document", types: undefined, pushedBeforeUpdate: false }]);
 	expect(push).toHaveBeenCalledOnce();
 	await app.navigator.navigate({
 		to: "_root_/about",
 		replace: true,
 		search: { q: "1" },
-		viewTransition: { scope: "document" },
+		viewTransition: { scope: "auto" },
 	});
-	expect(started[1]).toEqual({ scope: "document", types: undefined, pushedBeforeUpdate: false });
+	expect(started[1]).toEqual({ scope: "main", types: undefined, pushedBeforeUpdate: false });
 	await app.navigator.restore("/", 0);
 	expect(started[2]).toMatchObject({ types: undefined });
 	await app.navigator.navigate({ to: "_root_/about", viewTransition: false });
