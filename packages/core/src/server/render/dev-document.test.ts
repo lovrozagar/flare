@@ -6,6 +6,7 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter } from "../../shared/router/create-router.ts";
 import { createMemoryStore } from "../cache/memory.ts";
 import { serveWith } from "../lifecycle/create.ts";
+import { Stylesheet } from "../../shared/components/stylesheet.tsx";
 import { devDocument, devToken } from "./dev-document.ts";
 
 const HEAD = '<script type="module" src="/@vite/client"></script>';
@@ -107,4 +108,47 @@ it("production", async () => {
 	expect(toTab.mock.calls.map(([token]) => token)).toEqual(["A", "B"]);
 	const tested = await (await app({ dev: true }).fetch(new Request("https://x.test/isr"))).text();
 	expect(tested).not.toContain("flare-dev-tab");
+});
+
+// A dev document's head holds one style per CSS module its chain imports, root first, in <Stylesheet />'s place, with
+// the request's nonce; a page that imports none gets only the root's (B104, BUGS.md B59).
+it("dev styles", async () => {
+	const styled = createRootLayout("_root_").render((props) =>
+		element("html", () => [
+			element("head", () => [element("title", () => "T"), createComponent(Stylesheet, {})]),
+			element("body", () => props.children),
+		]),
+	);
+	const router = createRouter({
+		layouts: { _root_: styled },
+		routeTree: [
+			{ id: "_root_/a", path: "/a", module: createPage("_root_/a").render(() => "a") },
+			{ id: "_root_/b", path: "/b", module: createPage("_root_/b").render(() => "b") },
+		],
+	});
+	const css: Record<string, { id: string; css: string }[]> = {
+		_root_: [{ id: "/src/app.css", css: "body{margin:0}" }],
+		"_root_/a": [{ id: "/src/a.module.css", css: "._a{color:red}" }],
+	};
+	const asked: string[][] = [];
+	const styles = async (routes: readonly string[]) => {
+		asked.push([...routes]);
+		return routes.flatMap((route) => css[route] ?? []);
+	};
+	const log = { level: "error" as const, error: () => undefined, warn: () => undefined, log: () => undefined };
+	const app = serveWith({ router, site: "https://x.test" }, { dev: true, toTab: () => () => undefined, styles, log });
+	const page = await app.fetch(new Request("https://x.test/a"));
+	const nonce = /'nonce-([^']+)'/.exec(page.headers.get("content-security-policy") ?? "")?.[1];
+	const attr = nonce === undefined ? "" : ` nonce="${nonce}"`;
+	const head = (await page.text()).split("</head>")[0] ?? "";
+	expect(head).toContain(
+		`T</title><style data-vite-dev-id="/src/app.css"${attr}>body{margin:0}</style>` +
+			`<style data-vite-dev-id="/src/a.module.css"${attr}>._a{color:red}</style>`,
+	);
+	const other = (await (await app.fetch(new Request("https://x.test/b"))).text()).split("</head>")[0] ?? "";
+	expect(other.match(/data-vite-dev-id/g)).toHaveLength(1);
+	expect(asked).toEqual([
+		["_root_", "_root_/a"],
+		["_root_", "_root_/b"],
+	]);
 });

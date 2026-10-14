@@ -106,6 +106,7 @@ function loader(plugin: ReturnType<typeof flarePlugin>, root: string) {
 				config: { root, server: { middlewareMode: true } },
 				watcher: { on: () => undefined },
 				transformIndexHtml: async () => `<html><head>${head}</head><body></body></html>`,
+				environments: {},
 			};
 			serverHook(plugin)(server);
 		},

@@ -1,7 +1,13 @@
-import { FN_PREFIX } from "../protocol/index.ts";
+import { FN_PREFIX, type DevStyle } from "../protocol/index.ts";
 
 // `stylesheet` is a document render's: `<Stylesheet />` leaves its href there, and the document writes the markup.
-type RequestEvent = { path: string; nonce: string; stylesheet?: StylesheetPlacement };
+// `devStyles` are a dev document's CSS modules, which `<Stylesheet />` writes in its place (B104).
+type RequestEvent = {
+	path: string;
+	nonce: string;
+	stylesheet?: StylesheetPlacement;
+	devStyles?: readonly DevStyle[] | undefined;
+};
 
 export type StylesheetPlacement = { href?: string };
 
@@ -52,4 +58,9 @@ export function placeStylesheet(href: string): boolean {
 	if (placement === undefined) return false;
 	placement.href = href;
 	return true;
+}
+
+// A dev document's CSS modules, in import order. Outside a dev document render there are none.
+export function devStyles(): readonly DevStyle[] {
+	return slot.event?.devStyles ?? [];
 }

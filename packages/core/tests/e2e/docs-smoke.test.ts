@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import { documents, expect, isProd, open, test } from "./docs.fixture.ts";
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
@@ -126,4 +127,54 @@ test("rapid links", async ({ page, docs }) => {
 	await expect(page.locator("#doc-title")).toHaveText("Routing");
 	await page.waitForTimeout(500);
 	expect(errors).toEqual([]);
+});
+
+// A dev hard load is styled before any client module runs: with every script blocked, Vite's client and the app's
+// entry included, the server's own dev styles already style the first paint (B104, BUGS.md B59).
+test("dev first paint", async ({ page, docs }, info) => {
+	test.skip(isProd(info), "dev styles");
+	await page.route("**/*", (route) => (route.request().resourceType() === "script" ? route.abort() : route.continue()));
+	await page.goto(`${docs.origin}/docs/routing`, { waitUntil: "domcontentloaded" });
+	await expect(page.locator("body")).toHaveCSS("margin", "0px");
+	await expect(page.locator("h1").first()).toHaveCSS("font-weight", "600");
+	await expect(page.locator("#nav")).toHaveCSS("position", "sticky");
+});
+
+// The client adopts the server's dev styles: one style per module id after hydration, and still one after an HMR
+// edit of the app's CSS, with the new rule applied (B104).
+test("dev styles adopted", async ({ page, docs }, info) => {
+	test.skip(isProd(info), "dev styles");
+	const ids = () =>
+		page.evaluate(() =>
+			[...document.querySelectorAll("style[data-vite-dev-id]")].map(
+				(style) => style.getAttribute("data-vite-dev-id") ?? "",
+			),
+		);
+	await open(page, docs.origin, "/docs/routing");
+	const first = await ids();
+	expect(first.some((id) => id.endsWith("/src/styles.css"))).toBe(true);
+	// Tailwind's entry comes out compiled: a generated utility's rule is in it, not the `@import` source.
+	const tailwind = await page.evaluate(
+		() => document.querySelector<HTMLStyleElement>('style[data-vite-dev-id$="/src/styles.css"]')?.textContent ?? "",
+	);
+	expect(tailwind).toMatch(/\.mx-auto\s*\{/);
+	expect(tailwind).not.toContain('@import "tailwindcss"');
+	expect(new Set(first).size).toBe(first.length);
+	const file = `${docs.appDir}/src/styles.css`;
+	const source = readFileSync(file, "utf8");
+	try {
+		writeFileSync(file, `${source}\n.b59-hmr-probe { color: rgb(1, 2, 3); }\n`);
+		await page.evaluate(() => {
+			const probe = document.createElement("p");
+			probe.className = "b59-hmr-probe";
+			probe.id = "b59-probe";
+			document.body.append(probe);
+		});
+		await expect(page.locator("#b59-probe")).toHaveCSS("color", "rgb(1, 2, 3)");
+		const after = await ids();
+		expect(after.filter((id) => id.endsWith("/src/styles.css"))).toHaveLength(1);
+		expect(new Set(after).size).toBe(after.length);
+	} finally {
+		writeFileSync(file, source);
+	}
 });

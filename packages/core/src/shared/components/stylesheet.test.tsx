@@ -33,6 +33,17 @@ function rendered(requestNonce = "n"): HTMLElement {
 it("dev", () => {
 	vi.stubEnv("DEV", true);
 	expect(rendered().innerHTML).toBe("");
+	// A dev document writes one style per CSS module its chain imports, keyed as Vite's client keys them (B104).
+	const devStyles = [
+		{ id: "/src/app.css", css: "a{}" },
+		{ id: "/src/page.module.css", css: "b{content:'</style>'}" },
+	];
+	const host = withRequest({ path: "/", nonce: "n", devStyles }, () => rendered());
+	expect(host.innerHTML).toBe(
+		'<style data-vite-dev-id="/src/app.css" nonce="n">a{}</style>' +
+			'<style data-vite-dev-id="/src/page.module.css" nonce="n">b{content:\'<\\/style>\'}</style>',
+	);
+	expect(withRequest({ path: "/", nonce: "", devStyles }, () => rendered("")).innerHTML).not.toContain("nonce");
 });
 
 it("prod", () => {

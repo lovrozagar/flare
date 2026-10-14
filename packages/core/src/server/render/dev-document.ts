@@ -1,4 +1,5 @@
 import { isTabToken, mintTab, TAB_HEADER, tabMeta } from "../../shared/protocol/index.ts";
+import { escapeAttr } from "./escape.ts";
 
 // The request nonce, read from the policy the app answered with. Vite's client reads it from a `csp-nonce` meta for
 // the styles it injects and its error overlay, so a nonce CSP does not block them.
@@ -21,7 +22,7 @@ export function devToken(request: Request): string {
 export function devDocument(response: Response, tags: DevTags): Response {
 	if (!(response.headers.get("content-type") ?? "").startsWith("text/html") || response.body === null) return response;
 	const nonce = POLICY_NONCE.exec(response.headers.get("content-security-policy") ?? "")?.[1];
-	const meta = nonce === undefined ? "" : `<meta property="csp-nonce" nonce="${nonce}">`;
+	const meta = nonce === undefined ? "" : `<meta property="csp-nonce" nonce="${escapeAttr(nonce)}">`;
 	const headers = new Headers(response.headers);
 	headers.delete("content-length");
 	const body = withTags(response.body, `${tags.head}${meta}${tabMeta(tags.token)}`);

@@ -156,3 +156,37 @@ it("dev sink", () => {
 	expect(built.send).toBeUndefined();
 	expect(requestSink(built, "T1")).toBe(built);
 });
+
+// With Vite's hot channel able to listen, the dev sink also asks the dev server for a document's styles, and every
+// call keeps the hot context as its receiver (B104).
+it("dev styles sink", async () => {
+	const sent: unknown[] = [];
+	const hot = {
+		listeners: new Map<string, (payload: unknown) => void>(),
+		send(event: string, payload: unknown) {
+			sent.push(payload);
+			if (event === "flare:styles")
+				this.listeners.get(event)?.({ request: Reflect.get(Object(payload), "request"), styles: [] });
+		},
+		on(event: string, listener: (payload: unknown) => void) {
+			this.listeners.set(event, listener);
+		},
+	};
+	const sink = devSink({ env: { DEV: true }, hot });
+	expect(await sink.styles?.(["_root_"])).toEqual([]);
+	expect(sent).toEqual([{ request: 0, routes: ["_root_"] }]);
+	expect(devSink({ env: { DEV: true }, hot: { send: () => undefined } }).styles).toBeUndefined();
+	// A dev server that never answers: the document renders without styles and the warning is logged.
+	vi.useFakeTimers();
+	const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+	try {
+		const silent = devSink({ env: { DEV: true }, hot: { send: () => undefined, on: () => undefined } });
+		const pending = silent.styles?.(["_root_"]);
+		vi.advanceTimersByTime(2000);
+		expect(await pending).toEqual([]);
+		expect(warn).toHaveBeenCalledOnce();
+	} finally {
+		warn.mockRestore();
+		vi.useRealTimers();
+	}
+});
