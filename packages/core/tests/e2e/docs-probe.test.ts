@@ -100,32 +100,58 @@ test("main thread load", async ({ browser, request, docs }, info) => {
 	);
 });
 
-// `append` samples from the DOM change of `stream`'s first line made by hand, three times each: on the script-free page
-// with only its critical CSS and with the full stylesheet, on the hydrated playground, and on the hydrated playground
-// with one observer kind made inert before any script runs (ResizeObserver, IntersectionObserver, MutationObserver).
+// `append` samples from the DOM change of `stream`'s first line made by hand: on the script-free page with the full
+// stylesheet; on that page holding a synthetic retained heap the size of the hydrated playground's (about 3 MB in
+// Chromium), so any page that size meets the same collector; on the playground whose client never runs, which keeps its
+// inline head scripts (theme, direction, language) and so the same `<html>` attributes; on the hydrated playground ten
+// times, for a rate; and on the hydrated playground twice in a row, where a one-time cost (a compile, a lazy init)
+// lands on the first append only and a collection on either.
 test("main thread append", async ({ browser, request, docs }, info) => {
-	test.setTimeout(180_000);
+	test.setTimeout(240_000);
 	const pages = await probePages(docs.origin, request);
-	const live =
-		(observer?: string) =>
-		async (page: Page): Promise<Sample> => {
-			if (observer !== undefined) await inertObserver(page, observer);
-			await open(page, docs.origin, "/playground");
-			return appendLine(page);
-		};
-	const setups: Record<string, Setup> = {
-		"static append": async (page) => (await staticPage(page, docs.origin, pages.bare), appendLine(page)),
-		"static full css append": async (page) => {
-			await staticPage(page, docs.origin, pages.styled);
-			await expectFullCss(page, pages.sheet);
-			return appendLine(page);
+	const hydrated = async (page: Page): Promise<void> => void (await open(page, docs.origin, "/playground"));
+	await probe(
+		{ browser, info, group: "append" },
+		{
+			"static full css append": async (page) => {
+				await staticPage(page, docs.origin, pages.styled);
+				await expectFullCss(page, pages.sheet);
+				return appendLine(page, 1);
+			},
+			"static synthetic heap append": async (page) => {
+				await staticPage(page, docs.origin, pages.styled);
+				await page.evaluate(() => {
+					const items = Array.from({ length: 24_000 }, (_, index) => ({
+						id: index,
+						label: `item ${index}`,
+						tags: [index, index + 1],
+						read: () => index,
+					}));
+					Reflect.set(window, "probeHeap", items);
+				});
+				await page.waitForTimeout(1000);
+				return appendLine(page, 1);
+			},
+			"live no client append": async (page) => {
+				await page.route(`${docs.origin}${pages.entry}`, (route) =>
+					route.fulfill({ body: "export {};", contentType: "text/javascript" }),
+				);
+				await page.goto(pages.playground);
+				return appendLine(page, 1);
+			},
+			"live append twice": async (page) => {
+				await hydrated(page);
+				const first = await appendLine(page, 1);
+				return { ...first, again: await appendLine(page, 2) };
+			},
 		},
-		"live append": live(),
-		"live append no resize": live("ResizeObserver"),
-		"live append no intersection": live("IntersectionObserver"),
-		"live append no mutation": live("MutationObserver"),
-	};
-	await probe({ browser, info, group: "append" }, setups, 3);
+		5,
+	);
+	await probe(
+		{ browser, info, group: "append live" },
+		{ "live append": async (page) => (await hydrated(page), appendLine(page, 1)) },
+		10,
+	);
 });
 
 // `click` samples from `stream`'s click, cold and with Docs Mono warm, and from one hidden `font-mono` span's insert.
@@ -163,10 +189,39 @@ test("main thread click", async ({ browser, docs }, info) => {
 	);
 });
 
+// `heap` reads the retained JS heap after a second of idle and a forced collection, where the engine exposes it
+// (Chromium, over the DevTools protocol), on about:blank, the docs home, and the hydrated playground, so the pause's heap
+// has a scale (BUGS.md 100). Other engines record null.
+test("main thread heap", async ({ browser, browserName, docs }, info) => {
+	test.setTimeout(120_000);
+	const report: Record<string, { used: number; total: number } | null> = {};
+	for (const path of ["about:blank", "/", "/playground"]) {
+		const context = await browser.newContext();
+		const page = await context.newPage();
+		if (path === "about:blank") await page.goto(path);
+		else await open(page, docs.origin, path);
+		await page.waitForTimeout(1000);
+		if (browserName === "chromium") {
+			const cdp = await context.newCDPSession(page);
+			await cdp.send("HeapProfiler.collectGarbage");
+			const { usedSize, totalSize } = await cdp.send("Runtime.getHeapUsage");
+			report[path] = { used: usedSize, total: totalSize };
+		} else report[path] = null;
+		await context.close();
+	}
+	const path = info.outputPath("main-thread-heap.json");
+	writeFileSync(path, `${JSON.stringify(report)}\n`);
+	await info.attach("main thread heap", { path, contentType: "application/json" });
+	expect(Object.keys(report)).toHaveLength(3);
+});
+
 // Gaps as `<start>+<length>`, and font loads as `<at>:<event>:<faces>`, each from the moment; each face's status when
 // sampling starts and every change after it, polled each frame since WebKit fires no font events, as
 // `<at>:<family> <weight>:<status>`.
-type Sample = { gaps: string[]; loads: string[]; faces: string[] };
+// `gc` is each frame where a WeakRef made in an earlier frame first derefs to undefined: a collection ran before it.
+// `finalized` is each FinalizationRegistry callback, which the engine runs at its own discretion, so it only supports.
+// `again` is a second sample on the same page.
+type Sample = { gaps: string[]; loads: string[]; faces: string[]; gc: string[]; finalized: string[]; again?: Sample };
 
 type Setup = (page: Page) => Promise<Sample>;
 
@@ -223,31 +278,16 @@ async function expectFullCss(page: Page, sheet: string | undefined): Promise<voi
 	expect(hrefs.some((href) => href.endsWith(sheet))).toBe(true);
 }
 
-// One observer kind made inert before any page script runs: it observes nothing and never calls back.
-async function inertObserver(page: Page, name: string): Promise<void> {
-	await page.addInitScript((kind) => {
-		const inert = class {
-			observe(): void {}
-			unobserve(): void {}
-			disconnect(): void {}
-			takeRecords(): never[] {
-				return [];
-			}
-		};
-		Reflect.set(window, kind, inert);
-	}, name);
-}
-
 // The DOM change `stream`'s first line makes, with no server function and no Solid: one `<li>` in `#stream-log`, then
 // the gaps from it.
-async function appendLine(page: Page): Promise<Sample> {
+async function appendLine(page: Page, count: number): Promise<Sample> {
 	await page.evaluate(() => {
 		const line = document.createElement("li");
 		line.textContent = "1. resolve routes";
 		Reflect.set(window, "probeMark", performance.now());
 		document.getElementById("stream-log")?.append(line);
 	});
-	expect(await page.locator("#stream-log li").count()).toBe(1);
+	expect(await page.locator("#stream-log li").count()).toBe(count);
 	return sample(page, "mark");
 }
 // Every `document.fonts` load the page starts, from the document's start (BUGS.md 100).
@@ -295,19 +335,35 @@ function sample(page: Page, zero: "load" | "click" | "mark"): Promise<Sample> {
 						faces.push(`${Math.round(now - origin)}:${face.family} ${face.weight}:${face.status}`);
 					}
 				};
+				// One fresh target per frame, held only weakly, so a collection shows as a dead ref in a later frame.
+				const gc: string[] = [];
+				const finalized: string[] = [];
+				const registry = new FinalizationRegistry(() => finalized.push(`${Math.round(performance.now() - origin)}`));
+				let refs: WeakRef<object>[] = [];
+				const witness = (now: number): void => {
+					const alive = refs.filter((ref) => ref.deref() !== undefined);
+					if (alive.length < refs.length) gc.push(`${Math.round(now - origin)}`);
+					const target = {};
+					registry.register(target, 0);
+					refs = [...alive, new WeakRef(target)];
+				};
 				let last = performance.now();
 				poll(last);
+				witness(last);
 				const tick = (): void => {
 					const now = performance.now();
 					if (now - last > 50) gaps.push(`${Math.round(last - origin)}+${Math.round(now - last)}`);
 					last = now;
 					poll(now);
+					witness(now);
 					if (now - origin < 2000) return void requestAnimationFrame(tick);
 					const loads = (Reflect.get(window, "probeFontLoads") ?? []) as { at: number; text: string }[];
 					resolve({
 						gaps,
 						loads: loads.map((load) => `${Math.round(load.at - origin)}:${load.text}`),
 						faces,
+						gc,
+						finalized,
 					});
 				};
 				requestAnimationFrame(tick);
