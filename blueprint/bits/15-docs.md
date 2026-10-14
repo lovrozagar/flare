@@ -94,7 +94,7 @@ The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydra
 
 ## `tests/integration/client.test.ts` (B96)
 
-The harness's app mode (`hydrate.app.ts`, plan 14 9.6): a case gives its app (the router, compiled into both sides from its source) and its client callbacks. The harness serves the document the real `createServer(...).fetch` answers from Solid's server build in Vite's SSR runner, adds a client entry, since without `flare()` the document has none, that calls the real `createClient(router)` with the callbacks, and reads back the record they wrote. It answers the dev server's `flare:styles` request with no styles, as flare() would for an app with no stylesheet. One harness boot serves the file, and every case runs in Chromium, Firefox, and WebKit.
+The harness's app mode (`hydrate.app.ts`, plan 14 9.6): a case gives its app (the router, compiled into both sides from its source) and its client callbacks. The harness serves the document the real `createServer(...).fetch` answers from Solid's server build in Vite's SSR runner, adds a client entry, since without `flare()` the document has none, that calls the real `createClient(router)` with the callbacks, and reads back the record they wrote. It answers the dev server's `flare:styles` request with no styles, as flare() would for an app with no stylesheet. One harness boot serves the file, and every case runs in Chromium, Firefox, and WebKit. App mode does not exercise the document's own client script tag: without `flare()`, build-info has no `clientEntry`, so the harness adds its entry; the e2e grid, which runs `flare()`, covers the tag (flare-77).
 
 | test | case | result |
 | --- | --- | --- |
