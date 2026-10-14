@@ -1,6 +1,7 @@
 import { createComponent, flush } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, expect, it, vi } from "vitest";
+import { withRequest, type StylesheetPlacement } from "../csp/nonce.ts";
 import { Stylesheet } from "./stylesheet.tsx";
 
 type FlareScope = typeof globalThis & { flare?: { nonce: string } };
@@ -54,4 +55,14 @@ it("prod without css", () => {
 	vi.stubEnv("DEV", false);
 	sheet.href = "";
 	expect(rendered().innerHTML).toBe("");
+});
+
+// In a document render the component leaves its href to the document, which writes the markup right after the
+// critical style (B103), and renders nothing in place.
+it("placed", () => {
+	vi.stubEnv("DEV", false);
+	const stylesheet: StylesheetPlacement = {};
+	const host = withRequest({ path: "/", nonce: "n", stylesheet }, () => rendered());
+	expect(host.innerHTML).toBe("");
+	expect(stylesheet.href).toBe("/assets/app.css");
 });

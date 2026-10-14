@@ -1,6 +1,9 @@
 import { FN_PREFIX } from "../protocol/index.ts";
 
-type RequestEvent = { path: string; nonce: string };
+// `stylesheet` is a document render's: `<Stylesheet />` leaves its href there, and the document writes the markup.
+type RequestEvent = { path: string; nonce: string; stylesheet?: StylesheetPlacement };
+
+export type StylesheetPlacement = { href?: string };
 
 const slot: { event: RequestEvent | undefined } = { event: undefined };
 
@@ -40,4 +43,13 @@ function serverNonce(): string {
 	if (event === undefined) throw new Error("nonce");
 	if (event.path.startsWith(FN_PREFIX)) throw new Error("nonce");
 	return event.nonce;
+}
+
+// A document render writes the stylesheet markup itself, right after the critical style (B103). `<Stylesheet />` hands
+// it the href here and renders nothing in place. Outside a document render, nothing takes it.
+export function placeStylesheet(href: string): boolean {
+	const placement = slot.event?.stylesheet;
+	if (placement === undefined) return false;
+	placement.href = href;
+	return true;
 }
