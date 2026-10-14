@@ -59,5 +59,5 @@ The hydrate harness (`bits/15-docs.md`) and the e2e global setup both take their
 
 | test | case | result |
 | --- | --- | --- |
-| `grid projects` | `playwright.config.ts` with no `--project`, on Linux and on macOS | Linux runs all 18 projects; macOS runs the 6 webkit projects |
+| `grid projects` | `playwright.config.ts` with no `--project` | all 18 projects on any machine, Linux or macOS (B70: the browsers come from the pinned image, so the OS does not choose them). CI's `e2e-mac` job names the 6 webkit projects with `--project`, as the Safari-engine check |
 | `crash fails` | the docs fixture | a page `crash` event fails the test that owned the page (plan 14 leaf 4.6) |
