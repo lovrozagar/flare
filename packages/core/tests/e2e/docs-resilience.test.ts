@@ -119,16 +119,18 @@ test("bot stays put", async ({ request, docs }) => {
 	expect(await response.text()).toContain('id="message"');
 });
 
+// The rejected POSTs carry no body: local Miniflare resets a kept-alive connection after an answer that left the body
+// unread, so the next request on that socket would fail (dx/adapters.md, BUGS.md B56).
 test("csrf headers", async ({ request, docs }) => {
-	const post = (headers: Record<string, string>) =>
+	const post = (headers: Record<string, string>, data?: object) =>
 		request.post(`${docs.origin}/_flare/fn/${ECHO}`, {
 			headers: { "content-type": "application/json", ...headers },
-			data: { text: "hi" },
+			...(data === undefined ? {} : { data }),
 		});
 	expect((await post({ "sec-fetch-site": "cross-site" })).status()).toBe(403);
 	expect((await post({ referer: "https://evil.test/page" })).status()).toBe(403);
 	expect((await post({ "sec-fetch-site": "same-site" })).status()).toBe(403);
-	expect((await post({ origin: docs.origin })).status()).toBe(200);
+	expect((await post({ origin: docs.origin }, { text: "hi" })).status()).toBe(200);
 });
 
 test("phone layout", async ({ browser, browserName, docs }) => {
