@@ -277,7 +277,8 @@ Kind `config`. No sibling test. One export. `testDir` is this directory. `webSer
 | `basepath` | `app: "basepath"` | throw. Bit 02 lifts this |
 | `no copy` | during `serves` | the app directory is `packages/core/tests/e2e/apps/minimal`. No second copy exists |
 | `temp` | during `serves` | the Vite `cacheDir` is outside that app directory and is gone after `close` |
-| `exit cleans a writer` | a child that prints an origin, then rewrites its cache dir every millisecond; the test process's `exit` is emitted | the cache dir is gone at once and 100 ms later: the exit path kills the child with SIGKILL, removes the dirs, waits 50 ms for a write already in flight, and removes them again; a removal a racing write interrupts retries. Red: SIGTERM then one removal left the dir 5 of 5 (BUGS.md 116) |
+| `exit cleans a writer` | a child that ignores SIGTERM, prints an origin, then rewrites its cache dir every millisecond; the test process's `exit` is emitted | the cache dir is gone at once and 100 ms later: the exit path kills the child with SIGKILL, removes the dirs, waits 50 ms for a write already in flight, and removes them again; a removal a racing write interrupts retries. Red on SIGTERM then one removal: the dir stays (BUGS.md 116) |
+| `close after a kill` | the exit path kills an idle child, and `close()` is called after its exit event fired | `close()` resolves within 2 s: a child a signal ended has a signal code and no exit code. Red on the old `exited()`: it waited for an event already gone (BUGS.md 116) |
 
 ### `tests/e2e/minimal.test.ts`
 

@@ -340,14 +340,15 @@ it("failed boot", async () => {
 	expect(existsSync(missing)).toBe(false);
 });
 
-// A child that keeps writing its cache dir, as Vite's dependency optimizer can while it is told to stop: the test
-// process's exit leaves no cache dir behind however late the child's last write lands (CI 38597128404's `exit cleans`).
+// A child that ignores SIGTERM and keeps writing its cache dir, as Vite's graceful shutdown keeps working after it: the
+// test process's exit leaves no cache dir behind (CI 38597128404's `exit cleans`, BUGS.md 116).
 it("exit cleans a writer", async () => {
 	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
 	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
 	const script = [
 		'import { mkdirSync, writeFileSync } from "node:fs";',
 		"const dir = process.env.FLARE_VITE_CACHE;",
+		'process.on("SIGTERM", () => {});',
 		'console.log("http://127.0.0.1:1");',
 		'setInterval(() => { mkdirSync(dir, { recursive: true }); writeFileSync(dir + "/dep", "x"); }, 1);',
 	].join("\n");
@@ -363,6 +364,26 @@ it("exit cleans a writer", async () => {
 	await new Promise((resolve) => setTimeout(resolve, 100));
 	expect(existsSync(cacheDir)).toBe(false);
 	await session.close();
+});
+
+// A boot whose child a signal already ended still closes: a killed child has a signal code and no exit code, and
+// `close()` once waited for an exit event that had already fired (BUGS.md 116).
+it("close after a kill", async () => {
+	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
+	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
+	const script = 'console.log("http://127.0.0.1:1"); setInterval(() => undefined, 1000);';
+	const session = await bootChild({
+		appDir,
+		cacheDir,
+		bin: process.execPath,
+		args: ["--input-type=module", "-e", script],
+	});
+	process.emit("exit", 0);
+	// The kill's exit event fires before `close()` is called.
+	await new Promise((resolve) => setTimeout(resolve, 100));
+	const closed = session.close().then(() => "closed");
+	const hung = new Promise((resolve) => setTimeout(() => resolve("hung"), 2000));
+	expect(await Promise.race([closed, hung])).toBe("closed");
 });
 
 it(
