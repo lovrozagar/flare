@@ -226,7 +226,8 @@ it(
 );
 
 // The boot keeps what its child prints, stdout and stderr, in memory in the order it arrived, one entry per line,
-// and writes none of it to disk (BUGS.md B8).
+// as plain text, and writes none of it to disk (BUGS.md B8). Bun colors console.error under Playwright's FORCE_COLOR,
+// so escape codes are dropped.
 it("logs captured", async () => {
 	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
 	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
@@ -234,7 +235,7 @@ it("logs captured", async () => {
 		"const later = (ms, fn) => new Promise((resolve) => setTimeout(() => resolve(fn()), ms));",
 		'process.stdout.write("one\\ntw");',
 		'await later(50, () => process.stdout.write("o\\n"));',
-		'await later(50, () => process.stderr.write("three\\n"));',
+		'await later(50, () => process.stderr.write("\\u001b[0m\\u001b[31mthree\\u001b[39m\\n"));',
 		'await later(50, () => console.log("http://127.0.0.1:1"));',
 		"setInterval(() => undefined, 1000);",
 	].join("\n");
