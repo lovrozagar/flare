@@ -47,8 +47,9 @@ function capture(): { attach: (stream: Readable | null) => void; logs: () => rea
 const APPS = new Set(["minimal", "basepath", "docs"]);
 const RUNTIMES = new Set(["node", "bun", "workers"]);
 
-// `dev` is `vite dev` on Node. `prod` is `vite build` on Node, then the runtime's adapter over the output: the Node
-// listener, `Bun.serve`, or miniflare from the app's wrangler.jsonc (B70). Workers dev is unsupported.
+// `dev` is `vite dev`: on Node, under the Bun runtime, or on Node with the app's flare({ workersDev }) on, which renders
+// in workerd (B95). `prod` is `vite build` on Node, then the runtime's adapter over the output: the Node listener,
+// `Bun.serve`, or miniflare from the app's wrangler.jsonc (B70).
 export async function boot(input: { app: string; runtime: string; mode: string }): Promise<Boot> {
 	if (!APPS.has(input.app)) throw new Error(input.app);
 	return bootApp({ appDir: join(apps, input.app), runtime: input.runtime, mode: input.mode });
@@ -58,11 +59,10 @@ export async function boot(input: { app: string; runtime: string; mode: string }
 export async function bootApp(input: { appDir: string; runtime: string; mode: string }): Promise<Boot> {
 	if (!RUNTIMES.has(input.runtime)) throw new Error(input.runtime);
 	if (input.mode !== "dev" && input.mode !== "prod") throw new Error(input.mode);
-	if (input.mode === "dev" && input.runtime !== "node") throw new Error(`${input.runtime} dev is unsupported`);
 	const appDir = input.appDir;
 	const cacheDir = await mkdtemp(join(tmpdir(), "flare-vite-"));
 	// A child process, so the app's Vite and the framework it loads stay out of the test process.
-	if (input.mode === "dev") return bootChild({ appDir, cacheDir, bin: viteBin });
+	if (input.mode === "dev") return bootChild({ appDir, cacheDir, ...devCommand(input.runtime) });
 	mkdirSync(outputs, { recursive: true });
 	const outDir = await mkdtemp(join(outputs, "out-"));
 	try {
@@ -77,6 +77,13 @@ export async function bootApp(input: { appDir: string; runtime: string; mode: st
 }
 
 const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", import.meta.url));
+
+// The dev server per runtime. The app's vite.config reads FLARE_E2E_RUNTIME to turn workersDev on (B95).
+function devCommand(runtime: string): { bin: string; args?: readonly string[]; env: Record<string, string> } {
+	const env = { FLARE_E2E_RUNTIME: runtime };
+	if (runtime === "bun") return { bin: "bun", args: ["--bun", viteJs, "--host", "127.0.0.1", "--port", "0"], env };
+	return { bin: viteBin, env };
+}
 const viteJs = fileURLToPath(new URL("../../../../node_modules/vite/bin/vite.js", import.meta.url));
 
 // The cache dir, and any other dir the boot made, go when the child exits for any reason, when it cannot start, and
@@ -87,12 +94,13 @@ export function bootChild(input: {
 	bin: string;
 	args?: readonly string[];
 	dirs?: readonly string[];
+	env?: Record<string, string>;
 }): Promise<Boot> {
 	const { appDir, cacheDir } = input;
 	const child = spawn(input.bin, input.args ?? ["--host", "127.0.0.1", "--port", "0"], {
 		cwd: appDir,
 		// Playwright sets FORCE_COLOR. A colored URL would never match readOrigin, and NO_COLOR wins over it.
-		env: { ...process.env, FLARE_VITE_CACHE: cacheDir, NO_COLOR: "1" },
+		env: { ...process.env, ...input.env, FLARE_VITE_CACHE: cacheDir, NO_COLOR: "1" },
 		stdio: ["ignore", "pipe", "pipe"],
 	});
 	const output = capture();
