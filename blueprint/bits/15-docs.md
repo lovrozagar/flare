@@ -103,6 +103,14 @@ The harness's app mode (`hydrate.app.ts`, plan 14 9.6): a case gives its app (th
 | `interaction once` | a programmatic `navigate`, then a click, a key, and a click | nothing before the input, then exactly one `interaction`. Bite: removing the one-shot listener cleanup records three |
 | `late registration` | `onReady` registered in a timer after the hydrate microtask | it throws |
 
+## `tests/integration/flare-page.test.ts` (B96)
+
+| test | case | result |
+| --- | --- | --- |
+| `helper on a real page` | the app mode's page, whose client logs `planted error` after hydrate; then `flarePage(tab)` loads it again and reads it | `load` resolves with `data-flare-hydrated` set, `consoleErrors()` holds `planted error`, and `state()` is `{ build: "dev", nonce, matches, queries: null }` with the root's and the page's matches and the page's loader data. Bite: a helper that does not listen to the console fails on all three engines |
+
+docs-features `page state` (e2e): `flarePage(page).load` of `/docs/routing`, then `state()`: the last match is `[[locale]]/_root_/(guide)/docs/[slug]` with `{ slug: "routing" }`, the build is set, and the page logged no error.
+
 ## `shared/dev/warn.test.ts`
 
 | test | case | result |
