@@ -206,12 +206,12 @@ Routes are files under `src/routes`; the directory path is the route id, and cod
 
 Each route file exports `route`, built from one of four builders. The methods run in the order listed, and each may be called once.
 
-| export              | builds                                                    |
-| ------------------- | --------------------------------------------------------- |
-| `createPage`        | a page: the only builder with `intercept` and `response`  |
-| `createLayout`      | a layout that wraps the pages in its child folders        |
-| `createRootLayout`  | the document for a root folder                            |
-| `createPathSegment` | a URL segment with a fixed render and an optional `cache` |
+| export              | from                | builds                                                    |
+| ------------------- | ------------------- | --------------------------------------------------------- |
+| `createPage`        | `@lovrozagar/flare` | a page: the only builder with `intercept` and `response`  |
+| `createLayout`      | `@lovrozagar/flare` | a layout that wraps the pages in its child folders        |
+| `createRootLayout`  | `@lovrozagar/flare` | the document for a root folder                            |
+| `createPathSegment` | `@lovrozagar/flare` | a URL segment with a fixed render and an optional `cache` |
 
 | method                                                                         | what it does                                                                              |
 | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
@@ -230,13 +230,13 @@ Each route file exports `route`, built from one of four builders. The methods ru
 
 Throw these from a loader, a preloader, `authorize`, or `.response()`:
 
-| export            | answers                                                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `redirect`        | `redirect({ to, params?, search?, hash?, href?, status?, replace? })`, typed by the target page; 303 and `replace` by default |
-| `notFound`        | 404 and the nearest `notFoundRender`                                                                                          |
-| `unauthenticated` | 401 and the nearest `unauthenticatedRender`                                                                                   |
-| `unauthorized`    | 403 and the nearest `unauthorizedRender`                                                                                      |
-| `markSafeError`   | marks an error whose message production may show                                                                              |
+| export            | from                | answers                                                                                                                       |
+| ----------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `redirect`        | `@lovrozagar/flare` | `redirect({ to, params?, search?, hash?, href?, status?, replace? })`, typed by the target page; 303 and `replace` by default |
+| `notFound`        | `@lovrozagar/flare` | 404 and the nearest `notFoundRender`                                                                                          |
+| `unauthenticated` | `@lovrozagar/flare` | 401 and the nearest `unauthenticatedRender`                                                                                   |
+| `unauthorized`    | `@lovrozagar/flare` | 403 and the nearest `unauthorizedRender`                                                                                      |
+| `markSafeError`   | `@lovrozagar/flare` | marks an error whose message production may show                                                                              |
 
 Full contracts: [builder.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/builder.md), [types.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/types.md).
 
@@ -307,23 +307,23 @@ A `Set-Cookie` downgrades a shared answer to private unless `cdn.allowCookies` i
 
 `navigate({ to, params?, search?, hash?, replace?, revalidate?, scroll?, shallow?, state?, viewTransition? })` takes the same target, from anywhere on the client once `createClient` has booted.
 
-| export                   | returns                                                                  |
-| ------------------------ | ------------------------------------------------------------------------ |
-| `navigate`               | the client navigation; rejects before boot and on the server             |
-| `useNavigate`            | the same function, from a component                                      |
-| `useNavigation`          | `{ pending }`, true from the fetch to the commit                         |
-| `useNavigationProgress`  | `{ pending, value }` for a progress bar; options `trickle`, `minDisplay` |
-| `useLoaderData`          | a route's own loader data, `{ from }` its id                             |
-| `useParams`, `useSearch` | a route's params and search, validated when the route validated them     |
-| `useLocation`            | `{ pathname, search, hash, params }`, raw                                |
-| `useMatch`               | `{ id, routeId }` of a route                                             |
-| `usePreloaderContext`    | a route's accumulated preloader context                                  |
-| `useDeferred`            | a deferred value inside `<Loading>`                                      |
-| `useBlocker`             | `fn({ current, next, trigger })`; `false` cancels the navigation         |
-| `Outlet`                 | where a layout renders its child                                         |
-| `InterceptOutlet`        | where an intercepted route renders over the page                         |
-| `ViewTransitionBoundary` | scopes a view transition to its subtree                                  |
-| `ViewTransitionCSS`      | the transition styles; `duration` defaults to `175`                      |
+| export                   | from                | returns                                                                  |
+| ------------------------ | ------------------- | ------------------------------------------------------------------------ |
+| `navigate`               | `@lovrozagar/flare` | the client navigation; rejects before boot and on the server             |
+| `useNavigate`            | `@lovrozagar/flare` | the same function, from a component                                      |
+| `useNavigation`          | `@lovrozagar/flare` | `{ pending }`, true from the fetch to the commit                         |
+| `useNavigationProgress`  | `@lovrozagar/flare` | `{ pending, value }` for a progress bar; options `trickle`, `minDisplay` |
+| `useLoaderData`          | `@lovrozagar/flare` | a route's own loader data, `{ from }` its id                             |
+| `useParams`, `useSearch` | `@lovrozagar/flare` | a route's params and search, validated when the route validated them     |
+| `useLocation`            | `@lovrozagar/flare` | `{ pathname, search, hash, params }`, raw                                |
+| `useMatch`               | `@lovrozagar/flare` | `{ id, routeId }` of a route                                             |
+| `usePreloaderContext`    | `@lovrozagar/flare` | a route's accumulated preloader context                                  |
+| `useDeferred`            | `@lovrozagar/flare` | a deferred value inside `<Loading>`                                      |
+| `useBlocker`             | `@lovrozagar/flare` | `fn({ current, next, trigger })`; `false` cancels the navigation         |
+| `Outlet`                 | `@lovrozagar/flare` | where a layout renders its child                                         |
+| `InterceptOutlet`        | `@lovrozagar/flare` | where an intercepted route renders over the page                         |
+| `ViewTransitionBoundary` | `@lovrozagar/flare` | scopes a view transition to its subtree                                  |
+| `ViewTransitionCSS`      | `@lovrozagar/flare` | the transition styles; `duration` defaults to `175`                      |
 
 Full contracts: [link.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/link.md), [navigate.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/navigate.md).
 
@@ -365,15 +365,15 @@ Full contracts: [link.md](https://github.com/lovrozagar/flare/blob/main/blueprin
 
 `SecurityConfig` sets `Content-Security-Policy` (a directives object with a per-request nonce by default, a string, or `false`), `Permissions-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, and `X-Powered-By`. A string sets a header and `false` removes it; a route's `.security()` merges over the server's.
 
-| export             | what it is                                                                                                                                                                    |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createServer`     | the server                                                                                                                                                                    |
-| `createMiddleware` | types `(ctx) => …`, which calls `ctx.next()`, `ctx.respond(response)`, or `ctx.bypass(response)`; `middleware` lists it, or `{ filter: { exact?, prefix?, kind? }, handler }` |
-| `mount`            | `mount(prefix, fetch)`: a sub-app under a canonical prefix                                                                                                                    |
-| `proxy`            | `proxy(request, upstream, { forwardCookies?, forwardAuthorization?, relaySetCookie? })` inside a mount                                                                        |
-| `serverCtx`        | the request's `serverContext` value                                                                                                                                           |
-| `withFetchDedupe`  | `withFetchDedupe(target, { maxBytes? })`: one upstream GET per request for the same URL and headers                                                                           |
-| `nonce`            | the request's CSP nonce, for a raw `<script>` or `<style>`                                                                                                                    |
+| export             | from                       | what it is                                                                                                                                                                    |
+| ------------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createServer`     | `@lovrozagar/flare/server` | the server                                                                                                                                                                    |
+| `createMiddleware` | `@lovrozagar/flare/server` | types `(ctx) => …`, which calls `ctx.next()`, `ctx.respond(response)`, or `ctx.bypass(response)`; `middleware` lists it, or `{ filter: { exact?, prefix?, kind? }, handler }` |
+| `mount`            | `@lovrozagar/flare/server` | `mount(prefix, fetch)`: a sub-app under a canonical prefix                                                                                                                    |
+| `proxy`            | `@lovrozagar/flare/server` | `proxy(request, upstream, { forwardCookies?, forwardAuthorization?, relaySetCookie? })` inside a mount                                                                        |
+| `serverCtx`        | `@lovrozagar/flare/server` | the request's `serverContext` value                                                                                                                                           |
+| `withFetchDedupe`  | `@lovrozagar/flare/server` | `withFetchDedupe(target, { maxBytes? })`: one upstream GET per request for the same URL and headers                                                                           |
+| `nonce`            | `@lovrozagar/flare`        | the request's CSP nonce, for a raw `<script>` or `<style>`                                                                                                                    |
 
 Full contract: [server.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/server.md).
 
@@ -391,11 +391,11 @@ The export is the client function: `await save(input)` resolves to the handler's
 
 ## Environment functions
 
-| export               | what it is                                                            |
-| -------------------- | --------------------------------------------------------------------- |
-| `createServerOnlyFn` | a function whose body the client build drops; calling it there throws |
-| `createClientOnlyFn` | the reverse: the server build drops the body                          |
-| `createIsomorphicFn` | `.server(fn).client(fn)`: each build keeps its own side               |
+| export               | from                | what it is                                                            |
+| -------------------- | ------------------- | --------------------------------------------------------------------- |
+| `createServerOnlyFn` | `@lovrozagar/flare` | a function whose body the client build drops; calling it there throws |
+| `createClientOnlyFn` | `@lovrozagar/flare` | the reverse: the server build drops the body                          |
+| `createIsomorphicFn` | `@lovrozagar/flare` | `.server(fn).client(fn)`: each build keeps its own side               |
 
 Full contract: [env.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/env.md).
 
@@ -407,12 +407,12 @@ Full contract: [env.md](https://github.com/lovrozagar/flare/blob/main/blueprint/
 
 Codegen writes `src/_gen/types.gen.d.ts`, which augments `FlareRegister`: page ids, params, search, and loader data, so `Link`, `navigate`, `redirect`, and the hooks are typed by the target route. An app adds its own fields to `FlareRegister` (`auth`, `env`, `serverContext`) by declaration merging.
 
-| export                         | what it is                                |
-| ------------------------------ | ----------------------------------------- |
-| `FlareRegister`                | the interface codegen and the app augment |
-| `Href`                         | a typed internal href                     |
-| `SearchOutput`, `ParamsOutput` | a route's validated search and params     |
-| `LocationRewrite`              | the type of the router's `rewrite`        |
+| export                         | from                | what it is                                |
+| ------------------------------ | ------------------- | ----------------------------------------- |
+| `FlareRegister`                | `@lovrozagar/flare` | the interface codegen and the app augment |
+| `Href`                         | `@lovrozagar/flare` | a typed internal href                     |
+| `SearchOutput`, `ParamsOutput` | `@lovrozagar/flare` | a route's validated search and params     |
+| `LocationRewrite`              | `@lovrozagar/flare` | the type of the router's `rewrite`        |
 
 Full contract: [types.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/types.md).
 
@@ -448,37 +448,37 @@ export default defineConfig({ plugins: [cloudflare({ viteEnvironment: { name: "s
 
 ## Adapters
 
-| export                 | entry                | use                                                                                                         |
-| ---------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `createNodeListener`   | `./adapters/node`    | `createNodeListener(server, { trustProxy? })`: a `node:http` request listener                               |
-| `toRequest`            | `./adapters/node`    | the target check and the client address the listener uses                                                   |
-| `createBunFetch`       | `./adapters/bun`     | `Bun.serve(createBunFetch(server, { trustProxy? }))`, with Bun's 128 MiB body ceiling above any `bodyLimit` |
-| `createWorkersHandler` | `./adapters/workers` | `createWorkersHandler(server, { assets? })` for a hand-written worker                                       |
+| export                 | from                                 | use                                                                                                         |
+| ---------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `createNodeListener`   | `@lovrozagar/flare/adapters/node`    | `createNodeListener(server, { trustProxy? })`: a `node:http` request listener                               |
+| `toRequest`            | `@lovrozagar/flare/adapters/node`    | the target check and the client address the listener uses                                                   |
+| `createBunFetch`       | `@lovrozagar/flare/adapters/bun`     | `Bun.serve(createBunFetch(server, { trustProxy? }))`, with Bun's 128 MiB body ceiling above any `bodyLimit` |
+| `createWorkersHandler` | `@lovrozagar/flare/adapters/workers` | `createWorkersHandler(server, { assets? })` for a hand-written worker                                       |
 
 `trustProxy` is how many proxy hops in front of the server are trusted (0 to 5, default 0): with one, `X-Forwarded-Proto: https` makes the request https. Full contract: [adapters.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/adapters.md).
 
 ## Stores and revalidate
 
-| export                  | what it is                                                              |
-| ----------------------- | ----------------------------------------------------------------------- |
-| `createMemoryStore`     | an in-process `FlareStore`; build it once, outside a request            |
-| `createFilesystemStore` | a `FlareStore` under `{ dir? }` on Node or Bun                          |
-| `fileAssets`            | reads the client output from disk, for `createAssetsStore`              |
-| `createAssetsStore`     | `createAssetsStore(read, { base? })`: the prerendered seeds as `static` |
-| `createCacheApiStore`   | a `FlareStore` over the Workers Cache API, `{ cacheName?, caches? }`    |
-| `revalidate`            | `revalidate({ keys?, tags? })`: purge inside a request                  |
-| `createRevalidateFn`    | `createRevalidateFn(store)`: the same purge, bound to a store           |
+| export                  | from                                 | what it is                                                              |
+| ----------------------- | ------------------------------------ | ----------------------------------------------------------------------- |
+| `createMemoryStore`     | `@lovrozagar/flare/server`           | an in-process `FlareStore`; build it once, outside a request            |
+| `createFilesystemStore` | `@lovrozagar/flare/stores/fs`        | a `FlareStore` under `{ dir? }` on Node or Bun                          |
+| `fileAssets`            | `@lovrozagar/flare/stores/fs`        | reads the client output from disk, for `createAssetsStore`              |
+| `createAssetsStore`     | `@lovrozagar/flare/server`           | `createAssetsStore(read, { base? })`: the prerendered seeds as `static` |
+| `createCacheApiStore`   | `@lovrozagar/flare/stores/cache-api` | a `FlareStore` over the Workers Cache API, `{ cacheName?, caches? }`    |
+| `revalidate`            | `@lovrozagar/flare/server`           | `revalidate({ keys?, tags? })`: purge inside a request                  |
+| `createRevalidateFn`    | `@lovrozagar/flare/server`           | `createRevalidateFn(store)`: the same purge, bound to a store           |
 
 `store` and `static` take a store, or `(env) => store` to pick one from the request's env. Full contract: [store.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/store.md).
 
 ## SEO
 
-| export           | what it does                                                                                               |
-| ---------------- | ---------------------------------------------------------------------------------------------------------- |
-| `sitemap`        | builds `sitemap.xml` and `robots.txt` from the prerendered pages; also `flare({ prerender: { sitemap } })` |
-| `indexNow`       | submits URLs to IndexNow: `{ host, key, urls, keyLocation? }`                                              |
-| `googleIndexing` | the Google Indexing API, with service-account `credentials`                                                |
-| `bingIndexing`   | Bing URL submission: `{ apiKey, siteUrl, urls }`                                                           |
+| export           | from                    | what it does                                                                                               |
+| ---------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `sitemap`        | `@lovrozagar/flare/seo` | builds `sitemap.xml` and `robots.txt` from the prerendered pages; also `flare({ prerender: { sitemap } })` |
+| `indexNow`       | `@lovrozagar/flare/seo` | submits URLs to IndexNow: `{ host, key, urls, keyLocation? }`                                              |
+| `googleIndexing` | `@lovrozagar/flare/seo` | the Google Indexing API, with service-account `credentials`                                                |
+| `bingIndexing`   | `@lovrozagar/flare/seo` | Bing URL submission: `{ apiKey, siteUrl, urls }`                                                           |
 
 Full contract: [seo.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/seo.md).
 
@@ -486,25 +486,25 @@ Full contract: [seo.md](https://github.com/lovrozagar/flare/blob/main/blueprint/
 
 Theme and direction are router options plus components from the root entry. i18n is a server slot and a client provider. Each feature's full table is in [features.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/features.md).
 
-| export                                                               | what it is                                                                                                                                                  |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ThemeProvider`, `ThemeScript`, `useTheme`                           | `createRouter({ theme: { defaultTheme?, attribute?, storageKey?, themes?, disableTransitionOnChange? } })`; the script sets the theme before paint          |
-| `DirectionProvider`, `DirectionScript`, `useDirection`               | `createRouter({ direction: { defaultDir?, attribute?, storageKey? } })`                                                                                     |
-| `i18n`                                                               | `createServer({ locale: i18n({ locales, defaultLocale, cookieName?, paramName?, botDetection? }) })`, from `./i18n/server`                                  |
-| `LocaleProvider`, `LocaleScript`, `useLocale`                        | the client side, from `./i18n`: `<LocaleProvider config initial?>`                                                                                          |
-| `createTranslations`, `formatMessage`, `useLoaderT`, `usePreloaderT` | typed messages, in components, loaders, and preloaders                                                                                                      |
-| `Image`                                                              | `<Image src alt widths? sizes? quality? priority? placeholder? fill? fixed? />`, widths from `flare({ image })`                                             |
-| `createFont`, `FontCSS`                                              | `createFont({ family, src, category, weights?, style?, fallbackMetrics? })` and its nonced style; registry fonts import from `@lovrozagar/flare/fonts/<id>` |
-| `Stylesheet`                                                         | the app stylesheet (Head above)                                                                                                                             |
-| `createQueryClientGetter`, `useSuspenseQuery`                        | TanStack Query, one client per request on the server, from `./query`                                                                                        |
-| `serverFnQueryOptions`, `serverFnMutationOptions`                    | query and mutation options over a server function                                                                                                           |
+| export                                                               | from                            | what it is                                                                                                                                                  |
+| -------------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ThemeProvider`, `ThemeScript`, `useTheme`                           | `@lovrozagar/flare`             | `createRouter({ theme: { defaultTheme?, attribute?, storageKey?, themes?, disableTransitionOnChange? } })`; the script sets the theme before paint          |
+| `DirectionProvider`, `DirectionScript`, `useDirection`               | `@lovrozagar/flare`             | `createRouter({ direction: { defaultDir?, attribute?, storageKey? } })`                                                                                     |
+| `i18n`                                                               | `@lovrozagar/flare/i18n/server` | `createServer({ locale: i18n({ locales, defaultLocale, cookieName?, paramName?, botDetection? }) })`, from `./i18n/server`                                  |
+| `LocaleProvider`, `LocaleScript`, `useLocale`                        | `@lovrozagar/flare/i18n`        | the client side, from `./i18n`: `<LocaleProvider config initial?>`                                                                                          |
+| `createTranslations`, `formatMessage`, `useLoaderT`, `usePreloaderT` | `@lovrozagar/flare/i18n`        | typed messages, in components, loaders, and preloaders                                                                                                      |
+| `Image`                                                              | `@lovrozagar/flare`             | `<Image src alt widths? sizes? quality? priority? placeholder? fill? fixed? />`, widths from `flare({ image })`                                             |
+| `createFont`, `FontCSS`                                              | `@lovrozagar/flare`             | `createFont({ family, src, category, weights?, style?, fallbackMetrics? })` and its nonced style; registry fonts import from `@lovrozagar/flare/fonts/<id>` |
+| `Stylesheet`                                                         | `@lovrozagar/flare`             | the app stylesheet (Head above)                                                                                                                             |
+| `createQueryClientGetter`, `useSuspenseQuery`                        | `@lovrozagar/flare/query`       | TanStack Query, one client per request on the server, from `./query`                                                                                        |
+| `serverFnQueryOptions`, `serverFnMutationOptions`                    | `@lovrozagar/flare/query`       | query and mutation options over a server function                                                                                                           |
 
 ## Testing
 
-| export             | what it is                                                                                               |
-| ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `createTestServer` | `createTestServer(router, { serverContext? })`: a server for the app's own tests                         |
-| `flarePage`        | `flarePage(page)` over a Playwright page: `load(path)` waits for hydration, `consoleErrors()`, `state()` |
+| export             | from                        | what it is                                                                                               |
+| ------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `createTestServer` | `@lovrozagar/flare/testing` | `createTestServer(router, { serverContext? })`: a server for the app's own tests                         |
+| `flarePage`        | `@lovrozagar/flare/testing` | `flarePage(page)` over a Playwright page: `load(path)` waits for hydration, `consoleErrors()`, `state()` |
 
 Full contract: [testing.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/testing.md).
 

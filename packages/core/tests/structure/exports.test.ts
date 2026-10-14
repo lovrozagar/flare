@@ -237,19 +237,25 @@ it("readme exports", () => {
 	expect(wrong).toEqual([]);
 });
 
-// Every name an API table of the README lists, the first column of a table headed `export`, is a packed export, so a
-// v0 name nobody thought to deny cannot survive there.
+// Every name an API table of the README lists, the first column of a table headed `export`, is exported by the entry its
+// `from` column names, so a reader imports it from the right place and a v0 name nobody thought to deny cannot survive.
 it("readme api names", () => {
-	const all = new Set(
+	const entries = new Map(
 		Object.entries(exportsOf()).flatMap(([key, value]) =>
 			typeof value === "object" && value !== null && !key.includes("*")
-				? [...declaredExports(join(packed.root, String(Reflect.get(value, "types"))))]
+				? [[key === "." ? "@lovrozagar/flare" : `@lovrozagar/flare/${key.slice(2)}`, value] as const]
 				: [],
 		),
 	);
-	const named = tableRows(readme, "export").flatMap(([cell = ""]) => identifiers(cell));
-	expect(named.length).toBeGreaterThan(50);
-	expect(named.filter((name) => !all.has(name))).toEqual([]);
+	const rows = tableRows(readme, "export");
+	expect(rows.length).toBeGreaterThan(50);
+	const wrong = rows.flatMap(([cell = "", from = ""]) => {
+		const entry = entries.get(from.replaceAll("`", ""));
+		if (entry === undefined) return [`${cell}: no entry ${from}`];
+		const exported = declaredExports(join(packed.root, String(Reflect.get(entry, "types"))));
+		return identifiers(cell).flatMap((name) => (exported.has(name) ? [] : [`${name} is not exported by ${from}`]));
+	});
+	expect(wrong).toEqual([]);
 });
 
 // The README's quick start compiles: each marked block is written at its path in a fresh app beside the installed
