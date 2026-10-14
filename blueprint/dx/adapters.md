@@ -1,6 +1,6 @@
 # Adapters
 
-The production entry is one of these. `vite preview` is not (B53). `bodyLimit` is a `createServer` field (`server.md`), which the Bun adapter reads off the server object. `trustProxy` is the Node and Bun adapters' own option, below: the adapter is what sees the socket and the proxy's headers (BUGS.md 109).
+The production entry is one of these. `vite preview` is not (B53). `bodyLimit` is a `createServer` field (`server.md`), which Flare's own reader enforces on every runtime. `trustProxy` is the Node and Bun adapters' own option, below: the adapter is what sees the socket and the proxy's headers (BUGS.md 109).
 
 ## Node
 
@@ -27,13 +27,13 @@ An unread POST body is drained, or the connection is closed, before the next req
 createBunFetch(server, { trustProxy? }?): { fetch, maxRequestBodySize }
 ```
 
-`fetch` is `(request: Request) => Promise<Response>`. `maxRequestBodySize` is the server's `bodyLimit`, read off the object `createServer` returns (default 1 MiB; `serve.test.ts` `server limit`). The app passes both to `Bun.serve`:
+`fetch` is `(request: Request) => Promise<Response>`. `maxRequestBodySize` is Bun's own default, 128 MiB, a platform ceiling and not the enforcement: Flare's capped reader answers a body over `bodyLimit`, at most 32 MiB, with 413 first, as on Node. A body over the ceiling makes Bun cut the connection, which a client reads as `EPIPE` or `ECONNRESET`, not a status (`serve.test.ts` `ceiling`, `bun oversized post`; BUGS.md 114). The app passes both to `Bun.serve`:
 
 ```ts
 Bun.serve(createBunFetch(server));
 ```
 
-Setting a different `maxRequestBodySize` beside this object makes the platform cap and the server-fn cap disagree. The test is `adapters/bun/serve.test.ts` `body limit` and `default`. The second argument is `trustProxy`, as on Node: with a trusted hop, `X-Forwarded-Proto: https` rebuilds the request as https, its method and body kept (`serve.test.ts` `trust proxy`).
+Setting `maxRequestBodySize` at or below the server's `bodyLimit` puts Bun's cut before Flare's 413: an oversized POST then reads as a dropped connection. The second argument is `trustProxy`, as on Node: with a trusted hop, `X-Forwarded-Proto: https` rebuilds the request as https, its method and body kept (`serve.test.ts` `trust proxy`).
 
 ## Workers
 

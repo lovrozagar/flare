@@ -93,13 +93,13 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 
 | test | case | result |
 | --- | --- | --- |
-| `body limit` | `bodyLimit: 1024` | the Bun serve options contain `maxRequestBodySize: 1024` |
-| `default` | no `bodyLimit` | `maxRequestBodySize` is 1 MiB |
-| `server limit` | `createBunFetch(createServer({ router, bodyLimit: 2048 }))`, then no `bodyLimit`, then `0`, `1.5`, and 32 MiB plus one | `maxRequestBodySize` is 2048, then 1 MiB; 32 MiB is accepted; each out-of-range value throws `bodyLimit is an integer from 1 to 33554432 bytes` (BUGS.md 110) |
+| `ceiling` | a hand-made server, then a request through the fetch | `maxRequestBodySize` is 128 MiB; the request reaches the server unchanged (BUGS.md 114) |
+| `server limit` | `createServer({ router, bodyLimit: 2048 })`, then no `bodyLimit`, then 32 MiB, then `0`, `1.5`, and 32 MiB plus one | the server carries 2048 and Bun's fetch still has the 128 MiB ceiling; then 1 MiB; 32 MiB is accepted; each out-of-range value throws `bodyLimit is an integer from 1 to 33554432 bytes` (BUGS.md 110, 114) |
+| `bun oversized post` | under the Bun runtime only (`test:bun`): a real `Bun.serve` over `createBunFetch(createServer({ bodyLimit: 64 KiB }))`, then an 8 MiB server-function POST over a raw kept-alive socket, sized and chunked | each body is written whole and answered 413. Red: Bun cut the connection at its cap, and the write failed with `EPIPE` (BUGS.md 114) |
 
 | `trust proxy` | a POST with a body and `X-Forwarded-Proto: https`, with `{ trustProxy: 1 }` and then without; a GET without the header; then hop count `6` | the server sees `POST https://site.test/a` with its body, then `POST http://site.test/a`, then the GET unchanged; `6` throws (BUGS.md 109) |
 
-The test imports the options builder, not `Bun.serve`, so it runs under Node. `body limit` and `default` pass a hand-made server; `server limit` passes the one `createServer` returns.
+The cases import the options builder, so they run under Node, except `bun oversized post`, which needs a real `Bun.serve` and is skipped outside the Bun runtime. Bun's own `node:http` client is no witness there: it reads Bun's early 413 whatever happened to its write, so the case writes over a raw socket.
 
 ### `shared/url/forwarded.test.ts` (BUGS.md 109)
 
