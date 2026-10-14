@@ -12,7 +12,7 @@ export default defineConfig({
 		tailwindcss(),
 		flare({
 			// The workers-dev projects render in workerd (B95); every other boot stays on Node.
-			workersDev: process.env["FLARE_E2E_RUNTIME"] === "workers",
+			workersDev: process.env["FLARE_E2E_RUNTIME"] === "workers" && { inspectorPort: 0, persistState: false },
 			image: { widths: [480, 960, 1600], quality: 72 },
 			css: { reset: true },
 			fonts: { dir: "assets/fonts" },

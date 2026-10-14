@@ -53,7 +53,7 @@ export function flare(options?: FlareOptions): PluginOption[];
 export function flare(options?: FlareOptions): PluginOption[] {
 	const parsed = parseOptions(options);
 	const own = flarePlugins(parsed);
-	return parsed.workersDev ? [workersDevPlugins(WORKER_ENTRY), ...own] : own;
+	return parsed.workersDev === false ? own : [workersDevPlugins(WORKER_ENTRY, parsed.workersDev), ...own];
 }
 
 function flarePlugins(parsed: ParsedOptions): Plugin[] {
@@ -132,7 +132,7 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 				const listen = installDevHandler(server, parsed.entry.server);
 				// In Workers dev, workerd answers through the Cloudflare plugin's post middleware, which a listener added
 				// from this earlier hook would shadow (BUGS.md 76).
-				return parsed.workersDev ? undefined : listen;
+				return parsed.workersDev === false ? listen : undefined;
 			},
 		},
 	};

@@ -189,8 +189,28 @@ it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
 			// workerd rendered it, not the dev server's own Node listener (BUGS.md 76).
 			expect(response.headers.get("x-runtime")).toBe("Cloudflare-Workers");
 			expect(session.logs().some((line) => line.includes("/__debug"))).toBe(true);
+			// The boot writes nothing into the app: no persisted worker state, no cached `cf` (B70, BUGS.md 85).
+			expect(existsSync(join(session.appDir, ".wrangler"))).toBe(false);
 		} finally {
 			await session.close();
+		}
+	},
+	2 * VITE_BOOT,
+);
+
+// Two Workers dev boots started together both come up: each worker's inspector takes a port the OS assigns, so they
+// cannot race for the same one (BUGS.md 85).
+it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
+	"workers dev twice",
+	async () => {
+		const sessions = await Promise.all([
+			boot({ app: "minimal", runtime: "workers", mode: "dev" }),
+			boot({ app: "minimal", runtime: "workers", mode: "dev" }),
+		]);
+		try {
+			for (const session of sessions) expect((await fetch(`${session.origin}/`)).status).toBe(200);
+		} finally {
+			for (const session of sessions) await session.close();
 		}
 	},
 	2 * VITE_BOOT,

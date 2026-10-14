@@ -82,14 +82,17 @@ export async function bootApp(input: { appDir: string; runtime: string; mode: st
 
 const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", import.meta.url));
 
-// The dev server per runtime. The app's vite.config reads FLARE_E2E_RUNTIME to turn workersDev on (B95). Workers dev
-// builds the worker's env from the Wrangler config and dotenv files only, so the Cloudflare plugin is told to add the
-// process env, FLARE_E2E with it (BUGS.md 76).
+// Workers dev builds the worker's env from the Wrangler config and dotenv files only, so the Cloudflare plugin is told
+// to add the process env, FLARE_E2E with it (BUGS.md 76). It does not fetch the request `cf` object from Cloudflare,
+// which it would cache under `.wrangler` in the app (B70, BUGS.md 85).
+const WORKERS_DEV_ENV = { CLOUDFLARE_INCLUDE_PROCESS_ENV: "true", CLOUDFLARE_CF_FETCH_ENABLED: "false" };
+
+// The dev server per runtime. The app's vite.config reads FLARE_E2E_RUNTIME to turn workersDev on (B95).
 function devCommand(runtime: string): { bin: string; args?: readonly string[]; env: Record<string, string> } {
 	const env = {
 		FLARE_E2E_RUNTIME: runtime,
 		FLARE_E2E: "1",
-		...(runtime === "workers" ? { CLOUDFLARE_INCLUDE_PROCESS_ENV: "true" } : {}),
+		...(runtime === "workers" ? WORKERS_DEV_ENV : {}),
 	};
 	if (runtime === "bun") return { bin: "bun", args: ["--bun", viteJs, "--host", "127.0.0.1", "--port", "0"], env };
 	return { bin: viteBin, env };
