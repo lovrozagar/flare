@@ -6,6 +6,7 @@ import { loadChain, type Match } from "../../shared/router/create-router.ts";
 import { foldCase } from "../../shared/router/fold.ts";
 import { withServerContext } from "../context/ctx.ts";
 import { runLoaders } from "../loaders/run.ts";
+import { devDocument, devToken } from "../render/dev-document.ts";
 import { devSink, projectError, requestSink, type ErrorSink } from "../render/projector.ts";
 import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
@@ -25,6 +26,7 @@ import { prerenderer, type Capture } from "../cache/prerender.ts";
 import { checkSite } from "../cache/scrub.ts";
 import { pageAnswer, requestStore } from "../cache/serve.ts";
 import { storeTiming } from "../cache/write.ts";
+import { devHead } from "./build-info.ts";
 
 export type { FlareServer, ServerOptions } from "./options.ts";
 
@@ -57,11 +59,18 @@ type Call = {
 	prerender?: Capture | undefined;
 };
 
-// One request through the pipeline (02-system).
+// One request through the pipeline (02-system). Under Vite's dev server, the sink's channel exists: the request names
+// its tab or a document gets a fresh token, and a document gets the dev tags at this boundary (B42, B95 (b)).
 function serveOne(at: Serving, call: Call): Promise<Response> {
+	const token = at.sink.toTab === undefined ? undefined : devToken(call.request);
+	const answered = answerOne(at, call, requestSink(at.sink, token));
+	if (token === undefined) return answered;
+	return answered.then((response) => devDocument(response, { head: devHead, token }));
+}
+
+function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> {
 	const { request, env } = call;
 	const options = at.options;
-	const sink = requestSink(at.sink, request);
 	const secured = applySecurity({
 		url: request.url,
 		headers: new Headers(),

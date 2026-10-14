@@ -1,5 +1,3 @@
-import { TAB_HEADER } from "../../shared/protocol/index.ts";
-
 // Dev tab routing (dx/plugin.md, BUGS.md B38, B42). The dev server mints a token for each document it serves, the tab
 // announces it on the client hot channel, and a payload tagged with it reaches that tab only. Nothing is broadcast.
 // The overlay uses it, and so will the dev log bridge and any other dev server seam, so it knows no server's internals.
@@ -50,16 +48,6 @@ export function createTabs(): Tabs {
 			for (const [token, connected] of open) if (connected === client) open.delete(token);
 		},
 	};
-}
-
-// A fresh token for a document the dev server serves.
-export function tabToken(): string {
-	return crypto.randomUUID();
-}
-
-// The tag the dev server writes into that document's head, after the app answered, so no store ever keeps it.
-export function tabMeta(token: string): string {
-	return `<meta name="${TAB_HEADER}" content="${token}">`;
 }
 
 // What the SSR graph sends: `{ token, payload }`. Anything else is a payload no tab gets.

@@ -29,7 +29,14 @@ function readManifest(path: string): Manifest {
 	return JSON.parse(text);
 }
 
-export type BuildInfoInput = { command: "serve" | "build"; entry: string; manifest: string; urls: Urls };
+// `devHead` is what `transformIndexHtml` adds to an empty document, which every dev runtime's documents carry (B95 (b)).
+export type BuildInfoInput = {
+	command: "serve" | "build";
+	entry: string;
+	manifest: string;
+	urls: Urls;
+	devHead: string;
+};
 
 // The source of server/lifecycle/build-info.ts in the ssr and worker environments. Dev has the project-relative
 // entry and the `dev` id. A build has the manifest's hashed entry and its id.
@@ -40,5 +47,6 @@ export function buildInfoSource(input: BuildInfoInput): string {
 	const entry = clientUrl(
 		manifest === undefined ? { entry: input.entry } : { entry: input.entry, manifest, urls: input.urls },
 	);
-	return `export const buildId = ${JSON.stringify(id)};\nexport const clientEntry = ${JSON.stringify(entry)};\n`;
+	const head = dev ? input.devHead : "";
+	return `export const buildId = ${JSON.stringify(id)};\nexport const clientEntry = ${JSON.stringify(entry)};\nexport const devHead = ${JSON.stringify(head)};\n`;
 }

@@ -9,6 +9,7 @@ export {
 	STALE_PARAM,
 	TAB_HEADER,
 } from "./constants.ts";
+export { isTabToken, mintTab, tabMeta } from "./dev-tab.ts";
 export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts";
 export {
 	fnPrefix,

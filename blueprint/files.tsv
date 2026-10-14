@@ -723,6 +723,8 @@ packages/core/src/vite/dev/dev-head.ts	P16	src	vite	devHead: the tags transformI
 packages/core/src/vite/dev/dev-head.test.ts	P16	test	vite	Unit cases for dev-head.ts
 packages/core/src/server/render/dev-document.ts	P16	src	server	Dev only: devHead, the csp-nonce meta, and the dev tab meta the server writes into its document (B95)
 packages/core/src/server/render/dev-document.test.ts	P16	test	server	Unit cases for dev-document.ts
+packages/core/src/shared/protocol/dev-tab.ts	P16	src	shared	Dev tab tokens: mint one, tell one from a header value, and the meta a dev document carries (B42, B95 (b))
+packages/core/src/shared/protocol/dev-tab.test.ts	P16	test	shared	Unit cases for dev-tab.ts
 scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and the e2e grid: FLARE_BROWSER_WS, else the pinned container, else local engines (B97)
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run

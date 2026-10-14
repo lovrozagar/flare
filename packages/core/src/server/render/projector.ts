@@ -1,6 +1,5 @@
 import { isSafeError } from "@solidjs/web";
 import { devErrorPayload, statusOf, type DevErrorPayload } from "../../shared/errors/index.ts";
-import { TAB_HEADER } from "../../shared/protocol/index.ts";
 import { createLogger, type Logger } from "../lifecycle/logger.ts";
 
 // The two fields of `import.meta` that B93 reads. Vite replaces `env.DEV`, and `hot` exists only in dev.
@@ -39,11 +38,11 @@ export function devSink(meta: DevMeta): ErrorSink {
 	return { dev, send: toTab(undefined), toTab, log };
 }
 
-// One request's sink: its payloads go to the dev tab that made the request. A request no tab made has no token, and
-// the dev server sends its payload to no tab (dx/plugin.md, B42). A production sink has no `toTab`.
-export function requestSink(sink: ErrorSink, request: Request): ErrorSink {
+// One request's sink: its payloads go to the dev tab its token names (dx/plugin.md, B42). A production sink has no
+// `toTab`.
+export function requestSink(sink: ErrorSink, token: string | undefined): ErrorSink {
 	if (sink.toTab === undefined) return sink;
-	return { ...sink, send: sink.toTab(request.headers.get(TAB_HEADER) ?? undefined) };
+	return { ...sink, send: sink.toTab(token) };
 }
 
 // notFound(), unauthenticated(), unauthorized(), and redirect() are not bugs: no stack, no log, no overlay.
