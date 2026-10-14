@@ -10,7 +10,7 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | `peer missing` | the peer cannot be resolved | the error names `@cloudflare/vite-plugin` and the install command |
 | `hooks missing` | the peer resolves, and the runtime's `node:module` has no `registerHooks` (injected) | throws when the plugin is created: `flare({ workersDev: true }) runs Vite on Node 22.15 or later`, with the runtime's name and version; the peer is not loaded (B95, CI run 38493113436 on Bun 1.4.3) |
 
-`vite/plugin/flare.test.ts` `workers dev` (the Cloudflare plugins come before flare's own, and `workersDev: false` or absent composes none) and `workers dev missing peer` (`flare({ workersDev: true })` throws when the plugin is created) are the `workersDev` rows of `dx/plugin.md`. On a runtime without `registerHooks` (the Bun run), `workers dev` asserts the `hooks missing` error instead of the composition.
+`vite/plugin/flare.test.ts` `workers dev` (the Cloudflare plugins come before flare's own, and `workersDev: false` or absent composes none) `workers dev missing peer` (`flare({ workersDev: true })` throws when the plugin is created), and `workers dev server` (the server hook, which runs first, returns no post hook and installs no listener, so the Cloudflare plugin's middleware answers in workerd; it still relays the worker environment's `flare:error`, BUGS.md 76) are the `workersDev` rows of `dx/plugin.md`. On a runtime without `registerHooks` (the Bun run), `workers dev` asserts the `hooks missing` error instead of the composition.
 
 ## `vite/dev/dev-head.test.ts`
 
