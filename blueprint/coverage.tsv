@@ -1,1 +1,5 @@
 # B96: key, integration (file::case; …), e2e (spec::case; … or n/a: <reason>). Generated at plan 14 9.3.
+client.md#createClient#method:onReady	packages/core/tests/integration/client.test.ts::ready then hydrated	packages/core/tests/e2e/docs-navigation.test.ts::lifecycle
+client.md#createClient#method:onHydrated	packages/core/tests/integration/client.test.ts::ready then hydrated; packages/core/tests/integration/client.test.ts::idle after hydrated	packages/core/tests/e2e/docs-navigation.test.ts::lifecycle
+client.md#createClient#method:onIdle	packages/core/tests/integration/client.test.ts::idle after hydrated	packages/core/tests/e2e/docs-navigation.test.ts::lifecycle
+client.md#createClient#method:onInteraction	packages/core/tests/integration/client.test.ts::interaction once	packages/core/tests/e2e/docs-navigation.test.ts::lifecycle

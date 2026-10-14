@@ -92,6 +92,17 @@ The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydra
 | `data hooks read untracked` | a root and a page on screen. The page's component calls `useParams({ from })`, `useSearch({ from })`, `useLoaderData({ from })`, `usePreloaderContext({ from })`, and `useMatch({ from })` in its body and renders their values | no `STRICT_READ_UNTRACKED` and no hydration warning in chromium, firefox, and webkit, and the rendered values match the server's (BUGS.md B4) |
 | `foreign hmr port` | another process holds Vite's default HMR port 24678 from before the harness starts, for the whole file, with a server that accepts and closes each connection (or another process already owns it), and the harness hydrates the `navigation progress beside a sibling`, `root boundaries idle`, and `data hooks read untracked` trees in chromium | no problem is reported: the harness's Vite serves its HMR socket on the harness's own HTTP server (`hmr: { server }`, `watch: null`), so the page's Vite client never dials 24678 (BUGS.md B53). The holder is a child process: one inside the test's own event loop, or started after the harness, never closes a socket in time to fail the old harness |
 
+## `tests/integration/client.test.ts` (B96)
+
+The harness's app mode (`hydrate.app.ts`, plan 14 9.6): a case gives its app (the router, compiled into both sides from its source) and its client callbacks. The harness serves the document the real `createServer(...).fetch` answers from Solid's server build in Vite's SSR runner, adds a client entry, since without `flare()` the document has none, that calls the real `createClient(router)` with the callbacks, and reads back the record they wrote. It answers the dev server's `flare:styles` request with no styles, as flare() would for an app with no stylesheet. One harness boot serves the file, and every case runs in Chromium, Firefox, and WebKit.
+
+| test | case | result |
+| --- | --- | --- |
+| `ready then hydrated` | `/?q=1#top`, two `onReady` callbacks and one `onHydrated` | the first `onReady` gets exactly `{ navigate, location }`, `location` is `{ pathname: "/", search: "?q=1", hash: "#top" }`, and `<html>` is not yet marked; the second runs next; `onHydrated` runs after with `data-flare-hydrated` set; no hydration problem |
+| `idle after hydrated` | `onIdle` registered before `onHydrated` | `hydrated` then `idle`: idle waits for hydrate whatever the registration order |
+| `interaction once` | a programmatic `navigate`, then a click, a key, and a click | nothing before the input, then exactly one `interaction`. Bite: removing the one-shot listener cleanup records three |
+| `late registration` | `onReady` registered in a timer after the hydrate microtask | it throws |
+
 ## `shared/dev/warn.test.ts`
 
 | test | case | result |
