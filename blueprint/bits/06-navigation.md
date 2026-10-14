@@ -234,6 +234,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `recent kept` | `maxEntries: 2`, then saves at index 5, 9, 5, 7 | 5 and 7 are kept and 9 is dropped. The store is an ordered list, oldest first |
 | `bad storage` | a corrupt, non-list, or unreadable store, or a write that throws | it counts as empty, the write is skipped, and nothing throws into the navigation |
 | `encoded hash` | `#caf%C3%A9`, and a malformed `#%E0` | the element `café` is found, and the malformed one is looked up as written |
+| `scroll inside transition` | a navigation run through a view transition (a stub `startViewTransition` that records scrollY when its update callback returns), forward from scrollY 500 to a page without a hash, then Back | the recorded scrollY is 0 on the forward step and 500 on Back, both at the moment the update returns; nothing scrolls after it (B108, BUGS.md 65) |
 
 ### `client/navigation/blocker.test.ts`
 
