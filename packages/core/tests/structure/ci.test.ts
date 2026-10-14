@@ -115,7 +115,8 @@ it("ci mac shards", () => {
 	]);
 });
 
-// A failed grid uploads its test results, each failing case's trace and server log, as the last step of both jobs,
+// A failed grid uploads its test results, each failing case's error context, server logs, and navigation log (tracing is
+// off, B34), as the last step of both jobs,
 // so a failure only CI hits can be read (BUGS.md 93). macOS uploads on a pass too, for `stream`'s timing (BUGS.md 100).
 it("ci failure artifacts", () => {
 	for (const [name, when] of [
