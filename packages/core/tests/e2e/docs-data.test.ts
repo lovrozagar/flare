@@ -132,12 +132,26 @@ test("unsafe error", async ({ page, docs }, info) => {
 	else await expect(error).toContainText("hunter2");
 });
 
+// The lines render as they stream. An observer installed before the page loads records the time each line count first
+// shows, so the case reads the arrivals afterwards instead of racing a transient count: the six lines come one at a
+// time, spread over most of the server's 750 ms of waits. A buffered stream lands them together. A slow runner only
+// widens the spread (BUGS.md 95).
 test("stream", async ({ page, docs }) => {
+	await page.addInitScript(() => {
+		const arrivals: { count: number; at: number }[] = [];
+		Reflect.set(window, "streamArrivals", arrivals);
+		new MutationObserver(() => {
+			const count = document.querySelectorAll("#stream-log li").length;
+			if (count > (arrivals.at(-1)?.count ?? 0)) arrivals.push({ count, at: performance.now() });
+		}).observe(document, { childList: true, subtree: true });
+	});
 	await open(page, docs.origin, "/playground");
 	await page.locator("#stream-start").click();
-	await expect(page.locator("#stream-log li")).toHaveCount(1);
 	await expect(page.locator("#stream-log li")).toHaveCount(6);
 	await expect(page.locator("#stream-status")).toHaveText("done");
+	const arrivals: { count: number; at: number }[] = await page.evaluate(() => Reflect.get(window, "streamArrivals"));
+	expect(arrivals.map((arrival) => arrival.count)).toEqual([1, 2, 3, 4, 5, 6]);
+	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0)).toBeGreaterThanOrEqual(600);
 });
 
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
