@@ -3,6 +3,7 @@ import { loadChain, type LoadedEntry } from "../../shared/router/create-router.t
 import { cachedMatches, holds } from "../router/match-cache.ts";
 import { framesOf, landFrames, type Landed, type Pending } from "./frames.ts";
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts";
+import type { Location } from "../../shared/url/index.ts";
 import { isChunkError } from "./reload.ts";
 import type { Target } from "./target.ts";
 
@@ -75,4 +76,39 @@ function dataUrl(trip: Trip, stale: readonly string[]): string {
 	const url = trip.fill ? trip.target.dataUrl.replace(`${KIND_PARAM}=data`, `${KIND_PARAM}=fill`) : trip.target.dataUrl;
 	if (stale.length === 0) return url;
 	return `${url}&${STALE_PARAM}=${encodeURIComponent(stale.join(" "))}`;
+}
+
+// The values of the page on screen, through a same-URL revalidation that writes no history (dx/defer.md).
+export function fillOptions(deps: NavigatorDeps): NavigateOptions & { to: string } {
+	const here = deps.store.snapshot().location;
+	return { to: `${here.pathname}${here.search}${here.hash}`, revalidate: true, replace: true, scroll: false };
+}
+
+// Holes heard before the commit wait for it, so the fill revalidates the page the navigation landed, and only while
+// that page is still on screen.
+export function holeWatch(
+	deps: NavigatorDeps,
+	landed: Location,
+	fill: (pending: Pending) => Promise<void>,
+): { holes: (pending: Pending) => void; committed: () => void } {
+	let held: Pending | undefined;
+	let committed = false;
+	const run = (pending: Pending): void => {
+		if (sameUrl(deps.store.snapshot().location, landed)) void fill(pending);
+	};
+	return {
+		holes: (pending) => {
+			if (committed) run(pending);
+			else held = pending;
+		},
+		committed: () => {
+			committed = true;
+			if (held !== undefined) run(held);
+		},
+	};
+}
+
+// The same page: pathname and search, whatever the hash.
+export function sameUrl(left: Location, right: Location): boolean {
+	return left.pathname === right.pathname && left.search === right.search;
 }

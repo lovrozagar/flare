@@ -51,8 +51,10 @@ export function Matches(props: { state: () => OutletState }): JSX.Element {
 	});
 }
 
-// A slot remounts only when its key changes: a new match id at that depth, or a failure painted there. A loader
-// refresh keeps the key, so the component stays and reads the new data.
+// A slot remounts only when its key changes: a new match id at that depth, a page's new params, or a failure painted
+// there. A loader refresh keeps the key, so the component stays and reads the new data. A page with new params
+// remounts, so its reads start under fresh <Loading> boundaries that show their fallbacks; one kept mounted would hold
+// the navigation behind boundaries it already revealed (B106).
 function renderSlot(state: () => OutletState, depth: number): JSX.Element {
 	const key = createMemo(() => slotKey(state(), depth));
 	const slot = createMemo(() => {
@@ -67,7 +69,9 @@ function renderSlot(state: () => OutletState, depth: number): JSX.Element {
 
 function slotKey(state: OutletState, depth: number): string {
 	if (state.failure?.index === depth) return `!${state.failure.status}`;
-	return state.matches[depth]?.id ?? (state.unknown === undefined ? "" : "?");
+	const match = state.matches[depth];
+	if (match === undefined) return state.unknown === undefined ? "" : "?";
+	return match.kind === "page" ? `${match.id}${JSON.stringify(match.params)}` : match.id;
 }
 
 function paintSlot(state: () => OutletState, depth: number): JSX.Element {

@@ -106,7 +106,7 @@ A click on a same-origin `<a>` that matches a route follows `Link`, except a non
 
 ## Outlet
 
-`<Outlet />` has no props. It renders no `<Loading>` and no `<Reveal>`. A layout or root whose match id is unchanged stays mounted, including its component state. The page remounts when its match id changes. A loader-data refresh does not remount (`shared/components/outlet.test.tsx` `layout stays`, `page remounts`).
+`<Outlet />` has no props. It renders no `<Loading>` and no `<Reveal>`. A layout or root whose match id is unchanged stays mounted, including its component state. The page remounts when its match id or its params change, so a read in the new page starts under fresh `<Loading>` boundaries and shows their fallbacks instead of holding the navigation behind boundaries already revealed (B106). A loader-data refresh and a search-only change do not remount (`shared/components/outlet.test.tsx` `layout stays`, `page remounts`). History is written when the navigation's commit is on screen: a commit Solid holds on a pending read outside any fresh `<Loading>` moves no URL until it shows, and a newer navigation that replaces it first writes its own entry only (`navigate-slots.test.ts` `pending read commits`, `supersede pending read`).
 
 ## InterceptOutlet
 

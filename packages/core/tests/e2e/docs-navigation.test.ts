@@ -28,6 +28,43 @@ test("i18n page", async ({ page, docs }) => {
 	expect(problems).toEqual([]);
 });
 
+// The new page's feedback read is held pending by the test: the page commits at once with the feedback skeleton, and
+// in every frame the URL, the title, and the one active sidebar link agree. A second click while that read is pending
+// commits its own page cleanly (B106, BUGS.md 62).
+test("pending read", async ({ page, docs }) => {
+	const problems = await open(page, docs.origin, "/hr/docs/styling");
+	await page.route("**/_flare/fn/**", (route) => (route.request().method() === "GET" ? undefined : route.continue()));
+	const frames = page.evaluate(
+		() =>
+			new Promise<string[]>((resolve) => {
+				const seen: string[] = [];
+				const start = performance.now();
+				const tick = () => {
+					const title = document.querySelector("#doc-title")?.textContent ?? "";
+					const active = document.querySelectorAll('#sidebar a[data-active="true"]').length;
+					const skeleton = document.querySelector("#feedback-loading") !== null;
+					seen.push(`${location.pathname}|${title}|${active}|${skeleton}`);
+					if (performance.now() - start < 1500) requestAnimationFrame(tick);
+					else resolve(seen);
+				};
+				requestAnimationFrame(tick);
+			}),
+	);
+	await page.locator('#sidebar a[href="/hr/docs/i18n"]').click();
+	const seen = await frames;
+	const moved = seen.filter((frame) => frame.startsWith("/hr/docs/i18n|"));
+	expect(moved.length).toBeGreaterThan(0);
+	expect(new Set(moved)).toEqual(new Set(["/hr/docs/i18n|Locales, theme, direction|1|true"]));
+	expect(
+		seen.filter((frame) => frame.startsWith("/hr/docs/styling|")).every((frame) => frame.includes("|Styling|")),
+	).toBe(true);
+	await page.locator('#sidebar a[href="/hr/docs/middleware"]').click();
+	await expect(page.locator("#doc-title")).toHaveText("Middleware and mounts");
+	await expect(page).toHaveURL(`${docs.origin}/hr/docs/middleware`);
+	await expect(page.locator('#sidebar a[data-active="true"]')).toHaveCount(1);
+	expect(problems).toEqual([]);
+});
+
 test("disabled link", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/media");
 	const next = page.locator("#next");

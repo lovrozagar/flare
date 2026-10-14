@@ -19,7 +19,7 @@ import type { Landed, Pending } from "./frames.ts";
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts";
 import type { NavigationState } from "./pending.ts";
 import type { ScrollStore } from "./scroll.ts";
-import { arrive, type Arrival } from "./request.ts";
+import { arrive, fillOptions, holeWatch, sameUrl, type Arrival } from "./request.ts";
 import { resolveTarget, resolveUrl, type NavigateInput, type Target } from "./target.ts";
 
 export type Landing = Landed;
@@ -88,13 +88,14 @@ export function createNavigator(deps: NavigatorDeps): {
 		const settled = await deps.navigation.track(arrive(deps, trip));
 		if (latest !== controller || settled === undefined || settled.arrival.kind === "none") return;
 		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined;
-		if (redirect === undefined) {
-			await settle(deps, plan, { chain: settled.chain, arrival: settled.arrival });
-			at = deps.history.index();
-			return watch.committed();
+		if (redirect !== undefined) {
+			return follow(deps, redirect.url, () =>
+				go(resolveUrl(redirect.url, context()), { ...options, replace: redirect.replace }),
+			);
 		}
-		if (new URL(redirect.url, deps.origin).origin !== deps.origin) return void deps.assign(redirect.url);
-		return go(resolveUrl(redirect.url, context()), { ...options, replace: redirect.replace });
+		if (!(await settle(deps, plan, { chain: settled.chain, arrival: settled.arrival }))) return;
+		at = deps.history.index();
+		return watch.committed();
 	};
 	const fill = (pending: Pending): Promise<void> => {
 		const options = fillOptions(deps);
@@ -108,13 +109,10 @@ export function createNavigator(deps: NavigatorDeps): {
 			const closed = closesOverlay(deps.store.snapshot(), url);
 			if (closed !== undefined) {
 				at = index;
-				return deps.store.commit(closed);
+				return void deps.store.commit(closed);
 			}
-			return go(
-				resolveUrl(url, context()),
-				{ to: url },
-				{ pop: true, overlay: deps.history.interceptedAt(index), index },
-			);
+			const mode = { pop: true, overlay: deps.history.interceptedAt(index), index };
+			return go(resolveUrl(url, context()), { to: url }, mode);
 		},
 	};
 }
@@ -159,11 +157,11 @@ async function settle(
 	deps: NavigatorDeps,
 	plan: Plan,
 	settled: { chain: LoadedEntry[]; arrival: Exclude<Arrival, { kind: "none" }> },
-) {
+): Promise<boolean> {
 	const { target, previous, arrival } = { ...plan, arrival: settled.arrival };
 	if (plan.intercept !== undefined && arrival.kind === "landed" && arrival.landing.failure === undefined) {
 		const write = !plan.pop && plan.trigger === "navigation";
-		return showOverlay(deps, {
+		showOverlay(deps, {
 			target,
 			chain: settled.chain,
 			landing: arrival.landing,
@@ -172,19 +170,23 @@ async function settle(
 			write,
 			state: plan.options.state,
 		});
+		return true;
 	}
 	const next = nextSnapshot(deps, { target, chain: settled.chain, arrival, previous });
-	// The DOM updates, inside a view transition when one is on, before history is written (02-system).
+	// The DOM updates, in a view transition when one is on, then history and scroll, once the commit is on screen (B106).
+	let shown = Promise.resolve(false);
 	await runTransition({
 		option: transitionOption(plan.options.viewTransition, deps.router.viewTransitions),
 		info: transitionInfo(plan.direction, previous.overlay?.location ?? previous.location, target.location),
 		auto: () => deps.store.scopeAt(swappedDepth(previous, next)),
 		update: () => {
-			deps.store.commit(next);
+			shown = deps.store.commit(next);
 			flush();
 		},
 	});
+	if (!(await shown)) return false;
 	land(deps, target, { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" });
+	return true;
 }
 
 function land(deps: NavigatorDeps, target: { url: string; location: Location }, step: Step): void {
@@ -213,7 +215,7 @@ function inPlace(
 		const search = { ...target.search } as OutletMatch["search"];
 		matches = matches.map((match, index) => (index === matches.length - 1 ? { ...match, search } : match));
 	}
-	deps.store.commit({ ...snapshot, location: target.location, matches });
+	void deps.store.commit({ ...snapshot, location: target.location, matches });
 	land(deps, target, { options: step.options, pop: step.pop, write: true });
 	return deps.history.index();
 }
@@ -255,42 +257,14 @@ function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	return snapshot;
 }
 
-// The values of the page on screen, through a same-URL revalidation that writes no history (dx/defer.md).
-function fillOptions(deps: NavigatorDeps): NavigateOptions & { to: string } {
-	const here = deps.store.snapshot().location;
-	return { to: `${here.pathname}${here.search}${here.hash}`, revalidate: true, replace: true, scroll: false };
-}
-
-// Holes heard before the commit wait for it, so the fill revalidates the page the navigation landed, and only while
-// that page is still on screen.
-function holeWatch(
-	deps: NavigatorDeps,
-	landed: Location,
-	fill: (pending: Pending) => Promise<void>,
-): { holes: (pending: Pending) => void; committed: () => void } {
-	let held: Pending | undefined;
-	let committed = false;
-	const run = (pending: Pending): void => {
-		if (sameUrl(deps.store.snapshot().location, landed)) void fill(pending);
-	};
-	return {
-		holes: (pending) => {
-			if (committed) run(pending);
-			else held = pending;
-		},
-		committed: () => {
-			committed = true;
-			if (held !== undefined) run(held);
-		},
-	};
+// An `x` frame: a same-origin target is the next navigation, another origin a document load.
+function follow(deps: NavigatorDeps, url: string, next: () => Promise<void>): Promise<void> {
+	if (new URL(url, deps.origin).origin !== deps.origin) return Promise.resolve(deps.assign(url));
+	return next();
 }
 
 function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions): void {
 	deps.scroll.save(deps.history.index(), deps.store.snapshot().location);
 	if (options.replace === true) deps.history.replace(url, options.state);
 	else deps.history.push(url, options.state);
-}
-
-function sameUrl(left: Location, right: Location): boolean {
-	return left.pathname === right.pathname && left.search === right.search;
 }
