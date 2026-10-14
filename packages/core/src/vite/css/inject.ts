@@ -4,6 +4,7 @@ import { parseCss } from "../../shared/css/parse.ts";
 import { stylesheetOf, type BuiltStylesheet } from "./bundle.ts";
 import { RESET } from "./reset.ts";
 import { ownModule } from "../plugin/own-module.ts";
+import { realPath } from "../plugin/real-path.ts";
 
 // Typed as a string, so no declaration file carries a `virtual:` id (bits/14 `no src path in dts`).
 export const RESET_ID: string = "virtual:flare/reset.css";
@@ -41,7 +42,10 @@ export function inject(options: CssOptions): Plugin[] {
 		transform(code, id) {
 			const { name, config } = this.environment;
 			if (!options.reset || name !== "client") return null;
-			if (id.replace(/\?.*$/s, "") !== resolve(config.root, options.clientEntry)) return null;
+			const path = id.replace(/\?.*$/s, "");
+			const entry = resolve(config.root, options.clientEntry);
+			// Vite gives the id as a real path, and a root reached through a symlink is not one (BUGS.md B51).
+			if (path !== entry && path !== realPath(entry)) return null;
 			return `import ${JSON.stringify(RESET_ID)};\n${code}`;
 		},
 	};

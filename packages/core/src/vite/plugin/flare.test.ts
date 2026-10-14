@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "vite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,7 +14,7 @@ vi.mock("@solidjs/vite-plugin", () => ({
 }));
 
 function project(): string {
-	const root = mkdtempSync(join(tmpdir(), "flare-plugin-"));
+	const root = realpathSync(mkdtempSync(join(tmpdir(), "flare-plugin-")));
 	mkdirSync(join(root, "src"));
 	writeFileSync(join(root, "src/client.tsx"), "");
 	writeFileSync(join(root, "src/server.ts"), "");
@@ -188,7 +188,7 @@ it("boundary transform", () => {
 });
 
 it("hmr keeps split", async () => {
-	const root = mkdtempSync(join(tmpdir(), "flare-hmr-"));
+	const root = realpathSync(mkdtempSync(join(tmpdir(), "flare-hmr-")));
 	mkdirSync(join(root, "src"));
 	writeFileSync(join(root, "flare-stub.ts"), "export const createPage = (id: string) => ({ id });\n");
 	const file = join(root, "src/a.page.ts");
