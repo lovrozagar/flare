@@ -14,7 +14,7 @@ The return value's `fetch(request, env, ctx)` is the production entry. `ctx.wait
 | `locale` | no | absent | the object `i18n()` returns | runs in the locale slot. It is not a middleware | passing it to `middleware` does not type-check | `features/i18n/server/middleware.test.ts` `slot` |
 | `middleware` | no | `[]` | `Middleware[]` | the order declared | | `server/middleware/run.test.ts` |
 | `mounts` | no | `[]` | `{ prefix, fetch }[]` | `prefix` is a canonical path. The longer prefix wins | `prefix` of `"/"` handles every request and the router never runs. That throws at startup | `server/mount/mount.test.ts` |
-| `rewrite` | no | absent | `(path) => string \| undefined` | one replacement, then canonicalized again. A second change is 500. `path` is the canonical pathname. This is not the client rewrite | returning a location object does not type-check. The client function takes a location (`router.md`) | `server/lifecycle/canonical-redirect.test.ts` `rewrite recanonical`, `path string` |
+| `rewrite` | no | absent | `(path) => string \| undefined` | a changed path redirects to the replacement, canonicalized again: 301 for GET and HEAD, else 308, with the query kept. The replacement must stay put: one the function changes again throws, and that, like any throw from it, is a projected 500. `path` is the canonical pathname; a path a mount handles never reaches it. This is not the client rewrite | returning a location object does not type-check. The client function takes a location (`router.md`) | `server/lifecycle/canonical-redirect.test.ts` `rewrite recanonical`, `path string`, `rewrite loop`, `rewrite option` |
 | `security` | no | the defaults below | `SecurityConfig` or `(ctx) => SecurityConfig` | the base policy. A route `.security()` merges on top (`builder.md`) | a string CSP replaces the nonce policy (B68). Prefer the directives object | `server/security/apply.test.ts` `callback override` |
 | `sameSite` | no | `[]` | hostnames | `Sec-Fetch-Site: same-site` is accepted only for these hosts | an empty list rejects `same-site` | `server/server-fn/csrf.test.ts` `same site unlisted` |
 | `trustProxy` | no | `0` | hop count, integer `0`–`5` | how many `X-Forwarded-*` hops are trusted | `true` does not type-check. v0's boolean trusted the whole chain | `adapters/node/request.test.ts` `trustProxy default` |
@@ -60,7 +60,7 @@ createServer({
 });
 ```
 
-`path` is a pathname. `undefined` means no change. The replacement is canonicalized once. A replacement that itself rewrites is 500 (`rewrite recanonical`).
+`path` is a pathname. `undefined` means no change. A change answers a redirect to the replacement, canonicalized once. The function runs again on the replacement, and a second change is a projected 500 (`rewrite loop`): a chain of redirects would otherwise follow, or a loop. It runs after mounts, so a path a mount handles is never rewritten (`rewrite option`).
 
 ### mounts
 

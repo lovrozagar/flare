@@ -13,6 +13,7 @@ import type { SecurityConfig } from "../security/apply.ts";
 import type { ServerFns } from "../server-fn/dispatch.ts";
 import type { FlareStore } from "../cache/contract.ts";
 import type { LocaleSlot } from "./locale-slot.ts";
+import type { PathRewrite } from "./canonical-redirect.ts";
 
 // A store, or a function the request's env picks it with. The function runs once per request that reads it.
 export type StoreOption = FlareStore | ((env: unknown) => FlareStore);
@@ -31,6 +32,8 @@ type BaseOptions = {
 	serverFns?: ServerFns;
 	// Sub-apps on canonical prefixes, checked at startup. The longer prefix wins (dx/server.md `mounts`).
 	mounts?: readonly Mount[];
+	// A pathname to another, redirected to after mounts and canonicalized again (dx/server.md `rewrite`).
+	rewrite?: PathRewrite;
 	// Runs in list order around server functions and the router (02-system step 6).
 	middleware?: readonly MiddlewareEntry[];
 	// The object `i18n()` returns. It runs in the locale slot, not as a middleware (dx/server.md).

@@ -112,8 +112,10 @@ Accepted units are `ms`, `s`, `m`, `h`, `d`. Anything else throws. No silent zer
 | test | case | result |
 | --- | --- | --- |
 | `once` | `/A/` with case fold and `trailingSlash: "never"` | one redirect to `/a`, not a chain |
-| `rewrite recanonical` | rewrite returns `/A/` | one redirect, then stop |
+| `rewrite recanonical` | rewrite returns `/A/`, and nothing for `/a` | one redirect, then stop. The function runs twice: the second call checks the replacement stays put |
+| `rewrite loop` | rewrite swaps `/a` and `/b`; a rewrite that returns `/x` for every path | the first throws, naming `/a`, `/b`, and `/a`; the second is one redirect to `/x` |
 | `path string` | rewrite is called | the argument is the pathname `/old`, and a returned location object does not type-check |
+| `rewrite option` | `createServer({ rewrite, mounts })`: `/old?q=1` and `/api/old` map to `/about`, `/boom` throws, `/a` and `/b` swap; a mount at `/api` | `/old?q=1` is 301 to `/about?q=1`; `/api/old` is the mount's answer; `/boom` and `/a` are 500 and each is projected (BUGS.md 108) |
 | `search kept` | `/About?q=1&q=2` with case fold | one redirect, `Location` is `/about?q=1&q=2`, and the hash is absent |
 | `param case kept` | route `/users/[id]`, GET `/users/AbC123` | 200 with `id` `AbC123`. No redirect: folding never touches a segment a param consumed |
 | `static case` | route `/users/[id]`, GET `/Users/AbC123` | one 301 to `/users/AbC123`. Only the static segment takes the route's spelling |

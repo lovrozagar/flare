@@ -571,6 +571,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 106.2 [x] Fix: `createRouter` takes them all, each at its dx default (`shared/router/behavior.ts`); the two counts are integers from 1 to 200 and 1 to 500, else the call throws; `cache.client` takes duration strings or `false`; the client passes `getScrollRestorationKey` to the scroll store.
 106.3 [x] Test: behavior `router options` (red: the options were dropped) and `case rule`; canonical-redirect `trailing slash option`; create-client `scroll key` (red without the pass-through).
 
+108 [x] B108 createServer ignored `rewrite`
+108.1 [x] Found with 106: `dx/server.md` and 02-system step 4 document `createServer({ rewrite })`, and the canonical step took a `rewrite`, but the server options had none and `createServer` never passed one, so an app's rewrite was dropped. The step also did not check that a replacement stays put, which dx requires: a rewrite that changes its replacement again would answer a chain of redirects, or a loop.
+108.2 [x] Fix: `ServerOptions` takes `rewrite`, and `createServer` passes it to the canonical step, skipping a path a mount handles (mounts run first). The step runs the function again on the canonicalized replacement and throws when it changes; that and any throw from the function are a projected 500.
+108.3 [x] Test: canonical-redirect `rewrite option` (red: `/old` was 404, not 301), `rewrite loop`; `rewrite recanonical` now counts the second call.
+
 ## Verify
 
 97 [ ] Verify

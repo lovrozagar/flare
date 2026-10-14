@@ -12,7 +12,7 @@ import { runLoaders } from "../loaders/run.ts";
 import { devDocument, devToken } from "../render/dev-document.ts";
 import { devSink, devStyles, projectError, requestSink, type ErrorSink } from "../render/projector.ts";
 import { applySecurity } from "../security/apply.ts";
-import { applyCanonical } from "./canonical-redirect.ts";
+import { applyCanonical, type CanonicalStep, type PathRewrite } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
 import { classify, isServerFn } from "./classify.ts";
 import { answer, background, bare, failed, passed, secure, type Exchange } from "./exchange.ts";
@@ -76,6 +76,13 @@ function serveOne(at: Serving, call: Call): Promise<Response> {
 	return answered.then((response) => devDocument(response, { head: devHead, token }));
 }
 
+// The app's rewrite runs after mounts (02-system step 4), so a path a mount handles is never rewritten.
+function pathRewrite(at: Serving): PathRewrite | undefined {
+	const rewrite = at.options.rewrite;
+	if (rewrite === undefined) return undefined;
+	return (path) => (mountSpelling(at.mounts, path) === undefined ? rewrite(path) : undefined);
+}
+
 function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> {
 	const { request, env } = call;
 	const options = at.options;
@@ -93,15 +100,21 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 	// Rebuilt only when an internal param was removed: a new Request would take over the body stream.
 	const inner = internal.url.href === request.url ? request : new Request(internal.url, request);
 	const exchange = { ...outer, request: inner, kind: internal.kind, stale: internal.stale };
-	const step = applyCanonical({
-		method: request.method,
-		url: request.url,
-		basePath: options.router.basePath,
-		trailingSlash: options.router.trailingSlash,
-		caseSensitive: options.router.caseSensitive,
-		// A mount prefix folds first, then the matched route (B22).
-		fold: (path) => mountSpelling(at.mounts, path) ?? foldCase(options.router, path),
-	});
+	let step: CanonicalStep;
+	try {
+		step = applyCanonical({
+			method: request.method,
+			url: request.url,
+			basePath: options.router.basePath,
+			trailingSlash: options.router.trailingSlash,
+			caseSensitive: options.router.caseSensitive,
+			rewrite: pathRewrite(at),
+			// A mount prefix folds first, then the matched route (B22).
+			fold: (path) => mountSpelling(at.mounts, path) ?? foldCase(options.router, path),
+		});
+	} catch (error) {
+		return Promise.resolve(failed(exchange)(error));
+	}
 	if (step.status !== 200) return Promise.resolve(answer(exchange, step.status, step.location));
 	// serverContext runs once, before mounts (02-system step 2). A mount never calls authenticate.
 	const ctx = { env, ctx: call.ctx ?? background(sink) };

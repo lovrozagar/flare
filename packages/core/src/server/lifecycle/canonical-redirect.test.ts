@@ -3,7 +3,8 @@ import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
-import { createServer } from "./create.ts";
+import { createServer, serveWith } from "./create.ts";
+import type { Logger } from "./logger.ts";
 
 // A fold toward a route whose static segments are lowercase, as foldCase gives for one.
 const fold = (path: string): string => path.toLowerCase();
@@ -25,11 +26,21 @@ it("rewrite recanonical", () => {
 		fold,
 		rewrite(path) {
 			calls += 1;
-			return path === "/old" ? "/A/" : "/elsewhere";
+			return path === "/old" ? "/A/" : undefined;
 		},
 	});
-	expect(calls).toBe(1);
+	// The second call is the check that the replacement stays put.
+	expect(calls).toBe(2);
 	expect(result).toEqual({ status: 301, location: "/a" });
+});
+
+// A replacement the rewrite changes again would answer a chain of redirects, a loop here, so it throws, naming the
+// paths (dx/server.md `rewrite`). A rewrite that maps its replacement to itself ends in one step.
+it("rewrite loop", () => {
+	expect(() => applyCanonical({ method: "GET", url: "/a", rewrite: swap })).toThrow(
+		"rewrite: /a became /b, which rewrites again to /a. A rewrite ends in one step",
+	);
+	expect(applyCanonical({ method: "GET", url: "/a", rewrite: () => "/x" })).toEqual({ status: 301, location: "/x" });
 });
 
 it("path string", () => {
@@ -165,3 +176,42 @@ it("trailing slash option", async () => {
 	const response = await createServer({ router }).fetch(new Request("http://localhost/about/"));
 	expect([response.status, response.headers.get("location")]).toEqual([301, "/about"]);
 });
+
+// createServer's `rewrite` reaches the canonical step (BUGS.md 108): a moved path redirects, a mount's path is never
+// rewritten (mounts run first, 02-system step 4), and a rewrite that throws, or does not end in one step, is a
+// projected 500.
+it("rewrite option", async () => {
+	const about = createPage("_root_/about").render(() => "about");
+	const root = createRootLayout("_root_").render((props) => props.children);
+	const errors: string[] = [];
+	const log: Logger = { level: "error", error: (tag) => void errors.push(tag), warn: noop, log: noop };
+	const server = serveWith(
+		{
+			router: createRouter({
+				layouts: { _root_: root },
+				routeTree: [{ id: "_root_/about", path: "/about", module: about }],
+			}),
+			mounts: [{ prefix: "/api", fetch: (request) => new Response(`api ${new URL(request.url).pathname}`) }],
+			rewrite(path) {
+				if (path === "/boom") throw new Error("rewrite bug");
+				return { "/old": "/about", "/api/old": "/about", "/a": "/b", "/b": "/a" }[path];
+			},
+		},
+		{ dev: false, log },
+	);
+	const status = async (path: string): Promise<[number, string | null]> => {
+		const response = await server.fetch(new Request(`http://site.test${path}`));
+		return [response.status, response.headers.get("location")];
+	};
+	expect(await status("/old?q=1")).toEqual([301, "/about?q=1"]);
+	expect(await (await server.fetch(new Request("http://site.test/api/old"))).text()).toBe("api /old");
+	expect(await status("/boom")).toEqual([500, null]);
+	expect(await status("/a")).toEqual([500, null]);
+	expect(errors).toEqual(["render", "render"]);
+});
+
+function noop(): void {}
+
+function swap(path: string): string | undefined {
+	return { "/a": "/b", "/b": "/a" }[path];
+}
