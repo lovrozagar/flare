@@ -145,6 +145,30 @@ The corpus file feeds the test.
 | --- | --- | --- |
 | `one script` | a page with loader data `{ n: 1 }` | one `self.flare` assignment, `matches[0].data.n === 1`. The match keys are `id`, `params`, `search`, `data`, `preloader`, `head`, and `error` |
 | `insertion` | shell with `</body>` | the script is inside the body |
+| `head sequence` | a written shell with a title, Solid's markers, and a meta; then a shell with no head | the state's `head` is `title`, `!$`, `meta`, `!/`, then the capture `script` and `!xs` Flare adds; then `[]` (B120) |
+
+### `server/render/head-sequence.test.ts` (B120)
+
+| test | case | result |
+| --- | --- | --- |
+| `kinds` | a shell's head: the charset, Solid's markers around a script, a hydrated style, the title | `meta+dh`, `!$`, `script`, `!/`, `style+hk`, `title+dh`; the body is not read |
+| `raw text` | a `<` in a script, `</p>` in a style, `<head>` in a title, a link in a noscript, a template | one node each |
+| `attributes` | a quoted `>`, upper-case names, `data-dhf`, a bare `_hk`, `<link/ >` | the quoted `>` stays in its value; names match whole and in any case |
+| `text and ends` | whitespace between tags, a stray end tag, an empty comment, a meta after `</head>` | `#` per text run, no node for the end tag, `!` for the comment, and nothing after `</head>` |
+| `unclosed` | no head, a `<header>`, and an unclosed comment, script, start tag, end tag, style, and text | an empty sequence for the first two; the rest read to the end |
+| `stray less-than` | `a < b`, a lone `<`, a stray `=` in a tag | text is one node through a `<` that opens nothing, and the walk never stalls (red: the first form looped forever) |
+
+### `client/boot/head-guard.test.ts` (B120)
+
+| test | case | result |
+| --- | --- | --- |
+| `kinds` | the server's head plus a newline and a link | each live node's kind, as the server encodes it |
+| `nothing to move` | no sequence, then a head that is exactly the sequence | no node moves |
+| `out and back` | a foreign style and comment at the start and a meta between two markers | guarded, the head is the server's shape; restored, every node is where it was |
+| `mimic` | a foreign `<meta>` before the server's `<meta>` | the guarded head has the server's shape, and the restore keeps the order |
+| `server node gone` | the server's script removed before boot | only that node is missing; every later node still matches |
+| `anchor moved` | the hydrate moves one anchor to the end and removes another | a node goes after its moved anchor, and one whose anchor left goes to the end |
+| `aligned` | a changed middle, a foreign node at either end, a swap, and empty sides | one longest common subsequence |
 
 ### `server/render/shape.test.ts`
 
@@ -241,6 +265,8 @@ One `oxc-parser` walk (B75). Babel is not imported.
 | `dev tab` | dev, a document carrying the `flare-dev-tab` meta the dev handler injects | the client announces it with `flare:tab` and adds `flare-dev-tab` to its data, fill, prefetch, and server-function requests; in production neither happens (BUGS.md B42) |
 | `reads the script` | HTML with the state script | the router match equals that state |
 | `adopts history` | `history.state` already has an index | no new history entry |
+| `head guarded` | a state `head` of one meta, and a live head with a foreign style before it and a link after | the mount sees only the meta; after the boot, and after a boot whose mount throws, the head is as it was (B120) |
+| `hydrate failure logged` | a production boot of `/broken`, whose page render throws | `root[Something went wrong]`, and one `console.error("[flare] a route failed to hydrate", error)`; `dev report`'s throw after hydrate logs nothing (B120) |
 | `router context` | a component under hydrate reads the router context | it is the same object `createClient` received |
 | `prefetch build` | a document of build b1. An intent prefetch of /about is answered with `flare-build: b2`, then the app navigates to /about, also answered b2 | the navigation loads the document once (`assign("/about")`) and never paints the prefetched frames. One build value feeds the navigator, the prefetcher, and the server-function transport, so a mismatched prefetch is dropped (BUGS.md B30) |
 | `query hydrated` | a registered query getter with a `hydrated` spy, then a boot | the spy runs once, after `data-flare-hydrated` is set and the `onHydrated` callbacks have run. With no getter registered, or one without `hydrated`, the boot completes (B102) |

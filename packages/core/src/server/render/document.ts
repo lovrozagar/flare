@@ -10,6 +10,7 @@ import { criticalContext, withCritical } from "./critical-style.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
 import { DocumentHead, type Head } from "./head.ts";
+import { headSequence } from "./head-sequence.ts";
 import { registeredQuery, type DevStyle } from "../../shared/protocol/index.ts";
 import { DocumentlessRoot, isDocument } from "./shape.ts";
 import { insertState, stateWriter, type StateMatch } from "./state.ts";
@@ -77,9 +78,11 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 		throw new DocumentlessRoot(input.root);
 	}
 	const headed = withHead(first, head);
-	const tail = state(registeredQuery()?.dehydrate(), input.onBug ?? ignore) + clientScript(input.client, nonce);
 	const critical = { css: input.sheet ?? "", nonce, ctx: criticalContext(input.router), stylesheet: stylesheet.href };
-	const shell = insertState(withDoctype(withCritical(headed, critical)), tail);
+	const page = withDoctype(withCritical(headed, critical));
+	// The client keeps every `<head>` node outside this sequence out of hydration (B120).
+	const writeState = state(registeredQuery()?.dehydrate(), input.onBug ?? ignore, headSequence(page));
+	const shell = insertState(page, writeState + clientScript(input.client, nonce));
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(encoder.encode(shell));

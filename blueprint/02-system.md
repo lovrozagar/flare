@@ -98,6 +98,9 @@ The state object contains:
 - `queries` — the request's query cache. The client seeds the getter before hydrate. This is not a `q` frame (B6, B16)
 - deferred placeholders `{ __deferred: true, key }` where a loader returned `defer()`, with `hole: true` on a stored `"stream"` value the render did not run
 - `fill` — `true` when the render left such a hole. After hydrate the client sends one `?_flare=fill` revalidation of the same URL
+- `head` — the final shell's `<head>` children, in order: an element is its tag name, with `+dh` when it carries `data-dh` and `+hk` when it carries `_hk`; a comment is `!` and its value; text is `#`. Raw-text elements (`script`, `style`, `title`, `textarea`, `noscript`, `template`) are one node each. About 650 bytes on a docs page (B120)
+
+Before the hydrate, the client aligns the live `<head>` with `head` (one longest common subsequence of those kinds) and detaches every node outside it: a node an extension, a proxy, or an HTML rewriter put there would shift the compiled root layout's positional walk of `<head>`. Right after the hydrate call returns, in the same task, each detached node goes back after the matched node before it, or first in `<head>` when none was, so no frame paints without it, nothing changes order, and no script runs again. A route render that throws while the document hydrates is logged as `[flare] a route failed to hydrate` with `console.error`, in production too (B120).
 
 Deferred values that resolve during the stream are appended by Solid's own stream mechanism as instructions the client already understands. Flare does not invent a second HTML streaming protocol. Values that are not yet resolved when the document ends are delivered on the next data request for that URL; the placeholder stays a placeholder. Bit 05 names the exact Solid APIs used, taken from the installed `renderToStream` types, not from memory of an older release.
 

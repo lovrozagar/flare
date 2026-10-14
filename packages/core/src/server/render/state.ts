@@ -22,10 +22,16 @@ export function stateScript(state: State): string {
 // The document's state in two steps: the matches serialize now, so a value JSON cannot hold fails before the shell,
 // and the request's query cache joins after the shell rendered, so the queries it resolved are in it (B83). No query
 // getter is `"queries":null`. A cache JSON cannot hold is a bug that names the query, and `null`, so the document still
-// completes and the client fetches that query itself.
-export function stateWriter(state: State): (queries: unknown, onBug: (bug: Error) => void) => string {
+// completes and the client fetches that query itself. `head` is the final shell's `<head>` sequence (B120).
+export function stateWriter(
+	state: State,
+): (queries: unknown, onBug: (bug: Error) => void, head: readonly string[]) => string {
 	const base = payload(state);
-	return (queries, onBug) => script(`${base.slice(0, -1)},"queries":${queriesJson(queries, onBug)}}`, state.nonce);
+	return (queries, onBug, head) =>
+		script(
+			`${base.slice(0, -1)},"queries":${queriesJson(queries, onBug)},"head":${JSON.stringify(head)}}`,
+			state.nonce,
+		);
 }
 
 function queriesJson(queries: unknown, onBug: (bug: Error) => void): string {

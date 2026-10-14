@@ -22,7 +22,8 @@ import { streamServerFn } from "../server-fn/stream.ts";
 import { tabbedFetch, type DevHot } from "../dev/tab.ts";
 import { registeredQuery } from "../../shared/protocol/index.ts";
 import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts";
-import { mountApp, readState, type ClientState, type Mount } from "./hydrate.ts";
+import { guardHead } from "./head-guard.ts";
+import { mountApp, readState, type App, type ClientState, type Mount } from "./hydrate.ts";
 import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts";
 
 // The browser surface the client uses, passed in so a test can observe it.
@@ -69,9 +70,10 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	const match = router.match(location.pathname);
 	const chain = await loadChain(match.chain);
 	const { matches, pending } = holesOf(state);
+	const phase = { hydrating: false };
 	const store = createRouterStore(
 		snapshotFromState({ matches, chain, unknown: match.id === undefined, location }),
-		reporter(env),
+		reporter(env, phase),
 	);
 	const history = createHistory(window.history);
 	history.adopt(here());
@@ -101,7 +103,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	});
 	installCall(router, env, { reload, build, visit: navigator.visit });
 	ready.ready({ navigate: navigator.navigate, location });
-	const unmount = mountApp({
+	const unmount = hydrateGuarded(state.head, phase, {
 		router,
 		store,
 		navigation,
@@ -120,6 +122,19 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	return disposer(unlisten, unmount);
 }
 
+// Head nodes the server did not write stay out of the hydrate and return in the same task, and a boundary error
+// while it runs is logged (B120).
+function hydrateGuarded(head: ClientState["head"], phase: { hydrating: boolean }, app: App): () => void {
+	const restoreHead = guardHead(document.head, head);
+	phase.hydrating = true;
+	try {
+		return mountApp(app);
+	} finally {
+		phase.hydrating = false;
+		restoreHead();
+	}
+}
+
 // Disposing the client also clears the active navigation, so the root `navigate` no longer reaches a client that is
 // gone (BUGS.md 105).
 function disposer(...stops: (() => void)[]): () => void {
@@ -134,9 +149,14 @@ function devTabbed(env: ClientEnv): ClientEnv {
 	return { ...env, fetch: tabbedFetch(env.fetch, env.hot, document) };
 }
 
-// A boundary error the app's own <Errored> did not catch is a bug the dev overlay shows (B80).
-function reporter(env: ClientEnv): (error: unknown) => void {
-	return (error) => void (env.dev && env.send?.(devErrorPayload(error)));
+// A boundary error the app's own <Errored> did not catch is a bug the dev overlay shows (B80). One caught while the
+// document hydrates is a render that threw only in the browser: the server's markup for it stays on screen and inert,
+// so it is logged in production too, never silent (B120).
+function reporter(env: ClientEnv, phase: { hydrating: boolean }): (error: unknown) => void {
+	return (error) => {
+		if (phase.hydrating) console.error("[flare] a route failed to hydrate", error);
+		if (env.dev) env.send?.(devErrorPayload(error));
+	};
 }
 
 // The guarded document load a chunk error and a server function's build mismatch share (flare_chunk_reload).

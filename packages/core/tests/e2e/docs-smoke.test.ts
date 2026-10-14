@@ -77,6 +77,143 @@ test("click through", async ({ page, docs }) => {
 	expect(problems).toEqual([]);
 });
 
+// A node the server did not write, put into the served <head> the way an extension or a proxy does, at the start or
+// between Flare's own nodes: the page still hydrates, a header link renders the API page, and the node stays where it
+// was put (BUGS.md 120). `first` reads the node back from the hydrated head.
+const FOREIGN: readonly { name: string; edit: (html: string) => string; first: string }[] = [
+	{ name: "meta", edit: (html) => afterHead(html, '<meta name="x-ext" content="1">'), first: "META x-ext" },
+	{ name: "style", edit: (html) => afterHead(html, "<style>.x-ext { color: red }</style>"), first: "STYLE" },
+	{ name: "script", edit: (html) => afterHead(html, "<script>void 0</script>"), first: "SCRIPT" },
+	{ name: "comment", edit: (html) => afterHead(html, "<!-- x-ext -->"), first: "#comment x-ext" },
+	{ name: "whitespace", edit: (html) => afterHead(html, "\n  "), first: "#text" },
+	{
+		name: "between",
+		edit: (html) => html.replace("<!--/-->", '<!--/--><meta name="x-ext" content="1">'),
+		first: "#comment $",
+	},
+];
+
+function afterHead(html: string, node: string): string {
+	return html.replace(/<head[^>]*>/, (open) => `${open}${node}`);
+}
+
+// /docs/routing with its served HTML edited, as a proxy edits it.
+async function serveEdited(page: Page, origin: string, edit: (html: string) => string): Promise<void> {
+	await page.route(`${origin}/docs/routing`, async (route) => {
+		const response = await route.fetch();
+		await route.fulfill({ response, body: edit(await response.text()) });
+	});
+}
+
+test.describe("foreign head node", () => {
+	for (const { name, edit, first } of FOREIGN) {
+		test(name, async ({ page, docs }) => {
+			await serveEdited(page, docs.origin, edit);
+			await open(page, docs.origin, "/docs/routing");
+			await page.locator('#nav a[href="/api/server/create-server"]').click();
+			await expect(page.locator("#api-name")).toHaveText("createServer");
+			const head = await page.evaluate(() => {
+				const node = document.head.firstChild;
+				const label = node instanceof Element ? `${node.tagName} ${node.getAttribute("name") ?? ""}`.trim() : "";
+				const nodeLabel = node === null ? "none" : `${node.nodeName} ${node.nodeValue?.trim() ?? ""}`.trim();
+				const ext = document.head.querySelectorAll('[name="x-ext"]');
+				return { first: label === "" ? nodeLabel : label, ext: ext.length, after: ext[0]?.previousSibling?.nodeValue };
+			});
+			expect(head.first).toBe(first);
+			expect(head.ext).toBe(name === "meta" || name === "between" ? 1 : 0);
+			if (name === "between") expect(head.after).toBe("/");
+		});
+	}
+});
+
+// Init script: every mutation batch that moved the served `meta[name=x-ext]`, and frames that lacked it once seen.
+function watchExt(): void {
+	const batches: { removed: number; added: number }[] = [];
+	const watch = { seen: false, missing: 0 };
+	Reflect.set(window, "xExtWatch", { batches, watch });
+	new MutationObserver((records) => {
+		const removed = records
+			.flatMap((record) => [...record.removedNodes])
+			.filter((node) => node instanceof Element && node.getAttribute("name") === "x-ext").length;
+		const added = records
+			.flatMap((record) => [...record.addedNodes])
+			.filter((node) => node instanceof Element && node.getAttribute("name") === "x-ext").length;
+		if (removed + added > 0) batches.push({ removed, added });
+	}).observe(document, { childList: true, subtree: true });
+	const tick = (): void => {
+		const present = document.querySelector('meta[name="x-ext"]') !== null;
+		if (present) watch.seen = true;
+		else if (watch.seen) watch.missing += 1;
+		requestAnimationFrame(tick);
+	};
+	requestAnimationFrame(tick);
+}
+
+// Init script: an extension that keeps its style first in <head>, puts it back whenever it moves, and samples the
+// body's background on every frame.
+function fightingExtension(): void {
+	const style = document.createElement("style");
+	style.setAttribute("data-ext", "");
+	style.textContent = "body { background-color: rgb(1, 2, 3) !important }";
+	const samples: string[] = [];
+	Reflect.set(window, "xExtSamples", samples);
+	new MutationObserver(() => {
+		const head = document.head;
+		if (head !== null && head.firstChild !== style) head.insertBefore(style, head.firstChild);
+	}).observe(document, { childList: true, subtree: true });
+	const tick = (): void => {
+		if (document.body !== null) samples.push(getComputedStyle(document.body).backgroundColor);
+		requestAnimationFrame(tick);
+	};
+	requestAnimationFrame(tick);
+}
+
+// The guard against what an extension sees (B120). Its own nodes are exempt from the page's CSP, so these cases
+// bypass it. `same task`: the guard took the node out and put it back in one mutation batch, so no microtask, let
+// alone a frame, ran between, and every frame after the node first appeared still had it. `fights back`: a style
+// the extension keeps first in <head>, put back whenever it is moved, ends as one node whose rule held on every
+// frame. `runs once`: a foreign script is not run again by its return.
+test.describe("foreign head extension", () => {
+	test.use({ bypassCSP: true });
+
+	test("same task", async ({ page, docs }) => {
+		await page.addInitScript(watchExt);
+		await serveEdited(page, docs.origin, (html) => afterHead(html, '<meta name="x-ext" content="1">'));
+		await open(page, docs.origin, "/docs/routing");
+		await page.locator('#nav a[href="/api/server/create-server"]').click();
+		await expect(page.locator("#api-name")).toHaveText("createServer");
+		const { batches, watch } = await page.evaluate(() => Reflect.get(window, "xExtWatch"));
+		const moves = batches.filter((batch: { removed: number }) => batch.removed > 0);
+		expect(moves.length).toBeGreaterThan(0);
+		expect(moves).toEqual(
+			moves.map((batch: { removed: number }) => ({ removed: batch.removed, added: batch.removed })),
+		);
+		expect(watch).toEqual({ seen: true, missing: 0 });
+	});
+
+	test("fights back", async ({ page, docs }) => {
+		await page.addInitScript(fightingExtension);
+		await open(page, docs.origin, "/docs/routing");
+		await page.locator('#nav a[href="/api/server/create-server"]').click();
+		await expect(page.locator("#api-name")).toHaveText("createServer");
+		expect(await page.locator("style[data-ext]").count()).toBe(1);
+		const samples: string[] = await page.evaluate(() => Reflect.get(window, "xExtSamples"));
+		expect(samples.length).toBeGreaterThan(0);
+		expect(new Set(samples)).toEqual(new Set(["rgb(1, 2, 3)"]));
+	});
+
+	test("runs once", async ({ page, docs }) => {
+		await serveEdited(page, docs.origin, (html) =>
+			afterHead(html, "<script>window.xExtRuns = (window.xExtRuns ?? 0) + 1;</script>"),
+		);
+		await open(page, docs.origin, "/docs/routing");
+		await page.locator('#nav a[href="/api/server/create-server"]').click();
+		await expect(page.locator("#api-name")).toHaveText("createServer");
+		expect(await page.evaluate(() => Reflect.get(window, "xExtRuns"))).toBe(1);
+		expect(await page.evaluate(() => document.head.firstElementChild?.textContent)).toContain("xExtRuns");
+	});
+});
+
 // `public/` ships with the client and is served from it on every project (BUGS.md B11). An `.ico` is either of its
 // registered types: Node's static layer says `image/x-icon`, the Workers assets binding `image/vnd.microsoft.icon`.
 const PUBLIC: readonly { path: string; type: RegExp }[] = [
