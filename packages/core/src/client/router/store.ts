@@ -1,5 +1,5 @@
 import { defined } from "../../shared/errors/index.ts";
-import { createSignal } from "solid-js";
+import { createEffect, createRoot, createSignal } from "solid-js";
 import type { OutletMatch, OutletState, Overlay } from "../../shared/components/index.ts";
 import type { FrameError } from "../../shared/protocol/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
@@ -30,7 +30,8 @@ export type StoreSnapshot = {
 export type RouterStore = {
 	snapshot: () => StoreSnapshot;
 	outlet: () => OutletState;
-	commit: (next: StoreSnapshot) => void;
+	// Resolves true once that snapshot is on screen, or false when a newer commit replaced it first (B106).
+	commit: (next: StoreSnapshot) => Promise<boolean>;
 	scopeAt: (depth: number) => Element | Document;
 };
 
@@ -38,9 +39,18 @@ export type WireError = FrameError & { name?: string };
 
 const NAMED: Record<string, number> = { NotFoundError: 404, UnauthenticatedError: 401, UnauthorizedError: 403 };
 
-// One signal the outlet reads. A commit swaps the whole snapshot.
+// One signal the outlet reads. A commit swaps the whole snapshot. Solid holds a commit while a read in it is pending
+// outside any fresh <Loading>, so a commit is on screen only when the effect over the signal runs: until then it may
+// be held, and a newer commit can replace it unseen (B106).
 export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (error: unknown) => void): RouterStore {
 	const [snapshot, setSnapshot] = createSignal(initial);
+	const waiting: { snapshot: StoreSnapshot; shown: (on: boolean) => void }[] = [];
+	createRoot(() =>
+		createEffect(snapshot, (shown) => {
+			const at = waiting.findIndex((entry) => entry.snapshot === shown);
+			for (const entry of waiting.splice(0, at + 1)) entry.shown(entry.snapshot === shown);
+		}),
+	);
 	const slots = new Map<number, () => Element | undefined>();
 	const onSlot = (depth: number, scope: () => Element | undefined): (() => void) => {
 		slots.set(depth, scope);
@@ -52,7 +62,12 @@ export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (erro
 			const current = snapshot();
 			return { matches: current.matches, failure: current.failure, unknown: current.unknown, onBoundaryError, onSlot };
 		},
-		commit: (next) => void setSnapshot(next),
+		commit: (next) => {
+			const { promise, resolve } = Promise.withResolvers<boolean>();
+			waiting.push({ snapshot: next, shown: resolve });
+			setSnapshot(next);
+			return promise;
+		},
 		// The innermost boundary around the outlet at that depth, or the document.
 		scopeAt: (depth) => slots.get(depth)?.() ?? document,
 	};

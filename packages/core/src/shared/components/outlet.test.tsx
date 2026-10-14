@@ -185,6 +185,16 @@ it("page remounts", () => {
 		"mount page _root_/users/[id]/posts-data",
 		"cleanup page _root_/users/[id]/posts-data",
 	]);
+	// New params on the same page remount it, so its reads start under fresh <Loading> boundaries (B106).
+	setState({
+		matches: [...first.slice(0, 2), { ...first[2], id: "_root_/users/[id]/likes", params: { id: "Q" } }],
+		onBoundaryError: report,
+	});
+	flush();
+	expect(log.slice(3)).toEqual([
+		"mount page _root_/users/[id]/posts-data",
+		"cleanup page _root_/users/[id]/posts-data",
+	]);
 });
 
 it("no render", () => {

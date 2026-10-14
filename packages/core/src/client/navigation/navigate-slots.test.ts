@@ -58,10 +58,30 @@ const escaped = createPage("_root_/escaped")
 		return [slot(data.fast, "wait-fast"), "|", slot(data.slow, "wait-slow")];
 	});
 
+// A page whose read resolves for id "a" and stays pending for any other id, under the page's own <Loading>. And a page
+// whose pending read has no <Loading> around it, so its commit holds (B106).
+const never = new Promise<string>(() => undefined);
+const reading = createPage("_root_/read/[id]").render((props) => [
+	"read:",
+	createComponent(Loading, {
+		fallback: "wait",
+		get children() {
+			const value = createMemo(async () => (props.params.id === "a" ? "A" : never));
+			return [() => value()];
+		},
+	}),
+]);
+const holding = createPage("_root_/held").render(() => {
+	const value = createMemo(async () => never);
+	return ["held:", () => value()];
+});
+
 const router = createRouter({
 	layouts: { _root_: root },
 	routeTree: [
 		{ id: "_root_/", path: "/", module: home },
+		{ id: "_root_/read/[id]", path: "/read/[id]", module: reading },
+		{ id: "_root_/held", path: "/held", module: holding },
 		{ id: "_root_/slots", path: "/slots", module: slotted },
 		{ id: "_root_/caught", path: "/caught", module: caught },
 		{ id: "_root_/escaped", path: "/escaped", module: escaped },
@@ -197,5 +217,61 @@ it("superseded resolves", async () => {
 	await settled();
 	process.off("unhandledRejection", record);
 	expect(app.text()).toBe("root[home:fresh]");
+	expect(unhandled).toEqual([]);
+});
+
+function frames(id: string): Response {
+	const list: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: id, d: null }, { t: "r" }, { t: "d" }];
+	return new Response(list.map(encodeFrame).join(""), { headers: { "content-type": "application/x-ndjson" } });
+}
+
+function byPath(url: string): Response {
+	const path = new URL(url, "http://localhost").pathname;
+	if (path.startsWith("/read/")) return frames("_root_/read/[id]");
+	return frames(path === "/held" ? "_root_/held" : "_root_/");
+}
+
+// The same page with a new param, whose read stays pending: the page shows its own fallback at once, and history is
+// pushed with that commit, never while the old page is on screen (B106, BUGS.md 62).
+it("pending read commits", async () => {
+	const app = await mountNavigator(router, async (url) => byPath(url));
+	const pushes: string[] = [];
+	const push = vi.spyOn(history, "pushState").mockImplementation(function (this: History, ...args) {
+		pushes.push(`${String(args[2])} ${app.text()}`);
+		History.prototype.pushState.apply(this, args);
+	});
+	await app.navigator.navigate({ to: "_root_/read/[id]", params: { id: "a" } });
+	await settled();
+	expect(app.text()).toBe("root[read:A]");
+	const pending = app.navigator.navigate({ to: "_root_/read/[id]", params: { id: "b" } });
+	await settled();
+	await settled();
+	expect(app.text()).toBe("root[read:wait]");
+	await pending;
+	expect(location.pathname).toBe("/read/b");
+	expect(app.store.snapshot().location.pathname).toBe("/read/b");
+	expect(pushes.at(-1)).toBe("/read/b root[read:wait]");
+	push.mockRestore();
+});
+
+// A commit that holds, a read with no <Loading> around it, does not move the URL while the old page is on screen. A
+// second navigation then commits, the URL is its own, and neither navigation rejects (B105, B106).
+it("supersede pending read", async () => {
+	const app = await mountNavigator(router, async (url) => byPath(url));
+	const unhandled: unknown[] = [];
+	const record = (reason: unknown) => unhandled.push(reason);
+	process.on("unhandledRejection", record);
+	const held = app.navigator.navigate({ to: "_root_/held" });
+	await settled();
+	await settled();
+	expect(app.text()).toBe("root[home:start]");
+	expect(location.pathname).toBe("/");
+	await app.navigator.navigate({ to: "_root_/read/[id]", params: { id: "a" } });
+	await settled();
+	await expect(held).resolves.toBeUndefined();
+	expect(app.text()).toBe("root[read:A]");
+	expect(location.pathname).toBe("/read/a");
+	expect(history.length).toBeGreaterThan(0);
+	process.off("unhandledRejection", record);
 	expect(unhandled).toEqual([]);
 });

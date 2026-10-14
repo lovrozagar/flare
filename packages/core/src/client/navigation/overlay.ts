@@ -70,7 +70,7 @@ export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 		background: previous.overlay?.background ?? { ...previous.location, params: owner.params },
 	};
 	if (page.module.render !== undefined) overlay.render = page.module.render;
-	deps.store.commit({ ...previous, overlay });
+	void deps.store.commit({ ...previous, overlay });
 	flush();
 	if (!shown.write) return;
 	deps.scroll.save(deps.history.index(), previous.location);
