@@ -97,6 +97,14 @@ test("body limit", async ({ request, docs }) => {
 	);
 });
 
+// A server that declares no proxy hop ignores a client's own `X-Forwarded-Proto` (dx/adapters.md `trustProxy`, default
+// 0): the page over plain http gets no Strict-Transport-Security, on every runtime.
+test("forwarded proto untrusted", async ({ request, docs }) => {
+	const response = await request.get(`${docs.origin}/`, { headers: { "x-forwarded-proto": "https" } });
+	expect(response.status()).toBe(200);
+	expect(response.headers()["strict-transport-security"]).toBeUndefined();
+});
+
 test("middleware next", async ({ request, docs }) => {
 	const response = await request.get(`${docs.origin}/`);
 	expect(response.headers()["x-docs-time"]).toMatch(/^\d+ms$/);

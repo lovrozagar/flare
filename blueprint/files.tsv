@@ -627,6 +627,7 @@ packages/core/tests/integration/middleware.test.ts	P8	test	node	Filter case, mou
 packages/core/tests/integration/cacheability.test.ts	P9	test	node	The decision reaches document, data, and prefetch headers. A session, a late Set-Cookie, or an error frame takes the public header away
 packages/core/tests/integration/cache.test.ts	P10	test	node	A 401 is not stored. A second user does not receive the first user's body
 packages/core/tests/workerd/handler.test.ts	P3	test	workers	The workers handler delegates unmatched GET to the assets binding and calls waitUntil
+packages/core/tests/workerd/server.test.ts	P15	test	node	The real createServer behind createWorkersHandler in workerd, bundled with Solid's server build (B96, dx/adapters.md)
 packages/core/tests/workerd/disconnect.test.ts	P15	test	node	Canaries: local Miniflare does not report a client disconnect to the worker (BUGS.md B45), and resets a kept-alive connection after an answer that left the body unread (BUGS.md B56, dx/adapters.md)
 packages/core/tests/structure/ci.test.ts	P15	test	node	ci.yml matches the decisions it implements: every job pins Node 24, and both OS jobs run the unit suite (B3, BUGS.md B24, B27)
 packages/core/tests/workerd/cache-api.test.ts	P10	test	workers	Tombstones and epochs round-trip in workerd's cache
@@ -735,6 +736,7 @@ packages/core/tests/integration/hydrate.harness.ts	P15	test	node	SSR then hydrat
 packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported component and hook round-trips SSR to hydrate with no hydration warning, key miss, unclaimed node, or untracked strict read (B96)
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
+packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
 packages/core/tests/integration/flare-page.test.ts	P15	test	node	flarePage over a real page the harness serves and hydrates, in every engine (B96, dx/testing.md)
 packages/core/tests/e2e/docs-resilience.test.ts	P15	test	node	Playwright: deploy and chunk reloads, network failure, aborts, overlay history, concurrent misses, negotiation, CSRF headers, a phone
 packages/core/src/vite/plugin/cloudflare.ts	P16	src	vite	Find the app's own Cloudflare plugin and check it runs on ssr with flare's worker entry as Wrangler main (B109)

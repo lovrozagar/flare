@@ -624,6 +624,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 116.2 [x] Fix: the exit path sends SIGKILL, which leaves the child no handler to run, removes the dirs, waits 50 ms for a write already in flight, and removes them again. Each removal retries when a racing write interrupts it (`maxRetries`). `exited()` treats a child a signal ended as exited, which has a signal code and no exit code, so a `close()` after the exit path no longer waits forever.
 116.3 [x] Test: boot `exit cleans a writer`, a stub child that ignores SIGTERM, as Vite's graceful shutdown keeps working after it, and rewrites its cache dir every millisecond: the dir is gone right after the exit event and 100 ms later. Red on the old exit path (SIGTERM, one removal) with `expected true to be false` in 169 ms; flare-77 found the first stub, which died on SIGTERM, did not bite, and the red first reported was the `close()` hang. `close after a kill`: a child the exit path killed, its exit event already fired, still closes within 2 s; red on the old `exited()` with `hung`. Each fix has its own red; both pass 3 of 3.
 
+117 [ ] B117 Found writing plan 14 9.6's adapter cases: two runtime behaviors that differ from their decisions
+117.1 [ ] B37 says a root layout whose SSR output has no `<html>` and no `</body>` is a 500 in production. It is not: through the real `createServer` with production stubbed, such a root answers 200 with a document that has neither, and B46's write rule then skips the store silently (`ssr` stays `miss`). No code implements B37 (the `B37` comments in `features/i18n` are BUGS.md B37, an unrelated shim note).
+117.2 [ ] On Workers, `createWorkersHandler` collapses a path's empty segments before `server.fetch`, so `/a//static.txt` is served as 200 at that URL, where Node and Bun answer B22's 301 to `/a/static.txt` (bits/02 `no double slash`). Measured in Miniflare with the real server: `//stored` 400, `/stored/` 200, `/STORED` 301 to `/stored`, `/a//static.txt` 200. dx/adapters.md says only that the path is canonical before the binding sees it.
+117.3 [ ] Awaiting flare-77's ruling on each: wire B37 or revise it, and whether Workers should redirect as Node and Bun do.
+
 ## Verify
 
 97 [ ] Verify
