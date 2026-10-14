@@ -206,6 +206,8 @@ export async function drawn(
 	// A render throw is caught by the slot's boundary, so the tree matches the client's. It still answers as the
 	// failure it was (B93).
 	const thrownInRender: unknown[] = [];
+	// A dev document's first paint is styled: the dev server names the CSS modules the chain imports (B104).
+	const devStyles = await exchange.sink.styles?.(rendered.chain.map((entry) => entry.id));
 	let body: ReadableStream<Uint8Array>;
 	try {
 		body = await renderDocument({
@@ -225,6 +227,7 @@ export async function drawn(
 			onBug: (bug) => exchange.sink.log.error("queries", bug.message),
 			// Dev inlines nothing: Vite serves the CSS it injects (B15).
 			sheet: exchange.sink.dev ? "" : builtSheet,
+			devStyles,
 		});
 		if (thrownInRender.length > 0) {
 			void body.cancel();

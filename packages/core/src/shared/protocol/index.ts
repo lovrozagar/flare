@@ -10,6 +10,14 @@ export {
 	TAB_HEADER,
 } from "./constants.ts";
 export { isTabToken, mintTab, tabMeta } from "./dev-tab.ts";
+export {
+	STYLES_EVENT,
+	stylesReply,
+	stylesRequest,
+	type DevStyle,
+	type StylesReply,
+	type StylesRequest,
+} from "./dev-styles.ts";
 export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts";
 export {
 	fnPrefix,

@@ -1,11 +1,18 @@
 import { isSafeError } from "@solidjs/web";
 import { devErrorPayload, statusOf, type DevErrorPayload } from "../../shared/errors/index.ts";
+import type { DevStyle } from "../../shared/protocol/index.ts";
 import { createLogger, type Logger } from "../lifecycle/logger.ts";
+import { stylesClient } from "./dev-styles.ts";
 
 // The two fields of `import.meta` that B93 reads. Vite replaces `env.DEV`, and `hot` exists only in dev.
 export type DevMeta = {
 	env: { DEV: boolean };
-	hot?: { send: (event: string, payload: unknown) => void } | undefined;
+	hot?:
+		| {
+				send: (event: string, payload: unknown) => void;
+				on?: (event: string, listener: (payload: unknown) => void) => void;
+		  }
+		| undefined;
 };
 
 type Send = (payload: DevErrorPayload) => void;
@@ -16,6 +23,8 @@ export type ErrorSink = {
 	send?: Send | undefined;
 	toTab?: ((token: string | undefined) => Send) | undefined;
 	log: Logger;
+	// The CSS modules a matched chain imports, from the dev server, for the dev document's first paint (B104).
+	styles?: ((routes: readonly string[]) => Promise<DevStyle[]>) | undefined;
 };
 
 // The `error` of a state match and of an `e` frame (B76, B83): `stack` in dev, `digest` in production.
@@ -35,7 +44,15 @@ export function devSink(meta: DevMeta): ErrorSink {
 		(token: string | undefined): Send =>
 		(payload) =>
 			hot.send("flare:error", { token, payload });
-	return { dev, send: toTab(undefined), toTab, log };
+	const on = hot.on;
+	if (on === undefined) return { dev, send: toTab(undefined), toTab, log };
+	// Vite's hot context reads its own state, so both calls keep `hot` as their receiver.
+	const channel = {
+		send: (event: string, payload: unknown) => hot.send(event, payload),
+		on: (event: string, listener: (payload: unknown) => void) => void Reflect.apply(on, hot, [event, listener]),
+	};
+	const styles = stylesClient(channel, (message) => log.warn("styles", message));
+	return { dev, send: toTab(undefined), toTab, log, styles };
 }
 
 // One request's sink: its payloads go to the dev tab its token names (dx/plugin.md, B42). A production sink has no

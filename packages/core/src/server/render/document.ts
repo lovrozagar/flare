@@ -10,7 +10,7 @@ import { criticalContext, withCritical } from "./critical-style.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
 import { DocumentHead, type Head } from "./head.ts";
-import { registeredQuery } from "../../shared/protocol/index.ts";
+import { registeredQuery, type DevStyle } from "../../shared/protocol/index.ts";
 import { insertState, stateWriter, type StateMatch } from "./state.ts";
 
 type Chunk = string | Uint8Array;
@@ -32,6 +32,8 @@ export type DocumentInput = {
 	head?: Head;
 	// The built stylesheet a production document inlines its critical rules from. Dev and data pass none.
 	sheet?: string;
+	// A dev document's CSS modules, which `<Stylesheet />` writes in its place (B104).
+	devStyles?: readonly DevStyle[] | undefined;
 	matches: readonly StateMatch[];
 	client?: string | undefined;
 	fill?: boolean;
@@ -54,7 +56,8 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// The render stops on a request abort or on a consumer cancel, whichever comes first, under the request's event.
 	const { signal, stop } = renderStop(input.request.signal, web.getRequestEvent());
 	const stylesheet: StylesheetPlacement = {};
-	const render = withRequest({ path: new URL(input.request.url).pathname, nonce, stylesheet }, () =>
+	const event = { path: new URL(input.request.url).pathname, nonce, stylesheet, devStyles: input.devStyles };
+	const render = withRequest(event, () =>
 		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, nonce)),
 	);
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.

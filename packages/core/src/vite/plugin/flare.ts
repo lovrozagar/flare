@@ -10,6 +10,7 @@ import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts";
 import { devEndpoints } from "../dev/guard.ts";
 import { prerenderApp } from "../prerender/index.ts";
 import { devHead as devHeadOf } from "../dev/dev-head.ts";
+import { installDevStyles } from "../dev/dev-styles.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
 import { ownModule } from "./own-module.ts";
@@ -125,6 +126,7 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 			handler(server) {
 				watchGenerated(server, server.config.root);
 				devHeadOf(server).then(state.devHead.resolve, state.devHead.reject);
+				installDevStyles(server, resolve(server.config.root, parsed.entry.client));
 				return installDevHandler(server, parsed.entry.server);
 			},
 		},

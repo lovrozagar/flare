@@ -31,6 +31,27 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | `production` | a production render | none of the three is written |
 | `dev styles` | a dev document for a route whose chain imports `app.css` (root) and a CSS module (page), with nonce `n` | `head` holds one `<style data-vite-dev-id>` per module, root first, each with the module's served CSS and nonce `n`, in `<Stylesheet />`'s place. A route that imports no CSS module gets only the root's. On a browser load the first paint is styled, and after the client runs there is still one style per module id (B104, BUGS.md B59) |
 
+## `vite/dev/dev-styles.test.ts` (B104)
+
+| test | case | result |
+| --- | --- | --- |
+| `chain styles` | a `flare:styles` request for the docs chain over a fake module graph, then the worker environment's for an unknown route | the client entry's own CSS imports first (flare's reset), then the chain's CSS modules in import order, root first and once each, each read with `?direct` (`&direct` after a query); the entry's other imports are not walked |
+| `cache` | the same chain twice, then a watched file change, then again | one walk and one read per module until the change; then they run again |
+| `bad request` | a malformed request, then a read that rejects, then one that answers nothing | no answer; no styles and no cache entry; empty CSS |
+
+## `server/render/dev-styles.test.ts` (B104)
+
+| test | case | result |
+| --- | --- | --- |
+| `round trip` | two requests, then replies out of order, a reply for no request, and a non-reply | each request gets its own reply's styles, numbered from 0; a malformed style is dropped |
+| `bounded wait` | no reply within 2 s | the document gets no styles and the dev server logs one warning; a late reply changes nothing |
+
+## `shared/protocol/dev-styles.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `shapes` | well-formed and malformed requests and replies | only the well-formed parts are read |
+
 ## `shared/protocol/dev-tab.test.ts`
 
 | test | case | result |

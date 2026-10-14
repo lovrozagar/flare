@@ -6,9 +6,10 @@ import { RESET } from "./reset.ts";
 import { ownModule } from "../plugin/own-module.ts";
 import { realPath } from "../plugin/real-path.ts";
 
-// Typed as a string, so no declaration file carries a `virtual:` id (bits/14 `no src path in dts`).
+// Typed as a string, so no declaration file carries a `virtual:` id (bits/14 `no src path in dts`). It resolves to
+// itself, with no NUL prefix, because Vite's client keys the dev style by this id and a dev document writes it into a
+// `data-vite-dev-id` attribute, which cannot hold a NUL (B104). A query, such as `?direct`, is kept.
 export const RESET_ID: string = "virtual:flare/reset.css";
-const RESOLVED_RESET = `\0${RESET_ID}`;
 
 // The module the server reads the built stylesheet from. The package ships its source, so this is the file Vite loads.
 const SHEET = ownModule("../../shared/css/sheet.ts", import.meta.url);
@@ -30,10 +31,10 @@ export function inject(options: CssOptions): Plugin[] {
 			return name === "client" ? { build: { cssCodeSplit: false } } : undefined;
 		},
 		resolveId(id) {
-			return id === RESET_ID ? RESOLVED_RESET : null;
+			return id.replace(/\?.*$/s, "") === RESET_ID ? id : null;
 		},
 		load(id) {
-			if (id === RESOLVED_RESET) return RESET;
+			if (id.replace(/\?.*$/s, "") === RESET_ID) return RESET;
 			const { name, config } = this.environment;
 			if (id !== SHEET || config.command !== "build" || !SERVER_ENVIRONMENTS.has(name)) return null;
 			if (built === null) this.error("The client build must run before the server build reads its stylesheet");

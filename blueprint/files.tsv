@@ -725,6 +725,12 @@ packages/core/src/server/render/dev-document.ts	P16	src	server	Dev only: devHead
 packages/core/src/server/render/dev-document.test.ts	P16	test	server	Unit cases for dev-document.ts
 packages/core/src/shared/protocol/dev-tab.ts	P16	src	shared	Dev tab tokens: mint one, tell one from a header value, and the meta a dev document carries (B42, B95 (b))
 packages/core/src/shared/protocol/dev-tab.test.ts	P16	test	shared	Unit cases for dev-tab.ts
+packages/core/src/shared/protocol/dev-styles.ts	P16	src	shared	The `flare:styles` round trip's event name and message shapes (B104)
+packages/core/src/shared/protocol/dev-styles.test.ts	P16	test	shared	Unit cases for dev-styles.ts
+packages/core/src/server/render/dev-styles.ts	P16	src	server	Asks the dev server for a chain's CSS modules over the hot channel, waiting at most 2 s (B104)
+packages/core/src/server/render/dev-styles.test.ts	P16	test	server	Unit cases for dev-styles.ts
+packages/core/src/vite/dev/dev-styles.ts	P16	src	vite	Answers `flare:styles`: the client entry's and the chain's CSS modules in import order, read with `?direct`, cached per chain (B104)
+packages/core/src/vite/dev/dev-styles.test.ts	P16	test	vite	Unit cases for dev-styles.ts
 scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and the e2e grid: FLARE_BROWSER_WS, else the pinned container, else local engines (B97)
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run

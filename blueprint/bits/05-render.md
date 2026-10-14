@@ -72,6 +72,7 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 | `null title` | head title is null | the head omits the title, the response is 200 |
 | `string thrown` | the loader throws the string `"plain secret"` in dev | the state error is `{ message: "plain secret", stack: "" }`, and the sender is called with that message and `stack: ""` |
 | `dev sink` | `devSink({ env: { DEV: true }, hot })`, then `{ env: { DEV: false } }` | the first sends `hot.send("flare:error", payload)`. The second is not dev and has no sender (B93) |
+| `dev styles sink` | `devSink` with a hot context that can listen, then one that cannot | the first asks the dev server for a chain's styles over `flare:styles`, keeping the hot context as the receiver of every call; the second has no `styles` (B104) |
 
 ### `server/render/abort.test.ts`
 

@@ -42,7 +42,7 @@ The markup is per-request runtime code the `Stylesheet` component renders, so it
 
 | test | case | result |
 | --- | --- | --- |
-| `dev` | `import.meta.env.DEV` | the component renders nothing |
+| `dev` | `import.meta.env.DEV`, outside and inside a dev document render with two CSS modules | outside it renders nothing; inside, one `<style data-vite-dev-id>` per module with the request nonce, a `</style` in the CSS escaped (B104) |
 | `prod` | dev false and a `builtHref`, outside a document render | the markup from `delivery` |
 | `placed` | the same inside a document render (`withRequest` with a stylesheet placement) | the component renders nothing and leaves `builtHref` in the placement, which the document writes right after `#flare-critical` (B103) |
 | `nonce` | `nonce()` returns `n` | the swap script's nonce is `n` |
