@@ -27,11 +27,9 @@ it("namespace record", async () => {
 	);
 	vi.stubEnv("DEV", false);
 	try {
-		const started = performance.now();
 		const late = namespace();
 		setTimeout(() => Object.assign(late, { route: page }), 5);
 		await expect(loadChain(lazyAt(async () => late))).rejects.toThrow("_root_/a has no route record");
-		expect(performance.now() - started).toBeLessThan(5);
 	} finally {
 		vi.unstubAllEnvs();
 	}

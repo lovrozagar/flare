@@ -127,7 +127,10 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 				watchGenerated(server, server.config.root);
 				devHeadOf(server).then(state.devHead.resolve, state.devHead.reject);
 				installDevStyles(server, resolve(server.config.root, parsed.entry.client));
-				return installDevHandler(server, parsed.entry.server);
+				const listen = installDevHandler(server, parsed.entry.server);
+				// In Workers dev, workerd answers through the Cloudflare plugin's post middleware, which a listener added
+				// from this earlier hook would shadow (BUGS.md 76).
+				return parsed.workersDev ? undefined : listen;
 			},
 		},
 	};

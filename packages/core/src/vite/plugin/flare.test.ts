@@ -169,6 +169,37 @@ it("dev server", () => {
 	expect(typeof post).toBe("function");
 });
 
+// In Workers dev, workerd answers every request through the Cloudflare plugin's post middleware. Flare's server hook
+// runs first (`order: "pre"`), so a listener it added would answer before workerd: it adds none, and still relays the
+// worker environment's errors (BUGS.md 76).
+it("workers dev server", async () => {
+	vi.resetModules();
+	vi.doMock("./workers-dev.ts", async (original) => ({
+		...(await original<typeof import("./workers-dev.ts")>()),
+		workersDevPlugins: async () => [],
+	}));
+	try {
+		const fresh = await import("./flare.ts");
+		const plugin = fresh.flare({ workersDev: true }).find((item) => Reflect.get(Object(item), "name") === "flare");
+		const used: unknown[] = [];
+		const relayed: unknown[] = [];
+		const hot = { on: () => undefined };
+		const server = {
+			config: { root: "/app", server: { middlewareMode: false }, logger: { error: () => undefined } },
+			watcher: { on: () => undefined },
+			middlewares: { use: (handler: unknown) => void used.push(handler) },
+			transformIndexHtml: async (_url: string, html: string) => html,
+			environments: { ssr: { hot }, client: { hot }, worker: { hot: { on: (event: string) => relayed.push(event) } } },
+		};
+		expect(serverHook(plugin as ReturnType<typeof flarePlugin>)(server)).toBeUndefined();
+		expect(used).toEqual([]);
+		expect(relayed).toContain("flare:error");
+	} finally {
+		vi.doUnmock("./workers-dev.ts");
+		vi.resetModules();
+	}
+});
+
 // The map carries the original source, so only the code is checked.
 function code(result: unknown): string {
 	const text: unknown = typeof result === "object" && result !== null ? Reflect.get(result, "code") : undefined;
