@@ -1,20 +1,56 @@
 import { expect, it } from "vitest";
 import { browserEndpoint, IMAGE_DIGEST, type BrowserDeps } from "./browser-server.ts";
 
-type Run = { args: readonly string[] };
+const IMAGE = `mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`;
+const INSPECT = ["inspect", "--format", "{{.Config.Image}}|{{.HostConfig.IpcMode}}", "flare-browsers"];
+const RUN = [
+	"run",
+	"-d",
+	"--rm",
+	"--init",
+	"--ipc=host",
+	"--network",
+	"host",
+	"--name",
+	"flare-browsers",
+	"-v",
+	"/repo/node_modules/playwright-core:/playwright-core:ro",
+	IMAGE,
+	"node",
+	"/playwright-core/cli.js",
+	"run-server",
+	"--port",
+	"3333",
+	"--host",
+	"127.0.0.1",
+];
 
-// A machine, recorded: what the env holds, whether Docker answers, which ports listen, which engines are installed.
-function machine(input: { env?: Record<string, string>; docker?: boolean; installed?: boolean; up?: boolean } = {}) {
-	const runs: Run[] = [];
+type Answer = { status: number; stdout?: string; stderr?: string };
+
+// A machine, recorded: what the env holds, whether Docker answers, the container `docker inspect` describes, which
+// ports listen, which engines are installed. `docker run` starts a server that listens.
+function machine(
+	input: { env?: Record<string, string>; docker?: boolean; installed?: boolean; up?: boolean; container?: string } = {},
+) {
+	const runs: (readonly string[])[] = [];
+	const answers: Record<string, Answer> = {};
 	let listening = input.up ?? false;
 	const deps: BrowserDeps = {
 		env: input.env ?? {},
 		docker: {
 			present: () => input.docker ?? false,
 			run(args) {
-				runs.push({ args });
-				listening = true;
-				return { status: 0, stderr: "" };
+				runs.push(args);
+				const answer = answers[args[0] ?? ""];
+				if (answer !== undefined) return { stdout: "", stderr: "", ...answer };
+				if (args[0] === "inspect") {
+					const found = input.container;
+					return found === undefined
+						? { status: 1, stdout: "", stderr: "Error: No such object: flare-browsers" }
+						: { status: 0, stdout: `${found}\n`, stderr: "" };
+				}
+				if (args[0] === "run") listening = true;
+				return { status: 0, stdout: "", stderr: "" };
 			},
 		},
 		reachable: async () => listening,
@@ -22,7 +58,7 @@ function machine(input: { env?: Record<string, string>; docker?: boolean; instal
 		core: () => ({ dir: "/repo/node_modules/playwright-core", version: "1.61.1" }),
 		sleep: async () => undefined,
 	};
-	return { deps, runs };
+	return { deps, runs, answers };
 }
 
 it("endpoint env", async () => {
@@ -31,53 +67,37 @@ it("endpoint env", async () => {
 	expect(runs).toEqual([]);
 });
 
-// The pinned image's run-server, from the lockfile's playwright-core mounted read-only, on the host network. One that
-// already listens is reused (B97).
+// The pinned image's run-server, from the lockfile's playwright-core mounted read-only, on the host network and the
+// host's IPC namespace, so Chromium's shared memory is not Docker's 64 MB default. A container that is already the
+// pinned one is reused (B97).
 it("container", async () => {
 	const fresh = machine({ docker: true, installed: true });
 	expect(await browserEndpoint(fresh.deps)).toBe("ws://127.0.0.1:3333/");
-	expect(fresh.runs).toEqual([
-		{
-			args: [
-				"run",
-				"-d",
-				"--rm",
-				"--init",
-				"--network",
-				"host",
-				"--name",
-				"flare-browsers",
-				"-v",
-				"/repo/node_modules/playwright-core:/playwright-core:ro",
-				`mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`,
-				"node",
-				"/playwright-core/cli.js",
-				"run-server",
-				"--port",
-				"3333",
-				"--host",
-				"127.0.0.1",
-			],
-		},
-	]);
-	const running = machine({ docker: true, up: true });
+	expect(fresh.runs).toEqual([INSPECT, RUN]);
+	const running = machine({ docker: true, up: true, container: `${IMAGE}|host` });
 	expect(await browserEndpoint(running.deps)).toBe("ws://127.0.0.1:3333/");
-	expect(running.runs).toEqual([]);
+	expect(running.runs).toEqual([INSPECT]);
 });
 
-// A container that cannot start, or a run-server that never answers, names the cause.
+// A `flare-browsers` that runs another image, or without the host's IPC, is replaced: only this script creates it.
+it("container stale", async () => {
+	for (const container of [`${IMAGE}|private`, "mcr.microsoft.com/playwright:v1.60.0-noble|host"]) {
+		const stale = machine({ docker: true, up: true, container });
+		expect(await browserEndpoint(stale.deps)).toBe("ws://127.0.0.1:3333/");
+		expect(stale.runs).toEqual([INSPECT, ["rm", "-f", "flare-browsers"], RUN]);
+	}
+});
+
+// A container that cannot start, or a run-server that never answers, names the cause. A name already in use is
+// another process of the same run starting it, so the run-server is awaited.
 it("container fails", async () => {
 	const refused = machine({ docker: true });
-	refused.deps.docker.run = () => ({ status: 1, stderr: "permission denied while trying to connect" });
+	refused.answers["run"] = { status: 1, stderr: "permission denied while trying to connect" };
 	await expect(browserEndpoint(refused.deps)).rejects.toThrow(
 		"the browser container did not start: permission denied while trying to connect",
 	);
 	const named = machine({ docker: true });
-	named.deps.docker.run = () => ({
-		status: 125,
-		stderr: 'Conflict. The container name "/flare-browsers" is already in use',
-	});
-	named.deps.reachable = async () => false;
+	named.answers["run"] = { status: 125, stderr: 'Conflict. The container name "/flare-browsers" is already in use' };
 	await expect(browserEndpoint(named.deps)).rejects.toThrow(
 		"the browser run-server did not answer on ws://127.0.0.1:3333/",
 	);

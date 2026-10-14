@@ -14,7 +14,10 @@ const CONTAINER = "flare-browsers";
 // What the browser source reads of the machine. The native one is the real machine; a test passes its own.
 export type BrowserDeps = {
 	env: Readonly<Record<string, string | undefined>>;
-	docker: { present: () => boolean; run: (args: readonly string[]) => { status: number | null; stderr: string } };
+	docker: {
+		present: () => boolean;
+		run: (args: readonly string[]) => { status: number | null; stdout: string; stderr: string };
+	};
 	reachable: (port: number) => Promise<boolean>;
 	installed: () => boolean;
 	core: () => { dir: string; version: string };
@@ -35,21 +38,27 @@ export async function browserEndpoint(deps: BrowserDeps = NATIVE): Promise<strin
 	);
 }
 
-// A run-server on 127.0.0.1, started from the pinned image with host networking, or the one already running. The
-// server is the lockfile's own playwright-core, mounted read-only, so the container downloads nothing and its version
-// is the one the image's browsers were built for.
+// A run-server on 127.0.0.1 from the pinned image, on the host network and the host's IPC namespace (Chromium's shared
+// memory, which Docker caps at 64 MB by default, plan 14 leaf 4.6). A `flare-browsers` container that already is that
+// is reused; any other is replaced, since only this script creates it. The server is the lockfile's own
+// playwright-core, mounted read-only, so the container downloads nothing and its version is the one the image's
+// browsers were built for.
 async function browserServer(deps: BrowserDeps): Promise<string> {
 	const endpoint = `ws://127.0.0.1:${PORT}/`;
-	if (await deps.reachable(PORT)) return endpoint;
 	const core = deps.core();
 	const image = `mcr.microsoft.com/playwright:v${core.version}-noble@sha256:${IMAGE_DIGEST}`;
-	const run = ["run", "-d", "--rm", "--init", "--network", "host", "--name", CONTAINER];
-	const mount = ["-v", `${core.dir}:/playwright-core:ro`, image];
-	const serve = ["node", "/playwright-core/cli.js", "run-server", "--port", String(PORT), "--host", "127.0.0.1"];
-	const started = deps.docker.run([...run, ...mount, ...serve]);
-	// A container of that name may be starting already, for another process of the same run.
-	if (started.status !== 0 && !started.stderr.includes("already in use")) {
-		throw new Error(`the browser container did not start: ${started.stderr}`);
+	const found = deps.docker.run(["inspect", "--format", "{{.Config.Image}}|{{.HostConfig.IpcMode}}", CONTAINER]);
+	const current = found.status === 0 ? found.stdout.trim() : undefined;
+	if (current !== undefined && current !== `${image}|host`) deps.docker.run(["rm", "-f", CONTAINER]);
+	if (current !== `${image}|host`) {
+		const run = ["run", "-d", "--rm", "--init", "--ipc=host", "--network", "host", "--name", CONTAINER];
+		const mount = ["-v", `${core.dir}:/playwright-core:ro`, image];
+		const serve = ["node", "/playwright-core/cli.js", "run-server", "--port", String(PORT), "--host", "127.0.0.1"];
+		const started = deps.docker.run([...run, ...mount, ...serve]);
+		// A container of that name may be starting already, for another process of the same run.
+		if (started.status !== 0 && !started.stderr.includes("already in use")) {
+			throw new Error(`the browser container did not start: ${started.stderr}`);
+		}
 	}
 	for (let waited = 0; waited < 120; waited += 1) {
 		if (await deps.reachable(PORT)) return endpoint;
@@ -66,7 +75,7 @@ const NATIVE: BrowserDeps = {
 		present: () => spawnSync(DOCKER, ["--version"]).error === undefined,
 		run(args) {
 			const done = spawnSync(DOCKER, args, { encoding: "utf8" });
-			return { status: done.status, stderr: done.stderr || String(done.error ?? "") };
+			return { status: done.status, stdout: done.stdout ?? "", stderr: done.stderr || String(done.error ?? "") };
 		},
 	},
 	reachable: (port) =>
