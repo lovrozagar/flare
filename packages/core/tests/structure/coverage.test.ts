@@ -55,16 +55,37 @@ it("keys", () => {
 // Three columns a line; several cases join with `;`; `n/a: <reason>` only in the e2e column.
 it("parse", () => {
 	const parsed = parseCoverage(
-		"# comment\n\na#b#\tx.test.ts::one; y.test.ts::two\tn/a: no runtime surface\nc#d#\tx.test.ts::one\te.test.ts::three\nbad\nd#\tn/a: none\tn/a: none\n",
+		"# comment\n\na#b#\tx.test.ts::one; y.test.ts::two\tn/a: no runtime surface\nc#d#\tx.test.ts::one\te.test.ts::three\nbad\n",
 	);
 	expect(parsed.rows).toEqual([
 		{ key: "a#b#", integration: ["x.test.ts::one", "y.test.ts::two"], e2e: { none: "no runtime surface" } },
 		{ key: "c#d#", integration: ["x.test.ts::one"], e2e: ["e.test.ts::three"] },
-		{ key: "d#", integration: [], e2e: { none: "none" } },
 	]);
-	expect(parsed.errors).toEqual([
-		"line 5: expected key, integration, and e2e",
-		"line 6: the integration column takes no n/a",
+	expect(parsed.errors).toEqual(["line 5: expected key, integration, and e2e"]);
+});
+
+// Strict cells (B96): the e2e column is cases or exactly one `n/a: <reason>` with a reason, and the integration column
+// has no n/a anywhere. Every malformed cell is an error naming its line; none is dropped quietly (flare-77's probes).
+it("strict cells", () => {
+	const lines = [
+		"a#\tint.test.ts::real\t",
+		"b#\tint.test.ts::real\tn/a: ",
+		"c#\tint.test.ts::real\tn/a:",
+		"d#\tint.test.ts::real\tn/a",
+		"e#\tint.test.ts::real\tspec.ts::real; n/a",
+		"f#\tint.test.ts::real; n/a: x\tspec.ts::real",
+		"g#\tn/a: x\tspec.ts::real",
+		"h#\tint.test.ts\tspec.ts::real",
+	];
+	expect(parseCoverage(lines.join("\n")).errors).toEqual([
+		"line 1: the e2e column is empty",
+		"line 2: e2e part is not file::case: n/a:",
+		"line 3: e2e part is not file::case: n/a:",
+		"line 4: e2e part is not file::case: n/a",
+		"line 5: e2e part is not file::case: n/a",
+		"line 6: integration part is not file::case: n/a: x",
+		"line 7: integration part is not file::case: n/a: x",
+		"line 8: integration part is not file::case: int.test.ts",
 	]);
 });
 

@@ -42,31 +42,38 @@ function clean(cell: string): string {
 // A coverage row: the key, its integration cases, and its e2e cases or the reason there are none.
 export type CoverageRow = { key: string; integration: string[]; e2e: string[] | { none: string } };
 
-// `key<TAB>file::case; file::case<TAB>spec::case; …`, or `n/a: <reason>` in the e2e column only. A blank line and a
-// line starting with `#` are skipped.
+// `key<TAB>file::case; file::case<TAB>spec::case; …`, or exactly `n/a: <reason>` in the e2e column. A blank line and
+// a line starting with `#` are skipped. Every cell is read strictly (B96): a part that is not `file::case`, an e2e `n/a`
+// without a reason or beside a case, an integration `n/a`, and an empty e2e column are errors naming the line.
 export function parseCoverage(text: string): { rows: CoverageRow[]; errors: string[] } {
 	const rows: CoverageRow[] = [];
 	const errors: string[] = [];
 	for (const [index, line] of text.split("\n").entries()) {
 		if (line.trim() === "" || line.startsWith("#")) continue;
+		const at = `line ${index + 1}`;
 		const columns = line.split("\t");
 		const [key = "", integration = "", e2e = ""] = columns;
 		if (columns.length !== 3 || key === "") {
-			errors.push(`line ${index + 1}: expected key, integration, and e2e`);
+			errors.push(`${at}: expected key, integration, and e2e`);
 			continue;
 		}
-		if (integration.startsWith("n/a")) errors.push(`line ${index + 1}: the integration column takes no n/a`);
-		const none = /^n\/a: (.+)$/.exec(e2e)?.[1];
-		rows.push({ key, integration: cases(integration), e2e: none === undefined ? cases(e2e) : { none } });
+		const none = /^n\/a: (\S.*)$/.exec(e2e)?.[1];
+		if (e2e.trim() === "") errors.push(`${at}: the e2e column is empty`);
+		const integrationCases = cases(integration, `${at}: integration`, errors);
+		const e2eCases = none === undefined ? cases(e2e, `${at}: e2e`, errors) : { none };
+		rows.push({ key, integration: integrationCases, e2e: e2eCases });
 	}
 	return { rows, errors };
 }
 
-function cases(cell: string): string[] {
-	return cell
+// A `; ` list whose every part is `file::case`. Any other part is an error, not a silent drop.
+function cases(cell: string, where: string, errors: string[]): string[] {
+	const parts = cell
 		.split(";")
 		.map((part) => part.trim())
-		.filter((part) => part !== "" && !part.startsWith("n/a"));
+		.filter((part) => part !== "");
+	for (const part of parts) if (!/^[^\s:]+::\S/.test(part)) errors.push(`${where} part is not file::case: ${part}`);
+	return parts.filter((part) => /^[^\s:]+::\S/.test(part));
 }
 
 // Whether a test file has a case with exactly this title, as `it("…")` or `test("…")`, `.skip` and `.runIf(…)` included.
