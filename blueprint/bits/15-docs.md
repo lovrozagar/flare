@@ -46,7 +46,7 @@ The server has `serverContext`, `authenticate`, `i18n()`, middleware (`next`, `r
 
 ## `tests/e2e/docs-data.test.ts`
 
-`defer two skeletons`, `defer rejects` (the `<Errored>` fallback, the generic message in production, no dev overlay), `stream fill` (one `?_flare=fill`), `defer resolve stored` (production), `query prefetched` (no call on hydrate, with the search page's query on TanStack's default `staleTime`, B102), `query hydrates once` (a document load of a doc page sends no feedback server-function request after `data-flare-hydrated`, B102), `query suspense`, `mutation sets data` (no refetch), `server fn get cached`, `server fn post validates` (the field message), `safe error`, `unsafe error` (masked in production), `stream`, `stream abort`, `server context`, `fetch dedupe` (one upstream call), `env fns`, `t plural`.
+`defer two skeletons`, `defer rejects` (the `<Errored>` fallback, the generic message in production, no dev overlay), `stream fill` (one `?_flare=fill`), `defer resolve stored` (production), `query prefetched` (no call on hydrate, with the search page's query on TanStack's default `staleTime`, B102), `query hydrates once` (a document load of a doc page sends no `/_flare/fn/` request from the load through 1 s after `data-flare-hydrated`: the refetch B102 removes went out during the hydration mount, before the attribute), `query suspense`, `mutation sets data` (no refetch), `server fn get cached`, `server fn post validates` (the field message), `safe error`, `unsafe error` (masked in production), `stream`, `stream abort`, `server context`, `fetch dedupe` (one upstream call), `env fns`, `t plural`.
 
 ## `tests/e2e/docs-cache.test.ts`
 
