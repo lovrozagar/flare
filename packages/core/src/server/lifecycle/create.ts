@@ -8,7 +8,7 @@ import { foldCase } from "../../shared/router/fold.ts";
 import { withServerContext } from "../context/ctx.ts";
 import { runLoaders } from "../loaders/run.ts";
 import { devDocument, devToken } from "../render/dev-document.ts";
-import { devSink, projectError, requestSink, type ErrorSink } from "../render/projector.ts";
+import { devSink, devStyles, projectError, requestSink, type ErrorSink } from "../render/projector.ts";
 import { applySecurity } from "../security/apply.ts";
 import { applyCanonical } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
@@ -37,8 +37,13 @@ export function createServer<R extends FlareRegister = FlareRegister>(options: S
 export function createServer(options: RuntimeOptions): FlareServer {
 	// Literal reads: Vite replaces only `import.meta.env.DEV`, and its runner rejects passing `import.meta` whole. Outside
 	// Vite, as when Node loads the packed `dist`, `import.meta.env` is absent, and that is production.
-	return serveWith(options, devSink({ env: { DEV: import.meta.env?.DEV }, hot: import.meta.hot }));
+	return serveWith(options, devSink({ env: { DEV: import.meta.env?.DEV }, hot: import.meta.hot }, STYLES));
 }
+
+// One dev styles client per evaluation of this module, made while it evaluates: a full reload's new hot context drops
+// the previous evaluation's listeners, and this one's listens from the same turn, so no reply falls between the two
+// (BUGS.md 86).
+const STYLES = devStyles(import.meta.hot);
 
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {

@@ -45,6 +45,7 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | --- | --- | --- |
 | `round trip` | two requests, then replies out of order, a reply for no request, and a non-reply | each request gets its own reply's styles, numbered from 0; a malformed style is dropped |
 | `bounded wait` | no reply within 2 s | the document gets no styles and the dev server logs one warning; a late reply changes nothing |
+| `reload` | a request, then a second client on a new hot context with the same `data`, as Vite's full reload makes, and the replies heard only by the new listener | the first request gets its styles, not the bound; the two clients number their requests 0 and 1, never both 0 (BUGS.md 86) |
 
 ## `shared/protocol/dev-styles.test.ts`
 

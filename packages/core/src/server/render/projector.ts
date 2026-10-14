@@ -11,6 +11,7 @@ export type DevMeta = {
 		| {
 				send: (event: string, payload: unknown) => void;
 				on?: (event: string, listener: (payload: unknown) => void) => void;
+				data?: object;
 		  }
 		| undefined;
 };
@@ -35,7 +36,8 @@ export type Projected = { status: number; error: Error; wire: WireError };
 
 const GENERIC = "Something went wrong";
 
-export function devSink(meta: DevMeta): ErrorSink {
+// `styles` is the dev styles client; by default one made over this hot context (B104).
+export function devSink(meta: DevMeta, styles: ErrorSink["styles"] = devStyles(meta.hot)): ErrorSink {
 	const hot = meta.hot;
 	const dev = meta.env.DEV;
 	const log = createLogger({ dev });
@@ -44,15 +46,21 @@ export function devSink(meta: DevMeta): ErrorSink {
 		(token: string | undefined): Send =>
 		(payload) =>
 			hot.send("flare:error", { token, payload });
-	const on = hot.on;
-	if (on === undefined) return { dev, send: toTab(undefined), toTab, log };
-	// Vite's hot context reads its own state, so both calls keep `hot` as their receiver.
+	if (styles === undefined) return { dev, send: toTab(undefined), toTab, log };
+	return { dev, send: toTab(undefined), toTab, log, styles };
+}
+
+// The dev styles client over a hot context that can listen; none without one. Vite's hot context reads its own state,
+// so both calls keep `hot` as their receiver.
+export function devStyles(hot: DevMeta["hot"]): ErrorSink["styles"] {
+	const on = hot?.on;
+	if (hot === undefined || on === undefined) return undefined;
 	const channel = {
 		send: (event: string, payload: unknown) => hot.send(event, payload),
 		on: (event: string, listener: (payload: unknown) => void) => void Reflect.apply(on, hot, [event, listener]),
+		data: hot.data,
 	};
-	const styles = stylesClient(channel, (message) => log.warn("styles", message));
-	return { dev, send: toTab(undefined), toTab, log, styles };
+	return stylesClient(channel, (message) => createLogger({ dev: true }).warn("styles", message));
 }
 
 // One request's sink: its payloads go to the dev tab its token names (dx/plugin.md, B42). A production sink has no

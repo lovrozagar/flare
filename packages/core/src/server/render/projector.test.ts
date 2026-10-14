@@ -175,6 +175,14 @@ it("dev styles sink", async () => {
 	const sink = devSink({ env: { DEV: true }, hot });
 	expect(await sink.styles?.(["_root_"])).toEqual([]);
 	expect(sent).toEqual([{ request: 0, routes: ["_root_"] }]);
+	// The requests in flight live in the module's hot data, which survives a re-evaluation (BUGS.md 86).
+	const data = {};
+	await devSink({ env: { DEV: true }, hot: { ...hot, data } }).styles?.(["_root_"]);
+	await devSink({ env: { DEV: true }, hot: { ...hot, data } }).styles?.(["_root_"]);
+	expect(sent.slice(1)).toEqual([
+		{ request: 0, routes: ["_root_"] },
+		{ request: 1, routes: ["_root_"] },
+	]);
 	expect(devSink({ env: { DEV: true }, hot: { send: () => undefined } }).styles).toBeUndefined();
 	// A dev server that never answers: the document renders without styles and the warning is logged.
 	vi.useFakeTimers();
