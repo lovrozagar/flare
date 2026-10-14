@@ -153,7 +153,8 @@ function casePlugin(cases: Map<string, string>, apps: Apps): Plugin {
 		load(id) {
 			if (id.startsWith(`\0${APP_CLIENT}`)) {
 				const app = id.slice(APP_CLIENT.length + 1);
-				return appClientModule(app, apps.cases.get(app)?.client.toString() ?? "() => undefined");
+				const input = apps.cases.get(app);
+				return appClientModule(app, input?.client.toString() ?? "() => undefined", input?.hydrateAfter);
 			}
 			if (id.startsWith(`\0${APP}`)) {
 				const app = apps.cases.get(id.slice(APP.length + 1));
