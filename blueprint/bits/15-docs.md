@@ -125,7 +125,8 @@ The dev tab hub (BUGS.md B42), independent of the Node and Bun handler so the Wo
 
 | test | case | result |
 | --- | --- | --- |
-| `ci bun version` | ci.yml's `BUN_VERSION` and the root `package.json` `packageManager` | the same Bun version: CI runs the Bun this repo was verified on |
+| `ci bun version` | every workflow's `BUN_VERSION`, its setup-bun steps, and the root `package.json` `packageManager` | the same Bun version, and every setup-bun step reads `BUN_VERSION`: CI and the release run the Bun this repo was verified on (BUGS.md 115) |
+| `release node` | release.yml's jobs that set up Bun | each sets Node 24 right after checkout, as every CI job does (BUGS.md 115) |
 | `ci node` | `.github/workflows/ci.yml` parsed | every job has `actions/setup-node` with `node-version: 24` after its checkout (B3, BUGS.md B24) |
 | `ci unit on both oses` | the same file | the Linux check job and `e2e-mac` both run `bun run test`, so the unit suite runs on Linux and macOS (B3, BUGS.md B27) |
 | `ci unit on bun` | the same file | the check job also runs `bun run test:bun` (the root script, which is `bun --bun run --filter @lovrozagar/flare test:bun`, and that is `vitest run` without coverage), so every unit test runs under the Bun runtime too. Coverage stays a Node gate: the per-file 100% is measured on Node's V8 data, and Bun's coverage of the same passing tests disagrees on 6 files (plan 14 leaf 8.20) |

@@ -611,6 +611,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 114.2 [x] Fix (flare-77's ruling): Bun's `maxRequestBodySize` is a ceiling, never the enforcement. `createBunFetch` returns Bun's own default, 128 MiB, a constant above the 32 MiB `bodyLimit` maximum, so Flare's capped reader (`server-fn/input.ts`: the `Content-Length` precheck, then the capped read) answers every over-limit body with 413 first, as on Node. Above 128 MiB the platform cuts the connection. B110's part stays: createServer checks `bodyLimit` and carries it on the server object.
 114.3 [x] Test: bun serve `bun oversized post`, under `test:bun` only, a real Bun.serve with a 64 KiB `bodyLimit` and an 8 MiB server-function POST over a raw kept-alive socket, sized and chunked: 413 both, 3 of 3; on the old adapter `EPIPE` both, 3 of 3. Bun's own `node:http` client read Bun's early 413 either way, so it could not witness the cut. `ceiling` and `server limit` replace `body limit` and `default`. The e2e `body limit` sends 8 MiB: node, bun, and workers prod and dev chromium ×5, 30 of 30; on the old adapter bun-prod-chromium failed 5 of 5 with `write EPIPE`. Node and Workers answered 413 at 8 MiB, so neither has this bug.
 
+115 [x] B115 The release workflow ran v0's Bun and the runner's Node
+115.1 [x] Found by flare-77: `.github/workflows/release.yml` pinned `BUN_VERSION` 1.3.11 after 6ef6863c moved ci.yml and `packageManager` to 1.4.3, and its verify job set no Node, so it ran the runner's own, older than the 22.18 the repo needs. The workflow last ran 2026-10-06, in the v0 era, so it had never verified the v1 tree. Under 1.3.11 the size gate measures 1137 against the 1100 budget (BUGS 35), so a v1.0.0 tag would have failed its own verify step. ci.test checked ci.yml's pin only.
+115.2 [x] Fix: release.yml pins 1.4.3, and its verify and npmjs jobs set Node 24 right after checkout, the npmjs job before setup-bun. ci.test reads every workflow in `.github/workflows`.
+115.3 [x] Test: ci `ci bun version` over every workflow (red: `bun@1.3.11`), with every setup-bun step reading `BUN_VERSION`; `release node` (red: setup-bun came first, and verify had no Node). flare-77 dispatches release.yml on main once this lands: a dispatch verifies only, since `release.ts --publish` refuses off a tag.
+
 ## Verify
 
 97 [ ] Verify
