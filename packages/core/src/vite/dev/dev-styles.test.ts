@@ -1,7 +1,11 @@
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createServer, type Plugin } from "vite";
 import { expect, it, vi } from "vitest";
 import { STYLES_EVENT, type DevStyle } from "../../shared/protocol/index.ts";
-import { installDevStyles, type GraphNode, type StylesServer } from "./dev-styles.ts";
+import { directStyle, installDevStyles, type GraphNode, type StylesServer } from "./dev-styles.ts";
 
 // The docs app's routes are the route map; the module graph and the served CSS are the test's.
 const ROOT = fileURLToPath(new URL("../../../tests/e2e/apps/docs/", import.meta.url));
@@ -41,7 +45,10 @@ function fake() {
 	});
 	const client = {
 		transformRequest,
-		moduleGraph: { getModulesByFile: (file: string) => (file === entry.id ? new Set([entry]) : undefined) },
+		moduleGraph: {
+			getModulesByFile: (file: string) => (file === entry.id ? new Set([entry]) : undefined),
+			ensureEntryFromUrl: async () => undefined,
+		},
 	};
 	const server: StylesServer = {
 		config: { root: ROOT },
@@ -131,3 +138,53 @@ it("entry not in graph", async () => {
 		`${ROOT}src/styles.css`,
 	]);
 });
+
+// A real dev server whose stylesheet transform is held open, as a first Tailwind compile holds it: an edit of the file
+// before the transform ends sends the clients no full reload, and the served CSS still arrives (BUGS.md 111).
+it("edit mid compile", async () => {
+	const root = realpathSync(mkdtempSync(join(tmpdir(), "flare-dev-styles-")));
+	const file = join(root, "styles.css");
+	writeFileSync(file, "body { color: red; }\n");
+	const started = Promise.withResolvers<void>();
+	const held = Promise.withResolvers<void>();
+	const updated = Promise.withResolvers<void>();
+	const plugin: Plugin = {
+		name: "held",
+		async transform(_code, id) {
+			if (!id.includes("styles.css")) return;
+			started.resolve();
+			await held.promise;
+		},
+		hotUpdate() {
+			if (this.environment.name === "client") updated.resolve();
+		},
+	};
+	const server = await createServer({
+		root,
+		configFile: false,
+		logLevel: "silent",
+		server: { middlewareMode: true, ws: false },
+		plugins: [plugin],
+	});
+	try {
+		const client = server.environments.client;
+		const sent: string[] = [];
+		const send = client.hot.send.bind(client.hot);
+		Reflect.set(client.hot, "send", (payload: unknown, ...rest: unknown[]) => {
+			sent.push(String(Reflect.get(Object(payload), "type")));
+			return Reflect.apply(send, client.hot, [payload, ...rest]);
+		});
+		const css = directStyle(client, "/styles.css");
+		await started.promise;
+		writeFileSync(file, "body { color: blue; }\n");
+		server.watcher.emit("change", file);
+		await updated.promise;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		held.resolve();
+		expect(await css).toContain("body");
+		expect(sent).not.toContain("full-reload");
+	} finally {
+		await server.close();
+		rmSync(root, { recursive: true, force: true });
+	}
+}, 30_000);

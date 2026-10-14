@@ -1,5 +1,7 @@
-import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
-import { documents, expect, isProd, open, test } from "./docs.fixture.ts";
+import { appendFileSync } from "node:fs";
+import type { Page } from "@playwright/test";
+import { bootCopy } from "./copy-boot.ts";
+import { documents, expect, isProd, open, serverOf, test } from "./docs.fixture.ts";
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
 // A document whose own status is not 200 logs that resource failure, and nothing else. `logs` are the flare errors
@@ -167,18 +169,11 @@ test("dev first paint", async ({ page, docs }, info) => {
 	await expect(page.locator("#nav")).toHaveCSS("position", "sticky");
 });
 
-// The client adopts the server's dev styles: one style per module id after hydration, and still one after an HMR
-// edit of the app's CSS, with the new rule applied (B104).
+// The client adopts the server's dev styles: one style per module id after hydration, Tailwind's entry compiled (B104).
 test("dev styles adopted", async ({ page, docs }, info) => {
 	test.skip(isProd(info), "dev styles");
-	const ids = () =>
-		page.evaluate(() =>
-			[...document.querySelectorAll("style[data-vite-dev-id]")].map(
-				(style) => style.getAttribute("data-vite-dev-id") ?? "",
-			),
-		);
 	await open(page, docs.origin, "/docs/routing");
-	const first = await ids();
+	const first = await styleIds(page);
 	expect(first.some((id) => id.endsWith("/src/styles.css"))).toBe(true);
 	// Tailwind's entry comes out compiled: a generated utility's rule is in it, not the `@import` source.
 	const tailwind = await page.evaluate(
@@ -187,24 +182,43 @@ test("dev styles adopted", async ({ page, docs }, info) => {
 	expect(tailwind).toMatch(/\.mx-auto\s*\{/);
 	expect(tailwind).not.toContain('@import "tailwindcss"');
 	expect(new Set(first).size).toBe(first.length);
-	// Every dev project edits this one file, at the same time on a parallel run: each appends its own rule and then
-	// removes exactly that rule from what the file holds then, so no run restores over another's edit (BUGS.md 99).
-	const file = `${docs.appDir}/src/styles.css`;
-	const name = `b59-hmr-probe-${Math.random().toString(36).slice(2, 10)}`;
-	const rule = `\n.${name} { color: rgb(1, 2, 3); }\n`;
+});
+
+// An edit of the app's stylesheet hot-updates the adopted style in place: the new rule applies, one style per module id
+// remains, and the page is not reloaded, so its state survives. The edit is on a private copy of the app, under its own
+// dev server, so no other boot sees it (B70, BUGS.md 111).
+test("dev styles hmr", async ({ page }, info) => {
+	test.skip(isProd(info), "dev styles");
+	const session = await bootCopy({ app: "docs", runtime: serverOf(info).split("-")[0] ?? "node" });
 	try {
-		appendFileSync(file, rule);
-		await page.evaluate((probeClass) => {
+		const problems = await open(page, session.origin, "/docs/routing");
+		await page.evaluate(() => Object.assign(window, { b59Kept: true }));
+		const file = `${session.appDir}/src/styles.css`;
+		appendFileSync(file, "\n.b59-hmr-probe { color: rgb(1, 2, 3); }\n");
+		await page.evaluate(() => {
 			const probe = document.createElement("p");
-			probe.className = probeClass;
+			probe.className = "b59-hmr-probe";
 			probe.id = "b59-probe";
 			document.body.append(probe);
-		}, name);
+		});
 		await expect(page.locator("#b59-probe")).toHaveCSS("color", "rgb(1, 2, 3)");
-		const after = await ids();
+		expect(await page.evaluate(() => Reflect.get(window, "b59Kept"))).toBe(true);
+		const after = await styleIds(page);
 		expect(after.filter((id) => id.endsWith("/src/styles.css"))).toHaveLength(1);
 		expect(new Set(after).size).toBe(after.length);
+		const logs = session.logs();
+		expect(logs.some((line) => /hmr update .*\/src\/styles\.css/.test(line))).toBe(true);
+		expect(logs.filter((line) => line.includes("page reload"))).toEqual([]);
+		expect(problems).toEqual([]);
 	} finally {
-		writeFileSync(file, readFileSync(file, "utf8").replace(rule, ""));
+		await session.close();
 	}
 });
+
+function styleIds(page: Page): Promise<string[]> {
+	return page.evaluate(() =>
+		[...document.querySelectorAll("style[data-vite-dev-id]")].map(
+			(style) => style.getAttribute("data-vite-dev-id") ?? "",
+		),
+	);
+}

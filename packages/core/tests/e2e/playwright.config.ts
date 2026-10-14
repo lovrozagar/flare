@@ -29,7 +29,7 @@ const projects = inWorker || requested.size === 0 ? all : all.filter((project) =
 export default defineConfig({
 	testDir: import.meta.dirname,
 	// Vitest files beside the specs: the boot helper's own tests and the golden proof from the tarball (B70, bits/14).
-	testIgnore: ["**/boot.test.ts", "**/golden.test.ts"],
+	testIgnore: ["**/boot.test.ts", "**/copy-boot.test.ts", "**/golden.test.ts"],
 	globalSetup: "./global-setup.ts",
 	fullyParallel: false,
 	retries: 0,
