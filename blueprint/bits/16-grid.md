@@ -22,8 +22,8 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 
 | test | case | result |
 | --- | --- | --- |
-| `css only` | the hook in a server environment for a plain `.css` and a `.scss` edit, a `.module.css` edit, a stylesheet also imported with `?inline`, and a `.tsx` edit; then the client environment | `[]` for the two plain stylesheets, so Vite sends no update; Vite's own update for every other case and for the client |
-| `server kept` | a real dev server whose ssr module imports a stylesheet and a shared module, then an edit to the stylesheet | no `full-reload` reaches the ssr environment, and the shared module is the same instance on the next import. Red without the hook: a full reload, and a new instance |
+| `css only` | the hook, `order: "pre"`, in a server environment for a plain `.css` and a `.scss` edit, a `.module.css` edit, a stylesheet also imported with `?inline`, and a `.tsx` edit; then the client environment | `[]` for the two plain stylesheets, so Vite sends no update; Vite's own update for every other case and for the client |
+| `server kept` | a real dev server with Solid's plugin before the hook, as `flare()` lists them, whose ssr module imports a stylesheet and a shared module, then an edit to the stylesheet | no `full-reload` reaches the ssr environment, and the shared module is the same instance on the next import. Red without the hook, and red with it running after Solid's: Solid's own hook sends the reload |
 
 ## `vite/dev/dev-head.test.ts`
 
