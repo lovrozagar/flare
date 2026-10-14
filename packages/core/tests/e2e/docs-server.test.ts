@@ -1,3 +1,4 @@
+import { request as httpRequest } from "node:http";
 import { deepOnly, expect, fnId, INDEX_NOW_KEY, nonces, open, sessionCookie, test } from "./docs.fixture.ts";
 
 // Auth, CSRF, the body cap, middleware, mounts, `.response()`, route headers, and security (bits/15 docs-server).
@@ -44,12 +45,36 @@ test("csrf", async ({ request, docs }) => {
 	expect(response.status()).toBe(403);
 });
 
-test("body limit", async ({ request, docs }) => {
-	const response = await request.post(`${docs.origin}/_flare/fn/${ECHO}`, {
-		headers: { origin: docs.origin, "content-type": "application/json" },
-		data: JSON.stringify({ text: "x".repeat(70 * 1024) }),
+// A POST whose body waits for the server's go-ahead (`Expect: 100-continue`). workerd answers an oversized body's 413
+// without reading it, then resets the connection with the body unread, so a client still sending or reading late lost
+// the answer to ECONNRESET. With the header nothing is sent unread. workerd sends no `100 Continue`, so on Workers only
+// an answer that reads no body comes back, as the cap's 413 does; a handler that read it would hang (BUGS.md 104).
+function postExpectingContinue(url: string, origin: string, body: string): Promise<number> {
+	return new Promise((resolve, reject) => {
+		const call = httpRequest(url, {
+			method: "POST",
+			headers: {
+				origin,
+				"content-type": "application/json",
+				"content-length": Buffer.byteLength(body),
+				expect: "100-continue",
+			},
+		});
+		call.on("continue", () => call.end(body));
+		call.on("response", (response) => {
+			response.resume();
+			response.on("end", () => resolve(response.statusCode ?? 0));
+		});
+		call.on("error", reject);
+		call.flushHeaders();
 	});
-	expect(response.status()).toBe(413);
+}
+
+test("body limit", async ({ request, docs }) => {
+	const url = `${docs.origin}/_flare/fn/${ECHO}`;
+	const small = await request.post(url, { headers: { origin: docs.origin }, data: { text: "hi" } });
+	expect(small.status()).toBe(200);
+	expect(await postExpectingContinue(url, docs.origin, JSON.stringify({ text: "x".repeat(70 * 1024) }))).toBe(413);
 });
 
 test("middleware next", async ({ request, docs }) => {
