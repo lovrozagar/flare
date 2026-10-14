@@ -60,159 +60,67 @@ test("stream transport", async ({ page, docs }, info) => {
 });
 
 // The main-thread probe for BUGS.md 100, measurements with no pass bar: every frame gap over 50 ms in the 2 s after a
-// moment, beside the page's font loads and each face's status per frame. Each setup is the first page of its own
-// context, as `stream`'s playground is, and each group writes `main-thread-<group>.json`, which e2e-mac uploads. A group
-// is its own case with room for a slow runner, so one slow setup never drops the others.
+// moment, beside the page's font loads, each face's status per frame, and a collection witness. Each run is the first
+// page of its own context, as `stream`'s playground is, and each group writes `main-thread-<group>.json`, which e2e-mac
+// uploads. The pause needs the hydrated page and comes after a DOM change; `stream`'s click meets it far more often than
+// a hand append does, so the hydrated page's pieces are cut away one at a time on the click.
 //
-// `load` samples from the load: about:blank; the playground's HTML with every script removed (`static`: its DOM and
-// critical CSS; in dev its inline module styles too); that page with the built stylesheet applied, which production's
-// removed swap script would have done (`static full css`); the playground; the playground whose client entry is an
-// empty module (nothing hydrates); and the playground under `stream`'s init scripts.
-test("main thread load", async ({ browser, request, docs }, info) => {
-	test.setTimeout(120_000);
-	const pages = await probePages(docs.origin, request);
+// `click`, five times each, gaps from the click: `stream`'s click on the hydrated playground; the same after removing
+// `data-flare-hydrated`; after removing the client's `<link rel="modulepreload">`s; with ResizeObserver,
+// IntersectionObserver, and MutationObserver all made inert before the page's scripts run (the probe's own observers
+// are installed first); and, with no click handler to press, the hand append on the playground whose entry imports
+// everything the real entry imports but never calls `createClient` (`evaluated append`, gaps from the append).
+test("main thread click", async ({ browser, request, docs }, info) => {
+	test.setTimeout(300_000);
+	const entry = await stubEntry(docs.origin, request);
+	const click =
+		(
+			before: (page: Page) => Promise<void> = async () => undefined,
+			after: (page: Page) => Promise<void> = async () => undefined,
+		) =>
+		async (page: Page): Promise<Sample> => {
+			await instrumentStream(page);
+			await before(page);
+			await open(page, docs.origin, "/playground");
+			await after(page);
+			await startStream(page);
+			return sample(page, "click");
+		};
 	await probe(
-		{ browser, info, group: "load" },
+		{ browser, info, group: "click" },
 		{
-			blank: async (page) => (await page.goto("about:blank"), sample(page, "load")),
-			static: async (page) => (await staticPage(page, docs.origin, pages.bare), sample(page, "load")),
-			"static full css": async (page) => {
-				await staticPage(page, docs.origin, pages.styled);
-				await expectFullCss(page, pages.sheet);
-				return sample(page, "load");
-			},
-			live: async (page) => (await page.goto(pages.playground), sample(page, "load")),
-			"live no client": async (page) => {
-				await page.route(`${docs.origin}${pages.entry}`, (route) =>
-					route.fulfill({ body: "export {};", contentType: "text/javascript" }),
+			click: click(),
+			"click no hydrated attr": click(undefined, (page) =>
+				page.evaluate(() => document.documentElement.removeAttribute("data-flare-hydrated")),
+			),
+			"click no modulepreload": click(undefined, (page) =>
+				page.evaluate(() => {
+					for (const link of document.querySelectorAll('link[rel="modulepreload"]')) link.remove();
+				}),
+			),
+			"click no observers": click(inertObservers),
+			"evaluated append": async (page) => {
+				await page.route(`${docs.origin}${entry.path}`, (route) =>
+					route.fulfill({ body: entry.stub, contentType: "text/javascript" }),
 				);
-				await page.goto(pages.playground);
-				const result = await sample(page, "load");
-				expect(await page.locator("html[data-flare-hydrated]").count()).toBe(0);
-				return result;
-			},
-			"live instrumented": async (page) => {
-				await instrumentStream(page);
-				await page.goto(pages.playground);
-				return sample(page, "load");
-			},
-		},
-	);
-});
-
-// `append` samples from the DOM change of `stream`'s first line made by hand: on the script-free page with the full
-// stylesheet; on that page holding a synthetic retained heap the size of the hydrated playground's (about 3 MB in
-// Chromium), so any page that size meets the same collector; on the playground whose client never runs, which keeps its
-// inline head scripts (theme, direction, language) and so the same `<html>` attributes; on the hydrated playground ten
-// times, for a rate; and on the hydrated playground twice in a row, where a one-time cost (a compile, a lazy init)
-// lands on the first append only and a collection on either.
-test("main thread append", async ({ browser, request, docs }, info) => {
-	test.setTimeout(240_000);
-	const pages = await probePages(docs.origin, request);
-	const hydrated = async (page: Page): Promise<void> => void (await open(page, docs.origin, "/playground"));
-	await probe(
-		{ browser, info, group: "append" },
-		{
-			"static full css append": async (page) => {
-				await staticPage(page, docs.origin, pages.styled);
-				await expectFullCss(page, pages.sheet);
-				return appendLine(page, 1);
-			},
-			"static synthetic heap append": async (page) => {
-				await staticPage(page, docs.origin, pages.styled);
-				await page.evaluate(() => {
-					const items = Array.from({ length: 24_000 }, (_, index) => ({
-						id: index,
-						label: `item ${index}`,
-						tags: [index, index + 1],
-						read: () => index,
-					}));
-					Reflect.set(window, "probeHeap", items);
-				});
+				await page.goto(`${docs.origin}/playground`);
 				await page.waitForTimeout(1000);
+				expect(await page.locator("html[data-flare-hydrated]").count()).toBe(0);
 				return appendLine(page, 1);
-			},
-			"live no client append": async (page) => {
-				await page.route(`${docs.origin}${pages.entry}`, (route) =>
-					route.fulfill({ body: "export {};", contentType: "text/javascript" }),
-				);
-				await page.goto(pages.playground);
-				return appendLine(page, 1);
-			},
-			"live append twice": async (page) => {
-				await hydrated(page);
-				const first = await appendLine(page, 1);
-				return { ...first, again: await appendLine(page, 2) };
 			},
 		},
 		5,
 	);
+});
+
+// `append`, ten times, as the baseline rate: the hand append on the hydrated playground.
+test("main thread append", async ({ browser, docs }, info) => {
+	test.setTimeout(180_000);
 	await probe(
-		{ browser, info, group: "append live" },
-		{ "live append": async (page) => (await hydrated(page), appendLine(page, 1)) },
+		{ browser, info, group: "append" },
+		{ "live append": async (page) => (await open(page, docs.origin, "/playground"), appendLine(page, 1)) },
 		10,
 	);
-});
-
-// `click` samples from `stream`'s click, cold and with Docs Mono warm, and from one hidden `font-mono` span's insert.
-test("main thread click", async ({ browser, docs }, info) => {
-	test.setTimeout(120_000);
-	await probe(
-		{ browser, info, group: "click" },
-		{
-			"live instrumented click": async (page) => {
-				await instrumentStream(page);
-				await open(page, docs.origin, "/playground");
-				await startStream(page);
-				return sample(page, "click");
-			},
-			"live mono": async (page) => {
-				await open(page, docs.origin, "/playground");
-				await page.evaluate(() => {
-					Reflect.set(window, "probeMark", performance.now());
-					document.body.append(Reflect.apply(Reflect.get(window, "monoSpan") as () => HTMLElement, window, []));
-				});
-				return sample(page, "mark");
-			},
-			"live warm click": async (page) => {
-				await instrumentStream(page);
-				await open(page, docs.origin, "/playground");
-				await page.evaluate(async () => {
-					document.body.append(Reflect.apply(Reflect.get(window, "monoSpan") as () => HTMLElement, window, []));
-					await document.fonts.load('12px "Docs Mono"');
-					await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-				});
-				await startStream(page);
-				return sample(page, "click");
-			},
-		},
-	);
-});
-
-// `heap` reads the retained JS heap after a second of idle and a forced collection, where the engine exposes it
-// (Chromium, over the DevTools protocol), on about:blank, the docs home, and the hydrated playground, so the pause's heap
-// has a scale (BUGS.md 100). Other engines record null.
-test("main thread heap", async ({ browser, browserName, docs }, info) => {
-	test.setTimeout(120_000);
-	const report: Record<string, { used: number; total: number } | null> = {};
-	for (const path of ["about:blank", "/", "/playground"]) {
-		const context = await browser.newContext();
-		const page = await context.newPage();
-		if (path === "about:blank") await page.goto(path);
-		else await open(page, docs.origin, path);
-		await page.waitForTimeout(1000);
-		if (browserName === "chromium") {
-			const cdp = await context.newCDPSession(page);
-			await cdp.send("HeapProfiler.collectGarbage");
-			const { usedSize, totalSize } = await cdp.send("Runtime.getHeapUsage");
-			report[path] = { used: usedSize, total: totalSize };
-		} else report[path] = null;
-		await context.close();
-	}
-	const path = info.outputPath("main-thread-heap.json");
-	writeFileSync(path, `${JSON.stringify(report)}\n`);
-	await info.attach("main thread heap", { path, contentType: "application/json" });
-	expect(Object.keys(report)).toHaveLength(3);
 });
 
 // Gaps as `<start>+<length>`, and font loads as `<at>:<event>:<faces>`, each from the moment; each face's status when
@@ -249,33 +157,34 @@ async function probe(
 	expect(Object.values(report).every((runs) => runs.length === times)).toBe(true);
 }
 
-// The playground's document as the server sends it: its URL, its client entry, its built stylesheet (production only),
-// and its HTML with every script removed, bare and with that stylesheet linked.
-async function probePages(origin: string, request: APIRequestContext) {
-	const playground = `${origin}/playground`;
-	const live = await (await request.get(playground)).text();
-	const bare = live.replaceAll(/<script\b[^>]*>[\s\S]*?<\/script>|<link\b[^>]*rel="modulepreload"[^>]*>/g, "");
-	const entry = /import\("([^"]+)"\)/.exec(live)?.[1];
-	expect(entry).toBeDefined();
-	const sheet = /<link\b(?=[^>]*\bas="style")[^>]*\bhref="([^"]+)"/.exec(live)?.[1];
-	const styled = sheet === undefined ? bare : bare.replace("</head>", `<link rel="stylesheet" href="${sheet}"></head>`);
-	return { playground, entry, sheet, bare, styled };
+// The playground's client entry, and a stand-in for it that imports everything it statically imports and calls nothing,
+// so the app's modules evaluate and nothing hydrates.
+async function stubEntry(origin: string, request: APIRequestContext): Promise<{ path: string; stub: string }> {
+	const live = await (await request.get(`${origin}/playground`)).text();
+	const path = /import\("([^"]+)"\)/.exec(live)?.[1] ?? "";
+	expect(path).not.toBe("");
+	const source = await (await request.get(`${origin}${path}`)).text();
+	const specifiers = [...source.matchAll(/\b(?:import|export)\s*(?:[\w${}*,\s]+?\bfrom\s*)?["']([^"']+)["']/g)].map(
+		(match) => new URL(match[1] ?? "", `${origin}${path}`).href,
+	);
+	expect(specifiers.length).toBeGreaterThan(0);
+	return { path, stub: specifiers.map((specifier) => `import ${JSON.stringify(specifier)};`).join("\n") };
 }
 
-async function staticPage(page: Page, origin: string, html: string): Promise<void> {
-	await page.route(`${origin}/__probe`, (route) => route.fulfill({ body: html, contentType: "text/html" }));
-	await page.goto(`${origin}/__probe`, { waitUntil: "load" });
-	expect(await page.locator("script").count()).toBe(0);
-}
-
-// Production's built stylesheet is applied; a dev page carries its module styles inline instead.
-async function expectFullCss(page: Page, sheet: string | undefined): Promise<void> {
-	if (sheet === undefined) {
-		expect(await page.locator("style[data-vite-dev-id]").count()).toBeGreaterThan(0);
-		return;
-	}
-	const hrefs = await page.evaluate(() => [...document.styleSheets].map((each) => each.href ?? ""));
-	expect(hrefs.some((href) => href.endsWith(sheet))).toBe(true);
+// ResizeObserver, IntersectionObserver, and MutationObserver made inert before any page script runs: each observes
+// nothing and never calls back.
+async function inertObservers(page: Page): Promise<void> {
+	await page.addInitScript(() => {
+		const inert = class {
+			observe(): void {}
+			unobserve(): void {}
+			disconnect(): void {}
+			takeRecords(): never[] {
+				return [];
+			}
+		};
+		for (const kind of ["ResizeObserver", "IntersectionObserver", "MutationObserver"]) Reflect.set(window, kind, inert);
+	});
 }
 
 // The DOM change `stream`'s first line makes, with no server function and no Solid: one `<li>` in `#stream-log`, then
