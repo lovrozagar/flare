@@ -294,6 +294,23 @@ test("stylesheet after critical", async ({ browser, request, docs }, info) => {
 	expect(dark.card).not.toBe(light.card);
 });
 
+// No element inside a named view-transition group animates on a doc page reached by a card: Firefox drops frames when
+// content inside an entering named element animates (dx/navigate.md, BUGS.md B61).
+test("named content still", async ({ page, docs }) => {
+	await open(page, docs.origin, "/");
+	await page.locator("section.grid a").first().click();
+	await expect(page.locator("#doc-title")).toBeVisible();
+	await page.waitForLoadState("networkidle");
+	const animated = await page.evaluate(() =>
+		[...document.querySelectorAll('[style*="view-transition-name"] *')]
+			.filter((element) => getComputedStyle(element).animationName !== "none")
+			.map(
+				(element) => `${element.tagName.toLowerCase()}.${element.className} ${getComputedStyle(element).animationName}`,
+			),
+	);
+	expect(animated).toEqual([]);
+});
+
 test("css module", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
 	const block = page.locator("[data-code-block]").first();

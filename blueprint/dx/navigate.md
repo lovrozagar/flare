@@ -36,6 +36,10 @@ A build-id mismatch and a missing chunk share one document load. `sessionStorage
 
 `info` is `{ direction, fromLocation, toLocation, pathChanged }`. Locations are `{ hash, pathname, search }`.
 
+A browser without element-scoped view transitions (Firefox 155 has no `Element.prototype.startViewTransition`) runs a `ViewTransitionBoundary` scope as a document transition: the whole page crossfades, with any named groups inside it.
+
+Do not animate content inside an element that enters a view transition under a `view-transition-name`. In Firefox 155, a running CSS animation (opacity or transform) inside such an element drops frames to the page background, so the entrance flickers; Chromium is smooth (BUGS.md B61). Animate the entrance on the pseudo-element instead, and only when there is no old image: `::view-transition-new(article):only-child { animation: rise 0.4s ease-out both; }`. Measured in Firefox 155, that entrance is smooth. Without `:only-child` the rule also runs when the group has an old image, and the content dims mid-transition.
+
 ## ViewTransitionBoundary
 
 ```tsx
