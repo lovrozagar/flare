@@ -30,8 +30,13 @@ export const buildLog = createServerFn()
 		runs.set(input.run, "done");
 	});
 
+// Resolves when the run is stopped, at once when the stop already came, or after HOLD_MS.
 function stopped(signal: AbortSignal): Promise<void> {
 	return new Promise((resolve) => {
+		if (signal.aborted) {
+			resolve();
+			return;
+		}
 		const timer = setTimeout(resolve, HOLD_MS);
 		signal.addEventListener("abort", () => {
 			clearTimeout(timer);

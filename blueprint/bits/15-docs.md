@@ -63,7 +63,7 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 
 ## `tests/e2e/docs-resilience.test.ts`
 
-`build mismatch reload` (a data answer from a newer deploy is one document load under the `flare_chunk_reload` guard), `missing chunk reload` (production), `network failure` (screen and history unchanged), `abort keeps latest`, `overlay history` (back clears the overlay without a fetch, forward reopens it), `concurrent misses render once` (production), `accept language`, `bad locale cookie` (a wrong-case cookie is no cookie), `bot stays put`, `csrf headers` (`Sec-Fetch-Site` cross-site and same-site off the list, a foreign `Referer`), `phone layout` (no horizontal overflow, the sidebar hides, a tap navigates).
+`build mismatch reload` (a data answer from a newer deploy is one document load under the `flare_chunk_reload` guard), `missing chunk reload` (production), `network failure` (screen and history unchanged), `abort keeps latest`, `overlay history` (back clears the overlay without a fetch, forward reopens it), `concurrent misses render once` (production), `accept language`, `bad locale cookie` (a wrong-case cookie is no cookie), `bot stays put`, `csrf headers` (`Sec-Fetch-Site` cross-site and same-site off the list, a foreign `Referer`; the rejected POSTs carry no body, since local Miniflare resets a kept-alive connection after a 403 that left the body unread, BUGS.md B56), `phone layout` (no horizontal overflow, the sidebar hides, a tap navigates).
 
 ## `tests/integration/docs.test.ts`
 
@@ -113,6 +113,7 @@ The dev tab hub (BUGS.md B42), independent of the Node and Bun handler so the Wo
 | test | case | result |
 | --- | --- | --- |
 | `miniflare drops disconnect` | a worker that streams a line every 100 ms and records its `request.signal` abort and its body's `cancel()`; the client reads one chunk and aborts, then reads the recorded status after 500 ms; with and without `enable_request_signal` | the status is still `running` in all four runs. A Miniflare that reports the disconnect fails this case, which is the cue to re-enable `stream abort` on `workers-*` (BUGS.md B45) |
+| `miniflare resets unread body` | a worker that answers 403 without reading the request body; two POSTs on one kept-alive socket (`maxSockets: 1`) | the first answers 403 and the second fails with `ECONNRESET`. A Miniflare that keeps the connection fails this case, which is the cue to give the rejected POSTs in `csrf headers` their body back (BUGS.md B56) |
 
 ## `tests/structure/ci.test.ts`
 
