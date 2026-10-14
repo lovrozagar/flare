@@ -1,4 +1,4 @@
-import { createComponent, createSignal, flush, onCleanup } from "solid-js";
+import { createComponent, createMemo, createSignal, flush, Loading, onCleanup } from "solid-js";
 import { render, type JSX } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
 import type { ErrorRender, Located } from "../route-builder/index.ts";
@@ -195,6 +195,44 @@ it("page remounts", () => {
 		"mount page _root_/users/[id]/posts-data",
 		"cleanup page _root_/users/[id]/posts-data",
 	]);
+});
+
+// A layout whose own segment's params change remounts, so a read on them starts under a fresh <Loading> and shows its
+// fallback instead of holding the navigation. The root stays mounted even when its own `[[locale]]` changes: it renders
+// the document, which a remount cannot rebuild (B106, BUGS.md 68).
+it("layout own params", async () => {
+	const never = new Promise<string>(() => undefined);
+	const mounts: string[] = [];
+	const counted = createRootLayout("_root_").render((props) => {
+		mounts.push("root");
+		return ["root[", props.children, "]"];
+	});
+	const reading = createLayout("_root_/users/[id]").render((props) => [
+		"layout[",
+		createComponent(Loading, {
+			fallback: "wait",
+			get children() {
+				const id = String(Reflect.get(Object(props.params), "id"));
+				const value = createMemo(async () => (id === "L" ? "L" : never));
+				return [() => value()];
+			},
+		}),
+		createComponent(Outlet, {}),
+		"]",
+	]);
+	const first = [entry("[[locale]]/_root_", "layout", counted), ...chain(reading, page).slice(1)];
+	const [state, setState] = createSignal<OutletState>({ matches: first, onBoundaryError: report });
+	const host = mount(state);
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	flush();
+	expect(host.textContent).toBe("root[layout[Lpage:_root_/users/[id]/posts-data]]");
+	const moved = first.map((match) => ({ ...match, params: { id: "M", locale: "hr" } }));
+	setState({ matches: moved, onBoundaryError: report });
+	flush();
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	flush();
+	expect(host.textContent).toBe("root[layout[waitpage:_root_/users/[id]/posts-data]]");
+	expect(mounts).toEqual(["root"]);
 });
 
 it("no render", () => {
