@@ -1,9 +1,16 @@
 import { readFileSync } from "node:fs";
 import { load } from "js-yaml";
 import { expect, it } from "vitest";
+import { IMAGE_DIGEST } from "../../../../scripts/browser-server.ts";
 
 type Step = { uses?: string; run?: string; with?: Record<string, unknown> };
-type Workflow = { env?: Record<string, string>; jobs: Record<string, { "runs-on": string; steps: Step[] }> };
+type Job = {
+	"runs-on": string;
+	steps: Step[];
+	container?: { image?: string; options?: string };
+	strategy?: { matrix?: Record<string, unknown> };
+};
+type Workflow = { env?: Record<string, string>; jobs: Record<string, Job> };
 
 const workflow = load(
 	readFileSync(new URL("../../../../.github/workflows/ci.yml", import.meta.url), "utf8"),
@@ -45,4 +52,19 @@ it("ci unit on bun", () => {
 	const runs = workflow.jobs["check"]?.steps.map((step) => step.run) ?? [];
 	const node = runs.indexOf("bun run test");
 	expect(runs.slice(node, node + 2)).toEqual(["bun run test", "bun run test:bun"]);
+});
+
+// The Linux grid runs inside the pinned browser image, the digest the local container uses, in 3 shards; macOS runs
+// the 6 webkit projects (B70, B97).
+it("ci grid", () => {
+	const linux = workflow.jobs["e2e-linux"];
+	expect(linux?.container?.image).toBe(`mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`);
+	expect(linux?.container?.options).toBe("--user 1001 --ipc=host");
+	expect(linux?.strategy?.matrix?.["shard"]).toEqual([1, 2, 3]);
+	expect(linux?.steps.at(-1)?.run).toBe("bun run test:e2e -- --shard=${{ matrix.shard }}/3");
+	const mac = workflow.jobs["e2e-mac"]?.steps.at(-1)?.run ?? "";
+	const servers = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"];
+	expect([...mac.matchAll(/--project (\S+)/g)].map((match) => match[1])).toEqual(
+		servers.map((server) => `${server}-webkit`),
+	);
 });
