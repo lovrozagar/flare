@@ -1,5 +1,5 @@
-export { applySecurity, mergeHeaders } from "./apply.ts";
-export type { SecurityConfig } from "./apply.ts";
-export { buildCsp } from "./csp.ts";
-export type { CspDirectives, PermissionMap } from "./csp.ts";
+export { applySecurity, mergeHeaders, SECURITY_KEYS } from "./apply.ts";
+export type { Secured, SecurityConfig, SecurityContext, ServerSecurity } from "./apply.ts";
+export { buildCsp, randomNonce } from "./csp.ts";
+export type { CspDirectives, PermissionsPolicy } from "./csp.ts";
 export { defaultHeaders } from "./defaults.ts";

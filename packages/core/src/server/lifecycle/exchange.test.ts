@@ -3,7 +3,7 @@ import { answer, bare, secure, typed } from "./exchange.ts";
 
 const exchange = {
 	request: new Request("http://localhost/a"),
-	secured: { headers: new Headers({ "x-frame-options": "DENY" }), nonce: "" },
+	secured: { headers: new Headers({ "x-frame-options": "DENY" }), nonce: "", config: {}, candidate: "" },
 };
 
 it("answer", async () => {

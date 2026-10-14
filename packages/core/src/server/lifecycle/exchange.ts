@@ -5,12 +5,10 @@ import type { Session } from "../context/ctx.ts";
 import type { LoaderRun } from "../loaders/run.ts";
 import type { MountContext } from "../mount/mount.ts";
 import { projectError, type ErrorSink } from "../render/projector.ts";
-import { applySecurity, type SecurityConfig } from "../security/apply.ts";
+import { applySecurity, type Secured, type SecurityConfig } from "../security/apply.ts";
 import { finalize, type StageResult } from "./finalize.ts";
 import { exitHeaders } from "./policies.ts";
 import type { RuntimeOptions } from "./options.ts";
-
-type Secured = { headers: Headers; nonce: string };
 
 // `secured` is resolved once per request, before the status is known, so every answer carries the same
 // security set (bit 03).
@@ -58,8 +56,9 @@ export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">
 
 // The request's headers with the body's media type. A document is HTML, a data response NDJSON.
 // A route's `.security()` rebuilds the request's set before the body is written, so the nonce the render stamps and
-// the header agree (B68). A route that sets none keeps the set.
-export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "options" | "sink" | "built">>(
+// the header agree (B68). It merges onto the server's resolved config and keeps the request's nonce candidate, so the
+// server callback runs once and its `ctx.nonce` stays the one sent. A route that sets none keeps the set.
+export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "sink" | "built">>(
 	exchange: E,
 	security: SecurityConfig,
 ): E {
@@ -68,8 +67,9 @@ export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "o
 		url: exchange.request.url,
 		headers: new Headers(),
 		dev: exchange.sink.dev,
-		security: exchange.options.security,
+		security: exchange.secured.config,
 		route: security,
+		candidate: exchange.secured.candidate,
 	});
 	exchange.built.secured = secured;
 	return { ...exchange, secured };

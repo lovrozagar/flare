@@ -15,7 +15,7 @@ The return value's `fetch(request, env, ctx)` is the production entry, and its `
 | `middleware` | no | `[]` | `Middleware[]` | the order declared | | `server/middleware/run.test.ts` |
 | `mounts` | no | `[]` | `{ prefix, fetch }[]` | `prefix` is a canonical path. The longer prefix wins | `prefix` of `"/"` handles every request and the router never runs. That throws at startup | `server/mount/mount.test.ts` |
 | `rewrite` | no | absent | `(path) => string \| undefined` | a changed path redirects to the replacement, canonicalized again: 301 for GET and HEAD, else 308, with the query kept. The replacement must stay put: one the function changes again throws, and that, like any throw from it, is a projected 500. `path` is the canonical pathname; a path a mount handles never reaches it. This is not the client rewrite | returning a location object does not type-check. The client function takes a location (`router.md`) | `server/lifecycle/canonical-redirect.test.ts` `rewrite recanonical`, `path string`, `rewrite loop`, `rewrite option` |
-| `security` | no | the defaults below | `SecurityConfig` or `(ctx) => SecurityConfig` | the base policy. A route `.security()` merges on top (`builder.md`) | a string CSP replaces the nonce policy (B68). Prefer the directives object | `server/security/apply.test.ts` `callback override` |
+| `security` | no | the defaults below | `SecurityConfig` or `(ctx) => SecurityConfig` | the base policy. A route `.security()` merges on top (`builder.md`). A callback runs once per request, after `serverContext` | a string CSP replaces the nonce policy (B68). Prefer the directives object. A 400 or a canonical redirect, answered before `serverContext`, carries an object config, or the defaults when the config is a callback | `server/security/apply.test.ts` `callback override`, `every key`, `server security` |
 | `sameSite` | no | `[]` | hostnames | `Sec-Fetch-Site: same-site` is accepted only for these hosts | an empty list rejects `same-site` | `server/server-fn/csrf.test.ts` `same site unlisted` |
 | `bodyLimit` | no | `1 MiB` | bytes, `1`–`32 MiB` | server-fn POST cap and the Bun `maxRequestBodySize`. The returned server carries it as `bodyLimit`, which `createBunFetch` reads. A value that is not an integer in range throws at the call | a page POST is 405 and the body is drained. `.response()` reads the stream itself | `adapters/node/body.test.ts`; `adapters/bun/serve.test.ts` `server limit` |
 | `store` | no | absent | `FlareStore` or `(env) => FlareStore` | ISR and SSR storage. Absent means those modes render and are not stored. A function is called once per request with that request's `env` | a function that calls `createMemoryStore()` returns an empty map on every request. Construct that store outside | `server/lifecycle/create.test.ts` `store function` |
@@ -79,7 +79,7 @@ Each entry:
 
 Every key is optional. Omission keeps the default. `false` removes the header. A string replaces the header value.
 
-The callback `ctx` is `{ request, env, nonce, serverContext }`. The callback cannot choose the nonce. The framework appends it after the callback returns. Route `.security()` `ctx` has no `nonce` field (`builder.md`).
+The callback `ctx` is `{ request, env, nonce, serverContext }`. It runs once per request, after `serverContext`, and a throw is a projected 500. The callback cannot choose the nonce. The framework appends it after the callback returns, and a route's `.security()` keeps it, so `ctx.nonce` is the one the header and every tag carry (`apply.test.ts` `server security`). Route `.security()` `ctx` has no `nonce` field (`builder.md`).
 
 | key | default | accepts besides the default |
 | --- | --- | --- |
@@ -93,11 +93,11 @@ The callback `ctx` is `{ request, env, nonce, serverContext }`. The callback can
 | `Permissions-Policy` | every feature below is `false` | the object, a string, or `false` |
 | `X-Powered-By` | absent | a string, which is the only way the header appears |
 
-`X-XSS-Protection` is not a key. Tests: `server/security/defaults.test.ts`.
+`X-XSS-Protection` is not a key. Tests: `server/security/defaults.test.ts`; `apply.test.ts` `every key` (each key's string, its `false`, and the two absent by default).
 
 ### CSP directives
 
-A key not in this table does not type-check. Naming one directive replaces that directive. Every directive the object does not name stays at the default in this table (`csp.test.ts` `partial keeps defaults`). The nonce is appended to `script-src` and `style-src-elem` after any user list. The user cannot remove it by listing sources. If `style-src` is set and `style-src-elem` is not, the element list is the `style-src` list plus the nonce. A set `style-src-elem` is not copied (`csp.test.ts` `style copy`). `upgrade-insecure-requests` is omitted when the request URL is `http`, so a local dev server is not upgraded (`csp.test.ts` `dev http`). In dev the policy also adds `ws://localhost:*`, `ws://127.0.0.1:*`, `http://localhost:*`, and `http://127.0.0.1:*` to `connect-src`, `'unsafe-eval'` to `script-src`, and `blob:` to `worker-src`, and it skips HSTS and COOP. The nonce stays (`csp.test.ts` `dev extras`).
+A key not in this table does not type-check. A directive with no default appears once the object names it, and `upgrade-insecure-requests` follows the URL's scheme unless named (`csp.test.ts` `named directives`). Naming one directive replaces that directive. Every directive the object does not name stays at the default in this table (`csp.test.ts` `partial keeps defaults`). The nonce is appended to `script-src` and `style-src-elem` after any user list. The user cannot remove it by listing sources. If `style-src` is set and `style-src-elem` is not, the element list is the `style-src` list plus the nonce. A set `style-src-elem` is not copied (`csp.test.ts` `style copy`). `upgrade-insecure-requests` is omitted when the request URL is `http`, so a local dev server is not upgraded (`csp.test.ts` `dev http`). In dev the policy also adds `ws://localhost:*`, `ws://127.0.0.1:*`, `http://localhost:*`, and `http://127.0.0.1:*` to `connect-src`, `'unsafe-eval'` to `script-src`, and `blob:` to `worker-src`, and it skips HSTS and COOP. The nonce stays (`csp.test.ts` `dev extras`).
 
 | directive | default | accepts | why |
 | --- | --- | --- | --- |
@@ -173,9 +173,10 @@ Keys, all default `false`: `accelerometer`, `browsing-topics`, `camera`, `geoloc
 | value | header | pitfall | test |
 | --- | --- | --- | --- |
 | `false` | `feature=()` | | `csp.test.ts` `permissions deny` |
-| `"self"` | `feature=(self)` | | same |
+| `"self"` | `feature=(self)` | | `csp.test.ts` `permission values` |
 | `string[]` | `feature=("https://origin" ...)` | a value with a quote, a space, or `;` throws | `csp.test.ts` `origin quote` |
 | `true` | `feature=*` | this allows every origin. It is not "on for this site" | `csp.test.ts` `star` |
+| a string | sent as written | | `csp.test.ts` `permission values` |
 
 v0 defaulted `payment` to `"self"`. v1 defaults it to `false`.
 

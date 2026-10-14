@@ -1,5 +1,5 @@
-import { expect, it, vi } from "vitest";
-import { buildCsp, type CspDirectives, type PermissionMap } from "./csp.ts";
+import { expect, it } from "vitest";
+import { buildCsp, randomNonce, type CspDirectives, type PermissionsPolicy } from "./csp.ts";
 
 const https = "https://example.com/";
 
@@ -7,9 +7,9 @@ function policy(input: {
 	url?: string;
 	dev?: boolean;
 	csp?: false | string | CspDirectives;
-	permissions?: PermissionMap;
+	permissions?: false | string | PermissionsPolicy;
 }) {
-	const result = buildCsp({ url: input.url ?? https, ...input });
+	const result = buildCsp({ url: input.url ?? https, nonce: randomNonce(), ...input });
 	return { ...result, csp: result.headers.get("content-security-policy") ?? "" };
 }
 
@@ -35,7 +35,7 @@ it("style attr", () => {
 });
 
 it("per request", () => {
-	expect(buildCsp({ url: https }).nonce).not.toBe(buildCsp({ url: https }).nonce);
+	expect(randomNonce()).not.toBe(randomNonce());
 });
 
 it("string drops nonce", () => {
@@ -46,19 +46,13 @@ it("string drops nonce", () => {
 });
 
 it("false drops header", () => {
-	const random = vi.spyOn(crypto, "getRandomValues");
-	try {
-		const result = buildCsp({ url: https, csp: false });
-		expect(result.headers.has("content-security-policy")).toBe(false);
-		expect(result.nonce).toBe("");
-		expect(random).not.toHaveBeenCalled();
-	} finally {
-		random.mockRestore();
-	}
+	const result = policy({ csp: false });
+	expect(result.headers.has("content-security-policy")).toBe(false);
+	expect(result.nonce).toBe("");
 });
 
 it("length", () => {
-	expect(buildCsp({ url: https }).nonce).toMatch(/^[0-9a-f]{32}$/);
+	expect(randomNonce()).toMatch(/^[0-9a-f]{32}$/);
 });
 
 it("dev http", () => {
@@ -88,7 +82,9 @@ it("star", () => {
 });
 
 it("origin quote", () => {
-	expect(() => buildCsp({ url: https, permissions: { camera: ['https://a.com"'] } })).toThrow('"');
+	for (const origin of ['https://a.com"', "https://a.com b", "https://a.com;x"]) {
+		expect(() => policy({ permissions: { camera: [origin] } })).toThrow("Permissions-Policy camera");
+	}
 	const header = policy({ permissions: { camera: ["https://a.com"] } }).headers.get("permissions-policy") ?? "";
 	expect(header).toContain('camera=("https://a.com")');
 });
@@ -121,4 +117,31 @@ it("dev extras", () => {
 	expect(source(result.csp, "script-src")).toContain("'unsafe-eval'");
 	expect(source(result.csp, "worker-src")).toContain("blob:");
 	expect(result.csp).toContain(`'nonce-${result.nonce}'`);
+});
+
+// The directives with no default appear once named, in the header's order, and the two booleans: upgrade defaults to
+// the URL's scheme and either value wins; block-all-mixed-content appears only when true (BUGS.md 112).
+it("named directives", () => {
+	const result = policy({
+		csp: { "frame-ancestors": ["'self'"], "form-action": ["'self'"], "media-src": ["https:"], "frame-src": [] },
+	});
+	expect(source(result.csp, "frame-ancestors")).toBe("'self'");
+	expect(source(result.csp, "form-action")).toBe("'self'");
+	expect(source(result.csp, "media-src")).toBe("https:");
+	expect(source(result.csp, "frame-src")).toBe("");
+	expect(result.csp.indexOf("worker-src")).toBeLessThan(result.csp.indexOf("frame-src"));
+	expect(source(policy({}).csp, "frame-ancestors")).toBeUndefined();
+	expect(policy({ csp: { "upgrade-insecure-requests": false } }).csp).not.toContain("upgrade-insecure-requests");
+	expect(policy({ url: "http://a.test/", csp: { "upgrade-insecure-requests": true } }).csp).toContain(
+		"upgrade-insecure-requests",
+	);
+	expect(policy({}).csp).not.toContain("block-all-mixed-content");
+	expect(policy({ csp: { "block-all-mixed-content": true } }).csp).toContain("block-all-mixed-content");
+});
+
+// `"self"` is the site's own origin; a string Permissions-Policy is sent as written, and `false` sends none.
+it("permission values", () => {
+	expect(policy({ permissions: { camera: "self" } }).headers.get("permissions-policy")).toContain("camera=(self)");
+	expect(policy({ permissions: "camera=()" }).headers.get("permissions-policy")).toBe("camera=()");
+	expect(policy({ permissions: false }).headers.has("permissions-policy")).toBe(false);
 });

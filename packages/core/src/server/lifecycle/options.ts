@@ -9,7 +9,7 @@ import type { Caller } from "../auth/caller.ts";
 import type { ServerContextInput } from "../context/ctx.ts";
 import type { MiddlewareEntry } from "../middleware/types.ts";
 import type { Mount, MountContext } from "../mount/mount.ts";
-import type { SecurityConfig } from "../security/apply.ts";
+import type { SecurityConfig, ServerSecurity } from "../security/apply.ts";
 import type { ServerFns } from "../server-fn/dispatch.ts";
 import type { FlareStore } from "../cache/contract.ts";
 import type { LocaleSlot } from "./locale-slot.ts";
@@ -23,7 +23,6 @@ export type Authenticate = (ctx: { request: Request; env: unknown } & Caller) =>
 type BaseOptions = {
 	router: Router;
 	authenticate?: Authenticate;
-	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig);
 	// Hosts whose `Sec-Fetch-Site: same-site` a server function accepts (B44).
 	sameSite?: readonly string[];
 	// The server function POST cap in bytes. 1 MiB when omitted.
@@ -58,9 +57,25 @@ type ContextOption<R extends FlareRegister> =
 		? { serverContext?: ContextFn<R> }
 		: { serverContext: ContextFn<R> };
 
-export type ServerOptions<R extends FlareRegister = FlareRegister> = BaseOptions & ContextOption<R>;
+// The base policy, or a callback that builds it once serverContext has run. The callback cannot choose the nonce: a
+// directives CSP carries `ctx.nonce` (dx/server.md SecurityConfig).
+type SecurityOption<R extends FlareRegister> = {
+	security?:
+		| SecurityConfig
+		| ((ctx: {
+				request: Request;
+				env: RegisteredEnv<R>;
+				nonce: string;
+				serverContext: RegisteredServerContext<R>;
+		  }) => SecurityConfig);
+};
 
-export type RuntimeOptions = BaseOptions & { serverContext?: ServerContextInput["serverContext"] };
+export type ServerOptions<R extends FlareRegister = FlareRegister> = BaseOptions & ContextOption<R> & SecurityOption<R>;
+
+export type RuntimeOptions = BaseOptions & {
+	serverContext?: ServerContextInput["serverContext"];
+	security?: ServerSecurity;
+};
 
 // `ctx` is the adapter's: `waitUntil` keeps background work alive after the response.
 export type FlareServer = {

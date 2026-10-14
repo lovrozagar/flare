@@ -253,6 +253,18 @@ it("bad record", async () => {
 		render: "ssr",
 		security: { "Content-Security-Policy": false },
 	});
+	// Every key survives the store, and an object only where the header takes one (BUGS.md 112).
+	const wide = {
+		"Content-Security-Policy": { "frame-ancestors": ["'self'"] },
+		"Permissions-Policy": { camera: "self" },
+		"X-Powered-By": "flare",
+		"Referrer-Policy": { not: "a string" },
+	};
+	expect(storedPageOf({ ...good, security: wide })?.security).toEqual({
+		"Content-Security-Policy": { "frame-ancestors": ["'self'"] },
+		"Permissions-Policy": { camera: "self" },
+		"X-Powered-By": "flare",
+	});
 	const store = createMemoryStore();
 	await store.set(KEY, { data: { html: "not a page" }, storedAt: 10_000 });
 	expect((await serve(counted().page, store).fetch(get())).headers.get("flare-cache")).toBe("miss");

@@ -7,11 +7,11 @@ import type { FlareRegister } from "../../shared/route-builder/register.ts";
 import type { Match } from "../../shared/router/create-router.ts";
 import { loadChain } from "../../shared/router/load-chain.ts";
 import { foldCase } from "../../shared/router/fold.ts";
-import { withServerContext } from "../context/ctx.ts";
+import { serverCtx, withServerContext } from "../context/ctx.ts";
 import { runLoaders } from "../loaders/run.ts";
 import { devDocument, devToken } from "../render/dev-document.ts";
 import { devSink, devStyles, projectError, requestSink, type ErrorSink } from "../render/projector.ts";
-import { applySecurity } from "../security/apply.ts";
+import { applySecurity, type SecurityContext } from "../security/apply.ts";
 import { applyCanonical, type CanonicalStep, type PathRewrite } from "./canonical-redirect.ts";
 import { dispatch } from "../server-fn/dispatch.ts";
 import { bodyLimitOf } from "../server-fn/input.ts";
@@ -87,6 +87,29 @@ function pathRewrite(at: Serving): PathRewrite | undefined {
 	return (path) => (mountSpelling(at.mounts, path) === undefined ? rewrite(path) : undefined);
 }
 
+// The server's security callback runs once serverContext has, with the request, its env, its nonce, and that value
+// (dx/server.md SecurityConfig); the set built before it, for a 400 or a canonical redirect, carries the defaults. A
+// throw is a projected 500.
+function serverSecured<E extends Pick<Exchange, "request" | "env" | "secured" | "sink" | "options">>(
+	exchange: E,
+	serverContext: SecurityContext["serverContext"],
+): E | Response {
+	if (typeof exchange.options.security !== "function") return exchange;
+	try {
+		const secured = applySecurity({
+			url: exchange.request.url,
+			headers: new Headers(),
+			dev: exchange.sink.dev,
+			security: exchange.options.security,
+			context: { request: exchange.request, env: exchange.env, serverContext },
+			candidate: exchange.secured.candidate,
+		});
+		return { ...exchange, secured };
+	} catch (error) {
+		return failed(exchange)(error);
+	}
+}
+
 function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> {
 	const { request, env } = call;
 	const options = at.options;
@@ -128,11 +151,13 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 	return withServerContext(
 		{ request, env, serverContext, authenticate, store, waitUntil },
 		(scope) => {
+			const scoped = serverSecured(exchange, serverCtx());
+			if (scoped instanceof Response) return Promise.resolve(scoped);
 			// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
 			const mounted = dispatchMount(at.mounts, inner, ctx);
-			if (mounted !== undefined) return mounted.then((response) => passed(exchange, response), failed(exchange));
+			if (mounted !== undefined) return mounted.then((response) => passed(scoped, response), failed(scoped));
 			const seeds = requestStore(options.static, env);
-			return route({ ...exchange, session: scope.session, waitUntil, store, seeds });
+			return route({ ...scoped, session: scope.session, waitUntil, store, seeds });
 		},
 		() => answer(exchange, 500),
 	);
