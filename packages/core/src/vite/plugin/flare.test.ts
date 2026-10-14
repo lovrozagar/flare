@@ -314,7 +314,7 @@ it("workers dev missing peer", async () => {
 			load: async () => ({}),
 			hooks: () => true,
 		};
-		return { ...actual, workersDevPlugins: (entry: string) => actual.workersDevPlugins(entry, missing) };
+		return { ...actual, workersDevPlugins: (entry: string) => actual.workersDevPlugins(entry, {}, missing) };
 	});
 	try {
 		const fresh = await import("./flare.ts");

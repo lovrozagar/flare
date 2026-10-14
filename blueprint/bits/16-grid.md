@@ -7,6 +7,7 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | test | case | result |
 | --- | --- | --- |
 | `cloudflare options` | the options `workersDev: true` composes the Cloudflare plugin with | `viteEnvironment: { name: "worker" }` and `config: { main: "virtual:flare/worker" }`, so the app's `wrangler.jsonc` needs no `main` and flare's build-info module serves the worker environment (B95 (a)) |
+| `inspector port` | `workersDev` with no port, `0`, and `false`, then `persistState` absent, `false`, and `{ path }`, then the options the Cloudflare plugin receives | an absent field is left out, so the plugin keeps its default (9229; `.wrangler/state`); the others pass through (BUGS.md 85) |
 | `peer missing` | the peer cannot be resolved | the error names `@cloudflare/vite-plugin` and the install command |
 | `hooks missing` | the peer resolves, and the runtime's `node:module` has no `registerHooks` (injected) | throws when the plugin is created: `flare({ workersDev: true }) runs Vite on Node 22.15 or later`, with the runtime's name and version; the peer is not loaded (B95, CI run 38493113436 on Bun 1.4.3) |
 
@@ -80,7 +81,8 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | test | case | result |
 | --- | --- | --- |
 | `bun dev` | `minimal` booted as `vite dev` under the Bun runtime | GET `/` answers 200, the document's `flare-build` is `dev`, and its `x-runtime` is `Bun/…` |
-| `workers dev` | `minimal` booted with `workersDev: true` | GET `/` answers 200 from workerd: its `x-runtime` is `Cloudflare-Workers`, which the minimal app's middleware sets from `navigator.userAgent` (with B76's bug back it is `Node.js/24`, BUGS.md 76). It runs where the test runtime has `registerHooks`; under the Bun run (`test:bun`) the child Vite is Bun too, so the case is skipped there by that feature check, and the skip names B95 |
+| `workers dev` | `minimal` booted with `workersDev: true` | GET `/` answers 200 from workerd: its `x-runtime` is `Cloudflare-Workers`, and the app dir has no `.wrangler` afterwards (BUGS.md 85), which the minimal app's middleware sets from `navigator.userAgent` (with B76's bug back it is `Node.js/24`, BUGS.md 76). It runs where the test runtime has `registerHooks`; under the Bun run (`test:bun`) the child Vite is Bun too, so the case is skipped there by that feature check, and the skip names B95 |
+| `workers dev twice` | two `minimal` Workers dev boots started together | both answer GET `/` with 200: each worker's inspector takes a port the OS assigns, and its state stays in memory. Before BUGS.md 85 one of them failed `listen EADDRINUSE 127.0.0.1:9229` (2 of 3 runs) or, in a fresh worktree, workerd's SQLite `database is locked`. Skipped like `workers dev` without `registerHooks` |
 
 ## `scripts/browser-server.test.ts` (B97)
 
