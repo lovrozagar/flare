@@ -238,7 +238,8 @@ it("sentinel", () => {
 	expect(page.html).not.toContain("xyz");
 });
 
-// The settled value is in the stored HTML and NDJSON, under two nested boundaries. No key is left unfilled.
+// The settled value is in the stored HTML and NDJSON, under two nested boundaries. No key is left unfilled. The NDJSON
+// carries it inline in its `l` frame, its one source, with no `c` frame (BUGS.md 94).
 it("resolved defer", async () => {
 	const page = createPage("_root_/p")
 		.cache({ isr: true })
@@ -253,7 +254,8 @@ it("resolved defer", async () => {
 	expect(entry.html).toContain("41");
 	expect(entry.html).not.toContain("outer");
 	expect(entry.html).not.toContain("inner");
-	expect(entry.ndjson).toContain('{"t":"c","m":"_root_/p","k":"d0","d":1}');
+	expect(entry.ndjson).toContain('{"t":"l","m":"_root_/p","d":{"one":{"__deferred":true,"key":"d0","value":1}}}');
+	expect(entry.ndjson).not.toContain('"t":"c"');
 });
 
 // A "stream" value is a hole: the placeholder is stored, no `c` frame, and the function never ran.

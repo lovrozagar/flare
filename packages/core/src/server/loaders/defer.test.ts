@@ -124,3 +124,60 @@ it("prefetch skip", async () => {
 	expect(loader.started).toEqual([]);
 	expect(await settledYet(value.promise)).toBe(false);
 });
+
+// A stored render inlines each value it resolved, so the stored state is the client's one source for it and the fill
+// need not run it again (BUGS.md 94). A hole stays a placeholder, and a live scope never inlines.
+it("stored value inline", async () => {
+	const stored = createDefer({ stored: true, route: "stream", dev: false });
+	const latest = stored.defer(() => Promise.resolve({ version: "1.0.0" }), { key: "latest", prerender: "resolve" });
+	const stats = stored.defer(() => Promise.resolve(1), { key: "stats" });
+	expect(wire(latest)).toEqual({ __deferred: true, key: "latest" });
+	await latest.promise;
+	expect(wire(latest)).toEqual({ __deferred: true, key: "latest", value: { version: "1.0.0" } });
+	expect(wire(stats)).toEqual({ __deferred: true, key: "stats", hole: true });
+	const value = createDefer(live).defer(() => Promise.resolve(1));
+	await value.promise;
+	expect(wire(value)).toEqual({ __deferred: true, key: "d0" });
+});
+
+// A fill runs only the values the stored page left as holes, by the store write's own rule: a call's `prerender`
+// wins, else the route's mode. A value the stored page holds runs nothing and travels as `kept`, so the client keeps
+// the one it shows (BUGS.md 94).
+it("fill runs the holes only", async () => {
+	const calls: string[] = [];
+	const run = (name: string) => () => {
+		calls.push(name);
+		return Promise.resolve(name);
+	};
+	const fill = createDefer({ stored: false, route: "stream", dev: false, fill: true });
+	const latest = fill.defer(run("latest"), { key: "latest", prerender: "resolve" });
+	const stats = fill.defer(run("stats"), { key: "stats" });
+	expect(calls).toEqual(["stats"]);
+	expect(fill.started.map((value) => value.key)).toEqual(["stats"]);
+	expect(JSON.parse(JSON.stringify({ latest, stats }))).toEqual({
+		latest: { __deferred: true, key: "latest", kept: true },
+		stats: { __deferred: true, key: "stats" },
+	});
+	await expect(stats.promise).resolves.toBe("stats");
+	expect(await settledYet(latest.promise)).toBe(false);
+});
+
+// The store write and the fill draw the same line through a route that mixes the two modes: each value runs in
+// exactly one of them.
+it("store and fill agree", () => {
+	for (const route of ["stream", "resolve", undefined] as const) {
+		const ran = { stored: [] as string[], fill: [] as string[] };
+		for (const kind of ["stored", "fill"] as const) {
+			const scope = createDefer({ stored: kind === "stored", route, dev: false, fill: kind === "fill" });
+			const run = (name: string) => () => {
+				ran[kind].push(name);
+				return Promise.resolve(name);
+			};
+			scope.defer(run("a"), { key: "a", prerender: "resolve" });
+			scope.defer(run("b"), { key: "b", prerender: "stream" });
+			scope.defer(run("c"), { key: "c" });
+		}
+		expect([...ran.stored, ...ran.fill].toSorted()).toEqual(["a", "b", "c"]);
+		expect(ran.stored.filter((name) => ran.fill.includes(name))).toEqual([]);
+	}
+});

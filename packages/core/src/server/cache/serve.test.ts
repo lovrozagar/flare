@@ -61,6 +61,32 @@ it("no store", async () => {
 	expect(seen).toEqual([`${SITE}/p?q=1`]);
 });
 
+// A stored page's resolve value runs once, in the store write: the stored document's state and its data variant carry
+// it inline with no `c` frame, and the fill, which runs only the holes, sends it as `kept` (BUGS.md 94).
+it("resolve runs once", async () => {
+	const latest = vi.fn<() => Promise<string>>(async () => "1.0.0");
+	const late = vi.fn<() => Promise<string>>(async () => "late");
+	const page = createPage("_root_/p")
+		.cache({ isr: { defer: "stream" } })
+		.loader(({ defer }) => ({ latest: defer(latest, { key: "latest", prerender: "resolve" }), late: defer(late) }))
+		.render(() => "p");
+	const { app } = serve(page);
+	const inline = '"latest":{"__deferred":true,"key":"latest","value":"1.0.0"}';
+	expect(await (await app.fetch(get("/p"))).text()).toContain(inline);
+	await settle();
+	const data = await app.fetch(get("/p?_flare=data"));
+	expect(data.headers.get("flare-cache")).toBe("hit");
+	const frames = await data.text();
+	expect(frames).toContain(inline);
+	expect(frames).not.toContain('"t":"c"');
+	const fill = await (await app.fetch(get("/p?_flare=fill"))).text();
+	expect(fill).toContain('"latest":{"__deferred":true,"key":"latest","kept":true}');
+	expect(fill).toContain('"t":"c","m":"_root_/p","k":"d0","d":"late"');
+	expect(fill).not.toContain('"k":"latest"');
+	expect(latest).toHaveBeenCalledOnce();
+	expect(late).toHaveBeenCalledOnce();
+});
+
 // A data request's miss runs the same shared render and serves the NDJSON it stored. A prefetch then reads that
 // same entry: one key holds both variants (02-system step 11).
 it("data miss", async () => {

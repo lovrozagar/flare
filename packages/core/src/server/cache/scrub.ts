@@ -65,9 +65,9 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 		return INCOMPLETE;
 	}
 	const project = framed(shared);
-	const ndjson = await new Response(
-		dataBody({ ...dataFrames(run, NOTHING_STALE), deferred: run.deferred, project }),
-	).text();
+	// A fulfilled value travels inline in its `l` frame, so only a rejection still needs a frame (BUGS.md 94).
+	const deferred = run.deferred.filter((_, index) => results[index]?.status === "rejected");
+	const ndjson = await new Response(dataBody({ ...dataFrames(run, NOTHING_STALE), deferred, project })).text();
 	const settled = results.every((result) => result.status === "fulfilled");
 	return { run, html, ndjson, nonce: document.exchange.secured.nonce, settled, startedAt };
 }

@@ -214,6 +214,7 @@ function load(input: ValidRun, loading: Loading): Promise<Loaded[]> {
 				route: deferMode(route.cache),
 				dev: input.dev ?? false,
 				prefetch: input.kind === "prefetch",
+				fill: input.kind === "fill",
 			});
 			const ctx = withQueryClient({
 				...loading.base,

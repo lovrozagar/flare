@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts";
 import type { Deferred } from "../../shared/route-builder/register.ts";
-import { endOf, framesOf, landFrames } from "./frames.ts";
+import { endOf, framesOf, landFrames, revive, type Pending } from "./frames.ts";
 
 // A source the test feeds frame by frame.
 function feed(): { source: AsyncIterable<Frame>; push: (frame: Frame) => void; end: () => void } {
@@ -198,4 +198,76 @@ it("landing end", async () => {
 	await endOf(landed);
 	expect(ended).toBe(true);
 	await expect(endOf({ data: {}, heads: {} })).resolves.toBeUndefined();
+});
+
+// A stored page's resolve value travels inline: its read resolves at once, and it is never a hole a fill waits for or a
+// value the landing's end rejects. A real hole still reaches `holes` (BUGS.md 94).
+it("inline value", async () => {
+	const { source, push, end } = feed();
+	const holes = vi.fn<(pending: Pending) => void>();
+	push({
+		t: "l",
+		m: "_root_/a",
+		d: {
+			latest: { __deferred: true, key: "latest", value: "1.0.0" },
+			stats: { __deferred: true, key: "stats", hole: true },
+		},
+	});
+	push({ t: "r" });
+	const landed = await landFrames(source, { dev: false, holes });
+	const data = landed.data["_root_/a"] as { latest: Deferred<string>; stats: Deferred<number> };
+	await expect(data.latest.promise).resolves.toBe("1.0.0");
+	end();
+	await endOf(landed);
+	expect(holes).toHaveBeenCalledOnce();
+	const { source: only, push: pushOnly, end: endOnly } = feed();
+	pushOnly({ t: "l", m: "_root_/a", d: { latest: { __deferred: true, key: "latest", value: "1.0.0" } } });
+	pushOnly({ t: "r" });
+	const alone = await landFrames(only, { dev: false, holes });
+	endOnly();
+	await endOf(alone);
+	expect(holes).toHaveBeenCalledOnce();
+	await expect((alone.data["_root_/a"] as { latest: Deferred<string> }).latest.promise).resolves.toBe("1.0.0");
+});
+
+// A fill sends a value the stored page holds as `kept`: the landing reads the page's own one promise, and fills the
+// holes beside it (BUGS.md 94).
+it("kept value", async () => {
+	const page: Pending = new Map();
+	const shown = revive(
+		{
+			latest: { __deferred: true, key: "latest", value: "1.0.0" },
+			stats: { __deferred: true, key: "stats", hole: true },
+		},
+		"_root_/a",
+		page,
+	) as { latest: Deferred<string>; stats: Deferred<number> };
+	const { source, push, end } = feed();
+	push({
+		t: "l",
+		m: "_root_/a",
+		d: { latest: { __deferred: true, key: "latest", kept: true }, stats: { __deferred: true, key: "stats" } },
+	});
+	push({ t: "r" });
+	const landed = await landFrames(source, { dev: false, reuse: page });
+	const filled = landed.data["_root_/a"] as { latest: Deferred<string>; stats: Deferred<number> };
+	expect(filled.latest.promise).toBe(shown.latest.promise);
+	await expect(filled.latest.promise).resolves.toBe("1.0.0");
+	push({ t: "c", m: "_root_/a", k: "stats", d: 37 });
+	end();
+	await endOf(landed);
+	await expect(shown.stats.promise).resolves.toBe(37);
+	await expect(filled.latest.promise).resolves.toBe("1.0.0");
+});
+
+// A `kept` value the page does not hold rejects with a reason that names it, never a hang: the guard against a fill
+// whose skipped value has no source on the client, which once broke the root (BUGS.md 89, 94).
+it("missing kept", async () => {
+	const { source, push, end } = feed();
+	push({ t: "l", m: "_root_/a", d: { latest: { __deferred: true, key: "latest", kept: true } } });
+	push({ t: "r" });
+	const landed = await landFrames(source, { dev: false, reuse: new Map() });
+	const data = landed.data["_root_/a"] as { latest: Deferred<string> };
+	end();
+	await expect(data.latest.promise).rejects.toThrow('The fill kept "latest" of _root_/a, which the page does not hold');
 });

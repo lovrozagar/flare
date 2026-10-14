@@ -68,7 +68,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `ssr ttl` | `ssr: { ttl: "60s" }` | TTL is 60s, not 120s |
 | `ssr ttl missing` | `ssr: {}` | does not type-check. Untyped, the server throws when it loads that chain, before any render, and the request is a 500 that names the route. The check is server-side so createPage carries no bytes for it |
 | `stale over ttl` | `staleTime` greater than `ttl` | the server throws when it loads that chain, before any render, and the request is a 500 that names the route |
-| `resolved defer` | `defer: "resolve"` and a promise of `1` | the stored HTML and NDJSON contain `1` and no placeholder |
+| `resolved defer` | `defer: "resolve"` and a promise of `1` | the stored HTML and NDJSON contain `1` and no placeholder; the NDJSON carries it inline in its `l` frame and writes no `c` frame (BUGS.md 94) |
 | `streamed defer` | `defer: "stream"` | the stored HTML contains the placeholder and no `c` frame. The function was not called |
 | `on demand` | `isr: true` | TTL is 24h. After that the read is a miss. No refresh starts before the TTL |
 | `empty object` | `isr: {}` | not rendered at build. TTL is 24h. Same expiry as `isr: true` |
@@ -308,6 +308,9 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | create-client `fill on hydrate` | a state with `fill: true` | one `?_flare=fill` request of the same URL, and no history entry |
 | navigate-fill `fill on hole landing` | a data landing whose `d` leaves a placeholder unsettled | one `?_flare=fill` revalidation of the same URL after the commit, and no history entry beyond the navigation's |
 | navigate-fill `no fill after leaving` | the holed landing's `d` arrives after the user navigated away | no fill request |
+| serve `resolve runs once` | a stored `isr` page with `defer: "stream"`, a `prerender: "resolve"` value, and a hole: the document, then its data variant, then its fill | the resolve function runs once, in the store write: the stored state and data variant carry it inline with no `c` frame, and the fill sends it as `kept` and runs only the hole (BUGS.md 94) |
+| frames `inline value`, `kept value`, `missing kept` | an inline value beside a hole; a fill's `kept` value over the page's slots; a `kept` value with no slot | the inline read resolves at once and only the hole reaches `holes`; the fill reads the page's one promise; the missing one rejects with `The fill kept "latest" of _root_/a, which the page does not hold` (BUGS.md 94) |
+| navigate-fill `fill keeps inline values` | a data landing with an inline `latest` and a hole, then its fill | one fill; after it commits `latest` is the same promise with `1.0.0` and the hole holds its value; a landing with only inline values asks for no fill. Red with the old `revive`: the inline value rejected at the landing's end |
 | navigate-fill `fill commits at its end` | a fill whose body stays open after `r` | the snapshot keeps the stored data until the body ends, then the fill commits: a commit while a value is pending would be held behind it (BUGS.md 89) |
 | request `fill request` | a fill trip carrying the slots a revived hole left | the request asks `?_flare=fill`, and its `c` frame resolves the promise the first value held |
 | response `stored stream stays a hole`, `isr stream stays a hole` (extended) | a stored run's unrun `"stream"` value | its placeholder carries `hole: true` |
