@@ -38,6 +38,7 @@ function lint(code: string, relative: string): number {
 			"/finalize.ts",
 			"/proxy.ts",
 			"/vite/dev/handler.ts",
+			"/server/render/dev-document.ts",
 			"/vite/dev/guard.ts",
 			"/features/image/vite/dev-endpoint.ts",
 		].some((end) => relative.endsWith(end));
@@ -89,6 +90,15 @@ it("dev handler", () => {
 	const status = lint(
 		'export function failed() {\n\treturn new Response("<pre>x</pre>", { status: 500 });\n}\n',
 		"src/vite/dev/handler.ts",
+	);
+	expect(status).toBe(0);
+});
+
+// A dev document gets its dev tags after the pipeline answered, so its re-wrap is not a second finalize (B95 (b)).
+it("dev document", () => {
+	const status = lint(
+		"export function tagged(body) {\n\treturn new Response(body, { status: 200 });\n}\n",
+		"src/server/render/dev-document.ts",
 	);
 	expect(status).toBe(0);
 });

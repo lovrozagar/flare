@@ -9,6 +9,7 @@ import { inject } from "../css/index.ts";
 import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts";
 import { devEndpoints } from "../dev/guard.ts";
 import { prerenderApp } from "../prerender/index.ts";
+import { devHead as devHeadOf } from "../dev/dev-head.ts";
 import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
 import { ownModule } from "./own-module.ts";
@@ -54,7 +55,13 @@ export function flare(options?: FlareOptions): PluginOption[] {
 }
 
 function flarePlugins(parsed: ParsedOptions): Plugin[] {
-	const state: State = { base: "/", manifest: "", workerSource: "", root: process.cwd() };
+	const state: State = {
+		base: "/",
+		manifest: "",
+		workerSource: "",
+		root: process.cwd(),
+		devHead: Promise.withResolvers(),
+	};
 	// `image` turns optimization on. Absent, no image plugin runs and sharp is never loaded (dx/plugin.md image).
 	const image = parsed.image;
 	return [
@@ -73,7 +80,14 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 // The config, the build environments, the server's build info, the worker entry, and the dev server.
 // What the config hook settles for the later hooks: Vite's resolved `base`, which every built URL starts with, where
 // the client build writes its manifest, and the worker entry's source.
-type State = { base: string; manifest: string; workerSource: string; root: string };
+// `devHead` settles when the dev server starts (B95 (b)); a production run never reads it.
+type State = {
+	base: string;
+	manifest: string;
+	workerSource: string;
+	root: string;
+	devHead: PromiseWithResolvers<string>;
+};
 
 function core(parsed: ParsedOptions, state: State): Plugin {
 	return {
@@ -100,11 +114,19 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 			if (id !== BUILD_INFO || !SERVER_ENVIRONMENTS.has(name)) return null;
 			const urls = { base: state.base, assetsBase: parsed.assetsBase };
 			const input = { command: config.command, entry: parsed.entry.client, manifest: state.manifest, urls };
-			return buildInfoSource(input);
+			if (config.command !== "serve") return buildInfoSource({ ...input, devHead: "" });
+			// In dev, the module waits for devHead, which the dev server computes as it starts.
+			return state.devHead.promise.then((devHead) => buildInfoSource({ ...input, devHead }));
 		},
-		configureServer(server) {
-			watchGenerated(server, server.config.root);
-			return installDevHandler(server, parsed.entry.server);
+		// First among the plugins' server hooks: the Cloudflare plugin's starts the worker, whose server info module waits
+		// for devHead, so devHead starts before it (B95 (b)).
+		configureServer: {
+			order: "pre",
+			handler(server) {
+				watchGenerated(server, server.config.root);
+				devHeadOf(server).then(state.devHead.resolve, state.devHead.reject);
+				return installDevHandler(server, parsed.entry.server);
+			},
 		},
 	};
 }

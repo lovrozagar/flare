@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import { createTabs, tabbedPayload, tabMeta, tabToken } from "./tabs.ts";
+import { createTabs, tabbedPayload } from "./tabs.ts";
 
 function tab() {
 	return { send: vi.fn<(payload: unknown) => void>() };
@@ -27,6 +27,4 @@ it("message", () => {
 	expect(tabbedPayload({ token: "t", payload: 1 })).toEqual({ token: "t", payload: 1 });
 	expect(tabbedPayload({ token: 2, payload: 1 })).toEqual({ token: undefined, payload: 1 });
 	expect(tabbedPayload(null)).toEqual({ token: undefined, payload: undefined });
-	expect(tabToken()).not.toBe(tabToken());
-	expect(tabMeta("t")).toBe('<meta name="flare-dev-tab" content="t">');
 });

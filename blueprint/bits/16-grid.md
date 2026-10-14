@@ -25,10 +25,17 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | test | case | result |
 | --- | --- | --- |
 | `dev tags` | a dev document with a nonce policy and a request without a tab token | `devHead` is the last thing in `<head>`, then the `csp-nonce` meta carrying the request's own nonce, then the `flare-dev-tab` meta with a minted token |
+| `chunks` | `</head>` split across chunks, and a multibyte character split across the chunk that holds it | the tags go in before `</head>` and the character arrives whole: every chunk goes through one decoder (BUGS.md B8) |
 | `request token` | a dev request that names a tab token | the meta carries that token, so the tab keeps its routing (B42) |
 | `no nonce` | a dev document with no nonce policy | no `csp-nonce` meta |
 | `production` | a production render | none of the three is written |
 | `dev styles` | a dev document for a route whose chain imports `app.css` (root) and a CSS module (page), with nonce `n` | `head` holds one `<style data-vite-dev-id>` per module, root first, each with the module's served CSS and nonce `n`, in `<Stylesheet />`'s place. A route that imports no CSS module gets only the root's. On a browser load the first paint is styled, and after the client runs there is still one style per module id (B104, BUGS.md B59) |
+
+## `shared/protocol/dev-tab.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `token` | a minted token, a token-shaped header, a header with markup | a fresh UUID each time; a header outside the token shape is not a token and is never written into a page; the meta is `<meta name="flare-dev-tab" content>` (B42) |
 
 ## `vite/dev/handler.test.ts` (B95 (b), (c))
 

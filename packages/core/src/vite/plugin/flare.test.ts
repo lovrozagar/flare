@@ -82,6 +82,14 @@ function flarePlugin(options?: OwnOptions) {
 }
 
 // The plugin's config hook for this root, then its load hook as the named environment would call it.
+// The core plugin's server hook, which runs first among the plugins' (`order: "pre"`, B95 (b)).
+function serverHook(plugin: ReturnType<typeof flarePlugin>): (...args: unknown[]) => unknown {
+	const hook: unknown = plugin.configureServer;
+	const handler: unknown = typeof hook === "object" && hook !== null ? Reflect.get(hook, "handler") : hook;
+	if (typeof handler !== "function") throw new Error("configureServer");
+	return (...args) => Reflect.apply(handler, null, args);
+}
+
 function loader(plugin: ReturnType<typeof flarePlugin>, root: string) {
 	const config = plugin.config;
 	if (typeof config !== "function") throw new Error("config");
@@ -92,15 +100,25 @@ function loader(plugin: ReturnType<typeof flarePlugin>, root: string) {
 		returned,
 		load: (name: string, command: "serve" | "build", id = BUILD_INFO): unknown =>
 			Reflect.apply(load, { environment: { name, config: { command, root } } }, [id]),
+		// The dev server's start: it computes devHead from transformIndexHtml (B95 (b)).
+		start: (head: string): void => {
+			const server = {
+				config: { root, server: { middlewareMode: true } },
+				watcher: { on: () => undefined },
+				transformIndexHtml: async () => `<html><head>${head}</head><body></body></html>`,
+			};
+			serverHook(plugin)(server);
+		},
 	};
 }
 
 // The server environments load build-info.ts as the dev entry in serve and as the client build's id and hashed entry in
 // a build, after the client wrote its manifest. No define is set.
-it("client entry define", () => {
+it("client entry define", async () => {
 	const root = project();
 	try {
-		const { returned, load } = loader(flarePlugin(), root);
+		const { returned, load, start } = loader(flarePlugin(), root);
+		start("<meta name=x>");
 		expect(returned).toMatchObject({
 			appType: "custom",
 			resolve: { dedupe: ["solid-js", "@solidjs/web"] },
@@ -109,21 +127,24 @@ it("client entry define", () => {
 		});
 		expect(returned).not.toHaveProperty("define");
 		expect(flarePlugin().configEnvironment).toBeUndefined();
-		const dev = 'export const buildId = "dev";\nexport const clientEntry = "/src/client.tsx";\n';
-		expect(load("ssr", "serve")).toBe(dev);
-		expect(load("worker", "serve")).toBe(dev);
+		const head = '\nexport const devHead = "<meta name=x>";\n';
+		const dev = `export const buildId = "dev";\nexport const clientEntry = "/src/client.tsx";${head}`;
+		expect(await load("ssr", "serve")).toBe(dev);
+		expect(await load("worker", "serve")).toBe(dev);
 		expect(load("client", "serve")).toBeNull();
 		expect(load("ssr", "serve", join(root, "src/other.ts"))).toBeNull();
 		writeFileSync(join(root, "src/entry.tsx"), "");
-		expect(loader(flarePlugin({ entry: { client: "src/entry.tsx" } }), root).load("ssr", "serve")).toBe(
-			'export const buildId = "dev";\nexport const clientEntry = "/src/entry.tsx";\n',
+		const other = loader(flarePlugin({ entry: { client: "src/entry.tsx" } }), root);
+		other.start("<meta name=x>");
+		expect(await other.load("ssr", "serve")).toBe(
+			`export const buildId = "dev";\nexport const clientEntry = "/src/entry.tsx";${head}`,
 		);
 		const manifest = join(root, "dist/client/.vite/manifest.json");
 		expect(() => load("ssr", "build")).toThrow(manifest);
 		mkdirSync(join(root, "dist/client/.vite"), { recursive: true });
 		writeFileSync(manifest, JSON.stringify({ "src/client.tsx": { file: "assets/client-a1.js" } }));
 		expect(load("ssr", "build")).toBe(
-			`export const buildId = "${buildIdOf({ "src/client.tsx": { file: "assets/client-a1.js" } })}";\nexport const clientEntry = "/assets/client-a1.js";\n`,
+			`export const buildId = "${buildIdOf({ "src/client.tsx": { file: "assets/client-a1.js" } })}";\nexport const clientEntry = "/assets/client-a1.js";\nexport const devHead = "";\n`,
 		);
 	} finally {
 		rmSync(root, { recursive: true, force: true });
@@ -131,8 +152,8 @@ it("client entry define", () => {
 });
 
 it("dev server", () => {
-	const hook = flarePlugin().configureServer;
-	if (typeof hook !== "function") throw new Error("configureServer");
+	expect(flarePlugin().configureServer).toMatchObject({ order: "pre" });
+	const hook = { call: (_self: unknown, server: unknown) => serverHook(flarePlugin())(server) };
 	const used: unknown[] = [];
 	const server = (middlewareMode: boolean) => ({
 		config: { root: "/app", server: { middlewareMode }, logger: { error: () => undefined } },

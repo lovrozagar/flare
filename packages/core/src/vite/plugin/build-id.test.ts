@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createBuilder } from "vite";
 import { afterEach, expect, it } from "vitest";
-import { buildIdOf, readBuildId } from "./build-id.ts";
+import { buildIdOf, buildInfoSource, readBuildId } from "./build-id.ts";
 import { flare } from "./flare.ts";
 
 // Inside the repo's node_modules, so a fixture's imports of the framework and Solid resolve as an app's would.
@@ -24,6 +24,14 @@ const MANIFEST = {
 
 it("dev", () => {
 	expect(readBuildId(undefined)).toBe("dev");
+});
+
+// The server's build info carries devHead in dev, and an empty one otherwise (B95 (b)).
+it("dev head", () => {
+	const urls = { base: "/", assetsBase: "/assets" };
+	const head = '<script type="module" src="/@vite/client"></script>';
+	const input = { entry: "src/client.tsx", manifest: "", urls, devHead: head };
+	expect(buildInfoSource({ ...input, command: "serve" })).toContain(`export const devHead = ${JSON.stringify(head)};`);
 });
 
 // sha256 over the sorted, deduped, root-relative JS and CSS URLs (`file` and `css` only), first 12 hex digits.

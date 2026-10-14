@@ -4,3 +4,6 @@
 // (vite/plugin/build-id.ts).
 export const buildId: string = "dev";
 export const clientEntry: string | undefined = undefined;
+// What `transformIndexHtml` adds to an empty document, which a dev server's documents carry last in `<head>` (B95
+// (b)). Empty outside `vite dev`.
+export const devHead: string = "";

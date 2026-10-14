@@ -112,6 +112,7 @@ Route chunks (from bit 06). Codegen's `chunks` map gives each route id the proje
 | test | case | result |
 | --- | --- | --- |
 | `dev` | no client manifest, or `vite dev` | the id is `dev` |
+| `dev head` | the server's info module under `vite dev` | it exports `devHead`, what `transformIndexHtml` added to an empty document when the dev server started; outside `vite dev` it exports `""` (B95 (b)) |
 | `hash` | a manifest with two JS files and one CSS file | the id is the first 12 hex digits of sha256 over the sorted deduped root-relative URLs |
 | `missing` | a production build and the manifest path is absent | the build fails and names that path |
 | `wired` | a server built with that id | every pipeline response carries `flare-build: <id>` from finalize, and `self.flare.build` in the document state is the same id. Bit 06's client mismatch check then runs on real values (it passes `""` until this row lands) |
@@ -125,8 +126,6 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 | test | case | result |
 | --- | --- | --- |
 | `symlinked root` | a `flare()` build whose project root is a symlink | the resolved `config.root` is the real path, the server output is written, and prerender receives the real root (BUGS.md B51) |
-| `head split` | chunks that split a tag right after `</head>` | `transformIndexHtml` receives exactly the document through `</head>`, and the client gets the original bytes after it unchanged, with Vite's tags added (BUGS.md B8) |
-| `utf8 boundary` | a multibyte character split across the chunk that holds `</head>` | the client receives the character intact: the tail goes through the same decoder and is flushed at the end |
 | `public once` | `buildConfig`, and a real build of a fixture with `public/x.txt` and a worker config | the ssr and worker environments set `build.copyPublicDir: false` and the client keeps the default; the output has `client/x.txt` and neither `server/x.txt` nor `worker/x.txt` (BUGS.md B11) |
 | `client error relayed` | a client sends `flare:error` | that payload goes to that client only (BUGS.md B42) |
 | `other tab silent` | an SSR payload tagged with tab A's token, tabs A and B connected | A receives it and B does not (BUGS.md B38) |

@@ -146,14 +146,13 @@ it("dev sink", () => {
 	const payload = { type: "error" as const, err: { message: "m", stack: "" } };
 	hot.send?.(payload);
 	expect(send).toHaveBeenCalledExactlyOnceWith("flare:error", { token: undefined, payload });
-	// A request's sink tags its payloads with the dev tab that made it (B42).
-	const tagged = new Request("http://localhost/", { headers: { "flare-dev-tab": "T1" } });
-	requestSink(hot, tagged).send?.(payload);
+	// A request's sink tags its payloads with its dev tab token (B42, B95 (b)).
+	requestSink(hot, "T1").send?.(payload);
 	expect(send).toHaveBeenLastCalledWith("flare:error", { token: "T1", payload });
-	requestSink(hot, new Request("http://localhost/")).send?.(payload);
+	requestSink(hot, undefined).send?.(payload);
 	expect(send).toHaveBeenLastCalledWith("flare:error", { token: undefined, payload });
 	const built = devSink({ env: { DEV: false } });
 	expect(built.dev).toBe(false);
 	expect(built.send).toBeUndefined();
-	expect(requestSink(built, tagged)).toBe(built);
+	expect(requestSink(built, "T1")).toBe(built);
 });
