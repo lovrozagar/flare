@@ -389,6 +389,58 @@ test("stream transport", async ({ page, docs }, info) => {
 	expect(Object.values(report).every((entry) => entry.page.length > 0 && entry.node.length > 0)).toBe(true);
 });
 
+// The main-thread probe for BUGS.md 100, a measurement with no pass bar: every frame gap over 50 ms in the 2 s after
+// the load, with no click, each setup the first page of its own context, as `stream`'s playground is. `blank` is
+// about:blank, `static` the playground's own HTML from this server with every script removed, so its CSS, fonts, and
+// DOM load and no page script runs, and `live` the playground itself. A stall in `blank` or `static` is the engine on
+// the runner, not the page's JS. Every run writes `main-thread.json`, which e2e-mac uploads.
+test("main thread", async ({ browser, request, docs }, info) => {
+	const html = (await (await request.get(`${docs.origin}/playground`)).text()).replaceAll(
+		/<script\b[^>]*>[\s\S]*?<\/script>|<link\b[^>]*rel="modulepreload"[^>]*>/g,
+		"",
+	);
+	const report: Record<string, string[]> = {};
+	for (const setup of ["blank", "static", "live", "static again"]) {
+		const context = await browser.newContext();
+		const page = await context.newPage();
+		await page.route(`${docs.origin}/__probe`, (route) => route.fulfill({ body: html, contentType: "text/html" }));
+		const url = { blank: "about:blank", live: `${docs.origin}/playground` }[setup] ?? `${docs.origin}/__probe`;
+		await page.goto(url, { waitUntil: "load" });
+		report[setup] = await gapsAfterLoad(page);
+		// The static page runs no script of its own and still has the page's styles.
+		if (setup.startsWith("static")) {
+			expect(await page.locator("script").count()).toBe(0);
+			expect(await page.evaluate(() => document.styleSheets.length)).toBeGreaterThan(0);
+		}
+		await context.close();
+	}
+	const path = info.outputPath("main-thread.json");
+	writeFileSync(path, `${JSON.stringify(report)}\n`);
+	await info.attach("main thread", { path, contentType: "application/json" });
+	expect(Object.keys(report)).toHaveLength(4);
+});
+
+// Frame gaps over 50 ms from the load until 2 s after it, as `<start>+<length>` from the load.
+function gapsAfterLoad(page: Page): Promise<string[]> {
+	return page.evaluate(
+		() =>
+			new Promise<string[]>((resolve) => {
+				const [navigation] = performance.getEntriesByType("navigation");
+				const loaded = navigation instanceof PerformanceNavigationTiming ? navigation.loadEventEnd : 0;
+				const gaps: string[] = [];
+				let last = performance.now();
+				const tick = (): void => {
+					const now = performance.now();
+					if (now - last > 50) gaps.push(`${Math.round(last - loaded)}+${Math.round(now - last)}`);
+					last = now;
+					if (now - loaded < 2000) requestAnimationFrame(tick);
+					else resolve(gaps);
+				};
+				requestAnimationFrame(tick);
+			}),
+	);
+}
+
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
 test("stream abort", async ({ page, docs }, info) => {
 	test.skip(
