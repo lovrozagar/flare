@@ -11,4 +11,6 @@ export const serverFns = {
 	"2277cb9df1af9de2": () => import("../fns/feedback.ts").then((loaded) => loaded.vote),
 	"2e0929a64da6097d": () => import("../fns/republish.ts").then((loaded) => loaded.republish),
 	"2bb6a87ae8e468cc": () => import("../fns/search.ts").then((loaded) => loaded.searchDocs),
+	"9c3996513d2cbb13": () => import("../fns/stats-gate.ts").then((loaded) => loaded.holdStats),
+	"7f8b572ee34c61d4": () => import("../fns/stats-gate.ts").then((loaded) => loaded.releaseStats),
 };

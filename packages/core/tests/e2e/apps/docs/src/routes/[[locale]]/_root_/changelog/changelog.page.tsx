@@ -1,6 +1,7 @@
 import { createPage, useDeferred } from "@lovrozagar/flare";
 import { Errored, For, Loading } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { statsGate } from "../../../../stats-gate.ts";
 
 type Release = { version: string; date: string; note: string };
 
@@ -32,7 +33,8 @@ export const route = createPage("[[locale]]/_root_/changelog")
 	.loader(({ defer }) => ({
 		latest: defer(() => after(30, RELEASES[0]), { key: "latest", prerender: "resolve" }),
 		releases: defer(() => after(150, RELEASES), { key: "releases" }),
-		stats: defer(() => after(900, { downloads: 18_420, contributors: 37 }), { key: "stats" }),
+		// The e2e can hold `stats` until it has seen the skeleton (stats-gate.ts).
+		stats: defer(() => statsGate().then(() => after(900, { downloads: 18_420, contributors: 37 })), { key: "stats" }),
 		broken: defer(() => after(300, null).then(() => Promise.reject(new Error("The stats service is down"))), {
 			key: "broken",
 		}),
