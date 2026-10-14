@@ -45,9 +45,13 @@ test("network failure", async ({ page, docs }) => {
 	expect(await page.evaluate(() => history.length)).toBe(depth);
 });
 
+// Auth is still loading when Styling is clicked, so Styling aborts it. The click's hover prefetches Auth, and the
+// navigation reuses that request, so the delay holds every Auth data request, the prefetch included. Without it Auth
+// landed at once, and the Styling click fell inside Auth's view transition, where the browser hit-tests the document
+// element and no link is clicked (BUGS.md 98).
 test("abort keeps latest", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
-	await page.route("**/docs/auth?_flare=data*", async (route) => {
+	await page.route("**/docs/auth?_flare=*", async (route) => {
 		await new Promise((resolve) => setTimeout(resolve, 800));
 		await route.continue().catch(() => {});
 	});
