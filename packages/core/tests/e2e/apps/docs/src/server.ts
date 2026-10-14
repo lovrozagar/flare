@@ -56,7 +56,15 @@ function withHeader(response: Response, name: string, value: string): void {
 	response.headers.set(name, value);
 }
 
+// The e2e boot's capture check (docs.fixture.ts, BUGS.md 93): one console line at this server's first request, which
+// the boot must capture on every runtime, workerd's console included.
+const probe = { logged: false };
+
 const timing = createMiddleware(async (ctx) => {
+	if (!probe.logged) {
+		probe.logged = true;
+		console.error("[docs:probe] server up");
+	}
 	const started = Date.now();
 	const response = await ctx.next();
 	withHeader(response, "x-docs-time", `${Date.now() - started}ms`);
