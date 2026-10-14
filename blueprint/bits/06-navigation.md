@@ -117,6 +117,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `landed at r` | `l`, `l`, `h`, then `r` | the data and heads by route id, resolved at `r`. Frames after `r` do not hold the commit |
 | `deferred resolve` | an `l` with placeholders in an object and in an array, then `c` frames in any order | each placeholder is a live deferred value that still serializes as `{ __deferred, key }`, and its promise resolves with its own `c`. A `c` for another route is ignored |
 | `deferred reject` | an `e` with `k`, then the stream ends | that promise rejects with the rebuilt Error. A value whose frame never came rejects. The overlay is not sent |
+| `broken body` | the body throws after `r` with a deferred value pending: a network error with no signal, then an AbortError with an aborted `signal` | the first value rejects with the network error. The second stays pending. Neither escapes (BUGS.md B58) |
 | `dev overlay` | a loader `e` frame, no `k`, with `stack` in dev | `error.stack` is that stack, and the hot channel is sent `{ type: "error", err: { message, stack } }` |
 | `prod no overlay` | a loader `e` frame in production | `error.stack` is `""`, and nothing is sent |
 | `redirect` | an `x` frame | resolves with `{ status, url, replace }` and no commit data |
@@ -151,7 +152,6 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `chunk import` | the target's lazy module rejects with a chunk message | one guarded document load of the target URL, and no commit. The chunk error wins even when the data request fails first |
 | `optional param` | a route with an optional param, absent and then present | the absent param is not in the match params. The present one is |
 | `restore` | `restore(url)`, one popstate step | the target commits with no blocker and no history write, and the saved scroll comes back. A hash-only step restores too |
-| `superseded resolves` | a second navigation starts before the first data request settles, and a third is stopped by a blocker | the first and third promises resolve, neither rejects, and no `unhandledrejection` fires. The second commits (B105, BUGS.md B58) |
 
 ### `client/navigation/navigate-shallow.test.ts`
 
@@ -178,6 +178,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `two slots` | two `<Loading>` boundaries, and `r` arrives before either `c` | history is pushed at `r`, while both fallbacks are showing. The fast `c` replaces its fallback and leaves the slow fallback. The slow `c` replaces that one. Neither frame pushes |
 | `slot catches` | a deferred `e`, and that slot is inside `<Errored>` | the `<Errored>` fallback is shown. The sibling slot still swaps when its `c` arrives. `errorRender` is not called. The overlay sender is not called |
 | `slot escapes` | a deferred `e`, and the slot has no `<Errored>` | the outlet paints the walked `errorRender` or the `Something went wrong` div. The layout render text stays. In dev the overlay sender is called |
+| `superseded resolves` | the first navigation has landed at `r` with its deferred values still streaming when a second navigation aborts its body; the second's response is held, then sent; a third is stopped by a blocker | until the second commits, the first page still shows its fallbacks: the aborted values stay pending, not failed. The first and third promises resolve, neither rejects, and no `unhandledrejection` fires. The second commits (B105, BUGS.md B58) |
 
 ### `client/navigation/pending.test.ts`
 

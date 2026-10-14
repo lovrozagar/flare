@@ -96,3 +96,34 @@ test("dev log clean", async ({ context, docs }, info) => {
 	// A line no page declares stays whole, so an extra one shows as itself.
 	expect(flare.map((line) => declared.find((message) => line.includes(message)) ?? line)).toEqual(declared);
 });
+
+// Five main-nav links 30 ms apart. The first, Changelog, has landed with its 900 ms stats value still streaming (or
+// filling, once the page is stored), so the next click aborts a body mid-stream. A superseded navigation resolves, its
+// page keeps its fallbacks until the next commit, and the page reports no error (B58, B105).
+test("rapid links", async ({ page, docs }) => {
+	const errors: string[] = [];
+	page.on("pageerror", (error) => errors.push(`${error.name}: ${error.message}\n${error.stack ?? ""}`));
+	await open(page, docs.origin, "/docs/routing");
+	// Clicked from the page, so no actionability wait stretches the 30 ms.
+	const streaming = await page.evaluate(
+		async ({ nav, paths }) => {
+			const link = (path: string) =>
+				[...document.querySelectorAll<HTMLAnchorElement>(nav)].find((item) => item.pathname === path);
+			link("/changelog")?.click();
+			while (document.querySelector("main h1")?.textContent !== "Changelog") {
+				await new Promise((resolve) => requestAnimationFrame(resolve));
+			}
+			const pending = document.querySelector("#stats-loading") !== null;
+			for (const path of paths) {
+				link(path)?.click();
+				await new Promise((resolve) => setTimeout(resolve, 30));
+			}
+			return pending;
+		},
+		{ nav: "#nav nav a", paths: ["/api/server/create-server", "/examples", "/playground", "/docs/routing"] },
+	);
+	expect(streaming).toBe(true);
+	await expect(page.locator("#doc-title")).toHaveText("Routing");
+	await page.waitForTimeout(500);
+	expect(errors).toEqual([]);
+});

@@ -33,6 +33,7 @@ The server has `serverContext`, `authenticate`, `i18n()`, middleware (`next`, `r
 | --- | --- | --- |
 | `dev log clean` | every page in the route map, each in a fresh tab, on the `*-dev-*` projects | the dev server's captured log has no `Unable to parse` and no uncaught error, and its `[flare:` error lines are exactly the ones the page entries declare they log on purpose (`/changelog` declares "The stats service is down"): an extra line or a missing declared one fails (BUGS.md B8) |
 | `public files` | GET `/favicon.ico`, `/icon.svg`, `/apple-touch-icon.png`, `/manifest.webmanifest`, and `/fonts/mono.woff2` | each answers 200 with a non-empty body and its content type, on every project (BUGS.md B11) |
+| `rapid links` | from `/docs/routing`, the main-nav Changelog link, then, once Changelog has landed with its 900 ms stats value still loading (a stream, or a fill once the page is stored), API, Examples, Playground, and Docs clicked 30 ms apart from the page | the stats value was still loading at the second click, the page ends on Routing, and no `pageerror` fires: each superseded navigation resolves, including one aborted mid-stream (B105, BUGS.md B58) |
 | `every page hydrates` | one case per page of the route map | the document status is the listed one, the page hydrates, and the console holds no error or warning besides that status |
 | `click through` | home → a feature card → a sidebar link → back → back | no document request, and the header node is the same node |
 

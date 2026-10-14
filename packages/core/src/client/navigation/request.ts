@@ -53,7 +53,7 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	// An input failure does not commit (dx/builder.md). Any other status paints the target's failure.
 	if (response.status === 400) return { kind: "none" };
 	if (response.status !== 200 || response.body === null) return { kind: "status", status: response.status };
-	const options = { dev: deps.dev, send: deps.send, holes: trip.holes, reuse: trip.reuse };
+	const options = { dev: deps.dev, send: deps.send, holes: trip.holes, reuse: trip.reuse, signal: trip.signal };
 	return { kind: "landed", landing: await landFrames(framesOf(response.body), options) };
 }
 

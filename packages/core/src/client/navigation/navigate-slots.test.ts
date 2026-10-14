@@ -74,8 +74,15 @@ beforeEach(() => {
 
 afterEach(unmountAll);
 
-// A data response the test writes into frame by frame.
-function streamed(route: string): { response: Response; write: (frame: Frame) => void; close: () => void } {
+// A data response the test writes into frame by frame, and can break as the browser's fetch does on an abort.
+type Streamed = {
+	response: Response;
+	write: (frame: Frame) => void;
+	close: () => void;
+	fail: (reason: unknown) => void;
+};
+
+function streamed(route: string): Streamed {
 	const encoder = new TextEncoder();
 	let controller!: ReadableStreamDefaultController<Uint8Array>;
 	const body = new ReadableStream<Uint8Array>({ start: (opened) => void (controller = opened) });
@@ -86,6 +93,7 @@ function streamed(route: string): { response: Response; write: (frame: Frame) =>
 		response: new Response(body, { headers: { "content-type": "application/x-ndjson" } }),
 		write,
 		close: () => controller.close(),
+		fail: (reason) => controller.error(reason),
 	};
 }
 
@@ -144,4 +152,50 @@ it("slot escapes", async () => {
 	expect(app.text()).toBe("root[Something went wrong]");
 	// The slow value never came either, so it rejects when the stream ends: a second report.
 	expect(send).toHaveBeenNthCalledWith(1, expect.objectContaining({ message: "fast failed" }));
+});
+
+// The first navigation has landed at `r` with both values still streaming when a second one aborts it, and the
+// browser's fetch errors the body with an AbortError. Until the second commits, the first page keeps its fallbacks:
+// its values stay pending, not failed. A third, stopped by a blocker, resolves too. No rejection escapes (B105,
+// BUGS.md B58).
+it("superseded resolves", async () => {
+	const data = streamed("_root_/slots");
+	const frames: Frame[] = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/", d: "fresh" },
+		{ t: "r" },
+		{ t: "d" },
+	];
+	const second = Promise.withResolvers<Response>();
+	const fetches = [
+		async (signal: AbortSignal) => {
+			signal.addEventListener("abort", () =>
+				data.fail(new DOMException("signal is aborted without reason", "AbortError")),
+			);
+			return data.response;
+		},
+		async () => second.promise,
+	];
+	const app = await mountNavigator(router, async (_url, init) =>
+		(fetches.shift() ?? fetches[0])(init.signal as AbortSignal),
+	);
+	const unhandled: unknown[] = [];
+	const record = (reason: unknown) => unhandled.push(reason);
+	process.on("unhandledRejection", record);
+	const first = app.navigator.navigate({ to: "_root_/slots" });
+	data.write({ t: "r" });
+	await expect(first).resolves.toBeUndefined();
+	const navigated = app.navigator.navigate({ to: "_root_/" });
+	await settled();
+	expect(app.text()).toBe("root[wait-fast|wait-slow]");
+	second.resolve(
+		new Response(frames.map(encodeFrame).join(""), { headers: { "content-type": "application/x-ndjson" } }),
+	);
+	await expect(navigated).resolves.toBeUndefined();
+	app.deps.blockers.register(() => false);
+	await expect(app.navigator.navigate({ to: "_root_/slots" })).resolves.toBeUndefined();
+	await settled();
+	process.off("unhandledRejection", record);
+	expect(app.text()).toBe("root[home:fresh]");
+	expect(unhandled).toEqual([]);
 });
