@@ -165,6 +165,8 @@ it("dev server", () => {
 	expect(hook.call(null as never, server(true) as never)).toBeUndefined();
 	const post = hook.call(null as never, server(false) as never);
 	expect(typeof post).toBe("function");
+	// A plain stylesheet edit leaves the server's modules in place (BUGS.md 99).
+	expect(flare().some((item) => item.name === "flare:css-update")).toBe(true);
 });
 
 // The map carries the original source, so only the code is checked.

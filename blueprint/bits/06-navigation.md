@@ -465,7 +465,7 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 
 | test | case | result |
 | --- | --- | --- |
-| `dev server` | `configureServer` with `middlewareMode`, then without | no handler, then a post hook that installs it |
+| `dev server` | `configureServer` with `middlewareMode`, then without | no handler, then a post hook that installs it. `flare()` includes `flare:css-update` (BUGS.md 99) |
 | `client entry define` | `vite dev`, then a build after the client wrote its manifest | the `ssr` and `flare_prerender` environments load `server/lifecycle/build-info.ts` with `clientEntry` as `clientUrl({ entry })`, `/src/client.tsx` by default, and `buildId` `dev`. A build loads the manifest's hashed entry and its build id, and fails naming the manifest path when it is absent. The client environment never loads it. No `define` is set (bit 12) |
 
 ### `server/render/document.test.ts` (doctype)
