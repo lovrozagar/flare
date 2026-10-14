@@ -27,6 +27,9 @@ export type Boot = {
 };
 
 // A runtime's output, split into lines as it arrives. A line still being written is the last entry.
+// ANSI escape sequences: Bun colors console.error when the environment forces color, as Playwright's workers do.
+const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`, "g");
+
 function capture(): { attach: (stream: Readable | null) => void; logs: () => readonly string[] } {
 	const lines: string[] = [];
 	const pending: string[] = [];
@@ -37,10 +40,10 @@ function capture(): { attach: (stream: Readable | null) => void; logs: () => rea
 			stream?.on("data", (chunk: Buffer) => {
 				const parts = `${pending[slot]}${decoder.write(chunk)}`.split("\n");
 				pending[slot] = parts.pop() ?? "";
-				lines.push(...parts);
+				lines.push(...parts.map((line) => line.replaceAll(ANSI, "")));
 			});
 		},
-		logs: () => [...lines, ...pending.filter((line) => line !== "")],
+		logs: () => [...lines, ...pending.filter((line) => line !== "").map((line) => line.replaceAll(ANSI, ""))],
 	};
 }
 
