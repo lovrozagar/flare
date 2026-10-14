@@ -83,9 +83,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
+      # The image has no unzip, which setup-bun needs, and the job's user cannot install it. npm's `bun` package takes
+      # the platform binary through an optional dependency, with no unzip.
+      - name: Install Bun
+        run: |
+          npm install --global --prefix "$HOME/.bun-npm" "bun@$BUN_VERSION"
+          echo "$HOME/.bun-npm/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run test:e2e -- --shard=${{ matrix.shard }}/3
 

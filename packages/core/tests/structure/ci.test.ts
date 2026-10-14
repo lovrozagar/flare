@@ -3,7 +3,7 @@ import { load } from "js-yaml";
 import { expect, it } from "vitest";
 import { IMAGE_DIGEST } from "../../../../scripts/browser-server.ts";
 
-type Step = { uses?: string; run?: string; with?: Record<string, unknown> };
+type Step = { name?: string; uses?: string; run?: string; with?: Record<string, unknown> };
 type Job = {
 	"runs-on": string;
 	steps: Step[];
@@ -66,5 +66,14 @@ it("ci grid", () => {
 	const servers = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"];
 	expect([...mac.matchAll(/--project (\S+)/g)].map((match) => match[1])).toEqual(
 		servers.map((server) => `${server}-webkit`),
+	);
+});
+
+// The browser image has no unzip, which setup-bun needs, so the Linux grid takes Bun from npm at BUN_VERSION.
+it("ci grid bun", () => {
+	const linux = workflow.jobs["e2e-linux"];
+	expect(linux?.steps.some((step) => step.uses?.startsWith("oven-sh/setup-bun") === true)).toBe(false);
+	expect(linux?.steps.find((step) => step.name === "Install Bun")?.run).toBe(
+		'npm install --global --prefix "$HOME/.bun-npm" "bun@$BUN_VERSION"\necho "$HOME/.bun-npm/bin" >> "$GITHUB_PATH"\n',
 	);
 });
