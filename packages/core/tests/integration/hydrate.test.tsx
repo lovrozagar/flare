@@ -1,4 +1,4 @@
-import { createServer as createNetServer } from "node:net";
+import { spawn, type ChildProcess } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ENGINES, startHarness, type Api, type Harness, type Side } from "./hydrate.harness.ts";
@@ -8,13 +8,27 @@ import { ENGINES, startHarness, type Api, type Harness, type Side } from "./hydr
 // Unset when the harness could not start: its own error is the failure, and there is nothing to close.
 let harness: Harness | undefined;
 
+// Another process holds Vite's default HMR port, 24678, and closes every socket it accepts, as a foreign dev server
+// can, from before the harness starts to the end of the file: a Vite that has not bound the port itself sends its
+// client there (BUGS.md B53). It is a child process, so it closes each socket at once. A port another process already
+// holds is the same condition.
+const SQUAT =
+	'const server = require("node:net").createServer((socket) => socket.destroy());' +
+	'server.on("error", () => console.log("held"));' +
+	'server.listen(24678, "0.0.0.0", () => console.log("ready"));';
+let squat: ChildProcess | undefined;
+
 beforeAll(async () => {
+	const child = spawn(process.execPath, ["-e", SQUAT], { stdio: ["ignore", "pipe", "inherit"] });
+	squat = child;
+	await new Promise<void>((done) => child.stdout?.once("data", () => done()));
 	// packages/core, two levels above this file, whatever directory the run started in.
 	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."));
 }, 180_000);
 
 afterAll(async () => {
 	await harness?.close();
+	squat?.kill();
 });
 
 function started(): Harness {
@@ -130,20 +144,11 @@ describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
 	});
 });
 
-// Another process on Vite's default HMR port, 24678, that accepts and closes every socket, as a foreign dev server
-// can. The page's Vite client talks to the harness's own server, so no case sees that socket (BUGS.md B53).
+// With the port held from before the harness started, the page's Vite client still talks to the harness's own server,
+// so no case sees the foreign socket (BUGS.md B53).
 it("foreign hmr port", { timeout: 30_000 }, async () => {
-	const squat = createNetServer((socket) => socket.destroy());
-	const held = await new Promise<boolean>((resolve) => {
-		squat.once("error", () => resolve(false));
-		squat.listen(24678, "0.0.0.0", () => resolve(true));
-	});
-	try {
-		const problems: string[] = [];
-		for (const tree of [progressBeside, idleBoundaries, dataHooks])
-			problems.push(...(await started().hydrate("chromium", tree)).problems);
-		expect(problems).toEqual([]);
-	} finally {
-		if (held) await new Promise((resolve) => squat.close(resolve));
-	}
+	const problems: string[] = [];
+	for (const tree of [progressBeside, idleBoundaries, dataHooks])
+		problems.push(...(await started().hydrate("chromium", tree)).problems);
+	expect(problems).toEqual([]);
 });
