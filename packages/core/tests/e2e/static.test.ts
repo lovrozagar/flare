@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import { artifactPath } from "../../src/shared/cache/artifact-path.ts";
 import { boot, type Boot } from "./boot.ts";
+import { engineNoise } from "./console.ts";
 
 // SSG in a real runtime (bits/12): a production build prerenders /static and its two slugs, and the server reads each
 // seed through its `static` store, files of the client output on Node and Bun and the ASSETS binding on Workers.
@@ -20,11 +21,12 @@ test.afterAll(async () => {
 	await session.close();
 });
 
-// The page hydrates, and the console holds no error or warning.
+// The page hydrates, and the console holds no error or warning but WebKit's stylesheet preload notice (console.ts).
 async function hydrated(page: Page, path: string): Promise<string[]> {
 	const errors: string[] = [];
 	page.on("console", (message) => {
-		if (message.type() === "error" || message.type() === "warning") errors.push(message.text());
+		if ((message.type() === "error" || message.type() === "warning") && !engineNoise(message.text()))
+			errors.push(message.text());
 	});
 	page.on("pageerror", (error) => void errors.push(String(error)));
 	await page.goto(`${session.origin}${path}`);

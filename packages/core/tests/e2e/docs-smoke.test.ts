@@ -40,6 +40,16 @@ test.describe("every page hydrates", () => {
 	}
 });
 
+// A production page left open past WebKit's few-second preload check logs nothing: a lazy route's modulepreload names
+// no chunk the page already loaded (BUGS.md 79), and the stylesheet's preload warning is engine noise (BUGS.md 81).
+test("preloads settle", async ({ page, docs }, info) => {
+	test.skip(!isProd(info), "preloads are production markup");
+	const problems = await open(page, docs.origin, "/changelog");
+	await page.waitForLoadState("networkidle");
+	await page.waitForTimeout(5000);
+	expect(problems).toEqual([]);
+});
+
 test("click through", async ({ page, docs }) => {
 	const problems = await open(page, docs.origin, "/");
 	const loads = documents(page);
