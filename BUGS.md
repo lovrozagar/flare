@@ -618,6 +618,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 115.2 [x] Fix: release.yml pins 1.4.3, and its verify and npmjs jobs set Node 24 right after checkout, the npmjs job before setup-bun. ci.test reads every workflow in `.github/workflows`.
 115.3 [x] Test: ci `ci bun version` over every workflow (red: `bun@1.3.11`), with every setup-bun step reading `BUN_VERSION`; `release node` (red: setup-bun came first, and verify had no Node). flare-77 dispatches release.yml on main once this lands: a dispatch verifies only, since `release.ts --publish` refuses off a tag.
 
+116 [x] B116 An exiting test run left a Vite cache dir behind
+116.1 [x] CI 38597128404's lint job: boot.test `exit cleans` failed 1 of 2080, `existsSync(session.cacheDir)` still true right after `process.emit("exit", 0)`. boot.ts's exit path sent the dev child SIGTERM, which is asynchronous, then removed the cache dir at once, so a child still alive under the suite's load wrote into it again (the dep optimizer's metadata and `deps_temp_*`). A real runner that exits early leaves the dir in the same way. Isolated, the case passed 25 of 25 (flare-77).
+116.2 [x] Fix: the exit path sends SIGKILL, which leaves the child no handler to run, removes the dirs, waits 50 ms for a write already in flight, and removes them again. Each removal retries when a racing write interrupts it (`maxRetries`). `exited()` treats a child a signal ended as exited, which has a signal code and no exit code, so a `close()` after the exit path no longer waits forever.
+116.3 [x] Test: boot `exit cleans a writer`, a stub child that rewrites its cache dir every millisecond: the dir is gone right after the exit event and 100 ms later. Red on the old exit path 5 of 5; green 8 of 8 and 3 of 3 after.
+
 ## Verify
 
 97 [ ] Verify
