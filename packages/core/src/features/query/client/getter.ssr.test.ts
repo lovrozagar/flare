@@ -41,3 +41,19 @@ it("dehydrate", async () => {
 	expect(await inRequest(() => registeredQuery()?.dehydrate())).toBeUndefined();
 	expect(registeredQuery()?.dehydrate()).toBeUndefined();
 });
+
+// solid-query's QueryClientProvider clears the request's client in its server cleanup, which on Workers runs before
+// the document state is written. A query that succeeded in the request is still dehydrated (BUGS.md B54).
+it("cleared before dehydrate", async () => {
+	const getQueryClient = createQueryClientGetter();
+	const state = await inRequest(async () => {
+		const client = getQueryClient();
+		await client.prefetchQuery({ queryKey: ["search", "route"], queryFn: () => "hits" });
+		await client.prefetchQuery({ queryKey: ["failed"], queryFn: () => Promise.reject(new Error("no")) });
+		client.clear();
+		return registeredQuery()?.dehydrate();
+	});
+	const hashes = Reflect.get(Object(state), "queries").map((query: { queryHash: string }) => query.queryHash);
+	expect(hashes).toEqual(['["search","route"]']);
+	expect(JSON.stringify(state)).toContain("hits");
+});

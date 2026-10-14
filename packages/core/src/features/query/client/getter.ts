@@ -1,5 +1,5 @@
 import { getRequestEvent, isServer } from "@solidjs/web";
-import { dehydrate, hydrate, QueryClient } from "@tanstack/solid-query";
+import { dehydrate, hydrate, QueryClient, type Query } from "@tanstack/solid-query";
 import { registeredQuery, registerQuery, type QueryGetter } from "../../../shared/protocol/index.ts";
 
 // A loader's `ctx.queryClient` is TanStack's client once the app imports `./query`, which loads this module
@@ -12,6 +12,12 @@ declare module "@lovrozagar/flare" {
 
 // Where the server keeps a request's client: the request event's `locals`, which a loader's scope shares.
 const LOCALS_KEY = "flare.queryClient";
+
+// A request's client and the queries that succeeded in it, which outlive a clear of the client (BUGS.md B54).
+class RequestQueries {
+	readonly succeeded = new Map<string, Query>();
+	constructor(readonly client: QueryClient) {}
+}
 
 // Marks a getter this module made, so the registered one can be returned with its type.
 const BRAND = Symbol.for("flare.query.getter");
@@ -27,14 +33,14 @@ export function createQueryClientGetter(): () => QueryClient {
 	let documentClient: QueryClient | undefined;
 	const phase = { hydrated: false };
 	const getter = (): QueryClient => {
-		if (isServer) return requestClient() ?? createRequestClient();
+		if (isServer) return (requestQueries() ?? createRequestQueries()).client;
 		documentClient ??= seeded(phase);
 		return documentClient;
 	};
 	const created = Object.assign(getter, {
 		dehydrate: () => {
-			const client = isServer ? requestClient() : undefined;
-			return client === undefined ? undefined : dehydrate(client);
+			const request = isServer ? requestQueries() : undefined;
+			return request === undefined ? undefined : requestState(request);
 		},
 		// The client boot calls this once the hydration mount is over (B102).
 		hydrated: () => void (phase.hydrated = true),
@@ -48,19 +54,34 @@ function ours(getter: QueryGetter): getter is ClientGetter {
 	return Reflect.get(getter, BRAND) === true;
 }
 
-// The request's client, or nothing when the request made none or there is no request.
-function requestClient(): QueryClient | undefined {
+// The request's client and its succeeded queries, or nothing when the request made none or there is no request.
+function requestQueries(): RequestQueries | undefined {
 	const event = getRequestEvent();
 	const found: unknown = event === undefined ? undefined : Reflect.get(event.locals, LOCALS_KEY);
-	return found instanceof QueryClient ? found : undefined;
+	return found instanceof RequestQueries ? found : undefined;
 }
 
-function createRequestClient(): QueryClient {
+// solid-query's QueryClientProvider clears this client in its server cleanup, which on Workers runs before the
+// document state is written. So each query that succeeds is kept as it lands, and the state includes it whatever
+// the cleanup did first (BUGS.md B54).
+function createRequestQueries(): RequestQueries {
 	const event = getRequestEvent();
 	if (event === undefined) throw new Error("the query client getter runs inside a request on the server");
-	const client = new QueryClient();
-	Reflect.set(event.locals, LOCALS_KEY, client);
-	return client;
+	const request = new RequestQueries(new QueryClient());
+	request.client.getQueryCache().subscribe(({ query }) => {
+		if (query.state.status === "success") request.succeeded.set(query.queryHash, query);
+	});
+	Reflect.set(event.locals, LOCALS_KEY, request);
+	return request;
+}
+
+// The request's dehydrated cache, plus each query that succeeded in it and was cleared since.
+function requestState(request: RequestQueries): ReturnType<typeof dehydrate> {
+	const cleared = new QueryClient();
+	for (const query of request.succeeded.values())
+		if (request.client.getQueryCache().get(query.queryHash) === undefined) cleared.getQueryCache().add(query);
+	const live = dehydrate(request.client);
+	return { ...live, queries: [...live.queries, ...dehydrate(cleared).queries] };
 }
 
 // The document's `queries`, which the server wrote into the state script, fill the client before hydrate, so a query
