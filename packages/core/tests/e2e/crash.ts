@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { expect, test as base } from "@playwright/test";
 
 // A page as the crash watch reads it, and the context that opens pages.
@@ -17,12 +18,49 @@ export function crashWatch(context: Watched): () => void {
 	};
 }
 
-// Every e2e spec's `test`: the crash watch runs around each case on its own context.
+// A page as the navigation log reads it: its main-frame navigations and its document requests.
+type LoggedFrame = { url(): string; parentFrame(): unknown };
+type LoggedRequest = { url(): string; resourceType(): string };
+type LoggedPage = {
+	on(event: "framenavigated", listener: (frame: LoggedFrame) => void): unknown;
+	on(event: "request", listener: (request: LoggedRequest) => void): unknown;
+};
+type Logged = { pages(): readonly LoggedPage[]; on(event: "page", listener: (page: LoggedPage) => void): unknown };
+
+// Every main-frame navigation and document request of every page the context has or opens, each timed from the watch's
+// start as `<ms> <event> <url>`. Attached to a failed case, it shows whether a document really navigated when an
+// evaluate reports its context destroyed, or whether the driver lost the context (BUGS.md 34.6).
+export function navigationLog(context: Logged, now: () => number = () => performance.now()): () => string[] {
+	const start = now();
+	const lines: string[] = [];
+	const line = (event: string, url: string): void => void lines.push(`${Math.round(now() - start)} ${event} ${url}`);
+	const watch = (page: LoggedPage): void => {
+		page.on("framenavigated", (frame) => {
+			if (frame.parentFrame() === null) line("framenavigated", frame.url());
+		});
+		page.on("request", (request) => {
+			if (request.resourceType() === "document") line("document", request.url());
+		});
+	};
+	for (const page of context.pages()) watch(page);
+	context.on("page", watch);
+	return () => [...lines];
+}
+
+// Every e2e spec's `test`: the crash watch and the navigation log run around each case on its own context, and a failed
+// case carries the log.
 export const test = base.extend<{ crashGuard: void }>({
 	crashGuard: [
-		async ({ context }, use) => {
+		async ({ context }, use, testInfo) => {
 			const check = crashWatch(context);
+			const log = navigationLog(context);
 			await use();
+			// A file in the case's output directory, which CI uploads; a body attachment is not written there.
+			if (testInfo.status !== testInfo.expectedStatus) {
+				const path = testInfo.outputPath("navigation-log.txt");
+				writeFileSync(path, `${log().join("\n")}\n`);
+				await testInfo.attach("navigation log", { path, contentType: "text/plain" });
+			}
 			check();
 		},
 		{ auto: true },

@@ -91,7 +91,7 @@ jobs:
           echo "$HOME/.bun-npm/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run test:e2e -- --shard=${{ matrix.shard }}/3
-      # A failing case's trace and server log (docs.fixture.ts), so a CI-only failure can be read (BUGS.md 93).
+      # The test results: each failing case's error context (its page snapshot), server logs (docs.fixture.ts), and navigation log (crash.ts); tracing is off (B34), so a CI-only failure can be read (BUGS.md 93, 34.6).
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
