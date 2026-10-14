@@ -8,8 +8,9 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | --- | --- | --- |
 | `cloudflare options` | the options `workersDev: true` composes the Cloudflare plugin with | `viteEnvironment: { name: "worker" }` and `config: { main: "virtual:flare/worker" }`, so the app's `wrangler.jsonc` needs no `main` and flare's build-info module serves the worker environment (B95 (a)) |
 | `peer missing` | the peer cannot be resolved | the error names `@cloudflare/vite-plugin` and the install command |
+| `hooks missing` | the peer resolves, and the runtime's `node:module` has no `registerHooks` (injected) | throws when the plugin is created: `flare({ workersDev: true }) runs Vite on Node 22.15 or later`, with the runtime's name and version; the peer is not loaded (B95, CI run 38493113436 on Bun 1.4.3) |
 
-`vite/plugin/flare.test.ts` `workers dev` (the Cloudflare plugins come before flare's own, and `workersDev: false` or absent composes none) and `workers dev missing peer` (`flare({ workersDev: true })` throws when the plugin is created) are the `workersDev` rows of `dx/plugin.md`.
+`vite/plugin/flare.test.ts` `workers dev` (the Cloudflare plugins come before flare's own, and `workersDev: false` or absent composes none) and `workers dev missing peer` (`flare({ workersDev: true })` throws when the plugin is created) are the `workersDev` rows of `dx/plugin.md`. On a runtime without `registerHooks` (the Bun run), `workers dev` asserts the `hooks missing` error instead of the composition.
 
 ## `vite/dev/dev-head.test.ts`
 
@@ -42,7 +43,7 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | test | case | result |
 | --- | --- | --- |
 | `bun dev` | `minimal` booted as `vite dev` under the Bun runtime | GET `/` answers 200 and the document's `flare-build` is `dev` |
-| `workers dev` | `minimal` booted with `workersDev: true` | GET `/` answers 200 from workerd |
+| `workers dev` | `minimal` booted with `workersDev: true` | GET `/` answers 200 from workerd. It runs where the test runtime has `registerHooks`; under the Bun run (`test:bun`) the child Vite is Bun too, so the case is skipped there by that feature check, and the skip names B95 |
 
 ## `scripts/browser-server.test.ts` (B97)
 
