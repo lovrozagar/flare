@@ -4,7 +4,7 @@
 import { flare } from "@lovrozagar/flare/vite";
 
 export default defineConfig({
-  plugins: [flare({ assetsBase?, entry?, image?, prerender?, css?, broadcast?, fonts?, devLogs?, workersDev? })],
+  plugins: [flare({ assetsBase?, entry?, image?, prerender?, css?, broadcast?, fonts?, devLogs? })],
 });
 ```
 
@@ -37,7 +37,6 @@ The payload builder is `shared/errors/dev-report.ts`. It does not import Vite. C
 | `broadcast` | no | `true` | `boolean` | `true` leaves `client/sync/enabled.ts` as `broadcastEnabled = true`. `false` replaces that module in the client environment, in dev and in the client build, with `export const broadcastEnabled = false`. Post and subscribe then do nothing. This tab still writes theme and direction to `localStorage`, and `setLocale` still navigates. The server module stays `true` and still does not post, because `BroadcastChannel` is absent there | a non-boolean throws when the plugin is created. Omitted and `true` are the same. This switch is the only one, and it covers theme, direction, and locale | `vite/plugin/options.test.ts` `broadcast on`, `broadcast off`; `client/sync/enabled.test.ts` `on`; `client/sync/channel.test.ts` `off`, `missing` |
 | `fonts` | no | absent | `{ dir }`, a non-empty path relative to the root | the client build emits the woff2 files of the registry families its chunks import (`@lovrozagar/flare/fonts/<id>`), read from `dir/<family>/<file>.woff2` and written at their registry url. Absent, no font file is emitted and the app serves `/fonts/...` itself, `public/fonts` included | a file a used family lists but `dir` lacks fails the build and names it. Another key, an empty `dir`, or a non-object throws when the options are parsed. In `vite dev` the same registry urls are served from `dir` (`font/woff2`, `no-cache`), for any registry family; a url that is not a registry file, a file `dir` lacks, or a `..` segment falls through to the app (BUGS.md B7) | `vite/plugin/fonts.test.ts` `fonts emit`, `dev serve`, `dev fallthrough`, `fonts absent`, `fonts dir missing file`; `options.test.ts` `fonts` |
 | `devLogs` | no | `{ server: true, browser: "warn" }` | `{ server?: boolean, browser?: false \| "error" \| "warn" \| "all" }` | the dev log bridge both ways (`observability.md`, B100) | a production bundle contains no bridge code. Another key throws when the options are parsed | `vite/dev/log-bridge.test.ts`; `options.test.ts` `dev logs` |
-| `workersDev` | no | `false` | `boolean`, or `{ inspectorPort?: number \| false; persistState?: boolean \| { path: string } }` | `true` runs `vite dev` in workerd through `@cloudflare/vite-plugin` (an optional peer), composed first, so the app's Wrangler bindings work in dev (B95). workerd answers every request; flare installs no Node listener (BUGS.md 76). `inspectorPort` passes through to the Cloudflare plugin: absent, its default (9229 or the next free port); `0`, a port the OS assigns, so parallel dev servers cannot race for one; `false`, no inspector. `persistState` passes through too: two dev servers of the same app share the persisted state (`.wrangler/state` in the app) by default, so set `persistState: false` (or a path) to run them side by side (BUGS.md 85) | `true` without the peer installed throws when the plugin is created and names the install. `true` on a runtime without `node:module` `registerHooks` (Bun 1.4.3, Node before 22.15) throws when the plugin is created and says Workers dev runs Vite on Node 22.15 or later (B95). A dev boot is slower (about 3.3 s against 0.4 s). Production builds are unchanged and gain a deployable `dist/worker/wrangler.json` | `vite/plugin/flare.test.ts` `workers dev`, `workers dev missing peer`, `workers dev server`; `workers-dev.test.ts` `hooks missing`, `inspector port`; `options.test.ts` `workers dev option`; `tests/e2e/boot.test.ts` `workers dev twice` |
 
 ## image
 
@@ -93,3 +92,23 @@ The document emits `<script type="module" async>import("<url>")</script>` beside
 The generated route record carries literal `cache.client` fields and `intercept.from` and `intercept.render`. A non-literal is omitted and is not a build error. `Link` and navigation read those fields. Auth and `ssr`, `ssg`, and `isr` are not copied onto the record (`vite/codegen/routes.test.ts` `client literals`, `no auth copy`).
 
 `vite dev` rewrites both generated files after a short debounce when a route file under `src/routes` changes. Unchanged output is not written. A startup failure fails the build. A watch failure is reported and does not exit the process. Files are sorted by UTF-16 code unit. An empty route set removes both generated files (`routes.test.ts` `watch`, `unchanged`, `empty`). The `flare codegen` bin does not watch.
+
+## Cloudflare Workers
+
+Workers is the app's own plugin, as in TanStack Start (B109). Add Cloudflare's plugin beside `flare()` and point the Wrangler config at Flare's worker entry:
+
+```ts
+// vite.config.ts
+import { cloudflare } from "@cloudflare/vite-plugin";
+import { flare } from "@lovrozagar/flare/vite";
+
+export default defineConfig({ plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), flare()] });
+```
+
+```jsonc
+// wrangler.jsonc
+{ "main": "@lovrozagar/flare/worker", "assets": { "directory": "./dist/client", "binding": "ASSETS" } }
+```
+
+`vite dev` then renders in workerd with the app's bindings, and `vite build` builds the worker and writes its deploy config. Flare checks the composition when the config resolves: the plugin must target `ssr` and `main` must be `@lovrozagar/flare/worker`, or dev and build throw with the fix. Every Cloudflare option is the plugin's own: `inspectorPort: 0` and `persistState: false` let two dev servers of one app run side by side (each binds its own inspector port and keeps state in memory). Without the plugin, dev and builds run on Node or Bun as before. The plugin needs Node 22.15 or later.
+
