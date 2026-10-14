@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { dataRequests, deepOnly, expect, fnId, isProd, open, serverOf, test } from "./docs.fixture.ts";
 
 // Deferred data, TanStack Query, server functions, server context, and the env helpers (bits/15 docs-data).
@@ -138,7 +139,7 @@ test("unsafe error", async ({ page, docs }, info) => {
 // widens the spread (BUGS.md 95). Every body chunk the page reads after the click is timed too, so a failure names its
 // layer: chunks that came in a burst are the network's delivery, chunks spaced out with lines in a burst the page's
 // rendering (BUGS.md 100).
-test("stream", async ({ page, docs }) => {
+test("stream", async ({ page, docs }, info) => {
 	await page.addInitScript(() => {
 		const arrivals: { count: number; at: number }[] = [];
 		const reads: { bytes: number; at: number }[] = [];
@@ -176,6 +177,10 @@ test("stream", async ({ page, docs }) => {
 		lines: arrivals.map((arrival) => Math.round(arrival.at - (arrivals[0]?.at ?? 0))),
 		chunks: timed.reads.map((chunk) => `${Math.round(chunk.at - (arrivals[0]?.at ?? 0))}ms:${chunk.bytes}B`),
 	});
+	// Every run keeps its timing, a pass too, so macOS runs show how close a pass comes (BUGS.md 100).
+	const timing = info.outputPath("stream-timing.json");
+	writeFileSync(timing, `${evidence}\n`);
+	await info.attach("stream timing", { path: timing, contentType: "application/json" });
 	expect(
 		arrivals.map((arrival) => arrival.count),
 		evidence,

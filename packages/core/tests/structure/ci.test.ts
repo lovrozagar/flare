@@ -84,12 +84,15 @@ it("ci mac shards", () => {
 });
 
 // A failed grid uploads its test results, each failing case's trace and server log, as the last step of both jobs,
-// so a failure only CI hits can be read (BUGS.md 93).
+// so a failure only CI hits can be read (BUGS.md 93). macOS uploads on a pass too, for `stream`'s timing (BUGS.md 100).
 it("ci failure artifacts", () => {
-	for (const name of ["e2e-linux", "e2e-mac"]) {
+	for (const [name, when] of [
+		["e2e-linux", "failure()"],
+		["e2e-mac", "always()"],
+	] as const) {
 		const last = workflow.jobs[name]?.steps.at(-1);
 		expect({ if: last?.if, uses: last?.uses, with: last?.with }).toEqual({
-			if: "failure()",
+			if: when,
 			uses: "actions/upload-artifact@v4",
 			with: { name: `${name}-\${{ matrix.shard }}`, path: "packages/core/test-results", "retention-days": 7 },
 		});

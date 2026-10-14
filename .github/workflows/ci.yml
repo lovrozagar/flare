@@ -128,7 +128,8 @@ jobs:
           --project node-dev-webkit --project node-prod-webkit --project bun-dev-webkit
           --project bun-prod-webkit --project workers-dev-webkit --project workers-prod-webkit
           --shard=${{ matrix.shard }}/2
-      - if: failure()
+      # Every run, a pass too: `stream` keeps its line and chunk timing on macOS WebKit (BUGS.md 100).
+      - if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-mac-${{ matrix.shard }}
