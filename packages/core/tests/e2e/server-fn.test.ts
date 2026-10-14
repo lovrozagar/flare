@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./crash.ts";
 import { boot, type Boot } from "./boot.ts";
 
 let session: Boot;
