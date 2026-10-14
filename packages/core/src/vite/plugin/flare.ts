@@ -7,7 +7,7 @@ import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/
 import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
 import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts";
-import { devEndpoints } from "../dev/guard.ts";
+import { devEndpoints, targetGuard } from "../dev/guard.ts";
 import { prerenderApp } from "../prerender/index.ts";
 import { devHead as devHeadOf } from "../dev/dev-head.ts";
 import { installDevStyles } from "../dev/dev-styles.ts";
@@ -129,6 +129,8 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 		configureServer: {
 			order: "pre",
 			handler(server) {
+				// Before the Cloudflare plugin's handler, which would parse a `//` target into a host (BUGS.md 118).
+				if (state.cloudflare) server.middlewares.use(targetGuard);
 				watchGenerated(server, server.config.root);
 				devHeadOf(server).then(state.devHead.resolve, state.devHead.reject);
 				installDevStyles(server, resolve(server.config.root, parsed.entry.client));

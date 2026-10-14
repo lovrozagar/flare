@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { createNodeListener } from "../../adapters/node/index.ts";
+import { toRequest } from "../../adapters/node/request.ts";
 
 type Handle = (request: Request) => Response | Promise<Response>;
 
@@ -33,4 +34,17 @@ export function devEndpoints(endpoints: readonly DevEndpoint[]): Plugin {
 			}
 		},
 	};
+}
+
+// A Workers app's dev server, at its edge: the request-target check the Node listener makes (B22), before
+// @cloudflare/vite-plugin parses the target as a URL, which reads `//x` as the host `x` (BUGS.md 118). A target that
+// ingress refuses is its bare 400, as on Node dev; every other passes untouched.
+export function targetGuard(
+	req: { url?: string | undefined },
+	res: { writeHead: (status: number) => unknown; end: () => unknown },
+	next: () => void,
+): void {
+	if (toRequest({ url: req.url ?? "/" }).status !== 400) return next();
+	res.writeHead(400);
+	res.end();
 }

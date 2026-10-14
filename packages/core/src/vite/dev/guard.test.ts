@@ -1,6 +1,8 @@
+import { createServer } from "node:http";
+import { connect } from "node:net";
 import { expect, it } from "vitest";
 import { flare } from "../plugin/flare.ts";
-import { devEndpoints, guardDev } from "./guard.ts";
+import { devEndpoints, guardDev, targetGuard } from "./guard.ts";
 
 // A dev endpoint that answers with a CORS star, which the guard must not pass on.
 const endpoint = guardDev(
@@ -58,4 +60,42 @@ it("absent in prod", () => {
 	Reflect.apply(hook, null, [server]);
 	expect(used.map(([path]) => path)).toEqual(["/_flare/dev/x"]);
 	expect(typeof used[0]?.[1]).toBe("function");
+});
+
+// The status line for a target exactly as written, which a URL-parsing client would normalize away.
+function statusOf(port: number, target: string): Promise<string> {
+	return new Promise((resolve) => {
+		const socket = connect(port, "127.0.0.1");
+		let text = "";
+		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")));
+		socket.on("close", () => resolve(text.split("\r\n")[0] ?? ""));
+		socket.end(`GET ${target} HTTP/1.1\r\nhost: localhost\r\nconnection: close\r\n\r\n`);
+	});
+}
+
+// On a real node:http server: every target the Node listener refuses is 400 before the next middleware, and every
+// other reaches it untouched, an empty segment and a query's encoded slash included (B22, BUGS.md 118).
+it("target guard", async () => {
+	const seen: string[] = [];
+	const server = createServer((req, res) =>
+		targetGuard(req, res, () => {
+			seen.push(req.url ?? "");
+			res.end("next");
+		}),
+	);
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const port = Number(Reflect.get(Object(server.address()), "port"));
+	try {
+		for (const target of ["//x", "/a\\b", "http://evil.example/a"]) {
+			expect(await statusOf(port, target)).toBe("HTTP/1.1 400 Bad Request");
+		}
+		for (const target of ["/a//b", "/a?x=%2f", "/"]) expect(await statusOf(port, target)).toBe("HTTP/1.1 200 OK");
+		expect(seen).toEqual(["/a//b", "/a?x=%2f", "/"]);
+		// A request with no url, which node:http never makes, is the root.
+		let passed = false;
+		targetGuard({}, { writeHead: () => undefined, end: () => undefined }, () => (passed = true));
+		expect(passed).toBe(true);
+	} finally {
+		await new Promise((resolve) => server.close(resolve));
+	}
 });
