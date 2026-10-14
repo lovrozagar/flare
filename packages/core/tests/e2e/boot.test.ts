@@ -1,5 +1,6 @@
 import { existsSync, mkdtempSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
+import * as nodeModule from "node:module";
 import { connect } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -165,8 +166,9 @@ it(
 );
 
 // `vite dev` in workerd through the Cloudflare plugin (B95): its banner names the worker debug URL, which only a
-// worker it runs prints.
-it(
+// worker it runs prints. The plugin needs node:module's registerHooks, so under the Bun run, where the child Vite is
+// Bun too, this case is skipped by that feature check (B95).
+it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
 	"workers dev",
 	async () => {
 		const session = await boot({ app: "minimal", runtime: "workers", mode: "dev" });

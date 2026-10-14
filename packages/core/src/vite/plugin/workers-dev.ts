@@ -1,3 +1,4 @@
+import * as nodeModule from "node:module";
 import type { Plugin } from "vite";
 
 // An optional peer: only `flare({ workersDev: true })` loads it (dx/plugin.md workersDev, B95).
@@ -11,13 +12,19 @@ export function cloudflareOptions(workerEntry: string): CloudflareOptions {
 	return { viteEnvironment: { name: "worker" }, config: { main: workerEntry } };
 }
 
-// How the peer is found and loaded. The package exports only an `import` condition, so it is resolved and imported
-// as ESM; tests pass their own.
-export type PeerLoader = { resolve: (specifier: string) => string; load: (specifier: string) => Promise<unknown> };
+// How the peer is found and loaded, and whether this runtime can run it. The package exports only an `import`
+// condition, so it is resolved and imported as ESM. It needs `node:module`'s `registerHooks`, which is detected, not
+// inferred from a version. Tests pass their own.
+export type PeerLoader = {
+	resolve: (specifier: string) => string;
+	load: (specifier: string) => Promise<unknown>;
+	hooks: () => boolean;
+};
 
 const NATIVE: PeerLoader = {
 	resolve: (specifier) => import.meta.resolve(specifier),
 	load: (specifier) => import(specifier),
+	hooks: () => typeof Reflect.get(nodeModule, "registerHooks") === "function",
 };
 
 // The Cloudflare plugin's plugins, which Vite awaits. A missing peer throws now, when flare() is created, and names the
@@ -28,9 +35,21 @@ export function workersDevPlugins(workerEntry: string, loader: PeerLoader = NATI
 	} catch {
 		throw new Error(`flare({ workersDev: true }) needs ${PEER}: npm install -D ${PEER}`);
 	}
+	// Bun 1.4.3 and Node before 22.15 have no registerHooks, which the peer imports (B95).
+	if (!loader.hooks()) {
+		throw new Error(
+			`flare({ workersDev: true }) runs Vite on Node 22.15 or later; this runtime is ${runtimeName(process.versions)}`,
+		);
+	}
 	return loader.load(PEER).then((module) => {
 		const cloudflare: unknown = Reflect.get(Object(module), "cloudflare");
 		if (typeof cloudflare !== "function") throw new Error(`${PEER} exports no cloudflare()`);
 		return Reflect.apply(cloudflare, undefined, [cloudflareOptions(workerEntry)]) as Plugin[];
 	});
+}
+
+// The runtime's name and version, as the hooks error names it.
+export function runtimeName(versions: Readonly<Record<string, string | undefined>>): string {
+	const bun = versions["bun"];
+	return bun === undefined ? `Node ${String(versions["node"])}` : `Bun ${bun}`;
 }
