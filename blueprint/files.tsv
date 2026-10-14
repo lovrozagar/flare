@@ -345,6 +345,8 @@ packages/core/src/client/navigation/request.ts	P10	src	dom	One navigation's data
 packages/core/src/client/navigation/request.test.ts	P10	test	dom	Unit cases for request.ts
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
 packages/core/src/client/navigation/navigate-transition.test.ts	P6	test	dom	View-transition cases for navigate.ts
+packages/core/src/client/navigation/active.ts	P6	src	dom	The root `navigate`: the booted client's navigation, reachable outside any component; rejects before createClient booted (BUGS.md 105)
+packages/core/src/client/navigation/active.test.ts	P6	test	dom	Unit cases for active.ts
 packages/core/src/client/navigation/navigate-shallow.test.ts	P6	test	dom	Shallow navigation cases for navigate.ts
 packages/core/src/client/navigation/navigate-cache.test.ts	P6	test	dom	Client cache cases for navigate.ts
 packages/core/src/client/navigation/navigate-slots.test.ts	P6	test	dom	Deferred slot cases for navigate.ts
@@ -643,6 +645,7 @@ packages/core/tests/types/app/src/routes/_root_/about/about.page.tsx	P7	app	-	No
 packages/core/tests/types/app/src/routes/_root_/users/[id]/user.page.tsx	P7	app	-	Param id. Loader returns Promise of { user: { name: string } }. Head reads loaderData
 packages/core/tests/types/app/src/routes/_root_/docs/[...path]/docs.page.tsx	P7	app	-	Catch-all path: string[]
 packages/core/tests/types/app/src/routes/_root_/opt/[[locale]]/opt.page.tsx	P7	app	-	Optional locale: string or undefined. The key is required
+packages/core/tests/types/app/src/routes/_root_/moved/moved.page.tsx	P7	app	-	A loader that throws redirect() to another page and the three HTTP helpers, its return type still inferred (BUGS.md 105)
 packages/core/tests/types/app/src/routes/_root_/files/[[...rest]]/files.page.tsx	P7	app	-	Optional catch-all rest: string[] or undefined. The key is required
 packages/core/tests/types/app/src/routes/_root_/(blog)/blog.layout.tsx	P7	app	-	authenticate(). Preloader role is admin or editor. Loader returns { section: string }. Search validator { section: string }
 packages/core/tests/types/app/src/routes/_root_/(blog)/post/[slug]/post.page.tsx	P7	app	-	No auth method. Own preloader role admin. Loader returns { title: string }. No search validator

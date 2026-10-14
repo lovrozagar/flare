@@ -166,6 +166,57 @@ it("no src path in dts", () => {
 	}
 });
 
+// The names 03-surface promises per entry: the root table's first column, and each other entry's `Exports:` line.
+function surfaceNames(): Map<string, string[]> {
+	const text = readFileSync(join(repo, "blueprint/03-surface.md"), "utf8");
+	const names = new Map<string, string[]>();
+	for (const section of text.split(/^## /m).slice(1)) {
+		const key = /^`(\.[^`]*)`/.exec(section)?.[1];
+		if (key === undefined || key.includes("<")) continue;
+		const line = /^Exports: (.+)$/m.exec(section)?.[1];
+		const rows = key === "." ? [...section.matchAll(/^\| ([^|]+) \|/gm)].map((row) => String(row[1])) : [line ?? ""];
+		const found = rows.flatMap((cell) => [...cell.matchAll(/`([A-Za-z_$][\w$]*)`/g)].map((match) => String(match[1])));
+		if (found.length > 0)
+			names.set(
+				key,
+				found.filter((name) => name !== "export"),
+			);
+	}
+	return names;
+}
+
+// The names a declaration file exports: its export lists, declarations, and default.
+function declaredExports(path: string): Set<string> {
+	const names = new Set<string>();
+	for (const node of parseSync(path, readFileSync(path, "utf8")).program.body) {
+		if (node.type === "ExportDefaultDeclaration") names.add("default");
+		if (node.type !== "ExportNamedDeclaration") continue;
+		for (const specifier of node.specifiers) {
+			const exported = specifier.exported;
+			names.add(exported.type === "Identifier" ? exported.name : String(exported.value));
+		}
+		const declaration = node.declaration;
+		if (declaration === null) continue;
+		if ("id" in declaration && declaration.id !== null && "name" in declaration.id) names.add(declaration.id.name);
+		if (declaration.type === "VariableDeclaration") {
+			for (const item of declaration.declarations) if (item.id.type === "Identifier") names.add(item.id.name);
+		}
+	}
+	return names;
+}
+
+// Every name 03-surface promises for an entry is exported by that entry's packed declarations. A subpath that
+// resolves is not enough: the root once lacked `redirect`, `notFound`, and five more it listed (BUGS.md 105).
+it("surface names", () => {
+	const missing: string[] = [];
+	for (const [key, names] of surfaceNames()) {
+		const types = String(Reflect.get(Object(exportsOf()[key]), "types"));
+		const exported = declaredExports(join(packed.root, types));
+		for (const name of names) if (!exported.has(name)) missing.push(`${key} ${name}`);
+	}
+	expect(missing).toEqual([]);
+});
+
 it("tarball contents", () => {
 	const top = new Set(packed.entries.map((entry) => entry.replace(/^package\//, "").split("/")[0]));
 	expect([...top].toSorted()).toEqual(["LICENSE", "README.md", "dist", "package.json", "src"]);

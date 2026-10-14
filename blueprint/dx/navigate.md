@@ -4,6 +4,8 @@
 navigate({ to, params?, search?, hash?, replace?, revalidate?, scroll?, shallow?, state?, viewTransition? })
 ```
 
+`navigate` is a root export: the booted client's navigation, callable from anywhere on the client, the same function `useNavigate()` returns. Before `createClient` has booted, and on the server, it rejects (`client/navigation/active.test.ts`, BUGS.md 105).
+
 `to` is required and is a page route id, including a `.response()` page (`dx/types.md`). A string that is an absolute URL throws (`client/navigation/target.test.ts` `foreign origin`).
 
 | prop | required | default | outcome | pitfall | test |

@@ -78,7 +78,13 @@ type PageIds<R extends FlareRegister> = {
 	[Id in keyof Modules<R> & string]: Modules<R>[Id] extends { _type: "page" } ? Id : never;
 }[keyof Modules<R> & string];
 
-export type To<R extends FlareRegister> = [keyof Modules<R>] extends [never] ? string : PageIds<R>;
+// The generated `pageIds` names the page targets without reading a module's type, so a loader that throws `redirect()`
+// does not loop through its own module (BUGS.md 105). A register written before it derives them from the modules.
+export type To<R extends FlareRegister> = R extends { pageIds: infer Ids extends string }
+	? Ids
+	: [keyof Modules<R>] extends [never]
+		? string
+		: PageIds<R>;
 
 export type From<R extends FlareRegister> = [keyof Modules<R>] extends [never] ? string : keyof Modules<R> & string;
 

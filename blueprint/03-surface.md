@@ -16,7 +16,7 @@ Every entry ships `types` and `default` (compiled ESM). Framework sources contai
 | `useNavigation`, `useNavigationProgress`, `useLoaderData`, `useParams`, `useSearch`, `useLocation`, `useMatch`, `useNavigate`, `useBlocker`, `usePreloaderContext` | `client/navigation`, `shared/router` |
 | `createServerOnlyFn`, `createClientOnlyFn`, `createIsomorphicFn` | `shared/env` |
 | `nonce` | `shared/csp` |
-| `navigate` | `client/navigation/navigate.ts` |
+| `navigate` | `client/navigation/active.ts`: the booted client's navigation, reachable outside any component; it rejects before `createClient` has booted and on the server (BUGS.md 105) |
 | `Href` | `shared/url/href.ts` |
 | `LocationRewrite` | type from `shared/url/types.ts` |
 | `FlareRegister` | type from `shared/route-builder/register.ts` |
@@ -29,15 +29,23 @@ Every entry ships `types` and `default` (compiled ESM). Framework sources contai
 
 `createServerOnlyFn`, `createClientOnlyFn`, and `createIsomorphicFn` are on the root because app code on both graphs imports them. The boundary transform deletes the illegal body (B9). `nonce` is on the root for the same reason: server render and client navigation read one value.
 
+Each entry below opens with its `Exports:` line: the names that entry's packed declarations must export (`tests/structure/exports.test.ts` `surface names`, BUGS.md 105). The root's names are the first column of its table.
+
 ## `./client`
+
+Exports: `createClient`.
 
 `createClient`. The callbacks are `dx/client.md`.
 
 ## `./server`
 
+Exports: `createServer`, `serverCtx`, `withFetchDedupe`, `createMiddleware`, `Middleware`, `MiddlewareEntry`, `MiddlewareFilter`, `mount`, `proxy`, `SecurityConfig`, `revalidate`, `createRevalidateFn`, `RevalidateOptions`, `FlareStore`, `FlareStoreEntry`, `createMemoryStore`, `createAssetsStore`.
+
 `createServer`, `serverCtx`, `withFetchDedupe`, `createMiddleware` and the middleware types (`Middleware`, `MiddlewareEntry`, `MiddlewareFilter`), `mount`, `proxy`, `security` config type, `revalidate`, `createRevalidateFn`, `FlareStore`, `createMemoryStore`, `createAssetsStore`.
 
 ## `./server-fn`
+
+Exports: `createServerFn`, `ServerFn`, `StreamFn`, `ServerFnBuilder`, `FnContext`.
 
 `createServerFn`, plus the types `ServerFn`, `StreamFn`, `ServerFnBuilder`, and `FnContext`.
 
@@ -45,45 +53,67 @@ The entry has conditional exports, because the in-request call imports the serve
 
 ## `./query`
 
+Exports: `createQueryClientGetter`, `useSuspenseQuery`, `serverFnQueryOptions`, `serverFnMutationOptions`.
+
 Peer `@tanstack/solid-query`. `createQueryClientGetter`, `useSuspenseQuery`, `serverFnQueryOptions`, `serverFnMutationOptions`.
 
 ## `./i18n`
+
+Exports: `createTranslations`, `formatMessage`, `LocaleProvider`, `LocaleScript`, `useLocale`, `useLoaderT`, `usePreloaderT`.
 
 `createTranslations`, `formatMessage`, `LocaleProvider`, `LocaleScript`, `useLocale`, `useLoaderT`, `usePreloaderT`.
 
 ## `./i18n/server`
 
+Exports: `i18n`.
+
 Peers `negotiator`, `isbot`, `@formatjs/intl-localematcher`. `i18n`.
 
 ## `./seo`
+
+Exports: `sitemap`, `indexNow`, `googleIndexing`, `bingIndexing`.
 
 `sitemap`, `indexNow` (and `indexNow.file`), `googleIndexing`, `bingIndexing`. Arguments are `dx/seo.md`.
 
 ## `./adapters/node`
 
+Exports: `createNodeListener`, `toRequest`.
+
 `createNodeListener`, `toRequest`. Arguments are `dx/adapters.md`.
 
 ## `./adapters/bun`
+
+Exports: `createBunFetch`.
 
 `createBunFetch`. The return shape is `dx/adapters.md`.
 
 ## `./adapters/workers`
 
+Exports: `createWorkersHandler`.
+
 `createWorkersHandler`. Arguments are `dx/adapters.md`.
 
 ## `./worker`
+
+Exports: `default`.
 
 The Wrangler config's `main` under the Cloudflare plugin (B109). Inside Vite, `flare()` resolves it to the app's server behind `createWorkersHandler` with the config's assets binding. Imported anywhere else, it throws and says it runs only inside Vite with `flare()`. `dx/plugin.md` Cloudflare Workers.
 
 ## `./stores/fs`
 
+Exports: `createFilesystemStore`, `fileAssets`.
+
 `createFilesystemStore`, `fileAssets`. Arguments are `dx/store.md`.
 
 ## `./stores/cache-api`
 
+Exports: `createCacheApiStore`.
+
 `createCacheApiStore`. Arguments are `dx/store.md`.
 
 ## `./vite`
+
+Exports: `flare`.
 
 `flare`. Peers `vite`, `@solidjs/vite-plugin`, `oxc-parser`, `magic-string`. `sharp` is an optional peer, loaded only when `flare({ image })` is set. The options are `dx/plugin.md`. The types condition declares `*.avif?image`, `*.jpg?image`, `*.jpeg?image`, `*.png?image`, `*.tiff?image`, and `*.webp?image` as `{ src, width, height, variants }` (B88). A plain image import stays `vite/client`'s URL string. `./validation`, `./generators`, and `./virtual-types` are not exports. No public type names a `virtual:` module (B89).
 
@@ -93,9 +123,13 @@ The Wrangler config's `main` under the Cloudflare plugin (B109). Inside Vite, `f
 
 ## `./generated`
 
+Exports: `defineRouteTree`, `defineLayouts`.
+
 Imported by `routes.gen.ts` only. `defineRouteTree`, `defineLayouts`, the record types.
 
 ## `./testing`
+
+Exports: `createTestServer`, `flarePage`.
 
 `createTestServer` and `flarePage`. Arguments are `dx/testing.md`.
 

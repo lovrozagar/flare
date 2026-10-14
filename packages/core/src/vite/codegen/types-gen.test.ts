@@ -137,3 +137,17 @@ it("no phantom", () => {
 		}),
 	).toThrow(/^src\/bad\.ts: /);
 });
+
+// The page ids, a `.response()` page among them, as a plain union, so a page target needs no module's type. An app with
+// no page has none (BUGS.md 105).
+it("page ids", () => {
+	expect(generate().source).toContain(
+		'pageIds: "_root_/(blog)/post" | "_root_/about" | "_root_/api" | "_root_/docs/intro" | "_root_/files/[...path]" | "_root_/opt/[[locale]]" | "_root_/rest/[[...rest]]" | "_root_/users/[id]";',
+	);
+	const layoutOnly = generateTypes({
+		routeFiles: ["_root_/root.root-layout.tsx"],
+		appFiles: [],
+		read: (file) => files[file] ?? "",
+	});
+	expect(layoutOnly.source).toContain("pageIds: never;");
+});

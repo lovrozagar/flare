@@ -74,6 +74,7 @@ The route builder stores what it accepts, because `tests/integration/auth.test.t
 | test | case | result |
 | --- | --- | --- |
 | `state preloader` | GET a page whose chain has the preloaders of `preloader context` | each `self.flare.matches` entry's `preloader` is the context accumulated through that match: `{ a: 1 }` for the root, then `{ a: 1, b: 2 }`, then `{ a: 1, b: 2, c: 3 }`. A chain with no preloader writes `{}`, not `null` (B83) |
+| `response throws` | `.response()` functions that throw `redirect({ to, hash, status: 301 })`, `notFound()`, and a plain `Error` | `301` with `Location: /#top`, then `404`, then a projected `500`: the root helpers answer from a `.response()` as from a loader, and a bug is a bug (BUGS.md 105) |
 
 ### `server/loaders/cascade.test.ts`
 

@@ -11,7 +11,10 @@ export type {
 } from "../shared/route-builder/register.ts";
 export { createRouter } from "../shared/router/create-router.ts";
 export { nonce } from "../shared/csp/nonce.ts";
-export { markSafeError } from "../shared/errors/index.ts";
+export { markSafeError, notFound, redirect, unauthenticated, unauthorized } from "../shared/errors/index.ts";
+export { navigate } from "../client/navigation/active.ts";
+export type { Href } from "../shared/url/href.ts";
+export type { LocationRewrite } from "../shared/url/types.ts";
 export { useNavigation, useNavigationProgress } from "../client/navigation/index.ts";
 export {
 	InterceptOutlet,

@@ -43,7 +43,7 @@ The server has `serverContext`, `authenticate`, `i18n()`, middleware (`next`, `r
 
 ## `tests/e2e/docs-routing.test.ts`
 
-`slug params`, `ssg unknown slug` (404), `catch-all` (known and unknown entry), `optional catch-all`, `literal brackets`, `group no segment`, `fuzzy not found` (docs layout's not-found inside the guide chrome), `root not found`, `response redirect` (301 with and without a locale), `client rewrite` (an anchor to `/guide/routing` is a client navigation), `second root full load`, `static beats locale`, `error boundary reset` (500, then `reset()` with no history entry), `segment cdn` (`/hr/api/…` public with `Cache-Tag`), `locale prefix routes`.
+`slug params`, `ssg unknown slug` (404), `catch-all` (known entry; an unknown one is a 404 the page's loader throws with `notFound()`, painted by its own not-found), `optional catch-all`, `literal brackets`, `group no segment`, `fuzzy not found` (docs layout's not-found inside the guide chrome), `root not found`, `response redirect` (301 with and without a locale; `/legacy` throws a typed `redirect()` from its `.response()`), `client rewrite` (an anchor to `/guide/routing` is a client navigation), `second root full load`, `static beats locale`, `error boundary reset` (500, then `reset()` with no history entry), `segment cdn` (`/hr/api/…` public with `Cache-Tag`), `locale prefix routes`.
 
 ## `tests/e2e/docs-navigation.test.ts`
 
@@ -59,7 +59,7 @@ Production cases skip the `*-dev-*` projects: `ssg seed`, `ssg public cdn`, `isr
 
 ## `tests/e2e/docs-server.test.ts`
 
-`unauthenticated` (401 boundary, hydrates), `unauthorized` (403), `login cookie`, `authenticate optional`, `csrf`, `body limit` (a small body answers 200; a 70 KB body sent with `Expect: 100-continue` answers 413, so nothing is left unread for workerd to reset; BUGS.md 104), `middleware next`, `middleware respond`, `middleware bypass`, `middleware prefix`, `mount`, `response route` (keeps its own Cache-Control), `route headers`, `route security` (the root's `X-Frame-Options`, one nonce), `security defaults`, `indexnow key file`.
+`unauthenticated` (401 boundary, hydrates), `unauthorized` (403), `auth throws` (`/admin/audit` reads an optional session and its loader throws `unauthenticated()` for a guest and `unauthorized()` for a reader, which paint the admin root's 401 and 403; an admin gets the page; BUGS.md 105), `login cookie`, `authenticate optional`, `csrf`, `body limit` (a small body answers 200; a 70 KB body sent with `Expect: 100-continue` answers 413, so nothing is left unread for workerd to reset; BUGS.md 104), `middleware next`, `middleware respond`, `middleware bypass`, `middleware prefix`, `mount`, `response route` (keeps its own Cache-Control), `route headers`, `route security` (the root's `X-Frame-Options`, one nonce), `security defaults`, `indexnow key file`.
 
 ## `tests/e2e/docs-features.test.ts`
 

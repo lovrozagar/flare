@@ -15,6 +15,7 @@ declare module "@lovrozagar/flare" {
 			"/styled": { params: {} };
 			"/unstored": { params: {} };
 		};
+		pageIds: "_root_/" | "_root_/about" | "_root_/echo" | "_root_/holed" | "_root_/skeletons" | "_root_/static" | "_root_/static/[slug]" | "_root_/stored" | "_root_/styled" | "_root_/unstored";
 		routeModules: {
 			"_root_": typeof import("../routes/_root_/root.root-layout.tsx").route;
 			"_root_/": typeof import("../routes/_root_/home.page.tsx").route;

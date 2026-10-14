@@ -11,6 +11,7 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | test | case | result |
 | --- | --- | --- |
 | `subpath resolves` | every key in `03-surface.md` except the `./fonts/*` pattern | `types` and `default` resolve to files inside the tarball |
+| `surface names` | every name `03-surface.md` promises: the root table's first column, and each other entry's `Exports:` line | each is exported by that entry's packed declarations, parsed with oxc (export lists, declarations, default). The root once lacked `redirect`, `notFound`, `unauthenticated`, `unauthorized`, `navigate`, `Href`, and `LocationRewrite`, and `./server` `SecurityConfig` (BUGS.md 105) |
 | `font subpath` | a real key of `registry.json`, imported as `@lovrozagar/flare/fonts/<id>` | the default export resolves to that generated module. The module does not import another family. An id that is not a key resolves to no existing file: Node gives a URL to an absent file and the Bun runtime `ERR_MODULE_NOT_FOUND` (BUGS.md B47) |
 | `font barrel` | `@lovrozagar/flare/fonts`, resolved by the runtime under test | does not resolve: Node answers `ERR_PACKAGE_PATH_NOT_EXPORTED`, the Bun runtime `ERR_MODULE_NOT_FOUND`; the case names each runtime's answer (BUGS.md B47) |
 | `no solid condition` | every entry | no `solid` and no `browser` key, except `./server-fn`'s conditional exports |
