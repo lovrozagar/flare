@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import solid from "@solidjs/vite-plugin";
-import type { Plugin, UserConfig } from "vite";
+import type { Plugin, PluginOption, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts";
 import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
@@ -16,6 +16,7 @@ import { fontsPlugin } from "./fonts.ts";
 import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
 import { readWrangler } from "./wrangler.ts";
 import { realPath } from "./real-path.ts";
+import { workersDevPlugins } from "./workers-dev.ts";
 import { parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts";
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
@@ -43,8 +44,16 @@ const WORKERS_HANDLER = ownModule("../../adapters/workers/handler.ts", import.me
 // The generated route module, whose `chunks` map the client build points at hashed files.
 const ROUTES_GEN = "src/_gen/routes.gen.ts";
 
-export function flare(options?: FlareOptions): Plugin[] {
+export function flare(options?: FlareOptions & { workersDev?: false }): Plugin[];
+export function flare(options?: FlareOptions): PluginOption[];
+// `workersDev: true` puts the Cloudflare plugins first, so `vite dev` renders in workerd (B95).
+export function flare(options?: FlareOptions): PluginOption[] {
 	const parsed = parseOptions(options);
+	const own = flarePlugins(parsed);
+	return parsed.workersDev ? [workersDevPlugins(WORKER_ENTRY), ...own] : own;
+}
+
+function flarePlugins(parsed: ParsedOptions): Plugin[] {
 	const state: State = { base: "/", manifest: "", workerSource: "", root: process.cwd() };
 	// `image` turns optimization on. Absent, no image plugin runs and sharp is never loaded (dx/plugin.md image).
 	const image = parsed.image;

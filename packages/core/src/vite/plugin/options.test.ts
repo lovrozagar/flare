@@ -52,7 +52,8 @@ it("reset off", () => {
 const ENABLED = fileURLToPath(new URL("../../client/sync/enabled.ts", import.meta.url));
 
 // The core plugin's load hook, as the named environment calls it for `id`.
-type Load = { options?: FlareOptions; name: string; command: "serve" | "build"; id?: string };
+// A flare() without workersDev returns its own plugins (B95).
+type Load = { options?: Omit<FlareOptions, "workersDev">; name: string; command: "serve" | "build"; id?: string };
 
 function loaded({ options, name, command, id = ENABLED }: Load): unknown {
 	const core = flare(options).find((plugin) => plugin.name === "flare");
@@ -227,4 +228,12 @@ it("fonts", () => {
 	expect(flare().map((plugin) => plugin.name)).not.toContain("flare:fonts");
 	const bad: unknown[] = ["fonts", null, {}, { dir: "" }, { dir: 1 }, { dir: "fonts", extra: true }];
 	for (const fonts of bad) expect(() => parseOptions({ fonts } as unknown as FlareOptions)).toThrow(/^fonts/);
+});
+
+// Off unless `true`. Anything but a boolean throws (B95).
+it("workers dev option", () => {
+	expect(parseOptions().workersDev).toBe(false);
+	expect(parseOptions({ workersDev: false }).workersDev).toBe(false);
+	expect(parseOptions({ workersDev: true }).workersDev).toBe(true);
+	expect(() => parseOptions({ workersDev: "yes" } as unknown as FlareOptions)).toThrow(/workersDev/);
 });

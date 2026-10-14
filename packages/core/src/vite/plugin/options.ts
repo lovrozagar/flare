@@ -9,6 +9,7 @@ export type FlareOptions = {
 	css?: { reset?: boolean };
 	broadcast?: boolean;
 	fonts?: { dir: string };
+	workersDev?: boolean;
 };
 
 export type ParsedOptions = {
@@ -19,9 +20,10 @@ export type ParsedOptions = {
 	css: { reset: boolean };
 	broadcast: boolean;
 	fonts?: { dir: string } | undefined;
+	workersDev: boolean;
 };
 
-const KNOWN = new Set(["assetsBase", "entry", "image", "prerender", "css", "broadcast", "fonts"]);
+const KNOWN = new Set(["assetsBase", "entry", "image", "prerender", "css", "broadcast", "fonts", "workersDev"]);
 const WIDTHS = [640, 750, 828, 1080, 1200, 1920];
 const ENTRY = { client: "src/client.tsx", server: "src/server.ts" };
 
@@ -41,6 +43,7 @@ export function parseOptions(input?: FlareOptions): ParsedOptions {
 		css: parseCss(options.css),
 		broadcast: parseBroadcast(options.broadcast),
 		fonts: parseFonts(options.fonts),
+		workersDev: parseWorkersDev(options.workersDev),
 	};
 }
 
@@ -116,4 +119,10 @@ function parseBroadcast(value: boolean | undefined): boolean {
 	if (typeof value === "boolean") return value;
 	if (value === undefined) return true;
 	throw new Error("broadcast");
+}
+
+// Off unless `true`: a Workers dev boot is slower, and an app with a wrangler config may still develop on Node (B95).
+function parseWorkersDev(value: boolean | undefined): boolean {
+	if (value === undefined || typeof value === "boolean") return value === true;
+	throw new Error("workersDev");
 }

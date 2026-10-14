@@ -208,7 +208,14 @@ it("peer floors", () => {
 		.filter(([, value]) => value.optional === true)
 		.map(([name]) => name)
 		.toSorted();
-	expect(optional).toEqual(["@formatjs/intl-localematcher", "@tanstack/solid-query", "isbot", "negotiator", "sharp"]);
+	expect(optional).toEqual([
+		"@cloudflare/vite-plugin",
+		"@formatjs/intl-localematcher",
+		"@tanstack/solid-query",
+		"isbot",
+		"negotiator",
+		"sharp",
+	]);
 });
 
 it("not a peer", () => {
