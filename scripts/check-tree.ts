@@ -14,7 +14,8 @@ type Row = {
 	kind: string;
 };
 
-const PHASES = ["P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12", "P13", "P14", "P15"];
+// P0 through P16, the bits in order (bits/16 is the last).
+const PHASES = Array.from({ length: 17 }, (_, index) => `P${index}`);
 const NEEDS_TEST = new Set(["src", "lint", "script"]);
 const SCAN_ROOTS = ["packages/core", "scripts"];
 const SKIP_DIR = new Set(["node_modules", "dist", "coverage", "test-results", "playwright-report", ".wrangler"]);
