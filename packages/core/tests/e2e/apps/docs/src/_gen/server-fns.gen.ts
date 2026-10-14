@@ -2,6 +2,8 @@
 export const serverFns = {
 	"f23caf34f965e37f": () => import("../fns/auth.ts").then((loaded) => loaded.login),
 	"1539443873ccf072": () => import("../fns/auth.ts").then((loaded) => loaded.logout),
+	"4cd35929f3b07556": () => import("../fns/build-log.ts").then((loaded) => loaded.holdBuild),
+	"b0a63c2593985fa7": () => import("../fns/build-log.ts").then((loaded) => loaded.releaseBuild),
 	"7cb6122a95a85d41": () => import("../fns/build-log.ts").then((loaded) => loaded.buildLog),
 	"65db9aa115d9e88f": () => import("../fns/build-log.ts").then((loaded) => loaded.buildStatus),
 	"cdc7455c086f4359": () => import("../fns/echo.ts").then((loaded) => loaded.echo),

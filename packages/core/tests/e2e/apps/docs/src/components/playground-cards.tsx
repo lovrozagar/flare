@@ -100,7 +100,8 @@ export function StreamCard(): JSX.Element {
 	const [status, setStatus] = createSignal("idle");
 	let stop: (() => void) | undefined;
 	const start = async (): Promise<void> => {
-		const id = Math.random().toString(16).slice(2, 10);
+		// `?run=` names the run, so the e2e `stream` can gate it before the click (BUGS.md 100).
+		const id = new URL(window.location.href).searchParams.get("run") ?? Math.random().toString(16).slice(2, 10);
 		setLines([]);
 		setStatus("running");
 		// `?hold` makes the run wait after its second line until it is stopped (the e2e `stream abort`).

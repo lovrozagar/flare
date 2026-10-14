@@ -71,39 +71,8 @@ const timing = createMiddleware(async (ctx) => {
 	withHeader(response, "x-docs-store", storeKind);
 });
 
-// The e2e's stream transport probe (BUGS.md 100): a request carrying `x-docs-stream-variant` gets its streamed answer
-// rewritten. `sse` changes only the content type to `text/event-stream`; `pad` sends 2 KB of spaces first, which a
-// JSON line parser ignores as leading whitespace. Without the header nothing changes.
-function padded(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
-	const reader = body.getReader();
-	return new ReadableStream<Uint8Array>({
-		start(controller) {
-			controller.enqueue(new TextEncoder().encode(" ".repeat(2048)));
-		},
-		async pull(controller) {
-			const next = await reader.read();
-			if (next.done) controller.close();
-			else controller.enqueue(next.value);
-		},
-		cancel(reason) {
-			return reader.cancel(reason);
-		},
-	});
-}
-
-const streamVariant = createMiddleware(async (ctx) => {
-	const variant = ctx.request.headers.get("x-docs-stream-variant");
-	if (variant === null) return;
-	const response = await ctx.next();
-	const headers = new Headers(response.headers);
-	if (variant.includes("sse")) headers.set("content-type", "text/event-stream");
-	const body = variant.includes("pad") && response.body !== null ? padded(response.body) : response.body;
-	return new Response(body, { status: response.status, headers });
-});
-
 const middleware: MiddlewareEntry[] = [
 	timing,
-	streamVariant,
 	indexNow.file(INDEX_NOW_KEY),
 	{
 		filter: { exact: ["/maintenance"] },
