@@ -121,3 +121,40 @@ it("fill commits at its end", async () => {
 	later.close();
 	await vi.waitFor(() => expect(app.store.snapshot().matches[0]?.data).toBe("fresh"));
 });
+
+// The about page's frames up to `r`, with this data.
+function aboutFrames(d: unknown): Frame[] {
+	return [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/about", d }, { t: "r" }];
+}
+
+// A stored page's resolve value lands inline and its hole asks for the fill. The fill sends the inline value as
+// `kept`, so the page keeps the one promise it showed, and fills the hole beside it. A landing with only inline values
+// asks for no fill (BUGS.md 94).
+it("fill keeps inline values", async () => {
+	const stored = aboutFrames({ latest: { __deferred: true, key: "latest", value: "1.0.0" }, stats: deferred("stats") });
+	const fill = aboutFrames({ latest: { __deferred: true, key: "latest", kept: true }, stats: deferred("stats") });
+	const responses = [
+		ndjson([...stored, { t: "d" }]),
+		ndjson([...fill, { t: "c", m: "_root_/about", k: "stats", d: 37 }, { t: "d" }]),
+	];
+	const app = await setup(async () => responses.shift() ?? ndjson([...fill, { t: "d" }]));
+	const read = () =>
+		app.store.snapshot().matches.find((match) => match.id === "_root_/about")?.data as {
+			latest: { promise: Promise<unknown> };
+			stats: { promise: Promise<unknown> };
+		};
+	await app.navigator.navigate({ to: "_root_/about" });
+	const shown = read().latest.promise;
+	await expect(shown).resolves.toBe("1.0.0");
+	await vi.waitFor(() => expect(app.deps.fetch).toHaveBeenLastCalledWith("/about?_flare=fill", expect.anything()));
+	await vi.waitFor(() => expect(read()).not.toBe(undefined));
+	await expect(read().stats.promise).resolves.toBe(37);
+	expect(read().latest.promise).toBe(shown);
+	expect(app.deps.fetch).toHaveBeenCalledTimes(2);
+	const plain = await setup(async () =>
+		ndjson([...aboutFrames({ latest: { __deferred: true, key: "latest", value: "1.0.0" } }), { t: "d" }]),
+	);
+	await plain.navigator.navigate({ to: "_root_/about" });
+	await new Promise((resolve) => setTimeout(resolve, 20));
+	expect(plain.deps.fetch).toHaveBeenCalledOnce();
+});

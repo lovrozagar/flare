@@ -44,6 +44,9 @@ test("stream fill", async ({ page, docs }) => {
 	await open(page, docs.origin, "/changelog");
 	await expect(page.locator("#releases")).toBeVisible();
 	expect(requests.filter((seen) => seen.kind === "fill" && seen.path === "/changelog")).toHaveLength(1);
+	// The fill kept the stored `latest`: the page still shows it once the fill has committed (BUGS.md 94).
+	await expect(page.locator("#stats")).toBeVisible();
+	await expect(page.locator("#latest")).toContainText("1.0.0");
 });
 
 test("defer resolve stored", async ({ request, docs }, info) => {
@@ -52,6 +55,13 @@ test("defer resolve stored", async ({ request, docs }, info) => {
 	const body = await (await request.get(`${docs.origin}/changelog`)).text();
 	expect(body).toMatch(/id="latest"[^>]*>Latest: <strong[^>]*>1\.0\.0/);
 	expect(body).toContain('id="releases-loading"');
+	// The stored state carries the store-resolved value inline, and the fill, which runs only the holes, sends it as
+	// `kept` with no frame of its own (BUGS.md 94).
+	expect(body).toContain('"latest":{"__deferred":true,"key":"latest","value":{"version":"1.0.0"');
+	const fill = await (await request.get(`${docs.origin}/changelog?_flare=fill`)).text();
+	expect(fill).toContain('"latest":{"__deferred":true,"key":"latest","kept":true}');
+	expect(fill).not.toContain('"k":"latest"');
+	expect(fill).toContain('"k":"releases"');
 });
 
 test("query prefetched", async ({ page, docs }) => {

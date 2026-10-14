@@ -4,13 +4,26 @@ export type DeferMode = "resolve" | "stream";
 
 export type DeferOptions = { key?: string; prerender?: DeferMode };
 
-// `prefetch` never runs a function: the prefetch entry is the shell only (dx/defer.md).
+// `prefetch` never runs a function: the prefetch entry is the shell only (dx/defer.md). `fill` runs only the values
+// a stored page leaves as holes (BUGS.md 94).
 export type DeferScope = {
 	stored: boolean;
 	route?: DeferMode | undefined;
 	dev: boolean;
 	prefetch?: boolean;
+	fill?: boolean;
 };
+
+// The one rule for which values a stored page leaves as holes: a call's `prerender` wins, else the route's mode, else
+// "resolve". The store write runs the others; a fill runs these.
+export function isHole(options: DeferOptions, route: DeferMode | undefined): boolean {
+	return (options.prerender ?? route ?? "resolve") === "stream";
+}
+
+// How a placeholder travels: a stored render's value it already resolved inline, so the stored page is the client's
+// one source for it; a value a fill skipped as `kept`, which the client keeps from the page it shows; otherwise the
+// key alone, and `hole` on a stored hole (BUGS.md 94).
+type Wire = { __deferred: true; key: string; hole?: true; value?: unknown; kept?: true };
 
 export type Started = { key: string; promise: Promise<unknown> };
 
@@ -29,12 +42,26 @@ class Placeholder<T> implements Deferred<T> {
 	readonly key: string;
 	readonly hole?: true;
 	readonly #promise: Promise<T>;
+	readonly #kept: boolean;
+	#resolved: { value: T } | undefined;
 
 	// A hole travels on the wire, so the server render and the client's read take the same source (useDeferred).
-	constructor(key: string, promise: Promise<T>, hole: boolean) {
+	constructor(key: string, promise: Promise<T>, flags: { hole: boolean; kept: boolean }) {
 		this.key = key;
-		if (hole) this.hole = true;
+		if (flags.hole) this.hole = true;
 		this.#promise = promise;
+		this.#kept = flags.kept;
+	}
+
+	// A stored render's value, once its function fulfilled.
+	inline(value: T): void {
+		this.#resolved = { value };
+	}
+
+	toJSON(): Wire {
+		if (this.#kept) return { __deferred: true, key: this.key, kept: true };
+		if (this.#resolved !== undefined) return { __deferred: true, key: this.key, value: this.#resolved.value };
+		return { __deferred: true, key: this.key, ...(this.hole === undefined ? {} : { hole: true }) };
 	}
 
 	// A prototype getter keeps the promise off JSON.stringify, so the wire carries only { __deferred, key }.
@@ -69,10 +96,14 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 		if (state.running && scope.dev) throw new Error("defer: called inside a deferred function");
 		const now = runs(options) && !state.running;
 		const hole = scope.stored && !now && scope.prefetch !== true;
-		const value = new Placeholder(key, now ? start(fn) : new Promise<T>(() => undefined), hole);
+		const kept = scope.fill === true && !now;
+		const value = new Placeholder(key, now ? start(fn) : new Promise<T>(() => undefined), { hole, kept });
 		if (now) {
 			// The frame writer or the render reads the outcome. A rejection nobody reads is not a process crash.
-			value.promise.catch(() => undefined);
+			value.promise.then(
+				(resolved) => scope.stored && value.inline(resolved),
+				() => undefined,
+			);
 			started.push({ key, promise: value.promise });
 		}
 		if (scope.stored && now) held.push(value.promise);
@@ -83,8 +114,9 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 
 	function runs(options: DeferOptions): boolean {
 		if (scope.prefetch === true) return false;
+		if (scope.fill === true) return isHole(options, scope.route);
 		if (!scope.stored) return true;
-		return (options.prerender ?? scope.route ?? "resolve") === "resolve";
+		return !isHole(options, scope.route);
 	}
 
 	return {

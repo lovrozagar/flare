@@ -36,10 +36,14 @@ export type LandOptions = {
 	signal?: AbortSignal | undefined;
 };
 
-// The deferred values a landing has not settled yet, by `${route}\n${key}`.
+// The deferred values a landing has not settled yet, by `${route}\n${key}`, and the values a stored page carried
+// inline, already settled, which a fill's `kept` reads.
 export type Pending = Map<string, PromiseWithResolvers<unknown>>;
 
 type Slots = Pending;
+
+// The slots a stored page filled inline: settled, so never a hole, and never rejected at a landing's end (BUGS.md 94).
+const inline = new WeakSet<PromiseWithResolvers<unknown>>();
 
 // A placeholder the client turns into a live deferred value. The promise is a prototype getter, like the
 // server's, so the value still serializes as { __deferred, key }.
@@ -122,23 +126,42 @@ async function settleLater(
 		return;
 	}
 	// A value whose frame never came is a stored hole the fill fills. Without a fill it rejects, never waiting forever.
-	if (slots.size > 0 && holes !== undefined) return holes(slots);
-	for (const slot of slots.values()) slot.reject(new Error("The data response ended before this value"));
+	// The fill gets the inline values too, which its `kept` values read.
+	const open = [...slots.values()].filter((slot) => !inline.has(slot));
+	if (open.length > 0 && holes !== undefined) return holes(slots);
+	for (const slot of open) slot.reject(new Error("The data response ended before this value"));
 }
 
 // Each placeholder in a match's data becomes a live deferred value whose slot a later frame settles. A slot already in
-// `slots`, a hole a fill is filling, is reused, so every read of that value sees the one promise.
+// `slots`, a hole a fill is filling, is reused, so every read of that value sees the one promise. A stored page's
+// inline value settles its slot at once. A fill's `kept` value reads the slot the page already holds for it, and one
+// the page does not hold rejects with a reason that names it (BUGS.md 94).
 export function revive(value: unknown, route: string, slots: Pending): unknown {
 	if (Array.isArray(value)) return value.map((item) => revive(item, route, slots));
 	if (typeof value !== "object" || value === null) return value;
 	if ("__deferred" in value && value.__deferred === true && "key" in value && typeof value.key === "string") {
 		const id = `${route}\n${value.key}`;
+		if ("kept" in value && value.kept === true)
+			return new ClientDeferred(value.key, keptOf(slots, id, value.key), false);
 		const slot = slots.get(id) ?? Promise.withResolvers<unknown>();
 		slot.promise.catch(() => undefined);
 		slots.set(id, slot);
+		if ("value" in value) {
+			slot.resolve(value.value);
+			inline.add(slot);
+		}
 		return new ClientDeferred(value.key, slot.promise, "hole" in value && value.hole === true);
 	}
 	return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, revive(item, route, slots)]));
+}
+
+function keptOf(slots: Pending, id: string, key: string): Promise<unknown> {
+	const slot = slots.get(id);
+	if (slot !== undefined) return slot.promise;
+	const route = id.slice(0, id.indexOf("\n"));
+	const missing = Promise.reject(new Error(`The fill kept "${key}" of ${route}, which the page does not hold`));
+	missing.catch(() => undefined);
+	return missing;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
