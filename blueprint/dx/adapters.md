@@ -13,7 +13,7 @@ toRequest({ url, headers?, socketAddress?, trustProxy? }): { status, secure, cli
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `trustProxy` | no | `0` | hop count, integer `0`–`5` | how many proxy hops in front of the server are trusted. With at least one, `X-Forwarded-Proto: https` makes the request the server sees https, so its origin, a redirect's `Location`, and `Strict-Transport-Security` follow. With `0` a client's own `X-Forwarded-Proto` is ignored | behind a proxy that ends TLS, `0` serves the app as plain http. `true` does not type-check; v0's boolean trusted the whole chain. Any other key, `bodyLimit` included, throws, and so does a count out of range | `adapters/node/listener.test.ts` `trust proxy`; `shared/url/forwarded.test.ts` `hops`, `https` |
+| `trustProxy` | no | `0` | hop count, integer `0`–`5` | how many proxy hops in front of the server are trusted. With at least one, `X-Forwarded-Proto: https` makes the request the server sees https, so its origin, a redirect's `Location`, and `Strict-Transport-Security` follow. With `0` a client's own `X-Forwarded-Proto` is ignored | behind a proxy that ends TLS, `0` serves the app as plain http. `true` does not type-check; v0's boolean trusted the whole chain. Any other key, `bodyLimit` included, throws, and so does a count out of range | `adapters/node/listener.test.ts` `trust proxy`; `shared/url/forwarded.test.ts` `hops`, `https`; `tests/integration/adapters.test.ts` `node trust proxy`; e2e `docs-server.test.ts` `forwarded proto untrusted` |
 
 `toRequest` is the step the listener runs: it rejects a bad target and computes `secure`, `clientIp`, and the origin (`server.md` Client address).
 
@@ -43,8 +43,8 @@ createWorkersHandler(server, { assets? }): { fetch(request, env, ctx) }
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `server` | yes | — | the `createServer` return | `fetch` calls `server.fetch` | | `adapters/workers/handler.test.ts` `waitUntil` |
-| `assets` | no | absent | the env binding name, a string | after routing, an unmatched `GET` or `HEAD` is forwarded to `env[assets].fetch` with the canonical path | a missing binding is 500, logged once. It is not a silent 404 | `handler.test.ts` `assets GET`, `assets missing` |
+| `server` | yes | — | the `createServer` return | `fetch` calls `server.fetch` | | `adapters/workers/handler.test.ts` `waitUntil`; `tests/workerd/server.test.ts` `worker server` |
+| `assets` | no | absent | the env binding name, a string | after routing, an unmatched `GET` or `HEAD` is forwarded to `env[assets].fetch` with the canonical path | a missing binding is 500, logged once. It is not a silent 404 | `handler.test.ts` `assets GET`, `assets missing`; `tests/workerd/server.test.ts` `worker assets` |
 
 A file the binding has is its response, untouched. A path the binding answers with 404 is the app's own not-found answer, with its security headers, as on Node and Bun (`assets miss`). An unmatched `POST` is 405 and the binding is not called (`assets POST`). The path is canonical before the binding sees it (`assets escape`). `ctx.waitUntil` receives the promises the handler scheduled (`waitUntil`). There is no `staticAssets` middleware (B13).
 

@@ -111,6 +111,25 @@ The harness's app mode (`hydrate.app.ts`, plan 14 9.6): a case gives its app (th
 
 docs-features `page state` (e2e): `flarePage(page).load` of `/docs/routing`, then `state()`: the last match is `[[locale]]/_root_/(guide)/docs/[slug]` with `{ slug: "routing" }`, the build is set, and the page logged no error.
 
+## `tests/integration/adapters.test.ts` (B96)
+
+| test | case | result |
+| --- | --- | --- |
+| `node listener` | the real `createServer` behind `createNodeListener` on `node:http`: a page, a stream whose second chunk waits for the test, two cookies, a POST echo, a raw `//evil/` target, an unread 100 KB page POST, then a GET | the page; the stream's first chunk before its second exists; two `Set-Cookie` headers (bite: joining them fails); the echoed body; `400 Bad Request`; 405, then 200 |
+| `node trust proxy` | production stubbed (`DEV` false, `PROD` true), `X-Forwarded-Proto: https`, with `{ trustProxy: 1 }` and then without | `https:` and production HSTS, then `http:` and none (bite: a listener that ignores the option fails) |
+| `bun serve` | under the Bun runtime only: a real `Bun.serve` over `createBunFetch(server, { trustProxy: 1 })` | the 128 MiB ceiling, the page, a trusted hop's `https:`, and the echoed body |
+
+## `tests/workerd/server.test.ts` (B96)
+
+The real `createServer` with a full-document root and a memory store, behind `createWorkersHandler`, bundled by `bun build` with the `worker` condition (Solid's server build) and run by Miniflare with an assets binding.
+
+| test | case | result |
+| --- | --- | --- |
+| `worker server` | `/`, then `/stored` (`ssr`) until the store answers | the page in production (Cross-Origin-Opener-Policy, which dev drops; not HSTS, since under the Bun runtime Miniflare hands workerd the request as http); a miss, then a hit: the store write is work the handler hands `ctx.waitUntil` |
+| `worker assets` | `/a/static.txt` by GET and HEAD, `/nope`, and a POST | the file untouched, 200 for HEAD, the app's 404 with its security headers, and 405 for the POST (bite: a handler that never forwards fails) |
+
+docs-server `forwarded proto untrusted` (e2e): a client's own `X-Forwarded-Proto: https` gets no HSTS from a server that declares no hop, on every runtime (bite: a Node listener trusting one hop by default fails on node-prod).
+
 ## `shared/dev/warn.test.ts`
 
 | test | case | result |
