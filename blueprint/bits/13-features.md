@@ -151,6 +151,7 @@ The function maps `new Intl.Locale(tag).maximize().script` through the right-to-
 | `hydration mount` | the document's `queries` hold `["tally", "a"]`, and a component with `useQuery` on that key and `staleTime: 0` hydrates | the query function runs 0 times during hydration. After the hydrated phase fires, the component unmounts and mounts again: the query function runs once (B102) |
 | `hydration mount app wins` | the same, with `refetchOnMount: "always"` on the query | the query function runs once during hydration |
 | `hydration mount not in document` | a `useQuery` on a key that is not in the document's `queries` mounts during hydration | the query function runs once |
+| `no retry on 4xx` | `serverFnQueryOptions` over a server function that rejects with 400, then one that fails with a network error, then a 400 with the app's `retry: 2` | the first query errors after 1 call; the second keeps TanStack's default retries; the third makes 3 calls (B107, BUGS.md 64) |
 
 ### The core's half: `shared/protocol/query.test.ts`, `server/loaders/scope.test.ts`, and `server/render/document.test.ts`
 
