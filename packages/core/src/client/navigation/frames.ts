@@ -15,6 +15,13 @@ export type Landed = {
 	redirect?: { status: number; url: string; replace: boolean };
 };
 
+// A landing's end: once the frames after `r` are all read, every deferred value it carries is settled or a hole.
+const ends = new WeakMap<Landed, Promise<void>>();
+
+export function endOf(landed: Landed): Promise<void> {
+	return ends.get(landed) ?? Promise.resolve();
+}
+
 export type Values = { params: unknown; search: unknown };
 
 // `holes` hears that the response ended with placeholders no frame settled: stored `"stream"` holes, which a fill
@@ -63,7 +70,7 @@ export async function landFrames(source: AsyncIterable<Frame>, options: LandOpti
 		const frame = next.value;
 		if (frame.t === "x") return { ...landed, redirect: { status: frame.s, url: frame.u, replace: frame.r } };
 		if (frame.t === "r") {
-			void settleLater(frames, { slots, holes: options.holes, signal: options.signal });
+			ends.set(landed, settleLater(frames, { slots, holes: options.holes, signal: options.signal }));
 			return landed;
 		}
 		land(frame, landed, { slots, options });

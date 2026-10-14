@@ -2,7 +2,7 @@ import { expect, it, vi } from "vitest";
 import type { DevErrorPayload } from "../../shared/errors/dev-report.ts";
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts";
 import type { Deferred } from "../../shared/route-builder/register.ts";
-import { framesOf, landFrames } from "./frames.ts";
+import { endOf, framesOf, landFrames } from "./frames.ts";
 
 // A source the test feeds frame by frame.
 function feed(): { source: AsyncIterable<Frame>; push: (frame: Frame) => void; end: () => void } {
@@ -180,4 +180,22 @@ it("preloader", async () => {
 	})();
 	const landed = await landFrames(source, { dev: false });
 	expect(landed.preloaders).toEqual({ "_root_/a": { role: "admin" } });
+});
+
+// A landing's end settles once the frames after `r` are read; a landing that came from no frames, a prefetch reused
+// whole, has already ended (BUGS.md 89).
+it("landing end", async () => {
+	const { source, push, end } = feed();
+	push({ t: "l", m: "_root_", d: { late: { __deferred: true, key: "late" } } });
+	push({ t: "r" });
+	const landed = await landFrames(source, { dev: false });
+	let ended = false;
+	void endOf(landed).then(() => (ended = true));
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	expect(ended).toBe(false);
+	push({ t: "c", m: "_root_", k: "late", d: 1 });
+	end();
+	await endOf(landed);
+	expect(ended).toBe(true);
+	await expect(endOf({ data: {}, heads: {} })).resolves.toBeUndefined();
 });
