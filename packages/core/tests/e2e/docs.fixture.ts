@@ -16,19 +16,44 @@ export const test = base.extend<{ docs: Boot }, { docsBoot: Boot }>({
 		},
 		{ scope: "worker", timeout: 240_000 },
 	],
-	// A failing case keeps the server lines logged while it ran, in its own output directory beside the trace, which CI
-	// uploads, so a failure shows the server's side too (BUGS.md 93).
+	// A failing case keeps the server lines logged while it ran, and the whole boot's, in its own output directory beside
+	// the trace, which CI uploads, so a failure shows the server's side too (BUGS.md 93). The first case of a boot also
+	// checks the capture: the docs server logs one line at its first request, and it must reach the boot's log.
 	docs: async ({ docsBoot }, use, testInfo) => {
 		const start = docsBoot.logs().length;
+		if (!probed.has(docsBoot)) {
+			probed.add(docsBoot);
+			// A setup failure is not yet the case's status, so this one attaches the logs itself.
+			try {
+				await fetch(`${docsBoot.origin}/maintenance`);
+				const logged = () => docsBoot.logs().some((line) => line.includes(PROBE));
+				await expect.poll(logged, { message: `the boot's log has no "${PROBE}"`, timeout: 2000 }).toBe(true);
+			} catch (error) {
+				await attachLogs(testInfo, docsBoot, start);
+				throw error;
+			}
+		}
 		await use(docsBoot);
-		if (testInfo.status === testInfo.expectedStatus) return;
-		const path = testInfo.outputPath("server-log.txt");
-		writeFileSync(path, `${docsBoot.logs().slice(start).join("\n")}\n`);
-		await testInfo.attach("server log", { path, contentType: "text/plain" });
+		if (testInfo.status !== testInfo.expectedStatus) await attachLogs(testInfo, docsBoot, start);
 	},
 });
 
 export { expect };
+
+// The line the docs server logs at its first request (src/server.ts), and the boots already checked for it.
+const PROBE = "[docs:probe] server up";
+const probed = new WeakSet<Boot>();
+
+async function attachLogs(testInfo: TestInfo, session: Boot, start: number): Promise<void> {
+	for (const [name, lines] of [
+		["server log", session.logs().slice(start)],
+		["server session log", session.logs()],
+	] as const) {
+		const path = testInfo.outputPath(`${name.replaceAll(" ", "-")}.txt`);
+		writeFileSync(path, `${lines.join("\n")}\n`);
+		await testInfo.attach(name, { path, contentType: "text/plain" });
+	}
+}
 
 // The deep set's browser, on every machine: the OS chooses no input to a run (B70). macOS CI names its webkit projects,
 // so the deep specs run there on all of them.

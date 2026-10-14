@@ -78,7 +78,7 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 
 ## Harness
 
-`docs.fixture.ts` boots the app once per project per worker. A failing case writes the server lines logged while it ran to `server-log.txt` in its output directory and attaches it, beside the trace (BUGS.md 93). Every docs spec runs on every project of the B70 grid; `deepOnly()` and the `FLARE_E2E_PROJECTS_CHOSEN` hand-off are removed (B70 revision, plan 14). A production-only case skips the `*-dev-*` projects by name. Node projects run under genuine Node 22.18 or later (B3), never under `bunx --bun`.
+`docs.fixture.ts` boots the app once per project per worker. A failing case writes the server lines logged while it ran to `server-log.txt`, and the whole boot's to `server-session-log.txt`, in its output directory and attaches them, beside the trace. The first case of each boot requests `/maintenance` and fails, with both logs, unless the docs server's first-request line `[docs:probe] server up` reaches the boot's log within 2 s, so a capture that misses the server's console fails as itself (BUGS.md 93). Every docs spec runs on every project of the B70 grid; `deepOnly()` and the `FLARE_E2E_PROJECTS_CHOSEN` hand-off are removed (B70 revision, plan 14). A production-only case skips the `*-dev-*` projects by name. Node projects run under genuine Node 22.18 or later (B3), never under `bunx --bun`.
 
 ## `tests/integration/hydrate.test.tsx`
 
