@@ -19,6 +19,9 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `no src path in dts` | every `.d.ts` | the text contains no `virtual:` and no `packages/core/src` |
 | `snapshot` | each entry's public `.d.ts` | matches the committed snapshot. A change is a commit of its own |
 | `worker outside vite` | a plain import of the packed `./worker` | throws, naming it the Wrangler main that runs only inside Vite with `flare()`: the entry re-exports the worker binding, so `sideEffects: false` cannot drop the throwing module as it drops a bare re-export (B109) |
+| `readme exports` | the root README's `Package exports` table, row by entry | each packed entry's exports are all in its row, and its row names nothing the entry does not export (plan 14 leaf 12.3) |
+| `readme api names` | the first column of every README table headed `export` | each name is exported by some packed entry, so a v0 name nobody thought to deny cannot survive there |
+| `readme quick start` | each README block after `<!-- quick-start: <path> -->`, written at that path in a fresh app in the stage, then the packed `flare codegen` | `tsc` with the README's own `tsconfig.json` exits 0 with no output |
 | `tarball contents` | `npm pack` | exactly `dist`, `src`, `README.md`, `LICENSE`, `package.json` |
 | `consumer strict` | a fixture with `exactOptionalPropertyTypes` and `verbatimModuleSyntax` | `tsc` exits 0 against the packed types |
 | `no dependencies` | the packed `package.json` | the `dependencies` key is absent |
@@ -32,6 +35,17 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | --- | --- | --- |
 | `option tables` | every `prop` or `key` table in every `blueprint/dx/*.md`, by the heading above it, one source per table in order where a heading has several: an option type, a function's parameters plus its last parameter's keys, or an explicit exemption with its reason (`observability.md`, plan 15). `Link props` names `target` and `rel` as external, from `JSX.AnchorHTMLAttributes` | each backticked name in a table's first column, `entry.client` as a path and `"96x96"` as its key, is a key of its type, read from the source with oxc through aliases, interfaces, imports, intersections, unions, conditionals, arrays, `Partial`, `Readonly`, `Omit`, and `Pick`. A table under `Planned (plan 15)` is exempt; a dx file or a table with no mapping fails |
 | `bites` | a router table naming `basePath` and `nope`, then a Planned table naming `later` | only `nope` is reported, and the Planned table is not read |
+| `omit and pick` | `NavigateOptions`, an `Omit` of `NavigateTo`, then an inline `Pick` | `replace` and `to` are absent and `scroll` present; the `Pick` keeps only its key |
+
+## `tests/structure/readme.test.ts` (plan 14 leaf 12.3)
+
+npm renders the tarball's README, which is the root `README.md`, and has no repository to resolve a relative link against. `readme.ts` reads it for this file and for exports.test's packed checks.
+
+| test | case | result |
+| --- | --- | --- |
+| `links` | every markdown link in the README | absolute or an anchor on the page; a link into the repo is `https://github.com/lovrozagar/flare/blob/main/<path>` and the path exists |
+| `no v0 names` | the README text | no `tracing`, no `dev.*` flag, no v0 CLI command (`flare generate`, `gen`, `add`, `font`, `routes`, `status`, `validate`), no v0 subpath (`codegen`, `generators`, `validation`, `virtual-types`), and no `0.1.1` |
+| `quick start marked` | the quick-start markers | `tsconfig.json` and `src/server.ts` are among them, each path once |
 
 ## `scripts/release.test.ts`
 
