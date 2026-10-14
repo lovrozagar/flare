@@ -38,7 +38,7 @@ export type BuildInfoInput = {
 	devHead: string;
 };
 
-// The source of server/lifecycle/build-info.ts in the ssr and worker environments. Dev has the project-relative
+// The source of server/lifecycle/build-info.ts in the ssr and flare_prerender environments. Dev has the project-relative
 // entry and the `dev` id. A build has the manifest's hashed entry and its id.
 export function buildInfoSource(input: BuildInfoInput): string {
 	const dev = input.command === "serve";

@@ -5,6 +5,7 @@ import { stylesheetOf, type BuiltStylesheet } from "./bundle.ts";
 import { RESET } from "./reset.ts";
 import { ownModule } from "../plugin/own-module.ts";
 import { realPath } from "../plugin/real-path.ts";
+import { PRERENDER_ENV } from "../plugin/environments.ts";
 
 // Typed as a string, so no declaration file carries a `virtual:` id (bits/14 `no src path in dts`). It resolves to
 // itself, with no NUL prefix, because Vite's client keys the dev style by this id and a dev document writes it into a
@@ -14,7 +15,8 @@ export const RESET_ID: string = "virtual:flare/reset.css";
 // The module the server reads the built stylesheet from. The package ships its source, so this is the file Vite loads.
 const SHEET = ownModule("../../shared/css/sheet.ts", import.meta.url);
 
-const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
+// The prerender environment renders the seeds a Workers app ships, so it reads the same stylesheet (B109).
+const SERVER_ENVIRONMENTS = new Set(["ssr", PRERENDER_ENV]);
 
 export type CssOptions = { reset: boolean; clientEntry: string; assetsBase: string };
 

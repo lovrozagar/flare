@@ -114,7 +114,6 @@ type Tab = { send: (payload: unknown) => void };
 
 function devServer(middlewareMode: boolean) {
 	const listeners: Record<string, (payload: unknown) => void> = {};
-	const workerListeners: Record<string, (payload: unknown) => void> = {};
 	const clientListeners: Record<string, (payload: unknown, client: Tab) => void> = {};
 	const used: unknown[] = [];
 	const server: DevServer = {
@@ -126,10 +125,9 @@ function devServer(middlewareMode: boolean) {
 				runner: { import: async () => ({ server: app(async () => html("<p>real</p>")) }) },
 			},
 			client: { hot: { on: (event, listener) => void (clientListeners[event] = listener) } },
-			worker: { hot: { on: (event, listener) => void (workerListeners[event] = listener) } },
 		},
 	};
-	return { server, used, listeners, workerListeners, clientListeners };
+	return { server, used, listeners, clientListeners };
 }
 
 it("middleware mode", async () => {
@@ -257,17 +255,4 @@ it("document passes through", async () => {
 	const policy = { "content-type": "text/html", "content-security-policy": "script-src 'nonce-n'" };
 	const fetch = devFetch({ load: async () => app(async () => new Response(body, { headers: policy })) });
 	expect(await (await fetch(new Request("http://localhost/"))).text()).toBe(chunks.join(""));
-});
-
-// In Workers dev the render runs in workerd, and its `flare:error` arrives on the worker environment's channel. It
-// reaches the tab its token names, as the ssr environment's does (B95 (c)).
-it("worker errors", () => {
-	const { server, workerListeners, clientListeners } = devServer(false);
-	installDevHandler(server, "src/server.ts");
-	const [a, b] = [tab(), tab()];
-	clientListeners["flare:tab"]?.({ token: "A" }, a);
-	clientListeners["flare:tab"]?.({ token: "B" }, b);
-	workerListeners["flare:error"]?.({ token: "B", payload: bug });
-	expect(b.send).toHaveBeenCalledExactlyOnceWith(bug);
-	expect(a.send).not.toHaveBeenCalled();
 });

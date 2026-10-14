@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import solid from "@solidjs/vite-plugin";
-import type { Plugin, PluginOption, UserConfig } from "vite";
+import type { Plugin, UserConfig } from "vite";
 import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts";
 import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts";
 import { inject } from "../css/index.ts";
@@ -15,11 +15,11 @@ import { installDevHandler } from "../dev/handler.ts";
 import { buildInfoSource } from "./build-id.ts";
 import { ownModule } from "./own-module.ts";
 import { fontsPlugin } from "./fonts.ts";
-import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
+import { assetUrl, buildConfig, environmentBuild, PRERENDER_ENV, SERVER_BUNDLED } from "./environments.ts";
 import { readWrangler } from "./wrangler.ts";
 import { realPath } from "./real-path.ts";
 import { preloadPlugin } from "./preload.ts";
-import { workersDevPlugins } from "./workers-dev.ts";
+import { checkCloudflare, composesCloudflare, WORKER_MAIN } from "./cloudflare.ts";
 import { parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts";
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
@@ -30,7 +30,7 @@ const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const VITE_QUERY = new Set(["t", "v", "import"]);
 
 // The environments that run the server entry. Each loads build-info.ts with the build id and the client entry URL.
-const SERVER_ENVIRONMENTS = new Set(["ssr", "worker"]);
+const SERVER_ENVIRONMENTS = new Set(["ssr", PRERENDER_ENV]);
 
 // The module the server reads its build id and client entry from. The package ships its source.
 const BUILD_INFO = ownModule("../../server/lifecycle/build-info.ts", import.meta.url);
@@ -39,7 +39,7 @@ const BUILD_INFO = ownModule("../../server/lifecycle/build-info.ts", import.meta
 const SYNC_ENABLED = ownModule("../../client/sync/enabled.ts", import.meta.url);
 const BROADCAST_OFF = "export const broadcastEnabled = false;\n";
 
-// The worker environment's entry: the app's server behind the Workers adapter.
+// The worker entry `@lovrozagar/flare/worker` re-exports: the app's server behind the Workers adapter (B109).
 const WORKER_ENTRY = "virtual:flare/worker";
 const RESOLVED_WORKER = `\0${WORKER_ENTRY}`;
 const WORKERS_HANDLER = ownModule("../../adapters/workers/handler.ts", import.meta.url);
@@ -47,13 +47,9 @@ const WORKERS_HANDLER = ownModule("../../adapters/workers/handler.ts", import.me
 // The generated route module, whose `chunks` map the client build points at hashed files.
 const ROUTES_GEN = "src/_gen/routes.gen.ts";
 
-export function flare(options?: FlareOptions & { workersDev?: false }): Plugin[];
-export function flare(options?: FlareOptions): PluginOption[];
-// `workersDev: true` puts the Cloudflare plugins first, so `vite dev` renders in workerd (B95).
-export function flare(options?: FlareOptions): PluginOption[] {
-	const parsed = parseOptions(options);
-	const own = flarePlugins(parsed);
-	return parsed.workersDev === false ? own : [workersDevPlugins(WORKER_ENTRY, parsed.workersDev), ...own];
+// Cloudflare Workers is the app's own plugin beside this one (B109).
+export function flare(options?: FlareOptions): Plugin[] {
+	return flarePlugins(parseOptions(options));
 }
 
 function flarePlugins(parsed: ParsedOptions): Plugin[] {
@@ -62,12 +58,14 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 		manifest: "",
 		workerSource: "",
 		root: process.cwd(),
+		cloudflare: false,
 		devHead: Promise.withResolvers(),
 	};
 	// `image` turns optimization on. Absent, no image plugin runs and sharp is never loaded (dx/plugin.md image).
 	const image = parsed.image;
 	return [
 		chunks(),
+		workerEntry(state),
 		preloadPlugin(parsed.entry.client),
 		boundary(),
 		...(image === undefined ? [] : [imagePlugin(image, parsed.assetsBase)]),
@@ -89,6 +87,8 @@ type State = {
 	manifest: string;
 	workerSource: string;
 	root: string;
+	// The app composes the Cloudflare plugin, found in the config hook (B109).
+	cloudflare: boolean;
 	devHead: PromiseWithResolvers<string>;
 };
 
@@ -101,17 +101,18 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 		configResolved(config) {
 			state.base = config.base;
 			state.root = config.root;
+			if (composesCloudflare(config.plugins) !== state.cloudflare) {
+				throw new Error("flare() did not see the Cloudflare plugin in the config's plugins: list cloudflare() there");
+			}
+			const conditions = config.environments["ssr"]?.resolve.conditions ?? [];
+			if (state.cloudflare) checkCloudflare({ conditions, main: readWrangler(config.root)?.main });
 		},
 		// Codegen is always on: a build and `vite dev` write src/_gen first, and a failure fails the start (B89).
 		buildStart() {
 			writeGenerated(this.environment.config.root);
 		},
-		resolveId(id) {
-			return id === WORKER_ENTRY && state.workerSource !== "" ? RESOLVED_WORKER : null;
-		},
 		// A build's server environments read the manifest the client build wrote, so the client builds first.
 		load(id) {
-			if (id === RESOLVED_WORKER) return state.workerSource;
 			const { name, config } = this.environment;
 			if (id === SYNC_ENABLED) return parsed.broadcast || graphOf(name) !== "client" ? null : BROADCAST_OFF;
 			if (id !== BUILD_INFO || !SERVER_ENVIRONMENTS.has(name)) return null;
@@ -130,9 +131,9 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 				devHeadOf(server).then(state.devHead.resolve, state.devHead.reject);
 				installDevStyles(server, resolve(server.config.root, parsed.entry.client));
 				const listen = installDevHandler(server, parsed.entry.server);
-				// In Workers dev, workerd answers through the Cloudflare plugin's post middleware, which a listener added
-				// from this earlier hook would shadow (BUGS.md 76).
-				return parsed.workersDev === false ? listen : undefined;
+				// With the Cloudflare plugin, workerd answers through its post middleware, which a listener added from this
+				// earlier hook would shadow (BUGS.md 76, B109).
+				return state.cloudflare ? undefined : listen;
 			},
 		},
 	};
@@ -150,19 +151,32 @@ function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): U
 	const user = { outDir: config.build?.outDir, assetsDir: config.build?.assetsDir };
 	const client = environmentBuild({ assetsBase: parsed.assetsBase, ...user }).client.outDir;
 	state.manifest = resolve(root, client, ".vite/manifest.json");
-	const workers = readWrangler(root);
-	state.workerSource = workers === undefined ? "" : workerModule(entry.server, workers.binding);
-	const worker = workers === undefined ? undefined : WORKER_ENTRY;
-	// Prerender runs once the server is built, and writes its seeds into the client output (bits/12).
+	state.cloudflare = composesCloudflare(config.plugins);
+	state.workerSource = state.cloudflare ? workerModule(entry.server, readWrangler(root)?.binding) : "";
+	// Prerender runs once the server is built, and writes its seeds into the client output (bits/12). With the
+	// Cloudflare plugin it runs only when on, from its own Node build of the server.
 	const afterBuild = (built: { clientDir: string; serverFile: string }): Promise<void> =>
-		prerenderApp({ root, ...built, assetsBase: parsed.assetsBase, config: parsed.prerender });
+		prerenderApp({
+			root,
+			...built,
+			assetsBase: parsed.assetsBase,
+			config: parsed.prerender,
+			...(state.cloudflare ? { workers: true } : {}),
+		});
+	const prerender = !state.cloudflare || parsed.prerender !== false;
 	return {
 		root,
 		appType: "custom",
 		resolve: { dedupe: ["solid-js", "@solidjs/web"] },
-		ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
+		ssr: { noExternal: SERVER_BUNDLED },
 		optimizeDeps: { exclude: ["@lovrozagar/flare"] },
-		...buildConfig({ assetsBase: parsed.assetsBase, entry, user, worker, afterBuild }),
+		...buildConfig({
+			assetsBase: parsed.assetsBase,
+			entry,
+			user,
+			cloudflare: state.cloudflare,
+			...(prerender ? { afterBuild } : {}),
+		}),
 		// A Web Worker bundle is a client graph: rewritten and scanned like the client (B9, B45).
 		worker: { plugins: () => [boundary("client")] },
 		// Every URL Vite writes into CSS and JavaScript comes from the same resolver as the server's.
@@ -180,6 +194,21 @@ function workerModule(server: string, binding: string | undefined): string {
 		`export default createWorkersHandler(server, ${options});`,
 		"",
 	].join("\n");
+}
+
+// The Wrangler config's `main`, `@lovrozagar/flare/worker`, is the app's server behind the Workers adapter. Resolved
+// here, before Vite's own resolver reaches the package file, which only throws (B109).
+function workerEntry(state: State): Plugin {
+	return {
+		name: "flare:worker-entry",
+		enforce: "pre",
+		resolveId(id) {
+			return state.cloudflare && (id === WORKER_MAIN || id === WORKER_ENTRY) ? RESOLVED_WORKER : null;
+		},
+		load(id) {
+			return id === RESOLVED_WORKER ? state.workerSource : null;
+		},
+	};
 }
 
 // A client build points the generated `chunks` map at the hashed files, before any other transform reprints the module.

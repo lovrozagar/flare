@@ -218,7 +218,7 @@ Run against oxc, not a regex.
 
 ### `vite/boundary/transform.test.ts`
 
-`flare()` gains the `flare:boundary` plugin, `enforce: "pre"`, ahead of Solid. Its transform runs on an app module (under the root, outside its dependencies, a script extension, no query) and calls `boundaryTransform(file, source, graph)` with the root-relative path and the graph of `this.environment.name`: `graphOf` makes the ssr and worker environments the server graph and every other environment the client graph. One parse and one MagicString serve split (client graph), the env rewrite (both graphs, skipping a call inside a span split already removed), the `__id` and `__name` injection (plus `__client: true` in the client graph), and import pruning over every removed span. `vite/plugin/flare.test.ts` `boundary transform` covers the plugin.
+`flare()` gains the `flare:boundary` plugin, `enforce: "pre"`, ahead of Solid. Its transform runs on an app module (under the root, outside its dependencies, a script extension, no query) and calls `boundaryTransform(file, source, graph)` with the root-relative path and the graph of `this.environment.name`: `graphOf` makes the ssr and `flare_prerender` environments the server graph (B109) and every other environment the client graph. One parse and one MagicString serve split (client graph), the env rewrite (both graphs, skipping a call inside a span split already removed), the `__id` and `__name` injection (plus `__client: true` in the client graph), and import pruning over every removed span. `vite/plugin/flare.test.ts` `boundary transform` covers the plugin.
 
 | test | case | result |
 | --- | --- | --- |
@@ -239,12 +239,12 @@ The tripwire is structural. `flare:boundary`'s `renderChunk` passes every module
 | `symlinked root` | `boundary()` over an app whose root is reached through a symlink | the handler body is still stripped from the client graph: a module is in the app when it is under the root or under the root's real path (BUGS.md B51) |
 | `handler body` | the handler returns the string `SENTINEL_FN` | the client chunk does not contain it, and a fixture that forces it into the chunk fails the build |
 | `server path` | a chunk that imports `src/server/lifecycle/create.ts` | build error |
-| `worker` | the `worker` environment build, the Workers bundle | a server graph: it holds a server function body and a module of the package's `src/server`, and a client-only body forced into it fails the build as in the ssr chunk |
-| `server only body` | `createServerOnlyFn` returns the string `SENTINEL_ENV` | the client chunk does not contain it, and a fixture that forces it in fails the build. The ssr and worker chunks contain it |
+| `prerender graph` | the `flare_prerender` environment, the Node build a Workers app prerenders from (B109) | a server graph: it holds a server function body and a module of the package's `src/server`, and a client-only body forced into it fails the build as in the ssr chunk |
+| `server only body` | `createServerOnlyFn` returns the string `SENTINEL_ENV` | the client chunk does not contain it, and a fixture that forces it in fails the build. The ssr and `flare_prerender` chunks contain it |
 | `client only body` | `createClientOnlyFn` returns the string `SENTINEL_CLIENT` | the ssr chunk does not contain it. A fixture that forces it into the ssr chunk fails the build. The client chunk contains it |
-| `iso server body` | the `.server()` body is `SENTINEL_ISO` | absent from the client chunk, present in the ssr and worker chunks |
+| `iso server body` | the `.server()` body is `SENTINEL_ISO` | absent from the client chunk, present in the ssr and `flare_prerender` chunks |
 | `clean` | the minimal app | the build passes |
-| `four bodies` | a sentinel in the handler, the stream generator, the `authorize` callback, and the input validator | absent from the client chunk. Present in the ssr and worker chunks. A fixture that forces any of the four into the client chunk fails the build |
+| `four bodies` | a sentinel in the handler, the stream generator, the `authorize` callback, and the input validator | absent from the client chunk. Present in the ssr and `flare_prerender` chunks. A fixture that forces any of the four into the client chunk fails the build |
 | `outside root` | a workspace module outside the app root with a server function handler, imported by the client entry | it is never transformed, so its body reaches the client chunk and fails the build |
 | `route method` | a client module whose route chain still calls `.loader()`, or ends in `.response(answer)`, and one that cannot be parsed | each fails. `.response(undefined)` and a render-only chain pass |
 
@@ -286,7 +286,7 @@ Run against oxc, not a regex. `SECRET`, `SERVER`, and `CLIENT` are the bodies un
 | `client kept` | the same call in the client environment | `SECRET` remains |
 | `iso server` | `.server(() => SERVER).client(() => CLIENT)` in ssr | `SERVER` remains and `CLIENT` is gone |
 | `iso client` | the same source in the client environment | `CLIENT` remains and `SERVER` is gone |
-| `iso worker` | the same source in the `worker` environment, the Workers bundle | `SERVER` remains and `CLIENT` is gone |
+| `iso prerender` | the same source in the `flare_prerender` environment, the Node build a Workers app prerenders from (B109) | `SERVER` remains and `CLIENT` is gone |
 | `iso one side` | only `.server()` | build error |
 | `iso split` | the two sides are split across two statements | build error |
 | `iso order` | `.client(() => CLIENT).server(() => SERVER)` | both sides are found and the wrong one is deleted |

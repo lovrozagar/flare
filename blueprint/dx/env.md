@@ -10,7 +10,7 @@ const format = createIsomorphicFn()
 
 The three are exports of `@lovrozagar/flare`. `envFn` is not an export.
 
-The call is rewritten by oxc in every environment. The graphs are roles. The client graph is the browser and a Web Worker bundled from it (a Vite `?worker` import): a server body there fails the build. The server graph is the ssr environment and the Workers bundle (the `worker` environment): it keeps the server body. A runtime throw remains for a call that still executes on the wrong side. The test that the body is gone is the tripwire, which builds a fixture and fails when the body is forced into the wrong chunk.
+The call is rewritten by oxc in every environment. The graphs are roles. The client graph is the browser and a Web Worker bundled from it (a Vite `?worker` import): a server body there fails the build. The server graph is the ssr environment, which is the Workers bundle under the Cloudflare plugin, and `flare_prerender`, the Node build a Workers app prerenders from (B109): it keeps the server body. A runtime throw remains for a call that still executes on the wrong side. The test that the body is gone is the tripwire, which builds a fixture and fails when the body is forced into the wrong chunk.
 
 A legal call is a direct call. The callee may be the import, an alias (`import { createServerOnlyFn as mark }`), or a namespace (`flare.createServerOnlyFn`). The argument is a function expression or an arrow, written in the call. `async` is allowed. These are build errors:
 
@@ -40,7 +40,7 @@ The shapes that fail the build (`env.test.ts`):
 | `server shadow` | a local `createServerOnlyFn` |
 | `server indirect` | the function is copied to a variable and that variable is called |
 | `server identifier` | the argument is an identifier |
-| `iso worker` | the `worker` environment, the Workers bundle, is a server graph: it keeps the server function and drops the client function |
+| `iso prerender` | the `flare_prerender` environment, the Node build a Workers app prerenders from, is a server graph: it keeps the server function and drops the client function |
 | `iso split` | `.server()` and `.client()` are split across two statements |
 | `iso order` | `.client()` then `.server()` in one expression keeps both sides |
 | `quote in a regex` | a regex literal that contains a quote, in the same file, still rewrites the call |

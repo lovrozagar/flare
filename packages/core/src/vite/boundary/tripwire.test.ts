@@ -16,10 +16,10 @@ afterEach(() => {
 	for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-type Environment = "client" | "ssr" | "worker";
+type Environment = "client" | "ssr" | "flare_prerender";
 
 // A fixture app: `files` under a fresh root, the client entry at src/client.ts, and the server entry of the ssr and
-// worker environments at src/server.ts. Every bare import stays external, so a chunk holds only the fixture's own modules.
+// prerender environments at src/server.ts. Every bare import stays external, so a chunk holds only the fixture's own modules.
 function fixture(files: Record<string, string>): string {
 	const root = mkdtempSync(join(tmpdir(), "flare-tripwire-"));
 	roots.push(root);
@@ -53,7 +53,7 @@ async function build(root: string, graph: Environment, extra: Plugin[] = []): Pr
 		environments: {
 			client: environment,
 			ssr: { ...environment, build: { ...environment.build, ssr: true } },
-			worker: { ...environment, consumer: "server", build: { ...environment.build, ssr: true } },
+			flare_prerender: { ...environment, consumer: "server", build: { ...environment.build, ssr: true } },
 		},
 	});
 	const output = await builder.build(builder.environments[graph]);
@@ -122,23 +122,23 @@ it("server path", async () => {
 	);
 });
 
-// The Workers bundle is a server graph, checked like ssr: it holds server bodies and the package's server modules,
-// and a client-only body fails it.
-it("worker", async () => {
+// Prerender's Node build of the server is a server graph, checked like ssr: it holds server bodies and the package's
+// server modules, and a client-only body fails it (B109).
+it("prerender graph", async () => {
 	const root = fixture(app(`${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`));
-	expect(await build(root, "worker")).toContain("SENTINEL_FN");
+	expect(await build(root, "flare_prerender")).toContain("SENTINEL_FN");
 	const path = fixture({ "src/server.ts": KEEP(`${PACKAGE_SRC}/server/context/ctx.ts`) });
-	await expect(build(path, "worker")).resolves.toContain("serverCtx");
+	await expect(build(path, "flare_prerender")).resolves.toContain("serverCtx");
 	const client = fixture(app(`${ENV}export const focus = createClientOnlyFn(() => "SENTINEL_CLIENT");\n`));
-	expect(await build(client, "worker")).not.toContain("SENTINEL_CLIENT");
+	expect(await build(client, "flare_prerender")).not.toContain("SENTINEL_CLIENT");
 	const force = forcing("mod.ts", "createClientOnlyFn()", 'createClientOnlyFn(() => "SENTINEL_CLIENT")');
-	await expect(build(client, "worker", [force])).rejects.toThrow(/the server graph must not contain/);
+	await expect(build(client, "flare_prerender", [force])).rejects.toThrow(/the server graph must not contain/);
 });
 
 it("server only body", async () => {
 	const root = fixture(app(`${ENV}export const read = createServerOnlyFn(() => "SENTINEL_ENV");\n`));
 	expect(await build(root, "client")).not.toContain("SENTINEL_ENV");
-	expect(await build(root, "worker")).toContain("SENTINEL_ENV");
+	expect(await build(root, "flare_prerender")).toContain("SENTINEL_ENV");
 	expect(await build(root, "ssr")).toContain("SENTINEL_ENV");
 	const force = forcing("mod.ts", "createServerOnlyFn()", 'createServerOnlyFn(() => "SENTINEL_ENV")');
 	await expect(build(root, "client", [force])).rejects.toThrow(/B45/);
@@ -157,7 +157,7 @@ it("iso server body", async () => {
 		app(`${ENV}export const pick = createIsomorphicFn().server(() => "SENTINEL_ISO").client(() => "CLIENT_SIDE");\n`),
 	);
 	expect(await build(root, "client")).not.toContain("SENTINEL_ISO");
-	expect(await build(root, "worker")).toContain("SENTINEL_ISO");
+	expect(await build(root, "flare_prerender")).toContain("SENTINEL_ISO");
 	expect(await build(root, "ssr")).toContain("SENTINEL_ISO");
 	const force = forcing("mod.ts", ".server()", '.server(() => "SENTINEL_ISO")');
 	await expect(build(root, "client", [force])).rejects.toThrow(/B45/);
@@ -193,7 +193,7 @@ export const numbers = createServerFn().stream(async function* () {
 	const sentinels = ["SENTINEL_INPUT", "SENTINEL_AUTH", "SENTINEL_FN", "SENTINEL_STREAM"];
 	const client = await build(root, "client");
 	for (const sentinel of sentinels) expect(client).not.toContain(sentinel);
-	for (const server of ["ssr", "worker"] as const) {
+	for (const server of ["ssr", "flare_prerender"] as const) {
 		const code = await build(root, server);
 		for (const sentinel of sentinels) expect(code).toContain(sentinel);
 	}

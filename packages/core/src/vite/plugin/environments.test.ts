@@ -132,56 +132,32 @@ it("after build", async () => {
 	});
 });
 
-// A Workers config adds the worker environment, the Workers bundle, built last into `<outDir>/worker/index.js`.
+// The client builds first, then ssr. A Node build for prerender follows only when the Cloudflare plugin owns ssr and
+// prerender is on (B109). A Wrangler config alone adds no environment.
 it("order", async () => {
-	expect(environmentOrder(true)).toEqual(["client", "ssr", "worker"]);
+	expect(environmentOrder({ cloudflare: false, prerender: true })).toEqual(["client", "ssr"]);
+	expect(environmentOrder({ cloudflare: true, prerender: false })).toEqual(["client", "ssr"]);
+	expect(environmentOrder({ cloudflare: true, prerender: true })).toEqual(["client", "ssr", "flare_prerender"]);
 	const root = project();
 	writeFileSync(join(root, "wrangler.jsonc"), '{ "name": "app", "assets": { "binding": "ASSETS" } }\n');
-	expect(await order(root)).toEqual(["client", "ssr", "worker"]);
-	const app = await builder(root);
-	expect(app.environments.worker?.config.build).toMatchObject({
-		outDir: "dist/worker",
-		minify: "oxc",
-		sourcemap: true,
-	});
-	expect(app.environments.worker?.config.build.rolldownOptions.output).toMatchObject({ entryFileNames: "index.js" });
-	expect(app.environments.worker?.config.resolve.conditions).toContain("workerd");
-	// The worker entry is the app's server behind createWorkersHandler, with the config's assets binding when it has one.
-	// The server reads the manifest the client build wrote, so the client builds first, to disk.
-	for (const [config, binding] of [
-		['{ "name": "app", "assets": { "binding": "ASSETS" } }', true],
-		['{ "name": "app" }', false],
-	] as const) {
-		const worker = project({
-			"client.tsx": "",
-			"server.ts": 'export const server = { fetch: () => new Response("ok") };\n',
-		});
-		writeFileSync(join(worker, "wrangler.jsonc"), config);
-		const built = await builder(worker, {}, { build: { write: true } });
-		await built.build(built.environments.client ?? never());
-		const bundle = text(outputs(await built.build(built.environments.worker ?? never())), "index.js");
-		expect(bundle).toContain("export");
-		expect(bundle.includes('"ASSETS"') || bundle.includes("`ASSETS`")).toBe(binding);
-	}
+	expect(await order(root)).toEqual(["client", "ssr"]);
+	expect((await builder(root)).environments["worker"]).toBeUndefined();
 }, 60_000);
 
-// `public/` ships once, with the client: the server and worker builds leave it out (BUGS.md B11).
+// `public/` ships once, with the client: the server build leaves it out (BUGS.md B11).
 it("public once", async () => {
 	const root = project({
 		"client.tsx": "",
 		"server.ts": 'export const server = { fetch: () => new Response("ok") };\n',
 	});
-	writeFileSync(join(root, "wrangler.jsonc"), '{ "name": "app", "assets": { "binding": "ASSETS" } }\n');
 	mkdirSync(join(root, "public"));
 	writeFileSync(join(root, "public", "x.txt"), "x\n");
 	const app = await builder(root, {}, { build: { write: true } });
 	expect(app.environments.client?.config.build.copyPublicDir).toBe(true);
 	expect(app.environments.ssr?.config.build.copyPublicDir).toBe(false);
-	expect(app.environments.worker?.config.build.copyPublicDir).toBe(false);
 	await app.buildApp();
 	expect(existsSync(join(root, "dist/client/x.txt"))).toBe(true);
 	expect(existsSync(join(root, "dist/server/x.txt"))).toBe(false);
-	expect(existsSync(join(root, "dist/worker/x.txt"))).toBe(false);
 }, 60_000);
 
 // A root reached through a symlink builds as its real path does: flare takes the root's real path, the form Vite gives
@@ -198,17 +174,6 @@ it("symlinked root", async () => {
 	expect(existsSync(join(real, "dist/server/server.js"))).toBe(true);
 	expect(vi.mocked(prerenderApp)).toHaveBeenCalledWith(expect.objectContaining({ root: real }));
 }, 60_000);
-
-it("no worker", async () => {
-	expect(environmentOrder(false)).toEqual(["client", "ssr"]);
-	const app = await builder(project());
-	expect(app.environments.worker).toBeUndefined();
-	const plugin = flare().find((item) => item.name === "flare");
-	const resolveId = plugin?.resolveId;
-	if (typeof resolveId !== "function") throw new Error("resolveId");
-	expect(Reflect.apply(resolveId, {}, ["virtual:flare/worker"])).toBeNull();
-	expect(await order(project())).toEqual(["client", "ssr"]);
-});
 
 it("client url", () => {
 	expect(clientUrl({ entry: "src/client.tsx" })).toBe("/src/client.tsx");

@@ -118,7 +118,11 @@ it("node prod", async () => expect((await prod("node"))[0]).toMatch(/^http:\/\/1
 
 it("bun prod", async () => expect((await prod("bun"))[0]).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/), PROD_BOOT);
 
-it("workers prod", () => prod("workers"), PROD_BOOT);
+// A Workers build composes the Cloudflare plugin, which needs node:module's registerHooks, so under the Bun run, where
+// the child Vite is Bun too, every Workers case is skipped by that feature check (B109).
+const HOOKS = typeof Reflect.get(nodeModule, "registerHooks") === "function";
+
+it.skipIf(!HOOKS)("workers prod", () => prod("workers"), PROD_BOOT);
 
 // A raw request to a page with a live defer, whose socket closes after the headers or before them, as a closed tab's
 // does (BUGS.md B28).
@@ -153,9 +157,14 @@ it(
 	async () => {
 		expect(await survives("node")).toEqual(["node", 200]);
 		expect(await survives("bun")).toEqual(["bun", 200]);
-		expect(await survives("workers")).toEqual(["workers", 200]);
 	},
-	3 * PROD_BOOT,
+	2 * PROD_BOOT,
+);
+
+it.skipIf(!HOOKS)(
+	"workers disconnect survives",
+	async () => expect(await survives("workers")).toEqual(["workers", 200]),
+	PROD_BOOT,
 );
 
 // `vite dev` under the Bun runtime (bits/16).
@@ -175,10 +184,9 @@ it(
 	VITE_BOOT,
 );
 
-// `vite dev` in workerd through the Cloudflare plugin (B95): its banner names the worker debug URL, which only a
-// worker it runs prints. The plugin needs node:module's registerHooks, so under the Bun run, where the child Vite is
-// Bun too, this case is skipped by that feature check (B95).
-it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
+// `vite dev` in workerd through the app's own Cloudflare plugin (B109): its banner names the worker debug URL, which
+// only a worker it runs prints. Skipped on the Bun run, as every Workers case.
+it.skipIf(!HOOKS)(
 	"workers dev",
 	async () => {
 		const session = await boot({ app: "minimal", runtime: "workers", mode: "dev" });
@@ -189,8 +197,29 @@ it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
 			// workerd rendered it, not the dev server's own Node listener (BUGS.md 76).
 			expect(response.headers.get("x-runtime")).toBe("Cloudflare-Workers");
 			expect(session.logs().some((line) => line.includes("/__debug"))).toBe(true);
-			// The boot writes nothing into the app: no persisted worker state, no cached `cf` (B70, BUGS.md 85).
-			expect(existsSync(join(session.appDir, ".wrangler"))).toBe(false);
+			// The boot leaves no worker state and no cached `cf` in the app (B70, BUGS.md 85). A Workers build's own deploy
+			// pointer, `.wrangler/deploy/config.json`, is the plugin's, written at the Vite root (B109).
+			expect(existsSync(join(session.appDir, ".wrangler/state"))).toBe(false);
+			expect(existsSync(join(session.appDir, ".wrangler/cache"))).toBe(false);
+		} finally {
+			await session.close();
+		}
+	},
+	2 * VITE_BOOT,
+);
+
+// In Workers dev the render runs in workerd, and its console reaches the boot's captured log through the Cloudflare
+// plugin's structured logs, after the response (BUGS.md 93): the changelog's fill runs its `broken` hole, which logs.
+it.skipIf(!HOOKS)(
+	"workers dev log",
+	async () => {
+		const session = await boot({ app: "docs", runtime: "workers", mode: "dev" });
+		try {
+			// The fill runs the stored page's holes, `broken` among them, to the end of its stream.
+			expect(await (await fetch(`${session.origin}/changelog?_flare=fill`)).text()).toContain('"k":"broken"');
+			await expect
+				.poll(() => session.logs().some((line) => line.includes("The stats service is down")), { timeout: 10_000 })
+				.toBe(true);
 		} finally {
 			await session.close();
 		}
@@ -200,7 +229,7 @@ it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
 
 // Two Workers dev boots started together both come up: each worker's inspector takes a port the OS assigns, so they
 // cannot race for the same one (BUGS.md 85).
-it.skipIf(typeof Reflect.get(nodeModule, "registerHooks") !== "function")(
+it.skipIf(!HOOKS)(
 	"workers dev twice",
 	async () => {
 		const sessions = await Promise.all([

@@ -84,10 +84,10 @@ it("iso client", () => {
 	expect(code).toContain(".server()");
 });
 
-// The graphs are roles. The Workers bundle is a server graph like ssr: it keeps the server function and drops the
-// client one. A Web Worker is a client graph (bits/12 `web worker`).
-it("iso worker", () => {
-	const code = rewrite(ISO, graphOf("worker"));
+// The graphs are roles. Prerender's Node build is a server graph like ssr: it keeps the server function and drops the
+// client one (B109). A Web Worker is a client graph (bits/12 `web worker`).
+it("iso prerender", () => {
+	const code = rewrite(ISO, graphOf("flare_prerender"));
 	expect(code).toContain("SERVER");
 	expect(code).not.toContain("CLIENT");
 	expect(graphOf("ssr")).toBe("server");

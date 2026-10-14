@@ -1,5 +1,4 @@
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import * as nodeModule from "node:module";
 import { createServer } from "vite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,8 +10,7 @@ import { buildIdOf } from "./build-id.ts";
 import { flare } from "./flare.ts";
 import type { FlareOptions } from "./options.ts";
 
-// The options of a flare() that composes no Cloudflare plugin, so it returns its own plugins (B95).
-type OwnOptions = Omit<FlareOptions, "workersDev">;
+type OwnOptions = FlareOptions;
 
 vi.mock("@solidjs/vite-plugin", () => ({
 	default: vi.fn<() => Array<{ name: string }>>(() => [{ name: "solid" }]),
@@ -131,7 +129,7 @@ it("client entry define", async () => {
 		const head = '\nexport const devHead = "<meta name=x>";\n';
 		const dev = `export const buildId = "dev";\nexport const clientEntry = "/src/client.tsx";${head}`;
 		expect(await load("ssr", "serve")).toBe(dev);
-		expect(await load("worker", "serve")).toBe(dev);
+		expect(await load("flare_prerender", "serve")).toBe(dev);
 		expect(load("client", "serve")).toBeNull();
 		expect(load("ssr", "serve", join(root, "src/other.ts"))).toBeNull();
 		writeFileSync(join(root, "src/entry.tsx"), "");
@@ -169,37 +167,6 @@ it("dev server", () => {
 	expect(typeof post).toBe("function");
 });
 
-// In Workers dev, workerd answers every request through the Cloudflare plugin's post middleware. Flare's server hook
-// runs first (`order: "pre"`), so a listener it added would answer before workerd: it adds none, and still relays the
-// worker environment's errors (BUGS.md 76).
-it("workers dev server", async () => {
-	vi.resetModules();
-	vi.doMock("./workers-dev.ts", async (original) => ({
-		...(await original<typeof import("./workers-dev.ts")>()),
-		workersDevPlugins: async () => [],
-	}));
-	try {
-		const fresh = await import("./flare.ts");
-		const plugin = fresh.flare({ workersDev: true }).find((item) => Reflect.get(Object(item), "name") === "flare");
-		const used: unknown[] = [];
-		const relayed: unknown[] = [];
-		const hot = { on: () => undefined };
-		const server = {
-			config: { root: "/app", server: { middlewareMode: false }, logger: { error: () => undefined } },
-			watcher: { on: () => undefined },
-			middlewares: { use: (handler: unknown) => void used.push(handler) },
-			transformIndexHtml: async (_url: string, html: string) => html,
-			environments: { ssr: { hot }, client: { hot }, worker: { hot: { on: (event: string) => relayed.push(event) } } },
-		};
-		expect(serverHook(plugin as ReturnType<typeof flarePlugin>)(server)).toBeUndefined();
-		expect(used).toEqual([]);
-		expect(relayed).toContain("flare:error");
-	} finally {
-		vi.doUnmock("./workers-dev.ts");
-		vi.resetModules();
-	}
-});
-
 // The map carries the original source, so only the code is checked.
 function code(result: unknown): string {
 	const text: unknown = typeof result === "object" && result !== null ? Reflect.get(result, "code") : undefined;
@@ -219,7 +186,7 @@ it("boundary transform", () => {
 		'import { createServerOnlyFn } from "@lovrozagar/flare";\nexport const read = createServerOnlyFn(() => SECRET);\n';
 	expect(code(run("client", "/app/src/lib/read.ts", source))).not.toContain("SECRET");
 	expect(run("ssr", "/app/src/lib/read.ts", source)).toBeNull();
-	expect(run("worker", "/app/src/lib/read.ts", source)).toBeNull();
+	expect(run("flare_prerender", "/app/src/lib/read.ts", source)).toBeNull();
 	// The id hashes the root-relative path.
 	const fn =
 		'import { createServerFn } from "@lovrozagar/flare/server-fn";\nexport const echo = createServerFn().handler(h);\n';
@@ -275,52 +242,3 @@ it("hmr keeps split", async () => {
 		rmSync(root, { recursive: true, force: true });
 	}
 }, 30_000);
-
-// Whether this runtime's node:module has registerHooks, which the Cloudflare plugin needs (B95).
-const HOOKS = typeof Reflect.get(nodeModule, "registerHooks") === "function";
-
-// The plugin names `flare({ workersDev: true })` composes, the Cloudflare one first, or the error it throws.
-async function workersDevNames(): Promise<unknown[]> {
-	try {
-		const [first, ...rest] = flare({ workersDev: true });
-		return [names((await first) as unknown[])[0], ...names(rest)];
-	} catch (error) {
-		return [/Node 22\.15 or later/.exec(String(error))?.[0]];
-	}
-}
-
-// Each plugin's name, whatever the option's element type.
-function names(plugins: readonly unknown[]): unknown[] {
-	return plugins.map((plugin) => Reflect.get(Object(plugin), "name"));
-}
-
-// `workersDev: true` composes the Cloudflare plugins before flare's own. `false` or absent composes none (B95). A
-// runtime without node:module's registerHooks, such as the Bun run, gets the error instead of the composition.
-it("workers dev", async () => {
-	const composed = await workersDevNames();
-	expect(composed).toEqual(HOOKS ? ["vite-plugin-cloudflare", ...names(flare())] : ["Node 22.15 or later"]);
-	expect(names(flare({ workersDev: false }))).toEqual(names(flare()));
-});
-
-// Without the peer, flare({ workersDev: true }) throws when the plugin is created and names the install (B95).
-it("workers dev missing peer", async () => {
-	vi.resetModules();
-	vi.doMock("./workers-dev.ts", async (original) => {
-		const actual = await original<typeof import("./workers-dev.ts")>();
-		const missing = {
-			resolve: (): string => {
-				throw new Error("ERR_MODULE_NOT_FOUND");
-			},
-			load: async () => ({}),
-			hooks: () => true,
-		};
-		return { ...actual, workersDevPlugins: (entry: string) => actual.workersDevPlugins(entry, {}, missing) };
-	});
-	try {
-		const fresh = await import("./flare.ts");
-		expect(() => fresh.flare({ workersDev: true })).toThrow("npm install -D @cloudflare/vite-plugin");
-	} finally {
-		vi.doUnmock("./workers-dev.ts");
-		vi.resetModules();
-	}
-});

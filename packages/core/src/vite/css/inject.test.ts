@@ -78,7 +78,7 @@ it("server sheet", () => {
 	expect(() => call(main?.load, context("ssr"), [SHEET])).toThrow(/client build/);
 	const bundle = { "style.css": asset("assets/style-1.css", "body{color:red}") };
 	call(capture?.generateBundle, context("client"), [{}, bundle]);
-	for (const name of ["ssr", "worker"]) {
+	for (const name of ["ssr", "flare_prerender"]) {
 		expect(call(main?.load, context(name), [SHEET])).toBe(
 			'export const builtSheet = "body{color:red}";\nexport const builtHref = "/assets/style-1.css";\n',
 		);

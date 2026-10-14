@@ -12,7 +12,7 @@ export type GraphNode = { id: string | null; url: string; importedModules: Set<G
 
 type HotClient = { send(event: string, payload: unknown): void };
 
-// A server environment the dev styles answer on: the ssr one, and the worker one in Workers dev.
+// The server environment the dev styles answer on: ssr, which runs in workerd under the Cloudflare plugin (B109).
 export type StylesEnvironment = {
 	hot: { on(event: string, listener: (payload: unknown, client: HotClient) => void): void };
 	moduleGraph: { getModulesByFile(file: string): Set<GraphNode> | undefined };
@@ -28,7 +28,6 @@ export type StylesServer = {
 			moduleGraph: { getModulesByFile(file: string): Set<GraphNode> | undefined };
 		};
 		ssr?: StylesEnvironment;
-		worker?: StylesEnvironment;
 	};
 };
 
@@ -48,23 +47,19 @@ export function installDevStyles(server: StylesServer, entry: string): void {
 		files ??= routeFileMap(server.config.root);
 		return files.get(route);
 	};
-	for (const [name, environment] of [
-		["ssr", server.environments.ssr],
-		["worker", server.environments.worker],
-	] as const) {
-		environment?.hot.on(STYLES_EVENT, (payload, client) => {
-			const asked = stylesRequest(payload);
-			if (asked === undefined) return;
-			const key = `${name}\n${asked.routes.join("\n")}`;
-			const styles = cache.get(key) ?? stylesOf(server, environment, { entry, files: asked.routes.map(fileOf) });
-			cache.set(key, styles);
-			const answer = (list: DevStyle[]): void => client.send(STYLES_EVENT, { request: asked.request, styles: list });
-			styles.then(answer, () => {
-				cache.delete(key);
-				answer([]);
-			});
+	const environment = server.environments.ssr;
+	environment?.hot.on(STYLES_EVENT, (payload, client) => {
+		const asked = stylesRequest(payload);
+		if (asked === undefined) return;
+		const key = asked.routes.join("\n");
+		const styles = cache.get(key) ?? stylesOf(server, environment, { entry, files: asked.routes.map(fileOf) });
+		cache.set(key, styles);
+		const answer = (list: DevStyle[]): void => client.send(STYLES_EVENT, { request: asked.request, styles: list });
+		styles.then(answer, () => {
+			cache.delete(key);
+			answer([]);
 		});
-	}
+	});
 }
 
 // Route id to its file's absolute path, from the same scan the route codegen runs.

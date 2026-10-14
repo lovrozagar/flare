@@ -1,13 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { StringDecoder } from "node:string_decoder";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { Readable } from "node:stream";
 import { fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
-import { readWrangler } from "../../src/vite/plugin/wrangler.ts";
+import { unstable_getMiniflareWorkerOptions } from "wrangler";
 
 const apps = fileURLToPath(new URL("./apps/", import.meta.url));
 
@@ -50,9 +50,9 @@ function capture(): { attach: (stream: Readable | null) => void; logs: () => rea
 const APPS = new Set(["minimal", "basepath", "docs"]);
 const RUNTIMES = new Set(["node", "bun", "workers"]);
 
-// `dev` is `vite dev`: on Node, under the Bun runtime, or on Node with the app's flare({ workersDev }) on, which renders
-// in workerd (B95). `prod` is `vite build` on Node, then the runtime's adapter over the output: the Node listener,
-// `Bun.serve`, or miniflare from the app's wrangler.jsonc (B70).
+// `dev` is `vite dev`: on Node, under the Bun runtime, or on Node with the app's own Cloudflare plugin, which renders in
+// workerd (B109). `prod` is `vite build` on Node, then the runtime's adapter over the output: the Node listener,
+// `Bun.serve`, or miniflare from the plugin's generated deploy config (B70, B109).
 export async function boot(input: { app: string; runtime: string; mode: string }): Promise<Boot> {
 	if (!APPS.has(input.app)) throw new Error(input.app);
 	return bootApp({ appDir: join(apps, input.app), runtime: input.runtime, mode: input.mode });
@@ -69,7 +69,7 @@ export async function bootApp(input: { appDir: string; runtime: string; mode: st
 	mkdirSync(outputs, { recursive: true });
 	const outDir = await mkdtemp(join(outputs, "out-"));
 	try {
-		await viteBuild({ appDir, cacheDir, outDir });
+		await viteBuild({ appDir, cacheDir, outDir, runtime: input.runtime });
 	} catch (error) {
 		remove([cacheDir, outDir]);
 		throw error;
@@ -87,7 +87,7 @@ const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", impo
 // which it would cache under `.wrangler` in the app (B70, BUGS.md 85).
 const WORKERS_DEV_ENV = { CLOUDFLARE_INCLUDE_PROCESS_ENV: "true", CLOUDFLARE_CF_FETCH_ENABLED: "false" };
 
-// The dev server per runtime. The app's vite.config reads FLARE_E2E_RUNTIME to turn workersDev on (B95).
+// The dev server per runtime. The app's vite.config reads FLARE_E2E_RUNTIME to compose the Cloudflare plugin (B109).
 function devCommand(runtime: string): { bin: string; args?: readonly string[]; env: Record<string, string> } {
 	const env = {
 		FLARE_E2E_RUNTIME: runtime,
@@ -146,12 +146,19 @@ function remove(dirs: readonly string[]): void {
 }
 
 // `vite build` on Node into `outDir`, as a deploy runs it. A test runner's NODE_ENV of `test` would make Vite resolve
-// development builds, Solid's dev server build among them, so the build runs with `production`. A failed build
-// rejects with its output.
-function viteBuild(input: { appDir: string; cacheDir: string; outDir: string }): Promise<void> {
+// development builds, Solid's dev server build among them, so the build runs with `production`. The app's vite.config
+// reads FLARE_E2E_RUNTIME to compose the Cloudflare plugin for a workers boot (B109). A failed build rejects with its
+// output.
+function viteBuild(input: { appDir: string; cacheDir: string; outDir: string; runtime: string }): Promise<void> {
 	const child = spawn(process.execPath, [viteJs, "build", "--outDir", input.outDir], {
 		cwd: input.appDir,
-		env: { ...process.env, NODE_ENV: "production", FLARE_VITE_CACHE: input.cacheDir, NO_COLOR: "1" },
+		env: {
+			...process.env,
+			NODE_ENV: "production",
+			FLARE_VITE_CACHE: input.cacheDir,
+			FLARE_E2E_RUNTIME: input.runtime,
+			NO_COLOR: "1",
+		},
 		stdio: ["ignore", "pipe", "pipe"],
 	});
 	let text = "";
@@ -163,28 +170,27 @@ function viteBuild(input: { appDir: string; cacheDir: string; outDir: string }):
 	});
 }
 
-// miniflare runs the worker bundle with the app's compatibility settings. The assets binding serves the client
-// output, and a request no file answers reaches the worker.
+// miniflare runs what `wrangler deploy` would ship: the deploy config the Cloudflare plugin wrote beside the Workers
+// bundle, `<outDir>/server/wrangler.json`, read the way wrangler reads it (B109). The harness adds only FLARE_E2E and
+// the log capture. The assets binding serves the client output, and a request no file answers reaches the worker.
 async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: string }): Promise<Boot> {
-	const config = readWrangler(input.appDir);
-	if (config === undefined) throw new Error(`${input.appDir} has no wrangler.jsonc`);
-	const worker = join(input.outDir, "worker");
-	const assets = { directory: join(input.outDir, "client"), routerConfig: { has_user_worker: true } };
+	const server = join(input.outDir, "server");
+	const deploy = unstable_getMiniflareWorkerOptions(join(server, "wrangler.json"));
+	if (deploy.main === undefined) throw new Error(`${server}/wrangler.json names no main`);
 	const output = capture();
+	const options = deploy.workerOptions;
 	const runtime = new Miniflare({
-		modules: true,
+		...options,
+		// The plugin's output is unbundled (`no_bundle`): every module file ships, the lazy route chunks among them.
+		modules: modulesOf(server, resolve(server, deploy.main)),
+		modulesRoot: server,
 		// workerd's own stdout and stderr, where the worker's console goes, are captured like a child's.
 		handleRuntimeStdio: (stdout: Readable, stderr: Readable) => {
 			output.attach(stdout);
 			output.attach(stderr);
 		},
-		scriptPath: join(worker, "index.js"),
-		modulesRoot: worker,
-		...(config.compatibilityDate === undefined ? {} : { compatibilityDate: config.compatibilityDate }),
-		compatibilityFlags: config.compatibilityFlags,
-		...(config.binding === undefined ? {} : { assets: { ...assets, binding: config.binding } }),
 		// The docs app's e2e-only controls answer only under this flag.
-		bindings: { FLARE_E2E: "1" },
+		bindings: { ...options.bindings, FLARE_E2E: "1" },
 	});
 	const clean = (): void => remove([input.cacheDir, input.outDir]);
 	try {
@@ -204,6 +210,14 @@ async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: st
 		clean();
 		throw error;
 	}
+}
+
+// Every JavaScript module of an unbundled Workers output, its main first, as `wrangler deploy` uploads them.
+function modulesOf(dir: string, main: string): { type: "ESModule"; path: string }[] {
+	const files = readdirSync(dir, { recursive: true, encoding: "utf8" })
+		.map((file) => join(dir, file))
+		.filter((path) => /\.m?js$/.test(path) && path !== main);
+	return [main, ...files.toSorted()].map((path) => ({ type: "ESModule", path }));
 }
 
 // The prod servers for Node and Bun. The adapters serve no files (B13), so these serve the client output by path

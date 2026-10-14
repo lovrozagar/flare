@@ -1,17 +1,22 @@
 # Bit 16 — The 18-project grid and Workers dev
 
-Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromium,firefox,webkit}` (B70): Bun dev runs `vite dev` under the Bun runtime, Workers dev runs it in workerd through `@cloudflare/vite-plugin` (B95), and every engine comes from the pinned Playwright image locally (B97). Every dev runtime renders the dev document itself (B95 (b)), so the Node and Bun dev handler no longer buffers HTML.
+Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromium,firefox,webkit}` (B70): Bun dev runs `vite dev` under the Bun runtime, Workers dev runs it in workerd through the app's own `@cloudflare/vite-plugin` beside `flare()` (B109), and every engine comes from the pinned Playwright image locally (B97). Every dev runtime renders the dev document itself (B95 (b)), so the Node and Bun dev handler no longer buffers HTML.
 
-## `vite/plugin/workers-dev.test.ts`
+## `vite/plugin/cloudflare.test.ts` (B109)
 
 | test | case | result |
 | --- | --- | --- |
-| `cloudflare options` | the options `workersDev: true` composes the Cloudflare plugin with | `viteEnvironment: { name: "worker" }` and `config: { main: "virtual:flare/worker" }`, so the app's `wrangler.jsonc` needs no `main` and flare's build-info module serves the worker environment (B95 (a)) |
-| `inspector port` | `workersDev` with no port, `0`, and `false`, then `persistState` absent, `false`, and `{ path }`, then the options the Cloudflare plugin receives | an absent field is left out, so the plugin keeps its default (9229; `.wrangler/state`); the others pass through (BUGS.md 85) |
-| `peer missing` | the peer cannot be resolved | the error names `@cloudflare/vite-plugin` and the install command |
-| `hooks missing` | the peer resolves, and the runtime's `node:module` has no `registerHooks` (injected) | throws when the plugin is created: `flare({ workersDev: true }) runs Vite on Node 22.15 or later`, with the runtime's name and version; the peer is not loaded (B95, CI run 38493113436 on Bun 1.4.3) |
+| `cloudflare composed` | the plugins option with Cloudflare's plugins nested as `cloudflare()` returns them, before or after flare's, then without them | found by name in either order; not found without them |
+| `cloudflare checked` | the resolved ssr conditions and the Wrangler `main` | passes with `workerd` and `@lovrozagar/flare/worker`; otherwise throws `The Cloudflare plugin must run in the ssr environment: cloudflare({ viteEnvironment: { name: "ssr" } })`, or `The Wrangler config's main must be "@lovrozagar/flare/worker"` naming what it is |
+| `plugin present` | flare's hooks with the plugin in the config's plugins | the server hook, which runs first, returns no post hook and installs no Node listener, so workerd answers through the plugin's middleware (BUGS.md 76); the resolved config is checked, a config with no ssr environment throws as one off ssr, and a plugin the config hook did not see throws |
+| `worker entry` | the Wrangler main's specifier, before and after the config hook saw the plugin, with an assets binding in the Wrangler config | not resolved without the plugin; with it, the entry is the app's `server` behind `createWorkersHandler(server, { assets: "ASSETS" })` |
+| `workers output` | a real run with `cloudflare({ viteEnvironment: { name: "ssr" } })` and `flare({ prerender: true })` | client, ssr, and `flare_prerender` write in that order; the deploy config is `<outDir>/server/wrangler.json` and its `main` is the Workers bundle beside it; no `worker` output; `prerender/` is deleted once the seeds are written. Skipped without `registerHooks` (the Bun run) |
 
-`vite/plugin/flare.test.ts` `workers dev` (the Cloudflare plugins come before flare's own, and `workersDev: false` or absent composes none) `workers dev missing peer` (`flare({ workersDev: true })` throws when the plugin is created), and `workers dev server` (the server hook, which runs first, returns no post hook and installs no listener, so the Cloudflare plugin's middleware answers in workerd; it still relays the worker environment's `flare:error`, BUGS.md 76) are the `workersDev` rows of `dx/plugin.md`. On a runtime without `registerHooks` (the Bun run), `workers dev` asserts the `hooks missing` error instead of the composition.
+## `vite/plugin/worker-main.test.ts` (B109)
+
+| test | case | result |
+| --- | --- | --- |
+| `outside vite` | the Wrangler main's own module, imported with no Vite | throws `@lovrozagar/flare/worker is the Wrangler main for the Cloudflare plugin: it runs only inside Vite with flare()` |
 
 ## `vite/dev/dev-head.test.ts`
 
@@ -36,7 +41,7 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 
 | test | case | result |
 | --- | --- | --- |
-| `chain styles` | a `flare:styles` request for the docs chain over a fake module graph, then the worker environment's for an unknown route | the client entry's own CSS imports first (flare's reset), then the chain's CSS modules in import order, root first and once each, each read with `?direct` (`&direct` after a query); the entry's other imports are not walked |
+| `chain styles` | a `flare:styles` request for the docs chain over a fake module graph, then the ssr environment's for an unknown route | the client entry's own CSS imports first (flare's reset), then the chain's CSS modules in import order, root first and once each, each read with `?direct` (`&direct` after a query); the entry's other imports are not walked |
 | `cache` | the same chain twice, then a watched file change, then again | one walk and one read per module until the change; then they run again |
 | `bad request` | a malformed request, then a read that rejects, then one that answers nothing | no answer; no styles and no cache entry; empty CSS |
 
@@ -65,7 +70,6 @@ Creates every `P16` row. The e2e grid is `{node,bun,workers}-{dev,prod}-{chromiu
 | test | case | result |
 | --- | --- | --- |
 | `document passes through` | an HTML response from the app, streamed in chunks | the client gets the app's bytes unchanged: no buffering through `</head>`, no `transformIndexHtml` call, no peeled scripts |
-| `worker errors` | a `flare:error` the worker environment sends with a tab token | reaches that tab's overlay through the tab hub, as the ssr environment's does |
 
 The dev error page for a server module that failed to load and the tab hub keep their rows in `bits/12-vite.md`.
 
@@ -81,8 +85,10 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | test | case | result |
 | --- | --- | --- |
 | `bun dev` | `minimal` booted as `vite dev` under the Bun runtime | GET `/` answers 200, the document's `flare-build` is `dev`, and its `x-runtime` is `Bun/…` |
-| `workers dev` | `minimal` booted with `workersDev: true` | GET `/` answers 200 from workerd: its `x-runtime` is `Cloudflare-Workers`, and the app dir has no `.wrangler` afterwards (BUGS.md 85), which the minimal app's middleware sets from `navigator.userAgent` (with B76's bug back it is `Node.js/24`, BUGS.md 76). It runs where the test runtime has `registerHooks`; under the Bun run (`test:bun`) the child Vite is Bun too, so the case is skipped there by that feature check, and the skip names B95 |
-| `workers dev twice` | two `minimal` Workers dev boots started together | both answer GET `/` with 200: each worker's inspector takes a port the OS assigns, and its state stays in memory. Before BUGS.md 85 one of them failed `listen EADDRINUSE 127.0.0.1:9229` (2 of 3 runs) or, in a fresh worktree, workerd's SQLite `database is locked`. Skipped like `workers dev` without `registerHooks` |
+| `workers dev` | `minimal` booted with its Workers config's `cloudflare()` | GET `/` answers 200 from workerd: its `x-runtime` is `Cloudflare-Workers`, and the app has no `.wrangler/state` or `.wrangler/cache` afterwards (BUGS.md 85); a Workers build's own deploy pointer, `.wrangler/deploy/config.json`, is the plugin's, written at the Vite root (B109). Skipped without `registerHooks` (the Bun run), and the skip names B109 |
+| `workers dev twice` | two `minimal` Workers dev boots started together | both answer GET `/` with 200: each worker's inspector takes a port the OS assigns, and its state stays in memory. Before BUGS.md 85 one of them failed `listen EADDRINUSE 127.0.0.1:9229` (2 of 3 runs) or, in a fresh worktree, workerd's SQLite `database is locked`. The e2e apps' `cloudflare()` passes `inspectorPort: 0` and `persistState: false` (B109). Skipped like `workers dev` without `registerHooks` |
+| `workers dev log` | `docs` in Workers dev, then the changelog's fill, which runs its failing `broken` hole | the `[flare:render]` line reaches the boot's captured log within 10 s: workerd's console goes through Miniflare's structured logs to Vite's logger, after the response (BUGS.md 93) |
+| `workers prod` | `minimal` built with the Cloudflare plugin, then booted | Miniflare runs what `wrangler deploy` would ship: `<outDir>/server/wrangler.json` read by wrangler's `unstable_getMiniflareWorkerOptions`, every module of the unbundled output, and only `FLARE_E2E` and the log capture added; GET `/` answers 200 with `x-runtime: Cloudflare-Workers` (B109). Skipped on the Bun run, as every Workers case |
 
 ## `scripts/browser-server.test.ts` (B97)
 

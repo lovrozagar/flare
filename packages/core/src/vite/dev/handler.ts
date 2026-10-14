@@ -9,8 +9,6 @@ export type DevServer = {
 	environments: {
 		ssr: { hot: ErrorChannel; runner?: { import(id: string): Promise<Record<string, unknown>> } };
 		client: { hot: { on(event: string, listener: (payload: unknown, client: TabClient) => void): void } };
-		// Workers dev renders in workerd, whose `flare:error` arrives on the worker environment's channel (B95 (c)).
-		worker?: { hot: ErrorChannel };
 	};
 };
 
@@ -36,8 +34,8 @@ export type DevDeps = {
 // On Node and Bun, `vite dev` answers every request the Vite middlewares did not (B89). Embedded in another server,
 // `middlewareMode`, it is not installed. The app's documents pass through as the server wrote them, dev tags included
 // (B95 (b)). A dev error opens Vite's overlay only in the tab that caused it: a server graph's `flare:error` by its
-// request's tab token, from the ssr environment or, in Workers dev, the worker environment (B95 (c)), and a client's
-// own `flare:error` back to that client (B93, B42).
+// request's tab token, from the ssr environment, which renders in workerd when the Cloudflare plugin runs it (B95 (c),
+// B109), and a client's own `flare:error` back to that client (B93, B42).
 export function installDevHandler(server: DevServer, entry: string): (() => void) | undefined {
 	if (server.config.server.middlewareMode) return undefined;
 	const tabs = createTabs();
@@ -47,7 +45,6 @@ export function installDevHandler(server: DevServer, entry: string): (() => void
 		tabs.deliver(token, payload);
 	};
 	server.environments.ssr.hot.on("flare:error", relay);
-	server.environments.worker?.hot.on("flare:error", relay);
 	client.on("flare:error", (payload, tab) => tab.send(payload));
 	client.on(TAB_EVENT, (announced, tab) => {
 		const token: unknown = Reflect.get(Object(announced), "token");
