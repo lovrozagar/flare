@@ -2,7 +2,7 @@ import { createComponent, flush, useContext } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { InterceptOutlet, Link, type InterceptState } from "../../shared/components/index.ts";
-import { encodeFrame } from "../../shared/protocol/index.ts";
+import { encodeFrame, QUERY_GETTER } from "../../shared/protocol/index.ts";
 import { createServerFn } from "../server-fn/call.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
@@ -428,4 +428,31 @@ it("fill on hydrate", async () => {
 	expect(fetch).toHaveBeenCalledOnce();
 	expect(history.length).toBe(length);
 	expect(location.pathname).toBe("/");
+});
+
+// The boot tells the registered query getter the hydration mount is over, once, after the document says so and the
+// app's hydrated callbacks ran. With no getter, or one without `hydrated`, the boot completes (B102).
+it("query hydrated", async () => {
+	const order: string[] = [];
+	const hydrated = vi.fn<() => void>(() =>
+		order.push(`query ${document.documentElement.hasAttribute("data-flare-hydrated")}`),
+	);
+	const getter = Object.assign(() => undefined, { dehydrate: () => undefined, hydrated });
+	Reflect.set(globalThis, QUERY_GETTER, getter);
+	try {
+		const ready = createReady();
+		ready.api.onHydrated(() => order.push("app hydrated"));
+		stops.push(await bootClient(routerOf(), ready, env(install())));
+		expect(order).toEqual(["app hydrated", "query true"]);
+		expect(hydrated).toHaveBeenCalledOnce();
+		Reflect.set(
+			globalThis,
+			QUERY_GETTER,
+			Object.assign(() => undefined, { dehydrate: () => undefined }),
+		);
+		stops.push(await bootClient(routerOf(), createReady(), env(install())));
+	} finally {
+		Reflect.deleteProperty(globalThis, QUERY_GETTER);
+	}
+	stops.push(await bootClient(routerOf(), createReady(), env(install())));
 });
