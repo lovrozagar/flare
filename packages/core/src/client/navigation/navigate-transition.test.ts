@@ -85,3 +85,58 @@ it("view transition", async () => {
 	expect(app.text()).toBe("root[about]");
 	push.mockRestore();
 });
+
+const frames = (id: string): Frame[] => [{ t: "l", m: "_root_", d: null }, { t: "l", m: id, d: "x" }, { t: "r" }];
+
+// A view transition runs its update a frame or more after it starts. A navigation that starts in that window skips the
+// older transition, which runs the older update first, as the spec orders it (B17). Only the navigation the user started
+// last commits and writes history: the superseded update commits nothing, so history gets no entry for it (BUGS.md 98).
+it("superseded update", async () => {
+	const pages = createRouter({
+		layouts: { _root_: root },
+		viewTransitions: true,
+		routeTree: [
+			{ id: "_root_/", path: "/", module: createPage("_root_/").render(() => "home") },
+			{ id: "_root_/a", path: "/a", module: createPage("_root_/a").render(() => "a") },
+			{ id: "_root_/b", path: "/b", module: createPage("_root_/b").render(() => "b") },
+		],
+	});
+	const app = await mountNavigator(
+		pages,
+		async (url) =>
+			new Response(
+				frames(String(url).includes("/a?") ? "_root_/a" : "_root_/b")
+					.map(encodeFrame)
+					.join(""),
+			),
+	);
+	let pending: (() => void) | undefined;
+	let started = 0;
+	Object.defineProperty(document, "startViewTransition", {
+		configurable: true,
+		value: (options: { update: () => void }) => {
+			started += 1;
+			pending?.();
+			const { promise, resolve } = Promise.withResolvers<void>();
+			pending = () => {
+				pending = undefined;
+				options.update();
+				resolve();
+			};
+			return { updateCallbackDone: promise, ready: promise };
+		},
+	});
+	const push = vi.spyOn(history, "pushState");
+	const first = app.navigator.navigate({ to: "_root_/a", viewTransition: { scope: "document" } });
+	await vi.waitFor(() => expect(started).toBe(1));
+	const second = app.navigator.navigate({ to: "_root_/b", viewTransition: { scope: "document" } });
+	await vi.waitFor(() => expect(started).toBe(2));
+	await first;
+	pending?.();
+	await second;
+	flush();
+	expect(app.text()).toBe("root[b]");
+	expect(location.pathname).toBe("/b");
+	expect(push.mock.calls.map((call) => String(call[2]))).toEqual(["/b"]);
+	push.mockRestore();
+});

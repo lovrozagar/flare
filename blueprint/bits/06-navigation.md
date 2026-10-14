@@ -371,6 +371,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | test | case | result |
 | --- | --- | --- |
 | `view transition` | `viewTransitions: true` and a `ViewTransitionBoundary` around the outlet | a push starts it on the boundary's element with `["forward"]`, the DOM updates inside it, and history is written after. A replace on `scope: "document"` is `["same"]` on the document. A popstate step back is `["back"]`. `viewTransition: false` commits with none |
+| `superseded update` | a navigation whose view transition has not run its update yet, then a second navigation, whose start skips the first transition and runs that update first, as the spec orders it | the first update commits nothing, since the second aborted its signal: the screen shows the second page and history has only its entry (BUGS.md 98) |
 
 ### `shared/components/link.test.tsx`
 

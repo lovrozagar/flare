@@ -93,7 +93,8 @@ export function createNavigator(deps: NavigatorDeps): {
 				go(resolveUrl(redirect.url, context()), { ...options, replace: redirect.replace }),
 			);
 		}
-		if (!(await settle(deps, plan, { chain: settled.chain, arrival: settled.arrival }))) return;
+		const landed = { chain: settled.chain, arrival: settled.arrival, signal: controller.signal };
+		if (!(await settle(deps, plan, landed))) return;
 		at = deps.history.index();
 		return watch.committed();
 	};
@@ -164,7 +165,7 @@ function planOf(input: {
 async function settle(
 	deps: NavigatorDeps,
 	plan: Plan,
-	settled: { chain: LoadedEntry[]; arrival: Exclude<Arrival, { kind: "none" }> },
+	settled: { chain: LoadedEntry[]; arrival: Exclude<Arrival, { kind: "none" }>; signal: AbortSignal },
 ): Promise<boolean> {
 	const { target, previous, arrival } = { ...plan, arrival: settled.arrival };
 	if (plan.intercept !== undefined && arrival.kind === "landed" && arrival.landing.failure === undefined) {
@@ -192,6 +193,8 @@ async function settle(
 		info: transitionInfo(plan.direction, previous.overlay?.location ?? previous.location, target.location),
 		auto: () => deps.store.scopeAt(swappedDepth(previous, next)),
 		update: () => {
+			// A navigation started since this transition began aborted this one: it commits nothing (BUGS.md 98).
+			if (settled.signal.aborted) return;
 			shown = deps.store.commit(next);
 			flush();
 			scrolled = deps.store.onScreen() === next;
