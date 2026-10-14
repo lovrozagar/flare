@@ -7,12 +7,15 @@ import { fileURLToPath } from "node:url";
 export const repo = fileURLToPath(new URL("../../../../", import.meta.url));
 export const readme = readFileSync(join(repo, "README.md"), "utf8");
 
-// The fenced block after each `<!-- quick-start: <path> -->` marker, with the path it is compiled at.
+// The fenced block after each `<!-- <tag>: <path> -->` marker, with the path it is written at: `quick-start` blocks are
+// compiled, the `node-serve` block is run.
+export function marked(text: string, tag: string): { path: string; code: string }[] {
+	const pattern = new RegExp(`<!-- ${tag}: (\\S+) -->\\n\\n?\`\`\`\\w*\\n([\\s\\S]*?)\\n\`\`\``, "g");
+	return [...text.matchAll(pattern)].map((match) => ({ path: String(match[1]), code: `${String(match[2])}\n` }));
+}
+
 export function quickStart(text: string): { path: string; code: string }[] {
-	return [...text.matchAll(/<!-- quick-start: (\S+) -->\n\n?```\w*\n([\s\S]*?)\n```/g)].map((match) => ({
-		path: String(match[1]),
-		code: `${String(match[2])}\n`,
-	}));
+	return marked(text, "quick-start");
 }
 
 // Each table row as its cells, for the tables whose first header cell is `first`.

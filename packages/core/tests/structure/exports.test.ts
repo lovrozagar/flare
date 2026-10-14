@@ -1,11 +1,12 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
+import { connect, createServer as createNetServer } from "node:net";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseSync } from "oxc-parser";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { packCore, type Packed } from "../../../../scripts/release.ts";
-import { identifiers, quickStart, readme, tableRows } from "./readme.ts";
+import { identifiers, marked, quickStart, readme, tableRows } from "./readme.ts";
 
 // The packager contract (bits/14), against the tarball `npm pack` writes, installed into a stage the way an app gets it.
 const core = fileURLToPath(new URL("../../", import.meta.url));
@@ -270,6 +271,47 @@ it(
 	BUILD,
 );
 
+// The README's Node server runs: written beside a stub build in the stage, it serves a client file, hands the rest to
+// the listener, and answers a path `decodeURIComponent` rejects with a status instead of dying on the rejection.
+it("readme node serve", async () => {
+	const app = join(packed.stage, "node-serve");
+	const [example] = marked(readme, "node-serve");
+	mkdirSync(join(app, "dist/server"), { recursive: true });
+	mkdirSync(join(app, "dist/client"), { recursive: true });
+	writeFileSync(join(app, example?.path ?? "serve.js"), example?.code ?? "");
+	writeFileSync(join(app, "package.json"), '{ "type": "module" }\n');
+	writeFileSync(
+		join(app, "dist/server/server.js"),
+		'export const server = { fetch: () => new Response("app", { status: 404 }), bodyLimit: 1 };\n',
+	);
+	writeFileSync(join(app, "dist/client/app.js"), "export {};\n");
+	const port = await freePort();
+	const child = spawn(process.execPath, [join(app, "serve.js")], {
+		cwd: app,
+		env: { ...process.env, PORT: String(port) },
+	});
+	try {
+		const origin = `http://127.0.0.1:${port}`;
+		await expect
+			.poll(
+				() =>
+					fetch(`${origin}/`).then(
+						(response) => response.status,
+						() => 0,
+					),
+				{ timeout: 10_000 },
+			)
+			.toBe(404);
+		const file = await fetch(`${origin}/app.js`);
+		expect([file.status, file.headers.get("content-type")]).toEqual([200, "text/javascript"]);
+		const bad = await rawStatus(port, "/%E0%A4%A");
+		expect(typeof bad).toBe("number");
+		expect((await fetch(`${origin}/`)).status).toBe(404);
+	} finally {
+		child.kill();
+	}
+}, 30_000);
+
 it("tarball contents", () => {
 	const top = new Set(packed.entries.map((entry) => entry.replace(/^package\//, "").split("/")[0]));
 	expect([...top].toSorted()).toEqual(["LICENSE", "README.md", "dist", "package.json", "src"]);
@@ -332,3 +374,25 @@ it("not a peer", () => {
 		expect(keys).not.toContain(name);
 	}
 });
+
+function freePort(): Promise<number> {
+	return new Promise((resolve) => {
+		const probe = createNetServer().listen(0, "127.0.0.1", () => {
+			const address = probe.address();
+			probe.close(() => resolve(typeof address === "object" && address !== null ? address.port : 0));
+		});
+	});
+}
+
+// A request with the target exactly as written: fetch would normalize a malformed escape away. The status, or the
+// socket error when the server died.
+function rawStatus(port: number, target: string): Promise<number | string> {
+	return new Promise((resolve) => {
+		const socket = connect(port, "127.0.0.1");
+		let text = "";
+		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")));
+		socket.on("error", (error: NodeJS.ErrnoException) => resolve(error.code ?? error.message));
+		socket.on("close", () => resolve(Number(/^HTTP\/1\.1 (\d{3})/.exec(text)?.[1] ?? Number.NaN) || "no status"));
+		socket.end(`GET ${target} HTTP/1.1\r\nhost: 127.0.0.1:${port}\r\nconnection: close\r\n\r\n`);
+	});
+}
