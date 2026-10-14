@@ -152,3 +152,16 @@ it("mount case", async () => {
 	expect(await answered.text()).toBe("api /Users");
 	expect((await server.fetch(new Request("http://site.test/APIX"))).status).toBe(404);
 });
+
+// The router's `trailingSlash` reaches the canonical redirect: `never` sends `/about/` to `/about` (BUGS.md 106).
+it("trailing slash option", async () => {
+	const about = createPage("_root_/about").render(() => "about");
+	const root = createRootLayout("_root_").render((props) => props.children);
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/about", path: "/about", module: about }],
+		trailingSlash: "never",
+	});
+	const response = await createServer({ router }).fetch(new Request("http://localhost/about/"));
+	expect([response.status, response.headers.get("location")]).toEqual([301, "/about"]);
+});

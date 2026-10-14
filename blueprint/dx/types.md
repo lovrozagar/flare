@@ -211,7 +211,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `env omitted` | no `env` augmentation | loader `ctx.env` | `unknown` | a field read | |
 | `server context omitted` | no `serverContext` augmentation | `serverCtx()` | `Record<string, unknown>` | a specific field required | |
 
-`redirect()` returns `never`. `to` on `redirect` follows this matrix. The `href` form accepts any `http:` or `https:` string and rejects `params`, `search`, and `to` on that object (`dx/navigate.md`).
+`redirect()` returns `never`. A loader that redirects to its own route, when that route validates search or params, still loops through its own type, since the target's search or params type is that route's: annotate the loader's return type there (BUGS.md 105). `to` on `redirect` follows this matrix. The `href` form accepts any `http:` or `https:` string and rejects `params`, `search`, and `to` on that object (`dx/navigate.md`).
 
 `buildUrl` on loader, preloader, `authorize`, `.response()`, and `ServerUrlHelpers` uses the same `to`, `params`, and `search` generics.
 
