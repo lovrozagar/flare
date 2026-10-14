@@ -76,7 +76,7 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 
 ## `tests/integration/hydrate.test.tsx`
 
-The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydrate.harness.ts` renders a tree with Solid's server build and hydrates the same tree with its client build in a real browser, inside `bun run test`. jsdom is not used: under jsdom Solid's client `hydrate()` neither claimed the server nodes nor reported a deliberate mismatch, so a jsdom check passed vacuously. Each case runs in chromium, firefox, and webkit from the B70 pinned image, reached through `FLARE_BROWSER_WS` or the run-server the global setup starts. The suite includes `harness bites`: a server tree and a client tree that differ must fail the check in every engine. A case fails on any console message that names `Hydration`, a key miss, unclaimed server nodes, or `STRICT_READ_UNTRACKED`. The harness writes nothing into the repo and removes its temp directory.
+The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydrate.harness.ts` renders a tree with Solid's server build and hydrates the same tree with its client build in a real browser, inside `bun run test`. jsdom is not used: under jsdom Solid's client `hydrate()` neither claimed the server nodes nor reported a deliberate mismatch, so a jsdom check passed vacuously. Each case runs in chromium, firefox, and webkit from the B70 pinned image, reached through `FLARE_BROWSER_WS` or the run-server the global setup starts. The suite includes `harness bites`: a server tree and a client tree that differ must fail the check in every engine. Browsers come from `FLARE_BROWSER_WS` when set, else the pinned container when Docker is present, else Playwright's locally installed engines (the macOS CI job installs chromium, firefox, and webkit for the unit run). With none of the three, the harness fails with one message naming all three options, never a raw spawn error. A case fails on any console message that names `Hydration`, a key miss, unclaimed server nodes, or `STRICT_READ_UNTRACKED`. The harness writes nothing into the repo and removes its temp directory.
 
 | test | case | result |
 | --- | --- | --- |
@@ -116,7 +116,14 @@ The dev tab hub (BUGS.md B42), independent of the Node and Bun handler so the Wo
 
 | test | case | result |
 | --- | --- | --- |
+| `ci bun version` | ci.yml's `BUN_VERSION` and the root `package.json` `packageManager` | the same Bun version: CI runs the Bun this repo was verified on |
 | `ci node` | `.github/workflows/ci.yml` parsed | every job has `actions/setup-node` with `node-version: 24` after its checkout (B3, BUGS.md B24) |
 | `ci unit on both oses` | the same file | the Linux check job and `e2e-mac` both run `bun run test`, so the unit suite runs on Linux and macOS (B3, BUGS.md B27) |
 | `ci unit on bun` | the same file | the check job also runs `bun run test:bun` (the root script, which is `bun --bun run --filter @lovrozagar/flare test:bun`, and that is `vitest run` without coverage), so every unit test runs under the Bun runtime too. Coverage stays a Node gate: the per-file 100% is measured on Node's V8 data, and Bun's coverage of the same passing tests disagrees on 6 files (plan 14 leaf 8.20) |
+
+## `vite/plugin/real-path.test.ts`
+
+| test | case | result |
+| --- | --- | --- |
+| `real path` | an existing path behind a symlink, an existing plain path, and a path that does not exist | the symlink's target, the path itself, and the input unchanged |
 

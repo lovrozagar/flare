@@ -124,6 +124,7 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 
 | test | case | result |
 | --- | --- | --- |
+| `symlinked root` | a `flare()` build whose project root is a symlink | the resolved `config.root` is the real path, the server output is written, and prerender receives the real root (BUGS.md B51) |
 | `head split` | chunks that split a tag right after `</head>` | `transformIndexHtml` receives exactly the document through `</head>`, and the client gets the original bytes after it unchanged, with Vite's tags added (BUGS.md B8) |
 | `utf8 boundary` | a multibyte character split across the chunk that holds `</head>` | the client receives the character intact: the tail goes through the same decoder and is flushed at the end |
 | `public once` | `buildConfig`, and a real build of a fixture with `public/x.txt` and a worker config | the ssr and worker environments set `build.copyPublicDir: false` and the client keeps the default; the output has `client/x.txt` and neither `server/x.txt` nor `worker/x.txt` (BUGS.md B11) |
