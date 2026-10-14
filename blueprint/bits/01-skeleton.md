@@ -240,6 +240,7 @@ One `oxc-parser` walk (B75). Babel is not imported.
 | `adopts history` | `history.state` already has an index | no new history entry |
 | `router context` | a component under hydrate reads the router context | it is the same object `createClient` received |
 | `prefetch build` | a document of build b1. An intent prefetch of /about is answered with `flare-build: b2`, then the app navigates to /about, also answered b2 | the navigation loads the document once (`assign("/about")`) and never paints the prefetched frames. One build value feeds the navigator, the prefetcher, and the server-function transport, so a mismatched prefetch is dropped (BUGS.md B30) |
+| `query hydrated` | a registered query getter with a `hydrated` spy, then a boot | the spy runs once, after `data-flare-hydrated` is set and the `onHydrated` callbacks have run. With no getter registered, or one without `hydrated`, the boot completes (B102) |
 
 ### `tests/integration/skeleton.test.ts`
 
