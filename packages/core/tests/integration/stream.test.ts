@@ -1,6 +1,6 @@
 import http from "node:http";
-import { createComponent, createMemo, Loading, onCleanup } from "solid-js";
-import type { JSX } from "@solidjs/web";
+import { createComponent, createMemo, Loading, onCleanup, type Element } from "solid-js";
+import { Dynamic, type JSX } from "@solidjs/web";
 import { expect, it, vi } from "vitest";
 import { createNodeListener } from "../../src/adapters/node/listener.ts";
 import type { DevErrorPayload } from "../../src/shared/errors/dev-report.ts";
@@ -31,10 +31,14 @@ function pendingApp(sink: ErrorSink): { app: ReturnType<typeof serveWith>; dispo
 			},
 		});
 	});
-	const root = createRootLayout("_root_").render((props) => props.children);
+	const root = createRootLayout("_root_").render((props) => whole(props.children));
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/", path: "/", module: page }] });
 	return { app: serveWith({ router }, sink), disposed };
 }
+
+// A production root renders a whole document (B37).
+const tag = (component: string, children: Element): Element => createComponent(Dynamic, { component, children });
+const whole = (children: Element): Element => tag("html", tag("body", children));
 
 function throwingApp(sink: ErrorSink): ReturnType<typeof serveWith> {
 	const root = createRootLayout("_root_").render((): never => {

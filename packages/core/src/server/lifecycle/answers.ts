@@ -17,6 +17,7 @@ import { runLoaders, type LoaderRun, type RunInput } from "../loaders/run.ts";
 import { dataBody, dataFrames, NDJSON, redirectBody, skippedRoutes } from "../navigation/index.ts";
 import { redirectLocation } from "../redirect/index.ts";
 import { renderDocument } from "../render/document.ts";
+import { DocumentlessRoot } from "../render/shape.ts";
 import { definedParams, outletMatches, stateMatches, type Rendered } from "../render/matches.ts";
 import { projectError, type Projected } from "../render/projector.ts";
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts";
@@ -228,12 +229,15 @@ export async function drawn(
 			// Dev inlines nothing: Vite serves the CSS it injects (B15).
 			sheet: exchange.sink.dev ? "" : builtSheet,
 			devStyles,
+			// A root whose own loader failed never renders: its failure paints bare, as a root failure does.
+			root: exchange.sink.dev || state.failure?.index === 0 ? undefined : rendered.chain[0]?.id,
 		});
 		if (thrownInRender.length > 0) {
 			void body.cancel();
 			throw thrownInRender[0];
 		}
 	} catch (thrown) {
+		if (thrown instanceof DocumentlessRoot) return { failed: documentless(exchange, thrown) };
 		return { failed: renderFailed(exchange, projectError(thrown, exchange.sink)) };
 	}
 	return { exchange, body };
@@ -245,6 +249,20 @@ function renderFailed(exchange: Exchange, projected: Projected): Response {
 	const stack = projected.wire.stack;
 	const body = stack === undefined ? "" : `<pre>${escape(`${projected.wire.message}\n${stack}`)}</pre>`;
 	return finalize({ status: projected.status, body, headers: typed(exchange, HTML) });
+}
+
+// per-process-constant: the document-less roots each server has logged
+const logged = new WeakMap<Exchange["options"], Set<string>>();
+
+// A production root with no document is the empty 500 of a throw before the shell. Each server logs it once per root,
+// by its own line, since the digest a bug logs would not name the root (B37). A stored miss renders twice, shared and
+// then live, and still logs once.
+function documentless(exchange: Exchange, thrown: DocumentlessRoot): Response {
+	const seen = logged.get(exchange.options) ?? new Set<string>();
+	logged.set(exchange.options, seen);
+	if (!seen.has(thrown.root)) exchange.sink.log.error("render", thrown.message);
+	seen.add(thrown.root);
+	return finalize({ status: 500, body: "", headers: typed(exchange, HTML) });
 }
 
 // The validators read the raw records: defined params, and the search as one string or a `string[]` per key.

@@ -11,6 +11,7 @@ import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
 import { DocumentHead, type Head } from "./head.ts";
 import { registeredQuery, type DevStyle } from "../../shared/protocol/index.ts";
+import { DocumentlessRoot, isDocument } from "./shape.ts";
 import { insertState, stateWriter, type StateMatch } from "./state.ts";
 
 type Chunk = string | Uint8Array;
@@ -37,6 +38,9 @@ export type DocumentInput = {
 	matches: readonly StateMatch[];
 	client?: string | undefined;
 	fill?: boolean;
+	// The root layout's id in production: a shell that is no document rejects naming it (B37). Dev passes none and
+	// serves the shell as written (D22).
+	root?: string | undefined;
 	// A bug found while writing the document, such as a query cache JSON cannot hold. It does not stop the document.
 	onBug?: (bug: Error) => void;
 };
@@ -66,7 +70,13 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// The critical style follows the capture script (B83), and the stylesheet markup follows it (B103). The theme and
 	// direction attributes count as present. The state and client scripts go in the shell before `</body>`
 	// (02-system), so the shell ends at `</html>`.
-	const headed = withHead(chunkText((await reader.read()).value), head);
+	const first = chunkText((await reader.read()).value);
+	if (input.root !== undefined && !isDocument(first)) {
+		stop();
+		void reader.cancel();
+		throw new DocumentlessRoot(input.root);
+	}
+	const headed = withHead(first, head);
 	const tail = state(registeredQuery()?.dehydrate(), input.onBug ?? ignore) + clientScript(input.client, nonce);
 	const critical = { css: input.sheet ?? "", nonce, ctx: criticalContext(input.router), stylesheet: stylesheet.href };
 	const shell = insertState(withDoctype(withCritical(headed, critical)), tail);

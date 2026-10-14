@@ -146,7 +146,7 @@ Accepted units are `ms`, `s`, `m`, `h`, `d`. Anything else throws. No silent zer
 
 | test | case | result |
 | --- | --- | --- |
-| `base is the index` | `basePath: "/app"`, GET `/app` | 200 |
+| `base is the index` | `basePath: "/app"`, GET `/app` | 200, and `#app` shows the page's `Home` (revised by BUGS.md 117: the root rendered `""`, which B37 makes a production 500; it now renders a whole document) |
 | `root is not the app` | GET `/` | 404 |
 
 The basepath e2e is `packages/core/tests/e2e/minimal.test.ts` run a second time against this app. Add the case `base path serves /app` to that file rather than a new test file. The tsv does not gain a test-file row. The second `beforeAll` calls `boot` with `app: "basepath"` and the `runtime` and `mode` from the project name (B70). Bit 02's projects are `node-dev-chromium`, `node-dev-firefox`, and `node-dev-webkit`. `boot.test.ts` gains `basepath`: `{ app: "basepath", runtime: "node", mode: "dev" }` returns an origin, and `close` stops it.

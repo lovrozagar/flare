@@ -252,7 +252,7 @@ packages/core/src/server/render/escape.test.ts	P1	test	server	Unit cases for esc
 packages/core/src/server/render/escape.corpus.txt	P1	corpus	server	Script-escape corpus including dollar-brace, script close, and line separators
 packages/core/src/server/render/state.ts	P1	src	server	Build the one state script and the insertion point
 packages/core/src/server/render/state.test.ts	P1	test	server	Unit cases for state.ts
-packages/core/src/server/render/shape.ts	P1	src	server	A production body without html and body close is a 500
+packages/core/src/server/render/shape.ts	P1	src	server	A document holds `<html` and `</body>`: B37's production shell check and B46's write rule
 packages/core/src/server/render/shape.test.ts	P1	test	server	Unit cases for shape.ts
 packages/core/src/server/render/head.ts	P1	src	server	Render the merged .head() descriptors through Solid's SSR useHead, so each tag carries its data-dh identity
 packages/core/src/server/render/head.test.ts	P1	test	server	Unit cases for head.ts

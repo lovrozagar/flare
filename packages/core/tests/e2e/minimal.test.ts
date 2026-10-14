@@ -36,6 +36,7 @@ test.describe("basepath", () => {
 	test("base path serves /app", async ({ page }: { page: Page; browser: Browser }) => {
 		const home = await page.goto(`${base.origin}/app`);
 		expect(home?.status()).toBe(200);
+		await expect(page.locator("#app")).toHaveText("Home");
 		const root = await page.goto(`${base.origin}/`);
 		expect(root?.status()).toBe(404);
 	});
