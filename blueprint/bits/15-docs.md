@@ -83,6 +83,7 @@ The SSR→hydrate harness (plan 14 leaf 9.4, pulled forward for phase 6). `hydra
 | `navigation progress beside a sibling` | a root whose body renders `useNavigationProgress` output before a sibling element | no hydration warning or key miss, and the sibling is the server's node (BUGS.md B2) |
 | `root boundaries idle` | a root with `errorRender` and `notFoundRender`, no failure, and a `useNavigationProgress` sibling | no key miss, and neither boundary function is called on the client (BUGS.md B3, closed as a consequence of B2) |
 | `data hooks read untracked` | a root and a page on screen. The page's component calls `useParams({ from })`, `useSearch({ from })`, `useLoaderData({ from })`, `usePreloaderContext({ from })`, and `useMatch({ from })` in its body and renders their values | no `STRICT_READ_UNTRACKED` and no hydration warning in chromium, firefox, and webkit, and the rendered values match the server's (BUGS.md B4) |
+| `foreign hmr port` | another process holds Vite's default HMR port 24678 with a server that accepts and closes each connection (or it is already held), and the harness hydrates the `navigation progress beside a sibling`, `root boundaries idle`, and `data hooks read untracked` trees in chromium | no problem is reported: the harness's Vite serves its HMR socket on the harness's own HTTP server (`hmr: { server }`, `watch: null`), so the page's Vite client never dials 24678 (BUGS.md B53) |
 
 ## `shared/dev/warn.test.ts`
 
