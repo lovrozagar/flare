@@ -1,4 +1,5 @@
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import * as nodeModule from "node:module";
 import { createServer } from "vite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -222,17 +223,29 @@ it("hmr keeps split", async () => {
 	}
 }, 30_000);
 
+// Whether this runtime's node:module has registerHooks, which the Cloudflare plugin needs (B95).
+const HOOKS = typeof Reflect.get(nodeModule, "registerHooks") === "function";
+
+// The plugin names `flare({ workersDev: true })` composes, the Cloudflare one first, or the error it throws.
+async function workersDevNames(): Promise<unknown[]> {
+	try {
+		const [first, ...rest] = flare({ workersDev: true });
+		return [names((await first) as unknown[])[0], ...names(rest)];
+	} catch (error) {
+		return [/Node 22\.15 or later/.exec(String(error))?.[0]];
+	}
+}
+
 // Each plugin's name, whatever the option's element type.
 function names(plugins: readonly unknown[]): unknown[] {
 	return plugins.map((plugin) => Reflect.get(Object(plugin), "name"));
 }
 
-// `workersDev: true` composes the Cloudflare plugins before flare's own. `false` or absent composes none (B95).
+// `workersDev: true` composes the Cloudflare plugins before flare's own. `false` or absent composes none (B95). A
+// runtime without node:module's registerHooks, such as the Bun run, gets the error instead of the composition.
 it("workers dev", async () => {
-	const [first, ...rest] = flare({ workersDev: true });
-	const composed = (await first) as unknown[];
-	expect(names(composed)[0]).toBe("vite-plugin-cloudflare");
-	expect(names(rest)).toEqual(names(flare()));
+	const composed = await workersDevNames();
+	expect(composed).toEqual(HOOKS ? ["vite-plugin-cloudflare", ...names(flare())] : ["Node 22.15 or later"]);
 	expect(names(flare({ workersDev: false }))).toEqual(names(flare()));
 });
 
@@ -246,6 +259,7 @@ it("workers dev missing peer", async () => {
 				throw new Error("ERR_MODULE_NOT_FOUND");
 			},
 			load: async () => ({}),
+			hooks: () => true,
 		};
 		return { ...actual, workersDevPlugins: (entry: string) => actual.workersDevPlugins(entry, missing) };
 	});
