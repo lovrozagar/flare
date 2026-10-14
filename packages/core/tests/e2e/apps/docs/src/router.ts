@@ -1,10 +1,9 @@
 import { createRouter } from "@lovrozagar/flare";
 import { chunks, layouts, routeTree } from "./_gen/routes.gen.ts";
+import { localeConfig } from "./locale-config.ts";
 import "./query.ts";
 
-// The locale config both graphs import: the router's, and the server spreads it into i18n(). `ar` is the
-// Arabic-script locale that turns the page right to left.
-export const localeConfig = { locales: ["en", "hr", "ar"], defaultLocale: "en" };
+export { localeConfig };
 
 // `/guide/<slug>` is an alias the client resolves before match, so an in-app link to it is a client navigation.
 export const router = createRouter({

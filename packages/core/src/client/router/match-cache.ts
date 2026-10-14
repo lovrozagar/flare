@@ -3,7 +3,8 @@ import { parseDuration } from "../../shared/duration/index.ts";
 import type { ClientCache, EffectPlace, Effects } from "../../shared/route-builder/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { matchId } from "../../shared/route-tree/index.ts";
-import { loadedModule, type Match, type Router } from "../../shared/router/create-router.ts";
+import type { Match, Router } from "../../shared/router/create-router.ts";
+import { loadedModule } from "../../shared/router/load-chain.ts";
 import { readSearch, type Location } from "../../shared/url/index.ts";
 import type { Landed, Values } from "../navigation/frames.ts";
 

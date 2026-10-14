@@ -5,7 +5,8 @@ import type { ErrorRender, Located } from "../route-builder/index.ts";
 import { createLayout } from "../route-builder/layout.ts";
 import { createPage } from "../route-builder/page.ts";
 import { createRootLayout } from "../route-builder/root-layout.ts";
-import { createRouter, loadChain, notFoundRenderOf, type RouteModule } from "../router/create-router.ts";
+import { createRouter, notFoundRenderOf, type RouteModule } from "../router/create-router.ts";
+import { loadChain } from "../router/load-chain.ts";
 import { LocationContext, NavigateContext, RouterContext, type NavigateTo } from "../router/context.ts";
 import { Matches, Outlet, type OutletMatch, type OutletState } from "./outlet.tsx";
 

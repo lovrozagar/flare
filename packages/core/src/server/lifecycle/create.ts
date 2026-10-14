@@ -2,7 +2,8 @@
 import { defined } from "../../shared/errors/index.ts";
 import { PRERENDER } from "../../shared/protocol/prerender.ts";
 import type { FlareRegister } from "../../shared/route-builder/register.ts";
-import { loadChain, type Match } from "../../shared/router/create-router.ts";
+import type { Match } from "../../shared/router/create-router.ts";
+import { loadChain } from "../../shared/router/load-chain.ts";
 import { foldCase } from "../../shared/router/fold.ts";
 import { withServerContext } from "../context/ctx.ts";
 import { runLoaders } from "../loaders/run.ts";

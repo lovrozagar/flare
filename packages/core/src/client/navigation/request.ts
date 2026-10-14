@@ -1,5 +1,6 @@
 import { BUILD_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts";
-import { loadChain, type LoadedEntry } from "../../shared/router/create-router.ts";
+import type { LoadedEntry } from "../../shared/router/create-router.ts";
+import { loadChain } from "../../shared/router/load-chain.ts";
 import { cachedMatches, holds } from "../router/match-cache.ts";
 import { framesOf, landFrames, type Landed, type Pending } from "./frames.ts";
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts";

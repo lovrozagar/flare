@@ -2,7 +2,8 @@
 import { hydrate } from "@solidjs/web";
 import { delegateClicks } from "../../shared/components/index.ts";
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts";
-import { loadChain, type Router } from "../../shared/router/create-router.ts";
+import type { Router } from "../../shared/router/create-router.ts";
+import { loadChain } from "../../shared/router/load-chain.ts";
 import type { ServerFnCall } from "../../shared/server-fn/builder.ts";
 import type { Location } from "../../shared/url/index.ts";
 import { createHistory, type FlareHistory } from "../history/index.ts";

@@ -246,7 +246,8 @@ function literals(route: RouteGen): string {
 
 function lazy(routesDir: string, file: string): string {
 	const from = posix.relative(OUT_DIR, `${routesDir}/${file}`);
-	return `() => import("${escapeSource(from)}").then((loaded) => loaded.route)`;
+	// The namespace, not its `route`: loadChain reads the record, and in dev waits for a module mid-reload (BUGS.md 73).
+	return `() => import("${escapeSource(from)}")`;
 }
 
 // In a client build, each source path of the `chunks` map becomes the chunk its lazy import loads: an emitted chunk

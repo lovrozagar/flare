@@ -22,10 +22,10 @@ it("one route", () => {
 	const source = routesOf(["_root_/home.page.tsx"]).source;
 	expect(source).not.toContain("import { route");
 	expect(source).toContain(
-		'export const routeTree = [{ id: "_root_/", path: "/", module: () => import("../routes/_root_/home.page.tsx").then((loaded) => loaded.route) }];',
+		'export const routeTree = [{ id: "_root_/", path: "/", module: () => import("../routes/_root_/home.page.tsx") }];',
 	);
 	expect(source).toContain(
-		'export const layouts = { "_root_": () => import("../routes/_root_/root.root-layout.tsx").then((loaded) => loaded.route) };',
+		'export const layouts = { "_root_": () => import("../routes/_root_/root.root-layout.tsx") };',
 	);
 	expect(source).toContain(
 		'export const chunks = { "_root_/": "/src/routes/_root_/home.page.tsx", "_root_": "/src/routes/_root_/root.root-layout.tsx" };',

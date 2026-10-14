@@ -65,6 +65,10 @@ A folder named `index` is not special. `src/routes/_root_/index/home.page.tsx` h
 
 A folder that starts with `_` and does not end with `_` is ignored. `src/routes/_root_/_parts/widget.tsx` is not a route (`routes.test.ts` `ignored`). `_root_` and `_admin_` are roots because they end with `_`.
 
+## Lazy route modules
+
+The generated route map imports each route module lazily, `() => import("../routes/<file>")`, and the router reads the module's `route` export. In dev, a route module that imports a module which imports `routes.gen.ts` (the app's `router.ts`, say) closes an import cycle through that lazy import. After an edit, Vite can hand a concurrent request the module while it re-evaluates, before `route` is set. Flare waits for the export, at most about 600 ms, in dev only, so the request still renders. Keep config that route modules share, such as the locale list, in a leaf module that imports neither the router nor the route map, and the cycle does not exist (`shared/router/load-chain.test.ts` `namespace record`, BUGS.md 73).
+
 ## Build errors
 
 | case | result | test |

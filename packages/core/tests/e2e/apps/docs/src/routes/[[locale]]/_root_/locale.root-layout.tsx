@@ -18,7 +18,7 @@ import { ProgressBar } from "../../../components/progress-bar.tsx";
 import { SearchModal } from "../../../components/search-modal.tsx";
 import { inter, mono } from "../../../fonts.ts";
 import { getQueryClient } from "../../../query.ts";
-import { localeConfig } from "../../../router.ts";
+import { localeConfig } from "../../../locale-config.ts";
 import { serverRuntime } from "../../../runtime.ts";
 import "../../../styles.css";
 
