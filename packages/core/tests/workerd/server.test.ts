@@ -17,7 +17,7 @@ await writeFile(
 	join(root, "entry.ts"),
 	`import { createWorkersHandler } from ${at("adapters/workers/handler.ts")};
 import { createServer } from ${at("server/lifecycle/create.ts")};
-import { createMemoryStore } from ${at("server/cache/memory.ts")};
+import { createCacheApiStore } from ${at("adapters/stores/cache-api/store.ts")};
 import { createRouter } from ${at("shared/router/create-router.ts")};
 import { createPage } from ${at("shared/route-builder/page.ts")};
 import { createRootLayout } from ${at("shared/route-builder/root-layout.ts")};
@@ -36,10 +36,20 @@ const routeTree = [
 const server = createServer({
 	router: createRouter({ layouts: { _root_: root }, routeTree }),
 	site: "https://flare.test",
-	store: createMemoryStore(),
+	store: createCacheApiStore({ cacheName: "server" }),
 });
 const handler = createWorkersHandler(server, { assets: "ASSETS" });
-export default { fetch: (request, env, ctx) => handler.fetch(request, env, ctx) };
+// The platform's ctx, wrapped: each promise the handler hands waitUntil is counted under its request's path, then
+// handed on. workerd finishes a local write without waitUntil, so only the count shows the handler kept the work alive.
+const handed = {};
+export default {
+	fetch(request, env, ctx) {
+		const path = new URL(request.url).pathname;
+		if (path === "/__handed") return Response.json(handed);
+		const counted = { waitUntil: (promise) => { handed[path] = (handed[path] ?? 0) + 1; ctx.waitUntil(promise); } };
+		return handler.fetch(request, env, counted);
+	},
+};
 `,
 );
 // Solid's server build: the \`worker\` condition, which a Workers bundle resolves, under a target with no \`browser\`.
@@ -77,8 +87,8 @@ afterAll(async () => {
 	await rm(root, { recursive: true, force: true });
 });
 
-// `fetch` calls the server's fetch: the page renders in workerd as production. A
-// stored render's store write is work the handler hands `ctx.waitUntil`, so the next request is a hit.
+// `fetch` calls the server's fetch: the page renders in workerd as production. A stored render's write to the Cache
+// API is work the handler hands `ctx.waitUntil`, and a live page hands none; the next request is a hit.
 it("worker server", async () => {
 	const page = await mf.dispatchFetch("https://example.com/");
 	expect(page.status).toBe(200);
@@ -92,6 +102,9 @@ it("worker server", async () => {
 	await expect
 		.poll(async () => (await mf.dispatchFetch("https://example.com/stored")).headers.get("flare-cache"))
 		.toBe("hit");
+	const handed: unknown = await (await mf.dispatchFetch("https://example.com/__handed")).json();
+	expect(Object.keys(Object(handed))).toEqual(["/stored"]);
+	expect(Reflect.get(Object(handed), "/stored")).toBeGreaterThan(0);
 }, 30_000);
 
 // After routing, an unmatched GET or HEAD goes to the binding, and a file comes back untouched; a path the binding

@@ -121,11 +121,11 @@ docs-features `page state` (e2e): `flarePage(page).load` of `/docs/routing`, the
 
 ## `tests/workerd/server.test.ts` (B96)
 
-The real `createServer` with a full-document root and a memory store, behind `createWorkersHandler`, bundled by `bun build` with the `worker` condition (Solid's server build) and run by Miniflare with an assets binding.
+The real `createServer` with a full-document root and the Cache API store, behind `createWorkersHandler`, bundled by `bun build` with the `worker` condition (Solid's server build) and run by Miniflare with an assets binding.
 
 | test | case | result |
 | --- | --- | --- |
-| `worker server` | `/`, then `/stored` (`ssr`) until the store answers | the page in production (Cross-Origin-Opener-Policy, which dev drops; not HSTS, since under the Bun runtime Miniflare hands workerd the request as http); a miss, then a hit: the store write is work the handler hands `ctx.waitUntil` |
+| `worker server` | `/`, then `/stored` (`ssr`) until the store answers | the page in production (Cross-Origin-Opener-Policy, which dev drops; not HSTS, since under the Bun runtime Miniflare hands workerd the request as http); a miss, then a hit; behind a ctx wrapper that counts each promise handed to `waitUntil` by path, work for `/stored` only (bite: a handler that drops the promise, `void promise`, counts none; workerd finishes a local Cache API write without it, so the hit alone did not bite) |
 | `worker assets` | `/a/static.txt` by GET and HEAD, `/nope`, and a POST | the file untouched, 200 for HEAD, the app's 404 with its security headers, and 405 for the POST (bite: a handler that never forwards fails) |
 
 docs-server `forwarded proto untrusted` (e2e): a client's own `X-Forwarded-Proto: https` gets no HSTS from a server that declares no hop, on every runtime (bite: a Node listener trusting one hop by default fails on node-prod).
