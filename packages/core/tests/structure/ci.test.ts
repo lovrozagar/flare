@@ -60,14 +60,19 @@ it("ci grid", () => {
 	expect(linux?.container?.image).toBe(`mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`);
 	expect(linux?.container?.options).toBe("--user 1001 --ipc=host");
 	expect(linux?.strategy?.matrix?.["shard"]).toEqual([1, 2, 3]);
-	expect(linux?.steps.at(-1)?.run).toBe("bun run test:e2e -- --shard=${{ matrix.shard }}/3");
+	expect(e2eRun(linux)).toBe("bun run test:e2e -- --shard=${{ matrix.shard }}/3");
 });
+
+// The step that runs the grid.
+function e2eRun(job: Job | undefined): string {
+	return job?.steps.find((step) => step.run?.startsWith("bun run test:e2e") === true)?.run ?? "";
+}
 
 // macOS runs the 6 webkit projects with every deep spec in 2 shards, and its unit run once, in the first (B97).
 it("ci mac shards", () => {
 	const mac = workflow.jobs["e2e-mac"];
 	expect(mac?.strategy?.matrix?.["shard"]).toEqual([1, 2]);
-	const run = mac?.steps.at(-1)?.run ?? "";
+	const run = e2eRun(mac);
 	const servers = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"];
 	expect([...run.matchAll(/--project (\S+)/g)].map((match) => match[1])).toEqual(
 		servers.map((server) => `${server}-webkit`),
@@ -76,6 +81,19 @@ it("ci mac shards", () => {
 	expect(mac?.steps.filter((step) => step.run === "bun run test").map((step) => step.if)).toEqual([
 		"matrix.shard == 1",
 	]);
+});
+
+// A failed grid uploads its test results, each failing case's trace and server log, as the last step of both jobs,
+// so a failure only CI hits can be read (BUGS.md 93).
+it("ci failure artifacts", () => {
+	for (const name of ["e2e-linux", "e2e-mac"]) {
+		const last = workflow.jobs[name]?.steps.at(-1);
+		expect({ if: last?.if, uses: last?.uses, with: last?.with }).toEqual({
+			if: "failure()",
+			uses: "actions/upload-artifact@v4",
+			with: { name: `${name}-\${{ matrix.shard }}`, path: "packages/core/test-results", "retention-days": 7 },
+		});
+	}
 });
 
 // The browser image has no unzip, which setup-bun needs, so the Linux grid takes Bun from npm at BUN_VERSION.

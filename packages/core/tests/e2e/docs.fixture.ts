@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { expect, test as base, type Page, type TestInfo } from "@playwright/test";
 import { flarePage } from "../../src/testing/index.ts";
 import { boot, type Boot } from "./boot.ts";
@@ -15,8 +16,15 @@ export const test = base.extend<{ docs: Boot }, { docsBoot: Boot }>({
 		},
 		{ scope: "worker", timeout: 240_000 },
 	],
-	docs: async ({ docsBoot }, use) => {
+	// A failing case keeps the server lines logged while it ran, in its own output directory beside the trace, which CI
+	// uploads, so a failure shows the server's side too (BUGS.md 93).
+	docs: async ({ docsBoot }, use, testInfo) => {
+		const start = docsBoot.logs().length;
 		await use(docsBoot);
+		if (testInfo.status === testInfo.expectedStatus) return;
+		const path = testInfo.outputPath("server-log.txt");
+		writeFileSync(path, `${docsBoot.logs().slice(start).join("\n")}\n`);
+		await testInfo.attach("server log", { path, contentType: "text/plain" });
 	},
 });
 

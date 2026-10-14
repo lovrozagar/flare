@@ -78,7 +78,7 @@ Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl cli
 
 ## Harness
 
-`docs.fixture.ts` boots the app once per project per worker. Every docs spec runs on every project of the B70 grid; `deepOnly()` and the `FLARE_E2E_PROJECTS_CHOSEN` hand-off are removed (B70 revision, plan 14). A production-only case skips the `*-dev-*` projects by name. Node projects run under genuine Node 22.18 or later (B3), never under `bunx --bun`.
+`docs.fixture.ts` boots the app once per project per worker. A failing case writes the server lines logged while it ran to `server-log.txt` in its output directory and attaches it, beside the trace (BUGS.md 93). Every docs spec runs on every project of the B70 grid; `deepOnly()` and the `FLARE_E2E_PROJECTS_CHOSEN` hand-off are removed (B70 revision, plan 14). A production-only case skips the `*-dev-*` projects by name. Node projects run under genuine Node 22.18 or later (B3), never under `bunx --bun`.
 
 ## `tests/integration/hydrate.test.tsx`
 
@@ -128,6 +128,7 @@ The dev tab hub (BUGS.md B42), independent of the Node and Bun handler so the Wo
 | `ci node` | `.github/workflows/ci.yml` parsed | every job has `actions/setup-node` with `node-version: 24` after its checkout (B3, BUGS.md B24) |
 | `ci unit on both oses` | the same file | the Linux check job and `e2e-mac` both run `bun run test`, so the unit suite runs on Linux and macOS (B3, BUGS.md B27) |
 | `ci unit on bun` | the same file | the check job also runs `bun run test:bun` (the root script, which is `bun --bun run --filter @lovrozagar/flare test:bun`, and that is `vitest run` without coverage), so every unit test runs under the Bun runtime too. Coverage stays a Node gate: the per-file 100% is measured on Node's V8 data, and Bun's coverage of the same passing tests disagrees on 6 files (plan 14 leaf 8.20) |
+| `ci failure artifacts` | the same file | the last step of `e2e-linux` and of `e2e-mac` uploads `packages/core/test-results` on `failure()`, as `<job>-<shard>`, kept 7 days: each failing case's trace and server log (BUGS.md 93). The grid's own step is found by its `bun run test:e2e` command |
 
 ## `vite/plugin/real-path.test.ts`
 

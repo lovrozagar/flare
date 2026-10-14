@@ -91,6 +91,13 @@ jobs:
           echo "$HOME/.bun-npm/bin" >> "$GITHUB_PATH"
       - run: bun install --frozen-lockfile
       - run: bun run test:e2e -- --shard=${{ matrix.shard }}/3
+      # A failing case's trace and server log (docs.fixture.ts), so a CI-only failure can be read (BUGS.md 93).
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-linux-${{ matrix.shard }}
+          path: packages/core/test-results
+          retention-days: 7
 
   # The Safari-engine check: the 6 webkit projects on macOS (B97), every deep spec on each, in 2 shards so each stays
   # inside its timeout. The unit suite's macOS run (B3, BUGS.md B27, B51) goes in the first shard only.
@@ -121,3 +128,9 @@ jobs:
           --project node-dev-webkit --project node-prod-webkit --project bun-dev-webkit
           --project bun-prod-webkit --project workers-dev-webkit --project workers-prod-webkit
           --shard=${{ matrix.shard }}/2
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-mac-${{ matrix.shard }}
+          path: packages/core/test-results
+          retention-days: 7
