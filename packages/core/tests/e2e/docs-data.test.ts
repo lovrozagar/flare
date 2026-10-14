@@ -1,6 +1,4 @@
-import { writeFileSync } from "node:fs";
 import { dataRequests, deepOnly, expect, fnId, isProd, open, serverOf, test } from "./docs.fixture.ts";
-import { instrumentStream, mainThread, nodeChunks, startStream } from "./stream-probe.ts";
 
 // Deferred data, TanStack Query, server functions, server context, and the env helpers (bits/15 docs-data).
 deepOnly();
@@ -9,6 +7,10 @@ const SEARCH = fnId("src/fns/search.ts", "searchDocs");
 const FEEDBACK_COUNT = fnId("src/fns/feedback.ts", "feedbackCount");
 const HOLD_STATS = fnId("src/fns/stats-gate.ts", "holdStats");
 const RELEASE_STATS = fnId("src/fns/stats-gate.ts", "releaseStats");
+const HOLD_BUILD = fnId("src/fns/build-log.ts", "holdBuild");
+const RELEASE_BUILD = fnId("src/fns/build-log.ts", "releaseBuild");
+// The playground's streamed log, as `buildLog` sends it.
+const STEPS = ["resolve routes", "bundle client", "bundle server", "prerender pages", "write sitemap", "done"];
 
 // The fast boundary does not wait for the slow one. `stats` is held on the server until the test has seen its skeleton
 // beside the released list, so the order holds on any machine; a slow runner once settled `stats` first (BUGS.md 69).
@@ -144,39 +146,25 @@ test("unsafe error", async ({ page, docs }, info) => {
 	else await expect(error).toContainText("hunter2");
 });
 
-// The lines render as they stream. An observer installed before the page loads records the time each line count first
-// shows, so the case reads the arrivals afterwards instead of racing a transient count: the six lines come one at a
-// time, spread over most of the server's 750 ms of waits. A buffered stream lands them together. A slow runner only
-// widens the spread (BUGS.md 95). Every body chunk the page reads after the click is timed too, so a failure names its
-// layer: chunks that came in a burst are the network's delivery, chunks spaced out with lines in a burst the page's
-// rendering (BUGS.md 100).
-test("stream", async ({ page, docs }, info) => {
-	await instrumentStream(page);
-	await open(page, docs.origin, "/playground");
-	await startStream(page);
-	await expect(page.locator("#stream-log li")).toHaveCount(6);
+// The lines render as they stream, with no clock deciding it (BUGS.md 100). The run is gated before the click: the
+// server sends line 1, then each later line only when the test releases it, so each line must be on screen while the
+// server still holds the next. A stream buffered anywhere, by the server or by Flare's client, shows nothing until
+// its end, so the case stops at line 1.
+test("stream", async ({ page, request, docs }) => {
+	const run = `gate-${Math.random().toString(16).slice(2, 10)}`;
+	const call = async (id: string): Promise<unknown> =>
+		(await request.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: { run } })).json();
+	// The boot sets FLARE_E2E, without which the gate refuses to hold.
+	expect(await call(HOLD_BUILD)).toMatchObject({ data: { held: true } });
+	await open(page, docs.origin, `/playground?run=${run}`);
+	await page.locator("#stream-start").click();
+	const lines = page.locator("#stream-log li");
+	for (let count = 1; count <= STEPS.length; count += 1) {
+		await expect(lines).toHaveCount(count);
+		if (count < STEPS.length) expect(await call(RELEASE_BUILD)).toMatchObject({ data: { released: true } });
+	}
+	await expect(lines).toHaveText(STEPS.map((step, index) => `${index + 1}. ${step}`));
 	await expect(page.locator("#stream-status")).toHaveText("done");
-	const timed: { arrivals: { count: number; at: number }[]; reads: { bytes: number; at: number }[] } =
-		await page.evaluate(() => ({
-			arrivals: Reflect.get(window, "streamArrivals"),
-			reads: Reflect.get(window, "streamReads"),
-		}));
-	const { arrivals } = timed;
-	const evidence = JSON.stringify({
-		lines: arrivals.map((arrival) => Math.round(arrival.at - (arrivals[0]?.at ?? 0))),
-		chunks: timed.reads.map((chunk) => `${Math.round(chunk.at - (arrivals[0]?.at ?? 0))}ms:${chunk.bytes}B`),
-		node: await nodeChunks(docs.origin),
-		main: await mainThread(page, arrivals[0]?.at ?? 0),
-	});
-	// Every run keeps its timing, a pass too, so macOS runs show how close a pass comes (BUGS.md 100).
-	const timing = info.outputPath("stream-timing.json");
-	writeFileSync(timing, `${evidence}\n`);
-	await info.attach("stream timing", { path: timing, contentType: "application/json" });
-	expect(
-		arrivals.map((arrival) => arrival.count),
-		evidence,
-	).toEqual([1, 2, 3, 4, 5, 6]);
-	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0), evidence).toBeGreaterThanOrEqual(600);
 });
 
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
@@ -192,10 +180,8 @@ test("stream abort", async ({ page, docs }, info) => {
 	await page.waitForFunction(() => document.querySelectorAll("#stream-log li").length >= 2);
 	await page.locator("#stream-stop").click();
 	await expect(page.locator("#stream-status")).toHaveText("aborted");
-	// 500 ms is more than three lines: a count that holds means the stream stopped.
-	const stopped = await log.count();
-	await page.waitForTimeout(500);
-	expect(await log.count()).toBe(stopped);
+	// The card sets the status after its read loop ends, so no line can follow it: the held run sent two.
+	expect(await log.count()).toBe(2);
 });
 
 test("server context", async ({ page, docs }) => {
