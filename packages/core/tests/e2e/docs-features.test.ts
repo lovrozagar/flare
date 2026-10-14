@@ -311,6 +311,23 @@ test("named content still", async ({ page, docs }) => {
 	expect(animated).toEqual([]);
 });
 
+// The same while the doc page's feedback read is still pending, held by the test: its loading skeleton is inside the
+// named article during the entrance, so it is static too (BUGS.md 70).
+test("named content still while loading", async ({ page, docs }) => {
+	await open(page, docs.origin, "/");
+	await page.route("**/_flare/fn/**", (route) => (route.request().method() === "GET" ? undefined : route.continue()));
+	await page.locator("section.grid a").first().click();
+	await expect(page.locator("#feedback-loading")).toBeVisible();
+	const animated = await page.evaluate(() =>
+		[...document.querySelectorAll('[style*="view-transition-name"] *')]
+			.filter((element) => getComputedStyle(element).animationName !== "none")
+			.map(
+				(element) => `${element.tagName.toLowerCase()}.${element.className} ${getComputedStyle(element).animationName}`,
+			),
+	);
+	expect(animated).toEqual([]);
+});
+
 test("css module", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
 	const block = page.locator("[data-code-block]").first();
