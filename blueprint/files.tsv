@@ -25,7 +25,7 @@ packages/core/lint/no-flare-header-branching.test.ts	P3	test	node	Unit cases for
 packages/core/tests/structure/tree.test.ts	P0	test	node	check-tree fails on an extra file, a missing file, and an index with a statement
 packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball
 packages/core/tests/structure/api.test.ts	P14	test	node	Each entry's public d.ts matches its snapshot
-packages/core/tests/structure/dx-options.test.ts	P14	test	node	The dx option tables name only keys of the exported option types; Planned (plan 15) tables are exempt (BUGS.md 113)
+packages/core/tests/structure/dx-options.test.ts	P14	test	node	Every dx option table names only keys of its type; Planned (plan 15) tables and named exemptions aside (BUGS.md 113)
 packages/core/tests/structure/snapshots/*.txt	P14	generated	-	One snapshot per public entry, written by api.test.ts
 packages/core/tests/structure/consumer/tsconfig.json	P14	app	-	An app's strictest settings, compiled against the packed types only (consumer strict)
 packages/core/tests/structure/consumer/src/index.ts	P14	app	-	Every public entry, a font module, and a ?image import, as an app imports them from the installed tarball

@@ -1,27 +1,83 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseSync } from "oxc-parser";
 import { expect, it } from "vitest";
 
-// The option tables of the dx files name only keys the exported option types have (BUGS.md 113). Each `prop` or `key`
-// table maps, by the heading above it, to a type in the source, or to a function whose parameters and last
-// parameter's keys it lists. A table under a `Planned (plan 15)` heading documents what v1 does not ship and is
-// exempt. A new table with no mapping fails, so it gets one.
+// The option tables of every dx file name only keys the exported types have (BUGS.md 113). Each `prop` or `key` table
+// maps, by the heading above it, to a type in the source, or to a function whose parameters and last parameter's keys
+// it lists; a heading with several tables maps to one source per table, in order. A table with no type behind it is an
+// explicit exemption with its reason, and a table under a `Planned (plan 15)` heading documents what v1 does not ship.
+// A dx file or a table with no mapping fails, so it gets one.
 const core = fileURLToPath(new URL("../../", import.meta.url));
 const repo = join(core, "../..");
+const dx = join(repo, "blueprint/dx");
 
-type Source = { file: string; type: string; path?: readonly string[] } | { file: string; fn: string };
+// `external` names a key the type takes from a package's type, which oxc cannot read from the source.
+type Source =
+	| { file: string; type: string; path?: readonly string[]; external?: { from: string; names: readonly string[] } }
+	| { file: string; fn: string }
+	| { exempt: string };
 
-const TABLES: Readonly<Record<string, Readonly<Record<string, Source>>>> = {
-	"router.md": { createRouter: { file: "src/shared/router/create-router.ts", type: "RouterOptions" } },
-	"server.md": {
-		createServer: { file: "src/server/lifecycle/options.ts", type: "ServerOptions" },
-		mounts: { file: "src/server/mount/mount.ts", type: "Mount" },
-		SecurityConfig: { file: "src/shared/route-builder/types.ts", type: "SecurityConfig" },
-		"serverCtx and withFetchDedupe": { file: "src/server/context/fetch-dedupe.ts", fn: "withFetchDedupe" },
-		Middleware: { file: "src/server/middleware/types.ts", type: "MiddlewareFilter" },
-		proxy: { file: "src/server/proxy/proxy.ts", fn: "proxy" },
+const TYPES = "src/shared/route-builder/types.ts";
+
+const TABLES: Readonly<Record<string, Readonly<Record<string, Source | readonly Source[]>>>> = {
+	"adapters.md": {
+		Node: { file: "src/adapters/node/listener.ts", type: "NodeListenerOptions" },
+		Workers: { file: "src/adapters/workers/handler.ts", fn: "createWorkersHandler" },
+	},
+	"builder.md": {
+		effects: { file: "src/shared/route-builder/chain.ts", type: "Effects" },
+		"Render props": { file: "src/shared/route-builder/route-types.ts", type: "RenderProps" },
+	},
+	"cache.md": {
+		ssr: { file: TYPES, type: "SsrCache" },
+		isr: { file: TYPES, type: "IsrCache" },
+		cdn: { file: TYPES, type: "CdnCache" },
+		client: { file: TYPES, type: "ClientCache" },
+	},
+	"defer.md": { defer: { file: "src/server/loaders/defer.ts", type: "DeferOptions" } },
+	"features.md": {
+		Theme: { file: "src/shared/router/features.ts", type: "ThemeOptions" },
+		Direction: { file: "src/shared/router/features.ts", type: "DirectionOptions" },
+		i18n: [
+			{ file: "src/features/i18n/server/middleware.ts", fn: "i18n" },
+			{ file: "src/features/i18n/shared/provider.tsx", type: "LocaleProviderProps" },
+		],
+		Image: { file: "src/features/image/shared/image.tsx", type: "ImageProps" },
+		Fonts: [
+			{ file: "src/features/fonts/shared/create-font.ts", type: "FontOptions" },
+			{ file: "src/features/fonts/shared/font-css.tsx", type: "FontCSSProps" },
+		],
+	},
+	"head.md": {
+		SeoImage: { file: TYPES, type: "SeoImage" },
+		favicons: { file: TYPES, type: "HeadConfig", path: ["favicons"] },
+		robots: { file: TYPES, type: "Robots" },
+		openGraph: { file: TYPES, type: "OpenGraph" },
+		twitter: { file: TYPES, type: "TwitterCard" },
+		meta: { file: TYPES, type: "HeadMeta" },
+		custom: { file: TYPES, type: "HeadConfig", path: ["custom"] },
+	},
+	"link.md": {
+		"Link props": {
+			file: "src/shared/components/link.tsx",
+			type: "LinkProps",
+			external: { from: "JSX.AnchorHTMLAttributes", names: ["target", "rel"] },
+		},
+	},
+	"navigate.md": {
+		"navigate and hooks": { file: "src/shared/router/context.ts", type: "NavigateTo" },
+		viewTransition: { file: "src/shared/router/create-router.ts", type: "ViewTransitionOptions" },
+		ViewTransitionBoundary: {
+			file: "src/shared/components/view-transition-boundary.tsx",
+			fn: "ViewTransitionBoundary",
+		},
+		ViewTransitionCSS: { file: "src/shared/components/view-transition-css.tsx", fn: "ViewTransitionCSS" },
+		useNavigationProgress: { file: "src/client/navigation/progress.ts", fn: "useNavigationProgress" },
+	},
+	"observability.md": {
+		Observability: { exempt: "plan 15: v1 ships no logger, error reporter, request log, or tracer (B98, B99)" },
 	},
 	"plugin.md": {
 		Options: { file: "src/vite/plugin/options.ts", type: "FlareOptions" },
@@ -29,24 +85,49 @@ const TABLES: Readonly<Record<string, Readonly<Record<string, Source>>>> = {
 		css: { file: "src/vite/plugin/options.ts", type: "FlareOptions", path: ["css"] },
 		prerender: { file: "src/vite/prerender/run.ts", type: "PrerenderConfig" },
 	},
-	"adapters.md": {
-		Node: { file: "src/adapters/node/listener.ts", type: "NodeListenerOptions" },
-		Workers: { file: "src/adapters/workers/handler.ts", fn: "createWorkersHandler" },
+	"router.md": { createRouter: { file: "src/shared/router/create-router.ts", type: "RouterOptions" } },
+	"seo.md": {
+		sitemap: { file: "src/features/seo/vite/sitemap.ts", type: "SitemapOptions" },
+		indexNow: { file: "src/features/seo/server/index-now.ts", type: "IndexNowOptions" },
+		googleIndexing: { file: "src/features/seo/server/google.ts", type: "GoogleIndexingOptions" },
+		bingIndexing: { file: "src/features/seo/server/bing.ts", type: "BingIndexingOptions" },
+	},
+	"server.md": {
+		createServer: { file: "src/server/lifecycle/options.ts", type: "ServerOptions" },
+		mounts: { file: "src/server/mount/mount.ts", type: "Mount" },
+		SecurityConfig: { file: TYPES, type: "SecurityConfig" },
+		"serverCtx and withFetchDedupe": { file: "src/server/context/fetch-dedupe.ts", fn: "withFetchDedupe" },
+		Middleware: { file: "src/server/middleware/types.ts", type: "MiddlewareFilter" },
+		proxy: { file: "src/server/proxy/proxy.ts", fn: "proxy" },
+	},
+	"store.md": {
+		createFilesystemStore: { file: "src/adapters/stores/fs/store.ts", fn: "createFilesystemStore" },
+		createAssetsStore: { file: "src/server/cache/assets.ts", fn: "createAssetsStore" },
+		createCacheApiStore: { file: "src/adapters/stores/cache-api/store.ts", fn: "createCacheApiStore" },
+		revalidate: { file: "src/server/cache/revalidate.ts", fn: "revalidate" },
 	},
 };
 
 it("option tables", () => {
 	const unknown: string[] = [];
-	for (const [doc, sources] of Object.entries(TABLES)) {
-		for (const table of tablesOf(readFileSync(join(repo, "blueprint/dx", doc), "utf8"))) {
-			const source = sources[table.heading];
+	for (const doc of readdirSync(dx).filter((name) => name.endsWith(".md"))) {
+		const seen = new Map<string, number>();
+		for (const table of tablesOf(readFileSync(join(dx, doc), "utf8"))) {
+			const index = seen.get(table.heading) ?? 0;
+			seen.set(table.heading, index + 1);
+			const mapped = TABLES[doc]?.[table.heading];
+			const source = Array.isArray(mapped) ? mapped[index] : index === 0 ? mapped : undefined;
 			if (source === undefined) {
-				unknown.push(`${doc} "${table.heading}": no source mapped`);
+				unknown.push(`${doc} "${table.heading}" #${index + 1}: no source mapped`);
 				continue;
 			}
+			if ("exempt" in source) continue;
 			const keys = keysOfSource(source);
+			const external = "type" in source ? (source.external?.names ?? []) : [];
 			for (const name of table.names) {
-				if (!hasPath(keys, name.split("."))) unknown.push(`${doc} "${table.heading}": ${name}`);
+				if (!external.includes(name) && !hasPath(keys, name.split("."))) {
+					unknown.push(`${doc} "${table.heading}": ${name}`);
+				}
 			}
 		}
 	}
@@ -87,7 +168,8 @@ function tablesOf(text: string): Table[] {
 			continue;
 		}
 		if (/^-+$/.test(first) || !tables.includes(current)) continue;
-		current.names.push(...[...first.matchAll(/`([^`]+)`/g)].map((match) => String(match[1])));
+		// A quoted key such as `"96x96"` is that key.
+		current.names.push(...[...first.matchAll(/`([^`]+)`/g)].map((match) => String(match[1]).replace(/^"(.*)"$/, "$1")));
 	}
 	return tables;
 }
@@ -102,7 +184,7 @@ function hasPath(keys: Keys, path: readonly string[]): boolean {
 	return rest.length === 0 || hasPath(next(), rest);
 }
 
-function keysOfSource(source: Source): Keys {
+function keysOfSource(source: Exclude<Source, { exempt: string }>): Keys {
 	const module = moduleOf(join(core, source.file));
 	if ("fn" in source) return functionKeys(module, source.fn);
 	const keys = keysOfName(module, source.type);
@@ -154,7 +236,8 @@ function keysOfName(module: Module, name: string): Keys {
 }
 
 // The keys an object type names: literal members, every part of an intersection or a union, both branches of a
-// conditional, and a reference followed to its alias, through imports. `Partial` and `Readonly` pass their argument.
+// conditional, an array's element, and a reference followed to its alias, through imports. `Partial`, `Readonly`, and
+// `ReadonlyArray` pass their argument.
 function keysOf(module: Module, node: unknown): Keys {
 	const type = get(node, "type");
 	if (type === "TSTypeLiteral") {
@@ -171,11 +254,21 @@ function keysOf(module: Module, node: unknown): Keys {
 		return merged(list(get(node, "types")).map((part) => keysOf(module, part)));
 	if (type === "TSConditionalType")
 		return merged([keysOf(module, get(node, "trueType")), keysOf(module, get(node, "falseType"))]);
-	if (type === "TSParenthesizedType") return keysOf(module, get(node, "typeAnnotation"));
-	if (type !== "TSTypeReference") return new Map();
+	if (type === "TSParenthesizedType" || type === "TSTypeOperator") return keysOf(module, get(node, "typeAnnotation"));
+	if (type === "TSArrayType") return keysOf(module, get(node, "elementType"));
+	return type === "TSTypeReference" ? keysOfReference(module, node) : new Map();
+}
+
+// A reference: a utility that passes, drops, or keeps keys of its argument, or a name followed to its alias.
+function keysOfReference(module: Module, node: unknown): Keys {
 	const name = String(get(get(node, "typeName"), "name"));
-	if (name === "Partial" || name === "Readonly")
-		return keysOf(module, list(get(get(node, "typeArguments"), "params"))[0]);
+	const [first, second] = list(get(get(node, "typeArguments"), "params"));
+	if (name === "Partial" || name === "Readonly" || name === "ReadonlyArray") return keysOf(module, first);
+	// `Omit` drops the named keys and `Pick` keeps only them.
+	if (name === "Omit" || name === "Pick") {
+		const named = literals(second);
+		return new Map([...keysOf(module, first)].filter(([key]) => named.has(key) === (name === "Pick")));
+	}
 	return keysOfName(module, name);
 }
 
@@ -196,10 +289,21 @@ function functionKeys(module: Module, name: string): Keys {
 
 function merged(parts: readonly Keys[]): Keys {
 	const keys: Keys = new Map();
-	for (const part of parts)
-		for (const [key, value] of part)
-			keys.set(key, keys.has(key) ? () => merged([keys.get(key)?.() ?? new Map(), value()]) : value);
+	for (const part of parts) {
+		for (const [key, value] of part) {
+			const prior = keys.get(key);
+			keys.set(key, prior === undefined ? value : () => merged([prior(), value()]));
+		}
+	}
 	return keys;
+}
+
+// The string literals of a key union: `"to" | "params"`.
+function literals(node: unknown): Set<string> {
+	if (get(node, "type") === "TSUnionType")
+		return new Set(list(get(node, "types")).flatMap((part) => [...literals(part)]));
+	const value = get(get(node, "literal"), "value");
+	return new Set(typeof value === "string" ? [value] : []);
 }
 
 function get(node: unknown, key: string): unknown {

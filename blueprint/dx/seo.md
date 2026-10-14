@@ -19,7 +19,7 @@ The origin is `createServer({ site })`. A page is included when it is not a `.re
 | `priority` | no | absent | a number `0`–`1`, or a record of route id to that | the `<priority>` | `1.1` throws | `sitemap.test.ts` `priority` |
 | `exclude` | no | `[]` | route ids | omitted, no error | an excluded public route is simply absent | `sitemap.test.ts` `exclude` |
 | `robotsTxt` | no | `false` | `true` or a string | `true` writes one line, `Sitemap: ${site}/sitemap.xml`. A string keeps its other lines, drops every `Sitemap:` line, and appends that one line | a string that names a different host does not keep that host. The appended line uses `site` | `sitemap.test.ts` `robots host`, `robots true` |
-| `lastmod` on an entry | no | absent | an ISO date | the parsed instant as UTC `YYYY-MM-DD` | a value that does not parse throws | `sitemap.test.ts` `lastmod` |
+| `additionalEntries.lastmod` | no | absent | an ISO date | the parsed instant as UTC `YYYY-MM-DD` | a value that does not parse throws | `sitemap.test.ts` `lastmod` |
 
 There is no `origin` field. v0 had one, and it drifted from `site`.
 

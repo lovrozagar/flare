@@ -49,7 +49,7 @@ A `javascript:` URL is dropped (`head.test.ts` `image scheme`).
 
 ### favicons
 
-Every key is optional. A set key emits one `<link>`.
+Every key is optional. A set key emits one `<link>`. Another key does not type-check, since the head would drop it (`shared/head/tags.test.ts` `favicon keys`, BUGS.md 113).
 
 | key | rel | test |
 | --- | --- | --- |

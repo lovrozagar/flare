@@ -350,6 +350,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `viewport false` | a parent viewport and a child `viewport: false` | no viewport tag |
 | `og images` | `images`, then `openGraph.images`, audio, and video | `og:image*` in array order, `images` first. No `twitter:image` |
 | `favicons` | ico, svg, and 192 | ico has `sizes="any"`, the png has `type="image/png"` and its size |
+| `favicon keys` | `favicons: { icon }` | a type error, and no tag: only the six dx keys exist (BUGS.md 113) |
 | `twitter and robots` | a twitter card with two images and robots fields | the card defaults to `summary`, and robots joins its tokens |
 | `on attributes dropped` | custom tags with `on*` attributes, a bad name, `extra.nonce`, and a nonce | those attributes are gone. Inline script, style, and JSON-LD carry the nonce. An external script carries none. `src` and `children` together throw |
 | `replace` | `replace: true`, then the default merge | the child alone, then title kept, images concatenated, and meta's child key winning |
