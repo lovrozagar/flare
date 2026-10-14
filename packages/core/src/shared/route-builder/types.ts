@@ -172,6 +172,16 @@ export type HeadMeta = {
 	mobileWebAppCapable?: YesNo;
 };
 
+// The favicons the head writes, one `<link>` each (dx/head.md favicons). Another key was accepted and dropped.
+export type Favicons = {
+	ico?: string | undefined;
+	svg?: string | undefined;
+	appleTouchIcon?: string | undefined;
+	"96x96"?: string | undefined;
+	"192x192"?: string | undefined;
+	"512x512"?: string | undefined;
+};
+
 export type HeadConfig = {
 	title?: string | undefined;
 	description?: string | undefined;
@@ -181,7 +191,7 @@ export type HeadConfig = {
 	languages?: Record<string, string> | undefined;
 	jsonLd?: ReadonlyArray<Record<string, unknown>> | undefined;
 	images?: readonly SeoImage[] | undefined;
-	favicons?: Record<string, string> | undefined;
+	favicons?: Favicons | undefined;
 	robots?: Robots | undefined;
 	openGraph?: OpenGraph | undefined;
 	twitter?: TwitterCard | undefined;

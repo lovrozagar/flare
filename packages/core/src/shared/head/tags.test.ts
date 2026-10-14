@@ -65,6 +65,12 @@ it("favicons", () => {
 	]);
 });
 
+// Only the six keys dx/head.md lists exist: another, which the head would drop, does not type-check (BUGS.md 113).
+it("favicon keys", () => {
+	// @ts-expect-error `icon` is not a favicon key
+	expect(headTags({ favicons: { icon: "/a.png" } })).toEqual([]);
+});
+
 it("twitter and robots", () => {
 	const tags = headTags({
 		twitter: { site: "@s", images: [{ url: "/t.png", alt: "T" }, { url: "/u.png" }] },

@@ -30,7 +30,7 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 
 | test | case | result |
 | --- | --- | --- |
-| `option tables` | every `prop` or `key` table in `dx/router.md`, `dx/server.md`, `dx/plugin.md`, and `dx/adapters.md`, by the heading above it: `RouterOptions`, `ServerOptions`, `Mount`, `SecurityConfig`, `MiddlewareFilter`, `FlareOptions` and its `image` and `css`, `PrerenderConfig`, `NodeListenerOptions`, and the parameters of `withFetchDedupe`, `proxy`, and `createWorkersHandler` | each backticked name in a table's first column, `entry.client` as a path, is a key of its type, read from the source with oxc through aliases, imports, intersections, unions, and conditionals. A table under `Planned (plan 15)` is exempt; a table with no mapped heading fails |
+| `option tables` | every `prop` or `key` table in every `blueprint/dx/*.md`, by the heading above it, one source per table in order where a heading has several: an option type, a function's parameters plus its last parameter's keys, or an explicit exemption with its reason (`observability.md`, plan 15). `Link props` names `target` and `rel` as external, from `JSX.AnchorHTMLAttributes` | each backticked name in a table's first column, `entry.client` as a path and `"96x96"` as its key, is a key of its type, read from the source with oxc through aliases, interfaces, imports, intersections, unions, conditionals, arrays, `Partial`, `Readonly`, `Omit`, and `Pick`. A table under `Planned (plan 15)` is exempt; a dx file or a table with no mapping fails |
 | `bites` | a router table naming `basePath` and `nope`, then a Planned table naming `later` | only `nope` is reported, and the Planned table is not read |
 
 ## `scripts/release.test.ts`
