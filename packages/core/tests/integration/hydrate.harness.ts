@@ -26,6 +26,7 @@ import type * as router from "../../src/shared/router/create-router.ts";
 import type * as routerContext from "../../src/shared/router/context.ts";
 import type * as page from "../../src/shared/route-builder/page.ts";
 import type * as rootLayout from "../../src/shared/route-builder/root-layout.ts";
+import type * as deferred from "../../src/shared/components/use-deferred.ts";
 
 // What a tree builds from. Each side gets its own build of these modules: the server render the ones Vite's SSR
 // runner loads (Solid's server build), the browser the ones Vite serves it (Solid's browser build).
@@ -39,6 +40,7 @@ export type Api = {
 	routerContext: typeof routerContext;
 	page: typeof page;
 	rootLayout: typeof rootLayout;
+	deferred: typeof deferred;
 	// An element with an id and lazy children, so a tree needs no JSX transform.
 	h: (tag: string, id: string, children?: () => unknown) => web.JSX.Element;
 };
@@ -79,6 +81,7 @@ const MODULES: Record<keyof Omit<Api, "solid" | "web" | "h">, string> = {
 	routerContext: "/src/shared/router/context.ts",
 	page: "/src/shared/route-builder/page.ts",
 	rootLayout: "/src/shared/route-builder/root-layout.ts",
+	deferred: "/src/shared/components/use-deferred.ts",
 };
 
 const CASE = "virtual:flare-hydrate/case-";

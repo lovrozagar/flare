@@ -15,3 +15,12 @@ adapters.md#Bun#	packages/core/tests/integration/adapters.test.ts::bun serve; pa
 adapters.md#Workers#	packages/core/tests/workerd/server.test.ts::worker server; packages/core/tests/workerd/server.test.ts::worker assets	packages/core/tests/e2e/docs-features.test.ts::page state; packages/core/tests/e2e/docs-server.test.ts::forwarded proto untrusted
 adapters.md#Workers#prop:server	packages/core/tests/workerd/server.test.ts::worker server	packages/core/tests/e2e/docs-features.test.ts::page state
 adapters.md#Workers#prop:assets	packages/core/tests/workerd/server.test.ts::worker assets	packages/core/tests/e2e/docs-features.test.ts::page state; packages/core/tests/e2e/docs-server.test.ts::canonical ingress
+defer.md#defer#prop:the function	packages/core/tests/integration/defer.test.ts::not stored	packages/core/tests/e2e/docs-data.test.ts::defer two skeletons
+defer.md#defer#prop:key	packages/core/tests/integration/defer.test.ts::key and prefetch	packages/core/tests/e2e/docs-data.test.ts::defer resolve stored
+defer.md#defer#prop:prerender	packages/core/tests/integration/defer.test.ts::stored modes	packages/core/tests/e2e/docs-data.test.ts::defer resolve stored
+defer.md#Document response#	packages/core/tests/integration/defer.test.ts::document buffer; packages/core/tests/integration/defer.test.ts::not stored	packages/core/tests/e2e/docs-data.test.ts::defer two skeletons
+defer.md#A response that is not stored#	packages/core/tests/integration/defer.test.ts::not stored; packages/core/tests/integration/defer.test.ts::key and prefetch	packages/core/tests/e2e/docs-data.test.ts::defer two skeletons; packages/core/tests/e2e/docs-data.test.ts::defer rejects
+defer.md#A response that will be stored#	packages/core/tests/integration/defer.test.ts::stored modes	packages/core/tests/e2e/docs-data.test.ts::defer resolve stored; packages/core/tests/e2e/docs-data.test.ts::stream fill
+defer.md#A response that will be stored#mode:"resolve"	packages/core/tests/integration/defer.test.ts::stored modes	packages/core/tests/e2e/docs-data.test.ts::defer resolve stored
+defer.md#A response that will be stored#mode:"stream"	packages/core/tests/integration/defer.test.ts::stored modes	packages/core/tests/e2e/docs-data.test.ts::stream fill; packages/core/tests/e2e/docs-data.test.ts::defer resolve stored
+defer.md#What the component does#	packages/core/tests/integration/defer.test.ts::component reads	packages/core/tests/e2e/docs-data.test.ts::defer two skeletons; packages/core/tests/e2e/docs-data.test.ts::stream fill
