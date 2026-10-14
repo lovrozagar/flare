@@ -367,3 +367,6 @@ it("segment chain", async () => {
 	const cached = cachedMatches(match, { pathname: "/docs/a", search: "", hash: "" });
 	expect(cached.map((entry) => entry.layout)).toEqual([true, true, false]);
 });
+
+// Every dx/router.md option reaches the router: the case rule, the trailing slash, scroll restoration and its key, the
+// match cache's size, and the client cache, `false` included. An out-of-range count throws at the call (BUGS.md 106).

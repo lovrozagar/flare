@@ -238,6 +238,7 @@ function browserScroll(router: Router): ScrollStore {
 			enabled: router.scrollRestoration,
 			behavior: router.scrollRestorationBehavior,
 			maxEntries: router.scrollRestorationMaxEntries,
+			...(router.getScrollRestorationKey === undefined ? {} : { key: router.getScrollRestorationKey }),
 		},
 		{
 			history: window.history,

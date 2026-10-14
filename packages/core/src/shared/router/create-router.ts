@@ -1,3 +1,4 @@
+import { behaviorOf, clientCacheOf } from "./behavior.ts";
 import type { BoundaryRecord, ClientCache, NotFoundRender, PrefetchTrigger } from "../route-builder/index.ts";
 import type { ChainRecord, Intercept } from "../route-builder/chain.ts";
 import type { Location, LocationRewrite } from "../url/index.ts";
@@ -59,8 +60,10 @@ export type LoadedEntry = Omit<ChainEntry, "module" | "kind"> & {
 	module: RouteModule;
 };
 
+// The router's default client cache, for routes that set none: durations as strings, or `false` for none
+// (dx/router.md, dx/cache.md).
 export type RouterCache = {
-	client?: { staleTime: number; gcTime: string } | false;
+	client?: { staleTime?: string; gcTime?: string } | false;
 };
 
 // A view transition's direction comes from the history index delta. `info` is what an option function reads
@@ -84,7 +87,14 @@ export type RouterOptions = {
 	layouts: Record<string, LayoutModule>;
 	routeTree: readonly RouteNode[];
 	basePath?: string;
+	caseSensitive?: boolean;
+	trailingSlash?: "preserve" | "always" | "never";
 	notFoundMode?: "root" | "fuzzy";
+	scrollRestoration?: boolean;
+	scrollRestorationBehavior?: "instant" | "auto" | "smooth";
+	scrollRestorationMaxEntries?: number;
+	getScrollRestorationKey?: (location: Location) => string;
+	routeCacheMaxEntries?: number;
 	cache?: RouterCache;
 	chunks?: Record<string, string>;
 	prefetch?: RouterPrefetch;
@@ -116,6 +126,7 @@ export type Router = {
 	scrollRestoration: boolean;
 	scrollRestorationBehavior: "instant" | "auto" | "smooth";
 	scrollRestorationMaxEntries: number;
+	getScrollRestorationKey?: ((location: Location) => string) | undefined;
 	routeCacheMaxEntries: number;
 	prefetch: { modules: PrefetchTrigger | "all"; data: PrefetchTrigger };
 	cache: { client: { staleTime: number; gcTime: string } | false };
@@ -128,22 +139,15 @@ export type Router = {
 	match: (path: string) => Match;
 };
 
-const CLIENT_CACHE = { staleTime: 0, gcTime: "5m" } as const;
-
 export function createRouter(options: RouterOptions): Router {
 	const router: Router = {
 		layouts: options.layouts,
 		routeTree: options.routeTree,
 		basePath: options.basePath ?? "/",
-		caseSensitive: false,
-		trailingSlash: "preserve",
 		notFoundMode: options.notFoundMode ?? "root",
-		scrollRestoration: true,
-		scrollRestorationBehavior: "instant",
-		scrollRestorationMaxEntries: 50,
-		routeCacheMaxEntries: 100,
+		...behaviorOf(options),
 		prefetch: prefetchOf(options.prefetch),
-		cache: { client: CLIENT_CACHE },
+		cache: { client: clientCacheOf(options.cache?.client) },
 		viewTransitions: options.viewTransitions === true ? {} : (options.viewTransitions ?? false),
 		chunks: options.chunks ?? {},
 		rewrite: options.rewrite,

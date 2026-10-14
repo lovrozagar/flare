@@ -2,7 +2,7 @@ import { createComponent, flush, useContext } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { InterceptOutlet, Link, type InterceptState } from "../../shared/components/index.ts";
-import { encodeFrame, QUERY_GETTER } from "../../shared/protocol/index.ts";
+import { encodeFrame, QUERY_GETTER, type Frame } from "../../shared/protocol/index.ts";
 import { createServerFn } from "../server-fn/call.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
@@ -149,17 +149,22 @@ it("navigates", async () => {
 	expect(window.scrollTo).toHaveBeenCalled();
 });
 
+// A data answer that lands the about page with this loader data.
+function aboutFetch(data: string): ClientEnv["fetch"] {
+	const frames: Frame[] = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/about", d: data },
+		{ t: "r" },
+		{ t: "d" },
+	];
+	return vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
+}
+
 // The root `navigate` drives the booted client from outside any component, and stops reaching it once the client is
 // disposed (BUGS.md 105).
 it("root navigate", async () => {
 	const host = install();
-	const frames = [
-		{ t: "l", m: "_root_", d: null },
-		{ t: "l", m: "_root_/about", d: "root" },
-		{ t: "r" },
-		{ t: "d" },
-	] as const;
-	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")));
+	const fetch = aboutFetch("root");
 	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 	const stop = await bootClient(routerOf(), createReady(), env(host, fetch));
 	await navigate({ to: "_root_/about" });
@@ -168,6 +173,19 @@ it("root navigate", async () => {
 	expect(location.pathname).toBe("/about");
 	stop();
 	await expect(navigate({ to: "_root_/" })).rejects.toThrow("once createClient has booted");
+});
+
+// Leaving a page saves its position under the router's `getScrollRestorationKey`, not the history index (BUGS.md 106).
+it("scroll key", async () => {
+	const host = install();
+	const fetch = aboutFetch("keyed");
+	vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+	const key = vi.fn<(location: { pathname: string }) => string>((location) => `page:${location.pathname}`);
+	sessionStorage.clear();
+	stops.push(await bootClient({ ...routerOf(), getScrollRestorationKey: key }, createReady(), env(host, fetch)));
+	await navigate({ to: "_root_/about" });
+	expect(key).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/" }));
+	expect(sessionStorage.getItem("flare_scroll")).toContain("page:/");
 });
 
 it("create client", async () => {
