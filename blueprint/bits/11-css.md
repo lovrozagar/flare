@@ -134,7 +134,9 @@ Split from `match.ts` at the 300-line limit.
 
 | test | case | result |
 | --- | --- | --- |
-| `insert` | a shell with `<head>` and a used class | `<style id="flare-critical"` is the last element in the head, it has no `data-dh`, and the unused rule is absent |
+| `insert` | a shell with `<head>` and a used class | `<style id="flare-critical"` comes right before the stylesheet markup (B103) and is otherwise the last element in the head, it has no `data-dh`, and the unused rule is absent |
+| `stylesheet after critical` | a production document with a used class `bg-a`, a `dark:bg-b` rule whose element is in the shell, and a rule only streamed content uses | in document order `#flare-critical` precedes the stylesheet link (and the noscript link). In a browser with the theme attribute `dark`, after the stylesheet loads, the element computes `bg-b`, and the streamed element computes its own rule (BUGS.md B57) |
+| `present variants` | the docs sheet's `dark:` and `rtl:` rules (`:where([data-theme="dark"], [data-theme="dark"] *)`, the same for `dir`) over a shell with no theme or dir value | the rules for shell elements are in `#flare-critical` (B103) |
 | `nonce` | nonce `n` | the style nonce is `n` |
 | `empty nonce` | nonce `""` | the style has no nonce attribute |
 | `no css` | the sheet is `""`, or no rule in it matches the shell | the shell is unchanged and has no `flare-critical` |

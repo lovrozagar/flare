@@ -151,6 +151,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `chunk import` | the target's lazy module rejects with a chunk message | one guarded document load of the target URL, and no commit. The chunk error wins even when the data request fails first |
 | `optional param` | a route with an optional param, absent and then present | the absent param is not in the match params. The present one is |
 | `restore` | `restore(url)`, one popstate step | the target commits with no blocker and no history write, and the saved scroll comes back. A hash-only step restores too |
+| `superseded resolves` | a second navigation starts before the first data request settles, and a third is stopped by a blocker | the first and third promises resolve, neither rejects, and no `unhandledrejection` fires. The second commits (B105, BUGS.md B58) |
 
 ### `client/navigation/navigate-shallow.test.ts`
 
