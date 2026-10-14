@@ -1,7 +1,7 @@
 # createServer
 
 ```ts
-createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer?, logger?, onError?, requestLog?, tracer? })
+createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer? })
 ```
 
 The return value's `fetch(request, env, ctx)` is the production entry, and its `bodyLimit` is the cap in bytes. `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
@@ -21,9 +21,16 @@ The return value's `fetch(request, env, ctx)` is the production entry, and its `
 | `store` | no | absent | `FlareStore` or `(env) => FlareStore` | ISR and SSR storage. Absent means those modes render and are not stored. A function is called once per request with that request's `env` | a function that calls `createMemoryStore()` returns an empty map on every request. Construct that store outside | `server/lifecycle/create.test.ts` `store function` |
 | `static` | no | absent | `FlareStore` or `(env) => FlareStore` | read-only SSG artifacts (`store.md`). A function is called once per request with that request's `env` | a store that implements `put` is still only read. `createFilesystemStore` reads a different directory layout, so pointing it at the client output misses every seed | `vite/prerender/run.test.ts` `no static store`; `create.test.ts` `static function` |
 | `serverContext` | when `FlareRegister` declares it | absent. The value is `{}` | `(ctx: { request, env }) => FlareRegister["serverContext"]` | runs once after the canonical path is accepted and before mounts. `serverCtx()` returns that value (B75) | a redirect or a 400 does not call it. The argument has no `locals`. A throw is 500. Omitting it when the register declares the type does not type-check | `server/context/ctx.test.ts` `returns the value`, `not the event`, `redirect skips`, `required`, `throw is 500` |
-| `logger`, `onError`, `requestLog`, `tracer` | no | see `observability.md` | see `observability.md` | logging, error reporting, the request log, and tracing (B98, B99) | | `observability.md` |
 | `serverFns` | when the app has a server function | `{}`, every `/_flare/fn/<id>` is 404 | `serverFns` from `src/_gen/server-fns.gen.ts`: `Record<id, () => Promise<ServerFn>>`, one lazy import per exported `createServerFn`, keyed by the B41 id | dispatch looks the id up; an unknown id is 404 before the method check (B42). It is separate from `routes.gen.ts`, which the client graph imports, so no server-function module reaches a client chunk | a hand-written map drifts from the files. Codegen writes it | `server/server-fn/dispatch.test.ts` `unknown id`; `vite/codegen/server-fns.test.ts` |
 | `documentResponseDefer` | no | `"stream"` | `"stream"`, `"buffer"` | a rendered HTML document only (B92). `stream` sends the shell, then the deferred values. `buffer` holds the document until every defer running for that render has settled, then sends one HTML that contains the values | a stored hit ignores it and replays the stored body. A data request, a prefetch, and a client navigation ignore it. It does not change `cache.ssr.defer`, `cache.ssg.defer`, or `cache.isr.defer`. A stored `stream` write still stores the placeholder and does not run the function | `server/navigation/response.test.ts` `document buffer`, `document stream`, `data ignores buffer`, `stored stream stays a hole` |
+
+### Planned (plan 15)
+
+Not in v1. Plan 15 adds these, and `ServerOptions` has no such key until then (BUGS.md 113).
+
+| prop | required | default | accepts | outcome | pitfall | test |
+| --- | --- | --- | --- | --- | --- | --- |
+| `logger`, `onError`, `requestLog`, `tracer` | no | see `observability.md` | see `observability.md` | logging, error reporting, the request log, and tracing (B98, B99) | | `observability.md` |
 
 ### authenticate
 

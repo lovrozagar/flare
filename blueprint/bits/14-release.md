@@ -26,6 +26,13 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `peer floors` | the same manifest | each peer in the B79 table is `>=` its devDependency version. `optional` is true only for `sharp`, `@tanstack/solid-query`, `negotiator`, `isbot`, and `@formatjs/intl-localematcher`. `@cloudflare/vite-plugin` is not a peer: the app depends on it and composes it beside `flare()`, which imports none of it (B109) |
 | `not a peer` | the same manifest | `@babel/parser`, `tailwindcss`, `oxc-resolver`, `node-html-markdown`, `@tanstack/query-broadcast-client-experimental`, `@types/negotiator`, and `@cloudflare/vite-plugin` (B109) are absent from both peer and dependency keys |
 
+## `tests/structure/dx-options.test.ts` (BUGS.md 113)
+
+| test | case | result |
+| --- | --- | --- |
+| `option tables` | every `prop` or `key` table in `dx/router.md`, `dx/server.md`, `dx/plugin.md`, and `dx/adapters.md`, by the heading above it: `RouterOptions`, `ServerOptions`, `Mount`, `SecurityConfig`, `MiddlewareFilter`, `FlareOptions` and its `image` and `css`, `PrerenderConfig`, `NodeListenerOptions`, and the parameters of `withFetchDedupe`, `proxy`, and `createWorkersHandler` | each backticked name in a table's first column, `entry.client` as a path, is a key of its type, read from the source with oxc through aliases, imports, intersections, unions, and conditionals. A table under `Planned (plan 15)` is exempt; a table with no mapped heading fails |
+| `bites` | a router table naming `basePath` and `nope`, then a Planned table naming `later` | only `nope` is reported, and the Planned table is not read |
+
 ## `scripts/release.test.ts`
 
 | test | case | result |

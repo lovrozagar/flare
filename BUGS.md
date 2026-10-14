@@ -597,6 +597,11 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 112.2 [x] Fix: `SecurityConfig` has all nine keys, with `CspDirectives` and `PermissionsPolicy` (`shared/route-builder/types.ts`). `applySecurity` applies each, and `buildCsp` writes the directives object, the four named-only directives, the booleans, and every Permissions-Policy value. The request makes one nonce candidate; the server callback runs once, after serverContext, with the request's context, and a route's `.security()` merges onto its resolved config with the same candidate. A set built before serverContext (a 400, a canonical redirect) carries an object config, or the defaults for a callback. A stored page keeps every key.
 112.3 [x] Test: apply `server security` (red: the callback read `ctx.request` and threw), `every key`, `callback override`; csp `named directives`, `permission values`, `origin quote`.
 
+113 [x] B113 The dx option tables named options v1 does not have, and nothing checked them
+113.1 [x] Found with 106: `dx/server.md` listed `logger`, `onError`, `requestLog`, and `tracer` in the createServer signature and table, and `dx/plugin.md` listed `devLogs` for `flare()`, all plan 15 work that `ServerOptions` and `FlareOptions` do not have. 106, 108, 109, and 112 were the same drift in the other direction, options documented and typed nowhere, or typed and never wired. Nothing compared a table with its type. `dx/plugin.md`'s main table also sat under its `Development errors` heading.
+113.2 [x] Fix: those rows move under a `Planned (plan 15)` heading beside each table, and the signatures drop them. `dx/plugin.md` gives its table an `Options` heading. A structure test reads every `prop` or `key` table in `dx/router.md`, `dx/server.md`, `dx/plugin.md`, and `dx/adapters.md` and checks each name against its type in the source, parsed with oxc.
+113.3 [x] Test: `tests/structure/dx-options.test.ts` `option tables` and `bites`. With the Planned rows back in the main tables it reports `server.md "createServer": logger`, `tracer`, and `plugin.md "Options": devLogs`.
+
 ## Verify
 
 97 [ ] Verify
