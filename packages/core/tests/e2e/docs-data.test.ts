@@ -8,6 +8,7 @@ const SEARCH = fnId("src/fns/search.ts", "searchDocs");
 const FEEDBACK_COUNT = fnId("src/fns/feedback.ts", "feedbackCount");
 const HOLD_STATS = fnId("src/fns/stats-gate.ts", "holdStats");
 const RELEASE_STATS = fnId("src/fns/stats-gate.ts", "releaseStats");
+const BUILD_LOG = fnId("src/fns/build-log.ts", "buildLog");
 
 // The fast boundary does not wait for the slow one. `stats` is held on the server until the test has seen its skeleton
 // beside the released list, so the order holds on any machine; a slow runner once settled `stats` first (BUGS.md 69).
@@ -176,6 +177,7 @@ test("stream", async ({ page, docs }, info) => {
 	const evidence = JSON.stringify({
 		lines: arrivals.map((arrival) => Math.round(arrival.at - (arrivals[0]?.at ?? 0))),
 		chunks: timed.reads.map((chunk) => `${Math.round(chunk.at - (arrivals[0]?.at ?? 0))}ms:${chunk.bytes}B`),
+		node: await nodeChunks(docs.origin),
 	});
 	// Every run keeps its timing, a pass too, so macOS runs show how close a pass comes (BUGS.md 100).
 	const timing = info.outputPath("stream-timing.json");
@@ -187,6 +189,23 @@ test("stream", async ({ page, docs }, info) => {
 	).toEqual([1, 2, 3, 4, 5, 6]);
 	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0), evidence).toBeGreaterThanOrEqual(600);
 });
+
+// The same stream read by the test process with Node's fetch, in the browser's chunk format, so a burst the browser
+// saw is set beside what reached a client that is not the browser: the server stack, or the engine's network layer
+// (BUGS.md 100).
+async function nodeChunks(origin: string): Promise<string[]> {
+	const response = await fetch(`${origin}/_flare/fn/${BUILD_LOG}`, {
+		method: "POST",
+		headers: { origin, "content-type": "application/json" },
+		body: JSON.stringify({ run: "node-probe" }),
+	});
+	const reader = response.body?.getReader();
+	const chunks: { at: number; bytes: number }[] = [];
+	for (let next = await reader?.read(); next !== undefined && !next.done; next = await reader?.read()) {
+		chunks.push({ at: performance.now(), bytes: next.value.byteLength });
+	}
+	return chunks.map((chunk) => `${Math.round(chunk.at - (chunks[0]?.at ?? 0))}ms:${chunk.bytes}B`);
+}
 
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
 test("stream abort", async ({ page, docs }, info) => {
