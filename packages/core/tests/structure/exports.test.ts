@@ -1,10 +1,11 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseSync } from "oxc-parser";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { packCore, type Packed } from "../../../../scripts/release.ts";
+import { identifiers, quickStart, readme, tableRows } from "./readme.ts";
 
 // The packager contract (bits/14), against the tarball `npm pack` writes, installed into a stage the way an app gets it.
 const core = fileURLToPath(new URL("../../", import.meta.url));
@@ -216,6 +217,58 @@ it("surface names", () => {
 	}
 	expect(missing).toEqual([]);
 });
+
+// The README's export map names every export of every packed entry, and nothing an entry does not export (plan 14
+// leaf 12.3).
+it("readme exports", () => {
+	const rows = new Map(
+		tableRows(readme, "entry").map(([entry = "", names = ""]) => [entry.replaceAll("`", ""), identifiers(names)]),
+	);
+	const wrong: string[] = [];
+	for (const [key, value] of Object.entries(exportsOf())) {
+		if (typeof value !== "object" || value === null || key.includes("*")) continue;
+		const entry = key === "." ? "@lovrozagar/flare" : `@lovrozagar/flare/${key.slice(2)}`;
+		const named = rows.get(entry) ?? [];
+		const exported = declaredExports(join(packed.root, String(Reflect.get(value, "types"))));
+		for (const name of exported) if (!named.includes(name)) wrong.push(`${entry}: ${name} is not in the README`);
+		for (const name of named) if (!exported.has(name)) wrong.push(`${entry}: ${name} is not exported`);
+	}
+	expect(wrong).toEqual([]);
+});
+
+// Every name an API table of the README lists, the first column of a table headed `export`, is a packed export, so a
+// v0 name nobody thought to deny cannot survive there.
+it("readme api names", () => {
+	const all = new Set(
+		Object.entries(exportsOf()).flatMap(([key, value]) =>
+			typeof value === "object" && value !== null && !key.includes("*")
+				? [...declaredExports(join(packed.root, String(Reflect.get(value, "types"))))]
+				: [],
+		),
+	);
+	const named = tableRows(readme, "export").flatMap(([cell = ""]) => identifiers(cell));
+	expect(named.length).toBeGreaterThan(50);
+	expect(named.filter((name) => !all.has(name))).toEqual([]);
+});
+
+// The README's quick start compiles: each marked block is written at its path in a fresh app beside the installed
+// tarball, the packed `flare codegen` writes src/_gen, and tsc checks the app under the README's own tsconfig.
+it(
+	"readme quick start",
+	() => {
+		const app = join(packed.stage, "quick-start");
+		for (const block of quickStart(readme)) {
+			mkdirSync(dirname(join(app, block.path)), { recursive: true });
+			writeFileSync(join(app, block.path), block.code);
+		}
+		writeFileSync(join(app, "package.json"), '{ "type": "module" }\n');
+		execFileSync(process.execPath, [join(packed.stage, "node_modules/.bin/flare"), "codegen"], { cwd: app });
+		const tsc = join(repo, "node_modules/typescript/bin/tsc");
+		const result = spawnSync(process.execPath, [tsc, "-p", join(app, "tsconfig.json")], { encoding: "utf8" });
+		expect([result.status, result.stdout]).toEqual([0, ""]);
+	},
+	BUILD,
+);
 
 it("tarball contents", () => {
 	const top = new Set(packed.entries.map((entry) => entry.replace(/^package\//, "").split("/")[0]));

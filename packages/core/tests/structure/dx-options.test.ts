@@ -144,6 +144,15 @@ it("bites", () => {
 	expect(table?.names.filter((name) => !hasPath(keys, name.split(".")))).toEqual(["nope"]);
 });
 
+// `Omit` drops its keys and `Pick` keeps only its own: `NavigateOptions` omits `replace` and the target from
+// `NavigateTo`, and no mapped type uses `Pick` yet, so an inline one stands in.
+it("omit and pick", () => {
+	const navigate = keysOfSource({ file: "src/shared/router/context.ts", type: "NavigateOptions" });
+	expect(["replace", "to", "scroll"].filter((name) => !navigate.has(name))).toEqual(["replace", "to"]);
+	const inline = moduleOf(join(core, "inline-pick.ts"), 'type A = { a: string; b: number };\ntype P = Pick<A, "a">;\n');
+	expect([...keysOfName(inline, "P").keys()]).toEqual(["a"]);
+});
+
 type Table = { heading: string; names: string[] };
 
 // Every table whose first header cell is `prop` or `key`, with the nearest heading above it and the backticked names in
@@ -200,12 +209,12 @@ type Module = {
 
 const modules = new Map<string, Module>();
 
-function moduleOf(file: string): Module {
+function moduleOf(file: string, source?: string): Module {
 	const known = modules.get(file);
 	if (known !== undefined) return known;
 	const module: Module = { file, aliases: new Map(), imports: new Map(), functions: new Map() };
 	modules.set(file, module);
-	for (const statement of list(get(parseSync(file, readFileSync(file, "utf8")).program, "body"))) {
+	for (const statement of list(get(parseSync(file, source ?? readFileSync(file, "utf8")).program, "body"))) {
 		const declaration = get(statement, "type") === "ExportNamedDeclaration" ? get(statement, "declaration") : statement;
 		const type = get(declaration, "type");
 		const name = String(get(get(declaration, "id"), "name"));
