@@ -54,7 +54,9 @@ export function Feedback(props: { slug: string }): JSX.Element {
 			)}
 		>
 			<Loading
-				fallback={<div id="feedback-loading" class="h-8 w-64 animate-pulse rounded bg-stone-200 dark:bg-ink-800" />}
+				// A static skeleton: it renders inside the named article, where a running animation makes Firefox drop frames
+				// during the entrance (dx/navigate.md, BUGS.md B61).
+				fallback={<div id="feedback-loading" class="h-8 w-64 rounded bg-stone-200 dark:bg-ink-800" />}
 			>
 				<Tally slug={props.slug} />
 			</Loading>
