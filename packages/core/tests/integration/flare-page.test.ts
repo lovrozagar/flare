@@ -32,20 +32,26 @@ function app(api: Api): { router: unknown } {
 	return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree }) };
 }
 
-type Seen = { hydrated: boolean; errors: string[]; state: FlareState | undefined };
+type Seen = { hydrated: boolean; errors: string[]; state: FlareState | undefined; policy: string };
 
-// The helper on the harness's page: `load` goes to the page again and resolves once `<html data-flare-hydrated>` is
-// set, `consoleErrors` holds what the page logged as an error since the helper was made, and `state` reads
-// `self.flare`. The page's client logs one error after hydrate, which the helper must have seen.
+// The helper on the harness's page, whose client waits 300 ms before `createClient`, so hydration lands after the
+// load event: `load` goes to the page again and resolves only once `<html data-flare-hydrated>` is set,
+// `consoleErrors` holds what the page logged as an error since the helper was made, and `state` reads `self.flare`,
+// whose nonce is the one the document's CSP header carries. The page's client logs one error after hydrate.
 async function helperOn(engine: Engine): Promise<Seen> {
-	const seen: Seen = { hydrated: false, errors: [], state: undefined };
+	const seen: Seen = { hydrated: false, errors: [], state: undefined, policy: "" };
 	await started().app(engine, {
 		app,
+		hydrateAfter: 300,
 		client(client) {
 			client.onHydrated(() => console.error("planted error"));
 		},
 		async steps(tab) {
 			const helper = flarePage(tab);
+			tab.on("response", (response) => {
+				if (response.request().resourceType() === "document")
+					seen.policy = response.headers()["content-security-policy"] ?? "";
+			});
 			await helper.load(new URL("/", tab.url()).href);
 			seen.hydrated = await tab.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
 			seen.errors = helper.consoleErrors();
@@ -61,7 +67,8 @@ describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
 		expect(seen.hydrated).toBe(true);
 		expect(seen.errors).toContain("planted error");
 		expect(seen.state?.build).toBe("dev");
-		expect(typeof seen.state?.nonce).toBe("string");
+		expect(seen.state?.nonce).toMatch(/^[0-9a-f]{32}$/);
+		expect(seen.policy).toContain(`'nonce-${seen.state?.nonce}'`);
 		expect(seen.state?.matches.map((match) => match.id)).toEqual(["_root_", "_root_/"]);
 		expect(seen.state?.matches[1]?.data).toEqual({ greeting: "hello" });
 		expect(seen.state?.queries).toBeNull();

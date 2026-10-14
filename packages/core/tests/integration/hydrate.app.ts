@@ -15,6 +15,8 @@ export type AppCase = {
 	client: (client: ReturnType<typeof createClient>, record: unknown[]) => void;
 	// The path the page loads. `/` when omitted.
 	path?: string;
+	// Milliseconds the client entry waits before `createClient`, so hydration lands after the page's load event.
+	hydrateAfter?: number;
 	// Runs on the hydrated page before the record is read: a click, a key, a wait.
 	steps?: (tab: Page) => Promise<void>;
 };
@@ -38,18 +40,21 @@ function asExpression(source: string): string {
 
 // The page's client entry: the real createClient over the app's router, then the case's callbacks, which push into
 // the record the harness reads back. A throw is reported on the console with the other problems.
-export function appClientModule(id: string, clientSource: string): string {
+export function appClientModule(id: string, clientSource: string, hydrateAfter = 0): string {
 	return [
 		`import { api, app } from ${JSON.stringify(`${APP}${id}`)};`,
 		`import { createClient } from "/src/client/boot/create-client.ts";`,
 		`const record = [];`,
 		`window.__flareRecord = record;`,
-		`try {`,
-		`	const client = createClient(app(api, "client").router);`,
-		`	(${asExpression(clientSource)})(client, record);`,
-		`} catch (error) {`,
-		`	console.error(String(error));`,
-		`}`,
+		`const boot = () => {`,
+		`	try {`,
+		`		const client = createClient(app(api, "client").router);`,
+		`		(${asExpression(clientSource)})(client, record);`,
+		`	} catch (error) {`,
+		`		console.error(String(error));`,
+		`	}`,
+		`};`,
+		hydrateAfter > 0 ? `setTimeout(boot, ${hydrateAfter});` : `boot();`,
 	].join("\n");
 }
 
