@@ -35,16 +35,18 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 | --- | --- | --- |
 | `nonce pair` | a default policy | `script-src` and `style-src-elem` contain the nonce. `style-src` does not |
 | `style attr` | the default | `style-src-attr` is `'unsafe-inline'` |
-| `per request` | two requests | two different nonces |
+| `per request` | two candidates | two different nonces |
 | `string drops nonce` | CSP set to a string | the string is sent and it contains no nonce |
-| `false drops header` | CSP set to `false` | no `Content-Security-Policy` header is produced and no nonce is generated |
+| `false drops header` | CSP set to `false` | no `Content-Security-Policy` header is produced, and the nonce is `""` |
 | `length` | a default policy | the nonce is 32 hex characters |
 | `dev http` | the request URL is `http://localhost` | `upgrade-insecure-requests` is absent |
 | `permissions deny` | the default | `payment=()` and the other nine features are `()` |
 | `star` | one feature set to `true` | that feature is `*` |
-| `origin quote` | an allowlist entry containing `"` | throw |
+| `origin quote` | an allowlist entry containing `"`, a space, or `;` | throw, naming the feature |
 | `partial keeps defaults` | the directives object names only `img-src` | `img-src` is the user's list. `script-src`, `style-src-elem`, and the other unnamed directives stay at the defaults, and the nonce is still appended |
 | `style copy` | `style-src` is set and `style-src-elem` is not | `style-src-elem` is that list plus the nonce |
+| `named directives` | `frame-ancestors`, `form-action`, `media-src`, and an empty `frame-src`; then the two booleans | each appears, in the header's order after `worker-src`, the empty one as its bare name, and none without a value; `upgrade-insecure-requests: false` removes it on https and `true` adds it on http; `block-all-mixed-content` appears only when `true` (BUGS.md 112) |
+| `permission values` | `camera: "self"`, a string policy, `false` | `camera=(self)`; the string as written; no header (BUGS.md 112) |
 | `dev extras` | `vite dev` | `connect-src` contains the four localhost `ws:` and `http:` sources, `script-src` contains `'unsafe-eval'`, `worker-src` contains `blob:`, and HSTS and COOP are absent. The nonce stays |
 
 ### `server/security/apply.test.ts`
@@ -53,10 +55,12 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 | --- | --- | --- |
 | `overwrites` | the body arrived with a stored `Content-Security-Policy` | the fresh policy replaces it |
 | `route security` | the page's `.security()` sets `X-Frame-Options` to `SAMEORIGIN` | that value wins over the server default |
-| `callback override` | `createServer({ security: () => ({ "X-Frame-Options": "SAMEORIGIN" }) })` | that value is the header |
+| `callback override` | a callback that sets `X-Frame-Options` to `SAMEORIGIN`, with the request's context, then without one | that value is the header, and the callback saw the nonce the result carries; without a context it does not run and `DENY` holds (BUGS.md 112) |
+| `every key` | each of the nine keys as a string, then each as `false` from a route, then none; then a rebuild with the first set's candidate | each string is its header; every header is gone; `Cross-Origin-Resource-Policy` and `X-Powered-By` are absent by default; the rebuild keeps the nonce (BUGS.md 112) |
 | `false removes` | `.security({ "X-Frame-Options": false })` | the header is absent |
 | `headers() cannot` | `.headers()` sets `Content-Security-Policy` | the security value still wins |
 | `both cookies` | the parent sets `set-cookie` to `a` and the child sets it to `b` | both values, parent then child. An undefined child value keeps the parent. Every other header is child-wins |
+| `server security` | `serveWith` with `serverContext`, a security callback returning a directives CSP, HSTS, and `X-Powered-By`, and a page whose `.security()` sets Permissions-Policy `camera: "self"`; GET `/` with an env, an unknown path, then `//x` | the document carries `frame-ancestors 'self'`, `camera=(self)`, `max-age=1`, and `X-Powered-By: flare`; the callback saw serverContext's value, the env, the path, and the nonce the CSP carries; the 400 carries the default HSTS and no `X-Powered-By`, and the callback ran twice, not three times (BUGS.md 112) |
 | `dev policy` | the server's dev mode, then production | dev's `worker-src` is `'self' blob:`, so Vite's ping worker runs. Production's stays `'self'`. The server and a route's `.security()` both pass the mode |
 
 ### `server/lifecycle/finalize.test.ts` (extended)

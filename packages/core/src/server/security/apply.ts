@@ -1,40 +1,91 @@
+import type { FlareRegister, RegisteredServerContext } from "../../shared/route-builder/register.ts";
 import type { SecurityConfig } from "../../shared/route-builder/types.ts";
-import { buildCsp } from "./csp.ts";
+import { buildCsp, randomNonce } from "./csp.ts";
 
-const KEYS = ["X-Frame-Options", "Content-Security-Policy"] as const;
+// Every key of a security config (dx/server.md SecurityConfig).
+export const SECURITY_KEYS: readonly (keyof SecurityConfig)[] = [
+	"Content-Security-Policy",
+	"Strict-Transport-Security",
+	"X-Content-Type-Options",
+	"Referrer-Policy",
+	"X-Frame-Options",
+	"Cross-Origin-Opener-Policy",
+	"Cross-Origin-Resource-Policy",
+	"Permissions-Policy",
+	"X-Powered-By",
+];
+
+// The keys whose value is the header's own: a string sets it, and `false` removes it. CSP and Permissions-Policy also
+// take an object, which buildCsp writes.
+const PLAIN = [
+	"Strict-Transport-Security",
+	"X-Content-Type-Options",
+	"Referrer-Policy",
+	"X-Frame-Options",
+	"Cross-Origin-Opener-Policy",
+	"Cross-Origin-Resource-Policy",
+	"X-Powered-By",
+] as const satisfies readonly (keyof SecurityConfig)[];
 
 // One shape for the server's and a route's `.security()` (shared/route-builder/types.ts).
 export type { SecurityConfig };
 
-// `dev` is the server's dev mode: the policy then allows what Vite's client needs (csp.ts `applyDev`).
+// What the server's callback reads besides the nonce (dx/server.md SecurityConfig).
+export type SecurityContext = {
+	request: Request;
+	env: unknown;
+	serverContext: RegisteredServerContext<FlareRegister>;
+};
+
+export type ServerSecurity = SecurityConfig | ((ctx: SecurityContext & { nonce: string }) => SecurityConfig);
+
+// A request's set: its headers, the nonce they carry ("" without a directives CSP), the server's resolved config, which
+// a route's `.security()` merges onto, and the request's nonce candidate, which every rebuild keeps.
+export type Secured = { headers: Headers; nonce: string; config: SecurityConfig; candidate: string };
+
+// `dev` is the server's dev mode: the policy then allows what Vite's client needs (csp.ts `applyDev`). A callback runs
+// only with the request's context, so a set built before serverContext, for a 400 or a canonical redirect, carries
+// the defaults.
 export function applySecurity(input: {
 	url: string;
 	headers: Headers;
 	dev?: boolean;
 	routeHeaders?: Record<string, string>;
-	security?: SecurityConfig | ((ctx: { nonce: string }) => SecurityConfig) | undefined;
+	security?: ServerSecurity | undefined;
+	context?: SecurityContext;
 	route?: SecurityConfig;
-}): { headers: Headers; nonce: string } {
+	candidate?: string;
+}): Secured {
+	const candidate = input.candidate ?? randomNonce();
+	const config = serverConfig(input.security, input.context, candidate);
+	const merged: SecurityConfig = { ...config, ...input.route };
 	const headers = new Headers(input.headers);
 	writeRoute(headers, input.routeHeaders);
-	const built = buildCsp({ url: input.url, dev: input.dev === true });
+	const built = buildCsp({
+		url: input.url,
+		nonce: candidate,
+		dev: input.dev === true,
+		csp: merged["Content-Security-Policy"],
+		permissions: merged["Permissions-Policy"],
+	});
 	for (const [name, value] of built.headers) headers.set(name, value);
-	let nonce = built.nonce;
-	const server = typeof input.security === "function" ? input.security({ nonce }) : input.security;
-	const config: SecurityConfig = { ...server, ...input.route };
-	for (const key of KEYS) {
-		const value = config[key];
-		if (value === undefined) continue;
-		const header = key.toLowerCase();
-		if (value === false) {
-			headers.delete(header);
-			if (header === "content-security-policy") nonce = "";
-			continue;
-		}
-		headers.set(header, value);
-		if (header === "content-security-policy") nonce = "";
+	if (merged["Content-Security-Policy"] === false) headers.delete("content-security-policy");
+	if (merged["Permissions-Policy"] === false) headers.delete("permissions-policy");
+	for (const key of PLAIN) {
+		const value = merged[key];
+		if (value === false) headers.delete(key);
+		else if (value !== undefined) headers.set(key, value);
 	}
-	return { headers, nonce };
+	return { headers, nonce: built.nonce, config, candidate };
+}
+
+function serverConfig(
+	security: ServerSecurity | undefined,
+	context: SecurityContext | undefined,
+	nonce: string,
+): SecurityConfig {
+	if (typeof security !== "function") return security ?? {};
+	return context === undefined ? {} : security({ ...context, nonce });
 }
 
 function writeRoute(headers: Headers, routeHeaders: Record<string, string> | undefined): void {

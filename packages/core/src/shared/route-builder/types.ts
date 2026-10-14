@@ -61,8 +61,58 @@ export type CacheConfig =
 
 export type AuthenticateMode = true | "optional";
 
-// The security headers a server or a route sets. `false` removes one. A string CSP sends no nonce (B68).
-export type SecurityConfig = Partial<Record<"X-Frame-Options" | "Content-Security-Policy", string | false>>;
+// The CSP source-list directives (dx/server.md CSP directives). One the object names replaces that directive; the rest
+// keep their defaults.
+export type CspDirectiveName =
+	| "default-src"
+	| "script-src"
+	| "style-src"
+	| "style-src-elem"
+	| "style-src-attr"
+	| "base-uri"
+	| "object-src"
+	| "img-src"
+	| "font-src"
+	| "connect-src"
+	| "worker-src"
+	| "frame-src"
+	| "frame-ancestors"
+	| "form-action"
+	| "media-src";
+
+export type CspDirectives = { readonly [Name in CspDirectiveName]?: readonly string[] } & {
+	readonly "upgrade-insecure-requests"?: boolean;
+	readonly "block-all-mixed-content"?: boolean;
+};
+
+// The Permissions-Policy features flare writes, each `false` (denied) by default (dx/server.md Permissions-Policy).
+export type PermissionFeature =
+	| "accelerometer"
+	| "browsing-topics"
+	| "camera"
+	| "geolocation"
+	| "gyroscope"
+	| "interest-cohort"
+	| "magnetometer"
+	| "microphone"
+	| "payment"
+	| "usb";
+
+export type PermissionsPolicy = { readonly [Feature in PermissionFeature]?: false | "self" | true | readonly string[] };
+
+// The security headers a server or a route sets (dx/server.md SecurityConfig). Omission keeps the default, `false`
+// removes the header, and a string replaces its value. A string CSP sends no nonce (B68).
+export type SecurityConfig = {
+	readonly "Content-Security-Policy"?: CspDirectives | string | false;
+	readonly "Strict-Transport-Security"?: string | false;
+	readonly "X-Content-Type-Options"?: string | false;
+	readonly "Referrer-Policy"?: string | false;
+	readonly "X-Frame-Options"?: string | false;
+	readonly "Cross-Origin-Opener-Policy"?: string | false;
+	readonly "Cross-Origin-Resource-Policy"?: string | false;
+	readonly "Permissions-Policy"?: PermissionsPolicy | string | false;
+	readonly "X-Powered-By"?: string | false;
+};
 
 export type SeoImage = { url: string; alt?: string; width?: number; height?: number; type?: string };
 export type HeadScript = { src?: string; children?: string; async?: boolean; extra?: Record<string, string> };
