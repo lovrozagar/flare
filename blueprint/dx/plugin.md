@@ -54,7 +54,7 @@ The component props are in `features.md`.
 | --- | --- | --- | --- | --- | --- | --- |
 | `reset` | no | `false` | `boolean` | `true` prepends the fixed preflight to the one cached stylesheet, and an HTML document's critical block includes the preflight rules that match the shell. `false` adds nothing | a top-level `reset` does not type-check. `<ResetCSS />` does not exist. There is no second reset file. A second preflight in the app's Tailwind file is the app's to remove | `vite/css/inject.test.ts` `reset on`, `reset off`; `shared/css/critical.test.ts` `reset inlined`; `options.test.ts` `reset off` |
 
-In `vite dev`, an edit to a plain stylesheet (CSS or a preprocessor file, not a CSS module, imported with no query) reaches the page through the client's CSS update and the dev styles. The server's modules stay in place: Flare takes the update as handled in every server environment, so Vite sends the server no full reload, and only the stylesheet's own importers evaluate again on their next import. A CSS module, a `?inline` or `?url` import, and any code edit keep Vite's own update (`vite/dev/css-update.test.ts`, BUGS.md 99).
+In `vite dev`, an edit to a plain stylesheet (CSS or a preprocessor file, not a CSS module, imported with no query) reaches the page through the client's CSS update and the dev styles. The server's modules stay in place: Flare takes the update as handled in every server environment, ahead of every other plugin, so neither Vite nor Solid's plugin sends the server a full reload, and only the stylesheet's own importers evaluate again on their next import. A CSS module, a `?inline` or `?url` import, and any code edit keep Vite's own update (`vite/dev/css-update.test.ts`, BUGS.md 99).
 
 ## prerender
 

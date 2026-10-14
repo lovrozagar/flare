@@ -1,6 +1,7 @@
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import solid from "@solidjs/vite-plugin";
 import { createServer, isRunnableDevEnvironment, type Plugin, type ViteDevServer } from "vite";
 import { afterEach, expect, it } from "vitest";
 import { cssUpdate } from "./css-update.ts";
@@ -16,7 +17,7 @@ afterEach(async () => {
 type Hook = (this: unknown, options: { file: string; modules: { url: string }[] }) => unknown;
 
 function hookOf(plugin: Plugin, consumer = "server"): Hook {
-	const hook: unknown = plugin.hotUpdate;
+	const hook: unknown = Reflect.get(Object(plugin.hotUpdate), "handler");
 	if (typeof hook !== "function") throw new Error("hotUpdate");
 	return (options) => Reflect.apply(hook, { environment: { config: { consumer } } }, [options]);
 }
@@ -55,7 +56,9 @@ it("server kept", async () => {
 		configFile: false,
 		logLevel: "silent",
 		server: { middlewareMode: true, ws: false },
-		plugins: [cssUpdate(), seen],
+		// Solid's plugin before it, as flare() lists them: its own hook sends a server environment a full reload for any
+		// update that still has modules when it runs.
+		plugins: [...solid({ ssr: true }), cssUpdate(), seen],
 	});
 	servers.push(server);
 	const ssr = server.environments["ssr"];
