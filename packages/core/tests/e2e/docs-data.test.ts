@@ -1,4 +1,5 @@
 import { writeFileSync } from "node:fs";
+import type { Page } from "@playwright/test";
 import { dataRequests, deepOnly, expect, fnId, isProd, open, serverOf, test } from "./docs.fixture.ts";
 
 // Deferred data, TanStack Query, server functions, server context, and the env helpers (bits/15 docs-data).
@@ -200,6 +201,26 @@ test("stream", async ({ page, docs }, info) => {
 	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0), evidence).toBeGreaterThanOrEqual(600);
 });
 
+// A response's chunks as the page reads them, each timed from the first: with a reader, or with `for await` and the
+// fetch carrying an AbortSignal, as the flare client reads (BUGS.md 100).
+function pageChunks(page: Page, request: { url: string; init: RequestInit; read: string }): Promise<string[]> {
+	return page.evaluate(async ({ url, init, read }) => {
+		const signal = read.startsWith("signal") ? { signal: new AbortController().signal } : {};
+		const response = await fetch(url, { ...init, ...signal });
+		const chunks: { at: number; bytes: number }[] = [];
+		const body = response.body;
+		if (body !== null && read.endsWith("for-await")) {
+			for await (const chunk of body) chunks.push({ at: performance.now(), bytes: chunk.byteLength });
+		} else {
+			const reader = body?.getReader();
+			for (let next = await reader?.read(); next !== undefined && !next.done; next = await reader?.read()) {
+				chunks.push({ at: performance.now(), bytes: next.value.byteLength });
+			}
+		}
+		return chunks.map((chunk) => `${Math.round(chunk.at - (chunks[0]?.at ?? 0))}ms:${chunk.bytes}B`);
+	}, request);
+}
+
 // The same stream read by the test process with Node's fetch, in the browser's chunk format, so a burst the browser
 // saw is set beside what reached a client that is not the browser: the server stack, or the engine's network layer
 // (BUGS.md 100).
@@ -237,6 +258,23 @@ test("stream transport", async ({ page, docs }, info) => {
 				body: JSON.stringify({ run: `variant-${variant}` }),
 			},
 		})),
+		// The flare client's own read: the body iterated with `for await`, and the fetch carrying its stop's AbortSignal.
+		...(["for-await", "signal", "signal+for-await"] as const).map((variant) => ({
+			name: `fn ${variant}`,
+			url: `/_flare/fn/${BUILD_LOG}`,
+			init: {
+				method: "POST",
+				headers: { origin: docs.origin, "content-type": "application/json", "x-docs-stream-variant": "plain" },
+				body: JSON.stringify({ run: `variant-${variant}` }),
+			},
+			read: variant,
+		})),
+		{
+			name: "fill for-await",
+			url: "/changelog?_flare=fill",
+			init: { method: "GET", headers: { "x-docs-stream-variant": "plain" } },
+			read: "for-await" as const,
+		},
 		...["plain", "sse", "pad"].map((variant) => ({
 			name: `fill ${variant}`,
 			url: "/changelog?_flare=fill",
@@ -245,15 +283,11 @@ test("stream transport", async ({ page, docs }, info) => {
 	];
 	const report: Record<string, { page: string[]; node: string[] }> = {};
 	for (const target of targets) {
-		const inPage = await page.evaluate(async ({ url, init }) => {
-			const response = await fetch(url, init);
-			const reader = response.body?.getReader();
-			const chunks: { at: number; bytes: number }[] = [];
-			for (let next = await reader?.read(); next !== undefined && !next.done; next = await reader?.read()) {
-				chunks.push({ at: performance.now(), bytes: next.value.byteLength });
-			}
-			return chunks.map((chunk) => `${Math.round(chunk.at - (chunks[0]?.at ?? 0))}ms:${chunk.bytes}B`);
-		}, target);
+		const inPage = await pageChunks(page, {
+			url: target.url,
+			init: target.init,
+			read: "read" in target ? target.read : "reader",
+		});
 		report[target.name] = { page: inPage, node: await timedChunks(`${docs.origin}${target.url}`, target.init) };
 	}
 	const path = info.outputPath("stream-variants.json");
