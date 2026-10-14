@@ -59,7 +59,7 @@ Production cases skip the `*-dev-*` projects: `ssg seed`, `ssg public cdn`, `isr
 
 ## `tests/e2e/docs-features.test.ts`
 
-Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl client`, `tabs sync`, `set locale persists`, then `theme system` (Firefox skips: its emulation ignores `colorScheme`), `theme transition`, `rtl layout`, `format message` (an omitted locale inside `LocaleProvider` is the provider's tag, shown by the plural category: `/ar` prints `14 releases (many)` and `/` prints `14 releases`, stable across CLDR versions; BUGS.md B29), `image responsive`, `image fixed`, `fonts`, `head full`, `sitemap`, `robots`, `tailwind critical`, `css module`, `reset`.
+Bit 13's `prefix`, `shared cookie`, `unknown locale`, `theme no flash`, `rtl client`, `tabs sync`, `set locale persists`, then `theme system` (Firefox skips: its emulation ignores `colorScheme`), `theme transition`, `rtl layout`, `format message` (an omitted locale inside `LocaleProvider` is the provider's tag, shown by the plural category: `/ar` prints `14 releases (many)` and `/` prints `14 releases`, stable across CLDR versions; BUGS.md B29), `image responsive`, `image fixed`, `fonts`, `head full`, `sitemap`, `robots`, `tailwind critical`, `stylesheet after critical` (production: `/changelog`'s `#flare-critical` precedes the preload link and the noscript link; in dark and light contexts, once the stylesheet has loaded, the shell's header background and a streamed release card's border differ between the two themes; red before B103, when the critical copy of the light rules won the tie; BUGS.md B57), `css module`, `reset`.
 
 ## `tests/e2e/docs-resilience.test.ts`
 

@@ -25,7 +25,9 @@ export function criticalCss(html: string, css: string, ctx: CriticalContext = {}
 	if (css === "") return "";
 	const sheet = sheetOf(css);
 	const tree = shellTree(html);
-	const present = [ctx.themeAttribute, ctx.directionAttribute].filter((name) => name !== undefined);
+	// The direction script sets `dir` beside its own attribute.
+	const direction = ctx.directionAttribute === undefined ? [] : ["dir", ctx.directionAttribute];
+	const present = [...(ctx.themeAttribute === undefined ? [] : [ctx.themeAttribute]), ...direction];
 	const candidates = new Set([...sheet.unkeyed, ...shellKeys(tree).flatMap((key) => sheet.byKey.get(key) ?? [])]);
 	const matched = new Set<Rule>();
 	for (const entry of candidates) if (matchesSelector(entry.selector, tree, { present })) matched.add(entry.rule);

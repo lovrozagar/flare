@@ -8,7 +8,7 @@ Component styles are Vite CSS modules, authored by the app, imported from the co
 
 `tests/integration/nonce.test.ts` gains `stylesheet`: the production swap script's nonce equals the CSP header nonce. It gains `critical`: `<style id="flare-critical">` carries that same nonce.
 
-`server/render/document.test.ts` gains `critical shell`: the first flushed chunk of a production document contains `flare-critical` and the rule for a class that is in the shell, and the preload link. `modes`: a live SSR render, an SSG prerender, and an ISR populate each contain that style. `data skips`: a `_flare=data` response has no `flare-critical` and does not read the sheet. `dev`: no `flare-critical`.
+`server/render/document.test.ts` gains `critical shell`: the first flushed chunk of a production document contains `flare-critical` and the rule for a class that is in the shell, then the stylesheet markup `<Stylesheet />` placed, once, right after it (B103). With a router whose theme is configured, a rule under `:where([data-theme="dark"] *)` for that class is kept. `modes`: a live SSR render, an SSG prerender, and an ISR populate each contain that style. `data skips`: a `_flare=data` response has no `flare-critical` and does not read the sheet. `dev`: no `flare-critical`.
 
 `server/cache/write.test.ts` gains `critical stored`: the written HTML contains `flare-critical`. `server/cache/read.test.ts` gains `critical hit`: the hit body still contains it, and the extractor is not called.
 
@@ -43,7 +43,8 @@ The markup is per-request runtime code the `Stylesheet` component renders, so it
 | test | case | result |
 | --- | --- | --- |
 | `dev` | `import.meta.env.DEV` | the component renders nothing |
-| `prod` | dev false and a `builtHref` | the markup from `delivery` |
+| `prod` | dev false and a `builtHref`, outside a document render | the markup from `delivery` |
+| `placed` | the same inside a document render (`withRequest` with a stylesheet placement) | the component renders nothing and leaves `builtHref` in the placement, which the document writes right after `#flare-critical` (B103) |
 | `nonce` | `nonce()` returns `n` | the swap script's nonce is `n` |
 | `prod without css` | dev false and no href | nothing |
 
@@ -104,7 +105,7 @@ Split from `match.ts` at the 300-line limit.
 
 ### `shared/css/critical.test.ts`
 
-`criticalCss(html, css, ctx?)`. `ctx.themeAttribute` and `ctx.directionAttribute`, when set, match even when the shell HTML does not have that attribute yet. The theme and direction scripts set them before paint.
+`criticalCss(html, css, ctx?)`. `ctx.themeAttribute` and `ctx.directionAttribute`, when set, match even when the shell HTML does not have that attribute yet. The theme and direction scripts set them before paint. A direction attribute also makes `dir` present, since the direction script sets both (B103).
 
 | test | case | result |
 | --- | --- | --- |
@@ -135,11 +136,10 @@ Split from `match.ts` at the 300-line limit.
 | test | case | result |
 | --- | --- | --- |
 | `insert` | a shell with `<head>` and a used class | `<style id="flare-critical"` comes right before the stylesheet markup (B103) and is otherwise the last element in the head, it has no `data-dh`, and the unused rule is absent |
-| `stylesheet after critical` | a production document with a used class `bg-a`, a `dark:bg-b` rule whose element is in the shell, and a rule only streamed content uses | in document order `#flare-critical` precedes the stylesheet link (and the noscript link). In a browser with the theme attribute `dark`, after the stylesheet loads, the element computes `bg-b`, and the streamed element computes its own rule (BUGS.md B57) |
-| `present variants` | the docs sheet's `dark:` and `rtl:` rules (`:where([data-theme="dark"], [data-theme="dark"] *)`, the same for `dir`) over a shell with no theme or dir value | the rules for shell elements are in `#flare-critical` (B103) |
+| `present variants` | Tailwind `dark:` and `rtl:` rules (`&:where([data-mode="dark"], [data-mode="dark"] *)`, the same for `dir` and for the direction attribute `data-side`) over a shell with no theme or dir value, with `criticalContext(router)` for a router configured with those attributes | the rules for shell elements are in `#flare-critical` (B103). The direction attribute also makes `dir` present, since the direction script sets both. A router with neither config gives `{}`. The document passes `criticalContext(router)` on every render (`document.test.ts` `critical shell`) |
 | `nonce` | nonce `n` | the style nonce is `n` |
 | `empty nonce` | nonce `""` | the style has no nonce attribute |
-| `no css` | the sheet is `""`, or no rule in it matches the shell | the shell is unchanged and has no `flare-critical` |
+| `no css` | the sheet is `""`, or no rule in it matches the shell | the shell is unchanged and has no `flare-critical`. With a placed stylesheet, its markup alone goes before `</head>` |
 | `one` | called once | one such style tag |
 
 ### `vite/css/reset.test.ts`

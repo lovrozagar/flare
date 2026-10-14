@@ -1,12 +1,12 @@
 import { createComponent, type Element } from "solid-js";
 import * as web from "@solidjs/web";
-import { withRequest } from "../../shared/csp/nonce.ts";
+import { withRequest, type StylesheetPlacement } from "../../shared/csp/nonce.ts";
 import { buildId } from "../lifecycle/build-info.ts";
 import { appTree, NO_OVERLAY } from "../../shared/components/index.ts";
 import { IDLE_NAVIGATION, NO_BLOCKERS } from "../../shared/router/context.ts";
 import type { Router } from "../../shared/router/create-router.ts";
 import { raceAbort, renderStop } from "./abort.ts";
-import { withCritical } from "./critical-style.ts";
+import { criticalContext, withCritical } from "./critical-style.ts";
 import { escapeAttr, escapeInlineScript } from "./escape.ts";
 import { headTags, type HeadTag } from "../../shared/head/index.ts";
 import { DocumentHead, type Head } from "./head.ts";
@@ -53,17 +53,20 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	const piped = new TransformStream<Chunk, Chunk>();
 	// The render stops on a request abort or on a consumer cancel, whichever comes first, under the request's event.
 	const { signal, stop } = renderStop(input.request.signal, web.getRequestEvent());
-	const render = withRequest({ path: new URL(input.request.url).pathname, nonce }, () =>
+	const stylesheet: StylesheetPlacement = {};
+	const render = withRequest({ path: new URL(input.request.url).pathname, nonce, stylesheet }, () =>
 		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, nonce)),
 	);
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined);
 	const reader = piped.readable.getReader();
-	// The critical style follows the capture script as the head's last element (B83). The state and client scripts go
-	// in the shell before `</body>` (02-system), so the shell ends at `</html>`.
+	// The critical style follows the capture script (B83), and the stylesheet markup follows it (B103). The theme and
+	// direction attributes count as present. The state and client scripts go in the shell before `</body>`
+	// (02-system), so the shell ends at `</html>`.
 	const headed = withHead(chunkText((await reader.read()).value), head);
 	const tail = state(registeredQuery()?.dehydrate(), input.onBug ?? ignore) + clientScript(input.client, nonce);
-	const shell = insertState(withDoctype(withCritical(headed, { css: input.sheet ?? "", nonce })), tail);
+	const critical = { css: input.sheet ?? "", nonce, ctx: criticalContext(input.router), stylesheet: stylesheet.href };
+	const shell = insertState(withDoctype(withCritical(headed, critical)), tail);
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			controller.enqueue(encoder.encode(shell));

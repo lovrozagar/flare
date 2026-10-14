@@ -109,7 +109,7 @@ packages/core/src/shared/protocol/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/cache/artifact-path.ts	P10	src	shared	Turn a store key into the SSG artifact URL. The only path formatter
 packages/core/src/shared/cache/artifact-path.test.ts	P10	test	shared	Unit cases for artifact-path.ts
 packages/core/src/shared/cache/index.ts	P10	index	shared	Re-exports
-packages/core/src/shared/csp/nonce.ts	P3	src	shared	nonce(). The one request nonce. Empty means omit the attribute
+packages/core/src/shared/csp/nonce.ts	P3	src	shared	nonce(). The one request nonce. Empty means omit the attribute. placeStylesheet() hands a document render the stylesheet href
 packages/core/src/shared/csp/nonce.test.ts	P3	test	shared	Unit cases for nonce.ts
 packages/core/src/shared/csp/inline.ts	P13	src	shared	escapeInlineJson and scriptLiteral: a value an inline script may hold. Shared by the server state script and the feature scripts
 packages/core/src/shared/csp/inline.test.ts	P13	test	shared	Unit cases for inline.ts
@@ -166,7 +166,7 @@ packages/core/src/shared/components/view-transition-boundary.tsx	P6	src	dom	View
 packages/core/src/shared/components/view-transition-boundary.test.tsx	P6	test	dom	Unit cases for view-transition-boundary.tsx
 packages/core/src/shared/components/view-transition-css.tsx	P6	src	dom	ViewTransitionCSS
 packages/core/src/shared/components/view-transition-css.test.tsx	P6	test	dom	Unit cases for view-transition-css.tsx
-packages/core/src/shared/components/stylesheet.tsx	P11	src	dom	Stylesheet. Dev renders nothing. Prod emits preload, noscript, and the nonced swap
+packages/core/src/shared/components/stylesheet.tsx	P11	src	dom	Stylesheet. Dev renders nothing. Prod emits preload, noscript, and the nonced swap, or leaves them to the document render
 packages/core/src/shared/components/stylesheet.test.tsx	P11	test	dom	Unit cases for stylesheet.tsx
 packages/core/src/shared/components/index.ts	P1	index	shared	Re-exports
 packages/core/src/server/redirect/target.ts	P2	src	server	Classify a raw redirect target. Reject scheme-relative, backslash, and control characters before URL parsing
@@ -238,7 +238,7 @@ packages/core/src/server/loaders/hints.test.ts	P4	test	server	Unit cases for hin
 packages/core/src/server/loaders/index.ts	P1	index	server	Re-exports
 packages/core/src/server/render/document.ts	P1	src	server	Call renderToStream with the options 02-system names. Provides the router context around the root layout
 packages/core/src/server/render/document.test.ts	P1	test	server	Unit cases for document.ts
-packages/core/src/server/render/critical-style.ts	P11	src	server	Insert the critical style into the shell head, then the shell may flush
+packages/core/src/server/render/critical-style.ts	P11	src	server	Insert the critical style into the shell head, the placed stylesheet markup after it, then the shell may flush
 packages/core/src/server/render/critical-style.test.ts	P11	test	server	Unit cases for critical-style.ts
 packages/core/src/server/render/escape.ts	P1	src	server	escapeInlineScript over shared/csp's escapeInlineJson, and escapeAttr
 packages/core/src/server/render/escape.test.ts	P1	test	server	Unit cases for escape.ts

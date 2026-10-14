@@ -262,6 +262,38 @@ test("tailwind critical", async ({ page, request, docs }, info) => {
 	await expect(page.locator('link[rel="stylesheet"][href^="/assets/style-"]')).toHaveCount(1);
 });
 
+// The stylesheet markup follows the critical style, so a dark rule the critical subset lacks still wins once the
+// sheet loads: the shell's header and a streamed release card compute colors unlike the light theme's (B103, B57).
+test("stylesheet after critical", async ({ browser, request, docs }, info) => {
+	prodOnly(info);
+	const body = await (await request.get(`${docs.origin}/changelog`)).text();
+	const critical = body.indexOf('<style id="flare-critical"');
+	expect(critical).toBeGreaterThan(-1);
+	expect(critical).toBeLessThan(body.indexOf('<link id="flare-stylesheet"'));
+	expect(critical).toBeLessThan(body.indexOf("<noscript><link"));
+	const colors = async (theme: string) => {
+		const context = await browser.newContext();
+		try {
+			await context.addInitScript((value) => localStorage.setItem("flare.theme", value), theme);
+			const page = await context.newPage();
+			await open(page, docs.origin, "/changelog");
+			await expect(page.locator('link[rel="stylesheet"][href^="/assets/style-"]')).toHaveCount(1);
+			await expect(page.locator("#releases li").first()).toBeVisible();
+			const header = await page.locator("#nav").evaluate((element) => getComputedStyle(element).backgroundColor);
+			const card = await page
+				.locator("#releases li")
+				.first()
+				.evaluate((element) => getComputedStyle(element).borderTopColor);
+			return { header, card };
+		} finally {
+			await context.close();
+		}
+	};
+	const [dark, light] = [await colors("dark"), await colors("light")];
+	expect(dark.header).not.toBe(light.header);
+	expect(dark.card).not.toBe(light.card);
+});
+
 test("css module", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
 	const block = page.locator("[data-code-block]").first();

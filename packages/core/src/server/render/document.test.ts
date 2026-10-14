@@ -338,19 +338,24 @@ function classed(): JSX.Element {
 	return createComponent(Dynamic, { component: "p", class: "a", children: "used" });
 }
 
-// The first flushed chunk holds the stylesheet preload, and ends its head with the critical style, after the
-// hydration capture script.
+// The first flushed chunk ends its head with the critical style, after the hydration capture script, then the
+// stylesheet markup <Stylesheet /> left to the document (B103). The router's theme attribute counts as present.
 it("critical shell", async () => {
 	vi.stubEnv("DEV", false);
 	const head = (): JSX.Element => element("head", () => [element("title", () => "T"), createComponent(Stylesheet, {})]);
 	const render = (): JSX.Element => element("html", () => [head(), element("body", classed)]);
-	const body = await renderDocument({ ...base(), nonce: "n", sheet: SHEET, render });
+	const themed = createRouter({ layouts: {}, routeTree: [], theme: {} });
+	const sheet = `${SHEET}.a:where([data-theme="dark"] *){color:blue}`;
+	const body = await renderDocument({ ...base(), router: themed, nonce: "n", sheet, render });
 	vi.unstubAllEnvs();
 	const shell = decoder.decode((await body.getReader().read()).value);
 	const inHead = shell.slice(0, shell.indexOf("</head>"));
-	expect(inHead.endsWith('<style id="flare-critical" nonce="n">.a{color:red}</style>')).toBe(true);
+	const critical =
+		'<style id="flare-critical" nonce="n">.a{color:red}.a:where([data-theme="dark"] *){color:blue}</style>';
+	expect(inHead).toContain(`${critical}<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css">`);
+	expect(inHead.endsWith('.rel="stylesheet"</script>')).toBe(true);
+	expect(inHead.match(/flare-stylesheet" rel="preload"/g)).toHaveLength(1);
 	expect(inHead.indexOf("$HY")).toBeLessThan(inHead.indexOf("flare-critical"));
-	expect(inHead).toContain('<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css" />');
 	expect(shell).not.toContain(".unused");
 });
 
