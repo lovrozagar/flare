@@ -53,3 +53,31 @@ it("bounded wait", async () => {
 	reply({ request: 0, styles: [{ id: "/late.css", css: "" }] });
 	expect(warn).toHaveBeenCalledOnce();
 });
+
+// Vite's full reload re-evaluates the server modules: the new evaluation's hot context drops the previous one's listeners
+// and keeps the module's `data`. A request sent before the reload is settled by the new listener, and the two
+// evaluations never share a request number (BUGS.md 86).
+it("reload", async () => {
+	vi.useFakeTimers();
+	const data: Record<string, unknown> = {};
+	const sent: unknown[] = [];
+	let hear: ((payload: unknown) => void) | undefined;
+	const context = () => ({
+		data,
+		send: (_event: string, payload: unknown) => void sent.push(payload),
+		on: (_event: string, listener: (payload: unknown) => void) => void (hear = listener),
+	});
+	const warn = vi.fn<(message: string) => void>();
+	const before = stylesClient(context(), warn)(["_root_"]);
+	const after = stylesClient(context(), warn)(["_root_", "_root_/"]);
+	expect(sent).toEqual([
+		{ request: 0, routes: ["_root_"] },
+		{ request: 1, routes: ["_root_", "_root_/"] },
+	]);
+	hear?.({ request: 0, styles: [{ id: "/a.css", css: "a{}" }] });
+	hear?.({ request: 1, styles: [] });
+	vi.advanceTimersByTime(2000);
+	expect(await before).toEqual([{ id: "/a.css", css: "a{}" }]);
+	expect(await after).toEqual([]);
+	expect(warn).not.toHaveBeenCalled();
+});
