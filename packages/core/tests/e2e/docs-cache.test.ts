@@ -27,17 +27,15 @@ test("isr stored", async ({ request, docs }, info) => {
 
 test("shared ssr", async ({ request, docs }, info) => {
 	prodOnly(info);
-	const read = async (): Promise<{ cache: string | undefined; by: string | undefined }> => {
+	const renderedBy = async (): Promise<string | undefined> => {
 		const response = await request.get(`${docs.origin}/api/routes/create-page`);
-		const by = /id="api-rendered-by"[^>]*>([0-9a-f]+)</.exec(await response.text())?.[1];
-		return { cache: response.headers()["flare-cache"], by };
+		return /id="api-rendered-by"[^>]*>([0-9a-f]+)</.exec(await response.text())?.[1];
 	};
-	const rendered = await read();
-	// One render serves both: the repeat is a hit from the same render, never a second miss (BUGS.md B33).
-	const first = await read();
-	const second = await read();
-	expect([first.cache, second.cache]).toEqual(["hit", "hit"]);
-	expect([first.by, second.by]).toEqual([rendered.by, rendered.by]);
+	const rendered = await renderedBy();
+	// One render serves both repeats (BUGS.md B33). The header is not asserted: a repeat that arrives before the
+	// write lands joins the flight and answers `miss` from that same render (dx/cache.md).
+	expect([await renderedBy(), await renderedBy()]).toEqual([rendered, rendered]);
+	expect(rendered).toMatch(/^[0-9a-f]+$/);
 });
 
 test("revalidate tag", async ({ page, request, docs, context }, info) => {
