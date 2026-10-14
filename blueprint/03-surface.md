@@ -85,7 +85,7 @@ Exports: `createNodeListener`, `toRequest`.
 
 Exports: `createBunFetch`.
 
-`createBunFetch`. The return shape is `dx/adapters.md`.
+`createBunFetch`. The return shape and its `trustProxy` option are `dx/adapters.md`.
 
 ## `./adapters/workers`
 
@@ -185,7 +185,6 @@ Crossing from one `*.root-layout.tsx` to another is a full document load, not a 
 | `rewrite` | no | `(path) => path \| undefined` |
 | `security` | no | CSP, HSTS, and the rest; defaults apply when omitted |
 | `sameSite` | no | hosts allowed to pass a `same-site` CSRF check (B44) |
-| `trustProxy` | no | hop count, default 0 (B51) |
 | `bodyLimit` | no | bytes, default 1 MiB (B52) |
 | `store` | no | `FlareStore`. Absent means no shared cache |
 | `static` | no | read-only `FlareStore` of SSG artifacts, or `(env) => FlareStore`. `dx/server.md`, `dx/store.md` |
