@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
-import type { Page } from "@playwright/test";
 import { dataRequests, deepOnly, expect, fnId, isProd, open, serverOf, test } from "./docs.fixture.ts";
+import { instrumentStream, mainThread, nodeChunks, startStream } from "./stream-probe.ts";
 
 // Deferred data, TanStack Query, server functions, server context, and the env helpers (bits/15 docs-data).
 deepOnly();
@@ -9,7 +9,6 @@ const SEARCH = fnId("src/fns/search.ts", "searchDocs");
 const FEEDBACK_COUNT = fnId("src/fns/feedback.ts", "feedbackCount");
 const HOLD_STATS = fnId("src/fns/stats-gate.ts", "holdStats");
 const RELEASE_STATS = fnId("src/fns/stats-gate.ts", "releaseStats");
-const BUILD_LOG = fnId("src/fns/build-log.ts", "buildLog");
 
 // The fast boundary does not wait for the slow one. `stats` is held on the server until the test has seen its skeleton
 // beside the released list, so the order holds on any machine; a slow runner once settled `stats` first (BUGS.md 69).
@@ -152,35 +151,9 @@ test("unsafe error", async ({ page, docs }, info) => {
 // layer: chunks that came in a burst are the network's delivery, chunks spaced out with lines in a burst the page's
 // rendering (BUGS.md 100).
 test("stream", async ({ page, docs }, info) => {
-	await page.addInitScript(() => {
-		const arrivals: { count: number; at: number }[] = [];
-		const reads: { bytes: number; at: number }[] = [];
-		Reflect.set(window, "streamArrivals", arrivals);
-		Reflect.set(window, "streamReads", reads);
-		new MutationObserver(() => {
-			const count = document.querySelectorAll("#stream-log li").length;
-			if (count > (arrivals.at(-1)?.count ?? 0)) arrivals.push({ count, at: performance.now() });
-		}).observe(document, { childList: true, subtree: true });
-		// The client decodes each body chunk as it reads it, `{ stream: true }`, so a decode is a chunk's arrival.
-		const decode = TextDecoder.prototype.decode;
-		TextDecoder.prototype.decode = function (
-			this: TextDecoder,
-			input?: AllowSharedBufferSource,
-			options?: TextDecodeOptions,
-		) {
-			if (Reflect.get(window, "streamTimed") === true && options?.stream === true && input !== undefined) {
-				reads.push({ bytes: input.byteLength, at: performance.now() });
-			}
-			return decode.call(this, input, options);
-		};
-	});
-	await watchFrames(page);
+	await instrumentStream(page);
 	await open(page, docs.origin, "/playground");
-	await page.evaluate(() => {
-		Reflect.set(window, "streamTimed", true);
-		Reflect.set(window, "streamClick", performance.now());
-	});
-	await page.locator("#stream-start").click();
+	await startStream(page);
 	await expect(page.locator("#stream-log li")).toHaveCount(6);
 	await expect(page.locator("#stream-status")).toHaveText("done");
 	const timed: { arrivals: { count: number; at: number }[]; reads: { bytes: number; at: number }[] } =
@@ -205,241 +178,6 @@ test("stream", async ({ page, docs }, info) => {
 	).toEqual([1, 2, 3, 4, 5, 6]);
 	expect((arrivals.at(-1)?.at ?? 0) - (arrivals[0]?.at ?? 0), evidence).toBeGreaterThanOrEqual(600);
 });
-
-// Every frame's time from the document's start: a gap far past a frame is the main thread held, which delivers queued
-// chunks together. A stall that starts before the click and runs into the stream still has the frame before it
-// (BUGS.md 100).
-async function watchFrames(page: Page): Promise<void> {
-	await page.addInitScript(() => {
-		const frames: number[] = [];
-		Reflect.set(window, "streamFrames", frames);
-		const tick = (): void => {
-			frames.push(performance.now());
-			requestAnimationFrame(tick);
-		};
-		requestAnimationFrame(tick);
-		// When the client marks the document hydrated, and when the page's fonts are ready.
-		new MutationObserver(() => {
-			if (
-				Reflect.get(window, "streamHydrated") === undefined &&
-				document.documentElement.hasAttribute("data-flare-hydrated")
-			) {
-				Reflect.set(window, "streamHydrated", performance.now());
-			}
-		}).observe(document, { attributes: true, subtree: true, attributeFilter: ["data-flare-hydrated"] });
-		void document.fonts.ready.then(() => Reflect.set(window, "streamFonts", performance.now()));
-	});
-}
-
-// What held the page's main thread, each time from the first line's arrival (BUGS.md 100): every frame gap over 50 ms
-// that ends after the load as `<start>+<length>`; the load, the click, the moment `data-flare-hydrated` appeared, and
-// the moment `document.fonts.ready` resolved; every resource fetched from the load on as `<start>-<end>:<type>:<file>`,
-// any type; every mark and measure the page set as `<name>@<start>+<length>`; the paint entries; and the largest
-// contentful paints where the engine reports them. A coalesced sample's long gap lined up against these names its
-// cause.
-type MainThread = {
-	gaps: string[];
-	load: number;
-	click: number;
-	hydrated: number;
-	fonts: number;
-	resources: string[];
-	marks: string[];
-	paints: string[];
-};
-
-function mainThread(page: Page, origin: number): Promise<MainThread> {
-	return page.evaluate(async (zero) => {
-		const at = (time: number): number => Math.round(time - zero);
-		const frames: number[] = Reflect.get(window, "streamFrames");
-		const [navigation] = performance.getEntriesByType("navigation");
-		const loaded = navigation instanceof PerformanceNavigationTiming ? navigation.loadEventEnd : 0;
-		// A gap is reported when it ends after the load, so one that began before it still counts.
-		const gaps = frames.flatMap((time, index) => {
-			const gap = time - (frames[index - 1] ?? time);
-			return gap > 50 && time > loaded ? [`${at(time - gap)}+${Math.round(gap)}`] : [];
-		});
-		const resources = performance
-			.getEntriesByType("resource")
-			.filter((entry) => entry instanceof PerformanceResourceTiming && entry.startTime >= loaded)
-			.map((entry) => {
-				const timing = entry as PerformanceResourceTiming;
-				return `${at(timing.startTime)}-${at(timing.responseEnd)}:${timing.initiatorType}:${timing.name.split("/").at(-1)}`;
-			});
-		const marks = [...performance.getEntriesByType("mark"), ...performance.getEntriesByType("measure")].map(
-			(entry) => `${entry.name}@${at(entry.startTime)}+${Math.round(entry.duration)}`,
-		);
-		const contentful = await new Promise<PerformanceEntry[]>((resolve) => {
-			if (!PerformanceObserver.supportedEntryTypes.includes("largest-contentful-paint")) return resolve([]);
-			const observer = new PerformanceObserver((list) => {
-				observer.disconnect();
-				resolve(list.getEntries());
-			});
-			observer.observe({ type: "largest-contentful-paint", buffered: true });
-			setTimeout(() => resolve([]), 100);
-		});
-		const paints = [...performance.getEntriesByType("paint"), ...contentful].map(
-			(entry) => `${entry.name || entry.entryType}@${at(entry.startTime)}`,
-		);
-		return {
-			gaps,
-			load: at(loaded),
-			click: at(Number(Reflect.get(window, "streamClick"))),
-			hydrated: at(Number(Reflect.get(window, "streamHydrated") ?? Number.NaN)),
-			fonts: at(Number(Reflect.get(window, "streamFonts") ?? Number.NaN)),
-			resources,
-			marks,
-			paints,
-		};
-	}, origin);
-}
-
-// A response's chunks as the page reads them, each timed from the first: with a reader, or with `for await` and the
-// fetch carrying an AbortSignal, as the flare client reads (BUGS.md 100).
-function pageChunks(page: Page, request: { url: string; init: RequestInit; read: string }): Promise<string[]> {
-	return page.evaluate(async ({ url, init, read }) => {
-		const signal = read.startsWith("signal") ? { signal: new AbortController().signal } : {};
-		const response = await fetch(url, { ...init, ...signal });
-		const chunks: { at: number; bytes: number }[] = [];
-		const body = response.body;
-		if (body !== null && read.endsWith("for-await")) {
-			for await (const chunk of body) chunks.push({ at: performance.now(), bytes: chunk.byteLength });
-		} else {
-			const reader = body?.getReader();
-			for (let next = await reader?.read(); next !== undefined && !next.done; next = await reader?.read()) {
-				chunks.push({ at: performance.now(), bytes: next.value.byteLength });
-			}
-		}
-		return chunks.map((chunk) => `${Math.round(chunk.at - (chunks[0]?.at ?? 0))}ms:${chunk.bytes}B`);
-	}, request);
-}
-
-// The same stream read by the test process with Node's fetch, in the browser's chunk format, so a burst the browser
-// saw is set beside what reached a client that is not the browser: the server stack, or the engine's network layer
-// (BUGS.md 100).
-async function nodeChunks(origin: string): Promise<string[]> {
-	return timedChunks(`${origin}/_flare/fn/${BUILD_LOG}`, {
-		method: "POST",
-		headers: { origin, "content-type": "application/json" },
-		body: JSON.stringify({ run: "node-probe" }),
-	});
-}
-
-// A response's chunks as Node's fetch reads them, each timed from the first.
-async function timedChunks(url: string, init: RequestInit): Promise<string[]> {
-	const response = await fetch(url, init);
-	const reader = response.body?.getReader();
-	const chunks: { at: number; bytes: number }[] = [];
-	for (let next = await reader?.read(); next !== undefined && !next.done; next = await reader?.read()) {
-		chunks.push({ at: performance.now(), bytes: next.value.byteLength });
-	}
-	return chunks.map((chunk) => `${Math.round(chunk.at - (chunks[0]?.at ?? 0))}ms:${chunk.bytes}B`);
-}
-
-// The transport probe for BUGS.md 100, a measurement with no pass bar: each candidate for macOS WebKit's coalesced
-// stream chunks, read by the page with a plain reader and by the test process's own Node fetch, for a streamed server
-// function and for a fill's defer frames. Every run writes `stream-variants.json`, which e2e-mac uploads.
-test("stream transport", async ({ page, docs }, info) => {
-	await open(page, docs.origin, "/playground");
-	const targets = [
-		...["plain", "sse", "pad", "sse+pad"].map((variant) => ({
-			name: `fn ${variant}`,
-			url: `/_flare/fn/${BUILD_LOG}`,
-			init: {
-				method: "POST",
-				headers: { origin: docs.origin, "content-type": "application/json", "x-docs-stream-variant": variant },
-				body: JSON.stringify({ run: `variant-${variant}` }),
-			},
-		})),
-		// The flare client's own read: the body iterated with `for await`, and the fetch carrying its stop's AbortSignal.
-		...(["for-await", "signal", "signal+for-await"] as const).map((variant) => ({
-			name: `fn ${variant}`,
-			url: `/_flare/fn/${BUILD_LOG}`,
-			init: {
-				method: "POST",
-				headers: { origin: docs.origin, "content-type": "application/json", "x-docs-stream-variant": "plain" },
-				body: JSON.stringify({ run: `variant-${variant}` }),
-			},
-			read: variant,
-		})),
-		{
-			name: "fill for-await",
-			url: "/changelog?_flare=fill",
-			init: { method: "GET", headers: { "x-docs-stream-variant": "plain" } },
-			read: "for-await" as const,
-		},
-		...["plain", "sse", "pad"].map((variant) => ({
-			name: `fill ${variant}`,
-			url: "/changelog?_flare=fill",
-			init: { method: "GET", headers: { "x-docs-stream-variant": variant } },
-		})),
-	];
-	const report: Record<string, { page: string[]; node: string[] }> = {};
-	for (const target of targets) {
-		const inPage = await pageChunks(page, {
-			url: target.url,
-			init: target.init,
-			read: "read" in target ? target.read : "reader",
-		});
-		report[target.name] = { page: inPage, node: await timedChunks(`${docs.origin}${target.url}`, target.init) };
-	}
-	const path = info.outputPath("stream-variants.json");
-	writeFileSync(path, `${JSON.stringify(report, null, 1)}\n`);
-	await info.attach("stream variants", { path, contentType: "application/json" });
-	expect(Object.values(report).every((entry) => entry.page.length > 0 && entry.node.length > 0)).toBe(true);
-});
-
-// The main-thread probe for BUGS.md 100, a measurement with no pass bar: every frame gap over 50 ms in the 2 s after
-// the load, with no click, each setup the first page of its own context, as `stream`'s playground is. `blank` is
-// about:blank, `static` the playground's own HTML from this server with every script removed, so its CSS, fonts, and
-// DOM load and no page script runs, and `live` the playground itself. A stall in `blank` or `static` is the engine on
-// the runner, not the page's JS. Every run writes `main-thread.json`, which e2e-mac uploads.
-test("main thread", async ({ browser, request, docs }, info) => {
-	const html = (await (await request.get(`${docs.origin}/playground`)).text()).replaceAll(
-		/<script\b[^>]*>[\s\S]*?<\/script>|<link\b[^>]*rel="modulepreload"[^>]*>/g,
-		"",
-	);
-	const report: Record<string, string[]> = {};
-	for (const setup of ["blank", "static", "live", "static again"]) {
-		const context = await browser.newContext();
-		const page = await context.newPage();
-		await page.route(`${docs.origin}/__probe`, (route) => route.fulfill({ body: html, contentType: "text/html" }));
-		const url = { blank: "about:blank", live: `${docs.origin}/playground` }[setup] ?? `${docs.origin}/__probe`;
-		await page.goto(url, { waitUntil: "load" });
-		report[setup] = await gapsAfterLoad(page);
-		// The static page runs no script of its own and still has the page's styles.
-		if (setup.startsWith("static")) {
-			expect(await page.locator("script").count()).toBe(0);
-			expect(await page.evaluate(() => document.styleSheets.length)).toBeGreaterThan(0);
-		}
-		await context.close();
-	}
-	const path = info.outputPath("main-thread.json");
-	writeFileSync(path, `${JSON.stringify(report)}\n`);
-	await info.attach("main thread", { path, contentType: "application/json" });
-	expect(Object.keys(report)).toHaveLength(4);
-});
-
-// Frame gaps over 50 ms from the load until 2 s after it, as `<start>+<length>` from the load.
-function gapsAfterLoad(page: Page): Promise<string[]> {
-	return page.evaluate(
-		() =>
-			new Promise<string[]>((resolve) => {
-				const [navigation] = performance.getEntriesByType("navigation");
-				const loaded = navigation instanceof PerformanceNavigationTiming ? navigation.loadEventEnd : 0;
-				const gaps: string[] = [];
-				let last = performance.now();
-				const tick = (): void => {
-					const now = performance.now();
-					if (now - last > 50) gaps.push(`${Math.round(last - loaded)}+${Math.round(now - last)}`);
-					last = now;
-					if (now - loaded < 2000) requestAnimationFrame(tick);
-					else resolve(gaps);
-				};
-				requestAnimationFrame(tick);
-			}),
-	);
-}
 
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
 test("stream abort", async ({ page, docs }, info) => {

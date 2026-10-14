@@ -728,6 +728,8 @@ packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs 
 packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
 packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context
 packages/core/tests/e2e/docs-data.test.ts	P15	test	node	Playwright: defer, TanStack Query, server functions and streams, server context, fetch dedupe, env helpers
+packages/core/tests/e2e/docs-probe.test.ts	P15	test	node	Playwright measurements with no pass bar for BUGS.md 100: macOS WebKit's stream transport and its main thread
+packages/core/tests/e2e/stream-probe.ts	P15	test	node	The stream instrumentation docs-data's `stream` and docs-probe share: arrivals, decoded chunks, frames, and Node's read (BUGS.md 100)
 packages/core/tests/e2e/docs-cache.test.ts	P15	test	node	Playwright: SSG seeds, ISR, shared SSR, CDN headers, tag purge, the client match cache, the store per runtime
 packages/core/tests/e2e/docs-server.test.ts	P15	test	node	Playwright: auth boundaries, login, CSRF, body cap, middleware, mounts, .response(), route headers, security
 packages/core/tests/e2e/docs-features.test.ts	P15	test	node	Playwright: locale, theme, direction, cross-tab sync, image, fonts, head, sitemap, robots, Tailwind and CSS modules. Holds bit 13's seven i18n cases
