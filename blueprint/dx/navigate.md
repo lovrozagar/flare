@@ -34,9 +34,11 @@ A build-id mismatch and a missing chunk share one document load. `sessionStorage
 | prop | required | default | accepts | outcome | test |
 | --- | --- | --- | --- | --- | --- |
 | `scope` | no | `"auto"` | `"auto"`, `"document"`, or `(info) =>` those | `"auto"` uses the innermost `ViewTransitionBoundary` around the swapped outlet, otherwise the document | `shared/components/view-transition-boundary.test.tsx` `scope` |
-| `types` | no | the direction name | `string[]`, or `(info) => string[] \| false` | `false` skips the transition. The direction names are `forward`, `back`, `same` | `client/view-transition/direction.test.ts` |
+| `types` | no | none: the plain `startViewTransition(update)` callback | `string[]`, or `(info) => string[] \| false` | given types go in the object form `{ update, types }` only where the browser supports them (it exposes `ViewTransitionTypeSet`); otherwise, and for an empty list, the plain callback. `false` skips the transition. `info.direction` is `forward`, `back`, or `same` (B119) | `client/view-transition/direction.test.ts` `types` |
 
 `info` is `{ direction, fromLocation, toLocation, pathChanged }`. Locations are `{ hash, pathname, search }`.
+
+A navigation transition still running is skipped (`skipTransition()`) before the next one starts, since two at once both freeze content being swapped, and an element-scoped start that throws falls back to the document transition (B119, `direction.test.ts` `skips running`, `scoped throw`). The default styling is `ViewTransitionCSS`: `@view-transition { navigation: auto }` and one duration for `::view-transition-old(*)` and `::view-transition-new(*)`. A named group is the app's choice; Flare and the docs app add none. The two paragraphs on named groups below are for an app that adds one.
 
 A browser without element-scoped view transitions (Firefox 155 has no `Element.prototype.startViewTransition`) runs a `ViewTransitionBoundary` scope as a document transition: the whole page crossfades, with any named groups inside it.
 

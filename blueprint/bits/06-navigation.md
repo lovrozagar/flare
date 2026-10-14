@@ -363,7 +363,9 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `forward` | index increases | `forward` |
 | `back` | index decreases | `back` |
 | `off` | `viewTransitions: false` | no transition class |
-| `types` | the default, an array, a function, a function returning `false`, and the option `false` | `[direction]`, the array, the function's list, then no transition for the last two. The update runs every time |
+| `types` | the default and an array with no type support, then with `ViewTransitionTypeSet`: the default, an array, a function, a function returning `[]`, one returning `false`, and the option `false` | the plain callback three times, then the object form with the array and with the function's list, the plain callback for `[]`, and no transition for the last two. The update runs every time (revised by B119: no default direction type, and the object form only where the browser supports types) |
+| `skips running` | a second transition while the first has not finished, then a third after the second finished | the first is skipped once; the third skips nothing (B119) |
+| `scoped throw` | `"auto"` with a boundary element whose `startViewTransition` throws | the document's start runs with the plain callback, and the update runs once (B119) |
 | `scope` | `"auto"` with a boundary element that can start one, `"document"`, a scope function, and an element that cannot | the element, the document, the element, the document. With no API at all the update runs directly |
 | `options` | the navigate option over the router default | `undefined` keeps the router's, `true` is `{}`, `false` is off, and an object wins |
 
@@ -379,7 +381,7 @@ create-client `root navigate`: after `bootClient`, the root `navigate({ to: "_ro
 
 | test | case | result |
 | --- | --- | --- |
-| `view transition` | `viewTransitions: true` and a `ViewTransitionBoundary` around the outlet | a push starts it on the boundary's element with `["forward"]`, the DOM updates inside it, and history is written after. A replace on `scope: "document"` is `["same"]` on the document. A popstate step back is `["back"]`. `viewTransition: false` commits with none |
+| `view transition` | `viewTransitions: true` and a `ViewTransitionBoundary` around the outlet | a push starts it on the boundary's element with the plain callback, the DOM updates inside it, and history is written after. A replace on `scope: "document"` runs on the document, and a popstate step back too, each with no type (revised by B119). `viewTransition: false` commits with none |
 | `superseded update` | a navigation whose view transition has not run its update yet, then a second navigation, whose start skips the first transition and runs that update first, as the spec orders it | the first update commits nothing, since the second aborted its signal: the screen shows the second page and history has only its entry (BUGS.md 98) |
 
 ### `shared/components/link.test.tsx`
