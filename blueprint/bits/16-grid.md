@@ -90,6 +90,7 @@ The dev error page for a server module that failed to load and the tab hub keep 
 | `container stale` | a `flare-browsers` running the pinned image without host IPC, or another image | it is removed (`docker rm -f`) and the pinned one started: only this script creates that name |
 | `container fails` | `docker run` refused, then a name already in use whose run-server never answers | `the browser container did not start` with Docker's message; `the browser run-server did not answer on ws://127.0.0.1:3333/` |
 | `local engines` | no Docker, every engine installed | Playwright's local engines |
+| `docker unreachable` | the Docker binary present, its daemon refusing the shell (`docker version` fails), every engine installed | Playwright's local engines: Docker counts only when `docker version --format {{.Server.Version}}` exits 0 |
 | `none` | no endpoint, no Docker, an engine missing | one error that names all three options |
 
 The hydrate harness (`bits/15-docs.md`) and the e2e global setup both take their browsers from this script.

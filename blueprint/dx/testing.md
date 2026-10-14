@@ -25,3 +25,7 @@ flarePage(page): { load, consoleErrors, state }
 | `state` | none | `self.flare` from the document | the v0 shape `{ p, r, c }` is not what this checks. The fields are `build`, `nonce`, `matches`, and `queries`. A match is `{ id, params, search, data, preloader, head, error }` (B83) | `playwright.test.ts` `state` |
 
 These v0 methods do not exist: `wasClientNavigation`, `setNavigationMarker`, `navigateNdjson`, `assertFlareStateValid`. Client navigation is asserted by the URL and the DOM, which the e2e already does.
+
+## The framework's e2e grid
+
+For contributors to Flare itself, not an app's tests. `bun run test:e2e` runs the 18 projects of B70 against the apps under `packages/core/tests/e2e/apps`. The browsers come from the pinned Playwright image (B97): `scripts/browser-server.ts` answers `FLARE_BROWSER_WS` when set, else the image's run-server in the `flare-browsers` container when a Docker daemon answers the shell, else Playwright's installed engines. A user outside the `docker` group adds it once (`sudo usermod -aG docker "$USER"`, then a new login) or sets `FLARE_BROWSER_WS`. One project is `bun run test:e2e -- --project <name>`; a run that names its projects runs the deep specs on each of them (`scripts/browser-server.test.ts`, `tests/structure/grid.test.ts`).

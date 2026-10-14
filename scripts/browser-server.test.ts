@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import { browserEndpoint, IMAGE_DIGEST, type BrowserDeps } from "./browser-server.ts";
 
 const IMAGE = `mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`;
+const VERSION = ["version", "--format", "{{.Server.Version}}"];
 const INSPECT = ["inspect", "--format", "{{.Config.Image}}|{{.HostConfig.IpcMode}}", "flare-browsers"];
 const RUN = [
 	"run",
@@ -38,11 +39,15 @@ function machine(
 	const deps: BrowserDeps = {
 		env: input.env ?? {},
 		docker: {
-			present: () => input.docker ?? false,
 			run(args) {
 				runs.push(args);
 				const answer = answers[args[0] ?? ""];
 				if (answer !== undefined) return { stdout: "", stderr: "", ...answer };
+				if (args[0] === "version") {
+					return input.docker === true
+						? { status: 0, stdout: "29.7.2\n", stderr: "" }
+						: { status: null, stdout: "", stderr: "Error: spawnSync docker ENOENT" };
+				}
 				if (args[0] === "inspect") {
 					const found = input.container;
 					return found === undefined
@@ -73,10 +78,10 @@ it("endpoint env", async () => {
 it("container", async () => {
 	const fresh = machine({ docker: true, installed: true });
 	expect(await browserEndpoint(fresh.deps)).toBe("ws://127.0.0.1:3333/");
-	expect(fresh.runs).toEqual([INSPECT, RUN]);
+	expect(fresh.runs).toEqual([VERSION, INSPECT, RUN]);
 	const running = machine({ docker: true, up: true, container: `${IMAGE}|host` });
 	expect(await browserEndpoint(running.deps)).toBe("ws://127.0.0.1:3333/");
-	expect(running.runs).toEqual([INSPECT]);
+	expect(running.runs).toEqual([VERSION, INSPECT]);
 });
 
 // A `flare-browsers` that runs another image, or without the host's IPC, is replaced: only this script creates it.
@@ -84,7 +89,7 @@ it("container stale", async () => {
 	for (const container of [`${IMAGE}|private`, "mcr.microsoft.com/playwright:v1.60.0-noble|host"]) {
 		const stale = machine({ docker: true, up: true, container });
 		expect(await browserEndpoint(stale.deps)).toBe("ws://127.0.0.1:3333/");
-		expect(stale.runs).toEqual([INSPECT, ["rm", "-f", "flare-browsers"], RUN]);
+		expect(stale.runs).toEqual([VERSION, INSPECT, ["rm", "-f", "flare-browsers"], RUN]);
 	}
 });
 
@@ -107,7 +112,16 @@ it("container fails", async () => {
 it("local engines", async () => {
 	const { deps, runs } = machine({ installed: true });
 	expect(await browserEndpoint(deps)).toBeUndefined();
-	expect(runs).toEqual([]);
+	expect(runs).toEqual([VERSION]);
+});
+
+// Docker counts only when its daemon answers: a binary whose daemon refuses this shell (no group, daemon down) falls
+// through to the installed engines instead of failing on the container.
+it("docker unreachable", async () => {
+	const { deps, runs, answers } = machine({ installed: true });
+	answers["version"] = { status: 1, stdout: "", stderr: "permission denied while trying to connect to the docker API" };
+	expect(await browserEndpoint(deps)).toBeUndefined();
+	expect(runs).toEqual([VERSION]);
 });
 
 it("none", async () => {
