@@ -15,7 +15,7 @@ import {
 	type Direction,
 } from "../view-transition/index.ts";
 import { allowsNavigation, type Blockers } from "./blocker.ts";
-import type { Landed, Pending } from "./frames.ts";
+import { endOf, type Landed, type Pending } from "./frames.ts";
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts";
 import type { NavigationState } from "./pending.ts";
 import type { ScrollStore } from "./scroll.ts";
@@ -85,7 +85,7 @@ export function createNavigator(deps: NavigatorDeps): {
 		// A stored landing can end with a `"stream"` hole. Once this page commits, one fill asks for its values.
 		const watch = holeWatch(deps, target.location, fill);
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes };
-		const settled = await deps.navigation.track(arrive(deps, trip));
+		const settled = await arrived(deps, trip);
 		if (latest !== controller || settled === undefined || settled.arrival.kind === "none") return;
 		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined;
 		if (redirect !== undefined) {
@@ -115,6 +115,14 @@ export function createNavigator(deps: NavigatorDeps): {
 			return go(resolveUrl(url, context()), { to: url }, mode);
 		},
 	};
+}
+
+// A fill settles its holes through the slots the page already reads, so it commits once its values are all in: a commit
+// while one is pending would be held for it, silently (BUGS.md 89). The wait is not tracked as navigation.
+async function arrived(deps: NavigatorDeps, trip: Parameters<typeof arrive>[1]): ReturnType<typeof arrive> {
+	const settled = await deps.navigation.track(arrive(deps, trip));
+	if (trip.fill && settled?.arrival.kind === "landed") await endOf(settled.arrival.landing);
+	return settled;
 }
 
 // One navigation before its request: the trigger, whether it is a popstate step, and the overlay it opens.

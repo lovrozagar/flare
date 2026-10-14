@@ -306,8 +306,9 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | state `fill flag` | `stateScript` with and without `fill: true` | the field is written only when true |
 | answers `fill no-store` | `?_flare=fill` on a stored `isr` page whose defer is `"stream"` | the function runs, `private, no-store`, no `flare-cache`, and the store is neither read nor written |
 | create-client `fill on hydrate` | a state with `fill: true` | one `?_flare=fill` request of the same URL, and no history entry |
-| navigate `fill on hole landing` | a data landing whose `d` leaves a placeholder unsettled | one `?_flare=fill` revalidation of the same URL after the commit, and no history entry beyond the navigation's |
-| navigate `no fill after leaving` | the holed landing's `d` arrives after the user navigated away | no fill request |
+| navigate-fill `fill on hole landing` | a data landing whose `d` leaves a placeholder unsettled | one `?_flare=fill` revalidation of the same URL after the commit, and no history entry beyond the navigation's |
+| navigate-fill `no fill after leaving` | the holed landing's `d` arrives after the user navigated away | no fill request |
+| navigate-fill `fill commits at its end` | a fill whose body stays open after `r` | the snapshot keeps the stored data until the body ends, then the fill commits: a commit while a value is pending would be held behind it (BUGS.md 89) |
 | request `fill request` | a fill trip carrying the slots a revived hole left | the request asks `?_flare=fill`, and its `c` frame resolves the promise the first value held |
 | response `stored stream stays a hole`, `isr stream stays a hole` (extended) | a stored run's unrun `"stream"` value | its placeholder carries `hole: true` |
 

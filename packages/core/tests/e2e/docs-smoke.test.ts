@@ -50,6 +50,14 @@ test("preloads settle", async ({ page, docs }, info) => {
 	expect(problems).toEqual([]);
 });
 
+// After hydrate the changelog fills its stream holes. The fill commits once its last value is in, so the commit is
+// never held behind one, and a load kept open past Solid's hold threshold logs no SILENT_HOLD (BUGS.md 89).
+test("fill holds nothing", async ({ page, docs }) => {
+	const problems = await open(page, docs.origin, "/changelog");
+	await page.waitForTimeout(1500);
+	expect(problems).toEqual([]);
+});
+
 test("click through", async ({ page, docs }) => {
 	const problems = await open(page, docs.origin, "/");
 	const loads = documents(page);
