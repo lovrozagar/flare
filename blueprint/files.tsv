@@ -708,7 +708,6 @@ scripts/release.ts	P14	script	node	Pack, run the golden test, and publish from a
 scripts/release.test.ts	P14	test	node	Unit cases for release.ts
 packages/core/tests/e2e/apps/docs/**	P15	app	-	The docs app (B94): a short Flare docs site that uses every exported feature. One row for the tree; the docs specs own its behavior
 packages/core/tests/e2e/docs.fixture.ts	P15	test	node	Worker-scoped docs boot, the deep-set skip, and the page helpers the docs specs share (B94)
-packages/core/tests/e2e/console.ts	P16	test	node	The e2e console guards' engine noise: WebKit's notice for the built stylesheet's preload (BUGS.md 81)
 packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs page answers its status, hydrates, and leaves the console empty, on every project
 packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
 packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context
