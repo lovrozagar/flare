@@ -1,5 +1,14 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	mkdtempSync,
+	mkdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,7 +43,7 @@ afterEach(() => {
 });
 
 function project(files: Record<string, string> = APP): string {
-	const root = mkdtempSync(join(tmpdir(), "flare-env-"));
+	const root = realpathSync(mkdtempSync(join(tmpdir(), "flare-env-")));
 	roots.push(root);
 	mkdirSync(join(root, "src"));
 	for (const [name, text] of Object.entries(files)) {
@@ -173,6 +182,21 @@ it("public once", async () => {
 	expect(existsSync(join(root, "dist/client/x.txt"))).toBe(true);
 	expect(existsSync(join(root, "dist/server/x.txt"))).toBe(false);
 	expect(existsSync(join(root, "dist/worker/x.txt"))).toBe(false);
+}, 60_000);
+
+// A root reached through a symlink builds as its real path does: flare takes the root's real path, the form Vite gives
+// module ids in, so the manifest knows the client entry and prerender reads the real output (BUGS.md B51).
+it("symlinked root", async () => {
+	const real = project();
+	const link = `${real}-link`;
+	symlinkSync(real, link);
+	roots.push(link);
+	const app = await builder(link, {}, { build: { write: true } });
+	expect(app.config.root).toBe(real);
+	vi.mocked(prerenderApp).mockClear();
+	await app.buildApp();
+	expect(existsSync(join(real, "dist/server/server.js"))).toBe(true);
+	expect(vi.mocked(prerenderApp)).toHaveBeenCalledWith(expect.objectContaining({ root: real }));
 }, 60_000);
 
 it("no worker", async () => {

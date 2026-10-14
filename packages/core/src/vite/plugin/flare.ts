@@ -15,6 +15,7 @@ import { ownModule } from "./own-module.ts";
 import { fontsPlugin } from "./fonts.ts";
 import { assetUrl, buildConfig, environmentBuild } from "./environments.ts";
 import { readWrangler } from "./wrangler.ts";
+import { realPath } from "./real-path.ts";
 import { parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts";
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
@@ -102,7 +103,9 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 // The Vite config flare owns. Flare owns the entries and the dev server, so Vite serves no index.html (B89).
 function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): UserConfig {
 	assertHost(config.server?.host);
-	const root = config.root ?? process.cwd();
+	// Vite gives module ids as real paths, so the root is one too: a root reached through a symlink would otherwise
+	// put every app module outside it (BUGS.md B51).
+	const root = realPath(resolve(config.root ?? process.cwd()));
 	assertEntry(root, parsed.entry.client, "entry.client");
 	assertEntry(root, parsed.entry.server, "entry.server");
 	const entry = { client: resolve(root, parsed.entry.client), server: resolve(root, parsed.entry.server) };
@@ -116,6 +119,7 @@ function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): U
 	const afterBuild = (built: { clientDir: string; serverFile: string }): Promise<void> =>
 		prerenderApp({ root, ...built, assetsBase: parsed.assetsBase, config: parsed.prerender });
 	return {
+		root,
 		appType: "custom",
 		resolve: { dedupe: ["solid-js", "@solidjs/web"] },
 		ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
@@ -157,11 +161,17 @@ function chunks(): Plugin {
 // the server function ids (B8, B9, B41).
 // A Web Worker bundle passes `client`: a `?worker` module is a client graph whatever environment imports it (B9).
 function boundary(fixed?: Graph): Plugin {
+	// The root as configured and as a real path, so an id in either form is an app module (BUGS.md B51).
+	let roots = { from: "", paths: [] as string[] };
+	const rootsOf = (root: string): string[] => {
+		if (roots.from !== root) roots = { from: root, paths: [...new Set([realPath(root), root])] };
+		return roots.paths;
+	};
 	return {
 		name: "flare:boundary",
 		enforce: "pre",
 		transform(code, id) {
-			const file = appModule(this.environment.config.root, id);
+			const file = appModule(rootsOf(this.environment.config.root), id);
 			if (file === undefined) return null;
 			return boundaryTransform(file, code, fixed ?? graphOf(this.environment.name)) ?? null;
 		},
@@ -177,14 +187,17 @@ function boundary(fixed?: Graph): Plugin {
 
 // A script module of the app: under the root, outside its dependencies, and with no query but Vite's own. The path
 // is root-relative with forward slashes, the form the B41 id hashes.
-function appModule(root: string, id: string): string | undefined {
+function appModule(roots: readonly string[], id: string): string | undefined {
 	const path = id.replace(/\?.*$/s, "");
 	const query = id.slice(path.length + 1);
 	if (![...new URLSearchParams(query).keys()].every((key) => VITE_QUERY.has(key))) return undefined;
 	if (path.startsWith("\0") || !/\.[cm]?[jt]sx?$/.test(path)) return undefined;
-	const file = relative(root, path).split(sep).join("/");
-	if (file.startsWith("../") || isAbsolute(file) || file.split("/").includes("node_modules")) return undefined;
-	return file;
+	for (const root of roots) {
+		const file = relative(root, path).split(sep).join("/");
+		if (!file.startsWith("../") && !isAbsolute(file))
+			return file.split("/").includes("node_modules") ? undefined : file;
+	}
+	return undefined;
 }
 
 // A public bind would expose the dev server.

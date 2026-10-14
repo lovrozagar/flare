@@ -224,7 +224,9 @@ it("logs captured", async () => {
 it("failed boot", async () => {
 	const cacheDir = mkdtempSync(join(tmpdir(), "flare-vite-"));
 	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url));
-	await expect(bootChild({ appDir, cacheDir, bin: "/bin/false" })).rejects.toThrow(/vite exited/);
+	// A child that exits at once without printing an origin. The runtime itself, since macOS has no /bin/false.
+	const exits = { bin: process.execPath, args: ["-e", "process.exit(1)"] };
+	await expect(bootChild({ appDir, cacheDir, ...exits })).rejects.toThrow(/vite exited/);
 	expect(existsSync(cacheDir)).toBe(false);
 	const missing = mkdtempSync(join(tmpdir(), "flare-vite-"));
 	await expect(bootChild({ appDir, cacheDir: missing, bin: "/nonexistent/vite" })).rejects.toThrow(/ENOENT/);

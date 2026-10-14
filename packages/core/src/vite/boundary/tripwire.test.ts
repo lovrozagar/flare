@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,6 +99,18 @@ it("handler body", async () => {
 	await expect(
 		build(root, "client", [forcing("mod.ts", ".handler(undefined)", '.handler(() => "SENTINEL_FN")')]),
 	).rejects.toThrow(/src\/mod\.ts holds code the client graph must not contain \(B45\)/);
+});
+
+// A root reached through a symlink: Vite gives the modules' ids as real paths, and they are still the app's modules,
+// so the boundary transform strips the body instead of leaving it for the tripwire (BUGS.md B51).
+it("symlinked root", async () => {
+	const real = fixture(app(`${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`));
+	const link = `${real}-link`;
+	symlinkSync(real, link);
+	roots.push(link);
+	const client = await build(link, "client");
+	expect(client).toContain("createServerFn");
+	expect(client).not.toContain("SENTINEL_FN");
 });
 
 it("server path", async () => {
