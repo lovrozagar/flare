@@ -103,7 +103,9 @@ export function StreamCard(): JSX.Element {
 		const id = Math.random().toString(16).slice(2, 10);
 		setLines([]);
 		setStatus("running");
-		const iterator = buildLog({ run: id })[Symbol.asyncIterator]();
+		// `?hold` makes the run wait after its second line until it is stopped (the e2e `stream abort`).
+		const hold = new URL(window.location.href).searchParams.has("hold");
+		const iterator = buildLog({ run: id, hold })[Symbol.asyncIterator]();
 		stop = () => void iterator.return?.();
 		for (let step = await iterator.next(); !step.done; step = await iterator.next()) {
 			const value = step.value;
