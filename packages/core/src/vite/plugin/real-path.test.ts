@@ -12,6 +12,7 @@ it("real path", () => {
 	symlinkSync(real, link);
 	try {
 		expect(realPath(link)).toBe(real);
+		expect(realPath(real)).toBe(real);
 		expect(realPath(join(link, "missing"))).toBe(join(link, "missing"));
 	} finally {
 		rmSync(link, { force: true });
