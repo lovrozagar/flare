@@ -218,37 +218,79 @@ async function watchFrames(page: Page): Promise<void> {
 			requestAnimationFrame(tick);
 		};
 		requestAnimationFrame(tick);
+		// When the client marks the document hydrated, and when the page's fonts are ready.
+		new MutationObserver(() => {
+			if (
+				Reflect.get(window, "streamHydrated") === undefined &&
+				document.documentElement.hasAttribute("data-flare-hydrated")
+			) {
+				Reflect.set(window, "streamHydrated", performance.now());
+			}
+		}).observe(document, { attributes: true, subtree: true, attributeFilter: ["data-flare-hydrated"] });
+		void document.fonts.ready.then(() => Reflect.set(window, "streamFonts", performance.now()));
 	});
 }
 
-// What held the page's main thread from the load on, each time from the first line's arrival (BUGS.md 100): every
-// frame gap over 50 ms that ends after the load as `<start>+<length>`, the window's load, the click, and the scripts fetched from the load on as
-// `<start>-<end>:<file>`, which the idle `modules: "all"` prefetch is. A coalesced sample with a long gap beside a
-// script names the stall.
-function mainThread(
-	page: Page,
-	origin: number,
-): Promise<{ gaps: string[]; load: number; click: number; scripts: string[] }> {
-	return page.evaluate((zero) => {
+// What held the page's main thread, each time from the first line's arrival (BUGS.md 100): every frame gap over 50 ms
+// that ends after the load as `<start>+<length>`; the load, the click, the moment `data-flare-hydrated` appeared, and
+// the moment `document.fonts.ready` resolved; every resource fetched from the load on as `<start>-<end>:<type>:<file>`,
+// any type; every mark and measure the page set as `<name>@<start>+<length>`; the paint entries; and the largest
+// contentful paints where the engine reports them. A coalesced sample's long gap lined up against these names its
+// cause.
+type MainThread = {
+	gaps: string[];
+	load: number;
+	click: number;
+	hydrated: number;
+	fonts: number;
+	resources: string[];
+	marks: string[];
+	paints: string[];
+};
+
+function mainThread(page: Page, origin: number): Promise<MainThread> {
+	return page.evaluate(async (zero) => {
+		const at = (time: number): number => Math.round(time - zero);
 		const frames: number[] = Reflect.get(window, "streamFrames");
-		const click = Number(Reflect.get(window, "streamClick"));
 		const [navigation] = performance.getEntriesByType("navigation");
 		const loaded = navigation instanceof PerformanceNavigationTiming ? navigation.loadEventEnd : 0;
 		// A gap is reported when it ends after the load, so one that began before it still counts.
-		const gaps = frames.flatMap((at, index) => {
-			const gap = at - (frames[index - 1] ?? at);
-			return gap > 50 && at > loaded ? [`${Math.round(at - gap - zero)}+${Math.round(gap)}`] : [];
+		const gaps = frames.flatMap((time, index) => {
+			const gap = time - (frames[index - 1] ?? time);
+			return gap > 50 && time > loaded ? [`${at(time - gap)}+${Math.round(gap)}`] : [];
 		});
-		const load = Math.round(loaded - zero);
-		const scripts = performance
+		const resources = performance
 			.getEntriesByType("resource")
-			.filter((entry) => entry instanceof PerformanceResourceTiming)
-			.filter((entry) => entry.startTime >= loaded && entry.name.endsWith(".js"))
-			.map(
-				(entry) =>
-					`${Math.round(entry.startTime - zero)}-${Math.round(entry.responseEnd - zero)}:${entry.name.split("/").at(-1)}`,
-			);
-		return { gaps, load, click: Math.round(click - zero), scripts };
+			.filter((entry) => entry instanceof PerformanceResourceTiming && entry.startTime >= loaded)
+			.map((entry) => {
+				const timing = entry as PerformanceResourceTiming;
+				return `${at(timing.startTime)}-${at(timing.responseEnd)}:${timing.initiatorType}:${timing.name.split("/").at(-1)}`;
+			});
+		const marks = [...performance.getEntriesByType("mark"), ...performance.getEntriesByType("measure")].map(
+			(entry) => `${entry.name}@${at(entry.startTime)}+${Math.round(entry.duration)}`,
+		);
+		const contentful = await new Promise<PerformanceEntry[]>((resolve) => {
+			if (!PerformanceObserver.supportedEntryTypes.includes("largest-contentful-paint")) return resolve([]);
+			const observer = new PerformanceObserver((list) => {
+				observer.disconnect();
+				resolve(list.getEntries());
+			});
+			observer.observe({ type: "largest-contentful-paint", buffered: true });
+			setTimeout(() => resolve([]), 100);
+		});
+		const paints = [...performance.getEntriesByType("paint"), ...contentful].map(
+			(entry) => `${entry.name || entry.entryType}@${at(entry.startTime)}`,
+		);
+		return {
+			gaps,
+			load: at(loaded),
+			click: at(Number(Reflect.get(window, "streamClick"))),
+			hydrated: at(Number(Reflect.get(window, "streamHydrated") ?? Number.NaN)),
+			fonts: at(Number(Reflect.get(window, "streamFonts") ?? Number.NaN)),
+			resources,
+			marks,
+			paints,
+		};
 	}, origin);
 }
 
