@@ -148,13 +148,39 @@ it(
 	3 * PROD_BOOT,
 );
 
-it("workers", async () => {
-	await expect(boot({ app: "minimal", runtime: "workers", mode: "dev" })).rejects.toThrow(/workers/);
-});
+// `vite dev` under the Bun runtime (bits/16).
+it(
+	"bun dev",
+	async () => {
+		const session = await boot({ app: "minimal", runtime: "bun", mode: "dev" });
+		try {
+			const response = await fetch(`${session.origin}/`);
+			expect(response.status).toBe(200);
+			expect(response.headers.get("flare-build")).toBe("dev");
+		} finally {
+			await session.close();
+		}
+	},
+	VITE_BOOT,
+);
 
-it("bun", async () => {
-	await expect(boot({ app: "minimal", runtime: "bun", mode: "dev" })).rejects.toThrow(/bun/);
-});
+// `vite dev` in workerd through the Cloudflare plugin (B95): its banner names the worker debug URL, which only a
+// worker it runs prints.
+it(
+	"workers dev",
+	async () => {
+		const session = await boot({ app: "minimal", runtime: "workers", mode: "dev" });
+		try {
+			const response = await fetch(`${session.origin}/`);
+			expect(response.status).toBe(200);
+			expect(response.headers.get("flare-build")).toBe("dev");
+			expect(session.logs().some((line) => line.includes("/__debug"))).toBe(true);
+		} finally {
+			await session.close();
+		}
+	},
+	2 * VITE_BOOT,
+);
 
 it(
 	"basepath",
