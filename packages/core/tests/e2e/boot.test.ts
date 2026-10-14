@@ -10,6 +10,9 @@ import { boot, bootChild } from "./boot.ts";
 // default, so these tests alone get more room. The global timeout stays.
 const VITE_BOOT = 30_000;
 
+// A closed server refuses the request: Node says "fetch failed", Bun "Unable to connect" (with ECONNREFUSED from 1.4).
+const CLOSED = /fetch failed|ECONNREFUSED|Unable to connect/;
+
 it(
 	"serves",
 	async () => {
@@ -17,7 +20,7 @@ it(
 		const response = await fetch(`${session.origin}/`);
 		expect(response.status).toBe(200);
 		await session.close();
-		await expect(fetch(`${session.origin}/`)).rejects.toThrow(/fetch failed|ECONNREFUSED/);
+		await expect(fetch(`${session.origin}/`)).rejects.toThrow(CLOSED);
 	},
 	VITE_BOOT,
 );
@@ -96,7 +99,7 @@ async function prod(runtime: "node" | "bun" | "workers"): Promise<readonly strin
 		await session.close();
 	}
 	expect(existsSync(session.cacheDir)).toBe(false);
-	await expect(fetch(`${session.origin}/`)).rejects.toThrow(/fetch failed|ECONNREFUSED/);
+	await expect(fetch(`${session.origin}/`)).rejects.toThrow(CLOSED);
 	return session.logs();
 }
 
@@ -163,7 +166,7 @@ it(
 		const root = await fetch(`${session.origin}/`);
 		expect(root.status).toBe(404);
 		await session.close();
-		await expect(fetch(`${session.origin}/app`)).rejects.toThrow(/fetch failed|ECONNREFUSED/);
+		await expect(fetch(`${session.origin}/app`)).rejects.toThrow(CLOSED);
 	},
 	VITE_BOOT,
 );
