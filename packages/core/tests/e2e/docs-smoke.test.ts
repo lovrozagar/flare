@@ -3,8 +3,8 @@ import { documents, expect, isProd, open, test } from "./docs.fixture.ts";
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
 // A document whose own status is not 200 logs that resource failure, and nothing else. `logs` are the flare errors
-// the page's server logs on purpose.
-const PAGES: readonly { path: string; status: number; logs?: readonly string[] }[] = [
+// the page's server logs on purpose, and `shows` the element that proves the page rendered the value that logs.
+const PAGES: readonly { path: string; status: number; logs?: readonly string[]; shows?: string }[] = [
 	{ path: "/", status: 200 },
 	{ path: "/hr", status: 200 },
 	{ path: "/ar", status: 200 },
@@ -15,7 +15,7 @@ const PAGES: readonly { path: string; status: number; logs?: readonly string[] }
 	{ path: "/examples", status: 200 },
 	{ path: "/examples/a/b?tab=data", status: 200 },
 	{ path: "/search?q=route", status: 200 },
-	{ path: "/changelog", status: 200, logs: ["The stats service is down"] },
+	{ path: "/changelog", status: 200, logs: ["The stats service is down"], shows: "#broken-error" },
 	{ path: "/playground", status: 200 },
 	{ path: "/login", status: 200 },
 	{ path: "/[flare]", status: 200 },
@@ -102,10 +102,13 @@ test("dev log clean", async ({ context, docs }, info) => {
 	// Every page in one test, each a cold dev compile the first time.
 	test.setTimeout(120_000);
 	const start = docs.logs().length;
-	for (const { path } of PAGES) {
+	for (const { path, shows } of PAGES) {
 		const page = await context.newPage();
 		await open(page, docs.origin, path);
 		await page.waitForLoadState("networkidle");
+		// Network idle can come before the post-hydrate fill starts, when hydration takes longer than its 500 ms of quiet,
+		// and the page would close before the fill ran the value that logs (BUGS.md 93).
+		if (shows !== undefined) await expect(page.locator(shows)).toBeVisible();
 		await page.close();
 	}
 	const declared = PAGES.flatMap((entry) => entry.logs ?? []);
