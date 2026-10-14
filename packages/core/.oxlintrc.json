@@ -40,7 +40,8 @@
 		{
 			"files": ["tests/e2e/apps/**"],
 			"rules": {
-				"flare/no-module-side-effects": "off"
+				"flare/no-module-side-effects": "off",
+				"flare/funnel-only": "off"
 			}
 		},
 		{
