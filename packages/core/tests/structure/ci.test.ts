@@ -8,7 +8,7 @@ type Job = {
 	"runs-on": string;
 	steps: Step[];
 	container?: { image?: string; options?: string };
-	strategy?: { matrix?: Record<string, unknown> };
+	strategy?: { "fail-fast"?: boolean; matrix?: Record<string, unknown> };
 };
 type Workflow = { env?: Record<string, string>; jobs: Record<string, Job> };
 
@@ -95,21 +95,27 @@ it("ci grid", () => {
 	expect(e2eRun(linux)).toBe("bun run test:e2e -- --shard=${{ matrix.shard }}/3");
 });
 
+// One shard's failure never cancels another's evidence: every e2e matrix runs to the end.
+it("ci shards independent", () => {
+	expect(["e2e-linux", "e2e-mac"].map((name) => workflow.jobs[name]?.strategy?.["fail-fast"])).toEqual([false, false]);
+});
+
 // The step that runs the grid.
 function e2eRun(job: Job | undefined): string {
 	return job?.steps.find((step) => step.run?.startsWith("bun run test:e2e") === true)?.run ?? "";
 }
 
-// macOS runs the 6 webkit projects with every deep spec in 2 shards, and its unit run once, in the first (B97).
+// macOS runs the 6 webkit projects with every deep spec in 3 shards, and its unit run once, in the first (B97). Each
+// shard fits its 20 minutes: with 2, the first ran the unit suite and half the grid for 20.5 and timed out (BUGS.md 100).
 it("ci mac shards", () => {
 	const mac = workflow.jobs["e2e-mac"];
-	expect(mac?.strategy?.matrix?.["shard"]).toEqual([1, 2]);
+	expect(mac?.strategy?.matrix?.["shard"]).toEqual([1, 2, 3]);
 	const run = e2eRun(mac);
 	const servers = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"];
 	expect([...run.matchAll(/--project (\S+)/g)].map((match) => match[1])).toEqual(
 		servers.map((server) => `${server}-webkit`),
 	);
-	expect(run).toContain("--shard=${{ matrix.shard }}/2");
+	expect(run).toContain("--shard=${{ matrix.shard }}/3");
 	expect(mac?.steps.filter((step) => step.run === "bun run test").map((step) => step.if)).toEqual([
 		"matrix.shard == 1",
 	]);
