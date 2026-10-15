@@ -100,6 +100,8 @@ it("server fn stream", () => {
 	expectTypeOf<StreamCtx>().toHaveProperty("signal");
 	expectTypeOf<StreamCtx>().not.toHaveProperty("revalidate");
 	expectTypeOf<HandlerCtx>().not.toHaveProperty("signal");
+	// A handler revalidates through `revalidate()` from the server entry; its context has no such field (BUGS.md 122).
+	expectTypeOf<HandlerCtx>().not.toHaveProperty("revalidate");
 });
 it("server fn render call", () => {
 	expectTypeOf(secret).toBeCallableWith();

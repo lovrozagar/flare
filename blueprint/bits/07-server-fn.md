@@ -331,6 +331,17 @@ Runs the types generator on `packages/core/tests/types/app` and then `tsc --noEm
 | `round trip` | the echo function | the envelope data equals the input |
 | `csrf` | a cross-site POST | 403 |
 | `no store` | the response | `private, no-store` |
+| `method` | a function with no `method`, and a GET function | the default is POST; a GET takes its input as `_i`; the other method is 405 with `Allow` (bite: no method check) |
+| `authenticate` | `.authenticate()` with an app `authenticate` reading a header, and a function without it | the session reaches the handler and `authenticate` runs once a request; a null session is 401 with no handler run; with no CSRF header it is 403 (fail-open off); without `.authenticate()` `auth` is null and `authenticate` does not run (bite: a null session let through) |
+| `input` | a Standard Schema, `{ parse }`, and a function, each async, then a failing schema | each output reaches the handler; the failure is 400 with `fieldErrors` keyed by the first segment (a `{ key }` by its key) and an empty path only in `issues` (bite: validation skipped) |
+| `authorize` | `authenticate`, `input`, `authorize`, and the handler recording their runs | the order is those four; `authorize` false is a JSON 403 `Forbidden` and the handler does not run (bite: `authorize` ignored) |
+| `cache` | a GET with `cache: { maxAge: "1m30s" }`, then `cache` on a POST, with `authenticate`, and with `authorize` | `public, max-age=90`; the three others throw when the chain ends (bite: the check removed) |
+| `handler context` | a handler and a stream reading their context, with an env, a session, and a `serverContext` | the input, the session, the env, the request's URL, and the context object; the stream's `signal` is an `AbortSignal` (bite: `serverContext` dropped) |
+| `wire limits` | `bodyLimit: 16`, a GET with an extra param | 413 over the cap; 400 for the param; `_i` alone is 200 |
+| `wire envelope` | a thrown error in dev, then in production stubbed, a safe error, and `notFound()`, `unauthenticated()`, `unauthorized()` | dev has the message and a stack; production a generic message, a digest, no stack; the safe message is kept; the helpers are 404, 401, 403 |
+| `wire redirect` | a thrown `redirect({ href })` | HTTP 200 with `{ name, status: 303, redirect: { to, status: 303, replace: true } }` and no data |
+| `wire response` | a returned 418 `Response` with its own Cache-Control and `flare-fn`, and a thrown `Response` | 418 and the body kept, `flare-fn: response`, the handler's other header kept, `private, no-store`; the thrown one is 500 (bite: the `flare-fn` marker dropped) |
+| `wire stream` | a stream yielding 1 and 2 | NDJSON, one envelope per value |
 
 ### `tests/e2e/server-fn.test.ts`
 
