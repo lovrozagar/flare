@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
@@ -114,6 +114,32 @@ it("lock held fails", async () => {
 			"Safari is in use by other-host:4242, since ",
 		);
 		expect(Date.now() - started).toBeLessThan(1000);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
+});
+
+// A run past its limit fails with the limit, closes what its drive opened, and frees the lock, so the process can end
+// instead of driving Safari unlocked.
+it("limit closes", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "flare-safari-lock-"));
+	try {
+		const path = join(dir, "safari.lock");
+		const closed: string[] = [];
+		const drive = (_config: unknown, signal: AbortSignal): Promise<number> =>
+			new Promise<number>(() => {
+				signal.addEventListener("abort", () => closed.push("tunnel, docs, and proxy"));
+			});
+		const env = {
+			FLARE_SAFARI_SSH: "flare-no-such-mac.invalid",
+			FLARE_SAFARI_HOST: "10.0.0.2",
+			FLARE_SAFARI_LOCK: path,
+		};
+		await expect(verifySafari(env, { remote: localRemote, drive, limitMs: 50 })).rejects.toThrow(
+			"verify:safari ran past its limit of 50 ms",
+		);
+		expect(closed).toEqual(["tunnel, docs, and proxy"]);
+		expect(existsSync(path)).toBe(false);
 	} finally {
 		rmSync(dir, { recursive: true, force: true });
 	}
