@@ -2,7 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
-import { boot, type Boot } from "../packages/core/tests/e2e/boot.ts";
+import { boot } from "../packages/core/tests/e2e/boot.ts";
 import { fnId } from "../packages/core/tests/e2e/docs.fixture.ts";
 import { SafariSession, type Fetcher } from "./safari-driver.ts";
 import { acquire, quote, release, type Lock, type Remote } from "./safari-lock.ts";
@@ -18,7 +18,8 @@ import { acquire, quote, release, type Lock, type Remote } from "./safari-lock.t
 // /tmp/flare-safari.lock).
 //
 // One run at a time drives the Mac's Safari: a run takes the lock first (scripts/safari-lock.ts) and fails at once,
-// naming the holder, while another holds it. A run stops at RUN_LIMIT_MS, so a lock older than that is stale.
+// naming the holder, while another holds it. A run stops at RUN_LIMIT_MS and closes what it opened, so a lock older
+// than that is stale.
 const RUN_LIMIT_MS = 20 * 60_000;
 
 export type SafariConfig = { ssh: string; driverPort: number; host: string };
@@ -256,24 +257,29 @@ function sshRemote(destination: string): Remote {
 	};
 }
 
+// What a run drives inside the lock. It closes everything it opened when `signal` aborts, as the run's limit does.
+export type Drive = (config: SafariConfig, signal: AbortSignal) => Promise<number>;
+
 export async function verifySafari(
 	env: Record<string, string | undefined>,
-	deps: { remote?: Remote } = {},
+	deps: { remote?: Remote; drive?: Drive; limitMs?: number } = {},
 ): Promise<number> {
 	const config = configOf(env, () => spawnSync("tailscale", ["ip", "-4"], { encoding: "utf8" }).stdout ?? "");
 	const remote = deps.remote ?? sshRemote(config.ssh);
+	const limitMs = deps.limitMs ?? RUN_LIMIT_MS;
 	const path = env["FLARE_SAFARI_LOCK"] ?? "/tmp/flare-safari.lock";
-	const lock: Lock = { path, owner: `${hostname()}:${process.pid}`, staleMs: RUN_LIMIT_MS };
+	const lock: Lock = { path, owner: `${hostname()}:${process.pid}`, staleMs: limitMs };
 	acquire(remote, lock, Date.now());
+	const stop = new AbortController();
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const limit = new Promise<never>((_, reject) => {
-		timer = setTimeout(
-			() => reject(new Error(`verify:safari ran past ${RUN_LIMIT_MS / 60_000} minutes`)),
-			RUN_LIMIT_MS,
-		);
+		timer = setTimeout(() => {
+			stop.abort();
+			reject(new Error(`verify:safari ran past its limit of ${limitMs} ms`));
+		}, limitMs);
 	});
 	try {
-		return await Promise.race([drive(config), limit]);
+		return await Promise.race([(deps.drive ?? drive)(config, stop.signal), limit]);
 	} finally {
 		clearTimeout(timer);
 		release(remote, lock);
@@ -281,13 +287,20 @@ export async function verifySafari(
 }
 
 // The tunnel, the docs server, and the flows, inside the lock.
-async function drive(config: SafariConfig): Promise<number> {
-	const driver = await tunnel(config, fetch);
-	let docs: Boot | undefined;
-	let exposed: { port: number; server: Server } | undefined;
+async function drive(config: SafariConfig, signal: AbortSignal): Promise<number> {
+	// Each resource as it opens, closed once: at the end, or at once when the limit aborts the run.
+	const opened: (() => unknown)[] = [];
+	const closeAll = async (): Promise<void> => {
+		for (const close of opened.splice(0).toReversed()) await Promise.resolve(close()).catch(() => undefined);
+	};
+	signal.addEventListener("abort", () => void closeAll(), { once: true });
 	try {
-		docs = await boot({ app: "docs", runtime: "node", mode: "prod" });
-		exposed = await expose(docs.origin);
+		const driver = await tunnel(config, fetch);
+		opened.push(driver.close);
+		const docs = await boot({ app: "docs", runtime: "node", mode: "prod" });
+		opened.push(docs.close);
+		const exposed = await expose(docs.origin);
+		opened.push(() => exposed.server.close());
 		const upstream = docs.origin;
 		const site: Site = {
 			origin: `http://${config.host}:${exposed.port}`,
@@ -301,21 +314,18 @@ async function drive(config: SafariConfig): Promise<number> {
 				).json(),
 		};
 		const safari = await SafariSession.open(driver.base, fetch);
-		try {
-			return await runFlows(safari, site, { log: (line) => console.log(line) });
-		} finally {
-			await safari.close().catch(() => undefined);
-		}
+		opened.push(() => safari.close());
+		return await runFlows(safari, site, { log: (line) => console.log(line) });
 	} finally {
-		exposed?.server.close();
-		await docs?.close();
-		driver.close();
+		await closeAll();
 	}
 }
 
+// The exit follows the verdict even when something the run opened is still holding the event loop.
 if (import.meta.main) {
-	process.exitCode = await verifySafari(process.env).catch((error: unknown) => {
+	const code = await verifySafari(process.env).catch((error: unknown) => {
 		console.error(`verify:safari: ${error instanceof Error ? error.message : String(error)}`);
 		return 1;
 	});
+	process.exit(code);
 }
