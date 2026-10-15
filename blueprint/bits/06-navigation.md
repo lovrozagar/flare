@@ -150,6 +150,8 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `document load` | the target is under another root layout | `assign` the URL, and no data request |
 | `blocked` | the last blocker returns `false` | no fetch and no history write |
 | `chunk import` | the target's lazy module rejects with a chunk message | one guarded document load of the target URL, and no commit. The chunk error wins even when the data request fails first |
+| `superseded chunk` | a navigation to the lazy route, its data held, then a navigation to /about; then the held data answers and the lazy module has rejected | no document load: the aborted trip's chunk error reloads nothing, and /about commits (BUGS.md 121) |
+| `superseded mismatch` | a navigation to /about whose held answer is from another deploy, then a navigation to /tabs; then the held answer lands | no document load, and /tabs commits (BUGS.md 121) |
 | `optional param` | a route with an optional param, absent and then present | the absent param is not in the match params. The present one is |
 | `restore` | `restore(url)`, one popstate step | the target commits with no blocker and no history write, and the saved scroll comes back. A hash-only step restores too |
 

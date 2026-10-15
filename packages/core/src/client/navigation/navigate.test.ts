@@ -350,6 +350,46 @@ it("chunk import", async () => {
 	expect(location.pathname).toBe("/");
 });
 
+// A response held until the test releases it.
+function held(response: () => Response): { fetch: () => Promise<Response>; release: () => void } {
+	const gate = Promise.withResolvers<void>();
+	return { fetch: async () => (await gate.promise, response()), release: () => gate.resolve() };
+}
+
+// A navigation a newer one superseded loads no document when its chunk fails or its response is from another
+// deploy: the newer navigation commits, and nothing reloads (BUGS.md 121).
+it("superseded chunk", async () => {
+	const lazy = held(() => ndjson(aboutFrames));
+	const app = await setup((url) => (url.startsWith("/lazy") ? lazy.fetch() : Promise.resolve(ndjson(aboutFrames))));
+	const first = app.navigator.navigate({ to: "_root_/lazy" });
+	await app.navigator.navigate({ to: "_root_/about" });
+	lazy.release();
+	await first;
+	flush();
+	expect(app.deps.reload).not.toHaveBeenCalled();
+	expect(app.text()).toBe("root[about:fresh]");
+	expect(location.pathname).toBe("/about");
+});
+
+it("superseded mismatch", async () => {
+	const newer = held(() => ndjson(aboutFrames, { "flare-build": "b2" }));
+	const tabs: Frame[] = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/tabs/[[tab]]", d: "x" },
+		{ t: "r" },
+		{ t: "d" },
+	];
+	const app = await setup((url) => (url.startsWith("/about") ? newer.fetch() : Promise.resolve(ndjson(tabs))));
+	const first = app.navigator.navigate({ to: "_root_/about" });
+	await app.navigator.navigate({ to: "_root_/tabs/[[tab]]" });
+	newer.release();
+	await first;
+	flush();
+	expect(app.deps.reload).not.toHaveBeenCalled();
+	expect(app.text()).toBe("root[tabs:x]");
+	expect(location.pathname).toBe("/tabs");
+});
+
 it("optional param", async () => {
 	const app = await setup(async () =>
 		ndjson([{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/tabs/[[tab]]", d: "none" }, { t: "r" }, { t: "d" }]),
