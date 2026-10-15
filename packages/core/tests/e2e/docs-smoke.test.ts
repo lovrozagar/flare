@@ -95,7 +95,7 @@ test("fill holds nothing", async ({ page, docs }) => {
 	expect(problems).toEqual([]);
 });
 
-// Safari before 18 has no async iteration of ReadableStream (BUGS.md 123): with it removed before the page runs, a
+// Safari before 27 has no async iteration of ReadableStream (BUGS.md 123): with it removed before the page runs, a
 // sidebar navigation still lands as a client navigation, and a streamed server function still delivers every line.
 test("no stream iteration", async ({ page, docs }) => {
 	await page.addInitScript(() => {

@@ -1,5 +1,6 @@
 import { writeFileSync } from "node:fs";
 import { expect, test as base } from "@playwright/test";
+import { removeAfterFloor } from "./floor.ts";
 
 // A page as the crash watch reads it, and the context that opens pages.
 type CrashPage = { on(event: "crash", listener: () => void): unknown; url(): string };
@@ -58,9 +59,18 @@ export function navigationLog(context: Logged, now: () => number = () => perform
 	return () => [...lines];
 }
 
+// The worker option the `node-prod-floor` project sets: every context it opens deletes the APIs above the browser floor
+// before any page script runs (floor.ts, decision B123).
+export type FloorOptions = { floor: boolean };
+
 // Every e2e spec's `test`: the crash watch and the navigation log run around each case on its own context, and a failed
 // case carries the log.
-export const test = base.extend<{ crashGuard: void }>({
+export const test = base.extend<{ crashGuard: void }, FloorOptions>({
+	floor: [false, { option: true, scope: "worker" }],
+	context: async ({ context, floor }, use) => {
+		if (floor) await context.addInitScript(removeAfterFloor);
+		await use(context);
+	},
 	crashGuard: [
 		async ({ context }, use, testInfo) => {
 			const check = crashWatch(context);

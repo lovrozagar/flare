@@ -124,8 +124,18 @@ function unloadedChunks(router: Router): Set<string> {
 
 // Only a same-origin route prefetches. Another origin, or a URL that does not parse, does not (dx/link.md).
 function local(href: string, deps: PrefetchDeps): Target | undefined {
-	if (!URL.canParse(href, deps.origin) || new URL(href, deps.origin).origin !== deps.origin) return undefined;
+	if (!sameOrigin(href, deps.origin)) return undefined;
 	return resolveUrl(href, { router: deps.router, origin: deps.origin, current: deps.current() });
+}
+
+// `URL.canParse` is Chrome 120 and Safari 17, above the client's browser floor (decision B123), so a URL that does not
+// parse is the constructor's throw.
+function sameOrigin(href: string, origin: string): boolean {
+	try {
+		return new URL(href, origin).origin === origin;
+	} catch {
+		return false;
+	}
 }
 
 // The browser's viewport trigger: `run` once, the first time the element is in view.

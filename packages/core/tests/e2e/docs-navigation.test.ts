@@ -69,7 +69,7 @@ test("pending read", async ({ page, docs }) => {
 // The scroll a navigation makes is final when the view transition captures the new page: a card from a scrolled home
 // lands at the top in the transition's first frame, and Back from a scrolled doc page shows home at its saved
 // position in the first frame and after, with no jump (B108, BUGS.md 65).
-test("back keeps scroll", async ({ page, docs }) => {
+test("back keeps scroll", async ({ page, docs, floor }) => {
 	await page.addInitScript(() => {
 		const seen: string[] = [];
 		Reflect.set(window, "__scroll", seen);
@@ -86,25 +86,31 @@ test("back keeps scroll", async ({ page, docs }) => {
 	});
 	await open(page, docs.origin, "/");
 	// The docs set no smooth scrolling, so a scroll lands at once, and each navigation is recorded once its
-	// transition's first frame has run.
+	// transition's first frame has run. The floor has no view transitions (floor.ts), so there it is recorded once the
+	// page is there, and only the restored position is checked.
 	const framed = () =>
 		page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).some((entry) => entry.startsWith("frame")));
+	const transitions = !floor;
 	await page.evaluate(() => window.scrollTo(0, 500));
 	const home = await page.evaluate(() => Math.round(scrollY));
 	expect(home).toBe(500);
 	await page.evaluate(() => document.querySelector<HTMLAnchorElement>("section.grid a")?.click());
 	await expect(page.locator("#doc-title")).toBeVisible();
-	await expect.poll(framed).toBe(true);
-	const forward = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
-	expect(forward.filter((entry) => !entry.endsWith(" 0"))).toEqual([]);
+	if (transitions) {
+		await expect.poll(framed).toBe(true);
+		const forward = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
+		expect(forward.filter((entry) => !entry.endsWith(" 0"))).toEqual([]);
+	}
 	await page.evaluate(() => window.scrollTo(0, 400));
 	await page.evaluate(() => history.back());
 	await expect(page.locator("section.grid a").first()).toBeVisible();
-	await expect.poll(framed).toBe(true);
-	const back = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
-	expect(back.length).toBeGreaterThan(0);
-	expect(back).toEqual(back.map((entry) => `${entry.split(" ")[0]} ${home}`));
-	expect(await page.evaluate(() => Math.round(scrollY))).toBe(home);
+	if (transitions) {
+		await expect.poll(framed).toBe(true);
+		const back = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
+		expect(back.length).toBeGreaterThan(0);
+		expect(back).toEqual(back.map((entry) => `${entry.split(" ")[0]} ${home}`));
+	}
+	await expect.poll(() => page.evaluate(() => Math.round(scrollY))).toBe(home);
 });
 
 test("disabled link", async ({ page, docs }) => {
@@ -171,7 +177,8 @@ async function recordTransitions(page: import("@playwright/test").Page): Promise
 // Every navigation's transition runs on the document, the default scope (B119 (5)): from the top of a doc page, from a
 // doc page scrolled to its bottom (BUGS.md 119.2), and Back to a scrolled doc page (BUGS.md 119.3). An element-scoped
 // one drew the old image at a box the navigation's scroll had moved.
-test("view transition document", async ({ page, docs }) => {
+test("view transition document", async ({ page, docs, floor }) => {
+	test.skip(floor, "the floor has no view transitions (floor.ts); its navigations run in the other cases");
 	await recordTransitions(page);
 	await open(page, docs.origin, "/docs/routing");
 	const calls = async (): Promise<string[]> =>

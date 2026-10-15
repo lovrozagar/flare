@@ -4,6 +4,7 @@ import type { OutletMatch, OutletState, Overlay } from "../../shared/components/
 import type { FrameError } from "../../shared/protocol/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { notFoundRenderOf, type LoadedEntry } from "../../shared/router/create-router.ts";
+import { resolvers } from "../../shared/promise/resolvers.ts";
 import type { Location } from "../../shared/url/index.ts";
 
 // One state-script entry (B83).
@@ -67,7 +68,7 @@ export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (erro
 			return { matches: current.matches, failure: current.failure, unknown: current.unknown, onBoundaryError, onSlot };
 		},
 		commit: (next) => {
-			const { promise, resolve } = Promise.withResolvers<boolean>();
+			const { promise, resolve } = resolvers<boolean>();
 			waiting.push({ snapshot: next, shown: resolve });
 			setSnapshot(next);
 			return promise;
