@@ -1,9 +1,11 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { hostname } from "node:os";
 import { boot, type Boot } from "../packages/core/tests/e2e/boot.ts";
 import { fnId } from "../packages/core/tests/e2e/docs.fixture.ts";
 import { SafariSession, type Fetcher } from "./safari-driver.ts";
+import { acquire, quote, release, type Lock, type Remote } from "./safari-lock.ts";
 
 // `bun run verify:safari` (AGENTS.md, Every gate passes before moving on): the client's core flows in real Safari on
 // the Mac, against a production docs server on this machine. It fails, and never skips, when the Mac, its driver, or
@@ -12,7 +14,12 @@ import { SafariSession, type Fetcher } from "./safari-driver.ts";
 //
 // Inputs, by env: FLARE_SAFARI_SSH, the Mac's ssh destination (default `mac`); FLARE_SAFARI_DRIVER_PORT, the port
 // `safaridriver -p` listens on there (default 4799); FLARE_SAFARI_HOST, this machine's address as the Mac reaches it
-// (default the first address `tailscale ip -4` prints).
+// (default the first address `tailscale ip -4` prints); FLARE_SAFARI_LOCK, the lock directory on the Mac (default
+// /tmp/flare-safari.lock).
+//
+// One run at a time drives the Mac's Safari: a run takes the lock first (scripts/safari-lock.ts) and fails at once,
+// naming the holder, while another holds it. A run stops at RUN_LIMIT_MS, so a lock older than that is stale.
+const RUN_LIMIT_MS = 20 * 60_000;
 
 export type SafariConfig = { ssh: string; driverPort: number; host: string };
 
@@ -240,8 +247,41 @@ async function forward(input: Forwarded, response: ServerResponse): Promise<void
 	response.end();
 }
 
-export async function verifySafari(env: Record<string, string | undefined>): Promise<number> {
+// Runs a lock script on the Mac over ssh, its arguments quoted for the remote shell.
+function sshRemote(destination: string): Remote {
+	return (script, args) => {
+		const command = ["sh", "-s", "--", ...args.map(quote)].join(" ");
+		const run = spawnSync("ssh", ["-o", "BatchMode=yes", destination, command], { input: script, encoding: "utf8" });
+		return { status: run.status, stdout: run.stdout ?? "" };
+	};
+}
+
+export async function verifySafari(
+	env: Record<string, string | undefined>,
+	deps: { remote?: Remote } = {},
+): Promise<number> {
 	const config = configOf(env, () => spawnSync("tailscale", ["ip", "-4"], { encoding: "utf8" }).stdout ?? "");
+	const remote = deps.remote ?? sshRemote(config.ssh);
+	const path = env["FLARE_SAFARI_LOCK"] ?? "/tmp/flare-safari.lock";
+	const lock: Lock = { path, owner: `${hostname()}:${process.pid}`, staleMs: RUN_LIMIT_MS };
+	acquire(remote, lock, Date.now());
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const limit = new Promise<never>((_, reject) => {
+		timer = setTimeout(
+			() => reject(new Error(`verify:safari ran past ${RUN_LIMIT_MS / 60_000} minutes`)),
+			RUN_LIMIT_MS,
+		);
+	});
+	try {
+		return await Promise.race([drive(config), limit]);
+	} finally {
+		clearTimeout(timer);
+		release(remote, lock);
+	}
+}
+
+// The tunnel, the docs server, and the flows, inside the lock.
+async function drive(config: SafariConfig): Promise<number> {
 	const driver = await tunnel(config, fetch);
 	let docs: Boot | undefined;
 	let exposed: { port: number; server: Server } | undefined;

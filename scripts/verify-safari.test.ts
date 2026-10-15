@@ -1,6 +1,11 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, it } from "vitest";
+import { acquire, type Remote } from "./safari-lock.ts";
 import { SafariSession, type Fetcher } from "./safari-driver.ts";
-import { configOf, FLOWS, runFlows, tunnel, type Flow } from "./verify-safari.ts";
+import { configOf, FLOWS, runFlows, tunnel, verifySafari, type Flow } from "./verify-safari.ts";
 
 // The defaults: the Mac at `ssh mac`, its driver on 4799, and this machine at its first Tailscale address.
 it("config defaults", () => {
@@ -84,4 +89,32 @@ it("back reload fails", async () => {
 // is gone after the forward click and back after Back.
 it("forward reload fails", async () => {
 	expect(await hrFlow((backed) => backed)).toBe("the media link loaded as a document");
+});
+
+// The lock's shell scripts, run by a local `sh` as the Mac's would run them over ssh.
+const localRemote: Remote = (script, args) => {
+	const result = spawnSync("sh", ["-c", script, "sh", ...args], { encoding: "utf8" });
+	return { status: result.status, stdout: result.stdout };
+};
+
+// A second verify:safari while another holds the Mac's lock fails at once, naming the holder, before it opens a
+// tunnel or boots anything: the ssh destination here does not resolve, so reaching the tunnel would fail differently.
+it("lock held fails", async () => {
+	const dir = mkdtempSync(join(tmpdir(), "flare-safari-lock-"));
+	try {
+		const path = join(dir, "safari.lock");
+		acquire(localRemote, { path, owner: "other-host:4242", staleMs: 60_000 }, Date.now());
+		const env = {
+			FLARE_SAFARI_SSH: "flare-no-such-mac.invalid",
+			FLARE_SAFARI_HOST: "10.0.0.2",
+			FLARE_SAFARI_LOCK: path,
+		};
+		const started = Date.now();
+		await expect(verifySafari(env, { remote: localRemote })).rejects.toThrow(
+			"Safari is in use by other-host:4242, since ",
+		);
+		expect(Date.now() - started).toBeLessThan(1000);
+	} finally {
+		rmSync(dir, { recursive: true, force: true });
+	}
 });
