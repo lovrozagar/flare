@@ -80,6 +80,7 @@
     "test": "bun run --filter @lovrozagar/flare test",
     "test:bun": "bun --bun run --filter @lovrozagar/flare test:bun",
     "test:e2e": "bunx playwright test -c packages/core/tests/e2e/playwright.config.ts",
+    "verify": "bun scripts/verify.ts",
     "docs:dev": "bun run --bun --cwd packages/core/tests/e2e/apps/docs dev",
     "typecheck": "bun run --filter @lovrozagar/flare type:check && sh -c 'if find packages/core/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.test.ts\" ! -name \"*.test.tsx\" -print -quit 2>/dev/null | grep -q .; then bun run --filter @lovrozagar/flare type:check:src; fi' && bunx tsc -p tsconfig.scripts.json --noEmit && bunx tsc -p packages/core/tests/e2e/apps/docs/tsconfig.json --noEmit"
   },

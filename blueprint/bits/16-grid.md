@@ -151,6 +151,15 @@ The production docs app in Chromium, with every API newer than the floor that th
 | --- | --- | --- |
 | `settles` | `Promise.withResolvers` deleted, then one promise resolved and one rejected | `1`, and the rejection's error |
 
+## `scripts/verify.test.ts` (AGENTS.md, Every gate passes before moving on)
+
+| test | case | result |
+| --- | --- | --- |
+| `gate order` | `GATES` | fmt:check, lint, typecheck, test, test:bun, check-tree, test:e2e |
+| `all pass` | every gate exits 0 on a clean tree | exit 0, and one stamp at `<common git dir>/flare-verified/<sha>` naming the gates |
+| `failing gate` | typecheck exits 2 | exit 2, test and the rest never run, and no stamp |
+| `dirty tree` | `git status --porcelain` is not empty | exit 1, no gate runs, and no stamp |
+
 ## `tests/structure/grid.test.ts`
 
 | test | case | result |

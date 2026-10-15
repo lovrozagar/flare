@@ -776,6 +776,8 @@ scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and t
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run
 packages/core/tests/structure/grid.test.ts	P16	test	node	The 18-project grid, the browser floor's project, and a crashed page failing its test
+scripts/verify.ts	P16	script	node	`bun run verify`: the seven local gates in order, stopping at the first failure; on a clean tree that passes them all, stamps HEAD in the common git dir
+scripts/verify.test.ts	P16	test	node	Unit cases for verify.ts
 packages/core/tests/e2e/floor.ts	P16	test	node	The init script node-prod-floor runs: deletes every browser API newer than the floor before the page runs (decision B123)
 packages/core/tests/structure/browser-floor.ts	P16	test	node	Scans client-reachable sources with oxc for browser APIs above the floor, per @mdn/browser-compat-data (decision B123)
 packages/core/tests/structure/browser-floor-ast.ts	P16	test	node	The oxc ESTree walk browser-floor.ts scans with: reads, a file's declared names, and runtime nodes

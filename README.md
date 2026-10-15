@@ -565,6 +565,7 @@ bun run typecheck           # core, src under consumer-strict flags, scripts/
 bun run test                # vitest, 100% per-file coverage
 bun run test:bun            # the same suite under the Bun runtime, no coverage gate
 bun scripts/check-tree.ts   # the tree matches blueprint/files.tsv
+bun run verify              # all seven gates (above, then test:e2e); stamps the commit when every one passes
 bun run docs:dev            # the docs e2e app in dev, to check by eye
 ```
 
