@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, it } from "vitest";
 import { crashWatch, navigationLog } from "../e2e/crash.ts";
 import config from "../e2e/playwright.config.ts";
@@ -102,4 +104,22 @@ it("navigation log", () => {
 		"20 response 404 http://host/gone",
 		"50 document http://host/b",
 	]);
+});
+
+// A spec's afterAll closes its boot only if the boot happened: when beforeAll fails (a killed vite run, a port taken), an
+// unguarded `session.close()` adds a TypeError on top of the real failure (BUGS.md 119.17).
+it("boot close guarded", () => {
+	const dir = join(import.meta.dirname, "../e2e");
+	const unguarded = readdirSync(dir)
+		.filter((name) => name.endsWith(".test.ts"))
+		.flatMap((name) => {
+			const text = readFileSync(join(dir, name), "utf8");
+			const hooks = [...text.matchAll(/afterAll\(([\s\S]*?)\n\s*\}\);|afterAll\(([^\n]*)\);/g)].map(
+				(match) => match[0],
+			);
+			return hooks.flatMap((hook) =>
+				[...hook.matchAll(/(\w+)\.close\(\)/g)].map((match) => `${name}: ${match[1]}.close()`),
+			);
+		});
+	expect(unguarded).toEqual([]);
 });

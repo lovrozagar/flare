@@ -14,7 +14,7 @@ test.beforeAll(async ({ browserName }, workerInfo) => {
 });
 
 test.afterAll(async () => {
-	await session.close();
+	await session?.close();
 });
 
 // A page error, a console error, or a console warning fails the test: a Solid hydration mismatch or warning
