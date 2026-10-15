@@ -10,7 +10,7 @@ test.beforeAll(async ({ browserName }, workerInfo) => {
 });
 
 test.afterAll(async () => {
-	await session.close();
+	await session?.close();
 });
 
 // A click calls the echo function through the booted transport, and its value lands on the page (B70, B85).

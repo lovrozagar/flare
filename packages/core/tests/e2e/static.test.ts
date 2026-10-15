@@ -18,7 +18,7 @@ test.beforeAll(async ({ browserName }, workerInfo) => {
 });
 
 test.afterAll(async () => {
-	await session.close();
+	await session?.close();
 });
 
 // The page hydrates, and the console holds no error or warning.

@@ -11,7 +11,7 @@ test.beforeAll(async ({ browserName }, workerInfo) => {
 });
 
 test.afterAll(async () => {
-	await session.close();
+	await session?.close();
 });
 
 test("hydrate", async ({ page }: { page: Page; browser: Browser }) => {
@@ -30,7 +30,7 @@ test.describe("basepath", () => {
 	});
 
 	test.afterAll(async () => {
-		await base.close();
+		await base?.close();
 	});
 
 	test("base path serves /app", async ({ page }: { page: Page; browser: Browser }) => {
