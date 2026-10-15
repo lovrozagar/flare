@@ -7,13 +7,14 @@ export function createNavigationState(): NavigationState {
 	const [inFlight, setInFlight] = createSignal(0);
 	return {
 		pending: () => inFlight() > 0,
-		async track(work) {
+		begin() {
 			setInFlight((count) => count + 1);
-			try {
-				return await work;
-			} finally {
+			let ended = false;
+			return () => {
+				if (ended) return;
+				ended = true;
 				setInFlight((count) => count - 1);
-			}
+			};
 		},
 	};
 }

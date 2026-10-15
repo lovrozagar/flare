@@ -49,7 +49,7 @@ it("providers", () => {
 
 it("server defaults", async () => {
 	expect(IDLE_NAVIGATION.pending()).toBe(false);
-	expect(await IDLE_NAVIGATION.track(Promise.resolve(7))).toBe(7);
+	expect(IDLE_NAVIGATION.begin()()).toBeUndefined();
 	expect(NO_BLOCKERS.register(() => false)()).toBeUndefined();
 	const place = { hash: "", pathname: "/", search: "", params: {} };
 	const args = { current: place, next: place, trigger: "navigation" as const };

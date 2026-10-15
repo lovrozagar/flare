@@ -21,7 +21,7 @@ const ALLOWED: readonly { file: string; api: string; line: string; why: string }
 	{
 		file: "src/client/navigation/navigate.ts",
 		api: ".navigation",
-		line: "const settled = await deps.navigation.track(arrive(deps, trip));",
+		line: "const end = deps.navigation.begin();",
 		why: "NavigatorDeps' pending-state tracker, not the Navigation API",
 	},
 ];

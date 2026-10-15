@@ -146,3 +146,126 @@ it("superseded update", async () => {
 	expect(push.mock.calls.map((call) => String(call[2]))).toEqual(["/b"]);
 	push.mockRestore();
 });
+
+// A transition that runs its update at once, and answers like a finished one.
+function startAt(target: Element | Document, before: () => void = () => undefined, after = before): void {
+	Object.defineProperty(target, "startViewTransition", {
+		configurable: true,
+		value: (update: () => void) => {
+			before();
+			update();
+			after();
+			const done = Promise.resolve();
+			return { updateCallbackDone: done, ready: done, finished: done, skipTransition: () => undefined };
+		},
+	});
+}
+
+// The old capture shows the page while it is pending: `pending` is still true when the transition's update starts and
+// at its commit, and has fallen by the time the update returns, not later (dx/navigate.md `useNavigation()`, B124,
+// BUGS.md 119.12).
+it("pending until commit", async () => {
+	const app = await mountNavigator(router, async () => new Response(aboutFrames.map(encodeFrame).join("")));
+	const seen: boolean[] = [];
+	startAt(document, () => {
+		flush();
+		seen.push(app.deps.navigation.pending());
+	});
+	const commit = app.store.commit;
+	app.store.commit = (next) => {
+		const shown = commit(next);
+		flush();
+		seen.push(app.deps.navigation.pending());
+		return shown;
+	};
+	await app.navigator.navigate({ to: "_root_/about" });
+	flush();
+	seen.push(app.deps.navigation.pending());
+	expect(seen).toEqual([true, true, false, false]);
+});
+
+const homeFrames: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/", d: "h" }, { t: "r" }];
+
+// A fetch answer the test sets per step.
+type Answer = () => Promise<Response>;
+
+// After the ends a test drove, `pending` is false, and a later navigation still raises it while it fetches and lowers it
+// at its end: an end counted twice or never would break one or the other.
+async function stillCounts(
+	app: Awaited<ReturnType<typeof mountNavigator>>,
+	answer: (next: Answer) => void,
+): Promise<void> {
+	const pending = (): boolean => {
+		flush();
+		return app.deps.navigation.pending();
+	};
+	expect(pending()).toBe(false);
+	startAt(document);
+	const fetching = Promise.withResolvers<Response>();
+	answer(() => fetching.promise);
+	const later = app.navigator.navigate({ to: "_root_/" });
+	await vi.waitFor(() => expect(pending()).toBe(true));
+	fetching.resolve(new Response(homeFrames.map(encodeFrame).join("")));
+	await later;
+	expect(pending()).toBe(false);
+}
+
+// Every way a navigation ends lowers `pending` once: a status, a network failure, an abort by a newer navigation, and a
+// scoped start that throws and falls back to the document (B119 (3)).
+it("pending ends once", async () => {
+	let answer: Answer = async () => new Response(aboutFrames.map(encodeFrame).join(""));
+	const app = await mountNavigator(router, () => answer());
+	startAt(document);
+	answer = async () => new Response(null, { status: 404 });
+	await app.navigator.navigate({ to: "_root_/about" });
+	answer = () => Promise.reject(new TypeError("Failed to fetch"));
+	await app.navigator.navigate({ to: "_root_/about" });
+	const held = Promise.withResolvers<Response>();
+	answer = () => held.promise;
+	const aborted = app.navigator.navigate({ to: "_root_/about" });
+	answer = async () => new Response(homeFrames.map(encodeFrame).join(""));
+	await app.navigator.navigate({ to: "_root_/" });
+	held.resolve(new Response(aboutFrames.map(encodeFrame).join("")));
+	await aborted;
+	const main = app.host.querySelector("main");
+	if (main === null) throw new Error("no main");
+	Object.defineProperty(main, "startViewTransition", {
+		configurable: true,
+		value: () => {
+			throw new Error("scoped start refused");
+		},
+	});
+	answer = async () => new Response(aboutFrames.map(encodeFrame).join(""));
+	await app.navigator.navigate({ to: "_root_/about", viewTransition: { scope: "auto" } });
+	expect(app.text()).toBe("root[about]");
+	await stillCounts(app, (next) => (answer = next));
+});
+
+// A running transition the next navigation skips (B119 (1)) lowers the skipped navigation's `pending` once too.
+it("pending ends once, skipped", async () => {
+	let answer: Answer = async () => new Response(homeFrames.map(encodeFrame).join(""));
+	const app = await mountNavigator(router, () => answer());
+	let run: (() => void) | undefined;
+	Object.defineProperty(document, "startViewTransition", {
+		configurable: true,
+		value: (update: () => void) => {
+			run?.();
+			const { promise, resolve } = Promise.withResolvers<void>();
+			run = () => {
+				run = undefined;
+				update();
+				resolve();
+			};
+			return { updateCallbackDone: promise, ready: promise, finished: promise, skipTransition: () => run?.() };
+		},
+	});
+	const skipped = app.navigator.navigate({ to: "_root_/about" });
+	await vi.waitFor(() => expect(run).toBeDefined());
+	answer = async () => new Response(aboutFrames.map(encodeFrame).join(""));
+	const last = app.navigator.navigate({ to: "_root_/about", replace: true });
+	await skipped;
+	run?.();
+	await last;
+	expect(app.text()).toBe("root[about]");
+	await stillCounts(app, (next) => (answer = next));
+});

@@ -3,10 +3,10 @@ import type { OutletMatch } from "../../shared/components/index.ts";
 import type { DevErrorPayload } from "../../shared/errors/index.ts";
 import type { Intercept } from "../../shared/route-builder/chain.ts";
 import type { LoadedEntry, Router, ViewTransitionOptions } from "../../shared/router/create-router.ts";
-import { readSearch, type Location } from "../../shared/url/index.ts";
+import type { Location } from "../../shared/url/index.ts";
 import type { FlareHistory } from "../history/index.ts";
-import { cachedMatches, defined, remember, type MatchCache } from "../router/match-cache.ts";
-import { landedFailure, statusFailure, swappedDepth, type RouterStore, type StoreSnapshot } from "../router/store.ts";
+import type { MatchCache } from "../router/match-cache.ts";
+import { swappedDepth, type RouterStore, type StoreSnapshot } from "../router/store.ts";
 import {
 	runTransition,
 	stepDirection,
@@ -19,7 +19,16 @@ import { endOf, type Landed, type Pending } from "./frames.ts";
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts";
 import type { NavigationState } from "./pending.ts";
 import type { ScrollStore } from "./scroll.ts";
-import { arrive, fillOptions, holeWatch, sameUrl, type Arrival } from "./request.ts";
+import {
+	arrive,
+	fillOptions,
+	holeWatch,
+	nextSnapshot,
+	sameUrl,
+	type Arrival,
+	type DataTarget,
+	type Trip,
+} from "./request.ts";
 import { resolveTarget, resolveUrl, type NavigateInput, type Target } from "./target.ts";
 
 export type Landing = Landed;
@@ -49,8 +58,6 @@ export type NavigatorDeps = {
 	send?: ((payload: DevErrorPayload) => void) | undefined;
 	prefetched?: (dataUrl: string) => Promise<Landing | undefined> | undefined;
 };
-
-type DataTarget = Extract<Target, { kind: "data" }>;
 
 type Trigger = "navigation" | "revalidation";
 
@@ -85,16 +92,14 @@ export function createNavigator(deps: NavigatorDeps): {
 		// A stored landing can end with a `"stream"` hole. Once this page commits, one fill asks for its values.
 		const watch = holeWatch(deps, target.location, fill);
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes };
-		const settled = await arrived(deps, trip);
-		if (latest !== controller || settled === undefined || settled.arrival.kind === "none") return;
-		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined;
-		if (redirect !== undefined) {
+		const outcome = await travel(deps, plan, { trip, current: () => latest === controller });
+		if (outcome.kind === "redirect") {
+			const redirect = outcome;
 			return follow(deps, redirect.url, () =>
 				go(resolveUrl(redirect.url, context()), { ...options, replace: redirect.replace }),
 			);
 		}
-		const landed = { chain: settled.chain, arrival: settled.arrival, signal: controller.signal };
-		if (!(await settle(deps, plan, landed))) return;
+		if (outcome.kind !== "committed") return;
 		at = deps.history.index();
 		return watch.committed();
 	};
@@ -118,11 +123,42 @@ export function createNavigator(deps: NavigatorDeps): {
 	};
 }
 
+// One data navigation from its request to its commit: a redirect to follow, a commit, or nothing (aborted, superseded,
+// a failure that commits nothing). Pending runs from the fetch to the commit, inside the transition's update when one
+// runs, so the old capture shows the page as it was while pending (dx/navigate.md `useNavigation()`, B124); every other
+// end lowers it here.
+type Outcome =
+	| { kind: "redirect"; url: string; replace: boolean | undefined }
+	| { kind: "committed" }
+	| { kind: "none" };
+
+async function travel(
+	deps: NavigatorDeps,
+	plan: Plan,
+	input: { trip: Trip; current: () => boolean },
+): Promise<Outcome> {
+	const end = deps.navigation.begin();
+	try {
+		const settled = await arrived(deps, input.trip, end);
+		if (!input.current() || settled === undefined || settled.arrival.kind === "none") return { kind: "none" };
+		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined;
+		if (redirect !== undefined) return { kind: "redirect", url: redirect.url, replace: redirect.replace };
+		const landed = { chain: settled.chain, arrival: settled.arrival, signal: input.trip.signal, end };
+		return { kind: (await settle(deps, plan, landed)) ? "committed" : "none" };
+	} finally {
+		end();
+	}
+}
+
 // A fill settles its holes through the slots the page already reads, so it commits once its values are all in: a commit
-// while one is pending would be held for it, silently (BUGS.md 89). The wait is not tracked as navigation.
-async function arrived(deps: NavigatorDeps, trip: Parameters<typeof arrive>[1]): ReturnType<typeof arrive> {
-	const settled = await deps.navigation.track(arrive(deps, trip));
-	if (trip.fill && settled?.arrival.kind === "landed") await endOf(settled.arrival.landing);
+// while one is pending would be held for it, silently (BUGS.md 89). The wait is not tracked as navigation: the fill's
+// pending ends with its fetch.
+async function arrived(deps: NavigatorDeps, trip: Trip, end: () => void): ReturnType<typeof arrive> {
+	const settled = await arrive(deps, trip);
+	if (trip.fill && settled?.arrival.kind === "landed") {
+		end();
+		await endOf(settled.arrival.landing);
+	}
 	return settled;
 }
 
@@ -165,7 +201,7 @@ function planOf(input: {
 async function settle(
 	deps: NavigatorDeps,
 	plan: Plan,
-	settled: { chain: LoadedEntry[]; arrival: Exclude<Arrival, { kind: "none" }>; signal: AbortSignal },
+	settled: { chain: LoadedEntry[]; arrival: Exclude<Arrival, { kind: "none" }>; signal: AbortSignal; end: () => void },
 ): Promise<boolean> {
 	const { target, previous, arrival } = { ...plan, arrival: settled.arrival };
 	if (plan.intercept !== undefined && arrival.kind === "landed" && arrival.landing.failure === undefined) {
@@ -179,6 +215,7 @@ async function settle(
 			write,
 			state: plan.options.state,
 		});
+		settled.end();
 		return true;
 	}
 	const next = nextSnapshot(deps, { target, chain: settled.chain, arrival, previous });
@@ -196,6 +233,7 @@ async function settle(
 			// A navigation started since this transition began aborted this one: it commits nothing (BUGS.md 98).
 			if (settled.signal.aborted) return;
 			shown = deps.store.commit(next);
+			settled.end();
 			flush();
 			scrolled = deps.store.onScreen() === next;
 			if (scrolled) scrollFor(deps, target.location, step);
@@ -248,43 +286,6 @@ function inPlace(
 	void deps.store.commit({ ...snapshot, location: target.location, matches });
 	land(deps, target, moved);
 	return deps.history.index();
-}
-
-type Next = {
-	target: DataTarget;
-	chain: readonly LoadedEntry[];
-	arrival: Exclude<Arrival, { kind: "none" }>;
-	previous: StoreSnapshot;
-};
-
-// A match the response sent nothing for keeps what the client holds: a page skipped as stale takes its cached
-// data, head, and `v`, and any other match keeps the previous screen's (B30, B83). No `v` paints the raw records.
-function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
-	const params = defined(next.target.match.params);
-	const search = readSearch(next.target.location.search);
-	const landing: Landing = next.arrival.kind === "landed" ? next.arrival.landing : { data: {}, heads: {} };
-	const cached = cachedMatches(next.target.match, next.target.location);
-	const held = cached.map((match) => (match.route in landing.data ? undefined : deps.cache.read(match)));
-	const earlier = (id: string) => next.previous.matches.findIndex((match) => match.id === id);
-	const matches = next.chain.map((entry, index): OutletMatch => {
-		const previous = next.previous.matches[earlier(entry.id)];
-		const landed = entry.id in landing.data;
-		const data = landed ? landing.data[entry.id] : (held[index] ?? previous)?.data;
-		const kept = landed ? landing.preloaders?.[entry.id] : (held[index] ?? previous)?.preloader;
-		const values = (landed ? landing.values?.[entry.id] : held[index]?.values) ?? { params, search };
-		return { id: entry.id, kind: entry.kind, module: entry.module, ...values, data, preloader: kept ?? {} };
-	});
-	const heads = next.chain.map(
-		(entry, index) => landing.heads[entry.id] ?? held[index]?.head ?? next.previous.heads[earlier(entry.id)],
-	);
-	const snapshot: StoreSnapshot = { matches, heads, location: next.target.location };
-	const failure =
-		next.arrival.kind === "status"
-			? statusFailure(next.arrival.status, matches.length - 1)
-			: landedFailure(landing, matches);
-	if (failure !== undefined) snapshot.failure = failure;
-	remember(deps.cache, cached, landing);
-	return snapshot;
 }
 
 // An `x` frame: a same-origin target is the next navigation, another origin a document load.

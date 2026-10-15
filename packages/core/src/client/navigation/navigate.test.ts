@@ -102,6 +102,22 @@ it("network", async () => {
 	expect(location.pathname).toBe("/");
 });
 
+// With no view transition the commit runs directly, and `pending` is still true when it does (dx/navigate.md
+// `useNavigation()`, B124).
+it("pending until commit, no transition", async () => {
+	const app = await setup(async () => ndjson(aboutFrames));
+	const seen: boolean[] = [];
+	const commit = app.store.commit;
+	app.store.commit = (next) => {
+		flush();
+		seen.push(app.deps.navigation.pending());
+		return commit(next);
+	};
+	await app.navigator.navigate({ to: "_root_/about" });
+	flush();
+	expect([...seen, app.deps.navigation.pending()]).toEqual([true, false]);
+});
+
 it("auth error", async () => {
 	for (const [status, text] of [
 		[401, "Please log in"],

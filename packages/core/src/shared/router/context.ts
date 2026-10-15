@@ -41,15 +41,16 @@ export type LinkPrefetch = { watch: (element: HTMLElement, href: string, input?:
 
 export const PrefetchContext: Context<LinkPrefetch | null> = createContext<LinkPrefetch | null>(null);
 
-// One per client. `track` wraps a navigation's fetch: pending stays true while any tracked fetch is in flight.
-// A prefetch is never tracked (dx/navigate.md). A server render is never pending.
+// One per client. `begin` starts a navigation and returns its end, which counts once however often it is called:
+// pending stays true while any navigation has begun and not ended, from its fetch to its commit (dx/navigate.md,
+// B124). A prefetch never begins one. A server render is never pending.
 export type NavigationState = {
 	pending: () => boolean;
-	track: <T>(work: Promise<T>) => Promise<T>;
+	begin: () => () => void;
 };
 
 // The server's values: never pending, and no blocker is asked. They are also the defaults.
-export const IDLE_NAVIGATION: NavigationState = { pending: () => false, track: (work) => work };
+export const IDLE_NAVIGATION: NavigationState = { pending: () => false, begin: () => () => undefined };
 
 export const NavigationContext: Context<NavigationState> = createContext<NavigationState>(IDLE_NAVIGATION);
 

@@ -1,12 +1,17 @@
+import type { OutletMatch } from "../../shared/components/index.ts";
 import { BUILD_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts";
 import type { LoadedEntry } from "../../shared/router/create-router.ts";
 import { loadChain } from "../../shared/router/load-chain.ts";
-import { cachedMatches, holds } from "../router/match-cache.ts";
+import { cachedMatches, defined, holds, remember } from "../router/match-cache.ts";
+import { landedFailure, statusFailure, type StoreSnapshot } from "../router/store.ts";
 import { framesOf, landFrames, type Landed, type Pending } from "./frames.ts";
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts";
-import type { Location } from "../../shared/url/index.ts";
+import { readSearch, type Location } from "../../shared/url/index.ts";
 import { isChunkError } from "./reload.ts";
 import type { Target } from "./target.ts";
+
+// A navigation target that asks the server for data.
+export type DataTarget = Extract<Target, { kind: "data" }>;
 
 // What came back for one navigation: frames to commit, a bare status to paint, or nothing to do.
 export type Arrival = { kind: "landed"; landing: Landed } | { kind: "status"; status: number } | { kind: "none" };
@@ -15,7 +20,7 @@ export type Arrival = { kind: "landed"; landing: Landed } | { kind: "status"; st
 // the `reuse` slots those holes left (dx/defer.md). `holes` hears that a landing ended with placeholders no frame
 // settled, which only a stored body leaves.
 export type Trip = {
-	target: Extract<Target, { kind: "data" }>;
+	target: DataTarget;
 	options: NavigateOptions;
 	trigger: "navigation" | "revalidation";
 	signal: AbortSignal;
@@ -126,4 +131,41 @@ export function holeWatch(
 // The same page: pathname and search, whatever the hash.
 export function sameUrl(left: Location, right: Location): boolean {
 	return left.pathname === right.pathname && left.search === right.search;
+}
+
+type Next = {
+	target: DataTarget;
+	chain: readonly LoadedEntry[];
+	arrival: Exclude<Arrival, { kind: "none" }>;
+	previous: StoreSnapshot;
+};
+
+// A match the response sent nothing for keeps what the client holds: a page skipped as stale takes its cached
+// data, head, and `v`, and any other match keeps the previous screen's (B30, B83). No `v` paints the raw records.
+export function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
+	const params = defined(next.target.match.params);
+	const search = readSearch(next.target.location.search);
+	const landing: Landed = next.arrival.kind === "landed" ? next.arrival.landing : { data: {}, heads: {} };
+	const cached = cachedMatches(next.target.match, next.target.location);
+	const held = cached.map((match) => (match.route in landing.data ? undefined : deps.cache.read(match)));
+	const earlier = (id: string) => next.previous.matches.findIndex((match) => match.id === id);
+	const matches = next.chain.map((entry, index): OutletMatch => {
+		const previous = next.previous.matches[earlier(entry.id)];
+		const landed = entry.id in landing.data;
+		const data = landed ? landing.data[entry.id] : (held[index] ?? previous)?.data;
+		const kept = landed ? landing.preloaders?.[entry.id] : (held[index] ?? previous)?.preloader;
+		const values = (landed ? landing.values?.[entry.id] : held[index]?.values) ?? { params, search };
+		return { id: entry.id, kind: entry.kind, module: entry.module, ...values, data, preloader: kept ?? {} };
+	});
+	const heads = next.chain.map(
+		(entry, index) => landing.heads[entry.id] ?? held[index]?.head ?? next.previous.heads[earlier(entry.id)],
+	);
+	const snapshot: StoreSnapshot = { matches, heads, location: next.target.location };
+	const failure =
+		next.arrival.kind === "status"
+			? statusFailure(next.arrival.status, matches.length - 1)
+			: landedFailure(landing, matches);
+	if (failure !== undefined) snapshot.failure = failure;
+	remember(deps.cache, cached, landing);
+	return snapshot;
 }
