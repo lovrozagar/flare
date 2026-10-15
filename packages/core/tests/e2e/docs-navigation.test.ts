@@ -1,4 +1,5 @@
 import { dataRequests, deepOnly, documents, expect, open, test } from "./docs.fixture.ts";
+import { flushEvents } from "./flush.ts";
 
 // Links, prefetch, view transitions, progress, the blocker, scroll, intercepts, and every hook (bits/15).
 deepOnly();
@@ -84,20 +85,22 @@ test("back keeps scroll", async ({ page, docs }) => {
 		};
 	});
 	await open(page, docs.origin, "/");
+	// The docs set no smooth scrolling, so a scroll lands at once, and each navigation is recorded once its
+	// transition's first frame has run.
+	const framed = () =>
+		page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).some((entry) => entry.startsWith("frame")));
 	await page.evaluate(() => window.scrollTo(0, 500));
-	await page.waitForTimeout(200);
 	const home = await page.evaluate(() => Math.round(scrollY));
 	expect(home).toBe(500);
 	await page.evaluate(() => document.querySelector<HTMLAnchorElement>("section.grid a")?.click());
 	await expect(page.locator("#doc-title")).toBeVisible();
-	await page.waitForTimeout(600);
+	await expect.poll(framed).toBe(true);
 	const forward = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
 	expect(forward.filter((entry) => !entry.endsWith(" 0"))).toEqual([]);
 	await page.evaluate(() => window.scrollTo(0, 400));
-	await page.waitForTimeout(200);
 	await page.evaluate(() => history.back());
 	await expect(page.locator("section.grid a").first()).toBeVisible();
-	await page.waitForTimeout(600);
+	await expect.poll(framed).toBe(true);
 	const back = await page.evaluate(() => (Reflect.get(window, "__scroll") as string[]).splice(0));
 	expect(back.length).toBeGreaterThan(0);
 	expect(back).toEqual(back.map((entry) => `${entry.split(" ")[0]} ${home}`));
@@ -142,7 +145,8 @@ test("prefetch off", async ({ page, docs }) => {
 	await open(page, docs.origin, "/");
 	const requests = dataRequests(page);
 	await page.getByRole("link", { name: "Open the playground" }).hover();
-	await page.waitForTimeout(400);
+	// An intent prefetch leaves from the pointer's own event, so a flush after the hover has seen any.
+	await flushEvents(page);
 	expect(requests.filter((seen) => seen.path === "/playground")).toEqual([]);
 });
 
@@ -216,9 +220,12 @@ test("progress bar", async ({ page, docs }) => {
 test("blocker", async ({ page, docs }) => {
 	await open(page, docs.origin, "/playground");
 	await page.locator("#draft").fill("unsaved idea");
+	const requests = dataRequests(page);
 	page.once("dialog", (dialog) => void dialog.dismiss());
 	await page.locator("#nav").getByRole("link", { name: "Changelog" }).click();
-	await page.waitForTimeout(300);
+	// A navigation the dismissal let through would send its data request at once, before the flush.
+	await flushEvents(page);
+	expect(requests.filter((seen) => seen.kind === "data" && seen.path === "/changelog")).toEqual([]);
 	expect(new URL(page.url()).pathname).toBe("/playground");
 	page.once("dialog", (dialog) => void dialog.accept());
 	await page.locator("#nav").getByRole("link", { name: "Changelog" }).click();
@@ -228,7 +235,6 @@ test("blocker", async ({ page, docs }) => {
 test("scroll restoration", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
 	await page.evaluate(() => window.scrollTo(0, 700));
-	await page.waitForTimeout(100);
 	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
 	await expect(page.locator("#doc-title")).toHaveText("Caching");
 	expect(await page.evaluate(() => window.scrollY)).toBe(0);

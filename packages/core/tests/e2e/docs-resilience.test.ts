@@ -1,4 +1,16 @@
-import { dataRequests, deepOnly, documents, DESKTOP_UA, expect, fnId, isProd, open, test } from "./docs.fixture.ts";
+import {
+	dataRequests,
+	dataTraffic,
+	deepOnly,
+	documents,
+	DESKTOP_UA,
+	expect,
+	fnId,
+	isProd,
+	open,
+	test,
+} from "./docs.fixture.ts";
+import { flushEvents } from "./flush.ts";
 
 // What happens when things go wrong or arrive at once: a new deploy, a missing chunk, a dead network, the overlay
 // history, concurrent misses, locale negotiation, CSRF headers, and a phone (bits/15 docs-resilience).
@@ -64,8 +76,11 @@ test("network failure", async ({ page, docs }) => {
 	const depth = await page.evaluate(() => history.length);
 	// Every data request, the prefetch the hover started included, fails as a dead network would.
 	await page.route("**/*_flare=*", (route) => route.abort("internetdisconnected"));
+	const traffic = dataTraffic(page);
 	await page.locator("#sidebar").getByRole("link", { name: "Auth" }).click();
-	await page.waitForTimeout(500);
+	// The click's requests have all failed, and the page has heard each failure.
+	await expect.poll(() => traffic.started() > 0 && traffic.pending() === 0).toBe(true);
+	await flushEvents(page);
 	await expect(page.locator("#doc-title")).toHaveText("Routing");
 	expect(new URL(page.url()).pathname).toBe("/docs/routing");
 	expect(await page.evaluate(() => history.length)).toBe(depth);
@@ -81,11 +96,14 @@ test("abort keeps latest", async ({ page, docs }) => {
 		await new Promise((resolve) => setTimeout(resolve, 800));
 		await route.continue().catch(() => {});
 	});
+	const traffic = dataTraffic(page);
 	const sidebar = page.locator("#sidebar");
 	await sidebar.getByRole("link", { name: "Auth" }).click();
 	await sidebar.getByRole("link", { name: "Styling" }).click();
 	await expect(page.locator("#doc-title")).toHaveText("Styling");
-	await page.waitForTimeout(1000);
+	// The held Auth requests have ended too, so a late Auth landing would already have committed.
+	await expect.poll(() => traffic.pending()).toBe(0);
+	await flushEvents(page);
 	await expect(page.locator("#doc-title")).toHaveText("Styling");
 	expect(new URL(page.url()).pathname).toBe("/docs/styling");
 });

@@ -1,5 +1,6 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "./crash.ts";
+import { flushEvents } from "./flush.ts";
 import { boot, type Boot } from "./boot.ts";
 
 // Client navigation on the minimal app's real dev path (B70): flare() serves src/server.ts and the client hydrates.
@@ -146,7 +147,8 @@ test("live stream ssr", async ({ page }) => {
 	});
 	const errors = await open(page, "/unstored");
 	await expect(page.locator("#unstored")).toHaveText("STREAMED");
-	await page.waitForTimeout(200);
+	// A fill leaves in the boot's own task, right after hydrate, so a flush after it has seen any.
+	await flushEvents(page);
 	expect(fills).toEqual([]);
 	expect(errors).toEqual([]);
 });
