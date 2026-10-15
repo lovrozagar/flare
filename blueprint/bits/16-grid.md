@@ -175,6 +175,16 @@ The production docs app in Chromium, with every API newer than the floor that th
 | safari-driver `wait times out` | a script that never holds | false at the timeout |
 | safari-driver `session refused` | a driver refusing every session | ten tries, then a throw naming its error |
 
+## `scripts/pre-push.test.ts`, the pre-push hook
+
+`.githooks/pre-push` refuses a push while any commit it would send has no stamp in `<common git dir>/flare-verified/`; a branch deletion sends none. The tests run a copy of the hook in a throwaway repo with a bare remote. Red with the hook's refusal turned into `exit 0`: 3 of 3.
+
+| test | case | result |
+| --- | --- | --- |
+| `unstamped refused` | one unstamped commit, then its stamp | refused naming it; then pushed |
+| `each commit` | a stamped commit pushed, then two more with only the tip stamped | refused naming the middle one, not the tip; pushed once it has a stamp |
+| `verified in a worktree` | `verify` passes in a linked worktree outside the checkout, then an unverified commit | the push from the main checkout goes through; the unverified commit is refused |
+
 ## `tests/structure/grid.test.ts`
 
 | test | case | result |
