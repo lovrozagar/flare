@@ -197,6 +197,36 @@ test("view transition document", async ({ page, docs, floor }) => {
 	expect(await calls()).toEqual(["document", "document", "document", "document"]);
 });
 
+// The document transition's old snapshot is hidden by ViewTransitionCSS, so a capture that comes out white never shows
+// (Chromium 573693508, BUGS.md 119.15, B125): during a navigation's transition, once it is ready, the computed display of
+// `::view-transition-old(root)` is none. Engines without the API have no transition to read.
+test("old snapshot hidden", async ({ page, docs, floor }) => {
+	test.skip(floor, "the floor has no view transitions (floor.ts)");
+	await page.addInitScript(() => {
+		const start = Document.prototype.startViewTransition;
+		if (typeof start !== "function") return;
+		Document.prototype.startViewTransition = function (this: Document, arg?: never) {
+			const transition = start.call(this, arg);
+			void transition.ready.then(
+				() =>
+					Reflect.set(
+						window,
+						"__oldDisplay",
+						getComputedStyle(document.documentElement, "::view-transition-old(root)").display,
+					),
+				() => undefined,
+			);
+			return transition;
+		};
+	});
+	await open(page, docs.origin, "/docs/routing");
+	const supported = await page.evaluate(() => typeof document.startViewTransition === "function");
+	test.skip(!supported, "this engine has no document.startViewTransition");
+	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
+	await expect(page.locator("#doc-title")).toHaveText("Caching");
+	await expect.poll(() => page.evaluate(() => Reflect.get(window, "__oldDisplay"))).toBe("none");
+});
+
 test("view transition off", async ({ page, docs }) => {
 	await recordTransitions(page);
 	await open(page, docs.origin, "/docs/caching");

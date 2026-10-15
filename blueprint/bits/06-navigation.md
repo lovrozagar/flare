@@ -275,8 +275,9 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
-| `default duration` | no prop | the style text uses `175ms` and the tag's nonce is the request nonce |
+| `default duration` | no prop | the style text is the whole rule set with `150ms` (B125), and the tag's nonce is the request nonce. Red before B125: `175ms` and no old-root rule |
 | `custom duration` | `duration={300}` | the style text uses `300ms` |
+| `old root hidden` | the style text | it contains `::view-transition-old(root){display:none}` before the reduced-motion query, and `(root)` is the only old group it names (B125). Red before B125: no such rule |
 | `reduced motion` | the style text | it ends with `@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}` |
 
 ### `client/navigation/popstate.test.ts`
