@@ -322,7 +322,7 @@ A `Set-Cookie` downgrades a shared answer to private unless `cdn.allowCookies` i
 | `useBlocker`             | `@lovrozagar/flare` | `fn({ current, next, trigger })`; `false` cancels the navigation         |
 | `Outlet`                 | `@lovrozagar/flare` | where a layout renders its child                                         |
 | `InterceptOutlet`        | `@lovrozagar/flare` | where an intercepted route renders over the page                         |
-| `ViewTransitionBoundary` | `@lovrozagar/flare` | scopes a view transition to its subtree                                  |
+| `ViewTransitionBoundary` | `@lovrozagar/flare` | the content a navigation's transition captures; the rest stays live      |
 | `ViewTransitionCSS`      | `@lovrozagar/flare` | the transition styles; `duration` defaults to `150`                      |
 
 Full contracts: [link.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/link.md), [navigate.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/navigate.md).

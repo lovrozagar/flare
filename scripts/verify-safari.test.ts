@@ -91,6 +91,64 @@ it("forward reload fails", async () => {
 	expect(await hrFlow((backed) => backed)).toBe("the media link loaded as a document")
 })
 
+// The pointer flow against a session whose page answers each script as `page` says: what the held transition captured
+// and moved, what the pointer hits, whether the link is hovered, and whether the click lands.
+type PointerPage = { animated: string[]; moved: string[]; hit: string; hovered: boolean; lands: boolean }
+async function pointerFlow(page: PointerPage): Promise<string | undefined> {
+	const fake: Fetcher = async (url, init) => ({
+		json: async () => {
+			if (url.endsWith("/session")) return { value: { sessionId: "s1", capabilities: { browserVersion: "26.6.1" } } }
+			if (!url.endsWith("/execute/sync")) return { value: null }
+			const script = String(Reflect.get(Object(JSON.parse(init.body ?? "{}")), "script") ?? "")
+			if (script.includes("getBoundingClientRect")) return { value: { x: 10, y: 20 } }
+			if (script.includes("__animated")) return { value: { animated: page.animated, moved: page.moved } }
+			if (script.includes("elementFromPoint")) return { value: page.hit }
+			if (script.includes(":hover")) return { value: page.hovered }
+			if (script.includes("'/docs/defer'")) return { value: page.lands }
+			return { value: script.startsWith("return") ? true : null }
+		},
+	})
+	const safari = await SafariSession.open("http://driver", fake)
+	const flow = FLOWS.find((entry) => entry.name === "pointer during transition")
+	if (flow === undefined) throw new Error("no pointer during transition flow")
+	return flow.run(safari, { origin: "http://site", callFn: async () => undefined })
+}
+
+const live: PointerPage = {
+	animated: ["::view-transition-old(flare-content)", "::view-transition-new(flare-content)"],
+	moved: [],
+	hit: "/docs/defer",
+	hovered: true,
+	lands: true,
+}
+
+// Only the content is captured, nothing slides, and the sidebar link is hit, hovered, and navigates (B129).
+it("pointer flow passes", async () => {
+	expect(await pointerFlow(live)).toBeUndefined()
+})
+
+// Safari before B129: the document element is hit, the link is not hovered, and the click is lost.
+it("pointer flow dead fails", async () => {
+	expect(await pointerFlow({ ...live, hit: "HTML", hovered: false, lands: false })).toBe(
+		"the pointer hit HTML, not the sidebar link (from scrollY 0)",
+	)
+	expect(await pointerFlow({ ...live, hovered: false })).toBe("the sidebar link was not hovered (from scrollY 0)")
+	// The landing is polled for its full 10 s before the click counts as lost.
+	expect(await pointerFlow({ ...live, lands: false })).toBe("the click on the sidebar link was lost (from scrollY 0)")
+}, 20_000)
+
+// A content group that moves slides; a captured root is the whole-page transition.
+it("pointer flow capture fails", async () => {
+	const moved = ["::view-transition-group(flare-content)"]
+	expect(await pointerFlow({ ...live, moved })).toBe(
+		"the transition moves ::view-transition-group(flare-content) (from scrollY 0)",
+	)
+	const animated = ["::view-transition-old(root)", "::view-transition-new(root)"]
+	expect(await pointerFlow({ ...live, animated })).toBe(
+		"the transition captured ::view-transition-old(root), ::view-transition-new(root), not the content (from scrollY 0)",
+	)
+})
+
 // The lock's shell scripts, run by a local `sh` as the Mac's would run them over ssh.
 const localRemote: Remote = (script, args) => {
 	const result = spawnSync("sh", ["-c", script, "sh", ...args], { encoding: "utf8" })

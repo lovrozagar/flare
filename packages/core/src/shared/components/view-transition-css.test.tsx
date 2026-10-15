@@ -23,7 +23,7 @@ function styleOf(props: { duration?: number }, requestNonce = "n"): HTMLStyleEle
 it("default duration", () => {
 	const style = styleOf({})
 	expect(style.textContent).toBe(
-		"@view-transition{navigation:auto}::view-transition{pointer-events:none}::view-transition-old(*),::view-transition-new(*){animation-duration:150ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
+		"@view-transition{navigation:auto}::view-transition{pointer-events:none}::view-transition-group(flare-content){animation:none}::view-transition-old(*),::view-transition-new(*){animation-duration:150ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
 	)
 	expect(style.getAttribute("nonce")).toBe("n")
 	expect(styleOf({}, "").hasAttribute("nonce")).toBe(false)
@@ -50,4 +50,14 @@ it("old root kept", () => {
 // working on what does not change while a document-scoped transition runs (BUGS.md 119.16, B126).
 it("pointer passthrough", () => {
 	expect(styleOf({}).textContent).toContain("::view-transition{pointer-events:none}")
+})
+
+// The content group does not animate: an element's image is drawn at its old box, which moves when the navigation
+// moves the window, so animated it slides (31 px in Chrome, -696 to 132 px in Safari, from a page scrolled to its bottom); still, it
+// crossfades in place. The rule is outside the reduced-motion query, so it holds for every user (B129).
+it("content group still", () => {
+	const text = styleOf({}).textContent ?? ""
+	const rule = "::view-transition-group(flare-content){animation:none}"
+	expect(text).toContain(rule)
+	expect(text.indexOf(rule)).toBeLessThan(text.indexOf("@media"))
 })

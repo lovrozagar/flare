@@ -279,6 +279,7 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `custom duration` | `duration={300}` | the style text uses `300ms` |
 | `old root kept` | the style text | it names no `::view-transition-old(root)`, so the root crossfades (B125, the user's call withdrawing 3013a5e7's hide). Red against 3013a5e7: the hide rule was there |
 | `pointer passthrough` | the style text | it contains `::view-transition{pointer-events:none}` (B126). Red before B126: no such rule |
+| `content group still` | the style text | it contains `::view-transition-group(flare-content){animation:none}`, before the reduced-motion query, so the content scope's group never moves (B129). Red before B129: no such rule |
 | `reduced motion` | the style text | it ends with `@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}` |
 
 ### `client/navigation/popstate.test.ts`
@@ -378,8 +379,12 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `types` | the default and an array with no type support, then with `ViewTransitionTypeSet`: the default, an array, a function, a function returning `[]`, one returning `false`, and the option `false` | the plain callback three times, then the object form with the array and with the function's list, the plain callback for `[]`, and no transition for the last two. The update runs every time (revised by B119: no default direction type, and the object form only where the browser supports types) |
 | `skips running` | a second transition while the first has not finished, then a third after the second finished | the first is skipped once; the third skips nothing (B119) |
 | `scoped throw` | `"auto"` with a boundary element whose `startViewTransition` throws | the document's start runs with the plain callback, and the update runs once (B119) |
-| `scope` | no scope with a boundary element that can start one, `"auto"`, `"document"`, a scope function returning `"auto"`, and `"auto"` with an element that cannot | the document, the element, the document, the element, the document (revised by B119 (5): the default is the document). With no API at all the update runs directly |
-| `options` | the navigate option over the router default | `undefined` keeps the router's, `true` is `{}`, `false` is off, and an object wins |
+| `scope` | no scope with a boundary element that can start one, `"auto"`, `"document"`, a scope function returning `"auto"`, and `"auto"` with an element that cannot | the document, the element, the document, the element, the document (B119 (5); the default `"content"` starts the document's, B129). With no API at all the update runs directly |
+| `content scope names` | a boundary element, no scope and then `"content"` | before each start the root's `view-transition-name` is `none` and the boundary's `flare-content`, and the boundary's own start is never called (B129). Red before B129: no names |
+| `content names the new boundary` | an update that replaces the boundary element | the old element is named at the old capture; after the update the new one is and the old one is not, so no name is on two elements (B129). Red before B129: no names |
+| `content names cleared` | a transition that finishes; two more, the second skipping the first, which finishes late; then a start that throws | every name is gone after a finish; the late finish of the skipped one leaves the newer one's names; after the throw, which rejects `runTransition`, nothing is named (B129, B119 (1)). Red before B129 |
+| `content without boundary` | no boundary | the document's start, nothing named, and the update runs once (B129) |
+| `options` | the navigate option over the router default | `undefined` keeps the router's, `true` is `{}`, `false` is off, and an object wins, `{ scope: "content" }` among them |
 
 ### `client/navigation/active.test.ts` (BUGS.md 105)
 

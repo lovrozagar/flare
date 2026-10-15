@@ -45,6 +45,73 @@ const SCROLL = "return Math.round(window.scrollY)"
 const MARK = "window.__flareMark = 1"
 const MARKED = "return window.__flareMark === 1"
 const STEPS = ["resolve routes", "bundle client", "bundle server", "prerender pages", "write sitemap", "done"]
+// Holds the next navigation's transition at ready, its animations paused in the same task, and records each
+// ::view-transition pseudo-element it animates and each whose keyframes move it (a transform), as the e2e does.
+const HOLD = `Document.prototype.startViewTransition = ((start) => function (arg) {
+  const transition = start.call(this, arg);
+  transition.ready.then(() => {
+    const animated = [];
+    const moved = [];
+    for (const animation of document.getAnimations()) {
+      animation.pause();
+      const pseudo = (animation.effect && animation.effect.pseudoElement) || "";
+      if (!pseudo.startsWith("::view-transition")) continue;
+      animated.push(pseudo);
+      if (animation.effect.getKeyframes().some((frame) => frame.transform !== undefined)) moved.push(pseudo);
+    }
+    window.__animated = animated;
+    window.__moved = moved;
+    window.__running = true;
+  }, () => undefined);
+  return transition;
+})(Document.prototype.startViewTransition)`
+const center = (css: string): string =>
+	`const box = document.querySelector("${css}").getBoundingClientRect(); return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) }`
+const PRESS = [
+	{ type: "pointerDown", button: 0 },
+	{ type: "pointerUp", button: 0 },
+]
+const moveTo = (point: { x: number; y: number }): Record<string, unknown> => ({
+	type: "pointerMove",
+	duration: 0,
+	origin: "viewport",
+	...point,
+})
+
+// While a navigation's transition is held, from `top`: the content alone is captured and nothing moves, and the
+// sidebar link under the pointer is hit, hovered, and a press on it navigates (B129).
+async function pointerDuring(safari: SafariSession, site: Site, top: number): Promise<string | undefined> {
+	await open(safari, `${site.origin}/docs/routing`)
+	await safari.js(HOLD)
+	await safari.js(`window.scrollTo(0, ${top})`)
+	await safari.wait(`return Math.round(scrollY) === ${top}`)
+	const link = "#sidebar a[href='/docs/defer']"
+	const from = Object(await safari.js(center("#sidebar a[href='/docs/caching']"))) as { x: number; y: number }
+	await safari.pointer([moveTo(from), ...PRESS])
+	if (!(await safari.wait("return window.__running === true", 4000))) return "no view transition ran"
+	// Where the live page has the link mid-transition: from a scrolled page the navigation lands at the top, and the
+	// sticky sidebar moves with it.
+	const target = Object(await safari.js(center(link))) as { x: number; y: number }
+	const seen = Object(await safari.js("return { animated: window.__animated, moved: window.__moved }")) as {
+		animated: string[]
+		moved: string[]
+	}
+	if (!seen.animated.includes("::view-transition-old(flare-content)")) {
+		return `the transition captured ${seen.animated.join(", ")}, not the content`
+	}
+	if (seen.moved.length > 0) return `the transition moves ${seen.moved.join(", ")}`
+	const hit = await safari.js(
+		`const element = document.elementFromPoint(${target.x}, ${target.y}); return element?.closest("a")?.getAttribute("href") ?? element?.tagName`,
+	)
+	await safari.pointer([moveTo(target)])
+	const hovered = await safari.js(`return document.querySelector("${link}").matches(":hover")`)
+	await safari.pointer(PRESS)
+	await safari.js("for (const animation of document.getAnimations()) animation.finish()")
+	if (hit !== "/docs/defer") return `the pointer hit ${String(hit)}, not the sidebar link`
+	if (hovered !== true) return "the sidebar link was not hovered"
+	const landed = await safari.wait("return location.pathname === '/docs/defer'")
+	return landed ? undefined : "the click on the sidebar link was lost"
+}
 
 async function open(safari: SafariSession, url: string): Promise<void> {
 	await safari.go(url)
@@ -133,6 +200,17 @@ export const FLOWS: readonly Flow[] = [
 			return (await safari.wait("return document.querySelector('#stream-status')?.textContent === 'done'"))
 				? undefined
 				: "the run never reported done"
+		},
+	},
+	{
+		// Playwright's WebKit is not Safari (BUGS.md 123), so the live chrome during a transition is checked here too.
+		name: "pointer during transition",
+		run: async (safari, site) => {
+			for (const top of [0, 700]) {
+				const problem = await pointerDuring(safari, site, top)
+				if (problem !== undefined) return `${problem} (from scrollY ${top})`
+			}
+			return undefined
 		},
 	},
 ]

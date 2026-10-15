@@ -195,9 +195,11 @@ test("view transition document", async ({ page, docs, floor }) => {
 	expect(await calls()).toEqual(["document", "document", "document", "document"])
 })
 
-// The document transition keeps its old snapshot, so the old page crossfades out (the user's call of 2026-10-15,
-// withdrawing B125's hide): during a navigation's transition, once it is ready, the computed display of
-// `::view-transition-old(root)` is block. Engines without the API have no transition to read.
+// The transition keeps its old snapshot, so the old content crossfades out (the user's call of 2026-10-15, withdrawing
+// B125's hide). The guide's article is a boundary, so the snapshot is the content's, not the root's (B129): once the
+// transition is ready, `::view-transition-old(flare-content)` is animated and its computed display is block. A computed
+// style alone would read block for a pseudo-element the transition never made. Engines without the API have no
+// transition to read.
 test("old snapshot shown", async ({ page, docs, floor }) => {
 	test.skip(floor, "the floor has no view transitions (floor.ts)")
 	await page.addInitScript(() => {
@@ -206,12 +208,14 @@ test("old snapshot shown", async ({ page, docs, floor }) => {
 		Document.prototype.startViewTransition = function (this: Document, arg?: never) {
 			const transition = start.call(this, arg)
 			void transition.ready.then(
-				() =>
-					Reflect.set(
-						window,
-						"__oldDisplay",
-						getComputedStyle(document.documentElement, "::view-transition-old(root)").display,
-					),
+				() => {
+					const old = "::view-transition-old(flare-content)"
+					const animated = document
+						.getAnimations()
+						.some((animation) => (animation.effect as KeyframeEffect | null)?.pseudoElement === old)
+					const display = getComputedStyle(document.documentElement, old).display
+					Reflect.set(window, "__oldDisplay", animated ? display : "not animated")
+				},
 				() => undefined,
 			)
 			return transition
@@ -223,70 +227,6 @@ test("old snapshot shown", async ({ page, docs, floor }) => {
 	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click()
 	await expect(page.locator("#doc-title")).toHaveText("Caching")
 	await expect.poll(() => page.evaluate(() => Reflect.get(window, "__oldDisplay"))).toBe("block")
-})
-
-// While a view transition runs, ViewTransitionCSS's `::view-transition{pointer-events:none}` lets the pointer reach the
-// live page in Firefox: the sidebar link under the pointer is hit, hovered, and a click on it navigates. Chromium and
-// WebKit hit-test the document element while any transition runs, whatever the CSS, so the link gets no hover and the
-// click is lost (BUGS.md 119.16, B126). Asserted per engine, so a browser fix shows up as this test changing. The
-// transition's animations are paused as it becomes ready, so it is still running when the case reads and clicks, then
-// finished.
-test("pointer during transition", async ({ page, docs, floor, browserName }) => {
-	test.skip(floor, "the floor has no view transitions (floor.ts)")
-	await page.addInitScript(() => {
-		const start = Document.prototype.startViewTransition
-		if (typeof start !== "function") return
-		Document.prototype.startViewTransition = function (this: Document, arg?: never) {
-			const transition = start.call(this, arg)
-			// Paused in the same task as ready, so no round trip from the test can let it finish first (BUGS.md 126).
-			void transition.ready.then(
-				() => {
-					for (const animation of document.getAnimations()) animation.pause()
-					Reflect.set(window, "__running", true)
-				},
-				() => undefined,
-			)
-			void transition.finished.then(
-				() => Reflect.set(window, "__running", false),
-				() => undefined,
-			)
-			return transition
-		}
-	})
-	await open(page, docs.origin, "/docs/routing")
-	const supported = await page.evaluate(() => typeof document.startViewTransition === "function")
-	test.skip(!supported, "this engine has no document.startViewTransition")
-	const box = await page.locator('#sidebar a[href="/docs/defer"]').boundingBox()
-	if (box === null) throw new Error("no sidebar link")
-	const [x, y] = [box.x + box.width / 2, box.y + box.height / 2]
-	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click()
-	await page.waitForFunction(() => Reflect.get(window, "__running") === true)
-	// Longer than the transition, as a loaded grid can be: a hold that did not take has finished by now.
-	await page.waitForTimeout(400)
-	const hit = await page.evaluate(
-		([px, py]) => {
-			const element = document.elementFromPoint(px ?? 0, py ?? 0)
-			return element?.closest("a")?.getAttribute("href") ?? element?.tagName
-		},
-		[x, y],
-	)
-	await page.mouse.move(x, y)
-	const hovered = await page.locator('#sidebar a[href="/docs/defer"]').evaluate((link) => link.matches(":hover"))
-	// Still running when the press lands; in Firefox the click's navigation then skips this transition.
-	const running = await page.evaluate(() => Reflect.get(window, "__running"))
-	await page.mouse.down()
-	await page.mouse.up()
-	await page.evaluate(() => {
-		for (const animation of document.getAnimations()) animation.finish()
-	})
-	const passes = browserName === "firefox"
-	expect({ running, hit, hovered }).toEqual({ running: true, hit: passes ? "/docs/defer" : "HTML", hovered: passes })
-	// Firefox: the click navigates to Deferred data. Chromium and WebKit: it is lost, and the Caching navigation stands.
-	await expect(page.locator("#doc-title")).toHaveText(passes ? "Deferred data" : "Caching")
-	if (!passes) {
-		await page.waitForTimeout(1000)
-		expect(await page.evaluate(() => location.pathname)).toBe("/docs/caching")
-	}
 })
 
 test("view transition off", async ({ page, docs }) => {

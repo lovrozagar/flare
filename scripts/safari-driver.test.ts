@@ -70,3 +70,17 @@ it("session refused", async () => {
 	)
 	expect(busy.sent).toHaveLength(10)
 }, 15_000)
+
+// A pointer sequence goes to Perform Actions as one mouse, so a flow moves and presses where a person would, and the
+// page hit-tests the point itself (B129's `pointer during transition`).
+it("pointer actions", async () => {
+	const fake = driver(opened)
+	const safari = await SafariSession.open("http://driver", fake.fetch)
+	await safari.pointer([
+		{ type: "pointerMove", duration: 0, origin: "viewport", x: 10, y: 20 },
+		{ type: "pointerDown", button: 0 },
+	])
+	expect(fake.sent.at(-1)).toBe(
+		'POST /session/s1/actions {"actions":[{"type":"pointer","id":"mouse","parameters":{"pointerType":"mouse"},"actions":[{"type":"pointerMove","duration":0,"origin":"viewport","x":10,"y":20},{"type":"pointerDown","button":0}]}]}',
+	)
+})

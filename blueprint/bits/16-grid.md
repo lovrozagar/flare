@@ -167,6 +167,9 @@ The production docs app in Chromium, with every API newer than the floor that th
 | `failed flow fails` | three flows: one passes, one answers a problem, one throws | exit 1, a PASS line, two FAIL lines with their problems, and the `1 of 3` summary; one passing flow alone exits 0 |
 | `back reload fails` | the /hr flow with a session whose window mark is gone after Back, the path and the click position restored | `Back loaded a document`: the browser restores the scroll on a document load itself. Red before the mark check: the flow passed |
 | `forward reload fails` | the /hr flow with a session whose mark is gone after the forward click and back after Back, as Safari's back-forward cache restores it | `the media link loaded as a document`. Red before the forward check: the flow passed. In Safari 17.6 with `chunksOf` reverted to stream iteration, the flow passed on the bfcache, found by flare-77 |
+| `pointer flow passes` | the `pointer during transition` flow against a page that captured only `flare-content`, moved nothing, and whose sidebar link is hit, hovered, and lands | passes, from scrollY 0 and 700 (B129) |
+| `pointer flow dead fails` | the document element hit and the click lost; then the link not hovered; then the click lost | `the pointer hit HTML, not the sidebar link (from scrollY 0)`; `the sidebar link was not hovered …`; `the click on the sidebar link was lost …` (the landing polled its full 10 s). Red before the flow existed |
+| `pointer flow capture fails` | a moving `flare-content` group; then a captured root | `the transition moves ::view-transition-group(flare-content) …`; `the transition captured ::view-transition-old(root), ::view-transition-new(root), not the content …` |
 | `lock held fails` | the Mac's lock held by `other-host:4242`, then verify:safari with an ssh destination that does not resolve | rejects within a second with `Safari is in use by other-host:4242, since <time>`, before any tunnel. Red before the lock: it reached the tunnel and failed on ssh. For real: a second run 5 s into a first failed in 602 ms naming `pc:<pid>`, the first passed 5 of 5, and the lock was gone after |
 | `limit closes` | a drive that never settles under a 50 ms limit | rejects `verify:safari ran past its limit of 50 ms`, the drive's tunnel, docs server, and proxy are closed through its abort signal, and the lock is freed; the main entry exits with the code once the run settles. Red before: the run hung past the test's 5 s |
 | safari-lock `held lock fails` | a second owner while the first holds the lock | throws naming the first owner and its start; the first's `owner` file is unchanged |
@@ -177,6 +180,7 @@ The production docs app in Chromium, with every API newer than the floor that th
 | safari-driver `command value` | a value answer, then an error answer | the value; then a throw with the error and its message |
 | safari-driver `session commands` | open, go, click, a wait that holds on its third poll, close | the WebDriver commands in order: session, a 1280×800 window, url, element, its click, three scripts, delete |
 | safari-driver `wait times out` | a script that never holds | false at the timeout |
+| safari-driver `pointer actions` | a move and a press | one Perform Actions command for a single mouse with those actions in order. Red before `pointer`: not a function |
 | safari-driver `session refused` | a driver refusing every session | ten tries, then a throw naming its error |
 
 ## pre-push

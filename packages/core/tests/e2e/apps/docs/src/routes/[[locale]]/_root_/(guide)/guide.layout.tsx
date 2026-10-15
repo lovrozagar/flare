@@ -1,9 +1,9 @@
-import { createLayout, Link, useMatch } from "@lovrozagar/flare"
+import { createLayout, Link, useMatch, ViewTransitionBoundary } from "@lovrozagar/flare"
 import { For } from "solid-js"
 import { docs } from "../../../../content.ts"
 
-// The docs chrome. The group adds no URL segment. A client navigation's view transition runs on the document, the
-// default (B119 (5)): the sidebar's unchanged pixels crossfade invisibly.
+// The docs chrome. The group adds no URL segment. The article is the view-transition boundary, so a client
+// navigation's transition captures only it and the header and sidebar stay live while it runs (B129).
 export const route = createLayout("[[locale]]/_root_/(guide)")
 	.cache({ client: { staleTime: "30s" } })
 	.preloader(() => ({ section: "guide", sidebar: "docs" }))
@@ -34,9 +34,11 @@ export const route = createLayout("[[locale]]/_root_/(guide)")
 						</For>
 					</ul>
 				</aside>
-				<article id="article" class="min-w-0 flex-1">
-					{props.children}
-				</article>
+				<ViewTransitionBoundary>
+					<article id="article" class="min-w-0 flex-1">
+						{props.children}
+					</article>
+				</ViewTransitionBoundary>
 			</div>
 		)
 	})

@@ -739,6 +739,7 @@ packages/core/tests/e2e/http.ts	P16	test	node	The e2e specs' HTTP client, the `h
 packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs page answers its status, hydrates, and leaves the console empty, on every project
 packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
 packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context
+packages/core/tests/e2e/docs-transition.test.ts	P15	test	node	Playwright: the header and sidebar stay live during a navigation's view transition, which captures only the guide's boundary (B129)
 packages/core/tests/e2e/docs-data.test.ts	P15	test	node	Playwright: defer, TanStack Query, server functions and streams, server context, fetch dedupe, env helpers
 packages/core/tests/e2e/docs-cache.test.ts	P15	test	node	Playwright: SSG seeds, ISR, shared SSR, CDN headers, tag purge, the client match cache, the store per runtime
 packages/core/tests/e2e/docs-server.test.ts	P15	test	node	Playwright: auth boundaries, login, CSRF, body cap, middleware, mounts, .response(), route headers, security
