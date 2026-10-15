@@ -275,9 +275,9 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
-| `default duration` | no prop | the style text is the whole rule set with `150ms` (B125), and the tag's nonce is the request nonce. Red before B125: `175ms` and no old-root rule |
+| `default duration` | no prop | the style text is the whole rule set with `150ms` (B125), and the tag's nonce is the request nonce. Red before B125: `175ms` |
 | `custom duration` | `duration={300}` | the style text uses `300ms` |
-| `old root hidden` | the style text | it contains `::view-transition-old(root){display:none}` before the reduced-motion query, and `(root)` is the only old group it names (B125). Red before B125: no such rule |
+| `old root kept` | the style text | it names no `::view-transition-old(root)`, so the root crossfades (B125, the user's call withdrawing 3013a5e7's hide). Red against 3013a5e7: the hide rule was there |
 | `pointer passthrough` | the style text | it contains `::view-transition{pointer-events:none}` (B126). Red before B126: no such rule |
 | `reduced motion` | the style text | it ends with `@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}` |
 

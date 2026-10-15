@@ -23,7 +23,7 @@ function styleOf(props: { duration?: number }, requestNonce = "n"): HTMLStyleEle
 it("default duration", () => {
 	const style = styleOf({});
 	expect(style.textContent).toBe(
-		"@view-transition{navigation:auto}::view-transition-old(root){display:none}::view-transition{pointer-events:none}::view-transition-old(*),::view-transition-new(*){animation-duration:150ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
+		"@view-transition{navigation:auto}::view-transition{pointer-events:none}::view-transition-old(*),::view-transition-new(*){animation-duration:150ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
 	);
 	expect(style.getAttribute("nonce")).toBe("n");
 	expect(styleOf({}, "").hasAttribute("nonce")).toBe(false);
@@ -39,15 +39,11 @@ it("reduced motion", () => {
 	);
 });
 
-// The document transition's old snapshot is hidden, so a capture that comes out white never shows (Chromium 573693508,
-// BUGS.md 119.15, B125); the new state fades in over the page. The rule sits outside the reduced-motion query, so it
-// holds with motion on or off, and it names only the root group, so an app's own named groups keep both images.
-it("old root hidden", () => {
-	const text = styleOf({}).textContent ?? "";
-	const rule = "::view-transition-old(root){display:none}";
-	expect(text).toContain(rule);
-	expect(text.indexOf(rule)).toBeLessThan(text.indexOf("@media"));
-	expect(text.match(/::view-transition-old\([^*)]+\)/g)).toEqual(["::view-transition-old(root)"]);
+// The document transition keeps its crossfade: no rule hides the old root snapshot (the user's call of 2026-10-15,
+// withdrawing B125's hide). An app that meets Chromium 573693508's white capture adds
+// `::view-transition-old(root){display:none}` itself (dx/navigate.md).
+it("old root kept", () => {
+	expect(styleOf({}).textContent).not.toContain("::view-transition-old(root)");
 });
 
 // The transition's overlay passes pointer events through to the live page, so hover, the pointer cursor, and clicks keep
