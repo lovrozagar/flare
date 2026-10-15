@@ -291,3 +291,25 @@ it("options", () => {
 	expect(transitionOption({ scope: "document" }, router)).toEqual({ scope: "document" })
 	expect(transitionOption({ scope: "content" }, router)).toEqual({ scope: "content" })
 })
+
+// An app's own inline `view-transition-name` on the root or the boundary comes back once the transition ends, and on
+// the element an update replaced, so the content scope's names never cost the app its own (B129).
+it("content names restored", async () => {
+	const old = document.body.appendChild(document.createElement("article"))
+	const next = document.createElement("article")
+	document.documentElement.style.setProperty("view-transition-name", "page")
+	old.style.setProperty("view-transition-name", "card", "important")
+	let current = old
+	const { start, seen, finishers } = capturing(() => [old])
+	Object.defineProperty(document, "startViewTransition", { configurable: true, value: start })
+	const replace = (): void => {
+		old.replaceWith(next)
+		current = next
+	}
+	await runTransition({ option: {}, info, auto: () => current, update: replace })
+	expect(seen).toEqual([{ before: ["none", "flare-content"], after: ["none", "card"] }])
+	expect(old.style.getPropertyPriority("view-transition-name")).toBe("important")
+	finishers[0]?.()
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	expect(names(old, next)).toEqual(["page", "card", ""])
+})

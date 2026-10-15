@@ -13,9 +13,14 @@ type Started = {
 
 type Start = (arg: (() => void) | { update: () => void; types: string[] }) => Started
 
+// An element the content scope named, with the inline name it had before, which comes back after (B129).
+type Named = { element: HTMLElement; value: string; priority: string }
+
 // The page's navigation transition still running, skipped before the next one starts (B119), and the names the content
 // scope set for it (B129). Client only: one page.
-const transitions: { running: Started | undefined; named: HTMLElement[] } = { running: undefined, named: [] }
+const transitions: { running: Started | undefined; named: Named[] } = { running: undefined, named: [] }
+
+const NAME = "view-transition-name"
 
 // The content scope's name for the boundary element; ViewTransitionCSS holds its group still (B129).
 const CONTENT = "flare-content"
@@ -100,24 +105,38 @@ function named(input: { auto: () => Element | Document; update: () => void }): (
 	const before = input.auto()
 	if (!(before instanceof HTMLElement)) return input.update
 	name(document.documentElement, "none")
-	name(before, CONTENT)
+	const kept = name(before, CONTENT)
 	return () => {
 		input.update()
 		const after = input.auto()
 		if (after === before || !(after instanceof HTMLElement)) return
-		before.style.removeProperty("view-transition-name")
+		transitions.named.splice(transitions.named.indexOf(kept), 1)
+		restore(kept)
 		name(after, CONTENT)
 	}
 }
 
-// Through CSSOM, which a nonce CSP allows, and only for the transition's life.
-function name(element: HTMLElement, value: string): void {
-	element.style.setProperty("view-transition-name", value)
-	transitions.named.push(element)
+// Through CSSOM, which a nonce CSP allows, and only for the transition's life: the element's own inline name, value and
+// priority, is kept to come back.
+function name(element: HTMLElement, value: string): Named {
+	const kept = {
+		element,
+		value: element.style.getPropertyValue(NAME),
+		priority: element.style.getPropertyPriority(NAME),
+	}
+	element.style.setProperty(NAME, value)
+	transitions.named.push(kept)
+	return kept
 }
 
+function restore(kept: Named): void {
+	if (kept.value === "") kept.element.style.removeProperty(NAME)
+	else kept.element.style.setProperty(NAME, kept.value, kept.priority)
+}
+
+// Last named first, so an element named twice ends with what it had before the first.
 function unname(): void {
-	for (const element of transitions.named.splice(0)) element.style.removeProperty("view-transition-name")
+	for (const kept of transitions.named.splice(0).reverse()) restore(kept)
 }
 
 // The scope's own start, else the document's. A scoped start that throws falls back to the document's (B119).
