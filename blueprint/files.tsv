@@ -469,6 +469,7 @@ packages/core/src/vite/boundary/env.ts	P7	src	vite	oxc rewrite of createServerOn
 packages/core/src/vite/boundary/env.test.ts	P7	test	vite	Unit cases for env.ts
 packages/core/src/vite/boundary/tripwire.ts	P7	src	vite	Fail the build when an emitted chunk contains a server body or an env helper body that belongs in another graph
 packages/core/src/vite/boundary/tripwire.test.ts	P7	test	vite	Unit cases for tripwire.ts
+packages/core/src/vite/boundary/build.fixture.ts	P7	test	vite	A fixture app built by Vite through flare()'s boundary transform, per graph, for the tripwire and the env helpers' cases
 packages/core/src/vite/boundary/index.ts	P7	index	vite	Re-exports
 packages/core/src/vite/plugin/flare.ts	P1	src	vite	The Vite plugin. Calls solid with ssr true and does not pass start (B89)
 packages/core/src/vite/plugin/real-path.ts	P15	src	vite	The real path of a root reached through a symlink, so Vite's ids, the manifest, and the boundary agree (BUGS.md B51)
@@ -744,6 +745,7 @@ packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app m
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
 packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
 packages/core/tests/integration/defer.test.ts	P15	test	node	`defer` through the real createServer, and `useDeferred` through the browser harness in every engine (B96, dx/defer.md)
+packages/core/tests/integration/env.test.ts	P15	test	node	dx/env.md's call shapes through a real Vite build with flare()'s boundary transform: the chunks each graph emits, or the build's rejection (B96)
 packages/core/tests/integration/flare-page.test.ts	P15	test	node	flarePage over a real page the harness serves and hydrates, in every engine (B96, dx/testing.md)
 packages/core/tests/e2e/docs-resilience.test.ts	P15	test	node	Playwright: deploy and chunk reloads, network failure, aborts, overlay history, concurrent misses, negotiation, CSRF headers, a phone
 packages/core/src/vite/plugin/cloudflare.ts	P16	src	vite	Find the app's own Cloudflare plugin and check it runs on ssr with flare's worker entry as Wrangler main (B109)
