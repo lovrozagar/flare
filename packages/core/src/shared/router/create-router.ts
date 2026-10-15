@@ -75,8 +75,11 @@ export type TransitionInfo = {
 	toLocation: Location
 	pathChanged: boolean
 }
+// "content", the default, captures only the innermost ViewTransitionBoundary (B129); "document" the whole page;
+// "auto" starts the boundary element's own transition (dx/navigate.md).
+export type TransitionScope = "content" | "document" | "auto"
 export type ViewTransitionOptions = {
-	scope?: "auto" | "document" | ((info: TransitionInfo) => "auto" | "document")
+	scope?: TransitionScope | ((info: TransitionInfo) => TransitionScope)
 	types?: string[] | ((info: TransitionInfo) => string[] | false)
 }
 

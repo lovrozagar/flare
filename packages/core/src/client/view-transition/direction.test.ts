@@ -127,8 +127,9 @@ it("scoped throw", async () => {
 	expect(update).toHaveBeenCalledOnce()
 })
 
-// The default scope is the document, though a boundary could start one; "auto" and a function returning it opt into the
-// boundary's element, and an element that cannot start one falls back to the document (B119 (5)).
+// The default scope starts the document's transition, though a boundary could start one (B119 (5), B129); "auto" and a
+// function returning it opt into the boundary's element, and an element that cannot start one falls back to the
+// document.
 it("scope", async () => {
 	const fromDocument = stub()
 	Object.defineProperty(document, "startViewTransition", { configurable: true, value: fromDocument.start })
@@ -145,6 +146,114 @@ it("scope", async () => {
 	Reflect.deleteProperty(document, "startViewTransition")
 	const plain = vi.fn<() => void>()
 	await runTransition({ option: {}, info, auto: () => document, update: plain })
+	expect(plain).toHaveBeenCalledOnce()
+})
+
+// The names the content scope sets: the root's and each element's `view-transition-name`, as CSSOM holds them.
+function names(...elements: HTMLElement[]): string[] {
+	return [document.documentElement, ...elements].map((element) =>
+		element.style.getPropertyValue("view-transition-name"),
+	)
+}
+
+// A start that reads the names at the old capture (before the update) and at the new one (after it), then finishes
+// when the test says.
+function capturing(elements: () => HTMLElement[]) {
+	const seen: { before: string[]; after: string[] }[] = []
+	const finishers: (() => void)[] = []
+	const skipped: number[] = []
+	const start = vi.fn<(arg: () => void) => Started>((arg) => {
+		const before = names(...elements())
+		arg()
+		seen.push({ before, after: names(...elements()) })
+		const index = seen.length
+		return {
+			updateCallbackDone: Promise.resolve(),
+			ready: Promise.resolve(),
+			finished: new Promise<void>((resolve) => void finishers.push(resolve)),
+			skipTransition: () => void skipped.push(index),
+		}
+	})
+	return { start, seen, finishers, skipped }
+}
+
+afterEach(() => {
+	document.documentElement.style.removeProperty("view-transition-name")
+	document.body.replaceChildren()
+})
+
+// With a boundary, the default scope ("content") captures only it: the root is named none and the boundary
+// flare-content before the document's transition starts, so what is outside stays live (B129).
+it("content scope names", async () => {
+	const boundary = document.body.appendChild(document.createElement("article"))
+	const own = stub()
+	Object.defineProperty(boundary, "startViewTransition", { configurable: true, value: own.start })
+	const { start, seen } = capturing(() => [boundary])
+	Object.defineProperty(document, "startViewTransition", { configurable: true, value: start })
+	await runTransition({ option: {}, info, auto: () => boundary, update })
+	await runTransition({ option: { scope: "content" }, info, auto: () => boundary, update })
+	expect(seen.map((one) => one.before)).toEqual([
+		["none", "flare-content"],
+		["none", "flare-content"],
+	])
+	expect(own.start).not.toHaveBeenCalled()
+})
+
+// The update can replace the boundary's element (a layout remount): the one there after the commit is named for the
+// new capture, and the one it replaced is not, so no name is ever on two elements (B129).
+it("content names the new boundary", async () => {
+	const old = document.body.appendChild(document.createElement("article"))
+	const next = document.createElement("article")
+	let current = old
+	const { start, seen } = capturing(() => [old, next])
+	Object.defineProperty(document, "startViewTransition", { configurable: true, value: start })
+	const replace = (): void => {
+		old.replaceWith(next)
+		current = next
+	}
+	await runTransition({ option: {}, info, auto: () => current, update: replace })
+	expect(seen).toEqual([{ before: ["none", "flare-content", ""], after: ["none", "", "flare-content"] }])
+})
+
+// Every name goes when the transition finishes, when the next navigation skips it, and when the start throws, so a
+// root left at none never kills a later document transition. A skipped transition finishing late leaves the newer
+// one's names alone (B129, B119 (1)).
+it("content names cleared", async () => {
+	const boundary = document.body.appendChild(document.createElement("article"))
+	const { start, seen, finishers, skipped } = capturing(() => [boundary])
+	Object.defineProperty(document, "startViewTransition", { configurable: true, value: start })
+	await runTransition({ option: {}, info, auto: () => boundary, update })
+	finishers[0]?.()
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	expect(names(boundary)).toEqual(["", ""])
+	await runTransition({ option: {}, info, auto: () => boundary, update })
+	await runTransition({ option: {}, info, auto: () => boundary, update })
+	expect(skipped).toEqual([2])
+	expect(seen[2]?.before).toEqual(["none", "flare-content"])
+	finishers[1]?.()
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	expect(names(boundary)).toEqual(["none", "flare-content"])
+	finishers[2]?.()
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	expect(names(boundary)).toEqual(["", ""])
+	const thrown = new DOMException("no transition now", "InvalidStateError")
+	Object.defineProperty(document, "startViewTransition", {
+		configurable: true,
+		value: () => {
+			throw thrown
+		},
+	})
+	await expect(runTransition({ option: {}, info, auto: () => boundary, update })).rejects.toBe(thrown)
+	expect(names(boundary)).toEqual(["", ""])
+})
+
+// With no boundary the content scope is the document crossfade, and nothing is named (B129).
+it("content without boundary", async () => {
+	const { start, seen } = capturing(() => [])
+	Object.defineProperty(document, "startViewTransition", { configurable: true, value: start })
+	const plain = vi.fn<() => void>()
+	await runTransition({ option: {}, info, auto, update: plain })
+	expect(seen).toEqual([{ before: [""], after: [""] }])
 	expect(plain).toHaveBeenCalledOnce()
 })
 
@@ -180,4 +289,5 @@ it("options", () => {
 	expect(transitionOption(true, false)).toEqual({})
 	expect(transitionOption(false, router)).toBe(false)
 	expect(transitionOption({ scope: "document" }, router)).toEqual({ scope: "document" })
+	expect(transitionOption({ scope: "content" }, router)).toEqual({ scope: "content" })
 })

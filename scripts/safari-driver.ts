@@ -57,6 +57,12 @@ export class SafariSession {
 		await this.#call("POST", `/element/${element}/click`, {})
 	}
 
+	// One mouse's moves and presses, through Perform Actions: the page hit-tests the point as it would for a person.
+	pointer(actions: readonly Record<string, unknown>[]): Promise<unknown> {
+		const mouse = { type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions }
+		return this.#call("POST", "/actions", { actions: [mouse] })
+	}
+
 	back(): Promise<unknown> {
 		return this.#call("POST", "/back", {})
 	}

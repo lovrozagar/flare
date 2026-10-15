@@ -8,7 +8,8 @@ const REDUCED =
 
 // The document transition crossfades: the old root snapshot is kept (B125; where Chrome's capture comes out white,
 // Chromium 573693508, an app hides it itself, dx/navigate.md). The overlay passes pointer events through, so what does
-// not change keeps hover and clicks while a transition runs where the engine allows (BUGS.md 119.16, B126). `duration`
+// not change keeps hover and clicks while a transition runs where the engine allows (BUGS.md 119.16, B126). The content
+// scope's group does not move, so the boundary crossfades in place instead of sliding from its old box (B129). `duration`
 // is milliseconds, 150 by default (B125). The tag carries the request nonce, so a nonce CSP allows it (dx/server.md).
 export function ViewTransitionCSS(props: { duration?: number }): JSX.Element {
 	const value = nonce()
@@ -17,7 +18,7 @@ export function ViewTransitionCSS(props: { duration?: number }): JSX.Element {
 		nonce: value === "" ? undefined : value,
 		get children() {
 			const duration = props.duration ?? 150
-			return `@view-transition{navigation:auto}::view-transition{pointer-events:none}::view-transition-old(*),::view-transition-new(*){animation-duration:${duration}ms}${REDUCED}`
+			return `@view-transition{navigation:auto}::view-transition{pointer-events:none}::view-transition-group(flare-content){animation:none}::view-transition-old(*),::view-transition-new(*){animation-duration:${duration}ms}${REDUCED}`
 		},
 	})
 }
