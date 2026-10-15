@@ -1,4 +1,5 @@
-import { dataRequests, deepOnly, expect, fnId, isProd, open, serverOf, test } from "./docs.fixture.ts";
+import { dataRequests, deepOnly, expect, fnId, idle, isProd, open, serverOf, test } from "./docs.fixture.ts";
+import { flushEvents } from "./flush.ts";
 
 // Deferred data, TanStack Query, server functions, server context, and the env helpers (bits/15 docs-data).
 deepOnly();
@@ -74,20 +75,22 @@ test("query prefetched", async ({ page, docs }) => {
 	});
 	await open(page, docs.origin, "/search?q=route");
 	await expect(page.locator("#results li").first()).toBeVisible();
-	await page.waitForTimeout(300);
+	await idle(page);
+	await flushEvents(page);
 	expect(calls).toEqual([]);
 });
 
 // A document load of a doc page hydrates with the feedback query the server filled and sends no request for it, during
-// the hydration mount or in the second after it, on TanStack's default staleTime (B102). The refetch it replaces went
-// out from the hydration mount itself, before `data-flare-hydrated`.
+// the hydration mount or before the page goes idle, on TanStack's default staleTime (B102). The refetch it replaces
+// went out from the hydration mount itself, before `data-flare-hydrated`.
 test("query hydrates once", async ({ page, docs }) => {
 	const calls: string[] = [];
 	page.on("request", (request) => {
 		if (request.url().includes("/_flare/fn/")) calls.push(request.url());
 	});
 	await open(page, docs.origin, "/docs/routing");
-	await page.waitForTimeout(1000);
+	await idle(page);
+	await flushEvents(page);
 	expect(calls).toEqual([]);
 });
 

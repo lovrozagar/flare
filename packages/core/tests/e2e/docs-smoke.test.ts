@@ -2,7 +2,8 @@ import { appendFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { bootCopy } from "./copy-boot.ts";
 import { loadHydrated } from "../../src/testing/playwright.ts";
-import { documents, expect, isProd, open, serverOf, test } from "./docs.fixture.ts";
+import { dataTraffic, documents, expect, isProd, open, serverOf, test } from "./docs.fixture.ts";
+import { flushEvents } from "./flush.ts";
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
 // A document whose own status is not 200 logs that resource failure, and nothing else. `logs` are the flare errors
@@ -84,10 +85,13 @@ const SENTINEL = "/__unused-preload-sentinel.css";
 const FLUSH = "preloads settle: console flushed";
 
 // After hydrate the changelog fills its stream holes. The fill commits once its last value is in, so the commit is
-// never held behind one, and a load kept open past Solid's hold threshold logs no SILENT_HOLD (BUGS.md 89).
+// never held behind one, and Solid logs no SILENT_HOLD for it (BUGS.md 89). Solid warns during a hold, so once the
+// fill's last value is on screen and the console is flushed, any warning has arrived.
 test("fill holds nothing", async ({ page, docs }) => {
 	const problems = await open(page, docs.origin, "/changelog");
-	await page.waitForTimeout(1500);
+	await expect(page.locator("#stats")).toContainText("18,420 downloads");
+	await expect(page.locator("#latest")).toContainText("1.0.0");
+	await flushEvents(page);
 	expect(problems).toEqual([]);
 });
 
@@ -302,6 +306,7 @@ test("rapid links", async ({ page, docs }) => {
 	const errors: string[] = [];
 	page.on("pageerror", (error) => errors.push(`${error.name}: ${error.message}\n${error.stack ?? ""}`));
 	await open(page, docs.origin, "/docs/routing");
+	const traffic = dataTraffic(page);
 	// Clicked from the page, so no actionability wait stretches the 30 ms.
 	const streaming = await page.evaluate(
 		async ({ nav, paths }) => {
@@ -322,7 +327,9 @@ test("rapid links", async ({ page, docs }) => {
 	);
 	expect(streaming).toBe(true);
 	await expect(page.locator("#doc-title")).toHaveText("Routing");
-	await page.waitForTimeout(500);
+	// Every superseded navigation has ended, finished or aborted, and its page errors have arrived.
+	await expect.poll(() => traffic.pending()).toBe(0);
+	await flushEvents(page);
 	expect(errors).toEqual([]);
 });
 

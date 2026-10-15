@@ -134,6 +134,30 @@ export function dataRequests(page: Page): { kind: string; path: string }[] {
 	return seen;
 }
 
+// The docs client's onIdle has run (src/client.tsx): the page hydrated and the browser went idle after it, so the
+// work the boot defers to idle has started.
+export async function idle(page: Page): Promise<void> {
+	await page.waitForFunction(() => {
+		const steps: unknown = Reflect.get(window, "__docsLifecycle");
+		return Array.isArray(steps) && steps.includes("idle");
+	});
+}
+
+// Data requests (`?_flare=`) from now on: how many started, and how many have not ended. A request ends when its body
+// finishes or when it fails, an aborted one included.
+export function dataTraffic(page: Page): { started: () => number; pending: () => number } {
+	const pending = new Set<unknown>();
+	let started = 0;
+	page.on("request", (request) => {
+		if (!new URL(request.url()).searchParams.has("_flare")) return;
+		started += 1;
+		pending.add(request);
+	});
+	page.on("requestfinished", (request) => void pending.delete(request));
+	page.on("requestfailed", (request) => void pending.delete(request));
+	return { started: () => started, pending: () => pending.size };
+}
+
 // A desktop browser user agent. Headless Chromium says "HeadlessChrome", which isbot counts as a bot, and a bot
 // never follows the locale cookie or Accept-Language.
 export const DESKTOP_UA =
