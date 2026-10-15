@@ -33,6 +33,32 @@ test("missing chunk reload", async ({ page, docs }, info) => {
 	await expect.poll(() => loads).toEqual(["/playground"]);
 });
 
+// A navigation the next click superseded loads no document when its route code fails: API is clicked, then Examples,
+// and every script asked for after hydrate fails 300 ms late, so API's fails once Examples has taken over. Only
+// Examples, the latest, loads its document, under the chunk guard (BUGS.md 121).
+test("superseded chunk failure", async ({ page, docs }) => {
+	let hydrated = false;
+	await page.route("**/*", async (route) => {
+		const request = route.request();
+		const code = request.resourceType() === "script" || /\.(js|ts|tsx)(\?|$)/.test(new URL(request.url()).pathname);
+		if (!hydrated || !code) return route.fallback();
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		await route.abort().catch(() => undefined);
+	});
+	await open(page, docs.origin, "/docs/routing");
+	hydrated = true;
+	const loads = documents(page);
+	await page.evaluate(async (nav) => {
+		const link = (path: string) =>
+			[...document.querySelectorAll<HTMLAnchorElement>(nav)].find((item) => item.pathname === path);
+		link("/api/server/create-server")?.click();
+		await new Promise((resolve) => setTimeout(resolve, 30));
+		link("/examples")?.click();
+	}, "#nav nav a");
+	await expect.poll(() => loads).toEqual(["/examples"]);
+	await expect(page).toHaveURL(`${docs.origin}/examples`);
+});
+
 test("network failure", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
 	const depth = await page.evaluate(() => history.length);

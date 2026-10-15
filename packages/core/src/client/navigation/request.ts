@@ -26,14 +26,15 @@ export type Trip = {
 
 // The route modules load in parallel with the data request. An aborted request and a network failure commit
 // nothing. A missing chunk or a build mismatch is a guarded document load. A chunk error wins whichever of the
-// two fails first.
+// two fails first. A trip a newer navigation aborted loads no document for either: its target is no longer where the
+// user is going, and that navigation decides (BUGS.md 121).
 export async function arrive(
 	deps: NavigatorDeps,
 	trip: Trip,
 ): Promise<{ chain: LoadedEntry[]; arrival: Arrival } | undefined> {
 	const [chain, arrival] = await Promise.allSettled([loadChain(trip.target.match.chain), request(deps, trip)]);
 	if (chain.status === "rejected") {
-		if (isChunkError(chain.reason)) deps.reload(trip.target.url);
+		if (isChunkError(chain.reason) && !trip.signal.aborted) deps.reload(trip.target.url);
 		return undefined;
 	}
 	return arrival.status === "fulfilled" ? { chain: chain.value, arrival: arrival.value } : undefined;
@@ -49,7 +50,7 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	const response = await deps.fetch(dataUrl(trip, plan.stale), { signal: trip.signal });
 	const build = response.headers.get(BUILD_HEADER) ?? "";
 	if (build !== "" && deps.build !== "" && build !== deps.build) {
-		deps.reload(trip.target.url);
+		if (!trip.signal.aborted) deps.reload(trip.target.url);
 		return { kind: "none" };
 	}
 	// An input failure does not commit (dx/builder.md). Any other status paints the target's failure.

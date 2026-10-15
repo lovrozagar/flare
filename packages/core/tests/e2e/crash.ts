@@ -18,18 +18,23 @@ export function crashWatch(context: Watched): () => void {
 	};
 }
 
-// A page as the navigation log reads it: its main-frame navigations and its document requests.
+// A page as the navigation log reads it: its main-frame navigations, its document requests, its failed requests, and
+// its error responses.
 type LoggedFrame = { url(): string; parentFrame(): unknown };
-type LoggedRequest = { url(): string; resourceType(): string };
+type LoggedRequest = { url(): string; resourceType(): string; failure(): { errorText: string } | null };
+type LoggedResponse = { url(): string; status(): number };
 type LoggedPage = {
 	on(event: "framenavigated", listener: (frame: LoggedFrame) => void): unknown;
-	on(event: "request", listener: (request: LoggedRequest) => void): unknown;
+	on(event: "request" | "requestfailed", listener: (request: LoggedRequest) => void): unknown;
+	on(event: "response", listener: (response: LoggedResponse) => void): unknown;
 };
 type Logged = { pages(): readonly LoggedPage[]; on(event: "page", listener: (page: LoggedPage) => void): unknown };
 
 // Every main-frame navigation and document request of every page the context has or opens, each timed from the watch's
 // start as `<ms> <event> <url>`. Attached to a failed case, it shows whether a document really navigated when an
-// evaluate reports its context destroyed, or whether the driver lost the context (BUGS.md 34.6).
+// evaluate reports its context destroyed, or whether the driver lost the context (BUGS.md 34.6). Each failed request,
+// with its failure text, and each response at 400 or above are there too, so a failure only CI saw names the request
+// behind it (BUGS.md 121).
 export function navigationLog(context: Logged, now: () => number = () => performance.now()): () => string[] {
 	const start = now();
 	const lines: string[] = [];
@@ -40,6 +45,12 @@ export function navigationLog(context: Logged, now: () => number = () => perform
 		});
 		page.on("request", (request) => {
 			if (request.resourceType() === "document") line("document", request.url());
+		});
+		page.on("requestfailed", (request) =>
+			line("requestfailed", `${request.url()} ${request.failure()?.errorText ?? ""}`),
+		);
+		page.on("response", (response) => {
+			if (response.status() >= 400) line(`response ${response.status()}`, response.url());
 		});
 	};
 	for (const page of context.pages()) watch(page);

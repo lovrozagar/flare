@@ -43,15 +43,24 @@ it("crash fails", () => {
 	expect(check).toThrow("A page crashed: http://host/b, http://host/a");
 });
 
-// The navigation log records each page's main-frame navigations, not a child frame's, and its document requests, not a
-// script's, for the pages a context has and opens later, each timed from the watch's start (BUGS.md 34.6).
+// A script request, failed with `failure` or not.
+function script(failure: { errorText: string } | null) {
+	return { url: () => "http://host/a.js", resourceType: () => "script", failure: () => failure };
+}
+
+// The navigation log records each page's main-frame navigations, not a child frame's, its document requests, not a
+// script's, its failed requests, and its responses at 400 or above, for the pages a context has and opens later, each
+// timed from the watch's start (BUGS.md 34.6, 121).
 it("navigation log", () => {
+	type Request = { url(): string; resourceType(): string; failure(): { errorText: string } | null };
 	type Handlers = {
 		framenavigated: ((frame: { url(): string; parentFrame(): unknown }) => void)[];
-		request: ((request: { url(): string; resourceType(): string }) => void)[];
+		request: ((request: Request) => void)[];
+		requestfailed: ((request: Request) => void)[];
+		response: ((response: { url(): string; status(): number }) => void)[];
 	};
 	const page = () => {
-		const handlers: Handlers = { framenavigated: [], request: [] };
+		const handlers: Handlers = { framenavigated: [], request: [], requestfailed: [], response: [] };
 		return {
 			handlers,
 			on: (event: keyof Handlers, listener: never) => void handlers[event].push(listener),
@@ -68,10 +77,22 @@ it("navigation log", () => {
 	clock = 112;
 	for (const run of first.handlers.framenavigated) run({ url: () => "http://host/", parentFrame: () => null });
 	for (const run of first.handlers.framenavigated) run({ url: () => "http://host/frame", parentFrame: () => ({}) });
-	for (const run of first.handlers.request) run({ url: () => "http://host/a.js", resourceType: () => "script" });
+	for (const run of first.handlers.request) run(script(null));
+	clock = 120;
+	for (const run of first.handlers.requestfailed) run(script({ errorText: "net::ERR_ABORTED" }));
+	for (const run of first.handlers.requestfailed) run(script(null));
+	for (const run of first.handlers.response) run({ url: () => "http://host/ok", status: () => 399 });
+	for (const run of first.handlers.response) run({ url: () => "http://host/gone", status: () => 404 });
 	const later = page();
 	for (const listener of opened) listener(later);
 	clock = 150;
-	for (const run of later.handlers.request) run({ url: () => "http://host/b", resourceType: () => "document" });
-	expect(log()).toEqual(["12 framenavigated http://host/", "50 document http://host/b"]);
+	for (const run of later.handlers.request)
+		run({ url: () => "http://host/b", resourceType: () => "document", failure: () => null });
+	expect(log()).toEqual([
+		"12 framenavigated http://host/",
+		"20 requestfailed http://host/a.js net::ERR_ABORTED",
+		"20 requestfailed http://host/a.js ",
+		"20 response 404 http://host/gone",
+		"50 document http://host/b",
+	]);
 });
