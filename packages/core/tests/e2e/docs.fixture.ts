@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import type { Page, TestInfo } from "@playwright/test";
 import { expect, test as base } from "./crash.ts";
-import { flarePage } from "../../src/testing/index.ts";
+import { loadHydrated } from "../../src/testing/playwright.ts";
 import { boot, type Boot } from "./boot.ts";
 
 // The docs app's shared boot (B94). The fixture is worker-scoped, so the docs spec files of one project share one
@@ -99,10 +99,18 @@ export function watch(page: Page): string[] {
 	return problems;
 }
 
-// Load a path and wait for hydrate. The problems list starts before the navigation.
+// Load a path and wait for hydrate on two channels, so a reply Playwright's Firefox driver loses cannot hang the case
+// (BUGS.md 107). The problems list starts before the navigation. A query sent again is logged and annotated on the
+// case, so a run that met the lost reply says so.
 export async function open(page: Page, origin: string, path: string): Promise<string[]> {
 	const problems = watch(page);
-	await flarePage(page).load(`${origin}${path}`);
+	await loadHydrated(page, `${origin}${path}`, {
+		onReissue: (attempt) => {
+			const note = `hydration query ${attempt + 1} sent for ${path}`;
+			console.log(`[b107] ${test.info().project.name} › ${test.info().title}: ${note}`);
+			test.info().annotations.push({ type: "b107", description: note });
+		},
+	});
 	return problems;
 }
 
