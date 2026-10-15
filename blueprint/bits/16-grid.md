@@ -160,6 +160,21 @@ The production docs app in Chromium, with every API newer than the floor that th
 | `failing gate` | typecheck exits 2 | exit 2, test and the rest never run, and no stamp |
 | `dirty tree` | `git status --porcelain` is not empty | exit 1, no gate runs, and no stamp |
 
+## `scripts/verify-safari.test.ts`, and `bun run verify:safari` in real Safari
+
+`verify:safari` tunnels to the Mac's safaridriver over ssh (`FLARE_SAFARI_SSH`, default `mac`; `FLARE_SAFARI_DRIVER_PORT`, default 4799; the person at the Mac runs `safaridriver -p 4799` in a Terminal, since macOS refuses one started over ssh), boots the production docs app, exposes it on every interface at `FLARE_SAFARI_HOST` (default the first `tailscale ip -4` address), and runs five flows: a sidebar link from the bottom of a page, Back restoring 900, Back restoring the position at the click, the playground stream, and the stream gate (each line arrives while the server holds the next). Each navigation also checks a window mark, so the document-load fallback is not a pass. Red at 8ae9ec28 in Safari 17.6: 0 of 5, exit 1. Green at 26882ee6: 5 of 5, exit 0.
+
+| test | case | result |
+| --- | --- | --- |
+| `config defaults` | no env, then every variable set | `mac`, 4799, the first Tailscale address; then the set values |
+| `no address fails` | no `FLARE_SAFARI_HOST` and no Tailscale address | throws, naming `FLARE_SAFARI_HOST` |
+| `unreachable fails` | an ssh destination that does not resolve | rejects with ``Run `safaridriver -p 4799` in a Terminal on the Mac``: it never skips |
+| `failed flow fails` | three flows: one passes, one answers a problem, one throws | exit 1, a PASS line, two FAIL lines with their problems, and the `1 of 3` summary; one passing flow alone exits 0 |
+| safari-driver `command value` | a value answer, then an error answer | the value; then a throw with the error and its message |
+| safari-driver `session commands` | open, go, click, a wait that holds on its third poll, close | the WebDriver commands in order: session, a 1280×800 window, url, element, its click, three scripts, delete |
+| safari-driver `wait times out` | a script that never holds | false at the timeout |
+| safari-driver `session refused` | a driver refusing every session | ten tries, then a throw naming its error |
+
 ## `tests/structure/grid.test.ts`
 
 | test | case | result |
