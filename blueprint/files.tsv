@@ -355,6 +355,8 @@ packages/core/src/client/boot/ready.ts	P6	src	dom	onReady, onHydrated, onIdle, o
 packages/core/src/client/boot/ready.test.ts	P6	test	dom	Unit cases for ready.ts
 packages/core/src/client/boot/index.ts	P1	index	client	Re-exports
 packages/core/src/client/navigation/navigate.ts	P6	src	dom	navigate. Same-origin only. Commit, then push. Revalidation does not push
+packages/core/src/client/navigation/leaving.ts	P6	src	dom	The document loads the navigator begins, and the page leaving after one: a later navigation loads its page as a document (BUGS.md 129); an `x` frame's follow. Split from navigate.ts at the 300-line limit
+packages/core/src/client/navigation/leaving.test.ts	P6	test	dom	Unit cases for leaving.ts
 packages/core/src/client/navigation/request.ts	P10	src	dom	One navigation's data request: loads the chain beside it, asks `_flare=fill` for a fill, and hears a stored landing's holes; builds the commit's snapshot from the arrival (nextSnapshot, moved from navigate.ts at its 300-line limit). Split from navigate.ts at the 300-line limit
 packages/core/src/client/navigation/request.test.ts	P10	test	dom	Unit cases for request.ts
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts

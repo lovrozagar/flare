@@ -101,7 +101,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		send: env.send,
 		prefetched: prefetcher.prefetched,
 	})
-	installCall(router, env, { reload, build, visit: navigator.visit })
+	installCall(router, { fetch: env.fetch, build }, navigator)
 	ready.ready({ navigate: navigator.navigate, location })
 	const unmount = hydrateGuarded(state.head, phase, {
 		router,
@@ -166,29 +166,30 @@ function browserReload(env: ClientEnv): (href: string) => boolean {
 
 // The booted transport the client entry's createServerFn reads at call time (bits/07). It goes onto the state
 // object the document wrote, which keeps its other fields. A stream iterates, and any other function resolves. A
-// response from another build reloads the page under the chunk guard.
+// response from another build reloads the page under the chunk guard. Its document loads go through the navigator,
+// so a navigation after them knows the page is leaving (BUGS.md 129).
 function installCall(
 	router: Router,
-	env: ClientEnv,
-	nav: Pick<CallDeps, "reload" | "build"> & Pick<Navigator, "visit">,
+	env: Pick<ClientEnv, "fetch"> & Pick<CallDeps, "build">,
+	nav: Pick<Navigator, "visit" | "reload" | "assign">,
 ): void {
 	const flare: object = Object(Reflect.get(globalThis, "flare"))
 	const deps: CallDeps = {
 		fetch: env.fetch,
 		origin: window.location.origin,
 		basePath: router.basePath,
-		build: nav.build,
+		build: env.build,
 		href: () => window.location.href,
 		reload: nav.reload,
 		go: (url, replace) => nav.visit(url, replace),
-		assign: env.assign,
+		assign: nav.assign,
 	}
 	const call: ServerFnCall = (fn, input) =>
 		fn.record.kind === "stream" ? streamServerFn(fn, input, deps) : callServerFn(fn, input, deps)
 	Reflect.set(globalThis, "flare", Object.assign(flare, { call }))
 }
 
-// Popstate and anchor clicks reach the navigator from here.
+// Popstate, anchor clicks, and a back-forward cache restore reach the navigator from here.
 function listen(router: Router, navigator: Navigator, parts: Parts): () => void {
 	const pop = createPopstate({
 		history: parts.history,
@@ -197,7 +198,9 @@ function listen(router: Router, navigator: Navigator, parts: Parts): () => void 
 		current: here,
 	})
 	const onPop = (event: PopStateEvent): void => void pop(event.state)
+	const onShow = (event: PageTransitionEvent): void => navigator.pageshow(event.persisted)
 	window.addEventListener("popstate", onPop)
+	window.addEventListener("pageshow", onShow)
 	const undelegate = delegateClicks(document, {
 		router,
 		origin: window.location.origin,
@@ -205,6 +208,7 @@ function listen(router: Router, navigator: Navigator, parts: Parts): () => void 
 	})
 	return () => {
 		window.removeEventListener("popstate", onPop)
+		window.removeEventListener("pageshow", onShow)
 		undelegate()
 	}
 }

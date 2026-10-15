@@ -472,3 +472,29 @@ it("query hydrated", async () => {
 	}
 	stops.push(await bootClient(routerOf(), createReady(), env(install())))
 })
+
+// After a chunk reload the page is leaving, so the next navigation loads its page as a document; a back-forward cache
+// restore (`pageshow` with `persisted`) brings client navigations back, and a dispose stops listening (BUGS.md 129).
+it("pageshow", async () => {
+	const host = install()
+	const frames = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/about", d: "back" },
+		{ t: "r" },
+		{ t: "d" },
+	] as const
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")))
+	const ready = createReady()
+	const navigates: ReadyContext["navigate"][] = []
+	ready.api.onReady((ctx) => navigates.push(ctx.navigate))
+	const client = env(host, fetch)
+	sessionStorage.clear()
+	stops.push(await bootClient(routerOf(), ready, client))
+	await navigates[0]({ to: "_root_/lazy" })
+	await navigates[0]({ to: "_root_/about" })
+	expect(vi.mocked(client.assign).mock.calls).toEqual([["/lazy"], ["/about"]])
+	window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }))
+	await navigates[0]({ to: "_root_/about" })
+	flush()
+	expect(host.textContent).toBe("root[about:back]")
+})

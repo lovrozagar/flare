@@ -15,6 +15,7 @@ import {
 	type Direction,
 } from "../view-transition/index.ts"
 import { allowsNavigation, type Blockers } from "./blocker.ts"
+import { follow, leaveable, type Leaving } from "./leaving.ts"
 import { endOf, type Landed, type Pending } from "./frames.ts"
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts"
 import type { NavigationState } from "./pending.ts"
@@ -65,18 +66,21 @@ type Trigger = "navigation" | "revalidation"
 // history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
 // restore is one popstate step: the browser already moved, so no blocker runs, nothing is written, and the
 // saved scroll comes back. Back onto an overlay's background clears the overlay, with no fetch and no scroll.
-export function createNavigator(deps: NavigatorDeps): {
+// After a document load it began, the page is leaving (leaving.ts, BUGS.md 129).
+export function createNavigator(given: NavigatorDeps): Leaving & {
 	navigate: (options: NavigateOptions) => Promise<void>
 	visit: (url: string, replace: boolean) => Promise<void>
 	restore: (url: string, index: number) => Promise<void>
 	fill: (pending: Pending) => Promise<void>
 } {
+	const { deps, away, ...leave } = leaveable(given)
 	let latest: AbortController | undefined
 	// The history index the screen shows, so a popstate step knows its view-transition direction.
 	let at = deps.history.index()
 	const context = () => ({ router: deps.router, origin: deps.origin, current: deps.store.snapshot().location })
 	const go = async (target: Target, options: NavigateOptions, mode: Mode = {}): Promise<void> => {
 		if (target.kind === "document") return void deps.assign(target.url)
+		if (away(target)) return
 		const snapshot = deps.store.snapshot()
 		const pop = mode.pop === true
 		if (target.kind !== "data") {
@@ -109,6 +113,7 @@ export function createNavigator(deps: NavigatorDeps): {
 	}
 	return {
 		fill,
+		...leave,
 		navigate: (options) => go(resolveTarget(options, context()), options),
 		visit: (url, replace) => go(resolveUrl(url, context()), { to: url, replace }),
 		restore: async (url, index) => {
@@ -286,12 +291,6 @@ function inPlace(
 	void deps.store.commit({ ...snapshot, location: target.location, matches })
 	land(deps, target, moved)
 	return deps.history.index()
-}
-
-// An `x` frame: a same-origin target is the next navigation, another origin a document load.
-function follow(deps: NavigatorDeps, url: string, next: () => Promise<void>): Promise<void> {
-	if (new URL(url, deps.origin).origin !== deps.origin) return Promise.resolve(deps.assign(url))
-	return next()
 }
 
 function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions): void {
