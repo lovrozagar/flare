@@ -6,7 +6,7 @@
 # This hook refuses a push while any commit it would send has no stamp. A branch deletion sends no commit. The root
 # package's `prepare` points core.hooksPath here on `bun install` in this repo; the published package has no hooks.
 #
-# Bypass once: git push --no-verify
+# Never bypass it: a commit without a stamp gets `bun run verify`.
 
 set -u
 

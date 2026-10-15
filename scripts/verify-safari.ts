@@ -81,11 +81,15 @@ export const FLOWS: readonly Flow[] = [
 			);
 			await safari.click("a[href='/hr/docs/media']");
 			if (!(await safari.wait("return location.pathname === '/hr/docs/media'"))) return "the media link did not land";
+			// Read before Back: a document load on Back would lose it with the window.
+			const at = Number(await safari.js("return window.__at"));
 			await safari.js("window.scrollTo(0, document.documentElement.scrollHeight)");
 			await safari.back();
-			const at = Number(await safari.js("return window.__at"));
-			if (await safari.wait(`return location.pathname === '/hr' && Math.abs(scrollY - ${at}) < 2`)) return undefined;
-			return `Back left scrollY at ${String(await safari.js(SCROLL))}, not ${at}`;
+			if (!(await safari.wait(`return location.pathname === '/hr' && Math.abs(scrollY - ${at}) < 2`))) {
+				return `Back left scrollY at ${String(await safari.js(SCROLL))}, not ${at}`;
+			}
+			// A document load restores the scroll on its own, so only the mark tells it from Flare's restore.
+			return (await safari.js(MARKED)) === true ? undefined : "Back loaded a document";
 		},
 	},
 	{

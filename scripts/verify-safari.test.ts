@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { SafariSession, type Fetcher } from "./safari-driver.ts";
-import { configOf, runFlows, tunnel, type Flow } from "./verify-safari.ts";
+import { configOf, FLOWS, runFlows, tunnel, type Flow } from "./verify-safari.ts";
 
 // The defaults: the Mac at `ssh mac`, its driver on 4799, and this machine at its first Tailscale address.
 it("config defaults", () => {
@@ -45,4 +45,29 @@ it("failed flow fails", async () => {
 		"verify:safari: 1 of 3 flows passed in Safari 17.6",
 	]);
 	expect(await runFlows(safari, site, { log: () => undefined, flows: [flows[0] as Flow] })).toBe(0);
+});
+
+// The /hr flow's scripts as a session sees them after a Back that loaded a document: the path and the click position
+// hold, and the window mark is gone.
+function reloadAnswer(script: string): unknown {
+	if (script === "return window.__flareMark === 1") return false;
+	if (script === "return window.__at") return 0;
+	return script.startsWith("return") ? true : null;
+}
+
+// Back to /hr that lands as a document load is not a pass, though the browser restores the scroll itself: the
+// session reports the click position and the path, but the window mark is gone.
+it("back reload fails", async () => {
+	const fake: Fetcher = async (url, init) => ({
+		json: async () => {
+			if (url.endsWith("/session")) return { value: { sessionId: "s1", capabilities: { browserVersion: "17.6" } } };
+			if (url.endsWith("/element")) return { value: { element: "e1" } };
+			const script = String(Reflect.get(Object(JSON.parse(init.body ?? "{}")), "script") ?? "");
+			return { value: url.endsWith("/execute/sync") ? reloadAnswer(script) : null };
+		},
+	});
+	const safari = await SafariSession.open("http://driver", fake);
+	const flow = FLOWS.find((entry) => entry.name === "Back restores the position at the click");
+	const site = { origin: "http://site", callFn: async () => undefined };
+	expect(await flow?.run(safari, site)).toBe("Back loaded a document");
 });
