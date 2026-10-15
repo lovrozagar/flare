@@ -96,3 +96,18 @@ it("verified in a worktree", () => {
 	expect(refused.status).not.toBe(0);
 	expect(refused.stderr).toContain(unverified.slice(0, 7));
 });
+
+// The hook is tracked executable, as git runs only an executable hook: at mode 644 it is skipped and every push goes
+// through unchecked.
+it("hook executable", () => {
+	const tracked = execFileSync("git", ["ls-files", "--stage", ".githooks/pre-push", ".githooks/commit-msg"], {
+		cwd: join(import.meta.dirname, ".."),
+		encoding: "utf8",
+	});
+	expect(
+		tracked
+			.trim()
+			.split("\n")
+			.map((line) => `${line.split("\t")[1]} ${line.split(" ")[0]}`),
+	).toEqual([".githooks/commit-msg 100755", ".githooks/pre-push 100755"]);
+});

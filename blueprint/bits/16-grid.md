@@ -186,13 +186,14 @@ The production docs app in Chromium, with every API newer than the floor that th
 
 ## `scripts/pre-push.test.ts`, the pre-push hook
 
-`.githooks/pre-push` refuses a push while any commit it would send has no stamp in `<common git dir>/flare-verified/`; a branch deletion sends none. The tests run a copy of the hook in a throwaway repo with a bare remote. Red with the hook's refusal turned into `exit 0`: 3 of 3.
+`.githooks/pre-push` refuses a push while any commit it would send has no stamp in `<common git dir>/flare-verified/`; a branch deletion sends none. The tests run a copy of the hook in a throwaway repo with a bare remote. Red with the hook's refusal turned into `exit 0`: 3 of 3. The hook is tracked executable, so the repo's `core.hooksPath` runs it on every push.
 
 | test | case | result |
 | --- | --- | --- |
 | `unstamped refused` | one unstamped commit, then its stamp | refused naming it; then pushed |
 | `each commit` | a stamped commit pushed, then two more with only the tip stamped | refused naming the middle one, not the tip; pushed once it has a stamp |
 | `verified in a worktree` | `verify` passes in a linked worktree outside the checkout, then an unverified commit | the push from the main checkout goes through; the unverified commit is refused |
+| `hook executable` | the index's mode of `.githooks/commit-msg` and `.githooks/pre-push` | `100755` for both; git skips a hook that is not executable. Red at the inert `100644` |
 
 ## `tests/structure/grid.test.ts`
 
