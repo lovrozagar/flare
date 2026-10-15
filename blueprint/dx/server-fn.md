@@ -5,7 +5,7 @@ export const echo = createServerFn({ method: "post" })
   .authenticate()
   .input(validator)
   .authorize(({ auth, input }) => boolean)
-  .handler(async ({ input, auth, env, request, serverContext, revalidate }) => data)
+  .handler(async ({ input, auth, env, request, serverContext }) => data)
 ```
 
 `name` is not a config field (B85). The id is the B41 hash of the root-relative path and the export name. A `createServerFn` that is not a direct export fails the build (`vite/route-meta/ids.test.ts` `export name`, `not exported`).
@@ -20,11 +20,11 @@ Each method may be called once, as on a route builder (`dx/builder.md`). A secon
 
 | call | required | default | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- |
-| `method` | no | `"post"` | `"get"` or `"post"` | | `builder.test.ts` `default method` |
-| `authenticate()` | no | off | required session. The app's `createServer({ authenticate })` runs once. `callerData` is `[]` and `callerChain` is one entry whose `route` is the export name (`server.md`) | there is no `authenticateOptional` on a server function. Optional means not calling `authenticate` and reading `auth`, which is null when anonymous. That still counts as reading identity for CSRF fail-open: fail-open is off when `authenticate` or `authorize` is set. The method takes no arguments. A null session is 401 and the handler is not called | `csrf.test.ts` `fail closed`; `server/auth/caller.test.ts` `server fn`; `envelope.test.ts` `null session` |
-| `input(validator)` | no | input is `undefined` | Standard Schema, `{ parse }`, or a function. A promise from any of the three is awaited. Each issue is `{ message, path }`. `fieldErrors` at the first path segment is a `string[]`. A segment `{ key }` uses `key`. An empty path is only in `issues` | GET input is the `_i` param. POST input is the JSON body | `input.test.ts` `promise`, `field array`, `empty path` |
-| `authorize(fn)` | no | absent | `false` is 403 with the message `Forbidden`. The handler is not called. This is JSON, not the page walk, and it does not open the dev overlay | | `dispatch.test.ts` `order`, `forbidden` |
-| `cache: { maxAge }` | no | `private, no-store` | accepts a duration. Legal only when `method` is `"get"` and there is no `authenticate` and no `authorize` | any other combination throws when the chain is built | `cache-control.test.ts` `opt in`, `duration` |
+| `method` | no | `"post"` | `"get"` or `"post"` | | `builder.test.ts` `default method`; `tests/integration/server-fn.test.ts` `method`; e2e `docs-data.test.ts` `server fn get cached`, `server fn post validates` |
+| `authenticate()` | no | off | required session. The app's `createServer({ authenticate })` runs once. `callerData` is `[]` and `callerChain` is one entry whose `route` is the export name (`server.md`) | there is no `authenticateOptional` on a server function. Optional means not calling `authenticate` and reading `auth`, which is null when anonymous. That still counts as reading identity for CSRF fail-open: fail-open is off when `authenticate` or `authorize` is set. The method takes no arguments. A null session is 401 and the handler is not called | `csrf.test.ts` `fail closed`; `server/auth/caller.test.ts` `server fn`; `envelope.test.ts` `null session`; `tests/integration/server-fn.test.ts` `authenticate`; e2e `docs-cache.test.ts` `revalidate tag` |
+| `input(validator)` | no | input is `undefined` | Standard Schema, `{ parse }`, or a function. A promise from any of the three is awaited. Each issue is `{ message, path }`. `fieldErrors` at the first path segment is a `string[]`. A segment `{ key }` uses `key`. An empty path is only in `issues` | GET input is the `_i` param. POST input is the JSON body | `input.test.ts` `promise`, `field array`, `empty path`; `tests/integration/server-fn.test.ts` `input`; e2e `docs-data.test.ts` `server fn post validates` |
+| `authorize(fn)` | no | absent | `false` is 403 with the message `Forbidden`. The handler is not called. This is JSON, not the page walk, and it does not open the dev overlay | | `dispatch.test.ts` `order`, `forbidden`; `tests/integration/server-fn.test.ts` `authorize`; e2e `docs-cache.test.ts` `revalidate tag` |
+| `cache: { maxAge }` | no | `private, no-store` | accepts a duration. Legal only when `method` is `"get"` and there is no `authenticate` and no `authorize` | any other combination throws when the chain is built | `cache-control.test.ts` `opt in`, `duration`; `tests/integration/server-fn.test.ts` `cache`; e2e `docs-data.test.ts` `server fn get cached` |
 
 ## Handler context
 
@@ -35,10 +35,9 @@ Each method may be called once, as on a route builder (`dx/builder.md`). A secon
 | `env` | always | the fetch env, typed by `FlareRegister["env"]` |
 | `request` | always | the request |
 | `serverContext` | always | the object `createServer`'s request context produced. Typed by `FlareRegister["serverContext"]` |
-| `revalidate` | handler only | `({ keys?, tags? }) => void`. The work is passed to `waitUntil` |
 | `signal` | stream only | the request `AbortSignal` |
 
-There is no `piggyback`. The query helpers are in `features.md`.
+The fields are `tests/integration/server-fn.test.ts` `handler context`; on a page, e2e `docs-data.test.ts` `server context` and `stream abort`. There is no `piggyback` and no `revalidate` field: a handler purges stored pages by calling `revalidate()` from `@lovrozagar/flare/server`, which hands its work to the request's `waitUntil` (`store.md`, BUGS.md 122). The query helpers are in `features.md`.
 
 ## Types
 
@@ -46,7 +45,7 @@ There is no `piggyback`. The query helpers are in `features.md`.
 
 The client type is `(input: TInput) => Promise<TOutput>`, or `() => Promise<TOutput>` while the input is `void`. The promise resolves to the handler's return. No field is stripped. The type is not the envelope.
 
-The client type of `.stream()` returns `AsyncIterable<TChunk>`, the yielded value. The generator's return type is dropped. The stream context has `signal` and has no `revalidate`. The handler has `revalidate` and has no `signal`.
+The client type of `.stream()` returns `AsyncIterable<TChunk>`, the yielded value. The generator's return type is dropped. The stream context has `signal`. Neither context has `revalidate`, and the handler has no `signal`.
 
 There is no `.authenticateOptional`. Skipping `.authenticate()` types `ctx.auth` as `null`. `.authenticate()` takes no arguments and types `ctx.auth` as the registered session. Until the app augments `auth`, that session type is `null`.
 
@@ -55,6 +54,8 @@ Calling the client function during a component or route render type-checks. In d
 The cases are `tests/types/server-fn.test.ts` (`server fn input`, `server fn input void`, `server fn schema unknown`, `server fn return`, `server fn stream`, `server fn no optional`, `server fn auth null`, `server fn auth required`, `server fn render call`, `server fn methods`).
 
 ## Wire
+
+Through the real server: `tests/integration/server-fn.test.ts` `round trip`, `csrf`, `no store`, `wire limits`, `wire envelope`, `wire redirect`, `wire response`, `wire stream`; on a page, e2e `docs-data.test.ts` `server fn post validates`, `safe error`, `unsafe error`, `stream`, and `docs-server.test.ts` `csrf`, `body limit`.
 
 POST body is JSON, capped at `bodyLimit` (default 1 MiB). Over the cap is 413.
 

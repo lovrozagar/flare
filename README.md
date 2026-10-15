@@ -379,15 +379,24 @@ Full contract: [server.md](https://github.com/lovrozagar/flare/blob/main/bluepri
 
 ## Server functions
 
+<!-- quick-start: src/fns/save.ts -->
+
 ```ts
+import { revalidate } from "@lovrozagar/flare/server";
+import { createServerFn } from "@lovrozagar/flare/server-fn";
+
+// Every step runs on the server, in this order: the session, the validator, the check, then the handler.
 export const save = createServerFn({ method: "post" })
 	.authenticate()
-	.input(schema)
-	.authorize(({ auth, input }) => canEdit(auth, input))
-	.handler(async ({ input, auth, env, request, serverContext, revalidate }) => store(input));
+	.input({ parse: (value: { id: string; text: string }) => ({ id: String(value.id), text: String(value.text) }) })
+	.authorize(({ input }) => input.text.length <= 280)
+	.handler(async ({ input, auth, env, request, serverContext }) => {
+		await revalidate({ tags: [`note:${input.id}`] });
+		return { id: input.id, by: auth, region: env, path: new URL(request.url).pathname, context: serverContext };
+	});
 ```
 
-The export is the client function: `await save(input)` resolves to the handler's return. `.stream(async function* (ctx) {})` instead of `.handler()` returns an async iterator of the yielded values, and `ctx.signal` aborts when the client stops. The client bundle keeps none of the validator, `authorize`, or the handler. Full contract: [server-fn.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/server-fn.md).
+The export is the client function: `await save(input)` resolves to the handler's return. A handler purges stored pages with `revalidate()` from `@lovrozagar/flare/server`. `.stream(async function* (ctx) {})` instead of `.handler()` returns an async iterator of the yielded values, and `ctx.signal` aborts when the client stops. The client bundle keeps none of the validator, `authorize`, or the handler. Full contract: [server-fn.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/server-fn.md).
 
 ## Environment functions
 
