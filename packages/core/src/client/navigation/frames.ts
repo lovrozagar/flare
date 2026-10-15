@@ -1,4 +1,5 @@
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts";
+import { resolvers } from "../../shared/promise/resolvers.ts";
 import { chunksOf, frameDecoder, type Frame } from "../../shared/protocol/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { errorFromWire } from "../router/store.ts";
@@ -65,11 +66,11 @@ class ClientDeferred {
 }
 
 // Resolves at `r`, when the navigation commits, or at `x`. The frames after `r` keep resolving or rejecting
-// the deferred values in the background (B80).
-export async function landFrames(source: AsyncIterable<Frame>, options: LandOptions): Promise<Landed> {
+// the deferred values in the background (B80). It takes an iterator, not an iterable: a response body is an iterable
+// only where the browser can iterate a stream, which Safari before 27 cannot (BUGS.md 123).
+export async function landFrames(frames: AsyncIterator<Frame>, options: LandOptions): Promise<Landed> {
 	const landed: Landed = { data: {}, heads: {} };
 	const slots: Slots = new Map(options.reuse);
-	const frames = source[Symbol.asyncIterator]();
 	for (let next = await frames.next(); !next.done; next = await frames.next()) {
 		const frame = next.value;
 		if (frame.t === "x") return { ...landed, redirect: { status: frame.s, url: frame.u, replace: frame.r } };
@@ -82,7 +83,7 @@ export async function landFrames(source: AsyncIterable<Frame>, options: LandOpti
 	throw new Error("The data response ended before r");
 }
 
-export async function* framesOf(body: ReadableStream<Uint8Array>): AsyncIterable<Frame> {
+export async function* framesOf(body: ReadableStream<Uint8Array>): AsyncGenerator<Frame> {
 	const decoder = frameDecoder();
 	const text = new TextDecoder();
 	for await (const chunk of chunksOf(body)) yield* decoder.push(text.decode(chunk, { stream: true }));
@@ -143,7 +144,7 @@ export function revive(value: unknown, route: string, slots: Pending): unknown {
 		const id = `${route}\n${value.key}`;
 		if ("kept" in value && value.kept === true)
 			return new ClientDeferred(value.key, keptOf(slots, id, value.key), false);
-		const slot = slots.get(id) ?? Promise.withResolvers<unknown>();
+		const slot = slots.get(id) ?? resolvers<unknown>();
 		slot.promise.catch(() => undefined);
 		slots.set(id, slot);
 		if ("value" in value) {

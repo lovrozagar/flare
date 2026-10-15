@@ -574,7 +574,7 @@ Release: bump `packages/core/package.json`, commit, tag `vX.Y.Z` matching that v
 
 ### End-to-end grid
 
-`bun run test:e2e` runs all 18 projects, `<runtime>-<mode>-<browser>`: runtime `node`, `bun`, or `workers`; mode `dev` or `prod`; browser `chromium`, `firefox`, or `webkit`. Each boot starts its app on a free port with its own temp dirs and writes nothing into the app.
+`bun run test:e2e` runs all 18 projects, `<runtime>-<mode>-<browser>`: runtime `node`, `bun`, or `workers`; mode `dev` or `prod`; browser `chromium`, `firefox`, or `webkit`. A 19th, `node-prod-floor`, runs the client in Chromium with every API newer than the browser floor removed (Chrome 111, Firefox 114, Safari 16.4). Each boot starts its app on a free port with its own temp dirs and writes nothing into the app.
 
 The browsers come from one pinned Playwright image, so every machine runs the same engine builds. A global setup reuses or starts its run-server in a container named `flare-browsers` (host network, host IPC) and every project connects to it. With `FLARE_BROWSER_WS` set, the projects connect there instead. Without a Docker daemon the shell can reach, they launch Playwright's installed engines (`bunx playwright install chromium firefox webkit`), as the macOS CI job does.
 

@@ -1,4 +1,4 @@
-// The chunks of a response body, read with a reader. Safari before 18 has no async iteration of a ReadableStream
+// The chunks of a response body, read with a reader. Safari before 27 has no async iteration of a ReadableStream
 // (`Symbol.asyncIterator`, `values`), so client code never iterates a body directly (BUGS.md 123). Leaving early, by
 // `break`, `return()`, or a throw in the consumer, cancels the body, as the built-in iterator does, and the lock is
 // released either way.

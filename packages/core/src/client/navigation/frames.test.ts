@@ -5,7 +5,7 @@ import type { Deferred } from "../../shared/route-builder/register.ts";
 import { endOf, framesOf, landFrames, revive, type Pending } from "./frames.ts";
 
 // A source the test feeds frame by frame.
-function feed(): { source: AsyncIterable<Frame>; push: (frame: Frame) => void; end: () => void } {
+function feed(): { source: AsyncIterator<Frame>; push: (frame: Frame) => void; end: () => void } {
 	const queue: Frame[] = [];
 	const waiting: ((frame: IteratorResult<Frame>) => void)[] = [];
 	let ended = false;
@@ -17,13 +17,11 @@ function feed(): { source: AsyncIterable<Frame>; push: (frame: Frame) => void; e
 	};
 	return {
 		source: {
-			[Symbol.asyncIterator]: () => ({
-				next: () =>
-					new Promise<IteratorResult<Frame>>((resolve) => {
-						waiting.push(resolve);
-						deliver();
-					}),
-			}),
+			next: () =>
+				new Promise<IteratorResult<Frame>>((resolve) => {
+					waiting.push(resolve);
+					deliver();
+				}),
 		},
 		push(frame) {
 			queue.push(frame);
@@ -173,7 +171,7 @@ it("frames of a body", async () => {
 });
 
 it("preloader", async () => {
-	const source = (async function* (): AsyncIterable<Frame> {
+	const source = (async function* (): AsyncGenerator<Frame> {
 		yield { t: "l", m: "_root_", d: null };
 		yield { t: "l", m: "_root_/a", d: "a", p: { role: "admin" } };
 		yield { t: "r" };

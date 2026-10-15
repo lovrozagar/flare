@@ -131,10 +131,30 @@ The gate that every documented feature has its cases. `coverage.ts` holds the re
 
 The hydrate harness (`bits/15-docs.md`) and the e2e global setup both take their browsers from this script.
 
+## `tests/structure/browser-floor.test.ts` (decision B123, BUGS.md 123.4)
+
+The scanner (`browser-floor.ts`) reads `src/client`, `src/shared`, and each feature's `client` and `shared` with oxc, and looks each browser API up in `@mdn/browser-compat-data` (exact devDependency) at Chrome and Edge 111, Firefox 114, and Safari 16.4. A use is a finding when it throws in a floor browser that lacks the API: a global read by name, a member of a global or of a well-known instance (`navigator`, `document`) that is called or read through, any other member called or read through whose every standard owner among the interfaces all floor browsers have is above the floor (matched by name, since oxc has no types), `[Symbol.asyncIterator]` read, `for await` over anything but an async generator's call, and a listener for an event no floor browser fires. `typeof` and `in` are checks, and `?.` reads nothing through.
+
+| test | case | result |
+| --- | --- | --- |
+| `floor` | every client-reachable source | no finding outside the allowlist, each allowlist entry still matches a finding, and its proving line is still in its file. Red at 8ae9ec28: `for await over body` at frames.ts:88 and server-fn/stream.ts:50, `Promise.withResolvers` at store.ts:70 and frames.ts:146, `URL.canParse` at prefetch.ts:127, and `.toSorted` at rank.ts:19 and create-router.ts:234 |
+| `planted URL.parse` | `browser-floor.fixture.ts`, outside src | exactly one finding, `URL.parse` on its line |
+| `each rule` | one line per rule | `for await` over a stream, `[Symbol.asyncIterator]`, `.union`, a `scrollend` listener, `navigator.connection.saveData`, `requestIdleCallback()`, `.toArray()`, `Promise.withResolvers()`, `document.startViewTransition()`, `.toSorted()`, and `globalThis.navigation.navigate()` are found; an async generator's `for await`, `navigator.connection?.saveData`, `typeof requestIdleCallback`, `Map#values()`, a declared `fetch`, and a plain object's `.navigation` are not |
+
+## `tests/e2e/floor.ts`, the `node-prod-floor` project (decision B123)
+
+The production docs app in Chromium, with every API newer than the floor that the client could touch deleted before the page runs: stream async iteration and `ReadableStream.from`, `URL.parse` and `URL.canParse`, iterator helpers and `Iterator`, idle callbacks, view transitions and their types, `scrollend`, the Navigation API, `Promise.withResolvers` and `Promise.try`, `AbortSignal.any`, Set methods, `Object.groupBy` and `Map.groupBy`, `Array.fromAsync`, change-array-by-copy, well-formed strings, `checkVisibility`, popovers, and `Intl.Segmenter`. It runs docs-smoke, docs-navigation, and docs-data. Red before the fixes: 70 failed, 4 passed, every page stuck before hydrate on `e.flatMap(...).toSorted is not a function` (route ranking at boot). Each fix reverted alone is red again: the store's `Promise.withResolvers` fails `i18n page` and `hash link`, frames.ts's fails `defer two skeletons` and `defer rejects`, and prefetch's `URL.canParse` fails `prefetch data intent` and `prefetch viewport`. After: 73 passed, 5 skipped (the 4 dev-only cases, and `view transition document`, which measures the API the floor deletes; `back keeps scroll` checks only the restored position there).
+
+## `shared/promise/resolvers.test.ts` (decision B123)
+
+| test | case | result |
+| --- | --- | --- |
+| `settles` | `Promise.withResolvers` deleted, then one promise resolved and one rejected | `1`, and the rejection's error |
+
 ## `tests/structure/grid.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
-| `grid projects` | `playwright.config.ts` with no `--project` | all 18 projects on any machine, Linux or macOS (B70: the browsers come from the pinned image, so the OS does not choose them). CI's `e2e-mac` job names the 6 webkit projects with `--project`, as the Safari-engine check |
+| `grid projects` | `playwright.config.ts` with no `--project` | all 18 projects on any machine, Linux or macOS (B70: the browsers come from the pinned image, so the OS does not choose them), then `node-prod-floor`: Chromium with `floor: true`, on docs-smoke, docs-navigation, and docs-data only (decision B123, `tests/e2e/floor.ts`). CI's `e2e-mac` job names the 6 webkit projects with `--project`, as the Safari-engine check |
 | `navigation log` | a fake context's page: a main-frame navigation, a child frame's, a script request, a failed request with and without failure text, responses of 399 and 404, then a page opened later with a document request, on a fixed clock | `12 framenavigated http://host/`, `20 requestfailed http://host/a.js net::ERR_ABORTED`, `20 requestfailed http://host/a.js `, `20 response 404 http://host/gone`, and `50 document http://host/b` only; a failed case writes it to its output directory (BUGS.md 34.6, 121) |
 | `crash fails` | `crashWatch` (`tests/e2e/crash.ts`) over a context with a page, then a page it opens | a `crash` event on either fails the check, naming every crashed URL. Every e2e spec's `test`, the docs fixture's included, runs the watch around each case on its context, so a crash fails the case that owned the page even when the case never touched it again (plan 14 leaf 4.6); a Chromium page sent to `chrome://crash` failed its case with `A page crashed` |

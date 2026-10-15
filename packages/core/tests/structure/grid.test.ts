@@ -3,15 +3,22 @@ import { crashWatch, navigationLog } from "../e2e/crash.ts";
 import config from "../e2e/playwright.config.ts";
 
 // With no `--project`, the e2e config runs all 18 projects on any machine, Linux or macOS: the browsers come from the
-// pinned image, so the OS does not choose them (B70, B97). Each project names its server and its engine.
+// pinned image, so the OS does not choose them (B70, B97). Each project names its server and its engine. The 19th is
+// the browser floor: the production client in Chromium with the APIs above the floor deleted, on the specs that drive
+// the client (decision B123).
 it("grid projects", () => {
 	const projects = (config.projects ?? []).map((project) => [project.name, project.use?.browserName]);
 	const servers = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"];
-	expect(projects).toEqual(
-		servers.flatMap((server) =>
+	expect(projects).toEqual([
+		...servers.flatMap((server) =>
 			(["chromium", "firefox", "webkit"] as const).map((engine) => [`${server}-${engine}`, engine]),
 		),
-	);
+		["node-prod-floor", "chromium"],
+	]);
+	const floor = config.projects?.find((project) => project.name === "node-prod-floor");
+	expect(floor?.use?.floor).toBe(true);
+	expect(floor?.testMatch).toEqual(["docs-smoke.test.ts", "docs-navigation.test.ts", "docs-data.test.ts"]);
+	expect(config.projects?.filter((project) => project.use?.floor === true)).toHaveLength(1);
 	expect(config.globalSetup).toBe("./global-setup.ts");
 });
 

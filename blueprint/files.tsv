@@ -111,6 +111,8 @@ packages/core/src/shared/protocol/query.test.ts	P13	test	shared	Unit cases for q
 packages/core/src/shared/protocol/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/protocol/chunks.ts	P6	src	shared	A response body's chunks through a reader, for browsers without ReadableStream async iteration (BUGS.md 123)
 packages/core/src/shared/protocol/chunks.test.ts	P6	test	shared	Unit cases for chunks.ts
+packages/core/src/shared/promise/resolvers.ts	P6	src	shared	A promise with its settle functions, for browsers below Promise.withResolvers (decision B123)
+packages/core/src/shared/promise/resolvers.test.ts	P6	test	shared	Unit cases for resolvers.ts
 packages/core/src/shared/cache/artifact-path.ts	P10	src	shared	Turn a store key into the SSG artifact URL. The only path formatter
 packages/core/src/shared/cache/artifact-path.test.ts	P10	test	shared	Unit cases for artifact-path.ts
 packages/core/src/shared/cache/index.ts	P10	index	shared	Re-exports
@@ -773,6 +775,11 @@ packages/core/src/vite/dev/css-update.test.ts	P16	test	vite	Unit cases for css-u
 scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and the e2e grid: FLARE_BROWSER_WS, else the pinned container, else local engines (B97)
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run
-packages/core/tests/structure/grid.test.ts	P16	test	node	The 18-project grid and a crashed page failing its test
+packages/core/tests/structure/grid.test.ts	P16	test	node	The 18-project grid, the browser floor's project, and a crashed page failing its test
+packages/core/tests/e2e/floor.ts	P16	test	node	The init script node-prod-floor runs: deletes every browser API newer than the floor before the page runs (decision B123)
+packages/core/tests/structure/browser-floor.ts	P16	test	node	Scans client-reachable sources with oxc for browser APIs above the floor, per @mdn/browser-compat-data (decision B123)
+packages/core/tests/structure/browser-floor-ast.ts	P16	test	node	The oxc ESTree walk browser-floor.ts scans with: reads, a file's declared names, and runtime nodes
+packages/core/tests/structure/browser-floor.test.ts	P16	test	node	No client-reachable source uses a browser API above the floor outside its allowlist; the scanner's rules and a planted URL.parse
+packages/core/tests/structure/browser-floor.fixture.ts	P16	test	node	A planted URL.parse outside src, which browser-floor.test.ts proves the scanner fails
 packages/core/tests/structure/coverage.ts	P16	test	node	Reads the dx features and blueprint/coverage.tsv: each table row and section's key, the map's rows, and the cases they name (B96)
 packages/core/tests/structure/coverage.test.ts	P16	test	node	The coverage gate: unit cases at plan 14 9.2, the whole-repo map at 9.7 (B96)

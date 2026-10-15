@@ -1,7 +1,10 @@
-import { defineConfig, type Project } from "@playwright/test";
+import { defineConfig, type PlaywrightTestOptions, type PlaywrightWorkerOptions, type Project } from "@playwright/test";
+import type { FloorOptions } from "./crash.ts";
+
+type FlareProject = Project<PlaywrightTestOptions, PlaywrightWorkerOptions & FloorOptions>;
 
 // Every server is crossed with all three browsers (B70): 18 projects on any machine, since the browsers come from the
-// pinned image, not the OS (B97). A prod project builds the app once per file and serves the output with that
+// pinned image, not the OS (B97), and the browser floor is the 19th (B123). A prod project builds the app once per file and serves the output with that
 // runtime's adapter.
 const SERVERS = ["node-dev", "node-prod", "bun-dev", "bun-prod", "workers-dev", "workers-prod"];
 const BROWSERS = ["chromium", "firefox", "webkit"] as const;
@@ -11,9 +14,20 @@ const BROWSERS = ["chromium", "firefox", "webkit"] as const;
 const endpoint = process.env["FLARE_BROWSER_WS"];
 const connect = endpoint === undefined ? {} : { connectOptions: { wsEndpoint: endpoint, timeout: 60_000 } };
 
-const all: Project[] = SERVERS.flatMap((server) =>
+const grid: FlareProject[] = SERVERS.flatMap((server) =>
 	BROWSERS.map((browserName) => ({ name: `${server}-${browserName}`, use: { browserName, ...connect } })),
 );
+
+// The browser floor (decision B123): the production client in Chromium with every API newer than Chrome 111, Firefox
+// 114, and Safari 16.4 deleted before the page runs (floor.ts). It runs the specs that drive the client: boot,
+// navigation, data, and streams.
+const floor: FlareProject = {
+	name: "node-prod-floor",
+	testMatch: ["docs-smoke.test.ts", "docs-navigation.test.ts", "docs-data.test.ts"],
+	use: { browserName: "chromium", floor: true, ...connect },
+};
+
+const all = [...grid, floor];
 
 // Every `--project` value counts, so `--project=a --project=b` runs both.
 const requested = projectArgs(process.argv);
@@ -26,7 +40,7 @@ if (!inWorker && requested.size > 0) process.env["FLARE_E2E_PROJECTS_CHOSEN"] = 
 
 const projects = inWorker || requested.size === 0 ? all : all.filter((project) => requested.has(project.name ?? ""));
 
-export default defineConfig({
+export default defineConfig<object, FloorOptions>({
 	testDir: import.meta.dirname,
 	// Vitest files beside the specs: the boot helper's own tests and the golden proof from the tarball (B70, bits/14).
 	testIgnore: ["**/boot.test.ts", "**/copy-boot.test.ts", "**/golden.test.ts"],

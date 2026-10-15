@@ -147,6 +147,10 @@ it("intent", async () => {
 	const stopForeign = app.prefetcher.watch(foreign, "https://evil.example/", "intent");
 	hover(foreign);
 	stopForeign();
+	// A URL that does not parse prefetches nothing, and does not throw where URL.canParse is missing (decision B123).
+	const unparsed = anchor();
+	app.prefetcher.watch(unparsed, "http://[", "intent");
+	hover(unparsed);
 	const stopped = anchor();
 	app.prefetcher.watch(stopped, "/about?again=1", "intent")();
 	hover(stopped);

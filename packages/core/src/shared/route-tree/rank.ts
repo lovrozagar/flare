@@ -16,7 +16,8 @@ export function pickRoute(patterns: readonly string[], path: string, options: Ma
 		const params = matchParams(pattern, path, options);
 		return params === undefined ? [] : [{ pattern, consumed: consumedWeights(pattern, params) }];
 	});
-	return matched.toSorted(compare)[0]?.pattern;
+	// `sort` on this fresh array: `toSorted` is Firefox 115, above the client's browser floor (decision B123).
+	return matched.sort(compare)[0]?.pattern;
 }
 
 // The weight of the segment that consumed each path segment, left to right (dx/routes.md rank). An optional param that

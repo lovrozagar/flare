@@ -231,7 +231,8 @@ export function layoutChain(layouts: RouterOptions["layouts"], id: string): Chai
 function notFoundOwner(router: Router, path: string): string | undefined {
 	const candidates = Object.keys(router.layouts).filter((id) => router.notFoundMode === "fuzzy" || isRoot(id));
 	const owners = candidates.filter((id) => owns(id, path, matchOptions(router)));
-	return owners.toSorted(specific)[0];
+	// `sort` on this fresh array: `toSorted` is Firefox 115, above the client's browser floor (decision B123).
+	return owners.sort(specific)[0];
 }
 
 function isRoot(id: string): boolean {
