@@ -1,95 +1,21 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { symlinkSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createBuilder, type Plugin } from "vite";
+import { createBuilder } from "vite";
 import { afterEach, expect, it } from "vitest";
 import { flare } from "../plugin/flare.ts";
+import { app, boundary, build, ENV, external, fixtures, FN, forcing, KEEP } from "./build.fixture.ts";
 import { checkChunk } from "./tripwire.ts";
 
 const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const MINIMAL = resolve(fileURLToPath(new URL("../../../tests/e2e/apps/minimal", import.meta.url)));
 
-const roots: string[] = [];
+const roots = fixtures();
+const fixture = roots.make;
 
 afterEach(() => {
-	for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+	roots.removeAll();
 });
-
-type Environment = "client" | "ssr" | "flare_prerender";
-
-// A fixture app: `files` under a fresh root, the client entry at src/client.ts, and the server entry of the ssr and
-// prerender environments at src/server.ts. Every bare import stays external, so a chunk holds only the fixture's own modules.
-function fixture(files: Record<string, string>): string {
-	const root = mkdtempSync(join(tmpdir(), "flare-tripwire-"));
-	roots.push(root);
-	for (const [path, source] of Object.entries(files)) {
-		mkdirSync(dirname(join(root, path)), { recursive: true });
-		writeFileSync(join(root, path), source);
-	}
-	return root;
-}
-
-// A bare import stays out of the chunk.
-function external(id: string): boolean {
-	return !id.startsWith(".") && !id.startsWith("/") && !id.startsWith("\0");
-}
-
-function boundary(): Plugin {
-	const plugin = flare().find((item) => item.name === "flare:boundary");
-	if (plugin === undefined) throw new Error("flare:boundary");
-	return plugin;
-}
-
-// The emitted code of one graph's build, or the build's rejection.
-async function build(root: string, graph: Environment, extra: Plugin[] = []): Promise<string> {
-	const input = join(root, graph === "client" ? "src/client.ts" : "src/server.ts");
-	const environment = { build: { write: false, minify: false, rollupOptions: { input, external } } };
-	const builder = await createBuilder({
-		root,
-		configFile: false,
-		logLevel: "silent",
-		plugins: [boundary(), ...extra],
-		environments: {
-			client: environment,
-			ssr: { ...environment, build: { ...environment.build, ssr: true } },
-			flare_prerender: { ...environment, consumer: "server", build: { ...environment.build, ssr: true } },
-		},
-	});
-	const output = await builder.build(builder.environments[graph]);
-	const results = Array.isArray(output) ? output : [output];
-	return results
-		.flatMap((result) => ("output" in result ? result.output : []))
-		.map((item) => ("code" in item ? item.code : ""))
-		.join("\n");
-}
-
-// A plugin after the boundary transform that writes a body back into a module, as a broken plugin would.
-function forcing(file: string, from: string, to: string): Plugin {
-	return {
-		name: "force",
-		enforce: "post",
-		transform(code, id) {
-			return id.endsWith(file) ? code.replace(from, to) : null;
-		},
-	};
-}
-
-const FN = 'import { createServerFn } from "@lovrozagar/flare/server-fn";\n';
-const ENV = 'import { createServerOnlyFn, createClientOnlyFn, createIsomorphicFn } from "@lovrozagar/flare";\n';
-
-// An entry that uses everything a module exports, so the build does not shake the module out.
-function KEEP(path: string): string {
-	return `import * as mod from "${path}";\nReflect.set(globalThis, "kept", mod);\n`;
-}
-
-function app(module: string): Record<string, string> {
-	return {
-		"src/mod.ts": module,
-		"src/client.ts": KEEP("./mod.ts"),
-		"src/server.ts": KEEP("./mod.ts"),
-	};
-}
 
 it("handler body", async () => {
 	const root = fixture(app(`${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`));
@@ -107,7 +33,7 @@ it("symlinked root", async () => {
 	const real = fixture(app(`${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`));
 	const link = `${real}-link`;
 	symlinkSync(real, link);
-	roots.push(link);
+	roots.track(link);
 	const client = await build(link, "client");
 	expect(client).toContain("createServerFn");
 	expect(client).not.toContain("SENTINEL_FN");
@@ -208,21 +134,20 @@ export const numbers = createServerFn().stream(async function* () {
 	}
 });
 
+// A bare import except the package itself, which this case bundles.
+function bundled(id: string): boolean {
+	return external(id) && !id.startsWith("@lovrozagar/flare");
+}
+
 // A page that imports a server function, built for the browser with the package itself in the chunk. The client
 // entry of `./server-fn` holds no `src/server` module (03-surface). The fixture sits under the repo's ignored .tmp
 // so the package resolves through its export conditions.
 it("server fn import", async () => {
 	const repo = resolve(PACKAGE_SRC, "../../..");
-	mkdirSync(join(repo, ".tmp"), { recursive: true });
-	const root = mkdtempSync(join(repo, ".tmp", "flare-tripwire-"));
-	roots.push(root);
-	for (const [path, source] of Object.entries(
+	const root = fixture(
 		app(`${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`),
-	)) {
-		mkdirSync(dirname(join(root, path)), { recursive: true });
-		writeFileSync(join(root, path), source);
-	}
-	const bundled = (id: string): boolean => external(id) && !id.startsWith("@lovrozagar/flare");
+		join(repo, ".tmp"),
+	);
 	const builder = await createBuilder({
 		root,
 		configFile: false,

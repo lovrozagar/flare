@@ -233,13 +233,25 @@ test("fetch dedupe", async ({ page, docs }) => {
 	await expect(page.locator("#fetch-calls")).toHaveText("1");
 });
 
-test("env fns", async ({ page, docs, browserName }) => {
+// The env helpers on a real page (dx/env.md): `serverRuntime`, server-only, ran on the server and named the runtime;
+// `renderedOn`, isomorphic, ran its client side once hydrated; `copyText`, client-only, ran on the click. No script the
+// page loaded holds the server-only body.
+test("env fns", async ({ page, request, docs, browserName }) => {
 	if (browserName === "chromium") await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
 	await open(page, docs.origin, "/docs/routing");
 	await expect(page.locator("#runtime")).toHaveText(/^(node|bun|workers)$/);
 	await expect(page.locator("#rendered-on")).toHaveText("client");
 	await page.locator("[data-copy]").first().click();
 	await expect(page.locator("[data-copy]").first()).not.toHaveText("copy");
+	const scripts = await page.evaluate(() =>
+		performance
+			.getEntriesByType("resource")
+			.map((entry) => new URL(entry.name))
+			.filter((url) => url.origin === location.origin && /\.(js|ts|tsx)$/.test(url.pathname))
+			.map((url) => url.href),
+	);
+	expect(scripts.length).toBeGreaterThan(0);
+	for (const script of scripts) expect(await (await request.get(script)).text()).not.toContain("Cloudflare-Workers");
 });
 
 test("t plural", async ({ page, docs }) => {
