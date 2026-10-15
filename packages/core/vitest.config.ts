@@ -1,15 +1,15 @@
-import solid from "@solidjs/vite-plugin";
-import { defineConfig } from "vitest/config";
+import solid from "@solidjs/vite-plugin"
+import { defineConfig } from "vitest/config"
 
 // The hydrate harness renders on Node and hydrates in a real browser, so it runs in unit-node though it is .tsx.
-const HYDRATE = "tests/integration/hydrate.test.tsx";
+const HYDRATE = "tests/integration/hydrate.test.tsx"
 const nodeInclude = [
 	"src/**/*.test.ts",
 	"lint/**/*.test.ts",
 	"tests/**/*.test.ts",
 	"../../scripts/**/*.test.ts",
 	HYDRATE,
-];
+]
 
 export default defineConfig({
 	root: import.meta.dirname,
@@ -81,4 +81,4 @@ export default defineConfig({
 			},
 		],
 	},
-});
+})

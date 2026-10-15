@@ -1,4 +1,4 @@
-export { createQueryClientGetter, useSuspenseQuery } from "../features/query/client/index.ts";
+export { createQueryClientGetter, useSuspenseQuery } from "../features/query/client/index.ts"
 export {
 	serverFnMutationOptions,
 	serverFnQueryOptions,
@@ -6,4 +6,4 @@ export {
 	type ServerFnKeyedMutationOptions,
 	type ServerFnMutationOptions,
 	type ServerFnQueryOptions,
-} from "../features/query/shared/index.ts";
+} from "../features/query/shared/index.ts"

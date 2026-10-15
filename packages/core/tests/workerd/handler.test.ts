@@ -1,19 +1,19 @@
-import { spawnSync } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { Miniflare } from "miniflare";
-import { afterAll, expect, it } from "vitest";
+import { spawnSync } from "node:child_process"
+import { mkdir, rm, writeFile } from "node:fs/promises"
+import { join } from "node:path"
+import { fileURLToPath } from "node:url"
+import { Miniflare } from "miniflare"
+import { afterAll, expect, it } from "vitest"
 
-const handlerPath = fileURLToPath(new URL("../../src/adapters/workers/handler.ts", import.meta.url));
+const handlerPath = fileURLToPath(new URL("../../src/adapters/workers/handler.ts", import.meta.url))
 
-const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run");
-await rm(root, { recursive: true, force: true });
-await mkdir(root, { recursive: true });
-const assets = join(root, "assets");
-await mkdir(join(assets, "a"), { recursive: true });
-await writeFile(join(assets, "a", "static.txt"), "canonical-asset");
-const entry = join(root, "entry.ts");
+const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run")
+await rm(root, { recursive: true, force: true })
+await mkdir(root, { recursive: true })
+const assets = join(root, "assets")
+await mkdir(join(assets, "a"), { recursive: true })
+await writeFile(join(assets, "a", "static.txt"), "canonical-asset")
+const entry = join(root, "entry.ts")
 await writeFile(
 	entry,
 	`import { createWorkersHandler } from ${JSON.stringify(handlerPath)};
@@ -40,15 +40,15 @@ export default {
 	},
 };
 `,
-);
+)
 
-const worker = join(root, "worker.js");
+const worker = join(root, "worker.js")
 const built = spawnSync("bun", ["build", entry, "--outfile", worker, "--format=esm", "--target=browser"], {
 	encoding: "utf8",
-});
-if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed");
+})
+if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
 
-let pinged = false;
+let pinged = false
 const mf = new Miniflare({
 	modules: true,
 	scriptPath: join(root, "worker.js"),
@@ -60,27 +60,27 @@ const mf = new Miniflare({
 	},
 	serviceBindings: {
 		PING() {
-			pinged = true;
-			return new Response("pong");
+			pinged = true
+			return new Response("pong")
 		},
 	},
-});
+})
 
 afterAll(async () => {
-	await mf.dispose();
-	await rm(root, { recursive: true, force: true });
-});
+	await mf.dispose()
+	await rm(root, { recursive: true, force: true })
+})
 
 it("real binding", async () => {
-	const response = await mf.dispatchFetch("https://example.com/a//static.txt");
-	expect(response.status).toBe(200);
-	expect(await response.text()).toBe("canonical-asset");
-}, 20000);
+	const response = await mf.dispatchFetch("https://example.com/a//static.txt")
+	expect(response.status).toBe(200)
+	expect(await response.text()).toBe("canonical-asset")
+}, 20000)
 
 it("waitUntil", async () => {
-	pinged = false;
-	const response = await mf.dispatchFetch("https://example.com/background");
-	expect(response.status).toBe(200);
-	await new Promise((resolve) => setTimeout(resolve, 200));
-	expect(pinged).toBe(true);
-}, 20000);
+	pinged = false
+	const response = await mf.dispatchFetch("https://example.com/background")
+	expect(response.status).toBe(200)
+	await new Promise((resolve) => setTimeout(resolve, 200))
+	expect(pinged).toBe(true)
+}, 20000)

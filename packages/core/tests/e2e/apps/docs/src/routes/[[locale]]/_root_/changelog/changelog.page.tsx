@@ -1,20 +1,20 @@
-import { createPage, useDeferred } from "@lovrozagar/flare";
-import { serverCtx } from "@lovrozagar/flare/server";
-import { Errored, For, Loading } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { statsGate } from "../../../../stats-gate.ts";
+import { createPage, useDeferred } from "@lovrozagar/flare"
+import { serverCtx } from "@lovrozagar/flare/server"
+import { Errored, For, Loading } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import { statsGate } from "../../../../stats-gate.ts"
 
-type Release = { version: string; date: string; note: string };
+type Release = { version: string; date: string; note: string }
 
 function after<T>(ms: number, value: T): Promise<T> {
-	return new Promise((resolve) => setTimeout(() => resolve(value), ms));
+	return new Promise((resolve) => setTimeout(() => resolve(value), ms))
 }
 
 const RELEASES: readonly Release[] = [
 	{ version: "1.0.0", date: "2026-10-13", note: "The v1 core: routes, loaders, server functions, stores." },
 	{ version: "0.9.0", date: "2026-09-01", note: "Fonts registry, image optimization, and the sitemap." },
 	{ version: "0.8.0", date: "2026-07-20", note: "Cross-tab theme, direction, and locale." },
-];
+]
 
 function Skeleton(props: { id: string; lines: number }): JSX.Element {
 	return (
@@ -23,7 +23,7 @@ function Skeleton(props: { id: string; lines: number }): JSX.Element {
 				{() => <div class="h-4 animate-pulse rounded bg-stone-200 dark:bg-ink-800" />}
 			</For>
 		</div>
-	);
+	)
 }
 
 // An ISR page. `latest` resolves before the store writes, so the stored HTML holds it. The other three are
@@ -44,10 +44,10 @@ export const route = createPage("[[locale]]/_root_/changelog")
 	}))
 	.head(() => ({ title: "Changelog — Flare docs" }))
 	.render((props) => {
-		const latest = useDeferred(() => props.loaderData.latest);
-		const releases = useDeferred(() => props.loaderData.releases);
-		const stats = useDeferred(() => props.loaderData.stats);
-		const broken = useDeferred(() => props.loaderData.broken);
+		const latest = useDeferred(() => props.loaderData.latest)
+		const releases = useDeferred(() => props.loaderData.releases)
+		const stats = useDeferred(() => props.loaderData.stats)
+		const broken = useDeferred(() => props.loaderData.broken)
 		return (
 			<main class="mx-auto max-w-3xl px-5 py-10">
 				<h1 class="text-3xl font-semibold tracking-tight">Changelog</h1>
@@ -93,5 +93,5 @@ export const route = createPage("[[locale]]/_root_/changelog")
 					</div>
 				</div>
 			</main>
-		);
-	});
+		)
+	})

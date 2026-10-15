@@ -5,9 +5,9 @@
 function outsideVite(): never {
 	throw new Error(
 		"@lovrozagar/flare/worker is the Wrangler main for the Cloudflare plugin: it runs only inside Vite with flare()",
-	);
+	)
 }
 
-const worker: never = outsideVite();
+const worker: never = outsideVite()
 
-export default worker;
+export default worker

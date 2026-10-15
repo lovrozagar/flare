@@ -1,1 +1,1 @@
-export { createBunFetch } from "../adapters/bun/serve.ts";
+export { createBunFetch } from "../adapters/bun/serve.ts"

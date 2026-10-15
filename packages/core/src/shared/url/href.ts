@@ -1,65 +1,65 @@
-import { encodeStatic, idPattern, patternSegments, type Segment } from "../route-tree/index.ts";
-import { entries, urlText, writeUrl } from "./search.ts";
+import { encodeStatic, idPattern, patternSegments, type Segment } from "../route-tree/index.ts"
+import { entries, urlText, writeUrl } from "./search.ts"
 
-declare const hrefBrand: unique symbol;
+declare const hrefBrand: unique symbol
 
-export type Href = string & { readonly [hrefBrand]: never };
+export type Href = string & { readonly [hrefBrand]: never }
 
 // A brand has no runtime value, so the checks below are the only way to make one, and each `as Href` follows them.
 export function href(value: string): Href {
-	if (value.charCodeAt(0) <= 0x20) throw new Error("href");
-	if (value.startsWith("//")) throw new Error("href");
-	if (value.startsWith("/")) return value as Href;
-	const lower = value.toLowerCase();
-	if (lower.startsWith("https:") || lower.startsWith("http:")) return value as Href;
-	throw new Error("href");
+	if (value.charCodeAt(0) <= 0x20) throw new Error("href")
+	if (value.startsWith("//")) throw new Error("href")
+	if (value.startsWith("/")) return value as Href
+	const lower = value.toLowerCase()
+	if (lower.startsWith("https:") || lower.startsWith("http:")) return value as Href
+	throw new Error("href")
 }
 
 // `params` and `search` are the validator output, whatever its type (dx/link.md URL values).
 export type BuildInput = {
-	to: string;
-	params?: object | undefined;
-	search?: object | undefined;
-	hash?: string | undefined;
-};
+	to: string
+	params?: object | undefined
+	search?: object | undefined
+	hash?: string | undefined
+}
 
 // The URL of a route id. The pattern comes from the same idPattern and segment parser the router matches with,
 // so a built URL is always one the router matches (bit 05).
 export function buildUrl(input: BuildInput): Href {
-	const params = entries(input.params ?? {});
-	const parts = patternSegments(idPattern(input.to)).flatMap((segment) => urlParts(segment, params));
-	const hash = input.hash?.replace(/^#/, "");
-	return href(writeUrl({ path: `/${parts.join("/")}`, search: input.search, hash }));
+	const params = entries(input.params ?? {})
+	const parts = patternSegments(idPattern(input.to)).flatMap((segment) => urlParts(segment, params))
+	const hash = input.hash?.replace(/^#/, "")
+	return href(writeUrl({ path: `/${parts.join("/")}`, search: input.search, hash }))
 }
 
 // A static segment is path-encoded. A param value is one encoded segment, and a catch-all value is one per
 // item. A missing optional value, or an empty optional catch-all, adds nothing.
 function urlParts(segment: Segment, params: Record<string, unknown>): string[] {
-	if (segment.kind === "static") return [encodeStatic(segment.text)];
-	const value = params[segment.name];
-	const values = urlText(segment.name, value);
-	if (values.length === 0 && segment.optional) return [];
-	if (values.length === 0 || (segment.kind === "dynamic" && Array.isArray(value))) throw new Error(segment.name);
-	return values.map(encodeParam);
+	if (segment.kind === "static") return [encodeStatic(segment.text)]
+	const value = params[segment.name]
+	const values = urlText(segment.name, value)
+	if (values.length === 0 && segment.optional) return []
+	if (values.length === 0 || (segment.kind === "dynamic" && Array.isArray(value))) throw new Error(segment.name)
+	return values.map(encodeParam)
 }
 
 function encodeParam(value: string): string {
-	if (value.includes("/") || value.includes("\\")) throw new Error("param");
-	let out = "";
+	if (value.includes("/") || value.includes("\\")) throw new Error("param")
+	let out = ""
 	for (let index = 0; index < value.length; index += 1) {
-		const char = value.charAt(index);
+		const char = value.charAt(index)
 		if (char !== "%") {
-			out += encodeURIComponent(char);
-			continue;
+			out += encodeURIComponent(char)
+			continue
 		}
-		const hex = value.slice(index + 1, index + 3);
-		if (!isHex(hex.charAt(0)) || !isHex(hex.charAt(1))) throw new Error("param");
-		out += `%${hex.toUpperCase()}`;
-		index += 2;
+		const hex = value.slice(index + 1, index + 3)
+		if (!isHex(hex.charAt(0)) || !isHex(hex.charAt(1))) throw new Error("param")
+		out += `%${hex.toUpperCase()}`
+		index += 2
 	}
-	return out;
+	return out
 }
 
 function isHex(char: string): boolean {
-	return char !== "" && "0123456789ABCDEFabcdef".includes(char);
+	return char !== "" && "0123456789ABCDEFabcdef".includes(char)
 }

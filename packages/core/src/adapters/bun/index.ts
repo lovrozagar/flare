@@ -1,2 +1,2 @@
-export { createBunFetch } from "./serve.ts";
-export type { BunServer } from "./serve.ts";
+export { createBunFetch } from "./serve.ts"
+export type { BunServer } from "./serve.ts"

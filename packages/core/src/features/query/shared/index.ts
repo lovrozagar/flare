@@ -5,4 +5,4 @@ export {
 	type ServerFnKeyedMutationOptions,
 	type ServerFnMutationOptions,
 	type ServerFnQueryOptions,
-} from "./options.ts";
+} from "./options.ts"

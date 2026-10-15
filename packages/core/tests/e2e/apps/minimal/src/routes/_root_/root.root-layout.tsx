@@ -1,4 +1,4 @@
-import { createRootLayout, Link, Stylesheet } from "@lovrozagar/flare";
+import { createRootLayout, Link, Stylesheet } from "@lovrozagar/flare"
 
 // The nav stays mounted across client navigations and stays on screen when the page scrolls. The page starts below
 // it: how tall the fixed nav is depends on the engine's fonts, and the image's Firefox covered the echo button with it.
@@ -20,4 +20,4 @@ export const route = createRootLayout("_root_").render((props) => (
 			<div id="spacer" style={{ height: "4000px" }} />
 		</body>
 	</html>
-));
+))

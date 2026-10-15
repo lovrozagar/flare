@@ -49,16 +49,16 @@ A whole app: two pages, a root layout, one server function, and the Node server.
 <!-- quick-start: vite.config.ts -->
 
 ```ts
-import { flare } from "@lovrozagar/flare/vite";
-import { defineConfig } from "vite";
+import { flare } from "@lovrozagar/flare/vite"
+import { defineConfig } from "vite"
 
-export default defineConfig({ plugins: [flare()] });
+export default defineConfig({ plugins: [flare()] })
 ```
 
 <!-- quick-start: src/routes/_root_/root.root-layout.tsx -->
 
 ```tsx
-import { createRootLayout, Link, Stylesheet } from "@lovrozagar/flare";
+import { createRootLayout, Link, Stylesheet } from "@lovrozagar/flare"
 
 export const route = createRootLayout("_root_").render((props) => (
 	<html lang="en">
@@ -74,20 +74,20 @@ export const route = createRootLayout("_root_").render((props) => (
 			{props.children}
 		</body>
 	</html>
-));
+))
 ```
 
 <!-- quick-start: src/routes/_root_/home.page.tsx -->
 
 ```tsx
-import { createPage } from "@lovrozagar/flare";
-import { createSignal } from "solid-js";
-import { greet } from "../../fns/greet.ts";
+import { createPage } from "@lovrozagar/flare"
+import { createSignal } from "solid-js"
+import { greet } from "../../fns/greet.ts"
 
 export const route = createPage("_root_/")
 	.loader(() => ({ renderedAt: new Date().toISOString() }))
 	.render((props) => {
-		const [reply, setReply] = createSignal("");
+		const [reply, setReply] = createSignal("")
 		return (
 			<main>
 				<h1>Home</h1>
@@ -97,57 +97,57 @@ export const route = createPage("_root_/")
 				</button>
 				<p>{reply()}</p>
 			</main>
-		);
-	});
+		)
+	})
 ```
 
 <!-- quick-start: src/routes/_root_/about/about.page.tsx -->
 
 ```tsx
-import { createPage } from "@lovrozagar/flare";
+import { createPage } from "@lovrozagar/flare"
 
 export const route = createPage("_root_/about")
 	.head(() => ({ title: "About" }))
-	.render(() => <h1>About</h1>);
+	.render(() => <h1>About</h1>)
 ```
 
 <!-- quick-start: src/fns/greet.ts -->
 
 ```ts
-import { createServerFn } from "@lovrozagar/flare/server-fn";
+import { createServerFn } from "@lovrozagar/flare/server-fn"
 
 // The validator and the handler run on the server; the client bundle keeps only the call.
 export const greet = createServerFn({ method: "post" })
 	.input({ parse: (value: { name: string }) => ({ name: String(value.name) }) })
-	.handler(({ input }) => `Hello, ${input.name}`);
+	.handler(({ input }) => `Hello, ${input.name}`)
 ```
 
 <!-- quick-start: src/router.ts -->
 
 ```ts
-import { createRouter } from "@lovrozagar/flare";
-import { chunks, layouts, routeTree } from "./_gen/routes.gen.ts";
+import { createRouter } from "@lovrozagar/flare"
+import { chunks, layouts, routeTree } from "./_gen/routes.gen.ts"
 
-export const router = createRouter({ layouts, routeTree, chunks });
+export const router = createRouter({ layouts, routeTree, chunks })
 ```
 
 <!-- quick-start: src/client.tsx -->
 
 ```tsx
-import { createClient } from "@lovrozagar/flare/client";
-import { router } from "./router.ts";
+import { createClient } from "@lovrozagar/flare/client"
+import { router } from "./router.ts"
 
-createClient(router);
+createClient(router)
 ```
 
 <!-- quick-start: src/server.ts -->
 
 ```ts
-import { createServer } from "@lovrozagar/flare/server";
-import { serverFns } from "./_gen/server-fns.gen.ts";
-import { router } from "./router.ts";
+import { createServer } from "@lovrozagar/flare/server"
+import { serverFns } from "./_gen/server-fns.gen.ts"
+import { router } from "./router.ts"
 
-export const server = createServer({ router, serverFns });
+export const server = createServer({ router, serverFns })
 ```
 
 `vite dev` serves it. `vite build` writes `dist/client` and `dist/server/server.js`, which exports `server`. The adapters serve no files, so a Node deploy puts its static layer in front, a CDN or this:
@@ -156,34 +156,34 @@ export const server = createServer({ router, serverFns });
 
 ```js
 // serve.js: `node serve.js` after `vite build`
-import { readFile } from "node:fs/promises";
-import { createServer } from "node:http";
-import { extname, join, normalize, sep } from "node:path";
-import { createNodeListener } from "@lovrozagar/flare/adapters/node";
-import { server } from "./dist/server/server.js";
+import { readFile } from "node:fs/promises"
+import { createServer } from "node:http"
+import { extname, join, normalize, sep } from "node:path"
+import { createNodeListener } from "@lovrozagar/flare/adapters/node"
+import { server } from "./dist/server/server.js"
 
-const client = join(import.meta.dirname, "dist/client");
-const types = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
-const listener = createNodeListener(server);
+const client = join(import.meta.dirname, "dist/client")
+const types = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".woff2": "font/woff2" }
+const listener = createNodeListener(server)
 
 // A client file's path, or undefined for a target that names none: one `decodeURIComponent` rejects included, which the
 // listener then answers.
 function fileOf(target = "/") {
 	try {
-		const path = normalize(join(client, decodeURIComponent(new URL(target, "http://host").pathname)));
-		return path.startsWith(client + sep) ? path : undefined;
+		const path = normalize(join(client, decodeURIComponent(new URL(target, "http://host").pathname)))
+		return path.startsWith(client + sep) ? path : undefined
 	} catch {
-		return undefined;
+		return undefined
 	}
 }
 
 createServer(async (req, res) => {
-	const path = fileOf(req.url);
-	const file = path === undefined ? undefined : await readFile(path).catch(() => undefined);
-	if (file === undefined) return listener(req, res);
-	res.writeHead(200, { "content-type": types[extname(path)] ?? "application/octet-stream" });
-	res.end(file);
-}).listen(Number(process.env.PORT ?? 3000));
+	const path = fileOf(req.url)
+	const file = path === undefined ? undefined : await readFile(path).catch(() => undefined)
+	if (file === undefined) return listener(req, res)
+	res.writeHead(200, { "content-type": types[extname(path)] ?? "application/octet-stream" })
+	res.end(file)
+}).listen(Number(process.env.PORT ?? 3000))
 ```
 
 ## Routes
@@ -382,8 +382,8 @@ Full contract: [server.md](https://github.com/lovrozagar/flare/blob/main/bluepri
 <!-- quick-start: src/fns/save.ts -->
 
 ```ts
-import { revalidate } from "@lovrozagar/flare/server";
-import { createServerFn } from "@lovrozagar/flare/server-fn";
+import { revalidate } from "@lovrozagar/flare/server"
+import { createServerFn } from "@lovrozagar/flare/server-fn"
 
 // Every step runs on the server, in this order: the session, the validator, the check, then the handler.
 export const save = createServerFn({ method: "post" })
@@ -391,9 +391,9 @@ export const save = createServerFn({ method: "post" })
 	.input({ parse: (value: { id: string; text: string }) => ({ id: String(value.id), text: String(value.text) }) })
 	.authorize(({ input }) => input.text.length <= 280)
 	.handler(async ({ input, auth, env, request, serverContext }) => {
-		await revalidate({ tags: [`note:${input.id}`] });
-		return { id: input.id, by: auth, region: env, path: new URL(request.url).pathname, context: serverContext };
-	});
+		await revalidate({ tags: [`note:${input.id}`] })
+		return { id: input.id, by: auth, region: env, path: new URL(request.url).pathname, context: serverContext }
+	})
 ```
 
 The export is the client function: `await save(input)` resolves to the handler's return. A handler purges stored pages with `revalidate()` from `@lovrozagar/flare/server`. `.stream(async function* (ctx) {})` instead of `.handler()` returns an async iterator of the yielded values, and `ctx.signal` aborts when the client stops. The client bundle keeps none of the validator, `authorize`, or the handler. Full contract: [server-fn.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/server-fn.md).
@@ -447,7 +447,7 @@ Add Cloudflare's plugin beside `flare()`, targeting the `ssr` environment, and p
 
 ```ts
 // vite.config.ts
-export default defineConfig({ plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), flare()] });
+export default defineConfig({ plugins: [cloudflare({ viteEnvironment: { name: "ssr" } }), flare()] })
 ```
 
 ```jsonc

@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { expect, it } from "vitest"
 import {
 	NotFoundError,
 	UnauthenticatedError,
@@ -6,31 +6,31 @@ import {
 	notFound,
 	unauthenticated,
 	unauthorized,
-} from "./http.ts";
+} from "./http.ts"
 
 function thrown(run: () => never): NotFoundError {
 	try {
-		run();
+		run()
 	} catch (error) {
-		return error as NotFoundError;
+		return error as NotFoundError
 	}
-	throw new Error("returned");
+	throw new Error("returned")
 }
 
 it("not found", () => {
-	const error = thrown(notFound);
-	expect(error).toBeInstanceOf(NotFoundError);
-	expect(error.status).toBe(404);
-});
+	const error = thrown(notFound)
+	expect(error).toBeInstanceOf(NotFoundError)
+	expect(error.status).toBe(404)
+})
 
 it("unauthenticated", () => {
-	const error = thrown(unauthenticated);
-	expect(error).toBeInstanceOf(UnauthenticatedError);
-	expect(error.status).toBe(401);
-});
+	const error = thrown(unauthenticated)
+	expect(error).toBeInstanceOf(UnauthenticatedError)
+	expect(error.status).toBe(401)
+})
 
 it("unauthorized", () => {
-	const error = thrown(unauthorized);
-	expect(error).toBeInstanceOf(UnauthorizedError);
-	expect(error.status).toBe(403);
-});
+	const error = thrown(unauthorized)
+	expect(error).toBeInstanceOf(UnauthorizedError)
+	expect(error.status).toBe(403)
+})

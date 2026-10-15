@@ -11,31 +11,31 @@ take && exit 0
 read -r held since < "$lock/owner" 2>/dev/null || { held=unknown; since=$now; }
 if [ $((now - since)) -gt "$stale" ]; then rm -rf "$lock"; take && exit 0; fi
 printf '%s %s\\n' "$held" "$since"
-exit 3`;
+exit 3`
 
 // Removes the lock only while this run owns it, so a run that lost a stale lock never frees another's.
 export const RELEASE = `lock=$1; owner=$2
 read -r held _since < "$lock/owner" 2>/dev/null && [ "$held" = "$owner" ] && rm -rf "$lock"
-exit 0`;
+exit 0`
 
 // Runs one of the scripts above on the Mac with its arguments; the exit status and stdout.
-export type Remote = (script: string, args: readonly string[]) => { status: number | null; stdout: string };
+export type Remote = (script: string, args: readonly string[]) => { status: number | null; stdout: string }
 
-export type Lock = { path: string; owner: string; staleMs: number };
+export type Lock = { path: string; owner: string; staleMs: number }
 
 export function acquire(remote: Remote, lock: Lock, now: number): void {
-	const answer = remote(ACQUIRE, [lock.path, lock.owner, String(now), String(lock.staleMs)]);
-	if (answer.status === 0) return;
-	if (answer.status !== 3) throw new Error(`The Safari lock on the Mac did not answer (exit ${answer.status})`);
-	const [holder = "unknown", since = "0"] = answer.stdout.trim().split(" ");
-	throw new Error(`Safari is in use by ${holder}, since ${new Date(Number(since)).toISOString()}`);
+	const answer = remote(ACQUIRE, [lock.path, lock.owner, String(now), String(lock.staleMs)])
+	if (answer.status === 0) return
+	if (answer.status !== 3) throw new Error(`The Safari lock on the Mac did not answer (exit ${answer.status})`)
+	const [holder = "unknown", since = "0"] = answer.stdout.trim().split(" ")
+	throw new Error(`Safari is in use by ${holder}, since ${new Date(Number(since)).toISOString()}`)
 }
 
 export function release(remote: Remote, lock: Lock): void {
-	remote(RELEASE, [lock.path, lock.owner]);
+	remote(RELEASE, [lock.path, lock.owner])
 }
 
 // Single-quoted for the remote shell.
 export function quote(value: string): string {
-	return `'${value.replaceAll("'", `'\\''`)}'`;
+	return `'${value.replaceAll("'", `'\\''`)}'`
 }

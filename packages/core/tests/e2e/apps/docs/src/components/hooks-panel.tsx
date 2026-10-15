@@ -6,11 +6,11 @@ import {
 	useParams,
 	usePreloaderContext,
 	useSearch,
-} from "@lovrozagar/flare";
-import type { JSX } from "@solidjs/web";
-import { createEffect, createSignal } from "solid-js";
+} from "@lovrozagar/flare"
+import type { JSX } from "@solidjs/web"
+import { createEffect, createSignal } from "solid-js"
 
-const PAGE = "[[locale]]/_root_/(guide)/docs/[slug]";
+const PAGE = "[[locale]]/_root_/(guide)/docs/[slug]"
 
 function Row(props: { name: string; id: string; value: string }): JSX.Element {
 	return (
@@ -20,40 +20,40 @@ function Row(props: { name: string; id: string; value: string }): JSX.Element {
 				{props.value}
 			</dd>
 		</div>
-	);
+	)
 }
 
 // The last navigation's timing, kept outside the panel: the doc page that holds the panel is replaced when a navigation
 // commits, so the panel that saw it start is not the one that sees it end. Only the browser writes it.
-const timing = { started: 0, last: "none yet" };
+const timing = { started: 0, last: "none yet" }
 
 // How long the last navigation stayed pending. `pending` is true from a navigation's fetch until it commits, usually
 // too briefly to see, so the panel keeps the last duration.
 function lastPending(pending: () => boolean): () => string {
-	const [last, setLast] = createSignal(timing.last);
+	const [last, setLast] = createSignal(timing.last)
 	createEffect(pending, (now) => {
-		if (now) timing.started = performance.now();
+		if (now) timing.started = performance.now()
 		else if (timing.started > 0) {
-			timing.last = `${Math.round(performance.now() - timing.started)} ms`;
-			timing.started = 0;
-			setLast(timing.last);
+			timing.last = `${Math.round(performance.now() - timing.started)} ms`
+			timing.started = 0
+			setLast(timing.last)
 		}
-	});
-	return last;
+	})
+	return last
 }
 
 // Every data hook, read live on the doc page. Each level's preloader context shows what that level sees.
 export function HooksPanel(): JSX.Element {
-	const params = useParams({ from: PAGE });
-	const search = useSearch({ from: PAGE });
-	const location = useLocation();
-	const match = useMatch({ from: PAGE });
-	const navigation = useNavigation();
-	const last = lastPending(() => navigation.pending);
-	const docsData = useLoaderData({ from: "[[locale]]/_root_/(guide)/docs" });
-	const root = usePreloaderContext({ from: "[[locale]]/_root_" });
-	const guide = usePreloaderContext({ from: "[[locale]]/_root_/(guide)" });
-	const page = usePreloaderContext({ from: PAGE });
+	const params = useParams({ from: PAGE })
+	const search = useSearch({ from: PAGE })
+	const location = useLocation()
+	const match = useMatch({ from: PAGE })
+	const navigation = useNavigation()
+	const last = lastPending(() => navigation.pending)
+	const docsData = useLoaderData({ from: "[[locale]]/_root_/(guide)/docs" })
+	const root = usePreloaderContext({ from: "[[locale]]/_root_" })
+	const guide = usePreloaderContext({ from: "[[locale]]/_root_/(guide)" })
+	const page = usePreloaderContext({ from: PAGE })
 	return (
 		<details class="mt-10 rounded-xl border border-stone-200 p-4 text-xs dark:border-ink-800" open>
 			<summary class="cursor-pointer text-sm font-medium">Live hooks</summary>
@@ -78,5 +78,5 @@ export function HooksPanel(): JSX.Element {
 				<Row name="preloader (page)" id="ctx-page" value={JSON.stringify(page)} />
 			</dl>
 		</details>
-	);
+	)
 }

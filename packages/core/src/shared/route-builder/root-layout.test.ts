@@ -1,12 +1,12 @@
-import { expect, it } from "vitest";
-import { createRootLayout } from "./root-layout.ts";
+import { expect, it } from "vitest"
+import { createRootLayout } from "./root-layout.ts"
 
-const render = (): string => "<html>";
-const loader = (): { data: string } => ({ data: "root data" });
+const render = (): string => "<html>"
+const loader = (): { data: string } => ({ data: "root data" })
 
 it("root render is the document", () => {
-	expect(createRootLayout("_root_").render(render).document).toBe(true);
-});
+	expect(createRootLayout("_root_").render(render).document).toBe(true)
+})
 
 it("root chain", () => {
 	expect(createRootLayout("_root_").loader(loader).render(render)).toEqual({
@@ -15,13 +15,13 @@ it("root chain", () => {
 		document: true,
 		loader,
 		render,
-	});
-});
+	})
+})
 
 function searchParams(raw: unknown): unknown {
-	return raw;
+	return raw
 }
 
 it("root input", () => {
-	expect(createRootLayout("_root_").input({ searchParams }).render(render).input).toEqual({ searchParams });
-});
+	expect(createRootLayout("_root_").input({ searchParams }).render(render).input).toEqual({ searchParams })
+})

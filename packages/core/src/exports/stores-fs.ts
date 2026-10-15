@@ -1,1 +1,1 @@
-export { createFilesystemStore, fileAssets } from "../adapters/stores/fs/index.ts";
+export { createFilesystemStore, fileAssets } from "../adapters/stores/fs/index.ts"

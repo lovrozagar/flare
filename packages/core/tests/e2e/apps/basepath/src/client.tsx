@@ -1,4 +1,4 @@
-import { createClient } from "@lovrozagar/flare/client";
-import { router } from "./router.ts";
+import { createClient } from "@lovrozagar/flare/client"
+import { router } from "./router.ts"
 
-createClient(router);
+createClient(router)

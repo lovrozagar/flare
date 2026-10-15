@@ -1,5 +1,5 @@
 // The API reference: one entry per public export, keyed by its catch-all path.
-export type ApiEntry = { path: string; name: string; from: string; signature: string; note: string };
+export type ApiEntry = { path: string; name: string; from: string; signature: string; note: string }
 
 export const apiEntries: readonly ApiEntry[] = [
 	{
@@ -37,9 +37,9 @@ export const apiEntries: readonly ApiEntry[] = [
 		signature: "createServerFn({ method? }).input().authorize().handler()",
 		note: "A typed RPC. The client chunk holds only the stub.",
 	},
-];
+]
 
 export function apiEntryOf(path: readonly string[]): ApiEntry | undefined {
-	const joined = path.join("/");
-	return apiEntries.find((entry) => entry.path === joined);
+	const joined = path.join("/")
+	return apiEntries.find((entry) => entry.path === joined)
 }

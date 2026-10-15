@@ -1,12 +1,12 @@
-import { Link, useNavigate } from "@lovrozagar/flare";
-import { For } from "solid-js";
-import type { JSX } from "@solidjs/web";
+import { Link, useNavigate } from "@lovrozagar/flare"
+import { For } from "solid-js"
+import type { JSX } from "@solidjs/web"
 
-const ID = "[[locale]]/_root_/(guide)/examples/[[...rest]]";
-export const TABS = ["routes", "data", "cache"] as const;
-export type Tab = (typeof TABS)[number];
+const ID = "[[locale]]/_root_/(guide)/examples/[[...rest]]"
+export const TABS = ["routes", "data", "cache"] as const
+export type Tab = (typeof TABS)[number]
 
-type Where = { locale: string | undefined; rest: string[] | undefined; tab: Tab | undefined };
+type Where = { locale: string | undefined; rest: string[] | undefined; tab: Tab | undefined }
 
 // Tab links change one search key on the same route, so each is a new match.
 export function Tabs(props: Where): JSX.Element {
@@ -28,13 +28,13 @@ export function Tabs(props: Where): JSX.Element {
 				)}
 			</For>
 		</div>
-	);
+	)
 }
 
 // Shallow, revalidate, a deeper catch-all, a replace with history state, and the client rewrite alias.
 export function Actions(props: Where): JSX.Element {
-	const navigate = useNavigate();
-	const search = (): { tab?: Tab } => (props.tab === undefined ? {} : { tab: props.tab });
+	const navigate = useNavigate()
+	const search = (): { tab?: Tab } => (props.tab === undefined ? {} : { tab: props.tab })
 	return (
 		<div class="mt-6 flex flex-wrap gap-3 text-sm">
 			<Link
@@ -82,5 +82,5 @@ export function Actions(props: Where): JSX.Element {
 				/guide/routing (client rewrite)
 			</a>
 		</div>
-	);
+	)
 }

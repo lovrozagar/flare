@@ -1,17 +1,17 @@
-import { Link, useNavigate } from "@lovrozagar/flare";
-import { createSignal } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { useUi } from "../i18n.ts";
-import { useLocaleParam } from "../locale-param.ts";
-import { Controls } from "./controls.tsx";
+import { Link, useNavigate } from "@lovrozagar/flare"
+import { createSignal } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import { useUi } from "../i18n.ts"
+import { useLocaleParam } from "../locale-param.ts"
+import { Controls } from "./controls.tsx"
 
 const nav =
-	"rounded-md px-2.5 py-1.5 text-sm text-stone-600 transition hover:text-stone-900 dark:text-stone-400 dark:hover:text-white";
-const active = "bg-stone-200/70 text-stone-900 dark:bg-ink-800 dark:text-white";
+	"rounded-md px-2.5 py-1.5 text-sm text-stone-600 transition hover:text-stone-900 dark:text-stone-400 dark:hover:text-white"
+const active = "bg-stone-200/70 text-stone-900 dark:bg-ink-800 dark:text-white"
 
 // The main nav. Each link carries the locale param and marks the active page. Docs prefetches on intent.
 function MainNav(props: { locale: string | undefined }): JSX.Element {
-	const ui = useUi();
+	const ui = useUi()
 	return (
 		<nav class="-mx-1 flex max-w-full items-center gap-1 overflow-x-auto px-1" aria-label="Main">
 			<Link
@@ -48,19 +48,19 @@ function MainNav(props: { locale: string | undefined }): JSX.Element {
 				{ui("playground")}
 			</Link>
 		</nav>
-	);
+	)
 }
 
 // The site header: home, the main nav, search, and the feature controls.
 export function Header(): JSX.Element {
-	const ui = useUi();
-	const locale = useLocaleParam();
-	const navigate = useNavigate();
-	const [query, setQuery] = createSignal("");
+	const ui = useUi()
+	const locale = useLocaleParam()
+	const navigate = useNavigate()
+	const [query, setQuery] = createSignal("")
 	const submit = (event: SubmitEvent): void => {
-		event.preventDefault();
-		void navigate({ to: "[[locale]]/_root_/search", params: { locale: locale() }, search: { q: query() } });
-	};
+		event.preventDefault()
+		void navigate({ to: "[[locale]]/_root_/search", params: { locale: locale() }, search: { q: query() } })
+	}
 	return (
 		<header
 			id="nav"
@@ -86,5 +86,5 @@ export function Header(): JSX.Element {
 				<Controls />
 			</div>
 		</header>
-	);
+	)
 }

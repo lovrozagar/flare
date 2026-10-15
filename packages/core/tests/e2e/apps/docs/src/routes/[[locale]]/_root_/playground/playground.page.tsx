@@ -1,5 +1,5 @@
-import { createPage, useDeferred } from "@lovrozagar/flare";
-import { Loading } from "solid-js";
+import { createPage, useDeferred } from "@lovrozagar/flare"
+import { Loading } from "solid-js"
 import {
 	EchoCard,
 	ErrorsCard,
@@ -7,7 +7,7 @@ import {
 	Result,
 	StreamCard,
 	useCalls,
-} from "../../../../components/playground-cards.tsx";
+} from "../../../../components/playground-cards.tsx"
 
 // Server functions from events, the place a client call belongs. A page loader's deferred tip streams in after the
 // shell, because this page is not stored.
@@ -17,8 +17,8 @@ export const route = createPage("[[locale]]/_root_/playground")
 	}))
 	.head(() => ({ title: "Playground — Flare docs" }))
 	.render((props) => {
-		const tip = useDeferred(() => props.loaderData.tip);
-		const calls = useCalls();
+		const tip = useDeferred(() => props.loaderData.tip)
+		const calls = useCalls()
 		return (
 			<main class="mx-auto grid max-w-5xl gap-5 px-5 py-10 md:grid-cols-2">
 				<h1 class="text-3xl font-semibold tracking-tight md:col-span-2">Playground</h1>
@@ -31,5 +31,5 @@ export const route = createPage("[[locale]]/_root_/playground")
 				<StreamCard />
 				<NotesCard />
 			</main>
-		);
-	});
+		)
+	})

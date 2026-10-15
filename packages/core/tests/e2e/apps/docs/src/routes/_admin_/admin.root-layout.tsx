@@ -1,5 +1,5 @@
-import { createRootLayout, Stylesheet, ThemeProvider, ThemeScript } from "@lovrozagar/flare";
-import "../../styles.css";
+import { createRootLayout, Stylesheet, ThemeProvider, ThemeScript } from "@lovrozagar/flare"
+import "../../styles.css"
 
 // A second document. Moving between it and the main root is a full document load. The admin pages may not be
 // framed, and every response says who it is for.
@@ -41,4 +41,4 @@ export const route = createRootLayout("_admin_")
 			<h1 class="text-xl font-semibold">Admins only</h1>
 			<p class="mt-2 text-sm text-stone-500">Your account can read the docs but not manage them.</p>
 		</div>
-	));
+	))

@@ -1,12 +1,12 @@
 // Oxlint registers one plugin name. This module publishes every flare rule.
-import { readFileSync } from "node:fs";
-import { rule as noModuleSideEffects } from "./no-module-side-effects.js";
-import { rule as noModuleState } from "./no-module-state.js";
-import { rule as funnelOnly } from "./funnel-only.js";
-import { rule as noFlareHeaderBranching } from "./no-flare-header-branching.js";
-import { rule as locationOnlyInRedirect } from "./location-only-in-redirect.js";
-import { rule as noV8Ignore } from "./no-v8-ignore.js";
-import { rule as pathPrefix } from "./path-prefix.js";
+import { readFileSync } from "node:fs"
+import { rule as noModuleSideEffects } from "./no-module-side-effects.js"
+import { rule as noModuleState } from "./no-module-state.js"
+import { rule as funnelOnly } from "./funnel-only.js"
+import { rule as noFlareHeaderBranching } from "./no-flare-header-branching.js"
+import { rule as locationOnlyInRedirect } from "./location-only-in-redirect.js"
+import { rule as noV8Ignore } from "./no-v8-ignore.js"
+import { rule as pathPrefix } from "./path-prefix.js"
 
 const PERMIT = new Set([
 	"shared>shared",
@@ -32,7 +32,7 @@ const PERMIT = new Set([
 	"exports>testing",
 	// testing/index.ts re-exports the harness and the Playwright helpers beside it.
 	"testing>testing",
-]);
+])
 
 const FEATURE_SIDES = {
 	shared: new Set(["shared"]),
@@ -40,64 +40,64 @@ const FEATURE_SIDES = {
 	server: new Set(["shared", "server"]),
 	// A feature's vite side runs in Node, as vite/ does (00-rules environments).
 	vite: new Set(["shared", "vite", "node"]),
-};
+}
 
 function srcRel(filename) {
-	const index = filename.lastIndexOf("/src/");
-	if (index === -1) return null;
-	return filename.slice(index + "/src/".length);
+	const index = filename.lastIndexOf("/src/")
+	if (index === -1) return null
+	return filename.slice(index + "/src/".length)
 }
 
 function bucket(rel) {
-	const feature = /^features\/([^/]+)\/(shared|client|server|vite)\//.exec(rel);
-	if (feature) return `f:${feature[1]}:${feature[2]}`;
-	return rel.split("/")[0];
+	const feature = /^features\/([^/]+)\/(shared|client|server|vite)\//.exec(rel)
+	if (feature) return `f:${feature[1]}:${feature[2]}`
+	return rel.split("/")[0]
 }
 
 function resolveRel(fromRel, spec) {
-	const dir = fromRel.split("/").slice(0, -1);
+	const dir = fromRel.split("/").slice(0, -1)
 	for (const part of spec.split("/")) {
-		if (part === ".") continue;
-		if (part === "..") dir.pop();
-		else dir.push(part);
+		if (part === ".") continue
+		if (part === "..") dir.pop()
+		else dir.push(part)
 	}
-	return dir.join("/");
+	return dir.join("/")
 }
 
 function target(fromRel, spec) {
-	if (spec.startsWith("node:")) return "node";
-	if (spec.startsWith(".")) return bucket(resolveRel(fromRel, spec));
-	return "pkg";
+	if (spec.startsWith("node:")) return "node"
+	if (spec.startsWith(".")) return bucket(resolveRel(fromRel, spec))
+	return "pkg"
 }
 
 // The packages src may import: its own, and the dependencies and peers its manifest declares. A devDependency, an
 // unlisted package, and a builtin without `node:` are not among them (00-rules Dependencies).
-const MANIFEST = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+const MANIFEST = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"))
 // The core package declares only peers today; a spread of an absent map adds nothing.
-const PACKAGES = new Set([MANIFEST.name, ...Object.keys({ ...MANIFEST.dependencies, ...MANIFEST.peerDependencies })]);
+const PACKAGES = new Set([MANIFEST.name, ...Object.keys({ ...MANIFEST.dependencies, ...MANIFEST.peerDependencies })])
 
 function declared(spec) {
-	const parts = spec.split("/");
-	return PACKAGES.has(spec.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0]);
+	const parts = spec.split("/")
+	return PACKAGES.has(spec.startsWith("@") ? parts.slice(0, 2).join("/") : parts[0])
 }
 
 function featureOf(bucketName) {
-	if (!bucketName.startsWith("f:")) return null;
-	return bucketName.split(":")[1];
+	if (!bucketName.startsWith("f:")) return null
+	return bucketName.split(":")[1]
 }
 
 function sideOf(bucketName) {
-	return bucketName.split(":")[2];
+	return bucketName.split(":")[2]
 }
 
 // An adapter may use its own runtime's builtins (00-rules environments). The filesystem store is Node's.
-const NODE_ADAPTERS = ["adapters/node/", "adapters/stores/fs/"];
+const NODE_ADAPTERS = ["adapters/node/", "adapters/stores/fs/"]
 
 // The dev handler hosts the app server through the Node bridge an app uses (00-rules). No other vite file may.
 function devHost(fromRel, spec) {
 	return (
 		fromRel.startsWith("vite/dev/") && spec.startsWith(".") && resolveRel(fromRel, spec).startsWith("adapters/node/")
-	);
+	)
 }
 
 // The three providers that tell other tabs may import the channel through its index (00-rules).
@@ -105,63 +105,63 @@ const SYNC_IMPORTERS = new Set([
 	"features/theme/shared/provider.tsx",
 	"features/direction/shared/provider.tsx",
 	"features/i18n/shared/provider.tsx",
-]);
+])
 
 function syncImport(fromRel, spec) {
-	return SYNC_IMPORTERS.has(fromRel) && spec.startsWith(".") && resolveRel(fromRel, spec) === "client/sync/index.ts";
+	return SYNC_IMPORTERS.has(fromRel) && spec.startsWith(".") && resolveRel(fromRel, spec) === "client/sync/index.ts"
 }
 
 // The font generator runs in Node at authoring time (bits/14): builtins, and its own feature's shared side. The
 // registry is the fonts feature's data: its vite side reads it for the build-time copy, and no other feature does.
 function fontGenerator(fromRel, spec) {
-	const target = spec.startsWith(".") ? resolveRel(fromRel, spec) : "";
-	if (fromRel.startsWith("features/fonts/vite/") && target === "features/fonts/registry.json") return true;
-	if (fromRel !== "features/fonts/generate.ts") return false;
-	return spec.startsWith("node:") || target.startsWith("features/fonts/shared/");
+	const target = spec.startsWith(".") ? resolveRel(fromRel, spec) : ""
+	if (fromRel.startsWith("features/fonts/vite/") && target === "features/fonts/registry.json") return true
+	if (fromRel !== "features/fonts/generate.ts") return false
+	return spec.startsWith("node:") || target.startsWith("features/fonts/shared/")
 }
 
 function allowed(fromRel, spec) {
-	if (syncImport(fromRel, spec) || fontGenerator(fromRel, spec)) return true;
-	const from = bucket(fromRel);
-	const to = target(fromRel, spec);
-	if (to === "pkg") return declared(spec);
-	if (devHost(fromRel, spec)) return true;
-	if (to === "node" && NODE_ADAPTERS.some((prefix) => fromRel.startsWith(prefix))) return true;
-	const fromFeature = featureOf(from);
-	const toFeature = featureOf(to);
-	if (fromFeature && toFeature) return FEATURE_SIDES[sideOf(from)].has(sideOf(to)) && fromFeature === toFeature;
-	if (fromFeature) return FEATURE_SIDES[sideOf(from)].has(to);
+	if (syncImport(fromRel, spec) || fontGenerator(fromRel, spec)) return true
+	const from = bucket(fromRel)
+	const to = target(fromRel, spec)
+	if (to === "pkg") return declared(spec)
+	if (devHost(fromRel, spec)) return true
+	if (to === "node" && NODE_ADAPTERS.some((prefix) => fromRel.startsWith(prefix))) return true
+	const fromFeature = featureOf(from)
+	const toFeature = featureOf(to)
+	if (fromFeature && toFeature) return FEATURE_SIDES[sideOf(from)].has(sideOf(to)) && fromFeature === toFeature
+	if (fromFeature) return FEATURE_SIDES[sideOf(from)].has(to)
 	// vite/ composes a feature's vite side when the app passed that option (00-rules).
-	if (from === "vite" && toFeature) return sideOf(to) === "vite";
+	if (from === "vite" && toFeature) return sideOf(to) === "vite"
 	// exports/ is the public barrel: each subpath re-exports a feature's side for its environment.
-	if (from === "exports" && toFeature) return true;
-	return PERMIT.has(`${from}>${to}`);
+	if (from === "exports" && toFeature) return true
+	return PERMIT.has(`${from}>${to}`)
 }
 
 // Test code, as files.tsv kinds it, may import anything: none of it ships.
 function testCode(filename) {
-	return filename.includes(".test.") || filename.includes(".fixture.") || filename.includes("/tests/");
+	return filename.includes(".test.") || filename.includes(".fixture.") || filename.includes("/tests/")
 }
 
 const rule = {
 	create(context) {
-		const from = testCode(context.filename) ? null : srcRel(context.filename);
+		const from = testCode(context.filename) ? null : srcRel(context.filename)
 		// Every import form meets the boundaries: a declaration (types too, since src ships as source), a re-export, and
 		// a literal `import()`.
 		const check = (node) => {
-			const source = node.source;
-			if (from === null || source?.type !== "Literal" || typeof source.value !== "string") return;
-			if (allowed(from, source.value)) return;
-			context.report({ node, message: "import is outside the module boundaries" });
-		};
+			const source = node.source
+			if (from === null || source?.type !== "Literal" || typeof source.value !== "string") return
+			if (allowed(from, source.value)) return
+			context.report({ node, message: "import is outside the module boundaries" })
+		}
 		return {
 			ImportDeclaration: check,
 			ExportNamedDeclaration: check,
 			ExportAllDeclaration: check,
 			ImportExpression: check,
-		};
+		}
 	},
-};
+}
 
 export default {
 	meta: { name: "flare" },
@@ -175,4 +175,4 @@ export default {
 		"funnel-only": funnelOnly,
 		"no-flare-header-branching": noFlareHeaderBranching,
 	},
-};
+}

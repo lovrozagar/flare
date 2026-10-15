@@ -1,11 +1,11 @@
-import type { HeadConfig } from "../route-builder/types.ts";
+import type { HeadConfig } from "../route-builder/types.ts"
 
 // The replace rules of B83. Single values replace, records shallow-merge with the child key winning, and lists
 // concatenate. `replace` makes the child the whole head.
 export function mergeHead(parent: HeadConfig, child: HeadConfig, replace = false): HeadConfig {
-	if (replace) return child;
-	const parentCustom = parent.custom ?? {};
-	const childCustom = child.custom ?? {};
+	if (replace) return child
+	const parentCustom = parent.custom ?? {}
+	const childCustom = child.custom ?? {}
 	return {
 		title: pick(child.title, parent.title),
 		description: pick(child.description, parent.description),
@@ -26,15 +26,15 @@ export function mergeHead(parent: HeadConfig, child: HeadConfig, replace = false
 			scripts: [...list(parentCustom.scripts), ...list(childCustom.scripts)],
 			styles: [...list(parentCustom.styles), ...list(childCustom.styles)],
 		},
-	};
+	}
 }
 
-const pick = <T>(child: T | undefined, parent: T | undefined): T | undefined => (child === undefined ? parent : child);
+const pick = <T>(child: T | undefined, parent: T | undefined): T | undefined => (child === undefined ? parent : child)
 
 // A record neither side set stays absent: an empty `openGraph` or `robots` would still write its defaults.
 function shallow<T extends object>(parent: T | undefined, child: T | undefined): T | undefined {
-	if (parent === undefined) return child;
-	if (child === undefined) return parent;
-	return { ...parent, ...child };
+	if (parent === undefined) return child
+	if (child === undefined) return parent
+	return { ...parent, ...child }
 }
-const list = <T>(value: readonly T[] | undefined): T[] => (value ? [...value] : []);
+const list = <T>(value: readonly T[] | undefined): T[] => (value ? [...value] : [])

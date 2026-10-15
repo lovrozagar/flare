@@ -1,89 +1,89 @@
 /// <reference types="vite/client" />
-import { setActiveNavigate } from "../navigation/active.ts";
-import { hydrate } from "@solidjs/web";
-import { delegateClicks } from "../../shared/components/index.ts";
-import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts";
-import type { Router } from "../../shared/router/create-router.ts";
-import { loadChain } from "../../shared/router/load-chain.ts";
-import type { ServerFnCall } from "../../shared/server-fn/builder.ts";
-import type { Location } from "../../shared/url/index.ts";
-import { createHistory, type FlareHistory } from "../history/index.ts";
-import { createBlockers } from "../navigation/blocker.ts";
-import { revive, type Pending } from "../navigation/frames.ts";
-import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts";
-import { createNavigationState } from "../navigation/pending.ts";
-import { createPopstate } from "../navigation/popstate.ts";
-import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts";
-import { loadDocument } from "../navigation/reload.ts";
-import { createScroll, pageGrowth, type ScrollStore } from "../navigation/scroll.ts";
-import { cacheFor } from "../router/match-cache.ts";
-import { callServerFn, type CallDeps } from "../server-fn/call.ts";
-import { streamServerFn } from "../server-fn/stream.ts";
-import { tabbedFetch, type DevHot } from "../dev/tab.ts";
-import { registeredQuery } from "../../shared/protocol/index.ts";
-import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts";
-import { guardHead } from "./head-guard.ts";
-import { mountApp, readState, type App, type ClientState, type Mount } from "./hydrate.ts";
-import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts";
+import { setActiveNavigate } from "../navigation/active.ts"
+import { hydrate } from "@solidjs/web"
+import { delegateClicks } from "../../shared/components/index.ts"
+import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts"
+import type { Router } from "../../shared/router/create-router.ts"
+import { loadChain } from "../../shared/router/load-chain.ts"
+import type { ServerFnCall } from "../../shared/server-fn/builder.ts"
+import type { Location } from "../../shared/url/index.ts"
+import { createHistory, type FlareHistory } from "../history/index.ts"
+import { createBlockers } from "../navigation/blocker.ts"
+import { revive, type Pending } from "../navigation/frames.ts"
+import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts"
+import { createNavigationState } from "../navigation/pending.ts"
+import { createPopstate } from "../navigation/popstate.ts"
+import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
+import { loadDocument } from "../navigation/reload.ts"
+import { createScroll, pageGrowth, type ScrollStore } from "../navigation/scroll.ts"
+import { cacheFor } from "../router/match-cache.ts"
+import { callServerFn, type CallDeps } from "../server-fn/call.ts"
+import { streamServerFn } from "../server-fn/stream.ts"
+import { tabbedFetch, type DevHot } from "../dev/tab.ts"
+import { registeredQuery } from "../../shared/protocol/index.ts"
+import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts"
+import { guardHead } from "./head-guard.ts"
+import { mountApp, readState, type App, type ClientState, type Mount } from "./hydrate.ts"
+import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts"
 
 // The browser surface the client uses, passed in so a test can observe it.
 export type ClientEnv = {
-	mount: Mount;
-	fetch: NavigatorDeps["fetch"];
-	assign: (href: string) => void;
-	dev: boolean;
-	send?: ((payload: DevErrorPayload) => void) | undefined;
+	mount: Mount
+	fetch: NavigatorDeps["fetch"]
+	assign: (href: string) => void
+	dev: boolean
+	send?: ((payload: DevErrorPayload) => void) | undefined
 	// Vite's hot channel in dev. Production has none.
-	hot?: DevHot | undefined;
-	idle: IdleEnv;
-	network: object;
-	observe: PrefetchEnv["observe"];
-};
+	hot?: DevHot | undefined
+	idle: IdleEnv
+	network: object
+	observe: PrefetchEnv["observe"]
+}
 
-type Ready = ReturnType<typeof createReady>;
+type Ready = ReturnType<typeof createReady>
 
-type Navigator = ReturnType<typeof createNavigator>;
+type Navigator = ReturnType<typeof createNavigator>
 
-type Parts = { history: FlareHistory; scroll: ScrollStore; store: RouterStore };
+type Parts = { history: FlareHistory; scroll: ScrollStore; store: RouterStore }
 
 // Hydrate starts on the next microtask, after the app chained its callbacks (dx/client.md).
 export function createClient(router: Router): ReadyApi {
-	const ready = createReady();
+	const ready = createReady()
 	queueMicrotask(() => {
-		ready.close();
-		void bootClient(router, ready, browserEnv());
-	});
-	return ready.api;
+		ready.close()
+		void bootClient(router, ready, browserEnv())
+	})
+	return ready.api
 }
 
 // The dev overlay payload goes over the client hot channel. The dev handler relays it (B93). Production has no
 // hot channel and sends nothing.
 export function devSend(hot: { send: (event: string, payload: unknown) => void } | undefined): ClientEnv["send"] {
-	return hot === undefined ? undefined : (payload) => hot.send("flare:error", payload);
+	return hot === undefined ? undefined : (payload) => hot.send("flare:error", payload)
 }
 
 // Resolves to a dispose that removes the listeners and unmounts the app.
 export async function bootClient(router: Router, ready: Ready, given: ClientEnv): Promise<() => void> {
-	const env = devTabbed(given);
-	const state = readState();
-	const location = windowLocation();
-	const match = router.match(location.pathname);
-	const chain = await loadChain(match.chain);
-	const { matches, pending } = holesOf(state);
-	const phase = { hydrating: false };
+	const env = devTabbed(given)
+	const state = readState()
+	const location = windowLocation()
+	const match = router.match(location.pathname)
+	const chain = await loadChain(match.chain)
+	const { matches, pending } = holesOf(state)
+	const phase = { hydrating: false }
 	const store = createRouterStore(
 		snapshotFromState({ matches, chain, unknown: match.id === undefined, location }),
 		reporter(env, phase),
-	);
-	const history = createHistory(window.history);
-	history.adopt(here());
-	const navigation = createNavigationState();
-	const blockers = createBlockers();
-	const scroll = browserScroll(router);
-	const reload = browserReload(env);
+	)
+	const history = createHistory(window.history)
+	history.adopt(here())
+	const navigation = createNavigationState()
+	const blockers = createBlockers()
+	const scroll = browserScroll(router)
+	const reload = browserReload(env)
 	// One id for the navigator, the prefetcher, and the server function transport, so none disagrees on a mismatch (B30).
-	const build = state.build ?? "";
-	const prefetcher = browserPrefetcher(router, store, { env, build });
+	const build = state.build ?? ""
+	const prefetcher = browserPrefetcher(router, store, { env, build })
 	const navigator = createNavigator({
 		router,
 		store,
@@ -100,9 +100,9 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		dev: env.dev,
 		send: env.send,
 		prefetched: prefetcher.prefetched,
-	});
-	installCall(router, env, { reload, build, visit: navigator.visit });
-	ready.ready({ navigate: navigator.navigate, location });
+	})
+	installCall(router, env, { reload, build, visit: navigator.visit })
+	ready.ready({ navigate: navigator.navigate, location })
 	const unmount = hydrateGuarded(state.head, phase, {
 		router,
 		store,
@@ -111,27 +111,27 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		prefetcher,
 		navigate: navigator.navigate,
 		mount: env.mount,
-	});
+	})
 	// After the mount, so a Link's own click handler runs first and the delegate sees it handled.
-	const unlisten = listen(router, navigator, { history, scroll, store });
-	setActiveNavigate(navigator.navigate);
-	markHydrated(ready);
-	if (state.fill === true) void navigator.fill(pending);
-	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all));
-	ready.interaction(document);
-	return disposer(unlisten, unmount);
+	const unlisten = listen(router, navigator, { history, scroll, store })
+	setActiveNavigate(navigator.navigate)
+	markHydrated(ready)
+	if (state.fill === true) void navigator.fill(pending)
+	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all))
+	ready.interaction(document)
+	return disposer(unlisten, unmount)
 }
 
 // Head nodes the server did not write stay out of the hydrate and return in the same task, and a boundary error
 // while it runs is logged (B120).
 function hydrateGuarded(head: ClientState["head"], phase: { hydrating: boolean }, app: App): () => void {
-	const restoreHead = guardHead(document.head, head);
-	phase.hydrating = true;
+	const restoreHead = guardHead(document.head, head)
+	phase.hydrating = true
 	try {
-		return mountApp(app);
+		return mountApp(app)
 	} finally {
-		phase.hydrating = false;
-		restoreHead();
+		phase.hydrating = false
+		restoreHead()
 	}
 }
 
@@ -139,14 +139,14 @@ function hydrateGuarded(head: ClientState["head"], phase: { hydrating: boolean }
 // gone (BUGS.md 105).
 function disposer(...stops: (() => void)[]): () => void {
 	return () => {
-		setActiveNavigate(undefined);
-		for (const stop of stops) stop();
-	};
+		setActiveNavigate(undefined)
+		for (const stop of stops) stop()
+	}
 }
 
 // Every request the client makes, data, fill, prefetch, and server function, names its dev tab (B42).
 function devTabbed(env: ClientEnv): ClientEnv {
-	return { ...env, fetch: tabbedFetch(env.fetch, env.hot, document) };
+	return { ...env, fetch: tabbedFetch(env.fetch, env.hot, document) }
 }
 
 // A boundary error the app's own <Errored> did not catch is a bug the dev overlay shows (B80). One caught while the
@@ -154,14 +154,14 @@ function devTabbed(env: ClientEnv): ClientEnv {
 // so it is logged in production too, never silent (B120).
 function reporter(env: ClientEnv, phase: { hydrating: boolean }): (error: unknown) => void {
 	return (error) => {
-		if (phase.hydrating) console.error("[flare] a route failed to hydrate", error);
-		if (env.dev) env.send?.(devErrorPayload(error));
-	};
+		if (phase.hydrating) console.error("[flare] a route failed to hydrate", error)
+		if (env.dev) env.send?.(devErrorPayload(error))
+	}
 }
 
 // The guarded document load a chunk error and a server function's build mismatch share (flare_chunk_reload).
 function browserReload(env: ClientEnv): (href: string) => boolean {
-	return (href) => loadDocument(href, { storage: () => window.sessionStorage, now: Date.now, assign: env.assign });
+	return (href) => loadDocument(href, { storage: () => window.sessionStorage, now: Date.now, assign: env.assign })
 }
 
 // The booted transport the client entry's createServerFn reads at call time (bits/07). It goes onto the state
@@ -172,7 +172,7 @@ function installCall(
 	env: ClientEnv,
 	nav: Pick<CallDeps, "reload" | "build"> & Pick<Navigator, "visit">,
 ): void {
-	const flare: object = Object(Reflect.get(globalThis, "flare"));
+	const flare: object = Object(Reflect.get(globalThis, "flare"))
 	const deps: CallDeps = {
 		fetch: env.fetch,
 		origin: window.location.origin,
@@ -182,10 +182,10 @@ function installCall(
 		reload: nav.reload,
 		go: (url, replace) => nav.visit(url, replace),
 		assign: env.assign,
-	};
+	}
 	const call: ServerFnCall = (fn, input) =>
-		fn.record.kind === "stream" ? streamServerFn(fn, input, deps) : callServerFn(fn, input, deps);
-	Reflect.set(globalThis, "flare", Object.assign(flare, { call }));
+		fn.record.kind === "stream" ? streamServerFn(fn, input, deps) : callServerFn(fn, input, deps)
+	Reflect.set(globalThis, "flare", Object.assign(flare, { call }))
 }
 
 // Popstate and anchor clicks reach the navigator from here.
@@ -195,18 +195,18 @@ function listen(router: Router, navigator: Navigator, parts: Parts): () => void 
 		restore: navigator.restore,
 		save: (index) => parts.scroll.save(index, parts.store.snapshot().location),
 		current: here,
-	});
-	const onPop = (event: PopStateEvent): void => void pop(event.state);
-	window.addEventListener("popstate", onPop);
+	})
+	const onPop = (event: PopStateEvent): void => void pop(event.state)
+	window.addEventListener("popstate", onPop)
 	const undelegate = delegateClicks(document, {
 		router,
 		origin: window.location.origin,
 		visit: (url) => void navigator.visit(url, false),
-	});
+	})
 	return () => {
-		window.removeEventListener("popstate", onPop);
-		undelegate();
-	};
+		window.removeEventListener("popstate", onPop)
+		undelegate()
+	}
 }
 
 function browserEnv(): ClientEnv {
@@ -223,7 +223,7 @@ function browserEnv(): ClientEnv {
 		},
 		network: globalThis.navigator,
 		observe: observeViewport,
-	};
+	}
 }
 
 // The prefetcher over the window. A link resolves against the page on screen.
@@ -240,15 +240,15 @@ function browserPrefetcher(
 		build,
 		land: { dev: env.dev, send: env.send },
 		env: { network: env.network, observe: env.observe, idle: loadedIdle(env.idle), head: document.head, now: Date.now },
-	});
+	})
 }
 
 function windowLocation(): Location {
-	return { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash };
+	return { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash }
 }
 
 function here(): string {
-	return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+	return `${window.location.pathname}${window.location.search}${window.location.hash}`
 }
 
 // The router's scroll options over the window. A document load sets the mode and reads no saved position.
@@ -268,23 +268,23 @@ function browserScroll(router: Router): ScrollStore {
 			element: (id) => document.getElementById(id),
 			grown: pageGrowth(globalThis),
 		},
-	);
-	scroll.setup();
-	return scroll;
+	)
+	scroll.setup()
+	return scroll
 }
 
 // A stored document's holes are live values the fill settles after hydrate (dx/defer.md).
 function holesOf(state: ClientState): { matches: ClientState["matches"]; pending: Pending } {
-	const pending: Pending = new Map();
-	if (state.fill !== true) return { matches: state.matches, pending };
-	const matches = state.matches.map((match) => ({ ...match, data: revive(match.data, match.id, pending) }));
-	return { matches, pending };
+	const pending: Pending = new Map()
+	if (state.fill !== true) return { matches: state.matches, pending }
+	const matches = state.matches.map((match) => ({ ...match, data: revive(match.data, match.id, pending) }))
+	return { matches, pending }
 }
 
 // The hydration mount is over: the document says so, the app's hydrated callbacks run, and a query the document filled
 // is TanStack's again from here (B102).
 function markHydrated(ready: Ready): void {
-	document.documentElement.setAttribute("data-flare-hydrated", "");
-	ready.hydrated();
-	registeredQuery()?.hydrated?.();
+	document.documentElement.setAttribute("data-flare-hydrated", "")
+	ready.hydrated()
+	registeredQuery()?.hydrated?.()
 }

@@ -1,16 +1,16 @@
-import { formatMessage } from "@lovrozagar/flare/i18n";
-import { createSignal, onSettled } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { renderedOn } from "../runtime.ts";
-import { Lifecycle } from "./lifecycle.tsx";
+import { formatMessage } from "@lovrozagar/flare/i18n"
+import { createSignal, onSettled } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import { renderedOn } from "../runtime.ts"
+import { Lifecycle } from "./lifecycle.tsx"
 
 // The request that rendered this document, the runtime that served it, and where the badge last rendered. The badge
 // starts as the server's answer so hydration matches, then the client side of the isomorphic function takes over.
 export function Footer(props: { requestId: string; runtime: string; version: string }): JSX.Element {
-	const [where, setWhere] = createSignal("server");
+	const [where, setWhere] = createSignal("server")
 	onSettled(() => {
-		setWhere(renderedOn());
-	});
+		setWhere(renderedOn())
+	})
 	return (
 		<footer class="mt-24 border-t border-stone-200 dark:border-ink-800">
 			<div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-5 py-6 text-xs text-stone-500">
@@ -33,5 +33,5 @@ export function Footer(props: { requestId: string; runtime: string; version: str
 				<Lifecycle />
 			</div>
 		</footer>
-	);
+	)
 }

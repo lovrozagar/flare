@@ -1,1 +1,1 @@
-export { parseDuration } from "./parse.ts";
+export { parseDuration } from "./parse.ts"

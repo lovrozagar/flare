@@ -1,22 +1,22 @@
-import { createComponent } from "solid-js";
-import { Dynamic, renderToString, type JSX } from "@solidjs/web";
-import { expect, it, vi } from "vitest";
-import { richText, type RichComponent } from "./rich.ts";
+import { createComponent } from "solid-js"
+import { Dynamic, renderToString, type JSX } from "@solidjs/web"
+import { expect, it, vi } from "vitest"
+import { richText, type RichComponent } from "./rich.ts"
 
 function bold(props: { children?: JSX.Element }): JSX.Element {
 	return createComponent(Dynamic, {
 		component: "b",
 		get children() {
-			return props.children;
+			return props.children
 		},
-	});
+	})
 }
 
 // The markup without Solid's hydration keys and text markers.
 function html(nodes: () => JSX.Element): string {
 	return renderToString(nodes)
 		.replaceAll(/ _hk=\d+/g, "")
-		.replaceAll("<!--!$-->", "");
+		.replaceAll("<!--!$-->", "")
 }
 
 it("tag", () => {
@@ -25,54 +25,54 @@ it("tag", () => {
 			component: "a",
 			href: "/terms",
 			get children() {
-				return props.children;
+				return props.children
 			},
 		}),
-	);
-	expect(html(() => richText("Read {link}the terms{/link}.", { link }))).toBe('Read <a href="/terms">the terms</a>.');
-	expect(link).toHaveBeenCalledTimes(1);
+	)
+	expect(html(() => richText("Read {link}the terms{/link}.", { link }))).toBe('Read <a href="/terms">the terms</a>.')
+	expect(link).toHaveBeenCalledTimes(1)
 	// A tag on its own calls the component with no children.
-	const icon = vi.fn<RichComponent>(() => "*");
-	expect(html(() => richText("Star {icon} here", { icon }))).toBe("Star * here");
-	expect(icon).toHaveBeenCalledTimes(1);
-});
+	const icon = vi.fn<RichComponent>(() => "*")
+	expect(html(() => richText("Star {icon} here", { icon }))).toBe("Star * here")
+	expect(icon).toHaveBeenCalledTimes(1)
+})
 
 it("proto tag", () => {
-	const toString = vi.spyOn(Object.prototype, "toString");
+	const toString = vi.spyOn(Object.prototype, "toString")
 	expect(html(() => richText("x {toString} y {toString}z{/toString}", {}))).toBe(
 		"x {toString} y {toString}z{/toString}",
-	);
-	expect(toString).not.toHaveBeenCalled();
-	toString.mockRestore();
-});
+	)
+	expect(toString).not.toHaveBeenCalled()
+	toString.mockRestore()
+})
 
 it("escape", () => {
 	expect(html(() => richText("<script>x</script> {b}<i>{/b}", { b: bold }))).toBe(
 		"&lt;script>x&lt;/script> <b>&lt;i></b>",
-	);
+	)
 	// A closing tag with no opening one, and an opening one never closed, stay text.
-	expect(html(() => richText("a{/b} {b}c", { b: bold }))).toBe("a{/b} <b></b>c");
-});
+	expect(html(() => richText("a{/b} {b}c", { b: bold }))).toBe("a{/b} <b></b>c")
+})
 
 it("placeholder wins", () => {
-	const name = vi.fn<RichComponent>(() => "component");
+	const name = vi.fn<RichComponent>(() => "component")
 	const rendered = html(() =>
 		richText("Hi {name} {b}{who}{/b}", { name, b: bold }, { values: { name: "Ana", who: "you" }, tag: "en" }),
-	);
-	expect(rendered).toBe("Hi Ana <b>you</b>");
-	expect(name).not.toHaveBeenCalled();
-});
+	)
+	expect(rendered).toBe("Hi Ana <b>you</b>")
+	expect(name).not.toHaveBeenCalled()
+})
 
 // A value is often user content. It is text, never markup, and a plural branch still holds tags.
 it("value is text", () => {
-	const link = vi.fn<RichComponent>(() => "LINK");
-	const values = { values: { name: "{link}x{/link} {/b}" }, tag: "en" };
+	const link = vi.fn<RichComponent>(() => "LINK")
+	const values = { values: { name: "{link}x{/link} {/b}" }, tag: "en" }
 	expect(html(() => richText("Hi {name}, {b}welcome{/b}", { b: bold, link }, values))).toBe(
 		"Hi {link}x{/link} {/b}, <b>welcome</b>",
-	);
-	expect(link).not.toHaveBeenCalled();
-	const plural = "{n, plural, one {{b}# new{/b} item from {who}} other {{b}# new{/b} items}}";
-	const one = { values: { n: 1, who: "{b}evil{/b}" }, tag: "en" };
-	expect(html(() => richText(plural, { b: bold }, one))).toBe("<b>1 new</b> item from {b}evil{/b}");
-	expect(html(() => richText(plural, { b: bold }, { values: { n: 3 }, tag: "en" }))).toBe("<b>3 new</b> items");
-});
+	)
+	expect(link).not.toHaveBeenCalled()
+	const plural = "{n, plural, one {{b}# new{/b} item from {who}} other {{b}# new{/b} items}}"
+	const one = { values: { n: 1, who: "{b}evil{/b}" }, tag: "en" }
+	expect(html(() => richText(plural, { b: bold }, one))).toBe("<b>1 new</b> item from {b}evil{/b}")
+	expect(html(() => richText(plural, { b: bold }, { values: { n: 3 }, tag: "en" }))).toBe("<b>3 new</b> items")
+})

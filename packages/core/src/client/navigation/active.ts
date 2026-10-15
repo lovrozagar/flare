@@ -1,14 +1,14 @@
-import type { FlareRegister } from "../../shared/route-builder/register.ts";
-import type { Navigate, NavigateTo } from "../../shared/router/context.ts";
+import type { FlareRegister } from "../../shared/route-builder/register.ts"
+import type { Navigate, NavigateTo } from "../../shared/router/context.ts"
 
-type Go = (options: NavigateTo) => Promise<void>;
+type Go = (options: NavigateTo) => Promise<void>
 
 // The booted client's navigation, which `navigate` reaches from outside any component (dx/navigate.md).
-const active: { go: Go | undefined } = { go: undefined };
+const active: { go: Go | undefined } = { go: undefined }
 
 // createClient sets it once the client has booted and clears it when the client is disposed.
 export function setActiveNavigate(go: Go | undefined): void {
-	active.go = go;
+	active.go = go
 }
 
 // A navigation from anywhere on the client: an event handler, a module, a callback outside the tree. It is the function
@@ -17,4 +17,4 @@ export function setActiveNavigate(go: Go | undefined): void {
 export const navigate: Navigate<FlareRegister> = (options) =>
 	active.go === undefined
 		? Promise.reject(new Error("navigate runs in the browser, once createClient has booted"))
-		: active.go(options);
+		: active.go(options)

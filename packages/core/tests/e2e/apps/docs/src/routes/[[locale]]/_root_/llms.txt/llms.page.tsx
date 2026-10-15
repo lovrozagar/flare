@@ -1,5 +1,5 @@
-import { createPage } from "@lovrozagar/flare";
-import { docs } from "../../../../content.ts";
+import { createPage } from "@lovrozagar/flare"
+import { docs } from "../../../../content.ts"
 
 // A `.response()` page renders nothing. It answers with its own Response, and a Link to it is a full document load.
 export const route = createPage("[[locale]]/_root_/llms.txt").response(
@@ -12,4 +12,4 @@ export const route = createPage("[[locale]]/_root_/llms.txt").response(
 			].join("\n"),
 			{ headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=300" } },
 		),
-);
+)

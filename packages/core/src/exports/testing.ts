@@ -6,4 +6,4 @@ export {
 	type FlareState,
 	type FlareStateMatch,
 	type TestServer,
-} from "../testing/index.ts";
+} from "../testing/index.ts"

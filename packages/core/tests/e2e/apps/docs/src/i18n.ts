@@ -1,4 +1,4 @@
-import { createTranslations, formatMessage, useLocale, type Translations } from "@lovrozagar/flare/i18n";
+import { createTranslations, formatMessage, useLocale, type Translations } from "@lovrozagar/flare/i18n"
 
 // The UI strings only. The docs prose stays English, so the site stays short.
 export const messages = createTranslations({
@@ -45,10 +45,10 @@ export const messages = createTranslations({
 		role: "{role, select, admin {مدير} other {قارئ}}",
 		helpful: "هل كانت هذه الصفحة مفيدة؟",
 	},
-});
+})
 
 // A render-time translator bound to the current locale. Loaders use `useLoaderT(messages)` instead.
 export function useUi(map: Translations = messages): (key: string, values?: Record<string, string | number>) => string {
-	const locale = useLocale();
-	return (key, values) => formatMessage(map[locale.locale()]?.[key] ?? key, values, locale.locale());
+	const locale = useLocale()
+	return (key, values) => formatMessage(map[locale.locale()]?.[key] ?? key, values, locale.locale())
 }

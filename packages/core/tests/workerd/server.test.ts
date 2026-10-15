@@ -1,18 +1,18 @@
-import { spawnSync } from "node:child_process";
-import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { Miniflare } from "miniflare";
-import { afterAll, expect, it } from "vitest";
+import { spawnSync } from "node:child_process"
+import { mkdir, rm, writeFile } from "node:fs/promises"
+import { join } from "node:path"
+import { fileURLToPath } from "node:url"
+import { Miniflare } from "miniflare"
+import { afterAll, expect, it } from "vitest"
 
 // The real `createServer` behind `createWorkersHandler` in workerd (B96, dx/adapters.md Workers): a worker bundled
 // with Solid's server build, run by Miniflare with an assets binding, the way Cloudflare runs a deploy.
-const src = fileURLToPath(new URL("../../src/", import.meta.url));
-const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run-server");
-await rm(root, { recursive: true, force: true });
-await mkdir(join(root, "assets/a"), { recursive: true });
-await writeFile(join(root, "assets/a/static.txt"), "canonical-asset");
-const at = (path: string): string => JSON.stringify(join(src, path));
+const src = fileURLToPath(new URL("../../src/", import.meta.url))
+const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run-server")
+await rm(root, { recursive: true, force: true })
+await mkdir(join(root, "assets/a"), { recursive: true })
+await writeFile(join(root, "assets/a/static.txt"), "canonical-asset")
+const at = (path: string): string => JSON.stringify(join(src, path))
 await writeFile(
 	join(root, "entry.ts"),
 	`import { createWorkersHandler } from ${at("adapters/workers/handler.ts")};
@@ -51,7 +51,7 @@ export default {
 	},
 };
 `,
-);
+)
 // Solid's server build: the \`worker\` condition, which a Workers bundle resolves, under a target with no \`browser\`.
 const built = spawnSync(
 	"bun",
@@ -67,8 +67,8 @@ const built = spawnSync(
 	// A deploy's environment, not the test runner's: Bun inlines \`import.meta.env\` from it, and a runner's DEV would
 	// bundle a dev server.
 	{ encoding: "utf8", env: { PATH: process.env["PATH"] ?? "", HOME: process.env["HOME"] ?? "" } },
-);
-if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed");
+)
+if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
 
 const mf = new Miniflare({
 	modules: true,
@@ -80,45 +80,45 @@ const mf = new Miniflare({
 		binding: "ASSETS",
 		routerConfig: { invoke_user_worker_ahead_of_assets: true, has_user_worker: true },
 	},
-});
+})
 
 afterAll(async () => {
-	await mf.dispose();
-	await rm(root, { recursive: true, force: true });
-});
+	await mf.dispose()
+	await rm(root, { recursive: true, force: true })
+})
 
 // `fetch` calls the server's fetch: the page renders in workerd as production. A stored render's write to the Cache
 // API is work the handler hands `ctx.waitUntil`, and a live page hands none; the next request is a hit.
 it("worker server", async () => {
-	const page = await mf.dispatchFetch("https://example.com/");
-	expect(page.status).toBe(200);
-	expect(await page.text()).toContain("worker home");
+	const page = await mf.dispatchFetch("https://example.com/")
+	expect(page.status).toBe(200)
+	expect(await page.text()).toContain("worker home")
 	// Production: dev drops Cross-Origin-Opener-Policy. HSTS is not the proof here, since under the Bun runtime
 	// Miniflare hands workerd the request as http.
-	expect(page.headers.get("cross-origin-opener-policy")).toBe("same-origin");
-	const first = await mf.dispatchFetch("https://example.com/stored");
-	expect([first.status, first.headers.get("flare-cache")]).toEqual([200, "miss"]);
-	await first.text();
+	expect(page.headers.get("cross-origin-opener-policy")).toBe("same-origin")
+	const first = await mf.dispatchFetch("https://example.com/stored")
+	expect([first.status, first.headers.get("flare-cache")]).toEqual([200, "miss"])
+	await first.text()
 	await expect
 		.poll(async () => (await mf.dispatchFetch("https://example.com/stored")).headers.get("flare-cache"))
-		.toBe("hit");
-	const handed: unknown = await (await mf.dispatchFetch("https://example.com/__handed")).json();
-	expect(Object.keys(Object(handed))).toEqual(["/stored"]);
-	expect(Reflect.get(Object(handed), "/stored")).toBeGreaterThan(0);
-}, 30_000);
+		.toBe("hit")
+	const handed: unknown = await (await mf.dispatchFetch("https://example.com/__handed")).json()
+	expect(Object.keys(Object(handed))).toEqual(["/stored"])
+	expect(Reflect.get(Object(handed), "/stored")).toBeGreaterThan(0)
+}, 30_000)
 
 // After routing, an unmatched GET or HEAD goes to the binding, and a file comes back untouched; a path the binding
 // lacks is the app's own 404 with its security headers; an unmatched POST is 405 and never reaches the binding.
 it("worker assets", async () => {
-	const file = await mf.dispatchFetch("https://example.com/a/static.txt");
-	expect([file.status, await file.text()]).toEqual([200, "canonical-asset"]);
-	const head = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "HEAD" });
-	expect(head.status).toBe(200);
-	const missing = await mf.dispatchFetch("https://example.com/nope");
-	expect(missing.status).toBe(404);
-	expect(missing.headers.get("x-content-type-options")).toBe("nosniff");
-	await missing.text();
-	const post = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "POST", body: "x" });
-	expect(post.status).toBe(405);
-	expect(await post.text()).not.toBe("canonical-asset");
-}, 30_000);
+	const file = await mf.dispatchFetch("https://example.com/a/static.txt")
+	expect([file.status, await file.text()]).toEqual([200, "canonical-asset"])
+	const head = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "HEAD" })
+	expect(head.status).toBe(200)
+	const missing = await mf.dispatchFetch("https://example.com/nope")
+	expect(missing.status).toBe(404)
+	expect(missing.headers.get("x-content-type-options")).toBe("nosniff")
+	await missing.text()
+	const post = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "POST", body: "x" })
+	expect(post.status).toBe(405)
+	expect(await post.text()).not.toBe("canonical-asset")
+}, 30_000)

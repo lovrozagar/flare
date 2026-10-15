@@ -1,11 +1,11 @@
-import { useBlocker } from "@lovrozagar/flare";
-import { createSignal, For, Show } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { buildLog, buildStatus } from "../fns/build-log.ts";
-import { echo, failLoudly, failSafely } from "../fns/echo.ts";
+import { useBlocker } from "@lovrozagar/flare"
+import { createSignal, For, Show } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import { buildLog, buildStatus } from "../fns/build-log.ts"
+import { echo, failLoudly, failSafely } from "../fns/echo.ts"
 
 const button =
-	"rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50 dark:bg-white dark:text-ink-950";
+	"rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50 dark:bg-white dark:text-ink-950"
 
 function Card(props: { title: string; children: JSX.Element }): JSX.Element {
 	return (
@@ -13,37 +13,37 @@ function Card(props: { title: string; children: JSX.Element }): JSX.Element {
 			<h2 class="mb-3 font-semibold">{props.title}</h2>
 			{props.children}
 		</section>
-	);
+	)
 }
 
 // A 400 carries the validator's `fieldErrors`. Its field message is what the visitor fixes, so it wins over the
 // envelope message.
 function messageOf(error: unknown): string {
-	const fields: unknown = typeof error === "object" && error !== null ? Reflect.get(error, "fieldErrors") : undefined;
-	const first = typeof fields === "object" && fields !== null ? Object.values(fields)[0] : undefined;
-	if (Array.isArray(first) && typeof first[0] === "string") return first[0];
-	return error instanceof Error ? error.message : String(error);
+	const fields: unknown = typeof error === "object" && error !== null ? Reflect.get(error, "fieldErrors") : undefined
+	const first = typeof fields === "object" && fields !== null ? Object.values(fields)[0] : undefined
+	if (Array.isArray(first) && typeof first[0] === "string") return first[0]
+	return error instanceof Error ? error.message : String(error)
 }
 
-export type Calls = { answer: () => string; error: () => string; run: (call: () => Promise<unknown>) => Promise<void> };
+export type Calls = { answer: () => string; error: () => string; run: (call: () => Promise<unknown>) => Promise<void> }
 
 // One answer and one error line, shared by the POST and the error buttons. Calls run from events.
 export function useCalls(): Calls {
-	const [answer, setAnswer] = createSignal("");
-	const [error, setError] = createSignal("");
+	const [answer, setAnswer] = createSignal("")
+	const [error, setError] = createSignal("")
 	const run = async (call: () => Promise<unknown>): Promise<void> => {
-		setError("");
+		setError("")
 		try {
-			setAnswer(JSON.stringify(await call()));
+			setAnswer(JSON.stringify(await call()))
 		} catch (thrown) {
-			setError(messageOf(thrown));
+			setError(messageOf(thrown))
 		}
-	};
-	return { answer, error, run };
+	}
+	return { answer, error, run }
 }
 
 export function EchoCard(props: { calls: Calls }): JSX.Element {
-	const [text, setText] = createSignal("hello flare");
+	const [text, setText] = createSignal("hello flare")
 	return (
 		<Card title="POST with a validator">
 			<div class="flex gap-2">
@@ -63,7 +63,7 @@ export function EchoCard(props: { calls: Calls }): JSX.Element {
 				</button>
 			</div>
 		</Card>
-	);
+	)
 }
 
 export function ErrorsCard(props: { calls: Calls }): JSX.Element {
@@ -78,7 +78,7 @@ export function ErrorsCard(props: { calls: Calls }): JSX.Element {
 				</button>
 			</div>
 		</Card>
-	);
+	)
 }
 
 export function Result(props: { calls: Calls }): JSX.Element {
@@ -91,30 +91,30 @@ export function Result(props: { calls: Calls }): JSX.Element {
 				error: <span id="echo-error">{props.calls.error()}</span>
 			</p>
 		</div>
-	);
+	)
 }
 
 // A streamed server function. Stopping the iterator aborts the request, and the server reports what it saw.
 export function StreamCard(): JSX.Element {
-	const [lines, setLines] = createSignal<string[]>([]);
-	const [status, setStatus] = createSignal("idle");
-	let stop: (() => void) | undefined;
+	const [lines, setLines] = createSignal<string[]>([])
+	const [status, setStatus] = createSignal("idle")
+	let stop: (() => void) | undefined
 	const start = async (): Promise<void> => {
 		// `?run=` names the run, so the e2e `stream` can gate it before the click (BUGS.md 100).
-		const id = new URL(window.location.href).searchParams.get("run") ?? Math.random().toString(16).slice(2, 10);
-		setLines([]);
-		setStatus("running");
+		const id = new URL(window.location.href).searchParams.get("run") ?? Math.random().toString(16).slice(2, 10)
+		setLines([])
+		setStatus("running")
 		// `?hold` makes the run wait after its second line until it is stopped (the e2e `stream abort`).
-		const hold = new URL(window.location.href).searchParams.has("hold");
-		const iterator = buildLog({ run: id, hold })[Symbol.asyncIterator]();
-		stop = () => void iterator.return?.();
+		const hold = new URL(window.location.href).searchParams.has("hold")
+		const iterator = buildLog({ run: id, hold })[Symbol.asyncIterator]()
+		stop = () => void iterator.return?.()
 		for (let step = await iterator.next(); !step.done; step = await iterator.next()) {
-			const value = step.value;
-			setLines((current) => [...current, `${value.line}. ${value.step}`]);
+			const value = step.value
+			setLines((current) => [...current, `${value.line}. ${value.step}`])
 		}
-		await new Promise((resolve) => setTimeout(resolve, 100));
-		setStatus((await buildStatus({ run: id })).status);
-	};
+		await new Promise((resolve) => setTimeout(resolve, 100))
+		setStatus((await buildStatus({ run: id })).status)
+	}
 	return (
 		<Card title="A streamed server function">
 			<div class="flex gap-2">
@@ -132,13 +132,13 @@ export function StreamCard(): JSX.Element {
 				server saw: <span id="stream-status">{status()}</span>
 			</p>
 		</Card>
-	);
+	)
 }
 
 // Unsaved notes ask before any navigation away. The browser's own unload prompt uses the same callback.
 export function NotesCard(): JSX.Element {
-	const [draft, setDraft] = createSignal("");
-	useBlocker(() => draft() === "" || window.confirm("Discard your notes?"));
+	const [draft, setDraft] = createSignal("")
+	useBlocker(() => draft() === "" || window.confirm("Discard your notes?"))
 	return (
 		<Card title="Unsaved notes">
 			<textarea
@@ -154,5 +154,5 @@ export function NotesCard(): JSX.Element {
 				</p>
 			</Show>
 		</Card>
-	);
+	)
 }

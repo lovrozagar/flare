@@ -1,6 +1,6 @@
-import { createLayout, Link, useMatch } from "@lovrozagar/flare";
-import { For } from "solid-js";
-import { docs } from "../../../../content.ts";
+import { createLayout, Link, useMatch } from "@lovrozagar/flare"
+import { For } from "solid-js"
+import { docs } from "../../../../content.ts"
 
 // The docs chrome. The group adds no URL segment. A client navigation's view transition runs on the document, the
 // default (B119 (5)): the sidebar's unchanged pixels crossfade invisibly.
@@ -8,7 +8,7 @@ export const route = createLayout("[[locale]]/_root_/(guide)")
 	.cache({ client: { staleTime: "30s" } })
 	.preloader(() => ({ section: "guide", sidebar: "docs" }))
 	.render((props) => {
-		const match = useMatch({ from: "[[locale]]/_root_/(guide)" });
+		const match = useMatch({ from: "[[locale]]/_root_/(guide)" })
 		return (
 			<div class="mx-auto flex max-w-6xl gap-10 px-5 py-10" data-guide-match={match.routeId}>
 				<aside id="sidebar" class="sticky top-20 hidden h-fit w-52 shrink-0 md:block">
@@ -38,5 +38,5 @@ export const route = createLayout("[[locale]]/_root_/(guide)")
 					{props.children}
 				</article>
 			</div>
-		);
-	});
+		)
+	})

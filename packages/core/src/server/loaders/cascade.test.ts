@@ -1,24 +1,24 @@
-import { expect, it } from "vitest";
-import { UnauthenticatedError, notFound, unauthenticated, unauthorized } from "../../shared/errors/http.ts";
-import { runLoaders, type LoaderRun, type LoaderRoute, type RunInput } from "./run.ts";
+import { expect, it } from "vitest"
+import { UnauthenticatedError, notFound, unauthenticated, unauthorized } from "../../shared/errors/http.ts"
+import { runLoaders, type LoaderRun, type LoaderRoute, type RunInput } from "./run.ts"
 
-const boom = new Error("boom");
+const boom = new Error("boom")
 
 type Spied = {
-	run: LoaderRun;
-	finished: string[];
-	overlay: unknown[];
-	pageRan: boolean;
-};
+	run: LoaderRun
+	finished: string[]
+	overlay: unknown[]
+	pageRan: boolean
+}
 
 async function spied(
 	kind: RunInput["kind"],
 	layout: LoaderRoute["loader"],
 	page: LoaderRoute["loader"],
 ): Promise<Spied> {
-	const finished: string[] = [];
-	const overlay: unknown[] = [];
-	let pageRan = false;
+	const finished: string[] = []
+	const overlay: unknown[] = []
+	let pageRan = false
 	const run = await runLoaders({
 		kind,
 		request: new Request("http://localhost/"),
@@ -30,108 +30,108 @@ async function spied(
 				id: "layout",
 				loader: layout,
 				head: () => {
-					finished.push("layout head");
-					return {};
+					finished.push("layout head")
+					return {}
 				},
 				headers: () => {
-					finished.push("layout headers");
-					return {};
+					finished.push("layout headers")
+					return {}
 				},
 			},
 			{
 				id: "page",
 				loader: (ctx) => {
-					pageRan = true;
-					return page?.(ctx);
+					pageRan = true
+					return page?.(ctx)
 				},
 				head: () => {
-					finished.push("page head");
-					return {};
+					finished.push("page head")
+					return {}
 				},
 				headers: () => {
-					finished.push("page headers");
-					return {};
+					finished.push("page headers")
+					return {}
 				},
 			},
 		],
-	});
-	return { run, finished, overlay, pageRan };
+	})
+	return { run, finished, overlay, pageRan }
 }
 
 function throws(error: unknown): () => never {
 	return () => {
-		throw error;
-	};
+		throw error
+	}
 }
 
-const layoutData = (): { a: number } => ({ a: 1 });
+const layoutData = (): { a: number } => ({ a: 1 })
 
 it("document throw", async () => {
-	const { run, overlay } = await spied("document", layoutData, throws(boom));
-	expect(run.response.status).toBe(500);
-	expect(run.failed).toEqual({ m: "page", status: 500, boundary: "errorRender", error: boom });
-	expect(run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }]);
-	expect(overlay).toEqual([boom]);
-});
+	const { run, overlay } = await spied("document", layoutData, throws(boom))
+	expect(run.response.status).toBe(500)
+	expect(run.failed).toEqual({ m: "page", status: 500, boundary: "errorRender", error: boom })
+	expect(run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }])
+	expect(overlay).toEqual([boom])
+})
 
 it("data throw", async () => {
-	const { run, finished } = await spied("data", layoutData, throws(boom));
-	expect(run.response.status).toBe(200);
+	const { run, finished } = await spied("data", layoutData, throws(boom))
+	expect(run.response.status).toBe(200)
 	expect(run.frames).toEqual([
 		{ t: "l", m: "layout", d: { a: 1 } },
 		{ t: "e", m: "page", e: boom },
-	]);
-	expect(finished).toEqual(["layout head", "layout headers"]);
-});
+	])
+	expect(finished).toEqual(["layout head", "layout headers"])
+})
 
 it("prefetch throw", async () => {
-	const { run, finished } = await spied("prefetch", layoutData, throws(boom));
-	expect(run.response.status).toBe(200);
+	const { run, finished } = await spied("prefetch", layoutData, throws(boom))
+	expect(run.response.status).toBe(200)
 	expect(run.frames).toEqual([
 		{ t: "l", m: "layout", d: { a: 1 } },
 		{ t: "e", m: "page", e: boom },
-	]);
-	expect(finished).toEqual(["layout head", "layout headers"]);
-});
+	])
+	expect(finished).toEqual(["layout head", "layout headers"])
+})
 
 it("named status", async () => {
 	const named = [
 		{ call: notFound, status: 404, boundary: "notFoundRender" },
 		{ call: unauthenticated, status: 401, boundary: "unauthenticatedRender" },
 		{ call: unauthorized, status: 403, boundary: "unauthorizedRender" },
-	];
+	]
 	for (const { call, status, boundary } of named) {
-		const document = await spied("document", layoutData, call);
-		expect(document.run.response.status).toBe(status);
-		expect(document.run.failed?.boundary).toBe(boundary);
-		expect(document.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }]);
-		expect(document.overlay).toEqual([]);
-		const data = await spied("data", layoutData, call);
-		expect(data.run.response.status).toBe(status);
-		expect(data.run.failed?.boundary).toBe(boundary);
-		expect(data.run.frames).toEqual([]);
-		expect(data.overlay).toEqual([]);
+		const document = await spied("document", layoutData, call)
+		expect(document.run.response.status).toBe(status)
+		expect(document.run.failed?.boundary).toBe(boundary)
+		expect(document.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }])
+		expect(document.overlay).toEqual([])
+		const data = await spied("data", layoutData, call)
+		expect(data.run.response.status).toBe(status)
+		expect(data.run.failed?.boundary).toBe(boundary)
+		expect(data.run.frames).toEqual([])
+		expect(data.overlay).toEqual([])
 	}
-});
+})
 
 it("failed layout", async () => {
-	const { run, finished } = await spied("data", throws(boom), () => ({ secret: 1 }));
-	expect(run.response.status).toBe(200);
-	expect(run.frames).toEqual([{ t: "e", m: "layout", e: boom }]);
+	const { run, finished } = await spied("data", throws(boom), () => ({ secret: 1 }))
+	expect(run.response.status).toBe(200)
+	expect(run.frames).toEqual([{ t: "e", m: "layout", e: boom }])
 	// The failed layout writes no head and no headers. The page's loader resolved, so its `.headers()` still runs
 	// (run.test `headers after throw`), though nothing renders it.
-	expect(finished).toEqual(["page headers"]);
-});
+	expect(finished).toEqual(["page headers"])
+})
 
 it("page loader did run", async () => {
-	const { pageRan } = await spied("data", throws(boom), () => ({ secret: 1 }));
-	expect(pageRan).toBe(true);
-});
+	const { pageRan } = await spied("data", throws(boom), () => ({ secret: 1 }))
+	expect(pageRan).toBe(true)
+})
 
 function throwing(error: unknown): () => never {
 	return () => {
-		throw error;
-	};
+		throw error
+	}
 }
 
 it("ranked", async () => {
@@ -145,9 +145,9 @@ it("ranked", async () => {
 			{ id: "layout", loader: throwing(new UnauthenticatedError()) },
 			{ id: "page", loader: () => notFound() },
 		],
-	});
-	expect(run.response.status).toBe(401);
-	expect(run.failed).toMatchObject({ m: "root", status: 401, boundary: "unauthenticatedRender" });
-	expect(run.failed?.error).toBeInstanceOf(UnauthenticatedError);
-	expect(run.data).toEqual([]);
-});
+	})
+	expect(run.response.status).toBe(401)
+	expect(run.failed).toMatchObject({ m: "root", status: 401, boundary: "unauthenticatedRender" })
+	expect(run.failed?.error).toBeInstanceOf(UnauthenticatedError)
+	expect(run.data).toEqual([])
+})

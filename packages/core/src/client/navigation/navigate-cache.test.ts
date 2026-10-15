@@ -1,31 +1,31 @@
-import { flush } from "solid-js";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { encodeFrame, type Frame } from "../../shared/protocol/index.ts";
-import { createPage } from "../../shared/route-builder/page.ts";
-import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
-import { createRouter } from "../../shared/router/create-router.ts";
-import { mountNavigator, unmountAll, type Fetch } from "./navigate.fixture.ts";
+import { flush } from "solid-js"
+import { afterEach, beforeEach, expect, it, vi } from "vitest"
+import { encodeFrame, type Frame } from "../../shared/protocol/index.ts"
+import { createPage } from "../../shared/route-builder/page.ts"
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
+import { createRouter } from "../../shared/router/create-router.ts"
+import { mountNavigator, unmountAll, type Fetch } from "./navigate.fixture.ts"
 
 // A navigation whose pages and layouts are all fresh in the client cache, each on its own clock, sends no request
 // (dx/cache.md, B19). A mounted layout is not fresh by being mounted.
-const fresh = { client: { staleTime: "30s" } } as const;
+const fresh = { client: { staleTime: "30s" } } as const
 const root = createRootLayout("_root_")
 	.cache(fresh)
-	.render((props) => ["root[", props.children, "]"]);
+	.render((props) => ["root[", props.children, "]"])
 const home = createPage("_root_/")
 	.cache(fresh)
-	.render((props) => [() => `home:${String(props.loaderData)}`]);
+	.render((props) => [() => `home:${String(props.loaderData)}`])
 const other = createPage("_root_/a")
 	.cache(fresh)
-	.render((props) => [() => `a:${String(props.loaderData)}:${String(Reflect.get(Object(props.search), "v"))}`]);
+	.render((props) => [() => `a:${String(props.loaderData)}:${String(Reflect.get(Object(props.search), "v"))}`])
 const routes = [
 	{ id: "_root_/", path: "/", module: home },
 	{ id: "_root_/a", path: "/a", module: other },
-];
-const router = createRouter({ layouts: { _root_: root }, routeTree: routes });
+]
+const router = createRouter({ layouts: { _root_: root }, routeTree: routes })
 // The same pages under a root at the default `staleTime`, 0.
-const plainRoot = createRootLayout("_root_").render((props) => ["root[", props.children, "]"]);
-const plain = createRouter({ layouts: { _root_: plainRoot }, routeTree: routes });
+const plainRoot = createRootLayout("_root_").render((props) => ["root[", props.children, "]"])
+const plain = createRouter({ layouts: { _root_: plainRoot }, routeTree: routes })
 
 function frames(page: string, data: string): Response {
 	const list: Frame[] = [
@@ -34,54 +34,54 @@ function frames(page: string, data: string): Response {
 		{ t: "h", m: page, d: { title: data } },
 		{ t: "r" },
 		{ t: "d" },
-	];
-	return new Response(list.map(encodeFrame).join(""), { headers: { "content-type": "application/x-ndjson" } });
+	]
+	return new Response(list.map(encodeFrame).join(""), { headers: { "content-type": "application/x-ndjson" } })
 }
 
 beforeEach(() => {
-	history.replaceState(null, "", "/");
-	sessionStorage.clear();
-});
+	history.replaceState(null, "", "/")
+	sessionStorage.clear()
+})
 
-afterEach(unmountAll);
+afterEach(unmountAll)
 
 it("fresh no request", async () => {
-	let served = 0;
+	let served = 0
 	const fetch = vi.fn<Fetch>(async (url) => {
-		served += 1;
-		return url.startsWith("/a") ? frames("_root_/a", `A${served}`) : frames("_root_/", `H${served}`);
-	});
-	const app = await mountNavigator(router, fetch);
-	await app.navigator.navigate({ to: "_root_/a" });
-	await app.navigator.navigate({ to: "_root_/" });
-	await app.navigator.navigate({ to: "_root_/a" });
-	flush();
-	expect(fetch).toHaveBeenCalledTimes(2);
-	expect(location.pathname).toBe("/a");
-	expect(app.text()).toBe("root[a:A1:A1]");
-	expect(app.store.snapshot().heads.at(-1)).toEqual({ title: "A1" });
+		served += 1
+		return url.startsWith("/a") ? frames("_root_/a", `A${served}`) : frames("_root_/", `H${served}`)
+	})
+	const app = await mountNavigator(router, fetch)
+	await app.navigator.navigate({ to: "_root_/a" })
+	await app.navigator.navigate({ to: "_root_/" })
+	await app.navigator.navigate({ to: "_root_/a" })
+	flush()
+	expect(fetch).toHaveBeenCalledTimes(2)
+	expect(location.pathname).toBe("/a")
+	expect(app.text()).toBe("root[a:A1:A1]")
+	expect(app.store.snapshot().heads.at(-1)).toEqual({ title: "A1" })
 	// The root's entry is keyed by its match id, which `/` and `/a` share, so the fresh copy is the latest landing's.
-	expect(app.store.snapshot().matches[0]?.data).toBe("root-H2");
-	await app.navigator.navigate({ to: "_root_/a", revalidate: true });
-	flush();
-	expect(fetch).toHaveBeenCalledTimes(3);
-	expect(app.text()).toBe("root[a:A3:A3]");
-});
+	expect(app.store.snapshot().matches[0]?.data).toBe("root-H2")
+	await app.navigator.navigate({ to: "_root_/a", revalidate: true })
+	flush()
+	expect(fetch).toHaveBeenCalledTimes(3)
+	expect(app.text()).toBe("root[a:A3:A3]")
+})
 
 // `/` and `/a` share the root's match id (no params, no search), and the root stays mounted, but at `staleTime` 0 it
 // is never fresh, so the last navigation still asks the server (dx/cache.md, B19).
 it("mounted layout stale", async () => {
-	let served = 0;
+	let served = 0
 	const fetch = vi.fn<Fetch>(async (url) => {
-		served += 1;
-		return url.startsWith("/a") ? frames("_root_/a", `A${served}`) : frames("_root_/", `H${served}`);
-	});
-	const app = await mountNavigator(plain, fetch);
-	await app.navigator.navigate({ to: "_root_/a" });
-	await app.navigator.navigate({ to: "_root_/" });
-	await app.navigator.navigate({ to: "_root_/a" });
-	flush();
-	expect(fetch).toHaveBeenCalledTimes(3);
-	expect(fetch).toHaveBeenLastCalledWith("/a?_flare=data&_flare_stale=%26", expect.anything());
-	expect(app.store.snapshot().matches[0]?.data).toBe("root-A3");
-});
+		served += 1
+		return url.startsWith("/a") ? frames("_root_/a", `A${served}`) : frames("_root_/", `H${served}`)
+	})
+	const app = await mountNavigator(plain, fetch)
+	await app.navigator.navigate({ to: "_root_/a" })
+	await app.navigator.navigate({ to: "_root_/" })
+	await app.navigator.navigate({ to: "_root_/a" })
+	flush()
+	expect(fetch).toHaveBeenCalledTimes(3)
+	expect(fetch).toHaveBeenLastCalledWith("/a?_flare=data&_flare_stale=%26", expect.anything())
+	expect(app.store.snapshot().matches[0]?.data).toBe("root-A3")
+})

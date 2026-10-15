@@ -1,28 +1,28 @@
-import { createPage, Link } from "@lovrozagar/flare";
-import { createSignal, Show } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { login, logout } from "../../../../fns/auth.ts";
-import { useUi } from "../../../../i18n.ts";
+import { createPage, Link } from "@lovrozagar/flare"
+import { createSignal, Show } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import { login, logout } from "../../../../fns/auth.ts"
+import { useUi } from "../../../../i18n.ts"
 
 // A login is a server function whose returned Response sets the cookie. A document load then shows the session
 // everywhere, including the admin root.
 async function signOut(): Promise<void> {
-	await logout();
-	window.location.assign("/login");
+	await logout()
+	window.location.assign("/login")
 }
 
 function LoginForm(): JSX.Element {
-	const [user, setUser] = createSignal("ada");
-	const [error, setError] = createSignal("");
+	const [user, setUser] = createSignal("ada")
+	const [error, setError] = createSignal("")
 	const signIn = async (role: "admin" | "reader"): Promise<void> => {
-		setError("");
+		setError("")
 		try {
-			await login({ user: user(), role });
-			window.location.assign("/admin");
+			await login({ user: user(), role })
+			window.location.assign("/admin")
 		} catch (thrown) {
-			setError(thrown instanceof Error ? thrown.message : String(thrown));
+			setError(thrown instanceof Error ? thrown.message : String(thrown))
 		}
-	};
+	}
 	return (
 		<div class="mt-6 space-y-3">
 			<input
@@ -53,11 +53,11 @@ function LoginForm(): JSX.Element {
 				{error()}
 			</p>
 		</div>
-	);
+	)
 }
 
 function SessionPanel(props: { user: string; role: string }): JSX.Element {
-	const ui = useUi();
+	const ui = useUi()
 	return (
 		<div class="mt-6 space-y-3">
 			<p id="session">
@@ -72,7 +72,7 @@ function SessionPanel(props: { user: string; role: string }): JSX.Element {
 				</button>
 			</div>
 		</div>
-	);
+	)
 }
 
 // The session is optional here: the page reads it and still renders for a guest.
@@ -87,4 +87,4 @@ export const route = createPage("[[locale]]/_root_/login")
 				{(name) => <SessionPanel user={name()} role={props.loaderData.role ?? "reader"} />}
 			</Show>
 		</main>
-	));
+	))

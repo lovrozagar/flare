@@ -1,12 +1,12 @@
 // The docs prose. One short entry per feature area. Each names the page of this site that runs the feature.
 export type Doc = {
-	slug: string;
-	title: string;
-	summary: string;
-	demo?: { label: string; path: string };
-	sections: readonly { id: string; title: string; body: string }[];
-	code: string;
-};
+	slug: string
+	title: string
+	summary: string
+	demo?: { label: string; path: string }
+	sections: readonly { id: string; title: string; body: string }[]
+	code: string
+}
 
 export const docs: readonly Doc[] = [
 	{
@@ -230,8 +230,8 @@ export const docs: readonly Doc[] = [
 		],
 		code: 'import hero from "./hero.jpg?image";\n<Image src={hero} alt="" priority placeholder="blur" blurDataURL={blur} />',
 	},
-];
+]
 
 export function docOf(slug: string): Doc | undefined {
-	return docs.find((doc) => doc.slug === slug);
+	return docs.find((doc) => doc.slug === slug)
 }

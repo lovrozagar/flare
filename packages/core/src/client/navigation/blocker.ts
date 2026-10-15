@@ -1,4 +1,4 @@
-import { onCleanup, useContext } from "solid-js";
+import { onCleanup, useContext } from "solid-js"
 import {
 	BlockerContext,
 	type Blocker,
@@ -6,57 +6,57 @@ import {
 	type BlockerPlace,
 	type Blockers,
 	type BlockerSteps,
-} from "../../shared/router/context.ts";
-import type { Location } from "../../shared/url/index.ts";
+} from "../../shared/router/context.ts"
+import type { Location } from "../../shared/url/index.ts"
 
-export { BlockerContext, type Blocker, type BlockerArgs, type BlockerPlace, type Blockers, type BlockerSteps };
+export { BlockerContext, type Blocker, type BlockerArgs, type BlockerPlace, type Blockers, type BlockerSteps }
 
 // One stack per client. Only the last registered blocker runs (B84).
 export function createBlockers(): Blockers {
-	const stack: Blocker[] = [];
-	const last = (): Blocker | undefined => stack.at(-1);
+	const stack: Blocker[] = []
+	const last = (): Blocker | undefined => stack.at(-1)
 	return {
 		register(blocker) {
-			stack.push(blocker);
+			stack.push(blocker)
 			// A second dispose must not remove another blocker: lastIndexOf is -1 once this one is gone.
 			return () => {
-				const at = stack.lastIndexOf(blocker);
-				if (at !== -1) stack.splice(at, 1);
-			};
+				const at = stack.lastIndexOf(blocker)
+				if (at !== -1) stack.splice(at, 1)
+			}
 		},
 		// `false` cancels before the history write. An attempt that already pushed walks back with history.go.
 		run(args, steps) {
-			const blocker = last();
+			const blocker = last()
 			if (blocker !== undefined && consults(args) && !blocker(withoutPopstate(args))) {
-				if (steps.pushed > 0) steps.go(-steps.pushed);
-				return false;
+				if (steps.pushed > 0) steps.go(-steps.pushed)
+				return false
 			}
-			steps.write();
-			return true;
+			steps.write()
+			return true
 		},
 		beforeUnload(event, current) {
-			const blocker = last();
-			if (blocker !== undefined && !blocker({ current, next: current, trigger: "navigation" })) event.preventDefault();
+			const blocker = last()
+			if (blocker !== undefined && !blocker({ current, next: current, trigger: "navigation" })) event.preventDefault()
 		},
-	};
+	}
 }
 
 export function useBlocker(blocker: Blocker): void {
-	onCleanup(useContext(BlockerContext).register(blocker));
+	onCleanup(useContext(BlockerContext).register(blocker))
 }
 
 // Hydrate, a popstate, and a revalidation of the same URL never ask the blocker.
 function consults(args: BlockerArgs & { popstate?: boolean }): boolean {
-	if (args.trigger === "initial" || args.popstate === true) return false;
-	return args.trigger !== "revalidation" || href(args.current) !== href(args.next);
+	if (args.trigger === "initial" || args.popstate === true) return false
+	return args.trigger !== "revalidation" || href(args.current) !== href(args.next)
 }
 
 function withoutPopstate(args: BlockerArgs & { popstate?: boolean }): BlockerArgs {
-	return { current: args.current, next: args.next, trigger: args.trigger };
+	return { current: args.current, next: args.next, trigger: args.trigger }
 }
 
 function href(place: BlockerPlace): string {
-	return `${place.pathname}${place.search}${place.hash}`;
+	return `${place.pathname}${place.search}${place.hash}`
 }
 
 // navigate asks the blocker before it writes anything, so nothing was pushed and history.go is not reached.
@@ -64,10 +64,10 @@ export function allowsNavigation(
 	blockers: Blockers,
 	move: { current: Location; next: Location; trigger: BlockerArgs["trigger"] },
 ): boolean {
-	const steps = { write: () => undefined, pushed: 0, go: history.go.bind(history) };
-	return blockers.run({ current: place(move.current), next: place(move.next), trigger: move.trigger }, steps);
+	const steps = { write: () => undefined, pushed: 0, go: history.go.bind(history) }
+	return blockers.run({ current: place(move.current), next: place(move.next), trigger: move.trigger }, steps)
 }
 
 function place(location: Location): BlockerPlace {
-	return { ...location, params: {} };
+	return { ...location, params: {} }
 }

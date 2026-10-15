@@ -1,5 +1,5 @@
-import { InterceptOutlet } from "@lovrozagar/flare";
-import type { JSX } from "@solidjs/web";
+import { InterceptOutlet } from "@lovrozagar/flare"
+import type { JSX } from "@solidjs/web"
 
 // A client navigation to search from a page in its `from` list opens here, over the page that stays mounted.
 // `match.render` runs the search page itself inside the dialog.
@@ -32,5 +32,5 @@ export function SearchModal(): JSX.Element {
 				</div>
 			)}
 		</InterceptOutlet>
-	);
+	)
 }

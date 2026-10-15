@@ -1,76 +1,76 @@
-import { dirname, resolve } from "node:path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { flarePage, type FlareState } from "../../src/testing/index.ts";
-import { ENGINES, startHarness, type Api, type Engine, type Harness } from "./hydrate.harness.ts";
+import { dirname, resolve } from "node:path"
+import { afterAll, beforeAll, describe, expect, it } from "vitest"
+import { flarePage, type FlareState } from "../../src/testing/index.ts"
+import { ENGINES, startHarness, type Api, type Engine, type Harness } from "./hydrate.harness.ts"
 
 // flarePage over a real Playwright page in every engine (B96, dx/testing.md): the harness serves a document the real
 // `createServer(...).fetch` answers and the real `createClient` hydrates, and the helper loads it again, reads its
 // console, and reads its `self.flare`. One harness boot serves the file.
-let harness: Harness | undefined;
+let harness: Harness | undefined
 
 beforeAll(async () => {
-	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."));
-}, 180_000);
+	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."))
+}, 180_000)
 
 afterAll(async () => {
-	await harness?.close();
-});
+	await harness?.close()
+})
 
 function started(): Harness {
-	if (harness === undefined) throw new Error("the harness did not start");
-	return harness;
+	if (harness === undefined) throw new Error("the harness did not start")
+	return harness
 }
 
 // A root and a page with loader data, built on both sides from this source.
 function app(api: Api): { router: unknown } {
-	const root = api.rootLayout.createRootLayout("_root_").render((props) => props.children);
+	const root = api.rootLayout.createRootLayout("_root_").render((props) => props.children)
 	const home = api.page
 		.createPage("_root_/")
 		.loader(() => ({ greeting: "hello" }))
-		.render(() => "home");
-	const routeTree = [{ id: "_root_/", path: "/", module: home }];
-	return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree }) };
+		.render(() => "home")
+	const routeTree = [{ id: "_root_/", path: "/", module: home }]
+	return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree }) }
 }
 
-type Seen = { hydrated: boolean; errors: string[]; state: FlareState | undefined; policy: string };
+type Seen = { hydrated: boolean; errors: string[]; state: FlareState | undefined; policy: string }
 
 // The helper on the harness's page, whose client waits 300 ms before `createClient`, so hydration lands after the
 // load event: `load` goes to the page again and resolves only once `<html data-flare-hydrated>` is set,
 // `consoleErrors` holds what the page logged as an error since the helper was made, and `state` reads `self.flare`,
 // whose nonce is the one the document's CSP header carries. The page's client logs one error after hydrate.
 async function helperOn(engine: Engine): Promise<Seen> {
-	const seen: Seen = { hydrated: false, errors: [], state: undefined, policy: "" };
+	const seen: Seen = { hydrated: false, errors: [], state: undefined, policy: "" }
 	await started().app(engine, {
 		app,
 		hydrateAfter: 300,
 		client(client) {
-			client.onHydrated(() => console.error("planted error"));
+			client.onHydrated(() => console.error("planted error"))
 		},
 		async steps(tab) {
-			const helper = flarePage(tab);
+			const helper = flarePage(tab)
 			tab.on("response", (response) => {
 				if (response.request().resourceType() === "document")
-					seen.policy = response.headers()["content-security-policy"] ?? "";
-			});
-			await helper.load(new URL("/", tab.url()).href);
-			seen.hydrated = await tab.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"));
-			seen.errors = helper.consoleErrors();
-			seen.state = await helper.state();
+					seen.policy = response.headers()["content-security-policy"] ?? ""
+			})
+			await helper.load(new URL("/", tab.url()).href)
+			seen.hydrated = await tab.evaluate(() => document.documentElement.hasAttribute("data-flare-hydrated"))
+			seen.errors = helper.consoleErrors()
+			seen.state = await helper.state()
 		},
-	});
-	return seen;
+	})
+	return seen
 }
 
 describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
 	it("helper on a real page", async () => {
-		const seen = await helperOn(engine);
-		expect(seen.hydrated).toBe(true);
-		expect(seen.errors).toContain("planted error");
-		expect(seen.state?.build).toBe("dev");
-		expect(seen.state?.nonce).toMatch(/^[0-9a-f]{32}$/);
-		expect(seen.policy).toContain(`'nonce-${seen.state?.nonce}'`);
-		expect(seen.state?.matches.map((match) => match.id)).toEqual(["_root_", "_root_/"]);
-		expect(seen.state?.matches[1]?.data).toEqual({ greeting: "hello" });
-		expect(seen.state?.queries).toBeNull();
-	});
-});
+		const seen = await helperOn(engine)
+		expect(seen.hydrated).toBe(true)
+		expect(seen.errors).toContain("planted error")
+		expect(seen.state?.build).toBe("dev")
+		expect(seen.state?.nonce).toMatch(/^[0-9a-f]{32}$/)
+		expect(seen.policy).toContain(`'nonce-${seen.state?.nonce}'`)
+		expect(seen.state?.matches.map((match) => match.id)).toEqual(["_root_", "_root_/"])
+		expect(seen.state?.matches[1]?.data).toEqual({ greeting: "hello" })
+		expect(seen.state?.queries).toBeNull()
+	})
+})

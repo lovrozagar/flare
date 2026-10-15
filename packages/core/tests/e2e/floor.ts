@@ -5,8 +5,8 @@
 // first each engine shipped, from @mdn/browser-compat-data 8.1.5. Playwright serializes this function into the page,
 // so it uses nothing from outside its own body.
 export function removeAfterFloor(): void {
-	const iterator: object = Object.getPrototypeOf(Object.getPrototypeOf([].values()));
-	const typed: object = Object.getPrototypeOf(Uint8Array.prototype);
+	const iterator: object = Object.getPrototypeOf(Object.getPrototypeOf([].values()))
+	const typed: object = Object.getPrototypeOf(Uint8Array.prototype)
 	const removals: [object, PropertyKey[]][] = [
 		// Streams: async iteration and `from` (Chrome 124, Safari 27, BUGS.md 123).
 		[ReadableStream.prototype, [Symbol.asyncIterator, "values"]],
@@ -52,7 +52,7 @@ export function removeAfterFloor(): void {
 		[Element.prototype, ["checkVisibility"]],
 		[HTMLElement.prototype, ["showPopover", "hidePopover", "togglePopover", "popover"]],
 		[Intl, ["Segmenter"]],
-	];
-	for (const [target, names] of removals) for (const name of names) Reflect.deleteProperty(target, name);
-	addEventListener("scrollend", (event) => event.stopImmediatePropagation(), { capture: true });
+	]
+	for (const [target, names] of removals) for (const name of names) Reflect.deleteProperty(target, name)
+	addEventListener("scrollend", (event) => event.stopImmediatePropagation(), { capture: true })
 }

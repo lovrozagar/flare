@@ -1,1 +1,1 @@
-export { createCacheApiStore } from "../adapters/stores/cache-api/index.ts";
+export { createCacheApiStore } from "../adapters/stores/cache-api/index.ts"

@@ -1,4 +1,4 @@
-import MagicString, { type SourceMap } from "magic-string";
+import MagicString, { type SourceMap } from "magic-string"
 import {
 	parseSync,
 	type CallExpression,
@@ -6,183 +6,179 @@ import {
 	type ImportDeclaration,
 	type ObjectProperty,
 	type Program,
-} from "oxc-parser";
-import { requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts";
-import { cacheKeyKept, routeMethod } from "./allow.ts";
-import { moduleReads } from "./reads.ts";
+} from "oxc-parser"
+import { requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts"
+import { cacheKeyKept, routeMethod } from "./allow.ts"
+import { moduleReads } from "./reads.ts"
 
-const BUILDERS = new Set(["createPage", "createLayout", "createRootLayout", "createPathSegment"]);
+const BUILDERS = new Set(["createPage", "createLayout", "createRootLayout", "createPathSegment"])
 
-export type Split = { code: string; map: SourceMap };
+export type Split = { code: string; map: SourceMap }
 
-type Step = { name: string; call: CallExpression; object: Expression };
+type Step = { name: string; call: CallExpression; object: Expression }
 
 // The client graph of one module (B8, B45). A route chain loses every server method: a middle call is
 // cut, and a removed call that ends the chain keeps the call with `undefined`, so the export is still a record. A
 // server function's input, authorize, handler, and stream arguments become `undefined`. An import no kept code
 // reads is then dropped. A bare `import "x"` stays. Undefined when nothing changed.
 export function splitClient(file: string, source: string): Split | undefined {
-	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
-	const [error] = parsed.errors;
-	if (error !== undefined) throw new Error(`${file}: ${error.message}`);
-	const edit: Edit = { file, source, out: new MagicString(source), removed: [] };
-	splitEdits(edit, parsed.program);
-	if (!edit.out.hasChanged()) return undefined;
-	pruneImports(edit, parsed.program);
-	return { code: edit.out.toString(), map: edit.out.generateMap({ hires: true, source: file, includeContent: true }) };
+	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" })
+	const [error] = parsed.errors
+	if (error !== undefined) throw new Error(`${file}: ${error.message}`)
+	const edit: Edit = { file, source, out: new MagicString(source), removed: [] }
+	splitEdits(edit, parsed.program)
+	if (!edit.out.hasChanged()) return undefined
+	pruneImports(edit, parsed.program)
+	return { code: edit.out.toString(), map: edit.out.generateMap({ hires: true, source: file, includeContent: true }) }
 }
 
 // One module's edits, shared by every step of the boundary transform. `removed` is every span a step deleted.
-export type Edit = { file: string; source: string; out: MagicString; removed: Span[] };
+export type Edit = { file: string; source: string; out: MagicString; removed: Span[] }
 
 // The route chains and the server function bodies of the client graph, into a shared edit.
 export function splitEdits(edit: Edit, program: Program): void {
-	for (const [name, steps] of routeChains(program)) stripRoute(edit, name, steps);
+	for (const [name, steps] of routeChains(program)) stripRoute(edit, name, steps)
 	for (const record of serverFnsOf(edit.file, program)) {
 		for (const method of record.methods) {
-			if (["input", "authorize", "handler", "stream"].includes(method.name)) blank(edit, method.args);
+			if (["input", "authorize", "handler", "stream"].includes(method.name)) blank(edit, method.args)
 		}
 	}
 }
 
-const BODIES = new Set(["input", "authorize", "handler", "stream"]);
+const BODIES = new Set(["input", "authorize", "handler", "stream"])
 
 // The server code a client module still holds, found by the same walk split uses: a B8-removed route
 // method that is not the chain's end or still has an argument other than `undefined`, and a server function body
 // that is not `undefined`. The tripwire reads a chunk's modules with it.
 export function serverCode(file: string, source: string, program: Program): Span[] {
-	const leaks: Span[] = [];
+	const leaks: Span[] = []
 	const blank = (args: readonly Span[]): boolean =>
-		args.every((arg) => source.slice(arg.start, arg.end) === "undefined");
+		args.every((arg) => source.slice(arg.start, arg.end) === "undefined")
 	for (const [, steps] of routeChains(program)) {
 		steps.forEach((step, index) => {
-			const removed = routeMethod(step.name) === "remove";
-			if (removed && (index < steps.length - 1 || !blank(step.call.arguments))) leaks.push(step.call);
-		});
+			const removed = routeMethod(step.name) === "remove"
+			if (removed && (index < steps.length - 1 || !blank(step.call.arguments))) leaks.push(step.call)
+		})
 	}
 	for (const record of serverFnsOf(file, program)) {
-		for (const method of record.methods) if (BODIES.has(method.name) && !blank(method.args)) leaks.push(method);
+		for (const method of record.methods) if (BODIES.has(method.name) && !blank(method.args)) leaks.push(method)
 	}
-	return leaks;
+	return leaks
 }
 
 // `export const name = builder(...)...` chains whose root is a route builder imported from the package.
 function routeChains(program: Program): Array<[string, Step[]]> {
-	const builders = builderNames(program);
-	const chains: Array<[string, Step[]]> = [];
+	const builders = builderNames(program)
+	const chains: Array<[string, Step[]]> = []
 	for (const statement of program.body) {
-		if (statement.type !== "ExportNamedDeclaration" || statement.declaration?.type !== "VariableDeclaration") continue;
+		if (statement.type !== "ExportNamedDeclaration" || statement.declaration?.type !== "VariableDeclaration") continue
 		for (const declarator of statement.declaration.declarations) {
-			const steps = declarator.init === null ? undefined : stepsOf(declarator.init, builders);
-			if (steps !== undefined && declarator.id.type === "Identifier") chains.push([declarator.id.name, steps]);
+			const steps = declarator.init === null ? undefined : stepsOf(declarator.init, builders)
+			if (steps !== undefined && declarator.id.type === "Identifier") chains.push([declarator.id.name, steps])
 		}
 	}
-	return chains;
+	return chains
 }
 
 function builderNames(program: Program): Set<string> {
-	const names = new Set<string>();
+	const names = new Set<string>()
 	for (const statement of program.body) {
 		if (statement.type === "ImportDeclaration" && statement.source.value === "@lovrozagar/flare") {
 			for (const specifier of statement.specifiers) {
-				if (specifier.type !== "ImportSpecifier") continue;
-				const imported = specifier.imported.type === "Literal" ? specifier.imported.value : specifier.imported.name;
-				if (BUILDERS.has(imported)) names.add(specifier.local.name);
+				if (specifier.type !== "ImportSpecifier") continue
+				const imported = specifier.imported.type === "Literal" ? specifier.imported.value : specifier.imported.name
+				if (BUILDERS.has(imported)) names.add(specifier.local.name)
 			}
 		}
 	}
-	return names;
+	return names
 }
 
 // Root-first steps, or undefined when the chain does not start at a builder. A computed call is kept as an
 // empty name, which stripRoute reports.
 function stepsOf(expression: Expression, builders: ReadonlySet<string>): Step[] | undefined {
-	const steps: Step[] = [];
-	let node: Expression = expression;
+	const steps: Step[] = []
+	let node: Expression = expression
 	while (node.type === "CallExpression") {
-		const callee: Expression = node.callee;
-		if (callee.type === "Identifier") return builders.has(callee.name) ? steps : undefined;
-		if (callee.type !== "MemberExpression") return undefined;
-		steps.unshift({ name: callee.computed ? "" : callee.property.name, call: node, object: callee.object });
-		node = callee.object;
+		const callee: Expression = node.callee
+		if (callee.type === "Identifier") return builders.has(callee.name) ? steps : undefined
+		if (callee.type !== "MemberExpression") return undefined
+		steps.unshift({ name: callee.computed ? "" : callee.property.name, call: node, object: callee.object })
+		node = callee.object
 	}
-	return undefined;
+	return undefined
 }
 
 function stripRoute(edit: Edit, name: string, steps: readonly Step[]): void {
 	steps.forEach((step, index) => {
 		if (step.name === "") {
-			throw new Error(`${edit.file}: ${name} calls a chain method by element access. Call each method by name`);
+			throw new Error(`${edit.file}: ${name} calls a chain method by element access. Call each method by name`)
 		}
-		const verdict = routeMethod(step.name);
-		if (verdict === "unknown") throw new Error(`${edit.file}: .${step.name}() is not a route chain method`);
-		if (verdict === "cache") cache(edit, name, step);
-		if (verdict === "remove" && index === steps.length - 1) blank(edit, step.call.arguments);
-		else if (verdict === "remove") cut(edit, step);
-	});
+		const verdict = routeMethod(step.name)
+		if (verdict === "unknown") throw new Error(`${edit.file}: .${step.name}() is not a route chain method`)
+		if (verdict === "cache") cache(edit, name, step)
+		if (verdict === "remove" && index === steps.length - 1) blank(edit, step.call.arguments)
+		else if (verdict === "remove") cut(edit, step)
+	})
 }
 
 // `.cache()` keeps its `client` field alone, or goes when it has none. The argument is an object literal with named
 // fields, so the fields are found without running the module. A field's value may be anything: a server field's
 // `params` or `tags` function goes with that field (dx/cache.md).
 function cache(edit: Edit, name: string, step: Step): void {
-	const [argument] = step.call.arguments;
+	const [argument] = step.call.arguments
 	const named =
 		argument?.type === "ObjectExpression" &&
-		argument.properties.every((property) => property.type === "Property" && !property.computed);
+		argument.properties.every((property) => property.type === "Property" && !property.computed)
 	// Anything else, a spread or a computed key included, fails with the literal message.
 	if (argument?.type !== "ObjectExpression" || !named)
-		return void requireLiteral(edit.file, `${name} .cache()`, undefined);
+		return void requireLiteral(edit.file, `${name} .cache()`, undefined)
 	const client = argument.properties.find(
 		(property): property is ObjectProperty =>
 			property.type === "Property" && property.key.type === "Identifier" && cacheKeyKept(property.key.name),
-	);
-	if (client === undefined) return cut(edit, step);
-	edit.out.overwrite(argument.start, argument.end, `{ ${edit.source.slice(client.start, client.end)} }`);
-	edit.removed.push({ start: argument.start, end: argument.end });
+	)
+	if (client === undefined) return cut(edit, step)
+	edit.out.overwrite(argument.start, argument.end, `{ ${edit.source.slice(client.start, client.end)} }`)
+	edit.removed.push({ start: argument.start, end: argument.end })
 }
 
 // `.method(args)` goes from the end of the object it was called on.
 function cut(edit: Edit, step: Step): void {
-	edit.out.remove(step.object.end, step.call.end);
-	edit.removed.push({ start: step.object.end, end: step.call.end });
+	edit.out.remove(step.object.end, step.call.end)
+	edit.removed.push({ start: step.object.end, end: step.call.end })
 }
 
 function blank(edit: Edit, args: readonly Span[]): void {
-	const first = args.at(0);
-	const last = args.at(-1);
-	if (first === undefined || last === undefined) return;
-	edit.out.overwrite(first.start, last.end, "undefined");
-	edit.removed.push({ start: first.start, end: last.end });
+	const first = args.at(0)
+	const last = args.at(-1)
+	if (first === undefined || last === undefined) return
+	edit.out.overwrite(first.start, last.end, "undefined")
+	edit.removed.push({ start: first.start, end: last.end })
 }
 
 // An import stays only when kept code reads it: a reference outside every import and every removed span that
 // resolves to the module scope (reads.ts). So a module only removed code reads leaves the client graph.
 export function pruneImports(edit: Edit, program: Program): void {
-	const imports = program.body.filter((node): node is ImportDeclaration => node.type === "ImportDeclaration");
+	const imports = program.body.filter((node): node is ImportDeclaration => node.type === "ImportDeclaration")
 	const outside = (node: Span): boolean =>
-		!imports.some((entry) => inside(node, entry)) && !edit.removed.some((span) => inside(node, span));
-	const read = moduleReads(program, outside);
+		!imports.some((entry) => inside(node, entry)) && !edit.removed.some((span) => inside(node, span))
+	const read = moduleReads(program, outside)
 	for (const declaration of imports) {
-		if (declaration.importKind !== "type" && declaration.specifiers.length > 0) prune(edit, declaration, read);
+		if (declaration.importKind !== "type" && declaration.specifiers.length > 0) prune(edit, declaration, read)
 	}
 }
 
 function prune(edit: Edit, declaration: ImportDeclaration, read: ReadonlySet<string>): void {
-	const kept = declaration.specifiers.filter((specifier) => read.has(specifier.local.name));
-	if (kept.length === declaration.specifiers.length) return;
-	if (kept.length === 0) return void edit.out.remove(declaration.start, declaration.end);
-	const text = (node: Span): string => edit.source.slice(node.start, node.end);
-	const named = kept.filter((specifier) => specifier.type === "ImportSpecifier").map(text);
-	const parts = kept.filter((specifier) => specifier.type !== "ImportSpecifier").map(text);
-	if (named.length > 0) parts.push(`{ ${named.join(", ")} }`);
-	edit.out.overwrite(
-		declaration.start,
-		declaration.end,
-		`import ${parts.join(", ")} from ${text(declaration.source)};`,
-	);
+	const kept = declaration.specifiers.filter((specifier) => read.has(specifier.local.name))
+	if (kept.length === declaration.specifiers.length) return
+	if (kept.length === 0) return void edit.out.remove(declaration.start, declaration.end)
+	const text = (node: Span): string => edit.source.slice(node.start, node.end)
+	const named = kept.filter((specifier) => specifier.type === "ImportSpecifier").map(text)
+	const parts = kept.filter((specifier) => specifier.type !== "ImportSpecifier").map(text)
+	if (named.length > 0) parts.push(`{ ${named.join(", ")} }`)
+	edit.out.overwrite(declaration.start, declaration.end, `import ${parts.join(", ")} from ${text(declaration.source)};`)
 }
 
 function inside(node: Span, span: Span): boolean {
-	return node.start >= span.start && node.end <= span.end;
+	return node.start >= span.start && node.end <= span.end
 }

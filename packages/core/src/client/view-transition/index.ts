@@ -7,4 +7,4 @@ export {
 	type Direction,
 	type TransitionInfo,
 	type ViewTransitionOptions,
-} from "./direction.ts";
+} from "./direction.ts"

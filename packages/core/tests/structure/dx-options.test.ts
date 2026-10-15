@@ -1,25 +1,25 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { parseSync } from "oxc-parser";
-import { expect, it } from "vitest";
+import { readdirSync, readFileSync } from "node:fs"
+import { dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
+import { parseSync } from "oxc-parser"
+import { expect, it } from "vitest"
 
 // The option tables of every dx file name only keys the exported types have (BUGS.md 113). Each `prop` or `key` table
 // maps, by the heading above it, to a type in the source, or to a function whose parameters and last parameter's keys
 // it lists; a heading with several tables maps to one source per table, in order. A table with no type behind it is an
 // explicit exemption with its reason, and a table under a `Planned (plan 15)` heading documents what v1 does not ship.
 // A dx file or a table with no mapping fails, so it gets one.
-const core = fileURLToPath(new URL("../../", import.meta.url));
-const repo = join(core, "../..");
-const dx = join(repo, "blueprint/dx");
+const core = fileURLToPath(new URL("../../", import.meta.url))
+const repo = join(core, "../..")
+const dx = join(repo, "blueprint/dx")
 
 // `external` names a key the type takes from a package's type, which oxc cannot read from the source.
 type Source =
 	| { file: string; type: string; path?: readonly string[]; external?: { from: string; names: readonly string[] } }
 	| { file: string; fn: string }
-	| { exempt: string };
+	| { exempt: string }
 
-const TYPES = "src/shared/route-builder/types.ts";
+const TYPES = "src/shared/route-builder/types.ts"
 
 const TABLES: Readonly<Record<string, Readonly<Record<string, Source | readonly Source[]>>>> = {
 	"adapters.md": {
@@ -106,219 +106,219 @@ const TABLES: Readonly<Record<string, Readonly<Record<string, Source | readonly 
 		createCacheApiStore: { file: "src/adapters/stores/cache-api/store.ts", fn: "createCacheApiStore" },
 		revalidate: { file: "src/server/cache/revalidate.ts", fn: "revalidate" },
 	},
-};
+}
 
 it("option tables", () => {
-	const unknown: string[] = [];
+	const unknown: string[] = []
 	for (const doc of readdirSync(dx).filter((name) => name.endsWith(".md"))) {
-		const seen = new Map<string, number>();
+		const seen = new Map<string, number>()
 		for (const table of tablesOf(readFileSync(join(dx, doc), "utf8"))) {
-			const index = seen.get(table.heading) ?? 0;
-			seen.set(table.heading, index + 1);
-			const mapped = TABLES[doc]?.[table.heading];
-			const source = Array.isArray(mapped) ? mapped[index] : index === 0 ? mapped : undefined;
+			const index = seen.get(table.heading) ?? 0
+			seen.set(table.heading, index + 1)
+			const mapped = TABLES[doc]?.[table.heading]
+			const source = Array.isArray(mapped) ? mapped[index] : index === 0 ? mapped : undefined
 			if (source === undefined) {
-				unknown.push(`${doc} "${table.heading}" #${index + 1}: no source mapped`);
-				continue;
+				unknown.push(`${doc} "${table.heading}" #${index + 1}: no source mapped`)
+				continue
 			}
-			if ("exempt" in source) continue;
-			const keys = keysOfSource(source);
-			const external = "type" in source ? (source.external?.names ?? []) : [];
+			if ("exempt" in source) continue
+			const keys = keysOfSource(source)
+			const external = "type" in source ? (source.external?.names ?? []) : []
 			for (const name of table.names) {
 				if (!external.includes(name) && !hasPath(keys, name.split("."))) {
-					unknown.push(`${doc} "${table.heading}": ${name}`);
+					unknown.push(`${doc} "${table.heading}": ${name}`)
 				}
 			}
 		}
 	}
-	expect(unknown).toEqual([]);
-});
+	expect(unknown).toEqual([])
+})
 
 // The check bites: a table naming a key its type lacks is reported, and a Planned table is not.
 it("bites", () => {
 	const text =
-		"# createRouter\n\n| prop | x |\n| --- | --- |\n| `basePath` | |\n| `nope` | |\n\n### Planned (plan 15)\n\n| prop |\n| --- |\n| `later` |\n";
-	const [table, ...rest] = tablesOf(text);
-	expect(rest).toEqual([]);
-	const keys = keysOfSource({ file: "src/shared/router/create-router.ts", type: "RouterOptions" });
-	expect(table?.names.filter((name) => !hasPath(keys, name.split(".")))).toEqual(["nope"]);
-});
+		"# createRouter\n\n| prop | x |\n| --- | --- |\n| `basePath` | |\n| `nope` | |\n\n### Planned (plan 15)\n\n| prop |\n| --- |\n| `later` |\n"
+	const [table, ...rest] = tablesOf(text)
+	expect(rest).toEqual([])
+	const keys = keysOfSource({ file: "src/shared/router/create-router.ts", type: "RouterOptions" })
+	expect(table?.names.filter((name) => !hasPath(keys, name.split(".")))).toEqual(["nope"])
+})
 
 // `Omit` drops its keys and `Pick` keeps only its own: `NavigateOptions` omits `replace` and the target from
 // `NavigateTo`, and no mapped type uses `Pick` yet, so an inline one stands in.
 it("omit and pick", () => {
-	const navigate = keysOfSource({ file: "src/shared/router/context.ts", type: "NavigateOptions" });
-	expect(["replace", "to", "scroll"].filter((name) => !navigate.has(name))).toEqual(["replace", "to"]);
-	const inline = moduleOf(join(core, "inline-pick.ts"), 'type A = { a: string; b: number };\ntype P = Pick<A, "a">;\n');
-	expect([...keysOfName(inline, "P").keys()]).toEqual(["a"]);
-});
+	const navigate = keysOfSource({ file: "src/shared/router/context.ts", type: "NavigateOptions" })
+	expect(["replace", "to", "scroll"].filter((name) => !navigate.has(name))).toEqual(["replace", "to"])
+	const inline = moduleOf(join(core, "inline-pick.ts"), 'type A = { a: string; b: number };\ntype P = Pick<A, "a">;\n')
+	expect([...keysOfName(inline, "P").keys()]).toEqual(["a"])
+})
 
-type Table = { heading: string; names: string[] };
+type Table = { heading: string; names: string[] }
 
 // Every table whose first header cell is `prop` or `key`, with the nearest heading above it and the backticked names in
 // its first column. A Planned heading exempts the tables under it.
 function tablesOf(text: string): Table[] {
-	const tables: Table[] = [];
-	let heading = "";
-	let current: Table | undefined;
+	const tables: Table[] = []
+	let heading = ""
+	let current: Table | undefined
 	for (const line of text.split("\n")) {
-		const title = /^#+ (.*)$/.exec(line);
-		if (title !== null) heading = String(title[1]).replaceAll("`", "");
+		const title = /^#+ (.*)$/.exec(line)
+		if (title !== null) heading = String(title[1]).replaceAll("`", "")
 		if (!line.startsWith("|")) {
-			current = undefined;
-			continue;
+			current = undefined
+			continue
 		}
-		const first = line.split("|")[1]?.trim() ?? "";
+		const first = line.split("|")[1]?.trim() ?? ""
 		if (current === undefined) {
 			if ((first === "prop" || first === "key") && !heading.startsWith("Planned")) {
-				current = { heading, names: [] };
-				tables.push(current);
-			} else current = { heading, names: [] };
-			continue;
+				current = { heading, names: [] }
+				tables.push(current)
+			} else current = { heading, names: [] }
+			continue
 		}
-		if (/^-+$/.test(first) || !tables.includes(current)) continue;
+		if (/^-+$/.test(first) || !tables.includes(current)) continue
 		// A quoted key such as `"96x96"` is that key.
-		current.names.push(...[...first.matchAll(/`([^`]+)`/g)].map((match) => String(match[1]).replace(/^"(.*)"$/, "$1")));
+		current.names.push(...[...first.matchAll(/`([^`]+)`/g)].map((match) => String(match[1]).replace(/^"(.*)"$/, "$1")))
 	}
-	return tables;
+	return tables
 }
 
 // A key's own keys, for a dotted name such as `entry.client`.
-type Keys = Map<string, () => Keys>;
+type Keys = Map<string, () => Keys>
 
 function hasPath(keys: Keys, path: readonly string[]): boolean {
-	const [head, ...rest] = path;
-	const next = head === undefined ? undefined : keys.get(head);
-	if (next === undefined) return false;
-	return rest.length === 0 || hasPath(next(), rest);
+	const [head, ...rest] = path
+	const next = head === undefined ? undefined : keys.get(head)
+	if (next === undefined) return false
+	return rest.length === 0 || hasPath(next(), rest)
 }
 
 function keysOfSource(source: Exclude<Source, { exempt: string }>): Keys {
-	const module = moduleOf(join(core, source.file));
-	if ("fn" in source) return functionKeys(module, source.fn);
-	const keys = keysOfName(module, source.type);
-	return (source.path ?? []).reduce((found, key) => found.get(key)?.() ?? new Map(), keys);
+	const module = moduleOf(join(core, source.file))
+	if ("fn" in source) return functionKeys(module, source.fn)
+	const keys = keysOfName(module, source.type)
+	return (source.path ?? []).reduce((found, key) => found.get(key)?.() ?? new Map(), keys)
 }
 
 type Module = {
-	file: string;
-	aliases: Map<string, unknown>;
-	imports: Map<string, { file: string; name: string }>;
-	functions: Map<string, unknown>;
-};
+	file: string
+	aliases: Map<string, unknown>
+	imports: Map<string, { file: string; name: string }>
+	functions: Map<string, unknown>
+}
 
-const modules = new Map<string, Module>();
+const modules = new Map<string, Module>()
 
 function moduleOf(file: string, source?: string): Module {
-	const known = modules.get(file);
-	if (known !== undefined) return known;
-	const module: Module = { file, aliases: new Map(), imports: new Map(), functions: new Map() };
-	modules.set(file, module);
+	const known = modules.get(file)
+	if (known !== undefined) return known
+	const module: Module = { file, aliases: new Map(), imports: new Map(), functions: new Map() }
+	modules.set(file, module)
 	for (const statement of list(get(parseSync(file, source ?? readFileSync(file, "utf8")).program, "body"))) {
-		const declaration = get(statement, "type") === "ExportNamedDeclaration" ? get(statement, "declaration") : statement;
-		const type = get(declaration, "type");
-		const name = String(get(get(declaration, "id"), "name"));
-		if (type === "TSTypeAliasDeclaration") module.aliases.set(name, get(declaration, "typeAnnotation"));
+		const declaration = get(statement, "type") === "ExportNamedDeclaration" ? get(statement, "declaration") : statement
+		const type = get(declaration, "type")
+		const name = String(get(get(declaration, "id"), "name"))
+		if (type === "TSTypeAliasDeclaration") module.aliases.set(name, get(declaration, "typeAnnotation"))
 		if (type === "TSInterfaceDeclaration")
-			module.aliases.set(name, { type: "TSTypeLiteral", members: get(get(declaration, "body"), "body") });
-		if (type === "FunctionDeclaration") module.functions.set(name, declaration);
+			module.aliases.set(name, { type: "TSTypeLiteral", members: get(get(declaration, "body"), "body") })
+		if (type === "FunctionDeclaration") module.functions.set(name, declaration)
 		if (get(statement, "type") === "ImportDeclaration") {
-			const from = String(get(get(statement, "source"), "value"));
-			if (!from.startsWith(".")) continue;
+			const from = String(get(get(statement, "source"), "value"))
+			if (!from.startsWith(".")) continue
 			for (const specifier of list(get(statement, "specifiers"))) {
-				const imported = get(specifier, "imported");
+				const imported = get(specifier, "imported")
 				module.imports.set(String(get(get(specifier, "local"), "name")), {
 					file: resolve(dirname(file), from),
 					name: String(get(imported, "name")),
-				});
+				})
 			}
 		}
 	}
-	return module;
+	return module
 }
 
 function keysOfName(module: Module, name: string): Keys {
-	const alias = module.aliases.get(name);
-	if (alias !== undefined) return keysOf(module, alias);
-	const imported = module.imports.get(name);
-	return imported === undefined ? new Map() : keysOfName(moduleOf(imported.file), imported.name);
+	const alias = module.aliases.get(name)
+	if (alias !== undefined) return keysOf(module, alias)
+	const imported = module.imports.get(name)
+	return imported === undefined ? new Map() : keysOfName(moduleOf(imported.file), imported.name)
 }
 
 // The keys an object type names: literal members, every part of an intersection or a union, both branches of a
 // conditional, an array's element, and a reference followed to its alias, through imports. `Partial`, `Readonly`, and
 // `ReadonlyArray` pass their argument.
 function keysOf(module: Module, node: unknown): Keys {
-	const type = get(node, "type");
+	const type = get(node, "type")
 	if (type === "TSTypeLiteral") {
-		const keys: Keys = new Map();
+		const keys: Keys = new Map()
 		for (const member of list(get(node, "members"))) {
-			const key = get(member, "key");
-			const name = get(key, "type") === "Identifier" ? get(key, "name") : get(key, "value");
-			const annotation = get(get(member, "typeAnnotation"), "typeAnnotation");
-			if (typeof name === "string") keys.set(name, () => keysOf(module, annotation));
+			const key = get(member, "key")
+			const name = get(key, "type") === "Identifier" ? get(key, "name") : get(key, "value")
+			const annotation = get(get(member, "typeAnnotation"), "typeAnnotation")
+			if (typeof name === "string") keys.set(name, () => keysOf(module, annotation))
 		}
-		return keys;
+		return keys
 	}
 	if (type === "TSIntersectionType" || type === "TSUnionType")
-		return merged(list(get(node, "types")).map((part) => keysOf(module, part)));
+		return merged(list(get(node, "types")).map((part) => keysOf(module, part)))
 	if (type === "TSConditionalType")
-		return merged([keysOf(module, get(node, "trueType")), keysOf(module, get(node, "falseType"))]);
-	if (type === "TSParenthesizedType" || type === "TSTypeOperator") return keysOf(module, get(node, "typeAnnotation"));
-	if (type === "TSArrayType") return keysOf(module, get(node, "elementType"));
-	return type === "TSTypeReference" ? keysOfReference(module, node) : new Map();
+		return merged([keysOf(module, get(node, "trueType")), keysOf(module, get(node, "falseType"))])
+	if (type === "TSParenthesizedType" || type === "TSTypeOperator") return keysOf(module, get(node, "typeAnnotation"))
+	if (type === "TSArrayType") return keysOf(module, get(node, "elementType"))
+	return type === "TSTypeReference" ? keysOfReference(module, node) : new Map()
 }
 
 // A reference: a utility that passes, drops, or keeps keys of its argument, or a name followed to its alias.
 function keysOfReference(module: Module, node: unknown): Keys {
-	const name = String(get(get(node, "typeName"), "name"));
-	const [first, second] = list(get(get(node, "typeArguments"), "params"));
-	if (name === "Partial" || name === "Readonly" || name === "ReadonlyArray") return keysOf(module, first);
+	const name = String(get(get(node, "typeName"), "name"))
+	const [first, second] = list(get(get(node, "typeArguments"), "params"))
+	if (name === "Partial" || name === "Readonly" || name === "ReadonlyArray") return keysOf(module, first)
 	// `Omit` drops the named keys and `Pick` keeps only them.
 	if (name === "Omit" || name === "Pick") {
-		const named = literals(second);
-		return new Map([...keysOf(module, first)].filter(([key]) => named.has(key) === (name === "Pick")));
+		const named = literals(second)
+		return new Map([...keysOf(module, first)].filter(([key]) => named.has(key) === (name === "Pick")))
 	}
-	return keysOfName(module, name);
+	return keysOfName(module, name)
 }
 
 // A function's parameter names, then the keys of its last parameter's type: `proxy(request, upstream, options)`.
 function functionKeys(module: Module, name: string): Keys {
-	const params = list(get(module.functions.get(name), "params"));
-	const keys: Keys = new Map();
-	let last: unknown;
+	const params = list(get(module.functions.get(name), "params"))
+	const keys: Keys = new Map()
+	let last: unknown
 	for (const param of params) {
-		const pattern = get(param, "type") === "AssignmentPattern" ? get(param, "left") : param;
-		const annotation = get(get(pattern, "typeAnnotation"), "typeAnnotation");
-		keys.set(String(get(pattern, "name")), () => keysOf(module, annotation));
-		last = annotation;
+		const pattern = get(param, "type") === "AssignmentPattern" ? get(param, "left") : param
+		const annotation = get(get(pattern, "typeAnnotation"), "typeAnnotation")
+		keys.set(String(get(pattern, "name")), () => keysOf(module, annotation))
+		last = annotation
 	}
-	for (const [key, value] of keysOf(module, last)) keys.set(key, value);
-	return keys;
+	for (const [key, value] of keysOf(module, last)) keys.set(key, value)
+	return keys
 }
 
 function merged(parts: readonly Keys[]): Keys {
-	const keys: Keys = new Map();
+	const keys: Keys = new Map()
 	for (const part of parts) {
 		for (const [key, value] of part) {
-			const prior = keys.get(key);
-			keys.set(key, prior === undefined ? value : () => merged([prior(), value()]));
+			const prior = keys.get(key)
+			keys.set(key, prior === undefined ? value : () => merged([prior(), value()]))
 		}
 	}
-	return keys;
+	return keys
 }
 
 // The string literals of a key union: `"to" | "params"`.
 function literals(node: unknown): Set<string> {
 	if (get(node, "type") === "TSUnionType")
-		return new Set(list(get(node, "types")).flatMap((part) => [...literals(part)]));
-	const value = get(get(node, "literal"), "value");
-	return new Set(typeof value === "string" ? [value] : []);
+		return new Set(list(get(node, "types")).flatMap((part) => [...literals(part)]))
+	const value = get(get(node, "literal"), "value")
+	return new Set(typeof value === "string" ? [value] : [])
 }
 
 function get(node: unknown, key: string): unknown {
-	return typeof node === "object" && node !== null ? Reflect.get(node, key) : undefined;
+	return typeof node === "object" && node !== null ? Reflect.get(node, key) : undefined
 }
 
 function list(value: unknown): unknown[] {
-	return Array.isArray(value) ? value : [];
+	return Array.isArray(value) ? value : []
 }
