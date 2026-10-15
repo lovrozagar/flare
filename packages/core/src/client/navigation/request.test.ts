@@ -1,3 +1,4 @@
+import { flush } from "solid-js";
 import { afterEach, expect, it, vi } from "vitest";
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts";
 import { createPage } from "../../shared/route-builder/page.ts";
@@ -8,7 +9,10 @@ import { mountNavigator, unmountAll } from "./navigate.fixture.ts";
 import { arrive } from "./request.ts";
 import { resolveUrl } from "./target.ts";
 
-afterEach(unmountAll);
+afterEach(() => {
+	unmountAll();
+	vi.restoreAllMocks();
+});
 
 const router = createRouter({
 	layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
@@ -46,4 +50,50 @@ it("fill request", async () => {
 	expect(fetch).toHaveBeenCalledWith("/p?_flare=fill", expect.anything());
 	const promise: unknown = Reflect.get(Object(Reflect.get(Object(held), "late")), "promise");
 	await expect(promise).resolves.toBe("late");
+});
+
+// A 200 body that is not frames is logged and loads the target as a document, and the screen stays put until that load
+// (BUGS.md 123).
+it("unreadable body", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+	const app = await mountNavigator(router, async () => new Response("not a frame\n"));
+	await app.navigator.navigate({ to: "_root_/p" });
+	flush();
+	expect(app.deps.reload).toHaveBeenCalledExactlyOnceWith("/p");
+	expect(logged).toHaveBeenCalledExactlyOnceWith(
+		"[flare] a client navigation failed; loading the page instead",
+		expect.anything(),
+	);
+	expect(app.host.textContent).toBe("home");
+});
+
+// A body that breaks because a newer navigation aborted its trip is neither logged nor loaded: that navigation decides
+// (BUGS.md 121, 123).
+it("aborted body", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+	const answers = [
+		(signal: AbortSignal) =>
+			new Response(
+				new ReadableStream<Uint8Array>({
+					start(controller) {
+						controller.enqueue(new TextEncoder().encode(encodeFrame({ t: "l", m: "_root_/p", d: null })));
+						signal.addEventListener("abort", () => controller.error(signal.reason));
+					},
+				}),
+			),
+		() => ndjson([{ t: "l", m: "_root_/p", d: null }, { t: "r" }, { t: "d" }]),
+	];
+	const app = await mountNavigator(router, async (_url, init) => {
+		const answer = answers.shift();
+		if (answer === undefined || init.signal === null || init.signal === undefined) throw new Error("one answer each");
+		return answer(init.signal);
+	});
+	const first = app.navigator.navigate({ to: "_root_/p" });
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	await app.navigator.navigate({ to: "_root_/p", revalidate: true });
+	await first;
+	flush();
+	expect(app.deps.reload).not.toHaveBeenCalled();
+	expect(logged).not.toHaveBeenCalled();
+	expect(app.host.textContent).toBe("p");
 });

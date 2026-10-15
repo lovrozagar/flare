@@ -1,5 +1,5 @@
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts";
-import { frameDecoder, type Frame } from "../../shared/protocol/index.ts";
+import { chunksOf, frameDecoder, type Frame } from "../../shared/protocol/index.ts";
 import type { HeadConfig } from "../../shared/route-builder/types.ts";
 import { errorFromWire } from "../router/store.ts";
 
@@ -85,7 +85,7 @@ export async function landFrames(source: AsyncIterable<Frame>, options: LandOpti
 export async function* framesOf(body: ReadableStream<Uint8Array>): AsyncIterable<Frame> {
 	const decoder = frameDecoder();
 	const text = new TextDecoder();
-	for await (const chunk of body) yield* decoder.push(text.decode(chunk, { stream: true }));
+	for await (const chunk of chunksOf(body)) yield* decoder.push(text.decode(chunk, { stream: true }));
 }
 
 function land(frame: Frame, landed: Landed, context: { slots: Slots; options: LandOptions }): void {

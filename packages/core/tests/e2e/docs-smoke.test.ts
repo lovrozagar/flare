@@ -95,6 +95,24 @@ test("fill holds nothing", async ({ page, docs }) => {
 	expect(problems).toEqual([]);
 });
 
+// Safari before 18 has no async iteration of ReadableStream (BUGS.md 123): with it removed before the page runs, a
+// sidebar navigation still lands as a client navigation, and a streamed server function still delivers every line.
+test("no stream iteration", async ({ page, docs }) => {
+	await page.addInitScript(() => {
+		Reflect.deleteProperty(ReadableStream.prototype, Symbol.asyncIterator);
+		Reflect.deleteProperty(ReadableStream.prototype, "values");
+	});
+	await open(page, docs.origin, "/docs/routing");
+	const loads = documents(page);
+	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
+	await expect(page.locator("#doc-title")).toHaveText("Caching");
+	await page.locator("#nav").getByRole("link", { name: "Playground", exact: true }).click();
+	await page.locator("#stream-start").click();
+	await expect(page.locator("#stream-status")).toHaveText("done");
+	await expect(page.locator("#stream-log li")).toHaveCount(6);
+	expect(loads).toEqual([]);
+});
+
 test("click through", async ({ page, docs }) => {
 	const problems = await open(page, docs.origin, "/");
 	const loads = documents(page);

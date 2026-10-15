@@ -109,6 +109,8 @@ packages/core/src/shared/protocol/prerender.test.ts	P12	test	shared	Unit cases f
 packages/core/src/shared/protocol/query.ts	P13	src	shared	The query getter registry: one stateless getter per process under a registry symbol, read by core for ctx.queryClient and the state queries
 packages/core/src/shared/protocol/query.test.ts	P13	test	shared	Unit cases for query.ts
 packages/core/src/shared/protocol/index.ts	P6	index	shared	Re-exports
+packages/core/src/shared/protocol/chunks.ts	P6	src	shared	A response body's chunks through a reader, for browsers without ReadableStream async iteration (BUGS.md 123)
+packages/core/src/shared/protocol/chunks.test.ts	P6	test	shared	Unit cases for chunks.ts
 packages/core/src/shared/cache/artifact-path.ts	P10	src	shared	Turn a store key into the SSG artifact URL. The only path formatter
 packages/core/src/shared/cache/artifact-path.test.ts	P10	test	shared	Unit cases for artifact-path.ts
 packages/core/src/shared/cache/index.ts	P10	index	shared	Re-exports

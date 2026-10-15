@@ -56,8 +56,21 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	// An input failure does not commit (dx/builder.md). Any other status paints the target's failure.
 	if (response.status === 400) return { kind: "none" };
 	if (response.status !== 200 || response.body === null) return { kind: "status", status: response.status };
+	return land(deps, trip, response.body);
+}
+
+// A body that fails to read or land, other than by the trip's own abort, would leave the user on the old page with no
+// sign: it is logged and the target loads as a document instead, under the reload guard (BUGS.md 123).
+async function land(deps: NavigatorDeps, trip: Trip, body: ReadableStream<Uint8Array>): Promise<Arrival> {
 	const options = { dev: deps.dev, send: deps.send, holes: trip.holes, reuse: trip.reuse, signal: trip.signal };
-	return { kind: "landed", landing: await landFrames(framesOf(response.body), options) };
+	try {
+		return { kind: "landed", landing: await landFrames(framesOf(body), options) };
+	} catch (error) {
+		if (trip.signal.aborted) throw error;
+		console.error("[flare] a client navigation failed; loading the page instead", error);
+		deps.reload(trip.target.url);
+		return { kind: "none" };
+	}
 }
 
 // The cache's verdict for this trip.
