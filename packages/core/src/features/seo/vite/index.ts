@@ -6,4 +6,4 @@ export {
 	type SitemapFile,
 	type SitemapInput,
 	type SitemapOptions,
-} from "./sitemap.ts";
+} from "./sitemap.ts"

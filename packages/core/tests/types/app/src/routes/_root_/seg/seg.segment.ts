@@ -1,3 +1,3 @@
-import { createPathSegment } from "@lovrozagar/flare";
+import { createPathSegment } from "@lovrozagar/flare"
 
-export const route = createPathSegment("_root_/seg").cache({ cdn: { maxAge: "1m" } });
+export const route = createPathSegment("_root_/seg").cache({ cdn: { maxAge: "1m" } })

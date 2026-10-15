@@ -1,13 +1,13 @@
-import { createPage } from "@lovrozagar/flare";
+import { createPage } from "@lovrozagar/flare"
 
-const FIXED = "docs.fixed=1";
+const FIXED = "docs.fixed=1"
 
 // The loader throws until the visitor sets the `docs.fixed` cookie. `reset()` replaces the URL in place and runs
 // the loader again, so the fix shows without a history entry.
 export const route = createPage("[[locale]]/_root_/error")
 	.loader(({ request }) => {
-		if (!(request.headers.get("cookie") ?? "").includes(FIXED)) throw new Error("The demo loader failed");
-		return { ok: true };
+		if (!(request.headers.get("cookie") ?? "").includes(FIXED)) throw new Error("The demo loader failed")
+		return { ok: true }
 	})
 	.head(() => ({ title: "Error boundary — Flare docs", robots: { index: false } }))
 	.render(() => (
@@ -31,11 +31,11 @@ export const route = createPage("[[locale]]/_root_/error")
 				type="button"
 				class="mt-6 rounded-md bg-flame-500 px-3 py-1.5 text-sm text-white"
 				onClick={() => {
-					document.cookie = `${FIXED}; Path=/; SameSite=Lax`;
-					props.reset();
+					document.cookie = `${FIXED}; Path=/; SameSite=Lax`
+					props.reset()
 				}}
 			>
 				Fix it and retry
 			</button>
 		</main>
-	));
+	))

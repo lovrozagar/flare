@@ -151,14 +151,9 @@ The production docs app in Chromium, with every API newer than the floor that th
 | --- | --- | --- |
 | `settles` | `Promise.withResolvers` deleted, then one promise resolved and one rejected | `1`, and the rejection's error |
 
-## `scripts/verify.test.ts` (AGENTS.md, Every gate passes before moving on)
+## `bun run verify`
 
-| test | case | result |
-| --- | --- | --- |
-| `gate order` | `GATES` | fmt:check, lint, typecheck, test, test:bun, check-tree, test:e2e |
-| `all pass` | every gate exits 0 on a clean tree | exit 0, and one stamp at `<common git dir>/flare-verified/<sha>` naming the gates |
-| `failing gate` | typecheck exits 2 | exit 2, test and the rest never run, and no stamp |
-| `dirty tree` | `git status --porcelain` is not empty | exit 1, no gate runs, and no stamp |
+`scripts/verify.ts` is managed by `~/Development/standards`, which holds its tests. It refuses a dirty tree, runs fmt:check, lint, typecheck, test, then `standards.gates` from package.json (here test:bun, check-tree, test:e2e), stops at the first failure with its exit code, and on success stamps HEAD at `<common git dir>/standards-verified/<sha>`.
 
 ## `scripts/verify-safari.test.ts`, and `bun run verify:safari` in real Safari
 
@@ -184,16 +179,9 @@ The production docs app in Chromium, with every API newer than the floor that th
 | safari-driver `wait times out` | a script that never holds | false at the timeout |
 | safari-driver `session refused` | a driver refusing every session | ten tries, then a throw naming its error |
 
-## `scripts/pre-push.test.ts`, the pre-push hook
+## pre-push
 
-`.githooks/pre-push` refuses a push while any commit it would send has no stamp in `<common git dir>/flare-verified/`; a branch deletion sends none. The tests run a copy of the hook in a throwaway repo with a bare remote. Red with the hook's refusal turned into `exit 0`: 3 of 3. The hook is tracked executable, so the repo's `core.hooksPath` runs it on every push.
-
-| test | case | result |
-| --- | --- | --- |
-| `unstamped refused` | one unstamped commit, then its stamp | refused naming it; then pushed |
-| `each commit` | a stamped commit pushed, then two more with only the tip stamped | refused naming the middle one, not the tip; pushed once it has a stamp |
-| `verified in a worktree` | `verify` passes in a linked worktree outside the checkout, then an unverified commit | the push from the main checkout goes through; the unverified commit is refused |
-| `hook executable` | the index's mode of `.githooks/commit-msg` and `.githooks/pre-push` | `100755` for both; git skips a hook that is not executable. Red at the inert `100644` |
+lefthook's pre-push (from `lefthook.base.yml`, managed by `~/Development/standards`, tested there) runs fmt:check and lint over the tree, `scripts/standards-check.ts`, and `scripts/pre-push.ts`, which refuses a push while any commit it would send has no stamp in `<common git dir>/standards-verified/`; a branch deletion sends none.
 
 ## `tests/structure/grid.test.ts`
 

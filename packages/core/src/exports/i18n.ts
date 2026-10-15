@@ -15,4 +15,4 @@ export {
 	type Translate,
 	type Translations,
 	type Values,
-} from "../features/i18n/shared/index.ts";
+} from "../features/i18n/shared/index.ts"

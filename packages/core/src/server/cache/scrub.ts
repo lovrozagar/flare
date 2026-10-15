@@ -1,34 +1,34 @@
-import { defined } from "../../shared/errors/index.ts";
-import { withServerContext } from "../context/ctx.ts";
-import { drawn, framed, loaderInput, type Loaded } from "../lifecycle/answers.ts";
-import type { Exchange } from "../lifecycle/exchange.ts";
-import { runLoaders, type LoaderRun } from "../loaders/run.ts";
-import { dataBody, dataFrames } from "../navigation/index.ts";
+import { defined } from "../../shared/errors/index.ts"
+import { withServerContext } from "../context/ctx.ts"
+import { drawn, framed, loaderInput, type Loaded } from "../lifecycle/answers.ts"
+import type { Exchange } from "../lifecycle/exchange.ts"
+import { runLoaders, type LoaderRun } from "../loaders/run.ts"
+import { dataBody, dataFrames } from "../navigation/index.ts"
 
 // The request every shared render makes: `site` plus the canonical pathname, with no search and no request
 // headers, so no cookie, no authorization, and no Host reach a body that every visitor is served (dx/cache.md).
 export function sharedRequest(site: string, request: Request): Request {
-	return new Request(new URL(new URL(request.url).pathname, site));
+	return new Request(new URL(new URL(request.url).pathname, site))
 }
 
 // A shared render that finished as a clean 200. `html` is the shell, `nonce` the one its tags carry, and `settled`
 // is every "resolve" value fulfilled. `startedAt` is the render's start, the entry's `storedAt`.
 export type SharedRender = {
-	run: LoaderRun;
-	html: string;
-	ndjson: string;
-	nonce: string;
-	settled: boolean;
-	startedAt: number;
-};
+	run: LoaderRun
+	html: string
+	ndjson: string
+	nonce: string
+	settled: boolean
+	startedAt: number
+}
 
 // A shared render whose body did not complete within SETTLE_MS after its shell: it is served live and never stored.
-export const INCOMPLETE = "incomplete";
+export const INCOMPLETE = "incomplete"
 
 // How long a stored render may take to complete after its shell (dx/cache.md). Fixed, not an option.
-export const SETTLE_MS = 10_000;
+export const SETTLE_MS = 10_000
 
-const NOTHING_STALE: ReadonlySet<string> = new Set();
+const NOTHING_STALE: ReadonlySet<string> = new Set()
 
 // The loaders, the render, and `serverContext` all run on the shared request. `serverContext` is called again for
 // it with the same env, so `serverCtx()` there never holds the visitor's cookie. Its session is null, so an
@@ -38,38 +38,38 @@ export function sharedRender(
 	exchange: Exchange,
 	matched: Loaded,
 ): Promise<SharedRender | typeof INCOMPLETE | undefined> {
-	const request = sharedRequest(defined(exchange.options.site, "the site a store requires"), exchange.request);
-	const { env, store, waitUntil } = exchange;
-	const context = { request, env, serverContext: exchange.options.serverContext, store, waitUntil };
+	const request = sharedRequest(defined(exchange.options.site, "the site a store requires"), exchange.request)
+	const { env, store, waitUntil } = exchange
+	const context = { request, env, serverContext: exchange.options.serverContext, store, waitUntil }
 	return withServerContext(
 		context,
 		(scope) => rendered({ ...exchange, request, session: scope.session, kind: "document", stale: null }, matched),
 		() => undefined,
-	);
+	)
 }
 
 async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender | typeof INCOMPLETE | undefined> {
-	const startedAt = Date.now();
-	const run = await runLoaders({ ...loaderInput(shared, matched), shared: true, stored: true });
+	const startedAt = Date.now()
+	const run = await runLoaders({ ...loaderInput(shared, matched), shared: true, stored: true })
 	// "resolve" values are awaited. "stream" functions never ran, so their holes stay placeholders.
-	const results = await Promise.allSettled(run.deferred.map((entry) => entry.promise));
-	if (run.response.status !== 200) return undefined;
-	const document = await drawn(shared, { chain: matched.chain, run });
-	if ("failed" in document) return undefined;
-	const html = await shellOf(document.body);
+	const results = await Promise.allSettled(run.deferred.map((entry) => entry.promise))
+	if (run.response.status !== 200) return undefined
+	const document = await drawn(shared, { chain: matched.chain, run })
+	if ("failed" in document) return undefined
+	const html = await shellOf(document.body)
 	if (html === undefined) {
 		shared.sink.log.warn(
 			"cache",
 			`${String(matched.id)} did not complete its render within 10 s of its shell: served live, not stored`,
-		);
-		return INCOMPLETE;
+		)
+		return INCOMPLETE
 	}
-	const project = framed(shared);
+	const project = framed(shared)
 	// A fulfilled value travels inline in its `l` frame, so only a rejection still needs a frame (BUGS.md 94).
-	const deferred = run.deferred.filter((_, index) => results[index]?.status === "rejected");
-	const ndjson = await new Response(dataBody({ ...dataFrames(run, NOTHING_STALE), deferred, project })).text();
-	const settled = results.every((result) => result.status === "fulfilled");
-	return { run, html, ndjson, nonce: document.exchange.secured.nonce, settled, startedAt };
+	const deferred = run.deferred.filter((_, index) => results[index]?.status === "rejected")
+	const ndjson = await new Response(dataBody({ ...dataFrames(run, NOTHING_STALE), deferred, project })).text()
+	const settled = results.every((result) => result.status === "fulfilled")
+	return { run, html, ndjson, nonce: document.exchange.secured.nonce, settled, startedAt }
 }
 
 // A stored write waits until Solid's render completes (BUGS.md B15). A `"stream"` hole renders its fallback on the
@@ -78,24 +78,24 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 // gives nothing, and the render is cancelled. A root that renders no `<html>` stops after its first chunk. Its body is
 // never stored.
 export async function shellOf(body: ReadableStream<Uint8Array>): Promise<string | undefined> {
-	const reader = body.getReader();
-	const decoder = new TextDecoder();
-	let html = "";
-	let late: Promise<undefined> | undefined;
-	let timer: ReturnType<typeof setTimeout> | undefined;
+	const reader = body.getReader()
+	const decoder = new TextDecoder()
+	let html = ""
+	let late: Promise<undefined> | undefined
+	let timer: ReturnType<typeof setTimeout> | undefined
 	try {
 		for (;;) {
-			const next = await (late === undefined ? reader.read() : Promise.race([reader.read(), late]));
-			if (next === undefined) return undefined;
-			if (next.done) return html + decoder.decode();
-			html += decoder.decode(next.value, { stream: true });
-			if (!html.includes("<html")) return html + decoder.decode();
+			const next = await (late === undefined ? reader.read() : Promise.race([reader.read(), late]))
+			if (next === undefined) return undefined
+			if (next.done) return html + decoder.decode()
+			html += decoder.decode(next.value, { stream: true })
+			if (!html.includes("<html")) return html + decoder.decode()
 			if (late === undefined && html.includes("</html>"))
-				late = new Promise((resolve) => (timer = setTimeout(() => resolve(undefined), SETTLE_MS)));
+				late = new Promise((resolve) => (timer = setTimeout(() => resolve(undefined), SETTLE_MS)))
 		}
 	} finally {
-		clearTimeout(timer);
-		void reader.cancel();
+		clearTimeout(timer)
+		void reader.cancel()
 	}
 }
 
@@ -103,12 +103,12 @@ export async function shellOf(body: ReadableStream<Uint8Array>): Promise<string 
 // `https` outside dev (dx/server.md).
 export function checkSite(site: string | undefined, at: { store: boolean; dev: boolean }): void {
 	if (site === undefined) {
-		if (at.store) throw new Error("createServer: store needs site, the origin every shared render requests");
-		return;
+		if (at.store) throw new Error("createServer: store needs site, the origin every shared render requests")
+		return
 	}
-	const url = URL.canParse(site) ? new URL(site) : undefined;
-	const secure = url?.protocol === "https:" || (at.dev && url?.protocol === "http:");
+	const url = URL.canParse(site) ? new URL(site) : undefined
+	const secure = url?.protocol === "https:" || (at.dev && url?.protocol === "http:")
 	if (url === undefined || !secure || `${url.origin}` !== site.replace(/\/$/, "")) {
-		throw new Error(`createServer: site must be an absolute https origin with no path, not ${site}`);
+		throw new Error(`createServer: site must be an absolute https origin with no path, not ${site}`)
 	}
 }

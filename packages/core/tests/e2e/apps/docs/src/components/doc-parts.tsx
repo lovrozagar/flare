@@ -1,10 +1,10 @@
-import { Image, Link } from "@lovrozagar/flare";
-import { For, Show } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import figure from "../assets/hero.jpg?image";
-import type { Doc } from "../content.ts";
+import { Image, Link } from "@lovrozagar/flare"
+import { For, Show } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import figure from "../assets/hero.jpg?image"
+import type { Doc } from "../content.ts"
 
-const DOC = "[[locale]]/_root_/(guide)/docs/[slug]";
+const DOC = "[[locale]]/_root_/(guide)/docs/[slug]"
 
 // Hash links into this page's own sections. A hash change scrolls and fetches nothing.
 export function Toc(props: { doc: Doc; locale: string | undefined; slug: string }): JSX.Element {
@@ -23,7 +23,7 @@ export function Toc(props: { doc: Doc; locale: string | undefined; slug: string 
 				)}
 			</For>
 		</nav>
-	);
+	)
 }
 
 export function Sections(props: { doc: Doc }): JSX.Element {
@@ -49,7 +49,7 @@ export function Sections(props: { doc: Doc }): JSX.Element {
 				)}
 			</For>
 		</>
-	);
+	)
 }
 
 // A fixed-size image: a 1x and a 2x variant. The caption shows how many upstream calls the stats cost.
@@ -64,15 +64,15 @@ export function Figure(props: { stars: number; contributors: number; calls: numb
 				<span id="fetch-calls">{props.calls}</span> upstream call
 			</figcaption>
 		</figure>
-	);
+	)
 }
 
 // Previous skips the view transition. Next is disabled on the last page and stays an anchor.
 export function PrevNext(props: {
-	locale: string | undefined;
-	slug: string;
-	prev: string | undefined;
-	next: string | undefined;
+	locale: string | undefined
+	slug: string
+	prev: string | undefined
+	next: string | undefined
 }): JSX.Element {
 	return (
 		<div class="mt-10 flex items-center justify-between border-t border-stone-200 pt-6 dark:border-ink-800">
@@ -99,5 +99,5 @@ export function PrevNext(props: {
 				{props.next ?? "last page"} →
 			</Link>
 		</div>
-	);
+	)
 }

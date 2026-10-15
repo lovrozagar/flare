@@ -1,1 +1,1 @@
-export { runLoaders } from "./run.ts";
+export { runLoaders } from "./run.ts"

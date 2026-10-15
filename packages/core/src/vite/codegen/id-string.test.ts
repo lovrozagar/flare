@@ -1,27 +1,27 @@
-import { expect, it } from "vitest";
-import { assertId, writeId } from "./id-string.ts";
+import { expect, it } from "vitest"
+import { assertId, writeId } from "./id-string.ts"
 
-const home = "_root_/home.page.tsx";
-const about = "_root_/about/about.page.tsx";
-const source = `export const route = createPage("");\n`;
+const home = "_root_/home.page.tsx"
+const about = "_root_/about/about.page.tsx"
+const source = `export const route = createPage("");\n`
 
 it("writes the key", () => {
-	const next = writeId(source, home);
-	expect(next).toContain('createPage("_root_/")');
-	expect(() => assertId(next, home)).not.toThrow();
-});
+	const next = writeId(source, home)
+	expect(next).toContain('createPage("_root_/")')
+	expect(() => assertId(next, home)).not.toThrow()
+})
 
 it("rewrites on move", () => {
-	const moved = writeId(writeId(source, home), about);
-	expect(moved).toContain('createPage("_root_/about")');
-	expect(moved).not.toContain('createPage("_root_/")');
-});
+	const moved = writeId(writeId(source, home), about)
+	expect(moved).toContain('createPage("_root_/about")')
+	expect(moved).not.toContain('createPage("_root_/")')
+})
 
 it("mismatch fails", () => {
-	expect(() => assertId(`export const route = createPage("hand-edited");\n`, home)).toThrow(home);
-	expect(() => assertId(`export default function Page() {}`, home)).toThrow(home);
-});
+	expect(() => assertId(`export const route = createPage("hand-edited");\n`, home)).toThrow(home)
+	expect(() => assertId(`export default function Page() {}`, home)).toThrow(home)
+})
 
 it("no route", () => {
-	expect(() => writeId(source, "_parts/widget.tsx")).toThrow("_parts/widget.tsx");
-});
+	expect(() => writeId(source, "_parts/widget.tsx")).toThrow("_parts/widget.tsx")
+})

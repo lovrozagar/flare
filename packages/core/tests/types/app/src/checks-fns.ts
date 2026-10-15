@@ -10,27 +10,27 @@ import {
 	useParams,
 	usePreloaderContext,
 	useSearch,
-} from "@lovrozagar/flare";
-import { createServerFn } from "@lovrozagar/flare/server-fn";
-import { echo, measure, ticks } from "./fns/echo.ts";
+} from "@lovrozagar/flare"
+import { createServerFn } from "@lovrozagar/flare/server-fn"
+import { echo, measure, ticks } from "./fns/echo.ts"
 
 // server fn auth null
 {
 	void createServerFn().handler((ctx) => {
-		const auth: null = ctx.auth;
+		const auth: null = ctx.auth
 		// @ts-expect-error skipping authenticate is null, not the session
-		void ctx.auth.userId;
-		return auth;
-	});
+		void ctx.auth.userId
+		return auth
+	})
 }
 
 // server fn auth required
 {
 	void createServerFn()
 		.authenticate()
-		.handler((ctx) => ctx.auth.userId.length);
+		.handler((ctx) => ctx.auth.userId.length)
 	// @ts-expect-error authenticate takes no argument
-	void createServerFn().authenticate("user");
+	void createServerFn().authenticate("user")
 }
 
 // hook from
@@ -41,101 +41,101 @@ import { echo, measure, ticks } from "./fns/echo.ts";
 		useSearch({ from: "_root_/about" }),
 		usePreloaderContext({ from: "_root_/about" }),
 		useMatch({ from: "_root_/about" }),
-	];
+	]
 	// @ts-expect-error from is required
-	void useLoaderData();
+	void useLoaderData()
 }
 
 // hook unknown
 {
 	// @ts-expect-error an unknown id is rejected
-	void useLoaderData({ from: "nope" });
+	void useLoaderData({ from: "nope" })
 }
 
 // use match untyped
 {
-	const match: { readonly id: string; readonly routeId: string } = useMatch({ from: "_root_/users/[id]" });
-	void match;
+	const match: { readonly id: string; readonly routeId: string } = useMatch({ from: "_root_/users/[id]" })
+	void match
 	// @ts-expect-error the match has no typed params
-	void useMatch({ from: "_root_/users/[id]" }).params;
+	void useMatch({ from: "_root_/users/[id]" }).params
 	// @ts-expect-error the match has no loader data
-	void useMatch({ from: "_root_/users/[id]" }).loaderData;
+	void useMatch({ from: "_root_/users/[id]" }).loaderData
 }
 
 // use location raw
 {
-	const search: Record<string, string | string[]> = useLocation().search;
-	void search;
+	const search: Record<string, string | string[]> = useLocation().search
+	void search
 	// @ts-expect-error the location search is not a validator output
-	const _typed: { q: string; page?: number } = useLocation().search;
+	const _typed: { q: string; page?: number } = useLocation().search
 }
 
 // server fn input
 {
-	const reply: Promise<{ q: string; secret: string }> = echo({ q: "a" });
-	const doubled: Promise<number> = measure("text");
-	void [reply, doubled];
+	const reply: Promise<{ q: string; secret: string }> = echo({ q: "a" })
+	const doubled: Promise<number> = measure("text")
+	void [reply, doubled]
 	// @ts-expect-error a fresh extra key
-	void echo({ q: "a", extra: 1 });
+	void echo({ q: "a", extra: 1 })
 	// @ts-expect-error the argument is required
-	void echo();
+	void echo()
 	// @ts-expect-error the transforming validator takes its input, a string
-	void measure(4);
+	void measure(4)
 }
 
 // server fn input void
 {
-	const ping = createServerFn().handler((ctx) => ctx.input);
-	const none: Promise<undefined> = ping();
-	void none;
+	const ping = createServerFn().handler((ctx) => ctx.input)
+	const none: Promise<undefined> = ping()
+	void none
 	// @ts-expect-error a void input takes no argument
-	void ping({ q: "a" });
+	void ping({ q: "a" })
 }
 
 // server fn return
 {
-	const secret: Promise<string> = echo({ q: "a" }).then((reply) => reply.secret);
-	void secret;
+	const secret: Promise<string> = echo({ q: "a" }).then((reply) => reply.secret)
+	void secret
 	// @ts-expect-error the client sees the handler's value, not the envelope
-	void echo({ q: "a" }).then((reply) => reply.data);
+	void echo({ q: "a" }).then((reply) => reply.data)
 }
 
 // server fn stream
 {
-	const chunks: AsyncIterable<{ n: number }> = ticks();
-	void chunks;
+	const chunks: AsyncIterable<{ n: number }> = ticks()
+	void chunks
 	void createServerFn().stream(async function* (ctx) {
 		// @ts-expect-error a stream context has no revalidate
-		yield ctx.revalidate;
-	});
+		yield ctx.revalidate
+	})
 	// @ts-expect-error a handler context has no signal
-	void createServerFn().handler((ctx) => ctx.signal);
+	void createServerFn().handler((ctx) => ctx.signal)
 }
 
 // segment no data
 {
-	const record = createPathSegment("_root_/seg").cache({ cdn: { maxAge: "1m" } });
-	const kind: "segment" = record._type;
-	const rendered = record.render({ children: "child" });
-	void [kind, rendered];
+	const record = createPathSegment("_root_/seg").cache({ cdn: { maxAge: "1m" } })
+	const kind: "segment" = record._type
+	const rendered = record.render({ children: "child" })
+	void [kind, rendered]
 	// @ts-expect-error a segment has no loader
-	void createPathSegment("_root_/seg").loader;
+	void createPathSegment("_root_/seg").loader
 	// @ts-expect-error a segment has no preloader
-	void createPathSegment("_root_/seg").preloader;
+	void createPathSegment("_root_/seg").preloader
 	// @ts-expect-error a segment has no authenticate
-	void createPathSegment("_root_/seg").authenticate;
+	void createPathSegment("_root_/seg").authenticate
 	// @ts-expect-error a segment has no input
-	void createPathSegment("_root_/seg").input;
+	void createPathSegment("_root_/seg").input
 	// @ts-expect-error a segment has no head
-	void createPathSegment("_root_/seg").head;
+	void createPathSegment("_root_/seg").head
 }
 
 // The env helpers come from the root entry (bits/07 Extends). Each call is rewritten per graph by the boundary.
 {
-	const read: () => string = createServerOnlyFn(() => "server");
-	const focus: () => number = createClientOnlyFn(() => 1);
+	const read: () => string = createServerOnlyFn(() => "server")
+	const focus: () => number = createClientOnlyFn(() => 1)
 	const side: () => string = createIsomorphicFn()
 		.server(() => "server")
-		.client(() => "client");
-	void [read, focus, side];
+		.client(() => "client")
+	void [read, focus, side]
 }

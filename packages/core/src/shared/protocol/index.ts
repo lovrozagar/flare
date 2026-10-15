@@ -8,8 +8,8 @@ export {
 	RENDER_HEADER,
 	STALE_PARAM,
 	TAB_HEADER,
-} from "./constants.ts";
-export { isTabToken, mintTab, tabMeta } from "./dev-tab.ts";
+} from "./constants.ts"
+export { isTabToken, mintTab, tabMeta } from "./dev-tab.ts"
 export {
 	STYLES_EVENT,
 	stylesReply,
@@ -17,9 +17,9 @@ export {
 	type DevStyle,
 	type StylesReply,
 	type StylesRequest,
-} from "./dev-styles.ts";
-export { chunksOf } from "./chunks.ts";
-export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts";
+} from "./dev-styles.ts"
+export { chunksOf } from "./chunks.ts"
+export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts"
 export {
 	fnPrefix,
 	readInternal,
@@ -28,6 +28,6 @@ export {
 	type InternalRequest,
 	type RequestKind,
 	type StaleList,
-} from "./internal-params.ts";
-export { decodeLine, encodeFrame, frameDecoder, MAX_LINE, type Frame, type FrameError } from "./frames.ts";
-export { QUERY_GETTER, registeredQuery, registerQuery, type QueryGetter } from "./query.ts";
+} from "./internal-params.ts"
+export { decodeLine, encodeFrame, frameDecoder, MAX_LINE, type Frame, type FrameError } from "./frames.ts"
+export { QUERY_GETTER, registeredQuery, registerQuery, type QueryGetter } from "./query.ts"

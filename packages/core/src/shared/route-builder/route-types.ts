@@ -1,8 +1,8 @@
-import type { JSX } from "@solidjs/web";
-import type { Bounded } from "./boundaries.ts";
-import type { CacheConfig, Effects, Intercept, LoaderContext, LoaderData, RouteHeaders, RouteInput } from "./chain.ts";
-import type { RouteRecord } from "./page.ts";
-import type { HeadConfig, SecurityConfig } from "./types.ts";
+import type { JSX } from "@solidjs/web"
+import type { Bounded } from "./boundaries.ts"
+import type { CacheConfig, Effects, Intercept, LoaderContext, LoaderData, RouteHeaders, RouteInput } from "./chain.ts"
+import type { RouteRecord } from "./page.ts"
+import type { HeadConfig, SecurityConfig } from "./types.ts"
 import type {
 	Deferred,
 	ExtractPathParams,
@@ -13,37 +13,37 @@ import type {
 	Registered,
 	RegisteredEnv,
 	ResolvedAuth,
-} from "./register.ts";
-import type { InputTypes, Typed, TypesOf, ValidatorOutput } from "./types.ts";
+} from "./register.ts"
+import type { InputTypes, Typed, TypesOf, ValidatorOutput } from "./types.ts"
 
 // The auth a route resolves to: required, optional, or none (dx/types.md).
-export type AuthMode = true | "optional" | false;
+export type AuthMode = true | "optional" | false
 
 // What a typed builder knows so far. `preloader` is this route's own return. The parents' come from the register,
 // so a route's type never reads its own entry there.
 export type RouteState = {
-	id: string;
-	root: boolean;
-	auth: AuthMode;
-	params: unknown;
-	search: unknown;
+	id: string
+	root: boolean
+	auth: AuthMode
+	params: unknown
+	search: unknown
 	// What `.input()` validated, so the record names only a validated side.
-	input: object;
-	preloader: object;
-	loaderData: unknown;
-};
+	input: object
+	preloader: object
+	loaderData: unknown
+}
 
 // A route before any step: bracket params, the raw search, and the auth its parents seed.
 export type InitialState<Id extends string, Root extends boolean> = {
-	id: Id;
-	root: Root;
-	auth: Root extends true ? false : ParentAuth<FlareRegister, Id>;
-	params: ExtractPathParams<Id>;
-	search: RawSearch;
-	input: {};
-	preloader: {};
-	loaderData: void;
-};
+	id: Id
+	root: Root
+	auth: Root extends true ? false : ParentAuth<FlareRegister, Id>
+	params: ExtractPathParams<Id>
+	search: RawSearch
+	input: {}
+	preloader: {}
+	loaderData: void
+}
 
 // `.input()` replaces each side it validates. The other keeps its default (dx/types.md).
 export type WithInput<S extends RouteState, I> = {
@@ -57,13 +57,13 @@ export type WithInput<S extends RouteState, I> = {
 				: S["search"]
 			: P extends "input"
 				? S["input"] & InputTypes<I>
-				: S[P];
-};
+				: S[P]
+}
 
 // One field of the state replaced.
 export type With<S extends RouteState, K extends keyof RouteState, V> = {
-	[P in keyof RouteState]: P extends K ? V : S[P];
-};
+	[P in keyof RouteState]: P extends K ? V : S[P]
+}
 
 type Parents<R, Id> = R extends { routeParents: infer Map }
 	? Id extends keyof Map
@@ -71,14 +71,14 @@ type Parents<R, Id> = R extends { routeParents: infer Map }
 			? Map[Id]
 			: []
 		: []
-	: [];
+	: []
 
-type ModeOf<R, Id> = R extends { authModes: infer Map } ? (Id extends keyof Map ? Map[Id] : false) : false;
+type ModeOf<R, Id> = R extends { authModes: infer Map } ? (Id extends keyof Map ? Map[Id] : false) : false
 
 // The strictest mode on the path: `true` beats `"optional"` beats `false` (dx/types.md).
-type Strictest<Modes> = true extends Modes ? true : "optional" extends Modes ? "optional" : false;
+type Strictest<Modes> = true extends Modes ? true : "optional" extends Modes ? "optional" : false
 
-export type ParentAuth<R, Id> = Strictest<{ [K in keyof Parents<R, Id>]: ModeOf<R, Parents<R, Id>[K]> }[number]>;
+export type ParentAuth<R, Id> = Strictest<{ [K in keyof Parents<R, Id>]: ModeOf<R, Parents<R, Id>[K]> }[number]>
 
 // A parent's own preloader return. A parent the register does not list makes the context `never`, not `{}`.
 type OwnPreloader<R, Id> = R extends { routeModules: infer Map }
@@ -87,71 +87,71 @@ type OwnPreloader<R, Id> = R extends { routeModules: infer Map }
 			? P
 			: {}
 		: never
-	: {};
+	: {}
 
 type Intersect<R, List> = List extends readonly [infer Head, ...infer Tail]
 	? OwnPreloader<R, Head> & Intersect<R, Tail>
-	: {};
+	: {}
 
 // Every parent's return, outside-in. The same key narrows, and incompatible types make that key `never`.
-export type ParentContext<R, Id> = Intersect<R, Parents<R, Id>>;
+export type ParentContext<R, Id> = Intersect<R, Parents<R, Id>>
 
 // What `usePreloaderContext({ from })` reads: the parents, then that route's own return. Unregistered, a record.
 export type PreloaderFrom<R extends FlareRegister, Id extends From<R>> =
-	Registered<R> extends true ? ParentContext<R, Id> & OwnPreloader<R, Id> : Record<string, unknown>;
+	Registered<R> extends true ? ParentContext<R, Id> & OwnPreloader<R, Id> : Record<string, unknown>
 
 // Parents, then this route's own return. The root has no parent, so its own return replaces `{}`.
 export type Accumulated<S extends RouteState> = S["root"] extends true
 	? S["preloader"]
-	: ParentContext<FlareRegister, S["id"]> & S["preloader"];
+	: ParentContext<FlareRegister, S["id"]> & S["preloader"]
 
 type Shared<S extends RouteState> = {
-	auth: ResolvedAuth<FlareRegister, S["auth"]>;
-	request: Request;
-	env: RegisteredEnv<FlareRegister>;
-	params: S["params"];
-	search: S["search"];
-};
+	auth: ResolvedAuth<FlareRegister, S["auth"]>
+	request: Request
+	env: RegisteredEnv<FlareRegister>
+	params: S["params"]
+	search: S["search"]
+}
 
 // What preloader and `authorize` read: the parents' context only. The root's has no `preloaderContext`.
 export type GuardContext<S extends RouteState> = Shared<S> &
-	(S["root"] extends true ? {} : { preloaderContext: ParentContext<FlareRegister, S["id"]> });
+	(S["root"] extends true ? {} : { preloaderContext: ParentContext<FlareRegister, S["id"]> })
 
 // What the loader reads: the accumulated context and `defer`.
 export type LoaderStepContext<S extends RouteState> = Shared<S> &
 	QueryClientField<FlareRegister> & {
-		preloaderContext: Accumulated<S>;
-		defer: <T>(fn: () => Promise<T>, options?: Parameters<LoaderContext["defer"]>[1]) => Deferred<T>;
-	};
+		preloaderContext: Accumulated<S>
+		defer: <T>(fn: () => Promise<T>, options?: Parameters<LoaderContext["defer"]>[1]) => Deferred<T>
+	}
 
 // What `.response()` reads: no loader data and no `defer`.
-export type ResponseContext<S extends RouteState> = Shared<S> & { preloaderContext: Accumulated<S> };
+export type ResponseContext<S extends RouteState> = Shared<S> & { preloaderContext: Accumulated<S> }
 
 // What `.head()` and render read: no auth, env, or request (dx/types.md).
 export type ViewContext<S extends RouteState> = {
-	params: S["params"];
-	search: S["search"];
-	loaderData: S["loaderData"];
-	preloaderContext: Accumulated<S>;
-};
+	params: S["params"]
+	search: S["search"]
+	loaderData: S["loaderData"]
+	preloaderContext: Accumulated<S>
+}
 
 // A layout and the root also render the next slot.
 export type RenderProps<S extends RouteState, Kind extends "page" | "layout" | "root"> = Kind extends "page"
 	? ViewContext<S>
-	: ViewContext<S> & { children: JSX.Element };
+	: ViewContext<S> & { children: JSX.Element }
 
 // The record a typed route exports. `_type` names its kind, and the type-only field carries what its steps recorded.
 export type TypedRecord<S extends RouteState, Kind extends string> = {
-	readonly _type: Kind;
-} & Typed<S["input"] & { loaderData: S["loaderData"]; preloader: S["preloader"] }>;
+	readonly _type: Kind
+} & Typed<S["input"] & { loaderData: S["loaderData"]; preloader: S["preloader"] }>
 
-export type RouteKind = "page" | "layout" | "root";
+export type RouteKind = "page" | "layout" | "root"
 
 // The params and search a route's boundaries read.
-type Located<S extends RouteState> = { params: S["params"]; search: S["search"] };
+type Located<S extends RouteState> = { params: S["params"]; search: S["search"] }
 
 // After `.authorize()`: a public route reads the registered session or `null`. A stricter seed stays (dx/types.md).
-type Authorized<S extends RouteState> = S["auth"] extends false ? With<S, "auth", "optional"> : S;
+type Authorized<S extends RouteState> = S["auth"] extends false ? With<S, "auth", "optional"> : S
 
 // The steps in their order (dx/builder.md, chain.ts ORDER). A step removes itself and every step before it, so a
 // method called too early is absent from the type as it throws at runtime (BUGS.md B9). The loader and `.response()`
@@ -169,55 +169,55 @@ type Sequence = [
 	"head",
 	"headers",
 	"security",
-];
+]
 
 type Through<Step, Steps, Gone extends string = never> = Steps extends [infer First extends string, ...infer Rest]
 	? First extends Step
 		? Gone | First
 		: Through<Step, Rest, Gone | First>
-	: Gone;
+	: Gone
 
 export type StepsGone<Step extends string> =
 	| Through<Step, Sequence>
 	| (Step extends "loader" ? "response" : never)
-	| (Step extends "authenticate" ? "authenticateOptional" : never);
+	| (Step extends "authenticate" ? "authenticateOptional" : never)
 
 // The steps every route builder has. A typed step returns a builder of the new state. `.authenticateOptional()` on a
 // route whose parents already require auth takes an argument it can never get, so it does not type-check (dx/types.md).
 // `G` is the steps already gone.
 export type BuilderSteps<S extends RouteState, K extends RouteKind, G extends string = never> = {
-	cache(config: CacheConfig): RouteBuilder<S, K, G | StepsGone<"cache">>;
-	input<I extends RouteInput>(config: I): RouteBuilder<WithInput<S, I>, K, G | StepsGone<"input">>;
-	authenticate(...callerData: readonly string[]): RouteBuilder<With<S, "auth", true>, K, G | StepsGone<"authenticate">>;
+	cache(config: CacheConfig): RouteBuilder<S, K, G | StepsGone<"cache">>
+	input<I extends RouteInput>(config: I): RouteBuilder<WithInput<S, I>, K, G | StepsGone<"input">>
+	authenticate(...callerData: readonly string[]): RouteBuilder<With<S, "auth", true>, K, G | StepsGone<"authenticate">>
 	authenticateOptional(
 		...callerData: S["auth"] extends true ? [never] : readonly string[]
-	): RouteBuilder<With<S, "auth", "optional">, K, G | StepsGone<"authenticateOptional">>;
+	): RouteBuilder<With<S, "auth", "optional">, K, G | StepsGone<"authenticateOptional">>
 	// On a public route, `authorize` makes the chain read the session, so its own context already has it (B26).
 	authorize(
 		fn: (ctx: GuardContext<Authorized<S>>) => boolean | Promise<boolean>,
-	): RouteBuilder<Authorized<S>, K, G | StepsGone<"authorize">>;
-	effects(effects: Effects): RouteBuilder<S, K, G | StepsGone<"effects">>;
+	): RouteBuilder<Authorized<S>, K, G | StepsGone<"authorize">>
+	effects(effects: Effects): RouteBuilder<S, K, G | StepsGone<"effects">>
 	preloader<P>(
 		fn: (ctx: GuardContext<S>) => P | Promise<P>,
-	): RouteBuilder<With<S, "preloader", P extends object ? P : {}>, K, G | StepsGone<"preloader">>;
+	): RouteBuilder<With<S, "preloader", P extends object ? P : {}>, K, G | StepsGone<"preloader">>
 	loader<L extends LoaderData>(
 		fn: (ctx: LoaderStepContext<S>) => L | Promise<L>,
-	): RouteBuilder<With<S, "loaderData", L>, K, G | StepsGone<"loader">>;
-	head(fn: (ctx: ViewContext<S>) => HeadConfig): RouteBuilder<S, K, G | StepsGone<"head">>;
-	headers(fn: (ctx: ViewContext<S>) => RouteHeaders): RouteBuilder<S, K, G | StepsGone<"headers">>;
+	): RouteBuilder<With<S, "loaderData", L>, K, G | StepsGone<"loader">>
+	head(fn: (ctx: ViewContext<S>) => HeadConfig): RouteBuilder<S, K, G | StepsGone<"head">>
+	headers(fn: (ctx: ViewContext<S>) => RouteHeaders): RouteBuilder<S, K, G | StepsGone<"headers">>
 	security(
 		config: SecurityConfig | ((ctx: ViewContext<S>) => SecurityConfig),
-	): RouteBuilder<S, K, G | StepsGone<"security">>;
-	render(fn: (props: RenderProps<S, K>) => JSX.Element): Bounded<RouteRecord & TypedRecord<S, K>, Located<S>>;
-};
+	): RouteBuilder<S, K, G | StepsGone<"security">>
+	render(fn: (props: RenderProps<S, K>) => JSX.Element): Bounded<RouteRecord & TypedRecord<S, K>, Located<S>>
+}
 
 // Only a page intercepts and answers with `.response()`.
 export type PageSteps<S extends RouteState, G extends string = never> = {
-	intercept(config: Intercept): RouteBuilder<S, "page", G | StepsGone<"intercept">>;
-	response(fn: (ctx: ResponseContext<S>) => Response | Promise<Response>): RouteRecord & TypedRecord<S, "page">;
-};
+	intercept(config: Intercept): RouteBuilder<S, "page", G | StepsGone<"intercept">>
+	response(fn: (ctx: ResponseContext<S>) => Response | Promise<Response>): RouteRecord & TypedRecord<S, "page">
+}
 
 export type RouteBuilder<S extends RouteState, K extends RouteKind, G extends string = never> = Omit<
 	BuilderSteps<S, K, G> & (K extends "page" ? PageSteps<S, G> : {}),
 	G
->;
+>

@@ -1,4 +1,4 @@
-export { writeSeed, type SeedInput } from "./artifacts.ts";
+export { writeSeed, type SeedInput } from "./artifacts.ts"
 export {
 	hintsOf,
 	prerenderApp,
@@ -7,4 +7,4 @@ export {
 	type PrerenderConfig,
 	type RunInput,
 	type RunResult,
-} from "./run.ts";
+} from "./run.ts"

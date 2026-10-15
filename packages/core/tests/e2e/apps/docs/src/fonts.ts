@@ -1,9 +1,9 @@
-import { createFont } from "@lovrozagar/flare";
-import inter from "@lovrozagar/flare/fonts/inter";
+import { createFont } from "@lovrozagar/flare"
+import inter from "@lovrozagar/flare/fonts/inter"
 
 // Inter is a registry font: the build emits its files from assets/fonts (vite.config.ts). The code font is the
 // app's own file, with fallback metrics so the swap does not shift the layout.
-export { inter };
+export { inter }
 
 export const mono = createFont({
 	family: "Docs Mono",
@@ -17,4 +17,4 @@ export const mono = createFont({
 		sizeAdjust: "100%",
 		fallbackFont: "Courier New",
 	},
-});
+})

@@ -1,6 +1,6 @@
-import { createPage } from "@lovrozagar/flare";
-import { createSignal } from "solid-js";
-import { republish } from "../../../fns/republish.ts";
+import { createPage } from "@lovrozagar/flare"
+import { createSignal } from "solid-js"
+import { republish } from "../../../fns/republish.ts"
 
 // Required auth with caller data, then a role check. A guest gets the root's 401 boundary, a reader its 403.
 export const route = createPage("_admin_/admin")
@@ -13,11 +13,11 @@ export const route = createPage("_admin_/admin")
 		greeting: preloaderContext.greeting,
 	}))
 	.render((props) => {
-		const [purged, setPurged] = createSignal("");
+		const [purged, setPurged] = createSignal("")
 		const purge = async (): Promise<void> => {
-			const result = await republish();
-			setPurged(result.purged.join(", "));
-		};
+			const result = await republish()
+			setPurged(result.purged.join(", "))
+		}
 		return (
 			<main>
 				<h1 id="admin-greeting" class="text-2xl font-semibold">
@@ -45,5 +45,5 @@ export const route = createPage("_admin_/admin")
 					purged: <span id="purged">{purged()}</span>
 				</p>
 			</main>
-		);
-	});
+		)
+	})

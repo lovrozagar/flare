@@ -1,17 +1,17 @@
-import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { parseSync } from "oxc-parser";
-import { expect, it } from "vitest";
-import plugin from "./no-module-state.js";
+import { spawnSync } from "node:child_process"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
+import { parseSync } from "oxc-parser"
+import { expect, it } from "vitest"
+import plugin from "./no-module-state.js"
 
-const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint");
-const rule = plugin.rules["no-module-state"];
+const oxlint = join(import.meta.dirname, "../../../node_modules/.bin/oxlint")
+const rule = plugin.rules["no-module-state"]
 
 function lint(code: string): number {
-	const dir = mkdtempSync(join(tmpdir(), "flare-state-"));
-	const file = join(dir, "src/shared/state.ts");
+	const dir = mkdtempSync(join(tmpdir(), "flare-state-"))
+	const file = join(dir, "src/shared/state.ts")
 	try {
 		writeFileSync(
 			join(dir, ".oxlintrc.json"),
@@ -21,22 +21,22 @@ function lint(code: string): number {
 				jsPlugins: [{ name: "flare", specifier: join(import.meta.dirname, "no-module-state.js") }],
 				rules: { "flare/no-module-state": "error" },
 			}),
-		);
-		mkdirSync(join(file, ".."), { recursive: true });
-		writeFileSync(file, code);
-		const testFile = join(dir, "src/shared/state.test.ts");
-		writeFileSync(testFile, "let n = 0;\n");
-		visit(file, code);
-		visit(testFile, "let n = 0;\n");
-		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" });
-		return proc.status ?? 1;
+		)
+		mkdirSync(join(file, ".."), { recursive: true })
+		writeFileSync(file, code)
+		const testFile = join(dir, "src/shared/state.test.ts")
+		writeFileSync(testFile, "let n = 0;\n")
+		visit(file, code)
+		visit(testFile, "let n = 0;\n")
+		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
+		return proc.status ?? 1
 	} finally {
-		rmSync(dir, { recursive: true, force: true });
+		rmSync(dir, { recursive: true, force: true })
 	}
 }
 
 function visit(filename: string, code: string): void {
-	const parsed = parseSync(filename, code);
+	const parsed = parseSync(filename, code)
 	const visitors = rule.create({
 		filename,
 		report() {},
@@ -44,33 +44,33 @@ function visit(filename: string, code: string): void {
 			getText: () => code,
 			getAllComments: () => parsed.comments,
 			getCommentsBefore(node: { start: number }) {
-				return parsed.comments.filter((comment) => code.slice(comment.end, node.start).trim() === "");
+				return parsed.comments.filter((comment) => code.slice(comment.end, node.start).trim() === "")
 			},
 		},
-	});
-	walk(parsed.program, null, visitors);
+	})
+	walk(parsed.program, null, visitors)
 }
 
 function walk(node: unknown, parent: unknown, visitors: Record<string, (node: never) => void>): void {
-	if (typeof node !== "object" || node === null || !("type" in node)) return;
-	const record = node as { type: string; parent?: unknown };
-	record.parent = parent;
-	visitors[record.type]?.(record as never);
+	if (typeof node !== "object" || node === null || !("type" in node)) return
+	const record = node as { type: string; parent?: unknown }
+	record.parent = parent
+	visitors[record.type]?.(record as never)
 	for (const [key, value] of Object.entries(record)) {
-		if (key === "parent") continue;
+		if (key === "parent") continue
 		if (Array.isArray(value)) {
-			for (const item of value) walk(item, record, visitors);
-			continue;
+			for (const item of value) walk(item, record, visitors)
+			continue
 		}
-		walk(value, record, visitors);
+		walk(value, record, visitors)
 	}
 }
 
 it("no-module-state", () => {
-	const offender = lint("// nope\nlet n = 0;\n");
+	const offender = lint("// nope\nlet n = 0;\n")
 	const clean = lint(
 		"const n = 1;\nfunction inner() {\n\tlet hidden = 1;\n\treturn hidden;\n}\n// per-process-constant: build id\nlet build = 1;\n",
-	);
-	expect(offender).not.toBe(0);
-	expect(clean).toBe(0);
-});
+	)
+	expect(offender).not.toBe(0)
+	expect(clean).toBe(0)
+})

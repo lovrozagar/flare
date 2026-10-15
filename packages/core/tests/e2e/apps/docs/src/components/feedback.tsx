@@ -1,24 +1,24 @@
-import { serverFnMutationOptions, serverFnQueryOptions, useSuspenseQuery } from "@lovrozagar/flare/query";
-import { useMutation } from "@tanstack/solid-query";
-import { Errored, Loading } from "solid-js";
-import type { JSX } from "@solidjs/web";
-import { feedbackCount, vote } from "../fns/feedback.ts";
-import { useUi } from "../i18n.ts";
+import { serverFnMutationOptions, serverFnQueryOptions, useSuspenseQuery } from "@lovrozagar/flare/query"
+import { useMutation } from "@tanstack/solid-query"
+import { Errored, Loading } from "solid-js"
+import type { JSX } from "@solidjs/web"
+import { feedbackCount, vote } from "../fns/feedback.ts"
+import { useUi } from "../i18n.ts"
 
 function Tally(props: { slug: string }): JSX.Element {
-	const ui = useUi();
-	const key = (): readonly unknown[] => ["feedback", props.slug];
+	const ui = useUi()
+	const key = (): readonly unknown[] => ["feedback", props.slug]
 	const count = useSuspenseQuery(() =>
 		serverFnQueryOptions(feedbackCount, { queryKey: key(), input: { slug: props.slug } }),
-	);
+	)
 	// With a mutation key, the helper writes the returned tally into the query under that key: no refetch.
-	const mutation = useMutation(() => serverFnMutationOptions(vote, { mutationKey: key() }));
+	const mutation = useMutation(() => serverFnMutationOptions(vote, { mutationKey: key() }))
 	// A pending vote ignores further clicks and changes neither button's look: dimming both on every vote read as a
 	// flash (BUGS.md 119.1).
 	const cast = (helpful: boolean): void => {
-		if (!mutation.isPending) mutation.mutate({ slug: props.slug, helpful });
-	};
-	const button = "rounded-md border border-stone-300 px-3 py-1 text-sm hover:border-flame-500 dark:border-ink-800";
+		if (!mutation.isPending) mutation.mutate({ slug: props.slug, helpful })
+	}
+	const button = "rounded-md border border-stone-300 px-3 py-1 text-sm hover:border-flame-500 dark:border-ink-800"
 	return (
 		<div class="flex items-center gap-3 text-sm">
 			<span class="text-stone-500">{ui("helpful")}</span>
@@ -41,7 +41,7 @@ function Tally(props: { slug: string }): JSX.Element {
 				No <span id="votes-down">{count.data?.down}</span>
 			</button>
 		</div>
-	);
+	)
 }
 
 // The query suspends under this boundary. The fallback is the skeleton. A failing widget shows its own line inside its
@@ -64,5 +64,5 @@ export function Feedback(props: { slug: string }): JSX.Element {
 				<Tally slug={props.slug} />
 			</Loading>
 		</Errored>
-	);
+	)
 }

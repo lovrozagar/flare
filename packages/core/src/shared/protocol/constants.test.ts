@@ -1,5 +1,5 @@
-import { expect, it } from "vitest";
-import * as constants from "./constants.ts";
+import { expect, it } from "vitest"
+import * as constants from "./constants.ts"
 
 it("names", () => {
 	expect({ ...constants }).toEqual({
@@ -12,5 +12,5 @@ it("names", () => {
 		CACHE_HEADER: "flare-cache",
 		FN_HEADER: "flare-fn",
 		TAB_HEADER: "flare-dev-tab",
-	});
-});
+	})
+})

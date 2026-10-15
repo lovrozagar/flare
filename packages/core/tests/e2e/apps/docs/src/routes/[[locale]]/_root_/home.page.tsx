@@ -1,13 +1,13 @@
-import { createPage, Image, Link } from "@lovrozagar/flare";
-import { useLoaderT } from "@lovrozagar/flare/i18n";
-import { For } from "solid-js";
-import hero from "../../../assets/hero.jpg?image";
-import { docs } from "../../../content.ts";
-import { messages } from "../../../i18n.ts";
+import { createPage, Image, Link } from "@lovrozagar/flare"
+import { useLoaderT } from "@lovrozagar/flare/i18n"
+import { For } from "solid-js"
+import hero from "../../../assets/hero.jpg?image"
+import { docs } from "../../../content.ts"
+import { messages } from "../../../i18n.ts"
 
 // A tiny inline preview the hero shows until the optimized file has loaded.
 const BLUR =
-	"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiA5Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgyPSIxIiB5Mj0iMSI+PHN0b3Agc3RvcC1jb2xvcj0iI2Y5NzMxNiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzYzNjZmMSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxNiIgaGVpZ2h0PSI5IiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+";
+	"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiA5Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgyPSIxIiB5Mj0iMSI+PHN0b3Agc3RvcC1jb2xvcj0iI2Y5NzMxNiIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzYzNjZmMSIvPjwvbGluZWFyR3JhZGllbnQ+PC9kZWZzPjxyZWN0IHdpZHRoPSIxNiIgaGVpZ2h0PSI5IiBmaWxsPSJ1cmwoI2cpIi8+PC9zdmc+"
 
 // Prerendered once per locale at build. The CDN may hold it for a minute.
 export const route = createPage("[[locale]]/_root_/")
@@ -16,8 +16,8 @@ export const route = createPage("[[locale]]/_root_/")
 		cdn: { maxAge: "1m", swr: "1h" },
 	})
 	.loader(() => {
-		const t = useLoaderT(messages);
-		return { message: t("hello"), tagline: t("tagline") };
+		const t = useLoaderT(messages)
+		return { message: t("hello"), tagline: t("tagline") }
 	})
 	.head(() => ({ title: "Flare docs — every feature, one page each" }))
 	.render((props) => (
@@ -66,4 +66,4 @@ export const route = createPage("[[locale]]/_root_/")
 				</For>
 			</section>
 		</main>
-	));
+	))

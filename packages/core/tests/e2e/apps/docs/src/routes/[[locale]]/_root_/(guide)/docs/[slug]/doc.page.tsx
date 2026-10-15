@@ -1,12 +1,12 @@
-import { createPage } from "@lovrozagar/flare";
-import { CodeBlock } from "../../../../../../components/code-block.tsx";
-import { Figure, PrevNext, Sections, Toc } from "../../../../../../components/doc-parts.tsx";
-import { Feedback } from "../../../../../../components/feedback.tsx";
-import { HooksPanel } from "../../../../../../components/hooks-panel.tsx";
-import { docOf, docs } from "../../../../../../content.ts";
-import { readStats } from "../../../../../../stats.ts";
+import { createPage } from "@lovrozagar/flare"
+import { CodeBlock } from "../../../../../../components/code-block.tsx"
+import { Figure, PrevNext, Sections, Toc } from "../../../../../../components/doc-parts.tsx"
+import { Feedback } from "../../../../../../components/feedback.tsx"
+import { HooksPanel } from "../../../../../../components/hooks-panel.tsx"
+import { docOf, docs } from "../../../../../../content.ts"
+import { readStats } from "../../../../../../stats.ts"
 
-const LOCALES: readonly Record<string, string>[] = [{}, { locale: "hr" }, { locale: "ar" }];
+const LOCALES: readonly Record<string, string>[] = [{}, { locale: "hr" }, { locale: "ar" }]
 
 // One page per doc, prerendered for every slug in every locale. A slug outside the list is the router's 404.
 export const route = createPage("[[locale]]/_root_/(guide)/docs/[slug]")
@@ -23,17 +23,17 @@ export const route = createPage("[[locale]]/_root_/(guide)/docs/[slug]")
 	}))
 	.loader(async ({ params }) => {
 		// SSG answers 404 for a slug its params did not list, so the loader only sees listed slugs.
-		const doc = docOf(params.slug);
-		if (doc === undefined) throw new Error(`no doc ${params.slug}`);
-		const { stats, calls } = await readStats();
-		const index = docs.indexOf(doc);
+		const doc = docOf(params.slug)
+		if (doc === undefined) throw new Error(`no doc ${params.slug}`)
+		const { stats, calls } = await readStats()
+		const index = docs.indexOf(doc)
 		return {
 			doc,
 			stats,
 			fetchCalls: calls,
 			prev: docs[index - 1]?.slug,
 			next: docs[index + 1]?.slug,
-		};
+		}
 	})
 	.head((ctx) => ({
 		title: `${ctx.loaderData.doc.title} — Flare docs`,
@@ -69,4 +69,4 @@ export const route = createPage("[[locale]]/_root_/(guide)/docs/[slug]")
 			</div>
 			<HooksPanel />
 		</div>
-	));
+	))

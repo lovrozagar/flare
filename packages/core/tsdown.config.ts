@@ -1,12 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { defineConfig } from "tsdown";
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import { defineConfig } from "tsdown"
 
 // The `./vite` entry's triple-slash reference to the image module types (B88). The declaration bundler drops it, so
 // the build writes the source's own line back onto that entry's declarations.
 const VITE_REFERENCE = /^\/\/\/ <reference path="[^"]+" preserve="true" \/>$/m.exec(
 	readFileSync("src/exports/vite.ts", "utf8"),
-)?.[0];
+)?.[0]
 
 // The packager (bits/14, B18): one compiled ESM file per source module, mirroring `src`, each with its declarations.
 // Every bare import stays external: the package has peers and no dependencies (B79). The image module types are a
@@ -32,4 +32,4 @@ export default defineConfig({
 	// flare() replaces whole modules by path at load time: build-info, the sync switch, the sheet, and the image config.
 	// Inlining their constants into importers would leave nothing to replace, so every module keeps its own file.
 	inputOptions: { optimization: { inlineConst: false } },
-});
+})

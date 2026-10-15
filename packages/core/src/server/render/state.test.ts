@@ -1,7 +1,7 @@
-import { expect, it } from "vitest";
-import { createRouter } from "../../shared/router/create-router.ts";
-import { renderDocument } from "./document.ts";
-import { insertState, stateScript } from "./state.ts";
+import { expect, it } from "vitest"
+import { createRouter } from "../../shared/router/create-router.ts"
+import { renderDocument } from "./document.ts"
+import { insertState, stateScript } from "./state.ts"
 
 it("one script", async () => {
 	const body = await renderDocument({
@@ -9,15 +9,15 @@ it("one script", async () => {
 		router: createRouter({ layouts: {}, routeTree: [] }),
 		matches: [{ id: "_root_", params: {}, search: {}, data: { n: 1 }, preloader: {}, head: null, error: null }],
 		render: () => "page",
-	});
-	const html = await new Response(body).text();
-	expect(html.match(/self\.flare/g)).toHaveLength(1);
-	const start = html.indexOf("self.flare=");
-	const source = html.slice(start, html.indexOf("</script>", start));
+	})
+	const html = await new Response(body).text()
+	expect(html.match(/self\.flare/g)).toHaveLength(1)
+	const start = html.indexOf("self.flare=")
+	const source = html.slice(start, html.indexOf("</script>", start))
 	const value = Function(`const self = {}; ${source}; return self.flare;`)() as {
-		matches: Array<Record<string, unknown> & { data: { n: number } }>;
-	};
-	expect(value.matches[0]?.data.n).toBe(1);
+		matches: Array<Record<string, unknown> & { data: { n: number } }>
+	}
+	expect(value.matches[0]?.data.n).toBe(1)
 	expect(Object.keys(value.matches[0] ?? {}).sort()).toEqual([
 		"data",
 		"error",
@@ -26,8 +26,8 @@ it("one script", async () => {
 		"params",
 		"preloader",
 		"search",
-	]);
-});
+	])
+})
 
 it("nonce field", async () => {
 	const html = await new Response(
@@ -38,9 +38,9 @@ it("nonce field", async () => {
 			nonce: "abc",
 			render: () => "page",
 		}),
-	).text();
-	expect(html).toContain('"nonce":"abc"');
-});
+	).text()
+	expect(html).toContain('"nonce":"abc"')
+})
 
 it("empty nonce", async () => {
 	const html = await new Response(
@@ -51,27 +51,27 @@ it("empty nonce", async () => {
 			nonce: "",
 			render: () => "page",
 		}),
-	).text();
-	expect(html).toContain('"nonce":""');
-});
+	).text()
+	expect(html).toContain('"nonce":""')
+})
 
 it("insertion", () => {
-	const script = "<script>self.flare=1</script>";
-	const html = insertState("<body>hi</body>", script);
-	expect(html.indexOf(script)).toBeGreaterThan(-1);
-	expect(html.indexOf(script)).toBeLessThan(html.indexOf("</body>"));
-});
+	const script = "<script>self.flare=1</script>"
+	const html = insertState("<body>hi</body>", script)
+	expect(html.indexOf(script)).toBeGreaterThan(-1)
+	expect(html.indexOf(script)).toBeLessThan(html.indexOf("</body>"))
+})
 
 // A render that left a `"stream"` hole says so, so the client sends one fill after hydrate. Without a hole the field
 // is absent. `build` is the id `flare-build` carries.
 it("fill flag", () => {
 	expect(stateScript({ matches: [], nonce: "", build: "b", fill: true })).toBe(
 		'<script>self.flare={"matches":[],"nonce":"","build":"b","fill":true}</script>',
-	);
+	)
 	expect(stateScript({ matches: [], nonce: "", build: "b" })).toBe(
 		'<script>self.flare={"matches":[],"nonce":"","build":"b"}</script>',
-	);
-});
+	)
+})
 
 // The state's `head` for a document whose stream writes `shell`, or for the plain render without one.
 async function stateHead(shell: string | undefined): Promise<unknown> {
@@ -87,16 +87,16 @@ async function stateHead(shell: string | undefined): Promise<unknown> {
 						stream: () => ({ pipeTo: (writable) => new Response(shell).body?.pipeTo(writable) ?? Promise.resolve() }),
 					}),
 		}),
-	).text();
-	const start = html.indexOf("self.flare=");
-	const source = html.slice(start, html.indexOf("</script>", start));
-	return Reflect.get(Function(`const self = {}; ${source}; return self.flare;`)(), "head");
+	).text()
+	const start = html.indexOf("self.flare=")
+	const source = html.slice(start, html.indexOf("</script>", start))
+	return Reflect.get(Function(`const self = {}; ${source}; return self.flare;`)(), "head")
 }
 
 // The state carries the final shell's head sequence, the capture script and its `xs` marker Flare adds included, for
 // the client's guard (B120). A shell with no head carries an empty one.
 it("head sequence", async () => {
-	const shell = "<html><head><title>T</title><!--$--><meta name=a><!--/--></head><body>x</body></html>";
-	expect(await stateHead(shell)).toEqual(["title", "!$", "meta", "!/", "script", "!xs"]);
-	expect(await stateHead(undefined)).toEqual([]);
-});
+	const shell = "<html><head><title>T</title><!--$--><meta name=a><!--/--></head><body>x</body></html>"
+	expect(await stateHead(shell)).toEqual(["title", "!$", "meta", "!/", "script", "!xs"])
+	expect(await stateHead(undefined)).toEqual([])
+})

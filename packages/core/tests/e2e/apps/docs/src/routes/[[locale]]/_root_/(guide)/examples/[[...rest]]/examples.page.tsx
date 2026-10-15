@@ -1,14 +1,14 @@
-import { createPage, useSearch } from "@lovrozagar/flare";
-import { serverCtx } from "@lovrozagar/flare/server";
-import type { JSX } from "@solidjs/web";
-import { Actions, TABS, Tabs, type Tab } from "../../../../../../components/example-links.tsx";
+import { createPage, useSearch } from "@lovrozagar/flare"
+import { serverCtx } from "@lovrozagar/flare/server"
+import type { JSX } from "@solidjs/web"
+import { Actions, TABS, Tabs, type Tab } from "../../../../../../components/example-links.tsx"
 
-const ID = "[[locale]]/_root_/(guide)/examples/[[...rest]]";
+const ID = "[[locale]]/_root_/(guide)/examples/[[...rest]]"
 
 function tabOf(raw: Record<string, string | string[]>): { tab?: Tab; note?: string } {
-	const tab = TABS.find((name) => name === raw["tab"]);
-	const note = raw["note"];
-	return { ...(tab === undefined ? {} : { tab }), ...(typeof note === "string" ? { note } : {}) };
+	const tab = TABS.find((name) => name === raw["tab"])
+	const note = raw["note"]
+	return { ...(tab === undefined ? {} : { tab }), ...(typeof note === "string" ? { note } : {}) }
 }
 
 function Fact(props: { label: string; id: string; value: string }): JSX.Element {
@@ -19,7 +19,7 @@ function Fact(props: { label: string; id: string; value: string }): JSX.Element 
 				{props.value}
 			</dd>
 		</>
-	);
+	)
 }
 
 // `/examples`, `/examples/a`, and `/examples/a/b` are one page: the optional catch-all is undefined at the root.
@@ -38,7 +38,7 @@ export const route = createPage(ID)
 		requestId: serverCtx().requestId,
 	}))
 	.render((props) => {
-		const search = useSearch({ from: ID });
+		const search = useSearch({ from: ID })
 		return (
 			<div>
 				<h1 class="text-3xl font-semibold tracking-tight">Examples</h1>
@@ -52,5 +52,5 @@ export const route = createPage(ID)
 				<Tabs locale={props.params.locale} rest={props.params.rest} tab={props.search.tab} />
 				<Actions locale={props.params.locale} rest={props.params.rest} tab={props.search.tab} />
 			</div>
-		);
-	});
+		)
+	})

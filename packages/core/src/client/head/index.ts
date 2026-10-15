@@ -1,1 +1,1 @@
-export { applyHeads } from "./apply.ts";
+export { applyHeads } from "./apply.ts"

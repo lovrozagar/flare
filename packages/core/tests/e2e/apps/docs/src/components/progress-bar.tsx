@@ -1,9 +1,9 @@
-import { useNavigationProgress } from "@lovrozagar/flare";
-import type { JSX } from "@solidjs/web";
+import { useNavigationProgress } from "@lovrozagar/flare"
+import type { JSX } from "@solidjs/web"
 
 // Flare returns the number. The app paints the bar (dx/navigate.md useNavigationProgress).
 export function ProgressBar(): JSX.Element {
-	const progress = useNavigationProgress({ trickle: 120, minDisplay: 300 });
+	const progress = useNavigationProgress({ trickle: 120, minDisplay: 300 })
 	return (
 		<div
 			id="progress"
@@ -11,5 +11,5 @@ export function ProgressBar(): JSX.Element {
 			data-pending={progress.pending ? "true" : "false"}
 			style={{ width: `${(progress.value ?? 0) * 100}%`, opacity: progress.value === null ? "0" : "1" }}
 		/>
-	);
+	)
 }

@@ -1,5 +1,5 @@
-import type { RequestEvent } from "@solidjs/web";
-import { provideRequestEvent } from "@solidjs/web/storage";
+import type { RequestEvent } from "@solidjs/web"
+import { provideRequestEvent } from "@solidjs/web/storage"
 
 // On @solidjs/web 2.0.0-rc.13 and rc.14, aborting renderToStream's signal does not close its writable (N3-2). Every pull,
 // the chunk-0 wait included, races the request signal. An abort or a consumer cancel disposes the render
@@ -9,27 +9,27 @@ export function raceAbort(
 	signal: AbortSignal,
 	dispose: () => void,
 ): ReadableStream<Uint8Array> {
-	const reader = source.getReader();
-	const { promise: aborted, resolve } = Promise.withResolvers<undefined>();
-	let stopped = false;
+	const reader = source.getReader()
+	const { promise: aborted, resolve } = Promise.withResolvers<undefined>()
+	let stopped = false
 	// A consumer cancel and a later abort both land here. The render is disposed once.
 	const stop = (): void => {
-		if (stopped) return;
-		stopped = true;
-		dispose();
-		void reader.cancel();
-		resolve(undefined);
-	};
-	if (signal.aborted) stop();
-	else signal.addEventListener("abort", stop, { once: true });
+		if (stopped) return
+		stopped = true
+		dispose()
+		void reader.cancel()
+		resolve(undefined)
+	}
+	if (signal.aborted) stop()
+	else signal.addEventListener("abort", stop, { once: true })
 	return new ReadableStream<Uint8Array>({
 		async pull(controller) {
-			const result = await Promise.race([reader.read(), aborted]);
-			if (result === undefined || result.done) controller.close();
-			else controller.enqueue(result.value);
+			const result = await Promise.race([reader.read(), aborted])
+			if (result === undefined || result.done) controller.close()
+			else controller.enqueue(result.value)
 		},
 		cancel: stop,
-	});
+	})
 }
 
 // Solid disposes the tree, and runs every cleanup, inside the abort listener of the signal the render gives it. A
@@ -40,8 +40,8 @@ export function renderStop(
 	requestSignal: AbortSignal,
 	event: RequestEvent | undefined,
 ): { signal: AbortSignal; stop: () => void } {
-	const halt = new AbortController();
-	const stop = event === undefined ? () => halt.abort() : () => void provideRequestEvent(event, () => halt.abort());
-	requestSignal.addEventListener("abort", stop, { once: true });
-	return { signal: halt.signal, stop };
+	const halt = new AbortController()
+	const stop = event === undefined ? () => halt.abort() : () => void provideRequestEvent(event, () => halt.abort())
+	requestSignal.addEventListener("abort", stop, { once: true })
+	return { signal: halt.signal, stop }
 }

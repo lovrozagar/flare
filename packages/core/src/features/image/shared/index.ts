@@ -1,1 +1,1 @@
-export { Image, withQuality, type ImageBinding, type ImageProps } from "./image.tsx";
+export { Image, withQuality, type ImageBinding, type ImageProps } from "./image.tsx"

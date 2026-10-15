@@ -1,112 +1,112 @@
-import { createComponent, createMemo, Loading, onCleanup } from "solid-js";
-import { createRequestEvent, Dynamic, getRequestEvent, renderToStream, type JSX } from "@solidjs/web";
-import { provideRequestEvent } from "@solidjs/web/storage";
-import { expect, it, vi } from "vitest";
-import { Link, Stylesheet } from "../../shared/components/index.ts";
-import type { CacheConfig } from "../../shared/route-builder/chain.ts";
-import { createPage } from "../../shared/route-builder/page.ts";
-import { createRootLayout } from "../../shared/route-builder/root-layout.ts";
-import { createRouter, type RouteModule } from "../../shared/router/create-router.ts";
-import { useRouter } from "../../shared/router/context.ts";
-import { createMemoryStore } from "../cache/memory.ts";
-import { serveWith } from "../lifecycle/create.ts";
-import { createDefer } from "../loaders/defer.ts";
-import * as critical from "./critical-style.ts";
-import { renderDocument, type DocumentInput } from "./document.ts";
+import { createComponent, createMemo, Loading, onCleanup } from "solid-js"
+import { createRequestEvent, Dynamic, getRequestEvent, renderToStream, type JSX } from "@solidjs/web"
+import { provideRequestEvent } from "@solidjs/web/storage"
+import { expect, it, vi } from "vitest"
+import { Link, Stylesheet } from "../../shared/components/index.ts"
+import type { CacheConfig } from "../../shared/route-builder/chain.ts"
+import { createPage } from "../../shared/route-builder/page.ts"
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
+import { createRouter, type RouteModule } from "../../shared/router/create-router.ts"
+import { useRouter } from "../../shared/router/context.ts"
+import { createMemoryStore } from "../cache/memory.ts"
+import { serveWith } from "../lifecycle/create.ts"
+import { createDefer } from "../loaders/defer.ts"
+import * as critical from "./critical-style.ts"
+import { renderDocument, type DocumentInput } from "./document.ts"
 
 // The server build's sheet. The source module is empty.
 vi.mock("../../shared/css/sheet.ts", () => ({
 	builtSheet: ".a{color:red}.unused{color:blue}",
 	builtHref: "/assets/app.css",
-}));
+}))
 vi.mock("./critical-style.ts", async (original) => {
-	const actual = await original<typeof import("./critical-style.ts")>();
-	return { ...actual, withCritical: vi.fn<typeof actual.withCritical>(actual.withCritical) };
-});
+	const actual = await original<typeof import("./critical-style.ts")>()
+	return { ...actual, withCritical: vi.fn<typeof actual.withCritical>(actual.withCritical) }
+})
 
-const router = createRouter({ layouts: {}, routeTree: [] });
+const router = createRouter({ layouts: {}, routeTree: [] })
 
-const decoder = new TextDecoder();
+const decoder = new TextDecoder()
 
 function request(): Request {
-	return new Request("http://localhost/");
+	return new Request("http://localhost/")
 }
 
 function base(): Pick<DocumentInput, "request" | "router" | "matches"> {
-	return { request: request(), router, matches: [] };
+	return { request: request(), router, matches: [] }
 }
 
 function text(body: ReadableStream<Uint8Array>): Promise<string> {
-	return new Response(body).text();
+	return new Response(body).text()
 }
 
 // A stand-in for renderToStream that writes one string and records the options it was given.
 function writes(html: string, seen: Parameters<NonNullable<DocumentInput["stream"]>>[1][]): DocumentInput["stream"] {
 	return (_fn, options) => {
-		seen.push(options);
+		seen.push(options)
 		return {
 			async pipeTo(writable) {
-				const writer = writable.getWriter();
-				await writer.write(html);
-				await writer.close();
+				const writer = writable.getWriter()
+				await writer.write(html)
+				await writer.close()
 			},
-		};
-	};
+		}
+	}
 }
 
 function element(tag: string, children: () => JSX.Element): JSX.Element {
 	return createComponent(Dynamic, {
 		component: tag,
 		get children() {
-			return children();
+			return children()
 		},
-	});
+	})
 }
 
 function page(body: () => JSX.Element): JSX.Element {
-	return element("html", () => [element("head", () => element("title", () => "T")), element("body", body)]);
+	return element("html", () => [element("head", () => element("title", () => "T")), element("body", body)])
 }
 
 it("calls renderToStream", async () => {
-	const html = await text(await renderDocument({ ...base(), render: () => "home" }));
-	expect(html).toContain("home");
-	expect(html).toContain("self.flare=");
-});
+	const html = await text(await renderDocument({ ...base(), render: () => "home" }))
+	expect(html).toContain("home")
+	expect(html).toContain("self.flare=")
+})
 
 it("signal follows the request signal", async () => {
-	const controller = new AbortController();
-	const incoming = new Request("http://localhost/", { signal: controller.signal });
-	const seen: Parameters<NonNullable<DocumentInput["stream"]>>[1][] = [];
-	await renderDocument({ ...base(), request: incoming, render: () => "home", stream: writes("home", seen) });
-	expect(seen[0].signal?.aborted).toBe(false);
-	controller.abort();
-	expect(seen[0].signal?.aborted).toBe(true);
+	const controller = new AbortController()
+	const incoming = new Request("http://localhost/", { signal: controller.signal })
+	const seen: Parameters<NonNullable<DocumentInput["stream"]>>[1][] = []
+	await renderDocument({ ...base(), request: incoming, render: () => "home", stream: writes("home", seen) })
+	expect(seen[0].signal?.aborted).toBe(false)
+	controller.abort()
+	expect(seen[0].signal?.aborted).toBe(true)
 	// Solid calls the error hook with its own arguments. The render's hook ignores them.
-	Reflect.apply(seen[0].onError ?? (() => undefined), undefined, []);
-	seen[0].onHead?.("");
-});
+	Reflect.apply(seen[0].onError ?? (() => undefined), undefined, [])
+	seen[0].onHead?.("")
+})
 
 it("nonce option", async () => {
-	const seen: Parameters<NonNullable<DocumentInput["stream"]>>[1][] = [];
-	await renderDocument({ ...base(), nonce: "abc", render: () => "home", stream: writes("x", seen) });
-	await renderDocument({ ...base(), nonce: "", render: () => "home", stream: writes("x", seen) });
-	expect(seen.map((options) => options.nonce)).toEqual(["abc", undefined]);
-});
+	const seen: Parameters<NonNullable<DocumentInput["stream"]>>[1][] = []
+	await renderDocument({ ...base(), nonce: "abc", render: () => "home", stream: writes("x", seen) })
+	await renderDocument({ ...base(), nonce: "", render: () => "home", stream: writes("x", seen) })
+	expect(seen.map((options) => options.nonce)).toEqual(["abc", undefined])
+})
 
 it("router context", async () => {
-	let seen: unknown;
+	let seen: unknown
 	await renderDocument({
 		...base(),
 		render() {
-			seen = useRouter();
-			return "ok";
+			seen = useRouter()
+			return "ok"
 		},
-	});
-	expect(seen).toBe(router);
-});
+	})
+	expect(seen).toBe(router)
+})
 
 it("shell hook", async () => {
-	const order: string[] = [];
+	const order: string[] = []
 	const body = await renderDocument({
 		...base(),
 		render: () => page(() => "home"),
@@ -114,179 +114,181 @@ it("shell hook", async () => {
 			renderToStream(fn, {
 				...options,
 				onCompleteShell(info: { write: (chunk: string) => void }) {
-					order.push("hook");
-					options.onCompleteShell?.(info);
+					order.push("hook")
+					options.onCompleteShell?.(info)
 				},
 			} as Parameters<typeof renderToStream>[1]),
-	});
-	const first = await body.getReader().read();
-	order.push("chunk");
-	expect(order).toEqual(["hook", "chunk"]);
-	const shell = decoder.decode(first.value);
-	expect(shell).toContain("</body>");
-	expect(shell).toContain("self.flare=");
-});
+	})
+	const first = await body.getReader().read()
+	order.push("chunk")
+	expect(order).toEqual(["hook", "chunk"])
+	const shell = decoder.decode(first.value)
+	expect(shell).toContain("</body>")
+	expect(shell).toContain("self.flare=")
+})
 
 it("3 MiB shell", async () => {
-	const big = "x".repeat(3 * 1024 * 1024);
-	const body = await renderDocument({ ...base(), render: () => page(() => big) });
-	const html = await text(body);
-	expect(html.length).toBeGreaterThan(big.length);
-	expect(html).toContain("self.flare=");
-});
+	const big = "x".repeat(3 * 1024 * 1024)
+	const body = await renderDocument({ ...base(), render: () => page(() => big) })
+	const html = await text(body)
+	expect(html.length).toBeGreaterThan(big.length)
+	expect(html).toContain("self.flare=")
+})
 
 function slot(promise: Promise<string>, fallback: string): JSX.Element {
 	return createComponent(Loading, {
 		fallback,
 		get children() {
-			const value = createMemo(async () => promise);
-			return [() => value()];
+			const value = createMemo(async () => promise)
+			return [() => value()]
 		},
-	});
+	})
 }
 
 function twoSlots(): {
-	fast: PromiseWithResolvers<string>;
-	slow: PromiseWithResolvers<string>;
-	render: () => JSX.Element;
+	fast: PromiseWithResolvers<string>
+	slow: PromiseWithResolvers<string>
+	render: () => JSX.Element
 } {
-	const fast = Promise.withResolvers<string>();
-	const slow = Promise.withResolvers<string>();
-	const { defer } = createDefer({ stored: false, dev: false });
-	const quick = defer(() => fast.promise);
-	const late = defer(() => slow.promise);
-	const render = (): JSX.Element => page(() => [slot(quick.promise, "wait-fast"), slot(late.promise, "wait-slow")]);
-	return { fast, slow, render };
+	const fast = Promise.withResolvers<string>()
+	const slow = Promise.withResolvers<string>()
+	const { defer } = createDefer({ stored: false, dev: false })
+	const quick = defer(() => fast.promise)
+	const late = defer(() => slow.promise)
+	const render = (): JSX.Element => page(() => [slot(quick.promise, "wait-fast"), slot(late.promise, "wait-slow")])
+	return { fast, slow, render }
 }
 
 it("two fragments", async () => {
-	const { fast, slow, render } = twoSlots();
-	const reader = (await renderDocument({ ...base(), render })).getReader();
-	const shell = decoder.decode((await reader.read()).value);
-	expect(shell).toContain("wait-fast");
-	expect(shell).toContain("wait-slow");
-	expect(shell).not.toContain("FAST");
-	expect(shell).not.toContain("SLOW");
-	fast.resolve("FAST");
-	const next = decoder.decode((await reader.read()).value);
-	expect(next).toContain("FAST");
-	expect(next).not.toContain("SLOW");
-	slow.resolve("SLOW");
-	let rest = "";
-	for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) rest += decoder.decode(chunk.value);
-	expect(rest).toContain("SLOW");
-});
+	const { fast, slow, render } = twoSlots()
+	const reader = (await renderDocument({ ...base(), render })).getReader()
+	const shell = decoder.decode((await reader.read()).value)
+	expect(shell).toContain("wait-fast")
+	expect(shell).toContain("wait-slow")
+	expect(shell).not.toContain("FAST")
+	expect(shell).not.toContain("SLOW")
+	fast.resolve("FAST")
+	const next = decoder.decode((await reader.read()).value)
+	expect(next).toContain("FAST")
+	expect(next).not.toContain("SLOW")
+	slow.resolve("SLOW")
+	let rest = ""
+	for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) rest += decoder.decode(chunk.value)
+	expect(rest).toContain("SLOW")
+})
 
 it("reject keeps shell", async () => {
-	const { fast, slow, render } = twoSlots();
-	const body = await renderDocument({ ...base(), render });
-	fast.reject(new Error("fast failed"));
-	slow.resolve("SLOW");
-	const html = await text(body);
-	expect(html).toContain("wait-fast");
-	expect(html).toMatch(/<template id="\d+">SLOW<\/template>/);
-	expect(html).toContain("</html>");
-});
+	const { fast, slow, render } = twoSlots()
+	const body = await renderDocument({ ...base(), render })
+	fast.reject(new Error("fast failed"))
+	slow.resolve("SLOW")
+	const html = await text(body)
+	expect(html).toContain("wait-fast")
+	expect(html).toMatch(/<template id="\d+">SLOW<\/template>/)
+	expect(html).toContain("</html>")
+})
 
 it("client import", async () => {
 	const html = await text(
 		await renderDocument({ ...base(), nonce: "n", client: "/src/client.tsx", render: () => "home" }),
-	);
+	)
 	expect(html).toMatch(
 		/<script[^>]*>self\.flare=.*?<\/script><script type="module" async nonce="n">import\("\/src\/client\.tsx"\)<\/script>/,
-	);
-	const plain = await text(await renderDocument({ ...base(), client: "/src/client.tsx", render: () => "home" }));
-	expect(plain).toContain('<script type="module" async>import("/src/client.tsx")</script>');
-});
+	)
+	const plain = await text(await renderDocument({ ...base(), client: "/src/client.tsx", render: () => "home" }))
+	expect(plain).toContain('<script type="module" async>import("/src/client.tsx")</script>')
+})
 
 it("hydration capture", async () => {
-	const html = await text(await renderDocument({ ...base(), nonce: "n", render: () => page(() => "home") }));
-	const head = html.slice(html.indexOf("<head"), html.indexOf("</head>"));
-	expect(html.split("_$HY={").length).toBe(2);
-	expect(head).toMatch(/<script nonce="n">window\._\$HY\|\|/);
-	expect(head).toContain('["click","input"]');
-	expect(head).toContain("<!--xs-->");
-	const plain = await text(await renderDocument({ ...base(), render: () => page(() => "home") }));
-	expect(plain).toMatch(/<script>window\._\$HY\|\|/);
-});
+	const html = await text(await renderDocument({ ...base(), nonce: "n", render: () => page(() => "home") }))
+	const head = html.slice(html.indexOf("<head"), html.indexOf("</head>"))
+	expect(html.split("_$HY={").length).toBe(2)
+	expect(head).toMatch(/<script nonce="n">window\._\$HY\|\|/)
+	expect(head).toContain('["click","input"]')
+	expect(head).toContain("<!--xs-->")
+	const plain = await text(await renderDocument({ ...base(), render: () => page(() => "home") }))
+	expect(plain).toMatch(/<script>window\._\$HY\|\|/)
+})
 
 it("abort after shell", async () => {
-	const { slow, render } = twoSlots();
-	const controller = new AbortController();
-	const incoming = new Request("http://localhost/", { signal: controller.signal });
-	const reader = (await renderDocument({ ...base(), request: incoming, render })).getReader();
-	expect(decoder.decode((await reader.read()).value)).toContain("wait-slow");
-	controller.abort();
-	expect(await reader.read()).toEqual({ done: true, value: undefined });
-	slow.resolve("SLOW");
-});
+	const { slow, render } = twoSlots()
+	const controller = new AbortController()
+	const incoming = new Request("http://localhost/", { signal: controller.signal })
+	const reader = (await renderDocument({ ...base(), request: incoming, render })).getReader()
+	expect(decoder.decode((await reader.read()).value)).toContain("wait-slow")
+	controller.abort()
+	expect(await reader.read()).toEqual({ done: true, value: undefined })
+	slow.resolve("SLOW")
+})
 
 // A streaming document under its own request event, stopped from the test's scope, as a socket close stops it. Every
 // cleanup runs under the event the render had (B28).
 it("abort cleanup in request", async () => {
-	const { slow, render } = twoSlots();
-	const controller = new AbortController();
-	const incoming = new Request("http://localhost/", { signal: controller.signal });
-	const event = createRequestEvent(incoming);
-	const seen: unknown[] = [];
+	const { slow, render } = twoSlots()
+	const controller = new AbortController()
+	const incoming = new Request("http://localhost/", { signal: controller.signal })
+	const event = createRequestEvent(incoming)
+	const seen: unknown[] = []
 	const tree = (): JSX.Element => {
-		onCleanup(() => void seen.push(getRequestEvent()));
-		return render();
-	};
+		onCleanup(() => void seen.push(getRequestEvent()))
+		return render()
+	}
 	const body = await new Promise<ReadableStream<Uint8Array>>((resolve, reject) => {
 		provideRequestEvent(event, () =>
 			renderDocument({ ...base(), request: incoming, render: tree }).then(resolve, reject),
-		);
-	});
-	await body.getReader().read();
-	controller.abort();
-	expect(seen).toEqual([event]);
-	slow.resolve("SLOW");
-});
+		)
+	})
+	await body.getReader().read()
+	controller.abort()
+	expect(seen).toEqual([event])
+	slow.resolve("SLOW")
+})
 
 // Writes the shell, then fails the way a render that throws after the shell does.
 const failing: DocumentInput["stream"] = () => ({
 	async pipeTo(writable) {
-		const writer = writable.getWriter();
-		await writer.write("<html><head></head><body>shell</body></html>");
-		await writer.abort(new Error("late"));
-		throw new Error("late");
+		const writer = writable.getWriter()
+		await writer.write("<html><head></head><body>shell</body></html>")
+		await writer.abort(new Error("late"))
+		throw new Error("late")
 	},
-});
+})
 
 it("failure after shell", async () => {
-	const body = await renderDocument({ ...base(), render: () => "home", stream: failing });
-	const reader = body.getReader();
-	expect(decoder.decode((await reader.read()).value)).toContain("shell");
-	await expect(reader.read()).rejects.toThrow("late");
-});
+	const body = await renderDocument({ ...base(), render: () => "home", stream: failing })
+	const reader = body.getReader()
+	expect(decoder.decode((await reader.read()).value)).toContain("shell")
+	await expect(reader.read()).rejects.toThrow("late")
+})
 
 function stateTag(html: string): string {
-	return html.slice(html.lastIndexOf("<script", html.indexOf("self.flare=")), html.indexOf("self.flare="));
+	return html.slice(html.lastIndexOf("<script", html.indexOf("self.flare=")), html.indexOf("self.flare="))
 }
 
 it("state nonce", async () => {
-	const signed = await text(await renderDocument({ ...base(), nonce: "n", render: () => "home" }));
-	expect(stateTag(signed)).toBe('<script nonce="n">');
-	expect(signed).toContain('"nonce":"n"');
-	const plain = await text(await renderDocument({ ...base(), nonce: "", render: () => "home" }));
-	expect(stateTag(plain)).toBe("<script>");
-});
+	const signed = await text(await renderDocument({ ...base(), nonce: "n", render: () => "home" }))
+	expect(stateTag(signed)).toBe('<script nonce="n">')
+	expect(signed).toContain('"nonce":"n"')
+	const plain = await text(await renderDocument({ ...base(), nonce: "", render: () => "home" }))
+	expect(stateTag(plain)).toBe("<script>")
+})
 
 it("matches required", () => {
 	// @ts-expect-error A document needs its real matches. There is no placeholder entry (B83).
-	const input: DocumentInput = { request: request(), router, render: () => "home" };
-	expect(input).not.toHaveProperty("matches");
-});
+	const input: DocumentInput = { request: request(), router, render: () => "home" }
+	expect(input).not.toHaveProperty("matches")
+})
+
+const bareDocument = (): JSX.Element =>
+	element("html", () => [element("head", () => []), element("body", () => "home")])
 
 it("head identity", async () => {
-	const head = { title: "T", description: "D", jsonLd: [{ a: 1 }] };
-	const bare = (): JSX.Element => element("html", () => [element("head", () => []), element("body", () => "home")]);
-	const html = await text(await renderDocument({ ...base(), nonce: "n", head, render: bare }));
-	expect(html).toContain('<title data-dh="title">T</title>');
-	expect(html).toContain('<meta name="description" content="D" data-dh="meta:key:meta:description:0">');
-	expect(html).toMatch(/<script type="application\/ld\+json" nonce="n" data-dh="script:key:script:[0-9a-z]+:0">/);
-});
+	const head = { title: "T", description: "D", jsonLd: [{ a: 1 }] }
+	const html = await text(await renderDocument({ ...base(), nonce: "n", head, render: bareDocument }))
+	expect(html).toContain('<title data-dh="title">T</title>')
+	expect(html).toContain('<meta name="description" content="D" data-dh="meta:key:meta:description:0">')
+	expect(html).toMatch(/<script type="application\/ld\+json" nonce="n" data-dh="script:key:script:[0-9a-z]+:0">/)
+})
 
 it("link active", async () => {
 	const linked = createRouter({
@@ -295,7 +297,7 @@ it("link active", async () => {
 			{ id: "_root_/", path: "/", module: {} },
 			{ id: "_root_/about", path: "/about", module: {} },
 		],
-	});
+	})
 	const html = await text(
 		await renderDocument({
 			...base(),
@@ -306,65 +308,72 @@ it("link active", async () => {
 				createComponent(Link, { to: "_root_/", activeClass: "on", children: "home" }),
 			],
 		}),
-	);
+	)
 	expect(html).toMatch(
 		/<a[^>]*href="\/about\?q=1"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*href="\/about\?q=1"/,
-	);
-	expect(html).toMatch(/<a[^>]*href="\/"[^>]*>home/);
-	expect(html.match(/aria-current/g)).toHaveLength(1);
-});
+	)
+	expect(html).toMatch(/<a[^>]*href="\/"[^>]*>home/)
+	expect(html.match(/aria-current/g)).toHaveLength(1)
+})
 
 it("doctype", async () => {
 	const page = await text(
 		await renderDocument({ ...base(), render: () => element("html", () => element("body", () => "x")) }),
-	);
-	expect(page.startsWith("<!DOCTYPE html>")).toBe(true);
-	expect(page.match(/<!DOCTYPE html>/gi)).toHaveLength(1);
+	)
+	expect(page.startsWith("<!DOCTYPE html>")).toBe(true)
+	expect(page.match(/<!DOCTYPE html>/gi)).toHaveLength(1)
 	const written = await text(
 		await renderDocument({
 			...base(),
 			render: () => "x",
 			stream: writes("<!doctype html><html><body>x</body></html>", []),
 		}),
-	);
-	expect(written.match(/<!doctype html>/gi)).toHaveLength(1);
-	const fragment = await text(await renderDocument({ ...base(), render: () => "fragment" }));
-	expect(fragment.startsWith("<!DOCTYPE")).toBe(false);
-});
+	)
+	expect(written.match(/<!doctype html>/gi)).toHaveLength(1)
+	const fragment = await text(await renderDocument({ ...base(), render: () => "fragment" }))
+	expect(fragment.startsWith("<!DOCTYPE")).toBe(false)
+})
 
-const SHEET = ".a{color:red}.unused{color:blue}";
+const SHEET = ".a{color:red}.unused{color:blue}"
 
 function classed(): JSX.Element {
-	return createComponent(Dynamic, { component: "p", class: "a", children: "used" });
+	return createComponent(Dynamic, { component: "p", class: "a", children: "used" })
 }
 
 // The first flushed chunk ends its head with the critical style, after the hydration capture script, then the
 // stylesheet markup <Stylesheet /> left to the document (B103). The router's theme attribute counts as present.
-it("critical shell", async () => {
-	vi.stubEnv("DEV", false);
-	const head = (): JSX.Element => element("head", () => [element("title", () => "T"), createComponent(Stylesheet, {})]);
-	const render = (): JSX.Element => element("html", () => [head(), element("body", classed)]);
-	const themed = createRouter({ layouts: {}, routeTree: [], theme: {} });
-	const sheet = `${SHEET}.a:where([data-theme="dark"] *){color:blue}`;
-	const body = await renderDocument({ ...base(), router: themed, nonce: "n", sheet, render });
-	vi.unstubAllEnvs();
-	const shell = decoder.decode((await body.getReader().read()).value);
-	const inHead = shell.slice(0, shell.indexOf("</head>"));
-	const critical =
-		'<style id="flare-critical" nonce="n">.a{color:red}.a:where([data-theme="dark"] *){color:blue}</style>';
-	expect(inHead).toContain(`${critical}<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css">`);
-	expect(inHead.endsWith("document.currentScript.after(l)}</script>")).toBe(true);
-	expect(inHead.match(/flare-stylesheet" rel="preload"/g)).toHaveLength(1);
-	expect(inHead.indexOf("$HY")).toBeLessThan(inHead.indexOf("flare-critical"));
-	expect(shell).not.toContain(".unused");
-});
+function criticalHead(): JSX.Element {
+	return element("head", () => [element("title", () => "T"), createComponent(Stylesheet, {})])
+}
 
-const SITE = "https://example.com";
-const root = createRootLayout("_root_").render((props) => page(() => props.children));
+function criticalDocument(): JSX.Element {
+	return element("html", () => [criticalHead(), element("body", classed)])
+}
+
+it("critical shell", async () => {
+	vi.stubEnv("DEV", false)
+	const render = criticalDocument
+	const themed = createRouter({ layouts: {}, routeTree: [], theme: {} })
+	const sheet = `${SHEET}.a:where([data-theme="dark"] *){color:blue}`
+	const body = await renderDocument({ ...base(), router: themed, nonce: "n", sheet, render })
+	vi.unstubAllEnvs()
+	const shell = decoder.decode((await body.getReader().read()).value)
+	const inHead = shell.slice(0, shell.indexOf("</head>"))
+	const critical =
+		'<style id="flare-critical" nonce="n">.a{color:red}.a:where([data-theme="dark"] *){color:blue}</style>'
+	expect(inHead).toContain(`${critical}<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css">`)
+	expect(inHead.endsWith("document.currentScript.after(l)}</script>")).toBe(true)
+	expect(inHead.match(/flare-stylesheet" rel="preload"/g)).toHaveLength(1)
+	expect(inHead.indexOf("$HY")).toBeLessThan(inHead.indexOf("flare-critical"))
+	expect(shell).not.toContain(".unused")
+})
+
+const SITE = "https://example.com"
+const root = createRootLayout("_root_").render((props) => page(() => props.children))
 
 function module(id: string, cache?: CacheConfig): RouteModule {
-	const builder = createPage(id);
-	return (cache === undefined ? builder : builder.cache(cache)).render(classed);
+	const builder = createPage(id)
+	return (cache === undefined ? builder : builder.cache(cache)).render(classed)
 }
 
 function server(dev: boolean): ReturnType<typeof serveWith> {
@@ -375,115 +384,115 @@ function server(dev: boolean): ReturnType<typeof serveWith> {
 			{ id: "_root_/isr", path: "/isr", module: module("_root_/isr", { isr: true }) },
 			{ id: "_root_/ssg", path: "/ssg", module: module("_root_/ssg", { ssg: true }) },
 		],
-	});
-	const log = { level: "error" as const, error: () => undefined, warn: () => undefined, log: () => undefined };
-	return serveWith({ router, site: SITE, store: createMemoryStore() }, { dev, log, send: () => undefined });
+	})
+	const log = { level: "error" as const, error: () => undefined, warn: () => undefined, log: () => undefined }
+	return serveWith({ router, site: SITE, store: createMemoryStore() }, { dev, log, send: () => undefined })
 }
 
 // A live SSR render, the ISR populate, and an SSG page each carry the style. Bit 12's prerender is the shared render
 // the ISR populate runs.
 it("modes", async () => {
-	const app = server(false);
+	const app = server(false)
 	for (const [path, render] of [
 		["/ssr", "ssr"],
 		["/isr", "isr"],
 		["/ssg", "ssr"],
 	]) {
-		const response = await app.fetch(new Request(`${SITE}${path}`));
-		expect(response.headers.get("flare-render")).toBe(render);
-		expect(await response.text()).toContain('<style id="flare-critical"');
+		const response = await app.fetch(new Request(`${SITE}${path}`))
+		expect(response.headers.get("flare-render")).toBe(render)
+		expect(await response.text()).toContain('<style id="flare-critical"')
 	}
-});
+})
 
 it("data skips", async () => {
-	vi.mocked(critical.withCritical).mockClear();
-	const response = await server(false).fetch(new Request(`${SITE}/ssr?_flare=data`));
-	expect(await response.text()).not.toContain("flare-critical");
-	expect(critical.withCritical).not.toHaveBeenCalled();
-});
+	vi.mocked(critical.withCritical).mockClear()
+	const response = await server(false).fetch(new Request(`${SITE}/ssr?_flare=data`))
+	expect(await response.text()).not.toContain("flare-critical")
+	expect(critical.withCritical).not.toHaveBeenCalled()
+})
 
 it("dev", async () => {
-	const response = await server(true).fetch(new Request(`${SITE}/ssr`));
-	expect(await response.text()).not.toContain("flare-critical");
-});
+	const response = await server(true).fetch(new Request(`${SITE}/ssr`))
+	expect(await response.text()).not.toContain("flare-critical")
+})
 
 // The document state carries the request's query cache, taken after the shell rendered, so queries the shell
 // resolved are in it. No registered getter is `null` (B83).
 it("state queries", async () => {
-	const QUERY = Symbol.for("flare.query");
-	let rendered = false;
+	const QUERY = Symbol.for("flare.query")
+	let rendered = false
 	const render = (): string => {
-		rendered = true;
-		return "home";
-	};
+		rendered = true
+		return "home"
+	}
 	Reflect.set(
 		globalThis,
 		QUERY,
 		Object.assign(() => undefined, { dehydrate: () => ({ shell: rendered }) }),
-	);
+	)
 	try {
-		expect(await text(await renderDocument({ ...base(), render }))).toContain('"queries":{"shell":true}');
+		expect(await text(await renderDocument({ ...base(), render }))).toContain('"queries":{"shell":true}')
 	} finally {
-		Reflect.deleteProperty(globalThis, QUERY);
+		Reflect.deleteProperty(globalThis, QUERY)
 	}
-	expect(await text(await renderDocument({ ...base(), render }))).toContain('"queries":null');
-});
+	expect(await text(await renderDocument({ ...base(), render }))).toContain('"queries":null')
+})
 
 // The cache joins after the shell. One that JSON cannot hold is a bug that names the query, and the state carries
 // `null`, so the document completes and the client fetches the query itself.
 it("queries unserializable", async () => {
-	const QUERY = Symbol.for("flare.query");
-	const bigint = { queries: [{ queryHash: '["n"]', state: { data: 1n } }] };
+	const QUERY = Symbol.for("flare.query")
+	const bigint = { queries: [{ queryHash: '["n"]', state: { data: 1n } }] }
 	Reflect.set(
 		globalThis,
 		QUERY,
 		Object.assign(() => undefined, { dehydrate: () => bigint }),
-	);
-	const bugs: unknown[] = [];
+	)
+	const bugs: unknown[] = []
 	try {
-		const html = await text(await renderDocument({ ...base(), render: () => "home", onBug: (bug) => bugs.push(bug) }));
-		expect(html).toContain('"queries":null');
-		expect(html).toMatch(/home.*self\.flare=/s);
+		const html = await text(await renderDocument({ ...base(), render: () => "home", onBug: (bug) => bugs.push(bug) }))
+		expect(html).toContain('"queries":null')
+		expect(html).toMatch(/home.*self\.flare=/s)
 	} finally {
-		Reflect.deleteProperty(globalThis, QUERY);
+		Reflect.deleteProperty(globalThis, QUERY)
 	}
-	expect(String(bugs[0])).toContain('the query ["n"] does not serialize');
+	expect(String(bugs[0])).toContain('the query ["n"] does not serialize')
 	// Through a live answer the bug is projected like any other, and the page still answers 200.
 	Reflect.set(
 		globalThis,
 		QUERY,
 		Object.assign(() => undefined, { dehydrate: () => bigint }),
-	);
-	const logged: unknown[] = [];
+	)
+	const logged: unknown[] = []
 	const log = {
 		level: "error" as const,
 		error: (...line: unknown[]) => logged.push(line),
 		warn: () => undefined,
 		log: () => undefined,
-	};
+	}
 	try {
 		const router = createRouter({
 			layouts: { _root_: root },
 			routeTree: [{ id: "_root_/ssr", path: "/ssr", module: module("_root_/ssr") }],
-		});
+		})
 		const answer = await serveWith({ router }, { dev: false, log, send: () => undefined }).fetch(
 			new Request(`${SITE}/ssr`),
-		);
-		expect(answer.status).toBe(200);
-		expect(await answer.text()).toContain('"queries":null');
-		expect(JSON.stringify(logged)).toContain("does not serialize");
+		)
+		expect(answer.status).toBe(200)
+		expect(await answer.text()).toContain('"queries":null')
+		expect(JSON.stringify(logged)).toContain("does not serialize")
 		// A cache that is not a list of queries is named as the cache.
 		Reflect.set(
 			globalThis,
 			QUERY,
 			Object.assign(() => undefined, { dehydrate: () => 1n }),
-		);
-		const named: unknown[] = [];
-		await text(await renderDocument({ ...base(), render: () => "home", onBug: (bug) => named.push(bug) }));
-		expect(String(named[0])).toContain("the query cache does not serialize");
+		)
+		const named: unknown[] = []
+		await text(await renderDocument({ ...base(), render: () => "home", onBug: (bug) => named.push(bug) }))
+		expect(String(named[0])).toContain("the query cache does not serialize")
 		// A caller that passes no `onBug` still gets the document.
-		expect(await text(await renderDocument({ ...base(), render: () => "home" }))).toContain('"queries":null');
+		expect(await text(await renderDocument({ ...base(), render: () => "home" }))).toContain('"queries":null')
 	} finally {
-		Reflect.deleteProperty(globalThis, QUERY);
+		Reflect.deleteProperty(globalThis, QUERY)
 	}
-});
+})

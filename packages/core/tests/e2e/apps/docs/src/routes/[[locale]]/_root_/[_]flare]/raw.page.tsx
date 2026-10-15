@@ -1,4 +1,4 @@
-import { createPage } from "@lovrozagar/flare";
+import { createPage } from "@lovrozagar/flare"
 
 // `[_]flare]` is the static segment `[flare]`, not a param (dx/routes.md Brackets).
 export const route = createPage("[[locale]]/_root_/[_]flare]")
@@ -10,4 +10,4 @@ export const route = createPage("[[locale]]/_root_/[_]flare]")
 			</h1>
 			<p class="mt-2 text-stone-500">A folder named with brackets that is a literal segment.</p>
 		</main>
-	));
+	))

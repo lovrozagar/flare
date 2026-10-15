@@ -36,42 +36,10 @@ Ask first, and wait: anything that can lose work — `reset --hard`, `checkout` 
 `commit --amend`, deleting tags, anything reflog-driven. If you can't tell,
 assume it can.
 
-## Tests are the truth
+## Gates in flare
 
-Every change starts with a test: a bug, a reported issue, a review finding, a new
-feature, a refactor.
+The shared rules (red, fix, green; every gate passes before moving on; `bun run verify`) come from `~/Development/standards` and load as `.rulesync/rules/standards.md`. flare adds:
 
-1. Red: write the test, run it, and record the failing output (in BUGS.md for a bug).
-2. Fix: the smallest change that makes it pass.
-3. Green: run it again, record the passing output, then run every gate below.
-
-A fix without a test that failed first is not done. A test that cannot fail proves
-nothing: the reviewer reverts or breaks the fix, and the test must go red.
-
-## Every gate passes before moving on
-
-All of them, every time, judged by exit code, not by the printed count. From the
-repo root, in a fresh worktree outside the repo that passed
-`bun install --frozen-lockfile`:
-
-    bun run fmt:check         # oxfmt
-    bun run lint              # oxlint
-    bun run typecheck         # core, src under consumer-strict flags, scripts/
-    bun run test              # vitest, 100% per-file coverage
-    bun run test:bun          # the same suite under the Bun runtime
-    bun scripts/check-tree.ts # the tree matches blueprint/files.tsv
-    bun run test:e2e          # the 18-project grid and the browser floor, run alone on the host
-
-`bun run verify` runs those seven in order, stops at the first that fails, and
-stamps the commit when every one passes. Then the real browsers this machine
-cannot provide: `bun run verify:safari` runs the client's core flows in Safari on
-the MacBook Air M3 over Tailscale (`ssh mac`, with `safaridriver -p 4799` running
-in a Terminal there) for anything that touches the client. Then CI: the GitHub
-run for the pushed commit.
-
-`.githooks/pre-push` refuses a push while any commit in it has no verify stamp.
-Never push with `--no-verify`, and never stamp a commit by hand.
-
-While any gate is red, locally, on the Mac, or in CI, the only work is fixing it.
-No new work moves while a gate is red. A failure is never skipped, retried away, or
-called flaky: it gets a test and a fix like any other bug.
+- `test:bun`, `check-tree` (the tree matches `blueprint/files.tsv`) and `test:e2e` (the 18-project grid and the browser floor) run after the base four in `verify`. Run `test:e2e` alone on the host.
+- `test` holds 100% per-file coverage.
+- Then the browsers this machine cannot provide: `bun run verify:safari` runs the client's core flows in Safari on the MacBook Air M3 over Tailscale (`ssh mac`, with `safaridriver -p 4799` running in a Terminal there) for anything that touches the client. Then CI: the GitHub run for the pushed commit.

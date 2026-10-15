@@ -13,4 +13,4 @@ export const STAGES = [
 	"loaders",
 	"body",
 	"finalize",
-] as const;
+] as const

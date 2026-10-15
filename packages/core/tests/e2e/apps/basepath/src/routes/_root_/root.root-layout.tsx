@@ -1,4 +1,4 @@
-import { createRootLayout } from "@lovrozagar/flare";
+import { createRootLayout } from "@lovrozagar/flare"
 
 // A production root renders the whole document, or every page is a 500 (B37).
 export const route = createRootLayout("_root_").render((props) => (
@@ -10,4 +10,4 @@ export const route = createRootLayout("_root_").render((props) => (
 			<main id="app">{props.children}</main>
 		</body>
 	</html>
-));
+))

@@ -1,4 +1,4 @@
-import { serverCtx } from "@lovrozagar/flare/server";
+import { serverCtx } from "@lovrozagar/flare/server"
 import {
 	createRootLayout,
 	DirectionProvider,
@@ -9,20 +9,20 @@ import {
 	ThemeProvider,
 	ThemeScript,
 	ViewTransitionCSS,
-} from "@lovrozagar/flare";
-import { LocaleProvider, LocaleScript } from "@lovrozagar/flare/i18n";
-import { QueryClientProvider } from "@tanstack/solid-query";
-import { Footer } from "../../../components/footer.tsx";
-import { Header } from "../../../components/header.tsx";
-import { ProgressBar } from "../../../components/progress-bar.tsx";
-import { SearchModal } from "../../../components/search-modal.tsx";
-import { inter, mono } from "../../../fonts.ts";
-import { getQueryClient } from "../../../query.ts";
-import { localeConfig } from "../../../locale-config.ts";
-import { serverRuntime } from "../../../runtime.ts";
-import "../../../styles.css";
+} from "@lovrozagar/flare"
+import { LocaleProvider, LocaleScript } from "@lovrozagar/flare/i18n"
+import { QueryClientProvider } from "@tanstack/solid-query"
+import { Footer } from "../../../components/footer.tsx"
+import { Header } from "../../../components/header.tsx"
+import { ProgressBar } from "../../../components/progress-bar.tsx"
+import { SearchModal } from "../../../components/search-modal.tsx"
+import { inter, mono } from "../../../fonts.ts"
+import { getQueryClient } from "../../../query.ts"
+import { localeConfig } from "../../../locale-config.ts"
+import { serverRuntime } from "../../../runtime.ts"
+import "../../../styles.css"
 
-const SITE = "https://flare.test";
+const SITE = "https://flare.test"
 
 // The document for every main page. The optional `[[locale]]` param is the tag: `initial` for the locale and
 // `locale` for the direction. The scripts run before paint under the request nonce.
@@ -119,4 +119,4 @@ export const route = createRootLayout("[[locale]]/_root_")
 				Page not found
 			</h1>
 		</main>
-	));
+	))

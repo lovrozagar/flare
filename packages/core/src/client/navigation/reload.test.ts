@@ -1,45 +1,45 @@
-import { beforeEach, expect, it, vi } from "vitest";
-import { isChunkError, loadDocument, type ReloadEnv } from "./reload.ts";
+import { beforeEach, expect, it, vi } from "vitest"
+import { isChunkError, loadDocument, type ReloadEnv } from "./reload.ts"
 
 beforeEach(() => {
-	sessionStorage.clear();
-});
+	sessionStorage.clear()
+})
 
 function env(at: number): ReloadEnv & { assign: ReturnType<typeof vi.fn> } {
-	return { storage: () => sessionStorage, now: () => at, assign: vi.fn<(href: string) => void>() };
+	return { storage: () => sessionStorage, now: () => at, assign: vi.fn<(href: string) => void>() }
 }
 
 it("reload guard", () => {
-	const first = env(1000);
-	expect(loadDocument("/about", first)).toBe(true);
-	expect(first.assign).toHaveBeenCalledExactlyOnceWith("/about");
-	expect(JSON.parse(sessionStorage.getItem("flare_chunk_reload") ?? "null")).toEqual({ at: 1000, href: "/about" });
-	const again = env(10_999);
-	expect(loadDocument("/about", again)).toBe(false);
-	expect(again.assign).not.toHaveBeenCalled();
-	const later = env(11_001);
-	expect(loadDocument("/about", later)).toBe(true);
-});
+	const first = env(1000)
+	expect(loadDocument("/about", first)).toBe(true)
+	expect(first.assign).toHaveBeenCalledExactlyOnceWith("/about")
+	expect(JSON.parse(sessionStorage.getItem("flare_chunk_reload") ?? "null")).toEqual({ at: 1000, href: "/about" })
+	const again = env(10_999)
+	expect(loadDocument("/about", again)).toBe(false)
+	expect(again.assign).not.toHaveBeenCalled()
+	const later = env(11_001)
+	expect(loadDocument("/about", later)).toBe(true)
+})
 
 it("reload other href", () => {
-	loadDocument("/about", env(1000));
-	const other = env(2000);
-	expect(loadDocument("/contact", other)).toBe(true);
-	expect(other.assign).toHaveBeenCalledExactlyOnceWith("/contact");
-});
+	loadDocument("/about", env(1000))
+	const other = env(2000)
+	expect(loadDocument("/contact", other)).toBe(true)
+	expect(other.assign).toHaveBeenCalledExactlyOnceWith("/contact")
+})
 
 it("reload no storage", () => {
 	const locked = {
 		...env(1000),
 		storage: (): Storage => {
-			throw new Error("SecurityError");
+			throw new Error("SecurityError")
 		},
-	};
-	expect(loadDocument("/about", locked)).toBe(false);
-	expect(locked.assign).not.toHaveBeenCalled();
-	sessionStorage.setItem("flare_chunk_reload", "{bad");
-	expect(loadDocument("/about", env(1000))).toBe(true);
-});
+	}
+	expect(loadDocument("/about", locked)).toBe(false)
+	expect(locked.assign).not.toHaveBeenCalled()
+	sessionStorage.setItem("flare_chunk_reload", "{bad")
+	expect(loadDocument("/about", env(1000))).toBe(true)
+})
 
 it("chunk", () => {
 	for (const message of [
@@ -49,8 +49,8 @@ it("chunk", () => {
 		"Loading chunk 7 failed.",
 		"Loading CSS chunk 3 failed.",
 	]) {
-		expect(isChunkError(new TypeError(message))).toBe(true);
+		expect(isChunkError(new TypeError(message))).toBe(true)
 	}
-	expect(isChunkError(new Error("boom"))).toBe(false);
-	expect(isChunkError("Loading chunk 1 failed")).toBe(false);
-});
+	expect(isChunkError(new Error("boom"))).toBe(false)
+	expect(isChunkError("Loading chunk 1 failed")).toBe(false)
+})

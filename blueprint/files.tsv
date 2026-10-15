@@ -777,15 +777,15 @@ scripts/browser-server.ts	P16	script	node	Browsers for the hydrate harness and t
 scripts/browser-server.test.ts	P16	test	node	Unit cases for browser-server.ts
 packages/core/tests/e2e/global-setup.ts	P16	config	node	Playwright global setup: set FLARE_BROWSER_WS from browser-server.ts for the run
 packages/core/tests/structure/grid.test.ts	P16	test	node	The 18-project grid, the browser floor's project, and a crashed page failing its test
-scripts/verify.ts	P16	script	node	`bun run verify`: the seven local gates in order, stopping at the first failure; on a clean tree that passes them all, stamps HEAD in the common git dir
-scripts/verify.test.ts	P16	test	node	Unit cases for verify.ts
+scripts/verify.ts	P16	managed	node	`bun run verify`: managed by ~/Development/standards; runs fmt:check, lint, typecheck, test, then package.json standards.gates, and stamps HEAD in the common git dir
+scripts/pre-push.ts	P16	managed	node	pre-push: refuses a push of any commit without a verify stamp; managed by ~/Development/standards, tested there
+scripts/standards-check.ts	P16	managed	node	pre-push: fails while this repo drifts from ~/Development/standards or pins an outdated tool; managed there
 scripts/verify-safari.ts	P16	script	node	`bun run verify:safari`: the client's core flows in real Safari on the Mac through safaridriver, failing when it is unreachable
 scripts/safari-driver.ts	P16	script	node	A dependency-free WebDriver client for safaridriver
 scripts/safari-driver.test.ts	P16	test	node	Unit cases for safari-driver.ts
 scripts/safari-lock.ts	P16	script	node	One verify:safari at a time on the Mac: an atomic mkdir lock naming its holder, stale after a run's limit
 scripts/safari-lock.test.ts	P16	test	node	Unit cases for safari-lock.ts
 scripts/verify-safari.test.ts	P16	test	node	Unit cases for verify-safari.ts
-scripts/pre-push.test.ts	P16	test	node	The pre-push hook (.githooks/pre-push) refuses a push of any commit without a verify stamp
 packages/core/tests/e2e/floor.ts	P16	test	node	The init script node-prod-floor runs: deletes every browser API newer than the floor before the page runs (decision B123)
 packages/core/tests/structure/browser-floor.ts	P16	test	node	Scans client-reachable sources with oxc for browser APIs above the floor, per @mdn/browser-compat-data (decision B123)
 packages/core/tests/structure/browser-floor-ast.ts	P16	test	node	The oxc ESTree walk browser-floor.ts scans with: reads, a file's declared names, and runtime nodes

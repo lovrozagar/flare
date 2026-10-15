@@ -1,1 +1,1 @@
-export { createWorkersHandler } from "../adapters/workers/handler.ts";
+export { createWorkersHandler } from "../adapters/workers/handler.ts"

@@ -1,4 +1,4 @@
-import { createRootLayout } from "@lovrozagar/flare";
+import { createRootLayout } from "@lovrozagar/flare"
 
 export const route = createRootLayout("_root_")
 	.preloader(() => ({ requestId: "r" }))
@@ -6,4 +6,4 @@ export const route = createRootLayout("_root_")
 		<html lang="en">
 			<body>{props.children}</body>
 		</html>
-	));
+	))

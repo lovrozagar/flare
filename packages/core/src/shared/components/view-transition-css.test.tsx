@@ -1,53 +1,53 @@
-import { createComponent, flush } from "solid-js";
-import { render } from "@solidjs/web";
-import { afterEach, expect, it } from "vitest";
-import { ViewTransitionCSS } from "./view-transition-css.tsx";
+import { createComponent, flush } from "solid-js"
+import { render } from "@solidjs/web"
+import { afterEach, expect, it } from "vitest"
+import { ViewTransitionCSS } from "./view-transition-css.tsx"
 
-type FlareScope = typeof globalThis & { flare?: { nonce: string } };
+type FlareScope = typeof globalThis & { flare?: { nonce: string } }
 
 afterEach(() => {
-	delete (globalThis as FlareScope).flare;
-});
+	delete (globalThis as FlareScope).flare
+})
 
 function styleOf(props: { duration?: number }, requestNonce = "n"): HTMLStyleElement {
-	(globalThis as FlareScope).flare = { nonce: requestNonce };
-	const host = document.createElement("div");
-	render(() => createComponent(ViewTransitionCSS, props), host);
-	flush();
-	const style = host.querySelector("style");
-	if (style === null) throw new Error("no style");
-	return style;
+	;(globalThis as FlareScope).flare = { nonce: requestNonce }
+	const host = document.createElement("div")
+	render(() => createComponent(ViewTransitionCSS, props), host)
+	flush()
+	const style = host.querySelector("style")
+	if (style === null) throw new Error("no style")
+	return style
 }
 
 // 150 ms by default, the user's decision of 2026-10-15 (B125).
 it("default duration", () => {
-	const style = styleOf({});
+	const style = styleOf({})
 	expect(style.textContent).toBe(
 		"@view-transition{navigation:auto}::view-transition{pointer-events:none}::view-transition-old(*),::view-transition-new(*){animation-duration:150ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
-	);
-	expect(style.getAttribute("nonce")).toBe("n");
-	expect(styleOf({}, "").hasAttribute("nonce")).toBe(false);
-});
+	)
+	expect(style.getAttribute("nonce")).toBe("n")
+	expect(styleOf({}, "").hasAttribute("nonce")).toBe(false)
+})
 
 it("custom duration", () => {
-	expect(styleOf({ duration: 300 }).textContent).toContain("animation-duration:300ms");
-});
+	expect(styleOf({ duration: 300 }).textContent).toContain("animation-duration:300ms")
+})
 
 it("reduced motion", () => {
 	expect(styleOf({}).textContent).toMatch(
 		/@media \(prefers-reduced-motion:reduce\)\{::view-transition-group\(\*\),::view-transition-old\(\*\),::view-transition-new\(\*\)\{animation:none\}\}$/,
-	);
-});
+	)
+})
 
 // The document transition keeps its crossfade: no rule hides the old root snapshot (the user's call of 2026-10-15,
 // withdrawing B125's hide). An app that meets Chromium 573693508's white capture adds
 // `::view-transition-old(root){display:none}` itself (dx/navigate.md).
 it("old root kept", () => {
-	expect(styleOf({}).textContent).not.toContain("::view-transition-old(root)");
-});
+	expect(styleOf({}).textContent).not.toContain("::view-transition-old(root)")
+})
 
 // The transition's overlay passes pointer events through to the live page, so hover, the pointer cursor, and clicks keep
 // working on what does not change while a document-scoped transition runs (BUGS.md 119.16, B126).
 it("pointer passthrough", () => {
-	expect(styleOf({}).textContent).toContain("::view-transition{pointer-events:none}");
-});
+	expect(styleOf({}).textContent).toContain("::view-transition{pointer-events:none}")
+})

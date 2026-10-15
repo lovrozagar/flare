@@ -1,2 +1,2 @@
-export { createQueryClientGetter } from "./getter.ts";
-export { useSuspenseQuery } from "./use-suspense-query.ts";
+export { createQueryClientGetter } from "./getter.ts"
+export { useSuspenseQuery } from "./use-suspense-query.ts"

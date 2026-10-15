@@ -1,10 +1,10 @@
-import { useDirection, useTheme } from "@lovrozagar/flare";
-import { useLocale } from "@lovrozagar/flare/i18n";
-import { For } from "solid-js";
-import type { JSX } from "@solidjs/web";
+import { useDirection, useTheme } from "@lovrozagar/flare"
+import { useLocale } from "@lovrozagar/flare/i18n"
+import { For } from "solid-js"
+import type { JSX } from "@solidjs/web"
 
 const pill =
-	"rounded-md px-2 py-1 text-xs font-medium text-stone-600 hover:bg-stone-200 dark:text-stone-300 dark:hover:bg-ink-800";
+	"rounded-md px-2 py-1 text-xs font-medium text-stone-600 hover:bg-stone-200 dark:text-stone-300 dark:hover:bg-ink-800"
 
 function Group(props: { label: string; status: JSX.Element; children: JSX.Element }): JSX.Element {
 	return (
@@ -14,14 +14,14 @@ function Group(props: { label: string; status: JSX.Element; children: JSX.Elemen
 				{props.status}
 			</span>
 		</div>
-	);
+	)
 }
 
 // One control per feature, and the value each hook reports beside it. Every choice persists and syncs to other tabs.
 export function Controls(): JSX.Element {
-	const theme = useTheme();
-	const direction = useDirection();
-	const locale = useLocale();
+	const theme = useTheme()
+	const direction = useDirection()
+	const locale = useLocale()
 	return (
 		<div class="flex flex-wrap items-center gap-3">
 			<Group label="Theme" status={<span id="theme">{theme.theme()}</span>}>
@@ -54,5 +54,5 @@ export function Controls(): JSX.Element {
 				</For>
 			</Group>
 		</div>
-	);
+	)
 }

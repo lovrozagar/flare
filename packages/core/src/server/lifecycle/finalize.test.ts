@@ -1,30 +1,30 @@
-import { expect, it } from "vitest";
-import { unauthenticated } from "../../shared/errors/http.ts";
-import { defaultHeaders } from "../security/defaults.ts";
-import { finalize } from "./finalize.ts";
+import { expect, it } from "vitest"
+import { unauthenticated } from "../../shared/errors/http.ts"
+import { defaultHeaders } from "../security/defaults.ts"
+import { finalize } from "./finalize.ts"
 
-const url = "https://example.com/";
+const url = "https://example.com/"
 
 function expectSet(response: Response): void {
 	for (const [name, value] of defaultHeaders(url)) {
-		expect(response.headers.get(name)).toBe(value);
+		expect(response.headers.get(name)).toBe(value)
 	}
-	expect(response.headers.has("server-timing")).toBe(false);
+	expect(response.headers.has("server-timing")).toBe(false)
 }
 
 it("only finalize builds a Response", async () => {
-	const stage = { status: 201, body: "hi" };
-	expect(stage).not.toBeInstanceOf(Response);
-	const response = finalize(stage);
-	expect(response).toBeInstanceOf(Response);
-	expect(response.status).toBe(201);
-	expect(await response.text()).toBe("hi");
-});
+	const stage = { status: 201, body: "hi" }
+	expect(stage).not.toBeInstanceOf(Response)
+	const response = finalize(stage)
+	expect(response).toBeInstanceOf(Response)
+	expect(response.status).toBe(201)
+	expect(await response.text()).toBe("hi")
+})
 
 it("flare-render", () => {
-	const response = finalize({ status: 200, body: "<html></html>", render: "ssr" });
-	expect(response.headers.get("flare-render")).toBe("ssr");
-});
+	const response = finalize({ status: 200, body: "<html></html>", render: "ssr" })
+	expect(response.headers.get("flare-render")).toBe("ssr")
+})
 
 it("401 has the set", () => {
 	const response = finalize({
@@ -33,25 +33,25 @@ it("401 has the set", () => {
 		url,
 		build: "b1",
 		run: () => {
-			unauthenticated();
+			unauthenticated()
 		},
-	});
-	expect(response.status).toBe(401);
-	expectSet(response);
-});
+	})
+	expect(response.status).toBe(401)
+	expectSet(response)
+})
 
 it("404 has the set", () => {
-	const response = finalize({ status: 404, body: "Not found", url, build: "b1" });
-	expect(response.status).toBe(404);
-	expectSet(response);
-});
+	const response = finalize({ status: 404, body: "Not found", url, build: "b1" })
+	expect(response.status).toBe(404)
+	expectSet(response)
+})
 
 it("redirect has the set", () => {
-	const response = finalize({ status: 301, body: "", location: "/next", url, build: "b1" });
-	expect(response.status).toBe(301);
-	expect(response.headers.get("location")).toBe("/next");
-	expectSet(response);
-});
+	const response = finalize({ status: 301, body: "", location: "/next", url, build: "b1" })
+	expect(response.status).toBe(301)
+	expect(response.headers.get("location")).toBe("/next")
+	expectSet(response)
+})
 
 it("500 has the set", () => {
 	const response = finalize({
@@ -60,25 +60,25 @@ it("500 has the set", () => {
 		url,
 		build: "b1",
 		run: () => {
-			throw new Error("boom");
+			throw new Error("boom")
 		},
-	});
-	expect(response.status).toBe(500);
-	expectSet(response);
-});
+	})
+	expect(response.status).toBe(500)
+	expectSet(response)
+})
 
 it("flare-build", () => {
-	expect(finalize({ status: 200, body: "ok", build: "build-42", url }).headers.get("flare-build")).toBe("build-42");
-});
+	expect(finalize({ status: 200, body: "ok", build: "build-42", url }).headers.get("flare-build")).toBe("build-42")
+})
 
 it("no server timing", () => {
-	expect(finalize({ status: 200, body: "ok", build: "build-42", url }).headers.has("server-timing")).toBe(false);
-});
+	expect(finalize({ status: 200, body: "ok", build: "build-42", url }).headers.has("server-timing")).toBe(false)
+})
 
 // Every Set-Cookie value arrives. A `set()` per header kept only the last.
 it("cookies kept", () => {
-	const headers = new Headers();
-	headers.append("set-cookie", "a=1");
-	headers.append("set-cookie", "b=2");
-	expect(finalize({ status: 200, body: "", url, headers }).headers.getSetCookie()).toEqual(["a=1", "b=2"]);
-});
+	const headers = new Headers()
+	headers.append("set-cookie", "a=1")
+	headers.append("set-cookie", "b=2")
+	expect(finalize({ status: 200, body: "", url, headers }).headers.getSetCookie()).toEqual(["a=1", "b=2"])
+})

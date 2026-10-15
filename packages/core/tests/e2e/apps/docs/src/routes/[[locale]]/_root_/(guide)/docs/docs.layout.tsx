@@ -1,5 +1,5 @@
-import { createLayout } from "@lovrozagar/flare";
-import { readStats } from "../../../../../stats.ts";
+import { createLayout } from "@lovrozagar/flare"
+import { readStats } from "../../../../../stats.ts"
 
 // `/docs/<unknown>/<deeper>` has no page. With `notFoundMode: "fuzzy"` the longest layout prefix, this one,
 // paints its own not-found inside the guide chrome.
@@ -15,4 +15,4 @@ export const route = createLayout("[[locale]]/_root_/(guide)/docs")
 			<h1 class="text-xl font-semibold">No such doc</h1>
 			<p class="mt-2 text-sm text-stone-500">Pick a page from the sidebar.</p>
 		</div>
-	));
+	))
