@@ -230,8 +230,9 @@ test("old snapshot shown", async ({ page, docs, floor }) => {
 // While a view transition runs, ViewTransitionCSS's `::view-transition{pointer-events:none}` lets the pointer reach the
 // live page in Firefox: the sidebar link under the pointer is hit, hovered, and a click on it navigates. Chromium and
 // WebKit hit-test the document element while any transition runs, whatever the CSS, so the link gets no hover and the
-// click is lost (BUGS.md 119.16, B126). Asserted per engine, so a browser fix shows up as this test changing. Once the
-// transition is ready its animations are paused, so it is still running when the case reads and clicks, then finished.
+// click is lost (BUGS.md 119.16, B126). Asserted per engine, so a browser fix shows up as this test changing. The
+// transition's animations are paused as it becomes ready, so it is still running when the case reads and clicks, then
+// finished.
 test("pointer during transition", async ({ page, docs, floor, browserName }) => {
 	test.skip(floor, "the floor has no view transitions (floor.ts)");
 	await page.addInitScript(() => {
@@ -239,8 +240,12 @@ test("pointer during transition", async ({ page, docs, floor, browserName }) => 
 		if (typeof start !== "function") return;
 		Document.prototype.startViewTransition = function (this: Document, arg?: never) {
 			const transition = start.call(this, arg);
+			// Paused in the same task as ready, so no round trip from the test can let it finish first (BUGS.md 126).
 			void transition.ready.then(
-				() => Reflect.set(window, "__running", true),
+				() => {
+					for (const animation of document.getAnimations()) animation.pause();
+					Reflect.set(window, "__running", true);
+				},
 				() => undefined,
 			);
 			void transition.finished.then(
@@ -258,9 +263,8 @@ test("pointer during transition", async ({ page, docs, floor, browserName }) => 
 	const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
 	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
 	await page.waitForFunction(() => Reflect.get(window, "__running") === true);
-	await page.evaluate(() => {
-		for (const animation of document.getAnimations()) animation.pause();
-	});
+	// Longer than the transition, as a loaded grid can be: a hold that did not take has finished by now.
+	await page.waitForTimeout(400);
 	const hit = await page.evaluate(
 		([px, py]) => {
 			const element = document.elementFromPoint(px ?? 0, py ?? 0);
