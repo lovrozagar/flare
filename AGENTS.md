@@ -60,11 +60,17 @@ repo root, in a fresh worktree outside the repo that passed
     bun run test              # vitest, 100% per-file coverage
     bun run test:bun          # the same suite under the Bun runtime
     bun scripts/check-tree.ts # the tree matches blueprint/files.tsv
-    bun run test:e2e          # the full 18-project grid, run alone on the host
+    bun run test:e2e          # the 18-project grid and the browser floor, run alone on the host
 
-Then the real browsers this machine cannot provide: Safari on the MacBook Air M3
-over Tailscale (`ssh mac`, safaridriver) for anything that touches the client.
-Then CI: the GitHub run for the pushed commit.
+`bun run verify` runs those seven in order, stops at the first that fails, and
+stamps the commit when every one passes. Then the real browsers this machine
+cannot provide: `bun run verify:safari` runs the client's core flows in Safari on
+the MacBook Air M3 over Tailscale (`ssh mac`, with `safaridriver -p 4799` running
+in a Terminal there) for anything that touches the client. Then CI: the GitHub
+run for the pushed commit.
+
+`.githooks/pre-push` refuses a push while any commit in it has no verify stamp.
+Never push with `--no-verify`, and never stamp a commit by hand.
 
 While any gate is red, locally, on the Mac, or in CI, the only work is fixing it.
 No new work moves while a gate is red. A failure is never skipped, retried away, or
