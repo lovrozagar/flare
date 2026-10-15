@@ -781,6 +781,8 @@ scripts/verify.test.ts	P16	test	node	Unit cases for verify.ts
 scripts/verify-safari.ts	P16	script	node	`bun run verify:safari`: the client's core flows in real Safari on the Mac through safaridriver, failing when it is unreachable
 scripts/safari-driver.ts	P16	script	node	A dependency-free WebDriver client for safaridriver
 scripts/safari-driver.test.ts	P16	test	node	Unit cases for safari-driver.ts
+scripts/safari-lock.ts	P16	script	node	One verify:safari at a time on the Mac: an atomic mkdir lock naming its holder, stale after a run's limit
+scripts/safari-lock.test.ts	P16	test	node	Unit cases for safari-lock.ts
 scripts/verify-safari.test.ts	P16	test	node	Unit cases for verify-safari.ts
 scripts/pre-push.test.ts	P16	test	node	The pre-push hook (.githooks/pre-push) refuses a push of any commit without a verify stamp
 packages/core/tests/e2e/floor.ts	P16	test	node	The init script node-prod-floor runs: deletes every browser API newer than the floor before the page runs (decision B123)
