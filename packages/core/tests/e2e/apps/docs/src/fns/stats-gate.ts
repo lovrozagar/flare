@@ -10,6 +10,5 @@ export const holdStats = createServerFn().handler(({ env }) => {
 
 export const releaseStats = createServerFn().handler(() => {
 	statsHold.held = false;
-	for (const resolve of statsHold.waiting.splice(0)) resolve();
 	return { held: false };
 });
