@@ -1,5 +1,5 @@
-import MagicString, { type SourceMap } from "magic-string";
-import { parseSync, Visitor, type Argument, type CallExpression, type Expression, type Program } from "oxc-parser";
+import type MagicString from "magic-string";
+import { Visitor, type Argument, type CallExpression, type Expression, type Program } from "oxc-parser";
 import { boundNames, type Span } from "../route-meta/index.ts";
 import { nonReferences } from "./reads.ts";
 
@@ -25,17 +25,6 @@ const HELPERS: ReadonlySet<string> = new Set<Helper>([
 type Names = { locals: Map<string, Helper>; namespace?: string };
 
 type Step = { name: string; call: CallExpression };
-
-// One module rewritten for one graph (B9, dx/env.md), or undefined when nothing changed.
-export function rewriteEnv(file: string, source: string, graph: Graph): { code: string; map: SourceMap } | undefined {
-	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" });
-	const [error] = parsed.errors;
-	if (error !== undefined) throw new Error(`${file}: ${error.message}`);
-	const out = new MagicString(source);
-	envEdits({ file, program: parsed.program, graph, out });
-	if (!out.hasChanged()) return undefined;
-	return { code: out.toString(), map: out.generateMap({ hires: true, source: file, includeContent: true }) };
-}
 
 // Deletes the body a graph must not hold: a server-only body and an isomorphic `.server()` body in the client graph,
 // and a client-only body and an isomorphic `.client()` body in the server graph. Every use must be a
