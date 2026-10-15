@@ -1,4 +1,5 @@
 import { answerOf, envelopeOf, send, settle, type CallDeps, type CallTarget } from "./call.ts";
+import { chunksOf } from "../../shared/protocol/index.ts";
 
 const NDJSON = "application/x-ndjson";
 
@@ -47,7 +48,7 @@ async function* lines(body: ReadableStream<Uint8Array> | null): AsyncGenerator<s
 	if (body === null) return;
 	const decoder = new TextDecoder();
 	let buffer = "";
-	for await (const chunk of body) {
+	for await (const chunk of chunksOf(body)) {
 		buffer += decoder.decode(chunk, { stream: true });
 		for (let end = buffer.indexOf("\n"); end !== -1; end = buffer.indexOf("\n")) {
 			yield buffer.slice(0, end);

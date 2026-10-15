@@ -155,6 +155,13 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `optional param` | a route with an optional param, absent and then present | the absent param is not in the match params. The present one is |
 | `restore` | `restore(url)`, one popstate step | the target commits with no blocker and no history write, and the saved scroll comes back. A hash-only step restores too |
 
+### `client/navigation/request.test.ts` (BUGS.md 123)
+
+| test | case | result |
+| --- | --- | --- |
+| `unreadable body` | a 200 data response whose body is not frames | one `console.error` naming the failed navigation, one guarded document load of `/p`, and the screen unchanged until it |
+| `aborted body` | a navigation whose body breaks because a second navigation to the same page aborted it | no `console.error` and no document load, and the second navigation commits (BUGS.md 121) |
+
 ### `client/navigation/navigate-shallow.test.ts`
 
 navigate.test.ts is near the test-file limit, so the shallow cases live beside it, as navigate-transition and navigate-slots do.

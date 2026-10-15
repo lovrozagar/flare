@@ -71,6 +71,20 @@ test("superseded chunk failure", async ({ page, docs }) => {
 	await expect(page).toHaveURL(`${docs.origin}/examples`);
 });
 
+// A data response the client cannot read does not leave the reader stuck on the old page: the failure is logged and
+// the target loads as a document (BUGS.md 123).
+test("unreadable response", async ({ page, docs }) => {
+	const problems = await open(page, docs.origin, "/docs/routing");
+	await page.route("**/docs/caching?_flare=*", (route) =>
+		route.fulfill({ status: 200, contentType: "application/x-ndjson", body: "not a frame\n" }),
+	);
+	const loads = documents(page);
+	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
+	await expect.poll(() => loads).toEqual(["/docs/caching"]);
+	await expect(page.locator("#doc-title")).toHaveText("Caching");
+	expect(problems.some((problem) => problem.includes("[flare] a client navigation failed"))).toBe(true);
+});
+
 test("network failure", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing");
 	const depth = await page.evaluate(() => history.length);

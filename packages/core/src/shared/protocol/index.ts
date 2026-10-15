@@ -18,6 +18,7 @@ export {
 	type StylesReply,
 	type StylesRequest,
 } from "./dev-styles.ts";
+export { chunksOf } from "./chunks.ts";
 export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts";
 export {
 	fnPrefix,
