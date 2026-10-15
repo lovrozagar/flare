@@ -171,6 +171,7 @@ The production docs app in Chromium, with every API newer than the floor that th
 | `unreachable fails` | an ssh destination that does not resolve | rejects with ``Run `safaridriver -p 4799` in a Terminal on the Mac``: it never skips |
 | `failed flow fails` | three flows: one passes, one answers a problem, one throws | exit 1, a PASS line, two FAIL lines with their problems, and the `1 of 3` summary; one passing flow alone exits 0 |
 | `back reload fails` | the /hr flow with a session whose window mark is gone after Back, the path and the click position restored | `Back loaded a document`: the browser restores the scroll on a document load itself. Red before the mark check: the flow passed |
+| `forward reload fails` | the /hr flow with a session whose mark is gone after the forward click and back after Back, as Safari's back-forward cache restores it | `the media link loaded as a document`. Red before the forward check: the flow passed. In Safari 17.6 with `chunksOf` reverted to stream iteration, the flow passed on the bfcache, found by flare-77 |
 | safari-driver `command value` | a value answer, then an error answer | the value; then a throw with the error and its message |
 | safari-driver `session commands` | open, go, click, a wait that holds on its third poll, close | the WebDriver commands in order: session, a 1280×800 window, url, element, its click, three scripts, delete |
 | safari-driver `wait times out` | a script that never holds | false at the timeout |
