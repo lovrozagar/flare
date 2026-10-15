@@ -176,7 +176,7 @@ The corpus file feeds the test.
 | --- | --- | --- |
 | `document` | `isDocument` over a whole document, a `<div>`, `<html>` with no `</body>`, and `</body>` with no `<html>` | true, then false three times |
 | `prod document-less` | the real `createServer`, production stubbed (`DEV` false, `PROD` true), a root that renders a `<div>` over an `ssr` page with a memory store, fetched twice | each answer is 500 with an empty body, no `flare-cache`, and production COOP; one log line, `[flare:render] root layout "_bare_" rendered no <html> or </body> (B37)` (revised by BUGS.md 117: B37 was unwired, and the old case drove an unused helper) |
-| `dev document-less` | the same root in dev | 200, and the `<div>` is served |
+| `dev document-less` | the same root in dev, fetched twice | 200 each time, and the `<div>` is served as written (D22); one `console.warn`, `[flare:render] root layout "_bare_" rendered no <html> or </body>; production answers 500 (B37)`. Red before: no warning |
 
 A root whose own loader failed never renders, so its bare failure is not checked (`server/lifecycle/create.test.ts` `unknown failure`). Production tests whose roots rendered no document now render one (`whole` or `documentOf`): create `root children`, `unknown render`, `unknown failure`; projector's root; apply `server security`; `tests/integration/ingress.test.ts`; `tests/integration/stream.test.ts`.
 

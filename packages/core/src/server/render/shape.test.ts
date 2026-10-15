@@ -57,8 +57,18 @@ it("prod document-less", async () => {
 	expect(lines).toEqual(['[flare:render] root layout "_bare_" rendered no <html> or </body> (B37)']);
 });
 
+// Dev serves the shell as written (D22), and one warning names the root layout and what production answers, however
+// many requests follow, so the 500 is no surprise at the first production deploy.
 it("dev document-less", async () => {
-	const response = await bareServer().fetch(new Request("https://flare.test/"));
-	expect(response.status).toBe(200);
-	expect(await response.text()).toMatch(/<div[^>]*>bare page<\/div>/);
+	const lines: string[] = [];
+	vi.spyOn(console, "warn").mockImplementation((...line: unknown[]) => void lines.push(line.join(" ")));
+	const server = bareServer();
+	for (const _ of [1, 2]) {
+		const response = await server.fetch(new Request("https://flare.test/"));
+		expect(response.status).toBe(200);
+		expect(await response.text()).toMatch(/<div[^>]*>bare page<\/div>/);
+	}
+	expect(lines).toEqual([
+		'[flare:render] root layout "_bare_" rendered no <html> or </body>; production answers 500 (B37)',
+	]);
 });

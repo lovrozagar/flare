@@ -229,8 +229,10 @@ export async function drawn(
 			// Dev inlines nothing: Vite serves the CSS it injects (B15).
 			sheet: exchange.sink.dev ? "" : builtSheet,
 			devStyles,
-			// A root whose own loader failed never renders: its failure paints bare, as a root failure does.
-			root: exchange.sink.dev || state.failure?.index === 0 ? undefined : rendered.chain[0]?.id,
+			// A root whose own loader failed never renders: its failure paints bare, as a root failure does. Dev serves a
+			// document-less shell as written (D22) and warns that production answers 500 (B37).
+			root: state.failure?.index === 0 ? undefined : rendered.chain[0]?.id,
+			onDocumentless: exchange.sink.dev ? (root) => warnDocumentless(exchange, root) : undefined,
 		});
 		if (thrownInRender.length > 0) {
 			void body.cancel();
@@ -258,11 +260,23 @@ const logged = new WeakMap<Exchange["options"], Set<string>>();
 // by its own line, since the digest a bug logs would not name the root (B37). A stored miss renders twice, shared and
 // then live, and still logs once.
 function documentless(exchange: Exchange, thrown: DocumentlessRoot): Response {
+	if (firstTime(exchange, thrown.root)) exchange.sink.log.error("render", thrown.message);
+	return finalize({ status: 500, body: "", headers: typed(exchange, HTML) });
+}
+
+// Dev serves the shell as written (D22). Each server warns once per root, so the production 500 is no surprise.
+function warnDocumentless(exchange: Exchange, root: string): void {
+	const message = `root layout "${root}" rendered no <html> or </body>; production answers 500 (B37)`;
+	if (firstTime(exchange, root)) exchange.sink.log.warn("render", message);
+}
+
+// Whether this server has not logged this root's missing document yet.
+function firstTime(exchange: Exchange, root: string): boolean {
 	const seen = logged.get(exchange.options) ?? new Set<string>();
 	logged.set(exchange.options, seen);
-	if (!seen.has(thrown.root)) exchange.sink.log.error("render", thrown.message);
-	seen.add(thrown.root);
-	return finalize({ status: 500, body: "", headers: typed(exchange, HTML) });
+	if (seen.has(root)) return false;
+	seen.add(root);
+	return true;
 }
 
 // The validators read the raw records: defined params, and the search as one string or a `string[]` per key.

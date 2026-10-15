@@ -39,9 +39,10 @@ export type DocumentInput = {
 	matches: readonly StateMatch[];
 	client?: string | undefined;
 	fill?: boolean;
-	// The root layout's id in production: a shell that is no document rejects naming it (B37). Dev passes none and
-	// serves the shell as written (D22).
+	// The root layout's id: a shell that is no document rejects naming it (B37), unless `onDocumentless` is given, as dev
+	// gives it: then the shell is served as written (D22) and the callback hears the root.
 	root?: string | undefined;
+	onDocumentless?: ((root: string) => void) | undefined;
 	// A bug found while writing the document, such as a query cache JSON cannot hold. It does not stop the document.
 	onBug?: (bug: Error) => void;
 };
@@ -73,9 +74,12 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// (02-system), so the shell ends at `</html>`.
 	const first = chunkText((await reader.read()).value);
 	if (input.root !== undefined && !isDocument(first)) {
-		stop();
-		void reader.cancel();
-		throw new DocumentlessRoot(input.root);
+		if (input.onDocumentless !== undefined) input.onDocumentless(input.root);
+		else {
+			stop();
+			void reader.cancel();
+			throw new DocumentlessRoot(input.root);
+		}
 	}
 	const headed = withHead(first, head);
 	const critical = { css: input.sheet ?? "", nonce, ctx: criticalContext(input.router), stylesheet: stylesheet.href };
