@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process"
+import { spawn } from "node:child_process"
 import { mkdirSync, readdirSync, rmSync } from "node:fs"
 import { mkdtemp } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -8,6 +8,7 @@ import type { Readable } from "node:stream"
 import { fileURLToPath } from "node:url"
 import { Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
+import { exited, exitOf, readOrigin } from "./child.ts"
 
 const apps = fileURLToPath(new URL("./apps/", import.meta.url))
 
@@ -171,7 +172,9 @@ function viteBuild(input: { appDir: string; cacheDir: string; outDir: string; ru
 	child.stderr.on("data", (chunk: Buffer) => void (text += chunk.toString()))
 	return new Promise((resolve, reject) => {
 		child.once("error", reject)
-		child.once("exit", (code) => (code === 0 ? resolve() : reject(new Error(`vite build exited ${code}\n${text}`))))
+		child.once("exit", (code, signal) =>
+			code === 0 ? resolve() : reject(new Error(`vite build exited (${exitOf(code, signal)})\n${text}`)),
+		)
 	})
 }
 
@@ -274,27 +277,3 @@ const bun = Bun.serve({
 });
 console.log("http://127.0.0.1:" + bun.port);
 `
-
-function readOrigin(child: ChildProcess): Promise<string> {
-	return new Promise((resolve, reject) => {
-		let text = ""
-		const onData = (chunk: Buffer) => {
-			text += chunk.toString()
-			const found = text.match(/http:\/\/127\.0\.0\.1:\d+/)
-			if (!found) return
-			resolve(found[0])
-		}
-		child.stdout?.on("data", onData)
-		child.stderr?.on("data", onData)
-		child.once("exit", () => reject(new Error(text || "vite exited")))
-		child.once("error", reject)
-	})
-}
-
-function exited(child: ChildProcess): Promise<void> {
-	// A child a signal ended has no exit code, only a signal code.
-	if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve()
-	return new Promise((resolve) => {
-		child.once("exit", () => resolve())
-	})
-}
