@@ -600,7 +600,7 @@ packages/core/src/features/seo/server/index.ts	P13	index	server	Re-exports
 packages/core/src/testing/harness.ts	P13	src	node	createTestServer: createServer({ router }) and a fetch that resolves a relative path, listening on no port
 packages/core/src/testing/harness.test.ts	P13	test	node	Unit cases for harness.ts
 packages/core/src/testing/playwright.ts	P13	src	node	flarePage over a structural Page slice: load until hydrated, every console and page error, and the checked self.flare state
-packages/core/src/testing/playwright.test.ts	P13	test	node	Unit cases for playwright.ts
+packages/core/src/testing/playwright.test.ts	P13	test	dom	Unit cases for playwright.ts, in jsdom for the page script
 packages/core/src/testing/index.ts	P13	index	node	Re-exports
 packages/core/src/exports/index.ts	P1	index	-	Root entry
 packages/core/src/exports/client.ts	P1	index	-	createClient

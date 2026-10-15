@@ -487,7 +487,13 @@ The fixture JWT is produced once, checked by hand against an independent verifie
 
 | test | case | result |
 | --- | --- | --- |
-| `hydrated` | `load("/")` | the helper resolves after `data-flare-hydrated` |
+| `hydrated` | `load("/")` | the helper resolves after `data-flare-hydrated`, its query sliced at 5 s |
+| `lost reply` | the query's reply never comes, and the page's binding fires | the wait resolves on the binding, with no query sent again (BUGS.md 107) |
+| `reissue` | no binding call, and the first query and its driver timeout never answer | the wait's own timer ends the slice after 6 s, one query is sent again and counted, and its answer resolves the wait |
+| `never hydrated` | every query times out and the binding never fires, under a 12 s deadline | slices of 5, 5, and 2 s, then `The page never hydrated: no html[data-flare-hydrated] within 12000 ms` |
+| `binding once` | two loads of one page | one binding named `__flare_hydrated_` plus 32 hex digits and one init script carrying that name; the binding resolves each load that armed it |
+| `reissue warns` | the first query times out | one `console.warn` naming the path and the query number |
+| `page script` | the init script run in the document | it calls the binding once the attribute is set, not when it is removed first, once only, and never from a subframe |
 | `console all` | a hydration-mismatch message and an `Error` | both are returned. A hydration mismatch is an app bug, and Flare's own pages emit none, so the helper never hides one |
 | `state` | a document with `self.flare` | `state()` returns `build`, `nonce`, `matches`, and `queries`. A match is `{ id, params, search, data, preloader, head, error }`. A `{ p, r, c }` object is not accepted |
 

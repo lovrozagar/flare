@@ -1,6 +1,7 @@
 import { appendFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { bootCopy } from "./copy-boot.ts";
+import { loadHydrated } from "../../src/testing/playwright.ts";
 import { documents, expect, isProd, open, serverOf, test } from "./docs.fixture.ts";
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
@@ -42,15 +43,45 @@ test.describe("every page hydrates", () => {
 	}
 });
 
-// A production page left open past WebKit's few-second preload check logs nothing: a lazy route's modulepreload names
-// no chunk the page already loaded (BUGS.md 79), and the stylesheet's preload warning is engine noise (BUGS.md 81).
-test("preloads settle", async ({ page, docs }, info) => {
-	test.skip(!isProd(info), "preloads are production markup");
-	const problems = await open(page, docs.origin, "/changelog");
-	await page.waitForLoadState("networkidle");
-	await page.waitForTimeout(5000);
-	expect(problems).toEqual([]);
+// The hydration wait still fails a page that never hydrates: with every script request aborted, the client never
+// boots, and the wait throws at its deadline instead of hanging (BUGS.md 107).
+test("never hydrated", async ({ page, docs }) => {
+	await page.route("**/*", (route) => (route.request().resourceType() === "script" ? route.abort() : route.fallback()));
+	const url = `${docs.origin}/docs/routing`;
+	await expect(loadHydrated(page, url, { deadline: 3000, slice: 1000 })).rejects.toThrow(
+		"The page never hydrated: no html[data-flare-hydrated] within 3000 ms",
+	);
+	expect(await page.locator("#doc-title").textContent()).toBe("Routing");
 });
+
+// A production page logs nothing once the engine's unused-preload check has run: a lazy route's modulepreload names
+// no chunk the page already loaded (BUGS.md 79), and the stylesheet's preload is used (BUGS.md 81). The page is served
+// with one more preload nothing uses, so the check's warning about it says the check ran, and it is the only warning.
+// Chromium and WebKit run that check about 3 s after the load event; Playwright's Firefox has none.
+test("preloads settle", async ({ page, docs, browserName }, info) => {
+	test.skip(!isProd(info), "preloads are production markup");
+	test.skip(browserName === "firefox", "this engine has no unused-preload check");
+	await page.route(`${docs.origin}${SENTINEL}`, (route) =>
+		route.fulfill({ status: 200, contentType: "text/css", body: "/* never used */" }),
+	);
+	await page.route(`${docs.origin}/changelog`, async (route) => {
+		const response = await route.fetch();
+		const preload = `<link rel="preload" href="${SENTINEL}" as="style">`;
+		await route.fulfill({ response, body: (await response.text()).replace("</head>", `${preload}</head>`) });
+	});
+	const checked = page.waitForEvent("console", { predicate: (message) => message.text().includes(SENTINEL) });
+	const problems = await open(page, docs.origin, "/changelog");
+	await checked;
+	// The check warns in one task; a line the page logs after it arrives after all of its warnings.
+	const flushed = page.waitForEvent("console", { predicate: (message) => message.text() === FLUSH });
+	await page.evaluate((line) => console.log(line), FLUSH);
+	await flushed;
+	expect(problems.filter((problem) => !problem.includes(SENTINEL))).toEqual([]);
+});
+
+// The preload `preloads settle` adds and nothing uses, and the line that flushes the console after the check.
+const SENTINEL = "/__unused-preload-sentinel.css";
+const FLUSH = "preloads settle: console flushed";
 
 // After hydrate the changelog fills its stream holes. The fill commits once its last value is in, so the commit is
 // never held behind one, and a load kept open past Solid's hold threshold logs no SILENT_HOLD (BUGS.md 89).
