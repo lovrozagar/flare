@@ -1,10 +1,12 @@
 import { expect, it } from "vitest";
-import { graphOf, rewriteEnv, type Graph } from "./env.ts";
+import { graphOf, type Graph } from "./env.ts";
+import { boundaryTransform } from "./transform.ts";
 
 const IMPORT = 'import { createServerOnlyFn, createClientOnlyFn, createIsomorphicFn } from "@lovrozagar/flare";\n';
 
+// The module as the boundary plugin rewrites it for one graph: the same call the plugin makes.
 function rewrite(source: string, graph: Graph): string {
-	return rewriteEnv("src/lib/a.ts", source, graph)?.code ?? source;
+	return boundaryTransform("src/lib/a.ts", source, graph)?.code ?? source;
 }
 
 it("server direct", () => {
@@ -13,7 +15,7 @@ it("server direct", () => {
 	expect(client).not.toContain("SECRET");
 	expect(client).toContain("createServerOnlyFn()");
 	expect(rewrite(source, "server")).toContain("SECRET");
-	expect(rewriteEnv("a.ts", "export const a = 1;\n", "client")).toBeUndefined();
+	expect(boundaryTransform("a.ts", "export const a = 1;\n", "client")).toBeUndefined();
 });
 
 it("server alias", () => {
@@ -133,5 +135,5 @@ it("iso order", () => {
 it("quote in a regex", () => {
 	const source = `const quote = /"'\`/;\n${IMPORT}export const read = createServerOnlyFn(() => SECRET);\n`;
 	expect(rewrite(source, "client")).not.toContain("SECRET");
-	expect(() => rewriteEnv("bad.ts", "export const = ;", "client")).toThrow(/^bad\.ts: /);
+	expect(() => boundaryTransform("bad.ts", "export const = ;", "client")).toThrow(/^bad\.ts: /);
 });
