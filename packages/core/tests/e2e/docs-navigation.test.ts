@@ -227,6 +227,66 @@ test("old snapshot hidden", async ({ page, docs, floor }) => {
 	await expect.poll(() => page.evaluate(() => Reflect.get(window, "__oldDisplay"))).toBe("none");
 });
 
+// While a view transition runs, ViewTransitionCSS's `::view-transition{pointer-events:none}` lets the pointer reach the
+// live page in Firefox: the sidebar link under the pointer is hit, hovered, and a click on it navigates. Chromium and
+// WebKit hit-test the document element while any transition runs, whatever the CSS, so the link gets no hover and the
+// click is lost (BUGS.md 119.16, B126). Asserted per engine, so a browser fix shows up as this test changing. Once the
+// transition is ready its animations are paused, so it is still running when the case reads and clicks, then finished.
+test("pointer during transition", async ({ page, docs, floor, browserName }) => {
+	test.skip(floor, "the floor has no view transitions (floor.ts)");
+	await page.addInitScript(() => {
+		const start = Document.prototype.startViewTransition;
+		if (typeof start !== "function") return;
+		Document.prototype.startViewTransition = function (this: Document, arg?: never) {
+			const transition = start.call(this, arg);
+			void transition.ready.then(
+				() => Reflect.set(window, "__running", true),
+				() => undefined,
+			);
+			void transition.finished.then(
+				() => Reflect.set(window, "__running", false),
+				() => undefined,
+			);
+			return transition;
+		};
+	});
+	await open(page, docs.origin, "/docs/routing");
+	const supported = await page.evaluate(() => typeof document.startViewTransition === "function");
+	test.skip(!supported, "this engine has no document.startViewTransition");
+	const box = await page.locator('#sidebar a[href="/docs/defer"]').boundingBox();
+	if (box === null) throw new Error("no sidebar link");
+	const [x, y] = [box.x + box.width / 2, box.y + box.height / 2];
+	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
+	await page.waitForFunction(() => Reflect.get(window, "__running") === true);
+	await page.evaluate(() => {
+		for (const animation of document.getAnimations()) animation.pause();
+	});
+	const hit = await page.evaluate(
+		([px, py]) => {
+			const element = document.elementFromPoint(px ?? 0, py ?? 0);
+			return element?.closest("a")?.getAttribute("href") ?? element?.tagName;
+		},
+		[x, y],
+	);
+	await page.mouse.move(x, y);
+	const hovered = await page.locator('#sidebar a[href="/docs/defer"]').evaluate((link) => link.matches(":hover"));
+	// Still running when the press lands; in Firefox the click's navigation then skips this transition.
+	const running = await page.evaluate(() => Reflect.get(window, "__running"));
+	await page.mouse.down();
+	await page.mouse.up();
+	await page.evaluate(() => {
+		for (const animation of document.getAnimations()) animation.finish();
+	});
+	const passes = browserName === "firefox";
+	expect({ running, hit, hovered }).toEqual({ running: true, hit: passes ? "/docs/defer" : "HTML", hovered: passes });
+	// Firefox: the click navigates to Deferred data. Chromium and WebKit: it is lost, and the Caching navigation stands.
+	await expect(page.locator("#doc-title")).toHaveText(passes ? "Deferred data" : "Caching");
+	if (!passes) {
+		await page.waitForTimeout(1000);
+		expect(await page.evaluate(() => location.pathname)).toBe("/docs/caching");
+	}
+});
+
 test("view transition off", async ({ page, docs }) => {
 	await recordTransitions(page);
 	await open(page, docs.origin, "/docs/caching");

@@ -23,7 +23,7 @@ function styleOf(props: { duration?: number }, requestNonce = "n"): HTMLStyleEle
 it("default duration", () => {
 	const style = styleOf({});
 	expect(style.textContent).toBe(
-		"@view-transition{navigation:auto}::view-transition-old(root){display:none}::view-transition-old(*),::view-transition-new(*){animation-duration:150ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
+		"@view-transition{navigation:auto}::view-transition-old(root){display:none}::view-transition{pointer-events:none}::view-transition-old(*),::view-transition-new(*){animation-duration:150ms}@media (prefers-reduced-motion:reduce){::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none}}",
 	);
 	expect(style.getAttribute("nonce")).toBe("n");
 	expect(styleOf({}, "").hasAttribute("nonce")).toBe(false);
@@ -48,4 +48,10 @@ it("old root hidden", () => {
 	expect(text).toContain(rule);
 	expect(text.indexOf(rule)).toBeLessThan(text.indexOf("@media"));
 	expect(text.match(/::view-transition-old\([^*)]+\)/g)).toEqual(["::view-transition-old(root)"]);
+});
+
+// The transition's overlay passes pointer events through to the live page, so hover, the pointer cursor, and clicks keep
+// working on what does not change while a document-scoped transition runs (BUGS.md 119.16, B126).
+it("pointer passthrough", () => {
+	expect(styleOf({}).textContent).toContain("::view-transition{pointer-events:none}");
 });
