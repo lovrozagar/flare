@@ -81,6 +81,9 @@ export const FLOWS: readonly Flow[] = [
 			);
 			await safari.click("a[href='/hr/docs/media']");
 			if (!(await safari.wait("return location.pathname === '/hr/docs/media'"))) return "the media link did not land";
+			// A forward document load would make Back a traversal the back-forward cache restores, mark and all, so the
+			// forward step is proven a client navigation first; then Back is this document's own popstate.
+			if ((await safari.js(MARKED)) !== true) return "the media link loaded as a document";
 			// Read before Back: a document load on Back would lose it with the window.
 			const at = Number(await safari.js("return window.__at"));
 			await safari.js("window.scrollTo(0, document.documentElement.scrollHeight)");

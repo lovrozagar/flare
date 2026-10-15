@@ -47,27 +47,41 @@ it("failed flow fails", async () => {
 	expect(await runFlows(safari, site, { log: () => undefined, flows: [flows[0] as Flow] })).toBe(0);
 });
 
-// The /hr flow's scripts as a session sees them after a Back that loaded a document: the path and the click position
-// hold, and the window mark is gone.
-function reloadAnswer(script: string): unknown {
-	if (script === "return window.__flareMark === 1") return false;
-	if (script === "return window.__at") return 0;
-	return script.startsWith("return") ? true : null;
-}
-
-// Back to /hr that lands as a document load is not a pass, though the browser restores the scroll itself: the
-// session reports the click position and the path, but the window mark is gone.
-it("back reload fails", async () => {
+// The /hr flow against a session that restores the path and the click position, and reports the window mark by
+// whether Back has run yet.
+async function hrFlow(mark: (backed: boolean) => boolean): Promise<string | undefined> {
+	let backed = false;
 	const fake: Fetcher = async (url, init) => ({
 		json: async () => {
 			if (url.endsWith("/session")) return { value: { sessionId: "s1", capabilities: { browserVersion: "17.6" } } };
 			if (url.endsWith("/element")) return { value: { element: "e1" } };
+			if (url.endsWith("/back")) backed = true;
+			if (!url.endsWith("/execute/sync")) return { value: null };
 			const script = String(Reflect.get(Object(JSON.parse(init.body ?? "{}")), "script") ?? "");
-			return { value: url.endsWith("/execute/sync") ? reloadAnswer(script) : null };
+			if (script === "return window.__flareMark === 1") return { value: mark(backed) };
+			if (script === "return window.__at") return { value: 0 };
+			return { value: script.startsWith("return") ? true : null };
 		},
 	});
 	const safari = await SafariSession.open("http://driver", fake);
 	const flow = FLOWS.find((entry) => entry.name === "Back restores the position at the click");
-	const site = { origin: "http://site", callFn: async () => undefined };
-	expect(await flow?.run(safari, site)).toBe("Back loaded a document");
+	return flow?.run(safari, { origin: "http://site", callFn: async () => undefined });
+}
+
+// Client navigations both ways pass.
+it("back client passes", async () => {
+	expect(await hrFlow(() => true)).toBeUndefined();
+});
+
+// Back to /hr that lands as a document load is not a pass, though the browser restores the scroll itself: the mark is
+// there after the forward click and gone after Back.
+it("back reload fails", async () => {
+	expect(await hrFlow((backed) => !backed)).toBe("Back loaded a document");
+});
+
+// A forward click to /hr/docs/media that falls back to a document load is not a pass either: Back is then a
+// document-to-document traversal, and Safari's back-forward cache restores /hr with its window, mark included. The mark
+// is gone after the forward click and back after Back.
+it("forward reload fails", async () => {
+	expect(await hrFlow((backed) => backed)).toBe("the media link loaded as a document");
 });
