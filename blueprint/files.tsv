@@ -686,6 +686,8 @@ packages/core/tests/types/app/src/routes/[locale]/_root_/about/about.page.tsx	P7
 packages/core/tests/e2e/playwright.config.ts	P1	config	-	One Playwright config. Linux runs chromium and firefox. macOS runs webkit. CI runs both (B70)
 packages/core/tests/e2e/static.test.ts	P12	test	node	Playwright: SSG seeds read through the static store on every prod runtime, and a live render in dev. Calls boot
 packages/core/tests/e2e/boot.ts	P1	script	node	Start one e2e app on an ephemeral port. Does not copy the app (B70)
+packages/core/tests/e2e/child.ts	P1	script	node	A boot child's printed origin, its end, and how it ended (exit code or signal, BUGS.md 128); split from boot.ts at the 300-line limit
+packages/core/tests/e2e/child.test.ts	P1	test	node	Unit cases for child.ts
 packages/core/tests/e2e/copy-boot.ts	P15	test	node	A dev boot over a private temp copy of an app, for a case that writes into it, such as an HMR edit (B70, BUGS.md 111)
 packages/core/tests/e2e/copy-boot.test.ts	P15	test	node	Unit cases for copy-boot.ts
 packages/core/tests/e2e/boot.test.ts	P1	test	node	Unit cases for boot.ts
