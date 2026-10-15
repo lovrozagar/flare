@@ -320,6 +320,18 @@ test("hooks", async ({ page, docs }) => {
 	await expect(page.locator("#hook-docs-data")).toHaveText('{"stars":4200,"contributors":37}');
 	await page.locator("#toc").getByRole("link", { name: "Files" }).click();
 	await expect(page.locator("#hook-location")).toHaveText("/docs/routing#files");
+	await expect(page.locator("#hook-last-navigation")).toHaveText("none yet");
+	// A held navigation shows `pending: true`; once it commits, the panel keeps how long it was pending.
+	const release = Promise.withResolvers<void>();
+	await page.route("**/docs/caching?_flare=*", async (route) => {
+		await release.promise;
+		await route.continue();
+	});
+	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click();
+	await expect(page.locator("#hook-pending")).toHaveText("true");
+	release.resolve();
+	await expect(page.locator("#hook-pending")).toHaveText("false");
+	await expect(page.locator("#hook-last-navigation")).toHaveText(/^\d+ ms$/);
 });
 
 test("preloader levels", async ({ page, docs }) => {
