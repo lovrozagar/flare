@@ -24,7 +24,7 @@ afterEach(unmountAll);
 it("shallow", async () => {
 	const fetch = vi.fn<Fetch>(async () => new Response(""));
 	const app = await mountNavigator(router, fetch);
-	const track = vi.spyOn(app.deps.navigation, "track");
+	const begin = vi.spyOn(app.deps.navigation, "begin");
 	const stored = vi.spyOn(app.deps.cache, "store");
 	const length = history.length;
 	await app.navigator.navigate({ to: "_root_/", search: { q: "a" }, shallow: true });
@@ -39,7 +39,7 @@ it("shallow", async () => {
 	expect(history.length).toBe(length + 1);
 	expect(app.text()).toBe("root[home:start:b]");
 	expect(fetch).not.toHaveBeenCalled();
-	expect(track).not.toHaveBeenCalled();
+	expect(begin).not.toHaveBeenCalled();
 	expect(stored).not.toHaveBeenCalled();
 	expect(app.deps.navigation.pending()).toBe(false);
 });

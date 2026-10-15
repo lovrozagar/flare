@@ -19,24 +19,29 @@ function mount(state: NavigationState): { pending: () => boolean } {
 	return { pending: () => seen.navigation?.pending ?? false };
 }
 
-it("pending", async () => {
+it("pending", () => {
 	const state = createNavigationState();
 	const view = mount(state);
-	const fetching = Promise.withResolvers<void>();
-	const tracked = state.track(fetching.promise);
+	const end = state.begin();
 	flush();
 	expect(view.pending()).toBe(true);
-	fetching.resolve();
-	await tracked;
-});
-
-it("settled", async () => {
-	const state = createNavigationState();
-	const view = mount(state);
-	await state.track(Promise.resolve("done"));
+	end();
 	flush();
 	expect(view.pending()).toBe(false);
-	await state.track(Promise.reject(new Error("network"))).catch(() => undefined);
+});
+
+// A navigation's end counts once however often it is called, so a second navigation still in flight keeps pending true
+// until its own end (B124).
+it("settled", () => {
+	const state = createNavigationState();
+	const view = mount(state);
+	const first = state.begin();
+	const second = state.begin();
+	first();
+	first();
+	flush();
+	expect(view.pending()).toBe(true);
+	second();
 	flush();
 	expect(view.pending()).toBe(false);
 });

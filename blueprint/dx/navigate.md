@@ -79,7 +79,7 @@ No other prop exists. A `name` or `class` prop does not type-check (`view-transi
 
 | hook | returns | pitfall | test |
 | --- | --- | --- | --- |
-| `useNavigation()` | `{ pending }`. `pending` is true from the fetch start until commit | it is false during a prefetch | `client/navigation/pending.test.ts` |
+| `useNavigation()` | `{ pending }`. `pending` is true from the fetch start until commit: inside the view transition's update when one runs, so the old capture shows the page as it was while pending, and it has fallen by the time the update returns (B124). A fill's pending ends with its fetch | it is false during a prefetch | `client/navigation/pending.test.ts`; `navigate-transition.test.ts` `pending until commit`, `pending ends once`, `pending ends once, skipped`; `navigate.test.ts` `pending until commit, no transition` |
 | `useNavigationProgress(options?)` | `{ pending, value }`. `pending` is the same flag as `useNavigation().pending`. `value` is `null` while idle, a number in `(0, 1)` while that flag is true, `1` when the flag falls, then `null` after `minDisplay` | prefetch leaves both idle. The hook renders no element. `NavigationProgress` is not an export | `client/navigation/progress.test.ts` |
 | `useLoaderData({ from })` | that route's own loader data. `from` is the route id | a page call does not include the layout's fields. Read the layout with the layout id. An unknown id does not type-check (`dx/types.md`) | `outlet-nodes.test.ts` `layout data`; `propagation.test.ts` `hook from`, `parent loader hidden` |
 | `useParams({ from })` | that route's params. Brackets, unless that file's `.input({ params })` replaced them | `from` is required | `outlet-nodes.test.ts` `params`; `propagation.test.ts` `param types` |

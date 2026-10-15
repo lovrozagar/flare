@@ -37,12 +37,11 @@ function mount(options?: ProgressOptions): { state: NavigationState; progress: S
 			return box.progress?.value ?? null;
 		},
 	};
-	// Starts one tracked navigation. The returned function settles it.
+	// Starts one navigation. The returned function ends it, as its commit does.
 	const start = (): (() => void) => {
-		const fetch = Promise.withResolvers<void>();
-		void state.track(fetch.promise);
+		const end = state.begin();
 		flush();
-		return () => fetch.resolve();
+		return end;
 	};
 	return { state, progress, start };
 }
@@ -82,12 +81,11 @@ it("no tear", async () => {
 		document.createElement("div"),
 	);
 	flush();
-	const fetch = Promise.withResolvers<void>();
-	void state.track(fetch.promise);
+	const end = state.begin();
 	flush();
 	vi.advanceTimersByTime(200);
 	flush();
-	fetch.resolve();
+	end();
 	await vi.advanceTimersByTimeAsync(0);
 	flush();
 	await vi.advanceTimersByTimeAsync(0);
@@ -166,11 +164,10 @@ it("prefetch", async () => {
 
 it("failure", async () => {
 	const { state, progress } = mount();
-	const fetch = Promise.withResolvers<void>();
-	const tracked = state.track(fetch.promise).catch(() => undefined);
+	const end = state.begin();
 	flush();
-	fetch.reject(new Error("network"));
-	await tracked;
+	// A failed navigation ends the way a commit does.
+	end();
 	flush();
 	expect(progress.value).toBe(1);
 	await vi.advanceTimersByTimeAsync(0);

@@ -154,6 +154,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `superseded mismatch` | a navigation to /about whose held answer is from another deploy, then a navigation to /tabs; then the held answer lands | no document load, and /tabs commits (BUGS.md 121) |
 | `optional param` | a route with an optional param, absent and then present | the absent param is not in the match params. The present one is |
 | `restore` | `restore(url)`, one popstate step | the target commits with no blocker and no history write, and the saved scroll comes back. A hash-only step restores too |
+| `pending until commit, no transition` | `viewTransitions` off, `pending` read as the store commits and after the navigation | `true, false`. Red before B124: `false, false` |
 
 ### `client/navigation/request.test.ts` (BUGS.md 123)
 
@@ -195,8 +196,8 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 
 | test | case | result |
 | --- | --- | --- |
-| `pending` | a fetch that has not resolved | `useNavigation().pending` is true |
-| `settled` | the fetch resolves | false |
+| `pending` | a navigation begun, then ended | `useNavigation().pending` is true, then false |
+| `settled` | two navigations begun; the first's end called twice, then the second's | still true after the first's two calls, false after the second's: an end counts once (B124) |
 
 ### `client/navigation/progress.test.ts`
 
@@ -392,6 +393,9 @@ create-client `root navigate`: after `bootClient`, the root `navigate({ to: "_ro
 | --- | --- | --- |
 | `view transition` | `viewTransitions: true` and a `ViewTransitionBoundary` around the outlet | a push starts it on the document by default, though a boundary is there, with the plain callback, the DOM updates inside it, and history is written after. A replace with `scope: "auto"` runs on the boundary's element, and a popstate step back on the document, each with no type (revised by B119 and B119 (5)). `viewTransition: false` commits with none |
 | `superseded update` | a navigation whose view transition has not run its update yet, then a second navigation, whose start skips the first transition and runs that update first, as the spec orders it | the first update commits nothing, since the second aborted its signal: the screen shows the second page and history has only its entry (BUGS.md 98) |
+| `pending until commit` | a navigation through a transition that runs its update at once, `pending` read before the update, at the commit, after the update returns, and after the navigation | `true, true, false, false`. Red before B124: `false, false, false` (pending fell when the data landed). Red with the end inside the update removed: `true, true, true, false` |
+| `pending ends once` | a 404, a network failure, an abort by a newer navigation, and a scoped start that throws and falls back to the document (B119 (3)), then a later navigation held in its fetch | `pending` is false after them, true while the later one fetches, false after it |
+| `pending ends once, skipped` | a transition whose update has not run, skipped by the next navigation (B119 (1)), then a later navigation held in its fetch | the same |
 
 ### `shared/components/link.test.tsx`
 
