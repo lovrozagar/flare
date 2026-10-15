@@ -10,6 +10,9 @@ import { chromium, firefox, webkit } from "@playwright/test";
 export const IMAGE_DIGEST = "5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48";
 const PORT = 3333;
 const CONTAINER = "flare-browsers";
+// `docker inspect`'s JSON for `--ulimit core=0`. Playwright's WPE WebKit segfaults as it closes (BUGS.md 103.4), and a
+// host whose core_pattern pipes to systemd-coredump spent 117 s of CPU on one grid's dumps, up to 6.1 GB each (103.6).
+const NO_CORES = '[{"Name":"core","Hard":0,"Soft":0}]';
 
 // What the browser source reads of the machine. The native one is the real machine; a test passes its own.
 export type BrowserDeps = {
@@ -42,22 +45,25 @@ function daemon(deps: BrowserDeps): boolean {
 }
 
 // A run-server on 127.0.0.1 from the pinned image, on the host network and the host's IPC namespace (Chromium's shared
-// memory, which Docker caps at 64 MB by default, plan 14 leaf 4.6). A `flare-browsers` container that already is that
-// is reused; any other is replaced, since only this script creates it. The server is the lockfile's own
-// playwright-core, mounted read-only, so the container downloads nothing and its version is the one the image's
-// browsers were built for.
+// memory, which Docker caps at 64 MB by default, plan 14 leaf 4.6), with core dumps off. A `flare-browsers` container
+// that already is that is reused; any other is replaced, since only this script creates it. The server is the
+// lockfile's own playwright-core, mounted read-only, so the container downloads nothing and its version is the one the
+// image's browsers were built for.
 async function browserServer(deps: BrowserDeps): Promise<string> {
 	const endpoint = `ws://127.0.0.1:${PORT}/`;
 	const core = deps.core();
 	const image = `mcr.microsoft.com/playwright:v${core.version}-noble@sha256:${IMAGE_DIGEST}`;
-	const found = deps.docker.run(["inspect", "--format", "{{.Config.Image}}|{{.HostConfig.IpcMode}}", CONTAINER]);
+	const shape = "{{.Config.Image}}|{{.HostConfig.IpcMode}}|{{json .HostConfig.Ulimits}}";
+	const found = deps.docker.run(["inspect", "--format", shape, CONTAINER]);
 	const current = found.status === 0 ? found.stdout.trim() : undefined;
-	if (current !== undefined && current !== `${image}|host`) deps.docker.run(["rm", "-f", CONTAINER]);
-	if (current !== `${image}|host`) {
+	const wanted = `${image}|host|${NO_CORES}`;
+	if (current !== undefined && current !== wanted) deps.docker.run(["rm", "-f", CONTAINER]);
+	if (current !== wanted) {
 		const run = ["run", "-d", "--rm", "--init", "--ipc=host", "--network", "host", "--name", CONTAINER];
+		const limits = ["--ulimit", "core=0"];
 		const mount = ["-v", `${core.dir}:/playwright-core:ro`, image];
 		const serve = ["node", "/playwright-core/cli.js", "run-server", "--port", String(PORT), "--host", "127.0.0.1"];
-		const started = deps.docker.run([...run, ...mount, ...serve]);
+		const started = deps.docker.run([...run, ...limits, ...mount, ...serve]);
 		// A container of that name may be starting already, for another process of the same run.
 		if (started.status !== 0 && !started.stderr.includes("already in use")) {
 			throw new Error(`the browser container did not start: ${started.stderr}`);
