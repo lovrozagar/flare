@@ -3,7 +3,13 @@ import { browserEndpoint, IMAGE_DIGEST, type BrowserDeps } from "./browser-serve
 
 const IMAGE = `mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`;
 const VERSION = ["version", "--format", "{{.Server.Version}}"];
-const INSPECT = ["inspect", "--format", "{{.Config.Image}}|{{.HostConfig.IpcMode}}", "flare-browsers"];
+const INSPECT = [
+	"inspect",
+	"--format",
+	"{{.Config.Image}}|{{.HostConfig.IpcMode}}|{{json .HostConfig.Ulimits}}",
+	"flare-browsers",
+];
+const NO_CORES = '[{"Name":"core","Hard":0,"Soft":0}]';
 const RUN = [
 	"run",
 	"-d",
@@ -14,6 +20,8 @@ const RUN = [
 	"host",
 	"--name",
 	"flare-browsers",
+	"--ulimit",
+	"core=0",
 	"-v",
 	"/repo/node_modules/playwright-core:/playwright-core:ro",
 	IMAGE,
@@ -73,20 +81,27 @@ it("endpoint env", async () => {
 });
 
 // The pinned image's run-server, from the lockfile's playwright-core mounted read-only, on the host network and the
-// host's IPC namespace, so Chromium's shared memory is not Docker's 64 MB default. A container that is already the
-// pinned one is reused (B97).
+// host's IPC namespace, so Chromium's shared memory is not Docker's 64 MB default, with no core dumps: a crashing
+// engine process dumps nothing for the host to collect (BUGS.md 103.6). A container that is already the pinned one is
+// reused (B97).
 it("container", async () => {
 	const fresh = machine({ docker: true, installed: true });
 	expect(await browserEndpoint(fresh.deps)).toBe("ws://127.0.0.1:3333/");
 	expect(fresh.runs).toEqual([VERSION, INSPECT, RUN]);
-	const running = machine({ docker: true, up: true, container: `${IMAGE}|host` });
+	const running = machine({ docker: true, up: true, container: `${IMAGE}|host|${NO_CORES}` });
 	expect(await browserEndpoint(running.deps)).toBe("ws://127.0.0.1:3333/");
 	expect(running.runs).toEqual([VERSION, INSPECT]);
 });
 
-// A `flare-browsers` that runs another image, or without the host's IPC, is replaced: only this script creates it.
+// A `flare-browsers` that runs another image, without the host's IPC, or with core dumps, is replaced: only this
+// script creates it.
 it("container stale", async () => {
-	for (const container of [`${IMAGE}|private`, "mcr.microsoft.com/playwright:v1.60.0-noble|host"]) {
+	for (const container of [
+		`${IMAGE}|private|${NO_CORES}`,
+		`mcr.microsoft.com/playwright:v1.60.0-noble|host|${NO_CORES}`,
+		`${IMAGE}|host|[]`,
+		`${IMAGE}|host|null`,
+	]) {
 		const stale = machine({ docker: true, up: true, container });
 		expect(await browserEndpoint(stale.deps)).toBe("ws://127.0.0.1:3333/");
 		expect(stale.runs).toEqual([VERSION, INSPECT, ["rm", "-f", "flare-browsers"], RUN]);
