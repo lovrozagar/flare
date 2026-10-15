@@ -85,6 +85,38 @@ test("unreadable response", async ({ page, docs }) => {
 	expect(problems.some((problem) => problem.includes("[flare] a client navigation failed"))).toBe(true)
 })
 
+// A click after Flare has begun a document load loads the clicked page as a document too, with no data request: the
+// latest click wins. Caching's data is unreadable, so Flare falls back to loading /docs/caching, and that document is
+// held 1 s; Auth is clicked meanwhile. Before, Auth started a client navigation, and the held load then replaced it
+// (BUGS.md 129: in CI the unload cancelled such a navigation's chunk, and its own fallback buried the latest click).
+test("click after reload starts", async ({ page, docs }) => {
+	await open(page, docs.origin, "/docs/routing")
+	await page.route("**/docs/caching?_flare=*", (route) =>
+		route.fulfill({ status: 200, contentType: "application/x-ndjson", body: "not a frame\n" }),
+	)
+	const fallback = Promise.withResolvers<void>()
+	await page.route("**/docs/caching", async (route) => {
+		if (!route.request().isNavigationRequest()) return route.fallback()
+		fallback.resolve()
+		await new Promise((resolve) => setTimeout(resolve, 1000))
+		await route.fallback().catch(() => undefined)
+	})
+	const auth = await page.locator('#sidebar a[href="/docs/auth"]').boundingBox()
+	if (auth === null) throw new Error("no Auth link")
+	const loads = documents(page)
+	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click({ noWaitAfter: true })
+	await fallback.promise
+	const requests = dataRequests(page)
+	// A raw pointer click: no script runs in a page whose document load has begun, and nothing waits on the held load.
+	await page.mouse.click(auth.x + auth.width / 2, auth.y + auth.height / 2)
+	await expect(page.locator("#doc-title")).toHaveText("Auth")
+	await page.waitForTimeout(1200)
+	await expect(page.locator("#doc-title")).toHaveText("Auth")
+	expect(loads).toEqual(["/docs/caching", "/docs/auth"])
+	// The hover's intent prefetch may still leave: a prefetch never falls back to a document load.
+	expect(requests.filter((request) => request.kind === "data")).toEqual([])
+})
+
 test("network failure", async ({ page, docs }) => {
 	await open(page, docs.origin, "/docs/routing")
 	const depth = await page.evaluate(() => history.length)

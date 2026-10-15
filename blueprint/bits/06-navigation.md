@@ -386,6 +386,16 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `content without boundary` | no boundary | the document's start, nothing named, and the update runs once (B129) |
 | `options` | the navigate option over the router default | `undefined` keeps the router's, `true` is `{}`, `false` is off, and an object wins, `{ scope: "content" }` among them |
 
+### `client/navigation/leaving.test.ts` (BUGS.md 129)
+
+| test | case | result |
+| --- | --- | --- |
+| `leaving` | a navigation to the lazy route, whose chunk error loads it as a document; then navigations to /about and /tabs, and a revalidation of the page on screen | /about and /tabs are each `assign`ed and nothing more is fetched, so the last load is the latest click's; the revalidation does nothing. Red before: no `assign`, and both fetched |
+| `leaving refused` | the reload guard refuses the lazy route's document load; then a navigation to /about | the page is not leaving: /about commits on the client and nothing is assigned |
+| `leaving restored` | leaving, then `pageshow(false)` and a navigation to /tabs, then `pageshow(true)` and a navigation to /about | /tabs is `assign`ed; after the back-forward cache restore /about commits on the client. Red before: no `pageshow` |
+
+create-client `pageshow`: after a chunk reload the next navigation is `assign`ed; a `pageshow` event with `persisted` brings client navigations back. Red without the listener.
+
 ### `client/navigation/active.test.ts` (BUGS.md 105)
 
 | test | case | result |
