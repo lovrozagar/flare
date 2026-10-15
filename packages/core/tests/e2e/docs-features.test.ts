@@ -246,9 +246,9 @@ test("head full", async ({ page, docs }) => {
 	await expect(head.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://flare.test/docs/auth");
 });
 
-test("sitemap", async ({ request, docs }, info) => {
+test("sitemap", async ({ http, docs }, info) => {
 	prodOnly(info);
-	const body = await (await request.get(`${docs.origin}/sitemap.xml`)).text();
+	const body = await (await http.get(`${docs.origin}/sitemap.xml`)).text();
 	expect(body).toContain("<loc>https://flare.test/docs/routing</loc>");
 	expect(body).toContain("<loc>https://flare.test/search</loc>");
 	// Every other locale of a page whose only param is the optional locale is listed too (B101).
@@ -260,15 +260,15 @@ test("sitemap", async ({ request, docs }, info) => {
 	);
 });
 
-test("robots", async ({ request, docs }, info) => {
+test("robots", async ({ http, docs }, info) => {
 	prodOnly(info);
-	const body = await (await request.get(`${docs.origin}/robots.txt`)).text();
+	const body = await (await http.get(`${docs.origin}/robots.txt`)).text();
 	expect(body).toBe("User-agent: *\nDisallow: /admin\nSitemap: https://flare.test/sitemap.xml\n");
 });
 
-test("tailwind critical", async ({ page, request, docs }, info) => {
+test("tailwind critical", async ({ page, http, docs }, info) => {
 	prodOnly(info);
-	const body = await (await request.get(`${docs.origin}/playground`)).text();
+	const body = await (await http.get(`${docs.origin}/playground`)).text();
 	expect(body).toMatch(/<style id="flare-critical"[^>]*>[^<]*\.mx-auto/);
 	expect(body).toMatch(/<link id="flare-stylesheet" rel="preload" as="style" href="\/assets\/style-[^"]+\.css"/);
 	await open(page, docs.origin, "/playground");
@@ -277,9 +277,9 @@ test("tailwind critical", async ({ page, request, docs }, info) => {
 
 // The stylesheet markup follows the critical style, so a dark rule the critical subset lacks still wins once the
 // sheet loads: the shell's header and a streamed release card compute colors unlike the light theme's (B103, B57).
-test("stylesheet after critical", async ({ browser, request, docs }, info) => {
+test("stylesheet after critical", async ({ browser, http, docs }, info) => {
 	prodOnly(info);
-	const body = await (await request.get(`${docs.origin}/changelog`)).text();
+	const body = await (await http.get(`${docs.origin}/changelog`)).text();
 	const critical = body.indexOf('<style id="flare-critical"');
 	expect(critical).toBeGreaterThan(-1);
 	expect(critical).toBeLessThan(body.indexOf('<link id="flare-stylesheet"'));

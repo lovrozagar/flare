@@ -56,11 +56,11 @@ test("root not found", async ({ page, docs }) => {
 	await expect(page.locator("#root-not-found")).toBeVisible();
 });
 
-test("response redirect", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/legacy`, { maxRedirects: 0 });
+test("response redirect", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/legacy`, { maxRedirects: 0 });
 	expect(response.status()).toBe(301);
 	expect(response.headers()["location"]).toBe("/docs/routing#params");
-	const hr = await request.get(`${docs.origin}/hr/legacy`, { maxRedirects: 0 });
+	const hr = await http.get(`${docs.origin}/hr/legacy`, { maxRedirects: 0 });
 	expect(hr.headers()["location"]).toBe("/hr/docs/routing#params");
 });
 
@@ -82,8 +82,8 @@ test("second root full load", async ({ page, docs, context }) => {
 	expect(loads).toEqual(["/admin"]);
 });
 
-test("static beats locale", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/admin`, { maxRedirects: 0 });
+test("static beats locale", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/admin`, { maxRedirects: 0 });
 	expect(response.headers()["x-docs-area"]).toBe("admin");
 });
 
@@ -103,9 +103,9 @@ test("error boundary reset", async ({ page, docs, context }, info) => {
 });
 
 // A URL with a locale tag: a tagless document under an optional locale root is private by design (dx/features.md).
-test("segment cdn", async ({ request, docs }) => {
-	await request.get(`${docs.origin}/hr/api/server/create-server`);
-	const response = await request.get(`${docs.origin}/hr/api/server/create-server`);
+test("segment cdn", async ({ http, docs }) => {
+	await http.get(`${docs.origin}/hr/api/server/create-server`);
+	const response = await http.get(`${docs.origin}/hr/api/server/create-server`);
 	expect(response.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=60, stale-while-revalidate=600");
 	expect(response.headers()["cache-tag"]).toBe("api-reference");
 });

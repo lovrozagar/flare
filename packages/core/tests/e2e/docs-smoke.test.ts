@@ -277,9 +277,9 @@ const PUBLIC: readonly { path: string; type: RegExp }[] = [
 	{ path: "/fonts/mono.woff2", type: /^font\/woff2/ },
 ];
 
-test("public files", async ({ request, docs }) => {
+test("public files", async ({ http, docs }) => {
 	for (const { path, type } of PUBLIC) {
-		const response = await request.get(`${docs.origin}${path}`);
+		const response = await http.get(`${docs.origin}${path}`);
 		expect(response.status(), path).toBe(200);
 		expect(response.headers()["content-type"], path).toMatch(type);
 		expect((await response.body()).byteLength, path).toBeGreaterThan(0);
