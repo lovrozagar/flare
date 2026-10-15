@@ -36,17 +36,36 @@ Ask first, and wait: anything that can lose work — `reset --hard`, `checkout` 
 `commit --amend`, deleting tags, anything reflog-driven. If you can't tell,
 assume it can.
 
-## Before you call it done
+## Tests are the truth
 
-From the repo root; CI runs the same set, with `fmt:check` in place of `fmt`.
-Judge each by its exit code, not by the printed count.
+Every change starts with a test: a bug, a reported issue, a review finding, a new
+feature, a refactor.
 
-    bun run fmt               # oxfmt, rewrites in place
+1. Red: write the test, run it, and record the failing output (in BUGS.md for a bug).
+2. Fix: the smallest change that makes it pass.
+3. Green: run it again, record the passing output, then run every gate below.
+
+A fix without a test that failed first is not done. A test that cannot fail proves
+nothing: the reviewer reverts or breaks the fix, and the test must go red.
+
+## Every gate passes before moving on
+
+All of them, every time, judged by exit code, not by the printed count. From the
+repo root, in a fresh worktree outside the repo that passed
+`bun install --frozen-lockfile`:
+
+    bun run fmt:check         # oxfmt
     bun run lint              # oxlint
     bun run typecheck         # core, src under consumer-strict flags, scripts/
     bun run test              # vitest, 100% per-file coverage
+    bun run test:bun          # the same suite under the Bun runtime
     bun scripts/check-tree.ts # the tree matches blueprint/files.tsv
+    bun run test:e2e          # the full 18-project grid, run alone on the host
 
-`bun run test:e2e` runs the Playwright projects this OS owns (Linux: chromium
-and firefox) when the browsers are installed. A bit's Done also needs a fresh
-worktree that passes `bun install --frozen-lockfile` and all five gates.
+Then the real browsers this machine cannot provide: Safari on the MacBook Air M3
+over Tailscale (`ssh mac`, safaridriver) for anything that touches the client.
+Then CI: the GitHub run for the pushed commit.
+
+While any gate is red, locally, on the Mac, or in CI, the only work is fixing it.
+No new work moves while a gate is red. A failure is never skipped, retried away, or
+called flaky: it gets a test and a fix like any other bug.
