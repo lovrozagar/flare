@@ -123,3 +123,14 @@ it("boot close guarded", () => {
 		});
 	expect(unguarded).toEqual([]);
 });
+
+// The e2e specs make HTTP calls with the `http` fixture, a connection per call (tests/e2e/http.ts). Playwright's
+// `request` shares one keep-alive agent per worker process, and a socket one case left idle failed a later case's call
+// with ECONNRESET when the server closed it (BUGS.md 125).
+it("http client only", () => {
+	const dir = join(import.meta.dirname, "../e2e");
+	const users = readdirSync(dir)
+		.filter((name) => name.endsWith(".test.ts"))
+		.filter((name) => /async \(\{[^})]*\brequest\b[^})]*\}/.test(readFileSync(join(dir, name), "utf8")));
+	expect(users).toEqual([]);
+});

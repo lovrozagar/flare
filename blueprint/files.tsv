@@ -735,6 +735,7 @@ packages/core/tests/e2e/apps/docs/**	P15	app	-	The docs app (B94): a short Flare
 packages/core/tests/e2e/docs.fixture.ts	P15	test	node	Worker-scoped docs boot, the deep-set skip, and the page helpers the docs specs share (B94)
 packages/core/tests/e2e/flush.ts	P15	test	node	flushEvents: the page logs and fetches a marker, so every event it sent before has reached the test; negative assertions read after it, not after a sleep
 packages/core/tests/e2e/crash.ts	P16	test	node	The crash watch and navigation log every e2e spec's test runs around each case: a page crash fails the case that owned it (plan 14 leaf 4.6), and a failed case keeps its navigations (BUGS.md 34.6)
+packages/core/tests/e2e/http.ts	P16	test	node	The e2e specs' HTTP client, the `http` fixture: a connection per call, so no keep-alive socket crosses cases (BUGS.md 125)
 packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs page answers its status, hydrates, and leaves the console empty, on every project
 packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
 packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context

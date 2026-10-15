@@ -1,4 +1,5 @@
-import { request as httpRequest } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
+import type { AddressInfo, Socket } from "node:net";
 import { deepOnly, expect, fnId, INDEX_NOW_KEY, nonces, open, sessionCookie, test } from "./docs.fixture.ts";
 
 // Auth, CSRF, the body cap, middleware, mounts, `.response()`, route headers, and security (bits/15 docs-server).
@@ -53,8 +54,8 @@ test("authenticate optional", async ({ page, docs, context }) => {
 	await expect(page.locator("#session")).toHaveText("Signed in as ada (Administrator)");
 });
 
-test("csrf", async ({ request, docs }) => {
-	const response = await request.post(`${docs.origin}/_flare/fn/${ECHO}`, {
+test("csrf", async ({ http, docs }) => {
+	const response = await http.post(`${docs.origin}/_flare/fn/${ECHO}`, {
 		headers: { origin: "https://evil.test", "content-type": "application/json" },
 		data: { text: "hi" },
 	});
@@ -88,19 +89,48 @@ function postExpectingContinue(url: string, origin: string, body: string): Promi
 
 // The docs server's cap is 64 KiB. The oversized body is 8 MiB, so no loopback buffer absorbs it: on Bun a platform
 // cap at the server's limit cut the connection before the 413, which macOS showed and Linux hid at 70 KiB (BUGS.md 114).
-test("body limit", async ({ request, docs }) => {
+test("body limit", async ({ http, docs }) => {
 	const url = `${docs.origin}/_flare/fn/${ECHO}`;
-	const small = await request.post(url, { headers: { origin: docs.origin }, data: { text: "hi" } });
+	const small = await http.post(url, { headers: { origin: docs.origin }, data: { text: "hi" } });
 	expect(small.status()).toBe(200);
 	expect(await postExpectingContinue(url, docs.origin, JSON.stringify({ text: "x".repeat(8 * 1024 * 1024) }))).toBe(
 		413,
 	);
 });
 
+// Playwright's API requests share one keep-alive agent per worker process, so a socket a case left idle could carry a
+// later case's request just as the server closed it (workerd at 5 s, sending no keep-alive hint), and the request failed
+// with ECONNRESET (BUGS.md 125: `body limit` on workers-prod-chromium). The harness's client opens a connection per call
+// (http.ts). The counting server resets a second request on a socket that already answered, as an idle close racing a
+// send does, so a reused socket fails here every time.
+test("request socket per call", async ({ http }) => {
+	const answered = new WeakSet<Socket>();
+	let connections = 0;
+	const server = createServer((incoming, response) => {
+		if (answered.has(incoming.socket)) {
+			incoming.socket.resetAndDestroy();
+			return;
+		}
+		answered.add(incoming.socket);
+		response.end("ok");
+	});
+	server.on("connection", () => (connections += 1));
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+	const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+	try {
+		expect((await http.get(`${origin}/a`)).status()).toBe(200);
+		expect((await http.post(`${origin}/b`, { data: { text: "hi" } })).status()).toBe(200);
+		expect(connections).toBe(2);
+	} finally {
+		server.closeAllConnections();
+		await new Promise((resolve) => server.close(resolve));
+	}
+});
+
 // A server that declares no proxy hop ignores a client's own `X-Forwarded-Proto` (dx/adapters.md `trustProxy`, default
 // 0): the page over plain http gets no Strict-Transport-Security, on every runtime.
-test("forwarded proto untrusted", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/`, { headers: { "x-forwarded-proto": "https" } });
+test("forwarded proto untrusted", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/`, { headers: { "x-forwarded-proto": "https" } });
 	expect(response.status()).toBe(200);
 	expect(response.headers()["strict-transport-security"]).toBeUndefined();
 });
@@ -109,67 +139,67 @@ test("forwarded proto untrusted", async ({ request, docs }) => {
 // empty segment or an upper-case path redirects to the canonical one (dx/adapters.md). A file is the platform's: the
 // harness's static layer and Cloudflare's assets answer it before Flare, so these paths are routes. On Workers dev,
 // flare()'s target guard refuses `//x` before @cloudflare/vite-plugin would parse it into the host `x` (BUGS.md 118).
-test("canonical ingress", async ({ request, docs }) => {
+test("canonical ingress", async ({ http, docs }) => {
 	const raw = { maxRedirects: 0 };
-	expect((await request.get(`${docs.origin}//x`, raw)).status()).toBe(400);
-	const empty = await request.get(`${docs.origin}/docs//routing`, raw);
+	expect((await http.get(`${docs.origin}//x`, raw)).status()).toBe(400);
+	const empty = await http.get(`${docs.origin}/docs//routing`, raw);
 	expect([empty.status(), empty.headers()["location"]]).toEqual([301, "/docs/routing"]);
-	const upper = await request.get(`${docs.origin}/CHANGELOG`, raw);
+	const upper = await http.get(`${docs.origin}/CHANGELOG`, raw);
 	expect([upper.status(), upper.headers()["location"]]).toEqual([301, "/changelog"]);
 });
 
-test("middleware next", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/`);
+test("middleware next", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/`);
 	expect(response.headers()["x-docs-time"]).toMatch(/^\d+ms$/);
 });
 
-test("middleware respond", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/maintenance`);
+test("middleware respond", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/maintenance`);
 	expect(response.status()).toBe(503);
 	expect(response.headers()["retry-after"]).toBe("60");
 	expect(await response.text()).toBe("Down for maintenance");
 	expect(response.headers()["x-content-type-options"]).toBe("nosniff");
 });
 
-test("middleware bypass", async ({ request, docs }) => {
-	const response = await request.post(`${docs.origin}/_flare/fn/${ECHO}`, {
+test("middleware bypass", async ({ http, docs }) => {
+	const response = await http.post(`${docs.origin}/_flare/fn/${ECHO}`, {
 		headers: { origin: docs.origin, "content-type": "application/json", "x-docs-ping": "1" },
 		data: { text: "hi" },
 	});
 	expect(await response.text()).toBe("pong");
 });
 
-test("middleware prefix", async ({ request, docs }) => {
-	expect((await request.get(`${docs.origin}/docs/routing`)).headers()["x-docs-section"]).toBe("docs");
-	expect((await request.get(`${docs.origin}/`)).headers()["x-docs-section"]).toBeUndefined();
+test("middleware prefix", async ({ http, docs }) => {
+	expect((await http.get(`${docs.origin}/docs/routing`)).headers()["x-docs-section"]).toBe("docs");
+	expect((await http.get(`${docs.origin}/`)).headers()["x-docs-section"]).toBeUndefined();
 });
 
-test("mount", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/healthz/deep?x=1`);
+test("mount", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/healthz/deep?x=1`);
 	expect(await response.json()).toEqual({ ok: true, path: "/deep" });
 	expect(response.headers()["x-content-type-options"]).toBe("nosniff");
 });
 
-test("response route", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/llms.txt`);
+test("response route", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/llms.txt`);
 	expect(response.headers()["content-type"]).toBe("text/plain; charset=utf-8");
 	expect(response.headers()["cache-control"]).toBe("public, max-age=300");
 	expect(await response.text()).toMatch(/^# Flare docs\n\n- \[Routing\]/);
 });
 
-test("route headers", async ({ request, docs }) => {
-	expect((await request.get(`${docs.origin}/admin`)).headers()["x-docs-area"]).toBe("admin");
+test("route headers", async ({ http, docs }) => {
+	expect((await http.get(`${docs.origin}/admin`)).headers()["x-docs-area"]).toBe("admin");
 });
 
-test("route security", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/admin`);
+test("route security", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/admin`);
 	expect(response.headers()["x-frame-options"]).toBe("DENY");
 	const seen = nonces(response.headers()["content-security-policy"], await response.text());
 	expect(seen.body).toEqual([seen.header]);
 });
 
-test("security defaults", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/playground`);
+test("security defaults", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/playground`);
 	const headers = response.headers();
 	expect(headers["x-content-type-options"]).toBe("nosniff");
 	expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
@@ -180,8 +210,8 @@ test("security defaults", async ({ request, docs }) => {
 	expect(seen.body).toEqual([seen.header]);
 });
 
-test("indexnow key file", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/${INDEX_NOW_KEY}.txt`);
+test("indexnow key file", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/${INDEX_NOW_KEY}.txt`);
 	expect(response.status()).toBe(200);
 	expect(response.headers()["content-type"]).toMatch(/^text\/plain/);
 	expect((await response.text()).trim()).toBe(INDEX_NOW_KEY);

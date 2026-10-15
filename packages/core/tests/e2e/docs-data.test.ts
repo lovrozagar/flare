@@ -16,9 +16,9 @@ const STEPS = ["resolve routes", "bundle client", "bundle server", "prerender pa
 
 // The fast boundary does not wait for the slow one. `stats` is held on the server until the test has seen its skeleton
 // beside the released list, so the order holds on any machine; a slow runner once settled `stats` first (BUGS.md 69).
-test("defer two skeletons", async ({ page, request, docs }) => {
+test("defer two skeletons", async ({ page, http, docs }) => {
 	const call = (id: string) =>
-		request.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: {} });
+		http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: {} });
 	// The boot sets FLARE_E2E, without which the gate refuses to hold.
 	expect(await (await call(HOLD_STATS)).json()).toMatchObject({ data: { held: true } });
 	try {
@@ -53,16 +53,16 @@ test("stream fill", async ({ page, docs }) => {
 	await expect(page.locator("#latest")).toContainText("1.0.0");
 });
 
-test("defer resolve stored", async ({ request, docs }, info) => {
+test("defer resolve stored", async ({ http, docs }, info) => {
 	test.skip(!isProd(info), "a stored body exists only in a production store (B94)");
-	await request.get(`${docs.origin}/changelog`);
-	const body = await (await request.get(`${docs.origin}/changelog`)).text();
+	await http.get(`${docs.origin}/changelog`);
+	const body = await (await http.get(`${docs.origin}/changelog`)).text();
 	expect(body).toMatch(/id="latest"[^>]*>Latest: <strong[^>]*>1\.0\.0/);
 	expect(body).toContain('id="releases-loading"');
 	// The stored state carries the store-resolved value inline, and the fill, which runs only the holes, sends it as
 	// `kept` with no frame of its own (BUGS.md 94).
 	expect(body).toContain('"latest":{"__deferred":true,"key":"latest","value":{"version":"1.0.0"');
-	const fill = await (await request.get(`${docs.origin}/changelog?_flare=fill`)).text();
+	const fill = await (await http.get(`${docs.origin}/changelog?_flare=fill`)).text();
 	expect(fill).toContain('"latest":{"__deferred":true,"key":"latest","kept":true}');
 	expect(fill).not.toContain('"k":"latest"');
 	expect(fill).toContain('"k":"releases"');
@@ -149,9 +149,9 @@ test("vote holds still", async ({ page, docs }) => {
 	expect(await look()).toEqual(["1", "1"]);
 });
 
-test("server fn get cached", async ({ request, docs }) => {
+test("server fn get cached", async ({ http, docs }) => {
 	const input = encodeURIComponent(JSON.stringify({ q: "route" }));
-	const response = await request.get(`${docs.origin}/_flare/fn/${SEARCH}?_i=${input}`);
+	const response = await http.get(`${docs.origin}/_flare/fn/${SEARCH}?_i=${input}`);
 	expect(response.status()).toBe(200);
 	expect(response.headers()["cache-control"]).toMatch(/max-age=60/);
 	expect(await response.json()).toMatchObject({ name: "searchDocs", status: 200 });
@@ -186,10 +186,10 @@ test("unsafe error", async ({ page, docs }, info) => {
 // server sends line 1, then each later line only when the test releases it, so each line must be on screen while the
 // server still holds the next. A stream buffered anywhere, by the server or by Flare's client, shows nothing until
 // its end, so the case stops at line 1.
-test("stream", async ({ page, request, docs }) => {
+test("stream", async ({ page, http, docs }) => {
 	const run = `gate-${Math.random().toString(16).slice(2, 10)}`;
 	const call = async (id: string): Promise<unknown> =>
-		(await request.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: { run } })).json();
+		(await http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: { run } })).json();
 	// The boot sets FLARE_E2E, without which the gate refuses to hold.
 	expect(await call(HOLD_BUILD)).toMatchObject({ data: { held: true } });
 	await open(page, docs.origin, `/playground?run=${run}`);
@@ -236,7 +236,7 @@ test("fetch dedupe", async ({ page, docs }) => {
 // The env helpers on a real page (dx/env.md): `serverRuntime`, server-only, ran on the server and named the runtime;
 // `renderedOn`, isomorphic, ran its client side once hydrated; `copyText`, client-only, ran on the click. No script the
 // page loaded holds the server-only body.
-test("env fns", async ({ page, request, docs, browserName }) => {
+test("env fns", async ({ page, http, docs, browserName }) => {
 	if (browserName === "chromium") await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
 	await open(page, docs.origin, "/docs/routing");
 	await expect(page.locator("#runtime")).toHaveText(/^(node|bun|workers)$/);
@@ -251,7 +251,7 @@ test("env fns", async ({ page, request, docs, browserName }) => {
 			.map((url) => url.href),
 	);
 	expect(scripts.length).toBeGreaterThan(0);
-	for (const script of scripts) expect(await (await request.get(script)).text()).not.toContain("Cloudflare-Workers");
+	for (const script of scripts) expect(await (await http.get(script)).text()).not.toContain("Cloudflare-Workers");
 });
 
 test("t plural", async ({ page, docs }) => {

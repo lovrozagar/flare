@@ -136,12 +136,10 @@ test("overlay history", async ({ page, docs }) => {
 	expect(requests.filter((seen) => seen.path === "/")).toEqual([]);
 });
 
-test("concurrent misses render once", async ({ request, docs }, info) => {
+test("concurrent misses render once", async ({ http, docs }, info) => {
 	test.skip(!isProd(info), "the shared store answers only in a production build");
 	const url = `${docs.origin}/hr/api/routes/create-page`;
-	const bodies = await Promise.all(
-		Array.from({ length: 8 }, () => request.get(url).then((response) => response.text())),
-	);
+	const bodies = await Promise.all(Array.from({ length: 8 }, () => http.get(url).then((response) => response.text())));
 	const by = new Set(bodies.map((body) => /id="api-rendered-by"[^>]*>([0-9a-f]+)</.exec(body)?.[1]));
 	expect(by.size).toBe(1);
 });
@@ -171,8 +169,8 @@ test("bad locale cookie", async ({ browser, docs }) => {
 	}
 });
 
-test("bot stays put", async ({ request, docs }) => {
-	const response = await request.get(`${docs.origin}/`, {
+test("bot stays put", async ({ http, docs }) => {
+	const response = await http.get(`${docs.origin}/`, {
 		headers: { "user-agent": "Mozilla/5.0 (compatible; Googlebot/2.1)", "accept-language": "hr" },
 		maxRedirects: 0,
 	});
@@ -183,9 +181,9 @@ test("bot stays put", async ({ request, docs }) => {
 
 // The rejected POSTs carry no body: local Miniflare resets a kept-alive connection after an answer that left the body
 // unread, so the next request on that socket would fail (dx/adapters.md, BUGS.md B56).
-test("csrf headers", async ({ request, docs }) => {
+test("csrf headers", async ({ http, docs }) => {
 	const post = (headers: Record<string, string>, data?: object) =>
-		request.post(`${docs.origin}/_flare/fn/${ECHO}`, {
+		http.post(`${docs.origin}/_flare/fn/${ECHO}`, {
 			headers: { "content-type": "application/json", ...headers },
 			...(data === undefined ? {} : { data }),
 		});

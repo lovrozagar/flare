@@ -1,6 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { expect, test as base } from "@playwright/test";
 import { removeAfterFloor } from "./floor.ts";
+import { httpClient, type HttpClient } from "./http.ts";
 
 // A page as the crash watch reads it, and the context that opens pages.
 type CrashPage = { on(event: "crash", listener: () => void): unknown; url(): string };
@@ -64,12 +65,20 @@ export function navigationLog(context: Logged, now: () => number = () => perform
 export type FloorOptions = { floor: boolean };
 
 // Every e2e spec's `test`: the crash watch and the navigation log run around each case on its own context, and a failed
-// case carries the log.
-export const test = base.extend<{ crashGuard: void }, FloorOptions>({
+// case carries the log. `http` is the case's own HTTP client, a connection per call (http.ts, BUGS.md 125); specs use it
+// rather than Playwright's `request` (grid.test `http client only`).
+export const test = base.extend<{ crashGuard: void; http: HttpClient }, FloorOptions>({
 	floor: [false, { option: true, scope: "worker" }],
 	context: async ({ context, floor }, use) => {
 		if (floor) await context.addInitScript(removeAfterFloor);
 		await use(context);
+	},
+	// Playwright reads a fixture's dependencies from this pattern, so a fixture with none takes an empty one.
+	// oxlint-disable-next-line no-empty-pattern
+	http: async ({}, use) => {
+		const client = httpClient();
+		await use(client);
+		client.close();
 	},
 	crashGuard: [
 		async ({ context }, use, testInfo) => {

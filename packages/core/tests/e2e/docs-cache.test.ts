@@ -3,27 +3,27 @@ import { dataRequests, deepOnly, expect, open, prodOnly, serverOf, sessionCookie
 // SSG seeds, ISR, shared SSR, CDN headers, purge, the client match cache, and the store per runtime (bits/15).
 deepOnly();
 
-test("ssg seed", async ({ request, docs }, info) => {
+test("ssg seed", async ({ http, docs }, info) => {
 	prodOnly(info);
-	const response = await request.get(`${docs.origin}/docs/routing`);
+	const response = await http.get(`${docs.origin}/docs/routing`);
 	expect(response.headers()["flare-render"]).toBe("ssg");
 	expect(response.headers()["flare-cache"]).toBe("hit");
 	expect(await response.text()).toContain('id="doc-title"');
 });
 
-test("ssg public cdn", async ({ request, docs }, info) => {
+test("ssg public cdn", async ({ http, docs }, info) => {
 	prodOnly(info);
-	const response = await request.get(`${docs.origin}/hr`);
+	const response = await http.get(`${docs.origin}/hr`);
 	expect(response.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=60, stale-while-revalidate=3600");
 });
 
 // One render serves the page until it is stored (B33). The first request is not delayed by its store write, so a repeat
 // that comes before the write lands joins that render and answers `miss` from it, and a later one is a hit: the case
 // reads which render served each answer, not when the write landed. A slow write made a strict `hit` fail (BUGS.md 88).
-test("isr stored", async ({ request, docs }, info) => {
+test("isr stored", async ({ http, docs }, info) => {
 	prodOnly(info);
 	const get = async (): Promise<{ cache: string | undefined; render: string | undefined; renderedBy: string }> => {
-		const response = await request.get(`${docs.origin}/changelog`);
+		const response = await http.get(`${docs.origin}/changelog`);
 		const renderedBy = /id="changelog-rendered-by"[^>]*>([0-9a-f]+)</.exec(await response.text())?.[1] ?? "";
 		return { cache: response.headers()["flare-cache"], render: response.headers()["flare-render"], renderedBy };
 	};
@@ -37,10 +37,10 @@ test("isr stored", async ({ request, docs }, info) => {
 	expect((await get()).renderedBy).toBe(first.renderedBy);
 });
 
-test("shared ssr", async ({ request, docs }, info) => {
+test("shared ssr", async ({ http, docs }, info) => {
 	prodOnly(info);
 	const renderedBy = async (): Promise<string | undefined> => {
-		const response = await request.get(`${docs.origin}/api/routes/create-page`);
+		const response = await http.get(`${docs.origin}/api/routes/create-page`);
 		return /id="api-rendered-by"[^>]*>([0-9a-f]+)</.exec(await response.text())?.[1];
 	};
 	const rendered = await renderedBy();
@@ -50,10 +50,10 @@ test("shared ssr", async ({ request, docs }, info) => {
 	expect(rendered).toMatch(/^[0-9a-f]+$/);
 });
 
-test("revalidate tag", async ({ page, request, docs, context }, info) => {
+test("revalidate tag", async ({ page, http, docs, context }, info) => {
 	prodOnly(info);
 	const renderedBy = async (): Promise<string | undefined> => {
-		const response = await request.get(`${docs.origin}/api/server-fn/create-server-fn`);
+		const response = await http.get(`${docs.origin}/api/server-fn/create-server-fn`);
 		return /id="api-rendered-by"[^>]*>([0-9a-f]+)</.exec(await response.text())?.[1];
 	};
 	await renderedBy();
@@ -91,7 +91,7 @@ test("cache deferred", async ({ page, docs }) => {
 	expect(requests.filter((seen) => seen.path === "/changelog")).toEqual([]);
 });
 
-test("store per runtime", async ({ request, docs }, info) => {
-	const response = await request.get(`${docs.origin}/`);
+test("store per runtime", async ({ http, docs }, info) => {
+	const response = await http.get(`${docs.origin}/`);
 	expect(response.headers()["x-docs-store"]).toBe(serverOf(info).startsWith("workers") ? "cache-api" : "fs");
 });
