@@ -33,6 +33,10 @@ it("href", () => {
 	expect(thrown({ href: "https://ex.com/a" }).href).toBe("https://ex.com/a")
 	expect(thrown({ href: "http://ex.com/a" }).href).toBe("http://ex.com/a")
 	expect(() => redirect({ href: "javascript:alert(1)" })).toThrow("href")
+	// A Location header cannot hold a control character (BUGS.md 168).
+	for (const char of ["\r", "\n", "\u0000", "\u007f"])
+		expect(() => redirect({ href: `https://ex.com/a${char}b` })).toThrow("href")
+	expect(thrown({ href: "https://ex.com/a b~" }).href).toBe("https://ex.com/a b~")
 	// @ts-expect-error an href goes alone
 	expect(() => redirect({ href: "https://ex.com", to: "_root_" })).toThrow("href")
 	// @ts-expect-error an href takes no params

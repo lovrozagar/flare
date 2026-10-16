@@ -1,4 +1,5 @@
 import { posix } from "node:path"
+import { codeLiteral } from "./escape.ts"
 
 // A chunk of the client bundle, as the closure fill reads it.
 export type BundleChunk = { fileName: string; isEntry: boolean; imports: readonly string[]; code: string }
@@ -42,9 +43,7 @@ export function fillClosures(chunks: readonly BundleChunk[], fileOf: (ref: strin
 			const route = fileOf(ref)
 			const files = closure([route]).filter((file) => file !== route && !booted.has(file))
 			const from = posix.dirname(chunk.fileName)
-			return files
-				.map((file) => `new URL(${JSON.stringify(posix.relative(from, file))}, import.meta.url).href`)
-				.join(", ")
+			return files.map((file) => `new URL(${codeLiteral(posix.relative(from, file))}, import.meta.url).href`).join(", ")
 		})
 		filled.set(chunk.fileName, code)
 	}

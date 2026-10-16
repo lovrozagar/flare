@@ -60,7 +60,7 @@ export function install(build?: string, extra: Record<string, unknown> = {}): HT
 	]
 	// jsdom does not run a script set through innerHTML. A browser would, so the test assigns self.flare too.
 	const state = { ...(build === undefined ? { matches, nonce: "" } : { matches, nonce: "", build }), ...extra }
-	document.body.innerHTML = `<script>self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
+	document.body.innerHTML = `<script id="flare-state">self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
 	;(globalThis as Dom).flare = { ...state }
 	return document.getElementById("app") as HTMLElement
 }

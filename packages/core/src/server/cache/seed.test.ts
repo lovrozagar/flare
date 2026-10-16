@@ -67,7 +67,7 @@ const root = createRootLayout("_root_").render((props) => documentOf(props.child
 function seedFile(key: string, text: string, at: { renderedAt: number; render: "isr" | "ssg" }): Uint8Array {
 	const { renderedAt, render } = at
 	const sentinel = "__FLARE_NONCE_11111111111111111111111111111111"
-	const html = `<html><head></head><body>${text}<script nonce="${sentinel}">self.flare={"matches":[],"nonce":"${sentinel}"}</script></body></html>`
+	const html = `<html><head></head><body>${text}<script id="flare-state" nonce="${sentinel}">self.flare={"matches":[],"nonce":"${sentinel}"}</script></body></html>`
 	const data = { html, ndjson: '{"t":"r"}\n{"t":"d"}\n', headers: [], security: {}, sentinel, render }
 	return new TextEncoder().encode(JSON.stringify({ seed: true, key, renderedAt, tags: [], data }))
 }

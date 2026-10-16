@@ -73,7 +73,7 @@ const get = (path = "/p", init?: RequestInit): Request => new Request(`${SITE}${
 // A stored record built by hand, the way a write would leave it.
 function record(page: Partial<StoredPage> = {}, at = 0): FlareStoreEntry {
 	const sentinel = newSentinel()
-	const html = `<html><head></head><body><script nonce="${sentinel}">x()</script>stored<script nonce="${sentinel}">self.flare={"matches":[],"nonce":"${sentinel}"}</script></body></html>`
+	const html = `<html><head></head><body><script nonce="${sentinel}">x()</script>stored<script id="flare-state" nonce="${sentinel}">self.flare={"matches":[],"nonce":"${sentinel}"}</script></body></html>`
 	const data: StoredPage = {
 		html,
 		ndjson: '{"t":"l","m":"_root_/p","d":{"text":"stored"}}\n{"t":"r"}\n{"t":"d"}\n',

@@ -84,6 +84,8 @@ Each entry:
 
 ## SecurityConfig
 
+**Warning: enforce path rules in Flare, not in front of it.** A rule in a proxy, load balancer, or WAF that matches the raw request path can be walked around: Bun and Workers read a backslash as `/` (WHATWG URL parsing) before Flare runs, so `/a\b` reaches Flare as `/a/b` while the proxy saw a path it did not match. Flare reads every runtime's path the same way (B22, BUGS.md 163), so a middleware `filter` sees the one path that routes, with the basePath and locale stripped too (BUGS.md 159). Put an access rule in Flare middleware, or make the proxy normalize the path exactly as WHATWG does before it matches.
+
 Every key is optional. Omission keeps the default. `false` removes the header. A string replaces the header value.
 
 The callback `ctx` is `{ request, env, nonce, serverContext }`. It runs once per request, after `serverContext`, and a throw is a projected 500. The callback cannot choose the nonce. The framework appends it after the callback returns, and a route's `.security()` keeps it, so `ctx.nonce` is the one the header and every tag carry (`apply.test.ts` `server security`). Route `.security()` `ctx` has no `nonce` field (`builder.md`).

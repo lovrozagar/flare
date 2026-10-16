@@ -10,7 +10,7 @@ it("default", () => {
 
 it("pass through", () => {
 	const response = new Response(null, { headers: { "cache-control": "public, max-age=60", "x-kept": "1" } })
-	setCacheControl(response.headers, post)
+	setCacheControl(response.headers, post, 200)
 	expect(response.headers.get("cache-control")).toBe("private, no-store")
 	expect(response.headers.get("x-kept")).toBe("1")
 })

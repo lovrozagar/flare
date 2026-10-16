@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process"
+import { connect } from "node:net"
 import { mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -29,9 +30,11 @@ const element = (component, children) => createComponent(Dynamic, { component, g
 const root = createRootLayout("_root_").render((props) => element("html", [element("head", []), element("body", props.children)]));
 const home = createPage("_root_/").render(() => "worker home");
 const stored = createPage("_root_/stored").cache({ ssr: { ttl: "1m" } }).render(() => "stored page");
+const nested = createPage("_root_/a/b").response(() => new Response("ab"));
 const routeTree = [
 	{ id: "_root_/", path: "/", module: home },
 	{ id: "_root_/stored", path: "/stored", module: stored },
+	{ id: "_root_/a/b", path: "/a/b", module: nested },
 ];
 const server = createServer({
 	router: createRouter({ layouts: { _root_: root }, routeTree }),
@@ -115,6 +118,29 @@ it("worker host", async () => {
 	const text = await page.text()
 	expect(text).not.toContain("stored page")
 	expect(page.status === 200 ? text.includes("worker home") : page.status >= 400).toBe(true)
+})
+
+// A raw request line to workerd's own socket: the status line and the body, so no client parses the URL first.
+async function raw(target: string): Promise<string> {
+	const { hostname, port } = await mf.ready
+	return new Promise((resolve) => {
+		const socket = connect(Number(port), hostname)
+		let text = ""
+		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
+		socket.on("close", () => {
+			const [head = "", body = ""] = text.split("\r\n\r\n")
+			const chunked = /^transfer-encoding: chunked$/im.test(head)
+			resolve(`${head.split("\r\n")[0] ?? ""} ${chunked ? (body.split("\r\n")[1] ?? "") : body}`)
+		})
+		socket.end(`GET ${target} HTTP/1.1\r\nhost: example.com\r\nconnection: close\r\n\r\n`)
+	})
+}
+
+// workerd reads a backslash as WHATWG's parser does, before Flare runs: `/a\b` is `/a/b`, served, and `/\a/b` is
+// `//a/b`, a 400, the same answers as Node and Bun (BUGS.md 163).
+it("worker backslash", async () => {
+	expect(await raw("/a\\b")).toBe("HTTP/1.1 200 OK ab")
+	expect((await raw("/\\a/b")).startsWith("HTTP/1.1 400")).toBe(true)
 })
 
 // After routing, an unmatched GET or HEAD goes to the binding, and a file comes back untouched; a path the binding

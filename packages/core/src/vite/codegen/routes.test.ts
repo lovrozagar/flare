@@ -1,3 +1,4 @@
+import { parseSync } from "oxc-parser"
 import { expect, it } from "vitest"
 import { defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts"
 
@@ -264,4 +265,15 @@ it("segment emitted", () => {
 	expect(generated.layouts.map((layout) => layout.id)).toContain("_root_/docs")
 	expect(generated.source).toContain('"_root_/docs": () => import("../routes/_root_/docs/docs.segment.ts")')
 	expect(generated.source).toContain('"_root_/docs": "/src/routes/_root_/docs/docs.segment.ts"')
+})
+
+// A route folder named with a newline, U+2028, or U+2029 still generates code that parses, each name written as an
+// escaped string literal, never raw (plan 21 16.6, BUGS.md 165). A param name is an identifier already.
+it("hostile names", () => {
+	const names = ["a\nb", "c\u2028d", "e\u2029f"]
+	const { source } = routesOf(names.map((name, index) => `_root_/${name}/p${index}.page.tsx`))
+	expect(parseSync("routes.gen.ts", source).errors).toEqual([])
+	for (const raw of ['\n"', "\u2028", "\u2029"]) expect([raw, source.includes(raw)]).toEqual([raw, false])
+	expect(source).toContain(String.raw`"_root_/a\nb"`)
+	expect(source).toContain(String.raw`"_root_/c\u2028d"`)
 })

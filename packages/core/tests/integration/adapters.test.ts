@@ -35,6 +35,7 @@ function app(release: Promise<void>): ReturnType<typeof createServer> {
 	})
 	const echo = createPage("_root_/echo").response(async ({ request }) => new Response(`echo ${await request.text()}`))
 	const where = createPage("_root_/where").response(({ request }) => new Response(request.url))
+	const nested = createPage("_root_/a/b").response(() => new Response("ab"))
 	const stream = createPage("_root_/stream").response(() => {
 		const encoder = new TextEncoder()
 		const body = new ReadableStream<Uint8Array>({
@@ -53,6 +54,7 @@ function app(release: Promise<void>): ReturnType<typeof createServer> {
 		{ id: "_root_/cookies", path: "/cookies", module: cookies },
 		{ id: "_root_/echo", path: "/echo", module: echo },
 		{ id: "_root_/where", path: "/where", module: where },
+		{ id: "_root_/a/b", path: "/a/b", module: nested },
 		{ id: "_root_/stream", path: "/stream", module: stream },
 	]
 	return createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }) })
@@ -125,6 +127,42 @@ function withHost(origin: string, target: string, host: string): Promise<{ statu
 		socket.end(`GET ${target} HTTP/1.1\r\nhost: ${host}\r\nconnection: close\r\n\r\n`)
 	})
 }
+
+// A backslash in the path is read as WHATWG's URL parser reads it, as Bun and Workers do before Flare runs: `/a\b` is
+// `/a/b` and served, and `/\a/b` is `//a/b`, a 400. One answer on every runtime, so a path rule in Flare middleware
+// sees the same path everywhere (plan 21 12.8, B22, BUGS.md 163).
+const BACKSLASHES: ReadonlyArray<readonly [string, string]> = [
+	["/a\\b", "HTTP/1.1 200 OK ab"],
+	["/\\a/b", "HTTP/1.1 400 Bad Request "],
+]
+
+async function backslashAnswers(origin: string): Promise<string[]> {
+	const host = new URL(origin).host
+	const out: string[] = []
+	for (const [target] of BACKSLASHES) {
+		const answer = await withHost(origin, target, host)
+		out.push(`${answer.status} ${answer.body}`)
+	}
+	return out
+}
+
+it("node backslash", async () => {
+	const origin = await listen(createNodeListener(app(Promise.resolve())))
+	expect(await backslashAnswers(origin)).toEqual(BACKSLASHES.map(([, answer]) => answer))
+})
+
+it.runIf(Reflect.get(globalThis, "Bun") !== undefined)("bun backslash", async () => {
+	const runtime: unknown = Reflect.get(globalThis, "Bun")
+	const served: unknown = Reflect.apply(Reflect.get(Object(runtime), "serve"), runtime, [
+		{ hostname: "127.0.0.1", port: 0, ...createBunFetch(app(Promise.resolve())) },
+	])
+	try {
+		const origin = `http://127.0.0.1:${Number(Reflect.get(Object(served), "port"))}`
+		expect(await backslashAnswers(origin)).toEqual(BACKSLASHES.map(([, answer]) => answer))
+	} finally {
+		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
+	}
+})
 
 const HOSTILE_HOSTS = [
 	"evil.example/admin?",

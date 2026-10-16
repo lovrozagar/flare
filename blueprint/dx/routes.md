@@ -59,7 +59,7 @@ Rank, most specific first: a static segment, a required param, an optional param
 
 Search is a null-prototype record (`shared/url/search.test.ts` `proto`). The keys `__proto__`, `constructor`, and `prototype` are dropped. `""` is kept. `null`, `undefined`, and an empty array are omitted. Other arrays repeat in appearance order. Keys are sorted on write. Keys and values use `encodeURIComponent`. An empty search omits `?`. An empty hash omits `#` (`search.test.ts` `empty`, `sort`, `repeat`, `empty hash`).
 
-A folder named `index` is not special. `src/routes/_root_/index/home.page.tsx` has id `_root_/index` and URL `/index` (`routes.test.ts` `index folder`).
+A folder named `index` is not special. `src/routes/_root_/index/home.page.tsx` has id `_root_/index` and URL `/index` (`routes.test.ts` `index folder`). A folder name may hold any character the file system allows: codegen writes every id, path, and import specifier through one JSON-based writer that also escapes U+2028, U+2029, and `</`, so a newline in a name cannot break the generated module (`routes.test.ts` `hostile names`, BUGS.md 165).
 
 ## What is not a route
 

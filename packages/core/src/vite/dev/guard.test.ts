@@ -84,11 +84,13 @@ it("target guard", async () => {
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
 	const port = Number(Reflect.get(Object(server.address()), "port"))
 	try {
-		for (const target of ["//x", "/a\\b", "http://evil.example/a"]) {
+		for (const target of ["//x", "/\\x", "http://evil.example/a"]) {
 			expect(await statusOf(port, target)).toBe("HTTP/1.1 400 Bad Request")
 		}
-		for (const target of ["/a//b", "/a?x=%2f", "/"]) expect(await statusOf(port, target)).toBe("HTTP/1.1 200 OK")
-		expect(seen).toEqual(["/a//b", "/a?x=%2f", "/"])
+		// A backslash reads as `/` (B22, BUGS.md 163): `/a\\b` passes, and the plugin's URL parser reads it as `/a/b`.
+		for (const target of ["/a//b", "/a?x=%2f", "/", "/a\\b"])
+			expect(await statusOf(port, target)).toBe("HTTP/1.1 200 OK")
+		expect(seen).toEqual(["/a//b", "/a?x=%2f", "/", "/a\\b"])
 		// A request with no url, which node:http never makes, is the root.
 		let passed = false
 		targetGuard({}, { writeHead: () => undefined, end: () => undefined }, () => (passed = true))

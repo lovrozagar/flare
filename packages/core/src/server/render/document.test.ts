@@ -267,10 +267,10 @@ function stateTag(html: string): string {
 
 it("state nonce", async () => {
 	const signed = await text(await renderDocument({ ...base(), nonce: "n", render: () => "home" }))
-	expect(stateTag(signed)).toBe('<script nonce="n">')
+	expect(stateTag(signed)).toBe('<script id="flare-state" nonce="n">')
 	expect(signed).toContain('"nonce":"n"')
 	const plain = await text(await renderDocument({ ...base(), nonce: "", render: () => "home" }))
-	expect(stateTag(plain)).toBe("<script>")
+	expect(stateTag(plain)).toBe('<script id="flare-state">')
 })
 
 it("matches required", () => {

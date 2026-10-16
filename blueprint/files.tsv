@@ -25,6 +25,7 @@ packages/core/lint/no-flare-header-branching.test.ts	P3	test	node	Unit cases for
 packages/core/tests/structure/tree.test.ts	P0	test	node	check-tree fails on an extra file, a missing file, and an index with a statement
 packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball; the README names exactly the packed exports and its quick start compiles against them
 packages/core/tests/structure/errored.test.ts	P14	test	node	No source file but safe-errored.ts reaches Solid's Errored, by import or namespace member (BUGS.md 141)
+packages/core/tests/structure/json-only.test.ts	P14	test	node	No source file decodes a form body (formData, multipart, a urlencoded body read): server functions are JSON-only by B4 (plan 21 16.8)
 packages/core/tests/structure/api.test.ts	P14	test	node	Each entry's public d.ts matches its snapshot
 packages/core/tests/structure/dx-options.test.ts	P14	test	node	Every dx option table names only keys of its type; Planned (plan 15) tables and named exemptions aside (BUGS.md 113)
 packages/core/tests/structure/readme.ts	P14	test	node	Reads the root README for readme.test.ts and exports.test.ts: the quick-start blocks, table rows, and backticked names
@@ -661,6 +662,7 @@ packages/core/tests/integration/router.test.ts	P1	test	node	dx/router.md's serve
 packages/core/tests/integration/router-client.test.ts	P1	test	node	dx/router.md's client rows through the hydrate harness in three engines: scroll restoration, its key and cap, the client cache and its cap, rewrite (plan 14 9.6)
 packages/core/tests/integration/harness-app.ts	P1	test	node	An app for the hydrate harness's app mode from its source text, shared by the dx client integration tests (B96)
 packages/core/tests/integration/builder.test.ts	P1	test	node	dx/builder.md's methods through the real createServer(...).fetch: which builder has which method, the call-once and order rules, input, auth, preloader, loader, response, and the server callbacks' context (plan 14 9.6)
+packages/core/tests/integration/hostile.test.ts	P15	test	node	Hostile request values through the real createServer(...).fetch: a CR or LF in a `.headers()` value or a redirect target, and a malformed locale escape, each come back as an answer, never a rejected fetch (BUGS.md 168)
 packages/core/tests/integration/builder-render.test.ts	P1	test	node	dx/builder.md's head, headers, security, the root's document in dev and a production build, the boundary walk and rank, a failed root, and the render props through the real createServer(...).fetch (plan 14 9.6)
 packages/core/tests/integration/builder-app.ts	P1	test	node	Routes made with the real builders, served by the real createServer(...).fetch with the case's options, and the document and data stream read back, for dx/builder.md's integration tests
 packages/core/tests/integration/builder-client.test.ts	P1	test	node	dx/builder.md's client rows through the hydrate harness in three engines: a named failure painted at its match, a failed root loaded as a document, a head that replaces, an intercepted navigation, and errorRender's reset (plan 14 9.6, BUGS.md 134, 136)

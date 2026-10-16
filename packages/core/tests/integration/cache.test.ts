@@ -63,7 +63,7 @@ const KEY = "static:dev:_root_/p"
 // A stored record built by hand, as a write leaves it, fresh at `Date.now()`.
 function storedRecord(text: string): { data: unknown; storedAt: number; tags: string[] } {
 	const sentinel = "__FLARE_NONCE_00000000000000000000000000000000"
-	const html = `<html><head></head><body>${text}<script nonce="${sentinel}">self.flare={"matches":[],"nonce":"${sentinel}"}</script></body></html>`
+	const html = `<html><head></head><body>${text}<script id="flare-state" nonce="${sentinel}">self.flare={"matches":[],"nonce":"${sentinel}"}</script></body></html>`
 	const data = { html, ndjson: '{"t":"r"}\n{"t":"d"}\n', headers: [], security: {}, sentinel, render: "isr" }
 	return { data, storedAt: Date.now(), tags: [] }
 }

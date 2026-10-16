@@ -243,7 +243,10 @@ it("entry export", async () => {
 // The app's document reaches the client as the app wrote it, chunk by chunk: the server wrote the dev tags (B95 (b)).
 it("document passes through", async () => {
 	const encoder = new TextEncoder()
-	const chunks = ['<html><head><script nonce="n">self.flare={}</script></head><body>a', "b</body></html>"]
+	const chunks = [
+		'<html><head><script id="flare-state" nonce="n">self.flare={}</script></head><body>a',
+		"b</body></html>",
+	]
 	const body = new ReadableStream<Uint8Array>({
 		start(controller) {
 			for (const chunk of chunks) controller.enqueue(encoder.encode(chunk))
