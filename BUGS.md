@@ -885,6 +885,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 159 [x] A middleware path filter was bypassed by a locale prefix or the basePath
 159.1 [x] Plan 21 12.1, from the third outside review: server/middleware/filters.ts matched a filter against the pathname as sent, so a middleware listed with `{ prefix: ["/admin"] }` that blocks the admin area did not run for `/hr/admin` under a `[[locale]]` root, which rendered with 200, and under `basePath: "/base"` never matched at all (`/base/admin`). Red: tests/integration/middleware.test `filter route path` through the real createServer(...).fetch: `/hr/admin` answered 200 past the block.
 159.2 [x] Fix: the runner hands each filter the route path too, the pathname without the basePath and without a configured locale (any case) as its first segment, and a filter enters when either matches. `/admin`, `/hr/admin`, `/HR/admin/x`, and `/base/admin` are blocked; `/about` is not. dx/server.md says so.
+160 [x] A custom head script could load from any URL through `extra.src`
+160.1 [x] Plan 21 12.2, from the third outside review: shared/head/tags.ts `scriptTag` spread the allowed `extra` attributes onto the script, and `src` is an allowed name. Since BUGS 146 wrote `extra` on an inline script too, `{ children, extra: { src } }` became an external script carrying the request nonce, which any CSP that trusts the nonce runs; on an external script `extra.src` replaced its own `src`. Head data from a CMS or a loader could load any script. Red: tests/integration/head.test `custom extra url` through the real createServer(...).fetch: both scripts pointed at evil.example.
+160.2 [x] Fix: a script's `extra` skips `nonce`, `src`, and `href`, any case. The inline script stays inline with its nonce, and the external one loads from its own `src`. dx/head.md says so.
 
 ## Verify
 
