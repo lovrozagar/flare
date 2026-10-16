@@ -24,8 +24,8 @@ import {
 	arrive,
 	fillOptions,
 	holeWatch,
-	nextSnapshot,
-	onPage,
+	commitQueries,
+	committedSnapshot,
 	sameUrl,
 	type Arrival,
 	type DataTarget,
@@ -243,8 +243,7 @@ async function settle(
 		settled.end()
 		return true
 	}
-	const landed = nextSnapshot(deps, { target, chain: settled.chain, arrival, previous })
-	const next = onPage(plan.fill, landed, deps.store.snapshot())
+	const next = committedSnapshot(deps, plan.fill, { target, chain: settled.chain, arrival, previous })
 	const step = { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" }
 	keepPosition(deps, previous.location, step)
 	// The DOM updates, in a view transition when one is on, and every scroll is final before the update returns, so the
@@ -258,6 +257,7 @@ async function settle(
 		update: () => {
 			// A navigation started since this transition began aborted this one: it commits nothing (BUGS.md 98).
 			if (settled.signal.aborted) return
+			commitQueries(arrival.kind === "landed" ? arrival.landing : undefined)
 			shown = deps.store.commit(next)
 			settled.end()
 			flush()

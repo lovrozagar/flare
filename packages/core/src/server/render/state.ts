@@ -1,4 +1,5 @@
 import type { Located } from "../../shared/route-builder/index.ts"
+import { registeredQuery } from "../../shared/protocol/index.ts"
 import { escapeAttr, escapeInlineScript } from "./escape.ts"
 
 export type StateMatch = {
@@ -35,13 +36,20 @@ export function stateWriter(
 }
 
 function queriesJson(queries: unknown, onBug: (bug: Error) => void): string {
+	return JSON.stringify(writableQueries(queries, onBug) ?? null)
+}
+
+// The query cache as it can be written, the document state's or a data answer's `q` frame (B83, B134): the cache when
+// JSON holds it, else null and a bug that names the failing query. Undefined, no client, stays undefined.
+export function writableQueries(queries: unknown, onBug: (bug: Error) => void): unknown {
 	try {
-		return JSON.stringify(queries ?? null)
+		JSON.stringify(queries)
+		return queries
 	} catch (cause) {
 		const hash = failingQuery(queries)
 		const what = hash === undefined ? "the query cache" : `the query ${hash}`
-		onBug(new Error(`${what} does not serialize into the document state`, { cause }))
-		return "null"
+		onBug(new Error(`${what} does not serialize into the answer`, { cause }))
+		return null
 	}
 }
 
@@ -80,4 +88,10 @@ export function insertState(shell: string, script: string): string {
 	const close = shell.lastIndexOf("</body>")
 	if (close === -1) return `${shell}${script}`
 	return `${shell.slice(0, close)}${script}${shell.slice(close)}`
+}
+
+// The request's query cache for a data answer's `q` frame, once its loaders ran; undefined when the request made no
+// client (B134).
+export function answerQueries(sink: { log: { error: (tag: string, message: string) => void } }): unknown {
+	return writableQueries(registeredQuery()?.dehydrate(), (bug) => sink.log.error("queries", bug.message))
 }

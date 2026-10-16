@@ -24,8 +24,10 @@ it("unknown t", () => {
 	expect(() => decodeLine("[]")).toThrow(/frame/)
 })
 
-it("unknown t q", () => {
-	expect(() => decodeLine('{"t":"q"}')).toThrow(/frame/)
+// `q` carries the request's query cache (B134); a kind the protocol lacks still throws.
+it("query frame", () => {
+	expect(decodeLine('{"t":"q","d":{"queries":[]}}')).toEqual({ t: "q", d: { queries: [] } })
+	expect(() => decodeLine('{"t":"z"}')).toThrow(/frame/)
 })
 
 it("oversize", () => {

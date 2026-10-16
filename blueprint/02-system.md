@@ -115,12 +115,13 @@ A document-less root is 500 in production (B37).
 | `l` | one per matched route, immediately | `m` match id, `d` loader data (promises replaced by placeholders), `p` preloader context when present, `v` `{ params, search }` validator output when that match has `.input()` (the client never runs validators, B8). A match without `.input()` sends no `v` and the client uses the raw records. A stale-skipped page keeps the `v` its cache entry holds |
 | `e` | loader or deferred failure | `m`, `e` `{ message, stack }` in dev and `{ message, digest }` in production (no `stack` key). `k` is present only for a deferred failure. A loader failure has no `k` |
 | `h` | one per matched route that has a head result | `m`, `d` head config. A skipped route emits no `h` and no `l`. A match whose loader threw emits no `h` and no `l` |
+| `q` | the request made a query client | `d` the request's dehydrated query cache, taken once the loaders settled; `null` when JSON cannot hold it, and that is a logged bug naming the query. Absent when the request made no client (B134) |
 | `r` | loaders have settled | none |
 | `c` | a deferred resolved | `m`, `k`, `d` |
 | `x` | the chain redirected | `s` status, `u` the built URL with search and hash, `r` replace. `r` is always present |
 | `d` | the stream is finished | none |
 
-Order: all `l` and loader-level `e`, then all `h`, then `r`, then zero or more `c` or deferred `e`, then `d`. Each `c` is written when that promise settles, and a slow one does not hold a fast one. `d` is written after the last of them. A deferred `e` does not cancel the others (B80). An `x` replaces the whole body: it is the only frame. The HTTP status of that response is 200. The redirect status lives in `s`.
+Order: all `l` and loader-level `e`, then all `h`, then `q` when present, then `r`, then zero or more `c` or deferred `e`, then `d`. Each `c` is written when that promise settles, and a slow one does not hold a fast one. `d` is written after the last of them. A deferred `e` does not cancel the others (B80). An `x` replaces the whole body: it is the only frame. The HTTP status of that response is 200. The redirect status lives in `s`.
 
 `_flare_stale` may omit page `l` frames. Layout `l` frames are always present (B30).
 

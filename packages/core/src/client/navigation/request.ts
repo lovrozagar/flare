@@ -1,6 +1,6 @@
 import type { OutletMatch } from "../../shared/components/index.ts"
 import { rawParams } from "../../shared/components/outlet-nodes.ts"
-import { BUILD_HEADER, FAILED_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts"
+import { BUILD_HEADER, FAILED_HEADER, KIND_PARAM, registeredQuery, STALE_PARAM } from "../../shared/protocol/index.ts"
 import type { LoadedEntry } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
 import { cachedMatches, defined, holds, remember, type CachePlan } from "../router/match-cache.ts"
@@ -208,4 +208,20 @@ export function onPage(fill: boolean, next: StoreSnapshot, now: StoreSnapshot): 
 		search: required(now.matches[index], "the match on screen").search,
 	}))
 	return { ...next, location: now.location, matches }
+}
+
+// The snapshot a landing commits: the landing's own, laid onto the page as it is now when it is a fill.
+export function committedSnapshot(
+	deps: NavigatorDeps,
+	fill: boolean,
+	next: Parameters<typeof nextSnapshot>[1],
+): StoreSnapshot {
+	return onPage(fill, nextSnapshot(deps, next), deps.store.snapshot())
+}
+
+// A landing's query cache goes into the document's client when its navigation commits, never on arrival: a navigation
+// that is aborted or superseded, and a prefetch nobody takes, leave the cache alone. TanStack's hydrate keeps a query
+// the client holds newer data for (B134).
+export function commitQueries(landing: Landed | undefined): void {
+	if (landing?.queries !== undefined) registeredQuery()?.hydrate?.(landing.queries)
 }

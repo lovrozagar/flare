@@ -22,7 +22,12 @@ class RequestQueries {
 // Marks a getter this module made, so the registered one can be returned with its type.
 const BRAND = Symbol.for("flare.query.getter")
 
-type ClientGetter = (() => QueryClient) & { dehydrate: () => unknown; hydrated: () => void; clear: () => void }
+type ClientGetter = (() => QueryClient) & {
+	dehydrate: () => unknown
+	hydrated: () => void
+	clear: () => void
+	hydrate: (state: unknown) => void
+}
 
 // One client per document on the client, one per request on the server (dx/features.md Query). The getter registers
 // once per process, and a second call returns the registered one. It takes no options. The app passes its client to
@@ -47,6 +52,8 @@ export function createQueryClientGetter(): () => QueryClient {
 		// A server function wrote a cookie, or the app called `invalidate()`: the cached queries may be another
 		// visitor's, so they go, not refetch while showing (B133).
 		clear: () => documentClient?.clear(),
+		// A navigation's queries, at its commit. TanStack keeps a query whose client data is newer (B134).
+		hydrate: (state: unknown) => hydrate(getter(), state as Parameters<typeof hydrate>[1]),
 		[BRAND]: true,
 	})
 	registerQuery(created)

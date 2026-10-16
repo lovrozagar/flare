@@ -1,6 +1,7 @@
 import { defined } from "../../shared/errors/index.ts"
 import { withServerContext } from "../context/ctx.ts"
 import { drawn, framed, loaderInput, type Loaded } from "../lifecycle/answers.ts"
+import { answerQueries } from "../render/state.ts"
 import type { Exchange } from "../lifecycle/exchange.ts"
 import { runLoaders, type LoaderRun } from "../loaders/run.ts"
 import { dataBody, dataFrames } from "../navigation/index.ts"
@@ -70,7 +71,8 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 	const project = framed(shared)
 	// A fulfilled value travels inline in its `l` frame, so only a rejection still needs a frame (BUGS.md 94).
 	const deferred = run.deferred.filter((_, index) => results[index]?.status === "rejected")
-	const ndjson = await new Response(dataBody({ ...dataFrames(run, NOTHING_STALE), deferred, project })).text()
+	const queries = answerQueries(shared.sink)
+	const ndjson = await new Response(dataBody({ ...dataFrames(run, NOTHING_STALE), deferred, project, queries })).text()
 	const settled = results.every((result) => result.status === "fulfilled")
 	return { run, html, ndjson, nonce: document.exchange.secured.nonce, settled, startedAt }
 }

@@ -1,4 +1,6 @@
 import { expect, it } from "vitest"
+import { QUERY_GETTER } from "../../shared/protocol/query.ts"
+import { answerQueries } from "./state.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { renderDocument } from "./document.ts"
 import { insertState, stateScript } from "./state.ts"
@@ -60,6 +62,28 @@ it("insertion", () => {
 	const html = insertState("<body>hi</body>", script)
 	expect(html.indexOf(script)).toBeGreaterThan(-1)
 	expect(html.indexOf(script)).toBeLessThan(html.indexOf("</body>"))
+})
+
+// A request's query cache with a value JSON cannot hold.
+const dehydrate = () => ({ queries: [{ queryHash: '["n"]', state: { data: 1n } }] })
+
+// A data answer's query cache: none without a registered client, and one JSON cannot hold is logged as the bug it is
+// and sent as null, so the answer still goes out (BUGS.md 192).
+it("answer queries", () => {
+	const errors: string[] = []
+	const sink = { log: { error: (tag: string, message: string) => void errors.push(`${tag}: ${message}`) } }
+	expect(answerQueries(sink)).toBeUndefined()
+	Reflect.set(
+		globalThis,
+		QUERY_GETTER,
+		Object.assign(() => ({}), { dehydrate }),
+	)
+	try {
+		expect(answerQueries(sink)).toBeNull()
+	} finally {
+		Reflect.deleteProperty(globalThis, QUERY_GETTER)
+	}
+	expect(errors).toEqual(['queries: the query ["n"] does not serialize into the answer'])
 })
 
 // A render that left a `"stream"` hole says so, so the client sends one fill after hydrate. Without a hole the field
