@@ -1,46 +1,17 @@
-import { spawn } from "node:child_process"
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
-import { fileURLToPath, pathToFileURL } from "node:url"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import { createServer as createViteServer, isRunnableDevEnvironment } from "vite"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { flare } from "../../src/vite/plugin/flare.ts"
+import { builtServer, fixtureApps, page, rootLayout, viteBuild, type Server } from "./vite-app.ts"
 
 // dx/routes.md through real apps (B96): each fixture is an app of route files under src/routes, built by `vite build`
 // from a config file with flare(), as the CLI runs it, and answered by the built server's `fetch`. A build error is
 // that build's failure. The lazy route wait runs in `vite dev`'s SSR runner, where it applies.
 
-// Inside the repo's node_modules, so an app's import of the package resolves as an installed app's would.
-const FIXTURES = fileURLToPath(new URL("../../../../node_modules/.flare-fixtures/", import.meta.url))
-const VITE = fileURLToPath(new URL("../../../../node_modules/vite/bin/vite.js", import.meta.url))
+const apps = fixtureApps()
 
-const roots: string[] = []
-
-afterAll(() => {
-	for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
-})
-
-// The files every app shares: the config, the router over the generated map, the server, and the client.
-const SHELL: Record<string, string> = {
-	"vite.config.mjs":
-		'import { flare } from "@lovrozagar/flare/vite";\nexport default { logLevel: "error", plugins: [flare()] };\n',
-	"src/router.ts":
-		'import { createRouter } from "@lovrozagar/flare";\nimport { chunks, layouts, routeTree } from "./_gen/routes.gen.ts";\nexport const router = createRouter({ layouts, routeTree, chunks });\n',
-	"src/server.ts":
-		'import { createServer } from "@lovrozagar/flare/server";\nimport { router } from "./router.ts";\nexport const server = createServer({ router });\n',
-	"src/client.tsx":
-		'import { createClient } from "@lovrozagar/flare/client";\nimport { router } from "./router.ts";\ncreateClient(router);\n',
-}
-
-// A root layout whose body names the root, so a response shows which document it is.
-function rootLayout(id: string): string {
-	return `import { createRootLayout } from "@lovrozagar/flare";\nexport const route = createRootLayout(${JSON.stringify(id)}).render((props) => <html><head><title>t</title></head><body data-root=${JSON.stringify(id)}>{props.children}</body></html>);\n`
-}
-
-// A page that prints its id and its params.
-function page(id: string): string {
-	return `import { createPage } from "@lovrozagar/flare";\nexport const route = createPage(${JSON.stringify(id)}).loader((ctx) => ({ params: JSON.stringify(ctx.params) })).render((props) => <p id="page">{${JSON.stringify(id)}} {props.loaderData.params}</p>);\n`
-}
+afterAll(() => apps.removeAll())
 
 function layout(id: string): string {
 	return `import { createLayout } from "@lovrozagar/flare";\nexport const route = createLayout(${JSON.stringify(id)}).render((props) => <section id="layout">{props.children}</section>);\n`
@@ -48,42 +19,12 @@ function layout(id: string): string {
 
 // An app of the shell plus route files, keyed by their path under src/routes.
 function project(routes: Record<string, string>): string {
-	mkdirSync(FIXTURES, { recursive: true })
-	const root = mkdtempSync(join(FIXTURES, "routes-"))
-	roots.push(root)
-	const files = Object.entries(routes).map(([path, source]) => [`src/routes/${path}`, source])
-	for (const [path, source] of [...Object.entries(SHELL), ...files] as [string, string][]) {
-		mkdirSync(dirname(join(root, path)), { recursive: true })
-		writeFileSync(join(root, path), source)
-	}
-	return root
+	return apps.make(Object.fromEntries(Object.entries(routes).map(([path, source]) => [`src/routes/${path}`, source])))
 }
-
-type Built = { status: number | null; output: string }
-
-// `vite build` in a child process, with NODE_ENV production as a deploy builds: the test runner's `test` would select
-// Solid's development server build.
-function build(root: string): Promise<Built> {
-	const child = spawn(process.execPath, [VITE, "build"], {
-		cwd: root,
-		env: { ...process.env, NODE_ENV: "production" },
-		stdio: ["ignore", "pipe", "pipe"],
-	})
-	let output = ""
-	child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()))
-	child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()))
-	return new Promise((done) => child.on("close", (status) => done({ status, output })))
-}
-
-type Server = { fetch: (request: Request) => Promise<Response> }
 
 // The built app's server, or the build's output as the failure.
-async function served(routes: Record<string, string>): Promise<Server> {
-	const root = project(routes)
-	const built = await build(root)
-	if (built.status !== 0) throw new Error(built.output)
-	const loaded: { server: Server } = await import(pathToFileURL(join(root, "dist/server/server.js")).href)
-	return loaded.server
+function served(routes: Record<string, string>): Promise<Server> {
+	return builtServer(project(routes))
 }
 
 type Answer = { status: number; root: string | undefined; layout: boolean; page: string | undefined }
@@ -213,7 +154,7 @@ it("more than one root", async () => {
 
 // What a failed build printed. A build that passed throws.
 async function failure(routes: Record<string, string>): Promise<string> {
-	const built = await build(project(routes))
+	const built = await viteBuild(project(routes))
 	if (built.status === 0) throw new Error("the build passed")
 	return built.output
 }
