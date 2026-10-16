@@ -2,7 +2,8 @@ import { dirname, resolve } from "node:path"
 import type { Page } from "@playwright/test"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { appFrom } from "./harness-app.ts"
-import { ENGINES, startHarness, type Api, type AppResult, type Engine, type Harness } from "./hydrate.harness.ts"
+import type { AppCase } from "./hydrate.app.ts"
+import { ENGINES, startHarness, type AppResult, type Engine, type Harness } from "./hydrate.harness.ts"
 
 // dx/builder.md's client rows: a real document `createServer(...).fetch` serves, hydrated by the real `createClient`
 // in each engine (hydrate.app.ts), navigated by clicking real anchors (B96).
@@ -17,7 +18,7 @@ afterAll(async () => {
 	await harness?.close()
 })
 
-type Visit = { app: (api: Api) => { router: unknown }; path: string; steps: (tab: Page) => Promise<void> }
+type Visit = Pick<AppCase, "app" | "path" | "steps" | "prime">
 
 function run(engine: Engine, visit: Visit): Promise<AppResult> {
 	if (harness === undefined) throw new Error("the harness did not start")
@@ -200,6 +201,88 @@ async function directSteps(tab: Page): Promise<void> {
 	)
 }
 
+// A root with anchors to `paths` over its slot. Each loader below returns how many times the server ran it.
+const EFFECTS = appFrom(`
+const anchor = (to) => api.solid.createComponent(api.web.Dynamic, { component: "a", href: to, id: "to" + to.replace(/\\W/g, "-"), children: to })
+const paths = ["/deps?page=1", "/deps?page=2", "/trigger?x=a", "/trigger?x=b", "/old", "/new", "/away"]
+const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
+	api.h("head", "head"),
+	api.h("body", "body", () => [...paths.map(anchor), api.h("main", "slot", () => props.children)]),
+]))
+const count = (key) => (globalThis[key] = (globalThis[key] ?? 0) + 1)
+const text = (id) => (props) => api.h("span", id, () => props.loaderData.text)
+const deps = api.page.createPage("_root_/deps")
+	.effects({ loaderDeps: ({ search }) => [search.page] })
+	.loader(({ search }) => ({ text: "page " + search.page + " run " + count("__flareDepsRuns") }))
+	.render(text("deps"))
+const trigger = api.page.createPage("_root_/trigger")
+	.effects({
+		shouldRefetch: (ctx) => {
+			if (typeof window !== "undefined") window.__flareRecord.push({ trigger: ctx.trigger, next: ctx.location.next.search })
+			return ctx.trigger === "navigation"
+		},
+	})
+	.loader(() => ({ text: "run " + count("__flareTriggerRuns") }))
+	.render(text("trigger"))
+const stored = (id) => api.page.createPage(id)
+	.cache({ isr: true, client: { staleTime: "1m" } })
+	.loader(() => ({ text: "run " + count("__flareStoredRuns") }))
+	.render(text("stored"))
+const away = api.page.createPage("_root_/away").render(() => "away")
+const holed = api.page.createPage("_root_/holed")
+	.cache({ isr: { defer: "stream" } })
+	.effects({ shouldRefetch: (ctx) => ctx.trigger === "initial" })
+	.loader(({ defer }) => ({ late: defer(() => new Promise((resolve) => setTimeout(() => resolve("filled"), 20))) }))
+	.render((props) => {
+		const late = api.deferred.useDeferred(() => props.loaderData.late)
+		return api.h("p", "holed", () => api.solid.createComponent(api.solid.Loading, { fallback: "wait", get children() { return late() } }))
+	})
+const routeTree = [
+	{ id: "_root_/deps", path: "/deps", module: deps },
+	{ id: "_root_/trigger", path: "/trigger", module: trigger },
+	{ id: "_root_/old", path: "/old", module: stored("_root_/old") },
+	{ id: "_root_/new", path: "/new", module: stored("_root_/new") },
+	{ id: "_root_/away", path: "/away", module: away },
+	{ id: "_root_/holed", path: "/holed", module: holed },
+]
+return {
+	router: api.router.createRouter({ layouts: { _root_: root }, routeTree, cache: { client: { staleTime: "1m" } } }),
+	server: { store: api.memory.createMemoryStore() },
+}
+`)
+
+// The loader's run number in the slot, once the URL is `path` and the slot reads `want`.
+async function runAt(tab: Page, path: string, want = "run"): Promise<number> {
+	await tab.waitForFunction(
+		([at, text]) =>
+			location.pathname + location.search === at &&
+			document.getElementById("slot")?.textContent?.includes(text) === true,
+		[path, want],
+	)
+	return Number(await tab.evaluate(() => /run (\d+)/.exec(document.getElementById("slot")?.textContent ?? "")?.[1]))
+}
+
+async function click(tab: Page, to: string): Promise<void> {
+	await tab.evaluate((id) => document.getElementById(id)?.click(), `to${to.replace(/\W/g, "-")}`)
+}
+
+// Away and back to the document's URL: the run the page shows back, against the document's.
+async function backSteps(tab: Page, home: string, away: string): Promise<void> {
+	const first = await runAt(tab, home)
+	await click(tab, away)
+	await runAt(tab, away, "")
+	await click(tab, home)
+	await remember(tab, { runs: (await runAt(tab, home)) - first })
+}
+
+// `path` stored on the clock `at`, loaded, then away and back: the data requests for `path`.
+async function backTrip(engine: Engine, path: string, at?: number): Promise<string[]> {
+	const prime = [{ path, ...(at === undefined ? {} : { at }) }]
+	const result = await run(engine, { app: EFFECTS, path, prime, steps: (tab) => backSteps(tab, path, "/away") })
+	expect(result.problems).toEqual([])
+	return result.requests.filter((url) => url.startsWith(path))
+}
+
 // /flaky's loader fails on every odd run; its errorRender's button calls reset().
 const RESET = appFrom(`
 const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
@@ -284,5 +367,60 @@ describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
 	it("errorRender reset", async () => {
 		const result = await run(engine, { app: RESET, path: "/flaky?q=1", steps: resetSteps })
 		expect(result.record).toEqual([{ path: "/flaky?q=1", pushed: 0 }])
+	})
+})
+
+// The match cache after hydrate (BUGS.md 139).
+describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+	// The document's page is held after hydrate under its loaderDeps: back to it within staleTime, the same deps keep the
+	// data the document rendered, and the loader does not run (BUGS.md 139).
+	it("effects loaderDeps", async () => {
+		const result = await run(engine, {
+			app: EFFECTS,
+			path: "/deps?page=1",
+			steps: (tab) => backSteps(tab, "/deps?page=1", "/deps?page=2"),
+		})
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual([{ runs: 0 }])
+	})
+
+	// shouldRefetch sees "initial" on hydrate, with the URL's search. A page not held is not asked; back to the held one
+	// it sees "navigation", and its `true` refetches.
+	it("effects shouldRefetch", async () => {
+		const result = await run(engine, {
+			app: EFFECTS,
+			path: "/trigger?x=a",
+			steps: (tab) => backSteps(tab, "/trigger?x=a", "/trigger?x=b"),
+		})
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual([
+			{ trigger: "initial", next: "?x=a" },
+			{ trigger: "navigation", next: "?x=a" },
+			{ runs: 2 },
+		])
+	})
+
+	// A stored document is held on its render's clock, not its hydration's: one rendered ten minutes ago is past its
+	// one-minute staleTime, so back to it the loader runs; one rendered now is held, its root layout too, so back to it
+	// sends no request.
+	it("stale document", async () => {
+		expect(await backTrip(engine, "/old", Date.now() - 10 * 60_000)).toEqual(["/old?_flare=data"])
+		expect(await backTrip(engine, "/new")).toEqual([])
+	})
+
+	// A stored page with a hole whose shouldRefetch asks on "initial" sends one request after hydrate: the fill, which
+	// runs every loader live, fills the hole.
+	it("holed initial", async () => {
+		const result = await run(engine, {
+			app: EFFECTS,
+			path: "/holed",
+			prime: [{ path: "/holed" }],
+			steps: async (tab) => {
+				await tab.waitForFunction(() => document.getElementById("holed")?.textContent === "filled")
+				await new Promise((resolve) => setTimeout(resolve, 100))
+			},
+		})
+		expect(result.problems).toEqual([])
+		expect(result.requests).toEqual(["/holed?_flare=fill"])
 	})
 })

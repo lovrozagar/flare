@@ -328,6 +328,8 @@ Deferred `c` and `e` frames after the commit at `r` (B80). It mounts through `na
 | `deferred filled cached` | a `cacheDeferred: true` page whose `c` frames land after the commit | the entry is rewritten with the filled values and no longer counts as deferred; a revisit within `staleTime` paints the values with no fill (BUGS.md B19) |
 | `store success` | an `l` payload | the cache returns it |
 | `evict error` | an `e` payload for that id | the cache has no entry |
+| `seed at` | `store(match, entry, at)` 10 min back, and at now, under a 1-minute staleTime | stale; fresh (BUGS.md 139) |
+| `asks once` | an `"initial"` plan asking true, then false, and a `"navigation"` plan, over a held page | shouldRefetch is called once each |
 | `stale time` | `staleTime: 1000`, read at 1001 ms; `staleTime: 0`, read in the same millisecond it was stored | miss; miss. A zero `staleTime` is never fresh (found with BUGS.md B19) |
 | `gc` | `gcTime: "1s"` and no read for 1s | the entry is gone |
 | `loader deps` | `loaderDeps` returns a new array whose values differ | the loader refetches on a stay |

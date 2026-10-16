@@ -65,16 +65,16 @@ it("insertion", () => {
 // A render that left a `"stream"` hole says so, so the client sends one fill after hydrate. Without a hole the field
 // is absent. `build` is the id `flare-build` carries.
 it("fill flag", () => {
-	expect(stateScript({ matches: [], nonce: "", build: "b", fill: true })).toBe(
-		'<script>self.flare={"matches":[],"nonce":"","build":"b","fill":true}</script>',
+	expect(stateScript({ matches: [], nonce: "", build: "b", at: 5, fill: true })).toBe(
+		'<script>self.flare={"matches":[],"nonce":"","build":"b","at":5,"fill":true}</script>',
 	)
-	expect(stateScript({ matches: [], nonce: "", build: "b" })).toBe(
-		'<script>self.flare={"matches":[],"nonce":"","build":"b"}</script>',
+	expect(stateScript({ matches: [], nonce: "", build: "b", at: 5 })).toBe(
+		'<script>self.flare={"matches":[],"nonce":"","build":"b","at":5}</script>',
 	)
 })
 
-// The state's `head` for a document whose stream writes `shell`, or for the plain render without one.
-async function stateHead(shell: string | undefined): Promise<unknown> {
+// The state's `field` for a document whose stream writes `shell`, or for the plain render without one.
+async function stateField(shell: string | undefined, field = "head"): Promise<unknown> {
 	const html = await new Response(
 		await renderDocument({
 			request: new Request("http://localhost/"),
@@ -90,13 +90,21 @@ async function stateHead(shell: string | undefined): Promise<unknown> {
 	).text()
 	const start = html.indexOf("self.flare=")
 	const source = html.slice(start, html.indexOf("</script>", start))
-	return Reflect.get(Function(`const self = {}; ${source}; return self.flare;`)(), "head")
+	return Reflect.get(Function(`const self = {}; ${source}; return self.flare;`)(), field)
 }
 
 // The state carries the final shell's head sequence, the capture script and its `xs` marker Flare adds included, for
 // the client's guard (B120). A shell with no head carries an empty one.
 it("head sequence", async () => {
 	const shell = "<html><head><title>T</title><!--$--><meta name=a><!--/--></head><body>x</body></html>"
-	expect(await stateHead(shell)).toEqual(["title", "!$", "meta", "!/", "script", "!xs"])
-	expect(await stateHead(undefined)).toEqual([])
+	expect(await stateField(shell)).toEqual(["title", "!$", "meta", "!/", "script", "!xs"])
+	expect(await stateField(undefined)).toEqual([])
+})
+
+// The state carries the render's time, so a stored or CDN copy tells the client how old its data is (BUGS.md 139).
+it("render time", async () => {
+	const before = Date.now()
+	const at = await stateField(undefined, "at")
+	expect(at).toBeGreaterThanOrEqual(before)
+	expect(at).toBeLessThanOrEqual(Date.now())
 })

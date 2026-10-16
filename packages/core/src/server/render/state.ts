@@ -13,9 +13,10 @@ export type StateMatch = {
 	replace?: true
 }
 
-// `build` is the deploy's id, the one `flare-build` carries. `fill` marks a render that left a stored `"stream"` hole:
-// the client sends one fill after hydrate.
-type State = { matches: readonly StateMatch[]; nonce: string; build: string; fill?: boolean | undefined }
+// `build` is the deploy's id, the one `flare-build` carries. `at` is when the loaders' data was rendered: a stored or
+// CDN copy replays it, so the client's cache knows the document's age (BUGS.md 139). `fill` marks a render that left a
+// stored `"stream"` hole: the client sends one fill after hydrate.
+type State = { matches: readonly StateMatch[]; nonce: string; build: string; at: number; fill?: boolean | undefined }
 
 export function stateScript(state: State): string {
 	return script(payload(state), state.nonce)
@@ -60,7 +61,7 @@ function failingQuery(queries: unknown): string | undefined {
 
 function payload(state: State): string {
 	const fill = state.fill === true ? { fill: true } : {}
-	return JSON.stringify({ matches: state.matches, nonce: state.nonce, build: state.build, ...fill })
+	return JSON.stringify({ matches: state.matches, nonce: state.nonce, build: state.build, at: state.at, ...fill })
 }
 
 // A string CSP has no nonce, and then the tag has no attribute (B68).

@@ -16,7 +16,7 @@ import { createPopstate } from "../navigation/popstate.ts"
 import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
 import { loadDocument } from "../navigation/reload.ts"
 import { createScroll, pageGrowth, type ScrollStore } from "../navigation/scroll.ts"
-import { cacheFor } from "../router/match-cache.ts"
+import { hydrateCache } from "./initial.ts"
 import { callServerFn, type CallDeps } from "../server-fn/call.ts"
 import { streamServerFn } from "../server-fn/stream.ts"
 import { tabbedFetch, type DevHot } from "../dev/tab.ts"
@@ -84,6 +84,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	// One id for the navigator, the prefetcher, and the server function transport, so none disagrees on a mismatch (B30).
 	const build = state.build ?? ""
 	const prefetcher = browserPrefetcher(router, store, { env, build })
+	const { cache, initial } = hydrateCache(router, { match, location, snapshot: store.snapshot(), at: state.at })
 	const navigator = createNavigator({
 		router,
 		store,
@@ -91,7 +92,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		scroll,
 		blockers,
 		navigation,
-		cache: cacheFor(router.cache.client, router.routeCacheMaxEntries),
+		cache,
 		fetch: env.fetch,
 		origin: window.location.origin,
 		assign: env.assign,
@@ -117,6 +118,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	setActiveNavigate(navigator.navigate)
 	markHydrated(ready)
 	if (state.fill === true) void navigator.fill(pending)
+	else if (initial.fetch) void navigator.refresh(initial)
 	ready.idle(env.idle, () => afterLoad(env.idle, prefetcher.all))
 	ready.interaction(document)
 	return disposer(unlisten, unmount)
