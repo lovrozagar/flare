@@ -91,14 +91,21 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 			},
 			// `public/` ships once, with the client (BUGS.md B11).
 			ssr: input.cloudflare
-				? { build: { outDir: build.ssr.outDir, copyPublicDir: false, minify: true, sourcemap: true } }
-				: { build: serverBuild(build.ssr.outDir, input.entry.server, build.ssr.input) },
+				? { build: { outDir: build.ssr.outDir, copyPublicDir: false, minify: true, sourcemap: true, assetsDir } }
+				: {
+						build: serverBuild({
+							outDir: build.ssr.outDir,
+							entry: input.entry.server,
+							file: build.ssr.input,
+							assetsDir,
+						}),
+					},
 			...(prerender
 				? {
 						[PRERENDER_ENV]: {
 							consumer: "server",
 							resolve: { noExternal: SERVER_BUNDLED },
-							build: serverBuild(serverDir, input.entry.server, build.ssr.input),
+							build: serverBuild({ outDir: serverDir, entry: input.entry.server, file: build.ssr.input, assetsDir }),
 						},
 					}
 				: {}),
@@ -127,10 +134,19 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 	}
 }
 
-// The server as one minified Node file with sourcemaps. `public/` ships once, with the client (BUGS.md B11).
-function serverBuild(outDir: string, entry: string, file: string): NonNullable<EnvironmentOptions["build"]> {
+// The server as one minified Node file with sourcemaps. `public/` ships once, with the client (BUGS.md B11). An
+// imported asset is named under the client's assets directory, where the client build writes it, so the URL the
+// server renders is that file's (BUGS.md 132).
+function serverBuild(input: {
+	outDir: string
+	entry: string
+	file: string
+	assetsDir: string
+}): NonNullable<EnvironmentOptions["build"]> {
+	const { outDir, entry, file, assetsDir } = input
 	return {
 		outDir,
+		assetsDir,
 		copyPublicDir: false,
 		minify: true,
 		sourcemap: true,
