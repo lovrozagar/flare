@@ -20,7 +20,7 @@ import { answer, routeSecured, typed, type Exchange } from "../lifecycle/exchang
 import type { StoreOption } from "../lifecycle/options.ts"
 import { NDJSON } from "../navigation/index.ts"
 import type { FlareStore } from "./contract.ts"
-import { lookup, type Lookup } from "./epoch.ts"
+import { readStored, type Lookup } from "./epoch.ts"
 import { inflight, type Landing } from "./inflight.ts"
 import { buildId, storeKey } from "./key.ts"
 import { hitOf, storedPageOf, type Hit } from "./read.ts"
@@ -166,8 +166,12 @@ async function stored(exchange: Exchange, matched: Loaded, at: Stored): Promise<
 	const id = defined(matched.id, "the stored page")
 	const timing = defined(storeTiming(id, matched.chain.at(-1)?.module.cache), "the stored page's timing")
 	const keyed = { ...at, key: keyOf(exchange, matched, id), timing }
-	const looked = await gated(exchange, matched, { prepared: at.prepared, read: () => lookup(at.store, keyed.key) })
+	const unread = { failed: false }
+	const read = () => readStored(at.store, keyed.key, { report: reporter(exchange), unread })
+	const looked = await gated(exchange, matched, { prepared: at.prepared, read })
 	if (looked instanceof Response) return looked
+	// A store that failed or did not answer serves the page live, uncached, and is not written to (plan 21 3.3).
+	if (unread.failed) return live(exchange, matched, uncached(at.prepared))
 	const hit = await hitFor(exchange, { ...keyed, looked })
 	if (hit === undefined) return missed(exchange, matched, keyed)
 	if (hit.stale) refresh(exchange, matched, keyed)
@@ -234,7 +238,8 @@ async function gated(
 // only when the render passes the write rule (B46). The store is read again first: a fresh entry written since this
 // request's own read is served as it is, and nothing renders (B31).
 async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<Landing> {
-	const fresh = hitOf(await lookup(at.store, at.key), at.timing, Date.now())
+	const read = await readStored(at.store, at.key, { report: reporter(exchange), unread: { failed: false } })
+	const fresh = hitOf(read, at.timing, Date.now())
 	if (fresh !== undefined && !fresh.stale) return { flight: { stored: fresh.page }, written: Promise.resolve() }
 	const shared = await sharedRender(exchange, matched)
 	if (shared === undefined || shared === INCOMPLETE) return { flight: shared, written: Promise.resolve() }
@@ -283,4 +288,9 @@ export function served(
 	const errored = at.policy.rejected === true || (!document && stored.ndjson.includes('{"t":"e"'))
 	const run = { headers: { "set-cookie": [...at.cookies] } }
 	return cached({ status: 200, body, render: stored.render, headers }, at.policy, { run, errored })
+}
+
+// A store failure is the operator's to see in production too.
+function reporter(exchange: Exchange): (message: string) => void {
+	return (message) => exchange.sink.log.error("cache", message)
 }
