@@ -2,7 +2,7 @@ import type { OutletMatch } from "../../shared/components/index.ts"
 import { BUILD_HEADER, FAILED_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts"
 import type { LoadedEntry } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
-import { cachedMatches, defined, holds, remember } from "../router/match-cache.ts"
+import { cachedMatches, defined, holds, remember, type CachePlan } from "../router/match-cache.ts"
 import { landedFailure, statusFailure, type StoreSnapshot } from "../router/store.ts"
 import { framesOf, landFrames, type Landed, type Pending } from "./frames.ts"
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts"
@@ -26,11 +26,13 @@ export type Arrival =
 export type Trip = {
 	target: DataTarget
 	options: NavigateOptions
-	trigger: "navigation" | "revalidation"
+	trigger: "initial" | "navigation" | "revalidation"
 	signal: AbortSignal
 	fill: boolean
 	reuse?: Pending | undefined
 	holes?: ((pending: Pending) => void) | undefined
+	// Hydrate's plan, already asked, so a page's shouldRefetch sees "initial" once (BUGS.md 139).
+	planned?: CachePlan | undefined
 }
 
 // The route modules load in parallel with the data request. An aborted request and a network failure commit
@@ -95,8 +97,9 @@ async function land(deps: NavigatorDeps, trip: Trip, body: ReadableStream<Uint8A
 	}
 }
 
-// The cache's verdict for this trip.
-function planOf(deps: NavigatorDeps, trip: Trip): ReturnType<NavigatorDeps["cache"]["plan"]> {
+// The cache's verdict for this trip: hydrate's, already asked, or a new plan.
+function planOf(deps: NavigatorDeps, trip: Trip): CachePlan {
+	if (trip.planned !== undefined) return trip.planned
 	const current = deps.store.snapshot().location
 	return deps.cache.plan({
 		matches: cachedMatches(trip.target.match, trip.target.location),

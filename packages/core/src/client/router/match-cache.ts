@@ -48,14 +48,18 @@ export type Plan = {
 	next: EffectPlace
 }
 
+// A plan's verdict: whether to request, the page ids the client holds fresh, and whether every match is fresh.
+export type CachePlan = { fetch: boolean; stale: string[]; fresh: boolean }
+
 export type MatchCache = {
-	store: (match: CachedMatch, entry: CacheEntry) => void
+	// `at` is the data's time, when it is not now: a hydrated document's render (BUGS.md 139).
+	store: (match: CachedMatch, entry: CacheEntry, at?: number) => void
 	evict: (match: CachedMatch) => void
 	// The entry still holding this data now has every deferred value settled. It keeps its clock.
 	filled: (match: CachedMatch, data: unknown) => void
 	read: (match: CachedMatch) => Stored | undefined
 	deps: (match: CachedMatch) => string | undefined
-	plan: (plan: Plan) => { fetch: boolean; stale: string[]; fresh: boolean }
+	plan: (plan: Plan) => CachePlan
 }
 
 // Only successful `l` payloads are stored. An `e` evicts. `staleTime` decides whether a held page may skip its
@@ -80,9 +84,9 @@ export function createMatchCache(options: {
 		return entry
 	}
 	return {
-		store(match, entry) {
+		store(match, entry, at = now()) {
 			entries.delete(matchKey(match))
-			entries.set(matchKey(match), { ...entry, at: now(), touched: now() })
+			entries.set(matchKey(match), { ...entry, at, touched: now() })
 			if (entries.size > max) entries.delete(required(entries.keys().next().value, "the oldest entry"))
 		},
 		evict: (match) => void entries.delete(matchKey(match)),
@@ -92,13 +96,7 @@ export function createMatchCache(options: {
 		// A page the client holds fresh is listed in _flare_stale, so the server skips its loader (B30). A layout
 		// never is. Hydrate fetches only when a page asks to refetch on "initial".
 		plan(plan) {
-			const asks = (match: CachedMatch): boolean =>
-				match.effects?.shouldRefetch?.({
-					trigger: plan.trigger,
-					location: { current: plan.current, next: plan.next },
-					params: match.params,
-					search: match.search,
-				}) === true
+			const asks = asker(plan)
 			const held = (match: CachedMatch): boolean => {
 				const entry = read(match)
 				// `0` is never fresh, not even within the millisecond the entry was stored (dx/cache.md, B19).
@@ -115,6 +113,24 @@ export function createMatchCache(options: {
 			const fresh = kept.length === pages.length && layouts.every(held)
 			return { fetch, stale: kept.map((match) => match.id), fresh }
 		},
+	}
+}
+
+// Whether a page's shouldRefetch asks to refetch it. Each page is asked once per plan.
+function asker(plan: Plan): (match: CachedMatch) => boolean {
+	const asked = new Map<CachedMatch, boolean>()
+	return (match) => {
+		const known = asked.get(match)
+		if (known !== undefined) return known
+		const answer =
+			match.effects?.shouldRefetch?.({
+				trigger: plan.trigger,
+				location: { current: plan.current, next: plan.next },
+				params: match.params,
+				search: match.search,
+			}) === true
+		asked.set(match, answer)
+		return answer
 	}
 }
 
@@ -155,13 +171,13 @@ export function cachedMatches(match: Match, location: Location): CachedMatch[] {
 }
 
 // Only successful `l` payloads are cached, with their head, on the route's clock. A failed match is evicted. A
-// route whose `cache.client` is false is not cached.
-export function remember(cache: MatchCache, matches: readonly CachedMatch[], landing: Landed): void {
+// route whose `cache.client` is false is not cached. `at` dates data that is not from now: a hydrated document's.
+export function remember(cache: MatchCache, matches: readonly CachedMatch[], landing: Landed & { at?: number }): void {
 	for (const match of matches) {
 		if (landing.failure?.route === match.route || match.client === false) cache.evict(match)
 		else if (match.route in landing.data) {
 			const entry = entryOf(match, landing)
-			cache.store(match, entry)
+			cache.store(match, entry, landing.at)
 			// `cacheDeferred: true`: once every deferred value settles, the entry counts as filled (dx/cache.md, B19).
 			if (entry.deferred && clientOf(match.client).cacheDeferred === true) {
 				void Promise.allSettled(deferredOf(entry.data)).then(() => cache.filled(match, entry.data))

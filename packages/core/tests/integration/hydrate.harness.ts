@@ -16,6 +16,7 @@ import {
 	isAppRequest,
 	type AppCase,
 	type AppResult,
+	primeApp,
 } from "./hydrate.app.ts"
 import { MODULES, type Api, type Side, type Tree } from "./hydrate.api.ts"
 
@@ -89,6 +90,7 @@ export async function startHarness(core: string): Promise<Harness> {
 			const id = `a${apps.cases.size + 1}`
 			apps.cases.set(id, input)
 			apps.active = id
+			await primeApp(vite, { id, origin, prime: input.prime })
 			const context = await (await browser(engine)).newContext()
 			try {
 				return await appIn({ origin, tab: await context.newPage() }, input)

@@ -3,9 +3,8 @@ import type { OutletMatch } from "../../shared/components/index.ts"
 import type { DevErrorPayload } from "../../shared/errors/index.ts"
 import type { Intercept } from "../../shared/route-builder/chain.ts"
 import type { LoadedEntry, Router, ViewTransitionOptions } from "../../shared/router/create-router.ts"
-import type { Location } from "../../shared/url/index.ts"
 import type { FlareHistory } from "../history/index.ts"
-import type { MatchCache } from "../router/match-cache.ts"
+import type { CachePlan, MatchCache } from "../router/match-cache.ts"
 import { swappedDepth, type RouterStore, type StoreSnapshot } from "../router/store.ts"
 import {
 	runTransition,
@@ -15,6 +14,7 @@ import {
 	type Direction,
 } from "../view-transition/index.ts"
 import { allowsNavigation, type Blockers } from "./blocker.ts"
+import { keepPosition, land, scrollFor } from "./steps.ts"
 import { follow, leaveable, type Leaving } from "./leaving.ts"
 import { endOf, type Landed, type Pending } from "./frames.ts"
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts"
@@ -60,7 +60,7 @@ export type NavigatorDeps = {
 	prefetched?: (dataUrl: string) => Promise<Landing | undefined> | undefined
 }
 
-type Trigger = "navigation" | "revalidation"
+type Trigger = "initial" | "navigation" | "revalidation"
 
 // Same-origin only. The DOM commits, then history is written. A revalidation of the current URL writes no
 // history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
@@ -72,6 +72,7 @@ export function createNavigator(given: NavigatorDeps): Leaving & {
 	visit: (url: string, replace: boolean) => Promise<void>
 	restore: (url: string, index: number) => Promise<void>
 	fill: (pending: Pending) => Promise<void>
+	refresh: (initial: CachePlan) => Promise<void>
 } {
 	const { deps, away, ...leave } = leaveable(given)
 	let latest: AbortController | undefined
@@ -94,7 +95,7 @@ export function createNavigator(given: NavigatorDeps): Leaving & {
 		const controller = new AbortController()
 		latest = controller
 		// A stored landing can end with a `"stream"` hole. Once this page commits, one fill asks for its values.
-		const watch = holeWatch(deps, target.location, fill)
+		const watch = holeWatch(deps, target.location, (pending) => again({ fill: pending }))
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes }
 		const outcome = await travel(deps, plan, { trip, current: () => latest === controller })
 		if (outcome.kind === "redirect") {
@@ -107,12 +108,11 @@ export function createNavigator(given: NavigatorDeps): Leaving & {
 		at = deps.history.index()
 		return watch.committed()
 	}
-	const fill = (pending: Pending): Promise<void> => {
-		const options = fillOptions(deps)
-		return go(resolveUrl(options.to, context()), options, { fill: pending })
-	}
+	// The page on screen again, in place: a fill, or hydrate's refresh.
+	const again = (mode: Mode) => go(resolveUrl(fillOptions(deps).to, context()), fillOptions(deps), mode)
 	return {
-		fill,
+		fill: (pending) => again({ fill: pending }),
+		refresh: (initial) => again({ initial }),
 		...leave,
 		navigate: (options) => go(resolveTarget(options, context()), options),
 		visit: (url, replace) => go(resolveUrl(url, context()), { to: url, replace }),
@@ -178,6 +178,8 @@ type Plan = {
 	intercept?: Intercept
 	// A same-URL revalidation that asks for a stored page's `"stream"` values (request.ts).
 	fill: boolean
+	// Hydrate's cache plan, already asked (BUGS.md 139).
+	planned?: CachePlan
 }
 
 function planOf(input: {
@@ -189,7 +191,8 @@ function planOf(input: {
 	const { target, snapshot } = input
 	// With an overlay open, the URL in the bar is the overlay's.
 	const here = snapshot.overlay?.location ?? snapshot.location
-	const trigger: Trigger = sameUrl(here, target.location) ? "revalidation" : "navigation"
+	const same: Trigger = sameUrl(here, target.location) ? "revalidation" : "navigation"
+	const trigger: Trigger = input.mode.initial === undefined ? same : "initial"
 	const pop = input.mode.pop === true
 	const step = input.mode.index ?? input.mode.at
 	// A push moves forward. A popstate step moves by its index. A replace and a revalidation stay.
@@ -197,6 +200,7 @@ function planOf(input: {
 	const direction = forward ? "forward" : stepDirection(input.mode.at, step)
 	const fill = input.mode.fill !== undefined
 	const plan: Plan = { target, options: input.options, trigger, pop, previous: snapshot, direction, fill }
+	if (input.mode.initial !== undefined) plan.planned = input.mode.initial
 	const intercept = overlayFor(target, snapshot, { trigger, ...input.mode })
 	if (intercept !== undefined) plan.intercept = intercept
 	return plan
@@ -249,25 +253,6 @@ async function settle(
 	return true
 }
 
-// The page being left keeps its position, read before the DOM changes. A pop's was kept at popstate.
-function keepPosition(deps: NavigatorDeps, left: Location, step: Step): void {
-	if (!step.pop && step.write) deps.scroll.save(deps.history.index(), left)
-}
-
-// After a commit: a step forward writes history, then the page goes to its hash, its top, or a pop's saved position.
-function land(deps: NavigatorDeps, target: { url: string; location: Location }, step: Step): void {
-	if (!step.pop && step.write) writeHistory(deps, target.url, step.options)
-	if (step.scrolled !== true) scrollFor(deps, target.location, step)
-}
-
-function scrollFor(deps: NavigatorDeps, location: Location, step: Step): void {
-	if (step.pop) return deps.scroll.restore(deps.history.index(), location)
-	deps.scroll.afterCommit({ hash: location.hash, scroll: step.options.scroll !== false })
-}
-
-// `scrolled`: the scroll already ran inside the transition's update (B108).
-type Step = { options: NavigateOptions; pop: boolean; write: boolean; scrolled?: boolean }
-
 // A hash move and a shallow navigation stay on the page: no request and no loader. A shallow one asks the blocker
 // first, and the page's search becomes the call's, the validator output the URL was written from, since the client
 // graph has no validator. Layouts keep theirs until their next loader run (dx/navigate.md `shallow`, BUGS.md B18).
@@ -291,9 +276,4 @@ function inPlace(
 	void deps.store.commit({ ...snapshot, location: target.location, matches })
 	land(deps, target, moved)
 	return deps.history.index()
-}
-
-function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions): void {
-	if (options.replace === true) deps.history.replace(url, options.state)
-	else deps.history.push(url, options.state)
 }

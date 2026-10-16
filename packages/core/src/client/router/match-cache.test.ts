@@ -63,6 +63,31 @@ it("stale time", () => {
 	expect(plan(zero.cache, [page()])).toEqual({ fetch: true, stale: [], fresh: false })
 })
 
+// An entry stored on a given clock, the document's render time, ages from then (BUGS.md 139).
+it("seed at", () => {
+	const { cache, time } = cacheAt({ staleTime: 60_000 })
+	time.at(600_000)
+	cache.store(page(), { data: "old", deferred: false }, 0)
+	expect(plan(cache, [page()]).stale).toEqual([])
+	cache.store(page(), { data: "new", deferred: false }, 600_000)
+	expect(plan(cache, [page()]).stale).toEqual(["id=7&"])
+})
+
+// One plan asks each page once, whatever the trigger.
+it("asks once", () => {
+	const { cache } = cacheAt()
+	cache.store(page(), { data: "user", deferred: false })
+	for (const [trigger, answer] of [
+		["initial", true],
+		["initial", false],
+		["navigation", false],
+	] as const) {
+		const shouldRefetch = vi.fn<NonNullable<Effects["shouldRefetch"]>>(() => answer)
+		plan(cache, [page({ shouldRefetch })], { trigger })
+		expect(shouldRefetch).toHaveBeenCalledOnce()
+	}
+})
+
 it("gc", () => {
 	const { cache, time } = cacheAt({ gcTime: 1000 })
 	cache.store(page(), { data: "user", deferred: false })

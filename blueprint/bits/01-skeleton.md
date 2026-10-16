@@ -145,6 +145,7 @@ The corpus file feeds the test.
 | --- | --- | --- |
 | `one script` | a page with loader data `{ n: 1 }` | one `self.flare` assignment, `matches[0].data.n === 1`. The match keys are `id`, `params`, `search`, `data`, `preloader`, `head`, and `error` |
 | `insertion` | shell with `</body>` | the script is inside the body |
+| `render time` | a rendered document | the state's `at` is the render's `Date.now()`, between the times before and after it (BUGS.md 139) |
 | `head sequence` | a written shell with a title, Solid's markers, and a meta; then a shell with no head | the state's `head` is `title`, `!$`, `meta`, `!/`, then the capture `script` and `!xs` Flare adds; then `[]` (B120) |
 
 ### `server/render/head-sequence.test.ts` (B120)
@@ -272,6 +273,8 @@ One `oxc-parser` walk (B75). Babel is not imported.
 | `hydrate failure logged` | a production boot of `/broken`, whose page render throws | `root[Something went wrong]`, and one `console.error("[flare] a route failed to hydrate", error)`; `dev report`'s throw after hydrate logs nothing (B120) |
 | `router context` | a component under hydrate reads the router context | it is the same object `createClient` received |
 | `prefetch build` | a document of build b1. An intent prefetch of /about is answered with `flare-build: b2`, then the app navigates to /about, also answered b2 | the navigation loads the document once (`assign("/about")`) and never paints the prefetched frames. One build value feeds the navigator, the prefetcher, and the server-function transport, so a mismatched prefetch is dropped (BUGS.md B30) |
+| `seeds` (initial.test) | a document of `/` on a 1-minute client staleTime, rendered 1 s ago, 10 min ago, with `client: false`, with a placeholder, with no `at`, and 10 min ahead; away to /about and back | `_flare_stale` lists the page for 1 s, no `at`, and ahead; not for the others (BUGS.md 139) |
+| `asks initial`, `none asks`, `fill wins` (initial.test) | a page whose shouldRefetch returns true for `"initial"`; one that returns false; a document with holes and an asking page | one `/?_flare=data`, no history entry, shouldRefetch called once; no request; one `/?_flare=fill` |
 | `query hydrated` | a registered query getter with a `hydrated` spy, then a boot | the spy runs once, after `data-flare-hydrated` is set and the `onHydrated` callbacks have run. With no getter registered, or one without `hydrated`, the boot completes (B102) |
 
 ### `tests/integration/skeleton.test.ts`
@@ -393,6 +396,8 @@ dx/builder.md through routes made with the real builders. builder.test and build
 | `boundaries`, `boundary rank` | failures under a layout, a throwing boundary, several failures | the first function toward the root paints in the failed slot, a throw skipped for the next; 401, 403, then the root-most |
 | `render props` | params, search, loader data, preloader context, children | each the route's own |
 | `intercept` (client) | a click from `from`; a direct visit | the overlay over the mounted background; the page |
+| `effects loaderDeps`, `effects shouldRefetch` (client) | away from the hydrated URL and back, under a 1-minute staleTime | the seeded page held, its loader not run; `initial` then `navigation` recorded, the held page refetched (BUGS.md 139) |
+| `stale document`, `holed initial` (client) | a stored page rendered on a clock 10 min back, and one now; a stored page with a hole whose shouldRefetch asks on `initial` | back to the old one runs its loader, back to the new one sends no request; one request, the fill |
 | `errorRender reset` (client) | `reset()` after a failed loader | the loader runs again on the same URL, no history entry |
 
 ### `tests/integration/plugin.test.ts`, `plugin-dev.test.ts`, and `plugin-workers.test.ts` (plan 14 9.6, B96)

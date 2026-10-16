@@ -13,6 +13,7 @@ import type * as layout from "../../src/shared/route-builder/layout.ts"
 import type * as errors from "../../src/shared/errors/index.ts"
 import type * as intercept from "../../src/shared/components/intercept-outlet.tsx"
 import type * as deferred from "../../src/shared/components/use-deferred.ts"
+import type * as memory from "../../src/server/cache/memory.ts"
 
 // What a tree builds from. Each side gets its own build of these modules: the server render the ones Vite's SSR
 // runner loads (Solid's server build), the browser the ones Vite serves it (Solid's browser build).
@@ -30,6 +31,8 @@ export type Api = {
 	errors: typeof errors
 	intercept: typeof intercept
 	deferred: typeof deferred
+	// The in-memory store, for an app whose server stores pages. Its module loads on both sides and runs on the server.
+	memory: typeof memory
 	// An element with an id and lazy children, so a tree needs no JSX transform.
 	h: (tag: string, id: string, children?: () => unknown) => web.JSX.Element
 }
@@ -53,4 +56,5 @@ export const MODULES: Record<keyof Omit<Api, "solid" | "web" | "h">, string> = {
 	errors: "/src/shared/errors/index.ts",
 	intercept: "/src/shared/components/intercept-outlet.tsx",
 	deferred: "/src/shared/components/use-deferred.ts",
+	memory: "/src/server/cache/memory.ts",
 }

@@ -6,7 +6,7 @@ import type { Intercept } from "../../shared/route-builder/chain.ts"
 import type { LoadedEntry, Match } from "../../shared/router/create-router.ts"
 import type { Location } from "../../shared/url/index.ts"
 import type { FlareHistory } from "../history/index.ts"
-import { cachedMatches, remember, type MatchCache } from "../router/match-cache.ts"
+import { cachedMatches, remember, type CachePlan, type MatchCache } from "../router/match-cache.ts"
 import type { RouterStore, StoreSnapshot } from "../router/store.ts"
 import type { Landed } from "./frames.ts"
 import type { ScrollStore } from "./scroll.ts"
@@ -14,9 +14,10 @@ import type { ScrollStore } from "./scroll.ts"
 // `pop` is a popstate step, `index` its history index. `overlay` marks the overlay entry it moved onto.
 // `fill` is a same-URL revalidation that asks for a stored page's `"stream"` values and settles the slots its holes
 // left (dx/defer.md).
-export type Mode = { pop?: boolean; overlay?: boolean; index?: number; fill?: Pending }
+// `initial` is hydrate's own cache plan, which asked to refetch the page on screen (BUGS.md 139).
+export type Mode = { pop?: boolean; overlay?: boolean; index?: number; fill?: Pending; initial?: CachePlan }
 
-type Trigger = "navigation" | "revalidation"
+type Trigger = "initial" | "navigation" | "revalidation"
 
 type OverlayTarget = { url: string; location: Location; match: Match }
 
@@ -42,7 +43,7 @@ export function overlayFor(
 	const intercept = target.match.intercept
 	if (intercept === undefined) return undefined
 	if (mode.pop === true) return mode.overlay === true ? intercept : undefined
-	if (mode.trigger === "revalidation") return snapshot.overlay === undefined ? undefined : intercept
+	if (mode.trigger !== "navigation") return snapshot.overlay === undefined ? undefined : intercept
 	const page = defined(snapshot.matches.at(-1), "the page on screen")
 	return intercept.from.includes(page.id) ? intercept : undefined
 }

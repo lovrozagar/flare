@@ -344,6 +344,8 @@ packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates
 packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token, announce it, and name it on the client's requests (B42)
 packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
+packages/core/src/client/boot/initial.ts	P1	src	dom	The match cache hydrate makes: the document's matches held on the render time its state carries, and the one "initial" plan (BUGS.md 139)
+packages/core/src/client/boot/initial.test.ts	P1	test	dom	Unit cases for initial.ts through bootClient: the seeded clock, the initial refetch, and the fill as the one request
 packages/core/src/client/boot/boot.fixture.ts	P1	test	dom	The app, router, document state, and browser surface the create-client tests boot
 packages/core/src/client/boot/hydrate.ts	P1	src	dom	Read the state script, provide the router context, and call Solid hydrate
 packages/core/src/client/boot/hydrate.test.ts	P1	test	dom	Unit cases for hydrate.ts
@@ -353,6 +355,8 @@ packages/core/src/client/boot/ready.ts	P6	src	dom	onReady, onHydrated, onIdle, o
 packages/core/src/client/boot/ready.test.ts	P6	test	dom	Unit cases for ready.ts
 packages/core/src/client/boot/index.ts	P1	index	client	Re-exports
 packages/core/src/client/navigation/navigate.ts	P6	src	dom	navigate. Same-origin only. Commit, then push. Revalidation does not push
+packages/core/src/client/navigation/steps.ts	P6	src	dom	What a committed navigation does to history and scroll, split from navigate.ts at its 300-line limit
+packages/core/src/client/navigation/steps.test.ts	P6	test	dom	Unit cases for steps.ts
 packages/core/src/client/navigation/leaving.ts	P6	src	dom	The document loads the navigator begins, and the page leaving after one: a later navigation loads its page as a document (BUGS.md 129); an `x` frame's follow. Split from navigate.ts at the 300-line limit
 packages/core/src/client/navigation/leaving.test.ts	P6	test	dom	Unit cases for leaving.ts
 packages/core/src/client/navigation/request.ts	P10	src	dom	One navigation's data request: loads the chain beside it, asks `_flare=fill` for a fill, and hears a stored landing's holes; builds the commit's snapshot from the arrival (nextSnapshot, moved from navigate.ts at its 300-line limit). Split from navigate.ts at the 300-line limit

@@ -38,6 +38,12 @@
 			}
 		},
 		{
+			"files": ["tests/**"],
+			"rules": {
+				"flare/no-flare-header-branching": "off"
+			}
+		},
+		{
 			"files": ["tests/e2e/apps/**"],
 			"rules": {
 				"flare/no-module-side-effects": "off",
