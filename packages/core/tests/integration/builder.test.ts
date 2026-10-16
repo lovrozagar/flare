@@ -373,3 +373,33 @@ it("server callbacks", async () => {
 		response: seenAt("/r"),
 	})
 })
+
+// A page whose loader throws the redirect `target` gives.
+function redirecting(target: Parameters<typeof redirect>[0]) {
+	return serve([
+		{
+			id: "_root_/away",
+			path: "/away",
+			module: createPage("_root_/away")
+				.loader((): { text: string } => redirect(target))
+				.render(() => "never"),
+		},
+	])
+}
+
+// `redirect()` defaults to 303 and `replace: true` (decision B71, BUGS.md 138): a document answers that status and
+// Location, a data request is HTTP 200 and one `x` frame with the built URL, the status, and `replace`. An explicit
+// status is kept; an `href` that is not http(s) throws at the call, the loader-throw outcome.
+it("redirect", async () => {
+	const bare = redirecting({ to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" }, hash: "top" })
+	const document = await bare("/away")
+	expect(document.status).toBe(303)
+	expect(document.headers.get("location")).toBe("/users/7?tab=a#top")
+	const data = await bare("/away?_flare=data")
+	expect(data.status).toBe(200)
+	expect(frames(data.text)).toEqual([{ t: "x", u: "/users/7?tab=a#top", s: 303, r: true }])
+	const kept = redirecting({ to: "_root_/users/[id]", params: { id: "7" }, status: 307, replace: false })
+	expect((await kept("/away")).status).toBe(307)
+	expect(frames((await kept("/away?_flare=data")).text)).toEqual([{ t: "x", u: "/users/7", s: 307, r: false }])
+	expect((await redirecting({ href: "javascript:alert(1)" })("/away")).status).toBe(500)
+})

@@ -329,7 +329,7 @@ it("redirect from auth", async () => {
 		const response = await serveWith({ router, authenticate }, { dev: false, log: quiet }).fetch(
 			new Request("http://localhost/"),
 		)
-		expect(response.status).toBe(307)
+		expect(response.status).toBe(303)
 		expect(response.headers.get("location")).toBe("/login")
 	}
 })
@@ -345,7 +345,7 @@ function thrownBy(run: () => unknown): unknown {
 
 it("target kept", () => {
 	const target = { to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" }, hash: "x" }
-	expect(thrownBy(() => redirect(target))).toMatchObject({ ...target, href: undefined, status: 307, replace: true })
+	expect(thrownBy(() => redirect(target))).toMatchObject({ ...target, href: undefined, status: 303, replace: true })
 })
 
 function brokenAuth(): never {

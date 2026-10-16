@@ -82,20 +82,6 @@ Accepted units are `ms`, `s`, `m`, `h`, `d`. Anything else throws. No silent zer
 | `cache only` | `.cache({ cdn: { maxAge: "1m" } })` | the record stores that config |
 | `no loader` | the method list | `loader` is absent |
 
-### `server/redirect/target.test.ts`
-
-| test | case | result |
-| --- | --- | --- |
-| `internal` | `/about?x=1` | accepted |
-| `scheme-relative before URL` | `//evil/x` | rejected. The test spies that `new URL` is not the function that accepted it |
-| `backslash` | `/\\evil` | rejected |
-| `absolute` | `to` is `https://evil/` | rejected. `to` is a route id |
-| `href https` | `redirect({ href: "https://example.com/a" })` | accepted. A document is a full page load of that URL. A data response is HTTP 200 and an `x` frame whose `u` is that URL |
-| `href bad` | `href` is `javascript:alert(1)` | throw at the call |
-| `status` | `status: 300` | throw at the call. `301`, `302`, `303`, `307`, and `308` are accepted |
-| `control` | a leading control character | rejected |
-| `replace default` | `redirect({ to })` with no `replace` | `replace` is `true` |
-
 ### `server/redirect/builder.test.ts`
 
 | test | case | result |
