@@ -644,6 +644,7 @@ packages/core/tests/integration/auth.test.ts	P4	test	node	Layout auth in front o
 packages/core/tests/integration/stream.test.ts	P5	test	node	Abort closes the stream. A throw before the shell is a 500 with no body bytes
 packages/core/tests/integration/nonce-client.test.tsx	P6	test	dom	The client half of the nonce cases: a head tag applied after a data navigation carries self.flare.nonce
 packages/core/tests/integration/navigation.test.ts	P6	test	node	A data URL returns NDJSON. A document URL returns HTML. Stale skips page loaders only
+packages/core/tests/integration/head.test.ts	P6	test	node	dx/head.md's fields and nested objects through the real createServer(...).fetch: each tag of the document's head, its escape and nonce, the defaults, and a value the head cannot write omitting that match's head (plan 14 9.6, BUGS.md 145, 146)
 packages/core/tests/integration/server-fn.test.ts	P7	test	node	dx/server-fn.md through the real createServer(...).fetch: every builder step, the handler context, and the wire (B96)
 packages/core/tests/integration/middleware.test.ts	P8	test	node	Filter case, mount, and proxy
 packages/core/tests/integration/cacheability.test.ts	P9	test	node	The decision reaches document, data, and prefetch headers. A session, a late Set-Cookie, or an error frame takes the public header away

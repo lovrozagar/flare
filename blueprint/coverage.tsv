@@ -329,3 +329,68 @@ features.md#Query#API:createQueryClientGetter()	packages/core/tests/integration/
 features.md#Query#API:useSuspenseQuery(options)	packages/core/tests/integration/query.test.ts::query client	packages/core/tests/e2e/docs-data.test.ts::query suspense
 features.md#Query#API:serverFnQueryOptions(fn, { queryKey, input? })	packages/core/tests/integration/query.test.ts::query client; packages/core/tests/integration/query.test.ts::server fn options	packages/core/tests/e2e/docs-data.test.ts::query prefetched
 features.md#Query#API:serverFnMutationOptions(fn, { mutationKey? })	packages/core/tests/integration/query.test.ts::server fn options	packages/core/tests/e2e/docs-data.test.ts::mutation sets data
+head.md#head#field:title	packages/core/tests/integration/head.test.ts::fields; packages/core/tests/integration/head.test.ts::omitted	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:description	packages/core/tests/integration/head.test.ts::fields	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:canonical	packages/core/tests/integration/head.test.ts::fields; packages/core/tests/integration/head.test.ts::omitted	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:keywords	packages/core/tests/integration/head.test.ts::fields	n/a: the docs app's head does not set keywords; head.test reads it from the document the real server sends
+head.md#head#field:css	packages/core/tests/integration/head.test.ts::fields	n/a: the docs app's head does not set css; head.test reads it from the document the real server sends
+head.md#head#field:languages	packages/core/tests/integration/head.test.ts::fields	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:jsonLd	packages/core/tests/integration/head.test.ts::fields	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:images	packages/core/tests/integration/head.test.ts::images	n/a: the docs app's head does not set images; head.test reads it from the document the real server sends
+head.md#head#field:favicons	packages/core/tests/integration/head.test.ts::favicons	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:robots	packages/core/tests/integration/head.test.ts::robots	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:openGraph	packages/core/tests/integration/head.test.ts::open graph	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:twitter	packages/core/tests/integration/head.test.ts::twitter	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:meta	packages/core/tests/integration/head.test.ts::meta	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#head#field:custom	packages/core/tests/integration/head.test.ts::custom; packages/core/tests/integration/head.test.ts::omitted	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#Nested objects#	packages/core/tests/integration/head.test.ts::images; packages/core/tests/integration/head.test.ts::favicons; packages/core/tests/integration/head.test.ts::robots; packages/core/tests/integration/head.test.ts::open graph; packages/core/tests/integration/head.test.ts::twitter; packages/core/tests/integration/head.test.ts::meta; packages/core/tests/integration/head.test.ts::custom	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#SeoImage#prop:url	packages/core/tests/integration/head.test.ts::images	n/a: the docs app's head does not set url; head.test reads it from the document the real server sends
+head.md#SeoImage#prop:alt	packages/core/tests/integration/head.test.ts::images	n/a: the docs app's head does not set alt; head.test reads it from the document the real server sends
+head.md#SeoImage#prop:width	packages/core/tests/integration/head.test.ts::images	n/a: the docs app's head does not set width; head.test reads it from the document the real server sends
+head.md#SeoImage#prop:height	packages/core/tests/integration/head.test.ts::images	n/a: the docs app's head does not set height; head.test reads it from the document the real server sends
+head.md#SeoImage#prop:type	packages/core/tests/integration/head.test.ts::images	n/a: the docs app's head does not set type; head.test reads it from the document the real server sends
+head.md#favicons#key:ico	packages/core/tests/integration/head.test.ts::favicons	n/a: the docs app's head does not set ico; head.test reads it from the document the real server sends
+head.md#favicons#key:svg	packages/core/tests/integration/head.test.ts::favicons	n/a: the docs app's head does not set svg; head.test reads it from the document the real server sends
+head.md#favicons#key:appleTouchIcon	packages/core/tests/integration/head.test.ts::favicons	n/a: the docs app's head does not set appleTouchIcon; head.test reads it from the document the real server sends
+head.md#favicons#key:"96x96"	packages/core/tests/integration/head.test.ts::favicons	n/a: the docs app's head does not set "96x96"; head.test reads it from the document the real server sends
+head.md#favicons#key:"192x192"	packages/core/tests/integration/head.test.ts::favicons	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#favicons#key:"512x512"	packages/core/tests/integration/head.test.ts::favicons	n/a: the docs app's head does not set "512x512"; head.test reads it from the document the real server sends
+head.md#robots#prop:index	packages/core/tests/integration/head.test.ts::robots	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#robots#prop:follow	packages/core/tests/integration/head.test.ts::robots	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#robots#prop:noarchive	packages/core/tests/integration/head.test.ts::robots	n/a: the docs app's head does not set noarchive; head.test reads it from the document the real server sends
+head.md#robots#prop:noimageindex	packages/core/tests/integration/head.test.ts::robots	n/a: the docs app's head does not set noimageindex; head.test reads it from the document the real server sends
+head.md#robots#prop:max-image-preview	packages/core/tests/integration/head.test.ts::robots	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#robots#prop:max-snippet	packages/core/tests/integration/head.test.ts::robots	n/a: the docs app's head does not set max-snippet; head.test reads it from the document the real server sends
+head.md#robots#prop:max-video-preview	packages/core/tests/integration/head.test.ts::robots	n/a: the docs app's head does not set max-video-preview; head.test reads it from the document the real server sends
+head.md#openGraph#prop:type	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set type; head.test reads it from the document the real server sends
+head.md#openGraph#prop:title	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set title; head.test reads it from the document the real server sends
+head.md#openGraph#prop:description	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set description; head.test reads it from the document the real server sends
+head.md#openGraph#prop:url	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set url; head.test reads it from the document the real server sends
+head.md#openGraph#prop:siteName	packages/core/tests/integration/head.test.ts::open graph	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#openGraph#prop:locale	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set locale; head.test reads it from the document the real server sends
+head.md#openGraph#prop:alternateLocale	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set alternateLocale; head.test reads it from the document the real server sends
+head.md#openGraph#prop:images	packages/core/tests/integration/head.test.ts::images; packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set images; head.test reads it from the document the real server sends
+head.md#openGraph#prop:audio	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set audio; head.test reads it from the document the real server sends
+head.md#openGraph#prop:videos	packages/core/tests/integration/head.test.ts::open graph	n/a: the docs app's head does not set videos; head.test reads it from the document the real server sends
+head.md#twitter#prop:card	packages/core/tests/integration/head.test.ts::twitter	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#twitter#prop:site	packages/core/tests/integration/head.test.ts::twitter	n/a: the docs app's head does not set site; head.test reads it from the document the real server sends
+head.md#twitter#prop:creator	packages/core/tests/integration/head.test.ts::twitter	n/a: the docs app's head does not set creator; head.test reads it from the document the real server sends
+head.md#twitter#prop:title	packages/core/tests/integration/head.test.ts::twitter	n/a: the docs app's head does not set title; head.test reads it from the document the real server sends
+head.md#twitter#prop:description	packages/core/tests/integration/head.test.ts::twitter	n/a: the docs app's head does not set description; head.test reads it from the document the real server sends
+head.md#twitter#prop:images	packages/core/tests/integration/head.test.ts::twitter	n/a: the docs app's head does not set images; head.test reads it from the document the real server sends
+head.md#meta#prop:charset	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set charset; head.test reads it from the document the real server sends
+head.md#meta#prop:viewport	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set viewport; head.test reads it from the document the real server sends
+head.md#meta#prop:applicationName	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set applicationName; head.test reads it from the document the real server sends
+head.md#meta#prop:author	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set author; head.test reads it from the document the real server sends
+head.md#meta#prop:creator	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set creator; head.test reads it from the document the real server sends
+head.md#meta#prop:publisher	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set publisher; head.test reads it from the document the real server sends
+head.md#meta#prop:generator	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set generator; head.test reads it from the document the real server sends
+head.md#meta#prop:manifest	packages/core/tests/integration/head.test.ts::meta	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#meta#prop:appleMobileWebAppCapable	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set appleMobileWebAppCapable; head.test reads it from the document the real server sends
+head.md#meta#prop:appleMobileWebAppTitle	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set appleMobileWebAppTitle; head.test reads it from the document the real server sends
+head.md#meta#prop:appleMobileWebAppStatusBarStyle	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set appleMobileWebAppStatusBarStyle; head.test reads it from the document the real server sends
+head.md#meta#prop:mobileWebAppCapable	packages/core/tests/integration/head.test.ts::meta	n/a: the docs app's head does not set mobileWebAppCapable; head.test reads it from the document the real server sends
+head.md#custom#prop:links	packages/core/tests/integration/head.test.ts::custom	n/a: the docs app's head does not set links; head.test reads it from the document the real server sends
+head.md#custom#prop:meta	packages/core/tests/integration/head.test.ts::custom	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#custom#prop:scripts	packages/core/tests/integration/head.test.ts::custom; packages/core/tests/integration/head.test.ts::omitted	packages/core/tests/e2e/docs-features.test.ts::head full
+head.md#custom#prop:styles	packages/core/tests/integration/head.test.ts::custom	n/a: the docs app's head does not set styles; head.test reads it from the document the real server sends
