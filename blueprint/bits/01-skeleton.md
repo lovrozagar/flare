@@ -375,6 +375,26 @@ dx/routes.md through real apps. Each fixture is an app of route files under `src
 | `duplicate url`, `shadow`, `two pages`, `id mismatch`, `no root`, `bad brackets`, `repeated param` | one app each | the build fails with codegen's message naming the files (BUGS.md 130 for `id mismatch`); each bite is the check removed |
 | `lazy route module` | a route module that imports the router and holds its evaluation open, two requests | both 200: the second import gets the namespace before `route` is set, and dev waits for it (bite: no dev wait) |
 
+### `tests/integration/plugin.test.ts`, `plugin-dev.test.ts`, and `plugin-workers.test.ts` (plan 14 9.6, B96)
+
+dx/plugin.md through real apps. plugin.test builds an app with every `flare()` option set and one with the defaults by `vite build` from a config file (tests/integration/vite-app.ts), reads their client output, and asks their built servers; a rejected option is `flare()` or the real Vite config resolution throwing. plugin-dev runs `vite dev` on a port with a WebSocket client on Vite's hot channel announcing the document's tab token, as the client does, then the same app built. plugin-workers composes Cloudflare's plugin with a custom `assetsBase` and runs the build's deploy output in Miniflare; the Bun run skips it (no `registerHooks`). Each group's bite is the source mutation that turns it red (20).
+
+| test | case | result |
+| --- | --- | --- |
+| `assets base` | `assetsBase: "/static"`, an imported asset, and the defaults | the client entry and every file under `/static`, the document's import there, the server-rendered asset URL a file the client build wrote (BUGS.md 132); `/assets` by default |
+| `entries` | `entry: { client: "app/main.tsx", server: "app/server.ts" }` | the built server is app/server.ts, the client bundle holds app/main.tsx |
+| `image` | widths 320 and 640, quality 40, an excluded file; `image: {}` | only those webp widths, smaller than quality 75's, the excluded file copied and served; the defaults up to the source's width |
+| `css reset` | `reset: true`; the defaults | the preflight in the stylesheet and the critical block; neither |
+| `broadcast off` | `broadcast: false` with a ThemeProvider; the defaults | no BroadcastChannel in the client bundle; one |
+| `fonts` | `fonts: { dir }` with the Inter registry family imported; absent | every Inter file byte for byte at its registry url; none |
+| `prerender` | concurrency 2, an env, an excluded ssg page; `prerender: true` | three seeds carrying the env value, two renders at once; four seeds, one at a time |
+| `build failures` | an ssg route with prerender off, a font file `dir` lacks, a sitemap with no `site` | each build fails naming the cause, no sitemap written |
+| `options checked` | a bad assetsBase, css key, broadcast, fonts dir, width, quality, every removed v0 key, an absolute or missing entry, a public host | each throws; `localhost`, `127.0.0.1`, `::1` resolve |
+| `dev error overlay` | a loader throws in dev, from the announced tab, without a token, from another tab; `notFound()` | 500 with the message and the stack in the body, one overlay payload to the announced tab only; 404 and no payload |
+| `production error` | the same throw built; `markSafeError` | a generic message and a digest, no message or stack; the safe message, no stack |
+| `workers build` | Cloudflare's plugin, `assetsBase: "/static"`, `prerender: true`, an imported asset on a live and an ssg page | the worker, its deploy config and the `.wrangler/deploy` pointer; `_headers` `/static/*` immutable (B130); the page and the hashed entry from Miniflare; the asset URL in the worker's page and in prerender's seed the same `/static/` file, served immutable (BUGS.md 132) |
+| `workers composition checked` | a Wrangler `main` other than the worker entry | the build fails naming `@lovrozagar/flare/worker` |
+
 ## Done
 
 The minimal app's `dev` script serves `/`. `bun run test` is green at 100% for every source file this bit created. On Linux, `bun run test:e2e` is green on `node-dev-chromium` and `node-dev-firefox`. On macOS, the same command is green on `node-dev-webkit`. Both CI jobs are green.
