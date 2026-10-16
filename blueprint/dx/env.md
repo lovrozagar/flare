@@ -44,5 +44,6 @@ The call shapes, legal ones and those that fail the build. Each test name is a c
 | `iso split` | `.server()` and `.client()` are split across two statements |
 | `iso order` | `.client()` then `.server()` in one expression keeps both sides |
 | `quote in a regex` | a regex literal that contains a quote, in the same file, still rewrites the call |
+| `iso namespace` | `flare.createIsomorphicFn().server(…).client(…)` splits as the named import does, in both graphs; the namespace read as a value, `const { createIsomorphicFn } = flare` say, is a build error, and a type position such as `typeof flare` is not a read (BUGS.md 173) |
 
 Solid's `server-only` and `client-only` packages mark a whole module. A file that is only a driver may import them. A function inside a shared module uses the helpers above. `isServer` does not delete a body from a chunk.

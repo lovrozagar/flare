@@ -89,6 +89,14 @@ it("iso server body", async () => {
 	await expect(build(root, "client", [force])).rejects.toThrow(/B45/)
 	const back = forcing("mod.ts", ".client()", '.client(() => "CLIENT_SIDE")')
 	await expect(build(root, "ssr", [back])).rejects.toThrow(/B45/)
+	// Through the namespace import too: the client graph holds no server body (plan 21 13.15).
+	const namespaced = fixture(
+		app(
+			'import * as flare from "@lovrozagar/flare";\nexport const pick = flare.createIsomorphicFn().server(() => "SENTINEL_ISO").client(() => "CLIENT_SIDE");\n',
+		),
+	)
+	expect(await build(namespaced, "client")).not.toContain("SENTINEL_ISO")
+	await expect(build(namespaced, "client", [force])).rejects.toThrow(/B45/)
 })
 
 it("clean", async () => {

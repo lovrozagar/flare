@@ -243,11 +243,16 @@ export const route = flare.createPage("_root_/a").loader(() => db.read()).render
 		`${BUILDER}const make = createPage;\nexport const route = make("_root_/a").loader(l);\n`,
 		`import * as flare from "@lovrozagar/flare";\nconst route = flare.createPage("_root_/a").loader(l);\nexport { route };\n`,
 		`${BUILDER}export const route = [createPage("_root_/a").loader(l)][0];\n`,
-		`import * as flare from "@lovrozagar/flare";\nReflect.set(globalThis, "f", flare);\n`,
 		`import * as flare from "@lovrozagar/flare";\nconst make = flare.createLayout;\nexport const route = make("_root_");\n`,
-		`import * as flare from "@lovrozagar/flare";\nexport const route = flare["createPage"]("_root_/a").loader(l);\n`,
 	]
 	for (const shape of shapes) expect(() => split(shape)).toThrow(direct)
+	const value = "src/routes/a.page.tsx: the namespace flare is read as a value; use it only as flare.name"
+	for (const read of [
+		'Reflect.set(globalThis, "f", flare);',
+		'export const route = flare["createPage"]("_root_/a");',
+	]) {
+		expect(() => split(`import * as flare from "@lovrozagar/flare";\n${read}\n`)).toThrow(value)
+	}
 	// A type position reads neither a builder nor a namespace.
 	const typed = `import * as flare from "@lovrozagar/flare";
 ${BUILDER}type Make = typeof createPage;
