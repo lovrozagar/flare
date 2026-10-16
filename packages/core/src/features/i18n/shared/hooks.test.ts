@@ -29,14 +29,14 @@ const loader = (params: Record<string, string>) =>
 	inLoaderScope("loader", { params, locale }, () => useLoaderT(translations)("hello", { name: "Ana" }))
 const preloader = (): unknown =>
 	inLoaderScope("preloader", { params: { locale: "hr" }, locale }, () =>
-		usePreloaderT(translations).rich("hello", {}, { name: "B" }),
+		usePreloaderT(translations)("hello", { name: "B" }),
 	)
 
 it("outside", async () => {
 	expect(await inRequest(() => loader({ locale: "hr" }))).toBe("Bok Ana")
 	expect(await inRequest(() => loader({}))).toBe("Hi Ana")
 	expect(await inRequest(() => loader({ locale: "fr" }))).toBe("Hi Ana")
-	expect(await inRequest(preloader)).toEqual(["Bok B"])
+	expect(await inRequest(preloader)).toBe("Bok B")
 	// The hook belongs to its own function: useLoaderT in a preloader, and the other way round, throws.
 	await expect(
 		inRequest(() => inLoaderScope("preloader", { params: {}, locale }, () => useLoaderT(translations))),

@@ -12,6 +12,8 @@ import {
 	useSearch,
 } from "@lovrozagar/flare"
 import { createServerFn } from "@lovrozagar/flare/server-fn"
+import { createTranslations, useLoaderT, usePreloaderT, useT } from "@lovrozagar/flare/i18n"
+import type { JSX } from "@solidjs/web"
 import { echo, measure, ticks } from "./fns/echo.ts"
 
 // server fn auth null
@@ -138,4 +140,21 @@ import { echo, measure, ticks } from "./fns/echo.ts"
 		.server(() => "server")
 		.client(() => "client")
 	void [read, focus, side]
+}
+
+// i18n t: a loader's and a preloader's `t` are text only, since JSX cannot travel in loader data; `useT` in a render
+// gives `t` and `t.rich` (BUGS.md 142)
+{
+	const messages = createTranslations({ en: { terms: "Read {link}the terms{/link}" } })
+	const loaderText: string = useLoaderT(messages)("terms")
+	const preloaderText: string = usePreloaderT(messages)("terms")
+	void [loaderText, preloaderText]
+	// @ts-expect-error a loader's t has no rich
+	void useLoaderT(messages).rich
+	// @ts-expect-error a preloader's t has no rich
+	void usePreloaderT(messages).rich
+	const t = useT(messages)
+	const text: string = t("terms")
+	const rich: JSX.Element = t.rich("terms", { link: (props) => props.children })
+	void [text, rich]
 }

@@ -5,8 +5,12 @@ import { richText, type RichComponents } from "./rich.ts"
 export type Messages = Readonly<Record<string, string>>
 export type Translations = Readonly<Record<string, Messages>>
 
-// `t(key, values?)` and `t.rich(key, components, values?)`, bound to one tag's messages.
-export type Translate = ((key: string, values?: Values) => string) & {
+// `t(key, values?)`, bound to one tag's messages: text only, as a loader's and a preloader's `t` is, since JSX
+// cannot travel in loader data (BUGS.md 142).
+export type TextTranslate = (key: string, values?: Values) => string
+
+// `t` and `t.rich(key, components, values?)`, as a render's `useT` gives them.
+export type Translate = TextTranslate & {
 	rich: (key: string, components: RichComponents, values?: Values) => JSX.Element
 }
 
@@ -31,8 +35,12 @@ export function lookup(messages: Messages | undefined, key: string): string {
 	return messages !== undefined && Object.hasOwn(messages, key) ? String(messages[key]) : key
 }
 
+export function textTranslator(messages: Messages | undefined, tag: string): TextTranslate {
+	return (key, values) => formatMessage(lookup(messages, key), values, tag)
+}
+
 export function translator(messages: Messages | undefined, tag: string): Translate {
-	const t = (key: string, values?: Values): string => formatMessage(lookup(messages, key), values, tag)
+	const t = textTranslator(messages, tag)
 	return Object.assign(t, {
 		rich: (key: string, components: RichComponents, values?: Values) =>
 			richText(lookup(messages, key), components, { values: values ?? {}, tag }),
