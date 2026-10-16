@@ -9,7 +9,7 @@ import type { FrameError } from "../../shared/protocol/index.ts"
 import type { HeadConfig } from "../../shared/route-builder/types.ts"
 import { matchId } from "../../shared/route-tree/index.ts"
 import { notFoundRenderOf, type LoadedEntry, type Match } from "../../shared/router/create-router.ts"
-import { readSearch } from "../../shared/url/search.ts"
+import { readSearch, searchKey } from "../../shared/url/search.ts"
 import { resolveCaller } from "../auth/caller.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import { decide, withCookies, type Decision } from "../cacheability/index.ts"
@@ -101,8 +101,7 @@ export function cached(
 // A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one
 // `x` line. Validation, a gate status, and a named failure answer bare. Anything else is the NDJSON stream.
 export async function data(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
-	const raw = new URL(exchange.request.url).search.slice(1)
-	const id = matchId(definedParams(matched.params), raw)
+	const id = matchId(definedParams(matched.params), searchKey(new URL(exchange.request.url).search))
 	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind !== "page" }))
 	const skip = skippedRoutes(matches, exchange.stale)
 	const run = await runLoaders({ ...prepared.input, skip })
