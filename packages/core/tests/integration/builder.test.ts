@@ -4,6 +4,7 @@ import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createPathSegment } from "../../src/shared/route-builder/segment.ts"
+import { buildUrl } from "../../src/exports/index.ts"
 import { serverCtx } from "../../src/exports/server.ts"
 import { frames, serve } from "./builder-app.ts"
 
@@ -340,7 +341,7 @@ function seenAt(path: string) {
 
 // Loader, preloader, `authorize`, and `.response()` receive the fetch `env` and the `request`; the loader also gets
 // `defer`. The request context is `serverCtx()`, which reads what `createServer({ serverContext })` produced for this
-// request. The route callbacks get no `serverContext` field.
+// request. The route callbacks get no `serverContext` field; `buildUrl` is an import (BUGS.md 137).
 it("server callbacks", async () => {
 	const seen: Record<string, unknown> = {}
 	const look = (name: string, ctx: object) => {
@@ -352,7 +353,7 @@ it("server callbacks", async () => {
 		.preloader((ctx) => (look("preloader", ctx), {}))
 		.loader((ctx) => {
 			look("loader", ctx)
-			return { text: typeof ctx.defer }
+			return { text: `${typeof ctx.defer} ${buildUrl({ to: "_root_/users/[id]", params: { id: "7" }, hash: "top" })}` }
 		})
 		.render((props) => `defer ${props.loaderData.text}`)
 	const answer = createPage("_root_/r").response((ctx) => (look("response", ctx), new Response("r")))
@@ -363,7 +364,7 @@ it("server callbacks", async () => {
 		],
 		{ env: { KEY: "k" }, serverContext: ({ request }) => ({ path: new URL(request.url).pathname }) },
 	)
-	expect((await get("/p")).text).toContain("defer function")
+	expect((await get("/p")).text).toContain("defer function /users/7#top")
 	await get("/r")
 	expect(seen).toEqual({
 		authorize: seenAt("/p"),

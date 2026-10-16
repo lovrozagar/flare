@@ -3,6 +3,7 @@
 // `checks-data.ts` holds loaders, preloaders, and auth, and `checks-fns.ts` the hooks, server functions, and the
 // segment. The query rows are at the end of this file.
 import {
+	buildUrl,
 	createPage,
 	Link,
 	useLoaderData,
@@ -112,6 +113,18 @@ const wide: string = "_root_/about"
 	void Link({ to: "_root_/users/[id]", children: "x" })
 	// @ts-expect-error params are required
 	void navigate({ to: "_root_/users/[id]" })
+}
+
+// buildUrl: the same target as `navigate`, without `replace`, and a path back (dx/types.md)
+{
+	const path: string = buildUrl({ to: "_root_/users/[id]", params: { id: "1" }, hash: "top" })
+	void path
+	// @ts-expect-error params are required
+	void buildUrl({ to: "_root_/users/[id]" })
+	// @ts-expect-error an unknown id is rejected
+	void buildUrl({ to: "_root_/nope" })
+	// @ts-expect-error replace is a navigation option, not part of a URL
+	void buildUrl({ to: "_root_/about", replace: true })
 }
 
 // extra param

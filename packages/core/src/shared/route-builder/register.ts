@@ -106,13 +106,17 @@ type Checked<R extends FlareRegister, Id extends string> = (Empty<InferParams<R,
 	: { params: InferParams<R, Id> }) &
 	SearchField<InferSearch<R, Id>>
 
-// What `Link`, `navigate`, and `redirect` aim at: a page id with its params and search (dx/types.md). Unregistered,
-// `to` is any string, params are not checked, and search is the raw record.
-export type RouteTarget<R extends FlareRegister, Id extends To<R>> = (Registered<R> extends true
+// What `buildUrl` builds: a page id with its params and search (dx/types.md). Unregistered, `to` is any string,
+// params are not checked, and search is the raw record.
+export type UrlTarget<R extends FlareRegister, Id extends To<R>> = (Registered<R> extends true
 	? Checked<R, Id & string>
 	: { params?: Readonly<Record<string, unknown>>; search?: RawSearch }) & {
 	to: Id
 	hash?: string | undefined
+}
+
+// What `Link`, `navigate`, and `redirect` aim at: that URL, and whether it replaces the history entry.
+export type RouteTarget<R extends FlareRegister, Id extends To<R>> = UrlTarget<R, Id> & {
 	replace?: boolean | undefined
 }
 
