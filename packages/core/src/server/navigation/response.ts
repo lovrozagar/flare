@@ -29,10 +29,20 @@ export function dataBody(body: DataBody): ReadableStream<Uint8Array> {
 				write(frame.t === "e" ? { t: "e", m: frame.m, e: body.project(frame.e) } : { ...frame, d: frame.d ?? null })
 			body.heads.forEach(write)
 			write({ t: "r" })
+			const failed = (m: string, k: string, error: unknown): void =>
+				write({ t: "e", m, k, e: body.project(error, true) })
+			// A value JSON cannot hold, a bigint or a cycle, is that key's error: the stream goes on and ends, and no
+			// rejection escapes to stop the server (BUGS.md 149).
 			const settled = body.deferred.map(({ m, k, promise }) =>
 				promise.then(
-					(d) => write({ t: "c", m, k, d }),
-					(error: unknown) => write({ t: "e", m, k, e: body.project(error, true) }),
+					(d) => {
+						try {
+							write({ t: "c", m, k, d })
+						} catch (error) {
+							failed(m, k, error)
+						}
+					},
+					(error: unknown) => failed(m, k, error),
 				),
 			)
 			void Promise.all(settled).then(() => {
