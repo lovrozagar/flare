@@ -568,6 +568,22 @@ This file calls `boot` for the `minimal` app (B70). `boot` starts each app's `vi
 | `two skeletons` | a document with two deferred reads, each under its own `<Loading>` | the first HTML contains both fallbacks and neither resolved string. The fast string appears in a later chunk while the slow fallback is still showing. Then the slow string appears. The status stays 200 |
 | `style object` | a multi-key `style={{ … }}` object in a page | SSR renders it and the client hydrates it with no page error or console warning. The Solid compiler and the runtime are one release (B90, rc.14): on rc.13 the plugin's caret ranges pulled the rc.14 compiler, whose `ssrStyleProperties` call `@solidjs/web` rc.13 does not export. The minimal layout uses multi-key style objects too |
 
+### `tests/integration/head.test.ts` (plan 14 9.6, B96)
+
+dx/head.md through the real `createServer(...).fetch`: pages made with the real builders, each with a `.head()`, under the default security policy so the request nonce is on, and the head element of the document the server sends read tag by tag, `data-dh` dropped and the nonce matched against the CSP header's. One source mutation per group turns its case red (17 of 18; JSON-LD's own nonce prop is equivalent on the server, where Solid's useHead stamps the request nonce on a script that has none).
+
+| test | case | result |
+| --- | --- | --- |
+| `fields` | every top-level field on one page, a `javascript:` css URL, a JSON-LD value holding `</script>` | each tag; the description escaped; the css link without the dropped URL; one nonced JSON-LD script per object that parses back to the object |
+| `images` | `images` with every SeoImage prop and a `javascript:` URL, then `openGraph.images` | the og:image metas in array order, `images` first, the bad URL dropped, no twitter:image |
+| `favicons` | the six keys | one link each with its rel, type, and sizes |
+| `robots` | every prop, then `{}` | one meta with the tokens in row order; `index, follow` |
+| `open graph` | every prop, then `{}` | each og meta, alternates and media with their fields; og:type website |
+| `twitter` | every prop and two images, one with alt, then `{}` | each twitter meta, an alt only where set; the summary card |
+| `meta` | every prop; a child's `viewport: false` under a layout's viewport | each tag and the manifest link; the parent's viewport kept by a sibling and removed by the child |
+| `custom` | links and meta with `on*` and bad names, an external and an inline script with `type` and `extra`, an empty script, a style | the allowed attributes only; `type` and `extra` on both scripts, the nonce on the inline one only, closing tags rewritten in their own spelling; the empty script dropped (BUGS.md 146) |
+| `omitted` | a null title, a relative canonical, a script with `src` and `children`, a page with no `.head()` | no title; that match's head omitted with status 200 (BUGS.md 145); nothing of its own |
+
 ## Done
 
 A client navigation does not request a document. A request header cannot select the data response. History grows only after a successful commit.
