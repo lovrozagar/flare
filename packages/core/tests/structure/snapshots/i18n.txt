@@ -2,8 +2,8 @@
 import { Values, formatMessage } from "../features/i18n/shared/format.js";
 import { LocaleConfigInput, LocaleProvider, LocaleProviderProps, LocaleState } from "../features/i18n/shared/provider.js";
 import { RichComponent, RichComponents } from "../features/i18n/shared/rich.js";
-import { Messages, Translate, Translations, createTranslations } from "../features/i18n/shared/translate.js";
-import { useLoaderT, useLocale, usePreloaderT } from "../features/i18n/shared/hooks.js";
+import { Messages, TextTranslate, Translate, Translations, createTranslations } from "../features/i18n/shared/translate.js";
+import { useLoaderT, useLocale, usePreloaderT, useT } from "../features/i18n/shared/hooks.js";
 import { LocaleScript } from "../features/i18n/shared/script.js";
 import "../features/i18n/shared/index.js";
-export { type LocaleConfigInput, LocaleProvider, type LocaleProviderProps, LocaleScript, type LocaleState, type Messages, type RichComponent, type RichComponents, type Translate, type Translations, type Values, createTranslations, formatMessage, useLoaderT, useLocale, usePreloaderT };
+export { type LocaleConfigInput, LocaleProvider, type LocaleProviderProps, LocaleScript, type LocaleState, type Messages, type RichComponent, type RichComponents, type TextTranslate, type Translate, type Translations, type Values, createTranslations, formatMessage, useLoaderT, useLocale, usePreloaderT, useT };
