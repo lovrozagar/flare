@@ -19,7 +19,7 @@ export type AdaptedRequest = {
 export function toRequest(input: NodeIncoming): AdaptedRequest {
 	const headers = input.headers ?? {}
 	void input.router
-	if (badTarget(input.url)) return rejected()
+	if (badTarget(input.url) || !validHost(headers["host"])) return rejected()
 	const hops = input.trustProxy ?? 0
 	const socket = input.socketAddress ?? ""
 	const secure = forwardedHttps(hops, headers["x-forwarded-proto"])
@@ -35,6 +35,15 @@ export function toRequest(input: NodeIncoming): AdaptedRequest {
 
 function rejected(): AdaptedRequest {
 	return { status: 400, secure: false, clientIp: "", resolvedOrigin: "", url: "" }
+}
+
+// A Host header is a host and an optional port: a name, an IPv4 address, or a bracketed IPv6 one. Anything else, a path,
+// a query, a fragment, userinfo, or a space, would change the URL the router reads, so it is a 400 (BUGS.md 150). An
+// absent Host is localhost.
+const HOST = /^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._-]+)(?::\d{1,5})?$/
+
+function validHost(host: string | undefined): boolean {
+	return host === undefined || HOST.test(host)
 }
 
 function badTarget(url: string): boolean {

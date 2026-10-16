@@ -31,6 +31,7 @@ function app(release: Promise<void>): ReturnType<typeof createServer> {
 		return new Response("cookies", { headers })
 	})
 	const echo = createPage("_root_/echo").response(async ({ request }) => new Response(`echo ${await request.text()}`))
+	const where = createPage("_root_/where").response(({ request }) => new Response(request.url))
 	const stream = createPage("_root_/stream").response(() => {
 		const encoder = new TextEncoder()
 		const body = new ReadableStream<Uint8Array>({
@@ -48,6 +49,7 @@ function app(release: Promise<void>): ReturnType<typeof createServer> {
 		{ id: "_root_/proto", path: "/proto", module: proto },
 		{ id: "_root_/cookies", path: "/cookies", module: cookies },
 		{ id: "_root_/echo", path: "/echo", module: echo },
+		{ id: "_root_/where", path: "/where", module: where },
 		{ id: "_root_/stream", path: "/stream", module: stream },
 	]
 	return createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }) })
@@ -91,6 +93,61 @@ function raw(origin: string, target: string): Promise<string> {
 		socket.end(`GET ${target} HTTP/1.1\r\nhost: ${hostname}\r\nconnection: close\r\n\r\n`)
 	})
 }
+
+// A chunked body's data: each chunk's size line, then that many bytes, until the zero chunk.
+function unchunked(body: string): string {
+	let out = ""
+	let at = 0
+	for (;;) {
+		const end = body.indexOf("\r\n", at)
+		const size = Number.parseInt(body.slice(at, end), 16)
+		if (end === -1 || !(size > 0)) return out
+		out += body.slice(end + 2, end + 2 + size)
+		at = end + 2 + size + 2
+	}
+}
+
+// A request with this exact Host header: the status line and the body.
+function withHost(origin: string, target: string, host: string): Promise<{ status: string; body: string }> {
+	const { hostname, port } = new URL(origin)
+	return new Promise((resolve) => {
+		const socket = connect(Number(port), hostname)
+		let text = ""
+		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
+		socket.on("close", () => {
+			const [head = "", body = ""] = text.split("\r\n\r\n")
+			resolve({ status: head.split("\r\n")[0] ?? "", body: unchunked(body) })
+		})
+		socket.end(`GET ${target} HTTP/1.1\r\nhost: ${host}\r\nconnection: close\r\n\r\n`)
+	})
+}
+
+// Host is a host and an optional port, nothing else: a path, a query, a fragment, userinfo, or a space in it is a 400,
+// so it never changes the routed path; a name, an IPv4 or bracketed IPv6 address, and a port are served as given
+// (plan 21 2.2, BUGS.md 150).
+it("node host", async () => {
+	const origin = await listen(createNodeListener(app(Promise.resolve())))
+	for (const host of [
+		"evil.example/admin?",
+		"evil.example?x=",
+		"evil.example#x",
+		"user@evil.example",
+		"a b",
+		"ex:80/x",
+	]) {
+		expect([host, (await withHost(origin, "/where", host)).status]).toEqual([host, "HTTP/1.1 400 Bad Request"])
+	}
+	for (const [host, url] of [
+		["example.com", "http://example.com/where"],
+		["example.com:8080", "http://example.com:8080/where"],
+		["127.0.0.1:3000", "http://127.0.0.1:3000/where"],
+		["[::1]:3000", "http://[::1]:3000/where"],
+		["svc_name.internal", "http://svc_name.internal/where"],
+	]) {
+		const answer = await withHost(origin, "/where", host)
+		expect([host, answer.status, answer.body]).toEqual([host, "HTTP/1.1 200 OK", url])
+	}
+})
 
 // The listener serves a page, writes a stream's first chunk before its second exists, keeps each Set-Cookie its own
 // header, hands a `.response()` route the request body, refuses a `//` target with 400, and serves the next request
