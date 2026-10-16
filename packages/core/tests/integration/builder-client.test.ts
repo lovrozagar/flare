@@ -12,7 +12,7 @@ let harness: Harness | undefined
 
 beforeAll(async () => {
 	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."))
-}, 60_000)
+})
 
 afterAll(async () => {
 	await harness?.close()
@@ -337,7 +337,7 @@ async function resetSteps(tab: Page): Promise<void> {
 	)
 }
 
-describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	// `.head(fn, { replace: true })` makes the route's object the whole head through hydration and client navigations.
 	it("head replace", async () => {
 		const result = await run(engine, { app: HEADS, path: "/replaced", steps: headSteps })
@@ -393,7 +393,7 @@ describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
 })
 
 // The match cache after hydrate (BUGS.md 139).
-describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	// The document's page is held after hydrate under its loaderDeps: back to it within staleTime, the same deps keep the
 	// data the document rendered, and the loader does not run (BUGS.md 139).
 	it("effects loaderDeps", async () => {
@@ -447,7 +447,7 @@ describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
 	})
 })
 
-describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	// A render's string is text on the server and the client alike: no element, the literal string, and no
 	// hydration mismatch (BUGS.md 141).
 	it("render text hydrates", async () => {

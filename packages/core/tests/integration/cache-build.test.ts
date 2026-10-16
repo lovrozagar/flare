@@ -59,7 +59,7 @@ beforeAll(async () => {
 		"src/routes/_root_/lazy/lazy.page.tsx": page("_root_/lazy", ".cache({ isr: true })"),
 	})
 	server = await builtServer(root)
-}, 180_000)
+})
 
 afterAll(() => apps.removeAll())
 

@@ -13,7 +13,7 @@ let harness: Harness | undefined
 
 beforeAll(async () => {
 	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."))
-}, 60_000)
+})
 
 afterAll(async () => {
 	await harness?.close()
@@ -140,7 +140,7 @@ async function rewriteSteps(tab: Page): Promise<void> {
 	await remember(tab, await tab.evaluate(() => document.getElementById("page")?.textContent))
 }
 
-describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	// Back restores the position the page was left at, from sessionStorage keyed by history index.
 	it("scroll restore", async () => {
 		const result = await run(engine, { app: defaultsApp, path: "/a", steps: restoreSteps })

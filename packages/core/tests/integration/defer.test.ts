@@ -227,7 +227,7 @@ function hydratedValue(engine: Engine): Promise<AppResult> {
 	})
 }
 
-describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	it("component reads", async () => {
 		const result = await hydratedValue(engine)
 		expect(result.problems).toEqual([])

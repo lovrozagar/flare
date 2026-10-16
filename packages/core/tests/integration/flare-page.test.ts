@@ -61,7 +61,7 @@ async function helperOn(engine: Engine): Promise<Seen> {
 	return seen
 }
 
-describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	it("helper on a real page", async () => {
 		const seen = await helperOn(engine)
 		expect(seen.hydrated).toBe(true)

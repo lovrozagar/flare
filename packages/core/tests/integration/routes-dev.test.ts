@@ -56,7 +56,7 @@ beforeAll(async () => {
 	})
 	await vite.listen()
 	origin = vite.resolvedUrls?.local[0]?.replace(/\/$/, "") ?? ""
-}, 120_000)
+})
 
 afterAll(async () => {
 	await vite?.close()
@@ -97,7 +97,7 @@ it("start fixes", async () => {
 })
 
 // A new page written with any id is rewritten to its path's id, and its URL serves.
-it("created page", { timeout: 30_000 }, async () => {
+it("created page", async () => {
 	write("src/routes/_root_/fresh/fresh.page.tsx", page("_root_/"))
 	await eventually(() => source("src/routes/_root_/fresh/fresh.page.tsx") === page("_root_/fresh"))
 	await eventually(async () => (await status("/fresh")) === 200)
@@ -105,7 +105,7 @@ it("created page", { timeout: 30_000 }, async () => {
 })
 
 // A page moved to another folder takes that folder's id, and serves there.
-it("moved page", { timeout: 30_000 }, async () => {
+it("moved page", async () => {
 	write("src/routes/_root_/before/before.page.tsx", page("_root_/before"))
 	await eventually(async () => (await status("/before")) === 200)
 	renameSync(join(root, "src/routes/_root_/before"), join(root, "src/routes/_root_/after"))
@@ -116,7 +116,7 @@ it("moved page", { timeout: 30_000 }, async () => {
 
 // An id the scan cannot resolve, a template or an imported name, is left as written: codegen neither checks nor writes
 // it, and the page still serves at its path.
-it("unresolved id", { timeout: 30_000 }, async () => {
+it("unresolved id", async () => {
 	const template =
 		'import { createPage } from "@lovrozagar/flare";\nconst area = "odd";\nexport const route = createPage(`_root_/${area}`).render(() => <p>odd</p>);\n'
 	const imported =

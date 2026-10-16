@@ -131,7 +131,7 @@ afterAll(() => apps.removeAll())
 
 // A root layout's render writes the document. One that writes no `<html>` or `</body>` is served as written in dev
 // (this server, D22) and is an empty 500 in a production build (B37).
-it("render document", { timeout: 120_000 }, async () => {
+it("render document", async () => {
 	const bare = createRootLayout("_root_").render((props) =>
 		createComponent(Dynamic, { component: "main", children: props.children }),
 	)
@@ -173,7 +173,7 @@ function pageFile(name: string, render: string): string {
 // depth, a function or memo of one: escaped as JSX text is, on the server in dev and in a production build. An
 // element and a Loading result pass through as markup (BUGS.md 141). Solid's SSR `Errored`, which every slot sits in,
 // emits a string child raw.
-it("render text escaped", { timeout: 120_000 }, async () => {
+it("render text escaped", async () => {
 	const failed = createPage("_root_/failed")
 		.loader((): { text: string } => {
 			throw new Error("x")
@@ -404,7 +404,7 @@ function documentShape(status: number, text: string): { status: number; document
 const ROOT_FAILURE = { status: 404, document: true, body: "<div>Page not found</div>" }
 
 // A failed root paints the built-in div as the body of a minimal document, in dev and in a production build.
-it("boundary root", { timeout: 120_000 }, async () => {
+it("boundary root", async () => {
 	const page = createPage("_root_/broken").render(() => "never")
 	const dev = await serve([{ id: "_root_/broken", path: "/broken", module: page }], {
 		layouts: { _root_: failingRoot },

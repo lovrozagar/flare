@@ -115,7 +115,7 @@ function dataHooks(api: Api) {
 	})
 }
 
-describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	// The harness is not vacuous: a mismatched tree fails it.
 	it("harness bites", async () => {
 		expect((await started().hydrate(engine, mismatched)).problems).not.toEqual([])
@@ -146,7 +146,7 @@ describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
 
 // With the port held from before the harness started, the page's Vite client still talks to the harness's own server,
 // so no case sees the foreign socket (BUGS.md B53).
-it("foreign hmr port", { timeout: 30_000 }, async () => {
+it("foreign hmr port", async () => {
 	const problems: string[] = []
 	for (const tree of [progressBeside, idleBoundaries, dataHooks])
 		problems.push(...(await started().hydrate("chromium", tree)).problems)

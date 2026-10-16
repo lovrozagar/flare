@@ -4,7 +4,7 @@ scripts/check-tree.test.ts	P0	test	node	Unit cases for check-tree.ts
 packages/core/package.json	P0	config	-	Package name, exports map, bin, files, sideEffects. No dependencies key. Peers are >= the dev pins (B79)
 packages/core/tsconfig.json	P0	config	-	Typecheck src and tests, including tests/types/propagation.test.ts. The types fixture app has its own tsconfig
 packages/core/tsconfig.src.json	P0	config	-	Typecheck src with isolatedDeclarations
-packages/core/vitest.config.ts	P0	config	-	unit-node and unit-dom projects, v8 per-file thresholds at 100
+packages/core/vitest.config.ts	P0	config	-	unit-node, integration and unit-dom projects; integration gets a 60 s case and hook budget, units keep 5 s. v8 per-file thresholds at 100
 packages/core/.oxlintrc.json	P0	config	-	Limits, vitest rules, custom flare plugins, per-environment overrides. The vitest plugin does not run on tests/e2e (B70)
 packages/core/lint/boundaries.js	P0	lint	node	Reject every import arrow that 00-rules does not list
 packages/core/lint/boundaries.test.ts	P0	test	node	Unit cases for boundaries.js
