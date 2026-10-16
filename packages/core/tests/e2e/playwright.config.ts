@@ -1,5 +1,6 @@
 import { defineConfig, type PlaywrightTestOptions, type PlaywrightWorkerOptions, type Project } from "@playwright/test"
 import type { FloorOptions } from "./crash.ts"
+import { machineWorkers } from "./workers.ts"
 
 type FlareProject = Project<PlaywrightTestOptions, PlaywrightWorkerOptions & FloorOptions>
 
@@ -40,6 +41,11 @@ if (!inWorker && requested.size > 0) process.env["FLARE_E2E_PROJECTS_CHOSEN"] = 
 
 const projects = inWorker || requested.size === 0 ? all : all.filter((project) => requested.has(project.name ?? ""))
 
+// Sized to the memory free at the start, so the grid stays inside it (workers.ts, BUGS.md 128). The runner logs the
+// count once; a worker loads this file again and runs none of its own.
+const sized = machineWorkers(process.env)
+if (!inWorker) console.log(sized.line)
+
 export default defineConfig<object, FloorOptions>({
 	testDir: import.meta.dirname,
 	// Vitest files beside the specs: the boot helper's and its child helpers' own tests, and the golden proof from the
@@ -48,6 +54,7 @@ export default defineConfig<object, FloorOptions>({
 	globalSetup: "./global-setup.ts",
 	fullyParallel: false,
 	retries: 0,
+	...(sized.workers !== undefined && { workers: sized.workers }),
 	projects,
 })
 

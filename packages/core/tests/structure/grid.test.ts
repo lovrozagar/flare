@@ -3,6 +3,7 @@ import { join } from "node:path"
 import { expect, it } from "vitest"
 import { crashWatch, navigationLog } from "../e2e/crash.ts"
 import config from "../e2e/playwright.config.ts"
+import { gridWorkers, memAvailable, RESERVE_BYTES, WORKER_PEAK_BYTES } from "../e2e/workers.ts"
 
 // With no `--project`, the e2e config runs all 18 projects on any machine, Linux or macOS: the browsers come from the
 // pinned image, so the OS does not choose them (B70, B97). Each project names its server and its engine. The 19th is
@@ -22,6 +23,23 @@ it("grid projects", () => {
 	expect(floor?.testMatch).toEqual(["docs-smoke.test.ts", "docs-navigation.test.ts", "docs-data.test.ts"])
 	expect(config.projects?.filter((project) => project.use?.floor === true)).toHaveLength(1)
 	expect(config.globalSetup).toBe("./global-setup.ts")
+})
+
+// The grid's workers fit the memory free at its start: min(half the cores, (MemAvailable − reserve) / one worker's
+// measured peak), at least one; CI keeps Playwright's own count (BUGS.md 128).
+it("grid workers", () => {
+	const gb = 1e9
+	expect(gridWorkers({ ci: false, cores: 16, available: 30 * gb })).toBe(8)
+	expect(gridWorkers({ ci: false, cores: 16, available: 12 * gb })).toBe(
+		Math.floor((12 * gb - RESERVE_BYTES) / WORKER_PEAK_BYTES),
+	)
+	expect(gridWorkers({ ci: false, cores: 16, available: 12 * gb })).toBe(3)
+	expect(gridWorkers({ ci: false, cores: 16, available: 1 * gb })).toBe(1)
+	expect(gridWorkers({ ci: false, cores: 4, available: 30 * gb })).toBe(2)
+	expect(gridWorkers({ ci: true, cores: 16, available: 1 * gb })).toBeUndefined()
+	expect(memAvailable("/nonexistent/meminfo")).toBeGreaterThan(0)
+	expect(memAvailable()).toBeGreaterThan(0)
+	expect(typeof config.workers).toBe(process.env["CI"] === undefined ? "number" : "undefined")
 })
 
 // A page that crashes fails the case that owned it: the watch covers the pages a context already has and every page
