@@ -20,6 +20,7 @@ import type * as direction from "../../src/features/direction/shared/index.ts"
 import type * as i18n from "../../src/features/i18n/shared/index.ts"
 import type * as serverFn from "../../src/shared/server-fn/builder.ts"
 import type * as active from "../../src/client/navigation/active.ts"
+import type * as blocker from "../../src/client/navigation/blocker.ts"
 
 // What a tree builds from. Each side gets its own build of these modules: the server render the ones Vite's SSR
 // runner loads (Solid's server build), the browser the ones Vite serves it (Solid's browser build).
@@ -46,6 +47,7 @@ export type Api = {
 	// The server function builder, bound to a transport the app passes, and the root `navigate` and `invalidate`.
 	serverFn: typeof serverFn
 	active: typeof active
+	blocker: typeof blocker
 	// An element with an id and lazy children, so a tree needs no JSX transform.
 	h: (tag: string, id: string, children?: () => unknown) => web.JSX.Element
 }
@@ -76,4 +78,5 @@ export const MODULES: Record<keyof Omit<Api, "solid" | "web" | "h">, string> = {
 	i18n: "/src/features/i18n/shared/index.ts",
 	serverFn: "/src/shared/server-fn/builder.ts",
 	active: "/src/client/navigation/active.ts",
+	blocker: "/src/client/navigation/blocker.ts",
 }

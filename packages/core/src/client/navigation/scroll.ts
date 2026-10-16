@@ -1,3 +1,4 @@
+import type { Router } from "../../shared/router/create-router.ts"
 import type { Location } from "../../shared/url/index.ts"
 
 export type ScrollOptions = {
@@ -140,4 +141,26 @@ function decodeHash(hash: string): string {
 	} catch {
 		return hash
 	}
+}
+
+// The router's scroll options over the window. A document load sets the mode and reads no saved position.
+export function browserScroll(router: Router): ScrollStore {
+	const scroll = createScroll(
+		{
+			enabled: router.scrollRestoration,
+			behavior: router.scrollRestorationBehavior,
+			maxEntries: router.scrollRestorationMaxEntries,
+			...(router.getScrollRestorationKey === undefined ? {} : { key: router.getScrollRestorationKey }),
+		},
+		{
+			history: window.history,
+			storage: () => window.sessionStorage,
+			position: () => ({ x: window.scrollX, y: window.scrollY }),
+			scrollTo: (spot) => window.scrollTo(spot),
+			element: (id) => document.getElementById(id),
+			grown: pageGrowth(globalThis),
+		},
+	)
+	scroll.setup()
+	return scroll
 }

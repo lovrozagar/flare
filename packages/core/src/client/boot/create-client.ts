@@ -9,14 +9,14 @@ import { loadChain } from "../../shared/router/load-chain.ts"
 import type { ServerFnCall } from "../../shared/server-fn/builder.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { createHistory, type FlareHistory } from "../history/index.ts"
-import { createBlockers } from "../navigation/blocker.ts"
+import { createBlockers, type Blockers } from "../navigation/blocker.ts"
 import { revive, type Pending } from "../navigation/frames.ts"
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts"
 import { createNavigationState } from "../navigation/pending.ts"
 import { createPopstate } from "../navigation/popstate.ts"
 import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
 import { loadDocument } from "../navigation/reload.ts"
-import { createScroll, pageGrowth, type ScrollStore } from "../navigation/scroll.ts"
+import { browserScroll, type ScrollStore } from "../navigation/scroll.ts"
 import { hydrateCache } from "./initial.ts"
 import { callServerFn, type CallDeps } from "../server-fn/call.ts"
 import { streamServerFn } from "../server-fn/stream.ts"
@@ -45,7 +45,7 @@ type Ready = ReturnType<typeof createReady>
 
 type Navigator = ReturnType<typeof createNavigator>
 
-type Parts = { history: FlareHistory; scroll: ScrollStore; store: RouterStore }
+type Parts = { history: FlareHistory; scroll: ScrollStore; store: RouterStore; blockers: Blockers }
 
 // Hydrate starts on the next microtask, after the app chained its callbacks (dx/client.md).
 export function createClient(router: Router): ReadyApi {
@@ -115,7 +115,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		mount: env.mount,
 	})
 	// After the mount, so a Link's own click handler runs first and the delegate sees it handled.
-	const unlisten = listen(router, navigator, { history, scroll, store })
+	const unlisten = listen(router, navigator, { history, scroll, store, blockers })
 	setActiveClient({ navigate: navigator.navigate, invalidate })
 	markHydrated(ready)
 	if (state.fill === true) void navigator.fill(pending)
@@ -195,7 +195,8 @@ function installCall(
 	return invalidate
 }
 
-// Popstate, anchor clicks, and a back-forward cache restore reach the navigator from here.
+// Popstate, anchor clicks, and a back-forward cache restore reach the navigator from here. Leaving the document, by
+// reload, tab close, or a document load, asks the last blocker first (B84, plan 21 3.5).
 function listen(router: Router, navigator: Navigator, parts: Parts): () => void {
 	const pop = createPopstate({
 		history: parts.history,
@@ -205,8 +206,11 @@ function listen(router: Router, navigator: Navigator, parts: Parts): () => void 
 	})
 	const onPop = (event: PopStateEvent): void => void pop(event.state)
 	const onShow = (event: PageTransitionEvent): void => navigator.pageshow(event.persisted)
+	const onLeave = (event: Event): void =>
+		parts.blockers.beforeUnload(event, { ...parts.store.snapshot().location, params: {} })
 	window.addEventListener("popstate", onPop)
 	window.addEventListener("pageshow", onShow)
+	window.addEventListener("beforeunload", onLeave)
 	const undelegate = delegateClicks(document, {
 		router,
 		origin: window.location.origin,
@@ -215,6 +219,7 @@ function listen(router: Router, navigator: Navigator, parts: Parts): () => void 
 	return () => {
 		window.removeEventListener("popstate", onPop)
 		window.removeEventListener("pageshow", onShow)
+		window.removeEventListener("beforeunload", onLeave)
 		undelegate()
 	}
 }
@@ -259,28 +264,6 @@ function windowLocation(): Location {
 
 function here(): string {
 	return `${window.location.pathname}${window.location.search}${window.location.hash}`
-}
-
-// The router's scroll options over the window. A document load sets the mode and reads no saved position.
-function browserScroll(router: Router): ScrollStore {
-	const scroll = createScroll(
-		{
-			enabled: router.scrollRestoration,
-			behavior: router.scrollRestorationBehavior,
-			maxEntries: router.scrollRestorationMaxEntries,
-			...(router.getScrollRestorationKey === undefined ? {} : { key: router.getScrollRestorationKey }),
-		},
-		{
-			history: window.history,
-			storage: () => window.sessionStorage,
-			position: () => ({ x: window.scrollX, y: window.scrollY }),
-			scrollTo: (spot) => window.scrollTo(spot),
-			element: (id) => document.getElementById(id),
-			grown: pageGrowth(globalThis),
-		},
-	)
-	scroll.setup()
-	return scroll
 }
 
 // A stored document's holes are live values the fill settles after hydrate (dx/defer.md).

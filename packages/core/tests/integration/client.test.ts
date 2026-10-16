@@ -137,7 +137,44 @@ function storageBlocked(engine: Engine): Promise<AppResult> {
 	})
 }
 
+// A page whose blocker refuses: leaving the document, by reload, tab close, or a link that loads a document, asks
+// first, so the `beforeunload` the browser fires is cancelled. Without a blocker it is not (plan 21 3.5). The app is
+// source the harness compiles for each side, so `?block` picks the case.
+function blockerUnload(engine: Engine, refuse: boolean): Promise<AppResult> {
+	return started().app(engine, {
+		path: refuse ? "/?block" : "/",
+		app: (api) => {
+			const root = api.rootLayout.createRootLayout("_root_").render((props) => props.children)
+			const home = api.page.createPage("_root_/").render(() => {
+				if (typeof window !== "undefined" && location.search === "?block") api.blocker.useBlocker(() => false)
+				return "home"
+			})
+			const routeTree = [{ id: "_root_/", path: "/", module: home }]
+			return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree }) }
+		},
+		client(client, record) {
+			client.onHydrated(() => record.push("hydrated"))
+		},
+		async steps(tab) {
+			await tab.waitForFunction(() => (Reflect.get(window, "__flareRecord") as unknown[]).includes("hydrated"))
+			await tab.evaluate(() => {
+				const event = new Event("beforeunload", { cancelable: true })
+				window.dispatchEvent(event)
+				;(Reflect.get(window, "__flareRecord") as unknown[]).push(event.defaultPrevented)
+			})
+		},
+	})
+}
+
 describe.each(ENGINES)("%s", (engine) => {
+	it("blocker unload", async () => {
+		const [blocked, free] = [await blockerUnload(engine, true), await blockerUnload(engine, false)]
+		expect([blocked.problems, free.problems]).toEqual([[], []])
+		expect([blocked.record, free.record]).toEqual([
+			["hydrated", true],
+			["hydrated", false],
+		])
+	})
 	it("storage blocked", async () => {
 		const result = await storageBlocked(engine)
 		expect(result.problems).toEqual([])
