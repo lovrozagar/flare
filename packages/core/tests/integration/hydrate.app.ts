@@ -156,18 +156,41 @@ export async function appIn(at: { origin: string; tab: Page }, input: AppCase): 
 		if (answer.status() >= 400) seen.push(`${answer.status()}: ${answer.url()}`)
 	})
 	await input.init?.(at.tab)
+	const loads = timeline(at.tab, at.origin)
 	const response = await at.tab.goto(`${at.origin}${input.path ?? "/"}`)
 	const html = (await response?.text()) ?? ""
 	await at.tab
-		// Playwright's 30 s, as every step's wait: a fresh context loads each dev module cold, and under the full gate's
-		// parallel builds and engines that took past 10 s once.
-		.waitForSelector("html[data-flare-hydrated]", { state: "attached", timeout: 30_000 })
+		// Ten times the slowest hydration measured in the full gate (1.15 s over 128 cases, BUGS.md 140): past it, the
+		// timeline says whether the loads were progressing or stalled.
+		.waitForSelector("html[data-flare-hydrated]", { state: "attached", timeout: 10_000 })
 		.catch((error: unknown) => {
-			throw new Error(`the client did not hydrate: ${String(error)}\n${seen.join("\n")}\n${html.slice(-600)}`)
+			const lines = [...seen, ...loads.lines()]
+			throw new Error(`the client did not hydrate: ${String(error)}\n${lines.join("\n")}\n${html.slice(-600)}`)
 		})
 	await input.steps?.(at.tab)
 	const record: unknown[] = await at.tab.evaluate(() => Reflect.get(window, "__flareRecord") ?? [])
 	return { status: response?.status() ?? 0, html, problems, record, requests }
+}
+
+// Every request the page makes, timed from its first: when each started and when it finished or failed, or that it
+// was still in flight. A page that does not hydrate shows whether its loads were progressing or stalled.
+function timeline(tab: Page, origin: string): { lines: () => string[] } {
+	const start = performance.now()
+	const at = (): string => `${Math.round(performance.now() - start)}ms`
+	const loads = new Map<unknown, { url: string; started: string; ended?: string }>()
+	tab.on("request", (request) => void loads.set(request, { url: request.url().replace(origin, ""), started: at() }))
+	const end = (request: unknown, how: string): void => {
+		const load = loads.get(request)
+		if (load !== undefined) load.ended = `${how} ${at()}`
+	}
+	tab.on("requestfinished", (request) => end(request, "finished"))
+	tab.on("requestfailed", (request) => end(request, "failed"))
+	return {
+		lines: () =>
+			[...loads.values()].map(
+				(load) => `load ${load.url} started ${load.started}, ${load.ended ?? `in flight at ${at()}`}`,
+			),
+	}
 }
 
 // Without flare(), nothing answers the dev server's `flare:styles` request, and a dev document would wait for it.
