@@ -23,7 +23,7 @@ import { projectError, type Projected } from "../render/projector.ts"
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts"
 import { clientEntry } from "./build-info.ts"
 import { finalize, type StageResult } from "./finalize.ts"
-import { isPublic, policyHeaders } from "./policies.ts"
+import { applyPolicy, isPublic, policyHeaders } from "./policies.ts"
 
 // The rendered-page answers: a document, a data or prefetch response, and the not-found page (02-system steps 10 to
 // 13). createServer routes to them.
@@ -94,7 +94,7 @@ export function cached(
 	const decision = withCookies(policy.decision, { route, all: result.headers.getSetCookie() })
 	const errored = answer.errored || policy.rejected === true
 	const written = policyHeaders(decision, { status: result.status, params: policy.params, errored })
-	written.forEach((value, name) => result.headers.set(name, value))
+	applyPolicy(result.headers, written)
 	return finalize(result)
 }
 
