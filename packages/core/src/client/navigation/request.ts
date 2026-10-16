@@ -1,5 +1,5 @@
 import type { OutletMatch } from "../../shared/components/index.ts"
-import { BUILD_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts"
+import { BUILD_HEADER, FAILED_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts"
 import type { LoadedEntry } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
 import { cachedMatches, defined, holds, remember } from "../router/match-cache.ts"
@@ -14,7 +14,11 @@ import type { Target } from "./target.ts"
 export type DataTarget = Extract<Target, { kind: "data" }>
 
 // What came back for one navigation: frames to commit, a bare status to paint, or nothing to do.
-export type Arrival = { kind: "landed"; landing: Landed } | { kind: "status"; status: number } | { kind: "none" }
+// A status names the failed match when the server did (`flare-failed`), else the page paints it.
+export type Arrival =
+	| { kind: "landed"; landing: Landed }
+	| { kind: "status"; status: number; failed?: string }
+	| { kind: "none" }
 
 // One data request. `fill` asks for the stored page's `"stream"` values with `_flare=fill`, and its landing settles
 // the `reuse` slots those holes left (dx/defer.md). `holes` hears that a landing ended with placeholders no frame
@@ -60,8 +64,21 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	}
 	// An input failure does not commit (dx/builder.md). Any other status paints the target's failure.
 	if (response.status === 400) return { kind: "none" }
-	if (response.status !== 200 || response.body === null) return { kind: "status", status: response.status }
+	if (response.status !== 200 || response.body === null) return failedAt(deps, trip, response)
 	return land(deps, trip, response.body)
+}
+
+// A failed root renders the document, which the client cannot swap in place: the URL loads as a document, and the
+// server answers its minimal one (B77, BUGS.md 134). Any other failed match paints where the server says.
+function failedAt(deps: NavigatorDeps, trip: Trip, response: Response): Arrival {
+	const failed = response.headers.get(FAILED_HEADER) ?? undefined
+	if (failed !== undefined && failed === trip.target.match.chain[0]?.id) {
+		if (!trip.signal.aborted) deps.assign(trip.target.url)
+		return { kind: "none" }
+	}
+	return failed === undefined
+		? { kind: "status", status: response.status }
+		: { kind: "status", status: response.status, failed }
 }
 
 // A body that fails to read or land, other than by the trip's own abort, would leave the user on the old page with no
@@ -140,6 +157,12 @@ type Next = {
 	previous: StoreSnapshot
 }
 
+// The match a bare status failed at: the one the server named, else the page.
+function failedIndex(matches: readonly OutletMatch[], failed: string | undefined): number {
+	const named = matches.findIndex((match) => match.id === failed)
+	return named === -1 ? matches.length - 1 : named
+}
+
 // A match the response sent nothing for keeps what the client holds: a page skipped as stale takes its cached
 // data, head, and `v`, and any other match keeps the previous screen's (B30, B83). No `v` paints the raw records.
 export function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
@@ -163,7 +186,7 @@ export function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	const snapshot: StoreSnapshot = { matches, heads, location: next.target.location }
 	const failure =
 		next.arrival.kind === "status"
-			? statusFailure(next.arrival.status, matches.length - 1)
+			? statusFailure(next.arrival.status, failedIndex(matches, next.arrival.failed))
 			: landedFailure(landing, matches)
 	if (failure !== undefined) snapshot.failure = failure
 	remember(deps.cache, cached, landing)

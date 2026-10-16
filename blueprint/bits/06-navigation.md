@@ -124,14 +124,23 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `ended early` | the stream ends before `r` | rejects |
 | `frames of a body` | an NDJSON body split mid-line | the frames in order |
 
+### `client/navigation/navigate-failure.test.ts`
+
+Split from `navigate.test.ts` at its 500-line limit: how a client navigation paints a data answer that is a bare status (BUGS.md 134, B132).
+
+| test | case | result |
+| --- | --- | --- |
+| `auth error` | HTTP 401, HTTP 403, and HTTP 404 | the auth error is committed on the target, the outlet paints the walked auth or not-found boundary or its built-in `div`, then history is pushed |
+| `failed match` | HTTP 404 with `flare-failed` naming the root, the page, an unknown id, and none | the root: the URL loads as a document and nothing commits; otherwise the failure paints at the page, the named match when it is in the chain |
+| `superseded failed root` | a failed root answering after a newer navigation started | no document load |
+| `request failed` | HTTP 500 | the error is committed with message `Request failed`, then history is pushed |
+
 ### `client/navigation/navigate.test.ts`
 
 | test | case | result |
 | --- | --- | --- |
 | `commit then push` | a successful data response | the DOM updates, then `history.pushState` |
 | `network` | the fetch fails and has no status | the screen and the history stay |
-| `auth error` | HTTP 401, and HTTP 403 | the auth error is committed on the target, the outlet paints the walked auth boundary or its built-in `div`, then history is pushed |
-| `request failed` | HTTP 500 | the error is committed with message `Request failed`, then history is pushed |
 | `loader error` | an `e` frame with no `k` inside HTTP 200 | the outlet paints the walked `errorRender` or the `Something went wrong` div, it is not cached, and history is pushed |
 | `same origin` | an `x` frame whose `u` is a same-origin path | followed as a navigation |
 | `href load` | an `x` frame whose `u` is `https://example.com/a` | a full page load. `navigate` does not push history |

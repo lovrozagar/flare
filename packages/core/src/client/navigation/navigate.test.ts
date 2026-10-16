@@ -118,30 +118,6 @@ it("pending until commit, no transition", async () => {
 	expect([...seen, app.deps.navigation.pending()]).toEqual([true, false])
 })
 
-it("auth error", async () => {
-	for (const [status, text] of [
-		[401, "Please log in"],
-		[403, "Access denied"],
-	] as const) {
-		history.replaceState(null, "", "/")
-		const app = await setup(async () => new Response(null, { status }))
-		await app.navigator.navigate({ to: "_root_/about" })
-		flush()
-		expect(app.host.innerHTML).toContain(`<div>${text}</div>`)
-		expect(app.text()).toBe(`root[${text}]`)
-		expect(location.pathname).toBe("/about")
-	}
-})
-
-it("request failed", async () => {
-	const app = await setup(async () => new Response(null, { status: 500 }))
-	await app.navigator.navigate({ to: "_root_/about" })
-	flush()
-	expect(app.store.snapshot().failure?.error.message).toBe("Request failed")
-	expect(app.text()).toBe("root[Something went wrong]")
-	expect(location.pathname).toBe("/about")
-})
-
 it("loader error", async () => {
 	const app = await setup(async () =>
 		ndjson([

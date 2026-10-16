@@ -4,6 +4,8 @@ export {};
 declare module "@lovrozagar/flare" {
 	interface FlareRegister {
 		routes: {
+			"/area-home": { params: {} };
+			"/area-missing": { params: {} };
 			"/about": { params: {} };
 			"/echo": { params: {} };
 			"/holed": { params: {} };
@@ -15,10 +17,13 @@ declare module "@lovrozagar/flare" {
 			"/styled": { params: {} };
 			"/unstored": { params: {} };
 		};
-		pageIds: "_root_/" | "_root_/about" | "_root_/echo" | "_root_/holed" | "_root_/skeletons" | "_root_/static" | "_root_/static/[slug]" | "_root_/stored" | "_root_/styled" | "_root_/unstored";
+		pageIds: "_root_/" | "_root_/(area)/area-home" | "_root_/(area)/area-missing" | "_root_/about" | "_root_/echo" | "_root_/holed" | "_root_/skeletons" | "_root_/static" | "_root_/static/[slug]" | "_root_/stored" | "_root_/styled" | "_root_/unstored";
 		routeModules: {
 			"_root_": typeof import("../routes/_root_/root.root-layout.tsx").route;
 			"_root_/": typeof import("../routes/_root_/home.page.tsx").route;
+			"_root_/(area)": typeof import("../routes/_root_/(area)/area.layout.tsx").route;
+			"_root_/(area)/area-home": typeof import("../routes/_root_/(area)/area-home/home.page.tsx").route;
+			"_root_/(area)/area-missing": typeof import("../routes/_root_/(area)/area-missing/missing.page.tsx").route;
 			"_root_/about": typeof import("../routes/_root_/about/about.page.tsx").route;
 			"_root_/echo": typeof import("../routes/_root_/echo/echo.page.tsx").route;
 			"_root_/holed": typeof import("../routes/_root_/holed/holed.page.tsx").route;
@@ -32,6 +37,9 @@ declare module "@lovrozagar/flare" {
 		routeParents: {
 			"_root_": [];
 			"_root_/": ["_root_"];
+			"_root_/(area)": ["_root_"];
+			"_root_/(area)/area-home": ["_root_", "_root_/(area)"];
+			"_root_/(area)/area-missing": ["_root_", "_root_/(area)"];
 			"_root_/about": ["_root_"];
 			"_root_/echo": ["_root_"];
 			"_root_/holed": ["_root_"];

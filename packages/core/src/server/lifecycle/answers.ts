@@ -122,7 +122,7 @@ export async function dataFrom(
 			...stage(routeSecured(exchange, run.security), redirectBody({ s: thrown.status, u, r: thrown.replace }), run),
 		})
 	}
-	if (run.response.status !== 200) return bare(routeSecured(exchange, run.security), run)
+	if (run.response.status !== 200) return bare(routeSecured(exchange, run.security), run, run.failed?.m)
 	for (const bug of run.bugs) projectError(bug, exchange.sink)
 	const settled = await awaited(run, policy, false)
 	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project: framed(exchange) })

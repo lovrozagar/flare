@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { createRouter } from "../../src/shared/router/create-router.ts"
 import { ENGINES, startHarness, type Api, type AppResult, type Engine, type Harness } from "./hydrate.harness.ts"
+import { appFrom } from "./harness-app.ts"
 
 // dx/router.md's client rows: a real document `createServer(...).fetch` serves, hydrated by the real `createClient`
 // in each engine (hydrate.app.ts), navigated by clicking real anchors and Back (B96). Each app is compiled into both
@@ -51,10 +52,7 @@ const pages = {
 
 // An app whose router is the pages plus `options`, a source fragment of createRouter options.
 function appWith(options: string): (api: Api) => { router: unknown } {
-	// oxlint-disable-next-line no-new-func -- the harness compiles an app from its source text, so the shared pages are source
-	return new Function("api", `${PAGES}\nreturn { router: api.router.createRouter({ ...pages, ${options} }) }`) as (
-		api: Api,
-	) => { router: unknown }
+	return appFrom(`${PAGES}\nreturn { router: api.router.createRouter({ ...pages, ${options} }) }`)
 }
 
 // The defaults; a custom key with a cap of two; no restoration; a fresh client cache with the default cap and with a

@@ -1,4 +1,4 @@
-import type { RequestKind } from "../../shared/protocol/index.ts"
+import { FAILED_HEADER, type RequestKind } from "../../shared/protocol/index.ts"
 import type { FlareStore } from "../cache/contract.ts"
 import type { Capture } from "../cache/prerender.ts"
 import type { Session } from "../context/ctx.ts"
@@ -46,10 +46,12 @@ export function answer(exchange: Answering, status: number, location?: string): 
 	return finalize({ status, body: "", location, headers: exchange.secured.headers })
 }
 
-// A loader run that answered without a render: validation, a gate status, or a named failure.
-export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">): Promise<Response> {
+// A loader run that answered without a render: validation, a gate status, or a named failure. `failed` names the match
+// that failed, for a data answer the client paints (BUGS.md 134).
+export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">, failed?: string): Promise<Response> {
 	const headers = new Headers(exchange.secured.headers)
 	run.response.headers.forEach((value, name) => headers.set(name, value))
+	if (failed !== undefined) headers.set(FAILED_HEADER, failed)
 	const body = await run.response.text()
 	return finalize({ status: run.response.status, body, headers })
 }

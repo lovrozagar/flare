@@ -360,6 +360,7 @@ packages/core/src/client/navigation/leaving.test.ts	P6	test	dom	Unit cases for l
 packages/core/src/client/navigation/request.ts	P10	src	dom	One navigation's data request: loads the chain beside it, asks `_flare=fill` for a fill, and hears a stored landing's holes; builds the commit's snapshot from the arrival (nextSnapshot, moved from navigate.ts at its 300-line limit). Split from navigate.ts at the 300-line limit
 packages/core/src/client/navigation/request.test.ts	P10	test	dom	Unit cases for request.ts
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
+packages/core/src/client/navigation/navigate-failure.test.ts	P6	test	dom	Unit cases for navigate.ts: a bare status painted at the failed match, a failed root loaded as a document (BUGS.md 134)
 packages/core/src/client/navigation/navigate-transition.test.ts	P6	test	dom	View-transition cases for navigate.ts
 packages/core/src/client/navigation/active.ts	P6	src	dom	The root `navigate`: the booted client's navigation, reachable outside any component; rejects before createClient booted (BUGS.md 105)
 packages/core/src/client/navigation/active.test.ts	P6	test	dom	Unit cases for active.ts
@@ -645,6 +646,8 @@ packages/core/tests/integration/cache.test.ts	P10	test	node	A 401 is not stored.
 packages/core/tests/integration/store.test.ts	P10	test	node	dx/store.md through the real createServer(...).fetch: each store's reads, writes, and purges, the seeds the assets store serves, and revalidate (plan 14 9.6)
 packages/core/tests/integration/router.test.ts	P1	test	node	dx/router.md's server rows through the real createServer(...).fetch: tree, base path, case, slashes, not-found mode, theme, direction, locale (plan 14 9.6)
 packages/core/tests/integration/router-client.test.ts	P1	test	node	dx/router.md's client rows through the hydrate harness in three engines: scroll restoration, its key and cap, the client cache and its cap, rewrite (plan 14 9.6)
+packages/core/tests/integration/harness-app.ts	P1	test	node	An app for the hydrate harness's app mode from its source text, shared by the dx client integration tests (B96)
+packages/core/tests/integration/builder-client.test.ts	P1	test	node	dx/builder.md's client rows through the hydrate harness in three engines: a named failure painted at its match, a failed root loaded as a document (plan 14 9.6, BUGS.md 134)
 packages/core/tests/integration/routes.test.ts	P1	test	node	dx/routes.md through real vite builds of fixture apps and their built server's fetch: each documented file, bracket, root, ignored folder, and build error, and the dev lazy-route wait (plan 14 9.6)
 packages/core/tests/integration/routes-dev.test.ts	P1	test	node	dx/routes.md's dev id rewrite through a real vite dev: a checked-in wrong id at start, a created and a moved page, unresolved ids left alone (BUGS.md 130)
 packages/core/tests/integration/vite-app.ts	P1	test	node	Fixture apps built as an app is: the shell files, `vite build` from a config file with flare() in a child process, and the built server loaded from dist, shared by the dx integration tests (B96)
@@ -723,6 +726,9 @@ packages/core/tests/e2e/apps/minimal/src/_gen/server-fns.gen.ts	P12	app	-	Genera
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/root.root-layout.tsx	P1	app	-	Document root
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/holed/holed.page.tsx	P10	app	-	An ISR page whose stream defer is a hole in the stored body, for stored stream fills
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/home.page.tsx	P1	app	-	Home page
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/(area)/area.layout.tsx	P9	app	-	A layout whose loader throws notFound() on /area-missing, for minimal.test `layout not found navigation` (BUGS.md 134)
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/(area)/area-home/home.page.tsx	P9	app	-	The link into /area-missing
+packages/core/tests/e2e/apps/minimal/src/routes/_root_/(area)/area-missing/missing.page.tsx	P9	app	-	The page under the failing layout
 packages/core/tests/e2e/apps/minimal/wrangler.jsonc	P3	app	-	Workers config for the same app
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/about/about.page.tsx	P6	app	-	Second page for navigation
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/skeletons/skeletons.page.tsx	P6	app	-	Two deferred reads, each under its own Loading, for two skeletons
@@ -770,6 +776,7 @@ packages/core/tests/e2e/docs-server.test.ts	P15	test	node	Playwright: auth bound
 packages/core/tests/e2e/docs-features.test.ts	P15	test	node	Playwright: locale, theme, direction, cross-tab sync, image, fonts, head, sitemap, robots, Tailwind and CSS modules. Holds bit 13's seven i18n cases
 packages/core/tests/integration/docs.test.ts	P15	test	node	createTestServer over the docs router
 packages/core/tests/integration/hydrate.harness.ts	P15	test	node	SSR then hydrate in one test: the lockfile's Vite in middleware mode renders the tree with the server build through its SSR runner and serves that HTML with a client entry; a real browser from the B70 pinned image (chromium, firefox, and webkit) loads it and hydrates with the client build, and Solid's hydration and strict-read console messages are collected (B96)
+packages/core/tests/integration/hydrate.api.ts	P15	test	node	The api a harness tree or app is built from and the modules each side loads it from, split from hydrate.harness.ts at its 300-line limit
 packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported component and hook round-trips SSR to hydrate with no hydration warning, key miss, unclaimed node, or untracked strict read (B96)
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
