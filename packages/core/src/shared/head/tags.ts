@@ -233,17 +233,19 @@ function customTags(custom: HeadConfig["custom"], nonce: string | undefined): Ta
 	]
 }
 
-// An external script carries no nonce, and `extra.nonce` is ignored (dx/server.md). `nonce: false` stops Solid
-// from stamping the request nonce on it.
+// `type` and `extra` are written on either kind (dx/head.md). An external script carries no nonce, and `extra.nonce`
+// is ignored (dx/server.md). `nonce: false` stops Solid from stamping the request nonce on it.
 function scriptTag(script: HeadScript, nonce: string | undefined): Tag[] {
 	if (script.src !== undefined && script.children !== undefined) throw new Error("src and children")
+	const type: Record<string, string> = script.type === undefined ? {} : { type: script.type }
 	if (script.src !== undefined) {
-		const props: Record<string, string | boolean> = { src: script.src }
+		const props: Record<string, string | boolean> = { src: script.src, ...type }
 		if (script.async) props["async"] = true
 		return [{ tag: "script", props: { ...props, ...allowed(script.extra, true), nonce: false } }]
 	}
 	if (script.children === undefined) return []
-	return [{ tag: "script", props: { ...nonceProp(nonce), children: keepOpen(script.children, "script") } }]
+	const props = { ...type, ...allowed(script.extra, true), ...nonceProp(nonce) }
+	return [{ tag: "script", props: { ...props, children: keepOpen(script.children, "script") } }]
 }
 
 const nonceProp = (nonce: string | undefined): Record<string, string> => (nonce ? { nonce } : {})

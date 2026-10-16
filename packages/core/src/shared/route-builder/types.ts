@@ -115,7 +115,13 @@ export type SecurityConfig = {
 }
 
 export type SeoImage = { url: string; alt?: string; width?: number; height?: number; type?: string }
-export type HeadScript = { src?: string; children?: string; async?: boolean; extra?: Record<string, string> }
+export type HeadScript = {
+	src?: string
+	children?: string
+	type?: string
+	async?: boolean
+	extra?: Record<string, string>
+}
 
 // An `og:audio` entry. A video adds its size (dx/head.md).
 export type OgAudio = { url: string; type?: string | undefined; secureUrl?: string | undefined }
