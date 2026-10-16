@@ -376,6 +376,25 @@ dx/routes.md through real apps. Each fixture is an app of route files under `src
 | `duplicate url`, `shadow`, `two pages`, `id mismatch`, `no root`, `bad brackets`, `repeated param` | one app each | the build fails with codegen's message naming the files (BUGS.md 130 for `id mismatch`); each bite is the check removed |
 | `lazy route module` | a route module that imports the router and holds its evaluation open, two requests | both 200: the second import gets the namespace before `route` is set, and dev waits for it (bite: no dev wait) |
 
+### `tests/integration/builder.test.ts`, `builder-render.test.ts`, and `builder-client.test.ts` (plan 14 9.6, B96)
+
+dx/builder.md through routes made with the real builders. builder.test and builder-render serve them with the real `createServer(...).fetch` (tests/integration/builder-app.ts) and read the document, the data stream, and the status; `render document` and `boundary root` also run the app in vite dev and a production build. builder-client hydrates them in each engine with the hydrate harness and clicks real anchors. `effects` waits for BUGS.md 139. Each case's bite is the source mutation that turns it red (13).
+
+| test | case | result |
+| --- | --- | --- |
+| `method matrix` | each builder's methods before and after `render` | exactly its row's; a segment's render returns its children |
+| `call once and order` | a method twice, after a later one, with a bad argument, a cache with two modes | each throws while the chain is built |
+| `input` | a bad param and search on a document and a data request | 400 JSON `{ issues, fieldErrors }`, no shell; the output reaches the loader and render |
+| `authenticate`, `authorize`, `preloader` | a null session, `false`, a throw, a parent and child | 401 `Please log in`; 403 `Access denied`; a throw 500; parent first, contexts merged outside-in |
+| `loader`, `response` | data, a throw, `notFound()`; a Response, thrown redirects and statuses | data rendered; 500 and `errorRender` on a document, an `e` frame on a data request; the Response through finalize |
+| `server callbacks` | `env`, `request`, `serverCtx()` from authorize, preloader, loader, `.response()` | each sees the fetch env, the request, and the request's server context, and no `serverContext` field |
+| `head`, `headers`, `security` | parent and child, a throw, `replace` | merged parent to child, `set-cookie` appended, `false` removes, the replacing head alone |
+| `render document`, `boundary root` | a root with no document; a failed root, in dev and a build | served as written in dev, an empty 500 built; the built-in div in a minimal standards-mode document |
+| `boundaries`, `boundary rank` | failures under a layout, a throwing boundary, several failures | the first function toward the root paints in the failed slot, a throw skipped for the next; 401, 403, then the root-most |
+| `render props` | params, search, loader data, preloader context, children | each the route's own |
+| `intercept` (client) | a click from `from`; a direct visit | the overlay over the mounted background; the page |
+| `errorRender reset` (client) | `reset()` after a failed loader | the loader runs again on the same URL, no history entry |
+
 ### `tests/integration/plugin.test.ts`, `plugin-dev.test.ts`, and `plugin-workers.test.ts` (plan 14 9.6, B96)
 
 dx/plugin.md through real apps. plugin.test builds an app with every `flare()` option set and one with the defaults by `vite build` from a config file (tests/integration/vite-app.ts), reads their client output, and asks their built servers; a rejected option is `flare()` or the real Vite config resolution throwing. plugin-dev runs `vite dev` on a port with a WebSocket client on Vite's hot channel announcing the document's tab token, as the client does, then the same app built. plugin-workers composes Cloudflare's plugin with a custom `assetsBase` and runs the build's deploy output in Miniflare; the Bun run skips it (no `registerHooks`). Each group's bite is the source mutation that turns it red (20).

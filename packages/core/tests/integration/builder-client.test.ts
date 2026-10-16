@@ -152,6 +152,86 @@ async function headSteps(tab: Page): Promise<void> {
 	await remember(tab, await headOf(tab, "Replaced"))
 }
 
+// A root whose layout holds an InterceptOutlet, over /gallery and /photo, which /gallery intercepts as "modal".
+const INTERCEPT = appFrom(`
+const anchor = (to) => api.solid.createComponent(api.web.Dynamic, { component: "a", href: to, id: "to-" + to.slice(1), children: to })
+const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
+	api.h("head", "head"),
+	api.h("body", "body", () => [
+		api.h("main", "slot", () => props.children),
+		api.solid.createComponent(api.intercept.InterceptOutlet, {
+			children: (state) => api.h("aside", "overlay", () => [state.render, " ", state.match.render()]),
+		}),
+	]),
+]))
+const gallery = api.page.createPage("_root_/gallery").render(() => api.h("section", "gallery", () => ["gallery ", anchor("/photo")]))
+const photo = api.page.createPage("_root_/photo").intercept({ from: ["_root_/gallery"], render: "modal" }).render(() => "photo")
+const routeTree = [
+	{ id: "_root_/gallery", path: "/gallery", module: gallery },
+	{ id: "_root_/photo", path: "/photo", module: photo },
+]
+return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree }) }
+`)
+
+// The overlay and the slot as text, and whether the gallery section is still the node the document hydrated.
+async function interceptSteps(tab: Page): Promise<void> {
+	await tab.evaluate(() => Reflect.set(document.getElementById("gallery") ?? {}, "kept", true))
+	await tab.evaluate(() => document.getElementById("to-photo")?.click())
+	await tab.waitForFunction(() => document.getElementById("overlay")?.textContent?.includes("photo") === true)
+	await remember(
+		tab,
+		await tab.evaluate(() => ({
+			path: location.pathname,
+			overlay: document.getElementById("overlay")?.textContent,
+			slot: document.getElementById("slot")?.textContent,
+			kept: Reflect.get(document.getElementById("gallery") ?? {}, "kept") === true,
+		})),
+	)
+}
+
+// What a direct visit shows: the page in the slot and no overlay.
+async function directSteps(tab: Page): Promise<void> {
+	await remember(
+		tab,
+		await tab.evaluate(() => ({
+			overlay: document.getElementById("overlay") !== null,
+			slot: document.getElementById("slot")?.textContent,
+		})),
+	)
+}
+
+// /flaky's loader fails on every odd run; its errorRender's button calls reset().
+const RESET = appFrom(`
+const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
+	api.h("head", "head"),
+	api.h("body", "body", () => [api.h("main", "slot", () => props.children)]),
+]))
+const flaky = api.page.createPage("_root_/flaky")
+	.loader(() => {
+		globalThis.__flareFlakyRuns = (globalThis.__flareFlakyRuns ?? 0) + 1
+		if (globalThis.__flareFlakyRuns % 2 === 1) throw new Error("flaky")
+		return { text: "loaded" }
+	})
+	.render((props) => props.loaderData.text)
+	.errorRender((props) => api.solid.createComponent(api.web.Dynamic, { component: "button", id: "reset", onClick: () => props.reset(), children: "reset" }))
+return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/flaky", path: "/flaky", module: flaky }] }) }
+`)
+
+// reset() reruns the loader on the same URL and pushes no history entry.
+async function resetSteps(tab: Page): Promise<void> {
+	await tab.waitForFunction(() => document.getElementById("reset") !== null)
+	const entries = await tab.evaluate(() => history.length)
+	await tab.evaluate(() => document.getElementById("reset")?.click())
+	await tab.waitForFunction(() => document.getElementById("slot")?.textContent === "loaded")
+	await remember(
+		tab,
+		await tab.evaluate(
+			(before) => ({ path: location.href.replace(location.origin, ""), pushed: history.length - before }),
+			entries,
+		),
+	)
+}
+
 describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
 	// `.head(fn, { replace: true })` makes the route's object the whole head through hydration and client navigations.
 	it("head replace", async () => {
@@ -188,5 +268,21 @@ describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
 		expect(result.record).toEqual([
 			{ compatMode: "CSS1Compat", body: "<div>Page not found</div>", documents: 1, path: "/broken" },
 		])
+	})
+
+	// A client navigation from a `from` route opens the InterceptOutlet over the mounted background; a direct visit
+	// renders the page.
+	it("intercept", async () => {
+		const opened = await run(engine, { app: INTERCEPT, path: "/gallery", steps: interceptSteps })
+		expect(opened.problems).toEqual([])
+		expect(opened.record).toEqual([{ path: "/photo", overlay: "modal photo", slot: "gallery /photo", kept: true }])
+		const direct = await run(engine, { app: INTERCEPT, path: "/photo", steps: directSteps })
+		expect(direct.record).toEqual([{ overlay: false, slot: "photo" }])
+	})
+
+	// `reset()` on errorRender revalidates the current URL in place: the loader runs again and nothing is pushed.
+	it("errorRender reset", async () => {
+		const result = await run(engine, { app: RESET, path: "/flaky?q=1", steps: resetSteps })
+		expect(result.record).toEqual([{ path: "/flaky?q=1", pushed: 0 }])
 	})
 })
