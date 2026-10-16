@@ -1,4 +1,4 @@
-import { createComponent, type Element } from "solid-js"
+import { createComponent, createMemo, Loading, type Element } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import { afterEach, expect, it, vi, type Mock } from "vitest"
 import type { FlareStore, FlareStoreEntry } from "../../src/server/cache/contract.ts"
@@ -120,6 +120,25 @@ it("same value", async () => {
 	expect(tags.json).toBe(value)
 	expect(tags.style).toBe(value)
 	expect(body).toContain(`NONCE[${value}]`)
+})
+
+// A slot whose value comes after the shell, then prints the nonce.
+function late(): Element {
+	return createComponent(Loading, {
+		fallback: "wait",
+		get children() {
+			const ready = createMemo(async () => new Promise<string>((resolve) => setTimeout(() => resolve("late"), 10)))
+			return [() => `${ready()} ${printed()}`]
+		},
+	})
+}
+
+// A component that renders after an async boundary, behind `<Loading>`, reads the request's nonce too: its fragment
+// streams after the shell, outside the shell's synchronous pass (plan 21 3.13).
+it("after loading", async () => {
+	const response = await document(late)
+	const body = await response.text()
+	expect(body).toContain(`late NONCE[${headerNonce(response.headers)}]`)
 })
 
 it("nested", async () => {
