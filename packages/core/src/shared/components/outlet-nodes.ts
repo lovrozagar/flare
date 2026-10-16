@@ -2,7 +2,7 @@ import { createContext, untrack, useContext, type Context } from "solid-js"
 import { matchId } from "../route-tree/index.ts"
 import { LocationContext, NavigateContext, useRouter, type Navigate } from "../router/context.ts"
 import type { Router } from "../router/create-router.ts"
-import { readSearch } from "../url/index.ts"
+import { readSearch, searchKey } from "../url/index.ts"
 import type { FlareRegister, From, LoaderDataFrom, ParamsFrom, SearchFrom } from "../route-builder/register.ts"
 import type { PreloaderFrom } from "../route-builder/route-types.ts"
 import type { OutletMatch, OutletState } from "./outlet.tsx"
@@ -64,7 +64,7 @@ export function useMatch(input: { from: From<FlareRegister> }): { readonly id: s
 	const router = useRouter()
 	return {
 		get id() {
-			return matchId(rawParams(router, location().pathname), location().search.slice(1))
+			return matchId(rawParams(router, location().pathname), searchKey(location().search))
 		},
 		routeId: input.from,
 	}

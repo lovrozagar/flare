@@ -1,19 +1,35 @@
 const BANNED = new Set(["__proto__", "constructor", "prototype"])
 
-// The raw record of a `?query` (B31): values stay encoded. One occurrence of a key is a string, and two or more
-// are a `string[]` in appearance order. A key with no `=` has the value "". An empty query is {}.
+// The raw record of a `?query` (B31): unvalidated, each key and value decoded as URLSearchParams does, `+` a space. A
+// malformed escape stays as written (BUGS.md 147). One occurrence of a key is a string, and two or more are a
+// `string[]` in appearance order. A key with no `=` has the value "". An empty query is {}.
 export function readSearch(search: string): Record<string, string | string[]> {
 	const record: Record<string, string | string[]> = Object.create(null)
 	for (const pair of search.slice(1).split("&")) {
 		if (pair === "") continue
 		const eq = pair.indexOf("=")
-		const key = eq === -1 ? pair : pair.slice(0, eq)
+		const key = decoded(eq === -1 ? pair : pair.slice(0, eq))
 		if (BANNED.has(key)) continue
-		const value = eq === -1 ? "" : pair.slice(eq + 1)
+		const value = eq === -1 ? "" : decoded(pair.slice(eq + 1))
 		const held = record[key]
 		record[key] = held === undefined ? value : [...(typeof held === "string" ? [held] : held), value]
 	}
 	return record
+}
+
+// The search half of a match id: the record written back as one text, keys sorted and values encoded, so every
+// spelling of one value set is one key on both sides (B31, BUGS.md 147).
+export function searchKey(search: string): string {
+	return writeQuery(readSearch(search)).slice(1)
+}
+
+function decoded(text: string): string {
+	const spaced = text.replaceAll("+", " ")
+	try {
+		return decodeURIComponent(spaced)
+	} catch {
+		return spaced
+	}
 }
 
 export function writeUrl(input: { path: string; search?: object | undefined; hash?: string | undefined }): string {

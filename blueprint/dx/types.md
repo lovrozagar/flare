@@ -52,7 +52,7 @@ A type is born in one place. Later readers do not invent a second copy.
 | `.input({ params })` | replaces the whole params type with the validator output. The brackets are not intersected back in |
 | `.input({ searchParams })` | replaces search with the validator output. The other side stays at its default when only one side is passed |
 | `.input({})` | does not type-check. At least one side is required, and the call throws |
-| search with no validator | optional raw record `Record<string, string \| string[]>`. One occurrence of a key is `string`. Two or more, in appearance order, is `string[]` |
+| search with no validator | optional raw record `Record<string, string \| string[]>`. Each key and value is decoded, `+` a space (B31). One occurrence of a key is `string`. Two or more, in appearance order, is `string[]` |
 | search validator output has a required key | the `search` prop on `Link`, `navigate`, `redirect`, and `buildUrl` is required |
 | every search key is optional | the `search` prop may be omitted. A passed object is still checked |
 | validator output is `{}` | `search?: never`, the same as `params?: never` when params are `{}` |
@@ -82,7 +82,7 @@ A type is born in one place. Later readers do not invent a second copy.
 
 ## What each callback receives
 
-Validators receive the raw values. `.input({ params })` receives `Record<string, string \| string[]>`. `.input({ searchParams })` receives the same raw record, not `URLSearchParams`. Later callbacks on that route see the validator output.
+Validators receive the raw values. `.input({ params })` receives `Record<string, string \| string[]>`, each value still percent-encoded (B81). `.input({ searchParams })` receives the raw search record, decoded, not `URLSearchParams` (B31, BUGS.md 147). Later callbacks on that route see the validator output.
 
 | callback | fields |
 | --- | --- |

@@ -5,7 +5,7 @@ import type { HeadConfig } from "../../shared/route-builder/types.ts"
 import { matchId } from "../../shared/route-tree/index.ts"
 import type { Match, Router } from "../../shared/router/create-router.ts"
 import { loadedModule } from "../../shared/router/load-chain.ts"
-import { readSearch, type Location } from "../../shared/url/index.ts"
+import { readSearch, searchKey, type Location } from "../../shared/url/index.ts"
 import type { Landed, Values } from "../navigation/frames.ts"
 
 type Raw = Record<string, string | string[]>
@@ -153,13 +153,13 @@ function deps(match: CachedMatch): string | undefined {
 		: JSON.stringify(loaderDeps({ search: match.search, params: match.params }))
 }
 
-// The cache and the stale plan key a match alike: raw params plus the raw search (B31). A module loadChain already
+// The cache and the stale plan key a match alike: raw params plus the search's one key text (B31, BUGS.md 147). A module loadChain already
 // imported gives its effects and its `cache.client`. One not yet imported has no entry to hold. The page's
 // `cache.client` also comes from the tree node, so a prefetch reads it before the import.
 export function cachedMatches(match: Match, location: Location): CachedMatch[] {
 	const params = defined(match.params)
 	const search = readSearch(location.search)
-	const id = matchId(params, location.search.slice(1))
+	const id = matchId(params, searchKey(location.search))
 	return match.chain.map((entry) => {
 		const cached: CachedMatch = { route: entry.id, id, layout: entry.kind === "layout", params, search }
 		const record = loadedModule(entry.module)

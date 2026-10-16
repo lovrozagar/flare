@@ -1,6 +1,7 @@
 import { defined } from "../errors/defined.ts"
 
-// A catch-all value is its raw segments joined with "/", as the URL holds them.
+// A catch-all value is its raw segments joined with "/", as the URL holds them. `search` is `searchKey`'s text, so
+// every spelling of one value set is one id (B31).
 export function matchId(params: Readonly<Record<string, string | readonly string[]>>, search: string): string {
 	const body = Object.keys(params)
 		.sort()
