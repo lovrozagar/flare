@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { exitOf } from "../e2e/child.ts"
 import { dirname, join } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
@@ -54,7 +55,7 @@ export function fixtureApps(): { make: (files: Record<string, string>) => string
 	}
 }
 
-export type Built = { status: number | null; output: string }
+export type Built = { status: number | null; signal: NodeJS.Signals | null; output: string }
 
 // `vite build` in a child process, with NODE_ENV production as a deploy builds: the test runner's `test` would select
 // Solid's development server build.
@@ -67,15 +68,19 @@ export function viteBuild(root: string): Promise<Built> {
 	let output = ""
 	child.stdout.on("data", (chunk: Buffer) => (output += chunk.toString()))
 	child.stderr.on("data", (chunk: Buffer) => (output += chunk.toString()))
-	return new Promise((done) => child.on("close", (status) => done({ status, output })))
+	return new Promise((done) => child.on("close", (status, signal) => done({ status, signal, output })))
 }
 
 export type Server = { fetch: (request: Request) => Promise<Response> }
 
-// The app built, and its server, or the build's output as the failure.
+// The app built, and its server, or the failure: how the build exited, its code or the signal that killed it, then
+// what it printed (BUGS.md 128.13).
 export async function builtServer(root: string): Promise<Server> {
 	const built = await viteBuild(root)
-	if (built.status !== 0) throw new Error(built.output)
+	if (built.status !== 0) {
+		const printed = built.output === "" ? "" : `\n${built.output}`
+		throw new Error(`vite build exited (${exitOf(built.status, built.signal)})${printed}`)
+	}
 	const loaded: { server: Server } = await import(pathToFileURL(join(root, "dist/server/server.js")).href)
 	return loaded.server
 }
