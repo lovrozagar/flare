@@ -260,3 +260,14 @@ it("cached client", () => {
 	const cached = cachedMatches(match, { pathname: "/", search: "", hash: "" })
 	expect(cached.map((entry) => entry.client)).toEqual([{ cacheDeferred: true }, { staleTime: "1m" }])
 })
+
+// `clear` drops every entry: what a cookie written by a server function, or `invalidate()`, asks for (B133).
+it("clear", () => {
+	const { cache } = cacheAt()
+	cache.store(page(), { data: "user", deferred: false })
+	cache.store(layout, { data: "shell", deferred: false })
+	cache.clear()
+	expect([cache.read(page()), cache.read(layout)]).toEqual([undefined, undefined])
+	cache.store(page(), { data: "next", deferred: false })
+	expect(cache.read(page())?.data).toBe("next")
+})

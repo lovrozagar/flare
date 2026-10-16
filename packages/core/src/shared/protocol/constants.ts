@@ -15,6 +15,10 @@ export const CACHE_HEADER = "flare-cache"
 // Marks a server function's returned Response, so the client resolves it untouched instead of reading an envelope.
 export const FN_HEADER = "flare-fn"
 
+// `set` on a server function's answer whose own returned Response wrote a cookie, which fetch cannot read, so the
+// client forgets the matches and queries it held for the visitor before (B133).
+export const COOKIES_HEADER = "flare-cookies"
+
 // On a data answer that is a bare named status (a loader's notFound(), a gate's 401 or 403), the id of the match that
 // failed, so the client paints the failure at that match (B77, BUGS.md 134). A data answer keeps "no e frame".
 export const FAILED_HEADER = "flare-failed"

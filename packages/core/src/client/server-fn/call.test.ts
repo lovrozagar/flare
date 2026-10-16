@@ -25,6 +25,7 @@ function deps(answer: Answer, extra: Partial<CallDeps> = {}) {
 		basePath: "/",
 		build: "b1",
 		href: () => "http://localhost/page",
+		forget: () => undefined,
 	}
 	return { ...base, ...extra, fetch, go, assign, reload }
 }
@@ -161,4 +162,17 @@ it("booted", async () => {
 	} finally {
 		Reflect.deleteProperty(globalThis, "flare")
 	}
+})
+
+// A server function whose handler wrote a cookie answers with `flare-cookies: set`, and the client forgets what it held
+// before the call resolves. An answer without it, or with another value, forgets nothing (B133).
+it("cookie signal", async () => {
+	const order: string[] = []
+	const forget = vi.fn<CallDeps["forget"]>(() => void order.push("forget"))
+	const answer = (headers: Record<string, string>) => deps(json({ status: 200, data: 1 }, 200, headers), { forget })
+	await callServerFn(echo, null, answer({ "flare-cookies": "set" })).then(() => order.push("resolved"))
+	expect(order).toEqual(["forget", "resolved"])
+	await callServerFn(echo, null, answer({}))
+	await callServerFn(echo, null, answer({ "flare-cookies": "kept" }))
+	expect(forget).toHaveBeenCalledOnce()
 })

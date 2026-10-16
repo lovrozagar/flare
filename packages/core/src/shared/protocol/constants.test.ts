@@ -10,6 +10,7 @@ it("names", () => {
 		BUILD_HEADER: "flare-build",
 		RENDER_HEADER: "flare-render",
 		CACHE_HEADER: "flare-cache",
+		COOKIES_HEADER: "flare-cookies",
 		FN_HEADER: "flare-fn",
 		FAILED_HEADER: "flare-failed",
 		TAB_HEADER: "flare-dev-tab",

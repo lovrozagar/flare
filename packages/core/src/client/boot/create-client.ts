@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
-import { setActiveNavigate } from "../navigation/active.ts"
+import { setActiveClient } from "../navigation/active.ts"
+import { invalidation } from "../navigation/invalidate.ts"
 import { hydrate } from "@solidjs/web"
 import { delegateClicks } from "../../shared/components/index.ts"
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts"
@@ -102,7 +103,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		send: env.send,
 		prefetched: prefetcher.prefetched,
 	})
-	installCall(router, { fetch: env.fetch, build }, navigator)
+	const invalidate = installCall(router, { fetch: env.fetch, build, cache, prefetcher }, navigator)
 	ready.ready({ navigate: navigator.navigate, location })
 	const unmount = hydrateGuarded(state.head, phase, {
 		router,
@@ -115,7 +116,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	})
 	// After the mount, so a Link's own click handler runs first and the delegate sees it handled.
 	const unlisten = listen(router, navigator, { history, scroll, store })
-	setActiveNavigate(navigator.navigate)
+	setActiveClient({ navigate: navigator.navigate, invalidate })
 	markHydrated(ready)
 	if (state.fill === true) void navigator.fill(pending)
 	else if (initial.fetch) void navigator.refresh(initial)
@@ -141,7 +142,7 @@ function hydrateGuarded(head: ClientState["head"], phase: { hydrating: boolean }
 // gone (BUGS.md 105).
 function disposer(...stops: (() => void)[]): () => void {
 	return () => {
-		setActiveNavigate(undefined)
+		setActiveClient(undefined)
 		for (const stop of stops) stop()
 	}
 }
@@ -172,10 +173,11 @@ function browserReload(env: ClientEnv): (href: string) => boolean {
 // so a navigation after them knows the page is leaving (BUGS.md 129).
 function installCall(
 	router: Router,
-	env: Pick<ClientEnv, "fetch"> & Pick<CallDeps, "build">,
-	nav: Pick<Navigator, "visit" | "reload" | "assign">,
-): void {
+	env: Pick<ClientEnv, "fetch"> & Pick<CallDeps, "build"> & Omit<Parameters<typeof invalidation>[0], "revalidate">,
+	nav: Pick<Navigator, "visit" | "reload" | "assign" | "revalidate">,
+): () => Promise<void> {
 	const flare: object = Object(Reflect.get(globalThis, "flare"))
+	const { forget, invalidate } = invalidation({ ...env, revalidate: nav.revalidate })
 	const deps: CallDeps = {
 		fetch: env.fetch,
 		origin: window.location.origin,
@@ -185,10 +187,12 @@ function installCall(
 		reload: nav.reload,
 		go: (url, replace) => nav.visit(url, replace),
 		assign: nav.assign,
+		forget,
 	}
 	const call: ServerFnCall = (fn, input) =>
 		fn.record.kind === "stream" ? streamServerFn(fn, input, deps) : callServerFn(fn, input, deps)
 	Reflect.set(globalThis, "flare", Object.assign(flare, { call }))
+	return invalidate
 }
 
 // Popstate, anchor clicks, and a back-forward cache restore reach the navigator from here.

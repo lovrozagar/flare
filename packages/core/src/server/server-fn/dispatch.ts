@@ -1,5 +1,5 @@
 import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts"
-import { FN_HEADER, fnPrefix } from "../../shared/protocol/index.ts"
+import { COOKIES_HEADER, FN_HEADER, fnPrefix } from "../../shared/protocol/index.ts"
 import { runValidator } from "../../shared/validation/index.ts"
 import { fnCaller } from "../auth/caller.ts"
 import { requestScope, type RequestScope } from "../context/ctx.ts"
@@ -174,9 +174,13 @@ function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult
 
 // A returned Response is the HTTP response: its status, body, and other headers stay, and Cache-Control is
 // overwritten (B43). `flare-fn: response` tells the client not to read it as an envelope, whatever the handler set.
+// `flare-cookies: set` says this Response wrote a cookie; a cookie a middleware or an authenticate refresh adds later
+// never sets it, and neither does the handler's own copy (B133).
 function passThrough(fn: ServerFnRef, response: Response): StageResult {
 	const headers = new Headers(response.headers)
 	setCacheControl(headers, fn.record, response.status)
 	headers.set(FN_HEADER, "response")
+	headers.delete(COOKIES_HEADER)
+	if (response.headers.getSetCookie().length > 0) headers.set(COOKIES_HEADER, "set")
 	return { status: response.status, body: response.body, headers }
 }

@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from "vitest"
 import * as z from "zod"
 import { markSafeError, notFound, redirect, unauthenticated, unauthorized } from "../../src/shared/errors/index.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
+import type { Middleware } from "../../src/server/middleware/types.ts"
 import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter } from "../../src/shared/router/create-router.ts"
@@ -162,6 +163,31 @@ it("prototype keys", async () => {
 	// zod itself skips a `__proto__` key; shapeIssues keeps one too (issues.test `prototype keys`).
 	expect(Object.keys(envelope.errors.fieldErrors).toSorted()).toEqual(["constructor", "toString"])
 	expect(await (await server.fetch(post(fn, { constructor: 1 }))).json()).toMatchObject({ data: 1 })
+})
+
+// A middleware that refreshes a session cookie on every answer.
+const refresh: Middleware = async (ctx) => {
+	const answer = await ctx.next()
+	const headers = new Headers(answer.headers)
+	headers.append("set-cookie", "session=r; Path=/")
+	return new Response(answer.body, { status: answer.status, headers })
+}
+
+// A server function whose own returned Response writes a cookie answers `flare-cookies: set`, so the client forgets the
+// matches and queries it cached for the visitor before (B133). A cookie a middleware writes on the call does not, nor
+// does a handler's own copy of the header.
+it("cookie signal", async () => {
+	const login = createServerFn(config("login")).handler(
+		() => new Response("in", { headers: { "set-cookie": "user=b; Path=/" } }),
+	)
+	const forged = createServerFn(config("forged")).handler(
+		() => new Response("x", { headers: { "flare-cookies": "set" } }),
+	)
+	const value = createServerFn(config("value")).handler(() => 1)
+	const server = serve([login, forged, value], { middleware: [refresh] })
+	const signal = async (fn: Fn) => (await server.fetch(post(fn, null))).headers.get("flare-cookies")
+	expect([await signal(login), await signal(forged), await signal(value)]).toEqual(["set", null, null])
+	expect((await server.fetch(post(value, null))).headers.getSetCookie()).toEqual(["session=r; Path=/"])
 })
 
 // The run order is authenticate, input, authorize, handler. `authorize` false is a JSON 403 `Forbidden` and the

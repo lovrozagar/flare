@@ -1,10 +1,11 @@
-import { BUILD_HEADER, FN_HEADER } from "../../shared/protocol/index.ts"
+import { BUILD_HEADER, COOKIES_HEADER, FN_HEADER } from "../../shared/protocol/index.ts"
 import { bindServerFn, type CreateServerFn, type ServerFnCall } from "../../shared/server-fn/builder.ts"
 import { shapeIssues, type Issue } from "../../shared/validation/index.ts"
 import { fnRequest } from "./codec.ts"
 
 // What a client call needs from the booted client. `go` is the internal URL navigation an `x` frame takes. `reload`
-// is the guarded document load (flare_chunk_reload). `href` is the page on screen.
+// is the guarded document load (flare_chunk_reload). `href` is the page on screen. `forget` drops the client's cached
+// matches, prefetches, and queries (B133).
 export type CallDeps = {
 	fetch: (url: string, init: RequestInit) => Promise<Response>
 	origin: string
@@ -14,6 +15,7 @@ export type CallDeps = {
 	reload: (href: string) => boolean
 	go: (url: string, replace: boolean) => unknown
 	assign: (href: string) => void
+	forget: () => void
 }
 
 // The client entry's call: `bootClient` writes the transport onto `self.flare`, and it is read at call time, so a
@@ -79,10 +81,12 @@ export async function answerOf(response: Response, deps: CallDeps): Promise<unkn
 }
 
 // The handler has already run when the build differs: one guarded document load, then the call rejects. Either
-// side empty is no mismatch (dx/server-fn.md).
+// side empty is no mismatch (dx/server-fn.md). A handler that wrote a cookie may have changed who the visitor is, so
+// the client forgets what it cached before the answer is used (B133).
 export async function send(fn: CallTarget, input: unknown, deps: CallDeps): Promise<Response> {
 	const request = fnRequest(fn, input, deps.basePath)
 	const response = await deps.fetch(request.url, request.init)
+	if (response.headers.get(COOKIES_HEADER) === "set") deps.forget()
 	const build = response.headers.get(BUILD_HEADER) ?? ""
 	if (build !== "" && deps.build !== "" && build !== deps.build) {
 		deps.reload(deps.href())

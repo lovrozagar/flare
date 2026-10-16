@@ -66,6 +66,12 @@ it("fresh no request", async () => {
 	flush()
 	expect(fetch).toHaveBeenCalledTimes(3)
 	expect(app.text()).toBe("root[a:A3:A3]")
+	// `revalidate()`, which `invalidate()` runs, refetches the page on screen in place, fresh or not (B133).
+	const entries = history.length
+	await app.navigator.revalidate()
+	flush()
+	expect([fetch.mock.calls.length, location.pathname, history.length]).toEqual([4, "/a", entries])
+	expect(app.text()).toBe("root[a:A4:A4]")
 })
 
 // `/` and `/a` share the root's match id (no params, no search), and the root stays mounted, but at `staleTime` 0 it

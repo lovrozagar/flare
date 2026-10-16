@@ -35,6 +35,8 @@ export type Prefetcher = {
 	all: () => void
 	watch: (element: HTMLElement, href: string, input?: RoutePrefetch) => () => void
 	prefetched: (dataUrl: string) => Promise<Landed | undefined> | undefined
+	// Drops every held landing, one in flight too: the visitor may have changed (B133).
+	forget: () => void
 }
 
 type DataTarget = Extract<Target, { kind: "data" }>
@@ -101,6 +103,7 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 				for (const stop of stops) stop()
 			}
 		},
+		forget: () => held.clear(),
 		prefetched(dataUrl) {
 			const entry = held.get(dataUrl)
 			held.delete(dataUrl)
