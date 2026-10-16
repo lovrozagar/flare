@@ -112,11 +112,18 @@ const ALL: HeadConfig = {
 	},
 }
 
+// Scripts whose `extra` names another origin for `src` or `href`.
+const EXTRA_URL: HeadScript[] = [
+	{ children: "inline()", extra: { src: "https://evil.example/a.js", id: "in" } },
+	{ src: "/ok.js", extra: { src: "https://evil.example/b.js", href: "https://evil.example/c", id: "out" } },
+]
+
 const get = serve(
 	[
 		headPage("all", () => ALL),
 		headPage("defaults", () => ({ robots: {}, openGraph: {}, twitter: {}, title: null as unknown as string })),
 		headPage("relative", () => ({ title: "Relative", canonical: "/relative" })),
+		headPage("extra", () => ({ custom: { scripts: EXTRA_URL } })),
 		headPage("both", () => ({
 			title: "Both",
 			custom: { scripts: [{ src: "/x.js", children: "y" } as never] },
@@ -287,6 +294,14 @@ it("meta", async () => {
 // custom: links and meta keep the allowed attribute names and drop `on*` and any other; a script's `type` and `extra`
 // are written; an inline script and a style carry the nonce with their closing tag rewritten in its own spelling; an
 // external script has no nonce and `extra`'s nonce is ignored; a script with neither src nor children is dropped.
+// A script's `src` comes from its own field only: `src` or `href` in `extra` is dropped, so head data from a CMS or a
+// loader cannot point a nonced inline script, or an external one, at another origin (plan 21 12.2, BUGS.md 160).
+it("custom extra url", async () => {
+	const scripts = (await headOf("/extra")).tags.filter((tag) => tag.includes('id="in"') || tag.includes('id="out"'))
+	expect(scripts).toEqual(['script src="/ok.js" id="out"', 'script id="in" nonce="NONCE" | inline()'])
+	expect(scripts.join(" ")).not.toContain("evil.example")
+})
+
 it("custom", async () => {
 	const { tags } = await headOf("/all")
 	expect(tags).toContain('link rel="preconnect" href="https://cdn.example.com" data-k="v"')

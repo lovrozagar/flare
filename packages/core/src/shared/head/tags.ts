@@ -241,20 +241,24 @@ function scriptTag(script: HeadScript, nonce: string | undefined): Tag[] {
 	if (script.src !== undefined) {
 		const props: Record<string, string | boolean> = { src: script.src, ...type }
 		if (script.async) props["async"] = true
-		return [{ tag: "script", props: { ...props, ...allowed(script.extra, true), nonce: false } }]
+		return [{ tag: "script", props: { ...props, ...allowed(script.extra, SCRIPT_EXTRA), nonce: false } }]
 	}
 	if (script.children === undefined) return []
-	const props = { ...type, ...allowed(script.extra, true), ...nonceProp(nonce) }
+	const props = { ...type, ...allowed(script.extra, SCRIPT_EXTRA), ...nonceProp(nonce) }
 	return [{ tag: "script", props: { ...props, children: keepOpen(script.children, "script") } }]
 }
 
 const nonceProp = (nonce: string | undefined): Record<string, string> => (nonce ? { nonce } : {})
 
 // An attribute whose name starts with `on`, in any case, is dropped (B83).
-function allowed(record: Record<string, string> | undefined, skipNonce = false): Record<string, string> {
+// A script's `extra` never sets its nonce or where it loads from: `src` comes from the script's own field, so head data
+// from a CMS or a loader cannot point a nonced script at another origin (BUGS.md 160).
+const SCRIPT_EXTRA: readonly string[] = ["nonce", "src", "href"]
+
+function allowed(record: Record<string, string> | undefined, skip: readonly string[] = []): Record<string, string> {
 	if (!record) return {}
 	return Object.fromEntries(
-		Object.entries(record).filter(([name]) => allowedName(name) && !(skipNonce && name === "nonce")),
+		Object.entries(record).filter(([name]) => allowedName(name) && !skip.includes(name.toLowerCase())),
 	)
 }
 

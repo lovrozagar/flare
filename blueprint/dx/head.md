@@ -128,4 +128,4 @@ The content is those tokens, comma-separated, in this row order.
 | `scripts` | no | `[]` | one of `src` or `children`, plus optional `type`, `async`, `extra` | inline `children` are escaped and the tag gets the request nonce. An external `src` is emitted without a nonce attribute. A script with neither `src` nor `children` is dropped. Both `src` and `children` fail as a `.head()` throw does | `head.test.ts` `custom nonce`, `custom both` |
 | `styles` | no | `[]` | `{ children }` required. Escaped. The tag gets the request nonce | | `head.test.ts` `custom style` |
 
-`extra` values are attributes. `nonce` in `extra` is ignored. The nonce that is written is `nonce()` for this request, the same string the CSP header carries (`server.md`).
+`extra` values are attributes. `nonce`, `src`, and `href` in `extra` are ignored: a script loads only from its own `src`, so head data from a CMS or a loader cannot point a nonced script at another origin (`tests/integration/head.test.ts` `custom extra url`, BUGS.md 160). The nonce that is written is `nonce()` for this request, the same string the CSP header carries (`server.md`).
