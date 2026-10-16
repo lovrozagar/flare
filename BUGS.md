@@ -944,6 +944,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 178 [x] Blocked sessionStorage stopped hydration
 178.1 [x] Plan 21 3.6, from the 2026-10-16 gap audit: client/boot/create-client.ts handed the scroll store `window.sessionStorage` at boot, and with cookies off or in a sandboxed iframe that read throws a SecurityError, so the boot threw and the page never hydrated. Red: tests/integration/client.test `storage blocked` in each engine, with the getter made to throw before the page loads (the page never hydrated).
 178.2 [x] Fix: the scroll store takes the storage as `() => Storage`, read inside its existing guards each time it saves or restores, as the reload guard already did, so positions are not kept and the page hydrates and navigates. dx/navigate.md says so.
+179 [x] Bun on macOS formats Arabic numbers with Arabic-Indic digits, and an e2e case asserted the digits
+179.1 [x] Found by the Mac gate run of 2026-10-16 (a9ef10cf): tests/e2e/docs-features `format message` failed on bun-dev-chromium and bun-dev-firefox only. Measured with the exact calls the case makes: `new Intl.NumberFormat("ar").format(14)` is `١٤` (numbering system `arab`) under Bun 1.4.3 on macOS 14.6, which uses the system's ICU, and `14` (`latn`) under Node 24 on the same Mac and under Node 26 and Bun 1.4.3 on Linux; `new Intl.PluralRules("ar").select(14)` is `many` on all four, and `en` is `14` and `other` on all four. So the server render under Bun on macOS writes `١٤ releases (many)`. That is the runtime's Intl data, which a Flare app under Bun on macOS meets too; the case's own comment says the digits prove nothing (B29), yet it asserted `14`.
+179.2 [x] Fix: the case asserts the plural category with any decimal digits (`\p{Nd}+ releases (many)`); the English line keeps `14`. dx/features.md says numbers follow the rendering runtime's Intl data, naming Bun on macOS.
 
 ## Verify
 
