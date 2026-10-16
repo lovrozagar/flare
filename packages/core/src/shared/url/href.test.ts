@@ -53,6 +53,16 @@ it("bad percent", () => {
 	expect(() => buildUrl({ to: users, params: { id: "%2" } })).toThrow(/param/)
 })
 
+// A param is encoded by code point, so a character outside the BMP, an emoji, round-trips; a lone surrogate, which no
+// URL can carry, is a bad param, never a URIError from the render (plan 21 8.2).
+it("emoji param", () => {
+	const url = buildUrl({ to: users, params: { id: "a😀b" } })
+	expect(url).toBe("/users/a%F0%9F%98%80b")
+	expect(decodeURIComponent(url.slice("/users/".length))).toBe("a😀b")
+	expect(buildUrl({ to: users, params: { id: "%F0%9F%98%80😀" } })).toBe("/users/%F0%9F%98%80%F0%9F%98%80")
+	expect(() => buildUrl({ to: users, params: { id: "a\uD83D" } })).toThrow(/param/)
+})
+
 it("no double encode", () => {
 	const url = buildUrl({ to: users, params: { id: "a%2Fb" } })
 	expect(url).toBe("/users/a%2Fb")
