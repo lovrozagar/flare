@@ -1,7 +1,7 @@
 import { expect, it } from "vitest"
 import { browserEndpoint, IMAGE_DIGEST, type BrowserDeps } from "./browser-server.ts"
 
-const IMAGE = `mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`
+const IMAGE = `mcr.microsoft.com/playwright:v1.64.1-noble@sha256:${IMAGE_DIGEST}`
 const VERSION = ["version", "--format", "{{.Server.Version}}"]
 const INSPECT = [
 	"inspect",
@@ -68,7 +68,7 @@ function machine(
 		},
 		reachable: async () => listening,
 		installed: () => input.installed ?? false,
-		core: () => ({ dir: "/repo/node_modules/playwright-core", version: "1.61.1" }),
+		core: () => ({ dir: "/repo/node_modules/playwright-core", version: "1.64.1" }),
 		sleep: async () => undefined,
 	}
 	return { deps, runs, answers }
