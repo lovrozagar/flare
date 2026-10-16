@@ -1,6 +1,6 @@
 export { canonicalPath, type CanonicalOptions, type CanonicalPath } from "./canonical.ts"
 export { buildUrl, href, type Href } from "./href.ts"
 export { forwardedHttps, trustedHops, validHost } from "./forwarded.ts"
-export { hasPrefix, underBase } from "./prefix.ts"
+export { hasPrefix, routeHref } from "./prefix.ts"
 export { readSearch, searchKey, writeUrl } from "./search.ts"
 export type { Location, LocationRewrite } from "./types.ts"

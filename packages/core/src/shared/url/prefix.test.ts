@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, it } from "vitest"
-import { hasPrefix, underBase } from "./prefix.ts"
+import { hasPrefix, routeHref } from "./prefix.ts"
 
 const corpus = readFileSync(new URL("./prefix.corpus.txt", import.meta.url), "utf8")
 
@@ -31,11 +31,24 @@ it("case fold", () => {
 	expect(hasPrefix(prefix, path, { caseSensitive: true })).toBe(false)
 })
 
-// A route's path under the router's base; the index is the base itself, and a base of `/` adds nothing (plan 21 3.7).
-it("under base", () => {
-	expect([underBase("/app", "/about"), underBase("/app", "/"), underBase("/", "/about")]).toEqual([
+// A router's base and trailing-slash rule.
+function at(basePath: string, trailingSlash: "preserve" | "always" | "never" = "preserve") {
+	return { basePath, trailingSlash }
+}
+
+// A route's URL as the router writes it: under the base, whose index is the base itself, and with a trailing slash under
+// "always", on the path only (plan 21 3.7, 3.9).
+it("route href", () => {
+	expect([routeHref(at("/app"), "/about"), routeHref(at("/app"), "/"), routeHref(at("/"), "/about")]).toEqual([
 		"/app/about",
 		"/app",
 		"/about",
 	])
+	expect(routeHref(at("/", "always"), "/about?q=1#h")).toBe("/about/?q=1#h")
+	expect([
+		routeHref(at("/", "always"), "/"),
+		routeHref(at("/app", "always"), "/"),
+		routeHref(at("/", "always"), "/a/"),
+	]).toEqual(["/", "/app/", "/a/"])
+	expect(routeHref(at("/", "never"), "/about#x")).toBe("/about#x")
 })

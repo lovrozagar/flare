@@ -1,6 +1,6 @@
 import { KIND_PARAM, withoutInternalKeys } from "../../shared/protocol/index.ts"
 import { rewriteLocation, type Match, type Router } from "../../shared/router/create-router.ts"
-import { buildUrl, underBase, type Location } from "../../shared/url/index.ts"
+import { buildUrl, routeHref, type Location } from "../../shared/url/index.ts"
 import { isHashMove } from "./scroll.ts"
 
 export type NavigateInput = {
@@ -27,9 +27,9 @@ const SCHEME = /^[a-z][a-z0-9+.-]*:/i
 export function resolveTarget(input: NavigateInput, context: TargetContext): Target {
 	if (SCHEME.test(input.to) || input.to.startsWith("//"))
 		throw new Error(`navigate: to is a route id, not a URL: ${input.to}`)
-	// A route id is a path under the router's base (dx/router.md `basePath`, plan 21 3.7).
-	const built = underBase(
-		context.router.basePath,
+	// A route id is the URL the router writes: under its base, with its trailing-slash rule (plan 21 3.7, 3.9).
+	const built = routeHref(
+		context.router,
 		buildUrl({ to: input.to, params: input.params, search: withoutInternalKeys(input.search), hash: input.hash }),
 	)
 	const location = rewriteLocation(context.router, locationOf(new URL(built, context.origin)), context.origin)

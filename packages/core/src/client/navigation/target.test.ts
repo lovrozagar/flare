@@ -31,6 +31,19 @@ it("data url", () => {
 	})
 })
 
+// The target is the URL the router writes: under its base, with its trailing-slash rule (plan 21 3.9).
+it("trailing slash", () => {
+	expect(resolveTarget({ to: "_root_/about", search: { q: "1" } }, context({ trailingSlash: "always" }))).toMatchObject(
+		{
+			url: "/about/?q=1",
+			dataUrl: "/about/?q=1&_flare=data",
+		},
+	)
+	expect(resolveTarget({ to: "_root_/" }, context({ trailingSlash: "always" }))).toMatchObject({ url: "/" })
+	const based = context({ trailingSlash: "always", basePath: "/app" })
+	expect(resolveTarget({ to: "_root_/about", hash: "x" }, based)).toMatchObject({ url: "/app/about/#x" })
+})
+
 it("missing param", () => {
 	expect(() => resolveTarget({ to: "_root_/users/[id]" }, context())).toThrow(/id/)
 })
