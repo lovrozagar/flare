@@ -133,7 +133,7 @@ beforeAll(async () => {
 		made({ ...ROUTES, ...APP_ENTRIES, "vite.config.mjs": config(OPTIONS) }),
 		made({ ...ROUTES, ...DEFAULT_ENTRIES, "vite.config.mjs": config("{ prerender: true, image: {} }") }),
 	])
-}, 240_000)
+})
 
 function built(app: App | undefined): App {
 	if (app === undefined) throw new Error("the app did not build")
@@ -298,8 +298,8 @@ const MINIMAL: Record<string, string> = {
 
 // What only the app's files decide fails the build and names the cause: an ssg route with prerender off, a font file
 // `dir` lacks, a sitemap with no `site`. Three builds run one after another: 1.1 s alone, 3.8 s under the full unit
-// gate's parallel builds and engines, and once past vitest's 5 s default, so it takes a build's timeout.
-it("build failures", { timeout: 60_000 }, async () => {
+// gate's parallel builds and engines, and once past the unit default of 5 s; the integration project's 60 s covers it.
+it("build failures", async () => {
 	const off = await viteBuild(apps.make({ ...MINIMAL, "vite.config.mjs": config("{}") }))
 	expect(off.status).not.toBe(0)
 	expect(off.output).toContain("_root_/static renders at build, and flare({ prerender }) is off")

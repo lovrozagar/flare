@@ -73,7 +73,7 @@ let rest: Server | undefined
 
 beforeAll(async () => {
 	;[table, rest] = await Promise.all([served(TABLE), served(REST)])
-}, 180_000)
+})
 
 function at(server: Server | undefined, path: string): Promise<Answer> {
 	if (server === undefined) throw new Error("the app did not build")
@@ -162,7 +162,7 @@ async function failure(routes: Record<string, string>): Promise<string> {
 const ROOT = { "_root_/root.root-layout.tsx": rootLayout("_root_") }
 
 // Each build error fails `vite build` with codegen's message, which names the files.
-describe("build errors", { timeout: 60_000 }, () => {
+describe("build errors", () => {
 	it("duplicate url", async () => {
 		const output = await failure({
 			...ROOT,
@@ -220,7 +220,7 @@ describe("build errors", { timeout: 60_000 }, () => {
 // A route module that imports the router closes a cycle through the generated map's lazy import. While its
 // evaluation is held open, a second request's import gets its namespace before `route` is set, and dev waits for the
 // export, so both requests render. The generated map imports each route module lazily.
-it("lazy route module", { timeout: 60_000 }, async () => {
+it("lazy route module", async () => {
 	const root = project({
 		...ROOT,
 		"_root_/slow/slow.page.tsx": [

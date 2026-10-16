@@ -219,7 +219,7 @@ function richApp(initial: string) {
 
 // `useT` in a render: `t` and `t.rich` bound to the provider's locale. A matched tag is the component; the text
 // around it is escaped, on the page's real path in dev and in a production build (BUGS.md 142).
-it("render t", { timeout: 120_000 }, async () => {
+it("render t", async () => {
 	expect(await richBody("en")).toBe('missing Read the <a href="/t">terms</a> &lt;b>now&lt;/b>')
 	expect(await richBody("hr")).toBe('missing Pročitaj <a href="/t">uvjete</a> &lt;b>sada&lt;/b>')
 	const apps = fixtureApps()

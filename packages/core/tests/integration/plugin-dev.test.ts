@@ -49,7 +49,7 @@ beforeAll(async () => {
 		socket.addEventListener("error", () => reject(new Error("the hot channel did not open")))
 	})
 	tab = socket
-}, 120_000)
+})
 
 afterAll(async () => {
 	tab?.close()
@@ -107,4 +107,4 @@ it("production error", async () => {
 	const safeBody = await safe.text()
 	expect(safeBody).toContain("safe-message")
 	expect(safeBody).not.toContain("safe.page")
-}, 120_000)
+})

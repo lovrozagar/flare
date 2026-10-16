@@ -107,7 +107,7 @@ function lateRegistration(engine: Engine): Promise<AppResult> {
 	})
 }
 
-describe.each(ENGINES)("%s", { timeout: 30_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	it("ready then hydrated", async () => {
 		const result = await readyThenHydrated(engine)
 		expect(result.problems).toEqual([])

@@ -13,7 +13,7 @@ let harness: Harness | undefined
 
 beforeAll(async () => {
 	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."))
-}, 60_000)
+})
 
 afterAll(async () => {
 	await harness?.close()
@@ -135,7 +135,7 @@ function settledRound(path: string): (tab: Page) => Promise<void> {
 	}
 }
 
-describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+describe.each(ENGINES)("%s", (engine) => {
 	// `staleTime` on the route: back within it the loader does not run; past it, it does.
 	it("route staleTime", async () => {
 		const result = await run(engine, { app: APP, path: "/kept", steps: (tab) => rounds(tab, "/kept", [0, 61_000]) })

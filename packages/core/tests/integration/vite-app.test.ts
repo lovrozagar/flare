@@ -13,7 +13,7 @@ function dies(how: string): Promise<unknown> {
 	return builtServer(apps.make({ "vite.config.mjs": `${how}\nexport default {}\n` }))
 }
 
-it("dead build named", { timeout: 60_000 }, async () => {
+it("dead build named", async () => {
 	await expect(dies('process.kill(process.pid, "SIGKILL")')).rejects.toThrow(/^vite build exited \(signal SIGKILL\)$/)
 	await expect(dies('console.error("broke"); process.exit(3)')).rejects.toThrow(/^vite build exited \(code 3\)\nbroke/)
 })
