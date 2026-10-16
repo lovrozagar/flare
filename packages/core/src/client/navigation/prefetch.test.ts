@@ -56,6 +56,7 @@ function setup(router = routerOf(), options: Setup = {}) {
 		idle: (run) => void idle.push(run),
 		head: document.head,
 		now: () => clock.now,
+		relPrefetch: true,
 		...options.env,
 	}
 	const prefetcher = createPrefetcher({
@@ -87,7 +88,7 @@ beforeEach(() => {
 
 afterEach(() => {
 	unmountAll()
-	for (const link of document.head.querySelectorAll('link[rel="prefetch"]')) link.remove()
+	for (const link of document.head.querySelectorAll('link[rel="prefetch"], link[rel="modulepreload"]')) link.remove()
 	document.body.replaceChildren()
 })
 
@@ -107,6 +108,37 @@ it("all modules", async () => {
 		links.map((node) => [node.getAttribute("href"), node.getAttribute("as"), node.hasAttribute("crossorigin")]),
 	).toEqual([["/src/about.tsx", "script", true]])
 	expect(app.fetch).not.toHaveBeenCalled()
+})
+
+// Safari has no rel=prefetch through 26.x (`relList.supports("prefetch")` is false), so "all" imports each unloaded
+// route and layout module there, as intent prefetch does: the module map holds it and its imports for the next
+// navigation. No link: a modulepreload Safari does not use within seconds of load is a console warning per chunk
+// (BUGS.md 124.7).
+it("all without prefetch support", async () => {
+	const chunks = { _root_: "/src/root.tsx", "_root_/": "/src/root.tsx", "_root_/about": "/src/about.tsx" }
+	const app = setup(routerOf({ chunks }), { env: { relPrefetch: false } })
+	app.prefetcher.all()
+	await settled()
+	expect(document.head.querySelectorAll('link[rel="prefetch"], link[rel="modulepreload"]')).toHaveLength(0)
+	expect(importAbout).toHaveBeenCalledOnce()
+	expect(app.fetch).not.toHaveBeenCalled()
+})
+
+// A built chunks map gives each route its chunk and the chunks it imports, so "all" prefetches that whole closure, each
+// file once: a navigation then downloads neither the route's chunk nor its imports. A file in a loaded route's closure
+// is in the module map already and is skipped (BUGS.md 80, 124.6).
+it("all closures", async () => {
+	const chunks = {
+		_root_: ["/assets/root.js", "/assets/shared.js"],
+		"_root_/": ["/assets/root.js", "/assets/shared.js"],
+		"chunk-a": ["/assets/a.js", "/assets/shared.js", "/assets/a-dep.js"],
+		"chunk-x": ["/assets/x.js", "/assets/a-dep.js"],
+	}
+	const app = setup(routerOf({ chunks }))
+	app.prefetcher.all()
+	await settled()
+	const hrefs = [...document.head.querySelectorAll('link[rel="prefetch"]')].map((link) => link.getAttribute("href"))
+	expect(hrefs).toEqual(["/assets/a.js", "/assets/a-dep.js", "/assets/x.js"])
 })
 
 // A chunk the client already imported is not prefetched again: the browser holds it in its module map, and a prefetch

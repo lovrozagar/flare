@@ -45,6 +45,17 @@ const SCROLL = "return Math.round(window.scrollY)"
 const MARK = "window.__flareMark = 1"
 const MARKED = "return window.__flareMark === 1"
 const STEPS = ["resolve routes", "bundle client", "bundle server", "prerender pages", "write sitemap", "done"]
+// Warm: the docs client marked idle and no resource arrived for a second, so the idle step's imports are in.
+const WARMED = `const count = performance.getEntriesByType("resource").length;
+if (!(window.__docsLifecycle ?? []).includes("idle") || count !== window.__lastCount) {
+	window.__lastCount = count;
+	window.__stableSince = performance.now();
+	return false;
+}
+return performance.now() - window.__stableSince > 1000`
+// The scripts fetched since window.__before, by URL: a route chunk, or one it imports.
+const FETCHED = `return performance.getEntriesByType("resource").slice(window.__before)
+	.map((entry) => entry.name).filter((name) => /\\.js$/.test(new URL(name).pathname))`
 // Holds the next navigation's transition at ready, its animations paused in the same task, and records each
 // ::view-transition pseudo-element it animates and each whose keyframes move it (a transform), as the e2e does.
 const HOLD = `Document.prototype.startViewTransition = ((start) => function (arg) {
@@ -113,10 +124,22 @@ async function pointerDuring(safari: SafariSession, site: Site, top: number): Pr
 	return landed ? undefined : "the click on the sidebar link was lost"
 }
 
+// From hydration on, what the page's own scripts log as a warning or an error, and what it throws, as the grid's
+// `watch` does. safaridriver has no log endpoint, so this sees nothing the engine itself logs (BUGS.md 124.7).
+const WATCH = `window.__flareProblems = [];
+for (const level of ["warn", "error"]) {
+	const original = console[level];
+	console[level] = (...args) => { window.__flareProblems.push(level + ": " + args.map(String).join(" ")); original.apply(console, args) };
+}
+addEventListener("error", (event) => window.__flareProblems.push("error: " + event.message));
+addEventListener("unhandledrejection", (event) => window.__flareProblems.push("unhandled: " + String(event.reason)))`
+const PROBLEMS = "return window.__flareProblems ?? []"
+
 async function open(safari: SafariSession, url: string): Promise<void> {
 	await safari.go(url)
 	if (!(await safari.wait(HYDRATED, 20_000))) throw new Error(`${url} never hydrated`)
 	await safari.js(MARK)
+	await safari.js(WATCH)
 }
 
 export const FLOWS: readonly Flow[] = [
@@ -203,6 +226,22 @@ export const FLOWS: readonly Flow[] = [
 		},
 	},
 	{
+		// The docs router's `modules: "all"` warms every unloaded route once the page is idle, so a later client
+		// navigation fetches no script: not its route chunk, nor a chunk that one imports. Safari has no rel=prefetch, so
+		// this checks the import it gets instead (BUGS.md 124, decision B127).
+		name: "modules warm in Safari",
+		run: async (safari, site) => {
+			await open(safari, `${site.origin}/docs/routing`)
+			if (!(await safari.wait(WARMED, 15_000))) return "the idle step never settled"
+			await safari.js(`window.__before = performance.getEntriesByType("resource").length`)
+			await safari.click("#nav a[href='/playground']")
+			if (!(await safari.wait("return location.pathname === '/playground'"))) return "the Playground link did not land"
+			const fetched = await safari.js(FETCHED)
+			const names = Array.isArray(fetched) ? fetched.map(String) : []
+			return names.length === 0 ? undefined : `the navigation fetched ${names.length} script(s): ${names.join(", ")}`
+		},
+	},
+	{
 		// Playwright's WebKit is not Safari (BUGS.md 123), so the live chrome during a transition is checked here too.
 		name: "pointer during transition",
 		run: async (safari, site) => {
@@ -224,12 +263,21 @@ export async function runFlows(
 	const { log, flows = FLOWS } = input
 	let failed = 0
 	for (const flow of flows) {
-		const problem = await flow.run(safari, site).catch((error: unknown) => String(error))
+		const problem = await flow.run(safari, site).then(
+			async (found) => found ?? logged(await safari.js(PROBLEMS)),
+			(error: unknown) => String(error),
+		)
 		if (problem !== undefined) failed += 1
 		log(`${problem === undefined ? "PASS" : "FAIL"}  ${flow.name}${problem === undefined ? "" : `: ${problem}`}`)
 	}
 	log(`verify:safari: ${flows.length - failed} of ${flows.length} flows passed in Safari ${safari.version}`)
 	return failed === 0 ? 0 : 1
+}
+
+// A page that logged something fails the flow that passed, with what it said.
+function logged(problems: unknown): string | undefined {
+	const lines = Array.isArray(problems) ? problems.map(String) : []
+	return lines.length === 0 ? undefined : `the page logged ${lines.join("; ")}`
 }
 
 // The tunnel to the Mac's driver, ready once the driver answers `/status` as ready.

@@ -267,6 +267,32 @@ it("chunk urls", async () => {
 	expect(Reflect.apply(transform, serve, [generated, join(root, "src/_gen/routes.gen.ts")])).toBeNull()
 }, 60_000)
 
+// Each route's entry in the built map also lists the chunks its file imports, after its own, so "all" can warm what a
+// navigation to it would download: here a module both routes import becomes a shared chunk, and both entries name it
+// (BUGS.md 124.6).
+it("chunk closures", async () => {
+	const root = project({
+		"client.tsx":
+			'import { chunks, layouts, routeTree } from "./_gen/routes.gen.ts";\nconsole.log(chunks, layouts, routeTree);\n',
+		"server.ts": "export const server = {};\n",
+		"shared.ts": 'export const shared = "s".repeat(Number(globalThis.length ?? 2));\n',
+		"routes/_root_/root.root-layout.tsx": 'export const route = "root";\n',
+		"routes/_root_/a/a.page.tsx": 'import { shared } from "../../../shared.ts";\nexport const route = "a" + shared;\n',
+		"routes/_root_/b/b.page.tsx": 'import { shared } from "../../../shared.ts";\nexport const route = "b" + shared;\n',
+	})
+	const app = await builder(root)
+	const client = outputs(await app.build(app.environments.client ?? never()))
+	const manifest: Record<string, { file: string; imports?: string[] }> = JSON.parse(text(client, ".vite/manifest.json"))
+	const entry = text(client, basename(manifest["src/client.tsx"]?.file ?? never()))
+	for (const route of ["a", "b"]) {
+		const page = manifest[`src/routes/_root_/${route}/${route}.page.tsx`] ?? never()
+		const shared = basename(manifest[page.imports?.[0] ?? never()]?.file ?? never())
+		const value = entry.slice(entry.indexOf(`"_root_/${route}":`)).split("]")[0] ?? ""
+		const files = [...value.matchAll(/new URL\([`'"]([^`'"]+)[`'"]/g)].map((found) => found[1])
+		expect({ route, files }).toEqual({ route, files: [basename(page.file), shared] })
+	}
+}, 60_000)
+
 const VITE = fileURLToPath(new URL("../../../../../node_modules/vite/bin/vite.js", import.meta.url))
 
 // `vite build` from a config file, as the CLI runs it, in a child process. One config and one plugin set serve every

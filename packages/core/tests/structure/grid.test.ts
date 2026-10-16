@@ -132,3 +132,37 @@ it("http client only", () => {
 		.filter((name) => /async \(\{[^})]*\brequest\b[^})]*\}/.test(readFileSync(join(dir, name), "utf8")))
 	expect(users).toEqual([])
 })
+
+// A glob of `*` wildcards, as both configs write them, as a whole-path pattern.
+function globOf(pattern: string): RegExp {
+	const parts = pattern.split("**/").map((part) =>
+		part
+			.split("*")
+			.map((piece) => piece.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+			.join("[^/]*"),
+	)
+	return new RegExp(`^${parts.join("(?:.*/)?")}$`)
+}
+
+// Every e2e file Playwright runs is excluded from vitest's node project, where Playwright's `test()` throws on import:
+// a new spec missing there failed the unit gate, `test` (fe712263's prefetch-reuse.test.ts). The vitest files beside
+// the specs, which Playwright ignores, stay in.
+it("playwright specs outside vitest", async () => {
+	const dir = join(import.meta.dirname, "../e2e")
+	const ignored = [config.testIgnore ?? []].flat().map(String).map(globOf)
+	// Loaded by URL, read as data: the config is not part of the type-checked graph.
+	const vitestConfig: unknown = Reflect.get(
+		await import(new URL("../../vitest.config.ts", import.meta.url).href),
+		"default",
+	)
+	const projects: unknown[] = Reflect.get(Object(Reflect.get(Object(vitestConfig), "test")), "projects") ?? []
+	const node = projects.find(
+		(project) => Reflect.get(Object(Reflect.get(Object(project), "test")), "name") === "unit-node",
+	)
+	const excluded: string[] = Reflect.get(Object(Reflect.get(Object(node), "test")), "exclude") ?? []
+	const outside = (name: string) => excluded.some((pattern) => globOf(pattern).test(`tests/e2e/${name}`))
+	const specs = readdirSync(dir).filter((name) => name.endsWith(".test.ts"))
+	const playwright = specs.filter((name) => !ignored.some((glob) => glob.test(`tests/e2e/${name}`)))
+	expect(playwright.filter((name) => !outside(name))).toEqual([])
+	expect(specs.filter((name) => !playwright.includes(name) && outside(name))).toEqual([])
+})

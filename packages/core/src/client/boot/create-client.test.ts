@@ -240,7 +240,10 @@ it("prefetch all", async () => {
 		vi.fn<ClientEnv["fetch"]>(async () => new Response(null, { status: 500 })),
 	)
 	const chunks = { "_root_/": "/src/home.tsx", "_root_/lazy": "/src/lazy.tsx" }
+	// A browser with rel=prefetch, which jsdom is not (prefetch.test covers the import path, BUGS.md 124.7).
+	const supports = vi.spyOn(DOMTokenList.prototype, "supports").mockReturnValue(true)
 	stops.push(await bootClient(routerOf(chunks), createReady(), client))
+	supports.mockRestore()
 	// The hydrated home's file is loaded already, so only the unloaded route's is prefetched (BUGS.md 80).
 	const links = [...document.head.querySelectorAll('link[rel="prefetch"]')]
 	expect(links.map((link) => link.getAttribute("href"))).toEqual(["/src/lazy.tsx"])
@@ -477,12 +480,7 @@ it("query hydrated", async () => {
 // restore (`pageshow` with `persisted`) brings client navigations back, and a dispose stops listening (BUGS.md 129).
 it("pageshow", async () => {
 	const host = install()
-	const frames = [
-		{ t: "l", m: "_root_", d: null },
-		{ t: "l", m: "_root_/about", d: "back" },
-		{ t: "r" },
-		{ t: "d" },
-	] as const
+	const frames = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/about", d: "back" }, { t: "r" }] as const
 	const fetch = vi.fn<ClientEnv["fetch"]>(async () => new Response(frames.map(encodeFrame).join("")))
 	const ready = createReady()
 	const navigates: ReadyContext["navigate"][] = []

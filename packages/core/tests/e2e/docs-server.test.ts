@@ -1,6 +1,6 @@
 import { createServer, request as httpRequest } from "node:http"
 import type { AddressInfo, Socket } from "node:net"
-import { deepOnly, expect, fnId, INDEX_NOW_KEY, nonces, open, sessionCookie, test } from "./docs.fixture.ts"
+import { deepOnly, expect, fnId, INDEX_NOW_KEY, nonces, open, prodOnly, sessionCookie, test } from "./docs.fixture.ts"
 
 // Auth, CSRF, the body cap, middleware, mounts, `.response()`, route headers, and security (bits/15 docs-server).
 deepOnly()
@@ -213,4 +213,17 @@ test("indexnow key file", async ({ http, docs }) => {
 	expect(response.status()).toBe(200)
 	expect(response.headers()["content-type"]).toMatch(/^text\/plain/)
 	expect((await response.text()).trim()).toBe(INDEX_NOW_KEY)
+})
+
+// A production page's hashed assets go out immutable, so what `modules: "all"` or an intent prefetch warmed is not
+// downloaded twice (dx/link.md). On Workers, Flare writes the rule into the assets' `_headers` (B130); the Node and Bun
+// harness's static layer does what dx/link.md asks of a host.
+test("assets immutable", async ({ http, docs }, info) => {
+	prodOnly(info)
+	const page = await (await http.get(`${docs.origin}/docs/routing`)).text()
+	const asset = /\/assets\/[^"'\s]+\.js/.exec(page)?.[0]
+	if (asset === undefined) throw new Error("no hashed script on the page")
+	const response = await http.get(`${docs.origin}${asset}`)
+	expect(response.status()).toBe(200)
+	expect(response.headers()["cache-control"]).toBe("public, max-age=31536000, immutable")
 })

@@ -2,7 +2,7 @@ import { defined } from "../../shared/errors/index.ts"
 import { parseDuration } from "../../shared/duration/index.ts"
 import { BUILD_HEADER } from "../../shared/protocol/index.ts"
 import type { PrefetchTrigger, RoutePrefetch } from "../../shared/route-builder/index.ts"
-import type { ModuleRef, Router } from "../../shared/router/create-router.ts"
+import type { ChainEntry, ModuleRef, Router } from "../../shared/router/create-router.ts"
 import { loadChain, loadedModule } from "../../shared/router/load-chain.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { clientOf } from "../router/match-cache.ts"
@@ -10,13 +10,15 @@ import { framesOf, landFrames, type Landed, type LandOptions } from "./frames.ts
 import { resolveUrl, type Target } from "./target.ts"
 
 // The browser surface prefetch uses, passed in so a test can observe it. `network` is the object that may carry
-// `connection` (the browser's navigator).
+// `connection` (the browser's navigator). `relPrefetch`: the browser supports `<link rel=prefetch>`, which Safari does
+// not through 26.x (BUGS.md 124); by default the document's own answer.
 export type PrefetchEnv = {
 	network: object
 	observe: (element: Element, run: () => void) => () => void
 	idle: (run: () => void) => void
 	head: HTMLElement
 	now: () => number
+	relPrefetch?: boolean
 }
 
 export type PrefetchDeps = {
@@ -78,7 +80,9 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 	return {
 		all() {
 			if (lowData(deps.env.network)) return
-			for (const href of unloadedChunks(deps.router)) deps.env.head.append(prefetchLink(href))
+			if (deps.env.relPrefetch ?? document.createElement("link").relList.supports("prefetch")) {
+				for (const href of unloadedChunks(deps.router)) deps.env.head.append(prefetchLink(href))
+			} else void loadChain(unloadedEntries(deps.router)).catch(() => undefined)
 		},
 		watch(element, href, input) {
 			const target = local(href, deps)
@@ -105,21 +109,33 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 	}
 }
 
-// Every route chunk file the client has not imported. A file one of whose modules is loaded is in the module map
-// already, and a prefetch would fetch it again (BUGS.md 80).
+// Every chunk file the client has not imported: each route's own file and, in a build, the files it imports, each once.
+// A file in a loaded route's closure is in the module map already, and a prefetch would fetch it again (BUGS.md 80,
+// 124.6).
 function unloadedChunks(router: Router): Set<string> {
 	const modules = new Map<string, ModuleRef>(Object.entries(router.layouts))
 	for (const node of router.routeTree) modules.set(node.id, node.module)
-	const entries = Object.entries(router.chunks)
+	const entries = Object.entries(router.chunks).map(([id, files]) => [id, [files].flat()] as const)
 	const loaded = new Set(
 		entries
 			.filter(([id]) => {
 				const ref = modules.get(id)
 				return ref !== undefined && loadedModule(ref) !== undefined
 			})
-			.map(([, href]) => href),
+			.flatMap(([, files]) => files),
 	)
-	return new Set(entries.map(([, href]) => href).filter((href) => !loaded.has(href)))
+	return new Set(entries.flatMap(([, files]) => files).filter((href) => !loaded.has(href)))
+}
+
+// Where rel=prefetch is unsupported (Safari through 26.x), every route and layout module the client has not imported is
+// imported, as intent prefetch does: the module map then holds it and its whole static closure for the next navigation.
+// A modulepreload would warn in the console for each chunk not used within seconds of load, and a fetch() is not reused
+// (BUGS.md 124.3, 124.7; decision B127). Route modules have no side effects (lint `no-module-side-effects`), and in real
+// Safari on the docs app the imports changed no computed style and left no frame gap over 50 ms (124.9).
+function unloadedEntries(router: Router): ChainEntry[] {
+	const layouts = Object.entries(router.layouts).map(([id, module]) => ({ id, kind: "layout" as const, module }))
+	const pages = router.routeTree.map((node) => ({ id: node.id, kind: "page" as const, module: node.module }))
+	return [...layouts, ...pages].filter((entry) => typeof entry.module === "function" && !loadedModule(entry.module))
 }
 
 // Only a same-origin route prefetches. Another origin, or a URL that does not parse, does not (dx/link.md).

@@ -1,4 +1,5 @@
 import { posix } from "node:path"
+import { closureMarker } from "./closures.ts"
 import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts"
 import { escapeSource } from "./escape.ts"
 import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts"
@@ -252,8 +253,12 @@ function lazy(routesDir: string, file: string): string {
 
 // In a client build, each source path of the `chunks` map becomes the chunk its lazy import loads: an emitted chunk
 // reference, which Rolldown renders as a URL relative to the importing chunk, so the content hash covers it (bits/12).
+// A marker after it becomes the files that chunk imports, once the bundle is known (closures.ts, BUGS.md 124.6).
 export function chunkReferences(source: string, emit: (path: string) => string): string {
 	return source.replace(/^export const chunks = \{.*\};$/m, (line) =>
-		line.replace(/: "(\/[^"]+)"/g, (_all: string, path: string) => `: import.meta.ROLLUP_FILE_URL_${emit(path)}`),
+		line.replace(/: "(\/[^"]+)"/g, (_all: string, path: string) => {
+			const ref = emit(path)
+			return `: [import.meta.ROLLUP_FILE_URL_${ref}, ${closureMarker(ref)}]`
+		}),
 	)
 }

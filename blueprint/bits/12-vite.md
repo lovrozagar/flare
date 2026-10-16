@@ -92,6 +92,7 @@ An SSG route with no tags still prerenders. Purge does not apply to `_flare-stat
 | `css order` | the ssr environment built before the client | the build fails: the server reads the client build's stylesheet (`vite/css/inject`), so the client must build first |
 | `urls agree` | a real client and ssr run with Vite `base: "/app/"`, then `assetsBase: "/cdn"`, then `assetsBase: "/"` | the client entry URL, a lazy chunk URL as the entry resolves it, the stylesheet `builtHref`, a CSS `url()` asset, and the seeds' public URL all start with the same prefix (`/app/assets/`, `/cdn/`, `/`). One function, `assetUrl`, resolves it: `clientUrl`, `stylesheetOf`, and Vite's `renderBuiltUrl` call it. A chunk URL is relative to the entry chunk. The seed directory `createAssetsStore` reads is the path inside the client output, `/<assetsDir>/_flare-static`, without Vite `base` |
 | `chunk urls` | a real client build of a generated `routes.gen.ts` | each `chunks` source path becomes the chunk its lazy import loads, an emitted chunk reference rendered relative to the entry chunk, so the content hash covers it. No `/src/routes/` path is left. `vite dev` keeps the source paths, which are the dev URLs |
+| `chunk closures` | a client build whose two routes import one module | each route's `chunks` entry is its chunk URL and then the shared chunk's, relative to the entry chunk (BUGS.md 124.10). Red before: no shared chunk in either entry |
 | `after build` | buildApp once every environment is built | prerender runs with the app root, the client output, the built server file, the assets base, and the parsed `prerender` option |
 | `config file` | a builder from a `vite.config` file that calls `flare()` | the ssr bundle holds the client's stylesheet. The builder shares one config and one plugin set across environments (`sharedConfigBuild`, `sharedPlugins`): Vite would otherwise load the config file again per environment, and its `flare()` call would make new plugins that never saw the client build |
 | `css server only` | a real client and ssr build of an app with CSS | the ssr bundle's `builtSheet` is the client's one stylesheet and its `builtHref` that file's URL. No client JavaScript chunk contains the CSS text |
@@ -151,6 +152,20 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 | --- | --- | --- |
 | `client literals` | a route whose `cache.client` and `intercept` are literals | the generated record carries `prefetch`, `staleTime`, `gcTime`, `prefetchStaleTime`, `prefetchGcTime`, `cacheDeferred`, `intercept.from`, and `intercept.render` |
 | `no auth copy` | the route calls `authenticate` and sets `ssg` | those fields are not on the generated record. A non-literal client field is omitted and is not a build error |
+
+### `vite/codegen/closures.test.ts` (BUGS.md 124.10)
+
+| test | case | result |
+| --- | --- | --- |
+| `closures` | a bundle whose map chunk holds three markers in each quote style; routes that import shared, nested, an entry-loaded, and an external file | each marker becomes the route chunk's imports through others, each once in import order, without the entry's boot files or the external import; a route that imports nothing keeps its chunk alone |
+| `closure paths` | the map chunk in a nested directory | the URLs are relative to it |
+
+### `vite/plugin/asset-headers.test.ts` (B130)
+
+| test | case | result |
+| --- | --- | --- |
+| `asset headers` | no `_headers`; an app's file with other rules; another assets dir; an app's own `/assets/*` rule | the immutable rule alone; the app's text, a blank line, then the rule; the rule for that dir; the app's text untouched, flagged as a conflict |
+| `asset headers written` | the hook on a Node build, a Workers ssr build, then the Workers client build, with no file, an app file, and a conflicting app file twice | nothing written but for the Workers client build; there the rule, then the merge; the conflicting file kept, and one warning naming `/assets/*` |
 
 ### `vite/codegen/write.test.ts`
 
