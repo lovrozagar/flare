@@ -947,6 +947,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 179 [x] Bun on macOS formats Arabic numbers with Arabic-Indic digits, and an e2e case asserted the digits
 179.1 [x] Found by the Mac gate run of 2026-10-16 (a9ef10cf): tests/e2e/docs-features `format message` failed on bun-dev-chromium and bun-dev-firefox only. Measured with the exact calls the case makes: `new Intl.NumberFormat("ar").format(14)` is `١٤` (numbering system `arab`) under Bun 1.4.3 on macOS 14.6, which uses the system's ICU, and `14` (`latn`) under Node 24 on the same Mac and under Node 26 and Bun 1.4.3 on Linux; `new Intl.PluralRules("ar").select(14)` is `many` on all four, and `en` is `14` and `other` on all four. So the server render under Bun on macOS writes `١٤ releases (many)`. That is the runtime's Intl data, which a Flare app under Bun on macOS meets too; the case's own comment says the digits prove nothing (B29), yet it asserted `14`.
 179.2 [x] Fix: the case asserts the plural category with any decimal digits (`\p{Nd}+ releases (many)`); the English line keeps `14`. dx/features.md says numbers follow the rendering runtime's Intl data, naming Bun on macOS.
+180 [x] A HEAD request left its page's render running
+180.1 [x] Plan 21 3.12, from the 2026-10-16 gap audit: server/lifecycle/methods.ts answered a HEAD with the document's status and headers and an empty body, and dropped the document's body unread, so the render behind it was never cancelled: a page with a slow or unending `<Loading>` value kept its render, and its request's resources, alive with no reader. Red: tests/integration/hostile.test `head stops the render` through the real createServer(...).fetch (the page's cleanup never ran).
+180.2 [x] Fix: the HEAD answer cancels the dropped body, which stops the render (renderStop) and runs its cleanups. dx/server.md says so.
 
 ## Verify
 

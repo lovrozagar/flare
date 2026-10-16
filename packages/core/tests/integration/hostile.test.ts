@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest"
+import { createComponent, createMemo, Loading, onCleanup } from "solid-js"
 import { i18n } from "../../src/features/i18n/server/middleware.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { redirect } from "../../src/shared/errors/index.ts"
@@ -57,4 +58,26 @@ it("hostile values answer", async () => {
 		const got = await answer(path)
 		expect([path, "status" in got && got.status < 500]).toEqual([path, true])
 	}
+})
+
+// A HEAD request answers the page's status and headers with no body, and the render behind it stops: a page whose
+// render never completes is disposed and its cleanups run, so a HEAD never holds a render open (plan 21 3.12).
+it("head stops the render", async () => {
+	let disposed = false
+	const root = createRootLayout("_root_").render((props) => props.children)
+	const slow = createPage("_root_/slow").render(() => {
+		onCleanup(() => void (disposed = true))
+		return createComponent(Loading, {
+			fallback: "wait",
+			get children() {
+				const value = createMemo(async () => new Promise<string>(() => undefined))
+				return [() => value()]
+			},
+		})
+	})
+	const routeTree = [{ id: "_root_/slow", path: "/slow", module: slow }]
+	const server = createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }) })
+	const answer = await server.fetch(new Request("http://localhost/slow", { method: "HEAD" }))
+	expect([answer.status, await answer.text()]).toEqual([200, ""])
+	await vi.waitFor(() => expect(disposed).toBe(true))
 })
