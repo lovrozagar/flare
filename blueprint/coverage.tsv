@@ -69,3 +69,22 @@ store.md#createCacheApiStore#prop:caches	packages/core/tests/integration/store.t
 store.md#revalidate#	packages/core/tests/integration/store.test.ts::revalidate	packages/core/tests/e2e/docs-cache.test.ts::revalidate tag
 store.md#revalidate#prop:keys	packages/core/tests/integration/store.test.ts::store delete; packages/core/tests/integration/store.test.ts::revalidate	n/a: no docs route purges by key; a key purge has no browser-visible step beyond the stored page it removes, which store.test drives through createServer
 store.md#revalidate#prop:tags	packages/core/tests/integration/store.test.ts::store tags	packages/core/tests/e2e/docs-cache.test.ts::revalidate tag
+router.md#createRouter#prop:layouts	packages/core/tests/integration/router.test.ts::layouts and route tree	packages/core/tests/e2e/docs-routing.test.ts::group no segment
+router.md#createRouter#prop:routeTree	packages/core/tests/integration/router.test.ts::layouts and route tree	packages/core/tests/e2e/docs-routing.test.ts::group no segment
+router.md#createRouter#prop:basePath	packages/core/tests/integration/router.test.ts::base path	packages/core/tests/e2e/minimal.test.ts::base path serves /app
+router.md#createRouter#prop:caseSensitive	packages/core/tests/integration/router.test.ts::case sensitive	n/a: a case fold is the server's 301 to the route's spelling, which router.test reads; a browser only follows it
+router.md#createRouter#prop:trailingSlash	packages/core/tests/integration/router.test.ts::trailing slash	n/a: the slash rule is the server's 301 or 308, which router.test reads per method; a browser only follows it
+router.md#createRouter#prop:notFoundMode	packages/core/tests/integration/router.test.ts::not found mode	packages/core/tests/e2e/docs-routing.test.ts::fuzzy not found; packages/core/tests/e2e/docs-routing.test.ts::root not found
+router.md#createRouter#prop:scrollRestoration	packages/core/tests/integration/router-client.test.ts::scroll restore; packages/core/tests/integration/router-client.test.ts::scroll off	packages/core/tests/e2e/docs-navigation.test.ts::scroll restoration
+router.md#createRouter#prop:scrollRestorationBehavior	packages/core/tests/integration/router-client.test.ts::router config	n/a: the docs app keeps the instant default, and the value reaches only scrollTo's behavior argument, which a frame cannot tell from the CSS default
+router.md#createRouter#prop:scrollRestorationMaxEntries	packages/core/tests/integration/router-client.test.ts::scroll key and cap	n/a: the docs app keeps the default cap of 50, which no docs session reaches; router-client's cap of two runs in all three engines
+router.md#createRouter#prop:getScrollRestorationKey	packages/core/tests/integration/router-client.test.ts::scroll key and cap	n/a: the docs app keys by history index; router-client's custom key runs in all three engines
+router.md#createRouter#prop:routeCacheMaxEntries	packages/core/tests/integration/router-client.test.ts::client cache	n/a: the docs app keeps the default cap of 100, which no docs session reaches; router-client's cap of one runs in all three engines
+router.md#createRouter#prop:prefetch	packages/core/tests/integration/router-client.test.ts::router config	packages/core/tests/e2e/docs-navigation.test.ts::prefetch data intent; packages/core/tests/e2e/docs-navigation.test.ts::all modules
+router.md#createRouter#prop:cache	packages/core/tests/integration/router-client.test.ts::client cache	packages/core/tests/e2e/docs-cache.test.ts::client cache stale
+router.md#createRouter#prop:viewTransitions	packages/core/tests/integration/router-client.test.ts::router config	packages/core/tests/e2e/docs-navigation.test.ts::view transition document; packages/core/tests/e2e/docs-navigation.test.ts::view transition off
+router.md#createRouter#prop:rewrite	packages/core/tests/integration/router-client.test.ts::rewrite	packages/core/tests/e2e/docs-routing.test.ts::client rewrite
+router.md#createRouter#prop:theme	packages/core/tests/integration/router.test.ts::theme and direction	packages/core/tests/e2e/docs-features.test.ts::theme no flash
+router.md#createRouter#prop:direction	packages/core/tests/integration/router.test.ts::theme and direction	packages/core/tests/e2e/docs-features.test.ts::rtl layout
+router.md#createRouter#prop:locale	packages/core/tests/integration/router.test.ts::locale	packages/core/tests/e2e/docs-routing.test.ts::locale prefix routes
+router.md#rewrite#	packages/core/tests/integration/router-client.test.ts::rewrite	packages/core/tests/e2e/docs-routing.test.ts::client rewrite
