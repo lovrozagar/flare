@@ -5,6 +5,8 @@ import type { LoadedEntry } from "../../shared/router/create-router.ts"
 import type { LoaderRun } from "../loaders/run.ts"
 import type { Projected } from "./projector.ts"
 import type { StateMatch } from "./state.ts"
+import { isReplacing } from "../../shared/head/index.ts"
+import type { HeadConfig } from "../../shared/route-builder/types.ts"
 
 // One rendered document: the chain, its loader run, and what fills the slot below the kept matches. `failed`
 // is the projected root-most failure. `unknown` is an unknown URL, painted with its not-found (B77).
@@ -41,7 +43,12 @@ export function stateMatches(matches: readonly OutletMatch[], rendered: Rendered
 		preloader: run.contexts[index] ?? null,
 		head: run.heads[index] ?? null,
 		error: index < run.data.length ? null : failure,
+		...(replaces(run.heads[index]) && { replace: true as const }),
 	}))
+}
+
+function replaces(head: HeadConfig | undefined): boolean {
+	return head !== undefined && isReplacing(head)
 }
 
 // An absent optional param is left out.

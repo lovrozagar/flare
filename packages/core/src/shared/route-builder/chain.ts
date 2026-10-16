@@ -120,10 +120,14 @@ export type ChainRecord = {
 	loader?: Load
 	response?: Respond
 	head?: Head
+	// `.head(fn, options)`. `replace: true` makes the route's head the whole head, no parent merged (dx/head.md).
+	headOptions?: HeadOptions
 	headers?: Headers
 	security?: RouteSecurity
 	render?: Render
 }
+
+export type HeadOptions = { replace?: boolean }
 
 export type Chain = {
 	intercept: (config: Intercept) => Chain
@@ -136,7 +140,7 @@ export type Chain = {
 	preloader: (fn: Step) => Chain
 	loader: (fn: Load) => Chain
 	response: (fn: Respond) => Chain
-	head: (fn: Head) => Chain
+	head: (fn: Head, options?: HeadOptions) => Chain
 	headers: (fn: Headers) => Chain
 	security: (config: RouteSecurity) => Chain
 	render: (fn: Render) => Chain
@@ -182,9 +186,12 @@ export function createChain(_id: string): Chain {
 	const record = state.record
 	// Every step checks its place in the order, then stores one record field under its own name. The two auth
 	// steps store `auth`.
-	const put = <K extends keyof ChainRecord & Name>(step: K, value: ChainRecord[K]): Chain => {
+	// A step's options, only `.head()`'s so far, ride beside its value: one generic store measured smaller than a
+	// head-only one in `createPage` (tests/size, 1111 against 1118).
+	const put = <K extends keyof ChainRecord & Name>(step: K, value: ChainRecord[K], options?: HeadOptions): Chain => {
 		advance(state, step)
 		record[step] = value
+		if (options) record.headOptions = options
 		return chain
 	}
 	const auth = (step: "authenticate" | "authenticateOptional", value: ChainAuth): Chain => {
@@ -224,7 +231,7 @@ export function createChain(_id: string): Chain {
 		preloader: (fn) => put("preloader", fn),
 		loader: (fn) => put("loader", fn),
 		response: (fn) => put("response", fn),
-		head: (fn) => put("head", fn),
+		head: (fn, options) => put("head", fn, options),
 		headers: (fn) => put("headers", fn),
 		security: (config) => put("security", config),
 		render: (fn) => put("render", fn),

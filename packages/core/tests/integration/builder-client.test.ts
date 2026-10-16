@@ -112,7 +112,58 @@ function failedSteps(to: string): (tab: Page) => Promise<void> {
 	}
 }
 
+// A layout with a description over /merged and /replaced, whose head replaces the whole head, with anchors to both.
+const HEADS = appFrom(`
+const anchor = (to) => api.solid.createComponent(api.web.Dynamic, { component: "a", href: to, id: "to-" + to.slice(1), children: to })
+const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
+	api.h("head", "head"),
+	api.h("body", "body", () => [anchor("/merged"), anchor("/replaced"), props.children]),
+]))
+const area = api.layout.createLayout("_root_/(area)")
+	.head(() => ({ title: "Area", description: "area description" }))
+	.render((props) => props.children)
+const merged = api.page.createPage("_root_/(area)/merged").head(() => ({ title: "Merged" })).render(() => "merged")
+const replaced = api.page.createPage("_root_/(area)/replaced")
+	.head(() => ({ title: "Replaced" }), { replace: true })
+	.render(() => "replaced")
+const routeTree = [
+	{ id: "_root_/(area)/merged", path: "/merged", module: merged },
+	{ id: "_root_/(area)/replaced", path: "/replaced", module: replaced },
+]
+return { router: api.router.createRouter({ layouts: { _root_: root, "_root_/(area)": area }, routeTree }) }
+`)
+
+// The title and whether the layout's description is in the head, once the title reads `title`.
+async function headOf(tab: Page, title: string): Promise<{ title: string; description: boolean }> {
+	await tab.waitForFunction((want) => document.title === want, title)
+	return tab.evaluate(() => ({
+		title: document.title,
+		description: document.querySelector('meta[name="description"]') !== null,
+	}))
+}
+
+// Hydrated on /replaced, the head is the route's alone; a navigation to /merged merges again, and back to /replaced
+// replaces again (dx/head.md).
+async function headSteps(tab: Page): Promise<void> {
+	await remember(tab, await headOf(tab, "Replaced"))
+	await tab.evaluate(() => document.getElementById("to-merged")?.click())
+	await remember(tab, await headOf(tab, "Merged"))
+	await tab.evaluate(() => document.getElementById("to-replaced")?.click())
+	await remember(tab, await headOf(tab, "Replaced"))
+}
+
 describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+	// `.head(fn, { replace: true })` makes the route's object the whole head through hydration and client navigations.
+	it("head replace", async () => {
+		const result = await run(engine, { app: HEADS, path: "/replaced", steps: headSteps })
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual([
+			{ title: "Replaced", description: false },
+			{ title: "Merged", description: true },
+			{ title: "Replaced", description: false },
+		])
+	})
+
 	// A page loader's notFound() on a client navigation paints the walked notFoundRender, the page's own, in its slot
 	// (BUGS.md 134): a bare 404 is a not-found, not a 500.
 	it("page not found navigation", async () => {

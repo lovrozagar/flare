@@ -4,7 +4,7 @@ import { escape } from "@solidjs/web"
 import { Matches, type OutletState } from "../../shared/components/index.ts"
 import { builtSheet } from "../../shared/css/sheet.ts"
 import { RedirectError } from "../../shared/errors/redirect.ts"
-import { mergeHead } from "../../shared/head/index.ts"
+import { isReplacing, mergeHead } from "../../shared/head/index.ts"
 import type { FrameError } from "../../shared/protocol/index.ts"
 import type { HeadConfig } from "../../shared/route-builder/types.ts"
 import { matchId } from "../../shared/route-tree/index.ts"
@@ -216,7 +216,7 @@ export async function drawn(
 			router: exchange.options.router,
 			nonce: exchange.secured.nonce,
 			head: rendered.run.heads.reduce<HeadConfig>(
-				(merged, head) => (head === undefined ? merged : mergeHead(merged, head)),
+				(merged, head) => (head === undefined ? merged : mergeHead(merged, head, isReplacing(head))),
 				{},
 			),
 			matches: stateMatches(state.matches, rendered),

@@ -2,6 +2,18 @@ import type { HeadConfig } from "../route-builder/types.ts"
 
 // The replace rules of B83. Single values replace, records shallow-merge with the child key winning, and lists
 // concatenate. `replace` makes the child the whole head.
+// A route's head that replaces the merged head (`.head(fn, { replace: true })`), marked where the client receives it, an
+// `h` frame's `r` or a state match's `replace`, so the merge reads it from the head itself.
+const REPLACES = Symbol("flare.head.replaces")
+
+export function replacing(head: HeadConfig): HeadConfig {
+	return Object.defineProperty({ ...head }, REPLACES, { value: true })
+}
+
+export function isReplacing(head: HeadConfig): boolean {
+	return Reflect.get(head, REPLACES) === true
+}
+
 export function mergeHead(parent: HeadConfig, child: HeadConfig, replace = false): HeadConfig {
 	if (replace) return child
 	const parentCustom = parent.custom ?? {}

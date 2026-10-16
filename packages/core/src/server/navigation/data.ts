@@ -3,6 +3,7 @@ import type { Frame } from "../../shared/protocol/index.ts"
 import type { DataFrame, LoaderFrame } from "../loaders/cascade.ts"
 import { hints } from "../loaders/hints.ts"
 import type { LoaderRun } from "../loaders/run.ts"
+import { isReplacing } from "../../shared/head/index.ts"
 
 // `route` is the route id, which names the slot. `id` is the match id the client lists in _flare_stale.
 export type DataMatch = { route: string; id: string; layout: boolean }
@@ -28,7 +29,8 @@ export function dataFrames(
 		.map((frame) => (frame.t === "l" ? carried(frame, run, kept.indexOf(frame)) : frame))
 	const heads = kept.flatMap((frame, index): Frame[] => {
 		const head = run.heads[index]
-		return head === undefined || skipped.has(frame.m) ? [] : [{ t: "h", m: frame.m, d: head }]
+		if (head === undefined || skipped.has(frame.m)) return []
+		return [isReplacing(head) ? { t: "h", m: frame.m, d: head, r: true } : { t: "h", m: frame.m, d: head }]
 	})
 	return { loaded, heads }
 }

@@ -9,6 +9,8 @@ export type StateMatch = {
 	preloader: unknown
 	head: unknown
 	error: unknown
+	// This route's head replaces the merged head, so the client merge replaces too (dx/head.md).
+	replace?: true
 }
 
 // `build` is the deploy's id, the one `flare-build` carries. `fill` marks a render that left a stored `"stream"` hole:
