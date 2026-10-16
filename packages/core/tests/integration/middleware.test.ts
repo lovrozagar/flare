@@ -148,6 +148,33 @@ it("proxy", async () => {
 	expect(response.headers.get("x-content-type-options")).toBe("nosniff")
 })
 
+// The client's Host, proxy credentials, and forwarding claims never reach the upstream: it sees its own host, and no
+// Proxy-Authorization, Forwarded, X-Forwarded-*, or X-Real-IP the client wrote (plan 21 12.9, ported from v0's
+// api-proxy, BUGS.md 161).
+it("proxy client headers", async () => {
+	const forward = mount("/api", (request) => proxy(request, "https://upstream.test"))
+	const server = createServer({ router, mounts: [forward] })
+	const sent = {
+		host: "internal-admin.upstream.test",
+		"proxy-authorization": "Basic c2VjcmV0",
+		"proxy-authenticate": "Basic",
+		forwarded: "for=10.0.0.1;host=internal-admin",
+		"x-forwarded-for": "10.0.0.1",
+		"x-forwarded-host": "internal-admin.upstream.test",
+		"x-forwarded-proto": "http",
+		"x-forwarded-port": "8443",
+		"x-real-ip": "10.0.0.1",
+		"x-kept": "yes",
+	}
+	await server.fetch(new Request("http://localhost/api/echo", { headers: sent }))
+	const got = seen.at(-1)?.headers ?? {}
+	expect(got["host"]).toBe(`127.0.0.1:${port}`)
+	for (const name of Object.keys(sent).filter((key) => key !== "host" && key !== "x-kept")) {
+		expect([name, got[name]]).toEqual([name, undefined])
+	}
+	expect(got["x-kept"]).toBe("yes")
+})
+
 // Solid writes the head into the document's head element, so a root renders a full document and the body carries
 // nonces.
 function documentOf(children: Element): Element {
