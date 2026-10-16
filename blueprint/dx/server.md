@@ -252,6 +252,8 @@ A middleware that returns without calling `next()`, `respond()`, or `bypass()` c
 
 `onResponse` is not a separate hook. `next()` resolves to the `Response`, including a 3xx, 401, 403, 404, and a 500 the pipeline produced. Returning a `Response` replaces it. Returning void keeps it. Any other return is ignored. A throw before any response rejects `next()`, and the code after it does not run. A throw after a response is 500 and the original body is discarded (`server/middleware/run.test.ts` `onResponse throw`, `after sees redirect`, `throw before`, `return replaces`).
 
+A `Response` from `fetch()`, returned as-is by a `.response()` page, a server function, a middleware, or a mount, leaves without its `Content-Encoding` and `Content-Length` when it has an encoding: the runtime's `fetch` already decoded the body, so the client reads it intact on Node, Bun, and Workers. Kept, Node would write a length the body overruns, Bun would label plain bytes gzip, and workerd would encode them again for a client that never asked. A fetched `Response` is one whose `url` is set. A `Response` the app builds from compressed bytes keeps its encoding, and so does a rewrap such as `new Response(res.body, res)`, which has no `url`: delete `content-encoding` there yourself. By default each runtime asks the upstream only for the encodings its `fetch` decodes (measured: Node every coding, Bun each single coding, workerd gzip and br), so a request that forwards the client's `Accept-Encoding` can get a body the runtime left encoded (`server/lifecycle/policies.test.ts` `decoded headers`, `tests/integration/fetched.test.ts` `node fetched`, `bun fetched`, `tests/workerd/server.test.ts` `worker fetched`, BUGS.md 197).
+
 ## proxy
 
 ```ts

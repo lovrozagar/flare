@@ -818,6 +818,7 @@ packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported co
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
 packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
+packages/core/tests/integration/fetched.test.ts	P15	test	server	A fetch() Response returned as-is reaches the client decoded on Node and Bun, with no stale Content-Encoding (BUGS.md 197)
 packages/core/tests/integration/defer.test.ts	P15	test	node	`defer` through the real createServer, and `useDeferred` through the browser harness in every engine (B96, dx/defer.md)
 packages/core/tests/integration/env.test.ts	P15	test	node	dx/env.md's call shapes through a real Vite build with flare()'s boundary transform: the chunks each graph emits, or the build's rejection (B96)
 packages/core/tests/integration/flare-page.test.ts	P15	test	node	flarePage over a real page the harness serves and hydrates, in every engine (B96, dx/testing.md)
