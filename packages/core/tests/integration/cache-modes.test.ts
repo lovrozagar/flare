@@ -191,6 +191,34 @@ it("coalesced cookies", async () => {
 	for (const answer of answers) expect(answer.headers.get("cache-control")).toBe(PRIVATE)
 })
 
+// Every header an edge cache acts on, which a route's `.headers()` could set.
+const EDGE = {
+	"surrogate-control": "max-age=3600",
+	"surrogate-key": "user-7",
+	"cdn-cache-control": "max-age=60",
+	"cloudflare-cdn-cache-control": "max-age=60",
+	"vercel-cdn-cache-control": "max-age=60",
+	"netlify-cdn-cache-control": "max-age=60",
+	"edge-control": "cache-maxage=60s",
+	"x-accel-expires": "60",
+	"cache-tag": "user-7",
+}
+
+// A private answer carries no header that tells an edge cache to keep it, whatever the route's `.headers()` set: a
+// rendered page, and a `.response()` page behind auth (plan 21 12.10, BUGS.md 162).
+it("private edge headers", async () => {
+	const page = createPage("_root_/me")
+		.headers(() => ({ ...EDGE, "x-kept": "1" }))
+		.render(() => "me")
+	const get = serve([{ id: "_root_/me", path: "/me", module: page }], { store: createMemoryStore() })
+	for (const path of ["/me", "/me?_flare=data"]) {
+		const answer = await get(path)
+		expect([path, answer.headers.get("cache-control")]).toEqual([path, PRIVATE])
+		for (const name of Object.keys(EDGE)) expect([path, name, answer.headers.get(name)]).toEqual([path, name, null])
+		expect(answer.headers.get("x-kept")).toBe("1")
+	}
+})
+
 // cdn on a public page: browsers get `max-age=0` with the CDN's `s-maxage`, the CDN gets `CDN-Cache-Control` with
 // `stale-while-revalidate`, and `Cache-Tag` from the tags function over the raw params, on the miss and on a hit.
 it("cdn headers", async () => {

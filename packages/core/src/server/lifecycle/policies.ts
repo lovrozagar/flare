@@ -45,12 +45,35 @@ export function responseHeaders(source: Headers, auth: EffectiveAuth): Headers {
 	return headers
 }
 
-// An answer no shared cache may keep: `private, no-store`, and no CDN header or tag that a CDN would act on.
+// Every header an edge cache acts on: the CDN-Cache-Control family, the surrogate headers, and the cache tag. A
+// private answer carries none of them, whatever a route's `.headers()` set (BUGS.md 162).
+const EDGE_CACHE = [
+	"cdn-cache-control",
+	"cloudflare-cdn-cache-control",
+	"vercel-cdn-cache-control",
+	"netlify-cdn-cache-control",
+	"surrogate-control",
+	"surrogate-key",
+	"edge-control",
+	"x-accel-expires",
+	"cache-tag",
+]
+
+function withoutEdge(headers: Headers): Headers {
+	for (const name of EDGE_CACHE) headers.delete(name)
+	return headers
+}
+
+// An answer no shared cache may keep: `private, no-store`, and no header that a CDN would act on.
 export function privately(headers: Headers): Headers {
 	headers.set("cache-control", NO_STORE)
-	headers.delete("cdn-cache-control")
-	headers.delete("cache-tag")
-	return headers
+	return withoutEdge(headers)
+}
+
+// The decision's headers onto a rendered answer. A `no-store` one also drops what an edge cache would act on.
+export function applyPolicy(headers: Headers, written: Headers): void {
+	written.forEach((value, name) => headers.set(name, value))
+	if (written.get("cache-control") === NO_STORE) withoutEdge(headers)
 }
 
 // The Set-Cookie values each answer finalize built left its stage with. A rendered page's are its route's own.
@@ -69,10 +92,7 @@ export function exitHeaders(response: Response): Headers {
 	const control = headers.get("cache-control")
 	if (control === null) return headers
 	// An answer something made private keeps no CDN header the decision wrote.
-	if (/\b(?:private|no-store)\b/i.test(control)) {
-		headers.delete("cdn-cache-control")
-		return headers
-	}
+	if (/\b(?:private|no-store)\b/i.test(control)) return withoutEdge(headers)
 	const late = foreignCookies({ route: staged.get(response) ?? [], all: headers.getSetCookie() })
 	if (late.length === 0) return headers
 	return privately(headers)
