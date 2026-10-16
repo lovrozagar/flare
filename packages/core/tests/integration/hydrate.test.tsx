@@ -24,7 +24,7 @@ beforeAll(async () => {
 	await new Promise<void>((done) => child.stdout?.once("data", () => done()))
 	// packages/core, two levels above this file, whatever directory the run started in.
 	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."))
-}, 180_000)
+})
 
 afterAll(async () => {
 	await harness?.close()
