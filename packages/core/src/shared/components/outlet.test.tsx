@@ -75,8 +75,11 @@ it("page builtin", () => {
 	expect(host.innerHTML).not.toContain("secret")
 })
 
+// A failed root paints its failure as the body of a minimal document (B77, BUGS.md 134).
 it("root builtin", () => {
-	expect(mount(failing(chain(layout, page), 0, 500)).innerHTML).toBe("<div>Something went wrong</div>")
+	expect(mount(failing(chain(layout, page), 0, 500)).innerHTML).toBe(
+		"<html><head></head><body><div>Something went wrong</div></body></html>",
+	)
 })
 
 it("not found own", () => {

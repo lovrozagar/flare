@@ -77,7 +77,7 @@ When the walk finds no function, the slot is one `div` and nothing else.
 | 401 | `Please log in` |
 | 403 | `Access denied` |
 
-If the failed match is the root, that `div` is the body.
+If the failed match is the root, the painted failure is the body of a minimal document: `<!DOCTYPE html><html><head></head><body>…</body></html>`, in standards mode, with the head merge and the state and client scripts in their places (`tests/integration/builder-render.test.ts` `boundary root`, BUGS.md 134).
 
 `reset()` on `errorRender` replaces the current pathname and search in place and revalidates. It does not push. There is no `retry` prop (`shared/components/boundary.test.ts` `reset`).
 

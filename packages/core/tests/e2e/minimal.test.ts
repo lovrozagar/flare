@@ -20,6 +20,15 @@ test("hydrate", async ({ page }: { page: Page; browser: Browser }) => {
 	await expect(page.locator("html")).toHaveAttribute("data-flare-hydrated", "")
 })
 
+// A root whose own loader failed answers a standards-mode document whose body is the built-in div (B77, BUGS.md 134).
+test("root failure document", async ({ page }: { page: Page; browser: Browser }) => {
+	const response = await page.goto(`${session.origin}/root-missing`)
+	expect(response?.status()).toBe(404)
+	expect(await page.evaluate(() => document.compatMode)).toBe("CSS1Compat")
+	await expect(page.locator("body > div")).toHaveText("Page not found")
+	expect(await page.locator("#nav").count()).toBe(0)
+})
+
 test.describe("basepath", () => {
 	let base: Boot
 

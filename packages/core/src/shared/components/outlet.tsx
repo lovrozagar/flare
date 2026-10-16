@@ -89,7 +89,10 @@ function paramNames(id: string): string[] {
 
 function paintSlot(state: () => OutletState, depth: number): JSX.Element {
 	const current = state()
-	if (current.failure?.index === depth) return paintFailure(current, current.failure)
+	if (current.failure?.index === depth) {
+		const painted = paintFailure(current, current.failure)
+		return depth === 0 ? minimalDocument(painted) : painted
+	}
 	const match = current.matches[depth]
 	if (match !== undefined) return renderMatch(state, depth, match)
 	if (current.unknown === undefined) return undefined
@@ -200,6 +203,21 @@ function resetOf(state: OutletState): () => void {
 		params: rawParams(router, location().pathname),
 		search: readSearch(location().search),
 	}))
+}
+
+// A root whose own match failed never renders its document, so its painted failure is the body of a minimal one: the
+// doctype goes in front, a browser renders it in standards mode, and the head and the state and client scripts have
+// their places (B77, BUGS.md 134).
+function minimalDocument(body: JSX.Element): JSX.Element {
+	return createComponent(Dynamic, {
+		component: "html",
+		get children() {
+			return [
+				createComponent(Dynamic, { component: "head", children: [] }),
+				createComponent(Dynamic, { component: "body", children: body }),
+			]
+		},
+	})
 }
 
 function builtin(status: number): JSX.Element {
