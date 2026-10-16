@@ -13,7 +13,7 @@ import {
 	type NavigateTo,
 } from "../router/context.ts"
 import { rewriteLocation, type Router } from "../router/create-router.ts"
-import { buildUrl, href as checkHref, readSearch, underBase, type Location } from "../url/index.ts"
+import { buildUrl, href as checkHref, readSearch, routeHref, type Location } from "../url/index.ts"
 
 type Anchor = JSX.AnchorHTMLAttributes<HTMLAnchorElement> & { [data: `data-${string}`]: string | undefined }
 
@@ -81,8 +81,8 @@ function anchor(props: AnyLinkProps): JSX.Element {
 	const location = useContext(LocationContext)
 	const navigate = useContext(NavigateContext)
 	const prefetcher = useContext(PrefetchContext)
-	const base = useContext(RouterContext).basePath
-	const url = createMemo(() => (props.to === undefined ? safeHref(props.href) : internalHref(props, props.to, base)))
+	const router = useContext(RouterContext)
+	const url = createMemo(() => (props.to === undefined ? safeHref(props.href) : internalHref(props, props.to, router)))
 	const active = createMemo(() => props.to !== undefined && isActive(props, url(), location()))
 	let element: HTMLAnchorElement | undefined
 	createEffect(
@@ -183,10 +183,10 @@ function rejectAll(prefetch: RoutePrefetch | undefined): void {
 	if (import.meta.env?.DEV && modules === "all") throw new Error('Link prefetch cannot use modules: "all"')
 }
 
-// The route's URL under the router's base (dx/router.md `basePath`, plan 21 3.7).
-function internalHref(props: AnyLinkProps, to: string, base: string): string {
+// The route's URL as the router writes it: under its base, with its trailing-slash rule (plan 21 3.7, 3.9).
+function internalHref(props: AnyLinkProps, to: string, router: Router): string {
 	const path = buildUrl({ to, params: props.params, search: withoutInternalKeys(props.search), hash: props.hash })
-	return underBase(base, path)
+	return routeHref(router, path)
 }
 
 // A dangerous scheme renders `#` instead of throwing (dx/link.md).

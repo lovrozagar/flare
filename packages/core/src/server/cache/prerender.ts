@@ -10,7 +10,7 @@ import { layoutChain, type RouteModule, type RouteNode } from "../../shared/rout
 import { loadChain } from "../../shared/router/load-chain.ts"
 import { patternSegments } from "../../shared/route-tree/index.ts"
 import { buildUrl } from "../../shared/url/href.ts"
-import { underBase } from "../../shared/url/prefix.ts"
+import { routeHref } from "../../shared/url/prefix.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import { defined } from "../../shared/errors/index.ts"
 import type { RuntimeOptions } from "../lifecycle/options.ts"
@@ -97,7 +97,7 @@ async function described(options: RuntimeOptions, node: RouteNode): Promise<Prer
 	const modules = await chainOf(options, node)
 	return {
 		id: node.id,
-		path: dynamicPath(node) ? undefined : underBase(options.router.basePath, node.path),
+		path: dynamicPath(node) ? undefined : routeHref(options.router, node.path),
 		bare: bareUrls(options, node),
 		response: node.response === true,
 		auth: effectiveAuth(modules),
@@ -116,7 +116,7 @@ function bareUrls(options: RuntimeOptions, node: RouteNode): string[] {
 	const tags = tagged ? locale.locales.filter((tag) => tag !== locale.defaultLocale) : []
 	return [undefined, ...tags].map((tag) => {
 		const values = tag === undefined || locale === undefined ? {} : { [locale.paramName]: tag }
-		return underBase(options.router.basePath, buildUrl({ to: node.id, params: values }))
+		return routeHref(options.router, buildUrl({ to: node.id, params: values }))
 	})
 }
 
@@ -136,7 +136,7 @@ async function rendered(
 	input: { id: string; params: PrerenderParams; env: unknown },
 ): Promise<PrerenderResult> {
 	if (options.site === undefined) throw new Error("prerender reads createServer({ site })")
-	const full = underBase(options.router.basePath, buildUrl({ to: input.id, params: input.params }))
+	const full = routeHref(options.router, buildUrl({ to: input.id, params: input.params }))
 	let captured: { key: string; entry: FlareStoreEntry } | undefined
 	const response = await serve(new Request(new URL(full, options.site)), input.env, (key, entry) => {
 		captured = { key, entry }

@@ -142,6 +142,10 @@ it("base path", () => {
 	const based = createRouter({ basePath: "/app", layouts: { _root_: root }, routeTree: router.routeTree })
 	expect(mount({ to: "_root_/about", children: "About" }, null, based).anchor.getAttribute("href")).toBe("/app/about")
 	expect(mount({ to: "_root_/", children: "Home" }, null, based).anchor.getAttribute("href")).toBe("/app")
+	// With `trailingSlash: "always"` the href is the canonical URL, so a click never meets a 301 (plan 21 3.9).
+	const slashed = createRouter({ trailingSlash: "always", layouts: { _root_: root }, routeTree: router.routeTree })
+	const link = mount({ to: "_root_/about", search: { q: "1" }, children: "About" }, null, slashed)
+	expect(link.anchor.getAttribute("href")).toBe("/about/?q=1")
 })
 
 it("foreign", () => {

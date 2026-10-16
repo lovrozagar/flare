@@ -127,7 +127,12 @@ const TREE: RouteNode[] = [
 	),
 ]
 
-type Extra = { middleware?: ReturnType<typeof createMiddleware>[]; basePath?: string; site?: string | undefined }
+type Extra = {
+	middleware?: ReturnType<typeof createMiddleware>[]
+	basePath?: string
+	site?: string | undefined
+	trailingSlash?: "always" | "never" | "preserve"
+}
 
 function prerenderer(extra: Extra = {}): Prerenderer {
 	const router = createRouter({
@@ -139,6 +144,7 @@ function prerenderer(extra: Extra = {}): Prerenderer {
 		},
 		routeTree: TREE,
 		basePath: extra.basePath ?? "/",
+		trailingSlash: extra.trailingSlash ?? "preserve",
 	})
 	const middleware = extra.middleware ?? []
 	const site = "site" in extra ? extra.site : SITE
@@ -217,6 +223,16 @@ it("render", async () => {
 		key: "static:dev:_root_/",
 	})
 	expect(await based.render({ id: "_root_/s", params: {}, env: {} })).toMatchObject({ status: 200, path: "/app/s" })
+	// With `trailingSlash: "always"` prerender asks for the canonical URL, so the page renders instead of a 301, and
+	// the path it records, which the sitemap lists, carries the slash (plan 21 3.9).
+	const slashed = prerenderer({ trailingSlash: "always" })
+	expect(await slashed.render({ id: "_root_/p/[slug]", params: { slug: "a" }, env: {} })).toMatchObject({
+		status: 200,
+		path: "/p/a/",
+	})
+	expect(await slashed.render({ id: "_root_/", params: {}, env: {} })).toMatchObject({ status: 200, path: "/" })
+	const both = prerenderer({ trailingSlash: "always", basePath: "/app" })
+	expect(await both.render({ id: "_root_/", params: {}, env: {} })).toMatchObject({ status: 200, path: "/app/" })
 })
 
 // Only an ssg page, or an isr page with params, is prerendered. Anything else is refused by name.
