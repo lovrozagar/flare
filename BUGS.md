@@ -999,6 +999,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 195 [x] An X-Forwarded-Proto list or uppercase value behind a proxy made every server-function POST a 403
 195.1 [x] Plan 21 8.9, from the 2026-10-16 gap audit: shared/url/forwarded.ts `forwardedHttps` compared the whole header with `https`, so behind a proxy chain that lists one scheme per hop (`https, http`), or one that writes `HTTPS`, the request read as http, its origin was `http://…`, and the server function's origin check refused every POST from the https page. Red: tests/integration/adapters.test `node trust proxy` (`https, http` read as `http:`).
 195.2 [x] Fix: with a trusted hop, the first entry of the list, the client's scheme, decides, in any case, as Express reads `X-Forwarded-Proto`. Node and Bun share the function; the case runs under both. dx/adapters.md says so.
+196 [x] Every .ts file was parsed as TSX, so a generic arrow in a .ts route stopped dev and failed the production bundle
+196.1 [x] Plan 21 8.1, from the 2026-10-16 gap audit: the boundary transform (split.ts, transform.ts), the server-function extractor, and codegen's route scan and types writer all parsed with `lang: "tsx"`, and TSX reads `<T>(value: T) => value` as a tag, so a `.ts` route, server function, or app module with a generic arrow failed with `Unexpected token`. Red: boundary/transform.test, codegen/scan.test, route-meta/extract.test, and codegen/types-gen.test `ts generic` (each threw the parse error).
+196.2 [x] Fix: vite/route-meta/lang.ts `langOf` picks the grammar by extension, the query left out: TypeScript for `.ts`, `.mts`, `.cts`; TSX for `.tsx`; JavaScript or JSX for theirs; TSX for anything else. Every parse site of an app module uses it; the tripwire keeps `js` for emitted chunks.
 
 ## Verify
 

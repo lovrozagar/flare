@@ -124,3 +124,9 @@ it("let export", () => {
 		)
 	}
 })
+
+// A `.ts` module parses as TypeScript, so a generic arrow beside a server function is no tag (plan 21 8.1).
+it("ts generic", () => {
+	const source = `${IMPORT}const id = <T>(value: T): T => value;\nexport const echo = createServerFn().handler(() => id(1));\n`
+	expect(one(source).name).toBe("echo")
+})

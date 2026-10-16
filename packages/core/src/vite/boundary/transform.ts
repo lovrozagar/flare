@@ -1,6 +1,6 @@
 import MagicString from "magic-string"
 import { parseSync, type Program } from "oxc-parser"
-import { fnId, serverFnsOf } from "../route-meta/index.ts"
+import { langOf, fnId, serverFnsOf } from "../route-meta/index.ts"
 import { envEdits, type Graph } from "./env.ts"
 import { pruneImports, splitEdits, type Edit, type Split } from "./split.ts"
 
@@ -9,7 +9,7 @@ import { pruneImports, splitEdits, type Edit, type Split } from "./split.ts"
 // server function's `__id` and `__name`, plus `__client: true` in the client graph (B41). An import only
 // removed code read is then dropped, in both graphs. Undefined when nothing changed.
 export function boundaryTransform(file: string, source: string, graph: Graph): Split | undefined {
-	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" })
+	const parsed = parseSync(file, source, { sourceType: "module", lang: langOf(file) })
 	const [error] = parsed.errors
 	if (error !== undefined) throw new Error(`${file}: ${error.message}`)
 	const program = parsed.program
