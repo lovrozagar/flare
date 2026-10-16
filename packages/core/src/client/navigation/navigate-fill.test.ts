@@ -158,3 +158,35 @@ it("fill keeps inline values", async () => {
 	await new Promise((resolve) => setTimeout(resolve, 20))
 	expect(plain.deps.fetch).toHaveBeenCalledOnce()
 })
+
+// A shallow or hash move made while a fill is in flight wins: the fill commits its values onto the page as it is then,
+// so the URL, the store's location, and the page's search stay the later move's (plan 21 3.11).
+it("later move wins", async () => {
+	const later: { close: () => void } = { close: () => undefined }
+	const open = new ReadableStream<Uint8Array>({
+		start(controller) {
+			const encoder = new TextEncoder()
+			for (const frame of aboutFrames({ stats: deferred("stats") }))
+				controller.enqueue(encoder.encode(encodeFrame(frame)))
+			later.close = () => {
+				controller.enqueue(encoder.encode(encodeFrame({ t: "c", m: "_root_/about", k: "stats", d: 37 })))
+				controller.enqueue(encoder.encode(encodeFrame({ t: "d" })))
+				controller.close()
+			}
+		},
+	})
+	const responses = [ndjson([...aboutFrames({ stats: deferred("stats") }), { t: "d" }]), new Response(open)]
+	const app = await setup(async () => responses.shift() ?? ndjson([...aboutFrames(null), { t: "d" }]))
+	await app.navigator.navigate({ to: "_root_/about" })
+	await vi.waitFor(() => expect(responses).toEqual([]))
+	await app.navigator.navigate({ to: "_root_/about", search: { tab: "x" }, shallow: true })
+	await app.navigator.navigate({ to: "_root_/about", search: { tab: "x" }, hash: "h" })
+	const before = app.store.snapshot()
+	later.close()
+	const about = () => app.store.snapshot().matches.find((match) => match.id === "_root_/about")
+	// The fill committed: a new snapshot holds its values.
+	await vi.waitFor(() => expect(app.store.snapshot()).not.toBe(before))
+	expect([location.search, location.hash]).toEqual(["?tab=x", "#h"])
+	expect(app.store.snapshot().location).toEqual({ pathname: "/about", search: "?tab=x", hash: "#h" })
+	expect(about()?.search).toEqual({ tab: "x" })
+})

@@ -979,6 +979,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 189 [x] Dev-only client code shipped in production bundles
 189.1 [x] Plan 21 3.17, from the 2026-10-16 gap audit: client/boot/create-client.ts chose its dev paths at run time, `env.dev` and whether a hot channel exists, so the dev tab module (client/dev/tab.ts, its `flare:tab` announcement), the hot channel's `flare:error` sender, and the overlay's error payload were in every production client bundle. The size suite could not see it: Vite reads production from NODE_ENV, which vitest sets to `test`, so its "production" bundles were built with `import.meta.env.DEV` true. Red: tests/size/size.test `client without dev` (the minified createClient bundle held `flare:tab`).
 189.2 [x] Fix: the dev tab, the hot channel's sender (`devSend`), and the overlay report sit behind `import.meta.env.DEV`, which a production bundle replaces with false, so the bundler drops them; client/boot/production.test covers the DEV-false paths. tests/size/breakdown.ts builds with NODE_ENV `production`, so the size suite measures what ships.
+190 [x] A shallow or hash navigation made during an in-flight fill was reverted when the fill committed
+190.1 [x] Plan 21 3.11, from the 2026-10-16 gap audit: a fill revalidates the page's URL as it was when the fill began, and its commit wrote that URL's location and search into the store, so a shallow or hash move made while the fill was open lost its location and the page's search, while the address bar kept the move's URL. Red: client/navigation/navigate-fill.test `later move wins` (the store's location went back to `/about`).
+190.2 [x] Fix: a fill's commit keeps the page as it is when the values land, on the same path: the store's location and each match's search stay the later move's, and the fill only settles the values (client/navigation/request.ts `onPage`). A data navigation still aborts the fill as before. dx/defer.md says so.
 
 ## Verify
 
