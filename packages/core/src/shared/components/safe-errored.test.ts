@@ -25,7 +25,8 @@ function html(children: () => unknown, boundary: typeof Errored | typeof SafeErr
 		.replaceAll(/<!--.*?-->/g, "")
 }
 
-// Solid's own SSR Errored writes a string child raw; SafeErrored writes it as text (BUGS.md 141).
+// Solid's own SSR Errored writes a string child raw; SafeErrored writes it as text (BUGS.md 141). When this case goes
+// red on the raw line, Solid fixed https://github.com/solidjs/solid/issues/4116, and SafeErrored's escape is redundant.
 it("raw in errored", () => {
 	expect(html(() => EVIL, Errored)).toBe(`<body>${EVIL}</body>`)
 	expect(html(() => EVIL)).toBe(`<body>${SAFE}</body>`)
