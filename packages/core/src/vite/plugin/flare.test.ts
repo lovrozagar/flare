@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url"
 import solid from "@solidjs/vite-plugin"
 import { expect, it, vi } from "vitest"
 import { fnId } from "../route-meta/index.ts"
-import { buildIdOf } from "./build-id.ts"
+import { ID_PLACEHOLDER } from "./build-id.ts"
 import { flare } from "./flare.ts"
 import type { FlareOptions } from "./options.ts"
 
@@ -143,7 +143,7 @@ it("client entry define", async () => {
 		mkdirSync(join(root, "dist/client/.vite"), { recursive: true })
 		writeFileSync(manifest, JSON.stringify({ "src/client.tsx": { file: "assets/client-a1.js" } }))
 		expect(load("ssr", "build")).toBe(
-			`export const buildId = "${buildIdOf({ "src/client.tsx": { file: "assets/client-a1.js" } })}";\nexport const clientEntry = "/assets/client-a1.js";\nexport const devHead = "";\n`,
+			`export const buildId = "${ID_PLACEHOLDER}";\nexport const clientEntry = "/assets/client-a1.js";\nexport const devHead = "";\n`,
 		)
 	} finally {
 		rmSync(root, { recursive: true, force: true })
