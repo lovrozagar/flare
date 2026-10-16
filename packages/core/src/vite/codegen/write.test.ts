@@ -56,15 +56,19 @@ it("empty", () => {
 	expect(existsSync(join(root, "src/_gen/types.gen.d.ts"))).toBe(false)
 	expect(existsSync(join(root, "src/_gen/server-fns.gen.ts"))).toBe(true)
 	expect(writeGenerated(root)).toEqual([])
-	// Files are taken in UTF-16 code unit order, so the output does not depend on the file system's listing.
+	// Files are taken in UTF-16 code unit order, so the output does not depend on the file system's listing: "B" sorts
+	// before "a" there and after it in a locale sort. Two names that differ only in case would be one file on a
+	// case-insensitive file system (macOS), so the pair differs in letter too.
 	const sorted = app({
 		...BASE,
-		"src/routes/_root_/b/b.page.tsx": page("_root_/b"),
+		"src/routes/_root_/a/a.page.tsx": page("_root_/a"),
 		"src/routes/_root_/B/B.page.tsx": page("_root_/B"),
 	})
 	writeGenerated(sorted)
 	const routes = generated(sorted, "routes.gen.ts")
-	expect(routes.indexOf('"_root_/B"')).toBeLessThan(routes.indexOf('"_root_/b"'))
+	expect(routes.indexOf('"_root_/a"')).toBeGreaterThan(-1)
+	expect(routes.indexOf('"_root_/B"')).toBeGreaterThan(-1)
+	expect(routes.indexOf('"_root_/B"')).toBeLessThan(routes.indexOf('"_root_/a"'))
 })
 
 type Listener = (event: string, path: string) => void
