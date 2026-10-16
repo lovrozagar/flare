@@ -297,8 +297,9 @@ const MINIMAL: Record<string, string> = {
 }
 
 // What only the app's files decide fails the build and names the cause: an ssg route with prerender off, a font file
-// `dir` lacks, a sitemap with no `site`.
-it("build failures", async () => {
+// `dir` lacks, a sitemap with no `site`. Three builds run one after another: 1.1 s alone, 3.8 s under the full unit
+// gate's parallel builds and engines, and once past vitest's 5 s default, so it takes a build's timeout.
+it("build failures", { timeout: 60_000 }, async () => {
 	const off = await viteBuild(apps.make({ ...MINIMAL, "vite.config.mjs": config("{}") }))
 	expect(off.status).not.toBe(0)
 	expect(off.output).toContain("_root_/static renders at build, and flare({ prerender }) is off")
