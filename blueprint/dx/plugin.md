@@ -8,7 +8,7 @@ export default defineConfig({
 });
 ```
 
-`flare()` returns the Vite plugins Flare owns, including `@solidjs/vite-plugin`. The repo tests `3.0.0-next.49` (B90). The peer range is `>=` that version (B79). The app does not add that plugin itself. Tailwind is the app's `@tailwindcss/vite`. Flare does not wrap it (B14).
+`flare()` returns the Vite plugins Flare owns, including `@solidjs/vite-plugin`. The repo tests `3.0.0-next.50` (B90). The peer range is `>=` that version (B79). The app does not add that plugin itself. Tailwind is the app's `@tailwindcss/vite`. Flare does not wrap it (B14).
 
 Codegen is always on. It writes `src/_gen/routes.gen.ts`, `src/_gen/server-fns.gen.ts`, and `src/_gen/types.gen.d.ts`. `server-fns.gen.ts` lists every exported `createServerFn` under `src`, found by the same oxc walk, as a lazy import keyed by its B41 id; the app passes it to `createServer({ serverFns })`. Those paths are not options.
 
