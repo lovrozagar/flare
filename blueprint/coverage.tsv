@@ -259,3 +259,73 @@ cache.md#client#prop:prefetchStaleTime	packages/core/tests/integration/cache-cli
 cache.md#client#prop:prefetchGcTime	packages/core/tests/integration/cache-client.test.ts::route prefetch	n/a: the age passes only on a moved clock; cache-client moves the page's clock in all three engines
 cache.md#client#prop:cacheDeferred	packages/core/tests/integration/cache-client.test.ts::route cacheDeferred	packages/core/tests/e2e/docs-cache.test.ts::cache deferred
 cache.md#What gets stored#	packages/core/tests/integration/cache.test.ts::anonymous stored; packages/core/tests/integration/cache.test.ts::401 not stored; packages/core/tests/integration/cache-modes.test.ts::allow cookies; packages/core/tests/integration/cache-modes.test.ts::defer resolve	packages/core/tests/e2e/docs-cache.test.ts::isr stored
+features.md#Cross-tab#	packages/core/tests/integration/features-client.test.ts::cross tab	packages/core/tests/e2e/docs-features.test.ts::tabs sync
+features.md#Cross-tab#type:theme	packages/core/tests/integration/features-client.test.ts::cross tab	packages/core/tests/e2e/docs-features.test.ts::tabs sync
+features.md#Cross-tab#type:direction	packages/core/tests/integration/features-client.test.ts::cross tab	packages/core/tests/e2e/docs-features.test.ts::tabs sync
+features.md#Cross-tab#type:locale	packages/core/tests/integration/features-client.test.ts::cross tab	packages/core/tests/e2e/docs-features.test.ts::tabs sync
+features.md#Theme#	packages/core/tests/integration/features-client.test.ts::theme script; packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme no flash
+features.md#Theme#prop:defaultTheme	packages/core/tests/integration/features-client.test.ts::theme script	packages/core/tests/e2e/docs-features.test.ts::theme system
+features.md#Theme#prop:attribute	packages/core/tests/integration/features-client.test.ts::theme script	packages/core/tests/e2e/docs-features.test.ts::theme no flash
+features.md#Theme#prop:storageKey	packages/core/tests/integration/features-client.test.ts::theme script; packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme no flash
+features.md#Theme#prop:themes	packages/core/tests/integration/features-client.test.ts::theme script	packages/core/tests/e2e/docs-features.test.ts::theme no flash
+features.md#Theme#prop:disableTransitionOnChange	packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme transition
+features.md#Theme#component:ThemeScript	packages/core/tests/integration/features-client.test.ts::theme script	packages/core/tests/e2e/docs-features.test.ts::theme no flash
+features.md#Theme#component:ThemeProvider	packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme system
+features.md#Theme#field:theme()	packages/core/tests/integration/features-client.test.ts::theme script; packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme system
+features.md#Theme#field:resolvedTheme()	packages/core/tests/integration/features-client.test.ts::theme script; packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme system
+features.md#Theme#field:setTheme(next)	packages/core/tests/integration/features-client.test.ts::set theme	packages/core/tests/e2e/docs-features.test.ts::theme transition
+features.md#Direction#	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl layout
+features.md#Direction#prop:defaultDir	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl layout
+features.md#Direction#prop:attribute	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl layout
+features.md#Direction#prop:storageKey	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl client
+features.md#Direction#component:DirectionScript	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl layout
+features.md#Direction#component:DirectionProvider	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl client
+features.md#Direction#call:direction()	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl client
+features.md#Direction#call:setDirection("ltr") or setDirection("rtl")	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl client
+features.md#Direction#call:setDirection()	packages/core/tests/integration/features-client.test.ts::direction	packages/core/tests/e2e/docs-features.test.ts::rtl client
+features.md#i18n#	packages/core/tests/integration/i18n.test.ts::locales; packages/core/tests/integration/i18n.test.ts::messages; packages/core/tests/integration/features-client.test.ts::locale	packages/core/tests/e2e/docs-features.test.ts::prefix
+features.md#i18n#prop:locales	packages/core/tests/integration/i18n.test.ts::locales	packages/core/tests/e2e/docs-features.test.ts::unknown locale
+features.md#i18n#prop:defaultLocale	packages/core/tests/integration/i18n.test.ts::defaultLocale	packages/core/tests/e2e/docs-features.test.ts::prefix
+features.md#i18n#prop:cookieName	packages/core/tests/integration/i18n.test.ts::cookieName	packages/core/tests/e2e/docs-features.test.ts::set locale persists
+features.md#i18n#prop:paramName	packages/core/tests/integration/i18n.test.ts::paramName	n/a: the docs app keeps the default `locale` param; i18n.test serves a `lang` one
+features.md#i18n#prop:botDetection	packages/core/tests/integration/i18n.test.ts::botDetection	packages/core/tests/e2e/docs-resilience.test.ts::bot stays put
+features.md#i18n#API:createTranslations({ en: { hello: "Hi" } })	packages/core/tests/integration/i18n.test.ts::messages	packages/core/tests/e2e/docs-data.test.ts::t plural
+features.md#i18n#API:t("hello")	packages/core/tests/integration/i18n.test.ts::messages; packages/core/tests/integration/i18n.test.ts::render t	packages/core/tests/e2e/docs-data.test.ts::t plural
+features.md#i18n#API:plural	packages/core/tests/integration/i18n.test.ts::messages	packages/core/tests/e2e/docs-data.test.ts::t plural
+features.md#i18n#API:select	packages/core/tests/integration/i18n.test.ts::messages	packages/core/tests/e2e/docs-features.test.ts::format message
+features.md#i18n#API:t.rich(key, components)	packages/core/tests/integration/i18n.test.ts::render t	n/a: no docs page renders rich text; i18n.test renders it through createServer and a production build
+features.md#i18n#API:formatMessage(message, values?, locale?)	packages/core/tests/integration/i18n.test.ts::messages	packages/core/tests/e2e/docs-features.test.ts::format message
+features.md#i18n#prop:config	packages/core/tests/integration/features-client.test.ts::locale	packages/core/tests/e2e/docs-features.test.ts::prefix
+features.md#i18n#prop:initial	packages/core/tests/integration/features-client.test.ts::locale	packages/core/tests/e2e/docs-features.test.ts::set locale persists
+features.md#i18n#prop:children	packages/core/tests/integration/features-client.test.ts::locale	packages/core/tests/e2e/docs-features.test.ts::prefix
+features.md#Image#	packages/core/tests/integration/features-media.test.ts::image responsive; packages/core/tests/integration/features-media.test.ts::image fixed; packages/core/tests/integration/features-media.test.ts::image fill; packages/core/tests/integration/features-media.test.ts::image props	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:alt	packages/core/tests/integration/features-media.test.ts::image responsive; packages/core/tests/integration/features-media.test.ts::image fixed	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:src	packages/core/tests/integration/features-media.test.ts::image responsive	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:widths	packages/core/tests/integration/features-media.test.ts::image props; packages/core/tests/integration/plugin.test.ts::image	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:sizes	packages/core/tests/integration/features-media.test.ts::image responsive	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:quality	packages/core/tests/integration/features-media.test.ts::image props; packages/core/tests/integration/plugin.test.ts::image	n/a: a component quality changes only the dev URL, which features-media's build shows it leaves out of production
+features.md#Image#prop:priority	packages/core/tests/integration/features-media.test.ts::image fixed	packages/core/tests/e2e/docs-features.test.ts::image fixed
+features.md#Image#prop:placeholder	packages/core/tests/integration/features-media.test.ts::image props	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:blurDataURL	packages/core/tests/integration/features-media.test.ts::image props	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:fill	packages/core/tests/integration/features-media.test.ts::image fill	n/a: no docs page renders a fill image; features-media reads its markup from a production build
+features.md#Image#prop:fixed	packages/core/tests/integration/features-media.test.ts::image fixed	packages/core/tests/e2e/docs-features.test.ts::image fixed
+features.md#Image#prop:width	packages/core/tests/integration/features-media.test.ts::image fixed	packages/core/tests/e2e/docs-features.test.ts::image fixed
+features.md#Image#prop:height	packages/core/tests/integration/features-media.test.ts::image fixed	packages/core/tests/e2e/docs-features.test.ts::image fixed
+features.md#Image#prop:maxWidth	packages/core/tests/integration/features-media.test.ts::image responsive	packages/core/tests/e2e/docs-features.test.ts::image responsive
+features.md#Image#prop:maxHeight	packages/core/tests/integration/features-media.test.ts::image props	n/a: no docs page caps an image's height; features-media reads it from a production build
+features.md#Image#prop:aspectRatio	packages/core/tests/integration/features-media.test.ts::image props; packages/core/tests/integration/features-media.test.ts::image fill	n/a: no docs page sets aspectRatio; features-media reads it from a production build
+features.md#Fonts#	packages/core/tests/integration/features-media.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:family	packages/core/tests/integration/features-media.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:src	packages/core/tests/integration/features-media.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:category	packages/core/tests/integration/features-media.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:weights	packages/core/tests/integration/features-media.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:style	packages/core/tests/integration/features-media.test.ts::fonts	n/a: the docs app's faces are normal style; features-media reads an italic one from a production build
+features.md#Fonts#prop:fallbackMetrics	packages/core/tests/integration/features-media.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:font	packages/core/tests/integration/features-media.test.ts::fonts; packages/core/tests/integration/plugin.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:preload	packages/core/tests/integration/features-media.test.ts::fonts	packages/core/tests/e2e/docs-features.test.ts::fonts
+features.md#Fonts#prop:subsets	packages/core/tests/integration/features-media.test.ts::fonts	n/a: the docs app keeps each font's own subset list; features-media passes one to a one-file font
+features.md#Query#	packages/core/tests/integration/query.test.ts::query client; packages/core/tests/integration/query.test.ts::server fn options	packages/core/tests/e2e/docs-data.test.ts::query prefetched
+features.md#Query#API:createQueryClientGetter()	packages/core/tests/integration/query.test.ts::query client	packages/core/tests/e2e/docs-data.test.ts::query hydrates once
+features.md#Query#API:useSuspenseQuery(options)	packages/core/tests/integration/query.test.ts::query client	packages/core/tests/e2e/docs-data.test.ts::query suspense
+features.md#Query#API:serverFnQueryOptions(fn, { queryKey, input? })	packages/core/tests/integration/query.test.ts::query client; packages/core/tests/integration/query.test.ts::server fn options	packages/core/tests/e2e/docs-data.test.ts::query prefetched
+features.md#Query#API:serverFnMutationOptions(fn, { mutationKey? })	packages/core/tests/integration/query.test.ts::server fn options	packages/core/tests/e2e/docs-data.test.ts::mutation sets data
