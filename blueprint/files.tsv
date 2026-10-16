@@ -753,6 +753,7 @@ scripts/release.test.ts	P14	test	node	Unit cases for release.ts
 packages/core/tests/e2e/apps/docs/**	P15	app	-	The docs app (B94): a short Flare docs site that uses every exported feature. One row for the tree; the docs specs own its behavior
 packages/core/tests/e2e/docs.fixture.ts	P15	test	node	Worker-scoped docs boot, the deep-set skip, and the page helpers the docs specs share (B94)
 packages/core/tests/e2e/flush.ts	P15	test	node	flushEvents: the page logs and fetches a marker, so every event it sent before has reached the test; negative assertions read after it, not after a sleep
+packages/core/tests/e2e/flush.test.ts	P15	test	node	Unit cases for flush.ts
 packages/core/tests/e2e/crash.ts	P16	test	node	The crash watch and navigation log every e2e spec's test runs around each case: a page crash fails the case that owned it (plan 14 leaf 4.6), and a failed case keeps its navigations (BUGS.md 34.6)
 packages/core/tests/e2e/http.ts	P16	test	node	The e2e specs' HTTP client, the `http` fixture: a connection per call, so no keep-alive socket crosses cases (BUGS.md 125)
 packages/core/tests/e2e/prefetch-reuse.ts	P6	script	node	Module cache reuse harness: a landing page warms another app's module by prefetch, fetch, or modulepreload, and a server counts the downloads (plan 17, BUGS.md 124)

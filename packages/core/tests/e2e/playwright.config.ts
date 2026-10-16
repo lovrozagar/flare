@@ -44,7 +44,7 @@ export default defineConfig<object, FloorOptions>({
 	testDir: import.meta.dirname,
 	// Vitest files beside the specs: the boot helper's and its child helpers' own tests, and the golden proof from the
 	// tarball (B70, bits/14).
-	testIgnore: ["**/boot.test.ts", "**/child.test.ts", "**/copy-boot.test.ts", "**/golden.test.ts"],
+	testIgnore: ["**/boot.test.ts", "**/child.test.ts", "**/copy-boot.test.ts", "**/flush.test.ts", "**/golden.test.ts"],
 	globalSetup: "./global-setup.ts",
 	fullyParallel: false,
 	retries: 0,
