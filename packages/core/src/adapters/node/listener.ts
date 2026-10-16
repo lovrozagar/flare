@@ -81,8 +81,15 @@ async function pump(job: Job): Promise<void> {
 	}
 	const request = new Request(adapted.url, init)
 	const response = await job.server.fetch(request, undefined, {
+		// Background work is held until it settles, then released; a rejection is logged, never left unhandled to stop
+		// the process (BUGS.md 153).
 		waitUntil(promise) {
 			job.retained.add(promise)
+			const release = (): void => void job.retained.delete(promise)
+			promise.then(release, (error: unknown) => {
+				release()
+				console.error("[flare:node] waitUntil rejected", error)
+			})
 		},
 	})
 	writeHeaders(job.res, response.headers)

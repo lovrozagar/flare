@@ -864,6 +864,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 152 [x] Coalesced store misses shared one visitor's Set-Cookie
 152.1 [x] Plan 21 7.4, from the second outside review: concurrent misses of one stored key share one render (server/cache/inflight.ts), and server/cache/serve.ts `missed` served every request that joined it the render's `Set-Cookie`, so each got the first visitor's cookie: a session or visit id handed to strangers. Red: tests/integration/cache-modes.test `coalesced cookies`: four concurrent misses of an `isr` page whose `.headers()` sets a per-render cookie came back with one cookie value between them.
 152.2 [x] Fix: only the request that started the render takes its cookies. A request that joined a render that set cookies renders its own, live; a render that set none is still shared. Each of the four now carries its own cookie, all `private, no-store`, and nothing is stored. dx/cache.md says so.
+153 [x] Node's waitUntil kept every promise forever and left rejections unhandled
+153.1 [x] Plan 21 7.2, from the second outside review: adapters/node/listener.ts added each `waitUntil` promise to a Set it never pruned and never caught. One failed background job, a store timeout in a stale refresh say, was an unhandled rejection, which stops a Node server by default; and every settled promise stayed in the Set with what it resolved to, so the heap grew with every stale hit. Red: tests/integration/adapters.test `node wait until` on a real node:http server, twenty requests each handing one rejecting and one resolving (1 MB payload) promise: twenty unhandled rejections.
+153.2 [x] Fix: the listener releases each promise when it settles and logs a rejection as `[flare:node] waitUntil rejected`. Green: no unhandled rejection, twenty logged, and after a collection none of the twenty payloads is still reachable (a mutation that keeps settled promises turns the case red). dx/adapters.md says so.
 
 ## Verify
 
