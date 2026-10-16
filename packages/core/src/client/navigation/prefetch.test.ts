@@ -415,3 +415,22 @@ it("viewport observer", () => {
 	expect(observer.disconnect).toHaveBeenCalledTimes(2)
 	vi.unstubAllGlobals()
 })
+
+// `forget` drops every held landing, one still in flight too, so a navigation after it asks the server again (B133).
+it("forget", async () => {
+	const app = setup()
+	for (const href of ["/about", "/about?n=1"]) {
+		const link = anchor()
+		app.prefetcher.watch(link, href, "intent")
+		hover(link)
+	}
+	await settled()
+	const late = anchor()
+	app.prefetcher.watch(late, "/about?n=2", "intent")
+	hover(late)
+	app.prefetcher.forget()
+	await settled()
+	for (const url of ["/about?_flare=data", "/about?n=1&_flare=data", "/about?n=2&_flare=data"]) {
+		expect(app.prefetcher.prefetched(url)).toBeUndefined()
+	}
+})

@@ -22,7 +22,7 @@ class RequestQueries {
 // Marks a getter this module made, so the registered one can be returned with its type.
 const BRAND = Symbol.for("flare.query.getter")
 
-type ClientGetter = (() => QueryClient) & { dehydrate: () => unknown; hydrated: () => void }
+type ClientGetter = (() => QueryClient) & { dehydrate: () => unknown; hydrated: () => void; clear: () => void }
 
 // One client per document on the client, one per request on the server (dx/features.md Query). The getter registers
 // once per process, and a second call returns the registered one. It takes no options. The app passes its client to
@@ -44,6 +44,9 @@ export function createQueryClientGetter(): () => QueryClient {
 		},
 		// The client boot calls this once the hydration mount is over (B102).
 		hydrated: () => void (phase.hydrated = true),
+		// A server function wrote a cookie, or the app called `invalidate()`: the cached queries may be another
+		// visitor's, so they go, not refetch while showing (B133).
+		clear: () => documentClient?.clear(),
 		[BRAND]: true,
 	})
 	registerQuery(created)

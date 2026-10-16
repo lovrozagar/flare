@@ -126,3 +126,15 @@ it("hydration mount not in document", async () => {
 	expect(tally.runs()).toBe(1)
 	dispose()
 })
+
+// The registered getter's `clear` empties the document's client, so a query cached for one visitor never paints for
+// the next after a server function wrote a cookie. Before any client exists it does nothing (B133).
+it("clear", () => {
+	const getQueryClient = createQueryClientGetter()
+	registeredQuery()?.clear?.()
+	const client = getQueryClient()
+	client.setQueryData(["user"], "ada")
+	registeredQuery()?.clear?.()
+	expect(client.getQueryData(["user"])).toBeUndefined()
+	expect(getQueryClient()).toBe(client)
+})

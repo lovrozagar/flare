@@ -62,18 +62,22 @@ export type NavigatorDeps = {
 
 type Trigger = "initial" | "navigation" | "revalidation"
 
-// Same-origin only. The DOM commits, then history is written. A revalidation of the current URL writes no
-// history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
-// restore is one popstate step: the browser already moved, so no blocker runs, nothing is written, and the
-// saved scroll comes back. Back onto an overlay's background clears the overlay, with no fetch and no scroll.
-// After a document load it began, the page is leaving (leaving.ts, BUGS.md 129).
-export function createNavigator(given: NavigatorDeps): Leaving & {
+// `revalidate` refetches the page on screen in place, as `revalidate: true` does (B133).
+export type Navigator = Leaving & {
 	navigate: (options: NavigateOptions) => Promise<void>
 	visit: (url: string, replace: boolean) => Promise<void>
 	restore: (url: string, index: number) => Promise<void>
 	fill: (pending: Pending) => Promise<void>
 	refresh: (initial: CachePlan) => Promise<void>
-} {
+	revalidate: () => Promise<void>
+}
+
+// Same-origin only. The DOM commits, then history is written. A revalidation of the current URL writes no
+// history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
+// restore is one popstate step: the browser already moved, so no blocker runs, nothing is written, and the
+// saved scroll comes back. Back onto an overlay's background clears the overlay, with no fetch and no scroll.
+// After a document load it began, the page is leaving (leaving.ts, BUGS.md 129).
+export function createNavigator(given: NavigatorDeps): Navigator {
 	const { deps, away, ...leave } = leaveable(given)
 	let latest: AbortController | undefined
 	// The history index the screen shows, so a popstate step knows its view-transition direction.
@@ -113,6 +117,7 @@ export function createNavigator(given: NavigatorDeps): Leaving & {
 	return {
 		fill: (pending) => again({ fill: pending }),
 		refresh: (initial) => again({ initial }),
+		revalidate: () => again({}),
 		...leave,
 		navigate: (options) => go(userTarget(deps, resolveTarget(options, context()), options.revalidate), options),
 		visit: (url, replace) => go(userTarget(deps, resolveUrl(url, context()), false), { to: url, replace }),

@@ -14,6 +14,7 @@ function deps(response: Response): CallDeps {
 		basePath: "/",
 		build: "b1",
 		href: () => "http://localhost/page",
+		forget: () => undefined,
 	}
 }
 

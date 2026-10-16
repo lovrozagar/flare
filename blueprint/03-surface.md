@@ -17,6 +17,7 @@ Every entry ships `types` and `default` (compiled ESM). Framework sources contai
 | `createServerOnlyFn`, `createClientOnlyFn`, `createIsomorphicFn` | `shared/env` |
 | `nonce` | `shared/csp` |
 | `navigate` | `client/navigation/active.ts`: the booted client's navigation, reachable outside any component; it rejects before `createClient` has booted and on the server (BUGS.md 105) |
+| `invalidate` | `client/navigation/active.ts`: forgets the cached matches, prefetches, and queries, then refetches the page on screen; it rejects before `createClient` has booted and on the server (B133) |
 | `Href` | `shared/url/href.ts` |
 | `LocationRewrite` | type from `shared/url/types.ts` |
 | `FlareRegister` | type from `shared/route-builder/register.ts` |

@@ -370,8 +370,10 @@ packages/core/src/client/navigation/request.test.ts	P10	test	dom	Unit cases for 
 packages/core/src/client/navigation/navigate.test.ts	P6	test	dom	Unit cases for navigate.ts
 packages/core/src/client/navigation/navigate-failure.test.ts	P6	test	dom	Unit cases for navigate.ts: a bare status painted at the failed match, a failed root loaded as a document (BUGS.md 134)
 packages/core/src/client/navigation/navigate-transition.test.ts	P6	test	dom	View-transition cases for navigate.ts
-packages/core/src/client/navigation/active.ts	P6	src	dom	The root `navigate`: the booted client's navigation, reachable outside any component; rejects before createClient booted (BUGS.md 105)
+packages/core/src/client/navigation/active.ts	P6	src	dom	The root `navigate` and `invalidate`: the booted client's navigation and invalidation, reachable outside any component; both reject before createClient booted (BUGS.md 105, B133)
 packages/core/src/client/navigation/active.test.ts	P6	test	dom	Unit cases for active.ts
+packages/core/src/client/navigation/invalidate.ts	P6	src	dom	Forgetting the visitor: the match cache, the held prefetches, and the query client's cache; `invalidate()` then refetches the page on screen (B133)
+packages/core/src/client/navigation/invalidate.test.ts	P6	test	dom	Unit cases for invalidate.ts
 packages/core/src/client/navigation/navigate-shallow.test.ts	P6	test	dom	Shallow navigation cases for navigate.ts
 packages/core/src/client/navigation/navigate-cache.test.ts	P6	test	dom	Client cache cases for navigate.ts
 packages/core/src/client/navigation/navigate-slots.test.ts	P6	test	dom	Deferred slot cases for navigate.ts

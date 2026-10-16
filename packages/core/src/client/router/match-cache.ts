@@ -60,6 +60,8 @@ export type MatchCache = {
 	read: (match: CachedMatch) => Stored | undefined
 	deps: (match: CachedMatch) => string | undefined
 	plan: (plan: Plan) => CachePlan
+	// Every entry goes: a cookie a server function wrote, or `invalidate()` (B133).
+	clear: () => void
 }
 
 // Only successful `l` payloads are stored. An `e` evicts. `staleTime` decides whether a held page may skip its
@@ -90,6 +92,7 @@ export function createMatchCache(options: {
 			if (entries.size > max) entries.delete(required(entries.keys().next().value, "the oldest entry"))
 		},
 		evict: (match) => void entries.delete(matchKey(match)),
+		clear: () => entries.clear(),
 		filled: (match, data) => fill(entries, matchKey(match), data),
 		read,
 		deps,
