@@ -151,3 +151,10 @@ it("page ids", () => {
 	})
 	expect(layoutOnly.source).toContain("pageIds: never;")
 })
+
+// An app module that is `.ts` parses as TypeScript, so a generic arrow in it is no tag (plan 21 8.1).
+it("ts generic", () => {
+	const source = 'import { queryClient } from "@lovrozagar/flare/query";\nconst id = <T>(value: T): T => value;\n'
+	const types = generateTypes({ routeFiles: [], appFiles: ["src/lib/generic.ts"], read: () => source })
+	expect(types.source).toContain("hasQueryClient: true;")
+})

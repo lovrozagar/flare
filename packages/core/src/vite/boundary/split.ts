@@ -8,7 +8,7 @@ import {
 	type Program,
 	Visitor,
 } from "oxc-parser"
-import { boundNames, requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts"
+import { langOf, boundNames, requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts"
 import { cacheKeyKept, routeMethod } from "./allow.ts"
 import { namespaceValue } from "./env.ts"
 import { deadDeclarations, moduleReads, nonReferences } from "./reads.ts"
@@ -24,7 +24,7 @@ type Step = { name: string; call: CallExpression; object: Expression }
 // server function's input, authorize, handler, and stream arguments become `undefined`. An import no kept code
 // reads is then dropped. A bare `import "x"` stays. Undefined when nothing changed.
 export function splitClient(file: string, source: string): Split | undefined {
-	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" })
+	const parsed = parseSync(file, source, { sourceType: "module", lang: langOf(file) })
 	const [error] = parsed.errors
 	if (error !== undefined) throw new Error(`${file}: ${error.message}`)
 	const edit: Edit = { file, source, out: new MagicString(source), removed: [] }

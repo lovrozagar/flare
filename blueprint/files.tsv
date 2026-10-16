@@ -458,6 +458,8 @@ packages/core/src/adapters/stores/cache-api/store.test.ts	P10	test	node	Unit cas
 packages/core/src/adapters/stores/cache-api/index.ts	P10	index	workers	Re-exports
 packages/core/src/vite/route-meta/extract.ts	P7	src	vite	oxc extraction of chain calls, export name, and positions
 packages/core/src/vite/route-meta/extract.test.ts	P7	test	vite	Unit cases for extract.ts
+packages/core/src/vite/route-meta/lang.ts	P7	src	vite	The grammar an app module parses with, by its extension: TypeScript for .ts, TSX for .tsx (BUGS.md 196)
+packages/core/src/vite/route-meta/lang.test.ts	P7	test	vite	Unit cases for lang.ts
 packages/core/src/vite/route-meta/literals.ts	P7	src	vite	Fail the build when cache or auth config is not a literal
 packages/core/src/vite/route-meta/literals.test.ts	P7	test	vite	Unit cases for literals.ts
 packages/core/src/vite/route-meta/ids.ts	P7	src	vite	Build-time B41 ids: hash the path and export name with node:crypto. Reject a collision and a call that is not a direct export

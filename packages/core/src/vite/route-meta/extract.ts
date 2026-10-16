@@ -10,6 +10,7 @@ import {
 	type ParamPattern,
 	type Program,
 } from "oxc-parser"
+import { langOf } from "./lang.ts"
 import { requireLiteral } from "./literals.ts"
 
 const MODULE = "@lovrozagar/flare/server-fn"
@@ -36,7 +37,7 @@ type Chain = { root: CallExpression; steps: Step[]; problem?: string | undefined
 // One oxc parse per file. A chain counts only as call nodes, so a comment, a string, or a regex never does
 // (dx/plugin.md). Every createServerFn call must be a direct export ending in .handler() or .stream() (B85).
 export function extractServerFns(file: string, source: string): FnRecord[] {
-	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" })
+	const parsed = parseSync(file, source, { sourceType: "module", lang: langOf(file) })
 	const [error] = parsed.errors
 	if (error !== undefined) throw new Error(`${file}: ${error.message}`)
 	return serverFnsOf(file, parsed.program)

@@ -107,3 +107,8 @@ it("builder id spans", () => {
 	const source = 'export const route = createPage("_root_/a");\nconst bad = createPage(`_root_/b`);'
 	expect(spans(source)).toEqual([["_root_/a", '"_root_/a"']])
 })
+
+// A `.ts` route file parses as TypeScript, so a generic arrow in it is no tag (plan 21 8.1).
+it("ts generic", () => {
+	expect(scanRoute("auth.page.ts", "const id = <T>(value: T): T => value;\npage.authenticate();").auth).toBe(true)
+})

@@ -72,3 +72,10 @@ it("env inside a removed body", () => {
 	expect(client).toContain(".handler(undefined)")
 	expect(client).not.toContain("createServerOnlyFn")
 })
+
+// A `.ts` module parses as TypeScript, not TSX: a generic arrow, which TSX reads as a tag, splits like any other code
+// (plan 21 8.1).
+it("ts generic", () => {
+	const source = `${ENV}const id = <T>(value: T): T => value;\nexport const read = createServerOnlyFn(() => id(SECRET));\n`
+	expect(transform(source, "client")).not.toContain("SECRET")
+})

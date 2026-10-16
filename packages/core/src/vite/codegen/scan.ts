@@ -1,3 +1,4 @@
+import { langOf } from "../route-meta/index.ts"
 import {
 	parseSync,
 	Visitor,
@@ -42,7 +43,7 @@ export type Scan = {
 export type BuilderId = { id: string; start: number; end: number }
 
 export function scanRoute(file: string, source: string): Scan {
-	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" })
+	const parsed = parseSync(file, source, { sourceType: "module", lang: langOf(file) })
 	const [error] = parsed.errors
 	if (error !== undefined) throw new Error(`${file}: ${error.message}`)
 	const scan: Scan = {

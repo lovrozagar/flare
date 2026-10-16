@@ -1,4 +1,5 @@
 import { posix } from "node:path"
+import { langOf } from "../route-meta/index.ts"
 import { parseSync } from "oxc-parser"
 import { escapeSource } from "./escape.ts"
 import { generateRoutes } from "./routes.ts"
@@ -120,7 +121,7 @@ function tuple(ids: readonly string[]): string {
 
 // The import counts, not the text: a comment or a string that names the package does not (dx/types.md).
 function importsQuery(file: string, source: string): boolean {
-	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" })
+	const parsed = parseSync(file, source, { sourceType: "module", lang: langOf(file) })
 	const [error] = parsed.errors
 	if (error !== undefined) throw new Error(`${file}: ${error.message}`)
 	return parsed.program.body.some(
