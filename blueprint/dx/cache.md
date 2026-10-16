@@ -12,8 +12,8 @@ A live render stored in the `FlareStore` passed to `createServer({ store })`.
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `ttl` | yes | — | duration | the entry is stored for this long. After it, the next request is a miss | omitting `ttl` throws at the call. A store with no expiry was the entry that could not be purged | `server/cache/write.test.ts` `ttl` |
-| `staleTime` | no | `0` | duration, `0` to `ttl` | after this, a hit still serves the body and re-renders in the background. The served body stays until the re-render finishes | `staleTime` greater than `ttl` throws | `server/cache/read.test.ts` `stale serves` |
+| `ttl` | yes | — | duration | the entry is stored for this long. After it, the next request is a miss | omitting `ttl` does not type-check. Untyped, the server throws `<route>: cache.ssr needs a ttl` when it loads the route, before any render, and the request is a 500; the check is not in `.cache()`, so `createPage` carries no bytes for it. A store with no expiry was the entry that could not be purged | `server/cache/write.test.ts` `ttl`; `tests/integration/cache-modes.test.ts` `ssr ttl` |
+| `staleTime` | no | `0` | duration, `0` to `ttl` | after this, a hit still serves the body and re-renders in the background. The served body stays until the re-render finishes | `staleTime` greater than `ttl` throws `<route>: cache.ssr.staleTime is longer than its ttl` the same way | `server/cache/read.test.ts` `stale serves`; `tests/integration/cache-modes.test.ts` `ssr stale`, `ssr ttl` |
 | `tags` | no | `[]` | `string[]` or `(ctx: { params }) => string[]` | tag purge bumps these epochs | a function that reads the request is a build error. The argument is `params` only | `server/cache/epoch.test.ts` `tag purge` |
 | `defer` | no | `"resolve"` | `"resolve"`, `"stream"` | see `defer.md` | | `server/cache/write.test.ts` `resolved defer` |
 

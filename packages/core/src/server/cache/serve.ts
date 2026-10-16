@@ -153,28 +153,42 @@ type Keyed = Stored & { key: string; timing: StoreTiming }
 
 const NOTHING_STALE: ReadonlySet<string> = new Set()
 
+// A stale hit's one refresh, behind the answer.
+function refresh(exchange: Exchange, matched: Loaded, keyed: Keyed): void {
+	exchange.waitUntil(inflight(keyed.key, () => flight(exchange, matched, keyed)))
+}
+
 // A stored page's answer. A chain with `authorize` runs it, after preloader, on this request before the read, so a
 // `false` is 403 and the stored body is not used (B73). A hit is served as stored. A stale hit is still served, and
-// one refresh starts behind it. A miss runs one shared render, coalesced per key, that writes both variants and
-// serves this request's variant exactly as a hit would. A render with nothing to serve answers live.
+// one refresh starts behind it. Every path resumes after the one `hitFor` await: V8 miscounts the branches after an
+// await that only some paths reach, which broke per-file coverage once a test took the stale path.
 async function stored(exchange: Exchange, matched: Loaded, at: Stored): Promise<Response> {
 	const id = defined(matched.id, "the stored page")
 	const timing = defined(storeTiming(id, matched.chain.at(-1)?.module.cache), "the stored page's timing")
 	const keyed = { ...at, key: keyOf(exchange, matched, id), timing }
 	const looked = await gated(exchange, matched, { prepared: at.prepared, read: () => lookup(at.store, keyed.key) })
 	if (looked instanceof Response) return looked
-	const hit = hitOf(looked, timing, Date.now()) ?? (await seedHit(exchange, { ...keyed, looked }))
-	if (hit !== undefined) {
-		if (hit.stale) exchange.waitUntil(inflight(keyed.key, () => flight(exchange, matched, keyed)))
-		return served(exchange, hit.page, { policy: at.prepared.policy, cache: "hit", cookies: [] })
-	}
+	const hit = await hitFor(exchange, { ...keyed, looked })
+	if (hit === undefined) return missed(exchange, matched, keyed)
+	if (hit.stale) refresh(exchange, matched, keyed)
+	return served(exchange, hit.page, { policy: at.prepared.policy, cache: "hit", cookies: [] })
+}
+
+// The store's hit, else a seed's.
+async function hitFor(exchange: Exchange, at: Keyed & { looked: Lookup | null }): Promise<Hit | undefined> {
+	return hitOf(at.looked, at.timing, Date.now()) ?? seedHit(exchange, at)
+}
+
+// A miss runs one shared render, coalesced per key, that writes both variants and serves this request's variant exactly
+// as a hit would. A render with nothing to serve answers live.
+async function missed(exchange: Exchange, matched: Loaded, keyed: Keyed): Promise<Response> {
 	const landed = await inflight(keyed.key, () => flight(exchange, matched, keyed))
-	if (landed === undefined) return live(exchange, matched, at.prepared)
-	if (landed === INCOMPLETE) return live(exchange, matched, uncached(at.prepared))
+	if (landed === undefined) return live(exchange, matched, keyed.prepared)
+	if (landed === INCOMPLETE) return live(exchange, matched, uncached(keyed.prepared))
 	if ("stored" in landed)
-		return served(exchange, landed.stored, { policy: at.prepared.policy, cache: "hit", cookies: [] })
+		return served(exchange, landed.stored, { policy: keyed.prepared.policy, cache: "hit", cookies: [] })
 	const cookies = [landed.shared.run.headers["set-cookie"] ?? []].flat()
-	const policy = { ...at.prepared.policy, rejected: !landed.shared.settled }
+	const policy = { ...keyed.prepared.policy, rejected: !landed.shared.settled }
 	return served(exchange, landed.page, { policy, cache: "miss", cookies })
 }
 

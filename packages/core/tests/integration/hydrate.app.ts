@@ -21,6 +21,8 @@ export type AppCase = {
 	hydrateAfter?: number
 	// Runs on the hydrated page before the record is read: a click, a key, a wait.
 	steps?: (tab: Page) => Promise<void>
+	// Runs on the tab before it loads the page: a clock to install, say.
+	init?: (tab: Page) => Promise<void>
 	// Paths the server answers until it serves them from its store, before the page loads. `at` is the clock the
 	// server renders and stores them on: only `Date` is faked, and only while priming.
 	prime?: readonly { path: string; at?: number }[]
@@ -153,10 +155,13 @@ export async function appIn(at: { origin: string; tab: Page }, input: AppCase): 
 	at.tab.on("response", (answer) => {
 		if (answer.status() >= 400) seen.push(`${answer.status()}: ${answer.url()}`)
 	})
+	await input.init?.(at.tab)
 	const response = await at.tab.goto(`${at.origin}${input.path ?? "/"}`)
 	const html = (await response?.text()) ?? ""
 	await at.tab
-		.waitForSelector("html[data-flare-hydrated]", { state: "attached", timeout: 10_000 })
+		// Playwright's 30 s, as every step's wait: a fresh context loads each dev module cold, and under the full gate's
+		// parallel builds and engines that took past 10 s once.
+		.waitForSelector("html[data-flare-hydrated]", { state: "attached", timeout: 30_000 })
 		.catch((error: unknown) => {
 			throw new Error(`the client did not hydrate: ${String(error)}\n${seen.join("\n")}\n${html.slice(-600)}`)
 		})
