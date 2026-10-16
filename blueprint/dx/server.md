@@ -155,7 +155,7 @@ function Analytics() {
 }
 ```
 
-`nonce()` is the accessor. A layout, a page, a nested child, an effect, and an event handler call it the same way. Nothing in the tree receives the nonce as a prop, and there is no provider to wrap. Flare's own emitters call this function.
+`nonce()` is the accessor. A layout, a page, a nested child, an effect, and an event handler call it the same way. So does a component that renders after an async boundary, a `<Loading>` fragment that streams after the shell (`tests/integration/nonce.test.ts` `after loading`, BUGS.md 181). Nothing in the tree receives the nonce as a prop, and there is no provider to wrap. Flare's own emitters call this function.
 
 On the server the document pipeline writes the string onto the request event before `renderToStream`, and `nonce()` reads that field. The event is the one `serverCtx()` already uses. The nonce is not a field of `serverContext`, so the app does not take it out of there and pass it down. A call outside a request throws. A server-function request does not render the document, so `nonce()` throws there too.
 

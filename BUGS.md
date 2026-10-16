@@ -950,6 +950,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 180 [x] A HEAD request left its page's render running
 180.1 [x] Plan 21 3.12, from the 2026-10-16 gap audit: server/lifecycle/methods.ts answered a HEAD with the document's status and headers and an empty body, and dropped the document's body unread, so the render behind it was never cancelled: a page with a slow or unending `<Loading>` value kept its render, and its request's resources, alive with no reader. Red: tests/integration/hostile.test `head stops the render` through the real createServer(...).fetch (the page's cleanup never ran).
 180.2 [x] Fix: the HEAD answer cancels the dropped body, which stops the render (renderStop) and runs its cleanups. dx/server.md says so.
+181 [x] nonce() threw in a component that rendered after an async boundary
+181.1 [x] Plan 21 3.13, from the 2026-10-16 gap audit: shared/csp/nonce.ts read the render's event from a slot set only during the render's synchronous pass, so a component inside `<Loading>` whose value came after the shell ran with the slot empty and `nonce()` threw `nonce`: the fragment failed and the client rendered it again. `placeStylesheet` and `devStyles` read the same slot. Red: tests/integration/nonce.test `after loading` through the real createServer(...).fetch (the fragment rejected with `Error: nonce`, which BUGS.md 174's logging now reports).
+181.2 [x] Fix: `withRequest` also keeps the render's event on Solid's request event, which a late fragment still renders under, and the readers take the synchronous slot first, then that. dx/server.md says so.
 
 ## Verify
 
