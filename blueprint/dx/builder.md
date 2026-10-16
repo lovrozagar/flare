@@ -1,6 +1,6 @@
 # Route builders
 
-The id string is the first argument. Codegen writes it. The runtime matches the generated pattern, not this string. A mismatch is a build error (`vite/codegen/id-string.test.ts`).
+The id string is the first argument. Codegen writes it. The runtime matches the generated pattern, not this string. A mismatch is a build error (`vite/codegen/routes.test.ts` `id mismatch`).
 
 Each method may be called once. Calling it twice throws when the chain is built (`shared/route-builder/chain.test.ts` `second render throws`).
 

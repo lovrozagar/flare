@@ -1,6 +1,6 @@
 # Route files
 
-Routes are files under `src/routes`. There is no virtual route table (B21). Codegen writes the id. The runtime matches the pattern in the generated record. A file whose `createPage`, `createLayout`, `createRootLayout`, or `createPathSegment` string disagrees with that id is a build error (`vite/codegen/id-string.test.ts` `mismatch fails`).
+Routes are files under `src/routes`. There is no virtual route table (B21). Codegen writes the id. The runtime matches the pattern in the generated record. A file whose `createPage`, `createLayout`, `createRootLayout`, or `createPathSegment` string disagrees with that id is a build error that names the file (`vite/codegen/routes.test.ts` `id mismatch`). Codegen reads the string from a literal or from a module-level `const` bound to one (`createPage(ID)`), and does not check any other argument (`scan.test.ts` `builder ids`).
 
 The id is the directory path under `src/routes`. The filename is not a segment. A root's home page is the one exception: `home.page.tsx` placed directly in `_root_` has id `_root_/` and serves `/`, because the root layout in that folder already has id `_root_`. The same holds for every root, so `[locale]/_root_/` and `_admin_/` are home page ids. Every id is unique across pages, layouts, root layouts, and segments (`vite/codegen/routes.test.ts` `filename`).
 
@@ -76,7 +76,7 @@ The generated route map imports each route module lazily, `() => import("../rout
 | two files compute to the same URL, including `_root_/dashboard` and `_admin_/dashboard` | build error, both files named | `routes.test.ts` `duplicate url` |
 | a catch-all and a static sibling under the same parent | build error. The catch-all would swallow the sibling | `routes.test.ts` `shadow` |
 | two `*.page.tsx` files in one folder | build error | `routes.test.ts` `two pages` |
-| the id string in the file disagrees with the path | build error | `id-string.test.ts` `mismatch fails` |
+| the id string in the file disagrees with the path | build error, the file named | `routes.test.ts` `id mismatch` |
 | a page tree has no `*.root-layout.tsx` | build error, the page files named | `routes.test.ts` `no root` |
 | a folder starts with `[` and is not one of the four param forms | build error | `segments.test.ts` `bad brackets` |
 | the same param name appears twice in one id | build error | `routes.test.ts` `repeated param` |
