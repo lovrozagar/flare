@@ -86,7 +86,7 @@ These v0 `flare()` fields do not type-check, and a cast throws when the options 
 
 `alias`, `codegen`, `dev`, `ignorePrefix`, `logLevel`, `port`, `purge`, `retainPreviousAssets`, `serviceWorker`, `site`, `solid`, `sx`.
 
-`configureImage` does not exist. An image `loader` option does not exist. Widths, quality, and exclude are `flare({ image })`.
+Every variant, and the intrinsic size the binding carries, is upright: the image's EXIF orientation is applied, as a browser shows the original, and the variant carries no orientation for a viewer to apply twice; the dev endpoint does the same (`features/image/vite/optimize.test.ts` `exif orientation`, BUGS.md 191). `configureImage` does not exist. An image `loader` option does not exist. Widths, quality, and exclude are `flare({ image })`.
 
 `<ResetCSS />` does not exist (B14). A top-level `reset` does not type-check. The preflight is `css: { reset: true }`.
 

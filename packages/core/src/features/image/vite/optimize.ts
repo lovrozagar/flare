@@ -19,21 +19,22 @@ export const IMAGE_ENDPOINT = "/_flare/image"
 
 const IMAGE_QUERY = "?image"
 
-// One variant's webp bytes at the plugin quality. A width the plugin did not list is a build error. sharp loads only
-// here, so an app without `image` never loads it.
+// One variant's webp bytes at the plugin quality, turned upright by the image's EXIF orientation as a browser shows the
+// original, with no orientation left for a viewer to apply twice (plan 21 3.16). A width the plugin did not list is an
+// error. sharp loads only here, so an app without `image` never loads it.
 export async function encodeVariant(file: string, width: number, settings: ImageSettings): Promise<Uint8Array> {
 	if (!settings.widths.includes(width)) {
 		throw new Error(`image width ${width} is not configured: the widths are ${settings.widths.join(", ")}`)
 	}
 	const { default: sharp } = await import("sharp")
-	return sharp(file).resize({ width }).webp({ quality: settings.quality }).toBuffer()
+	return sharp(file).autoOrient().resize({ width }).webp({ quality: settings.quality }).toBuffer()
 }
 
-// The intrinsic size of an image file.
+// The intrinsic size of an image file, as it shows: upright by its EXIF orientation.
 export async function intrinsicSize(file: string): Promise<{ width: number; height: number }> {
 	const { default: sharp } = await import("sharp")
 	const meta = await sharp(file).metadata()
-	return { width: Number(meta.width), height: Number(meta.height) }
+	return { width: meta.autoOrient.width, height: meta.autoOrient.height }
 }
 
 // What the load hook uses of Vite's plugin context.
