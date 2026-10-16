@@ -60,3 +60,24 @@ it("tag purge", async () => {
 	expect(typeof (await memory.get(epochKey("p")))?.data).toBe("number")
 	expect((await memory.get(epochKey("later")))?.data).toBe(Number.MAX_SAFE_INTEGER)
 })
+
+// A record whose envelope the store was never given reads as a miss and is reported, so the render writes over it: a
+// value that is no object, a `storedAt` that is no number, and `tags` that are no list of strings (plan 21 3.3).
+it("corrupt envelope", async () => {
+	const memory = createMemoryStore()
+	const records: unknown[] = [
+		"junk",
+		{ data: 1, storedAt: "x" },
+		{ data: 1, storedAt: 1, tags: "t" },
+		{ data: 1, storedAt: 1, tags: [1] },
+	]
+	const store: FlareStore = {
+		...memory,
+		get: async (key) => (key.startsWith("epoch:") ? null : (records.shift() as never)),
+	}
+	const reported: string[] = []
+	const report = (message: string): void => void reported.push(message)
+	const reads = [await lookup(store, "a", report), await lookup(store, "b", report), await lookup(store, "c", report)]
+	expect([...reads, await lookup(store, "d")]).toEqual([null, null, null, null])
+	expect(reported).toEqual(["a", "b", "c"].map((key) => `the store holds a corrupt record for ${key}: rendered again`))
+})

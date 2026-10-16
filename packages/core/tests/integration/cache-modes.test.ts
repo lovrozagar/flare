@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest"
+import type { FlareStore, FlareStoreEntry } from "../../src/server/cache/contract.ts"
 import { createMemoryStore } from "../../src/server/cache/memory.ts"
 import { revalidate } from "../../src/server/cache/revalidate.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
@@ -210,6 +211,49 @@ it("hung miss", async () => {
 	expect(live.text).toContain('"call":2')
 	const next = await get("/h")
 	expect([cacheOf(next), next.text.includes('"call":3')]).toEqual(["miss", true])
+})
+
+// The page `/p` served over `store`, and the `console.error` lines that name the store.
+function overStore(store: FlareStore) {
+	const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	// One spy per test file run: each store counts its own lines.
+	errors.mockClear()
+	const get = serve([{ id: "_root_/p", path: "/p", module: counted("_root_/p", { isr: true }) }], { store })
+	const logged = () => errors.mock.calls.filter((call) => call.join(" ").includes("store")).length
+	return { get, logged }
+}
+
+// A store whose read throws, and one whose read never answers, leave the page rendering live, `private, no-store`,
+// never a 500 or a hang; each failed read logs once (plan 21 3.3).
+it("store read fails", async () => {
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+	const memory = createMemoryStore()
+	const down = overStore({ ...memory, get: () => Promise.reject(new Error("store down")) })
+	const thrown = await down.get("/p")
+	expect([thrown.status, thrown.headers.get("cache-control"), bodyOf(thrown.text)]).toEqual([200, PRIVATE, "render 1"])
+	expect(down.logged()).toBe(1)
+	const hung = overStore({ ...memory, get: () => new Promise(() => undefined) })
+	const waiting = hung.get("/p")
+	await vi.advanceTimersByTimeAsync(2000)
+	const answer = await waiting
+	expect([answer.status, answer.headers.get("cache-control"), bodyOf(answer.text)]).toEqual([200, PRIVATE, "render 1"])
+	expect(hung.logged()).toBe(1)
+})
+
+// A record whose envelope is not one the store was given, a `storedAt` that is no number or `tags` that are no list,
+// is a miss: the render writes a good record over it, so the page heals; it logs once (plan 21 3.3).
+it("corrupt record heals", async () => {
+	const memory = createMemoryStore()
+	let reads = 0
+	const corrupt = { data: "junk", storedAt: "never", tags: "t" } as unknown as FlareStoreEntry
+	const read = (key: string) =>
+		!key.startsWith("epoch:") && (reads += 1) === 1 ? Promise.resolve(corrupt) : memory.get(key)
+	const healing = overStore({ ...memory, get: read })
+	const miss = await healing.get("/p")
+	expect([miss.status, cacheOf(miss), bodyOf(miss.text)]).toEqual([200, "miss", "render 1"])
+	const hit = await stored(healing.get, "/p")
+	expect(bodyOf(hit.text)).toBe("render 1")
+	expect(healing.logged()).toBe(1)
 })
 
 // The request nonce an answer's CSP header carries.

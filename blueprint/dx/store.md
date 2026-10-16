@@ -1,5 +1,7 @@
 # Stores and revalidate
 
+
+A store that fails never takes the site down with it. A stored page's read waits 2 s at most: a read that throws or does not answer in time is logged at error level, and the page renders live, `private, no-store`, with nothing written. A record whose envelope the store was never given, a `storedAt` that is no number or `tags` that are no list of strings, is logged and read as a miss, so the render writes a good record over it (`tests/integration/cache-modes.test.ts` `store read fails`, `corrupt record heals`, `server/cache/epoch.test.ts` `corrupt envelope`, BUGS.md 175).
 ## FlareStore
 
 `createServer({ store })` and `createServer({ static })` both take this interface. `static` is read. A `put` on that object is never called (`server.md`).
