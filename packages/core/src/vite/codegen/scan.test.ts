@@ -72,7 +72,12 @@ it("input sides", () => {
 })
 
 function ids(source: string): string[] {
-	return scanRoute("a.page.tsx", source).ids
+	return scanRoute("a.page.tsx", source).ids.map((found) => found.id)
+}
+
+// Each resolved id with the text its span covers in the source.
+function spans(source: string): Array<[string, string]> {
+	return scanRoute("a.page.tsx", source).ids.map((found) => [found.id, source.slice(found.start, found.end)])
 }
 
 // The id a builder call names: a string literal, or a module-level const bound to one. Any other argument is not read.
@@ -86,4 +91,19 @@ it("builder ids", () => {
 	expect(ids("let ID = '_root_/a';\nconst N = 1;\nexport const route = createLayout(ID, N);")).toEqual([])
 	expect(ids('export const route = createPage(`_root_/${x}`);\nexport const other = make("x");')).toEqual([])
 	expect(ids("export const route = createPage();\nconst [a] = b;\nexport const c = createPage(other);")).toEqual([])
+})
+
+// The span to rewrite for each resolved id: the call's own literal, quotes included, or the module-level const's
+// initializer. Spans count string positions, so a non-ASCII comment before them does not shift them.
+it("builder id spans", () => {
+	expect(spans('// é ü 字\nexport const route = createPage("_root_/a");')).toEqual([["_root_/a", '"_root_/a"']])
+	expect(spans("export const route = createLayout('_root_/(b)');")).toEqual([["_root_/(b)", "'_root_/(b)'"]])
+	expect(spans('// 字\nconst ID = "_root_/a";\nexport const route = createPage(ID);')).toEqual([
+		["_root_/a", '"_root_/a"'],
+	])
+	expect(spans('export const ID = "_root_/a";\nexport const route = createPage(ID);')).toEqual([
+		["_root_/a", '"_root_/a"'],
+	])
+	const source = 'export const route = createPage("_root_/a");\nconst bad = createPage(`_root_/b`);'
+	expect(spans(source)).toEqual([["_root_/a", '"_root_/a"']])
 })

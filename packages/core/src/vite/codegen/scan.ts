@@ -33,10 +33,13 @@ export type Scan = {
 	authorize: boolean
 	// The sides this file's `.input()` validates (dx/types.md).
 	input: { params: boolean; search: boolean }
-	// The ids this file's builder calls name, each a string literal or a module-level const bound to one. Codegen checks
-	// them against the file's path (dx/routes.md).
-	ids: string[]
+	// The ids this file's builder calls name, each a string literal or a module-level const bound to one, with the span
+	// of that literal, quotes included. Codegen checks them against the file's path, and dev rewrites them to it
+	// (dx/routes.md).
+	ids: BuilderId[]
 }
+
+export type BuilderId = { id: string; start: number; end: number }
 
 export function scanRoute(file: string, source: string): Scan {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: "tsx" })
@@ -68,25 +71,28 @@ export function scanRoute(file: string, source: string): Scan {
 	return scan
 }
 
-// The module's top-level `const NAME = "…"` bindings, which a builder call may name its id by (`createPage(ID)`).
-function constStrings(program: Program): Map<string, string> {
-	const consts = new Map<string, string>()
+// The module's top-level `const NAME = "…"` bindings, exported or not, which a builder call may name its id by
+// (`createPage(ID)`), each with its literal's span.
+function constStrings(program: Program): Map<string, BuilderId> {
+	const consts = new Map<string, BuilderId>()
 	for (const statement of program.body) {
-		if (statement.type !== "VariableDeclaration" || statement.kind !== "const") continue
-		for (const item of statement.declarations) {
+		const declaration = statement.type === "ExportNamedDeclaration" ? statement.declaration : statement
+		if (declaration?.type !== "VariableDeclaration" || declaration.kind !== "const") continue
+		for (const item of declaration.declarations) {
 			const init = item.init
 			if (item.id.type === "Identifier" && init?.type === "Literal" && typeof init.value === "string")
-				consts.set(item.id.name, init.value)
+				consts.set(item.id.name, { id: init.value, start: init.start, end: init.end })
 		}
 	}
 	return consts
 }
 
 // The id a bare builder call names, when its first argument is a string literal or a const bound to one.
-function builderId(node: CallExpression, consts: ReadonlyMap<string, string>): string | undefined {
+function builderId(node: CallExpression, consts: ReadonlyMap<string, BuilderId>): BuilderId | undefined {
 	if (node.callee.type !== "Identifier" || !BUILDERS.has(node.callee.name)) return undefined
 	const [first] = node.arguments
-	if (first?.type === "Literal" && typeof first.value === "string") return first.value
+	if (first?.type === "Literal" && typeof first.value === "string")
+		return { id: first.value, start: first.start, end: first.end }
 	return first?.type === "Identifier" ? consts.get(first.name) : undefined
 }
 

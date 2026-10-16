@@ -77,23 +77,32 @@ it("watch", () => {
 	writeGenerated(root)
 	const listeners: Listener[] = []
 	const errors: string[] = []
+	const infos: string[] = []
 	watchGenerated(
 		{
 			watcher: { on: (_event: "all", listener: Listener) => void listeners.push(listener) },
-			config: { logger: { error: (message: string) => void errors.push(message) } },
+			config: {
+				logger: {
+					error: (message: string) => void errors.push(message),
+					info: (message: string) => void infos.push(message),
+				},
+			},
 		},
 		root,
 	)
 	const emit = (path: string): void => {
 		for (const listener of listeners) listener("change", join(root, path))
 	}
+	// A new file with a wrong id: the dev watch writes the id its path gives, and says so (BUGS.md 130).
 	mkdirSync(join(root, "src/routes/_root_/about"))
-	writeFileSync(join(root, "src/routes/_root_/about/about.page.tsx"), page("_root_/about"))
+	writeFileSync(join(root, "src/routes/_root_/about/about.page.tsx"), page("_root_/new"))
 	emit("src/routes/_root_/about/about.page.tsx")
 	emit("src/routes/_root_/about/about.page.tsx")
 	expect(generated(root, "routes.gen.ts")).not.toContain("_root_/about")
 	vi.advanceTimersByTime(50)
 	expect(generated(root, "routes.gen.ts")).toContain('"_root_/about"')
+	expect(readFileSync(join(root, "src/routes/_root_/about/about.page.tsx"), "utf8")).toBe(page("_root_/about"))
+	expect(infos).toEqual(['[flare:codegen] src/routes/_root_/about/about.page.tsx: id "_root_/new" -> "_root_/about"'])
 	emit("src/_gen/routes.gen.ts")
 	emit("elsewhere/file.ts")
 	writeFileSync(join(root, "src/routes/_root_/other.page.tsx"), page("_root_/"))
@@ -105,4 +114,73 @@ it("watch", () => {
 	emit("src/routes/_root_/other.page.tsx")
 	vi.advanceTimersByTime(50)
 	expect(errors).toHaveLength(1)
+})
+
+const LAYOUT_AT = (id: string): string =>
+	`export const route = createLayout(${JSON.stringify(id)}).render((p) => p.children);\n`
+
+// Dev writes each route file's id string to its path's id: a wrongly named page, and a layout moved from `(old)` to
+// `(blog)`, each with one log line naming the file and old to new. A second pass writes and logs nothing. Without the
+// option, the same tree fails the build check and no source changes.
+it("fix ids", () => {
+	const files = {
+		...BASE,
+		"src/routes/_root_/about/about.page.tsx": page("_root_/abut"),
+		"src/routes/_root_/(blog)/blog.layout.tsx": LAYOUT_AT("_root_/(old)"),
+	}
+	const checked = app(files)
+	expect(() => writeGenerated(checked)).toThrow('the id string "_root_/abut" is not "_root_/about"')
+	expect(readFileSync(join(checked, "src/routes/_root_/about/about.page.tsx"), "utf8")).toBe(page("_root_/abut"))
+	const root = app(files)
+	const lines: string[] = []
+	writeGenerated(root, { fixIds: true, log: (line) => lines.push(line) })
+	expect(readFileSync(join(root, "src/routes/_root_/about/about.page.tsx"), "utf8")).toBe(page("_root_/about"))
+	expect(readFileSync(join(root, "src/routes/_root_/(blog)/blog.layout.tsx"), "utf8")).toBe(LAYOUT_AT("_root_/(blog)"))
+	expect(generated(root, "routes.gen.ts")).toContain('"_root_/about"')
+	expect(lines).toEqual([
+		'[flare:codegen] src/routes/_root_/(blog)/blog.layout.tsx: id "_root_/(old)" -> "_root_/(blog)"',
+		'[flare:codegen] src/routes/_root_/about/about.page.tsx: id "_root_/abut" -> "_root_/about"',
+	])
+	writeGenerated(root, { fixIds: true, log: (line) => lines.push(line) })
+	expect(lines).toHaveLength(2)
+})
+
+// A file saved between the read and the write (an editor's save) keeps what was saved; the next pass fixes it.
+it("fix ids save race", () => {
+	const root = app({
+		...BASE,
+		"src/routes/_root_/a/a.page.tsx": page("x"),
+		"src/routes/_root_/b/b.page.tsx": page("y"),
+	})
+	const b = join(root, "src/routes/_root_/b/b.page.tsx")
+	const saved = `// saved\n${page("z")}`
+	const lines: string[] = []
+	expect(() =>
+		writeGenerated(root, {
+			fixIds: true,
+			log: (line) => {
+				lines.push(line)
+				if (line.includes("/a/")) writeFileSync(b, saved)
+			},
+		}),
+	).toThrow('the id string "z" is not "_root_/b"')
+	expect(readFileSync(b, "utf8")).toBe(saved)
+	expect(lines).toHaveLength(1)
+	writeGenerated(root, { fixIds: true, log: (line) => lines.push(line) })
+	expect(readFileSync(b, "utf8")).toBe(`// saved\n${page("_root_/b")}`)
+	expect(lines[1]).toBe('[flare:codegen] src/routes/_root_/b/b.page.tsx: id "z" -> "_root_/b"')
+})
+
+// Fixing leaves alone what is not a route: a page file under an ignored folder keeps its string, and a file that does
+// not parse is left for the routes to report by name.
+it("fix ids skips", () => {
+	const hidden = page("_root_/anything")
+	const root = app({ ...BASE, "src/routes/_root_/_parts/card.page.tsx": hidden })
+	writeGenerated(root, { fixIds: true })
+	expect(readFileSync(join(root, "src/routes/_root_/_parts/card.page.tsx"), "utf8")).toBe(hidden)
+	const broken = app({ ...BASE, "src/routes/_root_/bad/bad.page.tsx": "export const route = createPage(" })
+	expect(() => writeGenerated(broken, { fixIds: true })).toThrow("_root_/bad/bad.page.tsx")
+	expect(readFileSync(join(broken, "src/routes/_root_/bad/bad.page.tsx"), "utf8")).toBe(
+		"export const route = createPage(",
+	)
 })
