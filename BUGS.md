@@ -861,6 +861,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 151 [x] One chunked POST past bodyLimit could stop the Node process
 151.1 [x] Plan 21 7.1, from the second outside review: adapters/node/listener.ts fed the request body into a ReadableStream from `on("data")`. A server-function POST past `bodyLimit` answers 413 after `capped()` cancels that stream, but on a kept-alive connection Node goes on reading the body, and each later chunk's `controller.enqueue` into the cancelled stream threw a TypeError inside the event listener: an uncaught exception, which stops a Node server, unauthenticated. Red: tests/integration/adapters.test `node body limit` (a real node:http server, a chunked keep-alive upload of 4.8 KB against a 1 KB limit): the 413 came back and an uncaughtException TypeError was recorded.
 151.2 [x] Fix: the body stream's `cancel` closes it to later chunks and resumes the request so the rest drains; `data` and `end` after it are ignored. The 413 stands, no exception escapes, and the next request is served.
+152 [x] Coalesced store misses shared one visitor's Set-Cookie
+152.1 [x] Plan 21 7.4, from the second outside review: concurrent misses of one stored key share one render (server/cache/inflight.ts), and server/cache/serve.ts `missed` served every request that joined it the render's `Set-Cookie`, so each got the first visitor's cookie: a session or visit id handed to strangers. Red: tests/integration/cache-modes.test `coalesced cookies`: four concurrent misses of an `isr` page whose `.headers()` sets a per-render cookie came back with one cookie value between them.
+152.2 [x] Fix: only the request that started the render takes its cookies. A request that joined a render that set cookies renders its own, live; a render that set none is still shared. Each of the four now carries its own cookie, all `private, no-store`, and nothing is stored. dx/cache.md says so.
 
 ## Verify
 
