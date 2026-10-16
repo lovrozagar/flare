@@ -217,6 +217,21 @@ it("state text", async () => {
 	expect(bodyOf(hit.text)).toContain("say self.flare={} is how the state is written")
 })
 
+// The stored copy's state script is written back with the inline-script escape after its nonce swap, so loader data
+// holding a closing script tag replays as data on a hit, never as markup (plan 21 7.3).
+it("state escape", async () => {
+	const note = "</script><script>self.pwned=1</script><!--"
+	const page = createPage("_root_/se")
+		.cache({ ssr: { ttl: "1m" } })
+		.loader(() => ({ note }))
+		.render(() => "escaped")
+	const get = one("_root_/se", "/se", page)
+	for (const answer of [await get("/se"), await stored(get, "/se")]) {
+		expect(answer.text).not.toContain("<script>self.pwned")
+		expect(JSON.stringify(stateOf(answer.text))).toContain(JSON.stringify(note).slice(1, -1))
+	}
+})
+
 // Every header an edge cache acts on, which a route's `.headers()` could set.
 const EDGE = {
 	"surrogate-control": "max-age=3600",
