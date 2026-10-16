@@ -721,7 +721,7 @@ packages/core/tests/types/app/src/routes/_root_/[_]id]/page.page.tsx	P7	app	-	Li
 packages/core/tests/types/app/src/routes/_root_/seg/seg.segment.ts	P7	app	-	Segment. cache only. _type segment
 packages/core/tests/types/app/src/routes/[locale]/_root_/locale.root-layout.tsx	P7	app	-	Second document root. No auth
 packages/core/tests/types/app/src/routes/[locale]/_root_/about/about.page.tsx	P7	app	-	Param locale before the root marker
-packages/core/tests/e2e/playwright.config.ts	P1	config	-	One Playwright config. Linux runs chromium and firefox. macOS runs webkit. CI runs both (B70)
+packages/core/tests/e2e/playwright.config.ts	P1	config	-	One Playwright config: every server crossed with chromium, firefox, and webkit, 18 projects from the pinned browsers on any OS (B70, B97), plus the browser floor (B123); a local run's workers sized to the free memory (workers.ts, BUGS.md 128)
 packages/core/tests/e2e/static.test.ts	P12	test	node	Playwright: SSG seeds read through the static store on every prod runtime, and a live render in dev. Calls boot
 packages/core/tests/e2e/boot.ts	P1	script	node	Start one e2e app on an ephemeral port. Does not copy the app (B70)
 packages/core/tests/e2e/child.ts	P1	script	node	A boot child's printed origin, its end, how it ended (exit code or signal), and its process group (BUGS.md 128); split from boot.ts at the 300-line limit
