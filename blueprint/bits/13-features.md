@@ -520,6 +520,33 @@ dx/seo.md through real apps and real requests. seo.test builds fixture apps with
 | `bing submits` | one url | one POST with the key in the query only and `{ siteUrl, urlList }` |
 | `bing fails` | a 503 | `{ ok: false }`, no key in the result or the output |
 
+### `tests/integration/i18n.test.ts`, `features-client.test.ts`, `features-media.test.ts`, and `query.test.ts` (plan 14 9.6, B96)
+
+dx/features.md through real apps. i18n.test and query.test run the real `createServer(...).fetch`; i18n.test's `render t` also runs the app in vite dev and a production build. features-client runs one app through the hydrate harness (the real createServer and createClient) in each engine: its `[[locale]]` root writes ThemeScript, DirectionScript, and LocaleScript in its head and wraps the page in the three providers, and an init script reads what the scripts set at DOMContentLoaded while the client waits 200 ms to hydrate. features-media builds one fixture app with `vite build` (tests/integration/vite-app.ts) and reads the documents its built server sends. Each group's bite is a source mutation that turns its case red (5 for features-client, 1 for i18n, 2 for features-media, 1 for query).
+
+| test | case | result |
+| --- | --- | --- |
+| `locales` | a configured tag, an unconfigured locale-like segment on the optional and the required param, a static route at that path, a wrong-case tag, a tag Intl.Locale rejects | the locale; a redirect without it, or to the default in the segment; the static route; a 301 to the configured spelling; a throw |
+| `defaultLocale` | the default on an optional and a required segment, a default outside `locales` | omitted; kept; a throw |
+| `cookieName` | a document whose URL does not show the cookie's tag, a cookie of another name, `Accept-Language` | a 302, no-store, query kept, the cookie set under the name; no cookie; negotiated |
+| `paramName` | the tag in a segment of that name | the locale |
+| `botDetection` | a bot with a cookie and `Accept-Language`, `false` | neither followed and no cookie; treated as a browser |
+| `response route` | a `.response()` route | no redirect, no locale cookie, its own Cache-Control |
+| `messages` | a loader's `t`: a missing key, plural with `=N` and `#`, selectordinal, select, a branch without `other`, `formatMessage` with its own tag | the key; each by the tag's rules; a throw at creation; the given tag |
+| `render t` | `useT` in a render, in dev and a production build | `t` and `t.rich` on the provider's locale, the rich tag a component, the text around it escaped (BUGS 142) |
+| `theme script` | a stored theme, one outside `themes`, none, over light and dark media | before hydration the attribute, colorScheme, and `lang`; after, `theme()` from storage and `resolvedTheme()` from the media |
+| `set theme` | `setTheme("dark")`, then the media turned light; a `system` theme when the media turns dark | storage, the attribute, and colorScheme; the explicit theme held; the system theme follows; `*{transition:none!important}` added and removed |
+| `direction` | `/ar/home`, a stored `ltr` on it, `setDirection("rtl")` then `setDirection()` | rtl before paint; the stored value wins; storage written, then removed and back to the locale's dir |
+| `locale` | `/hr/home` before hydration, `setLocale("en")` | `lang` is `hr` from the script; the navigation to `/home`, the cookie, and `lang` follow |
+| `cross tab` | a second tab, then the first tab's three setters | the second tab's theme, dir, and locale route follow on `flare.sync` |
+| `image responsive` | `maxWidth`, `sizes`, `alt` | the box capped, an ascending srcset up to twice it, lazy and async, the attributes |
+| `image fixed` | width and height, `priority` | pixels and attributes, a density srcset with 2x, eager with high fetch priority |
+| `image fill` | `fill` | absolutely placed, the source's aspect ratio, every built width up to the source's |
+| `image props` | blur, own widths, a component `quality`, `maxHeight`, `aspectRatio` | the data URL background until load; the narrowed srcset; the plugin's bytes; the box capped; the missing dimension set |
+| `fonts` | createFont with weights, italic, fallbackMetrics, a category; FontCSS with and without `preload`, `subsets` | one face per weight, swap, the family escaped, a metrics fallback, the stack; a preload unless off; a one-file font's CSS untouched |
+| `query client` | the getter in a loader and a render, outside a request | one client per request filled by the loader's prefetch, no second call, the query in the document's state; a throw |
+| `server fn options` | serverFnQueryOptions, serverFnMutationOptions with and without a mutationKey | the key as given; a mutationFn returning the data, an onSuccess only with a key |
+
 ## Done
 
 Each feature's tests pass without importing another feature. The i18n e2e shows a shared page with no `Set-Cookie`. Open tabs hear theme, direction, and locale on `flare.sync`, and a `storage` event updates none of them.
