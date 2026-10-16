@@ -10,6 +10,7 @@ import type { Deferred } from "../../src/shared/route-builder/register.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule } from "../../src/shared/router/create-router.ts"
 import { ENGINES, startHarness, type Api, type AppResult, type Engine, type Harness } from "./hydrate.harness.ts"
+import { serve } from "./builder-app.ts"
 
 // `defer` through the real `createServer(...).fetch` (B96, dx/defer.md): a value the loader defers streams after the
 // shell, a prefetch never runs it, a buffered document waits for it, and a stored page resolves or keeps a hole by its
@@ -235,4 +236,36 @@ describe.each(ENGINES)("%s", (engine) => {
 		expect(result.html.indexOf('id="waiting"')).toBeLessThan(result.html.indexOf("five stars"))
 		expect(result.record).toEqual(["hydrated", { reviews: "five stars", waiting: false }])
 	})
+})
+
+// A deferred value JSON cannot hold, a bigint or a cycle, settles as that key's error frame on a client navigation; the
+// others still stream, the body ends with `d`, and nothing rejects unhandled, which would stop a Node or Bun server
+// (BUGS.md 149).
+it("unserializable deferred", async () => {
+	const cycle: Record<string, unknown> = {}
+	cycle["self"] = cycle
+	const page = createPage("_root_/odd")
+		.loader(({ defer }) => ({
+			big: defer(() => Promise.resolve(10n)),
+			loop: defer(() => Promise.resolve(cycle)),
+			fine: defer(() => Promise.resolve("ok")),
+		}))
+		.render(() => "odd")
+	const unhandled: unknown[] = []
+	const note = (reason: unknown): void => void unhandled.push(reason)
+	process.on("unhandledRejection", note)
+	try {
+		const get = serve([{ id: "_root_/odd", path: "/odd", module: page }])
+		const answer = await get("/odd?_flare=data")
+		const lines = frames(answer.text) as Array<Record<string, unknown>>
+		await new Promise((resolve) => setTimeout(resolve, 50))
+		expect(answer.status).toBe(200)
+		// The keys are the deferred ids in creation order: big, loop, fine.
+		expect(lines.filter((frame) => frame["t"] === "e").map((frame) => frame["k"])).toEqual(["d0", "d1"])
+		expect(lines.filter((frame) => frame["t"] === "c")).toEqual([{ t: "c", m: "_root_/odd", k: "d2", d: "ok" }])
+		expect(lines.at(-1)).toEqual({ t: "d" })
+		expect(unhandled).toEqual([])
+	} finally {
+		process.off("unhandledRejection", note)
+	}
 })
