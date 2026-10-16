@@ -89,7 +89,7 @@ it("ci unit on bun", () => {
 // The Linux grid runs inside the pinned browser image, the digest the local container uses, in 3 shards (B70, B97).
 it("ci grid", () => {
 	const linux = workflow.jobs["e2e-linux"]
-	expect(linux?.container?.image).toBe(`mcr.microsoft.com/playwright:v1.61.1-noble@sha256:${IMAGE_DIGEST}`)
+	expect(linux?.container?.image).toBe(`mcr.microsoft.com/playwright:v1.64.1-noble@sha256:${IMAGE_DIGEST}`)
 	expect(linux?.container?.options).toBe("--user 1001 --ipc=host")
 	expect(linux?.strategy?.matrix?.["shard"]).toEqual([1, 2, 3])
 	expect(e2eRun(linux)).toBe("bun run test:e2e -- --shard=${{ matrix.shard }}/3")

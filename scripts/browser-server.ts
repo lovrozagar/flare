@@ -7,7 +7,7 @@ import { chromium, firefox, webkit } from "@playwright/test"
 
 // The pinned image every machine runs the browsers from (B70, B97). Its tag is the lockfile's Playwright version, and
 // an upgrade changes the digest with it.
-export const IMAGE_DIGEST = "5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48"
+export const IMAGE_DIGEST = "7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf"
 const PORT = 3333
 const CONTAINER = "flare-browsers"
 // `docker inspect`'s JSON for `--ulimit core=0`. Playwright's WPE WebKit segfaults as it closes (BUGS.md 103.4), and a
