@@ -1,5 +1,6 @@
 import { createComponent, type Element } from "solid-js"
 import { Dynamic } from "@solidjs/web"
+import type { FlareStore } from "../../src/server/cache/contract.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule, type RouterOptions } from "../../src/shared/router/create-router.ts"
@@ -29,9 +30,11 @@ export type Serve = (path: string, init?: RequestInit) => Promise<Answer>
 
 export type ServeOptions = {
 	layouts?: RouterOptions["layouts"]
-	authenticate?: (input: { callerData: unknown[] }) => unknown
+	authenticate?: (input: { request: Request; callerData: unknown[] }) => unknown
 	security?: Parameters<typeof createServer>[0]["security"]
 	serverContext?: (input: { request: Request; env: unknown }) => unknown
+	// The store a stored page is written to; `site` is SITE.
+	store?: FlareStore
 	// The fetch env each request is served with.
 	env?: unknown
 }
@@ -48,6 +51,7 @@ export function serve(pages: Array<{ id: string; path: string; module: unknown }
 		...(options.authenticate && { authenticate: options.authenticate as never }),
 		...(options.security && { security: options.security }),
 		...(options.serverContext && { serverContext: options.serverContext as never }),
+		...(options.store && { store: options.store }),
 	})
 	return async (path, init) => {
 		const response = await app.fetch(new Request(`${SITE}${path}`, { redirect: "manual", ...init }), options.env)

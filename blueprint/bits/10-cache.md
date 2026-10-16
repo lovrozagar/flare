@@ -306,6 +306,23 @@ dx/store.md through the real `createServer(...).fetch`: a stored page at /p (ISR
 | `assets store base` | a `read` answering Responses, as the Workers binding does, at `base: "/static/seeds"` | served from the seed; the default base misses (bite: `base` ignored) |
 | `cache api store` | `createCacheApiStore({ caches })` over an in-memory CacheStorage that refuses `keys()`, then `cacheName: "other"` | stored in the `flare` cache; another name is a miss, the same name a hit (bite: one name for all) |
 
+### `tests/integration/cache-modes.test.ts`, `cache-build.test.ts`, and `cache-client.test.ts` (plan 14 9.6, B96)
+
+dx/cache.md through real servers. cache-modes serves pages built with the real builders through `createServer(...).fetch` (tests/integration/builder-app.ts) with a memory store, on a clock where only `Date` is faked, and reads `flare-cache` and the cache headers. cache-build runs `vite build` with prerender on a fixture app whose server reads its seeds through `createAssetsStore(fileAssets(dist/client))`. cache-client runs the hydrate harness with the page's clock installed before it loads (the harness's `init`), so the client's captured `Date.now` moves when the case moves it. Each case's bite is the source mutation that turns it red (14).
+
+| test | case | result |
+| --- | --- | --- |
+| `ssr ttl` | `ssr: { ttl: "1m" }`, one minute on; `ssr: {}` untyped, and a staleTime past the ttl | a hit, then a miss; each a 500 that renders nothing |
+| `ssr stale`, `isr ttl` | a hit just inside and just past staleTime; `isr` true, `{}`, `revalidate` 1m and 13h | fresh, then stale with a background re-render; 24h, 24h, 1m stale and 2m gone, 13h stale and capped at 24h |
+| `ssr tags` | a tags function over `params`, then `revalidate({ tags: ["user:7"] })` | /users/7 a miss, /users/8 still a hit |
+| `defer resolve` | a stored page with a deferred value | the stored body holds it inline, and no fill |
+| `cdn headers`, `cdn private`, `allow cookies` | maxAge, swr, a tags function; a layout's `private` under a page's `false`; a route cookie under `allowCookies` | the public pair and `Cache-Tag` on the miss and the hit; private and never stored; the miss sends the cookie, the hit does not |
+| `decision` | no mode, public, required, reads with and without a session, a mode on a layout, a segment's cdn | no-store; public and stored; no-store; stored anonymous sent private with no tag, a session live; not stored; the segment's maxAge |
+| `build seeds`, `seeded answers` | every ssg form, an isr page with params, `isr: true` | six seeds keyed by route and params, the resolved defer in its seed, none for `isr: true`; each a hit, an unlisted ssg slug 404, an unlisted isr slug and the on-demand page live |
+| `route staleTime`, `route gcTime` (client) | away and back, then a minute on; a 10m staleTime under a 1m gcTime | held, then run; held at 30 s, dropped after a minute unread |
+| `route prefetch` (client) | the route's `prefetch: "intent"` over the router's `false`, clicked at once, after its 5 s prefetchStaleTime, after its 1 s prefetchGcTime | one prefetch taken whole; a prefetch then a data request, twice |
+| `route cacheDeferred` (client) | away and back once the deferred value is in, `true` and `false` | held; run again |
+
 ### `shared/components/use-deferred.test.ts`
 
 | test | case | result |
