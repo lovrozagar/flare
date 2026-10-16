@@ -111,9 +111,11 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 			const conditions = config.environments["ssr"]?.resolve.conditions ?? []
 			if (state.cloudflare) checkCloudflare({ conditions, main: readWrangler(config.root)?.main })
 		},
-		// Codegen is always on: a build and `vite dev` write src/_gen first, and a failure fails the start (B89).
+		// Codegen is always on: a build and `vite dev` write src/_gen first, and a failure fails the start (B89). Dev also
+		// writes each route file's id string to its path's id; a build only checks it (BUGS.md 130).
 		buildStart() {
-			writeGenerated(this.environment.config.root)
+			const { root, command, logger } = this.environment.config
+			writeGenerated(root, command === "serve" ? { fixIds: true, log: (line) => logger.info(line) } : {})
 		},
 		// A build's server environments read the manifest the client build wrote, so the client builds first.
 		load(id) {

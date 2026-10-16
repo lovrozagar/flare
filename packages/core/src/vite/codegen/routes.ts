@@ -38,11 +38,6 @@ export function defineLayouts<T>(layouts: T): T {
 	return layouts
 }
 
-// The page id a file path gives, or undefined when the file is not a page.
-export function pageId(file: string): string | undefined {
-	return file.endsWith(PAGE) ? pageItem(file).id : undefined
-}
-
 // `read` returns a route file's source. Each page and layout file must export `route` (dx/routes.md).
 export function generateRoutes(
 	files: readonly string[],
@@ -53,11 +48,9 @@ export function generateRoutes(
 	const pages: Item[] = []
 	const layouts: LayoutGen[] = []
 	for (const file of routed) {
-		if (file.endsWith(PAGE)) pages.push(pageItem(file))
-		else if (file.endsWith(ROOT_LAYOUT)) layouts.push(item(file, ROOT_LAYOUT))
-		else if (file.endsWith(LAYOUT)) layouts.push(item(file, LAYOUT))
-		// A path segment joins the chain of the pages under it, as a layout does (B17, BUGS.md B22).
-		else if (file.endsWith(SEGMENT)) layouts.push(item(file, SEGMENT))
+		const found = routeItem(file)
+		if (found?.page === true) pages.push(found.item)
+		else if (found !== undefined) layouts.push(found.item)
 	}
 	assertRoot(routed, pages)
 	assertApart(routed)
@@ -76,6 +69,23 @@ function ignored(file: string): boolean {
 		.split("/")
 		.slice(0, -1)
 		.some((folder) => folder.startsWith("_") && !isRootFolder(folder))
+}
+
+// What a route file is: a page, or a layout, root layout, or path segment, which joins the chain of the pages under it
+// as a layout does (B17, BUGS.md B22). A file with no route suffix, or under an ignored folder, is none.
+function routeItem(file: string): { page: boolean; item: Item } | undefined {
+	if (ignored(file)) return undefined
+	if (file.endsWith(PAGE)) return { page: true, item: pageItem(file) }
+	for (const suffix of [ROOT_LAYOUT, LAYOUT, SEGMENT]) {
+		if (file.endsWith(suffix)) return { page: false, item: item(file, suffix) }
+	}
+	return undefined
+}
+
+// The id a route file's path gives, which its builder call must name (dx/routes.md). Undefined for a file that is
+// not a route.
+export function routeIdOf(file: string): string | undefined {
+	return routeItem(file)?.item.id
 }
 
 // A root's home page shares its folder with the root layout, so its id ends in "/": `_root_/` (dx/routes.md).
@@ -167,8 +177,8 @@ function assertExports(items: readonly Item[], read: (file: string) => string): 
 	for (const entry of items) {
 		const scan = scanRoute(entry.file, read(entry.file))
 		if (!scan.route) throw new Error(`${entry.file}: no route export`)
-		const wrong = scan.ids.find((id) => id !== entry.id)
-		if (wrong !== undefined) throw new Error(`${entry.file}: the id string "${wrong}" is not "${entry.id}"`)
+		const wrong = scan.ids.find((found) => found.id !== entry.id)
+		if (wrong !== undefined) throw new Error(`${entry.file}: the id string "${wrong.id}" is not "${entry.id}"`)
 		scans.set(entry.file, scan)
 	}
 	return scans

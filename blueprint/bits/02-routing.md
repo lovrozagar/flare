@@ -125,13 +125,19 @@ Accepted units are `ms`, `s`, `m`, `h`, `d`. Anything else throws. No silent zer
 | `mount case` | mount `/api`, GET `/API/Users?x=1` | one 301 to `/api/Users?x=1`, then the mount's answer. A mount prefix folds like a static segment, before the route fold, and the rest of the path stays as sent. `/APIX` is not that mount |
 | `mount case` | mount `/api`, GET `/API/Users?x=1` | one 301 to `/api/Users?x=1`, then the mount's answer. A mount prefix folds like a static segment, and the rest of the path stays as sent |
 
-### `vite/codegen/id-string.test.ts`
+### `vite/codegen/fix-ids.test.ts` and `tests/integration/routes-dev.test.ts`
+
+`vite dev` writes each route file's builder id string to the id its path gives, as TanStack Router's generator owns its `createFileRoute` string; a build only checks it (BUGS.md 130, `routes.test.ts` `id mismatch`). The rewrite covers what the scan resolves, a literal or a module-level const, exported or not, and nothing else. id-string.ts, whose `writeId` and `assertId` nothing called, is gone.
 
 | test | case | result |
 | --- | --- | --- |
-| `writes the key` | a new `home.page.tsx` | the string in `createPage` equals the generated id |
-| `rewrites on move` | the file moves from `home.page.tsx` to `about.page.tsx` | the string is rewritten |
-| `mismatch fails` | the string is hand-edited | build error, the file path is named |
+| `rewrites` | a page literal, a root layout, a module-level const, two calls, an id with a quote | each takes the file's id in its own quotes, escaped; the const's initializer changes and the call still names it |
+| `leaves alone` | an already-right file, a template, an imported name | the same string back |
+| `const read elsewhere` | an exported const passed to `createPage`, a `Link`, and `useSearch` | every use takes the new id, deliberately: it is the route's id |
+| `start fixes` | a checked-in wrong id when `vite dev` starts | fixed before the first request, one `[flare:codegen] <file>: id "<old>" -> "<new>"` line in the dev log, the page served |
+| `created page` | a new page file with another id | rewritten on disk, its URL served |
+| `moved page` | a page folder renamed | the file takes the new folder's id, served there, the old URL 404 |
+| `unresolved id` | a template id and an imported const | left as written, both served |
 
 ### `packages/core/lint/path-prefix.test.ts` and `location-only-in-redirect.test.ts`
 

@@ -259,6 +259,7 @@ One `oxc-parser` walk (B75). Babel is not imported.
 | `computed from` | `from` is an identifier | the build fails and names the file and `intercept` |
 | `query import` | an import of `@lovrozagar/flare/query` | the flag is set. A comment that names the package does not set it |
 | `builder ids` | `createPage`, `createLayout`, `createRootLayout`, `createPathSegment` with a string literal, a module-level const, a `let`, a template, no argument, another identifier | the literal's and the const's string. The others are not read (BUGS.md 130) |
+| `builder id spans` | the call's literal after a non-ASCII comment, single quotes, a const, an exported const, a template | each resolved id's literal span, quotes included, in string positions; none for the template |
 
 ### `client/boot/hydrate.test.ts` and `create-client.test.ts`
 

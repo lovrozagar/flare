@@ -193,9 +193,13 @@ describe("build errors", { timeout: 60_000 }, () => {
 		)
 	})
 
+	// A build only checks the id; only `vite dev` writes it (routes-dev.test), so the source is as it was.
 	it("id mismatch", async () => {
-		const output = await failure({ ...ROOT, "_root_/about/about.page.tsx": page("_root_/abut") })
-		expect(output).toContain('_root_/about/about.page.tsx: the id string "_root_/abut" is not "_root_/about"')
+		const root = project({ ...ROOT, "_root_/about/about.page.tsx": page("_root_/abut") })
+		const built = await viteBuild(root)
+		expect(built.status).not.toBe(0)
+		expect(built.output).toContain('_root_/about/about.page.tsx: the id string "_root_/abut" is not "_root_/about"')
+		expect(readFileSync(join(root, "src/routes/_root_/about/about.page.tsx"), "utf8")).toBe(page("_root_/abut"))
 	})
 
 	it("no root", async () => {

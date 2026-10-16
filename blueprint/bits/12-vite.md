@@ -175,7 +175,10 @@ The writer the plugin and `flare codegen` share. It writes `src/_gen/routes.gen.
 | --- | --- | --- |
 | `unchanged` | the scan result is the same | the files are not written again, and they keep their time |
 | `empty` | the route set becomes empty; then two pages whose folders differ only in case | the route and type files are removed, and the server function list stays. Files are read in UTF-16 code unit order |
-| `watch` | a source under `src` changes during `vite dev`, twice; a change inside `src/_gen` or outside `src`; then a change that fails codegen | the files are written once after a 50 ms debounce. A generated file or an outside path does not trigger. A failure is reported as `[flare:codegen]` and the watch goes on |
+| `watch` | a new page with a wrong id under `src` during `vite dev`, its change seen twice; a change inside `src/_gen` or outside `src`; then a change that fails codegen | the page's id is rewritten and logged at info, and the files are written once after a 50 ms debounce. A generated file or an outside path does not trigger. A failure is reported as `[flare:codegen]` and the watch goes on |
+| `fix ids` | a page with a misspelled id and a layout moved from `(old)` to `(blog)`, with and without `fixIds` | with it, both rewritten, one log line each, a second pass silent; without it, the build check throws and no source changes (BUGS.md 130) |
+| `fix ids save race` | a file saved between the read and the write | kept as saved, its line not logged; the next pass fixes it |
+| `fix ids skips` | a page under an ignored `_parts` folder; a route file that does not parse | the first keeps its string; the second is left as written and the routes name it |
 
 ### `tests/e2e/static.test.ts`
 
