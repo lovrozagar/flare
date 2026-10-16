@@ -4,6 +4,7 @@ import { BUILD_HEADER, FAILED_HEADER, KIND_PARAM, STALE_PARAM } from "../../shar
 import type { LoadedEntry } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
 import { cachedMatches, defined, holds, remember, type CachePlan } from "../router/match-cache.ts"
+import { defined as required } from "../../shared/errors/index.ts"
 import { landedFailure, statusFailure, type StoreSnapshot } from "../router/store.ts"
 import { framesOf, landFrames, type Landed, type Pending } from "./frames.ts"
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts"
@@ -195,4 +196,16 @@ export function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	if (failure !== undefined) snapshot.failure = failure
 	remember(deps.cache, cached, landing)
 	return snapshot
+}
+
+// A fill commits its values onto the page as it is when they land: a shallow or hash move made meanwhile keeps its
+// URL and the page's search, and the fill only settles the values (plan 21 3.11).
+export function onPage(fill: boolean, next: StoreSnapshot, now: StoreSnapshot): StoreSnapshot {
+	if (!fill || now.location.pathname !== next.location.pathname) return next
+	// The same path is the same chain, so each match has its counterpart on screen.
+	const matches = next.matches.map((match, index) => ({
+		...match,
+		search: required(now.matches[index], "the match on screen").search,
+	}))
+	return { ...next, location: now.location, matches }
 }

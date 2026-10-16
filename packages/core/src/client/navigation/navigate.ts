@@ -25,6 +25,7 @@ import {
 	fillOptions,
 	holeWatch,
 	nextSnapshot,
+	onPage,
 	sameUrl,
 	type Arrival,
 	type DataTarget,
@@ -242,7 +243,8 @@ async function settle(
 		settled.end()
 		return true
 	}
-	const next = nextSnapshot(deps, { target, chain: settled.chain, arrival, previous })
+	const landed = nextSnapshot(deps, { target, chain: settled.chain, arrival, previous })
+	const next = onPage(plan.fill, landed, deps.store.snapshot())
 	const step = { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" }
 	keepPosition(deps, previous.location, step)
 	// The DOM updates, in a view transition when one is on, and every scroll is final before the update returns, so the
