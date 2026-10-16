@@ -1,4 +1,5 @@
 import type { OutletMatch } from "../../shared/components/index.ts"
+import { rawParams } from "../../shared/components/outlet-nodes.ts"
 import { BUILD_HEADER, FAILED_HEADER, KIND_PARAM, STALE_PARAM } from "../../shared/protocol/index.ts"
 import type { LoadedEntry } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
@@ -105,8 +106,8 @@ function planOf(deps: NavigatorDeps, trip: Trip): CachePlan {
 		matches: cachedMatches(trip.target.match, trip.target.location),
 		trigger: trip.trigger,
 		revalidate: trip.options.revalidate === true,
-		current: { ...current, params: {} },
-		next: { ...trip.target.location, params: {} },
+		current: { ...current, params: rawParams(deps.router, current.pathname) },
+		next: { ...trip.target.location, params: defined(trip.target.match.params) },
 	})
 }
 

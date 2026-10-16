@@ -146,3 +146,56 @@ it("fill wins", async () => {
 	await new Promise((resolve) => setTimeout(resolve, 20))
 	expect(fetch.mock.calls.map(([url]) => url)).toEqual(["/?_flare=fill"])
 })
+
+// shouldRefetch's location carries the params of the page on screen and of the target: on hydrate both are the
+// document's page; away to /users/8 and back to the held /users/7, the current is 8 and the next 7. Its search is
+// the URL's search string (BUGS.md 139.3).
+it("refetch location", async () => {
+	const seen: unknown[] = []
+	const user = createPage("_root_/users/[id]")
+		.cache({ client: { staleTime: "1m" } })
+		.effects({
+			shouldRefetch: ({ trigger, location }) => {
+				seen.push({
+					trigger,
+					current: location.current.params,
+					next: location.next.params,
+					search: location.next.search,
+				})
+				return false
+			},
+		})
+		.render((props) => [() => `user:${String(props.loaderData)}`])
+	const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"])
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/users/[id]", path: "/users/[id]", module: user }],
+	})
+	history.replaceState(null, "", "/users/7?tab=a")
+	const matches = [
+		{ id: "_root_", params: { id: "7" }, search: { tab: "a" }, data: null, preloader: {}, head: null, error: null },
+		{
+			id: "_root_/users/[id]",
+			params: { id: "7" },
+			search: { tab: "a" },
+			data: "7",
+			preloader: {},
+			head: null,
+			error: null,
+		},
+	]
+	const state = { matches, nonce: "", at: Date.now() }
+	document.body.innerHTML = `<script>self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
+	;(globalThis as Dom).flare = { ...state }
+	const host = document.getElementById("app") as HTMLElement
+	const fetch = vi.fn<ClientEnv["fetch"]>(async () => answer("_root_/users/[id]", "net"))
+	const navigate = await boot(router, host, fetch)
+	await navigate({ to: "_root_/users/[id]", params: { id: "8" } })
+	flush()
+	await navigate({ to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" } })
+	flush()
+	expect(seen).toEqual([
+		{ trigger: "initial", current: { id: "7" }, next: { id: "7" }, search: "?tab=a" },
+		{ trigger: "navigation", current: { id: "8" }, next: { id: "7" }, search: "?tab=a" },
+	])
+})

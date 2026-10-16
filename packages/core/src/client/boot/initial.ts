@@ -2,7 +2,14 @@ import { defined } from "../../shared/errors/index.ts"
 import type { Match, Router } from "../../shared/router/create-router.ts"
 import type { Location } from "../../shared/url/index.ts"
 import type { Landed } from "../navigation/frames.ts"
-import { cacheFor, cachedMatches, remember, type CachePlan, type MatchCache } from "../router/match-cache.ts"
+import {
+	cacheFor,
+	cachedMatches,
+	defined as definedParams,
+	remember,
+	type CachePlan,
+	type MatchCache,
+} from "../router/match-cache.ts"
 import type { StoreSnapshot } from "../router/store.ts"
 
 // The client's match cache, made at hydrate (BUGS.md 139). The document's matches enter it on the document's own
@@ -34,7 +41,7 @@ export function hydrateCache(
 		if (head !== undefined) landing.heads[match.id] = head
 	}
 	remember(cache, cached, { ...landing, at: Math.min(input.at ?? now, now) })
-	const here = { ...input.location, params: {} }
+	const here = { ...input.location, params: definedParams(input.match.params) }
 	const initial = cache.plan({ matches: cached, trigger: "initial", revalidate: false, current: here, next: here })
 	return { cache, initial }
 }
