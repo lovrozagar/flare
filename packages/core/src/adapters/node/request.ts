@@ -1,4 +1,4 @@
-import { forwardedHttps } from "../../shared/url/index.ts"
+import { forwardedHttps, validHost } from "../../shared/url/index.ts"
 
 export type NodeIncoming = {
 	url: string
@@ -35,15 +35,6 @@ export function toRequest(input: NodeIncoming): AdaptedRequest {
 
 function rejected(): AdaptedRequest {
 	return { status: 400, secure: false, clientIp: "", resolvedOrigin: "", url: "" }
-}
-
-// A Host header is a host and an optional port: a name, an IPv4 address, or a bracketed IPv6 one. Anything else, a path,
-// a query, a fragment, userinfo, or a space, would change the URL the router reads, so it is a 400 (BUGS.md 150). An
-// absent Host is localhost.
-const HOST = /^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._-]+)(?::\d{1,5})?$/
-
-function validHost(host: string | undefined): boolean {
-	return host === undefined || HOST.test(host)
 }
 
 function badTarget(url: string): boolean {

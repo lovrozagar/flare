@@ -13,3 +13,12 @@ export function trustedHops(adapter: string, options: { trustProxy?: number }): 
 export function forwardedHttps(hops: number, proto: string | null | undefined): boolean {
 	return hops > 0 && proto === "https"
 }
+
+// A Host header is a host and an optional port: a name, an IPv4 address, or a bracketed IPv6 one. Anything else, a path,
+// a query, a fragment, userinfo, or a space, would change the URL the router reads, so an adapter answers 400
+// (BUGS.md 150). An absent Host is the adapter's default.
+const HOST = /^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._-]+)(?::\d{1,5})?$/
+
+export function validHost(host: string | null | undefined): boolean {
+	return host === null || host === undefined || HOST.test(host)
+}
