@@ -24,6 +24,7 @@ packages/core/lint/no-flare-header-branching.js	P3	lint	node	Reject a branch on 
 packages/core/lint/no-flare-header-branching.test.ts	P3	test	node	Unit cases for no-flare-header-branching.js
 packages/core/tests/structure/tree.test.ts	P0	test	node	check-tree fails on an extra file, a missing file, and an index with a statement
 packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball; the README names exactly the packed exports and its quick start compiles against them
+packages/core/tests/structure/errored.test.ts	P14	test	node	No source file but safe-errored.ts reaches Solid's Errored, by import or namespace member (BUGS.md 141)
 packages/core/tests/structure/api.test.ts	P14	test	node	Each entry's public d.ts matches its snapshot
 packages/core/tests/structure/dx-options.test.ts	P14	test	node	Every dx option table names only keys of its type; Planned (plan 15) tables and named exemptions aside (BUGS.md 113)
 packages/core/tests/structure/readme.ts	P14	test	node	Reads the root README for readme.test.ts and exports.test.ts: the quick-start blocks, table rows, and backticked names
@@ -164,6 +165,8 @@ packages/core/src/shared/head/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/components/boundary.ts	P5	src	shared	Nearest boundary toward the root, and the builtin text (B77)
 packages/core/src/shared/components/boundary.test.ts	P5	test	shared	Unit cases for boundary.ts
 packages/core/src/shared/components/outlet.tsx	P1	src	dom	Outlet
+packages/core/src/shared/components/safe-errored.ts	P1	src	dom	Solid's Errored for every Flare boundary, its children escaped on the server first: Solid's SSR Errored writes a string child raw (BUGS.md 141)
+packages/core/src/shared/components/safe-errored.test.ts	P1	test	node	Unit cases for safe-errored.ts: Errored raw beside SafeErrored escaped, every shape of child, the fallback
 packages/core/src/shared/components/use-deferred.ts	P10	src	shared	useDeferred: reads a deferred value under Loading. A stored stream hole is a client source, so the server hands its boundary to the client
 packages/core/src/shared/components/use-deferred.test.ts	P10	test	shared	Unit cases for use-deferred.ts
 packages/core/src/shared/components/outlet.test.tsx	P1	test	dom	Unit cases for outlet.tsx

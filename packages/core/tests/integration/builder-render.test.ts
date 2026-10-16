@@ -1,10 +1,11 @@
-import { createComponent } from "solid-js"
+import { createComponent, createMemo, Loading } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import { afterAll, expect, it } from "vitest"
 import { notFound, unauthenticated, unauthorized } from "../../src/shared/errors/index.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
+import type { Render } from "../../src/shared/route-builder/chain.ts"
 import { bodyOf, documentOf, frames, serve } from "./builder-app.ts"
 import { builtServer, fixtureApps, page as pageSource } from "./vite-app.ts"
 
@@ -151,6 +152,82 @@ it("render document", { timeout: 120_000 }, async () => {
 	const production = await built.fetch(new Request("https://example.com/"))
 	expect(production.status).toBe(500)
 	expect(await production.text()).toBe("")
+})
+
+const EVIL = "<i>x</i>"
+const SAFE = "&lt;i>x&lt;/i>"
+
+// A route at `id` whose render is `render`.
+// The render is untyped on purpose: a function or an accessor return is a shape the case covers that `Render` does not
+// type.
+function pageOf(id: string, render: () => unknown) {
+	return { id, path: id.slice(6), module: createPage(id).render(render as Render) }
+}
+
+// A page file whose loader returns the hostile string and whose render is `render`.
+function pageFile(name: string, render: string): string {
+	return `import { createPage } from "@lovrozagar/flare";\nexport const route = createPage("_root_/${name}").loader(() => ({ text: "<i>x</i>" })).render(${render});\n`
+}
+
+// A route's render, a boundary's, and a layout's are text when they return a string, an array of strings at any
+// depth, a function or memo of one: escaped as JSX text is, on the server in dev and in a production build. An
+// element and a Loading result pass through as markup (BUGS.md 141). Solid's SSR `Errored`, which every slot sits in,
+// emits a string child raw.
+it("render text escaped", { timeout: 120_000 }, async () => {
+	const failed = createPage("_root_/failed")
+		.loader((): { text: string } => {
+			throw new Error("x")
+		})
+		.render(() => "never")
+		.errorRender(() => EVIL)
+	const area = createLayout("_root_/area").render((props) => [EVIL, props.children])
+	const routes = [
+		pageOf("_root_/said", () => EVIL),
+		pageOf("_root_/listed", () => [EVIL, "!"]),
+		pageOf("_root_/nested", () => [[EVIL], ["!", [EVIL]]]),
+		pageOf("_root_/called", () => () => EVIL),
+		pageOf("_root_/memo", () => createMemo(() => EVIL)),
+		pageOf("_root_/script", () => "<script>x</script>"),
+		pageOf("_root_/node", () => createComponent(Dynamic, { component: "b", children: "<i>" })),
+		pageOf("_root_/loading", () => createComponent(Loading, { fallback: "wait", children: EVIL })),
+		{ id: "_root_/failed", path: "/failed", module: failed },
+		pageOf("_root_/area/in", () => EVIL),
+	]
+	const get = serve(routes, { layouts: { "_root_/area": area } })
+	const bodies: Record<string, string> = {}
+	for (const { path } of routes) bodies[path] = bodyOf((await get(path)).text)
+	expect(bodies).toEqual({
+		"/said": SAFE,
+		"/listed": `${SAFE}!`,
+		"/nested": `${SAFE}!${SAFE}`,
+		"/called": SAFE,
+		"/memo": SAFE,
+		"/script": "&lt;script>x&lt;/script>",
+		"/node": "<b>&lt;i></b>",
+		"/loading": SAFE,
+		"/failed": SAFE,
+		"/area/in": `${SAFE}${SAFE}`,
+	})
+	const built = await builtServer(
+		apps.make({
+			"src/routes/_root_/root.root-layout.tsx":
+				'import { createRootLayout } from "@lovrozagar/flare";\nexport const route = createRootLayout("_root_").render((props) => <html><head></head><body>{props.children}</body></html>);\n',
+			"src/routes/_root_/said/said.page.tsx": pageFile("said", "(props) => props.loaderData.text"),
+			"src/routes/_root_/listed/listed.page.tsx": pageFile("listed", '(props) => [props.loaderData.text, "!"]'),
+			"src/routes/_root_/called/called.page.tsx": pageFile("called", "(props) => () => props.loaderData.text"),
+			"src/routes/_root_/script/script.page.tsx": pageFile("script", '() => "<script>x</script>"'),
+		}),
+	)
+	const production: Record<string, string> = {}
+	for (const path of ["/said", "/listed", "/called", "/script"]) {
+		production[path] = bodyOf(await (await built.fetch(new Request(`https://example.com${path}`))).text())
+	}
+	expect(production).toEqual({
+		"/said": SAFE,
+		"/listed": `${SAFE}!`,
+		"/called": SAFE,
+		"/script": "&lt;script>x&lt;/script>",
+	})
 })
 
 // A page whose loader throws what `thrown` throws.

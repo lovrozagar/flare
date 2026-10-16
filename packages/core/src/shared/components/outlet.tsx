@@ -1,5 +1,6 @@
 import { defined } from "../errors/index.ts"
-import { createComponent, createContext, createMemo, Errored, merge, onCleanup, untrack, useContext } from "solid-js"
+import { createComponent, createContext, createMemo, merge, onCleanup, untrack, useContext } from "solid-js"
+import { SafeErrored } from "./safe-errored.ts"
 import { Dynamic, isServer, type JSX } from "@solidjs/web"
 import type { ChainRecord, Render } from "../route-builder/chain.ts"
 import type { BoundaryRecord, Located, NotFoundRender } from "../route-builder/index.ts"
@@ -151,7 +152,7 @@ export function ownerGuard(content: () => JSX.Element): JSX.Element {
 // On the client, a rejection the app's own <Errored> did not catch, such as a deferred `e`, is the B77 walk from
 // this slot (B80), and in dev it is a bug the overlay shows. A server render throw is a status instead (B93).
 function guard(state: () => OutletState, depth: number, content: () => JSX.Element): JSX.Element {
-	return createComponent(Errored, {
+	return createComponent(SafeErrored, {
 		// Solid 2 hands the fallback the error as an accessor.
 		fallback: (read: () => unknown) => {
 			const error = untrack(read)

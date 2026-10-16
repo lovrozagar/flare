@@ -283,6 +283,28 @@ async function backTrip(engine: Engine, path: string, at?: number): Promise<stri
 	return result.requests.filter((url) => url.startsWith(path))
 }
 
+// A page whose loader's string is HTML-shaped, rendered as the render's own return, read in a tracking scope.
+const TEXT = appFrom(`
+const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
+	api.h("head", "head"),
+	api.h("body", "body", () => [api.h("main", "slot", () => props.children)]),
+]))
+const page = api.page.createPage("_root_/text")
+	.loader(() => ({ text: "<i>x</i>" }))
+	.render((props) => () => props.loaderData.text)
+return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/text", path: "/text", module: page }] }) }
+`)
+
+async function textSteps(tab: Page): Promise<void> {
+	await remember(
+		tab,
+		await tab.evaluate(() => ({
+			text: document.getElementById("slot")?.textContent,
+			elements: document.getElementById("slot")?.querySelectorAll("i").length,
+		})),
+	)
+}
+
 // /flaky's loader fails on every odd run; its errorRender's button calls reset().
 const RESET = appFrom(`
 const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
@@ -422,5 +444,15 @@ describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
 		})
 		expect(result.problems).toEqual([])
 		expect(result.requests).toEqual(["/holed?_flare=fill"])
+	})
+})
+
+describe.each(ENGINES)("%s", { timeout: 60_000 }, (engine) => {
+	// A render's string is text on the server and the client alike: no element, the literal string, and no
+	// hydration mismatch (BUGS.md 141).
+	it("render text hydrates", async () => {
+		const result = await run(engine, { app: TEXT, path: "/text", steps: textSteps })
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual([{ text: "<i>x</i>", elements: 0 }])
 	})
 })
