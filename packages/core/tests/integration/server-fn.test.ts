@@ -165,6 +165,16 @@ it("prototype keys", async () => {
 	expect(await (await server.fetch(post(fn, { constructor: 1 }))).json()).toMatchObject({ data: 1 })
 })
 
+// A `rewrite` maps page paths only: a server function's endpoint is never rewritten, so a locale rewrite that prefixes
+// every path leaves the calls answering (plan 21 8.4).
+it("rewrite skips functions", async () => {
+	const ping = createServerFn(config("rwping")).handler(() => "pong")
+	const server = serve([ping], { rewrite: (path) => (path.startsWith("/en") ? undefined : `/en${path}`) })
+	const answer = await server.fetch(post(ping, null))
+	expect([answer.status, answer.headers.get("location")]).toEqual([200, null])
+	expect(await answer.json()).toMatchObject({ data: "pong" })
+})
+
 // A middleware that refreshes a session cookie on every answer.
 const refresh: Middleware = async (ctx) => {
 	const answer = await ctx.next()

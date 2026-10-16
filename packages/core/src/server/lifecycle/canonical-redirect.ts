@@ -6,8 +6,8 @@ export type PathRewrite = (path: string) => string | undefined
 export type CanonicalStep = { status: number; location?: string }
 
 // A redirect keeps a GET or HEAD as 301. Every other method is 308, so the method and body survive (B22). A
-// server-function path skips the trailing-slash and case rules, so its POST is never redirected. A hostile one is
-// still 400.
+// server-function path skips the trailing-slash, rewrite, and case rules, so its POST is never redirected. A hostile
+// one is still 400.
 export function applyCanonical(input: {
 	method: string
 	url: string
@@ -26,7 +26,8 @@ export function applyCanonical(input: {
 	const first = readPath(canonicalPath(parsed.pathname, options))
 	if (first === undefined) return { status: 400 }
 	let path = first
-	if (input.rewrite) {
+	// A server function's endpoint is no page path: a rewrite never touches it (plan 21 8.4).
+	if (input.rewrite && !fn) {
 		const rewritten = rewriteOnce(input.rewrite, first, options)
 		if (rewritten === undefined) return { status: 400 }
 		path = rewritten
