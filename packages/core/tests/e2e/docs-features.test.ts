@@ -188,7 +188,8 @@ test("rtl layout", async ({ page, docs }) => {
 // Arabic's for 14 is `many`, English's `other`. The digits follow the runtime's CLDR, so they prove nothing (B29).
 test("format message", async ({ page, docs }) => {
 	await open(page, docs.origin, "/ar")
-	await expect(page.locator("#release-count")).toHaveText("14 releases (many)")
+	// Bun on macOS formats `ar` with Arabic-Indic digits, `١٤`, where Node formats `14` (BUGS.md 179).
+	await expect(page.locator("#release-count")).toHaveText(/^\p{Nd}+ releases \(many\)$/u)
 	await open(page, docs.origin, "/")
 	await expect(page.locator("#release-count")).toHaveText("14 releases")
 })
