@@ -59,21 +59,37 @@ function urlParts(segment: Segment, params: Record<string, unknown>): string[] {
 // `.` and `..`, `%2e` counted as a dot, are the dot segments a browser resolves away (BUGS.md 156).
 const DOT_SEGMENT = /^(?:\.|%2e){1,2}$/i
 
+// A param is encoded by code point, so a character outside the BMP keeps its surrogate pair; a lone surrogate, which no
+// URL can carry, is a bad param (plan 21 8.2).
 function encodeParam(value: string): string {
 	if (value.includes("/") || value.includes("\\") || DOT_SEGMENT.test(value)) throw new Error("param")
+	const chars = Array.from(value)
 	let out = ""
-	for (let index = 0; index < value.length; index += 1) {
-		const char = value.charAt(index)
-		if (char !== "%") {
-			out += encodeURIComponent(char)
+	let skip = 0
+	for (const [index, char] of chars.entries()) {
+		if (skip > 0) {
+			skip -= 1
 			continue
 		}
-		const hex = value.slice(index + 1, index + 3)
+		if (char !== "%") {
+			out += encodeChar(char)
+			continue
+		}
+		const hex = chars.slice(index + 1, index + 3).join("")
 		if (!isHex(hex.charAt(0)) || !isHex(hex.charAt(1))) throw new Error("param")
 		out += `%${hex.toUpperCase()}`
-		index += 2
+		skip = 2
 	}
 	return out
+}
+
+// One code point. A lone surrogate is the URIError `encodeURIComponent` throws, a bad param here.
+function encodeChar(char: string): string {
+	try {
+		return encodeURIComponent(char)
+	} catch {
+		throw new Error("param")
+	}
 }
 
 function isHex(char: string): boolean {

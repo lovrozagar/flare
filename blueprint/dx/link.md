@@ -91,6 +91,7 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 | plain object | `JSON.stringify` | a JSON parse step in the validator |
 | `null`, `undefined` | omitted from search; a missing value for a path param, so an optional one drops and a required one throws | an optional field |
 | a path param that is a dot segment, `.` or `..` in any spelling a browser resolves (`%2e` too) | throws, naming the param: the browser would move the URL to another route (`link.test.ts` `dot segment params`, BUGS.md 156) | — |
+| a path param holding a character outside the BMP, an emoji say | encoded by code point, `a😀b` is `a%F0%9F%98%80b`, and round-trips. A lone surrogate, which no URL can carry, throws naming the param (`shared/url/href.test.ts` `emoji param`, BUGS.md 193) |
 | function, symbol | throws, naming the key | — |
 
 A plain value stays readable text, not JSON. A typed URL, a `<form method="get">`, and a `Link` produce the same text for the same value, so the match id and the cache key agree (B31). There is no custom serializer: a caller that wants another format passes the string it built (`href.test.ts` `typed values`, `date value`, `object value`, `nullish value`).
