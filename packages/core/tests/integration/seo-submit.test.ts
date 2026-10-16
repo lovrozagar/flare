@@ -260,7 +260,9 @@ it("google notify", async () => {
 	expect(published.map((entry) => `${entry.method} ${entry.path} ${entry.headers["authorization"]}`)).toEqual(
 		Array.from({ length: 3 }, () => `POST /v3/urlNotifications:publish Bearer ${TOKEN}`),
 	)
-	expect(published.map((entry) => JSON.parse(entry.body))).toEqual([
+	// With two in flight the publishes land in either order, so they are compared by url.
+	const bodies: { url: string; type: string }[] = published.map((entry) => JSON.parse(entry.body))
+	expect(bodies.toSorted((left, right) => left.url.localeCompare(right.url))).toEqual([
 		{ url: "https://flare.test/a", type: "URL_UPDATED" },
 		{ url: "https://flare.test/b", type: "URL_DELETED" },
 		{ url: "https://flare.test/c", type: "URL_UPDATED" },
