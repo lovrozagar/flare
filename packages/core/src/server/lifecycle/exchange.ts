@@ -47,8 +47,15 @@ export function answer(exchange: Answering, status: number, location?: string): 
 }
 
 // A loader run that answered without a render: validation, a gate status, or a named failure. `failed` names the match
-// that failed, for a data answer the client paints (BUGS.md 134).
-export async function bare(exchange: Answering, run: Pick<LoaderRun, "response">, failed?: string): Promise<Response> {
+// that failed, for a data answer the client paints (BUGS.md 134). A 500 that carries what was thrown, a throwing
+// `authenticate` or a route whose validator is no validator, is projected and logged like any 500 (BUGS.md 157).
+export async function bare(
+	exchange: Answering & Pick<Exchange, "sink">,
+	run: Pick<LoaderRun, "response" | "thrown">,
+	failed?: string,
+): Promise<Response> {
+	if (run.response.status === 500 && run.thrown !== undefined && failed === undefined)
+		projectError(run.thrown, exchange.sink)
 	const headers = new Headers(exchange.secured.headers)
 	run.response.headers.forEach((value, name) => headers.set(name, value))
 	if (failed !== undefined) headers.set(FAILED_HEADER, failed)

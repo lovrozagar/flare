@@ -64,6 +64,8 @@ packages/core/src/shared/errors/dev-report.ts	P5	src	shared	Vite error-overlay p
 packages/core/src/shared/errors/dev-report.test.ts	P5	test	shared	Unit cases for dev-report.ts
 packages/core/src/shared/errors/index.ts	P1	index	shared	Re-exports
 packages/core/src/shared/validation/schema.ts	P2	src	shared	Run a Standard Schema validator and return issues
+packages/core/src/shared/validation/effect.ts	P2	src	shared	checkValidator: a plain Effect Schema (Effect's schema marker, no ~standard) is no validator; the server runner throws, naming the owner and the fix (BUGS.md 157)
+packages/core/src/shared/validation/effect.test.ts	P2	test	shared	Unit cases for effect.ts with the real effect library
 packages/core/src/shared/validation/schema.test.ts	P2	test	shared	Unit cases for schema.ts
 packages/core/src/shared/validation/issues.ts	P2	src	shared	Build issues and fieldErrors from a schema failure
 packages/core/src/shared/validation/issues.test.ts	P2	test	shared	Unit cases for issues.ts

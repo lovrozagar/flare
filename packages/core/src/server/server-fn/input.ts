@@ -26,12 +26,12 @@ export type InputResult = { status: 200; input: unknown } | { status: 400; error
 export async function readInput(
 	request: Request,
 	record: Pick<ServerFnRecord, "method" | "input">,
-	options: { dev: boolean; limit?: number | undefined },
+	options: { dev: boolean; limit?: number | undefined; owner?: string },
 ): Promise<InputResult> {
 	const raw = record.method === "get" ? fromQuery(request) : await fromBody(request, options.limit ?? BODY_LIMIT)
 	if (raw.status !== 200) return raw
 	if (record.input === undefined) return { status: 200, input: undefined }
-	const validated = await runValidator(record.input, raw.input, { dev: options.dev })
+	const validated = await runValidator(record.input, raw.input, { dev: options.dev, owner: options.owner ?? "input" })
 	return validated.ok ? { status: 200, input: validated.value } : { status: 400, errors: validated.errors }
 }
 

@@ -1,6 +1,6 @@
 import { type } from "arktype"
 import { Schema } from "effect"
-import { expect, it } from "vitest"
+import { afterEach, expect, it, vi } from "vitest"
 import { notFound, redirect, unauthenticated, unauthorized } from "../../src/shared/errors/index.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
@@ -149,6 +149,39 @@ it("input libraries", async () => {
 		expect([path, bad.status]).toEqual([path, 400])
 		expect(Object.keys(Object(JSON.parse(bad.text).fieldErrors))).toEqual(["q"])
 	}
+})
+
+afterEach(() => {
+	vi.unstubAllEnvs()
+	vi.restoreAllMocks()
+})
+
+// A plain Effect Schema is callable but no validator, and would fail every input with a quiet 400. The server checks it
+// before validating: the request is a 500 whose error names the route and the fix, logged like any 500, on a document
+// and on a data request. A throwing `authenticate`, the other 500 that answers before a render, is logged the same way
+// (BUGS.md 157).
+it("input plain effect", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const said = (pattern: RegExp): boolean => logged.mock.calls.some((call) => pattern.test(String(call)))
+	const plain = Schema.Struct({ q: Schema.String })
+	const get = serve([{ id: "_root_/plain", path: "/plain", module: validated("_root_/plain", plain) }])
+	const fix = /_root_\/plain: a plain Effect Schema is not a validator; wrap it with Schema\.standardSchemaV1/
+	for (const path of ["/plain?q=x", "/plain?q=x&_flare=data"]) {
+		logged.mockClear()
+		expect([path, (await get(path)).status]).toEqual([path, 500])
+		expect([path, said(fix)]).toEqual([path, true])
+	}
+	const broken = createPage("_root_/gate")
+		.authenticate()
+		.render(() => "gate")
+	const gated = serve([{ id: "_root_/gate", path: "/gate", module: broken }], {
+		authenticate: () => {
+			throw new Error("session store down")
+		},
+	})
+	logged.mockClear()
+	expect((await gated("/gate")).status).toBe(500)
+	expect(said(/session store down/)).toBe(true)
 })
 
 // `authenticate` makes the session required and hands the app the leaf's arguments as `callerData`; a null session is

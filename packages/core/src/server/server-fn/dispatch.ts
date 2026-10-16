@@ -108,7 +108,11 @@ async function lookup(input: DispatchInput): Promise<ServerFnRef | undefined> {
 async function run(fn: ServerFnRef, input: DispatchInput): Promise<StageResult> {
 	const scope = active()
 	const auth = await authOf(fn, scope)
-	const read = await readInput(input.request, fn.record, { dev: input.sink.dev, limit: input.bodyLimit })
+	const read = await readInput(input.request, fn.record, {
+		dev: input.sink.dev,
+		limit: input.bodyLimit,
+		owner: fn.name,
+	})
 	if (read.status === 413) return reply(fn, { name: fn.name, status: 413, message: "Payload Too Large" }, 413)
 	if (read.status === 400) {
 		return reply(fn, { name: fn.name, status: 400, message: "Invalid input", errors: read.errors }, 400)
@@ -148,7 +152,7 @@ async function authOf(fn: ServerFnRef, scope: RequestScope): Promise<unknown> {
 // In-process, a thrown validator message stays: the error is projected where it lands.
 async function validated(fn: ServerFnRef, raw: unknown): Promise<unknown> {
 	if (fn.record.input === undefined) return undefined
-	const result = await runValidator(fn.record.input, raw, { dev: true })
+	const result = await runValidator(fn.record.input, raw, { dev: true, owner: fn.name })
 	if (!result.ok) throw new InputError(result.errors)
 	return result.value
 }
