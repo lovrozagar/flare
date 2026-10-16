@@ -175,6 +175,25 @@ it("outside root", async () => {
 	await expect(build(root, "client")).rejects.toThrow(/lib\/fns\.ts holds code the client graph must not contain/)
 })
 
+// A loader helper at module scope, and the server module only it imports, stay out of the built client chunk; the
+// server module runs code on import, so a kept import would bring it in (plan 21 2.4).
+it("loader helper", async () => {
+	const root = fixture({
+		"src/db.ts": 'Reflect.set(globalThis, "db", "SENTINEL_DB");\nexport const read = () => "SENTINEL_READ";\n',
+		"src/mod.ts": `import { createPage } from "@lovrozagar/flare";
+import { read } from "./db.ts";
+const load = () => read();
+export const route = createPage("_root_/a").loader(load).render(() => "page");
+`,
+		"src/client.ts": KEEP("./mod.ts"),
+		"src/server.ts": KEEP("./mod.ts"),
+	})
+	const client = await build(root, "client")
+	expect(client).toContain("page")
+	expect(client).not.toContain("SENTINEL_DB")
+	expect(await build(root, "ssr")).toContain("SENTINEL_READ")
+})
+
 function route(chain: string): string {
 	return `import { createPage } from "@lovrozagar/flare";\nexport const route = createPage("_root_/a")${chain};\n`
 }
@@ -196,6 +215,12 @@ it("route method", () => {
 	expect(() => check(route(".response(answer)"))).toThrow(/B45/)
 	expect(() => check(route(".response(undefined)"))).not.toThrow()
 	expect(() => check(route(".render(r)"))).not.toThrow()
+	// A chain through the namespace import is read too, and a shape the split cannot see fails (plan 21 2.4).
+	const namespace = 'import * as flare from "@lovrozagar/flare";\nexport const route = flare.createPage("_root_/a")'
+	expect(() => check(`${namespace}.loader(load).render(r);\n`)).toThrow(/B45/)
+	expect(() => check(`${route(".loader(load)").replace("export const", "const")}export { route };\n`)).toThrow(
+		/must be a direct export/,
+	)
 	expect(() => check(null)).not.toThrow()
 	expect(() => check("export const = ;")).toThrow(
 		/c\.js: \/app\/src\/a\.page\.ts could not be read by the tripwire: .+ \(B45\)/,

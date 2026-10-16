@@ -12,8 +12,8 @@ export type ChunkModule = { id: string; code: string | null }
 // package's server, adapters, or vite folder. A server chunk, of the ssr environment or the Workers bundle, fails
 // when a module holds a client-only body or a `.client()` body. Each module's final
 // code, after every plugin, is read with the same walk the transform uses. Every module is read, inside the app root
-// or not, so a workspace package's server function is caught too. The shared walk is enough because B85 and
-// dx/env.md make every shape it does not know a build error, so it covers all legal code, and the tripwire's job is a
+// or not, so a workspace package's server function is caught too. The shared walk is enough because B85,
+// dx/routes.md, and dx/env.md make every shape it does not know a build error, so it covers all legal code, and the tripwire's job is a
 // body a later plugin put back. A module the walk cannot parse fails closed.
 export function checkChunk(input: {
 	graph: Graph

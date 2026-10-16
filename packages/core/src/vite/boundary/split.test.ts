@@ -224,3 +224,69 @@ it("outer read", () => {
 	expect(mentions("(() => { { const db = 1; } return db; })()")).toContain('import { db } from "./db.server.ts";')
 	expect(mentions("(() => { { function db() {} } return db; })()")).toContain('import { db } from "./db.server.ts";')
 })
+
+// A route builder reached through the package's namespace import is a route chain too, and every other shape a
+// builder takes, an `export { route }`, a chain bound to a variable, or the builder as a value, is a build error, so
+// no route chain reaches the client unsplit (plan 21 2.4).
+it("route shapes", () => {
+	const namespace = `import * as flare from "@lovrozagar/flare";
+import { db } from "./db.server.ts";
+export const route = flare.createPage("_root_/a").loader(() => db.read()).render(() => flare.cn("a"));
+`
+	const code = split(namespace)
+	expect(code).not.toContain("db")
+	expect(code).toContain('flare.createPage("_root_/a").render(() => flare.cn("a"))')
+	const direct = /(createPage|createLayout) must be a direct export: export const route = \1\(\)…/
+	const shapes = [
+		`${BUILDER}const route = createPage("_root_/a").loader(l).render(r);\nexport { route };\n`,
+		`${BUILDER}const base = createPage("_root_/a");\nexport const route = base.loader(l).render(r);\n`,
+		`${BUILDER}const make = createPage;\nexport const route = make("_root_/a").loader(l);\n`,
+		`import * as flare from "@lovrozagar/flare";\nconst route = flare.createPage("_root_/a").loader(l);\nexport { route };\n`,
+		`${BUILDER}export const route = [createPage("_root_/a").loader(l)][0];\n`,
+		`import * as flare from "@lovrozagar/flare";\nReflect.set(globalThis, "f", flare);\n`,
+		`import * as flare from "@lovrozagar/flare";\nconst make = flare.createLayout;\nexport const route = make("_root_");\n`,
+		`import * as flare from "@lovrozagar/flare";\nexport const route = flare["createPage"]("_root_/a").loader(l);\n`,
+	]
+	for (const shape of shapes) expect(() => split(shape)).toThrow(direct)
+	// A type position reads neither a builder nor a namespace.
+	const typed = `import * as flare from "@lovrozagar/flare";
+${BUILDER}type Make = typeof createPage;
+type Props = flare.RouteProps;
+export const route = createPage("_root_/a").loader(l).render((p: Props) => p);
+`
+	expect(split(typed)).toContain('createPage("_root_/a").render((p: Props) => p)')
+	expect(() => split(`${BUILDER}export function f(createPage) { return createPage(1) }\n`)).toThrow(
+		"src/routes/a.page.tsx: a local binding shadows createPage",
+	)
+})
+
+// A module-scope declaration only removed code read goes with it, and so do the imports only it read, however many
+// declarations deep; one kept code reads, one nothing read before the split, and an exported one stay (plan 21 2.4).
+it("dead helpers", () => {
+	const source = `${BUILDER}import { db } from "./db.server.ts";
+import { secret } from "./secret.server.ts";
+import { format } from "./format.ts";
+import { start } from "./start.ts";
+const query = (id: string) => db.read(id);
+function walk(n: number): unknown { return n > 0 ? walk(n - 1) : secret; }
+async function load({ params }: { params: { id: string } }) { return [query(params.id), walk(2)]; }
+class Repo { all() { return db.all(); } }
+const [first, second] = [new Repo(), 2];
+const label = format("x");
+const booted = start();
+export const helper = () => db.ping();
+export const route = createPage("_root_/a").loader(load).preloader(() => first.all() + second).render(() => label);
+`
+	const code = split(source)
+	for (const gone of ["secret", "query", "walk", "load", "Repo", "first", "second"]) expect(code).not.toContain(gone)
+	for (const kept of ["const label", "const booted = start()", "export const helper", "import { format }"]) {
+		expect(code).toContain(kept)
+	}
+	expect(code).toContain('import { db } from "./db.server.ts";')
+	const fn = `import { createServerFn } from "@lovrozagar/flare/server-fn";
+import { db } from "./db.server.ts";
+const read = () => db.read();
+export const echo = createServerFn().handler(read);
+`
+	expect(split(fn)).not.toContain("db")
+})

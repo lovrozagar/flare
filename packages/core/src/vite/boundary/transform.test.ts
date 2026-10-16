@@ -28,6 +28,13 @@ export const cheer = createIsomorphicFn().server(() => "quiet").client(() => con
 	expect(ssr).not.toContain("browser-only")
 	expect(ssr).toContain('.server(() => "quiet").client()')
 	expect(transform(source, "client")).toContain("browser-only")
+	// A helper only the removed body read goes with it, and its import too (plan 21 2.4).
+	const helper = `${ENV}import { confetti } from "browser-only";
+const burst = () => confetti();
+export const cheer = createIsomorphicFn().server(() => "quiet").client(() => burst());
+`
+	expect(transform(helper, "server")).not.toContain("browser-only")
+	expect(transform(helper, "server")).not.toContain("burst")
 })
 
 it("shared import kept", () => {
