@@ -20,15 +20,17 @@ const llms = createPage("_root_/[[locale]]/llms.txt").response(
 )
 
 const node = (id: string, path: string, module: RouteModule) => ({ id, path, module })
+const routeTree = [
+	node("_root_/[[locale]]", "/[[locale]]", home),
+	node("_root_/[[locale]]/pricing", "/[[locale]]/pricing", shared),
+	node("_root_/[[locale]]/account", "/[[locale]]/account", owned),
+	node("_root_/[locale]/docs", "/[locale]/docs", docs),
+	{ ...node("_root_/[[locale]]/llms.txt", "/[[locale]]/llms.txt", llms), response: true },
+]
 const router = createRouter({
 	layouts: { _root_: root },
-	routeTree: [
-		node("_root_/[[locale]]", "/[[locale]]", home),
-		node("_root_/[[locale]]/pricing", "/[[locale]]/pricing", shared),
-		node("_root_/[[locale]]/account", "/[[locale]]/account", owned),
-		node("_root_/[locale]/docs", "/[locale]/docs", docs),
-		{ ...node("_root_/[[locale]]/llms.txt", "/[[locale]]/llms.txt", llms), response: true },
-	],
+	routeTree,
+	locale: { locales: ["en", "hr"], defaultLocale: "en" },
 })
 const locale = i18n({ locales: ["en", "hr"], defaultLocale: "en" })
 const server = createServer({ router, locale })
@@ -72,11 +74,11 @@ it("redirect is a route", async () => {
 })
 
 it("cookie on redirect", async () => {
-	const response = await get("/fr/pricing?x=1")
+	const response = await get("/pricing?x=1", { language: "hr" })
 	expect(response.status).toBe(302)
-	expect(response.headers.get("location")).toBe("/pricing?x=1")
+	expect(response.headers.get("location")).toBe("/hr/pricing?x=1")
 	expect(response.headers.get("cache-control")).toBe("private, no-store")
-	expect(response.headers.getSetCookie()).toEqual(["flare.locale=en; Path=/; SameSite=Lax; Max-Age=31536000"])
+	expect(response.headers.getSetCookie()).toEqual(["flare.locale=hr; Path=/; SameSite=Lax; Max-Age=31536000"])
 	expect(response.headers.get("vary")).toBeNull()
 })
 
@@ -98,10 +100,11 @@ it("cookie on private", async () => {
 })
 
 it("cookie attrs", async () => {
-	const plain = (await get("/fr/docs")).headers.getSetCookie()[0] ?? ""
-	const secure = (await get("/fr/docs", { origin: "https://site.test" })).headers.getSetCookie()[0] ?? ""
-	expect(plain).toBe("flare.locale=en; Path=/; SameSite=Lax; Max-Age=31536000")
-	expect(secure).toBe("flare.locale=en; Path=/; SameSite=Lax; Max-Age=31536000; Secure")
+	const plain = (await get("/pricing", { language: "hr" })).headers.getSetCookie()[0] ?? ""
+	const secure =
+		(await get("/pricing", { language: "hr", origin: "https://site.test" })).headers.getSetCookie()[0] ?? ""
+	expect(plain).toBe("flare.locale=hr; Path=/; SameSite=Lax; Max-Age=31536000")
+	expect(secure).toBe("flare.locale=hr; Path=/; SameSite=Lax; Max-Age=31536000; Secure")
 	expect(`${plain}${secure}`).not.toMatch(/Domain/i)
 })
 
@@ -152,6 +155,7 @@ it("negotiated private", async () => {
 		router: createRouter({
 			layouts: { _root_: root },
 			routeTree: [node("_root_/[[locale]]/pricing", "/[[locale]]/pricing", isr)],
+			locale: { locales: ["en", "hr"], defaultLocale: "en" },
 		}),
 		locale,
 		store: createMemoryStore(),
@@ -168,7 +172,11 @@ it("negotiated private", async () => {
 	expect((await fetchAt("/hr/pricing")).headers.get("cache-control")).toMatch(/^public/)
 	expect((await fetchAt("/pricing?_flare=data")).headers.get("cache-control")).toMatch(/^public/)
 	// With one locale there is nothing to negotiate.
-	const single = createServer({ router, locale: i18n({ locales: ["en"], defaultLocale: "en" }) })
+	const one = { locales: ["en"], defaultLocale: "en" }
+	const single = createServer({
+		router: createRouter({ layouts: { _root_: root }, routeTree, locale: one }),
+		locale: i18n(one),
+	})
 	expect((await single.fetch(new Request("https://site.test/pricing"))).headers.get("cache-control")).toMatch(/^public/)
 })
 
@@ -200,19 +208,18 @@ it("locale param", async () => {
 	expect(tags).toEqual([])
 	expect((await at("/hr")).status).toBe(200)
 	expect(tags).toEqual(["hr"])
-	const stripped = await at("/fr")
-	expect([stripped.status, stripped.headers.get("location")]).toEqual([302, "/"])
+	// An unconfigured tag is an ordinary segment, and no route takes it (plan 21 3.8).
+	const unknown = await at("/fr")
+	expect([unknown.status, unknown.headers.get("location")]).toEqual([404, null])
 	expect(tags).toEqual(["hr"])
 })
 
+// An unconfigured tag matches no route on a data or prefetch request either: no redirect and no cookie (plan 21 3.8).
 it("data unconfigured tag", async () => {
 	const { server: routed, tags } = localeServer()
 	const at = (path: string): Promise<Response> => routed.fetch(new Request(`http://site.test${path}`))
 	const data = await at("/fr/pricing?_flare=data")
-	expect(data.status).toBe(200)
-	expect(data.headers.get("content-type")).toBe("application/x-ndjson")
-	expect(data.headers.get("cache-control")).toBe("private, no-store")
-	expect(await data.text()).toBe('{"t":"x","s":302,"u":"/pricing","r":true}\n')
+	expect([data.status, data.headers.get("location"), data.headers.getSetCookie()]).toEqual([404, null, []])
 	const prefetch = await at("/fr/pricing?_flare=prefetch")
 	expect(prefetch.status).toBe(404)
 	expect(await prefetch.text()).toBe("")
@@ -234,8 +241,7 @@ it("response route", async () => {
 	expect(cased.status).toBe(301)
 	expect(cased.headers.get("location")).toBe("/hr/llms.txt")
 	const unknown = await get("/xx/llms.txt")
-	expect(unknown.status).toBe(302)
-	expect(unknown.headers.get("location")).toBe("/llms.txt")
+	expect([unknown.status, unknown.headers.get("location")]).toEqual([404, null])
 })
 
 it("response route tagged", async () => {

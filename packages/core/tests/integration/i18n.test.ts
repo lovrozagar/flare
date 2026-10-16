@@ -40,6 +40,7 @@ function app(options: Partial<I18nOptions> = {}, param = "locale") {
 		{ id: optional, path: `/[[${param}]]/about`, module: greeting(optional) },
 		{ id: "_root_/[locale]/docs", path: "/[locale]/docs", module: greeting("_root_/[locale]/docs") },
 		{ id: "_root_/xx/about", path: "/xx/about", module: greeting("_root_/xx/about") },
+		{ id: "_root_/[[locale]]/[topic]", path: "/[[locale]]/[topic]", module: greeting("_root_/[[locale]]/[topic]") },
 		{
 			id: "_root_/[[locale]]/llms.txt",
 			path: "/[[locale]]/llms.txt",
@@ -52,7 +53,12 @@ function app(options: Partial<I18nOptions> = {}, param = "locale") {
 	const router = createRouter({
 		layouts: { _root_: root },
 		routeTree: routeTree as { id: string; path: string; module: RouteModule }[],
-		locale: { locales: config.locales, defaultLocale: config.defaultLocale, paramName: param },
+		locale: {
+			locales: config.locales,
+			defaultLocale: config.defaultLocale,
+			paramName: param,
+			...(options.cookieName !== undefined && { cookieName: options.cookieName }),
+		},
 	})
 	const server = createServer({ router, site: SITE, locale: i18n({ ...config, paramName: param }) })
 	return async (path: string, headers: Record<string, string> = {}) => {
@@ -68,17 +74,41 @@ function app(options: Partial<I18nOptions> = {}, param = "locale") {
 	}
 }
 
-// `locales`: a configured tag in the path is the locale. An unconfigured locale-like segment on the optional param
-// redirects to the path without it; on a required `[locale]` it redirects to the default in that segment; a static
-// route at that path wins. A wrong-case tag 301s to its configured spelling. A tag Intl.Locale rejects throws.
+// `locales`: only a configured tag, in any case, is a locale segment. Any other segment is an ordinary path segment,
+// so a word such as `pricing` routes to its page with no redirect and no cookie, and an unconfigured tag matches no
+// locale route; a static route at that path wins. A wrong-case tag 301s to its configured spelling. A tag Intl.Locale
+// rejects throws (plan 21 3.8).
 it("locales", async () => {
 	const get = app()
 	expect((await get("/hr/about")).body).toBe("_root_/[[locale]]/about hr Bok")
-	expect(await get("/zz/about")).toMatchObject({ status: 302, location: "/about", cacheControl: "private, no-store" })
-	expect(await get("/zz/docs")).toMatchObject({ status: 302, location: "/en/docs" })
+	expect((await get("/pricing")).body).toBe("_root_/[[locale]]/[topic] undefined Hello")
+	expect((await get("/hr/pricing")).body).toBe("_root_/[[locale]]/[topic] hr Bok")
+	const word = await get("/pricing/x")
+	expect([word.status, word.location, word.cookies]).toEqual([404, null, []])
+	expect(await get("/zz/about")).toMatchObject({ status: 404, location: null })
+	expect(await get("/zz/docs")).toMatchObject({ status: 404, location: null })
 	expect((await get("/xx/about")).body).toBe("_root_/xx/about undefined Hello")
 	expect(await get("/HR/about")).toMatchObject({ status: 301, location: "/hr/about" })
 	expect(() => i18n({ locales: ["en_US"], defaultLocale: "en_US" })).toThrow('i18n locales: "en_US"')
+})
+
+// The router's `locale` is the one source of the locale config: `i18n()` with no fields negotiates from it, and a field
+// that differs from the router's throws at createServer, naming it (plan 21 3.8, BUGS.md 185).
+it("router config", async () => {
+	const about = {
+		id: "_root_/[[locale]]/about",
+		path: "/[[locale]]/about",
+		module: greeting("_root_/[[locale]]/about"),
+	}
+	const locale = { locales: ["en", "hr"], defaultLocale: "en" }
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [about] as never, locale })
+	const server = createServer({ router, site: SITE, locale: i18n() })
+	const headers = { "accept-language": "hr" }
+	const answer = await server.fetch(new Request(`${SITE}/about`, { headers, redirect: "manual" }))
+	expect([answer.status, answer.headers.get("location")]).toEqual([302, "/hr/about"])
+	expect(() => createServer({ router, site: SITE, locale: i18n({ ...locale, defaultLocale: "hr" }) })).toThrow(
+		"createServer: locale.defaultLocale is not the router's locale.defaultLocale",
+	)
 })
 
 // `defaultLocale`: the optional segment omits it, a required one keeps it, and a default outside `locales` throws.

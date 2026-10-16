@@ -333,10 +333,13 @@ it("locale param", () => {
 		params: { locale: undefined, slug: "favicon.ico" },
 	})
 	expect(routed.match("/hr").params).toEqual({ locale: "hr" })
-	expect(routed.match("/fr").params).toEqual({ locale: "fr" })
+	// Only a configured tag, in any case, is a locale; any other segment is an ordinary one (plan 21 3.8).
+	expect(routed.match("/fr").params).toEqual({ locale: undefined, slug: "fr" })
+	expect(routed.match("/HR").params).toEqual({ locale: "HR" })
 	expect(routed.match("/hr/x").params).toEqual({ locale: "hr", slug: "x" })
 	expect(routed.match("/x.y/docs").id).toBeUndefined()
-	expect(routed.match("/fr/docs").params).toEqual({ locale: "fr" })
+	expect(routed.match("/fr/docs").id).toBeUndefined()
+	expect(routed.match("/hr/docs").params).toEqual({ locale: "hr" })
 	// Without a locale config the param is an ordinary one.
 	expect(createRouter({ layouts: {}, routeTree }).match("/x.y/docs").params).toEqual({ locale: "x.y" })
 })

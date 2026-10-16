@@ -32,13 +32,13 @@ test("shared cookie", async ({ page, docs }) => {
 	expect(await response?.headerValue("set-cookie")).toBeNull()
 })
 
+// A tag the app does not list is no locale segment: /fr is an ordinary path, which no route matches, so it is the app's
+// 404 where it was asked, not a redirect to the default locale (B73, BUGS.md 184).
 test("unknown locale", async ({ page, docs }) => {
 	const response = await page.goto(`${docs.origin}/fr`)
-	const redirect = await response?.request().redirectedFrom()?.response()
-	expect(redirect?.status()).toBe(302)
-	expect(redirect?.headers()["cache-control"]).toContain("no-store")
-	expect(new URL(page.url()).pathname).toBe("/")
-	await expect(page.locator("#message")).toHaveText("Hello")
+	expect(response?.request().redirectedFrom()).toBeNull()
+	expect(response?.status()).toBe(404)
+	expect(new URL(page.url()).pathname).toBe("/fr")
 })
 
 test("theme no flash", async ({ context, docs }: { context: BrowserContext; docs: { origin: string } }) => {

@@ -90,10 +90,11 @@ export function localeLike(segment: string): boolean {
 	return canonical(segment) !== undefined
 }
 
-// With a locale config, the `paramName` param holds only a locale-like segment, so `/favicon.ico` is no locale page
-// (B73). Configured tags are canonical, so they are locale-like too.
+// With a locale config, the `paramName` param holds only a configured tag, in any case, so the wrong case can 301 to
+// its spelling. Any other segment, `pricing` or an unconfigured tag, is an ordinary path segment (B73, plan 21 3.8).
 export function localeParam(config: LocaleConfig): (name: string, value: string) => boolean {
-	return (name, value) => name !== config.paramName || localeLike(value)
+	const tags = new Set(config.locales.map((tag) => tag.toLowerCase()))
+	return (name, value) => name !== config.paramName || tags.has(value.toLowerCase())
 }
 
 // The canonical spelling of a tag, or nothing when `Intl` rejects it.

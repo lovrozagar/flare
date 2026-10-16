@@ -291,6 +291,7 @@ it("locale exit keeps route security", async () => {
 			{ id: "_root_/[[locale]]", path: "/[[locale]]", module: shared },
 			{ id: "_root_/[[locale]]/account", path: "/[[locale]]/account", module: owned },
 		],
+		locale: { locales: ["en", "hr"], defaultLocale: "en" },
 	})
 	const server = createServer({
 		router: localized,

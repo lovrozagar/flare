@@ -18,12 +18,14 @@ export type LocaleDecision = {
 	negotiated?: boolean | undefined
 }
 
-// The configured tags and the param name come with the slot, so the sitemap lists each locale's URL (B101).
+// The router's `locale` holds the tags, the default, the param name, and the cookie name (B73). A slot may repeat any
+// of them, and each it gives must equal the router's.
 export type LocaleSlot = {
 	readonly [LOCALE_SLOT]: (input: LocaleInput) => LocaleDecision
-	readonly locales: readonly string[]
-	readonly defaultLocale: string
-	readonly paramName: string
+	readonly locales?: readonly string[] | undefined
+	readonly defaultLocale?: string | undefined
+	readonly paramName?: string | undefined
+	readonly cookieName?: string | undefined
 }
 
 // The locale slot, between rewrite and middleware, around the middleware chain of a page request (02-system). The
@@ -71,4 +73,20 @@ function redirected(
 
 function isPrivate(response: Response): boolean {
 	return /\b(?:private|no-store)\b/i.test(String(response.headers.get("cache-control")))
+}
+
+// The router's `locale` is the one source of the locale config (B73): the slot needs it, and a field the slot repeats
+// must equal the router's, so the two never disagree (plan 21 3.8, BUGS.md 185).
+const FIELDS = ["locales", "defaultLocale", "paramName", "cookieName"] as const
+
+export function checkLocale(slot: LocaleSlot | undefined, router: Router): void {
+	if (slot === undefined) return
+	const config = router.locale
+	if (config === undefined) throw new Error("createServer: locale needs the router's locale: createRouter({ locale })")
+	for (const field of FIELDS) {
+		const given = slot[field]
+		if (given !== undefined && JSON.stringify(given) !== JSON.stringify(config[field])) {
+			throw new Error(`createServer: locale.${field} is not the router's locale.${field}`)
+		}
+	}
 }

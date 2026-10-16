@@ -47,8 +47,8 @@ type Page = { id: string; params: Record<string, string | string[] | undefined>;
 const MAX_TAGS = 8
 
 // The locale for one request: the path tag, then the cookie, then `Accept-Language`, then the default. Only a
-// document redirects. A wrong-case path tag 301s to the configured spelling. An unconfigured locale-like tag 302s: an
-// optional segment is removed, and a required one takes the default. A document whose URL does not show the tag the
+// document redirects. A wrong-case path tag 301s to the configured spelling. The router's locale param holds only a
+// configured tag (B73), so a segment that is none never reaches here as a tag. A document whose URL does not show the tag the
 // cookie or the header chose 302s to it. A bot follows neither the cookie nor the header and never gets a cookie. A
 // data response may persist the tag its URL shows. A prefetch never persists one.
 export function matchLocale(request: LocaleRequest, config: I18nConfig, router: RouterLike): LocaleMatch {
@@ -99,28 +99,23 @@ function pathTag(input: PathInput): LocaleMatch {
 		if (request.kind !== "document") return { locale: config.defaultLocale }
 		return redirect(input, { tag: cased, status: 301, cookie: bot || input.page.response ? undefined : cased })
 	}
-	if (!localeLike(raw)) return { locale: config.defaultLocale }
-	// An unconfigured tag redirects on every kind, so a layout never renders it (B73). A prefetch persists nothing.
-	const quiet = bot || request.kind === "prefetch" || input.page.response
-	const cookie = quiet ? undefined : config.defaultLocale
-	return redirect(input, { tag: input.page.optional ? undefined : config.defaultLocale, status: 302, cookie })
+	// A router with no `locale` config does not filter the param: a segment that is no configured tag is no locale.
+	return { locale: config.defaultLocale }
 }
 
 type RedirectInput = Pick<PathInput, "request" | "config" | "router" | "page">
 
-type Target = { tag: string | undefined; status: 301 | 302; cookie: string | undefined }
+type Target = { tag: string; status: 301 | 302; cookie: string | undefined }
 
-// The same route with the locale segment set to `tag`, or removed when `tag` is undefined or is the default on an
-// optional segment. The query stays. The target is built from the matched route's own pattern, so it is a route. A
+// The same route with the locale segment set to `tag`, or removed when `tag` is the default on an optional segment. The query stays. The target is built from the matched route's own pattern, so it is a route. A
 // URL that matches no route is not a locale page, and the router answers it.
 function redirect(input: RedirectInput, target: Target): LocaleMatch {
 	const { request, config, router, page } = input
 	const { tag, status, cookie } = target
-	const dropped = tag === undefined || (page.optional && tag === config.defaultLocale)
+	const dropped = page.optional && tag === config.defaultLocale
 	const path = buildUrl({ to: page.id, params: { ...page.params, [config.paramName]: dropped ? undefined : tag } })
 	const location = `${router.basePath === "/" ? "" : router.basePath}${path}${request.url.search}`
-	const locale = tag ?? config.defaultLocale
-	return { locale, redirect: { status, location }, ...(cookie !== undefined && { cookie }) }
+	return { locale: tag, redirect: { status, location }, ...(cookie !== undefined && { cookie }) }
 }
 
 function localePage(router: RouterLike, pathname: string, name: string): Page | undefined {
