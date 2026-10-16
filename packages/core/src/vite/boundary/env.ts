@@ -113,23 +113,35 @@ function directCalls(program: Program, names: Names): Map<CallExpression, Helper
 	return calls
 }
 
-// A helper read anywhere but as the callee of a direct call is a copy the rewrite cannot follow.
+// A helper read anywhere but as the callee of a direct call is a copy the rewrite cannot follow, and so is the
+// namespace read other than as `ns.name` (plan 21 13.15). A type position is no read.
 function requireDirect(at: { file: string; program: Program; names: Names }, calls: Map<CallExpression, Helper>): void {
 	const { file, program, names } = at
 	const callees = new Set([...calls.keys()].map((call) => call.callee.start))
 	const named = nonReferences(program)
+	const members = new Set<number>()
 	const fail = (name: string): never => {
 		throw new Error(`${file}: ${name} must be called directly`)
 	}
 	new Visitor({
-		Identifier: (node) => {
-			if (names.locals.has(node.name) && !named.has(node.start) && !callees.has(node.start)) fail(node.name)
-		},
 		MemberExpression: (node) => {
 			const helper = helperOf(node, names)
 			if (helper !== undefined && !callees.has(node.start)) fail(helper)
+			if (!node.computed) members.add(node.object.start)
+		},
+		TSQualifiedName: (node) => void members.add(node.left.start),
+		TSTypeQuery: (node) => void members.add(node.exprName.start),
+		Identifier: (node) => {
+			if (named.has(node.start)) return
+			if (names.locals.has(node.name) && !callees.has(node.start)) fail(node.name)
+			if (node.name === names.namespace && !members.has(node.start)) throw namespaceValue(file, node.name)
 		},
 	}).visit(program)
+}
+
+// The namespace read as a value hands its exports to code the rewrite cannot follow. The route split says the same.
+export function namespaceValue(file: string, namespace: string): Error {
+	return new Error(`${file}: the namespace ${namespace} is read as a value; use it only as ${namespace}.name`)
 }
 
 // The argument of a body helper or a side: one inline function expression or arrow.
@@ -153,7 +165,8 @@ function isomorphicChains(program: Program, names: Names): Map<number, Step[]> {
 		CallExpression: (node) => {
 			const steps: Step[] = []
 			let current: Expression = node
-			while (current.type === "CallExpression") {
+			// A namespace's `flare.createIsomorphicFn()` is a member call too, so the walk stops at the helper's own call.
+			while (current.type === "CallExpression" && helperOf(current.callee, names) === undefined) {
 				const callee: Expression = current.callee
 				if (callee.type !== "MemberExpression") break
 				steps.unshift({ name: callee.computed ? "" : callee.property.name, call: current })

@@ -132,6 +132,32 @@ it("iso order", () => {
 	expect(rewrite(source, "client")).not.toContain("SERVER")
 })
 
+// A namespace import's isomorphic chain is split like a named import's: the client graph loses `.server()`'s body and
+// the server graph `.client()`'s. The namespace read as a value is a build error in both graphs, since a helper taken
+// from it is a copy the rewrite cannot follow (plan 21 13.15).
+it("iso namespace", () => {
+	const source = `import * as flare from "@lovrozagar/flare";
+export const format = flare.createIsomorphicFn().server(() => SERVER).client(() => CLIENT);
+`
+	const client = rewrite(source, "client")
+	expect([client.includes("SERVER"), client.includes("CLIENT")]).toEqual([false, true])
+	const server = rewrite(source, "server")
+	expect([server.includes("SERVER"), server.includes("CLIENT")]).toEqual([true, false])
+	const copied = `import * as flare from "@lovrozagar/flare";
+const { createIsomorphicFn: make } = flare;
+export const format = make().server(() => SERVER).client(() => CLIENT);
+`
+	const value = "src/lib/a.ts: the namespace flare is read as a value; use it only as flare.name"
+	for (const graph of ["client", "server"] as const) expect(() => rewrite(copied, graph)).toThrow(value)
+	// A type position reads no value.
+	const typed = `import * as flare from "@lovrozagar/flare";
+type All = typeof flare;
+type Props = flare.LinkProps;
+export const read = flare.createServerOnlyFn((all: All, props: Props) => SECRET);
+`
+	for (const graph of ["client", "server"] as const) expect(() => rewrite(typed, graph)).not.toThrow()
+})
+
 it("quote in a regex", () => {
 	const source = `const quote = /"'\`/;\n${IMPORT}export const read = createServerOnlyFn(() => SECRET);\n`
 	expect(rewrite(source, "client")).not.toContain("SECRET")

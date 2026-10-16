@@ -10,6 +10,7 @@ import {
 } from "oxc-parser"
 import { boundNames, requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts"
 import { cacheKeyKept, routeMethod } from "./allow.ts"
+import { namespaceValue } from "./env.ts"
 import { deadDeclarations, moduleReads, nonReferences } from "./reads.ts"
 
 const BUILDERS = new Set(["createPage", "createLayout", "createRootLayout", "createPathSegment"])
@@ -135,7 +136,7 @@ function builderRoots(file: string, program: Program, builders: Builders): strin
 			if (named.has(node.start) || allowed.has(node.start)) return
 			const builder = builders.locals.get(node.name)
 			if (builder !== undefined) throw direct(file, builder)
-			if (builders.namespaces.has(node.name)) throw direct(file, "createPage")
+			if (builders.namespaces.has(node.name)) throw namespaceValue(file, node.name)
 		},
 	}).visit(program)
 	return roots
