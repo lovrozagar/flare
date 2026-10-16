@@ -24,3 +24,14 @@ it("createPage alone", async () => {
 	expect(budget.createPage).toBeTypeOf("number")
 	expect(result.minified).toBeLessThanOrEqual(budget.createPage)
 })
+
+// The client entry's production bundle, minified as it ships, holds no dev-only code: the dev tab, the hot-channel
+// events, the overlay's error payload, and the dev warnings sit behind `import.meta.env.DEV`, which a production bundle
+// replaces with false (plan 21 3.17).
+it("client without dev", async () => {
+	const result = await breakdown("client/boot/create-client.ts", "createClient")
+	// The tab's code is its `flare:tab` announcement; the shared protocol's header name is a bare constant.
+	for (const marker of ["flare:tab", "flare:error", "[flare:", "devErrorPayload"]) {
+		expect([marker, result.text.includes(marker)]).toEqual([marker, false])
+	}
+}, 120_000)

@@ -60,7 +60,8 @@ export function createClient(router: Router): ReadyApi {
 // The dev overlay payload goes over the client hot channel. The dev handler relays it (B93). Production has no
 // hot channel and sends nothing.
 export function devSend(hot: { send: (event: string, payload: unknown) => void } | undefined): ClientEnv["send"] {
-	return hot === undefined ? undefined : (payload) => hot.send("flare:error", payload)
+	if (!import.meta.env?.DEV || hot === undefined) return undefined
+	return (payload) => hot.send("flare:error", payload)
 }
 
 // Resolves to a dispose that removes the listeners and unmounts the app.
@@ -149,7 +150,7 @@ function disposer(...stops: (() => void)[]): () => void {
 
 // Every request the client makes, data, fill, prefetch, and server function, names its dev tab (B42).
 function devTabbed(env: ClientEnv): ClientEnv {
-	return { ...env, fetch: tabbedFetch(env.fetch, env.hot, document) }
+	return import.meta.env?.DEV ? { ...env, fetch: tabbedFetch(env.fetch, env.hot, document) } : env
 }
 
 // A boundary error the app's own <Errored> did not catch is a bug the dev overlay shows (B80). One caught while the
@@ -158,7 +159,7 @@ function devTabbed(env: ClientEnv): ClientEnv {
 function reporter(env: ClientEnv, phase: { hydrating: boolean }): (error: unknown) => void {
 	return (error) => {
 		if (phase.hydrating) console.error("[flare] a route failed to hydrate", error)
-		if (env.dev) env.send?.(devErrorPayload(error))
+		if (import.meta.env?.DEV && env.dev) env.send?.(devErrorPayload(error))
 	}
 }
 

@@ -353,6 +353,7 @@ packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token
 packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
 packages/core/src/client/boot/leave.test.ts	P1	test	dom	Leaving the document asks the last blocker: a refusing blocker cancels beforeunload, and a disposed client does not listen (BUGS.md 183)
+packages/core/src/client/boot/production.test.ts	P1	test	dom	With import.meta.env.DEV false the client leaves out the dev tab, the hot channel's sender, and the overlay report (BUGS.md 189)
 packages/core/src/client/boot/initial.ts	P1	src	dom	The match cache hydrate makes: the document's matches held on the render time its state carries, and the one "initial" plan (BUGS.md 139)
 packages/core/src/client/boot/initial.test.ts	P1	test	dom	Unit cases for initial.ts through bootClient: the seeded clock, the initial refetch, and the fill as the one request
 packages/core/src/client/boot/boot.fixture.ts	P1	test	dom	The app, router, document state, and browser surface the create-client tests boot
