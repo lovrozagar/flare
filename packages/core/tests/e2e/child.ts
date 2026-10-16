@@ -32,3 +32,14 @@ export function exited(child: ChildProcess): Promise<void> {
 		child.once("exit", () => resolve())
 	})
 }
+
+// Every process in the child's group: it leads one (spawned detached). A group with nothing left, or a child that never
+// started, has nothing to signal.
+export function signalGroup(child: ChildProcess, signal: NodeJS.Signals): void {
+	if (child.pid === undefined) return
+	try {
+		process.kill(-child.pid, signal)
+	} catch {
+		// The group has ended.
+	}
+}
