@@ -9,7 +9,10 @@ export type MethodMatch =
 // `headers` is the request's security set, so a 204 and a 405 carry it like any other status.
 export function applyMethod(request: Request, document: Response, headers?: Headers): Response {
 	if (request.method === "GET") return document
+	// A HEAD sends the document's status and headers. Its body is cancelled, which stops the render behind it, so no
+	// render outlives the answer (plan 21 3.12).
 	if (request.method === "HEAD") {
+		void document.body?.cancel()
 		return finalize({ status: document.status, body: "", headers: document.headers })
 	}
 	if (request.method === "OPTIONS") return finalize({ status: 204, body: "", headers: allow(headers) })
