@@ -54,7 +54,7 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 	// "resolve" values are awaited. "stream" functions never ran, so their holes stay placeholders.
 	const results = await Promise.allSettled(run.deferred.map((entry) => entry.promise))
 	if (run.response.status !== 200) return undefined
-	const document = await drawn(shared, { chain: matched.chain, run })
+	const document = await drawn(shared, { chain: matched.chain, run }, { quiet: true })
 	if ("failed" in document) return undefined
 	const html = await shellOf(document.body)
 	if (html === undefined) {
@@ -64,6 +64,9 @@ async function rendered(shared: Exchange, matched: Loaded): Promise<SharedRender
 		)
 		return INCOMPLETE
 	}
+	// A fragment that failed after the shell would replay its failure for the whole ttl: the visitor's answer is the
+	// live render, which logs it (plan 21 3.2).
+	if (document.late.length > 0) return undefined
 	const project = framed(shared)
 	// A fulfilled value travels inline in its `l` frame, so only a rejection still needs a frame (BUGS.md 94).
 	const deferred = run.deferred.filter((_, index) => results[index]?.status === "rejected")

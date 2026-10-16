@@ -81,8 +81,6 @@ it("signal follows the request signal", async () => {
 	expect(seen[0].signal?.aborted).toBe(false)
 	controller.abort()
 	expect(seen[0].signal?.aborted).toBe(true)
-	// Solid calls the error hook with its own arguments. The render's hook ignores them.
-	Reflect.apply(seen[0].onError ?? (() => undefined), undefined, [])
 	seen[0].onHead?.("")
 })
 

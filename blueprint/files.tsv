@@ -253,6 +253,8 @@ packages/core/src/server/loaders/hints.test.ts	P4	test	server	Unit cases for hin
 packages/core/src/server/loaders/index.ts	P1	index	server	Re-exports
 packages/core/src/server/render/document.ts	P1	src	server	Call renderToStream with the options 02-system names. Provides the router context around the root layout
 packages/core/src/server/render/document.test.ts	P1	test	server	Unit cases for document.ts
+packages/core/src/server/render/stream-options.ts	P1	src	server	Solid's stream options for the document render: the abort signal, the nonce, and the error hook that passes a render error contained after the shell to onRenderError (plan 21 3.2)
+packages/core/src/server/render/stream-options.test.ts	P1	test	server	Unit cases for stream-options.ts
 packages/core/src/server/render/critical-style.ts	P11	src	server	Insert the critical style into the shell head, the placed stylesheet markup after it, then the shell may flush
 packages/core/src/server/render/critical-style.test.ts	P11	test	server	Unit cases for critical-style.ts
 packages/core/src/server/render/escape.ts	P1	src	server	escapeInlineScript over shared/csp's escapeInlineJson, and escapeAttr

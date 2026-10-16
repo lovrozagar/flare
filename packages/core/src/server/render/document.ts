@@ -14,11 +14,9 @@ import { headSequence } from "./head-sequence.ts"
 import { registeredQuery, type DevStyle } from "../../shared/protocol/index.ts"
 import { DocumentlessRoot, isDocument } from "./shape.ts"
 import { insertState, stateWriter, type StateMatch } from "./state.ts"
+import { streamOptions, type StreamOptions } from "./stream-options.ts"
 
 type Chunk = string | Uint8Array
-
-// Solid's own render options, so the render passes them through as they are.
-type StreamOptions = NonNullable<Parameters<typeof web.renderToStream>[1]>
 
 type Stream = (
 	fn: () => unknown,
@@ -45,6 +43,9 @@ export type DocumentInput = {
 	onDocumentless?: ((root: string) => void) | undefined
 	// A bug found while writing the document, such as a query cache JSON cannot hold. It does not stop the document.
 	onBug?: (bug: Error) => void
+	// A render error Solid contained after the shell: a `<Loading>` fragment that rejected, which the client renders
+	// again. The bytes already sent stay (plan 21 3.2).
+	onRenderError?: (error: unknown) => void
 }
 
 const encoder = new TextEncoder()
@@ -64,7 +65,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	const stylesheet: StylesheetPlacement = {}
 	const event = { path: new URL(input.request.url).pathname, nonce, stylesheet, devStyles: input.devStyles }
 	const render = withRequest(event, () =>
-		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, nonce)),
+		(input.stream ?? defaultStream)(() => tree(input, tags), streamOptions(signal, nonce, input.onRenderError)),
 	)
 	// A failure after the shell surfaces on the readable. The bytes already sent stay.
 	render.pipeTo(piped.writable).catch(() => undefined)
@@ -120,17 +121,6 @@ function tree(input: DocumentInput, tags: readonly HeadTag[] | undefined): Eleme
 		overlay: NO_OVERLAY,
 	}
 	return appTree(values, () => [input.render(), createComponent(DocumentHead, { tags: tags ?? [] })])
-}
-
-function streamOptions(signal: AbortSignal, nonce: string): StreamOptions {
-	const options: StreamOptions = {
-		signal,
-		manifest: {},
-		onError: () => undefined,
-		onHead: () => undefined,
-	}
-	if (nonce !== "") options.nonce = nonce
-	return options
 }
 
 function clientScript(client: string | undefined, nonce: string): string {

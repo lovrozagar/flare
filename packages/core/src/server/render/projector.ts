@@ -106,3 +106,18 @@ function rebuilt(name: string, message: string, stack: string): Error {
 	error.stack = stack
 	return error
 }
+
+// Render errors Solid contained after the shell, such as a `<Loading>` fragment that rejected for the client to render
+// again. Each is kept in `late`; a live answer logs it, and a `quiet` shared render, which renders again live and is
+// never stored, does not (plan 21 3.2).
+export function lateErrors(
+	sink: ErrorSink,
+	quiet: boolean,
+): { late: unknown[]; onRenderError: (error: unknown) => void } {
+	const late: unknown[] = []
+	const onRenderError = (error: unknown): void => {
+		late.push(error)
+		if (!quiet) projectError(error, sink)
+	}
+	return { late, onRenderError }
+}
