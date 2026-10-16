@@ -993,6 +993,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 193 [x] An emoji in a path param made buildUrl throw, so a Link crashed its render
 193.1 [x] Plan 21 8.2, from the 2026-10-16 gap audit: shared/url/href.ts `encodeParam` walked the param by UTF-16 code unit, so a character outside the BMP was split into its two surrogates, and `encodeURIComponent` threw `URIError: URI malformed` on each half: a `Link` to a user named with an emoji crashed the render. Red: shared/url/href.test `emoji param` (`URIError`).
 193.2 [x] Fix: the param is walked by code point, so the pair is encoded whole (`%F0%9F%98%80`) and round-trips; a lone surrogate, which no URL can carry, throws `param` like any other bad param, never a URIError. `String.prototype.isWellFormed` is above the browser floor, so the check is `encodeURIComponent`'s own. dx/link.md says so.
+194 [x] A rewrite applied to the server-function path, so a locale rewrite broke every server function
+194.1 [x] Plan 21 8.4, from the 2026-10-16 gap audit: server/lifecycle/canonical-redirect.ts exempted `<basePath>/_flare/fn/` from the trailing-slash and case rules but ran the app's `rewrite` on it, so a rewrite that prefixes paths with a locale answered every server-function POST with a 308 to `/en/_flare/fn/<id>`, which matches no endpoint. Red: tests/integration/server-fn.test `rewrite skips functions` (a 308).
+194.2 [x] Fix: the rewrite step skips a server-function path, as the other canonical rules do. dx/server.md says so.
 
 ## Verify
 
