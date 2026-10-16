@@ -169,7 +169,7 @@ let harness: Harness | undefined
 
 beforeAll(async () => {
 	harness = await startHarness(resolve(dirname(expect.getState().testPath ?? ""), "../.."))
-}, 180_000)
+})
 
 afterAll(async () => {
 	await harness?.close()

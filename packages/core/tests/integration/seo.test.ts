@@ -85,7 +85,7 @@ beforeAll(async () => {
 		}),
 		app({ ...TWO_PAGES, "vite.config.mjs": config("{}") }),
 	])
-}, 180_000)
+})
 
 // A file at the root of the app's client output, or undefined when the build wrote none.
 function written(root: string | undefined, file: string): string | undefined {
