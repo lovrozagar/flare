@@ -497,6 +497,29 @@ The fixture JWT is produced once, checked by hand against an independent verifie
 | `console all` | a hydration-mismatch message and an `Error` | both are returned. A hydration mismatch is an app bug, and Flare's own pages emit none, so the helper never hides one |
 | `state` | a document with `self.flare` | `state()` returns `build`, `nonce`, `matches`, and `queries`. A match is `{ id, params, search, data, preloader, head, error }`. A `{ p, r, c }` object is not accepted |
 
+### `tests/integration/seo.test.ts` and `seo-submit.test.ts` (plan 14 9.6, B96)
+
+dx/seo.md through real apps and real requests. seo.test builds fixture apps with `vite build` and `flare({ prerender: { sitemap } })` (tests/integration/vite-app.ts, shared with routes.test) and reads the sitemap.xml and robots.txt the build wrote; the key file is a middleware of the real `createServer(...).fetch`. seo-submit runs each submitter in a child process on the test's runtime, whose fetch goes through an HTTPS proxy to a local TLS server holding a certificate, signed by a test CA only the child trusts (tests/integration/seo-tls.ts), for each service's host. The proxy refuses any other host. The fence: the child first fetches a `.invalid` host and calls a submitter only once that probe came back through the proxy, so a runtime that ignored the proxy stops at a DNS failure and reaches no real service. Each group's bite is the source mutation that turns it red (16 for seo.test, 12 for seo-submit).
+
+| test | case | result |
+| --- | --- | --- |
+| `sitemap entries` | public, optional-auth, required-auth, authorize, `.response()`, ssg-slug, dynamic, optional catch-all, and excluded pages, a changefreq record, one priority, an extra entry with `&` and a lastmod | the public, optional-auth, bare catch-all, and each ssg slug listed with their fields; the extra entry escaped with a UTC date |
+| `robots string` | a robots string with a foreign `Sitemap:` line | the other lines kept, that line dropped, the one on `site` appended |
+| `robots true and records` | `robotsTxt: true`, one changefreq, a priority record | the one line; each entry's changefreq; the priority only on the id named |
+| `sitemap defaults` | `sitemap: {}` | every public page, no fields, no robots.txt |
+| `sitemap options checked` | priority 1.1 to `flare()` and to `sitemap()`, an unknown changefreq, a bad lastmod | each throws when made |
+| `sitemap build errors` | a changefreq record key that is no route id, an extra entry off `site` | the build fails naming it |
+| `indexnow key file` | `GET /<key>.txt`, another path, the app, a short key | the key as text/plain; 404; the page; a throw |
+| `indexnow posts` | with and without keyLocation | one JSON POST each, keyLocation only when set |
+| `indexnow fails` | a 500 | `{ ok: false }` with the status, no key in the result or the output |
+| `indexnow checks` | a scheme in host, a short key, an off-host url | each throws, no request |
+| `google sitemap` | sitemap mode | a token request whose RS256 assertion verifies with the key's public half (iss, aud, webmasters scope, one hour), then one PUT of the encoded site and sitemap with the bearer |
+| `google notify` | three urls, concurrency 2, then the default | the indexing scope, one publish each with its body, at most 2 then 1 in flight |
+| `google fails` | a failed token, a failed publish among three, a PEM that does not sign | `{ ok: false }` each, the in-flight publishes finished, no PEM and no token in the result or the output |
+| `google one mode` | both modes, neither, no urls, 101 urls | each throws, no request |
+| `bing submits` | one url | one POST with the key in the query only and `{ siteUrl, urlList }` |
+| `bing fails` | a 503 | `{ ok: false }`, no key in the result or the output |
+
 ## Done
 
 Each feature's tests pass without importing another feature. The i18n e2e shows a shared page with no `Set-Cookie`. Open tabs hear theme, direction, and locale on `flare.sync`, and a `storage` event updates none of them.
