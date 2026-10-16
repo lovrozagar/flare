@@ -35,7 +35,17 @@ export function inflight(key: string, start: () => Promise<Landing>): Promise<Fl
 		.catch(() => undefined)
 		.finally(() => {
 			clearTimeout(timer)
-			flights.delete(key)
+			// A purge may have dropped this slot, and a newer flight taken it.
+			if (flights.get(key) === joined) flights.delete(key)
 		})
 	return started
+}
+
+// A purge drops the in-flight renders it may affect, so a request after a mutation starts its own render instead of
+// joining one that read the data before it: each purged key's slot, and every slot for a tag purge, since a render's
+// tags are known only once it is done. A dropped render still writes, and the purge's epochs make that write a miss
+// (plan 21 3.4, dx/cache.md).
+export function dropFlights(purge: { keys: readonly string[]; tags: readonly string[] }): void {
+	if (purge.tags.length > 0) return flights.clear()
+	for (const key of purge.keys) flights.delete(key)
 }
