@@ -354,6 +354,27 @@ dx/router.md through the real server and the real client. The server half calls 
 | `rewrite` | `/old` rewritten to `/b` | the `/b` page (bite: no client rewrite) |
 | `router config` | no options, then `prefetch`, `viewTransitions`, `scrollRestorationBehavior` | the defaults, then the values set |
 
+### `tests/integration/routes.test.ts` (plan 14 9.6, B96)
+
+dx/routes.md through real apps. Each fixture is an app of route files under `src/routes`, built by `vite build` from a config file with `flare()` in a child process, as the CLI runs it, and answered by the built server's `fetch`. A build error is that build's failure and its message. The lazy route wait runs in `vite dev`'s SSR runner. Each group's bite is the source mutation that turns it red.
+
+| test | case | result |
+| --- | --- | --- |
+| `root and home` | `/`, `/_root_` | the home page in the `_root_` document; the root has no URL (bite: the root marker kept) |
+| `about` | `/about` | `_root_/about` |
+| `group no segment` | `/post`, `/(blog)/post`, `/blog` | the post page inside the group's layout; 404, 404 (bite: a group is a segment) |
+| `param` | `/users/42`, `/users` | `{ id: "42" }`; 404 (bite: the param value dropped) |
+| `catch-all` | `/files/a/b`, `/files` | `{ path: ["a", "b"] }`; 404 (bite: a required catch-all may be empty) |
+| `optional` | `/optional-locale`, `/optional-locale/hr` | `{}`; `{ locale: "hr" }` |
+| `optional catch-all` | `/files`, `/files/a/b` in a second app | `{}`; `{ rest: ["a", "b"] }` (bite: an optional segment never empty) |
+| `admin root` | `/dashboard`, `/admin/dashboard` | the page in the `_admin_` document; 404 |
+| `locale root` | `/hr/about` | `{ locale: "hr" }` in the `[locale]/_root_` document (bite: a param before the root dropped, a duplicate-url build) |
+| `literal brackets` | `/[id]`, `/42` | the `[_]id]` page; 404 (bite: the brackets dropped) |
+| `ignored` | `/_parts/widget`, `/_parts` with a page file in `_parts` | 404, 404 (BUGS.md 131) |
+| `more than one root` | `/`, `/dashboard`, `/hr/about` | three documents, one per root (bite: every layout in every chain) |
+| `duplicate url`, `shadow`, `two pages`, `id mismatch`, `no root`, `bad brackets`, `repeated param` | one app each | the build fails with codegen's message naming the files (BUGS.md 130 for `id mismatch`); each bite is the check removed |
+| `lazy route module` | a route module that imports the router and holds its evaluation open, two requests | both 200: the second import gets the namespace before `route` is set, and dev waits for it (bite: no dev wait) |
+
 ## Done
 
 The minimal app's `dev` script serves `/`. `bun run test` is green at 100% for every source file this bit created. On Linux, `bun run test:e2e` is green on `node-dev-chromium` and `node-dev-firefox`. On macOS, the same command is green on `node-dev-webkit`. Both CI jobs are green.
