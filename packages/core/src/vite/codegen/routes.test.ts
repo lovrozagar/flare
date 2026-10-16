@@ -3,7 +3,8 @@ import { defineLayouts, defineRouteTree, generateRoutes } from "./routes.ts"
 
 const rootLayout = "_root_/root.root-layout.tsx"
 
-const routeSource = `export const route = createPage("");\n`
+// Every file of a case shares this source. Its id is a name the scan does not resolve, so no case checks it.
+const routeSource = `export const route = createPage(ID);\n`
 
 function read(): string {
 	return routeSource
@@ -110,8 +111,31 @@ it("literal brackets", () => {
 	expect(route?.urls).toEqual(["/[id]"])
 })
 
+// A folder that starts with `_` and does not end with `_` holds no routes, its page and layout files included.
 it("ignored", () => {
 	expect(generateRoutes(["_parts/widget.tsx"], read).routes).toEqual([])
+	const hidden = ["_root_/_parts/card.page.tsx", "_root_/_parts/x/x.layout.tsx", "_root_/_parts/x/y/y.page.tsx"]
+	// A file with no route suffix is not a route wherever it sits.
+	const generated = routesOf(["_root_/home.page.tsx", "_root_/format.ts", ...hidden])
+	expect(generated.routes.map((route) => route.id)).toEqual(["_root_/"])
+	expect(generated.layouts.map((layout) => layout.id)).toEqual(["_root_"])
+	expect(generated.source).not.toContain("_parts")
+})
+
+// The string in a route file's builder call is the file's id, or codegen fails naming the file (dx/routes.md).
+it("id mismatch", () => {
+	const sources: Record<string, string> = {
+		"_root_/root.root-layout.tsx": `export const route = createRootLayout("_root_");\n`,
+		"_root_/about/about.page.tsx": `export const route = createPage("_root_/abut");\n`,
+	}
+	const files = Object.keys(sources)
+	const generate = () => generateRoutes(files, (file) => sources[file] ?? "")
+	expect(generate).toThrow('_root_/about/about.page.tsx: the id string "_root_/abut" is not "_root_/about"')
+	sources["_root_/about/about.page.tsx"] = `export const route = createPage("_root_/about");\n`
+	sources["_root_/root.root-layout.tsx"] = `export const route = createRootLayout("_admin_");\n`
+	expect(generate).toThrow('_root_/root.root-layout.tsx: the id string "_admin_" is not "_root_"')
+	sources["_root_/root.root-layout.tsx"] = `export const route = createRootLayout("_root_");\n`
+	expect(generate().routes).toHaveLength(1)
 })
 
 it("repeated param", () => {

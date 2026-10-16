@@ -6,6 +6,7 @@ import {
 	type ExportNamedDeclaration,
 	type Expression,
 	type ObjectPropertyKind,
+	type Program,
 	type PropertyKey,
 } from "oxc-parser"
 
@@ -17,6 +18,8 @@ export type ClientValue = string | boolean | Record<string, string>
 export type ClientLiteral = false | Record<string, ClientValue>
 
 const CLIENT_KEYS = ["prefetch", "staleTime", "gcTime", "prefetchStaleTime", "prefetchGcTime", "cacheDeferred"]
+
+const BUILDERS = new Set(["createPage", "createLayout", "createRootLayout", "createPathSegment"])
 
 export type Scan = {
 	file: string
@@ -30,6 +33,9 @@ export type Scan = {
 	authorize: boolean
 	// The sides this file's `.input()` validates (dx/types.md).
 	input: { params: boolean; search: boolean }
+	// The ids this file's builder calls name, each a string literal or a module-level const bound to one. Codegen checks
+	// them against the file's path (dx/routes.md).
+	ids: string[]
 }
 
 export function scanRoute(file: string, source: string): Scan {
@@ -43,7 +49,9 @@ export function scanRoute(file: string, source: string): Scan {
 		response: false,
 		authorize: false,
 		input: { params: false, search: false },
+		ids: [],
 	}
+	const consts = constStrings(parsed.program)
 	new Visitor({
 		ImportDeclaration: (node) => {
 			if (node.source.value === QUERY) scan.query = true
@@ -51,9 +59,35 @@ export function scanRoute(file: string, source: string): Scan {
 		ExportNamedDeclaration: (node) => {
 			if (exportsRoute(node)) scan.route = true
 		},
-		CallExpression: (node) => readCall(scan, node),
+		CallExpression: (node) => {
+			readCall(scan, node)
+			const id = builderId(node, consts)
+			if (id !== undefined) scan.ids.push(id)
+		},
 	}).visit(parsed.program)
 	return scan
+}
+
+// The module's top-level `const NAME = "…"` bindings, which a builder call may name its id by (`createPage(ID)`).
+function constStrings(program: Program): Map<string, string> {
+	const consts = new Map<string, string>()
+	for (const statement of program.body) {
+		if (statement.type !== "VariableDeclaration" || statement.kind !== "const") continue
+		for (const item of statement.declarations) {
+			const init = item.init
+			if (item.id.type === "Identifier" && init?.type === "Literal" && typeof init.value === "string")
+				consts.set(item.id.name, init.value)
+		}
+	}
+	return consts
+}
+
+// The id a bare builder call names, when its first argument is a string literal or a const bound to one.
+function builderId(node: CallExpression, consts: ReadonlyMap<string, string>): string | undefined {
+	if (node.callee.type !== "Identifier" || !BUILDERS.has(node.callee.name)) return undefined
+	const [first] = node.arguments
+	if (first?.type === "Literal" && typeof first.value === "string") return first.value
+	return first?.type === "Identifier" ? consts.get(first.name) : undefined
 }
 
 // `export const route = …` or `export { route }`: the builder record codegen imports (dx/routes.md).

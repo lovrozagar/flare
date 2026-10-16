@@ -238,7 +238,8 @@ A root whose own loader failed never renders, so its bare failure is not checked
 | `admin root` | `_admin_/dashboard` | URL `/dashboard` |
 | `locale root` | `[locale]/_root_/about` | URL `/[locale]/about` |
 | `literal brackets` | folder `[_]id]` | the URL segment is the static text `[id]` |
-| `ignored` | `_parts/widget.tsx` | no route |
+| `ignored` | `_parts/widget.tsx`, and a page, a layout, and a nested page under `_root_/_parts` | no route and no layout. A folder that starts with `_` and is not a root holds none (BUGS.md 131) |
+| `id mismatch` | `createPage("_root_/abut")` in `_root_/about/about.page.tsx`, then `createRootLayout("_admin_")` in `_root_/root.root-layout.tsx` | build error naming the file, the string, and the id (BUGS.md 130) |
 | `duplicate url` | `_root_/dashboard` and `_admin_/dashboard` | build error, both files named |
 | `shadow` | a catch-all beside a static sibling | build error |
 | `two pages` | two `*.page.tsx` files in one folder | build error |
@@ -257,6 +258,7 @@ One `oxc-parser` walk (B75). Babel is not imported.
 | `intercept literals` | `.intercept({ from: ["_root_/gallery"], render: "preview" })` | those literals, and the route-id span |
 | `computed from` | `from` is an identifier | the build fails and names the file and `intercept` |
 | `query import` | an import of `@lovrozagar/flare/query` | the flag is set. A comment that names the package does not set it |
+| `builder ids` | `createPage`, `createLayout`, `createRootLayout`, `createPathSegment` with a string literal, a module-level const, a `let`, a template, no argument, another identifier | the literal's and the const's string. The others are not read (BUGS.md 130) |
 
 ### `client/boot/hydrate.test.ts` and `create-client.test.ts`
 

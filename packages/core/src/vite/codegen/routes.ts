@@ -49,17 +49,18 @@ export function generateRoutes(
 	read: (file: string) => string,
 	options: { routesDir?: string } = {},
 ): GeneratedRoutes {
+	const routed = files.filter((file) => !ignored(file))
 	const pages: Item[] = []
 	const layouts: LayoutGen[] = []
-	for (const file of files) {
+	for (const file of routed) {
 		if (file.endsWith(PAGE)) pages.push(pageItem(file))
 		else if (file.endsWith(ROOT_LAYOUT)) layouts.push(item(file, ROOT_LAYOUT))
 		else if (file.endsWith(LAYOUT)) layouts.push(item(file, LAYOUT))
 		// A path segment joins the chain of the pages under it, as a layout does (B17, BUGS.md B22).
 		else if (file.endsWith(SEGMENT)) layouts.push(item(file, SEGMENT))
 	}
-	assertRoot(files, pages)
-	assertApart(files)
+	assertRoot(routed, pages)
+	assertApart(routed)
 	const scans = assertExports([...pages, ...layouts], read)
 	assertOne(pages)
 	const routes = pages.map((page) => toRoute(page, scans.get(page.file)))
@@ -67,6 +68,14 @@ export function generateRoutes(
 	assertShadow(routes)
 	assertKinds(routes)
 	return { source: render(routes, layouts, options.routesDir ?? "src/routes"), routes, layouts }
+}
+
+// A folder that starts with `_` and is not a root, such as `_parts`, holds no routes (dx/routes.md).
+function ignored(file: string): boolean {
+	return file
+		.split("/")
+		.slice(0, -1)
+		.some((folder) => folder.startsWith("_") && !isRootFolder(folder))
 }
 
 // A root's home page shares its folder with the root layout, so its id ends in "/": `_root_/` (dx/routes.md).
@@ -151,12 +160,15 @@ function assertApart(files: readonly string[]): void {
 	}
 }
 
-// Each file is parsed once. The result maps a file to whether its chain calls .response().
+// Each file is parsed once. The result maps a file to whether its chain calls .response(). A builder call's id string
+// is the file's id: a hand edit or a moved file that disagrees fails the build (dx/routes.md, BUGS.md 130).
 function assertExports(items: readonly Item[], read: (file: string) => string): Map<string, Scan> {
 	const scans = new Map<string, Scan>()
 	for (const entry of items) {
 		const scan = scanRoute(entry.file, read(entry.file))
 		if (!scan.route) throw new Error(`${entry.file}: no route export`)
+		const wrong = scan.ids.find((id) => id !== entry.id)
+		if (wrong !== undefined) throw new Error(`${entry.file}: the id string "${wrong}" is not "${entry.id}"`)
 		scans.set(entry.file, scan)
 	}
 	return scans

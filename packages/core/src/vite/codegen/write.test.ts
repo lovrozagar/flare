@@ -96,7 +96,7 @@ it("watch", () => {
 	expect(generated(root, "routes.gen.ts")).toContain('"_root_/about"')
 	emit("src/_gen/routes.gen.ts")
 	emit("elsewhere/file.ts")
-	writeFileSync(join(root, "src/routes/_root_/other.page.tsx"), page("_root_/other"))
+	writeFileSync(join(root, "src/routes/_root_/other.page.tsx"), page("_root_/"))
 	emit("src/routes/_root_/other.page.tsx")
 	vi.advanceTimersByTime(50)
 	expect(errors).toHaveLength(1)

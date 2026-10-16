@@ -70,3 +70,20 @@ it("input sides", () => {
 	expect(sides(".render(r)")).toEqual({ params: false, search: false })
 	expect(scanRoute("a.page.tsx", 'export const route = createPage("x").authorize(a).render(r);').authorize).toBe(true)
 })
+
+function ids(source: string): string[] {
+	return scanRoute("a.page.tsx", source).ids
+}
+
+// The id a builder call names: a string literal, or a module-level const bound to one. Any other argument is not read.
+it("builder ids", () => {
+	expect(ids('export const route = createPage("_root_/a").render(r);')).toEqual(["_root_/a"])
+	expect(ids('const ID = "_root_/a";\nexport const route = createPage(ID);')).toEqual(["_root_/a"])
+	expect(ids('export const route = createRootLayout("_root_");\nconst seg = createPathSegment("_root_/s");')).toEqual([
+		"_root_",
+		"_root_/s",
+	])
+	expect(ids("let ID = '_root_/a';\nconst N = 1;\nexport const route = createLayout(ID, N);")).toEqual([])
+	expect(ids('export const route = createPage(`_root_/${x}`);\nexport const other = make("x");')).toEqual([])
+	expect(ids("export const route = createPage();\nconst [a] = b;\nexport const c = createPage(other);")).toEqual([])
+})
