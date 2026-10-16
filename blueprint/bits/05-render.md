@@ -30,7 +30,7 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 | `layout chrome` | the page omits `errorRender` and the layout has it | the layout function's text is in the page slot. The layout `render` text is present. The page `render` text is absent. `params` are the layout's |
 | `descendant skipped` | the layout loader throws and the layout has `errorRender` | the page `render` text is absent. The root `render` text is present. The layout `render` text is absent |
 | `page builtin` | no match defines `errorRender` and the page loader throws | one `div` whose text is `Something went wrong`. The layout `render` text is present. The page `render` text is absent. In production the body does not contain the thrown message |
-| `root builtin` | the root loader throws and the root defines no `errorRender` | the body is that `div`. The root `render` text is absent |
+| `root builtin` | the root loader throws and the root defines no `errorRender` | a minimal `html`, empty `head`, and a `body` that is that `div`. The root `render` text is absent (BUGS.md 134) |
 | `not found own` | the page calls `notFound()` and defines `notFoundRender` | that function's text is present. `errorRender` is not called |
 | `login` | a 401 and no `unauthenticatedRender` | one `div` whose text is `Please log in`. `errorRender` is not called |
 | `denied` | a 403 and no `unauthorizedRender` | one `div` whose text is `Access denied` |
