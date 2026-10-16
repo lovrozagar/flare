@@ -982,6 +982,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 190 [x] A shallow or hash navigation made during an in-flight fill was reverted when the fill committed
 190.1 [x] Plan 21 3.11, from the 2026-10-16 gap audit: a fill revalidates the page's URL as it was when the fill began, and its commit wrote that URL's location and search into the store, so a shallow or hash move made while the fill was open lost its location and the page's search, while the address bar kept the move's URL. Red: client/navigation/navigate-fill.test `later move wins` (the store's location went back to `/about`).
 190.2 [x] Fix: a fill's commit keeps the page as it is when the values land, on the same path: the store's location and each match's search stay the later move's, and the fill only settles the values (client/navigation/request.ts `onPage`). A data navigation still aborts the fill as before. dx/defer.md says so.
+191 [x] An image's EXIF orientation was ignored, so portrait phone photos came out sideways
+191.1 [x] Plan 21 3.16, from the 2026-10-16 gap audit: features/image/vite/optimize.ts and the dev endpoint resized the stored pixels and dropped the metadata, so a photo stored landscape with EXIF orientation 6, as a phone writes a portrait shot, became a landscape webp, and its binding's width and height were the stored ones. Red: features/image/vite/optimize.test `exif orientation` (the intrinsic size was 1000x500 for a photo that shows 500x1000).
+191.2 [x] Fix: sharp's `autoOrient()` runs before the resize in the plugin and the dev endpoint, and the intrinsic size is `metadata().autoOrient`. The variants and the binding are upright, and no orientation tag is left. dx/plugin.md says so.
 
 ## Verify
 

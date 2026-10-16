@@ -23,7 +23,7 @@ async function answer(request: Request, settings: ImageSettings, root: string): 
 	const real = await realInside(root, file)
 	if (typeof real === "number") return new Response(null, { status: real })
 	const { default: sharp } = await import("sharp")
-	const bytes = await sharp(real).resize({ width }).webp({ quality }).toBuffer()
+	const bytes = await sharp(real).autoOrient().resize({ width }).webp({ quality }).toBuffer()
 	return new Response(new Uint8Array(bytes), { status: 200, headers: { "content-type": "image/webp" } })
 }
 

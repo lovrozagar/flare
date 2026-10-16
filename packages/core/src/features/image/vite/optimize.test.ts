@@ -7,7 +7,7 @@ import { afterAll, beforeAll, expect, it } from "vitest"
 import { parseOptions } from "../../../vite/plugin/options.ts"
 import { withQuality } from "../shared/image.tsx"
 import { imageEndpoint } from "./dev-endpoint.ts"
-import { encodeVariant, imagePlugin, type ImageSettings } from "./optimize.ts"
+import { encodeVariant, imagePlugin, intrinsicSize, type ImageSettings } from "./optimize.ts"
 
 const root = mkdtempSync(join(tmpdir(), "flare-image-"))
 const png = join(root, "src", "a.png")
@@ -25,6 +25,11 @@ beforeAll(async () => {
 	await sharp({ create: { width: 100, height: 50, channels: 3, background: "#0a0" } })
 		.png()
 		.toFile(join(root, "src", "tiny.png"))
+	// A phone photo: stored 1000x500, with EXIF orientation 6, so it shows 500x1000, upright.
+	await sharp({ create: { width: 1000, height: 500, channels: 3, background: "#04c" } })
+		.jpeg()
+		.withMetadata({ orientation: 6 })
+		.toFile(join(root, "src", "phone.jpg"))
 	// Noise, so a lower quality makes fewer bytes.
 	const noise = Buffer.from(Array.from({ length: 400 * 200 * 3 }, (_, index) => (index * 7919) % 251))
 	await sharp(noise, { raw: { width: 400, height: 200, channels: 3 } })
@@ -60,6 +65,19 @@ async function load(id: string, at: { env?: string; command: "serve" | "build"; 
 it("configured", async () => {
 	const bytes = await encodeVariant(png, 320, settings)
 	expect(await sharp(bytes).metadata()).toMatchObject({ width: 320, format: "webp" })
+})
+
+// An image's EXIF orientation is applied: its size and every variant are upright, as a browser shows the original, and
+// the variant carries no orientation for a viewer to apply twice (plan 21 3.16).
+it("exif orientation", async () => {
+	const phone = join(root, "src", "phone.jpg")
+	expect(await intrinsicSize(phone)).toEqual({ width: 500, height: 1000 })
+	const meta = await sharp(await encodeVariant(phone, 320, settings)).metadata()
+	expect([meta.width, meta.height, meta.orientation]).toEqual([320, 640, undefined])
+	const handle = imageEndpoint(settings, { root }).handle
+	const answer = await handle(new Request("http://localhost/_flare/image?src=/src/phone.jpg&w=320"))
+	const shown = await sharp(new Uint8Array(await answer.arrayBuffer())).metadata()
+	expect([shown.width, shown.height]).toEqual([320, 640])
 })
 
 it("other width", async () => {
