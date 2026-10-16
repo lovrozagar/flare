@@ -16,7 +16,7 @@ A store that fails never takes the site down with it. A stored page's read waits
 
 `FlareStoreEntry` is `{ data, storedAt: number, tags?: string[] }`. `storedAt` is milliseconds. The framework sets it. An implementation does not invent a second timestamp.
 
-The key is built by the framework: `static:<build>:<routeId>:<rawParams>`. There is no identity class in the key. The policy class `anonymous` is not a segment. There is no author key (B32, B73).
+The key is built by the framework: `static:<build>:<routeId>:<rawParams>`. There is no identity class in the key. The policy class `anonymous` is not a segment. There is no author key (B32, B73). `<build>` is the build id, which covers server code too (B84): a deploy that changes only server code rotates every key on purpose, so no page a previous server rendered is served by the new one; it pairs with the deploy runbook (plan 21 16.10, BUGS.md 176).
 
 ## createMemoryStore
 

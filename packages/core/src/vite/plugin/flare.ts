@@ -13,7 +13,7 @@ import { devHead as devHeadOf } from "../dev/dev-head.ts"
 import { installDevStyles } from "../dev/dev-styles.ts"
 import { cssUpdate } from "../dev/css-update.ts"
 import { installDevHandler } from "../dev/handler.ts"
-import { buildInfoSource } from "./build-id.ts"
+import { buildIdPlugin, buildInfoSource } from "./build-id.ts"
 import { ownModule } from "./own-module.ts"
 import { fontsPlugin } from "./fonts.ts"
 import { assetUrl, buildConfig, environmentBuild, PRERENDER_ENV, SERVER_BUNDLED } from "./environments.ts"
@@ -75,6 +75,7 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 		...solid({ ssr: true, extensions: [".tsx", ".jsx"] }),
 		...inject({ reset: parsed.css.reset, clientEntry: parsed.entry.client, assetsBase: parsed.assetsBase }),
 		core(parsed, state),
+		buildIdPlugin(state),
 		cssUpdate(),
 		devEndpoints(image === undefined ? [] : [imageEndpoint(image, state)]),
 		// `fonts` turns the build-time font copy on. Absent, the app serves `/fonts/...` itself (dx/plugin.md fonts).
@@ -94,6 +95,7 @@ type State = {
 	// The app composes the Cloudflare plugin, found in the config hook (B109).
 	cloudflare: boolean
 	devHead: PromiseWithResolvers<string>
+	buildId?: string
 }
 
 function core(parsed: ParsedOptions, state: State): Plugin {
