@@ -340,6 +340,54 @@ it("failed boot", async () => {
 	expect(existsSync(missing)).toBe(false)
 })
 
+// Whether a process is still alive: signal 0 checks without signalling.
+function alive(pid: number): boolean {
+	try {
+		process.kill(pid, 0)
+		return true
+	} catch {
+		return false
+	}
+}
+
+// A runtime that starts a long-lived child of its own, as the Workers dev server starts workerd, and prints both pids.
+const GRANDCHILD = [
+	'import { spawn } from "node:child_process";',
+	'const grandchild = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+	'console.log("child " + process.pid + " grandchild " + grandchild.pid);',
+].join("\n")
+
+function grandparent(body: string): { bin: string; args: string[] } {
+	return { bin: process.execPath, args: ["--input-type=module", "-e", `${GRANDCHILD}\n${body}`] }
+}
+
+// The child's and the grandchild's pids, from what the child printed.
+function pids(text: string): number[] {
+	return (/child (\d+) grandchild (\d+)/.exec(text) ?? []).slice(1).map(Number)
+}
+
+// A boot child's own children go with it. A server that dies while starting leaves nothing of its process group alive,
+// and a normal close ends the whole group and still waits for the child itself, so no zombie stays. Before, a dead dev
+// server's workerd outlived it by hours (BUGS.md 128.7).
+it("group closed", async () => {
+	const appDir = fileURLToPath(new URL("./apps/minimal/", import.meta.url))
+	const dying = grandparent("setTimeout(() => process.exit(1), 200)")
+	const failure = await bootChild({ appDir, cacheDir: mkdtempSync(join(tmpdir(), "flare-vite-")), ...dying }).then(
+		() => "",
+		(error: unknown) => String(error),
+	)
+	const [, lost] = pids(failure)
+	expect(lost).toBeGreaterThan(0)
+	await expect.poll(() => alive(lost ?? 0)).toBe(false)
+	const serving = grandparent('console.log("http://127.0.0.1:1"); setInterval(() => {}, 1000)')
+	const session = await bootChild({ appDir, cacheDir: mkdtempSync(join(tmpdir(), "flare-vite-")), ...serving })
+	await expect.poll(() => pids(session.logs().join("\n")).length).toBe(2)
+	const [child, grandchild] = pids(session.logs().join("\n"))
+	await session.close()
+	expect(alive(child ?? 0)).toBe(false)
+	await expect.poll(() => alive(grandchild ?? 0)).toBe(false)
+})
+
 // A child that ignores SIGTERM and keeps writing its cache dir, as Vite's graceful shutdown keeps working after it: the
 // test process's exit leaves no cache dir behind (CI 38597128404's `exit cleans`, BUGS.md 116).
 it("exit cleans a writer", async () => {

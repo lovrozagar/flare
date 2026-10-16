@@ -8,7 +8,7 @@ import type { Readable } from "node:stream"
 import { fileURLToPath } from "node:url"
 import { Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
-import { exited, exitOf, readOrigin } from "./child.ts"
+import { exited, exitOf, readOrigin, signalGroup } from "./child.ts"
 
 const apps = fileURLToPath(new URL("./apps/", import.meta.url))
 
@@ -104,7 +104,9 @@ function devCommand(runtime: string): { bin: string; args?: readonly string[]; e
 const viteJs = fileURLToPath(new URL("../../../../node_modules/vite/bin/vite.js", import.meta.url))
 
 // The cache dir, and any other dir the boot made, go when the child exits for any reason, when it cannot start, and
-// when the test process exits first, so a failed or timed-out run leaves nothing behind.
+// when the test process exits first, so a failed or timed-out run leaves nothing behind. The child leads its own
+// process group, so its own children (the Workers dev server's workerd) end with it: when it cannot start, on close,
+// and when the test process exits (BUGS.md 128.7).
 export function bootChild(input: {
 	appDir: string
 	cacheDir: string
@@ -119,6 +121,7 @@ export function bootChild(input: {
 		// Playwright sets FORCE_COLOR. A colored URL would never match readOrigin, and NO_COLOR wins over it.
 		env: { ...process.env, ...input.env, FLARE_VITE_CACHE: cacheDir, NO_COLOR: "1" },
 		stdio: ["ignore", "pipe", "pipe"],
+		detached: true,
 	})
 	const output = capture()
 	output.attach(child.stdout)
@@ -126,7 +129,7 @@ export function bootChild(input: {
 	const clean = (): void => remove([cacheDir, ...(input.dirs ?? [])])
 	// The exiting test process cannot await the child: SIGKILL, and a second removal after a write in flight lands.
 	const onExit = (): void => {
-		child.kill("SIGKILL")
+		signalGroup(child, "SIGKILL")
 		clean()
 		Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
 		clean()
@@ -134,15 +137,21 @@ export function bootChild(input: {
 	child.once("exit", clean)
 	child.once("error", clean)
 	process.once("exit", onExit)
-	return readOrigin(child).then((url) => ({
+	const started = readOrigin(child).catch((error: unknown) => {
+		signalGroup(child, "SIGKILL")
+		throw error
+	})
+	return started.then((url) => ({
 		origin: url,
 		appDir,
 		cacheDir,
 		logs: output.logs,
+		// The group gets SIGTERM, the child is awaited, and whatever of the group ignored it is killed.
 		async close() {
 			process.off("exit", onExit)
-			child.kill("SIGTERM")
+			signalGroup(child, "SIGTERM")
 			await exited(child)
+			signalGroup(child, "SIGKILL")
 			clean()
 		},
 	}))
