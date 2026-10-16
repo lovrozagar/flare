@@ -1,6 +1,6 @@
-// A test CA and one server certificate it signed, valid until 2126, for the hosts the SEO submitters call and the
-// fence's probe host (seo-submit.test.ts). Only the child processes that test spawns trust the CA, through
-// NODE_EXTRA_CA_CERTS. The CA's own key was not kept, so nothing else can be signed with it.
+// Test-only TLS material for seo-submit.test's local servers, not a secret: SERVER_KEY is the private key of a
+// certificate valid only for the hosts below, signed by a test CA that only that test's child processes trust, through
+// NODE_EXTRA_CA_CERTS. The CA's own key was not kept, so nothing else can be signed with it. Valid until 2126.
 
 export const HOSTS = [
 	"api.indexnow.org",
