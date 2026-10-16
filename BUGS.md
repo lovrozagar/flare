@@ -996,6 +996,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 194 [x] A rewrite applied to the server-function path, so a locale rewrite broke every server function
 194.1 [x] Plan 21 8.4, from the 2026-10-16 gap audit: server/lifecycle/canonical-redirect.ts exempted `<basePath>/_flare/fn/` from the trailing-slash and case rules but ran the app's `rewrite` on it, so a rewrite that prefixes paths with a locale answered every server-function POST with a 308 to `/en/_flare/fn/<id>`, which matches no endpoint. Red: tests/integration/server-fn.test `rewrite skips functions` (a 308).
 194.2 [x] Fix: the rewrite step skips a server-function path, as the other canonical rules do. dx/server.md says so.
+195 [x] An X-Forwarded-Proto list or uppercase value behind a proxy made every server-function POST a 403
+195.1 [x] Plan 21 8.9, from the 2026-10-16 gap audit: shared/url/forwarded.ts `forwardedHttps` compared the whole header with `https`, so behind a proxy chain that lists one scheme per hop (`https, http`), or one that writes `HTTPS`, the request read as http, its origin was `http://…`, and the server function's origin check refused every POST from the https page. Red: tests/integration/adapters.test `node trust proxy` (`https, http` read as `http:`).
+195.2 [x] Fix: with a trusted hop, the first entry of the list, the client's scheme, decides, in any case, as Express reads `X-Forwarded-Proto`. Node and Bun share the function; the case runs under both. dx/adapters.md says so.
 
 ## Verify
 
