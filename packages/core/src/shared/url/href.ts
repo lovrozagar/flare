@@ -9,7 +9,15 @@ export type Href = string & { readonly [hrefBrand]: never }
 // A brand has no runtime value, so the checks below are the only way to make one, and each `as Href` follows them.
 export function href(value: string): Href {
 	if (value.charCodeAt(0) <= 0x20) throw new Error("href")
-	if (value.startsWith("//")) throw new Error("href")
+	// A browser drops tab, CR, and LF anywhere and reads a backslash as a slash, so `/\x` and a slash, a tab, and a
+	// slash are `//x`, another origin (BUGS.md 155).
+	if (
+		value
+			.replaceAll(/[\t\n\r]/g, "")
+			.replaceAll("\\", "/")
+			.startsWith("//")
+	)
+		throw new Error("href")
 	if (value.startsWith("/")) return value as Href
 	const lower = value.toLowerCase()
 	if (lower.startsWith("https:") || lower.startsWith("http:")) return value as Href
@@ -48,8 +56,11 @@ function urlParts(segment: Segment, params: Record<string, unknown>): string[] {
 	return values.map(encodeParam)
 }
 
+// `.` and `..`, `%2e` counted as a dot, are the dot segments a browser resolves away (BUGS.md 156).
+const DOT_SEGMENT = /^(?:\.|%2e){1,2}$/i
+
 function encodeParam(value: string): string {
-	if (value.includes("/") || value.includes("\\")) throw new Error("param")
+	if (value.includes("/") || value.includes("\\") || DOT_SEGMENT.test(value)) throw new Error("param")
 	let out = ""
 	for (let index = 0; index < value.length; index += 1) {
 		const char = value.charAt(index)

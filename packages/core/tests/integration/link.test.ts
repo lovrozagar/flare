@@ -104,6 +104,11 @@ const get = serve([
 	linksPage("missing", () => [{ id: "missing", to: "_root_/users/[id]", params: {} }]),
 	linksPage("fn", () => [{ id: "fn", to: "_root_/echo", search: { f: () => 1 } }]),
 	linksPage("all", () => [{ id: "all", to: "_root_/echo", prefetch: { modules: "all" } }]),
+	linksPage("dots", () => [{ id: "dots", to: "_root_/users/[id]", params: { id: ".." } }]),
+	linksPage("hidden", () => [
+		{ id: "slash", href: "/\\evil.example" },
+		{ id: "tab", href: "/\t/evil.example" },
+	]),
 	target("_root_/users/[id]", "/users/[id]"),
 	target("_root_/files/[...path]", "/files/[...path]"),
 	target("_root_/opt/[[id]]", "/opt/[[id]]"),
@@ -186,6 +191,36 @@ it("href", async () => {
 	expect(built).toBe(a["user"]?.["href"])
 	expect((await get("/away-ok")).headers.get("location")).toBe("https://ok.example/x")
 	expect((await get("/away-bad")).status).toBe(500)
+})
+
+// A browser drops tab, CR, and LF anywhere in a URL and reads a backslash as a slash, so `/\\evil.com` and a slash, a
+// tab, and a slash are `//evil.com`, another origin: `href()` rejects them and a Link renders `#`; a backslash later in
+// the path stays the app's (plan 21 7.7, BUGS.md 155).
+it("hidden off-origin", async () => {
+	for (const value of [
+		"/\\evil.example",
+		"/\t/evil.example",
+		"/\n/evil.example",
+		"/\r\\evil.example",
+		"\\\\evil.example",
+	]) {
+		expect(() => href(value)).toThrow(/^href$/)
+	}
+	expect(href("/a\\b")).toBe("/a\\b")
+	const a = await anchors("/hidden")
+	expect([a["slash"]?.["href"], a["tab"]?.["href"]]).toEqual(["#", "#"])
+})
+
+// A param value that is a dot segment, `.` or `..` in any spelling a browser resolves (`%2e` too), would move the URL to
+// another route: buildUrl and a Link throw on it (plan 21 7.6, BUGS.md 156).
+it("dot segment params", async () => {
+	for (const id of [".", "..", "%2e", "%2E%2e", ".%2E", "%2e."]) {
+		expect(() => buildUrl({ to: "_root_/users/[id]", params: { id } } as never)).toThrow(/^param$/)
+	}
+	expect(() => buildUrl({ to: "_root_/files/[...path]", params: { path: ["a", ".."] } } as never)).toThrow(/^param$/)
+	expect(buildUrl({ to: "_root_/users/[id]", params: { id: "..." } } as never)).toBe("/users/...")
+	expect(buildUrl({ to: "_root_/users/[id]", params: { id: "a.b" } } as never)).toBe("/users/a.b")
+	expect((await get("/dots")).status).toBe(500)
 })
 
 // One rule writes a value as URL text, for a Link, buildUrl, and redirect alike, and the route's validators read it
