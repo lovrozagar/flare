@@ -26,7 +26,7 @@ export function Toc(props: { doc: Doc; locale: string | undefined; slug: string 
 	)
 }
 
-export function Sections(props: { doc: Doc }): JSX.Element {
+export function Sections(props: { doc: Doc; locale: string | undefined }): JSX.Element {
 	return (
 		<>
 			<Show when={props.doc.demo}>
@@ -48,6 +48,19 @@ export function Sections(props: { doc: Doc }): JSX.Element {
 					</section>
 				)}
 			</For>
+			<Show when={props.doc.see}>
+				{(see) => (
+					<Link
+						id="see-also"
+						to={DOC}
+						params={{ locale: props.locale, slug: see().slug }}
+						hash={see().hash}
+						class="mt-10 inline-flex text-sm underline"
+					>
+						See also: {see().label}
+					</Link>
+				)}
+			</Show>
 		</>
 	)
 }

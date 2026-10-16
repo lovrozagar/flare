@@ -97,7 +97,8 @@ function anchor(props: AnyLinkProps): JSX.Element {
 		if (props.disabled === true || (props.to === undefined && url() === "#")) return event.preventDefault()
 		if (props.to === undefined || navigate === null || !followable(event, event.currentTarget)) return
 		event.preventDefault()
-		if (active() && props.force !== true && (props.hash ?? "") === location().hash.replace(/^#/, "")) return
+		// An active link stays put unless its hash moves the page: a new one, or the current one again (BUGS.md 148).
+		if (active() && props.force !== true && (props.hash ?? "") === "" && location().hash === "") return
 		void navigate({ ...pick(props), to: props.to })
 	}
 	return createComponent(

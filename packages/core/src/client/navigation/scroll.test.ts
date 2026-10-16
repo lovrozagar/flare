@@ -4,7 +4,7 @@ import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { mountNavigator, unmountAll } from "./navigate.fixture.ts"
-import { createScroll, isHashOnly, pageGrowth, type ScrollEnv, type ScrollOptions } from "./scroll.ts"
+import { createScroll, isHashMove, pageGrowth, type ScrollEnv, type ScrollOptions } from "./scroll.ts"
 
 type Spot = { left: number; top: number; behavior: ScrollBehavior }
 
@@ -110,9 +110,10 @@ it("hash", () => {
 		{ left: 0, top: 0, behavior: "instant" },
 		{ left: 0, top: 0, behavior: "instant" },
 	])
-	expect(isHashOnly(at("/a"), at("/a", "#x"))).toBe(true)
-	expect(isHashOnly(at("/a"), at("/b", "#x"))).toBe(false)
-	expect(isHashOnly(at("/a", "#x"), at("/a", "#x"))).toBe(false)
+	expect(isHashMove(at("/a"), at("/a", "#x"))).toBe(true)
+	expect(isHashMove(at("/a"), at("/b", "#x"))).toBe(false)
+	expect(isHashMove(at("/a", "#x"), at("/a", "#x"))).toBe(false)
+	expect(isHashMove(at("/a"), at("/a"))).toBe(false)
 })
 
 it("document load", () => {

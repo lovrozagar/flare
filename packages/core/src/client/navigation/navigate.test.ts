@@ -238,6 +238,36 @@ it("hash move", async () => {
 	expect(app.store.snapshot().location.hash).toBe("#part")
 })
 
+// The hash already current, again: no fetch, and the entry is replaced, as the browser does for the same URL
+// (BUGS.md 148).
+it("same hash again", async () => {
+	const app = await setup(async () => ndjson(aboutFrames))
+	await app.navigator.navigate({ to: "_root_/", hash: "part" })
+	const length = history.length
+	await app.navigator.navigate({ to: "_root_/", hash: "part" })
+	expect(app.deps.fetch).not.toHaveBeenCalled()
+	expect(history.length).toBe(length)
+	expect(location.hash).toBe("#part")
+})
+
+// A revalidation of the URL on screen fetches, hash or not: only a navigation to it goes to its target again
+// (BUGS.md 148).
+it("revalidate at a hash", async () => {
+	const app = await setup(async () => ndjson(aboutFrames))
+	await app.navigator.navigate({ to: "_root_/", hash: "part" })
+	await app.navigator.navigate({ to: "_root_/", hash: "part", revalidate: true })
+	expect(app.deps.fetch).toHaveBeenCalledOnce()
+})
+
+// Hydrate's "initial" refresh of a page loaded at a hash fetches: the page on screen again is never a hash move
+// (BUGS.md 148).
+it("refresh at a hash", async () => {
+	const app = await setup(async () => ndjson(aboutFrames))
+	await app.navigator.navigate({ to: "_root_/", hash: "part" })
+	await app.navigator.refresh({ fetch: true, stale: [], fresh: false })
+	expect(app.deps.fetch).toHaveBeenCalledOnce()
+})
+
 it("visit", async () => {
 	const app = await setup(async () => ndjson(aboutFrames))
 	await app.navigator.visit("/about", true)

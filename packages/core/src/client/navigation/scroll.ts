@@ -105,8 +105,10 @@ export function pageGrowth(scope: typeof globalThis): ScrollEnv["grown"] {
 	}
 }
 
-// A change in the hash alone does not fetch. It updates the URL and scrolls.
-export function isHashOnly(from: Location, to: Location): boolean {
+// A change in the hash alone does not fetch. It updates the URL and scrolls. The hash already current is not a move: a
+// fill, a refresh, or a revalidation of that URL fetches; only a navigation to it goes to the target again (target.ts
+// `hashAgain`, BUGS.md 148).
+export function isHashMove(from: Location, to: Location): boolean {
 	return from.pathname === to.pathname && from.search === to.search && from.hash !== to.hash
 }
 
