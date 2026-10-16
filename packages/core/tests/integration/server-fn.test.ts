@@ -1,4 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest"
+import * as z from "zod"
 import { markSafeError, notFound, redirect, unauthenticated, unauthorized } from "../../src/shared/errors/index.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
@@ -145,6 +146,22 @@ it("input", async () => {
 	const envelope = await bad.json()
 	expect(envelope.errors.fieldErrors).toEqual({ items: ["items are wrong", "item two too"] })
 	expect(envelope.errors.issues.map((issue: { message: string }) => issue.message)).toContain("the whole input")
+})
+
+// A zod record whose bad keys are named like Object.prototype members is a 400 whose `fieldErrors` holds each one, never
+// a 500 (plan 21 8.10).
+it("prototype keys", async () => {
+	const fn = createServerFn(config("record"))
+		.input(z.record(z.string(), z.number()))
+		.handler(({ input }) => Object.keys(input).length)
+	const server = serve([fn])
+	const body = JSON.parse('{"constructor":"x","__proto__":"y","toString":"z"}') as unknown
+	const bad = await server.fetch(post(fn, body))
+	expect(bad.status).toBe(400)
+	const envelope = await bad.json()
+	// zod itself skips a `__proto__` key; shapeIssues keeps one too (issues.test `prototype keys`).
+	expect(Object.keys(envelope.errors.fieldErrors).toSorted()).toEqual(["constructor", "toString"])
+	expect(await (await server.fetch(post(fn, { constructor: 1 }))).json()).toMatchObject({ data: 1 })
 })
 
 // The run order is authenticate, input, authorize, handler. `authorize` false is a JSON 403 `Forbidden` and the
