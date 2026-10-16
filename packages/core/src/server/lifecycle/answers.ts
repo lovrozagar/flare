@@ -19,7 +19,7 @@ import { redirectLocation } from "../redirect/index.ts"
 import { renderDocument } from "../render/document.ts"
 import { DocumentlessRoot } from "../render/shape.ts"
 import { definedParams, outletMatches, stateMatches, type Rendered } from "../render/matches.ts"
-import { projectError, type Projected } from "../render/projector.ts"
+import { lateErrors, projectError, type Projected } from "../render/projector.ts"
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts"
 import { clientEntry } from "./build-info.ts"
 import { finalize, type StageResult } from "./finalize.ts"
@@ -193,8 +193,10 @@ async function paint(outer: Exchange, rendered: Decided, status: number): Promis
 export async function drawn(
 	outer: Exchange,
 	rendered: Rendered,
-): Promise<{ exchange: Exchange; body: ReadableStream<Uint8Array> } | { failed: Response }> {
+	options: { quiet?: boolean } = {},
+): Promise<{ exchange: Exchange; body: ReadableStream<Uint8Array>; late: readonly unknown[] } | { failed: Response }> {
 	const exchange = routeSecured(outer, rendered.run.security)
+	const { late, onRenderError } = lateErrors(exchange.sink, options.quiet === true)
 	for (const bug of rendered.run.bugs) projectError(bug, exchange.sink)
 	const state: OutletState = {
 		matches: outletMatches(rendered),
@@ -225,6 +227,7 @@ export async function drawn(
 			fill: rendered.run.holes === true,
 			// The query hash is the app's own key, so the log names it in production too.
 			onBug: (bug) => exchange.sink.log.error("queries", bug.message),
+			onRenderError,
 			// Dev inlines nothing: Vite serves the CSS it injects (B15).
 			sheet: exchange.sink.dev ? "" : builtSheet,
 			devStyles,
@@ -241,7 +244,7 @@ export async function drawn(
 		if (thrown instanceof DocumentlessRoot) return { failed: documentless(exchange, thrown) }
 		return { failed: renderFailed(exchange, projectError(thrown, exchange.sink)) }
 	}
-	return { exchange, body }
+	return { exchange, body, late }
 }
 
 // The stream rejected before the shell, so nothing was written (B93). Only a dev bug shows its message and

@@ -285,6 +285,26 @@ it("render completes before store", async () => {
 	expect(entry.html).toContain("ready-value")
 })
 
+// A value that arrives after the shell as a throw.
+async function late(): Promise<never> {
+	await new Promise((resolve) => setTimeout(resolve, 20))
+	throw new Error("late broke")
+}
+
+// A render that throws after its shell, in a boundary whose value came late, is never stored: the client would
+// re-render that fragment for every visitor for the whole ttl. Before, it was stored and never logged (plan 21 3.2).
+it("late render error not stored", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true })
+		.render(() => slot(late, "waiting"))
+	const { server, set, bugs } = storing(page)
+	await (await server.fetch(new Request(`${SITE}/p`))).text()
+	await new Promise((resolve) => setTimeout(resolve, 100))
+	expect(set).not.toHaveBeenCalled()
+	// The visitor's live render reports it once; the discarded shared render stays quiet.
+	expect(bugs).toEqual(["late broke"])
+})
+
 // A Flare `"stream"` defer stays a hole beside it: its fallback is stored, and the app's own async is awaited.
 it("stream defer stays a hole", async () => {
 	const page = createPage("_root_/p")
