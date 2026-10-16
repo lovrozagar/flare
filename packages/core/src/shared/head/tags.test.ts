@@ -148,3 +148,15 @@ it("typed records", () => {
 	// @ts-expect-error a misspelled meta key
 	expect(headTags({ meta: { autor: "A" } })).toEqual([])
 })
+
+// A script's `type` and `extra` are written, external or inline (dx/head.md, BUGS.md 146).
+it("script type", () => {
+	const scripts = [
+		{ src: "/m.js", type: "module" },
+		{ children: "x", type: "module", extra: { id: "i", onload: "y" } },
+	]
+	expect(headTags({ custom: { scripts } }, { nonce: "n" }).map((tag) => tag.props)).toEqual([
+		{ src: "/m.js", type: "module", nonce: false },
+		{ type: "module", id: "i", nonce: "n", children: "x" },
+	])
+})
