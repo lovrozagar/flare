@@ -1,4 +1,5 @@
 import { expect, it } from "vitest"
+import { replacing } from "../../shared/head/index.ts"
 import type { LoaderRun } from "../loaders/run.ts"
 import { definedParams, outletMatches, stateMatches, type Rendered } from "./matches.ts"
 
@@ -62,4 +63,13 @@ it("state", () => {
 			error: failed.wire,
 		},
 	])
+})
+
+// A replacing head's state match says `replace`, so the client merge replaces from hydration on (dx/head.md).
+it("state replace", () => {
+	const replaced: Rendered = {
+		chain: [root, users],
+		run: { ...run(["root", "user"]), heads: [{}, replacing({ title: "U" })] },
+	}
+	expect(stateMatches(outletMatches(replaced), replaced).map((match) => match.replace)).toEqual([undefined, true])
 })

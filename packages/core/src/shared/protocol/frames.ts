@@ -7,7 +7,8 @@ export type FrameError = { message: string; stack?: string | undefined; digest?:
 export type Frame =
 	| { t: "l"; m: string; d: unknown; p?: unknown; v?: unknown }
 	| { t: "e"; m: string; e: FrameError; k?: string }
-	| { t: "h"; m: string; d: HeadConfig }
+	// `r`: this route's head replaces the merged head (`.head(fn, { replace: true })`, dx/head.md).
+	| { t: "h"; m: string; d: HeadConfig; r?: true }
 	| { t: "r" }
 	| { t: "c"; m: string; k: string; d: unknown }
 	| { t: "x"; s: number; u: string; r: boolean }

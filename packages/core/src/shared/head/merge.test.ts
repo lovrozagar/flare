@@ -1,5 +1,5 @@
 import { expect, it } from "vitest"
-import { mergeHead } from "./merge.ts"
+import { isReplacing, mergeHead, replacing } from "./merge.ts"
 import { headTags } from "./tags.ts"
 
 it("replace", () => {
@@ -16,4 +16,14 @@ it("empty records", () => {
 	expect(merged.openGraph).toBeUndefined()
 	expect(mergeHead({ robots: {} }, {}).robots).toEqual({})
 	expect(headTags(merged).map((tag) => tag.key)).toEqual(["title", "meta:description:0"])
+})
+
+// A replacing head is marked on a copy, the mark survives the object, and JSON does not carry it.
+it("replacing mark", () => {
+	const head = { title: "R" }
+	const marked = replacing(head)
+	expect(isReplacing(marked)).toBe(true)
+	expect(isReplacing(head)).toBe(false)
+	expect(marked).toEqual(head)
+	expect(JSON.stringify(marked)).toBe('{"title":"R"}')
 })

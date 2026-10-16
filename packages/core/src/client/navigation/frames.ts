@@ -1,6 +1,7 @@
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts"
 import { resolvers } from "../../shared/promise/resolvers.ts"
 import { chunksOf, frameDecoder, type Frame } from "../../shared/protocol/index.ts"
+import { replacing } from "../../shared/head/index.ts"
 import type { HeadConfig } from "../../shared/route-builder/types.ts"
 import { errorFromWire } from "../router/store.ts"
 
@@ -95,7 +96,7 @@ function land(frame: Frame, landed: Landed, context: { slots: Slots; options: La
 	if (frame.t === "l" && isRecord(frame.v)) {
 		landed.values = { ...landed.values, [frame.m]: { params: frame.v["params"], search: frame.v["search"] } }
 	}
-	if (frame.t === "h") landed.heads[frame.m] = frame.d
+	if (frame.t === "h") landed.heads[frame.m] = frame.r === true ? replacing(frame.d) : frame.d
 	if (frame.t === "e") {
 		// A loader `e` is a bug the dev overlay shows. A deferred `e` reaches it only through errorRender.
 		const wire = frame.e

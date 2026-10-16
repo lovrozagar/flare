@@ -324,7 +324,7 @@ The file calls `boot` (B70). `beforeAll` reads the project name `<runtime>-<mode
 
 | test | case | result |
 | --- | --- | --- |
-| `createPage alone` | a bundle that imports only `createPage` | the budget row is written in this commit, and the bundle does not contain `client/navigation`. The size is what ships: the bundle minified by the Vite the lockfile pins (its Rolldown build through Vite's `build` API in library mode with `rolldownOptions.output.minify: true`, the full Oxc minifier an app's production build applies, so the text has no whitespace, no comments, and no path), then gzipped by `fflate` at level 9 with `mtime: 0`, an exact devDependency, because each runtime's `node:zlib` deflates the same text to a different size (the 2611-byte `createPage` text is 1076 under Node 24's and 1079 under Bun 1.4.3's; `fflate` gives 1092 under both). A checkout path, an identifier name, the measuring runtime, or a tool on the machine's PATH cannot move it. No binary outside the lockfile takes part in the measurement (revised 2026-10-13, BUGS.md B35: `bun build` from PATH measured 1096 under Bun 1.4.3 and 1137 under CI's 1.3.11 for the same tree). Changing the measuring tool re-baselines the row to the new measurement rounded up to the next multiple of 10, with `breakdown.ts` output showing the same module list; that is not a raise. A raise of a budget row comes with `tests/size/breakdown.ts` output (each module's and each step's marginal gzip) in the commit message |
+| `createPage alone` | a bundle that imports only `createPage` | the budget row (1120 since `.head()` options, BUGS.md 136) is written in this commit, and the bundle does not contain `client/navigation`. The size is what ships: the bundle minified by the Vite the lockfile pins (its Rolldown build through Vite's `build` API in library mode with `rolldownOptions.output.minify: true`, the full Oxc minifier an app's production build applies, so the text has no whitespace, no comments, and no path), then gzipped by `fflate` at level 9 with `mtime: 0`, an exact devDependency, because each runtime's `node:zlib` deflates the same text to a different size (the 2611-byte `createPage` text is 1076 under Node 24's and 1079 under Bun 1.4.3's; `fflate` gives 1092 under both). A checkout path, an identifier name, the measuring runtime, or a tool on the machine's PATH cannot move it. No binary outside the lockfile takes part in the measurement (revised 2026-10-13, BUGS.md B35: `bun build` from PATH measured 1096 under Bun 1.4.3 and 1137 under CI's 1.3.11 for the same tree). Changing the measuring tool re-baselines the row to the new measurement rounded up to the next multiple of 10, with `breakdown.ts` output showing the same module list; that is not a raise. A raise of a budget row comes with `tests/size/breakdown.ts` output (each module's and each step's marginal gzip) in the commit message |
 
 ### `server/render/head.test.ts`
 
@@ -395,6 +395,20 @@ dx/plugin.md through real apps. plugin.test builds an app with every `flare()` o
 | `production error` | the same throw built; `markSafeError` | a generic message and a digest, no message or stack; the safe message, no stack |
 | `workers build` | Cloudflare's plugin, `assetsBase: "/static"`, `prerender: true`, an imported asset on a live and an ssg page | the worker, its deploy config and the `.wrangler/deploy` pointer; `_headers` `/static/*` immutable (B130); the page and the hashed entry from Miniflare; the asset URL in the worker's page and in prerender's seed the same `/static/` file, served immutable (BUGS.md 132) |
 | `workers composition checked` | a Wrangler `main` other than the worker entry | the build fails naming `@lovrozagar/flare/worker` |
+
+### `.head(fn, { replace })` (BUGS.md 136)
+
+`.head()` stores its options beside the function through the chain's one `put` (`record.headOptions`), which measured smaller in `createPage` than a head-only field (1111 against 1118; the row is raised to 1120 with the breakdown in the commit). The server marks a replacing route's computed head (`replacing`, a non-enumerable symbol, so JSON drops it); the document merge, the `h` frame's `r`, and the state match's `replace` read the mark, and the client marks again where a head arrives.
+
+| test | case | result |
+| --- | --- | --- |
+| `shared/route-builder/chain.test.ts` `head options` | `.head(fn, { replace: true })`, then `.head(fn)` | `headOptions: { replace: true }`; none |
+| `shared/head/merge.test.ts` `replacing mark` | `replacing(head)` | marked, equal to the head, plain in JSON; the source unmarked |
+| `server/loaders/run.test.ts` `head replace` | a route with and without `headOptions.replace` | its head marked, and not |
+| `server/navigation/data.test.ts` `replacing head` | a marked head | its `h` frame has `r: true` |
+| `server/render/matches.test.ts` `state replace` | a marked head | its state match has `replace: true` |
+| `client/navigation/frames.test.ts` `head replace frame` | an `h` frame with `r` | landed marked; one without, plain |
+| `client/router/store.test.ts` `from script` | a state match with `replace` | its head marked |
 
 ## Done
 

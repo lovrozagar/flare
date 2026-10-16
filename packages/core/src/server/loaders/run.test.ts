@@ -1,5 +1,6 @@
 import { expect, it, vi } from "vitest"
 import type { Issue } from "../../shared/validation/issues.ts"
+import { isReplacing } from "../../shared/head/index.ts"
 import { runLoaders, type LoaderRoute, type RunInput } from "./run.ts"
 
 const session = { id: "ada" }
@@ -429,4 +430,23 @@ it("primitive loader", async () => {
 		),
 	)
 	expect(fine.data).toEqual([{ ok: 1 }, null])
+})
+
+// A route whose head is `{ title: "R" }`, replacing or not.
+function headed(headReplace: boolean): LoaderRoute {
+	return {
+		id: "page",
+		loader: () => ({}),
+		head: () => ({ title: "R" }),
+		...(headReplace && { headOptions: { replace: true } }),
+	}
+}
+
+// A route with `headOptions.replace` returns its head marked, which the document merge, the `h` frame, and the state
+// read.
+it("head replace", async () => {
+	const marked = await runLoaders(request([headed(true)]))
+	expect(marked.heads[0] !== undefined && isReplacing(marked.heads[0])).toBe(true)
+	const plain = await runLoaders(request([headed(false)]))
+	expect(plain.heads[0] !== undefined && isReplacing(plain.heads[0])).toBe(false)
 })

@@ -1,4 +1,5 @@
 import { expect, it } from "vitest"
+import { replacing } from "../../shared/head/index.ts"
 import { dataFrames, skippedRoutes, type DataMatch } from "./data.ts"
 
 const matches: DataMatch[] = [
@@ -54,5 +55,14 @@ it("input output", () => {
 	expect(dataFrames({ ...run, inputs }, new Set()).loaded).toEqual([
 		run.frames[0],
 		{ ...run.frames[1], v: { params: { id: 7 }, search: { page: 2 } } },
+	])
+})
+
+// A replacing head's `h` frame carries `r` (dx/head.md).
+it("replacing head", () => {
+	const replaced = { ...run, heads: [{ title: "Root" }, replacing({ title: "User" })] }
+	expect(dataFrames(replaced, new Set()).heads).toEqual([
+		{ t: "h", m: "_root_", d: { title: "Root" } },
+		{ t: "h", m: "_root_/users/[id]", d: { title: "User" }, r: true },
 	])
 })

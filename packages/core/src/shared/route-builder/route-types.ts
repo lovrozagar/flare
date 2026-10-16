@@ -1,6 +1,15 @@
 import type { JSX } from "@solidjs/web"
 import type { Bounded } from "./boundaries.ts"
-import type { CacheConfig, Effects, Intercept, LoaderContext, LoaderData, RouteHeaders, RouteInput } from "./chain.ts"
+import type {
+	CacheConfig,
+	Effects,
+	HeadOptions,
+	Intercept,
+	LoaderContext,
+	LoaderData,
+	RouteHeaders,
+	RouteInput,
+} from "./chain.ts"
 import type { RouteRecord } from "./page.ts"
 import type { HeadConfig, SecurityConfig } from "./types.ts"
 import type {
@@ -203,7 +212,7 @@ export type BuilderSteps<S extends RouteState, K extends RouteKind, G extends st
 	loader<L extends LoaderData>(
 		fn: (ctx: LoaderStepContext<S>) => L | Promise<L>,
 	): RouteBuilder<With<S, "loaderData", L>, K, G | StepsGone<"loader">>
-	head(fn: (ctx: ViewContext<S>) => HeadConfig): RouteBuilder<S, K, G | StepsGone<"head">>
+	head(fn: (ctx: ViewContext<S>) => HeadConfig, options?: HeadOptions): RouteBuilder<S, K, G | StepsGone<"head">>
 	headers(fn: (ctx: ViewContext<S>) => RouteHeaders): RouteBuilder<S, K, G | StepsGone<"headers">>
 	security(
 		config: SecurityConfig | ((ctx: ViewContext<S>) => SecurityConfig),

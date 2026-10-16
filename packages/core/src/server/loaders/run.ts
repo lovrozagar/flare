@@ -11,6 +11,8 @@ import type {
 	StepContext,
 } from "../../shared/route-builder/chain.ts"
 import { statusOf } from "../../shared/errors/status.ts"
+import { replacing } from "../../shared/head/index.ts"
+import type { HeadOptions } from "../../shared/route-builder/chain.ts"
 import type { HeadConfig, SecurityConfig } from "../../shared/route-builder/types.ts"
 import { runValidator, type Validated, type Validator } from "../../shared/validation/index.ts"
 import { gate } from "../auth/gate.ts"
@@ -31,6 +33,7 @@ export type LoaderRoute = {
 	loader?: (ctx: LoaderContext) => unknown
 	cache?: CacheConfig
 	head?: (ctx: View) => HeadConfig
+	headOptions?: HeadOptions
 	headers?: (ctx: View) => RouteHeaders
 	security?: RouteSecurity
 }
@@ -260,10 +263,12 @@ async function settle(route: LoaderRoute, ctx: LoaderContext, dev: boolean): Pro
 
 type Finish = { frame: { d: unknown }; kept: PreloaderContext; bugs: unknown[] }
 
+// A replacing route's head is marked, so the document merge, the `h` frame, and the state all read it (dx/head.md).
 function finish(route: ValidRoute, at: Finish): HeadConfig | undefined {
 	try {
 		const values = { params: route.params, search: route.search }
-		return route.head?.({ ...values, loaderData: at.frame.d, preloaderContext: at.kept })
+		const head = route.head?.({ ...values, loaderData: at.frame.d, preloaderContext: at.kept })
+		return head !== undefined && route.headOptions?.replace === true ? replacing(head) : head
 	} catch (error) {
 		at.bugs.push(error)
 		return undefined

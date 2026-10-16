@@ -12,6 +12,7 @@ import {
 	type StoreSnapshot,
 	type WireError,
 } from "./store.ts"
+import { isReplacing } from "../../shared/head/index.ts"
 
 const root = createRootLayout("_root_")
 	.render((props) => props.children)
@@ -63,6 +64,14 @@ it("from script", () => {
 		location,
 	})
 	expect(carried.matches.map((match) => match.preloader)).toEqual([{}, { role: "a" }])
+	// A state match with `replace` gives its head marked as replacing (dx/head.md).
+	const replaced = snapshotFromState({
+		matches: [entry("_root_", "root"), { ...entry("_root_/users/[id]", "u"), replace: true }],
+		chain,
+		unknown: false,
+		location,
+	})
+	expect(replaced.heads.map((head) => head !== undefined && isReplacing(head))).toEqual([false, true])
 })
 
 it("failure", () => {

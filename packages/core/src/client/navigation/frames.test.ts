@@ -2,6 +2,7 @@ import { expect, it, vi } from "vitest"
 import type { DevErrorPayload } from "../../shared/errors/dev-report.ts"
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts"
 import type { Deferred } from "../../shared/route-builder/register.ts"
+import { isReplacing } from "../../shared/head/index.ts"
 import { endOf, framesOf, landFrames, revive, type Pending } from "./frames.ts"
 
 // A source the test feeds frame by frame.
@@ -268,4 +269,18 @@ it("missing kept", async () => {
 	const data = landed.data["_root_/a"] as { latest: Deferred<string> }
 	end()
 	await expect(data.latest.promise).rejects.toThrow('The fill kept "latest" of _root_/a, which the page does not hold')
+})
+
+// An `h` frame with `r` lands its head marked as replacing; one without lands it plain.
+it("head replace frame", async () => {
+	const stream = feed()
+	const landed = landFrames(stream.source, quiet)
+	stream.push({ t: "h", m: "_root_", d: { title: "Root" } })
+	stream.push({ t: "h", m: "_root_/a", d: { title: "A" }, r: true })
+	stream.push({ t: "r" })
+	const heads = (await landed).heads
+	expect(isReplacing(heads["_root_"] ?? {})).toBe(false)
+	expect(isReplacing(heads["_root_/a"] ?? {})).toBe(true)
+	stream.push({ t: "d" })
+	stream.end()
 })

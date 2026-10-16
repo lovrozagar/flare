@@ -171,3 +171,12 @@ it("security step", () => {
 	expect(typeof createRootLayout("_root_").security).toBe("function")
 	expect(createPathSegment("_root_/seg")).not.toHaveProperty("security")
 })
+
+const titled = (): { title: string } => ({ title: "R" })
+
+// `.head(fn, options)` records the options beside the head; without options, none.
+it("head options", () => {
+	const head = titled
+	expect(createChain("_root_").head(head, { replace: true }).record()).toEqual({ head, headOptions: { replace: true } })
+	expect(createChain("_root_").head(head).record()).toEqual({ head })
+})

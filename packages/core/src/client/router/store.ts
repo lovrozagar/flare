@@ -2,6 +2,7 @@ import { defined } from "../../shared/errors/index.ts"
 import { createEffect, createRoot, createSignal } from "solid-js"
 import type { OutletMatch, OutletState, Overlay } from "../../shared/components/index.ts"
 import type { FrameError } from "../../shared/protocol/index.ts"
+import { replacing } from "../../shared/head/index.ts"
 import type { HeadConfig } from "../../shared/route-builder/types.ts"
 import { notFoundRenderOf, type LoadedEntry } from "../../shared/router/create-router.ts"
 import { resolvers } from "../../shared/promise/resolvers.ts"
@@ -16,6 +17,8 @@ export type ScriptMatch = {
 	preloader: unknown
 	head: HeadConfig | null
 	error: WireError | null
+	// This route's head replaces the merged head (dx/head.md).
+	replace?: true
 }
 
 // What the page shows: the painted matches, their heads, the failure painted below them, and the URL.
@@ -108,7 +111,7 @@ export function snapshotFromState(input: {
 	const wire = input.matches[failed]?.error
 	const snapshot: StoreSnapshot = {
 		matches,
-		heads: input.matches.map((match) => match.head ?? undefined),
+		heads: input.matches.map((match) => headOf(match)),
 		location: input.location,
 	}
 	if (wire) snapshot.failure = { index: failed, ...errorFromWire(wire) }
@@ -123,6 +126,11 @@ export function errorFromWire(wire: WireError): { status: number; error: Error }
 	error.name = wire.name ?? "Error"
 	error.stack = wire.stack ?? ""
 	return { status: NAMED[error.name] ?? 500, error }
+}
+
+function headOf(match: ScriptMatch): HeadConfig | undefined {
+	if (match.head === null) return undefined
+	return match.replace === true ? replacing(match.head) : match.head
 }
 
 const NAMED_STATUS: Record<number, string> = {
