@@ -346,6 +346,15 @@ it("node trust proxy", async () => {
 	expect((await get(`${trusted}/`, { headers: forwarded })).headers["strict-transport-security"]).toBe(
 		"max-age=63072000; includeSubDomains",
 	)
+	// A proxy chain's list and an uppercase value: the first entry, any case, is the client's scheme, as Express reads
+	// it, so the origin a server function's check compares stays https (plan 21 8.9).
+	for (const proto of ["https, http", "HTTPS", " Https ,http"]) {
+		expect([proto, (await get(`${trusted}/proto`, { headers: { "x-forwarded-proto": proto } })).body]).toEqual([
+			proto,
+			"https:",
+		])
+	}
+	expect((await get(`${trusted}/proto`, { headers: { "x-forwarded-proto": "http, https" } })).body).toBe("http:")
 	const plain = await listen(createNodeListener(app(Promise.resolve())))
 	expect((await get(`${plain}/proto`, { headers: forwarded })).body).toBe("http:")
 	expect((await get(`${plain}/`, { headers: forwarded })).headers["strict-transport-security"]).toBeUndefined()

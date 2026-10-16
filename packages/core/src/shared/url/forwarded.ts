@@ -11,7 +11,9 @@ export function trustedHops(adapter: string, options: { trustProxy?: number }): 
 
 // A trusted hop says the client spoke https. With no trusted hop, `X-Forwarded-Proto` is anyone's to send.
 export function forwardedHttps(hops: number, proto: string | null | undefined): boolean {
-	return hops > 0 && proto === "https"
+	// A proxy chain lists one scheme per hop; the first is the client's, read in any case, as Express reads it (plan 21
+	// 8.9).
+	return hops > 0 && /^\s*https\s*(?:,|$)/i.test(proto ?? "")
 }
 
 // A Host header is a host and an optional port: a name, an IPv4 address, or a bracketed IPv6 one. Anything else, a path,
