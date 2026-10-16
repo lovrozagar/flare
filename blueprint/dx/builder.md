@@ -14,7 +14,7 @@ Each method may be called once. Calling it twice throws when the chain is built 
 | `authenticate` | yes | yes | yes | |
 | `authenticateOptional` | yes | yes | yes | |
 | `authorize` | yes | yes | yes | |
-| `effects` | yes | yes | | |
+| `effects` | yes | yes | yes | |
 | `preloader` | yes | yes | yes | |
 | `loader` | yes | yes | yes | |
 | `response` | yes | | | |
@@ -35,7 +35,7 @@ Order is the order in this table. A later method called too early is absent from
 
 | method | required args | outcome | pitfall | test |
 | --- | --- | --- | --- | --- |
-| `intercept({ from, render })` | `from` is a non-empty array of route ids. `render` is a string | a client navigation from one of `from` opens `InterceptOutlet` and keeps the background page mounted. The child paints the preview. A direct visit and a reload render the page (`dx/navigate.md`) | `from` is route ids, not URL paths. `render` is a label, not a component | `shared/components/intercept-outlet.test.tsx` |
+| `intercept({ from, render })` | `from` is a non-empty array of route ids. `render` is a string | a client navigation from one of `from` opens `InterceptOutlet` and keeps the background page mounted. The child paints the preview. A direct visit and a reload render the page (`dx/navigate.md`) | `from` is route ids, not URL paths. `render` is a label, not a component | `shared/components/intercept-outlet.test.tsx`; `tests/integration/builder-client.test.ts` `intercept` |
 | `cache(config)` | the object in `cache.md` | | both `ssr` and `isr`, or any other pair, does not type-check | `shared/route-builder/chain.test.ts` `one mode` |
 | `input({ params?, searchParams? })` | at least one | validators run before auth. A document failure is HTTP 400, `Content-Type: application/json`, body `{ issues, fieldErrors }`, and no HTML shell. A data request with the same failure is that same JSON. It is not an `e` frame. The client does not commit and does not push. Each side's output replaces that side for later callbacks (`dx/types.md`) | both omitted does not type-check and throws at the call. Both validators receive `Record<string, string \| string[]>`. One search key is a string. Two or more, in appearance order, is a `string[]`. Passing only one side leaves the other at its default | `server/loaders/run.test.ts` `input failure`, `data input`; `propagation.test.ts` `input empty`, `input one side` |
 | `authenticate(...callerData)` | args optional | required auth. Null session is 401. Args are `callerData`, not the mode. The app function receives the leaf's args (`dx/server.md`) | `.authenticate("optional")` throws. The method is `.authenticateOptional`. A layout's args are not `callerData` when the page does not call `authenticate` | `server/auth/caller.test.ts` `leaf`; `shared/route-builder/chain.test.ts` `optional argument` |
@@ -79,7 +79,7 @@ When the walk finds no function, the slot is one `div` and nothing else.
 
 If the failed match is the root, the painted failure is the body of a minimal document: `<!DOCTYPE html><html><head></head><body>…</body></html>`, in standards mode, with the head merge and the state and client scripts in their places (`tests/integration/builder-render.test.ts` `boundary root`, BUGS.md 134).
 
-`reset()` on `errorRender` replaces the current pathname and search in place and revalidates. It does not push. There is no `retry` prop (`shared/components/boundary.test.ts` `reset`).
+`reset()` on `errorRender` replaces the current pathname and search in place and revalidates. It does not push. There is no `retry` prop (`shared/components/boundary.test.ts` `reset`; `tests/integration/builder-client.test.ts` `errorRender reset`).
 
 When several matches fail, the document status is the first of 401, then 403, then 404, then 500. A descendant `notFound()` does not downgrade a 500 (`shared/errors/status.test.ts` `rank`, `not found keeps 500`).
 
@@ -110,12 +110,14 @@ A page render has no `children`. `props.auth` does not type-check. There is no `
 
 ## Server callbacks
 
-Loader, preloader, `authorize`, and `.response()` receive `env`, `request`, and `serverContext`. The full field list is `dx/types.md`. The loader also receives `defer`, `buildUrl`, `notFound`, `redirect`, `unauthenticated`, `unauthorized`, and `cause`.
-
-`cause` is `"enter"` (navigation or document), `"prefetch"`, or `"stay"` (a refetch of the current route). A prefetch still runs loaders when `data` prefetch is on, and it does not run `defer` functions (`dx/defer.md`).
+Loader, preloader, `authorize`, and `.response()` receive `env` and `request`, beside `auth`, `params`, `search`, and the preloader context; the loader also receives `defer`. The full field list is `dx/types.md`. The request context `createServer({ serverContext })` produced is `serverCtx()`, from `@lovrozagar/flare/server`, which reads the active request. `buildUrl`, `notFound`, `redirect`, `unauthenticated`, and `unauthorized` are imports from `@lovrozagar/flare`, not context fields (`tests/integration/builder.test.ts` `server callbacks`).
 
 `redirect({ to, params?, search?, hash?, href?, status?, replace? })` defaults `status` to `303` and `replace` to `true`. `replace` is always present on the wire. `navigate` and `Link` keep `replace` default `false`. `to` is a page route id (`dx/types.md`). The wire carries the built URL, with search and hash. A same-origin URL is followed as a navigation. `href` is only `http:` or `https:` and is a full page load. Any other scheme throws at the call. `status` is `301`, `302`, `303`, `307`, or `308`. Anything else throws at the call. A document uses that status. A data response stays HTTP 200 and is one `x` frame whose `s` is the status, `u` is the built URL, and `r` is `replace` (`server/redirect/target.test.ts` `replace default`, `href https`, `href bad`, `status`; `server/navigation/response.test.ts` `redirect`).
 
 Preloader, `authorize`, and loader receive `{ auth }`. On a required route the type is the session, because a null session does not call those callbacks. On an optional route, and on a public route that authorizes, the type is the session or `null` (`dx/types.md`). The render props have no `auth`. A null session skips preloader, `authorize`, and loader on the first required match and on everything inside it. Public matches outside that match still run (`server/auth/gate.test.ts` `layout gate`, `outer public`).
 
 `buildUrl({ to, params?, search?, hash? })` returns a path. `to`, `params`, and `search` follow `dx/types.md`. It throws when a required param is missing (`shared/url/href.test.ts` `missing param`).
+
+### Planned (post-v1)
+
+Not in v1, and no context field until then. `cause` on the loader context: `"enter"` (a navigation or a document), `"prefetch"`, or `"stay"` (a refetch of the current route), as TanStack Router has it. The design: the server maps a document and a data request to `enter` and a prefetch to `prefetch`; the client marks a stay (a revalidation or a same-route refetch) on its data request, a new request param the server maps to `stay`; and the loader type gains the field. It is new protocol surface, so it waits for v1's.

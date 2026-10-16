@@ -36,7 +36,7 @@ A type is born in one place. Later readers do not invent a second copy.
 | the loader return | `Awaited` of that return, on that module's render `loaderData` | `useLoaderData({ from: that id })`, and head, headers, and security on that route |
 | each preloader return | `routeParents` outside-in, then this route's own return | `usePreloaderContext({ from })` and later callbacks on that route |
 | `.authenticate()`, `.authenticateOptional()`, and the parent walk | `authModes[routeId]` plus `ParentAuthResolution` | `ctx.auth` on preloader, `authorize`, and loader |
-| the app's augmentation | `auth`, `env`, `serverContext` | session, fetch env, `serverCtx()`, loader `env` and `serverContext` |
+| the app's augmentation | `auth`, `env`, `serverContext` | session, fetch env, `serverCtx()`, loader `env`, a server function's `serverContext` |
 | an import of `@lovrozagar/flare/query` | `hasQueryClient: true` | `queryClient` on the loader context only |
 | `typeof` the route export | `routeModules[routeId]` | `from` on the data hooks. Page ids, including a `.response()` page, are the legal `to` |
 
@@ -86,10 +86,10 @@ Validators receive the raw values. `.input({ params })` receives `Record<string,
 
 | callback | fields |
 | --- | --- |
-| `authorize` | `auth` (the resolved mode), `params`, `search`, `preloaderContext` (parents only; the root omits it), `env`, `request`, `serverContext` |
+| `authorize` | `auth` (the resolved mode), `params`, `search`, `preloaderContext` (parents only; the root omits it), `env`, `request`. The request context is `serverCtx()` |
 | preloader | the same fields as `authorize`. The return is not in this callback |
-| loader | `auth`, `params`, `search`, `preloaderContext` (parents, then this return), `env`, `request`, `serverContext`, `cause` (`"enter"`, `"prefetch"`, or `"stay"`), `defer`, `buildUrl`, `notFound`, `redirect`, `unauthenticated`, `unauthorized`. Those four throw helpers return `never`. `queryClient` is present only when `hasQueryClient` is `true` |
-| `.response()` | `auth`, `params`, `search`, `preloaderContext` (parents, then this return), `env`, `request`, `serverContext`, `buildUrl`, and the same four throw helpers. No `loaderData`, no `defer`, no `queryClient` |
+| loader | `auth`, `params`, `search`, `preloaderContext` (parents, then this return), `env`, `request`, `defer`. `queryClient` is present only when `hasQueryClient` is `true`. The request context is `serverCtx()`; `buildUrl`, `notFound`, `redirect`, `unauthenticated`, and `unauthorized` are imports from `@lovrozagar/flare`, and the four throw helpers return `never` |
+| `.response()` | `auth`, `params`, `search`, `preloaderContext` (parents, then this return), `env`, `request`. No `loaderData`, no `defer`, no `queryClient`. `serverCtx()` and the imported helpers as for the loader |
 | head | `{ params, search, loaderData, preloaderContext }`. Validated params and search, this route's loader data, the accumulated preloader context. No `auth`. `HeadConfig` is not generic. `jsonLd` stays the type in `dx/head.md` |
 | headers | the same four fields. The return is `Record<string, string \| string[]>` |
 | route `.security()` | the same four fields. No `nonce`. The `createServer({ security })` callback stays `{ request, env, nonce, serverContext }` (`dx/server.md`) |
@@ -213,7 +213,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 
 `redirect()` returns `never`. A loader that redirects to its own route, when that route validates search or params, still loops through its own type, since the target's search or params type is that route's: annotate the loader's return type there (BUGS.md 105). `to` on `redirect` follows this matrix. The `href` form accepts any `http:` or `https:` string and rejects `params`, `search`, and `to` on that object (`dx/navigate.md`).
 
-`buildUrl` on loader, preloader, `authorize`, `.response()`, and `ServerUrlHelpers` uses the same `to`, `params`, and `search` generics.
+`buildUrl`, imported from `@lovrozagar/flare` and called from a loader, preloader, `authorize`, or `.response()`, uses the same `to`, `params`, and `search` generics.
 
 The client type of a server function is `(input: TInput) => Promise<TOutput>` after `.input()`, and `() => Promise<TOutput>` when the input is still `void`. A stream's client type returns `AsyncIterable<TChunk>`. Calling it during render is a runtime stub throw, not a type error (`dx/server-fn.md`).
 
