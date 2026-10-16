@@ -103,6 +103,11 @@ it("assets dir", async () => {
 	expect(environmentBuild({ assetsBase: "/cdn" }).client.assetsDir).toBe("cdn")
 	expect(() => environmentBuild({ assetsBase: "/", assetsDir: "static" })).toThrow("assets")
 	await expect(builder(project(), { assetsBase: "/" }, { build: { assetsDir: "static" } })).rejects.toThrow("assets")
+	// The server build names an imported asset under the same directory as the client build, which writes it, so the
+	// URL the server renders is the file's (BUGS.md 132).
+	const cdn = await builder(project(), { assetsBase: "/cdn" })
+	expect(cdn.environments.client?.config.build.assetsDir).toBe("cdn")
+	expect(cdn.environments.ssr?.config.build.assetsDir).toBe("cdn")
 })
 
 // The environments buildApp builds, in order, each once.
