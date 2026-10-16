@@ -1,3 +1,4 @@
+import { checkValidator } from "./effect.ts"
 import { shapeIssues, type Issue } from "./issues.ts"
 
 // A Standard Schema issue. A path segment is a key, or `{ key }`.
@@ -21,8 +22,9 @@ const GENERIC = "Something went wrong"
 export async function runValidator<In>(
 	validator: Validator<In>,
 	raw: In,
-	options: { dev: boolean },
+	options: { dev: boolean; owner?: string },
 ): Promise<Validated> {
+	checkValidator(validator, options.owner ?? "input")
 	try {
 		// A Standard Schema decides first: ArkType's types and Effect's standard schemas are callable too, and calling one
 		// returns its errors as a value, not a throw (BUGS.md 154).

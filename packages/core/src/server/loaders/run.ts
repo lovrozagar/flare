@@ -102,7 +102,10 @@ export type LoaderRun = {
 }
 
 export async function runLoaders(input: RunInput): Promise<LoaderRun> {
-	const validated = await validateInputs(input)
+	// A validator's own failure is a 400. A route whose validator is no validator at all (BUGS.md 157) is a bug: a 500
+	// the caller projects and logs.
+	const validated = await validateInputs(input).catch((thrown: unknown) => ({ ok: "thrown" as const, thrown }))
+	if (validated.ok === "thrown") return { ...bare(finalize({ status: 500, body: "" })), thrown: validated.thrown }
 	if (!validated.ok) return bare(json(validated.errors))
 	const routes = validated.routes
 	const gated = await gate({ ...input, routes })
@@ -197,9 +200,9 @@ async function validateInputs(
 	const dev = input.dev ?? false
 	const routes: ValidRoute[] = []
 	for (const route of input.routes) {
-		const params = await side(route.input?.params, input.params ?? {}, dev)
+		const params = await side(route.input?.params, input.params ?? {}, { dev, owner: route.id })
 		if (!params.ok) return params
-		const search = await side(route.input?.searchParams, input.search ?? {}, dev)
+		const search = await side(route.input?.searchParams, input.search ?? {}, { dev, owner: route.id })
 		if (!search.ok) return search
 		routes.push({ ...route, params: params.value, search: search.value })
 	}
@@ -209,9 +212,9 @@ async function validateInputs(
 function side(
 	validator: Validator<Record<string, string | string[]>> | undefined,
 	raw: Readonly<Record<string, string | string[]>>,
-	dev: boolean,
+	options: { dev: boolean; owner: string },
 ): Promise<Validated> {
-	return validator === undefined ? Promise.resolve({ ok: true, value: raw }) : runValidator(validator, raw, { dev })
+	return validator === undefined ? Promise.resolve({ ok: true, value: raw }) : runValidator(validator, raw, options)
 }
 
 // Each loader sees the preloader context through its own match: parents, then its own return. Each gets its

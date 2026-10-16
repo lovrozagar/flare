@@ -1,9 +1,11 @@
 import { expect, it } from "vitest"
 import { answer, bare, secure, typed } from "./exchange.ts"
+import { createLogger } from "./logger.ts"
 
 const exchange = {
 	request: new Request("http://localhost/a"),
 	secured: { headers: new Headers({ "x-frame-options": "DENY" }), nonce: "", config: {}, candidate: "" },
+	sink: { dev: false, log: createLogger({ dev: false }) },
 }
 
 it("answer", async () => {
