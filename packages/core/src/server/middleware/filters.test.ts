@@ -1,5 +1,5 @@
 import { expect, it } from "vitest"
-import { enters } from "./filters.ts"
+import { enters, routePath } from "./filters.ts"
 
 const page = (path: string) => ({ path, kind: "page" as const })
 
@@ -33,4 +33,17 @@ it("kind", () => {
 	expect(enters({ kind: ["page"], prefix: ["/admin"] }, { path: "/admin", kind: "serverFn" })).toBe(false)
 	// All omitted is every request.
 	expect(enters({}, { path: "/x", kind: "serverFn" })).toBe(true)
+})
+
+// The route path drops the basePath, then a configured locale as the first segment, any case; another first segment,
+// or a path outside the base, stays (BUGS.md 159).
+it("route path", () => {
+	const router = { basePath: "/base", locales: ["en", "hr"] }
+	expect(routePath("/base/hr/admin", router)).toBe("/admin")
+	expect(routePath("/base/HR", router)).toBe("/")
+	expect(routePath("/base", router)).toBe("/")
+	expect(routePath("/base/about", router)).toBe("/about")
+	expect(routePath("/other/hr", router)).toBe("/other/hr")
+	expect(routePath("/hr/x", { basePath: "/" })).toBe("/hr/x")
+	expect(enters({ prefix: ["/admin"] }, { path: "/hr/admin", routePath: "/admin", kind: "page" })).toBe(true)
 })

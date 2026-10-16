@@ -182,7 +182,8 @@ function withMiddleware(exchange: Exchange, fn: boolean, inner: () => Promise<Re
 	const middleware = exchange.options.middleware ?? []
 	if (middleware.length === 0) return inner()
 	const kind: MiddlewareKind = fn ? "serverFn" : "page"
-	const input = { request: exchange.request, env: exchange.env, kind, fail: failed(exchange) }
+	const router = { basePath: exchange.options.router.basePath, locales: exchange.options.router.locale?.locales }
+	const input = { request: exchange.request, env: exchange.env, kind, fail: failed(exchange), router }
 	return runMiddleware(middleware, input, inner).then((response) =>
 		passed({ ...exchange, secured: exchange.built.secured ?? exchange.secured }, response),
 	)

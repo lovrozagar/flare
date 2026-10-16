@@ -882,6 +882,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 158 [x] In production a 500's error never reached the server log, only its digest
 158.1 [x] Plan 21 9.4, found during BUGS 157: server/render/projector.ts logged `sink.log.error("render", digest)` and nothing else, against B76 as revised on 2026-10-13 (the server log contains the digest, the error's name, its message, and its stack). An operator holding a client's digest had no message or stack to read. dx/plugin.md still described the old rule, and projector.test `prod generic` asserted it. Red: tests/integration/builder.test `production error log` (a loader throwing a TypeError under DEV=false logged `[flare:render] <digest>` alone).
 158.2 [x] Fix: the production branch logs the digest with the thrown stack, which opens with the name and message, or `name: message` for a thrown non-Error. The body is unchanged: the generic message and the digest. `prod generic` now asserts B76's log, and dx/plugin.md says it.
+159 [x] A middleware path filter was bypassed by a locale prefix or the basePath
+159.1 [x] Plan 21 12.1, from the third outside review: server/middleware/filters.ts matched a filter against the pathname as sent, so a middleware listed with `{ prefix: ["/admin"] }` that blocks the admin area did not run for `/hr/admin` under a `[[locale]]` root, which rendered with 200, and under `basePath: "/base"` never matched at all (`/base/admin`). Red: tests/integration/middleware.test `filter route path` through the real createServer(...).fetch: `/hr/admin` answered 200 past the block.
+159.2 [x] Fix: the runner hands each filter the route path too, the pathname without the basePath and without a configured locale (any case) as its first segment, and a filter enters when either matches. `/admin`, `/hr/admin`, `/HR/admin/x`, and `/base/admin` are blocked; `/about` is not. dx/server.md says so.
 
 ## Verify
 
