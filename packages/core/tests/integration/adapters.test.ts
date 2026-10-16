@@ -130,10 +130,12 @@ function withHost(origin: string, target: string, host: string): Promise<{ statu
 
 // A backslash in the path is read as WHATWG's URL parser reads it, as Bun and Workers do before Flare runs: `/a\b` is
 // `/a/b` and served, and `/\a/b` is `//a/b`, a 400. One answer on every runtime, so a path rule in Flare middleware
-// sees the same path everywhere (plan 21 12.8, B22, BUGS.md 163).
+// sees the same path everywhere (plan 21 12.8, B22, BUGS.md 163). A URL in the query, `?next=https://…`, is served on
+// every runtime too (plan 21 3.14).
 const BACKSLASHES: ReadonlyArray<readonly [string, string]> = [
 	["/a\\b", "HTTP/1.1 200 OK ab"],
 	["/\\a/b", "HTTP/1.1 400 Bad Request "],
+	["/a/b?next=https://ex.com/x", "HTTP/1.1 200 OK ab"],
 ]
 
 async function backslashAnswers(origin: string): Promise<string[]> {
