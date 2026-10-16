@@ -1,5 +1,7 @@
 import { createServer as createHttpServer, request as httpRequest, type Server } from "node:http"
 import { connect } from "node:net"
+import { setFlagsFromString } from "node:v8"
+import { runInNewContext } from "node:vm"
 import { afterEach, expect, it, vi } from "vitest"
 import { createBunFetch } from "../../src/adapters/bun/serve.ts"
 import { createNodeListener } from "../../src/adapters/node/listener.ts"
@@ -197,6 +199,48 @@ function chunkedPost(origin: string, path: string, chunks: readonly string[]): P
 		send(0)
 	})
 }
+
+// A full collection: Bun's own, or V8's gc exposed for this test.
+function collect(): void {
+	const runtime: unknown = Reflect.get(globalThis, "Bun")
+	if (runtime !== undefined) return void Reflect.apply(Reflect.get(Object(runtime), "gc"), runtime, [true])
+	setFlagsFromString("--expose_gc")
+	const gc = runInNewContext("gc") as () => void
+	gc()
+}
+
+// Background work handed to `waitUntil` that rejects is logged, never an unhandled rejection that stops the process;
+// work that settled is released, so stale hits do not grow the heap (plan 21 7.2, BUGS.md 153).
+it("node wait until", async () => {
+	const held: WeakRef<object>[] = []
+	const server = {
+		fetch(_request: Request, _env: unknown, ctx: { waitUntil: (promise: Promise<unknown>) => void }) {
+			ctx.waitUntil(Promise.reject(new Error("background broke")))
+			const payload = { bytes: new Uint8Array(1_000_000) }
+			held.push(new WeakRef(payload))
+			ctx.waitUntil(Promise.resolve(payload))
+			return new Response("ok")
+		},
+	}
+	const unhandled: unknown[] = []
+	const note = (reason: unknown): void => void unhandled.push(reason)
+	process.on("unhandledRejection", note)
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	try {
+		const origin = await listen(createNodeListener(server))
+		for (let index = 0; index < 20; index += 1) expect((await get(`${origin}/`)).body).toBe("ok")
+		await new Promise((resolve) => setTimeout(resolve, 50))
+		collect()
+		await new Promise((resolve) => setTimeout(resolve, 50))
+		collect()
+		expect(unhandled).toEqual([])
+		expect(logged.mock.calls.filter((call) => String(call).includes("background broke"))).toHaveLength(20)
+		expect(held.filter((ref) => ref.deref() !== undefined)).toHaveLength(0)
+	} finally {
+		process.off("unhandledRejection", note)
+		logged.mockRestore()
+	}
+})
 
 // One chunked POST past `bodyLimit` is a 413, and the process keeps serving: the body the server stopped reading takes
 // no more chunks, so nothing throws outside a request (plan 21 7.1, BUGS.md 151).
