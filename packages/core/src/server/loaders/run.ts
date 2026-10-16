@@ -11,7 +11,7 @@ import type {
 	StepContext,
 } from "../../shared/route-builder/chain.ts"
 import { statusOf } from "../../shared/errors/status.ts"
-import { replacing } from "../../shared/head/index.ts"
+import { headTags, replacing } from "../../shared/head/index.ts"
 import type { HeadOptions } from "../../shared/route-builder/chain.ts"
 import type { HeadConfig, SecurityConfig } from "../../shared/route-builder/types.ts"
 import { runValidator, type Validated, type Validator } from "../../shared/validation/index.ts"
@@ -268,6 +268,9 @@ function finish(route: ValidRoute, at: Finish): HeadConfig | undefined {
 	try {
 		const values = { params: route.params, search: route.search }
 		const head = route.head?.({ ...values, loaderData: at.frame.d, preloaderContext: at.kept })
+		// A value the head cannot write, such as a relative canonical, fails here as a throw from .head() does: this
+		// match's head is omitted and the status stays the loader's (B82).
+		if (head !== undefined) headTags(head)
 		return head !== undefined && route.headOptions?.replace === true ? replacing(head) : head
 	} catch (error) {
 		at.bugs.push(error)
