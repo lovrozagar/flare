@@ -53,7 +53,7 @@ function provide<T>(context: Context<T>, value: T, children: () => JSX.Element):
 	})
 }
 
-function mount(props: LinkProps, prefetch: LinkPrefetch | null = null): Mounted {
+function mount(props: LinkProps, prefetch: LinkPrefetch | null = null, using = router): Mounted {
 	const [location, setLocation] = createSignal<Location>({ pathname: "/", search: "", hash: "" })
 	const navigate = vi.fn<(options: NavigateTo) => Promise<void>>(async () => undefined)
 	const host = document.createElement("div")
@@ -61,7 +61,7 @@ function mount(props: LinkProps, prefetch: LinkPrefetch | null = null): Mounted 
 	disposers.push(
 		render(
 			() =>
-				provide(RouterContext, router, () =>
+				provide(RouterContext, using, () =>
 					provide(LocationContext, location, () =>
 						provide(NavigateContext, navigate, () =>
 							provide(PrefetchContext, prefetch, () => createComponent(Link, props)),
@@ -135,6 +135,13 @@ it("href", async () => {
 	const guarded = mount({ to: "_root_/about", onClick: (event) => event.preventDefault(), children: "x" })
 	click(guarded.anchor)
 	expect(guarded.navigate).not.toHaveBeenCalled()
+})
+
+// A route's href is under the router's base (dx/router.md `basePath`, plan 21 3.7).
+it("base path", () => {
+	const based = createRouter({ basePath: "/app", layouts: { _root_: root }, routeTree: router.routeTree })
+	expect(mount({ to: "_root_/about", children: "About" }, null, based).anchor.getAttribute("href")).toBe("/app/about")
+	expect(mount({ to: "_root_/", children: "Home" }, null, based).anchor.getAttribute("href")).toBe("/app")
 })
 
 it("foreign", () => {

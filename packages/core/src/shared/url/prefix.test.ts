@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, it } from "vitest"
-import { hasPrefix } from "./prefix.ts"
+import { hasPrefix, underBase } from "./prefix.ts"
 
 const corpus = readFileSync(new URL("./prefix.corpus.txt", import.meta.url), "utf8")
 
@@ -29,4 +29,13 @@ it("case fold", () => {
 	const [prefix, path] = row("case fold")
 	expect(hasPrefix(prefix, path, { caseSensitive: false })).toBe(true)
 	expect(hasPrefix(prefix, path, { caseSensitive: true })).toBe(false)
+})
+
+// A route's path under the router's base; the index is the base itself, and a base of `/` adds nothing (plan 21 3.7).
+it("under base", () => {
+	expect([underBase("/app", "/about"), underBase("/app", "/"), underBase("/", "/about")]).toEqual([
+		"/app/about",
+		"/app",
+		"/about",
+	])
 })

@@ -67,7 +67,7 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 
 ## Href
 
-`href(value)` returns the branded string `Href`, or throws (`shared/url/href.test.ts`). `buildUrl` returns `Href`.
+`href(value)` returns the branded string `Href`, or throws (`shared/url/href.test.ts`). `buildUrl` returns `Href`, the route's path without the router's `basePath`; a `Link` renders its `href` under the base (`link.test.tsx` `base path`, BUGS.md 187).
 
 | value | result |
 | --- | --- |

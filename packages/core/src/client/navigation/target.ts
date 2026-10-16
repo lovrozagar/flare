@@ -1,6 +1,6 @@
 import { KIND_PARAM, withoutInternalKeys } from "../../shared/protocol/index.ts"
 import { rewriteLocation, type Match, type Router } from "../../shared/router/create-router.ts"
-import { buildUrl, type Location } from "../../shared/url/index.ts"
+import { buildUrl, underBase, type Location } from "../../shared/url/index.ts"
 import { isHashMove } from "./scroll.ts"
 
 export type NavigateInput = {
@@ -27,12 +27,11 @@ const SCHEME = /^[a-z][a-z0-9+.-]*:/i
 export function resolveTarget(input: NavigateInput, context: TargetContext): Target {
 	if (SCHEME.test(input.to) || input.to.startsWith("//"))
 		throw new Error(`navigate: to is a route id, not a URL: ${input.to}`)
-	const built = buildUrl({
-		to: input.to,
-		params: input.params,
-		search: withoutInternalKeys(input.search),
-		hash: input.hash,
-	})
+	// A route id is a path under the router's base (dx/router.md `basePath`, plan 21 3.7).
+	const built = underBase(
+		context.router.basePath,
+		buildUrl({ to: input.to, params: input.params, search: withoutInternalKeys(input.search), hash: input.hash }),
+	)
 	const location = rewriteLocation(context.router, locationOf(new URL(built, context.origin)), context.origin)
 	if (input.shallow === true && location.pathname !== context.current.pathname) {
 		throw new Error("navigate: a shallow navigation keeps the pathname")
