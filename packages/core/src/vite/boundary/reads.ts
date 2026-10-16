@@ -17,15 +17,74 @@ type Pattern = ParamPattern | BindingPattern | BindingRestElement | BindingPrope
 // nearer scope declares is that scope's, so a parameter, a block `const`, or a hoisted `var` named like an import
 // does not read the import (02-system B8).
 export function moduleReads(program: Program, counted: (node: Span) => boolean): Set<string> {
+	return new Set(moduleReferences(program, counted).map((node) => node.name))
+}
+
+type Reference = Span & { name: string }
+
+function moduleReferences(program: Program, counted: (node: Span) => boolean = () => true): Reference[] {
 	const named = nonReferences(program)
 	const scopes = scopesOf(program)
-	const reads = new Set<string>()
-	const note = (node: Span & { name: string }): void => {
+	const found: Reference[] = []
+	const note = (node: Reference): void => {
 		if (named.has(node.start) || !counted(node)) return
-		if (declaring(scopes, node, node.name) === scopes[0]) reads.add(node.name)
+		if (declaring(scopes, node, node.name) === scopes[0]) found.push(node)
 	}
 	new Visitor({ Identifier: note, JSXIdentifier: note }).visit(program)
-	return reads
+	return found
+}
+
+// A module-scope declaration that is not exported: a function, a class, or a variable statement, with every name it
+// binds.
+export type Declaration = Span & { names: string[] }
+
+// The module-scope declarations only removed code reached. Each was reached before the split, read directly or
+// through other declarations from code outside every declaration, and is not once the `removed` spans are gone, so a
+// loader's helper goes with the loader, and the imports only the helper read go next. A declaration nothing read
+// before the split stays, so one kept for its side effect does (plan 21 2.4).
+export function deadDeclarations(program: Program, removed: readonly Span[]): Declaration[] {
+	const declarations = topDeclarations(program)
+	const references = moduleReferences(program)
+	const before = reached(declarations, references)
+	const after = reached(
+		declarations,
+		references.filter((node) => !removed.some((span) => contains(span, node))),
+	)
+	return declarations.filter((declaration) => before.has(declaration) && !after.has(declaration))
+}
+
+function topDeclarations(program: Program): Declaration[] {
+	return program.body.flatMap((node): Declaration[] => {
+		const { start, end } = node
+		if (node.type === "VariableDeclaration") {
+			return [{ start, end, names: node.declarations.flatMap((item) => patternNodes(item.id).map(nameOf)) }]
+		}
+		if (node.type === "FunctionDeclaration" || node.type === "ClassDeclaration") {
+			return [{ start, end, names: patternNodes(node.id).map(nameOf) }]
+		}
+		return []
+	})
+}
+
+// The declarations the references outside every declaration reach, and the ones those reach, to a fixed point.
+function reached(declarations: readonly Declaration[], references: readonly Reference[]): Set<Declaration> {
+	const names = new Set(references.filter((node) => !declarations.some((item) => contains(item, node))).map(nameOf))
+	const live = new Set<Declaration>()
+	let grew = true
+	while (grew) {
+		grew = false
+		for (const declaration of declarations) {
+			if (live.has(declaration) || !declaration.names.some((name) => names.has(name))) continue
+			live.add(declaration)
+			grew = true
+			for (const node of references) if (contains(declaration, node)) names.add(node.name)
+		}
+	}
+	return live
+}
+
+function nameOf(node: { name: string }): string {
+	return node.name
 }
 
 // The nearest scope around `node` that declares `name`. Scopes are opened outer-first, so the last match is the
