@@ -11,6 +11,7 @@ it("names", () => {
 		RENDER_HEADER: "flare-render",
 		CACHE_HEADER: "flare-cache",
 		FN_HEADER: "flare-fn",
+		FAILED_HEADER: "flare-failed",
 		TAB_HEADER: "flare-dev-tab",
 	})
 })

@@ -125,9 +125,14 @@ export function errorFromWire(wire: WireError): { status: number; error: Error }
 	return { status: NAMED[error.name] ?? 500, error }
 }
 
-const NAMED_STATUS: Record<number, string> = { 401: "UnauthenticatedError", 403: "UnauthorizedError" }
+const NAMED_STATUS: Record<number, string> = {
+	401: "UnauthenticatedError",
+	403: "UnauthorizedError",
+	404: "NotFoundError",
+}
 
-// A bare status paints its walked boundary. 401 and 403 keep their names, so the walk finds the auth render.
+// A bare status paints its walked boundary. 401, 403, and 404 keep their names, so the walk finds the auth render or
+// notFoundRender (BUGS.md 134).
 export function statusFailure(status: number, index: number): StoreSnapshot["failure"] {
 	const error = new Error("Request failed")
 	error.name = NAMED_STATUS[status] ?? "Error"

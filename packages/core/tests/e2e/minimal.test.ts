@@ -29,6 +29,19 @@ test("root failure document", async ({ page }: { page: Page; browser: Browser })
 	expect(await page.locator("#nav").count()).toBe(0)
 })
 
+// A layout's notFound() reached by a client navigation paints that layout's notFoundRender in its slot, without its
+// chrome, and the page stays loaded: the answer names the failed layout in `flare-failed` (B77, BUGS.md 134).
+test("layout not found navigation", async ({ page }: { page: Page; browser: Browser }) => {
+	await page.goto(`${session.origin}/area-home`)
+	await expect(page.locator("html")).toHaveAttribute("data-flare-hydrated", "")
+	await page.evaluate(() => Reflect.set(window, "__stayed", true))
+	await page.locator("#to-area-missing").click()
+	await expect(page.locator("#area-missing")).toHaveText("area missing")
+	expect(await page.locator("#area").count()).toBe(0)
+	expect(new URL(page.url()).pathname).toBe("/area-missing")
+	expect(await page.evaluate(() => Reflect.get(window, "__stayed"))).toBe(true)
+})
+
 test.describe("basepath", () => {
 	let base: Boot
 
