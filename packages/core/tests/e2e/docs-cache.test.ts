@@ -14,7 +14,8 @@ test("ssg seed", async ({ http, docs }, info) => {
 test("ssg public cdn", async ({ http, docs }, info) => {
 	prodOnly(info)
 	const response = await http.get(`${docs.origin}/hr`)
-	expect(response.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=60, stale-while-revalidate=3600")
+	expect(response.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=60")
+	expect(response.headers()["cdn-cache-control"]).toBe("public, max-age=60, stale-while-revalidate=3600")
 })
 
 // One render serves the page until it is stored (B33). The first request is not delayed by its store write, so a repeat

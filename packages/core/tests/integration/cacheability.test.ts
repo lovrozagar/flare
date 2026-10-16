@@ -19,7 +19,7 @@ afterEach(() => {
 
 const root = createRootLayout("_root_").render((props) => props.children)
 const cdn = { maxAge: "60s", tags: ["t"] }
-const PUBLIC = "public, max-age=0, s-maxage=60, stale-while-revalidate=0"
+const PUBLIC = "public, max-age=0, s-maxage=60"
 
 function serve(
 	page: RouteModule,

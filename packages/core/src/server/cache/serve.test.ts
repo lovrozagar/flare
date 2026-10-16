@@ -32,7 +32,7 @@ function documentOf(children: Element): Element {
 
 const root = createRootLayout("_root_").render((props) => documentOf(props.children))
 const SITE = "https://example.com"
-const PUBLIC = "public, max-age=0, s-maxage=60, stale-while-revalidate=0"
+const PUBLIC = "public, max-age=0, s-maxage=60"
 
 // One page at /p. `store: false` serves it with no store.
 function serve(page: RouteModule, store = true): { app: ReturnType<typeof serveWith>; set: Mock<FlareStore["set"]> } {

@@ -57,8 +57,8 @@ Applied only when the policy is `shared` and the class is `public` (How the deci
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `maxAge` | no | absent | duration | `Cache-Control: public, max-age=0, s-maxage=<seconds>, stale-while-revalidate=<swr>`. Browsers revalidate. The CDN holds the copy | `max-age=0` is deliberate so a deploy reaches the browser | `server/lifecycle/policies.test.ts` `header` |
-| `swr` | no | `0` | duration | the `stale-while-revalidate` seconds | | same |
+| `maxAge` | no | absent | duration | `Cache-Control: public, max-age=0, s-maxage=<seconds>` and `CDN-Cache-Control: public, max-age=<seconds>` (RFC 9213). Browsers revalidate. The CDN holds the copy (B131) | `max-age=0` is deliberate so a deploy reaches the browser | `server/lifecycle/policies.test.ts` `header` |
+| `swr` | no | absent | duration | `stale-while-revalidate=<swr>` on `CDN-Cache-Control` only | on `Cache-Control` it made Firefox show the previous document from its own cache (BUGS.md 135), so a browser never gets it | same |
 | `private` | no | `false` | boolean | `true` forces policy `private` and `Cache-Control: private, no-store` | this wins over `ssr` / `isr` | `server/cacheability/decide.test.ts` `cdn private` |
 | `tags` | no | `[]` | `string[]` or `(ctx: { params }) => string[]` | sent as `Cache-Tag`, comma-separated | there is no `vary` field. Variants are URLs | `server/lifecycle/policies.test.ts` `cache tag`; `server/cacheability/variant.test.ts` `no vary` |
 | `allowCookies` | no | `false` | boolean | `false`: a `Set-Cookie` on this response downgrades it to `private` and it is not stored. `true`: the response stays shared and may be stored, but the cookie is stripped from the entry and never replayed on a hit. Only the miss that set it sends it | `true` is how a locale cookie poisoned a CDN. Leave it false | `server/cacheability/cookies.test.ts` |
@@ -78,7 +78,7 @@ Applied only when the policy is `shared` and the class is `public` (How the deci
 
 The mode comes from the page. A mode on a layout or a root layout does not store the pages under it. `cdn` on a layout, a root layout, or a segment is a default for the pages under it. The chain merges each field from the root to the page, and the nearer match wins, except `private` (`decide.test.ts` `segment cdn`). That is why a segment's `cache` holds only `cdn`.
 
-The public header (`public, max-age=0, s-maxage=…`, plus `Cache-Tag`) is sent only for class `public` with `cdn.maxAge`. Everything else is `private, no-store`. These also send `private, no-store`, whatever the decision:
+The public headers (`public, max-age=0, s-maxage=…`, `CDN-Cache-Control`, and `Cache-Tag`) are sent only for class `public` with `cdn.maxAge`. Everything else is `private, no-store`. These also send `private, no-store`, whatever the decision:
 
 - a status that is not 2xx (`policies.test.ts` `error status`);
 - a data or prefetch response that carries an `e` frame or a redirect, because it stays HTTP 200 (B73) (`data error frame`);

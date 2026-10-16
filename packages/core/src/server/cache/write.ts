@@ -63,6 +63,7 @@ const NEVER_STORED = new Set([
 	"location",
 	"set-cookie",
 	"cache-control",
+	"cdn-cache-control",
 	"cache-tag",
 	"content-security-policy",
 	...defaultHeaders("https://flare.invalid").keys(),
