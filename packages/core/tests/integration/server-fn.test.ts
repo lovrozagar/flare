@@ -179,6 +179,40 @@ it("authorize", async () => {
 	expect(seen).toEqual(["authenticate", "input", "authorize"])
 })
 
+// A cached GET server function whose input "bad" is invalid and whose handler is `handler`.
+function cachedFn(name: string, handler: (input: unknown) => unknown) {
+	return createServerFn(config(name, "get"))
+		.cache({ maxAge: "1m" })
+		.input((value: unknown) => {
+			if (value === "bad") throw new Error("bad input")
+			return value
+		})
+		.handler(({ input }) => handler(input))
+}
+
+// A cached GET's answer is public only when it is a 2xx with no Set-Cookie: an invalid input, a thrown notFound(), a
+// thrown error, and a returned Response that sets a cookie are each `private, no-store`, so no CDN keeps them
+// (plan 21 2.5, BUGS.md 166).
+it("cache errors private", async () => {
+	const missing = cachedFn("cmissing", () => notFound())
+	const broken = cachedFn("cbroken", () => {
+		throw new Error("broken")
+	})
+	const cookie = cachedFn("ccookie", () => new Response("hi", { headers: { "set-cookie": "s=1" } }))
+	const fine = cachedFn("cfine", () => "ok")
+	const server = serve([missing, broken, cookie, fine])
+	const control = async (fn: Fn, input: unknown) => {
+		const response = await server.fetch(get(fn, input))
+		return [response.status, response.headers.get("cache-control")]
+	}
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+	expect(await control(fine, "x")).toEqual([200, "public, max-age=60"])
+	expect(await control(fine, "bad")).toEqual([400, "private, no-store"])
+	expect(await control(missing, "x")).toEqual([404, "private, no-store"])
+	expect(await control(broken, "x")).toEqual([500, "private, no-store"])
+	expect(await control(cookie, "x")).toEqual([200, "private, no-store"])
+})
+
 // `cache: { maxAge }` on a public GET is a public max-age; with POST, `authenticate`, or `authorize` the chain throws.
 it("cache", async () => {
 	const cached = createServerFn(config("cached", "get"))

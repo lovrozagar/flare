@@ -1,7 +1,7 @@
 import { posix } from "node:path"
 import { closureMarker } from "./closures.ts"
 import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts"
-import { escapeSource } from "./escape.ts"
+import { codeLiteral, escapeSource } from "./escape.ts"
 import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts"
 
 // Where the generated files are written, under the app root (dx/plugin.md).
@@ -262,8 +262,8 @@ function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[], rout
 
 // JSON is valid JavaScript, and a string field is escaped by it.
 function literals(route: RouteGen): string {
-	const client = route.client === undefined ? "" : `client: ${JSON.stringify(route.client)}, `
-	const intercept = route.intercept === undefined ? "" : `intercept: ${JSON.stringify(route.intercept)}, `
+	const client = route.client === undefined ? "" : `client: ${codeLiteral(route.client)}, `
+	const intercept = route.intercept === undefined ? "" : `intercept: ${codeLiteral(route.intercept)}, `
 	return `${client}${intercept}`
 }
 

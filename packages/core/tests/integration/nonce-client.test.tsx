@@ -36,7 +36,7 @@ it("client head", async () => {
 		{ id: "_root_/", params: {}, search: {}, data: null, preloader: {}, head: null, error: null },
 	]
 	const state = { matches, nonce: "doc-nonce" }
-	document.body.innerHTML = `<script>self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
+	document.body.innerHTML = `<script id="flare-state">self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
 	;(globalThis as Dom).flare = state
 	const host = document.getElementById("app")
 	if (host === null) throw new Error("host")

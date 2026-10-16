@@ -56,7 +56,7 @@ it("empty nonce", async () => {
 })
 
 it("insertion", () => {
-	const script = "<script>self.flare=1</script>"
+	const script = '<script id="flare-state">self.flare=1</script>'
 	const html = insertState("<body>hi</body>", script)
 	expect(html.indexOf(script)).toBeGreaterThan(-1)
 	expect(html.indexOf(script)).toBeLessThan(html.indexOf("</body>"))
@@ -66,10 +66,10 @@ it("insertion", () => {
 // is absent. `build` is the id `flare-build` carries.
 it("fill flag", () => {
 	expect(stateScript({ matches: [], nonce: "", build: "b", at: 5, fill: true })).toBe(
-		'<script>self.flare={"matches":[],"nonce":"","build":"b","at":5,"fill":true}</script>',
+		'<script id="flare-state">self.flare={"matches":[],"nonce":"","build":"b","at":5,"fill":true}</script>',
 	)
 	expect(stateScript({ matches: [], nonce: "", build: "b", at: 5 })).toBe(
-		'<script>self.flare={"matches":[],"nonce":"","build":"b","at":5}</script>',
+		'<script id="flare-state">self.flare={"matches":[],"nonce":"","build":"b","at":5}</script>',
 	)
 })
 

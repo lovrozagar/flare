@@ -19,7 +19,8 @@ export type AdaptedRequest = {
 export function toRequest(input: NodeIncoming): AdaptedRequest {
 	const headers = input.headers ?? {}
 	void input.router
-	if (badTarget(input.url) || !validHost(headers["host"])) return rejected()
+	const target = whatwgPath(input.url)
+	if (badTarget(target) || !validHost(headers["host"])) return rejected()
 	const hops = input.trustProxy ?? 0
 	const socket = input.socketAddress ?? ""
 	const secure = forwardedHttps(hops, headers["x-forwarded-proto"])
@@ -29,7 +30,7 @@ export function toRequest(input: NodeIncoming): AdaptedRequest {
 		secure,
 		clientIp: clientIp(headers["x-forwarded-for"], hops, socket),
 		resolvedOrigin: origin,
-		url: `${origin}${input.url}`,
+		url: `${origin}${target}`,
 	}
 }
 
@@ -37,9 +38,17 @@ function rejected(): AdaptedRequest {
 	return { status: 400, secure: false, clientIp: "", resolvedOrigin: "", url: "" }
 }
 
+// A backslash in the path reads as `/`, as WHATWG's URL parser reads it and as Bun and Workers hand it to Flare, so a
+// path is one answer on every runtime: `/a\b` is `/a/b`, and `/\a` is `//a`, which the rule below refuses (B22,
+// BUGS.md 163). The query and fragment keep theirs.
+function whatwgPath(url: string): string {
+	const end = url.search(/[?#]/)
+	const path = end === -1 ? url : url.slice(0, end)
+	return path.replaceAll("\\", "/") + (end === -1 ? "" : url.slice(end))
+}
+
 function badTarget(url: string): boolean {
 	if (url.startsWith("//")) return true
-	if (url.includes("\\")) return true
 	if (url.includes("://")) return true
 	return hasControl(url)
 }

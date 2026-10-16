@@ -76,7 +76,7 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 | `javascript:`, `data:`, `blob:`, `vbscript:` | rejected |
 | a leading control byte, or whitespace before the scheme | rejected |
 
-`Link` uses the same classification and renders `href="#"` instead of throwing (`link.test.tsx` `dangerous`). `redirect({ href })` throws on a rejected value.
+`Link` uses the same classification and renders `href="#"` instead of throwing (`link.test.tsx` `dangerous`). `redirect({ href })` throws on a rejected value, and on a control character such as a CR or LF, which a `Location` header cannot hold, so a loader that redirects to a request value is a 500, never a rejected fetch (BUGS.md 168).
 
 ## URL values
 

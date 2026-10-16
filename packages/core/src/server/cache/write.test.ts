@@ -146,7 +146,7 @@ const entryOf = (input: Partial<EntryInput> = {}): FlareStoreEntry | undefined =
 	buildEntry({
 		status: 200,
 		// Not hex, so no random sentinel can contain it.
-		html: '<html><body><script nonce="xyz">x()</script><script>self.flare={"matches":[],"nonce":"xyz"}</script></body></html>',
+		html: '<html><body><script nonce="xyz">x()</script><script id="flare-state">self.flare={"matches":[],"nonce":"xyz"}</script></body></html>',
 		ndjson: '{"t":"l","m":"p","d":{}}\n{"t":"r"}\n{"t":"d"}\n',
 		settled: true,
 		headers: { "x-robots-tag": "noindex" },

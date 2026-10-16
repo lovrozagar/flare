@@ -13,7 +13,10 @@ export function fnCacheControl(record: Caching): string {
 	return `public, max-age=${Math.floor(parseDuration(record.cache.maxAge) / 1000)}`
 }
 
-// A returned Response keeps its other headers, and this one is overwritten (B43).
-export function setCacheControl(headers: Headers, record: Caching): void {
-	headers.set("cache-control", fnCacheControl(record))
+// A returned Response keeps its other headers, and this one is overwritten (B43). Only a 2xx answer with no Set-Cookie
+// may be public: an error envelope, a thrown status, or a cookie is one visitor's, and no CDN may keep it
+// (BUGS.md 166).
+export function setCacheControl(headers: Headers, record: Caching, status: number): void {
+	const cacheable = status >= 200 && status <= 299 && headers.getSetCookie().length === 0
+	headers.set("cache-control", cacheable ? fnCacheControl(record) : PRIVATE)
 }

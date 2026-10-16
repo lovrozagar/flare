@@ -191,6 +191,32 @@ it("coalesced cookies", async () => {
 	for (const answer of answers) expect(answer.headers.get("cache-control")).toBe(PRIVATE)
 })
 
+// The request nonce an answer's CSP header carries.
+const nonceOf = (answer: Answer) => /'nonce-([^']+)'/.exec(answer.headers.get("content-security-policy") ?? "")?.[1]
+
+// The state script's JSON in a document: the last `<script …>self.flare=` the server wrote, after the page's content.
+function stateOf(html: string): Record<string, unknown> {
+	const at = html.lastIndexOf(">self.flare=")
+	return JSON.parse(html.slice(at + ">self.flare=".length, html.indexOf("</script>", at))) as Record<string, unknown>
+}
+
+// Page text and an inline head script that hold `self.flare=` do not confuse the stored copy: a hit replays with the
+// state intact, its nonce the hit's own, as the miss's was (plan 21 2.6, BUGS.md 167).
+it("state text", async () => {
+	const page = createPage("_root_/st")
+		.cache({ ssr: { ttl: "1m" } })
+		.loader(() => ({ note: "self.flare={} is how the state is written" }))
+		.head(() => ({ custom: { scripts: [{ children: 'self.flare={"nonce":"app"}' }] } }))
+		.render((props) => `say ${props.loaderData.note}`)
+	const get = one("_root_/st", "/st", page)
+	const miss = await get("/st")
+	expect(cacheOf(miss)).toBe("miss")
+	expect(stateOf(miss.text)["nonce"]).toBe(nonceOf(miss))
+	const hit = await stored(get, "/st")
+	expect(stateOf(hit.text)["nonce"]).toBe(nonceOf(hit))
+	expect(bodyOf(hit.text)).toContain("say self.flare={} is how the state is written")
+})
+
 // Every header an edge cache acts on, which a route's `.headers()` could set.
 const EDGE = {
 	"surrogate-control": "max-age=3600",

@@ -16,8 +16,8 @@ const ATTRIBUTE = /\snonce=(?:"[^"]*"|'[^']*')/g
 // " nonce=" is seven characters, then the quote, the value, and the closing quote.
 const VALUE_AT = 8
 
-// The payload of the one state script, `self.flare=<json>` (server/render/state.ts).
-const STATE = /(?<=>self\.flare=).*?(?=<\/script>)/s
+// The state script's opening, `<script id="flare-state"` and its nonce, then `self.flare=` (server/render/state.ts).
+const STATE_OPEN = /<script id="flare-state"(?: nonce="[^"]*")?>self\.flare=/g
 
 // Each nonce attribute, rewritten from its value. `next` returns the new value, or `undefined` to keep it, or ""
 // to drop the attribute.
@@ -47,9 +47,14 @@ export function fromSentinel(body: string, sentinel: string, nonce: string): str
 
 // The state payload is JSON escaped for an inline script. Its own `nonce` field changes only when it holds `from`,
 // and writing it back with the same escape leaves the rest as it was.
+// Only the last state script is the server's: it follows the page's content, and an earlier one, a head script an app
+// gave that id, is left as written (BUGS.md 167).
 function withStateNonce(body: string, swap: { from: string; to: string }): string {
-	return body.replace(STATE, (payload: string) => {
-		const state: { nonce?: unknown } = JSON.parse(payload)
-		return state.nonce === swap.from ? escapeInlineScript(JSON.stringify({ ...state, nonce: swap.to })) : payload
-	})
+	const last = [...body.matchAll(STATE_OPEN)].at(-1)
+	if (last === undefined) return body
+	const start = last.index + last[0].length
+	const end = body.indexOf("</script>", start)
+	const state: { nonce?: unknown } = JSON.parse(body.slice(start, end))
+	if (state.nonce !== swap.from) return body
+	return body.slice(0, start) + escapeInlineScript(JSON.stringify({ ...state, nonce: swap.to })) + body.slice(end)
 }

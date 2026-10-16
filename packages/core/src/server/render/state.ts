@@ -59,15 +59,20 @@ function failingQuery(queries: unknown): string | undefined {
 	return found === undefined ? undefined : String(Reflect.get(Object(found), "queryHash"))
 }
 
+// The state script's id (BUGS.md 167).
+export const STATE_ID = "flare-state"
+
 function payload(state: State): string {
 	const fill = state.fill === true ? { fill: true } : {}
 	return JSON.stringify({ matches: state.matches, nonce: state.nonce, build: state.build, at: state.at, ...fill })
 }
 
-// A string CSP has no nonce, and then the tag has no attribute (B68).
+// A string CSP has no nonce, and then the tag has no attribute (B68). The id marks the state script: the server's
+// stored-copy rewrite and the client's boot read the last script with it, which the page's own content, written
+// before it, cannot be (BUGS.md 167).
 function script(json: string, nonce: string): string {
 	const attr = nonce === "" ? "" : ` nonce="${escapeAttr(nonce)}"`
-	return `<script${attr}>self.flare=${escapeInlineScript(json)}</script>`
+	return `<script id="${STATE_ID}"${attr}>self.flare=${escapeInlineScript(json)}</script>`
 }
 
 // Before `</body>`. A root that renders no body, such as one that renders only text, gets it at the end.

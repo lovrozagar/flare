@@ -36,7 +36,8 @@ export type App = {
 }
 
 export function readState(): ClientState {
-	const script = [...document.querySelectorAll("script")].find((node) => node.textContent.includes("self.flare="))
+	// The last script with the state id: the server writes it after the page's content (BUGS.md 167).
+	const script = [...document.querySelectorAll("script#flare-state")].at(-1)
 	if (script === undefined) throw new Error("The document has no self.flare state script")
 	const text = script.textContent
 	return JSON.parse(text.slice(text.indexOf("=") + 1))

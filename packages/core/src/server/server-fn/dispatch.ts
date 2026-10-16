@@ -130,7 +130,7 @@ async function run(fn: ServerFnRef, input: DispatchInput): Promise<StageResult> 
 function streamed(fn: ServerFnRef, source: AsyncIterable<unknown>, input: DispatchInput): StageResult {
 	const body = streamEnvelopes(fn.name, source, { sink: input.sink, basePath: input.basePath })
 	const headers = new Headers({ "content-type": NDJSON })
-	setCacheControl(headers, fn.record)
+	setCacheControl(headers, fn.record, 200)
 	return { status: 200, body, headers }
 }
 
@@ -168,7 +168,7 @@ function forbidden(fn: ServerFnRef): StageResult {
 
 function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult {
 	const headers = new Headers({ "content-type": "application/json" })
-	setCacheControl(headers, fn.record)
+	setCacheControl(headers, fn.record, status)
 	return { status, body: JSON.stringify(envelope), headers }
 }
 
@@ -176,7 +176,7 @@ function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult
 // overwritten (B43). `flare-fn: response` tells the client not to read it as an envelope, whatever the handler set.
 function passThrough(fn: ServerFnRef, response: Response): StageResult {
 	const headers = new Headers(response.headers)
-	setCacheControl(headers, fn.record)
+	setCacheControl(headers, fn.record, response.status)
 	headers.set(FN_HEADER, "response")
 	return { status: response.status, body: response.body, headers }
 }

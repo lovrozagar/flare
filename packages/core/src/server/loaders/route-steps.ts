@@ -23,6 +23,14 @@ export type StepsInput = {
 	bugs: unknown[]
 }
 
+// A value a Headers object cannot hold, a CR or LF from the request say, fails as a throw from `.headers()` does: that
+// match's headers are omitted and the request still answers (B82, BUGS.md 168).
+function writable(record: Record<string, string | string[]>): Record<string, string | string[]> {
+	const probe = new Headers()
+	for (const [name, value] of Object.entries(record)) for (const item of [value].flat()) probe.append(name, item)
+	return record
+}
+
 // Each match whose loader resolved writes its `.headers()` and `.security()`, root to page (dx/builder.md). A match
 // whose loader threw writes neither, though a later match may, and a throw omits that match's step alone (B82).
 // An object `.security()` is static, so the first failed match writes its own too, and the failure's answer carries
@@ -52,7 +60,7 @@ export function routeSteps(input: StepsInput): {
 		}
 		const preloaderContext = defined(input.contexts[index], "the loaded context")
 		const view = { params: route.params, search: route.search, loaderData: outcome.settled.data, preloaderContext }
-		if (own !== undefined) step(() => (headers = mergeHeaders(headers, own(view))))
+		if (own !== undefined) step(() => (headers = writable(mergeHeaders(headers, own(view)))))
 		if (policy !== undefined)
 			step(() => (security = { ...security, ...(typeof policy === "function" ? policy(view) : policy) }))
 	}
