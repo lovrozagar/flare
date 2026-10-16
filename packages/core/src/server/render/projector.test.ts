@@ -58,8 +58,11 @@ it("prod generic", async () => {
 	if (digest === undefined) throw new Error("no digest in the body")
 	expect(body).toContain("Something went wrong")
 	expect(prod.send).not.toHaveBeenCalled()
-	expect(prod.lines.join("\n")).toContain(digest)
-	expect(prod.lines.join("\n")).not.toContain("secret")
+	// The operator's log carries the digest with the error's name, message, and stack (B76, BUGS.md 158).
+	const log = prod.lines.join("\n")
+	expect(log).toContain(digest)
+	expect(log).toContain("Error: secret")
+	expect(log).toMatch(/\n\s+at /)
 })
 
 it("prod safe", async () => {
