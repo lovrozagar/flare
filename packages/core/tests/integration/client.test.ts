@@ -107,7 +107,42 @@ function lateRegistration(engine: Engine): Promise<AppResult> {
 	})
 }
 
+// Storage blocked, as with cookies off or in a sandboxed iframe: reading `window.sessionStorage` throws. The page still
+// hydrates and navigates; scroll restore and the reload guard go without (plan 21 3.6).
+function storageBlocked(engine: Engine): Promise<AppResult> {
+	return started().app(engine, {
+		app,
+		async init(tab) {
+			await tab.addInitScript(() => {
+				Object.defineProperty(window, "sessionStorage", {
+					get() {
+						throw new DOMException("The operation is insecure.", "SecurityError")
+					},
+				})
+			})
+		},
+		client(client, record) {
+			client
+				.onReady((ctx) => Reflect.set(window, "flareNavigate", ctx.navigate))
+				.onHydrated(() => record.push("hydrated"))
+		},
+		async steps(tab) {
+			await tab.waitForFunction(() => (Reflect.get(window, "__flareRecord") as unknown[]).includes("hydrated"))
+			await tab.evaluate(async () => {
+				const go = Reflect.get(window, "flareNavigate") as (options: { to: string; search: object }) => Promise<void>
+				await go({ to: "_root_/", search: { q: "2" } })
+				;(Reflect.get(window, "__flareRecord") as unknown[]).push(location.search)
+			})
+		},
+	})
+}
+
 describe.each(ENGINES)("%s", (engine) => {
+	it("storage blocked", async () => {
+		const result = await storageBlocked(engine)
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual(["hydrated", "?q=2"])
+	})
 	it("ready then hydrated", async () => {
 		const result = await readyThenHydrated(engine)
 		expect(result.problems).toEqual([])

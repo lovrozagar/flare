@@ -16,7 +16,7 @@ function env(position: {
 	return {
 		moves,
 		history: { scrollRestoration: "auto" },
-		storage: sessionStorage,
+		storage: () => sessionStorage,
 		position: () => position,
 		scrollTo: (spot) => moves.push(spot),
 		element: (id) => document.getElementById(id),
@@ -168,11 +168,22 @@ it("bad storage", () => {
 			throw new Error("QuotaExceededError")
 		},
 	}
-	const locked = { ...env({ x: 0, y: 3 }), storage: broken }
+	const locked = { ...env({ x: 0, y: 3 }), storage: () => broken }
 	const guarded = createScroll(defaults, locked)
 	expect(() => guarded.save(1, at("/a"))).not.toThrow()
 	expect(() => guarded.restore(1, at("/a"))).not.toThrow()
 	expect(locked.moves).toEqual([{ left: 0, top: 0, behavior: "instant" }])
+	// Reading the storage itself throws, as `window.sessionStorage` does with cookies off (plan 21 3.6).
+	const denied = {
+		...env({ x: 0, y: 3 }),
+		storage: (): Storage => {
+			throw new DOMException("The operation is insecure.", "SecurityError")
+		},
+	}
+	const blocked = createScroll(defaults, denied)
+	expect(() => blocked.save(1, at("/a"))).not.toThrow()
+	blocked.restore(1, at("/a"))
+	expect(denied.moves).toEqual([{ left: 0, top: 0, behavior: "instant" }])
 })
 
 it("encoded hash", () => {

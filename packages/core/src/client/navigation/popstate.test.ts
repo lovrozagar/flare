@@ -63,7 +63,7 @@ it("save on pop", async () => {
 		{ enabled: true, behavior: "instant", maxEntries: 50 },
 		{
 			history: { scrollRestoration: "auto" },
-			storage: sessionStorage,
+			storage: () => sessionStorage,
 			position: () => ({ x: 0, y }),
 			scrollTo,
 			element: () => null,

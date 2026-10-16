@@ -7,10 +7,12 @@ export type ScrollOptions = {
 	key?: (location: Location) => string
 }
 
-// The window and storage the scroll store reads, passed in so a test can observe them.
+// The window and storage the scroll store reads, passed in so a test can observe them. The storage is read when it is
+// used, not at boot: where reading `sessionStorage` throws, as with cookies off or in a sandboxed iframe, positions are
+// not kept and the page still hydrates (plan 21 3.6).
 export type ScrollEnv = {
 	history: { scrollRestoration: string }
-	storage: Storage
+	storage: () => Storage
 	position: () => { x: number; y: number }
 	scrollTo: (spot: { left: number; top: number; behavior: ScrollBehavior }) => void
 	element: (id: string) => Element | null
@@ -114,18 +116,18 @@ export function isHashMove(from: Location, to: Location): boolean {
 
 // Storage can be disabled, full, or hold a value Flare did not write. None of that may break a navigation:
 // an unreadable store counts as empty, and a failed write is skipped.
-function read(storage: Storage): Saved {
+function read(storage: () => Storage): Saved {
 	try {
-		const parsed: unknown = JSON.parse(storage.getItem(STORAGE_KEY) ?? "[]")
+		const parsed: unknown = JSON.parse(storage().getItem(STORAGE_KEY) ?? "[]")
 		return Array.isArray(parsed) ? parsed : []
 	} catch {
 		return []
 	}
 }
 
-function write(storage: Storage, saved: Saved): void {
+function write(storage: () => Storage, saved: Saved): void {
 	try {
-		storage.setItem(STORAGE_KEY, JSON.stringify(saved))
+		storage().setItem(STORAGE_KEY, JSON.stringify(saved))
 	} catch {
 		// Quota or a disabled store: this position is not kept.
 	}
