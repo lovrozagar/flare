@@ -170,6 +170,27 @@ it("defer resolve", async () => {
 	expect(hit.text).not.toContain('"fill":true')
 })
 
+// Concurrent misses of one key share one render, but never one visitor's cookies: a render that sets a cookie per
+// request gives each coalesced request its own, and none is stored (plan 21 7.4, BUGS.md 152).
+it("coalesced cookies", async () => {
+	let renders = 0
+	const page = createPage("_root_/c")
+		.cache({ isr: true })
+		.loader(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 30))
+			return {}
+		})
+		.headers(() => ({ "set-cookie": `visit=${(renders += 1)}; Path=/` }))
+		.render(() => "c")
+	const get = one("_root_/c", "/c", page)
+	const answers = await Promise.all([get("/c"), get("/c"), get("/c"), get("/c")])
+	const cookies = answers.map((answer) => answer.headers.getSetCookie())
+	expect(answers.map((answer) => answer.status)).toEqual([200, 200, 200, 200])
+	expect(cookies.every((list) => list.length === 1)).toBe(true)
+	expect(new Set(cookies.flat()).size).toBe(4)
+	for (const answer of answers) expect(answer.headers.get("cache-control")).toBe(PRIVATE)
+})
+
 // cdn on a public page: browsers get `max-age=0` with the CDN's `s-maxage`, the CDN gets `CDN-Cache-Control` with
 // `stale-while-revalidate`, and `Cache-Tag` from the tags function over the raw params, on the miss and on a hit.
 it("cdn headers", async () => {

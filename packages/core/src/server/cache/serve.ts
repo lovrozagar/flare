@@ -182,12 +182,19 @@ async function hitFor(exchange: Exchange, at: Keyed & { looked: Lookup | null })
 // A miss runs one shared render, coalesced per key, that writes both variants and serves this request's variant exactly
 // as a hit would. A render with nothing to serve answers live.
 async function missed(exchange: Exchange, matched: Loaded, keyed: Keyed): Promise<Response> {
-	const landed = await inflight(keyed.key, () => flight(exchange, matched, keyed))
+	let started = false
+	const landed = await inflight(keyed.key, () => {
+		started = true
+		return flight(exchange, matched, keyed)
+	})
 	if (landed === undefined) return live(exchange, matched, keyed.prepared)
 	if (landed === INCOMPLETE) return live(exchange, matched, uncached(keyed.prepared))
 	if ("stored" in landed)
 		return served(exchange, landed.stored, { policy: keyed.prepared.policy, cache: "hit", cookies: [] })
 	const cookies = [landed.shared.run.headers["set-cookie"] ?? []].flat()
+	// The render's cookies are the visitor's who started it. A request that joined a render that set cookies renders
+	// its own, so it never carries another visitor's (BUGS.md 152).
+	if (!started && cookies.length > 0) return live(exchange, matched, keyed.prepared)
 	const policy = { ...keyed.prepared.policy, rejected: !landed.shared.settled }
 	return served(exchange, landed.page, { policy, cache: "miss", cookies })
 }
