@@ -30,8 +30,6 @@ export type RedirectTarget = {
 
 export class RedirectError extends Error {
 	readonly status: number
-	// True when the thrower gave no status. A server function then answers 303, and a document keeps 307.
-	readonly defaulted: boolean
 	readonly replace: boolean
 	readonly to: string | undefined
 	readonly href: string | undefined
@@ -40,11 +38,10 @@ export class RedirectError extends Error {
 	readonly hash: string | undefined
 
 	// The whole target travels with the throw, so the server can build Location from it.
-	constructor(target: RedirectTarget & { status: number; replace: boolean; defaulted: boolean }) {
+	constructor(target: RedirectTarget & { status: number; replace: boolean }) {
 		super("redirect")
 		this.name = "RedirectError"
 		this.status = target.status
-		this.defaulted = target.defaulted
 		this.replace = target.replace
 		this.to = target.to
 		this.href = target.href
@@ -58,13 +55,13 @@ export function redirect<Id extends To<FlareRegister>>(target: RedirectTo<FlareR
 export function redirect(target: RedirectTarget): never {
 	if (target.href !== undefined) assertHref(target, target.href)
 	else if (target.to === undefined) throw new Error("to")
-	const status = target.status ?? 307
+	// 303 for every caller (B71): a GET lands the same as on 307, and anything else follows with a GET, not its body.
+	const status = target.status ?? 303
 	if (!STATUSES.includes(status)) throw new Error(String(status))
 	throw new RedirectError({
 		...target,
 		status,
 		replace: target.replace ?? true,
-		defaulted: target.status === undefined,
 	})
 }
 

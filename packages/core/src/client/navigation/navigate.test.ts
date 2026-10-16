@@ -134,8 +134,9 @@ it("loader error", async () => {
 	expect(location.pathname).toBe("/about")
 })
 
-it("same origin", async () => {
-	const responses = [ndjson([{ t: "x", s: 302, u: "/about", r: true }]), ndjson(aboutFrames)]
+// An `x` frame is followed by its URL whatever its status: 303, the `redirect()` default, as 307 (BUGS.md 138).
+it.each([302, 303, 307])("same origin %i", async (status) => {
+	const responses = [ndjson([{ t: "x", s: status, u: "/about", r: true }]), ndjson(aboutFrames)]
 	const app = await setup(async () => responses.shift() ?? ndjson(aboutFrames))
 	await app.navigator.navigate({ to: "_root_/", search: { go: "1" } })
 	flush()

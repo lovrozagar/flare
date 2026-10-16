@@ -137,7 +137,7 @@ A thrown `redirect()` from `authenticate`, a preloader, `authorize`, or a loader
 | --- | --- | --- |
 | `loader redirect` | a loader throws `redirect({ to: "_root_/users/[id]", params: { id: "7" }, search: { tab: "a" }, hash: "x", status: 302 })` | 302. `Location` is `buildUrl`'s URL under `basePath`, here `/users/7?tab=a#x`. The body is empty, no `render` or boundary runs, the security set is present, and the overlay sender is not called |
 | `redirect href` | `redirect({ href: "https://example.com/a", status: 303 })` | 303 and `Location: https://example.com/a` |
-| `redirect from auth` | `authenticate` and `authorize` each throw `redirect({ to: "_root_/login" })` | 307, the `redirect()` default, and `Location: /login` for both |
+| `redirect from auth` | `authenticate` and `authorize` each throw `redirect({ to: "_root_/login" })` | 303, the `redirect()` default (B71, BUGS.md 138), and `Location: /login` for both |
 | `target kept` | `redirect({ to, params, search, hash })` | the thrown `RedirectError` carries `params`, `search`, and `hash` as well as `to`, `href`, `status`, and `replace`, so the server can build `Location` from it |
 | `authenticate throw` | `authenticate` throws a plain `Error` | 500, an empty body, and no `Location`. It is not a redirect and not 401 (B82) |
 

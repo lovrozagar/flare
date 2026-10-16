@@ -180,8 +180,6 @@ packages/core/src/shared/components/view-transition-css.test.tsx	P6	test	dom	Uni
 packages/core/src/shared/components/stylesheet.tsx	P11	src	dom	Stylesheet. Dev renders nothing. Prod emits preload, noscript, and the nonced swap, or leaves them to the document render
 packages/core/src/shared/components/stylesheet.test.tsx	P11	test	dom	Unit cases for stylesheet.tsx
 packages/core/src/shared/components/index.ts	P1	index	shared	Re-exports
-packages/core/src/server/redirect/target.ts	P2	src	server	Classify a raw redirect target. Reject scheme-relative, backslash, and control characters before URL parsing
-packages/core/src/server/redirect/target.test.ts	P2	test	server	Unit cases for target.ts
 packages/core/src/server/redirect/builder.ts	P2	src	server	The only Location builder. 301 for GET and HEAD, 308 otherwise, when canonicalizing
 packages/core/src/server/redirect/builder.test.ts	P2	test	server	Unit cases for builder.ts
 packages/core/src/server/redirect/index.ts	P2	index	server	Re-exports

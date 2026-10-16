@@ -15,9 +15,6 @@ export type Envelope = {
 	redirect?: { to: string; status: number; replace: boolean }
 }
 
-// A redirect a server function throws without a status is "See Other" after the request that ran the handler.
-const SEE_OTHER = 303
-
 export function okEnvelope(name: string, data: unknown): Envelope {
 	return { name, status: 200, data }
 }
@@ -31,7 +28,7 @@ export function errorEnvelope(
 	context: { sink: ErrorSink; basePath: string },
 ): { http: number; envelope: Envelope } {
 	if (thrown instanceof RedirectError) {
-		const status = thrown.defaulted ? SEE_OTHER : thrown.status
+		const status = thrown.status
 		const to = redirectLocation(thrown, context.basePath)
 		return { http: 200, envelope: { name, status, redirect: { to, status, replace: thrown.replace } } }
 	}
