@@ -104,6 +104,8 @@ Popstate that skips entries is replayed one entry at a time. The blocker does no
 
 ## Scroll and history
 
+Where reading `sessionStorage` throws, as with cookies off or in a sandboxed iframe, the client still hydrates and navigates: the scroll positions and the reload guard read the storage only when they use it, and go without it (`tests/integration/client.test.ts` `storage blocked`, `client/navigation/scroll.test.ts` `bad storage`, BUGS.md 178).
+
 `history.scrollRestoration` is `"manual"` when `scrollRestoration` is true (the default). `{ x, y }` is saved before push, replace, and popstate. The storage key is the history index unless `getScrollRestorationKey` is set (`dx/router.md`). After commit, the page scrolls to the element whose id is the hash, or to `(0, 0)`, unless `scroll` is `false`. A hash-only change does not fetch. It updates the URL and scrolls. A navigation to the hash already current goes to its target again and replaces its entry, as the browser does for the same URL; a revalidation, a fill, or hydrate's refresh of that URL fetches (`scroll.test.ts` `hash`, `restore`, `document load`; `navigate.test.ts` `same hash again`, `refresh at a hash`, `revalidate at a hash`; `tests/e2e/docs-hash.test.ts`, BUGS.md 148). Popstate restores the saved point, or the top when none is saved. A document load does not read the store.
 
 Hydrate calls `replaceState` with index `0` when `history.state` has no index. A push uses the next integer. A replace keeps the index. State is `{ index, usr }`. A popstate commit does not push or replace. A delta of three is three one-entry steps. An entry with no index is ignored (`client/history/history.test.ts` `index`, `foreign`, `delta`).

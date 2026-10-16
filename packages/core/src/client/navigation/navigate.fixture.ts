@@ -73,7 +73,7 @@ export async function mountNavigator(router: Router, fetch: Fetch, options: Moun
 			{ enabled: true, behavior: "instant", maxEntries: 50 },
 			{
 				history: { scrollRestoration: "auto" },
-				storage: sessionStorage,
+				storage: () => sessionStorage,
 				position: () => ({ x: 0, y: 0 }),
 				scrollTo: () => undefined,
 				element: () => null,

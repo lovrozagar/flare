@@ -272,7 +272,7 @@ function browserScroll(router: Router): ScrollStore {
 		},
 		{
 			history: window.history,
-			storage: window.sessionStorage,
+			storage: () => window.sessionStorage,
 			position: () => ({ x: window.scrollX, y: window.scrollY }),
 			scrollTo: (spot) => window.scrollTo(spot),
 			element: (id) => document.getElementById(id),

@@ -941,6 +941,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 177 [x] Node answered 400 for a URL in the query string, which Bun served
 177.1 [x] Plan 21 3.14, from the 2026-10-16 gap audit: adapters/node/request.ts refused any target holding `://` anywhere, meant for the absolute form `http://evil/`, so `/login?next=https://example.com/x` was a 400 on Node and served on Bun and Workers. Red: tests/integration/adapters.test `node backslash` with that target (a 400 where Bun served it).
 177.2 [x] Fix: a target must be in origin form, starting with `/` but not `//`; the absolute form is still a 400, and the query is plain text. `bun backslash` serves the same target under Bun. dx/adapters.md says so.
+178 [x] Blocked sessionStorage stopped hydration
+178.1 [x] Plan 21 3.6, from the 2026-10-16 gap audit: client/boot/create-client.ts handed the scroll store `window.sessionStorage` at boot, and with cookies off or in a sandboxed iframe that read throws a SecurityError, so the boot threw and the page never hydrated. Red: tests/integration/client.test `storage blocked` in each engine, with the getter made to throw before the page loads (the page never hydrated).
+178.2 [x] Fix: the scroll store takes the storage as `() => Storage`, read inside its existing guards each time it saves or restores, as the reload guard already did, so positions are not kept and the page hydrates and navigates. dx/navigate.md says so.
 
 ## Verify
 
