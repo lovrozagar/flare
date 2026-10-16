@@ -12,8 +12,8 @@ bun add @lovrozagar/flare solid-js @solidjs/web @solidjs/vite-plugin vite oxc-pa
 
 | peer                                                  | range                            | needed for                                        |
 | ----------------------------------------------------- | -------------------------------- | ------------------------------------------------- |
-| `solid-js`, `@solidjs/web`                            | `>=2.0.0-rc.14`                  | every app                                         |
-| `@solidjs/vite-plugin`                                | `>=3.0.0-next.49`                | every app; `flare()` adds it, so the app does not |
+| `solid-js`, `@solidjs/web`                            | `>=2.0.0-rc.15`                  | every app                                         |
+| `@solidjs/vite-plugin`                                | `>=3.0.0-next.50`                | every app; `flare()` adds it, so the app does not |
 | `vite`                                                | `>=8.1.4`                        | every app                                         |
 | `oxc-parser`, `magic-string`                          | `>=0.139.0`, `>=0.30.21`         | the plugin's codegen and boundary transform       |
 | `@tanstack/solid-query`                               | `>=6.0.0-rc.5`                   | optional: `@lovrozagar/flare/query`               |
