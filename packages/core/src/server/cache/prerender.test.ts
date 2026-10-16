@@ -298,8 +298,12 @@ it("bare path", async () => {
 		node("_root_/tags/[[tag]]", "/tags/[[tag]]", page("_root_/tags/[[tag]]")),
 	]
 	const layouts = { "[[locale]]/_root_": createRootLayout("[[locale]]/_root_").render(() => "x"), _root_: root }
-	const router = createRouter({ layouts, routeTree: tree })
-	const locale = { [LOCALE_SLOT]: () => ({}), locales: ["en", "hr", "ar"], defaultLocale: "en", paramName: "locale" }
+	const router = createRouter({
+		layouts,
+		routeTree: tree,
+		locale: { locales: ["en", "hr", "ar"], defaultLocale: "en" },
+	})
+	const locale = { [LOCALE_SLOT]: () => ({}) }
 	const found = prerendererOf(serveWith({ router, site: SITE, locale }, { dev: false, log: quiet }))
 	const bare = Object.fromEntries(((await found?.routes()) ?? []).map((item) => [item.id, item.bare]))
 	expect(bare).toEqual({
@@ -308,4 +312,8 @@ it("bare path", async () => {
 		"[[locale]]/_root_/docs/[slug]": [],
 		"_root_/tags/[[tag]]": ["/tags"],
 	})
+	// Without a locale slot the locale param is an ordinary optional one: one bare URL.
+	const plain = prerendererOf(serveWith({ router, site: SITE }, { dev: false, log: quiet }))
+	const routes = (await plain?.routes()) ?? []
+	expect(routes.find((item) => item.id === "[[locale]]/_root_/search")?.bare).toEqual(["/search"])
 })

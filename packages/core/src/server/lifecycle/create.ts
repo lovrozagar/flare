@@ -18,7 +18,7 @@ import { bodyLimitOf } from "../server-fn/input.ts"
 import { classify, isServerFn } from "./classify.ts"
 import { answer, background, bare, failed, passed, secure, type Exchange } from "./exchange.ts"
 import { dispatchMount, mountSpelling, mountTable } from "../mount/mount.ts"
-import { withLocale } from "./locale-slot.ts"
+import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
 import type { MiddlewareKind } from "../middleware/types.ts"
 import { routeMethod, type MethodMatch } from "./methods.ts"
@@ -51,6 +51,7 @@ const STYLES = devStyles(import.meta.hot)
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev })
+	checkLocale(options.locale, options.router)
 	const { trailingSlash, caseSensitive } = options.router
 	const bodyLimit = bodyLimitOf(options.bodyLimit)
 	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive })

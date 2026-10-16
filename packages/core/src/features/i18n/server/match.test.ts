@@ -14,7 +14,12 @@ const router = createRouter({
 		page("_root_/de", "/de"),
 	],
 })
-const config: I18nConfig = i18n({ locales: ["en", "hr", "en-US"], defaultLocale: "en" })
+// The config the slot builds from the router's locale and its own `botDetection`.
+function configOf(locales: readonly string[], defaultLocale: string, botDetection = true): I18nConfig {
+	return { locales, defaultLocale, paramName: "locale", cookieName: "flare.locale", botDetection }
+}
+
+const config = configOf(["en", "hr", "en-US"], "en")
 
 const BROWSER = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0 Safari/537.36"
 const BOT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
@@ -90,6 +95,8 @@ it("casing", () => {
 	})
 	// Only a document redirects.
 	expect(ask("/HR/pricing", { kind: "data" })).toEqual({ locale: "en" })
+	// The default tag in the wrong case leaves the optional segment out, as the default always does.
+	expect(ask("/EN/pricing")).toEqual({ locale: "en", redirect: { status: 301, location: "/pricing" }, cookie: "en" })
 })
 
 it("bot path", () => {
@@ -109,7 +116,7 @@ it("bot root", () => {
 })
 
 it("bot off", () => {
-	const off = i18n({ locales: ["en", "hr"], defaultLocale: "en", botDetection: false })
+	const off = configOf(["en", "hr"], "en", false)
 	expect(ask("/", { agent: BOT, language: "hr", with: off }).redirect?.location).toBe("/hr")
 })
 
@@ -128,28 +135,19 @@ it("static wins", () => {
 	expect(ask("/de")).toEqual({ locale: "en" })
 })
 
-it("optional strip", () => {
-	expect(ask("/fr/pricing?x=1")).toEqual({
-		locale: "en",
-		redirect: { status: 302, location: "/pricing?x=1" },
-		cookie: "en",
-	})
-	// A segment that is not locale-like is not a locale.
+// Only a configured tag is a locale. The router's locale param holds nothing else (B73); this router has no locale
+// config, so the segment reaches the matcher, which reads it as no locale: no redirect and no cookie, on every kind
+// and for a bot (plan 21 3.8).
+it("unconfigured tag", () => {
+	for (const kind of ["document", "data", "prefetch"] as const) {
+		expect(ask("/fr/pricing?x=1", { kind })).toEqual({ locale: "en" })
+	}
 	expect(ask("/not_a_tag/pricing")).toEqual({ locale: "en" })
-	// An unconfigured tag redirects on every kind, so a layout never renders it. A prefetch persists nothing.
-	expect(ask("/fr/pricing", { kind: "data" })).toEqual({
-		locale: "en",
-		redirect: { status: 302, location: "/pricing" },
-		cookie: "en",
-	})
-	expect(ask("/fr/pricing", { kind: "prefetch" })).toEqual({
-		locale: "en",
-		redirect: { status: 302, location: "/pricing" },
-	})
+	expect(ask("/fr/docs")).toEqual({ locale: "en" })
+	expect(ask("/fr/pricing", { agent: BOT })).toEqual({ locale: "en" })
 })
 
-it("required keeps", () => {
-	expect(ask("/fr/docs")).toEqual({ locale: "en", redirect: { status: 302, location: "/en/docs" }, cookie: "en" })
+it("base path", () => {
 	// Under a base path the target keeps the base.
 	const based = createRouter({
 		basePath: "/app",
@@ -157,17 +155,17 @@ it("required keeps", () => {
 		routeTree: [page("_root_/[locale]/docs", "/[locale]/docs")],
 	})
 	const request = {
-		url: new URL("https://site.test/app/fr/docs"),
+		url: new URL("https://site.test/app/HR/docs"),
 		kind: "document" as const,
 		cookieHeader: null,
 		acceptLanguage: null,
 		userAgent: BROWSER,
 	}
-	expect(matchLocale(request, config, based).redirect?.location).toBe("/app/en/docs")
+	expect(matchLocale(request, config, based).redirect).toEqual({ status: 301, location: "/app/hr/docs" })
 })
 
 it("language en", () => {
-	const only = i18n({ locales: ["en", "hr"], defaultLocale: "hr" })
+	const only = configOf(["en", "hr"], "hr")
 	expect(ask("/pricing", { language: "en-US", with: only }).redirect?.location).toBe("/en/pricing")
 })
 
@@ -179,8 +177,4 @@ it("language spelling", () => {
 	const found = ask("/pricing", { language: "EN-us" })
 	expect(found.locale).toBe("en-US")
 	expect(found.cookie).toBe("en-US")
-})
-
-it("bot unconfigured", () => {
-	expect(ask("/fr/pricing", { agent: BOT })).toEqual({ locale: "en", redirect: { status: 302, location: "/pricing" } })
 })

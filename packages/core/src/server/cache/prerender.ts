@@ -109,7 +109,8 @@ async function described(options: RuntimeOptions, node: RouteNode): Promise<Prer
 function bareUrls(options: RuntimeOptions, node: RouteNode): string[] {
 	const params = patternSegments(node.path).filter((segment) => segment.kind !== "static")
 	if (params.length === 0 || params.some((segment) => !segment.optional)) return []
-	const locale = options.locale
+	// The router's locale config, when the server has a locale slot (B73, B101).
+	const locale = options.locale === undefined ? undefined : options.router.locale
 	const tagged = locale !== undefined && params.some((segment) => segment.name === locale.paramName)
 	const tags = tagged ? locale.locales.filter((tag) => tag !== locale.defaultLocale) : []
 	return [undefined, ...tags].map((tag) => {
