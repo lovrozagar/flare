@@ -938,6 +938,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 176 [x] A server-only deploy kept the build id, so it served the previous deploy's stored pages
 176.1 [x] Plan 21 3.1, from the 2026-10-16 gap audit: vite/plugin/build-id.ts hashed only the client manifest's URLs (B84), so a deploy that changed only server code, a loader, a render, or a server function, kept its build id, and with it every store key: the new server served pages the old one had rendered, with the old data shape, until their ttl. Red: vite/plugin/build-id.test `server output` (two real builds that differ only in a page's render had one id).
 176.2 [x] Fix, B84 revised (the reviewer's ruling of 2026-10-16): the id is sha256 over the client manifest's URLs plus each server JS chunk's file name and final code, never a sourcemap. Both server builds write the 12-character placeholder `__FLARE_ID__`; a post `generateBundle` in the ssr build hashes its final chunks and writes the id over the placeholder, and the prerender build after it writes the same id. The same fixture built in two directories has one id (`server output`); a built copy of the docs app holds no absolute path and no placeholder. B84, dx/plugin.md, and dx/store.md say so.
+177 [x] Node answered 400 for a URL in the query string, which Bun served
+177.1 [x] Plan 21 3.14, from the 2026-10-16 gap audit: adapters/node/request.ts refused any target holding `://` anywhere, meant for the absolute form `http://evil/`, so `/login?next=https://example.com/x` was a 400 on Node and served on Bun and Workers. Red: tests/integration/adapters.test `node backslash` with that target (a 400 where Bun served it).
+177.2 [x] Fix: a target must be in origin form, starting with `/` but not `//`; the absolute form is still a 400, and the query is plain text. `bun backslash` serves the same target under Bun. dx/adapters.md says so.
 
 ## Verify
 

@@ -47,9 +47,11 @@ function whatwgPath(url: string): string {
 	return path.replaceAll("\\", "/") + (end === -1 ? "" : url.slice(end))
 }
 
+// A target is a path in origin form: one that does not start with `/`, such as the absolute form `http://evil/`, is a
+// 400, and so is `//`, which a URL parser reads as a host. A URL in the query, `?next=https://…`, is plain query
+// text, served as Bun and Workers serve it (plan 21 3.14).
 function badTarget(url: string): boolean {
-	if (url.startsWith("//")) return true
-	if (url.includes("://")) return true
+	if (!url.startsWith("/") || url.startsWith("//")) return true
 	return hasControl(url)
 }
 
