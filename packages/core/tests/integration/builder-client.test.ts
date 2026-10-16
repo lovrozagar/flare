@@ -448,6 +448,24 @@ describe.each(ENGINES)("%s", (engine) => {
 })
 
 describe.each(ENGINES)("%s", (engine) => {
+	// Loaded at a hash, a stored holed page fills too: the fill is the page on screen again, never a hash move
+	// (BUGS.md 148).
+	it("holed initial at a hash", async () => {
+		const result = await run(engine, {
+			app: EFFECTS,
+			path: "/holed#x",
+			prime: [{ path: "/holed" }],
+			steps: async (tab) => {
+				await tab.waitForFunction(() => document.getElementById("holed")?.textContent === "filled")
+				await new Promise((resolve) => setTimeout(resolve, 100))
+			},
+		})
+		expect(result.problems).toEqual([])
+		expect(result.requests).toEqual(["/holed?_flare=fill"])
+	})
+})
+
+describe.each(ENGINES)("%s", (engine) => {
 	// A render's string is text on the server and the client alike: no element, the literal string, and no
 	// hydration mismatch (BUGS.md 141).
 	it("render text hydrates", async () => {

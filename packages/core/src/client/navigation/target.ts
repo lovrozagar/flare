@@ -1,7 +1,7 @@
 import { KIND_PARAM, withoutInternalKeys } from "../../shared/protocol/index.ts"
 import { rewriteLocation, type Match, type Router } from "../../shared/router/create-router.ts"
 import { buildUrl, type Location } from "../../shared/url/index.ts"
-import { isHashOnly } from "./scroll.ts"
+import { isHashMove } from "./scroll.ts"
 
 export type NavigateInput = {
 	to: string
@@ -43,6 +43,14 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 	return { kind: "shallow", url: target.url, location, search: input.search }
 }
 
+// A navigation, a Link or an anchor, to the URL already current with a hash goes to its target again, as the browser
+// does, unless it asks to revalidate. A fill, a refresh, a pop, and a redirect never come here (BUGS.md 148).
+export function hashAgain(target: Target, current: Location, revalidate: boolean | undefined): Target {
+	if (target.kind !== "data" || revalidate === true || target.location.hash === "") return target
+	if (target.url !== `${current.pathname}${current.search}${current.hash}`) return target
+	return { kind: "hash", url: target.url, location: target.location }
+}
+
 // A URL the server built, such as an `x` frame's `u`. It is not rewritten again. Another origin throws.
 export function resolveUrl(href: string, context: TargetContext): Target {
 	const url = new URL(href, context.origin)
@@ -56,7 +64,7 @@ function fromLocation(location: Location, context: TargetContext): Target {
 	if (match.response === true || rootOf(match) !== rootOf(context.router.match(context.current.pathname))) {
 		return { kind: "document", url }
 	}
-	if (isHashOnly(context.current, location)) return { kind: "hash", url, location }
+	if (isHashMove(context.current, location)) return { kind: "hash", url, location }
 	const query = location.search === "" ? "?" : `${location.search}&`
 	const dataUrl = `${location.pathname}${query}${KIND_PARAM}=data`
 	return { kind: "data", url, dataUrl, location, route: match.id, match }

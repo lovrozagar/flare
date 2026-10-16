@@ -30,7 +30,7 @@ import {
 	type DataTarget,
 	type Trip,
 } from "./request.ts"
-import { resolveTarget, resolveUrl, type NavigateInput, type Target } from "./target.ts"
+import { hashAgain, resolveTarget, resolveUrl, type NavigateInput, type Target } from "./target.ts"
 
 export type Landing = Landed
 
@@ -114,8 +114,8 @@ export function createNavigator(given: NavigatorDeps): Leaving & {
 		fill: (pending) => again({ fill: pending }),
 		refresh: (initial) => again({ initial }),
 		...leave,
-		navigate: (options) => go(resolveTarget(options, context()), options),
-		visit: (url, replace) => go(resolveUrl(url, context()), { to: url, replace }),
+		navigate: (options) => go(userTarget(deps, resolveTarget(options, context()), options.revalidate), options),
+		visit: (url, replace) => go(userTarget(deps, resolveUrl(url, context()), false), { to: url, replace }),
 		restore: async (url, index) => {
 			const closed = closesOverlay(deps.store.snapshot(), url)
 			if (closed !== undefined) {
@@ -126,6 +126,11 @@ export function createNavigator(given: NavigatorDeps): Leaving & {
 			return go(resolveUrl(url, context()), { to: url }, mode)
 		},
 	}
+}
+
+// A Link's, navigate()'s, or an anchor's target: the page on screen at a hash goes to its target again (BUGS.md 148).
+function userTarget(deps: NavigatorDeps, target: Target, revalidate: boolean | undefined): Target {
+	return hashAgain(target, deps.store.snapshot().location, revalidate)
 }
 
 // One data navigation from its request to its commit: a redirect to follow, a commit, or nothing (aborted, superseded,
@@ -271,7 +276,9 @@ function inPlace(
 		const search = { ...target.search } as OutletMatch["search"]
 		matches = matches.map((match, index) => (index === matches.length - 1 ? { ...match, search } : match))
 	}
-	const moved = { options: step.options, pop: step.pop, write: true }
+	// The URL already current replaces its entry, as the browser does (BUGS.md 148).
+	const again = target.url === `${snapshot.location.pathname}${snapshot.location.search}${snapshot.location.hash}`
+	const moved = { options: again ? { ...step.options, replace: true } : step.options, pop: step.pop, write: true }
 	keepPosition(deps, snapshot.location, moved)
 	void deps.store.commit({ ...snapshot, location: target.location, matches })
 	land(deps, target, moved)

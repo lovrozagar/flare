@@ -378,6 +378,19 @@ it("force", () => {
 	expect(hashed.navigate).toHaveBeenCalledOnce()
 })
 
+// A link to the hash already current goes to its target again, as the browser does; with no hash it stays put
+// (BUGS.md 148).
+it("same hash", () => {
+	const again = mount({ to: "_root_/about", hash: "part", children: "x" })
+	again.place({ pathname: "/about", hash: "#part" })
+	expect(click(again.anchor).defaultPrevented).toBe(true)
+	expect(again.navigate).toHaveBeenCalledOnce()
+	const bare = mount({ to: "_root_/about", children: "x" })
+	bare.place({ pathname: "/about", hash: "" })
+	click(bare.anchor)
+	expect(bare.navigate).not.toHaveBeenCalled()
+})
+
 it("blank", () => {
 	const { anchor, navigate } = mount({ to: "_root_/about", target: "_blank", children: "x" })
 	expect(click(anchor).defaultPrevented).toBe(false)

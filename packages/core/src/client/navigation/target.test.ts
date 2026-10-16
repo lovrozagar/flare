@@ -1,7 +1,7 @@
 import { expect, it } from "vitest"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRouter, type RouterOptions } from "../../shared/router/create-router.ts"
-import { resolveTarget, resolveUrl, type TargetContext } from "./target.ts"
+import { hashAgain, resolveTarget, resolveUrl, type TargetContext } from "./target.ts"
 
 const pages: RouterOptions["routeTree"] = [
 	{ id: "_root_/", path: "/", module: {} },
@@ -45,6 +45,17 @@ it("hash", () => {
 	expect(target).toMatchObject({ url: "/about#x", dataUrl: "/about?_flare=data", location: { hash: "#x" } })
 	const same = resolveTarget({ to: "_root_/", hash: "top" }, context())
 	expect(same.kind).toBe("hash")
+	// The hash already current resolves as the page itself; a navigation to it goes to the target again unless it
+	// revalidates, and the same URL with no hash, or another search, fetches (BUGS.md 148).
+	const current = { pathname: "/", search: "", hash: "#top" }
+	const again = resolveTarget({ to: "_root_/", hash: "top" }, { ...context(), current })
+	expect(again.kind).toBe("data")
+	expect(hashAgain(again, current, undefined).kind).toBe("hash")
+	expect(hashAgain(again, current, true).kind).toBe("data")
+	expect(hashAgain(again, { pathname: "/", search: "?q=1", hash: "#top" }, undefined).kind).toBe("data")
+	const bare = resolveTarget({ to: "_root_/" }, context())
+	expect(hashAgain(bare, { pathname: "/", search: "", hash: "" }, undefined).kind).toBe("data")
+	expect(hashAgain(same, current, undefined).kind).toBe("hash")
 })
 
 it("shallow other route", () => {

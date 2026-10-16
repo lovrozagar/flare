@@ -137,6 +137,18 @@ test("stored stream fills", async ({ page }) => {
 	expect(errors).toEqual([])
 })
 
+// Loaded at a hash, the same one fill: the page on screen again is never a hash move (BUGS.md 148).
+test("stored stream fills at a hash", async ({ page }) => {
+	const fills: string[] = []
+	page.on("request", (request) => {
+		if (request.url().includes("_flare=fill")) fills.push(new URL(request.url()).pathname)
+	})
+	const errors = await open(page, "/holed#x")
+	await expect(page.locator("#holed")).toHaveText("FILLED")
+	expect(fills).toEqual(["/holed"])
+	expect(errors).toEqual([])
+})
+
 // The same page with no cache mode streams the value into the live document and sends no fill.
 test("live stream ssr", async ({ page }) => {
 	const html = await (await fetch(`${session.origin}/unstored`)).text()

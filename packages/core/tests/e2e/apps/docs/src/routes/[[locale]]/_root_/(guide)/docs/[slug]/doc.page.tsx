@@ -49,7 +49,7 @@ export const route = createPage("[[locale]]/_root_/(guide)/docs/[slug]")
 			</h1>
 			<p class="mt-3 text-lg text-stone-600 dark:text-stone-400">{props.loaderData.doc.summary}</p>
 			<Toc doc={props.loaderData.doc} locale={props.params.locale} slug={props.params.slug} />
-			<Sections doc={props.loaderData.doc} />
+			<Sections doc={props.loaderData.doc} locale={props.params.locale} />
 			<div class="mt-8">
 				<CodeBlock code={props.loaderData.doc.code} />
 			</div>

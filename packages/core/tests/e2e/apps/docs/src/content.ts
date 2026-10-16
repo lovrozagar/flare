@@ -5,6 +5,8 @@ export type Doc = {
 	summary: string
 	demo?: { label: string; path: string }
 	sections: readonly { id: string; title: string; body: string }[]
+	// A link to a section of another doc, by its slug and the section's id.
+	see?: { slug: string; hash: string; label: string }
 	code: string
 }
 
@@ -44,6 +46,7 @@ export const docs: readonly Doc[] = [
 				body: "useLoaderData, useParams, useSearch, useMatch, and usePreloaderContext read any route by id.",
 			},
 		],
+		see: { slug: "routing", hash: "params", label: "Route params" },
 		code: 'createLayout("_root_/(guide)")\n  .preloader(() => ({ section: "guide" }))\n  .loader(() => ({ nav: readNav() }));',
 	},
 	{
