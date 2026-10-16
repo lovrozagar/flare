@@ -331,6 +331,27 @@ The cases are the `test` cells in `dx/head.md`. The outcome of each case is that
 
 The cases are the `test` cells in `dx/plugin.md` that name these files. An option `dx/plugin.md` lists under "Does not exist" throws in `unknown`.
 
+
+### `tests/integration/router.test.ts` and `router-client.test.ts` (plan 14 9.6, B96)
+
+dx/router.md through the real server and the real client. The server half calls `createServer(...).fetch`; the client half is the hydrate harness's app mode, a document that server serves hydrated by the real `createClient` in chromium, firefox, and webkit, navigated by clicking anchors from the page and by Back. Each app is one source both sides compile, built from the shared pages plus its router options. Each group's bite is the source mutation that turns it red.
+
+| test | case | result |
+| --- | --- | --- |
+| `layouts and route tree` | `/` and `/docs/a` under the docs layout | each page under its layouts |
+| `base path` | `basePath: "/app"` | `/app` is the index, `/app/about` serves, `/about` 404 (bite: the base not the index) |
+| `case sensitive` | `/About`, default and `caseSensitive: true` | 301 to `/about`; 404 (bite: always folds) |
+| `trailing slash` | preserve, never, always, GET and POST, `/`, an empty segment | both forms; 301 or 308 to the stripped form; 301 to the slashed and collapsed form; `/` untouched (bite: a POST 301) |
+| `not found mode` | `/docs/zzz`, root and fuzzy | the root's not-found; the docs layout's (bite: fuzzy ignored) |
+| `theme and direction` | `ThemeScript` and `DirectionScript locale="ar"` with no props | the router's storage key and `rtl` in the document |
+| `locale` | `/x` with a locale cookie, `/hr/x`, and three bad tag lists | no redirect and no cookie read, the param `hr`, each list throws |
+| `scroll restore` | `/a` scrolled to 600, to `/b`, Back | 600, with `history.scrollRestoration` manual |
+| `scroll key and cap` | a key `k:<pathname>` and a cap of two, three navigations | the stored keys `k:/b`, `k:/c` (bite: the key ignored) |
+| `scroll off` | `scrollRestoration: false` | nothing stored, the browser's `auto` kept |
+| `client cache` | a 1 m client cache, then a cap of one, then `cache: { client: false }`, `/` → `/a` → `/b` → `/a` | no data request, then one for `/a`, then one (bite: no eviction) |
+| `rewrite` | `/old` rewritten to `/b` | the `/b` page (bite: no client rewrite) |
+| `router config` | no options, then `prefetch`, `viewTransitions`, `scrollRestorationBehavior` | the defaults, then the values set |
+
 ## Done
 
 The minimal app's `dev` script serves `/`. `bun run test` is green at 100% for every source file this bit created. On Linux, `bun run test:e2e` is green on `node-dev-chromium` and `node-dev-firefox`. On macOS, the same command is green on `node-dev-webkit`. Both CI jobs are green.
