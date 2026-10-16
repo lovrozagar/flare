@@ -191,6 +191,27 @@ it("coalesced cookies", async () => {
 	for (const answer of answers) expect(answer.headers.get("cache-control")).toBe(PRIVATE)
 })
 
+// A miss whose loader hangs blocks its page for 30 s at most: a request that joined it then renders live, and the next
+// miss renders and stores again, so one hung render never holds the page until restart (plan 21 7.5).
+it("hung miss", async () => {
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+	let calls = 0
+	const page = createPage("_root_/h")
+		.cache({ isr: true })
+		.loader(() => ((calls += 1) === 1 ? new Promise<never>(() => undefined) : { call: calls }))
+		.render(() => "h")
+	const get = one("_root_/h", "/h", page)
+	void get("/h")
+	await vi.advanceTimersByTimeAsync(10)
+	const joined = get("/h")
+	await vi.advanceTimersByTimeAsync(30_000)
+	const live = await joined
+	expect([live.status, live.headers.get("cache-control")]).toEqual([200, PRIVATE])
+	expect(live.text).toContain('"call":2')
+	const next = await get("/h")
+	expect([cacheOf(next), next.text.includes('"call":3')]).toEqual(["miss", true])
+})
+
 // The request nonce an answer's CSP header carries.
 const nonceOf = (answer: Answer) => /'nonce-([^']+)'/.exec(answer.headers.get("content-security-policy") ?? "")?.[1]
 
