@@ -1,4 +1,6 @@
-import { dataRequests, deepOnly, expect, open, prodOnly, serverOf, sessionCookie, test } from "./docs.fixture.ts"
+import { writeFileSync } from "node:fs"
+import type { Page } from "@playwright/test"
+import { dataRequests, deepOnly, expect, fnId, open, prodOnly, serverOf, sessionCookie, test } from "./docs.fixture.ts"
 
 // SSG seeds, ISR, shared SSR, CDN headers, purge, the client match cache, and the store per runtime (bits/15).
 deepOnly()
@@ -80,15 +82,85 @@ test("client cache stale", async ({ page, docs }) => {
 	expect(requests.filter((seen) => seen.path === "/examples" && seen.kind === "data")).toEqual([])
 })
 
-test("cache deferred", async ({ page, docs }) => {
+const HOLD_STATS = fnId("src/fns/stats-gate.ts", "holdStats")
+const RELEASE_STATS = fnId("src/fns/stats-gate.ts", "releaseStats")
+
+// Every data body's chunks as the page reads them: when each arrived, in ms after the click that `mark` stamps, its
+// size, and the frames it held (`t` and `k`), so a failure shows whether a value never came or never painted.
+async function traceData(page: Page): Promise<void> {
+	await page.addInitScript(() => {
+		const chunks: unknown[] = []
+		Reflect.set(window, "__flareChunks", chunks)
+		const real = window.fetch.bind(window)
+		window.fetch = async (input, init) => {
+			const response = await real(input, init)
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+			if (!url.includes("_flare=") || response.body === null) return response
+			const [kept, read] = response.body.tee()
+			void (async () => {
+				const reader = read.getReader()
+				const decoder = new TextDecoder()
+				for (let step = await reader.read(); !step.done; step = await reader.read()) {
+					const text = decoder.decode(step.value, { stream: true })
+					const frames = [...text.matchAll(/"t":"(\w)"(?:,"m":"[^"]*")?(?:,"k":"(\w+)")?/g)].map(
+						(m) => m[1] + (m[2] ?? ""),
+					)
+					const at = Math.round(performance.now() - Number(Reflect.get(window, "__flareClick") ?? 0))
+					chunks.push({ url: url.replace(location.origin, ""), at, bytes: step.value.byteLength, frames })
+				}
+				chunks.push({ url: url.replace(location.origin, ""), closed: true })
+			})()
+			return new Response(kept, response)
+		}
+	})
+}
+
+const mark = (page: Page) => page.evaluate(() => Reflect.set(window, "__flareClick", performance.now()))
+
+// On a failed wait for `#stats`: whether its skeleton is on screen, the outlet's markup, and every data chunk's
+// timing, attached to the case, so the failure carries its own answer (BUGS.md 102.4).
+async function statsShown(page: Page): Promise<void> {
+	try {
+		await expect(page.locator("#stats")).toBeVisible()
+	} catch (error) {
+		const state = await page.evaluate(() => ({
+			statsLoading: document.getElementById("stats-loading") !== null,
+			stats: document.getElementById("stats") !== null,
+			outlet: (document.querySelector("main")?.outerHTML ?? "").slice(0, 6000),
+			chunks: Reflect.get(window, "__flareChunks"),
+		}))
+		// A file beside the case, so CI's uploaded test results carry it.
+		const path = test.info().outputPath("stats-diagnostics.json")
+		writeFileSync(path, JSON.stringify(state, null, 2))
+		await test.info().attach("stats diagnostics", { path, contentType: "application/json" })
+		throw error
+	}
+}
+
+// A client navigation to the changelog paints the held `stats` skeleton, then the value once the server releases it:
+// the gate holds `stats` until the skeleton is seen, so a value that never paints reads apart from one that arrives
+// late. A second visit inside staleTime is served from the client cache with no request (BUGS.md 102.4).
+test("cache deferred", async ({ page, http, docs }) => {
+	const call = (id: string) =>
+		http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: {} })
+	await traceData(page)
 	await open(page, docs.origin, "/")
-	await page.locator("#nav").getByRole("link", { name: "Changelog" }).click()
-	await expect(page.locator("#stats")).toBeVisible()
+	expect(await (await call(HOLD_STATS)).json()).toMatchObject({ data: { held: true } })
+	try {
+		await mark(page)
+		await page.locator("#nav").getByRole("link", { name: "Changelog" }).click()
+		await expect(page.locator("#stats-loading")).toBeVisible()
+		await expect(page.locator("#stats")).toHaveCount(0)
+	} finally {
+		expect((await call(RELEASE_STATS)).status()).toBe(200)
+	}
+	await statsShown(page)
 	await page.locator("#nav").getByRole("link", { name: "Playground" }).click()
 	await expect(page.locator("#echo-send")).toBeVisible()
 	const requests = dataRequests(page)
+	await mark(page)
 	await page.locator("#nav").getByRole("link", { name: "Changelog" }).click()
-	await expect(page.locator("#stats")).toBeVisible()
+	await statsShown(page)
 	expect(requests.filter((seen) => seen.path === "/changelog")).toEqual([])
 })
 
