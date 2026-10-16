@@ -261,8 +261,9 @@ function allowedName(name: string): boolean {
 	return NAME.test(name) || DATA.test(name)
 }
 
-// A case-insensitive `</script` or `</style` in the text is rewritten so it cannot close the tag (B83). The client
-// sets text as a DOM property, where `<\/` reads the same.
+// A case-insensitive `</script` or `</style` in the text is rewritten so it cannot close the tag (B83), in its own
+// spelling, so a JSON-LD value or a JS string reads back exactly (BUGS.md 143). The client sets text as a DOM property,
+// where `<\/` reads the same.
 function keepOpen(value: string, tag: "script" | "style"): string {
-	return value.replaceAll(new RegExp(`</${tag}`, "gi"), `<\\/${tag}`)
+	return value.replaceAll(new RegExp(`</(${tag})`, "gi"), "<\\/$1")
 }

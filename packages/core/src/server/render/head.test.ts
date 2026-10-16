@@ -71,11 +71,13 @@ it("hreflang", async () => {
 	)
 })
 
+// JSON-LD cannot close its tag, is not entity-escaped, and parses back exactly, case kept (BUGS.md 143; rc.15's
+// head writes its `<` as `\u003C`).
 it("jsonld escape", async () => {
-	const html = await tags({ jsonLd: [{ name: "</ScRiPt>" }] })
-	expect(html).not.toContain("</ScRiPt>")
-	expect(html).toContain("<\\/script>")
-	expect(html).not.toContain("&lt;")
+	const block = { name: "</ScRiPt> a<b & c" }
+	const text = /<script type="application\/ld\+json">(.*?)<\/script>/s.exec(await tags({ jsonLd: [block] }))?.[1] ?? ""
+	expect(text).not.toMatch(/<\/script|&lt;/i)
+	expect(JSON.parse(text)).toEqual(block)
 })
 
 it("jsonld nonce", async () => {
@@ -401,15 +403,14 @@ it("custom both", async () => {
 it("custom style", async () => {
 	const html = await tags({ custom: { styles: [{ children: "a{}" }, { children: "</StYlE>" }] } }, "abc")
 	expect(html).toContain('<style nonce="abc">a{}</style>')
-	expect(html).not.toContain("</StYlE>")
-	expect(html).toContain("<\\/style>")
+	expect(html).toContain('<style nonce="abc"><\\/StYlE></style>')
 	expect(await tags({ custom: { styles: [{ children: "a{}" }] } })).not.toContain("nonce")
 })
 
+// A script's own `</script`, any case, cannot close its tag and keeps its spelling, as CSS does (BUGS.md 143).
 it("script close", async () => {
-	const html = await tags({ custom: { scripts: [{ children: "</ScRiPt>" }] } })
-	expect(html).not.toContain("</ScRiPt>")
-	expect(html).toContain("<\\/script>")
+	const html = await tags({ custom: { scripts: [{ children: "x('</ScRiPt>')" }] } })
+	expect(html).toContain("<script>x('<\\/ScRiPt>')</script>")
 })
 
 it("custom key dropped", async () => {
