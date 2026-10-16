@@ -67,6 +67,44 @@ it("filter", async () => {
 	expect(calls).toEqual(["serverFn /_flare/fn/abc"])
 })
 
+// A page that renders "admin".
+function adminPage(id: string) {
+	return createPage(id).render(() => "admin")
+}
+
+// A filter names the route path, so a locale prefix or the basePath never walks around it: a block on /admin also blocks
+// /hr/admin under a `[[locale]]` root and /base/admin under basePath /base; the pathname as sent still matches too
+// (plan 21 12.1, BUGS.md 159).
+it("filter route path", async () => {
+	const block = createMiddleware((ctx) => ctx.respond(new Response("blocked", { status: 403 })))
+	const middleware: MiddlewareEntry[] = [{ filter: { prefix: ["/admin"] }, handler: block }]
+	const root = createRootLayout("_root_").render((props) => props.children)
+	const localized = createServer({
+		middleware,
+		router: createRouter({
+			layouts: { "[[locale]]/_root_": root },
+			routeTree: [
+				{ id: "[[locale]]/_root_/admin", path: "/[[locale]]/admin", module: adminPage("[[locale]]/_root_/admin") },
+			],
+			locale: { locales: ["en", "hr"], defaultLocale: "en" },
+		}),
+	})
+	for (const path of ["/admin", "/hr/admin", "/HR/admin/x"]) {
+		expect([path, (await localized.fetch(new Request(`http://localhost${path}`))).status]).toEqual([path, 403])
+	}
+	const based = createServer({
+		middleware,
+		router: createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/admin", path: "/admin", module: adminPage("_root_/admin") }],
+			basePath: "/base",
+		}),
+	})
+	expect((await based.fetch(new Request("http://localhost/base/admin"))).status).toBe(403)
+	const open = createServer({ middleware, router })
+	expect((await open.fetch(new Request("http://localhost/about"))).status).toBe(200)
+})
+
 // A middleware's own answer, stashed or returned, still leaves through finalize: the security set wins.
 it("middleware finalize", async () => {
 	const sniff = { "x-content-type-options": "sniff" }

@@ -236,7 +236,7 @@ A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user 
 | `respond(response)` | returns void, stashes that response, and skips `next()`. Finalize still runs |
 | `bypass(response)` | the same stash. The name means "I produced the response" |
 
-`filter` limits which paths enter. Comparison is case-folded and stops at a segment boundary.
+`filter` limits which paths enter. Comparison is case-folded and stops at a segment boundary. A filter matches the pathname as sent or the route path: the pathname without the `basePath`, and without a configured locale as its first segment. So a block on `/admin` also holds for `/hr/admin` and `/base/admin` (`tests/integration/middleware.test.ts` `filter route path`, BUGS.md 159).
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |

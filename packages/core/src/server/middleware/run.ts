@@ -1,5 +1,5 @@
 import type { Callback } from "../../shared/route-builder/chain.ts"
-import { enters } from "./filters.ts"
+import { enters, routePath } from "./filters.ts"
 import type { Middleware, MiddlewareContext, MiddlewareEntry, MiddlewareFilter, MiddlewareKind } from "./types.ts"
 
 // `createMiddleware(fn)` returns `fn` typed as `Middleware` and does nothing else. The filter is set where the
@@ -14,6 +14,8 @@ export type RunInput = {
 	env: unknown
 	kind: MiddlewareKind
 	fail: (error: unknown) => Response
+	// The router's basePath and locales, so a filter matches the route path too (BUGS.md 159).
+	router?: { basePath: string; locales?: readonly string[] | undefined }
 }
 
 type Base = Pick<MiddlewareContext, "request" | "path" | "kind"> & { env: unknown }
@@ -36,13 +38,14 @@ export async function runMiddleware(
 		env: input.env,
 		kind: input.kind,
 	}
+	const local = routePath(base.path, input.router ?? { basePath: "/" })
 	const list: readonly Entry[] = entries
 	const step = (index: number): Promise<Response> => {
 		const entry = list[index]
 		const rest = (): Promise<Response> => step(index + 1)
 		if (entry === undefined) return router()
 		if (typeof entry === "function") return call(entry, base, rest)
-		return enters(entry.filter, base) ? call(entry.handler, base, rest) : rest()
+		return enters(entry.filter, { ...base, routePath: local }) ? call(entry.handler, base, rest) : rest()
 	}
 	try {
 		return await step(0)
