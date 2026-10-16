@@ -15,7 +15,15 @@ import type { ScrollStore } from "./scroll.ts"
 // `fill` is a same-URL revalidation that asks for a stored page's `"stream"` values and settles the slots its holes
 // left (dx/defer.md).
 // `initial` is hydrate's own cache plan, which asked to refetch the page on screen (BUGS.md 139).
-export type Mode = { pop?: boolean; overlay?: boolean; index?: number; fill?: Pending; initial?: CachePlan }
+export type Mode = {
+	pop?: boolean
+	overlay?: boolean
+	index?: number
+	fill?: Pending
+	initial?: CachePlan
+	// The redirects this navigation has followed so far (plan 21 3.10).
+	redirects?: number
+}
 
 type Trigger = "initial" | "navigation" | "revalidation"
 

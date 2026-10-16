@@ -62,6 +62,10 @@ export type NavigatorDeps = {
 
 type Trigger = "initial" | "navigation" | "revalidation"
 
+// The redirects one navigation follows before it loads the last one as a document, whose own limit and error page the
+// browser keeps (plan 21 3.10).
+const MAX_REDIRECTS = 10
+
 // `revalidate` refetches the page on screen in place, as `revalidate: true` does (B133).
 export type Navigator = Leaving & {
 	navigate: (options: NavigateOptions) => Promise<void>
@@ -102,11 +106,13 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		const watch = holeWatch(deps, target.location, (pending) => again({ fill: pending }))
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes }
 		const outcome = await travel(deps, plan, { trip, current: () => latest === controller })
+		// The target takes the entry this navigation would have taken: a push pushes it, and a replace or a Back or
+		// Forward step, which the browser already took, replaces. A loop stops after MAX_REDIRECTS (plan 21 3.10).
 		if (outcome.kind === "redirect") {
-			const redirect = outcome
-			return follow(deps, redirect.url, () =>
-				go(resolveUrl(redirect.url, context()), { ...options, replace: redirect.replace }),
-			)
+			const follows = (mode.redirects ?? 0) + 1
+			if (follows > MAX_REDIRECTS) return void deps.assign(outcome.url)
+			const next = { ...options, replace: pop || options.replace === true }
+			return follow(deps, outcome.url, () => go(resolveUrl(outcome.url, context()), next, { redirects: follows }))
 		}
 		if (outcome.kind !== "committed") return
 		at = deps.history.index()
@@ -142,10 +148,7 @@ function userTarget(deps: NavigatorDeps, target: Target, revalidate: boolean | u
 // a failure that commits nothing). Pending runs from the fetch to the commit, inside the transition's update when one
 // runs, so the old capture shows the page as it was while pending (dx/navigate.md `useNavigation()`, B124); every other
 // end lowers it here.
-type Outcome =
-	| { kind: "redirect"; url: string; replace: boolean | undefined }
-	| { kind: "committed" }
-	| { kind: "none" }
+type Outcome = { kind: "redirect"; url: string } | { kind: "committed" } | { kind: "none" }
 
 async function travel(
 	deps: NavigatorDeps,
@@ -157,7 +160,7 @@ async function travel(
 		const settled = await arrived(deps, input.trip, end)
 		if (!input.current() || settled === undefined || settled.arrival.kind === "none") return { kind: "none" }
 		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined
-		if (redirect !== undefined) return { kind: "redirect", url: redirect.url, replace: redirect.replace }
+		if (redirect !== undefined) return { kind: "redirect", url: redirect.url }
 		const landed = { chain: settled.chain, arrival: settled.arrival, signal: input.trip.signal, end }
 		return { kind: (await settle(deps, plan, landed)) ? "committed" : "none" }
 	} finally {
@@ -201,7 +204,9 @@ function planOf(input: {
 	const { target, snapshot } = input
 	// With an overlay open, the URL in the bar is the overlay's.
 	const here = snapshot.overlay?.location ?? snapshot.location
-	const same: Trigger = sameUrl(here, target.location) ? "revalidation" : "navigation"
+	// A followed redirect writes its entry even to the URL on screen: after a Back step the bar shows another (3.10).
+	const revalidates = input.mode.redirects === undefined && sameUrl(here, target.location)
+	const same: Trigger = revalidates ? "revalidation" : "navigation"
 	const trigger: Trigger = input.mode.initial === undefined ? same : "initial"
 	const pop = input.mode.pop === true
 	const step = input.mode.index ?? input.mode.at

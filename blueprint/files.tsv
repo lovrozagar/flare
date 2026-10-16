@@ -378,6 +378,7 @@ packages/core/src/client/navigation/invalidate.ts	P6	src	dom	Forgetting the visi
 packages/core/src/client/navigation/invalidate.test.ts	P6	test	dom	Unit cases for invalidate.ts
 packages/core/src/client/navigation/navigate-shallow.test.ts	P6	test	dom	Shallow navigation cases for navigate.ts
 packages/core/src/client/navigation/navigate-cache.test.ts	P6	test	dom	Client cache cases for navigate.ts
+packages/core/src/client/navigation/navigate-redirect.test.ts	P6	test	dom	A redirect a navigation meets takes the entry the navigation would have taken, and a loop stops after 10 (BUGS.md 182)
 packages/core/src/client/navigation/navigate-slots.test.ts	P6	test	dom	Deferred slot cases for navigate.ts
 packages/core/src/client/navigation/navigate-fill.test.ts	P6	test	dom	Fill cases for navigate.ts: a stored page's holes and the values a fill skips
 packages/core/src/client/navigation/navigate.fixture.ts	P6	test	dom	The mounted app and navigator the navigation tests share
