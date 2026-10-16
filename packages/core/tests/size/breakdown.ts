@@ -53,6 +53,10 @@ function row(share: Share): string {
 // minification, so Rolldown's own `minify` turns the full Oxc minifier on, as an app's production build runs it.
 async function bundle(source: string, name: string, minify: boolean): Promise<string> {
 	const dir = mkdtempSync(join(tmpdir(), "flare-size-"))
+	// Vite reads production from NODE_ENV, which vitest sets to `test`: without this, `import.meta.env.DEV` is true and
+	// the bundle holds the dev code a production bundle drops (plan 21 3.17).
+	const mode = process.env["NODE_ENV"]
+	process.env["NODE_ENV"] = "production"
 	try {
 		const entry = join(dir, "entry.ts")
 		writeFileSync(entry, `import { ${name} } from ${JSON.stringify(source)};\nexport const kept = ${name};\n`)
@@ -69,6 +73,7 @@ async function bundle(source: string, name: string, minify: boolean): Promise<st
 		})
 		return chunkOf(result)
 	} finally {
+		process.env["NODE_ENV"] = mode
 		rmSync(dir, { recursive: true, force: true })
 	}
 }
