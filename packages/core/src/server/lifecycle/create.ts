@@ -22,7 +22,7 @@ import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
 import type { MiddlewareKind } from "../middleware/types.ts"
 import { routeMethod, type MethodMatch } from "./methods.ts"
-import { responseHeaders } from "./policies.ts"
+import { decodedHeaders, responseHeaders } from "./policies.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts"
 import { loaderInput, notFound, type Loaded } from "./answers.ts"
@@ -233,8 +233,9 @@ async function loaded(
 	return run(chain)
 }
 
-// The answer still passes through finalize, and the request's security set wins over its headers. A node
-// flagged as .response() whose module has none is a codegen bug: projected, then 500.
+// The answer still passes through finalize, and the request's security set wins over its headers. A fetched answer
+// drops the encoding its decoded body no longer has. A node flagged as .response() whose module has none is a codegen
+// bug: projected, then 500.
 async function answered(exchange: Exchange, matched: Loaded): Promise<Response> {
 	const respond = defined(matched.chain.at(-1), "the .response() page").module.response
 	if (respond === undefined) {
@@ -249,7 +250,7 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 		return answer(exchange, projectError(run.thrown, exchange.sink).status)
 	}
 	if (run.answer === undefined) return bare(exchange, run)
-	const headers = responseHeaders(run.answer.headers, effectiveAuth(matched.chain.map((entry) => entry.module)))
+	const headers = responseHeaders(decodedHeaders(run.answer), effectiveAuth(matched.chain.map((entry) => entry.module)))
 	return secure(exchange, { status: run.answer.status, body: run.answer.body, headers })
 }
 

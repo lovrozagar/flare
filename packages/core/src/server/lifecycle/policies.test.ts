@@ -1,7 +1,7 @@
 import { expect, it } from "vitest"
 import { decide, type DecideInput } from "../cacheability/decide.ts"
 import { createServer } from "./create.ts"
-import { exitHeaders, NO_STORE, policyHeaders, recordCookies } from "./policies.ts"
+import { decodedHeaders, exitHeaders, NO_STORE, policyHeaders, recordCookies } from "./policies.ts"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule } from "../../shared/router/create-router.ts"
@@ -151,4 +151,26 @@ it("exit headers", () => {
 	expect(exitHeaders(new Response(null, { headers: { "cache-control": PUBLIC } })).get("cache-control")).toBe(PUBLIC)
 	const kept = new Response(null, { headers: { "cache-control": "private, max-age=60", "set-cookie": "r=1" } })
 	expect(exitHeaders(kept).get("cache-control")).toBe("private, max-age=60")
+})
+
+// A Response as `fetch()` gives it: its `url` is set.
+function fetched(headers: Record<string, string>): Response {
+	return Object.defineProperty(new Response(null, { headers }), "url", { value: "https://up.test/" })
+}
+
+function names(headers: Headers): string[] {
+	return [...headers.keys()]
+}
+
+// A fetched Response, its `url` set, drops the Content-Encoding and Content-Length of a body fetch decoded. One the
+// app built keeps them, and a fetched one with no encoding keeps its length (plan 21 8.8).
+it("decoded headers", () => {
+	const encoded = { "content-encoding": "gzip", "content-length": "35", "content-type": "text/plain" }
+	expect(names(decodedHeaders(fetched(encoded)))).toEqual(["content-type"])
+	expect(names(decodedHeaders(fetched({ "content-length": "1" })))).toEqual(["content-length"])
+	expect(names(decodedHeaders(new Response(null, { headers: encoded })))).toEqual([
+		"content-encoding",
+		"content-length",
+		"content-type",
+	])
 })

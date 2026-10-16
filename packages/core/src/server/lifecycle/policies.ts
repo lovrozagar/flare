@@ -88,7 +88,7 @@ export function recordCookies(response: Response): Response {
 // stage did not set, such as one a middleware added, leaves `private, no-store`. A Response with no record, such as
 // a middleware's rewrap, fails closed: every cookie on it is late, even under `allowCookies` (dx/cache.md).
 export function exitHeaders(response: Response): Headers {
-	const headers = new Headers(response.headers)
+	const headers = decodedHeaders(response)
 	const control = headers.get("cache-control")
 	if (control === null) return headers
 	// An answer something made private keeps no CDN header the decision wrote.
@@ -96,4 +96,17 @@ export function exitHeaders(response: Response): Headers {
 	const late = foreignCookies({ route: staged.get(response) ?? [], all: headers.getSetCookie() })
 	if (late.length === 0) return headers
 	return privately(headers)
+}
+
+// A Response from `fetch()`, its `url` set, holds the body the platform already decoded, under the upstream's
+// Content-Encoding and compressed Content-Length. Passed on as-is, Node writes a length the body overruns, Bun labels
+// plain bytes gzip, and workerd encodes them again for a client that never asked, so both go. By default each
+// runtime asks only for the encodings it decodes. A Response the app built keeps its encoding: its body is what the
+// header says (plan 21 8.8, BUGS.md 197).
+export function decodedHeaders(response: Response): Headers {
+	const headers = new Headers(response.headers)
+	if (response.url === "" || !headers.has("content-encoding")) return headers
+	headers.delete("content-encoding")
+	headers.delete("content-length")
+	return headers
 }

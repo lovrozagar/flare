@@ -4,6 +4,7 @@ import { runValidator } from "../../shared/validation/index.ts"
 import { fnCaller } from "../auth/caller.ts"
 import { requestScope, type RequestScope } from "../context/ctx.ts"
 import type { StageResult } from "../lifecycle/finalize.ts"
+import { decodedHeaders } from "../lifecycle/policies.ts"
 import { NDJSON } from "../navigation/index.ts"
 import type { ErrorSink } from "../render/projector.ts"
 import {
@@ -175,9 +176,9 @@ function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult
 // A returned Response is the HTTP response: its status, body, and other headers stay, and Cache-Control is
 // overwritten (B43). `flare-fn: response` tells the client not to read it as an envelope, whatever the handler set.
 // `flare-cookies: set` says this Response wrote a cookie; a cookie a middleware or an authenticate refresh adds later
-// never sets it, and neither does the handler's own copy (B133).
+// never sets it, and neither does the handler's own copy (B133). A fetched body arrives decoded, so its encoding goes.
 function passThrough(fn: ServerFnRef, response: Response): StageResult {
-	const headers = new Headers(response.headers)
+	const headers = decodedHeaders(response)
 	setCacheControl(headers, fn.record, response.status)
 	headers.set(FN_HEADER, "response")
 	headers.delete(COOKIES_HEADER)

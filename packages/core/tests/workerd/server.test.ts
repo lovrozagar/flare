@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process"
+import { createServer as createHttpServer } from "node:http"
 import { connect } from "node:net"
 import { mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { gzipSync } from "node:zlib"
 import { Miniflare } from "miniflare"
 import { afterAll, expect, it } from "vitest"
 
@@ -13,6 +15,16 @@ const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run-server")
 await rm(root, { recursive: true, force: true })
 await mkdir(join(root, "assets/a"), { recursive: true })
 await writeFile(join(root, "assets/a/static.txt"), "canonical-asset")
+// An upstream that always answers gzip, which `/relayed` returns from `fetch()` as-is (plan 21 8.8).
+const RELAYED = "intact body ".repeat(64)
+const zipped = gzipSync(RELAYED)
+const upstream = createHttpServer((_, response) => {
+	response.writeHead(200, { "content-encoding": "gzip", "content-length": String(zipped.length) })
+	response.end(zipped)
+})
+await new Promise<void>((resolve) => upstream.listen(0, "127.0.0.1", resolve))
+const upstreamAddress = upstream.address()
+if (upstreamAddress === null || typeof upstreamAddress === "string") throw new Error("no port")
 const at = (path: string): string => JSON.stringify(join(src, path))
 await writeFile(
 	join(root, "entry.ts"),
@@ -31,10 +43,12 @@ const root = createRootLayout("_root_").render((props) => element("html", [eleme
 const home = createPage("_root_/").render(() => "worker home");
 const stored = createPage("_root_/stored").cache({ ssr: { ttl: "1m" } }).render(() => "stored page");
 const nested = createPage("_root_/a/b").response(() => new Response("ab"));
+const relayed = createPage("_root_/relayed").response(() => fetch("http://127.0.0.1:${upstreamAddress.port}/"));
 const routeTree = [
 	{ id: "_root_/", path: "/", module: home },
 	{ id: "_root_/stored", path: "/stored", module: stored },
 	{ id: "_root_/a/b", path: "/a/b", module: nested },
+	{ id: "_root_/relayed", path: "/relayed", module: relayed },
 ];
 const server = createServer({
 	router: createRouter({ layouts: { _root_: root }, routeTree }),
@@ -87,6 +101,7 @@ const mf = new Miniflare({
 
 afterAll(async () => {
 	await mf.dispose()
+	await new Promise((resolve) => upstream.close(resolve))
 	await rm(root, { recursive: true, force: true })
 })
 
@@ -158,3 +173,9 @@ it("worker assets", async () => {
 	expect(post.status).toBe(405)
 	expect(await post.text()).not.toBe("canonical-asset")
 }, 30_000)
+
+// A gzip Response from `fetch()`, returned as-is: workerd's fetch decoded the body, and the client reads it intact
+// with no Content-Encoding, as on Node and Bun (plan 21 8.8, tests/integration/fetched.test.ts).
+it("worker fetched", async () => {
+	expect(await raw("/relayed")).toBe(`HTTP/1.1 200 OK ${RELAYED}`)
+})
