@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url"
 import solid from "@solidjs/vite-plugin"
 import type { Plugin, UserConfig } from "vite"
 import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts"
-import { chunkReferences, watchGenerated, writeGenerated } from "../codegen/index.ts"
+import { chunkReferences, fillClosures, watchGenerated, writeGenerated } from "../codegen/index.ts"
 import { inject } from "../css/index.ts"
 import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts"
 import { devEndpoints, targetGuard } from "../dev/guard.ts"
@@ -18,6 +18,7 @@ import { ownModule } from "./own-module.ts"
 import { fontsPlugin } from "./fonts.ts"
 import { assetUrl, buildConfig, environmentBuild, PRERENDER_ENV, SERVER_BUNDLED } from "./environments.ts"
 import { readWrangler } from "./wrangler.ts"
+import { assetHeadersPlugin } from "./asset-headers.ts"
 import { realPath } from "./real-path.ts"
 import { preloadPlugin } from "./preload.ts"
 import { checkCloudflare, composesCloudflare, WORKER_MAIN } from "./cloudflare.ts"
@@ -67,6 +68,7 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 	return [
 		chunks(),
 		workerEntry(state),
+		assetHeadersPlugin(() => state.cloudflare),
 		preloadPlugin(parsed.entry.client),
 		boundary(),
 		...(image === undefined ? [] : [imagePlugin(image, parsed.assetsBase)]),
@@ -224,6 +226,14 @@ function chunks(): Plugin {
 			const { name, config } = this.environment
 			if (name !== "client" || config.command !== "build" || id !== resolve(config.root, ROUTES_GEN)) return null
 			return chunkReferences(code, (path) => this.emitFile({ type: "chunk", id: resolve(config.root, path.slice(1)) }))
+		},
+		// Each route's entry also names the chunks its file imports, now that the bundle is known (BUGS.md 124.6).
+		generateBundle(_options, bundle) {
+			const { name, config } = this.environment
+			if (name !== "client" || config.command !== "build") return
+			const chunks = Object.values(bundle).flatMap((file) => (file.type === "chunk" ? [file] : []))
+			const filled = fillClosures(chunks, (ref) => this.getFileName(ref))
+			for (const chunk of chunks) chunk.code = filled.get(chunk.fileName) ?? chunk.code
 		},
 	}
 }

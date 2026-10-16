@@ -1,4 +1,4 @@
-import { dataRequests, deepOnly, documents, expect, open, test } from "./docs.fixture.ts"
+import { dataRequests, deepOnly, documents, expect, idle, open, prodOnly, test } from "./docs.fixture.ts"
 import { flushEvents } from "./flush.ts"
 
 // Links, prefetch, view transitions, progress, the blocker, scroll, intercepts, and every hook (bits/15).
@@ -227,6 +227,41 @@ test("old snapshot shown", async ({ page, docs, floor }) => {
 	await page.locator("#sidebar").getByRole("link", { name: "Caching" }).click()
 	await expect(page.locator("#doc-title")).toHaveText("Caching")
 	await expect.poll(() => page.evaluate(() => Reflect.get(window, "__oldDisplay"))).toBe("block")
+})
+
+// The router's `modules: "all"` warms every unloaded route once the page is idle: rel=prefetch of each route chunk and
+// the chunks it imports where the engine has rel=prefetch, an import where it does not (WebKit, Safari). A later client
+// navigation then downloads no script at all, its route chunk and that chunk's imports included (BUGS.md 124,
+// decision B127). Production markup: dev serves source modules.
+test("all modules", async ({ page, docs }, info) => {
+	prodOnly(info)
+	await open(page, docs.origin, "/docs/routing")
+	await idle(page)
+	// Every script the idle step asked for has arrived.
+	await expect
+		.poll(() =>
+			page.evaluate(() => {
+				const links = [...document.querySelectorAll<HTMLLinkElement>('link[rel="prefetch"]')]
+				const scripts = performance.getEntriesByType("resource").filter((entry) => entry.name.endsWith(".js"))
+				return links.every((link) => performance.getEntriesByName(link.href).length > 0) && scripts.length
+			}),
+		)
+		.toBeTruthy()
+	await page.waitForTimeout(500)
+	const before = await page.evaluate(() => performance.getEntriesByType("resource").length)
+	await page.locator('#nav a[href="/playground"]').click()
+	await expect(page).toHaveURL(/\/playground$/)
+	await expect(page.locator("main h1")).toBeVisible()
+	// Downloaded, not served from the cache the warm step filled: a cached response transfers nothing. Playwright's
+	// request events cannot tell them apart.
+	const downloaded = await page.evaluate(
+		(from) =>
+			(performance.getEntriesByType("resource").slice(from) as PerformanceResourceTiming[])
+				.filter((entry) => new URL(entry.name).pathname.endsWith(".js") && entry.transferSize > 0)
+				.map((entry) => new URL(entry.name).pathname),
+		before,
+	)
+	expect(downloaded).toEqual([])
 })
 
 test("view transition off", async ({ page, docs }) => {

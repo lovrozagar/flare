@@ -52,6 +52,25 @@ it("failed flow fails", async () => {
 	expect(await runFlows(safari, site, { log: () => undefined, flows: [flows[0] as Flow] })).toBe(0)
 })
 
+// A flow that passes but whose page logged a console warning or error, or threw, fails with what the page said: a
+// warning is a problem, as in the grid's `watch`. Only what the page's own scripts log is seen: safaridriver has no
+// log endpoint, so the engine's own messages (an unused preload) reach no flow (BUGS.md 124.7).
+it("console problems fail", async () => {
+	const said: Fetcher = async (url, init) => ({
+		json: async () => {
+			if (url.endsWith("/session")) return { value: { sessionId: "s1", capabilities: { browserVersion: "26.6.1" } } }
+			const script = String(Reflect.get(Object(JSON.parse(init.body ?? "{}")), "script") ?? "")
+			return { value: script.includes("__flareProblems ??") ? ["warn: hydration mismatch"] : null }
+		},
+	})
+	const safari = await SafariSession.open("http://driver", said)
+	const lines: string[] = []
+	const flows: Flow[] = [{ name: "quiet", run: async () => undefined }]
+	const site = { origin: "http://site", callFn: async () => undefined }
+	expect(await runFlows(safari, site, { log: (line) => lines.push(line), flows })).toBe(1)
+	expect(lines[0]).toBe("FAIL  quiet: the page logged warn: hydration mismatch")
+})
+
 // The /hr flow against a session that restores the path and the click position, and reports the window mark by
 // whether Back has run yet.
 async function hrFlow(mark: (backed: boolean) => boolean): Promise<string | undefined> {
@@ -148,6 +167,40 @@ it("pointer flow capture fails", async () => {
 		"the transition captured ::view-transition-old(root), ::view-transition-new(root), not the content (from scrollY 0)",
 	)
 })
+
+// The warm flow against a session whose page answers as `page` says: whether the idle step settled, and which scripts
+// the navigation fetched.
+async function warmFlow(page: { settled: boolean; fetched: string[] }): Promise<string | undefined> {
+	const fake: Fetcher = async (url, init) => ({
+		json: async () => {
+			if (url.endsWith("/session")) return { value: { sessionId: "s1", capabilities: { browserVersion: "26.6.1" } } }
+			if (url.endsWith("/element")) return { value: { element: "e1" } }
+			if (!url.endsWith("/execute/sync")) return { value: null }
+			const script = String(Reflect.get(Object(JSON.parse(init.body ?? "{}")), "script") ?? "")
+			if (script.includes("__docsLifecycle")) return { value: page.settled }
+			if (script.includes("slice(window.__before)")) return { value: page.fetched }
+			if (script.includes("__flareProblems ??")) return { value: [] }
+			return { value: script.startsWith("return") ? true : null }
+		},
+	})
+	const safari = await SafariSession.open("http://driver", fake)
+	const flow = FLOWS.find((entry) => entry.name === "modules warm in Safari")
+	if (flow === undefined) throw new Error("no modules warm in Safari flow")
+	return flow.run(safari, { origin: "http://site", callFn: async () => undefined })
+}
+
+// The idle step settled and the navigation fetched no script (BUGS.md 124).
+it("warm flow passes", async () => {
+	expect(await warmFlow({ settled: true, fetched: [] })).toBeUndefined()
+})
+
+// An idle step that never settles, and a navigation that fetches a chunk the warm step should have held.
+it("warm flow fails", async () => {
+	expect(await warmFlow({ settled: false, fetched: [] })).toBe("the idle step never settled")
+	expect(await warmFlow({ settled: true, fetched: ["http://site/assets/dep.js"] })).toBe(
+		"the navigation fetched 1 script(s): http://site/assets/dep.js",
+	)
+}, 30_000)
 
 // The lock's shell scripts, run by a local `sh` as the Mac's would run them over ssh.
 const localRemote: Remote = (script, args) => {

@@ -31,6 +31,10 @@ export type RouteModule = ChainRecord & {
 
 // A route module, or the lazy import codegen emits for it, which resolves to the module's namespace, whose record is its
 // `route` export (a hand-written ref may resolve to the record). loadChain awaits it (02-system step 10).
+// A route's chunk file, and in a client build the chunks it imports after it: everything a navigation to it would
+// download (BUGS.md 124.6). In dev it is the module's source path.
+export type RouteChunks = string | readonly string[]
+
 export type ModuleRef = RouteModule | (() => Promise<RouteModule | { route?: RouteModule }>)
 
 export type LayoutModule = ModuleRef
@@ -99,7 +103,7 @@ export type RouterOptions = {
 	getScrollRestorationKey?: (location: Location) => string
 	routeCacheMaxEntries?: number
 	cache?: RouterCache
-	chunks?: Record<string, string>
+	chunks?: Record<string, RouteChunks>
 	prefetch?: RouterPrefetch
 	viewTransitions?: boolean | ViewTransitionOptions
 	rewrite?: LocationRewrite | undefined
@@ -134,7 +138,7 @@ export type Router = {
 	prefetch: { modules: PrefetchTrigger | "all"; data: PrefetchTrigger }
 	cache: { client: { staleTime: number; gcTime: string } | false }
 	viewTransitions: false | ViewTransitionOptions
-	chunks: Record<string, string>
+	chunks: Record<string, RouteChunks>
 	rewrite?: LocationRewrite | undefined
 	theme?: ThemeConfig
 	direction?: DirectionConfig

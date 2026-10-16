@@ -238,7 +238,8 @@ function modulesOf(dir: string, main: string): { type: "ESModule"; path: string 
 }
 
 // The prod servers for Node and Bun. The adapters serve no files (B13), so these serve the client output by path
-// first, as a deploy's static layer would, then hand the request to the adapter. Each prints its origin.
+// first, as a deploy's static layer would, then hand the request to the adapter. Each prints its origin. Hashed
+// assets go out immutable, as dx/link.md requires of a deploy: a prefetch the browser must revalidate is fetched twice.
 const STATIC = `
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
@@ -252,7 +253,9 @@ async function file(pathname) {
 	if (!path.startsWith(client + sep)) return undefined;
 	const info = await stat(path).catch(() => undefined);
 	if (info === undefined || !info.isFile()) return undefined;
-	return { body: await readFile(path), type: TYPES[extname(path)] ?? "application/octet-stream" };
+	const type = TYPES[extname(path)] ?? "application/octet-stream";
+	const cache = pathname.startsWith("/assets/") ? { "cache-control": "public, max-age=31536000, immutable" } : {};
+	return { body: await readFile(path), headers: { "content-type": type, ...cache } };
 }
 `
 
@@ -263,7 +266,7 @@ const listener = createNodeListener(server);
 const http = createServer(async (req, res) => {
 	const found = await file(new URL(req.url ?? "/", "http://host").pathname);
 	if (found === undefined) return listener(req, res);
-	res.writeHead(200, { "content-type": found.type });
+	res.writeHead(200, found.headers);
 	res.end(found.body);
 });
 http.listen(0, "127.0.0.1", () => console.log("http://127.0.0.1:" + http.address().port));
@@ -281,7 +284,7 @@ const bun = Bun.serve({
 	async fetch(request) {
 		const found = await file(new URL(request.url).pathname);
 		if (found === undefined) return app.fetch(request);
-		return new Response(found.body, { headers: { "content-type": found.type } });
+		return new Response(found.body, { headers: found.headers });
 	},
 });
 console.log("http://127.0.0.1:" + bun.port);

@@ -448,6 +448,8 @@ packages/core/src/vite/route-meta/ids.test.ts	P7	test	vite	Unit cases for ids.ts
 packages/core/src/vite/route-meta/index.ts	P7	index	vite	Re-exports
 packages/core/src/vite/codegen/routes.ts	P1	src	vite	Write routes.gen.ts, including literal cache.client and intercept fields (B89)
 packages/core/src/vite/codegen/routes.test.ts	P1	test	vite	Unit cases for routes.ts
+packages/core/src/vite/codegen/closures.ts	P12	src	node	The client build's route closures: each route chunk's static imports after it in the `chunks` map, without the entry's boot files (BUGS.md 124.10)
+packages/core/src/vite/codegen/closures.test.ts	P12	test	node	Unit cases for closures.ts
 packages/core/src/vite/codegen/scan.ts	P1	src	vite	One oxc walk of a route file. A parse error fails the build (B75)
 packages/core/src/vite/codegen/scan.test.ts	P1	test	vite	Unit cases for scan.ts
 packages/core/src/vite/codegen/escape.ts	P1	src	vite	Escape a string written into generated source
@@ -478,6 +480,8 @@ packages/core/src/vite/boundary/tripwire.test.ts	P7	test	vite	Unit cases for tri
 packages/core/src/vite/boundary/build.fixture.ts	P7	test	vite	A fixture app built by Vite through flare()'s boundary transform, per graph, for the tripwire and the env helpers' cases
 packages/core/src/vite/boundary/index.ts	P7	index	vite	Re-exports
 packages/core/src/vite/plugin/flare.ts	P1	src	vite	The Vite plugin. Calls solid with ssr true and does not pass start (B89)
+packages/core/src/vite/plugin/asset-headers.ts	P12	src	node	The Workers client build's `_headers`: hashed assets immutable, merged with the app's (B130)
+packages/core/src/vite/plugin/asset-headers.test.ts	P12	test	node	Unit cases for asset-headers.ts
 packages/core/src/vite/plugin/real-path.ts	P15	src	vite	The real path of a root reached through a symlink, so Vite's ids, the manifest, and the boundary agree (BUGS.md B51)
 packages/core/src/vite/plugin/real-path.test.ts	P15	test	vite	Unit cases for real-path.ts
 packages/core/src/vite/plugin/flare.test.ts	P1	test	vite	Unit cases for flare.ts
@@ -740,6 +744,8 @@ packages/core/tests/e2e/docs.fixture.ts	P15	test	node	Worker-scoped docs boot, t
 packages/core/tests/e2e/flush.ts	P15	test	node	flushEvents: the page logs and fetches a marker, so every event it sent before has reached the test; negative assertions read after it, not after a sleep
 packages/core/tests/e2e/crash.ts	P16	test	node	The crash watch and navigation log every e2e spec's test runs around each case: a page crash fails the case that owned it (plan 14 leaf 4.6), and a failed case keeps its navigations (BUGS.md 34.6)
 packages/core/tests/e2e/http.ts	P16	test	node	The e2e specs' HTTP client, the `http` fixture: a connection per call, so no keep-alive socket crosses cases (BUGS.md 125)
+packages/core/tests/e2e/prefetch-reuse.ts	P6	script	node	Module cache reuse harness: a landing page warms another app's module by prefetch, fetch, or modulepreload, and a server counts the downloads (plan 17, BUGS.md 124)
+packages/core/tests/e2e/prefetch-reuse.test.ts	P6	test	node	Playwright: each engine's same-origin module reuse per warming method (BUGS.md 124)
 packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs page answers its status, hydrates, and leaves the console empty, on every project
 packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
 packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context
