@@ -398,6 +398,8 @@ dx/builder.md through routes made with the real builders. builder.test and build
 | `intercept` (client) | a click from `from`; a direct visit | the overlay over the mounted background; the page |
 | `effects loaderDeps`, `effects shouldRefetch` (client) | away from the hydrated URL and back, under a 1-minute staleTime | the seeded page held, its loader not run; `initial` then `navigation` recorded, the held page refetched (BUGS.md 139) |
 | `stale document`, `holed initial` (client) | a stored page rendered on a clock 10 min back, and one now; a stored page with a hole whose shouldRefetch asks on `initial` | back to the old one runs its loader, back to the new one sends no request; one request, the fill |
+| `render text escaped` | a render returning a hostile string, an array at any depth, a function, a memo, a script, an element, a Loading result; an errorRender and a layout; a production JSX build | escaped text, the element and Loading markup kept, in dev and built (BUGS.md 141) |
+| `render text hydrates` (client) | a hydrated page whose render returns a loader's HTML-shaped string | the literal string in a text node, no element, no hydration warning |
 | `errorRender reset` (client) | `reset()` after a failed loader | the loader runs again on the same URL, no history entry |
 
 ### `tests/integration/plugin.test.ts`, `plugin-dev.test.ts`, and `plugin-workers.test.ts` (plan 14 9.6, B96)
