@@ -450,3 +450,12 @@ it("head replace", async () => {
 	const plain = await runLoaders(request([headed(false)]))
 	expect(plain.heads[0] !== undefined && isReplacing(plain.heads[0])).toBe(false)
 })
+
+// A head value the head cannot write fails as a .head() throw does: that head is omitted and reported as a bug, and
+// the status stays the loader's (B82, BUGS.md 145).
+it("head value bug", async () => {
+	const route: LoaderRoute = { id: "page", loader: () => ({}), head: () => ({ title: "R", canonical: "/relative" }) }
+	const run = await runLoaders(request([route]))
+	expect(run.heads).toEqual([undefined])
+	expect(run.bugs).toEqual([new Error("canonical")])
+})
