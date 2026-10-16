@@ -290,6 +290,22 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `purged listed` | a listed slug whose tombstone is newer | a live render, and the body may be stored again |
 | `set-cookie` | a shared page that sets a cookie | the response is private and the store spy is not called |
 
+### `tests/integration/store.test.ts` (plan 14 9.6, B96)
+
+dx/store.md through the real `createServer(...).fetch`: a stored page at /p (ISR, `revalidate: "30s"`, cache tag `t`) and a `.response()` route that calls the handler's `revalidate`. A recording store is a plain FlareStore that keeps its calls; no mock. Each group's bite is the source mutation that turns it red.
+
+| test | case | result |
+| --- | --- | --- |
+| `store set and get` | a miss, then the next request | `set(KEY, { storedAt, tags: ["t"] }, 60000)`, then a hit read by `get` that renders nothing; an unknown key is `null` (bite: the ttl not doubled) |
+| `store delete` | a key purge through `createRevalidateFn`, on a store with `deleteByKeys` and one without | one batch, or a `delete` per key; the key reads `{ data: { tombstone: true }, storedAt }`; the next request renders (bite: never batched) |
+| `store tags` | a tag purge | `epoch:t` a number, no `deleteByTags`, the tagged page renders again (bite: no epoch bump) |
+| `revalidate` | the handler's `revalidate` from /purge, then `createRevalidateFn` with neither field and with `tiers` | the page is a miss after the purge; both calls throw at once |
+| `memory isolated` | a page stored in one memory store, asked of another | a miss |
+| `filesystem store` | `createFilesystemStore({ dir })`, then a second store over the same dir | a file named by the key's SHA-256 under `dir`; the second store's server answers a hit and renders nothing (bite: another hash) |
+| `assets store` | a seed the real write produced, written at the artifact path, behind `createAssetsStore(fileAssets(dir))` and an SSG page | served from the seed, nothing rendered; `set` rejects read-only; an escaping path throws and a missing file is `null` |
+| `assets store base` | a `read` answering Responses, as the Workers binding does, at `base: "/static/seeds"` | served from the seed; the default base misses (bite: `base` ignored) |
+| `cache api store` | `createCacheApiStore({ caches })` over an in-memory CacheStorage that refuses `keys()`, then `cacheName: "other"` | stored in the `flare` cache; another name is a miss, the same name a hit (bite: one name for all) |
+
 ### `shared/components/use-deferred.test.ts`
 
 | test | case | result |
