@@ -1,4 +1,4 @@
-import { forwardedHttps, trustedHops } from "../../shared/url/index.ts"
+import { forwardedHttps, trustedHops, validHost } from "../../shared/url/index.ts"
 
 // Bun's own default `maxRequestBodySize`, kept as the platform ceiling. Flare's capped reader answers a body over
 // `bodyLimit` with 413 (`server-fn/input.ts`), and that limit is at most 32 MiB, so the 413 always comes first. A
@@ -24,6 +24,8 @@ export function createBunFetch(
 	const hops = trustedHops("createBunFetch", options)
 	return {
 		fetch(request) {
+			// Bun builds the URL from the Host header as sent: one that is not a host would change the routed path.
+			if (!validHost(request.headers.get("host"))) return Promise.resolve(new Response(null, { status: 400 }))
 			return Promise.resolve(server.fetch(forwarded(request, hops)))
 		},
 		maxRequestBodySize: BUN_CEILING,

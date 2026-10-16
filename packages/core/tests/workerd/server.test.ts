@@ -107,6 +107,16 @@ it("worker server", async () => {
 	expect(Reflect.get(Object(handed), "/stored")).toBeGreaterThan(0)
 }, 30_000)
 
+// On Workers the URL is the edge's, so a hostile Host header never routes to another page (BUGS.md 150). Two outcomes
+// occur: under Node, Miniflare replaces the header on the way in and the home page answers 200; under Bun it forwards
+// the header as-is and workerd rejects it before Flare runs ("invalid hostname when stringifying URL"), a 500.
+it("worker host", async () => {
+	const page = await mf.dispatchFetch("https://example.com/", { headers: { host: "evil.example/stored?" } })
+	const text = await page.text()
+	expect(text).not.toContain("stored page")
+	expect(page.status === 200 ? text.includes("worker home") : page.status >= 400).toBe(true)
+})
+
 // After routing, an unmatched GET or HEAD goes to the binding, and a file comes back untouched; a path the binding
 // lacks is the app's own 404 with its security headers; an unmatched POST is 405 and never reaches the binding.
 it("worker assets", async () => {

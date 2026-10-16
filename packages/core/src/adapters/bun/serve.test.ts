@@ -36,6 +36,26 @@ it("server limit", () => {
 	}
 })
 
+// Bun builds the URL from the Host header as sent, so one that is not a host is a 400 and never reaches the server; a
+// host with a port goes through (BUGS.md 150).
+it("hostile host", async () => {
+	const seen: string[] = []
+	const server = {
+		fetch(request: Request) {
+			seen.push(request.url)
+			return new Response("ok")
+		},
+	}
+	const bun = createBunFetch(server)
+	const hostile = await bun.fetch(
+		new Request("http://evil.example/admin?/a", { headers: { host: "evil.example/admin?" } }),
+	)
+	expect(hostile.status).toBe(400)
+	const fine = await bun.fetch(new Request("http://site.test:8080/a", { headers: { host: "site.test:8080" } }))
+	expect(fine.status).toBe(200)
+	expect(seen).toEqual(["http://site.test:8080/a"])
+})
+
 // Behind a proxy the app declares its hops: with `trustProxy: 1`, `X-Forwarded-Proto: https` makes the request the
 // server sees https, body and method kept; with none it stays http. The range is shared-url `hops` (BUGS.md 109).
 it("trust proxy", async () => {

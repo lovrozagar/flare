@@ -117,25 +117,46 @@ function withHost(origin: string, target: string, host: string): Promise<{ statu
 		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
 		socket.on("close", () => {
 			const [head = "", body = ""] = text.split("\r\n\r\n")
-			resolve({ status: head.split("\r\n")[0] ?? "", body: unchunked(body) })
+			const chunked = /^transfer-encoding: chunked$/im.test(head)
+			resolve({ status: head.split("\r\n")[0] ?? "", body: chunked ? unchunked(body) : body })
 		})
 		socket.end(`GET ${target} HTTP/1.1\r\nhost: ${host}\r\nconnection: close\r\n\r\n`)
 	})
 }
+
+const HOSTILE_HOSTS = [
+	"evil.example/admin?",
+	"evil.example?x=",
+	"evil.example#x",
+	"user@evil.example",
+	"a b",
+	"ex:80/x",
+]
+
+// The same hostile Hosts against a real Bun.serve over createBunFetch: none changes the routed path (BUGS.md 150).
+it.runIf(Reflect.get(globalThis, "Bun") !== undefined)("bun host", async () => {
+	const runtime: unknown = Reflect.get(globalThis, "Bun")
+	const served: unknown = Reflect.apply(Reflect.get(Object(runtime), "serve"), runtime, [
+		{ hostname: "127.0.0.1", port: 0, ...createBunFetch(app(Promise.resolve())) },
+	])
+	const origin = `http://127.0.0.1:${Number(Reflect.get(Object(served), "port"))}`
+	try {
+		for (const host of HOSTILE_HOSTS) {
+			expect([host, (await withHost(origin, "/where", host)).status]).toEqual([host, "HTTP/1.1 400 Bad Request"])
+		}
+		const answer = await withHost(origin, "/where", "example.com:8080")
+		expect([answer.status, answer.body]).toEqual(["HTTP/1.1 200 OK", "http://example.com:8080/where"])
+	} finally {
+		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
+	}
+})
 
 // Host is a host and an optional port, nothing else: a path, a query, a fragment, userinfo, or a space in it is a 400,
 // so it never changes the routed path; a name, an IPv4 or bracketed IPv6 address, and a port are served as given
 // (plan 21 2.2, BUGS.md 150).
 it("node host", async () => {
 	const origin = await listen(createNodeListener(app(Promise.resolve())))
-	for (const host of [
-		"evil.example/admin?",
-		"evil.example?x=",
-		"evil.example#x",
-		"user@evil.example",
-		"a b",
-		"ex:80/x",
-	]) {
+	for (const host of HOSTILE_HOSTS) {
 		expect([host, (await withHost(origin, "/where", host)).status]).toEqual([host, "HTTP/1.1 400 Bad Request"])
 	}
 	for (const [host, url] of [
