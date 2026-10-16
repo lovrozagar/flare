@@ -107,13 +107,24 @@ function requestBody(req: NodeReq): { stream: ReadableStream<Uint8Array>; releas
 	if (req.on === undefined || req.resume === undefined) return undefined
 	const on = (event: "data" | "end", listener: (chunk: Uint8Array) => void): unknown => req.on?.(event, listener)
 	const resume = (): unknown => req.resume?.()
+	// A body the server stopped reading, past `bodyLimit` say, takes no more chunks: the rest drains, and an enqueue into
+	// the cancelled stream would throw outside any request and stop the process (BUGS.md 151).
+	let open = true
 	return {
 		stream: new ReadableStream<Uint8Array>({
 			start(controller) {
-				on("data", (chunk) => controller.enqueue(chunk))
-				on("end", () => controller.close())
+				on("data", (chunk) => {
+					if (open) controller.enqueue(chunk)
+				})
+				on("end", () => {
+					if (open) controller.close()
+				})
 			},
 			pull() {
+				resume()
+			},
+			cancel() {
+				open = false
 				resume()
 			},
 		}),

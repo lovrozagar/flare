@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vitest"
 import { createBunFetch } from "../../src/adapters/bun/serve.ts"
 import { createNodeListener } from "../../src/adapters/node/listener.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
+import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter } from "../../src/shared/router/create-router.ts"
@@ -146,6 +147,63 @@ it("node host", async () => {
 	]) {
 		const answer = await withHost(origin, "/where", host)
 		expect([host, answer.status, answer.body]).toEqual([host, "HTTP/1.1 200 OK", url])
+	}
+})
+
+// A chunked POST to a server function on a kept-alive connection, sent a chunk at a time with a pause between, every
+// chunk sent whatever the server answered meanwhile, as a browser uploading a body does: the status line.
+function chunkedPost(origin: string, path: string, chunks: readonly string[]): Promise<string> {
+	const { hostname, port, host } = new URL(origin)
+	return new Promise((resolve) => {
+		const socket = connect(Number(port), hostname)
+		let text = ""
+		const done = (): void => resolve(text.split("\r\n")[0] ?? "")
+		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
+		socket.on("close", done)
+		socket.on("error", done)
+		const head = `POST ${path} HTTP/1.1\r\nhost: ${host}\r\norigin: ${origin}\r\ncontent-type: application/json\r\n`
+		socket.write(`${head}transfer-encoding: chunked\r\nconnection: keep-alive\r\n\r\n`)
+		const send = (index: number): void => {
+			if (socket.destroyed) return
+			if (index === chunks.length) {
+				socket.write("0\r\n\r\n")
+				return void setTimeout(() => socket.end(), 100)
+			}
+			const chunk = chunks[index] ?? ""
+			socket.write(`${Buffer.byteLength(chunk).toString(16)}\r\n${chunk}\r\n`)
+			setTimeout(() => send(index + 1), 10)
+		}
+		send(0)
+	})
+}
+
+// One chunked POST past `bodyLimit` is a 413, and the process keeps serving: the body the server stopped reading takes
+// no more chunks, so nothing throws outside a request (plan 21 7.1, BUGS.md 151).
+it("node body limit", async () => {
+	const fn = createServerFn({ method: "post", __id: "bigbody012345678", __name: "big" } as never)
+		.input((value: unknown) => value)
+		.handler(() => "ok")
+	const root = createRootLayout("_root_").render((props) => props.children)
+	const server = createServer({
+		router: createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/", path: "/", module: createPage("_root_/").render(() => "home") }],
+		}),
+		bodyLimit: 1024,
+		serverFns: { bigbody012345678: async () => fn },
+	} as Parameters<typeof createServer>[0])
+	const thrown: unknown[] = []
+	const note = (error: unknown): void => void thrown.push(error)
+	process.on("uncaughtException", note)
+	try {
+		const origin = await listen(createNodeListener(server))
+		const chunks = ['{"a":"', ...Array.from({ length: 12 }, () => "x".repeat(400)), '"}']
+		expect(await chunkedPost(origin, "/_flare/fn/bigbody012345678", chunks)).toBe("HTTP/1.1 413 Payload Too Large")
+		await new Promise((resolve) => setTimeout(resolve, 200))
+		expect(thrown).toEqual([])
+		expect((await get(`${origin}/`)).status).toBe(200)
+	} finally {
+		process.off("uncaughtException", note)
 	}
 })
 
