@@ -21,6 +21,8 @@ import type * as i18n from "../../src/features/i18n/shared/index.ts"
 import type * as serverFn from "../../src/shared/server-fn/builder.ts"
 import type * as active from "../../src/client/navigation/active.ts"
 import type * as blocker from "../../src/client/navigation/blocker.ts"
+import type * as query from "../../src/exports/query.ts"
+import type * as tanstack from "@tanstack/solid-query"
 
 // What a tree builds from. Each side gets its own build of these modules: the server render the ones Vite's SSR
 // runner loads (Solid's server build), the browser the ones Vite serves it (Solid's browser build).
@@ -48,6 +50,9 @@ export type Api = {
 	serverFn: typeof serverFn
 	active: typeof active
 	blocker: typeof blocker
+	// The query feature and TanStack's provider, for an app whose loaders prefetch queries.
+	query: typeof query
+	tanstack: typeof tanstack
 	// An element with an id and lazy children, so a tree needs no JSX transform.
 	h: (tag: string, id: string, children?: () => unknown) => web.JSX.Element
 }
@@ -79,4 +84,6 @@ export const MODULES: Record<keyof Omit<Api, "solid" | "web" | "h">, string> = {
 	serverFn: "/src/shared/server-fn/builder.ts",
 	active: "/src/client/navigation/active.ts",
 	blocker: "/src/client/navigation/blocker.ts",
+	query: "/src/exports/query.ts",
+	tanstack: "@tanstack/solid-query",
 }

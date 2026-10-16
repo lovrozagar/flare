@@ -138,3 +138,17 @@ it("clear", () => {
 	expect(client.getQueryData(["user"])).toBeUndefined()
 	expect(getQueryClient()).toBe(client)
 })
+
+// A navigation's queries go into the document's client with TanStack's hydrate: a query the client already holds newer
+// data for keeps it, as one refetched on the client after the server's prefetch does, and a query it lacks is filled
+// (B134).
+it("hydrate keeps newer", () => {
+	const getQueryClient = createQueryClientGetter()
+	const client = getQueryClient()
+	const server = new QueryClient()
+	server.setQueryData(["user"], "server", { updatedAt: Date.now() - 60_000 })
+	server.setQueryData(["post"], "server post")
+	client.setQueryData(["user"], "client")
+	registeredQuery()?.hydrate?.(JSON.parse(JSON.stringify(dehydrate(server))))
+	expect([client.getQueryData(["user"]), client.getQueryData(["post"])]).toEqual(["client", "server post"])
+})

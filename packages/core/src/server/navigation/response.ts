@@ -10,6 +10,8 @@ export type DataBody = {
 	deferred: readonly DeferredFrame[]
 	// `deferred` marks a deferred value's rejection, which the client reports if no <Errored> catches it (B6).
 	project: (error: unknown, deferred?: boolean) => FrameError
+	// The request's query cache, written as one `q` frame before `r`; undefined when the request made no client (B134).
+	queries?: unknown
 }
 
 const encoder = new TextEncoder()
@@ -28,6 +30,7 @@ export function dataBody(body: DataBody): ReadableStream<Uint8Array> {
 			for (const frame of body.loaded)
 				write(frame.t === "e" ? { t: "e", m: frame.m, e: body.project(frame.e) } : { ...frame, d: frame.d ?? null })
 			body.heads.forEach(write)
+			if (body.queries !== undefined) write({ t: "q", d: body.queries })
 			write({ t: "r" })
 			const failed = (m: string, k: string, error: unknown): void =>
 				write({ t: "e", m, k, e: body.project(error, true) })

@@ -20,6 +20,7 @@ import { renderDocument } from "../render/document.ts"
 import { DocumentlessRoot } from "../render/shape.ts"
 import { definedParams, outletMatches, stateMatches, type Rendered } from "../render/matches.ts"
 import { lateErrors, projectError, type Projected } from "../render/projector.ts"
+import { answerQueries } from "../render/state.ts"
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts"
 import { clientEntry } from "./build-info.ts"
 import { finalize, type StageResult } from "./finalize.ts"
@@ -117,14 +118,14 @@ export async function dataFrom(
 	const thrown = run.thrown ?? run.failed?.error
 	if (thrown instanceof RedirectError) {
 		const u = redirectLocation(thrown, exchange.options.router.basePath)
-		return finalize({
-			...stage(routeSecured(exchange, run.security), redirectBody({ s: thrown.status, u, r: thrown.replace }), run),
-		})
+		const moved = redirectBody({ s: thrown.status, u, r: thrown.replace })
+		return finalize(stage(routeSecured(exchange, run.security), moved, run))
 	}
 	if (run.response.status !== 200) return bare(routeSecured(exchange, run.security), run, run.failed?.m)
 	for (const bug of run.bugs) projectError(bug, exchange.sink)
 	const settled = await awaited(run, policy, false)
-	const body = dataBody({ ...dataFrames(run, skip), deferred: run.deferred, project: framed(exchange) })
+	const frames = { ...dataFrames(run, skip), queries: answerQueries(exchange.sink) }
+	const body = dataBody({ ...frames, deferred: run.deferred, project: framed(exchange) })
 	const errored = run.frames.some((frame) => frame.t === "e")
 	return cached(stage(routeSecured(exchange, run.security), body, run), settled, { run, errored })
 }

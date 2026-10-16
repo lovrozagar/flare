@@ -15,6 +15,8 @@ export type Landed = {
 	// A match's `.input()` output, when its `l` frame carried `v`. Without it the raw records apply.
 	values?: Record<string, Values>
 	redirect?: { status: number; url: string; replace: boolean }
+	// The request's query cache, from its `q` frame, which the navigation's commit hydrates (B134).
+	queries?: unknown
 }
 
 // A landing's end: once the frames after `r` are all read, every deferred value it carries is settled or a hole.
@@ -97,6 +99,7 @@ function land(frame: Frame, landed: Landed, context: { slots: Slots; options: La
 		landed.values = { ...landed.values, [frame.m]: { params: frame.v["params"], search: frame.v["search"] } }
 	}
 	if (frame.t === "h") landed.heads[frame.m] = frame.r === true ? replacing(frame.d) : frame.d
+	if (frame.t === "q" && frame.d !== null) landed.queries = frame.d
 	if (frame.t === "e") {
 		// A loader `e` is a bug the dev overlay shows. A deferred `e` reaches it only through errorRender.
 		const wire = frame.e

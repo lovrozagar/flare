@@ -31,10 +31,17 @@ test("i18n page", async ({ page, docs }) => {
 
 // The new page's feedback read is held pending by the test: the page commits at once with the feedback skeleton, and
 // in every frame the URL, the title, and the one active sidebar link agree. A second click while that read is pending
-// commits its own page cleanly (B106, BUGS.md 62).
+// commits its own page cleanly (B106, BUGS.md 62). A stored page's data carries the queries its render resolved (B134),
+// the tally among them, so the test drops that `q` frame to keep the read its own to hold.
 test("pending read", async ({ page, docs }) => {
 	const problems = await open(page, docs.origin, "/hr/docs/styling")
 	await page.route("**/_flare/fn/**", (route) => (route.request().method() === "GET" ? undefined : route.continue()))
+	// The hover before the click prefetches, and the click takes that landing, so both kinds lose the frame.
+	await page.route(/_flare=(?:data|prefetch)/, async (route) => {
+		const answer = await route.fetch()
+		const frames = (await answer.text()).split("\n").filter((line) => !line.startsWith('{"t":"q"'))
+		await route.fulfill({ response: answer, body: frames.join("\n") })
+	})
 	const frames = page.evaluate(
 		() =>
 			new Promise<string[]>((resolve) => {
@@ -64,6 +71,9 @@ test("pending read", async ({ page, docs }) => {
 	await expect(page).toHaveURL(`${docs.origin}/hr/docs/middleware`)
 	await expect(page.locator('#sidebar a[data-active="true"]')).toHaveCount(1)
 	expect(problems).toEqual([])
+	// A hover's prefetch can still be in the frame filter when the case ends; its route.fetch would then fail the next
+	// case in this worker (Playwright's advice for routes in flight).
+	await page.unrouteAll({ behavior: "ignoreErrors" })
 })
 
 // The scroll a navigation makes is final when the view transition captures the new page: a card from a scrolled home

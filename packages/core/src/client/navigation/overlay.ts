@@ -1,4 +1,5 @@
 import type { Pending } from "./frames.ts"
+import { commitQueries } from "./request.ts"
 import { defined } from "../../shared/errors/index.ts"
 import { flush } from "solid-js"
 import type { Overlay } from "../../shared/components/index.ts"
@@ -79,6 +80,7 @@ export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 		background: previous.overlay?.background ?? { ...previous.location, params: owner.params },
 	}
 	if (page.module.render !== undefined) overlay.render = page.module.render
+	commitQueries(shown.landing)
 	void deps.store.commit({ ...previous, overlay })
 	flush()
 	if (!shown.write) return

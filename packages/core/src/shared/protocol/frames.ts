@@ -12,11 +12,13 @@ export type Frame =
 	| { t: "r" }
 	| { t: "c"; m: string; k: string; d: unknown }
 	| { t: "x"; s: number; u: string; r: boolean }
+	// The request's dehydrated query cache, after the loaders ran: the client hydrates it at commit (B134).
+	| { t: "q"; d: unknown }
 	| { t: "d" }
 
 export const MAX_LINE: number = 1024 * 1024
 
-const KINDS = new Set(["l", "e", "h", "r", "c", "x", "d"])
+const KINDS = new Set(["l", "e", "h", "r", "c", "x", "q", "d"])
 
 const OVERSIZE: Frame = { t: "e", m: "", e: { message: "Frame over 1 MiB" } }
 
