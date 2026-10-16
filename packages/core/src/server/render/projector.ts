@@ -87,7 +87,10 @@ export function projectError(thrown: unknown, sink: ErrorSink): Projected {
 		}
 	}
 	const digest = crypto.randomUUID().replaceAll("-", "").slice(0, 12)
-	sink.log.error("render", digest)
+	// The server log carries the error itself beside the digest the client sees, so an operator ties a 500 to its cause
+	// (B76, BUGS.md 158). The stack opens with the name and message; a thrown non-Error has neither, so both are written.
+	const stack = thrown instanceof Error && thrown.stack !== undefined ? thrown.stack : `${name}: ${message}`
+	sink.log.error("render", digest, stack)
 	const shown = isSafeError(thrown) ? { name, message } : { name: "Error", message: GENERIC }
 	return { status, error: rebuilt(shown.name, shown.message, ""), wire: { ...shown, digest } }
 }

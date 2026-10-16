@@ -184,6 +184,29 @@ it("input plain effect", async () => {
 	expect(said(/session store down/)).toBe(true)
 })
 
+// In production a 500's error reaches the server log with its digest, name, message, and stack, while the client sees
+// only the digest; an operator ties one to the other by that digest (B76, plan 21 9.4, BUGS.md 158).
+it("production error log", async () => {
+	vi.stubEnv("DEV", false)
+	vi.stubEnv("PROD", true)
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const page = createPage("_root_/boom")
+		.loader(() => {
+			throw new TypeError("ledger offline at shard 7")
+		})
+		.render(() => "boom")
+	const get = serve([{ id: "_root_/boom", path: "/boom", module: page }])
+	const answer = await get("/boom")
+	expect(answer.status).toBe(500)
+	expect(answer.text).not.toContain("ledger offline")
+	const digest = /"digest":"([0-9a-f]{12})"/.exec(answer.text)?.[1] ?? ""
+	expect(digest).toMatch(/^[0-9a-f]{12}$/)
+	const line = logged.mock.calls.map((call) => call.map(String).join(" ")).find((text) => text.includes(digest)) ?? ""
+	expect(line).toContain("TypeError")
+	expect(line).toContain("ledger offline at shard 7")
+	expect(line).toMatch(/at .*builder\.test\.ts/)
+})
+
 // `authenticate` makes the session required and hands the app the leaf's arguments as `callerData`; a null session is
 // 401 with the built-in `Please log in`. `authenticateOptional` lets a null session render. `.authenticate("optional")`
 // throws, as above.

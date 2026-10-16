@@ -22,7 +22,7 @@ A runtime bug in `vite dev` sends Vite's HMR payload `{ type: "error", err: { me
 
 `notFound()`, `unauthenticated()`, `unauthorized()`, `redirect()`, and an input failure do not send a payload and do not carry a stack.
 
-Production sends nothing. A written error document contains a generic message and a digest, not the thrown message and not a stack frame. `markSafeError` keeps the message and still omits the stack. `error.stack` is `""`. The server log contains the digest and not the stack. A throw before the shell is an empty 500 in production, and in dev that body contains the message and the stack.
+Production sends nothing. A written error document contains a generic message and a digest, not the thrown message and not a stack frame. `markSafeError` keeps the message and still omits the stack. `error.stack` is `""`. The server log contains the digest with the error's name, message, and stack, so an operator ties a 500 to its cause; the client sees only the digest (B76, `tests/integration/builder.test.ts` `production error log`, BUGS.md 158). A throw before the shell is an empty 500 in production, and in dev that body contains the message and the stack.
 
 The payload builder is `shared/errors/dev-report.ts`. It does not import Vite. Cases: `dev-report.test.ts` `payload`, `string`, `sends`, `no send`.
 
