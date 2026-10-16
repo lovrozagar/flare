@@ -49,4 +49,16 @@ test.describe("basepath", () => {
 		const root = await page.goto(`${base.origin}/`)
 		expect(root?.status()).toBe(404)
 	})
+
+	// A page with the public CDN header renders again on a second document navigation: the browser revalidates, as
+	// `max-age=0` asks, and shows the new render. stale-while-revalidate on Cache-Control made Firefox show the first
+	// one from its own cache (BUGS.md 135).
+	test("cdn page fresh", async ({ page }: { page: Page; browser: Browser }) => {
+		const first = await page.goto(`${base.origin}/app/cdn`)
+		expect(first?.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=3600")
+		const seen = Number(await page.locator("#render").textContent())
+		await page.goto(`${base.origin}/app`)
+		await page.goto(`${base.origin}/app/cdn`)
+		await expect(page.locator("#render")).toHaveText(String(seen + 1))
+	})
 })

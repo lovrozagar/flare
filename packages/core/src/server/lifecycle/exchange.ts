@@ -76,7 +76,7 @@ export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "s
 }
 
 // The cacheability decision writes these on a rendered page. `.headers()` cannot (dx/cache.md).
-const DECIDED = new Set(["cache-control", "cache-tag"])
+const DECIDED = new Set(["cache-control", "cdn-cache-control", "cache-tag"])
 
 // The route's merged `.headers()` come first, so the security set and the media type win over them.
 export function typed(

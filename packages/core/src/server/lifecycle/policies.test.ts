@@ -16,21 +16,25 @@ function decided(page: CacheConfig | undefined, extra: Partial<DecideInput> = {}
 
 const shared = decided({ isr: true, cdn: { maxAge: "60s", swr: "30s", tags: ["a", "b"] } })
 
+// A browser gets no stale-while-revalidate: Firefox serves the previous document from its own cache on that directive
+// (BUGS.md 135). The CDN gets it through CDN-Cache-Control (RFC 9213). Without `swr` the CDN header has none.
 it("header", () => {
-	expect(policyHeaders(shared, ok).get("cache-control")).toBe(
-		"public, max-age=0, s-maxage=60, stale-while-revalidate=30",
-	)
-	// swr defaults to 0, and a shared answer with no maxAge is not public.
-	expect(policyHeaders(decided({ isr: true, cdn: { maxAge: "2m" } }), ok).get("cache-control")).toBe(
-		"public, max-age=0, s-maxage=120, stale-while-revalidate=0",
-	)
+	const headers = policyHeaders(shared, ok)
+	expect(headers.get("cache-control")).toBe("public, max-age=0, s-maxage=60")
+	expect(headers.get("cdn-cache-control")).toBe("public, max-age=60, stale-while-revalidate=30")
+	const plain = policyHeaders(decided({ isr: true, cdn: { maxAge: "2m" } }), ok)
+	expect(plain.get("cache-control")).toBe("public, max-age=0, s-maxage=120")
+	expect(plain.get("cdn-cache-control")).toBe("public, max-age=120")
+	// A shared answer with no maxAge is not public, and has no CDN header.
 	expect(policyHeaders(decided({ isr: true }), ok).get("cache-control")).toBe(NO_STORE)
+	expect(policyHeaders(decided({ isr: true }), ok).has("cdn-cache-control")).toBe(false)
 })
 
 it("private header", () => {
 	const headers = policyHeaders(decided({ isr: true, cdn: { maxAge: "60s", private: true, tags: ["a"] } }), ok)
 	expect(headers.get("cache-control")).toBe("private, no-store")
 	expect(headers.has("cache-tag")).toBe(false)
+	expect(headers.has("cdn-cache-control")).toBe(false)
 })
 
 it("no-store header", () => {
@@ -75,7 +79,8 @@ it("data error frame", () => {
 
 const request = (): Request => new Request("http://localhost/r")
 
-const answer = (): Response => new Response("r", { headers: { "cache-control": "public, max-age=60" } })
+const answer = (): Response =>
+	new Response("r", { headers: { "cache-control": "public, max-age=60", "cdn-cache-control": "public, max-age=600" } })
 
 function routerFor(page: RouteModule): ReturnType<typeof createRouter> {
 	return createRouter({
@@ -84,7 +89,11 @@ function routerFor(page: RouteModule): ReturnType<typeof createRouter> {
 	})
 }
 
-const cachingHeaders = (): Record<string, string> => ({ "Cache-Control": "public, max-age=60", "Cache-Tag": "x" })
+const cachingHeaders = (): Record<string, string> => ({
+	"Cache-Control": "public, max-age=60",
+	"Cache-Tag": "x",
+	"CDN-Cache-Control": "public, max-age=600",
+})
 
 // The decision owns Cache-Control and Cache-Tag on a rendered page: `.headers()` cannot set them.
 it("headers cannot", async () => {
@@ -101,6 +110,7 @@ it("headers cannot", async () => {
 		const response = await server.fetch(new Request(`http://localhost${path}`))
 		expect(response.headers.get("cache-control")).toBe("private, no-store")
 		expect(response.headers.has("cache-tag")).toBe(false)
+		expect(response.headers.has("cdn-cache-control")).toBe(false)
 	}
 })
 
@@ -110,20 +120,33 @@ it("response auth", async () => {
 	const plain = routerFor(createPage("_root_/r").response(answer))
 	const withAuth = await createServer({ router: guarded, authenticate: () => null }).fetch(request())
 	expect(withAuth.headers.get("cache-control")).toBe("private, no-store")
+	expect(withAuth.headers.has("cdn-cache-control")).toBe(false)
 	const without = await createServer({ router: plain }).fetch(request())
 	expect(without.headers.get("cache-control")).toBe("public, max-age=60")
+	expect(without.headers.get("cdn-cache-control")).toBe("public, max-age=600")
 })
 
 // The exit compares an answer's cookies with the ones it left its stage with. A rebuilt Response has no record.
+// Whatever makes the answer private also takes the CDN header, so no CDN keeps what the browser may not.
 it("exit headers", () => {
-	const PUBLIC = "public, max-age=0, s-maxage=60, stale-while-revalidate=0"
+	const PUBLIC = "public, max-age=0, s-maxage=60"
+	const CDN = "public, max-age=60"
 	const staged = (): Response =>
-		recordCookies(new Response(null, { headers: { "cache-control": PUBLIC, "cache-tag": "t", "set-cookie": "r=1" } }))
+		recordCookies(
+			new Response(null, {
+				headers: { "cache-control": PUBLIC, "cdn-cache-control": CDN, "cache-tag": "t", "set-cookie": "r=1" },
+			}),
+		)
 	expect(exitHeaders(staged()).get("cache-control")).toBe(PUBLIC)
 	const late = staged()
 	late.headers.append("set-cookie", "m=1")
 	expect(exitHeaders(late).get("cache-control")).toBe(NO_STORE)
 	expect(exitHeaders(late).has("cache-tag")).toBe(false)
+	expect(exitHeaders(late).has("cdn-cache-control")).toBe(false)
+	expect(exitHeaders(staged()).get("cdn-cache-control")).toBe(CDN)
+	// A middleware that made the answer private leaves no CDN header behind it.
+	const madePrivate = new Response(null, { headers: { "cache-control": NO_STORE, "cdn-cache-control": CDN } })
+	expect(exitHeaders(madePrivate).has("cdn-cache-control")).toBe(false)
 	expect(exitHeaders(new Response(null, staged())).get("cache-control")).toBe(NO_STORE)
 	expect(exitHeaders(new Response(null, { headers: { "cache-control": PUBLIC } })).get("cache-control")).toBe(PUBLIC)
 	const kept = new Response(null, { headers: { "cache-control": "private, max-age=60", "set-cookie": "r=1" } })

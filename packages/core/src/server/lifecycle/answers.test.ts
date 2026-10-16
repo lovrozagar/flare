@@ -10,7 +10,7 @@ import { createMemoryStore } from "../cache/memory.ts"
 
 const root = createRootLayout("_root_").render((props) => props.children)
 const cdn = { maxAge: "60s", tags: ["t"] }
-const PUBLIC = "public, max-age=0, s-maxage=60, stale-while-revalidate=0"
+const PUBLIC = "public, max-age=0, s-maxage=60"
 
 function serve(page: RouteModule, authenticate: () => unknown): ReturnType<typeof createServer> {
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] })

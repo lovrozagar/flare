@@ -3,7 +3,7 @@ import { NDJSON, redirectBody } from "../navigation/index.ts"
 import type { Router } from "../../shared/router/create-router.ts"
 import { secure, type Exchange } from "./exchange.ts"
 import { finalize } from "./finalize.ts"
-import { NO_STORE } from "./policies.ts"
+import { NO_STORE, privately } from "./policies.ts"
 
 // The key `i18n()` publishes its slot under. A middleware has no such key, and the slot is not a middleware.
 export const LOCALE_SLOT: unique symbol = Symbol.for("flare.locale-slot")
@@ -46,10 +46,7 @@ export async function withLocale(exchange: Exchange, chain: () => Promise<Respon
 	const downgrade = decision.negotiated === true && !isPrivate(response)
 	if (!downgrade && (cookie === undefined || !isPrivate(response))) return response
 	const headers = new Headers(response.headers)
-	if (downgrade) {
-		headers.set("cache-control", NO_STORE)
-		headers.delete("cache-tag")
-	}
+	if (downgrade) privately(headers)
 	if (cookie !== undefined) headers.append("set-cookie", cookie)
 	// The router's answer leaves with the set it was built under, as the middleware exit's does (BUGS.md B12).
 	const secured = exchange.built.secured ?? exchange.secured
