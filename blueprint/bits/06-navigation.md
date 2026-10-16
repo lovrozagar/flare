@@ -584,6 +584,29 @@ dx/head.md through the real `createServer(...).fetch`: pages made with the real 
 | `custom` | links and meta with `on*` and bad names, an external and an inline script with `type` and `extra`, an empty script, a style | the allowed attributes only; `type` and `extra` on both scripts, the nonce on the inline one only, closing tags rewritten in their own spelling; the empty script dropped (BUGS.md 146) |
 | `omitted` | a null title, a relative canonical, a script with `src` and `children`, a page with no `.head()` | no title; that match's head omitted with status 200 (BUGS.md 145); nothing of its own |
 
+### `tests/integration/link.test.ts` and `link-client.test.ts` (plan 14 9.6, B96)
+
+dx/link.md through real apps. link.test serves pages of real Links through the real `createServer(...).fetch` and reads each anchor from the document; a route's own validators read the URL text back. link-client runs two apps through the hydrate harness in each engine: one with a Link per prop and a client cache of a minute, one with prefetch settings, lazy route modules that record their import, and a router `chunks` map. Each group's bite is a source mutation that turns its case red (7 for link.test, 6 for link-client).
+
+| test | case | result |
+| --- | --- | --- |
+| `link markup` | `to` with params, search, and hash; a catch-all; an optional param; reserved keys; a `.response()` page; `href`; `_blank` with and without `rel`; `disabled`; other attributes; a cast to `modules: "all"` | each href; reserved keys stripped; `noopener noreferrer` unless `rel`; aria-disabled and tabindex -1 on an anchor; the attributes passed, `href` beside `to` not; a 500 |
+| `href` | each rejected scheme, hidden behind whitespace or a control byte; a path, `//`, http, https; `buildUrl`; `redirect({ href })` | `href="#"` and a throw from `href()`; accepted, rejected, accepted; the Link's href; a Location, or a 500 for a rejected one |
+| `url values` | a string, number, boolean, bigint, Date, array, object, and null as search; a function, a symbol, a missing param | the text sorted and encoded, the same from buildUrl and redirect, read back equal by the validator (BUGS.md 147); each throws, the document a 500 |
+| `active` | the search in another order, a subset, a prefix path, `isActive` | active with its class, props, and aria-current; inactive; inactive; active |
+| `history` | a push, then `replace` | one entry more, then none; no document load |
+| `scroll` | `scroll: false`, then the default | the position kept; the top |
+| `revalidate and force` | the active link, `force`, a fresh /b, `revalidate` | nothing; a navigation from the cache; no request; a refetch |
+| `shallow` | to the current route, then another | the URL with no request; a throw, the page kept |
+| `inert` | `disabled`, a dangerous href, `_blank` | the tab stays; `_blank` opens /b in a new one |
+| `response page` | a Link to a `.response()` page | a document load |
+| `active` (client) | a navigation away | the class and aria-current follow |
+| `view transition` | `viewTransition` | one `startViewTransition` where the engine has it |
+| `search spelling` | the document at `?q=a%20b%2Fc`, then `+`, `/`, and a lowercase escape | one match: no data request (BUGS.md 147) |
+| `url values` (client) | the Link's values and navigate()'s | the same text, read back equal |
+| `prefetch` | the default router after idle; hovers on intent, off, data-only, and foreign links; a viewport route | /lazy prefetched by rel=prefetch, or imported where the engine has none; prefetch requests for /p1, /p3, and /p4 only; nothing to the foreign origin |
+| `save data` | Data Saver | no idle pass; the linked lazy route imported in view instead |
+
 ## Done
 
 A client navigation does not request a document. A request header cannot select the data response. History grows only after a successful commit.
