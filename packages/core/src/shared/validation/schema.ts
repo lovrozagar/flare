@@ -5,7 +5,7 @@ export type StandardIssue = { message: string; path?: ReadonlyArray<PropertyKey 
 
 export type StandardResult = { value: unknown; issues?: undefined } | { issues: readonly StandardIssue[] }
 
-// A Standard Schema, `{ parse }`, or a function. Each may return a promise (dx/builder.md, dx/server-fn.md). `In`
+// A Standard Schema, `{ parse }`, or a function, checked in that order. Each may return a promise (dx/builder.md, dx/server-fn.md). `In`
 // is what the runner passes: a route's raw record, or a server function's JSON, so a validator may type it.
 export type Validator<In = unknown> =
 	| { "~standard": { validate: (value: unknown) => StandardResult | Promise<StandardResult> } }
@@ -24,10 +24,14 @@ export async function runValidator<In>(
 	options: { dev: boolean },
 ): Promise<Validated> {
 	try {
+		// A Standard Schema decides first: ArkType's types and Effect's standard schemas are callable too, and calling one
+		// returns its errors as a value, not a throw (BUGS.md 154).
+		if ("~standard" in validator) {
+			const result = await validator["~standard"].validate(raw)
+			return result.issues === undefined ? { ok: true, value: result.value } : failed(result.issues.map(issueOf))
+		}
 		if (typeof validator === "function") return { ok: true, value: await validator(raw) }
-		if ("parse" in validator) return { ok: true, value: await validator.parse(raw) }
-		const result = await validator["~standard"].validate(raw)
-		return result.issues === undefined ? { ok: true, value: result.value } : failed(result.issues.map(issueOf))
+		return { ok: true, value: await validator.parse(raw) }
 	} catch (error) {
 		return failed(thrownIssues(error, options.dev))
 	}

@@ -1,3 +1,5 @@
+import { type } from "arktype"
+import { Schema } from "effect"
 import { expect, it } from "vitest"
 import { notFound, redirect, unauthenticated, unauthorized } from "../../src/shared/errors/index.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
@@ -123,6 +125,30 @@ it("input", async () => {
 		expect(JSON.parse(answer.text)).toEqual(bad)
 	}
 	expect((await get("/s?q=a&q=b&one=x")).text).toContain('search {"q":["a","b"],"one":"x"}')
+})
+
+// A page that validates its search with `validator` and renders what it got.
+function validated(id: string, validator: unknown) {
+	return createPage(id)
+		.input({ searchParams: validator as never })
+		.render((props) => `got ${String(Reflect.get(Object(props.search), "q"))}`)
+}
+
+// The real ArkType and Effect validators, each callable and a Standard Schema: the schema decides, so invalid input is
+// a 400 with its issues and valid input reaches the render (plan 21 2.3, BUGS.md 154).
+it("input libraries", async () => {
+	const ark = type({ q: "string >= 3" })
+	const effect = Schema.standardSchemaV1(Schema.Struct({ q: Schema.String.pipe(Schema.minLength(3)) }))
+	const get = serve([
+		{ id: "_root_/ark", path: "/ark", module: validated("_root_/ark", ark) },
+		{ id: "_root_/effect", path: "/effect", module: validated("_root_/effect", effect) },
+	])
+	for (const path of ["/ark", "/effect"]) {
+		expect([path, (await get(`${path}?q=long`)).text]).toEqual([path, expect.stringContaining("got long")])
+		const bad = await get(`${path}?q=a`)
+		expect([path, bad.status]).toEqual([path, 400])
+		expect(Object.keys(Object(JSON.parse(bad.text).fieldErrors))).toEqual(["q"])
+	}
 })
 
 // `authenticate` makes the session required and hands the app the leaf's arguments as `callerData`; a null session is
