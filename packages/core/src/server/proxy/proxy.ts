@@ -3,7 +3,31 @@ import { activeMount } from "../mount/mount.ts"
 // Each forward is opt-in. A cookie or a credential never reaches another origin unless the app says so (B87).
 export type ProxyOptions = { forwardCookies?: boolean; forwardAuthorization?: boolean; relaySetCookie?: boolean }
 
-const HOP_BY_HOP = ["connection", "keep-alive", "proxy-connection", "transfer-encoding", "te", "trailer", "upgrade"]
+// v0's api-proxy set (BUGS.md 161): the hop-by-hop headers, and the proxy credentials, which belong to this hop.
+const HOP_BY_HOP = [
+	"connection",
+	"keep-alive",
+	"proxy-authenticate",
+	"proxy-authorization",
+	"proxy-connection",
+	"te",
+	"trailer",
+	"trailers",
+	"transfer-encoding",
+	"upgrade",
+]
+
+// What only the upstream's own request may say: its host, and where the request came from. A client's claims would
+// pick the upstream's virtual host or a trusted client address (BUGS.md 161).
+const CLIENT_CLAIMS = [
+	"host",
+	"forwarded",
+	"x-forwarded-for",
+	"x-forwarded-host",
+	"x-forwarded-port",
+	"x-forwarded-proto",
+	"x-real-ip",
+]
 
 // Inside a mount's fetch: the stripped path plus the search goes to `upstream`, an absolute https origin, and the
 // answer comes back with a redirect kept as a redirect (dx/server.md `proxy`). Outside a mount it throws.
@@ -22,6 +46,7 @@ export function proxy(request: Request, upstream: string, options: ProxyOptions 
 function send(request: Request, base: URL, options: ProxyOptions): Promise<Response> {
 	const url = new URL(request.url)
 	const headers = withoutHops(request.headers, false)
+	for (const name of CLIENT_CLAIMS) headers.delete(name)
 	if (options.forwardCookies !== true) headers.delete("cookie")
 	if (options.forwardAuthorization !== true) headers.delete("authorization")
 	const init: RequestInit = { method: request.method, headers, redirect: "manual" }
