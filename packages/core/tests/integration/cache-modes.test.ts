@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest"
 import type { FlareStore, FlareStoreEntry } from "../../src/server/cache/contract.ts"
 import { createMemoryStore } from "../../src/server/cache/memory.ts"
-import { revalidate } from "../../src/server/cache/revalidate.ts"
+import { createRevalidateFn, revalidate } from "../../src/server/cache/revalidate.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createPathSegment } from "../../src/shared/route-builder/segment.ts"
@@ -211,6 +211,31 @@ it("hung miss", async () => {
 	expect(live.text).toContain('"call":2')
 	const next = await get("/h")
 	expect([cacheOf(next), next.text.includes('"call":3')]).toEqual(["miss", true])
+})
+
+// A purge drops the in-flight renders it may affect: a request after a mutation never joins a render that read the data
+// before it, and gets its own (plan 21 3.4).
+it("purge drops the flight", async () => {
+	const store = createMemoryStore()
+	const gate = Promise.withResolvers<void>()
+	let version = 1
+	const page = createPage("_root_/v")
+		.cache({ isr: true })
+		.loader(async () => {
+			const seen = version
+			await gate.promise
+			return { seen }
+		})
+		.render((props) => `version ${props.loaderData.seen}`)
+	const get = serve([{ id: "_root_/v", path: "/v", module: page }], { store })
+	const before = get("/v")
+	await new Promise((resolve) => setTimeout(resolve, 10))
+	version = 2
+	await createRevalidateFn(store)({ tags: ["posts"] })
+	const after = get("/v")
+	await new Promise((resolve) => setTimeout(resolve, 10))
+	gate.resolve()
+	expect([bodyOf((await before).text), bodyOf((await after).text)]).toEqual(["version 1", "version 2"])
 })
 
 // The page `/p` served over `store`, and the `console.error` lines that name the store.

@@ -1,6 +1,7 @@
 import { requestScope } from "../context/ctx.ts"
 import type { FlareStore } from "./contract.ts"
 import { bumpEpochs, epochKey, keyEpochKey } from "./epoch.ts"
+import { dropFlights } from "./inflight.ts"
 
 // A key purge, a tag purge, or both (dx/store.md). There is no `tiers`, `callerData`, `cdnPurgeAdapter`,
 // `tagHeader`, or `revalidateSecret`: a CDN purges by the `Cache-Tag` header.
@@ -22,6 +23,7 @@ function checked(options: RevalidateOptions): { keys: readonly string[]; tags: r
 // Keys get tombstones, through `deleteByKeys` when the store has it, and their own epochs, which a late write of a
 // render that started before the purge cannot undo. Tags bump their epochs.
 function purge(store: FlareStore, { keys, tags }: { keys: readonly string[]; tags: readonly string[] }): Promise<void> {
+	dropFlights({ keys, tags })
 	const epochs = [...keys.map(keyEpochKey), ...tags.map(epochKey)]
 	return Promise.all([tombstones(store, keys), bumpEpochs(store, epochs)]).then(() => undefined)
 }
