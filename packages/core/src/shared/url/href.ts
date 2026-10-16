@@ -1,3 +1,4 @@
+import type { FlareRegister, To, UrlTarget } from "../route-builder/register.ts"
 import { encodeStatic, idPattern, patternSegments, type Segment } from "../route-tree/index.ts"
 import { entries, urlText, writeUrl } from "./search.ts"
 
@@ -31,6 +32,10 @@ export function buildUrl(input: BuildInput): Href {
 	const hash = input.hash?.replace(/^#/, "")
 	return href(writeUrl({ path: `/${parts.join("/")}`, search: input.search, hash }))
 }
+
+// `buildUrl` as an app imports it from `@lovrozagar/flare` (BUGS.md 137): generic on a page id, with that page's
+// params and search once the register is augmented, as `navigate` takes them (dx/types.md).
+export const routeUrl: <Id extends To<FlareRegister>>(target: UrlTarget<FlareRegister, Id>) => Href = buildUrl
 
 // A static segment is path-encoded. A param value is one encoded segment, and a catch-all value is one per
 // item. A missing optional value, or an empty optional catch-all, adds nothing.
