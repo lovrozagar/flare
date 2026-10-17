@@ -2,6 +2,7 @@ import { expect, it } from "vitest"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createServerFn } from "../server-fn/dispatch.ts"
+import { notFound, redirect } from "../../shared/errors/index.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { applyMethod, REFUSED, refusedChannel, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
 
@@ -154,14 +155,14 @@ const respond = () => new Response("")
 
 const step = (request: { url: string }) => {
 	if (request.url.endsWith("/broken")) throw new Error("rewrite broke")
+	if (request.url.endsWith("/moved")) redirect({ to: "_root_/page" })
+	if (request.url.endsWith("/gone")) notFound()
 	return request.url.endsWith("/old") ? { status: 308, location: "/hook" } : { status: 200 }
 }
 
-// What an adapter that cannot make a request of the method gets, in the order Bun's pipeline answers it: an unknown
-// internal param's 400, the canonical step's redirect (a step that throws is the projected 500), 501 on a mounted path
-// the method cannot reach, a server function's 404 when its id is unknown and else 405 naming its method, and a route's
-// 405 with its own Allow (BUGS.md 280, 284, 289).
-it("refused channel", async () => {
+// A server's refused channel over three routes, a mount, and two server functions, one whose module fails to load,
+// and the error lines its sink logs.
+function refusedServer(): { at: (path: string) => Promise<unknown>; logged: string[] } {
 	const router = createRouter({
 		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
 		routeTree: [
@@ -182,19 +183,37 @@ it("refused channel", async () => {
 	}
 	const echo = createServerFn({ method: "post", __id: "echo000000000000", __name: "echo" } as never).handler(() => "x")
 	const serving = {
-		options: { router, serverFns: { echo000000000000: async () => echo } },
+		options: {
+			router,
+			serverFns: {
+				echo000000000000: async () => echo,
+				fail000000000000: async () => Promise.reject(new Error("module broke")),
+			},
+		},
 		mounts: [{ prefix: "/mounted", fetch: respond }],
 		sink,
 	}
 	const refused = refusedChannel(serving as never, step)[REFUSED]
-	const at = (path: string) => refused({ method: "TRACE", url: `http://localhost${path}` })
+	return { at: (path) => refused({ method: "TRACE", url: `http://localhost${path}` }), logged }
+}
+
+// What an adapter that cannot make a request of the method gets, in the order Bun's pipeline answers it: an unknown
+// internal param's 400, the canonical step's redirect (a step that throws is the projected 500), 501 on a mounted path
+// the method cannot reach, a server function's 404 when its id is unknown and else 405 naming its method, and a route's
+// 405 with its own Allow. A step that throws a redirect answers it; any other throw, and a server function whose module
+// fails to load, is the projected 500, as `failed` answers (BUGS.md 280, 284, 289, 291).
+it("refused channel", async () => {
+	const { at, logged } = refusedServer()
 	const paths = [
 		"/page?_flare=bogus",
 		"/broken",
+		"/moved",
+		"/gone",
 		"/old",
 		"/mounted/x",
 		"/_flare/fn/unknown0000000000",
 		"/_flare/fn/echo000000000000",
+		"/_flare/fn/fail000000000000",
 		"/hook",
 		"/api",
 		"/page",
@@ -203,14 +222,18 @@ it("refused channel", async () => {
 	expect(await Promise.all(paths.map(at))).toEqual([
 		{ status: 400 },
 		{ status: 500 },
+		{ status: 303, location: "/page" },
+		{ status: 500 },
 		{ status: 308, location: "/hook" },
 		{ status: 501 },
 		{ status: 404 },
 		{ status: 405, allow: "POST, OPTIONS" },
+		{ status: 500 },
 		{ status: 405, allow: "POST, OPTIONS" },
 		{ status: 405, allow: "GET, HEAD, OPTIONS" },
 		{ status: 405, allow: "GET, HEAD, OPTIONS" },
 		{ status: 405, allow: "GET, HEAD, OPTIONS" },
 	])
 	expect(logged.join(" ")).toContain("rewrite broke")
+	expect(logged.join(" ")).toContain("module broke")
 })
