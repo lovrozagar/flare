@@ -150,7 +150,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `layout data` | the same pair | `useLoaderData({ from: layoutId })` | `section` | `title` on the layout call | app |
 | `preloader accumulate` | root `{ requestId: string }`, layout `{ role: "admin" \| "editor" }`, page `{ n: 1 }` | page render and `usePreloaderContext({ from: pageId })` | all three keys | a parent key missing | app |
 | `preloader narrow` | parent `role: "admin" \| "editor"`, own `role: "admin"` | later callbacks | `role` is `"admin"` | `role` assigned `"editor"` | app |
-| `preloader clash` | parent `theme: string`, own `theme: number` | later callbacks | a sibling key still reads | `theme` used as `string` or as `number` | |
+| `preloader clash` | parent `theme: string`, own `theme: number`; or literals that share nothing, a layout's `role: "admin" \| "editor"` under a page's `role: "viewer"` | later callbacks | a sibling key still reads: the context merges key by key, so only the clashing key is `never` (`app`: `checks-data.ts` `preloader literal clash`, `(blog)/viewer`, plan 21 11.2) | `theme` used as `string` or as `number`; `role` given any value | |
 | `preloader empty keeps` | parent `{ requestId: string }`, own `{}` | later callbacks | `requestId` remains | `requestId` erased | |
 | `preloader parents only` | own return `{ n: 1 }` | the preloader callback and `authorize` | parent keys | `n` on those two callbacks | |
 | `root preloader` | root `.preloader()` returns `{ requestId: string }` | the root preloader callback; later root callbacks | the callback has no `preloaderContext`; later callbacks see `requestId` | `ctx.preloaderContext` on the root preloader callback; a parent key | app |

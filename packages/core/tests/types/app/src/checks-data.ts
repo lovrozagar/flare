@@ -68,6 +68,15 @@ import { createLayout, createPage, createRootLayout, useLoaderData, usePreloader
 	const _editor: typeof role = "editor"
 }
 
+// preloader literal clash
+{
+	const context = usePreloaderContext({ from: "_root_/(blog)/viewer" })
+	const requestId: string = context.requestId
+	void requestId
+	// @ts-expect-error the clashing key alone is never
+	const _role: typeof context.role = "viewer"
+}
+
 // root preloader
 {
 	void createRootLayout("_root_")
