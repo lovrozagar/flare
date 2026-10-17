@@ -17,7 +17,7 @@ bun add @lovrozagar/flare solid-js @solidjs/web @solidjs/vite-plugin vite oxc-pa
 | `vite`                                                | `>=8.1.4`                        | every app                                         |
 | `oxc-parser`, `magic-string`                          | `>=0.139.0`, `>=0.30.21`         | the plugin's codegen and boundary transform       |
 | `@tanstack/solid-query`                               | `>=6.0.0-rc.5`                   | optional: `@lovrozagar/flare/query`               |
-| `sharp`                                               | `>=0.35.3`                       | optional: `flare({ image })`                      |
+| `sharp`                                               | `>=0.35.5`                       | optional: `flare({ image })`                      |
 | `@formatjs/intl-localematcher`, `negotiator`, `isbot` | `>=0.8.11`, `>=1.0.0`, `>=5.2.0` | optional: `@lovrozagar/flare/i18n/server`         |
 
 Tailwind is the app's own `@tailwindcss/vite`; Flare does not wrap it.
