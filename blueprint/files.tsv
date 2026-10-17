@@ -697,6 +697,7 @@ packages/core/tests/integration/router.test.ts	P1	test	node	dx/router.md's serve
 packages/core/tests/integration/router-client.test.ts	P1	test	node	dx/router.md's client rows through the hydrate harness in three engines: scroll restoration, its key and cap, the client cache and its cap, rewrite (plan 14 9.6)
 packages/core/tests/integration/harness-app.ts	P1	test	node	An app for the hydrate harness's app mode from its source text, shared by the dx client integration tests (B96)
 packages/core/tests/integration/builder.test.ts	P1	test	node	dx/builder.md's methods through the real createServer(...).fetch: which builder has which method, the call-once and order rules, input, auth, preloader, loader, response, and the server callbacks' context (plan 14 9.6)
+packages/core/tests/integration/failure-client.test.ts	P15	test	node	A client navigation to a page that fails with a named status: the layouts above it show this URL's data (plan 21 12.5)
 packages/core/tests/integration/history-client.test.ts	P15	test	client	Back and Forward onto an entry the server answered 404 render the not-found page (BUGS.md 212)
 packages/core/tests/integration/overlay-client.test.ts	P15	test	client	A replace inside an open overlay replaces its entry, so one Back closes it (BUGS.md 214)
 packages/core/tests/integration/render-errors.test.ts	P15	test	server	A production build's render throws keep their status and their log line, though Solid sanitizes them (BUGS.md 217)

@@ -389,8 +389,8 @@ it("internal kinds", async () => {
 	expect((await fetchAt("/_flare/fn/abc")).status).toBe(404)
 	expect((await fetchAt("/nowhere?_flare=data")).status).toBe(404)
 	const named = await fetchAt("/gone?_flare=data")
-	expect(named.status).toBe(404)
-	expect(await named.text()).toBe("")
+	expect([named.status, named.headers.get("flare-failed")]).toEqual([404, "_root_/gone"])
+	expect((await named.text()).split("\n")[0]).toBe('{"t":"l","m":"_root_","d":null}')
 	const stale = await fetchAt("/users/7?q=1&_flare=data&_flare_stale=id%3D7%26q%3D1")
 	expect((await stale.text()).split("\n").map((line) => line.slice(0, 30))).toEqual([
 		'{"t":"l","m":"_root_","d":null',

@@ -7,6 +7,7 @@ import type { MountContext } from "../mount/mount.ts"
 import { projectError, type ErrorSink } from "../render/projector.ts"
 import { applySecurity, type Secured, type SecurityConfig } from "../security/apply.ts"
 import { carryMark, finalize, keptAs, type StageResult } from "./finalize.ts"
+import { NDJSON } from "../navigation/response.ts"
 import { exitHeaders } from "./policies.ts"
 import type { RuntimeOptions } from "./options.ts"
 
@@ -47,19 +48,21 @@ export function answer(exchange: Answering, status: number, location?: string): 
 }
 
 // A loader run that answered without a render: validation, a gate status, or a named failure. `failed` names the match
-// that failed, for a data answer the client paints (BUGS.md 134). A 500 that carries what was thrown, a throwing
+// that failed, for a data answer the client paints (BUGS.md 134), and `kept` is the NDJSON of the matches above it, so
+// those layouts show their data for this URL (plan 21 12.5). A 500 that carries what was thrown, a throwing
 // `authenticate` or a route whose validator is no validator, is projected and logged like any 500 (BUGS.md 157).
 export async function bare(
 	exchange: Answering & Pick<Exchange, "sink">,
 	run: Pick<LoaderRun, "response" | "thrown">,
-	failed?: string,
+	{ failed, kept }: { failed?: string | undefined; kept?: BodyInit | undefined } = {},
 ): Promise<Response> {
 	if (run.response.status === 500 && run.thrown !== undefined && failed === undefined)
 		projectError(run.thrown, exchange.sink)
 	const headers = new Headers(exchange.secured.headers)
 	run.response.headers.forEach((value, name) => headers.set(name, value))
 	if (failed !== undefined) headers.set(FAILED_HEADER, failed)
-	const body = await run.response.text()
+	if (kept !== undefined) headers.set("content-type", NDJSON)
+	const body = kept ?? (await run.response.text())
 	return finalize({ status: run.response.status, body, headers })
 }
 
