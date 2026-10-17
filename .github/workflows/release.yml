@@ -2,6 +2,8 @@ name: Release
 
 # A pushed `v*` tag verifies, then publishes the one verified tarball of @lovrozagar/flare (bits/14). A dispatch only
 # verifies: `scripts/release.ts --publish` refuses anywhere but a tag ref, so a publish is re-run from that tag's run.
+# Every action is pinned to a commit SHA, and the publish job installs nothing unpinned: Node 24's own npm publishes
+# with provenance (plan 21 14.4, BUGS.md 219).
 on:
   push:
     tags:
@@ -29,18 +31,18 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium firefox
       # The gates, the finished tree, the e2e, the packed tarball, the golden proof on it, and `npm publish --dry-run`.
       - run: bun scripts/release.ts --out "$RUNNER_TEMP/release"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: tarball
           path: ${{ runner.temp }}/release/lovrozagar-flare-*.tgz
@@ -56,16 +58,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           package-manager-cache: false
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: ${{ env.BUN_VERSION }}
-      - run: npm install -g npm@latest
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: tarball
           path: ${{ runner.temp }}/release
@@ -135,13 +136,13 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
           registry-url: https://npm.pkg.github.com
           scope: "@lovrozagar"
           package-manager-cache: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: tarball
           path: ${{ runner.temp }}/release
@@ -178,7 +179,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}

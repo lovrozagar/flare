@@ -31,7 +31,7 @@ it("ci node", () => {
 		const node = job.steps[checkout + 1]
 		expect({ name, uses: node?.uses, version: node?.with?.["node-version"] }).toEqual({
 			name,
-			uses: "actions/setup-node@v4",
+			uses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 			version: 24,
 		})
 	}
@@ -72,7 +72,7 @@ it("release node", () => {
 		const node = job.steps[checkout + 1]
 		expect({ name, uses: node?.uses, version: node?.with?.["node-version"] }).toEqual({
 			name,
-			uses: "actions/setup-node@v4",
+			uses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020",
 			version: 24,
 		})
 	}
@@ -130,7 +130,7 @@ it("ci failure artifacts", () => {
 		const last = workflow.jobs[name]?.steps.at(-1)
 		expect({ if: last?.if, uses: last?.uses, with: last?.with }).toEqual({
 			if: when,
-			uses: "actions/upload-artifact@v4",
+			uses: "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
 			with: { name: `${name}-\${{ matrix.shard }}`, path: "packages/core/test-results", "retention-days": 7 },
 		})
 	}
