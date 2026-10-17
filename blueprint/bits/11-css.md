@@ -125,6 +125,7 @@ Split from `match.ts` at the 300-line limit.
 | `reset inlined` | the CSS starts with the preflight and the shell is `<html><body>` | the result contains the `*` rule from that preflight |
 | `parse once` | two `criticalCss` calls with the same sheet | the sheet is parsed once per process. Each call only matches the shell |
 | `kept by structure` | a second shell of the same elements, attributes, and places with other text | the matching does not run again and the result is the first one's: a selector reads tags, attributes, parents, and previous siblings, never text. Another structure, or another `ctx` attribute, matches anew; the 64 latest structures per sheet are kept (plan 21 15.1) |
+| `kept across nonces` | two shells alike but for the nonce on their scripts and preload links, as the default CSP makes per request | the second reuses the first's match: a nonce counts by its presence, never its value, which no selector reads (BUGS.md 274) |
 | `candidates` | a sheet of 5,000 class rules and a shell using 3 of those classes | only rules keyed by the shell's classes, ids, and tags, plus rules with no such key, are tested against the shell. Rules are indexed by the rightmost compound's class, id, or tag |
 
 ### `shared/css/sheet.test.ts`
