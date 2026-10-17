@@ -46,16 +46,17 @@ it("quick start marked", () => {
 	expect(new Set(paths).size).toBe(paths.length)
 })
 
-// The Install section is what an app runs: its `bun add` line names the package and every peer an app needs, and its
-// table names every peer with the range the package declares (plan 21 5.5). The consumer cell `readme install` runs
-// that line.
+// The Install section is what an app runs: its `bun add` line names the package and every peer an app needs, each with
+// the range the package declares, since a bare name installs the `latest` tag and solid-js's is 1.9 (BUGS.md 299); its
+// table names every peer with that range (plan 21 5.5). The consumer cell `readme install` runs that line.
 it("install names every peer", () => {
 	const manifest = JSON.parse(readFileSync(join(repo, "packages/core/package.json"), "utf8"))
 	const peers: Record<string, string> = manifest.peerDependencies
 	const meta: Record<string, { optional?: boolean }> = manifest.peerDependenciesMeta
 	const required = Object.keys(peers).filter((name) => meta[name]?.optional !== true)
 	const [name, ...packages] = installCommand(readme)
-	expect([name, packages.toSorted()]).toEqual(["@lovrozagar/flare", required.toSorted()])
+	const specs = required.map((peer) => `${peer}@${peers[peer]}`).toSorted()
+	expect([name, packages.toSorted()]).toEqual(["@lovrozagar/flare", specs])
 	const listed: Record<string, string> = {}
 	for (const [names = "", ranges = ""] of tableRows(readme, "peer")) {
 		const [first, ...rest] = ticked(ranges)
