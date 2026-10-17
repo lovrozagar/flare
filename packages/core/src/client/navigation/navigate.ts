@@ -67,10 +67,11 @@ type Trigger = "initial" | "navigation" | "revalidation"
 // browser keeps (plan 21 3.10).
 const MAX_REDIRECTS = 10
 
-// `revalidate` refetches the page on screen in place, as `revalidate: true` does (B133).
+// `revalidate` refetches the page on screen in place, as `revalidate: true` does (B133). `visit` goes to a URL the
+// server built, fresh with `revalidate`, as a server function's redirect after a mutation needs (plan 21 8.6).
 export type Navigator = Leaving & {
 	navigate: (options: NavigateOptions) => Promise<void>
-	visit: (url: string, replace: boolean) => Promise<void>
+	visit: (url: string, replace: boolean, revalidate?: boolean) => Promise<void>
 	restore: (url: string, index: number) => Promise<void>
 	fill: (pending: Pending) => Promise<void>
 	refresh: (initial: CachePlan) => Promise<void>
@@ -127,7 +128,8 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		revalidate: () => again({}),
 		...leave,
 		navigate: (options) => go(userTarget(deps, resolveTarget(options, context()), options.revalidate), options),
-		visit: (url, replace) => go(userTarget(deps, resolveUrl(url, context()), false), { to: url, replace }),
+		visit: (url, replace, revalidate = false) =>
+			go(userTarget(deps, resolveUrl(url, context()), revalidate), { to: url, replace, revalidate }),
 		restore: async (url, index) => {
 			const closed = closesOverlay(deps.store.snapshot(), url)
 			if (closed !== undefined) {

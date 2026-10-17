@@ -137,7 +137,8 @@ function settledRound(path: string): (tab: Page) => Promise<void> {
 
 // The visitor changes (B133). A middleware refreshes a session cookie on every answer. `signOut`, a server function whose
 // own Response writes a cookie, makes the client forget its matches and prefetches; `ping`, whose answer only carries
-// the middleware's cookie, does not. `invalidate()` forgets and refetches the page on screen.
+// the middleware's cookie, does not. `invalidate()` forgets and refetches the page on screen. `move` redirects to
+// `/kept`, as a mutation does after its write.
 const VISITOR = appFrom(`
 const id = (to) => "to" + to.replace(/\\W/g, "-")
 const anchor = (to) => api.solid.createComponent(api.link.Link, { to: "_root_" + to, id: id(to), children: to })
@@ -161,14 +162,17 @@ const make = api.serverFn.bindServerFn(call)
 const signOut = make({ method: "get", __id: "signout000000000", __name: "signOut" })
 	.handler(() => new Response("out", { headers: { "set-cookie": "who=b; Path=/" } }))
 const ping = make({ method: "get", __id: "ping000000000000", __name: "ping" }).handler(() => "pong")
-if (typeof window !== "undefined") Object.assign(window, { __flareSignOut: signOut, __flarePing: ping, __flareInvalidate: api.active.invalidate })
+const move = make({ method: "get", __id: "move000000000000", __name: "move" })
+	.handler(() => api.errors.redirect({ to: "_root_/kept" }))
+const moved = () => move().catch(() => "moved")
+if (typeof window !== "undefined") Object.assign(window, { __flareSignOut: signOut, __flarePing: ping, __flareMove: moved, __flareInvalidate: api.active.invalidate })
 const refresh = async (ctx) => {
 	const answer = await ctx.next()
 	const headers = new Headers(answer.headers)
 	headers.append("set-cookie", "session=r; Path=/")
 	return new Response(answer.body, { status: answer.status, headers })
 }
-const serverFns = { [signOut.id]: async () => signOut, [ping.id]: async () => ping }
+const serverFns = { [signOut.id]: async () => signOut, [ping.id]: async () => ping, [move.id]: async () => move }
 return {
 	router: api.router.createRouter({ layouts: { _root_: root }, routeTree, prefetch: false }),
 	server: { middleware: [refresh], serverFns },
@@ -212,6 +216,16 @@ async function invalidated(tab: Page): Promise<void> {
 	await rounds(tab, "/kept", [0])
 }
 
+// A server function's redirect follows a mutation, so its target loads fresh though it is held inside `staleTime`
+// (plan 21 8.6, BUGS.md 200).
+async function movedRound(tab: Page): Promise<void> {
+	const before = await runAt(tab, "/kept")
+	await click(tab, "/away")
+	await runAt(tab, "/away", "")
+	await inPage(tab, "__flareMove")
+	await remember(tab, (await runAt(tab, "/kept")) - before)
+}
+
 describe.each(ENGINES)("%s visitor", (engine) => {
 	it("cookie forgets", async () => {
 		const result = await run(engine, { app: VISITOR, path: "/kept", steps: cookieRounds })
@@ -223,6 +237,12 @@ describe.each(ENGINES)("%s visitor", (engine) => {
 		const result = await run(engine, { app: VISITOR, path: "/away", steps: cookiePrefetch })
 		expect(result.problems).toEqual([])
 		expect(kinds(result)).toEqual(["prefetch", "data"])
+	})
+
+	it("redirect refetches", async () => {
+		const result = await run(engine, { app: VISITOR, path: "/kept", steps: movedRound })
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual([1])
 	})
 
 	it("invalidate", async () => {
