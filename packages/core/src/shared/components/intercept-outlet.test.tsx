@@ -17,7 +17,7 @@ import { Matches } from "./outlet.tsx"
 import { useLoaderData, useParams, useSearch } from "./outlet-nodes.ts"
 
 const counts = { home: 0, photo: 0 }
-const seen: { state?: InterceptState; rootData?: unknown } = {}
+const seen: { state?: InterceptState; rootData?: unknown; photoProps?: Record<string, unknown> } = {}
 let view: (state: InterceptState) => JSX.Element = () => ""
 
 const root = createRootLayout("_root_").render((props) => {
@@ -43,6 +43,7 @@ const photo = createPage("_root_/photos/[id]")
 	.intercept({ from: ["_root_/"], render: "preview" })
 	.render((props) => {
 		counts.photo += 1
+		seen.photoProps = props
 		return [() => `photo:${String(props.loaderData)}`]
 	})
 // The overlay page reads its own route with its own id: the overlay's params, search, and loader data (B16).
@@ -412,4 +413,39 @@ it("overlay revalidate keeps history", async () => {
 		"/photos/1",
 		"_root_/photos/[id]",
 	])
+})
+
+// A revalidation, or a `replace` navigation inside the open overlay, refreshes it in place, as a page on screen is: the
+// child and the page are not built again, focus stays where the user put it, and the new values show (BUGS.md 315).
+it("overlay refresh keeps child", async () => {
+	let built = 0
+	view = (state) => {
+		built += 1
+		return [
+			button("first"),
+			button("second"),
+			() => `search:${String(Reflect.get(Object(state.search), "q"))}`,
+			state.match.render(),
+		]
+	}
+	const answers = ["P1", "P2", "P3"]
+	const app = await setup(async () => ndjson(photoFrames(answers.shift() ?? "P?")))
+	document.body.append(app.host)
+	await app.navigator.navigate(open)
+	flush()
+	const photos = counts.photo
+	const second = document.getElementById("second")
+	second?.focus()
+	await app.navigator.revalidate()
+	flush()
+	expect([built, counts.photo, document.activeElement === second]).toEqual([1, photos, true])
+	expect(app.text()).toContain("photo:P2")
+	await app.navigator.navigate({ ...open, search: { q: "a" }, replace: true })
+	flush()
+	expect([built, counts.photo, document.activeElement === second]).toEqual([1, photos, true])
+	expect(app.text()).toContain("search:a")
+	expect(app.text()).toContain("photo:P3")
+	const { params, search, preloaderContext } = seen.photoProps ?? {}
+	expect([params, search, preloaderContext]).toEqual([{ id: "1" }, { q: "a" }, { album: "a" }])
+	app.host.remove()
 })

@@ -5,6 +5,7 @@ import type { Located } from "../route-builder/index.ts"
 import type { Location } from "../url/index.ts"
 import { ownerGuard, type OutletMatch, type OutletState } from "./outlet.tsx"
 import { MatchesContext } from "./outlet-nodes.ts"
+import { defined } from "../errors/defined.ts"
 import { trapFocus } from "./overlay-focus.ts"
 
 // Raw, or what that file's `.input()` returned.
@@ -40,15 +41,22 @@ export const NO_OVERLAY = (): Overlay | undefined => undefined
 export const OverlayContext: Context<() => Overlay | undefined> = createContext<() => Overlay | undefined>(NO_OVERLAY)
 
 // The layout owns it. With no overlay the child is not called. The page component runs only when the child
-// calls `state.match.render`, and the target's layouts are not mounted here.
+// calls `state.match.render`, and the target's layouts are not mounted here. The child is built once per overlay route:
+// a revalidation, or a navigation inside the open overlay, refreshes its values in place, as a page on screen is, so
+// focus and a caret stay put (BUGS.md 315).
 export function InterceptOutlet(props: { children: (state: InterceptState) => JSX.Element }): JSX.Element {
 	const overlay = useContext(OverlayContext)
-	const view = createMemo(() => {
+	// Read only while the child is on screen, which is only while an overlay is open.
+	const latest = (): Overlay => defined(overlay(), "the open overlay")
+	const key = createMemo(() => {
 		const current = overlay()
-		if (current === undefined) return undefined
-		const shown = withOverlay(useContext(MatchesContext), current)
+		return current === undefined ? undefined : JSON.stringify([current.label, current.route])
+	})
+	const view = createMemo(() => {
+		if (key() === undefined) return undefined
+		const shown = withOverlay(useContext(MatchesContext), latest)
 		// Each overlay gets its own boundary, so a throw paints in the outlet and closing the overlay clears it (B41).
-		return untrack(() => ownerGuard(() => trapped(stateOf(current, shown), props.children)))
+		return untrack(() => ownerGuard(() => trapped(stateOf(latest, shown), props.children)))
 	})
 	// JSX.Element types a reactive child only inside an array, the shape compiled JSX gives a fragment.
 	return [view]
@@ -75,46 +83,68 @@ function elementsOf(value: unknown): Element[] {
 
 // The page's own hooks read the overlay as a match on screen, after the background chain. The target's layouts are
 // not mounted, so they are not added, and a hook naming one still throws (dx/navigate.md, BUGS.md B16).
-function withOverlay(outer: () => OutletState, overlay: Overlay): () => OutletState {
-	const match: OutletMatch = {
-		id: overlay.route,
-		kind: "page",
-		module: {},
-		params: overlay.params,
-		search: overlay.search,
-		data: overlay.data,
-		preloader: overlay.preloader,
-	}
+function withOverlay(outer: () => OutletState, overlay: () => Overlay): () => OutletState {
 	return () => {
 		const state = outer()
+		const current = overlay()
+		const match: OutletMatch = {
+			id: current.route,
+			kind: "page",
+			module: {},
+			params: current.params,
+			search: current.search,
+			data: current.data,
+			preloader: current.preloader,
+		}
 		return { ...state, matches: [...state.matches, match] }
 	}
 }
 
-function stateOf(overlay: Overlay, shown: () => OutletState): InterceptState {
-	const render = overlay.render
+// Every value reads the overlay on screen now, so a refresh reaches the child and the page without building them again.
+function stateOf(overlay: () => Overlay, shown: () => OutletState): InterceptState {
+	const page = {
+		get loaderData() {
+			return overlay().data
+		},
+		get params() {
+			return overlay().params
+		},
+		get search() {
+			return overlay().search
+		},
+		get preloaderContext() {
+			return overlay().preloader
+		},
+	}
 	return {
-		render: overlay.label,
+		get render() {
+			return overlay().label
+		},
 		match: {
-			loaderData: overlay.data,
-			render: () =>
-				render === undefined
+			get loaderData() {
+				return overlay().data
+			},
+			render: () => {
+				const render = untrack(overlay).render
+				return render === undefined
 					? undefined
 					: createComponent(MatchesContext, {
 							value: shown,
 							get children() {
-								return createComponent(render, {
-									loaderData: overlay.data,
-									params: overlay.params,
-									search: overlay.search,
-									preloaderContext: overlay.preloader,
-								})
+								return createComponent(render, page)
 							},
-						}),
+						})
+			},
 		},
-		params: overlay.params,
-		search: overlay.search,
-		backgroundLocation: overlay.background,
+		get params() {
+			return overlay().params
+		},
+		get search() {
+			return overlay().search
+		},
+		get backgroundLocation() {
+			return overlay().background
+		},
 		dismiss: () => history.back(),
 	}
 }
