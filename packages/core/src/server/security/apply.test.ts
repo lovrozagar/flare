@@ -205,6 +205,47 @@ it("route csp merge", () => {
 	expect(merged).toContain("frame-src https://video.example")
 })
 
+// A route's sources add to the policy the server sends, its defaults included: with no server CSP, or a server that
+// names other directives, `'self'` stays beside the route's origin (dx/server.md, BUGS.md 330).
+it("route csp adds to defaults", () => {
+	const route: SecurityConfig = { "Content-Security-Policy": { "script-src": ["https://cdn.example"] } }
+	for (const security of [undefined, { "Content-Security-Policy": { "img-src": ["https://img.example"] } }]) {
+		const policy =
+			applySecurity({
+				url: "https://flare.test/",
+				headers: new Headers(),
+				security,
+				route,
+				candidate: "n",
+			}).headers.get("content-security-policy") ?? ""
+		expect(policy).toContain("script-src 'self' https://cdn.example 'nonce-n'")
+		expect(policy).toContain("default-src 'self'")
+	}
+	// `style-src` feeds the element list too; a source replaces a list that is only `'none'`; the route's flags win.
+	const more = applySecurity({
+		url: "https://flare.test/",
+		headers: new Headers(),
+		route: {
+			"Content-Security-Policy": {
+				"style-src": ["https://css.example"],
+				"frame-ancestors": ["https://parent.example"],
+				"upgrade-insecure-requests": false,
+				"block-all-mixed-content": true,
+			},
+		},
+		candidate: "n",
+	}).headers.get("content-security-policy")
+	expect(more?.split("; ")).toEqual(
+		expect.arrayContaining([
+			"style-src 'self' https://css.example",
+			"style-src-elem 'self' https://css.example 'nonce-n'",
+			"frame-ancestors https://parent.example",
+			"block-all-mixed-content",
+		]),
+	)
+	expect(more).not.toContain("upgrade-insecure-requests")
+})
+
 // The CSP a route's security config gives.
 function framed(route: SecurityConfig): string {
 	return applySecurity({ url, headers: new Headers(), route }).headers.get("content-security-policy") ?? ""

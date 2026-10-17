@@ -58,11 +58,11 @@ export function applySecurity(input: {
 }): Secured {
 	const candidate = input.candidate ?? randomNonce()
 	const config = serverConfig(input.security, input.context, candidate)
-	const csp = mergedCsp(config["Content-Security-Policy"], input.route?.["Content-Security-Policy"])
+	const added = addedCsp(config["Content-Security-Policy"], input.route?.["Content-Security-Policy"])
 	const merged: SecurityConfig = {
 		...config,
 		...input.route,
-		...(csp !== undefined && { "Content-Security-Policy": csp }),
+		...(added !== undefined && { "Content-Security-Policy": config["Content-Security-Policy"] }),
 	}
 	const headers = new Headers(input.headers)
 	writeRoute(headers, input.routeHeaders)
@@ -71,6 +71,7 @@ export function applySecurity(input: {
 		nonce: candidate,
 		dev: input.dev === true,
 		csp: merged["Content-Security-Policy"],
+		...(added !== undefined && { add: added }),
 		permissions: merged["Permissions-Policy"],
 		frame: merged["X-Frame-Options"],
 	})
@@ -120,18 +121,13 @@ function copy(value: string | readonly string[]): string | string[] {
 	return typeof value === "string" ? value : [...value]
 }
 
-// A route's directives add their sources to the server's, each once, so a page that allows one more origin keeps the
-// server's own policy; a flag directive takes the route's value. A route string or `false` replaces the whole policy,
-// as does any route CSP over a server string (plan 21 14.1, v0's directive merge).
-function mergedCsp(
+// A route's directives add their sources to the policy the server sends, its defaults included, each once, so a page
+// that allows one more origin keeps the server's own policy; a flag directive takes the route's value (BUGS.md 330). A
+// route string or `false` replaces the whole policy, as does any route CSP over a server string (plan 21 14.1, v0's
+// directive merge).
+function addedCsp(
 	server: SecurityConfig["Content-Security-Policy"],
 	route: SecurityConfig["Content-Security-Policy"],
-) {
-	if (typeof server !== "object" || typeof route !== "object") return undefined
-	const lists: Record<string, unknown> = { ...server }
-	for (const [name, value] of Object.entries(route)) {
-		const kept = lists[name]
-		lists[name] = Array.isArray(value) && Array.isArray(kept) ? [...new Set([...kept, ...value])] : value
-	}
-	return lists as CspDirectives
+): CspDirectives | undefined {
+	return typeof route === "object" && typeof server !== "string" && server !== false ? route : undefined
 }
