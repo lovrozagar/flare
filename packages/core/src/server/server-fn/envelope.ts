@@ -13,6 +13,8 @@ export type Envelope = {
 	digest?: string
 	stack?: string
 	redirect?: { to: string; status: number; replace: boolean }
+	// The last line of a `.stream()` that finished (B140).
+	end?: true
 }
 
 export function okEnvelope(name: string, data: unknown): Envelope {

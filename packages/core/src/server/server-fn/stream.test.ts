@@ -47,10 +47,13 @@ function iterable(value: unknown): AsyncIterable<unknown> {
 	return value
 }
 
+// Each yield is a line, and a generator that finishes writes the end line last, so a client can tell a whole stream
+// from one cut short (plan 21 4.6, B140).
 it("two yields", async () => {
 	const body = streamEnvelopes("numbers", numbers(), { sink, basePath: "/" })
 	expect(await new Response(body).text()).toBe(
-		'{"name":"numbers","status":200,"data":1}\n{"name":"numbers","status":200,"data":2}\n',
+		'{"name":"numbers","status":200,"data":1}\n{"name":"numbers","status":200,"data":2}\n' +
+			'{"name":"numbers","status":200,"end":true}\n',
 	)
 	const request = new Request(`http://localhost/_flare/fn/${counted.id}`, {
 		method: "POST",
@@ -67,6 +70,7 @@ it("two yields", async () => {
 	expect(lines(await new Response(result.body).text())).toEqual([
 		{ name: "numbers", status: 200, data: 1 },
 		{ name: "numbers", status: 200, data: 2 },
+		{ name: "numbers", status: 200, end: true },
 	])
 })
 

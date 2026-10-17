@@ -1,4 +1,4 @@
-import { answerOf, envelopeOf, send, settle, type CallDeps, type CallTarget } from "./call.ts"
+import { answerOf, envelopeOf, send, ServerFnError, settle, type CallDeps, type CallTarget } from "./call.ts"
 import { chunksOf } from "../../shared/protocol/index.ts"
 
 const NDJSON = "application/x-ndjson"
@@ -30,17 +30,31 @@ export function streamServerFn(fn: CallTarget, input: unknown, deps: CallDeps): 
 	return iterator
 }
 
-// `.stream()` answers NDJSON, one envelope per yielded value (02-system). Each line yields its data, and a failure
-// line rejects the iterator after the values before it. A step that failed before the generator answers one JSON
-// envelope instead, which rejects as a call does.
+// `.stream()` answers NDJSON, one envelope per yielded value, then the end line (02-system, B140). Each line yields its
+// data, and a failure line rejects the iterator after the values before it. A body that stops before the end line,
+// mid-line included, was cut: it rejects with status 0, as a network failure has, never as a finished stream. A step
+// that failed before the generator answers one JSON envelope instead, which rejects as a call does.
 async function* read(fn: CallTarget, input: unknown, deps: CallDeps): AsyncGenerator<unknown> {
 	const response = await send(fn, input, deps)
-	if ((response.headers.get("content-type") ?? "").startsWith(NDJSON)) {
-		for await (const line of lines(response.body)) {
-			const wire = envelopeOf(JSON.parse(line)) ?? { status: 500, message: "A stream line is not an envelope" }
-			yield settle(wire, deps)
-		}
-	} else yield await answerOf(response, deps)
+	if (!(response.headers.get("content-type") ?? "").startsWith(NDJSON)) return yield await answerOf(response, deps)
+	for await (const line of lines(response.body)) {
+		const json = parsed(line)
+		if (json === CUT) break
+		if (Reflect.get(Object(json), "end") === true) return
+		yield settle(envelopeOf(json) ?? { status: 500, message: "A stream line is not an envelope" }, deps)
+	}
+	throw new ServerFnError({ status: 0, message: "The stream was cut before its end" })
+}
+
+const CUT = Symbol("cut")
+
+// A line that is not JSON is the part of one a cut left.
+function parsed(line: string): unknown {
+	try {
+		return JSON.parse(line)
+	} catch {
+		return CUT
+	}
 }
 
 // Whole lines only: a chunk may end inside one. The last line may have no newline.
