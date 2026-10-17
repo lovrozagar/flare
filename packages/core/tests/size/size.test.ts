@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { fileURLToPath } from "node:url"
 import { expect, it } from "vitest"
-import { breakdown } from "./breakdown.ts"
+import { breakdown, shipped } from "./breakdown.ts"
 
 const budgetPath = new URL("./budget.json", import.meta.url)
 const repo = fileURLToPath(new URL("../../../../", import.meta.url))
@@ -29,7 +29,7 @@ it("createPage alone", async () => {
 // events, the overlay's error payload, and the dev warnings sit behind `import.meta.env.DEV`, which a production bundle
 // replaces with false (plan 21 3.17).
 it("client without dev", async () => {
-	const result = await breakdown("client/boot/create-client.ts", "createClient")
+	const result = await shipped("client/boot/create-client.ts", "createClient")
 	// The tab's code is its `flare:tab` announcement; the shared protocol's header name is a bare constant.
 	for (const marker of ["flare:tab", "flare:error", "[flare:", "devErrorPayload"]) {
 		expect([marker, result.text.includes(marker)]).toEqual([marker, false])

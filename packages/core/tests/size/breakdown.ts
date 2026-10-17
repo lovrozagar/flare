@@ -41,6 +41,14 @@ export async function breakdown(module: string, name: string): Promise<Breakdown
 	return { minified: gzip(text), text, plain: total, modules, declarations }
 }
 
+// The minified bundle alone, as it ships, and its gzip size: what a budget reads, without the per-module and
+// per-declaration shares, which gzip the bundle once per piece and take minutes on a bundle of many declarations.
+export async function shipped(module: string, name: string): Promise<{ minified: number; text: string }> {
+	const source = fileURLToPath(new URL(`../../src/${module}`, import.meta.url))
+	const text = await bundle(source, name, true)
+	return { minified: gzip(text), text }
+}
+
 function gzip(text: string): number {
 	return gzipSync(encoder.encode(text), { level: 9, mtime: 0 }).length
 }
