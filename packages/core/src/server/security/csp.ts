@@ -50,6 +50,8 @@ export function buildCsp(input: {
 	nonce: string
 	dev?: boolean
 	csp?: SecurityConfig["Content-Security-Policy"]
+	// A route's directives, added to the server's policy (BUGS.md 330).
+	add?: CspDirectives
 	permissions?: SecurityConfig["Permissions-Policy"]
 	// The X-Frame-Options the answer sends, which the default `frame-ancestors` restates.
 	frame?: SecurityConfig["X-Frame-Options"]
@@ -85,10 +87,12 @@ function directivePolicy(input: {
 	nonce: string
 	dev: boolean
 	user: CspDirectives | undefined
+	add?: CspDirectives
 	frame?: SecurityConfig["X-Frame-Options"]
 }): string {
 	const lists = baseLists(input.frame)
 	if (input.user !== undefined) applyUser(lists, input.user)
+	if (input.add !== undefined) addUser(lists, input.add)
 	if (input.dev) applyDev(lists)
 	lists["script-src"] = [...lists["script-src"], `'nonce-${input.nonce}'`]
 	lists["style-src-elem"] = [...lists["style-src-elem"], `'nonce-${input.nonce}'`]
@@ -96,9 +100,11 @@ function directivePolicy(input: {
 		const list = lists[name]
 		return list === undefined ? [] : [[name, ...list.map((source) => checked(name, source))].join(" ")]
 	})
-	const upgrade = input.user?.["upgrade-insecure-requests"] ?? new URL(input.url).protocol === "https:"
-	if (upgrade) parts.push("upgrade-insecure-requests")
-	if (input.user?.["block-all-mixed-content"] === true) parts.push("block-all-mixed-content")
+	const flag = (name: "upgrade-insecure-requests" | "block-all-mixed-content") =>
+		input.add?.[name] ?? input.user?.[name]
+	if (flag("upgrade-insecure-requests") ?? new URL(input.url).protocol === "https:")
+		parts.push("upgrade-insecure-requests")
+	if (flag("block-all-mixed-content") === true) parts.push("block-all-mixed-content")
 	return parts.join("; ")
 }
 
@@ -143,6 +149,24 @@ function applyUser(lists: Lists, user: CspDirectives): void {
 	}
 	const styleSrc = user["style-src"]
 	if (styleSrc !== undefined && user["style-src-elem"] === undefined) lists["style-src-elem"] = [...styleSrc]
+}
+
+// A route's sources join each list once; a list that is only `'none'` takes the route's instead, since `'none'` beside
+// a source means nothing. `style-src` named without `style-src-elem` adds to the element list too (BUGS.md 330).
+function addUser(lists: Lists, added: CspDirectives): void {
+	for (const name of ORDER) {
+		const value = added[name]
+		if (value !== undefined) lists[name] = join(lists[name], value)
+	}
+	const styleSrc = added["style-src"]
+	if (styleSrc !== undefined && added["style-src-elem"] === undefined) {
+		lists["style-src-elem"] = join(lists["style-src-elem"], styleSrc)
+	}
+}
+
+function join(kept: readonly string[] | undefined, more: readonly string[]): string[] {
+	const base = kept?.length === 1 && kept[0] === "'none'" ? [] : (kept ?? [])
+	return [...new Set([...base, ...more])]
 }
 
 function applyDev(lists: Lists): void {
