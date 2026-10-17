@@ -10,7 +10,8 @@ export type FlareHistory = {
 	// pushed, and a jump of several entries is replayed one entry at a time. An entry with no state is one the browser
 	// just wrote, for a hash typed in the bar or a fragment link, on top of the one on screen: it is stamped as the next
 	// index, with no step to replay since the browser went to the fragment itself, so a Back off it is a step that
-	// restores (BUGS.md 318). State another script wrote is not Flare's: null.
+	// restores (BUGS.md 318). Flare owns its document's history, so an entry another script pushed with no state reads
+	// the same way, a Back onto it included (BUGS.md 325). Any other state another script wrote is not Flare's: null.
 	pop: (state: unknown, url: string) => number[] | null
 	index: () => number
 	// The URL the bar shows: of the entry adopted, pushed, replaced, or stepped to, one that is not Flare's included.
