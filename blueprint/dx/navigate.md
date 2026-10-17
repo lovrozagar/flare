@@ -96,12 +96,12 @@ No other prop exists. A `name` or `class` prop does not type-check (`view-transi
 | `useBlocker(fn)` | void. Only the last registered `fn` runs. It returns boolean. `false` cancels before the history write. If this attempt already pushed, `history.go` with the negative delta undoes it. The callback does not run for `"initial"`, popstate, or a same-URL revalidation. A hash-only move asks it as a data or shallow one does (`navigate-shallow.test.ts` `hash blocked`, BUGS.md 312). `beforeunload` calls it with `next` equal to `current` and `preventDefault` runs when it returns `false`, so a reload, a tab close, and a link that loads a document ask first; the client listens from boot until it is disposed (B84, BUGS.md 183) | returning `false` when `trigger` is `"initial"` does not run, because hydrate does not call the blocker | `client/navigation/blocker.test.ts` `cancel`, `initial`, `beforeunload`, `popstate skips`; `client/boot/leave.test.ts` `blocker unload`; `tests/integration/client.test.ts` `blocker unload` |
 | `usePreloaderContext({ from })` | the accumulated preloader context for that route. An empty chain is `{}` | a missing key does not type-check. This is not `undefined` | `outlet-nodes.test.ts` `preloader`; `propagation.test.ts` `preloader accumulate` |
 
-`useBlocker` argument (`blocker.test.ts` `fields`):
+`useBlocker` argument (`blocker.test.ts` `fields`, `leave.test.ts` `blocker params`):
 
 | field | outcome |
 | --- | --- |
-| `current` | `{ hash, pathname, search, params }` of the page that is showing |
-| `next` | the same shape, for the page the navigation wants |
+| `current` | `{ hash, pathname, search, params }` of the page that is showing. `params` are its raw path params, an absent optional one left out (BUGS.md 313) |
+| `next` | the same shape, for the page the navigation wants. A hash or shallow move keeps the page's params |
 | `trigger` | `"initial"`, `"navigation"`, or `"revalidation"`. The same set as `shouldRefetch` |
 
 A Back or Forward step whose matches the client cache holds, at any age, paints them at once with no request, as bfcache would; a match past its `staleTime` then revalidates once in place, writing no history, keeping the scroll the step restored, and with no view transition of its own (`navigate-transition.test.ts` `held back once`) (B137, `client/router/match-cache.test.ts` `pop held`, `client/navigation/navigate-cache.test.ts` `back paints held`, `tests/integration/history-client.test.ts` `back paints held` in chromium, firefox, and webkit, BUGS.md 229). A step the cache cannot cover, a match it never held, one evicted, an unfilled deferred value, or a page whose `shouldRefetch` asks, fetches before it commits, as any navigation does.

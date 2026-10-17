@@ -9,7 +9,7 @@ import { loadChain } from "../../shared/router/load-chain.ts"
 import type { ServerFnCall } from "../../shared/server-fn/builder.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { createHistory, type FlareHistory } from "../history/index.ts"
-import { createBlockers, type Blockers } from "../navigation/blocker.ts"
+import { createBlockers, placeIn, type Blockers } from "../navigation/blocker.ts"
 import { revive, type Pending } from "../navigation/frames.ts"
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts"
 import { createArrival } from "../navigation/arrival.ts"
@@ -220,7 +220,7 @@ function listen(router: Router, navigator: Navigator, parts: Parts): () => void 
 	const onPop = (event: PopStateEvent): void => void pop(event.state)
 	const onShow = (event: PageTransitionEvent): void => navigator.pageshow(event.persisted)
 	const onLeave = (event: Event): void =>
-		parts.blockers.beforeUnload(event, { ...parts.store.snapshot().location, params: {} })
+		parts.blockers.beforeUnload(event, placeIn(router, parts.store.snapshot().location))
 	window.addEventListener("popstate", onPop)
 	window.addEventListener("pageshow", onShow)
 	window.addEventListener("beforeunload", onLeave)

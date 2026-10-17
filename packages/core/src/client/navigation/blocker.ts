@@ -7,6 +7,7 @@ import {
 	type Blockers,
 	type BlockerSteps,
 } from "../../shared/router/context.ts"
+import type { Router } from "../../shared/router/create-router.ts"
 import type { Location } from "../../shared/url/index.ts"
 
 export { BlockerContext, type Blocker, type BlockerArgs, type BlockerPlace, type Blockers, type BlockerSteps }
@@ -62,12 +63,20 @@ function href(place: BlockerPlace): string {
 // navigate asks the blocker before it writes anything, so nothing was pushed and history.go is not reached.
 export function allowsNavigation(
 	blockers: Blockers,
+	router: Router,
 	move: { current: Location; next: Location; trigger: BlockerArgs["trigger"] },
 ): boolean {
 	const steps = { write: () => undefined, pushed: 0, go: history.go.bind(history) }
-	return blockers.run({ current: place(move.current), next: place(move.next), trigger: move.trigger }, steps)
+	const args = { current: placeIn(router, move.current), next: placeIn(router, move.next), trigger: move.trigger }
+	return blockers.run(args, steps)
 }
 
-function place(location: Location): BlockerPlace {
-	return { ...location, params: {} }
+// A side of a move as the blocker reads it: the location and its page's raw params, an optional one left out when
+// absent (dx/navigate.md `useBlocker`, BUGS.md 313).
+export function placeIn(router: Router, location: Location): BlockerPlace {
+	const params: BlockerPlace["params"] = {}
+	for (const [key, value] of Object.entries(router.match(location.pathname).params)) {
+		if (value !== undefined) params[key] = value
+	}
+	return { pathname: location.pathname, search: location.search, hash: location.hash, params }
 }

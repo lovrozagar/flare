@@ -99,7 +99,7 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 			return void (at = stay(deps, target, { options, snapshot, pop, cancel: requests.cancel }) ?? at)
 		const plan = planOf({ target, options, snapshot, mode: { ...mode, at }, here: barOf(deps.history) })
 		const move = { current: snapshot.location, next: target.location, trigger: plan.trigger }
-		if (!pop && !allowsNavigation(deps.blockers, move)) return
+		if (!pop && !allowsNavigation(deps.blockers, deps.router, move)) return
 		const controller = requests.start(plan.fill)
 		// A stored landing's `"stream"` hole: once this page commits, one fill asks for its values.
 		const watch = holeWatch(deps, target.location, (pending) => again({ fill: pending }))
