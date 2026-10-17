@@ -1,6 +1,5 @@
 import { navigationRequests } from "./requests.ts"
 import { flush } from "solid-js"
-import type { OutletMatch } from "../../shared/components/index.ts"
 import type { DevErrorPayload } from "../../shared/errors/index.ts"
 import type { Intercept } from "../../shared/route-builder/chain.ts"
 import type { LoadedEntry, Router, ViewTransitionOptions } from "../../shared/router/create-router.ts"
@@ -15,7 +14,7 @@ import {
 	type Direction,
 } from "../view-transition/index.ts"
 import { allowsNavigation, type Blockers } from "./blocker.ts"
-import { keepPosition, land, scrollFor } from "./steps.ts"
+import { inPlace, keepPosition, land, scrollFor } from "./steps.ts"
 import { follow, leaveable, type Leaving } from "./leaving.ts"
 import { endOf, type Landed, type Pending } from "./frames.ts"
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts"
@@ -79,13 +78,13 @@ export type Navigator = Leaving & {
 	revalidate: () => Promise<void>
 }
 
-// Same-origin only. The DOM commits, then history is written. A revalidation of the current URL writes no
-// history. Starting a navigation aborts the previous one, and only the latest may commit (02-system). A
-// restore is one popstate step: the browser already moved, so no blocker runs, nothing is written, and the
-// saved scroll comes back. Back onto an overlay's background clears the overlay, with no fetch and no scroll.
+// Same-origin only. The DOM commits, then history is written; a revalidation of the current URL writes none. A new
+// navigation aborts the previous one, and only the latest may commit (02-system). A restore is one popstate step: the
+// browser already moved, so no blocker runs, nothing is written, the saved scroll comes back, and one that commits
+// nothing loads its URL (stuck). Back onto an overlay's background clears it, with no fetch and no scroll.
 // After a document load it began, the page is leaving (leaving.ts, BUGS.md 129).
 export function createNavigator(given: NavigatorDeps): Navigator {
-	const { deps, away, ...leave } = leaveable(given)
+	const { deps, away, leaving, ...leave } = leaveable(given)
 	const requests = navigationRequests()
 	// The history index the screen shows, so a popstate step knows its view-transition direction.
 	let at = deps.history.index()
@@ -103,7 +102,7 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		// A stored landing's `"stream"` hole: once this page commits, one fill asks for its values.
 		const watch = holeWatch(deps, target.location, (pending) => again({ fill: pending }))
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes }
-		const outcome = await travel(deps, plan, { trip, current: () => requests.latest(controller) })
+		const outcome = await travel(deps, plan, { trip, current: () => requests.latest(controller), leaving })
 		// The target takes the entry this navigation would have taken: a push pushes it, and a replace or a Back or
 		// Forward step, which the browser already took, replaces. A loop stops after MAX_REDIRECTS (plan 21 3.10).
 		if (outcome.kind === "redirect") {
@@ -154,12 +153,12 @@ type Outcome = { kind: "redirect"; url: string } | { kind: "committed"; stale: b
 async function travel(
 	deps: NavigatorDeps,
 	plan: Plan,
-	input: { trip: Trip; current: () => boolean },
+	input: { trip: Trip; current: () => boolean; leaving: () => boolean },
 ): Promise<Outcome> {
 	const end = deps.navigation.begin()
 	try {
 		const settled = await arrived(deps, input.trip, end)
-		if (!input.current() || settled === undefined || settled.arrival.kind === "none") return { kind: "none" }
+		if (!input.current() || settled === undefined || settled.arrival.kind === "none") return stuck(deps, plan, input)
 		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined
 		if (redirect !== undefined) return { kind: "redirect", url: redirect.url }
 		const landed = { chain: settled.chain, arrival: settled.arrival, signal: input.trip.signal, end }
@@ -167,6 +166,14 @@ async function travel(
 	} finally {
 		end()
 	}
+}
+
+// A Back or Forward step the browser already took that commits nothing, a failed request or a bad input, and is still
+// the latest, loads its URL as a document, so the screen matches the URL; one a document load already overtook does
+// not (plan 21 12.4).
+function stuck(deps: NavigatorDeps, plan: Plan, input: { current: () => boolean; leaving: () => boolean }): Outcome {
+	if (plan.pop && input.current() && !input.leaving()) deps.assign(plan.target.url)
+	return { kind: "none" }
 }
 
 // A fill settles its holes through the slots the page already reads, so it commits once its values are all in: a commit
@@ -270,31 +277,4 @@ async function settle(
 	if (!(await shown)) return { kind: "none" }
 	land(deps, target, { ...step, scrolled })
 	return { kind: "committed", stale: arrival.kind === "landed" && arrival.stale === true }
-}
-
-// A hash move and a shallow navigation stay on the page: no request and no loader. A shallow one asks the blocker
-// first, and the page's search becomes the call's, the validator output the URL was written from, since the client
-// graph has no validator. Layouts keep theirs until their next loader run (dx/navigate.md `shallow`, BUGS.md B18).
-// The returned history index keeps the navigator's `at`: invariant upkeep with no observable effect, since only a
-// data pop reads `at` and a pop off a hash entry is a hash move.
-function inPlace(
-	deps: NavigatorDeps,
-	target: Exclude<Target, { kind: "document" | "data" }>,
-	step: { options: NavigateOptions; snapshot: StoreSnapshot; pop: boolean },
-): number | undefined {
-	const { snapshot } = step
-	let matches = snapshot.matches
-	if (target.kind === "shallow") {
-		const move = { current: snapshot.location, next: target.location, trigger: "navigation" as const }
-		if (!allowsNavigation(deps.blockers, move)) return undefined
-		const search = { ...target.search } as OutletMatch["search"]
-		matches = matches.map((match, index) => (index === matches.length - 1 ? { ...match, search } : match))
-	}
-	// The URL already current replaces its entry, as the browser does (BUGS.md 148).
-	const again = target.url === `${snapshot.location.pathname}${snapshot.location.search}${snapshot.location.hash}`
-	const moved = { options: again ? { ...step.options, replace: true } : step.options, pop: step.pop, write: true }
-	keepPosition(deps, snapshot.location, moved)
-	void deps.store.commit({ ...snapshot, location: target.location, matches })
-	land(deps, target, moved)
-	return deps.history.index()
 }

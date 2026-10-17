@@ -17,6 +17,7 @@ export type Leaving = {
 export function leaveable(given: NavigatorDeps): Leaving & {
 	deps: NavigatorDeps
 	away: (target: Exclude<Target, { kind: "document" }>) => boolean
+	leaving: () => boolean
 } {
 	let leaving = false
 	const assign = (href: string): void => {
@@ -35,6 +36,7 @@ export function leaveable(given: NavigatorDeps): Leaving & {
 		pageshow: (persisted) => {
 			if (persisted) leaving = false
 		},
+		leaving: () => leaving,
 		away: (target) => {
 			if (!leaving) return false
 			if (!sameUrl(given.store.snapshot().location, target.location)) assign(target.url)

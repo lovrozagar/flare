@@ -1,5 +1,9 @@
+import type { OutletMatch } from "../../shared/components/index.ts"
 import type { Location } from "../../shared/url/index.ts"
+import type { StoreSnapshot } from "../router/store.ts"
+import { allowsNavigation } from "./blocker.ts"
 import type { NavigateOptions, NavigatorDeps } from "./navigate.ts"
+import type { Target } from "./target.ts"
 
 // What a committed navigation does to history and scroll (navigate.ts).
 
@@ -27,4 +31,31 @@ export function scrollFor(deps: NavigatorDeps, location: Location, step: Step): 
 function writeHistory(deps: NavigatorDeps, url: string, options: NavigateOptions): void {
 	if (options.replace === true) deps.history.replace(url, options.state)
 	else deps.history.push(url, options.state)
+}
+
+// A hash move and a shallow navigation stay on the page: no request and no loader. A shallow one asks the blocker
+// first, and the page's search becomes the call's, the validator output the URL was written from, since the client
+// graph has no validator. Layouts keep theirs until their next loader run (dx/navigate.md `shallow`, BUGS.md B18).
+// The returned history index keeps the navigator's `at`: invariant upkeep with no observable effect, since only a
+// data pop reads `at` and a pop off a hash entry is a hash move.
+export function inPlace(
+	deps: NavigatorDeps,
+	target: Exclude<Target, { kind: "document" | "data" }>,
+	step: { options: NavigateOptions; snapshot: StoreSnapshot; pop: boolean },
+): number | undefined {
+	const { snapshot } = step
+	let matches = snapshot.matches
+	if (target.kind === "shallow") {
+		const move = { current: snapshot.location, next: target.location, trigger: "navigation" as const }
+		if (!allowsNavigation(deps.blockers, move)) return undefined
+		const search = { ...target.search } as OutletMatch["search"]
+		matches = matches.map((match, index) => (index === matches.length - 1 ? { ...match, search } : match))
+	}
+	// The URL already current replaces its entry, as the browser does (BUGS.md 148).
+	const again = target.url === `${snapshot.location.pathname}${snapshot.location.search}${snapshot.location.hash}`
+	const moved = { options: again ? { ...step.options, replace: true } : step.options, pop: step.pop, write: true }
+	keepPosition(deps, snapshot.location, moved)
+	void deps.store.commit({ ...snapshot, location: target.location, matches })
+	land(deps, target, moved)
+	return deps.history.index()
 }
