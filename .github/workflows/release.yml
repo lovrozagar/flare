@@ -163,8 +163,12 @@ jobs:
             echo "GitHub Packages already has ${name}@${tag} — skipping"
             exit 0
           fi
+          # A prerelease tag, v1.0.0-rc.1 say, publishes under `next`, as scripts/release.ts does to npm.
+          dist=""
+          case "${tag%%+*}" in *-*) dist="--tag next" ;; esac
           set +e
-          npm publish "$tarball" --access public --registry https://npm.pkg.github.com
+          # shellcheck disable=SC2086
+          npm publish "$tarball" --access public --registry https://npm.pkg.github.com $dist
           pub=$?
           set -e
           if [ "$pub" -eq 0 ]; then
@@ -193,5 +197,9 @@ jobs:
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "GitHub release $tag already exists"
           else
-            gh release create "$tag" --generate-notes --title "${tag#v}"
+            # A prerelease tag's release is marked a prerelease, so it is never shown as the latest.
+            prerelease=""
+            case "${tag%%+*}" in *-*) prerelease="--prerelease" ;; esac
+            # shellcheck disable=SC2086
+            gh release create "$tag" --generate-notes --title "${tag#v}" $prerelease
           fi

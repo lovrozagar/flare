@@ -171,6 +171,13 @@ function refuse(deps: ReleaseDeps, reason: string): number {
 	return 1
 }
 
+// A version with a prerelease part, `1.0.0-rc.1` say, publishes under the `next` dist-tag: npm would otherwise make it
+// `latest`, which every plain install takes, and npm 11 refuses a prerelease with no tag. Build metadata after `+` is
+// not a prerelease.
+export function distTag(version: string): string[] {
+	return version.split("+")[0]?.includes("-") === true ? ["--tag", "next"] : []
+}
+
 function publish(deps: ReleaseDeps, tarball: string, extra: readonly string[]): number {
 	const result = deps.run("npm", ["publish", tarball, "--access", "public", ...extra])
 	return result.status === 0 ? 0 : refuse(deps, `npm publish exited ${result.status}`)
@@ -193,7 +200,7 @@ function dryRun(flags: Flags, version: string, deps: ReleaseDeps): number {
 	})
 	if (golden.status !== 0) return refuse(deps, `the golden test failed on ${tarball}`)
 	deps.log(`release: ${tarball} verified`)
-	return publish(deps, tarball, ["--dry-run"])
+	return publish(deps, tarball, ["--dry-run", ...distTag(version)])
 }
 
 // Only a GitHub Actions run of the manifest version's tag publishes, and only the tarball the verify job checked.
@@ -205,7 +212,7 @@ function publishVerified(flags: Flags, version: string, deps: ReleaseDeps): numb
 	if (flags.tarball === undefined) return refuse(deps, "--publish needs --tarball, the tarball the verify job checked")
 	const expected = `lovrozagar-flare-${version}.tgz`
 	if (basename(flags.tarball) !== expected) return refuse(deps, `${basename(flags.tarball)} is not ${expected}`)
-	return publish(deps, flags.tarball, ["--provenance"])
+	return publish(deps, flags.tarball, ["--provenance", ...distTag(version)])
 }
 
 // `bun scripts/release.ts`: a dry run that ends at `npm publish --dry-run`. `--publish --tarball <tgz>` is the release

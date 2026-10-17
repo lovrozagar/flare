@@ -80,7 +80,8 @@ npm renders the tarball's README, which is the root `README.md`, and has no repo
 | `refuses red` | the command is invoked with a flag that points at a failing test fixture | non-zero, nothing published |
 | `tag` | a clean green tree | the gates run, the golden test runs on the packed tarball, and that tarball, whose version equals the git tag, goes to `npm publish --dry-run`. `@lovrozagar/flare-fonts` is not published. A tag that is not the manifest's version is refused before anything is packed |
 | `publish outside actions` | `--publish` locally, or in GitHub Actions on a branch ref | non-zero, naming the rule. Nothing reaches npm |
-| `publish wrong tag` | `--publish` in GitHub Actions on another version's tag, with no `--tarball`, or with a tarball not named `lovrozagar-flare-<version>.tgz` | non-zero, and nothing reaches npm. On `refs/tags/v<version>` with that tarball it runs `npm publish <tgz> --access public --provenance` |
+| `publish wrong tag` | `--publish` in GitHub Actions on another version's tag, with no `--tarball`, or with a tarball not named `lovrozagar-flare-<version>.tgz` | non-zero, and nothing reaches npm. On `refs/tags/v<version>` with that tarball it runs `npm publish <tgz> --access public --provenance`, plus `--tag next` for a prerelease version |
+| `dist tag` | a version with a prerelease part, `1.0.0-rc.1`, or build metadata, `1.0.0+build.7` | a prerelease publishes with `--tag next`, to npm through `scripts/release.ts` and to GitHub Packages in `release.yml`, and its GitHub Release is created with `--prerelease`; build metadata alone is not a prerelease, so a plain version keeps `latest`. npm would otherwise make a prerelease `latest`, and npm 11 refuses one with no tag (flare-e4's RC request; `tests/structure/workflows.test.ts` `prerelease tags`) |
 
 ## `tests/e2e/golden.test.ts`
 
