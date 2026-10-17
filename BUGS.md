@@ -1054,6 +1054,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 213 [x] A navigation that committed nothing left the current page's deferred values pending forever
 213.1 [x] Plan 21 13.11: starting a navigation aborted the previous request, and after its commit that request is still the one streaming the page's deferred values, which stay pending once it aborts (frames.ts assumes a newer page owns the screen). When the new navigation commits nothing, an input failure (400) or a blocked one, the page stays on screen with values that never settle. Red: navigate-fill.test `uncommitted keeps stream` (still pending 200 ms after its frame was ready).
 213.2 [x] Fix: client/navigation/requests.ts. Starting a navigation aborts only the newest request that has not committed; the one whose page is on screen streams on until another page commits, which aborts it.
+214 [x] Closing an overlay after searching inside it took one Back per search
+214.1 [x] Plan 21 13.12: an overlay entry was always a push, even with `replace`, so each search inside the open docs search overlay, which navigates with `replace: true`, pushed another overlay entry, and dismissing it (`history.back()`) stepped through every search before reaching the page beneath. Red: tests/integration/overlay-client.test.ts `replace inside an overlay` on every engine (one Back landed on `/photo?n=2`, overlay open). The language-switch half of the item is by design: switching locale moves the background page to another locale's URL, which the overlay does not intercept, so it closes; dx/navigate.md and B84 say so.
+214.2 [x] Fix, decision B84 revised: opening an overlay still pushes its entry; a navigation inside the open overlay with `replace` replaces that entry and keeps it intercepted (client/history/history.ts `replace(url, usr, intercepted)`, client/navigation/overlay.ts `writeEntry`).
 
 ## Verify
 

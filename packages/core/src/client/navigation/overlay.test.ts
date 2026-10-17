@@ -2,7 +2,8 @@ import { expect, it } from "vitest"
 import type { Overlay } from "../../shared/components/index.ts"
 import type { Match } from "../../shared/router/create-router.ts"
 import type { StoreSnapshot } from "../router/store.ts"
-import { closesOverlay, overlayFor } from "./overlay.ts"
+import { createMatchCache } from "../router/match-cache.ts"
+import { closesOverlay, overlayFor, showOverlay, type OverlayDeps, type Shown } from "./overlay.ts"
 
 const intercept = { from: ["_root_/"], render: "preview" }
 const home = { pathname: "/", search: "", hash: "" }
@@ -54,4 +55,34 @@ it("closes", () => {
 	expect(closesOverlay(snapshot("_root_/", open), "/")).toEqual(snapshot("_root_/"))
 	expect(closesOverlay(snapshot("_root_/", open), "/elsewhere")).toBeUndefined()
 	expect(closesOverlay(snapshot("_root_/"), "/")).toBeUndefined()
+})
+
+// Opening the overlay pushes its entry. A navigation inside the open overlay with `replace` replaces that entry, so one
+// Back still closes it; one without `replace` pushes (plan 21 13.12, BUGS.md 214).
+it("overlay entry", () => {
+	const written: string[] = []
+	const deps = {
+		cache: createMatchCache({ staleTime: 0, gcTime: 60_000 }),
+		store: { commit: async () => undefined },
+		history: {
+			index: () => 1,
+			push: (url: string) => void written.push(`push ${url}`),
+			replace: (url: string) => void written.push(`replace ${url}`),
+		},
+		scroll: { save: () => undefined },
+	} as unknown as OverlayDeps
+	const page = { id: "_root_/photos/[id]", kind: "page" as const, module: {} }
+	const shown = (previous: StoreSnapshot, replace: boolean): Shown => ({
+		target: target({ chain: [page] }),
+		chain: [page],
+		landing: { data: { [page.id]: "P1" }, heads: {} },
+		previous,
+		intercept,
+		write: true,
+		options: { replace },
+	})
+	showOverlay(deps, shown(snapshot("_root_/"), true))
+	showOverlay(deps, shown(snapshot("_root_/", open), true))
+	showOverlay(deps, shown(snapshot("_root_/", open), false))
+	expect(written).toEqual(["push /photos/1", "replace /photos/1", "push /photos/1"])
 })

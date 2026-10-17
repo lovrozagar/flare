@@ -39,7 +39,8 @@ export type Shown = {
 	previous: StoreSnapshot
 	intercept: Intercept
 	write: boolean
-	state: unknown
+	// The navigation's own: its `state`, and its `replace`, which inside an open overlay replaces the entry.
+	options: { state?: unknown; replace?: boolean | undefined }
 }
 
 // A navigation from a page the target lists in `from` opens the target over it. A revalidation refreshes the open
@@ -57,8 +58,9 @@ export function overlayFor(
 	return intercept.from.includes(page.id) ? intercept : undefined
 }
 
-// The background keeps its matches, its head, and its scroll. The overlay entry is always a push, saved as
-// `{ index, intercepted: true }`, even when `replace` is set. A page skipped as stale reads its cached data.
+// The background keeps its matches, its head, and its scroll. Opening the overlay always pushes its entry, saved as
+// `{ index, intercepted: true }`, even when `replace` is set; a navigation inside the open overlay with `replace`
+// replaces that entry. A page skipped as stale reads its cached data.
 export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 	const { target, previous, landing } = shown
 	const cached = cachedMatches(target.match, target.location)
@@ -83,9 +85,19 @@ export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 	commitQueries(shown.landing)
 	void deps.store.commit({ ...previous, overlay })
 	flush()
+	writeEntry(deps, shown)
+}
+
+// Opening the overlay pushes its entry; a navigation inside the open overlay with `replace` replaces it, so one Back
+// still closes it (plan 21 13.12).
+function writeEntry(deps: OverlayDeps, shown: Shown): void {
 	if (!shown.write) return
+	const { target, previous, options } = shown
+	if (previous.overlay !== undefined && options.replace === true) {
+		return deps.history.replace(target.url, options.state, true)
+	}
 	deps.scroll.save(deps.history.index(), previous.location)
-	deps.history.push(target.url, shown.state, true)
+	deps.history.push(target.url, options.state, true)
 }
 
 // Back onto the background entry: the overlay clears, with no fetch and no scroll.
