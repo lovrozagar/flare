@@ -211,6 +211,28 @@ it("boundary transform", () => {
 	expect(run("client", "/app/src/plain.ts", "export const a = 1;\n")).toBeNull()
 })
 
+// A server function outside src/ would answer 404 on every call, since codegen registers src/ alone: under the root it
+// gets an id no server knows, outside it none. Dev and the build fail naming the file. A test run (mode "test") may
+// define one in a test file; a dependency, Flare's own source, and a module with none pass (plan 21 8.7, BUGS.md 201).
+it("server function home", () => {
+	const hook = flare().find((item) => item.name === "flare:boundary")?.transform
+	if (typeof hook !== "function") throw new Error("transform")
+	const fn =
+		'import { createServerFn } from "@lovrozagar/flare/server-fn";\nexport const echo = createServerFn().handler(h);\n'
+	const run = (id: string, mode?: string, source = fn): unknown =>
+		Reflect.apply(hook, { environment: { name: "client", config: { root: "/app", mode } } }, [source, id])
+	const outside = "is a server function outside src/. Codegen registers only src/, so every call would be a 404"
+	expect(() => run("/app/lib/echo.ts")).toThrow(`lib/echo.ts: echo ${outside}`)
+	expect(() => run("/elsewhere/shared/echo.ts")).toThrow(`/elsewhere/shared/echo.ts: echo ${outside}`)
+	expect(code(run("/app/src/fns/echo.ts"))).toContain("__id")
+	expect(code(run("/app/lib/echo.ts", "test"))).toContain("__id")
+	const flareSource = fileURLToPath(new URL("../../exports/server-fn.ts", import.meta.url))
+	for (const id of ["/app/node_modules/x/echo.ts", "/elsewhere/node_modules/x/echo.ts", flareSource]) {
+		expect(run(id)).toBeNull()
+	}
+	expect(run("/app/lib/plain.ts", undefined, "export const createServerFn = 1;\n")).toBeNull()
+})
+
 it("hmr keeps split", async () => {
 	const root = realpathSync(mkdtempSync(join(tmpdir(), "flare-hmr-")))
 	mkdirSync(join(root, "src"))

@@ -490,6 +490,8 @@ packages/core/src/vite/boundary/split.ts	P7	src	vite	Remove stripped methods and
 packages/core/src/vite/boundary/split.test.ts	P7	test	vite	Unit cases for split.ts
 packages/core/src/vite/boundary/reads.ts	P7	src	vite	Which module-scope names kept code reads: references only, resolved through function, block, catch, class, for, and switch scopes
 packages/core/src/vite/boundary/reads.test.ts	P7	test	vite	Unit cases for reads.ts
+packages/core/src/vite/boundary/home.ts	P7	src	vite	Fail dev and the build on a server function outside src/, which codegen never registers (BUGS.md 201)
+packages/core/src/vite/boundary/home.test.ts	P7	test	vite	Unit cases for home.ts
 packages/core/src/vite/boundary/transform.ts	P7	src	vite	The boundary transform of one module per graph: one parse for split, the env rewrite, the server function ids, and import pruning
 packages/core/src/vite/boundary/transform.test.ts	P7	test	vite	Unit cases for transform.ts
 packages/core/src/vite/boundary/env.ts	P7	src	vite	oxc rewrite of createServerOnlyFn, createClientOnlyFn, and createIsomorphicFn
@@ -498,6 +500,8 @@ packages/core/src/vite/boundary/tripwire.ts	P7	src	vite	Fail the build when an e
 packages/core/src/vite/boundary/tripwire.test.ts	P7	test	vite	Unit cases for tripwire.ts
 packages/core/src/vite/boundary/build.fixture.ts	P7	test	vite	A fixture app built by Vite through flare()'s boundary transform, per graph, for the tripwire and the env helpers' cases
 packages/core/src/vite/boundary/index.ts	P7	index	vite	Re-exports
+packages/core/src/vite/plugin/app-module.ts	P1	src	vite	Which module ids are the app's: root-relative for the boundary, absolute outside the root for the server-function check (BUGS.md 201)
+packages/core/src/vite/plugin/app-module.test.ts	P1	test	vite	Unit cases for app-module.ts
 packages/core/src/vite/plugin/flare.ts	P1	src	vite	The Vite plugin. Calls solid with ssr true and does not pass start (B89)
 packages/core/src/vite/plugin/asset-headers.ts	P12	src	node	The Workers client build's `_headers`: hashed assets immutable, merged with the app's (B130)
 packages/core/src/vite/plugin/asset-headers.test.ts	P12	test	node	Unit cases for asset-headers.ts

@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs"
-import { isAbsolute, relative, resolve, sep } from "node:path"
+import { isAbsolute, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import solid from "@solidjs/vite-plugin"
 import type { Plugin, UserConfig } from "vite"
-import { boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts"
+import { assertRegistered, boundaryTransform, checkChunk, graphOf, type Graph } from "../boundary/index.ts"
 import { chunkReferences, fillClosures, watchGenerated, writeGenerated } from "../codegen/index.ts"
 import { inject } from "../css/index.ts"
 import { imageEndpoint, imagePlugin } from "../../features/image/vite/index.ts"
@@ -20,16 +20,13 @@ import { assetUrl, buildConfig, environmentBuild, PRERENDER_ENV, SERVER_BUNDLED 
 import { readWrangler } from "./wrangler.ts"
 import { assetHeadersPlugin } from "./asset-headers.ts"
 import { realPath } from "./real-path.ts"
+import { appModule } from "./app-module.ts"
 import { preloadPlugin } from "./preload.ts"
 import { checkCloudflare, composesCloudflare, WORKER_MAIN } from "./cloudflare.ts"
 import { parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts"
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
 const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)))
-
-// The query keys Vite itself adds to an app module: a hot update's timestamp, a dependency hash, and an import
-// marker. Any other query, such as `?raw`, `?url`, `?worker`, or `?inline`, asks for something that is not the module.
-const VITE_QUERY = new Set(["t", "v", "import"])
 
 // The environments that run the server entry. Each loads build-info.ts with the build id and the client entry URL.
 const SERVER_ENVIRONMENTS = new Set(["ssr", PRERENDER_ENV])
@@ -256,9 +253,12 @@ function boundary(fixed?: Graph): Plugin {
 		name: "flare:boundary",
 		enforce: "pre",
 		transform(code, id) {
-			const file = appModule(rootsOf(this.environment.config.root), id)
-			if (file === undefined) return null
-			return boundaryTransform(file, code, fixed ?? graphOf(this.environment.name)) ?? null
+			const { root, mode } = this.environment.config
+			const found = appModule(rootsOf(root), id, PACKAGE_SRC)
+			if (found === undefined) return null
+			if (mode !== "test") assertRegistered(found.file, code)
+			if (!found.app) return null
+			return boundaryTransform(found.file, code, fixed ?? graphOf(this.environment.name)) ?? null
 		},
 		// Every module of every chunk, with its final code, before the chunk is written.
 		renderChunk(_code, chunk) {
@@ -268,20 +268,6 @@ function boundary(fixed?: Graph): Plugin {
 			return null
 		},
 	}
-}
-
-// A script module of the app: under the root, outside its dependencies, and with no query but Vite's own. The path
-// is root-relative with forward slashes, the form the B41 id hashes.
-function appModule(roots: readonly string[], id: string): string | undefined {
-	const path = id.replace(/\?.*$/s, "")
-	const query = id.slice(path.length + 1)
-	if (![...new URLSearchParams(query).keys()].every((key) => VITE_QUERY.has(key))) return undefined
-	if (path.startsWith("\0") || !/\.[cm]?[jt]sx?$/.test(path)) return undefined
-	for (const root of roots) {
-		const file = relative(root, path).split(sep).join("/")
-		if (!file.startsWith("../") && !isAbsolute(file)) return file.split("/").includes("node_modules") ? undefined : file
-	}
-	return undefined
 }
 
 // A public bind would expose the dev server.

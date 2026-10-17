@@ -175,12 +175,16 @@ it("server fn import", async () => {
 })
 
 it("outside root", async () => {
-	// A workspace module outside the app root is never transformed, so its body reaches the chunk and fails it.
+	// A workspace module outside the app root is never transformed, so its server-only body reaches the chunk and fails
+	// it. A server function there fails sooner, at the transform, since no server would register it (BUGS.md 201).
 	const workspace = fixture({
+		"lib/only.ts": `${ENV}export const read = createServerOnlyFn(() => "SENTINEL_ONLY");\n`,
 		"lib/fns.ts": `${FN}export const echo = createServerFn().handler(() => "SENTINEL_FN");\n`,
 	})
-	const root = fixture({ "src/client.ts": KEEP(`${workspace}/lib/fns.ts`) })
-	await expect(build(root, "client")).rejects.toThrow(/lib\/fns\.ts holds code the client graph must not contain/)
+	const root = fixture({ "src/client.ts": KEEP(`${workspace}/lib/only.ts`) })
+	await expect(build(root, "client")).rejects.toThrow(/lib\/only\.ts holds code the client graph must not contain/)
+	const fns = fixture({ "src/client.ts": KEEP(`${workspace}/lib/fns.ts`) })
+	await expect(build(fns, "client")).rejects.toThrow(/lib\/fns\.ts: echo is a server function outside src\//)
 })
 
 // A loader helper at module scope, and the server module only it imports, stay out of the built client chunk; the
