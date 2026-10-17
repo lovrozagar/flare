@@ -64,6 +64,20 @@ it("browser entry", () => {
 	expect(flare.pop({ index: 2 }, "/about#one")).toEqual([2])
 })
 
+// Flare owns its document's history: an entry another script pushed with no state reads as one the browser wrote for a
+// fragment. A Back onto it stamps it as the next index, ahead of the entry left, and a later step replays from that
+// index (dx/navigate.md, BUGS.md 325).
+it("script entry", () => {
+	const flare = createHistory(history)
+	flare.adopt("/")
+	flare.push("/a")
+	history.pushState(null, "", "/x")
+	flare.push("/b")
+	expect(flare.pop(null, "/x")).toEqual([])
+	expect([history.state, flare.index()]).toEqual([{ index: 3, usr: undefined }, 3])
+	expect(flare.pop({ index: 1 }, "/a")).toEqual([2, 1])
+})
+
 it("delta", () => {
 	history.replaceState({ index: 5 }, "")
 	const flare = createHistory(history)
