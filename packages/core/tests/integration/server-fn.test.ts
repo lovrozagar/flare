@@ -324,7 +324,8 @@ it("handler context", async () => {
 	expect(seen["signal"]).toBe(true)
 })
 
-// The wire's limits: a POST body over `bodyLimit` is 413; a GET takes only `_i`, any other param is 400.
+// The wire's limits: a POST body over `bodyLimit` is 413; a GET takes only `_i` and the client's build `_b`, any other
+// param, or a second `_b`, is 400 (plan 21 8.5).
 it("wire limits", async () => {
 	const read = createServerFn(config("limits", "get"))
 		.input((value: unknown) => value)
@@ -335,6 +336,10 @@ it("wire limits", async () => {
 	const extra = new Request(`${ORIGIN}/_flare/fn/${read.id}?_i=1&other=2`, { headers: { origin: ORIGIN } })
 	expect((await server.fetch(extra)).status).toBe(400)
 	expect(await (await server.fetch(get(read, 7))).json()).toMatchObject({ data: 7 })
+	const built = new Request(`${ORIGIN}/_flare/fn/${read.id}?_i=7&_b=a1b2`, { headers: { origin: ORIGIN } })
+	expect(await (await server.fetch(built)).json()).toMatchObject({ data: 7 })
+	const twice = new Request(`${ORIGIN}/_flare/fn/${read.id}?_b=1&_b=2`, { headers: { origin: ORIGIN } })
+	expect((await server.fetch(twice)).status).toBe(400)
 })
 
 // A thrown error is 500: production sends a generic message and a digest, no stack; `markSafeError` keeps the

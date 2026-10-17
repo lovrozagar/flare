@@ -142,7 +142,7 @@ The client graph's callable runs Solid's browser build, so these rows run in the
 
 | test | case | result |
 | --- | --- | --- |
-| `builds _i` | `{ a: 1 }` | the URL contains only `_i` |
+| `builds _i` | `{ a: 1 }` | the URL contains only `_i` when the client has no build; with one, `_b` follows (`build param`, BUGS.md 199) |
 | `cap` | a value whose encoding exceeds 8192 | throw before fetch |
 | `base path` | basePath `/app` | the URL is `/app/_flare/fn/<id>` |
 
@@ -337,7 +337,7 @@ Runs the types generator on `packages/core/tests/types/app` and then `tsc --noEm
 | `authorize` | `authenticate`, `input`, `authorize`, and the handler recording their runs | the order is those four; `authorize` false is a JSON 403 `Forbidden` and the handler does not run (bite: `authorize` ignored) |
 | `cache` | a GET with `cache: { maxAge: "1m30s" }`, then `cache` on a POST, with `authenticate`, and with `authorize` | `public, max-age=90`; the three others throw when the chain ends (bite: the check removed) |
 | `handler context` | a handler and a stream reading their context, with an env, a session, and a `serverContext` | the input, the session, the env, the request's URL, and the context object; the stream's `signal` is an `AbortSignal` (bite: `serverContext` dropped) |
-| `wire limits` | `bodyLimit: 16`, a GET with an extra param | 413 over the cap; 400 for the param; `_i` alone is 200 |
+| `wire limits` | `bodyLimit: 16`, a GET with an extra param | 413 over the cap; 400 for the param and for a second `_b`; `_i` alone, and `_i` with `_b`, is 200 |
 | `wire envelope` | a thrown error in dev, then in production stubbed, a safe error, and `notFound()`, `unauthenticated()`, `unauthorized()` | dev has the message and a stack; production a generic message, a digest, no stack; the safe message is kept; the helpers are 404, 401, 403 |
 | `wire redirect` | a thrown `redirect({ href })` | HTTP 200 with `{ name, status: 303, redirect: { to, status: 303, replace: true } }` and no data |
 | `wire response` | a returned 418 `Response` with its own Cache-Control and `flare-fn`, and a thrown `Response` | 418 and the body kept, `flare-fn: response`, the handler's other header kept, `private, no-store`; the thrown one is 500 (bite: the `flare-fn` marker dropped) |

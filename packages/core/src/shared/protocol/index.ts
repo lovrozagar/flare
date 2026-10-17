@@ -1,5 +1,6 @@
 export {
 	BUILD_HEADER,
+	BUILD_PARAM,
 	CACHE_HEADER,
 	COOKIES_HEADER,
 	FAILED_HEADER,
@@ -21,7 +22,7 @@ export {
 	type StylesRequest,
 } from "./dev-styles.ts"
 export { chunksOf } from "./chunks.ts"
-export { decodeGetInput, encodeGetInput, MAX_GET_INPUT } from "./get-codec.ts"
+export { decodeGetInput, encodeGetInput, getQuery, MAX_GET_INPUT } from "./get-codec.ts"
 export {
 	fnPrefix,
 	readInternal,
