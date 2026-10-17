@@ -2,6 +2,8 @@ import { expect, it, vi } from "vitest"
 import { createComponent, createMemo, Loading, onCleanup } from "solid-js"
 import { i18n } from "../../src/features/i18n/server/middleware.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
+import { serverCtx } from "../../src/server/context/ctx.ts"
+import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import { redirect } from "../../src/shared/errors/index.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
@@ -221,4 +223,58 @@ it("cross origin", async () => {
 	expect(() => serve(createPage("_root_/(g)/callback").response(respond, open), guarded)).toThrow(
 		"createServer: _root_/(g)/callback .response() crossOrigin: true needs",
 	)
+})
+
+// A `crossOrigin` route's request carries no identity: a server function with `.authenticate()` its handler calls never
+// runs `authenticate` on the cross-site cookie, but throws a bug naming the route, a logged 500 an attacker cannot tell
+// from any failure, and `serverCtx()` is what serverContext gives the request with no cookie. Without this, a forged
+// form post would delete the visitor's account (B44, BUGS.md 282).
+it("cross origin identity", async () => {
+	const deleted: string[] = []
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const deleteAccount = createServerFn({ method: "post", __id: "deleteacct000000", __name: "deleteAccount" } as never)
+		.authenticate()
+		.handler(({ auth }) => void deleted.push(String(Reflect.get(Object(auth), "id"))))
+	const seen: unknown[] = []
+	const hook = createPage("_root_/hook").response(
+		async () => {
+			seen.push(serverCtx())
+			await deleteAccount()
+			return new Response("ok")
+		},
+		{ methods: ["POST"], crossOrigin: true },
+	)
+	const server = createServer({
+		authenticate: ({ request }) => (request.headers.get("cookie") === "sid=alice" ? { id: "alice" } : null),
+		serverContext: ({ request }) => ({ cookie: request.headers.get("cookie") ?? "none" }),
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [{ id: "_root_/hook", path: "/hook", module: hook }],
+		}),
+	})
+	const forged = { method: "POST", headers: { origin: "https://evil.example", cookie: "sid=alice" } }
+	const response = await server.fetch(new Request("http://localhost/hook", forged))
+	expect([response.status, deleted, seen]).toEqual([500, [], [{ cookie: "none" }]])
+	expect(logged.mock.calls.flat().map(String).join(" ")).toContain(
+		"_root_/hook is a crossOrigin route and has no session",
+	)
+	// A serverContext that throws for the request without its cookie is the route's 500, as any serverContext throw is.
+	const strict = createServer({
+		serverContext: ({ request }) => {
+			if (request.headers.get("cookie") === null) throw new Error("serverContext needs a cookie")
+			return {}
+		},
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [
+				{
+					id: "_root_/hook",
+					path: "/hook",
+					module: createPage("_root_/hook").response(respond, { methods: ["POST"], crossOrigin: true }),
+				},
+			],
+		}),
+	})
+	expect((await strict.fetch(new Request("http://localhost/hook", forged))).status).toBe(500)
+	logged.mockRestore()
 })

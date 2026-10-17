@@ -7,7 +7,7 @@ import type { FlareRegister } from "../../shared/route-builder/register.ts"
 import type { Match } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
 import { foldCase } from "../../shared/router/fold.ts"
-import { serverCtx, withServerContext } from "../context/ctx.ts"
+import { serverCtx, withoutIdentity, withServerContext } from "../context/ctx.ts"
 import { runLoaders } from "../loaders/run.ts"
 import { devDocument, devToken } from "../render/dev-document.ts"
 import { devSink, devStyles, projectError, requestSink, type ErrorSink } from "../render/projector.ts"
@@ -269,17 +269,17 @@ async function loaded(
 // drops the encoding its decoded body no longer has. A node flagged as .response() whose module has none is a codegen
 // bug: projected, then 500.
 async function answered(exchange: Exchange, matched: Loaded): Promise<Response> {
-	const page = defined(matched.chain.at(-1), "the .response() page").module
-	const respond = page.response
+	const { response: respond, responseOptions } = defined(matched.chain.at(-1), "the .response() page").module
 	if (respond === undefined) {
 		projectError(new Error(`${matched.id} is flagged as a .response() page but has no response`), exchange.sink)
 		return answer(exchange, 500)
 	}
 	const auth = effectiveAuth(matched.chain.map((entry) => entry.module))
-	const csrf = { auth, crossOrigin: page.responseOptions?.crossOrigin, id: String(matched.id) }
+	const csrf = { auth, crossOrigin: responseOptions?.crossOrigin, id: String(matched.id) }
 	if (routeCsrf(exchange.request, { ...csrf, sameSite: exchange.options.sameSite ?? [] }) === 403)
 		return answer(exchange, 403)
-	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond })
+	const load = () => runLoaders({ ...loaderInput(exchange, matched), response: respond })
+	const run = await (csrf.crossOrigin === true ? withoutIdentity(exchange, csrf.id, load) : load())
 	if (run.thrown instanceof RedirectError) {
 		return answer(exchange, run.thrown.status, redirectLocation(run.thrown, exchange.options.router))
 	}
