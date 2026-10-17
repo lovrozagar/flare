@@ -21,6 +21,14 @@ export function checkCsrf(input: CsrfInput): 200 | 403 {
 	return input.identity ? 403 : 200
 }
 
+// A `.response()` route's request with a method other than GET and HEAD gets the same check (plan 21 4.3), as a POST;
+// `identity` is a chain that reads or requires auth, which turns off the fail-open as it does for a server function.
+export function routeCsrf(request: Request, input: { sameSite: readonly string[]; identity: boolean }): 200 | 403 {
+	if (request.method === "GET" || request.method === "HEAD") return 200
+	const origin = new URL(request.url).origin
+	return checkCsrf({ method: "post", headers: request.headers, origin, ...input })
+}
+
 function siteAllowed(site: string, input: CsrfInput): boolean {
 	if (site === "same-origin") return true
 	if (site === "none") return input.method === "get"

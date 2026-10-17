@@ -14,6 +14,7 @@ import { devSink, devStyles, projectError, requestSink, type ErrorSink } from ".
 import { applySecurity, type SecurityContext } from "../security/apply.ts"
 import { applyCanonical, type CanonicalStep, type PathRewrite } from "./canonical-redirect.ts"
 import { dispatch } from "../server-fn/dispatch.ts"
+import { routeCsrf } from "../server-fn/csrf.ts"
 import { bodyLimitOf } from "../server-fn/input.ts"
 import { classify, isServerFn } from "./classify.ts"
 import { answer, background, bare, bounded, failed, passed, secure, type Exchange } from "./exchange.ts"
@@ -272,6 +273,11 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 		projectError(new Error(`${matched.id} is flagged as a .response() page but has no response`), exchange.sink)
 		return answer(exchange, 500)
 	}
+	const auth = effectiveAuth(matched.chain.map((entry) => entry.module))
+	const identity = auth.requires || auth.reads
+	if (routeCsrf(exchange.request, { sameSite: exchange.options.sameSite ?? [], identity }) === 403) {
+		return answer(exchange, 403)
+	}
 	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond })
 	if (run.thrown instanceof RedirectError) {
 		return answer(exchange, run.thrown.status, redirectLocation(run.thrown, exchange.options.router.basePath))
@@ -280,7 +286,7 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 		return answer(exchange, projectError(run.thrown, exchange.sink).status)
 	}
 	if (run.answer === undefined) return bare(exchange, run)
-	const headers = responseHeaders(decodedHeaders(run.answer), effectiveAuth(matched.chain.map((entry) => entry.module)))
+	const headers = responseHeaders(decodedHeaders(run.answer), auth)
 	return secure(exchange, { status: run.answer.status, body: run.answer.body, headers })
 }
 

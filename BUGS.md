@@ -1112,6 +1112,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 232 [x] A mount answered ahead of every middleware, so a prefix guard never covered a sub-app
 232.1 [x] Plan 21 4.2, the reviewer's ruling: a mount was dispatched at 02-system step 3 and middleware ran only at step 6, so an auth middleware listed for `/api` guarded the app's pages under `/api` and let every request to a mount at `/api` through, unauthenticated. Red: tests/integration/middleware.test `mount middleware` (a refused request got the mount's 200).
 232.2 [x] Fix: server/mount/mount.ts `mountFor` finds the mount without calling it, and create.ts runs that call as the innermost handler of the middleware list, with `ctx.kind` `"mount"`; a refused request never reaches the mount's fetch. The mount keeps its place before the server-function path and outside the locale slot. Decision B138, 02-system steps 3 and 6, and dx/server.md's middleware tables say so.
+233 [x] A `.response()` route took a cross-site POST, so a page elsewhere could act as a signed-in visitor
+233.1 [x] Plan 21 4.3, the reviewer's ruling: server functions check Origin, Sec-Fetch-Site, and Referer (B44), but a `.response()` route that declared POST, PUT, PATCH, or DELETE ran for any sender, so a form on another site could post to it with the visitor's cookies and the route's `authenticate` would accept them. Red: tests/integration/hostile.test `response csrf` (a POST with `Origin: https://evil.example` ran the handler and answered 200).
+233.2 [x] Fix: server-fn/csrf.ts `routeCsrf` gives such a request the server-function check, as a POST, and create.ts runs it before the route's loaders, with the chain's effective auth turning off the fail-open, so a webhook with none of the three headers still reaches a route that reads no identity. auth.test `response passes` now sends its own origin. B44 and dx/server-fn.md say so.
 
 ## Verify
 
