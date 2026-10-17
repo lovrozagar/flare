@@ -371,6 +371,7 @@ Full contracts: [link.md](https://github.com/lovrozagar/flare/blob/main/blueprin
 | `store`, `static`       | absent       | the ISR and SSR store, and the read-only SSG seeds (Stores below)                                                  |
 | `serverFns`             | `{}`         | the generated `src/_gen/server-fns.gen.ts`                                                                         |
 | `documentResponseDefer` | `"stream"`   | `"buffer"` holds a document until every deferred value settles                                                     |
+| `retireServiceWorker`   | absent       | paths an earlier build registered a service worker at, answered with one that unregisters itself                   |
 
 `SecurityConfig` sets `Content-Security-Policy` (a directives object with a per-request nonce by default, a string, or `false`), `Permissions-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`, and `X-Powered-By`. A string sets a header and `false` removes it; a route's `.security()` merges over the server's.
 

@@ -19,9 +19,11 @@ export function applyCanonical(input: {
 	rewrite?: PathRewrite | undefined
 	// The router's case fold toward the matched route, which runs when `caseSensitive` is false (B22).
 	fold?: (path: string) => string
+	// A path served as asked for, as a server function's is: a retired worker's (dx/server.md `retireServiceWorker`).
+	fixed?: boolean
 }): CanonicalStep {
 	const parsed = new URL(input.url, "http://localhost")
-	const fn = parsed.pathname.startsWith(fnPrefix(input.basePath ?? "/"))
+	const fn = input.fixed === true || parsed.pathname.startsWith(fnPrefix(input.basePath ?? "/"))
 	const options = { trailingSlash: fn ? ("preserve" as const) : input.trailingSlash }
 	const first = readPath(canonicalPath(parsed.pathname, options))
 	if (first === undefined) return { status: 400 }

@@ -75,3 +75,23 @@ test.describe("basepath", () => {
 		await expect(page.locator("#render")).toHaveText(String(seen + 1))
 	})
 })
+
+// A browser that still runs an old build's service worker at a retired path loads this build after one visit: the
+// worker's update check gets the retiring worker, which clears its caches, unregisters, and reloads the page
+// (plan 21 16.1, dx/server.md Migrating from v0).
+test("retired service worker", async ({ page, context }) => {
+	await page.goto(`${session.origin}/about`)
+	await context.addCookies([{ name: "stand-in", value: "1", url: session.origin }])
+	await page.evaluate(async () => {
+		await navigator.serviceWorker.register("/legacy-sw.js", { scope: "/" })
+		await navigator.serviceWorker.ready
+	})
+	await page.goto(`${session.origin}/`)
+	await expect(page.locator("#old-build")).toHaveText("old build")
+	await context.clearCookies()
+	await page.reload()
+	await expect(page.locator("#app")).toHaveText("Home", { timeout: 15_000 })
+	await expect(page.locator("html")).toHaveAttribute("data-flare-hydrated", "")
+	expect(await page.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length)).toBe(0)
+	expect(await page.evaluate(() => navigator.serviceWorker.controller === null)).toBe(true)
+})

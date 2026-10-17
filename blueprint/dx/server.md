@@ -1,7 +1,7 @@
 # createServer
 
 ```ts
-createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer? })
+createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer?, retireServiceWorker? })
 ```
 
 The return value's `fetch(request, env, ctx)` is the production entry, and its `bodyLimit` is the cap in bytes. `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
@@ -23,6 +23,7 @@ The return value's `fetch(request, env, ctx)` is the production entry, and its `
 | `serverContext` | when `FlareRegister` declares it | absent. The value is `{}` | `(ctx: { request, env }) => FlareRegister["serverContext"]` | runs once after the canonical path is accepted and before mounts. `serverCtx()` returns that value (B75) | a redirect or a 400 does not call it. The argument has no `locals`. A throw is the projected 500, logged once (`tests/integration/fetch-boundary.test.ts` `server context`, BUGS.md 202). Omitting it when the register declares the type does not type-check | `server/context/ctx.test.ts` `returns the value`, `not the event`, `redirect skips`, `required`, `throw is 500` |
 | `serverFns` | when the app has a server function | `{}`, every `/_flare/fn/<id>` is 404 | `serverFns` from `src/_gen/server-fns.gen.ts`: `Record<id, () => Promise<ServerFn>>`, one lazy import per exported `createServerFn`, keyed by the B41 id | dispatch looks the id up; an unknown id is 404 before the method check (B42). It is separate from `routes.gen.ts`, which the client graph imports, so no server-function module reaches a client chunk | a hand-written map drifts from the files. Codegen writes it | `server/server-fn/dispatch.test.ts` `unknown id`; `vite/codegen/server-fns.test.ts` |
 | `documentResponseDefer` | no | `"stream"` | `"stream"`, `"buffer"` | a rendered HTML document only (B92). `stream` sends the shell, then the deferred values. `buffer` holds the document until every defer running for that render has settled, then sends one HTML that contains the values | a stored hit ignores it and replays the stored body. A data request, a prefetch, and a client navigation ignore it. It does not change `cache.ssr.defer`, `cache.ssg.defer`, or `cache.isr.defer`. A stored `stream` write still stores the placeholder and does not run the function | `server/navigation/response.test.ts` `document buffer`, `document stream`, `data ignores buffer`, `stored stream stays a hole` |
+| `retireServiceWorker` | no | absent | a pathname or a list of them, such as `"/service-worker.js"` | a GET or HEAD for each is the retiring worker (Migrating from v0): JavaScript, `private, no-store`, with the security set, never redirected by the trailing-slash, rewrite, or case rules, since a worker's update fetch fails on a redirect. The app's middleware runs first and may answer the path itself | a query, fragment, space, empty segment, or trailing slash throws at startup | `server/lifecycle/retire-worker.test.ts` `retired path`, `middleware first`, `checked`, `script`; e2e `minimal.test.ts` `retired service worker` |
 
 ### Planned (plan 15)
 
@@ -278,6 +279,16 @@ proxy(request, upstream, { forwardCookies?, forwardAuthorization?, relaySetCooki
 
 Match runs before the method rule (B87). A normal page allows GET, HEAD, and OPTIONS. A HEAD answers the page's status and headers with no body, and the render behind it is cancelled, so it runs its cleanups and never outlives the answer (`tests/integration/hostile.test.ts` `head stops the render`, BUGS.md 180). OPTIONS is 204 with `Allow: GET, HEAD, OPTIONS`. Anything else is 405 with that `Allow`, and a POST body is drained. A `.response()` page answers the methods it declares with `.response(fn, { methods })`, GET when it declares none: HEAD runs it as GET does and sends no body, OPTIONS is 204 unless declared, and any other method is 405 with `Allow` and never runs it. Codegen copies the literal list onto the route node, so a method it does not answer is refused before its code loads (`methods.test.ts` `response methods`, `create.test.ts` `method before load`, `tests/integration/hostile.test.ts` `response methods`, plan 21 13.5, BUGS.md 208). A declared method reaches the function, and the adapter does not drain first. An unmatched GET or HEAD is not-found. Any other unmatched method is 405 with that `Allow`. On Workers that 405 does not call the assets binding (`server/lifecycle/methods.test.ts` `order`, `response methods`, `unmatched post`).
 
+
+## Migrating from v0
+
+v0 built the app's `src/service-worker.ts` to `/service-worker.js` and registered it at scope `/`, and earlier v0 builds left one at `/sw.js`. v1 registers no worker, so after the move a returning visitor's browser keeps the old one, which goes on serving the old build from its caches: the 404 v1 gives its script fails the update check and leaves it in place. List those paths for one release cycle, as long as returning visitors may still hold the old worker:
+
+```ts
+createServer({ router, retireServiceWorker: ["/service-worker.js", "/sw.js"] })
+```
+
+Each visit checks the registered worker's script for an update. That fetch now gets the retiring worker, which activates at once, deletes every cache of the origin, unregisters, and reloads each page the old worker controlled, so the reload and every later visit come from the network with no worker registered (`server/lifecycle/retire-worker.test.ts` `script`; e2e `minimal.test.ts` `retired service worker`: a page under a stand-in old worker shows this build after one visit, plan 21 16.1, BUGS.md 227). The option lives on `createServer`, not on the Vite plugin: the server answers the path, so it works the same in dev, on Node, Bun, and Workers, without a static file that a CDN could cache or a static server could skip. An app that ships a worker of its own at one of those paths does not list that path.
 ## Error boundary
 
 `server.fetch` never rejects. A failure no stage answered, such as a server-function module that fails to import or loader data a navigation cannot serialize (a `BigInt`), is projected once, so it is logged with its digest, and answered as the 500 every exit shares: no body, the default security headers. Before this boundary Node sent such a failure as a bare unlogged 500 and Workers showed error 1101 (`server/lifecycle/exchange.test.ts` `bounded`, `tests/integration/fetch-boundary.test.ts`, `tests/workerd/server.test.ts` `worker boundary`, plan 21 9.1, BUGS.md 202).
