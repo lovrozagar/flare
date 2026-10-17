@@ -142,7 +142,7 @@ Optional peers have `peerDependenciesMeta.optional` set to true. Each one is imp
 
 | package | devDependency | peerDependency | entry |
 | --- | --- | --- | --- |
-| `sharp` | `0.35.3` | `>=0.35.3` | `flare({ image })` |
+| `sharp` | `0.35.5` | `>=0.35.5` | `flare({ image })`; the floor clears GHSA-wq5f-xc86-pv6w and GHSA-rgj7-g3m4-5g8c, both high (BUGS.md 218) |
 | `@tanstack/solid-query` | `6.0.0-rc.5` | `>=6.0.0-rc.5` | `./query` |
 | `negotiator` | `1.0.0` | `>=1.0.0` | `./i18n/server` |
 | `isbot` | `5.2.0` | `>=5.2.0` | `./i18n/server` |

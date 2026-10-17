@@ -363,6 +363,14 @@ it("peer floors", () => {
 	expect(optional).toEqual(["@formatjs/intl-localematcher", "@tanstack/solid-query", "isbot", "negotiator", "sharp"])
 })
 
+// A peer floor below a known advisory lets an app resolve the vulnerable version: sharp below 0.35.5 carries two
+// high-severity advisories, GHSA-wq5f-xc86-pv6w (librsvg) and GHSA-rgj7-g3m4-5g8c (libheif) (plan 21 14.3, BUGS.md 218).
+it("advisory floors", () => {
+	const peers: Record<string, string> = Object(Reflect.get(packed.manifest, "peerDependencies"))
+	const [major, minor, patch] = (peers["sharp"] ?? "").replace(">=", "").split(".").map(Number)
+	expect((major ?? 0) * 1e6 + (minor ?? 0) * 1e3 + (patch ?? 0)).toBeGreaterThanOrEqual(35_005)
+})
+
 it("not a peer", () => {
 	const keys = ["peerDependencies", "dependencies", "optionalDependencies"].flatMap((field) =>
 		Object.keys(Object(Reflect.get(packed.manifest, field))),
