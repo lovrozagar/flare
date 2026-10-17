@@ -1051,6 +1051,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 212 [x] Back onto an entry the server answered 404 kept the previous page on screen
 212.1 [x] Plan 21 13.10: a URL no page matches resolved to a data navigation, and the server answers a data request for an unknown URL with a bare 404 (B73); the client painted that status at the root, which in an app whose root renders the document cannot be painted, so Back from `/a` onto `/missing` left page a on screen under the `/missing` URL. A page that threw notFound() painted correctly. Red: tests/integration/history-client.test.ts `unmatched entry` on every engine.
 212.2 [x] Fix: client/navigation/target.ts resolves a URL no page matches to a document load, so the server's not-found document renders, the not-found page inside its root, as on a first visit. On a Back or Forward the URL is already the current one, so the load replaces the entry.
+213 [x] A navigation that committed nothing left the current page's deferred values pending forever
+213.1 [x] Plan 21 13.11: starting a navigation aborted the previous request, and after its commit that request is still the one streaming the page's deferred values, which stay pending once it aborts (frames.ts assumes a newer page owns the screen). When the new navigation commits nothing, an input failure (400) or a blocked one, the page stays on screen with values that never settle. Red: navigate-fill.test `uncommitted keeps stream` (still pending 200 ms after its frame was ready).
+213.2 [x] Fix: client/navigation/requests.ts. Starting a navigation aborts only the newest request that has not committed; the one whose page is on screen streams on until another page commits, which aborts it.
 
 ## Verify
 

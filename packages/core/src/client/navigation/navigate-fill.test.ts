@@ -190,3 +190,45 @@ it("later move wins", async () => {
 	expect(app.store.snapshot().location).toEqual({ pathname: "/about", search: "?tab=x", hash: "#h" })
 	expect(about()?.search).toEqual({ tab: "x" })
 })
+
+// A navigation that commits nothing, here an input failure (400), leaves the page on screen, and that page's deferred
+// values keep streaming: its request is aborted only when another page commits (plan 21 13.11, BUGS.md 213).
+it("uncommitted keeps stream", async () => {
+	const encoder = new TextEncoder()
+	const later: { send: () => void } = { send: () => undefined }
+	const fetch = vi.fn<Fetch>(async (url, init) => {
+		if (!url.startsWith("/about")) return new Response(null, { status: 400 })
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				for (const frame of [
+					{ t: "l", m: "_root_", d: null },
+					{ t: "l", m: "_root_/about", d: { late: deferred("d0") } },
+					{ t: "r" },
+				] as const)
+					controller.enqueue(encoder.encode(encodeFrame(frame)))
+				let aborted = false
+				init.signal?.addEventListener("abort", () => {
+					aborted = true
+					controller.error(new DOMException("aborted", "AbortError"))
+				})
+				later.send = () => {
+					if (aborted) return
+					controller.enqueue(encoder.encode(encodeFrame({ t: "c", m: "_root_/about", k: "d0", d: "late" })))
+					controller.enqueue(encoder.encode(encodeFrame({ t: "d" })))
+					controller.close()
+				}
+			},
+		})
+		return new Response(body)
+	})
+	const app = await setup(fetch)
+	await app.navigator.navigate({ to: "_root_/about" })
+	const late: unknown = Reflect.get(Object(app.store.snapshot().matches[1]?.data), "late")
+	const value: unknown = Reflect.get(Object(late), "promise")
+	await app.navigator.navigate({ to: "_root_/" })
+	expect(location.pathname).toBe("/about")
+	later.send()
+	await expect(
+		Promise.race([value, new Promise((resolve) => setTimeout(() => resolve("pending"), 200))]),
+	).resolves.toBe("late")
+})

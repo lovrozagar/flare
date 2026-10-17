@@ -1,3 +1,4 @@
+import { navigationRequests } from "./requests.ts"
 import { flush } from "solid-js"
 import type { OutletMatch } from "../../shared/components/index.ts"
 import type { DevErrorPayload } from "../../shared/errors/index.ts"
@@ -85,7 +86,7 @@ export type Navigator = Leaving & {
 // After a document load it began, the page is leaving (leaving.ts, BUGS.md 129).
 export function createNavigator(given: NavigatorDeps): Navigator {
 	const { deps, away, ...leave } = leaveable(given)
-	let latest: AbortController | undefined
+	const requests = navigationRequests()
 	// The history index the screen shows, so a popstate step knows its view-transition direction.
 	let at = deps.history.index()
 	const context = () => ({ router: deps.router, origin: deps.origin, current: deps.store.snapshot().location })
@@ -101,13 +102,11 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		const plan = planOf({ target, options, snapshot, mode: { ...mode, at } })
 		const move = { current: snapshot.location, next: target.location, trigger: plan.trigger }
 		if (!pop && !allowsNavigation(deps.blockers, move)) return
-		latest?.abort()
-		const controller = new AbortController()
-		latest = controller
+		const controller = requests.start()
 		// A stored landing can end with a `"stream"` hole. Once this page commits, one fill asks for its values.
 		const watch = holeWatch(deps, target.location, (pending) => again({ fill: pending }))
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes }
-		const outcome = await travel(deps, plan, { trip, current: () => latest === controller })
+		const outcome = await travel(deps, plan, { trip, current: () => requests.latest(controller) })
 		// The target takes the entry this navigation would have taken: a push pushes it, and a replace or a Back or
 		// Forward step, which the browser already took, replaces. A loop stops after MAX_REDIRECTS (plan 21 3.10).
 		if (outcome.kind === "redirect") {
@@ -117,6 +116,7 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 			return follow(deps, outcome.url, () => go(resolveUrl(outcome.url, context()), next, { redirects: follows }))
 		}
 		if (outcome.kind !== "committed") return
+		requests.committed(controller)
 		at = deps.history.index()
 		return watch.committed()
 	}
