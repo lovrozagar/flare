@@ -1,4 +1,4 @@
 
-import { createNodeListener } from "../adapters/node/listener.js";
 import { toRequest } from "../adapters/node/request.js";
+import { createNodeListener } from "../adapters/node/listener.js";
 export { createNodeListener, toRequest };

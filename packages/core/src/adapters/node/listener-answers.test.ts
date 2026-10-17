@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest"
-import { createNodeListener } from "./listener.ts"
+import { adaptedOf, createNodeListener } from "./listener.ts"
 
 // The answers the Node listener gives itself, which never reach the server: a 400 for a request it cannot route and the
 // 500 of a failure before the headers. Split from listener.test.ts at its 500-line limit.
@@ -84,4 +84,18 @@ it("bad target", async () => {
 		expect(answer.status).toBe(400)
 		expect(answer.named).toEqual(expect.arrayContaining(["flare-build", "x-content-type-options"]))
 	}
+})
+
+// The listener hands the socket's address on, so `trustProxy` of 0, or fewer forwarded entries than it trusts, reads
+// the socket and never a client's claim (dx/server.md Client address, BUGS.md 342).
+it("socket address", () => {
+	const at = (headers: Record<string, string>, trustProxy: number) =>
+		adaptedOf(
+			{ ...req(), headers: { host: "site.test", ...headers }, socket: { remoteAddress: "10.0.0.9" } },
+			trustProxy,
+		)
+	expect(at({ "x-forwarded-for": "1.1.1.1" }, 0).clientIp).toBe("10.0.0.9")
+	expect(at({ "x-forwarded-for": "1.1.1.1" }, 2).clientIp).toBe("10.0.0.9")
+	expect(at({ "x-forwarded-for": "1.1.1.1, 2.2.2.2" }, 1).clientIp).toBe("2.2.2.2")
+	expect(adaptedOf({ ...req(), headers: { host: "site.test" } }, 0).clientIp).toBe("")
 })
