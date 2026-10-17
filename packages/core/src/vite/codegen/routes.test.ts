@@ -47,7 +47,7 @@ it("filename", () => {
 	const locale = generateRoutes(["[locale]/_root_/home.page.tsx", "[locale]/_root_/root.root-layout.tsx"], read)
 	expect(locale.routes[0]?.id).toBe("[locale]/_root_/")
 	expect(locale.routes[0]?.urls).toEqual(["/[locale]"])
-	expect(routesOf(["_admin_/home.page.tsx"]).routes[0]?.id).toBe("_admin_/")
+	expect(routesOf(["_admin_/home.page.tsx", "_admin_/admin.root-layout.tsx"]).routes[0]?.id).toBe("_admin_/")
 	expect(routesOf(["_root_/about/about.page.tsx"]).routes[0]?.id).toBe("_root_/about")
 })
 
@@ -98,12 +98,12 @@ it("optional catch-all", () => {
 })
 
 it("admin root", () => {
-	const route = routesOf(["_admin_/dashboard/dashboard.page.tsx"]).routes[0]
+	const route = routesOf(["_admin_/dashboard/dashboard.page.tsx", "_admin_/admin.root-layout.tsx"]).routes[0]
 	expect(route?.urls).toEqual(["/dashboard"])
 })
 
 it("locale root", () => {
-	const route = routesOf(["[locale]/_root_/about/about.page.tsx"]).routes[0]
+	const route = routesOf(["[locale]/_root_/about/about.page.tsx", "[locale]/_root_/locale.root-layout.tsx"]).routes[0]
 	expect(route?.urls).toEqual(["/[locale]/about"])
 })
 
@@ -173,8 +173,31 @@ it("no root", () => {
 	expect(routesOf(pages).routes).toHaveLength(2)
 })
 
+// Each page needs its own root's layout, the id up to its first root folder: a `_root_` root layout does not serve an
+// `_admin_` page, which would render with no document. Two layout files with one id, which the router's layout record
+// keeps one of, fail too. Both name the files (plan 21 13.3, BUGS.md 206).
+it("own root", () => {
+	expect(() => routesOf(["_admin_/dashboard/dashboard.page.tsx"])).toThrow(
+		"no root layout for _admin_: _admin_/dashboard/dashboard.page.tsx",
+	)
+	expect(() => routesOf(["[locale]/_root_/about/about.page.tsx"])).toThrow(
+		"no root layout for [locale]/_root_: [locale]/_root_/about/about.page.tsx",
+	)
+	expect(() => routesOf(["about/about.page.tsx"])).toThrow("no root layout for about/about.page.tsx")
+	expect(() => routesOf(["_root_/(blog)/a.layout.tsx", "_root_/(blog)/b.layout.tsx"])).toThrow(
+		"two layouts for _root_/(blog): _root_/(blog)/a.layout.tsx, _root_/(blog)/b.layout.tsx",
+	)
+	expect(() => routesOf(["_root_/main.layout.tsx"])).toThrow(
+		"two layouts for _root_: _root_/main.layout.tsx, _root_/root.root-layout.tsx",
+	)
+})
+
 it("duplicate url", () => {
-	const files = ["_root_/dashboard/dashboard.page.tsx", "_admin_/dashboard/dashboard.page.tsx"]
+	const files = [
+		"_root_/dashboard/dashboard.page.tsx",
+		"_admin_/dashboard/dashboard.page.tsx",
+		"_admin_/admin.root-layout.tsx",
+	]
 	expect(() => routesOf(files)).toThrow(/_root_\/dashboard\/dashboard\.page\.tsx/)
 	expect(() => routesOf(files)).toThrow(/_admin_\/dashboard\/dashboard\.page\.tsx/)
 })

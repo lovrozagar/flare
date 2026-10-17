@@ -1,6 +1,7 @@
 import { posix } from "node:path"
 import { closureMarker } from "./closures.ts"
 import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts"
+import { assertOneLayout, assertRoot } from "./layout-checks.ts"
 import { codeLiteral, escapeSource } from "./escape.ts"
 import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts"
 
@@ -52,8 +53,9 @@ export function generateRoutes(
 		if (found?.page === true) pages.push(found.item)
 		else if (found !== undefined) layouts.push(found.item)
 	}
-	assertRoot(routed, pages)
+	assertRoot(pages, layouts)
 	assertApart(routed)
+	assertOneLayout(layouts)
 	const scans = assertExports([...pages, ...layouts], read)
 	assertOne(pages)
 	const routes = pages.map((page) => toRoute(page, scans.get(page.file)))
@@ -147,12 +149,6 @@ function display(segment: Segment): string {
 	if (segment.kind === "static") return segment.text
 	if (segment.optional) return segment.kind === "dynamic" ? "<tag>" : "<rest>"
 	return segment.kind === "dynamic" ? `[${segment.name}]` : `[...${segment.name}]`
-}
-
-function assertRoot(files: readonly string[], pages: readonly Item[]): void {
-	if (pages.length === 0) return
-	if (files.some((file) => file.endsWith(".root-layout.tsx"))) return
-	throw new Error(`no root: ${pages.map((page) => page.file).join(", ")}`)
 }
 
 // A layout in the folder of a page or a segment would share its id. Only a root folder holds both.
