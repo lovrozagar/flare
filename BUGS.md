@@ -1078,6 +1078,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 221 [x] The default CSP left form-action and frame-ancestors open, a source could inject policy, and a route's CSP dropped the server's
 221.1 [x] Plan 21 14.1: the default policy named no `form-action` and no `frame-ancestors`, so a form could post anywhere and only `X-Frame-Options` guarded framing; a source string holding `;` or a line break went into the header as written, ending its directive and adding the caller's own; and a route's `.security()` CSP object replaced the server's whole object, so a page that allowed one frame origin lost every server directive. Red: server/security/csp.test `form and frame defaults`, `injected source`, and apply.test `route csp merge`.
 221.2 [x] Fix: the defaults gain `frame-ancestors 'self'` and `form-action 'self'`; csp.ts throws for a source holding `;`, `\r`, or `\n`, naming the directive; apply.ts merges a route's directives onto the server's, the sources of a directive both name kept once (v0's directive merge, the reviewer's ruling for phase 14), while a route string or `false` replaces the whole policy.
+222 [x] The client read a data stream with no cap on its frame count or nesting
+222.1 [x] Plan 21 16.5, a v0 parity gap: v0's NDJSON client stopped after 10,000 messages and scanned placeholders no deeper than 50 levels; v1 capped only a line at 1 MiB, so a hostile or broken stream of endless small frames, or one frame nested thousands deep for `revive` to recurse through, could exhaust the tab. Red: shared/protocol/frames.test `caps` (10,001 frames all decoded).
+222.2 [x] Fix: shared/protocol/frames.ts `frameDecoder` gives one `e` frame and stops past 10,000 frames in a response or for a frame nested past 256 levels, checked without recursion; the client already handles that stop, a document load before `r` and rejected values after it.
 
 ## Verify
 

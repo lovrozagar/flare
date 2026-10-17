@@ -22,6 +22,13 @@ const KINDS = new Set(["l", "e", "h", "r", "c", "x", "q", "d"])
 
 const OVERSIZE: Frame = { t: "e", m: "", e: { message: "Frame over 1 MiB" } }
 
+// A response's frames and a frame's nesting, past which a hostile or broken stream would exhaust the tab (v0's 10,000
+// messages; plan 21 16.5).
+const MAX_FRAMES = 10_000
+const MAX_DEPTH = 256
+const TOO_MANY: Frame = { t: "e", m: "", e: { message: `Over ${MAX_FRAMES} frames` } }
+const TOO_DEEP: Frame = { t: "e", m: "", e: { message: `Frame nested over ${MAX_DEPTH} levels` } }
+
 const encoder = new TextEncoder()
 
 export function encodeFrame(frame: Frame): string {
@@ -34,13 +41,14 @@ export function decodeLine(line: string): Frame {
 	return value
 }
 
-// Text arrives in chunks that may split a line. A line, or an unfinished line, past 1 MiB becomes one `e`
-// frame and the decoder stops: nothing after it is read.
+// Text arrives in chunks that may split a line. A line, or an unfinished line, past 1 MiB, a frame past the
+// response's 10,000, or one nested past 256 levels becomes one `e` frame and the decoder stops: nothing after it is
+// read.
 export function frameDecoder(): { push: (text: string) => Frame[] } {
-	const state = { buffer: "", stopped: false }
-	const stop = (frames: Frame[]): Frame[] => {
+	const state = { buffer: "", stopped: false, count: 0 }
+	const stop = (frames: Frame[], why: Frame = OVERSIZE): Frame[] => {
 		state.stopped = true
-		return [...frames, OVERSIZE]
+		return [...frames, why]
 	}
 	return {
 		push(text) {
@@ -52,7 +60,11 @@ export function frameDecoder(): { push: (text: string) => Frame[] } {
 				const line = joined.slice(start, end)
 				start = end + 1
 				if (tooLong(line)) return stop(frames)
-				frames.push(decodeLine(line))
+				const frame = decodeLine(line)
+				if (nestedOver(frame, MAX_DEPTH)) return stop(frames, TOO_DEEP)
+				if (state.count === MAX_FRAMES) return stop(frames, TOO_MANY)
+				state.count += 1
+				frames.push(frame)
 			}
 			state.buffer = joined.slice(start)
 			return tooLong(state.buffer) ? stop(frames) : frames
@@ -66,4 +78,15 @@ function tooLong(line: string): boolean {
 
 function isFrame(value: unknown): value is Frame {
 	return typeof value === "object" && value !== null && "t" in value && KINDS.has(String(value.t))
+}
+
+// Whether a value nests past `max` levels, walked without recursion, so the check itself cannot overflow the stack.
+function nestedOver(value: unknown, max: number): boolean {
+	const pending: Array<{ item: unknown; depth: number }> = [{ item: value, depth: 0 }]
+	for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+		if (typeof next.item !== "object" || next.item === null) continue
+		if (next.depth > max) return true
+		for (const child of Object.values(next.item)) pending.push({ item: child, depth: next.depth + 1 })
+	}
+	return false
 }
