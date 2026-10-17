@@ -1,6 +1,9 @@
 import { expect, it } from "vitest"
 import { scanRoute } from "./scan.ts"
 
+// The start of the route's own chain, which alone says what the page is (plan 21 13.2).
+const ROUTE = 'export const route = createPage("_root_/a").'
+
 it("parse error", () => {
 	expect(() => scanRoute("bad.tsx", "const =")).toThrow(/bad\.tsx/)
 })
@@ -18,12 +21,12 @@ it("regex", () => {
 })
 
 it("call", () => {
-	expect(scanRoute("auth.tsx", "page.authenticate();").auth).toBe(true)
-	expect(scanRoute("optional.tsx", "page.authenticateOptional();").auth).toBe("optional")
+	expect(scanRoute("auth.tsx", ROUTE + "authenticate();").auth).toBe(true)
+	expect(scanRoute("optional.tsx", ROUTE + "authenticateOptional();").auth).toBe("optional")
 })
 
 it("intercept literals", () => {
-	const source = 'page.intercept({ from: ["_root_/gallery"], render: "preview" });'
+	const source = `${ROUTE}intercept({ from: ["_root_/gallery"], render: "preview" });`
 	const scan = scanRoute("gallery.tsx", source)
 	expect(scan.intercept?.from).toEqual(["_root_/gallery"])
 	expect(scan.intercept?.render).toBe("preview")
@@ -33,7 +36,7 @@ it("intercept literals", () => {
 })
 
 it("computed from", () => {
-	const source = 'const id = "_root_/gallery"; page.intercept({ from: id, render: "preview" });'
+	const source = `const id = "_root_/gallery"; ${ROUTE}intercept({ from: id, render: "preview" });`
 	expect(() => scanRoute("computed.tsx", source)).toThrow(/computed\.tsx/)
 	expect(() => scanRoute("computed.tsx", source)).toThrow(/intercept/)
 	// Every other non-literal shape names the file and the method too. A spread beside the literals is skipped.
@@ -45,11 +48,11 @@ it("computed from", () => {
 		'{ from: [id], render: "preview" }',
 		'{ ["from"]: ["_root_/a"], render: "preview" }',
 	]) {
-		expect(() => scanRoute("shape.tsx", `page.intercept(${config});`)).toThrow(
+		expect(() => scanRoute("shape.tsx", `${ROUTE}intercept(${config});`)).toThrow(
 			"shape.tsx: intercept takes a literal from array and a literal render",
 		)
 	}
-	const spread = scanRoute("spread.tsx", 'page.intercept({ ...base, from: ["_root_/a"], render: "preview" });')
+	const spread = scanRoute("spread.tsx", `${ROUTE}intercept({ ...base, from: ["_root_/a"], render: "preview" });`)
 	expect(spread.intercept?.render).toBe("preview")
 })
 
@@ -110,5 +113,32 @@ it("builder id spans", () => {
 
 // A `.ts` route file parses as TypeScript, so a generic arrow in it is no tag (plan 21 8.1).
 it("ts generic", () => {
-	expect(scanRoute("auth.page.ts", "const id = <T>(value: T): T => value;\npage.authenticate();").auth).toBe(true)
+	expect(scanRoute("auth.page.ts", `const id = <T>(value: T): T => value;\n${ROUTE}authenticate();`).auth).toBe(true)
+})
+
+// Only the exported route's own builder chain says what the page is: a `.response()`, `.authenticate()`, `.cache()`,
+// or `.input()` anywhere else in the file, a fetch helper's or another builder's, marks nothing. The chain may start
+// from a module-level const, and a `satisfies`, `as`, or parentheses around it are seen through (plan 21 13.2,
+// BUGS.md 205).
+it("route chain only", () => {
+	const helper = `const answer = (res) => res.response();\nconst other = createPage("_root_/b").authenticate().cache({ client: false });\n`
+	const plain = scanRoute("a.page.tsx", `${helper}export const route = createPage("_root_/a").render(r);`)
+	expect([plain.response, plain.auth, plain.client]).toEqual([false, undefined, undefined])
+	const base = 'const base = createPage("_root_/a").authenticate();\n'
+	for (const route of [
+		"base.response(h)",
+		"(base.response(h))",
+		"base.response(h) satisfies Route",
+		"base.response(h) as Route",
+	]) {
+		const scan = scanRoute("a.page.ts", `${base}export const route = ${route};`)
+		expect([route, scan.response, scan.auth]).toEqual([route, true, true])
+	}
+	const exported = scanRoute("a.page.ts", `const route = createPage("_root_/a").response(h);\nexport { route };`)
+	expect(exported.response).toBe(true)
+	const looped = scanRoute(
+		"a.page.ts",
+		"const a = b.response(h);\nconst b = a.authenticate();\nexport const route = a;",
+	)
+	expect([looped.response, looped.auth]).toEqual([true, true])
 })

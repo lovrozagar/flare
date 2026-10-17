@@ -56,6 +56,7 @@ export function scanRoute(file: string, source: string): Scan {
 		ids: [],
 	}
 	const consts = constStrings(parsed.program)
+	const chain = routeCalls(parsed.program)
 	new Visitor({
 		ImportDeclaration: (node) => {
 			if (node.source.value === QUERY) scan.query = true
@@ -64,7 +65,7 @@ export function scanRoute(file: string, source: string): Scan {
 			if (exportsRoute(node)) scan.route = true
 		},
 		CallExpression: (node) => {
-			readCall(scan, node)
+			if (chain.has(node)) readCall(scan, node)
 			const id = builderId(node, consts)
 			if (id !== undefined) scan.ids.push(id)
 		},
@@ -72,20 +73,57 @@ export function scanRoute(file: string, source: string): Scan {
 	return scan
 }
 
-// The module's top-level `const NAME = "…"` bindings, exported or not, which a builder call may name its id by
-// (`createPage(ID)`), each with its literal's span.
-function constStrings(program: Program): Map<string, BuilderId> {
-	const consts = new Map<string, BuilderId>()
+// The module's top-level `const` bindings, exported or not, by name.
+function constInits(program: Program): Map<string, Expression> {
+	const inits = new Map<string, Expression>()
 	for (const statement of program.body) {
 		const declaration = statement.type === "ExportNamedDeclaration" ? statement.declaration : statement
 		if (declaration?.type !== "VariableDeclaration" || declaration.kind !== "const") continue
 		for (const item of declaration.declarations) {
-			const init = item.init
-			if (item.id.type === "Identifier" && init?.type === "Literal" && typeof init.value === "string")
-				consts.set(item.id.name, { id: init.value, start: init.start, end: init.end })
+			if (item.id.type === "Identifier" && item.init !== null) inits.set(item.id.name, item.init)
 		}
 	}
+	return inits
+}
+
+// The module's top-level `const NAME = "…"` bindings, which a builder call may name its id by (`createPage(ID)`), each
+// with its literal's span.
+function constStrings(program: Program): Map<string, BuilderId> {
+	const consts = new Map<string, BuilderId>()
+	for (const [name, init] of constInits(program)) {
+		if (init.type === "Literal" && typeof init.value === "string")
+			consts.set(name, { id: init.value, start: init.start, end: init.end })
+	}
 	return consts
+}
+
+// The calls of the route's own builder chain, `route = createPage(…).….render(…)`, through any module-level const it
+// starts from: only they say what the page is. A `.response()` or `.authenticate()` elsewhere in the file, a helper's
+// or another builder's, says nothing (plan 21 13.2). A `satisfies`, `as`, `!`, or parentheses are seen through.
+function routeCalls(program: Program): Set<CallExpression> {
+	const inits = constInits(program)
+	const calls = new Set<CallExpression>()
+	const named = new Set<string>()
+	let node = inits.get("route")
+	while (node !== undefined) {
+		if (node.type !== "Identifier") node = under(node, calls)
+		else if (named.has(node.name)) break
+		else {
+			named.add(node.name)
+			node = inits.get(node.name)
+		}
+	}
+	return calls
+}
+
+// One step down a chain: a call's receiver, or the expression a wrapper holds.
+function under(node: Expression, calls: Set<CallExpression>): Expression | undefined {
+	if (node.type === "CallExpression") {
+		calls.add(node)
+		return node.callee.type === "MemberExpression" ? node.callee.object : undefined
+	}
+	const wrapped = ["ParenthesizedExpression", "TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression"]
+	return wrapped.includes(node.type) ? Reflect.get(node, "expression") : undefined
 }
 
 // The id a bare builder call names, when its first argument is a string literal or a const bound to one.
