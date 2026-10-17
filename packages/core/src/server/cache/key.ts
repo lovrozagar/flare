@@ -22,20 +22,21 @@ export function buildId(): string {
 
 // `static:<build>:<routeId>:<rawParams>` (B86). The values follow the route's declared params, never the record's
 // key order, so a prerender seed keyed from `params()` and a runtime lookup agree. Every declared param keeps its
-// slot, and an absent optional is "", so `/static/x` and `/x/static` on `/[[a]]/static/[[b]]` stay two keys. A
-// catch-all joins its segments with `/`, and `/` and `%` inside a value are percent-encoded. Only a route that
-// declares no params omits the segment. A required chain is never stored, so it has no key (B27).
+// slot, and an absent optional is "", so `/static/x` and `/x/static` on `/[[a]]/static/[[b]]` stay two keys. Values
+// are joined with `&` and a catch-all's segments with `/`, and `%`, `/`, and `&` inside a value are percent-encoded,
+// so no two param records share a key, two catch-alls included (plan 21 7.8). Only a route that declares no params
+// omits the segment. A required chain is never stored, so it has no key (B27).
 export function storeKey(input: KeyInput): string {
 	if (input.class === "required") throw new Error(`${input.route}: a required chain is never stored`)
 	const names = patternSegments(input.pattern).flatMap((segment) => (segment.kind === "static" ? [] : [segment.name]))
 	const head = `static:${input.build}:${input.route}`
 	if (names.length === 0) return head
 	const values = names.map((name) => [input.params[name] ?? []].flat().map(encode).join("/"))
-	return `${head}:${values.join("/")}`
+	return `${head}:${values.join("&")}`
 }
 
 function encode(value: string): string {
-	return value.replaceAll("%", "%25").replaceAll("/", "%2F")
+	return value.replaceAll("%", "%25").replaceAll("/", "%2F").replaceAll("&", "%26")
 }
 
 // The key a request to this page with these params is stored under, for a purge outside a request (`server.cache.key`,
