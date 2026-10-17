@@ -106,6 +106,7 @@ const get = serve([
 	linksPage("fn", () => [{ id: "fn", to: "_root_/echo", search: { f: () => 1 } }]),
 	linksPage("all", () => [{ id: "all", to: "_root_/echo", prefetch: { modules: "all" } }]),
 	linksPage("dots", () => [{ id: "dots", to: "_root_/users/[id]", params: { id: ".." } }]),
+	linksPage("emoji", () => [{ id: "emoji", to: "_root_/users/[id]", params: { id: "😀" } }]),
 	linksPage("hidden", () => [
 		{ id: "slash", href: "/\\evil.example" },
 		{ id: "tab", href: "/\t/evil.example" },
@@ -230,6 +231,16 @@ it("dot segment params", async () => {
 	expect(buildUrl({ to: "_root_/users/[id]", params: { id: "..." } } as never)).toBe("/users/...")
 	expect(buildUrl({ to: "_root_/users/[id]", params: { id: "a.b" } } as never)).toBe("/users/a.b")
 	expect((await get("/dots")).status).toBe(500)
+})
+
+// A param outside the BMP, an emoji, is percent-encoded as its UTF-8 bytes in the Link the server renders and in
+// buildUrl, and that URL routes to the page (BUGS.md 193).
+it("emoji params", async () => {
+	const encoded = "/users/%F0%9F%98%80"
+	expect(buildUrl({ to: "_root_/users/[id]", params: { id: "😀" } } as never)).toBe(encoded)
+	const page = await get("/emoji")
+	expect([page.status, page.text.includes(`href="${encoded}"`)]).toEqual([200, true])
+	expect((await get(encoded)).status).toBe(200)
 })
 
 // One rule writes a value as URL text, for a Link, buildUrl, and redirect alike, and the route's validators read it
