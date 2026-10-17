@@ -40,6 +40,8 @@ A type is born in one place. Later readers do not invent a second copy.
 | an import of `@lovrozagar/flare/query` | `hasQueryClient: true` | `queryClient` on the loader context only |
 | `typeof` the route export | `routeModules[routeId]` | `from` on the data hooks. Page ids, including a `.response()` page, are the legal `to` |
 
+Codegen reads the sides `.input()` validates from its argument: an object literal, or a module-level `const` that holds one, following a spread of such a const. Any other argument, an imported object or a call's result, adds no register entry, so `Link`, `useSearch`, and `useParams` keep the raw types for that route while its own callbacks see the validator output (BUGS.md 346).
+
 `Link`, `navigate`, `redirect`, and `buildUrl` are generic on a page route id: a key of `routeModules` whose `_type` is `"page"`. A layout id, the root id, and a segment id are not `to`. `from` is any key of `routeModules`. An unknown id fails only after the register is augmented.
 
 `hash`, `replace`, `revalidate`, `scroll`, `shallow`, `state`, `viewTransition`, `prefetch`, `status`, and anchor attributes are not generic on the route.

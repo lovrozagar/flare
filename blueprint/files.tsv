@@ -515,6 +515,8 @@ packages/core/src/vite/codegen/closures.ts	P12	src	node	The client build's route
 packages/core/src/vite/codegen/closures.test.ts	P12	test	node	Unit cases for closures.ts
 packages/core/src/vite/codegen/scan.ts	P1	src	vite	One oxc walk of a route file. A parse error fails the build (B75)
 packages/core/src/vite/codegen/scan.test.ts	P1	test	vite	Unit cases for scan.ts
+packages/core/src/vite/codegen/literals.ts	P1	src	vite	The scan's static reads of a module: its top-level consts, TypeScript wrappers, keys, and the sides `.input()` validates (BUGS.md 346)
+packages/core/src/vite/codegen/literals.test.ts	P1	test	vite	Unit cases for literals.ts
 packages/core/src/vite/codegen/escape.ts	P1	src	vite	Escape a string written into generated source
 packages/core/src/vite/codegen/escape.test.ts	P1	test	vite	Unit cases for escape.ts
 packages/core/src/vite/codegen/types-gen.ts	P7	src	vite	Write types.gen.d.ts
@@ -798,6 +800,7 @@ packages/core/tests/types/app/src/routes/_root_/(blog)/post/[slug]/comments/comm
 packages/core/tests/types/app/src/routes/_root_/search/search.page.tsx	P7	app	-	Search validator { q: string; page?: number }
 packages/core/tests/types/app/src/routes/_root_/filter/filter.page.tsx	P7	app	-	Search validator { tag?: string }
 packages/core/tests/types/app/src/routes/_root_/nosrch/nosrch.page.tsx	P7	app	-	Search validator returns {}
+packages/core/tests/types/app/src/routes/_root_/vsearch/vsearch.page.tsx	P7	app	-	Search validators held in a module-level const (BUGS.md 346)
 packages/core/tests/types/app/src/routes/_root_/shaped/[id]/shaped.page.tsx	P7	app	-	input params replaces id: string with id: number
 packages/core/tests/types/app/src/routes/_root_/public/public.page.tsx	P7	app	-	authorize only. No authenticate
 packages/core/tests/types/app/src/routes/_root_/guest/guest.page.tsx	P7	app	-	authenticateOptional()

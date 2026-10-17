@@ -5,6 +5,7 @@ import {
 	METHODS_RULE,
 } from "../../shared/route-builder/methods.ts"
 import { langOf } from "../route-meta/index.ts"
+import { constInits, inputSides, keyName, unwrapped } from "./literals.ts"
 import {
 	parseSync,
 	Visitor,
@@ -14,7 +15,6 @@ import {
 	type Expression,
 	type ObjectPropertyKind,
 	type Program,
-	type PropertyKey,
 } from "oxc-parser"
 
 const QUERY = "@lovrozagar/flare/query"
@@ -66,6 +66,7 @@ export function scanRoute(file: string, source: string): Scan {
 		ids: [],
 	}
 	const consts = constStrings(parsed.program)
+	const inits = constInits(parsed.program)
 	const chain = routeCalls(parsed.program)
 	new Visitor({
 		ImportDeclaration: (node) => {
@@ -75,25 +76,12 @@ export function scanRoute(file: string, source: string): Scan {
 			if (exportsRoute(node)) scan.route = true
 		},
 		CallExpression: (node) => {
-			if (chain.has(node)) readCall(scan, node)
+			if (chain.has(node)) readCall(scan, node, inits)
 			const id = builderId(node, consts)
 			if (id !== undefined) scan.ids.push(id)
 		},
 	}).visit(parsed.program)
 	return scan
-}
-
-// The module's top-level `const` bindings, exported or not, by name.
-function constInits(program: Program): Map<string, Expression> {
-	const inits = new Map<string, Expression>()
-	for (const statement of program.body) {
-		const declaration = statement.type === "ExportNamedDeclaration" ? statement.declaration : statement
-		if (declaration?.type !== "VariableDeclaration" || declaration.kind !== "const") continue
-		for (const item of declaration.declarations) {
-			if (item.id.type === "Identifier" && item.init !== null) inits.set(item.id.name, item.init)
-		}
-	}
-	return inits
 }
 
 // The module's top-level `const NAME = "…"` bindings, which a builder call may name its id by (`createPage(ID)`), each
@@ -132,8 +120,7 @@ function under(node: Expression, calls: Set<CallExpression>): Expression | undef
 		calls.add(node)
 		return node.callee.type === "MemberExpression" ? node.callee.object : undefined
 	}
-	const wrapped = ["ParenthesizedExpression", "TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression"]
-	return wrapped.includes(node.type) ? Reflect.get(node, "expression") : undefined
+	return unwrapped(node)
 }
 
 // The id a bare builder call names, when its first argument is a string literal or a const bound to one.
@@ -154,7 +141,7 @@ function exportsRoute(node: ExportNamedDeclaration): boolean {
 	)
 }
 
-function readCall(scan: Scan, node: CallExpression): void {
+function readCall(scan: Scan, node: CallExpression, inits: ReadonlyMap<string, Expression>): void {
 	// A bare call such as createPage("…") has no property. Only a method name can mark auth or intercept.
 	const callee: Expression = node.callee
 	const name = callee.type === "MemberExpression" && !callee.computed ? callee.property.name : undefined
@@ -164,7 +151,7 @@ function readCall(scan: Scan, node: CallExpression): void {
 	// A .response() page answers every method itself, so routing must know it before its code loads.
 	if (name === "response") readResponse(scan, node.arguments)
 	if (name === "authorize") scan.authorize = true
-	if (name === "input") scan.input = inputSides(node.arguments)
+	if (name === "input") scan.input = inputSides(node.arguments, inits)
 	if (name === "cache") readClient(scan, node.arguments)
 }
 
@@ -266,22 +253,4 @@ function valueOf(properties: readonly ObjectPropertyKind[], key: string): Expres
 		if (property.type === "Property" && !property.computed && keyName(property.key) === key) return property.value
 	}
 	return undefined
-}
-
-// The keys of `.input({ params?, searchParams? })`, named or quoted. A non-literal argument validates neither as far
-// as types go.
-function inputSides(args: readonly Argument[]): Scan["input"] {
-	const [config] = args
-	const keys =
-		config?.type === "ObjectExpression"
-			? config.properties.map((property) =>
-					property.type === "Property" && !property.computed ? keyName(property.key) : "",
-				)
-			: []
-	return { params: keys.includes("params"), search: keys.includes("searchParams") }
-}
-
-// A non-computed key is a name or a string or number literal.
-function keyName(key: PropertyKey): string {
-	return key.type === "Identifier" ? key.name : String(Reflect.get(key, "value"))
 }

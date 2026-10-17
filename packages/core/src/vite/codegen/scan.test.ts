@@ -61,17 +61,23 @@ it("query import", () => {
 	expect(scanRoute("note.tsx", "/* @lovrozagar/flare/query */ const x = 1;").query).toBe(false)
 })
 
-function sides(chain: string) {
-	return scanRoute("a.page.tsx", `export const route = createPage("_root_/a")${chain};`).input
+function sides(chain: string, head = "") {
+	return scanRoute("a.page.tsx", `${head}\nexport const route = createPage("_root_/a")${chain};`).input
 }
 
 it("input sides", () => {
 	expect(sides(".input({ params: p, searchParams: s }).render(r)")).toEqual({ params: true, search: true })
 	expect(sides('.input({ searchParams: s, ...rest, "params": p }).render(r)')).toEqual({ params: true, search: true })
 	expect(sides(".input(config).render(r)")).toEqual({ params: false, search: false })
-	expect(sides(".input({ [params]: p }).render(r)")).toEqual({ params: false, search: false })
-	expect(sides(".render(r)")).toEqual({ params: false, search: false })
-	expect(scanRoute("a.page.tsx", 'export const route = createPage("x").authorize(a).render(r);').authorize).toBe(true)
+	// A module-level const object, or one spread from another, is read as its literal is (BUGS.md 346).
+	const validators = "const validators = { searchParams: s }"
+	expect(sides(".input(validators).render(r)", validators)).toEqual({ params: false, search: true })
+	const spread = "const base = { params: p }\nconst v = { ...base, searchParams: s } as const"
+	expect(sides(".input(v).render(r)", spread)).toEqual({ params: true, search: true })
+	// A call's result is not the object its receiver holds, and a const cycle reads as nothing.
+	expect(sides(".input(validators.pick()).render(r)", validators)).toEqual({ params: false, search: false })
+	expect(sides(".input(a).render(r)", "const a = b\nconst b = a")).toEqual({ params: false, search: false })
+	expect(sides(".input(...all).render(r)", "const all = [{ params: p }]")).toEqual({ params: false, search: false })
 })
 
 function ids(source: string): string[] {
