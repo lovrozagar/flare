@@ -1,5 +1,6 @@
 import { settleRequestBody } from "./body.ts"
 import { finalize } from "../../server/lifecycle/finalize.ts"
+import { ALLOWED } from "../../server/lifecycle/methods.ts"
 import { trustedHops } from "../../shared/url/index.ts"
 import { pendingWork, type DrainOptions, type Pending } from "../drain.ts"
 import { toRequest } from "./request.ts"
@@ -93,7 +94,7 @@ async function pump(job: Job): Promise<void> {
 			status: 405,
 			body: "",
 			url: adapted.url,
-			headers: new Headers({ allow: "GET, HEAD, OPTIONS" }),
+			headers: new Headers({ allow: allowedAt(job.server, adapted.url) }),
 		})
 		return send(job, refused, disconnect.signal)
 	}
@@ -113,6 +114,12 @@ async function pump(job: Job): Promise<void> {
 	})
 	await send(job, response, disconnect.signal)
 	if (body !== undefined && job.req.readableEnded !== true) await body.release()
+}
+
+// The Allow the server gives the path, as its router would for the method; a server with no channel gets the page set.
+function allowedAt(server: Server, url: string): string {
+	const allowed: unknown = Reflect.get(server, ALLOWED)
+	return typeof allowed === "function" ? String(allowed(new URL(url).pathname)) : "GET, HEAD, OPTIONS"
 }
 
 async function send(job: Job, response: Response, signal: AbortSignal): Promise<void> {

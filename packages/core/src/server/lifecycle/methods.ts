@@ -54,9 +54,27 @@ async function responded(
 	const listed = new Set(matched.methods ?? ["GET"])
 	if (listed.has(request.method)) return matched.handle(request)
 	if (request.method === "HEAD" && listed.has("GET")) return applyMethod(request, await matched.handle(request))
-	const named = [...listed, ...(listed.has("GET") ? ["HEAD"] : []), ...(listed.has("OPTIONS") ? [] : ["OPTIONS"])]
 	const status = request.method === "OPTIONS" ? 204 : 405
-	return finalize({ status, body: "", headers: allow(headers, named.join(", ")) })
+	return finalize({ status, body: "", headers: allow(headers, namedMethods(listed)) })
+}
+
+// A `.response()` page's Allow: its methods, HEAD with GET, and OPTIONS once.
+function namedMethods(listed: ReadonlySet<string>): string {
+	return [...listed, ...(listed.has("GET") ? ["HEAD"] : []), ...(listed.has("OPTIONS") ? [] : ["OPTIONS"])].join(", ")
+}
+
+// The channel an adapter asks for a path's Allow when its runtime cannot build the request, as Node cannot for
+// CONNECT, TRACE, and TRACK: the 405 then names the same methods the router's would (RFC 9110, BUGS.md 280).
+export const ALLOWED: unique symbol = Symbol.for("flare.allowed")
+
+export function allowChannel(router: Pick<Router, "match">): { [ALLOWED]: (path: string) => string } {
+	return {
+		[ALLOWED]: (path) => {
+			const matched = router.match(path)
+			if (matched.id === undefined || matched.response !== true) return ALLOW
+			return namedMethods(new Set(matched.methods ?? ["GET"]))
+		},
+	}
 }
 
 // A hand-built router's `.response()` methods, and its `crossOrigin` against the chain's auth, layouts included, are

@@ -22,7 +22,7 @@ import { mountFor, mountSpelling, mountTable } from "../mount/mount.ts"
 import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
 import type { MiddlewareKind } from "../middleware/types.ts"
-import { checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
+import { allowChannel, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
 import { decodedHeaders, responseHeaders } from "./policies.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts"
@@ -69,7 +69,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	const server: FlareServer = { fetch, bodyLimit, buildId, cache }
 	// The internal channel `vite build`'s prerender reads. It runs the same pipeline with a capture (bits/12).
 	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }))
-	return Object.assign(server, { [PRERENDER]: prerender })
+	return Object.assign(server, { [PRERENDER]: prerender }, allowChannel(options.router))
 }
 
 // The observability options dx/observability.md plans, which v1 does not have: one passed from JavaScript, or through
