@@ -19,7 +19,7 @@ export const route = createRootLayout("_admin_")
 						<a href="/" class="font-semibold">
 							← Flare docs
 						</a>{" "}
-						<span class="ms-2 rounded bg-flame-500/15 px-2 py-0.5 text-flame-600">admin</span>
+						<span class="ms-2 rounded bg-flame-500/15 px-2 py-0.5 text-flame-700">admin</span>
 					</header>
 					<div id="admin-app" class="mx-auto max-w-3xl px-5 py-10">
 						{props.children}

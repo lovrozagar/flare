@@ -3,29 +3,11 @@ import type { Page } from "@playwright/test"
 import { bootCopy } from "./copy-boot.ts"
 import { loadHydrated } from "../../src/testing/playwright.ts"
 import { dataTraffic, documents, expect, isProd, open, serverOf, test } from "./docs.fixture.ts"
+import { PAGES } from "./docs-pages.ts"
 import { flushEvents } from "./flush.ts"
 
 // Every project (B94): each page of the docs route map answers its status, hydrates, and leaves the console empty.
-// A document whose own status is not 200 logs that resource failure, and nothing else. `logs` are the flare errors
-// the page's server logs on purpose, and `shows` the element that proves the page rendered the value that logs.
-const PAGES: readonly { path: string; status: number; logs?: readonly string[]; shows?: string }[] = [
-	{ path: "/", status: 200 },
-	{ path: "/hr", status: 200 },
-	{ path: "/ar", status: 200 },
-	{ path: "/docs/routing", status: 200 },
-	{ path: "/docs/media", status: 200 },
-	{ path: "/hr/docs/caching", status: 200 },
-	{ path: "/api/server/create-server", status: 200 },
-	{ path: "/examples", status: 200 },
-	{ path: "/examples/a/b?tab=data", status: 200 },
-	{ path: "/search?q=route", status: 200 },
-	{ path: "/changelog", status: 200, logs: ["The stats service is down"], shows: "#broken-error" },
-	{ path: "/playground", status: 200 },
-	{ path: "/login", status: 200 },
-	{ path: "/[flare]", status: 200 },
-	{ path: "/docs/zzz/qq", status: 404 },
-	{ path: "/admin", status: 401 },
-]
+// A document whose own status is not 200 logs that resource failure, and nothing else (docs-pages.ts).
 
 test.describe("every page hydrates", () => {
 	for (const { path, status } of PAGES) {

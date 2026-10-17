@@ -81,7 +81,7 @@ export const route = createPage("[[locale]]/_root_/changelog")
 						</Loading>
 						<Errored
 							fallback={(error) => (
-								<p id="broken-error" class="rounded-xl border border-red-300 p-4 text-sm text-red-600">
+								<p id="broken-error" class="rounded-xl border border-red-300 p-4 text-sm text-red-700">
 									{String(error())}
 								</p>
 							)}

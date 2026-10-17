@@ -29,7 +29,7 @@ export const route = createPage("[[locale]]/_root_/error")
 			<button
 				id="error-reset"
 				type="button"
-				class="mt-6 rounded-md bg-flame-500 px-3 py-1.5 text-sm text-white"
+				class="mt-6 rounded-md bg-flame-600 px-3 py-1.5 text-sm text-white"
 				onClick={() => {
 					document.cookie = `${FIXED}; Path=/; SameSite=Lax`
 					props.reset()

@@ -36,7 +36,7 @@ export const route = createPage("_admin_/admin")
 				<button
 					id="republish"
 					type="button"
-					class="mt-8 rounded-md bg-flame-500 px-3 py-1.5 text-sm font-medium text-white"
+					class="mt-8 rounded-md bg-flame-600 px-3 py-1.5 text-sm font-medium text-white"
 					onClick={() => void purge()}
 				>
 					Republish the API reference

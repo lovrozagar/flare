@@ -12,7 +12,9 @@
 	--color-flame-300: #fdba74;
 	--color-flame-400: #fb923c;
 	--color-flame-500: #f97316;
-	--color-flame-600: #ea580c;
+	/* Dark enough for text on stone-50 and for white text on it (WCAG AA 4.5:1, plan 21 4.1). */
+	--color-flame-600: #c2410c;
+	--color-flame-700: #9a3412;
 	--color-ink-950: #0b0b10;
 	--color-ink-900: #12121a;
 	--color-ink-800: #1c1c27;
