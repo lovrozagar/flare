@@ -24,10 +24,22 @@ export type RetireOption = string | readonly string[] | undefined
 // query, fragment, or empty segment, as a browser asks for a registered worker's script.
 export function checkRetired(option: RetireOption): void {
 	for (const path of [option ?? []].flat()) {
-		if (typeof path !== "string" || !/^\/[^?#\s]*$/.test(path) || path.includes("//") || path.endsWith("/")) {
+		if (
+			typeof path !== "string" ||
+			!/^\/[^?#\s]*$/.test(path) ||
+			path.includes("//") ||
+			path.endsWith("/") ||
+			!parsed(path)
+		) {
 			throw new Error(`createServer: retireServiceWorker takes pathnames such as "/service-worker.js", not ${path}`)
 		}
 	}
+}
+
+// A request's pathname is parsed, so a path its parse would spell otherwise, a dot segment raw or escaped, never matches
+// (BUGS.md 328).
+function parsed(path: string): boolean {
+	return new URL(path, "http://flare.invalid").pathname === path
 }
 
 // Whether this request pathname is a retired worker's.

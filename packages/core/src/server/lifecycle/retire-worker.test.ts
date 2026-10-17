@@ -69,7 +69,9 @@ it("middleware first", async () => {
 it("checked", () => {
 	expect(() => checkRetired(undefined)).not.toThrow()
 	expect(() => checkRetired("/sw.js")).not.toThrow()
-	for (const bad of ["sw.js", "/sw.js?v=1", "/a#b", "/a b.js", "//sw.js", "/workers/", "/a//b.js"]) {
+	// A dot segment, raw or escaped, is a path no parsed request holds, so it would never match (BUGS.md 328).
+	const dots = ["/./sw.js", "/../sw.js", "/a/../sw.js", "/a/%2e/sw.js", "/a/.%2E/sw.js"]
+	for (const bad of ["sw.js", "/sw.js?v=1", "/a#b", "/a b.js", "//sw.js", "/workers/", "/a//b.js", ...dots]) {
 		expect(() => checkRetired([bad])).toThrow(`retireServiceWorker takes pathnames such as "/service-worker.js"`)
 	}
 	expect(() =>
