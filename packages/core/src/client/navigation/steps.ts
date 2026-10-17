@@ -47,7 +47,7 @@ export function inPlace(
 	const { snapshot } = step
 	let matches = snapshot.matches
 	const move = { current: snapshot.location, next: target.location, trigger: "navigation" as const }
-	if (!step.pop && !allowsNavigation(deps.blockers, move)) return undefined
+	if (!step.pop && !allowsNavigation(deps.blockers, deps.router, move)) return undefined
 	if (target.kind === "shallow") {
 		const search = { ...target.search } as OutletMatch["search"]
 		matches = matches.map((match, index) => (index === matches.length - 1 ? { ...match, search } : match))
