@@ -299,3 +299,23 @@ it("key purge", async () => {
 	expect((await visit("c")).headers.get("flare-cache")).toBe("hit")
 	expect(() => app.cache.key({ to: "_root_/nope" } as never)).toThrow("cache.key: _root_/nope is not a page")
 })
+
+// Loader data holding a closing script tag and a new script is stored and replayed as text: the hit opens no script of
+// its own, exactly as the live render did not (plan 21 7.3).
+it("hostile state hit", async () => {
+	const hostile = "</script><script>alert(1)</script><!--"
+	const page = createPage("_root_/p")
+		.cache({ ssr: { ttl: "1h", staleTime: "1h" } })
+		.loader(() => ({ text: hostile }))
+		.render(() => "p")
+	const { app } = serve(page)
+	const miss = await app.fetch(new Request(`${SITE}/p`))
+	await vi.waitFor(async () =>
+		expect((await app.fetch(new Request(`${SITE}/p`))).headers.get("flare-cache")).toBe("hit"),
+	)
+	const hit = await app.fetch(new Request(`${SITE}/p`))
+	for (const body of [await miss.text(), await hit.text()]) {
+		expect(body).not.toContain("<script>alert")
+		expect(body).toContain("\\u003c/script>\\u003cscript>alert(1)")
+	}
+})

@@ -39,6 +39,23 @@ it("state field", () => {
 	expect(stored).toContain('"data":{"nonce":"abc"}')
 })
 
+// Loader data holding a closing script tag and a new script stays inert text through the write and a hit: the state is
+// written back with the inline-script escape both times, so the replayed page opens no script of its own
+// (plan 21 7.3).
+it("escaped state", () => {
+	const hostile = "</script><script>alert(1)</script><!--"
+	const body = `<body>${state("abc", { text: hostile })}</body>`
+	expect(body).not.toContain("<script>alert")
+	const stored = toSentinel(body, "abc", S)
+	const hit = fromSentinel(stored, S, "def")
+	for (const html of [stored, hit]) {
+		expect(html).not.toContain("<script>alert")
+		expect(html).not.toContain("<!--")
+		expect(html.match(/<\/script>/g)).toHaveLength(1)
+	}
+	expect(hit).toBe(`<body>${state("def", { text: hostile })}</body>`)
+})
+
 it("round trip", () => {
 	const body = `<html><head><style nonce="abc"></style></head><body>abc${state("abc")}</body></html>`
 	const stored = toSentinel(body, "abc", S)
