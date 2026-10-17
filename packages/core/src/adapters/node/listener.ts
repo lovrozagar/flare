@@ -1,13 +1,13 @@
 import { settleRequestBody } from "./body.ts"
 import { finalize } from "../../server/lifecycle/finalize.ts"
-import { ALLOWED } from "../../server/lifecycle/methods.ts"
+import { REFUSED, type RefusedAnswer } from "../../server/lifecycle/methods.ts"
 import { trustedHops } from "../../shared/url/index.ts"
 import { pendingWork, type DrainOptions, type Pending } from "../drain.ts"
 import { toRequest } from "./request.ts"
 
 // The methods fetch's Request refuses to build. No route answers one, so each is the 405 a page gives, as on Bun,
 // where the server answers it (plan 21 13.6).
-const REFUSED = new Set(["CONNECT", "TRACE", "TRACK"])
+const UNBUILT = new Set(["CONNECT", "TRACE", "TRACK"])
 
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void }
 
@@ -89,14 +89,10 @@ async function pump(job: Job): Promise<void> {
 		if (job.res.writableFinished !== true) disconnect.abort()
 	})
 	const method = job.req.method ?? "GET"
-	if (REFUSED.has(method.toUpperCase())) {
-		const refused = finalize({
-			status: 405,
-			body: "",
-			url: adapted.url,
-			headers: new Headers({ allow: allowedAt(job.server, adapted.url) }),
-		})
-		return send(job, refused, disconnect.signal)
+	if (UNBUILT.has(method.toUpperCase())) {
+		const { status, location, allow } = refusedAt(job.server, { method, url: adapted.url })
+		const headers = new Headers(allow === undefined ? {} : { allow })
+		return send(job, finalize({ status, body: "", url: adapted.url, location, headers }), disconnect.signal)
 	}
 	const init: RequestInit = { method, headers, signal: disconnect.signal }
 	if (body !== undefined) {
@@ -116,10 +112,12 @@ async function pump(job: Job): Promise<void> {
 	if (body !== undefined && job.req.readableEnded !== true) await body.release()
 }
 
-// The Allow the server gives the path, as its router would for the method; a server with no channel gets the page set.
-function allowedAt(server: Server, url: string): string {
-	const allowed: unknown = Reflect.get(server, ALLOWED)
-	return typeof allowed === "function" ? String(allowed(new URL(url).pathname)) : "GET, HEAD, OPTIONS"
+// What the server's pipeline gives the method on that path, through its channel; a server with none gets the 405 a
+// page gives (BUGS.md 280, 284).
+function refusedAt(server: Server, request: { method: string; url: string }): RefusedAnswer {
+	const channel: unknown = Reflect.get(server, REFUSED)
+	if (typeof channel !== "function") return { status: 405, allow: "GET, HEAD, OPTIONS" }
+	return Reflect.apply(channel, undefined, [request]) as RefusedAnswer
 }
 
 async function send(job: Job, response: Response, signal: AbortSignal): Promise<void> {

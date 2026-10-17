@@ -1,5 +1,9 @@
 import { fnPrefix } from "../../shared/protocol/index.ts"
 import { canonicalPath, type CanonicalOptions, type CanonicalPath } from "../../shared/url/canonical.ts"
+import { foldCase } from "../../shared/router/fold.ts"
+import { mountSpelling, type Mount } from "../mount/mount.ts"
+import type { RuntimeOptions } from "./options.ts"
+import { isRetired } from "./retire-worker.ts"
 
 export type PathRewrite = (path: string) => string | undefined
 
@@ -58,4 +62,26 @@ function rewriteOnce(rewrite: PathRewrite, path: string, options: CanonicalOptio
 
 function readPath(result: CanonicalPath): string | undefined {
 	return "path" in result ? result.path : undefined
+}
+
+// One request's canonical step as the pipeline runs it (02-system steps 1 to 4). A retired worker's path is answered as
+// asked for, since its update fetch fails on a redirect. The app's rewrite runs only on a path no mount handles, and a
+// mount prefix folds before the matched route (B22). A Node adapter runs it too, for a method it cannot make a request
+// of (BUGS.md 284).
+export function canonicalStep(
+	serving: { options: Pick<RuntimeOptions, "router" | "rewrite" | "retireServiceWorker">; mounts: readonly Mount[] },
+	request: { method: string; url: string },
+): CanonicalStep {
+	const { router, rewrite, retireServiceWorker } = serving.options
+	const mounted = (path: string) => mountSpelling(serving.mounts, path)
+	return applyCanonical({
+		method: request.method,
+		url: request.url,
+		fixed: isRetired(retireServiceWorker, new URL(request.url).pathname),
+		basePath: router.basePath,
+		trailingSlash: router.trailingSlash,
+		caseSensitive: router.caseSensitive,
+		rewrite: rewrite === undefined ? undefined : (path) => (mounted(path) === undefined ? rewrite(path) : undefined),
+		fold: (path) => mounted(path) ?? foldCase(router, path),
+	})
 }
