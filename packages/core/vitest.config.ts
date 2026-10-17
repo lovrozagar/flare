@@ -61,6 +61,7 @@ export default defineConfig({
 						"tests/e2e/prefetch-reuse.test.ts",
 						"tests/e2e/docs-*.test.ts",
 						"tests/e2e/dev-recovery.test.ts",
+						"tests/e2e/dev-hmr.test.ts",
 					],
 				},
 			},
