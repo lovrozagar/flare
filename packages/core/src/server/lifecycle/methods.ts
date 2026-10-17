@@ -88,6 +88,18 @@ export function refusedChannel(
 	return { [REFUSED]: (request) => refusedAnswer(serving, { request, step }) }
 }
 
+// As the pipeline's `failed`: a thrown redirect answers its Location, any other throw, the Location's own building
+// included, is the projected 500 (BUGS.md 291, 294).
+function thrownAnswer(error: unknown, at: { router: RuntimeOptions["router"]; sink: ErrorSink }): RefusedAnswer {
+	try {
+		if (error instanceof RedirectError) return { status: error.status, location: redirectLocation(error, at.router) }
+		throw error
+	} catch (failure) {
+		projectError(failure, at.sink)
+		return { status: 500 }
+	}
+}
+
 async function refusedAnswer(
 	serving: { options: Pick<RuntimeOptions, "router" | "serverFns">; mounts: readonly Mount[]; sink: ErrorSink },
 	at: { request: Refused; step: (request: Refused) => { status: number; location?: string } },
@@ -106,10 +118,7 @@ async function refusedAnswer(
 			return fn === undefined ? { status: 404 } : { status: 405, allow: `${fn.record.method.toUpperCase()}, OPTIONS` }
 		}
 	} catch (error) {
-		// As the pipeline's `failed`: a thrown redirect answers its Location, any other throw is the projected 500.
-		if (error instanceof RedirectError) return { status: error.status, location: redirectLocation(error, router) }
-		projectError(error, serving.sink)
-		return { status: 500 }
+		return thrownAnswer(error, { router, sink: serving.sink })
 	}
 	const matched = router.match(url.pathname)
 	if (matched.id === undefined || matched.response !== true) return { status: 405, allow: ALLOW }

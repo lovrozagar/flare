@@ -157,6 +157,7 @@ const step = (request: { url: string }) => {
 	if (request.url.endsWith("/broken")) throw new Error("rewrite broke")
 	if (request.url.endsWith("/moved")) redirect({ to: "_root_/page" })
 	if (request.url.endsWith("/gone")) notFound()
+	if (request.url.endsWith("/unbuilt")) redirect({ to: "_root_/users/[id]" } as never)
 	return request.url.endsWith("/old") ? { status: 308, location: "/hook" } : { status: 200 }
 }
 
@@ -209,6 +210,7 @@ it("refused channel", async () => {
 		"/broken",
 		"/moved",
 		"/gone",
+		"/unbuilt",
 		"/old",
 		"/mounted/x",
 		"/_flare/fn/unknown0000000000",
@@ -223,6 +225,7 @@ it("refused channel", async () => {
 		{ status: 400 },
 		{ status: 500 },
 		{ status: 303, location: "/page" },
+		{ status: 500 },
 		{ status: 500 },
 		{ status: 308, location: "/hook" },
 		{ status: 501 },
