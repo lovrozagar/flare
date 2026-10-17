@@ -188,7 +188,8 @@ it("public render anonymous", async () => {
 })
 
 // A public page whose anonymous render is not a clean 200, here a loader that needs a cookie, answers a visitor who has
-// one with that visitor's own render: private, never the public policy a CDN would keep and serve to everyone.
+// one with that visitor's own render: private, never the public policy a CDN would keep and serve to everyone, with a
+// store or without one (BUGS.md 266).
 it("public render refused", async () => {
 	const page = createPage("_root_/p")
 		.cache({ isr: true, cdn })
@@ -200,9 +201,16 @@ it("public render refused", async () => {
 		.render((props) => JSON.stringify(props.loaderData))
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] })
 	const bare = createServer({ router })
-	for (const path of ["/p", "/p?_flare=data"]) {
-		const response = await bare.fetch(new Request(`http://localhost${path}`, { headers: { cookie: "who=alice" } }))
-		expect(await response.text()).toContain("alice")
-		expect(response.headers.get("cache-control")).toBe("private, no-store")
+	const stored = createServer({ router, store: createMemoryStore(), site: "https://example.com" })
+	for (const server of [bare, stored]) {
+		for (const path of ["/p", "/p?_flare=data"]) {
+			const response = await server.fetch(new Request(`http://localhost${path}`, { headers: { cookie: "who=alice" } }))
+			expect(await response.text()).toContain("alice")
+			expect([server === bare, path, response.headers.get("cache-control")]).toEqual([
+				server === bare,
+				path,
+				"private, no-store",
+			])
+		}
 	}
 })
