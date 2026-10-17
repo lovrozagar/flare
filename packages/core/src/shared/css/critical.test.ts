@@ -175,3 +175,16 @@ it("kept by structure", () => {
 	expect(criticalCss(twoDivs("one"), css)).toBe(first)
 	expect(calls()).toBeGreaterThan(evicted)
 })
+
+const nonced = (nonce: string) =>
+	`<html><head><script nonce="${nonce}">1</script><link rel="modulepreload" href="/a.js" nonce="${nonce}"></head><body><div class="a">x</div></body></html>`
+
+// A document's nonce is fresh per request under the default CSP, on its scripts, styles, and preload links, and no
+// selector reads its value, so two shells that differ only in their nonces share one kept match (BUGS.md 274).
+it("kept across nonces", () => {
+	const css = ".a{color:red}script+.a{gap:1px}"
+	const first = criticalCss(nonced("8f2a"), css)
+	const before = calls()
+	expect(criticalCss(nonced("c41d"), css)).toBe(first)
+	expect(calls()).toBe(before)
+})

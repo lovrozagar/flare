@@ -81,12 +81,15 @@ function index(list: readonly Statement[], at: { sheet: Sheet; parent: string | 
 	}
 }
 
-// Each element's tag, attributes in order, parent, and previous sibling, by their places in the tree.
+// Each element's tag, attributes in order, parent, and previous sibling, by their places in the tree. A nonce is fresh
+// per request and no selector reads its value, so only its presence counts (BUGS.md 274).
 function structureOf(tree: readonly ShellElement[]): string {
 	const at = new Map(tree.map((element, index) => [element, index]))
 	return tree
 		.map((element) => {
-			const attributes = [...element.attributes].map(([name, value]) => `${name}=${JSON.stringify(value)}`).join(" ")
+			const attributes = [...element.attributes]
+				.map(([name, value]) => (name === "nonce" ? name : `${name}=${JSON.stringify(value)}`))
+				.join(" ")
 			const parent = element.parent === undefined ? -1 : at.get(element.parent)
 			const previous = element.previous === undefined ? -1 : at.get(element.previous)
 			return `${element.tag} ${parent} ${previous} ${attributes}`
