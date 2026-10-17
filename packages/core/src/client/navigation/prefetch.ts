@@ -80,8 +80,9 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 		if (withData) data(target)
 	}
 	return {
+		// The after-load warm-up is the router's `modules: "all"`; any other router setting warms nothing (BUGS.md 305).
 		all() {
-			if (lowData(deps.env.network)) return
+			if (deps.router.prefetch.modules !== "all" || lowData(deps.env.network)) return
 			if (deps.env.relPrefetch ?? document.createElement("link").relList.supports("prefetch")) {
 				for (const href of unloadedChunks(deps.router)) deps.env.head.append(prefetchLink(href))
 			} else void loadChain(unloadedEntries(deps.router)).catch(() => undefined)
