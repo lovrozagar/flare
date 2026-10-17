@@ -12,7 +12,8 @@ export type NavigateInput = {
 	shallow?: boolean | undefined
 }
 
-export type TargetContext = { router: Router; origin: string; current: Location }
+// `revalidate`: the call refetches, so a move of the hash alone is a data navigation too (BUGS.md 321).
+export type TargetContext = { router: Router; origin: string; current: Location; revalidate?: boolean | undefined }
 
 // A document load, a hash-only move, or a data navigation. `url` is what the address bar shows. `dataUrl` is
 // what the client fetches: no hash, and `_flare=data` (02-system step 2).
@@ -42,6 +43,26 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 	return { kind: "shallow", url: target.url, location, search: input.search }
 }
 
+// navigate()'s target. `state` goes into history, which structured-clones it: cloned here first, one that cannot be, a
+// function say, throws before the request, the commit, and the history write, not after the page changed (BUGS.md
+// 314). The page on screen at a hash goes to its target again (BUGS.md 148).
+export function callTarget(
+	input: NavigateInput & { state?: unknown; revalidate?: boolean | undefined },
+	context: TargetContext,
+): Target {
+	if (input.state !== undefined) structuredClone(input.state)
+	return hashAgain(
+		resolveTarget(input, { ...context, revalidate: input.revalidate }),
+		context.current,
+		input.revalidate,
+	)
+}
+
+// A Link's or an anchor's target, a URL.
+export function urlTarget(url: string, revalidate: boolean, context: TargetContext): Target {
+	return hashAgain(resolveUrl(url, { ...context, revalidate }), context.current, revalidate)
+}
+
 // A navigation, a Link or an anchor, to the URL already current with a hash goes to its target again, as the browser
 // does, unless it asks to revalidate. A fill, a refresh, a pop, and a redirect never come here (BUGS.md 148).
 export function hashAgain(target: Target, current: Location, revalidate: boolean | undefined): Target {
@@ -64,7 +85,7 @@ function fromLocation(location: Location, context: TargetContext): Target {
 	// server does, which a bare data 404 cannot paint inside a root that renders the document (plan 21 13.10).
 	if (match.id === undefined || match.response === true) return { kind: "document", url }
 	if (rootOf(match) !== rootOf(context.router.match(context.current.pathname))) return { kind: "document", url }
-	if (isHashMove(context.current, location)) return { kind: "hash", url, location }
+	if (context.revalidate !== true && isHashMove(context.current, location)) return { kind: "hash", url, location }
 	const query = location.search === "" ? "?" : `${location.search}&`
 	const dataUrl = `${location.pathname}${query}${KIND_PARAM}=data`
 	return { kind: "data", url, dataUrl, location, route: match.id, match }

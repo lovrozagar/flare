@@ -382,6 +382,7 @@ packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates
 packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token, announce it, and name it on the client's requests (B42)
 packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
+packages/core/src/client/boot/server-fn-boot.test.ts	P1	test	dom	The server function transport bootClient installs: a call, a redirect that revalidates, another build's answer, and a stream (split from create-client.test.ts)
 packages/core/src/client/boot/leave.test.ts	P1	test	dom	Leaving the document asks the last blocker: a refusing blocker cancels beforeunload, and a disposed client does not listen (BUGS.md 183)
 packages/core/src/client/boot/typed-hash.test.ts	P6	test	dom	A hash the visitor typed: the entry left keeps the position its last frame showed, and the browser's entry is stamped (BUGS.md 318)
 packages/core/src/client/boot/production.test.ts	P1	test	dom	With import.meta.env.DEV false the client leaves out the dev tab, the hot channel's sender, and the overlay report (BUGS.md 189)

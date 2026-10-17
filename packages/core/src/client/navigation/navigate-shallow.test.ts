@@ -110,3 +110,16 @@ it("hash blocked", async () => {
 	await app.navigator.restore("/#y", 1)
 	expect([blocker.mock.calls.length, app.store.snapshot().location.hash]).toEqual([1, "#y"])
 })
+
+// `revalidate: true` refetches even when only the hash moves: to a new hash, and from a hash to the same URL without
+// one; the page lands, then goes to the hash (dx/navigate.md, BUGS.md 321).
+it("revalidate with a hash move", async () => {
+	const frames = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/", d: "fresh" }, { t: "r" }, { t: "d" }]
+	const fetch = vi.fn<Fetch>(async () => new Response(frames.map((frame) => encodeFrame(frame as never)).join("")))
+	const app = await mountNavigator(router, fetch)
+	await app.navigator.navigate({ to: "_root_/", hash: "x", revalidate: true })
+	flush()
+	expect([fetch.mock.calls.length, location.hash, app.text()]).toEqual([1, "#x", "root[home:fresh:undefined]"])
+	await app.navigator.navigate({ to: "_root_/", revalidate: true })
+	expect([fetch.mock.calls.length, location.hash]).toEqual([2, ""])
+})
