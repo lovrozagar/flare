@@ -265,7 +265,11 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 	if (routeCsrf(exchange.request, { ...csrf, sameSite: exchange.options.sameSite ?? [] }) === 403)
 		return answer(exchange, 403)
 	const load = () => runLoaders({ ...loaderInput(exchange, matched), response: respond })
-	const run = await (csrf.crossOrigin === true ? withoutIdentity(exchange, csrf.id, load) : load())
+	// The identity-less scope's own failure, a serverContext throw, answers as any route's does (BUGS.md 287).
+	const run = await (csrf.crossOrigin === true
+		? withoutIdentity(exchange, csrf.id, load).catch(failed(exchange))
+		: load())
+	if (run instanceof Response) return run
 	if (run.thrown instanceof RedirectError) {
 		return answer(exchange, run.thrown.status, redirectLocation(run.thrown, exchange.options.router))
 	}

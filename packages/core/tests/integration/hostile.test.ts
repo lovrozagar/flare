@@ -278,3 +278,58 @@ it("cross origin identity", async () => {
 	expect((await strict.fetch(new Request("http://localhost/hook", forged))).status).toBe(500)
 	logged.mockRestore()
 })
+
+// The identity-less request a crossOrigin route's server functions see keeps the method and the abort signal: a stream
+// it serves stops when the client leaves, and the method reads as sent; only Cookie and Authorization go (BUGS.md 286).
+it("cross origin request", async () => {
+	const seen: Array<() => unknown> = []
+	const peek = createServerFn({ method: "post", __id: "peekrequest00000", __name: "peek" } as never).handler(
+		({ request }) => void seen.push(() => [request.method, request.signal.aborted, request.headers.get("cookie")]),
+	)
+	const hook = createPage("_root_/hook").response(
+		async () => {
+			await peek()
+			return new Response("ok")
+		},
+		{ methods: ["POST"], crossOrigin: true },
+	)
+	const server = createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [{ id: "_root_/hook", path: "/hook", module: hook }],
+		}),
+	})
+	const leave = new AbortController()
+	const headers = { origin: "https://evil.example", cookie: "sid=alice" }
+	const response = await server.fetch(
+		new Request("http://localhost/hook", { method: "POST", headers, signal: leave.signal }),
+	)
+	expect(response.status).toBe(200)
+	leave.abort()
+	expect(seen.map((read) => read())).toEqual([["POST", true, null]])
+})
+
+const post = () => new Request("http://localhost/hook", { method: "POST", headers: { cookie: "sid=alice" } })
+
+// A serverContext that throws inside a crossOrigin route's identity-less scope answers as any route's failure does,
+// through the pipeline's `failed`: a bug is the 500 with the app's security set, a thrown redirect its 3xx (BUGS.md 287).
+it("cross origin context throws", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const hook = createPage("_root_/hook").response(() => new Response("ok"), { methods: ["POST"], crossOrigin: true })
+	const serve = (thrown: () => never) =>
+		createServer({
+			security: { "X-Frame-Options": "SAMEORIGIN" },
+			serverContext: ({ request }) => (request.headers.get("cookie") === null ? thrown() : {}),
+			router: createRouter({
+				layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+				routeTree: [{ id: "_root_/hook", path: "/hook", module: hook }],
+			}),
+		})
+	const bug = await serve(() => {
+		throw new Error("no cookie")
+	}).fetch(post())
+	expect([bug.status, bug.headers.get("x-frame-options")]).toEqual([500, "SAMEORIGIN"])
+	const moved = await serve(() => redirect({ to: "_root_/hook" })).fetch(post())
+	expect([moved.status, moved.headers.get("location")]).toEqual([303, "/hook"])
+	logged.mockRestore()
+})
