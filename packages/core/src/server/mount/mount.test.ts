@@ -96,10 +96,17 @@ it("strip", async () => {
 	expect(await (await dispatchMount(table, new Request("http://localhost/api/x?q=1"), call))?.text()).toBe("api /x?q=1")
 	expect(await (await dispatchMount(table, new Request("http://localhost/api"), call))?.text()).toBe("api /")
 	expect((await dispatchMount(table, new Request("http://localhost/api//x"), call))?.status).toBe(400)
-	// A parsed URL turns `\` into `/` and encodes a control character, so neither survives to the strip.
+	// A parsed URL turns `\` into `/` and percent-encodes a control character or an escaped backslash: after the strip
+	// each is 400, as `//` is, raw or encoded (dx/server.md, BUGS.md 326). Any other escape reaches the mount.
 	expect(await (await dispatchMount(table, new Request("http://localhost/api/\\x"), call))?.status).toBe(400)
-	expect(await (await dispatchMount(table, new Request("http://localhost/api/a\u0001b"), call))?.text()).toBe(
-		"api /a%01b",
+	for (const rest of ["a\u0001b", "%00", "%01x", "%0A", "%1f", "%7F", "x%5C", "x%5cy"]) {
+		expect([rest, (await dispatchMount(table, new Request(`http://localhost/api/${rest}`), call))?.status]).toEqual([
+			rest,
+			400,
+		])
+	}
+	expect(await (await dispatchMount(table, new Request("http://localhost/api/%41%20%2F"), call))?.text()).toBe(
+		"api /%41%20%2F",
 	)
 	expect(await dispatchMount(table, new Request("http://localhost/other"), call)).toBeUndefined()
 	// The prefix is the active mount while its fetch runs, and only then.
