@@ -22,6 +22,7 @@ export type RouteGen = {
 	urls: string[]
 	params: Record<string, string>
 	response: boolean
+	methods?: string[]
 	// The literal `cache.client` and the intercept the record carries (B89).
 	client?: ClientLiteral
 	intercept?: { from: string[]; render: string }
@@ -120,6 +121,7 @@ function toRoute(page: Item, scan: Scan | undefined): RouteGen {
 		params,
 		response: scan?.response === true,
 	}
+	if (scan?.methods !== undefined) route.methods = scan.methods
 	if (scan?.client !== undefined) route.client = scan.client
 	if (scan?.intercept !== undefined) route.intercept = { from: scan.intercept.from, render: scan.intercept.render }
 	return route
@@ -258,9 +260,10 @@ function render(routes: readonly RouteGen[], layouts: readonly LayoutGen[], rout
 
 // JSON is valid JavaScript, and a string field is escaped by it.
 function literals(route: RouteGen): string {
+	const methods = route.methods === undefined ? "" : `methods: ${codeLiteral(route.methods)}, `
 	const client = route.client === undefined ? "" : `client: ${codeLiteral(route.client)}, `
 	const intercept = route.intercept === undefined ? "" : `intercept: ${codeLiteral(route.intercept)}, `
-	return `${client}${intercept}`
+	return `${methods}${client}${intercept}`
 }
 
 function lazy(routesDir: string, file: string): string {

@@ -88,6 +88,8 @@ packages/core/src/shared/route-builder/register.ts	P1	types	shared	FlareRegister
 packages/core/src/shared/route-builder/chain.ts	P1	src	shared	Shared builder state. Each method once, in the 03-surface order
 packages/core/src/shared/route-builder/route-types.ts	P7	types	shared	Typed builder state: parent auth and context, step contexts, and the typed record
 packages/core/src/shared/route-builder/chain.test.ts	P1	test	shared	Unit cases for chain.ts
+packages/core/src/shared/route-builder/methods.ts	P1	src	shared	The methods a .response() page may declare, checked by codegen and createServer only (BUGS.md 208)
+packages/core/src/shared/route-builder/methods.test.ts	P1	test	shared	Unit cases for methods.ts
 packages/core/src/shared/route-builder/page.ts	P1	src	shared	createPage
 packages/core/src/shared/route-builder/page.test.ts	P1	test	shared	Unit cases for page.ts
 packages/core/src/shared/route-builder/layout.ts	P1	src	shared	createLayout

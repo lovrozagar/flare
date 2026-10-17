@@ -142,3 +142,25 @@ it("route chain only", () => {
 	)
 	expect([looped.response, looped.auth]).toEqual([true, true])
 })
+
+function methods(options: string): string[] | undefined {
+	return scanRoute("a.page.ts", `${ROUTE}response(h${options});`).methods
+}
+
+// `.response(fn, { methods })` is a literal list the route node carries; none is GET. Any other shape fails the build,
+// naming the file (plan 21 13.5, BUGS.md 208).
+it("response methods", () => {
+	expect(methods("")).toBeUndefined()
+	expect(methods(", {}")).toBeUndefined()
+	expect(methods(', { methods: ["GET", "POST"] }')).toEqual(["GET", "POST"])
+	for (const options of [
+		', { methods: ["get"] }',
+		", { methods: [] }",
+		', { methods: ["GET", "GET"] }',
+		", { methods: list }",
+		", options",
+		", { methods: [...list] }",
+	]) {
+		expect(() => methods(options)).toThrow("a.page.ts: .response() methods is a non-empty array")
+	}
+})

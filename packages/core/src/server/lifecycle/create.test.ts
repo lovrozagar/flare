@@ -431,15 +431,16 @@ it("method before load", async () => {
 		layouts: { _root_: lazy("root", framed) },
 		routeTree: [
 			{ id: "_root_/", path: "/", module: lazy("home", home) },
-			{ id: "_root_/api", path: "/api", response: true, module: lazy("api", api) },
-			{ id: "_root_/lie", path: "/lie", response: true, module: lazy("lie", home) },
+			{ id: "_root_/api", path: "/api", response: true, methods: ["POST"], module: lazy("api", api) },
+			{ id: "_root_/lie", path: "/lie", response: true, methods: ["POST"], module: lazy("lie", home) },
 		],
 	})
 	const app = serveWith({ router }, { dev: false, log: quiet })
 	const post = await app.fetch(new Request("http://localhost/", { method: "POST" }))
 	expect(post.status).toBe(405)
 	expect((await app.fetch(new Request("http://localhost/", { method: "OPTIONS" }))).status).toBe(204)
-	expect(imported).toEqual([])
+	const refused = await app.fetch(new Request("http://localhost/api"))
+	expect([refused.status, refused.headers.get("allow"), imported]).toEqual([405, "POST, OPTIONS", []])
 	const answered = await app.fetch(new Request("http://localhost/api", { method: "POST" }))
 	expect(await answered.text()).toBe("api")
 	expect(imported).toEqual(["root", "api"])

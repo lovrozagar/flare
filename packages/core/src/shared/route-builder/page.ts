@@ -29,8 +29,8 @@ function pageBuilder<S extends RouteState>(id: string, chain: Chain): PageBuilde
 			chain.intercept(config)
 			return pageBuilder(id, chain)
 		},
-		response(fn) {
-			chain.response(fn)
+		response(fn, options) {
+			chain.response(fn, options)
 			return record()
 		},
 	}

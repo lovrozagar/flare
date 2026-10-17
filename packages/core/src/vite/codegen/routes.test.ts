@@ -241,6 +241,18 @@ it("response flag", () => {
 	expect(generated.routes.map((route) => route.response)).toEqual([true, false])
 })
 
+// A `.response()` page's literal methods ride on its node, so routing refuses a method it does not answer before the
+// module loads (plan 21 13.5, BUGS.md 208).
+it("response methods", () => {
+	const api = 'export const route = createPage("_root_/api").response(h, { methods: ["POST"] });\n'
+	const generated = generateRoutes(["_root_/api/api.page.tsx", rootLayout], (file) =>
+		file.includes("api") ? api : routeSource,
+	)
+	expect(generated.source).toContain(
+		'{ id: "_root_/api", path: "/api", response: true, methods: ["POST"], module: () =>',
+	)
+})
+
 // The route record carries the literal `cache.client` fields and the intercept, which Link and navigation read before
 // the route's code loads (B89).
 it("client literals", () => {

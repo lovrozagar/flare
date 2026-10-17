@@ -1,10 +1,16 @@
+import { isMethodList, METHODS_RULE } from "../../shared/route-builder/methods.ts"
+import type { RouteNode } from "../../shared/router/create-router.ts"
 import { finalize } from "./finalize.ts"
 
 const ALLOW = "GET, HEAD, OPTIONS"
 
 export type MethodMatch =
 	| { kind: "page"; render: () => Response | Promise<Response> }
-	| { kind: "response"; handle: (request: Request) => Response | Promise<Response> }
+	| {
+			kind: "response"
+			methods?: readonly string[] | undefined
+			handle: (request: Request) => Response | Promise<Response>
+	  }
 
 // `headers` is the request's security set, so a 204 and a 405 carry it like any other status.
 export function applyMethod(request: Request, document: Response, headers?: Headers): Response {
@@ -25,11 +31,36 @@ export async function routeMethod(
 ): Promise<Response> {
 	const matched = input.match()
 	if (matched === undefined) return unmatched(request, input.headers)
-	if (matched.kind === "response") return matched.handle(request)
+	if (matched.kind === "response") return responded(request, matched, input.headers)
 	if (request.method !== "GET" && request.method !== "HEAD") {
 		return applyMethod(request, new Response(null), input.headers)
 	}
 	return applyMethod(request, await matched.render(), input.headers)
+}
+
+// A .response() page answers the methods it declares, GET when it declares none (plan 21 13.5). HEAD runs it as GET
+// does and sends no body; OPTIONS is 204 unless the page declares it; any other method is 405 and never calls it.
+async function responded(
+	request: Request,
+	matched: Extract<MethodMatch, { kind: "response" }>,
+	headers: Headers | undefined,
+): Promise<Response> {
+	const listed = new Set(matched.methods ?? ["GET"])
+	if (listed.has(request.method)) return matched.handle(request)
+	if (request.method === "HEAD" && listed.has("GET")) return applyMethod(request, await matched.handle(request))
+	const named = [...listed, ...(listed.has("GET") ? ["HEAD"] : []), ...(listed.has("OPTIONS") ? [] : ["OPTIONS"])]
+	const status = request.method === "OPTIONS" ? 204 : 405
+	return finalize({ status, body: "", headers: allow(headers, named.join(", ")) })
+}
+
+// A hand-built router's `.response()` methods are checked at startup, as codegen checks a route file's (plan 21 13.5).
+export function checkResponseMethods(routeTree: readonly RouteNode[]): void {
+	for (const node of routeTree) {
+		const methods = node.methods ?? (typeof node.module === "object" ? node.module.responseOptions?.methods : undefined)
+		if (methods !== undefined && !isMethodList(methods)) {
+			throw new Error(`createServer: ${node.id} .response() ${METHODS_RULE}`)
+		}
+	}
 }
 
 function unmatched(request: Request, headers: Headers | undefined): Response {
@@ -37,8 +68,8 @@ function unmatched(request: Request, headers: Headers | undefined): Response {
 	return finalize({ status: 405, body: "", headers: allow(headers) })
 }
 
-function allow(headers: Headers | undefined): Headers {
+function allow(headers: Headers | undefined, methods = ALLOW): Headers {
 	const merged = new Headers(headers)
-	merged.set("allow", ALLOW)
+	merged.set("allow", methods)
 	return merged
 }

@@ -21,7 +21,7 @@ import { dispatchMount, mountSpelling, mountTable } from "../mount/mount.ts"
 import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
 import type { MiddlewareKind } from "../middleware/types.ts"
-import { routeMethod, type MethodMatch } from "./methods.ts"
+import { checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
 import { decodedHeaders, responseHeaders } from "./policies.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts"
@@ -53,6 +53,7 @@ const STYLES = devStyles(import.meta.hot)
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev })
 	checkLocale(options.locale, options.router)
+	checkResponseMethods(options.router.routeTree)
 	const { trailingSlash, caseSensitive } = options.router
 	const bodyLimit = bodyLimitOf(options.bodyLimit)
 	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive })
@@ -213,7 +214,8 @@ function routed(exchange: Exchange, url: URL): Promise<Response> {
 function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefined {
 	if (matched.id === undefined) return undefined
 	if (matched.response === true) {
-		return { kind: "response", handle: () => loaded(exchange, matched, (chain) => answered(exchange, chain)) }
+		const handle = () => loaded(exchange, matched, (chain) => answered(exchange, chain))
+		return { kind: "response", methods: matched.methods, handle }
 	}
 	return { kind: "page", render: () => loaded(exchange, matched, (chain) => pageAnswer(exchange, chain)) }
 }
