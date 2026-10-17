@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 import { createComponent } from "solid-js"
-import { escape } from "@solidjs/web"
 import { Matches, type OutletState } from "../../shared/components/index.ts"
 import { builtSheet } from "../../shared/css/sheet.ts"
 import { RedirectError } from "../../shared/errors/redirect.ts"
@@ -19,6 +18,7 @@ import { redirectLocation } from "../redirect/index.ts"
 import { renderDocument } from "../render/document.ts"
 import { DocumentlessRoot } from "../render/shape.ts"
 import { definedParams, outletMatches, stateMatches, type Rendered } from "../render/matches.ts"
+import { errorPage } from "../render/error-page.ts"
 import { lateErrors, projectError, type Projected } from "../render/projector.ts"
 import { answerQueries } from "../render/state.ts"
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts"
@@ -248,23 +248,22 @@ export async function drawn(
 	return { exchange, body, late }
 }
 
-// The stream rejected before the shell, so nothing was written (B93). Only a dev bug shows its message and
-// stack. Production and a named status answer an empty body.
+// The stream rejected before the shell, so nothing was written: the built-in error page answers, with the digest in
+// production and the message and stack only in dev (B93, plan 21 13.13).
 function renderFailed(exchange: Exchange, projected: Projected): Response {
-	const stack = projected.wire.stack
-	const body = stack === undefined ? "" : `<pre>${escape(`${projected.wire.message}\n${stack}`)}</pre>`
-	return finalize({ status: projected.status, body, headers: typed(exchange, HTML) })
+	return finalize({ status: projected.status, body: errorPage(projected), headers: typed(exchange, HTML) })
 }
 
 // per-process-constant: the document-less roots each server has logged
 const logged = new WeakMap<Exchange["options"], Set<string>>()
 
-// A production root with no document is the empty 500 of a throw before the shell. Each server logs it once per root,
+// A production root with no document is the 500 of a throw before the shell, with the built-in error page. Each server logs it once per root,
 // by its own line, since the digest a bug logs would not name the root (B37). A stored miss renders twice, shared and
 // then live, and still logs once.
 function documentless(exchange: Exchange, thrown: DocumentlessRoot): Response {
 	if (firstTime(exchange, thrown.root)) exchange.sink.log.error("render", thrown.message)
-	return finalize({ status: 500, body: "", headers: typed(exchange, HTML) })
+	const page = errorPage({ status: 500, wire: { name: "Error", message: "Something went wrong" } })
+	return finalize({ status: 500, body: page, headers: typed(exchange, HTML) })
 }
 
 // Dev serves the shell as written (D22). Each server warns once per root, so the production 500 is no surprise.

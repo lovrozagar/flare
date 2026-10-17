@@ -151,7 +151,8 @@ it("render document", async () => {
 	)
 	const production = await built.fetch(new Request("https://example.com/"))
 	expect(production.status).toBe(500)
-	expect(await production.text()).toBe("")
+	// The built-in error page, not a blank body (BUGS.md 215).
+	expect(await production.text()).toContain("<h1>Something went wrong</h1>")
 })
 
 const EVIL = "<i>x</i>"

@@ -135,7 +135,9 @@ it("bigint", async () => {
 	const page = createPage("_root_/")
 		.loader(() => ({ count: 1n }))
 		.render(() => "page")
-	expect(await get(page, prod.sink)).toEqual({ status: 500, body: "" })
+	const answer = await get(page, prod.sink)
+	expect(answer.status).toBe(500)
+	expect(answer.body).toMatch(/<h1>Something went wrong<\/h1><p>Reference <code>[\da-f]{12}<\/code><\/p>/)
 })
 
 it("null title", async () => {

@@ -94,7 +94,9 @@ it("throw before shell", async () => {
 	const send = vi.fn<(payload: DevErrorPayload) => void>()
 	const response = await throwingApp({ dev: false, send, log: quiet }).fetch(new Request("http://localhost/"))
 	expect(response.status).toBe(500)
-	expect((await response.arrayBuffer()).byteLength).toBe(0)
+	// The built-in error page, never a blank body or the thrown message (BUGS.md 215).
+	const body = await response.text()
+	expect([body.includes("<h1>Something went wrong</h1>"), body.includes("root broke")]).toEqual([true, false])
 	expect(send).not.toHaveBeenCalled()
 })
 
