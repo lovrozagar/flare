@@ -1042,6 +1042,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 209 [x] TRACE on Node was a bare 500 with no headers and no log
 209.1 [x] Plan 21 13.6: the Node listener built a fetch `Request` with the request's method, and undici refuses `TRACE` (one of fetch's forbidden methods), so the build threw and the listener's catch wrote a bare 500, logging nothing. Bun builds the request and the server answers 405. Red: tests/integration/adapters.test.ts `node trace` (`500 internal server error`).
 209.2 [x] Fix: adapters/node/listener.ts answers CONNECT, TRACE, or TRACK itself with the 405 a page gives (`Allow: GET, HEAD, OPTIONS`, the default security headers, through finalize) and does not ask the server; the catch for a failure before the headers now logs it. A refused method is no server fault, so it logs nothing, as on Bun.
+210 [x] A percent-encoded unreserved character in a path 404ed, and the sitemap listed a literal-bracket route by its pattern
+210.1 [x] Plan 21 13.7: the canonical path kept escapes as sent, so `/docs/%72outing`, `%72` being `r`, matched no route and was a 404; and prerender described a static route by its node path, the pattern, so the docs app's `[_]flare]` folder reached the sitemap as `/[_]flare]`, a URL the app does not serve. Red: shared/url/canonical.test `escapes` and server/cache/prerender.test `concrete path`.
+210.2 [x] Fix: shared/url/canonical.ts decodes an escape of an unreserved character and uppercases every other escape's hex (RFC 3986 6.2.2), so such a path is the canonical 301 to its plain form (tests/integration/hostile.test `unreserved escapes`); an escaped `.` or `..` segment is hostile. prerender.ts builds a static route's path with `buildUrl`, so the sitemap lists `/[flare]`, the URL the router serves (an escaped `%5Bflare%5D` is a 404 there, so the sitemap writes the brackets as served).
 
 ## Verify
 

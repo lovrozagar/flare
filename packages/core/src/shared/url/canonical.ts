@@ -34,9 +34,11 @@ function hasControl(path: string): boolean {
 function collapse(path: string): string | { hostile: true } {
 	const trailing = path.endsWith("/") && path.length > 1
 	const out: string[] = []
-	for (const segment of path.split("/")) {
-		if (segment === "") continue
-		if (segment.toLowerCase() === "%2e%2e") return { hostile: true }
+	for (const raw of path.split("/")) {
+		if (raw === "") continue
+		const segment = normalEscapes(raw)
+		// An escaped dot segment is a traversal the URL parser did not resolve.
+		if (segment !== raw && (segment === "." || segment === "..")) return { hostile: true }
 		if (segment === "..") {
 			out.pop()
 			continue
@@ -45,4 +47,13 @@ function collapse(path: string): string | { hostile: true } {
 	}
 	const next = `/${out.join("/")}`
 	return trailing ? `${next}/` : next
+}
+
+// RFC 3986 6.2.2: an escape of an unreserved character is that character, and every other escape's hex is uppercase,
+// so `/docs/%72outing` is `/docs/routing` and redirects there like any other non-canonical path (plan 21 13.7).
+function normalEscapes(segment: string): string {
+	return segment.replace(/%[\dA-Fa-f]{2}/g, (escape) => {
+		const char = String.fromCharCode(Number.parseInt(escape.slice(1), 16))
+		return /^[\w.~-]$/.test(char) ? char : escape.toUpperCase()
+	})
 }

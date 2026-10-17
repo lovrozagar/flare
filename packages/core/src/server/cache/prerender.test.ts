@@ -333,3 +333,23 @@ it("bare path", async () => {
 	const routes = (await plain?.routes()) ?? []
 	expect(routes.find((item) => item.id === "[[locale]]/_root_/search")?.bare).toEqual(["/search"])
 })
+
+// A static route's sitemap path is the URL the app serves, its literal-bracket folder `[_]flare]` written `[flare]`,
+// never the pattern; a route with a required param has none (plan 21 13.7, BUGS.md 210).
+it("concrete path", async () => {
+	const tree = [
+		node("_root_/[_]flare]", "/[_]flare]", page("_root_/[_]flare]")),
+		node("_root_/u/[id]", "/u/[id]", page("_root_/u/[id]")),
+	]
+	const found = prerendererOf(
+		serveWith(
+			{ router: createRouter({ layouts: { _root_: root }, routeTree: tree }), site: SITE },
+			{ dev: false, log: quiet },
+		),
+	)
+	const routes = (await found?.routes()) ?? []
+	expect(routes.map((item) => [item.id, item.path, item.bare])).toEqual([
+		["_root_/[_]flare]", "/[flare]", []],
+		["_root_/u/[id]", undefined, []],
+	])
+})

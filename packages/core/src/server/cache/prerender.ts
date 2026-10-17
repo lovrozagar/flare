@@ -97,7 +97,8 @@ async function described(options: RuntimeOptions, node: RouteNode): Promise<Prer
 	const modules = await chainOf(options, node)
 	return {
 		id: node.id,
-		path: dynamicPath(node) ? undefined : routeHref(options.router, node.path),
+		// The URL the app serves, a literal-bracket folder written as its text, never the pattern (plan 21 13.7).
+		path: dynamicPath(node) ? undefined : routeHref(options.router, buildUrl({ to: node.id, params: {} })),
 		bare: bareUrls(options, node),
 		response: node.response === true,
 		auth: effectiveAuth(modules),
