@@ -135,6 +135,8 @@ A source holding a `;` or a line break would end its directive and inject policy
 
 ### One nonce
 
+A public page a CDN keeps carries the nonce its render chose for as long as the CDN keeps it: the header and the HTML are cached together. That is decided, not missed (B144): the copy's content was fixed when the nonce was chosen and all of it is escaped, so the nonce lets nothing in, while a hash-only policy would block the nonced styles and scripts Flare's client inserts on a navigation. A page that needs a nonce per visitor is not given `cdn.maxAge`.
+
 The nonce is one string. Head, render, features, the hydration capture script, the state script, and the CSP header carry that string or they carry no nonce. A second nonce is a bug.
 
 It is generated when the merged policy is a directives object, including when the object is omitted and the defaults apply. Generation is 16 random bytes, hex, once per document response. It is not chosen by the app, not stored as the live value, and not generated per route. The `createServer({ security })` callback receives it and cannot remove it from a directives object. When the callback or a route `.security()` returns a string or `false`, the nonce is discarded before render and `nonce()` is `""`.
