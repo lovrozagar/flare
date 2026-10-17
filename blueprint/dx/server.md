@@ -196,7 +196,7 @@ v0 defaulted `payment` to `"self"`. v1 defaults it to `false`.
 
 ## Response headers
 
-Finalize sets these. A request header of the same name is ignored (`packages/core/lint/no-flare-header-branching.test.ts` `request header`).
+Finalize sets these, after the answer's own headers, so a `.response()` page, a mount, or a middleware that sends one, an upstream Flare app's say, does not replace them (`tests/integration/ingress.test.ts` `flare headers are flare's`, BUGS.md 337). A request header of the same name is ignored (`packages/core/lint/no-flare-header-branching.test.ts` `request header`).
 
 | header | value | when | test |
 | --- | --- | --- | --- |

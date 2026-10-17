@@ -4,6 +4,7 @@ import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createServerFn } from "../server-fn/dispatch.ts"
 import { notFound, redirect } from "../../shared/errors/index.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
+import { finalize } from "./finalize.ts"
 import { applyMethod, REFUSED, refusedChannel, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
 
 const document = () => new Response("hello", { status: 200, headers: { "x-flare": "1" } })
@@ -23,6 +24,14 @@ it("HEAD is empty", async () => {
 	expect(head.status).toBe(200)
 	expect(head.headers.get("x-flare")).toBe(get.headers.get("x-flare"))
 	expect((await head.arrayBuffer()).byteLength).toBe(0)
+})
+
+// A HEAD's answer is built anew, and the render mode and cache verdict finalize wrote on the document go with it
+// (BUGS.md 337).
+it("HEAD keeps flare headers", () => {
+	const page = finalize({ status: 200, body: "page", render: "isr", cache: "miss" })
+	const head = applyMethod(new Request("http://localhost/", { method: "HEAD" }), page)
+	expect([head.headers.get("flare-render"), head.headers.get("flare-cache")]).toEqual(["isr", "miss"])
 })
 
 it("OPTIONS", async () => {

@@ -1,5 +1,4 @@
 import { defined } from "../../shared/errors/index.ts"
-import { CACHE_HEADER } from "../../shared/protocol/index.ts"
 import { withCookies } from "../cacheability/index.ts"
 import {
 	cached,
@@ -268,10 +267,10 @@ export function served(
 	const body = document ? fromSentinel(stored.html, stored.sentinel, secured.secured.nonce) : stored.ndjson
 	const headers = typed(secured, document ? HTML : NDJSON, Object.fromEntries(replayable(stored.headers)))
 	for (const cookie of at.cookies) headers.append("set-cookie", cookie)
-	if (at.cache !== undefined) headers.set(CACHE_HEADER, at.cache)
 	const errored = at.policy.rejected === true || (!document && stored.ndjson.includes('{"t":"e"'))
 	const run = { headers: { "set-cookie": [...at.cookies] } }
-	return cached({ status: 200, body, render: stored.render, headers }, at.policy, { run, errored })
+	const verdict = at.cache === undefined ? {} : { cache: at.cache }
+	return cached({ status: 200, body, render: stored.render, ...verdict, headers }, at.policy, { run, errored })
 }
 
 // A store failure is the operator's to see in production too.

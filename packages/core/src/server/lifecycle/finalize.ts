@@ -1,5 +1,5 @@
 import { statusOf } from "../../shared/errors/status.ts"
-import { BUILD_HEADER, RENDER_HEADER } from "../../shared/protocol/index.ts"
+import { BUILD_HEADER, CACHE_HEADER, RENDER_HEADER } from "../../shared/protocol/index.ts"
 import { defaultHeaders } from "../security/defaults.ts"
 import { buildId } from "./build-info.ts"
 import { NO_STORE, recordCookies } from "./policies.ts"
@@ -9,6 +9,8 @@ export type StageResult = {
 	status: number
 	body: BodyInit | null
 	render?: "ssr" | "isr" | "ssg"
+	// A stored page's verdict, `flare-cache`.
+	cache?: "hit" | "miss"
 	url?: string
 	build?: string
 	location?: string | undefined
@@ -19,17 +21,37 @@ export type StageResult = {
 export function finalize(stage: StageResult): Response {
 	const settled = settle(stage)
 	const headers = new Headers({ "cache-control": NO_STORE })
-	if (settled.render !== undefined) headers.set(RENDER_HEADER, settled.render)
-	// Every pipeline response names the build that answered it (B84).
-	headers.set(BUILD_HEADER, settled.build ?? buildId)
 	if (settled.location !== undefined) headers.set("location", settled.location)
 	if (settled.url !== undefined) copySecurity(headers, settled.url)
 	if (settled.headers !== undefined) copyHeaders(headers, settled.headers)
+	// Flare's own headers are set last, so an answer's, an upstream Flare app's say, never stands in for them (BUGS.md
+	// 337). Every pipeline response names the build that answered it (B84).
+	headers.set(BUILD_HEADER, settled.build ?? buildId)
+	own(headers, RENDER_HEADER, settled.render)
+	own(headers, CACHE_HEADER, settled.cache)
 	const response = recordCookies(
 		new Response(settled.body === "" ? null : settled.body, { status: settled.status, headers }),
 	)
 	if (settled.body instanceof ReadableStream) streams.add(response)
+	ours.set(response, ownOf(settled))
 	return response
+}
+
+type Own = Pick<StageResult, "render" | "cache">
+
+// The answers finalize built, with the render mode and cache verdict it wrote. One passing out through finalize again,
+// a middleware's `next()` answer say, keeps them; an answer the app built drops any it brings (BUGS.md 337).
+const ours = new WeakMap<Response, Own>()
+
+function ownOf(stage: StageResult): Own {
+	return {
+		...(stage.render !== undefined && { render: stage.render }),
+		...(stage.cache !== undefined && { cache: stage.cache }),
+	}
+}
+
+export function ownStage(response: Response): Own {
+	return ours.get(response) ?? {}
 }
 
 // The answers whose body is a stream, which can go quiet between chunks: a render waiting on a deferred value, a
@@ -56,6 +78,8 @@ export function isUnmatched(response: Response): boolean {
 
 // The rewrap of `from` carries its mark.
 export function carryMark(from: Response, to: Response): Response {
+	const kept = ours.get(from)
+	if (kept !== undefined) ours.set(to, kept)
 	return isUnmatched(from) ? markUnmatched(to) : to
 }
 
@@ -98,6 +122,11 @@ function copyHeaders(target: Headers, extra: Headers): void {
 		if (name !== "set-cookie") target.set(name, value)
 	})
 	for (const cookie of extra.getSetCookie()) target.append("set-cookie", cookie)
+}
+
+function own(headers: Headers, name: string, value: string | undefined): void {
+	if (value === undefined) headers.delete(name)
+	else headers.set(name, value)
 }
 
 function copySecurity(headers: Headers, url: string): void {
