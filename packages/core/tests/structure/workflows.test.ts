@@ -12,7 +12,7 @@ const workflows = readdirSync(dir)
 	.map((name) => ({ name, text: readFileSync(join(dir, name), "utf8") }))
 
 it("pinned actions", () => {
-	expect(workflows.map((file) => file.name)).toEqual(["ci.yml", "release.yml"])
+	expect(workflows.map((file) => file.name)).toEqual(["ci.yml", "consumers-newest.yml", "release.yml"])
 	const unpinned = workflows.flatMap(({ name, text }) =>
 		[...text.matchAll(/uses:\s*(\S+)/g)]
 			.map((found) => found[1] ?? "")

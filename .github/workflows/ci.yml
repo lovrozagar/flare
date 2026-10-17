@@ -66,6 +66,24 @@ jobs:
       # The finished tree: every phase complete, the last one included.
       - run: bun scripts/check-tree.ts --complete P14
 
+  # The packed tarball installed as an app installs it, with Nodes scripts/node-at.ts pins and their own npm, the peers
+  # at their floors (plan 21 5.5). The cells install from the registry, so they run here, not in `verify`. The newest
+  # peers run daily (consumers-newest.yml) and before a release.
+  consumers:
+    name: consumers
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter @lovrozagar/flare test:consumers
+
   # The grid runs inside the pinned browser image, the one a local run's container uses (B70, B97), and launches its
   # engines directly. `--user 1001` is the runner's user, under which Firefox starts; `--ipc=host` gives Chromium the
   # host's shared memory.

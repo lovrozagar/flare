@@ -1,0 +1,37 @@
+name: consumers-newest
+
+# The consumer cells at the newest version each peer range admits (plan 21 5.5), daily and on demand, so a peer
+# release that breaks an app shows here before it reaches one, without turning main's CI red on an unrelated push. The
+# run prints each installed peer beside the newest its range admits; a difference is a range-wording question (B79).
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: consumers-newest
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUN_VERSION: "1.4.3"
+
+jobs:
+  newest:
+    name: newest
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+      - run: bun run --filter @lovrozagar/flare test:consumers
+        env:
+          FLARE_CONSUMER_PEERS: newest
