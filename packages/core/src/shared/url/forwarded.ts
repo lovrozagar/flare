@@ -1,8 +1,13 @@
 // How many proxy hops in front of the server an adapter trusts (dx/adapters.md `trustProxy`): an integer from 0 to
-// 5, 0 when omitted. `options` holds only that key; `bodyLimit` is createServer's, so another key throws.
-export function trustedHops(adapter: string, options: { trustProxy?: number }): number {
+// 5, 0 when omitted. `options` holds only that key and the adapter's own `keys`; `bodyLimit` is createServer's, so
+// another key throws.
+export function trustedHops(
+	adapter: string,
+	options: { trustProxy?: number },
+	keys: readonly string[] = ["trustProxy"],
+): number {
 	for (const key of Object.keys(options)) {
-		if (key !== "trustProxy") throw new Error(`${adapter} takes only trustProxy`)
+		if (!keys.includes(key)) throw new Error(`${adapter} takes only ${keys.join(" and ")}`)
 	}
 	const hops = options.trustProxy ?? 0
 	if (!Number.isInteger(hops) || hops < 0 || hops > 5) throw new Error("trustProxy is an integer from 0 to 5")

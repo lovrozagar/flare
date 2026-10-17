@@ -1,6 +1,7 @@
 import { connect } from "node:net"
 import { expect, it } from "vitest"
 import { createServer } from "../../server/lifecycle/create.ts"
+import { finalize } from "../../server/lifecycle/finalize.ts"
 import { createServerFn } from "../../server/server-fn/dispatch.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
@@ -147,3 +148,36 @@ function post(port: number, body: Buffer, sized: boolean): Promise<number | stri
 		})
 	})
 }
+
+// The timeouts Bun.serve's server sets per request, recorded.
+function timeouts(): { calls: number[]; timeout: (request: Request, seconds: number) => void } {
+	const calls: number[] = []
+	return { calls, timeout: (_, seconds) => void calls.push(seconds) }
+}
+
+function body(): ReadableStream<Uint8Array> {
+	return new Response("streamed").body ?? new ReadableStream()
+}
+
+// A streamed body may go quiet longer than `idleTimeout`: the timeout is lifted while it is sent and set back to
+// `idleTimeout` once it ends, so an idle keep-alive socket still closes. A body that is not a stream keeps the timeout,
+// and so does a call with no Bun server. `idleTimeout` is Bun's 10 s by default and goes to Bun.serve with the fetch;
+// it is an integer from 0 to 255, as Bun takes it (plan 21 8.3, BUGS.md 198).
+it("idle timeout", async () => {
+	const streamed = createBunFetch({ fetch: () => finalize({ status: 200, body: body() }) }, { idleTimeout: 30 })
+	expect(streamed.idleTimeout).toBe(30)
+	const bun = timeouts()
+	const response = await streamed.fetch(new Request("http://localhost/"), bun)
+	expect(bun.calls).toEqual([0])
+	expect([response.status, await response.text()]).toEqual([200, "streamed"])
+	expect(bun.calls).toEqual([0, 30])
+	const plain = timeouts()
+	const whole = createBunFetch({ fetch: () => finalize({ status: 200, body: "whole" }) })
+	expect(whole.idleTimeout).toBe(10)
+	expect(await (await whole.fetch(new Request("http://localhost/"), plain)).text()).toBe("whole")
+	expect(plain.calls).toEqual([])
+	expect(await (await streamed.fetch(new Request("http://localhost/"))).text()).toBe("streamed")
+	for (const idleTimeout of [-1, 1.5, 256]) {
+		expect(() => createBunFetch(streamed, { idleTimeout })).toThrow("idleTimeout is an integer from 0 to 255 seconds")
+	}
+})

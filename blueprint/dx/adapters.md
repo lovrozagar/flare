@@ -26,16 +26,18 @@ An unread POST body is drained, or the connection is closed, before the next req
 ## Bun
 
 ```ts
-createBunFetch(server, { trustProxy? }?): { fetch, maxRequestBodySize }
+createBunFetch(server, { trustProxy?, idleTimeout? }?): { fetch, maxRequestBodySize, idleTimeout }
 ```
 
-`fetch` is `(request: Request) => Promise<Response>`. `maxRequestBodySize` is Bun's own default, 128 MiB, a platform ceiling and not the enforcement: Flare's capped reader answers a body over `bodyLimit`, at most 32 MiB, with 413 first, as on Node. A body over the ceiling makes Bun cut the connection, which a client reads as `EPIPE` or `ECONNRESET`, not a status (`serve.test.ts` `ceiling`, `bun oversized post`; BUGS.md 114). The app passes both to `Bun.serve`:
+`fetch` is `(request: Request, server?) => Promise<Response>`, where `server` is the one Bun.serve hands it. `maxRequestBodySize` is Bun's own default, 128 MiB, a platform ceiling and not the enforcement: Flare's capped reader answers a body over `bodyLimit`, at most 32 MiB, with 413 first, as on Node. A body over the ceiling makes Bun cut the connection, which a client reads as `EPIPE` or `ECONNRESET`, not a status (`serve.test.ts` `ceiling`, `bun oversized post`; BUGS.md 114). The app passes both to `Bun.serve`:
 
 ```ts
 Bun.serve(createBunFetch(server));
 ```
 
 Setting `maxRequestBodySize` at or below the server's `bodyLimit` puts Bun's cut before Flare's 413: an oversized POST then reads as a dropped connection. The second argument is `trustProxy`, as on Node: with a trusted hop, `X-Forwarded-Proto: https` rebuilds the request as https, its method and body kept (`serve.test.ts` `trust proxy`).
+
+`idleTimeout` is Bun.serve's, in seconds: an integer from 0 to 255, Bun's 10 by default, returned for `Bun.serve` with the fetch. Bun closes a socket idle that long, a response in flight included, so a render waiting on a slow deferred value or a server function's `.stream()` that goes quiet would be cut (`ECONNRESET`). While a streamed body is sent, the fetch lifts the timeout for that request (`server.timeout(request, 0)`), and sets it back to `idleTimeout` when the body ends, so an idle keep-alive socket still closes. A body that is not a stream, a stored page or a status, keeps the timeout and Bun's fast path. A handler that is slow before its first byte is not cut: Bun counts idle time only once the response started. Pass `idleTimeout` to `createBunFetch`, not to `Bun.serve` after the spread, or the restored value is not the one Bun.serve has (`serve.test.ts` `idle timeout`, `tests/integration/adapters.test.ts` `bun idle stream`, BUGS.md 198).
 
 ## Workers
 

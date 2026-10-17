@@ -442,7 +442,7 @@ packages/core/src/adapters/node/listener.test.ts	P1	test	node	Unit cases for lis
 packages/core/src/adapters/node/body.ts	P3	src	node	Unread POST bodies are drained or the connection is closed
 packages/core/src/adapters/node/body.test.ts	P3	test	node	Unit cases for body.ts
 packages/core/src/adapters/node/index.ts	P1	index	node	Re-exports
-packages/core/src/adapters/bun/serve.ts	P3	src	node	createBunFetch. Set maxRequestBodySize from bodyLimit
+packages/core/src/adapters/bun/serve.ts	P3	src	node	createBunFetch: Bun's body ceiling, trustProxy, and the idle timeout lifted while a streamed body is sent (BUGS.md 198)
 packages/core/src/adapters/bun/serve.test.ts	P3	test	node	Unit cases for serve.ts
 packages/core/src/adapters/bun/index.ts	P3	index	bun	Re-exports
 packages/core/src/adapters/workers/handler.ts	P3	src	node	createWorkersHandler. waitUntil from ctx. Optional assets binding for unmatched GET and HEAD

@@ -380,3 +380,43 @@ it.runIf(bun !== undefined)("bun serve", async () => {
 		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
 	}
 })
+
+// A raw keep-alive GET: the unchunked body, and how long the idle socket stayed open after the body's last chunk.
+function held(origin: string, target: string): Promise<{ body: string; closedAfter: number }> {
+	const { hostname, port } = new URL(origin)
+	return new Promise((resolve) => {
+		const socket = connect(Number(port), hostname)
+		let text = ""
+		let ended = 0
+		socket.on("data", (chunk: Buffer) => {
+			text += chunk.toString("latin1")
+			if (text.endsWith("\r\n0\r\n\r\n")) ended = Date.now()
+		})
+		socket.on("close", () =>
+			resolve({ body: unchunked(text.split("\r\n\r\n").slice(1).join("\r\n\r\n")), closedAfter: Date.now() - ended }),
+		)
+		socket.write(`GET ${target} HTTP/1.1\r\nhost: ${hostname}\r\n\r\n`)
+	})
+}
+
+// A stream that goes quiet longer than Bun's `idleTimeout` still completes: the adapter lifts the timeout while a
+// streamed body is in flight. Once the body ends the timeout applies again, so the idle keep-alive socket still
+// closes. Bun checks the timeout every few seconds, so a 1 s timeout cuts a 5 s gap (plan 21 8.3, BUGS.md 198).
+it.runIf(bun !== undefined)(
+	"bun idle stream",
+	async () => {
+		const gap = new Promise<void>((resolve) => setTimeout(resolve, 5000))
+		const fetcher = createBunFetch(app(gap), { idleTimeout: 1 })
+		const served: unknown = Reflect.apply(Reflect.get(Object(bun), "serve"), bun, [
+			{ hostname: "127.0.0.1", port: 0, ...fetcher },
+		])
+		try {
+			const answer = await held(`http://127.0.0.1:${Number(Reflect.get(Object(served), "port"))}`, "/stream")
+			expect(answer.body).toBe("onetwo")
+			expect(answer.closedAfter).toBeLessThan(10_000)
+		} finally {
+			await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
+		}
+	},
+	30_000,
+)
