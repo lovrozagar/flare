@@ -38,6 +38,15 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `bites` | a router table naming `basePath` and `nope`, then a Planned table naming `later` | only `nope` is reported, and the Planned table is not read |
 | `omit and pick` | `NavigateOptions`, an `Omit` of `NavigateTo`, then an inline `Pick` | `replace` and `to` are absent and `scroll` present; the `Pick` keeps only its key |
 
+## `tests/consumers/*.consumer.test.ts` (plan 21 5.5)
+
+The packed tarball installed as an app installs it: into a fresh project under the OS temp dir, never the repo and never a link to the workspace, by the npm bundled with a Node `scripts/node-at.ts` pins (22.12.0, the B3 floor, and 24.22.0 for every other cell), each checked against nodejs.org's SHA-256, so CI, this machine, and the Mac run the same tools. `stage.ts` builds the projects; a cell's commands run in a consumer's shell, without the runner's `NODE_ENV=test` and `VITEST*`. The cells need the registry, so they run as `bun run --filter @lovrozagar/flare test:consumers` (`vitest.consumers.config.ts`), outside `test` and `verify`. Controlled cells install with `--legacy-peer-deps`, so only the peers they name arrive.
+
+| test | case | result | gate, cost |
+| --- | --- | --- | --- |
+| `readme install, bun` | the README's `bun add` line, the tarball in place of the package name, run with the runner's Bun in a fresh project | exit 0, no `ERESOLVE`; codegen and `vite build` on Node 24.22.0, then the README's `serve.js` answers `/` with the sentinel the request sent (BUGS.md 299) | `consumers` job; the two readme cells 9.5 s here, warm cache |
+| `readme install, npm` | the same packages through the pinned npm 11.19.1 at default peer resolution | as above | as above |
+
 ## `tests/structure/readme.test.ts` (plan 14 leaf 12.3)
 
 npm renders the tarball's README, which is the root `README.md`, and has no repository to resolve a relative link against. `readme.ts` reads it for this file and for exports.test's packed checks.

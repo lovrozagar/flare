@@ -62,6 +62,8 @@ export default defineConfig({
 						"tests/e2e/docs-*.test.ts",
 						"tests/e2e/dev-recovery.test.ts",
 						"tests/e2e/dev-hmr.test.ts",
+						// The consumer cells install from the registry: `test:consumers` runs them (plan 21 5.5).
+						"tests/consumers/**/*.consumer.test.ts",
 					],
 				},
 			},

@@ -81,8 +81,13 @@ export function stagePackage(out: string): string {
 	return dir
 }
 
-export function packTarball(dir: string, out: string): string {
-	const result = execFileSync("npm", ["pack", "--json", "--pack-destination", out], { cwd: dir, encoding: "utf8" })
+// `npm` is the command that runs npm: the PATH's by default, or a pinned Node and its npm CLI (plan 21 5.5).
+export function packTarball(dir: string, out: string, npm: readonly string[] = ["npm"]): string {
+	const [command = "npm", ...prefix] = npm
+	const result = execFileSync(command, [...prefix, "pack", "--json", "--pack-destination", out], {
+		cwd: dir,
+		encoding: "utf8",
+	})
 	// npm 11+ keys the report by package name; older npm wrote an array.
 	const report: unknown = JSON.parse(result)
 	const [packed] = Array.isArray(report) ? report : Object.values(Object(report))
