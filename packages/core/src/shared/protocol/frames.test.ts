@@ -63,3 +63,20 @@ it("e prod", () => {
 	expect(prod).toMatchObject({ e: { message: "Something went wrong", digest: "0123456789ab" } })
 	expect(prod).not.toHaveProperty("e.stack")
 })
+
+// A response past 10,000 frames, or a frame nested past 256 levels, would exhaust the tab: past either cap the decoder
+// gives one `e` frame and stops, so the navigation fails cleanly (v0's cap, plan 21 16.5, BUGS.md 222).
+it("caps", () => {
+	const decoder = frameDecoder()
+	const line = encodeFrame({ t: "r" })
+	const frames = decoder.push(line.repeat(10_001))
+	expect(frames).toHaveLength(10_001)
+	expect(frames.at(-1)).toEqual({ t: "e", m: "", e: { message: "Over 10000 frames" } })
+	expect(decoder.push(line)).toEqual([])
+	const deep = frameDecoder()
+	const nested = `{"t":"l","m":"a","d":${"[".repeat(300)}${"]".repeat(300)}}\n`
+	expect(deep.push(nested)).toEqual([{ t: "e", m: "", e: { message: "Frame nested over 256 levels" } }])
+	expect(deep.push(line)).toEqual([])
+	const shallow = `{"t":"l","m":"a","d":${"[".repeat(200)}${"]".repeat(200)}}\n`
+	expect(frameDecoder().push(shallow)).toHaveLength(1)
+})

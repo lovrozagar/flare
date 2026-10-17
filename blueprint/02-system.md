@@ -109,7 +109,7 @@ A document-less root is 500 in production (B37).
 
 ## Data response
 
-`Content-Type: application/x-ndjson`. One JSON object per line, `\n` terminated. A line longer than 1 MiB is an `e` frame and the stream ends.
+`Content-Type: application/x-ndjson`. One JSON object per line, `\n` terminated. A line longer than 1 MiB, a response past 10,000 frames, or a frame nested past 256 levels is an `e` frame and the stream ends, so a hostile or broken stream cannot exhaust the tab: before `r` the navigation loads the URL as a document, after it the values still pending reject (`shared/protocol/frames.test.ts` `caps`, v0's 10,000, BUGS.md 222).
 
 | `t` | when | fields |
 | --- | --- | --- |
