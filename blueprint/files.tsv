@@ -704,6 +704,8 @@ packages/core/tests/integration/router-client.test.ts	P1	test	node	dx/router.md'
 packages/core/tests/integration/harness-app.ts	P1	test	node	An app for the hydrate harness's app mode from its source text, shared by the dx client integration tests (B96)
 packages/core/tests/integration/builder.test.ts	P1	test	node	dx/builder.md's methods through the real createServer(...).fetch: which builder has which method, the call-once and order rules, input, auth, preloader, loader, response, and the server callbacks' context (plan 14 9.6)
 packages/core/tests/integration/failure-client.test.ts	P15	test	node	A client navigation to a page that fails with a named status: the layouts above it show this URL's data (plan 21 12.5)
+packages/core/tests/integration/memory-client.test.ts	P15	test	node	Forty client navigations between two pages of srcset images: the live elements stay flat and only the shown images live, after a forced collection (Chromium, CDP)
+packages/core/tests/integration/query-failure-client.test.ts	P15	test	node	A query that fails on a client navigation, then Back and on: every later page renders its data, in three engines
 packages/core/tests/integration/transport-client.test.ts	P15	test	node	One value with a Date, BigInt, Map, Set, undefined key, and NaN through every transport: document, deferred, navigation, prefetch, stored hit, server function input, output, GET, stream (B145)
 packages/core/tests/integration/history-client.test.ts	P15	test	client	Back and Forward onto an entry the server answered 404 render the not-found page (BUGS.md 212)
 packages/core/tests/integration/overlay-client.test.ts	P15	test	client	A replace inside an open overlay replaces its entry, so one Back closes it (BUGS.md 214)
@@ -842,6 +844,7 @@ packages/core/tests/e2e/prefetch-reuse.ts	P6	script	node	Module cache reuse harn
 packages/core/tests/e2e/prefetch-reuse.test.ts	P6	test	node	Playwright: each engine's same-origin module reuse per warming method (BUGS.md 124)
 packages/core/tests/e2e/docs-pages.ts	P15	test	node	The docs route map's pages and their statuses, which docs-smoke loads and docs-a11y scans
 packages/core/tests/e2e/docs-a11y.test.ts	P15	test	node	Playwright: every docs page passes an axe scan against WCAG 2.1 A and AA, on node-prod chromium (B143)
+packages/core/tests/e2e/docs-session.test.ts	P15	test	node	Playwright: a sixty-step docs session's live images and elements (the open BUGS.md 246, test.fail), and pages after a server function's 500 render their data, on production
 packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs page answers its status, hydrates, and leaves the console empty, on every project
 packages/core/tests/e2e/dev-recovery.test.ts	P15	test	node	Playwright: a server module that fails to load opens Vite's overlay in its tab, and fixing the file brings the app back; a route file that does not parse leaves other pages styled; on Node and Bun dev
 packages/core/tests/e2e/dev-hmr.test.ts	P15	test	node	Playwright: in vite dev an edit of a page module, the root layout, and a server function file added after start reaches the open page, on Node and Bun dev
