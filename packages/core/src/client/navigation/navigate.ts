@@ -15,7 +15,7 @@ import {
 	type Direction,
 } from "../view-transition/index.ts"
 import { allowsNavigation, type Blockers } from "./blocker.ts"
-import { inPlace, keepPosition, land, scrollFor } from "./steps.ts"
+import { keepPosition, land, scrollFor, stay } from "./steps.ts"
 import { follow, leaveable, type Leaving } from "./leaving.ts"
 import { endOf, type Landed, type Pending } from "./frames.ts"
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts"
@@ -126,7 +126,8 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		refresh: (initial) => again({ initial }),
 		revalidate: () => again({}),
 		...leave,
-		navigate: (options) => go(userTarget(deps, resolveTarget(options, context()), options.revalidate), options),
+		navigate: (options) =>
+			go(userTarget(deps, resolveTarget(cloneable(options), context()), options.revalidate), options),
 		visit: (url, replace, revalidate = false) =>
 			go(userTarget(deps, resolveUrl(url, context()), revalidate), { to: url, replace, revalidate }),
 		restore: async (url, index) => {
@@ -141,15 +142,11 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 	}
 }
 
-// A hash or shallow move that goes ahead is the latest navigation: the pending request is aborted (BUGS.md 311).
-function stay(
-	deps: NavigatorDeps,
-	target: Parameters<typeof inPlace>[1],
-	step: Parameters<typeof inPlace>[2] & { cancel: () => void },
-): number | undefined {
-	const moved = inPlace(deps, target, step)
-	if (moved !== undefined) step.cancel()
-	return moved
+// `state` goes into history, which structured-clones it. Cloned here first, one that cannot be, a function say, throws
+// before the request, the commit, and the history write, not after the page changed (BUGS.md 314).
+function cloneable(options: NavigateOptions): NavigateOptions {
+	if (options.state !== undefined) structuredClone(options.state)
+	return options
 }
 
 // A Link's, navigate()'s, or an anchor's target: the page on screen at a hash goes to its target again (BUGS.md 148).

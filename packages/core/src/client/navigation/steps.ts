@@ -60,3 +60,14 @@ export function inPlace(
 	land(deps, target, moved)
 	return deps.history.index()
 }
+
+// A hash or shallow move that goes ahead is the latest navigation: the pending request is aborted (BUGS.md 311).
+export function stay(
+	deps: NavigatorDeps,
+	target: Parameters<typeof inPlace>[1],
+	step: Parameters<typeof inPlace>[2] & { cancel: () => void },
+): number | undefined {
+	const moved = inPlace(deps, target, step)
+	if (moved !== undefined) step.cancel()
+	return moved
+}

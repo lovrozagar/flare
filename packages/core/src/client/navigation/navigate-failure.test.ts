@@ -180,3 +180,19 @@ it("failed back loads document", async () => {
 		history.replaceState(null, "", "/")
 	}
 })
+
+// A `state` that cannot be structured-cloned, a function say, throws before anything happens: no request, no commit,
+// and no history write, where the browser's own throw would come after the page had changed (BUGS.md 314).
+it("state not cloneable", async () => {
+	const app = await setup(async () => ndjson(aboutFrames))
+	const length = history.length
+	for (const move of [{ to: "_root_/about" }, { to: "_root_/", hash: "x" }] as const) {
+		// The engine's own DataCloneError: V8 and JSC word its message differently.
+		await expect((async () => app.navigator.navigate({ ...move, state: () => 1 }))()).rejects.toMatchObject({
+			name: "DataCloneError",
+		})
+	}
+	flush()
+	expect([app.text(), location.href.slice(location.origin.length), history.length]).toEqual(["root[home]", "/", length])
+	expect(app.deps.fetch).not.toHaveBeenCalled()
+})
