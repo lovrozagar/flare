@@ -1,5 +1,5 @@
-import { expect, it } from "vitest"
-import { answer, bare, secure, typed } from "./exchange.ts"
+import { expect, it, vi } from "vitest"
+import { answer, bare, bounded, secure, typed } from "./exchange.ts"
 import { createLogger } from "./logger.ts"
 
 const exchange = {
@@ -41,4 +41,22 @@ it("secure", async () => {
 	expect(response.headers.get("x-frame-options")).toBe("DENY")
 	expect(response.headers.get("x-own")).toBe("1")
 	expect(await response.text()).toBe("made")
+})
+
+// The boundary at server.fetch: a rejection and a synchronous throw are each logged once and answered as a 500 with
+// the default security headers; an answer passes through (plan 21 9.1, BUGS.md 202).
+it("bounded", async () => {
+	const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const rejected = await bounded(exchange.request, exchange.sink, () => Promise.reject(new Error("late")))
+	const thrown = await bounded(exchange.request, exchange.sink, () => {
+		throw new Error("early")
+	})
+	for (const response of [rejected, thrown]) {
+		expect(response.status).toBe(500)
+		expect(response.headers.get("x-content-type-options")).toBe("nosniff")
+	}
+	expect(errors).toHaveBeenCalledTimes(2)
+	const fine = new Response("ok")
+	expect(await bounded(exchange.request, exchange.sink, () => Promise.resolve(fine))).toBe(fine)
+	errors.mockRestore()
 })

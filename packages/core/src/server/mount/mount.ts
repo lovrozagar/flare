@@ -78,9 +78,16 @@ export function dispatchMount(
 		provideRequestEvent(event, () => {
 			Promise.resolve()
 				.then(() => entry.fetch(stripped, call.env, call.ctx))
+				.then((answer) => answered(entry.prefix, answer))
 				.then(resolve, reject)
 		})
 	})
+}
+
+// A mount answers with a Response. Anything else is the app's bug, named by its prefix (plan 21 9.1).
+function answered(prefix: string, answer: unknown): Response {
+	if (answer instanceof Response) return answer
+	throw new Error(`mount ${prefix} answered ${answer === null ? "null" : typeof answer}, not a Response`)
 }
 
 // The prefix of the mount whose fetch is running, or undefined outside one.

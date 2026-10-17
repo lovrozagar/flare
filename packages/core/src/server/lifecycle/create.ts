@@ -16,7 +16,7 @@ import { applyCanonical, type CanonicalStep, type PathRewrite } from "./canonica
 import { dispatch } from "../server-fn/dispatch.ts"
 import { bodyLimitOf } from "../server-fn/input.ts"
 import { classify, isServerFn } from "./classify.ts"
-import { answer, background, bare, failed, passed, secure, type Exchange } from "./exchange.ts"
+import { answer, background, bare, bounded, failed, passed, secure, type Exchange } from "./exchange.ts"
 import { dispatchMount, mountSpelling, mountTable } from "../mount/mount.ts"
 import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
@@ -76,9 +76,12 @@ type Call = {
 // its tab or a document gets a fresh token, and a document gets the dev tags at this boundary (B42, B95 (b)).
 function serveOne(at: Serving, call: Call): Promise<Response> {
 	const token = at.sink.toTab === undefined ? undefined : devToken(call.request)
-	const answered = answerOne(at, call, requestSink(at.sink, token))
-	if (token === undefined) return answered
-	return answered.then((response) => devDocument(response, { head: devHead, token }))
+	const sink = requestSink(at.sink, token)
+	return bounded(call.request, sink, () => {
+		const answered = answerOne(at, call, sink)
+		if (token === undefined) return answered
+		return answered.then((response) => devDocument(response, { head: devHead, token }))
+	})
 }
 
 // The app's rewrite runs after mounts (02-system step 4), so a path a mount handles is never rewritten.
@@ -160,7 +163,7 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 			const seeds = requestStore(options.static, env)
 			return route({ ...scoped, session: scope.session, waitUntil, store, seeds })
 		},
-		() => answer(exchange, 500),
+		failed(exchange),
 	)
 }
 

@@ -153,3 +153,17 @@ it("server context", async () => {
 	expect(make).toHaveBeenCalledOnce()
 	expect(seen).toEqual([{ tenant: "t" }])
 })
+
+// A mount's fetch answers with a Response; anything else is the app's bug, named by the prefix (plan 21 9.1).
+it("answer type", async () => {
+	for (const [answer, named] of [
+		[null, "null"],
+		[undefined, "undefined"],
+		["text", "string"],
+	] as const) {
+		const table = mountTable([mount("/m", () => answer as never)], {})
+		await expect(dispatchMount(table, new Request("http://localhost/m/x"), call)).rejects.toThrow(
+			`mount /m answered ${named}, not a Response`,
+		)
+	}
+})
