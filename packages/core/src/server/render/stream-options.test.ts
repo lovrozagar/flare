@@ -1,7 +1,10 @@
-import { markSafeError } from "@solidjs/web"
+import { createComponent, Errored } from "solid-js"
+import { isDev, markSafeError } from "@solidjs/web"
 import { expect, it } from "vitest"
 import { notFound } from "../../shared/errors/index.ts"
-import { streamOptions, thrownBehind } from "./stream-options.ts"
+import { createRouter } from "../../shared/router/create-router.ts"
+import { renderDocument } from "./document.ts"
+import { inPlace, streamOptions, thrownBehind } from "./stream-options.ts"
 
 const signal = new AbortController().signal
 
@@ -30,12 +33,10 @@ it("render errors", () => {
 
 // What Solid gets in place of a render error: a bug becomes a generic error tied to the thrown value, which the
 // projector reads back; a named status is the app's answer and passes as itself; a safe error keeps Solid's own
-// handling (BUGS.md 217).
+// handling, in Solid's production build (BUGS.md 217).
 it("in place", () => {
-	const hook = hookOf()
-	const site = { kind: "render", handling: "fallback" }
 	const bug = new Error("page broke")
-	const shown = hook(bug, site)
+	const shown = inPlace(bug, true)
 	expect([Reflect.get(Object(shown), "message"), thrownBehind(shown)]).toEqual(["Internal Server Error", bug])
 	const missing = (() => {
 		try {
@@ -44,7 +45,30 @@ it("in place", () => {
 			return error
 		}
 	})()
-	expect(hook(missing, site)).toBe(missing)
-	expect(hook(markSafeError(new Error("shown")), site)).toBeUndefined()
+	expect(inPlace(missing, true)).toBe(missing)
+	expect(inPlace(markSafeError(new Error("shown")), true)).toBeUndefined()
 	expect([thrownBehind(bug), thrownBehind("text"), thrownBehind(null)]).toEqual([bug, "text", null])
+	// Solid's dev build sanitizes nothing, so nothing is put in place.
+	expect(inPlace(bug, false)).toBeUndefined()
+})
+
+// Solid's dev build hands a render error to the boundary as it was thrown and serializes what `onError` returns in its
+// place, so in `vite dev` an `<Errored>` fallback shows the real message; only the production build's sanitized error
+// is mapped (BUGS.md 217, 269).
+it("dev keeps the error", async () => {
+	expect(isDev).toBe(true)
+	const body = await renderDocument({
+		request: new Request("http://localhost/"),
+		router: createRouter({ layouts: {}, routeTree: [] }),
+		matches: [{ id: "_root_", params: {}, search: {}, data: null, preloader: {}, head: null, error: null }],
+		render: () =>
+			createComponent(Errored, {
+				fallback: (error: () => unknown) => `shown: ${Reflect.get(Object(error()), "message")}`,
+				get children(): string {
+					throw new Error("page broke")
+				},
+			}),
+	})
+	const html = await new Response(body).text()
+	expect(html).toContain("shown: page broke")
 })
