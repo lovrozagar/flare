@@ -4,8 +4,11 @@ import { activeMount } from "../mount/mount.ts"
 export type ProxyOptions = { forwardCookies?: boolean; forwardAuthorization?: boolean; relaySetCookie?: boolean }
 
 // v0's api-proxy set (BUGS.md 161): the hop-by-hop headers, and the proxy credentials, which belong to this hop.
+// `Expect: 100-continue` asks this hop to confirm an upload, and Node's fetch refuses a request that carries it (BUGS.md
+// 340).
 const HOP_BY_HOP = [
 	"connection",
+	"expect",
 	"keep-alive",
 	"proxy-authenticate",
 	"proxy-authorization",

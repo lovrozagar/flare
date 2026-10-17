@@ -36,11 +36,12 @@ it("hop by hop dropped", async () => {
 		() => new Response("ok", { headers: { connection: "close", "transfer-encoding": "chunked", "x-up": "1" } }),
 	)
 	const response = await through(
-		get("/api/x?q=1", { connection: "keep-alive", "keep-alive": "timeout=5", te: "trailers" }),
+		get("/api/x?q=1", { connection: "keep-alive", "keep-alive": "timeout=5", te: "trailers", expect: "100-continue" }),
 	)
 	expect(seen[0]?.url).toBe("https://upstream.test/x?q=1")
 	expect(seen[0]?.headers.get("keep-alive")).toBeNull()
 	expect(seen[0]?.headers.get("te")).toBeNull()
+	expect(seen[0]?.headers.get("expect")).toBeNull()
 	expect(response.headers.get("connection")).toBeNull()
 	expect(response.headers.get("transfer-encoding")).toBeNull()
 	expect(response.headers.get("x-up")).toBe("1")

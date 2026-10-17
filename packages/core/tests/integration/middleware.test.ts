@@ -212,12 +212,15 @@ it("proxy", async () => {
 		new Request("http://localhost/api/echo?q=1", {
 			method: "POST",
 			body: bytes,
-			headers: { "keep-alive": "timeout=5" },
+			// An upload's `Expect: 100-continue`, which Node's fetch refuses, belongs to this hop (BUGS.md 340).
+			headers: { "keep-alive": "timeout=5", expect: "100-continue" },
 		}),
 	)
+	expect(response.status).toBe(200)
 	expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes)
 	expect(seen.at(-1)?.url).toBe("/echo?q=1")
 	expect(seen.at(-1)?.headers["keep-alive"]).toBeUndefined()
+	expect(seen.at(-1)?.headers.expect).toBeUndefined()
 	expect(response.headers.get("connection")).toBeNull()
 	expect(response.headers.get("x-up")).toBe("1")
 	expect(response.headers.get("x-content-type-options")).toBe("nosniff")
