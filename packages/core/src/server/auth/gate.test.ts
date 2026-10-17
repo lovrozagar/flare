@@ -179,3 +179,16 @@ it("authenticate throw", async () => {
 	expect(await outcome(() => null)).toBe(401)
 	expect(await outcome(() => session)).toBe(200)
 })
+
+// An authorize that returns anything falsy, `undefined` from a forgotten `return` say, denies like `false` (plan 21 10.1).
+it("authorize falsy denies", async () => {
+	for (const value of [undefined, null, 0, ""]) {
+		const result = await gate(
+			input({
+				authenticate: () => session,
+				routes: [{ id: "admin", auth: required, authorize: () => value as never }],
+			}),
+		)
+		expect(result).toMatchObject({ kind: "stopped", error: new UnauthorizedError() })
+	}
+})

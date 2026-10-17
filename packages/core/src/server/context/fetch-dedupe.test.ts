@@ -205,3 +205,25 @@ it("loader reset", async () => {
 	})
 	expect(api.calls).toBe(3)
 })
+
+// No method but GET and HEAD is ever shared: two PUTs are two calls, and a DELETE between two GETs makes the second
+// GET call again; requests with different cookies are separate entries (plan 21 10.6).
+it("non-GET never shared", async () => {
+	const api = upstream()
+	await inRequest(async () => {
+		const call = withFetchDedupe(api)
+		await call(url, { method: "PUT", body: "a" })
+		await call(url, { method: "PUT", body: "a" })
+	})
+	expect(api.calls).toBe(2)
+	const gets = upstream()
+	await inRequest(async () => {
+		const call = withFetchDedupe(gets)
+		await call(url)
+		await call(url, { method: "DELETE" })
+		await call(url)
+		await call(url, { headers: { cookie: "a=1" } })
+		await call(url, { headers: { cookie: "a=2" } })
+	})
+	expect(gets.calls).toBe(5)
+})

@@ -1,6 +1,6 @@
 import { expect, it } from "vitest"
 import type { StandardIssue, Validator } from "../../shared/server-fn/builder.ts"
-import { readInput } from "./input.ts"
+import { bodyLimitOf, readInput } from "./input.ts"
 
 const MIB = 1024 * 1024
 
@@ -138,4 +138,10 @@ it("empty path", async () => {
 		status: 400,
 		errors: { issues: [{ message: "text", path: [] }], fieldErrors: {} },
 	})
+})
+
+// The body cap is at least one byte: 0 and a negative cap throw at startup (plan 21 10.7).
+it("cap floor", () => {
+	for (const value of [0, -1]) expect(() => bodyLimitOf(value)).toThrow("bodyLimit is an integer from 1")
+	expect(bodyLimitOf(1)).toBe(1)
 })

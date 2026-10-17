@@ -252,3 +252,33 @@ it("base path", async () => {
 	expect(rooted.status).toBe(405)
 	expect(rooted.headers.get("allow")).toBe("GET, HEAD, OPTIONS")
 })
+
+// A server function's authorize that returns `undefined` denies, over HTTP and in-process, and the handler never runs
+// (plan 21 10.1).
+it("authorize undefined", async () => {
+	const handler = vi.fn<() => string>(() => "secret")
+	const loose = createServerFn(named("loose"))
+		.authorize(() => undefined as never)
+		.handler(handler)
+	expect((await send([loose], post(loose, 1))).status).toBe(403)
+	await expect(
+		within(
+			() => null,
+			() => loose(),
+		),
+	).rejects.toBeInstanceOf(UnauthorizedError)
+	expect(handler).not.toHaveBeenCalled()
+})
+
+// An authorize-only function reads identity, so a POST with no Origin, Sec-Fetch-Site, or Referer fails closed (B44,
+// plan 21 10.2).
+it("authorize only csrf", async () => {
+	const authorize = vi.fn<() => boolean>(() => true)
+	const guarded = createServerFn(named("guarded"))
+		.authorize(authorize)
+		.handler(() => "ok")
+	const headers = { "content-type": "application/json" }
+	const bare = new Request(`http://localhost/_flare/fn/${guarded.id}`, { method: "POST", body: "1", headers })
+	expect((await send([guarded], bare)).status).toBe(403)
+	expect(authorize).not.toHaveBeenCalled()
+})
