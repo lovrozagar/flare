@@ -42,6 +42,11 @@ jobs:
       - run: bunx playwright install --with-deps chromium firefox
       # The gates, the finished tree, the e2e, the packed tarball, the golden proof on it, and `npm publish --dry-run`.
       - run: bun scripts/release.ts --out "$RUNNER_TEMP/release"
+      # The consumer cells on the one tarball this release ships, at the peers' floors and at their newest (plan 21 5.5).
+      - run: FLARE_TARBALL="$(ls "$RUNNER_TEMP"/release/lovrozagar-flare-*.tgz)" bun run --filter @lovrozagar/flare test:consumers
+      - run: FLARE_TARBALL="$(ls "$RUNNER_TEMP"/release/lovrozagar-flare-*.tgz)" bun run --filter @lovrozagar/flare test:consumers
+        env:
+          FLARE_CONSUMER_PEERS: newest
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: tarball

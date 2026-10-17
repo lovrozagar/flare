@@ -3,14 +3,21 @@ import { load } from "js-yaml"
 import { expect, it } from "vitest"
 import { IMAGE_DIGEST } from "../../../../scripts/browser-server.ts"
 
-type Step = { name?: string; if?: string; uses?: string; run?: string; with?: Record<string, unknown> }
+type Step = {
+	name?: string
+	if?: string
+	uses?: string
+	run?: string
+	with?: Record<string, unknown>
+	env?: Record<string, string>
+}
 type Job = {
 	"runs-on": string
 	steps: Step[]
 	container?: { image?: string; options?: string }
 	strategy?: { "fail-fast"?: boolean; matrix?: Record<string, unknown> }
 }
-type Workflow = { env?: Record<string, string>; jobs: Record<string, Job> }
+type Workflow = { env?: Record<string, string>; on?: Record<string, unknown>; jobs: Record<string, Job> }
 
 function workflowOf(file: string): Workflow {
 	return load(readFileSync(new URL(`../../../../.github/workflows/${file}`, import.meta.url), "utf8")) as Workflow
@@ -143,4 +150,26 @@ it("ci grid bun", () => {
 	expect(linux?.steps.find((step) => step.name === "Install Bun")?.run).toBe(
 		'npm install --global --prefix "$HOME/.bun-npm" "bun@$BUN_VERSION"\necho "$HOME/.bun-npm/bin" >> "$GITHUB_PATH"\n',
 	)
+})
+
+const CONSUMERS = "bun run --filter @lovrozagar/flare test:consumers"
+
+// The consumer cells install from the registry, so they run in CI, not in `verify` (plan 21 5.5): every push runs them
+// at the peers' floors, a daily workflow runs them at the newest versions the ranges admit, so an upstream release
+// cannot turn main red on an unrelated push, and a release runs both on the tarball it ships before any publish.
+it("ci consumers", () => {
+	const runs = (job: Job | undefined) => job?.steps.filter((step) => step.run?.includes(CONSUMERS) === true) ?? []
+	const floor = runs(workflow.jobs["consumers"])
+	expect(floor.map((step) => [step.run, step.env])).toEqual([[CONSUMERS, undefined]])
+	const daily = workflows.get("consumers-newest.yml")
+	expect(Object.keys(daily?.on ?? {}).toSorted()).toEqual(["schedule", "workflow_dispatch"])
+	const newest = runs(daily?.jobs["newest"])
+	expect(newest.map((step) => step.env?.["FLARE_CONSUMER_PEERS"])).toEqual(["newest"])
+	const verify = workflows.get("release.yml")?.jobs["verify"]?.steps ?? []
+	const packed = verify.findIndex((step) => step.run?.startsWith("bun scripts/release.ts") === true)
+	const cells = runs(workflows.get("release.yml")?.jobs["verify"])
+	expect(cells.map((step) => step.env?.["FLARE_CONSUMER_PEERS"] ?? "floor")).toEqual(["floor", "newest"])
+	for (const cell of cells) {
+		expect([verify.indexOf(cell) > packed, cell.run?.startsWith("FLARE_TARBALL=")]).toEqual([true, true])
+	}
 })
