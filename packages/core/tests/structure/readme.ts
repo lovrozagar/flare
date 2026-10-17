@@ -42,3 +42,14 @@ export function tableRows(text: string, first: string): string[][] {
 export function identifiers(cell: string): string[] {
 	return [...cell.matchAll(/`([A-Za-z_$][\w$]*)`/g)].map((match) => String(match[1]))
 }
+
+// The packages the `## Install` section's `bun add` line installs, in order.
+export function installCommand(text: string): string[] {
+	const line = /^bun add (.+)$/m.exec(text.slice(text.indexOf("## Install")))?.[1] ?? ""
+	return line.split(/\s+/).filter(Boolean)
+}
+
+// Everything in backticks in a cell: package names and ranges as well as identifiers.
+export function ticked(cell: string): string[] {
+	return [...cell.matchAll(/`([^`]+)`/g)].map((match) => String(match[1]))
+}

@@ -1,7 +1,7 @@
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { expect, it } from "vitest"
-import { quickStart, readme, repo } from "./readme.ts"
+import { installCommand, quickStart, readme, repo, tableRows, ticked } from "./readme.ts"
 
 // The README is the package's front page: npm renders the tarball's copy, so its links are absolute, and it names only
 // the v1 surface (plan 14 leaf 12.3). The checks against the packed exports and the quick start's compile are in
@@ -44,4 +44,24 @@ it("quick start marked", () => {
 	expect(paths).toContain("tsconfig.json")
 	expect(paths).toContain("src/server.ts")
 	expect(new Set(paths).size).toBe(paths.length)
+})
+
+// The Install section is what an app runs: its `bun add` line names the package and every peer an app needs, and its
+// table names every peer with the range the package declares (plan 21 5.5). The consumer cell `readme install` runs
+// that line.
+it("install names every peer", () => {
+	const manifest = JSON.parse(readFileSync(join(repo, "packages/core/package.json"), "utf8"))
+	const peers: Record<string, string> = manifest.peerDependencies
+	const meta: Record<string, { optional?: boolean }> = manifest.peerDependenciesMeta
+	const required = Object.keys(peers).filter((name) => meta[name]?.optional !== true)
+	const [name, ...packages] = installCommand(readme)
+	expect([name, packages.toSorted()]).toEqual(["@lovrozagar/flare", required.toSorted()])
+	const listed: Record<string, string> = {}
+	for (const [names = "", ranges = ""] of tableRows(readme, "peer")) {
+		const [first, ...rest] = ticked(ranges)
+		ticked(names).forEach((peer, index) => {
+			listed[peer] = rest.length === 0 ? String(first) : String(ticked(ranges)[index])
+		})
+	}
+	expect(listed).toEqual(peers)
 })

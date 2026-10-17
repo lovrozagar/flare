@@ -7,7 +7,7 @@ Package: [`@lovrozagar/flare`](https://www.npmjs.com/package/@lovrozagar/flare).
 ## Install
 
 ```bash
-bun add @lovrozagar/flare solid-js @solidjs/web @solidjs/vite-plugin vite oxc-parser magic-string
+bun add @lovrozagar/flare solid-js @solidjs/web @solidjs/vite-plugin vite oxc-parser magic-string seroval seroval-plugins
 ```
 
 | peer                                                  | range                            | needed for                                        |
@@ -16,9 +16,12 @@ bun add @lovrozagar/flare solid-js @solidjs/web @solidjs/vite-plugin vite oxc-pa
 | `@solidjs/vite-plugin`                                | `>=3.0.0-next.50`                | every app; `flare()` adds it, so the app does not |
 | `vite`                                                | `>=8.1.4`                        | every app                                         |
 | `oxc-parser`, `magic-string`                          | `>=0.139.0`, `>=0.30.21`         | the plugin's codegen and boundary transform       |
+| `seroval`, `seroval-plugins`                          | `>=1.6.7`                        | every app: the wire codec                         |
 | `@tanstack/solid-query`                               | `>=6.0.0-rc.5`                   | optional: `@lovrozagar/flare/query`               |
 | `sharp`                                               | `>=0.35.5`                       | optional: `flare({ image })`                      |
 | `@formatjs/intl-localematcher`, `negotiator`, `isbot` | `>=0.8.11`, `>=1.0.0`, `>=5.2.0` | optional: `@lovrozagar/flare/i18n/server`         |
+
+It runs on Node 22.12 or later, Bun, and Cloudflare Workers, and its types need TypeScript 5.9 or later (tested on 5.9.3 and 7.0.2).
 
 Tailwind is the app's own `@tailwindcss/vite`; Flare does not wrap it.
 
