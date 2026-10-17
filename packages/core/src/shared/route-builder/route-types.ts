@@ -215,7 +215,10 @@ export type StepsGone<Step extends string> =
 export type BuilderSteps<S extends RouteState, K extends RouteKind, G extends string = never> = {
 	cache(config: CacheConfig): RouteBuilder<S, K, G | StepsGone<"cache">>
 	input<I extends RouteInput>(config: I): RouteBuilder<WithInput<S, I>, K, G | StepsGone<"input">>
-	authenticate(...callerData: readonly string[]): RouteBuilder<With<S, "auth", true>, K, G | StepsGone<"authenticate">>
+	// `"optional"` is a method of its own, so a caller named that does not type-check (dx/types.md).
+	authenticate<const C extends readonly string[]>(
+		...callerData: [Extract<C[number], "optional">] extends [never] ? C : never
+	): RouteBuilder<With<S, "auth", true>, K, G | StepsGone<"authenticate">>
 	authenticateOptional(
 		...callerData: S["auth"] extends true ? [never] : readonly string[]
 	): RouteBuilder<With<S, "auth", "optional">, K, G | StepsGone<"authenticateOptional">>

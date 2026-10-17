@@ -112,7 +112,8 @@ function params(raw: unknown): unknown {
 
 it("input", () => {
 	expect(createChain("_root_").input({ params }).record().input).toEqual({ params })
-	expect(() => createChain("_root_").input({})).toThrow(/params or searchParams/)
+	// An empty input does not type-check (dx/types.md `input empty`); untyped, it throws.
+	expect(() => createChain("_root_").input({} as never)).toThrow(/params or searchParams/)
 	expect(() => createChain("_root_").authenticate().input({ params })).toThrow(/order/)
 	expect(() =>
 		createChain("_root_")
