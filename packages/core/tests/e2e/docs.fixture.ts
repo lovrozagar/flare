@@ -90,13 +90,15 @@ export function prodOnly(info: TestInfo): void {
 }
 
 // A page error, a console error, or a console warning is a problem: a Solid hydration mismatch arrives on the
-// console without throwing. The returned list grows for the life of the page.
+// console without throwing. A resource the browser failed to load names its URL. The returned list grows for the life
+// of the page.
 export function watch(page: Page): string[] {
 	const problems: string[] = []
 	page.on("pageerror", (error) => problems.push(`pageerror: ${error.message}`))
 	page.on("console", (message) => {
-		if (message.type() === "error" || message.type() === "warning")
-			problems.push(`${message.type()}: ${message.text()}`)
+		if (message.type() !== "error" && message.type() !== "warning") return
+		const resource = message.text().startsWith("Failed to load resource") ? ` at ${message.location().url}` : ""
+		problems.push(`${message.type()}: ${message.text()}${resource}`)
 	})
 	return problems
 }
