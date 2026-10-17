@@ -193,7 +193,7 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 // (step 10), so an OPTIONS, a 405, or an unmatched method imports nothing.
 // 02-system step 6: the middleware list wraps the server function and the router. Whatever answers, the router,
 // a returned Response, or a stash, leaves through finalize with the security set (B34).
-// Step 5, the locale slot, runs for a page request around that list. A server function has no locale.
+// Step 5, the locale slot, wraps that list for a page; not for a server function or a retired worker (BUGS.md 270).
 // A mount's prefix is canonical and comes before the server-function path; it answers inside the list, outside the
 // locale slot (02-system step 3).
 function route(exchange: Exchange, mounted: (() => Promise<Response>) | undefined): Promise<Response> {
@@ -202,7 +202,8 @@ function route(exchange: Exchange, mounted: (() => Promise<Response>) | undefine
 	const kind: MiddlewareKind = mounted === undefined ? (fn ? "serverFn" : "page") : "mount"
 	const inner = (): Promise<Response> => mounted?.() ?? (fn ? serverFn(exchange) : routed(exchange, url))
 	const chain = (): Promise<Response> => withMiddleware(exchange, kind, inner)
-	return kind === "page" ? withLocale(exchange, chain) : chain()
+	const localized = kind === "page" && !isRetired(exchange.options.retireServiceWorker, url.pathname)
+	return localized ? withLocale(exchange, chain) : chain()
 }
 
 // Once the router ran, its answer's set leaves on whatever Response the middleware returns, a rewrap included. A
