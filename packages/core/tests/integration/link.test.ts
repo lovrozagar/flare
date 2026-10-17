@@ -101,7 +101,30 @@ const get = serve([
 			activeClass: "on",
 			isActive: (at: { pathname: string }) => at.pathname === "/active",
 		},
+		{
+			id: "stated",
+			to: "_root_/active",
+			search: { a: "1", b: "2" },
+			class: "base",
+			activeClass: "on",
+			activeProps: { class: "bold", tabindex: 0 },
+		},
 	]),
+	linksPage("tags", () => [
+		{ id: "both", to: "_root_/tags", search: { tag: ["y", "x"] }, activeClass: "on", inactiveClass: "off" },
+		{ id: "one", to: "_root_/tags", search: { tag: ["x"] }, activeClass: "on", inactiveClass: "off" },
+		{ id: "thrice", to: "_root_/tags", search: { tag: ["x", "x", "y"] }, activeClass: "on", inactiveClass: "off" },
+	]),
+	linksPage("tags/inner", () => [{ id: "parent", to: "_root_/tags", activeClass: "on", inactiveClass: "off" }]),
+	linksPage("handed", () => [
+		{ id: "mail", href: "mailto:a@b.example" },
+		{ id: "tel", href: "tel:+1555" },
+		{ id: "sms", href: "SMS:+1555" },
+		{ id: "fragment", href: "#top" },
+	]),
+	linksPage("relative", () => [{ id: "relative", href: "about" }]),
+	linksPage("empty", () => [{ id: "empty", to: "_root_/users/[id]", params: { id: "" } }]),
+	linksPage("empty-optional", () => [{ id: "empty-optional", to: "_root_/opt/[[id]]", params: { id: "" } }]),
 	linksPage("missing", () => [{ id: "missing", to: "_root_/users/[id]", params: {} }]),
 	linksPage("fn", () => [{ id: "fn", to: "_root_/echo", search: { f: () => 1 } }]),
 	linksPage("all", () => [{ id: "all", to: "_root_/echo", prefetch: { modules: "all" } }]),
@@ -288,6 +311,31 @@ it("active", async () => {
 	expect(a["partial"]?.["class"]).toBe("off")
 	expect(a["prefix"]?.["class"]).toBe("off")
 	expect(a["custom"]).toMatchObject({ class: "on", "aria-current": "page" })
+	expect(a["stated"]).toMatchObject({ class: "base on bold", tabindex: "0", "aria-current": "page" })
+})
+
+// A repeated key must match as a multiset: the same pairs in any order are active, fewer or more are not. A parent
+// path is not a prefix match.
+it("active repeated keys and parent", async () => {
+	const tags = await anchors("/tags?tag=x&tag=y")
+	expect([tags["both"]?.["class"], tags["one"]?.["class"], tags["thrice"]?.["class"]]).toEqual(["on", "off", "off"])
+	expect((await anchors("/tags/inner"))["parent"]?.["class"]).toBe("off")
+})
+
+// `mailto:`, `tel:`, `sms:` in any case, and a `#fragment` render as written; a relative href throws in dev, and the
+// document is a 500 (BUGS.md 310). An empty path param is a missing one: required, a 500; optional, dropped (BUGS.md
+// 307).
+it("handed-off hrefs and empty params", async () => {
+	const a = await anchors("/handed")
+	expect(["mail", "tel", "sms", "fragment"].map((id) => a[id]?.["href"])).toEqual([
+		"mailto:a@b.example",
+		"tel:+1555",
+		"SMS:+1555",
+		"#top",
+	])
+	expect((await get("/relative")).status).toBe(500)
+	expect((await get("/empty")).status).toBe(500)
+	expect((await anchors("/empty-optional"))["empty-optional"]?.["href"]).toBe("/opt")
 })
 
 // A boolean goes into the URL as `true` or `false` and comes back the same through dx/link.md's advice, a real zod

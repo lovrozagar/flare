@@ -5,6 +5,7 @@
 import {
 	buildUrl,
 	createPage,
+	createRouter,
 	Link,
 	useLoaderData,
 	useNavigate,
@@ -162,6 +163,21 @@ const wide: string = "_root_/about"
 	void [data, module]
 	// @ts-expect-error a response page has no render URL in routes
 	const _url: keyof FlareRegister["routes"] = "/raw"
+}
+
+// prefetch: a trigger or one per field on a Link and a route; `modules: "all"` is the router's alone (dx/link.md)
+{
+	void Link({ to: "_root_/static", prefetch: "intent", children: "x" })
+	void Link({ to: "_root_/static", prefetch: { data: "viewport", modules: "render" }, children: "x" })
+	void Link({ to: "_root_/static", prefetch: false, children: "x" })
+	void createPage("_root_/static").cache({ client: { prefetch: { modules: "viewport" } } })
+	void createRouter({ layouts: {}, routeTree: [], prefetch: { modules: "all" } })
+	// @ts-expect-error a link cannot say modules: "all"
+	void Link({ to: "_root_/static", prefetch: { modules: "all" }, children: "x" })
+	// @ts-expect-error "all" is not a trigger
+	void Link({ to: "_root_/static", prefetch: "all", children: "x" })
+	// @ts-expect-error a route cannot say modules: "all"
+	void createPage("_root_/static").cache({ client: { prefetch: { modules: "all" } } })
 }
 
 // search raw
