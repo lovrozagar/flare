@@ -111,6 +111,42 @@ async function arrival(tab: Page): Promise<void> {
 	await tab.evaluate((all) => (Reflect.get(window, "__flareRecord") as unknown[]).push(...all), seen)
 }
 
+// A page with a Link to its own `#one`; the steps add the tall sections the hashes name.
+const TALL = appFrom(`
+const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
+	api.h("head", "head"),
+	api.h("body", "body", () => [api.solid.createComponent(api.link.Link, { to: "_root_/t", hash: "one", id: "to-one", children: "one" }), props.children]),
+]))
+const t = api.page.createPage("_root_/t").render(() => "page t")
+return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/t", path: "/t", module: t }] }) }
+`)
+
+// Flare's hash move to #one, then a hash the visitor types, an entry the browser writes, then Back: where the page is
+// at #one, after typing, and after Back.
+async function typedHash(tab: Page): Promise<void> {
+	await tab.waitForFunction(() => document.documentElement.hasAttribute("data-flare-hydrated"))
+	await tab.evaluate(() => {
+		for (const id of ["one", "typed", "end"]) {
+			const section = document.createElement("div")
+			section.id = id
+			section.style.cssText = "margin-top: 3000px; height: 10px"
+			document.body.append(section)
+		}
+	})
+	await tab.evaluate(() => document.getElementById("to-one")?.click())
+	await tab.waitForFunction(() => location.hash === "#one" && scrollY > 1000)
+	// A visitor reads a while: frames run, and their scroll events with them.
+	await new Promise((resolve) => setTimeout(resolve, 300))
+	const one = await tab.evaluate(() => scrollY)
+	await tab.evaluate(() => (location.hash = "typed"))
+	await tab.waitForFunction((from) => scrollY > from + 1000, one)
+	await tab.evaluate(() => history.back())
+	await tab.waitForFunction(() => location.hash === "#one")
+	await new Promise((resolve) => setTimeout(resolve, 500))
+	const back = await tab.evaluate(() => scrollY)
+	await tab.evaluate((seen) => (Reflect.get(window, "__flareRecord") as unknown[]).push(seen), back === one)
+}
+
 function run(engine: (typeof ENGINES)[number], path: string): Promise<AppResult> {
 	if (harness === undefined) throw new Error("the harness did not start")
 	const visit: Pick<AppCase, "path" | "steps"> = { path, steps: (tab) => away(tab, path) }
@@ -135,6 +171,13 @@ describe.each(ENGINES)("%s", (engine) => {
 		if (harness === undefined) throw new Error("the harness did not start")
 		const result = await harness.app(engine, { app: APP, path: "/gone", steps: arrival, client() {} })
 		expect(result.record).toEqual(["heading-a", "page a", "polite"])
+	})
+
+	// Back from a hash the visitor typed restores where the page was at the entry before it (BUGS.md 318).
+	it("back from a typed hash", async () => {
+		if (harness === undefined) throw new Error("the harness did not start")
+		const result = await harness.app(engine, { app: TALL, path: "/t", steps: typedHash, client() {} })
+		expect([result.problems, result.record]).toEqual([[], [true]])
 	})
 
 	// Back paints the held page before any request lands, then revalidates it once (plan 21 16.9).

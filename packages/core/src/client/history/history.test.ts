@@ -42,12 +42,26 @@ it("index", () => {
 	vi.restoreAllMocks()
 })
 
+// State another script wrote is not Flare's and is left alone.
 it("foreign", () => {
 	const flare = createHistory(history)
 	flare.adopt("/")
-	expect(flare.pop(null, "/#x")).toBeNull()
 	expect(flare.pop({ other: true }, "/#y")).toBeNull()
 	expect(flare.index()).toBe(0)
+})
+
+// An entry the browser wrote, a hash typed in the bar or a fragment link's, has no state: it is stamped as the entry
+// after the one it was written from, with no step to replay, so a later Back onto Flare's entry is a step and restores
+// its scroll (dx/navigate.md, BUGS.md 318).
+it("browser entry", () => {
+	const flare = createHistory(history)
+	flare.adopt("/")
+	flare.push("/about")
+	flare.push("/about#one")
+	history.pushState(null, "", "/about#typed")
+	expect(flare.pop(null, "/about#typed")).toEqual([])
+	expect([history.state, flare.index(), flare.urlAt(3)]).toEqual([{ index: 3, usr: undefined }, 3, "/about#typed"])
+	expect(flare.pop({ index: 2 }, "/about#one")).toEqual([2])
 })
 
 it("delta", () => {
@@ -90,5 +104,5 @@ it("here", () => {
 	seen.push(flare.here())
 	flare.pop(null, "/start#x")
 	seen.push(flare.here())
-	expect([seen, flare.index()]).toEqual([["/start", "/a", "/a?q=1", "/start", "/start#x"], 0])
+	expect([seen, flare.index()]).toEqual([["/start", "/a", "/a?q=1", "/start", "/start#x"], 1])
 })
