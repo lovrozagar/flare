@@ -16,7 +16,7 @@
 	// the packed types only (tests/structure/exports.test.ts).
 	"exclude": [
 		"tests/types/app/**",
-		"tests/e2e/apps/*/src/_gen/types.gen.d.ts",
+		"tests/e2e/apps/*/src/_gen/types.gen.ts",
 		"tests/structure/consumer/**",
 		"tests/e2e/apps/docs/**",
 		"tests/integration/docs.test.ts"

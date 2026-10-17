@@ -21,7 +21,9 @@ type Module = { id: string; file: string; scan: Scan; type: string }
 
 type Entries = ReadonlyArray<readonly [string, string]>
 
-// src/_gen/types.gen.d.ts augments `FlareRegister` (dx/types.md). Every value names a type through
+// src/_gen/types.gen.ts augments `FlareRegister` (dx/types.md). It is a module, not a `.d.ts`, so an app's
+// `skipLibCheck` never skips it: an import in it that does not resolve is an error, not a route turned `any` (BUGS.md
+// 347). Every value names a type through
 // `typeof import("<file>").route`, so no type is derived from text. It never sets `auth`, `env`, or
 // `serverContext`, and names no virtual module. `parents` and `modules` are returned for the checks that read them.
 export function generateTypes(input: TypesInput): {

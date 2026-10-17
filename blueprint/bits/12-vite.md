@@ -80,7 +80,7 @@ An SSG route with no tags still prerenders. Purge does not apply to `_flare-stat
 
 | test | case | result |
 | --- | --- | --- |
-| `writes both` | a fixture app | `routes.gen.ts` and `types.gen.d.ts` match what the plugin would write |
+| `writes both` | a fixture app | `routes.gen.ts` and `types.gen.ts` match what the plugin would write |
 | `watch is the plugin` | the bin's command list | the only command is `codegen` |
 
 ### `vite/plugin/environments.test.ts` (extended)
@@ -169,7 +169,7 @@ Moved to bit 06, which needs a real client document for its e2e navigation rows.
 
 ### `vite/codegen/write.test.ts`
 
-The writer the plugin and `flare codegen` share. It writes `src/_gen/routes.gen.ts`, `types.gen.d.ts`, and `server-fns.gen.ts`. The plugin calls it in `buildStart`, so a build and `vite dev` write first and a failure fails the start. The e2e apps commit their generated files, so a run writes nothing in the app directory (B70).
+The writer the plugin and `flare codegen` share. It writes `src/_gen/routes.gen.ts`, `types.gen.ts`, and `server-fns.gen.ts`. The plugin calls it in `buildStart`, so a build and `vite dev` write first and a failure fails the start. The e2e apps commit their generated files, so a run writes nothing in the app directory (B70).
 
 | test | case | result |
 | --- | --- | --- |

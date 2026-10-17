@@ -519,7 +519,7 @@ packages/core/src/vite/codegen/literals.ts	P1	src	vite	The scan's static reads o
 packages/core/src/vite/codegen/literals.test.ts	P1	test	vite	Unit cases for literals.ts
 packages/core/src/vite/codegen/escape.ts	P1	src	vite	Escape a string written into generated source
 packages/core/src/vite/codegen/escape.test.ts	P1	test	vite	Unit cases for escape.ts
-packages/core/src/vite/codegen/types-gen.ts	P7	src	vite	Write types.gen.d.ts
+packages/core/src/vite/codegen/types-gen.ts	P7	src	vite	Write types.gen.ts
 packages/core/src/vite/codegen/types-gen.test.ts	P7	test	vite	Unit cases for types-gen.ts
 packages/core/src/vite/codegen/auth-hint.ts	P7	src	vite	Write the hint. The runtime does not read it
 packages/core/src/vite/codegen/auth-hint.test.ts	P7	test	vite	Unit cases for auth-hint.ts
@@ -830,7 +830,7 @@ packages/core/tests/e2e/apps/minimal/src/client.tsx	P1	app	-	createClient
 packages/core/tests/e2e/apps/minimal/src/server.ts	P1	app	-	createServer, and a middleware that names the rendering runtime in `x-runtime`
 packages/core/tests/e2e/apps/minimal/src/router.ts	P1	app	-	createRouter
 packages/core/tests/e2e/apps/minimal/src/_gen/routes.gen.ts	P12	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
-packages/core/tests/e2e/apps/minimal/src/_gen/types.gen.d.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/minimal/src/_gen/types.gen.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/minimal/src/_gen/server-fns.gen.ts	P12	app	-	Generated server function list, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/root.root-layout.tsx	P1	app	-	Document root
 packages/core/tests/e2e/apps/minimal/src/routes/_root_/holed/holed.page.tsx	P10	app	-	An ISR page whose stream defer is a hole in the stored body, for stored stream fills
@@ -855,7 +855,7 @@ packages/core/tests/e2e/apps/basepath/src/client.tsx	P2	app	-	createClient
 packages/core/tests/e2e/apps/basepath/src/server.ts	P2	app	-	createServer
 packages/core/tests/e2e/apps/basepath/src/router.ts	P2	app	-	createRouter
 packages/core/tests/e2e/apps/basepath/src/_gen/routes.gen.ts	P12	app	-	Generated route tree, layouts, and chunks, committed so a run writes nothing in the app
-packages/core/tests/e2e/apps/basepath/src/_gen/types.gen.d.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
+packages/core/tests/e2e/apps/basepath/src/_gen/types.gen.ts	P12	app	-	Generated FlareRegister types, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/basepath/src/_gen/server-fns.gen.ts	P12	app	-	Generated server function list, committed so a run writes nothing in the app
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/root.root-layout.tsx	P2	app	-	Document root
 packages/core/tests/e2e/apps/basepath/src/routes/_root_/home.page.tsx	P2	app	-	Home page

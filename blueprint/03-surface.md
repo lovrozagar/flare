@@ -21,7 +21,7 @@ Every entry ships `types` and `default` (compiled ESM). Framework sources contai
 | `Href` | `shared/url/href.ts` |
 | `LocationRewrite` | type from `shared/url/types.ts` |
 | `FlareRegister` | type from `shared/route-builder/register.ts` |
-| `SearchOutput`, `ParamsOutput` | types from `shared/route-builder/register.ts`. They read the output type a route's typed `.input()` step records, so `types.gen.d.ts` can name `routeSearchParams` and `routeParams` as `SearchOutput<typeof import("<file>").route>` without deriving types from text |
+| `SearchOutput`, `ParamsOutput` | types from `shared/route-builder/register.ts`. They read the output type a route's typed `.input()` step records, so `types.gen.ts` can name `routeSearchParams` and `routeParams` as `SearchOutput<typeof import("<file>").route>` without deriving types from text |
 | `ThemeProvider`, `ThemeScript`, `useTheme` | `features/theme` |
 | `DirectionProvider`, `DirectionScript`, `useDirection` | `features/direction` |
 | `createFont`, `FontCSS` | `features/fonts` |
@@ -168,7 +168,7 @@ src/client.tsx
 src/server.ts
 src/router.ts
 src/_gen/routes.gen.ts
-src/_gen/types.gen.d.ts
+src/_gen/types.gen.ts
 ```
 
 Crossing from one `*.root-layout.tsx` to another is a full document load, not a data navigation (`dx/routes.md`). The generated `FlareRegister` maps are `dx/types.md`.

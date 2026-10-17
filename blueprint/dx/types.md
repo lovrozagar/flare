@@ -1,6 +1,6 @@
 # Generated types
 
-Codegen writes `src/_gen/types.gen.d.ts`. The path is not an option (`dx/plugin.md`). The file augments `FlareRegister` on `@lovrozagar/flare`, which is the interface `shared/route-builder/register.ts` exports. The published package leaves that interface empty. The app's generated file fills the maps below. Public types name no `virtual:` module and no `src/` path of the published package (B63). The relative imports in `routeModules` point at the app's own route files.
+Codegen writes `src/_gen/types.gen.ts`. The path is not an option (`dx/plugin.md`). It is a module that augments, not a `.d.ts`, so `skipLibCheck`, which the README's tsconfig sets, never skips it: a broken import in it is a compile error (BUGS.md 347). The file augments `FlareRegister` on `@lovrozagar/flare`, which is the interface `shared/route-builder/register.ts` exports. The published package leaves that interface empty. The app's generated file fills the maps below. Public types name no `virtual:` module and no `src/` path of the published package (B63). The relative imports in `routeModules` point at the app's own route files.
 
 Do not copy the v0 generator. It augments `@lovrozagar/flare/codegen`. It keys `to` by the public URL. It drops `.response()` routes from `routeModules`. It infers `auth`, `env`, and `serverContext` from a phantom export. It sets `hasQueryClient` by searching source text for `queryClientGetter`. None of that is v1.
 

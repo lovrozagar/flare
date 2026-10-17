@@ -34,7 +34,7 @@ it("one route", () => {
 	)
 	const moved = generateRoutes(["_root_/home.page.tsx", rootLayout], read, { routesDir: "app/routes" }).source
 	expect(moved).toContain('"_root_/": "/app/routes/_root_/home.page.tsx"')
-	// The file is src/_gen/routes.gen.ts, so each import is relative from there, as types.gen.d.ts's are.
+	// The file is src/_gen/routes.gen.ts, so each import is relative from there, as types.gen.ts's are.
 	expect(moved).toContain('import("../../app/routes/_root_/home.page.tsx")')
 })
 
