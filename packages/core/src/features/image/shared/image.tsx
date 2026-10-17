@@ -1,4 +1,4 @@
-import { createComponent, createSignal, isHydrating, onSettled } from "solid-js"
+import { createComponent, createSignal, isHydrating, onCleanup, onSettled } from "solid-js"
 import { Dynamic, isServer, type JSX } from "@solidjs/web"
 import { imageQuality, imageWidths } from "./config.ts"
 
@@ -66,10 +66,13 @@ export function Image(props: ImageProps): JSX.Element {
 	// (BUGS.md 290). A hydrated image already complete clears its blur there too (BUGS.md B20).
 	// The ref sets it as the element is made, before anything settles.
 	let element!: HTMLImageElement
+	const place = (): void => void setPlaced(true)
+	onCleanup(() => stopWaiting(place))
 	onSettled(() => {
 		if (placed()) {
 			if (element.complete) setLoaded(true)
-		} else if (element.isConnected && element.ownerDocument.defaultView !== null) setPlaced(true)
+		} else if (placeable(element)) place()
+		else waitForPage(element, place)
 	})
 	return createComponent(Dynamic, {
 		component: "img",
@@ -109,6 +112,36 @@ export function Image(props: ImageProps): JSX.Element {
 			element = img
 		},
 	})
+}
+
+// The images made off the page, each with what places it, and the one observer that watches the page for them while
+// any waits: an image held for a <Show>, a tab inserted later, or a container appended later lands there through a
+// mutation (BUGS.md 293). Nothing observes while none waits, and a server never waits: its images are placed.
+const pending = new Map<() => void, HTMLImageElement>()
+const watching: { observer?: MutationObserver | undefined } = {}
+
+// On the page: connected in a document with a window, which a frame's has and Solid's template document does not.
+function placeable(element: HTMLImageElement): boolean {
+	return element.isConnected && element.ownerDocument.defaultView !== null
+}
+
+function waitForPage(element: HTMLImageElement, place: () => void): void {
+	pending.set(place, element)
+	watching.observer ??= new MutationObserver(sweep)
+	watching.observer.observe(document, { childList: true, subtree: true })
+}
+
+function sweep(): void {
+	for (const [place, element] of pending) if (placeable(element)) stopWaiting(place, true)
+}
+
+// An image placed, or disposed first, stops waiting; the observer goes with the last one.
+function stopWaiting(place: () => void, placed = false): void {
+	if (!pending.delete(place)) return
+	if (placed) place()
+	if (pending.size > 0) return
+	watching.observer?.disconnect()
+	watching.observer = undefined
 }
 
 // The modes fill, fixed, and responsive are mutually exclusive.
