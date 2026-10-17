@@ -1,3 +1,5 @@
+import { CROSS_ORIGIN_RULE } from "../../shared/route-builder/methods.ts"
+import type { EffectiveAuth } from "../auth/effective.ts"
 // `origin` is the one the adapter resolved. `sameSite` is createServer's host allow-list. `identity` is a function
 // with `authenticate` or `authorize`, which turns off the fail-open (B44).
 export type CsrfInput = {
@@ -22,11 +24,17 @@ export function checkCsrf(input: CsrfInput): 200 | 403 {
 }
 
 // A `.response()` route's request with a method other than GET and HEAD gets the same check (plan 21 4.3), as a POST;
-// `identity` is a chain that reads or requires auth, which turns off the fail-open as it does for a server function.
-export function routeCsrf(request: Request, input: { sameSite: readonly string[]; identity: boolean }): 200 | 403 {
-	if (request.method === "GET" || request.method === "HEAD") return 200
+// a chain that reads or requires auth turns off the fail-open as it does for a server function. A `crossOrigin` route
+// skips it; one whose chain carries identity is refused, for a lazy module startup did not see (BUGS.md 273).
+export function routeCsrf(
+	request: Request,
+	input: { sameSite: readonly string[]; auth: EffectiveAuth; crossOrigin: boolean | undefined; id: string },
+): 200 | 403 {
+	const identity = input.auth.requires || input.auth.reads
+	if (input.crossOrigin === true && identity) throw new Error(`${input.id} .response() ${CROSS_ORIGIN_RULE}`)
+	if (request.method === "GET" || request.method === "HEAD" || input.crossOrigin === true) return 200
 	const origin = new URL(request.url).origin
-	return checkCsrf({ method: "post", headers: request.headers, origin, ...input })
+	return checkCsrf({ method: "post", headers: request.headers, origin, sameSite: input.sameSite, identity })
 }
 
 function siteAllowed(site: string, input: CsrfInput): boolean {

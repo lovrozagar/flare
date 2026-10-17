@@ -312,3 +312,20 @@ it("hostile names", () => {
 	expect(source).toContain(String.raw`"_root_/a\nb"`)
 	expect(source).toContain(String.raw`"_root_/c\u2028d"`)
 })
+
+// A `crossOrigin` route whose chain authenticates or authorizes, in the page file or a layout above it, fails the build,
+// naming the page: a forged cross-site post would act as the visitor (B44, BUGS.md 273).
+it("cross origin chain", () => {
+	const page = `export const route = createPage("_root_/(g)/hook").response(h, { methods: ["POST"], crossOrigin: true });\n`
+	const sources: Record<string, string> = {
+		"_root_/root.root-layout.tsx": `export const route = createRootLayout("_root_");\n`,
+		"_root_/(g)/(g).layout.tsx": `export const route = createLayout("_root_/(g)").authorize(check);\n`,
+		"_root_/(g)/hook/hook.page.tsx": page,
+	}
+	const generate = () => generateRoutes(Object.keys(sources), (file) => sources[file] ?? "")
+	expect(generate).toThrow("_root_/(g)/hook/hook.page.tsx: .response() crossOrigin: true needs")
+	sources["_root_/(g)/(g).layout.tsx"] = `export const route = createLayout("_root_/(g)");\n`
+	expect(generate().routes.map((route) => route.id)).toEqual(["_root_/(g)/hook"])
+	sources["_root_/(g)/hook/hook.page.tsx"] = page.replace(".response(", ".authenticate().response(")
+	expect(generate).toThrow("_root_/(g)/hook/hook.page.tsx: .response() crossOrigin: true needs")
+})

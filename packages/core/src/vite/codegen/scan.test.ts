@@ -164,3 +164,19 @@ it("response methods", () => {
 		expect(() => methods(options)).toThrow("a.page.ts: .response() methods is a non-empty array")
 	}
 })
+
+const scanned = (options: string) => scanRoute("a.page.ts", `${ROUTE}response(h${options});`).crossOrigin
+
+// `crossOrigin` is a literal boolean beside `methods`, and a route that answers only GET or OPTIONS has no Origin check
+// to drop, so it fails the build, naming the file (B44, BUGS.md 273).
+it("response cross origin", () => {
+	expect(scanned(', { methods: ["POST"], crossOrigin: true }')).toBe(true)
+	expect(scanned(', { methods: ["POST"], crossOrigin: false }')).toBeUndefined()
+	expect(scanned(', { methods: ["POST"] }')).toBeUndefined()
+	expect(() => scanned(', { methods: ["POST"], crossOrigin: open }')).toThrow(
+		"a.page.ts: .response() crossOrigin is a literal",
+	)
+	for (const options of [", { crossOrigin: true }", ', { methods: ["GET", "OPTIONS"], crossOrigin: true }']) {
+		expect(() => scanned(options)).toThrow("a.page.ts: .response() crossOrigin: true needs")
+	}
+})

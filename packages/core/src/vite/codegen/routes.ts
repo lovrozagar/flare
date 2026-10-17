@@ -1,7 +1,7 @@
 import { posix } from "node:path"
 import { closureMarker } from "./closures.ts"
 import { idPattern, isRootFolder, parseSegment, patternSegments, type Segment } from "../../shared/route-tree/index.ts"
-import { assertOneLayout, assertRoot } from "./layout-checks.ts"
+import { assertCrossOrigin, assertOneLayout, assertRoot } from "./layout-checks.ts"
 import { codeLiteral, escapeSource } from "./escape.ts"
 import { scanRoute, type ClientLiteral, type Scan } from "./scan.ts"
 
@@ -58,6 +58,7 @@ export function generateRoutes(
 	assertApart(routed)
 	assertOneLayout(layouts)
 	const scans = assertExports([...pages, ...layouts], read)
+	assertCrossOrigin(pages, layouts, scans)
 	assertOne(pages)
 	const routes = pages.map((page) => toRoute(page, scans.get(page.file)))
 	assertUnique(routes)

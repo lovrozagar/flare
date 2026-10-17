@@ -56,7 +56,7 @@ const STYLES = devStyles(import.meta.hot)
 export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer {
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev })
 	checkLocale(options.locale, options.router)
-	checkResponseMethods(options.router.routeTree)
+	checkResponseMethods(options.router)
 	checkPlanned(options)
 	checkRetired(options.retireServiceWorker)
 	const { trailingSlash, caseSensitive } = options.router
@@ -269,16 +269,16 @@ async function loaded(
 // drops the encoding its decoded body no longer has. A node flagged as .response() whose module has none is a codegen
 // bug: projected, then 500.
 async function answered(exchange: Exchange, matched: Loaded): Promise<Response> {
-	const respond = defined(matched.chain.at(-1), "the .response() page").module.response
+	const page = defined(matched.chain.at(-1), "the .response() page").module
+	const respond = page.response
 	if (respond === undefined) {
 		projectError(new Error(`${matched.id} is flagged as a .response() page but has no response`), exchange.sink)
 		return answer(exchange, 500)
 	}
 	const auth = effectiveAuth(matched.chain.map((entry) => entry.module))
-	const identity = auth.requires || auth.reads
-	if (routeCsrf(exchange.request, { sameSite: exchange.options.sameSite ?? [], identity }) === 403) {
+	const csrf = { auth, crossOrigin: page.responseOptions?.crossOrigin, id: String(matched.id) }
+	if (routeCsrf(exchange.request, { ...csrf, sameSite: exchange.options.sameSite ?? [] }) === 403)
 		return answer(exchange, 403)
-	}
 	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond })
 	if (run.thrown instanceof RedirectError) {
 		return answer(exchange, run.thrown.status, redirectLocation(run.thrown, exchange.options.router))

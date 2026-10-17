@@ -136,7 +136,8 @@ export type HeadOptions = { replace?: boolean }
 
 // The methods a `.response()` page answers besides HEAD, which follows GET. None declared is GET (plan 21 13.5).
 export type ResponseMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS"
-export type ResponseOptions = { methods?: readonly ResponseMethod[] }
+// `crossOrigin: true` drops the route's Origin check for a sender that proves its own request (B44, BUGS.md 273).
+export type ResponseOptions = { methods?: readonly ResponseMethod[]; crossOrigin?: boolean }
 
 // A step's options ride beside its value, under `<step>Options`.
 type StepOptions = HeadOptions | ResponseOptions
