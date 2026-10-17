@@ -2,7 +2,7 @@ import { defined } from "../../shared/errors/index.ts"
 import { parseDuration } from "../../shared/duration/index.ts"
 import { BUILD_HEADER } from "../../shared/protocol/index.ts"
 import type { PrefetchTrigger, RoutePrefetch } from "../../shared/route-builder/index.ts"
-import type { ChainEntry, ModuleRef, Router } from "../../shared/router/create-router.ts"
+import type { ChainEntry, Match, ModuleRef, Router } from "../../shared/router/create-router.ts"
 import { loadChain, loadedModule } from "../../shared/router/load-chain.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { clientOf } from "../router/match-cache.ts"
@@ -88,17 +88,17 @@ export function createPrefetcher(deps: PrefetchDeps): Prefetcher {
 			} else void loadChain(unloadedEntries(deps.router)).catch(() => undefined)
 		},
 		watch(element, href, input) {
-			const target = local(href, deps)
-			if (target?.kind !== "data") return () => undefined
-			const fields = fieldsOf(input, clientOf(target.match.client).prefetch, deps.router.prefetch)
+			const match = watchedMatch(local(href, deps), deps.router)
+			if (match === undefined) return () => undefined
+			const fields = fieldsOf(input, clientOf(match.client).prefetch, deps.router.prefetch)
 			const modules = fields.modules === "all" ? lowData(deps.env.network) && "viewport" : fields.modules
 			const triggers = new Set([modules, fields.data].filter((trigger) => trigger !== false))
+			const fire = (withData: boolean): void => {
+				const target = local(href, deps)
+				if (target?.kind === "data") run(target, withData)
+			}
 			const stops = [...triggers].map((trigger) =>
-				bind(element, {
-					trigger,
-					env: deps.env,
-					run: () => run(target, fields.data === trigger),
-				}),
+				bind(element, { trigger, env: deps.env, run: () => fire(fields.data === trigger) }),
 			)
 			return () => {
 				for (const stop of stops) stop()
@@ -140,6 +140,14 @@ function unloadedEntries(router: Router): ChainEntry[] {
 	const layouts = Object.entries(router.layouts).map(([id, module]) => ({ id, kind: "layout" as const, module }))
 	const pages = router.routeTree.map((node) => ({ id: node.id, kind: "page" as const, module: node.module }))
 	return [...layouts, ...pages].filter((entry) => typeof entry.module === "function" && !loadedModule(entry.module))
+}
+
+// The page a watched Link names: a data target's match, or the page of a hash move on screen now, which is a navigation
+// once the page changes, so a trigger resolves its target when it fires (BUGS.md 309). Any other target, another
+// origin or root or a `.response()` page, is never prefetched.
+function watchedMatch(target: Target | undefined, router: Router): Match | undefined {
+	if (target?.kind === "data") return target.match
+	return target?.kind === "hash" ? router.match(target.location.pathname) : undefined
 }
 
 // Only a same-origin route prefetches. Another origin, or a URL that does not parse, does not (dx/link.md).
