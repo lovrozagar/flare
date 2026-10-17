@@ -219,6 +219,26 @@ describe("build errors", () => {
 	})
 })
 
+// The root and layout checks codegen runs on every build (plan 21 13.3, BUGS.md 206).
+describe("root and layout errors", () => {
+	// Each page needs its own root's layout: another root's is not in its chain (plan 21 13.3, BUGS.md 206).
+	it("own root missing", async () => {
+		const output = await failure({ ...ROOT, "_admin_/admin/admin.page.tsx": page("_admin_/admin") })
+		expect(output).toContain("no root layout for _admin_: _admin_/admin/admin.page.tsx")
+	})
+
+	// Two layout files for one id would leave the router's layout record one of them (plan 21 13.3, BUGS.md 206).
+	it("two layouts for one id", async () => {
+		const output = await failure({
+			...ROOT,
+			"_root_/docs/docs.layout.tsx": layout("_root_/docs"),
+			"_root_/docs/second.layout.tsx": layout("_root_/docs"),
+			"_root_/docs/intro/intro.page.tsx": page("_root_/docs/intro"),
+		})
+		expect(output).toContain("two layouts for _root_/docs: _root_/docs/docs.layout.tsx, _root_/docs/second.layout.tsx")
+	})
+})
+
 // A route module that imports the router closes a cycle through the generated map's lazy import. While its
 // evaluation is held open, a second request's import gets its namespace before `route` is set, and dev waits for the
 // export, so both requests render. The generated map imports each route module lazily.
