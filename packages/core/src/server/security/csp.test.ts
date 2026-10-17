@@ -150,13 +150,18 @@ it("permission values", () => {
 	expect(policy({ permissions: false }).headers.has("permissions-policy")).toBe(false)
 })
 
-// The default policy limits where a form may post and who may frame the page to the page's own origin
-// (plan 21 14.1, BUGS.md 221).
+// The default policy limits where a form may post to the page's own origin, and who may frame the page as the
+// X-Frame-Options it carries does, since a browser that reads both obeys `frame-ancestors`: DENY, the default, is
+// 'none', SAMEORIGIN is 'self', and no X-Frame-Options sends no directive. A named one wins (plan 21 14.1, BUGS.md 221,
+// 268).
 it("form and frame defaults", () => {
 	const { csp } = policy({})
-	expect([source(csp, "form-action"), source(csp, "frame-ancestors")]).toEqual(["'self'", "'self'"])
-	const named = policy({ csp: { "frame-ancestors": ["'none'"] } }).csp
-	expect(source(named, "frame-ancestors")).toBe("'none'")
+	expect([source(csp, "form-action"), source(csp, "frame-ancestors")]).toEqual(["'self'", "'none'"])
+	const framed = (frame: string | false) =>
+		source(buildCsp({ url: https, nonce: "n", frame }).headers.get("content-security-policy") ?? "", "frame-ancestors")
+	expect([framed("DENY"), framed("sameorigin"), framed(false)]).toEqual(["'none'", "'self'", undefined])
+	const named = policy({ csp: { "frame-ancestors": ["https://partner.example"] } }).csp
+	expect(source(named, "frame-ancestors")).toBe("https://partner.example")
 })
 
 // A source holding a `;` or a line break would end its directive and inject another, so it throws, naming the

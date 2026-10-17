@@ -125,7 +125,7 @@ A key not in this table does not type-check. A directive with no default appears
 | `connect-src` | `'self'`, `https:` | `string[]` | without it, `default-src 'self'` blocks an https API |
 | `worker-src` | `'self'` | `string[]` | |
 | `frame-src` | absent | `string[]` | |
-| `frame-ancestors` | `'self'` | `string[]` | the CSP form of `X-Frame-Options`, which browsers that read both prefer (BUGS.md 221) |
+| `frame-ancestors` | the answer's `X-Frame-Options` restated: `'none'` for `DENY` (the default), `'self'` for `SAMEORIGIN`, none when `X-Frame-Options` is `false` | `string[]` | the CSP form of `X-Frame-Options`, which browsers that read both obey instead, so the default is never looser than the header and an app that removes the header to be embedded is not blocked by a directive it never wrote (BUGS.md 221, 268) |
 | `form-action` | `'self'` | `string[]` | a form posts only to the page's own origin unless the app names more (BUGS.md 221) |
 | `media-src` | absent | `string[]` | |
 | `upgrade-insecure-requests` | `true` on https | boolean | |
