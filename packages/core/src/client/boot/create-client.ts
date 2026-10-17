@@ -12,6 +12,7 @@ import { createHistory, type FlareHistory } from "../history/index.ts"
 import { createBlockers, type Blockers } from "../navigation/blocker.ts"
 import { revive, type Pending } from "../navigation/frames.ts"
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts"
+import { createArrival } from "../navigation/arrival.ts"
 import { createNavigationState } from "../navigation/pending.ts"
 import { createPopstate } from "../navigation/popstate.ts"
 import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
@@ -80,9 +81,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	)
 	const history = createHistory(window.history)
 	history.adopt(here())
-	const navigation = createNavigationState()
-	const blockers = createBlockers()
-	const scroll = browserScroll(router)
+	const [navigation, blockers, scroll] = [createNavigationState(), createBlockers(), browserScroll(router)]
 	// One id for the navigator, the prefetcher, and the server function transport, so none disagrees on a mismatch (B30).
 	const build = state.build ?? ""
 	const prefetcher = browserPrefetcher(router, store, { env, build })
@@ -103,6 +102,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		dev: env.dev,
 		send: env.send,
 		prefetched: prefetcher.prefetched,
+		arrived: createArrival(document),
 	})
 	const invalidate = installCall(router, { fetch: env.fetch, build, cache, prefetcher }, navigator)
 	ready.ready({ navigate: navigator.navigate, location })

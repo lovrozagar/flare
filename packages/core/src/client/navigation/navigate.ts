@@ -60,12 +60,12 @@ export type NavigatorDeps = {
 	dev: boolean
 	send?: ((payload: DevErrorPayload) => void) | undefined
 	prefetched?: (dataUrl: string) => Promise<Landing | undefined> | undefined
+	arrived?: ((location: DataTarget["location"]) => void) | undefined
 }
 
 type Trigger = "initial" | "navigation" | "revalidation"
 
-// The redirects one navigation follows before it loads the last one as a document, whose own limit and error page the
-// browser keeps (plan 21 3.10).
+// The redirects a navigation follows before it loads the last as a document, under the browser's own limit (3.10).
 const MAX_REDIRECTS = 10
 
 // `revalidate` refetches the page on screen in place, as `revalidate: true` does (B133). `visit` goes to a URL the
@@ -100,7 +100,7 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		const move = { current: snapshot.location, next: target.location, trigger: plan.trigger }
 		if (!pop && !allowsNavigation(deps.blockers, move)) return
 		const controller = requests.start()
-		// A stored landing can end with a `"stream"` hole. Once this page commits, one fill asks for its values.
+		// A stored landing's `"stream"` hole: once this page commits, one fill asks for its values.
 		const watch = holeWatch(deps, target.location, (pending) => again({ fill: pending }))
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes }
 		const outcome = await travel(deps, plan, { trip, current: () => requests.latest(controller) })
@@ -245,7 +245,8 @@ async function settle(
 		return { kind: "committed", stale: false }
 	}
 	const next = committedSnapshot(deps, plan.fill, { target, chain: settled.chain, arrival, previous })
-	const step = { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" }
+	const arrived = plan.trigger === "navigation" && target.location.pathname !== previous.location.pathname
+	const step = { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation", arrived }
 	keepPosition(deps, previous.location, step)
 	// The DOM updates, in a view transition when one is on, and every scroll is final before the update returns, so the
 	// new snapshot shows it (B108). A commit Solid holds scrolls when it shows. History moves once it is on screen (B106).
