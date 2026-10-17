@@ -68,11 +68,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	const server: FlareServer = { fetch, bodyLimit, buildId, cache }
 	// The internal channel `vite build`'s prerender reads. It runs the same pipeline with a capture (bits/12).
 	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }))
-	const refused = refusedChannel({
-		router: options.router,
-		mounts: at.mounts,
-		step: (request) => canonicalStep(at, request),
-	})
+	const refused = refusedChannel(at, (request) => canonicalStep(at, request))
 	return Object.assign(server, { [PRERENDER]: prerender }, refused)
 }
 

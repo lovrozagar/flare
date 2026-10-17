@@ -1,6 +1,7 @@
 import { expect, it } from "vitest"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
+import { createServerFn } from "../server-fn/dispatch.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { applyMethod, REFUSED, refusedChannel, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
 
@@ -151,13 +152,16 @@ it("check methods", () => {
 
 const respond = () => new Response("")
 
-const step = (request: { url: string }) =>
-	request.url.endsWith("/old") ? { status: 308, location: "/hook" } : { status: 200 }
+const step = (request: { url: string }) => {
+	if (request.url.endsWith("/broken")) throw new Error("rewrite broke")
+	return request.url.endsWith("/old") ? { status: 308, location: "/hook" } : { status: 200 }
+}
 
-// What an adapter that cannot make a request of the method gets: the canonical step's redirect first, 501 on a mounted
-// path the method cannot reach, else a `.response()` page's own methods and the page set for any other path, as Bun's
-// pipeline answers (BUGS.md 280, 284).
-it("refused channel", () => {
+// What an adapter that cannot make a request of the method gets, in the order Bun's pipeline answers it: an unknown
+// internal param's 400, the canonical step's redirect (a step that throws is the projected 500), 501 on a mounted path
+// the method cannot reach, a server function's 404 when its id is unknown and else 405 naming its method, and a route's
+// 405 with its own Allow (BUGS.md 280, 284, 289).
+it("refused channel", async () => {
 	const router = createRouter({
 		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
 		routeTree: [
@@ -166,15 +170,47 @@ it("refused channel", () => {
 			{ id: "_root_/page", path: "/page", module: createPage("_root_/page").render(() => "page") },
 		],
 	})
-	const mounts = [{ prefix: "/mounted", fetch: respond }]
-	const refused = refusedChannel({ router, mounts, step })[REFUSED]
+	const logged: string[] = []
+	const sink = {
+		dev: false,
+		log: {
+			level: "error" as const,
+			error: (...line: unknown[]) => void logged.push(String(line.at(-1))),
+			warn: () => undefined,
+			log: () => undefined,
+		},
+	}
+	const echo = createServerFn({ method: "post", __id: "echo000000000000", __name: "echo" } as never).handler(() => "x")
+	const serving = {
+		options: { router, serverFns: { echo000000000000: async () => echo } },
+		mounts: [{ prefix: "/mounted", fetch: respond }],
+		sink,
+	}
+	const refused = refusedChannel(serving as never, step)[REFUSED]
 	const at = (path: string) => refused({ method: "TRACE", url: `http://localhost${path}` })
-	expect(["/old", "/mounted/x", "/hook", "/api", "/page", "/elsewhere"].map(at)).toEqual([
+	const paths = [
+		"/page?_flare=bogus",
+		"/broken",
+		"/old",
+		"/mounted/x",
+		"/_flare/fn/unknown0000000000",
+		"/_flare/fn/echo000000000000",
+		"/hook",
+		"/api",
+		"/page",
+		"/elsewhere",
+	]
+	expect(await Promise.all(paths.map(at))).toEqual([
+		{ status: 400 },
+		{ status: 500 },
 		{ status: 308, location: "/hook" },
 		{ status: 501 },
+		{ status: 404 },
+		{ status: 405, allow: "POST, OPTIONS" },
 		{ status: 405, allow: "POST, OPTIONS" },
 		{ status: 405, allow: "GET, HEAD, OPTIONS" },
 		{ status: 405, allow: "GET, HEAD, OPTIONS" },
 		{ status: 405, allow: "GET, HEAD, OPTIONS" },
 	])
+	expect(logged.join(" ")).toContain("rewrite broke")
 })
