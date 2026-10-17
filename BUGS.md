@@ -1024,6 +1024,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 203 [x] A throwing onReady or shouldRefetch left the page never hydrated, and a throwing onHydrated skipped the stored page's fill
 203.1 [x] Plan 21 9.3: createReady ran the app's callbacks bare, and the match cache asked a page's `shouldRefetch` bare in the hydrate's first plan, so one throw ended the boot: no `data-flare-hydrated`, no later callback, no fill of a stored page's holes. Red: tests/integration/callbacks-client.test.ts `throwing callbacks` on every engine (the client did not hydrate), ready.test `throwing callback`, and match-cache.test `should refetch throws` (the throw escaped the plan).
 203.2 [x] Fix: each createClient callback runs guarded in ready.ts, and a throwing `shouldRefetch` is caught in match-cache.ts's asker and counts as no answer. Both report to one reporter the boot names (create-client.ts `callbackReporter`): `console.error("[flare] an app callback threw", error)`, plus the dev overlay payload in dev; before the boot names it, each logs alone. The rest of the phase runs, so the page hydrates and fills.
+204 [x] A line comment after the last property of a createServerFn config swallowed the injected id, so every call 404ed
+204.1 [x] Plan 21 13.1: the transform wrote `__id` and `__name` at the end of the config's trimmed text, so in `createServerFn({ method: "get" // read\n})` they landed inside the comment and the function shipped with no id. Red: boundary/transform.test `config comment` (a line comment, a block comment after a trailing comma, an empty object holding only a comment).
+204.2 [x] Fix: route-meta/extract.ts records `after`, the offset just past the config's last property (or inside `{` when it has none), from the AST, and the transform writes the fields there. A trailing comma or comment now stays after the fields.
 
 ## Verify
 

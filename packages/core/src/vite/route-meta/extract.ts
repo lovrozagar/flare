@@ -23,7 +23,7 @@ export type FnMethod = Span & { name: string; args: Span[] }
 // span inside the parentheses when there is none, so the transform can write `__id` and `__name` there.
 export type FnRecord = Span & {
 	name: string
-	config: Span & { literal: unknown }
+	config: Span & { literal: unknown; after?: number | undefined }
 	methods: FnMethod[]
 }
 
@@ -183,9 +183,16 @@ function record(file: string, name: string, chain: Chain): FnRecord {
 		name,
 		start: chain.root.start,
 		end: last.call.end,
-		config: { ...(config === undefined ? inside : span(config)), literal },
+		config: { ...(config === undefined ? inside : span(config)), literal, after: fieldsAt(config) },
 		methods,
 	}
+}
+
+// Where the transform writes its fields into an object config: after the last property, or inside `{` when there is
+// none. A comment after it, a line comment above all, stays after the fields (plan 21 13.1).
+function fieldsAt(config: CallExpression["arguments"][number] | undefined): number | undefined {
+	if (config?.type !== "ObjectExpression") return undefined
+	return config.properties.at(-1)?.end ?? config.start + 1
 }
 
 function span(node: Span): Span {
