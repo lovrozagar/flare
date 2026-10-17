@@ -123,3 +123,14 @@ it("revalidate with a hash move", async () => {
 	await app.navigator.navigate({ to: "_root_/", revalidate: true })
 	expect([fetch.mock.calls.length, location.hash]).toEqual([2, ""])
 })
+
+// Reserved keys are stripped from a shallow call's search on the page as they are from its URL (dx/navigate.md,
+// BUGS.md 322).
+it("shallow strips reserved keys", async () => {
+	const app = await mountNavigator(
+		router,
+		vi.fn<Fetch>(async () => new Response("")),
+	)
+	await app.navigator.navigate({ to: "_root_/", shallow: true, search: { q: "1", _flare: "data", _flare_stale: "x" } })
+	expect([location.search, app.store.snapshot().matches.at(-1)?.search]).toEqual(["?q=1", { q: "1" }])
+})

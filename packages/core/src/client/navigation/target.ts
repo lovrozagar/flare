@@ -28,11 +28,10 @@ const SCHEME = /^[a-z][a-z0-9+.-]*:/i
 export function resolveTarget(input: NavigateInput, context: TargetContext): Target {
 	if (SCHEME.test(input.to) || input.to.startsWith("//"))
 		throw new Error(`navigate: to is a route id, not a URL: ${input.to}`)
-	// A route id is the URL the router writes: under its base, with its trailing-slash rule (plan 21 3.7, 3.9).
-	const built = routeHref(
-		context.router,
-		buildUrl({ to: input.to, params: input.params, search: withoutInternalKeys(input.search), hash: input.hash }),
-	)
+	// A route id is the URL the router writes: under its base, with its trailing-slash rule (plan 21 3.7, 3.9). Reserved
+	// keys leave the search for the URL and for a shallow move's page alike (BUGS.md 322).
+	const search = withoutInternalKeys(input.search)
+	const built = routeHref(context.router, buildUrl({ to: input.to, params: input.params, search, hash: input.hash }))
 	const location = rewriteLocation(context.router, locationOf(new URL(built, context.origin)), context.origin)
 	if (input.shallow === true && location.pathname !== context.current.pathname) {
 		throw new Error("navigate: a shallow navigation keeps the pathname")
@@ -40,7 +39,7 @@ export function resolveTarget(input: NavigateInput, context: TargetContext): Tar
 	// A shallow move on the page runs no loader. A hash-only one is a hash move (BUGS.md B18).
 	const target = fromLocation(location, context)
 	if (input.shallow !== true || target.kind !== "data") return target
-	return { kind: "shallow", url: target.url, location, search: input.search }
+	return { kind: "shallow", url: target.url, location, search }
 }
 
 // navigate()'s target. `state` goes into history, which structured-clones it: cloned here first, one that cannot be, a
