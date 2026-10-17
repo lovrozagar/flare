@@ -37,6 +37,18 @@ it("server namespace", async () => {
 	expect(await build(named, "ssr")).toContain("SECRET_NS")
 })
 
+// A namespace import's isomorphic chain splits as a named import's does: the client build keeps `.client()`'s body
+// and drops `.server()`'s, and the server build the reverse (plan 21 13.15).
+it("iso namespace", async () => {
+	const named = root(
+		'import * as flare from "@lovrozagar/flare";\nexport const format = flare.createIsomorphicFn().server(() => "ISO_SERVER").client(() => "ISO_CLIENT");\n',
+	)
+	const client = await build(named, "client")
+	const server = await build(named, "ssr")
+	expect([client.includes("ISO_SERVER"), client.includes("ISO_CLIENT")]).toEqual([false, true])
+	expect([server.includes("ISO_SERVER"), server.includes("ISO_CLIENT")]).toEqual([true, false])
+})
+
 it("server shadow", async () => {
 	const shadowed = root(`${ENV}export function wrap(createServerOnlyFn) { return createServerOnlyFn; }\n`)
 	await expect(build(shadowed, "client")).rejects.toThrow(/src\/mod\.ts: a local binding shadows createServerOnlyFn/)
