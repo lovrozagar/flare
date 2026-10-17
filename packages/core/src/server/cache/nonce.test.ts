@@ -1,4 +1,4 @@
-import { expect, it } from "vitest"
+import { expect, it, vi } from "vitest"
 import { fromWire } from "../../shared/protocol/value.ts"
 import { stateScript } from "../render/state.ts"
 import { fromSentinel, newSentinel, toSentinel } from "./nonce.ts"
@@ -91,4 +91,24 @@ it("planted sentinel", () => {
 	expect(fromSentinel(stored, S, "def")).toBe(`${planted}<script nonce="def">ok()</script>`)
 	// The state field is rewritten only when it holds the entry's sentinel.
 	expect(fromSentinel(state("__FLARE_NONCE__"), S, "def")).toBe(state("__FLARE_NONCE__"))
+})
+
+// A hit is one pass for the server's own hex nonce: the sentinel stands only where the write put it, so it is written
+// over without a pattern walk or a parse of the state, and the page is the slow path's to the byte (plan 21 15.2).
+it("one pass", () => {
+	const nonce = "0123456789abcdef0123456789abcdef"
+	const stored = toSentinel(`<style nonce="abc"></style>\n<script\tnonce='abc'>x()</script>${state("abc")}`, "abc", S)
+	const parse = vi.spyOn(JSON, "parse")
+	const replace = vi.spyOn(String.prototype, "replaceAll")
+	const hit = fromSentinel(stored, S, nonce)
+	expect(parse).not.toHaveBeenCalled()
+	expect(replace).toHaveBeenCalledOnce()
+	parse.mockRestore()
+	replace.mockRestore()
+	expect(hit).toBe(`<style nonce="${nonce}"></style>\n<script\tnonce='${nonce}'>x()</script>${state(nonce)}`)
+	// A nonce that would need escaping takes the slow path, which escapes it.
+	expect(fromSentinel(stored, S, 'a"b')).toContain('nonce="a&quot;b"')
+	// The slow path leaves another nonce value and a state field that is not the sentinel as written.
+	const other = `<script nonce="zzz"></script>${state("other")}`
+	expect(fromSentinel(other, S, 'a"b')).toBe(other)
 })

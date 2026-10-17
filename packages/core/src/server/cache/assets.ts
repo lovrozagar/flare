@@ -1,10 +1,14 @@
 import { ARTIFACT_BASE, artifactPath } from "../../shared/cache/index.ts"
-import type { FlareStore } from "./contract.ts"
+import { defined } from "../../shared/errors/index.ts"
+import type { FlareStoreEntry, FlareStore } from "./contract.ts"
 import { buildId } from "./key.ts"
 import { acceptSeed } from "./seed.ts"
 
 // What a read hands back: the file's bytes, a Response from a binding, or nothing for a missing file.
 export type AssetRead = (path: string) => Promise<Response | Uint8Array | null | undefined>
+
+// The seeds a store keeps parsed: a page's few kilobytes each, so a few megabytes at most.
+const KEPT = 512
 
 function readOnly(): Promise<never> {
 	return Promise.reject(new Error("createAssetsStore is read-only: SSG seeds ship with the build"))
@@ -22,17 +26,34 @@ function checkBase(base: string): void {
 export function createAssetsStore(read: AssetRead, options: { base?: string } = {}): FlareStore {
 	const base = options.base ?? ARTIFACT_BASE
 	checkBase(base)
+	const kept = new Map<string, Promise<FlareStoreEntry | null>>()
+	const load = async (key: string): Promise<FlareStoreEntry | null> => {
+		const path = await artifactPath(key, { build: buildId(), base })
+		if (path === null) return null
+		const text = await textOf(await read(path))
+		if (text === undefined) return null
+		try {
+			return acceptSeed(JSON.parse(text), key) ?? null
+		} catch {
+			return null
+		}
+	}
 	return {
-		async get(key) {
-			const path = await artifactPath(key, { build: buildId(), base })
-			if (path === null) return null
-			const text = await textOf(await read(path))
-			if (text === undefined) return null
-			try {
-				return acceptSeed(JSON.parse(text), key) ?? null
-			} catch {
-				return null
+		// A seed ships with the deploy and never changes, so each key's read, hit or miss, is kept: a hit reads no file
+		// and parses nothing (plan 21 15.2). The latest KEPT keys stay, the least recently read go first, and a read that
+		// throws is not kept.
+		get(key) {
+			const known = kept.get(key)
+			if (known !== undefined) {
+				kept.delete(key)
+				kept.set(key, known)
+				return known
 			}
+			const loading = load(key)
+			kept.set(key, loading)
+			loading.catch(() => kept.delete(key))
+			if (kept.size > KEPT) kept.delete(defined(kept.keys().next().value, "the oldest kept seed"))
+			return loading
 		},
 		set: readOnly,
 		delete: readOnly,

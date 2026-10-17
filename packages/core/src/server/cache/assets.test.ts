@@ -69,3 +69,25 @@ it("bad base", () => {
 		expect(() => createAssetsStore(async () => null, { base })).toThrow(/base/)
 	}
 })
+
+// A seed ships with the deploy and never changes, so a key's read, hit or miss, is kept: a second get reads nothing
+// and parses nothing. The 512 latest keys are kept, the oldest go first, and a read that throws is not kept, so the
+// next get reads again (plan 21 15.2).
+it("kept reads", async () => {
+	const read = vi.fn<typeof readFile>(readFile)
+	const store = createAssetsStore(read)
+	const first = await store.get(KEY)
+	expect(await store.get(KEY)).toBe(first)
+	expect(read).toHaveBeenCalledOnce()
+	for (let index = 0; index < 512; index++) await store.get(`static:dev:_root_/p${index}`)
+	expect(read).toHaveBeenCalledTimes(513)
+	await store.get(KEY)
+	expect(read).toHaveBeenCalledTimes(514)
+	const flaky = vi.fn<() => Promise<Uint8Array>>(async () => {
+		throw new Error("disk")
+	})
+	const failing = createAssetsStore(flaky)
+	await expect(failing.get(KEY)).rejects.toThrow("disk")
+	await expect(failing.get(KEY)).rejects.toThrow("disk")
+	expect(flaky).toHaveBeenCalledTimes(2)
+})
