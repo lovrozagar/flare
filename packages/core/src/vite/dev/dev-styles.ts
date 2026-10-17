@@ -1,7 +1,6 @@
-import { readFileSync } from "node:fs"
 import { join, relative, sep } from "node:path"
 import { STYLES_EVENT, stylesRequest, type DevStyle } from "../../shared/protocol/index.ts"
-import { generateRoutes } from "../codegen/routes.ts"
+import { routeIdOf } from "../codegen/routes.ts"
 import { routeFilesOf } from "../codegen/write.ts"
 
 const ROUTES_DIR = "src/routes"
@@ -65,11 +64,16 @@ export function installDevStyles(server: StylesServer, entry: string): void {
 	})
 }
 
-// Route id to its file's absolute path, from the same scan the route codegen runs.
+// Route id to its file's absolute path, from the files' paths, by the rule the route codegen names them with. No file
+// is read: one that does not parse leaves every other chain its styles (plan 21 11.6).
 function routeFileMap(root: string): Map<string, string> {
 	const dir = join(root, ROUTES_DIR)
-	const generated = generateRoutes(routeFilesOf(root), (file) => readFileSync(join(dir, file), "utf8"))
-	return new Map([...generated.layouts, ...generated.routes].map((entry) => [entry.id, join(dir, entry.file)]))
+	return new Map(
+		routeFilesOf(root).flatMap((file) => {
+			const id = routeIdOf(file)
+			return id === undefined ? [] : [[id, join(dir, file)] as const]
+		}),
+	)
 }
 
 async function stylesOf(

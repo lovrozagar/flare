@@ -1,4 +1,4 @@
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -137,6 +137,46 @@ it("entry not in graph", async () => {
 		`${ROOT}src/components/code-block.module.css`,
 		`${ROOT}src/styles.css`,
 	])
+})
+
+// A route file that does not parse breaks no other chain: the route map comes from the files' paths, so the other
+// pages keep their styles while the broken one is mended (plan 21 11.6).
+it("broken sibling route", async () => {
+	const root = realpathSync(mkdtempSync(join(tmpdir(), "flare-dev-styles-")))
+	try {
+		const routes = join(root, "src/routes/_root_")
+		const page = join(routes, "about/about.page.tsx")
+		mkdirSync(join(routes, "about"), { recursive: true })
+		mkdirSync(join(routes, "broken"))
+		writeFileSync(join(routes, "app.root-layout.tsx"), 'export const route = createRootLayout("_root_")\n')
+		writeFileSync(page, 'export const route = createPage("_root_/about")\n')
+		writeFileSync(join(routes, "broken/broken.page.tsx"), "export const route = (\n")
+		writeFileSync(join(routes, "about/helper.ts"), "export const helper = 1\n")
+		const css: GraphNode = { id: join(root, "src/about.css"), url: "/src/about.css", importedModules: new Set() }
+		const graph = new Map([[page, { id: page, url: "/about", importedModules: new Set([css]) }]])
+		const listeners = new Map<string, Parameters<typeof ask>[0]>()
+		const modules = (file: string) => (graph.has(file) ? new Set([graph.get(file) as GraphNode]) : undefined)
+		const server: StylesServer = {
+			config: { root },
+			watcher: { on: () => undefined },
+			environments: {
+				client: {
+					transformRequest: async (url) => ({ code: `css of ${url}` }),
+					moduleGraph: { getModulesByFile: () => undefined, ensureEntryFromUrl: async () => undefined },
+				},
+				ssr: {
+					hot: { on: (event, listener) => void listeners.set(event, listener) },
+					moduleGraph: { getModulesByFile: modules },
+				},
+			},
+		}
+		installDevStyles(server, join(root, "src/client.tsx"))
+		expect(await ask(listeners.get(STYLES_EVENT), ["_root_/about"])).toEqual([
+			{ id: css.id, css: "css of /src/about.css?direct" },
+		])
+	} finally {
+		rmSync(root, { recursive: true, force: true })
+	}
 })
 
 // A real dev server whose stylesheet transform is held open, as a first Tailwind compile holds it: an edit of the file
