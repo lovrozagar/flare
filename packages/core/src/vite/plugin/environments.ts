@@ -75,6 +75,11 @@ export const SERVER_BUNDLED: string[] = ["solid-js", "@solidjs/web", "@lovrozaga
 // Vite's dev runner does not transform.
 export const SERVER_BUILD_BUNDLED: string[] = [...SERVER_BUNDLED, ...FEATURE_PEERS.i18n]
 
+// The ssr environment's `noExternal`: a build's list, or dev's.
+export function serverBundled(build: boolean): string[] {
+	return build ? SERVER_BUILD_BUNDLED : SERVER_BUNDLED
+}
+
 // The client and ssr environments and the order the builder runs them in (B89). The client entry is
 // `<assetsDir>/client-[hash].js` and its chunks `<assetsDir>/[hash].js`. The server is one minified file with
 // sourcemaps. With the Cloudflare plugin, the plugin names the ssr output, and prerender gets its own Node build of the
