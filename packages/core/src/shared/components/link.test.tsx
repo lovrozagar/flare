@@ -200,6 +200,22 @@ it("dangerous", () => {
 	}
 })
 
+// Link classifies its own href (BUGS.md 310): a scheme the browser hands to another app, carrying no script, renders as
+// written and the click is the browser's; a fragment is an in-page anchor. A relative path, a bare query, or "" cannot
+// resolve alike on the server and the client: in dev a throw that names it and points to `to`, `#` in production.
+it("handed-off and fragment hrefs", () => {
+	for (const href of ["mailto:a@b.example", "tel:+15551234", "SMS:+15551234", "#top"]) {
+		const { anchor, navigate } = mount({ href, children: "x" })
+		expect([href, anchor.getAttribute("href"), click(anchor).defaultPrevented]).toEqual([href, href, false])
+		expect(navigate).not.toHaveBeenCalled()
+	}
+	for (const href of ["about", "?q=1", "./x", ""]) {
+		expectReported(() => mount({ href, children: "x" }), /relative.*`to`/)
+	}
+	vi.stubEnv("DEV", false)
+	for (const href of ["about", "?q=1", ""]) expect(mount({ href, children: "x" }).anchor.getAttribute("href")).toBe("#")
+})
+
 it("neither", () => {
 	// @ts-expect-error a link has `to` or `href`
 	const { anchor } = mount({ children: "x" })

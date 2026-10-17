@@ -82,7 +82,7 @@ function anchor(props: AnyLinkProps): JSX.Element {
 	const navigate = useContext(NavigateContext)
 	const prefetcher = useContext(PrefetchContext)
 	const router = useContext(RouterContext)
-	const url = createMemo(() => (props.to === undefined ? safeHref(props.href) : internalHref(props, props.to, router)))
+	const url = createMemo(() => (props.to === undefined ? linkHref(props.href) : internalHref(props, props.to, router)))
 	const active = createMemo(() => props.to !== undefined && isActive(props, url(), location()))
 	let element: HTMLAnchorElement | undefined
 	createEffect(
@@ -204,10 +204,22 @@ function internalHref(props: AnyLinkProps, to: string, router: Router): string {
 	return routeHref(router, path)
 }
 
-// A dangerous scheme renders `#` instead of throwing (dx/link.md).
-function safeHref(value: string | undefined): string {
+// Schemes the browser hands to another app, carrying no script (BUGS.md 310).
+const HANDED_OFF = /^(?:mailto|tel|sms):/i
+
+// Link's own href classification (BUGS.md 310). A `mailto:`, `tel:`, or `sms:` link renders as written, and so does a
+// `#fragment`, an in-page anchor. A path or an http(s) URL is `href()`'s to check. A relative path, a bare `?query`, or
+// "" cannot resolve alike on the server and the client: `#`, and a throw in dev pointing to `to`. Anything else,
+// `javascript:` say, is `#`. `redirect({ href })` keeps `href()`'s rule alone.
+function linkHref(text: string | undefined): string {
+	// A Link with neither `to` nor `href`, a type error, is `#`.
+	if (text === undefined) return "#"
+	if (HANDED_OFF.test(text) || text.startsWith("#")) return text
+	if (import.meta.env?.DEV && !text.startsWith("/") && !/^[^/?#]*:/.test(text)) {
+		throw new Error(`Link href ${JSON.stringify(text)} is relative: use \`to\` for a page, or an absolute path`)
+	}
 	try {
-		return checkHref(value ?? "")
+		return checkHref(text)
 	} catch {
 		return "#"
 	}
