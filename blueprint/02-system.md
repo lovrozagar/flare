@@ -180,7 +180,7 @@ The client calls `fn(input)`. The stub sends JSON to `<basePath>/_flare/fn/<id>`
 
 A thrown `redirect()` is HTTP 200 and sets `redirect`. It sets no `data`. `to` is the built URL, with search and hash, or the `href` when that form was used. `replace` is always present and defaults to `true`. A same-origin `to` is followed by the internal URL navigation with that `replace`. It does not call public `navigate({ to })`. An `href` is a full page load. The promise then rejects with that redirect (B85). `notFound()`, `unauthenticated()`, and `unauthorized()` on a server function are JSON and do not walk the page.
 
-`.stream()` replies with NDJSON of the same envelope shape, one yielded value per line, and the client function returns an async iterator.
+`.stream()` replies with NDJSON of the same envelope shape, one yielded value per line, and the client function returns an async iterator. A generator that finishes writes `{ name, status: 200, end: true }` last; a throw writes its error envelope last instead. A body that stops before either, mid-line included, was cut, and the iterator rejects with `ServerFnError` status 0 after the values that arrived (B140).
 
 A function thrown error uses the same projector as a render error (B38). In dev the envelope includes `message` and `stack` and omits `digest`. In production it includes a generic `message` and `digest` and omits `stack`. `markSafeError` keeps the message and still omits `stack` (B76).
 

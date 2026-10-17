@@ -3,8 +3,10 @@ import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts"
 
 const encoder = new TextEncoder()
 
-// `.stream()` answers NDJSON: one envelope per yielded value, in order (02-system). A throw writes its error
-// envelope, projected like a handler's, as the last line. A cancelled body stops the generator.
+// `.stream()` answers NDJSON: one envelope per yielded value, in order (02-system). A generator that finishes writes
+// the end line, `{ name, status: 200, end: true }`, so the client can tell a whole stream from one cut short (B140). A
+// throw writes its error envelope, projected like a handler's, as the last line instead. A cancelled body stops the
+// generator.
 export function streamEnvelopes(
 	name: string,
 	source: AsyncIterable<unknown>,
@@ -18,8 +20,9 @@ export function streamEnvelopes(
 		async pull(controller) {
 			try {
 				const next = await iterator.next()
-				if (next.done === true) controller.close()
-				else controller.enqueue(line(okEnvelope(name, next.value)))
+				if (next.done !== true) return controller.enqueue(line(okEnvelope(name, next.value)))
+				controller.enqueue(line({ name, status: 200, end: true }))
+				controller.close()
 			} catch (thrown) {
 				controller.enqueue(line(errorEnvelope(name, thrown, context).envelope))
 				controller.close()

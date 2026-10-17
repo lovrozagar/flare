@@ -320,7 +320,9 @@ it("server fn call", async () => {
 // fields type-check.
 it("stream call", async () => {
 	const host = install("b1")
-	const ndjson = '{"name":"ticks","status":200,"data":1}\n{"name":"ticks","status":200,"data":2}\n'
+	const ndjson =
+		'{"name":"ticks","status":200,"data":1}\n{"name":"ticks","status":200,"data":2}\n' +
+		'{"name":"ticks","status":200,"end":true}\n'
 	const fetch = vi.fn<ClientEnv["fetch"]>(
 		async () => new Response(ndjson, { headers: { "content-type": "application/x-ndjson" } }),
 	)
