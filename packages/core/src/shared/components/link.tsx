@@ -99,10 +99,9 @@ function anchor(props: AnyLinkProps): JSX.Element {
 		if (props.disabled === true || (props.to === undefined && url() === "#")) return event.preventDefault()
 		if (props.to === undefined || navigate === null || !followable(event, event.currentTarget)) return
 		event.preventDefault()
-		// A link to the current URL stays put unless its hash moves the page: a new one, or the current one again (BUGS.md
-		// 148). A custom `isActive` only styles: a section link on another page of its section still goes (BUGS.md 292).
-		const at = location()
-		if (props.force !== true && !props.hash && !at.hash && sameUrl(url(), at)) return
+		// A link to the browser's own URL stays put unless its hash moves the page (BUGS.md 148, 292). The router's
+		// location still names the page left during a Back or Forward, until the step commits (BUGS.md 296).
+		if (props.force !== true && !props.hash && !window.location.hash && sameUrl(url(), window.location)) return
 		void navigate({ ...pick(props), to: props.to })
 	}
 	return createComponent(

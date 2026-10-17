@@ -98,3 +98,43 @@ it("superseded follows no redirect", async () => {
 	expect(location.pathname).toBe("/a")
 	expect(fetch.mock.calls.map(([url]) => url).filter((url) => url.startsWith("/b"))).toEqual([])
 })
+
+// A navigation made while a Back or Forward step has moved the bar but not yet committed compares with the URL in the
+// bar, not the page still on screen: to the page being left it is a push, and the bar ends there (BUGS.md 296).
+it("push during a step", async () => {
+	const landedA = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/a", d: "a" }, { t: "r" }, { t: "d" }] as const
+	const app = await mountNavigator(
+		router,
+		vi.fn<Fetch>(async () => ndjson(landedA)),
+	)
+	await app.navigator.navigate({ to: "_root_/a" })
+	flush()
+	expect(location.pathname).toBe("/a")
+	// Back: the browser is at the first entry, and the step has not committed.
+	history.replaceState({ index: 0 }, "", "/")
+	app.deps.history.pop({ index: 0 }, "/")
+	const length = history.length
+	await app.navigator.navigate({ to: "_root_/a" })
+	flush()
+	expect([location.pathname, history.length - length, app.text()]).toEqual(["/a", 1, "root[a:a]"])
+})
+
+// After a reload the entries behind are another document's: a step back onto one still compares with the URL in the
+// bar, which the step records as it lands, so a push to the page on screen is still a push (BUGS.md 296).
+it("push during a step after a reload", async () => {
+	history.replaceState({ index: 3, usr: undefined }, "", "/")
+	const landedA = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/a", d: "a" }, { t: "r" }, { t: "d" }] as const
+	const app = await mountNavigator(
+		router,
+		vi.fn<Fetch>(async () => ndjson(landedA)),
+	)
+	await app.navigator.navigate({ to: "_root_/a" })
+	flush()
+	// Back two entries: onto index 2, which the previous document wrote.
+	history.replaceState({ index: 2 }, "", "/b")
+	app.deps.history.pop({ index: 2 }, "/b")
+	const length = history.length
+	await app.navigator.navigate({ to: "_root_/a" })
+	flush()
+	expect([location.pathname, history.length - length]).toEqual(["/a", 1])
+})

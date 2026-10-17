@@ -4,6 +4,7 @@ import type { DevErrorPayload } from "../../shared/errors/index.ts"
 import type { Intercept } from "../../shared/route-builder/chain.ts"
 import type { LoadedEntry, Router, ViewTransitionOptions } from "../../shared/router/create-router.ts"
 import type { FlareHistory } from "../history/index.ts"
+import type { Location } from "../../shared/url/index.ts"
 import type { CachePlan, MatchCache } from "../router/match-cache.ts"
 import { swappedDepth, type RouterStore, type StoreSnapshot } from "../router/store.ts"
 import {
@@ -95,7 +96,7 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		const snapshot = deps.store.snapshot()
 		const pop = mode.pop === true
 		if (target.kind !== "data") return void (at = inPlace(deps, target, { options, snapshot, pop }) ?? at)
-		const plan = planOf({ target, options, snapshot, mode: { ...mode, at } })
+		const plan = planOf({ target, options, snapshot, mode: { ...mode, at }, here: barOf(deps.history) })
 		const move = { current: snapshot.location, next: target.location, trigger: plan.trigger }
 		if (!pop && !allowsNavigation(deps.blockers, move)) return
 		const controller = requests.start()
@@ -208,10 +209,9 @@ function planOf(input: {
 	options: NavigateOptions
 	snapshot: StoreSnapshot
 	mode: Mode & { at: number }
+	here: Location
 }): Plan {
-	const { target, snapshot } = input
-	// With an overlay open, the URL in the bar is the overlay's.
-	const here = snapshot.overlay?.location ?? snapshot.location
+	const { target, snapshot, here } = input
 	// A followed redirect writes its entry even to the URL on screen: after a Back step the bar shows another (3.10).
 	const revalidates = input.mode.redirects === undefined && sameUrl(here, target.location)
 	const same: Trigger = revalidates ? "revalidation" : "navigation"
@@ -227,6 +227,13 @@ function planOf(input: {
 	const intercept = overlayFor(target, snapshot, { trigger, ...input.mode })
 	if (intercept !== undefined) plan.intercept = intercept
 	return plan
+}
+
+// The URL in the bar, compared with the target: during a Back or Forward that has not committed it is the entry stepped
+// to, not the page on screen, and with an overlay open it is the overlay's (BUGS.md 296).
+function barOf(history: FlareHistory): Location {
+	const parsed = new URL(history.here(), "http://flare.invalid")
+	return { pathname: parsed.pathname, search: parsed.search, hash: parsed.hash }
 }
 
 // A landed overlay keeps the background. Anything else, a failed overlay fetch included, commits as a visit. A Back or

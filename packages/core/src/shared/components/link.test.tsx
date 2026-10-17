@@ -41,6 +41,7 @@ const disposers: (() => void)[] = []
 afterEach(() => {
 	for (const dispose of disposers.splice(0)) dispose()
 	document.body.replaceChildren()
+	history.replaceState(null, "", "/")
 	vi.unstubAllEnvs()
 })
 
@@ -74,8 +75,11 @@ function mount(props: LinkProps, prefetch: LinkPrefetch | null = null, using = r
 	flush()
 	const anchor = host.querySelector("a")
 	if (anchor === null) throw new Error("no anchor")
+	// The router's location and the browser's agree, as they do once a navigation has committed.
 	const place = (next: Partial<Location>) => {
-		setLocation({ pathname: "/", search: "", hash: "", ...next })
+		const at = { pathname: "/", search: "", hash: "", ...next }
+		history.replaceState(null, "", `${at.pathname}${at.search}${at.hash}`)
+		setLocation(at)
 		flush()
 	}
 	return { anchor, navigate, place }
@@ -414,6 +418,17 @@ it("section link", () => {
 	section.place({ pathname: "/about" })
 	click(section.anchor)
 	expect(section.navigate).toHaveBeenCalledOnce()
+})
+
+// During a Back or Forward the browser is already on its URL while the router's location still names the page it
+// left, until the step commits: a click there on a link to that page is a navigation, not a stay. The seeded chaos run
+// found such a click right after Forward lost (BUGS.md 296).
+it("click during a step", () => {
+	const back = mount({ to: "_root_/about", children: "x" })
+	back.place({ pathname: "/about" })
+	history.replaceState(null, "", "/users/7")
+	click(back.anchor)
+	expect(back.navigate).toHaveBeenCalledOnce()
 })
 
 it("blank", () => {

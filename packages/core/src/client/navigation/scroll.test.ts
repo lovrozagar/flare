@@ -250,7 +250,7 @@ it("scroll inside transition", async () => {
 	history.back()
 	await popped
 	// As the client's popstate handler does: the history index follows the browser, then the step restores.
-	app.deps.history.pop(history.state)
+	app.deps.history.pop(history.state, `${location.pathname}${location.search}${location.hash}`)
 	await app.navigator.restore("/", app.deps.history.index())
 	expect(atUpdate).toEqual([0, 500])
 	expect(place.y).toBe(500)

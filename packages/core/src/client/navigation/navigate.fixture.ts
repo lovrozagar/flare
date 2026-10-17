@@ -64,7 +64,8 @@ export async function mountNavigator(router: Router, fetch: Fetch, options: Moun
 	)
 	flush()
 	const flareHistory = createHistory(history)
-	flareHistory.adopt()
+	// As the client boot does: the entry it lands on, with its URL.
+	flareHistory.adopt(`${location.pathname}${location.search}${location.hash}`)
 	const deps: NavigatorDeps = {
 		router,
 		store,

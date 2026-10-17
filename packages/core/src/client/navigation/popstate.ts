@@ -14,7 +14,8 @@ type PopDeps = {
 export function createPopstate(deps: PopDeps): (state: unknown) => Promise<void> {
 	return async (state) => {
 		deps.save(deps.history.index())
-		const steps = deps.history.pop(state)
+		// The bar's URL is recorded for the entry it lands on, one another document wrote included (BUGS.md 296).
+		const steps = deps.history.pop(state, deps.current())
 		if (steps === null) return
 		for (const [step, index] of steps.entries()) {
 			const url = step === steps.length - 1 ? deps.current() : deps.history.urlAt(index)
