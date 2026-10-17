@@ -162,6 +162,18 @@ it("mount middleware", async () => {
 	expect(kinds).toEqual(["mount /api/x"])
 })
 
+// A middleware may read a mount request's body, through a clone, before the mount reads it: the mount's request is
+// built once middleware let it through, so neither finds the body taken (BUGS.md 271).
+it("mount body after middleware", async () => {
+	const seen: string[] = []
+	const peek = createMiddleware(async (ctx) => void seen.push(`middleware ${await ctx.request.clone().text()}`))
+	const echo = mount("/api", async (request) => new Response(`mount ${await request.text()}`))
+	const server = createServer({ router, mounts: [echo], middleware: [peek] })
+	const response = await server.fetch(new Request("http://localhost/api/x", { method: "POST", body: "payload" }))
+	expect([response.status, await response.text()]).toEqual([200, "mount payload"])
+	expect(seen).toEqual(["middleware payload"])
+})
+
 it("proxy", async () => {
 	const forward = mount("/api", (request) => proxy(request, "https://upstream.test"))
 	const server = createServer({ router, mounts: [forward] })
