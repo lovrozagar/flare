@@ -60,9 +60,10 @@ export function resolveUrl(href: string, context: TargetContext): Target {
 function fromLocation(location: Location, context: TargetContext): Target {
 	const url = `${location.pathname}${location.search}${location.hash}`
 	const match = context.router.match(location.pathname)
-	if (match.response === true || rootOf(match) !== rootOf(context.router.match(context.current.pathname))) {
-		return { kind: "document", url }
-	}
+	// No page matches: the server's not-found document is the answer, its root rendering the not-found page as the
+	// server does, which a bare data 404 cannot paint inside a root that renders the document (plan 21 13.10).
+	if (match.id === undefined || match.response === true) return { kind: "document", url }
+	if (rootOf(match) !== rootOf(context.router.match(context.current.pathname))) return { kind: "document", url }
 	if (isHashMove(context.current, location)) return { kind: "hash", url, location }
 	const query = location.search === "" ? "?" : `${location.search}&`
 	const dataUrl = `${location.pathname}${query}${KIND_PARAM}=data`

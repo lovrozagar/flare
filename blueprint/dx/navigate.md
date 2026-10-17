@@ -29,6 +29,8 @@ A network failure, which has no HTTP status, leaves the screen and the history u
 
 An `input()` failure on a data request is HTTP 400 JSON (`builder.md`). The client does not commit and does not push (`navigate.test.ts` `input 400`).
 
+A URL no page matches is a document load, a Back or Forward onto a server 404 among them: the server's not-found document renders the not-found page inside its root, which a bare data 404 cannot paint in a root that renders the document. On a Back or Forward the browser already shows that URL, so the load replaces the entry instead of adding one (`target.test.ts` `unmatched url`, `tests/integration/history-client.test.ts`, BUGS.md 212).
+
 A build-id mismatch and a missing chunk share one document load. `sessionStorage` key `flare_chunk_reload` holds `{ at, href }`. The same href within 10 seconds returns without a second load, and history stays (`reload.test.ts` `reload guard`). A different href loads (`reload.test.ts` `reload other href`). When `sessionStorage` throws, the load does not happen (`reload.test.ts` `reload no storage`).
 
 ## viewTransition
