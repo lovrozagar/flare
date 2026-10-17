@@ -15,8 +15,17 @@ export function enters(
 	if (exact.length === 0 && prefix.length === 0) return true
 	return [request.path, request.routePath ?? request.path].some((raw) => {
 		const path = raw.toLowerCase()
-		return exact.some((item) => item.toLowerCase() === path) || prefix.some((item) => under(item.toLowerCase(), path))
+		const page = slashless(path)
+		return (
+			exact.some((item) => slashless(item.toLowerCase()) === page) ||
+			prefix.some((item) => under(item.toLowerCase(), path))
+		)
 	})
+}
+
+// A trailing slash serves the same page, so `exact` compares without one, the root aside (BUGS.md 336).
+function slashless(path: string): string {
+	return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path
 }
 
 // The path a filter names: the pathname without the basePath, and without a configured locale as its first segment.

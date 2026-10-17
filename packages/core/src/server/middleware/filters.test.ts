@@ -6,6 +6,11 @@ const page = (path: string) => ({ path, kind: "page" as const })
 it("exact", () => {
 	expect(enters({ exact: ["/about"] }, page("/about"))).toBe(true)
 	expect(enters({ exact: ["/about"] }, page("/about/team"))).toBe(false)
+	// A trailing slash serves the same page, so it is the same path to `exact`, either way round (BUGS.md 336).
+	expect(enters({ exact: ["/admin"] }, page("/admin/"))).toBe(true)
+	expect(enters({ exact: ["/admin/"] }, page("/admin"))).toBe(true)
+	expect(enters({ exact: ["/"] }, page("/"))).toBe(true)
+	expect(enters({ exact: ["/admin"] }, page("/admin//"))).toBe(false)
 })
 
 it("case", () => {

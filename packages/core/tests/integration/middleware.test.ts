@@ -106,6 +106,35 @@ it("filter route path", async () => {
 	expect((await open.fetch(new Request("http://localhost/about"))).status).toBe(200)
 })
 
+// An `exact` filter holds for the page's trailing-slash form too, under each trailingSlash mode: `/admin/` serves the
+// `/admin` page, so it is blocked, and under "always" the redirect lands on a blocked page (BUGS.md 336).
+it("filter exact trailing slash", async () => {
+	const block = createMiddleware((ctx) => ctx.respond(new Response("blocked", { status: 403 })))
+	const root = createRootLayout("_root_").render((props) => props.children)
+	const routeTree = [{ id: "_root_/admin", path: "/admin", module: adminPage("_root_/admin") }]
+	const seen: unknown[] = []
+	for (const trailingSlash of ["preserve", "always", "never"] as const) {
+		const server = createServer({
+			middleware: [{ filter: { exact: ["/admin"] }, handler: block }],
+			router: createRouter({ layouts: { _root_: root }, routeTree, trailingSlash }),
+		})
+		for (const path of ["/admin", "/admin/"]) {
+			const response = await server.fetch(new Request(`http://localhost${path}`))
+			const landed = response.headers.get("location")
+			const final = landed === null ? response : await server.fetch(new Request(new URL(landed, "http://localhost")))
+			seen.push([trailingSlash, path, final.status])
+		}
+	}
+	expect(seen).toEqual([
+		["preserve", "/admin", 403],
+		["preserve", "/admin/", 403],
+		["always", "/admin", 403],
+		["always", "/admin/", 403],
+		["never", "/admin", 403],
+		["never", "/admin/", 403],
+	])
+})
+
 // A middleware's own answer, stashed or returned, still leaves through finalize: the security set wins.
 it("middleware finalize", async () => {
 	const sniff = { "x-content-type-options": "sniff" }

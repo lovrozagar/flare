@@ -247,7 +247,7 @@ A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user 
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `exact` | no | `[]` | path strings | the pathname must equal one of them | | `server/middleware/filters.test.ts` `exact` |
+| `exact` | no | `[]` | path strings | the pathname must equal one of them, a trailing slash aside: `/admin/` serves the `/admin` page, so `exact: ["/admin"]` holds for both under every `trailingSlash` mode (BUGS.md 336) | | `server/middleware/filters.test.ts` `exact`; `tests/integration/middleware.test.ts` `filter exact trailing slash` |
 | `prefix` | no | `[]` | path strings | the pathname equals the prefix or continues with `/` | `"/api"` does not match `"/apiv2"`. A regular expression does not type-check | `filters.test.ts` `prefix boundary` |
 | `kind` | no | all three | `"page"`, `"serverFn"`, `"mount"` | the request kind must be one of them, so a guard on a sub-app alone is `kind: ["mount"]` (`tests/integration/middleware.test.ts` `mount middleware`) | a server-function filter does not name `/_flare/fn`, so it holds under any `basePath` | `filters.test.ts` `kind` |
 
