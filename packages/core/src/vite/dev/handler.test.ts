@@ -110,6 +110,35 @@ it("load error", async () => {
 	expect(written.res.destroy).toHaveBeenCalledOnce()
 })
 
+// A module that failed to load is logged with its message and stack, as a render bug is, so the terminal that runs
+// `vite dev` names it beside the overlay and the error page (dx/plugin.md Development errors, BUGS.md 301).
+it("load error logged", async () => {
+	const lines: string[] = []
+	const log = (line: string): void => void lines.push(line)
+	const thrown = new Error("flare: i18n needs isbot")
+	const fetch = devFetch({ load: () => Promise.reject(thrown), log })
+	expect((await fetch(new Request("http://localhost/"))).status).toBe(500)
+	const bare = new Error("no stack")
+	bare.stack = undefined
+	const stackless = devFetch({ load: () => Promise.reject(bare), log })
+	expect((await stackless(new Request("http://localhost/"))).status).toBe(500)
+	expect(lines).toEqual([`[flare:load] flare: i18n needs isbot\n${thrown.stack}`, "[flare:load] no stack"])
+})
+
+// The installed handler logs through Vite's logger, so the line reaches the terminal (BUGS.md 301).
+it("load error installed", async () => {
+	const own = devServer(false)
+	const thrown = new Error("flare: query needs @tanstack/solid-query")
+	own.server.environments.ssr.runner = { import: () => Promise.reject(thrown) }
+	installDevHandler(own.server, "src/server.ts")?.()
+	const handler = own.used[0]
+	if (typeof handler !== "function") throw new Error("handler")
+	const { res } = response()
+	handler(request("/"), res)
+	await settled()
+	expect(own.logged).toEqual([`[flare:load] ${thrown.message}\n${thrown.stack}`])
+})
+
 // The failure page is a dev document: Vite's client and the plugins' tags from the dev head, so the overlay opens and
 // a later full reload reaches it, and a module that announces the tab over Vite's hot channel, so the overlay held for
 // that token is delivered; the client is imported from the head's own URL, under Vite's base (plan 21 11.6).
@@ -136,8 +165,9 @@ function devServer(middlewareMode: boolean) {
 	const listeners: Record<string, (payload: unknown) => void> = {}
 	const clientListeners: Record<string, (payload: unknown, client: Tab) => void> = {}
 	const used: unknown[] = []
+	const logged: string[] = []
 	const server: DevServer = {
-		config: { server: { middlewareMode } },
+		config: { server: { middlewareMode }, logger: { error: (message) => void logged.push(message) } },
 		middlewares: { use: (handler) => void used.push(handler) },
 		environments: {
 			ssr: {
@@ -147,7 +177,7 @@ function devServer(middlewareMode: boolean) {
 			client: { hot: { on: (event, listener) => void (clientListeners[event] = listener) } },
 		},
 	}
-	return { server, used, listeners, clientListeners }
+	return { server, used, listeners, clientListeners, logged }
 }
 
 it("middleware mode", async () => {

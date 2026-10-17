@@ -4,7 +4,7 @@ import { createTabs, TAB_EVENT, tabbedPayload, type TabClient } from "./tabs.ts"
 
 // What the handler needs from Vite's dev server. A real `ViteDevServer` is one. A test passes a small object.
 export type DevServer = {
-	config: { server: { middlewareMode?: unknown } }
+	config: { server: { middlewareMode?: unknown }; logger: { error(message: string): void } }
 	middlewares: { use(handler: (req: DevRequest, res: NodeResponse) => void): unknown }
 	environments: {
 		ssr: { hot: ErrorChannel; runner?: { import(id: string): Promise<Record<string, unknown>> } }
@@ -31,6 +31,9 @@ export type DevDeps = {
 	report?: (error: unknown, token: string | undefined) => void
 	// The dev head, Vite's client and every plugin's tags, which the failure page carries (dev-head.ts).
 	head?: Promise<string>
+	// Where a module-load failure is logged, its message and stack in one line: Vite's logger, so the terminal that runs
+	// `vite dev` names it, as the app's own logger names a render bug (BUGS.md 301).
+	log?: (line: string) => void
 }
 
 // On Node and Bun, `vite dev` answers every request the Vite middlewares did not (B89). Embedded in another server,
@@ -57,6 +60,7 @@ export function installDevHandler(server: DevServer, entry: string, head?: Promi
 		load: () => loadEntry(server, entry),
 		tab: mintTab,
 		report: (error, token) => tabs.deliver(token, overlayPayload(error)),
+		log: (line) => server.config.logger.error(line),
 		...(head === undefined ? {} : { head }),
 	})
 	// A post hook: Vite serves modules and assets first, and the app answers the rest.
@@ -75,6 +79,8 @@ export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?:
 			return await (await deps.load()).fetch(request, env, ctx)
 		} catch (error) {
 			const token = request.headers.get(TAB_HEADER) ?? deps.tab?.()
+			const { err } = overlayPayload(error)
+			deps.log?.(err.stack === "" ? `[flare:load] ${err.message}` : `[flare:load] ${err.message}\n${err.stack}`)
 			deps.report?.(error, token)
 			return failed(error, token, (await deps.head) ?? "")
 		}
