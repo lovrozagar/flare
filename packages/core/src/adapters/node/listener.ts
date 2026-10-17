@@ -1,6 +1,11 @@
 import { settleRequestBody } from "./body.ts"
+import { finalize } from "../../server/lifecycle/finalize.ts"
 import { trustedHops } from "../../shared/url/index.ts"
 import { toRequest } from "./request.ts"
+
+// The methods fetch's Request refuses to build. No route answers one, so each is the 405 a page gives, as on Bun,
+// where the server answers it (plan 21 13.6).
+const REFUSED = new Set(["CONNECT", "TRACE", "TRACK"])
 
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void }
 
@@ -40,8 +45,10 @@ export function createNodeListener(
 	const retained = new Set<Promise<unknown>>()
 	return (req, res) => {
 		const job = { server, req, res, retained, trustProxy, sent: false }
-		// A failure before the headers is a bare 500. After them the socket is destroyed: the status is gone.
-		void pump(job).catch(() => {
+		// A failure before the headers is a bare 500. After them the socket is destroyed: the status is gone. Either is
+		// logged, never silent (plan 21 13.6).
+		void pump(job).catch((error: unknown) => {
+			console.error("[flare:node] the request failed", error)
 			if (job.sent) return res.destroy?.()
 			res.writeHead(500)
 			res.end()
@@ -74,7 +81,17 @@ async function pump(job: Job): Promise<void> {
 	job.res.once("close", () => {
 		if (job.res.writableFinished !== true) disconnect.abort()
 	})
-	const init: RequestInit = { method: job.req.method ?? "GET", headers, signal: disconnect.signal }
+	const method = job.req.method ?? "GET"
+	if (REFUSED.has(method.toUpperCase())) {
+		const refused = finalize({
+			status: 405,
+			body: "",
+			url: adapted.url,
+			headers: new Headers({ allow: "GET, HEAD, OPTIONS" }),
+		})
+		return send(job, refused, disconnect.signal)
+	}
+	const init: RequestInit = { method, headers, signal: disconnect.signal }
 	if (body !== undefined) {
 		init.body = body.stream
 		Object.assign(init, { duplex: "half" })
@@ -92,11 +109,15 @@ async function pump(job: Job): Promise<void> {
 			})
 		},
 	})
+	await send(job, response, disconnect.signal)
+	if (body !== undefined && job.req.readableEnded !== true) await body.release()
+}
+
+async function send(job: Job, response: Response, signal: AbortSignal): Promise<void> {
 	writeHeaders(job.res, response.headers)
 	job.res.writeHead(response.status)
 	job.sent = true
-	await writeBody(job.res, response.body, disconnect.signal)
-	if (body !== undefined && job.req.readableEnded !== true) await body.release()
+	await writeBody(job.res, response.body, signal)
 }
 
 // Node keeps a repeated header as a list. The request carries it joined with ", ", as fetch Headers would.

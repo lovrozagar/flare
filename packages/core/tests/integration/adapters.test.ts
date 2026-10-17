@@ -422,3 +422,27 @@ it.runIf(bun !== undefined)(
 	},
 	30_000,
 )
+
+// A request line with this method: the response's head, lowercased.
+function headOf(origin: string, method: string): Promise<string> {
+	const { hostname, port } = new URL(origin)
+	return new Promise((resolve) => {
+		const socket = connect(Number(port), hostname)
+		let text = ""
+		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
+		socket.on("close", () => resolve((text.split("\r\n\r\n")[0] ?? "").toLowerCase()))
+		socket.end(`${method} / HTTP/1.1\r\nhost: ${hostname}\r\nconnection: close\r\n\r\n`)
+	})
+}
+
+// TRACE, which Node's Request refuses to build, is the 405 every runtime answers, with Allow and the security headers,
+// as on Bun; a method no route answers is no server fault, so nothing is logged (plan 21 13.6, BUGS.md 209).
+it("node trace", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const origin = await listen(createNodeListener(app(Promise.resolve())))
+	const head = await headOf(origin, "TRACE")
+	expect(head.split("\r\n")[0]).toBe("http/1.1 405 method not allowed")
+	expect(head).toContain("\r\nallow: get, head, options")
+	expect(head).toContain("\r\nx-content-type-options: nosniff")
+	expect(logged).not.toHaveBeenCalled()
+})
