@@ -185,15 +185,14 @@ async function hitFor(exchange: Exchange, at: Keyed & { looked: Lookup | null })
 }
 
 // A miss runs one shared render, coalesced per key, that writes both variants and serves this request's variant exactly
-// as a hit would. A render with nothing to serve answers live.
+// as a hit would. A render with nothing to serve answers with the visitor's own render, private (BUGS.md 266).
 async function missed(exchange: Exchange, matched: Loaded, keyed: Keyed): Promise<Response> {
 	let started = false
 	const landed = await inflight(keyed.key, () => {
 		started = true
 		return flight(exchange, matched, keyed)
 	})
-	if (landed === undefined) return live(exchange, matched, keyed.prepared)
-	if (landed === INCOMPLETE) return live(exchange, matched, uncached(keyed.prepared))
+	if (landed === undefined || landed === INCOMPLETE) return live(exchange, matched, uncached(keyed.prepared))
 	if ("stored" in landed)
 		return served(exchange, landed.stored, { policy: keyed.prepared.policy, cache: "hit", cookies: [] })
 	const cookies = [landed.shared.run.headers["set-cookie"] ?? []].flat()

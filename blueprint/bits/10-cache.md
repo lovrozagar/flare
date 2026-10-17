@@ -106,7 +106,7 @@ These rows live in `server/lifecycle/create-store.test.ts`, split from `create.t
 | `server context` | `serverContext` reads the request's `Cookie`, the request sends `user=alice`, and the loader and the render print `serverCtx()` | the stored and served bodies hold the value for a request with no headers. `serverContext` runs again for the shared request, with the same `env` |
 | `miss as hit` | a document miss | its body is the entry's HTML with the entry's sentinel replaced by this request's nonce, the same bytes a hit would serve, and its nonce attributes equal the CSP header's |
 | `long shell` | a page whose shell is larger than one stream chunk | the stored and served HTML end with `</html>`. The shell is read until `</html>`, not as one chunk |
-| `shared context throws` | `serverContext` throws for the shared request, which has no cookie, and not for the visitor's | the visitor's request renders live, with no `flare-cache`, and nothing is written |
+| `shared context throws` | `serverContext` throws for the shared request, which has no cookie, and not for the visitor's | the visitor's request renders live, `private, no-store`, with no `flare-cache`, and nothing is written. A shared render that gives nothing to serve, a 404 or a redirect for the cookieless request, answers the same way (BUGS.md 266) |
 
 ### `server/cache/read.test.ts`
 
