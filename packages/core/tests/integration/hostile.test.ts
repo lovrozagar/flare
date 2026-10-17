@@ -116,6 +116,48 @@ it("response methods", async () => {
 	expect(ran).toEqual(["GET", "HEAD", "POST"])
 })
 
+// A non-GET `.response()` request gets the server functions' origin check (B44): a cross-origin Origin or a
+// cross-site Sec-Fetch-Site is 403 and never runs the handler, its own origin passes, and a request with none of the
+// three headers, a webhook's, passes unless the chain reads identity, as an `authenticate` page does. GET is not
+// checked (plan 21 4.3).
+it("response csrf", async () => {
+	const ran: string[] = []
+	const respond = ({ request }: { request: Request }): Response => {
+		ran.push(new URL(request.url).pathname)
+		return new Response("done")
+	}
+	const server = createServer({
+		authenticate: () => ({ id: "u" }),
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [
+				{
+					id: "_root_/hook",
+					path: "/hook",
+					module: createPage("_root_/hook").response(respond, { methods: ["POST"] }),
+				},
+				{
+					id: "_root_/mine",
+					path: "/mine",
+					module: createPage("_root_/mine")
+						.authenticate()
+						.response(respond, { methods: ["GET", "POST"] }),
+				},
+			],
+		}),
+	})
+	const call = async (path: string, method: string, headers: Record<string, string> = {}): Promise<number> =>
+		(await server.fetch(new Request(`http://localhost${path}`, { method, headers }))).status
+	expect(await call("/hook", "POST", { origin: "https://evil.example" })).toBe(403)
+	expect(await call("/hook", "POST", { "sec-fetch-site": "cross-site" })).toBe(403)
+	expect(await call("/hook", "POST", { origin: "http://localhost" })).toBe(200)
+	expect(await call("/hook", "POST")).toBe(200)
+	expect(await call("/mine", "POST")).toBe(403)
+	expect(await call("/mine", "POST", { "sec-fetch-site": "same-origin" })).toBe(200)
+	expect(await call("/mine", "GET", { origin: "https://evil.example" })).toBe(200)
+	expect(ran).toEqual(["/hook", "/hook", "/mine", "/mine"])
+})
+
 // An escaped unreserved character is that character: `/docs/%72outing` is a 301 to `/docs/routing`, which serves,
 // instead of a 404 (RFC 3986 6.2.2, plan 21 13.7, BUGS.md 210).
 it("unreserved escapes", async () => {

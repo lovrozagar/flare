@@ -248,7 +248,9 @@ it("response no session", async () => {
 
 it("response passes", async () => {
 	const { server, seen } = responseServer({ id: "ada" }, true)
-	const request = new Request("https://localhost/api", { method: "POST", body: "x" })
+	// Its own origin: a POST to a chain that reads identity is refused without one (plan 21 4.3).
+	const headers = { origin: "https://localhost" }
+	const request = new Request("https://localhost/api", { method: "POST", body: "x", headers })
 	const response = await server.fetch(request, { region: "eu" })
 	expect(response.status).toBe(202)
 	expect(await response.text()).toBe("answered")
