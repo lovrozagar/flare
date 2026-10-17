@@ -110,6 +110,29 @@ it("all modules", async () => {
 	expect(app.fetch).not.toHaveBeenCalled()
 })
 
+// The after-load warm-up is the router's `modules: "all"` and nothing else: a router that turns it off, by `false`, a
+// trigger, or an object naming another `modules`, warms no route's code (link.md Prefetch, BUGS.md 305).
+it("all only when the router says all", () => {
+	const chunks = { _root_: "/src/root.tsx", "_root_/": "/src/root.tsx", "_root_/about": "/src/about.tsx" }
+	for (const prefetch of [
+		false,
+		"intent",
+		"viewport",
+		{ modules: "intent" },
+		{ modules: false, data: "intent" },
+	] as const) {
+		const app = setup(routerOf({ chunks, prefetch }), { env: { relPrefetch: true } })
+		app.prefetcher.all()
+		const unsupported = setup(routerOf({ chunks, prefetch }), { env: { relPrefetch: false } })
+		unsupported.prefetcher.all()
+		expect([
+			prefetch,
+			document.head.querySelectorAll('link[rel="prefetch"]').length,
+			importAbout.mock.calls.length,
+		]).toEqual([prefetch, 0, 0])
+	}
+})
+
 // Safari has no rel=prefetch through 26.x (`relList.supports("prefetch")` is false), so "all" imports each unloaded
 // route and layout module there, as intent prefetch does: the module map holds it and its imports for the next
 // navigation. No link: a modulepreload Safari does not use within seconds of load is a console warning per chunk
