@@ -47,7 +47,7 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 | `style copy` | `style-src` is set and `style-src-elem` is not | `style-src-elem` is that list plus the nonce |
 | `named directives` | `frame-ancestors`, `form-action`, `media-src`, and an empty `frame-src`; then the two booleans | each appears, in the header's order after `worker-src`, the empty one as its bare name, and none without a value; `upgrade-insecure-requests: false` removes it on https and `true` adds it on http; `block-all-mixed-content` appears only when `true` (BUGS.md 112) |
 | `permission values` | `camera: "self"`, a string policy, `false` | `camera=(self)`; the string as written; no header (BUGS.md 112) |
-| `dev extras` | `vite dev` | `connect-src` contains the four localhost `ws:` and `http:` sources, `script-src` contains `'unsafe-eval'`, `worker-src` contains `blob:`, and HSTS and COOP are absent. The nonce stays |
+| `dev extras` | `vite dev` | `connect-src` contains the four localhost `ws:` and `http:` sources, `script-src` contains `'unsafe-eval'`, `worker-src` contains `blob:`, and HSTS is absent; COOP stays. The nonce stays |
 
 ### `server/security/apply.test.ts`
 
