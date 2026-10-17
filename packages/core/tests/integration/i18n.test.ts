@@ -280,3 +280,23 @@ export const route = createPage("_root_/rich").render(() => {
 		apps.removeAll()
 	}
 })
+
+// A retired worker path is answered as asked for, outside the locale slot: with a `[[locale]]/[...slug]` catch-all, a
+// visitor whose cookie or Accept-Language names `hr` still gets the worker that unregisters itself, never a redirect to
+// `/hr/sw.js`, which a worker's update fetch would fail on (dx/server.md `retireServiceWorker`, BUGS.md 270).
+it("retired worker", async () => {
+	const slug = {
+		id: "_root_/[[locale]]/[...slug]",
+		path: "/[[locale]]/[...slug]",
+		module: greeting("_root_/[[locale]]/[...slug]"),
+	}
+	const locale = { locales: ["en", "hr"], defaultLocale: "en" }
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [slug] as never, locale })
+	const server = createServer({ router, site: SITE, locale: i18n(), retireServiceWorker: ["/sw.js"] })
+	for (const headers of [{ "accept-language": "hr" }, { cookie: "flare.locale=hr" }] as Record<string, string>[]) {
+		const worker = await server.fetch(new Request(`${SITE}/sw.js`, { headers, redirect: "manual" }))
+		expect([worker.status, worker.headers.get("content-type")]).toEqual([200, "text/javascript; charset=utf-8"])
+		const page = await server.fetch(new Request(`${SITE}/guide`, { headers, redirect: "manual" }))
+		expect([page.status, page.headers.get("location")]).toEqual([302, "/hr/guide"])
+	}
+})
