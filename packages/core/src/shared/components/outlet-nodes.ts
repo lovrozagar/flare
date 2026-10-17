@@ -59,12 +59,14 @@ export function usePreloaderContext(input: { from: string }): Record<string, unk
 
 // `id` is the match id, raw params plus raw search (B31). It has no typed params and no loader data.
 export function useMatch(input: { from: From<FlareRegister> }): { readonly id: string; readonly routeId: string } {
-	matchOf(input.from)
+	const match = matchOf(input.from)
 	const location = useContext(LocationContext)
 	const router = useRouter()
 	return {
+		// The open overlay's page reads its own URL, a background route the store's (BUGS.md 317).
 		get id() {
-			return matchId(rawParams(router, location().pathname), searchKey(location().search))
+			const at = match().location ?? location()
+			return matchId(rawParams(router, at.pathname), searchKey(at.search))
 		},
 		routeId: input.from,
 	}

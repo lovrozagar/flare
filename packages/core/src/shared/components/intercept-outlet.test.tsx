@@ -14,7 +14,9 @@ import { createRouter } from "../router/create-router.ts"
 import { loadChain } from "../router/load-chain.ts"
 import { InterceptOutlet, OverlayContext, type InterceptState } from "./intercept-outlet.tsx"
 import { Matches } from "./outlet.tsx"
-import { useLoaderData, useParams, useSearch } from "./outlet-nodes.ts"
+import { matchId } from "../route-tree/index.ts"
+import { searchKey } from "../url/index.ts"
+import { useLoaderData, useMatch, useParams, useSearch } from "./outlet-nodes.ts"
 
 const counts = { home: 0, photo: 0 }
 const seen: { state?: InterceptState; rootData?: unknown; photoProps?: Record<string, unknown> } = {}
@@ -55,10 +57,19 @@ const note = createPage("_root_/notes/[id]")
 		const data = useLoaderData({ from: "_root_/notes/[id]" })
 		return `note:${String(Reflect.get(Object(params), "id"))}:${String(Reflect.get(Object(search), "q"))}:${String(data)}`
 	})
+// `useMatch` names the overlay page or the background, and each reads its own URL (BUGS.md 317).
+const card = createPage("_root_/cards/[id]")
+	.intercept({ from: ["_root_/"], render: "card" })
+	.render(() => {
+		const own = useMatch({ from: "_root_/cards/[id]" })
+		const under = useMatch({ from: "_root_/" })
+		return [() => `card:${own.id}|under:${under.id}`]
+	})
 const router = createRouter({
 	layouts: { _root_: root },
 	routeTree: [
 		{ id: "_root_/", path: "/", module: home },
+		{ id: "_root_/cards/[id]", path: "/cards/[id]", module: card },
 		{ id: "_root_/photos/[id]", path: "/photos/[id]", module: photo },
 		{ id: "_root_/notes/[id]", path: "/notes/[id]", module: note },
 		{ id: "_root_/bare", path: "/bare", module: { intercept: { from: ["_root_/"], render: "bare" } } },
@@ -448,4 +459,20 @@ it("overlay refresh keeps child", async () => {
 	const { params, search, preloaderContext } = seen.photoProps ?? {}
 	expect([params, search, preloaderContext]).toEqual([{ id: "1" }, { q: "a" }, { album: "a" }])
 	app.host.remove()
+})
+
+// Inside the overlay, `useMatch` with the page's own id is the overlay's match id, its raw params and search; one naming
+// the background route is the background's (dx/navigate.md, BUGS.md 317).
+it("use match in overlay", async () => {
+	const frames: Frame[] = [
+		{ t: "l", m: "_root_", d: null },
+		{ t: "l", m: "_root_/cards/[id]", d: "C" },
+		{ t: "r" },
+		{ t: "d" },
+	]
+	const app = await setup(async () => ndjson(frames))
+	await app.navigator.navigate({ to: "_root_/cards/[id]", params: { id: "1" }, search: { x: "2" } })
+	flush()
+	const own = matchId({ id: "1" }, searchKey("?x=2"))
+	expect(app.text()).toContain(`card:${own}|under:${matchId({}, searchKey(""))}`)
 })

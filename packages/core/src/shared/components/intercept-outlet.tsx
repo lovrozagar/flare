@@ -95,6 +95,7 @@ function withOverlay(outer: () => OutletState, overlay: () => Overlay): () => Ou
 			search: current.search,
 			data: current.data,
 			preloader: current.preloader,
+			location: current.location,
 		}
 		return { ...state, matches: [...state.matches, match] }
 	}
