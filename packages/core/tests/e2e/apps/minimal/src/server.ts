@@ -32,11 +32,30 @@ const runtime = createMiddleware(async (ctx) => {
 	response.headers.set("x-runtime", navigator.userAgent)
 })
 
+// An old build's service worker, as v0 registered one: it serves every page from itself. minimal.test registers it at
+// /legacy-sw.js while its cookie is set, then drops the cookie, so the worker's next update check gets the one
+// `retireServiceWorker` answers there (plan 21 16.1).
+const STAND_IN = `self.addEventListener("install", () => self.skipWaiting())
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()))
+self.addEventListener("fetch", (event) => {
+	if (event.request.mode !== "navigate") return
+	const page = '<!doctype html><p id="old-build">old build</p>'
+	event.respondWith(new Response(page, { headers: { "content-type": "text/html" } }))
+})
+`
+
+const standIn = createMiddleware((ctx) => {
+	if (new URL(ctx.request.url).pathname !== "/legacy-sw.js") return undefined
+	if (!(ctx.request.headers.get("cookie") ?? "").includes("stand-in=1")) return undefined
+	return new Response(STAND_IN, { headers: { "content-type": "text/javascript", "cache-control": "no-store" } })
+})
+
 export const server = createServer({
 	router,
 	serverFns,
 	site: "https://flare.test",
 	store,
 	static: seeds,
-	middleware: [runtime],
+	middleware: [runtime, standIn],
+	retireServiceWorker: "/legacy-sw.js",
 })

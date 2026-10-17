@@ -217,6 +217,8 @@ packages/core/src/server/lifecycle/methods.ts	P1	src	server	HEAD, OPTIONS 204, 4
 packages/core/src/server/lifecycle/methods.test.ts	P1	test	server	Unit cases for methods.ts
 packages/core/src/server/lifecycle/logger.ts	P1	src	server	The only console caller
 packages/core/src/server/lifecycle/logger.test.ts	P1	test	server	Unit cases for logger.ts
+packages/core/src/server/lifecycle/retire-worker.ts	P3	src	server	retireServiceWorker: the worker that clears its caches, unregisters, and reloads its pages, at each listed path (plan 21 16.1)
+packages/core/src/server/lifecycle/retire-worker.test.ts	P3	test	server	Unit cases for retire-worker.ts
 packages/core/src/server/lifecycle/canonical-redirect.ts	P2	src	server	Turn a canonical.ts result into a finish() redirect or a 400
 packages/core/src/server/lifecycle/canonical-redirect.test.ts	P2	test	server	Unit cases for canonical-redirect.ts
 packages/core/src/server/lifecycle/index.ts	P1	index	server	Re-exports

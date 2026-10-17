@@ -32,6 +32,7 @@ import { pageAnswer, requestStore } from "../cache/serve.ts"
 import { storeTiming } from "../cache/write.ts"
 import { devHead } from "./build-info.ts"
 import { markUnmatched } from "./finalize.ts"
+import { checkRetired, isRetired, retiredWorker } from "./retire-worker.ts"
 
 export type { FlareServer, ServerOptions } from "./options.ts"
 
@@ -55,6 +56,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	checkLocale(options.locale, options.router)
 	checkResponseMethods(options.router.routeTree)
 	checkPlanned(options)
+	checkRetired(options.retireServiceWorker)
 	const { trailingSlash, caseSensitive } = options.router
 	const bodyLimit = bodyLimitOf(options.bodyLimit)
 	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive })
@@ -148,6 +150,8 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 		step = applyCanonical({
 			method: request.method,
 			url: request.url,
+			// A worker script's update fetch fails on a redirect, so a retired path is answered as asked for.
+			fixed: isRetired(options.retireServiceWorker, internal.url.pathname),
 			basePath: options.router.basePath,
 			trailingSlash: options.router.trailingSlash,
 			caseSensitive: options.router.caseSensitive,
@@ -207,8 +211,11 @@ function withMiddleware(exchange: Exchange, fn: boolean, inner: () => Promise<Re
 
 // 02-system steps 8 and 9: match, then the method rule.
 function routed(exchange: Exchange, url: URL): Promise<Response> {
-	const matched = exchange.options.router.match(url.pathname)
 	const method = exchange.request.method
+	const retired = isRetired(exchange.options.retireServiceWorker, url.pathname)
+	const worker = retired ? retiredWorker(exchange.secured.headers, method) : undefined
+	if (worker !== undefined) return Promise.resolve(worker)
+	const matched = exchange.options.router.match(url.pathname)
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {
 		// A data or prefetch request for an unknown URL is that status alone, with no frame (B73).
 		if (exchange.kind !== "document") return Promise.resolve(answer(exchange, 404))

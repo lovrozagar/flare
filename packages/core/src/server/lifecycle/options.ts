@@ -44,6 +44,8 @@ type BaseOptions = {
 	store?: StoreOption
 	// The read-only SSG seeds (dx/store.md).
 	static?: StoreOption
+	// Paths a previous build registered a service worker at, answered with one that unregisters itself (dx/server.md).
+	retireServiceWorker?: string | readonly string[]
 }
 
 type ContextFn<R extends FlareRegister> = (ctx: {
