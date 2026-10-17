@@ -118,3 +118,44 @@ A miss renders once per key per process (per isolate on Workers): its in-flight 
 A stored render that has not completed 10 seconds after its shell is not written: that miss is served as the live render it is, `private, no-store`, and the server logs one `warn` naming the route id, so a never-settling app query can neither freeze a stored page on its fallback nor hold a write open (BUGS.md B15). The 10 seconds are fixed, not an option. Prerender uses the same rule and fails the build for that route.
 
 Tests: `server/cache/write.test.ts` and `tests/integration/cache.test.ts`.
+
+## Purge from a webhook
+
+Flare has no built-in revalidate endpoint (`dx/store.md`). A CMS or a deploy hook purges through a `.response()` route the app writes. It takes POST alone, checks a shared secret, and purges by tag:
+
+```ts
+import { createPage } from "@lovrozagar/flare"
+import { revalidate } from "@lovrozagar/flare/server"
+
+const encoder = new TextEncoder()
+
+// The header and the expected one are hashed to equal-length digests and compared in full, so the time taken never
+// tells a caller how much of a guess matched. An unset secret matches nothing.
+async function authorized(header: string | null, secret: string | undefined): Promise<boolean> {
+	if (header === null || secret === undefined || secret === "") return false
+	const texts = [header, `Bearer ${secret}`]
+	const digests = await Promise.all(texts.map((text) => crypto.subtle.digest("SHA-256", encoder.encode(text))))
+	const [left, right] = digests.map((digest) => new Uint8Array(digest))
+	let difference = 0
+	for (const [index, byte] of (left ?? []).entries()) difference |= byte ^ (right?.[index] ?? 0)
+	return difference === 0
+}
+
+export const route = createPage("_root_/api/revalidate").response(
+	async ({ request, env }) => {
+		if (!(await authorized(request.headers.get("authorization"), env.REVALIDATE_SECRET))) {
+			return new Response(null, { status: 401 })
+		}
+		const body: unknown = await request.json()
+		const tags: unknown = Reflect.get(Object(body), "tags")
+		if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === "string") || tags.length === 0) {
+			return new Response(null, { status: 400 })
+		}
+		await revalidate({ tags })
+		return new Response(null, { status: 204 })
+	},
+	{ methods: ["POST"] },
+)
+```
+
+The secret comes from `env` (`REVALIDATE_SECRET` in the app's `env` type, `dx/types.md`), never from source. `===` on the secret returns at the first wrong character, so its timing leaks how much of a guess was right; the digest comparison does not. Awaiting `revalidate` means the 204 goes out only after the purge is written, so a CMS that retries on failure never sees a success for a purge that did not happen. The tags are the ones `ssr.tags` and `cdn.tags` declare; `revalidate({ keys })` takes store keys instead (`dx/store.md`). The route renders nothing and answers no other method (BUGS.md 208). Test: `tests/integration/cache.test.ts` `webhook purge`, which runs this route: a wrong, partial, or prefix-less secret and an unset one are 401 and purge nothing, and the right one purges before it answers (plan 21 16.2, BUGS.md 225).

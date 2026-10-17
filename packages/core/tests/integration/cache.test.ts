@@ -3,6 +3,7 @@ import { Dynamic } from "@solidjs/web"
 import { expect, it, vi, type Mock } from "vitest"
 import type { FlareStore } from "../../src/server/cache/contract.ts"
 import { createMemoryStore } from "../../src/server/cache/memory.ts"
+import { revalidate } from "../../src/server/cache/revalidate.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
@@ -198,4 +199,74 @@ it("purged listed", async () => {
 	expect(response.headers.get("flare-cache")).toBe("miss")
 	expect(await response.text()).toContain("post")
 	await vi.waitFor(() => expect(set).toHaveBeenCalledOnce())
+})
+
+const encoder = new TextEncoder()
+
+// dx/cache.md's webhook recipe. The header and the expected one are hashed to equal-length digests and compared in
+// full, so the time taken never tells a caller how much of a guess matched; an unset secret matches nothing.
+async function authorized(header: string | null, secret: string | undefined): Promise<boolean> {
+	if (header === null || secret === undefined || secret === "") return false
+	const texts = [header, `Bearer ${secret}`]
+	const digests = await Promise.all(texts.map((text) => crypto.subtle.digest("SHA-256", encoder.encode(text))))
+	const [left, right] = digests.map((digest) => new Uint8Array(digest))
+	let difference = 0
+	for (const [index, byte] of (left ?? []).entries()) difference |= byte ^ (right?.[index] ?? 0)
+	return difference === 0
+}
+
+const hook = createPage("_root_/hook").response(
+	async ({ request, env }) => {
+		const header = request.headers.get("authorization")
+		if (!(await authorized(header, Reflect.get(Object(env), "REVALIDATE_SECRET")))) {
+			return new Response(null, { status: 401 })
+		}
+		const body: unknown = await request.json()
+		const tags: unknown = Reflect.get(Object(body), "tags")
+		if (!Array.isArray(tags) || !tags.every((tag) => typeof tag === "string") || tags.length === 0) {
+			return new Response(null, { status: 400 })
+		}
+		await revalidate({ tags })
+		return new Response(null, { status: 204 })
+	},
+	{ methods: ["POST"] },
+)
+
+// A CMS webhook: a wrong or missing secret is 401 and purges nothing; the right one answers once the purge is
+// written, and the next visit renders fresh (plan 21 16.2).
+it("webhook purge", async () => {
+	let renders = 0
+	const page = createPage("_root_/p")
+		.cache({ ssr: { ttl: "1h", staleTime: "1h", tags: ["posts"] } })
+		.loader(() => ({ render: (renders += 1) }))
+		.render(() => "p")
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [
+			{ id: "_root_/p", path: "/p", module: page },
+			{ id: "_root_/hook", path: "/hook", module: hook },
+		],
+	})
+	const app = createServer({ router, site: SITE, store: createMemoryStore() })
+	const env = { REVALIDATE_SECRET: "s3cret" }
+	const visit = () => app.fetch(new Request(`${SITE}/p`), env)
+	const call = (authorization: string) =>
+		app.fetch(
+			new Request(`${SITE}/hook`, { method: "POST", headers: { authorization }, body: '{"tags":["posts"]}' }),
+			env,
+		)
+	await visit()
+	await vi.waitFor(async () => expect((await visit()).headers.get("flare-cache")).toBe("hit"))
+	const stored = renders
+	for (const wrong of ["Bearer nope", "Bearer s3cre", "s3cret", "Bearer s3cret2", ""]) {
+		expect((await call(wrong)).status).toBe(401)
+	}
+	expect((await visit()).headers.get("flare-cache")).toBe("hit")
+	expect(renders).toBe(stored)
+	expect((await call("Bearer s3cret")).status).toBe(204)
+	expect((await visit()).headers.get("flare-cache")).toBe("miss")
+	expect(renders).toBe(stored + 1)
+	const unset = createServer({ router, site: SITE, store: createMemoryStore() })
+	const empty = new Request(`${SITE}/hook`, { method: "POST", headers: { authorization: "Bearer " }, body: "{}" })
+	expect((await unset.fetch(empty, {})).status).toBe(401)
 })

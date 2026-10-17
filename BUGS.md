@@ -1087,6 +1087,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 224 [x] No answer carried Cross-Origin-Resource-Policy unless the app set it
 224.1 [x] Plan 21 16.3, a v0 parity gap: v0 sent `Cross-Origin-Resource-Policy: same-origin` by default; v1 listed it as absent with no decision recorded, so another origin could pull a document, a data answer, or a server function's JSON in as an image or script and bring it into its own process for a Spectre-class read. Red: server/security/defaults.test `corp` and `nosniff`, apply.test `every key`, and integration ingress.test (the Node document and its 404 carry it).
 224.2 [x] Fix: server/security/defaults.ts adds `same-origin`, so the security set gives it to every answer Flare sends; a string or `false` from the server or a route replaces it. Decision B135 records why it reaches `.response()` pages and mounts too, past the ruling's documents and data, and that platform-served static files never carry it.
+225 [x] No documented safe pattern for a webhook that purges
+225.1 [x] Plan 21 16.2, a v0 parity gap: v0's built-in revalidate endpoint checked `revalidateSecret`; v1 dropped it (dx/store.md) and said only that an app writes its own route, so each app had to get the method, the secret's storage, and its comparison right alone, and a plain `===` leaks the secret's prefix by timing.
+225.2 [x] Fix: dx/cache.md Purge from a webhook, a POST-only `.response()` route that reads the secret from `env`, compares SHA-256 digests in full, rejects an unset secret, validates the tags, and answers only after `revalidate` resolves. tests/integration/cache.test `webhook purge` runs that route on Node and Bun: four wrong headers, an empty one, and an unset secret are 401 and the page stays a hit; the right one is 204 and the next visit is a miss.
 
 ## Verify
 
