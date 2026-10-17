@@ -118,7 +118,7 @@ it("purged beats seed", async () => {
 
 const slugs = () => [{ slug: "a" }]
 
-// SSG checks `params()` on each request: a slug it did not return is the normal 404, document and data alike.
+// A slug the page's `params()` did not return is the normal 404, document and data alike.
 it("absent slug", async () => {
 	const page = createPage("_root_/post/[slug]")
 		.cache({ ssg: slugs })
@@ -167,13 +167,58 @@ const paths: ParamsFn = (): Record<string, string | string[]>[] => [{ path: ["a"
 // param the URL lacks never matches. A page that lists nothing takes any slug.
 it("listed slugs", async () => {
 	const cache = { ssg: { params: paths } }
-	expect(await listed(cache, { path: ["a", "b"] })).toBe(true)
-	expect(await listed(cache, { path: ["a"] })).toBe(false)
-	expect(await listed(cache, { slug: "x" })).toBe(false)
-	expect(await listed(cache, { lang: "en", slug: "x" })).toBe(true)
-	expect(await listed({ isr: { params: paths } }, { path: "z" })).toBe(true)
-	expect(await listed({ isr: { params: paths, dynamicParams: false } }, { path: "z" })).toBe(false)
-	expect(await listed(undefined, {})).toBe(true)
+	expect(await listed(cache, { path: ["a", "b"] }, false)).toBe(true)
+	expect(await listed(cache, { path: "a/b" }, false)).toBe(true)
+	expect(await listed(cache, { path: ["a"] }, false)).toBe(false)
+	expect(await listed(cache, { slug: "x" }, false)).toBe(false)
+	expect(await listed(cache, { lang: "en", slug: "x" }, false)).toBe(true)
+	expect(await listed(cache, { lang: "en", slug: "x", extra: "y" }, false)).toBe(true)
+	expect(await listed({ isr: { params: paths } }, { path: "z" }, false)).toBe(true)
+	expect(await listed({ isr: { params: paths, dynamicParams: false } }, { path: "z" }, false)).toBe(false)
+	expect(await listed(undefined, {}, false)).toBe(true)
+	expect(await listed({ ssg: () => [{}] }, { slug: "x" }, false)).toBe(true)
+	expect(await listed({ ssg: () => [] }, {}, false)).toBe(false)
+})
+
+// Outside dev a page's `params()` runs once per server, with `ctx.params` as `{}` like the prerender's call
+// (dx/cache.md): unique URLs cost a lookup each, not a call, and hold no memory of their own (plan 21 16.7).
+it("params once", async () => {
+	const list = vi.fn<ParamsFn>(() => [{ slug: "a" }])
+	const cache = { ssg: list }
+	const checks = await Promise.all(Array.from({ length: 100_000 }, (_, n) => listed(cache, { slug: `s${n}` }, false)))
+	expect(checks.some(Boolean)).toBe(false)
+	expect(await listed(cache, { slug: "a" }, false)).toBe(true)
+	expect(list).toHaveBeenCalledTimes(1)
+	expect(list).toHaveBeenCalledWith({ params: {} })
+})
+
+// Through the server: three requests, one call.
+it("params once served", async () => {
+	const list = vi.fn<ParamsFn>(slugs)
+	const page = createPage("_root_/post/[slug]")
+		.cache({ ssg: list })
+		.render(() => "post")
+	const { app } = serve(page, { id: "_root_/post/[slug]", path: "/post/[slug]", seeds: {} })
+	expect((await app.fetch(new Request(`${SITE}/post/a`))).status).toBe(200)
+	expect((await app.fetch(new Request(`${SITE}/post/b`))).status).toBe(404)
+	expect((await app.fetch(new Request(`${SITE}/post/a?_flare=data`))).status).toBe(200)
+	expect(list).toHaveBeenCalledTimes(1)
+})
+
+// Dev calls `params()` on each request, so an edited list shows at once; a failed call is not kept, so the next
+// request calls again.
+it("params dev and failure", async () => {
+	const list = vi.fn<ParamsFn>(slugs)
+	await listed({ ssg: list }, { slug: "a" }, true)
+	await listed({ ssg: list }, { slug: "a" }, true)
+	expect(list).toHaveBeenCalledTimes(2)
+	const flaky = vi
+		.fn<ParamsFn>()
+		.mockRejectedValueOnce(new Error("db down"))
+		.mockResolvedValue([{ slug: "a" }])
+	await expect(listed({ ssg: flaky }, { slug: "a" }, false)).rejects.toThrow("db down")
+	expect(await listed({ ssg: flaky }, { slug: "a" }, false)).toBe(true)
+	expect(flaky).toHaveBeenCalledTimes(2)
 })
 
 // An ISR seed is read only as a stand-in. A missing seed, one no newer than the store's record, and one a key or

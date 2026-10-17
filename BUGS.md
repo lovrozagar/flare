@@ -1081,6 +1081,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 222 [x] The client read a data stream with no cap on its frame count or nesting
 222.1 [x] Plan 21 16.5, a v0 parity gap: v0's NDJSON client stopped after 10,000 messages and scanned placeholders no deeper than 50 levels; v1 capped only a line at 1 MiB, so a hostile or broken stream of endless small frames, or one frame nested thousands deep for `revive` to recurse through, could exhaust the tab. Red: shared/protocol/frames.test `caps` (10,001 frames all decoded).
 222.2 [x] Fix: shared/protocol/frames.ts `frameDecoder` gives one `e` frame and stops past 10,000 frames in a response or for a frame nested past 256 levels, checked without recursion; the client already handles that stop, a document load before `r` and rejected values after it.
+223 [x] Every request to a listed page ran its `params()`, with the URL's params
+223.1 [x] Plan 21 16.7, a v0 parity gap: v0 kept each `params()` result in a 500-entry cache outside dev; v1 called the page's `params()` on every request, so a list read from a database or a file cost a read per request, and an attacker's unique slugs a read each. The call also passed the URL's params, while the contract and the prerender call give `ctx.params` as `{}`. Red: server/cache/seed.test `params once` (100,001 calls for 100,000 unique slugs and one listed) and `params once served` (3 calls for 3 requests).
+223.2 [x] Fix: server/cache/seed.ts reads a page's list once per server, keyed by its params function (one entry per page, so unique URLs hold no memory), with `ctx.params` as `{}`, and indexes it by each entry's names, so a request costs one set lookup per distinct name list. A failed read is not kept; dev reads on each request (`params dev and failure`). B86 and dx/cache.md record it, with `dynamicParams: false` now fixed per server as at prerender.
 
 ## Verify
 

@@ -49,7 +49,7 @@ export function requestStore(option: StoreOption | undefined, env: unknown): () 
 // writes (bit 12). Otherwise the cache mode picks the answer.
 export async function pageAnswer(exchange: Exchange, matched: Loaded): Promise<Response> {
 	const cache = matched.chain.at(-1)?.module.cache
-	if (!(await listed(cache, definedParams(matched.params)))) return unlisted(exchange, matched)
+	if (!(await listed(cache, definedParams(matched.params), exchange.sink.dev))) return unlisted(exchange, matched)
 	const prepared = await decided(exchange, matched)
 	if (exchange.prerender !== undefined) {
 		return prerendered(exchange, matched, { prepared, capture: exchange.prerender })
