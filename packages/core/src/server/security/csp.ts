@@ -51,6 +51,8 @@ export function buildCsp(input: {
 	dev?: boolean
 	csp?: SecurityConfig["Content-Security-Policy"]
 	permissions?: SecurityConfig["Permissions-Policy"]
+	// The X-Frame-Options the answer sends, which the default `frame-ancestors` restates.
+	frame?: SecurityConfig["X-Frame-Options"]
 }): { headers: Headers; nonce: string } {
 	const headers = defaultHeaders(input.url)
 	// Dev drops HSTS alone: on localhost it would pin https for every other local server. Cross-Origin-Opener-Policy is
@@ -78,8 +80,14 @@ export function randomNonce(): string {
 	return hex
 }
 
-function directivePolicy(input: { url: string; nonce: string; dev: boolean; user: CspDirectives | undefined }): string {
-	const lists = baseLists()
+function directivePolicy(input: {
+	url: string
+	nonce: string
+	dev: boolean
+	user: CspDirectives | undefined
+	frame?: SecurityConfig["X-Frame-Options"]
+}): string {
+	const lists = baseLists(input.frame)
 	if (input.user !== undefined) applyUser(lists, input.user)
 	if (input.dev) applyDev(lists)
 	lists["script-src"] = [...lists["script-src"], `'nonce-${input.nonce}'`]
@@ -95,10 +103,11 @@ function directivePolicy(input: { url: string; nonce: string; dev: boolean; user
 }
 
 // The directives with a default are always present; the named-only ones appear once the app names them.
-type Lists = Record<Exclude<CspDirectiveName, "frame-src" | "media-src">, readonly string[]> &
+type Lists = Record<Exclude<CspDirectiveName, "frame-src" | "media-src" | "frame-ancestors">, readonly string[]> &
 	Partial<Record<CspDirectiveName, readonly string[]>>
 
-function baseLists(): Lists {
+function baseLists(frame: SecurityConfig["X-Frame-Options"]): Lists {
+	const ancestors = framedBy(frame)
 	return {
 		"default-src": ["'self'"],
 		"script-src": ["'self'"],
@@ -111,10 +120,18 @@ function baseLists(): Lists {
 		"font-src": ["'self'", "data:", "https:"],
 		"connect-src": ["'self'", "https:"],
 		"worker-src": ["'self'"],
-		// A form posts and a frame embeds the page only on its own origin (plan 21 14.1).
-		"frame-ancestors": ["'self'"],
+		// A form posts only to the page's own origin (plan 21 14.1).
 		"form-action": ["'self'"],
+		...(ancestors !== undefined && { "frame-ancestors": ancestors }),
 	}
+}
+
+// `frame-ancestors` restates the X-Frame-Options the answer sends, since a browser that reads both obeys the CSP: DENY,
+// the default, is 'none', SAMEORIGIN is 'self', and an app that removes the header gets no directive, so its embeds
+// still load (BUGS.md 221, 268).
+function framedBy(frame: SecurityConfig["X-Frame-Options"]): readonly string[] | undefined {
+	if (frame === false) return undefined
+	return frame?.toUpperCase() === "SAMEORIGIN" ? ["'self'"] : ["'none'"]
 }
 
 // A named directive replaces the default. `style-src` named without `style-src-elem` also sets the element list, so

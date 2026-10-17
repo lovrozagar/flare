@@ -72,6 +72,7 @@ export function applySecurity(input: {
 		dev: input.dev === true,
 		csp: merged["Content-Security-Policy"],
 		permissions: merged["Permissions-Policy"],
+		frame: merged["X-Frame-Options"],
 	})
 	for (const [name, value] of built.headers) headers.set(name, value)
 	if (merged["Content-Security-Policy"] === false) headers.delete("content-security-policy")

@@ -5,7 +5,7 @@ import { serveWith } from "../lifecycle/create.ts"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
-import { applySecurity, mergeHeaders } from "./apply.ts"
+import { applySecurity, mergeHeaders, type SecurityConfig } from "./apply.ts"
 
 const url = "https://example.com/"
 
@@ -139,7 +139,7 @@ it("server security", async () => {
 			security: (ctx) => {
 				seen.push(ctx.serverContext, ctx.env, new URL(ctx.request.url).pathname, ctx.nonce)
 				return {
-					"Content-Security-Policy": { "frame-ancestors": ["'self'"] },
+					"Content-Security-Policy": { "frame-ancestors": ["https://partner.example"] },
 					"Strict-Transport-Security": "max-age=1",
 					"X-Powered-By": "flare",
 				}
@@ -149,7 +149,7 @@ it("server security", async () => {
 	)
 	const response = await server.fetch(new Request(url), { name: "env" })
 	const csp = response.headers.get("content-security-policy") ?? ""
-	expect(csp).toContain("frame-ancestors 'self'")
+	expect(csp).toContain("frame-ancestors https://partner.example")
 	expect(response.headers.get("permissions-policy")).toContain("camera=(self)")
 	expect(response.headers.get("strict-transport-security")).toBe("max-age=1")
 	expect(response.headers.get("x-powered-by")).toBe("flare")
@@ -203,4 +203,17 @@ it("route csp merge", () => {
 		}).headers.get("content-security-policy") ?? ""
 	expect(merged).toContain("script-src 'self' https://cdn.example https://extra.example 'nonce-n'")
 	expect(merged).toContain("frame-src https://video.example")
+})
+
+// The CSP a route's security config gives.
+function framed(route: SecurityConfig): string {
+	return applySecurity({ url, headers: new Headers(), route }).headers.get("content-security-policy") ?? ""
+}
+
+// The CSP's `frame-ancestors` follows the X-Frame-Options the answer sends, the server's or a route's: an app that
+// removes X-Frame-Options to be embedded is not blocked by a default it never wrote (BUGS.md 268).
+it("frame follows x-frame-options", () => {
+	expect(framed({})).toContain("frame-ancestors 'none'")
+	expect(framed({ "X-Frame-Options": "SAMEORIGIN" })).toContain("frame-ancestors 'self'")
+	expect(framed({ "X-Frame-Options": false })).not.toContain("frame-ancestors")
 })
