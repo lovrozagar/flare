@@ -1,4 +1,4 @@
-import { createComponent, flush } from "solid-js"
+import { createComponent, createMemo, flush, Loading } from "solid-js"
 import { render } from "@solidjs/web"
 import { afterEach, expect, it, vi } from "vitest"
 import { Image, type ImageBinding, type ImageProps } from "./image.tsx"
@@ -21,6 +21,7 @@ vi.mock("./config.ts", async (original) => ({
 }))
 
 afterEach(() => {
+	document.body.replaceChildren()
 	plugin.widths = [320, 640, 1280, 1920]
 	plugin.hydrating = false
 	vi.unstubAllEnvs()
@@ -33,8 +34,10 @@ const photo: ImageBinding = {
 	variants: [320, 640, 1280, 1920].map((width) => ({ width, src: `/a-${width}.webp` })),
 }
 
+// Rendered on the page, where a client-rendered image takes its sources (BUGS.md 246).
 function img(props: ImageProps): HTMLImageElement {
 	const host = document.createElement("div")
+	document.body.append(host)
 	render(() => createComponent(Image, props), host)
 	flush()
 	const found = host.querySelector("img")
@@ -219,6 +222,42 @@ it("sources once placed", () => {
 		flush()
 		expect(writes.sort()).toEqual(["sizes true", "src true", "srcset true"])
 		expect(host.querySelector("img")?.style.backgroundImage).not.toBe("")
+	} finally {
+		Element.prototype.setAttribute = original
+		host.remove()
+	}
+})
+
+// An image under a boundary whose data arrives after the first settle is built off the page while the boundary
+// waits; it still takes its sources only once it is on the page (BUGS.md 246).
+it("placed after a boundary", async () => {
+	const writes: string[] = []
+	const original = Element.prototype.setAttribute
+	Element.prototype.setAttribute = function (name: string, value: string) {
+		if (["src", "srcset", "sizes"].includes(name)) writes.push(`${name} ${String(this.isConnected)}`)
+		original.call(this, name, value)
+	}
+	const host = document.createElement("div")
+	document.body.append(host)
+	const later = Promise.withResolvers<string>()
+	try {
+		render(
+			() =>
+				createComponent(Loading, {
+					fallback: "wait",
+					get children() {
+						const value = createMemo(async () => later.promise)
+						return [() => value(), createComponent(Image, { alt: "a", src: photo, sizes: "50vw" })]
+					},
+				}),
+			host,
+		)
+		flush()
+		expect(host.textContent).toBe("wait")
+		later.resolve("ready")
+		await vi.waitFor(() => expect(host.querySelector("img")?.hasAttribute("src")).toBe(true))
+		expect(host.querySelector("img")?.getAttribute("src")).toBe("/a-1920.webp")
+		expect(writes.sort()).toEqual(["sizes true", "src true", "srcset true"])
 	} finally {
 		Element.prototype.setAttribute = original
 		host.remove()

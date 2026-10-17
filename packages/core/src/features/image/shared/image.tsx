@@ -1,4 +1,4 @@
-import { createComponent, createSignal, isHydrating, onSettled } from "solid-js"
+import { createComponent, createSignal, isHydrating, onCleanup, onSettled } from "solid-js"
 import { Dynamic, isServer, type JSX } from "@solidjs/web"
 import { imageQuality, imageWidths } from "./config.ts"
 
@@ -61,6 +61,14 @@ export function withQuality(url: string, quality: number | undefined, dev: boole
 export function Image(props: ImageProps): JSX.Element {
 	const [loaded, setLoaded] = createSignal(false)
 	const [placed, setPlaced] = createSignal(isServer || isHydrating())
+	// An image a boundary still holds off the page settles before it is placed: it is looked at again until it is on
+	// the page, and never if its render is dropped first.
+	let again: ReturnType<typeof setTimeout> | undefined
+	onCleanup(() => clearTimeout(again))
+	const place = (element: HTMLImageElement): void => {
+		if (element.isConnected && element.ownerDocument === document) setPlaced(true)
+		else again = setTimeout(() => place(element), 16)
+	}
 	return createComponent(Dynamic, {
 		component: "img",
 		get alt() {
@@ -100,7 +108,7 @@ export function Image(props: ImageProps): JSX.Element {
 		// takes its sources there, on the page, and its load event clears the blur.
 		ref: (element: HTMLImageElement) => {
 			onSettled(() => {
-				if (!placed()) setPlaced(true)
+				if (!placed()) place(element)
 				else if (element.complete) setLoaded(true)
 			})
 		},
