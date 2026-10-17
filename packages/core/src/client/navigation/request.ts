@@ -141,7 +141,9 @@ function dataUrl(trip: Trip, stale: readonly string[]): string {
 
 // The values of the page on screen, through a same-URL revalidation that writes no history (dx/defer.md).
 export function fillOptions(deps: NavigatorDeps): NavigateOptions & { to: string } {
-	const here = deps.store.snapshot().location
+	// With an overlay open, the page on screen is the overlay's, at the URL in the bar (plan 21 10.7).
+	const snapshot = deps.store.snapshot()
+	const here = snapshot.overlay?.location ?? snapshot.location
 	return { to: `${here.pathname}${here.search}${here.hash}`, revalidate: true, replace: true, scroll: false }
 }
 

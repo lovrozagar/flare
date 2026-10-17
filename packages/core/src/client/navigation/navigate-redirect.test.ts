@@ -76,3 +76,25 @@ it("redirect loop", async () => {
 	expect(app.deps.assign).toHaveBeenCalledExactlyOnceWith("/b")
 	expect(location.pathname).toBe("/")
 })
+
+// A navigation a newer one replaced while its route code still loaded follows no redirect its data carried: the newer
+// page stays, and the redirect's target is never asked for (plan 21 10.5).
+it("superseded follows no redirect", async () => {
+	const chunk = Promise.withResolvers<void>()
+	const slow = createPage("_root_/slow").render(() => "slow")
+	const tree = [...routeTree, { id: "_root_/slow", path: "/slow", module: () => chunk.promise.then(() => slow) }]
+	const lazy = createRouter({ layouts: { _root_: root }, routeTree: tree })
+	const landedA = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/a", d: "a" }, { t: "r" }, { t: "d" }] as const
+	const fetch = vi.fn<Fetch>(async (url) =>
+		url.startsWith("/slow") ? ndjson([{ t: "x", s: 303, u: "/b", r: true }]) : ndjson(landedA),
+	)
+	const app = await mountNavigator(lazy, fetch)
+	const first = app.navigator.navigate({ to: "_root_/slow" } as never)
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	await app.navigator.navigate({ to: "_root_/a" })
+	chunk.resolve()
+	await first
+	flush()
+	expect(location.pathname).toBe("/a")
+	expect(fetch.mock.calls.map(([url]) => url).filter((url) => url.startsWith("/b"))).toEqual([])
+})

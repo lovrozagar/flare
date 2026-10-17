@@ -10,7 +10,7 @@ import type { FlareStore, FlareStoreEntry } from "./contract.ts"
 import { epochKey } from "./epoch.ts"
 import { createMemoryStore } from "./memory.ts"
 import { newSentinel } from "./nonce.ts"
-import { storedPageOf } from "./read.ts"
+import { hitOf, storedPageOf } from "./read.ts"
 import type { StoredPage } from "./write.ts"
 import { withCritical } from "../render/critical-style.ts"
 
@@ -364,4 +364,13 @@ it("slot frees after write", async () => {
 	vi.setSystemTime(10_000 + 61_000)
 	expect((await app.fetch(get())).headers.get("flare-cache")).toBe("hit")
 	await vi.waitFor(() => expect(loads).toHaveBeenCalledTimes(3))
+})
+
+// An entry exactly as old as its stale age is stale, and one exactly as old as its ttl is gone (plan 21 10.7).
+it("boundaries", () => {
+	const data = { html: "<p>p</p>", ndjson: "", headers: [], security: {}, sentinel: "s", render: "isr" }
+	const looked = { entry: { data, storedAt: 0 }, purged: false }
+	expect(hitOf(looked, { ttl: 100, stale: 50 }, 49)?.stale).toBe(false)
+	expect(hitOf(looked, { ttl: 100, stale: 50 }, 50)?.stale).toBe(true)
+	expect(hitOf(looked, { ttl: 100, stale: 50 }, 100)).toBeUndefined()
 })

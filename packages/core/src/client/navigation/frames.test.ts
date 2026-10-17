@@ -284,3 +284,11 @@ it("head replace frame", async () => {
 	stream.push({ t: "d" })
 	stream.end()
 })
+
+// An `x` frame with `r: false` lands as a push (plan 21 10.7).
+it("x replace false", async () => {
+	const stream = feed()
+	const landed = landFrames(stream.source, quiet)
+	stream.push({ t: "x", s: 303, u: "/next", r: false })
+	await expect(landed).resolves.toMatchObject({ redirect: { status: 303, url: "/next", replace: false } })
+})

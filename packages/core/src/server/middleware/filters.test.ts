@@ -11,6 +11,9 @@ it("exact", () => {
 it("case", () => {
 	expect(enters({ exact: ["/About"] }, page("/about"))).toBe(true)
 	expect(enters({ prefix: ["/Admin"] }, page("/admin/users"))).toBe(true)
+	// The path folds as well as the filter (plan 21 10.3).
+	expect(enters({ prefix: ["/admin"] }, page("/ADMIN/x"))).toBe(true)
+	expect(enters({ exact: ["/a"] }, page("/A"))).toBe(true)
 })
 
 it("prefix boundary", () => {

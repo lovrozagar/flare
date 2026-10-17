@@ -1,5 +1,5 @@
 import { expect, it } from "vitest"
-import { withCookies } from "./cookies.ts"
+import { foreignCookies, withCookies } from "./cookies.ts"
 import type { Decision } from "./decide.ts"
 
 const shared: Decision = { policy: "shared", class: "public", cdn: {} }
@@ -26,4 +26,10 @@ it("late cookie", () => {
 	expect(withCookies(allowed, { route: ["s=1"], all: ["s=1", "late=1"] }).policy).toBe("private")
 	expect(withCookies(allowed, { route: [], all: ["s=1"] }).policy).toBe("private")
 	expect(withCookies(allowed, { route: ["s=1"], all: ["s=1"] }).policy).toBe("shared")
+})
+
+// Each route cookie accounts for one copy: a second copy of it, which a middleware added, is foreign (plan 21 10.7).
+it("duplicate cookie", () => {
+	expect(foreignCookies({ route: ["a=1"], all: ["a=1", "a=1"] })).toEqual(["a=1"])
+	expect(foreignCookies({ route: ["a=1"], all: ["a=1"] })).toEqual([])
 })

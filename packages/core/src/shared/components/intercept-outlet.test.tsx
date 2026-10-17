@@ -397,3 +397,19 @@ it("overlay focus kept", async () => {
 	expect(built).toBe(1)
 	app.host.remove()
 })
+
+// A revalidation while an overlay is open refreshes it in place: no history entry is written, so one Back still closes
+// it (plan 21 10.7).
+it("overlay revalidate keeps history", async () => {
+	const app = await setup(async () => ndjson(photoFrames("P1")))
+	await app.navigator.navigate(open)
+	flush()
+	const entries = history.length
+	await app.navigator.revalidate()
+	flush()
+	expect([history.length, location.pathname, app.store.snapshot().overlay?.route]).toEqual([
+		entries,
+		"/photos/1",
+		"_root_/photos/[id]",
+	])
+})

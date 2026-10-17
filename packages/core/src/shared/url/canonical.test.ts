@@ -74,3 +74,9 @@ it("escapes", () => {
 	expect(canonicalPath("/a/.%2e/b")).toEqual({ hostile: true })
 	expect(canonicalPath("/a/%2E/b")).toEqual({ hostile: true })
 })
+
+// An encoded slash is hostile in either case, so `/files/a%2Fb` never reaches a param as `a/b` (plan 21 10.4).
+it("encoded slash any case", () => {
+	expect(canonicalPath("/files/a%2Fb")).toEqual({ hostile: true })
+	expect(canonicalPath("/files/a%2fb")).toEqual({ hostile: true })
+})
