@@ -14,10 +14,10 @@ A trigger is `false`, `"intent"` (pointer hover, focus, or touch), `"viewport"` 
 | where | accepts | default |
 | --- | --- | --- |
 | `createRouter({ prefetch })` | a trigger, or `{ data?: trigger, modules?: trigger \| "all" }` | `{ modules: "all", data: false }` |
-| `.cache({ client: { prefetch } })` | a trigger, or `{ data?: trigger, modules?: trigger }` | the router value |
+| `.cache({ client: { prefetch } })` | a literal trigger, or `{ data?: trigger, modules?: trigger }` written as a literal: codegen copies only a literal, so a variable reads as unset (`plugin.md`) | the router value |
 | `<Link prefetch>` | the same as the route | the route value, else the router |
 
-A string sets both fields to that trigger. An object sets the fields it names and leaves the other to the next layer. Precedence per field is link, then route, then router.
+A string sets both fields to that trigger. An object sets the fields it names and leaves the other to the next layer. Precedence per field is link, then route, then router. A Link to a page under another root layout, to a `.response()` page, or to a hash move on the page on screen prefetches nothing. A route that casts `modules: "all"` reads as the router's `"all"`.
 
 `modules: "all"` is legal only on the router, and only it warms anything after load: a router whose `modules` is another trigger or `false` warms nothing (`prefetch.test.ts` `all only when the router says all`, BUGS.md 305). After the window fires `load` and the browser is idle, everything a navigation to a route the client has not imported would download is warmed (B127). Where the browser has rel=prefetch, each such route's chunk and the chunks it imports (a production build lists them in the `chunks` map) are added as `<link rel="prefetch" as="script" crossorigin>`, each file once and none the page already loaded (BUGS.md 80); the scripts are not executed. Where it has none (`link.relList.supports("prefetch")` is false: Safari through 26.x), each such route and layout module is imported, as intent prefetch does, so the module map holds it and its imports; route modules have no side effects. A modulepreload is not used there: WebKit warns in the console for each one the page does not use within seconds of load. Only JavaScript is warmed: route CSS is not. Lazy components inside a route are not in this list. They load when they render. Data Saver and a 2G connection skip `"all"` and prefetch modules for links in the viewport instead.
 
@@ -44,26 +44,26 @@ An internal link has `to`. An external link has `href` and must not have `to`.
 | `to` | one of `to` or `href` | — | a page route id, including a `.response()` page (`dx/types.md`) | the href is built from `to`, `params`, `search`, `hash`. A `.response()` page is a full document load (B84) | a layout id, the root id, and a segment id do not type-check. A missing required param throws when the link renders | `link.test.tsx` `href`; `propagation.test.ts` `layout to`; `target.test.ts` `response page` |
 | `href` | one of `to` or `href` | — | a path, an http(s) URL, a `mailto:`, `tel:`, or `sms:` link, or a `#fragment` | rendered as the anchor href. Prefetch does not run. A `mailto:`, `tel:`, or `sms:` link, which the browser hands to another app, and a `#fragment`, an in-page anchor, render as written and their click is the browser's (BUGS.md 310) | `javascript:`, `data:`, `blob:`, `vbscript:`, and a leading control or whitespace-hidden scheme render `href="#"` and do not navigate. A relative path, a bare `?query`, or `""` cannot resolve alike on the server and the client: `#`, and in dev a throw that points to `to` | `link.test.tsx` `dangerous`, `handed-off and fragment hrefs` |
 | `params` | when the param type has any key | — | the object. A key whose type includes `undefined` is still present | | `params: {}` on `[[id]]` is missing that key (`dx/types.md`) | `link.test.tsx` `params`; `propagation.test.ts` `optional param` |
-| `search` | when the validator output has a required key | — | the validator output, or the raw record when that route did not validate search | serialized onto the query | reserved `_flare`, `_flare_stale`, and on a server-fn URL `_i`, are stripped if a caller puts them here | `link.test.tsx` `strips reserved`; `propagation.test.ts` `search required key` |
+| `search` | when the validator output has a required key | — | the validator output, or the raw record when that route did not validate search | serialized onto the query | reserved `_flare`, `_flare_stale`, and on a server-fn URL `_i`, are stripped if a caller puts them here, and `__proto__`, `constructor`, and `prototype` are dropped | `link.test.tsx` `strips reserved`; `propagation.test.ts` `search required key` |
 | `hash` | no | — | a string without the leading `#`. The component adds `#` | | | `link.test.tsx` `hash` |
 | `prefetch` | no | inherited | above | | | |
 | `replace` | no | `false` | boolean | `history.replaceState` instead of push | | `client/navigation/navigate.test.ts` `replace` |
 | `revalidate` | no | `false` | boolean | the current match is refetched even inside `staleTime` | | `match-cache.test.ts` `revalidate` |
 | `scroll` | no | `true` | boolean | `false` keeps the scroll position | | `scroll.test.ts` `no scroll` |
-| `shallow` | no | `false` | boolean | `true` changes the URL and does not run loaders | a shallow navigation to a different route throws. Shallow is for search and hash on the current route | `target.test.ts` `shallow other route` |
+| `shallow` | no | `false` | boolean | `true` changes the URL and does not run loaders | a shallow navigation to another pathname throws, the same route with other params included (`/users/1` to `/users/2`). Shallow is for search and hash on the current URL | `target.test.ts` `shallow other route` |
 | `activeClass` | no | — | string | added when the link is active | | `link.test.tsx` `active` |
 | `inactiveClass` | no | — | string | added when it is not | | same |
 | `activeProps` | no | — | anchor attributes | spread when active. Its `class` joins `class` and `activeClass`, and an attribute Link writes itself (`rel`, `tabindex`, `aria-current`, `aria-disabled`) comes from it whenever Link leaves that attribute unset (BUGS.md 306) | | same; `link.test.tsx` `state props attributes` |
 | `inactiveProps` | no | — | anchor attributes | spread when inactive, joined and falling back as `activeProps` does | | same; `link.test.tsx` `state props attributes` |
 | `isActive` | no | exact pathname and exact search, against the URL on screen once the page hydrated: a stored page opened with `?utm=…` is not the exact link's page, though the server rendered it current (`active-client.test.ts` `stored page with a query`, BUGS.md 211) | `(location: { pathname, search }) => boolean` | replaces the default. The default is not a prefix. Search equality is a multiset of pairs: order does not matter, and a repeated key must match. The hash is not compared | | `link.test.tsx` `is active`, `active default`, `active search order`, `active prefix` |
 | `disabled` | no | `false` | boolean | stays an `<a>`. No navigation, no prefetch, `aria-disabled="true"`, `tabindex="-1"` | it is not replaced by a `span` | `link.test.tsx` `disabled` |
-| `force` | no | `false` | boolean | navigate even when `isActive` is true | | `link.test.tsx` `force` |
+| `force` | no | `false` | boolean | navigate even when the link's URL is the one in the bar, which without `force` keeps the click in place; `isActive` only styles (BUGS.md 292, 296) | | `link.test.tsx` `force` |
 | `target` | no | — | anchor target | `_blank` does not run the client router | | `link.test.tsx` `blank` |
-| `rel` | no | — | string | passed through. `_blank` with no `rel` gets `noopener noreferrer` | | `link.test.tsx` `noopener` |
+| `rel` | no | — | string | passed through. A `target` of exactly `_blank` with no `rel` gets `noopener noreferrer`; an empty `rel=""` is kept as written | | `link.test.tsx` `noopener` |
 | `viewTransition` | no | the router default | `boolean` or `{ scope?, types? }` | `navigate.md` | | |
 | `children` | yes | — | JSX | | | |
 
-Other anchor attributes pass through, except `href` when `to` is set. `class` and `style` are the Solid attributes.
+Other anchor attributes pass through, except `href` when `to` is set. `class` and `style` are the Solid attributes. `state` is the history state `navigate()` takes (`types.md`). `onClick` runs first, and its `preventDefault()` stops the navigation. An active link carries `aria-current="page"`.
 
 ## Href
 
@@ -74,9 +74,9 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 | a path that starts with one `/` | accepted. `//` is rejected, and so is any spelling a browser reads as `//`: a backslash for either slash, or a tab, CR, or LF between them (`tests/integration/link.test.ts` `hidden off-origin`, BUGS.md 155) |
 | `http:` or `https:` | accepted |
 | `javascript:`, `data:`, `blob:`, `vbscript:` | rejected |
-| a leading control byte, or whitespace before the scheme | rejected |
+| a leading control byte, or whitespace before the scheme | rejected, a path included: any value whose first byte is a control byte or a space (`href(" /about")` throws) |
 
-`Link` classifies its own href (BUGS.md 310): a `mailto:`, `tel:`, or `sms:` link and a `#fragment` render as written; a path or an http(s) URL passes this check; a relative path, a bare `?query`, or `""` renders `href="#"` and throws in dev, pointing to `to`; anything else this check rejects renders `href="#"` without a throw (`link.test.tsx` `dangerous`, `handed-off and fragment hrefs`). `redirect({ href })` keeps this classification alone, so it rejects `mailto:` and `tel:`. `redirect({ href })` throws on a rejected value, and on a control character such as a CR or LF, which a `Location` header cannot hold, so a loader that redirects to a request value is a 500, never a rejected fetch (BUGS.md 168).
+`Link` classifies its own href (BUGS.md 310): a `mailto:`, `tel:`, or `sms:` link and a `#fragment` render as written; a path or an http(s) URL passes this check; a relative path, a bare `?query`, or `""` renders `href="#"` and throws in dev, pointing to `to`; anything else this check rejects renders `href="#"` without a throw (`link.test.tsx` `dangerous`, `handed-off and fragment hrefs`). `redirect({ href })` keeps this classification alone, and stricter: it takes only a URL starting with lowercase `http://` or `https://`, a page being `to`, so it rejects a path, `mailto:`, and `tel:`. `redirect({ href })` throws on a rejected value, and on a control character such as a CR or LF, which a `Location` header cannot hold, so a loader that redirects to a request value is a 500, never a rejected fetch (BUGS.md 168).
 
 ## URL values
 
@@ -84,14 +84,14 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 
 | value | URL text | read back with |
 | --- | --- | --- |
-| string | as is, then percent-encoded | — |
+| string | a search value: percent-encoded. A path param: a valid `%HH` escape stays as written, never encoded twice, every other character is percent-encoded, and a `/`, a `\`, or a `%` not followed by two hex digits throws `param <key>`, as `routes.md` says (`href.test.ts` `raw slash`, `bad percent`, `no double encode`) | — |
 | number, boolean, bigint | `String(value)` | `z.coerce.number()` and `z.coerce.bigint()`; a boolean with `z.stringbool()`, never `z.coerce.boolean()`, which reads any non-empty string, `"false"` included, as true (`link.test.ts` `boolean values`, plan 21 4.7, BUGS.md 230); the same in another schema, valibot's `v.pipe(v.picklist(["true", "false"]), v.transform((text) => text === "true"))` say |
 | `Date` | `toISOString()` | `z.coerce.date()` |
 | array | one entry per element: `?tag=a&tag=b`; a catch-all param joins its segments with `/` | the array |
-| plain object | `JSON.stringify` | a JSON parse step in the validator |
+| plain object | `JSON.stringify`, a bigint inside written as its digits. A `Map` or `Set` is written `{}` and a `URL` as its quoted string: pass them as plain values | a JSON parse step in the validator |
 | `null`, `undefined` | omitted from search; a missing value for a path param, so an optional one drops and a required one throws. An empty string path param, or an empty catch-all item, is missing too: written, it would be another route's URL (`shared/url/href.test.ts` `empty param`, BUGS.md 307) | an optional field |
 | a path param that is a dot segment, `.` or `..` in any spelling a browser resolves (`%2e` too) | throws `param <key>`, naming the key and never the value, which can be request data a 500 logs: the browser would move the URL to another route (`link.test.ts` `dot segment params`, BUGS.md 156, 308) | — |
 | a path param holding a character outside the BMP, an emoji say | encoded by code point, `a😀b` is `a%F0%9F%98%80b`, and round-trips. A lone surrogate, which no URL can carry, throws `param <key>` (`shared/url/href.test.ts` `emoji param`, BUGS.md 193, 308) |
-| function, symbol | throws, naming the key | — |
+| function, symbol | throws, naming the key. A `params` key the route's pattern does not use is ignored | — |
 
-A plain value stays readable text, not JSON. A typed URL, a `<form method="get">`, and a `Link` produce the same text for the same value, so the match id and the cache key agree (B31). There is no custom serializer: a caller that wants another format passes the string it built (`href.test.ts` `typed values`, `date value`, `object value`, `nullish value`).
+A plain value stays readable text, not JSON. A typed URL, a `<form method="get">`, and a `Link` produce the same value: a form writes a space as `+` and a `Link` as `%20`, which `searchKey` reads alike, so the match id and the cache key agree (B31, `link-client.test.ts` `search spelling`). There is no custom serializer: a caller that wants another format passes the string it built (`href.test.ts` `typed values`, `date value`, `object value`, `nullish value`).
