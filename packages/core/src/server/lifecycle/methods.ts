@@ -10,6 +10,8 @@ import { mountSpelling, type Mount } from "../mount/mount.ts"
 import { fnPrefix } from "../../shared/protocol/internal-params.ts"
 import { projectError, type ErrorSink } from "../render/projector.ts"
 import { classify, isServerFn } from "./classify.ts"
+import { RedirectError } from "../../shared/errors/redirect.ts"
+import { redirectLocation } from "../redirect/index.ts"
 import type { RuntimeOptions } from "./options.ts"
 import { finalize } from "./finalize.ts"
 
@@ -70,7 +72,7 @@ function namedMethods(listed: ReadonlySet<string>): string {
 
 // The channel an adapter asks when its runtime cannot make a request of the method, as Node cannot of CONNECT, TRACE,
 // and TRACK. The answer is what Bun's pipeline gives, in its order: an unknown internal param's 400; the canonical
-// step's redirect, a step that throws being the projected 500; on a mounted path, which the method cannot reach here,
+// step's redirect, a step that throws answering as `failed` does (a redirect's Location, else the projected 500); on a mounted path, which the method cannot reach here,
 // 501; a server function's 404 for an unknown id, else 405 naming its method; a route's 405 with its own Allow (RFC
 // 9110, BUGS.md 280, 284, 289). Middleware does not run: it needs the request this runtime cannot make.
 export const REFUSED: unique symbol = Symbol.for("flare.refused")
@@ -94,18 +96,20 @@ async function refusedAnswer(
 	const url = new URL(at.request.url)
 	const internal = classify(url, router.basePath)
 	if (internal.status !== 200) return { status: internal.status }
-	let step: { status: number; location?: string }
 	try {
-		step = at.step(at.request)
+		const step = at.step(at.request)
+		if (step.status !== 200) return step
+		if (mountSpelling(serving.mounts, url.pathname) !== undefined) return { status: 501 }
+		if (isServerFn(url, router.basePath)) {
+			const id = url.pathname.slice(fnPrefix(router.basePath).length)
+			const fn = Object.hasOwn(serverFns, id) ? await serverFns[id]?.() : undefined
+			return fn === undefined ? { status: 404 } : { status: 405, allow: `${fn.record.method.toUpperCase()}, OPTIONS` }
+		}
 	} catch (error) {
-		return { status: projectError(error, serving.sink).status }
-	}
-	if (step.status !== 200) return step
-	if (mountSpelling(serving.mounts, url.pathname) !== undefined) return { status: 501 }
-	if (isServerFn(url, router.basePath)) {
-		const id = url.pathname.slice(fnPrefix(router.basePath).length)
-		const fn = Object.hasOwn(serverFns, id) ? await serverFns[id]?.() : undefined
-		return fn === undefined ? { status: 404 } : { status: 405, allow: `${fn.record.method.toUpperCase()}, OPTIONS` }
+		// As the pipeline's `failed`: a thrown redirect answers its Location, any other throw is the projected 500.
+		if (error instanceof RedirectError) return { status: error.status, location: redirectLocation(error, router) }
+		projectError(error, serving.sink)
+		return { status: 500 }
 	}
 	const matched = router.match(url.pathname)
 	if (matched.id === undefined || matched.response !== true) return { status: 405, allow: ALLOW }
