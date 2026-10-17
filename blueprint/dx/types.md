@@ -65,6 +65,7 @@ A type is born in one place. Later readers do not invent a second copy.
 | preloader | parents intersect with `&`, outside-in, self excluded, then this route's own return on later callbacks. The preloader callback and `authorize` see the parents only |
 | the same preloader key | the narrower type survives. `("admin" \| "editor") & "admin"` is `"admin"` |
 | incompatible preloader types | that property is `never`. Sibling keys stay. `{}` does not erase other keys |
+| a preloader that returns a union | each member merges on its own, so a discriminant narrows to its member's keys, and an optional key stays optional (`app`: `checks-chain.ts` `preloader union narrows`, `preloader optional stays optional`, BUGS.md 275) |
 | a missing parent module | the context is `never` |
 | root preloader callback | no `preloaderContext` field. The root's own return replaces `{}` for later root callbacks. It is not `&` with a parent |
 | auth seed | `ParentAuthResolution` walks `routeParents` outside-in. `true` beats `"optional"` beats `false`. The root starts at `false`. The strictness is computed. It is not a second map |

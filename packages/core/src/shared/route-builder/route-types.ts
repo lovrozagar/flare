@@ -101,20 +101,31 @@ type OwnPreloader<R, Id> = R extends { routeModules: infer Map }
 
 // Two returns key by key: a key both set takes both types, so an incompatible pair makes that key `never` and leaves
 // the rest as they are, where `&` of two conflicting literals would collapse the whole object (plan 21 11.2). A
-// `never` side stays `never`.
+// `never` side stays `never`. Each member of a union merges on its own, so a discriminated return still narrows, and a
+// key keeps its `?` (BUGS.md 275).
 type Merged<A, B> = [A] extends [never]
 	? never
 	: [B] extends [never]
 		? never
-		: {
-				[K in keyof A | keyof B]: K extends keyof A
-					? K extends keyof B
-						? A[K] & B[K]
-						: A[K]
-					: K extends keyof B
-						? B[K]
-						: never
-			}
+		: A extends unknown
+			? B extends unknown
+				? Flat<Omit<A, keyof B> & Omit<B, keyof A> & BothSet<A, B>>
+				: never
+			: never
+
+// The keys both set: optional when both make it optional.
+type BothSet<A, B> = {
+	[K in keyof A & keyof B as OptionalIn<A, K> extends true ? (OptionalIn<B, K> extends true ? never : K) : K]: A[K] &
+		B[K]
+} & {
+	[
+		K in keyof A & keyof B as OptionalIn<A, K> extends true ? (OptionalIn<B, K> extends true ? K : never) : never
+	]?: A[K] & B[K]
+}
+
+type OptionalIn<T, K extends keyof T> = {} extends Pick<T, K> ? true : false
+
+type Flat<T> = { [K in keyof T]: T[K] }
 
 type Intersect<R, List> = List extends readonly [infer Head, ...infer Tail]
 	? Merged<OwnPreloader<R, Head>, Intersect<R, Tail>>
