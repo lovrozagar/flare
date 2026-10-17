@@ -169,6 +169,45 @@ test("overlay history", async ({ page, docs }) => {
 	expect(requests.filter((seen) => seen.path === "/")).toEqual([])
 })
 
+// Back while a navigation is still loading leaves for the entry before, and the navigation it left never commits,
+// though its data arrives after (plan 21 5.2).
+test("back during a commit", async ({ page, docs }) => {
+	await open(page, docs.origin, "/")
+	await page.locator('#nav a[href="/docs/routing"]').click()
+	await expect(page.locator("#doc-title")).toHaveText("Routing")
+	await page.route("**/docs/auth?_flare=*", async (route) => {
+		await new Promise((resolve) => setTimeout(resolve, 800))
+		await route.continue().catch(() => {})
+	})
+	const traffic = dataTraffic(page)
+	await page.locator("#sidebar").getByRole("link", { name: "Auth" }).click()
+	await page.goBack()
+	await expect(page.locator("#message")).toBeVisible()
+	await expect.poll(() => traffic.pending()).toBe(0)
+	await flushEvents(page)
+	expect(new URL(page.url()).pathname).toBe("/")
+	await expect(page.locator("#doc-title")).toHaveCount(0)
+})
+
+// The search overlay's URL loads the whole search page on a reload, and a result link in the overlay closes it and
+// lands its page (plan 21 5.2).
+test("overlay after reload and leaving", async ({ page, docs }) => {
+	await open(page, docs.origin, "/")
+	await page.locator("#search-input").fill("route")
+	await page.locator("#search-input").press("Enter")
+	await expect(page.locator("#search-modal")).toBeVisible()
+	await page.reload()
+	await expect(page.locator("#search-page")).toBeVisible()
+	await expect(page.locator("#search-modal")).toHaveCount(0)
+	await page.goto(`${docs.origin}/`)
+	await page.locator("#search-input").fill("route")
+	await page.locator("#search-input").press("Enter")
+	await expect(page.locator("#search-modal")).toBeVisible()
+	await page.locator('#search-modal #results a[href="/docs/routing"]').click()
+	await expect(page.locator("#doc-title")).toHaveText("Routing")
+	await expect(page.locator("#search-modal")).toHaveCount(0)
+})
+
 test("concurrent misses render once", async ({ http, docs }, info) => {
 	test.skip(!isProd(info), "the shared store answers only in a production build")
 	const url = `${docs.origin}/hr/api/routes/create-page`
