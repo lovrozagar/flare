@@ -263,3 +263,39 @@ it("placed after a boundary", async () => {
 		host.remove()
 	}
 })
+
+// An image disposed while its render still waits on data, before it settles, takes no sources and leaves nothing
+// running: its settle callback is the component's own, which disposal drops; one tied to no owner would still run
+// once the data arrived and look for a page the image never reaches (BUGS.md 290).
+it("disposed before settle", async () => {
+	vi.useFakeTimers()
+	const host = document.createElement("div")
+	document.body.append(host)
+	const later = Promise.withResolvers<string>()
+	try {
+		const dispose = render(() => {
+			const value = createMemo(async () => later.promise)
+			return [() => value(), createComponent(Image, { alt: "a", src: photo })]
+		}, host)
+		const element = host.querySelector("img")
+		dispose()
+		later.resolve("ready")
+		await vi.advanceTimersByTimeAsync(100)
+		expect([element?.hasAttribute("src") ?? false, vi.getTimerCount()]).toEqual([false, 0])
+	} finally {
+		vi.useRealTimers()
+		host.remove()
+	}
+})
+
+// An image in a document with no window, which no page shows, never takes its sources; one in a frame's document
+// would, since its document has a window (BUGS.md 290).
+it("document without a window", () => {
+	const detached = document.implementation.createHTMLDocument("detached")
+	const host = detached.createElement("div")
+	detached.body.append(host)
+	const dispose = render(() => createComponent(Image, { alt: "a", src: photo }), host)
+	flush()
+	expect(host.querySelector("img")?.hasAttribute("src")).toBe(false)
+	dispose()
+})

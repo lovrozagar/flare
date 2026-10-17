@@ -1,4 +1,4 @@
-import { createComponent, createSignal, isHydrating, onCleanup, onSettled } from "solid-js"
+import { createComponent, createSignal, isHydrating, onSettled } from "solid-js"
 import { Dynamic, isServer, type JSX } from "@solidjs/web"
 import { imageQuality, imageWidths } from "./config.ts"
 
@@ -61,14 +61,16 @@ export function withQuality(url: string, quality: number | undefined, dev: boole
 export function Image(props: ImageProps): JSX.Element {
 	const [loaded, setLoaded] = createSignal(false)
 	const [placed, setPlaced] = createSignal(isServer || isHydrating())
-	// An image a boundary still holds off the page settles before it is placed: it is looked at again until it is on
-	// the page, and never if its render is dropped first.
-	let again: ReturnType<typeof setTimeout> | undefined
-	onCleanup(() => clearTimeout(again))
-	const place = (element: HTMLImageElement): void => {
-		if (element.isConnected && element.ownerDocument === document) setPlaced(true)
-		else again = setTimeout(() => place(element), 16)
-	}
+	// The settle callback is the component's own, not the ref's, which Solid runs with no owner: an owned one waits for
+	// a boundary to reveal its content and is dropped when the image is disposed, so a dropped render takes no sources
+	// (BUGS.md 290). A hydrated image already complete clears its blur there too (BUGS.md B20).
+	// The ref sets it as the element is made, before anything settles.
+	let element!: HTMLImageElement
+	onSettled(() => {
+		if (placed()) {
+			if (element.complete) setLoaded(true)
+		} else if (element.isConnected && element.ownerDocument.defaultView !== null) setPlaced(true)
+	})
 	return createComponent(Dynamic, {
 		component: "img",
 		get alt() {
@@ -103,14 +105,8 @@ export function Image(props: ImageProps): JSX.Element {
 			return { ...layout(props), ...(loaded() ? {} : blur(props)) }
 		},
 		onLoad: () => setLoaded(true),
-		// A priority image often finishes before hydrate attaches onLoad, so its event is never heard. After the
-		// commit, a hydrated image that is already complete clears the blur too (BUGS.md B20). A client-rendered one
-		// takes its sources there, on the page, and its load event clears the blur.
-		ref: (element: HTMLImageElement) => {
-			onSettled(() => {
-				if (!placed()) place(element)
-				else if (element.complete) setLoaded(true)
-			})
+		ref: (img: HTMLImageElement) => {
+			element = img
 		},
 	})
 }
