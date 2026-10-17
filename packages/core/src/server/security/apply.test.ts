@@ -246,6 +246,36 @@ it("route csp adds to defaults", () => {
 	expect(more).not.toContain("upgrade-insecure-requests")
 })
 
+// Over a server string, a route's directives add their sources to it: the server's policy is kept, a directive it
+// names takes the route's sources once, one it does not is added, and a flag follows the route (BUGS.md 331).
+it("route csp over server string", () => {
+	const policy = applySecurity({
+		url: "https://flare.test/",
+		headers: new Headers(),
+		security: { "Content-Security-Policy": "default-src 'none'; img-src 'self'; frame-ancestors 'none'" },
+		route: {
+			"Content-Security-Policy": {
+				"img-src": ["'self'", "https://i.example"],
+				"frame-ancestors": ["https://parent.example"],
+				"script-src": ["https://s.example"],
+				"upgrade-insecure-requests": true,
+			},
+		},
+		candidate: "n",
+	})
+	expect([policy.headers.get("content-security-policy"), policy.nonce]).toEqual([
+		"default-src 'none'; img-src 'self' https://i.example; frame-ancestors https://parent.example; script-src https://s.example; upgrade-insecure-requests",
+		"",
+	])
+	const off = applySecurity({
+		url: "https://flare.test/",
+		headers: new Headers(),
+		security: { "Content-Security-Policy": "default-src 'self'; upgrade-insecure-requests;" },
+		route: { "Content-Security-Policy": { "upgrade-insecure-requests": false, "block-all-mixed-content": false } },
+	})
+	expect(off.headers.get("content-security-policy")).toBe("default-src 'self'")
+})
+
 // The CSP a route's security config gives.
 function framed(route: SecurityConfig): string {
 	return applySecurity({ url, headers: new Headers(), route }).headers.get("content-security-policy") ?? ""

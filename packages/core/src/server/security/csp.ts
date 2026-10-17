@@ -72,6 +72,31 @@ export function buildCsp(input: {
 	return { headers, nonce: csp === undefined || typeof csp === "object" ? input.nonce : "" }
 }
 
+// A route's directives over a server string policy add their sources to it: a directive it names takes each source
+// once, a list that is only `'none'` takes the route's instead, one it does not name is added, and a flag follows the
+// route. The string carries no nonce, as the server's does not (BUGS.md 331).
+export function addToPolicy(policy: string, added: CspDirectives): string {
+	const parts = policy
+		.split(";")
+		.map((part) => part.trim().split(/\s+/))
+		.filter((part) => part[0] !== "")
+	const named = (name: string) => parts.find((part) => part[0]?.toLowerCase() === name)
+	for (const name of ORDER) {
+		const sources = added[name]?.map((source) => checked(name, source))
+		if (sources === undefined) continue
+		const part = named(name)
+		if (part === undefined) parts.push([name, ...sources])
+		else part.splice(1, part.length, ...join(part.slice(1), sources))
+	}
+	for (const flag of ["upgrade-insecure-requests", "block-all-mixed-content"] as const) {
+		const on = added[flag]
+		const at = parts.indexOf(named(flag) ?? [])
+		if (on === true && at === -1) parts.push([flag])
+		if (on === false && at !== -1) parts.splice(at, 1)
+	}
+	return parts.map((part) => part.join(" ")).join("; ")
+}
+
 // 16 random bytes, hex: one per request, made before the server's security callback runs, so its `ctx.nonce` is the
 // one the header and every tag carry.
 export function randomNonce(): string {
