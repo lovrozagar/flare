@@ -256,6 +256,32 @@ it("active", () => {
 	expect(anchor.getAttribute("data-state")).toBe("active")
 })
 
+// `activeProps` and `inactiveProps` spread anchor attributes, Link's own included: a class joins the base and state
+// classes, and an attribute Link leaves unset, `tabindex` or `rel`, comes from the spread (BUGS.md 306).
+it("state props attributes", () => {
+	const { anchor, place } = mount({
+		to: "_root_/about",
+		class: "base",
+		activeClass: "on",
+		activeProps: { class: "bold", tabindex: 0, rel: "next" },
+		inactiveProps: { class: "dim" },
+		children: "x",
+	})
+	expect([anchor.className, anchor.getAttribute("tabindex"), anchor.getAttribute("rel")]).toEqual([
+		"base dim",
+		null,
+		null,
+	])
+	place({ pathname: "/about" })
+	expect([anchor.className, anchor.getAttribute("tabindex"), anchor.getAttribute("rel")]).toEqual([
+		"base on bold",
+		"0",
+		"next",
+	])
+	const disabled = mount({ to: "_root_/about", disabled: true, inactiveProps: { tabindex: 3 }, children: "x" })
+	expect(disabled.anchor.getAttribute("tabindex")).toBe("-1")
+})
+
 it("is active", () => {
 	const isActive = vi.fn<(location: { pathname: string; search: Record<string, string | string[]> }) => boolean>(
 		() => true,
