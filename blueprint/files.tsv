@@ -736,6 +736,7 @@ packages/core/tests/workerd/server.test.ts	P15	test	node	The real createServer b
 packages/core/tests/workerd/disconnect.test.ts	P15	test	node	Canaries: local Miniflare does not report a client disconnect to the worker (BUGS.md B45), and resets a kept-alive connection after an answer that left the body unread (BUGS.md B56, dx/adapters.md)
 packages/core/tests/structure/ci.test.ts	P15	test	node	ci.yml matches the decisions it implements: every job pins Node 24, and both OS jobs run the unit suite (B3, BUGS.md B24, B27)
 packages/core/tests/workerd/cache-api.test.ts	P10	test	workers	Tombstones and epochs round-trip in workerd's cache
+packages/core/tests/perf/ssr-ratio.test.ts	P5	test	node	A Flare document's server cost over plain Solid's stream of the same tree, as a ratio with a budget (plan 21 15.5)
 packages/core/tests/size/budget.json	P1	config	-	Gzip budget per export. Starts empty and gains a row when the export is born
 packages/core/tests/size/size.test.ts	P1	test	node	A row over budget fails. An export missing from the budget fails
 packages/core/tests/size/breakdown.ts	P7	script	node	The minified gzip of one export's bundle, and each module's and declaration's marginal gzip. A budget raise carries its output
