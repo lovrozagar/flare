@@ -81,3 +81,15 @@ it("input output", async () => {
 	])
 	expect(body).toContain('"params":{"id":7},"search":{"page":2}')
 })
+
+// The observability options dx/observability.md plans are not in v1: `ServerOptions` has no such key, and a server
+// given one from JavaScript or through a cast throws, naming it, instead of ignoring it (plan 21 13.14, BUGS.md 216).
+it("planned options", () => {
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [] })
+	for (const key of ["logger", "onError", "requestLog", "tracer"]) {
+		expect(() => createServer({ router, [key]: () => undefined } as Parameters<typeof createServer>[0])).toThrow(
+			`createServer: ${key} is planned (dx/observability.md) and not in v1`,
+		)
+	}
+	expect(() => createServer({ router })).not.toThrow()
+})

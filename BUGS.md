@@ -1060,6 +1060,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 215 [x] A render that threw before the shell, with no boundary, answered a 0-byte 500
 215.1 [x] Plan 21 13.13: B93 gave a throw before the shell an empty body in production, and B37 gave a root with no document an empty 500, so a page whose render threw outside any `errorRender`, or a root render that threw, reached the browser as a blank page with no word of what happened. A loader error already rendered through the boundaries. Red: tests/integration/fetch-boundary.test.ts `render before the shell` (empty body), and projector.test `bigint`, shape.test `prod document-less` asserted the empty body.
 215.2 [x] Fix, decisions B93 and B37 revised: server/render/error-page.ts writes a minimal document, the status and `Something went wrong` (or a named status's message), with the digest a production bug carries and the message and stack only in dev; it loads nothing, so any security policy allows it. lifecycle/answers.ts answers it for a render that failed before the shell and for a root with no document.
+216 [x] createServer ignored the observability options dx/observability.md documents, so onError never fired
+216.1 [x] Plan 21 13.14: dx/observability.md showed `createServer({ logger?, onError?, requestLog?, tracer? })` as working options, while v1 has none of them (BUGS.md 113 moved them under Planned in dx/server.md only). `ServerOptions` has no such key, so TypeScript refuses one, but a JavaScript app, or one that casts, passed `onError` and heard nothing. Red: lifecycle/create-input.test `planned options` (no throw).
+216.2 [x] Fix, the plan's interim ruling until plan 15 ships them: createServer throws for any of the four keys, naming it, and dx/observability.md opens by saying the page is planned and not in v1.
 
 ## Verify
 

@@ -54,6 +54,7 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	checkSite(options.site, { store: options.store !== undefined, dev: sink.dev })
 	checkLocale(options.locale, options.router)
 	checkResponseMethods(options.router.routeTree)
+	checkPlanned(options)
 	const { trailingSlash, caseSensitive } = options.router
 	const bodyLimit = bodyLimitOf(options.bodyLimit)
 	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive })
@@ -63,6 +64,15 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	// The internal channel `vite build`'s prerender reads. It runs the same pipeline with a capture (bits/12).
 	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }))
 	return Object.assign(server, { [PRERENDER]: prerender })
+}
+
+// The observability options dx/observability.md plans, which v1 does not have: one passed from JavaScript, or through
+// a cast past `ServerOptions`, throws instead of being ignored (plan 21 13.14).
+const PLANNED = ["logger", "onError", "requestLog", "tracer"]
+
+function checkPlanned(options: object): void {
+	const given = PLANNED.find((key) => Object.hasOwn(options, key))
+	if (given !== undefined) throw new Error(`createServer: ${given} is planned (dx/observability.md) and not in v1`)
 }
 
 type Serving = { options: RuntimeOptions; sink: ErrorSink; mounts: ReturnType<typeof mountTable> }
