@@ -475,6 +475,7 @@ packages/core/src/shared/url/forwarded.ts	P1	src	shared	The adapters' `trustProx
 packages/core/src/shared/url/forwarded.test.ts	P1	test	shared	Unit cases for forwarded.ts
 packages/core/src/adapters/node/listener.ts	P1	src	node	createNodeListener. Flush per chunk. Honor backpressure. Drain on shutdown
 packages/core/src/adapters/node/listener.test.ts	P1	test	node	Unit cases for listener.ts
+packages/core/src/adapters/node/listener-answers.test.ts	P1	test	node	The Node listener's own answers, a 400 for a request it cannot route and a 500 before the headers, each with the build and the default security set (BUGS.md 341; split from listener.test.ts)
 packages/core/src/adapters/node/body.ts	P3	src	node	Unread POST bodies are drained or the connection is closed
 packages/core/src/adapters/node/body.test.ts	P3	test	node	Unit cases for body.ts
 packages/core/src/adapters/node/index.ts	P1	index	node	Re-exports

@@ -1,4 +1,4 @@
-import { rebodied, streamsBody } from "../../server/lifecycle/finalize.ts"
+import { finalize, rebodied, streamsBody } from "../../server/lifecycle/finalize.ts"
 import { forwardedHttps, trustedHops, validHost } from "../../shared/url/index.ts"
 import { pendingWork, type DrainOptions } from "../drain.ts"
 
@@ -53,8 +53,11 @@ export function createBunFetch(
 	}
 	return {
 		fetch(request, bun) {
-			// Bun builds the URL from the Host header as sent: one that is not a host would change the routed path.
-			if (!validHost(request.headers.get("host"))) return Promise.resolve(new Response(null, { status: 400 }))
+			// Bun builds the URL from the Host header as sent: one that is not a host would change the routed path. The 400
+			// names its build and carries the default security set, as every answer does (BUGS.md 341).
+			if (!validHost(request.headers.get("host"))) {
+				return Promise.resolve(finalize({ status: 400, body: "", url: "http://localhost/" }))
+			}
 			const sent = Promise.withResolvers<void>()
 			pending.track(sent.promise)
 			const timeout = bun === undefined ? undefined : (seconds: number) => bun.timeout(request, seconds)

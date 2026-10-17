@@ -268,32 +268,6 @@ it("disconnect aborts", async () => {
 	expect(seen[0].signal.aborted).toBe(true)
 })
 
-// A failure before the headers is a bare 500, and it is logged (plan 21 13.6).
-it("fetch throws", async () => {
-	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
-	const statuses: number[] = []
-	let ended = false
-	const listener = createNodeListener({
-		fetch: () => Promise.reject(new Error("server broke")),
-	})
-	listener(req(), {
-		writeHead(status) {
-			statuses.push(status)
-		},
-		setHeader() {},
-		write: () => true,
-		end() {
-			ended = true
-		},
-		once() {},
-	})
-	await settle()
-	expect(statuses).toEqual([500])
-	expect(ended).toBe(true)
-	expect(logged).toHaveBeenCalledExactlyOnceWith("[flare:node] the request failed", expect.any(Error))
-	logged.mockRestore()
-})
-
 // A method fetch's Request refuses to build is the 405 a page gives, with Allow, and the server is never asked
 // (plan 21 13.6, BUGS.md 209).
 it("refused method", async () => {
