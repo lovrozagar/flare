@@ -75,7 +75,7 @@ export function requestSink(sink: ErrorSink, token: string | undefined): ErrorSi
 // Any other throw is a bug. Dev shows it and opens the overlay. Production shows a digest and logs only that.
 export function projectError(given: unknown, sink: ErrorSink): Projected {
 	// A render error Solid sanitized is projected as what the render threw (BUGS.md 217).
-	const thrown = thrownBehind(given)
+	const thrown = printable(thrownBehind(given))
 	const status = statusOf(thrown)
 	const { name, message } = describe(thrown)
 	if (status !== 500) return { status, error: rebuilt(name, message, ""), wire: { name, message } }
@@ -96,6 +96,18 @@ export function projectError(given: unknown, sink: ErrorSink): Projected {
 	sink.log.error("render", digest, stack)
 	const shown = isSafeError(thrown) ? { name, message } : { name: "Error", message: GENERIC }
 	return { status, error: rebuilt(shown.name, shown.message, ""), wire: { ...shown, digest } }
+}
+
+// A thrown value whose conversion to text throws would throw out of the boundary itself, so `server.fetch` would reject
+// with nothing logged: it is projected as an Error that says so (BUGS.md 338).
+function printable(thrown: unknown): unknown {
+	if (thrown instanceof Error) return thrown
+	try {
+		String(thrown)
+		return thrown
+	} catch {
+		return new Error("a thrown value that cannot be printed")
+	}
 }
 
 function describe(thrown: unknown): { name: string; message: string } {

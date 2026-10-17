@@ -148,3 +148,42 @@ it("render before the shell", async () => {
 	const [bareStatus, bare] = await answer(root)
 	expect([bareStatus, bare.includes("<h1>Something went wrong</h1>")]).toEqual([500, true])
 })
+
+// A thrown value whose conversion to text throws, from a loader, a mount, a middleware, or serverContext, is still
+// logged once and answered as the 500, or a data request's error frame: `server.fetch` never rejects (dx/server.md,
+// BUGS.md 338).
+it("unprintable throw", async () => {
+	const unprintable: Record<symbol, () => never> = {
+		[Symbol.toPrimitive]: () => {
+			throw unprintable
+		},
+	}
+	const fail = (): never => {
+		throw unprintable
+	}
+	const loud = createPage("_root_/loud")
+		.loader(fail)
+		.render(() => "loud")
+	const routes = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/loud", path: "/loud", module: loud }],
+	})
+	const sources: [object, string][] = [
+		[{}, "/loud"],
+		[{}, "/loud?_flare=data"],
+		[{ mounts: [mount("/m", fail)] }, "/m/x"],
+		[{ middleware: [fail] }, "/loud"],
+		[{ serverContext: fail }, "/loud"],
+	]
+	const seen: unknown[] = []
+	for (const [options, path] of sources) {
+		const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
+		const server = createServer({ router: routes, ...options } as Parameters<typeof createServer>[0])
+		const response = await server.fetch(new Request(`http://localhost${path}`)).catch(() => undefined)
+		const text = errors.mock.calls.flat().map(String).join(" ")
+		seen.push([path, response?.status, errors.mock.calls.length, /cannot be printed/.test(text)])
+		errors.mockRestore()
+	}
+	// A data request answers a loader's error as an `e` frame inside its 200 (dx/navigate.md).
+	expect(seen).toEqual(sources.map(([, path]) => [path, path.includes("_flare") ? 200 : 500, 1, true]))
+})
