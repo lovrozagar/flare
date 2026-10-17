@@ -129,6 +129,39 @@ it("mount and page", async () => {
 	for (const response of [page, api]) expect(response.headers.get("x-content-type-options")).toBe("nosniff")
 })
 
+// Middleware runs for a mount like any route, in list order, so a prefix guard covers the sub-app: a request it
+// refuses never reaches the mount, one it lets through gets the mount's answer, which a later middleware can still
+// change. `kind: ["mount"]` filters on a mount alone; the page and server-function kinds do not match it (plan 21 4.2).
+it("mount middleware", async () => {
+	const reached: string[] = []
+	const api = mount("/api", (request) => {
+		reached.push(new URL(request.url).pathname)
+		return new Response("api")
+	})
+	const guard = createMiddleware((ctx) =>
+		ctx.request.headers.get("authorization") === "ok" ? undefined : new Response("no", { status: 401 }),
+	)
+	const kinds: string[] = []
+	const tag = createMiddleware(async (ctx) => {
+		kinds.push(`${ctx.kind} ${ctx.path}`)
+		const response = await ctx.next()
+		response.headers.set("x-tagged", ctx.kind)
+	})
+	const middleware: MiddlewareEntry[] = [
+		{ filter: { prefix: ["/api"] }, handler: guard },
+		{ filter: { kind: ["mount"] }, handler: tag },
+	]
+	const server = createServer({ router, mounts: [api], middleware })
+	expect((await server.fetch(new Request("http://localhost/api/x"))).status).toBe(401)
+	expect(reached).toEqual([])
+	const passed = await server.fetch(new Request("http://localhost/api/x", { headers: { authorization: "ok" } }))
+	expect([passed.status, await passed.text(), passed.headers.get("x-tagged")]).toEqual([200, "api", "mount"])
+	expect(passed.headers.get("x-content-type-options")).toBe("nosniff")
+	expect(reached).toEqual(["/x"])
+	expect((await server.fetch(new Request("http://localhost/about"))).headers.get("x-tagged")).toBeNull()
+	expect(kinds).toEqual(["mount /api/x"])
+})
+
 it("proxy", async () => {
 	const forward = mount("/api", (request) => proxy(request, "https://upstream.test"))
 	const server = createServer({ router, mounts: [forward] })

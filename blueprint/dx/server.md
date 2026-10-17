@@ -236,7 +236,7 @@ A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user 
 | `request` | the request, canonical URL |
 | `path` | the canonical pathname |
 | `env` | the fetch env, typed by `FlareRegister["env"]` |
-| `kind` | `"page"` for a document, a data, or a prefetch request; `"serverFn"` for a server-function call |
+| `kind` | `"page"` for a document, a data, or a prefetch request; `"serverFn"` for a server-function call; `"mount"` for a request a mount answers, whose `next()` resolves to the mount's answer (B138) |
 | `next()` | resolves to the router `Response`. A second call is 500 |
 | `respond(response)` | returns void, stashes that response, and skips `next()`. Finalize still runs |
 | `bypass(response)` | the same stash. The name means "I produced the response" |
@@ -247,7 +247,7 @@ A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user 
 | --- | --- | --- | --- | --- | --- | --- |
 | `exact` | no | `[]` | path strings | the pathname must equal one of them | | `server/middleware/filters.test.ts` `exact` |
 | `prefix` | no | `[]` | path strings | the pathname equals the prefix or continues with `/` | `"/api"` does not match `"/apiv2"`. A regular expression does not type-check | `filters.test.ts` `prefix boundary` |
-| `kind` | no | both | `"page"`, `"serverFn"` | the request kind must be one of them | a server-function filter does not name `/_flare/fn`, so it holds under any `basePath` | `filters.test.ts` `kind` |
+| `kind` | no | all three | `"page"`, `"serverFn"`, `"mount"` | the request kind must be one of them, so a guard on a sub-app alone is `kind: ["mount"]` (`tests/integration/middleware.test.ts` `mount middleware`) | a server-function filter does not name `/_flare/fn`, so it holds under any `basePath` | `filters.test.ts` `kind` |
 
 `exact` and `prefix` together match a path that either one matches. `kind` must match as well. All omitted means every request. `onPage`, `onServerFn`, and `virtualPath` do not exist: a page-only or server-function-only middleware is a `kind` filter. A layout's pages, including a group or root layout that adds no URL segment, are reached through that layout's own chain, not a middleware filter.
 

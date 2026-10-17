@@ -17,7 +17,7 @@ import { dispatch } from "../server-fn/dispatch.ts"
 import { bodyLimitOf } from "../server-fn/input.ts"
 import { classify, isServerFn } from "./classify.ts"
 import { answer, background, bare, bounded, failed, passed, secure, type Exchange } from "./exchange.ts"
-import { dispatchMount, mountSpelling, mountTable } from "../mount/mount.ts"
+import { mountFor, mountSpelling, mountTable } from "../mount/mount.ts"
 import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
 import type { MiddlewareKind } from "../middleware/types.ts"
@@ -177,11 +177,12 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 		(scope) => {
 			const scoped = serverSecured(exchange, serverCtx())
 			if (scoped instanceof Response) return Promise.resolve(scoped)
-			// 02-system step 3. A mount's answer, or its throw as a 500, still leaves through finalize.
-			const mounted = dispatchMount(at.mounts, inner, ctx)
-			if (mounted !== undefined) return mounted.then((response) => passed(scoped, response), failed(scoped))
+			// 02-system step 3. A mount answers inside the middleware list, as any route does (plan 21 4.2), and its answer,
+			// or its throw as a 500, still leaves through finalize.
+			const call = mountFor(at.mounts, inner, ctx)
+			const mounted = call && (() => call().then((response) => passed(scoped, response), failed(scoped)))
 			const seeds = requestStore(options.static, env)
-			return route({ ...scoped, session: scope.session, waitUntil, store, seeds })
+			return route({ ...scoped, session: scope.session, waitUntil, store, seeds }, mounted)
 		},
 		failed(exchange),
 	)
@@ -192,20 +193,22 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 // 02-system step 6: the middleware list wraps the server function and the router. Whatever answers, the router,
 // a returned Response, or a stash, leaves through finalize with the security set (B34).
 // Step 5, the locale slot, runs for a page request around that list. A server function has no locale.
-function route(exchange: Exchange): Promise<Response> {
+// A mount's prefix is canonical and comes before the server-function path; it answers inside the list, outside the
+// locale slot (02-system step 3).
+function route(exchange: Exchange, mounted: (() => Promise<Response>) | undefined): Promise<Response> {
 	const url = new URL(exchange.request.url)
 	const fn = isServerFn(url, exchange.options.router.basePath)
-	const inner = (): Promise<Response> => (fn ? serverFn(exchange) : routed(exchange, url))
-	const chain = (): Promise<Response> => withMiddleware(exchange, fn, inner)
-	return fn ? chain() : withLocale(exchange, chain)
+	const kind: MiddlewareKind = mounted === undefined ? (fn ? "serverFn" : "page") : "mount"
+	const inner = (): Promise<Response> => mounted?.() ?? (fn ? serverFn(exchange) : routed(exchange, url))
+	const chain = (): Promise<Response> => withMiddleware(exchange, kind, inner)
+	return kind === "page" ? withLocale(exchange, chain) : chain()
 }
 
 // Once the router ran, its answer's set leaves on whatever Response the middleware returns, a rewrap included. A
 // middleware that answers without the router leaves with the server's set.
-function withMiddleware(exchange: Exchange, fn: boolean, inner: () => Promise<Response>): Promise<Response> {
+function withMiddleware(exchange: Exchange, kind: MiddlewareKind, inner: () => Promise<Response>): Promise<Response> {
 	const middleware = exchange.options.middleware ?? []
 	if (middleware.length === 0) return inner()
-	const kind: MiddlewareKind = fn ? "serverFn" : "page"
 	const router = { basePath: exchange.options.router.basePath, locales: exchange.options.router.locale?.locales }
 	const input = { request: exchange.request, env: exchange.env, kind, fail: failed(exchange), router }
 	return runMiddleware(middleware, input, inner).then((response) =>

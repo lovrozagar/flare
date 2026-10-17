@@ -62,26 +62,38 @@ export function dispatchMount(
 	request: Request,
 	call: MountCall,
 ): Promise<Response> | undefined {
+	return mountFor(table, request, call)?.()
+}
+
+// The matching mount's call, not yet made, so the middleware list decides whether it runs (plan 21 4.2). No match is
+// undefined.
+export function mountFor(
+	table: readonly Mount[],
+	request: Request,
+	call: MountCall,
+): (() => Promise<Response>) | undefined {
 	const url = new URL(request.url)
 	const entry = table.find((item) => url.pathname === item.prefix || url.pathname.startsWith(`${item.prefix}/`))
 	if (entry === undefined) return undefined
 	const rest = url.pathname.slice(entry.prefix.length) || "/"
 	// After the strip, `//` is 400 (B87). A parsed http URL has already turned `\` into `/` and percent-encoded
 	// control characters, so `//` is the form either one takes here.
-	if (rest.startsWith("//")) return Promise.resolve(new Response(null, { status: 400 }))
+	if (rest.startsWith("//")) return () => Promise.resolve(new Response(null, { status: 400 }))
 	const stripped = new Request(new URL(`${rest}${url.search}`, url.origin), request)
-	const outer: RequestEvent | undefined = getRequestEvent()
-	const kept = SCOPE_FIELDS.filter((name) => outer !== undefined && name in outer)
-	const scope = Object.fromEntries(kept.map((name) => [name, Reflect.get(Object(outer), name)]))
-	const event: MountEvent = Object.assign(createRequestEvent(stripped), scope, { flareMount: entry.prefix })
-	return new Promise((resolve, reject) => {
-		provideRequestEvent(event, () => {
-			Promise.resolve()
-				.then(() => entry.fetch(stripped, call.env, call.ctx))
-				.then((answer) => answered(entry.prefix, answer))
-				.then(resolve, reject)
+	return () => {
+		const outer: RequestEvent | undefined = getRequestEvent()
+		const kept = SCOPE_FIELDS.filter((name) => outer !== undefined && name in outer)
+		const scope = Object.fromEntries(kept.map((name) => [name, Reflect.get(Object(outer), name)]))
+		const event: MountEvent = Object.assign(createRequestEvent(stripped), scope, { flareMount: entry.prefix })
+		return new Promise((resolve, reject) => {
+			provideRequestEvent(event, () => {
+				Promise.resolve()
+					.then(() => entry.fetch(stripped, call.env, call.ctx))
+					.then((answer) => answered(entry.prefix, answer))
+					.then(resolve, reject)
+			})
 		})
-	})
+	}
 }
 
 // A mount answers with a Response. Anything else is the app's bug, named by its prefix (plan 21 9.1).
