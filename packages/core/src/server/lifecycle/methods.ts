@@ -7,6 +7,10 @@ import {
 import { layoutChain, type Router } from "../../shared/router/create-router.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import { mountSpelling, type Mount } from "../mount/mount.ts"
+import { fnPrefix } from "../../shared/protocol/internal-params.ts"
+import { projectError, type ErrorSink } from "../render/projector.ts"
+import { classify, isServerFn } from "./classify.ts"
+import type { RuntimeOptions } from "./options.ts"
 import { finalize } from "./finalize.ts"
 
 const ALLOW = "GET, HEAD, OPTIONS"
@@ -65,28 +69,47 @@ function namedMethods(listed: ReadonlySet<string>): string {
 }
 
 // The channel an adapter asks when its runtime cannot make a request of the method, as Node cannot of CONNECT, TRACE,
-// and TRACK. The answer is what Bun's pipeline gives: the canonical step's redirect first; on a mounted path, which the
-// method cannot reach here, 501; else the router's 405 with the path's own Allow (RFC 9110, BUGS.md 280, 284).
+// and TRACK. The answer is what Bun's pipeline gives, in its order: an unknown internal param's 400; the canonical
+// step's redirect, a step that throws being the projected 500; on a mounted path, which the method cannot reach here,
+// 501; a server function's 404 for an unknown id, else 405 naming its method; a route's 405 with its own Allow (RFC
+// 9110, BUGS.md 280, 284, 289). Middleware does not run: it needs the request this runtime cannot make.
 export const REFUSED: unique symbol = Symbol.for("flare.refused")
 
 export type RefusedAnswer = { status: number; location?: string; allow?: string }
 
-export function refusedChannel(input: {
-	router: Pick<Router, "match">
-	mounts: readonly Mount[]
-	step: (request: { method: string; url: string }) => { status: number; location?: string }
-}): { [REFUSED]: (request: { method: string; url: string }) => RefusedAnswer } {
-	return {
-		[REFUSED]: (request) => {
-			const step = input.step(request)
-			if (step.status !== 200) return step
-			const path = new URL(request.url).pathname
-			if (mountSpelling(input.mounts, path) !== undefined) return { status: 501 }
-			const matched = input.router.match(path)
-			if (matched.id === undefined || matched.response !== true) return { status: 405, allow: ALLOW }
-			return { status: 405, allow: namedMethods(new Set(matched.methods ?? ["GET"])) }
-		},
+type Refused = { method: string; url: string }
+
+export function refusedChannel(
+	serving: { options: Pick<RuntimeOptions, "router" | "serverFns">; mounts: readonly Mount[]; sink: ErrorSink },
+	step: (request: Refused) => { status: number; location?: string },
+): { [REFUSED]: (request: Refused) => Promise<RefusedAnswer> } {
+	return { [REFUSED]: (request) => refusedAnswer(serving, { request, step }) }
+}
+
+async function refusedAnswer(
+	serving: { options: Pick<RuntimeOptions, "router" | "serverFns">; mounts: readonly Mount[]; sink: ErrorSink },
+	at: { request: Refused; step: (request: Refused) => { status: number; location?: string } },
+): Promise<RefusedAnswer> {
+	const { router, serverFns = {} } = serving.options
+	const url = new URL(at.request.url)
+	const internal = classify(url, router.basePath)
+	if (internal.status !== 200) return { status: internal.status }
+	let step: { status: number; location?: string }
+	try {
+		step = at.step(at.request)
+	} catch (error) {
+		return { status: projectError(error, serving.sink).status }
 	}
+	if (step.status !== 200) return step
+	if (mountSpelling(serving.mounts, url.pathname) !== undefined) return { status: 501 }
+	if (isServerFn(url, router.basePath)) {
+		const id = url.pathname.slice(fnPrefix(router.basePath).length)
+		const fn = Object.hasOwn(serverFns, id) ? await serverFns[id]?.() : undefined
+		return fn === undefined ? { status: 404 } : { status: 405, allow: `${fn.record.method.toUpperCase()}, OPTIONS` }
+	}
+	const matched = router.match(url.pathname)
+	if (matched.id === undefined || matched.response !== true) return { status: 405, allow: ALLOW }
+	return { status: 405, allow: namedMethods(new Set(matched.methods ?? ["GET"])) }
 }
 
 // A hand-built router's `.response()` methods, and its `crossOrigin` against the chain's auth, layouts included, are

@@ -90,7 +90,7 @@ async function pump(job: Job): Promise<void> {
 	})
 	const method = job.req.method ?? "GET"
 	if (UNBUILT.has(method.toUpperCase())) {
-		const { status, location, allow } = refusedAt(job.server, { method, url: adapted.url })
+		const { status, location, allow } = await refusedAt(job.server, { method, url: adapted.url })
 		const headers = new Headers(allow === undefined ? {} : { allow })
 		return send(job, finalize({ status, body: "", url: adapted.url, location, headers }), disconnect.signal)
 	}
@@ -114,10 +114,10 @@ async function pump(job: Job): Promise<void> {
 
 // What the server's pipeline gives the method on that path, through its channel; a server with none gets the 405 a
 // page gives (BUGS.md 280, 284).
-function refusedAt(server: Server, request: { method: string; url: string }): RefusedAnswer {
+async function refusedAt(server: Server, request: { method: string; url: string }): Promise<RefusedAnswer> {
 	const channel: unknown = Reflect.get(server, REFUSED)
 	if (typeof channel !== "function") return { status: 405, allow: "GET, HEAD, OPTIONS" }
-	return Reflect.apply(channel, undefined, [request]) as RefusedAnswer
+	return (await Reflect.apply(channel, undefined, [request])) as RefusedAnswer
 }
 
 async function send(job: Job, response: Response, signal: AbortSignal): Promise<void> {
