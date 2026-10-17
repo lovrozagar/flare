@@ -90,12 +90,15 @@ function merge(parents: PreloaderContext, added: unknown): PreloaderContext {
 	return { ...parents, ...added }
 }
 
+const UNDEFINED_SESSION = "authenticate returned undefined: return the session, or null for no session"
+
 // A public chain does not call authenticate. Returning null is the only anonymous signal.
 async function takeSession(reads: boolean, authenticate: () => unknown): Promise<Taken> {
 	if (!reads) return { kind: "session", session: null }
 	try {
 		const session = await authenticate()
-		if (session === undefined) return { kind: "status", status: 500 }
+		// A forgotten `return`: a 500 whose error names it, so the server logs it (BUGS.md 329).
+		if (session === undefined) return { kind: "status", status: 500, thrown: new Error(UNDEFINED_SESSION) }
 		return { kind: "session", session }
 	} catch (error) {
 		return { kind: "status", status: statusOf(error), thrown: error }

@@ -12,7 +12,7 @@ const root = createRootLayout("_root_").render((props) => props.children)
 const cdn = { maxAge: "60s", tags: ["t"] }
 const PUBLIC = "public, max-age=0, s-maxage=60"
 
-function serve(page: RouteModule, authenticate: () => unknown): ReturnType<typeof createServer> {
+function serve(page: RouteModule, authenticate: () => {} | null): ReturnType<typeof createServer> {
 	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] })
 	return createServer({ router, authenticate })
 }
@@ -21,7 +21,7 @@ const get = (path = "/p"): Request => new Request(`http://localhost${path}`)
 
 // The decision and the gate read the same memoized session, so authenticate runs once.
 it("one session", async () => {
-	const authenticate = vi.fn<() => unknown>(() => ({ userId: "u" }))
+	const authenticate = vi.fn<() => {} | null>(() => ({ userId: "u" }))
 	const page = createPage("_root_/p")
 		.cache({ isr: true, cdn })
 		.authenticateOptional()
@@ -33,7 +33,7 @@ it("one session", async () => {
 })
 
 it("public chain", async () => {
-	const authenticate = vi.fn<() => unknown>(() => null)
+	const authenticate = vi.fn<() => {} | null>(() => null)
 	const page = createPage("_root_/p")
 		.cache({ isr: true, cdn })
 		.render(() => "p")
