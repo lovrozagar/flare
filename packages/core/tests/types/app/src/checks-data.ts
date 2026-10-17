@@ -68,6 +68,22 @@ import { createLayout, createPage, createRootLayout, useLoaderData, usePreloader
 	const _editor: typeof role = "editor"
 }
 
+// input empty
+{
+	// @ts-expect-error an input names at least one side (plan 21 11.4)
+	void createPage("_root_/static").input({})
+}
+
+// optional argument
+{
+	// @ts-expect-error optional auth is its own method, on a page (plan 21 11.4)
+	void createPage("_root_/static").authenticate("optional")
+	// @ts-expect-error and on a layout
+	void createLayout("_root_/(blog)").authenticate("optional")
+	const caller: string = "billing"
+	void createPage("_root_/static").authenticate(caller)
+}
+
 // preloader literal clash
 {
 	const context = usePreloaderContext({ from: "_root_/(blog)/viewer" })

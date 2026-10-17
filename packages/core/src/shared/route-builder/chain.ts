@@ -23,7 +23,10 @@ export type {
 // `.input()`: each side's validator receives the raw record, and its output replaces that side for the match's
 // later callbacks and render props (dx/builder.md).
 // Each side's validator receives that side's raw record (dx/types.md), so it may type its parameter with it.
-export type RouteInput = { params?: Validator<RawRecord>; searchParams?: Validator<RawRecord> }
+// At least one side: `.input({})` validates nothing, so it does not type-check and it throws (dx/types.md `input empty`).
+export type RouteInput =
+	| { params: Validator<RawRecord>; searchParams?: Validator<RawRecord> }
+	| { params?: Validator<RawRecord>; searchParams: Validator<RawRecord> }
 
 type RawRecord = Record<string, string | string[]>
 

@@ -21,7 +21,7 @@ The propagation contract is this file (B74). A callback field v0 had and this fi
 
 Every id in `routeParents` is a key of `routeModules` (`types-gen.test.ts` `parents closed`). A hand-written register that breaks this poisons that route's preloader context to `never`. It is not `{}`.
 
-`"optional"` is a value in `authModes`. It is not an argument. `.authenticate("optional")` does not type-check, and it throws (`chain.test.ts` `optional argument`, `propagation.test.ts` `optional argument`).
+`"optional"` is a value in `authModes`. It is not an argument. `.authenticate("optional")` does not type-check, on a page or a layout, and it throws (`chain.test.ts` `optional argument`; `app`: `checks-data.ts` `optional argument`, plan 21 11.4). A caller name held in a `string` still type-checks.
 
 ## Graph
 
@@ -126,7 +126,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `param before root` | `[locale]/_root_/about` | `params` | `locale: string` | `locale` omitted | app |
 | `input params` | `.input({ params })` returns `{ id: number }` | render `params`, `Link` | `id.toFixed(0)` | `id.toUpperCase()`; the bracket `string` assigned back | app, gen |
 | `input one side` | `.input({ params })` only | `search` | search stays the raw record | search typed as the params output | app |
-| `input empty` | `.input({})` | the builder | | does not type-check | |
+| `input empty` | `.input({})` | the builder | | does not type-check: `RouteInput` names `params`, `searchParams`, or both (`app`: `checks-data.ts` `input empty`, plan 21 11.4) | |
 | `missing param` | `[id]` | `Link`, `navigate` | `params: { id: "1" }` | `params` omitted | app |
 | `extra param` | `[id]` | `Link` | | `params: { id: "1", extra: "x" }` | app |
 | `unknown route` | augmented `routeModules` | `to` | a page id | `"nope"` and a wide `string` | app |
