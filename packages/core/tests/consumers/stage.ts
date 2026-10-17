@@ -72,11 +72,12 @@ export type Run = { status: number | null; output: string }
 export type Command = { cwd: string; args: readonly string[]; env?: Record<string, string> }
 
 // A consumer's shell: the runner's environment without its own `NODE_ENV=test` and `VITEST*` variables, which turn a
-// `vite build` into a test build whose server bundle does not load.
+// `vite build` into a test build whose server bundle does not load. sharp uses its prebuilt binaries whatever libvips
+// the machine has: a sharp install script that finds a system libvips compiles against it instead, and fails without
+// a compiler toolchain, so a cell would depend on the host.
 export function shellEnv(): NodeJS.ProcessEnv {
-	return Object.fromEntries(
-		Object.entries(process.env).filter(([name]) => name !== "NODE_ENV" && !name.startsWith("VITEST")),
-	)
+	const shell = Object.entries(process.env).filter(([name]) => name !== "NODE_ENV" && !name.startsWith("VITEST"))
+	return { ...Object.fromEntries(shell), SHARP_IGNORE_GLOBAL_LIBVIPS: "1" }
 }
 
 // The environment a pinned Node runs in: a consumer's shell with the pinned Node's directory first on PATH, so a script
