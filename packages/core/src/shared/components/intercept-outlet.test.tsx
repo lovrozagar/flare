@@ -1,5 +1,5 @@
-import { createComponent, flush } from "solid-js"
-import { render, type JSX } from "@solidjs/web"
+import { createComponent, createMemo, createSignal, flush } from "solid-js"
+import { Dynamic, render, type JSX } from "@solidjs/web"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { mountNavigator, settled, unmountAll, type Fetch } from "../../client/navigation/navigate.fixture.ts"
 import type { NavigatorDeps } from "../../client/navigation/navigate.ts"
@@ -329,4 +329,71 @@ it("head stays", async () => {
 	flush()
 	expect(app.text()).toBe("root[home:start|]")
 	expect(app.deps.fetch).toHaveBeenCalledTimes(2)
+})
+
+// An overlay takes focus as it opens, keeps Tab inside it, closes on Escape, and gives focus back to the link that
+// opened it (plan 21 4.1, B142).
+it("overlay focus", async () => {
+	view = (state) =>
+		createComponent(Dynamic, {
+			component: "div",
+			id: "dialog",
+			get children() {
+				return [createComponent(Dynamic, { component: "button", id: "inside", children: "x" }), state.match.render()]
+			},
+		})
+	const app = await setup(async () => ndjson(photoFrames("P1")))
+	document.body.append(app.host)
+	const opener = document.createElement("a")
+	opener.href = "/x"
+	opener.id = "opener"
+	document.body.append(opener)
+	opener.focus()
+	await app.navigator.navigate(open)
+	flush()
+	expect(document.activeElement?.id).toBe("inside")
+	const closed = popped()
+	document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
+	await closed
+	flush()
+	expect(location.pathname).toBe("/")
+	expect(document.activeElement?.id).toBe("opener")
+	opener.remove()
+	app.host.remove()
+})
+
+// A button whose id is its text.
+function button(id: string): JSX.Element {
+	return createComponent(Dynamic, { component: "button", id, children: id })
+}
+
+// The trap stays up while the overlay's content changes, as compiled JSX changes it, through memos: focus the user
+// moved is kept, nothing the overlay shows is rebuilt, and a control that appears later is inside the trap (B142).
+it("overlay focus kept", async () => {
+	const [count, setCount] = createSignal(0)
+	const [more, setMore] = createSignal(false)
+	let built = 0
+	view = () => {
+		built += 1
+		const text = createMemo(() => `n:${count()}`)
+		const extra = createMemo(() => (more() ? button("later") : ""))
+		return [text, button("first"), button("second"), extra]
+	}
+	const app = await setup(async () => ndjson(photoFrames("P1")))
+	document.body.append(app.host)
+	await app.navigator.navigate(open)
+	flush()
+	expect(document.activeElement?.id).toBe("first")
+	document.getElementById("second")?.focus()
+	setCount(1)
+	flush()
+	expect(app.text()).toContain("n:1")
+	expect(document.activeElement?.id).toBe("second")
+	setMore(true)
+	flush()
+	document.getElementById("later")?.focus()
+	document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }))
+	expect(document.activeElement?.id).toBe("first")
+	expect(built).toBe(1)
+	app.host.remove()
 })

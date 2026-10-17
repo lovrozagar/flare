@@ -5,7 +5,8 @@ import { appFrom } from "./harness-app.ts"
 import { ENGINES, startHarness, type Harness } from "./hydrate.harness.ts"
 
 // An open overlay through the real createServer and createClient (B96): a navigation inside it with `replace` replaces
-// the overlay entry, so one Back closes it, however many searches it held (plan 21 13.12, BUGS.md 214).
+// the overlay entry, so one Back closes it, however many searches it held (plan 21 13.12, BUGS.md 214). The keyboard
+// opens it, stays in it, and closes it with Escape (plan 21 4.1, B142).
 
 let harness: Harness | undefined
 
@@ -64,7 +65,33 @@ async function steps(tab: Page): Promise<void> {
 	})
 }
 
+// From the keyboard: Enter on the link opens the overlay with focus on its button, Tab stays inside, Escape closes it,
+// and focus is back on the link.
+async function keyboard(tab: Page): Promise<void> {
+	const active = () => tab.evaluate(() => document.activeElement?.id ?? "")
+	const seen: unknown[] = []
+	await tab.focus("#to-photo")
+	await tab.keyboard.press("Enter")
+	await overlayShows(tab, "photo 1")
+	await tab.waitForFunction(() => document.activeElement?.id === "next")
+	seen.push(await active())
+	await tab.keyboard.press("Tab")
+	seen.push(await active())
+	await tab.keyboard.press("Escape")
+	await tab.waitForFunction(() => document.getElementById("overlay") === null && location.pathname === "/gallery")
+	await tab.waitForFunction(() => document.activeElement?.id === "to-photo")
+	seen.push(await active())
+	await tab.evaluate((all) => (Reflect.get(window, "__flareRecord") as unknown[]).push(...all), seen)
+}
+
 describe.each(ENGINES)("%s", (engine) => {
+	it("overlay keyboard", async () => {
+		if (harness === undefined) throw new Error("the harness did not start")
+		const result = await harness.app(engine, { app: APP, path: "/gallery", client() {}, steps: keyboard })
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual(["next", "next", "to-photo"])
+	})
+
 	it("replace inside an overlay", async () => {
 		if (harness === undefined) throw new Error("the harness did not start")
 		const result = await harness.app(engine, { app: APP, path: "/gallery", client() {}, steps })
