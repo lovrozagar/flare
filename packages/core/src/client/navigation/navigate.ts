@@ -240,7 +240,7 @@ async function settle(
 			previous,
 			intercept: plan.intercept,
 			write,
-			state: plan.options.state,
+			options: plan.options,
 		})
 		settled.end()
 		return true

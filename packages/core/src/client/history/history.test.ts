@@ -58,3 +58,19 @@ it("delta", () => {
 	expect(flare.pop({ index: 5 })).toEqual([3, 4, 5])
 	expect(flare.index()).toBe(5)
 })
+
+// A navigation inside an open overlay replaces its entry and keeps it the overlay's; a plain replace makes it a page
+// entry again (plan 21 13.12, BUGS.md 214).
+it("intercepted replace", () => {
+	const flare = createHistory(history)
+	flare.adopt()
+	flare.push("/photo", undefined, true)
+	flare.replace("/photo?n=2", { q: 1 }, true)
+	expect([history.state, location.search, flare.interceptedAt(1)]).toEqual([
+		{ index: 1, usr: { q: 1 }, intercepted: true },
+		"?n=2",
+		true,
+	])
+	flare.replace("/plain")
+	expect([history.state, flare.interceptedAt(1)]).toEqual([{ index: 1, usr: undefined }, false])
+})
