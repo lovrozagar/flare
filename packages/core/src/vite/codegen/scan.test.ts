@@ -164,6 +164,7 @@ it("response methods", () => {
 		", { ...options }",
 		', { ["methods"]: ["POST"] }',
 		', { methods: ["POST"], other: 1 }',
+		', { methods: ["GET"], methods: ["POST"] }',
 	]) {
 		expect(() => methods(options)).toThrow("a.page.ts: .response() methods is a non-empty array")
 	}
@@ -177,6 +178,10 @@ it("response cross origin", () => {
 	expect(scanned(', { methods: ["POST"], crossOrigin: true }')).toBe(true)
 	expect(scanned(', { methods: ["POST"], crossOrigin: false }')).toBeUndefined()
 	expect(scanned(', { methods: ["POST"] }')).toBeUndefined()
+	// JavaScript keeps the last of two equal keys, so a repeated one fails rather than read the first (BUGS.md 283).
+	expect(() => scanned(', { methods: ["POST"], crossOrigin: false, crossOrigin: true }')).toThrow(
+		"a.page.ts: .response() methods is a non-empty array",
+	)
 	expect(() => scanned(', { methods: ["POST"], crossOrigin: open }')).toThrow(
 		"a.page.ts: .response() crossOrigin is a literal",
 	)

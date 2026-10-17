@@ -175,7 +175,11 @@ function readResponse(scan: Scan, args: readonly Argument[]): void {
 	const [, options] = args
 	if (options === undefined) return
 	const literal = `${scan.file}: .response() ${METHODS_RULE}, written as a literal`
-	if (options.type !== "ObjectExpression" || !options.properties.every(readable)) throw new Error(literal)
+	const properties = options.type === "ObjectExpression" ? options.properties : []
+	if (options.type !== "ObjectExpression" || !properties.every(readable)) throw new Error(literal)
+	// JavaScript keeps the last of two equal keys; the scan reads the first, so a repeated key fails (BUGS.md 283).
+	const names = properties.map((property) => keyName(property.key))
+	if (new Set(names).size !== names.length) throw new Error(literal)
 	const list = valueOf(options.properties, "methods")
 	if (list !== undefined) {
 		const values =
@@ -188,7 +192,7 @@ function readResponse(scan: Scan, args: readonly Argument[]): void {
 
 // A `.response()` option the scan reads. A spread, a computed key, or another key could carry methods it cannot
 // (BUGS.md 276).
-function readable(property: ObjectPropertyKind): boolean {
+function readable(property: ObjectPropertyKind): property is Extract<ObjectPropertyKind, { type: "Property" }> {
 	return (
 		property.type === "Property" && !property.computed && ["methods", "crossOrigin"].includes(keyName(property.key))
 	)
