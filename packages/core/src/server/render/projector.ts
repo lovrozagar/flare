@@ -3,6 +3,7 @@ import { devErrorPayload, statusOf, type DevErrorPayload } from "../../shared/er
 import type { DevStyle } from "../../shared/protocol/index.ts"
 import { createLogger, type Logger } from "../lifecycle/logger.ts"
 import { stylesClient } from "./dev-styles.ts"
+import { thrownBehind } from "./stream-options.ts"
 
 // The two fields of `import.meta` that B93 reads. Vite replaces `env.DEV`, and `hot` exists only in dev.
 export type DevMeta = {
@@ -72,7 +73,9 @@ export function requestSink(sink: ErrorSink, token: string | undefined): ErrorSi
 
 // notFound(), unauthenticated(), unauthorized(), and redirect() are not bugs: no stack, no log, no overlay.
 // Any other throw is a bug. Dev shows it and opens the overlay. Production shows a digest and logs only that.
-export function projectError(thrown: unknown, sink: ErrorSink): Projected {
+export function projectError(given: unknown, sink: ErrorSink): Projected {
+	// A render error Solid sanitized is projected as what the render threw (BUGS.md 217).
+	const thrown = thrownBehind(given)
 	const status = statusOf(thrown)
 	const { name, message } = describe(thrown)
 	if (status !== 500) return { status, error: rebuilt(name, message, ""), wire: { name, message } }
