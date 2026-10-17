@@ -292,3 +292,18 @@ it("x replace false", async () => {
 	stream.push({ t: "x", s: 303, u: "/next", r: false })
 	await expect(landed).resolves.toMatchObject({ redirect: { status: 303, url: "/next", replace: false } })
 })
+
+// A wire value keeps its Date, Map, and Set through revive, a placeholder inside a Map's value goes live, and a cycle
+// ends the walk (B145).
+it("revive keeps values", () => {
+	const slots: Pending = new Map()
+	const cycle: Record<string, unknown> = { at: new Date(5), set: new Set([1]) }
+	cycle["self"] = cycle
+	const map = new Map<string, unknown>([["later", { __deferred: true, key: "d0" }]])
+	const data = revive({ cycle, map }, "_root_", slots) as { cycle: typeof cycle; map: typeof map }
+	expect(data.cycle["at"]).toEqual(new Date(5))
+	expect(data.cycle["set"]).toEqual(new Set([1]))
+	expect(data.cycle["self"]).toBe(data.cycle)
+	expect(data.map.get("later")).toHaveProperty("promise")
+	expect(slots.has("_root_\nd0")).toBe(true)
+})

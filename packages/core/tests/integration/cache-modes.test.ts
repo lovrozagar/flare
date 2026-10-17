@@ -6,6 +6,7 @@ import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createPathSegment } from "../../src/shared/route-builder/segment.ts"
 import { bodyOf, serve, type Answer, type Serve } from "./builder-app.ts"
+import { stateIn } from "../../src/server/wire.fixture.ts"
 
 // dx/cache.md's server modes through the real createServer(...).fetch and a real memory store (B96): what is stored,
 // for how long, what a purge drops, and the headers each decision sends. A stored answer says so in `flare-cache`.
@@ -208,9 +209,9 @@ it("hung miss", async () => {
 	await vi.advanceTimersByTimeAsync(30_000)
 	const live = await joined
 	expect([live.status, live.headers.get("cache-control")]).toEqual([200, PRIVATE])
-	expect(live.text).toContain('"call":2')
+	expect(stateIn(live.text).at(-1)?.["data"]).toEqual({ call: 2 })
 	const next = await get("/h")
-	expect([cacheOf(next), next.text.includes('"call":3')]).toEqual(["miss", true])
+	expect([cacheOf(next), stateIn(next.text).at(-1)?.["data"]]).toEqual(["miss", { call: 3 }])
 })
 
 // A purge drops the in-flight renders it may affect: a request after a mutation never joins a render that read the data
@@ -318,7 +319,7 @@ it("state escape", async () => {
 	const get = one("_root_/se", "/se", page)
 	for (const answer of [await get("/se"), await stored(get, "/se")]) {
 		expect(answer.text).not.toContain("<script>self.pwned")
-		expect(JSON.stringify(stateOf(answer.text))).toContain(JSON.stringify(note).slice(1, -1))
+		expect(stateIn(answer.text).at(-1)?.["data"]).toEqual({ note })
 	}
 })
 

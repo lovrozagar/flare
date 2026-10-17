@@ -2,13 +2,14 @@ import {
 	dataRequests,
 	dataTraffic,
 	deepOnly,
-	documents,
 	DESKTOP_UA,
+	documents,
 	expect,
 	fnId,
 	isProd,
 	open,
 	test,
+	wire,
 } from "./docs.fixture.ts"
 import { flushEvents } from "./flush.ts"
 
@@ -217,7 +218,7 @@ test("csrf headers", async ({ http, docs }) => {
 	const post = (headers: Record<string, string>, data?: object) =>
 		http.post(`${docs.origin}/_flare/fn/${ECHO}`, {
 			headers: { "content-type": "application/json", ...headers },
-			...(data === undefined ? {} : { data }),
+			...(data === undefined ? {} : { data: wire(data) }),
 		})
 	expect((await post({ "sec-fetch-site": "cross-site" })).status()).toBe(403)
 	expect((await post({ referer: "https://evil.test/page" })).status()).toBe(403)

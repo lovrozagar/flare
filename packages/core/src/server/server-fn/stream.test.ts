@@ -6,6 +6,7 @@ import type { ServerFnRef } from "../../shared/server-fn/builder.ts"
 import { createServerFn } from "./dispatch.ts"
 import { dispatch } from "./dispatch.ts"
 import { streamEnvelopes } from "./stream.ts"
+import { fromWire, toWire } from "../../shared/protocol/value.ts"
 
 function noop(): void {}
 
@@ -30,7 +31,10 @@ function lines(text: string): unknown[] {
 	return text
 		.split("\n")
 		.filter((line) => line !== "")
-		.map((line) => JSON.parse(line))
+		.map((line) => {
+			const envelope: Record<string, unknown> = JSON.parse(line)
+			return "data" in envelope ? { ...envelope, data: fromWire(envelope["data"]) } : envelope
+		})
 }
 
 function within<T>(request: Request, run: () => Promise<T>, fail: T): Promise<T> {
@@ -51,13 +55,14 @@ function iterable(value: unknown): AsyncIterable<unknown> {
 // from one cut short (plan 21 4.6, B140).
 it("two yields", async () => {
 	const body = streamEnvelopes("numbers", numbers(), { sink, basePath: "/" })
-	expect(await new Response(body).text()).toBe(
-		'{"name":"numbers","status":200,"data":1}\n{"name":"numbers","status":200,"data":2}\n' +
-			'{"name":"numbers","status":200,"end":true}\n',
-	)
+	expect(lines(await new Response(body).text())).toEqual([
+		{ name: "numbers", status: 200, data: 1 },
+		{ name: "numbers", status: 200, data: 2 },
+		{ name: "numbers", status: 200, end: true },
+	])
 	const request = new Request(`http://localhost/_flare/fn/${counted.id}`, {
 		method: "POST",
-		body: "null",
+		body: JSON.stringify(toWire(null)),
 		headers: { origin: "http://localhost" },
 	})
 	const serverFns = { [counted.id]: async (): Promise<ServerFnRef> => counted }

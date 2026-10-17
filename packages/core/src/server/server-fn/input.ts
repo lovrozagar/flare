@@ -1,6 +1,7 @@
 import { decodeGetInput } from "../../shared/protocol/index.ts"
 import { runValidator, shapeIssues, type Issue } from "../../shared/validation/index.ts"
 import type { ServerFnRecord } from "../../shared/server-fn/builder.ts"
+import { fromWire } from "../../shared/protocol/value.ts"
 
 // The POST body cap, unless createServer's `bodyLimit` says otherwise (B43).
 export const BODY_LIMIT: number = 1024 * 1024
@@ -46,10 +47,17 @@ async function fromBody(request: Request, limit: number): Promise<InputResult> {
 	const text = await capped(request.body, limit)
 	if (text === undefined) return { status: 413 }
 	if (text === "") return { status: 200, input: undefined }
+	let json: unknown
 	try {
-		return { status: 200, input: JSON.parse(text) }
+		json = JSON.parse(text)
 	} catch {
 		return invalid([{ message: "The body is not JSON", path: [] }])
+	}
+	// The input is a wire value (B145): JSON that is not one, a plain JSON body from another client, is refused.
+	try {
+		return { status: 200, input: fromWire(json) }
+	} catch {
+		return invalid([{ message: "The body is not a wire value", path: [] }])
 	}
 }
 

@@ -1,6 +1,18 @@
 import { writeFileSync } from "node:fs"
 import type { Page } from "@playwright/test"
-import { dataRequests, deepOnly, expect, fnId, open, prodOnly, serverOf, sessionCookie, test } from "./docs.fixture.ts"
+import {
+	dataRequests,
+	deepOnly,
+	envelopeOf,
+	expect,
+	fnId,
+	open,
+	prodOnly,
+	serverOf,
+	sessionCookie,
+	test,
+	wire,
+} from "./docs.fixture.ts"
 
 // SSG seeds, ISR, shared SSR, CDN headers, purge, the client match cache, and the store per runtime (bits/15).
 deepOnly()
@@ -142,10 +154,10 @@ async function statsShown(page: Page): Promise<void> {
 // late. A second visit inside staleTime is served from the client cache with no request (BUGS.md 102.4).
 test("cache deferred", async ({ page, http, docs }) => {
 	const call = (id: string) =>
-		http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: {} })
+		http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: wire({}) })
 	await traceData(page)
 	await open(page, docs.origin, "/")
-	expect(await (await call(HOLD_STATS)).json()).toMatchObject({ data: { held: true } })
+	expect(envelopeOf(await (await call(HOLD_STATS)).json())).toMatchObject({ data: { held: true } })
 	try {
 		await mark(page)
 		await page.locator("#nav").getByRole("link", { name: "Changelog" }).click()

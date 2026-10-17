@@ -18,6 +18,7 @@ import { checkCsrf } from "./csrf.ts"
 import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts"
 import { readInput, type InputErrors } from "./input.ts"
 import { streamEnvelopes } from "./stream.ts"
+import { dataToWire } from "../../shared/protocol/value.ts"
 
 // `serverFns` from src/_gen/server-fns.gen.ts: one lazy import per exported createServerFn, keyed by its B41 id.
 export type ServerFns = Readonly<Record<string, () => Promise<ServerFnRef>>>
@@ -170,7 +171,7 @@ function forbidden(fn: ServerFnRef): StageResult {
 function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult {
 	const headers = new Headers({ "content-type": "application/json" })
 	setCacheControl(headers, fn.record, status)
-	return { status, body: JSON.stringify(envelope), headers }
+	return { status, body: JSON.stringify(dataToWire(envelope)), headers }
 }
 
 // A returned Response is the HTTP response: its status, body, and other headers stay, and Cache-Control is

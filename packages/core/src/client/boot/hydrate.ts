@@ -8,6 +8,7 @@ import type { Blockers } from "../navigation/blocker.ts"
 import type { NavigationState } from "../navigation/pending.ts"
 import type { RouterStore, ScriptMatch } from "../router/store.ts"
 import type { Location } from "../../shared/url/index.ts"
+import { matchFromWire } from "../../shared/protocol/value.ts"
 
 // `build` is the deploy's id, written by the server once bit 12 lands. Until then it is absent, and an empty id
 // disables the mismatch check on both sides (B7, B84).
@@ -51,7 +52,9 @@ export function readState(): ClientState {
 	const script = [...document.querySelectorAll("script#flare-state")].at(-1)
 	if (script === undefined) throw new Error("The document has no self.flare state script")
 	const text = script.textContent
-	return JSON.parse(text.slice(text.indexOf("=") + 1))
+	const state: ClientState = JSON.parse(text.slice(text.indexOf("=") + 1))
+	// Each match's app values arrive as wire values (B145).
+	return { ...state, matches: state.matches.map(matchFromWire) }
 }
 
 // The tree the server rendered, over the whole document: the same providers, then the matches, then the head

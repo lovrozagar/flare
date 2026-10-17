@@ -7,6 +7,7 @@ import { encodeFrame, type Frame } from "../../src/shared/protocol/index.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter } from "../../src/shared/router/create-router.ts"
+import { stateText } from "../../src/client/boot/boot.fixture.ts"
 
 // The client half of tests/integration/nonce.test.ts: a data navigation gets no new document policy, so a head
 // tag the client applies carries the document's nonce, `self.flare.nonce` (dx/server.md).
@@ -36,7 +37,7 @@ it("client head", async () => {
 		{ id: "_root_/", params: {}, search: {}, data: null, preloader: {}, head: null, error: null },
 	]
 	const state = { matches, nonce: "doc-nonce" }
-	document.body.innerHTML = `<script id="flare-state">self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
+	document.body.innerHTML = `<script id="flare-state">${stateText(state)}</script><div id="app"></div>`
 	;(globalThis as Dom).flare = state
 	const host = document.getElementById("app")
 	if (host === null) throw new Error("host")

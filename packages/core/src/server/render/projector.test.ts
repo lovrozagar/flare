@@ -130,10 +130,11 @@ it("render has no auth", async () => {
 	expect("auth" in seen[0]).toBe(false)
 })
 
-it("bigint", async () => {
+// A loader value the wire cannot hold, a function, fails before the shell (B145: a BigInt is a wire value).
+it("no wire value", async () => {
 	const prod = probe(false)
 	const page = createPage("_root_/")
-		.loader(() => ({ count: 1n }))
+		.loader(() => ({ count: () => 1 }))
 		.render(() => "page")
 	const answer = await get(page, prod.sink)
 	expect(answer.status).toBe(500)

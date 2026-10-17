@@ -13,6 +13,8 @@ import { serveWith } from "../lifecycle/create.ts"
 import type { Logger } from "../lifecycle/logger.ts"
 import type { FlareStore } from "./contract.ts"
 import { createMemoryStore } from "./memory.ts"
+import type { Frame } from "../../shared/protocol/index.ts"
+import { framesIn, stateIn } from "../wire.fixture.ts"
 
 function noop(): void {}
 
@@ -72,18 +74,18 @@ it("resolve runs once", async () => {
 		.loader(({ defer }) => ({ latest: defer(latest, { key: "latest", prerender: "resolve" }), late: defer(late) }))
 		.render(() => "p")
 	const { app } = serve(page)
-	const inline = '"latest":{"__deferred":true,"key":"latest","value":"1.0.0"}'
-	expect(await (await app.fetch(get("/p"))).text()).toContain(inline)
+	const inline = { __deferred: true, key: "latest", value: "1.0.0" }
+	expect(stateIn(await (await app.fetch(get("/p"))).text()).at(-1)?.["data"]).toMatchObject({ latest: inline })
 	await settle()
 	const data = await app.fetch(get("/p?_flare=data"))
 	expect(data.headers.get("flare-cache")).toBe("hit")
-	const frames = await data.text()
-	expect(frames).toContain(inline)
-	expect(frames).not.toContain('"t":"c"')
-	const fill = await (await app.fetch(get("/p?_flare=fill"))).text()
-	expect(fill).toContain('"latest":{"__deferred":true,"key":"latest","kept":true}')
-	expect(fill).toContain('"t":"c","m":"_root_/p","k":"d0","d":"late"')
-	expect(fill).not.toContain('"k":"latest"')
+	const frames = framesIn(await data.text())
+	expect(pageFrame(frames)).toMatchObject({ d: { latest: inline } })
+	expect(frames.filter((frame) => frame.t === "c")).toEqual([])
+	const fill = framesIn(await (await app.fetch(get("/p?_flare=fill"))).text())
+	expect(pageFrame(fill)).toMatchObject({ d: { latest: { __deferred: true, key: "latest", kept: true } } })
+	expect(fill).toContainEqual({ t: "c", m: "_root_/p", k: "d0", d: "late" })
+	expect(fill.filter((frame) => frame.t === "c" && frame.k === "latest")).toEqual([])
 	expect(latest).toHaveBeenCalledOnce()
 	expect(late).toHaveBeenCalledOnce()
 })
@@ -257,3 +259,8 @@ it("shared context throws", async () => {
 	await settle()
 	expect(set).not.toHaveBeenCalled()
 })
+
+// The stored page's own `l` frame.
+function pageFrame(frames: Frame[]): Frame | undefined {
+	return frames.find((frame) => frame.t === "l" && frame.m === "_root_/p")
+}

@@ -1,4 +1,5 @@
 import { expect, it } from "vitest"
+import { fromWire } from "../../shared/protocol/value.ts"
 import { stateScript } from "../render/state.ts"
 import { fromSentinel, newSentinel, toSentinel } from "./nonce.ts"
 
@@ -36,7 +37,8 @@ it("other attr", () => {
 it("state field", () => {
 	const stored = toSentinel(state("abc", { nonce: "abc" }), "abc", S)
 	expect(stored).toBe(state(S, { nonce: "abc" }))
-	expect(stored).toContain('"data":{"nonce":"abc"}')
+	const payload = stored.slice(stored.indexOf("self.flare=") + 11, stored.lastIndexOf("</script>"))
+	expect(fromWire(JSON.parse(payload).matches[0].data)).toEqual({ nonce: "abc" })
 })
 
 // Loader data holding a closing script tag and a new script stays inert text through the write and a hit: the state is

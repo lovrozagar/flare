@@ -4,6 +4,7 @@ import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { createServer } from "./create.ts"
+import { stateIn } from "../wire.fixture.ts"
 
 // Route `.input()` through createServer (dx/builder.md): validators run before authenticate, and their output
 // replaces that side for the match's later callbacks and render props.
@@ -79,7 +80,8 @@ it("input output", async () => {
 		{ render: { params: { id: 7 }, search: { page: 2 } } },
 		{ hook: { page: 2 } },
 	])
-	expect(body).toContain('"params":{"id":7},"search":{"page":2}')
+	// The document state carries the validated values on the wire, as a navigation's `v` frame does (B145).
+	expect(stateIn(body).at(-1)).toMatchObject({ params: { id: 7 }, search: { page: 2 } })
 })
 
 // The observability options dx/observability.md plans are not in v1: `ServerOptions` has no such key, and a server

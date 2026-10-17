@@ -5,7 +5,7 @@ import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import type { Effects } from "../../shared/route-builder/index.ts"
 import { createRouter, type Router } from "../../shared/router/create-router.ts"
-import { env, stops, type Dom } from "./boot.fixture.ts"
+import { env, stops, type Dom, stateText } from "./boot.fixture.ts"
 import { bootClient, type ClientEnv } from "./create-client.ts"
 import { createReady, type ReadyContext } from "./ready.ts"
 
@@ -51,7 +51,7 @@ function install(data: unknown, extra: Record<string, unknown> = {}, error: unkn
 		{ id: "_root_/", params: {}, search: {}, data, preloader: {}, head: { title: "Home" }, error },
 	]
 	const state = { matches, nonce: "", ...extra }
-	document.body.innerHTML = `<script id="flare-state">self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
+	document.body.innerHTML = `<script id="flare-state">${stateText(state)}</script><div id="app"></div>`
 	;(globalThis as Dom).flare = { ...state }
 	return document.getElementById("app") as HTMLElement
 }
@@ -185,7 +185,7 @@ it("refetch location", async () => {
 		},
 	]
 	const state = { matches, nonce: "", at: Date.now() }
-	document.body.innerHTML = `<script id="flare-state">self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
+	document.body.innerHTML = `<script id="flare-state">${stateText(state)}</script><div id="app"></div>`
 	;(globalThis as Dom).flare = { ...state }
 	const host = document.getElementById("app") as HTMLElement
 	const fetch = vi.fn<ClientEnv["fetch"]>(async () => answer("_root_/users/[id]", "net"))

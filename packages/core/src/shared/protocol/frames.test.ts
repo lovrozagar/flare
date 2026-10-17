@@ -64,8 +64,10 @@ it("e prod", () => {
 	expect(prod).not.toHaveProperty("e.stack")
 })
 
-// A response past 10,000 frames, or a frame nested past 256 levels, would exhaust the tab: past either cap the decoder
-// gives one `e` frame and stops, so the navigation fails cleanly (v0's cap, plan 21 16.5, BUGS.md 222).
+// A response past 10,000 frames, or a line nested past 1,024 JSON levels, would exhaust the tab: past either cap the
+// decoder gives one `e` frame and stops, so the navigation fails cleanly (v0's cap, plan 21 16.5, BUGS.md 222). The cap
+// reads the raw line before a value is decoded; a wire value nests three JSON levels per object, so a value 300 objects
+// deep still arrives (B145).
 it("caps", () => {
 	const decoder = frameDecoder()
 	const line = encodeFrame({ t: "r" })
@@ -73,10 +75,29 @@ it("caps", () => {
 	expect(frames).toHaveLength(10_001)
 	expect(frames.at(-1)).toEqual({ t: "e", m: "", e: { message: "Over 10000 frames" } })
 	expect(decoder.push(line)).toEqual([])
-	const deep = frameDecoder()
-	const nested = `{"t":"l","m":"a","d":${"[".repeat(300)}${"]".repeat(300)}}\n`
-	expect(deep.push(nested)).toEqual([{ t: "e", m: "", e: { message: "Frame nested over 256 levels" } }])
-	expect(deep.push(line)).toEqual([])
-	const shallow = `{"t":"l","m":"a","d":${"[".repeat(200)}${"]".repeat(200)}}\n`
-	expect(frameDecoder().push(shallow)).toHaveLength(1)
+	const tooDeep = [{ t: "e", m: "", e: { message: "Frame nested over 1024 levels" } }]
+	const raw = frameDecoder()
+	expect(raw.push(`{"t":"l","m":"a","d":${"[".repeat(1100)}${"]".repeat(1100)}}\n`)).toEqual(tooDeep)
+	expect(raw.push(line)).toEqual([])
+	expect(frameDecoder().push(encodeFrame({ t: "l", m: "a", d: nested(400) }))).toEqual(tooDeep)
+	expect(frameDecoder().push(encodeFrame({ t: "l", m: "a", d: nested(300) }))).toEqual([
+		{ t: "l", m: "a", d: nested(300) },
+	])
+})
+
+function nested(depth: number): unknown {
+	let value: unknown = {}
+	for (let level = 0; level < depth; level++) value = { child: value }
+	return value
+}
+
+// A frame's app values travel as wire values, so a Date, a Map, and an undefined key arrive as they were: an `l` frame's
+// data, preloader context, and validated params and search, and a `c` frame's value (B145).
+it("wire values", () => {
+	const value = { at: new Date(1), map: new Map([["k", 1]]), gone: undefined }
+	const loaded: Frame = { t: "l", m: "a", d: value, p: { value }, v: { params: { id: 1n }, search: {} } }
+	expect(decodeLine(encodeFrame(loaded))).toEqual(loaded)
+	const chunk: Frame = { t: "c", m: "a", k: "d0", d: value }
+	expect(decodeLine(encodeFrame(chunk))).toEqual(chunk)
+	expect(decodeLine(encodeFrame({ t: "l", m: "a", d: null }))).toEqual({ t: "l", m: "a", d: null })
 })

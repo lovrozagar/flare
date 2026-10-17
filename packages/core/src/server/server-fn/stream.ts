@@ -1,5 +1,6 @@
 import type { ErrorSink } from "../render/projector.ts"
 import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts"
+import { dataToWire } from "../../shared/protocol/value.ts"
 
 const encoder = new TextEncoder()
 
@@ -35,5 +36,5 @@ export function streamEnvelopes(
 }
 
 function line(envelope: Envelope): Uint8Array {
-	return encoder.encode(`${JSON.stringify(envelope)}\n`)
+	return encoder.encode(`${JSON.stringify(dataToWire(envelope))}\n`)
 }

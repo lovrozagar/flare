@@ -1,5 +1,6 @@
 import type { Located } from "../../shared/route-builder/index.ts"
 import { registeredQuery } from "../../shared/protocol/index.ts"
+import { matchToWire } from "../../shared/protocol/value.ts"
 import { escapeAttr, escapeInlineScript } from "./escape.ts"
 
 export type StateMatch = {
@@ -81,8 +82,9 @@ export const STATE_ID = "flare-state"
 function payload(state: State): string {
 	const fill = state.fill === true ? { fill: true } : {}
 	const search = state.search ? { search: state.search } : {}
+	// Each match's app values travel as wire values (B145).
 	return JSON.stringify({
-		matches: state.matches,
+		matches: state.matches.map(matchToWire),
 		nonce: state.nonce,
 		build: state.build,
 		at: state.at,

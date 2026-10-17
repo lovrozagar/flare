@@ -11,6 +11,7 @@ import { createRouter } from "../../shared/router/create-router.ts"
 import { serveWith } from "../lifecycle/create.ts"
 import type { ServerFnRef } from "../../shared/server-fn/builder.ts"
 import { createServerFn, InputError, dispatch } from "./dispatch.ts"
+import { fromWire, toWire } from "../../shared/protocol/value.ts"
 
 function noop(): void {}
 
@@ -27,6 +28,12 @@ type Scope = {
 
 type Answer = { status: number; headers: Headers; body: string }
 
+// An envelope as the client reads it: JSON, its data a wire value (B145).
+function read(body: string): unknown {
+	const envelope: Record<string, unknown> = JSON.parse(body)
+	return "data" in envelope ? { ...envelope, data: fromWire(envelope["data"]) } : envelope
+}
+
 function named(name: string, method: "get" | "post" = "post") {
 	return { method, __id: `${name}-id`, __name: name }
 }
@@ -34,7 +41,7 @@ function named(name: string, method: "get" | "post" = "post") {
 function post(fn: { id: string }, input: unknown, headers: Record<string, string> = {}): Request {
 	return new Request(`http://localhost/_flare/fn/${fn.id}`, {
 		method: "POST",
-		body: JSON.stringify(input),
+		body: JSON.stringify(toWire(input)),
 		headers: { origin: "http://localhost", "content-type": "application/json", ...headers },
 	})
 }
@@ -123,7 +130,7 @@ it("order", async () => {
 		},
 	}
 	const answer = await send([guarded], post(guarded, 1), scope)
-	expect(JSON.parse(answer.body)).toEqual({ name: "guarded", status: 200, data: "done" })
+	expect(read(answer.body)).toEqual({ name: "guarded", status: 200, data: "done" })
 	expect(seen).toEqual(["lookup", "authenticate", "input", "authorize", "handler"])
 	// Each stage answers before the next one runs.
 	seen.length = 0
@@ -151,7 +158,7 @@ it("order", async () => {
 	seen.length = 0
 	const invalid = await send([checked], post(checked, 1))
 	expect(invalid.status).toBe(400)
-	expect(JSON.parse(invalid.body)).toEqual({ name: "checked", status: 400, message: "Invalid input", errors: failed })
+	expect(read(invalid.body)).toEqual({ name: "checked", status: 400, message: "Invalid input", errors: failed })
 	expect((await send([checked], post(checked, "long"), { bodyLimit: 2 })).status).toBe(413)
 	expect(seen).toEqual([])
 })
@@ -165,7 +172,7 @@ it("forbidden", async () => {
 	const answer = await send([denied], post(denied, 1), { sink: { dev: true, send: overlay, log: quiet } })
 	expect(answer.status).toBe(403)
 	expect(answer.headers.get("content-type")).toMatch(/^application\/json/)
-	expect(JSON.parse(answer.body)).toEqual({ name: "denied", status: 403, message: "Forbidden" })
+	expect(read(answer.body)).toEqual({ name: "denied", status: 403, message: "Forbidden" })
 	expect(handler).not.toHaveBeenCalled()
 	expect(overlay).not.toHaveBeenCalled()
 })
@@ -188,7 +195,7 @@ it("in request", async () => {
 	const env = { region: "eu" }
 	const context = { tenant: "t" }
 	const answer = await send([outer], request, { authenticate, env, serverContext: () => context })
-	expect(JSON.parse(answer.body)).toEqual({ name: "outer", status: 200, data: { doubled: 4 } })
+	expect(read(answer.body)).toEqual({ name: "outer", status: 200, data: { doubled: 4 } })
 	expect(seen).toEqual([{ input: { doubled: 4 }, auth: session, env, request, serverContext: context }])
 	expect(authenticate).toHaveBeenCalledOnce()
 	// In-process, each failure is thrown as it is, unprojected.
@@ -242,11 +249,15 @@ it("base path", async () => {
 	const app = serveWith({ router, serverFns: { [echo.id]: async () => echo } }, { dev: false, log: quiet })
 	const at = (path: string) =>
 		app.fetch(
-			new Request(`http://localhost${path}`, { method: "POST", body: "1", headers: { origin: "http://localhost" } }),
+			new Request(`http://localhost${path}`, {
+				method: "POST",
+				body: JSON.stringify(toWire(1)),
+				headers: { origin: "http://localhost" },
+			}),
 		)
 	const based = await at(`/app/_flare/fn/${echo.id}`)
 	expect(based.status).toBe(200)
-	expect(await based.json()).toEqual({ name: "echo", status: 200, data: {} })
+	expect(read(await based.text())).toEqual({ name: "echo", status: 200, data: {} })
 	// The root prefix is an ordinary path under a base: the router answers it, and dispatch never sees it.
 	const rooted = await at(`/_flare/fn/${echo.id}`)
 	expect(rooted.status).toBe(405)

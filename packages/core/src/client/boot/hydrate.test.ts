@@ -1,4 +1,5 @@
 import { expect, it } from "vitest"
+import { stateText } from "./boot.fixture.ts"
 import { readState, renderedLocation } from "./hydrate.ts"
 
 const match = {
@@ -12,7 +13,7 @@ const match = {
 }
 
 it("reads the script", () => {
-	document.body.innerHTML = `<script>var marker = 1</script><script id="flare-state">self.flare=${JSON.stringify({ matches: [match] })}</script><div id="app"></div>`
+	document.body.innerHTML = `<script>var marker = 1</script><script id="flare-state">${stateText({ matches: [match] })}</script><div id="app"></div>`
 	expect(readState().matches[0]).toEqual(match)
 })
 
@@ -21,7 +22,7 @@ it("reads the script", () => {
 it("state among lookalikes", () => {
 	const lookalike = `<script>self.flare={"matches":[]}</script><p>self.flare=text</p>`
 	const forged = `<script id="flare-state">self.flare={"matches":[]}</script>`
-	document.body.innerHTML = `${lookalike}${forged}<script id="flare-state">self.flare=${JSON.stringify({ matches: [match] })}</script>`
+	document.body.innerHTML = `${lookalike}${forged}<script id="flare-state">${stateText({ matches: [match] })}</script>`
 	expect(readState().matches).toEqual([match])
 })
 

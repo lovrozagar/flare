@@ -14,6 +14,7 @@ import type { FlareStore, FlareStoreEntry } from "./contract.ts"
 import { createMemoryStore } from "./memory.ts"
 import { fromSentinel } from "./nonce.ts"
 import { buildEntry, entryTags, storeTiming, type EntryInput, type StoredPage } from "./write.ts"
+import { framesIn } from "../wire.fixture.ts"
 
 // The server build's sheet. The source module is empty.
 vi.mock("../../shared/css/sheet.ts", () => ({ builtSheet: ".a{color:red}.unused{color:blue}" }))
@@ -254,7 +255,11 @@ it("resolved defer", async () => {
 	expect(entry.html).toContain("41")
 	expect(entry.html).not.toContain("outer")
 	expect(entry.html).not.toContain("inner")
-	expect(entry.ndjson).toContain('{"t":"l","m":"_root_/p","d":{"one":{"__deferred":true,"key":"d0","value":1}}}')
+	expect(framesIn(entry.ndjson)).toContainEqual({
+		t: "l",
+		m: "_root_/p",
+		d: { one: { __deferred: true, key: "d0", value: 1 } },
+	})
 	expect(entry.ndjson).not.toContain('"t":"c"')
 })
 

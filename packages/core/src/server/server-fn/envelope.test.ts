@@ -11,6 +11,7 @@ import type { Authenticate } from "../lifecycle/options.ts"
 import type { ServerFnRef } from "../../shared/server-fn/builder.ts"
 import { createServerFn } from "./dispatch.ts"
 import { errorEnvelope, okEnvelope } from "./envelope.ts"
+import { toWire } from "../../shared/protocol/value.ts"
 
 function noop(): void {}
 
@@ -106,7 +107,9 @@ const router = createRouter({ layouts: { _root_: createRootLayout("_root_").rend
 function call(fn: ServerFnRef, authenticate?: Authenticate): Promise<Response> {
 	const app = serveWith({ router, authenticate, serverFns: { [fn.id]: async () => fn } }, sink(false))
 	const headers = { origin: "http://localhost", "content-type": "application/json" }
-	return app.fetch(new Request(`http://localhost/_flare/fn/${fn.id}`, { method: "POST", body: "null", headers }))
+	return app.fetch(
+		new Request(`http://localhost/_flare/fn/${fn.id}`, { method: "POST", body: JSON.stringify(toWire(null)), headers }),
+	)
 }
 
 function named(name: string) {

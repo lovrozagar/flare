@@ -1,5 +1,18 @@
-import { dataRequests, deepOnly, expect, fnId, idle, isProd, open, serverOf, test } from "./docs.fixture.ts"
+import {
+	dataRequests,
+	deepOnly,
+	envelopeOf,
+	expect,
+	fnId,
+	idle,
+	isProd,
+	open,
+	serverOf,
+	test,
+	wire,
+} from "./docs.fixture.ts"
 import { flushEvents } from "./flush.ts"
+import { framesIn, stateIn } from "../../src/server/wire.fixture.ts"
 
 // Deferred data, TanStack Query, server functions, server context, and the env helpers (bits/15 docs-data).
 deepOnly()
@@ -18,9 +31,9 @@ const STEPS = ["resolve routes", "bundle client", "bundle server", "prerender pa
 // beside the released list, so the order holds on any machine; a slow runner once settled `stats` first (BUGS.md 69).
 test("defer two skeletons", async ({ page, http, docs }) => {
 	const call = (id: string) =>
-		http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: {} })
+		http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: wire({}) })
 	// The boot sets FLARE_E2E, without which the gate refuses to hold.
-	expect(await (await call(HOLD_STATS)).json()).toMatchObject({ data: { held: true } })
+	expect(envelopeOf(await (await call(HOLD_STATS)).json())).toMatchObject({ data: { held: true } })
 	try {
 		await open(page, docs.origin, "/changelog")
 		await expect(page.locator("#releases")).toBeVisible()
@@ -61,11 +74,14 @@ test("defer resolve stored", async ({ http, docs }, info) => {
 	expect(body).toContain('id="releases-loading"')
 	// The stored state carries the store-resolved value inline, and the fill, which runs only the holes, sends it as
 	// `kept` with no frame of its own (BUGS.md 94).
-	expect(body).toContain('"latest":{"__deferred":true,"key":"latest","value":{"version":"1.0.0"')
-	const fill = await (await http.get(`${docs.origin}/changelog?_flare=fill`)).text()
-	expect(fill).toContain('"latest":{"__deferred":true,"key":"latest","kept":true}')
-	expect(fill).not.toContain('"k":"latest"')
-	expect(fill).toContain('"k":"releases"')
+	const latest = { __deferred: true, key: "latest", value: expect.objectContaining({ version: "1.0.0" }) }
+	expect(stateIn(body).at(-1)?.["data"]).toMatchObject({ latest })
+	const fill = framesIn(await (await http.get(`${docs.origin}/changelog?_flare=fill`)).text())
+	const page = fill.find((frame) => frame.t === "l" && frame.m.endsWith("changelog"))
+	expect(page).toMatchObject({ d: { latest: { __deferred: true, key: "latest", kept: true } } })
+	const values = fill.flatMap((frame) => (frame.t === "c" ? [frame.k] : []))
+	expect(values).not.toContain("latest")
+	expect(values).toContain("releases")
 })
 
 test("query prefetched", async ({ page, docs }) => {
@@ -150,7 +166,7 @@ test("vote holds still", async ({ page, docs }) => {
 })
 
 test("server fn get cached", async ({ http, docs }) => {
-	const input = encodeURIComponent(JSON.stringify({ q: "route" }))
+	const input = encodeURIComponent(JSON.stringify(wire({ q: "route" })))
 	const response = await http.get(`${docs.origin}/_flare/fn/${SEARCH}?_i=${input}`)
 	expect(response.status()).toBe(200)
 	expect(response.headers()["cache-control"]).toMatch(/max-age=60/)
@@ -189,7 +205,11 @@ test("unsafe error", async ({ page, docs }, info) => {
 test("stream", async ({ page, http, docs }) => {
 	const run = `gate-${Math.random().toString(16).slice(2, 10)}`
 	const call = async (id: string): Promise<unknown> =>
-		(await http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: { run } })).json()
+		envelopeOf(
+			await (
+				await http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: wire({ run }) })
+			).json(),
+		)
 	// The boot sets FLARE_E2E, without which the gate refuses to hold.
 	expect(await call(HOLD_BUILD)).toMatchObject({ data: { held: true } })
 	await open(page, docs.origin, `/playground?run=${run}`)

@@ -1,6 +1,6 @@
-{"t":"l","m":"_root_/users/[id]?id=7","d":{"name":"Ada","tags":["a","b"]},"p":{"locale":"en"}}
-{"t":"l","m":"_root_","d":null}
-{"t":"c","m":"_root_/users/[id]?id=7","k":"d0","d":{"posts":3}}
+{"t":"l","m":"_root_/users/[id]?id=7","d":{"t":{"t":10,"i":0,"p":{"k":["name","tags"],"v":[{"t":1,"s":"Ada"},{"t":9,"i":1,"a":[{"t":1,"s":"a"},{"t":1,"s":"b"}],"o":0}]},"o":0},"f":127,"m":[]},"p":{"t":{"t":10,"i":0,"p":{"k":["locale"],"v":[{"t":1,"s":"en"}]},"o":0},"f":127,"m":[]}}
+{"t":"l","m":"_root_","d":{"t":{"t":2,"s":0},"f":127,"m":[]}}
+{"t":"c","m":"_root_/users/[id]?id=7","k":"d0","d":{"t":{"t":10,"i":0,"p":{"k":["posts","at"],"v":[{"t":0,"s":3},{"t":5,"i":1,"s":"1970-01-01T00:00:00.000Z"}]},"o":0},"f":127,"m":[]}}
 {"t":"e","m":"_root_/users/[id]?id=7","e":{"message":"secret","stack":"Error: secret\n    at loader (file.ts:1:1)"}}
 {"t":"e","m":"_root_/users/[id]?id=7","k":"d1","e":{"message":"Something went wrong","digest":"0123456789ab"}}
 {"t":"h","m":"_root_","d":{"title":"Home"}}

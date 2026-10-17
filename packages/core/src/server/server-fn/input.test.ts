@@ -1,8 +1,14 @@
 import { expect, it } from "vitest"
 import type { StandardIssue, Validator } from "../../shared/server-fn/builder.ts"
 import { bodyLimitOf, readInput } from "./input.ts"
+import { toWire } from "../../shared/protocol/value.ts"
 
 const MIB = 1024 * 1024
+
+// A body as the client sends it: a wire value (B145).
+function wire(value: unknown): string {
+	return JSON.stringify(toWire(value))
+}
 
 function post(body: BodyInit | null, headers: Record<string, string> = {}): Request {
 	return new Request("https://app.example.com/_flare/fn/abc", { method: "POST", body, headers })
@@ -28,7 +34,7 @@ const dev = { dev: true }
 
 it("body cap", async () => {
 	expect(await readInput(post("x".repeat(MIB + 1)), { method: "post" }, dev)).toEqual({ status: 413 })
-	expect(await readInput(post("{}", { "content-length": String(MIB + 1) }), { method: "post" }, dev)).toEqual({
+	expect(await readInput(post(wire({}), { "content-length": String(MIB + 1) }), { method: "post" }, dev)).toEqual({
 		status: 413,
 	})
 	const streamed = new ReadableStream<Uint8Array>({
@@ -42,19 +48,24 @@ it("body cap", async () => {
 	const request = new Request("https://app.example.com/_flare/fn/abc", init)
 	expect(await readInput(request, { method: "post" }, dev)).toEqual({ status: 413 })
 	expect(
-		await readInput(post('{"a":1}'), { method: "post", input: (value) => value }, { dev: true, limit: 4 }),
+		await readInput(post(wire({ a: 1 })), { method: "post", input: (value) => value }, { dev: true, limit: 4 }),
 	).toEqual({ status: 413 })
 })
 
 it("validator failure", async () => {
 	const failing = standard([{ message: "required", path: ["email"] }])
-	expect(await readInput(post("{}"), { method: "post", input: failing }, dev)).toEqual({
+	expect(await readInput(post(wire({})), { method: "post", input: failing }, dev)).toEqual({
 		status: 400,
 		errors: { issues: [{ message: "required", path: ["email"] }], fieldErrors: { email: ["required"] } },
 	})
 	expect(await readInput(post("{not json"), { method: "post", input: failing }, dev)).toEqual({
 		status: 400,
 		errors: { issues: [{ message: "The body is not JSON", path: [] }], fieldErrors: {} },
+	})
+	// Plain JSON from another client is no wire value (B145).
+	expect(await readInput(post('{"email":"a"}'), { method: "post", input: failing }, dev)).toEqual({
+		status: 400,
+		errors: { issues: [{ message: "The body is not a wire value", path: [] }], fieldErrors: {} },
 	})
 	const get = new Request("https://app.example.com/_flare/fn/abc?_i=%7B&x=1")
 	expect(await readInput(get, { method: "get", input: failing }, dev)).toEqual({
@@ -64,7 +75,7 @@ it("validator failure", async () => {
 })
 
 it("promise", async () => {
-	const body = post('{"n":2}')
+	const body = post(wire({ n: 2 }))
 	const asStandard: Validator = { "~standard": { validate: async (value: unknown) => ({ value }) } }
 	const asParse: Validator = { parse: async (value: unknown) => ({ parsed: value }) }
 	expect(await readInput(body.clone(), { method: "post", input: asStandard }, dev)).toEqual({
@@ -79,7 +90,7 @@ it("promise", async () => {
 		status: 200,
 		input: { called: { n: 2 } },
 	})
-	const get = new Request(`https://app.example.com/_flare/fn/abc?_i=${encodeURIComponent('{"q":"x"}')}`)
+	const get = new Request(`https://app.example.com/_flare/fn/abc?_i=${encodeURIComponent(wire({ q: "x" }))}`)
 	expect(await readInput(get, { method: "get", input: asFunction }, dev)).toEqual({
 		status: 200,
 		input: { called: { q: "x" } },
@@ -97,7 +108,7 @@ it("field array", async () => {
 		{ message: "no at sign", path: [{ key: "email" }, 0] },
 		{ message: "bad zip", path: [{ key: "address" }, "zip"] },
 	])
-	const result = await readInput(post("{}"), { method: "post", input: failing }, dev)
+	const result = await readInput(post(wire({})), { method: "post", input: failing }, dev)
 	expect(result).toEqual({
 		status: 400,
 		errors: {
@@ -114,7 +125,7 @@ it("field array", async () => {
 			throw Object.assign(new Error("invalid"), { issues: [{ message: "missing", path: ["name"] }] })
 		},
 	}
-	expect(await readInput(post("{}"), { method: "post", input: thrown }, dev)).toEqual({
+	expect(await readInput(post(wire({})), { method: "post", input: thrown }, dev)).toEqual({
 		status: 400,
 		errors: { issues: [{ message: "missing", path: ["name"] }], fieldErrors: { name: ["missing"] } },
 	})
@@ -122,19 +133,19 @@ it("field array", async () => {
 
 it("empty path", async () => {
 	const failing = standard([{ message: "the whole input is wrong" }])
-	expect(await readInput(post("{}"), { method: "post", input: failing }, dev)).toEqual({
+	expect(await readInput(post(wire({})), { method: "post", input: failing }, dev)).toEqual({
 		status: 400,
 		errors: { issues: [{ message: "the whole input is wrong", path: [] }], fieldErrors: {} },
 	})
-	expect(await readInput(post("{}"), { method: "post", input: plain }, dev)).toEqual({
+	expect(await readInput(post(wire({})), { method: "post", input: plain }, dev)).toEqual({
 		status: 400,
 		errors: { issues: [{ message: "nope", path: [] }], fieldErrors: {} },
 	})
-	expect(await readInput(post("{}"), { method: "post", input: plain }, { dev: false })).toEqual({
+	expect(await readInput(post(wire({})), { method: "post", input: plain }, { dev: false })).toEqual({
 		status: 400,
 		errors: { issues: [{ message: "Something went wrong", path: [] }], fieldErrors: {} },
 	})
-	expect(await readInput(post("{}"), { method: "post", input: odd }, dev)).toEqual({
+	expect(await readInput(post(wire({})), { method: "post", input: odd }, dev)).toEqual({
 		status: 400,
 		errors: { issues: [{ message: "text", path: [] }], fieldErrors: {} },
 	})

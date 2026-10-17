@@ -9,6 +9,7 @@ import { createPathSegment } from "../../shared/route-builder/segment.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { createMemoryStore } from "../cache/memory.ts"
 import { serveWith } from "../lifecycle/create.ts"
+import { framesIn } from "../wire.fixture.ts"
 
 const open = { requires: false, reads: false }
 const reads = { requires: false, reads: true }
@@ -121,5 +122,5 @@ it("segment cdn served", async () => {
 	expect(hit.headers.get("cdn-cache-control")).toBe("public, max-age=60, stale-while-revalidate=600")
 	expect(hit.headers.get("cache-tag")).toBe("api-reference, flare-build-dev")
 	const data = await (await app.fetch(new Request("https://example.com/api/y?_flare=data"))).text()
-	expect(data).toContain('{"t":"l","m":"_root_/api","d":null}')
+	expect(framesIn(data)).toContainEqual({ t: "l", m: "_root_/api", d: null })
 })

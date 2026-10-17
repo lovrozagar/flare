@@ -1,10 +1,11 @@
 import { flush } from "solid-js"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { encodeFrame, QUERY_GETTER, type Frame } from "../../shared/protocol/index.ts"
+import { dataToWire } from "../../shared/protocol/value.ts"
 import { createServerFn } from "../server-fn/call.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { navigate } from "../navigation/active.ts"
-import { env, install, routerOf, seen, stops, type Dom } from "./boot.fixture.ts"
+import { env, install, routerOf, seen, stops, type Dom, stateText } from "./boot.fixture.ts"
 import { bootClient, createClient, devSend, type ClientEnv } from "./create-client.ts"
 import { createReady, type ReadyContext } from "./ready.ts"
 
@@ -289,11 +290,11 @@ it("overlay", async () => {
 it("server fn call", async () => {
 	const host = install("b1")
 	const answers: Record<string, () => Response> = {
-		"/_flare/fn/echo": () => Response.json({ name: "echo", status: 200, data: { n: 1 } }),
+		"/_flare/fn/echo": () => Response.json(dataToWire({ name: "echo", status: 200, data: { n: 1 } })),
 		"/_flare/fn/moved": () =>
 			Response.json({ name: "moved", status: 303, redirect: { to: "/#top", status: 303, replace: true } }),
 		"/_flare/fn/stale": () =>
-			Response.json({ name: "stale", status: 200, data: 1 }, { headers: { "flare-build": "b2" } }),
+			Response.json(dataToWire({ name: "stale", status: 200, data: 1 }), { headers: { "flare-build": "b2" } }),
 	}
 	const fetch = vi.fn<ClientEnv["fetch"]>(async (url) => (answers[String(url)] ?? (() => Response.error()))())
 	const browser = env(host, fetch)
@@ -315,13 +316,12 @@ it("server fn call", async () => {
 	expect(browser.assign).toHaveBeenCalledWith(window.location.href)
 })
 
-// The client graph's stream function as the boundary transform emits it: the generator is stripped to `undefined`, and
-// the booted transport still sends it to the NDJSON reader by its kind (BUGS.md B14). A variable, so the internal
-// fields type-check.
+// The client graph's stream function as the boundary transform emits it, its generator stripped to `undefined`: the
+// booted transport sends it to the NDJSON reader by its kind (BUGS.md B14). A variable, so its fields type-check.
 it("stream call", async () => {
 	const host = install("b1")
 	const ndjson =
-		'{"name":"ticks","status":200,"data":1}\n{"name":"ticks","status":200,"data":2}\n' +
+		`${[1, 2].map((data) => JSON.stringify(dataToWire({ name: "ticks", status: 200, data }))).join("\n")}\n` +
 		'{"name":"ticks","status":200,"end":true}\n'
 	const fetch = vi.fn<ClientEnv["fetch"]>(
 		async () => new Response(ndjson, { headers: { "content-type": "application/x-ndjson" } }),
@@ -337,7 +337,7 @@ it("stream call", async () => {
 })
 
 function echoed(): Response {
-	return Response.json({ name: "echo", status: 200, data: 1 })
+	return Response.json(dataToWire({ name: "echo", status: 200, data: 1 }))
 }
 
 function aboutData(): Response {
@@ -434,7 +434,7 @@ it("fill on hydrate", async () => {
 	const filled = { ...Object((globalThis as Dom).flare), fill: true }
 	;(globalThis as Dom).flare = filled
 	const script = document.querySelector("script")
-	if (script !== null) script.textContent = `self.flare=${JSON.stringify(filled)}`
+	if (script !== null) script.textContent = `${stateText(filled)}`
 	const frames = [
 		{ t: "l", m: "_root_", d: null },
 		{ t: "l", m: "_root_/", d: "filled" },

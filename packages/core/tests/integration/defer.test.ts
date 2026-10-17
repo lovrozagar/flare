@@ -11,6 +11,7 @@ import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule } from "../../src/shared/router/create-router.ts"
 import { ENGINES, startHarness, type Api, type AppResult, type Engine, type Harness } from "./hydrate.harness.ts"
 import { serve } from "./builder-app.ts"
+import { framesIn, stateIn } from "../../src/server/wire.fixture.ts"
 
 // `defer` through the real `createServer(...).fetch` (B96, dx/defer.md): a value the loader defers streams after the
 // shell, a prefetch never runs it, a buffered document waits for it, and a stored page resolves or keeps a hole by its
@@ -57,12 +58,8 @@ function serverFor(
 
 const later = <T>(value: T, ms: number): Promise<T> => new Promise((resolve) => setTimeout(() => resolve(value), ms))
 
-function frames(text: string): unknown[] {
-	return text
-		.split("\n")
-		.filter((line) => line !== "")
-		.map((line) => JSON.parse(line) as unknown)
-}
+// A data answer's frames as the client decodes them (B145).
+const frames = framesIn
 
 // A response that is not stored: the loader data holds `{ __deferred, key }` placeholders, a named key and the first
 // unnamed one `d0`; the data response sends the `l` frames, `r`, then one `c` frame per value as it settles, then `d`.
@@ -90,7 +87,7 @@ it("not stored", async () => {
 	const reader = (await server.fetch(new Request(`${SITE}/p`))).body?.getReader()
 	const decoder = new TextDecoder()
 	const first = decoder.decode((await reader?.read())?.value)
-	expect(first).toContain('"reviews":{"__deferred":true,"key":"reviews"}')
+	expect(stateIn(first).at(-1)?.["data"]).toMatchObject({ reviews: { __deferred: true, key: "reviews" } })
 	expect(first).not.toContain("five stars")
 	let rest = ""
 	for (let chunk = await reader?.read(); chunk !== undefined && !chunk.done; chunk = await reader?.read()) {
@@ -161,9 +158,15 @@ it("stored modes", async () => {
 		},
 	})
 	expect(stored.some((frame) => Reflect.get(Object(frame), "t") === "c")).toBe(false)
-	const fill = await (await server.fetch(new Request(`${SITE}/p?_flare=fill`))).text()
-	expect(fill).toContain('"t":"c","m":"_root_/p","k":"hole","d":"later value"')
-	expect(fill).toContain('"kept":{"__deferred":true,"key":"kept","kept":true}')
+	const fill = frames(await (await server.fetch(new Request(`${SITE}/p?_flare=fill`))).text())
+	expect(fill).toContainEqual({ t: "c", m: "_root_/p", k: "hole", d: "later value" })
+	expect(fill).toContainEqual(
+		expect.objectContaining({
+			t: "l",
+			m: "_root_/p",
+			d: expect.objectContaining({ kept: { __deferred: true, key: "kept", kept: true } }),
+		}),
+	)
 })
 
 let harness: Harness | undefined
@@ -238,16 +241,15 @@ describe.each(ENGINES)("%s", (engine) => {
 	})
 })
 
-// A deferred value JSON cannot hold, a bigint or a cycle, settles as that key's error frame on a client navigation; the
-// others still stream, the body ends with `d`, and nothing rejects unhandled, which would stop a Node or Bun server
-// (BUGS.md 149).
+// A deferred value the wire cannot hold, a function or a class instance, settles as that key's error frame on a client
+// navigation; the others still stream, the body ends with `d`, and nothing rejects unhandled, which would stop a Node or
+// Bun server (BUGS.md 149; a BigInt and a cycle are wire values, B145).
 it("unserializable deferred", async () => {
-	const cycle: Record<string, unknown> = {}
-	cycle["self"] = cycle
+	class Thing {}
 	const page = createPage("_root_/odd")
 		.loader(({ defer }) => ({
-			big: defer(() => Promise.resolve(10n)),
-			loop: defer(() => Promise.resolve(cycle)),
+			big: defer(() => Promise.resolve(() => 10)),
+			loop: defer(() => Promise.resolve(new Thing())),
 			fine: defer(() => Promise.resolve("ok")),
 		}))
 		.render(() => "odd")
@@ -257,7 +259,7 @@ it("unserializable deferred", async () => {
 	try {
 		const get = serve([{ id: "_root_/odd", path: "/odd", module: page }])
 		const answer = await get("/odd?_flare=data")
-		const lines = frames(answer.text) as Array<Record<string, unknown>>
+		const lines = frames(answer.text) as unknown as Array<Record<string, unknown>>
 		await new Promise((resolve) => setTimeout(resolve, 50))
 		expect(answer.status).toBe(200)
 		// The keys are the deferred ids in creation order: big, loop, fine.

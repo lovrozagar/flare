@@ -61,7 +61,7 @@ A plain `createMemo(async () => loaderData.reviews.promise)` still works on a pa
 
 Flare ships no `<Await>`, no skeleton, and no content-swap component. `useDeferred` is its one deferred hook (B80).
 
-The client builds the promise when it applies the `l` placeholder. A `c` frame resolves the promise for that `m` and `k`. A deferred `e` rejects it. The navigation commits and pushes at `r`, and these later frames do not push again. The document render awaits the same promise the loader started. Solid appends that boundary's fragment. Flare does not write a `c` frame into the HTML.
+A deferred value is a wire value on every path (B145): in the document it reaches the client through Solid's hydration data, which seroval writes, and in an `l` or `c` frame or an inline stored value through flare's frames, which seroval writes too, so a Date or a Map arrives as itself either way (`tests/integration/transport-client.test.ts` `one value everywhere`). The client builds the promise when it applies the `l` placeholder. A `c` frame resolves the promise for that `m` and `k`. A deferred `e` rejects it. The navigation commits and pushes at `r`, and these later frames do not push again. The document render awaits the same promise the loader started. Solid appends that boundary's fragment. Flare does not write a `c` frame into the HTML.
 
 `<Errored>` around the slot renders its fallback for that rejection. The route `errorRender` is not called, and a sibling `<Loading>` still swaps. An uncaught rejection is a failure of that match, and the walk in `dx/builder.md` runs (B77). A loader `e` frame has no `k` and is that walk as soon as it arrives.
 
