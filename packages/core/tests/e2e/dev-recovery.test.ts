@@ -36,3 +36,22 @@ test("load error recovers", async ({ page }, info) => {
 		await session.close()
 	}
 })
+
+// A route file that does not parse leaves every other page its dev styles: the document the server writes carries the
+// app's stylesheet, and the dev server never makes it wait out the styles' bound (plan 21 11.6).
+test("broken sibling route", async ({ page }, info) => {
+	test.skip(isProd(info) || serverOf(info).startsWith("workers"), "the Node and Bun dev handler")
+	const session = await bootCopy({ app: "docs", runtime: serverOf(info).split("-")[0] ?? "node" })
+	try {
+		writeFileSync(
+			`${session.appDir}/src/routes/[[locale]]/_root_/changelog/changelog.page.tsx`,
+			"export const route = (\n",
+		)
+		const response = await page.goto(`${session.origin}/docs/routing`)
+		expect(response?.status()).toBe(200)
+		expect(await response?.text()).toMatch(/<style[^>]*data-vite-dev-id="[^"]*\/src\/styles\.css"/)
+		expect(session.logs().filter((line) => line.includes("no dev styles"))).toEqual([])
+	} finally {
+		await session.close()
+	}
+})
