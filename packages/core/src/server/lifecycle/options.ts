@@ -1,6 +1,7 @@
 import type {
 	FlareRegister,
 	RegisterField,
+	RegisteredAuth,
 	RegisteredEnv,
 	RegisteredServerContext,
 	To,
@@ -24,7 +25,6 @@ export type Authenticate = (ctx: { request: Request; env: unknown } & Caller) =>
 
 type BaseOptions = {
 	router: Router
-	authenticate?: Authenticate
 	// Hosts whose `Sec-Fetch-Site: same-site` a server function accepts (B44).
 	sameSite?: readonly string[]
 	// The server function POST cap in bytes. 1 MiB when omitted.
@@ -55,6 +55,16 @@ type ContextFn<R extends FlareRegister> = (ctx: {
 	env: RegisteredEnv<R>
 }) => RegisteredServerContext<R>
 
+// The register's env reaches `authenticate`, and it answers the register's auth or null; with no auth registered, any
+// value (dx/types.md, plan 21 11.3).
+type AuthOption<R extends FlareRegister> = {
+	authenticate?: (
+		ctx: { request: Request; env: RegisteredEnv<R> } & Caller,
+	) => SessionOf<R> | null | Promise<SessionOf<R> | null>
+}
+
+type SessionOf<R extends FlareRegister> = unknown extends RegisterField<R, "auth"> ? unknown : RegisteredAuth<R>
+
 // Required once the app's FlareRegister declares serverContext (B75).
 type ContextOption<R extends FlareRegister> =
 	unknown extends RegisterField<R, "serverContext"> ? { serverContext?: ContextFn<R> } : { serverContext: ContextFn<R> }
@@ -72,9 +82,13 @@ type SecurityOption<R extends FlareRegister> = {
 		  }) => SecurityConfig)
 }
 
-export type ServerOptions<R extends FlareRegister = FlareRegister> = BaseOptions & ContextOption<R> & SecurityOption<R>
+export type ServerOptions<R extends FlareRegister = FlareRegister> = BaseOptions &
+	AuthOption<R> &
+	ContextOption<R> &
+	SecurityOption<R>
 
 export type RuntimeOptions = BaseOptions & {
+	authenticate?: Authenticate
 	serverContext?: ServerContextInput["serverContext"]
 	security?: ServerSecurity
 }

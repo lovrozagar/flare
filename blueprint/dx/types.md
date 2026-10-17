@@ -245,4 +245,4 @@ declare module "@lovrozagar/flare" {
 | `env` | `unknown`. This is the `env` on `fetch`, on loaders, and on `createServer({ authenticate })` |
 | `serverContext` | `Record<string, unknown>`. `serverCtx()` returns it |
 
-Codegen does not invent these three. An app that wants them typed writes the augmentation.
+Codegen does not invent these three. An app that wants them typed writes the augmentation. Once it does, `createServer({ authenticate })` reads `ctx.env` as `env` and must answer `auth` or `null`, sync or async; a session of another shape does not type-check (`app`: `checks-data.ts` `server authenticate`, plan 21 11.3, BUGS.md 250). `fetch`'s own `env` stays `unknown`: an adapter hands it the platform's bindings, a Workers `env` say, whose static type is the platform's and not the app's.
