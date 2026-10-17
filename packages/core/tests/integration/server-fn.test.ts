@@ -71,6 +71,21 @@ it("csrf", async () => {
 	expect(response.status).toBe(403)
 })
 
+// A same-site sender's headers.
+const from = (origin: string) => ({ origin, "sec-fetch-site": "same-site" })
+
+// `Sec-Fetch-Site: same-site` is accepted only from a host `sameSite` lists, on the app's own scheme; an empty list
+// rejects it (dx/server.md sameSite).
+it("same site", async () => {
+	const listed = serve([echo], { sameSite: ["app.example"] })
+	const statuses = [
+		(await listed.fetch(post(echo, { text: "hi" }, from("http://app.example")))).status,
+		(await listed.fetch(post(echo, { text: "hi" }, from("http://other.example")))).status,
+		(await serve([echo]).fetch(post(echo, { text: "hi" }, from("http://app.example")))).status,
+	]
+	expect(statuses).toEqual([200, 403, 403])
+})
+
 it("no store", async () => {
 	const response = await serve([echo]).fetch(post(echo, { text: "hi" }))
 	expect(response.status).toBe(200)
@@ -110,9 +125,11 @@ it("authenticate", async () => {
 			return auth
 		})
 	const anon = createServerFn(config("anon")).handler(({ auth }) => ({ auth }))
+	const callers: unknown[] = []
 	const server = serve([me, anon], {
-		authenticate: ({ request }) => {
+		authenticate: ({ request, callerData, callerChain }) => {
 			seen.push("authenticate")
+			callers.push({ callerData, callerChain })
 			const user = request.headers.get("x-user")
 			return user === null ? null : { user }
 		},
@@ -126,6 +143,8 @@ it("authenticate", async () => {
 	expect((await server.fetch(post(me, null, { "x-user": "ada" }))).status).toBe(403)
 	expect(await (await server.fetch(post(anon, null))).json().then(envelopeOf)).toMatchObject({ data: { auth: null } })
 	expect(seen).toHaveLength(3)
+	// A server function's caller is one entry named by the function, with no arguments (dx/server.md authenticate).
+	expect(callers[0]).toEqual({ callerData: [], callerChain: [{ route: "me", args: [] }] })
 })
 
 // A Standard Schema, `{ parse }`, or a function, each possibly async. A failure is 400 with `issues` and
