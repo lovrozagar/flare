@@ -7,8 +7,10 @@ Package: [`@lovrozagar/flare`](https://www.npmjs.com/package/@lovrozagar/flare).
 ## Install
 
 ```bash
-bun add @lovrozagar/flare solid-js @solidjs/web @solidjs/vite-plugin vite oxc-parser magic-string seroval seroval-plugins
+bun add @lovrozagar/flare "solid-js@>=2.0.0-rc.15" "@solidjs/web@>=2.0.0-rc.15" "@solidjs/vite-plugin@>=3.0.0-next.50" "vite@>=8.1.4" "oxc-parser@>=0.139.0" "magic-string@>=0.30.21" "seroval@>=1.6.7" "seroval-plugins@>=1.6.7"
 ```
+
+Each peer carries its range: a bare name installs the `latest` tag, and Solid 2 is not `latest` yet (`solid-js@latest` is 1.9).
 
 | peer                                                  | range                            | needed for                                        |
 | ----------------------------------------------------- | -------------------------------- | ------------------------------------------------- |

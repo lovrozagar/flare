@@ -47,7 +47,7 @@ npm renders the tarball's README, which is the root `README.md`, and has no repo
 | `links` | every markdown link in the README | absolute or an anchor on the page; a link into the repo is `https://github.com/lovrozagar/flare/blob/main/<path>` and the path exists |
 | `no v0 names` | the README text | no `tracing`, no `dev.*` flag, no v0 CLI command (`flare generate`, `gen`, `add`, `font`, `routes`, `status`, `validate`), no v0 subpath (`codegen`, `generators`, `validation`, `virtual-types`), and no `0.1.1` |
 | `quick start marked` | the quick-start markers | `tsconfig.json` and `src/server.ts` are among them, each path once |
-| `install names every peer` | the `## Install` section's `bun add` line and its peer table, against `packages/core/package.json` | the line names `@lovrozagar/flare` and every peer that is not optional; the table names every peer with its declared range (plan 21 5.5, BUGS.md 298) |
+| `install names every peer` | the `## Install` section's `bun add` line and its peer table, against `packages/core/package.json` | the line names `@lovrozagar/flare` and every peer that is not optional, each as `name@<declared range>`, since a bare name installs the `latest` tag (BUGS.md 299); the table names every peer with its declared range (plan 21 5.5, BUGS.md 298) |
 
 ## `scripts/release.test.ts`
 

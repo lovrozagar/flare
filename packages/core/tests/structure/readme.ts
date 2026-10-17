@@ -43,10 +43,13 @@ export function identifiers(cell: string): string[] {
 	return [...cell.matchAll(/`([A-Za-z_$][\w$]*)`/g)].map((match) => String(match[1]))
 }
 
-// The packages the `## Install` section's `bun add` line installs, in order.
+// The package specs the `## Install` section's `bun add` line installs, in order, unquoted as the shell passes them.
 export function installCommand(text: string): string[] {
 	const line = /^bun add (.+)$/m.exec(text.slice(text.indexOf("## Install")))?.[1] ?? ""
-	return line.split(/\s+/).filter(Boolean)
+	return line
+		.split(/\s+/)
+		.filter(Boolean)
+		.map((spec) => spec.replace(/^"(.*)"$/, "$1"))
 }
 
 // Everything in backticks in a cell: package names and ranges as well as identifiers.
