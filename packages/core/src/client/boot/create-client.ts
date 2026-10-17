@@ -17,7 +17,7 @@ import { createNavigationState } from "../navigation/pending.ts"
 import { createPopstate } from "../navigation/popstate.ts"
 import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
 import { loadDocument } from "../navigation/reload.ts"
-import { browserScroll, type ScrollStore } from "../navigation/scroll.ts"
+import { browserScroll, lastFrame, type ScrollStore } from "../navigation/scroll.ts"
 import { hydrateCache } from "./initial.ts"
 import { callServerFn, type CallDeps } from "../server-fn/call.ts"
 import { streamServerFn } from "../server-fn/stream.ts"
@@ -211,10 +211,11 @@ function installCall(
 // Popstate, anchor clicks, and a back-forward cache restore reach the navigator from here. Leaving the document, by
 // reload, tab close, or a document load, asks the last blocker first (B84, plan 21 3.5).
 function listen(router: Router, navigator: Navigator, parts: Parts): () => void {
+	const frame = lastFrame()
 	const pop = createPopstate({
 		history: parts.history,
 		restore: navigator.restore,
-		save: (index) => parts.scroll.save(index, parts.store.snapshot().location),
+		save: (index, moved) => parts.scroll.save(index, parts.store.snapshot().location, moved ? frame.at() : undefined),
 		current: here,
 	})
 	const onPop = (event: PopStateEvent): void => void pop(event.state)
@@ -233,6 +234,7 @@ function listen(router: Router, navigator: Navigator, parts: Parts): () => void 
 		window.removeEventListener("popstate", onPop)
 		window.removeEventListener("pageshow", onShow)
 		window.removeEventListener("beforeunload", onLeave)
+		frame.stop()
 		undelegate()
 	}
 }

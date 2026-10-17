@@ -3,7 +3,8 @@ import type { FlareHistory } from "../history/index.ts"
 type PopDeps = {
 	history: FlareHistory
 	restore: (url: string, index: number) => Promise<void>
-	save: (index: number) => void
+	// `moved`: the entry is one the browser just wrote for a fragment, and it may have scrolled there already.
+	save: (index: number, moved: boolean) => void
 	current: () => string
 }
 
@@ -13,7 +14,7 @@ type PopDeps = {
 // so its scroll is saved under its index before the index moves (B84).
 export function createPopstate(deps: PopDeps): (state: unknown) => Promise<void> {
 	return async (state) => {
-		deps.save(deps.history.index())
+		deps.save(deps.history.index(), state === null)
 		// The bar's URL is recorded for the entry it lands on, one another document wrote included (BUGS.md 296).
 		const steps = deps.history.pop(state, deps.current())
 		if (steps === null) return

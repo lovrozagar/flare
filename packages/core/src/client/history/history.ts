@@ -6,7 +6,11 @@ export type FlareHistory = {
 	adopt: (url: string) => void
 	push: (url: string, usr?: unknown, intercepted?: boolean) => void
 	replace: (url: string, usr?: unknown, intercepted?: boolean) => void
-	// `url` is the one the browser shows for the entry it lands on, recorded for that entry (BUGS.md 296).
+	// `url` is the one the browser shows for the entry it lands on, recorded for that entry (BUGS.md 296). Nothing is
+	// pushed, and a jump of several entries is replayed one entry at a time. An entry with no state is one the browser
+	// just wrote, for a hash typed in the bar or a fragment link, on top of the one on screen: it is stamped as the next
+	// index, with no step to replay since the browser went to the fragment itself, so a Back off it is a step that
+	// restores (BUGS.md 318). State another script wrote is not Flare's: null.
 	pop: (state: unknown, url: string) => number[] | null
 	index: () => number
 	// The URL the bar shows: of the entry adopted, pushed, replaced, or stepped to, one that is not Flare's included.
@@ -25,6 +29,13 @@ export function createHistory(target: Target): FlareHistory {
 	const urls = new Map<number, string>()
 	// The overlay entries this document pushed. An adopted entry is never one: a reload renders the page.
 	const overlays = new Set<number>()
+	// The entry at `current` now holds `url`, an overlay's or not.
+	const holds = (url: string, intercepted: boolean): void => {
+		urls.set(current, url)
+		bar = url
+		if (intercepted) overlays.add(current)
+		else overlays.delete(current)
+	}
 	return {
 		adopt(url) {
 			const state: unknown = target.state
@@ -37,23 +48,22 @@ export function createHistory(target: Target): FlareHistory {
 			current += 1
 			const state: HistoryState = intercepted ? { index: current, usr, intercepted: true } : { index: current, usr }
 			target.pushState(state, "", url)
-			urls.set(current, url)
-			bar = url
-			if (intercepted) overlays.add(current)
-			else overlays.delete(current)
+			holds(url, intercepted)
 		},
 		replace(url, usr, intercepted = false) {
 			const state: HistoryState = intercepted ? { index: current, usr, intercepted: true } : { index: current, usr }
 			target.replaceState(state, "", url)
-			urls.set(current, url)
-			bar = url
-			if (intercepted) overlays.add(current)
-			else overlays.delete(current)
+			holds(url, intercepted)
 		},
-		// A popstate moves to an entry the browser already holds: nothing is pushed or replaced. A jump of
-		// several entries is replayed one entry at a time, and an entry with no index is not Flare's.
+		// A popstate moves to an entry the browser already holds. See `FlareHistory.pop`.
 		pop(state, url) {
 			bar = url
+			if (state === null) {
+				current += 1
+				target.replaceState({ index: current, usr: undefined } satisfies HistoryState, "")
+				holds(url, false)
+				return []
+			}
 			if (!isFlareState(state)) return null
 			urls.set(state.index, url)
 			const direction = Math.sign(state.index - current)

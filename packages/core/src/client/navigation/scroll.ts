@@ -23,7 +23,8 @@ export type ScrollEnv = {
 
 export type ScrollStore = {
 	setup: () => void
-	save: (index: number, location: Location) => void
+	// `at` is the position to keep when the window has already moved past it.
+	save: (index: number, location: Location, at?: { x: number; y: number }) => void
 	restore: (index: number, location: Location) => void
 	afterCommit: (target: { hash: string; scroll: boolean }) => void
 }
@@ -52,12 +53,12 @@ export function createScroll(options: ScrollOptions, env: ScrollEnv): ScrollStor
 		setup() {
 			if (options.enabled) env.history.scrollRestoration = "manual"
 		},
-		save(index, location) {
+		save(index, location, at) {
 			settle()
 			if (!options.enabled) return
 			const key = keyOf(index, location)
 			const saved = read(env.storage).filter(([stored]) => stored !== key)
-			saved.push([key, env.position()])
+			saved.push([key, at ?? env.position()])
 			write(env.storage, saved.slice(-options.maxEntries))
 		},
 		// A page that cannot scroll that far yet is restored as far as it can be, then again as its layout grows, until
@@ -163,4 +164,13 @@ export function browserScroll(router: Router): ScrollStore {
 	)
 	scroll.setup()
 	return scroll
+}
+
+// The position the last frame showed. Firefox and Safari scroll to a fragment the visitor typed before its popstate
+// runs, while the scroll event waits for the next frame, so the entry left keeps this one (BUGS.md 318).
+export function lastFrame(): { at: () => { x: number; y: number }; stop: () => void } {
+	let shown = { x: window.scrollX, y: window.scrollY }
+	const onScroll = (): void => void (shown = { x: window.scrollX, y: window.scrollY })
+	window.addEventListener("scroll", onScroll, { passive: true })
+	return { at: () => shown, stop: () => window.removeEventListener("scroll", onScroll) }
 }
