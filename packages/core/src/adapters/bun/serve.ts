@@ -81,9 +81,10 @@ type Watch = { timeout: ((seconds: number) => void) | undefined; idle: number; s
 // A streamed answer counts as in flight until its body ends or the client leaves. Bun closes a socket idle for
 // `idleTimeout`, a response in flight included, so a stream that goes quiet between chunks, a slow deferred value or a
 // server function's `.stream()`, would be cut: the timeout is lifted while it is sent and set back once it ends, so an
-// idle keep-alive socket still closes (plan 21 8.3, BUGS.md 198).
+// idle keep-alive socket still closes (plan 21 8.3, BUGS.md 198). A kept Response with no body, a 204 or a redirect,
+// has nothing to watch; its body is read only after `blobBody`, since reading a Blob body makes it a stream (BUGS.md 238).
 function watched(response: Response, watch: Watch): Response {
-	if (!streamsBody(response)) {
+	if (!streamsBody(response) || blobBody(response) || response.body === null) {
 		watch.sent()
 		return response
 	}
@@ -125,4 +126,12 @@ function forwarded(request: Request, hops: number): Request {
 	if (url.protocol !== "http:" || !forwardedHttps(hops, request.headers.get("x-forwarded-proto"))) return request
 	url.protocol = "https:"
 	return new Request(url, request)
+}
+
+// Bun holds a string or bytes body as a Blob, which it sends at once and types `text/plain` itself only while nothing
+// reads `body` (plan 21 12.7). Its inspector tells such a body from a stream without reading it.
+function blobBody(response: Response): boolean {
+	const bun: unknown = Reflect.get(globalThis, "Bun")
+	const inspect: unknown = Reflect.get(Object(bun), "inspect")
+	return typeof inspect === "function" && String(Reflect.apply(inspect, bun, [response])).includes("\n  Blob (")
 }

@@ -6,7 +6,7 @@ import type { LoaderRun } from "../loaders/run.ts"
 import type { MountContext } from "../mount/mount.ts"
 import { projectError, type ErrorSink } from "../render/projector.ts"
 import { applySecurity, type Secured, type SecurityConfig } from "../security/apply.ts"
-import { carryMark, finalize, type StageResult } from "./finalize.ts"
+import { carryMark, finalize, keptAs, type StageResult } from "./finalize.ts"
 import { exitHeaders } from "./policies.ts"
 import type { RuntimeOptions } from "./options.ts"
 
@@ -106,10 +106,17 @@ export function typed(
 // A whole Response from a mount or a middleware passes through finalize the same way: the security set wins, and a
 // late cookie takes a shared answer's cache headers away.
 export function passed(exchange: Answering, response: Response): Response {
-	return carryMark(
-		response,
-		secure(exchange, { status: response.status, body: response.body, headers: exitHeaders(response) }),
-	)
+	return answerFrom(exchange, response, exitHeaders(response))
+}
+
+// The app's own Response with the request's security set, its status kept. One that names no type leaves as itself, so
+// the runtime keeps the type it knows for the body (finalize.ts `keptAs`, plan 21 12.7); any other is built anew.
+export function answerFrom(exchange: Answering, response: Response, headers: Headers): Response {
+	const status = response.status
+	const kept = response.headers.has("content-type")
+		? undefined
+		: keptAs(response, secure(exchange, { status, body: null, headers }))
+	return kept ?? carryMark(response, secure(exchange, { status, body: response.body, headers }))
 }
 
 // An answer the app built, a `.response()` page or a server function, still passes through finalize, and the
