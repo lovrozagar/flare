@@ -51,8 +51,12 @@ function urlParts(segment: Segment, params: Record<string, unknown>): string[] {
 	if (segment.kind === "static") return [encodeStatic(segment.text)]
 	const value = params[segment.name]
 	const values = urlText(segment.name, value)
-	if (values.length === 0 && segment.optional) return []
-	if (values.length === 0 || (segment.kind === "dynamic" && Array.isArray(value))) throw new Error(segment.name)
+	// An empty string is no value: written, it would be another route's URL (BUGS.md 307).
+	const absent = values.length === 0 || (values.length === 1 && values[0] === "")
+	if (absent && segment.optional) return []
+	if (absent || values.includes("") || (segment.kind === "dynamic" && Array.isArray(value))) {
+		throw new Error(segment.name)
+	}
 	return values.map(encodeParam)
 }
 
