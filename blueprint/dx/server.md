@@ -124,13 +124,13 @@ A key not in this table does not type-check. A directive with no default appears
 | `connect-src` | `'self'`, `https:` | `string[]` | without it, `default-src 'self'` blocks an https API |
 | `worker-src` | `'self'` | `string[]` | |
 | `frame-src` | absent | `string[]` | |
-| `frame-ancestors` | absent | `string[]` | `X-Frame-Options` is the default lock |
-| `form-action` | absent | `string[]` | |
+| `frame-ancestors` | `'self'` | `string[]` | the CSP form of `X-Frame-Options`, which browsers that read both prefer (BUGS.md 221) |
+| `form-action` | `'self'` | `string[]` | a form posts only to the page's own origin unless the app names more (BUGS.md 221) |
 | `media-src` | absent | `string[]` | |
 | `upgrade-insecure-requests` | `true` on https | boolean | |
 | `block-all-mixed-content` | absent | boolean | |
 
-A string policy is sent as written and has no nonce (`csp.test.ts` `string drops nonce`). `false` sends no CSP header (`csp.test.ts` `false drops header`). Neither case stamps a nonce on a tag (`tests/integration/nonce.test.ts` `string omits`, `false omits`).
+A source holding a `;` or a line break would end its directive and inject policy of its own, so it throws, naming the directive (`csp.test.ts` `injected source`). A route's `.security()` directives add their sources to the server's, each once, so a page that allows one more origin keeps the server's policy; a route string or `false` replaces the whole policy (`apply.test.ts` `route csp merge`, plan 21 14.1, BUGS.md 221). A string policy is sent as written and has no nonce (`csp.test.ts` `string drops nonce`). `false` sends no CSP header (`csp.test.ts` `false drops header`). Neither case stamps a nonce on a tag (`tests/integration/nonce.test.ts` `string omits`, `false omits`).
 
 ### One nonce
 
