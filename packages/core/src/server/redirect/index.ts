@@ -1,1 +1,1 @@
-export { canonicalRedirect, redirectLocation, type CanonicalRedirect } from "./builder.ts"
+export { canonicalRedirect, redirectLocation, type CanonicalRedirect, type Routing } from "./builder.ts"

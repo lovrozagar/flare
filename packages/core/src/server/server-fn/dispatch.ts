@@ -29,6 +29,8 @@ export type DispatchInput = {
 	sameSite: readonly string[]
 	sink: ErrorSink
 	basePath: string
+	// The router's trailing-slash rule, which a thrown redirect's URL follows (BUGS.md 188).
+	trailingSlash: "preserve" | "always" | "never"
 	bodyLimit?: number | undefined
 }
 
@@ -67,7 +69,11 @@ export async function dispatch(input: DispatchInput): Promise<StageResult> {
 	try {
 		return await run(fn, input)
 	} catch (thrown) {
-		const answer = errorEnvelope(fn.name, thrown, { sink: input.sink, basePath: input.basePath })
+		const answer = errorEnvelope(fn.name, thrown, {
+			sink: input.sink,
+			basePath: input.basePath,
+			trailingSlash: input.trailingSlash,
+		})
 		return reply(fn, answer.envelope, answer.http)
 	}
 }
@@ -130,7 +136,11 @@ async function run(fn: ServerFnRef, input: DispatchInput): Promise<StageResult> 
 
 // The NDJSON body starts once every step before the generator has passed. Its lines are envelopes.
 function streamed(fn: ServerFnRef, source: AsyncIterable<unknown>, input: DispatchInput): StageResult {
-	const body = streamEnvelopes(fn.name, source, { sink: input.sink, basePath: input.basePath })
+	const body = streamEnvelopes(fn.name, source, {
+		sink: input.sink,
+		basePath: input.basePath,
+		trailingSlash: input.trailingSlash,
+	})
 	const headers = new Headers({ "content-type": NDJSON })
 	setCacheControl(headers, fn.record, 200)
 	return { status: 200, body, headers }

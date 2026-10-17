@@ -1,6 +1,6 @@
 import { RedirectError } from "../../shared/errors/redirect.ts"
 import type { Issue } from "../../shared/validation/index.ts"
-import { redirectLocation } from "../redirect/index.ts"
+import { redirectLocation, type Routing } from "../redirect/index.ts"
 import { projectError, type ErrorSink } from "../render/projector.ts"
 
 // The server function wire (02-system). `name` is the export name.
@@ -27,11 +27,11 @@ export function okEnvelope(name: string, data: unknown): Envelope {
 export function errorEnvelope(
 	name: string,
 	thrown: unknown,
-	context: { sink: ErrorSink; basePath: string },
+	context: { sink: ErrorSink } & Routing,
 ): { http: number; envelope: Envelope } {
 	if (thrown instanceof RedirectError) {
 		const status = thrown.status
-		const to = redirectLocation(thrown, context.basePath)
+		const to = redirectLocation(thrown, context)
 		return { http: 200, envelope: { name, status, redirect: { to, status, replace: thrown.replace } } }
 	}
 	const projected = projectError(thrown, context.sink)

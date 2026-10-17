@@ -36,7 +36,11 @@ it("ok", () => {
 
 it("thrown secret", () => {
 	const production = sink(false)
-	const answer = errorEnvelope("echo", new Error("secret"), { sink: production, basePath: "/" })
+	const answer = errorEnvelope("echo", new Error("secret"), {
+		sink: production,
+		basePath: "/",
+		trailingSlash: "preserve",
+	})
 	expect(answer.http).toBe(500)
 	expect(answer.envelope.message).not.toContain("secret")
 	expect(answer.envelope.digest).toMatch(/^[0-9a-f]{12}$/)
@@ -47,7 +51,7 @@ it("thrown secret", () => {
 
 it("dev stack", () => {
 	const dev = sink(true)
-	const answer = errorEnvelope("echo", new Error("secret"), { sink: dev, basePath: "/" })
+	const answer = errorEnvelope("echo", new Error("secret"), { sink: dev, basePath: "/", trailingSlash: "preserve" })
 	expect(answer.envelope.message).toBe("secret")
 	expect(answer.envelope.stack).toMatch(/envelope\.test\.ts/)
 	expect(answer.envelope).not.toHaveProperty("digest")
@@ -55,7 +59,11 @@ it("dev stack", () => {
 })
 
 it("safe", () => {
-	const answer = errorEnvelope("echo", markSafeError(new Error("visible")), { sink: sink(false), basePath: "/" })
+	const answer = errorEnvelope("echo", markSafeError(new Error("visible")), {
+		sink: sink(false),
+		basePath: "/",
+		trailingSlash: "preserve",
+	})
 	expect(answer.envelope.message).toBe("visible")
 	expect(answer.envelope.digest).toMatch(/^[0-9a-f]{12}$/)
 	expect(answer.envelope).not.toHaveProperty("stack")
@@ -64,12 +72,17 @@ it("safe", () => {
 it("redirect", () => {
 	const dev = sink(true)
 	const error = thrown(() => redirect({ to: "_root_/about", search: { q: "1" }, hash: "top" }))
-	expect(errorEnvelope("echo", error, { sink: dev, basePath: "/" })).toEqual({
+	expect(errorEnvelope("echo", error, { sink: dev, basePath: "/", trailingSlash: "preserve" })).toEqual({
 		http: 200,
 		envelope: { name: "echo", status: 303, redirect: { to: "/about?q=1#top", status: 303, replace: true } },
 	})
+	// Under `trailingSlash: "always"` the route's URL carries its slash, so the client never meets a 301 (BUGS.md 188).
+	const always = errorEnvelope("echo", error, { sink: dev, basePath: "/app", trailingSlash: "always" })
+	expect(always.envelope.redirect?.to).toBe("/app/about/?q=1#top")
 	const kept = thrown(() => redirect({ to: "_root_/about", status: 307, replace: false }))
-	expect(errorEnvelope("echo", kept, { sink: dev, basePath: "/app" }).envelope.redirect).toEqual({
+	expect(
+		errorEnvelope("echo", kept, { sink: dev, basePath: "/app", trailingSlash: "preserve" }).envelope.redirect,
+	).toEqual({
 		to: "/app/about",
 		status: 307,
 		replace: false,
@@ -79,7 +92,7 @@ it("redirect", () => {
 
 it("href", () => {
 	const error = thrown(() => redirect({ href: "https://example.com/a" }))
-	expect(errorEnvelope("echo", error, { sink: sink(false), basePath: "/" })).toEqual({
+	expect(errorEnvelope("echo", error, { sink: sink(false), basePath: "/", trailingSlash: "preserve" })).toEqual({
 		http: 200,
 		envelope: { name: "echo", status: 303, redirect: { to: "https://example.com/a", status: 303, replace: true } },
 	})
@@ -93,7 +106,7 @@ it("helpers", () => {
 		[unauthorized, 403],
 	]
 	for (const [helper, status] of cases) {
-		const answer = errorEnvelope("echo", thrown(helper), { sink: dev, basePath: "/" })
+		const answer = errorEnvelope("echo", thrown(helper), { sink: dev, basePath: "/", trailingSlash: "preserve" })
 		expect(answer.http).toBe(status)
 		expect(answer.envelope.status).toBe(status)
 		expect(answer.envelope).not.toHaveProperty("stack")

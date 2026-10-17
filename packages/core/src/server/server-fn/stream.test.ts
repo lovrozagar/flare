@@ -54,7 +54,7 @@ function iterable(value: unknown): AsyncIterable<unknown> {
 // Each yield is a line, and a generator that finishes writes the end line last, so a client can tell a whole stream
 // from one cut short (plan 21 4.6, B140).
 it("two yields", async () => {
-	const body = streamEnvelopes("numbers", numbers(), { sink, basePath: "/" })
+	const body = streamEnvelopes("numbers", numbers(), { sink, basePath: "/", trailingSlash: "preserve" })
 	expect(lines(await new Response(body).text())).toEqual([
 		{ name: "numbers", status: 200, data: 1 },
 		{ name: "numbers", status: 200, data: 2 },
@@ -67,7 +67,7 @@ it("two yields", async () => {
 	})
 	const serverFns = { [counted.id]: async (): Promise<ServerFnRef> => counted }
 	const failed: StageResult = { status: 500, body: null }
-	const run = () => dispatch({ request, serverFns, sameSite: [], sink, basePath: "/" })
+	const run = () => dispatch({ request, serverFns, sameSite: [], sink, basePath: "/", trailingSlash: "preserve" })
 	const result = await within(request, run, failed)
 	expect(result.status).toBe(200)
 	expect(result.headers?.get("content-type")).toBe("application/x-ndjson")
@@ -80,7 +80,7 @@ it("two yields", async () => {
 })
 
 it("thrown yield", async () => {
-	const body = streamEnvelopes("broken", broken(), { sink, basePath: "/" })
+	const body = streamEnvelopes("broken", broken(), { sink, basePath: "/", trailingSlash: "preserve" })
 	const [first, failure] = lines(await new Response(body).text())
 	expect(first).toEqual({ name: "broken", status: 200, data: 1 })
 	expect(failure).toMatchObject({ name: "broken", status: 500, message: "Something went wrong" })
@@ -108,7 +108,7 @@ it("cancel", async () => {
 			closed.push("finally")
 		}
 	}
-	const reader = streamEnvelopes("held", held(), { sink, basePath: "/" }).getReader()
+	const reader = streamEnvelopes("held", held(), { sink, basePath: "/", trailingSlash: "preserve" }).getReader()
 	await reader.read()
 	await reader.cancel()
 	expect(closed).toEqual(["finally"])
