@@ -1,8 +1,9 @@
-import { createRootLayout, Stylesheet, ThemeProvider, ThemeScript } from "@lovrozagar/flare"
+import { createRootLayout, Stylesheet, ThemeProvider, ThemeScript, ViewTransitionCSS } from "@lovrozagar/flare"
 import "../../styles.css"
 
-// A second document. Moving between it and the main root is a full document load. The admin pages may not be
-// framed, and every response says who it is for.
+// A second document. Moving between it and the main root is a full document load, which opts into the
+// cross-document transition as the main root does: Chromium raises an error in a new document that does not when the
+// old one did (BUGS.md 297). The admin pages may not be framed, and every response says who it is for.
 export const route = createRootLayout("_admin_")
 	.head(() => ({ title: "Admin — Flare docs", robots: { index: false, follow: false } }))
 	.headers(() => ({ "x-docs-area": "admin" }))
@@ -11,6 +12,7 @@ export const route = createRootLayout("_admin_")
 		<html lang="en">
 			<head>
 				<ThemeScript />
+				<ViewTransitionCSS duration={200} />
 				<Stylesheet />
 			</head>
 			<body class="min-h-screen">
