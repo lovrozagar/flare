@@ -3,6 +3,8 @@ import type {
 	RegisterField,
 	RegisteredEnv,
 	RegisteredServerContext,
+	To,
+	UrlTarget,
 } from "../../shared/route-builder/register.ts"
 import type { Router } from "../../shared/router/create-router.ts"
 import type { Caller } from "../auth/caller.ts"
@@ -82,4 +84,8 @@ export type FlareServer = {
 	fetch: (request: Request, env?: unknown, ctx?: MountContext) => Promise<Response>
 	// The server-function POST cap in bytes, which the Bun adapter also gives `Bun.serve` (dx/adapters.md).
 	readonly bodyLimit: number
+	// The id of the build that serves, the one every answer names in `flare-build` (B84).
+	readonly buildId: string
+	// The store key of a page with these params, for a key purge outside a request (dx/store.md revalidate).
+	readonly cache: { key: <Id extends To<FlareRegister>>(target: UrlTarget<FlareRegister, Id>) => string }
 }

@@ -30,8 +30,10 @@ import { prerenderer, type Capture } from "../cache/prerender.ts"
 import { checkSite } from "../cache/scrub.ts"
 import { pageAnswer, requestStore } from "../cache/serve.ts"
 import { storeTiming } from "../cache/write.ts"
-import { devHead } from "./build-info.ts"
+import { buildId, devHead } from "./build-info.ts"
 import { markUnmatched } from "./finalize.ts"
+import { routeKey } from "../cache/key.ts"
+import type { BuildInput } from "../../shared/url/href.ts"
 import { checkRetired, isRetired, retiredWorker } from "./retire-worker.ts"
 
 export type { FlareServer, ServerOptions } from "./options.ts"
@@ -62,7 +64,9 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	const mounts = mountTable(options.mounts ?? [], { trailingSlash, caseSensitive })
 	const at: Serving = { options: { ...options, bodyLimit }, sink, mounts }
 	// The Bun adapter reads `bodyLimit` here, so its platform cap and the server-function cap agree (dx/adapters.md).
-	const server: FlareServer = { fetch: (request, env, ctx) => serveOne(at, { request, env, ctx }), bodyLimit }
+	const fetch: FlareServer["fetch"] = (request, env, ctx) => serveOne(at, { request, env, ctx })
+	const cache = { key: (target: BuildInput) => routeKey(options.router, target) }
+	const server: FlareServer = { fetch, bodyLimit, buildId, cache }
 	// The internal channel `vite build`'s prerender reads. It runs the same pipeline with a capture (bits/12).
 	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }))
 	return Object.assign(server, { [PRERENDER]: prerender })

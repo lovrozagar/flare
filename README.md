@@ -353,7 +353,7 @@ Full contracts: [link.md](https://github.com/lovrozagar/flare/blob/main/blueprin
 
 ## Server
 
-`createServer(options)` returns `{ fetch(request, env, ctx), bodyLimit }`, the production entry every adapter wraps.
+`createServer(options)` returns `{ fetch(request, env, ctx), bodyLimit, buildId, cache }`, the production entry every adapter wraps; `cache.key({ to, params })` is a page's store key, for `createRevalidateFn(store)({ keys })` outside a request.
 
 | option                  | default      | outcome                                                                                                            |
 | ----------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------ |

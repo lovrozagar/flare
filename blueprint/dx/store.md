@@ -118,6 +118,15 @@ createRevalidateFn(store): (options) => Promise<void>
 
 The handler's `revalidate` and `createRevalidateFn(store)` write the same store (`revalidate.test.ts` `same store`). The promise is handed to `waitUntil` (`background`).
 
+A key purge names stored pages by key, and the server builds them: `server.cache.key({ to, params })` takes what `buildUrl` takes, writes that URL, and matches it as a request would, under the router's base path and trailing-slash rule, so it gives the key that page's requests store under, raw params percent-encoded as a request's are, on the build that serves (`server.buildId`). A queue consumer or a script next to the server then purges one page of the live build:
+
+```ts
+const purge = createRevalidateFn(store)
+await purge({ keys: [server.cache.key({ to: "_root_/post/[slug]", params: { slug } })] })
+```
+
+An id the router has no page for throws. Tags stay the way to purge a set of pages, a page across its params included (`tests/integration/cache.test.ts` `key purge`, `server/cache/key.test.ts` `route key`, BUGS.md 231).
+
 CDN purge is the `Cache-Tag` header on the response (`cache.md`). Flare does not call a CDN API.
 
 These v0 fields do not exist: `tiers`, `callerData`, `cdnPurgeAdapter`, `tagHeader`, `revalidateSecret`. A cast throws when the options are read (`revalidate.test.ts` `no tiers`).

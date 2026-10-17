@@ -3,7 +3,7 @@ import { Dynamic } from "@solidjs/web"
 import { expect, it, vi, type Mock } from "vitest"
 import type { FlareStore } from "../../src/server/cache/contract.ts"
 import { createMemoryStore } from "../../src/server/cache/memory.ts"
-import { revalidate } from "../../src/server/cache/revalidate.ts"
+import { createRevalidateFn, revalidate } from "../../src/server/cache/revalidate.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
@@ -269,4 +269,33 @@ it("webhook purge", async () => {
 	const unset = createServer({ router, site: SITE, store: createMemoryStore() })
 	const empty = new Request(`${SITE}/hook`, { method: "POST", headers: { authorization: "Bearer " }, body: "{}" })
 	expect((await unset.fetch(empty, {})).status).toBe(401)
+})
+
+// A purge outside a request names a stored page by its route and params: `server.cache.key` gives the key a request
+// to it is stored under, `server.buildId` the build it carries, and createRevalidateFn's key purge then misses the
+// next visit. Another param's page stays a hit, and an id the router has no page for throws (plan 21 4.5).
+it("key purge", async () => {
+	let renders = 0
+	const page = createPage("_root_/post/[slug]")
+		.cache({ ssr: { ttl: "1h", staleTime: "1h" } })
+		.loader(() => ({ render: (renders += 1) }))
+		.render(() => "post")
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/post/[slug]", path: "/post/[slug]", module: page }],
+	})
+	const store = createMemoryStore()
+	const app = createServer({ router, site: SITE, store })
+	expect(app.buildId).toBe("dev")
+	const key = app.cache.key({ to: "_root_/post/[slug]", params: { slug: "a b" } } as never)
+	expect(key).toBe("static:dev:_root_/post/[slug]:a%2520b")
+	const visit = (slug: string) => app.fetch(new Request(`${SITE}/post/${encodeURIComponent(slug)}`))
+	for (const slug of ["a b", "c"]) {
+		await visit(slug)
+		await vi.waitFor(async () => expect((await visit(slug)).headers.get("flare-cache")).toBe("hit"))
+	}
+	await createRevalidateFn(store)({ keys: [key] })
+	expect((await visit("a b")).headers.get("flare-cache")).toBe("miss")
+	expect((await visit("c")).headers.get("flare-cache")).toBe("hit")
+	expect(() => app.cache.key({ to: "_root_/nope" } as never)).toThrow("cache.key: _root_/nope is not a page")
 })

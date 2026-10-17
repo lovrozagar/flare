@@ -1106,6 +1106,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 230 [x] dx/link.md told apps to read a boolean back from the URL with `z.coerce.boolean()`, which reads "false" as true
 230.1 [x] Plan 21 4.7: a boolean goes into the URL as `String(value)`, and the table's advice for reading it back, `z.coerce.boolean()`, is `Boolean(input)`, true for any non-empty string, so `?open=false` validated as `true` and a toggle written to the URL could never turn off. Red: tests/integration/link.test `boolean values`, a route validating with the documented `z.coerce.boolean()` through the real server, rendered `open:true` for `?open=false`.
 230.2 [x] Fix: the row names `z.stringbool()`, which reads `"true"` and `"false"`, says why `z.coerce.boolean()` is wrong, and gives the valibot form; the case's route uses `z.stringbool()` and both values round-trip.
+231 [x] A key purge outside a request could not name a production page's key
+231.1 [x] Plan 21 4.5, the reviewer's ruling: a store key is `static:<build>:<routeId>:<rawParams>` (B32), but the server exposed neither its build id nor the key builder, so a queue consumer or script calling `createRevalidateFn(store)({ keys })` had to rebuild the key by hand, guessing the id `flare()` hashes and the raw-param encoding, and a wrong guess purged nothing, silently. Red: tests/integration/cache.test `key purge` (`server.buildId` undefined).
+231.2 [x] Fix: `createServer` returns `buildId` and `cache.key(target)`, which takes `buildUrl`'s input, matches the URL it writes as a request would (base path, trailing slash), and keys that match with server/cache/key.ts `storeKey`, so the key is the one that page's requests store under; an id the router has no page for throws. key.test `route key` covers the base path, an absent optional, and the raw params' percent-encoding. dx/server.md, dx/store.md, and the README say so.
 
 ## Verify
 
