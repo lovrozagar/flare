@@ -94,3 +94,19 @@ it("in-place move supersedes a pending one", async () => {
 		unmountAll()
 	}
 })
+
+// A hash move asks the blocker before the history write, as a shallow one does; a Back or Forward step onto a hash
+// entry, which the browser already took, does not (dx/navigate.md, BUGS.md 312).
+it("hash blocked", async () => {
+	const fetch = vi.fn<Fetch>(async () => new Response(""))
+	const app = await mountNavigator(router, fetch)
+	const blocker = vi.fn<() => boolean>(() => false)
+	app.deps.blockers.register(blocker)
+	const length = history.length
+	await app.navigator.navigate({ to: "_root_/", hash: "x" })
+	expect([blocker.mock.calls.length, location.hash, history.length]).toEqual([1, "", length])
+	expect(app.store.snapshot().location.hash).toBe("")
+	history.pushState({ index: 1 }, "", "/#y")
+	await app.navigator.restore("/#y", 1)
+	expect([blocker.mock.calls.length, app.store.snapshot().location.hash]).toEqual([1, "#y"])
+})
