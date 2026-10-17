@@ -1,6 +1,7 @@
 import { rmSync } from "node:fs"
 import { resolve } from "node:path"
 import type { BuilderOptions, EnvironmentOptions, UserConfig } from "vite"
+import { FEATURE_PEERS } from "./peers.ts"
 
 export type EnvName = "client" | "ssr" | typeof PRERENDER_ENV
 
@@ -66,8 +67,13 @@ export type BuildInput = {
 	afterBuild?: ((built: { clientDir: string; serverFile: string }) => Promise<void>) | undefined
 }
 
-// The packages the server build bundles, as `ssr.noExternal` lists them for the ssr environment.
+// The packages the server bundles, as `ssr.noExternal` lists them for the ssr environment.
 export const SERVER_BUNDLED: string[] = ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"]
+
+// A build also bundles the i18n peers, so a built server holds them and a deploy that drops them still answers; the
+// peer guard fails the build that lacks them (plan 21 5.5). Dev leaves them to Node: negotiator is CommonJS, which
+// Vite's dev runner does not transform.
+export const SERVER_BUILD_BUNDLED: string[] = [...SERVER_BUNDLED, ...FEATURE_PEERS.i18n]
 
 // The client and ssr environments and the order the builder runs them in (B89). The client entry is
 // `<assetsDir>/client-[hash].js` and its chunks `<assetsDir>/[hash].js`. The server is one minified file with
@@ -104,7 +110,7 @@ export function buildConfig(input: BuildInput): Pick<UserConfig, "environments">
 				? {
 						[PRERENDER_ENV]: {
 							consumer: "server",
-							resolve: { noExternal: SERVER_BUNDLED },
+							resolve: { noExternal: SERVER_BUILD_BUNDLED },
 							build: serverBuild({ outDir: serverDir, entry: input.entry.server, file: build.ssr.input, assetsDir }),
 						},
 					}

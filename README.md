@@ -23,6 +23,8 @@ Each peer carries its range: a bare name installs the `latest` tag, and Solid 2 
 | `sharp`                                               | `>=0.35.5`                       | optional: `flare({ image })`                      |
 | `@formatjs/intl-localematcher`, `negotiator`, `isbot` | `>=0.8.11`, `>=1.0.0`, `>=5.2.0` | optional: `@lovrozagar/flare/i18n/server`         |
 
+A feature used without its optional peer fails the build and the dev server with `flare: <feature> needs <peer>. Install it: npm install <peer>@"<range>"`, one line per missing peer.
+
 It runs on Node 22.12 or later, Bun, and Cloudflare Workers, and its types need TypeScript 5.9 or later (tested on 5.9.3 and 7.0.2).
 
 Tailwind is the app's own `@tailwindcss/vite`; Flare does not wrap it.

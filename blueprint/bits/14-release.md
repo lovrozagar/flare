@@ -49,6 +49,11 @@ The packed tarball installed as an app installs it: into a fresh project under t
 | `readme install, npm` | the same packages through the pinned npm 11.19.1 at default peer resolution | as above | as above |
 | `node floor` | the minimal app with every peer at its floor (or its newest under FLARE_CONSUMER_PEERS=newest), installed by Node 22.12.0's npm 10.9.0 | on Node 22.12.0: codegen and `vite build`; `serve.js` answers `/` with the sentinel and `/about?_flare=data` with an `l` frame first; `vite` dev answers `/` with the sentinel | `consumers` job; 10.6 s here, warm |
 | `ts 5 nodenext` | the fixture `fixture/ts5` (typescript 5.9.3 exact, `module` and `moduleResolution` `nodenext`, `consumer strict`'s other settings, skipLibCheck off), every peer at its floor, @types/node at core's version | tsc 5.9.3 over the staged minimal app and `consumer strict`'s sources exits 0 with no output: the README's TypeScript floor | `consumers` job; 7.0 s |
+| `i18n without peers` | the minimal app as an i18n app (`createRouter({ locale })`, `createServer({ locale: i18n() })`), none of the optional peers | `vite build` fails naming all three i18n peers, each with its install command (BUGS.md 300) | `consumers` job; the five optional cells 9.1 s together |
+| `i18n peers removed after build` | the i18n app built with its peers, which are then removed | `serve.js` answers `/` with the sentinel: the built server bundles them | as above |
+| `i18n without peers, dev` | the i18n app, no optional peers, under `vite` dev | `/` is a 500 whose error page names all three peers (the terminal does not yet, BUGS.md 301) | as above |
+| `image without sharp` | `flare({ prerender: true, image: {} })`, no sharp | `vite build` fails naming sharp | as above |
+| `query without solid-query` | a page calling `createQueryClientGetter()`, no `@tanstack/solid-query` | `vite build` fails naming it | as above |
 | `no optional peers` | the minimal app with every peer but the five optional ones | none of the five is installed; the app builds and serves as in `node floor`, on Node 24.22.0 | `consumers` job; 3.3 s |
 
 ## `tests/structure/readme.test.ts` (plan 14 leaf 12.3)
