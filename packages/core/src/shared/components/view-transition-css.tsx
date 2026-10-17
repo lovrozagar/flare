@@ -18,6 +18,10 @@ export function ViewTransitionCSS(props: { duration?: number }): JSX.Element {
 		nonce: value === "" ? undefined : value,
 		get children() {
 			const duration = props.duration ?? 150
+			// One the browser cannot read, negative or not finite, would drop the declaration (BUGS.md 324).
+			if (!Number.isFinite(duration) || duration < 0) {
+				throw new Error("ViewTransitionCSS duration is a finite number of milliseconds, at least 0")
+			}
 			return `@view-transition{navigation:auto}::view-transition{pointer-events:none}::view-transition-group(flare-content){animation:none}::view-transition-old(*),::view-transition-new(*){animation-duration:${duration}ms}${REDUCED}`
 		},
 	})

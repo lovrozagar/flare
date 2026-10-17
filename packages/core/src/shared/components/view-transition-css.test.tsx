@@ -1,6 +1,7 @@
 import { createComponent, flush } from "solid-js"
 import { render } from "@solidjs/web"
 import { afterEach, expect, it } from "vitest"
+import { SafeErrored } from "./safe-errored.ts"
 import { ViewTransitionCSS } from "./view-transition-css.tsx"
 
 type FlareScope = typeof globalThis & { flare?: { nonce: string } }
@@ -31,6 +32,37 @@ it("default duration", () => {
 
 it("custom duration", () => {
 	expect(styleOf({ duration: 300 }).textContent).toContain("animation-duration:300ms")
+})
+
+// What a boundary around the rule shows, as an app's boundary would catch its throw. A throw no boundary catches stays
+// queued in the render and is reported again on Bun, so the case gives it one.
+function caught(duration: number): string {
+	;(globalThis as FlareScope).flare = { nonce: "n" }
+	const host = document.createElement("div")
+	const dispose = render(
+		() =>
+			createComponent(SafeErrored, {
+				fallback: (error: () => unknown) => String(Reflect.get(Object(error()), "message")),
+				get children() {
+					return createComponent(ViewTransitionCSS, { duration })
+				},
+			}),
+		host,
+	)
+	flush()
+	const text = String(host.textContent)
+	dispose()
+	return text
+}
+
+// A duration that is not a finite number at least 0 would write CSS the browser drops, so the rule would set no duration
+// at all: it throws, naming the prop (dx/navigate.md, BUGS.md 324). A fraction is valid CSS.
+it("duration checked", () => {
+	for (const duration of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+		expect(caught(duration)).toBe("ViewTransitionCSS duration is a finite number of milliseconds, at least 0")
+	}
+	expect(styleOf({ duration: 1.5 }).textContent).toContain("animation-duration:1.5ms")
+	expect(styleOf({ duration: 0 }).textContent).toContain("animation-duration:0ms")
 })
 
 it("reduced motion", () => {
