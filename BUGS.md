@@ -1072,6 +1072,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 219 [x] The release job, which holds publish credentials, ran `npm install -g npm@latest` and actions by moving tags
 219.1 [x] Plan 21 14.4: release.yml's npmjs job, with `id-token: write`, installed whatever npm was latest before it published, and every workflow step used an action by its major tag (`actions/checkout@v4`), so a moved tag or a compromised npm release would run inside the publish. Red: tests/structure/workflows.test.ts `pinned actions` (every `uses:` in ci.yml and release.yml unpinned) and `nothing latest` (release.yml).
 219.2 [x] Fix: every action in ci.yml and release.yml is pinned to the commit SHA its tag named on 2026-10-17, its version kept as a comment; the npm install is gone, since Node 24's own npm 11 publishes with `--provenance`.
+220 [x] Dev dropped Cross-Origin-Opener-Policy, so an opener bug passed in dev and failed in production
+220.1 [x] Plan 21 14.2: `buildCsp` deleted both HSTS and Cross-Origin-Opener-Policy in dev. HSTS has a reason, it would pin https for every local server; COOP had none, and a popup or OAuth flow that needs `window.opener` worked in dev and broke once deployed. Red: server/security/csp.test `dev extras` (no COOP in dev).
+220.2 [x] Fix: dev drops HSTS alone. dx/server.md now lists every dev difference with its reason (HSTS dropped; `'unsafe-eval'`, the localhost `ws:` and `http:` sources, and `blob:` workers added for Vite). The tests that proved a production stub by COOP prove it by the CSP's missing `'unsafe-eval'`. features-client `theme script` re-applies the tab's emulated color scheme and reloads: under COOP, Firefox moves the first load into a new browsing context group, which Playwright's media emulation does not follow; a visitor's own color scheme is the system's and is unaffected.
 
 ## Verify
 
