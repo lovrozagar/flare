@@ -119,6 +119,9 @@ export function activeMount(): string | undefined {
 function assertPrefix(prefix: string, canonical: MountCanonical): void {
 	const result = canonicalPath(prefix, { ...canonical, trailingSlash: "never" })
 	const folded = canonical.caseSensitive === true || prefix === prefix.toLowerCase()
-	const same = "path" in result && result.path === prefix && folded
+	// A request path is parsed first, so a prefix its parse would spell otherwise, a dot segment, a space, or a character
+	// outside ASCII, never matches (BUGS.md 327).
+	const parsed = new URL(prefix, "http://flare.invalid").pathname === prefix
+	const same = "path" in result && result.path === prefix && folded && parsed
 	if (!same || prefix === "/" || prefix.endsWith("/")) throw new Error(`mount prefix ${prefix} is not a canonical path`)
 }

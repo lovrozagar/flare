@@ -50,6 +50,11 @@ it("root prefix", () => {
 	// A plain entry is checked at startup too, against the router's own canonical form.
 	expect(() => serve([{ prefix: "/", fetch: echoing("root") }])).toThrow("mount prefix")
 	expect(() => serve([{ prefix: "/API", fetch: echoing("api") }])).toThrow("mount prefix")
+	// A prefix a parsed request path can never spell, a dot segment, a space, or a character outside ASCII, would never
+	// match: it throws (BUGS.md 327).
+	for (const prefix of ["/a/./b", "/a/../b", "/a b", "/ä"]) {
+		expect(() => serve([{ prefix, fetch: echoing("x") }])).toThrow(`mount prefix ${prefix} is not`)
+	}
 })
 
 const sniffing: Mount["fetch"] = async () =>
