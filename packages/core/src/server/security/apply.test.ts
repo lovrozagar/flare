@@ -44,8 +44,8 @@ it("callback override", () => {
 	expect(seen).toHaveLength(1)
 })
 
-// Every key dx/server.md lists: a string sets the header, `false` removes it, and the two absent by default appear
-// only when set. A route key replaces the server's, and the nonce candidate is kept (BUGS.md 112).
+// Every key dx/server.md lists: a string sets the header, `false` removes it, `X-Powered-By` appears only when set,
+// and `Cross-Origin-Resource-Policy` is `same-origin` unless set. A route key replaces the server's, and the nonce candidate is kept (BUGS.md 112).
 it("every key", () => {
 	const strings = {
 		"Strict-Transport-Security": "max-age=1",
@@ -68,7 +68,7 @@ it("every key", () => {
 	})
 	expect([...removed.headers.keys()]).toEqual([])
 	const plain = applySecurity({ url, headers: new Headers() })
-	expect(plain.headers.has("cross-origin-resource-policy")).toBe(false)
+	expect(plain.headers.get("cross-origin-resource-policy")).toBe("same-origin")
 	expect(plain.headers.has("x-powered-by")).toBe(false)
 	const kept = applySecurity({
 		url,

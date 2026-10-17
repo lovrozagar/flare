@@ -3,6 +3,7 @@ import { defaultHeaders } from "./defaults.ts"
 
 const httpsNames = [
 	"cross-origin-opener-policy",
+	"cross-origin-resource-policy",
 	"referrer-policy",
 	"strict-transport-security",
 	"x-content-type-options",
@@ -37,4 +38,11 @@ it("referrer", () => {
 	expect(headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin")
 	expect(headers.get("x-frame-options")).toBe("DENY")
 	expect(headers.get("cross-origin-opener-policy")).toBe("same-origin")
+})
+
+// Another origin cannot pull an answer into its page as an image, a script, or media, so a Spectre-class read never
+// gets it into that process; a public resource meant for embedding sets its own value (plan 21 16.3, v0's default).
+it("corp", () => {
+	expect(defaultHeaders("https://example.com/").get("cross-origin-resource-policy")).toBe("same-origin")
+	expect(defaultHeaders("http://localhost/").get("cross-origin-resource-policy")).toBe("same-origin")
 })

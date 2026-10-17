@@ -98,11 +98,11 @@ The callback `ctx` is `{ request, env, nonce, serverContext }`. It runs once per
 | `Referrer-Policy` | `strict-origin-when-cross-origin` | a string |
 | `X-Frame-Options` | `DENY` | a string |
 | `Cross-Origin-Opener-Policy` | `same-origin` | a string |
-| `Cross-Origin-Resource-Policy` | absent. The header is not sent | a string, which then sends it |
+| `Cross-Origin-Resource-Policy` | `same-origin` on every answer Flare sends, so another origin cannot pull one in as an image, script, or media (B135) | a string, such as `cross-origin` for a share image or widget other sites embed, or `false` |
 | `Permissions-Policy` | every feature below is `false` | the object, a string, or `false` |
 | `X-Powered-By` | absent | a string, which is the only way the header appears |
 
-`X-XSS-Protection` is not a key. Tests: `server/security/defaults.test.ts`; `apply.test.ts` `every key` (each key's string, its `false`, and the two absent by default).
+`X-XSS-Protection` is not a key. Tests: `server/security/defaults.test.ts`; `apply.test.ts` `every key` (each key's string, its `false`, `X-Powered-By` absent by default, and `Cross-Origin-Resource-Policy` `same-origin` until set); `defaults.test.ts` `corp`.
 
 Dev sends the same headers as production but two, each for a reason: it drops `Strict-Transport-Security`, which on `localhost` would pin https for every other local server the browser visits, and its CSP adds what Vite's client needs: `'unsafe-eval'` in `script-src` for its module evaluation, `ws:` and `http:` on `localhost` and `127.0.0.1` in `connect-src` for HMR, and `blob:` in `worker-src`. `Cross-Origin-Opener-Policy` is the same in both, so an opener a popup or OAuth flow relies on breaks in dev as it would in production (`csp.test.ts` `dev extras`, plan 21 14.2, BUGS.md 220).
 

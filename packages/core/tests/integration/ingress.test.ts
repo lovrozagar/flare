@@ -71,6 +71,7 @@ function expectSecurity(headers: http.IncomingHttpHeaders): void {
 	expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin")
 	expect(headers["x-frame-options"]).toBe("DENY")
 	expect(headers["cross-origin-opener-policy"]).toBe("same-origin")
+	expect(headers["cross-origin-resource-policy"]).toBe("same-origin")
 	expect(headers["strict-transport-security"]).toBeUndefined()
 	expect(headers["x-powered-by"]).toBeUndefined()
 }
