@@ -1,4 +1,9 @@
-import { isMethodList, METHODS_RULE } from "../../shared/route-builder/methods.ts"
+import {
+	CROSS_ORIGIN_RULE,
+	crossOriginRefused,
+	isMethodList,
+	METHODS_RULE,
+} from "../../shared/route-builder/methods.ts"
 import { langOf } from "../route-meta/index.ts"
 import {
 	parseSync,
@@ -33,6 +38,8 @@ export type Scan = {
 	response: boolean
 	// `.response(fn, { methods })`'s literal list, which the route node carries (plan 21 13.5).
 	methods?: string[]
+	// `.response(fn, { crossOrigin: true })`, which codegen checks against the chain's auth (BUGS.md 273).
+	crossOrigin?: true
 	// `.authorize()` without `.authenticate()` reads identity (B26).
 	authorize: boolean
 	// The sides this file's `.input()` validates (dx/types.md).
@@ -167,12 +174,28 @@ function readResponse(scan: Scan, args: readonly Argument[]): void {
 	scan.response = true
 	const [, options] = args
 	if (options === undefined) return
-	const list = options.type === "ObjectExpression" ? valueOf(options.properties, "methods") : options
-	if (list === undefined) return
-	const values =
-		list.type === "ArrayExpression" ? list.elements.map((item) => (item?.type === "Literal" ? item.value : 0)) : []
-	if (!isMethodList(values)) throw new Error(`${scan.file}: .response() ${METHODS_RULE}, written as a literal`)
-	scan.methods = values
+	const literal = `${scan.file}: .response() ${METHODS_RULE}, written as a literal`
+	if (options.type !== "ObjectExpression") throw new Error(literal)
+	const list = valueOf(options.properties, "methods")
+	if (list !== undefined) {
+		const values =
+			list.type === "ArrayExpression" ? list.elements.map((item) => (item?.type === "Literal" ? item.value : 0)) : []
+		if (!isMethodList(values)) throw new Error(literal)
+		scan.methods = values
+	}
+	readCrossOrigin(scan, valueOf(options.properties, "crossOrigin"))
+}
+
+// `crossOrigin` is a literal boolean. A route that answers only GET or OPTIONS has no Origin check to drop; the chain's
+// auth is codegen's to check, which sees the layouts (B44, BUGS.md 273).
+function readCrossOrigin(scan: Scan, value: ReturnType<typeof valueOf>): void {
+	if (value === undefined) return
+	if (value.type !== "Literal" || typeof value.value !== "boolean") {
+		throw new Error(`${scan.file}: .response() crossOrigin is a literal true or false`)
+	}
+	if (!value.value) return
+	if (crossOriginRefused(scan.methods, false)) throw new Error(`${scan.file}: .response() ${CROSS_ORIGIN_RULE}`)
+	scan.crossOrigin = true
 }
 
 // `.cache({ client })`: only the literal fields are copied, and a non-literal one is left out without an error (B89).

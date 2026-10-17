@@ -1,5 +1,11 @@
-import { isMethodList, METHODS_RULE } from "../../shared/route-builder/methods.ts"
-import type { RouteNode } from "../../shared/router/create-router.ts"
+import {
+	CROSS_ORIGIN_RULE,
+	crossOriginRefused,
+	isMethodList,
+	METHODS_RULE,
+} from "../../shared/route-builder/methods.ts"
+import { layoutChain, type Router } from "../../shared/router/create-router.ts"
+import { effectiveAuth } from "../auth/effective.ts"
 import { finalize } from "./finalize.ts"
 
 const ALLOW = "GET, HEAD, OPTIONS"
@@ -53,12 +59,21 @@ async function responded(
 	return finalize({ status, body: "", headers: allow(headers, named.join(", ")) })
 }
 
-// A hand-built router's `.response()` methods are checked at startup, as codegen checks a route file's (plan 21 13.5).
-export function checkResponseMethods(routeTree: readonly RouteNode[]): void {
-	for (const node of routeTree) {
-		const methods = node.methods ?? (typeof node.module === "object" ? node.module.responseOptions?.methods : undefined)
+// A hand-built router's `.response()` methods, and its `crossOrigin` against the chain's auth, layouts included, are
+// checked at startup, as codegen checks a route file's (plan 21 13.5, BUGS.md 273). A lazy module is checked when it
+// answers (csrf.ts `routeCsrf`).
+export function checkResponseMethods(router: Pick<Router, "routeTree" | "layouts">): void {
+	for (const node of router.routeTree) {
+		const record = typeof node.module === "object" ? node.module : undefined
+		const methods = node.methods ?? record?.responseOptions?.methods
 		if (methods !== undefined && !isMethodList(methods)) {
 			throw new Error(`createServer: ${node.id} .response() ${METHODS_RULE}`)
+		}
+		if (record?.responseOptions?.crossOrigin !== true) continue
+		const layouts = layoutChain(router.layouts, node.id).map((entry) => entry.module)
+		const auth = effectiveAuth([...layouts, record].filter((module) => typeof module === "object"))
+		if (crossOriginRefused(methods, auth.requires || auth.reads)) {
+			throw new Error(`createServer: ${node.id} .response() ${CROSS_ORIGIN_RULE}`)
 		}
 	}
 }

@@ -131,18 +131,18 @@ it("unmatched post", async () => {
 	expect(assets).toBe(0)
 })
 
+const check = (routeTree: unknown) => () => checkResponseMethods({ routeTree, layouts: {} } as never)
+
 // A hand-built router's `.response()` methods are checked when the server starts, on the node or on its record
 // (plan 21 13.5, BUGS.md 208).
 it("check methods", () => {
 	const page = createPage("_root_/api").response(() => new Response("api"), { methods: ["POST"] })
 	const wrong = createPage("_root_/api").response(() => new Response("api"), { methods: ["post"] as never })
-	expect(() => checkResponseMethods([{ id: "_root_/api", path: "/api", module: page }])).not.toThrow()
-	expect(() => checkResponseMethods([{ id: "_root_/api", path: "/api", module: wrong }])).toThrow(
+	expect(check([{ id: "_root_/api", path: "/api", module: page }])).not.toThrow()
+	expect(check([{ id: "_root_/api", path: "/api", module: wrong }])).toThrow(
 		"createServer: _root_/api .response() methods is a non-empty array",
 	)
 	const lazy = { id: "_root_/api", path: "/api", methods: [], module: async () => ({ route: page }) }
-	expect(() => checkResponseMethods([lazy] as never)).toThrow("createServer: _root_/api")
-	expect(() =>
-		checkResponseMethods([{ id: "_root_/", path: "/", module: async () => ({ route: page }) }] as never),
-	).not.toThrow()
+	expect(check([lazy])).toThrow("createServer: _root_/api")
+	expect(check([{ id: "_root_/", path: "/", module: async () => ({ route: page }) }])).not.toThrow()
 })

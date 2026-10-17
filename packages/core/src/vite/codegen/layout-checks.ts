@@ -1,4 +1,7 @@
+import { CROSS_ORIGIN_RULE } from "../../shared/route-builder/methods.ts"
 import { isRootFolder } from "../../shared/route-tree/index.ts"
+import { authHint } from "./auth-hint.ts"
+import type { Scan } from "./scan.ts"
 
 // A route file by its id and its path under the routes folder.
 type Named = { id: string; file: string }
@@ -35,5 +38,21 @@ export function assertOneLayout(layouts: readonly Named[]): void {
 		const other = seen.get(layout.id)
 		if (other !== undefined) throw new Error(`two layouts for ${layout.id}: ${other}, ${layout.file}`)
 		seen.set(layout.id, layout.file)
+	}
+}
+
+// A `crossOrigin` route whose chain, the layouts above it and the page, authenticates or authorizes fails the build: a
+// forged cross-site post would act as the visitor (B44, BUGS.md 273).
+export function assertCrossOrigin(
+	pages: readonly Named[],
+	layouts: readonly Named[],
+	scans: ReadonlyMap<string, Scan>,
+): void {
+	for (const page of pages) {
+		const scan = scans.get(page.file)
+		if (scan?.crossOrigin !== true) continue
+		const above = layouts.filter((layout) => page.id === layout.id || page.id.startsWith(`${layout.id}/`))
+		const chain = [...above.map((layout) => scans.get(layout.file)), scan].filter((item) => item !== undefined)
+		if (authHint(chain) !== "public") throw new Error(`${page.file}: .response() ${CROSS_ORIGIN_RULE}`)
 	}
 }

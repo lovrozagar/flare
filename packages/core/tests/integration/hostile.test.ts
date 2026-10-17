@@ -4,6 +4,7 @@ import { i18n } from "../../src/features/i18n/server/middleware.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { redirect } from "../../src/shared/errors/index.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
+import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter } from "../../src/shared/router/create-router.ts"
 
@@ -171,4 +172,53 @@ it("unreserved escapes", async () => {
 	const moved = await server.fetch(new Request("http://localhost/docs/%72outing?x=1"))
 	expect([moved.status, moved.headers.get("location")]).toEqual([301, "/docs/routing?x=1"])
 	expect((await server.fetch(new Request("http://localhost/docs/routing"))).status).toBe(200)
+})
+
+const respond = (): Response => new Response("signed in")
+
+const callback = () => createPage("_root_/callback")
+
+// `crossOrigin: true` drops the Origin check for one `.response()` route whose handler proves the request itself, such
+// as an OIDC form_post callback, which Apple sends with `Origin: https://appleid.apple.com`; without it that post is 403.
+// It adds no CORS header. A route that answers only GET or OPTIONS, or whose chain authenticates or authorizes, layouts
+// included, throws at createServer, naming the route (B44, BUGS.md 273).
+it("cross origin", async () => {
+	const root = createRootLayout("_root_").render((props) => props.children)
+	const open = { methods: ["POST"], crossOrigin: true } as const
+	const serve = (page: unknown, layout?: unknown) =>
+		createServer({
+			authenticate: () => ({ id: "u" }),
+			router: createRouter({
+				layouts: { _root_: root, ...(layout === undefined ? {} : { "_root_/(g)": layout }) } as never,
+				routeTree: [
+					{ id: layout === undefined ? "_root_/callback" : "_root_/(g)/callback", path: "/callback", module: page },
+				] as never,
+			}),
+		})
+	const post = { method: "POST", headers: { origin: "https://appleid.apple.com" }, body: "code=1" }
+	const closed = serve(createPage("_root_/callback").response(respond, { methods: ["POST"] }))
+	expect((await closed.fetch(new Request("http://localhost/callback", post))).status).toBe(403)
+	const answer = await serve(createPage("_root_/callback").response(respond, open)).fetch(
+		new Request("http://localhost/callback", post),
+	)
+	expect([answer.status, await answer.text(), answer.headers.get("access-control-allow-origin")]).toEqual([
+		200,
+		"signed in",
+		null,
+	])
+	const refused = "createServer: _root_/callback .response() crossOrigin: true needs"
+	expect(() => serve(callback().response(respond, { crossOrigin: true }))).toThrow(refused)
+	expect(() => serve(callback().response(respond, { methods: ["GET", "OPTIONS"], crossOrigin: true }))).toThrow(refused)
+	expect(() => serve(callback().authenticateOptional().response(respond, open))).toThrow(refused)
+	expect(() =>
+		serve(
+			callback()
+				.authorize(() => true)
+				.response(respond, open),
+		),
+	).toThrow(refused)
+	const guarded = createLayout("_root_/(g)").authenticateOptional()
+	expect(() => serve(createPage("_root_/(g)/callback").response(respond, open), guarded)).toThrow(
+		"createServer: _root_/(g)/callback .response() crossOrigin: true needs",
+	)
 })

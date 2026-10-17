@@ -1,5 +1,5 @@
 import { expect, it } from "vitest"
-import { checkCsrf, type CsrfInput } from "./csrf.ts"
+import { checkCsrf, routeCsrf, type CsrfInput } from "./csrf.ts"
 
 const origin = "https://app.example.com"
 
@@ -76,4 +76,17 @@ it("same site port", () => {
 	expect(check({ origin: "http://blog.localhost:5173" }, local)).toBe(200)
 	expect(check({ origin: "http://blog.localhost" }, local)).toBe(200)
 	expect(check({ origin: "http://blog.localhost:9000" }, local)).toBe(403)
+})
+
+// A `crossOrigin` route skips the check; one whose chain carries identity is refused when it answers, for a lazy module
+// startup and codegen did not see (B44, BUGS.md 273).
+it("route cross origin", () => {
+	const post = new Request(`${origin}/hook`, { method: "POST", headers: { origin: "https://evil.example" } })
+	const auth = { requires: false, reads: false }
+	const route = { sameSite: [], auth, id: "_root_/hook" }
+	expect(routeCsrf(post, { ...route, crossOrigin: undefined })).toBe(403)
+	expect(routeCsrf(post, { ...route, crossOrigin: true })).toBe(200)
+	expect(() => routeCsrf(post, { ...route, auth: { ...auth, reads: true }, crossOrigin: true })).toThrow(
+		"_root_/hook .response() crossOrigin: true needs",
+	)
 })
