@@ -25,7 +25,25 @@ export function finalize(stage: StageResult): Response {
 	if (settled.location !== undefined) headers.set("location", settled.location)
 	if (settled.url !== undefined) copySecurity(headers, settled.url)
 	if (settled.headers !== undefined) copyHeaders(headers, settled.headers)
-	return recordCookies(new Response(settled.body === "" ? null : settled.body, { status: settled.status, headers }))
+	const response = recordCookies(
+		new Response(settled.body === "" ? null : settled.body, { status: settled.status, headers }),
+	)
+	if (settled.body instanceof ReadableStream) streams.add(response)
+	return response
+}
+
+// The answers whose body is a stream, which can go quiet between chunks: a render waiting on a deferred value, a
+// server function's `.stream()`, a fetched body. Bun's adapter lifts its idle timeout while one is sent (plan 21 8.3).
+const streams = new WeakSet<Response>()
+
+export function streamsBody(response: Response): response is Response & { body: ReadableStream<Uint8Array> } {
+	return streams.has(response)
+}
+
+// A finished answer with its body replaced and its status and headers kept: an adapter that watches the body as it is
+// sent.
+export function rebodied(response: Response, body: ReadableStream<Uint8Array>): Response {
+	return new Response(body, response)
 }
 
 function settle(stage: StageResult): StageResult {
