@@ -91,3 +91,24 @@ it("mounted layout stale", async () => {
 	expect(fetch).toHaveBeenLastCalledWith("/a?_flare=data&_flare_stale=%26", expect.anything())
 	expect(app.store.snapshot().matches[0]?.data).toBe("root-A3")
 })
+
+// `visit` follows a URL the server built. A server function's redirect follows a mutation, so it visits with
+// `revalidate`: its target loads fresh though the client holds it inside `staleTime`. A plain visit keeps the fresh
+// entry (plan 21 8.6, BUGS.md 200).
+it("visit revalidates", async () => {
+	let served = 0
+	const fetch = vi.fn<Fetch>(async (url) => {
+		served += 1
+		return url.startsWith("/a") ? frames("_root_/a", `A${served}`) : frames("_root_/", `H${served}`)
+	})
+	const app = await mountNavigator(router, fetch)
+	await app.navigator.visit("/a", false)
+	await app.navigator.visit("/", false)
+	await app.navigator.visit("/a", false)
+	flush()
+	expect([fetch.mock.calls.length, app.text()]).toEqual([2, "root[a:A1:A1]"])
+	await app.navigator.visit("/", false)
+	await app.navigator.visit("/a", true, true)
+	flush()
+	expect([fetch.mock.calls.length, app.text()]).toEqual([3, "root[a:A3:A3]"])
+})

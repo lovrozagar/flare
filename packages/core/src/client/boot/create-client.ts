@@ -171,7 +171,8 @@ function browserReload(env: ClientEnv): (href: string) => boolean {
 // The booted transport the client entry's createServerFn reads at call time (bits/07). It goes onto the state
 // object the document wrote, which keeps its other fields. A stream iterates, and any other function resolves. A
 // response from another build reloads the page under the chunk guard. Its document loads go through the navigator,
-// so a navigation after them knows the page is leaving (BUGS.md 129).
+// so a navigation after them knows the page is leaving (BUGS.md 129). Its redirect follows a mutation, so the
+// target loads fresh (plan 21 8.6).
 function installCall(
 	router: Router,
 	env: Pick<ClientEnv, "fetch"> & Pick<CallDeps, "build"> & Omit<Parameters<typeof invalidation>[0], "revalidate">,
@@ -186,7 +187,7 @@ function installCall(
 		build: env.build,
 		href: () => window.location.href,
 		reload: nav.reload,
-		go: (url, replace) => nav.visit(url, replace),
+		go: (url, replace) => nav.visit(url, replace, true),
 		assign: nav.assign,
 		forget,
 	}
