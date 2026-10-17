@@ -353,6 +353,12 @@ it("image module types", () => {
 	expect(readFileSync(declared, "utf8")).toBe(readFileSync(join(core, "src/features/image/vite/modules.d.ts"), "utf8"))
 })
 
+// The packed manifest declares the published Node floor (B3), which the consumer cell `node floor` runs on (plan 21
+// 5.5), so a package manager warns an app on an older Node.
+it("engines", () => {
+	expect(Reflect.get(packed.manifest, "engines")).toEqual({ node: ">=22.12" })
+})
+
 it("peer floors", () => {
 	const source = JSON.parse(readFileSync(join(core, "package.json"), "utf8"))
 	const peers: Record<string, string> = Object(Reflect.get(packed.manifest, "peerDependencies"))
