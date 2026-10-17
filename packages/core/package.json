@@ -123,8 +123,11 @@
 		"seroval-plugins": "1.6.7",
 		"sharp": "0.35.5",
 		"solid-js": "2.0.0-rc.15",
+		"superstruct": "2.0.2",
 		"tsdown": "0.23.1",
+		"typebox": "1.3.34",
 		"typescript": "7.0.2",
+		"valibot": "1.5.0",
 		"vite": "8.1.4",
 		"vitest": "4.1.10",
 		"zod": "4.3.6"
