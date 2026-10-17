@@ -4,6 +4,7 @@ import { encodeFrame, type Frame } from "../../shared/protocol/index.ts"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
+import { createMatchCache } from "../router/match-cache.ts"
 import { mountNavigator, unmountAll, type Fetch } from "./navigate.fixture.ts"
 
 // How a client navigation paints a data answer that is a bare status: a named status walks its boundary at the match
@@ -108,4 +109,31 @@ it("request failed", async () => {
 	expect(app.store.snapshot().failure?.error.message).toBe("Request failed")
 	expect(app.text()).toBe("root[Something went wrong]")
 	expect(location.pathname).toBe("/about")
+})
+
+// A Back step the browser already took, whose data request fails with no status or as a bad input, commits nothing, so
+// the URL would name one page while another stays on screen, and a Link to the page on screen would count as current
+// and do nothing: the step loads its URL as a document instead (plan 21 12.4, BUGS.md 242). A pushed navigation that
+// fails leaves the screen and the history as they were.
+it("failed back loads document", async () => {
+	for (const failing of [
+		() => Promise.reject(new TypeError("offline")),
+		() => Promise.resolve(new Response(null, { status: 400 })),
+	]) {
+		let fail = false
+		// A cache that keeps nothing, so the step must ask the server (B137).
+		const cache = createMatchCache({ staleTime: 0, gcTime: 0, max: 0 })
+		const app = await mountNavigator(router, async () => (fail ? failing() : ndjson(aboutFrames)), { extra: { cache } })
+		await app.navigator.navigate({ to: "_root_/about" })
+		await app.navigator.navigate({ to: "_root_/" })
+		flush()
+		fail = true
+		const popped = new Promise((resolve) => addEventListener("popstate", resolve, { once: true }))
+		history.back()
+		await popped
+		await app.navigator.restore(`${location.pathname}${location.search}`, app.deps.history.index())
+		expect(app.deps.assign).toHaveBeenCalledExactlyOnceWith("/about")
+		unmountAll()
+		history.replaceState(null, "", "/")
+	}
 })
