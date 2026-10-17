@@ -14,6 +14,17 @@ const CONTAINER = "flare-browsers"
 // host whose core_pattern pipes to systemd-coredump spent 117 s of CPU on one grid's dumps, up to 6.1 GB each (103.6).
 const NO_CORES = '[{"Name":"core","Hard":0,"Soft":0}]'
 
+// Playwright pins a frozen WebKit for an OS it no longer builds for, macOS 14 among them: browsers.json's
+// `revisionOverrides` names a `_special-` revision (webkit_mac14_arm64_special-2251 under Playwright 1.64.1). That
+// build cannot speak the protocol of the Playwright that resolved it, so it launches and never opens a page (BUGS.md
+// 351). The reason a skipped case carries, and whether an engine's executable is such a build: only the resolved path
+// decides, never the OS, so Linux WebKit, the pinned container's and the local launcher's, is untouched.
+export const FROZEN_WEBKIT = "BUGS 351: Playwright's frozen WebKit for macOS 14 cannot speak its protocol"
+
+export function frozenWebkit(executable: string): boolean {
+	return executable.split(/[\\/]/).some((part) => /^webkit.*_special-\d+$/.test(part))
+}
+
 // What the browser source reads of the machine. The native one is the real machine; a test passes its own.
 export type BrowserDeps = {
 	env: Readonly<Record<string, string | undefined>>

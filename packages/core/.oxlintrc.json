@@ -44,6 +44,12 @@
 			}
 		},
 		{
+			"files": ["tests/integration/*.setup.ts"],
+			"rules": {
+				"flare/no-module-side-effects": "off"
+			}
+		},
+		{
 			"files": ["tests/e2e/apps/**"],
 			"rules": {
 				"flare/no-module-side-effects": "off",
