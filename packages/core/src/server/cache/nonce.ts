@@ -10,25 +10,26 @@ export function newSentinel(): string {
 	return PREFIX + Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")
 }
 
-// A `nonce` attribute, double- or single-quoted, preceded by one whitespace character so `data-nonce` is not one.
-const ATTRIBUTE = /\snonce=(?:"[^"]*"|'[^']*')/g
-
-// " nonce=" is seven characters, then the quote, the value, and the closing quote.
-const VALUE_AT = 8
+// A start tag, its attributes walked in order: a name, then a quoted or bare value, or none.
+const TAG = /<[a-zA-Z][^\s/>]*(?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'=<>`]+))?)*\s*\/?>/g
+const ATTRIBUTE = /(\s+)([^\s"'>/=]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?/g
 
 // The state script's opening, `<script id="flare-state"` and its nonce, then `self.flare=` (server/render/state.ts).
 const STATE_OPEN = /<script id="flare-state"(?: nonce="[^"]*")?>self\.flare=/g
 
-// Each nonce attribute, rewritten from its value. `next` returns the new value, or `undefined` to keep it, or ""
-// to drop the attribute.
+// Each tag's own `nonce` attribute, rewritten from its quoted value. Text, or another attribute's value, that spells
+// one is not one (BUGS.md 332). `next` returns the new value, or `undefined` to keep it, or "" to drop the attribute.
 function attributes(body: string, next: (value: string) => string | undefined): string {
-	return body.replaceAll(ATTRIBUTE, (whole: string) => {
-		const value = next(whole.slice(VALUE_AT, -1))
-		if (value === undefined) return whole
-		if (value === "") return ""
-		const quote = whole.charAt(VALUE_AT - 1)
-		return `${whole.charAt(0)}nonce=${quote}${escapeAttr(value)}${quote}`
-	})
+	return body.replaceAll(TAG, (tag: string) =>
+		tag.replaceAll(ATTRIBUTE, (whole: string, ...groups: (string | undefined)[]) => {
+			const [space, name, quoted] = groups
+			if (name !== "nonce" || quoted === undefined || !/^["']/.test(quoted)) return whole
+			const value = next(quoted.slice(1, -1))
+			if (value === undefined) return whole
+			if (value === "") return ""
+			return `${String(space)}nonce=${quoted.charAt(0)}${escapeAttr(value)}${quoted.charAt(0)}`
+		}),
+	)
 }
 
 // The write replaces nonce attributes equal to the request nonce, and the state's `nonce` field, with the entry's

@@ -25,12 +25,22 @@ it("quotes", () => {
 // Only nonce attributes and the state field change. Text that equals the nonce is someone's content.
 it("text", () => {
 	expect(toSentinel("<p>abc</p>", "abc", S)).toBe("<p>abc</p>")
+	// Text, or another attribute's value, that spells a nonce attribute is not one: only a tag's own `nonce` changes, on
+	// a write, on a hit, and when a string CSP strips it (BUGS.md 332).
+	const page = `<pre> nonce="abc"</pre><p title=' nonce="abc"' nonce="abc">x</p>`
+	const stored = toSentinel(page, "abc", S)
+	expect(stored).toBe(`<pre> nonce="abc"</pre><p title=' nonce="abc"' nonce="${S}">x</p>`)
+	expect(fromSentinel(stored, S, "")).toBe(`<pre> nonce="abc"</pre><p title=' nonce="abc"'>x</p>`)
+	expect(fromSentinel(stored, S, "a b")).toBe(`<pre> nonce="abc"</pre><p title=' nonce="abc"' nonce="a b">x</p>`)
 })
 
 it("other attr", () => {
 	expect(toSentinel('<p id="abc" data-nonce="abc">x</p>', "abc", S)).toBe('<p id="abc" data-nonce="abc">x</p>')
-	// A nonce attribute holding another value is left alone.
+	// A nonce attribute holding another value is left alone, and so is one with no value or a bare one.
 	expect(toSentinel('<script nonce="zzz"></script>', "abc", S)).toBe('<script nonce="zzz"></script>')
+	expect(toSentinel("<script nonce></script><style nonce=abc></style>", "abc", S)).toBe(
+		"<script nonce></script><style nonce=abc></style>",
+	)
 })
 
 // The state's own `nonce` field changes. Loader data that happens to hold the nonce does not.
