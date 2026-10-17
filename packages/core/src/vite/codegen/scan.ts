@@ -5,7 +5,7 @@ import {
 	METHODS_RULE,
 } from "../../shared/route-builder/methods.ts"
 import { langOf } from "../route-meta/index.ts"
-import { constInits, inputSides, keyName, unwrapped } from "./literals.ts"
+import { constInits, keyName, unwrapped } from "./literals.ts"
 import {
 	parseSync,
 	Visitor,
@@ -42,8 +42,9 @@ export type Scan = {
 	crossOrigin?: true
 	// `.authorize()` without `.authenticate()` reads identity (B26).
 	authorize: boolean
-	// The sides this file's `.input()` validates (dx/types.md).
-	input: { params: boolean; search: boolean }
+	// The route's chain calls `.input()`, whatever its argument: the register reads that route's validated params and
+	// search from its own type (dx/types.md, BUGS.md 349).
+	input: boolean
 	// The ids this file's builder calls name, each a string literal or a module-level const bound to one, with the span
 	// of that literal, quotes included. Codegen checks them against the file's path, and dev rewrites them to it
 	// (dx/routes.md).
@@ -62,11 +63,10 @@ export function scanRoute(file: string, source: string): Scan {
 		route: false,
 		response: false,
 		authorize: false,
-		input: { params: false, search: false },
+		input: false,
 		ids: [],
 	}
 	const consts = constStrings(parsed.program)
-	const inits = constInits(parsed.program)
 	const chain = routeCalls(parsed.program)
 	new Visitor({
 		ImportDeclaration: (node) => {
@@ -76,7 +76,7 @@ export function scanRoute(file: string, source: string): Scan {
 			if (exportsRoute(node)) scan.route = true
 		},
 		CallExpression: (node) => {
-			if (chain.has(node)) readCall(scan, node, inits)
+			if (chain.has(node)) readCall(scan, node)
 			const id = builderId(node, consts)
 			if (id !== undefined) scan.ids.push(id)
 		},
@@ -141,7 +141,7 @@ function exportsRoute(node: ExportNamedDeclaration): boolean {
 	)
 }
 
-function readCall(scan: Scan, node: CallExpression, inits: ReadonlyMap<string, Expression>): void {
+function readCall(scan: Scan, node: CallExpression): void {
 	// A bare call such as createPage("…") has no property. Only a method name can mark auth or intercept.
 	const callee: Expression = node.callee
 	const name = callee.type === "MemberExpression" && !callee.computed ? callee.property.name : undefined
@@ -151,7 +151,7 @@ function readCall(scan: Scan, node: CallExpression, inits: ReadonlyMap<string, E
 	// A .response() page answers every method itself, so routing must know it before its code loads.
 	if (name === "response") readResponse(scan, node.arguments)
 	if (name === "authorize") scan.authorize = true
-	if (name === "input") scan.input = inputSides(node.arguments, inits)
+	if (name === "input") scan.input = true
 	if (name === "cache") readClient(scan, node.arguments)
 }
 

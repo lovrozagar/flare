@@ -66,11 +66,14 @@ declare module "@lovrozagar/flare" {
 			"_admin_/admin/audit": "optional";
 		};
 		routeSearchParams: {
+			"[[locale]]/_root_/(guide)/docs/[slug]": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/[[locale]]/_root_/(guide)/docs/[slug]/doc.page.tsx").route>;
 			"[[locale]]/_root_/(guide)/examples/[[...rest]]": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/[[locale]]/_root_/(guide)/examples/[[...rest]]/examples.page.tsx").route>;
 			"[[locale]]/_root_/search": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/[[locale]]/_root_/search/search.page.tsx").route>;
 		};
 		routeParams: {
 			"[[locale]]/_root_/(guide)/docs/[slug]": import("@lovrozagar/flare").ParamsOutput<typeof import("../routes/[[locale]]/_root_/(guide)/docs/[slug]/doc.page.tsx").route>;
+			"[[locale]]/_root_/(guide)/examples/[[...rest]]": import("@lovrozagar/flare").ParamsOutput<typeof import("../routes/[[locale]]/_root_/(guide)/examples/[[...rest]]/examples.page.tsx").route>;
+			"[[locale]]/_root_/search": import("@lovrozagar/flare").ParamsOutput<typeof import("../routes/[[locale]]/_root_/search/search.page.tsx").route>;
 		};
 		hasQueryClient: true;
 	}

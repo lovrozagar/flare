@@ -61,23 +61,18 @@ it("query import", () => {
 	expect(scanRoute("note.tsx", "/* @lovrozagar/flare/query */ const x = 1;").query).toBe(false)
 })
 
-function sides(chain: string, head = "") {
+function input(chain: string, head = "") {
 	return scanRoute("a.page.tsx", `${head}\nexport const route = createPage("_root_/a")${chain};`).input
 }
 
-it("input sides", () => {
-	expect(sides(".input({ params: p, searchParams: s }).render(r)")).toEqual({ params: true, search: true })
-	expect(sides('.input({ searchParams: s, ...rest, "params": p }).render(r)')).toEqual({ params: true, search: true })
-	expect(sides(".input(config).render(r)")).toEqual({ params: false, search: false })
-	// A module-level const object, or one spread from another, is read as its literal is (BUGS.md 346).
-	const validators = "const validators = { searchParams: s }"
-	expect(sides(".input(validators).render(r)", validators)).toEqual({ params: false, search: true })
-	const spread = "const base = { params: p }\nconst v = { ...base, searchParams: s } as const"
-	expect(sides(".input(v).render(r)", spread)).toEqual({ params: true, search: true })
-	// A call's result is not the object its receiver holds, and a const cycle reads as nothing.
-	expect(sides(".input(validators.pick()).render(r)", validators)).toEqual({ params: false, search: false })
-	expect(sides(".input(a).render(r)", "const a = b\nconst b = a")).toEqual({ params: false, search: false })
-	expect(sides(".input(...all).render(r)", "const all = [{ params: p }]")).toEqual({ params: false, search: false })
+// The chain calls `.input()`, whatever its argument: the register reads the route's own type (BUGS.md 349).
+it("input call", () => {
+	expect(input(".input({ params: p, searchParams: s }).render(r)")).toBe(true)
+	expect(input(".input(validators).render(r)", 'import { validators } from "./v"')).toBe(true)
+	expect(input(".input(make()).render(r)")).toBe(true)
+	expect(input(".render(r)")).toBe(false)
+	// Another chain's `.input()` in the file says nothing about the route.
+	expect(input(".render(r)", 'const other = createPage("_root_/b").input({ params: p })')).toBe(false)
 })
 
 function ids(source: string): string[] {

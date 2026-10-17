@@ -15,8 +15,8 @@ The propagation contract is this file (B74). A callback field v0 had and this fi
 | `routeModules` | the route id, `_root_/about` | `typeof` the route export. Includes pages, layouts, the root layout, segments, and `.response()` routes. The export's `_type` is `"page"`, `"layout"`, `"root"`, or `"segment"`. A `.response()` route stays `"page"` | `types-gen.test.ts` `loader type`, `response route` |
 | `routeParents` | the route id | layout ids and the root id, outside-in, shortest prefix first, not including the route itself. A path segment is never a parent. A group is a parent only when that folder has a layout file | `types-gen.test.ts` `parents`, `segment parent`, `parents closed` |
 | `authModes` | the route id, only when that file sets auth | `true` for `.authenticate()`, `"optional"` for `.authenticateOptional()`. `false` is omitted. The field itself is omitted when no route sets auth | `types-gen.test.ts` `auth mode` |
-| `routeSearchParams` | the route id, only when that file's `.input()` validates search | the validator's output. A layout and a page each keep their own output | `types-gen.test.ts` `search`, `keyed by route id` |
-| `routeParams` | the route id, only when that file's `.input()` validates params | the validator's output. This replaces the bracket types for that id | `types-gen.test.ts` `input params`, `keyed by route id` |
+| `routeSearchParams` | the route id, for each file whose chain calls `.input()`, whatever its argument | `SearchOutput` of that route's type: the validator's output, or the raw record when it validates params only. A layout and a page each keep their own output | `types-gen.test.ts` `search`, `input call`, `keyed by route id` |
+| `routeParams` | the route id, for each file whose chain calls `.input()`, whatever its argument | `ParamsOutput` of that route's type: the validator's output, which replaces the bracket types for that id. With search alone the brackets stay; that is read from whether the route's `.input()` has the params side, so a `never` output stays `never` | `types-gen.test.ts` `input params`, `input call`, `keyed by route id` |
 | `hasQueryClient` | none | `true` when an app file imports `@lovrozagar/flare/query`. Otherwise the field is absent. A comment does not count. The value `false` is never written | `types-gen.test.ts` `query client` |
 
 Every id in `routeParents` is a key of `routeModules` (`types-gen.test.ts` `parents closed`). A hand-written register that breaks this poisons that route's preloader context to `never`. It is not `{}`.
@@ -40,7 +40,7 @@ A type is born in one place. Later readers do not invent a second copy.
 | an import of `@lovrozagar/flare/query` | `hasQueryClient: true` | `queryClient` on the loader context only |
 | `typeof` the route export | `routeModules[routeId]` | `from` on the data hooks. Page ids, including a `.response()` page, are the legal `to` |
 
-Codegen reads the sides `.input()` validates from its argument: an object literal, or a module-level `const` that holds one, following a spread of such a const. Any other argument, an imported object or a call's result, adds no register entry, so `Link`, `useSearch`, and `useParams` keep the raw types for that route while its own callbacks see the validator output (BUGS.md 346).
+Codegen does not read `.input()`'s argument, only that the route's chain calls it: an object literal, a module-level `const`, an imported object, and a factory's result all give the route's validated params and search, read from its own type, so `Link`, `useSearch`, and `useParams` see what its own callbacks see (BUGS.md 346, 349). A route without `.input()` gets no entry, so its type is never read, and a loader that redirects to it cannot loop through its own type (BUGS.md 105).
 
 `Link`, `navigate`, `redirect`, and `buildUrl` are generic on a page route id: a key of `routeModules` whose `_type` is `"page"`. A layout id, the root id, and a segment id are not `to`. `from` is any key of `routeModules`. An unknown id fails only after the register is augmented.
 
@@ -140,6 +140,9 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `hash not generic` | any page | `hash`, `replace` | `hash: "top"`, `replace: true` | `hash` typed as a route-specific union | |
 | `search raw` | no `.input({ searchParams })` | `Link` `search`, render `search` | `{ q: "a" }` and `{ q: ["a", "b"] }` omitted | `{ q: 1 }` | app |
 | `search validated` | validator returns `{ page: number }` | render `search`, `useSearch({ from })` | `page` is `number` | `page` is `string` | app |
+| `imported input` | `.input()` given an object imported by name, by default, through a namespace, or through a `paths` alias | `useParams`, `useSearch`, `Link`, `navigate`, `buildUrl` | the validator outputs | the bracket string; a required search key omitted | app |
+| `factory input` | `.input()` given a factory's result | `useParams`, `useSearch`, `Link`, `buildUrl` | the validator outputs | the bracket string; a string for a number | app |
+| `never output` | a params validator whose output is `never` | `useParams`, `Link` | `never` | the bracket params | app |
 | `search required key` | output `{ q: string; page?: number }` | `Link` | `search: { q: "a" }` | `search` omitted; `page` required when `q` is passed is wrong, `page` may be omitted | app |
 | `search optional keys` | output `{ tag?: string }` | `Link` | `search` omitted and `search: {}` | `search: { extra: "x" }` | app |
 | `search extra key` | a validator object | `Link` | the known keys | a fresh extra key | app |
