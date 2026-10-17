@@ -29,8 +29,9 @@ const binding = (name, n) => ({ src: PIXEL + "#" + name + n, width: 1200, height
 const images = (name) => [1, 2, 3, 4].map((n) =>
 	api.solid.createComponent(api.image.Image, { src: binding(name, n), alt: name + n, width: 640, height: 360, fixed: true, priority: n === 1 }))
 const PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-const a = api.page.createPage("_root_/a").render(() => api.h("section", "page-a", () => images("a")))
-const b = api.page.createPage("_root_/b").render(() => api.h("section", "page-b", () => images("b")))
+const head = (name) => () => ({ title: "page " + name, meta: [{ name: "description", content: "about " + name }] })
+const a = api.page.createPage("_root_/a").head(head("a")).render(() => api.h("section", "page-a", () => images("a")))
+const b = api.page.createPage("_root_/b").head(head("b")).render(() => api.h("section", "page-b", () => images("b")))
 const routeTree = [
 	{ id: "_root_/a", path: "/a", module: a },
 	{ id: "_root_/b", path: "/b", module: b },
@@ -77,3 +78,44 @@ it("left pages are collected", async () => {
 	expect(Number(late) - Number(early)).toBeLessThanOrEqual(10)
 	expect(images).toBeLessThanOrEqual(8)
 })
+
+// The listeners on the window and the document, which a navigation that adds one and never removes it would grow.
+async function listeners(tab: Page): Promise<number> {
+	const cdp = await tab.context().newCDPSession(tab)
+	let total = 0
+	for (const expression of ["window", "document"]) {
+		const target = await cdp.send("Runtime.evaluate", { expression })
+		const found = await cdp.send("DOMDebugger.getEventListeners", { objectId: target.result.objectId ?? "" })
+		total += found.listeners.length
+	}
+	await cdp.detach()
+	return total
+}
+
+// Two hundred steps between the two pages: the `<head>`'s elements, the live elements, and the window's and the
+// document's listeners at the tenth step and the last.
+async function longRun(tab: Page): Promise<void> {
+	const at: Array<{ head: number; elements: number; listeners: number }> = []
+	for (let step = 1; step <= 200; step += 1) {
+		const to = step % 2 === 0 ? "a" : "b"
+		await tab.evaluate((id) => document.getElementById(id)?.click(), `to-${to}`)
+		await tab.waitForFunction((id) => document.getElementById(id) !== null, `page-${to}`)
+		if (step === 10 || step === 200) {
+			const head = await tab.evaluate(() => document.head.childElementCount)
+			at.push({ head, elements: await live(tab, "HTMLElement"), listeners: await listeners(tab) })
+		}
+	}
+	await tab.evaluate((all) => (Reflect.get(window, "__flareRecord") as unknown[]).push(...all), at)
+}
+
+// A session of 200 client navigations ends with the `<head>`, the live elements, and the window's and the document's
+// listeners where the tenth step left them (plan 21 5.2).
+it("two hundred navigations", async () => {
+	if (harness === undefined) throw new Error("the harness did not start")
+	const result = await harness.app("chromium", { app: GALLERY, path: "/a", steps: longRun, client() {} })
+	expect(result.problems.filter((problem) => !problem.includes("404"))).toEqual([])
+	const [early, late] = result.record as Array<{ head: number; elements: number; listeners: number }>
+	expect(late?.head).toBe(early?.head)
+	expect(late?.listeners).toBe(early?.listeners)
+	expect(Number(late?.elements) - Number(early?.elements)).toBeLessThanOrEqual(10)
+}, 120_000)
