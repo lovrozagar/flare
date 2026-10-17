@@ -42,6 +42,18 @@ it("missing param", () => {
 	expect(() => buildUrl({ to: users })).toThrow(/id/)
 })
 
+// An empty string is no value: a required param or a catch-all item that is "" throws naming the param, as a missing
+// one does, and an empty optional param drops. Written, it would be another route's URL, `/users/` the list or
+// `/users//edit` a redirect to `/users/edit` (BUGS.md 307).
+it("empty param", () => {
+	expect(() => buildUrl({ to: "_root_/users/[id]", params: { id: "" } })).toThrow(/^id$/)
+	expect(() => buildUrl({ to: "_root_/users/[id]/edit", params: { id: "" } })).toThrow(/^id$/)
+	expect(() => buildUrl({ to: "[locale]/_root_/about", params: { locale: "" } })).toThrow(/^locale$/)
+	expect(() => buildUrl({ to: "_root_/files/[...path]", params: { path: ["a", ""] } })).toThrow(/^path$/)
+	expect(buildUrl({ to: "_root_/opt/[[id]]", params: { id: "" } })).toBe("/opt")
+	expect(buildUrl({ to: "_root_/docs/[[...rest]]", params: { rest: [""] } })).toBe("/docs")
+})
+
 it("raw slash", () => {
 	expect(() => buildUrl({ to: users, params: { id: "a/b" } })).toThrow(/param/)
 	expect(() => buildUrl({ to: users, params: { id: "a\\b" } })).toThrow(/param/)

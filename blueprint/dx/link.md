@@ -89,7 +89,7 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 | `Date` | `toISOString()` | `z.coerce.date()` |
 | array | one entry per element: `?tag=a&tag=b`; a catch-all param joins its segments with `/` | the array |
 | plain object | `JSON.stringify` | a JSON parse step in the validator |
-| `null`, `undefined` | omitted from search; a missing value for a path param, so an optional one drops and a required one throws | an optional field |
+| `null`, `undefined` | omitted from search; a missing value for a path param, so an optional one drops and a required one throws. An empty string path param, or an empty catch-all item, is missing too: written, it would be another route's URL (`shared/url/href.test.ts` `empty param`, BUGS.md 307) | an optional field |
 | a path param that is a dot segment, `.` or `..` in any spelling a browser resolves (`%2e` too) | throws, naming the param: the browser would move the URL to another route (`link.test.ts` `dot segment params`, BUGS.md 156) | — |
 | a path param holding a character outside the BMP, an emoji say | encoded by code point, `a😀b` is `a%F0%9F%98%80b`, and round-trips. A lone surrogate, which no URL can carry, throws naming the param (`shared/url/href.test.ts` `emoji param`, BUGS.md 193) |
 | function, symbol | throws, naming the key | — |
