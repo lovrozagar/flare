@@ -1027,6 +1027,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 204 [x] A line comment after the last property of a createServerFn config swallowed the injected id, so every call 404ed
 204.1 [x] Plan 21 13.1: the transform wrote `__id` and `__name` at the end of the config's trimmed text, so in `createServerFn({ method: "get" // read\n})` they landed inside the comment and the function shipped with no id. Red: boundary/transform.test `config comment` (a line comment, a block comment after a trailing comma, an empty object holding only a comment).
 204.2 [x] Fix: route-meta/extract.ts records `after`, the offset just past the config's last property (or inside `{` when it has none), from the AST, and the transform writes the fields there. A trailing comma or comment now stays after the fields.
+205 [x] Any `.response()` call in a page file, a helper's included, made the page a `.response()` route that always answered 500
+205.1 [x] Plan 21 13.2: codegen's scan read every method call in the file, so `const answer = (res) => res.response()` beside `export const route = createPage(…).render(…)` flagged the page `.response()`; the server then found no `response` on it and answered 500. `.authenticate()`, `.authorize()`, `.cache()`, `.input()`, and `.intercept()` were read the same way. Red: codegen/scan.test `route chain only` (a helper's `.response()` and another builder's `.authenticate().cache()` marked the page).
+205.2 [x] Fix: scan.ts `routeCalls` walks the exported `route`'s chain, down each call's receiver, through module-level consts it starts from, and through parentheses, `as`, `satisfies`, and `!`; only those calls are read. The id check still reads every builder call. The scan tests that used a bare `page.authenticate()` now build the route's chain.
 
 ## Verify
 
