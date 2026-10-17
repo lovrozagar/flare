@@ -18,7 +18,9 @@ async function edit(page: Page, at: { file: string; change: (text: string) => st
 	await page.waitForLoadState("networkidle")
 }
 
-// Firefox warns of each module load a full reload cut short, which an edit's reload does by design.
+// Firefox warns of each module load a full reload cut short, which an edit's reload does by design. The first load
+// reloads nothing, so there the warning is a fault, as a dependency Vite found only at runtime makes (BUGS.md 254.4,
+// 278).
 const CUT_SHORT = "Loading failed for the module with source"
 
 // In `vite dev` an edit reaches the open page with no reload by hand: a page module, the root layout, and a server
@@ -32,6 +34,7 @@ test("route, layout, and new server function", async ({ page }, info) => {
 		const routes = `${session.appDir}/src/routes/_root_`
 		await page.goto(`${session.origin}/about`)
 		await page.waitForLoadState("networkidle")
+		expect(problems.filter((problem) => !problem.includes("[vite]"))).toEqual([])
 		const shows = (text: string) => () => expect(page.locator("body")).toContainText(text, { timeout: 500 })
 		await edit(page, {
 			file: `${routes}/about/about.page.tsx`,
