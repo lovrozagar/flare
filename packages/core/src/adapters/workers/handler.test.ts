@@ -216,3 +216,24 @@ it("app 404 kept", async () => {
 		["/nowhere", 200],
 	])
 })
+
+// A middleware that rewraps the answer, `new Response(response.body, response)` as bits/08 shows, still hands a document
+// no route matched to the binding: the mark rides the body, which the rewrap keeps (BUGS.md 272).
+it("rewrapped unmatched", async () => {
+	const root = createRootLayout("_root_").render((props) => props.children)
+	const rewrap = createMiddleware(async (context) => {
+		const response = await context.next()
+		return new Response(response.body, response)
+	})
+	const server = createServer({
+		router: createRouter({ layouts: { _root_: root }, routeTree: [] }),
+		middleware: [rewrap],
+	})
+	const spa: WorkerEnv = { ASSETS: { fetch: () => new Response("index", { status: 200 }) } }
+	const response = await createWorkersHandler(server, { assets: "ASSETS" }).fetch(
+		new Request("https://example.com/app.js"),
+		spa,
+		ctx(),
+	)
+	expect([response.status, await response.text()]).toEqual([200, "index"])
+})

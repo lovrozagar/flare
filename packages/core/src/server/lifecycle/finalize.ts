@@ -59,6 +59,23 @@ export function carryMark(from: Response, to: Response): Response {
 	return isUnmatched(from) ? markUnmatched(to) : to
 }
 
+// The router's answer as the middleware chain gets it, so the chain's own answer keeps the mark when it rewraps that
+// one: a new Response over the same body, `new Response(response.body, response)` as bits/08 shows. A body is read only
+// on a marked answer, never on another, whose Blob body Bun types only while nothing reads it (BUGS.md 238, 272).
+export function rewrapWatch(inner: () => Promise<Response>): {
+	inner: () => Promise<Response>
+	carried: (answer: Response) => Response
+} {
+	let routed: Response | undefined
+	return {
+		inner: () => inner().then((response) => (routed = response)),
+		carried: (answer) => {
+			const rewrap = routed !== undefined && isUnmatched(routed) && routed.body !== null && answer.body === routed.body
+			return rewrap ? markUnmatched(answer) : answer
+		},
+	}
+}
+
 // A finished answer with its body replaced and its status and headers kept: an adapter that watches the body as it is
 // sent.
 export function rebodied(response: Response, body: ReadableStream<Uint8Array>): Response {

@@ -32,7 +32,7 @@ import { checkSite } from "../cache/scrub.ts"
 import { pageAnswer, requestStore } from "../cache/serve.ts"
 import { storeTiming } from "../cache/write.ts"
 import { buildId, devHead } from "./build-info.ts"
-import { markUnmatched } from "./finalize.ts"
+import { markUnmatched, rewrapWatch } from "./finalize.ts"
 import { routeKey } from "../cache/key.ts"
 import type { BuildInput } from "../../shared/url/href.ts"
 import { checkRetired, isRetired, retiredWorker } from "./retire-worker.ts"
@@ -48,9 +48,8 @@ export function createServer(options: RuntimeOptions): FlareServer {
 	return serveWith(options, devSink({ env: { DEV: import.meta.env?.DEV }, hot: import.meta.hot }, STYLES))
 }
 
-// One dev styles client per evaluation of this module, made while it evaluates: a full reload's new hot context drops
-// the previous evaluation's listeners, and this one's listens from the same turn, so no reply falls between the two
-// (BUGS.md 86).
+// One dev styles client per evaluation of this module, made as it evaluates: a full reload's new hot context drops the
+// previous evaluation's listeners and this one's listens from the same turn, so no reply falls between (BUGS.md 86).
 const STYLES = devStyles(import.meta.hot)
 
 // The dev flag and the overlay sender come from Vite (B93). Tests pass their own sink. No entry exports this.
@@ -206,15 +205,16 @@ function route(exchange: Exchange, mounted: (() => Promise<Response>) | undefine
 	return localized ? withLocale(exchange, chain) : chain()
 }
 
-// Once the router ran, its answer's set leaves on whatever Response the middleware returns, a rewrap included. A
-// middleware that answers without the router leaves with the server's set.
+// Once the router ran, its answer's set, and its no-route mark on a rewrap, leave on whatever Response the middleware
+// returns. A middleware that answers without the router leaves with the server's set.
 function withMiddleware(exchange: Exchange, kind: MiddlewareKind, inner: () => Promise<Response>): Promise<Response> {
 	const middleware = exchange.options.middleware ?? []
 	if (middleware.length === 0) return inner()
 	const router = { basePath: exchange.options.router.basePath, locales: exchange.options.router.locale?.locales }
 	const input = { request: exchange.request, env: exchange.env, kind, fail: failed(exchange), router }
-	return runMiddleware(middleware, input, inner).then((response) =>
-		passed({ ...exchange, secured: exchange.built.secured ?? exchange.secured }, response),
+	const watch = rewrapWatch(inner)
+	return runMiddleware(middleware, input, watch.inner).then((response) =>
+		passed({ ...exchange, secured: exchange.built.secured ?? exchange.secured }, watch.carried(response)),
 	)
 }
 
