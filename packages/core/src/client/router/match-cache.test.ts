@@ -25,11 +25,13 @@ function cacheAt(options: { staleTime?: number; gcTime?: number; max?: number } 
 type PlanCall = {
 	revalidate?: boolean
 	trigger?: "initial" | "navigation" | "revalidation"
+	pop?: boolean
 }
 
 function plan(cache: ReturnType<typeof createMatchCache>, matches: CachedMatch[], call: PlanCall = {}) {
 	const trigger = call.trigger ?? "navigation"
-	return cache.plan({ matches, trigger, revalidate: call.revalidate ?? false, current: place, next: place })
+	const revalidate = call.revalidate ?? false
+	return cache.plan({ matches, trigger, revalidate, current: place, next: place, pop: call.pop ?? false })
 }
 
 function byQuery({ search }: { search: Record<string, string | string[]> }): unknown[] {
@@ -60,7 +62,7 @@ it("stale time", () => {
 	// `0` is never fresh, even read in the millisecond it was stored (B19).
 	const zero = cacheAt({ staleTime: 0 })
 	zero.cache.store(page(), { data: "user", deferred: false })
-	expect(plan(zero.cache, [page()])).toEqual({ fetch: true, stale: [], fresh: false })
+	expect(plan(zero.cache, [page()])).toEqual({ fetch: true, stale: [], fresh: false, held: false })
 })
 
 // An entry stored on a given clock, the document's render time, ages from then (BUGS.md 139).
@@ -146,7 +148,7 @@ it("should refetch", () => {
 		current: place,
 		next: place,
 	})
-	expect(hydrate).toEqual({ fetch: true, stale: [], fresh: false })
+	expect(hydrate).toEqual({ fetch: true, stale: [], fresh: false, held: false })
 	expect(shouldRefetch).toHaveBeenCalledWith(
 		expect.objectContaining({ trigger: "initial", location: { current: place, next: place }, params: { id: "7" } }),
 	)
@@ -195,13 +197,13 @@ it("deferred filled cached", async () => {
 	const data = revive({ title: "t", slow: { __deferred: true, key: "d0" } }, "_root_/users/[id]", slots)
 	const deferring = page(undefined, { client: { cacheDeferred: true } })
 	remember(cache, [deferring], { data: { "_root_/users/[id]": data }, heads: {} })
-	expect(plan(cache, [deferring])).toEqual({ fetch: true, stale: [], fresh: false })
+	expect(plan(cache, [deferring])).toEqual({ fetch: true, stale: [], fresh: false, held: false })
 	time.at(500)
 	slots.get("_root_/users/[id]\nd0")?.resolve("filled")
 	await Promise.resolve()
 	await Promise.resolve()
 	expect(cache.read(deferring)?.deferred).toBe(false)
-	expect(plan(cache, [deferring])).toEqual({ fetch: true, stale: ["id=7&"], fresh: true })
+	expect(plan(cache, [deferring])).toEqual({ fetch: true, stale: ["id=7&"], fresh: true, held: true })
 	time.at(60_001)
 	expect(plan(cache, [deferring]).fresh).toBe(false)
 	expect(await Reflect.get(Object(Reflect.get(Object(cache.read(deferring)?.data), "slow")), "promise")).toBe("filled")
@@ -234,7 +236,7 @@ it("cap", () => {
 it("revalidate", () => {
 	const { cache } = cacheAt()
 	cache.store(page(), { data: "user", deferred: false })
-	expect(plan(cache, [page()], { revalidate: true })).toEqual({ fetch: true, stale: [], fresh: false })
+	expect(plan(cache, [page()], { revalidate: true })).toEqual({ fetch: true, stale: [], fresh: false, held: false })
 	const trigger = vi.fn<NonNullable<Effects["shouldRefetch"]>>(() => false)
 	plan(cache, [page({ shouldRefetch: trigger })], { trigger: "revalidation" })
 	expect(trigger).toHaveBeenCalledWith(expect.objectContaining({ trigger: "revalidation" }))
@@ -244,7 +246,7 @@ it("stale list", () => {
 	const { cache } = cacheAt()
 	cache.store(layout, { data: "root", deferred: false })
 	cache.store(page(), { data: "user", deferred: false })
-	expect(plan(cache, [layout, page()])).toEqual({ fetch: true, stale: ["id=7&"], fresh: true })
+	expect(plan(cache, [layout, page()])).toEqual({ fetch: true, stale: ["id=7&"], fresh: true, held: true })
 	expect(plan(cache, [layout, page({ shouldRefetch: () => true })]).stale).toEqual([])
 	expect(plan(cache, [layout]).stale).toEqual([])
 })
@@ -296,4 +298,23 @@ it("clear", () => {
 	expect([cache.read(page()), cache.read(layout)]).toEqual([undefined, undefined])
 	cache.store(page(), { data: "next", deferred: false })
 	expect(cache.read(page())?.data).toBe("next")
+})
+
+// A Back or Forward step holds every match the cache keeps at any age, so it paints them at once; it is still not
+// fresh, so the step then revalidates. A missing match, a page whose shouldRefetch asks, an unfilled deferred entry,
+// and `revalidate` hold nothing, and neither does a step that is not a pop (B137).
+it("pop held", () => {
+	const { cache, time } = cacheAt({ staleTime: 1000 })
+	cache.store(layout, { data: "root", deferred: false })
+	cache.store(page(), { data: "user", deferred: false })
+	time.at(5000)
+	expect(plan(cache, [layout, page()], { pop: true })).toEqual({ fetch: true, stale: [], fresh: false, held: true })
+	expect(plan(cache, [layout, page()]).held).toBe(false)
+	expect(plan(cache, [layout, page()], { pop: true, revalidate: true }).held).toBe(false)
+	const asks = page({ shouldRefetch: () => true })
+	expect(plan(cache, [layout, asks], { pop: true }).held).toBe(false)
+	const other = page(undefined, { id: "id=8&" })
+	expect(plan(cache, [layout, other], { pop: true }).held).toBe(false)
+	cache.store(page(), { data: "user", deferred: true })
+	expect(plan(cache, [layout, page()], { pop: true }).held).toBe(false)
 })

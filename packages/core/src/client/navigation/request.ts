@@ -18,7 +18,7 @@ export type DataTarget = Extract<Target, { kind: "data" }>
 // What came back for one navigation: frames to commit, a bare status to paint, or nothing to do.
 // A status names the failed match when the server did (`flare-failed`), else the page paints it.
 export type Arrival =
-	| { kind: "landed"; landing: Landed }
+	| { kind: "landed"; landing: Landed; stale?: boolean }
 	| { kind: "status"; status: number; failed?: string }
 	| { kind: "none" }
 
@@ -31,6 +31,8 @@ export type Trip = {
 	trigger: "initial" | "navigation" | "revalidation"
 	signal: AbortSignal
 	fill: boolean
+	// A Back or Forward step: what the cache holds paints at once, whatever its age (B137).
+	pop?: boolean
 	reuse?: Pending | undefined
 	holes?: ((pending: Pending) => void) | undefined
 	// Hydrate's plan, already asked, so a page's shouldRefetch sees "initial" once (BUGS.md 139).
@@ -55,8 +57,10 @@ export async function arrive(
 
 async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	const plan = planOf(deps, trip)
-	// Every page and layout is fresh in the client cache, so the commit reads them all from it (dx/cache.md, B19).
-	if (plan.fresh && !trip.fill) return { kind: "landed", landing: { data: {}, heads: {} } }
+	// Every page and layout is fresh in the client cache, so the commit reads them all from it (dx/cache.md, B19). A Back
+	// or Forward step does so with any match the cache holds, and one past its staleTime is `stale`: the step then
+	// revalidates it in place (B137).
+	if (plan.held && !trip.fill) return { kind: "landed", landing: { data: {}, heads: {} }, stale: !plan.fresh }
 	const reused = trip.options.revalidate === true ? undefined : await deps.prefetched?.(trip.target.dataUrl)
 	// A prefetch never ran its deferred functions, so a landing still holding a placeholder needs the enter request.
 	if (reused !== undefined && !holds(reused.data)) return { kind: "landed", landing: reused }
@@ -107,6 +111,7 @@ function planOf(deps: NavigatorDeps, trip: Trip): CachePlan {
 		matches: cachedMatches(trip.target.match, trip.target.location),
 		trigger: trip.trigger,
 		revalidate: trip.options.revalidate === true,
+		pop: trip.pop === true,
 		current: { ...current, params: rawParams(deps.router, current.pathname) },
 		next: { ...trip.target.location, params: defined(trip.target.match.params) },
 	})

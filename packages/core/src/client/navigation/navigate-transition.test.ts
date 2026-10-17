@@ -91,6 +91,36 @@ it("view transition", async () => {
 	push.mockRestore()
 })
 
+// Back to a page the client cache holds paints it inside the step's transition; the revalidation of a stale one that
+// follows refreshes it in place with no transition of its own (B137, plan 21 16.9).
+it("held back once", async () => {
+	const fetch = vi.fn<(url: string) => Promise<Response>>(
+		async (url: string) =>
+			new Response(
+				(url.startsWith("/about")
+					? aboutFrames
+					: [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/", d: "h" }, { t: "r" }]
+				)
+					.map((frame) => encodeFrame(frame as Frame))
+					.join(""),
+			),
+	)
+	const app = await mountNavigator(router, fetch)
+	const started: Started[] = []
+	stubStart(document, started, "document")
+	await app.navigator.navigate({ to: "_root_/about" })
+	await app.navigator.navigate({ to: "_root_/" })
+	const popped = new Promise((resolve) => addEventListener("popstate", resolve, { once: true }))
+	history.back()
+	await popped
+	await app.navigator.restore("/about", app.deps.history.index())
+	await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+	await new Promise((resolve) => setTimeout(resolve, 20))
+	flush()
+	expect(app.text()).toBe("root[about]")
+	expect(started).toHaveLength(3)
+})
+
 const frames = (id: string): Frame[] => [{ t: "l", m: "_root_", d: null }, { t: "l", m: id, d: "x" }, { t: "r" }]
 
 // A view transition runs its update a frame or more after it starts. A navigation that starts in that window skips the

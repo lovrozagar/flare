@@ -112,3 +112,45 @@ it("visit revalidates", async () => {
 	flush()
 	expect([fetch.mock.calls.length, app.text()]).toEqual([3, "root[a:A3:A3]"])
 })
+
+// One Back step, as the browser takes it: history moves, then the navigator restores that entry.
+async function back(app: Awaited<ReturnType<typeof mountNavigator>>): Promise<void> {
+	const popped = new Promise((resolve) => addEventListener("popstate", resolve, { once: true }))
+	history.back()
+	await popped
+	await app.navigator.restore(`${location.pathname}${location.search}`, app.deps.history.index())
+}
+
+// Back to an entry whose matches the client cache holds paints them at once, before any request, whatever their
+// staleTime, as bfcache would. A match past its staleTime then revalidates once, in place, with no history write;
+// one still fresh sends nothing (plan 21 16.9, decision B137).
+it("back paints held", async () => {
+	for (const [routes, requests] of [
+		[plain, 3],
+		[router, 2],
+	] as const) {
+		let served = 0
+		const screens: string[] = []
+		const fetch = vi.fn<Fetch>(async (url) => {
+			served += 1
+			screens.push(app.text())
+			return url.startsWith("/a") ? frames("_root_/a", `A${served}`) : frames("_root_/", `H${served}`)
+		})
+		const app = await mountNavigator(routes, fetch)
+		await app.navigator.navigate({ to: "_root_/a" })
+		await app.navigator.navigate({ to: "_root_/" })
+		const entries = history.length
+		const painted = back(app)
+		await painted
+		flush()
+		expect(location.pathname).toBe("/a")
+		expect(screens.slice(2)).toEqual(requests === 3 ? ["root[a:A1:A1]"] : [])
+		await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(requests))
+		await new Promise((resolve) => setTimeout(resolve, 20))
+		flush()
+		expect([fetch.mock.calls.length, location.pathname, history.length]).toEqual([requests, "/a", entries])
+		expect(app.text()).toBe(requests === 3 ? "root[a:A3:A3]" : "root[a:A1:A1]")
+		unmountAll()
+		history.replaceState(null, "", "/")
+	}
+})
