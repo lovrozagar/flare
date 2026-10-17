@@ -5,7 +5,7 @@ The production entry is one of these. `vite preview` is not (B53). `bodyLimit` i
 ## Node
 
 ```ts
-createNodeListener(server, { trustProxy? }?): (req, res) => void
+createNodeListener(server, { trustProxy? }?): ((req, res) => void) & { drain({ timeout }): Promise<boolean> }
 toRequest({ url, headers?, socketAddress?, trustProxy? }): { status, secure, clientIp, resolvedOrigin, url }
 ```
 
@@ -26,7 +26,7 @@ An unread POST body is drained, or the connection is closed, before the next req
 ## Bun
 
 ```ts
-createBunFetch(server, { trustProxy?, idleTimeout? }?): { fetch, maxRequestBodySize, idleTimeout }
+createBunFetch(server, { trustProxy?, idleTimeout? }?): { fetch, maxRequestBodySize, idleTimeout, drain }
 ```
 
 `fetch` is `(request: Request, server?) => Promise<Response>`, where `server` is the one Bun.serve hands it. `maxRequestBodySize` is Bun's own default, 128 MiB, a platform ceiling and not the enforcement: Flare's capped reader answers a body over `bodyLimit`, at most 32 MiB, with 413 first, as on Node. A body over the ceiling makes Bun cut the connection, which a client reads as `EPIPE` or `ECONNRESET`, not a status (`serve.test.ts` `ceiling`, `bun oversized post`; BUGS.md 114). The app passes both to `Bun.serve`:
@@ -38,6 +38,30 @@ Bun.serve(createBunFetch(server));
 Setting `maxRequestBodySize` at or below the server's `bodyLimit` puts Bun's cut before Flare's 413: an oversized POST then reads as a dropped connection. The second argument is `trustProxy`, as on Node: with a trusted hop, `X-Forwarded-Proto: https` rebuilds the request as https, its method and body kept (`serve.test.ts` `trust proxy`).
 
 `idleTimeout` is Bun.serve's, in seconds: an integer from 0 to 255, Bun's 10 by default, returned for `Bun.serve` with the fetch. Bun closes a socket idle that long, a response in flight included, so a render waiting on a slow deferred value or a server function's `.stream()` that goes quiet would be cut (`ECONNRESET`). While a streamed body is sent, the fetch lifts the timeout for that request (`server.timeout(request, 0)`), and sets it back to `idleTimeout` when the body ends, so an idle keep-alive socket still closes. A body that is not a stream, a stored page or a status, keeps the timeout and Bun's fast path. A handler that is slow before its first byte is not cut: Bun counts idle time only once the response started. Pass `idleTimeout` to `createBunFetch`, not to `Bun.serve` after the spread, or the restored value is not the one Bun.serve has (`serve.test.ts` `idle timeout`, `tests/integration/adapters.test.ts` `bun idle stream`, BUGS.md 198).
+
+## Shutdown
+
+A platform sends SIGTERM before it stops a Node or Bun process, and kills it after a grace period. Requests still in flight, and the work they handed to `waitUntil` (a store write after a miss, a purge, a background refresh), would die with it: a CMS would get a 200 for a purge that never landed. Each adapter's `drain({ timeout })` resolves once every answer in flight is sent, its body included, and every `waitUntil` promise has settled, work that joins meanwhile too; it resolves `false` if the timeout, a duration such as `"8s"`, passes first. A rejected piece of work counts as settled. Answers sent while draining carry `Connection: close` on Node, so no client sends that socket another request. The app wires the signal, since it owns the server and the process (B136):
+
+```ts
+// Node
+const listener = createNodeListener(server)
+const http = createServer(listener).listen(3000)
+process.once("SIGTERM", async () => {
+	http.close()
+	process.exit((await listener.drain({ timeout: "8s" })) ? 0 : 1)
+})
+
+// Bun
+const app = createBunFetch(server)
+const served = Bun.serve(app)
+process.once("SIGTERM", async () => {
+	void served.stop()
+	process.exit((await app.drain({ timeout: "8s" })) ? 0 : 1)
+})
+```
+
+Keep the timeout a few seconds under the platform's grace period: Kubernetes and Heroku wait 30 s, Docker and Cloud Run 10 s, Fly.io 5 s by default. Bun's adapter now hands `waitUntil` to the server too, so its background work is tracked as on Node, and a rejection is logged as `[flare:bun] waitUntil rejected`. Workers needs neither: the platform keeps `ctx.waitUntil` work alive past the response. Tests: `adapters/drain.test.ts`; `listener.test.ts` `drain`; `serve.test.ts` `drain`; `tests/integration/shutdown.test.ts` `node sigterm`, `bun sigterm` (a real process gets SIGTERM while a page streams and a store write and a purge are pending: the page arrives whole, both land, and it exits 0); `tests/structure/exports.test.ts` `readme node serve` (BUGS.md 226).
 
 ## Workers
 

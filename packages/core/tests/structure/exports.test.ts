@@ -278,7 +278,8 @@ it(
 )
 
 // The README's Node server runs: written beside a stub build in the stage, it serves a client file, hands the rest to
-// the listener, and answers a path `decodeURIComponent` rejects with a status instead of dying on the rejection.
+// the listener, answers a path `decodeURIComponent` rejects with a status instead of dying on the rejection, and exits
+// 0 on SIGTERM once drained (plan 21 16.11).
 it("readme node serve", async () => {
 	const app = join(packed.stage, "node-serve")
 	const [example] = marked(readme, "node-serve")
@@ -313,6 +314,9 @@ it("readme node serve", async () => {
 		const bad = await rawStatus(port, "/%E0%A4%A")
 		expect(typeof bad).toBe("number")
 		expect((await fetch(`${origin}/`)).status).toBe(404)
+		const exited = new Promise<number | null>((resolve) => child.once("exit", (code) => resolve(code)))
+		child.kill("SIGTERM")
+		expect(await exited).toBe(0)
 	} finally {
 		child.kill()
 	}

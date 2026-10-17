@@ -1,5 +1,5 @@
 import { connect } from "node:net"
-import { expect, it } from "vitest"
+import { expect, it, vi } from "vitest"
 import { createServer } from "../../server/lifecycle/create.ts"
 import { finalize } from "../../server/lifecycle/finalize.ts"
 import { createServerFn } from "../../server/server-fn/dispatch.ts"
@@ -180,4 +180,36 @@ it("idle timeout", async () => {
 	for (const idleTimeout of [-1, 1.5, 256]) {
 		expect(() => createBunFetch(streamed, { idleTimeout })).toThrow("idleTimeout is an integer from 0 to 255 seconds")
 	}
+})
+
+// A drain waits for each answer until its streamed body ends, fails, or is cancelled, and for the `waitUntil` work the
+// server handed over; a fetch that rejects is no longer in flight, and a rejected `waitUntil` is logged (plan 21 16.11).
+it("drain", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const work = Promise.withResolvers<void>()
+	const failing = new ReadableStream<Uint8Array>({ pull: (controller) => controller.error(new Error("cut")) })
+	const bodies = [body(), body(), failing]
+	const fetcher = createBunFetch({
+		fetch(request, _env, ctx) {
+			if (request.url.endsWith("/throw")) throw new Error("down")
+			ctx.waitUntil(work.promise)
+			ctx.waitUntil(Promise.reject(new Error("refresh failed")))
+			return finalize({ status: 200, body: bodies.shift() ?? null })
+		},
+	})
+	const read = await fetcher.fetch(new Request("http://localhost/"))
+	const cancelled = await fetcher.fetch(new Request("http://localhost/"))
+	const broken = await fetcher.fetch(new Request("http://localhost/"))
+	await expect(fetcher.fetch(new Request("http://localhost/throw"))).rejects.toThrow("down")
+	let drained: boolean | undefined
+	void fetcher.drain({ timeout: "5s" }).then((value) => (drained = value))
+	expect(await read.text()).toBe("streamed")
+	await cancelled.body?.cancel()
+	await expect(broken.text()).rejects.toThrow("cut")
+	await new Promise((resolve) => setTimeout(resolve, 10))
+	expect(drained).toBeUndefined()
+	work.resolve()
+	await vi.waitFor(() => expect(drained).toBe(true))
+	expect(logged).toHaveBeenCalledWith("[flare:bun] waitUntil rejected", new Error("refresh failed"))
+	logged.mockRestore()
 })

@@ -177,13 +177,20 @@ function fileOf(target = "/") {
 	}
 }
 
-createServer(async (req, res) => {
+const http = createServer(async (req, res) => {
 	const path = fileOf(req.url)
 	const file = path === undefined ? undefined : await readFile(path).catch(() => undefined)
 	if (file === undefined) return listener(req, res)
 	res.writeHead(200, { "content-type": types[extname(path)] ?? "application/octet-stream" })
 	res.end(file)
 }).listen(Number(process.env.PORT ?? 3000))
+
+// A platform sends SIGTERM before it stops the process: take no new connections, finish the requests in flight and
+// the store writes and purges they started, then exit. The timeout stays under the platform's grace period.
+process.once("SIGTERM", async () => {
+	http.close()
+	process.exit((await listener.drain({ timeout: "8s" })) ? 0 : 1)
+})
 ```
 
 ## Routes
@@ -459,12 +466,12 @@ export default defineConfig({ plugins: [cloudflare({ viteEnvironment: { name: "s
 
 ## Adapters
 
-| export                 | from                                 | use                                                                                                                                                              |
-| ---------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createNodeListener`   | `@lovrozagar/flare/adapters/node`    | `createNodeListener(server, { trustProxy? })`: a `node:http` request listener                                                                                    |
-| `toRequest`            | `@lovrozagar/flare/adapters/node`    | the target check and the client address the listener uses                                                                                                        |
-| `createBunFetch`       | `@lovrozagar/flare/adapters/bun`     | `Bun.serve(createBunFetch(server, { trustProxy?, idleTimeout? }))`, with Bun's 128 MiB body ceiling above any `bodyLimit`; a quiet stream outlives `idleTimeout` |
-| `createWorkersHandler` | `@lovrozagar/flare/adapters/workers` | `createWorkersHandler(server, { assets? })` for a hand-written worker                                                                                            |
+| export                 | from                                 | use                                                                                                                                                                                               |
+| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createNodeListener`   | `@lovrozagar/flare/adapters/node`    | `createNodeListener(server, { trustProxy? })`: a `node:http` request listener; `drain({ timeout })` on SIGTERM                                                                                    |
+| `toRequest`            | `@lovrozagar/flare/adapters/node`    | the target check and the client address the listener uses                                                                                                                                         |
+| `createBunFetch`       | `@lovrozagar/flare/adapters/bun`     | `Bun.serve(createBunFetch(server, { trustProxy?, idleTimeout? }))`, with Bun's 128 MiB body ceiling above any `bodyLimit`; a quiet stream outlives `idleTimeout`; `drain({ timeout })` on SIGTERM |
+| `createWorkersHandler` | `@lovrozagar/flare/adapters/workers` | `createWorkersHandler(server, { assets? })` for a hand-written worker                                                                                                                             |
 
 `trustProxy` is how many proxy hops in front of the server are trusted (0 to 5, default 0): with one, `X-Forwarded-Proto: https` makes the request https. Full contract: [adapters.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/adapters.md).
 

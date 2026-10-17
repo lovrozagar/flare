@@ -1,6 +1,7 @@
 import { settleRequestBody } from "./body.ts"
 import { finalize } from "../../server/lifecycle/finalize.ts"
 import { trustedHops } from "../../shared/url/index.ts"
+import { pendingWork, type DrainOptions, type Pending } from "../drain.ts"
 import { toRequest } from "./request.ts"
 
 // The methods fetch's Request refuses to build. No route answers one, so each is the 405 a page gives, as on Bun,
@@ -37,30 +38,35 @@ type NodeRes = {
 // makes the request https, so its origin, redirects, and Strict-Transport-Security follow (dx/adapters.md).
 export type NodeListenerOptions = { trustProxy?: number }
 
-export function createNodeListener(
-	server: Server,
-	options: NodeListenerOptions = {},
-): (req: NodeReq, res: NodeRes) => void {
+// The listener, and `drain`, which a SIGTERM handler awaits after `http.close()`: it resolves once every request in
+// flight is sent and their `waitUntil` work has settled, or with `false` at the timeout (dx/adapters.md).
+export type NodeListener = ((req: NodeReq, res: NodeRes) => void) & {
+	drain: (options: DrainOptions) => Promise<boolean>
+}
+
+export function createNodeListener(server: Server, options: NodeListenerOptions = {}): NodeListener {
 	const trustProxy = trustedHops("createNodeListener", options)
-	const retained = new Set<Promise<unknown>>()
-	return (req, res) => {
-		const job = { server, req, res, retained, trustProxy, sent: false }
+	const pending = pendingWork()
+	const listener = (req: NodeReq, res: NodeRes): void => {
+		const job = { server, req, res, pending, trustProxy, sent: false }
 		// A failure before the headers is a bare 500. After them the socket is destroyed: the status is gone. Either is
 		// logged, never silent (plan 21 13.6).
-		void pump(job).catch((error: unknown) => {
+		const pumped = pump(job).catch((error: unknown) => {
 			console.error("[flare:node] the request failed", error)
-			if (job.sent) return res.destroy?.()
+			if (job.sent) return void res.destroy?.()
 			res.writeHead(500)
 			res.end()
 		})
+		pending.track(pumped)
 	}
+	return Object.assign(listener, { drain: pending.drain })
 }
 
 type Job = {
 	server: Server
 	req: NodeReq
 	res: NodeRes
-	retained: Set<Promise<unknown>>
+	pending: Pending
 	trustProxy: number
 	sent: boolean
 }
@@ -98,15 +104,11 @@ async function pump(job: Job): Promise<void> {
 	}
 	const request = new Request(adapted.url, init)
 	const response = await job.server.fetch(request, undefined, {
-		// Background work is held until it settles, then released; a rejection is logged, never left unhandled to stop
-		// the process (BUGS.md 153).
+		// Background work is held until it settles, so a drain waits for it; a rejection is logged, never left unhandled
+		// to stop the process (BUGS.md 153).
 		waitUntil(promise) {
-			job.retained.add(promise)
-			const release = (): void => void job.retained.delete(promise)
-			promise.then(release, (error: unknown) => {
-				release()
-				console.error("[flare:node] waitUntil rejected", error)
-			})
+			job.pending.track(promise)
+			promise.catch((error: unknown) => console.error("[flare:node] waitUntil rejected", error))
 		},
 	})
 	await send(job, response, disconnect.signal)
@@ -115,6 +117,8 @@ async function pump(job: Job): Promise<void> {
 
 async function send(job: Job, response: Response, signal: AbortSignal): Promise<void> {
 	writeHeaders(job.res, response.headers)
+	// A server shutting down closes each connection after its answer, so no client sends it another request.
+	if (job.pending.draining()) job.res.setHeader("connection", "close")
 	job.res.writeHead(response.status)
 	job.sent = true
 	await writeBody(job.res, response.body, signal)
