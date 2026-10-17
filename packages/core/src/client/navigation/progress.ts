@@ -16,12 +16,19 @@ const STEPS: ReadonlyArray<readonly [below: number, add: number]> = [
 	[0.994, 0.005],
 ]
 
+// A timer delay above this fires at once in every browser (BUGS.md 323).
+const TIMER_MAX = 2 ** 31 - 1
+
+function within(value: number, least: number): boolean {
+	return Number.isInteger(value) && value >= least && value <= TIMER_MAX
+}
+
 // The hook returns a number. The app paints the bar, and there is no NavigationProgress element.
 export function useNavigationProgress(options: ProgressOptions = {}): Progress {
 	const trickle = options.trickle ?? 200
 	const minDisplay = options.minDisplay ?? 0
-	if (!Number.isInteger(trickle) || trickle < 16) throw new Error("trickle is an integer of at least 16 ms")
-	if (!Number.isInteger(minDisplay) || minDisplay < 0) throw new Error("minDisplay is an integer of at least 0 ms")
+	if (!within(trickle, 16)) throw new Error(`trickle is an integer from 16 to ${TIMER_MAX} ms`)
+	if (!within(minDisplay, 0)) throw new Error(`minDisplay is an integer from 0 to ${TIMER_MAX} ms`)
 	// The server creates the same owners as the client, so every later sibling keeps its hydration key (BUGS.md B2). Its
 	// navigation never pends, so the effect starts no timer there.
 	const navigation = useNavigation()

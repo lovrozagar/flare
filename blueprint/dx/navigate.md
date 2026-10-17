@@ -172,8 +172,8 @@ The app paints the bar. Flare returns the number. These v0 props do not exist: `
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `trickle` | no | `200` | an integer number of milliseconds, at least `16` | the gap between creep steps | `0`, a value below `16`, or a duration string throws at the call | `progress.test.ts` `trickle 0`, `trickle 15`, `trickle 16` |
-| `minDisplay` | no | `0` | an integer number of milliseconds, at least `0` | after `pending` falls, `value` stays `1` until this many milliseconds have passed since the navigation started | a negative number or a duration string throws at the call | `progress.test.ts` `min display`, `min display negative` |
+| `trickle` | no | `200` | an integer number of milliseconds, from `16` to `2147483647` (2^31 - 1, a browser timer's limit) | the gap between creep steps | `0`, a value below `16` or above the limit, which a browser's timer would fire at once, or a duration string throws at the call (BUGS.md 323) | `progress.test.ts` `trickle 0`, `trickle 15`, `trickle 16`, `timer ceiling` |
+| `minDisplay` | no | `0` | an integer number of milliseconds, from `0` to `2147483647` | after `pending` falls, `value` stays `1` until this many milliseconds have passed since the navigation started | a negative number, one above the limit, or a duration string throws at the call (BUGS.md 323) | `progress.test.ts` `min display`, `min display negative`, `timer ceiling` |
 
 `value` while `pending` is true:
 

@@ -209,6 +209,18 @@ it("min display negative", () => {
 	expect(() => useNavigationProgress({ minDisplay: 1.5 })).toThrow(/minDisplay/)
 })
 
+// A timer delay above 2^31 - 1 ms fires at once in every browser, so a value past it throws as a value below the floor
+// does (dx/navigate.md, BUGS.md 323).
+it("timer ceiling", () => {
+	expect(() => useNavigationProgress({ trickle: 2 ** 31 })).toThrow(/trickle/)
+	expect(() => useNavigationProgress({ minDisplay: 2 ** 31 })).toThrow(/minDisplay/)
+	const { progress, start } = mount({ trickle: 2 ** 31 - 1, minDisplay: 2 ** 31 - 1 })
+	start()
+	vi.advanceTimersByTime(100)
+	flush()
+	expect(progress.value).toBeCloseTo(0.08)
+})
+
 it("exports", () => {
 	expect(Object.keys(progressModule)).toEqual(["useNavigationProgress"])
 	expect(progressModule).not.toHaveProperty("NavigationProgress")
