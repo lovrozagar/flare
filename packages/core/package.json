@@ -99,6 +99,7 @@
 		"fonts:generate": "bun -e \"import('./src/features/fonts/generate.ts').then((generate) => generate.writeFonts('.'))\""
 	},
 	"devDependencies": {
+		"@axe-core/playwright": "4.12.1",
 		"@cloudflare/vite-plugin": "1.44.0",
 		"@formatjs/intl-localematcher": "0.8.11",
 		"@mdn/browser-compat-data": "8.1.5",

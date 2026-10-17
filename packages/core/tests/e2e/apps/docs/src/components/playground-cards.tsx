@@ -49,6 +49,7 @@ export function EchoCard(props: { calls: Calls }): JSX.Element {
 			<div class="flex gap-2">
 				<input
 					id="echo-input"
+					aria-label="Text to echo"
 					value={text()}
 					onInput={(event) => setText(event.currentTarget.value)}
 					class="flex-1 rounded-md border border-stone-300 bg-white px-3 py-1.5 text-sm dark:border-ink-800 dark:bg-ink-900"
@@ -87,7 +88,7 @@ export function Result(props: { calls: Calls }): JSX.Element {
 			<p>
 				answer: <span id="echo-answer">{props.calls.answer()}</span>
 			</p>
-			<p class="text-red-600">
+			<p class="text-red-700">
 				error: <span id="echo-error">{props.calls.error()}</span>
 			</p>
 		</div>

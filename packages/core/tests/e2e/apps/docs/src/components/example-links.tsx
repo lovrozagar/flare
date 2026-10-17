@@ -11,7 +11,7 @@ type Where = { locale: string | undefined; rest: string[] | undefined; tab: Tab 
 // Tab links change one search key on the same route, so each is a new match.
 export function Tabs(props: Where): JSX.Element {
 	return (
-		<div class="mt-6 flex gap-2" role="tablist">
+		<nav class="mt-6 flex gap-2" aria-label="Example tabs">
 			<For each={TABS}>
 				{(tab) => (
 					<Link
@@ -20,14 +20,14 @@ export function Tabs(props: Where): JSX.Element {
 						params={{ locale: props.locale, rest: props.rest }}
 						search={{ tab }}
 						class="rounded-md px-3 py-1 text-sm"
-						activeClass="bg-flame-500 text-white"
+						activeClass="bg-flame-600 text-white"
 						inactiveClass="bg-stone-200 dark:bg-ink-800"
 					>
 						{tab}
 					</Link>
 				)}
 			</For>
-		</div>
+		</nav>
 	)
 }
 

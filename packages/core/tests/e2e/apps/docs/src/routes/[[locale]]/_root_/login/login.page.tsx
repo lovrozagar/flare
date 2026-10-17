@@ -27,6 +27,7 @@ function LoginForm(): JSX.Element {
 		<div class="mt-6 space-y-3">
 			<input
 				id="login-user"
+				aria-label="User name"
 				value={user()}
 				onInput={(event) => setUser(event.currentTarget.value)}
 				class="w-full rounded-md border border-stone-300 bg-white px-3 py-2 dark:border-ink-800 dark:bg-ink-900"
@@ -35,7 +36,7 @@ function LoginForm(): JSX.Element {
 				<button
 					id="login-admin"
 					type="button"
-					class="rounded-md bg-flame-500 px-3 py-1.5 text-sm text-white"
+					class="rounded-md bg-flame-600 px-3 py-1.5 text-sm text-white"
 					onClick={() => void signIn("admin")}
 				>
 					Sign in as admin
@@ -49,7 +50,7 @@ function LoginForm(): JSX.Element {
 					Sign in as reader
 				</button>
 			</div>
-			<p id="login-error" class="text-sm text-red-600">
+			<p id="login-error" class="text-sm text-red-700">
 				{error()}
 			</p>
 		</div>

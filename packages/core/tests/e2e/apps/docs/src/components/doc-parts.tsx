@@ -34,7 +34,7 @@ export function Sections(props: { doc: Doc; locale: string | undefined }): JSX.E
 					<a
 						id="demo-link"
 						href={demo().path}
-						class="mt-6 inline-flex rounded-lg bg-flame-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-flame-600"
+						class="mt-6 inline-flex rounded-lg bg-flame-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-flame-700"
 					>
 						Try it: {demo().label}
 					</a>

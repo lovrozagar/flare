@@ -73,12 +73,13 @@ export const route = createPage(ID)
 				<form onSubmit={submit} class="flex gap-2">
 					<input
 						id="search-page-input"
+						aria-label="Search the docs"
 						type="search"
 						value={draft()}
 						onInput={(event) => setDraft(event.currentTarget.value)}
 						class="flex-1 rounded-md border border-stone-300 bg-white px-3 py-2 dark:border-ink-800 dark:bg-ink-900"
 					/>
-					<button type="submit" class="rounded-md bg-flame-500 px-4 text-sm font-medium text-white">
+					<button type="submit" class="rounded-md bg-flame-600 px-4 text-sm font-medium text-white">
 						Search
 					</button>
 				</form>
