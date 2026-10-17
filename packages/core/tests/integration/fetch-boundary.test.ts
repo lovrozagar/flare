@@ -79,6 +79,9 @@ it.each(CASES)("$name", async ({ options, request, logged }) => {
 	const response = await createServer({ router, ...options } as Parameters<typeof createServer>[0]).fetch(request)
 	expect(response.status).toBe(500)
 	expect(response.headers.get("x-content-type-options")).toBe("nosniff")
+	// The boundary's 500 carries the whole default set, CSP and Permissions-Policy included (BUGS.md 339).
+	expect(response.headers.get("content-security-policy")).toContain("default-src 'self'")
+	expect(response.headers.get("permissions-policy")).toContain("camera=()")
 	expect(errors).toHaveBeenCalledOnce()
 	expect(errors.mock.calls.flat().map(String).join(" ")).toMatch(logged)
 })

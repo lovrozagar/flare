@@ -1,6 +1,6 @@
 import { statusOf } from "../../shared/errors/status.ts"
 import { BUILD_HEADER, CACHE_HEADER, RENDER_HEADER } from "../../shared/protocol/index.ts"
-import { defaultHeaders } from "../security/defaults.ts"
+import { buildCsp, randomNonce } from "../security/csp.ts"
 import { buildId } from "./build-info.ts"
 import { NO_STORE, recordCookies } from "./policies.ts"
 
@@ -129,8 +129,10 @@ function own(headers: Headers, name: string, value: string | undefined): void {
 	else headers.set(name, value)
 }
 
+// The whole default set, CSP and Permissions-Policy included, for an answer no request's set was built for: the
+// boundary's 500, an adapter's own answer (BUGS.md 339).
 function copySecurity(headers: Headers, url: string): void {
-	for (const [name, value] of defaultHeaders(url)) headers.set(name, value)
+	for (const [name, value] of buildCsp({ url, nonce: randomNonce() }).headers) headers.set(name, value)
 }
 
 // A Response the app built that names no type leaves as itself, the built answer's headers set on it, and its body is
