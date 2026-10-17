@@ -25,6 +25,20 @@ test("unauthenticated", async ({ page, docs }) => {
 	await page.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
 })
 
+// A link from a docs page to the admin root is a full document load. Both roots opt into the cross-document
+// transition, so Chromium raises no error in the new document, and the admin root's style tag passes its CSP
+// (BUGS.md 297).
+test("admin from the docs", async ({ page, docs }) => {
+	const problems = await open(page, docs.origin, "/docs/auth")
+	await page.locator("#demo-link").click()
+	await expect(page.locator("#admin-401")).toBeVisible()
+	await page.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
+	await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+	// Chromium logs the 401 the admin root answers a guest with; Firefox does not.
+	const guest = `error: Failed to load resource: the server responded with a status of 401 (Unauthorized) at ${docs.origin}/admin`
+	expect(problems.filter((problem) => problem !== guest)).toEqual([])
+})
+
 test("unauthorized", async ({ page, docs, context }) => {
 	await context.addCookies([sessionCookie(docs.origin, "bob", "reader")])
 	const response = await page.goto(`${docs.origin}/admin`)
