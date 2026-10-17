@@ -67,6 +67,7 @@ export function devSend(hot: { send: (event: string, payload: unknown) => void }
 // Resolves to a dispose that removes the listeners and unmounts the app.
 export async function bootClient(router: Router, ready: Ready, given: ClientEnv): Promise<() => void> {
 	const env = devTabbed(given)
+	const report = callbackReporter(env, ready)
 	const state = readState()
 	const location = windowLocation()
 	const match = router.match(location.pathname)
@@ -82,11 +83,10 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	const navigation = createNavigationState()
 	const blockers = createBlockers()
 	const scroll = browserScroll(router)
-	const reload = browserReload(env)
 	// One id for the navigator, the prefetcher, and the server function transport, so none disagrees on a mismatch (B30).
 	const build = state.build ?? ""
 	const prefetcher = browserPrefetcher(router, store, { env, build })
-	const { cache, initial } = hydrateCache(router, { match, location, snapshot: store.snapshot(), at: state.at })
+	const { cache, initial } = hydrateCache(router, { match, location, snapshot: store.snapshot(), at: state.at, report })
 	const navigator = createNavigator({
 		router,
 		store,
@@ -98,7 +98,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 		fetch: env.fetch,
 		origin: window.location.origin,
 		assign: env.assign,
-		reload,
+		reload: browserReload(env),
 		build,
 		dev: env.dev,
 		send: env.send,
@@ -161,6 +161,17 @@ function reporter(env: ClientEnv, phase: { hydrating: boolean }): (error: unknow
 		if (phase.hydrating) console.error("[flare] a route failed to hydrate", error)
 		if (import.meta.env?.DEV && env.dev) env.send?.(devErrorPayload(error))
 	}
+}
+
+// An app callback that throws, a createClient callback or a page's shouldRefetch, is the app's bug: logged, and in dev
+// the overlay shows it; the boot goes on, so the page still hydrates and fills (plan 21 9.3). `ready` reports to it.
+function callbackReporter(env: ClientEnv, ready: Ready): (error: unknown) => void {
+	const report = (error: unknown): void => {
+		console.error("[flare] an app callback threw", error)
+		if (import.meta.env?.DEV && env.dev) env.send?.(devErrorPayload(error))
+	}
+	ready.reportTo(report)
+	return report
 }
 
 // The guarded document load a chunk error and a server function's build mismatch share (flare_chunk_reload).

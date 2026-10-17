@@ -20,9 +20,15 @@ import type { StoreSnapshot } from "../router/store.ts"
 // that refetch too (dx/navigate.md, dx/defer.md).
 export function hydrateCache(
 	router: Router,
-	input: { match: Match; location: Location; snapshot: StoreSnapshot; at: number | undefined },
+	input: {
+		match: Match
+		location: Location
+		snapshot: StoreSnapshot
+		at: number | undefined
+		report?: (error: unknown) => void
+	},
 ): { cache: MatchCache; initial: CachePlan } {
-	const cache = cacheFor(router.cache.client, router.routeCacheMaxEntries)
+	const cache = cacheFor(router.cache.client, router.routeCacheMaxEntries, input.report)
 	const now = Date.now()
 	const { snapshot } = input
 	const cached = cachedMatches(input.match, input.location)

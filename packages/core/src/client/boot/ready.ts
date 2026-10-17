@@ -20,11 +20,18 @@ type Phase = "hydrated" | "idle" | "interaction"
 
 const IDLE_TIMEOUT = 1000
 
+// A callback's throw before the boot names its reporter.
+function logged(error: unknown): void {
+	console.error("[flare] a createClient callback threw", error)
+}
+
 // The callbacks register by chaining in the turn createClient returns. Hydrate starts on the next microtask,
-// so a later registration would miss its phase and throws instead (dx/client.md).
+// so a later registration would miss its phase and throws instead (dx/client.md). Each runs guarded: a throw is the
+// app's bug, reported, and the rest of the phase runs, so the page still hydrates and fills (plan 21 9.3).
 export function createReady(): {
 	api: ReadyApi
 	close: () => void
+	reportTo: (report: (error: unknown) => void) => void
 	ready: (ctx: ReadyContext) => void
 	hydrated: () => void
 	idle: (env: IdleEnv, after: () => void) => void
@@ -32,7 +39,14 @@ export function createReady(): {
 } {
 	const readies: ((ctx: ReadyContext) => void)[] = []
 	const runs: Record<Phase, (() => void)[]> = { hydrated: [], idle: [], interaction: [] }
-	const state = { closed: false }
+	const state = { closed: false, report: logged }
+	const guarded = (run: () => void): void => {
+		try {
+			run()
+		} catch (error) {
+			state.report(error)
+		}
+	}
 	const open = (): void => {
 		if (state.closed) throw new Error("createClient callbacks register in the same turn as createClient")
 	}
@@ -52,14 +66,15 @@ export function createReady(): {
 		onInteraction: (run) => add("interaction", run),
 	}
 	const fire = (phase: Phase): void => {
-		for (const run of runs[phase]) run()
+		for (const run of runs[phase]) guarded(run)
 	}
 	return {
 		api,
 		close: () => void (state.closed = true),
+		reportTo: (report) => void (state.report = report),
 		// `ctx` is only { navigate, location } (dx/client.md).
 		ready(ctx) {
-			for (const run of readies) run({ navigate: ctx.navigate, location: ctx.location })
+			for (const run of readies) guarded(() => run({ navigate: ctx.navigate, location: ctx.location }))
 		},
 		hydrated: () => fire("hydrated"),
 		// The app's idle callbacks run first. Then `after`, the modules: "all" prefetch (dx/link.md).

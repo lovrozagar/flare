@@ -348,6 +348,7 @@ packages/core/src/server/cache/assets.test.ts	P10	test	server	Unit cases for ass
 packages/core/src/server/cache/prerender.ts	P12	src	server	What vite build's prerender reads of a built server: site, its ssg and isr pages, every route node for the sitemap, their params, and a render that captures the stored miss's entry and names the path it rendered
 packages/core/src/server/cache/prerender.test.ts	P12	test	server	Unit cases for prerender.ts
 packages/core/src/server/cache/index.ts	P10	index	server	Re-exports
+packages/core/src/client/boot/callbacks.test.ts	P6	test	dom	A throwing createClient callback is logged and, in dev, sent to the overlay while the boot goes on (BUGS.md 203)
 packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates and adopts history.state
 packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token, announce it, and name it on the client's requests (B42)
 packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
@@ -822,6 +823,7 @@ packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported co
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
 packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
+packages/core/tests/integration/callbacks-client.test.ts	P15	test	client	Throwing createClient callbacks and shouldRefetch are logged, and the page still hydrates and fills (BUGS.md 203)
 packages/core/tests/integration/fetch-boundary.test.ts	P15	test	server	Every app callback failure past the stages is one logged 500, never a rejected server.fetch (BUGS.md 202)
 packages/core/tests/integration/fetched.test.ts	P15	test	server	A fetch() Response returned as-is reaches the client decoded on Node and Bun, with no stale Content-Encoding (BUGS.md 197)
 packages/core/tests/integration/defer.test.ts	P15	test	node	`defer` through the real createServer, and `useDeferred` through the browser harness in every engine (B96, dx/defer.md)
