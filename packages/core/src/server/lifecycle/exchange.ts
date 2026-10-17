@@ -7,8 +7,13 @@ import type { MountContext } from "../mount/mount.ts"
 import { projectError, type ErrorSink } from "../render/projector.ts"
 import { applySecurity, type Secured, type SecurityConfig } from "../security/apply.ts"
 import { carryMark, finalize, keptAs, type StageResult } from "./finalize.ts"
-import { NDJSON } from "../navigation/response.ts"
-import { exitHeaders } from "./policies.ts"
+import { NDJSON, redirectBody } from "../navigation/response.ts"
+import { exitHeaders, NO_STORE } from "./policies.ts"
+import { RedirectError } from "../../shared/errors/redirect.ts"
+import { fnPrefix } from "../../shared/protocol/internal-params.ts"
+import { redirectLocation } from "../redirect/index.ts"
+import { errorEnvelope } from "../server-fn/envelope.ts"
+import { isServerFn } from "./classify.ts"
 import type { RuntimeOptions } from "./options.ts"
 
 // `secured` is resolved once per request, before the status is known, so every answer carries the same
@@ -151,9 +156,51 @@ export function bounded(request: Request, sink: ErrorSink, run: () => Promise<Re
 }
 
 // A stage's throw is a bug: projected, then the 500 every exit shares.
-export function failed(exchange: Pick<Exchange, "request" | "secured" | "sink">): (error: unknown) => Response {
+export function failed(
+	exchange: Pick<Exchange, "request" | "secured" | "sink" | "kind" | "options">,
+): (error: unknown) => Response {
 	return (error) => {
+		// A redirect() thrown outside a route, by a global middleware, answers as a loader's does (BUGS.md 281).
+		if (error instanceof RedirectError) return thrownRedirect(exchange, error)
 		projectError(error, exchange.sink)
 		return answer(exchange, 500)
 	}
+}
+
+// A document gets the 3xx. A data request gets HTTP 200 with the one `x` frame to the same target, as a loader
+// redirect does. A prefetch never redirects, so it is a 404 with no frames. None is stored (B73).
+export function redirectAnswer(
+	exchange: Pick<Exchange, "secured" | "kind">,
+	to: { status: number; location: string },
+	cookie?: string,
+): Response {
+	const headers = new Headers(exchange.secured.headers)
+	headers.set("cache-control", NO_STORE)
+	if (exchange.kind === "prefetch") return finalize({ status: 404, body: "", headers })
+	if (cookie !== undefined) headers.append("set-cookie", cookie)
+	if (exchange.kind === "document") return finalize({ status: to.status, body: "", location: to.location, headers })
+	headers.set("content-type", NDJSON)
+	return finalize({ status: 200, body: redirectBody({ s: to.status, u: to.location, r: true }), headers })
+}
+
+// A server function's caller reads the envelope's redirect and follows it; a page request takes `redirectAnswer`'s.
+function thrownRedirect(
+	exchange: Pick<Exchange, "request" | "secured" | "sink" | "kind" | "options">,
+	error: RedirectError,
+): Response {
+	const router = exchange.options.router
+	const url = new URL(exchange.request.url)
+	if (!isServerFn(url, router.basePath)) {
+		return redirectAnswer(exchange, { status: error.status, location: redirectLocation(error, router) })
+	}
+	const id = url.pathname.slice(fnPrefix(router.basePath).length)
+	const { envelope } = errorEnvelope(id, error, {
+		sink: exchange.sink,
+		basePath: router.basePath,
+		trailingSlash: router.trailingSlash,
+	})
+	const headers = new Headers(exchange.secured.headers)
+	headers.set("content-type", "application/json")
+	headers.set("cache-control", NO_STORE)
+	return finalize({ status: 200, body: JSON.stringify(envelope), headers })
 }

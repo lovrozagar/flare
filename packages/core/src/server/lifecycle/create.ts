@@ -112,7 +112,7 @@ function pathRewrite(at: Serving): PathRewrite | undefined {
 // The server's security callback runs once serverContext has, with the request, its env, its nonce, and that value
 // (dx/server.md SecurityConfig); the set built before it, for a 400 or a canonical redirect, carries the defaults. A
 // throw is a projected 500.
-function serverSecured<E extends Pick<Exchange, "request" | "env" | "secured" | "sink" | "options">>(
+function serverSecured<E extends Pick<Exchange, "request" | "env" | "secured" | "sink" | "options" | "kind">>(
 	exchange: E,
 	serverContext: SecurityContext["serverContext"],
 ): E | Response {
