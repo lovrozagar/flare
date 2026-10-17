@@ -4,6 +4,8 @@ import type { Page, TestInfo } from "@playwright/test"
 import { expect, test as base } from "./crash.ts"
 import { loadHydrated } from "../../src/testing/playwright.ts"
 import { boot, type Boot } from "./boot.ts"
+import { fromWire, toWire } from "../../src/shared/protocol/value.ts"
+import type { SerovalJSON } from "seroval"
 
 // The docs app's shared boot (B94). The fixture is worker-scoped, so the docs spec files of one project share one
 // build per worker instead of one per file.
@@ -162,6 +164,17 @@ export function dataTraffic(page: Page): { started: () => number; pending: () =>
 // never follows the locale cookie or Accept-Language.
 export const DESKTOP_UA =
 	"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+
+// A server function's input as the client sends it: a wire value, which the `http` fixture sends as JSON (B145).
+export function wire(value: unknown): SerovalJSON {
+	return toWire(value)
+}
+
+// A server function's envelope as the client reads it: JSON with its data a wire value (B145).
+export function envelopeOf(json: unknown): Record<string, unknown> {
+	const envelope = Object(json) as Record<string, unknown>
+	return "data" in envelope ? { ...envelope, data: fromWire(envelope["data"]) } : envelope
+}
 
 // A server function's id: sha256 of the root-relative path, NUL, and the export name, as 16 hex characters (B41).
 export function fnId(file: string, name: string): string {

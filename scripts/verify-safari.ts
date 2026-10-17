@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from "node:net"
 import { hostname } from "node:os"
 import { boot } from "../packages/core/tests/e2e/boot.ts"
-import { fnId } from "../packages/core/tests/e2e/docs.fixture.ts"
+import { envelopeOf, fnId, wire } from "../packages/core/tests/e2e/docs.fixture.ts"
 import { SafariSession, type Fetcher } from "./safari-driver.ts"
 import { acquire, quote, release, type Lock, type Remote } from "./safari-lock.ts"
 
@@ -430,14 +430,17 @@ async function drive(config: SafariConfig, signal: AbortSignal): Promise<number>
 		const upstream = docs.origin
 		const site: Site = {
 			origin: `http://${config.host}:${exposed.port}`,
+			// A server function's input and its envelope's data are wire values (B145).
 			callFn: async (id, data) =>
-				(
-					await fetch(`${upstream}/_flare/fn/${id}`, {
-						method: "POST",
-						headers: { origin: upstream, "content-type": "application/json" },
-						body: JSON.stringify(data),
-					})
-				).json(),
+				envelopeOf(
+					await (
+						await fetch(`${upstream}/_flare/fn/${id}`, {
+							method: "POST",
+							headers: { origin: upstream, "content-type": "application/json" },
+							body: JSON.stringify(wire(data)),
+						})
+					).json(),
+				),
 		}
 		const safari = await SafariSession.open(driver.base, fetch)
 		opened.push(() => safari.close())

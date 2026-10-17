@@ -10,6 +10,7 @@ import { redirect } from "../../shared/errors/redirect.ts"
 import { notFound } from "../../shared/errors/http.ts"
 import { createServer, serveWith } from "./create.ts"
 import type { Logger } from "./logger.ts"
+import { framesIn, stateIn } from "../wire.fixture.ts"
 
 // flare() writes the client entry into build-info.ts. Without the plugin there is none.
 const info = vi.hoisted((): { entry: string | undefined } => ({ entry: undefined }))
@@ -118,9 +119,7 @@ it("security on every status", async () => {
 it("state matches", async () => {
 	const response = await server.fetch(new Request("http://localhost/?q=1"))
 	const body = await response.text()
-	const payload = /self\.flare=(.*?)<\/script>/.exec(body)?.[1]
-	if (payload === undefined) throw new Error("state script")
-	expect(JSON.parse(payload).matches).toEqual([
+	expect(stateIn(body)).toEqual([
 		{ id: "_root_", params: {}, search: { q: "1" }, data: null, preloader: {}, head: null, error: null },
 		{ id: "_root_/", params: {}, search: { q: "1" }, data: { text: "Home" }, preloader: {}, head: null, error: null },
 	])
@@ -134,19 +133,12 @@ it("state matches", async () => {
 		}),
 	})
 	const userBody = await (await users.fetch(new Request("http://localhost/users/42"))).text()
-	const userState = /self\.flare=(.*?)<\/script>/.exec(userBody)?.[1]
-	if (userState === undefined) throw new Error("state script")
-	expect(JSON.parse(userState).matches.map((match: { params: unknown }) => match.params)).toEqual([
-		{ id: "42" },
-		{ id: "42" },
-	])
+	expect(stateIn(userBody).map((match) => match["params"])).toEqual([{ id: "42" }, { id: "42" }])
 })
 
 async function preloaders(app: ReturnType<typeof createServer>, path: string): Promise<unknown[]> {
 	const body = await (await app.fetch(new Request(`http://localhost${path}`))).text()
-	const payload = /self\.flare=(.*?)<\/script>/.exec(body)?.[1]
-	if (payload === undefined) throw new Error("state script")
-	return JSON.parse(payload).matches.map((match: { preloader: unknown }) => match.preloader)
+	return stateIn(body).map((match) => match["preloader"])
 }
 
 it("state preloader", async () => {
@@ -390,14 +382,9 @@ it("internal kinds", async () => {
 	expect((await fetchAt("/nowhere?_flare=data")).status).toBe(404)
 	const named = await fetchAt("/gone?_flare=data")
 	expect([named.status, named.headers.get("flare-failed")]).toEqual([404, "_root_/gone"])
-	expect((await named.text()).split("\n")[0]).toBe('{"t":"l","m":"_root_","d":null}')
+	expect(framesIn(await named.text())[0]).toEqual({ t: "l", m: "_root_", d: null })
 	const stale = await fetchAt("/users/7?q=1&_flare=data&_flare_stale=id%3D7%26q%3D1")
-	expect((await stale.text()).split("\n").map((line) => line.slice(0, 30))).toEqual([
-		'{"t":"l","m":"_root_","d":null',
-		'{"t":"r"}',
-		'{"t":"d"}',
-		"",
-	])
+	expect(framesIn(await stale.text())).toEqual([{ t: "l", m: "_root_", d: null }, { t: "r" }, { t: "d" }])
 	expect(calls).toEqual([])
 })
 
@@ -461,8 +448,8 @@ it("prefetch defer", async () => {
 	const response = await app.fetch(new Request("http://localhost/slow?_flare=prefetch"))
 	const body = await response.text()
 	expect(response.status).toBe(200)
-	expect(body).toContain('"__deferred":true')
-	expect(body).not.toContain('"t":"c"')
+	expect(framesIn(body)).toContainEqual({ t: "l", m: "_root_/slow", d: { late: { __deferred: true, key: "d0" } } })
+	expect(framesIn(body).filter((frame) => frame.t === "c")).toEqual([])
 	expect(late).not.toHaveBeenCalled()
 })
 

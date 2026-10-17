@@ -1,12 +1,15 @@
 import { expect, it, vi } from "vitest"
+import { dataToWire, toWire } from "../../shared/protocol/value.ts"
 import { callServerFn, createServerFn, ServerFnError, type CallDeps } from "./call.ts"
 
 const echo = { id: "0123456789abcdef", name: "echo", record: { method: "post" as const } }
 
 type Answer = { body: BodyInit | null; status?: number; headers?: Record<string, string> }
 
+// An envelope's data is a wire value (B145); the envelope around it is JSON.
 function json(value: unknown, status = 200, headers: Record<string, string> = {}): Answer {
-	return { body: JSON.stringify(value), status, headers: { "content-type": "application/json", ...headers } }
+	const body = typeof value === "object" && value !== null ? dataToWire(value) : value
+	return { body: JSON.stringify(body), status, headers: { "content-type": "application/json", ...headers } }
 }
 
 function deps(answer: Answer, extra: Partial<CallDeps> = {}) {
@@ -45,7 +48,7 @@ it("posts", async () => {
 	const [url, init] = call.fetch.mock.calls[0]
 	expect(url).toBe("/_flare/fn/0123456789abcdef")
 	expect(init.method).toBe("POST")
-	expect(init.body).toBe('{"a":1}')
+	expect(init.body).toBe(JSON.stringify(toWire({ a: 1 })))
 })
 
 it("reject", async () => {
@@ -187,7 +190,7 @@ it("cached across a deploy", async () => {
 	const fetch = async (url: string): Promise<Response> => {
 		const hit = cache.get(url)
 		if (hit !== undefined) return hit.clone()
-		const fresh = new Response(JSON.stringify({ status: 200, data: live }), {
+		const fresh = new Response(JSON.stringify(dataToWire({ status: 200, data: live })), {
 			headers: { "content-type": "application/json", "flare-build": live },
 		})
 		cache.set(url, fresh.clone())
@@ -199,4 +202,17 @@ it("cached across a deploy", async () => {
 	const after = cached("b2")
 	expect(await callServerFn(read, { a: 1 }, after)).toBe("b2")
 	expect(after.reload).not.toHaveBeenCalled()
+})
+
+// The envelope's data is a wire value, so a Date or a Map arrives as the handler returned it; data that is no wire
+// value makes the answer no envelope (B145).
+it("wire data", async () => {
+	const value = { at: new Date(5), map: new Map([["k", 1]]) }
+	expect(await callServerFn(echo, 1, deps(json({ name: "echo", status: 200, data: value })))).toEqual(value)
+	const raw = {
+		body: JSON.stringify({ name: "echo", status: 200, data: { t: 999 } }),
+		status: 200,
+		headers: { "content-type": "application/json" },
+	}
+	expect(await rejection(callServerFn(echo, 1, deps(raw)))).toMatchObject({ message: "HTTP 200" })
 })

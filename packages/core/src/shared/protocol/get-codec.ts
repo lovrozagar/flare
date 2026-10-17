@@ -1,13 +1,14 @@
 import { BUILD_PARAM, INPUT_PARAM } from "./constants.ts"
+import { fromWire, toWire } from "./value.ts"
 
-// A GET server function carries its input as `?_i=<JSON>`, at most 8,192 encoded characters (dx/server-fn.md).
+// A GET server function carries its input as `?_i=<wire value>` (B145), at most 8,192 encoded characters (dx/server-fn.md).
 export const MAX_GET_INPUT = 8192
 
 // The client refuses before sending, so a request never reaches the server over the cap.
 // A void input has no JSON form: the caller omits `_i`, and the server reads `undefined`.
 export function encodeGetInput(input: unknown): string {
 	if (input === undefined) throw new Error("A void GET input has no _i value. Omit _i")
-	const encoded = encodeURIComponent(JSON.stringify(input))
+	const encoded = encodeURIComponent(JSON.stringify(toWire(input)))
 	if (encoded.length > MAX_GET_INPUT) throw new Error(`The GET input is ${encoded.length} characters. The cap is 8192`)
 	return encoded
 }
@@ -35,7 +36,7 @@ export function decodeGetInput(search: string): { status: 200; input: unknown } 
 	if (raw === undefined) return { status: 200, input: undefined }
 	if (raw.length > MAX_GET_INPUT) return { status: 400 }
 	try {
-		return { status: 200, input: JSON.parse(decodeURIComponent(raw)) }
+		return { status: 200, input: fromWire(JSON.parse(decodeURIComponent(raw))) }
 	} catch {
 		return { status: 400 }
 	}

@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs"
-import { createServer as createHttpServer, type Server } from "node:http"
+import { createServer as createHttpServer, type IncomingMessage, type Server } from "node:http"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { chromium, firefox, webkit, type Browser, type BrowserType } from "@playwright/test"
@@ -164,6 +164,19 @@ function clientModule(id: string): string {
 	].join("\n")
 }
 
+// The browser's method, headers, and body, as the app's server should see them.
+async function requestInit(req: IncomingMessage): Promise<RequestInit> {
+	const headers = new Headers()
+	for (const [name, value] of Object.entries(req.headers)) {
+		for (const each of Array.isArray(value) ? value : [value]) if (each !== undefined) headers.append(name, each)
+	}
+	const method = req.method ?? "GET"
+	if (method === "GET" || method === "HEAD") return { method, headers }
+	const chunks: Buffer[] = []
+	for await (const chunk of req) chunks.push(Buffer.from(chunk as Uint8Array))
+	return { method, headers, body: Buffer.concat(chunks) }
+}
+
 async function listen(
 	http: Server,
 	vite: ViteDevServer,
@@ -171,18 +184,21 @@ async function listen(
 ): Promise<Server> {
 	http.on("request", (req, res) => {
 		const url = req.url ?? "/"
-		if (apps.active !== undefined && isAppRequest(url)) {
+		const active = apps.active
+		if (active !== undefined && isAppRequest(url)) {
 			const origin = `http://127.0.0.1:${portOf(http)}`
-			void appDocument(vite, { id: apps.active, url, origin }).then(
-				(answer) => {
-					res.writeHead(answer.status, Object.fromEntries(answer.headers))
-					res.end(answer.body)
-				},
-				(error: unknown) => {
-					res.writeHead(500)
-					res.end(String(error))
-				},
-			)
+			void requestInit(req)
+				.then((init) => appDocument(vite, { id: active, url, origin, init }))
+				.then(
+					(answer) => {
+						res.writeHead(answer.status, Object.fromEntries(answer.headers))
+						res.end(answer.body)
+					},
+					(error: unknown) => {
+						res.writeHead(500)
+						res.end(String(error))
+					},
+				)
 			return
 		}
 		const id = /^\/case\/(\w+)$/.exec(url)?.[1]

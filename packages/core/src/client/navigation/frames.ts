@@ -140,24 +140,54 @@ async function settleLater(
 // Each placeholder in a match's data becomes a live deferred value whose slot a later frame settles. A slot already in
 // `slots`, a hole a fill is filling, is reused, so every read of that value sees the one promise. A stored page's
 // inline value settles its slot at once. A fill's `kept` value reads the slot the page already holds for it, and one
-// the page does not hold rejects with a reason that names it (BUGS.md 94).
+// the page does not hold rejects with a reason that names it (BUGS.md 94). The value is freshly decoded, so the walk
+// replaces placeholders in place, in arrays, plain objects, and a Map's values: a Date or a Set stays itself, and a
+// cycle a wire value may hold ends the walk where it began (B145).
 export function revive(value: unknown, route: string, slots: Pending): unknown {
-	if (Array.isArray(value)) return value.map((item) => revive(item, route, slots))
-	if (typeof value !== "object" || value === null) return value
-	if ("__deferred" in value && value.__deferred === true && "key" in value && typeof value.key === "string") {
-		const id = `${route}\n${value.key}`
-		if ("kept" in value && value.kept === true)
-			return new ClientDeferred(value.key, keptOf(slots, id, value.key), false)
-		const slot = slots.get(id) ?? resolvers<unknown>()
-		slot.promise.catch(() => undefined)
-		slots.set(id, slot)
-		if ("value" in value) {
-			slot.resolve(value.value)
-			inline.add(slot)
+	const live = (item: unknown): unknown => (isPlaceholder(item) ? deferredOf(item, route, slots) : item)
+	const seen = new Set<object>()
+	const pending: unknown[] = [value]
+	while (pending.length > 0) {
+		const next = pending.pop()
+		if (typeof next !== "object" || next === null || seen.has(next) || isPlaceholder(next)) continue
+		seen.add(next)
+		if (next instanceof Map) {
+			for (const [key, item] of next) next.set(key, live(item))
+			pending.push(...next.values())
+		} else if (Array.isArray(next) || Object.getPrototypeOf(next) === Object.prototype) {
+			const record = next as Record<string, unknown>
+			for (const key of Object.keys(record)) {
+				pending.push(record[key])
+				record[key] = live(record[key])
+			}
 		}
-		return new ClientDeferred(value.key, slot.promise, "hole" in value && value.hole === true)
 	}
-	return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, revive(item, route, slots)]))
+	return live(value)
+}
+
+type Placeholder = { __deferred: true; key: string; kept?: boolean; value?: unknown; hole?: boolean }
+
+function isPlaceholder(value: unknown): value is Placeholder {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		!(value instanceof ClientDeferred) &&
+		Reflect.get(value, "__deferred") === true &&
+		typeof Reflect.get(value, "key") === "string"
+	)
+}
+
+function deferredOf(placeholder: Placeholder, route: string, slots: Pending): ClientDeferred {
+	const id = `${route}\n${placeholder.key}`
+	if (placeholder.kept === true) return new ClientDeferred(placeholder.key, keptOf(slots, id, placeholder.key), false)
+	const slot = slots.get(id) ?? resolvers<unknown>()
+	slot.promise.catch(() => undefined)
+	slots.set(id, slot)
+	if ("value" in placeholder) {
+		slot.resolve(placeholder.value)
+		inline.add(slot)
+	}
+	return new ClientDeferred(placeholder.key, slot.promise, placeholder.hole === true)
 }
 
 function keptOf(slots: Pending, id: string, key: string): Promise<unknown> {

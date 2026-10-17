@@ -235,9 +235,19 @@ export function clientOf(client: ClientCache | undefined): Exclude<ClientCache, 
 	return client === undefined || client === false ? {} : client
 }
 
-// A value that still holds a deferred placeholder (B80).
+// A value that still holds a deferred placeholder (B80), walked without recursion, through arrays, objects, and a Map's
+// or Set's members. A wire value may hold a BigInt or a cycle (B145), so the walk keeps the objects it saw.
 export function holds(data: unknown): boolean {
-	return JSON.stringify({ d: data }).includes('"__deferred":true')
+	const seen = new Set<object>()
+	const pending: unknown[] = [data]
+	while (pending.length > 0) {
+		const next = pending.pop()
+		if (typeof next !== "object" || next === null || seen.has(next)) continue
+		seen.add(next)
+		if (Reflect.get(next, "__deferred") === true) return true
+		pending.push(...(next instanceof Map || next instanceof Set ? next.values() : Object.values(next)))
+	}
+	return false
 }
 
 // Route params without the optional ones that are absent.

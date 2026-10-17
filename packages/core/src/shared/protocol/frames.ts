@@ -1,4 +1,5 @@
 import type { HeadConfig } from "../route-builder/types.ts"
+import { fromWire, toWire } from "./value.ts"
 
 // `stack` in dev, `digest` in production, and never both (B76).
 export type FrameError = { message: string; stack?: string | undefined; digest?: string | undefined }
@@ -22,27 +23,44 @@ const KINDS = new Set(["l", "e", "h", "r", "c", "x", "q", "d"])
 
 const OVERSIZE: Frame = { t: "e", m: "", e: { message: "Frame over 1 MiB" } }
 
-// A response's frames and a frame's nesting, past which a hostile or broken stream would exhaust the tab (v0's 10,000
-// messages; plan 21 16.5).
+// A response's frames and a line's JSON nesting, past which a hostile or broken stream would exhaust the tab (v0's
+// 10,000 messages; plan 21 16.5). A wire value nests up to three JSON levels per level of the value (B145), so 1,024
+// is a value about 340 levels deep.
 const MAX_FRAMES = 10_000
-const MAX_DEPTH = 256
+const MAX_DEPTH = 1024
 const TOO_MANY: Frame = { t: "e", m: "", e: { message: `Over ${MAX_FRAMES} frames` } }
 const TOO_DEEP: Frame = { t: "e", m: "", e: { message: `Frame nested over ${MAX_DEPTH} levels` } }
 
 const encoder = new TextEncoder()
 
+// A frame's app values, an `l` frame's data, preloader context, and validated params and search, and a `c` frame's
+// value, travel as wire values; the frame around them is JSON (B145).
 export function encodeFrame(frame: Frame): string {
-	return `${JSON.stringify(frame)}\n`
+	return `${JSON.stringify(mapValues(frame, toWire))}\n`
 }
 
 export function decodeLine(line: string): Frame {
+	return mapValues(parsedLine(line), fromWire)
+}
+
+// A line as JSON, its values still on the wire, so the nesting cap reads it before any value is decoded.
+function parsedLine(line: string): Frame {
 	const value: unknown = JSON.parse(line)
 	if (!isFrame(value)) throw new Error(`Not a flare frame: ${line.slice(0, 80)}`)
 	return value
 }
 
+function mapValues(frame: Frame, map: (value: unknown) => unknown): Frame {
+	if (frame.t === "c") return { ...frame, d: map(frame.d) }
+	if (frame.t !== "l") return frame
+	const mapped: Frame = { ...frame, d: map(frame.d) }
+	if ("p" in frame) mapped.p = map(frame.p)
+	if ("v" in frame) mapped.v = map(frame.v)
+	return mapped
+}
+
 // Text arrives in chunks that may split a line. A line, or an unfinished line, past 1 MiB, a frame past the
-// response's 10,000, or one nested past 256 levels becomes one `e` frame and the decoder stops: nothing after it is
+// response's 10,000, or one nested past 1,024 JSON levels becomes one `e` frame and the decoder stops: nothing after it is
 // read.
 export function frameDecoder(): { push: (text: string) => Frame[] } {
 	const state = { buffer: "", stopped: false, count: 0 }
@@ -60,11 +78,11 @@ export function frameDecoder(): { push: (text: string) => Frame[] } {
 				const line = joined.slice(start, end)
 				start = end + 1
 				if (tooLong(line)) return stop(frames)
-				const frame = decodeLine(line)
-				if (nestedOver(frame, MAX_DEPTH)) return stop(frames, TOO_DEEP)
+				const raw = parsedLine(line)
+				if (nestedOver(raw, MAX_DEPTH)) return stop(frames, TOO_DEEP)
 				if (state.count === MAX_FRAMES) return stop(frames, TOO_MANY)
 				state.count += 1
-				frames.push(frame)
+				frames.push(mapValues(raw, fromWire))
 			}
 			state.buffer = joined.slice(start)
 			return tooLong(state.buffer) ? stop(frames) : frames

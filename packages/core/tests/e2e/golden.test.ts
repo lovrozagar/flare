@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url"
 import { chromium } from "@playwright/test"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { packCore, type Packed } from "../../../../scripts/release.ts"
+import { fromWire, toWire } from "../../src/shared/protocol/value.ts"
 import { flarePage } from "../../src/testing/index.ts"
 import { bootApp, type Boot } from "./boot.ts"
 
@@ -42,10 +43,12 @@ async function threeRequests(origin: string): Promise<void> {
 	const call = await fetch(`${origin}/_flare/fn/${ECHO}`, {
 		method: "POST",
 		headers: { origin, "content-type": "application/json" },
-		body: JSON.stringify({ text: "golden" }),
+		body: JSON.stringify(toWire({ text: "golden" })),
 	})
 	expect(call.status).toBe(200)
-	expect(await call.json()).toMatchObject({ name: "echo", status: 200, data: "golden" })
+	// The input and the envelope's data are wire values (B145).
+	const envelope: { name: string; status: number; data: unknown } = await call.json()
+	expect({ ...envelope, data: fromWire(envelope.data) }).toMatchObject({ name: "echo", status: 200, data: "golden" })
 	const data = await fetch(`${origin}/?_flare=data`)
 	expect(data.status).toBe(200)
 	expect(data.headers.get("content-type")).toMatch(/^application\/x-ndjson/)

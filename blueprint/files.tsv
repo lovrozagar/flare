@@ -105,8 +105,10 @@ packages/core/src/shared/route-builder/segment.test.ts	P2	test	shared	Unit cases
 packages/core/src/shared/route-builder/index.ts	P1	index	shared	Re-exports
 packages/core/src/shared/protocol/constants.ts	P6	src	shared	Param names, the server-fn path prefix, header names Flare writes
 packages/core/src/shared/protocol/constants.test.ts	P6	test	shared	Unit cases for constants.ts
-packages/core/src/shared/protocol/frames.ts	P6	src	shared	Encode and decode the seven NDJSON frames. Reject a line over 1 MiB, a response over 10,000 frames, or a frame nested past 256 levels
+packages/core/src/shared/protocol/frames.ts	P6	src	shared	Encode and decode the seven NDJSON frames, their app values on the wire (B145). Reject a line over 1 MiB, a response over 10,000 frames, or a line nested past 1,024 JSON levels
 packages/core/src/shared/protocol/frames.test.ts	P6	test	shared	Unit cases for frames.ts
+packages/core/src/shared/protocol/value.ts	P6	src	shared	An app value on the wire: seroval's JSON form with the deferred placeholder and URL plugins, so every transport carries what Solid's hydration data carries (B145)
+packages/core/src/shared/protocol/value.test.ts	P6	test	shared	Unit cases for value.ts
 packages/core/src/shared/protocol/frames.corpus.txt	P6	corpus	shared	Frame corpus
 packages/core/src/shared/protocol/internal-params.ts	P6	src	shared	Parse and strip _flare and _flare_stale. Apply the 8 KiB cap
 packages/core/src/shared/protocol/internal-params.test.ts	P6	test	shared	Unit cases for internal-params.ts
@@ -269,6 +271,7 @@ packages/core/src/server/render/escape.ts	P1	src	server	escapeInlineScript over 
 packages/core/src/server/render/escape.test.ts	P1	test	server	Unit cases for escape.ts
 packages/core/src/server/render/escape.corpus.txt	P1	corpus	server	Script-escape corpus including dollar-brace, script close, and line separators
 packages/core/src/server/render/state.ts	P1	src	server	Build the one state script and the insertion point
+packages/core/src/server/wire.fixture.ts	P1	test	node	A data answer's frames and a document's state matches, decoded as the client reads them (B145)
 packages/core/src/server/render/state.test.ts	P1	test	server	Unit cases for state.ts
 packages/core/src/server/render/head-sequence.ts	P1	src	server	The final shell's <head> child sequence the client's head guard matches (B120)
 packages/core/src/server/render/head-sequence.test.ts	P1	test	server	Unit cases for head-sequence.ts
@@ -698,6 +701,7 @@ packages/core/tests/integration/router-client.test.ts	P1	test	node	dx/router.md'
 packages/core/tests/integration/harness-app.ts	P1	test	node	An app for the hydrate harness's app mode from its source text, shared by the dx client integration tests (B96)
 packages/core/tests/integration/builder.test.ts	P1	test	node	dx/builder.md's methods through the real createServer(...).fetch: which builder has which method, the call-once and order rules, input, auth, preloader, loader, response, and the server callbacks' context (plan 14 9.6)
 packages/core/tests/integration/failure-client.test.ts	P15	test	node	A client navigation to a page that fails with a named status: the layouts above it show this URL's data (plan 21 12.5)
+packages/core/tests/integration/transport-client.test.ts	P15	test	node	One value with a Date, BigInt, Map, Set, undefined key, and NaN through every transport: document, deferred, navigation, prefetch, stored hit, server function input, output, GET, stream (B145)
 packages/core/tests/integration/history-client.test.ts	P15	test	client	Back and Forward onto an entry the server answered 404 render the not-found page (BUGS.md 212)
 packages/core/tests/integration/overlay-client.test.ts	P15	test	client	A replace inside an open overlay replaces its entry, so one Back closes it (BUGS.md 214)
 packages/core/tests/integration/render-errors.test.ts	P15	test	server	A production build's render throws keep their status and their log line, though Solid sanitizes them (BUGS.md 217)

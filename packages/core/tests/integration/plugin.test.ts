@@ -7,6 +7,7 @@ import { afterAll, beforeAll, expect, it } from "vitest"
 import { flare } from "../../src/vite/plugin/flare.ts"
 import type { FlareOptions } from "../../src/vite/plugin/options.ts"
 import { builtServer, fixtureApps, page, viteBuild, type Server } from "./vite-app.ts"
+import { stateIn } from "../../src/server/wire.fixture.ts"
 
 // dx/plugin.md's options through real apps (B96): an app with every option set and one with the defaults, each built
 // by `vite build` with flare() from a config file, as the CLI runs it, then read from its output and answered by its
@@ -283,7 +284,8 @@ it("prerender", () => {
 	const flavors = (app: App | undefined) =>
 		seeds(app).map((path) => {
 			const seed: { data: { html: string } } = JSON.parse(clientFile(app, path).toString())
-			return /"flavor":"(\w+)"/.exec(seed.data.html)?.[1]
+			const state = seed.data.html.includes("self.flare=") ? stateIn(seed.data.html) : []
+			return Reflect.get(Object(state.at(-1)?.["preloader"]), "flavor")
 		})
 	expect(flavors(options)).toEqual(["built", "built", "built"])
 	expect(flavors(defaults).toSorted()).toEqual(["undefined", "undefined", "undefined", undefined])

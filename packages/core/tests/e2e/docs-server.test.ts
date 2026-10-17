@@ -1,6 +1,17 @@
 import { createServer, request as httpRequest } from "node:http"
 import type { AddressInfo, Socket } from "node:net"
-import { deepOnly, expect, fnId, INDEX_NOW_KEY, nonces, open, prodOnly, sessionCookie, test } from "./docs.fixture.ts"
+import {
+	deepOnly,
+	expect,
+	fnId,
+	INDEX_NOW_KEY,
+	nonces,
+	open,
+	prodOnly,
+	sessionCookie,
+	test,
+	wire,
+} from "./docs.fixture.ts"
 
 // Auth, CSRF, the body cap, middleware, mounts, `.response()`, route headers, and security (bits/15 docs-server).
 deepOnly()
@@ -91,7 +102,7 @@ function postExpectingContinue(url: string, origin: string, body: string): Promi
 // cap at the server's limit cut the connection before the 413, which macOS showed and Linux hid at 70 KiB (BUGS.md 114).
 test("body limit", async ({ http, docs }) => {
 	const url = `${docs.origin}/_flare/fn/${ECHO}`
-	const small = await http.post(url, { headers: { origin: docs.origin }, data: { text: "hi" } })
+	const small = await http.post(url, { headers: { origin: docs.origin }, data: wire({ text: "hi" }) })
 	expect(small.status()).toBe(200)
 	expect(await postExpectingContinue(url, docs.origin, JSON.stringify({ text: "x".repeat(8 * 1024 * 1024) }))).toBe(413)
 })

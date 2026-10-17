@@ -2,6 +2,7 @@ import { BUILD_HEADER, COOKIES_HEADER, FN_HEADER } from "../../shared/protocol/i
 import { bindServerFn, type CreateServerFn, type ServerFnCall } from "../../shared/server-fn/builder.ts"
 import { shapeIssues, type Issue } from "../../shared/validation/index.ts"
 import { fnRequest } from "./codec.ts"
+import { fromWire } from "../../shared/protocol/value.ts"
 
 // What a client call needs from the booted client. `go` is the internal URL navigation an `x` frame takes. `reload`
 // is the guarded document load (flare_chunk_reload). `href` is the page on screen. `forget` drops the client's cached
@@ -118,7 +119,9 @@ export function envelopeOf(value: unknown): Wire | undefined {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined
 	const status: unknown = Reflect.get(value, "status")
 	if (typeof status !== "number") return undefined
-	const wire: Wire = { status, data: Reflect.get(value, "data") }
+	const data = dataOf(value)
+	if (data === UNREADABLE) return undefined
+	const wire: Wire = { status, data }
 	for (const key of ["message", "stack", "digest"] as const) {
 		const text: unknown = Reflect.get(value, key)
 		if (typeof text === "string") wire[key] = text
@@ -131,6 +134,17 @@ export function envelopeOf(value: unknown): Wire | undefined {
 		wire.redirect = { to: String(to), status, replace: Reflect.get(redirect, "replace") === true }
 	}
 	return wire
+}
+
+const UNREADABLE = Symbol("unreadable")
+
+// The envelope's `data` arrives as a wire value (B145). One seroval cannot read makes the envelope unreadable.
+function dataOf(envelope: object): unknown {
+	try {
+		return "data" in envelope ? fromWire(envelope.data) : undefined
+	} catch {
+		return UNREADABLE
+	}
 }
 
 // Each issue keeps a string message and a string path. `fieldErrors` is derived from them, as the server does.

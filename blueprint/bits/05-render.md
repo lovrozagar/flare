@@ -68,7 +68,7 @@ Creates every `P5` row. The projector and the abort race. `renderToStream`'s `si
 | `not found in render` | the component calls `notFound()` | status 404, the overlay sender is not called |
 | `unauthenticated in render` | the component calls `unauthenticated()` | status 401, the overlay sender is not called |
 | `render has no auth` | a route with a session | the render props have no `auth` field |
-| `bigint` | loader data contains a bigint | 500 before the shell is committed |
+| `no wire value` | loader data holds a function, which the wire cannot carry (a BigInt can, B145) | 500 before the shell is committed |
 | `null title` | head title is null | the head omits the title, the response is 200 |
 | `string thrown` | the loader throws the string `"plain secret"` in dev | the state error is `{ message: "plain secret", stack: "" }`, and the sender is called with that message and `stack: ""` |
 | `dev sink` | `devSink({ env: { DEV: true }, hot })`, then `{ env: { DEV: false } }` | the first sends `hot.send("flare:error", payload)`. The second is not dev and has no sender (B93) |

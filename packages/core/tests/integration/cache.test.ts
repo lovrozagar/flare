@@ -9,6 +9,7 @@ import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule } from "../../src/shared/router/create-router.ts"
+import { stateIn } from "../../src/server/wire.fixture.ts"
 
 const SITE = "https://example.com"
 
@@ -316,6 +317,6 @@ it("hostile state hit", async () => {
 	const hit = await app.fetch(new Request(`${SITE}/p`))
 	for (const body of [await miss.text(), await hit.text()]) {
 		expect(body).not.toContain("<script>alert")
-		expect(body).toContain("\\u003c/script>\\u003cscript>alert(1)")
+		expect(stateIn(body).at(-1)?.["data"]).toEqual({ text: hostile })
 	}
 })

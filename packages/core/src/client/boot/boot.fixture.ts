@@ -6,6 +6,7 @@ import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { PrefetchContext, useRouter, type LinkPrefetch } from "../../shared/router/context.ts"
 import { createRouter, type Router } from "../../shared/router/create-router.ts"
+import { matchToWire } from "../../shared/protocol/value.ts"
 import type { ClientEnv } from "./create-client.ts"
 
 // The app, the router, the document state, and the browser surface the create-client tests boot.
@@ -53,6 +54,11 @@ export function routerOf(chunks: Record<string, string> = {}): Router {
 
 export const stops: (() => void)[] = []
 
+// The state script's text as the server writes it: each match's app values are wire values (B145).
+export function stateText(state: { matches: readonly Record<string, unknown>[] }): string {
+	return `self.flare=${JSON.stringify({ ...state, matches: state.matches.map(matchToWire) })}`
+}
+
 export function install(build?: string, extra: Record<string, unknown> = {}): HTMLElement {
 	const matches = [
 		{ id: "_root_", params: {}, search: {}, data: null, preloader: {}, head: null, error: null },
@@ -60,7 +66,7 @@ export function install(build?: string, extra: Record<string, unknown> = {}): HT
 	]
 	// jsdom does not run a script set through innerHTML. A browser would, so the test assigns self.flare too.
 	const state = { ...(build === undefined ? { matches, nonce: "" } : { matches, nonce: "", build }), ...extra }
-	document.body.innerHTML = `<script id="flare-state">self.flare=${JSON.stringify(state)}</script><div id="app"></div>`
+	document.body.innerHTML = `<script id="flare-state">${stateText(state)}</script><div id="app"></div>`
 	;(globalThis as Dom).flare = { ...state }
 	return document.getElementById("app") as HTMLElement
 }

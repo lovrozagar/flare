@@ -3,6 +3,7 @@ import { QUERY_GETTER } from "../../shared/protocol/query.ts"
 import { answerQueries } from "./state.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { renderDocument } from "./document.ts"
+import { fromWire } from "../../shared/protocol/value.ts"
 import { insertState, stateScript } from "./state.ts"
 
 it("one script", async () => {
@@ -17,9 +18,10 @@ it("one script", async () => {
 	const start = html.indexOf("self.flare=")
 	const source = html.slice(start, html.indexOf("</script>", start))
 	const value = Function(`const self = {}; ${source}; return self.flare;`)() as {
-		matches: Array<Record<string, unknown> & { data: { n: number } }>
+		matches: Array<Record<string, unknown>>
 	}
-	expect(value.matches[0]?.data.n).toBe(1)
+	// The data is a wire value (B145).
+	expect(fromWire(value.matches[0]?.["data"])).toEqual({ n: 1 })
 	expect(Object.keys(value.matches[0] ?? {}).sort()).toEqual([
 		"data",
 		"error",

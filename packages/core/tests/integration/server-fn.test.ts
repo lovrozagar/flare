@@ -6,6 +6,7 @@ import type { Middleware } from "../../src/server/middleware/types.ts"
 import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter } from "../../src/shared/router/create-router.ts"
+import { fromWire, toWire } from "../../src/shared/protocol/value.ts"
 
 // dx/server-fn.md through the real `createServer(...).fetch` (B96). `__id` and `__name` are what the boundary
 // transform writes into the config; they are not typed config.
@@ -27,16 +28,27 @@ function serve(fns: readonly Fn[], options: Omit<Parameters<typeof createServer>
 	} as Parameters<typeof createServer>[0])
 }
 
+type Envelope = {
+	[key: string]: unknown
+	errors: { fieldErrors: Record<string, string[]>; issues: Array<{ message: string }> }
+}
+
+// An envelope as the client reads it: JSON with its data a wire value (B145). A non-envelope stays as it is.
+function envelopeOf(value: unknown): Envelope {
+	const json = Object(value) as Envelope
+	return "data" in json ? { ...json, data: fromWire(json["data"]) } : json
+}
+
 function post(fn: Fn, body: unknown, headers: Record<string, string> = { origin: ORIGIN }): Request {
 	return new Request(`${ORIGIN}/_flare/fn/${fn.id}`, {
 		method: "POST",
-		body: JSON.stringify(body),
+		body: JSON.stringify(toWire(body)),
 		headers: { "content-type": "application/json", ...headers },
 	})
 }
 
 function get(fn: Fn, input?: unknown): Request {
-	const query = input === undefined ? "" : `?_i=${encodeURIComponent(JSON.stringify(input))}`
+	const query = input === undefined ? "" : `?_i=${encodeURIComponent(JSON.stringify(toWire(input)))}`
 	return new Request(`${ORIGIN}/_flare/fn/${fn.id}${query}`, { headers: { origin: ORIGIN } })
 }
 
@@ -51,7 +63,7 @@ const echo = createServerFn(config("echo"))
 it("round trip", async () => {
 	const response = await serve([echo]).fetch(post(echo, { text: "hi" }))
 	expect(response.status).toBe(200)
-	expect(await response.json()).toEqual({ name: "echo", status: 200, data: { text: "hi" } })
+	expect(await response.json().then(envelopeOf)).toEqual({ name: "echo", status: 200, data: { text: "hi" } })
 })
 
 it("csrf", async () => {
@@ -74,10 +86,16 @@ it("method", async () => {
 		.input((value: unknown) => value)
 		.handler(({ input }) => input)
 	const server = serve([posted, read])
-	expect(await (await server.fetch(post(posted, null))).json()).toMatchObject({ status: 200, data: "posted" })
+	expect(await (await server.fetch(post(posted, null))).json().then(envelopeOf)).toMatchObject({
+		status: 200,
+		data: "posted",
+	})
 	const wrong = await server.fetch(get(posted))
 	expect([wrong.status, wrong.headers.get("allow")]).toEqual([405, "POST, OPTIONS"])
-	expect(await (await server.fetch(get(read, { q: 1 }))).json()).toMatchObject({ status: 200, data: { q: 1 } })
+	expect(await (await server.fetch(get(read, { q: 1 }))).json().then(envelopeOf)).toMatchObject({
+		status: 200,
+		data: { q: 1 },
+	})
 	expect((await server.fetch(post(read, { q: 1 }))).status).toBe(405)
 })
 
@@ -100,13 +118,13 @@ it("authenticate", async () => {
 		},
 	})
 	const signedIn = await server.fetch(post(me, null, { origin: ORIGIN, "x-user": "ada" }))
-	expect(await signedIn.json()).toMatchObject({ status: 200, data: { user: "ada" } })
+	expect(await signedIn.json().then(envelopeOf)).toMatchObject({ status: 200, data: { user: "ada" } })
 	expect(seen).toEqual(["authenticate", "handler"])
 	const nobody = await server.fetch(post(me, null))
 	expect(nobody.status).toBe(401)
 	expect(seen).toEqual(["authenticate", "handler", "authenticate"])
 	expect((await server.fetch(post(me, null, { "x-user": "ada" }))).status).toBe(403)
-	expect(await (await server.fetch(post(anon, null))).json()).toMatchObject({ data: { auth: null } })
+	expect(await (await server.fetch(post(anon, null))).json().then(envelopeOf)).toMatchObject({ data: { auth: null } })
 	expect(seen).toHaveLength(3)
 })
 
@@ -139,12 +157,14 @@ it("input", async () => {
 		.input((value: { n: string }) => Promise.resolve({ n: Number(value.n) + 2 }))
 		.handler(({ input }) => input)
 	const server = serve([standard, parsed, fn])
-	expect(await (await server.fetch(post(standard, { n: "1" }))).json()).toMatchObject({ data: { n: 1 } })
-	expect(await (await server.fetch(post(parsed, { n: "1" }))).json()).toMatchObject({ data: { n: 2 } })
-	expect(await (await server.fetch(post(fn, { n: "1" }))).json()).toMatchObject({ data: { n: 3 } })
+	expect(await (await server.fetch(post(standard, { n: "1" }))).json().then(envelopeOf)).toMatchObject({
+		data: { n: 1 },
+	})
+	expect(await (await server.fetch(post(parsed, { n: "1" }))).json().then(envelopeOf)).toMatchObject({ data: { n: 2 } })
+	expect(await (await server.fetch(post(fn, { n: "1" }))).json().then(envelopeOf)).toMatchObject({ data: { n: 3 } })
 	const bad = await server.fetch(post(standard, {}))
 	expect(bad.status).toBe(400)
-	const envelope = await bad.json()
+	const envelope = await bad.json().then(envelopeOf)
 	expect(envelope.errors.fieldErrors).toEqual({ items: ["items are wrong", "item two too"] })
 	expect(envelope.errors.issues.map((issue: { message: string }) => issue.message)).toContain("the whole input")
 })
@@ -159,10 +179,10 @@ it("prototype keys", async () => {
 	const body = JSON.parse('{"constructor":"x","__proto__":"y","toString":"z"}') as unknown
 	const bad = await server.fetch(post(fn, body))
 	expect(bad.status).toBe(400)
-	const envelope = await bad.json()
+	const envelope = await bad.json().then(envelopeOf)
 	// zod itself skips a `__proto__` key; shapeIssues keeps one too (issues.test `prototype keys`).
 	expect(Object.keys(envelope.errors.fieldErrors).toSorted()).toEqual(["constructor", "toString"])
-	expect(await (await server.fetch(post(fn, { constructor: 1 }))).json()).toMatchObject({ data: 1 })
+	expect(await (await server.fetch(post(fn, { constructor: 1 }))).json().then(envelopeOf)).toMatchObject({ data: 1 })
 })
 
 // A `rewrite` maps page paths only: a server function's endpoint is never rewritten, so a locale rewrite that prefixes
@@ -172,7 +192,7 @@ it("rewrite skips functions", async () => {
 	const server = serve([ping], { rewrite: (path) => (path.startsWith("/en") ? undefined : `/en${path}`) })
 	const answer = await server.fetch(post(ping, null))
 	expect([answer.status, answer.headers.get("location")]).toEqual([200, null])
-	expect(await answer.json()).toMatchObject({ data: "pong" })
+	expect(await answer.json().then(envelopeOf)).toMatchObject({ data: "pong" })
 })
 
 // A middleware that refreshes a session cookie on every answer.
@@ -224,11 +244,16 @@ it("authorize", async () => {
 			return { user: "ada" }
 		},
 	})
-	expect(await (await server.fetch(post(guarded, { allow: true }))).json()).toMatchObject({ data: "ran" })
+	expect(await (await server.fetch(post(guarded, { allow: true }))).json().then(envelopeOf)).toMatchObject({
+		data: "ran",
+	})
 	expect(seen).toEqual(["authenticate", "input", "authorize", "handler"])
 	seen.length = 0
 	const denied = await server.fetch(post(guarded, { allow: false }))
-	expect([denied.status, await denied.json()]).toEqual([403, { name: "guarded", status: 403, message: "Forbidden" }])
+	expect([denied.status, await denied.json().then(envelopeOf)]).toEqual([
+		403,
+		{ name: "guarded", status: 403, message: "Forbidden" },
+	])
 	expect(seen).toEqual(["authenticate", "input", "authorize"])
 })
 
@@ -330,14 +355,16 @@ it("wire limits", async () => {
 	const read = createServerFn(config("limits", "get"))
 		.input((value: unknown) => value)
 		.handler(({ input }) => input)
-	const server = serve([echo, read], { bodyLimit: 16 })
-	expect((await server.fetch(post(echo, { text: "far more than sixteen bytes" }))).status).toBe(413)
+	// A wire value is about 80 bytes for a one-key object (B145).
+	const server = serve([echo, read], { bodyLimit: 128 })
+	expect((await server.fetch(post(echo, { text: "far more than ".repeat(10) }))).status).toBe(413)
 	expect((await server.fetch(post(echo, { a: 1 }))).status).toBe(200)
-	const extra = new Request(`${ORIGIN}/_flare/fn/${read.id}?_i=1&other=2`, { headers: { origin: ORIGIN } })
+	const seven = encodeURIComponent(JSON.stringify(toWire(7)))
+	const extra = new Request(`${ORIGIN}/_flare/fn/${read.id}?_i=${seven}&other=2`, { headers: { origin: ORIGIN } })
 	expect((await server.fetch(extra)).status).toBe(400)
-	expect(await (await server.fetch(get(read, 7))).json()).toMatchObject({ data: 7 })
-	const built = new Request(`${ORIGIN}/_flare/fn/${read.id}?_i=7&_b=a1b2`, { headers: { origin: ORIGIN } })
-	expect(await (await server.fetch(built)).json()).toMatchObject({ data: 7 })
+	expect(await (await server.fetch(get(read, 7))).json().then(envelopeOf)).toMatchObject({ data: 7 })
+	const built = new Request(`${ORIGIN}/_flare/fn/${read.id}?_i=${seven}&_b=a1b2`, { headers: { origin: ORIGIN } })
+	expect(await (await server.fetch(built)).json().then(envelopeOf)).toMatchObject({ data: 7 })
 	const twice = new Request(`${ORIGIN}/_flare/fn/${read.id}?_b=1&_b=2`, { headers: { origin: ORIGIN } })
 	expect((await server.fetch(twice)).status).toBe(400)
 })
@@ -354,26 +381,28 @@ it("wire envelope", async () => {
 	const missing = createServerFn(config("missing")).handler(() => notFound())
 	const anonymous = createServerFn(config("anonymous")).handler(() => unauthenticated())
 	const denied = createServerFn(config("denied")).handler(() => unauthorized())
-	const dev = await (await serve([loud]).fetch(post(loud, null))).json()
+	const dev = await (await serve([loud]).fetch(post(loud, null))).json().then(envelopeOf)
 	expect(dev).toMatchObject({ name: "loud", status: 500, message: "postgres://secret" })
 	expect(dev.stack).toEqual(expect.any(String))
 	vi.stubEnv("DEV", false)
 	vi.stubEnv("PROD", true)
 	const server = serve([loud, safe, missing, anonymous, denied])
 	const answer = await server.fetch(post(loud, null))
-	const production = await answer.json()
+	const production = await answer.json().then(envelopeOf)
 	expect(answer.status).toBe(500)
 	expect(production.message).not.toContain("secret")
 	expect(production.digest).toMatch(/^[0-9a-f]{12}$/)
 	expect(production).not.toHaveProperty("stack")
-	expect(await (await server.fetch(post(safe, null))).json()).toMatchObject({ message: "quota used up" })
+	expect(await (await server.fetch(post(safe, null))).json().then(envelopeOf)).toMatchObject({
+		message: "quota used up",
+	})
 	for (const [fn, status] of [
 		[missing, 404],
 		[anonymous, 401],
 		[denied, 403],
 	] as const) {
 		const response = await server.fetch(post(fn, null))
-		expect([response.status, (await response.json()).status]).toEqual([status, status])
+		expect([response.status, (await response.json().then(envelopeOf)).status]).toEqual([status, status])
 	}
 })
 
@@ -382,7 +411,7 @@ it("wire redirect", async () => {
 	const away = createServerFn(config("away")).handler(() => redirect({ href: "https://example.com/next" }))
 	const response = await serve([away]).fetch(post(away, null))
 	expect(response.status).toBe(200)
-	expect(await response.json()).toEqual({
+	expect(await response.json().then(envelopeOf)).toEqual({
 		name: "away",
 		status: 303,
 		redirect: { to: "https://example.com/next", status: 303, replace: true },
@@ -422,6 +451,6 @@ it("wire stream", async () => {
 	const lines = (await response.text())
 		.trim()
 		.split("\n")
-		.map((line) => JSON.parse(line))
+		.map((line) => envelopeOf(JSON.parse(line)))
 	expect(lines.filter((line) => "data" in line).map((line) => line.data)).toEqual([1, 2])
 })

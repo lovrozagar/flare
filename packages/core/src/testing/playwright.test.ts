@@ -2,6 +2,7 @@
 import type { Page } from "@playwright/test"
 import { expect, expectTypeOf, it, vi } from "vitest"
 import { flarePage, loadHydrated, waitHydrated, type FlarePageInput } from "./playwright.ts"
+import { matchToWire } from "../shared/protocol/value.ts"
 
 type Listener = (value: never) => void
 
@@ -75,13 +76,15 @@ it("console all", () => {
 const match = { id: "_root_/", params: {}, search: {}, data: { a: 1 }, preloader: null, head: null, error: null }
 
 it("state", async () => {
-	const document = { build: "abc123", nonce: "n", matches: [match], queries: null, fill: true, call: () => 1 }
+	// The page holds each match's app values as wire values (B145).
+	const wired = matchToWire(match)
+	const document = { build: "abc123", nonce: "n", matches: [wired], queries: null, fill: true, call: () => 1 }
 	const state = await flarePage(fakePage(document).page).state()
 	expect(state).toEqual({ build: "abc123", nonce: "n", matches: [match], queries: null })
 	// The v0 short keys, a match missing a field, and no state at all are not Flare's document state.
 	const invalid = [
 		{ p: [], r: {}, c: {} },
-		{ ...document, matches: [{ ...match, error: undefined }].map(({ error: _error, ...rest }) => rest) },
+		{ ...document, matches: [{ ...wired, error: undefined }].map(({ error: _error, ...rest }) => rest) },
 		{ ...document, matches: "x" },
 		{ ...document, build: 1 },
 		{ ...document, nonce: undefined },

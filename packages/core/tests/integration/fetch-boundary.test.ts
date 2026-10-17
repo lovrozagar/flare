@@ -21,7 +21,8 @@ afterEach(() => {
 
 const root = createRootLayout("_root_").render((props) => props.children)
 const big = createPage("_root_/big")
-	.loader(() => ({ n: 1n }))
+	// A function is no wire value (B145).
+	.loader(() => ({ n: () => 1 }))
 	.render(() => "big")
 const router = createRouter({
 	layouts: { _root_: root },
@@ -59,7 +60,7 @@ const CASES: readonly Case[] = [
 		name: "data serialization",
 		options: {},
 		request: new Request("http://localhost/big?_flare=data"),
-		logged: /BigInt/,
+		logged: /Seroval/,
 	},
 	{
 		name: "server context",

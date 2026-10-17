@@ -72,14 +72,15 @@ export function isAppRequest(url: string): boolean {
 }
 
 // The real server's answer for the app, with the harness's client entry added before `</body>`: without flare(), the
-// document carries no client script of its own (server/lifecycle/build-info.ts).
+// document carries no client script of its own (server/lifecycle/build-info.ts). The request keeps the browser's
+// method, headers, and body, so a POST server function and a cookie reach the server as sent.
 export async function appDocument(
 	vite: ViteDevServer,
-	input: { id: string; url: string; origin: string },
+	input: { id: string; url: string; origin: string; init?: RequestInit },
 ): Promise<{ status: number; headers: Headers; body: string }> {
 	const ssr = vite.environments.ssr
 	if (!isRunnableDevEnvironment(ssr)) throw new Error("the SSR environment cannot run modules")
-	const response = await (await serverOf(vite, input)).fetch(new Request(`${input.origin}${input.url}`))
+	const response = await (await serverOf(vite, input)).fetch(new Request(`${input.origin}${input.url}`, input.init))
 	const text = await response.text()
 	if (!(response.headers.get("content-type") ?? "").startsWith("text/html")) {
 		return { status: response.status, headers: response.headers, body: text }

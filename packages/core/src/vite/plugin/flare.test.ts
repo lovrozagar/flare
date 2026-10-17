@@ -122,7 +122,10 @@ it("client entry define", async () => {
 			appType: "custom",
 			resolve: { dedupe: ["solid-js", "@solidjs/web"] },
 			ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
-			optimizeDeps: { exclude: ["@lovrozagar/flare"] },
+			optimizeDeps: {
+				exclude: ["@lovrozagar/flare"],
+				include: ["@lovrozagar/flare > seroval", "@lovrozagar/flare > seroval-plugins/web"],
+			},
 		})
 		expect(returned).not.toHaveProperty("define")
 		expect(flarePlugin().configEnvironment).toBeUndefined()

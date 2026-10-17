@@ -12,6 +12,7 @@ import type { Logger } from "../lifecycle/logger.ts"
 import { LOCALE_SLOT } from "../lifecycle/locale-slot.ts"
 import { fromSentinel } from "./nonce.ts"
 import type { StoredPage } from "./write.ts"
+import { framesIn } from "../wire.fixture.ts"
 
 const SITE = "https://example.com"
 
@@ -210,7 +211,7 @@ it("render", async () => {
 	expect(page.render).toBe("ssg")
 	expect(fromSentinel(page.html, page.sentinel, "n")).toContain("post a")
 	expect(page.html).not.toContain('nonce="n"')
-	expect(page.ndjson).toContain('"slug":"a"')
+	expect(framesIn(page.ndjson)).toContainEqual(expect.objectContaining({ t: "l", d: { slug: "a" } }))
 	expect(result.entry?.tags).toEqual([])
 	expect(typeof result.entry?.storedAt).toBe("number")
 	const isr = await pages.render({ id: "_root_/i/[id]", params: { id: "1" }, env: {} })

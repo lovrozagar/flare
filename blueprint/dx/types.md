@@ -33,7 +33,7 @@ A type is born in one place. Later readers do not invent a second copy.
 | `.input({ params })` on that file | `routeParams[routeId]`. The whole params type is replaced | the same `InferParams` |
 | `.input({ searchParams })` on that file | `routeSearchParams[routeId]` | `InferSearchParams` reads render props `search` |
 | no search validator on that file | the raw record `Record<string, string \| string[]>` | `useSearch`, `Link` `search`, `useLocation`, `loaderDeps`, `shouldRefetch` |
-| the loader return | `Awaited` of that return, on that module's render `loaderData` | `useLoaderData({ from: that id })`, and head, headers, and security on that route |
+| the loader return | `Awaited` of that return, on that module's render `loaderData`, with no JSON reshaping: the value crosses the wire with its Date, BigInt, Map, Set, URL, and undefined keys, so the type is what the client reads (B145, plan 21 11.1) | `useLoaderData({ from: that id })`, and head, headers, and security on that route |
 | each preloader return | `routeParents` outside-in, then this route's own return | `usePreloaderContext({ from })` and later callbacks on that route |
 | `.authenticate()`, `.authenticateOptional()`, and the parent walk | `authModes[routeId]` plus `ParentAuthResolution` | `ctx.auth` on preloader, `authorize`, and loader |
 | the app's augmentation | `auth`, `env`, `serverContext` | session, fetch env, `serverCtx()`, loader `env`, a server function's `serverContext` |

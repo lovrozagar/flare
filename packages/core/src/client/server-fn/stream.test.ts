@@ -1,4 +1,5 @@
 import { expect, it, vi } from "vitest"
+import { dataToWire } from "../../shared/protocol/value.ts"
 import type { CallDeps } from "./call.ts"
 import { streamServerFn } from "./stream.ts"
 
@@ -40,11 +41,16 @@ async function collect(source: AsyncIterable<unknown>): Promise<unknown[]> {
 
 const END = '{"name":"numbers","status":200,"end":true}\n'
 
+// One yielded value's line: the envelope is JSON and its data a wire value (B145).
+function item(data: unknown): string {
+	return `${JSON.stringify(dataToWire({ name: "numbers", status: 200, data }))}\n`
+}
+
 it("iterator", async () => {
-	const lines = '{"name":"numbers","status":200,"data":1}\n{"name":"numbers","status":200,"data":2}\n'
+	const lines = `${item(1)}${item(2)}`
 	expect(await collect(streamServerFn(numbers, undefined, deps(ndjson(lines + END))))).toEqual([1, 2])
 	// A thrown yield is the last line, and the iterator rejects with it after the values before it.
-	const broken = '{"name":"numbers","status":200,"data":1}\n{"name":"numbers","status":500,"message":"x"}'
+	const broken = `${item(1)}{"name":"numbers","status":500,"message":"x"}`
 	const seen: unknown[] = []
 	const reading = (async () => {
 		for await (const value of streamServerFn(numbers, undefined, deps(ndjson(broken)))) seen.push(value)
@@ -66,7 +72,7 @@ it("iterator", async () => {
 // The body yields one line and then never again. `return()` while a `next()` is pending aborts the fetch at once, and
 // the pending `next()` resolves done, with no rejection (BUGS.md B40).
 it("stop aborts", async () => {
-	const line = new TextEncoder().encode('{"name":"numbers","status":200,"data":1}\n')
+	const line = new TextEncoder().encode(item(1))
 	const body = new ReadableStream<Uint8Array>({ start: (controller) => controller.enqueue(line) })
 	const calls = deps(new Response(body, { headers: { "content-type": "application/x-ndjson" } }))
 	const iterator = streamServerFn(numbers, undefined, calls)[Symbol.asyncIterator]()
@@ -83,7 +89,7 @@ it("stop aborts", async () => {
 // the values that arrived, with status 0 as a network failure has, so it never reads as a finished stream
 // (plan 21 4.6, B140).
 it("cut stream", async () => {
-	const one = '{"name":"numbers","status":200,"data":1}\n'
+	const one = item(1)
 	const empty = new Response(null, { headers: { "content-type": "application/x-ndjson" } })
 	for (const response of [ndjson(one), ndjson(`${one}{"name":"num`), empty]) {
 		const seen: unknown[] = []

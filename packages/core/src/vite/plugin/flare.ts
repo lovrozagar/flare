@@ -146,6 +146,9 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 	}
 }
 
+// The libraries flare's client code imports that an app does not import itself (B145's codec).
+const CLIENT_LIBRARIES = ["@lovrozagar/flare > seroval", "@lovrozagar/flare > seroval-plugins/web"]
+
 // The Vite config flare owns. Flare owns the entries and the dev server, so Vite serves no index.html (B89).
 function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): UserConfig {
 	assertHost(config.server?.host)
@@ -176,7 +179,9 @@ function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): U
 		appType: "custom",
 		resolve: { dedupe: ["solid-js", "@solidjs/web"] },
 		ssr: { noExternal: SERVER_BUNDLED },
-		optimizeDeps: { exclude: ["@lovrozagar/flare"] },
+		// Flare is served as source, so the libraries only its client code imports are pre-bundled from its own place: a
+		// first page load would otherwise find them, re-optimize, and reload the page (BUGS.md 254.4).
+		optimizeDeps: { exclude: ["@lovrozagar/flare"], include: CLIENT_LIBRARIES },
 		...buildConfig({
 			assetsBase: parsed.assetsBase,
 			entry,

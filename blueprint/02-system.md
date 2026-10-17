@@ -109,7 +109,7 @@ A document-less root is 500 in production (B37).
 
 ## Data response
 
-`Content-Type: application/x-ndjson`. One JSON object per line, `\n` terminated. A line longer than 1 MiB, a response past 10,000 frames, or a frame nested past 256 levels is an `e` frame and the stream ends, so a hostile or broken stream cannot exhaust the tab: before `r` the navigation loads the URL as a document, after it the values still pending reject (`shared/protocol/frames.test.ts` `caps`, v0's 10,000, BUGS.md 222).
+`Content-Type: application/x-ndjson`. One JSON object per line, `\n` terminated. An app value in a frame, `l`'s `d`, `p`, and `v` and `c`'s `d`, is a wire value: seroval's JSON form, so a Date, a BigInt, a Map, a Set, a URL, an undefined key, and NaN arrive as the server held them (B145). A line longer than 1 MiB, a response past 10,000 frames, or a line nested past 1,024 JSON levels (a value about 340 levels deep) is an `e` frame and the stream ends, so a hostile or broken stream cannot exhaust the tab: before `r` the navigation loads the URL as a document, after it the values still pending reject (`shared/protocol/frames.test.ts` `caps`, v0's 10,000, BUGS.md 222).
 
 | `t` | when | fields |
 | --- | --- | --- |

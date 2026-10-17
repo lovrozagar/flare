@@ -1,7 +1,15 @@
 import { expect, it, vi } from "vitest"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { revive, type Pending } from "../navigation/frames.ts"
-import { cachedMatches, cacheFor, createMatchCache, remember, type CachedMatch, type Effects } from "./match-cache.ts"
+import {
+	cachedMatches,
+	cacheFor,
+	createMatchCache,
+	holds,
+	remember,
+	type CachedMatch,
+	type Effects,
+} from "./match-cache.ts"
 
 function clock(): { now: () => number; at: (ms: number) => void } {
 	let current = 0
@@ -317,4 +325,17 @@ it("pop held", () => {
 	expect(plan(cache, [layout, other], { pop: true }).held).toBe(false)
 	cache.store(page(), { data: "user", deferred: true })
 	expect(plan(cache, [layout, page()], { pop: true }).held).toBe(false)
+})
+
+// A placeholder anywhere in a value, inside an array, an object, a Map, or a Set; a BigInt, a Date, and a cycle, which a
+// wire value may hold, are walked without failing (B80, B145).
+it("holds", () => {
+	const placeholder = { __deferred: true, key: "d0" }
+	const cycle: Record<string, unknown> = { big: 1n, at: new Date(0) }
+	cycle["self"] = cycle
+	expect(holds(cycle)).toBe(false)
+	expect(holds([1, undefined, { deep: [placeholder] }])).toBe(true)
+	expect(holds({ map: new Map([["k", placeholder]]) })).toBe(true)
+	expect(holds(new Set([placeholder]))).toBe(true)
+	expect(holds(null)).toBe(false)
 })

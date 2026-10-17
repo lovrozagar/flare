@@ -10,6 +10,7 @@ import { createRouter, type RouteModule } from "../../shared/router/create-route
 import { serveWith } from "../lifecycle/create.ts"
 import type { Logger } from "../lifecycle/logger.ts"
 import { runLoaders } from "../loaders/run.ts"
+import { decodeLine } from "../../shared/protocol/index.ts"
 
 function noop(): void {}
 
@@ -76,7 +77,7 @@ function lines(response: Response): { next: () => Promise<Frame | undefined> } {
 				buffer += decoder.decode(chunk.value)
 				const parts = buffer.split("\n")
 				buffer = parts.pop() ?? ""
-				for (const part of parts) queue.push(JSON.parse(part))
+				for (const part of parts) queue.push(decodeLine(part))
 			}
 			return queue.shift()
 		},

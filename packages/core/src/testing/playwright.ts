@@ -1,3 +1,5 @@
+import { fromWire } from "../shared/protocol/value.ts"
+
 // The part of Playwright's `Page` the helper uses. Flare does not depend on Playwright; an app passes its own page.
 export type FlarePageInput = {
 	goto(url: string): Promise<unknown>
@@ -48,10 +50,11 @@ function stateOf(value: unknown): FlareState {
 		if (!isMatch(match)) throw new Error(BAD_STATE)
 		checked.push({
 			id: String(Reflect.get(match, "id")),
-			params: Reflect.get(match, "params"),
-			search: Reflect.get(match, "search"),
-			data: Reflect.get(match, "data"),
-			preloader: Reflect.get(match, "preloader"),
+			// The page's state holds each match's app values as wire values (B145).
+			params: fromWire(Reflect.get(match, "params")),
+			search: fromWire(Reflect.get(match, "search")),
+			data: fromWire(Reflect.get(match, "data")),
+			preloader: fromWire(Reflect.get(match, "preloader")),
 			head: Reflect.get(match, "head"),
 			error: Reflect.get(match, "error"),
 		})
