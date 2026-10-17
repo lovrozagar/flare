@@ -1200,6 +1200,8 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 246.3 [ ] Open: find what makes Chromium register a viewport listener for a flare-rendered image and never drop it, then fix or route around it, and take `test.fail` off `long session`.
 247 [x] A server function answering 500 on the docs playground did not stop later pages from rendering their data
 247.1 [x] Plan 21 12.3: the audit's freeze after a server function's 500 does not reproduce. e2e `docs-session.test.ts` `after a failed call` on production (node, bun, workers in chromium, node webkit): the playground's 500, then Back to /docs/routing, the sidebar to /docs/caching, and the nav to the API page each render their data, the feedback tally's suspense query included. In dev the 500 opens Vite's overlay over the page by design, which takes the next click, so the case runs on production. `query-failure-client.test.ts` keeps the same in the harness: a query that fails on a navigation, then Back and on, in three engines. Both stay as guards; `hydrate.api.ts` gains the image module the memory guard renders.
+262 [x] No test held that a long client session leaves the `<head>` and the window's and document's listeners as they were
+262.1 [x] Plan 21 5.2 (its 200-navigation run): `memory-client.test.ts` `two hundred navigations`, in Chromium through the harness, steps between two pages that each set a title and a meta tag: at the 200th step the `<head>` holds as many elements and the window and the document as many listeners (CDP `DOMDebugger.getEventListeners`) as at the tenth, and the live elements grew by at most 10. It passes with no change to flare.
 
 ## Verify
 
