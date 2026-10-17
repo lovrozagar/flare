@@ -7,6 +7,7 @@ import { createBunFetch } from "../../src/adapters/bun/serve.ts"
 import { createNodeListener } from "../../src/adapters/node/listener.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { createMiddleware } from "../../src/server/middleware/run.ts"
+import { mount } from "../../src/server/mount/index.ts"
 import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
@@ -21,6 +22,9 @@ afterEach(async () => {
 	vi.unstubAllEnvs()
 	for (const server of servers.splice(0)) await new Promise((resolve) => server.close(resolve))
 })
+
+// The app's rewrite: `/old` is `/echo`.
+const rewrite = (path: string): string | undefined => (path === "/old" ? "/echo" : undefined)
 
 // A root, a page, and `.response()` routes that answer with the request's protocol, two cookies, the request body,
 // and a stream whose second chunk waits for the test.
@@ -60,7 +64,9 @@ function app(release: Promise<void>): ReturnType<typeof createServer> {
 		{ id: "_root_/a/b", path: "/a/b", module: nested },
 		{ id: "_root_/stream", path: "/stream", module: stream },
 	]
-	return createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }) })
+	// A mount and a rewrite no other case asks for, for a method Node cannot make a request of (BUGS.md 284).
+	const mounts = [mount("/api", () => new Response("api"))]
+	return createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }), mounts, rewrite })
 }
 
 async function listen(listener: ReturnType<typeof createNodeListener>): Promise<string> {
@@ -471,8 +477,9 @@ function headOf(origin: string, method: string, path = "/"): Promise<string> {
 }
 
 // TRACE, which Node's Request refuses to build, is the 405 every runtime answers, with Allow and the security headers,
-// as on Bun; a method no route answers is no server fault, so nothing is logged (plan 21 13.6, BUGS.md 209). Its Allow
-// is the path's own, as Bun's router gives it: a POST-only `.response()` route allows POST (BUGS.md 280).
+// as on Bun; a method no route answers is no server fault, so nothing is logged (plan 21 13.6, BUGS.md 209). It takes
+// the step Bun's pipeline would: the path's own Allow (a POST-only route allows POST), a rewrite's 308, and on a
+// mounted path, which such a method cannot reach on Node, 501 Not Implemented (BUGS.md 280, 284).
 it("node trace", async () => {
 	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
 	const origin = await listen(createNodeListener(app(Promise.resolve())))
@@ -480,10 +487,14 @@ it("node trace", async () => {
 	expect(head.split("\r\n")[0]).toBe("http/1.1 405 method not allowed")
 	expect(head).toContain("\r\nallow: get, head, options")
 	expect(head).toContain("\r\nx-content-type-options: nosniff")
-	const echo = await headOf(origin, "TRACE", "/echo")
-	expect([echo.split("\r\n")[0], /\r\nallow: ([^\r]*)/.exec(echo)?.[1]]).toEqual([
-		"http/1.1 405 method not allowed",
-		"post, options",
+	const line = async (path: string) => {
+		const answer = await headOf(origin, "TRACE", path)
+		return [answer.split("\r\n")[0], /\r\n(?:allow|location): ([^\r]*)/.exec(answer)?.[1]]
+	}
+	expect([await line("/echo"), await line("/old"), await line("/api/x")]).toEqual([
+		["http/1.1 405 method not allowed", "post, options"],
+		["http/1.1 308 permanent redirect", "/echo"],
+		["http/1.1 501 not implemented", undefined],
 	])
 	expect(logged).not.toHaveBeenCalled()
 })

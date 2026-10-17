@@ -2,7 +2,7 @@ import { expect, it } from "vitest"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
-import { ALLOWED, allowChannel, applyMethod, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
+import { applyMethod, REFUSED, refusedChannel, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
 
 const document = () => new Response("hello", { status: 200, headers: { "x-flare": "1" } })
 
@@ -151,9 +151,13 @@ it("check methods", () => {
 
 const respond = () => new Response("")
 
-// The Allow an adapter asks for when its runtime cannot make the request: a `.response()` page's own methods, and the
-// page set for any other path, as the router's 405 names them (BUGS.md 280).
-it("allow channel", () => {
+const step = (request: { url: string }) =>
+	request.url.endsWith("/old") ? { status: 308, location: "/hook" } : { status: 200 }
+
+// What an adapter that cannot make a request of the method gets: the canonical step's redirect first, 501 on a mounted
+// path the method cannot reach, else a `.response()` page's own methods and the page set for any other path, as Bun's
+// pipeline answers (BUGS.md 280, 284).
+it("refused channel", () => {
 	const router = createRouter({
 		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
 		routeTree: [
@@ -162,11 +166,15 @@ it("allow channel", () => {
 			{ id: "_root_/page", path: "/page", module: createPage("_root_/page").render(() => "page") },
 		],
 	})
-	const allowed = allowChannel(router)[ALLOWED]
-	expect(["/hook", "/api", "/page", "/elsewhere"].map((path) => allowed(path))).toEqual([
-		"POST, OPTIONS",
-		"GET, HEAD, OPTIONS",
-		"GET, HEAD, OPTIONS",
-		"GET, HEAD, OPTIONS",
+	const mounts = [{ prefix: "/mounted", fetch: respond }]
+	const refused = refusedChannel({ router, mounts, step })[REFUSED]
+	const at = (path: string) => refused({ method: "TRACE", url: `http://localhost${path}` })
+	expect(["/old", "/mounted/x", "/hook", "/api", "/page", "/elsewhere"].map(at)).toEqual([
+		{ status: 308, location: "/hook" },
+		{ status: 501 },
+		{ status: 405, allow: "POST, OPTIONS" },
+		{ status: 405, allow: "GET, HEAD, OPTIONS" },
+		{ status: 405, allow: "GET, HEAD, OPTIONS" },
+		{ status: 405, allow: "GET, HEAD, OPTIONS" },
 	])
 })

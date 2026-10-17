@@ -6,6 +6,7 @@ import {
 } from "../../shared/route-builder/methods.ts"
 import { layoutChain, type Router } from "../../shared/router/create-router.ts"
 import { effectiveAuth } from "../auth/effective.ts"
+import { mountSpelling, type Mount } from "../mount/mount.ts"
 import { finalize } from "./finalize.ts"
 
 const ALLOW = "GET, HEAD, OPTIONS"
@@ -63,16 +64,27 @@ function namedMethods(listed: ReadonlySet<string>): string {
 	return [...listed, ...(listed.has("GET") ? ["HEAD"] : []), ...(listed.has("OPTIONS") ? [] : ["OPTIONS"])].join(", ")
 }
 
-// The channel an adapter asks for a path's Allow when its runtime cannot build the request, as Node cannot for
-// CONNECT, TRACE, and TRACK: the 405 then names the same methods the router's would (RFC 9110, BUGS.md 280).
-export const ALLOWED: unique symbol = Symbol.for("flare.allowed")
+// The channel an adapter asks when its runtime cannot make a request of the method, as Node cannot of CONNECT, TRACE,
+// and TRACK. The answer is what Bun's pipeline gives: the canonical step's redirect first; on a mounted path, which the
+// method cannot reach here, 501; else the router's 405 with the path's own Allow (RFC 9110, BUGS.md 280, 284).
+export const REFUSED: unique symbol = Symbol.for("flare.refused")
 
-export function allowChannel(router: Pick<Router, "match">): { [ALLOWED]: (path: string) => string } {
+export type RefusedAnswer = { status: number; location?: string; allow?: string }
+
+export function refusedChannel(input: {
+	router: Pick<Router, "match">
+	mounts: readonly Mount[]
+	step: (request: { method: string; url: string }) => { status: number; location?: string }
+}): { [REFUSED]: (request: { method: string; url: string }) => RefusedAnswer } {
 	return {
-		[ALLOWED]: (path) => {
-			const matched = router.match(path)
-			if (matched.id === undefined || matched.response !== true) return ALLOW
-			return namedMethods(new Set(matched.methods ?? ["GET"]))
+		[REFUSED]: (request) => {
+			const step = input.step(request)
+			if (step.status !== 200) return step
+			const path = new URL(request.url).pathname
+			if (mountSpelling(input.mounts, path) !== undefined) return { status: 501 }
+			const matched = input.router.match(path)
+			if (matched.id === undefined || matched.response !== true) return { status: 405, allow: ALLOW }
+			return { status: 405, allow: namedMethods(new Set(matched.methods ?? ["GET"])) }
 		},
 	}
 }

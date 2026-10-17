@@ -6,23 +6,22 @@ import { PRERENDER } from "../../shared/protocol/prerender.ts"
 import type { FlareRegister } from "../../shared/route-builder/register.ts"
 import type { Match } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
-import { foldCase } from "../../shared/router/fold.ts"
 import { serverCtx, withoutIdentity, withServerContext } from "../context/ctx.ts"
 import { runLoaders } from "../loaders/run.ts"
 import { devDocument, devToken } from "../render/dev-document.ts"
 import { devSink, devStyles, projectError, requestSink, type ErrorSink } from "../render/projector.ts"
 import { applySecurity, type SecurityContext } from "../security/apply.ts"
-import { applyCanonical, type CanonicalStep, type PathRewrite } from "./canonical-redirect.ts"
+import { canonicalStep, type CanonicalStep } from "./canonical-redirect.ts"
 import { dispatch } from "../server-fn/dispatch.ts"
 import { routeCsrf } from "../server-fn/csrf.ts"
 import { bodyLimitOf } from "../server-fn/input.ts"
 import { classify, isServerFn } from "./classify.ts"
 import { answer, answerFrom, background, bare, bounded, failed, passed, secure, type Exchange } from "./exchange.ts"
-import { mountFor, mountSpelling, mountTable } from "../mount/mount.ts"
+import { mountFor, mountTable } from "../mount/mount.ts"
 import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
 import type { MiddlewareKind } from "../middleware/types.ts"
-import { allowChannel, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
+import { checkResponseMethods, refusedChannel, routeMethod, type MethodMatch } from "./methods.ts"
 import { decodedHeaders, responseHeaders } from "./policies.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts"
@@ -69,7 +68,12 @@ export function serveWith(options: RuntimeOptions, sink: ErrorSink): FlareServer
 	const server: FlareServer = { fetch, bodyLimit, buildId, cache }
 	// The internal channel `vite build`'s prerender reads. It runs the same pipeline with a capture (bits/12).
 	const prerender = prerenderer(options, (request, env, capture) => serveOne(at, { request, env, prerender: capture }))
-	return Object.assign(server, { [PRERENDER]: prerender }, allowChannel(options.router))
+	const refused = refusedChannel({
+		router: options.router,
+		mounts: at.mounts,
+		step: (request) => canonicalStep(at, request),
+	})
+	return Object.assign(server, { [PRERENDER]: prerender }, refused)
 }
 
 // The observability options dx/observability.md plans, which v1 does not have: one passed from JavaScript, or through
@@ -100,13 +104,6 @@ function serveOne(at: Serving, call: Call): Promise<Response> {
 		if (token === undefined) return answered
 		return answered.then((response) => devDocument(response, { head: devHead, token }))
 	})
-}
-
-// The app's rewrite runs after mounts (02-system step 4), so a path a mount handles is never rewritten.
-function pathRewrite(at: Serving): PathRewrite | undefined {
-	const rewrite = at.options.rewrite
-	if (rewrite === undefined) return undefined
-	return (path) => (mountSpelling(at.mounts, path) === undefined ? rewrite(path) : undefined)
 }
 
 // The server's security callback runs once serverContext has, with the request, its env, its nonce, and that value
@@ -151,18 +148,7 @@ function answerOne(at: Serving, call: Call, sink: ErrorSink): Promise<Response> 
 	const exchange = { ...outer, request: inner, kind: internal.kind, stale: internal.stale }
 	let step: CanonicalStep
 	try {
-		step = applyCanonical({
-			method: request.method,
-			url: request.url,
-			// A worker script's update fetch fails on a redirect, so a retired path is answered as asked for.
-			fixed: isRetired(options.retireServiceWorker, internal.url.pathname),
-			basePath: options.router.basePath,
-			trailingSlash: options.router.trailingSlash,
-			caseSensitive: options.router.caseSensitive,
-			rewrite: pathRewrite(at),
-			// A mount prefix folds first, then the matched route (B22).
-			fold: (path) => mountSpelling(at.mounts, path) ?? foldCase(options.router, path),
-		})
+		step = canonicalStep(at, request)
 	} catch (error) {
 		return Promise.resolve(failed(exchange)(error))
 	}
