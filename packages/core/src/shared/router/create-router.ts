@@ -47,6 +47,8 @@ export type RouteNode = {
 	id: string
 	path: string
 	response?: boolean
+	// A `.response()` page's methods, which codegen copies, so a method it does not answer is 405 before it loads.
+	methods?: readonly string[]
 	client?: ClientCache
 	intercept?: Intercept
 	module: ModuleRef
@@ -118,6 +120,7 @@ export type Match = {
 	id?: string
 	params: RawParams
 	response?: boolean
+	methods?: readonly string[]
 	client?: ClientCache
 	intercept?: Intercept
 	chain: readonly ChainEntry[]
@@ -213,6 +216,8 @@ function pageMatch(router: Router, page: RouteNode, local: string): Match {
 	const matched: Match = { id: page.id, params: readParams(page.path, local, matchOptions(router)), response, chain }
 	const client = page.client ?? record?.cache?.client
 	const intercept = page.intercept ?? record?.intercept
+	const methods = page.methods ?? record?.responseOptions?.methods
+	if (methods !== undefined) matched.methods = methods
 	if (client !== undefined) matched.client = client
 	if (intercept !== undefined) matched.intercept = intercept
 	return matched

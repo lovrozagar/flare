@@ -7,6 +7,7 @@ import type {
 	Intercept,
 	LoaderContext,
 	LoaderData,
+	ResponseOptions,
 	RouteHeaders,
 	RouteInput,
 } from "./chain.ts"
@@ -223,7 +224,10 @@ export type BuilderSteps<S extends RouteState, K extends RouteKind, G extends st
 // Only a page intercepts and answers with `.response()`.
 export type PageSteps<S extends RouteState, G extends string = never> = {
 	intercept(config: Intercept): RouteBuilder<S, "page", G | StepsGone<"intercept">>
-	response(fn: (ctx: ResponseContext<S>) => Response | Promise<Response>): RouteRecord & TypedRecord<S, "page">
+	response(
+		fn: (ctx: ResponseContext<S>) => Response | Promise<Response>,
+		options?: ResponseOptions,
+	): RouteRecord & TypedRecord<S, "page">
 }
 
 export type RouteBuilder<S extends RouteState, K extends RouteKind, G extends string = never> = Omit<

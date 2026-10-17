@@ -81,3 +81,37 @@ it("head stops the render", async () => {
 	expect([answer.status, await answer.text()]).toEqual([200, ""])
 	await vi.waitFor(() => expect(disposed).toBe(true))
 })
+
+// A `.response()` page answers the methods it declares, GET when none: a PUT or a DELETE to a GET page is 405 with
+// Allow and never runs it, so it cannot hand back its full body; HEAD sends no body (plan 21 13.5, BUGS.md 208).
+it("response methods", async () => {
+	const ran: string[] = []
+	const respond = ({ request }: { request: Request }): Response => {
+		ran.push(request.method)
+		return new Response("secret body")
+	}
+	const server = createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [
+				{ id: "_root_/file", path: "/file", module: createPage("_root_/file").response(respond) },
+				{
+					id: "_root_/hook",
+					path: "/hook",
+					module: createPage("_root_/hook").response(respond, { methods: ["POST"] }),
+				},
+			],
+		}),
+	})
+	const call = async (path: string, method: string): Promise<[string, number, string | null, string]> => {
+		const response = await server.fetch(new Request(`http://localhost${path}`, { method }))
+		return [method, response.status, response.headers.get("allow"), await response.text()]
+	}
+	expect(await call("/file", "GET")).toEqual(["GET", 200, null, "secret body"])
+	expect(await call("/file", "HEAD")).toEqual(["HEAD", 200, null, ""])
+	expect(await call("/file", "PUT")).toEqual(["PUT", 405, "GET, HEAD, OPTIONS", ""])
+	expect(await call("/file", "DELETE")).toEqual(["DELETE", 405, "GET, HEAD, OPTIONS", ""])
+	expect(await call("/hook", "POST")).toEqual(["POST", 200, null, "secret body"])
+	expect(await call("/hook", "GET")).toEqual(["GET", 405, "POST, OPTIONS", ""])
+	expect(ran).toEqual(["GET", "HEAD", "POST"])
+})

@@ -123,3 +123,16 @@ it("typed contexts", () => {
 	expectTypeOf<ParentContext<App, "_root_/(g)/x">["b"]>().toEqualTypeOf<2>()
 	expectTypeOf<ParentContext<{ routeParents: { x: ["gone"] }; routeModules: {} }, "x">>().toBeNever()
 })
+
+// `.response(fn, { methods })` keeps the methods on the record, which the server reads; a lowercase or a HEAD method
+// does not type-check (plan 21 13.5, BUGS.md 208).
+it("response methods", () => {
+	expect(createPage("_root_/hook").response(handle, { methods: ["POST"] }).responseOptions).toEqual({
+		methods: ["POST"],
+	})
+	expect(createPage("_root_/file").response(handle).responseOptions).toBeUndefined()
+	// @ts-expect-error methods are uppercase
+	createPage("_root_/a").response(handle, { methods: ["post"] })
+	// @ts-expect-error HEAD follows GET and is not declared
+	createPage("_root_/b").response(handle, { methods: ["HEAD"] })
+})

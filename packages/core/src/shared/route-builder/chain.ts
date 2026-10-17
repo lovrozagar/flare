@@ -122,12 +122,21 @@ export type ChainRecord = {
 	head?: Head
 	// `.head(fn, options)`. `replace: true` makes the route's head the whole head, no parent merged (dx/head.md).
 	headOptions?: HeadOptions
+	// `.response(fn, options)`: the methods it answers (dx/builder.md).
+	responseOptions?: ResponseOptions
 	headers?: Headers
 	security?: RouteSecurity
 	render?: Render
 }
 
 export type HeadOptions = { replace?: boolean }
+
+// The methods a `.response()` page answers besides HEAD, which follows GET. None declared is GET (plan 21 13.5).
+export type ResponseMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS"
+export type ResponseOptions = { methods?: readonly ResponseMethod[] }
+
+// A step's options ride beside its value, under `<step>Options`.
+type StepOptions = HeadOptions | ResponseOptions
 
 export type Chain = {
 	intercept: (config: Intercept) => Chain
@@ -139,7 +148,7 @@ export type Chain = {
 	effects: (effects: Effects) => Chain
 	preloader: (fn: Step) => Chain
 	loader: (fn: Load) => Chain
-	response: (fn: Respond) => Chain
+	response: (fn: Respond, options?: ResponseOptions) => Chain
 	head: (fn: Head, options?: HeadOptions) => Chain
 	headers: (fn: Headers) => Chain
 	security: (config: RouteSecurity) => Chain
@@ -188,10 +197,10 @@ export function createChain(_id: string): Chain {
 	// steps store `auth`.
 	// A step's options, only `.head()`'s so far, ride beside its value: one generic store measured smaller than a
 	// head-only one in `createPage` (tests/size, 1111 against 1118).
-	const put = <K extends keyof ChainRecord & Name>(step: K, value: ChainRecord[K], options?: HeadOptions): Chain => {
+	const put = <K extends keyof ChainRecord & Name>(step: K, value: ChainRecord[K], options?: StepOptions): Chain => {
 		advance(state, step)
 		record[step] = value
-		if (options) record.headOptions = options
+		if (options) Reflect.set(record, `${step}Options`, options)
 		return chain
 	}
 	const auth = (step: "authenticate" | "authenticateOptional", value: ChainAuth): Chain => {
@@ -230,7 +239,7 @@ export function createChain(_id: string): Chain {
 		},
 		preloader: (fn) => put("preloader", fn),
 		loader: (fn) => put("loader", fn),
-		response: (fn) => put("response", fn),
+		response: (fn, options) => put("response", fn, options),
 		head: (fn, options) => put("head", fn, options),
 		headers: (fn) => put("headers", fn),
 		security: (config) => put("security", config),

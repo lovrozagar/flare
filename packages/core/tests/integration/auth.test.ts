@@ -202,14 +202,17 @@ function responseServer(
 			return allowed
 		})
 		.preloader(() => ({ scope: "api" }))
-		.response((ctx) => {
-			seen.calls.push("fn")
-			seen.contexts.push(ctx)
-			return new Response("answered", {
-				status: 202,
-				headers: { "x-frame-options": "ALLOWALL", "x-api": "1" },
-			})
-		})
+		.response(
+			(ctx) => {
+				seen.calls.push("fn")
+				seen.contexts.push(ctx)
+				return new Response("answered", {
+					status: 202,
+					headers: { "x-frame-options": "ALLOWALL", "x-api": "1" },
+				})
+			},
+			{ methods: ["GET", "POST"] },
+		)
 	const server = createServer({
 		router: createRouter({
 			layouts: {

@@ -1,3 +1,4 @@
+import { isMethodList, METHODS_RULE } from "../../shared/route-builder/methods.ts"
 import { langOf } from "../route-meta/index.ts"
 import {
 	parseSync,
@@ -30,6 +31,8 @@ export type Scan = {
 	query: boolean
 	route: boolean
 	response: boolean
+	// `.response(fn, { methods })`'s literal list, which the route node carries (plan 21 13.5).
+	methods?: string[]
 	// `.authorize()` without `.authenticate()` reads identity (B26).
 	authorize: boolean
 	// The sides this file's `.input()` validates (dx/types.md).
@@ -152,10 +155,24 @@ function readCall(scan: Scan, node: CallExpression): void {
 	if (name === "authenticateOptional") scan.auth = "optional"
 	if (name === "intercept") scan.intercept = readIntercept(scan.file, node.arguments)
 	// A .response() page answers every method itself, so routing must know it before its code loads.
-	if (name === "response") scan.response = true
+	if (name === "response") readResponse(scan, node.arguments)
 	if (name === "authorize") scan.authorize = true
 	if (name === "input") scan.input = inputSides(node.arguments)
 	if (name === "cache") readClient(scan, node.arguments)
+}
+
+// `.response(fn, { methods })`: the methods are a literal array the route node carries, so routing answers a method
+// the page does not before its code loads. No options is GET (plan 21 13.5).
+function readResponse(scan: Scan, args: readonly Argument[]): void {
+	scan.response = true
+	const [, options] = args
+	if (options === undefined) return
+	const list = options.type === "ObjectExpression" ? valueOf(options.properties, "methods") : options
+	if (list === undefined) return
+	const values =
+		list.type === "ArrayExpression" ? list.elements.map((item) => (item?.type === "Literal" ? item.value : 0)) : []
+	if (!isMethodList(values)) throw new Error(`${scan.file}: .response() ${METHODS_RULE}, written as a literal`)
+	scan.methods = values
 }
 
 // `.cache({ client })`: only the literal fields are copied, and a non-literal one is left out without an error (B89).

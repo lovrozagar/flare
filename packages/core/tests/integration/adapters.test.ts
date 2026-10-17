@@ -33,7 +33,9 @@ function app(release: Promise<void>): ReturnType<typeof createServer> {
 		headers.append("set-cookie", "b=2; Path=/")
 		return new Response("cookies", { headers })
 	})
-	const echo = createPage("_root_/echo").response(async ({ request }) => new Response(`echo ${await request.text()}`))
+	const echo = createPage("_root_/echo").response(async ({ request }) => new Response(`echo ${await request.text()}`), {
+		methods: ["POST"],
+	})
 	const where = createPage("_root_/where").response(({ request }) => new Response(request.url))
 	const nested = createPage("_root_/a/b").response(() => new Response("ab"))
 	const stream = createPage("_root_/stream").response(() => {
