@@ -1,5 +1,6 @@
 import { settleRequestBody } from "./body.ts"
 import { finalize } from "../../server/lifecycle/finalize.ts"
+import { createLogger } from "../../server/lifecycle/logger.ts"
 import { REFUSED, type RefusedAnswer } from "../../server/lifecycle/methods.ts"
 import { trustedHops } from "../../shared/url/index.ts"
 import { pendingWork, type DrainOptions, type Pending } from "../drain.ts"
@@ -8,6 +9,10 @@ import { toRequest } from "./request.ts"
 // The methods fetch's Request refuses to build. No route answers one, so each is the 405 a page gives, as on Bun,
 // where the server answers it (plan 21 13.6).
 const UNBUILT = new Set(["CONNECT", "TRACE", "TRACK"])
+
+// The listener logs as every server module does, through the logger: an error is written in dev and production alike
+// (dx/server.md Logger, BUGS.md 344).
+const log = createLogger({ dev: false })
 
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void }
 
@@ -55,7 +60,7 @@ export function createNodeListener(server: Server, options: NodeListenerOptions 
 		// A failure before the headers is a 500 with no body, the build and the default security set on it (BUGS.md 341).
 		// After them the socket is destroyed: the status is gone. Either is logged, never silent (plan 21 13.6).
 		const pumped = pump(job).catch((error: unknown) => {
-			console.error("[flare:node] the request failed", error)
+			log.error("node", "the request failed", error)
 			if (job.sent) return void res.destroy?.()
 			writeHeaders(res, ownAnswer(500).headers)
 			res.writeHead(500)
@@ -104,7 +109,7 @@ async function pump(job: Job): Promise<void> {
 		// to stop the process (BUGS.md 153).
 		waitUntil(promise) {
 			job.pending.track(promise)
-			promise.catch((error: unknown) => console.error("[flare:node] waitUntil rejected", error))
+			promise.catch((error: unknown) => log.error("node", "waitUntil rejected", error))
 		},
 	})
 	await send(job, response, disconnect.signal)

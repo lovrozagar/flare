@@ -41,7 +41,7 @@ it("fetch throws", async () => {
 	expect(statuses).toEqual([500])
 	expect(named).toEqual(expect.arrayContaining(["flare-build", "x-content-type-options", "content-security-policy"]))
 	expect(ended).toBe(true)
-	expect(logged).toHaveBeenCalledExactlyOnceWith("[flare:node] the request failed", expect.any(Error))
+	expect(logged).toHaveBeenCalledExactlyOnceWith("[flare:node]", "the request failed", expect.any(Error))
 	logged.mockRestore()
 })
 
