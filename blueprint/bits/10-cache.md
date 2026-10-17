@@ -312,7 +312,7 @@ dx/cache.md through real servers. cache-modes serves pages built with the real b
 
 | test | case | result |
 | --- | --- | --- |
-| `ssr ttl` | `ssr: { ttl: "1m" }`, one minute on; `ssr: {}` untyped, and a staleTime past the ttl | a hit, then a miss; each a 500 that renders nothing |
+| `ssr ttl` | `ssr: { ttl: "1m" }`, one minute on; `ssr: {}` untyped, and a staleTime past the ttl | a hit, then a miss; each a 500 that renders nothing of the route, whose built-in error page names it (BUGS.md 302) |
 | `ssr stale`, `isr ttl` | a hit just inside and just past staleTime; `isr` true, `{}`, `revalidate` 1m and 13h | fresh, then stale with a background re-render; 24h, 24h, 1m stale and 2m gone, 13h stale and capped at 24h |
 | `ssr tags` | a tags function over `params`, then `revalidate({ tags: ["user:7"] })` | /users/7 a miss, /users/8 still a hit |
 | `defer resolve` | a stored page with a deferred value | the stored body holds it inline, and no fill |
