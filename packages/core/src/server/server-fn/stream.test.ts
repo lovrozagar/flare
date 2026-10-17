@@ -113,3 +113,61 @@ it("cancel", async () => {
 	await reader.cancel()
 	expect(closed).toEqual(["finally"])
 })
+
+// A client that stops reading while the generator is still producing cancels the body mid-pull: when the value lands,
+// nothing is written into the cancelled stream and nothing is logged. The write once threw ERR_INVALID_STATE into the
+// pull's own catch, which logged it as the function's error (BUGS.md 304).
+it("cancel during a pull", async () => {
+	const gate = Promise.withResolvers<undefined>()
+	async function* slow(): AsyncGenerator<number> {
+		yield 1
+		await gate.promise
+		yield 2
+	}
+	const logged: unknown[][] = []
+	const error = (...line: unknown[]): void => void logged.push(line)
+	const watching = { dev: false, log: { level: "error", error, warn: noop, log: noop } satisfies Logger }
+	const reader = streamEnvelopes("slow", slow(), {
+		sink: watching,
+		basePath: "/",
+		trailingSlash: "preserve",
+	}).getReader()
+	await reader.read()
+	const pending = reader.read()
+	// The second pull starts, and waits on the generator.
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	const cancelled = reader.cancel()
+	gate.resolve(undefined)
+	await cancelled
+	expect(await pending).toEqual({ done: true, value: undefined })
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	expect(logged).toEqual([])
+})
+
+// A generator that throws after the client stopped reading: its error is not written into the cancelled stream, nor
+// logged as the function's error, since no one is reading it (BUGS.md 304).
+it("throw after cancel", async () => {
+	const gate = Promise.withResolvers<undefined>()
+	async function* failing(): AsyncGenerator<number> {
+		yield 1
+		await gate.promise
+		throw new Error("late")
+	}
+	const logged: unknown[][] = []
+	const error = (...line: unknown[]): void => void logged.push(line)
+	const watching = { dev: false, log: { level: "error", error, warn: noop, log: noop } satisfies Logger }
+	const reader = streamEnvelopes("failing", failing(), {
+		sink: watching,
+		basePath: "/",
+		trailingSlash: "preserve",
+	}).getReader()
+	await reader.read()
+	const pending = reader.read()
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	const cancelled = reader.cancel()
+	gate.resolve(undefined)
+	await cancelled.catch(() => undefined)
+	expect(await pending).toEqual({ done: true, value: undefined })
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	expect(logged).toEqual([])
+})

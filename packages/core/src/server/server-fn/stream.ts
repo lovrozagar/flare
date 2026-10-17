@@ -18,19 +18,25 @@ export function streamEnvelopes(
 	const iterator = (async function* () {
 		yield* source
 	})()
+	// A consumer cancel that lands while a pull waits on the generator ends the stream: nothing is written into it after,
+	// and nothing is logged as the function's error (BUGS.md 304).
+	let cancelled = false
 	return new ReadableStream<Uint8Array>({
 		async pull(controller) {
 			try {
 				const next = await iterator.next()
+				if (cancelled) return
 				if (next.done !== true) return controller.enqueue(line(okEnvelope(name, next.value)))
 				controller.enqueue(line({ name, status: 200, end: true }))
 				controller.close()
 			} catch (thrown) {
+				if (cancelled) return
 				controller.enqueue(line(errorEnvelope(name, thrown, context).envelope))
 				controller.close()
 			}
 		},
 		async cancel() {
+			cancelled = true
 			await iterator.return(undefined)
 		},
 	})

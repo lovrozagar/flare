@@ -101,10 +101,14 @@ function watched(response: Response, watch: Watch): Response {
 // The body as sent, calling `done` once when it ends, fails, or is cancelled.
 function ended(body: ReadableStream<Uint8Array>, done: () => void): ReadableStream<Uint8Array> {
 	const reader = body.getReader()
+	// A cancel that lands while a pull waits on the app ends the stream: nothing is written into it after, and `done`
+	// has run once (BUGS.md 304). After a cancel the read resolves done, never rejects, so the catch needs no guard.
+	let cancelled = false
 	return new ReadableStream<Uint8Array>({
 		async pull(controller) {
 			try {
 				const step = await reader.read()
+				if (cancelled) return
 				if (!step.done) return controller.enqueue(step.value)
 				controller.close()
 				done()
@@ -114,6 +118,7 @@ function ended(body: ReadableStream<Uint8Array>, done: () => void): ReadableStre
 			}
 		},
 		cancel(reason) {
+			cancelled = true
 			done()
 			return reader.cancel(reason)
 		},

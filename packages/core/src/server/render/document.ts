@@ -17,8 +17,7 @@ import { insertState, stateWriter, type StateMatch } from "./state.ts"
 import { streamOptions, type StreamOptions } from "./stream-options.ts"
 import type { PreloadTable } from "../lifecycle/build-info.ts"
 import { preloadLinks } from "./preload.ts"
-
-type Chunk = string | Uint8Array
+import { bodyStream, chunkText, type Chunk } from "./body-stream.ts"
 
 type Stream = (
 	fn: () => unknown,
@@ -51,9 +50,6 @@ export type DocumentInput = {
 	// again. The bytes already sent stay (plan 21 3.2).
 	onRenderError?: (error: unknown) => void
 }
-
-const encoder = new TextEncoder()
-const decoder = new TextDecoder()
 
 // Resolves once the shell is written, so the caller knows the status before the body is read. A throw
 // before the shell rejects. Flushed bytes are never rewritten (B76).
@@ -100,18 +96,7 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 	// The client keeps every `<head>` node outside this sequence out of hydration (B120).
 	const writeState = state(registeredQuery()?.dehydrate(), input.onBug ?? ignore, headSequence(page))
 	const shell = insertState(page, writeState + clientScript(input.client, nonce))
-	const body = new ReadableStream<Uint8Array>({
-		start(controller) {
-			controller.enqueue(encoder.encode(shell))
-		},
-		async pull(controller) {
-			const next = await reader.read()
-			if (next.done) controller.close()
-			else controller.enqueue(encoder.encode(chunkText(next.value)))
-		},
-		cancel: (reason) => reader.cancel(reason),
-	})
-	return raceAbort(body, input.request.signal, stop)
+	return raceAbort(bodyStream(shell, reader), input.request.signal, stop)
 }
 
 function defaultStream(fn: () => unknown, options: StreamOptions): ReturnType<Stream> {
@@ -155,11 +140,6 @@ function withHead(shell: string, head: string): string {
 	const close = shell.indexOf("</head>")
 	if (close === -1) return `${head}${shell}`
 	return `${shell.slice(0, close)}${head}${shell.slice(close)}`
-}
-
-function chunkText(chunk: Chunk | undefined): string {
-	if (typeof chunk === "string") return chunk
-	return decoder.decode(chunk)
 }
 
 function nonceAttr(nonce: string): string {

@@ -271,6 +271,9 @@ packages/core/src/server/loaders/hints.ts	P4	src	server	Apply _flare_stale. Layo
 packages/core/src/server/loaders/hints.test.ts	P4	test	server	Unit cases for hints.ts
 packages/core/src/server/loaders/index.ts	P1	index	server	Re-exports
 packages/core/src/server/render/document.ts	P1	src	server	Call renderToStream with the options 02-system names. Provides the router context around the root layout
+packages/core/src/server/render/body-stream.ts	P1	src	server	A document's body: the shell, then the render's chunks as bytes; a consumer cancel mid-pull writes nothing more (BUGS.md 304)
+packages/core/src/server/render/body-stream.test.ts	P1	test	server	Unit cases for body-stream.ts
+packages/core/src/server/render/writes.fixture.ts	P1	test	server	Records every stream controller write that throws while a case runs: a pull that writes after a cancel (BUGS.md 304)
 packages/core/src/server/render/preload.ts	P1	src	server	The document's modulepreload links for the client entry and the matched route chain, with the request's nonce (plan 21 15.3)
 packages/core/src/server/render/preload.test.ts	P1	test	server	Unit cases for preload.ts, and the document writing them in its head
 packages/core/src/server/render/document.test.ts	P1	test	server	Unit cases for document.ts

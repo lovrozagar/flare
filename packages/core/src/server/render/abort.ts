@@ -22,13 +22,19 @@ export function raceAbort(
 	}
 	if (signal.aborted) stop()
 	else signal.addEventListener("abort", stop, { once: true })
+	// A consumer cancel that lands while a pull waits ends the stream: nothing is written into it after (BUGS.md 304).
+	let cancelled = false
 	return new ReadableStream<Uint8Array>({
 		async pull(controller) {
 			const result = await Promise.race([reader.read(), aborted])
+			if (cancelled) return
 			if (result === undefined || result.done) controller.close()
 			else controller.enqueue(result.value)
 		},
-		cancel: stop,
+		cancel() {
+			cancelled = true
+			stop()
+		},
 	})
 }
 
