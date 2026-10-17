@@ -3,6 +3,9 @@
 import type * as solid from "solid-js"
 import type * as web from "@solidjs/web"
 import type * as progress from "../../src/client/navigation/progress.ts"
+import type * as pending from "../../src/client/navigation/pending.ts"
+import type * as vtBoundary from "../../src/shared/components/view-transition-boundary.tsx"
+import type * as vtCss from "../../src/shared/components/view-transition-css.tsx"
 import type * as outlet from "../../src/shared/components/outlet.tsx"
 import type * as outletNodes from "../../src/shared/components/outlet-nodes.ts"
 import type * as router from "../../src/shared/router/create-router.ts"
@@ -31,6 +34,10 @@ export type Api = {
 	solid: typeof solid
 	web: typeof web
 	progress: typeof progress
+	// `useNavigation`, and the view transition components (dx/navigate.md).
+	pending: typeof pending
+	vtBoundary: typeof vtBoundary
+	vtCss: typeof vtCss
 	outlet: typeof outlet
 	outletNodes: typeof outletNodes
 	router: typeof router
@@ -68,6 +75,9 @@ export type Tree = (api: Api, side: Side) => web.JSX.Element
 // Where each side imports the api's modules from, under packages/core.
 export const MODULES: Record<keyof Omit<Api, "solid" | "web" | "h">, string> = {
 	progress: "/src/client/navigation/progress.ts",
+	pending: "/src/client/navigation/pending.ts",
+	vtBoundary: "/src/shared/components/view-transition-boundary.tsx",
+	vtCss: "/src/shared/components/view-transition-css.tsx",
 	outlet: "/src/shared/components/outlet.tsx",
 	outletNodes: "/src/shared/components/outlet-nodes.ts",
 	router: "/src/shared/router/create-router.ts",
