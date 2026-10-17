@@ -1,12 +1,12 @@
 import { createComponent, createMemo, Loading, type Element } from "solid-js"
 import { Dynamic } from "@solidjs/web"
-import { afterEach, expect, it, vi, type Mock } from "vitest"
-import type { FlareStore, FlareStoreEntry } from "../../src/server/cache/contract.ts"
+import { expect, it, vi } from "vitest"
+import type { FlareStore } from "../../src/server/cache/contract.ts"
 import { createMemoryStore } from "../../src/server/cache/memory.ts"
 import type { StoredPage } from "../../src/server/cache/write.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import type { SecurityConfig } from "../../src/server/security/apply.ts"
-import { Stylesheet, ViewTransitionCSS } from "../../src/shared/components/index.ts"
+import { ViewTransitionCSS } from "../../src/shared/components/index.ts"
 import { nonce } from "../../src/shared/csp/nonce.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
@@ -17,15 +17,10 @@ import { createFont, FontCSS } from "../../src/features/fonts/shared/index.ts"
 import { LocaleProvider, LocaleScript } from "../../src/features/i18n/shared/index.ts"
 import { ThemeScript } from "../../src/features/theme/shared/index.ts"
 
-// The server build's sheet. The source module is empty.
-vi.mock("../../src/shared/css/sheet.ts", () => ({
-	builtSheet: ".a{color:red}.unused{color:blue}",
-	builtHref: "/assets/app.css",
-}))
-
-afterEach(() => {
-	vi.unstubAllEnvs()
-})
+// One nonce per request, through the real createServer and the real modules (B96): the header, every tag Flare writes,
+// and `nonce()` in a render agree, a stored page holds its entry's sentinel, and a hit carries its own nonce. The
+// critical style and the swap script exist only in a server build, so a built app pins theirs (`plugin.test.ts`
+// `critical and swap nonce`).
 
 const head: Head = {
 	jsonLd: [{ "@type": "Thing" }],
@@ -200,10 +195,9 @@ it("view transition", async () => {
 	expect(capture(body, /<style[^>]*nonce="([^"]+)"[^>]*>@view-transition/)).toBe(headerNonce(response.headers))
 })
 
-// The page stored for every visitor, and a watched memory store.
-function storing(render: Render): { app: ReturnType<typeof createServer>; set: Mock<FlareStore["set"]> } {
+// The page stored for every visitor, in a real memory store.
+function storing(render: Render): { app: ReturnType<typeof createServer>; store: FlareStore } {
 	const store = createMemoryStore()
-	const set = vi.fn<FlareStore["set"]>(store.set)
 	const page = createPage("_root_/")
 		.cache({ isr: true })
 		.head(() => head)
@@ -212,22 +206,23 @@ function storing(render: Render): { app: ReturnType<typeof createServer>; set: M
 		layouts: { _root_: createRootLayout("_root_").render((props) => documentOf(props.children)) },
 		routeTree: [{ id: "_root_/", path: "/", module: page }],
 	})
-	return { app: createServer({ router: routes, site: "https://example.com", store: { ...store, set } }), set }
+	return { app: createServer({ router: routes, site: "https://example.com", store }), store }
 }
 
-async function storedPage(set: Mock<FlareStore["set"]>): Promise<StoredPage> {
-	await vi.waitFor(() => expect(set).toHaveBeenCalled())
-	const entry = set.mock.calls.at(-1)?.[1] as FlareStoreEntry
-	return entry.data as StoredPage
+// The entry the home page's write left, read from the store under the key the server gives that page.
+async function storedPage(stored: { app: ReturnType<typeof createServer>; store: FlareStore }): Promise<StoredPage> {
+	const key = stored.app.cache.key({ to: "_root_/" } as never)
+	await vi.waitFor(async () => expect(await stored.store.get(key)).not.toBeNull())
+	return (await stored.store.get(key))?.data as StoredPage
 }
 
 // The stored bytes hold the entry's sentinel in every nonce attribute and in the state field, never the nonce of the
 // request that rendered them.
 it("stored sentinel", async () => {
-	const { app, set } = storing(() => "page")
-	const response = await app.fetch(new Request("http://localhost/"))
+	const kept = storing(() => "page")
+	const response = await kept.app.fetch(new Request("http://localhost/"))
 	const first = headerNonce(response.headers)
-	const stored = await storedPage(set)
+	const stored = await storedPage(kept)
 	expect(tagNonces(stored.html)).toEqual({ script: stored.sentinel, json: stored.sentinel, style: stored.sentinel })
 	expect(stored.html).toContain(`"nonce":"${stored.sentinel}"`)
 	expect(stored.html).not.toContain(`nonce="${first}"`)
@@ -236,19 +231,19 @@ it("stored sentinel", async () => {
 
 // Text that equals the nonce is content. It is stored as it was rendered.
 it("text kept", async () => {
-	const { app, set } = storing(() => printed())
-	const response = await app.fetch(new Request("http://localhost/"))
+	const kept = storing(() => printed())
+	const response = await kept.app.fetch(new Request("http://localhost/"))
 	const first = headerNonce(response.headers)
-	expect((await storedPage(set)).html).toContain(`NONCE[${first}]`)
+	expect((await storedPage(kept)).html).toContain(`NONCE[${first}]`)
 })
 
 // A hit's nonce attributes and `self.flare.nonce` equal that hit's CSP nonce, never the first request's.
 it("hit matches", async () => {
-	const { app, set } = storing(() => "page")
-	const first = await app.fetch(new Request("http://localhost/"))
+	const kept = storing(() => "page")
+	const first = await kept.app.fetch(new Request("http://localhost/"))
 	const firstNonce = headerNonce(first.headers)
-	await storedPage(set)
-	const hit = await app.fetch(new Request("http://localhost/"))
+	await storedPage(kept)
+	const hit = await kept.app.fetch(new Request("http://localhost/"))
 	expect(hit.headers.get("flare-cache")).toBe("hit")
 	const nonce = headerNonce(hit.headers)
 	const body = await hit.text()
@@ -256,23 +251,6 @@ it("hit matches", async () => {
 	expect(tagNonces(body)).toEqual({ script: nonce, json: nonce, style: nonce })
 	expect(body).toContain(`"nonce":"${nonce}"`)
 	expect(body).not.toContain(firstNonce)
-})
-
-// A production document's critical style carries the CSP header's nonce.
-it("critical", async () => {
-	vi.stubEnv("DEV", false)
-	const response = await document(() => createComponent(Dynamic, { component: "p", class: "a", children: "x" }))
-	const body = await response.text()
-	expect(body).toContain(`<style id="flare-critical" nonce="${headerNonce(response.headers)}">.a{color:red}</style>`)
-})
-
-// A production document's swap script carries the CSP header's nonce.
-it("stylesheet", async () => {
-	vi.stubEnv("DEV", false)
-	const response = await document(() => createComponent(Stylesheet, {}))
-	const body = await response.text()
-	expect(body).toContain(`<script nonce="${headerNonce(response.headers)}">{const l=document.createElement(`)
-	expect(body).toContain('<link id="flare-stylesheet" rel="preload" as="style" href="/assets/app.css">')
 })
 
 // Every feature's inline tag carries the CSP header's nonce: the theme, direction, and locale scripts, and the font CSS.
