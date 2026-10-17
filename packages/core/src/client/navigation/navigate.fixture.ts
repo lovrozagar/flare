@@ -1,7 +1,8 @@
 import { createComponent, flush } from "solid-js"
-import { render } from "@solidjs/web"
+import { render, type JSX } from "@solidjs/web"
 import { vi } from "vitest"
 import { Matches, OverlayContext } from "../../shared/components/index.ts"
+import { LocationContext, RouterContext } from "../../shared/router/context.ts"
 import type { Router } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
 import { createHistory } from "../history/index.ts"
@@ -13,7 +14,8 @@ import { createNavigationState } from "./pending.ts"
 import { createScroll } from "./scroll.ts"
 
 // The navigation tests share one mounted app: the home page at "/" with `start` as its data, rendered through
-// Matches, and a navigator over the window history.
+// Matches under the router and the store's location, as the client's app tree provides them, and a navigator over the
+// window history.
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>
 
@@ -42,6 +44,26 @@ function entry(id: string, data: unknown): ScriptMatch {
 	return { id, params: {}, search: {}, data, preloader: {}, head: null, error: null }
 }
 
+// The providers the client's app tree gives the pages the tests read.
+function tree(router: Router, store: RouterStore): JSX.Element {
+	return createComponent(RouterContext, {
+		value: router,
+		get children() {
+			return createComponent(LocationContext, {
+				value: () => store.snapshot().location,
+				get children() {
+					return createComponent(OverlayContext, {
+						value: () => store.snapshot().overlay,
+						get children() {
+							return createComponent(Matches, { state: store.outlet })
+						},
+					})
+				},
+			})
+		},
+	})
+}
+
 export async function mountNavigator(router: Router, fetch: Fetch, options: MountOptions = {}): Promise<Mounted> {
 	const chain = await loadChain(router.match("/").chain)
 	const location = { pathname: "/", search: "", hash: "" }
@@ -50,18 +72,7 @@ export async function mountNavigator(router: Router, fetch: Fetch, options: Moun
 		options.onBoundaryError ?? (() => undefined),
 	)
 	const host = document.createElement("div")
-	unmounts.push(
-		render(
-			() =>
-				createComponent(OverlayContext, {
-					value: () => store.snapshot().overlay,
-					get children() {
-						return createComponent(Matches, { state: store.outlet })
-					},
-				}),
-			host,
-		),
-	)
+	unmounts.push(render(() => tree(router, store), host))
 	flush()
 	const flareHistory = createHistory(history)
 	// As the client boot does: the entry it lands on, with its URL.

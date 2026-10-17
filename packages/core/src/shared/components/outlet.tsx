@@ -5,18 +5,20 @@ import { Dynamic, isServer, type JSX } from "@solidjs/web"
 import type { ChainRecord, Render } from "../route-builder/chain.ts"
 import type { BoundaryRecord, Located, NotFoundRender } from "../route-builder/index.ts"
 import { LocationContext, NavigateContext, useRouter } from "../router/context.ts"
-import { readSearch } from "../url/index.ts"
+import { readSearch, type Location } from "../url/index.ts"
 import { boundaryAt, boundaryFallback, boundaryKind, boundaryReset } from "./boundary.ts"
 import { MatchesContext, rawParams } from "./outlet-nodes.ts"
 import { TransitionScopeContext } from "./view-transition-boundary.tsx"
 
-// `preloader` is the preloader context accumulated through this match. Absent is `{}`.
+// `preloader` is the preloader context accumulated through this match. Absent is `{}`. `location` is the match's own
+// URL where it is not the store's, the open overlay's page (BUGS.md 317).
 export type OutletMatch = Located & {
 	id: string
 	kind: "layout" | "page" | "segment"
 	module: { render?: ChainRecord["render"]; boundaries?: BoundaryRecord }
 	data: unknown
 	preloader?: Record<string, unknown>
+	location?: Location
 }
 
 // `failure.index` is the root-most failed match. `unknown` is an unknown URL: the slot after the last layout
