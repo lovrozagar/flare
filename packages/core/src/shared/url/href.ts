@@ -57,16 +57,17 @@ function urlParts(segment: Segment, params: Record<string, unknown>): string[] {
 	if (absent || values.includes("") || (segment.kind === "dynamic" && Array.isArray(value))) {
 		throw new Error(segment.name)
 	}
-	return values.map(encodeParam)
+	return values.map((text) => encodeParam(text, segment.name))
 }
 
 // `.` and `..`, `%2e` counted as a dot, are the dot segments a browser resolves away (BUGS.md 156).
 const DOT_SEGMENT = /^(?:\.|%2e){1,2}$/i
 
 // A param is encoded by code point, so a character outside the BMP keeps its surrogate pair; a lone surrogate, which no
-// URL can carry, is a bad param (plan 21 8.2).
-function encodeParam(value: string): string {
-	if (value.includes("/") || value.includes("\\") || DOT_SEGMENT.test(value)) throw new Error("param")
+// URL can carry, is a bad param (plan 21 8.2). A bad value throws naming its key, never the value, which can be request
+// data a 500 logs (BUGS.md 308).
+function encodeParam(value: string, name: string): string {
+	if (value.includes("/") || value.includes("\\") || DOT_SEGMENT.test(value)) throw new Error(`param ${name}`)
 	const chars = Array.from(value)
 	let out = ""
 	let skip = 0
@@ -76,11 +77,11 @@ function encodeParam(value: string): string {
 			continue
 		}
 		if (char !== "%") {
-			out += encodeChar(char)
+			out += encodeChar(char, name)
 			continue
 		}
 		const hex = chars.slice(index + 1, index + 3).join("")
-		if (!isHex(hex.charAt(0)) || !isHex(hex.charAt(1))) throw new Error("param")
+		if (!isHex(hex.charAt(0)) || !isHex(hex.charAt(1))) throw new Error(`param ${name}`)
 		out += `%${hex.toUpperCase()}`
 		skip = 2
 	}
@@ -88,11 +89,11 @@ function encodeParam(value: string): string {
 }
 
 // One code point. A lone surrogate is the URIError `encodeURIComponent` throws, a bad param here.
-function encodeChar(char: string): string {
+function encodeChar(char: string, name: string): string {
 	try {
 		return encodeURIComponent(char)
 	} catch {
-		throw new Error("param")
+		throw new Error(`param ${name}`)
 	}
 }
 

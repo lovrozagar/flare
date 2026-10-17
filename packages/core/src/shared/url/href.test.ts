@@ -55,14 +55,14 @@ it("empty param", () => {
 })
 
 it("raw slash", () => {
-	expect(() => buildUrl({ to: users, params: { id: "a/b" } })).toThrow(/param/)
-	expect(() => buildUrl({ to: users, params: { id: "a\\b" } })).toThrow(/param/)
+	expect(() => buildUrl({ to: users, params: { id: "a/b" } })).toThrow(/^param id$/)
+	expect(() => buildUrl({ to: users, params: { id: "a\\b" } })).toThrow(/^param id$/)
 })
 
 it("bad percent", () => {
-	expect(() => buildUrl({ to: users, params: { id: "%ZZ" } })).toThrow(/param/)
-	expect(() => buildUrl({ to: users, params: { id: "a%" } })).toThrow(/param/)
-	expect(() => buildUrl({ to: users, params: { id: "%2" } })).toThrow(/param/)
+	expect(() => buildUrl({ to: users, params: { id: "%ZZ" } })).toThrow(/^param id$/)
+	expect(() => buildUrl({ to: users, params: { id: "a%" } })).toThrow(/^param id$/)
+	expect(() => buildUrl({ to: users, params: { id: "%2" } })).toThrow(/^param id$/)
 })
 
 // A param is encoded by code point, so a character outside the BMP, an emoji, round-trips; a lone surrogate, which no
@@ -72,7 +72,7 @@ it("emoji param", () => {
 	expect(url).toBe("/users/a%F0%9F%98%80b")
 	expect(decodeURIComponent(url.slice("/users/".length))).toBe("a😀b")
 	expect(buildUrl({ to: users, params: { id: "%F0%9F%98%80😀" } })).toBe("/users/%F0%9F%98%80%F0%9F%98%80")
-	expect(() => buildUrl({ to: users, params: { id: "a\uD83D" } })).toThrow(/param/)
+	expect(() => buildUrl({ to: users, params: { id: "a\uD83D" } })).toThrow(/^param id$/)
 })
 
 it("no double encode", () => {
@@ -121,7 +121,7 @@ it("optional", () => {
 
 it("catch-all", () => {
 	expect(buildUrl({ to: ids.files, params: { path: ["a", "b c"] } })).toBe("/files/a/b%20c")
-	expect(() => buildUrl({ to: ids.files, params: { path: ["a/b"] } })).toThrow(/param/)
+	expect(() => buildUrl({ to: ids.files, params: { path: ["a/b"] } })).toThrow(/^param path$/)
 	expect(() => buildUrl({ to: ids.files, params: { path: [] } })).toThrow(/path/)
 	expect(buildUrl({ to: ids.maybeFiles, params: { path: [] } })).toBe("/maybe")
 	expect(() => buildUrl({ to: users, params: { id: ["1", "2"] } })).toThrow(/id/)
