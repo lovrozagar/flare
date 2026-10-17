@@ -52,11 +52,16 @@ export type ExtractPathParams<Id extends string> = ParamsOfParts<Parts<Id>>
 
 export type RawSearch = Record<string, string | string[]>
 
+// Each route whose chain calls `.input()` has a `routeParams` entry. Its params are that output only when its
+// `.input()` has the params side, read from the route's type-only field, not from the output's value: a `never` output
+// stays `never`. With search alone the brackets give the params (BUGS.md 349).
 export type InferParams<R extends FlareRegister, Id extends string> = R extends {
 	routeParams: infer Map extends object
 }
-	? Id extends keyof Map
-		? Map[Id]
+	? Id extends keyof Map & keyof Modules<R>
+		? TypesOf<Modules<R>[Id]> extends { params: unknown }
+			? Map[Id]
+			: ExtractPathParams<Id>
 		: ExtractPathParams<Id>
 	: ExtractPathParams<Id>
 
@@ -145,8 +150,12 @@ export type PropagationApp = FlareRegister & {
 	serverContext: { requestId: string }
 	routeModules: {
 		_root_: { _type: "root" } & Typed<{ preloader: { requestId: string } }>
-		"_root_/about": { _type: "page" } & Typed<{ loaderData: { title: string }; preloader: { role: "admin"; n: 1 } }>
-		"_root_/users/[id]": { _type: "page" } & Typed<{ loaderData: { user: { name: string } } }>
+		"_root_/about": { _type: "page" } & Typed<{
+			search: { page: number }
+			loaderData: { title: string }
+			preloader: { role: "admin"; n: 1 }
+		}>
+		"_root_/users/[id]": { _type: "page" } & Typed<{ params: { id: number }; loaderData: { user: { name: string } } }>
 		"_root_/files/[...path]": { _type: "page" }
 		"_root_/[[locale]]": { _type: "page" }
 		"_root_/[[...rest]]": { _type: "page" }
@@ -194,10 +203,11 @@ export type ResolvedAuth<R extends FlareRegister, Mode extends true | "optional"
 		: null
 
 // The validated search a route's `.input()` recorded, or the raw record (dx/types.md). The generated register names
-// `routeSearchParams` with it, so no type is derived from text.
+// `routeSearchParams` with it for each route whose chain calls `.input()`, so no type is derived from text.
 export type SearchOutput<Route> = TypesOf<Route> extends { search: infer S } ? S : RawSearch
 
-// The validated params a route's `.input()` recorded, or `never` when that file does not validate params.
+// The validated params a route's `.input()` recorded, or `never` when it validates search only; the register then
+// keeps the route id's bracket params (BUGS.md 349).
 export type ParamsOutput<Route> = TypesOf<Route> extends { params: infer P } ? P : never
 
 // The awaited data a route's `.loader()` recorded, or `void` when it has none.

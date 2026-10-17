@@ -99,11 +99,14 @@ function authModes(modules: readonly Module[]): Entries {
 	})
 }
 
-// Each file's own `.input()` output, keyed by its route id. A parent's output stays on the parent.
+// Each file whose chain calls `.input()`, whatever its argument, keyed by its route id: the output is read from the
+// route's own type, so an imported object or a factory's result is typed as a literal is (BUGS.md 349). A route with
+// no `.input()` is not read, so a loader that redirects to it does not loop through its own type. A parent's output
+// stays on the parent.
 function outputs(modules: readonly Module[], side: "search" | "params"): Entries {
 	const helper = side === "search" ? "SearchOutput" : "ParamsOutput"
 	return modules
-		.filter((module) => module.scan.input[side])
+		.filter((module) => module.scan.input)
 		.map((module) => [module.id, `import("@lovrozagar/flare").${helper}<${module.type}>`] as const)
 }
 

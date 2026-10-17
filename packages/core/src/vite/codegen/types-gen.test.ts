@@ -82,6 +82,31 @@ it("input params", () => {
 	)
 })
 
+// One register entry that names a route's own type.
+function entry(helper: string, id: string, file: string): string {
+	return `"${id}": import("@lovrozagar/flare").${helper}<typeof import("../routes/${file}").route>;`
+}
+
+// Every route whose chain calls `.input()` gets both entries, whatever the argument, and the register reads which sides
+// it has from the route's type; one without `.input()` gets none, so its type is never read (BUGS.md 349).
+it("input call", () => {
+	const source = generate().source
+	expect(source).toContain(entry("ParamsOutput", "_root_/about", "_root_/about/about.page.tsx"))
+	expect(source).toContain(entry("SearchOutput", "_root_/users/[id]", "_root_/users/[id]/user.page.tsx"))
+	expect(source).not.toContain('"_root_/files/[...path]": import("@lovrozagar/flare").ParamsOutput')
+	expect(source).not.toContain('"_root_/files/[...path]": import("@lovrozagar/flare").SearchOutput')
+	const imported = generateTypes({
+		routeFiles: ["_root_/root.root-layout.tsx", "_root_/made/made.page.tsx"],
+		appFiles: [],
+		read: (file) =>
+			file.endsWith("made.page.tsx")
+				? `${B}import { paged } from "../../../v.ts";\nexport const route = createPage("_root_/made").input(paged()).render(r);\n`
+				: (files[file] ?? ""),
+	})
+	expect(imported.source).toContain(entry("SearchOutput", "_root_/made", "_root_/made/made.page.tsx"))
+	expect(imported.source).toContain(entry("ParamsOutput", "_root_/made", "_root_/made/made.page.tsx"))
+})
+
 it("keyed by route id", () => {
 	const source = generate().source
 	expect(source).toContain(

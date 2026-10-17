@@ -305,6 +305,7 @@ Run against oxc, not a regex. `SECRET`, `SERVER`, and `CLIENT` are the bodies un
 | `auth mode` | a page calls `authenticateOptional()` | `authModes` is `"optional"`. The file does not contain `.authenticate("optional")` |
 | `search` | `.input()` validates search | `routeSearchParams` is keyed by the route id and names the validator output |
 | `input params` | `.input()` validates params | `routeParams` is keyed by the route id and names the validator output |
+| `input call` | a chain calls `.input()`, any argument, a factory's result included | both maps name that route, each through its own type; a route without `.input()` has no entry (BUGS.md 349) |
 | `keyed by route id` | a layout and a page both call `.input()` | both maps use the route id. The page entry does not contain the layout's output |
 | `response route` | a page calls `.response()` | `routeModules` includes that id. `routes` does not |
 | `segment parent` | a segment file on the path | `routeParents` does not list that id |
