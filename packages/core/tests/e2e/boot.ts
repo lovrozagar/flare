@@ -249,7 +249,13 @@ const client = join(out, "client");
 const TYPES = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".json": "application/json", ".map": "application/json", ".ico": "image/x-icon", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".woff2": "font/woff2", ".txt": "text/plain", ".xml": "application/xml", ".webmanifest": "application/manifest+json" };
 const { server } = await import(pathToFileURL(join(out, "server/server.js")).href);
 async function file(pathname) {
-	const path = normalize(join(client, decodeURIComponent(pathname)));
+	// A pathname decodeURIComponent rejects names no file: the app answers it, as the README's serve.js does.
+	let path;
+	try {
+		path = normalize(join(client, decodeURIComponent(pathname)));
+	} catch {
+		return undefined;
+	}
 	if (!path.startsWith(client + sep)) return undefined;
 	const info = await stat(path).catch(() => undefined);
 	if (info === undefined || !info.isFile()) return undefined;
@@ -282,7 +288,8 @@ const bun = Bun.serve({
 	port: 0,
 	maxRequestBodySize: app.maxRequestBodySize,
 	async fetch(request) {
-		const found = await file(new URL(request.url).pathname);
+		// A Host Bun cannot read leaves request.url relative: no file, so the adapter answers it.
+		const found = URL.canParse(request.url) ? await file(new URL(request.url).pathname) : undefined;
 		if (found === undefined) return app.fetch(request);
 		return new Response(found.body, { headers: found.headers });
 	},
