@@ -237,6 +237,18 @@ it("css reset", async () => {
 	expect(await critical(defaults)).toBe("body{color:#639}")
 })
 
+// A built document's critical style and stylesheet swap script carry the CSP header's nonce, as every tag Flare writes
+// does (`nonce.test.ts`): the critical style and the swap exist only in a server build.
+it("critical and swap nonce", async () => {
+	const response = await built(defaults).server.fetch(new Request("https://flare.test/"))
+	const html = await response.text()
+	const header = /'nonce-([^']+)'/.exec(response.headers.get("content-security-policy") ?? "")?.[1]
+	const critical = /<style id="flare-critical" nonce="([^"]+)"/.exec(html)?.[1]
+	const swap = /<script nonce="([^"]+)">\{const l=document\.createElement\(/.exec(html)?.[1]
+	expect([critical, swap]).toEqual([header, header])
+	expect(header).toMatch(/^[\da-f]{32}$/)
+})
+
 // `broadcast: false` leaves no BroadcastChannel in the client bundle.
 it("broadcast off", () => {
 	expect(clientCode(options)).not.toContain("BroadcastChannel")
