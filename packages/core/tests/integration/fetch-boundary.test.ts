@@ -1,3 +1,5 @@
+import { createComponent } from "solid-js"
+import { Dynamic } from "@solidjs/web"
 import { afterEach, expect, it, vi } from "vitest"
 import type { DevErrorPayload } from "../../src/shared/errors/dev-report.ts"
 import { createServer, serveWith } from "../../src/server/lifecycle/create.ts"
@@ -14,6 +16,7 @@ import { createRouter } from "../../src/shared/router/create-router.ts"
 
 afterEach(() => {
 	vi.restoreAllMocks()
+	vi.unstubAllEnvs()
 })
 
 const root = createRootLayout("_root_").render((props) => props.children)
@@ -103,4 +106,44 @@ it("authenticate throw", async () => {
 	expect(send).toHaveBeenCalledTimes(2)
 	expect(send.mock.calls.map(([payload]) => payload.err.message)).toEqual(["auth boom", "auth boom"])
 	expect(error).toHaveBeenCalledTimes(2)
+})
+
+// A render that throws before the shell, with no boundary to catch it, answers the built-in error page with its
+// status, never a blank body: the generic message and the digest in production. A root that renders no document
+// answers the same page, its own log line naming it (plan 21 13.13, BUGS.md 215).
+it("render before the shell", async () => {
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+	vi.stubEnv("DEV", false)
+	vi.stubEnv("PROD", true)
+	const broken = createPage("_root_/broken").render(() => {
+		throw new Error("render boom")
+	})
+	const documentRoot = createRootLayout("_root_").render((props) =>
+		createComponent(Dynamic, {
+			component: "html",
+			get children() {
+				return createComponent(Dynamic, {
+					component: "body",
+					get children() {
+						return props.children
+					},
+				})
+			},
+		}),
+	)
+	const answer = async (layout: typeof root): Promise<[number, string]> => {
+		const routes = createRouter({
+			layouts: { _root_: layout },
+			routeTree: [{ id: "_root_/broken", path: "/broken", module: broken }],
+		})
+		const response = await createServer({ router: routes }).fetch(new Request("http://localhost/broken"))
+		return [response.status, await response.text()]
+	}
+	const [status, body] = await answer(documentRoot)
+	expect(status).toBe(500)
+	expect(body).toMatch(/^<!DOCTYPE html><html lang="en">.*<title>500 Something went wrong<\/title>/)
+	expect(body).toMatch(/<code>[\da-f]{12}<\/code>/)
+	expect(body).not.toContain("render boom")
+	const [bareStatus, bare] = await answer(root)
+	expect([bareStatus, bare.includes("<h1>Something went wrong</h1>")]).toEqual([500, true])
 })

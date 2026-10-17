@@ -40,7 +40,7 @@ it("document", () => {
 	expect(isDocument("<div></body>")).toBe(false)
 })
 
-// Production, stubbed: the document is the empty 500 a throw before the shell answers, and one log line names the
+// Production, stubbed: the document is the built-in 500 page a throw before the shell answers, and one log line names the
 // root layout and what its shell lacks, however many requests and renders follow. Nothing is stored. A
 // production-only header proves the stub took.
 it("prod document-less", async () => {
@@ -52,7 +52,12 @@ it("prod document-less", async () => {
 	for (const _ of [1, 2]) {
 		const response = await server.fetch(new Request("https://flare.test/"))
 		expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin")
-		expect([response.status, response.headers.get("flare-cache"), await response.text()]).toEqual([500, null, ""])
+		const body = await response.text()
+		expect([
+			response.status,
+			response.headers.get("flare-cache"),
+			body.includes("<h1>Something went wrong</h1>"),
+		]).toEqual([500, null, true])
 	}
 	expect(lines).toEqual(['[flare:render] root layout "_bare_" rendered no <html> or </body> (B37)'])
 })
