@@ -31,6 +31,7 @@ packages/core/tests/consumers/stage.ts	P14	test	node	The consumer stage: peer sp
 packages/core/tests/consumers/stage.test.ts	P14	test	node	Unit cases for stage.ts's peer specs and newest report
 packages/core/tests/consumers/readme.consumer.test.ts	P14	test	node	The README's own install line, run with Bun and with the pinned npm at default peer resolution: no ERESOLVE, then the minimal app builds and serves (plan 21 5.5)
 packages/core/tests/consumers/floor.consumer.test.ts	P14	test	node	The minimal app staged with its peers at their floors (or newest): Node 22.12.0 build, serve, and dev; TypeScript 5.9.3 with nodenext; no optional peers (plan 21 5.5)
+packages/core/tests/consumers/optional.consumer.test.ts	P14	test	node	The minimal app as an i18n, image, or query app without that feature's peers: the build and the dev server name each missing peer; a built server keeps its i18n peers (plan 21 5.5)
 packages/core/tests/consumers/fixture/ts5/package.json	P14	app	-	The TypeScript floor cell's pin: typescript 5.9.3 exact
 packages/core/tests/consumers/fixture/ts5/tsconfig.json	P14	app	-	The TypeScript floor cell's settings: nodenext module and resolution, consumer strict's others, skipLibCheck off
 packages/core/tests/structure/workflows.test.ts	P14	test	node	The GitHub workflows pin every action by commit SHA and install nothing @latest (BUGS.md 219)
@@ -550,6 +551,8 @@ packages/core/src/vite/plugin/options.ts	P1	src	vite	Parse the flare() options
 packages/core/src/vite/plugin/options.test.ts	P1	test	vite	Unit cases for options.ts
 packages/core/src/vite/plugin/environments.ts	P1	src	vite	Declare client, ssr, and worker environments and their order
 packages/core/src/vite/plugin/environments.test.ts	P1	test	vite	Unit cases for environments.ts
+packages/core/src/vite/plugin/peers.ts	P1	src	vite	The optional peers each feature imports and the guard that fails a build or the dev server naming every missing one with its install command (plan 21 5.5)
+packages/core/src/vite/plugin/peers.test.ts	P1	test	vite	Unit cases for peers.ts
 packages/core/src/vite/plugin/wrangler.ts	P12	src	vite	Read the Workers config: the assets binding, the compatibility date and flags. wrangler.toml throws
 packages/core/src/vite/plugin/wrangler.test.ts	P12	test	vite	Unit cases for wrangler.ts
 packages/core/src/vite/plugin/build-id.ts	P12	src	vite	Dev build id is dev. Production is the 12-hex manifest hash (B84, B89)

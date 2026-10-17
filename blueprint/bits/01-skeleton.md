@@ -334,9 +334,9 @@ The file calls `boot` (B70). `beforeAll` reads the project name `<runtime>-<mode
 
 The cases are the `test` cells in `dx/head.md`. The outcome of each case is that cell's outcome column. A head field that `dx/head.md` does not name is not emitted (`head.test.ts` `unknown field`).
 
-### `vite/plugin/options.test.ts` and `flare.test.ts`
+### `vite/plugin/options.test.ts`, `flare.test.ts`, and `peers.test.ts`
 
-The cases are the `test` cells in `dx/plugin.md` that name these files. An option `dx/plugin.md` lists under "Does not exist" throws in `unknown`.
+The cases are the `test` cells in `dx/plugin.md` and `dx/features.md` that name these files. An option `dx/plugin.md` lists under "Does not exist" throws in `unknown`.
 
 
 ### `tests/integration/router.test.ts` and `router-client.test.ts` (plan 14 9.6, B96)

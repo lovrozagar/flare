@@ -108,7 +108,13 @@ After hydration commits, a stored member of `themes` replaces `theme()`. That wr
 
 `toggleDirection` does not exist. `getDirFromLocale` is not a return field and not a public export. `rtlLocales` does not exist. v0 had that list. A hardcoded language list was wrong for scripts the list forgot.
 
+## Optional peers
+
+i18n, Image, and Query each need packages an app that skips the feature never installs: `@formatjs/intl-localematcher`, `isbot`, and `negotiator` for `@lovrozagar/flare/i18n/server`; `sharp` for `flare({ image })`; `@tanstack/solid-query` for `@lovrozagar/flare/query`. Used without them, a build and the dev server fail with one line per missing peer of the feature, `flare: <feature> needs <peer>. Install it: npm install <peer>@"<range>"`, the range the package declares (`vite/plugin/peers.ts`, `peers.test.ts`; consumer cells `i18n without peers`, `i18n without peers, dev`, `image without sharp`, `query without solid-query`). `flare({ image })` needs `sharp` whether or not an image is imported. A built server bundles the i18n peers, so a deploy that drops them after the build still answers (`i18n peers removed after build`, BUGS.md 300).
+
 ## i18n
+
+Peers `@formatjs/intl-localematcher`, `isbot`, and `negotiator` (Optional peers).
 
 ```ts
 createRouter({ locale: { locales, defaultLocale, paramName?, cookieName? } })
@@ -185,6 +191,8 @@ These v0 fields do not exist: the provider `broadcast` flag, `skip`, `syncDirect
 
 ## Image
 
+Peer `sharp`, which `flare({ image })` needs (Optional peers).
+
 `<Image />`. Widths come from `flare({ image: { widths, quality? } })` in the Vite config. A width outside that set is a build error and a 400 on the dev endpoint.
 
 | prop | required | default | accepts | outcome | pitfall | test |
@@ -247,7 +255,7 @@ A registry font is the default export of `@lovrozagar/flare/fonts/<id>` (B78). `
 
 ## Query
 
-Peer `@tanstack/solid-query`.
+Peer `@tanstack/solid-query` (Optional peers).
 
 | API | required args | outcome | pitfall | test |
 | --- | --- | --- | --- | --- |

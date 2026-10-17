@@ -121,7 +121,18 @@ it("client entry define", async () => {
 		expect(returned).toMatchObject({
 			appType: "custom",
 			resolve: { dedupe: ["solid-js", "@solidjs/web"] },
-			ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
+			// A build also bundles the i18n peers, so a built server holds them (plan 21 5.5).
+			ssr: {
+				noExternal: [
+					"solid-js",
+					"@solidjs/web",
+					"@lovrozagar/flare",
+					"@tanstack/solid-query",
+					"@formatjs/intl-localematcher",
+					"isbot",
+					"negotiator",
+				],
+			},
 			optimizeDeps: {
 				exclude: ["@lovrozagar/flare"],
 				include: ["@lovrozagar/flare > seroval", "@lovrozagar/flare > seroval-plugins/web"],
@@ -152,6 +163,27 @@ it("client entry define", async () => {
 	} finally {
 		rmSync(root, { recursive: true, force: true })
 	}
+})
+
+// Dev leaves the i18n peers to Node: negotiator is CommonJS, which Vite's dev runner does not transform.
+it("dev bundles", () => {
+	const root = project()
+	try {
+		const config = flarePlugin().config
+		if (typeof config !== "function") throw new Error("config")
+		const returned = config.call(null as never, { root } as never, { command: "serve", mode: "development" } as never)
+		expect(returned).toMatchObject({
+			ssr: { noExternal: ["solid-js", "@solidjs/web", "@lovrozagar/flare", "@tanstack/solid-query"] },
+		})
+	} finally {
+		rmSync(root, { recursive: true, force: true })
+	}
+})
+
+// The peer guard runs first, so its resolveId sees the package's import of an optional peer before Vite's resolver
+// answers it with a stub (plan 21 5.5).
+it("peer guard first", () => {
+	expect(flare().map((plugin) => plugin.name)[0]).toBe("flare:peers")
 })
 
 it("dev server", () => {
