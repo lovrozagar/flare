@@ -21,7 +21,7 @@ import { mountFor, mountTable } from "../mount/mount.ts"
 import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
 import type { MiddlewareKind } from "../middleware/types.ts"
-import { checkResponseMethods, refusedChannel, routeMethod, type MethodMatch } from "./methods.ts"
+import { applyMethod, checkResponseMethods, refusedChannel, routeMethod, type MethodMatch } from "./methods.ts"
 import { decodedHeaders, responseHeaders } from "./policies.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts"
@@ -210,7 +210,10 @@ function routed(exchange: Exchange, url: URL): Promise<Response> {
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {
 		// A data or prefetch request for an unknown URL is that status alone, with no frame (B73).
 		if (exchange.kind !== "document") return Promise.resolve(answer(exchange, 404))
-		return loaded(exchange, matched, (chain) => notFound(exchange, chain)).then(markUnmatched)
+		// A HEAD gets the not-found answer's status and headers, its render cancelled, as a matched page's does (BUGS.md
+		// 343).
+		const document = loaded(exchange, matched, (chain) => notFound(exchange, chain))
+		return document.then((response) => markUnmatched(applyMethod(exchange.request, response)))
 	}
 	return routeMethod(exchange.request, {
 		match: () => methodMatch(exchange, matched),
