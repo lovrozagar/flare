@@ -1,5 +1,6 @@
 // The dx/types.md `app` rows for loader data, the preloader context, auth, head, defer, and effects. See checks.ts.
 import { createLayout, createPage, createRootLayout, useLoaderData, usePreloaderContext } from "@lovrozagar/flare"
+import { createServer } from "@lovrozagar/flare/server"
 
 // loader deep
 {
@@ -66,6 +67,27 @@ import { createLayout, createPage, createRootLayout, useLoaderData, usePreloader
 	void role
 	// @ts-expect-error the wider parent member does not survive
 	const _editor: typeof role = "editor"
+}
+
+// The register's serverContext, which createServer then requires.
+function serverContext(): { requestId: string } {
+	return { requestId: "r" }
+}
+
+// server authenticate
+{
+	// The register's env reaches authenticate, and it answers the register's auth or null (plan 21 11.3).
+	void createServer({
+		router: undefined as never,
+		serverContext,
+		authenticate: (ctx) => {
+			const site: string = ctx.env.site
+			return site === "" ? null : { userId: "u" }
+		},
+	})
+	void createServer({ router: undefined as never, serverContext, authenticate: async () => ({ userId: "u" }) })
+	// @ts-expect-error a session of another shape
+	void createServer({ router: undefined as never, serverContext, authenticate: () => ({ id: 1 }) })
 }
 
 // input empty
