@@ -336,6 +336,8 @@ packages/core/src/server/cache/nonce.ts	P10	src	server	Rewrite nonce attributes 
 packages/core/src/server/cache/nonce.test.ts	P10	test	server	Unit cases for nonce.ts
 packages/core/src/server/cache/scrub.ts	P10	src	server	Render a shared entry with no credentials
 packages/core/src/server/cache/scrub.test.ts	P10	test	server	Unit cases for scrub.ts
+packages/core/src/server/cache/shared-page.ts	P10	src	server	A stored entry's input, and a public page with no store rendered as the anonymous shared request (plan 21 4.4)
+packages/core/src/server/cache/shared-page.test.ts	P10	test	server	Unit cases for shared-page.ts
 packages/core/src/server/cache/serve.ts	P10	src	server	A page's answer through the store: a shared ssr or isr page with a store runs one shared render that writes both variants and serves its own. Every other answer renders live
 packages/core/src/server/cache/serve.test.ts	P10	test	server	Unit cases for serve.ts
 packages/core/src/server/cache/seed.ts	P10	src	server	Accept a seed only when seed is true and renderedAt and tags are present

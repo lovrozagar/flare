@@ -1,4 +1,3 @@
-import { defined } from "../../shared/errors/index.ts"
 import { withServerContext } from "../context/ctx.ts"
 import { drawn, framed, loaderInput, type Loaded } from "../lifecycle/answers.ts"
 import { answerQueries } from "../render/state.ts"
@@ -39,7 +38,8 @@ export function sharedRender(
 	exchange: Exchange,
 	matched: Loaded,
 ): Promise<SharedRender | typeof INCOMPLETE | undefined> {
-	const request = sharedRequest(defined(exchange.options.site, "the site a store requires"), exchange.request)
+	// A store requires `site`. A public page with none behind it renders on the request's own origin (plan 21 4.4).
+	const request = sharedRequest(exchange.options.site ?? new URL(exchange.request.url).origin, exchange.request)
 	const { env, store, waitUntil } = exchange
 	const context = { request, env, serverContext: exchange.options.serverContext, store, waitUntil }
 	return withServerContext(

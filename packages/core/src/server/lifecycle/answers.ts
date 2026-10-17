@@ -74,14 +74,14 @@ export async function decided(exchange: Exchange, matched: Loaded): Promise<Prep
 }
 
 // A public answer, document or data, waits for every deferred value it started, whatever documentResponseDefer
-// says, so a CDN copy holds no hole and no deferred error. A rejection is an error frame, so the answer leaves
-// `private, no-store` (dx/cache.md). "buffer" holds any document the same way. Solid then writes the settled values
-// in the shell (B92). Any other answer streams.
+// says, so a CDN copy holds no hole and no deferred error. A rejection, or a policy already rejected (a live render
+// standing in for a shared one), leaves `private, no-store` (dx/cache.md). "buffer" holds any document the same way.
+// Solid then writes the settled values in the shell (B92). Any other answer streams.
 async function awaited(run: LoaderRun, policy: Policy, buffer: boolean): Promise<Policy> {
 	const route = [run.headers["set-cookie"] ?? []].flat()
 	if (!buffer && !isPublic(withCookies(policy.decision, { route, all: route }))) return policy
 	const results = await Promise.allSettled(run.deferred.map((entry) => entry.promise))
-	return { ...policy, rejected: results.some((result) => result.status === "rejected") }
+	return { ...policy, rejected: policy.rejected === true || results.some((result) => result.status === "rejected") }
 }
 
 // The decision, downgraded by a cookie the route sets, writes Cache-Control and Cache-Tag over the answer's

@@ -17,6 +17,7 @@ import {
 import { definedParams } from "../render/matches.ts"
 import { runLoaders } from "../loaders/run.ts"
 import { answer, routeSecured, typed, type Exchange } from "../lifecycle/exchange.ts"
+import { isPublic } from "../lifecycle/policies.ts"
 import type { StoreOption } from "../lifecycle/options.ts"
 import { NDJSON } from "../navigation/index.ts"
 import type { FlareStore } from "./contract.ts"
@@ -27,17 +28,9 @@ import { hitOf, storedPageOf, type Hit } from "./read.ts"
 import type { Capture } from "./prerender.ts"
 import { listed, seedLookup } from "./seed.ts"
 import { fromSentinel } from "./nonce.ts"
-import { INCOMPLETE, sharedRender, type SharedRender } from "./scrub.ts"
-import {
-	buildEntry,
-	entryTags,
-	replayable,
-	storedPage,
-	storeTiming,
-	type EntryInput,
-	type StoredPage,
-	type StoreTiming,
-} from "./write.ts"
+import { INCOMPLETE, sharedRender } from "./scrub.ts"
+import { entryInput, sharedPage } from "./shared-page.ts"
+import { buildEntry, replayable, storedPage, storeTiming, type StoredPage, type StoreTiming } from "./write.ts"
 
 // The request's mutable store. A function is called once, on the first read, with the request's env.
 export function requestStore(option: StoreOption | undefined, env: unknown): () => FlareStore | undefined {
@@ -67,7 +60,15 @@ function modeAnswer(exchange: Exchange, matched: Loaded, prepared: Prepared): Pr
 	const mode = cache?.ssr === undefined ? (cache?.isr === undefined ? undefined : "isr") : "ssr"
 	const store = shared && mode !== undefined ? exchange.store() : undefined
 	if (store !== undefined && mode !== undefined) return stored(exchange, matched, { prepared, store, mode })
-	return live(exchange, matched, prepared)
+	return isPublic(prepared.policy.decision) ? anonymous(exchange, matched, prepared) : live(exchange, matched, prepared)
+}
+
+// A public page no store answers renders as the anonymous request, as a stored miss does (plan 21 4.4). When that
+// render gives nothing to serve, the visitor's own render answers, and it is private: it may carry their cookie.
+async function anonymous(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
+	const shared = await sharedPage(exchange, matched, prepared)
+	if (shared === undefined || shared === INCOMPLETE) return live(exchange, matched, uncached(prepared))
+	return served(exchange, shared.page, { policy: shared.policy, cookies: shared.cookies })
 }
 
 // per-process-constant: the ssg routes each server has reported as having no static store
@@ -254,22 +255,6 @@ async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<L
 	return { flight: { shared, page }, written }
 }
 
-function entryInput(
-	shared: SharedRender,
-	matched: Loaded,
-	at: { mode: "isr" | "ssr" | "ssg"; policy: Policy },
-): EntryInput {
-	const cache = matched.chain.at(-1)?.module.cache
-	return {
-		...shared,
-		status: shared.run.response.status,
-		headers: shared.run.headers,
-		security: shared.run.security,
-		render: at.mode,
-		tags: entryTags([cache?.ssr?.tags, at.policy.decision.cdn.tags], at.policy.params),
-	}
-}
-
 // The one way a stored page is served, a hit or a miss: the entry's HTML with its sentinel replaced by this
 // request's nonce, or its NDJSON, under the route's security set rebuilt for this request. Only replayable headers
 // come back. Cache-Control and Cache-Tag come from the current decision. A miss also carries the route's own
@@ -277,14 +262,14 @@ function entryInput(
 export function served(
 	exchange: Exchange,
 	stored: StoredPage,
-	at: { policy: Policy; cache: "hit" | "miss"; cookies: readonly string[] },
+	at: { policy: Policy; cache?: "hit" | "miss"; cookies: readonly string[] },
 ): Response {
 	const secured = routeSecured(exchange, stored.security)
 	const document = exchange.kind === "document"
 	const body = document ? fromSentinel(stored.html, stored.sentinel, secured.secured.nonce) : stored.ndjson
 	const headers = typed(secured, document ? HTML : NDJSON, Object.fromEntries(replayable(stored.headers)))
 	for (const cookie of at.cookies) headers.append("set-cookie", cookie)
-	headers.set(CACHE_HEADER, at.cache)
+	if (at.cache !== undefined) headers.set(CACHE_HEADER, at.cache)
 	const errored = at.policy.rejected === true || (!document && stored.ndjson.includes('{"t":"e"'))
 	const run = { headers: { "set-cookie": [...at.cookies] } }
 	return cached({ status: 200, body, render: stored.render, headers }, at.policy, { run, errored })
