@@ -1,10 +1,10 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import * as nodeModule from "node:module"
 import { join, resolve } from "node:path"
-import { gzipSync } from "node:zlib"
 import { Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { afterAll, expect, it } from "vitest"
+import { modulesOf, UPLOAD_LIMIT, uploadedSize } from "../workers-modules.ts"
 import { fixtureApps, page, rootLayout, viteBuild } from "./vite-app.ts"
 
 // dx/plugin.md's Cloudflare Workers composition through a real app (B96, B109): the app adds Cloudflare's plugin
@@ -52,14 +52,6 @@ const ROUTES = {
 		'import { createServer } from "@lovrozagar/flare/server";\nimport { router } from "./router.ts";\nexport const server = createServer({ router, site: "https://flare.test" });\n',
 }
 
-// Every module of the unbundled Workers output, its main first, as `wrangler deploy` uploads them.
-function modulesOf(dir: string, main: string): { type: "ESModule"; path: string }[] {
-	const files = readdirSync(dir, { recursive: true, encoding: "utf8" })
-		.map((file) => join(dir, file))
-		.filter((path) => /\.m?js$/.test(path) && path !== main)
-	return [main, ...files.toSorted()].map((path) => ({ type: "ESModule", path }))
-}
-
 // A custom `assetsBase` with the Workers composition: the build writes the worker, its deploy config, and the pointer
 // `wrangler deploy` reads; the client output's `_headers` makes `/static/*` immutable (B130); and the worker answers
 // the page while the assets binding serves a hashed file, and the asset the worker renders a URL for, with that header.
@@ -90,10 +82,9 @@ it.skipIf(noHooks)(
 		const deploy = unstable_getMiniflareWorkerOptions(join(server, "wrangler.json"))
 		if (deploy.main === undefined) throw new Error("the deploy config names no main")
 		const modules = modulesOf(server, resolve(server, deploy.main))
-		// What `wrangler deploy` uploads, gzipped as Cloudflare counts it, is under the Workers free plan's 3 MiB script
-		// limit, so a deploy is never refused for size (plan 21 5.6).
-		const uploaded = modules.reduce((sum, module) => sum + gzipSync(readFileSync(module.path)).length, 0)
-		expect(uploaded).toBeLessThanOrEqual(3 * 1024 * 1024)
+		// What `wrangler deploy` uploads is under the Workers free plan's script limit, so a deploy is never refused for
+		// size (plan 21 5.6).
+		expect(uploadedSize(modules)).toBeLessThanOrEqual(UPLOAD_LIMIT)
 		const runtime = new Miniflare({
 			...deploy.workerOptions,
 			modules,

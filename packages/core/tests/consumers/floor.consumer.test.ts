@@ -1,13 +1,19 @@
 import { cpSync, existsSync, readFileSync } from "node:fs"
-import { join } from "node:path"
+import { join, resolve } from "node:path"
+import { Miniflare } from "miniflare"
+import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import type { PinnedNode } from "../../../../scripts/node-at.ts"
+import { modulesOf, UPLOAD_LIMIT, uploadedSize } from "../workers-modules.ts"
 import {
 	buildApp,
 	CORE,
 	copyMinimal,
 	install,
+	installed,
 	MANIFEST,
+	newestReport,
+	npm,
 	nodes,
 	OPTIONAL,
 	peerSpecs,
@@ -23,8 +29,8 @@ import {
 // with FLARE_CONSUMER_PEERS=newest, built and served as an app is.
 const MODE: PeerMode = process.env["FLARE_CONSUMER_PEERS"] === "newest" ? "newest" : "floor"
 
-// Set once before the cases: the pinned Nodes and the tarball.
-const run: { floor?: PinnedNode; current?: PinnedNode; packed?: string } = {}
+// Set once before the cases: the pinned Nodes and the tarball; `node floor` records its project for the report.
+const run: { floor?: PinnedNode; current?: PinnedNode; packed?: string; staged?: string } = {}
 const projects: Project[] = []
 
 beforeAll(async () => {
@@ -46,14 +52,15 @@ function pinned(which: "floor" | "current"): PinnedNode {
 	return node
 }
 
-// A staged minimal app with `specs` installed by `node`'s npm, only those peers (`--legacy-peer-deps`).
-function staged(name: string, node: PinnedNode, specs: readonly string[]): string {
-	const app = project(name)
-	projects.push(app)
-	copyMinimal(app.dir)
-	const added = install(node, { dir: app.dir, packed: run.packed ?? "", specs, legacy: true })
+// A staged minimal app with `specs` installed by `node`'s npm, only those peers (`--legacy-peer-deps`), composed with
+// Cloudflare's plugin when `workers`.
+function staged(name: string, node: PinnedNode, app: { specs: readonly string[]; workers?: boolean }): string {
+	const made = project(name)
+	projects.push(made)
+	copyMinimal(made.dir, { workers: app.workers === true })
+	const added = install(node, { dir: made.dir, packed: run.packed ?? "", specs: app.specs, legacy: true })
 	expect([added.status, added.output]).toEqual([0, expect.any(String)])
-	return app.dir
+	return made.dir
 }
 
 // GET / with a sentinel the home page prints, and the about page's data request, on a served origin.
@@ -68,7 +75,8 @@ async function answers(origin: string, sentinel: string): Promise<void> {
 // The published floor, Node 22.12.0, installs, builds, serves, and runs the dev server (B3).
 it("node floor", async () => {
 	const node = pinned("floor")
-	const dir = staged("node-floor", node, peerSpecs(MANIFEST, MODE))
+	const dir = staged("node-floor", node, { specs: peerSpecs(MANIFEST, MODE) })
+	run.staged = dir
 	const built = buildApp(node, dir)
 	expect([built.status, built.output]).toEqual([0, expect.any(String)])
 	const served = await serve(node, { dir, args: () => ["serve.js"], timeout: 30_000 })
@@ -106,7 +114,7 @@ it("ts 5 nodenext", () => {
 		...peerSpecs(MANIFEST, MODE),
 		...Object.entries(typescript).map(([name, version]) => `${name}@${version}`),
 	]
-	const dir = staged("ts5", node, [...specs, types])
+	const dir = staged("ts5", node, { specs: [...specs, types] })
 	cpSync(join(fixture, "tsconfig.json"), join(dir, "tsconfig.json"))
 	cpSync(join(CORE, "tests/structure/consumer/src"), join(dir, "consumer"), { recursive: true })
 	const flare = join(dir, "node_modules/@lovrozagar/flare/dist/vite/bin/flare.js")
@@ -120,7 +128,7 @@ it("ts 5 nodenext", () => {
 // An app that uses none of i18n, image, or query installs none of their five peers, and builds and serves.
 it("no optional peers", async () => {
 	const node = pinned("current")
-	const dir = staged("no-optional", node, peerSpecs(MANIFEST, MODE, { without: OPTIONAL }))
+	const dir = staged("no-optional", node, { specs: peerSpecs(MANIFEST, MODE, { without: OPTIONAL }) })
 	const present = OPTIONAL.filter((name) => existsSync(join(dir, "node_modules", name, "package.json")))
 	expect([OPTIONAL.length, present]).toEqual([5, []])
 	const built = buildApp(node, dir)
@@ -131,4 +139,53 @@ it("no optional peers", async () => {
 	} finally {
 		await served.stop()
 	}
+})
+
+// The Workers tools an app adds beside flare(): Cloudflare's Vite plugin and wrangler, at the repo's versions, or at
+// the newest from there.
+function workersTools(): string[] {
+	const catalog: Record<string, string> = JSON.parse(readFileSync(join(CORE, "../../package.json"), "utf8")).workspaces
+		.catalog
+	return ["@cloudflare/vite-plugin", "wrangler"].map((name) =>
+		MODE === "floor" ? `${name}@${catalog[name] ?? ""}` : `${name}@>=${catalog[name] ?? ""}`,
+	)
+}
+
+// The minimal app composed with Cloudflare's plugin (B109): its Workers upload is under the free plan's script limit
+// (plan 21 5.6), and workerd, through Miniflare as `wrangler dev` runs it, answers `/` with the sentinel.
+it("workers bundle", async () => {
+	const node = pinned("current")
+	const dir = staged("workers", node, { specs: [...peerSpecs(MANIFEST, MODE), ...workersTools()], workers: true })
+	const built = buildApp(node, dir)
+	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	const server = join(dir, "dist/server")
+	const deploy = unstable_getMiniflareWorkerOptions(join(server, "wrangler.json"))
+	const modules = modulesOf(server, resolve(server, deploy.main ?? "index.js"))
+	expect(uploadedSize(modules)).toBeLessThanOrEqual(UPLOAD_LIMIT)
+	const runtime = new Miniflare({ ...deploy.workerOptions, modules, modulesRoot: server })
+	try {
+		const home = await runtime.dispatchFetch("http://localhost/", { headers: { "x-sentinel": "workers" } })
+		expect([home.status, (await home.text()).includes("workers")]).toEqual([200, true])
+	} finally {
+		await runtime.dispose()
+	}
+})
+
+// Under FLARE_CONSUMER_PEERS=newest, each peer `node floor` installed beside the newest published version its range
+// admits with pre-releases counted. npm matches a pre-release range only on its own release line, so a row that
+// differs is printed for the reviewer as a range-wording question, not failed (plan 21 5.5).
+it.skipIf(MODE !== "newest")("newest report", () => {
+	const dir = run.staged ?? ""
+	const peers = Object.keys(MANIFEST.peerDependencies ?? {})
+	const published = Object.fromEntries(
+		peers.map((peer) => {
+			const view = npm(pinned("current"), dir, ["view", peer, "versions", "--json"])
+			return [peer, JSON.parse(view.output) as string[]]
+		}),
+	)
+	const report = newestReport(installed(dir, peers), published, MANIFEST.peerDependencies ?? {})
+	for (const row of report) {
+		console.log(`newest ${row.same ? "  " : "!="} ${row.name} installed ${row.installed}, range admits ${row.newest}`)
+	}
+	expect(report.map((row) => row.name).toSorted()).toEqual(peers.toSorted())
 })

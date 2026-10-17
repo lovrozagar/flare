@@ -16,5 +16,7 @@ export default defineConfig({
 		testTimeout: CELL_TIMEOUT,
 		hookTimeout: CELL_TIMEOUT,
 		fileParallelism: false,
+		// Every case and its output, the newest report included, in the job's log.
+		reporters: ["verbose"],
 	},
 })
