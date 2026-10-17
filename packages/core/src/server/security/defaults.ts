@@ -4,6 +4,7 @@ export function defaultHeaders(url: string): Headers {
 	headers.set("Referrer-Policy", "strict-origin-when-cross-origin")
 	headers.set("X-Frame-Options", "DENY")
 	headers.set("Cross-Origin-Opener-Policy", "same-origin")
+	headers.set("Cross-Origin-Resource-Policy", "same-origin")
 	if (new URL(url).protocol === "https:") {
 		headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 	}

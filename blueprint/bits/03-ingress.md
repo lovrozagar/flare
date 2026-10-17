@@ -56,7 +56,7 @@ The full default set is those three plus `X-Frame-Options: DENY` and `Cross-Orig
 | `overwrites` | the body arrived with a stored `Content-Security-Policy` | the fresh policy replaces it |
 | `route security` | the page's `.security()` sets `X-Frame-Options` to `SAMEORIGIN` | that value wins over the server default |
 | `callback override` | a callback that sets `X-Frame-Options` to `SAMEORIGIN`, with the request's context, then without one | that value is the header, and the callback saw the nonce the result carries; without a context it does not run and `DENY` holds (BUGS.md 112) |
-| `every key` | each of the nine keys as a string, then each as `false` from a route, then none; then a rebuild with the first set's candidate | each string is its header; every header is gone; `Cross-Origin-Resource-Policy` and `X-Powered-By` are absent by default; the rebuild keeps the nonce (BUGS.md 112) |
+| `every key` | each of the nine keys as a string, then each as `false` from a route, then none; then a rebuild with the first set's candidate | each string is its header; every header is gone; `X-Powered-By` is absent and `Cross-Origin-Resource-Policy` is `same-origin` by default (B135); the rebuild keeps the nonce (BUGS.md 112) |
 | `false removes` | `.security({ "X-Frame-Options": false })` | the header is absent |
 | `headers() cannot` | `.headers()` sets `Content-Security-Policy` | the security value still wins |
 | `both cookies` | the parent sets `set-cookie` to `a` and the child sets it to `b` | both values, parent then child. An undefined child value keeps the parent. Every other header is child-wins |
