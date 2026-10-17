@@ -4,7 +4,8 @@ import { Agent, request as send, type IncomingHttpHeaders } from "node:http"
 // response, so no socket outlives its request: Playwright's `request` shares one keep-alive agent per worker process,
 // and a socket a case left idle could carry a later case's request just as the server closed it, failing it with
 // ECONNRESET (BUGS.md 125). It takes the call shape the specs use: `get` and `post` with `headers`, `data` (sent as
-// JSON), and `maxRedirects` (default 20; a 3xx is returned once they are used up, as Playwright does).
+// JSON), and `maxRedirects` (default 20; a 3xx is returned once they are used up, as Playwright does); `request`
+// takes any method, HEAD and OPTIONS included.
 export type HttpOptions = { headers?: Record<string, string>; data?: unknown; maxRedirects?: number }
 
 export type HttpResponse = {
@@ -19,6 +20,7 @@ export type HttpResponse = {
 export type HttpClient = {
 	get: (url: string, options?: HttpOptions) => Promise<HttpResponse>
 	post: (url: string, options?: HttpOptions) => Promise<HttpResponse>
+	request: (method: string, url: string, options?: HttpOptions) => Promise<HttpResponse>
 	close: () => void
 }
 
@@ -42,6 +44,7 @@ export function httpClient(): HttpClient {
 	return {
 		get: (url, options) => call("GET", url, options),
 		post: (url, options) => call("POST", url, options),
+		request: call,
 		close: () => agent.destroy(),
 	}
 }
