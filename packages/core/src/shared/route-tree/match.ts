@@ -75,9 +75,18 @@ export function encodeStatic(text: string): string {
 }
 
 function sameStatic(text: string, part: string, sensitive: boolean): boolean {
-	const expected = encodeStatic(text)
-	const actual = upperHex(part)
-	return sensitive ? expected === actual : expected.toLowerCase() === actual.toLowerCase()
+	return staticKey(text, sensitive) === partKey(part, sensitive)
+}
+
+// The forms a static segment and a path segment compare in, so an index keyed by them finds what the matcher matches.
+export function staticKey(text: string, sensitive: boolean): string {
+	const encoded = encodeStatic(text)
+	return sensitive ? encoded : encoded.toLowerCase()
+}
+
+export function partKey(part: string, sensitive: boolean): string {
+	const written = upperHex(part)
+	return sensitive ? written : written.toLowerCase()
 }
 
 function pathEncode(text: string): string {
