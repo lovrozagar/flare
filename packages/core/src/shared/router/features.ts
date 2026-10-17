@@ -70,19 +70,20 @@ export function directionConfig(options: DirectionOptions): DirectionConfig {
 	return { defaultDir, attribute, storageKey: storageKey(options.storageKey ?? "flare.dir", "direction") }
 }
 
+// A cookie name is an RFC 6265 token.
+export const COOKIE_TOKEN: RegExp = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/
+
 // `locales` is non-empty, unique, and canonical BCP 47 (`en-US`, not `en-us`), and holds `defaultLocale`. The cookie
-// name defaults to the server's, so setLocale and i18n() write the same cookie.
+// name defaults to the server's, so setLocale and i18n() write the same cookie, and is a token, since Set-Cookie
+// carries it as written (BUGS.md 279).
 export function localeConfig(options: LocaleOptions): LocaleConfig {
 	const { locales, defaultLocale } = options
 	if (locales.length === 0 || new Set(locales).size !== locales.length) throw new Error("locale.locales")
 	for (const tag of locales) if (canonical(tag) !== tag) throw new Error(`locale.locales ${tag}`)
 	if (!locales.includes(defaultLocale)) throw new Error("locale.defaultLocale")
-	return {
-		locales,
-		defaultLocale,
-		paramName: options.paramName ?? "locale",
-		cookieName: options.cookieName ?? "flare.locale",
-	}
+	const cookieName = options.cookieName ?? "flare.locale"
+	if (!COOKIE_TOKEN.test(cookieName)) throw new Error("locale.cookieName")
+	return { locales, defaultLocale, paramName: options.paramName ?? "locale", cookieName }
 }
 
 // A segment `Intl` accepts as a language tag (B73).

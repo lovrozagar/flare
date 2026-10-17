@@ -20,3 +20,12 @@ it("direction data attribute", () => {
 it("locale param", () => {
 	expect(localeConfig({ locales: ["en"], defaultLocale: "en" }).paramName).toBe("locale")
 })
+
+// The router's locale cookie name goes into Set-Cookie as written, so it is an RFC 6265 token, as `i18n()` checks its
+// own: a name holding `;` or a space would write a broken or forged cookie (BUGS.md 279).
+it("locale cookie name", () => {
+	expect(localeConfig({ locales: ["en"], defaultLocale: "en", cookieName: "pick" }).cookieName).toBe("pick")
+	for (const cookieName of ["a; Domain=x", "a b", ""]) {
+		expect(() => localeConfig({ locales: ["en"], defaultLocale: "en", cookieName })).toThrow("locale.cookieName")
+	}
+})
