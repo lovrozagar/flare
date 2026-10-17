@@ -99,8 +99,25 @@ type OwnPreloader<R, Id> = R extends { routeModules: infer Map }
 		: never
 	: {}
 
+// Two returns key by key: a key both set takes both types, so an incompatible pair makes that key `never` and leaves
+// the rest as they are, where `&` of two conflicting literals would collapse the whole object (plan 21 11.2). A
+// `never` side stays `never`.
+type Merged<A, B> = [A] extends [never]
+	? never
+	: [B] extends [never]
+		? never
+		: {
+				[K in keyof A | keyof B]: K extends keyof A
+					? K extends keyof B
+						? A[K] & B[K]
+						: A[K]
+					: K extends keyof B
+						? B[K]
+						: never
+			}
+
 type Intersect<R, List> = List extends readonly [infer Head, ...infer Tail]
-	? OwnPreloader<R, Head> & Intersect<R, Tail>
+	? Merged<OwnPreloader<R, Head>, Intersect<R, Tail>>
 	: {}
 
 // Every parent's return, outside-in. The same key narrows, and incompatible types make that key `never`.
@@ -108,12 +125,12 @@ export type ParentContext<R, Id> = Intersect<R, Parents<R, Id>>
 
 // What `usePreloaderContext({ from })` reads: the parents, then that route's own return. Unregistered, a record.
 export type PreloaderFrom<R extends FlareRegister, Id extends From<R>> =
-	Registered<R> extends true ? ParentContext<R, Id> & OwnPreloader<R, Id> : Record<string, unknown>
+	Registered<R> extends true ? Merged<ParentContext<R, Id>, OwnPreloader<R, Id>> : Record<string, unknown>
 
 // Parents, then this route's own return. The root has no parent, so its own return replaces `{}`.
 export type Accumulated<S extends RouteState> = S["root"] extends true
 	? S["preloader"]
-	: ParentContext<FlareRegister, S["id"]> & S["preloader"]
+	: Merged<ParentContext<FlareRegister, S["id"]>, S["preloader"]>
 
 type Shared<S extends RouteState> = {
 	auth: ResolvedAuth<FlareRegister, S["auth"]>

@@ -751,6 +751,7 @@ packages/core/tests/types/app/src/routes/_root_/opt/[[locale]]/opt.page.tsx	P7	a
 packages/core/tests/types/app/src/routes/_root_/moved/moved.page.tsx	P7	app	-	A loader that throws redirect() to another page and the three HTTP helpers, its return type still inferred (BUGS.md 105)
 packages/core/tests/types/app/src/routes/_root_/files/[[...rest]]/files.page.tsx	P7	app	-	Optional catch-all rest: string[] or undefined. The key is required
 packages/core/tests/types/app/src/routes/_root_/(blog)/blog.layout.tsx	P7	app	-	authenticate(). Preloader role is admin or editor. Loader returns { section: string }. Search validator { section: string }
+packages/core/tests/types/app/src/routes/_root_/(blog)/viewer/viewer.page.tsx	P7	app	-	Own preloader's literal role clashes with the blog layout's: role is never, requestId still a string (plan 21 11.2)
 packages/core/tests/types/app/src/routes/_root_/(blog)/post/[slug]/post.page.tsx	P7	app	-	No auth method. Own preloader role admin. Loader returns { title: string }. No search validator
 packages/core/tests/types/app/src/routes/_root_/(blog)/post/[slug]/comments/comments.page.tsx	P7	app	-	No auth method. Grandchild of the authenticated layout
 packages/core/tests/types/app/src/routes/_root_/search/search.page.tsx	P7	app	-	Search validator { q: string; page?: number }
