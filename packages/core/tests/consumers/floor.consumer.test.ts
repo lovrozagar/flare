@@ -141,6 +141,21 @@ it("no optional peers", async () => {
 	}
 })
 
+// A build run where NODE_ENV is `test`, as a test runner's global setup or a CI step often exports it, ships a server
+// that loads and answers like any other build.
+it("build under NODE_ENV=test", async () => {
+	const node = pinned("current")
+	const dir = staged("node-env-test", node, { specs: peerSpecs(MANIFEST, MODE) })
+	const built = buildApp(node, dir, { NODE_ENV: "test" })
+	expect([built.status, built.output]).toEqual([0, expect.any(String)])
+	const served = await serve(node, { dir, args: () => ["serve.js"], timeout: 30_000 })
+	try {
+		await answers(served.origin, "node-env-test")
+	} finally {
+		await served.stop()
+	}
+})
+
 // The Workers tools an app adds beside flare(): Cloudflare's Vite plugin and wrangler, at the repo's versions, or at
 // the newest from there.
 function workersTools(): string[] {

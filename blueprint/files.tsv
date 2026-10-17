@@ -553,6 +553,8 @@ packages/core/src/vite/plugin/environments.ts	P1	src	vite	Declare client, ssr, a
 packages/core/src/vite/plugin/environments.test.ts	P1	test	vite	Unit cases for environments.ts
 packages/core/src/vite/plugin/peers.ts	P1	src	vite	The optional peers each feature imports and the guard that fails a build or the dev server naming every missing one with its install command (plan 21 5.5)
 packages/core/src/vite/plugin/peers.test.ts	P1	test	vite	Unit cases for peers.ts
+packages/core/src/vite/plugin/conditions.ts	P1	src	vite	A build resolves every environment with the production export condition, whatever NODE_ENV says (BUGS.md 303)
+packages/core/src/vite/plugin/conditions.test.ts	P1	test	vite	Unit cases for conditions.ts
 packages/core/src/vite/plugin/wrangler.ts	P12	src	vite	Read the Workers config: the assets binding, the compatibility date and flags. wrangler.toml throws
 packages/core/src/vite/plugin/wrangler.test.ts	P12	test	vite	Unit cases for wrangler.ts
 packages/core/src/vite/plugin/build-id.ts	P12	src	vite	Dev build id is dev. Production is the 12-hex manifest hash (B84, B89)

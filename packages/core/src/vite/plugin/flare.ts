@@ -16,14 +16,7 @@ import { installDevHandler } from "../dev/handler.ts"
 import { buildIdPlugin, buildInfoSource } from "./build-id.ts"
 import { ownModule } from "./own-module.ts"
 import { fontsPlugin } from "./fonts.ts"
-import {
-	assetUrl,
-	buildConfig,
-	environmentBuild,
-	PRERENDER_ENV,
-	SERVER_BUILD_BUNDLED,
-	SERVER_BUNDLED,
-} from "./environments.ts"
+import { assetUrl, buildConfig, environmentBuild, PRERENDER_ENV, serverBundled } from "./environments.ts"
 import { readWrangler } from "./wrangler.ts"
 import { assetHeadersPlugin } from "./asset-headers.ts"
 import { realPath } from "./real-path.ts"
@@ -32,6 +25,7 @@ import { preloadPlugin } from "./preload.ts"
 import { checkCloudflare, composesCloudflare, WORKER_MAIN } from "./cloudflare.ts"
 import { parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts"
 import { peerGuard } from "./peers.ts"
+import { productionConditions } from "./conditions.ts"
 
 // The package's `src`, whose server folders a client or worker chunk may not hold (B45).
 const PACKAGE_SRC = resolve(fileURLToPath(new URL("../..", import.meta.url)))
@@ -73,6 +67,7 @@ function flarePlugins(parsed: ParsedOptions): Plugin[] {
 	const image = parsed.image
 	return [
 		peerGuard({ image: image !== undefined }),
+		productionConditions(),
 		chunks(),
 		workerEntry(state),
 		assetHeadersPlugin(() => state.cloudflare),
@@ -191,7 +186,7 @@ function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): U
 		root,
 		appType: "custom",
 		resolve: { dedupe: ["solid-js", "@solidjs/web"] },
-		ssr: { noExternal: state.build ? SERVER_BUILD_BUNDLED : SERVER_BUNDLED },
+		ssr: { noExternal: serverBundled(state.build) },
 		// Flare is served as source, so the libraries only its client code imports are pre-bundled from its own place: a
 		// first page load would otherwise find them, re-optimize, and reload the page (BUGS.md 254.4).
 		optimizeDeps: { exclude: ["@lovrozagar/flare"], include: CLIENT_LIBRARIES },
