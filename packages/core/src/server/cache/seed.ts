@@ -24,20 +24,52 @@ function paramsOf(cache: CacheConfig | undefined): ParamsFn | undefined {
 	return typeof isr === "object" && isr.dynamicParams === false ? isr.params : undefined
 }
 
-function same(left: string | string[] | undefined, right: string | string[]): boolean {
-	return [left ?? []].flat().join("/") === [right].flat().join("/")
+type Params = Record<string, string | string[]>
+
+// A page's slugs grouped by the names each entry sets: per group, the names and its entries' values. A catch-all
+// value is its segments joined by `/`, and a name the URL lacks reads as empty.
+type Slugs = Map<string, { names: readonly string[]; values: Set<string> }>
+
+const joined = (value: string | string[] | undefined): string => [value ?? []].flat().join("/")
+
+const valuesOf = (names: readonly string[], params: Params): string =>
+	JSON.stringify(names.map((name) => joined(params[name])))
+
+function indexed(slugs: readonly Params[]): Slugs {
+	const index: Slugs = new Map()
+	for (const slug of slugs) {
+		const names = Object.keys(slug).toSorted()
+		const group = index.get(JSON.stringify(names)) ?? { names, values: new Set<string>() }
+		index.set(JSON.stringify(names), group)
+		group.values.add(valuesOf(names, slug))
+	}
+	return index
 }
 
-// Whether this URL's params are a slug the page lists, checked on each request (B86). A page that lists none takes
-// any. A listed entry matches when each of its own params equals this URL's.
-export async function listed(
-	cache: CacheConfig | undefined,
-	params: Record<string, string | string[]>,
-): Promise<boolean> {
+// per-process-constant: each page's `params()` list, indexed, one entry per params function
+const lists = new WeakMap<ParamsFn, Promise<Slugs>>()
+
+// A page's slugs. Outside dev `params()` runs once per server and every request reads its list; a failed call is
+// not kept, so the next request calls again. Dev calls it on each request, so an edited list shows at once. Either
+// way `ctx.params` is `{}`, as at prerender (dx/cache.md, plan 21 16.7).
+function slugsOf(list: ParamsFn, dev: boolean): Promise<Slugs> {
+	const called = async (): Promise<Slugs> => indexed(await list({ params: {} }))
+	if (dev) return called()
+	const held = lists.get(list)
+	if (held !== undefined) return held
+	const fresh = called()
+	lists.set(list, fresh)
+	fresh.catch(() => lists.delete(list))
+	return fresh
+}
+
+// Whether this URL's params are a slug the page lists (B86). A page that lists none takes any. A listed entry
+// matches when each of its own params equals this URL's, so the check is one lookup per distinct set of names.
+export async function listed(cache: CacheConfig | undefined, params: Params, dev: boolean): Promise<boolean> {
 	const list = paramsOf(cache)
 	if (list === undefined) return true
-	const slugs = await list({ params })
-	return slugs.some((slug) => Object.entries(slug).every(([name, value]) => same(params[name], value)))
+	const index = await slugsOf(list, dev)
+	return [...index.values()].some((group) => group.values.has(valuesOf(group.names, params)))
 }
 
 // An ISR seed stands in for the mutable read only when it was rendered after whatever the store holds for the key,
