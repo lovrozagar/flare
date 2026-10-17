@@ -17,5 +17,5 @@ it("same id", () => {
 
 it("catch-all", () => {
 	expect(matchId({ path: ["a", "b%20c"] }, "")).toBe(matchId({ path: "a/b%20c" }, ""))
-	expect(matchId({ path: ["a", "b%20c"] }, "")).toContain("path=a/b%20c")
+	expect(matchId({ path: ["a", "b%20c"] }, "")).toContain("path=a/b%2520c")
 })

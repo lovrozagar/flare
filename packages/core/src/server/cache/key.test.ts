@@ -26,7 +26,7 @@ it("shape", () => {
 	// Route-order values join with `/`.
 	expect(
 		storeKey({ build: "b", route: "r", pattern: "/[a]/[b]", params: { a: "1", b: "2" }, class: "anonymous" }),
-	).toBe("static:b:r:1/2")
+	).toBe("static:b:r:1&2")
 })
 
 it("catch all", () => {
@@ -74,7 +74,7 @@ it("build id", () => {
 it("route order", () => {
 	expect(
 		storeKey({ build: "b", route: "r", pattern: "/[a]/[b]", params: { b: "two", a: "one" }, class: "anonymous" }),
-	).toBe("static:b:r:one/two")
+	).toBe("static:b:r:one&two")
 })
 
 const optionals = (params: Record<string, string | string[] | undefined>): string =>
@@ -82,10 +82,10 @@ const optionals = (params: Record<string, string | string[] | undefined>): strin
 
 // Every declared param keeps its slot. An absent optional, or an undefined value, is the empty string.
 it("absent optional", () => {
-	expect(optionals({ b: "x" })).toBe("static:b:r:/x")
-	expect(optionals({ a: "x" })).toBe("static:b:r:x/")
-	expect(optionals({ a: undefined, b: "x" })).toBe("static:b:r:/x")
-	expect(optionals({})).toBe("static:b:r:/")
+	expect(optionals({ b: "x" })).toBe("static:b:r:&x")
+	expect(optionals({ a: "x" })).toBe("static:b:r:x&")
+	expect(optionals({ a: undefined, b: "x" })).toBe("static:b:r:&x")
+	expect(optionals({})).toBe("static:b:r:&")
 	expect(storeKey({ build: "b", route: "r", pattern: "/[[...rest]]", params: {}, class: "anonymous" })).toBe(
 		"static:b:r:",
 	)
@@ -106,8 +106,8 @@ it("route key", () => {
 		],
 	})
 	const docs = "_root_/docs/[[lang]]/[slug]"
-	expect(routeKey(router, { to: docs, params: { slug: "a b" } })).toBe(`static:dev:${docs}:/a%2520b`)
-	expect(routeKey(router, { to: docs, params: { lang: "hr", slug: "x" } })).toBe(`static:dev:${docs}:hr/x`)
+	expect(routeKey(router, { to: docs, params: { slug: "a b" } })).toBe(`static:dev:${docs}:&a%2520b`)
+	expect(routeKey(router, { to: docs, params: { lang: "hr", slug: "x" } })).toBe(`static:dev:${docs}:hr&x`)
 	expect(routeKey(router, { to: "_root_/" })).toBe("static:dev:_root_/")
 	expect(() => routeKey(router, { to: "_root_" })).toThrow("cache.key: _root_ is not a page")
 	expect(() => routeKey(router, { to: "_root_/missing" })).toThrow("cache.key: _root_/missing is not a page")
