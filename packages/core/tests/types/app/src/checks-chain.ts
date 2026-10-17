@@ -150,3 +150,29 @@ const shaped = { params: (raw: Raw) => ({ id: Number(raw["id"]) }) }
 			return { userId }
 		})
 }
+
+// preloader union narrows: each member keeps its own keys, so `user` is there once `signedIn` says so (BUGS.md 275)
+{
+	void createPage("_root_/about")
+		.preloader((): { signedIn: true; user: string } | { signedIn: false } =>
+			Math.random() > 0.5 ? { signedIn: true, user: "u" } : { signedIn: false },
+		)
+		.loader((ctx) => {
+			const context = ctx.preloaderContext
+			const requestId: string = context.requestId
+			if (!context.signedIn) return { requestId }
+			const user: string = context.user
+			return { requestId, user }
+		})
+}
+
+// preloader optional stays optional (BUGS.md 275)
+{
+	void createPage("_root_/about")
+		.preloader((): { note?: string } => ({}))
+		.loader((ctx) => {
+			const withoutNote: typeof ctx.preloaderContext = { requestId: "r" }
+			const note: string | undefined = ctx.preloaderContext.note
+			return { withoutNote, note }
+		})
+}
