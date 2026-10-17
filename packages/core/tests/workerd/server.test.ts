@@ -54,6 +54,8 @@ const server = createServer({
 	router: createRouter({ layouts: { _root_: root }, routeTree }),
 	site: "https://flare.test",
 	store: createCacheApiStore({ cacheName: "server" }),
+	// A server function module that fails to import, an app bug the server's boundary turns into its 500 (plan 21 9.1).
+	serverFns: { broken0123456789: async () => { throw new Error("import boom"); } },
 });
 const handler = createWorkersHandler(server, { assets: "ASSETS" });
 // The platform's ctx, wrapped: each promise the handler hands waitUntil is counted under its request's path, then
@@ -178,4 +180,16 @@ it("worker assets", async () => {
 // with no Content-Encoding, as on Node and Bun (plan 21 8.8, tests/integration/fetched.test.ts).
 it("worker fetched", async () => {
 	expect(await raw("/relayed")).toBe(`HTTP/1.1 200 OK ${RELAYED}`)
+})
+
+// A callback that fails past every stage, here a server function module that fails to import, is the server's logged
+// 500 with its security headers, not a rejected fetch that workerd shows as error 1101 (plan 21 9.1, BUGS.md 202).
+it("worker boundary", async () => {
+	const broken = await mf.dispatchFetch("https://example.com/_flare/fn/broken0123456789", {
+		method: "POST",
+		headers: { origin: "https://example.com" },
+	})
+	expect(broken.status).toBe(500)
+	expect(broken.headers.get("x-content-type-options")).toBe("nosniff")
+	await broken.text()
 })

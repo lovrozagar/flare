@@ -122,6 +122,21 @@ export function background(sink: ErrorSink): MountContext {
 	return { waitUntil: (promise) => void promise.catch((error: unknown) => projectError(error, sink)) }
 }
 
+// The one boundary at server.fetch: whatever an app callback threw that no stage caught, sync or async, is projected,
+// so it is logged once, and answered as the 500 every exit shares, with the default security headers. server.fetch
+// never rejects, so Node never sends a bare unlogged 500 and Workers never shows error 1101 (plan 21 9.1).
+export function bounded(request: Request, sink: ErrorSink, run: () => Promise<Response>): Promise<Response> {
+	const fail = (error: unknown): Response => {
+		projectError(error, sink)
+		return finalize({ status: 500, body: "", url: request.url })
+	}
+	try {
+		return run().catch(fail)
+	} catch (error) {
+		return Promise.resolve(fail(error))
+	}
+}
+
 // A stage's throw is a bug: projected, then the 500 every exit shares.
 export function failed(exchange: Pick<Exchange, "request" | "secured" | "sink">): (error: unknown) => Response {
 	return (error) => {
