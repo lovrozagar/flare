@@ -371,3 +371,15 @@ it("segment chain", async () => {
 
 // Every dx/router.md option reaches the router: the case rule, the trailing slash, scroll restoration and its key, the
 // match cache's size, and the client cache, `false` included. An out-of-range count throws at the call (BUGS.md 106).
+
+// A match depends on the path alone, so the router keeps the 256 latest: a page's params hooks and the request's own
+// lookup read one match, and the oldest path goes first (plan 21 15.4).
+it("match kept", () => {
+	const page = { id: "_root_/users/[id]", path: "/users/[id]", module: {} }
+	const router = createRouter({ layouts: {}, routeTree: [page] })
+	const first = router.match("/users/1")
+	expect(router.match("/users/1")).toBe(first)
+	for (let index = 2; index <= 257; index++) router.match(`/users/${index}`)
+	expect(router.match("/users/1")).not.toBe(first)
+	expect(router.match("/users/1")).toEqual(first)
+})

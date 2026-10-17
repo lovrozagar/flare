@@ -1,5 +1,5 @@
 import { defined } from "../errors/defined.ts"
-import { matchParams, patternSegments, type MatchOptions, type RawParams } from "./match.ts"
+import { matchParams, partKey, patternSegments, staticKey, type MatchOptions, type RawParams } from "./match.ts"
 import type { Segment } from "./segments.ts"
 
 // Per segment, left to right: static, dynamic, optional, catch-all, optional catch-all.
@@ -48,4 +48,29 @@ function lexical(a: readonly number[], b: readonly number[]): number {
 		if (left !== right) return left - right
 	}
 	return a.length - b.length
+}
+
+// pickRoute over fixed patterns, indexed once by their first segment: a path is compared only with the patterns whose
+// first segment is its own first segment, as the matcher compares them, and with those that open with a param. The
+// pick is pickRoute's; a router of many routes no longer walks every one per lookup (plan 21 15.4).
+export function createPicker(
+	patterns: readonly string[],
+	options: MatchOptions = {},
+): (path: string) => string | undefined {
+	const sensitive = options.caseSensitive === true
+	const byFirst = new Map<string, string[]>()
+	const open: string[] = []
+	for (const pattern of patterns) {
+		const first = patternSegments(pattern)[0]
+		if (first !== undefined && first.kind !== "static") open.push(pattern)
+		else {
+			const key = first === undefined ? "" : staticKey(first.text, sensitive)
+			byFirst.set(key, [...(byFirst.get(key) ?? []), pattern])
+		}
+	}
+	return (path) => {
+		const part = path.split("/").find((segment) => segment !== "")
+		const key = part === undefined ? "" : partKey(part, sensitive)
+		return pickRoute([...(byFirst.get(key) ?? []), ...open], path, options)
+	}
 }

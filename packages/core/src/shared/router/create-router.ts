@@ -14,12 +14,13 @@ import {
 	type ThemeConfig,
 	type ThemeOptions,
 } from "./features.ts"
+import { defined } from "../errors/defined.ts"
 import {
+	createPicker,
 	idPattern,
 	isRootFolder,
 	matchParams,
 	patternSegments,
-	pickRoute,
 	readParams,
 	type MatchOptions,
 	type RawParams,
@@ -150,6 +151,8 @@ export type Router = {
 }
 
 export function createRouter(options: RouterOptions): Router {
+	const kept = new Map<string, Match>()
+	let pick: ((path: string) => string | undefined) | undefined
 	const router: Router = {
 		layouts: options.layouts,
 		routeTree: options.routeTree,
@@ -165,12 +168,29 @@ export function createRouter(options: RouterOptions): Router {
 		...(options.theme && { theme: themeConfig(options.theme) }),
 		...(options.direction && { direction: directionConfig(options.direction) }),
 		...(options.locale && { locale: localeConfig(options.locale) }),
+		// A match depends on the path alone, so the latest KEPT_MATCHES are kept: a request's lookup and its page's params
+		// hooks read one, and the least recently read path goes first (plan 21 15.4).
 		match(path) {
-			return resolve(router, path)
+			const known = kept.get(path)
+			if (known !== undefined) {
+				kept.delete(path)
+				kept.set(path, known)
+				return known
+			}
+			pick ??= createPicker(
+				router.routeTree.map((node) => node.path),
+				matchOptions(router),
+			)
+			const matched = resolve(router, path, pick)
+			kept.set(path, matched)
+			if (kept.size > KEPT_MATCHES) kept.delete(defined(kept.keys().next().value, "the oldest kept match"))
+			return matched
 		},
 	}
 	return router
 }
+
+const KEPT_MATCHES = 256
 
 // The matcher options every lookup of this router shares: its case rule, and the locale param's filter.
 function matchOptions(router: Pick<Router, "caseSensitive" | "locale">): MatchOptions {
@@ -179,17 +199,9 @@ function matchOptions(router: Pick<Router, "caseSensitive" | "locale">): MatchOp
 	return options
 }
 
-function resolve(router: Router, path: string): Match {
-	const options = matchOptions(router)
+function resolve(router: Router, path: string, pick: (path: string) => string | undefined): Match {
 	const local = stripBase(path, router.basePath)
-	const picked =
-		local === undefined
-			? undefined
-			: pickRoute(
-					router.routeTree.map((node) => node.path),
-					local,
-					options,
-				)
+	const picked = local === undefined ? undefined : pick(local)
 	const page = router.routeTree.find((node) => node.path === picked)
 	if (page !== undefined && local !== undefined) return pageMatch(router, page, local)
 	const owner = notFoundOwner(router, local ?? path)
