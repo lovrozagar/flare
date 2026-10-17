@@ -32,7 +32,7 @@ packages/core/tests/structure/json-only.test.ts	P14	test	node	No source file dec
 packages/core/tests/structure/api.test.ts	P14	test	node	Each entry's public d.ts matches its snapshot
 packages/core/tests/structure/dx-options.test.ts	P14	test	node	Every dx option table names only keys of its type; Planned (plan 15) tables and named exemptions aside (BUGS.md 113)
 packages/core/tests/structure/readme.ts	P14	test	node	Reads the root README for readme.test.ts and exports.test.ts: the quick-start blocks, table rows, and backticked names
-packages/core/tests/structure/readme.test.ts	P14	test	node	The README's links are absolute and resolve, it names no v0 API, and its quick start is marked (plan 14 leaf 12.3)
+packages/core/tests/structure/readme.test.ts	P14	test	node	The README's links are absolute and resolve, it names no v0 API, its quick start is marked (plan 14 leaf 12.3), and its Install names every peer with its range (plan 21 5.5)
 packages/core/tests/structure/snapshots/*.txt	P14	generated	-	One snapshot per public entry, written by api.test.ts
 packages/core/tests/structure/consumer/tsconfig.json	P14	app	-	An app's strictest settings, compiled against the packed types only (consumer strict)
 packages/core/tests/structure/consumer/src/index.ts	P14	app	-	Every public entry, a font module, and a ?image import, as an app imports them from the installed tarball
