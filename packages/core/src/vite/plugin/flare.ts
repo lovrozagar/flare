@@ -137,7 +137,7 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 				watchGenerated(server, server.config.root)
 				devHeadOf(server).then(state.devHead.resolve, state.devHead.reject)
 				installDevStyles(server, resolve(server.config.root, parsed.entry.client))
-				const listen = installDevHandler(server, parsed.entry.server)
+				const listen = installDevHandler(server, parsed.entry.server, state.devHead.promise)
 				// With the Cloudflare plugin, workerd answers through its post middleware, which a listener added from this
 				// earlier hook would shadow (BUGS.md 76, B109).
 				return state.cloudflare ? undefined : listen
