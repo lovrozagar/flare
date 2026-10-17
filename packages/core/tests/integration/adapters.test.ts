@@ -6,6 +6,7 @@ import { afterEach, expect, it, vi } from "vitest"
 import { createBunFetch } from "../../src/adapters/bun/serve.ts"
 import { createNodeListener } from "../../src/adapters/node/listener.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
+import { createMiddleware } from "../../src/server/middleware/run.ts"
 import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
@@ -378,6 +379,40 @@ it.runIf(bun !== undefined)("bun serve", async () => {
 		expect((await get(`${origin}/`)).body).toContain("home")
 		expect((await get(`${origin}/proto`, { headers: { "x-forwarded-proto": "https" } })).body).toBe("https:")
 		expect((await get(`${origin}/echo`, { method: "POST", body: "payload" })).body).toBe("echo payload")
+	} finally {
+		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
+	}
+})
+
+// A text body a middleware or a `.response()` page built from a string keeps its `text/plain` type on both adapters:
+// Bun types such a body only when its own Response is the one sent, and with `nosniff` an untyped one downloads
+// (plan 21 12.7, BUGS.md 238).
+async function typed(origin: string): Promise<string[]> {
+	const types = await Promise.all(["/down", "/proto"].map(async (path) => (await get(`${origin}${path}`)).headers))
+	return types.map((headers) => String(headers["content-type"]).toLowerCase())
+}
+
+function maintenance(): ReturnType<typeof createServer> {
+	const proto = createPage("_root_/proto").response(() => new Response("plain"))
+	const down = createMiddleware((ctx) => (ctx.path === "/down" ? new Response("down", { status: 503 }) : undefined))
+	const routeTree = [{ id: "_root_/proto", path: "/proto", module: proto }]
+	const root = createRootLayout("_root_").render((props) => props.children)
+	return createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }), middleware: [down] })
+}
+
+const PLAIN = ["text/plain;charset=utf-8", "text/plain;charset=utf-8"]
+
+// Each adapter on its own runtime: the Node listener under Node, Bun.serve under Bun.
+it.runIf(bun === undefined)("node text body type", async () => {
+	expect(await typed(await listen(createNodeListener(maintenance())))).toEqual(PLAIN)
+})
+
+it.runIf(bun !== undefined)("bun text body type", async () => {
+	const served: unknown = Reflect.apply(Reflect.get(Object(bun), "serve"), bun, [
+		{ hostname: "127.0.0.1", port: 0, ...createBunFetch(maintenance()) },
+	])
+	try {
+		expect(await typed(`http://127.0.0.1:${Number(Reflect.get(Object(served), "port"))}`)).toEqual(PLAIN)
 	} finally {
 		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
 	}

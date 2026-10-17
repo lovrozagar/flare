@@ -1,7 +1,7 @@
 import { connect } from "node:net"
 import { expect, it, vi } from "vitest"
 import { createServer } from "../../server/lifecycle/create.ts"
-import { finalize } from "../../server/lifecycle/finalize.ts"
+import { finalize, keptAs } from "../../server/lifecycle/finalize.ts"
 import { createServerFn } from "../../server/server-fn/dispatch.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
@@ -212,4 +212,33 @@ it("drain", async () => {
 	await vi.waitFor(() => expect(drained).toBe(true))
 	expect(logged).toHaveBeenCalledWith("[flare:bun] waitUntil rejected", new Error("refresh failed"))
 	logged.mockRestore()
+})
+
+// Under Bun a string or bytes body is a Blob its inspector shows: it is sent as it is, its type Bun's own, and the idle
+// timeout is never touched, though the answer counts as streaming (plan 21 12.7).
+it("blob body", async () => {
+	// Under Node a stand-in inspector; under Bun, Bun's own.
+	const inspect = vi.fn<(value: unknown) => string>(() => "Response (4 bytes) {\n  Blob (4 bytes)\n}")
+	const stubbed = Reflect.get(globalThis, "Bun") === undefined
+	if (stubbed) vi.stubGlobal("Bun", { inspect })
+	try {
+		const own = new Response("down")
+		const fetcher = createBunFetch({ fetch: () => keptAs(own, finalize({ status: 200, body: null })) ?? own })
+		const bun = timeouts()
+		expect(await fetcher.fetch(new Request("http://localhost/"), bun)).toBe(own)
+		expect(bun.calls).toEqual([])
+		expect(inspect.mock.calls).toEqual(stubbed ? [[own]] : [])
+	} finally {
+		vi.unstubAllGlobals()
+	}
+})
+
+// A kept Response with no body, a middleware's 204 or a page's `new Response(null)`, is sent as it is: there is nothing
+// to watch, so the timeout is never lifted and the request is not left in flight (BUGS.md 238).
+it("kept empty body", async () => {
+	const own = new Response(null, { status: 204 })
+	const fetcher = createBunFetch({ fetch: () => keptAs(own, finalize({ status: 204, body: null })) ?? own })
+	const bun = timeouts()
+	const response = await fetcher.fetch(new Request("http://localhost/"), bun)
+	expect([response.status, response.body, bun.calls]).toEqual([204, null, []])
 })

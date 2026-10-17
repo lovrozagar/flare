@@ -17,7 +17,7 @@ import { dispatch } from "../server-fn/dispatch.ts"
 import { routeCsrf } from "../server-fn/csrf.ts"
 import { bodyLimitOf } from "../server-fn/input.ts"
 import { classify, isServerFn } from "./classify.ts"
-import { answer, background, bare, bounded, failed, passed, secure, type Exchange } from "./exchange.ts"
+import { answer, answerFrom, background, bare, bounded, failed, passed, secure, type Exchange } from "./exchange.ts"
 import { mountFor, mountSpelling, mountTable } from "../mount/mount.ts"
 import { checkLocale, withLocale } from "./locale-slot.ts"
 import { runMiddleware } from "../middleware/run.ts"
@@ -287,7 +287,7 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 	}
 	if (run.answer === undefined) return bare(exchange, run)
 	const headers = responseHeaders(decodedHeaders(run.answer), auth)
-	return secure(exchange, { status: run.answer.status, body: run.answer.body, headers })
+	return answerFrom(exchange, run.answer, headers)
 }
 
 // Step 7: a server function is dispatched and never reaches the router (B42).

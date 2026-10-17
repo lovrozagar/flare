@@ -1,7 +1,7 @@
 import { expect, it } from "vitest"
 import { unauthenticated } from "../../shared/errors/http.ts"
 import { defaultHeaders } from "../security/defaults.ts"
-import { finalize } from "./finalize.ts"
+import { finalize, keptAs, streamsBody } from "./finalize.ts"
 
 const url = "https://example.com/"
 
@@ -81,4 +81,28 @@ it("cookies kept", () => {
 	headers.append("set-cookie", "a=1")
 	headers.append("set-cookie", "b=2")
 	expect(finalize({ status: 200, body: "", url, headers }).headers.getSetCookie()).toEqual(["a=1", "b=2"])
+})
+
+// The app's own Response takes the built answer's headers and leaves as itself, its body unread, counted as streaming
+// since it may; one whose headers cannot change, as a redirect's or a fetch() answer's cannot, is not kept
+// (plan 21 12.7).
+it("kept as", () => {
+	const own = new Response("down", { status: 503, headers: { "x-own": "1", "set-cookie": "a=1" } })
+	const built = finalize({
+		status: 503,
+		body: null,
+		url: "https://example.com/",
+		headers: new Headers({ "x-built": "2" }),
+	})
+	built.headers.append("set-cookie", "b=2")
+	expect(keptAs(own, built)).toBe(own)
+	expect(own.headers.get("x-own")).toBeNull()
+	expect(own.headers.get("x-built")).toBe("2")
+	expect(own.headers.get("x-content-type-options")).toBe("nosniff")
+	expect(own.headers.getSetCookie()).toEqual(["b=2"])
+	expect(own.bodyUsed).toBe(false)
+	expect(streamsBody(own)).toBe(true)
+	// Bun lets a redirect's headers change, so there it is kept too.
+	const redirect = Response.redirect("https://example.com/next", 302)
+	expect(keptAs(redirect, built)).toBe(Reflect.get(globalThis, "Bun") === undefined ? undefined : redirect)
 })

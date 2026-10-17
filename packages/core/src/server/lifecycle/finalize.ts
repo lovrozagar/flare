@@ -86,3 +86,22 @@ function copyHeaders(target: Headers, extra: Headers): void {
 function copySecurity(headers: Headers, url: string): void {
 	for (const [name, value] of defaultHeaders(url)) headers.set(name, value)
 }
+
+// A Response the app built that names no type leaves as itself, the built answer's headers set on it, and its body is
+// never read: Bun types a string body `text/plain` only while nothing reads that body, and with `nosniff` an untyped
+// one downloads (plan 21 12.7). Its body may stream, so it counts as streaming; the Bun adapter tells a string from a
+// stream before it reads one. Undefined when its headers cannot change, as a `fetch()` answer's cannot.
+export function keptAs(original: Response, built: Response): Response | undefined {
+	try {
+		// A snapshot of the names: deleting while the live iterator runs would skip some.
+		for (const name of Array.from(original.headers.keys())) original.headers.delete(name)
+		built.headers.forEach((value, name) => {
+			if (name !== "set-cookie") original.headers.set(name, value)
+		})
+		for (const cookie of built.headers.getSetCookie()) original.headers.append("set-cookie", cookie)
+	} catch {
+		return undefined
+	}
+	streams.add(original)
+	return recordCookies(original)
+}
