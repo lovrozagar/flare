@@ -144,3 +144,34 @@ it("candidates", () => {
 		".card{color:red;& h2{color:blue}}#hero{top:0}",
 	)
 })
+
+// The selector matches run so far.
+function calls(): number {
+	return vi.mocked(match.matchesSelector).mock.calls.length
+}
+
+// A shell whose two divs hold `text`.
+function twoDivs(text: string): string {
+	return `<html><body><div class="a">${text}</div><div class="b"><p>${text}</p></div></body></html>`
+}
+
+// The rules a shell keeps follow from its elements, their attributes, and their places, never from its text, so a
+// second shell of the same structure, a page's next request with other data, matches nothing again and gets the same
+// rules; another structure, or another attribute the theme script sets, is matched anew. The 64 latest structures are
+// kept (plan 21 15.1).
+it("kept by structure", () => {
+	const css = ".a{color:red}.b p{margin:0}.c+.d{gap:1px}[data-theme=dark] .a{color:blue}"
+	const first = criticalCss(twoDivs("one"), css)
+	const before = calls()
+	expect(criticalCss(twoDivs("two, with more text"), css)).toBe(first)
+	expect(calls()).toBe(before)
+	criticalCss(twoDivs("one").replace('class="b"', 'class="b c"'), css)
+	expect(calls()).toBeGreaterThan(before)
+	const themed = criticalCss(twoDivs("one"), css, { themeAttribute: "data-theme" })
+	expect(themed).toContain("color:blue")
+	expect(first).not.toContain("color:blue")
+	for (let index = 0; index < 64; index++) criticalCss(twoDivs("x").replace('class="a"', `class="a n${index}"`), css)
+	const evicted = calls()
+	expect(criticalCss(twoDivs("one"), css)).toBe(first)
+	expect(calls()).toBeGreaterThan(evicted)
+})

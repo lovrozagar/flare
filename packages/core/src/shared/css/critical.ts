@@ -1,3 +1,4 @@
+import { defined } from "../errors/defined.ts"
 import { matchesSelector, nestedSelector, selectorKeys } from "./match.ts"
 import { parseCss, printCss, type AtRule, type Rule, type Statement } from "./parse.ts"
 import { shellTree, type ShellElement } from "./shell.ts"
@@ -9,7 +10,10 @@ export type CriticalContext = { themeAttribute?: string | undefined; directionAt
 // A rule with its selector resolved against its parents.
 type Entry = { rule: Rule; selector: string }
 
-type Sheet = { statements: Statement[]; byKey: Map<string, Entry[]>; unkeyed: Entry[] }
+// `kept` is the critical CSS each shell structure got, the latest KEPT structures (plan 21 15.1).
+type Sheet = { statements: Statement[]; byKey: Map<string, Entry[]>; unkeyed: Entry[]; kept: Map<string, string> }
+
+const KEPT = 64
 
 // per-process-constant: the parsed and indexed built stylesheet, by its text
 const sheets = new Map<string, Sheet>()
@@ -28,6 +32,22 @@ export function criticalCss(html: string, css: string, ctx: CriticalContext = {}
 	// The direction script sets `dir` beside its own attribute.
 	const direction = ctx.directionAttribute === undefined ? [] : ["dir", ctx.directionAttribute]
 	const present = [...(ctx.themeAttribute === undefined ? [] : [ctx.themeAttribute]), ...direction]
+	// A selector reads an element's tag, attributes, parent, and previous sibling, never text, so a shell of a structure
+	// already seen, the same page with other data, keeps what that one kept, and the matching does not run again.
+	const key = `${present.join(" ")}\n${structureOf(tree)}`
+	const known = sheet.kept.get(key)
+	if (known !== undefined) {
+		sheet.kept.delete(key)
+		sheet.kept.set(key, known)
+		return known
+	}
+	const critical = matchedCss(sheet, tree, present)
+	sheet.kept.set(key, critical)
+	if (sheet.kept.size > KEPT) sheet.kept.delete(defined(sheet.kept.keys().next().value, "the oldest kept shell"))
+	return critical
+}
+
+function matchedCss(sheet: Sheet, tree: readonly ShellElement[], present: readonly string[]): string {
 	const candidates = new Set([...sheet.unkeyed, ...shellKeys(tree).flatMap((key) => sheet.byKey.get(key) ?? [])])
 	const matched = new Set<Rule>()
 	for (const entry of candidates) if (matchesSelector(entry.selector, tree, { present })) matched.add(entry.rule)
@@ -40,7 +60,7 @@ function sheetOf(css: string): Sheet {
 	const known = sheets.get(css)
 	if (known !== undefined) return known
 	const statements = parseCss(css)
-	const sheet: Sheet = { statements, byKey: new Map(), unkeyed: [] }
+	const sheet: Sheet = { statements, byKey: new Map(), unkeyed: [], kept: new Map() }
 	index(statements, { sheet, parent: undefined })
 	sheets.set(css, sheet)
 	return sheet
@@ -59,6 +79,19 @@ function index(list: readonly Statement[], at: { sheet: Sheet; parent: string | 
 		for (const key of keys ?? []) at.sheet.byKey.set(key, [...(at.sheet.byKey.get(key) ?? []), entry])
 		index(statement.children, { ...at, parent: selector })
 	}
+}
+
+// Each element's tag, attributes in order, parent, and previous sibling, by their places in the tree.
+function structureOf(tree: readonly ShellElement[]): string {
+	const at = new Map(tree.map((element, index) => [element, index]))
+	return tree
+		.map((element) => {
+			const attributes = [...element.attributes].map(([name, value]) => `${name}=${JSON.stringify(value)}`).join(" ")
+			const parent = element.parent === undefined ? -1 : at.get(element.parent)
+			const previous = element.previous === undefined ? -1 : at.get(element.previous)
+			return `${element.tag} ${parent} ${previous} ${attributes}`
+		})
+		.join("\n")
 }
 
 function shellKeys(tree: readonly ShellElement[]): string[] {
