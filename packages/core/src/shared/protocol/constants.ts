@@ -7,6 +7,11 @@ export const FN_PREFIX = "/_flare/fn/"
 // The one query param a GET server function reads: its JSON input.
 export const INPUT_PARAM = "_i"
 
+// The client's build on a GET server function's URL, beside `_i`. A cache keyed on the URL, the browser's or a CDN's,
+// then keeps each build's answers apart, so after a deploy no client reads the answer the previous build cached. The
+// server checks only its shape (B43, plan 21 8.5).
+export const BUILD_PARAM = "_b"
+
 // Response headers Flare writes. The server never reads a flare-build request header (bit 06).
 export const BUILD_HEADER = "flare-build"
 export const RENDER_HEADER = "flare-render"

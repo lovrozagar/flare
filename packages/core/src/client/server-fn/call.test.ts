@@ -176,3 +176,27 @@ it("cookie signal", async () => {
 	await callServerFn(echo, null, answer({ "flare-cookies": "kept" }))
 	expect(forget).toHaveBeenCalledOnce()
 })
+
+// A cached GET answer, in the browser or a CDN, is keyed on the URL. The URL carries the client's build, so after a
+// deploy the new client never reads the answer the previous build cached: it gets the new build's, with no reload
+// (plan 21 8.5, BUGS.md 199).
+it("cached across a deploy", async () => {
+	const read = { id: "0123456789abcdef", name: "read", record: { method: "get" as const } }
+	const cache = new Map<string, Response>()
+	let live = "b1"
+	const fetch = async (url: string): Promise<Response> => {
+		const hit = cache.get(url)
+		if (hit !== undefined) return hit.clone()
+		const fresh = new Response(JSON.stringify({ status: 200, data: live }), {
+			headers: { "content-type": "application/json", "flare-build": live },
+		})
+		cache.set(url, fresh.clone())
+		return fresh
+	}
+	const cached = (build: string) => ({ ...deps(json(null), { build }), fetch })
+	expect(await callServerFn(read, { a: 1 }, cached("b1"))).toBe("b1")
+	live = "b2"
+	const after = cached("b2")
+	expect(await callServerFn(read, { a: 1 }, after)).toBe("b2")
+	expect(after.reload).not.toHaveBeenCalled()
+})
