@@ -374,6 +374,8 @@ packages/core/src/client/boot/head-guard.test.ts	P1	test	dom	Unit cases for head
 packages/core/src/client/boot/ready.ts	P6	src	dom	onReady, onHydrated, onIdle, onInteraction
 packages/core/src/client/boot/ready.test.ts	P6	test	dom	Unit cases for ready.ts
 packages/core/src/client/boot/index.ts	P1	index	client	Re-exports
+packages/core/src/client/navigation/arrival.ts	P6	src	dom	After a navigation to another pathname: focus to the hash target or main heading, and the title in a polite live region (B141)
+packages/core/src/client/navigation/arrival.test.ts	P6	test	dom	Unit cases for arrival.ts
 packages/core/src/client/navigation/navigate.ts	P6	src	dom	navigate. Same-origin only. Commit, then push. Revalidation does not push
 packages/core/src/client/navigation/requests.ts	P6	src	dom	Which navigation request a new one aborts: the newest uncommitted, never the page on screen (BUGS.md 213)
 packages/core/src/client/navigation/requests.test.ts	P6	test	dom	Unit cases for requests.ts

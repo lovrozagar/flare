@@ -3,8 +3,9 @@ import type { NavigateOptions, NavigatorDeps } from "./navigate.ts"
 
 // What a committed navigation does to history and scroll (navigate.ts).
 
-// `scrolled`: the scroll already ran inside the transition's update (B108).
-export type Step = { options: NavigateOptions; pop: boolean; write: boolean; scrolled?: boolean }
+// `scrolled`: the scroll already ran inside the transition's update (B108). `arrived`: the commit put a new page on
+// screen, a navigation to another pathname, so focus moves and its title is announced (B141).
+export type Step = { options: NavigateOptions; pop: boolean; write: boolean; scrolled?: boolean; arrived?: boolean }
 
 // The page being left keeps its position, read before the DOM changes. A pop's was kept at popstate.
 export function keepPosition(deps: NavigatorDeps, left: Location, step: Step): void {
@@ -15,6 +16,7 @@ export function keepPosition(deps: NavigatorDeps, left: Location, step: Step): v
 export function land(deps: NavigatorDeps, target: { url: string; location: Location }, step: Step): void {
 	if (!step.pop && step.write) writeHistory(deps, target.url, step.options)
 	if (step.scrolled !== true) scrollFor(deps, target.location, step)
+	if (step.arrived === true) deps.arrived?.(target.location)
 }
 
 export function scrollFor(deps: NavigatorDeps, location: Location, step: Step): void {

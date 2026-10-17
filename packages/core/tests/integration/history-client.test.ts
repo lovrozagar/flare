@@ -27,7 +27,7 @@ const root = api.rootLayout.createRootLayout("_root_")
 		api.h("body", "body", () => [link("_root_/a", "to-a"), link("_root_/gone", "to-gone"), api.h("main", "slot", () => props.children)]),
 	]))
 	.notFoundRender(() => api.h("p", "missing", () => "no such page"))
-const a = api.page.createPage("_root_/a").render(() => "page a")
+const a = api.page.createPage("_root_/a").render(() => api.h("h1", "heading-a", () => "page a"))
 const gone = api.page.createPage("_root_/gone").loader(() => api.errors.notFound()).render(() => "gone")
 const routeTree = [
 	{ id: "_root_/a", path: "/a", module: a },
@@ -99,6 +99,18 @@ async function heldBack(tab: Page): Promise<void> {
 	await tab.evaluate((all) => (Reflect.get(window, "__flareRecord") as unknown[]).push(...all), seen)
 }
 
+// A click to another page: what holds focus once it is on screen, and what the live region says.
+async function arrival(tab: Page): Promise<void> {
+	await tab.evaluate(() => document.getElementById("to-a")?.click())
+	await tab.waitForFunction(() => location.pathname === "/a" && document.getElementById("heading-a") !== null)
+	const seen = await tab.evaluate(() => [
+		document.activeElement?.id ?? "",
+		document.getElementById("flare-announcer")?.textContent ?? "",
+		document.getElementById("flare-announcer")?.getAttribute("aria-live") ?? "",
+	])
+	await tab.evaluate((all) => (Reflect.get(window, "__flareRecord") as unknown[]).push(...all), seen)
+}
+
 function run(engine: (typeof ENGINES)[number], path: string): Promise<AppResult> {
 	if (harness === undefined) throw new Error("the harness did not start")
 	const visit: Pick<AppCase, "path" | "steps"> = { path, steps: (tab) => away(tab, path) }
@@ -116,6 +128,13 @@ describe.each(ENGINES)("%s", (engine) => {
 	it("not found entry", async () => {
 		const result = await run(engine, "/gone")
 		expect(result.record).toEqual(["page a", "no such page", "page a", "no such page"])
+	})
+
+	// A client navigation to another page moves focus to its heading and announces it politely (plan 21 4.1, B141).
+	it("arrival focus", async () => {
+		if (harness === undefined) throw new Error("the harness did not start")
+		const result = await harness.app(engine, { app: APP, path: "/gone", steps: arrival, client() {} })
+		expect(result.record).toEqual(["heading-a", "page a", "polite"])
 	})
 
 	// Back paints the held page before any request lands, then revalidates it once (plan 21 16.9).

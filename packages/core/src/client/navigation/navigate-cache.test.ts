@@ -154,3 +154,19 @@ it("back paints held", async () => {
 		history.replaceState(null, "", "/")
 	}
 })
+
+// A navigation that puts another pathname on screen tells the arrival step, a Back step included, so focus moves and the
+// title is announced (B141); a search-only change, a revalidation, and a hash move keep focus where it is.
+it("arrived", async () => {
+	const arrived = vi.fn<(location: { pathname: string }) => void>()
+	const fetch = vi.fn<Fetch>(async (url) => (url.startsWith("/a") ? frames("_root_/a", "A") : frames("_root_/", "H")))
+	const app = await mountNavigator(plain, fetch, { extra: { arrived } })
+	await app.navigator.navigate({ to: "_root_/a" })
+	await app.navigator.navigate({ to: "_root_/a", search: { v: "2" } } as never)
+	await app.navigator.revalidate()
+	await app.navigator.navigate({ to: "_root_/a", hash: "x" } as never)
+	expect(arrived.mock.calls.map(([at]) => at.pathname)).toEqual(["/a"])
+	await app.navigator.navigate({ to: "_root_/" })
+	await back(app)
+	expect(arrived.mock.calls.map(([at]) => at.pathname)).toEqual(["/a", "/", "/a"])
+})
