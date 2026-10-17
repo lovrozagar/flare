@@ -1,10 +1,11 @@
-import { createComponent, createContext, createMemo, untrack, useContext, type Context } from "solid-js"
+import { createComponent, createContext, createEffect, createMemo, untrack, useContext, type Context } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import type { ChainRecord } from "../route-builder/chain.ts"
 import type { Located } from "../route-builder/index.ts"
 import type { Location } from "../url/index.ts"
 import { ownerGuard, type OutletMatch, type OutletState } from "./outlet.tsx"
 import { MatchesContext } from "./outlet-nodes.ts"
+import { trapFocus } from "./overlay-focus.ts"
 
 // Raw, or what that file's `.input()` returned.
 type Values = Located["params"]
@@ -47,10 +48,29 @@ export function InterceptOutlet(props: { children: (state: InterceptState) => JS
 		if (current === undefined) return undefined
 		const shown = withOverlay(useContext(MatchesContext), current)
 		// Each overlay gets its own boundary, so a throw paints in the outlet and closing the overlay clears it (B41).
-		return untrack(() => ownerGuard(() => props.children(stateOf(current, shown))))
+		return untrack(() => ownerGuard(() => trapped(stateOf(current, shown), props.children)))
 	})
 	// JSX.Element types a reactive child only inside an array, the shape compiled JSX gives a fragment.
 	return [view]
+}
+
+// The overlay's own elements hold focus while it is open (overlay-focus.ts, B142). The child renders as it always did;
+// the trap goes up once its output is on screen, in an effect a server render never runs, and comes down with it. It
+// reads the output's elements when it needs them, through the accessors compiled JSX leaves, so it never calls the child
+// again and never rebuilds what the overlay shows.
+function trapped(state: InterceptState, child: (state: InterceptState) => JSX.Element): JSX.Element {
+	const output = child(state)
+	createEffect(
+		() => output,
+		(value) => trapFocus(() => elementsOf(value), state.dismiss),
+	)
+	return output
+}
+
+function elementsOf(value: unknown): Element[] {
+	if (typeof value === "function") return elementsOf(untrack(() => (value as () => unknown)()))
+	if (Array.isArray(value)) return value.flatMap(elementsOf)
+	return value instanceof Element ? [value] : []
 }
 
 // The page's own hooks read the overlay as a match on screen, after the background chain. The target's layouts are

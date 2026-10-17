@@ -180,6 +180,8 @@ packages/core/src/shared/components/app-tree.ts	P6	src	shared	The provider tree 
 packages/core/src/shared/components/app-tree.test.ts	P6	test	shared	Unit cases for app-tree.ts
 packages/core/src/shared/components/link.tsx	P6	src	dom	Link. Prefetch on intent. Reject a foreign origin
 packages/core/src/shared/components/link.test.tsx	P6	test	dom	Unit cases for link.tsx
+packages/core/src/shared/components/overlay-focus.ts	P6	src	shared	An open overlay holds focus: moves in, wraps Tab, Escape dismisses, focus back to the opener on close (B142)
+packages/core/src/shared/components/overlay-focus.test.ts	P6	test	shared	Unit cases for overlay-focus.ts
 packages/core/src/shared/components/intercept-outlet.tsx	P6	src	dom	InterceptOutlet renders the intercepted match and keeps the background match
 packages/core/src/shared/components/intercept-outlet.test.tsx	P6	test	dom	Unit cases for intercept-outlet.tsx
 packages/core/src/shared/components/view-transition-boundary.tsx	P6	src	dom	ViewTransitionBoundary
