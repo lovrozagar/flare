@@ -27,6 +27,7 @@ The contract, asserted by `packages/core/tests/structure/exports.test.ts` and `a
 | `consumer strict` | a fixture with `exactOptionalPropertyTypes` and `verbatimModuleSyntax` | `tsc` exits 0 against the packed types |
 | `no dependencies` | the packed `package.json` | the `dependencies` key is absent |
 | `image module types` | the packed `dist` | `features/image/vite/modules.d.ts` sits where the emitted `exports/vite.d.ts` reference resolves, and the consumer-strict fixture with `vite/client` types `./a.png?image` as the binding. tsc does not copy `.d.ts` inputs, so the packager must |
+| `engines` | the packed manifest | `engines.node` is `>=22.12`, the published floor (B3), so a package manager warns an app on an older Node (plan 21 5.5) |
 | `peer floors` | the same manifest | each peer in the B79 table is `>=` its devDependency version. `optional` is true only for `sharp`, `@tanstack/solid-query`, `negotiator`, `isbot`, and `@formatjs/intl-localematcher`. `@cloudflare/vite-plugin` is not a peer: the app depends on it and composes it beside `flare()`, which imports none of it (B109) |
 | `not a peer` | the same manifest | `@babel/parser`, `tailwindcss`, `oxc-resolver`, `node-html-markdown`, `@tanstack/query-broadcast-client-experimental`, `@types/negotiator`, and `@cloudflare/vite-plugin` (B109) are absent from both peer and dependency keys |
 
@@ -46,6 +47,9 @@ The packed tarball installed as an app installs it: into a fresh project under t
 | --- | --- | --- | --- |
 | `readme install, bun` | the README's `bun add` line, the tarball in place of the package name, run with the runner's Bun in a fresh project | exit 0, no `ERESOLVE`; codegen and `vite build` on Node 24.22.0, then the README's `serve.js` answers `/` with the sentinel the request sent (BUGS.md 299) | `consumers` job; the two readme cells 9.5 s here, warm cache |
 | `readme install, npm` | the same packages through the pinned npm 11.19.1 at default peer resolution | as above | as above |
+| `node floor` | the minimal app with every peer at its floor (or its newest under FLARE_CONSUMER_PEERS=newest), installed by Node 22.12.0's npm 10.9.0 | on Node 22.12.0: codegen and `vite build`; `serve.js` answers `/` with the sentinel and `/about?_flare=data` with an `l` frame first; `vite` dev answers `/` with the sentinel | `consumers` job; 10.6 s here, warm |
+| `ts 5 nodenext` | the fixture `fixture/ts5` (typescript 5.9.3 exact, `module` and `moduleResolution` `nodenext`, `consumer strict`'s other settings, skipLibCheck off), every peer at its floor, @types/node at core's version | tsc 5.9.3 over the staged minimal app and `consumer strict`'s sources exits 0 with no output: the README's TypeScript floor | `consumers` job; 7.0 s |
+| `no optional peers` | the minimal app with every peer but the five optional ones | none of the five is installed; the app builds and serves as in `node floor`, on Node 24.22.0 | `consumers` job; 3.3 s |
 
 ## `tests/structure/readme.test.ts` (plan 14 leaf 12.3)
 

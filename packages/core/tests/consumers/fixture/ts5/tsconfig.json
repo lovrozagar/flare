@@ -1,0 +1,21 @@
+{
+	// An app on the oldest TypeScript Flare documents (5.9) with Node's own module resolution, compiled against the
+	// packed types (plan 21 5.5 `ts 5 nodenext`). The settings are otherwise `consumer strict`'s.
+	"compilerOptions": {
+		"strict": true,
+		"exactOptionalPropertyTypes": true,
+		"verbatimModuleSyntax": true,
+		"noUncheckedIndexedAccess": true,
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
+		"target": "ESNext",
+		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"jsx": "preserve",
+		"jsxImportSource": "@solidjs/web",
+		"types": ["vite/client", "node"],
+		"allowImportingTsExtensions": true,
+		"skipLibCheck": false,
+		"noEmit": true
+	},
+	"include": ["src", "consumer"]
+}

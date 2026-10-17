@@ -30,6 +30,9 @@ packages/core/vitest.consumers.config.ts	P14	config	-	The consumer cells' own vi
 packages/core/tests/consumers/stage.ts	P14	test	node	The consumer stage: peer specs at their floors or newest, the newest report, a fresh project under the OS temp dir, the tarball installed and built and served with a pinned Node and its own npm
 packages/core/tests/consumers/stage.test.ts	P14	test	node	Unit cases for stage.ts's peer specs and newest report
 packages/core/tests/consumers/readme.consumer.test.ts	P14	test	node	The README's own install line, run with Bun and with the pinned npm at default peer resolution: no ERESOLVE, then the minimal app builds and serves (plan 21 5.5)
+packages/core/tests/consumers/floor.consumer.test.ts	P14	test	node	The minimal app staged with its peers at their floors (or newest): Node 22.12.0 build, serve, and dev; TypeScript 5.9.3 with nodenext; no optional peers (plan 21 5.5)
+packages/core/tests/consumers/fixture/ts5/package.json	P14	app	-	The TypeScript floor cell's pin: typescript 5.9.3 exact
+packages/core/tests/consumers/fixture/ts5/tsconfig.json	P14	app	-	The TypeScript floor cell's settings: nodenext module and resolution, consumer strict's others, skipLibCheck off
 packages/core/tests/structure/workflows.test.ts	P14	test	node	The GitHub workflows pin every action by commit SHA and install nothing @latest (BUGS.md 219)
 packages/core/tests/structure/errored.test.ts	P14	test	node	No source file but safe-errored.ts reaches Solid's Errored, by import or namespace member (BUGS.md 141)
 packages/core/tests/structure/json-only.test.ts	P14	test	node	No source file decodes a form body (formData, multipart, a urlencoded body read): server functions are JSON-only by B4 (plan 21 16.8)
