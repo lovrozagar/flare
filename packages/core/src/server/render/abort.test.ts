@@ -1,6 +1,7 @@
 import { createRequestEvent, getRequestEvent } from "@solidjs/web"
 import { expect, it, vi } from "vitest"
 import { raceAbort, renderStop } from "./abort.ts"
+import { invalidWrites } from "./writes.fixture.ts"
 
 const encoder = new TextEncoder()
 
@@ -101,4 +102,18 @@ it("stop runs once", () => {
 	request.abort()
 	stop()
 	expect(seen).toHaveLength(1)
+})
+
+// A consumer cancel that lands while a pull waits on the render ends the stream with no write into it.
+it("cancel during a pull", async () => {
+	const render = pending()
+	const abort = new AbortController()
+	const writes = await invalidWrites(async () => {
+		const reader = raceAbort(render.stream, abort.signal, () => undefined).getReader()
+		const next = reader.read()
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		await reader.cancel()
+		expect(await next).toEqual({ done: true, value: undefined })
+	})
+	expect(writes).toEqual([])
 })

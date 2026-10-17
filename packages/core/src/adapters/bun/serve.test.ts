@@ -5,6 +5,7 @@ import { finalize, keptAs } from "../../server/lifecycle/finalize.ts"
 import { createServerFn } from "../../server/server-fn/dispatch.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
+import { invalidWrites } from "../../server/render/writes.fixture.ts"
 import { createBunFetch } from "./serve.ts"
 
 // Bun's platform ceiling is its own default, 128 MiB, whatever the server's `bodyLimit`: Flare's capped reader answers
@@ -241,4 +242,30 @@ it("kept empty body", async () => {
 	const bun = timeouts()
 	const response = await fetcher.fetch(new Request("http://localhost/"), bun)
 	expect([response.status, response.body, bun.calls]).toEqual([204, null, []])
+})
+
+// A client that cancels while the answer's body waits on the app ends it once, with no write into the cancelled
+// stream when the app's chunk lands (BUGS.md 304).
+it("cancel during a pull", async () => {
+	const gate = Promise.withResolvers<undefined>()
+	// The app's own body honors its cancel, so the only write the case can see is the adapter's.
+	const state = { open: true }
+	const app = new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			await gate.promise
+			if (state.open) controller.enqueue(new TextEncoder().encode("late"))
+		},
+		cancel: () => void (state.open = false),
+	})
+	const fetcher = createBunFetch({ fetch: () => finalize({ status: 200, body: app }) })
+	const writes = await invalidWrites(async () => {
+		const answer = await fetcher.fetch(new Request("http://localhost/"))
+		const reader = answer.body?.getReader()
+		const next = reader?.read()
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		await reader?.cancel()
+		gate.resolve(undefined)
+		expect(await next).toEqual({ done: true, value: undefined })
+	})
+	expect([writes, await fetcher.drain({ timeout: "1s" })]).toEqual([[], true])
 })
