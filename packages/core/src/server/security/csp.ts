@@ -221,10 +221,14 @@ function token(feature: PermissionFeature, value: PermissionsPolicy[PermissionFe
 	return `${feature}=()`
 }
 
-// An origin is quoted into the header, so a quote, a space, or a `;` in it would end the value early.
+// An origin is quoted into the header, a structured-field string: printable ASCII, with `\` only an escape. So a quote,
+// a space, or a `;`, which would end the value early, and a backslash, a control character, or one outside ASCII,
+// which would make a header the browser drops, each throw (BUGS.md 335).
 function allow(feature: string, origins: readonly string[]): string {
 	for (const origin of origins) {
-		if (/["\s;]/.test(origin)) throw new Error(`Permissions-Policy ${feature}: ${JSON.stringify(origin)}`)
+		if (!/^[\x21\x23-\x3a\x3c-\x5b\x5d-\x7e]*$/.test(origin)) {
+			throw new Error(`Permissions-Policy ${feature}: ${JSON.stringify(origin)}`)
+		}
 	}
 	return `${feature}=(${origins.map((origin) => `"${origin}"`).join(" ")})`
 }

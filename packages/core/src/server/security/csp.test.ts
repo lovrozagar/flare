@@ -82,7 +82,16 @@ it("star", () => {
 })
 
 it("origin quote", () => {
-	for (const origin of ['https://a.com"', "https://a.com b", "https://a.com;x"]) {
+	// A structured-field string holds printable ASCII and uses `\` only to escape, so a backslash, a character outside
+	// ASCII, or a control character would make a header the browser drops, lifting every feature (BUGS.md 335).
+	for (const origin of [
+		'https://a.com"',
+		"https://a.com b",
+		"https://a.com;x",
+		"https://a\\b",
+		"https://ä.example",
+		"https://a\u0007",
+	]) {
 		expect(() => policy({ permissions: { camera: [origin] } })).toThrow("Permissions-Policy camera")
 	}
 	const header = policy({ permissions: { camera: ["https://a.com"] } }).headers.get("permissions-policy") ?? ""
