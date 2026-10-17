@@ -99,8 +99,10 @@ function anchor(props: AnyLinkProps): JSX.Element {
 		if (props.disabled === true || (props.to === undefined && url() === "#")) return event.preventDefault()
 		if (props.to === undefined || navigate === null || !followable(event, event.currentTarget)) return
 		event.preventDefault()
-		// An active link stays put unless its hash moves the page: a new one, or the current one again (BUGS.md 148).
-		if (active() && props.force !== true && (props.hash ?? "") === "" && location().hash === "") return
+		// A link to the current URL stays put unless its hash moves the page: a new one, or the current one again (BUGS.md
+		// 148). A custom `isActive` only styles: a section link on another page of its section still goes (BUGS.md 292).
+		const at = location()
+		if (props.force !== true && !props.hash && !at.hash && sameUrl(url(), at)) return
 		void navigate({ ...pick(props), to: props.to })
 	}
 	return createComponent(
@@ -200,9 +202,13 @@ function safeHref(value: string | undefined): string {
 
 // The default compares the exact pathname and the search as a multiset of pairs. The hash is not compared.
 function isActive(props: AnyLinkProps, href: string, location: Location): boolean {
-	if (props.isActive !== undefined) {
-		return props.isActive({ pathname: location.pathname, search: readSearch(location.search) })
-	}
+	return props.isActive
+		? props.isActive({ pathname: location.pathname, search: readSearch(location.search) })
+		: sameUrl(href, location)
+}
+
+// The link's own URL is the location: the same pathname, and the same search as a multiset of pairs.
+function sameUrl(href: string, location: Location): boolean {
 	const url = new URL(href, "http://flare.invalid")
 	return url.pathname === location.pathname && pairs(url.search) === pairs(location.search)
 }
