@@ -5,19 +5,23 @@ const ANNOUNCER = "flare-announcer"
 // What a client navigation that lands on a new page does for a keyboard or screen reader user, as a document load
 // would (plan 21 4.1, B141): focus moves to the element the hash names, else the page's main heading, else `main`,
 // else the body, without scrolling, since the step already scrolled; and the new title is read out by one polite live
-// region, the heading's text or the pathname when the page has no title.
+// region, the main heading's text or the pathname when the page has no title: the heading read is the one focus goes
+// to (BUGS.md 319).
 export function createArrival(doc: Document): (location: Location) => void {
 	return (location) => {
 		focusOn(targetOf(doc, location))
-		announce(doc, doc.title || (doc.querySelector("h1")?.textContent ?? "") || location.pathname)
+		announce(doc, doc.title || (headingOf(doc)?.textContent ?? "") || location.pathname)
 	}
+}
+
+function headingOf(doc: Document): HTMLElement | null {
+	return doc.querySelector<HTMLElement>("main h1") ?? doc.querySelector<HTMLElement>("h1")
 }
 
 function targetOf(doc: Document, location: Location): HTMLElement {
 	const id = decoded(location.hash.slice(1))
 	const named = id === "" ? null : doc.getElementById(id)
-	const heading = doc.querySelector<HTMLElement>("main h1") ?? doc.querySelector<HTMLElement>("h1")
-	return named ?? heading ?? doc.querySelector<HTMLElement>("main") ?? doc.body
+	return named ?? headingOf(doc) ?? doc.querySelector<HTMLElement>("main") ?? doc.body
 }
 
 function decoded(id: string): string {

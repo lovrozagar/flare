@@ -63,3 +63,15 @@ it("fallbacks", () => {
 	arrive(at("/bare"))
 	expect(document.activeElement).toBe(document.body)
 })
+
+// With no title, the heading announced is the one that takes focus, `main h1`, not a site name's `h1` before it
+// (dx/navigate.md, BUGS.md 319).
+it("announced heading is the focused one", () => {
+	const arrive = createArrival(document)
+	page("<header><h1>Site name</h1></header><main><h1>The post</h1></main>", "")
+	arrive(at("/post"))
+	expect([document.activeElement?.textContent, document.getElementById("flare-announcer")?.textContent]).toEqual([
+		"The post",
+		"The post",
+	])
+})
