@@ -122,3 +122,10 @@ it("url target", () => {
 	expect(resolveUrl("/dashboard", context())).toEqual({ kind: "document", url: "/dashboard" })
 	expect(() => resolveUrl("https://evil.example/a", context())).toThrow(/origin/)
 })
+
+// A URL no page matches is a document load, as a Back or Forward onto a server 404 is: the server's not-found document
+// renders the not-found page in its root, which a bare data 404 cannot paint (plan 21 13.10, BUGS.md 212).
+it("unmatched url", () => {
+	expect(resolveUrl("/nowhere?x=1", context())).toEqual({ kind: "document", url: "/nowhere?x=1" })
+	expect(resolveUrl("/about", context())).toMatchObject({ kind: "data" })
+})
