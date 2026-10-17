@@ -85,7 +85,7 @@ Other anchor attributes pass through, except `href` when `to` is set. `class` an
 | value | URL text | read back with |
 | --- | --- | --- |
 | string | as is, then percent-encoded | — |
-| number, boolean, bigint | `String(value)` | `z.coerce.number()`, `z.coerce.boolean()`, or the same in another schema |
+| number, boolean, bigint | `String(value)` | `z.coerce.number()` and `z.coerce.bigint()`; a boolean with `z.stringbool()`, never `z.coerce.boolean()`, which reads any non-empty string, `"false"` included, as true (`link.test.ts` `boolean values`, plan 21 4.7, BUGS.md 230); the same in another schema, valibot's `v.pipe(v.picklist(["true", "false"]), v.transform((text) => text === "true"))` say |
 | `Date` | `toISOString()` | `z.coerce.date()` |
 | array | one entry per element: `?tag=a&tag=b`; a catch-all param joins its segments with `/` | the array |
 | plain object | `JSON.stringify` | a JSON parse step in the validator |

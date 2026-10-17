@@ -1,6 +1,7 @@
 import { createComponent } from "solid-js"
 import { Dynamic } from "@solidjs/web"
 import { expect, it } from "vitest"
+import * as z from "zod"
 import { Link } from "../../src/shared/components/link.tsx"
 import { redirect } from "../../src/shared/errors/index.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
@@ -119,6 +120,14 @@ const get = serve([
 		module: createPage("_root_/echo")
 			.input({ searchParams: coerced })
 			.render((props) => JSON.stringify(props.search)),
+	},
+	{
+		id: "_root_/flag",
+		path: "/flag",
+		// dx/link.md's advice for a boolean read back from the URL.
+		module: createPage("_root_/flag")
+			.input({ searchParams: z.object({ open: z.stringbool() }) })
+			.render((props) => `open:${String(props.search.open)}`),
 	},
 	{
 		id: "_root_/feed",
@@ -266,4 +275,14 @@ it("active", async () => {
 	expect(a["partial"]?.["class"]).toBe("off")
 	expect(a["prefix"]?.["class"]).toBe("off")
 	expect(a["custom"]).toMatchObject({ class: "on", "aria-current": "page" })
+})
+
+// A boolean goes into the URL as `true` or `false` and comes back the same through dx/link.md's advice, a real zod
+// schema: `z.coerce.boolean()` would read `"false"` as true, since any non-empty string is truthy (plan 21 4.7).
+it("boolean values", async () => {
+	for (const open of [true, false]) {
+		const url = buildUrl({ to: "_root_/flag", search: { open } } as never)
+		expect(url).toBe(`/flag?open=${String(open)}`)
+		expect(bodyOf((await get(url)).text)).toBe(`open:${String(open)}`)
+	}
 })
