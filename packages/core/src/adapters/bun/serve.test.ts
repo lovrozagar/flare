@@ -53,6 +53,11 @@ it("hostile host", async () => {
 		new Request("http://evil.example/admin?/a", { headers: { host: "evil.example/admin?" } }),
 	)
 	expect(hostile.status).toBe(400)
+	// Like every answer, it names its build and carries the default security set (BUGS.md 341).
+	expect([hostile.headers.get("flare-build"), hostile.headers.get("x-content-type-options")]).toEqual([
+		"dev",
+		"nosniff",
+	])
 	const fine = await bun.fetch(new Request("http://site.test:8080/a", { headers: { host: "site.test:8080" } }))
 	expect(fine.status).toBe(200)
 	expect(seen).toEqual(["http://site.test:8080/a"])

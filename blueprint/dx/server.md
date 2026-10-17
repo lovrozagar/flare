@@ -285,7 +285,7 @@ Match runs before the method rule (B87). A normal page allows GET, HEAD, and OPT
 
 ## Deploying
 
-A CDN keeps a public page for its `cdn.maxAge`, and `swr` past that, so after a deploy it can still hand out the previous build's HTML, which names that build's hashed `/assets/*` files. Every answer names its build in `flare-build`, and every public page also carries `flare-build-<id>` last in its `Cache-Tag` (`policies.test.ts` `cache tag`, plan 21 16.10, BUGS.md 228). A deploy runs in this order:
+A CDN keeps a public page for its `cdn.maxAge`, and `swr` past that, so after a deploy it can still hand out the previous build's HTML, which names that build's hashed `/assets/*` files. Every answer names its build in `flare-build`, and every public page also carries `flare-build-<id>` last in its `Cache-Tag` (`policies.test.ts` `cache tag`, plan 21 16.10, BUGS.md 228). The adapters' own answers carry it too, with the default security set: the Node listener's 400 for a target or Host it cannot route and its 500 before the headers, and Bun's 400 for a Host that is not one (`node/listener-answers.test.ts`, `bun/serve.test.ts` `hostile host`, BUGS.md 341). A deploy runs in this order:
 
 1. Before shipping, read the live build's id from any answer's `flare-build` header.
 2. Ship the new build, keeping the previous build's `/assets/*` files beside the new ones. Hashed names never collide, so the two sets live side by side.

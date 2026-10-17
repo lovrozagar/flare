@@ -50,11 +50,12 @@ export function createNodeListener(server: Server, options: NodeListenerOptions 
 	const pending = pendingWork()
 	const listener = (req: NodeReq, res: NodeRes): void => {
 		const job = { server, req, res, pending, trustProxy, sent: false }
-		// A failure before the headers is a bare 500. After them the socket is destroyed: the status is gone. Either is
-		// logged, never silent (plan 21 13.6).
+		// A failure before the headers is a 500 with no body, the build and the default security set on it (BUGS.md 341).
+		// After them the socket is destroyed: the status is gone. Either is logged, never silent (plan 21 13.6).
 		const pumped = pump(job).catch((error: unknown) => {
 			console.error("[flare:node] the request failed", error)
 			if (job.sent) return void res.destroy?.()
+			writeHeaders(res, ownAnswer(500).headers)
 			res.writeHead(500)
 			res.end()
 		})
@@ -76,11 +77,7 @@ async function pump(job: Job): Promise<void> {
 	// The origin comes from Host, as the adapter resolves it, so CSRF compares a browser's Origin with it (B44).
 	const headers = joinedHeaders(job.req.headers)
 	const adapted = toRequest({ url: job.req.url ?? "/", headers, trustProxy: job.trustProxy })
-	if (adapted.status === 400) {
-		job.res.writeHead(400)
-		job.res.end()
-		return
-	}
+	if (adapted.status === 400) return send(job, ownAnswer(400), new AbortController().signal)
 	const body = requestBody(job.req)
 	// Node emits close after a normal finish too. Only a close before the finish is a client disconnect, and
 	// only that aborts the request signal, so background work after a full response keeps it (as on Workers).
@@ -118,6 +115,13 @@ async function refusedAt(server: Server, request: { method: string; url: string 
 	const channel: unknown = Reflect.get(server, REFUSED)
 	if (typeof channel !== "function") return { status: 405, allow: "GET, HEAD, OPTIONS" }
 	return (await Reflect.apply(channel, undefined, [request])) as RefusedAnswer
+}
+
+// An answer the listener gives itself, for a request it cannot route or one that failed before its headers: no body,
+// and the build and the default security set every answer carries (BUGS.md 341). The request's URL may be unknown, so
+// it is read as plain http.
+function ownAnswer(status: number): Response {
+	return finalize({ status, body: "", url: "http://localhost/" })
 }
 
 async function send(job: Job, response: Response, signal: AbortSignal): Promise<void> {
