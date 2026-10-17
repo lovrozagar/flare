@@ -64,11 +64,11 @@ function viaState(value: unknown): unknown {
 }
 
 it.each(VALUES)("%s", (_name, value) => {
-	expect(fromWire(JSON.parse(JSON.stringify(toWire(value))))).toEqual(value)
-	expect(decodeLine(encodeFrame({ t: "l", m: "p", d: value }))).toEqual({ t: "l", m: "p", d: value })
-	expect(viaState(value)).toEqual(value)
+	expect(fromWire(JSON.parse(JSON.stringify(toWire(value))))).toStrictEqual(value)
+	expect(decodeLine(encodeFrame({ t: "l", m: "p", d: value }))).toStrictEqual({ t: "l", m: "p", d: value })
+	expect(viaState(value)).toStrictEqual(value)
 	const envelope = JSON.parse(JSON.stringify(dataToWire({ name: "fn", status: 200, data: value })))
-	expect(fromWire(envelope.data)).toEqual(value)
+	expect(fromWire(envelope.data)).toStrictEqual(value)
 })
 
 // A shared reference stays one object, and a cycle points at itself, after the trip.
