@@ -466,6 +466,8 @@ packages/core/src/vite/route-meta/literals.test.ts	P7	test	vite	Unit cases for l
 packages/core/src/vite/route-meta/ids.ts	P7	src	vite	Build-time B41 ids: hash the path and export name with node:crypto. Reject a collision and a call that is not a direct export
 packages/core/src/vite/route-meta/ids.test.ts	P7	test	vite	Unit cases for ids.ts
 packages/core/src/vite/route-meta/index.ts	P7	index	vite	Re-exports
+packages/core/src/vite/codegen/layout-checks.ts	P1	src	vite	Codegen's layout checks: each page has its own root's layout, and each layout id one file (BUGS.md 206)
+packages/core/src/vite/codegen/layout-checks.test.ts	P1	test	vite	Unit cases for layout-checks.ts
 packages/core/src/vite/codegen/routes.ts	P1	src	vite	Write routes.gen.ts, including literal cache.client and intercept fields (B89)
 packages/core/src/vite/codegen/routes.test.ts	P1	test	vite	Unit cases for routes.ts
 packages/core/src/vite/codegen/fix-ids.ts	P1	src	vite	vite dev writes a route file's resolved builder id strings to the id its path gives, keeping their quotes (BUGS.md 130)

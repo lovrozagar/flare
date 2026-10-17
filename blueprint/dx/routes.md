@@ -78,6 +78,8 @@ The generated route map imports each route module lazily, `() => import("../rout
 | two `*.page.tsx` files in one folder | build error | `routes.test.ts` `two pages` |
 | the id string in the file disagrees with the path | build error, the file named | `routes.test.ts` `id mismatch` |
 | a page tree has no `*.root-layout.tsx` | build error, the page files named | `routes.test.ts` `no root` |
+| a page whose own root, its id up to the first root folder (`_admin_`, `[locale]/_root_`), has no `*.root-layout.tsx`, though another root has one | build error, `no root layout for <root>: <pages>`. Another root's layout is not in the page's chain, so it would render with no document | `routes.test.ts` `own root`, `layout-checks.test.ts` `own root` (BUGS.md 206) |
+| two layout files with one id: two `*.layout.tsx` in a folder, or one beside the root layout | build error, `two layouts for <id>: <files>`. The router's layout record would keep one | `layout-checks.test.ts` `one layout` (BUGS.md 206) |
 | a folder starts with `[` and is not one of the four param forms | build error | `segments.test.ts` `bad brackets` |
 | the same param name appears twice in one id | build error | `routes.test.ts` `repeated param` |
 

@@ -203,7 +203,9 @@ describe("build errors", () => {
 	})
 
 	it("no root", async () => {
-		expect(await failure({ "_root_/home.page.tsx": page("_root_/") })).toContain("no root: _root_/home.page.tsx")
+		expect(await failure({ "_root_/home.page.tsx": page("_root_/") })).toContain(
+			"no root layout for _root_: _root_/home.page.tsx",
+		)
 	})
 
 	it("bad brackets", async () => {
