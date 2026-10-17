@@ -1,6 +1,6 @@
 # Observability
 
-What a Flare server reports about itself: log lines, errors, a request log, a request id, traces, and the dev log bridge. Every option below is a `createServer` option except `devLogs`, which is a `flare()` option (`plugin.md`). Core imports no logging or tracing package (B98, B99, B100).
+What a Flare server reports about itself: log lines, errors, a request log, a request id, traces, and the dev log bridge. **Planned (plan 15), not in v1.** `ServerOptions` has no `logger`, `onError`, `requestLog`, or `tracer` key, so passing one is a type error, and `createServer` given one anyway, from JavaScript or through a cast, throws `createServer: <key> is planned (dx/observability.md) and not in v1` instead of ignoring it (`create-input.test.ts` `planned options`, BUGS.md 113, 216). Every option below is a `createServer` option except `devLogs`, which is a `flare()` option (`plugin.md`). Core imports no logging or tracing package (B98, B99, B100).
 
 ```ts
 createServer({ router, logger?, onError?, requestLog?, tracer?, trustProxy? })
