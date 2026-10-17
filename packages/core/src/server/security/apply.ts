@@ -1,6 +1,6 @@
 import type { FlareRegister, RegisteredServerContext } from "../../shared/route-builder/register.ts"
 import type { CspDirectives, SecurityConfig } from "../../shared/route-builder/types.ts"
-import { buildCsp, randomNonce } from "./csp.ts"
+import { addToPolicy, buildCsp, randomNonce } from "./csp.ts"
 
 // Every key of a security config (dx/server.md SecurityConfig).
 export const SECURITY_KEYS: readonly (keyof SecurityConfig)[] = [
@@ -58,11 +58,16 @@ export function applySecurity(input: {
 }): Secured {
 	const candidate = input.candidate ?? randomNonce()
 	const config = serverConfig(input.security, input.context, candidate)
-	const added = addedCsp(config["Content-Security-Policy"], input.route?.["Content-Security-Policy"])
+	const serverCsp = config["Content-Security-Policy"]
+	const routeCsp = input.route?.["Content-Security-Policy"]
+	const added = addedCsp(serverCsp, routeCsp)
+	const kept =
+		typeof serverCsp === "string" && typeof routeCsp === "object" ? addToPolicy(serverCsp, routeCsp) : undefined
 	const merged: SecurityConfig = {
 		...config,
 		...input.route,
-		...(added !== undefined && { "Content-Security-Policy": config["Content-Security-Policy"] }),
+		...(added !== undefined && { "Content-Security-Policy": serverCsp }),
+		...(kept !== undefined && { "Content-Security-Policy": kept }),
 	}
 	const headers = new Headers(input.headers)
 	writeRoute(headers, input.routeHeaders)
@@ -122,9 +127,9 @@ function copy(value: string | readonly string[]): string | string[] {
 }
 
 // A route's directives add their sources to the policy the server sends, its defaults included, each once, so a page
-// that allows one more origin keeps the server's own policy; a flag directive takes the route's value (BUGS.md 330). A
-// route string or `false` replaces the whole policy, as does any route CSP over a server string (plan 21 14.1, v0's
-// directive merge).
+// that allows one more origin keeps the server's own policy; a flag directive takes the route's value (BUGS.md 330).
+// Over a server string they add to the string (`addToPolicy`, BUGS.md 331). A route string or `false` replaces the
+// whole policy (plan 21 14.1, v0's directive merge).
 function addedCsp(
 	server: SecurityConfig["Content-Security-Policy"],
 	route: SecurityConfig["Content-Security-Policy"],
