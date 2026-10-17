@@ -225,9 +225,11 @@ it("hidden off-origin", async () => {
 // another route: buildUrl and a Link throw on it (plan 21 7.6, BUGS.md 156).
 it("dot segment params", async () => {
 	for (const id of [".", "..", "%2e", "%2E%2e", ".%2E", "%2e."]) {
-		expect(() => buildUrl({ to: "_root_/users/[id]", params: { id } } as never)).toThrow(/^param$/)
+		expect(() => buildUrl({ to: "_root_/users/[id]", params: { id } } as never)).toThrow(/^param id$/)
 	}
-	expect(() => buildUrl({ to: "_root_/files/[...path]", params: { path: ["a", ".."] } } as never)).toThrow(/^param$/)
+	expect(() => buildUrl({ to: "_root_/files/[...path]", params: { path: ["a", ".."] } } as never)).toThrow(
+		/^param path$/,
+	)
 	expect(buildUrl({ to: "_root_/users/[id]", params: { id: "..." } } as never)).toBe("/users/...")
 	expect(buildUrl({ to: "_root_/users/[id]", params: { id: "a.b" } } as never)).toBe("/users/a.b")
 	expect((await get("/dots")).status).toBe(500)
