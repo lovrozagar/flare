@@ -1,4 +1,4 @@
-import { createComponent, createMemo, flush, Loading } from "solid-js"
+import { createComponent, createMemo, createSignal, flush, Loading, Show } from "solid-js"
 import { render } from "@solidjs/web"
 import { afterEach, expect, it, vi } from "vitest"
 import { Image, type ImageBinding, type ImageProps } from "./image.tsx"
@@ -298,4 +298,61 @@ it("document without a window", () => {
 	flush()
 	expect(host.querySelector("img")?.hasAttribute("src")).toBe(false)
 	dispose()
+})
+
+// An image made before it is placed, held for a <Show> that opens later or rendered into a container appended later,
+// takes its sources once it lands on the page (BUGS.md 293).
+it("placed later", async () => {
+	const host = document.createElement("div")
+	document.body.append(host)
+	const [open, setOpen] = createSignal(false)
+	const dispose = render(() => {
+		const held = createComponent(Image, { alt: "a", src: photo })
+		return createComponent(Show, {
+			get when() {
+				return open()
+			},
+			children: held as never,
+		})
+	}, host)
+	flush()
+	setOpen(true)
+	flush()
+	await vi.waitFor(() => expect(host.querySelector("img")?.getAttribute("src")).toBe("/a-1920.webp"))
+	dispose()
+	// Two containers appended one after the other: the first lands while the second still waits.
+	const later = document.createElement("div")
+	const last = document.createElement("div")
+	const stop = render(() => createComponent(Image, { alt: "b", src: photo }), later)
+	const end = render(() => createComponent(Image, { alt: "c", src: photo }), last)
+	flush()
+	expect(later.querySelector("img")?.hasAttribute("src")).toBe(false)
+	document.body.append(later)
+	await vi.waitFor(() => expect(later.querySelector("img")?.getAttribute("src")).toBe("/a-1920.webp"))
+	expect(last.querySelector("img")?.hasAttribute("src")).toBe(false)
+	document.body.append(last)
+	await vi.waitFor(() => expect(last.querySelector("img")?.getAttribute("src")).toBe("/a-1920.webp"))
+	stop()
+	end()
+	last.remove()
+	host.remove()
+	later.remove()
+})
+
+// An image disposed while it waits for the page stops waiting, and with none left nothing observes the page: a
+// container appended afterwards places nothing (BUGS.md 293).
+it("disposed while waiting", async () => {
+	const disconnect = vi.spyOn(MutationObserver.prototype, "disconnect")
+	const later = document.createElement("div")
+	const stop = render(() => createComponent(Image, { alt: "a", src: photo }), later)
+	flush()
+	const img = later.querySelector("img")
+	stop()
+	expect(disconnect).toHaveBeenCalled()
+	disconnect.mockRestore()
+	// Disposing took the img out of `later`, so the img itself goes on the page: placed after its owner is gone, it
+	// takes no sources, since the wait ended with it.
+	document.body.append(later, img as HTMLImageElement)
+	await Promise.resolve()
+	expect(img?.hasAttribute("src")).toBe(false)
 })
