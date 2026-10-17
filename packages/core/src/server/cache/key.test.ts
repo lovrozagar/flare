@@ -1,6 +1,9 @@
 import { expect, expectTypeOf, it, vi } from "vitest"
 import * as keys from "./key.ts"
-import { buildId, storeKey, type KeyInput } from "./key.ts"
+import { createPage } from "../../shared/route-builder/page.ts"
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
+import { createRouter } from "../../shared/router/create-router.ts"
+import { buildId, routeKey, storeKey, type KeyInput } from "./key.ts"
 
 // The policy class and the search change nothing: the key has no slot for either (B32, B73).
 
@@ -52,9 +55,10 @@ it("required", () => {
 	expect(() => storeKey({ build: "b", route: "r", pattern: "/", params: {}, class: "required" })).toThrow(/required/)
 })
 
-// The framework builds the key. Nothing the module exports takes one from the author (B32).
+// The framework builds the key. Nothing the module exports takes one from the author (B32): routeKey derives it from a
+// route and its params.
 it("no callback", () => {
-	expect(Object.keys(keys).toSorted()).toEqual(["buildId", "storeKey"])
+	expect(Object.keys(keys).toSorted()).toEqual(["buildId", "routeKey", "storeKey"])
 	expectTypeOf<KeyInput>().not.toHaveProperty("key")
 })
 
@@ -85,4 +89,26 @@ it("absent optional", () => {
 	expect(storeKey({ build: "b", route: "r", pattern: "/[[...rest]]", params: {}, class: "anonymous" })).toBe(
 		"static:b:r:",
 	)
+})
+
+// The key a request stores under, from what buildUrl takes: under a base path and `trailingSlash: "always"` too, with
+// an optional param left out, and the raw params percent-encoded as a request's are. A layout id or an id with no page throws (plan 21 4.5).
+it("route key", () => {
+	const page = createPage("_root_/docs/[[lang]]/[slug]").render(() => "doc")
+	const index = createPage("_root_/").render(() => "home")
+	const router = createRouter({
+		basePath: "/app",
+		trailingSlash: "always",
+		layouts: { _root_: createRootLayout("_root_").render(() => "root") },
+		routeTree: [
+			{ id: "_root_/docs/[[lang]]/[slug]", path: "/docs/[[lang]]/[slug]", module: page },
+			{ id: "_root_/", path: "/", module: index },
+		],
+	})
+	const docs = "_root_/docs/[[lang]]/[slug]"
+	expect(routeKey(router, { to: docs, params: { slug: "a b" } })).toBe(`static:dev:${docs}:/a%2520b`)
+	expect(routeKey(router, { to: docs, params: { lang: "hr", slug: "x" } })).toBe(`static:dev:${docs}:hr/x`)
+	expect(routeKey(router, { to: "_root_/" })).toBe("static:dev:_root_/")
+	expect(() => routeKey(router, { to: "_root_" })).toThrow("cache.key: _root_ is not a page")
+	expect(() => routeKey(router, { to: "_root_/missing" })).toThrow("cache.key: _root_/missing is not a page")
 })

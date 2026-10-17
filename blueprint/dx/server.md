@@ -4,7 +4,7 @@
 createServer({ router, site?, authenticate?, locale?, middleware?, mounts?, rewrite?, security?, sameSite?, bodyLimit?, store?, static?, serverContext?, serverFns?, documentResponseDefer?, retireServiceWorker? })
 ```
 
-The return value's `fetch(request, env, ctx)` is the production entry, and its `bodyLimit` is the cap in bytes. `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
+The return value's `fetch(request, env, ctx)` is the production entry, and its `bodyLimit` is the cap in bytes. `buildId` is the id of the build that serves, the one `flare-build` names on every answer, and `cache.key({ to, params })` is the store key a request to that page stores under, for a key purge outside a request (`store.md` revalidate, plan 21 4.5). `ctx.waitUntil` is how background work is scheduled. On Node and Bun the adapter tracks that promise. On Workers it is `ctx.waitUntil`.
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |

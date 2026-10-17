@@ -1,4 +1,7 @@
 import { patternSegments, type RawParams } from "../../shared/route-tree/index.ts"
+import type { Router } from "../../shared/router/create-router.ts"
+import { buildUrl, routeHref } from "../../shared/url/index.ts"
+import type { BuildInput } from "../../shared/url/href.ts"
 import type { PolicyClass } from "../auth/identity.ts"
 import { buildId as built } from "../lifecycle/build-info.ts"
 
@@ -33,4 +36,14 @@ export function storeKey(input: KeyInput): string {
 
 function encode(value: string): string {
 	return value.replaceAll("%", "%25").replaceAll("/", "%2F")
+}
+
+// The key a request to this page with these params is stored under, for a purge outside a request (`server.cache.key`,
+// plan 21 4.5). It takes what buildUrl takes and matches that URL as the server does, so its params are the raw ones a
+// request gives, under the router's base path and trailing-slash rule. An id the router has no page for throws.
+export function routeKey(router: Router, input: BuildInput): string {
+	const matched = router.match(routeHref(router, buildUrl({ to: input.to, params: input.params })))
+	const node = router.routeTree.find((route) => route.id === matched.id)
+	if (node === undefined || node.id !== input.to) throw new Error(`cache.key: ${input.to} is not a page`)
+	return storeKey({ build: built, route: node.id, pattern: node.path, params: matched.params, class: "anonymous" })
 }
