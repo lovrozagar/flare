@@ -95,11 +95,12 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		if (away(target)) return
 		const snapshot = deps.store.snapshot()
 		const pop = mode.pop === true
-		if (target.kind !== "data") return void (at = inPlace(deps, target, { options, snapshot, pop }) ?? at)
+		if (target.kind !== "data")
+			return void (at = stay(deps, target, { options, snapshot, pop, cancel: requests.cancel }) ?? at)
 		const plan = planOf({ target, options, snapshot, mode: { ...mode, at }, here: barOf(deps.history) })
 		const move = { current: snapshot.location, next: target.location, trigger: plan.trigger }
 		if (!pop && !allowsNavigation(deps.blockers, move)) return
-		const controller = requests.start()
+		const controller = requests.start(plan.fill)
 		// A stored landing's `"stream"` hole: once this page commits, one fill asks for its values.
 		const watch = holeWatch(deps, target.location, (pending) => again({ fill: pending }))
 		const trip = { ...plan, signal: controller.signal, reuse: mode.fill, holes: plan.fill ? undefined : watch.holes }
@@ -138,6 +139,17 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 			return go(resolveUrl(url, context()), { to: url }, mode)
 		},
 	}
+}
+
+// A hash or shallow move that goes ahead is the latest navigation: the pending request is aborted (BUGS.md 311).
+function stay(
+	deps: NavigatorDeps,
+	target: Parameters<typeof inPlace>[1],
+	step: Parameters<typeof inPlace>[2] & { cancel: () => void },
+): number | undefined {
+	const moved = inPlace(deps, target, step)
+	if (moved !== undefined) step.cancel()
+	return moved
 }
 
 // A Link's, navigate()'s, or an anchor's target: the page on screen at a hash goes to its target again (BUGS.md 148).

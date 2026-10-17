@@ -15,3 +15,25 @@ it("requests", () => {
 	requests.committed(third)
 	expect([first.signal.aborted, third.signal.aborted]).toEqual([true, false])
 })
+
+// A move that stays on the page aborts the newest pending request, never the page's own or a fill, which lands onto
+// the page as the move left it (BUGS.md 311).
+it("cancel", () => {
+	const requests = navigationRequests()
+	requests.cancel()
+	const shown = requests.start()
+	requests.committed(shown)
+	requests.cancel()
+	expect([shown.signal.aborted, requests.latest(shown)]).toEqual([false, true])
+	const fill = requests.start(true)
+	requests.cancel()
+	expect([fill.signal.aborted, requests.latest(fill)]).toEqual([false, true])
+	const next = requests.start()
+	requests.cancel()
+	expect([next.signal.aborted, requests.latest(next), requests.latest(shown), shown.signal.aborted]).toEqual([
+		true,
+		false,
+		true,
+		false,
+	])
+})
