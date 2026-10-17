@@ -132,3 +132,12 @@ it("render time", async () => {
 	expect(at).toBeGreaterThanOrEqual(before)
 	expect(at).toBeLessThanOrEqual(Date.now())
 })
+
+// The query the render saw rides in the state, so the client hydrates on it; a render with none, as every shared or
+// stored render is, writes no field (plan 21 13.8, BUGS.md 211).
+it("rendered search", () => {
+	expect(stateScript({ matches: [], nonce: "", build: "b", at: 5, search: "?q=a" })).toBe(
+		'<script id="flare-state">self.flare={"matches":[],"nonce":"","build":"b","at":5,"search":"?q=a"}</script>',
+	)
+	expect(stateScript({ matches: [], nonce: "", build: "b", at: 5, search: "" })).not.toContain("search")
+})

@@ -826,6 +826,7 @@ packages/core/tests/integration/hydrate.api.ts	P15	test	node	The api a harness t
 packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported component and hook round-trips SSR to hydrate with no hydration warning, key miss, unclaimed node, or untracked strict read (B96)
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
+packages/core/tests/integration/active-client.test.ts	P15	test	client	A hydrated page shows the browser's URL: a stored page with a query and a deep link's hash (BUGS.md 211)
 packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
 packages/core/tests/integration/callbacks-client.test.ts	P15	test	client	Throwing createClient callbacks and shouldRefetch are logged, and the page still hydrates and fills (BUGS.md 203)
 packages/core/tests/integration/fetch-boundary.test.ts	P15	test	server	Every app callback failure past the stages is one logged 500, never a rejected server.fetch (BUGS.md 202)
