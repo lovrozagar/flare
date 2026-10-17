@@ -115,3 +115,18 @@ it("response methods", async () => {
 	expect(await call("/hook", "GET")).toEqual(["GET", 405, "POST, OPTIONS", ""])
 	expect(ran).toEqual(["GET", "HEAD", "POST"])
 })
+
+// An escaped unreserved character is that character: `/docs/%72outing` is a 301 to `/docs/routing`, which serves,
+// instead of a 404 (RFC 3986 6.2.2, plan 21 13.7, BUGS.md 210).
+it("unreserved escapes", async () => {
+	const docs = createPage("_root_/docs/routing").render(() => "routing")
+	const server = createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [{ id: "_root_/docs/routing", path: "/docs/routing", module: docs }],
+		}),
+	})
+	const moved = await server.fetch(new Request("http://localhost/docs/%72outing?x=1"))
+	expect([moved.status, moved.headers.get("location")]).toEqual([301, "/docs/routing?x=1"])
+	expect((await server.fetch(new Request("http://localhost/docs/routing"))).status).toBe(200)
+})

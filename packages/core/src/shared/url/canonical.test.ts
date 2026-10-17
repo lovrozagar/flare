@@ -63,3 +63,14 @@ it("base path", () => {
 	expect(canonicalPath("/app", { basePath: "/app", trailingSlash: "always" })).toEqual({ path: "/" })
 	expect(canonicalPath("/app/about", { basePath: "/app" })).toEqual({ path: "/app/about" })
 })
+
+// RFC 3986 6.2.2: an escape of an unreserved character is that character, and every other escape's hex is uppercase,
+// so `/docs/%72outing` is `/docs/routing`. An escaped dot segment stays hostile (plan 21 13.7, BUGS.md 210).
+it("escapes", () => {
+	expect(canonicalPath("/docs/%72outing")).toEqual({ path: "/docs/routing" })
+	expect(canonicalPath("/a/%7Euser/%2D%5F%2e")).toEqual({ path: "/a/~user/-_." })
+	expect(canonicalPath("/caf%c3%a9/%20x")).toEqual({ path: "/caf%C3%A9/%20x" })
+	expect(canonicalPath("/a/%2e%2e/b")).toEqual({ hostile: true })
+	expect(canonicalPath("/a/.%2e/b")).toEqual({ hostile: true })
+	expect(canonicalPath("/a/%2E/b")).toEqual({ hostile: true })
+})
