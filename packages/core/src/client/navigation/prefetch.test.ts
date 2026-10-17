@@ -1,3 +1,4 @@
+import type { Location } from "../../shared/url/index.ts"
 import { flush } from "solid-js"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts"
@@ -40,7 +41,7 @@ function routerOf(options: Partial<RouterOptions> = {}, aboutClient?: RouteModul
 	})
 }
 
-type Setup = { fetch?: Fetch; env?: Partial<PrefetchEnv> }
+type Setup = { fetch?: Fetch; env?: Partial<PrefetchEnv>; current?: () => Location }
 
 function setup(router = routerOf(), options: Setup = {}) {
 	const fetch = vi.fn<Fetch>(options.fetch ?? (async () => ndjson(aboutFrames)))
@@ -62,7 +63,7 @@ function setup(router = routerOf(), options: Setup = {}) {
 	const prefetcher = createPrefetcher({
 		router,
 		origin: location.origin,
-		current: () => ({ pathname: "/", search: "", hash: "" }),
+		current: options.current ?? (() => ({ pathname: "/", search: "", hash: "" })),
 		fetch,
 		build: "b1",
 		land: { dev: false },
@@ -456,4 +457,21 @@ it("forget", async () => {
 	for (const url of ["/about?_flare=data", "/about?n=1&_flare=data", "/about?n=2&_flare=data"]) {
 		expect(app.prefetcher.prefetched(url)).toBeUndefined()
 	}
+})
+
+// A Link watched while the page shows its own URL with a hash, a nav Link on `/about#part`, is a hash move then, and
+// a navigation once the page changes: its trigger resolves the target when it fires (BUGS.md 309). Last in the file:
+// the hover loads `/about`'s module, which every later case would then find loaded.
+it("hash on screen, then another page", async () => {
+	const at = { current: { pathname: "/about", search: "", hash: "#part" } }
+	const app = setup(routerOf({ prefetch: "intent" }), { current: () => at.current })
+	const link = anchor()
+	app.prefetcher.watch(link, "/about")
+	hover(link)
+	await settled()
+	expect(app.fetch).not.toHaveBeenCalled()
+	at.current = { pathname: "/", search: "", hash: "" }
+	hover(link)
+	await settled()
+	expect(app.fetch.mock.calls.map(([url]) => String(url))).toEqual([expect.stringContaining("/about?_flare=prefetch")])
 })

@@ -26,7 +26,7 @@ Hashed assets must be served `immutable`. A prefetched URL that the browser has 
 | case | outcome | test |
 | --- | --- | --- |
 | default router | no loader is prefetched, and after idle every route chunk is | `client/navigation/prefetch.test.ts` `all modules`, `loaded chunks skipped`; `client/boot/ready.test.ts` `all after idle` |
-| `<Link prefetch="intent" />` | hover loads modules and data | `link.test.tsx` `intent` |
+| `<Link prefetch="intent" />` | hover loads modules and data. A Link watched while the page shows its own URL with a hash, a nav link on `/about#part`, binds its triggers all the same, and each resolves its target when it fires, so it prefetches once the page changes (BUGS.md 309) | `link.test.tsx` `intent`; `prefetch.test.ts` `hash on screen, then another page` |
 | `<Link prefetch={{ data: "intent" }} />` | data on hover. Modules stay at the inherited value | `prefetch.test.ts` `object leaves the other field` |
 | `<Link prefetch={false} />` | this link prefetches nothing | `link.test.tsx` `off` |
 | route `prefetch: "viewport"` | both fields are viewport. It does not mean modules only | `prefetch.test.ts` `route string` |
