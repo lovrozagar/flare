@@ -264,7 +264,7 @@ it("revalidate at a hash", async () => {
 it("refresh at a hash", async () => {
 	const app = await setup(async () => ndjson(aboutFrames))
 	await app.navigator.navigate({ to: "_root_/", hash: "part" })
-	await app.navigator.refresh({ fetch: true, stale: [], fresh: false })
+	await app.navigator.refresh({ fetch: true, stale: [], fresh: false, held: false })
 	expect(app.deps.fetch).toHaveBeenCalledOnce()
 })
 

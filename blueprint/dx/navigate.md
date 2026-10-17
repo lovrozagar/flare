@@ -102,6 +102,8 @@ No other prop exists. A `name` or `class` prop does not type-check (`view-transi
 | `next` | the same shape, for the page the navigation wants |
 | `trigger` | `"initial"`, `"navigation"`, or `"revalidation"`. The same set as `shouldRefetch` |
 
+A Back or Forward step whose matches the client cache holds, at any age, paints them at once with no request, as bfcache would; a match past its `staleTime` then revalidates once in place, writing no history, keeping the scroll the step restored, and with no view transition of its own (`navigate-transition.test.ts` `held back once`) (B137, `client/router/match-cache.test.ts` `pop held`, `client/navigation/navigate-cache.test.ts` `back paints held`, `tests/integration/history-client.test.ts` `back paints held` in chromium, firefox, and webkit, BUGS.md 229). A step the cache cannot cover, a match it never held, one evicted, an unfilled deferred value, or a page whose `shouldRefetch` asks, fetches before it commits, as any navigation does.
+
 Popstate that skips entries is replayed one entry at a time. The blocker does not see those steps (`popstate.test.ts` `skipped entries`). The hook returns void. There is no `{ blocked, proceed, reset }` object. A popstate that only clears an overlay does not call the blocker.
 
 ## Scroll and history

@@ -46,10 +46,13 @@ export type Plan = {
 	revalidate: boolean
 	current: EffectPlace
 	next: EffectPlace
+	// A Back or Forward step, which paints what the cache holds whatever its age (B137).
+	pop?: boolean
 }
 
-// A plan's verdict: whether to request, the page ids the client holds fresh, and whether every match is fresh.
-export type CachePlan = { fetch: boolean; stale: string[]; fresh: boolean }
+// A plan's verdict: whether to request, the page ids the client holds fresh, whether every match is fresh, and, for a
+// Back or Forward step, whether the cache holds every match at any age, so the step paints it at once (B137).
+export type CachePlan = { fetch: boolean; stale: string[]; fresh: boolean; held: boolean }
 
 export type MatchCache = {
 	// `at` is the data's time, when it is not now: a hydrated document's render (BUGS.md 139).
@@ -101,11 +104,13 @@ export function createMatchCache(options: {
 		// never is. Hydrate fetches only when a page asks to refetch on "initial".
 		plan(plan) {
 			const asks = asker(plan, options.report ?? logged)
-			const held = (match: CachedMatch): boolean => {
+			// `anyAge` holds an entry past its staleTime too, as a Back or Forward step paints it (B137).
+			const held = (match: CachedMatch, anyAge = false): boolean => {
 				const entry = read(match)
+				if (entry === undefined || plan.revalidate) return false
 				// `0` is never fresh, not even within the millisecond the entry was stored (dx/cache.md, B19).
-				const staleTime = entry?.staleTime ?? options.staleTime
-				if (entry === undefined || plan.revalidate || staleTime === 0 || now() - entry.at > staleTime) return false
+				const staleTime = entry.staleTime ?? options.staleTime
+				if (!anyAge && (staleTime === 0 || now() - entry.at > staleTime)) return false
 				// A deferred entry is reused only once filled, which only `cacheDeferred: true` marks (B19).
 				return entry.deps === deps(match) && !entry.deferred
 			}
@@ -114,8 +119,9 @@ export function createMatchCache(options: {
 			const fetch = plan.trigger !== "initial" || pages.some(asks)
 			// Every match fresh on its own clock, layouts included: no request at all. Mounted is not fresh (B19).
 			const layouts = plan.matches.filter((match) => match.layout)
-			const fresh = kept.length === pages.length && layouts.every(held)
-			return { fetch, stale: kept.map((match) => match.id), fresh }
+			const fresh = kept.length === pages.length && layouts.every((match) => held(match))
+			const whole = plan.pop === true && plan.matches.every((match) => held(match, true) && !asks(match))
+			return { fetch, stale: kept.map((match) => match.id), fresh, held: fresh || whole }
 		},
 	}
 }

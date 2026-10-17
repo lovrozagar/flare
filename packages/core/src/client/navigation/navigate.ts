@@ -95,10 +95,7 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		if (away(target)) return
 		const snapshot = deps.store.snapshot()
 		const pop = mode.pop === true
-		if (target.kind !== "data") {
-			at = inPlace(deps, target, { options, snapshot, pop }) ?? at
-			return
-		}
+		if (target.kind !== "data") return void (at = inPlace(deps, target, { options, snapshot, pop }) ?? at)
 		const plan = planOf({ target, options, snapshot, mode: { ...mode, at } })
 		const move = { current: snapshot.location, next: target.location, trigger: plan.trigger }
 		if (!pop && !allowsNavigation(deps.blockers, move)) return
@@ -118,10 +115,11 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		if (outcome.kind !== "committed") return
 		requests.committed(controller)
 		at = deps.history.index()
-		return watch.committed()
+		watch.committed()
+		if (outcome.stale) void again({}, { ...fillOptions(deps), viewTransition: false })
 	}
-	// The page on screen again, in place: a fill, or hydrate's refresh.
-	const again = (mode: Mode) => go(resolveUrl(fillOptions(deps).to, context()), fillOptions(deps), mode)
+	// The page on screen again, in place: a fill, hydrate's refresh, or a held Back step's, which does not animate (B137).
+	const again = (mode: Mode, options = fillOptions(deps)) => go(resolveUrl(options.to, context()), options, mode)
 	return {
 		fill: (pending) => again({ fill: pending }),
 		refresh: (initial) => again({ initial }),
@@ -151,7 +149,7 @@ function userTarget(deps: NavigatorDeps, target: Target, revalidate: boolean | u
 // a failure that commits nothing). Pending runs from the fetch to the commit, inside the transition's update when one
 // runs, so the old capture shows the page as it was while pending (dx/navigate.md `useNavigation()`, B124); every other
 // end lowers it here.
-type Outcome = { kind: "redirect"; url: string } | { kind: "committed" } | { kind: "none" }
+type Outcome = { kind: "redirect"; url: string } | { kind: "committed"; stale: boolean } | { kind: "none" }
 
 async function travel(
 	deps: NavigatorDeps,
@@ -165,7 +163,7 @@ async function travel(
 		const redirect = settled.arrival.kind === "landed" ? settled.arrival.landing.redirect : undefined
 		if (redirect !== undefined) return { kind: "redirect", url: redirect.url }
 		const landed = { chain: settled.chain, arrival: settled.arrival, signal: input.trip.signal, end }
-		return { kind: (await settle(deps, plan, landed)) ? "committed" : "none" }
+		return await settle(deps, plan, landed)
 	} finally {
 		end()
 	}
@@ -224,12 +222,13 @@ function planOf(input: {
 	return plan
 }
 
-// A landed overlay keeps the background. Anything else, a failed overlay fetch included, commits as a visit.
+// A landed overlay keeps the background. Anything else, a failed overlay fetch included, commits as a visit. A Back or
+// Forward step the cache painted with a match past its staleTime commits `stale`, and then revalidates in place (B137).
 async function settle(
 	deps: NavigatorDeps,
 	plan: Plan,
 	settled: { chain: LoadedEntry[]; arrival: Exclude<Arrival, { kind: "none" }>; signal: AbortSignal; end: () => void },
-): Promise<boolean> {
+): Promise<Outcome> {
 	const { target, previous, arrival } = { ...plan, arrival: settled.arrival }
 	if (plan.intercept !== undefined && arrival.kind === "landed" && arrival.landing.failure === undefined) {
 		const write = !plan.pop && plan.trigger === "navigation"
@@ -243,7 +242,7 @@ async function settle(
 			options: plan.options,
 		})
 		settled.end()
-		return true
+		return { kind: "committed", stale: false }
 	}
 	const next = committedSnapshot(deps, plan.fill, { target, chain: settled.chain, arrival, previous })
 	const step = { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation" }
@@ -267,9 +266,9 @@ async function settle(
 			if (scrolled) scrollFor(deps, target.location, step)
 		},
 	})
-	if (!(await shown)) return false
+	if (!(await shown)) return { kind: "none" }
 	land(deps, target, { ...step, scrolled })
-	return true
+	return { kind: "committed", stale: arrival.kind === "landed" && arrival.stale === true }
 }
 
 // A hash move and a shallow navigation stay on the page: no request and no loader. A shallow one asks the blocker
