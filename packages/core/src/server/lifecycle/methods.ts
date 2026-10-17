@@ -13,7 +13,7 @@ import { classify, isServerFn } from "./classify.ts"
 import { RedirectError } from "../../shared/errors/redirect.ts"
 import { redirectLocation } from "../redirect/index.ts"
 import type { RuntimeOptions } from "./options.ts"
-import { finalize } from "./finalize.ts"
+import { finalize, ownStage } from "./finalize.ts"
 
 const ALLOW = "GET, HEAD, OPTIONS"
 
@@ -28,11 +28,11 @@ export type MethodMatch =
 // `headers` is the request's security set, so a 204 and a 405 carry it like any other status.
 export function applyMethod(request: Request, document: Response, headers?: Headers): Response {
 	if (request.method === "GET") return document
-	// A HEAD sends the document's status and headers. Its body is cancelled, which stops the render behind it, so no
-	// render outlives the answer (plan 21 3.12).
+	// A HEAD sends the document's status and headers, Flare's own render mode and cache verdict too (BUGS.md 337). Its
+	// body is cancelled, which stops the render behind it, so no render outlives the answer (plan 21 3.12).
 	if (request.method === "HEAD") {
 		void document.body?.cancel()
-		return finalize({ status: document.status, body: "", headers: document.headers })
+		return finalize({ status: document.status, body: "", headers: document.headers, ...ownStage(document) })
 	}
 	if (request.method === "OPTIONS") return finalize({ status: 204, body: "", headers: allow(headers) })
 	return finalize({ status: 405, body: "", headers: allow(headers) })

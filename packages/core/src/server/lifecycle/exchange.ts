@@ -6,7 +6,7 @@ import type { LoaderRun } from "../loaders/run.ts"
 import type { MountContext } from "../mount/mount.ts"
 import { projectError, type ErrorSink } from "../render/projector.ts"
 import { applySecurity, type Secured, type SecurityConfig } from "../security/apply.ts"
-import { carryMark, finalize, keptAs, type StageResult } from "./finalize.ts"
+import { carryMark, finalize, keptAs, ownStage, type StageResult } from "./finalize.ts"
 import { NDJSON, redirectBody } from "../navigation/response.ts"
 import { exitHeaders, NO_STORE } from "./policies.ts"
 import { RedirectError } from "../../shared/errors/redirect.ts"
@@ -128,10 +128,11 @@ export function passed(exchange: Answering, response: Response): Response {
 // the runtime keeps the type it knows for the body (finalize.ts `keptAs`, plan 21 12.7); any other is built anew.
 export function answerFrom(exchange: Answering, response: Response, headers: Headers): Response {
 	const status = response.status
+	const own = ownStage(response)
 	const kept = response.headers.has("content-type")
 		? undefined
-		: keptAs(response, secure(exchange, { status, body: null, headers }))
-	return kept ?? carryMark(response, secure(exchange, { status, body: response.body, headers }))
+		: keptAs(response, secure(exchange, { status, body: null, headers, ...own }))
+	return kept ?? carryMark(response, secure(exchange, { status, body: response.body, headers, ...own }))
 }
 
 // An answer the app built, a `.response()` page or a server function, still passes through finalize, and the

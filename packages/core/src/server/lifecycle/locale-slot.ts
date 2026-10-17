@@ -1,6 +1,7 @@
 import type { RequestKind } from "../../shared/protocol/index.ts"
 import type { Router } from "../../shared/router/create-router.ts"
 import { redirectAnswer, secure, type Exchange } from "./exchange.ts"
+import { ownStage } from "./finalize.ts"
 import { privately } from "./policies.ts"
 
 // The key `i18n()` publishes its slot under. A middleware has no such key, and the slot is not a middleware.
@@ -48,9 +49,11 @@ export async function withLocale(exchange: Exchange, chain: () => Promise<Respon
 	const headers = new Headers(response.headers)
 	if (downgrade) privately(headers)
 	if (cookie !== undefined) headers.append("set-cookie", cookie)
-	// The router's answer leaves with the set it was built under, as the middleware exit's does (BUGS.md B12).
+	// The router's answer leaves with the set it was built under, as the middleware exit's does (BUGS.md B12), and with
+	// Flare's own render mode and cache verdict (BUGS.md 337).
 	const secured = exchange.built.secured ?? exchange.secured
-	return secure({ ...exchange, secured }, { status: response.status, body: response.body, headers })
+	const own = ownStage(response)
+	return secure({ ...exchange, secured }, { status: response.status, body: response.body, headers, ...own })
 }
 
 function isPrivate(response: Response): boolean {

@@ -4,6 +4,7 @@ import { Dynamic } from "@solidjs/web"
 import net from "node:net"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import { createNodeListener } from "../../src/adapters/node/listener.ts"
+import { createMemoryStore } from "../../src/server/cache/memory.ts"
 import { createServer, serveWith } from "../../src/server/lifecycle/create.ts"
 import type { Logger } from "../../src/server/lifecycle/logger.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
@@ -219,6 +220,45 @@ it("powered by only from security", async () => {
 		)
 	expect(await sent(server())).toEqual([null, null, null, null, null])
 	expect(await sent(server({ "X-Powered-By": "Flare" }))).toEqual(["Flare", "Flare", "Flare", "Flare", "Flare"])
+})
+
+// Finalize sets `flare-build`, `flare-render`, and `flare-cache`: a `.response()` page, a mount, or a middleware that
+// sends its own, an upstream Flare app's say, does not replace them (dx/server.md, BUGS.md 337).
+it("flare headers are flare's", async () => {
+	const forged = { "flare-build": "evil", "flare-render": "isr", "flare-cache": "hit" }
+	const raw = createPage("_root_/raw").response(() => new Response("raw", { headers: forged }))
+	const server = createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [{ id: "_root_/raw", path: "/raw", module: raw }],
+		}),
+		mounts: [{ prefix: "/api", fetch: () => new Response("api", { headers: forged }) }],
+		middleware: [{ filter: { exact: ["/mw"] }, handler: () => new Response("mw", { headers: forged }) }],
+	})
+	for (const path of ["/raw", "/api/x", "/mw"]) {
+		const headers = (await server.fetch(new Request(`http://localhost${path}`))).headers
+		const flare = ["flare-build", "flare-render", "flare-cache"].map((name) => headers.get(name))
+		expect([path, flare]).toEqual([path, ["dev", null, null]])
+	}
+})
+
+// An answer Flare built keeps the `flare-render` and `flare-cache` it set when it passes out through a middleware, as a
+// stored page's miss does (BUGS.md 337).
+it("flare headers pass a middleware", async () => {
+	const kept = createPage("_root_/kept")
+		.cache({ isr: true })
+		.render(() => "kept")
+	const server = createServer({
+		router: createRouter({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [{ id: "_root_/kept", path: "/kept", module: kept }],
+		}),
+		middleware: [async (ctx) => ctx.next()],
+		site: "https://localhost",
+		store: createMemoryStore(),
+	})
+	const miss = await server.fetch(new Request("http://localhost/kept"))
+	expect([miss.headers.get("flare-render"), miss.headers.get("flare-cache")]).toEqual(["isr", "miss"])
 })
 
 // Solid writes the head into the document's head element, so the root renders a full document.
