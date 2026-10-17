@@ -113,11 +113,13 @@ it("i18n peers removed after build", async () => {
 	}
 })
 
-// The dev server names the missing peers on the first page that reaches the matcher: its error page carries the
-// message (dx/plugin.md Development errors). The terminal does not yet (BUGS.md 301).
-it("i18n without peers, dev", async () => {
-	const dir = staged("i18n-dev")
-	useI18n(dir)
+// The dev server's first page names every missing peer twice: its error page carries the message, and the terminal
+// that runs `vite dev` logs it (dx/plugin.md Development errors, BUGS.md 301). The lines missing from each, empty when
+// both name every peer; the terminal gets 10 s to log.
+async function devNames(
+	dir: string,
+	feature: keyof typeof FEATURES,
+): Promise<{ status: number; page: string[]; terminal: string[] }> {
 	const vite = join(dir, "node_modules/vite/bin/vite.js")
 	const dev = await serve(current(), {
 		dir,
@@ -128,14 +130,22 @@ it("i18n without peers, dev", async () => {
 		const home = await fetch(`${dev.origin}/`)
 		// The dev error page shows the message as escaped text.
 		const page = (await home.text()).replaceAll("&gt;", ">").replaceAll("&quot;", '"').replaceAll("&amp;", "&")
-		expect([home.status, message("i18n").filter((line) => !page.includes(line)), page]).toEqual([
-			500,
-			[],
-			expect.any(String),
-		])
+		const missing = (text: () => string) => message(feature).filter((line) => !text().includes(line))
+		const deadline = Date.now() + 10_000
+		while (missing(dev.output).length > 0 && Date.now() < deadline) {
+			await new Promise((resolve) => setTimeout(resolve, 200))
+		}
+		return { status: home.status, page: missing(() => page), terminal: missing(dev.output) }
 	} finally {
 		await dev.stop()
 	}
+}
+
+// The server entry imports the i18n server, so the entry itself fails to load.
+it("i18n without peers, dev", async () => {
+	const dir = staged("i18n-dev")
+	useI18n(dir)
+	expect(await devNames(dir, "i18n")).toEqual({ status: 500, page: [], terminal: [] })
 })
 
 it("image without sharp", () => {
@@ -149,14 +159,18 @@ it("image without sharp", () => {
 	])
 })
 
-it("query without solid-query", () => {
-	const dir = staged("query")
-	const page = join(dir, "src/routes/_root_/home.page.tsx")
+// The minimal app's home page as a query page.
+function useQuery(dir: string): void {
 	edit(
-		page,
+		join(dir, "src/routes/_root_/home.page.tsx"),
 		'import { createPage } from "@lovrozagar/flare"\n',
 		'import { createPage } from "@lovrozagar/flare"\nimport { createQueryClientGetter } from "@lovrozagar/flare/query"\n\nexport const queryClient = createQueryClientGetter()\n',
 	)
+}
+
+it("query without solid-query", () => {
+	const dir = staged("query")
+	useQuery(dir)
 	const built = buildApp(current(), dir)
 	expect([built.status, message("query").filter((line) => !built.output.includes(line)), built.output]).toEqual([
 		1,
