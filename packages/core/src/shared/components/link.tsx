@@ -106,34 +106,48 @@ function anchor(props: AnyLinkProps): JSX.Element {
 	}
 	return createComponent(
 		Dynamic,
-		merge(omit(props, ...OWN), () => (active() ? props.activeProps : props.inactiveProps) ?? {}, {
+		merge(omit(props, ...OWN), () => stateProps(props, active()), ownAttributes(props, active), {
 			component: "a",
 			ref: (anchor: HTMLAnchorElement) => void (element = anchor),
 			onClick,
 			get href() {
 				return url()
 			},
-			get class() {
-				const classes = [props.class, active() ? props.activeClass : props.inactiveClass].filter(Boolean)
-				return classes.length === 0 ? undefined : classes.join(" ")
-			},
-			get rel() {
-				return props.rel ?? (props.target === "_blank" ? "noopener noreferrer" : undefined)
-			},
-			get "aria-current"() {
-				return active() ? "page" : undefined
-			},
-			get "aria-disabled"() {
-				return props.disabled === true ? "true" : undefined
-			},
-			get tabindex() {
-				return props.disabled === true ? -1 : undefined
-			},
 			get children() {
 				return props.children
 			},
 		}),
 	)
+}
+
+// The state's own attributes, `activeProps` or `inactiveProps`.
+function stateProps(props: AnyLinkProps, active: boolean): Record<string, unknown> {
+	return Object((active ? props.activeProps : props.inactiveProps) ?? {})
+}
+
+// The attributes Link writes itself. One Link leaves unset falls back to the state's own, and the state's class joins
+// Link's classes (BUGS.md 306).
+function ownAttributes(props: AnyLinkProps, active: () => boolean): Record<string, unknown> {
+	const stated = (name: string): unknown => stateProps(props, active())[name]
+	return {
+		get class() {
+			const classes = [props.class, active() ? props.activeClass : props.inactiveClass, stated("class")]
+			const present = classes.filter(Boolean)
+			return present.length === 0 ? undefined : present.join(" ")
+		},
+		get rel() {
+			return props.rel ?? stated("rel") ?? (props.target === "_blank" ? "noopener noreferrer" : undefined)
+		},
+		get "aria-current"() {
+			return active() ? "page" : stated("aria-current")
+		},
+		get "aria-disabled"() {
+			return props.disabled === true ? "true" : stated("aria-disabled")
+		},
+		get tabindex() {
+			return props.disabled === true ? -1 : stated("tabindex")
+		},
+	}
 }
 
 // A same-origin anchor that matches a route is followed like `Link` (B84). `visit` is the client navigator's.
