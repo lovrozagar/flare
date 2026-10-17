@@ -730,7 +730,7 @@ packages/core/tests/size/budget.json	P1	config	-	Gzip budget per export. Starts 
 packages/core/tests/size/size.test.ts	P1	test	node	A row over budget fails. An export missing from the budget fails
 packages/core/tests/size/breakdown.ts	P7	script	node	The minified gzip of one export's bundle, and each module's and declaration's marginal gzip. A budget raise carries its output
 packages/core/tests/size/breakdown.test.ts	P7	test	node	Unit cases for breakdown.ts
-packages/core/tests/types/propagation.test.ts	P1	test	node	expectTypeOf and @ts-expect-error for every matrix row in dx/types.md. Included in the core typecheck (B74)
+packages/core/tests/types/propagation.test.ts	P1	test	node	expectTypeOf and @ts-expect-error for the dx/types.md matrix rows not marked only. Included in the core typecheck (B74)
 packages/core/tests/types/server-fn.test.ts	P7	test	node	The dx/types.md matrix rows whose producer is createServerFn, against the real builder
 packages/core/tests/types/navigation.test.ts	P7	test	node	The dx/types.md matrix rows whose consumer is a data hook or useNavigate(), split from propagation.test.ts for its 500-line cap
 packages/core/tests/types/app.test.ts	P7	test	node	Runs the types generator on the fixture, then tsc --noEmit. An unused @ts-expect-error exits non-zero (B74)
@@ -740,6 +740,7 @@ packages/core/tests/types/app/src/register.d.ts	P7	app	-	Augments auth, env, and
 packages/core/tests/types/app/src/checks.ts	P7	app	-	One positive assignment and one @ts-expect-error for every matrix row marked app: the params, `to`, and search rows. checks-data.ts and checks-fns.ts hold the rest, for the 300-line cap
 packages/core/tests/types/app/src/checks-data.ts	P7	app	-	The app rows for loader data, the preloader context, auth, head, defer, and effects
 packages/core/tests/types/app/src/checks-fns.ts	P7	app	-	The app rows for the hooks, server functions, and the path segment
+packages/core/tests/types/app/src/checks-chain.ts	P7	app	-	The dx/types.md app rows for headers, security, effects, the boundaries, and preloader and authorize propagation
 packages/core/tests/types/app/src/query.ts	P13	app	-	Imports @lovrozagar/flare/query so the generator sets hasQueryClient
 packages/core/tests/types/app/src/image.ts	P13	app	-	A ?image import is the binding and a plain one stays vite/client's string
 packages/core/tests/types/app/src/fns/echo.ts	P7	app	-	Server function with input and a handler, plus a stream export

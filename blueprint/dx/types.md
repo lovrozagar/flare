@@ -110,7 +110,7 @@ A method called before its step is absent from the type and throws (`chain.test.
 
 ## Matrix
 
-Each row is one case in `packages/core/tests/types/propagation.test.ts`, except `hook from`, `hook unknown`, `use match untyped`, `use location raw`, and `use navigate`, which are in `packages/core/tests/types/navigation.test.ts`, and the ten `server fn` rows, which are in `packages/core/tests/types/server-fn.test.ts`. The case name is the first column. `expectTypeOf` covers the positive program. `@ts-expect-error` covers the negative program. Rows marked `app` are also assignments in `packages/core/tests/types/app/src/checks.ts`, `checks-data.ts`, and `checks-fns.ts`. Rows marked `gen` are also text cases in `vite/codegen/types-gen.test.ts`.
+Each row is one case in `packages/core/tests/types/propagation.test.ts`, except `hook from`, `hook unknown`, `use match untyped`, `use location raw`, and `use navigate`, which are in `packages/core/tests/types/navigation.test.ts`, and the ten `server fn` rows, which are in `packages/core/tests/types/server-fn.test.ts`. The case name is the first column. `expectTypeOf` covers the positive program. `@ts-expect-error` covers the negative program. Rows marked `app` are also assignments in `packages/core/tests/types/app/src/checks.ts`, `checks-data.ts`, `checks-fns.ts`, and `checks-chain.ts`. Rows marked `gen` are also text cases in `vite/codegen/types-gen.test.ts`. A row marked `only` has no case in `propagation.test.ts`: its type is a builder callback's, which reads the generated register, or the generated text itself, and a stand-in type written in the test would check nothing of the package (plan 21 11.5).
 
 An augmented register is the precondition, except `unregistered fallback` and `auth unaugmented`.
 
@@ -126,7 +126,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `param before root` | `[locale]/_root_/about` | `params` | `locale: string` | `locale` omitted | app |
 | `input params` | `.input({ params })` returns `{ id: number }` | render `params`, `Link` | `id.toFixed(0)` | `id.toUpperCase()`; the bracket `string` assigned back | app, gen |
 | `input one side` | `.input({ params })` only | `search` | search stays the raw record | search typed as the params output | app |
-| `input empty` | `.input({})` | the builder | | does not type-check: `RouteInput` names `params`, `searchParams`, or both (`app`: `checks-data.ts` `input empty`, plan 21 11.4) | |
+| `input empty` | `.input({})` | the builder | | does not type-check: `RouteInput` names `params`, `searchParams`, or both (`app`: `checks-data.ts` `input empty`, plan 21 11.4) | app only |
 | `missing param` | `[id]` | `Link`, `navigate` | `params: { id: "1" }` | `params` omitted | app |
 | `extra param` | `[id]` | `Link` | | `params: { id: "1", extra: "x" }` | app |
 | `unknown route` | augmented `routeModules` | `to` | a page id | `"nope"` and a wide `string` | app |
@@ -144,27 +144,27 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `parent search hidden` | layout validates `{ section: string }`, page does not | page `search` | the page stays raw | the page requires `section` | app |
 | `loader deep` | loader returns `{ user: { name: string } }` | `loaderData.user.name`, `useLoaderData({ from })` | `name` is `string` | `user.age`; `loaderData.missing` | app |
 | `loader primitive` | loader returns `"text"` or `1` | the loader | an object or no return | a primitive return | app |
-| `loader awaited` | loader returns `Promise<{ n: number }>` | `loaderData` | `{ n: number }` | the `Promise` remaining | app |
+| `loader awaited` | loader returns `Promise<{ n: number }>` | `loaderData` | `{ n: number }` | the `Promise` remaining | app only |
 | `loader absent` | render and no `.loader()` | `loaderData` | `void` | reading a field | app |
 | `parent loader hidden` | layout loader `{ section: string }`, page loader `{ title: string }` | `useLoaderData({ from: pageId })` | `title` | `section` on the page call | app |
 | `layout data` | the same pair | `useLoaderData({ from: layoutId })` | `section` | `title` on the layout call | app |
 | `preloader accumulate` | root `{ requestId: string }`, layout `{ role: "admin" \| "editor" }`, page `{ n: 1 }` | page render and `usePreloaderContext({ from: pageId })` | all three keys | a parent key missing | app |
 | `preloader narrow` | parent `role: "admin" \| "editor"`, own `role: "admin"` | later callbacks | `role` is `"admin"` | `role` assigned `"editor"` | app |
 | `preloader clash` | parent `theme: string`, own `theme: number`; or literals that share nothing, a layout's `role: "admin" \| "editor"` under a page's `role: "viewer"` | later callbacks | a sibling key still reads: the context merges key by key, so only the clashing key is `never` (`app`: `checks-data.ts` `preloader literal clash`, `(blog)/viewer`, plan 21 11.2) | `theme` used as `string` or as `number`; `role` given any value | |
-| `preloader empty keeps` | parent `{ requestId: string }`, own `{}` | later callbacks | `requestId` remains | `requestId` erased | |
-| `preloader parents only` | own return `{ n: 1 }` | the preloader callback and `authorize` | parent keys | `n` on those two callbacks | |
-| `root preloader` | root `.preloader()` returns `{ requestId: string }` | the root preloader callback; later root callbacks | the callback has no `preloaderContext`; later callbacks see `requestId` | `ctx.preloaderContext` on the root preloader callback; a parent key | app |
+| `preloader empty keeps` | parent `{ requestId: string }`, own `{}` | later callbacks | `requestId` remains | `requestId` erased | app only |
+| `preloader parents only` | own return `{ n: 1 }` | the preloader callback and `authorize` | parent keys | `n` on those two callbacks | app only |
+| `root preloader` | root `.preloader()` returns `{ requestId: string }` | the root preloader callback; later root callbacks | the callback has no `preloaderContext`; later callbacks see `requestId` | `ctx.preloaderContext` on the root preloader callback; a parent key | app only |
 | `missing parent` | `routeParents` names an id absent from `routeModules` | preloader context | | the context is `never`, not `{}` | |
 | `auth required` | `.authenticate()` and `auth: { userId: string }` | loader `ctx.auth` | `userId` is `string` | `null` assigned to `auth` | app |
 | `auth optional` | `.authenticateOptional()` | loader `ctx.auth` | the session or `null` | `ctx.auth.userId` with no check | app |
 | `auth unaugmented` | `.authenticate()` and no `auth` field | loader `ctx.auth` | `null` | `ctx.auth.userId` | |
-| `cannot loosen` | parent seed `true` | `.authenticateOptional()` | `.authenticate()` still type-checks | `.authenticateOptional()` does not type-check | app |
+| `cannot loosen` | parent seed `true` | `.authenticateOptional()` | `.authenticate()` still type-checks | `.authenticateOptional()` does not type-check | app only |
 | `omit keeps parent` | parent `true`, child calls neither method | child loader `ctx.auth` | `userId` | `null` assigned | app |
 | `grandchild strict` | outer `true`, middle file omits both methods | grandchild loader | `userId` | the middle file's omission widening the grandchild to the session or `null` | app |
 | `authorize reads` | `.authorize()` and no authenticate method, parent seed `false` | loader `ctx.auth` | the session or `null` | `null` only; `userId` with no check | app |
-| `authorize keeps required` | parent `true`, child `.authorize()` only | child `ctx.auth` | the session, non-null | the session or `null` | |
-| `authorize keeps optional` | parent `"optional"`, child `.authorize()` only | child `ctx.auth` | the session or `null` | `true` (non-null) forced by `authorize` | |
-| `render auth` | `.authenticate()` | render props | | `props.auth` | app |
+| `authorize keeps required` | parent `true`, child `.authorize()` only | child `ctx.auth` | the session, non-null | the session or `null` | app only |
+| `authorize keeps optional` | an `"optional"` seed (`.authenticateOptional()` before it), then `.authorize()` | child `ctx.auth` | the session or `null` | `true` (non-null) forced by `authorize` | app only |
+| `render auth` | `.authenticate()` | render props | | `props.auth` | app only |
 | `auth mode` | `.authenticateOptional()` | `authModes` | `"optional"`. The file contains no `.authenticate("optional")` | the key present when the method was not called | gen |
 | `server fn no optional` | `createServerFn` | the builder | `.authenticate()` | `.authenticateOptional` | |
 | `server fn auth null` | no `.authenticate()` | handler `ctx.auth` | `null` | the session or `null`; `userId` | app |
@@ -174,13 +174,13 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `use match untyped` | `useMatch({ from })` | the return | `{ id: string, routeId: string }` | `match.params`; `match.loaderData.user` | app |
 | `use location raw` | `useLocation()` | `params`, `search` | the raw records. No `{ from }` | the validator output assigned to `search` | app |
 | `use navigate` | `useNavigate()` | the return | the same generic as `navigate` | a separate untyped `(to: string) => void` | |
-| `i18n t hooks` | `useLoaderT(translations)`, `usePreloaderT(translations)` | the binding | `t` for that loader or preloader: `(key, values?) => string`, plus `t.rich` | either hook used as `useLoaderData`; a call with no translations | |
+| `i18n t hooks` | `useLoaderT(translations)`, `usePreloaderT(translations)` | the binding | `t` for that loader or preloader: `(key, values?) => string`, plus `t.rich` | either hook used as `useLoaderData`; a call with no translations | app only |
 | `defer field` | `ctx.defer(async () => ({ quote: string }))` | `loaderData.reviews` | `Deferred<{ quote: string }>` | the field assigned `{ quote: string }`; the field awaited | app |
 | `defer nested` | the same | `.promise` | `(await reviews.promise).quote` is `string` | `reviews.quote`; `reviews.message` | app |
 | `defer no then` | `Deferred<T>` | `Awaited` | the deferred field stays wrapped | `Awaited<Deferred<T>>` equals `T` | |
-| `query options input` | a server function whose input is `{ q: string }` and whose handler returns `{ q: string }` | `serverFnQueryOptions(fn, { queryKey, input })` | `queryFn` is `() => Promise<{ q: string }>`. `input` is `{ q: string }` | `input` omitted; a fresh extra key | app |
-| `query options void` | a server function with no `.input()` | the same helper | `input` omitted. `queryFn` calls `fn()` | `input` passed | app |
-| `mutation options` | a handler that returns `{ id: string }` | `serverFnMutationOptions(fn, { mutationKey })` | `onSuccess` receives `{ id: string }` | the envelope type; `onSuccess` present when `mutationKey` is omitted | |
+| `query options input` | a server function whose input is `{ q: string }` and whose handler returns `{ q: string }` | `serverFnQueryOptions(fn, { queryKey, input })` | `queryFn` is `() => Promise<{ q: string }>`. `input` is `{ q: string }` | `input` omitted; a fresh extra key | app only |
+| `query options void` | a server function with no `.input()` | the same helper | `input` omitted. `queryFn` calls `fn()` | `input` passed | app only |
+| `mutation options` | a handler that returns `{ id: string }` | `serverFnMutationOptions(fn, { mutationKey })` | `onSuccess` receives `{ id: string }` | the envelope type; `onSuccess` present when `mutationKey` is omitted | app only |
 | `server fn input` | `.input()` with a schema whose input and output are `{ q: string }`; and a transforming one, input `string`, output `number` | the client argument and handler `ctx.input` | the argument is the input (`{ q: string }`, then `string`); `ctx.input` is the output (`{ q: string }`, then `number`) | a fresh extra key; the argument omitted | app |
 | `server fn input void` | no `.input()` | the client function | called with no argument. `ctx.input` is `undefined` | a value passed | app |
 | `server fn schema unknown` | a Standard Schema whose output is `unknown` | the client argument | | a bad key is not rejected. This row documents that limit | |
@@ -188,26 +188,26 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `server fn stream` | `yield` of `{ n: number }` | the client iterator | `AsyncIterable<{ n: number }>`. The generator's return is dropped | `revalidate` on the stream context; `signal` on the handler | app |
 | `server fn render call` | the client function | a render body | the call type-checks. The stub throws at runtime | a type error added to make the call illegal | |
 | `server fn methods` | `.authenticate()` | the server-fn builder | `input`, `authorize`, `handler`, and `stream` remain | `.authenticate` still present | |
-| `query client present` | `hasQueryClient: true` | loader `ctx` | `queryClient` is the query client | `queryClient` on preloader, render, or head | app, gen |
-| `query client absent` | the field omitted | loader `ctx` | | `ctx.queryClient` | gen |
-| `head loader` | this route's loader and preloader | head `ctx` | `loaderData` and the accumulated preloader, validated params and search | `ctx.auth`; a parent loader field; `parentHead` | app |
-| `headers record` | headers callback | the return and `ctx` | `Record<string, string \| string[]>` and the same four fields as head | `parentHeaders`; `ctx.auth` | |
-| `security no nonce` | route `.security(ctx => …)` | `ctx` | the same four fields | `ctx.nonce` | |
-| `loader deps raw` | a search validator `{ page: number }` | `loaderDeps` | raw `search` and raw `params` | `search.page` as `number` | app |
-| `should refetch raw` | the same | `location.current.search` | the raw record | the validator output | |
-| `error boundary` | `errorRender` | the props | `error` is `Error`, `params` and `search` are typed, `reset()` | `error` as `string`; `props.auth` | |
-| `not found boundary` | `notFoundRender` | the props | typed `params` and `search` | an `error` prop | |
-| `auth boundary` | `unauthenticatedRender` | the props | `error` is `Error`, not a narrower class | `reset` | |
+| `query client present` | `hasQueryClient: true` | loader `ctx` | `queryClient` is the query client | `queryClient` on preloader, render, or head | app, gen only |
+| `query client absent` | the field omitted | loader `ctx` | | `ctx.queryClient` | gen only |
+| `head loader` | this route's loader and preloader | head `ctx` | `loaderData` and the accumulated preloader, validated params and search | `ctx.auth`; a parent loader field; `parentHead` | app only |
+| `headers record` | headers callback | the return and `ctx` | `Record<string, string \| readonly string[] \| undefined>` and the same four fields as head | `parentHeaders`; `ctx.auth` | app only |
+| `security no nonce` | route `.security(ctx => …)` | `ctx` | the same four fields | `ctx.nonce` | app only |
+| `loader deps raw` | a search validator `{ page: number }` | `loaderDeps` | raw `search` and raw `params` | `search.page` as `number` | app only |
+| `should refetch raw` | the same | `ctx.search`; `location.current.search` | the raw record; the URL's query string | the validator output | app only |
+| `error boundary` | `errorRender` | the props | `error` is `Error`, `params` and `search` are typed, `reset()` | `error` as `string`; `props.auth` | app only |
+| `not found boundary` | `notFoundRender` | the props | typed `params` and `search` | an `error` prop | app only |
+| `auth boundary` | `unauthenticatedRender` | the props | `error` is `Error`, not a narrower class | `reset` | app only |
 | `method order` | `.loader()` then `.cache()` | the builder | | `.cache` is absent | |
 | `boundary remains` | `.errorRender()` | the builder | `notFoundRender` remains | a second `errorRender` | |
 | `boundaries done` | all four boundary methods | the builder | | any boundary method remaining | |
 | `intercept remains` | `.intercept()` | the builder | `.cache()` remains | a second `.intercept()` | |
-| `segment no data` | `createPathSegment` | the export | `_type` is `"segment"`. Render props are `{ children }` | `.loader`, `.preloader`, `.authenticate`, `.input`, `.head` | app, gen |
-| `segment parent` | a segment file on the path | `routeParents` | the segment id is absent | the segment id listed as a parent | gen |
+| `segment no data` | `createPathSegment` | the export | `_type` is `"segment"`. Render props are `{ children }` | `.loader`, `.preloader`, `.authenticate`, `.input`, `.head` | app, gen only |
+| `segment parent` | a segment file on the path | `routeParents` | the segment id is absent | the segment id listed as a parent | gen only |
 | `parents closed` | `routeParents` | `routeModules` | every parent id is a key | a parent id missing | gen |
 | `keyed by route id` | a layout and a page both call `.input()` | `routeParams`, `routeSearchParams` | both keys are route ids | the page entry carrying the layout's output; a public URL used as the key | gen |
-| `no virtual` | the generated file | the text | no `virtual:` specifier | a `virtual:` module | gen |
-| `no phantom` | the generated file | `auth`, `env`, `serverContext` | those three fields are absent from the generated augmentation | `~flare` | gen |
+| `no virtual` | the generated file | the text | no `virtual:` specifier | a `virtual:` module | gen only |
+| `no phantom` | the generated file | `auth`, `env`, `serverContext` | those three fields are absent from the generated augmentation | `~flare` | gen only |
 | `env omitted` | no `env` augmentation | loader `ctx.env` | `unknown` | a field read | |
 | `server context omitted` | no `serverContext` augmentation | `serverCtx()` | `Record<string, unknown>` | a specific field required | |
 

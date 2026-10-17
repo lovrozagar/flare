@@ -84,12 +84,6 @@ it("input one side", () => {
 	// @ts-expect-error search is not the params validator output
 	const _bad: InferSearch<App, "_root_/users/[id]"> = { id: 1 }
 })
-it("input empty", () => {
-	type Side = { params: object } | { searchParams: object }
-	expectTypeOf<Side>().not.toEqualTypeOf<{}>()
-	// @ts-expect-error at least one side is required
-	const _empty: Side = {}
-})
 it("missing param", () => {
 	const ok: RouteTarget<App, "_root_/users/[id]"> = { to: "_root_/users/[id]", params: { id: 1 } }
 	expectTypeOf(ok.params.id).toEqualTypeOf<number>()
@@ -193,11 +187,6 @@ it("loader deep", () => {
 	// @ts-expect-error age is not on the loader
 	const _bad: LoaderDataFrom<App, "_root_/users/[id]">["user"] = { name: "a", age: 1 }
 })
-it("loader awaited", () => {
-	expectTypeOf<Awaited<Promise<{ n: number }>>>().toEqualTypeOf<{ n: number }>()
-	// @ts-expect-error the promise is unwrapped
-	const _bad: { n: number } = Promise.resolve({ n: 1 })
-})
 it("loader absent", () => {
 	expectTypeOf<LoaderDataFrom<App, "_root_/echo">>().toEqualTypeOf<void>()
 	// @ts-expect-error there is no field without a loader
@@ -230,21 +219,6 @@ it("preloader clash", () => {
 	expectTypeOf<PreloaderFrom<App, "_root_/clash">["requestId"]>().toEqualTypeOf<string>()
 	expectTypeOf<PreloaderFrom<App, "_root_/clash">["theme"]>().toEqualTypeOf<never>()
 })
-it("preloader empty keeps", () => {
-	expectTypeOf<({ requestId: string } & {})["requestId"]>().toEqualTypeOf<string>()
-	// @ts-expect-error an empty own return does not erase the parent
-	const _bad: { requestId: string } = {}
-})
-it("preloader parents only", () => {
-	expectTypeOf<{ requestId: string }["requestId"]>().toEqualTypeOf<string>()
-	// @ts-expect-error the own return is not visible yet
-	const _bad: { requestId: string } = { requestId: "a", n: 1 }
-})
-it("root preloader", () => {
-	expectTypeOf<{ requestId: string }["requestId"]>().toEqualTypeOf<string>()
-	// @ts-expect-error the root preloader callback has no preloader context
-	const _bad: { requestId?: never } = { requestId: "a" }
-})
 it("missing parent", () => {
 	expectTypeOf<PreloaderFrom<App, "_root_/orphan">>().toEqualTypeOf<never>()
 	// @ts-expect-error a missing parent is never, not an empty object
@@ -264,11 +238,6 @@ it("auth unaugmented", () => {
 	// @ts-expect-error there is no session field until the app augments auth
 	const _bad: ResolvedAuth<FlareRegister, true> = { userId: "a" }
 })
-it("cannot loosen", () => {
-	expectTypeOf<true extends true ? true : "optional">().toEqualTypeOf<true>()
-	// @ts-expect-error a child cannot loosen a required parent
-	const _bad: true extends true ? never : "optional" = "optional"
-})
 it("omit keeps parent", () => {
 	expectTypeOf<ResolvedAuth<App, true>>().toEqualTypeOf<{ userId: string }>()
 	// @ts-expect-error omitting the method does not widen a required parent
@@ -283,24 +252,10 @@ it("authorize reads", () => {
 	expectTypeOf<ResolvedAuth<App, "optional">>().toEqualTypeOf<{ userId: string } | null>()
 	expectTypeOf(readAuthorizedUser).toBeFunction()
 })
-it("authorize keeps required", () => {
-	expectTypeOf<ResolvedAuth<App, true>>().toEqualTypeOf<{ userId: string }>()
-	// @ts-expect-error authorize does not widen a required parent
-	const _bad: ResolvedAuth<App, true> = null
-})
-it("authorize keeps optional", () => {
-	expectTypeOf<ResolvedAuth<App, "optional"> extends { userId: string } ? true : false>().toEqualTypeOf<false>()
-})
-it("render auth", () => {
-	expectTypeOf<{ params: {}; search: RawSearch; loaderData: void }>().not.toHaveProperty("auth")
-})
 it("auth mode", () => {
 	expectTypeOf<NonNullable<App["authModes"]>["_root_/about"]>().toEqualTypeOf<"optional">()
 	// @ts-expect-error a route that does not call authenticate is absent
 	const _missing: keyof NonNullable<App["authModes"]> = "_root_/users/[id]"
-})
-it("i18n t hooks", () => {
-	expectTypeOf<(key: string) => string>().not.toEqualTypeOf<(args: { from: string }) => unknown>()
 })
 it("defer field", () => {
 	expectTypeOf<Deferred<{ quote: string }>>().toEqualTypeOf<Deferred<{ quote: string }>>()
@@ -316,75 +271,6 @@ it("defer no then", () => {
 	expectTypeOf<Awaited<Deferred<{ n: number }>>>().toEqualTypeOf<Deferred<{ n: number }>>()
 	// @ts-expect-error Awaited does not unwrap Deferred
 	const _bad: Awaited<Deferred<{ n: number }>> = { n: 1 }
-})
-it("query options input", () => {
-	type Options = { queryFn: () => Promise<{ q: string }>; input: { q: string } }
-	expectTypeOf<Options["queryFn"]>().toEqualTypeOf<() => Promise<{ q: string }>>()
-	// @ts-expect-error input is required
-	const _bad: Options = { queryFn: async () => ({ q: "a" }) }
-})
-it("query options void", () => {
-	const ok: { queryFn: () => Promise<void> } = { queryFn: async () => undefined }
-	expectTypeOf(ok.queryFn).toEqualTypeOf<() => Promise<void>>()
-	// @ts-expect-error a void input is not passed
-	const _bad: { queryFn: () => Promise<void> } = { queryFn: async () => undefined, input: { q: "a" } }
-})
-it("mutation options", () => {
-	type Options = { mutationKey: string; onSuccess: (data: { id: string }) => void }
-	expectTypeOf<Parameters<Options["onSuccess"]>[0]>().toEqualTypeOf<{ id: string }>()
-	// @ts-expect-error mutationKey is required
-	const _bad: Pick<Options, "mutationKey"> = { onSuccess: () => undefined }
-})
-it("query client present", () => {
-	expectTypeOf<{ queryClient: unknown }>().toHaveProperty("queryClient")
-	expectTypeOf<{ params: {} }>().not.toHaveProperty("queryClient")
-})
-it("query client absent", () => {
-	expectTypeOf<{ auth: null }>().not.toHaveProperty("queryClient")
-})
-it("head loader", () => {
-	type Head = { params: { id: number }; search: { page: number } } & {
-		loaderData: { title: string }
-		preloaderContext: { n: number }
-	}
-	expectTypeOf<Head["loaderData"]["title"]>().toEqualTypeOf<string>()
-	expectTypeOf<Head>().not.toHaveProperty("auth")
-})
-it("headers record", () => {
-	const ok: Record<string, string | string[]> = { "set-cookie": ["a", "b"] }
-	expectTypeOf(ok).toEqualTypeOf<Record<string, string | string[]>>()
-	expectTypeOf<{ params: {}; search: RawSearch; loaderData: void; preloaderContext: {} }>().not.toHaveProperty("auth")
-})
-it("security no nonce", () => {
-	type Ctx = { params: {}; search: RawSearch; loaderData: void; preloaderContext: {} }
-	expectTypeOf<Ctx>().not.toHaveProperty("nonce")
-})
-it("loader deps raw", () => {
-	expectTypeOf<{ search: RawSearch; params: ExtractPathParams<"[id]"> }["search"]>().toEqualTypeOf<RawSearch>()
-	// @ts-expect-error loaderDeps search is not the validator output
-	const _bad: RawSearch = { page: 1 }
-})
-it("should refetch raw", () => {
-	expectTypeOf<{ search: RawSearch }["search"]>().toEqualTypeOf<RawSearch>()
-	// @ts-expect-error refetch search is not the validator output
-	const _bad: RawSearch = { page: 1 }
-})
-it("error boundary", () => {
-	type Props = { error: Error; params: { id: string }; search: RawSearch; reset: () => void }
-	expectTypeOf<Props["error"]>().toEqualTypeOf<Error>()
-	// @ts-expect-error error is an Error, and auth is absent
-	const _bad: Props = { error: "x", params: { id: "1" }, search: {}, reset: () => undefined, auth: null }
-})
-it("not found boundary", () => {
-	type Props = { params: { id: string }; search: RawSearch }
-	expectTypeOf<Props["params"]["id"]>().toEqualTypeOf<string>()
-	// @ts-expect-error not-found has no error prop
-	const _bad: Props = { params: { id: "1" }, search: {}, error: new Error("x") }
-})
-it("auth boundary", () => {
-	type Props = { error: Error; params: {}; search: RawSearch }
-	expectTypeOf<Props["error"]>().toEqualTypeOf<Error>()
-	expectTypeOf<Props>().not.toHaveProperty("reset")
 })
 // The real builders: each step removes itself and every step before it, so an out-of-order chain does not type-check
 // instead of throwing `order:` on the first request (BUGS.md B9).
@@ -430,16 +316,6 @@ it("intercept remains", () => {
 	expectTypeOf(left).toHaveProperty("cache")
 	expectTypeOf(left).not.toHaveProperty("intercept")
 })
-it("segment no data", () => {
-	type Segment = { _type: "segment"; render: (props: { children: unknown }) => unknown }
-	expectTypeOf<Segment["_type"]>().toEqualTypeOf<"segment">()
-	expectTypeOf<Segment>().not.toHaveProperty("loader")
-})
-it("segment parent", () => {
-	expectTypeOf<["_root_"][number]>().toEqualTypeOf<"_root_">()
-	// @ts-expect-error a segment id is not a parent
-	const _bad: ["_root_"][number] = "_root_/seg"
-})
 it("parents closed", () => {
 	type Parent = NonNullable<App["routeParents"]>["_root_/about"][number]
 	expectTypeOf<Parent extends keyof NonNullable<App["routeModules"]> ? true : false>().toEqualTypeOf<true>()
@@ -450,12 +326,6 @@ it("keyed by route id", () => {
 	expectTypeOf<keyof NonNullable<App["routeParams"]>>().toEqualTypeOf<"_root_/users/[id]">()
 	// @ts-expect-error the key is the route id, not the public URL
 	const _bad: keyof NonNullable<App["routeParams"]> = "/users/:id"
-})
-it("no virtual", () => {
-	expectTypeOf<"./routes/_root_/home.page.tsx">().not.toEqualTypeOf<"virtual:flare-generated">()
-})
-it("no phantom", () => {
-	expectTypeOf<{ routeModules: App["routeModules"] }>().not.toHaveProperty("auth")
 })
 it("env omitted", () => {
 	expectTypeOf<RegisteredEnv<FlareRegister>>().toEqualTypeOf<unknown>()

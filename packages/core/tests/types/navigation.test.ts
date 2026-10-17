@@ -28,8 +28,8 @@ it("hook unknown", () => {
 	expectTypeOf(hook).toBeFunction()
 	// @ts-expect-error an unknown id is rejected
 	hook({ from: "nope" })
-	// @ts-expect-error an unknown id has no loader data
-	expectTypeOf<LoaderDataFrom<App, "nope">>().toBeNever()
+	// @ts-expect-error an unknown id does not satisfy the route id constraint, so it reads no loader data
+	type _Unknown = LoaderDataFrom<App, "nope">
 })
 it("use match untyped", () => {
 	type Match = ReturnType<typeof useMatch>

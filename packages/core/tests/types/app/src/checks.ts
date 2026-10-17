@@ -13,7 +13,7 @@ import {
 	type FlareRegister,
 } from "@lovrozagar/flare"
 import { createServerFn } from "@lovrozagar/flare/server-fn"
-import { serverFnQueryOptions } from "@lovrozagar/flare/query"
+import { serverFnMutationOptions, serverFnQueryOptions } from "@lovrozagar/flare/query"
 import type { QueryClient } from "@tanstack/solid-query"
 import { echo } from "./fns/echo.ts"
 
@@ -238,6 +238,18 @@ const wide: string = "_root_/about"
 	void queryFn
 	// @ts-expect-error a void input is not passed
 	void serverFnQueryOptions(now, { queryKey: ["now"], input: 1 })
+}
+
+// mutation options
+{
+	const keyed = serverFnMutationOptions(echo, { mutationKey: ["echo"] })
+	const mutate: (input: { q: string }) => Promise<{ q: string; secret: string }> = keyed.mutationFn
+	void mutate
+	keyed.onSuccess({ q: "a", secret: "s" })
+	// @ts-expect-error onSuccess takes the handler's return, not the envelope
+	keyed.onSuccess({ ok: true, data: { q: "a", secret: "s" } })
+	// @ts-expect-error with no mutationKey there is no onSuccess
+	void serverFnMutationOptions(echo).onSuccess
 }
 
 // query client present
