@@ -1039,6 +1039,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 208 [x] A `.response()` page answered every method, so a PUT or a DELETE to a GET-only page got its full body
 208.1 [x] Plan 21 13.5: B87 gave a `.response()` page no method list, so every method reached its function; a page that served a file or a JSON document answered PUT and DELETE with that body. Red: server/lifecycle/methods.test `response methods` (HEAD sent the body; POST, PUT, PATCH, and DELETE reached the function).
 208.2 [x] Fix, decision B87 revised (my call while the reviewer was away): `.response(fn, { methods })` declares the methods, GET when none. HEAD runs the function as GET does and sends no body, OPTIONS is 204 with `Allow` unless declared, and any other method is 405 with `Allow` and never runs it. Codegen reads the literal list from the route's chain and writes it on the node, so a refused method imports nothing (create.test `method before load`); a hand-built router's static record carries it. shared/route-builder/methods.ts checks a list in codegen and at `createServer`; the shared builder only stores it. Two integration routes that took POST now declare it.
+209 [x] TRACE on Node was a bare 500 with no headers and no log
+209.1 [x] Plan 21 13.6: the Node listener built a fetch `Request` with the request's method, and undici refuses `TRACE` (one of fetch's forbidden methods), so the build threw and the listener's catch wrote a bare 500, logging nothing. Bun builds the request and the server answers 405. Red: tests/integration/adapters.test.ts `node trace` (`500 internal server error`).
+209.2 [x] Fix: adapters/node/listener.ts answers CONNECT, TRACE, or TRACK itself with the 405 a page gives (`Allow: GET, HEAD, OPTIONS`, the default security headers, through finalize) and does not ask the server; the catch for a failure before the headers now logs it. A refused method is no server fault, so it logs nothing, as on Bun.
 
 ## Verify
 

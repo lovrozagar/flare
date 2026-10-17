@@ -2,7 +2,7 @@ import { createServer } from "node:http"
 import { connect } from "node:net"
 import { createComponent, Loading, onCleanup } from "solid-js"
 import { QueryClientProvider } from "@tanstack/solid-query"
-import { expect, it } from "vitest"
+import { expect, it, vi } from "vitest"
 import { useDeferred } from "../../shared/components/index.ts"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
@@ -268,7 +268,9 @@ it("disconnect aborts", async () => {
 	expect(seen[0].signal.aborted).toBe(true)
 })
 
+// A failure before the headers is a bare 500, and it is logged (plan 21 13.6).
 it("fetch throws", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
 	const statuses: number[] = []
 	let ended = false
 	const listener = createNodeListener({
@@ -288,6 +290,38 @@ it("fetch throws", async () => {
 	await settle()
 	expect(statuses).toEqual([500])
 	expect(ended).toBe(true)
+	expect(logged).toHaveBeenCalledExactlyOnceWith("[flare:node] the request failed", expect.any(Error))
+	logged.mockRestore()
+})
+
+// A method fetch's Request refuses to build is the 405 a page gives, with Allow, and the server is never asked
+// (plan 21 13.6, BUGS.md 209).
+it("refused method", async () => {
+	const statuses: number[] = []
+	const set: Record<string, string> = {}
+	let asked = 0
+	const listener = createNodeListener({
+		fetch: () => {
+			asked += 1
+			return new Response("x")
+		},
+	})
+	listener(
+		{ ...req(), method: "trace", headers: { host: "localhost" } },
+		{
+			writeHead(status) {
+				statuses.push(status)
+			},
+			setHeader(name: string, value: string | readonly string[]) {
+				set[name] = String(value)
+			},
+			write: () => true,
+			end() {},
+			once() {},
+		},
+	)
+	await settle()
+	expect([statuses, set["allow"], asked]).toEqual([[405], "GET, HEAD, OPTIONS", 0])
 })
 
 // The request's origin is the one the adapter resolved from Host, so a browser's same-origin POST passes CSRF (B44).
