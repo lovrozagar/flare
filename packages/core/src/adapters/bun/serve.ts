@@ -1,5 +1,6 @@
 import { rebodied, streamsBody } from "../../server/lifecycle/finalize.ts"
 import { forwardedHttps, trustedHops, validHost } from "../../shared/url/index.ts"
+import { pendingWork, type DrainOptions } from "../drain.ts"
 
 // Bun's own default `maxRequestBodySize`, kept as the platform ceiling. Flare's capped reader answers a body over
 // `bodyLimit` with 413 (`server-fn/input.ts`), and that limit is at most 32 MiB, so the 413 always comes first. A
@@ -7,8 +8,10 @@ import { forwardedHttps, trustedHops, validHost } from "../../shared/url/index.t
 // (BUGS.md 114).
 const BUN_CEILING = 128 * 1024 * 1024
 
+type Ctx = { waitUntil: (promise: Promise<unknown>) => void }
+
 export type BunServer = {
-	fetch: (request: Request) => Response | Promise<Response>
+	fetch: (request: Request, env: undefined, ctx: Ctx) => Response | Promise<Response>
 }
 
 // `trustProxy` as on the Node listener: with a trusted hop, `X-Forwarded-Proto: https` makes the request https, so its
@@ -23,6 +26,8 @@ export type BunTimeouts = { timeout: (request: Request, seconds: number) => void
 const BUN_IDLE = 10
 const MAX_IDLE = 255
 
+// `drain` is what a SIGTERM handler awaits after `stop()`: it resolves once every answer in flight is sent and its
+// `waitUntil` work has settled, or with `false` at the timeout (dx/adapters.md, plan 21 16.11).
 export function createBunFetch(
 	server: BunServer,
 	options: BunFetchOptions = {},
@@ -30,32 +35,88 @@ export function createBunFetch(
 	fetch: (request: Request, bun?: BunTimeouts) => Promise<Response>
 	maxRequestBodySize: number
 	idleTimeout: number
+	drain: (options: DrainOptions) => Promise<boolean>
 } {
 	const { idleTimeout = BUN_IDLE, ...forwarding } = options
 	const hops = trustedHops("createBunFetch", forwarding, ["trustProxy", "idleTimeout"])
 	if (!Number.isInteger(idleTimeout) || idleTimeout < 0 || idleTimeout > MAX_IDLE) {
 		throw new Error(`idleTimeout is an integer from 0 to ${MAX_IDLE} seconds`)
 	}
+	const pending = pendingWork()
+	// Background work is held until it settles, so a drain waits for it; a rejection is logged, never left unhandled,
+	// as on Node (BUGS.md 153).
+	const ctx: Ctx = {
+		waitUntil(promise) {
+			pending.track(promise)
+			promise.catch((error: unknown) => console.error("[flare:bun] waitUntil rejected", error))
+		},
+	}
 	return {
 		fetch(request, bun) {
 			// Bun builds the URL from the Host header as sent: one that is not a host would change the routed path.
 			if (!validHost(request.headers.get("host"))) return Promise.resolve(new Response(null, { status: 400 }))
-			const answered = Promise.resolve(server.fetch(forwarded(request, hops)))
-			if (bun === undefined) return answered
-			return answered.then((response) => lifted(response, (seconds) => bun.timeout(request, seconds), idleTimeout))
+			const sent = Promise.withResolvers<void>()
+			pending.track(sent.promise)
+			const timeout = bun === undefined ? undefined : (seconds: number) => bun.timeout(request, seconds)
+			// A throw as the call starts rejects like a later one, so the answer is never left in flight.
+			const answered = new Promise<Response>((resolve) =>
+				resolve(server.fetch(forwarded(request, hops), undefined, ctx)),
+			)
+			return answered.then(
+				(response) => watched(response, { timeout, idle: idleTimeout, sent: sent.resolve }),
+				(error: unknown) => {
+					sent.resolve()
+					throw error
+				},
+			)
 		},
 		maxRequestBodySize: BUN_CEILING,
 		idleTimeout,
+		drain: pending.drain,
 	}
 }
 
-// Bun closes a socket idle for `idleTimeout`, a response in flight included, so a stream that goes quiet between
-// chunks, a slow deferred value or a server function's `.stream()`, is cut. The timeout is lifted while a streamed
-// body is sent and set back once it ends, so an idle keep-alive socket still closes (plan 21 8.3, BUGS.md 198).
-function lifted(response: Response, timeout: (seconds: number) => void, idle: number): Response {
-	if (!streamsBody(response)) return response
-	timeout(0)
-	return rebodied(response, response.body.pipeThrough(new TransformStream({ flush: () => timeout(idle) })))
+type Watch = { timeout: ((seconds: number) => void) | undefined; idle: number; sent: () => void }
+
+// A streamed answer counts as in flight until its body ends or the client leaves. Bun closes a socket idle for
+// `idleTimeout`, a response in flight included, so a stream that goes quiet between chunks, a slow deferred value or a
+// server function's `.stream()`, would be cut: the timeout is lifted while it is sent and set back once it ends, so an
+// idle keep-alive socket still closes (plan 21 8.3, BUGS.md 198).
+function watched(response: Response, watch: Watch): Response {
+	if (!streamsBody(response)) {
+		watch.sent()
+		return response
+	}
+	watch.timeout?.(0)
+	return rebodied(
+		response,
+		ended(response.body, () => {
+			watch.timeout?.(watch.idle)
+			watch.sent()
+		}),
+	)
+}
+
+// The body as sent, calling `done` once when it ends, fails, or is cancelled.
+function ended(body: ReadableStream<Uint8Array>, done: () => void): ReadableStream<Uint8Array> {
+	const reader = body.getReader()
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			try {
+				const step = await reader.read()
+				if (!step.done) return controller.enqueue(step.value)
+				controller.close()
+				done()
+			} catch (error) {
+				controller.error(error)
+				done()
+			}
+		},
+		cancel(reason) {
+			done()
+			return reader.cancel(reason)
+		},
+	})
 }
 
 // Bun's URL keeps the scheme the socket spoke. Rebuilt only for a trusted https hop, so another request keeps its body.

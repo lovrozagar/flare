@@ -457,3 +457,34 @@ it("disconnect mid-stream", async () => {
 		await new Promise((resolve) => http.close(resolve))
 	}
 })
+
+// A drain waits for each request until its answer is sent and for its `waitUntil` work; an answer sent while the
+// server drains closes its connection, so no client sends it another request (plan 21 16.11).
+it("drain", async () => {
+	const work = Promise.withResolvers<void>()
+	const listener = createNodeListener({
+		fetch(_request, _env, ctx: Ctx) {
+			ctx.waitUntil(work.promise)
+			return new Response("ok")
+		},
+	})
+	const headers: Record<string, string> = {}
+	const res = {
+		writeHead: noop,
+		setHeader: (name: string, value: string | readonly string[]) => void (headers[name] = String(value)),
+		write: () => true,
+		end: noop,
+		once: noop,
+	}
+	listener(req(), res)
+	await settle()
+	expect(headers["connection"]).toBeUndefined()
+	let drained: boolean | undefined
+	void listener.drain({ timeout: "5s" }).then((value) => (drained = value))
+	listener(req(), res)
+	await settle()
+	expect(headers["connection"]).toBe("close")
+	expect(drained).toBeUndefined()
+	work.resolve()
+	await vi.waitFor(() => expect(drained).toBe(true))
+})

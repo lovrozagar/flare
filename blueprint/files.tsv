@@ -445,7 +445,7 @@ packages/core/src/adapters/node/request.ts	P1	src	node	toRequest. Reject //, bac
 packages/core/src/adapters/node/request.test.ts	P1	test	node	Unit cases for request.ts
 packages/core/src/shared/url/forwarded.ts	P1	src	shared	The adapters' `trustProxy`: the hop count's range and whether a trusted hop forwarded https (BUGS.md 109)
 packages/core/src/shared/url/forwarded.test.ts	P1	test	shared	Unit cases for forwarded.ts
-packages/core/src/adapters/node/listener.ts	P1	src	node	createNodeListener. Flush per chunk. Honor backpressure
+packages/core/src/adapters/node/listener.ts	P1	src	node	createNodeListener. Flush per chunk. Honor backpressure. Drain on shutdown
 packages/core/src/adapters/node/listener.test.ts	P1	test	node	Unit cases for listener.ts
 packages/core/src/adapters/node/body.ts	P3	src	node	Unread POST bodies are drained or the connection is closed
 packages/core/src/adapters/node/body.test.ts	P3	test	node	Unit cases for body.ts
@@ -453,6 +453,8 @@ packages/core/src/adapters/node/index.ts	P1	index	node	Re-exports
 packages/core/src/adapters/bun/serve.ts	P3	src	node	createBunFetch: Bun's body ceiling, trustProxy, and the idle timeout lifted while a streamed body is sent (BUGS.md 198)
 packages/core/src/adapters/bun/serve.test.ts	P3	test	node	Unit cases for serve.ts
 packages/core/src/adapters/bun/index.ts	P3	index	bun	Re-exports
+packages/core/src/adapters/drain.ts	P3	src	node	The Node and Bun adapters' drain: answers in flight and waitUntil work, up to a timeout (plan 21 16.11)
+packages/core/src/adapters/drain.test.ts	P3	test	node	Unit cases for drain.ts
 packages/core/src/adapters/workers/handler.ts	P3	src	node	createWorkersHandler. waitUntil from ctx. Optional assets binding for unmatched GET and HEAD
 packages/core/src/adapters/workers/handler.test.ts	P3	test	node	Unit cases for handler.ts
 packages/core/src/adapters/workers/index.ts	P3	index	workers	Re-exports
@@ -836,6 +838,7 @@ packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app m
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
 packages/core/tests/integration/active-client.test.ts	P15	test	client	A hydrated page shows the browser's URL: a stored page with a query and a deep link's hash (BUGS.md 211)
 packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
+packages/core/tests/integration/shutdown.test.ts	P15	test	node	A real Node and Bun process gets SIGTERM mid-stream with a store write and a purge pending, and drains them before it exits (plan 21 16.11)
 packages/core/tests/integration/callbacks-client.test.ts	P15	test	client	Throwing createClient callbacks and shouldRefetch are logged, and the page still hydrates and fills (BUGS.md 203)
 packages/core/tests/integration/fetch-boundary.test.ts	P15	test	server	Every app callback failure past the stages is one logged 500, never a rejected server.fetch (BUGS.md 202)
 packages/core/tests/integration/fetched.test.ts	P15	test	server	A fetch() Response returned as-is reaches the client decoded on Node and Bun, with no stale Content-Encoding (BUGS.md 197)
