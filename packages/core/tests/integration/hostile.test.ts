@@ -85,6 +85,22 @@ it("head stops the render", async () => {
 	await vi.waitFor(() => expect(disposed).toBe(true))
 })
 
+// A HEAD for a path no route matches is the not-found answer's status and headers with no body, as a matched page's
+// HEAD is, and the render behind it is cancelled (dx/server.md, BUGS.md 343).
+it("head on an unmatched path", async () => {
+	const root = createRootLayout("_root_").render((props) => ["root[", props.children, "]"])
+	const routeTree = [{ id: "_root_/here", path: "/here", module: createPage("_root_/here").render(() => "here") }]
+	const server = createServer({ router: createRouter({ layouts: { _root_: root }, routeTree }) })
+	const get = await server.fetch(new Request("http://localhost/nope"))
+	const head = await server.fetch(new Request("http://localhost/nope", { method: "HEAD" }))
+	expect([get.status, (await get.text()).length > 0]).toEqual([404, true])
+	expect([head.status, await head.text(), head.headers.get("content-type")]).toEqual([
+		404,
+		"",
+		get.headers.get("content-type"),
+	])
+})
+
 // A `.response()` page answers the methods it declares, GET when none: a PUT or a DELETE to a GET page is 405 with
 // Allow and never runs it, so it cannot hand back its full body; HEAD sends no body (plan 21 13.5, BUGS.md 208).
 it("response methods", async () => {
