@@ -402,10 +402,19 @@ it("lazy modules", async () => {
 	const ok = await app.fetch(new Request("http://localhost/"))
 	expect(unmarked(await ok.text())).toContain("root[[Home]]")
 	const broken = await app.fetch(new Request("http://localhost/broken"))
-	expect(broken.status).toBe(500)
+	// A document whose route module did not load is a render that failed before the shell: the built-in error page,
+	// with the message and stack in dev (BUGS.md 302).
+	const page = await broken.text()
+	expect([broken.status, broken.headers.get("content-type"), page.includes("<pre>chunk missing\n")]).toEqual([
+		500,
+		"text/html; charset=utf-8",
+		true,
+	])
 	expect(send).toHaveBeenCalledExactlyOnceWith(
 		expect.objectContaining({ err: expect.objectContaining({ message: "chunk missing" }) }),
 	)
+	const data = await app.fetch(new Request("http://localhost/broken?_flare=data"))
+	expect([data.status, await data.text()]).toEqual([500, ""])
 })
 
 it("method before load", async () => {

@@ -148,6 +148,14 @@ it("i18n without peers, dev", async () => {
 	expect(await devNames(dir, "i18n")).toEqual({ status: 500, page: [], terminal: [] })
 })
 
+// A page imports the query module, so the entry loads and the page's own module fails as the request renders it:
+// the app's logger names it, and the built-in error page carries it (BUGS.md 302).
+it("query without solid-query, dev", async () => {
+	const dir = staged("query-dev")
+	useQuery(dir)
+	expect(await devNames(dir, "query")).toEqual({ status: 500, page: [], terminal: [] })
+})
+
 it("image without sharp", () => {
 	const dir = staged("image")
 	edit(join(dir, "vite.config.ts"), "flare({ prerender: true })", "flare({ prerender: true, image: {} })")

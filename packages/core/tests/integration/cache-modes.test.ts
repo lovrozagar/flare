@@ -71,7 +71,8 @@ it("ssr ttl", async () => {
 	at(MINUTE + 1)
 	expect(cacheOf(await get("/p"))).toBe("miss")
 	// The type requires `ttl`. An untyped config, or a staleTime past its ttl, is a bug the server meets when it loads
-	// the route, before any render: the request is a 500 and the route renders nothing.
+	// the route, before any render: the request is a 500, the route renders nothing, and the built-in error page names
+	// the route (BUGS.md 302).
 	const bad = createPage("_root_/q").cache({ ssr: {} as { ttl: string } })
 	const long = createPage("_root_/q").cache({ ssr: { ttl: "1m", staleTime: "2m" } })
 	for (const page of [bad, long]) {
@@ -80,7 +81,12 @@ it("ssr ttl", async () => {
 			"/q",
 			page.render(() => "q"),
 		)("/q")
-		expect([answer.status, bodyOf(answer.text)]).toEqual([500, ""])
+		const body = bodyOf(answer.text)
+		expect([answer.status, body.startsWith("<h1>Something went wrong</h1>"), body.includes("_root_/q")]).toEqual([
+			500,
+			true,
+			true,
+		])
 	}
 })
 

@@ -25,7 +25,7 @@ import { checkResponseMethods, refusedChannel, routeMethod, type MethodMatch } f
 import { decodedHeaders, responseHeaders } from "./policies.ts"
 import { effectiveAuth } from "../auth/effective.ts"
 import type { FlareServer, RuntimeOptions, ServerOptions } from "./options.ts"
-import { loaderInput, notFound, type Loaded } from "./answers.ts"
+import { loaderInput, notFound, renderFailed, type Loaded } from "./answers.ts"
 import { prerenderer, type Capture } from "../cache/prerender.ts"
 import { checkSite } from "../cache/scrub.ts"
 import { pageAnswer, requestStore } from "../cache/serve.ts"
@@ -228,8 +228,8 @@ function methodMatch(exchange: Exchange, matched: Match): MethodMatch | undefine
 	return { kind: "page", render: () => loaded(exchange, matched, (chain) => pageAnswer(exchange, chain)) }
 }
 
-// Awaits the chain's modules, then runs the handler. An import that fails on the server is a bug: projected,
-// then 500.
+// Awaits the chain's modules, then runs the handler. An import that fails on the server is a bug: projected, then 500,
+// for a document the built-in error page, as a render that failed before the shell (BUGS.md 302).
 async function loaded(
 	exchange: Exchange,
 	matched: Match,
@@ -241,8 +241,8 @@ async function loaded(
 		// A bad store timing is a bug of this page, found before any render (dx/cache.md).
 		if (matched.id !== undefined) storeTiming(matched.id, chain.chain.at(-1)?.module.cache)
 	} catch (error) {
-		projectError(error, exchange.sink)
-		return answer(exchange, 500)
+		const projected = projectError(error, exchange.sink)
+		return exchange.kind === "document" ? renderFailed(exchange, projected) : answer(exchange, 500)
 	}
 	return run(chain)
 }

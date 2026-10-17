@@ -249,9 +249,9 @@ export async function drawn(
 	return { exchange, body, late }
 }
 
-// The stream rejected before the shell, so nothing was written: the built-in error page answers, with the digest in
-// production and the message and stack only in dev (B93, plan 21 13.13).
-function renderFailed(exchange: Exchange, projected: Projected): Response {
+// Nothing was written, the stream rejected before the shell or the page's modules never loaded: the built-in error
+// page, with the digest in production and the message and stack only in dev (B93, plan 21 13.13, BUGS.md 302).
+export function renderFailed(exchange: Pick<Exchange, "request" | "secured">, projected: Projected): Response {
 	return finalize({ status: projected.status, body: errorPage(projected), headers: typed(exchange, HTML) })
 }
 
