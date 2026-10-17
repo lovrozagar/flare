@@ -69,11 +69,6 @@ export function withServerContext<T>(
 	})
 }
 
-// What a scope that refuses identity does with a serverContext throw: it rises to the route's own 500.
-function rethrow(error: unknown): never {
-	throw error
-}
-
 // A `crossOrigin` route's request runs with no identity, its server-function calls included (B44, BUGS.md 282). Its
 // scope's serverContext is what the request gives without its Cookie and Authorization, and authenticate is never
 // asked: a server function that needs a session throws a bug naming the route, a logged 500 an attacker cannot probe.
@@ -87,16 +82,23 @@ export function withoutIdentity<T>(
 	const headers = new Headers(input.request.headers)
 	headers.delete("cookie")
 	headers.delete("authorization")
-	const request = new Request(input.request.url, { headers })
+	// The method and the client's abort signal stay; the body is the handler's own request's to read.
+	const request = new Request(input.request.url, {
+		method: input.request.method,
+		headers,
+		signal: input.request.signal,
+	})
 	const refused = (): never => {
 		throw new Error(`${route} is a crossOrigin route and has no session`)
 	}
 	const scope = { env: input.env, store: input.store, waitUntil: input.waitUntil }
-	return withServerContext(
-		{ ...scope, request, serverContext: input.options.serverContext, authenticate: refused },
-		run,
-		rethrow,
-	)
+	// A serverContext throw is a rejection, which the route answers as any failure (BUGS.md 287).
+	return new Promise<T>((resolve, reject) => {
+		const inner = { ...scope, request, serverContext: input.options.serverContext, authenticate: refused }
+		withServerContext(inner, run, (error) => {
+			throw error
+		}).then(resolve, reject)
+	})
 }
 
 // Authenticate runs at most once per request, shared by the page gate and every server function. A throw is a
