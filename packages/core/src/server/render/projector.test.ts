@@ -103,6 +103,21 @@ it("string thrown", async () => {
 	expect(dev.send).toHaveBeenCalledExactlyOnceWith({ type: "error", err: { message: "plain secret", stack: "" } })
 })
 
+// A thrown value whose conversion to text throws is projected as an Error that says so, in dev and in production, and
+// logged once (BUGS.md 338).
+it("unprintable thrown", async () => {
+	const unprintable: Record<symbol, () => never> = {
+		[Symbol.toPrimitive]: () => {
+			throw unprintable
+		},
+	}
+	for (const dev of [true, false]) {
+		const seen = probe(dev)
+		expect((await get(throwing(unprintable), seen.sink)).status).toBe(500)
+		expect(seen.lines.filter((line) => line.includes("a thrown value that cannot be printed"))).toHaveLength(1)
+	}
+})
+
 it("not found in render", async () => {
 	const dev = probe(true)
 	const page = createPage("_root_/").render(() => notFound())
