@@ -108,7 +108,7 @@ test("segment cdn", async ({ http, docs }) => {
 	const response = await http.get(`${docs.origin}/hr/api/server/create-server`)
 	expect(response.headers()["cache-control"]).toBe("public, max-age=0, s-maxage=60")
 	expect(response.headers()["cdn-cache-control"]).toBe("public, max-age=60, stale-while-revalidate=600")
-	expect(response.headers()["cache-tag"]).toBe("api-reference")
+	expect(response.headers()["cache-tag"]).toBe(`api-reference, flare-build-${response.headers()["flare-build"]}`)
 })
 
 test("locale prefix routes", async ({ page, docs }) => {

@@ -280,6 +280,17 @@ proxy(request, upstream, { forwardCookies?, forwardAuthorization?, relaySetCooki
 Match runs before the method rule (B87). A normal page allows GET, HEAD, and OPTIONS. A HEAD answers the page's status and headers with no body, and the render behind it is cancelled, so it runs its cleanups and never outlives the answer (`tests/integration/hostile.test.ts` `head stops the render`, BUGS.md 180). OPTIONS is 204 with `Allow: GET, HEAD, OPTIONS`. Anything else is 405 with that `Allow`, and a POST body is drained. A `.response()` page answers the methods it declares with `.response(fn, { methods })`, GET when it declares none: HEAD runs it as GET does and sends no body, OPTIONS is 204 unless declared, and any other method is 405 with `Allow` and never runs it. Codegen copies the literal list onto the route node, so a method it does not answer is refused before its code loads (`methods.test.ts` `response methods`, `create.test.ts` `method before load`, `tests/integration/hostile.test.ts` `response methods`, plan 21 13.5, BUGS.md 208). A declared method reaches the function, and the adapter does not drain first. An unmatched GET or HEAD is not-found. Any other unmatched method is 405 with that `Allow`. On Workers that 405 does not call the assets binding (`server/lifecycle/methods.test.ts` `order`, `response methods`, `unmatched post`).
 
 
+
+## Deploying
+
+A CDN keeps a public page for its `cdn.maxAge`, and `swr` past that, so after a deploy it can still hand out the previous build's HTML, which names that build's hashed `/assets/*` files. Every answer names its build in `flare-build`, and every public page also carries `flare-build-<id>` last in its `Cache-Tag` (`policies.test.ts` `cache tag`, plan 21 16.10, BUGS.md 228). A deploy runs in this order:
+
+1. Before shipping, read the live build's id from any answer's `flare-build` header.
+2. Ship the new build, keeping the previous build's `/assets/*` files beside the new ones. Hashed names never collide, so the two sets live side by side.
+3. Purge the previous build's tag, `flare-build-<previous id>`, at the CDN: its pages leave the edge, and the next request renders on the new build. A CDN that cannot purge by tag keeps the old pages until their `maxAge` plus `swr` runs out.
+4. Delete the previous build's assets only after that: once the purge has landed, or once the longest `maxAge` plus `swr` of any page has passed without one.
+
+A tab that is already open on the old build needs neither. Its next client navigation reads the newer `flare-build` on the data answer and loads that URL as a document, and a route chunk the deploy deleted does the same (`docs-resilience.test.ts` `build mismatch reload`, `missing chunk reload`). Those reloads are the backstop for a step skipped, not the plan: without step 2, a visitor who gets old HTML from the edge before the purge loads a page whose scripts 404 until the reload lands. Stored pages need nothing either: the store key holds the build id, so the new build never serves the old one's entries (`dx/store.md`).
 ## Migrating from v0
 
 v0 built the app's `src/service-worker.ts` to `/service-worker.js` and registered it at scope `/`, and earlier v0 builds left one at `/sw.js`. v1 registers no worker, so after the move a returning visitor's browser keeps the old one, which goes on serving the old build from its caches: the 404 v1 gives its script fails the update check and leaves it in place. List those paths for one release cycle, as long as returning visitors may still hold the old worker:

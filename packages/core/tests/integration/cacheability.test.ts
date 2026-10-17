@@ -75,7 +75,7 @@ it("public page", async () => {
 	for (const path of ["/p", "/p?_flare=data", "/p?_flare=prefetch"]) {
 		const response = await server.fetch(get(path))
 		expect(response.headers.get("cache-control")).toBe(PUBLIC)
-		expect(response.headers.get("cache-tag")).toBe("t")
+		expect(response.headers.get("cache-tag")).toBe("t, flare-build-dev")
 	}
 	expect(sharedSeen()).toBe(true)
 })

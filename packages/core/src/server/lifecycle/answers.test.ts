@@ -97,7 +97,7 @@ it("public waits", async () => {
 		const response = await server.fetch(get(path))
 		expect(state.settled).toBe(true)
 		expect(response.headers.get("cache-control")).toBe(PUBLIC)
-		expect(response.headers.get("cache-tag")).toBe("t")
+		expect(response.headers.get("cache-tag")).toBe("t, flare-build-dev")
 		await response.text()
 	}
 })
