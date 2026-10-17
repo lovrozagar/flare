@@ -24,7 +24,7 @@ function toId(raw: unknown): { id: number } {
 }
 
 it("page input", async () => {
-	const authenticate = vi.fn<() => unknown>(() => ({ id: "ada" }))
+	const authenticate = vi.fn<() => {} | null>(() => ({ id: "ada" }))
 	const failing = {
 		"~standard": { validate: () => ({ issues: [{ message: "page must be a number", path: ["page"] }] }) },
 	}

@@ -9,6 +9,8 @@ import {
 import { redirect } from "../../shared/errors/redirect.ts"
 import { statusOf } from "../../shared/errors/status.ts"
 import type { ChainAuth } from "../../shared/route-builder/chain.ts"
+import type { Router } from "../../shared/router/create-router.ts"
+import { createServer } from "../lifecycle/create.ts"
 import { gate, type GateInput, type GateRoute } from "./gate.ts"
 
 const required: ChainAuth = { mode: true, callerData: [] }
@@ -178,6 +180,20 @@ it("authenticate throw", async () => {
 	expect(await outcome(() => undefined)).toBe(500)
 	expect(await outcome(() => null)).toBe(401)
 	expect(await outcome(() => session)).toBe(200)
+})
+
+// Never called: with no auth registered, `undefined` from authenticate is still a type error.
+const undefinedSession = (router: Router) =>
+	// @ts-expect-error authenticate returns a session or null
+	createServer({ router, authenticate: () => undefined })
+
+// `undefined` from authenticate, a forgotten `return` say, is a 500 that carries an error naming it, so the server logs
+// it; with no auth registered it is still a type error (dx/server.md, BUGS.md 329).
+it("authenticate undefined", async () => {
+	const result = await gate(input({ authenticate: () => undefined }))
+	expect(result).toMatchObject({ kind: "status", status: 500 })
+	expect(String(Reflect.get(Object(result), "thrown"))).toMatch(/authenticate returned undefined/)
+	expect(undefinedSession).toBeTypeOf("function")
 })
 
 // An authorize that returns anything falsy, `undefined` from a forgotten `return` say, denies like `false` (plan 21 10.1).

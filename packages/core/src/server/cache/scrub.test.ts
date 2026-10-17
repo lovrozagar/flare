@@ -35,7 +35,7 @@ function documentOf(children: Element): Element {
 // The decision reads the real request's session once. The shared render calls no authenticate: its session is null,
 // so the stored body is the anonymous render (B27).
 it("anonymous render", async () => {
-	const authenticate = vi.fn<() => unknown>(() => null)
+	const authenticate = vi.fn<() => {} | null>(() => null)
 	const seen: unknown[] = []
 	const page = createPage("_root_/p")
 		.cache({ isr: true })

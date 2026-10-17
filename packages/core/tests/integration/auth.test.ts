@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web"
-import { expect, it } from "vitest"
+import { expect, it, vi } from "vitest"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
@@ -31,7 +31,7 @@ function label(data: unknown): string {
 	return typeof data === "object" && data !== null && "text" in data ? String(data.text) : String(data)
 }
 
-function serve(options: RouterOptions, authenticate: () => unknown = () => null): ReturnType<typeof createServer> {
+function serve(options: RouterOptions, authenticate: () => {} | null = () => null): ReturnType<typeof createServer> {
 	return createServer({ router: createRouter(options), authenticate })
 }
 
@@ -191,7 +191,7 @@ it("header identity", async () => {
 type Responded = { calls: string[]; contexts: unknown[]; loaded: boolean }
 
 function responseServer(
-	session: unknown,
+	session: {} | null,
 	allowed: boolean,
 ): { server: ReturnType<typeof createServer>; seen: Responded } {
 	const seen: Responded = { calls: [], contexts: [], loaded: false }
@@ -296,4 +296,27 @@ it("response stream", async () => {
 	const first = await reader.read()
 	expect(new TextDecoder().decode(first.value)).toBe("data: tick\n\n")
 	await reader.cancel()
+})
+
+// An `authenticate` that returns `undefined`, a forgotten `return`, is the projected 500 for the document and the data
+// request alike, and the server logs an error that names it (dx/server.md, BUGS.md 329).
+it("authenticate undefined logged", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const page = createPage("_root_/p")
+		.authenticate()
+		.render(() => "p")
+	const forgot = (() => undefined) as unknown as () => null
+	const server = serve(
+		{
+			layouts: { _root_: createRootLayout("_root_").render(show) },
+			routeTree: [{ id: "_root_/p", path: "/p", module: page }],
+		},
+		forgot,
+	)
+	const statuses = [(await server.fetch(new Request("http://localhost/p"))).status]
+	statuses.push((await server.fetch(new Request("http://localhost/p?_flare=data"))).status)
+	const messages = logged.mock.calls.map((call) => call.map(String).join(" "))
+	logged.mockRestore()
+	expect(statuses).toEqual([500, 500])
+	expect(messages.filter((message) => message.includes("authenticate returned undefined"))).toHaveLength(2)
 })

@@ -56,14 +56,14 @@ type ContextFn<R extends FlareRegister> = (ctx: {
 }) => RegisteredServerContext<R>
 
 // The register's env reaches `authenticate`, and it answers the register's auth or null; with no auth registered, any
-// value (dx/types.md, plan 21 11.3).
+// value but `undefined`, a forgotten `return` (dx/types.md, plan 21 11.3, BUGS.md 329).
 type AuthOption<R extends FlareRegister> = {
 	authenticate?: (
 		ctx: { request: Request; env: RegisteredEnv<R> } & Caller,
 	) => SessionOf<R> | null | Promise<SessionOf<R> | null>
 }
 
-type SessionOf<R extends FlareRegister> = unknown extends RegisterField<R, "auth"> ? unknown : RegisteredAuth<R>
+type SessionOf<R extends FlareRegister> = unknown extends RegisterField<R, "auth"> ? {} : RegisteredAuth<R>
 
 // Required once the app's FlareRegister declares serverContext (B75).
 type ContextOption<R extends FlareRegister> =

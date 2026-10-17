@@ -30,7 +30,7 @@ const root = createRootLayout("_root_").render((props) => documentOf(props.child
 // One page at /p over a memory store whose writes are watched. A layout, when given, sits between root and page.
 function serve(
 	page: RouteModule,
-	extra: { layout?: RouteModule; authenticate?: (ctx: { request: Request }) => unknown } = {},
+	extra: { layout?: RouteModule; authenticate?: (ctx: { request: Request }) => {} | null } = {},
 ): {
 	app: ReturnType<typeof createServer>
 	store: FlareStore
@@ -72,7 +72,7 @@ function storedRecord(text: string): { data: unknown; storedAt: number; tags: st
 
 // A required chain is never shared, so a 401 is never stored: the next request authenticates again (B27).
 it("401 not stored", async () => {
-	const authenticate = vi.fn<() => unknown>(() => null)
+	const authenticate = vi.fn<() => {} | null>(() => null)
 	const layout = createLayout("_root_/(g)")
 		.authenticate()
 		.render((props) => props.children)
@@ -140,7 +140,7 @@ it("anonymous stored", async () => {
 	expect(body).not.toContain("SESSION")
 })
 
-const bearer = ({ request }: { request: Request }): unknown => request.headers.get("authorization")
+const bearer = ({ request }: { request: Request }): {} | null => request.headers.get("authorization")
 
 // A request with a session is private and renders live. Neither user ever receives the other's body.
 it("two users", async () => {
