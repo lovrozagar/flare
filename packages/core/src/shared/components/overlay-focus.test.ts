@@ -65,10 +65,31 @@ it("edges", () => {
 	expect(dismiss).not.toHaveBeenCalled()
 	marked.remove()
 	shut()
-	expect(
-		trapFocus(
-			() => [],
-			() => undefined,
-		),
-	).toBeTypeOf("function")
+	const empty = trapFocus(
+		() => [],
+		() => undefined,
+	)
+	expect(empty).toBeTypeOf("function")
+	empty()
+})
+
+// Only what Tab reaches counts: a disabled Link (`tabindex="-1"`), a hidden or inert element, or a control in a
+// disabled fieldset is skipped, so Tab and Shift+Tab wrap at the last and first reachable ones (BUGS.md 316).
+it("unreachable skipped", () => {
+	const root = overlay(
+		'<button id="a">A</button><button id="b">B</button><a href="/x" tabindex="-1" aria-disabled="true">off</a>' +
+			"<button hidden>h</button><div hidden><button>in hidden</button></div><div inert><button>in inert</button></div>" +
+			'<fieldset disabled><input></fieldset><span tabindex="0" id="tail-hidden" hidden>t</span>',
+	)
+	const close = trapFocus(
+		() => [root],
+		() => undefined,
+	)
+	expect(document.activeElement?.id).toBe("a")
+	document.getElementById("b")?.focus()
+	expect(press("Tab").defaultPrevented).toBe(true)
+	expect(document.activeElement?.id).toBe("a")
+	expect(press("Tab", true).defaultPrevented).toBe(true)
+	expect(document.activeElement?.id).toBe("b")
+	close()
 })
