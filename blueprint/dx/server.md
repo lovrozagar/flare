@@ -188,7 +188,7 @@ Keys, all default `false`: `accelerometer`, `browsing-topics`, `camera`, `geoloc
 | --- | --- | --- | --- |
 | `false` | `feature=()` | | `csp.test.ts` `permissions deny` |
 | `"self"` | `feature=(self)` | | `csp.test.ts` `permission values` |
-| `string[]` | `feature=("https://origin" ...)` | a value with a quote, a space, or `;` throws | `csp.test.ts` `origin quote` |
+| `string[]` | `feature=("https://origin" ...)` | a value with a quote, a space, `;`, a backslash, a control character, or a character outside ASCII throws: the origin is a structured-field string, and a malformed header is one the browser drops, which would lift every feature (`csp.test.ts` `origin quote`, BUGS.md 335) | `csp.test.ts` `origin quote` |
 | `true` | `feature=*` | this allows every origin. It is not "on for this site" | `csp.test.ts` `star` |
 | a string | sent as written | | `csp.test.ts` `permission values` |
 
