@@ -56,7 +56,8 @@ it("ids", () => {
 	expect(transform(bare, "client")).toContain(`createServerFn({ __id: "${id}", __name: "echo", __client: true })`)
 	const trailing = `${FN}export const echo = createServerFn({ method: "post", }).handler(h);\nexport const empty = createServerFn({}).handler(h);\n`
 	const both = transform(trailing, "server")
-	expect(both).toContain(`createServerFn({ method: "post", __id: "${id}", __name: "echo" })`)
+	// The fields follow the last property, so the config's own trailing comma stays after them.
+	expect(both).toContain(`createServerFn({ method: "post", __id: "${id}", __name: "echo", })`)
 	expect(both).toContain(`createServerFn({ __id: "${fnId(FILE, "empty")}", __name: "empty" })`)
 	expect(() => transform(`${FN}export const echo = createServerFn("get").handler(h);\n`, "server")).toThrow(
 		"src/fns/echo.ts: echo createServerFn() takes a literal object",
@@ -78,4 +79,20 @@ it("env inside a removed body", () => {
 it("ts generic", () => {
 	const source = `${ENV}const id = <T>(value: T): T => value;\nexport const read = createServerOnlyFn(() => id(SECRET));\n`
 	expect(transform(source, "client")).not.toContain("SECRET")
+})
+
+// The id goes in after the config's last property, so a comment after it, a line comment above all, cannot swallow
+// it: every call would 404 (plan 21 13.1, BUGS.md 204).
+it("config comment", () => {
+	const id = fnId(FILE, "echo")
+	const ids = `__id: "${id}", __name: "echo"`
+	for (const [config, written] of [
+		['{ method: "get" // read\n}', `{ method: "get", ${ids} // read\n}`],
+		['{ method: "get", /* read */ }', `{ method: "get", ${ids}, /* read */ }`],
+		["{ // nothing\n}", `{ ${ids} // nothing\n}`],
+		["{}", `{ ${ids} }`],
+	]) {
+		const source = `${FN}export const echo = createServerFn(${config}).handler(() => 1);\n`
+		expect(transform(source, "server")).toContain(`createServerFn(${written})`)
+	}
 })

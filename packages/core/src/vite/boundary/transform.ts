@@ -27,18 +27,16 @@ function injectIds(edit: Edit, program: Program, graph: Graph): void {
 	for (const record of serverFnsOf(edit.file, program)) {
 		const fields = [`__id: ${JSON.stringify(fnId(edit.file, record.name))}`, `__name: ${JSON.stringify(record.name)}`]
 		if (graph === "client") fields.push("__client: true")
-		const { start, end, literal } = record.config
+		const { start, end, literal, after } = record.config
 		if (start === end) {
 			edit.out.appendLeft(start, `{ ${fields.join(", ")} }`)
 			continue
 		}
-		if (typeof literal !== "object" || literal === null || Array.isArray(literal)) {
+		if (after === undefined || typeof literal !== "object" || literal === null || Array.isArray(literal)) {
 			throw new Error(`${edit.file}: ${record.name} createServerFn() takes a literal object`)
 		}
-		// Written right after the last property, or inside an empty `{}`.
-		const before = edit.source.slice(start, end - 1).trimEnd()
-		const at = start + before.length
-		if (before.endsWith("{")) edit.out.appendLeft(at, ` ${fields.join(", ")} `)
-		else edit.out.appendLeft(at, `${before.endsWith(",") ? " " : ", "}${fields.join(", ")}`)
+		// Written right after the last property, so a comment after it cannot swallow them, or inside an empty `{}`.
+		if (after !== start + 1) edit.out.appendLeft(after, `, ${fields.join(", ")}`)
+		else edit.out.appendLeft(after, ` ${fields.join(", ")}${edit.source[after] === "}" ? " " : ""}`)
 	}
 }
