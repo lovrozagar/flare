@@ -31,6 +31,7 @@ import { checkSite } from "../cache/scrub.ts"
 import { pageAnswer, requestStore } from "../cache/serve.ts"
 import { storeTiming } from "../cache/write.ts"
 import { devHead } from "./build-info.ts"
+import { markUnmatched } from "./finalize.ts"
 
 export type { FlareServer, ServerOptions } from "./options.ts"
 
@@ -200,7 +201,7 @@ function routed(exchange: Exchange, url: URL): Promise<Response> {
 	if (matched.id === undefined && (method === "GET" || method === "HEAD")) {
 		// A data or prefetch request for an unknown URL is that status alone, with no frame (B73).
 		if (exchange.kind !== "document") return Promise.resolve(answer(exchange, 404))
-		return loaded(exchange, matched, (chain) => notFound(exchange, chain))
+		return loaded(exchange, matched, (chain) => notFound(exchange, chain)).then(markUnmatched)
 	}
 	return routeMethod(exchange.request, {
 		match: () => methodMatch(exchange, matched),

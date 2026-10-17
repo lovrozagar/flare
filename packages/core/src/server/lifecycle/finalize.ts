@@ -40,6 +40,25 @@ export function streamsBody(response: Response): response is Response & { body: 
 	return streams.has(response)
 }
 
+// The not-found document of a request no route matched. Only it may fall through to a platform's static files, as
+// Workers' assets binding does: a page's own notFound(), a server function's 404, and a navigation's 404 are the app's
+// answers and stay (plan 21 13.4). A rewrap of a marked answer, by a middleware or the dev tags, keeps the mark.
+const unmatched = new WeakSet<Response>()
+
+export function markUnmatched(response: Response): Response {
+	unmatched.add(response)
+	return response
+}
+
+export function isUnmatched(response: Response): boolean {
+	return unmatched.has(response)
+}
+
+// The rewrap of `from` carries its mark.
+export function carryMark(from: Response, to: Response): Response {
+	return isUnmatched(from) ? markUnmatched(to) : to
+}
+
 // A finished answer with its body replaced and its status and headers kept: an adapter that watches the body as it is
 // sent.
 export function rebodied(response: Response, body: ReadableStream<Uint8Array>): Response {

@@ -6,6 +6,7 @@ import { Miniflare } from "miniflare"
 import { afterAll, expect, it } from "vitest"
 
 const handlerPath = fileURLToPath(new URL("../../src/adapters/workers/handler.ts", import.meta.url))
+const finalizePath = fileURLToPath(new URL("../../src/server/lifecycle/finalize.ts", import.meta.url))
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run")
 await rm(root, { recursive: true, force: true })
@@ -17,6 +18,7 @@ const entry = join(root, "entry.ts")
 await writeFile(
 	entry,
 	`import { createWorkersHandler } from ${JSON.stringify(handlerPath)};
+import { markUnmatched } from ${JSON.stringify(finalizePath)};
 
 const server = {
 	async fetch(request, env, ctx) {
@@ -28,7 +30,8 @@ const server = {
 			})());
 			return new Response("scheduled");
 		}
-		return new Response("missing", { status: 404 });
+		// The router's answer to a document no route matched, the one the binding gets (plan 21 13.4).
+		return markUnmatched(new Response("missing", { status: 404 }));
 	},
 };
 

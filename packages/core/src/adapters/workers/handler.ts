@@ -1,4 +1,4 @@
-import { finalize } from "../../server/lifecycle/finalize.ts"
+import { finalize, isUnmatched } from "../../server/lifecycle/finalize.ts"
 import { createLogger } from "../../server/lifecycle/logger.ts"
 
 export type WorkerCtx = {
@@ -31,7 +31,8 @@ export function createWorkersHandler(
 				},
 				clientIp: connectingIp(request),
 			})
-			if (response.status !== 404 || assets === undefined) return response
+			// Only a document no route matched reaches the binding: the app's own 404s stay (plan 21 13.4).
+			if (!isUnmatched(response) || assets === undefined) return response
 			if (request.method !== "GET" && request.method !== "HEAD") {
 				return finalize({ status: 405, body: "", headers: new Headers({ allow: "GET, HEAD, OPTIONS" }) })
 			}

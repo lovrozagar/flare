@@ -1,4 +1,5 @@
 import { isTabToken, mintTab, TAB_HEADER, tabMeta } from "../../shared/protocol/index.ts"
+import { carryMark } from "../lifecycle/finalize.ts"
 import { escapeAttr } from "./escape.ts"
 
 // The request nonce, read from the policy the app answered with. Vite's client reads it from a `csp-nonce` meta for
@@ -26,7 +27,7 @@ export function devDocument(response: Response, tags: DevTags): Response {
 	const headers = new Headers(response.headers)
 	headers.delete("content-length")
 	const body = withTags(response.body, `${tags.head}${meta}${tabMeta(tags.token)}`)
-	return new Response(body, { status: response.status, headers })
+	return carryMark(response, new Response(body, { status: response.status, headers }))
 }
 
 // The tags go in before the first `</head>`, found across chunks; a document with no head gets them in front. Every

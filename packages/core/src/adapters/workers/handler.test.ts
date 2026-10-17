@@ -1,5 +1,10 @@
 import { expect, it } from "vitest"
 import { createServer } from "../../server/lifecycle/create.ts"
+import { markUnmatched } from "../../server/lifecycle/finalize.ts"
+import { createMiddleware } from "../../server/middleware/index.ts"
+import { createServerFn } from "../../server/server-fn/dispatch.ts"
+import { notFound as missingPage } from "../../shared/errors/index.ts"
+import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
 import { createWorkersHandler, type WorkerCtx, type WorkerEnv } from "./handler.ts"
@@ -7,6 +12,11 @@ import { createWorkersHandler, type WorkerCtx, type WorkerEnv } from "./handler.
 const ctx = (): WorkerCtx => ({
 	waitUntil() {},
 })
+
+// The router's answer to a document no route matched: a 404 marked for the assets binding (plan 21 13.4).
+function unmatched(): Response {
+	return markUnmatched(new Response("missing", { status: 404 }))
+}
 
 it("waitUntil", async () => {
 	const task = Promise.resolve("background")
@@ -45,7 +55,7 @@ it("assets GET", async () => {
 		{
 			fetch() {
 				routed += 1
-				return new Response("missing", { status: 404 })
+				return unmatched()
 			},
 		},
 		{ assets: "ASSETS" },
@@ -61,7 +71,7 @@ it("assets GET", async () => {
 
 it("assets POST", async () => {
 	let called = 0
-	const handler = createWorkersHandler({ fetch: () => new Response("missing", { status: 404 }) }, { assets: "ASSETS" })
+	const handler = createWorkersHandler({ fetch: unmatched }, { assets: "ASSETS" })
 	const response = await handler.fetch(
 		new Request("https://example.com/app.js", { method: "POST" }),
 		{
@@ -104,10 +114,7 @@ it("assets missing", async () => {
 		logged.push(args)
 	}
 	try {
-		const handler = createWorkersHandler(
-			{ fetch: () => new Response("missing", { status: 404 }) },
-			{ assets: "ASSETS" },
-		)
+		const handler = createWorkersHandler({ fetch: unmatched }, { assets: "ASSETS" })
 		const response = await handler.fetch(new Request("https://example.com/app.js"), {}, ctx())
 		expect(response.status).toBe(500)
 		expect(logged).toHaveLength(1)
@@ -135,12 +142,14 @@ it("connecting ip", async () => {
 	expect(seen).toEqual(["1.2.3.4", undefined])
 })
 
-// The app's own not-found answer, with a security header.
+// The app's not-found document for a path no route matched, with a security header, marked as the router marks it.
 function notFound(): Response {
-	return new Response("<p>not found</p>", {
-		status: 404,
-		headers: { "x-frame-options": "DENY", "content-type": "text/html" },
-	})
+	return markUnmatched(
+		new Response("<p>not found</p>", {
+			status: 404,
+			headers: { "x-frame-options": "DENY", "content-type": "text/html" },
+		}),
+	)
 }
 
 // A path neither the router nor the binding has is the app's own 404 document, with its headers, as on Node and Bun.
@@ -169,4 +178,41 @@ it("assets miss", async () => {
 	expect(asset.headers.get("x-asset")).toBe("1")
 	expect(asset.headers.has("x-frame-options")).toBe(false)
 	expect(await asset.text()).toBe("file")
+})
+
+// An SPA assets binding answers every path with its index. Only a document no route matched reaches it; a page's own
+// notFound(), a server function's 404, and a navigation's 404 are the app's answers and stay 404 (plan 21 13.4,
+// BUGS.md 207).
+it("app 404 kept", async () => {
+	const root = createRootLayout("_root_").render((props) => props.children)
+	const gone = createPage("_root_/gone")
+		.loader(() => missingPage())
+		.render(() => "gone")
+	const missing = createServerFn({ method: "get", __id: "missing012345678", __name: "missing" } as never).handler(() =>
+		notFound(),
+	)
+	const server = createServer({
+		router: createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/gone", path: "/gone", module: gone }],
+		}),
+		serverFns: { missing012345678: async () => missing },
+		// A middleware's rewrap of the router's answer keeps what the answer is.
+		middleware: [createMiddleware((context) => context.next())],
+	} as Parameters<typeof createServer>[0])
+	const spa: WorkerEnv = { ASSETS: { fetch: () => new Response("index", { status: 200 }) } }
+	const handler = createWorkersHandler(server, { assets: "ASSETS" })
+	const origin = { headers: { origin: "https://example.com" } }
+	const answers = await Promise.all(
+		["/gone", "/gone?_flare=data", "/_flare/fn/missing012345678", "/nowhere"].map(async (path) => {
+			const response = await handler.fetch(new Request(`https://example.com${path}`, origin), spa, ctx())
+			return [path, response.status]
+		}),
+	)
+	expect(answers).toEqual([
+		["/gone", 404],
+		["/gone?_flare=data", 404],
+		["/_flare/fn/missing012345678", 404],
+		["/nowhere", 200],
+	])
 })

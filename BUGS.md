@@ -1033,6 +1033,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 206 [x] Codegen kept one of two layouts with one id, and built a page whose own root had no root layout
 206.1 [x] Plan 21 13.3: `assertRoot` passed when any root layout existed, so an `_admin_` page beside only `_root_/root.root-layout.tsx` built and rendered with no document, its chain holding no root layout; and two layout files with one id, two `*.layout.tsx` in a folder or one beside the root layout, both entered the generated `layouts` record, which kept the second. Red: codegen/routes.test `own root` (neither threw).
 206.2 [x] Fix: codegen/layout-checks.ts. `assertRoot` checks each page against its own root, the id up to the first root folder, and names every page missing one by root; `assertOneLayout` fails on a second file for one layout id, naming both. The route tests that relied on `_root_` serving `_admin_` pages now give those pages their root.
+207 [x] On Workers every 404 fell through to the assets binding, so an SPA binding turned a page's notFound(), a server function's 404, and a navigation's 404 into a 200 index.html
+207.1 [x] Plan 21 13.4: `createWorkersHandler` sent any 404 the server answered to `env[assets]`, so with `not_found_handling: "single-page-application"`, which answers every path with its index, the app's own 404s reached the client as 200. Red: adapters/workers/handler.test `app 404 kept` (`/gone`'s notFound(), its data request, and a server function's notFound() all answered 200).
+207.2 [x] Fix: finalize.ts marks the not-found document of a request no route matched (`markUnmatched`, set in create.ts `routed`), the middleware exit and the dev tags carry the mark onto their rewrap (`carryMark`), and the handler forwards only a marked answer to the binding. The handler tests' fake servers answer with that mark.
 
 ## Verify
 
