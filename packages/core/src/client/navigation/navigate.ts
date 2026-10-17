@@ -32,7 +32,7 @@ import {
 	type DataTarget,
 	type Trip,
 } from "./request.ts"
-import { hashAgain, resolveTarget, resolveUrl, type NavigateInput, type Target } from "./target.ts"
+import { callTarget, resolveUrl, urlTarget, type NavigateInput, type Target } from "./target.ts"
 
 export type Landing = Landed
 
@@ -126,10 +126,9 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 		refresh: (initial) => again({ initial }),
 		revalidate: () => again({}),
 		...leave,
-		navigate: (options) =>
-			go(userTarget(deps, resolveTarget(cloneable(options), context()), options.revalidate), options),
+		navigate: (options) => go(callTarget(options, context()), options),
 		visit: (url, replace, revalidate = false) =>
-			go(userTarget(deps, resolveUrl(url, context()), revalidate), { to: url, replace, revalidate }),
+			go(urlTarget(url, revalidate, context()), { to: url, replace, revalidate }),
 		restore: async (url, index) => {
 			const closed = closesOverlay(deps.store.snapshot(), url)
 			if (closed !== undefined) {
@@ -140,18 +139,6 @@ export function createNavigator(given: NavigatorDeps): Navigator {
 			return go(resolveUrl(url, context()), { to: url }, mode)
 		},
 	}
-}
-
-// `state` goes into history, which structured-clones it. Cloned here first, one that cannot be, a function say, throws
-// before the request, the commit, and the history write, not after the page changed (BUGS.md 314).
-function cloneable(options: NavigateOptions): NavigateOptions {
-	if (options.state !== undefined) structuredClone(options.state)
-	return options
-}
-
-// A Link's, navigate()'s, or an anchor's target: the page on screen at a hash goes to its target again (BUGS.md 148).
-function userTarget(deps: NavigatorDeps, target: Target, revalidate: boolean | undefined): Target {
-	return hashAgain(target, deps.store.snapshot().location, revalidate)
 }
 
 // One data navigation from its request to its commit: a redirect to follow, a commit, or nothing (aborted, superseded,
@@ -209,6 +196,8 @@ type Plan = {
 	intercept?: Intercept
 	// A same-URL revalidation that asks for a stored page's `"stream"` values (request.ts).
 	fill: boolean
+	// The commit writes history: a navigation, or a revalidation that moves the hash (BUGS.md 321). A pop never does.
+	write: boolean
 	// Hydrate's cache plan, already asked (BUGS.md 139).
 	planned?: CachePlan
 }
@@ -231,7 +220,8 @@ function planOf(input: {
 	const forward = !pop && trigger === "navigation" && input.options.replace !== true
 	const direction = forward ? "forward" : stepDirection(input.mode.at, step)
 	const fill = input.mode.fill !== undefined
-	const plan: Plan = { target, options: input.options, trigger, pop, previous: snapshot, direction, fill }
+	const write = trigger === "navigation" || (revalidates && here.hash !== target.location.hash)
+	const plan: Plan = { target, options: input.options, trigger, pop, previous: snapshot, direction, fill, write }
 	if (input.mode.initial !== undefined) plan.planned = input.mode.initial
 	const intercept = overlayFor(target, snapshot, { trigger, ...input.mode })
 	if (intercept !== undefined) plan.intercept = intercept
@@ -254,7 +244,7 @@ async function settle(
 ): Promise<Outcome> {
 	const { target, previous, arrival } = { ...plan, arrival: settled.arrival }
 	if (plan.intercept !== undefined && arrival.kind === "landed" && arrival.landing.failure === undefined) {
-		const write = !plan.pop && plan.trigger === "navigation"
+		const write = !plan.pop && plan.write
 		showOverlay(deps, {
 			target,
 			chain: settled.chain,
@@ -269,7 +259,7 @@ async function settle(
 	}
 	const next = committedSnapshot(deps, plan.fill, { target, chain: settled.chain, arrival, previous })
 	const arrived = plan.trigger === "navigation" && target.location.pathname !== previous.location.pathname
-	const step = { options: plan.options, pop: plan.pop, write: plan.trigger === "navigation", arrived }
+	const step = { options: plan.options, pop: plan.pop, write: plan.write, arrived }
 	keepPosition(deps, previous.location, step)
 	// The DOM updates, in a view transition when one is on, and every scroll is final before the update returns, so the
 	// new snapshot shows it (B108). A commit Solid holds scrolls when it shows. History moves once it is on screen (B106).
