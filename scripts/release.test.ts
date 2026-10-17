@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { expect, it } from "vitest"
-import { release, shipped, type ReleaseDeps } from "./release.ts"
+import { distTag, release, shipped, type ReleaseDeps } from "./release.ts"
 
 const VERSION: string = JSON.parse(
 	readFileSync(new URL("../packages/core/package.json", import.meta.url), "utf8"),
@@ -96,8 +96,18 @@ it("publish wrong tag", () => {
 	const real = deps({}, ci)
 	expect(release(["--publish", "--tarball", TARBALL], real.fake)).toBe(0)
 	expect(real.published().map((call) => call.args)).toEqual([
-		["publish", TARBALL, "--access", "public", "--provenance"],
+		["publish", TARBALL, "--access", "public", "--provenance", ...distTag(VERSION)],
 	])
+})
+
+// A version with a prerelease part, `1.0.0-rc.1` say, publishes under the `next` dist-tag: npm would otherwise make it
+// `latest`, and npm 11 refuses a prerelease with no tag. A plain version, build metadata included, keeps `latest`
+// (bits/14, flare-e4's RC request).
+it("dist tag", () => {
+	expect(distTag("1.0.0")).toEqual([])
+	expect(distTag("1.0.0+build.7")).toEqual([])
+	expect(distTag("1.0.0-rc.1")).toEqual(["--tag", "next"])
+	expect(distTag("1.0.0-rc.1+build.7")).toEqual(["--tag", "next"])
 })
 
 // The staged src leaves out test code, as files.tsv kinds it: tests and their fixtures, whatever the extension
