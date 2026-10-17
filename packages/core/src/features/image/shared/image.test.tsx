@@ -4,8 +4,14 @@ import { afterEach, expect, it, vi } from "vitest"
 import { Image, type ImageBinding, type ImageProps } from "./image.tsx"
 import { expectReported } from "../../../shared/dev/reported.fixture.ts"
 
-// The plugin's widths, as flare({ image: { widths } }) writes them into config.ts.
-const plugin = vi.hoisted(() => ({ widths: [320, 640, 1280, 1920] as readonly number[] }))
+// The plugin's widths, as flare({ image: { widths } }) writes them into config.ts. `hydrating` stands for a render
+// that hydrates the server's markup.
+const plugin = vi.hoisted(() => ({ widths: [320, 640, 1280, 1920] as readonly number[], hydrating: false }))
+
+vi.mock("solid-js", async (original) => {
+	const actual = await original<typeof import("solid-js")>()
+	return { ...actual, isHydrating: () => plugin.hydrating || actual.isHydrating() }
+})
 
 vi.mock("./config.ts", async (original) => ({
 	...(await original<typeof import("./config.ts")>()),
@@ -16,6 +22,7 @@ vi.mock("./config.ts", async (original) => ({
 
 afterEach(() => {
 	plugin.widths = [320, 640, 1280, 1920]
+	plugin.hydrating = false
 	vi.unstubAllEnvs()
 })
 
@@ -98,8 +105,9 @@ it("blur until load", () => {
 })
 
 // A priority image often finishes before hydrate attaches onLoad, so its load event is never heard. The blur clears
-// once the mounted image reports it is complete (BUGS.md B20).
+// once the hydrated image reports it is complete (BUGS.md B20).
 it("complete before hydrate", async () => {
+	plugin.hydrating = true
 	const complete = vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(true)
 	const element = img({
 		alt: "a",
@@ -112,6 +120,13 @@ it("complete before hydrate", async () => {
 	flush()
 	complete.mockRestore()
 	expect(element.style.backgroundImage).toBe("")
+	// One still loading keeps its blur until its load event.
+	const loading = vi.spyOn(HTMLImageElement.prototype, "complete", "get").mockReturnValue(false)
+	const pending = img({ alt: "a", src: photo, placeholder: "blur", blurDataURL: "data:image/png;base64,AAAA" })
+	await Promise.resolve()
+	flush()
+	loading.mockRestore()
+	expect(pending.style.backgroundImage).not.toBe("")
 })
 
 it("blur scheme", () => {
@@ -184,4 +199,28 @@ it("two modes", () => {
 		mount({ alt: "a", src: photo, ...({ fixed: true, width: 640, height: 1, fill: true } as object) }),
 		"Image takes one of fill, fixed, and maxWidth",
 	)
+})
+
+// A client-rendered image takes its sources only once it is on the page, so Chromium never selects one while the image
+// belongs to Solid's template document, whose viewport listeners would keep it and the page around it for good. Its
+// load event, not `complete`, which an image with no source reports, clears the blur (BUGS.md 246).
+it("sources once placed", () => {
+	const writes: string[] = []
+	const original = Element.prototype.setAttribute
+	Element.prototype.setAttribute = function (name: string, value: string) {
+		if (["src", "srcset", "sizes"].includes(name)) writes.push(`${name} ${String(this.isConnected)}`)
+		original.call(this, name, value)
+	}
+	const host = document.createElement("div")
+	document.body.append(host)
+	try {
+		const props: ImageProps = { alt: "a", src: photo, sizes: "50vw", placeholder: "blur", blurDataURL: "data:x" }
+		render(() => createComponent(Image, props), host)
+		flush()
+		expect(writes.sort()).toEqual(["sizes true", "src true", "srcset true"])
+		expect(host.querySelector("img")?.style.backgroundImage).not.toBe("")
+	} finally {
+		Element.prototype.setAttribute = original
+		host.remove()
+	}
 })
