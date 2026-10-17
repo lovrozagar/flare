@@ -7,8 +7,8 @@ import type {
 } from "../../shared/route-builder/types.ts"
 import { defaultHeaders } from "./defaults.ts"
 
-// Every source-list directive in the order the header writes them. The last four have no default and appear only
-// when the app names them (dx/server.md CSP directives).
+// Every source-list directive in the order the header writes them. `frame-src` and `media-src` have no default and
+// appear only when the app names them (dx/server.md CSP directives).
 const ORDER = [
 	"default-src",
 	"script-src",
@@ -86,7 +86,7 @@ function directivePolicy(input: { url: string; nonce: string; dev: boolean; user
 	lists["style-src-elem"] = [...lists["style-src-elem"], `'nonce-${input.nonce}'`]
 	const parts = ORDER.flatMap((name) => {
 		const list = lists[name]
-		return list === undefined ? [] : [[name, ...list].join(" ")]
+		return list === undefined ? [] : [[name, ...list.map((source) => checked(name, source))].join(" ")]
 	})
 	const upgrade = input.user?.["upgrade-insecure-requests"] ?? new URL(input.url).protocol === "https:"
 	if (upgrade) parts.push("upgrade-insecure-requests")
@@ -95,10 +95,7 @@ function directivePolicy(input: { url: string; nonce: string; dev: boolean; user
 }
 
 // The directives with a default are always present; the named-only ones appear once the app names them.
-type Lists = Record<
-	Exclude<CspDirectiveName, "frame-src" | "frame-ancestors" | "form-action" | "media-src">,
-	readonly string[]
-> &
+type Lists = Record<Exclude<CspDirectiveName, "frame-src" | "media-src">, readonly string[]> &
 	Partial<Record<CspDirectiveName, readonly string[]>>
 
 function baseLists(): Lists {
@@ -114,6 +111,9 @@ function baseLists(): Lists {
 		"font-src": ["'self'", "data:", "https:"],
 		"connect-src": ["'self'", "https:"],
 		"worker-src": ["'self'"],
+		// A form posts and a frame embeds the page only on its own origin (plan 21 14.1).
+		"frame-ancestors": ["'self'"],
+		"form-action": ["'self'"],
 	}
 }
 
@@ -157,4 +157,11 @@ function allow(feature: string, origins: readonly string[]): string {
 		if (/["\s;]/.test(origin)) throw new Error(`Permissions-Policy ${feature}: ${JSON.stringify(origin)}`)
 	}
 	return `${feature}=(${origins.map((origin) => `"${origin}"`).join(" ")})`
+}
+
+// A `;` ends a directive and a line break ends the header, so a source holding either would inject policy of its own:
+// it throws, naming the directive, before it reaches the header (plan 21 14.1).
+function checked(name: string, source: string): string {
+	if (/[;\r\n]/.test(source)) throw new Error(`CSP ${name} source ${JSON.stringify(source)} holds a ; or a line break`)
+	return source
 }

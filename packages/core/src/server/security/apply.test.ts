@@ -183,3 +183,24 @@ function noop(): void {}
 function brokenPolicy(): never {
 	throw new Error("policy bug")
 }
+
+// A route's CSP directives add their sources to the server's, so a page that embeds a frame keeps the server's own
+// policy; a directive both name lists each source once (plan 21 14.1, BUGS.md 221).
+it("route csp merge", () => {
+	const server = { "Content-Security-Policy": { "script-src": ["'self'", "https://cdn.example"] } }
+	const merged =
+		applySecurity({
+			url: "https://flare.test/",
+			headers: new Headers(),
+			security: server,
+			route: {
+				"Content-Security-Policy": {
+					"frame-src": ["https://video.example"],
+					"script-src": ["'self'", "https://extra.example"],
+				},
+			},
+			candidate: "n",
+		}).headers.get("content-security-policy") ?? ""
+	expect(merged).toContain("script-src 'self' https://cdn.example https://extra.example 'nonce-n'")
+	expect(merged).toContain("frame-src https://video.example")
+})

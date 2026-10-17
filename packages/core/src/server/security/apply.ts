@@ -1,5 +1,5 @@
 import type { FlareRegister, RegisteredServerContext } from "../../shared/route-builder/register.ts"
-import type { SecurityConfig } from "../../shared/route-builder/types.ts"
+import type { CspDirectives, SecurityConfig } from "../../shared/route-builder/types.ts"
 import { buildCsp, randomNonce } from "./csp.ts"
 
 // Every key of a security config (dx/server.md SecurityConfig).
@@ -58,7 +58,12 @@ export function applySecurity(input: {
 }): Secured {
 	const candidate = input.candidate ?? randomNonce()
 	const config = serverConfig(input.security, input.context, candidate)
-	const merged: SecurityConfig = { ...config, ...input.route }
+	const csp = mergedCsp(config["Content-Security-Policy"], input.route?.["Content-Security-Policy"])
+	const merged: SecurityConfig = {
+		...config,
+		...input.route,
+		...(csp !== undefined && { "Content-Security-Policy": csp }),
+	}
 	const headers = new Headers(input.headers)
 	writeRoute(headers, input.routeHeaders)
 	const built = buildCsp({
@@ -112,4 +117,20 @@ export function mergeHeaders(
 
 function copy(value: string | readonly string[]): string | string[] {
 	return typeof value === "string" ? value : [...value]
+}
+
+// A route's directives add their sources to the server's, each once, so a page that allows one more origin keeps the
+// server's own policy; a flag directive takes the route's value. A route string or `false` replaces the whole policy,
+// as does any route CSP over a server string (plan 21 14.1, v0's directive merge).
+function mergedCsp(
+	server: SecurityConfig["Content-Security-Policy"],
+	route: SecurityConfig["Content-Security-Policy"],
+) {
+	if (typeof server !== "object" || typeof route !== "object") return undefined
+	const lists: Record<string, unknown> = { ...server }
+	for (const [name, value] of Object.entries(route)) {
+		const kept = lists[name]
+		lists[name] = Array.isArray(value) && Array.isArray(kept) ? [...new Set([...kept, ...value])] : value
+	}
+	return lists as CspDirectives
 }

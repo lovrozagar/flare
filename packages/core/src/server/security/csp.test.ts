@@ -133,7 +133,8 @@ it("named directives", () => {
 	expect(source(result.csp, "media-src")).toBe("https:")
 	expect(source(result.csp, "frame-src")).toBe("")
 	expect(result.csp.indexOf("worker-src")).toBeLessThan(result.csp.indexOf("frame-src"))
-	expect(source(policy({}).csp, "frame-ancestors")).toBeUndefined()
+	// `frame-src` and `media-src` have no default; `frame-ancestors` and `form-action` do (BUGS.md 221).
+	expect(source(policy({}).csp, "frame-src")).toBeUndefined()
 	expect(policy({ csp: { "upgrade-insecure-requests": false } }).csp).not.toContain("upgrade-insecure-requests")
 	expect(policy({ url: "http://a.test/", csp: { "upgrade-insecure-requests": true } }).csp).toContain(
 		"upgrade-insecure-requests",
@@ -147,4 +148,21 @@ it("permission values", () => {
 	expect(policy({ permissions: { camera: "self" } }).headers.get("permissions-policy")).toContain("camera=(self)")
 	expect(policy({ permissions: "camera=()" }).headers.get("permissions-policy")).toBe("camera=()")
 	expect(policy({ permissions: false }).headers.has("permissions-policy")).toBe(false)
+})
+
+// The default policy limits where a form may post and who may frame the page to the page's own origin
+// (plan 21 14.1, BUGS.md 221).
+it("form and frame defaults", () => {
+	const { csp } = policy({})
+	expect([source(csp, "form-action"), source(csp, "frame-ancestors")]).toEqual(["'self'", "'self'"])
+	const named = policy({ csp: { "frame-ancestors": ["'none'"] } }).csp
+	expect(source(named, "frame-ancestors")).toBe("'none'")
+})
+
+// A source holding a `;` or a line break would end its directive and inject another, so it throws, naming the
+// directive, instead of reaching the header (plan 21 14.1, BUGS.md 221).
+it("injected source", () => {
+	for (const bad of ["https://a.example; script-src *", "https://a.example\nscript-src *", "x\r"]) {
+		expect(() => policy({ csp: { "img-src": [bad] } })).toThrow(`CSP img-src source ${JSON.stringify(bad)}`)
+	}
 })
