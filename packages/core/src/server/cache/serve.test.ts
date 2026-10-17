@@ -48,7 +48,8 @@ const get = (path = "/p", init?: RequestInit): Request => new Request(`${SITE}${
 // Long enough for a background write to have run.
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 20))
 
-// A shared page with no store renders live: no shared render, and no `flare-cache`.
+// A public page with no store renders as the shared request a stored miss makes, with no search, and is written
+// nowhere, so no `flare-cache` (plan 21 4.4).
 it("no store", async () => {
 	const seen: string[] = []
 	const page = createPage("_root_/p")
@@ -58,7 +59,7 @@ it("no store", async () => {
 	const response = await serve(page, false).app.fetch(get("/p?q=1"))
 	expect(response.headers.get("cache-control")).toBe(PUBLIC)
 	expect(response.headers.has("flare-cache")).toBe(false)
-	expect(seen).toEqual([`${SITE}/p?q=1`])
+	expect(seen).toEqual([`${SITE}/p`])
 })
 
 // A stored page's resolve value runs once, in the store write: the stored document's state and its data variant carry

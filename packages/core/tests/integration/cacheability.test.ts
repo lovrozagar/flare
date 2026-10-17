@@ -1,4 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest"
+import { serverCtx } from "../../src/server/context/ctx.ts"
+import { createMemoryStore } from "../../src/server/cache/memory.ts"
 import { createServer } from "../../src/server/lifecycle/create.ts"
 import { runLoaders } from "../../src/server/loaders/run.ts"
 import { notFound } from "../../src/shared/errors/http.ts"
@@ -142,4 +144,65 @@ it("rewrapped answer", async () => {
 	// The same page without the rewrap keeps its own allowed cookie public.
 	const direct = await serve(page).fetch(get())
 	expect(direct.headers.get("cache-control")).toBe(PUBLIC)
+})
+
+// What serverContext holds for a request: its cookie, which a public render must never see.
+function serverContext({ request }: { request: Request }): { who: string } {
+	return { who: request.headers.get("cookie") ?? "none" }
+}
+
+// A public page renders as the anonymous request whether or not a store holds it, so the CDN copy every visitor gets
+// never carries the one who asked first: the loader and serverContext see no cookie, no search, and no session, with
+// a store and without one, on the document and the data answer alike, in each mode (plan 21 4.4).
+it("public render anonymous", async () => {
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const modes = [{ isr: true }, { ssr: { ttl: "1h" } }, { ssg: true }] as const
+	for (const mode of modes) {
+		const page = createPage("_root_/p")
+			.cache({ ...mode, cdn })
+			.loader(({ request }) => ({
+				cookie: request.headers.get("cookie") ?? "none",
+				search: new URL(request.url).search || "none",
+				context: String(Reflect.get(Object(serverCtx()), "who") ?? "none"),
+			}))
+			.render((props) => JSON.stringify(props.loaderData))
+		const router = createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/p", path: "/p", module: page }],
+		})
+		const bare = createServer({ router, serverContext })
+		const stored = createServer({ router, serverContext, store: createMemoryStore(), site: "https://example.com" })
+		for (const server of [bare, stored]) {
+			for (const path of ["/p?x=1", "/p?x=1&_flare=data"]) {
+				const request = new Request(`http://localhost${path}`, { headers: { cookie: "who=alice" } })
+				const response = await server.fetch(request)
+				const body = await response.text()
+				expect(response.headers.get("cache-control")).toBe(PUBLIC)
+				expect(response.headers.get("flare-render")).toBe(Object.keys(mode)[0])
+				expect(body).not.toContain("alice")
+				expect(body).not.toContain("x=1")
+			}
+		}
+	}
+	vi.mocked(console.error).mockRestore()
+})
+
+// A public page whose anonymous render is not a clean 200, here a loader that needs a cookie, answers a visitor who has
+// one with that visitor's own render: private, never the public policy a CDN would keep and serve to everyone.
+it("public render refused", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true, cdn })
+		.loader(({ request }) => {
+			const cookie = request.headers.get("cookie")
+			if (cookie === null) throw notFound()
+			return { cookie }
+		})
+		.render((props) => JSON.stringify(props.loaderData))
+	const router = createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] })
+	const bare = createServer({ router })
+	for (const path of ["/p", "/p?_flare=data"]) {
+		const response = await bare.fetch(new Request(`http://localhost${path}`, { headers: { cookie: "who=alice" } }))
+		expect(await response.text()).toContain("alice")
+		expect(response.headers.get("cache-control")).toBe("private, no-store")
+	}
 })
