@@ -13,6 +13,7 @@ vi.mock("../lifecycle/build-info.ts", () => ({
 		return info.id
 	},
 	clientEntry: undefined,
+	preloads: { entry: [], routes: {} },
 }))
 
 it("shape", () => {

@@ -19,6 +19,7 @@ vi.mock("./build-info.ts", () => ({
 	get clientEntry() {
 		return info.entry
 	},
+	preloads: { entry: [], routes: {} },
 }))
 
 // A layout shows its data, then its outlet. A page has no children.
