@@ -198,6 +198,15 @@ const wide: string = "_root_/about"
 	const _page: string | undefined = useSearch({ from: "_root_/search" }).page
 }
 
+// search validated through a const: the register has the page's output, as for a literal (BUGS.md 346)
+{
+	const page: number = useSearch({ from: "_root_/vsearch" }).page
+	void page
+	void Link({ to: "_root_/vsearch", search: { page: 2 }, children: "x" })
+	// @ts-expect-error a required key makes search required
+	void Link({ to: "_root_/vsearch", children: "x" })
+}
+
 // search required key
 {
 	void Link({ to: "_root_/search", search: { q: "a" }, children: "x" })
