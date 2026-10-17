@@ -15,6 +15,8 @@ import { registeredQuery, type DevStyle } from "../../shared/protocol/index.ts"
 import { DocumentlessRoot, isDocument } from "./shape.ts"
 import { insertState, stateWriter, type StateMatch } from "./state.ts"
 import { streamOptions, type StreamOptions } from "./stream-options.ts"
+import type { PreloadTable } from "../lifecycle/build-info.ts"
+import { preloadLinks } from "./preload.ts"
 
 type Chunk = string | Uint8Array
 
@@ -36,6 +38,8 @@ export type DocumentInput = {
 	devStyles?: readonly DevStyle[] | undefined
 	matches: readonly StateMatch[]
 	client?: string | undefined
+	// The deploy's preload table, the bundle's own by default (plan 21 15.3).
+	preloads?: PreloadTable
 	fill?: boolean
 	// The root layout's id: a shell that is no document rejects naming it (B37), unless `onDocumentless` is given, as dev
 	// gives it: then the shell is served as written (D22) and the callback hears the root.
@@ -55,7 +59,7 @@ const decoder = new TextDecoder()
 // before the shell rejects. Flushed bytes are never rewritten (B76).
 export async function renderDocument(input: DocumentInput): Promise<ReadableStream<Uint8Array>> {
 	const nonce = input.nonce ?? ""
-	// The state's matches serialize first. A value JSON cannot hold, such as a bigint, fails before the shell.
+	// The state's matches serialize first. A value the wire cannot hold, such as a function, fails before the shell.
 	const search = new URL(input.request.url).search
 	const state = stateWriter({ matches: input.matches, nonce, build: buildId, at: Date.now(), fill: input.fill, search })
 	const head = captureScript(nonce)
@@ -83,7 +87,14 @@ export async function renderDocument(input: DocumentInput): Promise<ReadableStre
 			throw new DocumentlessRoot(input.root)
 		}
 	}
-	const headed = withHead(first, head)
+	const ids = input.matches.map((match) => match.id)
+	const links = preloadLinks({
+		ids,
+		chunks: input.router.chunks,
+		nonce,
+		...(input.preloads && { table: input.preloads }),
+	})
+	const headed = withHead(first, `${head}${links}`)
 	const critical = { css: input.sheet ?? "", nonce, ctx: criticalContext(input.router), stylesheet: stylesheet.href }
 	const page = withDoctype(withCritical(headed, critical))
 	// The client keeps every `<head>` node outside this sequence out of hydration (B120).

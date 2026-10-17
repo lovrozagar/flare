@@ -1,4 +1,4 @@
-import { appendFileSync } from "node:fs"
+import { appendFileSync, readFileSync } from "node:fs"
 import type { Page } from "@playwright/test"
 import { bootCopy } from "./copy-boot.ts"
 import { loadHydrated } from "../../src/testing/playwright.ts"
@@ -395,3 +395,26 @@ function styleIds(page: Page): Promise<string[]> {
 		),
 	)
 }
+
+// A production document preloads the client entry and the matched route chain's chunks in its head, as the client
+// manifest names them, so the browser fetches them while it parses rather than in waves after the entry runs (plan 21
+// 15.3). Compared by file name, whatever the asset base.
+test("route chunks preloaded", async ({ page, docs }, info) => {
+	test.skip(!isProd(info), "a production client's chunks")
+	const manifest: Record<string, { file: string }> = JSON.parse(
+		readFileSync(`${docs.outDir ?? ""}/client/.vite/manifest.json`, "utf8"),
+	)
+	const named = (source: string) => manifest[source]?.file.split("/").at(-1)
+	const html = await (await page.request.get(`${docs.origin}/docs/routing`)).text()
+	const head = html.slice(0, html.indexOf("</head>"))
+	const preloaded = [...head.matchAll(/<link rel="modulepreload" href="([^"]+)"/g)].map((link) =>
+		link[1]?.split("/").at(-1),
+	)
+	const chain = [
+		"src/client.tsx",
+		"src/routes/[[locale]]/_root_/locale.root-layout.tsx",
+		"src/routes/[[locale]]/_root_/(guide)/docs/[slug]/doc.page.tsx",
+	]
+	expect(chain.map(named)).not.toContain(undefined)
+	expect(preloaded).toEqual(expect.arrayContaining(chain.map(named)))
+})

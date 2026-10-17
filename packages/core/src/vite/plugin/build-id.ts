@@ -3,8 +3,9 @@ import { readFileSync } from "node:fs"
 import type { Plugin } from "vite"
 import { defined } from "../../shared/errors/index.ts"
 import { clientUrl, PRERENDER_ENV, type Urls } from "./environments.ts"
+import { preloadsOf } from "./preloads.ts"
 
-type ManifestEntry = { file: string; css?: readonly string[] }
+type ManifestEntry = { file: string; css?: readonly string[]; imports?: readonly string[]; isDynamicEntry?: boolean }
 type Manifest = Readonly<Record<string, ManifestEntry>>
 
 // What the server build holds in place of its id until the bundle is known: 12 characters, as the id is, so swapping
@@ -88,5 +89,6 @@ export function buildInfoSource(input: BuildInfoInput): string {
 		manifest === undefined ? { entry: input.entry } : { entry: input.entry, manifest, urls: input.urls },
 	)
 	const head = dev ? input.devHead : ""
-	return `export const buildId = ${JSON.stringify(id)};\nexport const clientEntry = ${JSON.stringify(entry)};\nexport const devHead = ${JSON.stringify(head)};\n`
+	const preloads = manifest === undefined ? { entry: [], routes: {} } : preloadsOf(manifest, input.entry, input.urls)
+	return `export const buildId = ${JSON.stringify(id)};\nexport const clientEntry = ${JSON.stringify(entry)};\nexport const devHead = ${JSON.stringify(head)};\nexport const preloads = ${JSON.stringify(preloads)};\n`
 }

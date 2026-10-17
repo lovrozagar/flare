@@ -262,6 +262,8 @@ packages/core/src/server/loaders/hints.ts	P4	src	server	Apply _flare_stale. Layo
 packages/core/src/server/loaders/hints.test.ts	P4	test	server	Unit cases for hints.ts
 packages/core/src/server/loaders/index.ts	P1	index	server	Re-exports
 packages/core/src/server/render/document.ts	P1	src	server	Call renderToStream with the options 02-system names. Provides the router context around the root layout
+packages/core/src/server/render/preload.ts	P1	src	server	The document's modulepreload links for the client entry and the matched route chain, with the request's nonce (plan 21 15.3)
+packages/core/src/server/render/preload.test.ts	P1	test	server	Unit cases for preload.ts, and the document writing them in its head
 packages/core/src/server/render/document.test.ts	P1	test	server	Unit cases for document.ts
 packages/core/src/server/render/stream-options.ts	P1	src	server	Solid's stream options for the document render: the abort signal, the nonce, and the error hook that passes a render error contained after the shell to onRenderError (plan 21 3.2)
 packages/core/src/server/render/stream-options.test.ts	P1	test	server	Unit cases for stream-options.ts
@@ -870,6 +872,8 @@ packages/core/src/vite/plugin/cloudflare.test.ts	P16	test	vite	Unit cases for cl
 packages/core/src/vite/plugin/worker-main.ts	P16	src	vite	The Wrangler main's own module: flare() resolves the specifier inside Vite, and loading it anywhere else throws (B109)
 packages/core/src/vite/plugin/worker-main.test.ts	P16	test	vite	Unit cases for worker-main.ts
 packages/core/src/vite/plugin/preload.ts	P16	src	vite	The client build's modulepreload lists leave out the client entry's static import closure (BUGS.md 79)
+packages/core/src/vite/plugin/preloads.ts	P16	src	vite	From the client manifest, the module URLs a document preloads: the entry's closure, and per source module its chunk's closure past the entry's (plan 21 15.3)
+packages/core/src/vite/plugin/preloads.test.ts	P16	test	vite	Unit cases for preloads.ts
 packages/core/src/vite/plugin/preload.test.ts	P16	test	vite	Unit cases for preload.ts
 packages/core/src/vite/dev/dev-head.ts	P16	src	vite	devHead: the tags transformIndexHtml adds to an empty document, computed at dev server start (B95)
 packages/core/src/vite/dev/dev-head.test.ts	P16	test	vite	Unit cases for dev-head.ts

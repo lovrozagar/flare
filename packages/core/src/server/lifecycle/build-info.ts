@@ -7,3 +7,8 @@ export const clientEntry: string | undefined = undefined
 // What `transformIndexHtml` adds to an empty document, which a dev server's documents carry last in `<head>` (B95
 // (b)). Empty outside `vite dev`.
 export const devHead: string = ""
+
+// The modules a production document preloads: the client entry's, and per route source path its chunk's (plan 21
+// 15.3, vite/plugin/preloads.ts). Empty outside a deploy's bundle.
+export type PreloadTable = { entry: readonly string[]; routes: Readonly<Record<string, readonly string[]>> }
+export const preloads: PreloadTable = { entry: [], routes: {} }

@@ -129,7 +129,7 @@ it("client entry define", async () => {
 		})
 		expect(returned).not.toHaveProperty("define")
 		expect(flarePlugin().configEnvironment).toBeUndefined()
-		const head = '\nexport const devHead = "<meta name=x>";\n'
+		const head = '\nexport const devHead = "<meta name=x>";\nexport const preloads = {"entry":[],"routes":{}};\n'
 		const dev = `export const buildId = "dev";\nexport const clientEntry = "/src/client.tsx";${head}`
 		expect(await load("ssr", "serve")).toBe(dev)
 		expect(await load("flare_prerender", "serve")).toBe(dev)
@@ -146,7 +146,8 @@ it("client entry define", async () => {
 		mkdirSync(join(root, "dist/client/.vite"), { recursive: true })
 		writeFileSync(manifest, JSON.stringify({ "src/client.tsx": { file: "assets/client-a1.js" } }))
 		expect(load("ssr", "build")).toBe(
-			`export const buildId = "${ID_PLACEHOLDER}";\nexport const clientEntry = "/assets/client-a1.js";\nexport const devHead = "";\n`,
+			`export const buildId = "${ID_PLACEHOLDER}";\nexport const clientEntry = "/assets/client-a1.js";\nexport const devHead = "";\n` +
+				`export const preloads = {"entry":["/assets/client-a1.js"],"routes":{}};\n`,
 		)
 	} finally {
 		rmSync(root, { recursive: true, force: true })
