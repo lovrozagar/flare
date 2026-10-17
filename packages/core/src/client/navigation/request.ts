@@ -70,10 +70,22 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 		if (!trip.signal.aborted) deps.reload(trip.target.url)
 		return { kind: "none" }
 	}
-	// An input failure does not commit (dx/builder.md). Any other status paints the target's failure.
+	return answered(deps, trip, response)
+}
+
+// An input failure does not commit (dx/builder.md). Any other failure status paints the target's failure.
+function answered(deps: NavigatorDeps, trip: Trip, response: Response): Arrival | Promise<Arrival> {
 	if (response.status === 400) return { kind: "none" }
-	if (response.status !== 200 || response.body === null) return failedAt(deps, trip, response)
+	if (response.status >= 400) return failedAt(deps, trip, response)
+	if (response.status !== 200 || response.body === null) return notData(deps, trip)
 	return land(deps, trip, response.body)
+}
+
+// A 2xx that is not a 200 data body, a proxy's 204 say, is no answer to paint and no failure: the URL loads as a
+// document, under the reload guard (BUGS.md 320).
+function notData(deps: NavigatorDeps, trip: Trip): Arrival {
+	if (!trip.signal.aborted) deps.reload(trip.target.url)
+	return { kind: "none" }
 }
 
 // A named failure's answer carries the frames of the matches above it, so those layouts paint their own data for this

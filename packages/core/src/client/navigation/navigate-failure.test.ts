@@ -196,3 +196,27 @@ it("state not cloneable", async () => {
 	expect([app.text(), location.href.slice(location.origin.length), history.length]).toEqual(["root[home]", "/", length])
 	expect(app.deps.fetch).not.toHaveBeenCalled()
 })
+
+// A 2xx that is not a 200 data body, a proxy's 204 or 201 say, is no answer the client can paint and no failure: the
+// URL loads as a document, under the reload guard, and nothing commits (dx/navigate.md, BUGS.md 320).
+it("other 2xx loads document", async () => {
+	for (const status of [201, 204]) {
+		const app = await setup(async () => new Response(status === 204 ? null : "created", { status }))
+		const length = history.length
+		await app.navigator.navigate({ to: "_root_/about" })
+		flush()
+		expect([app.text(), location.pathname, history.length]).toEqual(["root[home]", "/", length])
+		expect(app.deps.reload).toHaveBeenCalledExactlyOnceWith("/about")
+		unmountAll()
+	}
+	// One a newer navigation superseded loads nothing.
+	const slow = held(() => new Response(null, { status: 204 }))
+	const answers = [slow.fetch, async () => ndjson(aboutFrames)]
+	const app = await setup(async () => (answers.shift() ?? slow.fetch)())
+	const first = app.navigator.navigate({ to: "_root_/about" })
+	await new Promise((resolve) => setTimeout(resolve, 0))
+	await app.navigator.navigate({ to: "_root_/about", revalidate: true })
+	slow.release()
+	await first
+	expect(app.deps.reload).not.toHaveBeenCalled()
+})
