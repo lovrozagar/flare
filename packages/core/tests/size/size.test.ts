@@ -35,3 +35,24 @@ it("client without dev", async () => {
 		expect([marker, result.text.includes(marker)]).toEqual([marker, false])
 	}
 }, 120_000)
+
+// The whole client, and each client feature an app imports on its own, against its budget: the minified bundle gzipped,
+// as it ships (plan 21 5.6). A change that grows one past its number fails here, so a growth is a decision, as B145's
+// codec was.
+it.each([
+	["client/boot/create-client.ts", "createClient"],
+	["shared/components/link.tsx", "Link"],
+	["features/image/shared/index.ts", "Image"],
+	["features/theme/shared/index.ts", "ThemeProvider"],
+	["features/direction/shared/index.ts", "DirectionProvider"],
+	["features/query/client/index.ts", "useSuspenseQuery"],
+	["features/i18n/shared/index.ts", "useT"],
+])(
+	"budget %s %s",
+	async (module, name) => {
+		const budget = JSON.parse(readFileSync(budgetPath, "utf8")) as Record<string, number>
+		expect(budget[name]).toBeTypeOf("number")
+		expect((await shipped(module, name)).minified).toBeLessThanOrEqual(budget[name] ?? 0)
+	},
+	120_000,
+)
