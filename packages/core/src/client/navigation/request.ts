@@ -19,7 +19,7 @@ export type DataTarget = Extract<Target, { kind: "data" }>
 // A status names the failed match when the server did (`flare-failed`), else the page paints it.
 export type Arrival =
 	| { kind: "landed"; landing: Landed; stale?: boolean }
-	| { kind: "status"; status: number; failed?: string }
+	| { kind: "status"; status: number; failed?: string; landing: Landed }
 	| { kind: "none" }
 
 // One data request. `fill` asks for the stored page's `"stream"` values with `_flare=fill`, and its landing settles
@@ -76,17 +76,31 @@ async function request(deps: NavigatorDeps, trip: Trip): Promise<Arrival> {
 	return land(deps, trip, response.body)
 }
 
+// A named failure's answer carries the frames of the matches above it, so those layouts paint their own data for this
+// URL over the failure (plan 21 12.5, B132).
+async function above(deps: NavigatorDeps, trip: Trip, response: Response): Promise<Landed | Arrival> {
+	if (response.body === null || !(response.headers.get("content-type") ?? "").startsWith(NDJSON)) return none
+	const landed = await land(deps, trip, response.body)
+	return landed.kind === "landed" ? landed.landing : landed
+}
+
+const none: Landed = { data: {}, heads: {} }
+
+const NDJSON = "application/x-ndjson"
+
 // A failed root renders the document, which the client cannot swap in place: the URL loads as a document, and the
 // server answers its minimal one (B77, BUGS.md 134). Any other failed match paints where the server says.
-function failedAt(deps: NavigatorDeps, trip: Trip, response: Response): Arrival {
+async function failedAt(deps: NavigatorDeps, trip: Trip, response: Response): Promise<Arrival> {
 	const failed = response.headers.get(FAILED_HEADER) ?? undefined
 	if (failed !== undefined && failed === trip.target.match.chain[0]?.id) {
 		if (!trip.signal.aborted) deps.assign(trip.target.url)
 		return { kind: "none" }
 	}
+	const landing = await above(deps, trip, response)
+	if ("kind" in landing) return landing
 	return failed === undefined
-		? { kind: "status", status: response.status }
-		: { kind: "status", status: response.status, failed }
+		? { kind: "status", status: response.status, landing }
+		: { kind: "status", status: response.status, failed, landing }
 }
 
 // A body that fails to read or land, other than by the trip's own abort, would leave the user on the old page with no
@@ -178,7 +192,7 @@ function failedIndex(matches: readonly OutletMatch[], failed: string | undefined
 export function nextSnapshot(deps: NavigatorDeps, next: Next): StoreSnapshot {
 	const params = defined(next.target.match.params)
 	const search = readSearch(next.target.location.search)
-	const landing: Landed = next.arrival.kind === "landed" ? next.arrival.landing : { data: {}, heads: {} }
+	const landing: Landed = next.arrival.landing
 	const cached = cachedMatches(next.target.match, next.target.location)
 	const held = cached.map((match) => (match.route in landing.data ? undefined : deps.cache.read(match)))
 	const earlier = (id: string) => next.previous.matches.findIndex((match) => match.id === id)

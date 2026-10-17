@@ -106,10 +106,11 @@ it("named status", async () => {
 		expect(document.run.failed?.boundary).toBe(boundary)
 		expect(document.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }])
 		expect(document.overlay).toEqual([])
+		// A data answer keeps the frames above the failure too, so those layouts paint this URL's data (plan 21 12.5).
 		const data = await spied("data", layoutData, call)
 		expect(data.run.response.status).toBe(status)
 		expect(data.run.failed?.boundary).toBe(boundary)
-		expect(data.run.frames).toEqual([])
+		expect(data.run.frames).toEqual([{ t: "l", m: "layout", d: { a: 1 } }])
 		expect(data.overlay).toEqual([])
 	}
 })

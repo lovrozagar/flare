@@ -1,5 +1,5 @@
 import { flush } from "solid-js"
-import { afterEach, beforeEach, expect, it } from "vitest"
+import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
@@ -89,6 +89,49 @@ it("failed match", async () => {
 		expect(app.store.snapshot().failure).toMatchObject({ index: 1, status: 404 })
 		expect(app.text()).toBe("root[Page not found]")
 	}
+})
+
+// A named failure's answer carries the frames of the matches above it: the root paints what its loader returned for
+// this URL over the not-found. A bare status keeps what the root had, and a body that cannot land loads the URL
+// (plan 21 12.5, B132).
+it("frames above failure", async () => {
+	const shown = createRootLayout("_root_").render((props) => [
+		"root:",
+		() => String(Reflect.get(Object(props.loaderData), "n")),
+		"[",
+		props.children,
+		"]",
+	])
+	const routeTree = [
+		{ id: "_root_/", path: "/", module: home },
+		{ id: "_root_/about", path: "/about", module: about },
+	]
+	const pages = createRouter({ layouts: { _root_: shown }, routeTree })
+	const named = { "flare-failed": "_root_/about", "content-type": "application/x-ndjson" }
+	const above = [{ t: "l", m: "_root_", d: { n: 2 } }, { t: "r" }, { t: "d" }] as const
+	for (const [answer, text] of [
+		[
+			() => new Response(above.map((frame) => encodeFrame(frame)).join(""), { status: 404, headers: named }),
+			"root:2[Page not found]",
+		],
+		[
+			() => new Response(null, { status: 404, headers: { "flare-failed": "_root_/about" } }),
+			"root:undefined[Page not found]",
+		],
+		[() => new Response(new Uint8Array([1]), { status: 404 }), "root:undefined[Page not found]"],
+	] as const) {
+		history.replaceState(null, "", "/")
+		const app = await mountNavigator(pages, async () => answer())
+		await app.navigator.navigate({ to: "_root_/about" })
+		flush()
+		expect(app.text()).toBe(text)
+		unmountAll()
+	}
+	const broken = await mountNavigator(pages, async () => new Response("not json\n", { status: 404, headers: named }))
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	await broken.navigator.navigate({ to: "_root_/about" })
+	expect(broken.deps.reload).toHaveBeenCalledWith("/about")
+	logged.mockRestore()
 })
 
 // A failed root of a navigation a newer one replaced loads nothing.

@@ -57,7 +57,8 @@ function failAt(kind: RequestKind, kept: readonly DataFrame[], failures: readonl
 	)
 	const at = { m: defined(failures[0], "the root-most failure").m, error: ranked.error }
 	const failed = { ...at, status, boundary: boundaryKind(status) }
-	if (kind === "document") return { status, frames: kept, kept, failed }
-	if (status !== 500) return { status, frames: [], kept, failed }
+	// A named status keeps the frames above it on a data answer too, so the client paints the layouts over the failure
+	// with their own data for this URL (plan 21 12.5, B132).
+	if (kind === "document" || status !== 500) return { status, frames: kept, kept, failed }
 	return { status: 200, frames: [...kept, { t: "e", m: at.m, e: at.error }], kept, failed }
 }

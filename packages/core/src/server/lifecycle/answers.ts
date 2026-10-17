@@ -26,8 +26,7 @@ import { clientEntry } from "./build-info.ts"
 import { finalize, type StageResult } from "./finalize.ts"
 import { applyPolicy, isPublic, policyHeaders } from "./policies.ts"
 
-// The rendered-page answers: a document, a data or prefetch response, and the not-found page (02-system steps 10 to
-// 13). createServer routes to them.
+// The rendered-page answers, which createServer routes to: a document, data, and the not-found page (02-system 10-13).
 
 export const HTML = "text/html; charset=utf-8"
 
@@ -99,8 +98,8 @@ export function cached(
 	return finalize(result)
 }
 
-// A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one
-// `x` line. Validation, a gate status, and a named failure answer bare. Anything else is the NDJSON stream.
+// A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one `x` line.
+// Validation and a gate status answer bare; a named failure its status with the frames above it (B132).
 export async function data(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	const id = matchId(definedParams(matched.params), searchKey(new URL(exchange.request.url).search))
 	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind !== "page" }))
@@ -109,7 +108,6 @@ export async function data(exchange: Exchange, matched: Loaded, prepared: Prepar
 	return dataFrom(exchange, run, { skip, policy: prepared.policy })
 }
 
-// The data answer for a finished loader run.
 export async function dataFrom(
 	exchange: Exchange,
 	run: LoaderRun,
@@ -121,7 +119,10 @@ export async function dataFrom(
 		const moved = redirectBody({ s: thrown.status, u, r: thrown.replace })
 		return finalize(stage(routeSecured(exchange, run.security), moved, run))
 	}
-	if (run.response.status !== 200) return bare(routeSecured(exchange, run.security), run, run.failed?.m)
+	const above = run.response.status === 200 || run.frames.length === 0 ? undefined : { ...dataFrames(run, skip) }
+	const kept = above && dataBody({ ...above, deferred: run.deferred, project: framed(exchange) })
+	if (run.response.status !== 200)
+		return bare(routeSecured(exchange, run.security), run, { failed: run.failed?.m, kept })
 	for (const bug of run.bugs) projectError(bug, exchange.sink)
 	const settled = await awaited(run, policy, false)
 	const frames = { ...dataFrames(run, skip), queries: answerQueries(exchange.sink) }
