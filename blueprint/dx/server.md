@@ -308,4 +308,4 @@ Each visit checks the registered worker's script for an update. That fetch now g
 
 ## Logger
 
-Only `server/lifecycle/logger.ts` may call `console` on the server (plan 15 moves it to `server/observe/logger.ts` with its files.tsv rows) (`00-rules.md`). The logger, its levels and formats, `ctx.log`, `log()`, and every field are `observability.md` (B98).
+Only `server/lifecycle/logger.ts` may call `console` on the server, the adapters included (`tests/structure/logger.test.ts` `console only in the logger`, BUGS.md 344) (plan 15 moves it to `server/observe/logger.ts` with its files.tsv rows) (`00-rules.md`). The logger, its levels and formats, `ctx.log`, `log()`, and every field are `observability.md` (B98).

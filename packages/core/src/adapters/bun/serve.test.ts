@@ -216,7 +216,7 @@ it("drain", async () => {
 	expect(drained).toBeUndefined()
 	work.resolve()
 	await vi.waitFor(() => expect(drained).toBe(true))
-	expect(logged).toHaveBeenCalledWith("[flare:bun] waitUntil rejected", new Error("refresh failed"))
+	expect(logged).toHaveBeenCalledWith("[flare:bun]", "waitUntil rejected", new Error("refresh failed"))
 	logged.mockRestore()
 })
 

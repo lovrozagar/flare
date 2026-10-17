@@ -1,4 +1,5 @@
 import { finalize, rebodied, streamsBody } from "../../server/lifecycle/finalize.ts"
+import { createLogger } from "../../server/lifecycle/logger.ts"
 import { forwardedHttps, trustedHops, validHost } from "../../shared/url/index.ts"
 import { pendingWork, type DrainOptions } from "../drain.ts"
 
@@ -48,7 +49,7 @@ export function createBunFetch(
 	const ctx: Ctx = {
 		waitUntil(promise) {
 			pending.track(promise)
-			promise.catch((error: unknown) => console.error("[flare:bun] waitUntil rejected", error))
+			promise.catch((error: unknown) => createLogger({ dev: false }).error("bun", "waitUntil rejected", error))
 		},
 	}
 	return {

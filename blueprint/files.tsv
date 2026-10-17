@@ -23,6 +23,7 @@ packages/core/lint/funnel-only.test.ts	P3	test	node	Unit cases for funnel-only.j
 packages/core/lint/no-flare-header-branching.js	P3	lint	node	Reject a branch on a flare- request header
 packages/core/lint/no-flare-header-branching.test.ts	P3	test	node	Unit cases for no-flare-header-branching.js
 packages/core/tests/structure/tree.test.ts	P0	test	node	check-tree fails on an extra file, a missing file, and an index with a statement
+packages/core/tests/structure/logger.test.ts	P0	test	node	Only server/lifecycle/logger.ts calls console in src/server and src/adapters (BUGS.md 344)
 packages/core/tests/structure/keys.test.ts	P10	test	node	Every route shape of up to three params through the real router: no two param records share a store key or a match id (plan 21 7.8)
 packages/core/tests/structure/wire.test.ts	P6	test	node	A table of every kind of app value, alone and nested, through the codec, an l frame, the state script, and a server-function envelope: each arrives equal, and the state stays one script
 packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball; the README names exactly the packed exports and its quick start compiles against them
