@@ -101,7 +101,7 @@ The callback `ctx` is `{ request, env, nonce, serverContext }`. It runs once per
 | `Cross-Origin-Opener-Policy` | `same-origin` | a string |
 | `Cross-Origin-Resource-Policy` | `same-origin` on every answer Flare sends, so another origin cannot pull one in as an image, script, or media (B135) | a string, such as `cross-origin` for a share image or widget other sites embed, or `false` |
 | `Permissions-Policy` | every feature below is `false` | the object, a string, or `false` |
-| `X-Powered-By` | absent | a string, which is the only way the header appears |
+| `X-Powered-By` | absent | a string, which is the only way the header appears: one an answer brings, from `.headers()`, a `.response()` page, a mount, or a middleware, is dropped (`tests/integration/ingress.test.ts` `powered by only from security`, BUGS.md 333) |
 
 `X-XSS-Protection` is not a key. Tests: `server/security/defaults.test.ts`; `apply.test.ts` `every key` (each key's string, its `false`, `X-Powered-By` absent by default, and `Cross-Origin-Resource-Policy` `same-origin` until set); `defaults.test.ts` `corp`.
 

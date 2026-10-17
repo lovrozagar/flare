@@ -190,6 +190,37 @@ it("headers cannot secure", async () => {
 	}
 })
 
+// `X-Powered-By` appears only when the security config sets it: a page's `.headers()`, a `.response()` page, a mount,
+// and a middleware answer that send one lose it, and a configured one is sent as configured (dx/server.md, BUGS.md 333).
+it("powered by only from security", async () => {
+	const powered = { "X-Powered-By": "Express" }
+	const page = createPage("_root_/")
+		.headers(() => powered)
+		.render(() => "home")
+	const raw = createPage("_root_/raw").response(() => new Response("raw", { headers: { "X-Powered-By": "PHP/8" } }))
+	const routeTree = [
+		{ id: "_root_/", path: "/", module: page },
+		{ id: "_root_/raw", path: "/raw", module: raw },
+	]
+	const server = (security?: { "X-Powered-By": string }) =>
+		createServer({
+			router: createRouter({
+				layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+				routeTree,
+			}),
+			mounts: [{ prefix: "/api", fetch: () => new Response("api", { headers: powered }) }],
+			middleware: [{ filter: { exact: ["/mw"] }, handler: () => new Response("mw", { headers: powered }) }],
+			...(security !== undefined && { security }),
+		})
+	const paths = ["/", "/?_flare=data", "/raw", "/api/x", "/mw"]
+	const sent = async (app: ReturnType<typeof server>) =>
+		Promise.all(
+			paths.map(async (path) => (await app.fetch(new Request(`http://localhost${path}`))).headers.get("x-powered-by")),
+		)
+	expect(await sent(server())).toEqual([null, null, null, null, null])
+	expect(await sent(server({ "X-Powered-By": "Flare" }))).toEqual(["Flare", "Flare", "Flare", "Flare", "Flare"])
+})
+
 // Solid writes the head into the document's head element, so the root renders a full document.
 function documentOf(children: Element): Element {
 	return createComponent(Dynamic, {
