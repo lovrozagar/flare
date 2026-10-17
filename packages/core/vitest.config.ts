@@ -3,11 +3,13 @@ import { defineConfig } from "vitest/config"
 
 // The hydrate harness renders on Node and hydrates in a real browser, so it runs on Node though it is .tsx.
 const HYDRATE = "tests/integration/hydrate.test.tsx"
-const nodeInclude = ["src/**/*.test.ts", "lint/**/*.test.ts", "tests/**/*.test.ts", "../../scripts/**/*.test.ts"]
+const nodeInclude = ["src/**/*.test.ts", "tests/**/*.test.ts", "../../scripts/**/*.test.ts"]
 
 // An integration case runs a real vite build, a dev server, or a browser (B96): seconds each under the full gate's
 // parallel load. They get 60 s, a case and a hook alike; a unit keeps 5 s, so a hung unit still fails fast. Measured in
-// one full gate: the slowest case 4.9 s, the slowest build 4.8 s.
+// one full gate: the slowest case 4.9 s, the slowest build 4.8 s. A lint rule's case runs the oxlint binary once per
+// fixture, so it gets the same 60 s: `boundaries.test.ts` `sync import`, six runs, took 1.8 to 3.9 s alone on a loaded
+// host and 6.1 s in a full gate.
 const INTEGRATION_TIMEOUT = 60_000
 
 export default defineConfig({
@@ -66,7 +68,7 @@ export default defineConfig({
 				test: {
 					name: "integration",
 					environment: "node",
-					include: ["tests/integration/**/*.test.ts", HYDRATE],
+					include: ["tests/integration/**/*.test.ts", HYDRATE, "lint/**/*.test.ts"],
 					testTimeout: INTEGRATION_TIMEOUT,
 					hookTimeout: INTEGRATION_TIMEOUT,
 				},
