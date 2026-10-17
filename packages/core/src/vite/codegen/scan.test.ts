@@ -148,7 +148,8 @@ function methods(options: string): string[] | undefined {
 }
 
 // `.response(fn, { methods })` is a literal list the route node carries; none is GET. Any other shape fails the build,
-// naming the file (plan 21 13.5, BUGS.md 208).
+// naming the file, a spread, a computed key, or an unknown key included, since the scan could not read it (plan 21
+// 13.5, BUGS.md 208, 276).
 it("response methods", () => {
 	expect(methods("")).toBeUndefined()
 	expect(methods(", {}")).toBeUndefined()
@@ -160,6 +161,9 @@ it("response methods", () => {
 		", { methods: list }",
 		", options",
 		", { methods: [...list] }",
+		", { ...options }",
+		', { ["methods"]: ["POST"] }',
+		', { methods: ["POST"], other: 1 }',
 	]) {
 		expect(() => methods(options)).toThrow("a.page.ts: .response() methods is a non-empty array")
 	}

@@ -175,7 +175,7 @@ function readResponse(scan: Scan, args: readonly Argument[]): void {
 	const [, options] = args
 	if (options === undefined) return
 	const literal = `${scan.file}: .response() ${METHODS_RULE}, written as a literal`
-	if (options.type !== "ObjectExpression") throw new Error(literal)
+	if (options.type !== "ObjectExpression" || !options.properties.every(readable)) throw new Error(literal)
 	const list = valueOf(options.properties, "methods")
 	if (list !== undefined) {
 		const values =
@@ -184,6 +184,14 @@ function readResponse(scan: Scan, args: readonly Argument[]): void {
 		scan.methods = values
 	}
 	readCrossOrigin(scan, valueOf(options.properties, "crossOrigin"))
+}
+
+// A `.response()` option the scan reads. A spread, a computed key, or another key could carry methods it cannot
+// (BUGS.md 276).
+function readable(property: ObjectPropertyKind): boolean {
+	return (
+		property.type === "Property" && !property.computed && ["methods", "crossOrigin"].includes(keyName(property.key))
+	)
 }
 
 // `crossOrigin` is a literal boolean. A route that answers only GET or OPTIONS has no Origin check to drop; the chain's
