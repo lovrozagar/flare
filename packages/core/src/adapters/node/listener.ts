@@ -23,6 +23,8 @@ type NodeReq = {
 	resume?(): unknown
 	on?(event: "data" | "end", listener: (chunk: Uint8Array) => void): unknown
 	readableEnded?: boolean | undefined
+	// The connection, whose address is the client's when no trusted proxy names one.
+	socket?: { remoteAddress?: string | undefined } | undefined
 }
 
 type NodeRes = {
@@ -76,7 +78,7 @@ type Job = {
 async function pump(job: Job): Promise<void> {
 	// The origin comes from Host, as the adapter resolves it, so CSRF compares a browser's Origin with it (B44).
 	const headers = joinedHeaders(job.req.headers)
-	const adapted = toRequest({ url: job.req.url ?? "/", headers, trustProxy: job.trustProxy })
+	const adapted = adaptedOf(job.req, job.trustProxy)
 	if (adapted.status === 400) return send(job, ownAnswer(400), new AbortController().signal)
 	const body = requestBody(job.req)
 	// Node emits close after a normal finish too. Only a close before the finish is a client disconnect, and
@@ -115,6 +117,14 @@ async function refusedAt(server: Server, request: { method: string; url: string 
 	const channel: unknown = Reflect.get(server, REFUSED)
 	if (typeof channel !== "function") return { status: 405, allow: "GET, HEAD, OPTIONS" }
 	return (await Reflect.apply(channel, undefined, [request])) as RefusedAnswer
+}
+
+// The request as the pipeline reads it, the socket's address handed on: `trustProxy` of 0, or fewer forwarded entries
+// than it trusts, reads the socket, never a client's claim (dx/server.md Client address, BUGS.md 342).
+export function adaptedOf(req: NodeReq, trustProxy: number): ReturnType<typeof toRequest> {
+	const headers = joinedHeaders(req.headers)
+	const socketAddress = req.socket?.remoteAddress
+	return toRequest({ url: req.url ?? "/", headers, trustProxy, ...(socketAddress !== undefined && { socketAddress }) })
 }
 
 // An answer the listener gives itself, for a request it cannot route or one that failed before its headers: no body,
