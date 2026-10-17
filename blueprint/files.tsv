@@ -26,6 +26,10 @@ packages/core/tests/structure/tree.test.ts	P0	test	node	check-tree fails on an e
 packages/core/tests/structure/keys.test.ts	P10	test	node	Every route shape of up to three params through the real router: no two param records share a store key or a match id (plan 21 7.8)
 packages/core/tests/structure/wire.test.ts	P6	test	node	A table of every kind of app value, alone and nested, through the codec, an l frame, the state script, and a server-function envelope: each arrives equal, and the state stays one script
 packages/core/tests/structure/exports.test.ts	P14	test	node	Every subpath in 03-surface resolves from the packed tarball; the README names exactly the packed exports and its quick start compiles against them
+packages/core/vitest.consumers.config.ts	P14	config	-	The consumer cells' own vitest config, outside `test` and `verify` since every cell installs from the registry: 30 min a case, one file at a time (plan 21 5.5)
+packages/core/tests/consumers/stage.ts	P14	test	node	The consumer stage: peer specs at their floors or newest, the newest report, a fresh project under the OS temp dir, the tarball installed and built and served with a pinned Node and its own npm
+packages/core/tests/consumers/stage.test.ts	P14	test	node	Unit cases for stage.ts's peer specs and newest report
+packages/core/tests/consumers/readme.consumer.test.ts	P14	test	node	The README's own install line, run with Bun and with the pinned npm at default peer resolution: no ERESOLVE, then the minimal app builds and serves (plan 21 5.5)
 packages/core/tests/structure/workflows.test.ts	P14	test	node	The GitHub workflows pin every action by commit SHA and install nothing @latest (BUGS.md 219)
 packages/core/tests/structure/errored.test.ts	P14	test	node	No source file but safe-errored.ts reaches Solid's Errored, by import or namespace member (BUGS.md 141)
 packages/core/tests/structure/json-only.test.ts	P14	test	node	No source file decodes a form body (formData, multipart, a urlencoded body read): server functions are JSON-only by B4 (plan 21 16.8)
@@ -835,6 +839,8 @@ packages/core/src/features/fonts/registry.json	P14	config	-	Family metadata. The
 packages/core/src/features/fonts/shared/generated/*.ts	P14	generated	-	One module per registry key. Produced only by generate.ts. Default export (B78)
 scripts/release.ts	P14	script	node	Pack, run the golden test, and publish from a green tag
 scripts/release.test.ts	P14	test	node	Unit cases for release.ts
+scripts/node-at.ts	P14	script	node	The consumer cells' Nodes, never the host's: 22.12.0 (the B3 floor) and 24.22.0 by exact version, each nodejs.org tarball checked against its pinned SHA-256 and unpacked into FLARE_NODE_CACHE (plan 21 5.5)
+scripts/node-at.test.ts	P14	test	node	Unit cases for node-at.ts: a cached second call, a wrong sum, a failed download, an unpinned version or platform, the two pins
 packages/core/tests/e2e/apps/docs/**	P15	app	-	The docs app (B94): a short Flare docs site that uses every exported feature. One row for the tree; the docs specs own its behavior
 packages/core/tests/e2e/docs.fixture.ts	P15	test	node	Worker-scoped docs boot, the deep-set skip, and the page helpers the docs specs share (B94)
 packages/core/tests/e2e/flush.ts	P15	test	node	flushEvents: the page logs and fetches a marker, so every event it sent before has reached the test; negative assertions read after it, not after a sleep
