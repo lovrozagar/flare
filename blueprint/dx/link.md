@@ -55,7 +55,7 @@ An internal link has `to`. An external link has `href` and must not have `to`.
 | `inactiveClass` | no | — | string | added when it is not | | same |
 | `activeProps` | no | — | anchor attributes | spread when active | | same |
 | `inactiveProps` | no | — | anchor attributes | spread when inactive | | same |
-| `isActive` | no | exact pathname and exact search | `(location: { pathname, search }) => boolean` | replaces the default. The default is not a prefix. Search equality is a multiset of pairs: order does not matter, and a repeated key must match. The hash is not compared | | `link.test.tsx` `is active`, `active default`, `active search order`, `active prefix` |
+| `isActive` | no | exact pathname and exact search, against the URL on screen once the page hydrated: a stored page opened with `?utm=…` is not the exact link's page, though the server rendered it current (`active-client.test.ts` `stored page with a query`, BUGS.md 211) | `(location: { pathname, search }) => boolean` | replaces the default. The default is not a prefix. Search equality is a multiset of pairs: order does not matter, and a repeated key must match. The hash is not compared | | `link.test.tsx` `is active`, `active default`, `active search order`, `active prefix` |
 | `disabled` | no | `false` | boolean | stays an `<a>`. No navigation, no prefetch, `aria-disabled="true"`, `tabindex="-1"` | it is not replaced by a `span` | `link.test.tsx` `disabled` |
 | `force` | no | `false` | boolean | navigate even when `isActive` is true | | `link.test.tsx` `force` |
 | `target` | no | — | anchor target | `_blank` does not run the client router | | `link.test.tsx` `blank` |

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest"
-import { readState } from "./hydrate.ts"
+import { readState, renderedLocation } from "./hydrate.ts"
 
 const match = {
 	id: "_root_",
@@ -28,4 +28,16 @@ it("state among lookalikes", () => {
 it("no state", () => {
 	document.body.innerHTML = '<div id="app"></div>'
 	expect(() => readState()).toThrow(/self\.flare/)
+})
+
+// Hydrate mounts on the location the server rendered: the browser's path, the state's search or none, and no hash
+// (plan 21 13.8, 13.9, BUGS.md 211).
+it("rendered location", () => {
+	const shown = { pathname: "/a", search: "?utm=mail", hash: "#top" }
+	expect(renderedLocation({ matches: [], nonce: "" }, shown)).toEqual({ pathname: "/a", search: "", hash: "" })
+	expect(renderedLocation({ matches: [], nonce: "", search: "?q=x" }, shown)).toEqual({
+		pathname: "/a",
+		search: "?q=x",
+		hash: "",
+	})
 })

@@ -24,7 +24,7 @@ import { tabbedFetch, type DevHot } from "../dev/tab.ts"
 import { registeredQuery } from "../../shared/protocol/index.ts"
 import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts"
 import { guardHead } from "./head-guard.ts"
-import { mountApp, readState, type App, type ClientState, type Mount } from "./hydrate.ts"
+import { mountApp, readState, renderedLocation, type App, type ClientState, type Mount } from "./hydrate.ts"
 import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts"
 
 // The browser surface the client uses, passed in so a test can observe it.
@@ -106,7 +106,7 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 	})
 	const invalidate = installCall(router, { fetch: env.fetch, build, cache, prefetcher }, navigator)
 	ready.ready({ navigate: navigator.navigate, location })
-	const unmount = hydrateGuarded(state.head, phase, {
+	const unmount = hydrateGuarded(state, phase, {
 		router,
 		store,
 		navigation,
@@ -128,11 +128,11 @@ export async function bootClient(router: Router, ready: Ready, given: ClientEnv)
 
 // Head nodes the server did not write stay out of the hydrate and return in the same task, and a boundary error
 // while it runs is logged (B120).
-function hydrateGuarded(head: ClientState["head"], phase: { hydrating: boolean }, app: App): () => void {
-	const restoreHead = guardHead(document.head, head)
+function hydrateGuarded(state: ClientState, phase: { hydrating: boolean }, app: App): () => void {
+	const restoreHead = guardHead(document.head, state.head)
 	phase.hydrating = true
 	try {
-		return mountApp(app)
+		return mountApp({ ...app, rendered: renderedLocation(state, app.store.snapshot().location) })
 	} finally {
 		phase.hydrating = false
 		restoreHead()

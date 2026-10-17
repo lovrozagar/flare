@@ -56,7 +56,8 @@ const decoder = new TextDecoder()
 export async function renderDocument(input: DocumentInput): Promise<ReadableStream<Uint8Array>> {
 	const nonce = input.nonce ?? ""
 	// The state's matches serialize first. A value JSON cannot hold, such as a bigint, fails before the shell.
-	const state = stateWriter({ matches: input.matches, nonce, build: buildId, at: Date.now(), fill: input.fill })
+	const search = new URL(input.request.url).search
+	const state = stateWriter({ matches: input.matches, nonce, build: buildId, at: Date.now(), fill: input.fill, search })
 	const head = captureScript(nonce)
 	const tags = input.head === undefined ? undefined : headTags(input.head, { nonce })
 	const piped = new TransformStream<Chunk, Chunk>()
