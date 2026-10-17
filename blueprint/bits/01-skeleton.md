@@ -226,7 +226,7 @@ A root whose own loader failed never renders, so its bare failure is not checked
 
 | test | case | result |
 | --- | --- | --- |
-| `one route` | the minimal home page | `routes.gen.ts` has no static route import. Each tree node's and layout's `module` is `() => import("../routes/<file>")`, which resolves to the module's namespace (the router reads its `route`, BUGS.md 73): the import is relative from `src/_gen`, where the file is written, as `types.gen.d.ts`'s are. It exports `routeTree`, `layouts`, and `chunks`, which maps each id to `/<routesDir>/<file>` (`src/routes` by default). Bit 06 made modules lazy |
+| `one route` | the minimal home page | `routes.gen.ts` has no static route import. Each tree node's and layout's `module` is `() => import("../routes/<file>")`, which resolves to the module's namespace (the router reads its `route`, BUGS.md 73): the import is relative from `src/_gen`, where the file is written, as `types.gen.ts`'s are. It exports `routeTree`, `layouts`, and `chunks`, which maps each id to `/<routesDir>/<file>` (`src/routes` by default). Bit 06 made modules lazy |
 | `missing route export` | a page file with no `route` export | build error naming the file |
 | `filename` | `home.page.tsx` directly in `_root_`, beside `root.root-layout.tsx` | the page id is `_root_/` and the root layout id is `_root_`. URL `/`. Under `[locale]/_root_` the home page id is `[locale]/_root_/` |
 | `layout beside page` | `blog.layout.tsx` and `blog.page.tsx` in one non-root folder | build error naming both files |

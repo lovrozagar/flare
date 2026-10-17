@@ -4,6 +4,7 @@ import { join, relative, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterAll, expect, it } from "vitest"
 import { generateTypes } from "../../src/vite/codegen/types-gen.ts"
+import { GENERATED } from "../../src/vite/codegen/write.ts"
 
 // B74: the generator runs on the fixture, then the real tsc checks it under a consumer's strict flags. The register
 // goes to a temp folder under the repo's ignored .tmp, and `rootDirs` lets its `../routes/…` imports reach the
@@ -21,13 +22,19 @@ function filesIn(dir: string): string[] {
 	})
 }
 
-function writeProject(tail = ""): string {
+// The register's file name, as the writer names it.
+const REGISTER = GENERATED.find((name) => name.startsWith("types."))
+
+// An unresolved import reported in the register itself.
+const UNRESOLVED = new RegExp(`_gen/${String(REGISTER).replaceAll(".", "\\.")}\\(\\d+,\\d+\\): error TS2307`)
+
+function writeProject(tail = "", skipLibCheck = false): string {
 	const appFiles = filesIn(join(app, "src"))
 	const routeFiles = appFiles.filter((file) => file.startsWith("src/routes/")).map((file) => file.slice(11))
 	const read = (file: string): string => readFileSync(join(app, file), "utf8")
 	mkdirSync(join(temp, "src", "_gen"), { recursive: true })
 	writeFileSync(
-		join(temp, "src", "_gen", "types.gen.d.ts"),
+		join(temp, "src", "_gen", String(REGISTER)),
 		generateTypes({ routeFiles, appFiles, read }).source + tail,
 	)
 	// A valid line under a directive: tsc must report it, or a stale @ts-expect-error in checks.ts would pass.
@@ -36,11 +43,10 @@ function writeProject(tail = ""): string {
 	const sources = [join(app, "src"), join(temp, "src")]
 	writeFileSync(
 		tsconfig,
-		// The register is a `.d.ts`: with the base config's skipLibCheck it would never be checked, and a broken import
-		// in it would turn its route into `any` while the compile passes (plan 25 T13).
+		// skipLibCheck off checks every `.d.ts` the fixture reaches as well (plan 25 T13).
 		JSON.stringify({
 			extends: join(app, "tsconfig.json"),
-			compilerOptions: { rootDirs: sources, skipLibCheck: false },
+			compilerOptions: { rootDirs: sources, skipLibCheck },
 			include: sources,
 		}),
 	)
@@ -58,20 +64,23 @@ it("app compiles", () => {
 	}
 }, 120_000)
 
-// The generated register is a `.d.ts`, so it is checked: an import in it that does not resolve is an error, never a
-// route turned `any` while the compile passes (plan 25 T13, BUGS.md 345).
+// The generated register is checked: an import in it that does not resolve is an error, never a route turned `any`
+// while the compile passes (plan 25 T13, BUGS.md 345). It is a module, not a `.d.ts`, so it is checked under the
+// README's `skipLibCheck: true` as well, which every app that follows the README sets (BUGS.md 347).
 it("register checked", () => {
-	try {
-		const broken = '\nimport type { Nope } from "../routes/nope.ts";\nexport type Broken = Nope;\n'
-		const run = spawnSync("bunx", ["tsc", "-p", writeProject(broken)], { cwd: repo, encoding: "utf8" })
-		const errors = run.stdout.split("\n").filter((line) => line.includes("error TS"))
-		expect(errors).toEqual(
-			expect.arrayContaining([expect.stringMatching(/types\.gen\.d\.ts\(\d+,\d+\): error TS2307/)]),
-		)
-	} finally {
-		rmSync(temp, { recursive: true, force: true })
+	const broken = '\nimport type { Nope } from "../routes/nope.ts";\nexport type Broken = Nope;\n'
+	for (const skipLibCheck of [false, true]) {
+		try {
+			const run = spawnSync("bunx", ["tsc", "-p", writeProject(broken, skipLibCheck)], { cwd: repo, encoding: "utf8" })
+			const errors = run.stdout.split("\n").filter((line) => line.includes("error TS"))
+			expect(errors, `skipLibCheck ${skipLibCheck}`).toEqual(
+				expect.arrayContaining([expect.stringMatching(UNRESOLVED)]),
+			)
+		} finally {
+			rmSync(temp, { recursive: true, force: true })
+		}
 	}
-}, 120_000)
+}, 240_000)
 
 // The fixture's src/query.ts imports the ./query entry, so the generated register sets `hasQueryClient`.
 it("query client generated", () => {

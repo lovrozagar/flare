@@ -42,13 +42,13 @@ it("writes both", () => {
 	const printed = output()
 	expect(runBin(["codegen"], bin, printed.out)).toBe(0)
 	expect(printed.lines).toEqual([
-		"flare codegen: wrote src/_gen/routes.gen.ts, src/_gen/types.gen.d.ts, src/_gen/server-fns.gen.ts",
+		"flare codegen: wrote src/_gen/routes.gen.ts, src/_gen/types.gen.ts, src/_gen/server-fns.gen.ts",
 	])
 	const core = flare().find((item) => item.name === "flare")
 	const buildStart = core?.buildStart
 	if (typeof buildStart !== "function") throw new Error("buildStart")
 	Reflect.apply(buildStart, { environment: { config: { root: plugin } } }, [{}])
-	for (const name of ["routes.gen.ts", "types.gen.d.ts"]) {
+	for (const name of ["routes.gen.ts", "types.gen.ts"]) {
 		expect(readFileSync(join(bin, "src/_gen", name), "utf8")).toBe(readFileSync(join(plugin, "src/_gen", name), "utf8"))
 	}
 	const again = output()

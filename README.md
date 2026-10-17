@@ -431,7 +431,7 @@ Full contract: [env.md](https://github.com/lovrozagar/flare/blob/main/blueprint/
 
 ## Types
 
-Codegen writes `src/_gen/types.gen.d.ts`, which augments `FlareRegister`: page ids, params, search, and loader data, so `Link`, `navigate`, `redirect`, and the hooks are typed by the target route. An app adds its own fields to `FlareRegister` (`auth`, `env`, `serverContext`) by declaration merging.
+Codegen writes `src/_gen/types.gen.ts`, which augments `FlareRegister`: page ids, params, search, and loader data, so `Link`, `navigate`, `redirect`, and the hooks are typed by the target route. An app adds its own fields to `FlareRegister` (`auth`, `env`, `serverContext`) by declaration merging.
 
 | export                         | from                | what it is                                |
 | ------------------------------ | ------------------- | ----------------------------------------- |

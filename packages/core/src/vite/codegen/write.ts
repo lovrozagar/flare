@@ -12,7 +12,7 @@ const SCRIPT = /\.[cm]?[jt]sx?$/
 const PAGE = ".page.tsx"
 
 // The files flare writes under src/_gen (dx/plugin.md). Their paths are not options.
-export const GENERATED = ["routes.gen.ts", "types.gen.d.ts", "server-fns.gen.ts"] as const
+export const GENERATED = ["routes.gen.ts", "types.gen.ts", "server-fns.gen.ts"] as const
 
 // `fixIds`: `vite dev` writes each route file's id string first (BUGS.md 130). A build only checks it. `log` gets one
 // line per rewritten file.

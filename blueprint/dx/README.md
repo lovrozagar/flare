@@ -30,7 +30,7 @@ A name from v0 that no file here lists is not a v1 prop. The cuts are B4 and B10
 | `navigate.md` | `navigate` and the hooks |
 | `head.md` | `.head()` |
 | `server.md` | `createServer`, middleware, mount, proxy, security, response headers, `serverCtx`, `withFetchDedupe` |
-| `types.md` | `FlareRegister`, `src/_gen/types.gen.d.ts`, and the propagation matrix |
+| `types.md` | `FlareRegister`, `src/_gen/types.gen.ts`, and the propagation matrix |
 | `server-fn.md` | `createServerFn` |
 | `env.md` | `createServerOnlyFn`, `createClientOnlyFn`, `createIsomorphicFn` |
 | `client.md` | `createClient` |

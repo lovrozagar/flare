@@ -39,7 +39,7 @@ it("unchanged", () => {
 	const root = app(BASE)
 	expect(writeGenerated(root)).toEqual(GENERATED.map((name) => `src/_gen/${name}`))
 	expect(generated(root, "routes.gen.ts")).toContain('import("../routes/_root_/home.page.tsx")')
-	expect(generated(root, "types.gen.d.ts")).toContain("FlareRegister")
+	expect(generated(root, "types.gen.ts")).toContain("FlareRegister")
 	expect(generated(root, "server-fns.gen.ts")).toContain('import("../fns/echo.ts")')
 	const before = statSync(join(root, "src/_gen/routes.gen.ts")).mtimeMs
 	expect(writeGenerated(root)).toEqual([])
@@ -51,9 +51,9 @@ it("empty", () => {
 	const root = app(BASE)
 	writeGenerated(root)
 	rmSync(join(root, "src/routes"), { recursive: true })
-	expect(writeGenerated(root)).toEqual(["src/_gen/routes.gen.ts", "src/_gen/types.gen.d.ts"])
+	expect(writeGenerated(root)).toEqual(["src/_gen/routes.gen.ts", "src/_gen/types.gen.ts"])
 	expect(existsSync(join(root, "src/_gen/routes.gen.ts"))).toBe(false)
-	expect(existsSync(join(root, "src/_gen/types.gen.d.ts"))).toBe(false)
+	expect(existsSync(join(root, "src/_gen/types.gen.ts"))).toBe(false)
 	expect(existsSync(join(root, "src/_gen/server-fns.gen.ts"))).toBe(true)
 	expect(writeGenerated(root)).toEqual([])
 	// Files are taken in UTF-16 code unit order, so the output does not depend on the file system's listing: "B" sorts
