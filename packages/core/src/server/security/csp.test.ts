@@ -106,10 +106,13 @@ it("style copy", () => {
 	expect(source(kept.csp, "style-src-elem")).toBe(`https://b.example 'nonce-${kept.nonce}'`)
 })
 
+// Dev keeps every header production sends but HSTS, which on localhost would pin https for every other local server,
+// and adds the sources Vite's client needs. Cross-Origin-Opener-Policy is the same, so an opener bug shows in dev
+// (plan 21 14.2, BUGS.md 220).
 it("dev extras", () => {
 	const result = policy({ dev: true })
 	expect(result.headers.has("strict-transport-security")).toBe(false)
-	expect(result.headers.has("cross-origin-opener-policy")).toBe(false)
+	expect(result.headers.get("cross-origin-opener-policy")).toBe("same-origin")
 	expect(result.csp).toContain("ws://localhost:*")
 	expect(result.csp).toContain("ws://127.0.0.1:*")
 	expect(result.csp).toContain("http://localhost:*")

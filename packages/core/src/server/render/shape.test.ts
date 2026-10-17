@@ -41,8 +41,8 @@ it("document", () => {
 })
 
 // Production, stubbed: the document is the built-in 500 page a throw before the shell answers, and one log line names the
-// root layout and what its shell lacks, however many requests and renders follow. Nothing is stored. A
-// production-only header proves the stub took.
+// root layout and what its shell lacks, however many requests and renders follow. Nothing is stored. The CSP, which
+// lacks the 'unsafe-eval' dev adds, proves the stub took.
 it("prod document-less", async () => {
 	vi.stubEnv("DEV", false)
 	vi.stubEnv("PROD", true)
@@ -51,7 +51,7 @@ it("prod document-less", async () => {
 	const server = bareServer()
 	for (const _ of [1, 2]) {
 		const response = await server.fetch(new Request("https://flare.test/"))
-		expect(response.headers.get("cross-origin-opener-policy")).toBe("same-origin")
+		expect(response.headers.get("content-security-policy")).not.toContain("'unsafe-eval'")
 		const body = await response.text()
 		expect([
 			response.status,

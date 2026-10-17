@@ -113,9 +113,9 @@ it("worker server", async () => {
 	const page = await mf.dispatchFetch("https://example.com/")
 	expect(page.status).toBe(200)
 	expect(await page.text()).toContain("worker home")
-	// Production: dev drops Cross-Origin-Opener-Policy. HSTS is not the proof here, since under the Bun runtime
-	// Miniflare hands workerd the request as http.
-	expect(page.headers.get("cross-origin-opener-policy")).toBe("same-origin")
+	// Production: the CSP lacks the 'unsafe-eval' dev adds for Vite. HSTS is not the proof here, since under the Bun
+	// runtime Miniflare hands workerd the request as http.
+	expect(page.headers.get("content-security-policy")).not.toContain("'unsafe-eval'")
 	const first = await mf.dispatchFetch("https://example.com/stored")
 	expect([first.status, first.headers.get("flare-cache")]).toEqual([200, "miss"])
 	await first.text()

@@ -53,10 +53,9 @@ export function buildCsp(input: {
 	permissions?: SecurityConfig["Permissions-Policy"]
 }): { headers: Headers; nonce: string } {
 	const headers = defaultHeaders(input.url)
-	if (input.dev === true) {
-		headers.delete("strict-transport-security")
-		headers.delete("cross-origin-opener-policy")
-	}
+	// Dev drops HSTS alone: on localhost it would pin https for every other local server. Cross-Origin-Opener-Policy is
+	// the same as production, so an opener bug shows in dev (plan 21 14.2).
+	if (input.dev === true) headers.delete("strict-transport-security")
 	const csp = input.csp
 	if (typeof csp === "string") headers.set("content-security-policy", csp)
 	else if (csp !== false) {

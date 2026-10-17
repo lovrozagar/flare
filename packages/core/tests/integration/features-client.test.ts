@@ -142,6 +142,18 @@ async function early(tab: Page): Promise<void> {
 	await remember(tab, await state(tab))
 }
 
+// Under the page's Cross-Origin-Opener-Policy, Firefox moves the first load into a new browsing context group, and the
+// tab's emulated color scheme does not follow it, so the scheme is set again and the page reloaded, which stays in
+// that group (BUGS.md 220).
+function earlyReloaded(scheme: "light" | "dark"): (tab: Page) => Promise<void> {
+	return async (tab) => {
+		await tab.emulateMedia({ colorScheme: scheme })
+		await tab.reload()
+		await tab.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
+		await early(tab)
+	}
+}
+
 async function click(tab: Page, id: string, until: (state: Record<string, unknown>) => boolean): Promise<void> {
 	await tab.evaluate((button) => document.getElementById(button)?.click(), id)
 	for (let tries = 0; tries < 100 && !until(await state(tab)); tries++) await tab.waitForTimeout(20)
@@ -201,9 +213,10 @@ describe.each(ENGINES)("%s", (engine) => {
 			[{}, "light", { mode: "light", dir: "ltr", lang: "en" }, "system", "light"],
 		] as const
 		for (const [stored, scheme, scripted, theme, resolved] of cases) {
-			const result = await run(engine, { path: "/home", init: before(stored, scheme), hydrateAfter: 200, steps: early })
+			const steps = earlyReloaded(scheme)
+			const result = await run(engine, { path: "/home", init: before(stored, scheme), hydrateAfter: 200, steps })
 			expect(result.problems).toEqual([])
-			expect(result.record[0]).toEqual(scripted)
+			expect([stored, scheme, result.record[0]]).toEqual([stored, scheme, scripted])
 			expect(result.record[1]).toMatchObject({ theme, resolved, mode: resolved, scheme: resolved })
 		}
 	})
