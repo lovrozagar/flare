@@ -106,9 +106,16 @@ export function typed(
 		if (DECIDED.has(name)) continue
 		for (const item of [value].flat()) headers.append(name, item)
 	}
-	exchange.secured.headers.forEach((value, name) => headers.set(name, value))
+	overlay(headers, exchange.secured.headers)
 	headers.set("content-type", type)
 	return headers
+}
+
+// The request's security set over an answer's headers. `X-Powered-By` appears only when the set holds it, so one an
+// answer brings, from `.headers()`, a `.response()` page, a mount, or a middleware, goes (dx/server.md, BUGS.md 333).
+function overlay(headers: Headers, secured: Headers): void {
+	secured.forEach((value, name) => headers.set(name, value))
+	if (!secured.has("x-powered-by")) headers.delete("x-powered-by")
 }
 
 // A whole Response from a mount or a middleware passes through finalize the same way: the security set wins, and a
@@ -131,7 +138,7 @@ export function answerFrom(exchange: Answering, response: Response, headers: Hea
 // request's security set wins over its headers.
 export function secure(exchange: Answering, result: StageResult): Response {
 	const headers = new Headers(result.headers)
-	exchange.secured.headers.forEach((value, name) => headers.set(name, value))
+	overlay(headers, exchange.secured.headers)
 	return finalize({ ...result, headers })
 }
 
