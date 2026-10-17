@@ -214,3 +214,22 @@ it("public render refused", async () => {
 		}
 	}
 })
+
+// A chain with `authorize` reads identity, so it is never public and never takes the anonymous render: with no store,
+// `authorize` runs on the visitor's own request, and one it refuses is 403 and never gets the page (B73, plan 21 4.4).
+it("public authorize", async () => {
+	const page = createPage("_root_/p")
+		.cache({ isr: true, cdn })
+		.authorize(({ request }) => request.headers.get("cookie") !== "banned=1")
+		.render(() => "shared page")
+	const server = createServer({
+		router: createRouter({ layouts: { _root_: root }, routeTree: [{ id: "_root_/p", path: "/p", module: page }] }),
+	})
+	for (const path of ["/p", "/p?_flare=data"]) {
+		const banned = await server.fetch(new Request(`http://localhost${path}`, { headers: { cookie: "banned=1" } }))
+		expect([path, banned.status]).toEqual([path, 403])
+		expect(await banned.text()).not.toContain("shared page")
+		const visitor = await server.fetch(new Request(`http://localhost${path}`))
+		expect([path, visitor.status, visitor.headers.get("cache-control")]).toEqual([path, 200, "private, no-store"])
+	}
+})
