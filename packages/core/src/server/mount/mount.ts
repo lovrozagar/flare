@@ -2,6 +2,9 @@ import { getRequestEvent, createRequestEvent, type RequestEvent } from "@solidjs
 import { provideRequestEvent } from "@solidjs/web/storage"
 import { canonicalPath, type CanonicalOptions } from "../../shared/url/canonical.ts"
 
+// A control character, `%00` to `%1F` and `%7F`, or a backslash, `%5C`, in a stripped path.
+const UNSAFE_ESCAPE = /%(?:[01][\da-f]|7f|5c)/i
+
 // The adapter's `waitUntil`, as a fetch handler's third argument.
 export type MountContext = { waitUntil: (promise: Promise<unknown>) => void }
 
@@ -76,9 +79,11 @@ export function mountFor(
 	const entry = table.find((item) => url.pathname === item.prefix || url.pathname.startsWith(`${item.prefix}/`))
 	if (entry === undefined) return undefined
 	const rest = url.pathname.slice(entry.prefix.length) || "/"
-	// After the strip, `//` is 400 (B87). A parsed http URL has already turned `\` into `/` and percent-encoded
-	// control characters, so `//` is the form either one takes here.
-	if (rest.startsWith("//")) return () => Promise.resolve(new Response(null, { status: 400 }))
+	// After the strip, `//`, a backslash, or a control character is 400 (B87). A parsed http URL has already turned `\`
+	// into `/` and percent-encoded a control character or an escaped backslash, so each arrives as `//` or an escape
+	// (BUGS.md 326).
+	if (rest.startsWith("//") || UNSAFE_ESCAPE.test(rest))
+		return () => Promise.resolve(new Response(null, { status: 400 }))
 	return () => {
 		// Built when the mount runs, after middleware: a new Request takes over the body, which a middleware may still
 		// read through a clone (BUGS.md 271).
