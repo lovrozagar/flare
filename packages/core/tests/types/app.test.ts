@@ -21,19 +21,28 @@ function filesIn(dir: string): string[] {
 	})
 }
 
-function writeProject(): string {
+function writeProject(tail = ""): string {
 	const appFiles = filesIn(join(app, "src"))
 	const routeFiles = appFiles.filter((file) => file.startsWith("src/routes/")).map((file) => file.slice(11))
 	const read = (file: string): string => readFileSync(join(app, file), "utf8")
 	mkdirSync(join(temp, "src", "_gen"), { recursive: true })
-	writeFileSync(join(temp, "src", "_gen", "types.gen.d.ts"), generateTypes({ routeFiles, appFiles, read }).source)
+	writeFileSync(
+		join(temp, "src", "_gen", "types.gen.d.ts"),
+		generateTypes({ routeFiles, appFiles, read }).source + tail,
+	)
 	// A valid line under a directive: tsc must report it, or a stale @ts-expect-error in checks.ts would pass.
 	writeFileSync(join(temp, "src", "checks-unused.ts"), '// @ts-expect-error\nexport const fine: string = "a";\n')
 	const tsconfig = join(temp, "tsconfig.json")
 	const sources = [join(app, "src"), join(temp, "src")]
 	writeFileSync(
 		tsconfig,
-		JSON.stringify({ extends: join(app, "tsconfig.json"), compilerOptions: { rootDirs: sources }, include: sources }),
+		// The register is a `.d.ts`: with the base config's skipLibCheck it would never be checked, and a broken import
+		// in it would turn its route into `any` while the compile passes (plan 25 T13).
+		JSON.stringify({
+			extends: join(app, "tsconfig.json"),
+			compilerOptions: { rootDirs: sources, skipLibCheck: false },
+			include: sources,
+		}),
 	)
 	return tsconfig
 }
@@ -44,6 +53,21 @@ it("app compiles", () => {
 		const errors = run.stdout.split("\n").filter((line) => line.includes("error TS"))
 		expect(errors).toEqual([expect.stringMatching(/checks-unused\.ts\(1,1\): error TS2578/)])
 		expect(run.status).not.toBe(0)
+	} finally {
+		rmSync(temp, { recursive: true, force: true })
+	}
+}, 120_000)
+
+// The generated register is a `.d.ts`, so it is checked: an import in it that does not resolve is an error, never a
+// route turned `any` while the compile passes (plan 25 T13, BUGS.md 345).
+it("register checked", () => {
+	try {
+		const broken = '\nimport type { Nope } from "../routes/nope.ts";\nexport type Broken = Nope;\n'
+		const run = spawnSync("bunx", ["tsc", "-p", writeProject(broken)], { cwd: repo, encoding: "utf8" })
+		const errors = run.stdout.split("\n").filter((line) => line.includes("error TS"))
+		expect(errors).toEqual(
+			expect.arrayContaining([expect.stringMatching(/types\.gen\.d\.ts\(\d+,\d+\): error TS2307/)]),
+		)
 	} finally {
 		rmSync(temp, { recursive: true, force: true })
 	}
