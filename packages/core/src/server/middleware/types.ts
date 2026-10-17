@@ -1,7 +1,8 @@
 import type { FlareRegister, RegisteredEnv } from "../../shared/route-builder/register.ts"
 
-// `page` is a document, a data, or a prefetch request. `serverFn` is a server-function call (dx/server.md).
-export type MiddlewareKind = "page" | "serverFn"
+// `page` is a document, a data, or a prefetch request. `serverFn` is a server-function call. `mount` is a request a
+// mount answers (dx/server.md, plan 21 4.2).
+export type MiddlewareKind = "page" | "serverFn" | "mount"
 
 // What a middleware receives. It carries no typed per-request data: that is `serverContext`, the user is
 // `authenticate`, and per-section context is a layout's `.preloader()`.
