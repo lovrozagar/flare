@@ -402,6 +402,20 @@ it("same hash", () => {
 	expect(bare.navigate).not.toHaveBeenCalled()
 })
 
+// A link only its own `isActive` marks active, a section link on another page of its section, still goes to its target:
+// only a link to the current URL stays put. The seeded chaos run found the docs header's Docs link dead on every other
+// docs page (BUGS.md 292).
+it("section link", () => {
+	const section = mount({ to: "_root_/about", isActive: () => true, activeClass: "on", children: "x" })
+	section.place({ pathname: "/users/7" })
+	expect(section.anchor.className).toBe("on")
+	click(section.anchor)
+	expect(section.navigate).toHaveBeenCalledOnce()
+	section.place({ pathname: "/about" })
+	click(section.anchor)
+	expect(section.navigate).toHaveBeenCalledOnce()
+})
+
 it("blank", () => {
 	const { anchor, navigate } = mount({ to: "_root_/about", target: "_blank", children: "x" })
 	expect(click(anchor).defaultPrevented).toBe(false)
