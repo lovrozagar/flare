@@ -1,10 +1,10 @@
 const FOCUSABLE = [
 	"a[href]",
 	"area[href]",
-	"button:not([disabled])",
-	'input:not([disabled]):not([type="hidden"])',
-	"select:not([disabled])",
-	"textarea:not([disabled])",
+	"button:not(:disabled)",
+	'input:not(:disabled):not([type="hidden"])',
+	"select:not(:disabled)",
+	"textarea:not(:disabled)",
 	"iframe",
 	'[contenteditable="true"]',
 	'[tabindex]:not([tabindex="-1"])',
@@ -37,8 +37,11 @@ export function trapFocus(roots: () => readonly Element[], dismiss: () => void, 
 	}
 }
 
+// What Tab reaches: not a `tabindex="-1"` element, such as a disabled Link, nothing hidden or inert, and nothing the
+// browser does not render; a control in a disabled fieldset is `:disabled` (BUGS.md 316).
 function focusable(node: Element): node is HTMLElement {
-	return node instanceof HTMLElement && node.matches(FOCUSABLE)
+	if (!(node instanceof HTMLElement) || !node.matches(FOCUSABLE) || node.tabIndex < 0) return false
+	return node.closest("[hidden], [inert]") === null && node.checkVisibility?.() !== false
 }
 
 // Past the last element Tab goes to the first, before the first Shift+Tab to the last, and from outside to the first.
