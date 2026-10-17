@@ -73,6 +73,8 @@ export default defineConfig({
 					name: "integration",
 					environment: "node",
 					include: ["tests/integration/**/*.test.ts", HYDRATE, "lint/**/*.test.ts"],
+					// Skips a WebKit case where Playwright's WebKit is the frozen macOS 14 build (BUGS.md 351).
+					setupFiles: ["tests/integration/frozen-webkit.setup.ts"],
 					testTimeout: INTEGRATION_TIMEOUT,
 					hookTimeout: INTEGRATION_TIMEOUT,
 				},

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest"
-import { browserEndpoint, IMAGE_DIGEST, type BrowserDeps } from "./browser-server.ts"
+import { browserEndpoint, frozenWebkit, IMAGE_DIGEST, type BrowserDeps } from "./browser-server.ts"
 
 const IMAGE = `mcr.microsoft.com/playwright:v1.64.1-noble@sha256:${IMAGE_DIGEST}`
 const VERSION = ["version", "--format", "{{.Server.Version}}"]
@@ -144,4 +144,14 @@ it("none", async () => {
 		"No browsers: set FLARE_BROWSER_WS to a Playwright run-server, install Docker for the pinned container, or " +
 			"install Playwright's engines (bunx playwright install chromium firefox webkit)",
 	)
+})
+
+// Only a `_special-` WebKit build, the one Playwright pins for macOS 14, is frozen: Playwright's own WebKit on Linux,
+// the local launcher, and a path that merely mentions the word are not (BUGS.md 351).
+it("frozen webkit", () => {
+	expect(frozenWebkit("/Users/u/Library/Caches/ms-playwright/webkit_mac14_arm64_special-2251/pw_run.sh")).toBe(true)
+	expect(frozenWebkit("C:\\ms-playwright\\webkit_mac14_special-2251\\Playwright.exe")).toBe(true)
+	expect(frozenWebkit("/home/u/.cache/ms-playwright/webkit-2370/pw_run.sh")).toBe(false)
+	expect(frozenWebkit("/home/u/.cache/flare-gates/wk-libs/run.sh")).toBe(false)
+	expect(frozenWebkit("/tmp/notes_special-1/webkit/pw_run.sh")).toBe(false)
 })
