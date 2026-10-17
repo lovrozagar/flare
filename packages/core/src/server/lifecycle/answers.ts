@@ -115,7 +115,7 @@ export async function dataFrom(
 ): Promise<Response> {
 	const thrown = run.thrown ?? run.failed?.error
 	if (thrown instanceof RedirectError) {
-		const u = redirectLocation(thrown, exchange.options.router.basePath)
+		const u = redirectLocation(thrown, exchange.options.router)
 		const moved = redirectBody({ s: thrown.status, u, r: thrown.replace })
 		return finalize(stage(routeSecured(exchange, run.security), moved, run))
 	}
@@ -173,7 +173,7 @@ export function painted(exchange: Exchange, rendered: Decided): Promise<Response
 function settle(exchange: Exchange, rendered: Decided): Promise<Response> {
 	const thrown = rendered.run.thrown ?? rendered.run.failed?.error
 	if (thrown instanceof RedirectError) {
-		const location = redirectLocation(thrown, exchange.options.router.basePath)
+		const location = redirectLocation(thrown, exchange.options.router)
 		return Promise.resolve(answer(routeSecured(exchange, rendered.run.security), thrown.status, location))
 	}
 	const failed = rendered.run.failed

@@ -1,3 +1,4 @@
+import type { Routing } from "../redirect/index.ts"
 import type { ErrorSink } from "../render/projector.ts"
 import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts"
 import { dataToWire } from "../../shared/protocol/value.ts"
@@ -11,7 +12,7 @@ const encoder = new TextEncoder()
 export function streamEnvelopes(
 	name: string,
 	source: AsyncIterable<unknown>,
-	context: { sink: ErrorSink; basePath: string },
+	context: { sink: ErrorSink } & Routing,
 ): ReadableStream<Uint8Array> {
 	// An async generator always has `return`, which a bare AsyncIterator need not.
 	const iterator = (async function* () {

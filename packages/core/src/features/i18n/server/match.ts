@@ -10,7 +10,7 @@ import type { RequestKind } from "../../../shared/protocol/index.ts"
 import { idPattern, patternSegments } from "../../../shared/route-tree/index.ts"
 import type { Router } from "../../../shared/router/index.ts"
 import { localeLike } from "../../../shared/router/features.ts"
-import { buildUrl } from "../../../shared/url/index.ts"
+import { buildUrl, routeHref } from "../../../shared/url/index.ts"
 
 // The server's i18n config, as i18n() resolves it (dx/features.md i18n).
 export type I18nConfig = {
@@ -38,7 +38,7 @@ export type LocaleMatch = {
 	negotiated?: true
 }
 
-type RouterLike = Pick<Router, "match" | "basePath">
+type RouterLike = Pick<Router, "match" | "basePath" | "trailingSlash">
 
 // The page's locale segment, read from the matched route's pattern. `response` marks a `.response()` route, which is
 // never negotiated: it is no rendered document (dx/features.md i18n, BUGS.md B23).
@@ -114,7 +114,8 @@ function redirect(input: RedirectInput, target: Target): LocaleMatch {
 	const { tag, status, cookie } = target
 	const dropped = page.optional && tag === config.defaultLocale
 	const path = buildUrl({ to: page.id, params: { ...page.params, [config.paramName]: dropped ? undefined : tag } })
-	const location = `${router.basePath === "/" ? "" : router.basePath}${path}${request.url.search}`
+	// The route's URL as the router writes it, under the base and its trailing-slash rule (BUGS.md 188).
+	const location = routeHref(router, `${path}${request.url.search}`)
 	return { locale: tag, redirect: { status, location }, ...(cookie !== undefined && { cookie }) }
 }
 

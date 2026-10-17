@@ -59,7 +59,16 @@ async function send(fns: readonly ServerFnRef[], request: Request, scope: Scope 
 	const sink = scope.sink ?? { dev: false, log: quiet }
 	const result = await withServerContext(
 		{ request, env: scope.env ?? {}, serverContext: scope.serverContext, authenticate: scope.authenticate },
-		() => dispatch({ request, serverFns, sameSite: [], sink, basePath: "/", bodyLimit: scope.bodyLimit }),
+		() =>
+			dispatch({
+				request,
+				serverFns,
+				sameSite: [],
+				sink,
+				basePath: "/",
+				trailingSlash: "preserve",
+				bodyLimit: scope.bodyLimit,
+			}),
 		(): StageResult => ({ status: 500, body: null }),
 	)
 	const headers = result.headers ?? new Headers()

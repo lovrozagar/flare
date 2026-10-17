@@ -280,7 +280,7 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 	}
 	const run = await runLoaders({ ...loaderInput(exchange, matched), response: respond })
 	if (run.thrown instanceof RedirectError) {
-		return answer(exchange, run.thrown.status, redirectLocation(run.thrown, exchange.options.router.basePath))
+		return answer(exchange, run.thrown.status, redirectLocation(run.thrown, exchange.options.router))
 	}
 	if (run.thrown !== undefined && run.response.status === 500) {
 		return answer(exchange, projectError(run.thrown, exchange.sink).status)
@@ -293,6 +293,7 @@ async function answered(exchange: Exchange, matched: Loaded): Promise<Response> 
 // Step 7: a server function is dispatched and never reaches the router (B42).
 async function serverFn(exchange: Exchange): Promise<Response> {
 	const { serverFns = {}, sameSite = [], bodyLimit, router } = exchange.options
-	const input = { request: exchange.request, serverFns, sameSite, sink: exchange.sink, basePath: router.basePath }
+	const { basePath, trailingSlash } = router
+	const input = { request: exchange.request, serverFns, sameSite, sink: exchange.sink, basePath, trailingSlash }
 	return secure(exchange, await dispatch({ ...input, bodyLimit }))
 }

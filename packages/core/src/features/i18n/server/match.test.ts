@@ -178,3 +178,24 @@ it("language spelling", () => {
 	expect(found.locale).toBe("en-US")
 	expect(found.cookie).toBe("en-US")
 })
+
+// The locale redirect writes the route's URL as the router does: under the base, the index the base itself, then the
+// trailing-slash rule, so it never meets a second redirect (BUGS.md 188).
+it("route href", () => {
+	const routes = [page("_root_/[[locale]]", "/[[locale]]"), page("_root_/[[locale]]/pricing", "/[[locale]]/pricing")]
+	const at = (url: string, slash: "always" | "preserve", cookie?: string) =>
+		matchLocale(
+			{
+				url: new URL(url, "https://site.test"),
+				kind: "document",
+				cookieHeader: cookie === undefined ? null : `flare.locale=${cookie}`,
+				acceptLanguage: null,
+				userAgent: BROWSER,
+			},
+			config,
+			createRouter({ basePath: "/app", trailingSlash: slash, layouts: { _root_: {} }, routeTree: routes }),
+		).redirect
+	expect(at("/app/pricing/", "always", "hr")).toEqual({ status: 302, location: "/app/hr/pricing/" })
+	expect(at("/app/", "always", "hr")).toEqual({ status: 302, location: "/app/hr/" })
+	expect(at("/app/EN?q=1", "preserve")).toEqual({ status: 301, location: "/app?q=1" })
+})
