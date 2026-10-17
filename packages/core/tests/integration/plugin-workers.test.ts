@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import * as nodeModule from "node:module"
 import { join, resolve } from "node:path"
+import { gzipSync } from "node:zlib"
 import { Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { afterAll, expect, it } from "vitest"
@@ -88,9 +89,14 @@ it.skipIf(noHooks)(
 		expect(seededLogo).toMatch(/^\/static\/logo-[\w-]+\.svg$/)
 		const deploy = unstable_getMiniflareWorkerOptions(join(server, "wrangler.json"))
 		if (deploy.main === undefined) throw new Error("the deploy config names no main")
+		const modules = modulesOf(server, resolve(server, deploy.main))
+		// What `wrangler deploy` uploads, gzipped as Cloudflare counts it, is under the Workers free plan's 3 MiB script
+		// limit, so a deploy is never refused for size (plan 21 5.6).
+		const uploaded = modules.reduce((sum, module) => sum + gzipSync(readFileSync(module.path)).length, 0)
+		expect(uploaded).toBeLessThanOrEqual(3 * 1024 * 1024)
 		const runtime = new Miniflare({
 			...deploy.workerOptions,
-			modules: modulesOf(server, resolve(server, deploy.main)),
+			modules,
 			modulesRoot: server,
 		})
 		try {
