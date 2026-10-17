@@ -99,7 +99,7 @@ it("load error", async () => {
 	const bare = new Error("no stack")
 	bare.stack = undefined
 	const stackless = devFetch({ load: () => Promise.reject(bare), report })
-	expect(await (await stackless(new Request("http://localhost/"))).text()).toBe("<pre>no stack\n</pre>")
+	expect(await (await stackless(new Request("http://localhost/"))).text()).toContain("<pre>no stack\n</pre>")
 	const broken = devListener({
 		load: async () =>
 			app(async () => new Response(new ReadableStream({ pull: () => Promise.reject(new Error("mid")) }))),
@@ -108,6 +108,26 @@ it("load error", async () => {
 	broken(request("/"), written.res)
 	await settled()
 	expect(written.res.destroy).toHaveBeenCalledOnce()
+})
+
+// The failure page is a dev document: Vite's client and the plugins' tags from the dev head, so the overlay opens and
+// a later full reload reaches it, and a module that announces the tab over Vite's hot channel, so the overlay held for
+// that token is delivered; the client is imported from the head's own URL, under Vite's base (plan 21 11.6).
+it("load error page", async () => {
+	const head = '<script type="module" src="/base/@vite/client"></script>'
+	const fetch = devFetch({
+		load: () => Promise.reject(new Error("broken route")),
+		tab: () => "T3",
+		head: Promise.resolve(head),
+	})
+	const page = await (await fetch(new Request("http://localhost/"))).text()
+	expect(page.startsWith("<!doctype html>")).toBe(true)
+	expect(page).toContain(head)
+	expect(page).toContain('import { createHotContext } from "/base/@vite/client"')
+	expect(page).toContain('.send("flare:tab", { token: "T3" })')
+	expect(page).toContain("<pre>broken route")
+	const plain = devFetch({ load: () => Promise.reject(new Error("x")), tab: () => "T4", head: Promise.resolve("") })
+	expect(await (await plain(new Request("http://localhost/"))).text()).toContain('from "/@vite/client"')
 })
 
 type Tab = { send: (payload: unknown) => void }
@@ -222,7 +242,8 @@ it("client error relayed", () => {
 it("entry export", async () => {
 	const { server } = devServer(false)
 	server.environments.ssr.runner = { import: async () => ({ other: 1 }) }
-	const post = installDevHandler(server, "src/server.ts")
+	const head = '<script type="module" src="/@vite/client"></script>'
+	const post = installDevHandler(server, "src/server.ts", Promise.resolve(head))
 	const used: unknown[] = []
 	server.middlewares.use = (handler) => void used.push(handler)
 	post?.()
@@ -233,6 +254,7 @@ it("entry export", async () => {
 	await settled()
 	expect(sent.status).toBe(500)
 	expect(new TextDecoder().decode(sent.chunks[0])).toContain("src/server.ts exports no server")
+	expect(new TextDecoder().decode(sent.chunks[0])).toContain(head)
 	delete server.environments.ssr.runner
 	const bare = response()
 	handler(request("/"), bare.res)

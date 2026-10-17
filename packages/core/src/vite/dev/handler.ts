@@ -29,6 +29,8 @@ export type DevDeps = {
 	// token the server minted (B95 (b)).
 	tab?: () => string
 	report?: (error: unknown, token: string | undefined) => void
+	// The dev head, Vite's client and every plugin's tags, which the failure page carries (dev-head.ts).
+	head?: Promise<string>
 }
 
 // On Node and Bun, `vite dev` answers every request the Vite middlewares did not (B89). Embedded in another server,
@@ -36,7 +38,7 @@ export type DevDeps = {
 // (B95 (b)). A dev error opens Vite's overlay only in the tab that caused it: a server graph's `flare:error` by its
 // request's tab token, from the ssr environment, which renders in workerd when the Cloudflare plugin runs it (B95 (c),
 // B109), and a client's own `flare:error` back to that client (B93, B42).
-export function installDevHandler(server: DevServer, entry: string): (() => void) | undefined {
+export function installDevHandler(server: DevServer, entry: string, head?: Promise<string>): (() => void) | undefined {
 	if (server.config.server.middlewareMode) return undefined
 	const tabs = createTabs()
 	const client = server.environments.client.hot
@@ -55,6 +57,7 @@ export function installDevHandler(server: DevServer, entry: string): (() => void
 		load: () => loadEntry(server, entry),
 		tab: mintTab,
 		report: (error, token) => tabs.deliver(token, overlayPayload(error)),
+		...(head === undefined ? {} : { head }),
 	})
 	// A post hook: Vite serves modules and assets first, and the app answers the rest.
 	return () => server.middlewares.use((req, res) => listener(req, res))
@@ -73,7 +76,7 @@ export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?:
 		} catch (error) {
 			const token = request.headers.get(TAB_HEADER) ?? deps.tab?.()
 			deps.report?.(error, token)
-			return failed(error, token)
+			return failed(error, token, (await deps.head) ?? "")
 		}
 	}
 }
@@ -89,13 +92,27 @@ async function loadEntry(server: DevServer, entry: string): Promise<AppServer> {
 	return { fetch: (request, env, ctx) => fetch(request, env, ctx) }
 }
 
-// A module that failed to load is a dev page with the message and the stack, and Vite's overlay opens in its tab.
-function failed(error: unknown, token: string | undefined): Response {
+// A module that failed to load is a dev document with the message and the stack, and Vite's overlay opens in its tab:
+// the dev head brings Vite's client, and a module announces the tab over Vite's hot channel, as the flare client would,
+// so the payload held for that token is delivered. Fixing the file brings the app back: Vite's client loads the page
+// again on a full reload, which Solid's plugin sends for a module only the server graph holds, and on its first update
+// while the overlay is open (plan 21 11.6).
+function failed(error: unknown, token: string | undefined, head: string): Response {
 	const { err } = overlayPayload(error)
 	const tag = token === undefined ? "" : tabMeta(token)
-	const body = `${tag}<pre>${escape(`${err.message}\n${err.stack}`)}</pre>`
+	const client = CLIENT_SRC.exec(head)?.[1] ?? "/@vite/client"
+	const announce =
+		token === undefined
+			? ""
+			: `<script type="module">import { createHotContext } from ${JSON.stringify(client)};` +
+				`createHotContext("/@flare/dev-error").send("flare:tab", { token: ${JSON.stringify(token)} })</script>`
+	const pre = `<pre>${escape(`${err.message}\n${err.stack}`)}</pre>`
+	const body = `<!doctype html><html><head>${tag}${head}${announce}</head><body>${pre}</body></html>`
 	return new Response(body, { status: 500, headers: { "content-type": "text/html; charset=utf-8" } })
 }
+
+// The URL the dev head loads Vite's client from, under Vite's base.
+const CLIENT_SRC = /src="([^"]*@vite\/client)"/
 
 function overlayPayload(error: unknown): { type: "error"; err: { message: string; stack: string } } {
 	const thrown = error instanceof Error ? error : new Error(String(error))

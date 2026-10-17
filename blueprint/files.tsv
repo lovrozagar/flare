@@ -835,6 +835,7 @@ packages/core/tests/e2e/prefetch-reuse.test.ts	P6	test	node	Playwright: each eng
 packages/core/tests/e2e/docs-pages.ts	P15	test	node	The docs route map's pages and their statuses, which docs-smoke loads and docs-a11y scans
 packages/core/tests/e2e/docs-a11y.test.ts	P15	test	node	Playwright: every docs page passes an axe scan against WCAG 2.1 A and AA, on node-prod chromium (B143)
 packages/core/tests/e2e/docs-smoke.test.ts	P15	test	node	Playwright: every docs page answers its status, hydrates, and leaves the console empty, on every project
+packages/core/tests/e2e/dev-recovery.test.ts	P15	test	node	Playwright: a server module that fails to load opens Vite's overlay in its tab, and fixing the file brings the app back, on Node and Bun dev
 packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
 packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context
 packages/core/tests/e2e/docs-hash.test.ts	P15	test	node	Hash navigation in every project: a hash Link again after a scroll away, Back and Forward between two hashes, and a Link to another page's section, with no request beyond the one cross-page load (BUGS.md 148)
