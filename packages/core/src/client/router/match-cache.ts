@@ -71,6 +71,7 @@ export function createMatchCache(options: {
 	gcTime: number
 	max?: number
 	now?: () => number
+	report?: ((error: unknown) => void) | undefined
 }): MatchCache {
 	if (options.gcTime < 0) throw new Error("gcTime is at least 0 ms")
 	const now = options.now ?? Date.now
@@ -99,7 +100,7 @@ export function createMatchCache(options: {
 		// A page the client holds fresh is listed in _flare_stale, so the server skips its loader (B30). A layout
 		// never is. Hydrate fetches only when a page asks to refetch on "initial".
 		plan(plan) {
-			const asks = asker(plan)
+			const asks = asker(plan, options.report ?? logged)
 			const held = (match: CachedMatch): boolean => {
 				const entry = read(match)
 				// `0` is never fresh, not even within the millisecond the entry was stored (dx/cache.md, B19).
@@ -119,21 +120,28 @@ export function createMatchCache(options: {
 	}
 }
 
-// Whether a page's shouldRefetch asks to refetch it. Each page is asked once per plan.
-function asker(plan: Plan): (match: CachedMatch) => boolean {
+// A throwing shouldRefetch before the boot names its reporter.
+function logged(error: unknown): void {
+	console.error("[flare] a page's shouldRefetch threw", error)
+}
+
+// Whether a page's shouldRefetch asks to refetch it. Each page is asked once per plan. A throw is the app's bug: it is
+// reported and counts as no answer, so a hydrate that asks first still mounts (plan 21 9.3).
+function asker(plan: Plan, report: (error: unknown) => void): (match: CachedMatch) => boolean {
 	const asked = new Map<CachedMatch, boolean>()
+	const ask = (match: CachedMatch): boolean => {
+		try {
+			const input = { trigger: plan.trigger, location: { current: plan.current, next: plan.next } }
+			return match.effects?.shouldRefetch?.({ ...input, params: match.params, search: match.search }) === true
+		} catch (error) {
+			report(error)
+			return false
+		}
+	}
 	return (match) => {
-		const known = asked.get(match)
-		if (known !== undefined) return known
-		const answer =
-			match.effects?.shouldRefetch?.({
-				trigger: plan.trigger,
-				location: { current: plan.current, next: plan.next },
-				params: match.params,
-				search: match.search,
-			}) === true
-		asked.set(match, answer)
-		return answer
+		const known = asked.get(match) ?? ask(match)
+		asked.set(match, known)
+		return known
 	}
 }
 
@@ -233,8 +241,8 @@ export function defined(params: Record<string, string | string[] | undefined>): 
 	)
 }
 
-// The router's client cache. `false` keeps nothing.
-export function cacheFor(client: RouterClientCache, max: number): MatchCache {
-	if (client === false) return createMatchCache({ staleTime: 0, gcTime: 0, max: 0 })
-	return createMatchCache({ staleTime: client.staleTime, gcTime: parseDuration(client.gcTime), max })
+// The router's client cache. `false` keeps nothing. `report` gets a page's throwing shouldRefetch.
+export function cacheFor(client: RouterClientCache, max: number, report?: (error: unknown) => void): MatchCache {
+	if (client === false) return createMatchCache({ staleTime: 0, gcTime: 0, max: 0, report })
+	return createMatchCache({ staleTime: client.staleTime, gcTime: parseDuration(client.gcTime), max, report })
 }

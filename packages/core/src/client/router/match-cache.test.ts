@@ -154,6 +154,32 @@ it("should refetch", () => {
 	expect(quiet.fetch).toBe(false)
 })
 
+function shouldRefetch(): never {
+	throw new Error("refetch boom")
+}
+
+// A throwing shouldRefetch is the app's bug: it is reported and counts as no answer, so the plan, and the hydrate that
+// asks it first, go on. With no reporter it is logged (plan 21 9.3, BUGS.md 203).
+it("should refetch throws", () => {
+	const reported: unknown[] = []
+	const cache = createMatchCache({ staleTime: 1000, gcTime: 60_000, report: (error) => reported.push(error) })
+	cache.store(page(), { data: "user", deferred: false })
+	const hydrate = cache.plan({
+		matches: [page({ shouldRefetch })],
+		trigger: "initial",
+		revalidate: false,
+		current: place,
+		next: place,
+	})
+	expect(hydrate.fetch).toBe(false)
+	expect(reported).toEqual([new Error("refetch boom")])
+	const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const quiet = createMatchCache({ staleTime: 1000, gcTime: 60_000 })
+	quiet.plan({ matches: [page({ shouldRefetch })], trigger: "initial", revalidate: false, current: place, next: place })
+	expect(errors).toHaveBeenCalledExactlyOnceWith("[flare] a page's shouldRefetch threw", expect.any(Error))
+	errors.mockRestore()
+})
+
 it("deferred placeholder", () => {
 	const { cache } = cacheAt()
 	cache.store(page(), { data: { slow: { __deferred: true, key: "d0" } }, deferred: true })

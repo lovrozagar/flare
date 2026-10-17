@@ -102,3 +102,42 @@ it("after load", () => {
 	Reflect.deleteProperty(document, "readyState")
 	expect(document.readyState).toBe("complete")
 })
+
+function boom(): never {
+	throw new Error("boom")
+}
+
+// A callback that throws is the app's bug: it is reported, and the rest of its phase still runs, so the page still
+// hydrates, fills, and prefetches. Before the boot names its reporter, a throw is logged (plan 21 9.3, BUGS.md 203).
+it("throwing callback", async () => {
+	vi.useFakeTimers()
+	const log: string[] = []
+	const reported: unknown[] = []
+	const ready = createReady()
+	ready.api
+		.onReady(boom)
+		.onReady(() => log.push("ready"))
+		.onHydrated(boom)
+		.onHydrated(() => log.push("hydrated"))
+		.onIdle(boom)
+		.onIdle(() => log.push("idle"))
+		.onInteraction(boom)
+		.onInteraction(() => log.push("interaction"))
+	ready.close()
+	ready.reportTo((error) => reported.push(error))
+	ready.ready({ navigate: async () => undefined, location })
+	ready.hydrated()
+	ready.idle(idleNever(), () => log.push("after"))
+	ready.interaction(document)
+	document.dispatchEvent(new Event("keydown"))
+	await vi.advanceTimersByTimeAsync(1000)
+	expect(log).toEqual(["ready", "hydrated", "interaction", "idle", "after"])
+	expect(reported).toHaveLength(4)
+	const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const quiet = createReady()
+	quiet.api.onHydrated(boom)
+	quiet.close()
+	quiet.hydrated()
+	expect(errors).toHaveBeenCalledExactlyOnceWith("[flare] a createClient callback threw", expect.any(Error))
+	errors.mockRestore()
+})
