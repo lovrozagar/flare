@@ -361,7 +361,7 @@ it("cdn headers", async () => {
 	for (const answer of [await get("/users/7"), await stored(get, "/users/7")]) {
 		expect(answer.headers.get("cache-control")).toBe("public, max-age=0, s-maxage=60")
 		expect(answer.headers.get("cdn-cache-control")).toBe("public, max-age=60, stale-while-revalidate=30")
-		expect(answer.headers.get("cache-tag")).toBe("u7, users")
+		expect(answer.headers.get("cache-tag")).toBe("u7, users, flare-build-dev")
 	}
 })
 

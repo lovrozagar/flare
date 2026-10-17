@@ -2,6 +2,7 @@ import { parseDuration } from "../../shared/duration/index.ts"
 import type { EffectiveAuth } from "../auth/effective.ts"
 import { foreignCookies } from "../cacheability/cookies.ts"
 import type { Decision } from "../cacheability/decide.ts"
+import { buildId } from "./build-info.ts"
 
 // Every answer that no rule makes public. finalize starts from it.
 export const NO_STORE = "private, no-store"
@@ -18,7 +19,8 @@ function seconds(duration: string): number {
 // is made"). Only class `public` with `cdn.maxAge`, on a 2xx answer with no error frame, is public. `max-age=0` is
 // deliberate: a deploy reaches the browser, and the CDN holds the copy. stale-while-revalidate goes to the CDN alone,
 // through CDN-Cache-Control (RFC 9213): on Cache-Control, Firefox served the previous document from its own cache and
-// revalidated it behind (BUGS.md 135).
+// revalidated it behind (BUGS.md 135). The tags end with the build's, `flare-build-<id>`, so after a deploy the edge copies
+// of the previous build's pages can be purged once its hashed assets are gone (dx/server.md Deploying, plan 21 16.10).
 export function policyHeaders(decision: Decision, answer: PolicyAnswer): Headers {
 	const headers = new Headers({ "cache-control": NO_STORE })
 	const { maxAge, swr, tags } = decision.cdn
@@ -28,7 +30,7 @@ export function policyHeaders(decision: Decision, answer: PolicyAnswer): Headers
 	const stale = swr === undefined ? "" : `, stale-while-revalidate=${seconds(swr)}`
 	headers.set("cdn-cache-control", `public, max-age=${seconds(maxAge)}${stale}`)
 	const list = typeof tags === "function" ? tags({ params: answer.params }) : (tags ?? [])
-	if (list.length > 0) headers.set("cache-tag", list.join(", "))
+	headers.set("cache-tag", [...list, buildTag()].join(", "))
 	return headers
 }
 
@@ -109,4 +111,9 @@ export function decodedHeaders(response: Response): Headers {
 	headers.delete("content-encoding")
 	headers.delete("content-length")
 	return headers
+}
+
+// The edge tag every public page of this build carries.
+export function buildTag(): string {
+	return `flare-build-${buildId}`
 }

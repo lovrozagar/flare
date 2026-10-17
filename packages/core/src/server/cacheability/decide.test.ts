@@ -119,7 +119,7 @@ it("segment cdn served", async () => {
 	expect(hit.headers.get("flare-cache")).toBe("hit")
 	expect(hit.headers.get("cache-control")).toBe("public, max-age=0, s-maxage=60")
 	expect(hit.headers.get("cdn-cache-control")).toBe("public, max-age=60, stale-while-revalidate=600")
-	expect(hit.headers.get("cache-tag")).toBe("api-reference")
+	expect(hit.headers.get("cache-tag")).toBe("api-reference, flare-build-dev")
 	const data = await (await app.fetch(new Request("https://example.com/api/y?_flare=data"))).text()
 	expect(data).toContain('{"t":"l","m":"_root_/api","d":null}')
 })
