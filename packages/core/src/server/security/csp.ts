@@ -159,10 +159,14 @@ function baseLists(frame: SecurityConfig["X-Frame-Options"]): Lists {
 
 // `frame-ancestors` restates the X-Frame-Options the answer sends, since a browser that reads both obeys the CSP: DENY,
 // the default, is 'none', SAMEORIGIN is 'self', and an app that removes the header gets no directive, so its embeds
-// still load (BUGS.md 221, 268).
+// still load (BUGS.md 221, 268). The value is read as the header sends it, trimmed and in any case, and `ALLOW-FROM`
+// is restated as its origin; one that does not parse stays 'none' (BUGS.md 334).
 function framedBy(frame: SecurityConfig["X-Frame-Options"]): readonly string[] | undefined {
 	if (frame === false) return undefined
-	return frame?.toUpperCase() === "SAMEORIGIN" ? ["'self'"] : ["'none'"]
+	const value = frame?.trim() ?? ""
+	if (/^sameorigin$/i.test(value)) return ["'self'"]
+	const from = /^allow-from\s+(\S+)$/i.exec(value)?.[1]
+	return from !== undefined && URL.canParse(from) ? [new URL(from).origin] : ["'none'"]
 }
 
 // A named directive replaces the default. `style-src` named without `style-src-elem` also sets the element list, so

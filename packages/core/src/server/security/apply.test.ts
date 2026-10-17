@@ -287,4 +287,10 @@ it("frame follows x-frame-options", () => {
 	expect(framed({})).toContain("frame-ancestors 'none'")
 	expect(framed({ "X-Frame-Options": "SAMEORIGIN" })).toContain("frame-ancestors 'self'")
 	expect(framed({ "X-Frame-Options": false })).not.toContain("frame-ancestors")
+	// The value as the header sends it, trimmed and in any case, and `ALLOW-FROM` restated as its origin (BUGS.md 334).
+	expect(framed({ "X-Frame-Options": " sameorigin " })).toContain("frame-ancestors 'self'")
+	expect(framed({ "X-Frame-Options": "ALLOW-FROM https://p.example" })).toContain("frame-ancestors https://p.example")
+	expect(framed({ "X-Frame-Options": "allow-from  https://p.example/x " })).toContain(
+		"frame-ancestors https://p.example",
+	)
 })
