@@ -1069,6 +1069,9 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 218 [x] The sharp peer floor admitted versions with two high-severity advisories
 218.1 [x] Plan 21 14.3: `peerDependencies.sharp` was `>=0.35.3`, so an app could resolve 0.35.3 or 0.35.4, which GitHub's advisory database lists under GHSA-wq5f-xc86-pv6w (librsvg, fixed in 0.35.5) and GHSA-rgj7-g3m4-5g8c (libheif, fixed in 0.35.4), both high. Red: tests/structure/exports.test.ts `advisory floors` (35003 under 35005).
 218.2 [x] Fix: the catalog, the dev dependency, and the peer floor are 0.35.5, with bun.lock; README and 00-rules name it. Miniflare's own sharp 0.34.5 is its private test tooling, never resolved by an app through Flare.
+219 [x] The release job, which holds publish credentials, ran `npm install -g npm@latest` and actions by moving tags
+219.1 [x] Plan 21 14.4: release.yml's npmjs job, with `id-token: write`, installed whatever npm was latest before it published, and every workflow step used an action by its major tag (`actions/checkout@v4`), so a moved tag or a compromised npm release would run inside the publish. Red: tests/structure/workflows.test.ts `pinned actions` (every `uses:` in ci.yml and release.yml unpinned) and `nothing latest` (release.yml).
+219.2 [x] Fix: every action in ci.yml and release.yml is pinned to the commit SHA its tag named on 2026-10-17, its version kept as a comment; the npm install is gone, since Node 24's own npm 11 publishes with `--provenance`.
 
 ## Verify
 
