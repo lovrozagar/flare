@@ -1,5 +1,5 @@
-import { createComponent, createSignal, onSettled } from "solid-js"
-import { Dynamic, type JSX } from "@solidjs/web"
+import { createComponent, createSignal, isHydrating, onSettled } from "solid-js"
+import { Dynamic, isServer, type JSX } from "@solidjs/web"
 import { imageQuality, imageWidths } from "./config.ts"
 
 // What an optimized image import binds to: the intrinsic size, and one variant per configured width that fits. `src`
@@ -54,21 +54,27 @@ export function withQuality(url: string, quality: number | undefined, dev: boole
 }
 
 // One `<img>`. Layout styles are inline (B88). A string `src` is used as it is, with no srcset.
+// A client-rendered image takes its sources once it is on the page. Solid builds the page under it from a template
+// clone, which belongs to the template document, and Chromium registers an image that selects a source there with that
+// document's viewport listeners and never drops it, so every page left kept its image and the page around it
+// (BUGS.md 246). The server's and a hydrated image's sources are written as rendered.
 export function Image(props: ImageProps): JSX.Element {
 	const [loaded, setLoaded] = createSignal(false)
+	const [placed, setPlaced] = createSignal(isServer || isHydrating())
 	return createComponent(Dynamic, {
 		component: "img",
 		get alt() {
 			return props.alt
 		},
 		get src() {
+			if (!placed()) return undefined
 			return typeof props.src === "string" ? props.src : url(props.src.src, props)
 		},
 		get srcset() {
-			return srcset(props)
+			return placed() ? srcset(props) : undefined
 		},
 		get sizes() {
-			return props.sizes
+			return placed() ? props.sizes : undefined
 		},
 		get width() {
 			return mode(props) === "fixed" ? Reflect.get(props, "width") : undefined
@@ -90,10 +96,12 @@ export function Image(props: ImageProps): JSX.Element {
 		},
 		onLoad: () => setLoaded(true),
 		// A priority image often finishes before hydrate attaches onLoad, so its event is never heard. After the
-		// commit, an image that is already complete clears the blur too (BUGS.md B20).
+		// commit, a hydrated image that is already complete clears the blur too (BUGS.md B20). A client-rendered one
+		// takes its sources there, on the page, and its load event clears the blur.
 		ref: (element: HTMLImageElement) => {
 			onSettled(() => {
-				if (element.complete) setLoaded(true)
+				if (!placed()) setPlaced(true)
+				else if (element.complete) setLoaded(true)
 			})
 		},
 	})

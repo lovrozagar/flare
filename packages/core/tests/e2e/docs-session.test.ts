@@ -4,10 +4,9 @@ import { expect, isProd, open, serverOf, test } from "./docs.fixture.ts"
 // Long and broken sessions. A long session holds no page it left (plan 21 12.6, BUGS.md 246): sixty client navigations
 // between home, whose hero is a fill `<Image>` with a blur placeholder, and a guide page with a fixed one leave as many
 // elements and images alive, after a forced collection, as the tenth did. Chromium alone lets a test force a collection
-// and count live objects, through CDP, so the probe runs once, on the production build. It fails today, the open
-// BUGS.md 246: each page left keeps its `<img>` and about 46 elements, which Chromium's document MediaQueryMatcher holds
-// through the image's ViewportChangeListener; `test.fail` keeps the reproduction here, and the day it passes the
-// marker goes.
+// and count live objects, through CDP, so the probe runs once, on the production build. Before BUGS.md 246 each page
+// left kept its `<img>` and about 46 elements: Chromium registered an image that chose a source inside Solid's template
+// document with that document's viewport listeners, for good.
 
 // The live instances of a DOM class after a forced collection, on screen or detached.
 async function live(page: Page, kind: string): Promise<number> {
@@ -27,7 +26,6 @@ async function live(page: Page, kind: string): Promise<number> {
 
 test("long session", async ({ page, docs, browserName }, info) => {
 	test.skip(browserName !== "chromium" || serverOf(info) !== "node-prod", "a CDP heap count, once")
-	test.fail(true, "BUGS.md 246: Chromium keeps each left page's images and their pages")
 	test.setTimeout(120_000)
 	await open(page, docs.origin, "/")
 	const counts: { elements: number; images: number }[] = []
