@@ -691,6 +691,7 @@ packages/core/tests/integration/head.test.ts	P6	test	node	dx/head.md's fields an
 packages/core/tests/integration/link.test.ts	P6	test	node	dx/link.md's Link markup, active state, Href, and URL values through the real createServer(...).fetch, the URL text read back by a route's validators (plan 14 9.6, BUGS.md 147)
 packages/core/tests/integration/link-client.test.ts	P6	test	node	dx/link.md's clicks, active state, navigation options, search spellings, URL values, and prefetch in each engine through the hydrate harness (plan 14 9.6, BUGS.md 147)
 packages/core/tests/integration/server-fn.test.ts	P7	test	node	dx/server-fn.md through the real createServer(...).fetch: every builder step, the handler context, and the wire (B96)
+packages/core/tests/integration/validators.test.ts	P15	test	node	Zod, Valibot, ArkType, Effect, TypeBox, and Superstruct, each through a route's .input({ searchParams }) and a server function's .input(), valid and invalid
 packages/core/tests/integration/middleware.test.ts	P8	test	node	Filter case, mount, and proxy
 packages/core/tests/integration/cacheability.test.ts	P9	test	node	The decision reaches document, data, and prefetch headers. A session, a late Set-Cookie, or an error frame takes the public header away
 packages/core/tests/integration/cache.test.ts	P10	test	node	A 401 is not stored. A second user does not receive the first user's body
