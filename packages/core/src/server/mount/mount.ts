@@ -79,8 +79,10 @@ export function mountFor(
 	// After the strip, `//` is 400 (B87). A parsed http URL has already turned `\` into `/` and percent-encoded
 	// control characters, so `//` is the form either one takes here.
 	if (rest.startsWith("//")) return () => Promise.resolve(new Response(null, { status: 400 }))
-	const stripped = new Request(new URL(`${rest}${url.search}`, url.origin), request)
 	return () => {
+		// Built when the mount runs, after middleware: a new Request takes over the body, which a middleware may still
+		// read through a clone (BUGS.md 271).
+		const stripped = new Request(new URL(`${rest}${url.search}`, url.origin), request)
 		const outer: RequestEvent | undefined = getRequestEvent()
 		const kept = SCOPE_FIELDS.filter((name) => outer !== undefined && name in outer)
 		const scope = Object.fromEntries(kept.map((name) => [name, Reflect.get(Object(outer), name)]))
