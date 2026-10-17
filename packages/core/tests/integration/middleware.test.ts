@@ -8,6 +8,7 @@ import { createServer } from "../../src/server/lifecycle/create.ts"
 import { createMiddleware, type MiddlewareEntry } from "../../src/server/middleware/index.ts"
 import { mount } from "../../src/server/mount/index.ts"
 import { proxy } from "../../src/server/proxy/index.ts"
+import { redirect } from "../../src/shared/errors/index.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter } from "../../src/shared/router/create-router.ts"
@@ -352,4 +353,32 @@ it("locale exit keeps route security", async () => {
 	const cookied = await server.fetch(new Request("http://localhost/hr/account?_flare=data"))
 	expect(cookied.headers.get("set-cookie")).toContain("flare.locale=hr")
 	expect(cookied.headers.get("x-frame-options")).toBe("DENY")
+})
+
+// A `redirect()` a global middleware throws answers as a loader's does, by the request's kind: a document gets the 3xx,
+// a client navigation's data request the one `x` frame (a 3xx would hand its fetch the HTML), a server function the
+// envelope redirect its caller follows, all never stored (BUGS.md 281).
+it("middleware throws redirect", async () => {
+	const guard = createMiddleware((ctx) => {
+		if (ctx.path !== "/about") throw redirect({ to: "_root_/about" })
+	})
+	const server = createServer({ router, middleware: [guard] })
+	const document = await server.fetch(new Request("http://localhost/private"))
+	expect([document.status, document.headers.get("location"), document.headers.get("cache-control")]).toEqual([
+		303,
+		"/about",
+		"private, no-store",
+	])
+	const data = await server.fetch(new Request("http://localhost/private?_flare=data"))
+	expect([data.status, await data.text()]).toEqual([200, '{"t":"x","s":303,"u":"/about","r":true}\n'])
+	const fn = await server.fetch(
+		new Request("http://localhost/_flare/fn/0123456789abcdef", {
+			method: "POST",
+			headers: { origin: "http://localhost" },
+		}),
+	)
+	expect([fn.status, Reflect.get(Object(await fn.json()), "redirect")]).toEqual([
+		200,
+		{ to: "/about", status: 303, replace: true },
+	])
 })
