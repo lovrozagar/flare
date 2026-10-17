@@ -122,4 +122,4 @@ CDN purge is the `Cache-Tag` header on the response (`cache.md`). Flare does not
 
 These v0 fields do not exist: `tiers`, `callerData`, `cdnPurgeAdapter`, `tagHeader`, `revalidateSecret`. A cast throws when the options are read (`revalidate.test.ts` `no tiers`).
 
-`POST /_flare/revalidate` does not exist. An external caller uses a route the app writes, and that route calls `revalidate()`.
+`POST /_flare/revalidate` does not exist. An external caller uses a route the app writes, and that route calls `revalidate()`: `cache.md` Purge from a webhook is the pattern, with the secret checked in constant time.
