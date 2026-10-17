@@ -1,6 +1,8 @@
 import { expect, it } from "vitest"
 import { createPage } from "../../shared/route-builder/page.ts"
-import { applyMethod, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
+import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
+import { createRouter } from "../../shared/router/create-router.ts"
+import { ALLOWED, allowChannel, applyMethod, checkResponseMethods, routeMethod, type MethodMatch } from "./methods.ts"
 
 const document = () => new Response("hello", { status: 200, headers: { "x-flare": "1" } })
 
@@ -145,4 +147,26 @@ it("check methods", () => {
 	const lazy = { id: "_root_/api", path: "/api", methods: [], module: async () => ({ route: page }) }
 	expect(check([lazy])).toThrow("createServer: _root_/api")
 	expect(check([{ id: "_root_/", path: "/", module: async () => ({ route: page }) }])).not.toThrow()
+})
+
+const respond = () => new Response("")
+
+// The Allow an adapter asks for when its runtime cannot make the request: a `.response()` page's own methods, and the
+// page set for any other path, as the router's 405 names them (BUGS.md 280).
+it("allow channel", () => {
+	const router = createRouter({
+		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+		routeTree: [
+			{ id: "_root_/hook", path: "/hook", module: createPage("_root_/hook").response(respond, { methods: ["POST"] }) },
+			{ id: "_root_/api", path: "/api", module: createPage("_root_/api").response(respond) },
+			{ id: "_root_/page", path: "/page", module: createPage("_root_/page").render(() => "page") },
+		],
+	})
+	const allowed = allowChannel(router)[ALLOWED]
+	expect(["/hook", "/api", "/page", "/elsewhere"].map((path) => allowed(path))).toEqual([
+		"POST, OPTIONS",
+		"GET, HEAD, OPTIONS",
+		"GET, HEAD, OPTIONS",
+		"GET, HEAD, OPTIONS",
+	])
 })
