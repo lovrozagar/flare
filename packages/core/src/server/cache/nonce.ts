@@ -38,9 +38,15 @@ export function toSentinel(body: string, nonce: string, sentinel: string): strin
 	return withStateNonce(rewritten, { from: nonce, to: sentinel })
 }
 
-// A hit writes its own nonce over the sentinel. With no nonce, a string or `false` CSP, the attributes go and the
-// state field is "" (B68).
+// A nonce an attribute and the state's JSON both hold as written, as the server's own hex nonce is.
+const PLAIN = /^[\w+/=-]+$/
+
+// A hit writes its own nonce over the sentinel. The sentinel was made after the render, so it stands only where the
+// write put it, in nonce attributes and the state's field: a plain nonce goes over every one in a single pass, with no
+// pattern walk and no parse of the state, the cost a hit paid on each request (plan 21 15.2). With no nonce, a string
+// or `false` CSP, the attributes go and the state field is "" (B68).
 export function fromSentinel(body: string, sentinel: string, nonce: string): string {
+	if (PLAIN.test(nonce)) return body.replaceAll(sentinel, nonce)
 	const rewritten = attributes(body, (value) => (value === sentinel ? nonce : undefined))
 	return withStateNonce(rewritten, { from: sentinel, to: nonce })
 }
