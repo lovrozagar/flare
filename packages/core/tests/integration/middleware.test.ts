@@ -371,6 +371,14 @@ it("middleware throws redirect", async () => {
 	])
 	const data = await server.fetch(new Request("http://localhost/private?_flare=data"))
 	expect([data.status, await data.text()]).toEqual([200, '{"t":"x","s":303,"u":"/about","r":true}\n'])
+	// `replace: false` pushes a history entry, as a loader's redirect does (BUGS.md 288).
+	const pushing = createMiddleware(() => {
+		throw redirect({ to: "_root_/about", replace: false })
+	})
+	const pushed = await createServer({ router, middleware: [pushing] }).fetch(
+		new Request("http://localhost/x?_flare=data"),
+	)
+	expect(await pushed.text()).toBe('{"t":"x","s":303,"u":"/about","r":false}\n')
 	const fn = await server.fetch(
 		new Request("http://localhost/_flare/fn/0123456789abcdef", {
 			method: "POST",

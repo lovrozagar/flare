@@ -168,10 +168,11 @@ export function failed(
 }
 
 // A document gets the 3xx. A data request gets HTTP 200 with the one `x` frame to the same target, as a loader
-// redirect does. A prefetch never redirects, so it is a 404 with no frames. None is stored (B73).
+// redirect does, replacing the history entry unless `replace` is false. A prefetch never redirects, so it is a 404 with
+// no frames. None is stored (B73).
 export function redirectAnswer(
 	exchange: Pick<Exchange, "secured" | "kind">,
-	to: { status: number; location: string },
+	to: { status: number; location: string; replace?: boolean },
 	cookie?: string,
 ): Response {
 	const headers = new Headers(exchange.secured.headers)
@@ -180,7 +181,7 @@ export function redirectAnswer(
 	if (cookie !== undefined) headers.append("set-cookie", cookie)
 	if (exchange.kind === "document") return finalize({ status: to.status, body: "", location: to.location, headers })
 	headers.set("content-type", NDJSON)
-	return finalize({ status: 200, body: redirectBody({ s: to.status, u: to.location, r: true }), headers })
+	return finalize({ status: 200, body: redirectBody({ s: to.status, u: to.location, r: to.replace ?? true }), headers })
 }
 
 // A server function's caller reads the envelope's redirect and follows it; a page request takes `redirectAnswer`'s.
@@ -191,7 +192,8 @@ function thrownRedirect(
 	const router = exchange.options.router
 	const url = new URL(exchange.request.url)
 	if (!isServerFn(url, router.basePath)) {
-		return redirectAnswer(exchange, { status: error.status, location: redirectLocation(error, router) })
+		const location = redirectLocation(error, router)
+		return redirectAnswer(exchange, { status: error.status, location, replace: error.replace })
 	}
 	const id = url.pathname.slice(fnPrefix(router.basePath).length)
 	const { envelope } = errorEnvelope(id, error, {
