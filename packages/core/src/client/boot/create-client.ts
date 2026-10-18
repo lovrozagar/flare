@@ -14,7 +14,7 @@ import { createArrival } from "../navigation/arrival.ts"
 import { createNavigationState } from "../navigation/pending.ts"
 import { createPopstate } from "../navigation/popstate.ts"
 import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
-import { isChunkError, loadDocument } from "../navigation/reload.ts"
+import { chainChunks, chunksGone, isChunkError, loadDocument } from "../navigation/reload.ts"
 import { browserScroll, lastFrame, type ScrollStore } from "../navigation/scroll.ts"
 import { hydrateCache } from "./initial.ts"
 import { tabbedFetch, type DevHot } from "../dev/tab.ts"
@@ -72,7 +72,11 @@ export async function bootSafely(router: Router, ready: Ready, env: ClientEnv): 
 		return await bootClient(router, ready, env)
 	} catch (error) {
 		if (page.leaving) return undefined
-		if (isChunkError(error) && browserReload(env)(window.location.href)) return undefined
+		if (isChunkError(error)) {
+			// The server judges a chunk failure: chunk files still there mean a load cut short (BUGS.md 368).
+			if (!(await chunksGone(chainChunks(router, window.location.pathname), env.fetch))) return undefined
+			if (browserReload(env)(window.location.href)) return undefined
+		}
 		console.error(BOOT_FAILED, error)
 		if (import.meta.env?.DEV && env.dev) env.send?.(devErrorPayload(error))
 		return undefined

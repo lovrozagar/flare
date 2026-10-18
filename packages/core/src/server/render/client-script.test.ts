@@ -13,6 +13,7 @@ type Page = {
 	added: ReturnType<typeof vi.spyOn>
 	removed: ReturnType<typeof vi.spyOn>
 	unload: EventTarget
+	probe: ReturnType<typeof vi.fn<(url: string, init: RequestInit) => Promise<Response>>>
 	settled: () => Promise<void>
 }
 
@@ -56,13 +57,23 @@ function rejecting(thrown: Error) {
 	}
 }
 
-function run(thrown: Error, at: { now?: number; storage?: () => Storage } = {}): Page {
+// The server's answer to the handler's HEAD of the entry: a status, or a probe that cannot be made. A chunk the server
+// no longer has answers 404, the default.
+type Answer = number | "throw"
+
+function run(thrown: Error, at: { now?: number; storage?: () => Storage; answer?: Answer } = {}): Page {
 	const unload = new EventTarget()
 	const added = vi.spyOn(unload, "addEventListener")
 	const removed = vi.spyOn(unload, "removeEventListener")
 	const assign = vi.fn<(href: string) => void>()
 	const error = vi.fn<(...args: unknown[]) => void>()
+	const probe = vi.fn<(url: string, init: RequestInit) => Promise<Response>>(async () => {
+		const answer = at.answer ?? 404
+		if (answer === "throw") throw new TypeError("Load failed")
+		return new Response(null, { status: answer })
+	})
 	const scope = {
+		fetch: probe,
 		addEventListener: unload.addEventListener.bind(unload),
 		removeEventListener: unload.removeEventListener.bind(unload),
 		location: { href: HREF, assign },
@@ -75,8 +86,13 @@ function run(thrown: Error, at: { now?: number; storage?: () => Storage } = {}):
 	const { entry, importModuleDynamically } = rejecting(thrown)
 	const text = `(scope) => { with (scope) {\n${body(clientScript(entry, ""))}\n} }`
 	new Script(text, { importModuleDynamically }).runInThisContext()(scope)
-	const settled = () => vi.waitFor(() => expect(removed).toHaveBeenCalledOnce())
-	return { assign, error, added, removed, unload, settled }
+	// The import has settled, and the probe it sent, if any, has answered and been read.
+	const settled = async () => {
+		await vi.waitFor(() => expect(removed).toHaveBeenCalledOnce())
+		await Promise.allSettled(probe.mock.results.map((result) => result.value))
+		await Promise.resolve()
+	}
+	return { assign, error, added, removed, unload, probe, settled }
 }
 
 it("client script shape", () => {
@@ -161,4 +177,18 @@ it("entry leave after settle", async () => {
 	page.unload.dispatchEvent(new Event("beforeunload"))
 	expect(page.error).toHaveBeenCalledOnce()
 	expect(page.removed).toHaveBeenCalledExactlyOnceWith("beforeunload", page.added.mock.calls[0]?.[1])
+})
+
+// A chunk failure is the server's to judge: the entry still there means the load was cut short by a navigation the page
+// heard no `beforeunload` for, so nothing loads or logs; a probe that cannot be made means the page is going
+// (BUGS.md 368).
+it("entry cut short", async () => {
+	for (const answer of [200, "throw"] as const) {
+		const page = run(new TypeError("Importing a module script failed."), { answer })
+		await page.settled()
+		expect(page.probe).toHaveBeenCalledWith(expect.any(String), { method: "HEAD", cache: "no-store" })
+		expect(page.assign).not.toHaveBeenCalled()
+		expect(page.error).not.toHaveBeenCalled()
+	}
+	expect(storage.length).toBe(0)
 })

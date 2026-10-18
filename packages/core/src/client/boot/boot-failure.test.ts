@@ -23,6 +23,24 @@ function failing(error: Error, before: () => void = () => undefined) {
 
 const CHUNK = new TypeError("error loading dynamically imported module: /src/a.ts")
 
+// The same failing root, with each route's chunk file known, as codegen writes them.
+function failingWithChunks(error: Error) {
+	const rejects = () => Promise.reject(error)
+	return createRouter({
+		chunks: { _root_: "/src/root.tsx", "_root_/": "/src/home.tsx" },
+		layouts: { _root_: rejects },
+		routeTree: [{ id: "_root_/", path: "/", module: rejects }],
+	})
+}
+
+// The probe the boot sends for those chunk files: every HEAD answers `status`, or fails.
+function probing(status: number | "throw") {
+	return vi.fn<ClientEnv["fetch"]>(async () => {
+		if (status === "throw") throw new TypeError("Load failed")
+		return new Response(null, { status })
+	})
+}
+
 beforeEach(() => {
 	history.replaceState(null, "", "/")
 	document.documentElement.removeAttribute("data-flare-hydrated")
@@ -121,4 +139,33 @@ it("create client failure", async () => {
 	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
 	createClient(failing(error))
 	await vi.waitFor(() => expect(logged).toHaveBeenCalledExactlyOnceWith(BOOT_FAILED, error))
+})
+
+// A chunk failure is the server's to judge: with the route's chunk files there, the load was cut short by a navigation
+// the page heard no `beforeunload` for, so the boot loads nothing and logs nothing (BUGS.md 368).
+it("boot cut short", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const fetch = probing(200)
+	const client = { ...env(install()), fetch }
+	await expect(bootSafely(failingWithChunks(CHUNK), createReady(), client)).resolves.toBeUndefined()
+	expect(fetch).toHaveBeenCalledWith("/src/root.tsx", { method: "HEAD", cache: "no-store" })
+	expect(client.assign).not.toHaveBeenCalled()
+	expect(logged).not.toHaveBeenCalled()
+	expect(sessionStorage.length).toBe(0)
+})
+
+// A chunk file the server no longer has is gone, as after a deploy: one load of the page.
+it("boot chunk gone", async () => {
+	const client = { ...env(install()), fetch: probing(404) }
+	await bootSafely(failingWithChunks(CHUNK), createReady(), client)
+	expect(client.assign).toHaveBeenCalledExactlyOnceWith(window.location.href)
+})
+
+// A probe that cannot be made means the page is going: nothing loads or logs.
+it("boot probe unreachable", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const client = { ...env(install()), fetch: probing("throw") }
+	await bootSafely(failingWithChunks(CHUNK), createReady(), client)
+	expect(client.assign).not.toHaveBeenCalled()
+	expect(logged).not.toHaveBeenCalled()
 })
