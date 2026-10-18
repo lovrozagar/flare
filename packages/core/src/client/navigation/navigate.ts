@@ -15,7 +15,7 @@ import {
 	type Direction,
 } from "../view-transition/index.ts"
 import { allowsNavigation, type Blockers } from "./blocker.ts"
-import { keepPosition, land, scrollFor, stay } from "./steps.ts"
+import { keepPosition, land, moveHistory, scrollFor, stay } from "./steps.ts"
 import { follow, leaveable, type Leaving } from "./leaving.ts"
 import { endOf, type Landed, type Pending } from "./frames.ts"
 import { closesOverlay, overlayFor, showOverlay, type Mode } from "./overlay.ts"
@@ -262,7 +262,8 @@ async function settle(
 	const step = { options: plan.options, pop: plan.pop, write: plan.write, arrived }
 	keepPosition(deps, previous.location, step)
 	// The DOM updates, in a view transition when one is on, and every scroll is final before the update returns, so the
-	// new snapshot shows it (B108). A commit Solid holds scrolls when it shows. History moves once it is on screen (B106).
+	// new snapshot shows it (B108). A commit Solid holds scrolls when it shows. History moves as it goes on screen,
+	// before the new page's effects run, so they read its URL (B106, BUGS.md 362).
 	let shown = Promise.resolve(false)
 	let scrolled = false
 	await runTransition({
@@ -273,7 +274,7 @@ async function settle(
 			// A navigation started since this transition began aborted this one: it commits nothing (BUGS.md 98).
 			if (settled.signal.aborted) return
 			commitQueries(arrival.kind === "landed" ? arrival.landing : undefined)
-			shown = deps.store.commit(next)
+			shown = deps.store.commit(next, () => moveHistory(deps, target, step))
 			settled.end()
 			flush()
 			scrolled = deps.store.onScreen() === next
@@ -281,6 +282,6 @@ async function settle(
 		},
 	})
 	if (!(await shown)) return { kind: "none" }
-	land(deps, target, { ...step, scrolled })
+	land(deps, target, { ...step, scrolled, written: true })
 	return { kind: "committed", stale: arrival.kind === "landed" && arrival.stale === true }
 }

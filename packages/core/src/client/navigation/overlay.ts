@@ -83,9 +83,9 @@ export function showOverlay(deps: OverlayDeps, shown: Shown): void {
 	}
 	if (page.module.render !== undefined) overlay.render = page.module.render
 	commitQueries(shown.landing)
-	void deps.store.commit({ ...previous, overlay })
+	// The entry is written as the overlay goes on screen, before its page's effects run (BUGS.md 362).
+	void deps.store.commit({ ...previous, overlay }, () => writeEntry(deps, shown))
 	flush()
-	writeEntry(deps, shown)
 }
 
 // Opening the overlay pushes its entry; a navigation inside the open overlay with `replace` replaces it, so one Back

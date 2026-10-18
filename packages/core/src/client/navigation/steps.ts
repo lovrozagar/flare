@@ -7,9 +7,17 @@ import type { Target } from "./target.ts"
 
 // What a committed navigation does to history and scroll (navigate.ts).
 
-// `scrolled`: the scroll already ran inside the transition's update (B108). `arrived`: the commit put a new page on
-// screen, a navigation to another pathname, so focus moves and its title is announced (B141).
-export type Step = { options: NavigateOptions; pop: boolean; write: boolean; scrolled?: boolean; arrived?: boolean }
+// `scrolled`: the scroll already ran inside the transition's update (B108). `written`: history already moved as the
+// commit went on screen (BUGS.md 362). `arrived`: the commit put a new page on screen, a navigation to another
+// pathname, so focus moves and its title is announced (B141).
+export type Step = {
+	options: NavigateOptions
+	pop: boolean
+	write: boolean
+	scrolled?: boolean
+	written?: boolean
+	arrived?: boolean
+}
 
 // The page being left keeps its position, read before the DOM changes. A pop's was kept at popstate.
 export function keepPosition(deps: NavigatorDeps, left: Location, step: Step): void {
@@ -18,9 +26,14 @@ export function keepPosition(deps: NavigatorDeps, left: Location, step: Step): v
 
 // After a commit: a step forward writes history, then the page goes to its hash, its top, or a pop's saved position.
 export function land(deps: NavigatorDeps, target: { url: string; location: Location }, step: Step): void {
-	if (!step.pop && step.write) writeHistory(deps, target.url, step.options)
+	if (step.written !== true) moveHistory(deps, target, step)
 	if (step.scrolled !== true) scrollFor(deps, target.location, step)
 	if (step.arrived === true) deps.arrived?.(target.location)
+}
+
+// A step forward writes its entry; a Back or Forward step the browser took writes nothing.
+export function moveHistory(deps: NavigatorDeps, target: { url: string }, step: Step): void {
+	if (!step.pop && step.write) writeHistory(deps, target.url, step.options)
 }
 
 export function scrollFor(deps: NavigatorDeps, location: Location, step: Step): void {

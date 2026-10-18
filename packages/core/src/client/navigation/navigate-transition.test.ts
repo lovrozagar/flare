@@ -36,7 +36,7 @@ const router = createRouter({
 const aboutFrames: Frame[] = [{ t: "l", m: "_root_", d: null }, { t: "l", m: "_root_/about", d: "x" }, { t: "r" }]
 
 // `types` is set only when the start got the object form: the plain callback is the default (B119).
-type Started = { scope: string; types: string[] | undefined; pushedBeforeUpdate: boolean }
+type Started = { scope: string; types: string[] | undefined; pushedInUpdate: boolean }
 
 function stubStart(target: Element | Document, started: Started[], name: string): void {
 	Object.defineProperty(target, "startViewTransition", {
@@ -46,7 +46,7 @@ function stubStart(target: Element | Document, started: Started[], name: string)
 			if (typeof arg === "function") arg()
 			else arg.update()
 			const types = typeof arg === "function" ? undefined : arg.types
-			started.push({ scope: name, types, pushedBeforeUpdate: history.length !== length })
+			started.push({ scope: name, types, pushedInUpdate: history.length !== length })
 			const done = Promise.resolve()
 			return { updateCallbackDone: done, ready: done, finished: done, skipTransition: () => undefined }
 		},
@@ -74,7 +74,8 @@ it("view transition", async () => {
 	flush()
 	expect(app.text()).toBe("root[about]")
 	// The default scope is the document, though a boundary is there (B119 (5)).
-	expect(started).toEqual([{ scope: "document", types: undefined, pushedBeforeUpdate: false }])
+	// History moves with the DOM commit, inside the update (B106, BUGS.md 362).
+	expect(started).toEqual([{ scope: "document", types: undefined, pushedInUpdate: true }])
 	expect(push).toHaveBeenCalledOnce()
 	await app.navigator.navigate({
 		to: "_root_/about",
@@ -82,7 +83,7 @@ it("view transition", async () => {
 		search: { q: "1" },
 		viewTransition: { scope: "auto" },
 	})
-	expect(started[1]).toEqual({ scope: "main", types: undefined, pushedBeforeUpdate: false })
+	expect(started[1]).toEqual({ scope: "main", types: undefined, pushedInUpdate: false })
 	await app.navigator.restore("/", 0)
 	expect(started[2]).toMatchObject({ types: undefined })
 	await app.navigator.navigate({ to: "_root_/about", viewTransition: false })

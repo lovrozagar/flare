@@ -34,8 +34,9 @@ export type StoreSnapshot = {
 export type RouterStore = {
 	snapshot: () => StoreSnapshot
 	outlet: () => OutletState
-	// Resolves true once that snapshot is on screen, or false when a newer commit replaced it first (B106).
-	commit: (next: StoreSnapshot) => Promise<boolean>
+	// Resolves true once that snapshot is on screen, or false when a newer commit replaced it first (B106). `shown`
+	// runs as it goes on screen, before any effect of the components it mounts, so history can move with the DOM.
+	commit: (next: StoreSnapshot, shown?: () => void) => Promise<boolean>
 	// The snapshot the DOM shows: the last commit Solid did not hold.
 	onScreen: () => StoreSnapshot
 	scopeAt: (depth: number) => Element | Document
@@ -50,13 +51,16 @@ const NAMED: Record<string, number> = { NotFoundError: 404, UnauthenticatedError
 // be held, and a newer commit can replace it unseen (B106).
 export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (error: unknown) => void): RouterStore {
 	const [snapshot, setSnapshot] = createSignal(initial)
-	const waiting: { snapshot: StoreSnapshot; shown: (on: boolean) => void }[] = []
+	const waiting: { snapshot: StoreSnapshot; shown: (on: boolean) => void; onShown: (() => void) | undefined }[] = []
 	let onScreen = initial
 	createRoot(() =>
 		createEffect(snapshot, (shown) => {
 			onScreen = shown
 			const at = waiting.findIndex((entry) => entry.snapshot === shown)
-			for (const entry of waiting.splice(0, at + 1)) entry.shown(entry.snapshot === shown)
+			for (const entry of waiting.splice(0, at + 1)) {
+				if (entry.snapshot === shown) entry.onShown?.()
+				entry.shown(entry.snapshot === shown)
+			}
 		}),
 	)
 	const slots = new Map<number, () => Element | undefined>()
@@ -70,9 +74,9 @@ export function createRouterStore(initial: StoreSnapshot, onBoundaryError: (erro
 			const current = snapshot()
 			return { matches: current.matches, failure: current.failure, unknown: current.unknown, onBoundaryError, onSlot }
 		},
-		commit: (next) => {
+		commit: (next, onShown) => {
 			const { promise, resolve } = resolvers<boolean>()
-			waiting.push({ snapshot: next, shown: resolve })
+			waiting.push({ snapshot: next, shown: resolve, onShown })
 			setSnapshot(next)
 			return promise
 		},
