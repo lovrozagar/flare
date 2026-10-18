@@ -699,3 +699,25 @@ types.md#Matrix#case:search optional keys	packages/core/tests/types/app/src/sect
 types.md#Matrix#case:search extra key	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search extra key	n/a: type-only, no runtime surface
 types.md#Matrix#case:search empty	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search empty	n/a: type-only, no runtime surface
 types.md#Matrix#case:parent search hidden	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::parent search hidden	n/a: type-only, no runtime surface
+types.md#Matrix#case:hook from	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::hook from	n/a: type-only, no runtime surface
+types.md#Matrix#case:hook unknown	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::hook unknown	n/a: type-only, no runtime surface
+types.md#Matrix#case:use match untyped	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::use match untyped	n/a: type-only, no runtime surface
+types.md#Matrix#case:use location raw	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::use location raw	n/a: type-only, no runtime surface
+types.md#Matrix#case:use navigate	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::use navigate	n/a: type-only, no runtime surface
+types.md#Matrix#case:i18n t hooks	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::i18n t hooks	n/a: type-only, no runtime surface
+types.md#Matrix#case:defer field	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::defer field	n/a: type-only, no runtime surface
+types.md#Matrix#case:defer nested	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::defer nested	n/a: type-only, no runtime surface
+types.md#Matrix#case:defer no then	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::defer no then	n/a: type-only, no runtime surface
+types.md#Matrix#case:query options input	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::query options input	packages/core/tests/e2e/docs-data.test.ts::query prefetched
+types.md#Matrix#case:query options void	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::query options void	n/a: no docs page queries a void server function; options.test.ts query void pins that queryFn calls it with no argument
+types.md#Matrix#case:mutation options	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::mutation options	packages/core/tests/e2e/docs-data.test.ts::mutation sets data
+types.md#Matrix#case:server fn input	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn input	packages/core/tests/e2e/docs-data.test.ts::server fn post validates
+types.md#Matrix#case:server fn input any	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn input any	n/a: type-only, no runtime surface
+types.md#Matrix#case:server fn input void	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn input void	n/a: runtime input undefined pinned in packages/core/src/server/server-fn/input.test.ts (test "promise")
+types.md#Matrix#case:server fn schema unknown	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn schema unknown	n/a: type-only, no runtime surface
+types.md#Matrix#case:server fn return	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn return	n/a: runtime envelope pinned in packages/core/tests/integration/server-fn.test.ts (test "wire envelope")
+types.md#Matrix#case:server fn stream	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn stream	packages/core/tests/e2e/docs-data.test.ts::stream
+types.md#Matrix#case:server fn render call	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn render call	n/a: runtime warn-once and call pinned in packages/core/src/shared/server-fn/client-stub.test.tsx (test "client stub")
+types.md#Matrix#case:server fn methods	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn methods	n/a: type-only, no runtime surface
+types.md#Matrix#case:query client present	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::query client present	n/a: type-only, no runtime surface
+types.md#Matrix#case:query client absent	packages/core/tests/types/handwritten/src/sections/matrix.types.ts::query client absent	n/a: type-only, no runtime surface
