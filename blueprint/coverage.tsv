@@ -669,3 +669,33 @@ types.md#What the app writes#	packages/core/tests/types/app/src/sections/app-wri
 types.md#What the app writes#field:auth	packages/core/tests/types/handwritten/src/sections/app-writes.types.ts::auth	n/a: type-only, no runtime surface
 types.md#What the app writes#field:env	packages/core/tests/types/handwritten/src/sections/app-writes.types.ts::env	n/a: type-only, no runtime surface
 types.md#What the app writes#field:serverContext	packages/core/tests/types/handwritten/src/sections/app-writes.types.ts::serverContext	n/a: type-only, no runtime surface
+types.md#Matrix#case:param types	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::param types	n/a: type-only, no runtime surface
+types.md#Matrix#case:no params	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::no params	n/a: type-only, no runtime surface
+types.md#Matrix#case:optional param	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::optional param	n/a: type-only, no runtime surface
+types.md#Matrix#case:catch-all	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::catch-all	n/a: type-only, no runtime surface
+types.md#Matrix#case:optional catch-all	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::optional catch-all	n/a: type-only, no runtime surface
+types.md#Matrix#case:literal brackets	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::literal brackets	n/a: type-only, no runtime surface
+types.md#Matrix#case:group is not a param	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::group is not a param	n/a: type-only, no runtime surface
+types.md#Matrix#case:param before root	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::param before root	n/a: type-only, no runtime surface
+types.md#Matrix#case:input params	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::input params	n/a: type-only, no runtime surface
+types.md#Matrix#case:input one side	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::input one side	n/a: type-only, no runtime surface
+types.md#Matrix#case:input empty	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::input empty	n/a: runtime throw pinned in packages/core/src/shared/route-builder/chain.test.ts::input
+types.md#Matrix#case:missing param	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::missing param	n/a: type-only, no runtime surface
+types.md#Matrix#case:extra param	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::extra param	n/a: type-only, no runtime surface
+types.md#Matrix#case:unknown route	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::unknown route	n/a: type-only, no runtime surface
+types.md#Matrix#case:layout to	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::layout to	n/a: type-only, no runtime surface
+types.md#Matrix#case:segment to	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::segment to	n/a: type-only, no runtime surface
+types.md#Matrix#case:response route id	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::response route id	n/a: type-only, no runtime surface
+types.md#Matrix#case:unregistered fallback	packages/core/tests/types/unregistered/src/sections/matrix.types.ts::unregistered fallback	n/a: type-only, no runtime surface
+types.md#Matrix#case:hash not generic	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::hash not generic	n/a: type-only, no runtime surface
+types.md#Matrix#case:search raw	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search raw	n/a: type-only, no runtime surface
+types.md#Matrix#case:search validated	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search validated	n/a: type-only, no runtime surface
+types.md#Matrix#case:imported input	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::imported input	n/a: type-only, no runtime surface
+types.md#Matrix#case:factory input	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::factory input	n/a: type-only, no runtime surface
+types.md#Matrix#case:never output	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::never output	n/a: type-only, no runtime surface
+types.md#Matrix#case:union output	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::union output	n/a: type-only, no runtime surface
+types.md#Matrix#case:search required key	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search required key	n/a: type-only, no runtime surface
+types.md#Matrix#case:search optional keys	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search optional keys	n/a: type-only, no runtime surface
+types.md#Matrix#case:search extra key	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search extra key	n/a: type-only, no runtime surface
+types.md#Matrix#case:search empty	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::search empty	n/a: type-only, no runtime surface
+types.md#Matrix#case:parent search hidden	packages/core/tests/types/app/src/sections/matrix-targets.types.ts::parent search hidden	n/a: type-only, no runtime surface
