@@ -165,6 +165,54 @@ async function typedHash(tab: Page): Promise<void> {
 	await tab.evaluate((seen) => (Reflect.get(window, "__flareRecord") as unknown[]).push(seen), back === one)
 }
 
+// Three pages behind a root with links, where /b's loader checks a cookie and redirects to sign-in once it is set.
+const CHECKED = appFrom(`
+const link = (to, id) => api.solid.createComponent(api.link.Link, { to, id, children: id })
+const root = api.rootLayout.createRootLayout("_root_")
+	.render((props) => api.h("html", "doc", () => [
+		api.h("head", "head"),
+		api.h("body", "body", () => [link("_root_/b", "to-b"), link("_root_/c", "to-c"), api.h("main", "slot", () => props.children)]),
+	]))
+const text = (value) => () => value
+const a = api.page.createPage("_root_/a").render(text("page a"))
+const b = api.page.createPage("_root_/b")
+	.loader(({ request }) => {
+		if ((request.headers.get("cookie") ?? "").includes("gone=1")) throw api.errors.redirect("/login")
+		return { ok: true }
+	})
+	.render(text("page b"))
+const c = api.page.createPage("_root_/c").render(text("page c"))
+const login = api.page.createPage("_root_/login").render(text("sign in"))
+const routeTree = [
+	{ id: "_root_/a", path: "/a", module: a },
+	{ id: "_root_/b", path: "/b", module: b },
+	{ id: "_root_/c", path: "/c", module: c },
+	{ id: "_root_/login", path: "/login", module: login },
+]
+return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree }) }
+`)
+
+// To /b and /c, then the check on /b starts failing and a two-entry Back replays /b on the way to /a: where the page
+// ends, once the replay has settled.
+async function checkedBack(tab: Page): Promise<void> {
+	await tab.evaluate(() => document.getElementById("to-b")?.click())
+	await tab.waitForFunction(() => document.getElementById("slot")?.textContent === "page b")
+	await tab.evaluate(() => document.getElementById("to-c")?.click())
+	await tab.waitForFunction(() => document.getElementById("slot")?.textContent === "page c")
+	await tab.evaluate(() => {
+		document.cookie = "gone=1; path=/"
+		history.go(-2)
+	})
+	await tab.waitForFunction(
+		() => location.pathname === "/a" && document.getElementById("slot")?.textContent === "page a",
+	)
+	// The replayed step's answer may still be in flight: once every request has landed, a redirect it carried has not
+	// taken over.
+	await tab.waitForLoadState("networkidle")
+	const seen = await tab.evaluate(() => [location.pathname, document.getElementById("slot")?.textContent ?? ""])
+	await tab.evaluate((all) => (Reflect.get(window, "__flareRecord") as unknown[]).push(...all), seen)
+}
+
 function run(engine: (typeof ENGINES)[number], path: string, loads: boolean): Promise<AppResult> {
 	if (harness === undefined) throw new Error("the harness did not start")
 	const visit: Pick<AppCase, "path" | "steps"> = { path, steps: (tab) => away(tab, path, loads) }
@@ -196,6 +244,15 @@ describe.each(ENGINES)("%s", (engine) => {
 		if (harness === undefined) throw new Error("the harness did not start")
 		const result = await harness.app(engine, { app: TALL, path: "/t", steps: typedHash, client() {} })
 		expect([result.problems, result.record]).toEqual([[], [true]])
+	})
+
+	// A Back over several entries replays them one at a time (dx/navigate.md); an entry on the way whose check now
+	// redirects never takes the visitor anywhere: the Back lands where it was going, with no document load (plan 21 5.2).
+	it("back over a failing check", async () => {
+		if (harness === undefined) throw new Error("the harness did not start")
+		const result = await harness.app(engine, { app: CHECKED, path: "/a", steps: checkedBack, client() {} })
+		expect([result.problems, result.record]).toEqual([[], ["/a", "page a"]])
+		expect(result.requests.filter((url) => !url.includes("_flare=data"))).toEqual([])
 	})
 
 	// Back paints the held page before any request lands, then revalidates it once (plan 21 16.9).
