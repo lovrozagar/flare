@@ -100,7 +100,7 @@ Validators receive the raw values. `.input({ params })` receives `Record<string,
 | route `.security()` | the same four fields. No `nonce`. The `createServer({ security })` callback stays `{ request, env, nonce, serverContext }` (`dx/server.md`) |
 | page render | `{ params, search, loaderData, preloaderContext }`. No `children`. No `auth` |
 | layout and root render | the page fields plus `children: JSX.Element` |
-| segment render | fixed `(props: { children: JSX.Element }) => children` |
+| segment render | fixed `(props: { children?: JSX.Element }) => children`, optional as on any chain render |
 | `errorRender` | `error: Error`, `params`, `search`, `reset: () => void`. `reset()` replaces the current URL in place and revalidates. It does not push (B82). In dev `message` and `stack` are the thrown ones. A non-Error uses `String(value)` and `stack` is `""`. In production `message` is the generic message, or the `markSafeError` message, and `stack` is `""` (B76). The function that runs is the walk in `dx/builder.md`. `params` and `search` are that function's route (B77) |
 | `notFoundRender` | `params`, `search` |
 | `unauthenticatedRender`, `unauthorizedRender` | `error: Error`, `params`, `search` |
@@ -211,7 +211,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `boundary remains` | `.errorRender()` | the builder | `notFoundRender` remains | a second `errorRender` | |
 | `boundaries done` | all four boundary methods | the builder | | any boundary method remaining | |
 | `intercept remains` | `.intercept()` | the builder | `.cache()` remains | a second `.intercept()` | |
-| `segment no data` | `createPathSegment` | the export | `_type` is `"segment"`. Render props are `{ children }` | `.loader`, `.preloader`, `.authenticate`, `.input`, `.head` | app, gen only |
+| `segment no data` | `createPathSegment` | the export | `_type` is `"segment"`. Render props are `{ children? }` | `.loader`, `.preloader`, `.authenticate`, `.input`, `.head` | app, gen only |
 | `segment parent` | a segment file on the path | `routeParents` | the segment id is absent | the segment id listed as a parent | gen only |
 | `parents closed` | `routeParents` | `routeModules` | every parent id is a key | a parent id missing | gen |
 | `keyed by route id` | a layout and a page both call `.input()` | `routeParams`, `routeSearchParams` | both keys are route ids | the page entry carrying the layout's output; a public URL used as the key | gen |
