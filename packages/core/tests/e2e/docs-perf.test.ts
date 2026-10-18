@@ -27,13 +27,15 @@ const BUDGET: Record<string, number> = {
 // since a slower machine stretches every task (plan 21 15.6).
 const LONGEST_TASK_MS = 500
 
-// The JavaScript resources the page has fetched so far.
-function scripts(page: Page): Promise<string[]> {
-	return page.evaluate(() =>
-		performance
-			.getEntriesByType("resource")
-			.map((entry) => entry.name)
-			.filter((name) => name.endsWith(".js")),
+// The JavaScript resources the page has fetched so far; with `imported`, only those a script fetched, not those a
+// `<link rel=prefetch>` alone did.
+function scripts(page: Page, imported = false): Promise<string[]> {
+	return page.evaluate(
+		(only) =>
+			(performance.getEntriesByType("resource") as PerformanceResourceTiming[])
+				.filter((entry) => entry.name.endsWith(".js") && !(only && entry.initiatorType === "link"))
+				.map((entry) => entry.name),
+		imported,
 	)
 }
 
@@ -69,9 +71,12 @@ test("bytes and long tasks", async ({ page, http, docs }, info) => {
 		const hrefs = [...document.querySelectorAll<HTMLLinkElement>("link[rel=prefetch]")].map((link) => link.href)
 		return hrefs.length > 0 && hrefs.every((href) => loaded.has(href)) ? hrefs : undefined
 	})
-	const prefetch = (await prefetched.jsonValue()) as string[]
+	// A module the page imported is the first load's, even when the idle prefetch also listed it, as it does for a route
+	// a viewport prefetch was still importing when the list was made (CI 39093904905: 5298 bytes on the wrong side).
+	const imported = [...new Set(await scripts(page, true))]
+	const prefetch = ((await prefetched.jsonValue()) as string[]).filter((url) => !imported.includes(url))
 	const loaded = await scripts(page)
-	sizes["initial js gz"] = await gzipped(loaded.filter((url) => !prefetch.includes(url)))
+	sizes["initial js gz"] = await gzipped(imported)
 	sizes["prefetch js gz"] = await gzipped(prefetch)
 	await page.locator('#nav a[href="/docs/routing"]').first().click()
 	await expect(page.locator("#doc-title")).toHaveText("Routing")
