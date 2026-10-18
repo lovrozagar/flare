@@ -67,7 +67,14 @@ test("save redirects", async ({ page, dashboard }) => {
 	const seen = dialogs(page, { accept: false })
 	const loads = documents(page)
 	await editName(page, "Ada Lovelace")
+	// The save's redirect, the profile's data answer, is the later navigation, so a click before it lands is overtaken:
+	// the case waits for it, then for "Saved", which the form shows only once the save has landed (BUGS.md 369).
+	const redirected = page.waitForResponse((response) => {
+		const url = new URL(response.url())
+		return url.pathname === PROFILE && url.searchParams.get("_flare") === "data"
+	})
 	await page.locator("#profile-save").click()
+	await redirected
 	await expect(page.locator("#profile-state")).toHaveText("Saved")
 	await expect(page.locator("#profile-name")).toHaveValue("Ada Lovelace")
 	await page.locator("#sidebar").getByRole("link", { name: "Projects" }).click()

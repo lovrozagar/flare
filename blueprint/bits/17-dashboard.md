@@ -81,7 +81,7 @@ The query client comes from `createQueryClientGetter()` (`src/query.ts`), provid
 | `unsaved changes block a link` | with the name changed, a sidebar link raises one `confirm`; dismissed, the form stays with the change; accepted, the projects page shows |
 | `back is not asked` | with the name changed, Back leaves with no dialog: the blocker is not asked for a Back step (dx/navigate.md) |
 | `unsaved changes block a close` | with the name changed, a tab close raises `beforeunload`; dismissed, the page stays with the change |
-| `save redirects` | the save's redirect lands on the profile with the new name, `Saved`; a link then leaves with no dialog and no document load; the next document has the name |
+| `save redirects` | the state reads `Saving…` while the save is in flight; its redirect lands on the profile with the new name, `Saved`; a link then leaves with no dialog and no document load; the next document has the name (BUGS.md 369) |
 | `invite and change a role` | an invited email joins as a member, then admin; the list takes each answer, and a reload shows admin |
 | `demoted admin loses the team` | an invited admin in their own browser has the team page; demoted by the owner, their next client navigation drops the Team tab with no document load, and the team document is 403 with the page's own `Admins only` under the tabs |
 
