@@ -87,8 +87,8 @@ function Usage(props: { read: () => Deferred<string> }): JSX.Element {
 
 // The overview: four widgets, each its own defer with its own latency, and a live feed. The document waits for every
 // defer (B146 `documentResponseDefer: "buffer"`); a client navigation shows each widget's skeleton until it lands.
-// `?incidents=fail` makes the incidents widget reject: on a client navigation the widget's own <Errored> paints it,
-// and a document, which has no place for it, fails at this page (dx/defer.md, BUGS.md 370).
+// `?incidents=fail` makes the incidents widget reject: the widget's own <Errored> paints it, on a client navigation
+// and in the held document alike, and the rest of the page renders (dx/defer.md, BUGS.md 373).
 export const route = createPage("_root_/(app)/overview")
 	.loader(({ auth, search, defer }) => {
 		const workspace = workspaceOf(auth.workspaceId)
