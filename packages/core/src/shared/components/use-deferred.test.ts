@@ -64,6 +64,20 @@ it("stored hole", async () => {
 	expect(whole).not.toContain("never run")
 })
 
+// A document's value that rejected reaches the render as its failure, which the read throws: Solid contains the
+// region for the client to render again, and the hydration data carries the failure as a resolved value, so the client
+// throws the same error into its <Errored> (tests/integration/defer.test.ts `streamed rejection early`). The
+// rejection itself never reaches Solid, whose data would leave the client nothing to read (BUGS.md 374).
+it("failed value", async () => {
+	const live = createDefer({ stored: false, dev: false })
+	const failing = live.defer(() => Promise.reject(new Error("down")))
+	live.started[0]?.document((error) => ({ name: "Error", message: (error as Error).message }))
+	const document = await rendered(failing)
+	const whole = await document.whole()
+	expect(whole).toContain("__deferredFailure:!0,error:$R")
+	expect(whole).toContain('message:"down"')
+})
+
 // Only an accessor type-checks. A plain value would read loader data untracked in the component body and keep the
 // first value, so it is not accepted.
 it("plain value", () => {

@@ -78,6 +78,8 @@ A deferred value is a wire value on every path (B145): in the document it reache
 
 `<Errored>` around the slot renders its fallback for that rejection. The route `errorRender` is not called, and a sibling `<Loading>` still swaps. An uncaught rejection is a failure of that match, and the walk in `dx/builder.md` runs (B77). A loader `e` frame has no `k` and is that walk as soon as it arrives.
 
+A document's value that rejected reaches the render as its projected failure, which `useDeferred` throws on the server and in the client, so the nearest `<Errored>` paints it once the client hydrates, whether the rejection came before hydration or after it; Solid leaves a rejected region for the client to render, and the failure is what the client reads (`tests/integration/defer.test.ts` `streamed rejection early`, `streamed rejection late`, BUGS.md 374).
+
 Tests: `server/render/document.test.ts` `two fragments`, `reject keeps shell`. `client/navigation/navigate-slots.test.ts` `two slots`, `slot catches`, `slot escapes`. `tests/e2e/navigation.test.ts` `two skeletons`; `tests/integration/defer.test.ts` `component reads`.
 
 A client cache entry that still holds a placeholder is not reused unless the route sets `cache.client.cacheDeferred: true` (`cache.md`).

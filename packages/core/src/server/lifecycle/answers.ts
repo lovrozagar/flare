@@ -182,6 +182,13 @@ async function paint(outer: Exchange, rendered: Decided, status: number): Promis
 	return cached(result, rendered.policy, { run: rendered.run, errored: rendered.failed !== undefined })
 }
 
+// A rejected deferred value reaches the render as its projected failure; a quiet render does not log it (BUGS.md 374).
+function failuresFor(exchange: Exchange, run: LoaderRun, quiet: boolean): void {
+	const log = quiet ? { ...exchange.sink.log, error: () => undefined } : exchange.sink.log
+	const sink = { ...exchange.sink, log, send: undefined }
+	for (const entry of run.deferred) entry.document?.((error) => projectError(error, sink).wire)
+}
+
 // The document body, rendered under the route's security set, or the answer for a render that failed before the
 // shell (B93).
 export async function drawn(
@@ -192,6 +199,7 @@ export async function drawn(
 	const exchange = routeSecured(outer, rendered.run.security)
 	const { late, onRenderError } = lateErrors(exchange.sink, options.quiet === true)
 	for (const bug of rendered.run.bugs) projectError(bug, exchange.sink)
+	failuresFor(exchange, rendered.run, options.quiet === true)
 	const state: OutletState = {
 		matches: outletMatches(rendered),
 		failure: rendered.failed && { index: rendered.run.data.length, ...rendered.failed },

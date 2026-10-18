@@ -140,6 +140,7 @@ The real `createServer` with a full-document root (B46), and one browser case th
 | `document buffer` | `documentResponseDefer: "buffer"` | the document's first chunk already holds the value and `</html>` |
 | `stored modes` | production stubbed, an `isr` route with `defer: "stream"`, one call left to the route and one with `prerender: "resolve"`, a memory store | COOP on the miss; the stored `l` frame holds the hole with `hole: true` and the resolved value inline, and no `c` frame; the fill sends the hole's `c` and the resolved one as `kept` |
 | `component reads` | in every engine: a page reading a 200 ms deferred value with `useDeferred` inside `<Loading>`, hydrated by the real `createClient` | no problems; the document has the fallback before the value; after hydrate the value shows and the fallback is gone (bite: `useDeferred` with `ssrSource: "client"` fails this and the document cases). A document-less root fails the streamed swap in hydrate, so the root writes the whole document |
+| `streamed rejection early`, `streamed rejection late` | in every engine: a live page whose deferred value rejects at once (the client hydrates 300 ms later) or 800 ms in (after hydration), read with `useDeferred` inside `<Loading>` inside `<Errored>` | the `<Errored>` fallback names the error, and neither the read nor its `<Loading>` fallback is left; red before BUGS.md 374, 6 of 6 timing out on an empty slot |
 
 ## `tests/integration/env.test.ts` (B96)
 

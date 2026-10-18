@@ -181,3 +181,22 @@ it("store and fill agree", () => {
 		expect(ran.stored.filter((name) => ran.fill.includes(name))).toEqual([])
 	}
 })
+
+const projected = (thrown: unknown) => ({ name: "Error", message: (thrown as Error).message })
+
+// A document's render reads a view of each started value: a rejection resolves to its projected failure, a value stays
+// itself, and the started entry keeps the original promise for a data answer's `e` frame. A second view is the first
+// (BUGS.md 374).
+it("document view", async () => {
+	const loader = createDefer(live)
+	const error = new Error("down")
+	const broken = loader.defer(() => Promise.reject(error))
+	const fine = loader.defer(() => Promise.resolve("ok"))
+	for (const entry of loader.started) entry.document(projected)
+	const first = broken.promise
+	loader.started[0]?.document(() => ({ name: "Error", message: "other" }))
+	expect(broken.promise).toBe(first)
+	await expect(broken.promise).resolves.toEqual({ __deferredFailure: true, error: { name: "Error", message: "down" } })
+	await expect(fine.promise).resolves.toBe("ok")
+	await expect(loader.started[0]?.promise).rejects.toBe(error)
+})
