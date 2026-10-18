@@ -1,12 +1,11 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs"
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { afterEach, expect, it } from "vitest"
 import { checkCoverage, dxKeys, hasCase, parseCoverage, repoKeys } from "./coverage.ts"
 
-// The coverage gate's reader on inline fixtures (B96, plan 14 9.2). The whole-repo case over blueprint/coverage.tsv
-// lands at 9.7, when every key is mapped.
+// The coverage gate's reader on inline fixtures (B96, plan 14 9.2), and the gate itself over the repo (plan 14 9.7).
 const repo = fileURLToPath(new URL("../../../../", import.meta.url))
 const roots: string[] = []
 
@@ -146,4 +145,18 @@ it("repo keys", () => {
 	const real = repoKeys(repo)
 	expect(real.length).toBeGreaterThan(700)
 	expect(real.filter((key, index) => real.indexOf(key) !== index)).toEqual([])
+})
+
+// The gate (plan 14 9.7, plan 25 7.1): every key of every dx file the reader reads is mapped once in
+// blueprint/coverage.tsv, to integration cases that exist, with an e2e case or a reason, and no row is stale.
+it("coverage", () => {
+	const read = (path: string): string | undefined => {
+		try {
+			return readFileSync(join(repo, path), "utf8")
+		} catch {
+			return undefined
+		}
+	}
+	const map = readFileSync(join(repo, "blueprint/coverage.tsv"), "utf8")
+	expect(checkCoverage({ keys: repoKeys(repo), coverage: map, read })).toEqual([])
 })
