@@ -55,9 +55,13 @@ export type FnStart = { auth: false; input: void; output: void; used: never }
 
 type StandardValidator = { "~standard": { validate: (value: unknown) => unknown } }
 
+// `any` matches both branches of `[T] extends [void]`, so a side typed `any` is read as one before that test: it keeps
+// its argument and its value (dx/server-fn.md, BUGS.md 357).
+export type NoInput<T> = 0 extends 1 & T ? false : [T] extends [void] ? true : false
+
 // The handler, `authorize`, and stream context (dx/server-fn.md). `input` is `undefined` until `.input()`.
 export type FnContext<R extends FlareRegister, S extends FnState> = {
-	input: [S["output"]] extends [void] ? undefined : S["output"]
+	input: NoInput<S["output"]> extends true ? undefined : S["output"]
 	auth: ResolvedAuth<R, S["auth"]>
 	env: RegisteredEnv<R>
 	request: Request
@@ -65,7 +69,7 @@ export type FnContext<R extends FlareRegister, S extends FnState> = {
 }
 
 // No argument while the input is `void`, else the validator output. The type is the handler's value, not the envelope.
-type Call<I, Out> = [I] extends [void] ? () => Out : (input: I) => Out
+type Call<I, Out> = NoInput<I> extends true ? () => Out : (input: I) => Out
 
 export type ServerFn<I, O> = Call<I, Promise<O>> & ServerFnRef
 

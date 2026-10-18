@@ -1,13 +1,13 @@
 import { runWithOwner } from "solid-js"
 import { isServer, QueryClient } from "@tanstack/solid-query"
 import { registeredQuery } from "../../../shared/protocol/index.ts"
-import type { ServerFn } from "../../../shared/server-fn/builder.ts"
+import type { NoInput, ServerFn } from "../../../shared/server-fn/builder.ts"
 
 type QueryKey = readonly unknown[]
 
 // `input` is required when the server function takes one, and absent when its input is `void`. The helper does not
 // append it to `queryKey` (dx/features.md Query).
-export type QueryOptionsInput<I> = [I] extends [void] ? { queryKey: QueryKey } : { queryKey: QueryKey; input: I }
+export type QueryOptionsInput<I> = NoInput<I> extends true ? { queryKey: QueryKey } : { queryKey: QueryKey; input: I }
 
 export type ServerFnQueryOptions<O> = {
 	queryKey: QueryKey
@@ -44,7 +44,7 @@ function retry(failureCount: number, error: unknown): boolean {
 	return !rejected && failureCount < RETRIES
 }
 
-type MutationFn<I, O> = [I] extends [void] ? () => Promise<O> : (input: I) => Promise<O>
+type MutationFn<I, O> = NoInput<I> extends true ? () => Promise<O> : (input: I) => Promise<O>
 
 export type ServerFnMutationOptions<I, O> = { mutationFn: MutationFn<I, O> }
 
