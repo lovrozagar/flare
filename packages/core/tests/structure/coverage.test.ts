@@ -100,6 +100,11 @@ it("case lookup", () => {
 		false,
 	])
 	expect(hasCase('const title = "five";', "five")).toBe(false)
+	// A spec on two Playwright fixtures names one by an alias, as cache-sharing.test.ts does; a word that only ends in
+	// "test" is no call of either.
+	expect(hasCase('dashboardTest("six", async () => {});', "six")).toBe(true)
+	expect(hasCase('docsTest.skip("seven", async () => {});', "seven")).toBe(true)
+	expect(hasCase('protest("eight");', "eight")).toBe(false)
 })
 
 // Every failure the gate reports: a duplicate dx key, a missing case or file, a key mapped twice, a stale key, a row

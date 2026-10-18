@@ -79,7 +79,8 @@ function cases(cell: string, where: string, errors: string[]): string[] {
 // Whether a test file has a case with exactly this title, as `it("…")` or `test("…")`, `.skip` and `.runIf(…)` included.
 export function hasCase(source: string, title: string): boolean {
 	const quoted = [`"${title}"`, `'${title}'`, `\`${title}\``]
-	for (const call of source.matchAll(/\b(?:it|test)(?:\.\w+(?:\([^)]*\))?)*\(\s*(["'`])/g)) {
+	// `it`, `test`, or a Playwright fixture's alias such as `dashboardTest`, with any modifiers.
+	for (const call of source.matchAll(/\b(?:it|test|[a-z]\w*Test)(?:\.\w+(?:\([^)]*\))?)*\(\s*(["'`])/g)) {
 		const start = (call.index ?? 0) + call[0].length - 1
 		if (quoted.some((text) => source.startsWith(text, start))) return true
 	}
