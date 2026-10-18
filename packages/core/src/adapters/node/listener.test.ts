@@ -135,7 +135,7 @@ it("trust proxy", async () => {
 	const flare = serveWith({ router }, { dev: false, log: { level: "error", error: noop, warn: noop, log: noop } })
 	const seen: string[] = []
 	const server = {
-		fetch: (request: Request, env: undefined, ctx: Ctx) => (seen.push(request.url), flare.fetch(request, env, ctx)),
+		fetch: (request: Request, env: unknown, ctx: Ctx) => (seen.push(request.url), flare.fetch(request, env, ctx)),
 	}
 	const hsts: boolean[] = []
 	const forwarded = { method: "GET", url: "/", headers: { host: "site.test", "x-forwarded-proto": "https" } }
@@ -161,7 +161,7 @@ it("trust proxy", async () => {
 		expect(() => createNodeListener(server, { trustProxy })).toThrow("trustProxy is an integer from 0 to 5")
 	}
 	// @ts-expect-error bodyLimit is a createServer option
-	expect(() => createNodeListener(server, { bodyLimit: 1 })).toThrow("createNodeListener takes only trustProxy")
+	expect(() => createNodeListener(server, { bodyLimit: 1 })).toThrow("createNodeListener takes only trustProxy and env")
 })
 
 it("wait until", async () => {
@@ -188,9 +188,29 @@ it("wait until", async () => {
 	})
 	await settle()
 	expect(args[0]).toBeInstanceOf(Request)
-	expect(args[1]).toBeUndefined()
+	expect(args[1]).toBe(process.env)
 	expect(typeof (args[2] as Ctx).waitUntil).toBe("function")
 	expect(ended).toBe(true)
+})
+
+// The env the server sees is the option's value, and `process.env` without one, so a loader's `env` is the app's on
+// Node as on Workers (dx/adapters.md, BUGS.md 372).
+it("env", async () => {
+	const given = { REVALIDATE_SECRET: "given" }
+	const seen: unknown[] = []
+	const listener = createNodeListener(
+		{
+			fetch(_request, env) {
+				seen.push(env)
+				return new Response("ok")
+			},
+		},
+		{ env: given },
+	)
+	listener(req(), { writeHead() {}, setHeader() {}, write: () => true, end() {}, once() {} })
+	await settle()
+	expect(seen).toEqual([given])
+	expect(seen[0]).toBe(given)
 })
 
 it("set-cookie", async () => {

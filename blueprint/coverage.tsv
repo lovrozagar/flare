@@ -11,6 +11,7 @@ testing.md#flarePage#method:state	packages/core/tests/integration/flare-page.tes
 testing.md#The framework's e2e grid#	packages/core/tests/structure/grid.test.ts::grid projects; scripts/browser-server.test.ts::endpoint env	n/a: contributor tooling that runs the suite; no app's browser or HTTP client observes it
 adapters.md#Node#	packages/core/tests/integration/adapters.test.ts::node listener	packages/core/tests/e2e/docs-data.test.ts::stream; packages/core/tests/e2e/docs-server.test.ts::body limit
 adapters.md#Node#prop:trustProxy	packages/core/tests/integration/adapters.test.ts::node trust proxy	packages/core/tests/e2e/docs-server.test.ts::forwarded proto untrusted
+adapters.md#Node#prop:env	packages/core/tests/integration/adapter-env.test.ts::node env	packages/core/tests/e2e/dashboard-api.test.ts::webhook purge; packages/core/tests/e2e/dashboard-api.test.ts::billing webhook
 adapters.md#Bun#	packages/core/tests/integration/adapters.test.ts::bun serve; packages/core/src/adapters/bun/serve.test.ts::bun oversized post	packages/core/tests/e2e/docs-server.test.ts::body limit; packages/core/tests/e2e/docs-server.test.ts::forwarded proto untrusted
 adapters.md#Workers#	packages/core/tests/workerd/server.test.ts::worker server; packages/core/tests/workerd/server.test.ts::worker assets	packages/core/tests/e2e/docs-features.test.ts::page state; packages/core/tests/e2e/docs-server.test.ts::forwarded proto untrusted
 adapters.md#Workers#prop:server	packages/core/tests/workerd/server.test.ts::worker server	packages/core/tests/e2e/docs-features.test.ts::page state
