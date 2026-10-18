@@ -1,3 +1,4 @@
+import { DEFAULT_SEARCH } from "../../../search.ts"
 import { createPage, Link } from "@lovrozagar/flare"
 import { createSignal, Show } from "solid-js"
 import type { JSX } from "@solidjs/web"
@@ -108,7 +109,7 @@ export const route = createPage("_root_/login")
 					{(email) => (
 						<p id="signed-in" class="mt-6 text-sm">
 							Signed in as {email()}.{" "}
-							<Link to="_root_/(app)/projects" class="text-brand-600 underline">
+							<Link to="_root_/(app)/projects" search={DEFAULT_SEARCH} class="text-brand-600 underline">
 								Open projects
 							</Link>
 						</p>

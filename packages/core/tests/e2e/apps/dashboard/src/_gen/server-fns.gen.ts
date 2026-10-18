@@ -4,4 +4,11 @@ export const serverFns = {
 	"8e19b327b6210747": () => import("../fns/auth.ts").then((loaded) => loaded.signOut),
 	"73c591a22bbeed46": () => import("../fns/auth.ts").then((loaded) => loaded.expireSession),
 	"57585efc9ab8828d": () => import("../fns/auth.ts").then((loaded) => loaded.assignRole),
+	"87fa1710408926b7": () => import("../fns/projects.ts").then((loaded) => loaded.projectPage),
+	"f6344dd95a8ccfe1": () => import("../fns/projects.ts").then((loaded) => loaded.projectDetail),
+	"609432681dad2e17": () => import("../fns/projects.ts").then((loaded) => loaded.createProject),
+	"d300277a753a8de9": () => import("../fns/projects.ts").then((loaded) => loaded.quickAdd),
+	"6b6b88a3ebbbbce0": () => import("../fns/projects.ts").then((loaded) => loaded.renameProject),
+	"66a80a50c34cb320": () => import("../fns/projects.ts").then((loaded) => loaded.archiveProject),
+	"e96ef5a29b07f2bf": () => import("../fns/projects.ts").then((loaded) => loaded.deleteProject),
 };

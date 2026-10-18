@@ -127,3 +127,30 @@ export async function callFn(
 	})
 	expect(response.status(), `${call.name} answers`).toBe(200)
 }
+
+// Document requests a page makes from now on. A client navigation adds none.
+export function documents(page: Page): string[] {
+	const urls: string[] = []
+	page.on("request", (request) => {
+		if (request.resourceType() === "document") urls.push(new URL(request.url()).pathname)
+	})
+	return urls
+}
+
+// Data requests (`?_flare=data`, `prefetch`, `fill`) a page makes from now on, by their `_flare` value, path, and
+// the page's own search.
+export function dataRequests(page: Page): { kind: string; path: string; search: URLSearchParams }[] {
+	const seen: { kind: string; path: string; search: URLSearchParams }[] = []
+	page.on("request", (request) => {
+		const url = new URL(request.url())
+		const kind = url.searchParams.get("_flare")
+		url.searchParams.delete("_flare")
+		if (kind !== null) seen.push({ kind, path: url.pathname, search: url.searchParams })
+	})
+	return seen
+}
+
+// The table's row names, in order.
+export async function rowNames(page: Page): Promise<string[]> {
+	return page.locator("#projects tbody tr td:first-child").allTextContents()
+}
