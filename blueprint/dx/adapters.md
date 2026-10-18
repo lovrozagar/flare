@@ -27,8 +27,10 @@ An unread POST body is drained, or the connection is closed, before the next req
 ## Bun
 
 ```ts
-createBunFetch(server, { trustProxy?, idleTimeout? }?): { fetch, maxRequestBodySize, idleTimeout, drain }
+createBunFetch(server, { trustProxy?, idleTimeout?, env? }?): { fetch, maxRequestBodySize, idleTimeout, drain }
 ```
+
+`env` is the Node listener's option, with its default and its pitfalls: absent, the server sees `process.env` (`serve.test.ts` `env`; `tests/integration/adapter-env.test.ts` `bun env`, BUGS.md 372).
 
 `fetch` is `(request: Request, server?) => Promise<Response>`, where `server` is the one Bun.serve hands it. `maxRequestBodySize` is Bun's own default, 128 MiB, a platform ceiling and not the enforcement: Flare's capped reader answers a body over `bodyLimit`, at most 32 MiB, with 413 first, as on Node. A body over the ceiling makes Bun cut the connection, which a client reads as `EPIPE` or `ECONNRESET`, not a status (`serve.test.ts` `ceiling`, `bun oversized post`; BUGS.md 114). The app passes both to `Bun.serve`:
 

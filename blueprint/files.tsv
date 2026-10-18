@@ -955,7 +955,7 @@ packages/core/tests/integration/hydrate.test.tsx	P15	test	node	Every exported co
 packages/core/tests/integration/hydrate.app.ts	P15	test	node	The harness's app mode: a document the real createServer(...).fetch serves, hydrated in each engine by the real createClient, its callbacks' record read back (B96)
 packages/core/tests/integration/client.test.ts	P15	test	node	createClient's callbacks through the browser harness, in every engine (B96, dx/client.md)
 packages/core/tests/integration/active-client.test.ts	P15	test	client	A hydrated page shows the browser's URL: a stored page with a query and a deep link's hash (BUGS.md 211)
-packages/core/tests/integration/adapter-env.test.ts	P15	test	node	The env the Node adapter hands the real createServer: process.env by default, or the env option's (BUGS.md 372)
+packages/core/tests/integration/adapter-env.test.ts	P15	test	node	The env the Node and Bun adapters hand the real createServer: process.env by default, or the env option's (BUGS.md 372)
 packages/core/tests/integration/adapters.test.ts	P15	test	node	The Node and Bun adapters over real HTTP with the real createServer (B96, dx/adapters.md)
 packages/core/tests/integration/shutdown.test.ts	P15	test	node	A real Node and Bun process gets SIGTERM mid-stream with a store write and a purge pending, and drains them before it exits (plan 21 16.11)
 packages/core/tests/integration/callbacks-client.test.ts	P15	test	client	Throwing createClient callbacks and shouldRefetch are logged, and the page still hydrates and fills (BUGS.md 203)

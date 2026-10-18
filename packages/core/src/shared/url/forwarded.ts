@@ -7,7 +7,7 @@ export function trustedHops(
 	keys: readonly string[] = ["trustProxy"],
 ): number {
 	for (const key of Object.keys(options)) {
-		if (!keys.includes(key)) throw new Error(`${adapter} takes only ${keys.join(" and ")}`)
+		if (!keys.includes(key)) throw new Error(`${adapter} takes only ${new Intl.ListFormat("en-US").format(keys)}`)
 	}
 	const hops = options.trustProxy ?? 0
 	if (!Number.isInteger(hops) || hops < 0 || hops > 5) throw new Error("trustProxy is an integer from 0 to 5")

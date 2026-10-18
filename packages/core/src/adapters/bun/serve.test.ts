@@ -24,6 +24,27 @@ it("ceiling", async () => {
 	expect(await response.text()).toBe("ok")
 })
 
+// The env the server sees is the option's value, and `process.env` without one, so a loader's `env` is the app's on
+// Bun as on Workers; the options hold nothing else (dx/adapters.md, BUGS.md 372).
+it("env", async () => {
+	const seen: unknown[] = []
+	const server = {
+		fetch(_request: Request, env: unknown) {
+			seen.push(env)
+			return new Response("ok")
+		},
+	}
+	const given = { REVALIDATE_SECRET: "given" }
+	await createBunFetch(server).fetch(new Request("http://localhost/"))
+	await createBunFetch(server, { env: given }).fetch(new Request("http://localhost/"))
+	expect(seen[0]).toBe(process.env)
+	expect(seen[1]).toBe(given)
+	// @ts-expect-error bodyLimit is a createServer option
+	expect(() => createBunFetch(server, { bodyLimit: 1 })).toThrow(
+		"createBunFetch takes only trustProxy, idleTimeout, and env",
+	)
+})
+
 // createServer checks the range dx/server.md gives and carries the limit on the server it returns; Bun's ceiling does
 // not follow it (BUGS.md 110, 114).
 it("server limit", () => {
@@ -183,8 +204,9 @@ it("idle timeout", async () => {
 	expect(await (await whole.fetch(new Request("http://localhost/"), plain)).text()).toBe("whole")
 	expect(plain.calls).toEqual([])
 	expect(await (await streamed.fetch(new Request("http://localhost/"))).text()).toBe("streamed")
+	const server = { fetch: () => new Response("") }
 	for (const idleTimeout of [-1, 1.5, 256]) {
-		expect(() => createBunFetch(streamed, { idleTimeout })).toThrow("idleTimeout is an integer from 0 to 255 seconds")
+		expect(() => createBunFetch(server, { idleTimeout })).toThrow("idleTimeout is an integer from 0 to 255 seconds")
 	}
 })
 

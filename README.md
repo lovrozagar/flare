@@ -475,14 +475,14 @@ export default defineConfig({ plugins: [cloudflare({ viteEnvironment: { name: "s
 
 ## Adapters
 
-| export                 | from                                 | use                                                                                                                                                                                               |
-| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createNodeListener`   | `@lovrozagar/flare/adapters/node`    | `createNodeListener(server, { trustProxy?, env? })`: a `node:http` request listener; `drain({ timeout })` on SIGTERM                                                                              |
-| `toRequest`            | `@lovrozagar/flare/adapters/node`    | the target check and the client address the listener uses                                                                                                                                         |
-| `createBunFetch`       | `@lovrozagar/flare/adapters/bun`     | `Bun.serve(createBunFetch(server, { trustProxy?, idleTimeout? }))`, with Bun's 128 MiB body ceiling above any `bodyLimit`; a quiet stream outlives `idleTimeout`; `drain({ timeout })` on SIGTERM |
-| `createWorkersHandler` | `@lovrozagar/flare/adapters/workers` | `createWorkersHandler(server, { assets? })` for a hand-written worker                                                                                                                             |
+| export                 | from                                 | use                                                                                                                                                                                                     |
+| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createNodeListener`   | `@lovrozagar/flare/adapters/node`    | `createNodeListener(server, { trustProxy?, env? })`: a `node:http` request listener; `drain({ timeout })` on SIGTERM                                                                                    |
+| `toRequest`            | `@lovrozagar/flare/adapters/node`    | the target check and the client address the listener uses                                                                                                                                               |
+| `createBunFetch`       | `@lovrozagar/flare/adapters/bun`     | `Bun.serve(createBunFetch(server, { trustProxy?, idleTimeout?, env? }))`, with Bun's 128 MiB body ceiling above any `bodyLimit`; a quiet stream outlives `idleTimeout`; `drain({ timeout })` on SIGTERM |
+| `createWorkersHandler` | `@lovrozagar/flare/adapters/workers` | `createWorkersHandler(server, { assets? })` for a hand-written worker                                                                                                                                   |
 
-`trustProxy` is how many proxy hops in front of the server are trusted (0 to 5, default 0): with one, `X-Forwarded-Proto: https` makes the request https. Full contract: [adapters.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/adapters.md).
+`trustProxy` is how many proxy hops in front of the server are trusted (0 to 5, default 0): with one, `X-Forwarded-Proto: https` makes the request https. `env` is the `env` loaders and server functions see, `process.env` by default. Full contract: [adapters.md](https://github.com/lovrozagar/flare/blob/main/blueprint/dx/adapters.md).
 
 ## Stores and revalidate
 

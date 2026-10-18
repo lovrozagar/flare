@@ -10,6 +10,10 @@ it("hops", () => {
 	}
 	// @ts-expect-error bodyLimit is a createServer option
 	expect(() => trustedHops("createBunFetch", { bodyLimit: 1 })).toThrow("createBunFetch takes only trustProxy")
+	// @ts-expect-error bodyLimit is a createServer option
+	expect(() => trustedHops("createBunFetch", { bodyLimit: 1 }, ["trustProxy", "idleTimeout", "env"])).toThrow(
+		"createBunFetch takes only trustProxy, idleTimeout, and env",
+	)
 })
 
 // Only a trusted hop's `https` counts.

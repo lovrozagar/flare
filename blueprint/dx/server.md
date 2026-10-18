@@ -48,7 +48,7 @@ createServer({
 | field | outcome | pitfall | test |
 | --- | --- | --- | --- |
 | `request` | the canonical request | | `caller.test.ts` `leaf` |
-| `env` | the fetch env, typed by `FlareRegister["env"]` | | same |
+| `env` | the fetch env, typed by `FlareRegister["env"]`: the platform's on Workers, and on Node and Bun the adapter's `env` option or `process.env` (`adapters.md`) | | same |
 | `callerData` | the leaf route's arguments. `.authenticate("admin")` is `["admin"]`. A call with no arguments is `[]` | a layout `.authenticate("admin")` and a page that does not call `authenticate` leaves this `[]`. The layout's arguments are on `callerChain`. v0 passed the first route's arguments | `caller.test.ts` `leaf`, `layout only`, `leaf empty` |
 | `callerChain` | `{ route, args }[]` from the root down, one entry per route that called `authenticate` or `authenticateOptional`. `route` is the route id | an `authorize` with no authenticate call still runs the function, with `callerData` `[]` and `callerChain` `[]` | `caller.test.ts` `chain`, `authorize only` |
 
@@ -237,7 +237,7 @@ A middleware is `(ctx) => Promise<Response | void> | Response | void`. The user 
 | --- | --- |
 | `request` | the request, canonical URL |
 | `path` | the canonical pathname |
-| `env` | the fetch env, typed by `FlareRegister["env"]` |
+| `env` | the fetch env, typed by `FlareRegister["env"]`: the platform's on Workers, and on Node and Bun the adapter's `env` option or `process.env` (`adapters.md`) |
 | `kind` | `"page"` for a document, a data, or a prefetch request; `"serverFn"` for a server-function call; `"mount"` for a request a mount answers, whose `next()` resolves to the mount's answer (B138) |
 | `next()` | resolves to the router `Response`. A second call throws `next() twice` in the middleware; uncaught, it is the projected 500, and a middleware that catches it answers as it chooses |
 | `respond(response)` | returns void, stashes that response, and skips `next()`. Finalize still runs |
