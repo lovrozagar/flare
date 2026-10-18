@@ -11,6 +11,7 @@ import {
 import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
+import { fromWire } from "../../src/shared/protocol/value.ts"
 import { bodyOf, documentOf, serve } from "./builder-app.ts"
 
 // dx/features.md's Query rows through the real createServer(...).fetch (B96): the request's client from the getter,
@@ -65,6 +66,12 @@ const page = createPage("_root_/q")
 		})
 	})
 
+// Each dehydrated query's data, read back from the wire.
+function queryData(state: unknown): unknown[] {
+	const queries = Reflect.get(Object(state), "queries") as { state: { data: unknown } }[]
+	return queries.map((query) => fromWire(query.state.data))
+}
+
 // The request's client is one per request, and the loader's prefetch fills it: the render shows the data with no
 // second call, and the document's state carries the query for the client. Outside a request the getter throws.
 it("query client", async () => {
@@ -75,7 +82,8 @@ it("query client", async () => {
 	expect(calls).toBe(1)
 	const state = /self\.flare=(.*?)<\/script>/s.exec(answer.text)?.[1] ?? ""
 	expect(state).toContain('"queryKey":["greet","ana"]')
-	expect(state).toContain('"data":"hi ana"')
+	// The query's data is a wire value, as every app value in the state is (B145, BUGS.md 364).
+	expect(queryData(JSON.parse(state).queries)).toEqual(["hi ana"])
 	await get("/q")
 	expect(calls).toBe(2)
 	expect(() => getQueryClient()).toThrow("the query client getter runs inside a request on the server")
@@ -93,7 +101,7 @@ it("data queries", async () => {
 		.map((line) => JSON.parse(line) as { t: string })
 	const kinds = frames.map((frame) => frame.t)
 	expect(kinds.indexOf("q")).toBe(kinds.indexOf("r") - 1)
-	expect(JSON.stringify(frames.find((frame) => frame.t === "q"))).toContain('"data":"hi ana"')
+	expect(queryData(Reflect.get(Object(frames.find((frame) => frame.t === "q")), "d"))).toEqual(["hi ana"])
 	expect(calls).toBe(1)
 	const plain = createPage("_root_/plain").render(() => "plain")
 	const bare = await serve([{ id: "_root_/plain", path: "/plain", module: plain }], { layouts })("/plain?_flare=data")

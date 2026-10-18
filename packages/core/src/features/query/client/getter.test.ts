@@ -3,10 +3,16 @@ import { Dynamic, render } from "@solidjs/web"
 import { createComponent, flush, Loading } from "solid-js"
 import { afterEach, expect, it } from "vitest"
 import { QUERY_GETTER, registeredQuery } from "../../../shared/protocol/query.ts"
+import { toWire } from "../../../shared/protocol/value.ts"
 import { createQueryClientGetter } from "./getter.ts"
 
 // The getter on Solid's client build. The server rows are getter.ssr.test.ts.
 type FlareScope = typeof globalThis & { flare?: { queries?: unknown } }
+
+// A client's cache as the server writes it into the document state or a `q` frame: each query's data on the wire.
+function wireState(client: QueryClient): unknown {
+	return JSON.parse(JSON.stringify(dehydrate(client, { serializeData: toWire })))
+}
 
 afterEach(() => {
 	Reflect.deleteProperty(globalThis, QUERY_GETTER)
@@ -31,7 +37,7 @@ it("getter registered once", () => {
 it("client seed", () => {
 	const server = new QueryClient()
 	server.setQueryData(["n"], 42)
-	;(globalThis as FlareScope).flare = { queries: JSON.parse(JSON.stringify(dehydrate(server))) }
+	;(globalThis as FlareScope).flare = { queries: wireState(server) }
 	const client = createQueryClientGetter()()
 	expect(client.getQueryData(["n"])).toBe(42)
 	// No state, or state with no queries, is an empty client.
@@ -46,7 +52,7 @@ it("client seed", () => {
 function documentWithTally(): { runs: () => number; queryFn: () => string } {
 	const server = new QueryClient()
 	server.setQueryData(["tally", "a"], "server")
-	;(globalThis as FlareScope).flare = { queries: JSON.parse(JSON.stringify(dehydrate(server))) }
+	;(globalThis as FlareScope).flare = { queries: wireState(server) }
 	let count = 0
 	return { runs: () => count, queryFn: () => `client ${++count}` }
 }
@@ -149,6 +155,21 @@ it("hydrate keeps newer", () => {
 	server.setQueryData(["user"], "server", { updatedAt: Date.now() - 60_000 })
 	server.setQueryData(["post"], "server post")
 	client.setQueryData(["user"], "client")
-	registeredQuery()?.hydrate?.(JSON.parse(JSON.stringify(dehydrate(server))))
+	registeredQuery()?.hydrate?.(wireState(server))
 	expect([client.getQueryData(["user"]), client.getQueryData(["post"])]).toEqual(["client", "server post"])
+})
+
+// The document's and a navigation's queries arrive on the wire (B145): the client reads each query's data as the
+// server held it, a Date as a Date (BUGS.md 364).
+it("wire values", () => {
+	const when = new Date("2026-10-01T00:00:00.000Z")
+	const server = new QueryClient()
+	server.setQueryData(["when"], { when })
+	;(globalThis as FlareScope).flare = { queries: wireState(server) }
+	const getQueryClient = createQueryClientGetter()
+	expect(getQueryClient().getQueryData(["when"])).toEqual({ when })
+	const next = new QueryClient()
+	next.setQueryData(["later"], [when])
+	registeredQuery()?.hydrate?.(wireState(next))
+	expect(getQueryClient().getQueryData(["later"])).toEqual([when])
 })
