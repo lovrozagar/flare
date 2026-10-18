@@ -817,6 +817,9 @@ packages/core/tests/types/app/src/routes/_root_/aliased/[id]/aliased.page.tsx	P7
 packages/core/tests/types/app/src/routes/_root_/sorted/[id]/sorted.page.tsx	P7	app	-	A default-imported search-only validator; params stay the brackets (BUGS.md 349)
 packages/core/tests/types/app/src/routes/_root_/made/[id]/made.page.tsx	P7	app	-	Validators a factory returns (BUGS.md 349)
 packages/core/tests/types/app/src/routes/_root_/void/[id]/void.page.tsx	P7	app	-	A params validator whose output is never stays never (BUGS.md 349)
+packages/core/tests/types/app/src/routes/_root_/canon/[id]/canon.page.tsx	P7	app	-	A validating page whose annotated loader redirects to itself with params (BUGS.md 350)
+packages/core/tests/types/app/src/routes/_root_/vping/[id]/vping.page.tsx	P7	app	-	One of two validating pages whose annotated loaders redirect to each other (BUGS.md 350)
+packages/core/tests/types/app/src/routes/_root_/vpong/[id]/vpong.page.tsx	P7	app	-	The other of the vping pair (BUGS.md 350)
 packages/core/tests/types/app/src/routes/_root_/shaped/[id]/shaped.page.tsx	P7	app	-	input params replaces id: string with id: number
 packages/core/tests/types/app/src/routes/_root_/public/public.page.tsx	P7	app	-	authorize only. No authenticate
 packages/core/tests/types/app/src/routes/_root_/guest/guest.page.tsx	P7	app	-	authenticateOptional()

@@ -42,6 +42,8 @@ A type is born in one place. Later readers do not invent a second copy.
 
 Codegen does not read `.input()`'s argument, only that the route's chain calls it: an object literal, a module-level `const`, an imported object, and a factory's result all give the route's validated params and search, read from its own type, so `Link`, `useSearch`, and `useParams` see what its own callbacks see (BUGS.md 346, 349). A route without `.input()` gets no entry, so its type is never read, and a loader that redirects to it cannot loop through its own type (BUGS.md 105).
 
+A loader that redirects with params or search to a route that validates them, its own route included, annotates its return type: `.loader(({ params }): Data => …)`. The redirect's params check reads the target route's type, and when that read leads back to the loader whose return is still being inferred, tsc reports `TS7022` ('route' implicitly has type 'any' because it is referenced directly or indirectly in its own initializer), `TS7024` on the loader, and `TS2502` in `src/_gen/types.gen.ts`. The annotation gives the loader a type before its body is read, so nothing loops (BUGS.md 350, `app`: checks-input.ts `redirect to a validating route`).
+
 `Link`, `navigate`, `redirect`, and `buildUrl` are generic on a page route id: a key of `routeModules` whose `_type` is `"page"`. A layout id, the root id, and a segment id are not `to`. `from` is any key of `routeModules`. An unknown id fails only after the register is augmented.
 
 `hash`, `replace`, `revalidate`, `scroll`, `shallow`, `state`, `viewTransition`, `prefetch`, `status`, and anchor attributes are not generic on the route.

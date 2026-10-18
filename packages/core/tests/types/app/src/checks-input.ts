@@ -1,7 +1,7 @@
 // The dx/types.md `app` rows for where a route's validated params and search come from: each route whose chain calls
 // `.input()` has them read from its own type, whatever the argument is, a literal, an import, or a factory's result
 // (BUGS.md 349). See checks.ts.
-import { buildUrl, Link, useNavigate, useParams, useSearch } from "@lovrozagar/flare"
+import { buildUrl, Link, useLoaderData, useNavigate, useParams, useSearch } from "@lovrozagar/flare"
 
 const navigate = useNavigate()
 
@@ -55,4 +55,17 @@ const navigate = useNavigate()
 	void params
 	// @ts-expect-error a bracket string is not the validator output
 	void Link({ to: "_root_/void/[id]", params: { id: "1" }, children: "x" })
+}
+
+// redirect to a validating route: a loader that redirects with params to a route that validates them, its own route
+// included, annotates its return, and its data and the target's params stay typed (BUGS.md 350)
+{
+	const canon: number = useLoaderData({ from: "_root_/canon/[id]" }).n
+	const ping: number = useLoaderData({ from: "_root_/vping/[id]" }).n
+	void [canon, ping]
+	void Link({ to: "_root_/vpong/[id]", params: { id: 1 }, children: "x" })
+	// @ts-expect-error the loader data is a number, not `any` from a loop
+	const _pong: string = useLoaderData({ from: "_root_/vpong/[id]" }).n
+	// @ts-expect-error the params output is a number
+	void Link({ to: "_root_/canon/[id]", params: { id: "1" }, children: "x" })
 }
