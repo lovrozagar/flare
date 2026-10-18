@@ -1,4 +1,4 @@
-import { createPage, Link, markSafeError, useDeferred } from "@lovrozagar/flare"
+import { createPage, Link, markSafeError, useDeferred, type Deferred } from "@lovrozagar/flare"
 import { createEffect, createSignal, Errored, For, Loading } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { workspaceOf } from "../../../../db.ts"
@@ -20,11 +20,8 @@ function messageOf(error: unknown): string {
 	return error instanceof Error ? error.message : String(error)
 }
 
-// The read of one deferred string, as `useDeferred` takes it.
-type DeferredRead = Parameters<typeof useDeferred<string>>[0]
-
 // One widget: a skeleton while its value is pending, then the value.
-function Widget(props: { id: string; label: string; read: DeferredRead }): JSX.Element {
+function Widget(props: { id: string; label: string; read: () => Deferred<string> }): JSX.Element {
 	const value = useDeferred(props.read)
 	return (
 		<div class="rounded-xl border border-slate-200 bg-white p-4">

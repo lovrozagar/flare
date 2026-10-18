@@ -59,6 +59,19 @@ A plain `createMemo(async () => loaderData.reviews.promise)` still works on a pa
 
 `fallback` is the skeleton the app writes. While the promise is pending, that fallback is what the boundary renders. When the promise resolves, the boundary renders the children and the fallback is gone. `reviews()` is then `T`. Two boundaries swap on their own. `<Reveal>` is Solid's. Flare does not render one, so each boundary reveals when its own promise settles. An `order` other than `"natural"` holds a fast boundary until an earlier one settles. Reading `.promise` in JSX, or passing that promise as a prop, does not suspend. The async computation has to be under the `<Loading>`.
 
+A child component takes the deferred field as an accessor typed with `Deferred` from `@lovrozagar/flare`, and reads it with `useDeferred` beside its own `<Loading>` (`types.md` `deferred named`):
+
+```tsx
+import { useDeferred, type Deferred } from "@lovrozagar/flare";
+
+function Reviews(props: { read: () => Deferred<Review[]> }) {
+  const reviews = useDeferred(props.read);
+  return <Loading fallback={<p>Loading reviews</p>}><List items={reviews()} /></Loading>;
+}
+
+<Reviews read={() => props.loaderData.reviews} />
+```
+
 Flare ships no `<Await>`, no skeleton, and no content-swap component. `useDeferred` is its one deferred hook (B80).
 
 A deferred value is a wire value on every path (B145): in the document it reaches the client through Solid's hydration data, which seroval writes, and in an `l` or `c` frame or an inline stored value through flare's frames, which seroval writes too, so a Date or a Map arrives as itself either way (`tests/integration/transport-client.test.ts` `one value everywhere`). The client builds the promise when it applies the `l` placeholder. A `c` frame resolves the promise for that `m` and `k`. A deferred `e` rejects it. The navigation commits and pushes at `r`, and these later frames do not push again. The document render awaits the same promise the loader started. Solid appends that boundary's fragment. Flare does not write a `c` frame into the HTML.

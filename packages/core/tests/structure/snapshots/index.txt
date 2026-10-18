@@ -1,6 +1,6 @@
 
 import { notFound, unauthenticated, unauthorized } from "../shared/errors/http.js";
-import { FlareRegister, ParamsOutput, QueryClientRegister, SearchOutput } from "../shared/route-builder/register.js";
+import { Deferred, FlareRegister, ParamsOutput, QueryClientRegister, SearchOutput } from "../shared/route-builder/register.js";
 import { redirect } from "../shared/errors/redirect.js";
 import { markSafeError } from "../shared/errors/safe.js";
 import "../shared/errors/index.js";
@@ -40,4 +40,4 @@ import "../features/image/shared/index.js";
 import { Font, FontOptions, createFont } from "../features/fonts/shared/create-font.js";
 import { FontCSS, FontCSSProps } from "../features/fonts/shared/font-css.js";
 import "../features/fonts/shared/index.js";
-export { DirectionProvider, DirectionScript, type FlareRegister, type Font, FontCSS, type FontCSSProps, type FontOptions, type Href, Image, type ImageBinding, type ImageProps, InterceptOutlet, type InterceptState, Link, type LinkProps, type LocationRewrite, Outlet, type ParamsOutput, type QueryClientRegister, type SearchOutput, Stylesheet, ThemeProvider, ThemeScript, ViewTransitionBoundary, ViewTransitionCSS, routeUrl as buildUrl, createClientOnlyFn, createFont, createIsomorphicFn, createLayout, createPage, createPathSegment, createRootLayout, createRouter, createServerOnlyFn, invalidate, markSafeError, navigate, nonce, notFound, redirect, unauthenticated, unauthorized, useBlocker, useDeferred, useDirection, useLoaderData, useLocation, useMatch, useNavigate, useNavigation, useNavigationProgress, useParams, usePreloaderContext, useSearch, useTheme };
+export { type Deferred, DirectionProvider, DirectionScript, type FlareRegister, type Font, FontCSS, type FontCSSProps, type FontOptions, type Href, Image, type ImageBinding, type ImageProps, InterceptOutlet, type InterceptState, Link, type LinkProps, type LocationRewrite, Outlet, type ParamsOutput, type QueryClientRegister, type SearchOutput, Stylesheet, ThemeProvider, ThemeScript, ViewTransitionBoundary, ViewTransitionCSS, routeUrl as buildUrl, createClientOnlyFn, createFont, createIsomorphicFn, createLayout, createPage, createPathSegment, createRootLayout, createRouter, createServerOnlyFn, invalidate, markSafeError, navigate, nonce, notFound, redirect, unauthenticated, unauthorized, useBlocker, useDeferred, useDirection, useLoaderData, useLocation, useMatch, useNavigate, useNavigation, useNavigationProgress, useParams, usePreloaderContext, useSearch, useTheme };

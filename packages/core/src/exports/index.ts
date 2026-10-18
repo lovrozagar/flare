@@ -4,6 +4,7 @@ export { createRootLayout } from "../shared/route-builder/root-layout.ts"
 export { createPathSegment } from "../shared/route-builder/segment.ts"
 export { createClientOnlyFn, createIsomorphicFn, createServerOnlyFn } from "../shared/env/index.ts"
 export type {
+	Deferred,
 	FlareRegister,
 	ParamsOutput,
 	QueryClientRegister,

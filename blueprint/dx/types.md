@@ -188,6 +188,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `defer field` | `ctx.defer(async () => ({ quote: string }))` | `loaderData.reviews` | `Deferred<{ quote: string }>` | the field assigned `{ quote: string }`; the field awaited | app |
 | `defer nested` | the same | `.promise` | `(await reviews.promise).quote` is `string` | `reviews.quote`; `reviews.message` | app |
 | `defer no then` | `Deferred<T>` | `Awaited` | the deferred field stays wrapped | `Awaited<Deferred<T>>` equals `T` | |
+| `deferred named` | `import type { Deferred } from "@lovrozagar/flare"` | a child's `read: () => Deferred<{ quote: string }>` | `() => loaderData.reviews` is assignable | `() => Deferred<string>` | app |
 | `query options input` | a server function whose input is `{ q: string }` and whose handler returns `{ q: string }` | `serverFnQueryOptions(fn, { queryKey, input })` | `queryFn` is `() => Promise<{ q: string }>`. `input` is `{ q: string }` | `input` omitted; a fresh extra key | app only |
 | `query options void` | a server function with no `.input()` | the same helper | `input` omitted. `queryFn` calls `fn()` | `input` passed | app only |
 | `mutation options` | a handler that returns `{ id: string }` | `serverFnMutationOptions(fn, { mutationKey })` | `onSuccess` receives `{ id: string }` | the envelope type; `onSuccess` present when `mutationKey` is omitted | app only |

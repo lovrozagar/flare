@@ -21,6 +21,7 @@ Every entry ships `types` and `default` (compiled ESM). Framework sources contai
 | `Href` | `shared/url/href.ts` |
 | `LocationRewrite` | type from `shared/url/types.ts` |
 | `FlareRegister` | type from `shared/route-builder/register.ts` |
+| `Deferred` | type from `shared/route-builder/register.ts`: what a deferred loader field is, so a child component can take one (`dx/defer.md`) |
 | `SearchOutput`, `ParamsOutput` | types from `shared/route-builder/register.ts`. They read the output type a route's typed `.input()` step records, so `types.gen.ts` can name `routeSearchParams` and `routeParams` as `SearchOutput<typeof import("<file>").route>` without deriving types from text |
 | `ThemeProvider`, `ThemeScript`, `useTheme` | `features/theme` |
 | `DirectionProvider`, `DirectionScript`, `useDirection` | `features/direction` |

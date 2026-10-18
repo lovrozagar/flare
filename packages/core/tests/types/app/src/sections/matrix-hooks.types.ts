@@ -1,6 +1,7 @@
 // dx/types.md "Matrix", the hook, i18n, and defer rows (cases 59 to 67), read through the package entries from the
 // register codegen wrote for this app. app.test.ts compiles this file; vitest never runs it (B96, plan 25 5.2).
 import {
+	type Deferred,
 	navigate,
 	useLoaderData,
 	useLocation,
@@ -114,4 +115,22 @@ it("defer no then", () => {
 	expectTypeOf<Awaited<typeof reviews>>().toEqualTypeOf<typeof reviews>()
 	// @ts-expect-error Awaited of the Deferred is the Deferred, not its value
 	expectTypeOf<Awaited<typeof reviews>>().toEqualTypeOf<{ quote: string }>()
+})
+
+// A child component's prop, typed with the exported Deferred.
+function child(read: () => Deferred<{ quote: string }>): void {
+	void read
+}
+
+// A Deferred of another value does not pass for it.
+function other(read: () => Deferred<string>): void {
+	// @ts-expect-error a Deferred of another value is not this one
+	child(read)
+}
+
+it("deferred named", () => {
+	const reviews = useLoaderData({ from: "_root_/reviews" }).reviews
+	expectTypeOf(reviews).toEqualTypeOf<Deferred<{ quote: string }>>()
+	child(() => useLoaderData({ from: "_root_/reviews" }).reviews)
+	void other
 })
