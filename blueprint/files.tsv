@@ -963,3 +963,6 @@ packages/core/tests/structure/browser-floor.test.ts	P16	test	node	No client-reac
 packages/core/tests/structure/browser-floor.fixture.ts	P16	test	node	A planted URL.parse outside src, which browser-floor.test.ts proves the scanner fails
 packages/core/tests/structure/coverage.ts	P16	test	node	Reads the dx features and blueprint/coverage.tsv: each table row and section's key, the map's rows, and the cases they name (B96)
 packages/core/tests/structure/coverage.test.ts	P16	test	node	The coverage gate: unit cases at plan 14 9.2, the whole-repo map at 9.7 (B96)
+packages/core/tests/e2e/apps/dashboard/**	P17	app	-	The dashboard app (B146): a SaaS dashboard under /app with sign-in, a project table, overlays, forms, settings, widgets, exports, and webhooks. One row for the tree; the dashboard specs own its behavior
+packages/core/tests/e2e/dashboard.fixture.ts	P17	test	node	Worker-scoped dashboard boot with its capture check, the page helpers, a fresh account per case, and the e2e-only server function calls the dashboard specs share (B146)
+packages/core/tests/e2e/dashboard-auth.test.ts	P17	test	node	Playwright: sign-in returns to the deep link it left, a wrong password, sign-out drops held pages, a session ended on the server or in another tab, and the owner-only page's built-in 403 (bits/17)

@@ -60,6 +60,7 @@ export default defineConfig({
 						"tests/e2e/static.test.ts",
 						"tests/e2e/prefetch-reuse.test.ts",
 						"tests/e2e/docs-*.test.ts",
+						"tests/e2e/dashboard-*.test.ts",
 						"tests/e2e/dev-recovery.test.ts",
 						"tests/e2e/dev-hmr.test.ts",
 						// The consumer cells install from the registry: `test:consumers` runs them (plan 21 5.5).
