@@ -49,6 +49,17 @@ test("rejected value stays in its widget", async ({ page, dashboard }) => {
 	await expect(page.locator("#plan")).toHaveText("free")
 })
 
+// A widget behind a tab opened after load reads its value from the document: the server never rendered it, so
+// Solid's hydration data holds nothing for it, and its slot settles from the value the document wrote (BUGS.md 375).
+test("widget behind a tab", async ({ page, dashboard }) => {
+	await signedIn(page, dashboard.origin)
+	const problems = await open(page, dashboard.origin, OVERVIEW)
+	await expect(page.locator("#total")).toHaveCount(0)
+	await page.locator("#tab-usage").click()
+	await expect(page.locator("#total")).toHaveText("24 projects")
+	expect(problems).toEqual([])
+})
+
 // A client navigation streams: each widget shows its skeleton, then its value as its defer settles, fastest first.
 test("client navigation streams widgets", async ({ page, dashboard }) => {
 	await signedIn(page, dashboard.origin)

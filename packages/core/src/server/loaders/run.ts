@@ -59,7 +59,8 @@ export type RunInput = ScopeSource & {
 }
 
 // One deferred value a kept match started. A live response writes it as a `c` or `e` frame.
-export type DeferredFrame = { m: string; k: string; promise: Promise<unknown>; document?: Started["document"] }
+export type DeferredFrame = { m: string; k: string } & Pick<Started, "promise"> &
+	Partial<Pick<Started, "stored" | "document">>
 
 type Loaded = Outcome & { started: readonly Started[]; holes: number }
 
@@ -185,14 +186,9 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 		failed: result.failed,
 		...routeSteps({ routes: input.routes, skip: input.skip, outcomes, contexts, bugs }),
 		bugs,
-		deferred: outcomes.slice(0, result.kept.length).flatMap((outcome) =>
-			outcome.started.map((entry) => ({
-				m: outcome.id,
-				k: entry.key,
-				promise: entry.promise,
-				document: entry.document,
-			})),
-		),
+		deferred: outcomes
+			.slice(0, result.kept.length)
+			.flatMap((outcome) => outcome.started.map(({ key, ...entry }) => ({ m: outcome.id, k: key, ...entry }))),
 		holes: outcomes.slice(0, result.kept.length).some((outcome) => outcome.holes > 0),
 	}
 }

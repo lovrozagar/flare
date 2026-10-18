@@ -90,6 +90,7 @@ The query client comes from `createQueryClientGetter()` (`src/query.ts`), provid
 | case | result |
 | --- | --- |
 | `buffered document` | the served document has every widget's value and no skeleton; hydrated, the values read `$606000`, `12`, `0 open`, `free`, with nothing logged |
+| `widget behind a tab` | the Usage tab, which the server never renders, opens after load: its widget reads `24 projects` from the value the document wrote, with nothing logged (BUGS.md 375) |
 | `rejected value stays in its widget` | `?incidents=fail` as a held document is 200 and `private, no-store`; once hydrated the incidents widget's own `<Errored>` names the outage and the other widgets keep their values (BUGS.md 373) |
 | `client navigation streams widgets` | a client navigation shows the values in latency order, revenue, active, incidents, plan, with no document load |
 | `failed widget stays in its boundary` | on a client navigation the rejected widget's own `<Errored>` reads `The incidents service is down` and the others render; no document load |
