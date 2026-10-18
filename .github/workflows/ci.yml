@@ -97,7 +97,8 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3]
-    timeout-minutes: 20
+    # A shard takes 8 to 15 minutes on a runner; the limit catches a hang, not a slow runner.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -124,7 +125,9 @@ jobs:
   e2e-mac:
     name: e2e-mac (${{ matrix.shard }}/3)
     runs-on: macos-latest
-    timeout-minutes: 20
+    # Shards 2 and 3 take 8 to 13 minutes; shard 1, with the unit suite, 19 to 21, and its 20-minute limit cancelled it
+    # (CI 39096308581). The limit catches a hang, not a slow runner.
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
