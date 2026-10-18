@@ -6,7 +6,7 @@ navigate({ to, params?, search?, hash?, replace?, revalidate?, scroll?, shallow?
 
 `navigate` is a root export: the booted client's navigation, callable from anywhere on the client, the same function `useNavigate()` returns. Before `createClient` has booted, and on the server, it rejects (`client/navigation/active.test.ts`, BUGS.md 105).
 
-`invalidate()` is a root export beside it: it drops every cached match, every held prefetch, and the query client's cache, then refetches the page on screen as `revalidate: true` does, with no history entry. Call it after a sign-in or sign-out Flare cannot see, such as an auth library's own fetch; a server function whose returned `Response` writes a cookie does the dropping itself (B133). Before boot, and on the server, it rejects (`client/navigation/active.test.ts` `active invalidate`, `invalidate.test.ts`, `tests/integration/cache-client.test.ts` `invalidate`).
+`invalidate()` is a root export beside it: it drops every cached match, every held prefetch, the query client's cache, and the document's state script (BUGS.md 363), then refetches the page on screen as `revalidate: true` does, with no history entry. Call it after a sign-in or sign-out Flare cannot see, such as an auth library's own fetch; a server function whose returned `Response` writes a cookie does the dropping itself (B133). Before boot, and on the server, it rejects (`client/navigation/active.test.ts` `active invalidate`, `invalidate.test.ts`, `tests/integration/cache-client.test.ts` `invalidate`).
 
 `to` is required and is a page route id, including a `.response()` page (`dx/types.md`). A string that is an absolute URL throws (`client/navigation/target.test.ts` `foreign origin`).
 

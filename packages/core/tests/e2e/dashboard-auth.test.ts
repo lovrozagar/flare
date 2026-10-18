@@ -38,7 +38,8 @@ test("wrong password", async ({ page, dashboard }) => {
 })
 
 // After signing out, Back to a page the session saw shows none of its data: the cookie went with the returned
-// Response, so Flare dropped every held page (B133), and the page asks the server again, which answers 401.
+// Response, so Flare dropped every held page and the document's state (B133), and the page asks the server again,
+// which answers 401.
 test("logout clears held data", async ({ page, dashboard }) => {
 	const email = await signedIn(page, dashboard.origin)
 	await page.locator("#sidebar").getByRole("link", { name: "Billing" }).click()
@@ -50,6 +51,8 @@ test("logout clears held data", async ({ page, dashboard }) => {
 	await page.waitForURL(`${dashboard.origin}/app/login?returnTo=${encodeURIComponent("/app/projects")}`)
 	await expect(page.locator("#sign-in")).toBeVisible()
 	await expect(page.locator("body")).not.toContainText(email)
+	// Not even in the markup: signing out dropped the first document's state script too (BUGS.md 363).
+	expect(await page.content()).not.toContain(email)
 	const cookies = await page.context().cookies(dashboard.origin)
 	expect(cookies.map((cookie) => cookie.name)).not.toContain("dash.session")
 })
