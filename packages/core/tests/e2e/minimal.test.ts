@@ -82,9 +82,20 @@ test.describe("basepath", () => {
 test("retired service worker", async ({ page, context }) => {
 	await page.goto(`${session.origin}/about`)
 	await context.addCookies([{ name: "stand-in", value: "1", url: session.origin }])
+	// `ready` can resolve while the worker is still activating, and its `clients.claim()` then lands during the next
+	// navigation, which WebKit cancels; the page navigates once the worker is activated and controls it (BUGS.md 367).
 	await page.evaluate(async () => {
-		await navigator.serviceWorker.register("/legacy-sw.js", { scope: "/" })
+		const registration = await navigator.serviceWorker.register("/legacy-sw.js", { scope: "/" })
 		await navigator.serviceWorker.ready
+		const worker = registration.active
+		if (worker !== null && worker.state !== "activated") {
+			await new Promise((resolve) => worker.addEventListener("statechange", resolve, { once: true }))
+		}
+		if (navigator.serviceWorker.controller === null) {
+			await new Promise((resolve) =>
+				navigator.serviceWorker.addEventListener("controllerchange", resolve, { once: true }),
+			)
+		}
 	})
 	await page.goto(`${session.origin}/`)
 	await expect(page.locator("#old-build")).toHaveText("old build")
