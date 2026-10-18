@@ -1,6 +1,6 @@
 import { cpSync, existsSync, readFileSync } from "node:fs"
 import { join, resolve } from "node:path"
-import { Miniflare } from "miniflare"
+import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import type { PinnedNode } from "../../../../scripts/node-at.ts"
@@ -177,7 +177,7 @@ it("workers bundle", async () => {
 	const deploy = unstable_getMiniflareWorkerOptions(join(server, "wrangler.json"))
 	const modules = modulesOf(server, resolve(server, deploy.main ?? "index.js"))
 	expect(uploadedSize(modules)).toBeLessThanOrEqual(UPLOAD_LIMIT)
-	const runtime = new Miniflare({ ...deploy.workerOptions, modules, modulesRoot: server })
+	const runtime = new Miniflare(convertV4MiniflareOptions({ ...deploy.workerOptions, modules, modulesRoot: server }))
 	try {
 		const home = await runtime.dispatchFetch("http://localhost/", { headers: { "x-sentinel": "workers" } })
 		expect([home.status, (await home.text()).includes("workers")]).toEqual([200, true])

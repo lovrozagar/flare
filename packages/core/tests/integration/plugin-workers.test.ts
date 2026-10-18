@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import * as nodeModule from "node:module"
 import { join, resolve } from "node:path"
-import { Miniflare } from "miniflare"
+import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { afterAll, expect, it } from "vitest"
 import { modulesOf, UPLOAD_LIMIT, uploadedSize } from "../workers-modules.ts"
@@ -85,11 +85,13 @@ it.skipIf(noHooks)(
 		// What `wrangler deploy` uploads is under the Workers free plan's script limit, so a deploy is never refused for
 		// size (plan 21 5.6).
 		expect(uploadedSize(modules)).toBeLessThanOrEqual(UPLOAD_LIMIT)
-		const runtime = new Miniflare({
-			...deploy.workerOptions,
-			modules,
-			modulesRoot: server,
-		})
+		const runtime = new Miniflare(
+			convertV4MiniflareOptions({
+				...deploy.workerOptions,
+				modules,
+				modulesRoot: server,
+			}),
+		)
 		try {
 			const home = await runtime.dispatchFetch("http://localhost/")
 			const html = await home.text()
