@@ -14,8 +14,8 @@ type Row = {
 	kind: string
 }
 
-// P0 through P16, the bits in order (bits/16 is the last).
-const PHASES = Array.from({ length: 17 }, (_, index) => `P${index}`)
+// P0 through P17, the bits in order (bits/17 is the last).
+const PHASES = Array.from({ length: 18 }, (_, index) => `P${index}`)
 const NEEDS_TEST = new Set(["src", "lint", "script"])
 const SCAN_ROOTS = ["packages/core", "scripts"]
 const SKIP_DIR = new Set(["node_modules", "dist", "coverage", "test-results", "playwright-report", ".wrangler"])

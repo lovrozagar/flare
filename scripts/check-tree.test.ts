@@ -194,3 +194,16 @@ it("p16", () => {
 	write(root, "docs/late.md", "")
 	expect(checkTree(root, tsvPath, { complete: "P16" }).ok).toBe(true)
 })
+
+// P17 is a phase (bits/17, B146): once a P17 file exists, P16 is below the highest phase and must be complete.
+it("p17", () => {
+	const root = makeRoot()
+	const tsvPath = join(root, "files.tsv")
+	const rows = [row("docs/grid.md", "P16", "doc"), row("docs/dashboard.md", "P17", "doc")]
+	writeFileSync(tsvPath, tsv(rows))
+	expect(checkTree(root, tsvPath, { complete: "P17" }).ok).toBe(false)
+	write(root, "docs/dashboard.md", "")
+	expect(checkTree(root, tsvPath).errors).toContain("docs/grid.md")
+	write(root, "docs/grid.md", "")
+	expect(checkTree(root, tsvPath, { complete: "P17" }).ok).toBe(true)
+})
