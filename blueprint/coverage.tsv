@@ -664,3 +664,8 @@ types.md#What each callback receives#callback:loaderDeps	packages/core/tests/typ
 types.md#What each callback receives#callback:shouldRefetch	packages/core/tests/types/app/src/sections/callbacks.types.ts::shouldRefetch	n/a: type-only, no runtime surface
 types.md#What each callback receives#callback:server-fn handler	packages/core/tests/types/app/src/sections/callbacks.types.ts::server-fn handler	n/a: type-only, no runtime surface
 types.md#What each callback receives#callback:server-fn stream	packages/core/tests/types/app/src/sections/callbacks.types.ts::server-fn stream	n/a: type-only, no runtime surface
+types.md#Tests#	packages/core/tests/types/app.test.ts::app compiles; packages/core/tests/types/app.test.ts::hand-written register	n/a: the fixtures are type programs, not Playwright apps (B70)
+types.md#What the app writes#	packages/core/tests/types/app/src/sections/app-writes.types.ts::what the app writes	n/a: type-only, no runtime surface
+types.md#What the app writes#field:auth	packages/core/tests/types/handwritten/src/sections/app-writes.types.ts::auth	n/a: type-only, no runtime surface
+types.md#What the app writes#field:env	packages/core/tests/types/handwritten/src/sections/app-writes.types.ts::env	n/a: type-only, no runtime surface
+types.md#What the app writes#field:serverContext	packages/core/tests/types/handwritten/src/sections/app-writes.types.ts::serverContext	n/a: type-only, no runtime surface
