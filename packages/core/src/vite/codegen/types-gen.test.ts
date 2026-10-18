@@ -164,6 +164,7 @@ it("query client edges", () => {
 		"src/lib/star.ts": 'export * from "@lovrozagar/flare/query";\n',
 		"src/lib/lazy.ts": 'export const load = () => import("@lovrozagar/flare/query");\n',
 		"src/lib/other.ts": 'export const load = () => import("./elsewhere.ts");\n',
+		"src/lib/named-at-runtime.ts": 'const name = "@lovrozagar/flare/query";\nexport const load = () => import(name);\n',
 	}
 	const flag = (file: string): boolean =>
 		generateTypes({ routeFiles: [], appFiles: [file], read: (name) => edges[name] ?? "" }).source.includes(
