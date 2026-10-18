@@ -255,6 +255,14 @@ describe.each(ENGINES)("%s", (engine) => {
 		expect(result.requests.filter((url) => !url.includes("_flare=data"))).toEqual([])
 	})
 
+	// A replayed Back fetches only the entry it lands on: the skipped /b runs no loader and no check, so /b is fetched
+	// once, by the click that first opened it, in every engine (dx/navigate.md, BUGS.md 378).
+	it("skipped entry fetches nothing", async () => {
+		if (harness === undefined) throw new Error("the harness did not start")
+		const result = await harness.app(engine, { app: CHECKED, path: "/a", steps: checkedBack, client() {} })
+		expect(result.requests.filter((url) => url.startsWith("/b?"))).toEqual(["/b?_flare=data"])
+	})
+
 	// Back paints the held page before any request lands, then revalidates it once (plan 21 16.9).
 	it("back paints held", async () => {
 		if (harness === undefined) throw new Error("the harness did not start")

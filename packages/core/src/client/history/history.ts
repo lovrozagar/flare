@@ -17,7 +17,6 @@ export type FlareHistory = {
 	// The URL the bar shows: of the entry adopted, pushed, replaced, or stepped to, one that is not Flare's included.
 	// During a Back or Forward that has not committed it is the entry stepped to, not the page on screen (BUGS.md 296).
 	here: () => string
-	urlAt: (index: number) => string | undefined
 	interceptedAt: (index: number) => boolean
 }
 
@@ -26,13 +25,10 @@ export type FlareHistory = {
 export function createHistory(target: Target): FlareHistory {
 	let current = 0
 	let bar = ""
-	// The URL of each entry this document wrote, so a popstate over several entries can replay each one.
-	const urls = new Map<number, string>()
 	// The overlay entries this document pushed. An adopted entry is never one: a reload renders the page.
 	const overlays = new Set<number>()
 	// The entry at `current` now holds `url`, an overlay's or not.
 	const holds = (url: string, intercepted: boolean): void => {
-		urls.set(current, url)
 		bar = url
 		if (intercepted) overlays.add(current)
 		else overlays.delete(current)
@@ -42,7 +38,6 @@ export function createHistory(target: Target): FlareHistory {
 			const state: unknown = target.state
 			if (isFlareState(state)) current = state.index
 			else target.replaceState({ index: 0, usr: undefined } satisfies HistoryState, "")
-			urls.set(current, url)
 			bar = url
 		},
 		push(url, usr, intercepted = false) {
@@ -66,7 +61,6 @@ export function createHistory(target: Target): FlareHistory {
 				return []
 			}
 			if (!isFlareState(state)) return null
-			urls.set(state.index, url)
 			const direction = Math.sign(state.index - current)
 			const steps = Array.from(
 				{ length: Math.abs(state.index - current) },
@@ -77,7 +71,6 @@ export function createHistory(target: Target): FlareHistory {
 		},
 		index: () => current,
 		here: () => bar,
-		urlAt: (index) => urls.get(index),
 		interceptedAt: (index) => overlays.has(index),
 	}
 }

@@ -32,14 +32,10 @@ it("skipped entries", async () => {
 	const { restore, pop, flare } = setup()
 	history.replaceState({ index: 1 }, "", "/a")
 	await pop({ index: 1 })
-	expect(restore.mock.calls).toEqual([
-		["/c", 3],
-		["/b", 2],
-		["/a", 1],
-	])
+	expect(restore.mock.calls).toEqual([["/a", 1]])
 	expect(flare.index()).toBe(1)
 	await pop({ other: true })
-	expect(restore).toHaveBeenCalledTimes(3)
+	expect(restore).toHaveBeenCalledTimes(1)
 })
 
 it("unknown entries", async () => {

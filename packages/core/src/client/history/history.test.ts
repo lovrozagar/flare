@@ -60,7 +60,7 @@ it("browser entry", () => {
 	flare.push("/about#one")
 	history.pushState(null, "", "/about#typed")
 	expect(flare.pop(null, "/about#typed")).toEqual([])
-	expect([history.state, flare.index(), flare.urlAt(3)]).toEqual([{ index: 3, usr: undefined }, 3, "/about#typed"])
+	expect([history.state, flare.index(), flare.here()]).toEqual([{ index: 3, usr: undefined }, 3, "/about#typed"])
 	expect(flare.pop({ index: 2 }, "/about#one")).toEqual([2])
 })
 
