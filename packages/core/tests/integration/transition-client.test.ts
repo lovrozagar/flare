@@ -44,6 +44,9 @@ async function watchStarts(tab: Page): Promise<void> {
 	await tab.addInitScript(() => {
 		const starts: unknown[] = []
 		Reflect.set(window, "__flareStarts", starts)
+		// Transitions started and not yet recorded, so a step waits for its own to finish instead of a fixed time.
+		const open = { count: 0 }
+		Reflect.set(window, "__flareOpen", open)
 		// oxlint-disable-next-line unicorn/consistent-function-scoping -- the init script runs in the page, apart from this module
 		const names = () => ({
 			root: document.documentElement.style.viewTransitionName,
@@ -57,8 +60,14 @@ async function watchStarts(tab: Page): Promise<void> {
 				const types = typeof arg === "object" && arg !== null ? Reflect.get(arg, "types") : undefined
 				const start = { who, form, types, ...names() }
 				const transition = original.call(this, arg)
+				open.count += 1
 				// Flare gives the names back on `finished` too, in its own callback: read them a task later.
-				void transition.finished.then(() => setTimeout(() => starts.push({ ...start, after: names() }), 0))
+				void transition.finished.then(() =>
+					setTimeout(() => {
+						starts.push({ ...start, after: names() })
+						open.count -= 1
+					}, 0),
+				)
 				return transition
 			})
 		}
@@ -69,7 +78,7 @@ async function watchStarts(tab: Page): Promise<void> {
 
 type Go = (options: unknown) => Promise<void>
 
-// One navigation per option, each to the other page, waiting for its transition, if any, to finish.
+// One navigation per option, each to the other page, waiting for its transition, if any, to finish and be recorded.
 async function transitionSteps(tab: Page): Promise<void> {
 	await tab.waitForFunction(() => typeof Reflect.get(window, "__flareNavigate") === "function")
 	const supports = await tab.evaluate(() => ({
@@ -107,7 +116,9 @@ async function transitionSteps(tab: Page): Promise<void> {
 			[to, option] as const,
 		)
 		await tab.waitForFunction((at) => document.getElementById("page")?.textContent === at.slice(6), to)
-		await new Promise((done) => setTimeout(done, 400))
+		// The page changes inside the transition's update, so its start has been called by now: wait for it to finish. A
+		// fixed 400 ms missed a 50 ms transition on CI's macOS runner.
+		await tab.waitForFunction(() => (Reflect.get(window, "__flareOpen") as { count: number }).count === 0)
 		const starts = await tab.evaluate((from) => (Reflect.get(window, "__flareStarts") as unknown[]).slice(from), count)
 		const infos = await tab.evaluate(() => Reflect.get(window, "__flareInfos") as unknown[])
 		seen.push(infos.length > 0 ? { starts, infos } : starts)
