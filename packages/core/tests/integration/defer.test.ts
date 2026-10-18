@@ -129,9 +129,9 @@ it("document buffer", async () => {
 	expect(first).toContain("</html>")
 })
 
-// A buffered document has no place for a value that rejected: Solid writes nothing there and the client cannot
-// hydrate it. The rejection is the document error (dx/defer.md): its match fails at 500 with the walked errorRender, and
-// the matches above it render (BUGS.md 370).
+// A held document renders a rejected value as a streamed one does: the value's failure is in Solid's hydration data
+// (BUGS.md 374), and the client paints the nearest <Errored>, the match's boundary when none is around the read. The
+// rest of the page renders, the answer is 200, and it is never stored: private, no-store (dx/defer.md, BUGS.md 373).
 it("document buffer reject", async () => {
 	const page = createPage("_root_/p")
 		.loader(({ defer }) => ({
@@ -141,10 +141,13 @@ it("document buffer reject", async () => {
 		.render((props) => [shown(() => props.loaderData.reviews), shown(() => props.loaderData.broken)])
 		.errorRender(() => element("p", "page failed"))
 	const response = await serverFor(page, { documentResponseDefer: "buffer" }).fetch(new Request(`${SITE}/p`))
-	expect(response.status).toBe(500)
+	expect(response.status).toBe(200)
+	expect(response.headers.get("cache-control")).toBe("private, no-store")
 	const body = await response.text()
-	expect(body).toContain("page failed")
-	expect(body).not.toContain("five stars")
+	expect(body).toContain(">five stars</p>")
+	expect(body).toContain("__deferredFailure:!0,error:$R")
+	expect(body).toContain('message:"service down"')
+	expect(body).not.toContain("page failed")
 	expect(body).toContain("</html>")
 })
 

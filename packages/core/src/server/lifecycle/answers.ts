@@ -36,7 +36,7 @@ export type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] }
 // The request's decision, and the raw params a `cdn.tags` function reads (B32). `rejected` is a deferred value that
 // rejected before a public answer was sent.
 export type { Policy } from "./held.ts"
-import { awaited, rejectedRun, type Policy } from "./held.ts"
+import { awaited, type Policy } from "./held.ts"
 
 // What the decision hands the loaders, and the policy the answer writes.
 export type Prepared = { input: RunInput; policy: Policy }
@@ -115,7 +115,7 @@ export async function dataFrom(
 		return bare(routeSecured(exchange, run.security), run, { failed: run.failed?.m, kept })
 	for (const bug of run.bugs) projectError(bug, exchange.sink)
 	// A data answer carries a rejection as its own `e` frame, which the client paints in place (dx/defer.md).
-	const settled = (await awaited(run, policy, false)).policy
+	const settled = await awaited(run, policy, false)
 	const frames = { ...dataFrames(run, skip), queries: answerQueries(exchange.sink) }
 	const body = dataBody({ ...frames, deferred: run.deferred, project: framed(exchange) })
 	const errored = run.frames.some((frame) => frame.t === "e")
@@ -149,9 +149,8 @@ export async function notFound(exchange: Exchange, matched: Loaded): Promise<Res
 
 export async function page(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	const run = await runLoaders(prepared.input)
-	const held = await awaited(run, prepared.policy, exchange.options.documentResponseDefer === "buffer")
-	const painting = held.rejected === undefined ? run : rejectedRun(run, matched.chain, held.rejected)
-	return painted(exchange, { chain: matched.chain, run: painting, policy: held.policy })
+	const policy = await awaited(run, prepared.policy, exchange.options.documentResponseDefer === "buffer")
+	return painted(exchange, { chain: matched.chain, run, policy })
 }
 
 // The document for a finished loader run: the page, or what its failure answers.
