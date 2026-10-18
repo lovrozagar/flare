@@ -22,6 +22,7 @@ export {
 	type StylesRequest,
 } from "./dev-styles.ts"
 export { chunksOf } from "./chunks.ts"
+export { BOOT_FAILED, CHUNK_MESSAGES, CHUNK_RELOAD_KEY, CHUNK_RELOAD_WINDOW_MS } from "./chunk-reload.ts"
 export { decodeGetInput, encodeGetInput, getQuery, MAX_GET_INPUT } from "./get-codec.ts"
 export {
 	fnPrefix,

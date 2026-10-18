@@ -6,7 +6,8 @@ import { env, install, routerOf, stops, type Dom } from "./boot.fixture.ts"
 import { bootClient, type ClientEnv } from "./create-client.ts"
 import { createReady } from "./ready.ts"
 
-// The server function transport bootClient installs. Split from create-client.test.ts at its 500-line limit.
+// The server function transport bootClient installs (install-call.ts), through the boot. Split from
+// create-client.test.ts at its 500-line limit.
 
 beforeEach(() => {
 	history.replaceState(null, "", "/")

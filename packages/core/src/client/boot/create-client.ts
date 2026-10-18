@@ -1,12 +1,10 @@
 /// <reference types="vite/client" />
 import { setActiveClient } from "../navigation/active.ts"
-import { invalidation } from "../navigation/invalidate.ts"
 import { hydrate } from "@solidjs/web"
 import { delegateClicks } from "../../shared/components/index.ts"
 import { devErrorPayload, type DevErrorPayload } from "../../shared/errors/index.ts"
 import type { Router } from "../../shared/router/create-router.ts"
 import { loadChain } from "../../shared/router/load-chain.ts"
-import type { ServerFnCall } from "../../shared/server-fn/builder.ts"
 import type { Location } from "../../shared/url/index.ts"
 import { createHistory, type FlareHistory } from "../history/index.ts"
 import { createBlockers, placeIn, type Blockers } from "../navigation/blocker.ts"
@@ -16,16 +14,15 @@ import { createArrival } from "../navigation/arrival.ts"
 import { createNavigationState } from "../navigation/pending.ts"
 import { createPopstate } from "../navigation/popstate.ts"
 import { createPrefetcher, observeViewport, type PrefetchEnv, type Prefetcher } from "../navigation/prefetch.ts"
-import { loadDocument } from "../navigation/reload.ts"
+import { isChunkError, loadDocument } from "../navigation/reload.ts"
 import { browserScroll, lastFrame, type ScrollStore } from "../navigation/scroll.ts"
 import { hydrateCache } from "./initial.ts"
-import { callServerFn, type CallDeps } from "../server-fn/call.ts"
-import { streamServerFn } from "../server-fn/stream.ts"
 import { tabbedFetch, type DevHot } from "../dev/tab.ts"
-import { registeredQuery } from "../../shared/protocol/index.ts"
+import { BOOT_FAILED, registeredQuery } from "../../shared/protocol/index.ts"
 import { createRouterStore, snapshotFromState, type RouterStore } from "../router/store.ts"
 import { guardHead } from "./head-guard.ts"
 import { mountApp, readState, renderedLocation, type App, type ClientState, type Mount } from "./hydrate.ts"
+import { installCall } from "./install-call.ts"
 import { afterLoad, createReady, loadedIdle, type IdleEnv, type ReadyApi } from "./ready.ts"
 
 // The browser surface the client uses, passed in so a test can observe it.
@@ -37,6 +34,9 @@ export type ClientEnv = {
 	send?: ((payload: DevErrorPayload) => void) | undefined
 	// Vite's hot channel in dev. Production has none.
 	hot?: DevHot | undefined
+	// Where the page's `beforeunload` fires: the window. While the boot's import is pending it marks the page as leaving
+	// (BUGS.md 352).
+	unload: Pick<EventTarget, "addEventListener" | "removeEventListener">
 	idle: IdleEnv
 	network: object
 	observe: PrefetchEnv["observe"]
@@ -53,9 +53,32 @@ export function createClient(router: Router): ReadyApi {
 	const ready = createReady()
 	queueMicrotask(() => {
 		ready.close()
-		void bootClient(router, ready, browserEnv())
+		void bootSafely(router, ready, browserEnv())
 	})
 	return ready.api
+}
+
+// A boot that fails is never an unhandled rejection (BUGS.md 352). A failure after the page's own `beforeunload`
+// is an import its navigation cut short, no failure: the next document boots, and nothing is stored. The listener
+// lives only while the boot is pending, and the boot's one wait is its route modules' import, so a `beforeunload`
+// with no navigation after it can skip one boot at most. A module that would not load is one guarded document load of
+// the page, as a navigation's chunk is; any other failure, or a load the guard holds back, is logged, and in dev the
+// overlay shows it. The app's callbacks never hear that the client is ready.
+export async function bootSafely(router: Router, ready: Ready, env: ClientEnv): Promise<(() => void) | undefined> {
+	const page = { leaving: false }
+	const leave = (): void => void (page.leaving = true)
+	env.unload.addEventListener("beforeunload", leave)
+	try {
+		return await bootClient(router, ready, env)
+	} catch (error) {
+		if (page.leaving) return undefined
+		if (isChunkError(error) && browserReload(env)(window.location.href)) return undefined
+		console.error(BOOT_FAILED, error)
+		if (import.meta.env?.DEV && env.dev) env.send?.(devErrorPayload(error))
+		return undefined
+	} finally {
+		env.unload.removeEventListener("beforeunload", leave)
+	}
 }
 
 // The dev overlay payload goes over the client hot channel. The dev handler relays it (B93). Production has no
@@ -179,35 +202,6 @@ function browserReload(env: ClientEnv): (href: string) => boolean {
 	return (href) => loadDocument(href, { storage: () => window.sessionStorage, now: Date.now, assign: env.assign })
 }
 
-// The booted transport the client entry's createServerFn reads at call time (bits/07). It goes onto the state
-// object the document wrote, which keeps its other fields. A stream iterates, and any other function resolves. A
-// response from another build reloads the page under the chunk guard. Its document loads go through the navigator,
-// so a navigation after them knows the page is leaving (BUGS.md 129). Its redirect follows a mutation, so the
-// target loads fresh (plan 21 8.6).
-function installCall(
-	router: Router,
-	env: Pick<ClientEnv, "fetch"> & Pick<CallDeps, "build"> & Omit<Parameters<typeof invalidation>[0], "revalidate">,
-	nav: Pick<Navigator, "visit" | "reload" | "assign" | "revalidate">,
-): () => Promise<void> {
-	const flare: object = Object(Reflect.get(globalThis, "flare"))
-	const { forget, invalidate } = invalidation({ ...env, revalidate: nav.revalidate })
-	const deps: CallDeps = {
-		fetch: env.fetch,
-		origin: window.location.origin,
-		basePath: router.basePath,
-		build: env.build,
-		href: () => window.location.href,
-		reload: nav.reload,
-		go: (url, replace) => nav.visit(url, replace, true),
-		assign: nav.assign,
-		forget,
-	}
-	const call: ServerFnCall = (fn, input) =>
-		fn.record.kind === "stream" ? streamServerFn(fn, input, deps) : callServerFn(fn, input, deps)
-	Reflect.set(globalThis, "flare", Object.assign(flare, { call }))
-	return invalidate
-}
-
 // Popstate, anchor clicks, and a back-forward cache restore reach the navigator from here. Leaving the document, by
 // reload, tab close, or a document load, asks the last blocker first (B84, plan 21 3.5).
 function listen(router: Router, navigator: Navigator, parts: Parts): () => void {
@@ -247,6 +241,7 @@ function browserEnv(): ClientEnv {
 		dev: import.meta.env?.DEV === true,
 		send: devSend(import.meta.hot),
 		hot: import.meta.hot,
+		unload: window,
 		idle: {
 			requestIdle: globalThis.requestIdleCallback?.bind(globalThis),
 			setTimeout: globalThis.setTimeout.bind(globalThis),

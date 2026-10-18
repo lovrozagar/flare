@@ -23,6 +23,35 @@ async function edit(page: Page, at: { file: string; change: (text: string) => st
 // 278).
 const CUT_SHORT = "Loading failed for the module with source"
 
+// The `full-reload` frames Vite's socket sends the page, counted from before its first load: each reload opens a new
+// socket, and each is watched.
+function reloadFrames(page: Page): { count: number } {
+	const frames = { count: 0 }
+	page.on("websocket", (socket) =>
+		socket.on("framereceived", (frame) => {
+			if (String(frame.payload).includes('"type":"full-reload"')) frames.count += 1
+		}),
+	)
+	return frames
+}
+
+// Writes a new server function file and waits out the reload it causes: codegen rewrites src/_gen/server-fns.gen.ts,
+// and @tailwindcss/vite, which scans that file, answers with a bare `full-reload` frame. The page's next `load` is armed
+// before the write and awaited after that frame. A Tailwind release that drops the reload fails the wait by name
+// rather than leaving a reload to race the next navigation (BUGS.md 352).
+async function writeServerFn(
+	page: Page,
+	frames: { count: number },
+	at: { file: string; source: string },
+): Promise<void> {
+	const before = frames.count
+	const loaded = new Promise<void>((resolve) => page.once("load", () => resolve()))
+	writeFileSync(at.file, at.source)
+	const reloaded = () => frames.count > before
+	await expect.poll(reloaded, { message: "Tailwind's reload for server-fns.gen.ts", timeout: 20_000 }).toBe(true)
+	await loaded
+}
+
 // In `vite dev` an edit reaches the open page with no reload by hand: a page module, the root layout, and a server
 // function file written after the dev server started, which the page then calls (plan 21 5.7). The edits are on a
 // private copy of the minimal app (B70, BUGS.md 111).
@@ -31,6 +60,7 @@ test("route, layout, and new server function", async ({ page }, info) => {
 	const session = await bootCopy({ app: "minimal", runtime: serverOf(info).split("-")[0] ?? "node" })
 	try {
 		const problems = watch(page)
+		const frames = reloadFrames(page)
 		const routes = `${session.appDir}/src/routes/_root_`
 		await page.goto(`${session.origin}/about`)
 		await page.waitForLoadState("networkidle")
@@ -46,10 +76,11 @@ test("route, layout, and new server function", async ({ page }, info) => {
 			change: (text) => text.replace(">About</Link>", ">About us</Link>"),
 			shows: shows("About us"),
 		})
-		writeFileSync(
-			`${session.appDir}/src/fns/shout.ts`,
-			'import { createServerFn } from "@lovrozagar/flare/server-fn"\n\nexport const shout = createServerFn().handler(() => "loud")\n',
-		)
+		await writeServerFn(page, frames, {
+			file: `${session.appDir}/src/fns/shout.ts`,
+			source:
+				'import { createServerFn } from "@lovrozagar/flare/server-fn"\n\nexport const shout = createServerFn().handler(() => "loud")\n',
+		})
 		await page.goto(`${session.origin}/echo`)
 		await page.waitForLoadState("networkidle")
 		const echo = `${routes}/echo/echo.page.tsx`

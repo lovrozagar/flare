@@ -131,6 +131,10 @@ packages/core/src/shared/protocol/query.test.ts	P13	test	shared	Unit cases for q
 packages/core/src/shared/protocol/index.ts	P6	index	shared	Re-exports
 packages/core/src/shared/protocol/chunks.ts	P6	src	shared	A response body's chunks through a reader, for browsers without ReadableStream async iteration (BUGS.md 123)
 packages/core/src/shared/protocol/chunks.test.ts	P6	test	shared	Unit cases for chunks.ts
+packages/core/src/shared/protocol/chunk-reload.ts	P6	src	shared	The chunk guard's key, window, and the five chunk messages, which the client and the document's entry script share (BUGS.md 352)
+packages/core/src/shared/protocol/chunk-reload.test.ts	P6	test	shared	Unit cases for chunk-reload.ts
+packages/core/src/shared/protocol/entry-import.ts	P6	src	shared	The document's entry import as inline script text, with the client boot's failure policy built from chunk-reload.ts (BUGS.md 352)
+packages/core/src/shared/protocol/entry-import.test.ts	P6	test	shared	Unit cases for entry-import.ts
 packages/core/src/shared/promise/resolvers.ts	P6	src	shared	A promise with its settle functions, for browsers below Promise.withResolvers (decision B123)
 packages/core/src/shared/promise/resolvers.test.ts	P6	test	shared	Unit cases for resolvers.ts
 packages/core/src/shared/cache/artifact-path.ts	P10	src	shared	Turn a store key into the SSG artifact URL. The only path formatter
@@ -278,6 +282,8 @@ packages/core/src/server/render/writes.fixture.ts	P1	test	server	Records every s
 packages/core/src/server/render/preload.ts	P1	src	server	The document's modulepreload links for the client entry and the matched route chain, with the request's nonce (plan 21 15.3)
 packages/core/src/server/render/preload.test.ts	P1	test	server	Unit cases for preload.ts, and the document writing them in its head
 packages/core/src/server/render/document.test.ts	P1	test	server	Unit cases for document.ts
+packages/core/src/server/render/client-script.ts	P1	src	server	The document's client script: the entry import with its failure handler, in a script tag with the request's nonce (BUGS.md 352)
+packages/core/src/server/render/client-script.test.ts	P1	test	server	Unit cases for client-script.ts, run as the exact text it renders
 packages/core/src/server/render/stream-options.ts	P1	src	server	Solid's stream options for the document render: the abort signal, the nonce, and the error hook that passes a render error contained after the shell to onRenderError (plan 21 3.2)
 packages/core/src/server/render/stream-options.test.ts	P1	test	server	Unit cases for stream-options.ts
 packages/core/src/server/render/critical-style.ts	P11	src	server	Insert the critical style into the shell head, the placed stylesheet markup after it, then the shell may flush
@@ -383,7 +389,9 @@ packages/core/src/client/boot/create-client.ts	P1	src	dom	createClient. Hydrates
 packages/core/src/client/dev/tab.ts	P15	src	dom	Dev only: read the dev tab token, announce it, and name it on the client's requests (B42)
 packages/core/src/client/dev/tab.test.ts	P15	test	dom	Unit cases for tab.ts
 packages/core/src/client/boot/create-client.test.ts	P1	test	dom	Unit cases for create-client.ts
-packages/core/src/client/boot/server-fn-boot.test.ts	P1	test	dom	The server function transport bootClient installs: a call, a redirect that revalidates, another build's answer, and a stream (split from create-client.test.ts)
+packages/core/src/client/boot/boot-failure.test.ts	P1	test	dom	Unit cases for create-client.ts's bootSafely: a failed boot loads the page once under the chunk guard, or is logged, and never rejects unhandled (BUGS.md 352)
+packages/core/src/client/boot/install-call.ts	P1	src	dom	The server function transport the boot installs on self.flare, split from create-client.ts at its 300-line limit
+packages/core/src/client/boot/install-call.test.ts	P1	test	dom	The server function transport bootClient installs: a call, a redirect that revalidates, another build's answer, and a stream (split from create-client.test.ts)
 packages/core/src/client/boot/leave.test.ts	P1	test	dom	Leaving the document asks the last blocker: a refusing blocker cancels beforeunload, and a disposed client does not listen (BUGS.md 183)
 packages/core/src/client/boot/typed-hash.test.ts	P6	test	dom	A hash the visitor typed: the entry left keeps the position its last frame showed, and the browser's entry is stamped (BUGS.md 318)
 packages/core/src/client/boot/production.test.ts	P1	test	dom	With import.meta.env.DEV false the client leaves out the dev tab, the hot channel's sender, and the overlay report (BUGS.md 189)
