@@ -156,6 +156,22 @@ it("query client", () => {
 	expect(generate(["src/lib/mention.ts"]).source).not.toContain("hasQueryClient")
 })
 
+// A re-export and a dynamic import reach the package too: each is a real module edge, as an import is, so the getter
+// the loader's `ctx.queryClient` reads can be registered through it (dx/types.md, BUGS.md 359).
+it("query client edges", () => {
+	const edges: Record<string, string> = {
+		"src/lib/named.ts": 'export { queryClient } from "@lovrozagar/flare/query";\n',
+		"src/lib/star.ts": 'export * from "@lovrozagar/flare/query";\n',
+		"src/lib/lazy.ts": 'export const load = () => import("@lovrozagar/flare/query");\n',
+		"src/lib/other.ts": 'export const load = () => import("./elsewhere.ts");\n',
+	}
+	const flag = (file: string): boolean =>
+		generateTypes({ routeFiles: [], appFiles: [file], read: (name) => edges[name] ?? "" }).source.includes(
+			"hasQueryClient: true;",
+		)
+	expect(Object.keys(edges).filter(flag)).toEqual(["src/lib/named.ts", "src/lib/star.ts", "src/lib/lazy.ts"])
+})
+
 it("no virtual", () => {
 	expect(generate().source).not.toContain("virtual:")
 })
