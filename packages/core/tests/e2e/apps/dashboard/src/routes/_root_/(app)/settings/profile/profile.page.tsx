@@ -9,7 +9,8 @@ const INPUT = "mt-1 block w-full rounded-md border border-slate-300 bg-white px-
 // The profile form. While it holds an unsaved change, leaving asks first: a link, a navigation, a reload, and a tab
 // close. Back and Forward are the browser's own step and are not asked (dx/navigate.md useBlocker).
 function ProfileForm(props: { name: string; email: string }): JSX.Element {
-	// Writable, and reset to the saved name when a save lands back here with it.
+	// Writable, and reset to the saved name when a save lands back here with it. The state line says "Saving…" while the
+	// save is in flight and "Saved" only once it has landed (BUGS.md 369).
 	const [draft, setDraft] = createSignal(() => props.name)
 	const [error, setError] = createSignal("")
 	const [saving, setSaving] = createSignal(false)
@@ -49,7 +50,7 @@ function ProfileForm(props: { name: string; email: string }): JSX.Element {
 					Save
 				</button>
 				<span id="profile-state" class="text-xs text-slate-500">
-					{dirty() ? "Unsaved changes" : "Saved"}
+					{saving() ? "Saving…" : dirty() ? "Unsaved changes" : "Saved"}
 				</span>
 			</div>
 		</form>
