@@ -220,9 +220,7 @@ export type StepsGone<Step extends string> =
 	| (Step extends "loader" ? "response" : never)
 	| (Step extends "authenticate" ? "authenticateOptional" : never)
 
-// The steps every route builder has. A typed step returns a builder of the new state. `.authenticateOptional()` on a
-// route whose parents already require auth takes an argument it can never get, so it does not type-check (dx/types.md).
-// `G` is the steps already gone.
+// The steps every route builder has. A typed step returns a builder of the new state. `G` is the steps already gone.
 export type BuilderSteps<S extends RouteState, K extends RouteKind, G extends string = never> = {
 	cache(config: CacheConfig): RouteBuilder<S, K, G | StepsGone<"cache">>
 	input<I extends RouteInput>(config: I): RouteBuilder<WithInput<S, I>, K, G | StepsGone<"input">>
@@ -231,7 +229,7 @@ export type BuilderSteps<S extends RouteState, K extends RouteKind, G extends st
 		...callerData: [Extract<C[number], "optional">] extends [never] ? C : never
 	): RouteBuilder<With<S, "auth", true>, K, G | StepsGone<"authenticate">>
 	authenticateOptional(
-		...callerData: S["auth"] extends true ? [never] : readonly string[]
+		...callerData: readonly string[]
 	): RouteBuilder<With<S, "auth", "optional">, K, G | StepsGone<"authenticateOptional">>
 	// On a public route, `authorize` makes the chain read the session, so its own context already has it (B26).
 	authorize(
@@ -265,3 +263,9 @@ export type RouteBuilder<S extends RouteState, K extends RouteKind, G extends st
 	BuilderSteps<S, K, G> & (K extends "page" ? PageSteps<S, G> : {}),
 	G
 >
+
+// A route whose parents already require auth starts with `.authenticateOptional()` gone: it cannot loosen to optional
+// (dx/types.md `cannot loosen`, BUGS.md 354). The seed is known when the builder is made, so the steps carry it on in
+// `G` as a called step's removal is.
+export type SeedGone<Id extends string, R = FlareRegister> =
+	ParentAuth<R, Id> extends true ? "authenticateOptional" : never

@@ -160,6 +160,8 @@ function serverContext(): { requestId: string } {
 	void createPage("_root_/(blog)/post/[slug]").authenticate()
 	// @ts-expect-error a required parent cannot loosen to optional
 	void createPage("_root_/(blog)/post/[slug]").authenticateOptional()
+	// @ts-expect-error the method is absent, so no argument makes it type-check (BUGS.md 354)
+	void createPage("_root_/(blog)/post/[slug]").authenticateOptional(undefined as never)
 }
 
 // omit keeps parent
