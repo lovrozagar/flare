@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url"
 import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { exited, exitOf, readOrigin, signalGroup } from "./child.ts"
+import { E2E_ENV } from "./e2e-env.ts"
 
 const apps = fileURLToPath(new URL("./apps/", import.meta.url))
 
@@ -81,14 +82,14 @@ export async function bootApp(input: BootInput): Promise<Boot> {
 	}
 	if (input.runtime === "workers") return { ...(await bootWorkers({ appDir, cacheDir, outDir })), outDir }
 	const [bin, args] = input.runtime === "bun" ? ["bun", ["-e", BUN_SERVE]] : [process.execPath, NODE_ARGS]
-	const env = { FLARE_E2E: "1" }
+	const env = E2E_ENV
 	return { ...(await bootChild({ appDir, cacheDir, bin, args: [...args, outDir], dirs: [outDir], env })), outDir }
 }
 
 const viteBin = fileURLToPath(new URL("../../../../node_modules/.bin/vite", import.meta.url))
 
 // Workers dev builds the worker's env from the Wrangler config and dotenv files only, so the Cloudflare plugin is told
-// to add the process env, FLARE_E2E with it (BUGS.md 76). It does not fetch the request `cf` object from Cloudflare,
+// to add the process env, E2E_ENV with it (BUGS.md 76). It does not fetch the request `cf` object from Cloudflare,
 // which it would cache under `.wrangler` in the app (B70, BUGS.md 85).
 const WORKERS_DEV_ENV = { CLOUDFLARE_INCLUDE_PROCESS_ENV: "true", CLOUDFLARE_CF_FETCH_ENABLED: "false" }
 
@@ -96,7 +97,7 @@ const WORKERS_DEV_ENV = { CLOUDFLARE_INCLUDE_PROCESS_ENV: "true", CLOUDFLARE_CF_
 function devCommand(runtime: string): { bin: string; args?: readonly string[]; env: Record<string, string> } {
 	const env = {
 		FLARE_E2E_RUNTIME: runtime,
-		FLARE_E2E: "1",
+		...E2E_ENV,
 		...(runtime === "workers" ? WORKERS_DEV_ENV : {}),
 	}
 	if (runtime === "bun") return { bin: "bun", args: ["--bun", viteJs, "--host", "127.0.0.1", "--port", "0"], env }
@@ -189,8 +190,8 @@ function viteBuild(input: { appDir: string; cacheDir: string; outDir: string; ru
 }
 
 // miniflare runs what `wrangler deploy` would ship: the deploy config the Cloudflare plugin wrote beside the Workers
-// bundle, `<outDir>/server/wrangler.json`, read the way wrangler reads it (B109). The harness adds only FLARE_E2E and
-// the log capture. The assets binding serves the client output, and a request no file answers reaches the worker.
+// bundle, `<outDir>/server/wrangler.json`, read the way wrangler reads it (B109). The harness adds only E2E_ENV and the
+// log capture. The assets binding serves the client output, and a request no file answers reaches the worker.
 async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: string }): Promise<Boot> {
 	const server = join(input.outDir, "server")
 	const deploy = unstable_getMiniflareWorkerOptions(join(server, "wrangler.json"))
@@ -206,7 +207,7 @@ async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: st
 			// The worker's console, which Miniflare 5 parses out of workerd's output as structured logs (BUGS.md 377).
 			handleStructuredLogs: ({ message }: { message: string }) => output.line(message),
 			// The docs and dashboard apps' e2e-only controls answer only under this flag.
-			bindings: Object.assign({}, options.bindings, { FLARE_E2E: "1" }),
+			bindings: Object.assign({}, options.bindings, E2E_ENV),
 		}),
 	)
 	const clean = (): void => remove([input.cacheDir, input.outDir])
