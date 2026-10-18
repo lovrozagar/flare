@@ -49,11 +49,11 @@ packages/core/
 
 ## `tests/types`
 
-`propagation.test.ts` is the matrix in `dx/types.md` (bit 01). The core typecheck includes it. `app.test.ts` runs `tsc --noEmit` on `app/` (bit 07). `app/` is not a Playwright app. Adding it does not change B70. A fourth e2e app is still a change to B70.
+`propagation.test.ts` is the matrix in `dx/types.md` (bit 01). The core typecheck includes it. `app.test.ts` runs `tsc --noEmit` on `app/` (bit 07). `app/` is not a Playwright app. Adding it does not change B70. A fifth e2e app is still a change to B70.
 
 ## `tests/e2e`
 
-The split is B70. This directory holds the Playwright files, `playwright.config.ts`, `boot.ts`, `copy-boot.ts`, and `apps/`. A new file inside `apps/minimal`, `apps/basepath`, or `apps/docs` does not add a directory here. A fourth app is a change to B70. `apps/docs` is one `**` row in `files.tsv` (B94). `docs.fixture.ts` is `kind = test` and holds the shared docs boot. The Playwright config is `kind = config` and has no sibling test. `boot.ts` is `kind = script` and has `boot.test.ts`.
+The split is B70. This directory holds the Playwright files, `playwright.config.ts`, `boot.ts`, `copy-boot.ts`, and `apps/`. A new file inside `apps/minimal`, `apps/basepath`, `apps/docs`, or `apps/dashboard` does not add a directory here. A fifth app is a change to B70. `apps/docs` (B94) and `apps/dashboard` (B146) are each one `**` row in `files.tsv`. `docs.fixture.ts` and `dashboard.fixture.ts` are `kind = test` and hold each app's shared boot. The Playwright config is `kind = config` and has no sibling test. `boot.ts` is `kind = script` and has `boot.test.ts`.
 
 ## Repo around the packages
 

@@ -30,7 +30,7 @@ These files have no sibling test, and coverage excludes them:
 - `kind = app` — exercised by the e2e or golden test named in the bit, not by a unit sibling. v1 has no `template` rows (B75).
 - `kind = corpus` — data read by the sibling test of the module.
 
-Tests that boot a server, a browser, or workerd span many files. They live under `packages/core/tests/` and are rows of `kind = test`. They do not replace unit siblings. How many e2e apps exist, and which runtime boots them, is B70. A new app directory is a change to that decision.
+Tests that boot a server, a browser, or workerd span many files. They live under `packages/core/tests/` and are rows of `kind = test`. They do not replace unit siblings. How many e2e apps exist, and which runtime boots them, is B70: `minimal`, `basepath`, `docs` (B94), and `dashboard` (B146). A new app directory is a change to that decision.
 
 A test that asserts a dev-time throw from a component also asserts that Solid reported the same error through `reportError`, using `shared/dev/reported.fixture.ts`, so the case behaves the same on Node (no global `reportError`) and on the Bun runtime and in browsers (which have one) (BUGS.md B48).
 
