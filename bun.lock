@@ -88,6 +88,7 @@
       "name": "dashboard",
       "devDependencies": {
         "@tailwindcss/vite": "catalog:",
+        "@tanstack/solid-query": "catalog:",
         "tailwindcss": "catalog:",
       },
     },

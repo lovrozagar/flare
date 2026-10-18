@@ -4,17 +4,21 @@ export {};
 declare module "@lovrozagar/flare" {
 	interface FlareRegister {
 		routes: {
+			"/projects/[id]": { params: { id: string } };
+			"/projects/new": { params: {} };
 			"/projects": { params: {} };
 			"/settings/billing": { params: {} };
 			"/": { params: {} };
 			"/login": { params: {} };
 		};
-		pageIds: "_root_/" | "_root_/(app)/projects" | "_root_/(app)/settings/billing" | "_root_/login";
+		pageIds: "_root_/" | "_root_/(app)/projects" | "_root_/(app)/projects/[id]" | "_root_/(app)/projects/new" | "_root_/(app)/settings/billing" | "_root_/login";
 		routeModules: {
 			"_root_": typeof import("../routes/_root_/root.root-layout.tsx").route;
 			"_root_/": typeof import("../routes/_root_/home.page.tsx").route;
 			"_root_/(app)": typeof import("../routes/_root_/(app)/app.layout.tsx").route;
 			"_root_/(app)/projects": typeof import("../routes/_root_/(app)/projects/projects.page.tsx").route;
+			"_root_/(app)/projects/[id]": typeof import("../routes/_root_/(app)/projects/[id]/project.page.tsx").route;
+			"_root_/(app)/projects/new": typeof import("../routes/_root_/(app)/projects/new/new.page.tsx").route;
 			"_root_/(app)/settings/billing": typeof import("../routes/_root_/(app)/settings/billing/billing.page.tsx").route;
 			"_root_/login": typeof import("../routes/_root_/login/login.page.tsx").route;
 		};
@@ -23,6 +27,8 @@ declare module "@lovrozagar/flare" {
 			"_root_/": ["_root_"];
 			"_root_/(app)": ["_root_"];
 			"_root_/(app)/projects": ["_root_", "_root_/(app)"];
+			"_root_/(app)/projects/[id]": ["_root_", "_root_/(app)"];
+			"_root_/(app)/projects/new": ["_root_", "_root_/(app)"];
 			"_root_/(app)/settings/billing": ["_root_", "_root_/(app)"];
 			"_root_/login": ["_root_"];
 		};
@@ -33,10 +39,15 @@ declare module "@lovrozagar/flare" {
 			"_root_/login": "optional";
 		};
 		routeSearchParams: {
+			"_root_/(app)/projects": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/_root_/(app)/projects/projects.page.tsx").route>;
+			"_root_/(app)/projects/[id]": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/_root_/(app)/projects/[id]/project.page.tsx").route>;
 			"_root_/login": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/_root_/login/login.page.tsx").route>;
 		};
 		routeParams: {
+			"_root_/(app)/projects": import("@lovrozagar/flare").ParamsOutput<typeof import("../routes/_root_/(app)/projects/projects.page.tsx").route>;
+			"_root_/(app)/projects/[id]": import("@lovrozagar/flare").ParamsOutput<typeof import("../routes/_root_/(app)/projects/[id]/project.page.tsx").route>;
 			"_root_/login": import("@lovrozagar/flare").ParamsOutput<typeof import("../routes/_root_/login/login.page.tsx").route>;
 		};
+		hasQueryClient: true;
 	}
 }

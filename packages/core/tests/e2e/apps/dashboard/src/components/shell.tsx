@@ -1,8 +1,9 @@
-import { Link, useNavigate } from "@lovrozagar/flare"
+import { InterceptOutlet, Link, useNavigate } from "@lovrozagar/flare"
 import { Show } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import type { Role } from "../db.ts"
 import { signOut } from "../fns/auth.ts"
+import { DEFAULT_SEARCH } from "../search.ts"
 
 export type Viewer = { name: string; email: string; role: Role; workspace: string }
 
@@ -25,7 +26,7 @@ export function Shell(props: { viewer: Viewer; children: JSX.Element }): JSX.Ele
 					Dashboard
 				</p>
 				<nav class="mt-6 space-y-1" aria-label="Sections">
-					<Link to="_root_/(app)/projects" class={NAV} activeClass={ACTIVE}>
+					<Link to="_root_/(app)/projects" search={DEFAULT_SEARCH} class={NAV} activeClass={ACTIVE}>
 						Projects
 					</Link>
 					<Show when={props.viewer.role === "owner"}>
@@ -52,7 +53,35 @@ export function Shell(props: { viewer: Viewer; children: JSX.Element }): JSX.Ele
 				<main id="page" class="flex-1 px-6 py-6">
 					{props.children}
 				</main>
+				<ProjectDialog />
 			</div>
 		</div>
+	)
+}
+
+// A project opened from the table shows here, over the table, which stays mounted (dx/navigate.md InterceptOutlet).
+function ProjectDialog(): JSX.Element {
+	return (
+		<InterceptOutlet>
+			{(state) => (
+				<div class="fixed inset-0 z-40 flex items-start justify-center bg-slate-900/30 p-6 pt-20">
+					<div
+						id="project-dialog"
+						role="dialog"
+						aria-label="Project"
+						data-label={state.render}
+						data-background={state.backgroundLocation.pathname}
+						class="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-5 shadow-xl"
+					>
+						<div class="mb-2 flex justify-end">
+							<button id="dialog-close" type="button" class="text-sm text-slate-500" onClick={() => state.dismiss()}>
+								Close
+							</button>
+						</div>
+						{state.match.render()}
+					</div>
+				</div>
+			)}
+		</InterceptOutlet>
 	)
 }

@@ -72,3 +72,85 @@ export function endSessions(userId: string): void {
 	const user = usersById.get(userId)
 	if (user !== undefined) user.version += 1
 }
+
+export type Sort = "name" | "updated" | "budget"
+export type Dir = "asc" | "desc"
+
+// What the projects table shows: its filters, its order, and the page (projects.page.tsx validates it from the URL).
+export type ProjectQuery = {
+	q?: string | undefined
+	status?: Status[] | undefined
+	sort: Sort
+	dir: Dir
+	page: number
+	from?: Date | undefined
+	to?: Date | undefined
+}
+
+export const PAGE_SIZE = 8
+
+export type ProjectPage = { rows: Project[]; total: number; pages: number; page: number }
+
+function compare(sort: Sort, left: Project, right: Project): number {
+	if (sort === "name") return left.name.localeCompare(right.name)
+	if (sort === "budget") return left.budget - right.budget
+	return left.updated.getTime() - right.updated.getTime()
+}
+
+// One page of a workspace's projects: filtered, ordered with the id as the tie-break, then cut to the page.
+export function listProjects(workspaceId: string, query: ProjectQuery): ProjectPage {
+	const all = workspaces.get(workspaceId)?.projects ?? []
+	const q = query.q?.trim().toLowerCase() ?? ""
+	const kept = all.filter(
+		(project) =>
+			(q === "" || project.name.toLowerCase().includes(q)) &&
+			(query.status === undefined || query.status.length === 0 || query.status.includes(project.status)) &&
+			(query.from === undefined || project.updated.getTime() >= query.from.getTime()) &&
+			(query.to === undefined || project.updated.getTime() <= query.to.getTime()),
+	)
+	const sign = query.dir === "asc" ? 1 : -1
+	const ordered = kept.toSorted((left, right) => sign * compare(query.sort, left, right) || left.id - right.id)
+	const pages = Math.max(1, Math.ceil(ordered.length / PAGE_SIZE))
+	const page = Math.min(Math.max(1, query.page), pages)
+	return { rows: ordered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), total: ordered.length, pages, page }
+}
+
+export function projectOf(workspaceId: string, id: number): Project | undefined {
+	return workspaces.get(workspaceId)?.projects.find((project) => project.id === id)
+}
+
+// A name is unique in its workspace, whatever its case.
+export function nameTaken(workspaceId: string, name: string, except?: number): boolean {
+	const lower = name.toLowerCase()
+	return (workspaces.get(workspaceId)?.projects ?? []).some(
+		(project) => project.id !== except && project.name.toLowerCase() === lower,
+	)
+}
+
+export function addProject(workspaceId: string, fields: { name: string; budget: number; status: Status }): Project {
+	const workspace = workspaces.get(workspaceId)
+	if (workspace === undefined) throw new Error("no workspace")
+	const project: Project = { id: workspace.nextId, ...fields, updated: new Date() }
+	workspace.nextId += 1
+	workspace.projects.push(project)
+	return project
+}
+
+export function updateProject(
+	workspaceId: string,
+	id: number,
+	fields: Partial<Pick<Project, "name" | "status" | "budget">>,
+): Project | undefined {
+	const project = projectOf(workspaceId, id)
+	if (project === undefined) return undefined
+	Object.assign(project, fields, { updated: new Date() })
+	return project
+}
+
+export function removeProject(workspaceId: string, id: number): boolean {
+	const workspace = workspaces.get(workspaceId)
+	if (workspace === undefined) return false
+	const before = workspace.projects.length
+	workspace.projects = workspace.projects.filter((project) => project.id !== id)
+	return workspace.projects.length < before
+}
