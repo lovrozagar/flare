@@ -593,3 +593,12 @@ server.md#Deploying#	packages/core/tests/integration/cache.test.ts::key purge; p
 server.md#Migrating from v0#	packages/core/tests/integration/server-options.test.ts::retired worker; packages/core/tests/integration/i18n.test.ts::retired worker	packages/core/tests/e2e/minimal.test.ts::retired service worker
 server.md#Error boundary#	packages/core/tests/integration/fetch-boundary.test.ts::$name; packages/core/tests/integration/fetch-boundary.test.ts::unprintable throw; packages/core/tests/integration/fetch-boundary.test.ts::render before the shell	n/a: the docs specs do not exercise a failure no stage answers; the integration case reads it through the real createServer
 server.md#Logger#	packages/core/tests/structure/logger.test.ts::console only in the logger; packages/core/tests/integration/fetch-boundary.test.ts::$name	n/a: the docs specs do not exercise the logger's rule; the integration case reads it through the real createServer
+types.md#Maps codegen writes#	packages/core/tests/types/app/src/sections/maps.types.ts::parents closed; packages/core/tests/types/app/src/sections/maps.types.ts::optional argument	n/a: type-only; the optional-argument throw is the builder's rule, chain.test.ts optional argument
+types.md#Maps codegen writes#field:routes	packages/core/tests/types/app/src/sections/maps.types.ts::routes	n/a: type-only, no runtime surface
+types.md#Maps codegen writes#field:pageIds	packages/core/tests/types/app/src/sections/maps.types.ts::pageIds	n/a: type-only, no runtime surface
+types.md#Maps codegen writes#field:routeModules	packages/core/tests/types/app/src/sections/maps.types.ts::routeModules	n/a: type-only, no runtime surface
+types.md#Maps codegen writes#field:routeParents	packages/core/tests/types/app/src/sections/maps.types.ts::routeParents; packages/core/tests/types/app/src/sections/maps.types.ts::parents closed	n/a: type-only, no runtime surface
+types.md#Maps codegen writes#field:authModes	packages/core/tests/types/app/src/sections/maps.types.ts::authModes	n/a: type-only, no runtime surface
+types.md#Maps codegen writes#field:routeSearchParams	packages/core/tests/types/app/src/sections/maps.types.ts::routeSearchParams	n/a: type-only, no runtime surface
+types.md#Maps codegen writes#field:routeParams	packages/core/tests/types/app/src/sections/maps.types.ts::routeParams	n/a: type-only, no runtime surface
+types.md#Maps codegen writes#field:hasQueryClient	packages/core/tests/types/app/src/sections/maps.types.ts::hasQueryClient	n/a: type-only, no runtime surface
