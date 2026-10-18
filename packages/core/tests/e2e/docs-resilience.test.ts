@@ -204,7 +204,9 @@ test("overlay after reload and leaving", async ({ page, docs }) => {
 	await page.reload()
 	await expect(page.locator("#search-page")).toBeVisible()
 	await expect(page.locator("#search-modal")).toHaveCount(0)
-	await page.goto(`${docs.origin}/`)
+	// Hydrated first: before it the search form has no handler, and Enter submits it as a plain GET to `/?q=route`, as
+	// on a slow runner (CI 39096308581, macOS workers-dev-webkit).
+	await open(page, docs.origin, "/")
 	await page.locator("#search-input").fill("route")
 	await page.locator("#search-input").press("Enter")
 	await expect(page.locator("#search-modal")).toBeVisible()
