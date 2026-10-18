@@ -80,5 +80,6 @@ export function env(host: HTMLElement, fetch: ClientEnv["fetch"] = vi.fn<ClientE
 		idle: { requestIdle: undefined, setTimeout: (run) => run() },
 		network: {},
 		observe: () => () => undefined,
+		unload: new EventTarget(),
 	}
 }

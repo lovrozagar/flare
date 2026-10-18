@@ -99,7 +99,7 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 
 ### `client/navigation/reload.test.ts`
 
-These rows moved here from `navigate.test.ts` when navigate was split (bit 06). The five chunk messages are `Failed to fetch dynamically imported module`, `error loading dynamically imported module`, `Importing a module script failed`, `Loading chunk`, and `Loading CSS chunk`. A store value that is not JSON counts as no previous load.
+These rows moved here from `navigate.test.ts` when navigate was split (bit 06). The five chunk messages are `Failed to fetch dynamically imported module`, `error loading dynamically imported module`, `Importing a module script failed`, `Loading chunk`, and `Loading CSS chunk`; they, the key, and the window live in `shared/protocol/chunk-reload.ts`, which the document's entry script reads too (BUGS.md 352). A store value that is not JSON counts as no previous load.
 
 | test | case | result |
 | --- | --- | --- |
@@ -546,7 +546,28 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 
 | test | case | result |
 | --- | --- | --- |
-| `client script` | `build-info.ts`'s `clientEntry` set, then unset | the document carries `import("<url>")` beside the state script, then no client script. There is no public option |
+| `client script` | `build-info.ts`'s `clientEntry` set, then unset | the document carries `import("<url>")`, with its failure handler (`server/render/client-script.ts`), beside the state script, then no client script. There is no public option |
+
+### `client/boot/boot-failure.test.ts`, `server/render/client-script.test.ts`, and `shared/protocol/entry-import.test.ts` (BUGS.md 352)
+
+A boot that fails is never an unhandled rejection, in `bootSafely` (createClient's boot) and in the document's entry import alike. A failure after the page's own `beforeunload`, whose listener lives only while the import is pending, is an import the page's navigation cut short: nothing is loaded, logged, or stored. A module that would not load is one document load of `location.href` under the client's guard: the same `flare_chunk_reload` key, 10-second window, and `{ at, href }` record, from `shared/protocol/chunk-reload.ts`. Any other failure, or a load the guard holds back or storage refuses, is logged as `[flare] the client failed to boot`; a boot failure also goes to the dev overlay in dev. The app's callbacks never hear the client is ready. The client-script cases run the exact text `clientScript` renders.
+
+| test | case | result |
+| --- | --- | --- |
+| `chunk at boot` | the root's lazy modules reject with each of the five chunk messages | one `assign` of the current href each, no log, and neither onReady nor onHydrated runs |
+| `boot reload guarded` | two boots that fail with a chunk message inside the window | one `assign`; the second is logged |
+| `boot error reported` | a boot that fails with a plain Error, in dev | no `assign`, the log line, and the overlay payload; onReady never runs |
+| `boot while leaving` | a chunk failure and a plain failure, each after `beforeunload` while the import is pending; then a chunk failure | no `assign`, no log, and nothing stored; the last loads once |
+| `leave listener scoped` | a boot that fails with a chunk message, on a spied target | the `beforeunload` listener is added once and removed once the boot settles; a `beforeunload` after that changes nothing |
+| `create client failure` | createClient over a router whose boot fails | the log line, and no unhandled rejection |
+| `client script shape` | `clientScript` with a nonce, without one, and with no entry | the nonce is on the script, the body imports the entry and holds no `<`, backtick, or `$`; no entry renders nothing |
+| `entry chunk loads once` | the entry import rejects with each of the five chunk messages | one `assign` of `location.href`, no log, and `{ at, href }` stored under the key |
+| `entry guard window` | a chunk failure at 1000 ms, again at 10,999 ms, and at 11,000 ms | loads, then is logged with no load, then loads |
+| `entry plain error` | the entry import rejects with a plain Error | the log line, no `assign`, and nothing stored |
+| `entry storage` | a chunk failure where reading sessionStorage throws, then one over an unreadable record | no `assign` and the log line; then one `assign` |
+| `entry while leaving` | a chunk failure and a plain failure, each after `beforeunload` while the import is pending | no `assign`, no log, and nothing stored; the listener is removed |
+| `entry leave after settle` | a `beforeunload` after the import settled | nothing more is logged, and the listener is gone |
+| `entry import text` | `shared/protocol/entry-import.ts`'s text for an entry, and for one whose URL holds `<`, a backtick, and `$` | it imports the entry, holds the key, the five messages, and the log line as `scriptLiteral`s and the window as its number, and holds no `<`, backtick, or `$` |
 
 ### `tests/e2e/prefetch-reuse.test.ts` (plan 17, BUGS.md 124)
 

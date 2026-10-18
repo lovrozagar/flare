@@ -11,6 +11,7 @@ import { useRouter } from "../../shared/router/context.ts"
 import { createMemoryStore } from "../cache/memory.ts"
 import { serveWith } from "../lifecycle/create.ts"
 import { createDefer } from "../loaders/defer.ts"
+import { clientScript } from "./client-script.ts"
 import * as critical from "./critical-style.ts"
 import { renderDocument, type DocumentInput } from "./document.ts"
 
@@ -190,11 +191,11 @@ it("client import", async () => {
 	const html = await text(
 		await renderDocument({ ...base(), nonce: "n", client: "/src/client.tsx", render: () => "home" }),
 	)
-	expect(html).toMatch(
-		/<script[^>]*>self\.flare=.*?<\/script><script type="module" async nonce="n">import\("\/src\/client\.tsx"\)<\/script>/,
-	)
+	// The state script, then the client script with its failure handler (client-script.ts, BUGS.md 352).
+	expect(html).toMatch(/<script[^>]*>self\.flare=.*?<\/script><script type="module" async nonce="n">/)
+	expect(html).toContain(clientScript("/src/client.tsx", "n"))
 	const plain = await text(await renderDocument({ ...base(), client: "/src/client.tsx", render: () => "home" }))
-	expect(plain).toContain('<script type="module" async>import("/src/client.tsx")</script>')
+	expect(plain).toContain(clientScript("/src/client.tsx", ""))
 })
 
 it("hydration capture", async () => {

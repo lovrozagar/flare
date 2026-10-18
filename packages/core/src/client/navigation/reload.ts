@@ -1,20 +1,14 @@
+import {
+	CHUNK_MESSAGES,
+	CHUNK_RELOAD_KEY as KEY,
+	CHUNK_RELOAD_WINDOW_MS as WINDOW_MS,
+} from "../../shared/protocol/chunk-reload.ts"
+
 // The browser surface a document load uses, passed in so a test can observe it.
 export type ReloadEnv = { storage: () => Storage; now: () => number; assign: (href: string) => void }
 
-const KEY = "flare_chunk_reload"
-const WINDOW_MS = 10_000
-
-// The five messages browsers and Vite give a route chunk that failed to load.
-const CHUNK = [
-	"Failed to fetch dynamically imported module",
-	"error loading dynamically imported module",
-	"Importing a module script failed",
-	"Loading chunk",
-	"Loading CSS chunk",
-]
-
 export function isChunkError(error: unknown): boolean {
-	return error instanceof Error && CHUNK.some((message) => error.message.includes(message))
+	return error instanceof Error && CHUNK_MESSAGES.some((message) => error.message.includes(message))
 }
 
 // A build mismatch and a missing chunk share one guarded document load. The same href within 10 seconds is not

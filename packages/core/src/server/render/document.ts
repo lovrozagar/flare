@@ -7,7 +7,7 @@ import { IDLE_NAVIGATION, NO_BLOCKERS } from "../../shared/router/context.ts"
 import type { Router } from "../../shared/router/create-router.ts"
 import { raceAbort, renderStop } from "./abort.ts"
 import { criticalContext, withCritical } from "./critical-style.ts"
-import { escapeAttr, escapeInlineScript } from "./escape.ts"
+import { clientScript } from "./client-script.ts"
 import { headTags, type HeadTag } from "../../shared/head/index.ts"
 import { DocumentHead, type Head } from "./head.ts"
 import { headSequence } from "./head-sequence.ts"
@@ -120,11 +120,6 @@ function tree(input: DocumentInput, tags: readonly HeadTag[] | undefined): Eleme
 	return appTree(values, () => [input.render(), createComponent(DocumentHead, { tags: tags ?? [] })])
 }
 
-function clientScript(client: string | undefined, nonce: string): string {
-	if (client === undefined) return ""
-	return `<script type="module" async${nonceAttr(nonce)}>${escapeInlineScript(`import(${JSON.stringify(client)})`)}</script>`
-}
-
 // Solid's hydration capture script (B91). It follows the route head, and bit 11's critical style follows it.
 function captureScript(nonce: string): string {
 	return web.generateHydrationScript(nonce === "" ? {} : { nonce })
@@ -140,10 +135,6 @@ function withHead(shell: string, head: string): string {
 	const close = shell.indexOf("</head>")
 	if (close === -1) return `${head}${shell}`
 	return `${shell.slice(0, close)}${head}${shell.slice(close)}`
-}
-
-function nonceAttr(nonce: string): string {
-	return nonce === "" ? "" : ` nonce="${escapeAttr(nonce)}"`
 }
 
 function ignore(): void {}

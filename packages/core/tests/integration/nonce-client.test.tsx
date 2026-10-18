@@ -55,6 +55,7 @@ it("client head", async () => {
 		idle: { requestIdle: undefined, setTimeout: () => undefined },
 		network: {},
 		observe: () => () => undefined,
+		unload: new EventTarget(),
 	}
 	const ready = createReady()
 	const navigates: ReadyContext["navigate"][] = []
