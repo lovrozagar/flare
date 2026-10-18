@@ -131,6 +131,10 @@ it("headers step", () => {
 	expect(() => createChain("_root_").headers(headers).head(head)).toThrow(/order: head/)
 	expect(() => createChain("_root_").headers(headers).headers(headers)).toThrow(/headers twice/)
 	expect(() => createChain("_root_").security({}).headers(headers)).toThrow(/order: headers/)
+	// `.response()` sits before the view steps, so the type drops it after them as the runtime refuses it (BUGS.md 355).
+	for (const viewed of [createChain("_root_").head(head), createChain("_root_").headers(headers)]) {
+		expect(() => viewed.response(() => new Response())).toThrow(/order: response/)
+	}
 	expect(typeof createLayout("_root_/(g)").headers).toBe("function")
 	expect(typeof createRootLayout("_root_").headers).toBe("function")
 	expect(createPathSegment("_root_/seg")).not.toHaveProperty("headers")

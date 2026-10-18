@@ -215,9 +215,11 @@ type Through<Step, Steps, Gone extends string = never> = Steps extends [infer Fi
 		: Through<Step, Rest, Gone | First>
 	: Gone
 
+// `.response()` sits at the loader's place, before the view steps, so the loader and every step after it take it away,
+// as the runtime refuses it with `order: response` (BUGS.md 355).
 export type StepsGone<Step extends string> =
 	| Through<Step, Sequence>
-	| (Step extends "loader" ? "response" : never)
+	| ("loader" extends Through<Step, Sequence> ? "response" : never)
 	| (Step extends "authenticate" ? "authenticateOptional" : never)
 
 // The steps every route builder has. A typed step returns a builder of the new state. `G` is the steps already gone.

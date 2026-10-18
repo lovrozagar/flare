@@ -279,6 +279,11 @@ it("method order", () => {
 	expectTypeOf(loaded).not.toHaveProperty("cache")
 	expectTypeOf(loaded).not.toHaveProperty("response")
 	expectTypeOf(loaded).toHaveProperty("head")
+	// `.response()` runs before the view steps, so after any of them it is gone too (BUGS.md 355).
+	expectTypeOf(createPage("_root_/").head(() => ({}))).not.toHaveProperty("response")
+	expectTypeOf(createPage("_root_/").headers(() => ({}))).not.toHaveProperty("response")
+	expectTypeOf(createPage("_root_/").security({})).not.toHaveProperty("response")
+	expectTypeOf(createPage("_root_/").preloader(() => ({}))).toHaveProperty("response")
 	const secured = createRootLayout("_admin_")
 		.headers(() => ({}))
 		.security({})

@@ -176,3 +176,22 @@ const shaped = { params: (raw: Raw) => ({ id: Number(raw["id"]) }) }
 			return { withoutNote, note }
 		})
 }
+
+const answer = (): Response => new Response()
+
+// response before view steps: `.response()` is gone after `.head()`, `.headers()`, and `.security()`, which the runtime
+// refuses with `order: response`, and stays after the steps before it (BUGS.md 355)
+{
+	void createPage("_root_/about")
+		.preloader(() => ({}))
+		.response(answer)
+	const headed = createPage("_root_/about").head(() => ({}))
+	const withHeaders = createPage("_root_/about").headers(() => ({}))
+	const secured = createPage("_root_/about").security({})
+	// @ts-expect-error response is gone after head
+	void headed.response(answer)
+	// @ts-expect-error response is gone after headers
+	void withHeaders.response(answer)
+	// @ts-expect-error response is gone after security
+	void secured.response(answer)
+}
