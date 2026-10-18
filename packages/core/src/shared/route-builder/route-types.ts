@@ -55,6 +55,15 @@ export type InitialState<Id extends string, Root extends boolean> = {
 	loaderData: void
 }
 
+// A layout or the root is an ancestor of routes the runtime may read the session for: when any route of a chain
+// authenticates or authorizes, every match of it gets the session. With no seed of its own, an ancestor types the
+// session or null, never `null` alone; with no registered session type that is `null` (BUGS.md 358).
+export type AncestorState<Id extends string, Root extends boolean> = With<
+	InitialState<Id, Root>,
+	"auth",
+	InitialState<Id, Root>["auth"] extends false ? "optional" : InitialState<Id, Root>["auth"]
+>
+
 // `.input()` replaces each side it validates. The other keeps its default (dx/types.md).
 export type WithInput<S extends RouteState, I> = {
 	[P in keyof RouteState]: P extends "params"

@@ -70,6 +70,19 @@ it("auth mode", () => {
 	expect(quiet.source).not.toContain("routeParams")
 })
 
+// `.authorize()` alone seeds `"optional"` for the routes under it, since the chain reads the session from there down;
+// with `.authenticate()` the stricter seed stays (BUGS.md 358).
+it("authorize seed", () => {
+	const sources: Record<string, string> = {
+		"src/routes/_root_/root.root-layout.tsx": `${B}export const route = createRootLayout("_root_").render(r);\n`,
+		"src/routes/_root_/(g)/g.layout.tsx": `${B}export const route = createLayout("_root_/(g)").authorize(f).render(r);\n`,
+		"src/routes/_root_/(s)/s.layout.tsx": `${B}export const route = createLayout("_root_/(s)").authenticate().authorize(f).render(r);\n`,
+	}
+	const routeFiles = Object.keys(sources).map((file) => file.slice("src/routes/".length))
+	const { source } = generateTypes({ routeFiles, appFiles: [], read: (file) => sources[file] ?? "" })
+	expect(source).toContain('authModes: {\n\t\t\t"_root_/(g)": "optional";\n\t\t\t"_root_/(s)": true;\n\t\t};')
+})
+
 it("search", () => {
 	expect(generate().source).toContain(
 		'"_root_/about": import("@lovrozagar/flare").SearchOutput<typeof import("../routes/_root_/about/about.page.tsx").route>;',

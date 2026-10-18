@@ -1,11 +1,13 @@
 import { createChain, typedSteps, type Chain } from "./chain.ts"
 import type { RouteRecord } from "./page.ts"
-import type { InitialState, RouteBuilder, RouteState, SeedGone } from "./route-types.ts"
+import type { AncestorState, RouteBuilder, RouteState, SeedGone } from "./route-types.ts"
 
 export type LayoutBuilder<S extends RouteState> = RouteBuilder<S, "layout">
 
-export function createLayout<Id extends string>(id: Id): RouteBuilder<InitialState<Id, false>, "layout", SeedGone<Id>> {
-	return layoutBuilder<InitialState<Id, false>, SeedGone<Id>>(id, createChain(id))
+export function createLayout<Id extends string>(
+	id: Id,
+): RouteBuilder<AncestorState<Id, false>, "layout", SeedGone<Id>> {
+	return layoutBuilder<AncestorState<Id, false>, SeedGone<Id>>(id, createChain(id))
 }
 
 function layoutBuilder<S extends RouteState, G extends string = never>(
