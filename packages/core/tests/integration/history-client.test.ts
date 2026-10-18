@@ -45,17 +45,35 @@ async function shows(tab: Page, path: string): Promise<string> {
 	return tab.evaluate(() => document.getElementById("slot")?.textContent ?? "")
 }
 
-async function away(tab: Page, back: string): Promise<void> {
+// Back onto an entry no route matches loads it as a document (navigation/target.ts), which the server answers 404; the
+// server here takes half a second to, as a slow one does, so a reading of the old page cannot pass for it.
+async function away(tab: Page, back: string, loads: boolean): Promise<void> {
 	const seen: string[] = []
+	if (loads) {
+		await tab.route(
+			(url) => url.pathname === back,
+			async (route) => {
+				await new Promise((resolve) => setTimeout(resolve, 500))
+				await route.continue()
+			},
+		)
+	}
 	await tab.evaluate(() => document.getElementById("to-a")?.click())
 	seen.push(await shows(tab, "/a"))
-	await tab.goBack()
-	seen.push(await shows(tab, back))
+	seen.push(await backTo(tab, back, loads))
 	await tab.goForward()
 	seen.push(await shows(tab, "/a"))
-	await tab.goBack()
-	seen.push(await shows(tab, back))
+	seen.push(await backTo(tab, back, loads))
 	await tab.evaluate((all) => (Reflect.get(window, "__flareRecord") as unknown[]).push(...all), seen)
+}
+
+// Back, then what the entry shows. Back finishes on the history step; the document an unmatched entry loads comes
+// after it, so the reading waits for that document's load event, armed before the step (BUGS.md 376).
+async function backTo(tab: Page, path: string, loads: boolean): Promise<string> {
+	const loaded = loads ? tab.waitForEvent("load") : undefined
+	await tab.goBack()
+	await loaded
+	return shows(tab, path)
 }
 
 // A page whose loader counts the server's runs, at the router's default staleTime, 0: every entry is stale.
@@ -147,22 +165,22 @@ async function typedHash(tab: Page): Promise<void> {
 	await tab.evaluate((seen) => (Reflect.get(window, "__flareRecord") as unknown[]).push(seen), back === one)
 }
 
-function run(engine: (typeof ENGINES)[number], path: string): Promise<AppResult> {
+function run(engine: (typeof ENGINES)[number], path: string, loads: boolean): Promise<AppResult> {
 	if (harness === undefined) throw new Error("the harness did not start")
-	const visit: Pick<AppCase, "path" | "steps"> = { path, steps: (tab) => away(tab, path) }
+	const visit: Pick<AppCase, "path" | "steps"> = { path, steps: (tab) => away(tab, path, loads) }
 	return harness.app(engine, { app: APP, ...visit, client() {} })
 }
 
 describe.each(ENGINES)("%s", (engine) => {
 	// A document no route matched, then away and back.
 	it("unmatched entry", async () => {
-		const result = await run(engine, "/missing")
+		const result = await run(engine, "/missing", true)
 		expect(result.record).toEqual(["page a", "no such page", "page a", "no such page"])
 	})
 
 	// A page whose loader threw notFound(), then away and back.
 	it("not found entry", async () => {
-		const result = await run(engine, "/gone")
+		const result = await run(engine, "/gone", false)
 		expect(result.record).toEqual(["page a", "no such page", "page a", "no such page"])
 	})
 
