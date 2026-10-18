@@ -784,6 +784,11 @@ packages/core/tests/types/propagation.test.ts	P1	test	node	expectTypeOf and @ts-
 packages/core/tests/types/server-fn.test.ts	P7	test	node	The dx/types.md matrix rows whose producer is createServerFn, against the real builder
 packages/core/tests/types/navigation.test.ts	P7	test	node	The dx/types.md matrix rows whose consumer is a data hook or useNavigate(), split from propagation.test.ts for its 500-line cap
 packages/core/tests/types/app.test.ts	P7	test	node	Runs the types generator on the fixture, then tsc --noEmit. An unused @ts-expect-error exits non-zero (B74)
+packages/core/tests/types/handwritten/package.json	P7	app	-	The hand-written register's type fixture package. Not a Playwright app (plan 25 5.2)
+packages/core/tests/types/handwritten/tsconfig.json	P7	app	-	The types app's flags, for the fixture whose register is written by hand
+packages/core/tests/types/handwritten/src/register.d.ts	P7	app	-	A register codegen never writes: no `auth`, and a parent listed with no module (dx/types.md Merge)
+packages/core/tests/types/handwritten/src/routes/child.page.tsx	P7	app	-	The fixture's one route, which requires auth under a parent with no module
+packages/core/tests/types/handwritten/src/sections/merge.types.ts	P7	app	-	dx/types.md Merge, the rules about a missing parent module and an omitted `auth` (plan 25 5.2)
 packages/core/tests/types/app/package.json	P7	app	-	Type fixture package. Not a Playwright app (B74)
 packages/core/tests/types/app/tsconfig.json	P7	app	-	strict, exactOptionalPropertyTypes, noUncheckedIndexedAccess, verbatimModuleSyntax, noPropertyAccessFromIndexSignature
 packages/core/tests/types/app/src/register.d.ts	P7	app	-	Augments auth, env, and serverContext. Does not write the route maps
@@ -792,6 +797,8 @@ packages/core/tests/types/app/src/checks-input.ts	P7	app	-	The types.md app rows
 packages/core/tests/types/app/src/checks-union.ts	P7	app	-	The dx/types.md union output row: a validator whose output is a union with no key in common requires its object and takes either member's shape (BUGS.md 348)
 packages/core/tests/types/app/src/sections/graph.types.ts	P7	app	-	dx/types.md Graph, one case per row, against the generated register through the package entries (plan 25 5.2)
 packages/core/tests/types/app/src/sections/maps.types.ts	P7	app	-	dx/types.md Maps codegen writes, one case per row, against the generated register through the package entry (plan 25 5.2)
+packages/core/tests/types/app/src/sections/merge-auth.types.ts	P7	app	-	dx/types.md Merge, the auth rules, the server function chain, and the segment (plan 25 5.2)
+packages/core/tests/types/app/src/sections/merge.types.ts	P7	app	-	dx/types.md Merge, the params, search, loader data, and preloader rules, against the generated register through the package entries (plan 25 5.2)
 packages/core/tests/types/app/src/validators.ts	P7	app	-	Validators the input pages import or build with a factory (BUGS.md 349)
 packages/core/tests/types/app/src/checks-auth.ts	P7	app	-	The dx/types.md auth seed rows the runtime decides: an ancestor with no auth method and a route under a layout that only authorizes type the session or null (BUGS.md 358)
 packages/core/tests/types/app/src/checks-data.ts	P7	app	-	The app rows for loader data, the preloader context, auth, head, defer, and effects
