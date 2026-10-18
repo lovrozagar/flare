@@ -805,6 +805,8 @@ packages/core/tests/types/app/src/sections/app-writes.types.ts	P7	app	-	dx/types
 packages/core/tests/types/app/src/sections/callbacks.types.ts	P7	app	-	dx/types.md What each callback receives, one case per callback, against the generated register (plan 25 5.2)
 packages/core/tests/types/app/src/sections/graph.types.ts	P7	app	-	dx/types.md Graph, one case per row, against the generated register through the package entries (plan 25 5.2)
 packages/core/tests/types/app/src/sections/maps.types.ts	P7	app	-	dx/types.md Maps codegen writes, one case per row, against the generated register through the package entry (plan 25 5.2)
+packages/core/tests/types/app/src/sections/matrix-auth.types.ts	P7	app	-	dx/types.md Matrix, the auth rows (plan 25 5.2)
+packages/core/tests/types/app/src/sections/matrix-data.types.ts	P7	app	-	dx/types.md Matrix, the loader data and preloader rows (plan 25 5.2)
 packages/core/tests/types/app/src/sections/matrix-fns.types.ts	P7	app	-	dx/types.md Matrix, the defer, query, and server function rows (plan 25 5.2)
 packages/core/tests/types/app/src/sections/matrix-hooks.types.ts	P7	app	-	dx/types.md Matrix, the hook and i18n rows (plan 25 5.2)
 packages/core/tests/types/app/src/sections/matrix-targets.types.ts	P7	app	-	dx/types.md Matrix, the params, to, and search rows (plan 25 5.2)

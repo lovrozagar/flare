@@ -721,3 +721,31 @@ types.md#Matrix#case:server fn render call	packages/core/tests/types/app/src/sec
 types.md#Matrix#case:server fn methods	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::server fn methods	n/a: type-only, no runtime surface
 types.md#Matrix#case:query client present	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::query client present	n/a: type-only, no runtime surface
 types.md#Matrix#case:query client absent	packages/core/tests/types/handwritten/src/sections/matrix.types.ts::query client absent	n/a: type-only, no runtime surface
+types.md#Matrix#case:loader deep	packages/core/tests/types/app/src/sections/matrix-data.types.ts::loader deep	n/a: type-only, no runtime surface
+types.md#Matrix#case:loader primitive	packages/core/tests/types/app/src/sections/matrix-data.types.ts::loader primitive	n/a: type-only, no runtime surface
+types.md#Matrix#case:loader awaited	packages/core/tests/types/app/src/sections/matrix-data.types.ts::loader awaited	n/a: type-only, no runtime surface
+types.md#Matrix#case:loader absent	packages/core/tests/types/app/src/sections/matrix-data.types.ts::loader absent	n/a: type-only, no runtime surface
+types.md#Matrix#case:loader void	packages/core/tests/types/app/src/sections/matrix-data.types.ts::loader void	n/a: type-only, no runtime surface
+types.md#Matrix#case:parent loader hidden	packages/core/tests/types/app/src/sections/matrix-data.types.ts::parent loader hidden	n/a: type-only, no runtime surface
+types.md#Matrix#case:layout data	packages/core/tests/types/app/src/sections/matrix-data.types.ts::layout data	n/a: type-only, no runtime surface
+types.md#Matrix#case:preloader accumulate	packages/core/tests/types/app/src/sections/matrix-data.types.ts::preloader accumulate	n/a: type-only, no runtime surface
+types.md#Matrix#case:preloader narrow	packages/core/tests/types/app/src/sections/matrix-data.types.ts::preloader narrow	n/a: type-only, no runtime surface
+types.md#Matrix#case:preloader clash	packages/core/tests/types/app/src/sections/matrix-data.types.ts::preloader clash	n/a: type-only, no runtime surface
+types.md#Matrix#case:preloader empty keeps	packages/core/tests/types/app/src/sections/matrix-data.types.ts::preloader empty keeps	n/a: type-only, no runtime surface
+types.md#Matrix#case:preloader parents only	packages/core/tests/types/app/src/sections/matrix-data.types.ts::preloader parents only	n/a: type-only, no runtime surface
+types.md#Matrix#case:root preloader	packages/core/tests/types/app/src/sections/matrix-data.types.ts::root preloader	n/a: type-only, no runtime surface
+types.md#Matrix#case:missing parent	packages/core/tests/types/handwritten/src/sections/matrix.types.ts::missing parent	n/a: type-only, no runtime surface
+types.md#Matrix#case:auth required	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::auth required	n/a: type-only, no runtime surface
+types.md#Matrix#case:auth optional	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::auth optional	n/a: type-only, no runtime surface
+types.md#Matrix#case:cannot loosen	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::cannot loosen	n/a: type-only, no runtime surface
+types.md#Matrix#case:omit keeps parent	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::omit keeps parent	n/a: type-only, no runtime surface
+types.md#Matrix#case:grandchild strict	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::grandchild strict	n/a: type-only, no runtime surface
+types.md#Matrix#case:authorize reads	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::authorize reads	n/a: type-only, no runtime surface
+types.md#Matrix#case:authorize keeps required	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::authorize keeps required	n/a: type-only, no runtime surface
+types.md#Matrix#case:authorize keeps optional	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::authorize keeps optional	n/a: type-only, no runtime surface
+types.md#Matrix#case:render auth	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::render auth	n/a: type-only, no runtime surface
+types.md#Matrix#case:auth mode	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::auth mode	n/a: type-only, no runtime surface
+types.md#Matrix#case:server fn no optional	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::server fn no optional	n/a: type-only, no runtime surface
+types.md#Matrix#case:server fn auth null	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::server fn auth null	n/a: type-only, no runtime surface
+types.md#Matrix#case:server fn auth required	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::server fn auth required	n/a: type-only, no runtime surface
+types.md#Matrix#case:auth unaugmented	packages/core/tests/types/handwritten/src/sections/matrix.types.ts::auth unaugmented	n/a: type-only, no runtime surface
