@@ -63,7 +63,7 @@ A loader that redirects with params or search to a route that validates them, it
 | a parent `.input()` | stays on the parent. It is not merged into the child. The two files may disagree |
 | params object | required when the type has any key, including `[[id]]`. Forbidden (`params?: never`) when the type is `{}` |
 | `[[id]]` inside the object | the key is present. The value may be `undefined`. `{}` is missing that key |
-| loader data | `Awaited` of this route's loader only. A parent loader is a second `useLoaderData({ from: parentId })`. No loader is `void` |
+| loader data | `Awaited` of this route's loader only. A parent loader is a second `useLoaderData({ from: parentId })`. No loader is `void`, and so is a loader that returns nothing |
 | `Promise<{ n: number }>` | `{ n: number }` |
 | `Deferred<T>` | stays `Deferred<T>`: `{ __deferred: true; key: string; promise: Promise<T>; hole?: true }`. It has no `then`, so `Awaited` does not unwrap it. `T` is on `.promise`. `hole` is set only on a `"stream"` value a stored render did not run. `useDeferred(() => d)` returns `Accessor<T>`. A plain `Deferred` does not type-check |
 | preloader | parents intersect with `&`, outside-in, self excluded, then this route's own return on later callbacks. The preloader callback and `authorize` see the parents only |
@@ -155,6 +155,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `loader primitive` | loader returns `"text"` or `1` | the loader | an object or no return | a primitive return | app |
 | `loader awaited` | loader returns `Promise<{ n: number }>` | `loaderData` | `{ n: number }` | the `Promise` remaining | app only |
 | `loader absent` | render and no `.loader()` | `loaderData` | `void` | reading a field | app |
+| `loader void` | `.loader(() => {})` and `.loader(async () => {})`; and `.loader(() => undefined)` | `loaderData` | `void`; `undefined` | a primitive return | |
 | `parent loader hidden` | layout loader `{ section: string }`, page loader `{ title: string }` | `useLoaderData({ from: pageId })` | `title` | `section` on the page call | app |
 | `layout data` | the same pair | `useLoaderData({ from: layoutId })` | `section` | `title` on the layout call | app |
 | `preloader accumulate` | root `{ requestId: string }`, layout `{ role: "admin" \| "editor" }`, page `{ n: 1 }` | page render and `usePreloaderContext({ from: pageId })` | all three keys | a parent key missing | app |

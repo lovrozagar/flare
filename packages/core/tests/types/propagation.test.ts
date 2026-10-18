@@ -272,6 +272,31 @@ it("defer no then", () => {
 	// @ts-expect-error Awaited does not unwrap Deferred
 	const _bad: Awaited<Deferred<{ n: number }>> = { n: 1 }
 })
+// A loader that returns nothing is allowed, as no loader is: its data is `void`, and `() => undefined` stays `undefined`,
+// the `Awaited` of what it returns (dx/types.md, BUGS.md 356).
+it("loader void", () => {
+	createPage("_root_/")
+		.loader(() => {})
+		.render(({ loaderData }) => {
+			expectTypeOf(loaderData).toEqualTypeOf<void>()
+			return null
+		})
+	createPage("_root_/")
+		.loader(async () => {})
+		.render(({ loaderData }) => {
+			expectTypeOf(loaderData).toEqualTypeOf<void>()
+			return null
+		})
+	createPage("_root_/")
+		.loader(() => undefined)
+		.render(({ loaderData }) => {
+			expectTypeOf(loaderData).toEqualTypeOf<undefined>()
+			return null
+		})
+	// @ts-expect-error a primitive return is not loader data
+	createPage("_root_/").loader(() => 1)
+})
+
 // The real builders: each step removes itself and every step before it, so an out-of-order chain does not type-check
 // instead of throwing `order:` on the first request (BUGS.md B9).
 it("method order", () => {
