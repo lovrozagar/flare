@@ -17,7 +17,7 @@ const log = createLogger({ dev: false })
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void }
 
 type Server = {
-	fetch: (request: Request, env: undefined, ctx: Ctx) => Promise<Response> | Response
+	fetch: (request: Request, env: unknown, ctx: Ctx) => Promise<Response> | Response
 }
 
 // What the listener reads of a Node `IncomingMessage`. `on` and `resume` are methods, called on the request itself.
@@ -43,8 +43,10 @@ type NodeRes = {
 }
 
 // `trustProxy` is how many proxy hops in front of the server are trusted: with one or more, `X-Forwarded-Proto: https`
-// makes the request https, so its origin, redirects, and Strict-Transport-Security follow (dx/adapters.md).
-export type NodeListenerOptions = { trustProxy?: number }
+// makes the request https, so its origin, redirects, and Strict-Transport-Security follow (dx/adapters.md). `env` is
+// what the server hands its loaders, `.response()` routes, server functions, and mounts as `env`: `process.env` when
+// it is absent, as the platform's env is on Workers (BUGS.md 372).
+export type NodeListenerOptions = { trustProxy?: number; env?: unknown }
 
 // The listener, and `drain`, which a SIGTERM handler awaits after `http.close()`: it resolves once every request in
 // flight is sent and their `waitUntil` work has settled, or with `false` at the timeout (dx/adapters.md).
@@ -53,10 +55,11 @@ export type NodeListener = ((req: NodeReq, res: NodeRes) => void) & {
 }
 
 export function createNodeListener(server: Server, options: NodeListenerOptions = {}): NodeListener {
-	const trustProxy = trustedHops("createNodeListener", options)
+	const trustProxy = trustedHops("createNodeListener", options, ["trustProxy", "env"])
+	const { env = process.env } = options
 	const pending = pendingWork()
 	const listener = (req: NodeReq, res: NodeRes): void => {
-		const job = { server, req, res, pending, trustProxy, sent: false }
+		const job = { server, req, res, pending, trustProxy, env, sent: false }
 		// A failure before the headers is a 500 with no body, the build and the default security set on it (BUGS.md 341).
 		// After them the socket is destroyed: the status is gone. Either is logged, never silent (plan 21 13.6).
 		const pumped = pump(job).catch((error: unknown) => {
@@ -77,6 +80,7 @@ type Job = {
 	res: NodeRes
 	pending: Pending
 	trustProxy: number
+	env: unknown
 	sent: boolean
 }
 
@@ -104,7 +108,7 @@ async function pump(job: Job): Promise<void> {
 		Object.assign(init, { duplex: "half" })
 	}
 	const request = new Request(adapted.url, init)
-	const response = await job.server.fetch(request, undefined, {
+	const response = await job.server.fetch(request, job.env, {
 		// Background work is held until it settles, so a drain waits for it; a rejection is logged, never left unhandled
 		// to stop the process (BUGS.md 153).
 		waitUntil(promise) {
