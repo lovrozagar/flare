@@ -145,6 +145,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `imported input` | `.input()` given an object imported by name, by default, through a namespace, or through a `paths` alias | `useParams`, `useSearch`, `Link`, `navigate`, `buildUrl` | the validator outputs | the bracket string; a required search key omitted | app |
 | `factory input` | `.input()` given a factory's result | `useParams`, `useSearch`, `Link`, `buildUrl` | the validator outputs | the bracket string; a string for a number | app |
 | `never output` | a params validator whose output is `never` | `useParams`, `Link` | `never` | the bracket params | app |
+| `union output` | params output `{ n: number } \| { s: string }`, search output `{ a: string } \| { b: string }` | `Link` | either member's object for each | `params` or `search` omitted; a shape neither member has | app: checks-union.ts |
 | `search required key` | output `{ q: string; page?: number }` | `Link` | `search: { q: "a" }` | `search` omitted; `page` required when `q` is passed is wrong, `page` may be omitted | app |
 | `search optional keys` | output `{ tag?: string }` | `Link` | `search` omitted and `search: {}` | `search: { extra: "x" }` | app |
 | `search extra key` | a validator object | `Link` | the known keys | a fresh extra key | app |

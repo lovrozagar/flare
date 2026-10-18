@@ -93,20 +93,15 @@ export type To<R extends FlareRegister> = R extends { pageIds: infer Ids extends
 
 export type From<R extends FlareRegister> = [keyof Modules<R>] extends [never] ? string : keyof Modules<R> & string
 
-type Empty<T> = keyof T extends never ? true : false
+// The keys of each member of a union output: `keyof` of the union keeps only the keys they share, none for
+// `{ a } | { b }`, which read as no params or search at all (BUGS.md 348).
+type Keys<T> = T extends unknown ? keyof T : never
 
-// A required key makes `search` required. An all-optional object and the raw record stay optional.
-type RequiredKeys<T> = {
-	[K in keyof T]-?: {} extends Pick<T, K> ? never : K
-}[keyof T]
+// A search that `{}` satisfies stays optional: an all-optional object, a union with an all-optional member, and the raw
+// record. Any other, a required key in every member, makes `search` required.
+type SearchField<T> = [Keys<T>] extends [never] ? { search?: never } : {} extends T ? { search?: T } : { search: T }
 
-type SearchField<T> = [keyof T] extends [never]
-	? { search?: never }
-	: [RequiredKeys<T>] extends [never]
-		? { search?: T }
-		: { search: T }
-
-type Checked<R extends FlareRegister, Id extends string> = (Empty<InferParams<R, Id>> extends true
+type Checked<R extends FlareRegister, Id extends string> = ([Keys<InferParams<R, Id>>] extends [never]
 	? { params?: never }
 	: { params: InferParams<R, Id> }) &
 	SearchField<InferSearch<R, Id>>
