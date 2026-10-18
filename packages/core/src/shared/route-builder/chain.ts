@@ -74,8 +74,9 @@ export type LoaderContext = StepContext & {
 
 // Loader data is an object or nothing. A primitive cannot stay live through the hooks, so it does not
 // type-check and throws in dev (dx/builder.md).
-// A thenable is excluded, so an async loader's value is checked too: every Promise is an object.
-export type LoaderData = (object & { then?: never }) | null | undefined
+// A thenable is excluded, so an async loader's value is checked too: every Promise is an object. A callback that returns
+// nothing, `() => {}`, is `void`, as no loader is (dx/types.md, BUGS.md 356).
+export type LoaderData = (object & { then?: never }) | null | undefined | void
 
 type Load = Callback<LoaderContext, LoaderData | Promise<LoaderData>>
 
