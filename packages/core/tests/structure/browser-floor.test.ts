@@ -24,6 +24,12 @@ const ALLOWED: readonly { file: string; api: string; line: string; why: string }
 		line: "const end = deps.navigation.begin()",
 		why: "NavigatorDeps' pending-state tracker, not the Navigation API",
 	},
+	{
+		file: "src/client/navigation/reload.ts",
+		api: ".chunks",
+		line: "return router.match(pathname).chain.flatMap((entry) => [router.chunks[entry.id] ?? []].flat().slice(0, 1))",
+		why: "the router's map of route chunk files, not an Iterator helper",
+	},
 ]
 
 const allowed = (finding: Finding): boolean =>

@@ -3,9 +3,13 @@ import { BOOT_FAILED, CHUNK_MESSAGES, CHUNK_RELOAD_KEY, CHUNK_RELOAD_WINDOW_MS }
 
 // The document's entry import, as inline script text, with the client boot's policy, since the code that would carry
 // it is what failed to load. A failure after the page's own `beforeunload`, which the listener sees only while the
-// import is pending, is an import its navigation cut short: nothing is loaded, logged, or stored. A module that would
-// not load is one document load of the page under the client's guard, the same key, window, and `{ at, href }` record
-// as client/navigation/reload.ts; any other failure, or a load the guard holds back or storage refuses, is logged.
+// import is pending, is an import its navigation cut short: nothing is loaded, logged, or stored. A chunk message is
+// judged by the server, not the page, since an engine may cut a leaving page's loads short and give it no
+// `beforeunload` (iOS Safari, BUGS.md 368): an uncached HEAD of the entry that answers ok means the module is there and
+// the load was cut short, so nothing loads; one that cannot be made means the page is going; only one the server
+// answers otherwise, as after a deploy removed the module, is one document load of the page under the client's guard,
+// the same key, window, and `{ at, href }` record as client/navigation/reload.ts. Any other failure, or a load the guard
+// holds back or storage refuses, is logged.
 // The text holds no `<`, backtick, or `$`, which the inline escape would change.
 export function entryImport(client: string): string {
 	const chunk = `${scriptLiteral(CHUNK_MESSAGES)}.some((message) => error.message.includes(message))`
@@ -17,8 +21,10 @@ export function entryImport(client: string): string {
 		`import(${scriptLiteral(client)}).then(() => removeEventListener("beforeunload", leave), (error) => {`,
 		'removeEventListener("beforeunload", leave)',
 		"if (page.leaving) return",
+		`if (!(error instanceof Error && ${chunk})) return console.error(${scriptLiteral(BOOT_FAILED)}, error)`,
+		`fetch(${scriptLiteral(client)}, { method: "HEAD", cache: "no-store" }).then((answer) => {`,
+		"if (answer.ok) return",
 		"const href = location.href, now = Date.now()",
-		`if (error instanceof Error && ${chunk}) {`,
 		"try {",
 		"const storage = sessionStorage",
 		"let last",
@@ -29,8 +35,8 @@ export function entryImport(client: string): string {
 		"return",
 		"}",
 		"} catch {}",
-		"}",
 		`console.error(${scriptLiteral(BOOT_FAILED)}, error)`,
+		"}, () => undefined)",
 		"})",
 	].join("\n")
 }

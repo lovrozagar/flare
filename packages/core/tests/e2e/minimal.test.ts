@@ -76,6 +76,32 @@ test.describe("basepath", () => {
 	})
 })
 
+// A page left while its client is still loading stays left: the engine cuts the old document's module loads short, and
+// an engine that gives the page no `beforeunload`, as iOS Safari, Mac WebKit under a test's goto, and here an init
+// script that stops it, leaves the entry's handler that failure alone to judge. The module is still on the server, so
+// nothing loads the old page over the new one (BUGS.md 368).
+test("leave while the entry loads", async ({ page }) => {
+	let first = true
+	await page.route("**/*", (route) => {
+		if (first && route.request().resourceType() === "script") return undefined
+		return route.fallback()
+	})
+	await page.addInitScript(() =>
+		addEventListener("beforeunload", (event) => event.stopImmediatePropagation(), { capture: true }),
+	)
+	const loads: string[] = []
+	page.on("request", (request) => {
+		if (request.resourceType() === "document") loads.push(new URL(request.url()).pathname)
+	})
+	await page.goto(`${session.origin}/about`, { waitUntil: "commit" })
+	first = false
+	await page.goto(`${session.origin}/`)
+	await expect(page.locator("html")).toHaveAttribute("data-flare-hydrated", "")
+	await expect(page.locator("#app")).toHaveText("Home")
+	expect(new URL(page.url()).pathname).toBe("/")
+	expect(loads).toEqual(["/about", "/"])
+})
+
 // A browser that still runs an old build's service worker at a retired path loads this build after one visit: the
 // worker's update check gets the retiring worker, which clears its caches, unregisters, and reloads the page
 // (plan 21 16.1, dx/server.md Migrating from v0).

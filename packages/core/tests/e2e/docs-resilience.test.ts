@@ -35,9 +35,10 @@ test("build mismatch reload", async ({ page, docs }) => {
 
 test("missing chunk reload", async ({ page, docs }, info) => {
 	test.skip(!isProd(info), "chunk files exist only in a production build")
-	// After hydrate every script request fails, as a chunk a newer deploy deleted would, the loaded document's too.
+	// After hydrate every script request is answered 404, as a chunk a newer deploy deleted is, the loaded document's
+	// too: the server, asked again, says the chunk is gone (BUGS.md 368).
 	let hydrated = false
-	await page.route("**/assets/*.js", (route) => (hydrated ? route.abort() : route.continue()))
+	await page.route("**/assets/*.js", (route) => (hydrated ? route.fulfill({ status: 404 }) : route.continue()))
 	await page.goto(`${docs.origin}/`)
 	await page.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
 	hydrated = true

@@ -107,6 +107,8 @@ These rows moved here from `navigate.test.ts` when navigate was split (bit 06). 
 | `reload other href` | a different href inside that window | the document loads |
 | `reload no storage` | `sessionStorage` throws | no document load |
 | `chunk` | the dynamic import rejects with one of the five chunk messages | one document load under `flare_chunk_reload`. No retry. A storage throw does not load |
+| `chunks gone` | an uncached HEAD of each chunk file answering 200, 404, or failing, and no file | there; gone; going, not gone; gone, as before: the server judges a chunk failure (BUGS.md 368) |
+| `chain chunks` | a router's chunk files and a matched and an unmatched pathname | each matched route's own file, a bundle's first; the root's alone |
 
 ### `client/navigation/frames.test.ts`
 
@@ -551,7 +553,7 @@ The real dev path moves here from bit 12, because the e2e navigation rows need a
 
 ### `client/boot/boot-failure.test.ts`, `server/render/client-script.test.ts`, and `shared/protocol/entry-import.test.ts` (BUGS.md 352)
 
-A boot that fails is never an unhandled rejection, in `bootSafely` (createClient's boot) and in the document's entry import alike. A failure after the page's own `beforeunload`, whose listener lives only while the import is pending, is an import the page's navigation cut short: nothing is loaded, logged, or stored. A module that would not load is one document load of `location.href` under the client's guard: the same `flare_chunk_reload` key, 10-second window, and `{ at, href }` record, from `shared/protocol/chunk-reload.ts`. Any other failure, or a load the guard holds back or storage refuses, is logged as `[flare] the client failed to boot`; a boot failure also goes to the dev overlay in dev. The app's callbacks never hear the client is ready. The client-script cases run the exact text `clientScript` renders.
+A boot that fails is never an unhandled rejection, in `bootSafely` (createClient's boot) and in the document's entry import alike. A failure after the page's own `beforeunload`, whose listener lives only while the import is pending, is an import the page's navigation cut short: nothing is loaded, logged, or stored. A chunk message is judged by the server, since an engine may cut a leaving page's loads short and give it no `beforeunload` (iOS Safari, BUGS.md 368): an uncached HEAD of the entry, or of each chunk file of the matched chain, that answers ok means the load was cut short, and one that cannot be made means the page is going, so nothing loads or logs; only an answer not ok, as after a deploy removed the module, is one document load of `location.href` under the client's guard: the same `flare_chunk_reload` key, 10-second window, and `{ at, href }` record, from `shared/protocol/chunk-reload.ts`. Any other failure, or a load the guard holds back or storage refuses, is logged as `[flare] the client failed to boot`; a boot failure also goes to the dev overlay in dev. The app's callbacks never hear the client is ready. The client-script cases run the exact text `clientScript` renders.
 
 | test | case | result |
 | --- | --- | --- |
@@ -568,6 +570,10 @@ A boot that fails is never an unhandled rejection, in `bootSafely` (createClient
 | `entry storage` | a chunk failure where reading sessionStorage throws, then one over an unreadable record | no `assign` and the log line; then one `assign` |
 | `entry while leaving` | a chunk failure and a plain failure, each after `beforeunload` while the import is pending | no `assign`, no log, and nothing stored; the listener is removed |
 | `entry leave after settle` | a `beforeunload` after the import settled | nothing more is logged, and the listener is gone |
+| `entry cut short` | a chunk failure whose HEAD of the entry answers 200, then one whose HEAD cannot be made | no `assign`, no log, nothing stored: the module is there, or the page is going (BUGS.md 368) |
+| `boot cut short` | a chunk failure whose HEAD of each chain chunk file answers 200 | no `assign`, no log, nothing stored (BUGS.md 368) |
+| `boot chunk gone` | the same with every HEAD answered 404 | one `assign` of the current href |
+| `boot probe unreachable` | the same with the HEAD failing | no `assign`, no log |
 | `entry import text` | `shared/protocol/entry-import.ts`'s text for an entry, and for one whose URL holds `<`, a backtick, and `$` | it imports the entry, holds the key, the five messages, and the log line as `scriptLiteral`s and the window as its number, and holds no `<`, backtick, or `$` |
 
 ### `tests/e2e/prefetch-reuse.test.ts` (plan 17, BUGS.md 124)
