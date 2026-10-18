@@ -221,7 +221,7 @@ packages/core/src/server/lifecycle/exchange.ts	P7	src	server	The request exchang
 packages/core/src/server/lifecycle/exchange.test.ts	P7	test	server	Unit cases for exchange.ts
 packages/core/src/server/lifecycle/answers.ts	P9	src	server	The rendered-page answers: document, data, and not-found. Decides the cache policy before the loaders and writes it on the answer. Split from create.ts at the 300-line limit
 packages/core/src/server/lifecycle/answers.test.ts	P9	test	server	Unit cases for answers.ts
-packages/core/src/server/lifecycle/held.ts	P9	src	server	A held document's wait: the deferred values a buffered or public answer awaits, and the failed run a rejected one makes, the document error (BUGS.md 370)
+packages/core/src/server/lifecycle/held.ts	P9	src	server	A held document's wait: the deferred values a buffered or public answer awaits, a rejected one postponed past the shell so it renders as a streamed rejection does (BUGS.md 373)
 packages/core/src/server/lifecycle/held.test.ts	P9	test	server	Unit cases for held.ts
 packages/core/src/server/lifecycle/options.ts	P6	types	server	createServer option and server types, split from create.ts at the 300-line limit
 packages/core/src/server/lifecycle/order.ts	P1	src	server	The ordered stage list from 02-system

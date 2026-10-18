@@ -35,15 +35,18 @@ test("buffered document", async ({ page, dashboard }) => {
 	expect(problems).toEqual([])
 })
 
-// A held document has no place for a rejected value, so the rejection is the document error (dx/defer.md): the page
-// fails at 500 with Flare's built-in text in its slot, under the app's shell, and the client hydrates it.
-test("rejected value fails the document", async ({ page, dashboard }) => {
+// A held document renders a rejected value as a streamed one does (dx/defer.md, BUGS.md 373): the page is 200 and
+// never stored, the failed widget's own <Errored> says why once the client hydrates, and the other widgets keep
+// their values.
+test("rejected value stays in its widget", async ({ page, dashboard }) => {
 	await signedIn(page, dashboard.origin)
 	const response = await page.goto(`${dashboard.origin}${OVERVIEW}?incidents=fail`)
-	expect(response?.status()).toBe(500)
+	expect(response?.status()).toBe(200)
+	expect(response?.headers()["cache-control"]).toBe("private, no-store")
 	await page.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
-	await expect(page.locator("#page")).toHaveText("Something went wrong")
-	await expect(page.locator("#sidebar")).toBeVisible()
+	await expect(page.locator("#incidents-error")).toContainText("The incidents service is down")
+	await expect(page.locator("#revenue")).toHaveText("$606000")
+	await expect(page.locator("#plan")).toHaveText("free")
 })
 
 // A client navigation streams: each widget shows its skeleton, then its value as its defer settles, fastest first.
