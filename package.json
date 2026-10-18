@@ -53,6 +53,9 @@
 	},
 	"type": "module",
 	"scripts": {
+		"check-tree": "bun scripts/check-tree.ts",
+		"dashboard:dev": "bun run --bun --cwd packages/core/tests/e2e/apps/dashboard dev",
+		"docs:dev": "bun run --bun --cwd packages/core/tests/e2e/apps/docs dev",
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
 		"grunt:antigravity": "antigravity --dangerously-skip-permissions",
@@ -80,23 +83,20 @@
 		"test": "bun run --filter @lovrozagar/flare test",
 		"test:bun": "bun --bun run --filter @lovrozagar/flare test:bun",
 		"test:e2e": "bunx playwright test -c packages/core/tests/e2e/playwright.config.ts",
-		"verify": "bun scripts/verify.ts",
-		"verify:safari": "bun scripts/verify-safari.ts",
-		"docs:dev": "bun run --bun --cwd packages/core/tests/e2e/apps/docs dev",
-		"dashboard:dev": "bun run --bun --cwd packages/core/tests/e2e/apps/dashboard dev",
 		"typecheck": "bun run --filter @lovrozagar/flare type:check && sh -c 'if find packages/core/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.test.ts\" ! -name \"*.test.tsx\" -print -quit 2>/dev/null | grep -q .; then bun run --filter @lovrozagar/flare type:check:src; fi' && bunx tsc -p tsconfig.scripts.json --noEmit && bunx tsc -p packages/core/tests/e2e/apps/docs/tsconfig.json --noEmit && bunx tsc -p packages/core/tests/e2e/apps/dashboard/tsconfig.json --noEmit",
-		"check-tree": "bun scripts/check-tree.ts"
+		"verify": "bun scripts/verify.ts",
+		"verify:safari": "bun scripts/verify-safari.ts"
 	},
 	"devDependencies": {
 		"@clack/prompts": "^0.11.0",
-		"@commitlint/cli": "21.2.3",
-		"@commitlint/config-conventional": "21.2.3",
+		"@commitlint/cli": "21.2.4",
+		"@commitlint/config-conventional": "21.2.4",
 		"@lovrozagar/grunt": "0.11.0",
+		"lefthook": "2.2.2",
 		"oxfmt": "0.73.0",
 		"oxlint": "1.88.0",
 		"rulesync": "16.17.0",
-		"smol-toml": "^1.8.0",
-		"lefthook": "2.2.2"
+		"smol-toml": "^1.8.0"
 	},
 	"packageManager": "bun@1.4.3",
 	"standards": {
