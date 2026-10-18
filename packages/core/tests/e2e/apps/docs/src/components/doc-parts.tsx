@@ -10,15 +10,15 @@ const DOC = "[[locale]]/_root_/(guide)/docs/[slug]"
 export function Toc(props: { doc: Doc; locale: string | undefined; slug: string }): JSX.Element {
 	return (
 		<nav id="toc" class="mt-6 flex flex-wrap gap-2 text-sm" aria-label="On this page">
-			<For each={props.doc.sections}>
+			<For each={props.doc.sections} keyed={(section) => section.id}>
 				{(section) => (
 					<Link
 						to={DOC}
 						params={{ locale: props.locale, slug: props.slug }}
-						hash={section.id}
+						hash={section().id}
 						class="rounded-full border border-stone-300 px-3 py-0.5 hover:border-flame-500 dark:border-ink-800"
 					>
-						{section.title}
+						{section().title}
 					</Link>
 				)}
 			</For>
@@ -40,11 +40,11 @@ export function Sections(props: { doc: Doc; locale: string | undefined }): JSX.E
 					</a>
 				)}
 			</Show>
-			<For each={props.doc.sections}>
+			<For each={props.doc.sections} keyed={(section) => section.id}>
 				{(section) => (
-					<section id={section.id} class="mt-10 scroll-mt-24">
-						<h2 class="text-xl font-semibold">{section.title}</h2>
-						<p class="mt-2 leading-7 text-stone-700 dark:text-stone-300">{section.body}</p>
+					<section id={section().id} class="mt-10 scroll-mt-24">
+						<h2 class="text-xl font-semibold">{section().title}</h2>
+						<p class="mt-2 leading-7 text-stone-700 dark:text-stone-300">{section().body}</p>
 					</section>
 				)}
 			</For>
