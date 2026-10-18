@@ -10,14 +10,14 @@ The propagation contract is this file (B74). A callback field v0 had and this fi
 
 | field | key | value | test |
 | --- | --- | --- | --- |
-| `routes` | the public URL, `/about` | `{ params }` from the brackets in `dx/routes.md`. A page with no params has `params: {}`. Layouts, the root layout, segments, and `.response()` routes are absent | `types-gen.test.ts` `param types`, `no params`, `response route` |
+| `routes` | the public URL pattern, `/about`, `/users/[id]`, `/opt/[[locale]]` | `{ params }` from the brackets in `dx/routes.md`. A page with no params has `params: {}`. Layouts, the root layout, segments, and `.response()` routes are absent | `types-gen.test.ts` `param types`, `no params`, `response route` |
 | `pageIds` | none | the union of every page id, `.response()` pages included, or `never`. `Link`, `navigate`, and `redirect` read their targets from it, so a loader that throws `redirect()` infers its own type without a loop through its own module (BUGS.md 105). A register written before it derives the targets from `routeModules` | `types-gen.test.ts` `page ids`; `tests/types/app.test.ts` `app compiles` (the `moved` page) |
 | `routeModules` | the route id, `_root_/about` | `typeof` the route export. Includes pages, layouts, the root layout, segments, and `.response()` routes. The export's `_type` is `"page"`, `"layout"`, `"root"`, or `"segment"`. A `.response()` route stays `"page"` | `types-gen.test.ts` `loader type`, `response route` |
 | `routeParents` | the route id | layout ids and the root id, outside-in, shortest prefix first, not including the route itself. A path segment is never a parent. A group is a parent only when that folder has a layout file | `types-gen.test.ts` `parents`, `segment parent`, `parents closed` |
 | `authModes` | the route id, only when that file sets auth or authorizes | `true` for `.authenticate()`, `"optional"` for `.authenticateOptional()` and for `.authorize()` with neither (BUGS.md 358). `false` is omitted. The field itself is omitted when no route sets auth | `types-gen.test.ts` `auth mode` |
 | `routeSearchParams` | the route id, for each file whose chain calls `.input()`, whatever its argument | `SearchOutput` of that route's type: the validator's output, or the raw record when it validates params only. A layout and a page each keep their own output | `types-gen.test.ts` `search`, `input call`, `keyed by route id` |
 | `routeParams` | the route id, for each file whose chain calls `.input()`, whatever its argument | `ParamsOutput` of that route's type: the validator's output, which replaces the bracket types for that id. With search alone the brackets stay; that is read from whether the route's `.input()` has the params side, so a `never` output stays `never` | `types-gen.test.ts` `input params`, `input call`, `keyed by route id` |
-| `hasQueryClient` | none | `true` when an app file imports `@lovrozagar/flare/query`, re-exports from it, or loads it with `import()`. Otherwise the field is absent. A comment does not count. The value `false` is never written | `types-gen.test.ts` `query client`, `query client edges` |
+| `hasQueryClient` | none | `true` when an app file imports `@lovrozagar/flare/query`, an `import type` included, re-exports from it, or loads it with `import()`. Otherwise the field is absent. At runtime `ctx.queryClient` needs `createQueryClientGetter()` to have run, not the import (`dx/features.md`). A comment does not count. The value `false` is never written | `types-gen.test.ts` `query client`, `query client edges` |
 
 Every id in `routeParents` is a key of `routeModules` (`types-gen.test.ts` `parents closed`). A hand-written register that breaks this poisons that route's preloader context to `never`. It is not `{}`.
 
@@ -31,12 +31,12 @@ A type is born in one place. Later readers do not invent a second copy.
 | --- | --- | --- |
 | brackets in the route id | the default params, and `routes[url].params` for a page that renders | `ExtractPathParams`. `InferParams` reads render props `params`, never `location.params` |
 | `.input({ params })` on that file | `routeParams[routeId]`. The whole params type is replaced | the same `InferParams` |
-| `.input({ searchParams })` on that file | `routeSearchParams[routeId]` | `InferSearchParams` reads render props `search` |
+| `.input({ searchParams })` on that file | `routeSearchParams[routeId]` | `InferSearch` reads render props `search` |
 | no search validator on that file | the raw record `Record<string, string \| string[]>` | `useSearch`, `Link` `search`, `useLocation`, `loaderDeps`, `shouldRefetch` |
 | the loader return | `Awaited` of that return, on that module's render `loaderData`, with no JSON reshaping: the value crosses the wire with its Date, BigInt, Map, Set, URL, and undefined keys, so the type is what the client reads (B145, plan 21 11.1) | `useLoaderData({ from: that id })`, and head, headers, and security on that route |
 | each preloader return | `routeParents` outside-in, then this route's own return | `usePreloaderContext({ from })` and later callbacks on that route |
-| `.authenticate()`, `.authenticateOptional()`, and the parent walk | `authModes[routeId]` plus `ParentAuthResolution` | `ctx.auth` on preloader, `authorize`, and loader |
-| the app's augmentation | `auth`, `env`, `serverContext` | session, fetch env, `serverCtx()`, loader `env`, a server function's `serverContext` |
+| `.authenticate()`, `.authenticateOptional()`, and the parent walk | `authModes[routeId]` plus `ParentAuth` | `ctx.auth` on preloader, `authorize`, and loader |
+| the app's augmentation | `auth`, `env`, `serverContext` | session, `createServer({ authenticate })` `env`, `serverCtx()`, loader `env`, a server function's `serverContext`. `fetch`'s own `env` stays `unknown` |
 | an import of `@lovrozagar/flare/query` | `hasQueryClient: true` | `queryClient` on the loader context only |
 | `typeof` the route export | `routeModules[routeId]` | `from` on the data hooks. Page ids, including a `.response()` page, are the legal `to` |
 
@@ -72,7 +72,7 @@ A loader that redirects with params or search to a route that validates them, it
 | a preloader that returns a union | each member merges on its own, so a discriminant narrows to its member's keys, and an optional key stays optional (`app`: `checks-chain.ts` `preloader union narrows`, `preloader optional stays optional`, BUGS.md 275) |
 | a missing parent module | the context is `never` |
 | root preloader callback | no `preloaderContext` field. The root's own return replaces `{}` for later root callbacks. It is not `&` with a parent |
-| auth seed | `ParentAuthResolution` walks `routeParents` outside-in. `true` beats `"optional"` beats `false`. The root's own seed is `false`, and a layout's or the root's own `false` reads as `"optional"`: the runtime passes the session to every match of a chain in which any route authenticates or authorizes, so an ancestor types the session or `null` (`app`: checks-auth.ts). The strictness is computed. It is not a second map |
+| auth seed | `ParentAuth` walks `routeParents` outside-in. `true` beats `"optional"` beats `false`. The root's own seed is `false`, and a layout's or the root's own `false` reads as `"optional"`: the runtime passes the session to every match of a chain in which any route authenticates or authorizes, so an ancestor types the session or `null` (`app`: checks-auth.ts). The strictness is computed. It is not a second map |
 | `.authenticate()` | sets `true`. It only tightens |
 | `.authenticateOptional()` | sets `"optional"` only when the seed is not `true`. On a `true` seed the method is absent from the type |
 | neither auth method | keeps the parent seed; on a layout or the root a `false` seed reads as `"optional"`, and `.authorize()` alone seeds `"optional"` for the routes under it |
@@ -83,7 +83,7 @@ A loader that redirects with params or search to a route that validates them, it
 | `ResolvedAuth<false>` | `null` |
 | omitted `auth` | `null`, so `ctx.auth.userId` fails even on `.authenticate()` until the app augments |
 | server function auth | a different chain. No `.authenticateOptional`. Skipping `.authenticate()` leaves `ctx.auth` as `null`, not the session or `null` |
-| segment | `_type` is `"segment"`. It is not a `routeParents` entry. It adds no auth mode and no preloader key |
+| segment | `_type` is `"segment"`. It is never a parent in `routeParents`, though its own entry lists its parents. It adds no auth mode and no preloader key |
 
 ## What each callback receives
 
@@ -96,7 +96,7 @@ Validators receive the raw values. `.input({ params })` receives `Record<string,
 | loader | `auth`, `params`, `search`, `preloaderContext` (parents, then this return), `env`, `request`, `defer`. `queryClient` is present only when `hasQueryClient` is `true`. The request context is `serverCtx()`; `buildUrl`, `notFound`, `redirect`, `unauthenticated`, and `unauthorized` are imports from `@lovrozagar/flare`, and the four throw helpers return `never` |
 | `.response()` | `auth`, `params`, `search`, `preloaderContext` (parents, then this return), `env`, `request`. No `loaderData`, no `defer`, no `queryClient`. `serverCtx()` and the imported helpers as for the loader |
 | head | `{ params, search, loaderData, preloaderContext }`. Validated params and search, this route's loader data, the accumulated preloader context. No `auth`. `HeadConfig` is not generic. `jsonLd` stays the type in `dx/head.md` |
-| headers | the same four fields. The return is `Record<string, string \| string[]>` |
+| headers | the same four fields. The return is `Record<string, string \| readonly string[] \| undefined>` |
 | route `.security()` | the same four fields. No `nonce`. The `createServer({ security })` callback stays `{ request, env, nonce, serverContext }` (`dx/server.md`) |
 | page render | `{ params, search, loaderData, preloaderContext }`. No `children`. No `auth` |
 | layout and root render | the page fields plus `children: JSX.Element` |
@@ -105,8 +105,8 @@ Validators receive the raw values. `.input({ params })` receives `Record<string,
 | `notFoundRender` | `params`, `search` |
 | `unauthenticatedRender`, `unauthorizedRender` | `error: Error`, `params`, `search` |
 | `loaderDeps` | `{ search, params }`, both raw. A key that exists only on the validator output is absent |
-| `shouldRefetch` | `trigger` and `location.current` / `location.next`, each `{ hash, params, pathname, search }`. `params` and `search` are raw |
-| server-fn handler | `input`, `auth`, `env`, `request`, `serverContext`, `revalidate`. No `signal` |
+| `shouldRefetch` | `trigger`, `location.current` / `location.next`, each `{ hash, params, pathname, search }`, and the top-level `params` and `search`. All `params` and `search` are raw |
+| server-fn handler | `input`, `auth`, `env`, `request`, `serverContext`. No `signal` and no `revalidate`: a handler purges with `revalidate()` from `@lovrozagar/flare/server` (`dx/server-fn.md`, BUGS.md 122) |
 | server-fn stream | `input`, `auth`, `env`, `request`, `serverContext`, `signal`. No `revalidate` |
 
 `env` and `serverContext` use `FlareRegister`. Render, head, headers, security, and the boundary renders do not receive them.
@@ -184,7 +184,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `use match untyped` | `useMatch({ from })` | the return | `{ id: string, routeId: string }` | `match.params`; `match.loaderData.user` | app |
 | `use location raw` | `useLocation()` | `params`, `search` | the raw records. No `{ from }` | the validator output assigned to `search` | app |
 | `use navigate` | `useNavigate()` | the return | the same generic as `navigate` | a separate untyped `(to: string) => void` | |
-| `i18n t hooks` | `useLoaderT(translations)`, `usePreloaderT(translations)` | the binding | `t` for that loader or preloader: `(key, values?) => string`, plus `t.rich` | either hook used as `useLoaderData`; a call with no translations | app only |
+| `i18n t hooks` | `useLoaderT(translations)`, `usePreloaderT(translations)` | the binding | `t` for that loader or preloader: `(key, values?) => string`. No `t.rich`: JSX does not travel in loader data, so `rich` is on `useT`'s `t` only (`dx/features.md`) | either hook used as `useLoaderData`; a call with no translations | app only |
 | `defer field` | `ctx.defer(async () => ({ quote: string }))` | `loaderData.reviews` | `Deferred<{ quote: string }>` | the field assigned `{ quote: string }`; the field awaited | app |
 | `defer nested` | the same | `.promise` | `(await reviews.promise).quote` is `string` | `reviews.quote`; `reviews.message` | app |
 | `defer no then` | `Deferred<T>` | `Awaited` | the deferred field stays wrapped | `Awaited<Deferred<T>>` equals `T` | |
@@ -197,7 +197,7 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `server fn schema unknown` | a Standard Schema whose output is `unknown` | the client argument | | a bad key is not rejected. This row documents that limit | |
 | `server fn return` | handler returns `{ secret: string }` | the client | `Promise<{ secret: string }>`. The field stays | the envelope type; `secret` stripped | app |
 | `server fn stream` | `yield` of `{ n: number }` | the client iterator | `AsyncIterable<{ n: number }>`. The generator's return is dropped | `revalidate` on the stream context; `signal` on the handler | app |
-| `server fn render call` | the client function | a render body | the call type-checks. The stub throws at runtime | a type error added to make the call illegal | |
+| `server fn render call` | the client function | a render body | the call type-checks. In dev the stub warns once and makes the call; it never throws | a type error added to make the call illegal | |
 | `server fn methods` | `.authenticate()` | the server-fn builder | `input`, `authorize`, `handler`, and `stream` remain | `.authenticate` still present | |
 | `query client present` | `hasQueryClient: true` | loader `ctx` | `queryClient` is the query client | `queryClient` on preloader, render, or head | app, gen only |
 | `query client absent` | the field omitted | loader `ctx` | | `ctx.queryClient` | gen only |
@@ -222,11 +222,11 @@ An augmented register is the precondition, except `unregistered fallback` and `a
 | `env omitted` | no `env` augmentation | loader `ctx.env` | `unknown` | a field read | |
 | `server context omitted` | no `serverContext` augmentation | `serverCtx()` | `Record<string, unknown>` | a specific field required | |
 
-`redirect()` returns `never`. A loader that redirects to its own route, when that route validates search or params, still loops through its own type, since the target's search or params type is that route's: annotate the loader's return type there (BUGS.md 105). `to` on `redirect` follows this matrix. The `href` form accepts any `http:` or `https:` string and rejects `params`, `search`, and `to` on that object (`dx/navigate.md`).
+`redirect()` returns `never`. A loader that redirects to its own route, when that route validates search or params, still loops through its own type, since the target's search or params type is that route's: annotate the loader's return type there (BUGS.md 105). `to` on `redirect` follows this matrix. The `href` form's type takes any string and rejects `params`, `search`, `to`, and `hash` on that object; at runtime anything but an absolute `http:` or `https:` URL throws (`dx/navigate.md`).
 
 `buildUrl`, imported from `@lovrozagar/flare` and called from a loader, preloader, `authorize`, or `.response()`, uses the same `to`, `params`, and `search` generics.
 
-The client type of a server function is `(input: TInput) => Promise<TOutput>` after `.input()`, and `() => Promise<TOutput>` when the input is still `void`. A stream's client type returns `AsyncIterable<TChunk>`. Calling it during render is a runtime stub throw, not a type error (`dx/server-fn.md`).
+The client type of a server function is `(input: TInput) => Promise<TOutput>` after `.input()`, and `() => Promise<TOutput>` when the input is still `void`. A stream's client type returns `AsyncIterable<TChunk>`. Calling it during render type-checks; in dev the stub warns once and makes the call, and it never throws (`dx/server-fn.md`).
 
 ## Tests
 
@@ -253,7 +253,7 @@ declare module "@lovrozagar/flare" {
 | field | when omitted |
 | --- | --- |
 | `auth` | `null`. A required route's session type is this field. An optional route's session is this field or `null` |
-| `env` | `unknown`. This is the `env` on `fetch`, on loaders, and on `createServer({ authenticate })` |
+| `env` | `unknown`. This is the `env` on loaders and on `createServer({ authenticate })`; `fetch`'s own stays `unknown` |
 | `serverContext` | `Record<string, unknown>`. `serverCtx()` returns it |
 
 Codegen does not invent these three. An app that wants them typed writes the augmentation. Once it does, `createServer({ authenticate })` reads `ctx.env` as `env` and must answer `auth` or `null`, sync or async; a session of another shape does not type-check (`app`: `checks-data.ts` `server authenticate`, plan 21 11.3, BUGS.md 250). `fetch`'s own `env` stays `unknown`: an adapter hands it the platform's bindings, a Workers `env` say, whose static type is the platform's and not the app's.
