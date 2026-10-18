@@ -1,0 +1,24 @@
+/* Tailwind's theme and utilities, without its preflight: flare({ css: { reset: true } }) supplies the one reset (B14). */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme {
+	--font-sans: ui-sans-serif, system-ui, sans-serif;
+	--color-brand-50: #eef2ff;
+	--color-brand-500: #6366f1;
+	/* Dark enough for white text on it and for text on white (WCAG AA 4.5:1). */
+	--color-brand-600: #4f46e5;
+	--color-brand-700: #4338ca;
+}
+
+@layer base {
+	html {
+		font-family: var(--font-sans);
+		-webkit-font-smoothing: antialiased;
+	}
+	body {
+		background: #f8fafc;
+		color: #0f172a;
+	}
+}

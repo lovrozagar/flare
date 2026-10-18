@@ -48,7 +48,7 @@ function capture(): { attach: (stream: Readable | null) => void; logs: () => rea
 	}
 }
 
-const APPS = new Set(["minimal", "basepath", "docs"])
+const APPS = new Set(["minimal", "basepath", "docs", "dashboard"])
 const RUNTIMES = new Set(["node", "bun", "workers"])
 
 // `dev` is `vite dev`: on Node, under the Bun runtime, or on Node with the app's own Cloudflare plugin, which renders in
@@ -206,7 +206,7 @@ async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: st
 			output.attach(stdout)
 			output.attach(stderr)
 		},
-		// The docs app's e2e-only controls answer only under this flag.
+		// The docs and dashboard apps' e2e-only controls answer only under this flag.
 		bindings: { ...options.bindings, FLARE_E2E: "1" },
 	})
 	const clean = (): void => remove([input.cacheDir, input.outDir])

@@ -56,6 +56,22 @@ it(
 	VITE_BOOT,
 )
 
+// The dashboard app boots like the others (B146): it lives under /app, and its sign-in page answers there.
+it(
+	"dashboard app",
+	async () => {
+		const session = await boot({ app: "dashboard", runtime: "node", mode: "dev" })
+		try {
+			const response = await fetch(`${session.origin}/app/login`)
+			expect(response.status).toBe(200)
+			expect(await response.text()).toContain("Sign in")
+		} finally {
+			await session.close()
+		}
+	},
+	VITE_BOOT,
+)
+
 // B94 retired the i18n app into docs.
 it("i18n retired", async () => {
 	await expect(boot({ app: "i18n", runtime: "node", mode: "dev" })).rejects.toThrow(/i18n/)

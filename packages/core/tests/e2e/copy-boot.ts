@@ -13,7 +13,10 @@ const DEPS = "node_modules"
 // is never written, so no other boot sees the edit (B70, BUGS.md 111). The copy is in the OS temp dir with the repo's
 // dependencies linked in, and goes on close. Under the boot outputs, Tailwind's scanner reads sources beyond the app's
 // own: the docs page carried 187 KB of dev styles there, against 68 KB from the app and from this copy alike.
-export async function bootCopy(input: { app: "minimal" | "basepath" | "docs"; runtime: string }): Promise<Boot> {
+export async function bootCopy(input: {
+	app: "minimal" | "basepath" | "docs" | "dashboard"
+	runtime: string
+}): Promise<Boot> {
 	const appDir = await mkdtemp(join(tmpdir(), `flare-${input.app}-`))
 	try {
 		copyApp(join(apps, input.app), appDir)

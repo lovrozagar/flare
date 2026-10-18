@@ -83,7 +83,8 @@
 		"verify": "bun scripts/verify.ts",
 		"verify:safari": "bun scripts/verify-safari.ts",
 		"docs:dev": "bun run --bun --cwd packages/core/tests/e2e/apps/docs dev",
-		"typecheck": "bun run --filter @lovrozagar/flare type:check && sh -c 'if find packages/core/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.test.ts\" ! -name \"*.test.tsx\" -print -quit 2>/dev/null | grep -q .; then bun run --filter @lovrozagar/flare type:check:src; fi' && bunx tsc -p tsconfig.scripts.json --noEmit && bunx tsc -p packages/core/tests/e2e/apps/docs/tsconfig.json --noEmit",
+		"dashboard:dev": "bun run --bun --cwd packages/core/tests/e2e/apps/dashboard dev",
+		"typecheck": "bun run --filter @lovrozagar/flare type:check && sh -c 'if find packages/core/src -type f \\( -name \"*.ts\" -o -name \"*.tsx\" \\) ! -name \"*.test.ts\" ! -name \"*.test.tsx\" -print -quit 2>/dev/null | grep -q .; then bun run --filter @lovrozagar/flare type:check:src; fi' && bunx tsc -p tsconfig.scripts.json --noEmit && bunx tsc -p packages/core/tests/e2e/apps/docs/tsconfig.json --noEmit && bunx tsc -p packages/core/tests/e2e/apps/dashboard/tsconfig.json --noEmit",
 		"check-tree": "bun scripts/check-tree.ts"
 	},
 	"devDependencies": {
