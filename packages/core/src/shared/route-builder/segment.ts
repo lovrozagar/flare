@@ -16,7 +16,10 @@ export type SegmentRecord<Id extends string = string> = {
 	render: SegmentRender
 }
 
+// A bare segment, one with no `cdn` default, is a route module as its record is, so it names its kind too (BUGS.md
+// 353).
 export type SegmentBuilder<Id extends string = string> = {
+	readonly _type: "segment"
 	id: Id
 	render: SegmentRender
 	cache: (config: SegmentCache) => SegmentRecord<Id>
@@ -28,6 +31,7 @@ function render(props: { children?: JSX.Element }): JSX.Element {
 
 export function createPathSegment<Id extends string>(id: Id): SegmentBuilder<Id> {
 	return {
+		_type: "segment",
 		id,
 		render,
 		cache(config: SegmentCache): SegmentRecord<Id> {

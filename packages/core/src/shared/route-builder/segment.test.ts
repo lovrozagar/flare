@@ -23,3 +23,11 @@ it("typed record", () => {
 	expectTypeOf(record.id).toEqualTypeOf<"_root_/seg">()
 	expectTypeOf(createPathSegment("_root_/seg")).not.toHaveProperty("loader")
 })
+
+// A segment with no `cdn` default is exported bare, and it names its kind as the cached record does: every builder's
+// export carries `_type` (dx/types.md, BUGS.md 353).
+it("bare kind", () => {
+	const bare = createPathSegment("_root_/seg")
+	expect(bare._type).toBe("segment")
+	expectTypeOf(bare._type).toEqualTypeOf<"segment">()
+})
