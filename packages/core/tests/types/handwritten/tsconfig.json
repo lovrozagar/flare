@@ -1,0 +1,16 @@
+{
+	"extends": "../../../../../tsconfig.base.json",
+	"compilerOptions": {
+		"strict": true,
+		"exactOptionalPropertyTypes": true,
+		"noUncheckedIndexedAccess": true,
+		"verbatimModuleSyntax": true,
+		"noPropertyAccessFromIndexSignature": true,
+		"noEmit": true,
+		"jsx": "preserve",
+		"jsxImportSource": "@solidjs/web",
+		"moduleResolution": "bundler",
+		"types": []
+	},
+	"include": ["src"]
+}

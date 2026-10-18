@@ -613,3 +613,36 @@ types.md#Graph#born:.authenticate(), .authenticateOptional(), and the parent wal
 types.md#Graph#born:the app's augmentation	packages/core/tests/types/app/src/sections/graph.types.ts::the app's augmentation	n/a: type-only, no runtime surface
 types.md#Graph#born:an import of @lovrozagar/flare/query	packages/core/tests/types/app/src/sections/graph.types.ts::an import of @lovrozagar/flare/query	n/a: type-only, no runtime surface
 types.md#Graph#born:typeof the route export	packages/core/tests/types/app/src/sections/graph.types.ts::typeof the route export	n/a: type-only, no runtime surface
+types.md#Merge#	packages/core/tests/types/app/src/sections/merge.types.ts::preloader; packages/core/tests/types/app/src/sections/merge-auth.types.ts::auth seed	n/a: type-only, no runtime surface
+types.md#Merge#rule:params before .input()	packages/core/tests/types/app/src/sections/merge.types.ts::params before .input()	n/a: type-only, no runtime surface
+types.md#Merge#rule:.input({ params })	packages/core/tests/types/app/src/sections/merge.types.ts::.input({ params })	n/a: type-only, no runtime surface
+types.md#Merge#rule:.input({ searchParams })	packages/core/tests/types/app/src/sections/merge.types.ts::.input({ searchParams })	n/a: type-only, no runtime surface
+types.md#Merge#rule:.input({})	packages/core/tests/types/app/src/sections/merge.types.ts::.input({})	n/a: the type rejects it; the call's throw is the builder's, chain.test.ts input
+types.md#Merge#rule:search with no validator	packages/core/tests/types/app/src/sections/merge.types.ts::search with no validator	n/a: the type of the raw record; its decoding at runtime is B31's, mapped under routes.md and link.md
+types.md#Merge#rule:search validator output has a required key	packages/core/tests/types/app/src/sections/merge.types.ts::search validator output has a required key	n/a: type-only, no runtime surface
+types.md#Merge#rule:every search key is optional	packages/core/tests/types/app/src/sections/merge.types.ts::every search key is optional	n/a: type-only, no runtime surface
+types.md#Merge#rule:validator output is {}	packages/core/tests/types/app/src/sections/merge.types.ts::validator output is {}	n/a: type-only, no runtime surface
+types.md#Merge#rule:a parent .input()	packages/core/tests/types/app/src/sections/merge.types.ts::a parent .input()	n/a: type-only, no runtime surface
+types.md#Merge#rule:params object	packages/core/tests/types/app/src/sections/merge.types.ts::params object	n/a: type-only, no runtime surface
+types.md#Merge#rule:[[id]] inside the object	packages/core/tests/types/app/src/sections/merge.types.ts::[[id]] inside the object	n/a: type-only, no runtime surface
+types.md#Merge#rule:loader data	packages/core/tests/types/app/src/sections/merge.types.ts::loader data	n/a: type-only, no runtime surface
+types.md#Merge#rule:Promise<{ n: number }>	packages/core/tests/types/app/src/sections/merge.types.ts::Promise<{ n: number }>	n/a: type-only, no runtime surface
+types.md#Merge#rule:Deferred<T>	packages/core/tests/types/app/src/sections/merge.types.ts::Deferred<T>	n/a: type-only, no runtime surface
+types.md#Merge#rule:preloader	packages/core/tests/types/app/src/sections/merge.types.ts::preloader	n/a: type-only, no runtime surface
+types.md#Merge#rule:the same preloader key	packages/core/tests/types/app/src/sections/merge.types.ts::the same preloader key	n/a: type-only, no runtime surface
+types.md#Merge#rule:incompatible preloader types	packages/core/tests/types/app/src/sections/merge.types.ts::incompatible preloader types	n/a: type-only, no runtime surface
+types.md#Merge#rule:a preloader that returns a union	packages/core/tests/types/app/src/sections/merge.types.ts::a preloader that returns a union	n/a: type-only, no runtime surface
+types.md#Merge#rule:a missing parent module	packages/core/tests/types/handwritten/src/sections/merge.types.ts::a missing parent module	n/a: type-only, no runtime surface
+types.md#Merge#rule:root preloader callback	packages/core/tests/types/app/src/sections/merge.types.ts::root preloader callback	n/a: type-only, no runtime surface
+types.md#Merge#rule:auth seed	packages/core/tests/types/app/src/sections/merge-auth.types.ts::auth seed	n/a: type-only, no runtime surface
+types.md#Merge#rule:.authenticate()	packages/core/tests/types/app/src/sections/merge-auth.types.ts::.authenticate()	n/a: type-only, no runtime surface
+types.md#Merge#rule:.authenticateOptional()	packages/core/tests/types/app/src/sections/merge-auth.types.ts::.authenticateOptional()	n/a: type-only, no runtime surface
+types.md#Merge#rule:neither auth method	packages/core/tests/types/app/src/sections/merge-auth.types.ts::neither auth method	n/a: type-only, no runtime surface
+types.md#Merge#rule:a middle file omits both methods	packages/core/tests/types/app/src/sections/merge-auth.types.ts::a middle file omits both methods	n/a: type-only, no runtime surface
+types.md#Merge#rule:.authorize() on a public route	packages/core/tests/types/app/src/sections/merge-auth.types.ts::.authorize() on a public route	n/a: type-only, no runtime surface
+types.md#Merge#rule:ResolvedAuth<true>	packages/core/tests/types/app/src/sections/merge-auth.types.ts::ResolvedAuth<true>	n/a: type-only, no runtime surface
+types.md#Merge#rule:ResolvedAuth<"optional">	packages/core/tests/types/app/src/sections/merge-auth.types.ts::ResolvedAuth<"optional">	n/a: type-only, no runtime surface
+types.md#Merge#rule:ResolvedAuth<false>	packages/core/tests/types/app/src/sections/merge-auth.types.ts::ResolvedAuth<false>	n/a: type-only, no runtime surface
+types.md#Merge#rule:omitted auth	packages/core/tests/types/handwritten/src/sections/merge.types.ts::omitted auth	n/a: type-only, no runtime surface
+types.md#Merge#rule:server function auth	packages/core/tests/types/app/src/sections/merge-auth.types.ts::server function auth	n/a: type-only, no runtime surface
+types.md#Merge#rule:segment	packages/core/tests/types/app/src/sections/merge-auth.types.ts::segment	n/a: type-only, no runtime surface

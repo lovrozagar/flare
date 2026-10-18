@@ -44,9 +44,10 @@
 			}
 		},
 		{
-			"files": ["tests/types/app/src/sections/*.types.ts"],
+			"files": ["tests/types/*/src/sections/*.types.ts"],
 			"rules": {
-				"flare/no-module-side-effects": "off"
+				"flare/no-module-side-effects": "off",
+				"vitest/expect-expect": "off"
 			}
 		},
 		{

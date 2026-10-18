@@ -10,6 +10,7 @@ import { GENERATED } from "../../src/vite/codegen/write.ts"
 // goes to a temp folder under the repo's ignored .tmp, and `rootDirs` lets its `../routes/…` imports reach the
 // fixture's own files, so the committed app has no `_gen`.
 const app = fileURLToPath(new URL("./app", import.meta.url))
+const handwritten = fileURLToPath(new URL("./handwritten", import.meta.url))
 const repo = fileURLToPath(new URL("../../../../", import.meta.url))
 const temp = join(repo, ".tmp", `types-app-${process.pid}`)
 
@@ -78,6 +79,36 @@ it("register checked", () => {
 			)
 		} finally {
 			rmSync(temp, { recursive: true, force: true })
+		}
+	}
+}, 240_000)
+
+// The hand-written fixture: a register codegen never writes, which the dx/types.md Merge rules about a missing parent
+// module and an omitted `auth` read (plan 25 5.2). It compiles under the same flags, with skipLibCheck off and on, and
+// only the directive sentinel fails.
+it("hand-written register", () => {
+	const dir = join(temp, "handwritten")
+	for (const skipLibCheck of [false, true]) {
+		try {
+			mkdirSync(join(dir, "src"), { recursive: true })
+			writeFileSync(join(dir, "src", "checks-unused.ts"), '// @ts-expect-error\nexport const fine: string = "a";\n')
+			const sources = [join(handwritten, "src"), join(dir, "src")]
+			const tsconfig = join(dir, "tsconfig.json")
+			writeFileSync(
+				tsconfig,
+				JSON.stringify({
+					extends: join(handwritten, "tsconfig.json"),
+					compilerOptions: { rootDirs: sources, skipLibCheck },
+					include: sources,
+				}),
+			)
+			const run = spawnSync("bunx", ["tsc", "-p", tsconfig], { cwd: repo, encoding: "utf8" })
+			const errors = run.stdout.split("\n").filter((line) => line.includes("error TS"))
+			expect(errors, `skipLibCheck ${skipLibCheck}`).toEqual([
+				expect.stringMatching(/checks-unused\.ts\(1,1\): error TS2578/),
+			])
+		} finally {
+			rmSync(dir, { recursive: true, force: true })
 		}
 	}
 }, 240_000)
