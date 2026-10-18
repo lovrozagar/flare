@@ -24,7 +24,7 @@ import { answerQueries } from "../render/state.ts"
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts"
 import { clientEntry } from "./build-info.ts"
 import { finalize, type StageResult } from "./finalize.ts"
-import { applyPolicy, isPublic, policyHeaders } from "./policies.ts"
+import { applyPolicy, policyHeaders } from "./policies.ts"
 
 // The rendered-page answers, which createServer routes to: a document, data, and the not-found page (02-system 10-13).
 
@@ -35,7 +35,8 @@ export type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] }
 
 // The request's decision, and the raw params a `cdn.tags` function reads (B32). `rejected` is a deferred value that
 // rejected before a public answer was sent.
-export type Policy = { decision: Decision; params: Record<string, string | string[]>; rejected?: boolean }
+export type { Policy } from "./held.ts"
+import { awaited, rejectedRun, type Policy } from "./held.ts"
 
 // What the decision hands the loaders, and the policy the answer writes.
 export type Prepared = { input: RunInput; policy: Policy }
@@ -70,17 +71,6 @@ export async function decided(exchange: Exchange, matched: Loaded): Promise<Prep
 		input: { ...input, shared: decision.policy === "shared" },
 		policy: { decision, params: definedParams(matched.params) },
 	}
-}
-
-// A public answer, document or data, waits for every deferred value it started, whatever documentResponseDefer
-// says, so a CDN copy holds no hole and no deferred error. A rejection, or a policy already rejected (a live render
-// standing in for a shared one), leaves `private, no-store` (dx/cache.md). "buffer" holds any document the same way.
-// Solid then writes the settled values in the shell (B92). Any other answer streams.
-async function awaited(run: LoaderRun, policy: Policy, buffer: boolean): Promise<Policy> {
-	const route = [run.headers["set-cookie"] ?? []].flat()
-	if (!buffer && !isPublic(withCookies(policy.decision, { route, all: route }))) return policy
-	const results = await Promise.allSettled(run.deferred.map((entry) => entry.promise))
-	return { ...policy, rejected: policy.rejected === true || results.some((result) => result.status === "rejected") }
 }
 
 // The decision, downgraded by a cookie the route sets, writes Cache-Control and Cache-Tag over the answer's
@@ -124,7 +114,8 @@ export async function dataFrom(
 	if (run.response.status !== 200)
 		return bare(routeSecured(exchange, run.security), run, { failed: run.failed?.m, kept })
 	for (const bug of run.bugs) projectError(bug, exchange.sink)
-	const settled = await awaited(run, policy, false)
+	// A data answer carries a rejection as its own `e` frame, which the client paints in place (dx/defer.md).
+	const settled = (await awaited(run, policy, false)).policy
 	const frames = { ...dataFrames(run, skip), queries: answerQueries(exchange.sink) }
 	const body = dataBody({ ...frames, deferred: run.deferred, project: framed(exchange) })
 	const errored = run.frames.some((frame) => frame.t === "e")
@@ -158,8 +149,9 @@ export async function notFound(exchange: Exchange, matched: Loaded): Promise<Res
 
 export async function page(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	const run = await runLoaders(prepared.input)
-	const settled = await awaited(run, prepared.policy, exchange.options.documentResponseDefer === "buffer")
-	return painted(exchange, { chain: matched.chain, run, policy: settled })
+	const held = await awaited(run, prepared.policy, exchange.options.documentResponseDefer === "buffer")
+	const painting = held.rejected === undefined ? run : rejectedRun(run, matched.chain, held.rejected)
+	return painted(exchange, { chain: matched.chain, run: painting, policy: held.policy })
 }
 
 // The document for a finished loader run: the page, or what its failure answers.

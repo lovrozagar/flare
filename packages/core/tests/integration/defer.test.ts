@@ -128,6 +128,25 @@ it("document buffer", async () => {
 	expect(first).toContain("</html>")
 })
 
+// A buffered document has no place for a value that rejected: Solid writes nothing there and the client cannot
+// hydrate it. The rejection is the document error (dx/defer.md): its match fails at 500 with the walked errorRender, and
+// the matches above it render (BUGS.md 370).
+it("document buffer reject", async () => {
+	const page = createPage("_root_/p")
+		.loader(({ defer }) => ({
+			reviews: defer(() => later("five stars", 10), { key: "reviews" }),
+			broken: defer(() => Promise.reject(new Error("service down")), { key: "broken" }),
+		}))
+		.render((props) => [shown(() => props.loaderData.reviews), shown(() => props.loaderData.broken)])
+		.errorRender(() => element("p", "page failed"))
+	const response = await serverFor(page, { documentResponseDefer: "buffer" }).fetch(new Request(`${SITE}/p`))
+	expect(response.status).toBe(500)
+	const body = await response.text()
+	expect(body).toContain("page failed")
+	expect(body).not.toContain("five stars")
+	expect(body).toContain("</html>")
+})
+
 // A stored page, production stubbed: the route's `stream` leaves a hole with no `c` frame, a call's
 // `prerender: "resolve"` is awaited and stored inline, and the fill sends the hole's value with the resolved one as
 // `kept`.
