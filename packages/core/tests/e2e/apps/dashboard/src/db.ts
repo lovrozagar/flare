@@ -154,3 +154,39 @@ export function removeProject(workspaceId: string, id: number): boolean {
 	workspace.projects = workspace.projects.filter((project) => project.id !== id)
 	return workspace.projects.length < before
 }
+
+// A workspace's people, owner first, then by email.
+export function membersOf(workspaceId: string): User[] {
+	const rank = { owner: 0, admin: 1, member: 2 } as const
+	return [...usersById.values()]
+		.filter((user) => user.workspaceId === workspaceId)
+		.toSorted((left, right) => rank[left.role] - rank[right.role] || left.email.localeCompare(right.email))
+}
+
+// An invited email joins the inviter's workspace with a role; signing in with it later lands there, not in a new one.
+export function inviteMember(workspaceId: string, email: string, role: Role): User {
+	const known = users.get(email)
+	if (known !== undefined) return known
+	const id = crypto.randomUUID()
+	const user: User = { id, email, name: nameOf(email), workspaceId, role, version: 1 }
+	users.set(email, user)
+	usersById.set(id, user)
+	return user
+}
+
+export function renameUser(userId: string, name: string): void {
+	const user = usersById.get(userId)
+	if (user !== undefined) user.name = name
+}
+
+export function setPlan(workspaceId: string, plan: Plan): boolean {
+	const workspace = workspaces.get(workspaceId)
+	if (workspace === undefined) return false
+	workspace.plan = plan
+	return true
+}
+
+// A user by email, if they ever signed in or were invited.
+export function signedUpUser(email: string): User | undefined {
+	return users.get(email.toLowerCase())
+}

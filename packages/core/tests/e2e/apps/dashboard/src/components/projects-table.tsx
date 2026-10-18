@@ -253,6 +253,9 @@ export function ProjectsTable(props: { search: ProjectQuery }): JSX.Element {
 				</h1>
 				<div class="flex items-center gap-3">
 					<QuickAdd search={props.search} />
+					<a id="export" href="/app/reports/export.csv" download class="text-sm text-slate-600 underline">
+						Export CSV
+					</a>
 					<Link
 						id="new-project"
 						to="_root_/(app)/projects/new"
