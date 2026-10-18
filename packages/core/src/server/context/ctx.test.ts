@@ -44,6 +44,13 @@ it("returns the value", async () => {
 	expect(seen).toBe(value)
 })
 
+// With no `serverContext` option, `serverCtx()` is an empty record, never `undefined` (dx/types.md `server context
+// omitted`).
+it("omitted is empty", async () => {
+	const seen = await withServerContext({ request, env: {} }, async () => serverCtx(), unreachable)
+	expect(seen).toEqual({})
+})
+
 it("not the event", async () => {
 	const seen = await withServerContext(
 		{ request, env: {}, serverContext: () => ({}) },
