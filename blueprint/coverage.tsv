@@ -709,6 +709,7 @@ types.md#Matrix#case:i18n t hooks	packages/core/tests/types/app/src/sections/mat
 types.md#Matrix#case:defer field	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::defer field	n/a: type-only, no runtime surface
 types.md#Matrix#case:defer nested	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::defer nested	n/a: type-only, no runtime surface
 types.md#Matrix#case:defer no then	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::defer no then	n/a: type-only, no runtime surface
+types.md#Matrix#case:deferred named	packages/core/tests/types/app/src/sections/matrix-hooks.types.ts::deferred named	n/a: type-only, no runtime surface
 types.md#Matrix#case:query options input	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::query options input	packages/core/tests/e2e/docs-data.test.ts::query prefetched
 types.md#Matrix#case:query options void	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::query options void	n/a: no docs page queries a void server function; options.test.ts query void pins that queryFn calls it with no argument
 types.md#Matrix#case:mutation options	packages/core/tests/types/app/src/sections/matrix-fns.types.ts::mutation options	packages/core/tests/e2e/docs-data.test.ts::mutation sets data
