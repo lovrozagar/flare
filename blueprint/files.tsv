@@ -790,6 +790,7 @@ packages/core/tests/types/app/src/register.d.ts	P7	app	-	Augments auth, env, and
 packages/core/tests/types/app/src/checks.ts	P7	app	-	One positive assignment and one @ts-expect-error for every matrix row marked app: the params, `to`, and search rows. checks-data.ts and checks-fns.ts hold the rest, for the 300-line cap
 packages/core/tests/types/app/src/checks-input.ts	P7	app	-	The types.md app rows for where validated params and search come from (BUGS.md 349)
 packages/core/tests/types/app/src/checks-union.ts	P7	app	-	The dx/types.md union output row: a validator whose output is a union with no key in common requires its object and takes either member's shape (BUGS.md 348)
+packages/core/tests/types/app/src/sections/maps.types.ts	P7	app	-	dx/types.md Maps codegen writes, one case per row, against the generated register through the package entry (plan 25 5.2)
 packages/core/tests/types/app/src/validators.ts	P7	app	-	Validators the input pages import or build with a factory (BUGS.md 349)
 packages/core/tests/types/app/src/checks-auth.ts	P7	app	-	The dx/types.md auth seed rows the runtime decides: an ancestor with no auth method and a route under a layout that only authorizes type the session or null (BUGS.md 358)
 packages/core/tests/types/app/src/checks-data.ts	P7	app	-	The app rows for loader data, the preloader context, auth, head, defer, and effects
