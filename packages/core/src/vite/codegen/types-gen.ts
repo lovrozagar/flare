@@ -1,6 +1,6 @@
 import { posix } from "node:path"
 import { langOf } from "../route-meta/index.ts"
-import { parseSync } from "oxc-parser"
+import { parseSync, Visitor } from "oxc-parser"
 import { escapeSource } from "./escape.ts"
 import { generateRoutes } from "./routes.ts"
 import { scanRoute, type Scan } from "./scan.ts"
@@ -127,12 +127,21 @@ function tuple(ids: readonly string[]): string {
 	return `[${ids.map((id) => `"${escapeSource(id)}"`).join(", ")}]`
 }
 
-// The import counts, not the text: a comment or a string that names the package does not (dx/types.md).
+// The import counts, not the text: a comment or a string that names the package does not (dx/types.md). A re-export
+// and a dynamic `import()` of it are module edges too, so the getter can be registered through them (BUGS.md 359).
 function importsQuery(file: string, source: string): boolean {
 	const parsed = parseSync(file, source, { sourceType: "module", lang: langOf(file) })
 	const [error] = parsed.errors
 	if (error !== undefined) throw new Error(`${file}: ${error.message}`)
-	return parsed.program.body.some(
-		(statement) => statement.type === "ImportDeclaration" && statement.source.value === QUERY,
-	)
+	const edge = { found: false }
+	const reach = (from: { value?: unknown } | null | undefined): void => {
+		if (from?.value === QUERY) edge.found = true
+	}
+	new Visitor({
+		ImportDeclaration: (node) => reach(node.source),
+		ExportNamedDeclaration: (node) => reach(node.source),
+		ExportAllDeclaration: (node) => reach(node.source),
+		ImportExpression: (node) => reach(node.source.type === "Literal" ? node.source : undefined),
+	}).visit(parsed.program)
+	return edge.found
 }
