@@ -602,3 +602,14 @@ types.md#Maps codegen writes#field:authModes	packages/core/tests/types/app/src/s
 types.md#Maps codegen writes#field:routeSearchParams	packages/core/tests/types/app/src/sections/maps.types.ts::routeSearchParams	n/a: type-only, no runtime surface
 types.md#Maps codegen writes#field:routeParams	packages/core/tests/types/app/src/sections/maps.types.ts::routeParams	n/a: type-only, no runtime surface
 types.md#Maps codegen writes#field:hasQueryClient	packages/core/tests/types/app/src/sections/maps.types.ts::hasQueryClient	n/a: type-only, no runtime surface
+types.md#Graph#	packages/core/tests/types/app/src/sections/graph.types.ts::graph prose	n/a: type-only, no runtime surface
+types.md#Graph#born:brackets in the route id	packages/core/tests/types/app/src/sections/graph.types.ts::brackets in the route id	n/a: type-only, no runtime surface
+types.md#Graph#born:.input({ params }) on that file	packages/core/tests/types/app/src/sections/graph.types.ts::.input({ params }) on that file	n/a: type-only, no runtime surface
+types.md#Graph#born:.input({ searchParams }) on that file	packages/core/tests/types/app/src/sections/graph.types.ts::.input({ searchParams }) on that file	n/a: type-only, no runtime surface
+types.md#Graph#born:no search validator on that file	packages/core/tests/types/app/src/sections/graph.types.ts::no search validator on that file	n/a: type-only, no runtime surface
+types.md#Graph#born:the loader return	packages/core/tests/types/app/src/sections/graph.types.ts::the loader return	n/a: the type of the value; its crossing of the wire as Date, BigInt, Map, Set, URL, and undefined keys is B145's, pinned in tests/structure/wire.test.ts and mapped under server-fn.md#Wire#
+types.md#Graph#born:each preloader return	packages/core/tests/types/app/src/sections/graph.types.ts::each preloader return	n/a: type-only, no runtime surface
+types.md#Graph#born:.authenticate(), .authenticateOptional(), and the parent walk	packages/core/tests/types/app/src/sections/graph.types.ts::.authenticate(), .authenticateOptional(), and the parent walk	n/a: type-only, no runtime surface
+types.md#Graph#born:the app's augmentation	packages/core/tests/types/app/src/sections/graph.types.ts::the app's augmentation	n/a: type-only, no runtime surface
+types.md#Graph#born:an import of @lovrozagar/flare/query	packages/core/tests/types/app/src/sections/graph.types.ts::an import of @lovrozagar/flare/query	n/a: type-only, no runtime surface
+types.md#Graph#born:typeof the route export	packages/core/tests/types/app/src/sections/graph.types.ts::typeof the route export	n/a: type-only, no runtime surface
