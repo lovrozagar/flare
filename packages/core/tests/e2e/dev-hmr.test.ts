@@ -23,6 +23,11 @@ async function edit(page: Page, at: { file: string; change: (text: string) => st
 // 278).
 const CUT_SHORT = "Loading failed for the module with source"
 
+// Mac WebKit logs a fetch a reload cut short as "Fetch API cannot load <url> due to access control checks.", which
+// Playwright's WebKit driver reports as a page error, as it does every console error of source `javascript`. Like
+// Firefox's warning above, it marks a load an edit's reload cut short, never on the first load (BUGS.md 371).
+const CUT_SHORT_FETCH = "due to access control checks"
+
 // The `full-reload` frames Vite's socket sends the page, counted from before its first load: each reload opens a new
 // socket, and each is watched.
 function reloadFrames(page: Page): { count: number } {
@@ -95,7 +100,8 @@ test("route, layout, and new server function", async ({ page }, info) => {
 				await expect(page.locator("#echo")).toHaveText("loud", { timeout: 1000 })
 			},
 		})
-		expect(problems.filter((problem) => !problem.includes("[vite]") && !problem.includes(CUT_SHORT))).toEqual([])
+		const cutShort = (problem: string): boolean => problem.includes(CUT_SHORT) || problem.includes(CUT_SHORT_FETCH)
+		expect(problems.filter((problem) => !problem.includes("[vite]") && !cutShort(problem))).toEqual([])
 	} finally {
 		await session.close()
 	}
