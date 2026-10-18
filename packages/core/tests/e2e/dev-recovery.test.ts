@@ -21,14 +21,15 @@ test("load error recovers", async ({ page }, info) => {
 		expect((await failure).status()).toBe(500)
 		await expect(page.locator("vite-error-overlay")).toHaveCount(1)
 		await page.evaluate(() => Object.assign(window, { failedPage: true }))
-		// The watcher drops a second change to a file within 50 ms of the first, as when an editor writes twice, so the
-		// fix is saved again until a save lands: a person's fix comes seconds after the break.
-		await expect
-			.poll(async () => {
-				writeFileSync(file, source)
-				return await page.locator("pre").count()
-			})
-			.toBe(0)
+		// The fix is saved once, after the overlay showed, so well past the watcher's 50 ms window for a second change
+		// to the same file; its reload is the next document answered 200. Saving it again and again, as a poll did, set
+		// off a reload per save that cut the recovered page's own load short on a slow runner (BUGS.md 366).
+		const recovered = page.waitForResponse(
+			(response) => response.request().resourceType() === "document" && response.status() === 200,
+		)
+		writeFileSync(file, source)
+		await recovered
+		await expect(page.locator("pre")).toHaveCount(0)
 		await expect(page.locator("body")).toContainText("About")
 		await expect(page.locator("vite-error-overlay")).toHaveCount(0)
 		expect(await page.evaluate(() => Reflect.get(window, "failedPage"))).toBeUndefined()
