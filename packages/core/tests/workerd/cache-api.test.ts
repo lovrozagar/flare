@@ -2,18 +2,21 @@ import { spawnSync } from "node:child_process"
 import { mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { Miniflare } from "miniflare"
-import { afterAll, expect, it } from "vitest"
+import { convertV4MiniflareOptions, Miniflare } from "miniflare"
+import { afterAll, beforeAll, expect, it } from "vitest"
 
 const src = (path: string): string => JSON.stringify(fileURLToPath(new URL(`../../src/${path}`, import.meta.url)))
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run-cache")
-await rm(root, { recursive: true, force: true })
-await mkdir(root, { recursive: true })
-const entry = join(root, "entry.ts")
-await writeFile(
-	entry,
-	`import { createCacheApiStore } from ${src("adapters/stores/cache-api/store.ts")};
+
+// The worker under test: Flare's Cache API store and purge, bundled for workerd.
+async function start(): Promise<Miniflare> {
+	await rm(root, { recursive: true, force: true })
+	await mkdir(root, { recursive: true })
+	const entry = join(root, "entry.ts")
+	await writeFile(
+		entry,
+		`import { createCacheApiStore } from ${src("adapters/stores/cache-api/store.ts")};
 import { lookup } from ${src("server/cache/epoch.ts")};
 import { createRevalidateFn } from ${src("server/cache/revalidate.ts")};
 
@@ -31,29 +34,52 @@ export default {
 		return Response.json({ before: before?.purged, tagged: tagged?.purged, keyed });
 	},
 };
-`,
-)
+	`,
+	)
 
-const worker = join(root, "worker.js")
-const built = spawnSync("bun", ["build", entry, "--outfile", worker, "--format=esm", "--target=browser"], {
-	encoding: "utf8",
-})
-if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
+	const worker = join(root, "worker.js")
+	const built = spawnSync("bun", ["build", entry, "--outfile", worker, "--format=esm", "--target=browser"], {
+		encoding: "utf8",
+	})
+	if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
+	return new Miniflare(
+		convertV4MiniflareOptions({ modules: true, scriptPath: worker, compatibilityDate: "2026-07-10" }),
+	)
+}
 
-const mf = new Miniflare({ modules: true, scriptPath: worker, compatibilityDate: "2026-07-10" })
+// Miniflare 5's dispatchFetch routes a request to workerd through an undici dispatcher, which Bun's fetch ignores, so
+// under Bun the request leaves for its own host: the cases that dispatch run under Node, where the worker under test runs
+// in workerd all the same (BUGS.md 377).
+const dispatches = Reflect.get(globalThis, "Bun") === undefined
+
+// The runtime, started only when a case runs: a run with every case skipped leaves nothing behind.
+let mf: Miniflare | undefined
+
+function runtime(): Miniflare {
+	if (mf === undefined) throw new Error("workerd did not start")
+	return mf
+}
+
+beforeAll(async () => {
+	mf = await start()
+}, 60_000)
 
 afterAll(async () => {
-	await mf.dispose()
+	await mf?.dispose()
 	await rm(root, { recursive: true, force: true })
 })
 
 // Tombstones and epochs round-trip through workerd's own Cache API: a tag purge makes the next read a miss, and a
 // key purge leaves the tombstone in the cache, with no key listing (dx/store.md).
-it("real cache", async () => {
-	const response = await mf.dispatchFetch("https://example.com/")
-	expect(await response.json()).toEqual({
-		before: false,
-		tagged: true,
-		keyed: { data: { tombstone: true }, storedAt: expect.any(Number) },
-	})
-}, 20000)
+it.runIf(dispatches)(
+	"real cache",
+	async () => {
+		const response = await runtime().dispatchFetch("https://example.com/")
+		expect(await response.json()).toEqual({
+			before: false,
+			tagged: true,
+			keyed: { data: { tombstone: true }, storedAt: expect.any(Number) },
+		})
+	},
+	20000,
+)

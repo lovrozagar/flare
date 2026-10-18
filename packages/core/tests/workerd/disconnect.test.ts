@@ -1,5 +1,5 @@
 import { Agent, request } from "node:http"
-import { Miniflare } from "miniflare"
+import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { expect, it } from "vitest"
 
 // A worker with no Flare code: it streams a line every 100 ms, records when its request's signal aborts and when its
@@ -27,7 +27,9 @@ export default {
 };`
 
 async function seenAfterStop(flags: string[], wrap: boolean): Promise<string> {
-	const runtime = new Miniflare({ modules: true, script, compatibilityDate: "2026-07-01", compatibilityFlags: flags })
+	const runtime = new Miniflare(
+		convertV4MiniflareOptions({ modules: true, script, compatibilityDate: "2026-07-01", compatibilityFlags: flags }),
+	)
 	try {
 		const origin = await runtime.ready
 		const stop = new AbortController()
@@ -73,7 +75,9 @@ function post(origin: URL, agent: Agent): Promise<string> {
 // release keeps the connection, this turns red: that is the cue to give the rejected POSTs in `docs-resilience`
 // `csrf headers` their body back (dx/adapters.md, BUGS.md B56).
 it("miniflare resets unread body", { timeout: 30_000 }, async () => {
-	const runtime = new Miniflare({ modules: true, script: early, compatibilityDate: "2026-07-01" })
+	const runtime = new Miniflare(
+		convertV4MiniflareOptions({ modules: true, script: early, compatibilityDate: "2026-07-01" }),
+	)
 	const agent = new Agent({ keepAlive: true, maxSockets: 1 })
 	try {
 		const origin = await runtime.ready

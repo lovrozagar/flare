@@ -2,22 +2,16 @@ import { spawnSync } from "node:child_process"
 import { mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { Miniflare } from "miniflare"
-import { afterAll, expect, it } from "vitest"
+import { convertV4MiniflareOptions, Miniflare } from "miniflare"
+import { afterAll, beforeAll, expect, it } from "vitest"
 
 const handlerPath = fileURLToPath(new URL("../../src/adapters/workers/handler.ts", import.meta.url))
 const finalizePath = fileURLToPath(new URL("../../src/server/lifecycle/finalize.ts", import.meta.url))
 
 const root = join(fileURLToPath(new URL(".", import.meta.url)), ".run")
-await rm(root, { recursive: true, force: true })
-await mkdir(root, { recursive: true })
-const assets = join(root, "assets")
-await mkdir(join(assets, "a"), { recursive: true })
-await writeFile(join(assets, "a", "static.txt"), "canonical-asset")
-const entry = join(root, "entry.ts")
-await writeFile(
-	entry,
-	`import { createWorkersHandler } from ${JSON.stringify(handlerPath)};
+
+// The worker's source: a server whose routes the cases call, behind createWorkersHandler with an assets binding.
+const ENTRY = `import { createWorkersHandler } from ${JSON.stringify(handlerPath)};
 import { markUnmatched, rewrapWatch } from ${JSON.stringify(finalizePath)};
 
 const server = {
@@ -47,55 +41,95 @@ export default {
 		return handler.fetch(request, env, ctx);
 	},
 };
-`,
-)
+	`
 
-const worker = join(root, "worker.js")
-const built = spawnSync("bun", ["build", entry, "--outfile", worker, "--format=esm", "--target=browser"], {
-	encoding: "utf8",
-})
-if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
+// The worker under test: createWorkersHandler over a server, bundled for workerd with its assets beside it.
+async function start(): Promise<Miniflare> {
+	await rm(root, { recursive: true, force: true })
+	await mkdir(root, { recursive: true })
+	const assets = join(root, "assets")
+	await mkdir(join(assets, "a"), { recursive: true })
+	await writeFile(join(assets, "a", "static.txt"), "canonical-asset")
+	const entry = join(root, "entry.ts")
+	await writeFile(entry, ENTRY)
+
+	const worker = join(root, "worker.js")
+	const built = spawnSync("bun", ["build", entry, "--outfile", worker, "--format=esm", "--target=browser"], {
+		encoding: "utf8",
+	})
+	if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
+	return new Miniflare(
+		convertV4MiniflareOptions({
+			modules: true,
+			scriptPath: join(root, "worker.js"),
+			compatibilityDate: "2026-07-10",
+			assets: {
+				directory: assets,
+				binding: "ASSETS",
+				routerConfig: { invoke_user_worker_ahead_of_assets: true, has_user_worker: true },
+			},
+			serviceBindings: {
+				PING() {
+					pinged = true
+					return new Response("pong")
+				},
+			},
+		}),
+	)
+}
 
 let pinged = false
-const mf = new Miniflare({
-	modules: true,
-	scriptPath: join(root, "worker.js"),
-	compatibilityDate: "2026-07-10",
-	assets: {
-		directory: assets,
-		binding: "ASSETS",
-		routerConfig: { invoke_user_worker_ahead_of_assets: true, has_user_worker: true },
-	},
-	serviceBindings: {
-		PING() {
-			pinged = true
-			return new Response("pong")
-		},
-	},
-})
+// Miniflare 5's dispatchFetch routes a request to workerd through an undici dispatcher, which Bun's fetch ignores, so
+// under Bun the request leaves for its own host: the cases that dispatch run under Node, where the worker under test runs
+// in workerd all the same (BUGS.md 377).
+const dispatches = Reflect.get(globalThis, "Bun") === undefined
+
+// The runtime, started only when a case runs: a run with every case skipped leaves nothing behind.
+let mf: Miniflare | undefined
+
+function runtime(): Miniflare {
+	if (mf === undefined) throw new Error("workerd did not start")
+	return mf
+}
+
+beforeAll(async () => {
+	mf = await start()
+}, 60_000)
 
 afterAll(async () => {
-	await mf.dispose()
+	await mf?.dispose()
 	await rm(root, { recursive: true, force: true })
 })
 
-it("real binding", async () => {
-	const response = await mf.dispatchFetch("https://example.com/a//static.txt")
-	expect(response.status).toBe(200)
-	expect(await response.text()).toBe("canonical-asset")
-}, 20000)
+it.runIf(dispatches)(
+	"real binding",
+	async () => {
+		const response = await runtime().dispatchFetch("https://example.com/a//static.txt")
+		expect(response.status).toBe(200)
+		expect(await response.text()).toBe("canonical-asset")
+	},
+	20000,
+)
 
-it("waitUntil", async () => {
-	pinged = false
-	const response = await mf.dispatchFetch("https://example.com/background")
-	expect(response.status).toBe(200)
-	await new Promise((resolve) => setTimeout(resolve, 200))
-	expect(pinged).toBe(true)
-}, 20000)
+it.runIf(dispatches)(
+	"waitUntil",
+	async () => {
+		pinged = false
+		const response = await runtime().dispatchFetch("https://example.com/background")
+		expect(response.status).toBe(200)
+		await new Promise((resolve) => setTimeout(resolve, 200))
+		expect(pinged).toBe(true)
+	},
+	20000,
+)
 
 // A middleware's `new Response(response.body, response)` of the not-found answer still reaches the binding under
 // workerd: the rewrap keeps the body stream the mark is read through (BUGS.md 272).
-it("rewrapped unmatched", async () => {
-	const response = await mf.dispatchFetch("https://example.com/a/static.txt?rewrap=1")
-	expect([response.status, await response.text()]).toEqual([200, "canonical-asset"])
-}, 20000)
+it.runIf(dispatches)(
+	"rewrapped unmatched",
+	async () => {
+		const response = await runtime().dispatchFetch("https://example.com/a/static.txt?rewrap=1")
+		expect([response.status, await response.text()]).toEqual([200, "canonical-asset"])
+	},
+	20000,
+)

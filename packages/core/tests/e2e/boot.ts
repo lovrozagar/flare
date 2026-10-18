@@ -6,7 +6,7 @@ import { StringDecoder } from "node:string_decoder"
 import { join, resolve } from "node:path"
 import type { Readable } from "node:stream"
 import { fileURLToPath } from "node:url"
-import { Miniflare } from "miniflare"
+import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { unstable_getMiniflareWorkerOptions } from "wrangler"
 import { exited, exitOf, readOrigin, signalGroup } from "./child.ts"
 
@@ -31,11 +31,11 @@ export type Boot = {
 // ANSI escape sequences: Bun colors console.error when the environment forces color, as Playwright's workers do.
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`, "g")
 
-function capture(): { attach: (stream: Readable | null) => void; logs: () => readonly string[] } {
+function capture() {
 	const lines: string[] = []
 	const pending: string[] = []
 	return {
-		attach(stream) {
+		attach(stream: Readable | null) {
 			const decoder = new StringDecoder("utf8")
 			const slot = pending.push("") - 1
 			stream?.on("data", (chunk: Buffer) => {
@@ -44,6 +44,7 @@ function capture(): { attach: (stream: Readable | null) => void; logs: () => rea
 				lines.push(...parts.map((line) => line.replaceAll(ANSI, "")))
 			})
 		},
+		line: (text: string) => void lines.push(...text.replaceAll(ANSI, "").split("\n")),
 		logs: () => [...lines, ...pending.filter((line) => line !== "").map((line) => line.replaceAll(ANSI, ""))],
 	}
 }
@@ -196,19 +197,18 @@ async function bootWorkers(input: { appDir: string; cacheDir: string; outDir: st
 	if (deploy.main === undefined) throw new Error(`${server}/wrangler.json names no main`)
 	const output = capture()
 	const options = deploy.workerOptions
-	const runtime = new Miniflare({
-		...options,
-		// The plugin's output is unbundled (`no_bundle`): every module file ships, the lazy route chunks among them.
-		modules: modulesOf(server, resolve(server, deploy.main)),
-		modulesRoot: server,
-		// workerd's own stdout and stderr, where the worker's console goes, are captured like a child's.
-		handleRuntimeStdio: (stdout: Readable, stderr: Readable) => {
-			output.attach(stdout)
-			output.attach(stderr)
-		},
-		// The docs and dashboard apps' e2e-only controls answer only under this flag.
-		bindings: { ...options.bindings, FLARE_E2E: "1" },
-	})
+	const runtime = new Miniflare(
+		convertV4MiniflareOptions({
+			...options,
+			// The plugin's output is unbundled (`no_bundle`): every module file ships, the lazy route chunks among them.
+			modules: modulesOf(server, resolve(server, deploy.main)),
+			modulesRoot: server,
+			// The worker's console, which Miniflare 5 parses out of workerd's output as structured logs (BUGS.md 377).
+			handleStructuredLogs: ({ message }: { message: string }) => output.line(message),
+			// The docs and dashboard apps' e2e-only controls answer only under this flag.
+			bindings: Object.assign({}, options.bindings, { FLARE_E2E: "1" }),
+		}),
+	)
 	const clean = (): void => remove([input.cacheDir, input.outDir])
 	try {
 		const url = await runtime.ready

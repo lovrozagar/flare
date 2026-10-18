@@ -8,6 +8,7 @@ import {
 	nonces,
 	open,
 	prodOnly,
+	serverOf,
 	sessionCookie,
 	test,
 	wire,
@@ -151,8 +152,11 @@ test("request socket per call", async ({ http }) => {
 })
 
 // A server that declares no proxy hop ignores a client's own `X-Forwarded-Proto` (dx/adapters.md `trustProxy`, default
-// 0): the page over plain http gets no Strict-Transport-Security, on every runtime.
-test("forwarded proto untrusted", async ({ http, docs }) => {
+// 0): the page over plain http gets no Strict-Transport-Security. On Workers the URL is the edge's; Miniflare 5, which
+// workers-prod connects to directly, plays a TLS-terminating proxy and takes the scheme from that header before the
+// worker runs, so there the Workers adapter's own case is tests/workerd `worker forwarded proto` (BUGS.md 377).
+test("forwarded proto untrusted", async ({ http, docs }, info) => {
+	test.skip(serverOf(info) === "workers-prod", "Miniflare 5 reads X-Forwarded-Proto before the worker")
 	const response = await http.get(`${docs.origin}/`, { headers: { "x-forwarded-proto": "https" } })
 	expect(response.status()).toBe(200)
 	expect(response.headers()["strict-transport-security"]).toBeUndefined()

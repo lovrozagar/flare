@@ -5,7 +5,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { gzipSync } from "node:zlib"
-import { Miniflare } from "miniflare"
+import { convertV4MiniflareOptions, Miniflare } from "miniflare"
 import { afterAll, expect, it } from "vitest"
 
 // The real `createServer` behind `createWorkersHandler` in workerd (B96, dx/adapters.md Workers): a worker bundled
@@ -89,17 +89,24 @@ const built = spawnSync(
 )
 if (built.status !== 0) throw new Error(built.stderr || "workerd bundle failed")
 
-const mf = new Miniflare({
-	modules: true,
-	scriptPath: join(root, "worker.js"),
-	compatibilityDate: "2026-07-10",
-	compatibilityFlags: ["nodejs_compat"],
-	assets: {
-		directory: join(root, "assets"),
-		binding: "ASSETS",
-		routerConfig: { invoke_user_worker_ahead_of_assets: true, has_user_worker: true },
-	},
-})
+// Miniflare 5's dispatchFetch routes a request to workerd through an undici dispatcher, which Bun's fetch ignores, so
+// under Bun the request leaves for its own host: the cases that dispatch run under Node, where the worker under test runs
+// in workerd all the same (BUGS.md 377).
+const dispatches = Reflect.get(globalThis, "Bun") === undefined
+
+const mf = new Miniflare(
+	convertV4MiniflareOptions({
+		modules: true,
+		scriptPath: join(root, "worker.js"),
+		compatibilityDate: "2026-07-10",
+		compatibilityFlags: ["nodejs_compat"],
+		assets: {
+			directory: join(root, "assets"),
+			binding: "ASSETS",
+			routerConfig: { invoke_user_worker_ahead_of_assets: true, has_user_worker: true },
+		},
+	}),
+)
 
 afterAll(async () => {
 	await mf.dispose()
@@ -109,32 +116,43 @@ afterAll(async () => {
 
 // `fetch` calls the server's fetch: the page renders in workerd as production. A stored render's write to the Cache
 // API is work the handler hands `ctx.waitUntil`, and a live page hands none; the next request is a hit.
-it("worker server", async () => {
-	const page = await mf.dispatchFetch("https://example.com/")
-	expect(page.status).toBe(200)
-	expect(await page.text()).toContain("worker home")
-	// Production: the CSP lacks the 'unsafe-eval' dev adds for Vite. HSTS is not the proof here, since under the Bun
-	// runtime Miniflare hands workerd the request as http.
-	expect(page.headers.get("content-security-policy")).not.toContain("'unsafe-eval'")
-	const first = await mf.dispatchFetch("https://example.com/stored")
-	expect([first.status, first.headers.get("flare-cache")]).toEqual([200, "miss"])
-	await first.text()
-	await expect
-		.poll(async () => (await mf.dispatchFetch("https://example.com/stored")).headers.get("flare-cache"))
-		.toBe("hit")
-	const handed: unknown = await (await mf.dispatchFetch("https://example.com/__handed")).json()
-	expect(Object.keys(Object(handed))).toEqual(["/stored"])
-	expect(Reflect.get(Object(handed), "/stored")).toBeGreaterThan(0)
-}, 30_000)
+it.runIf(dispatches)(
+	"worker server",
+	async () => {
+		const page = await mf.dispatchFetch("https://example.com/")
+		expect(page.status).toBe(200)
+		expect(await page.text()).toContain("worker home")
+		// Production: the CSP lacks the 'unsafe-eval' dev adds for Vite. HSTS is not the proof here, since under the Bun
+		// runtime Miniflare hands workerd the request as http.
+		expect(page.headers.get("content-security-policy")).not.toContain("'unsafe-eval'")
+		const first = await mf.dispatchFetch("https://example.com/stored")
+		expect([first.status, first.headers.get("flare-cache")]).toEqual([200, "miss"])
+		await first.text()
+		await expect
+			.poll(async () => (await mf.dispatchFetch("https://example.com/stored")).headers.get("flare-cache"))
+			.toBe("hit")
+		const handed: unknown = await (await mf.dispatchFetch("https://example.com/__handed")).json()
+		expect(Object.keys(Object(handed))).toEqual(["/stored"])
+		expect(Reflect.get(Object(handed), "/stored")).toBeGreaterThan(0)
+	},
+	30_000,
+)
 
-// On Workers the URL is the edge's, so a hostile Host header never routes to another page (BUGS.md 150). Two outcomes
-// occur: under Node, Miniflare replaces the header on the way in and the home page answers 200; under Bun it forwards
-// the header as-is and workerd rejects it before Flare runs ("invalid hostname when stringifying URL"), a 500.
-it("worker host", async () => {
+// The Workers adapter reads the scheme only from the request's URL, the edge's, never from a client's
+// `X-Forwarded-Proto`: a page over plain http gets no Strict-Transport-Security (dx/adapters.md, BUGS.md 377).
+it.runIf(dispatches)("worker forwarded proto", async () => {
+	const page = await mf.dispatchFetch("http://example.com/", { headers: { "x-forwarded-proto": "https" } })
+	expect([page.status, page.headers.get("strict-transport-security")]).toEqual([200, null])
+	await page.body?.cancel()
+})
+
+// On Workers the URL is the edge's, so a hostile Host header never routes to another page (BUGS.md 150): Miniflare
+// replaces the header on the way in, and the home page answers 200.
+it.runIf(dispatches)("worker host", async () => {
 	const page = await mf.dispatchFetch("https://example.com/", { headers: { host: "evil.example/stored?" } })
 	const text = await page.text()
 	expect(text).not.toContain("stored page")
-	expect(page.status === 200 ? text.includes("worker home") : page.status >= 400).toBe(true)
+	expect([page.status, text.includes("worker home")]).toEqual([200, true])
 })
 
 // A raw request line to workerd's own socket: the status line and the body, so no client parses the URL first.
@@ -162,19 +180,23 @@ it("worker backslash", async () => {
 
 // After routing, an unmatched GET or HEAD goes to the binding, and a file comes back untouched; a path the binding
 // lacks is the app's own 404 with its security headers; an unmatched POST is 405 and never reaches the binding.
-it("worker assets", async () => {
-	const file = await mf.dispatchFetch("https://example.com/a/static.txt")
-	expect([file.status, await file.text()]).toEqual([200, "canonical-asset"])
-	const head = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "HEAD" })
-	expect(head.status).toBe(200)
-	const missing = await mf.dispatchFetch("https://example.com/nope")
-	expect(missing.status).toBe(404)
-	expect(missing.headers.get("x-content-type-options")).toBe("nosniff")
-	await missing.text()
-	const post = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "POST", body: "x" })
-	expect(post.status).toBe(405)
-	expect(await post.text()).not.toBe("canonical-asset")
-}, 30_000)
+it.runIf(dispatches)(
+	"worker assets",
+	async () => {
+		const file = await mf.dispatchFetch("https://example.com/a/static.txt")
+		expect([file.status, await file.text()]).toEqual([200, "canonical-asset"])
+		const head = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "HEAD" })
+		expect(head.status).toBe(200)
+		const missing = await mf.dispatchFetch("https://example.com/nope")
+		expect(missing.status).toBe(404)
+		expect(missing.headers.get("x-content-type-options")).toBe("nosniff")
+		await missing.text()
+		const post = await mf.dispatchFetch("https://example.com/a/static.txt", { method: "POST", body: "x" })
+		expect(post.status).toBe(405)
+		expect(await post.text()).not.toBe("canonical-asset")
+	},
+	30_000,
+)
 
 // A gzip Response from `fetch()`, returned as-is: workerd's fetch decoded the body, and the client reads it intact
 // with no Content-Encoding, as on Node and Bun (plan 21 8.8, tests/integration/fetched.test.ts).
@@ -184,7 +206,7 @@ it("worker fetched", async () => {
 
 // A callback that fails past every stage, here a server function module that fails to import, is the server's logged
 // 500 with its security headers, not a rejected fetch that workerd shows as error 1101 (plan 21 9.1, BUGS.md 202).
-it("worker boundary", async () => {
+it.runIf(dispatches)("worker boundary", async () => {
 	const broken = await mf.dispatchFetch("https://example.com/_flare/fn/broken0123456789", {
 		method: "POST",
 		headers: { origin: "https://example.com" },
