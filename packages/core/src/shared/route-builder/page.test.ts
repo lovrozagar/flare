@@ -1,6 +1,14 @@
 import { createLayout } from "./layout.ts"
 import type { LoaderDataOf, ParamsOutput, RawSearch, SearchOutput } from "./register.ts"
-import type { InitialState, ParentAuth, ParentContext, RouteBuilder, TypedRecord, With } from "./route-types.ts"
+import type {
+	InitialState,
+	ParentAuth,
+	ParentContext,
+	RouteBuilder,
+	SeedGone,
+	TypedRecord,
+	With,
+} from "./route-types.ts"
 import { createRootLayout } from "./root-layout.ts"
 import { expect, expectTypeOf, it } from "vitest"
 import { createPage } from "./page.ts"
@@ -115,9 +123,12 @@ it("typed contexts", () => {
 		void props.children
 		return null
 	})
-	// A route whose parents require auth cannot loosen to optional.
-	type Required = RouteBuilder<With<InitialState<"_root_/a", false>, "auth", true>, "page">
-	expectTypeOf<Parameters<Required["authenticateOptional"]>>().toEqualTypeOf<[never]>()
+	// A route whose parents require auth cannot loosen to optional: its builder starts with the method gone, and a
+	// public route's keeps it (dx/types.md `cannot loosen`, BUGS.md 354).
+	expectTypeOf<SeedGone<"_root_/(g)/x", App>>().toEqualTypeOf<"authenticateOptional">()
+	expectTypeOf<SeedGone<"_root_/a", App>>().toBeNever()
+	type Required = RouteBuilder<With<InitialState<"_root_/a", false>, "auth", true>, "page", "authenticateOptional">
+	expectTypeOf<Required>().not.toHaveProperty("authenticateOptional")
 	expectTypeOf<ParentAuth<App, "_root_/(g)/x">>().toEqualTypeOf<true>()
 	expectTypeOf<ParentContext<App, "_root_/(g)/x">["a"]>().toEqualTypeOf<1>()
 	expectTypeOf<ParentContext<App, "_root_/(g)/x">["b"]>().toEqualTypeOf<2>()

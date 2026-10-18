@@ -257,10 +257,10 @@ type Next<K extends RouteKind> = <T extends RouteState>() => RouteBuilder<T, K>
 
 // Every typed step but `render` forwards to the chain and returns the next builder. The names are ORDER's keys
 // between a page's own two steps and `render`.
-function forwarded<S extends RouteState, K extends RouteKind>(
+function forwarded<S extends RouteState, K extends RouteKind, G extends string>(
 	chain: Chain,
 	next: Next<K>,
-): Pick<BuilderSteps<S, K>, Exclude<keyof BuilderSteps<S, K>, "render">>
+): Pick<BuilderSteps<S, K, G>, Exclude<keyof BuilderSteps<S, K, G>, "render">>
 function forwarded(chain: Chain, next: () => unknown): object {
 	return Object.fromEntries(
 		Object.keys(ORDER)
@@ -274,14 +274,15 @@ function forwarded(chain: Chain, next: () => unknown): object {
 }
 
 // One chain behind every typed builder. A typed step stores on the chain and returns `next()`, a builder of the new
-// state over the same chain, so the type changes without a cast. `finish` builds the record render returns.
-export function typedSteps<S extends RouteState, K extends RouteKind>(
+// state over the same chain, so the type changes without a cast. `finish` builds the record render returns. `G` is
+// the steps already gone, which the builder's type leaves out.
+export function typedSteps<S extends RouteState, K extends RouteKind, G extends string = never>(
 	chain: Chain,
 	next: Next<K>,
 	finish: () => RouteRecord & { readonly _type: K },
-): BuilderSteps<S, K> {
+): BuilderSteps<S, K, G> {
 	return {
-		...forwarded<S, K>(chain, next),
+		...forwarded<S, K, G>(chain, next),
 		render(fn) {
 			chain.render(fn)
 			return withBoundaries<RouteRecord & TypedRecord<S, K>, { params: S["params"]; search: S["search"] }>(finish())
