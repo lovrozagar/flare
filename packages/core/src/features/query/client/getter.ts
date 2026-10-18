@@ -1,6 +1,7 @@
 import { getRequestEvent, isServer } from "@solidjs/web"
 import { dehydrate, hydrate, QueryClient, type Query } from "@tanstack/solid-query"
 import { registeredQuery, registerQuery, type QueryGetter } from "../../../shared/protocol/index.ts"
+import { fromWire, toWire } from "../../../shared/protocol/value.ts"
 
 // A loader's `ctx.queryClient` is TanStack's client once the app imports `./query`, which loads this module
 // (dx/types.md `query client present`). Core declares the empty register and never names TanStack.
@@ -18,6 +19,12 @@ class RequestQueries {
 	readonly succeeded = new Map<string, Query>()
 	constructor(readonly client: QueryClient) {}
 }
+
+// A query's data is an app value, so it travels as every other one does (B145): the server dehydrates it with the
+// wire codec, and the client hydrates it back, a Date as a Date, whether the document or a navigation carried it
+// (BUGS.md 364). TanStack's own `serializeData` and `deserializeData` carry the codec.
+const TO_WIRE = { serializeData: toWire }
+const FROM_WIRE = { defaultOptions: { deserializeData: fromWire } }
 
 // Marks a getter this module made, so the registered one can be returned with its type.
 const BRAND = Symbol.for("flare.query.getter")
@@ -53,7 +60,7 @@ export function createQueryClientGetter(): () => QueryClient {
 		// visitor's, so they go, not refetch while showing (B133).
 		clear: () => documentClient?.clear(),
 		// A navigation's queries, at its commit. TanStack keeps a query whose client data is newer (B134).
-		hydrate: (state: unknown) => hydrate(getter(), state as Parameters<typeof hydrate>[1]),
+		hydrate: (state: unknown) => hydrate(getter(), state as Parameters<typeof hydrate>[1], FROM_WIRE),
 		[BRAND]: true,
 	})
 	registerQuery(created)
@@ -90,8 +97,8 @@ function requestState(request: RequestQueries): ReturnType<typeof dehydrate> {
 	const cleared = new QueryClient()
 	for (const query of request.succeeded.values())
 		if (request.client.getQueryCache().get(query.queryHash) === undefined) cleared.getQueryCache().add(query)
-	const live = dehydrate(request.client)
-	return { ...live, queries: [...live.queries, ...dehydrate(cleared).queries] }
+	const live = dehydrate(request.client, TO_WIRE)
+	return { ...live, queries: [...live.queries, ...dehydrate(cleared, TO_WIRE).queries] }
 }
 
 // The document's `queries`, which the server wrote into the state script, fill the client before hydrate, so a query
@@ -103,7 +110,7 @@ function seeded(phase: { hydrated: boolean }): QueryClient {
 	const filled = new Set(documentHashes(state))
 	const refetchOnMount = (query: { queryHash: string }): boolean => phase.hydrated || !filled.has(query.queryHash)
 	const client = new QueryClient({ defaultOptions: { queries: { refetchOnMount } } })
-	if (typeof state === "object" && state !== null) hydrate(client, state)
+	if (typeof state === "object" && state !== null) hydrate(client, state, FROM_WIRE)
 	return client
 }
 

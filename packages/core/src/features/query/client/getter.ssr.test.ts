@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/solid-query"
 import { afterEach, expect, it } from "vitest"
 import { withServerContext } from "../../../server/context/ctx.ts"
 import { QUERY_GETTER, registeredQuery } from "../../../shared/protocol/query.ts"
+import { fromWire } from "../../../shared/protocol/value.ts"
 import { createQueryClientGetter } from "./getter.ts"
 
 // The getter on Solid's server build. The client rows are getter.test.ts.
@@ -56,4 +57,17 @@ it("cleared before dehydrate", async () => {
 	const hashes = Reflect.get(Object(state), "queries").map((query: { queryHash: string }) => query.queryHash)
 	expect(hashes).toEqual(['["search","route"]'])
 	expect(JSON.stringify(state)).toContain("hits")
+})
+
+// A query's data is an app value, so the document state carries it on the wire, as a loader's data and a server
+// function's answer travel: a Date the server cached is a Date where the client reads it (B145, BUGS.md 364).
+it("dehydrate wire values", async () => {
+	const getQueryClient = createQueryClientGetter()
+	const when = new Date("2026-10-01T00:00:00.000Z")
+	const state = await inRequest(() => {
+		getQueryClient().setQueryData(["when"], { when, tags: new Set(["a"]) })
+		return registeredQuery()?.dehydrate()
+	})
+	const [query] = Reflect.get(Object(JSON.parse(JSON.stringify(state))), "queries") as { state: { data: unknown } }[]
+	expect(fromWire(query?.state.data)).toEqual({ when, tags: new Set(["a"]) })
 })
