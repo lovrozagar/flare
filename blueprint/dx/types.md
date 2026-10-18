@@ -232,7 +232,7 @@ The client type of a server function is `(input: TInput) => Promise<TOutput>` af
 
 `packages/core/tests/types/propagation.test.ts` is in the core typecheck program. Vitest executing the file is not enough. `expectTypeOf` and `@ts-expect-error` must fail the build when the row is wrong.
 
-`packages/core/tests/types/app.test.ts` runs the types generator on `app/` and then `tsc --noEmit` with the fixture tsconfig. Exit 0 is the pass. A temp copy that adds an unused `@ts-expect-error` above a valid line must exit non-zero. The fixture is not a Playwright app (B70).
+`packages/core/tests/types/app.test.ts` runs the types generator on `app/` and then `tsc --noEmit` with the fixture tsconfig. Exit 0 is the pass. A temp copy that adds an unused `@ts-expect-error` above a valid line must exit non-zero. The fixture is not a Playwright app (B70). Each section of this file has a type program under `app/src/sections/<section>.types.ts`, one `it("…")` per row, read through the package entries against the generated register; the compile type-checks it and vitest never runs it, and `blueprint/coverage.tsv` names those cases (B96, plan 25). `handwritten/` is a second fixture whose register is written by hand, with no `auth`, `env`, or `serverContext` and a parent listed with no module, for the rows only such a register reaches; `app.test.ts` `hand-written register` compiles it with `skipLibCheck` off and on.
 
 The fixture tsconfig sets `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, and `noPropertyAccessFromIndexSignature`. Those flags apply to the fixture program. A failure inside a Flare declaration under those flags is a Flare type bug.
 
