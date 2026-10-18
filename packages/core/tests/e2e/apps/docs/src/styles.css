@@ -45,3 +45,13 @@
 		color: #e7e5e4;
 	}
 }
+
+/* The progress bar is its own transition group, so a page without a ViewTransitionBoundary does not freeze it in the
+   root's old image. Its old image is hidden and its group does not move: the live bar shows through the transition
+   (BUGS.md 119.12, dx/navigate.md useNavigationProgress). Unlayered, as ViewTransitionCSS's rules are. */
+::view-transition-old(flare-progress) {
+	display: none;
+}
+::view-transition-group(flare-progress) {
+	animation: none;
+}

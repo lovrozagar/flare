@@ -899,7 +899,7 @@ packages/core/tests/e2e/dev-hmr.test.ts	P15	test	node	Playwright: in vite dev an
 packages/core/tests/e2e/docs-routing.test.ts	P15	test	node	Playwright: params, catch-alls, the literal segment, groups, not-found, the second root, boundaries, segment cdn
 packages/core/tests/e2e/docs-navigation.test.ts	P15	test	node	Playwright: links, prefetch, view transitions, progress, blocker, scroll, intercept, every hook, preloader context
 packages/core/tests/e2e/docs-hash.test.ts	P15	test	node	Hash navigation in every project: a hash Link again after a scroll away, Back and Forward between two hashes, and a Link to another page's section, with no request beyond the one cross-page load (BUGS.md 148)
-packages/core/tests/e2e/docs-transition.test.ts	P15	test	node	Playwright: the header and sidebar stay live during a navigation's view transition, which captures only the guide's boundary (B129)
+packages/core/tests/e2e/docs-transition.test.ts	P15	test	node	Playwright: the header and sidebar stay live during a navigation's view transition, which captures only the guide's boundary (B129); a root capture holds no frozen progress bar (BUGS.md 119.12)
 packages/core/tests/e2e/docs-data.test.ts	P15	test	node	Playwright: defer, TanStack Query, server functions and streams, server context, fetch dedupe, env helpers
 packages/core/tests/e2e/docs-cache.test.ts	P15	test	node	Playwright: SSG seeds, ISR, shared SSR, CDN headers, tag purge, the client match cache, the store per runtime
 packages/core/tests/e2e/docs-server.test.ts	P15	test	node	Playwright: auth boundaries, login, CSRF, body cap, middleware, mounts, .response(), route headers, security

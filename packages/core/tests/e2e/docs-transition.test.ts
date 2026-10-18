@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test"
+import sharp from "sharp"
 import { deepOnly, expect, open, test } from "./docs.fixture.ts"
 
 // The docs guide's article is its ViewTransitionBoundary, so a navigation's transition captures only it (B129).
@@ -156,3 +157,56 @@ for (const scrolled of [0, 700]) {
 		await expect(page.locator("#doc-title"), `${browserName}: the click navigates`).toHaveText("Deferred data")
 	})
 }
+
+// How many pixels of a screenshot are the docs' progress bar: its gradient runs from flame-500 to amber-300, so red
+// is high and blue low, which neither theme's header background is.
+async function barPixels(png: Buffer): Promise<number> {
+	const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true })
+	let count = 0
+	for (let index = 0; index < data.length; index += info.channels) {
+		const [red = 0, blue = 0] = [data[index], data[index + 2]]
+		if (red > 200 && red - blue > 100) count++
+	}
+	return count
+}
+
+// A page outside the guide has no ViewTransitionBoundary, so its navigation's transition captures the root. The
+// progress bar is fixed over the header and shown while the navigation fetches, so the root's old image would hold a
+// copy of it frozen at its trickle width while the live bar completes and fades (BUGS.md 119.12). The data request
+// is held until the bar is fully shown, so the capture always has it to freeze. At the transition's ready the live bar
+// is hidden: any bar left in the frame is a captured copy.
+test("bar not captured", async ({ page, docs, floor, browserName }) => {
+	test.skip(floor, "the floor has no view transitions (floor.ts)")
+	await holdTransitions(page)
+	await page.setViewportSize({ width: 1261, height: 900 })
+	await open(page, docs.origin, "/changelog")
+	const supported = await page.evaluate(() => typeof document.startViewTransition === "function")
+	test.skip(!supported, "this engine has no document.startViewTransition")
+	const shown = Promise.withResolvers<void>()
+	await page.route(
+		(url) => url.pathname === "/playground" && url.searchParams.get("_flare") === "data",
+		async (route) => {
+			await shown.promise
+			await route.continue()
+		},
+	)
+	await page.locator("#nav").getByRole("link", { name: "Playground" }).dispatchEvent("click")
+	await page.waitForFunction(() => {
+		const bar = document.querySelector("#progress")
+		return bar !== null && getComputedStyle(bar).opacity === "1" && bar.getBoundingClientRect().width > 0
+	})
+	shown.resolve()
+	await page.waitForFunction(() => Reflect.get(window, "__running") === true)
+	await page.evaluate(() => {
+		const sheet = new CSSStyleSheet()
+		sheet.replaceSync("#progress{visibility:hidden!important}")
+		document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+	})
+	const strip = await page.screenshot({ clip: { x: 0, y: 0, width: 1261, height: 2 }, animations: "allow" })
+	await page.evaluate(() => {
+		for (const animation of document.getAnimations()) animation.finish()
+	})
+	await page.waitForFunction(() => Reflect.get(window, "__running") === false)
+	await expect(page).toHaveURL(/\/playground$/)
+	expect(await barPixels(strip), `${browserName}: no frozen bar in the transition`).toBe(0)
+})
