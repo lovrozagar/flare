@@ -791,6 +791,7 @@ packages/core/tests/types/app/src/checks.ts	P7	app	-	One positive assignment and
 packages/core/tests/types/app/src/checks-input.ts	P7	app	-	The types.md app rows for where validated params and search come from (BUGS.md 349)
 packages/core/tests/types/app/src/checks-union.ts	P7	app	-	The dx/types.md union output row: a validator whose output is a union with no key in common requires its object and takes either member's shape (BUGS.md 348)
 packages/core/tests/types/app/src/validators.ts	P7	app	-	Validators the input pages import or build with a factory (BUGS.md 349)
+packages/core/tests/types/app/src/checks-auth.ts	P7	app	-	The dx/types.md auth seed rows the runtime decides: an ancestor with no auth method and a route under a layout that only authorizes type the session or null (BUGS.md 358)
 packages/core/tests/types/app/src/checks-data.ts	P7	app	-	The app rows for loader data, the preloader context, auth, head, defer, and effects
 packages/core/tests/types/app/src/checks-fns.ts	P7	app	-	The app rows for the hooks, server functions, and the path segment
 packages/core/tests/types/app/src/checks-chain.ts	P7	app	-	The dx/types.md app rows for headers, security, effects, the boundaries, and preloader and authorize propagation
@@ -818,6 +819,10 @@ packages/core/tests/types/app/src/routes/_root_/aliased/[id]/aliased.page.tsx	P7
 packages/core/tests/types/app/src/routes/_root_/sorted/[id]/sorted.page.tsx	P7	app	-	A default-imported search-only validator; params stay the brackets (BUGS.md 349)
 packages/core/tests/types/app/src/routes/_root_/made/[id]/made.page.tsx	P7	app	-	Validators a factory returns (BUGS.md 349)
 packages/core/tests/types/app/src/routes/_root_/void/[id]/void.page.tsx	P7	app	-	A params validator whose output is never stays never (BUGS.md 349)
+packages/core/tests/types/app/src/routes/_root_/mixed/mixed.layout.tsx	P7	app	-	A layout with no auth method over a child that authenticates (BUGS.md 358)
+packages/core/tests/types/app/src/routes/_root_/mixed/child/child.page.tsx	P7	app	-	The child of the mixed layout that requires auth (BUGS.md 358)
+packages/core/tests/types/app/src/routes/_root_/gated/gated.layout.tsx	P7	app	-	A public layout that only authorizes (BUGS.md 358)
+packages/core/tests/types/app/src/routes/_root_/gated/inner/inner.page.tsx	P7	app	-	A page with no auth method under the authorize-only layout (BUGS.md 358)
 packages/core/tests/types/app/src/routes/_root_/either/[id]/either.page.tsx	P7	app	-	Params and search validators whose outputs are unions with no shared key (BUGS.md 348)
 packages/core/tests/types/app/src/routes/_root_/canon/[id]/canon.page.tsx	P7	app	-	A validating page whose annotated loader redirects to itself with params (BUGS.md 350)
 packages/core/tests/types/app/src/routes/_root_/vping/[id]/vping.page.tsx	P7	app	-	One of two validating pages whose annotated loaders redirect to each other (BUGS.md 350)

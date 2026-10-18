@@ -92,9 +92,11 @@ function pageIds(ids: readonly string[]): string {
 	return `\t\tpageIds: ${union.length === 0 ? "never" : union.join(" | ")};`
 }
 
+// A route's seed for the routes under it. `.authorize()` alone makes the chain read the session from that route down,
+// so it seeds `"optional"` as `.authenticateOptional()` does (BUGS.md 358).
 function authModes(modules: readonly Module[]): Entries {
 	return modules.flatMap((module) => {
-		const auth = module.scan.auth
+		const auth = module.scan.auth ?? (module.scan.authorize ? "optional" : undefined)
 		return auth === undefined ? [] : [[module.id, auth === true ? "true" : '"optional"'] as const]
 	})
 }
@@ -115,7 +117,8 @@ function map(name: string, entries: Entries): string {
 	return lines.length === 0 ? `\t\t${name}: {};` : `\t\t${name}: {\n${lines.join("\n")}\n\t\t};`
 }
 
-// A field with no entry is left out, so an app that sets no auth has no `authModes` (dx/types.md).
+// A field with no entry is left out, so an app that sets no auth and authorizes nowhere has no `authModes`
+// (dx/types.md).
 function optional(name: string, entries: Entries): string {
 	return entries.length === 0 ? "" : map(name, entries)
 }
