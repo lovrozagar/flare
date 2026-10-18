@@ -10,6 +10,7 @@ import type { Deferred } from "../../src/shared/route-builder/register.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule } from "../../src/shared/router/create-router.ts"
 import { ENGINES, startHarness, type Api, type AppResult, type Engine, type Harness } from "./hydrate.harness.ts"
+import type { AppCase } from "./hydrate.app.ts"
 import { serve } from "./builder-app.ts"
 import { framesIn, stateIn } from "../../src/server/wire.fixture.ts"
 
@@ -250,6 +251,68 @@ function hydratedValue(engine: Engine): Promise<AppResult> {
 	})
 }
 
+// A live page whose deferred value rejects after `?delay` milliseconds, read with `useDeferred` inside `<Loading>`
+// inside `<Errored>`. The harness sends the function's text, so the delay comes from the URL.
+function rejectingApp(api: Api): { router: unknown } {
+	const root = api.rootLayout
+		.createRootLayout("_root_")
+		.render((props) => api.h("html", "doc", () => [api.h("head", "head"), api.h("body", "body", () => props.children)]))
+	const home = api.page
+		.createPage("_root_/")
+		.loader(({ defer, search }) => ({
+			broken: defer(
+				() =>
+					new Promise<string>((_, fail) => setTimeout(() => fail(new Error("stats down")), Number(search["delay"]))),
+				{
+					key: "broken",
+				},
+			),
+		}))
+		.render((props) => {
+			const broken = api.deferred.useDeferred(() => props.loaderData.broken)
+			return api.solid.createComponent(api.solid.Errored, {
+				fallback: (error: () => unknown) => api.h("p", "failed", () => `failed: ${(error() as Error).message}`),
+				get children() {
+					return api.solid.createComponent(api.solid.Loading, {
+						fallback: api.h("p", "waiting", () => "waiting"),
+						get children() {
+							return api.h("p", "value", () => broken())
+						},
+					})
+				},
+			})
+		})
+	return {
+		router: api.router.createRouter({
+			layouts: { _root_: root },
+			routeTree: [{ id: "_root_/", path: "/", module: home }],
+		}),
+	}
+}
+
+// The slot once the rejection has painted: its <Errored> fallback, and neither the read nor its <Loading> fallback.
+function rejected(engine: Engine, timing: Pick<AppCase, "path" | "hydrateAfter">): Promise<AppResult> {
+	if (harness === undefined) throw new Error("the harness did not start")
+	return harness.app(engine, {
+		...timing,
+		app: rejectingApp,
+		client(client, record) {
+			client.onHydrated(() => record.push("hydrated"))
+		},
+		async steps(tab) {
+			await tab.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
+			await tab.waitForSelector("#failed", { timeout: 10_000 })
+			await tab.evaluate(() =>
+				(Reflect.get(window, "__flareRecord") as unknown[]).push({
+					failed: document.getElementById("failed")?.textContent,
+					value: document.getElementById("value") !== null,
+					waiting: document.getElementById("waiting") !== null,
+				}),
+			)
+		},
+	})
+}
+
 describe.each(ENGINES)("%s", (engine) => {
 	it("component reads", async () => {
 		const result = await hydratedValue(engine)
@@ -257,6 +320,18 @@ describe.each(ENGINES)("%s", (engine) => {
 		expect(result.html.indexOf('id="waiting"')).toBeGreaterThan(-1)
 		expect(result.html.indexOf('id="waiting"')).toBeLessThan(result.html.indexOf("five stars"))
 		expect(result.record).toEqual(["hydrated", { reviews: "five stars", waiting: false }])
+	})
+
+	// A live document whose deferred value rejected paints the nearest <Errored> once the client hydrates, whether the
+	// rejection reached the page before hydration or after it; before BUGS.md 374 the slot was left empty.
+	it("streamed rejection early", async () => {
+		const result = await rejected(engine, { path: "/?delay=0", hydrateAfter: 300 })
+		expect(result.record).toEqual(["hydrated", { failed: "failed: stats down", value: false, waiting: false }])
+	})
+
+	it("streamed rejection late", async () => {
+		const result = await rejected(engine, { path: "/?delay=800" })
+		expect(result.record).toEqual(["hydrated", { failed: "failed: stats down", value: false, waiting: false }])
 	})
 })
 

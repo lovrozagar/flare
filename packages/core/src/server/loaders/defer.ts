@@ -1,3 +1,4 @@
+import { deferredFailure, type DeferredFailure } from "../../shared/protocol/deferred-failure.ts"
 import type { Deferred } from "../../shared/route-builder/register.ts"
 
 export type DeferMode = "resolve" | "stream"
@@ -25,7 +26,12 @@ export function isHole(options: DeferOptions, route: DeferMode | undefined): boo
 // key alone, and `hole` on a stored hole (BUGS.md 94).
 type Wire = { __deferred: true; key: string; hole?: true; value?: unknown; kept?: true }
 
-export type Started = { key: string; promise: Promise<unknown> }
+// `document` gives the render a view of the value that resolves its rejection to the projected failure (BUGS.md 374).
+export type Started = {
+	key: string
+	promise: Promise<unknown>
+	document: (project: (error: unknown) => DeferredFailure["error"]) => void
+}
 
 // `held` is what a stored render waits for. `started` is every value whose function ran, in creation order,
 // which a live response writes as `c` or `e` frames. `holes` counts the stored `"stream"` values whose function did
@@ -42,6 +48,7 @@ class Placeholder<T> implements Deferred<T> {
 	readonly key: string
 	readonly hole?: true
 	readonly #promise: Promise<T>
+	#view: Promise<T> | undefined
 	readonly #kept: boolean
 	#resolved: { value: T } | undefined
 
@@ -64,9 +71,19 @@ class Placeholder<T> implements Deferred<T> {
 		return { __deferred: true, key: this.key, ...(this.hole === undefined ? {} : { hole: true }) }
 	}
 
+	// What a document's render reads: a rejection resolves to its projected failure, which Solid writes in the hydration
+	// data and `useDeferred` throws on both sides. Solid leaves a rejected read for the client to render again, and the
+	// client holds no promise for a document's value, so a rejection would paint nothing (BUGS.md 374).
+	document(project: (error: unknown) => DeferredFailure["error"]): void {
+		this.#view ??= this.#promise.then(
+			(value) => value,
+			(error: unknown) => deferredFailure(project(error)) as T,
+		)
+	}
+
 	// A prototype getter keeps the promise off JSON.stringify, so the wire carries only { __deferred, key }.
 	get promise(): Promise<T> {
-		return this.#promise
+		return this.#view ?? this.#promise
 	}
 }
 
@@ -104,7 +121,7 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 				(resolved) => scope.stored && value.inline(resolved),
 				() => undefined,
 			)
-			started.push({ key, promise: value.promise })
+			started.push({ key, promise: value.promise, document: (project) => value.document(project) })
 		}
 		if (scope.stored && now) held.push(value.promise)
 		if (hole) state.holes += 1

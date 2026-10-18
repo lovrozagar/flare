@@ -1,3 +1,4 @@
+import { isFailureError } from "../../shared/protocol/deferred-failure.ts"
 import { isSafeError } from "@solidjs/web"
 import { devErrorPayload, statusOf, type DevErrorPayload } from "../../shared/errors/index.ts"
 import type { DevStyle } from "../../shared/protocol/index.ts"
@@ -132,7 +133,8 @@ export function lateErrors(
 	const late: unknown[] = []
 	const onRenderError = (error: unknown): void => {
 		late.push(error)
-		if (!quiet) projectError(error, sink)
+		// A deferred failure the read rethrew was logged when the render projected its rejection (BUGS.md 374).
+		if (!quiet && !isFailureError(thrownBehind(error))) projectError(error, sink)
 	}
 	return { late, onRenderError }
 }
