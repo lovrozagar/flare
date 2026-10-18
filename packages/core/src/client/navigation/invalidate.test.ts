@@ -35,3 +35,17 @@ it("forget and invalidate", async () => {
 	await invalidation(full).invalidate()
 	expect(full.order).toEqual(["cache", "prefetch", "query", "revalidate"])
 })
+
+// The document's state script and the `self.flare` fields it wrote hold the loader data the page was rendered with,
+// the last visitor's included. Forgetting removes both and keeps only the booted transport, `call` (BUGS.md 363).
+const call = (): undefined => undefined
+
+it("forget drops the document state", () => {
+	document.body.innerHTML =
+		'<p>page</p><script id="flare-state">self.flare={"matches":[{"data":"ada@dash.test"}]}</script>'
+	Reflect.set(globalThis, "flare", { matches: [{ data: "ada@dash.test" }], queries: [{ key: "me" }], call })
+	invalidation(parts()).forget()
+	expect(document.body.innerHTML).toBe("<p>page</p>")
+	expect(Reflect.get(globalThis, "flare")).toEqual({ call })
+	Reflect.deleteProperty(globalThis, "flare")
+})
