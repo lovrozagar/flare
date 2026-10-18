@@ -2,6 +2,7 @@ import { expectTypeOf, it } from "vitest"
 import type { PropagationApp as App } from "../../src/shared/route-builder/register.ts"
 import { createServerFn } from "../../src/server/server-fn/dispatch.ts"
 import type { FnContext, FnStart, ServerFnBuilder } from "../../src/shared/server-fn/builder.ts"
+import type { QueryOptionsInput, ServerFnMutationOptions } from "../../src/features/query/shared/options.ts"
 
 // The dx/types.md matrix rows whose producer is `createServerFn`. The other rows are in `propagation.test.ts`. A
 // chain here is built, never called: a call outside a request throws.
@@ -79,6 +80,33 @@ it("server fn input void", () => {
 	expectTypeOf(ping).returns.toEqualTypeOf<Promise<undefined>>()
 	// @ts-expect-error a void input takes no argument
 	const _passed = () => ping({ q: "a" })
+})
+// A schema whose declared sides are `any` keeps `any`: the client function still takes its argument, and the handler's
+// input is `any`, not `undefined`, since `any` would otherwise match the `void` branch (dx/server-fn.md, BUGS.md 357).
+const anything: any = null
+const anyValidator = {
+	"~standard": { validate: (value: unknown) => ({ value }), types: { input: anything, output: anything } },
+}
+it("server fn input any", () => {
+	const anyIn = createServerFn()
+		.input(anyValidator)
+		.handler(({ input }) => {
+			expectTypeOf(input).toBeAny()
+			return input
+		})
+	expectTypeOf(anyIn).parameters.toEqualTypeOf<[input: any]>()
+	// @ts-expect-error an any input still takes its argument
+	const _none = () => anyIn()
+	const anyStream = createServerFn()
+		.input(anyValidator)
+		.stream(async function* ({ input }) {
+			expectTypeOf(input).toBeAny()
+			yield 1
+		})
+	expectTypeOf(anyStream).parameters.toEqualTypeOf<[input: any]>()
+	type Query = QueryOptionsInput<any>
+	expectTypeOf<Query>().toEqualTypeOf<{ queryKey: readonly unknown[]; input: any }>()
+	expectTypeOf<ServerFnMutationOptions<any, number>["mutationFn"]>().parameters.toEqualTypeOf<[input: any]>()
 })
 it("server fn schema unknown", () => {
 	expectTypeOf(loose).parameters.toEqualTypeOf<[unknown]>()

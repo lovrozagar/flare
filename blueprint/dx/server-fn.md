@@ -43,7 +43,7 @@ The fields are `tests/integration/server-fn.test.ts` `handler context`; on a pag
 
 `.input()` replaces the input type. The start is `void`: the client function takes no argument, and `ctx.input` is `undefined`. After `.input()`, the client argument is the validator's input type and the handler's `ctx.input` is its output, because the validator runs on the server: a Standard Schema's `types.input` and `types.output`, the parameter and return of `{ parse }`, or of a function. A transforming validator such as `z.string().transform(Number)` takes a string from the caller and hands the handler a number. The argument crosses as JSON, so a validator should accept the JSON form (`z.coerce.date()`, not `z.date()`). A fresh extra key fails when that input is a closed object. A Standard Schema whose input is `unknown`, or a function typed `(value: unknown)`, does not reject a bad key.
 
-The client type is `(input: TInput) => Promise<TOutput>`, or `() => Promise<TOutput>` while the input is `void`. The promise resolves to the handler's return. No field is stripped. The type is not the envelope.
+The client type is `(input: TInput) => Promise<TOutput>`, or `() => Promise<TOutput>` while the input is `void`. A side typed `any` stays `any`: the client still takes its argument, and an `any` output makes `ctx.input` `any` (BUGS.md 357). The promise resolves to the handler's return. No field is stripped. The type is not the envelope.
 
 The client type of `.stream()` returns `AsyncIterable<TChunk>`, the yielded value. The generator's return type is dropped. The stream context has `signal`. Neither context has `revalidate`, and the handler has no `signal`.
 
@@ -51,7 +51,7 @@ There is no `.authenticateOptional`. Skipping `.authenticate()` types `ctx.auth`
 
 Calling the client function during a component or route render type-checks. In dev, the stub logs one `console.warn` for that direct call, naming the function and suggesting an event, an effect, or `serverFnQueryOptions`, and then makes the call. It never throws, and a production bundle has no check (B45). The check is an owned, untracked call: an owner exists and no reactive observer is running. That also matches a library callback run synchronously inside a render, such as a suspense query's first `queryFn`, and an `onSettled` callback, which is why it only warns: a throw there failed the query with no request and froze navigation (BUGS.md B36). `serverFnQueryOptions`'s `queryFn` runs the call outside any owner, so it never warns. A call inside a `createMemo` or an effect compute, an event handler, an effect callback, or async code after an `await` does not warn (`client-stub.test.tsx` `client stub`, `memo call`, `on settled`; `features/query/shared/options.test.ts` `queryFn inside a render`).
 
-The cases are `tests/types/server-fn.test.ts` (`server fn input`, `server fn input void`, `server fn schema unknown`, `server fn return`, `server fn stream`, `server fn no optional`, `server fn auth null`, `server fn auth required`, `server fn render call`, `server fn methods`).
+The cases are `tests/types/server-fn.test.ts` (`server fn input`, `server fn input void`, `server fn input any`, `server fn schema unknown`, `server fn return`, `server fn stream`, `server fn no optional`, `server fn auth null`, `server fn auth required`, `server fn render call`, `server fn methods`).
 
 ## Wire
 
