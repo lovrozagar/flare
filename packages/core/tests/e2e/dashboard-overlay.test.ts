@@ -45,11 +45,15 @@ test("deep link is a page", async ({ page, dashboard }) => {
 	await expect(page).toHaveTitle(`${name} — Projects — Dashboard`)
 })
 
-// Back closes the dialog without a fetch, and focus returns to the link that opened it.
+// Back closes the dialog without a fetch, and focus returns to the link that opened it. The link opens it from the
+// keyboard: a click focuses a link in Chromium, Firefox, and Linux WebKit but not in macOS WebKit, where focus stays on
+// the body and there is no opener to return to (CI 39092510724).
 test("back closes overlay", async ({ page, dashboard }) => {
 	await signedIn(page, dashboard.origin, TABLE)
 	const { name } = await firstRow(page)
-	await page.locator("#projects .project-link").first().click()
+	const link = page.locator("#projects .project-link").first()
+	await link.focus()
+	await link.press("Enter")
 	await expect(page.locator("#project-dialog")).toBeVisible()
 	const loads = documents(page)
 	await page.goBack()
