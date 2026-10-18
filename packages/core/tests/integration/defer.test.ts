@@ -12,6 +12,7 @@ import { createRouter, type RouteModule } from "../../src/shared/router/create-r
 import { ENGINES, startHarness, type Api, type AppResult, type Engine, type Harness } from "./hydrate.harness.ts"
 import type { AppCase } from "./hydrate.app.ts"
 import { serve } from "./builder-app.ts"
+import { appFrom } from "./harness-app.ts"
 import { framesIn, stateIn } from "../../src/server/wire.fixture.ts"
 
 // `defer` through the real `createServer(...).fetch` (B96, dx/defer.md): a value the loader defers streams after the
@@ -335,6 +336,94 @@ describe.each(ENGINES)("%s", (engine) => {
 	it("streamed rejection late", async () => {
 		const result = await rejected(engine, { path: "/?delay=800" })
 		expect(result.record).toEqual(["hydrated", { failed: "failed: stats down", value: false, waiting: false }])
+	})
+})
+
+// A page whose deferred read mounts only after hydration, behind a `<Show>` that `window.__open` opens: Solid's
+// hydration data holds nothing for it, so the client reads the value's own slot, which the document settles
+// (BUGS.md 375). `/shown` renders it on the server, `/direct-bad` reads `.promise` without useDeferred.
+const LATE = appFrom(`
+const root = api.rootLayout.createRootLayout("_root_").render((props) => api.h("html", "doc", () => [
+	api.h("head", "head"),
+	api.h("body", "body", () => props.children),
+]))
+const view = (initial, direct) => (props) => {
+	const [open, setOpen] = api.solid.createSignal(initial)
+	if (typeof window !== "undefined") window.__open = () => { setOpen(true); api.solid.flush() }
+	const Late = () => {
+		const value = direct ? api.solid.createMemo(async () => props.loaderData.v.promise) : api.deferred.useDeferred(() => props.loaderData.v)
+		return api.solid.createComponent(api.solid.Errored, {
+			fallback: (error) => api.h("p", "failed", () => "failed: " + error().message),
+			get children() {
+				return api.solid.createComponent(api.solid.Loading, {
+					fallback: api.h("p", "wait", () => "wait"),
+					get children() { return api.h("p", "late", () => String(value())) },
+				})
+			},
+		})
+	}
+	return api.solid.createComponent(api.solid.Show, { get when() { return open() }, get children() { return api.solid.createComponent(Late, {}) } })
+}
+const ok = () => new Promise((done) => setTimeout(() => done("five stars"), 50))
+const bad = () => new Promise((_, fail) => setTimeout(() => fail(new Error("stats down")), 50))
+const page = (id, fn, initial, cache, direct) => {
+	const built = api.page.createPage(id)
+	return (cache === undefined ? built : built.cache(cache)).loader(({ defer }) => ({ v: defer(fn, { key: "v" }) })).render(view(initial, direct))
+}
+const routeTree = [
+	{ id: "_root_/shown", path: "/shown", module: page("_root_/shown", ok, true) },
+	{ id: "_root_/live", path: "/live", module: page("_root_/live", ok, false) },
+	{ id: "_root_/live-bad", path: "/live-bad", module: page("_root_/live-bad", bad, false) },
+	{ id: "_root_/direct-bad", path: "/direct-bad", module: page("_root_/direct-bad", bad, false, undefined, true) },
+	{ id: "_root_/stored", path: "/stored", module: page("_root_/stored", ok, false, { isr: true }) },
+	{ id: "_root_/holed", path: "/holed", module: page("_root_/holed", ok, false, { isr: { defer: "stream" } }) },
+]
+return {
+	router: api.router.createRouter({ layouts: { _root_: root }, routeTree }),
+	server: { store: api.memory.createMemoryStore() },
+}
+`)
+
+// The late slot 1.5 s after it opened, 300 ms after hydration: the value, the read's failure, or still its fallback.
+function late(engine: Engine, path: string): Promise<AppResult> {
+	if (harness === undefined) throw new Error("the harness did not start")
+	return harness.app(engine, {
+		app: LATE,
+		path,
+		prime: path === "/stored" || path === "/holed" ? [{ path }] : [],
+		client() {},
+		async steps(tab) {
+			await tab.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
+			await new Promise((done) => setTimeout(done, 300))
+			await tab.evaluate(() => (Reflect.get(window, "__open") as () => void)())
+			await tab
+				.waitForSelector("#late, #failed", { timeout: 1500 })
+				.catch(() => new Promise((done) => setTimeout(done, 0)))
+			await tab.evaluate(() =>
+				(Reflect.get(window, "__flareRecord") as unknown[]).push({
+					late: document.getElementById("late")?.textContent ?? null,
+					failed: document.getElementById("failed")?.textContent ?? null,
+				}),
+			)
+		},
+	})
+}
+
+const LATE_SHOWS = { late: "five stars", failed: null }
+const LATE_FAILS = { late: null, failed: "failed: stats down" }
+
+describe.each(ENGINES)("%s", (engine) => {
+	it.each([
+		["/shown", LATE_SHOWS],
+		["/live", LATE_SHOWS],
+		["/live-bad", LATE_FAILS],
+		["/direct-bad", LATE_FAILS],
+		["/stored", LATE_SHOWS],
+		["/holed", LATE_SHOWS],
+	] as const)("late read %s", async (path, want) => {
+		const result = await late(engine, path)
+		expect(result.problems).toEqual([])
+		expect(result.record).toEqual([want])
 	})
 })
 

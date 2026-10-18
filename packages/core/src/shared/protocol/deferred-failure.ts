@@ -31,3 +31,13 @@ export function failureError(failure: DeferredFailure): Error {
 export function isFailureError(error: unknown): boolean {
 	return error instanceof Error && Reflect.get(error, REBUILT) === true
 }
+
+// What `useDeferred` reads of a server deferred value: the document's view, whose rejection resolves to its failure. A
+// prototype getter under this key keeps it off the wire and off `promise`, which a direct read awaits as it settled.
+export const DOCUMENT_VIEW: unique symbol = Symbol.for("flare.deferredDocumentView")
+
+// The hydration key a document writes a started value under, and the client takes it by: its slot's id, the route and
+// the key on two lines.
+export function documentValueKey(id: string): string {
+	return `flare:${id}`
+}

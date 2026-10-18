@@ -9,6 +9,7 @@ import type { Location } from "../../shared/url/index.ts"
 import { createHistory, type FlareHistory } from "../history/index.ts"
 import { createBlockers, placeIn, type Blockers } from "../navigation/blocker.ts"
 import { revive, type Pending } from "../navigation/frames.ts"
+import { settleDocumentValues } from "./document-values.ts"
 import { createNavigator, type NavigatorDeps } from "../navigation/navigate.ts"
 import { createArrival } from "../navigation/arrival.ts"
 import { createNavigationState } from "../navigation/pending.ts"
@@ -280,11 +281,13 @@ function here(): string {
 	return `${window.location.pathname}${window.location.search}${window.location.hash}`
 }
 
-// A stored document's holes are live values the fill settles after hydrate (dx/defer.md).
+// Every deferred field of the document is a live value with its own slot, so a read that mounts after hydration has one
+// to wait on: a stored page's inline value settles it at once, a live document's value through Solid's channel, and a
+// stored hole through the fill after hydrate (dx/defer.md, BUGS.md 375).
 function holesOf(state: ClientState): { matches: ClientState["matches"]; pending: Pending } {
 	const pending: Pending = new Map()
-	if (state.fill !== true) return { matches: state.matches, pending }
 	const matches = state.matches.map((match) => ({ ...match, data: revive(match.data, match.id, pending) }))
+	settleDocumentValues(pending)
 	return { matches, pending }
 }
 

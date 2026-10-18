@@ -116,6 +116,10 @@ packages/core/src/shared/route-builder/index.ts	P1	index	shared	Re-exports
 packages/core/src/shared/protocol/constants.ts	P6	src	shared	Param names, the server-fn path prefix, header names Flare writes
 packages/core/src/shared/protocol/deferred-failure.ts	P10	src	shared	A document's rejected deferred value as the value the render reads and `useDeferred` throws: the projected error, marked so its rethrow is not logged twice (BUGS.md 374)
 packages/core/src/shared/protocol/deferred-failure.test.ts	P10	test	shared	Unit cases for deferred-failure.ts
+packages/core/src/server/render/document-values.ts	P10	src	server	A live document writes each deferred value it started through Solid's keyed hydration channel, as the view useDeferred reads (BUGS.md 375)
+packages/core/src/server/render/document-values.test.ts	P10	test	server	Unit tests for document-values.ts
+packages/core/src/client/boot/document-values.ts	P10	src	dom	Boot settles each document slot from the value the document wrote: the value, or its failure as an e frame's error (BUGS.md 375)
+packages/core/src/client/boot/document-values.test.ts	P10	test	dom	Unit tests for document-values.ts
 packages/core/src/shared/protocol/constants.test.ts	P6	test	shared	Unit cases for constants.ts
 packages/core/src/shared/protocol/frames.ts	P6	src	shared	Encode and decode the seven NDJSON frames, their app values on the wire (B145). Reject a line over 1 MiB, a response over 10,000 frames, or a line nested past 1,024 JSON levels
 packages/core/src/shared/protocol/frames.test.ts	P6	test	shared	Unit cases for frames.ts

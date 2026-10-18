@@ -1,5 +1,6 @@
 import { expect, it } from "vitest"
 import type { Deferred } from "../../shared/route-builder/register.ts"
+import { DOCUMENT_VIEW } from "../../shared/protocol/deferred-failure.ts"
 import { createDefer, type DeferScope } from "./defer.ts"
 
 const live: DeferScope = { stored: false, dev: false }
@@ -187,16 +188,24 @@ const projected = (thrown: unknown) => ({ name: "Error", message: (thrown as Err
 // A document's render reads a view of each started value: a rejection resolves to its projected failure, a value stays
 // itself, and the started entry keeps the original promise for a data answer's `e` frame. A second view is the first
 // (BUGS.md 374).
+// The document's view resolves a rejection to its failure, once per value, under the key `useDeferred` reads; `promise`
+// stays the value as it settled, so a direct read rejects as before (BUGS.md 374, 375).
 it("document view", async () => {
 	const loader = createDefer(live)
 	const error = new Error("down")
 	const broken = loader.defer(() => Promise.reject(error))
 	const fine = loader.defer(() => Promise.resolve("ok"))
-	for (const entry of loader.started) entry.document(projected)
-	const first = broken.promise
-	loader.started[0]?.document(() => ({ name: "Error", message: "other" }))
-	expect(broken.promise).toBe(first)
-	await expect(broken.promise).resolves.toEqual({ __deferredFailure: true, error: { name: "Error", message: "down" } })
+	expect(Reflect.get(broken, DOCUMENT_VIEW)).toBe(broken.promise)
+	const views = loader.started.map((entry) => entry.document(projected))
+	expect(loader.started[0]?.document(() => ({ name: "Error", message: "other" }))).toBe(views[0])
+	expect(Reflect.get(broken, DOCUMENT_VIEW)).toBe(views[0])
+	await expect(views[0]).resolves.toEqual({ __deferredFailure: true, error: { name: "Error", message: "down" } })
+	await expect(views[1]).resolves.toBe("ok")
+	await expect(broken.promise).rejects.toBe(error)
 	await expect(fine.promise).resolves.toBe("ok")
 	await expect(loader.started[0]?.promise).rejects.toBe(error)
+	expect(loader.started.map((entry) => entry.stored)).toEqual([false, false])
+	const stored = createDefer({ stored: true, dev: false })
+	stored.defer(() => Promise.resolve(1))
+	expect(stored.started.map((entry) => entry.stored)).toEqual([true])
 })

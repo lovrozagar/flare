@@ -1,5 +1,5 @@
 import { createPage, Link, markSafeError, useDeferred, type Deferred } from "@lovrozagar/flare"
-import { createEffect, createSignal, Errored, For, Loading } from "solid-js"
+import { createEffect, createSignal, Errored, For, Loading, Show } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { workspaceOf } from "../../../../db.ts"
 import { activityFeed } from "../../../../fns/activity.ts"
@@ -68,6 +68,23 @@ function Feed(): JSX.Element {
 	)
 }
 
+// A tab panel the server never renders: its widget first reads its deferred value when the tab opens, after load.
+function Usage(props: { read: () => Deferred<string> }): JSX.Element {
+	const [open, setOpen] = createSignal(false)
+	return (
+		<div class="mt-6">
+			<button id="tab-usage" type="button" class="text-sm underline" onClick={() => setOpen(true)}>
+				Usage
+			</button>
+			<Show when={open()}>
+				<div class="mt-2 max-w-xs">
+					<Widget id="total" label="All projects" read={props.read} />
+				</div>
+			</Show>
+		</div>
+	)
+}
+
 // The overview: four widgets, each its own defer with its own latency, and a live feed. The document waits for every
 // defer (B146 `documentResponseDefer: "buffer"`); a client navigation shows each widget's skeleton until it lands.
 // `?incidents=fail` makes the incidents widget reject: on a client navigation the widget's own <Errored> paints it,
@@ -85,6 +102,8 @@ export const route = createPage("_root_/(app)/overview")
 				key: "active",
 			}),
 			plan: defer(() => after(300, () => workspace?.plan ?? "free"), { key: "plan" }),
+			// Read only behind the Usage tab, which opens after load: the document holds it for that read (BUGS.md 375).
+			total: defer(() => after(60, () => `${projects.length} projects`), { key: "total" }),
 			incidents: defer(
 				() =>
 					after(220, () => {
@@ -128,6 +147,7 @@ export const route = createPage("_root_/(app)/overview")
 					<Widget id="incidents" label="Incidents" read={() => props.loaderData.incidents} />
 				</Errored>
 			</div>
+			<Usage read={() => props.loaderData.total} />
 			<h2 class="mt-8 text-sm font-semibold text-slate-700">Activity</h2>
 			<Feed />
 		</section>

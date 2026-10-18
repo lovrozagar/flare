@@ -1,4 +1,4 @@
-import { deferredFailure, type DeferredFailure } from "../../shared/protocol/deferred-failure.ts"
+import { DOCUMENT_VIEW, deferredFailure, type DeferredFailure } from "../../shared/protocol/deferred-failure.ts"
 import type { Deferred } from "../../shared/route-builder/register.ts"
 
 export type DeferMode = "resolve" | "stream"
@@ -26,11 +26,13 @@ export function isHole(options: DeferOptions, route: DeferMode | undefined): boo
 // key alone, and `hole` on a stored hole (BUGS.md 94).
 type Wire = { __deferred: true; key: string; hole?: true; value?: unknown; kept?: true }
 
-// `document` gives the render a view of the value that resolves its rejection to the projected failure (BUGS.md 374).
+// `document` gives the render a view of the value that resolves its rejection to the projected failure, and returns it
+// (BUGS.md 374). `stored` marks a stored render's value, which the stored state carries inline (BUGS.md 375).
 export type Started = {
 	key: string
 	promise: Promise<unknown>
-	document: (project: (error: unknown) => DeferredFailure["error"]) => void
+	stored: boolean
+	document: (project: (error: unknown) => DeferredFailure["error"]) => Promise<unknown>
 }
 
 // `held` is what a stored render waits for. `started` is every value whose function ran, in creation order,
@@ -71,18 +73,29 @@ class Placeholder<T> implements Deferred<T> {
 		return { __deferred: true, key: this.key, ...(this.hole === undefined ? {} : { hole: true }) }
 	}
 
-	// What a document's render reads: a rejection resolves to its projected failure, which Solid writes in the hydration
-	// data and `useDeferred` throws on both sides. Solid leaves a rejected read for the client to render again, and the
-	// client holds no promise for a document's value, so a rejection would paint nothing (BUGS.md 374).
-	document(project: (error: unknown) => DeferredFailure["error"]): void {
+	// What a document's render reads through `useDeferred`: a rejection resolves to its projected failure, which Solid
+	// writes in the hydration data and `useDeferred` throws on both sides. Solid leaves a rejected read for the client to
+	// render again, so a rejection would paint nothing (BUGS.md 374). `promise` stays the value as it settled, so a
+	// direct read rejects as before (BUGS.md 375).
+	document(project: (error: unknown) => DeferredFailure["error"]): Promise<T> {
 		this.#view ??= this.#promise.then(
 			(value) => value,
 			(error: unknown) => deferredFailure(project(error)) as T,
 		)
+		return this.#view
+	}
+
+	// The value as a live response writes it, and as the document's render reads it.
+	started(stored: boolean): Started {
+		return { key: this.key, promise: this.#promise, stored, document: (project) => this.document(project) }
 	}
 
 	// A prototype getter keeps the promise off JSON.stringify, so the wire carries only { __deferred, key }.
 	get promise(): Promise<T> {
+		return this.#promise
+	}
+
+	get [DOCUMENT_VIEW](): Promise<T> {
 		return this.#view ?? this.#promise
 	}
 }
@@ -121,7 +134,7 @@ export function createDefer(scope: DeferScope): LoaderDefer {
 				(resolved) => scope.stored && value.inline(resolved),
 				() => undefined,
 			)
-			started.push({ key, promise: value.promise, document: (project) => value.document(project) })
+			started.push(value.started(scope.stored))
 		}
 		if (scope.stored && now) held.push(value.promise)
 		if (hole) state.holes += 1

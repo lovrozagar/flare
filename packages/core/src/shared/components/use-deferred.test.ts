@@ -52,6 +52,13 @@ it("live value", async () => {
 	expect(whole).not.toContain("$$f")
 })
 
+// A deferred value with no document view, as the client's slot is, is read through its promise (BUGS.md 375).
+it("slot value", async () => {
+	const slot: Deferred<string> = { __deferred: true, key: "k", promise: Promise.resolve("SLOT") }
+	const document = await rendered(slot)
+	expect(await document.whole()).toContain("SLOT")
+})
+
 // A stored `"stream"` value the render did not run is a hole: the server renders the fallback and hands the
 // position to the client as a final boundary, so the document ends and hydration never waits on it.
 it("stored hole", async () => {
