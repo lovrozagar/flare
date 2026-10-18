@@ -13,7 +13,10 @@ it("reload guard", () => {
 	const first = env(1000)
 	expect(loadDocument("/about", first)).toBe(true)
 	expect(first.assign).toHaveBeenCalledExactlyOnceWith("/about")
-	expect(JSON.parse(sessionStorage.getItem("flare_chunk_reload") ?? "null")).toEqual({ at: 1000, href: "/about" })
+	expect(JSON.parse(sessionStorage.getItem("flare_chunk_reload") ?? "null")).toEqual({
+		at: 1000,
+		href: `${location.origin}/about`,
+	})
 	const again = env(10_999)
 	expect(loadDocument("/about", again)).toBe(false)
 	expect(again.assign).not.toHaveBeenCalled()
@@ -53,4 +56,13 @@ it("chunk", () => {
 	}
 	expect(isChunkError(new Error("boom"))).toBe(false)
 	expect(isChunkError("Loading chunk 1 failed")).toBe(false)
+})
+
+// A navigation's chunk load passes the target as a path; the boot and the document's entry script pass `location.href`.
+// Both name one page, so the guard holds the second (BUGS.md 365).
+it("reload path and url", () => {
+	expect(loadDocument("/about?tab=a", env(1000))).toBe(true)
+	const boot = env(2000)
+	expect(loadDocument(`${location.origin}/about?tab=a`, boot)).toBe(false)
+	expect(boot.assign).not.toHaveBeenCalled()
 })
