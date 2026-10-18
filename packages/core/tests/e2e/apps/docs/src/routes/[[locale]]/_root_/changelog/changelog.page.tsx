@@ -62,12 +62,12 @@ export const route = createPage("[[locale]]/_root_/changelog")
 				<div class="mt-8 grid gap-6 md:grid-cols-[1fr_16rem]">
 					<Loading fallback={<Skeleton id="releases-loading" lines={6} />}>
 						<ol id="releases" class="space-y-4">
-							<For each={releases()}>
+							<For each={releases()} keyed={(release) => release.version}>
 								{(release) => (
 									<li class="rounded-xl border border-stone-200 p-4 dark:border-ink-800">
-										<p class="font-mono text-sm text-flame-600 dark:text-flame-400">{release.version}</p>
-										<p class="mt-1">{release.note}</p>
-										<p class="mt-1 text-xs text-stone-500">{release.date}</p>
+										<p class="font-mono text-sm text-flame-600 dark:text-flame-400">{release().version}</p>
+										<p class="mt-1">{release().note}</p>
+										<p class="mt-1 text-xs text-stone-500">{release().date}</p>
 									</li>
 								)}
 							</For>

@@ -23,16 +23,16 @@ function Results(): JSX.Element {
 				{ui("results", { count: query.data?.hits.length ?? 0 })}
 			</p>
 			<ul id="results" class="mt-3 space-y-2">
-				<For each={query.data?.hits ?? []}>
+				<For each={query.data?.hits ?? []} keyed={(hit) => hit.slug}>
 					{(hit) => (
 						<li>
 							<Link
 								to="[[locale]]/_root_/(guide)/docs/[slug]"
-								params={{ locale: params.locale, slug: hit.slug }}
+								params={{ locale: params.locale, slug: hit().slug }}
 								class="block rounded-lg border border-stone-200 p-3 hover:border-flame-400 dark:border-ink-800"
 							>
-								<span class="font-medium">{hit.title}</span>
-								<span class="mt-0.5 block text-sm text-stone-500">{hit.summary}</span>
+								<span class="font-medium">{hit().title}</span>
+								<span class="mt-0.5 block text-sm text-stone-500">{hit().summary}</span>
 							</Link>
 						</li>
 					)}
