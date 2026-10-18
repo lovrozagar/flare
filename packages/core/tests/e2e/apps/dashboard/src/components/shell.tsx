@@ -1,4 +1,4 @@
-import { InterceptOutlet, Link, useNavigate } from "@lovrozagar/flare"
+import { InterceptOutlet, Link, useNavigate, useNavigationProgress } from "@lovrozagar/flare"
 import { Show } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import type { Role } from "../db.ts"
@@ -20,6 +20,7 @@ export function Shell(props: { viewer: Viewer; children: JSX.Element }): JSX.Ele
 	}
 	return (
 		<div class="flex min-h-screen">
+			<ProgressBar />
 			<aside id="sidebar" class="w-56 shrink-0 border-r border-slate-200 bg-white px-3 py-5">
 				<p class="px-3 text-sm font-semibold text-slate-900">
 					<span class="me-2 inline-block size-2 rounded-full bg-brand-500" />
@@ -28,6 +29,12 @@ export function Shell(props: { viewer: Viewer; children: JSX.Element }): JSX.Ele
 				<nav class="mt-6 space-y-1" aria-label="Sections">
 					<Link to="_root_/(app)/projects" search={DEFAULT_SEARCH} class={NAV} activeClass={ACTIVE}>
 						Projects
+					</Link>
+					<Link to="_root_/(app)/overview" class={NAV} activeClass={ACTIVE}>
+						Overview
+					</Link>
+					<Link to="_root_/(app)/settings/profile" class={NAV} activeClass={ACTIVE}>
+						Settings
 					</Link>
 					<Show when={props.viewer.role === "owner"}>
 						<Link to="_root_/(app)/settings/billing" class={NAV} activeClass={ACTIVE}>
@@ -56,6 +63,21 @@ export function Shell(props: { viewer: Viewer; children: JSX.Element }): JSX.Ele
 				<ProjectDialog />
 			</div>
 		</div>
+	)
+}
+
+// The app paints the bar from Flare's number (dx/navigate.md useNavigationProgress); idle, it is not there.
+function ProgressBar(): JSX.Element {
+	const progress = useNavigationProgress({ trickle: 100, minDisplay: 200 })
+	return (
+		<Show when={progress.value !== null}>
+			<div
+				id="progress"
+				class="fixed inset-x-0 top-0 z-50 h-0.5 bg-brand-500 transition-[width] duration-150"
+				data-pending={progress.pending ? "true" : "false"}
+				style={{ width: `${(progress.value ?? 0) * 100}%` }}
+			/>
+		</Show>
 	)
 }
 

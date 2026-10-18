@@ -24,4 +24,6 @@ export const server = createServer({
 	store: createMemoryStore(),
 	documentResponseDefer: "buffer",
 	security: { "Content-Security-Policy": { "frame-src": ["'none'"], "form-action": ["'self'"] } },
+	// The old home of the overview redirects to it, its query kept (dx/server.md rewrite).
+	rewrite: (path) => (path === "/app/home" ? "/app/overview" : undefined),
 })

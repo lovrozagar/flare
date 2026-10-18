@@ -83,8 +83,9 @@ test("session in another tab", async ({ page, dashboard }) => {
 	await other.close()
 })
 
-// Billing is the owner's. A member's document is 403 with Flare's built-in text in the page's slot, under the shell,
-// since no route on the chain has an `unauthorizedRender`; the member's sidebar has no Billing link.
+// Billing is the owner's. A member's document is 403 with Flare's built-in text in the page's slot, under the shell
+// and the settings tabs, since no route on the chain has an `unauthorizedRender`; the member's sidebar and tabs have no
+// Billing link.
 test("role gate", async ({ page, dashboard }) => {
 	await signedIn(page, dashboard.origin, "/app/settings/billing")
 	await expect(page.locator("#plan")).toHaveText("free")
@@ -92,7 +93,9 @@ test("role gate", async ({ page, dashboard }) => {
 	const response = await page.goto(`${dashboard.origin}/app/settings/billing`)
 	expect(response?.status()).toBe(403)
 	await hydrated(page)
-	await expect(page.locator("#page")).toHaveText("Access denied")
+	// The settings layout renders above the failed page, so the built-in text sits under its tabs.
+	await expect(page.locator("#page")).toContainText("Access denied")
+	await expect(page.locator("#settings-tabs").getByRole("link")).toHaveText(["Profile"])
 	await expect(page.locator("#viewer")).toHaveAttribute("data-role", "member")
 	await expect(page.locator("#sidebar").getByRole("link", { name: "Billing" })).toHaveCount(0)
 })

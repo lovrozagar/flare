@@ -4,38 +4,59 @@ export {};
 declare module "@lovrozagar/flare" {
 	interface FlareRegister {
 		routes: {
+			"/overview": { params: {} };
 			"/projects/[id]": { params: { id: string } };
 			"/projects/new": { params: {} };
 			"/projects": { params: {} };
 			"/settings/billing": { params: {} };
+			"/settings/profile": { params: {} };
+			"/settings/team": { params: {} };
 			"/": { params: {} };
 			"/login": { params: {} };
+			"/status": { params: {} };
 		};
-		pageIds: "_root_/" | "_root_/(app)/projects" | "_root_/(app)/projects/[id]" | "_root_/(app)/projects/new" | "_root_/(app)/settings/billing" | "_root_/login";
+		pageIds: "_root_/" | "_root_/(app)/overview" | "_root_/(app)/projects" | "_root_/(app)/projects/[id]" | "_root_/(app)/projects/new" | "_root_/(app)/reports/export.csv" | "_root_/(app)/settings/billing" | "_root_/(app)/settings/profile" | "_root_/(app)/settings/team" | "_root_/api/revalidate" | "_root_/api/webhooks/billing" | "_root_/login" | "_root_/status";
 		routeModules: {
 			"_root_": typeof import("../routes/_root_/root.root-layout.tsx").route;
 			"_root_/": typeof import("../routes/_root_/home.page.tsx").route;
 			"_root_/(app)": typeof import("../routes/_root_/(app)/app.layout.tsx").route;
+			"_root_/(app)/overview": typeof import("../routes/_root_/(app)/overview/overview.page.tsx").route;
 			"_root_/(app)/projects": typeof import("../routes/_root_/(app)/projects/projects.page.tsx").route;
 			"_root_/(app)/projects/[id]": typeof import("../routes/_root_/(app)/projects/[id]/project.page.tsx").route;
 			"_root_/(app)/projects/new": typeof import("../routes/_root_/(app)/projects/new/new.page.tsx").route;
+			"_root_/(app)/reports/export.csv": typeof import("../routes/_root_/(app)/reports/export.csv/export.page.tsx").route;
+			"_root_/(app)/settings": typeof import("../routes/_root_/(app)/settings/settings.layout.tsx").route;
 			"_root_/(app)/settings/billing": typeof import("../routes/_root_/(app)/settings/billing/billing.page.tsx").route;
+			"_root_/(app)/settings/profile": typeof import("../routes/_root_/(app)/settings/profile/profile.page.tsx").route;
+			"_root_/(app)/settings/team": typeof import("../routes/_root_/(app)/settings/team/team.page.tsx").route;
+			"_root_/api/revalidate": typeof import("../routes/_root_/api/revalidate/revalidate.page.tsx").route;
+			"_root_/api/webhooks/billing": typeof import("../routes/_root_/api/webhooks/billing/billing.page.tsx").route;
 			"_root_/login": typeof import("../routes/_root_/login/login.page.tsx").route;
+			"_root_/status": typeof import("../routes/_root_/status/status.page.tsx").route;
 		};
 		routeParents: {
 			"_root_": [];
 			"_root_/": ["_root_"];
 			"_root_/(app)": ["_root_"];
+			"_root_/(app)/overview": ["_root_", "_root_/(app)"];
 			"_root_/(app)/projects": ["_root_", "_root_/(app)"];
 			"_root_/(app)/projects/[id]": ["_root_", "_root_/(app)"];
 			"_root_/(app)/projects/new": ["_root_", "_root_/(app)"];
-			"_root_/(app)/settings/billing": ["_root_", "_root_/(app)"];
+			"_root_/(app)/reports/export.csv": ["_root_", "_root_/(app)"];
+			"_root_/(app)/settings": ["_root_", "_root_/(app)"];
+			"_root_/(app)/settings/billing": ["_root_", "_root_/(app)", "_root_/(app)/settings"];
+			"_root_/(app)/settings/profile": ["_root_", "_root_/(app)", "_root_/(app)/settings"];
+			"_root_/(app)/settings/team": ["_root_", "_root_/(app)", "_root_/(app)/settings"];
+			"_root_/api/revalidate": ["_root_"];
+			"_root_/api/webhooks/billing": ["_root_"];
 			"_root_/login": ["_root_"];
+			"_root_/status": ["_root_"];
 		};
 		authModes: {
 			"_root_/": "optional";
 			"_root_/(app)": true;
 			"_root_/(app)/settings/billing": "optional";
+			"_root_/(app)/settings/team": "optional";
 			"_root_/login": "optional";
 		};
 		routeSearchParams: {
