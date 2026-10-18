@@ -12,13 +12,14 @@ const BUN_CEILING = 128 * 1024 * 1024
 type Ctx = { waitUntil: (promise: Promise<unknown>) => void }
 
 export type BunServer = {
-	fetch: (request: Request, env: undefined, ctx: Ctx) => Response | Promise<Response>
+	fetch: (request: Request, env: unknown, ctx: Ctx) => Response | Promise<Response>
 }
 
 // `trustProxy` as on the Node listener: with a trusted hop, `X-Forwarded-Proto: https` makes the request https, so its
 // origin, redirects, and Strict-Transport-Security follow (dx/adapters.md). `idleTimeout` is Bun.serve's, in seconds,
-// and goes to it with the fetch.
-export type BunFetchOptions = { trustProxy?: number; idleTimeout?: number }
+// and goes to it with the fetch. `env` is what the server hands its loaders, `.response()` routes, server functions,
+// and mounts as `env`: `process.env` when it is absent, as the platform's env is on Workers (BUGS.md 372).
+export type BunFetchOptions = { trustProxy?: number; idleTimeout?: number; env?: unknown }
 
 // The per-request timeout of the server Bun.serve hands its fetch.
 export type BunTimeouts = { timeout: (request: Request, seconds: number) => void }
@@ -38,8 +39,8 @@ export function createBunFetch(
 	idleTimeout: number
 	drain: (options: DrainOptions) => Promise<boolean>
 } {
-	const { idleTimeout = BUN_IDLE, ...forwarding } = options
-	const hops = trustedHops("createBunFetch", forwarding, ["trustProxy", "idleTimeout"])
+	const { idleTimeout = BUN_IDLE, env = process.env, ...forwarding } = options
+	const hops = trustedHops("createBunFetch", forwarding, ["trustProxy", "idleTimeout", "env"])
 	if (!Number.isInteger(idleTimeout) || idleTimeout < 0 || idleTimeout > MAX_IDLE) {
 		throw new Error(`idleTimeout is an integer from 0 to ${MAX_IDLE} seconds`)
 	}
@@ -63,9 +64,7 @@ export function createBunFetch(
 			pending.track(sent.promise)
 			const timeout = bun === undefined ? undefined : (seconds: number) => bun.timeout(request, seconds)
 			// A throw as the call starts rejects like a later one, so the answer is never left in flight.
-			const answered = new Promise<Response>((resolve) =>
-				resolve(server.fetch(forwarded(request, hops), undefined, ctx)),
-			)
+			const answered = new Promise<Response>((resolve) => resolve(server.fetch(forwarded(request, hops), env, ctx)))
 			return answered.then(
 				(response) => watched(response, { timeout, idle: idleTimeout, sent: sent.resolve }),
 				(error: unknown) => {
