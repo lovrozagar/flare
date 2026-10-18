@@ -11,6 +11,7 @@ import { GENERATED } from "../../src/vite/codegen/write.ts"
 // fixture's own files, so the committed app has no `_gen`.
 const app = fileURLToPath(new URL("./app", import.meta.url))
 const handwritten = fileURLToPath(new URL("./handwritten", import.meta.url))
+const unregistered = fileURLToPath(new URL("./unregistered", import.meta.url))
 const repo = fileURLToPath(new URL("../../../../", import.meta.url))
 const temp = join(repo, ".tmp", `types-app-${process.pid}`)
 
@@ -83,34 +84,51 @@ it("register checked", () => {
 	}
 }, 240_000)
 
-// The hand-written fixture: a register codegen never writes, which the dx/types.md Merge rules about a missing parent
-// module and an omitted `auth` read (plan 25 5.2). It compiles under the same flags, with skipLibCheck off and on, and
-// only the directive sentinel fails.
-it("hand-written register", () => {
-	const dir = join(temp, "handwritten")
+// A fixture other than the app, compiled under the same flags with its own register or none, with skipLibCheck off
+// and on: each run's tsc errors, keyed by the flag. The directive sentinel is the one error a clean fixture reports.
+function fixtureErrors(fixture: string): Record<string, string[]> {
+	const dir = join(temp, relative(join(app, ".."), fixture))
+	const runs: Record<string, string[]> = {}
 	for (const skipLibCheck of [false, true]) {
 		try {
 			mkdirSync(join(dir, "src"), { recursive: true })
 			writeFileSync(join(dir, "src", "checks-unused.ts"), '// @ts-expect-error\nexport const fine: string = "a";\n')
-			const sources = [join(handwritten, "src"), join(dir, "src")]
+			const sources = [join(fixture, "src"), join(dir, "src")]
 			const tsconfig = join(dir, "tsconfig.json")
 			writeFileSync(
 				tsconfig,
 				JSON.stringify({
-					extends: join(handwritten, "tsconfig.json"),
+					extends: join(fixture, "tsconfig.json"),
 					compilerOptions: { rootDirs: sources, skipLibCheck },
 					include: sources,
 				}),
 			)
 			const run = spawnSync("bunx", ["tsc", "-p", tsconfig], { cwd: repo, encoding: "utf8" })
-			const errors = run.stdout.split("\n").filter((line) => line.includes("error TS"))
-			expect(errors, `skipLibCheck ${skipLibCheck}`).toEqual([
-				expect.stringMatching(/checks-unused\.ts\(1,1\): error TS2578/),
-			])
+			runs[`skipLibCheck ${skipLibCheck}`] = run.stdout.split("\n").filter((line) => line.includes("error TS"))
 		} finally {
 			rmSync(dir, { recursive: true, force: true })
 		}
 	}
+	return runs
+}
+
+const SENTINEL_ONLY = [expect.stringMatching(/checks-unused\.ts\(1,1\): error TS2578/)]
+
+// The hand-written fixture: a register codegen never writes, which the dx/types.md rows about a missing parent module
+// and the omitted `auth`, `env`, and `serverContext` read (plan 25 5.2).
+it("hand-written register", () => {
+	expect(fixtureErrors(handwritten)).toEqual({
+		"skipLibCheck false": SENTINEL_ONLY,
+		"skipLibCheck true": SENTINEL_ONLY,
+	})
+}, 240_000)
+
+// The unregistered fixture has no register at all, the `unregistered fallback` row's app (plan 25 5.2).
+it("unregistered app", () => {
+	expect(fixtureErrors(unregistered)).toEqual({
+		"skipLibCheck false": SENTINEL_ONLY,
+		"skipLibCheck true": SENTINEL_ONLY,
+	})
 }, 240_000)
 
 // The fixture's src/query.ts imports the ./query entry, so the generated register sets `hasQueryClient`.

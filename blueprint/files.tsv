@@ -790,6 +790,10 @@ packages/core/tests/types/handwritten/src/register.d.ts	P7	app	-	A register code
 packages/core/tests/types/handwritten/src/routes/child.page.tsx	P7	app	-	The fixture's one route, which requires auth under a parent with no module
 packages/core/tests/types/handwritten/src/sections/app-writes.types.ts	P7	app	-	dx/types.md What the app writes, each field when the app omits it (plan 25 5.2)
 packages/core/tests/types/handwritten/src/sections/merge.types.ts	P7	app	-	dx/types.md Merge, the rules about a missing parent module and an omitted `auth` (plan 25 5.2)
+packages/core/tests/types/unregistered/package.json	P7	app	-	The unregistered type fixture package. Not a Playwright app (plan 25 5.2)
+packages/core/tests/types/unregistered/tsconfig.json	P7	app	-	The types app's flags, for the fixture with no register
+packages/core/tests/types/unregistered/src/routes/child.page.tsx	P7	app	-	The fixture's one route, under no register
+packages/core/tests/types/unregistered/src/sections/matrix.types.ts	P7	app	-	dx/types.md Matrix unregistered fallback: an app with no register (plan 25 5.2)
 packages/core/tests/types/app/package.json	P7	app	-	Type fixture package. Not a Playwright app (B74)
 packages/core/tests/types/app/tsconfig.json	P7	app	-	strict, exactOptionalPropertyTypes, noUncheckedIndexedAccess, verbatimModuleSyntax, noPropertyAccessFromIndexSignature
 packages/core/tests/types/app/src/register.d.ts	P7	app	-	Augments auth, env, and serverContext. Does not write the route maps
@@ -800,6 +804,7 @@ packages/core/tests/types/app/src/sections/app-writes.types.ts	P7	app	-	dx/types
 packages/core/tests/types/app/src/sections/callbacks.types.ts	P7	app	-	dx/types.md What each callback receives, one case per callback, against the generated register (plan 25 5.2)
 packages/core/tests/types/app/src/sections/graph.types.ts	P7	app	-	dx/types.md Graph, one case per row, against the generated register through the package entries (plan 25 5.2)
 packages/core/tests/types/app/src/sections/maps.types.ts	P7	app	-	dx/types.md Maps codegen writes, one case per row, against the generated register through the package entry (plan 25 5.2)
+packages/core/tests/types/app/src/sections/matrix-targets.types.ts	P7	app	-	dx/types.md Matrix, the params, to, and search rows (plan 25 5.2)
 packages/core/tests/types/app/src/sections/merge-auth.types.ts	P7	app	-	dx/types.md Merge, the auth rules, the server function chain, and the segment (plan 25 5.2)
 packages/core/tests/types/app/src/sections/merge.types.ts	P7	app	-	dx/types.md Merge, the params, search, loader data, and preloader rules, against the generated register through the package entries (plan 25 5.2)
 packages/core/tests/types/app/src/validators.ts	P7	app	-	Validators the input pages import or build with a factory (BUGS.md 349)
