@@ -35,15 +35,19 @@ test("build mismatch reload", async ({ page, docs }) => {
 
 test("missing chunk reload", async ({ page, docs }, info) => {
 	test.skip(!isProd(info), "chunk files exist only in a production build")
-	// After hydrate every script request fails, as a chunk a newer deploy deleted would.
+	// After hydrate every script request fails, as a chunk a newer deploy deleted would, the loaded document's too.
 	let hydrated = false
 	await page.route("**/assets/*.js", (route) => (hydrated ? route.abort() : route.continue()))
 	await page.goto(`${docs.origin}/`)
 	await page.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
 	hydrated = true
 	const loads = documents(page)
+	const failed = page.waitForEvent("console", (message) => message.text().includes("[flare] the client failed to boot"))
 	await page.getByRole("link", { name: "Open the playground" }).click()
-	await expect.poll(() => loads).toEqual(["/playground"])
+	// The loaded document's own scripts fail too, and its entry script's guard sees the same page: it loads nothing more
+	// and logs the boot failure. A path and `location.href` name one page (BUGS.md 365).
+	await failed
+	expect(loads).toEqual(["/playground"])
 })
 
 // A navigation the next click superseded loads no document when its route code fails: API is clicked, then Examples,

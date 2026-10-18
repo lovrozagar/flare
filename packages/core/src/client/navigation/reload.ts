@@ -11,9 +11,12 @@ export function isChunkError(error: unknown): boolean {
 	return error instanceof Error && CHUNK_MESSAGES.some((message) => error.message.includes(message))
 }
 
-// A build mismatch and a missing chunk share one guarded document load. The same href within 10 seconds is not
-// loaded again, so a broken deploy cannot loop. Without storage there is no guard, so nothing loads.
+// A build mismatch and a missing chunk share one guarded document load. The same page within 10 seconds is not
+// loaded again, so a broken deploy cannot loop. Without storage there is no guard, so nothing loads. The guard keys
+// on the href resolved against the page: a navigation passes a path, the boot and the document's entry script
+// `location.href`, and both name one page (BUGS.md 365).
 export function loadDocument(href: string, env: ReloadEnv): boolean {
+	const page = new URL(href, location.href).href
 	let storage: Storage
 	try {
 		storage = env.storage()
@@ -21,8 +24,8 @@ export function loadDocument(href: string, env: ReloadEnv): boolean {
 		return false
 	}
 	const last = readLast(storage)
-	if (last !== undefined && last.href === href && env.now() - last.at < WINDOW_MS) return false
-	storage.setItem(KEY, JSON.stringify({ at: env.now(), href }))
+	if (last !== undefined && last.href === page && env.now() - last.at < WINDOW_MS) return false
+	storage.setItem(KEY, JSON.stringify({ at: env.now(), href: page }))
 	env.assign(href)
 	return true
 }
