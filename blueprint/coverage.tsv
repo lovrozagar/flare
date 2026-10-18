@@ -646,3 +646,21 @@ types.md#Merge#rule:ResolvedAuth<false>	packages/core/tests/types/app/src/sectio
 types.md#Merge#rule:omitted auth	packages/core/tests/types/handwritten/src/sections/merge.types.ts::omitted auth	n/a: type-only, no runtime surface
 types.md#Merge#rule:server function auth	packages/core/tests/types/app/src/sections/merge-auth.types.ts::server function auth	n/a: type-only, no runtime surface
 types.md#Merge#rule:segment	packages/core/tests/types/app/src/sections/merge-auth.types.ts::segment	n/a: type-only, no runtime surface
+types.md#What each callback receives#	packages/core/tests/types/app/src/sections/callbacks.types.ts::callbacks prose	n/a: the validator's input type; the raw, still-encoded values it receives at runtime are B81's and B31's, mapped under builder.md input
+types.md#What each callback receives#callback:authorize	packages/core/tests/types/app/src/sections/callbacks.types.ts::authorize	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:preloader	packages/core/tests/types/app/src/sections/callbacks.types.ts::preloader	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:loader	packages/core/tests/types/app/src/sections/callbacks.types.ts::loader	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:.response()	packages/core/tests/types/app/src/sections/callbacks.types.ts::.response()	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:head	packages/core/tests/types/app/src/sections/callbacks.types.ts::head	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:headers	packages/core/tests/types/app/src/sections/callbacks.types.ts::headers	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:route .security()	packages/core/tests/types/app/src/sections/callbacks.types.ts::route .security()	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:page render	packages/core/tests/types/app/src/sections/callbacks.types.ts::page render	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:layout and root render	packages/core/tests/types/app/src/sections/callbacks.types.ts::layout and root render	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:segment render	packages/core/tests/types/app/src/sections/callbacks.types.ts::segment render	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:errorRender	packages/core/tests/types/app/src/sections/callbacks.types.ts::errorRender	packages/core/tests/e2e/docs-routing.test.ts::error boundary reset; packages/core/tests/e2e/docs-data.test.ts::safe error; packages/core/tests/e2e/docs-data.test.ts::unsafe error
+types.md#What each callback receives#callback:notFoundRender	packages/core/tests/types/app/src/sections/callbacks.types.ts::notFoundRender	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:unauthenticatedRender, unauthorizedRender	packages/core/tests/types/app/src/sections/callbacks.types.ts::unauthenticatedRender, unauthorizedRender	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:loaderDeps	packages/core/tests/types/app/src/sections/callbacks.types.ts::loaderDeps	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:shouldRefetch	packages/core/tests/types/app/src/sections/callbacks.types.ts::shouldRefetch	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:server-fn handler	packages/core/tests/types/app/src/sections/callbacks.types.ts::server-fn handler	n/a: type-only, no runtime surface
+types.md#What each callback receives#callback:server-fn stream	packages/core/tests/types/app/src/sections/callbacks.types.ts::server-fn stream	n/a: type-only, no runtime surface

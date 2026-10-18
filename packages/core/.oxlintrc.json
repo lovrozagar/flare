@@ -47,6 +47,7 @@
 			"files": ["tests/types/*/src/sections/*.types.ts"],
 			"rules": {
 				"flare/no-module-side-effects": "off",
+				"flare/funnel-only": "off",
 				"vitest/expect-expect": "off"
 			}
 		},
