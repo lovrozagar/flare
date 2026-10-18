@@ -29,6 +29,7 @@ declare module "@lovrozagar/flare" {
 		authModes: {
 			"_root_/": "optional";
 			"_root_/(app)": true;
+			"_root_/(app)/settings/billing": "optional";
 			"_root_/login": "optional";
 		};
 		routeSearchParams: {
