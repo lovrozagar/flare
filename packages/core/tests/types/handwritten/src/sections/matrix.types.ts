@@ -2,6 +2,7 @@
 // beside this file: it declares no `auth`, `env`, `serverContext`, or `hasQueryClient`, and lists `_root_/gone` as a
 // parent with no module. app.test.ts compiles this fixture; vitest never runs it (B96, plan 25 5.2).
 import { createPage } from "@lovrozagar/flare"
+import { serverCtx } from "@lovrozagar/flare/server"
 import { expectTypeOf, it } from "vitest"
 
 it("missing parent", () => {
@@ -32,4 +33,19 @@ it("query client absent", () => {
 		void ctx.queryClient
 		return { n: 1 }
 	})
+})
+
+it("env omitted", () => {
+	void createPage("_root_/child").loader((ctx) => {
+		expectTypeOf(ctx.env).toBeUnknown()
+		// @ts-expect-error the register declares no env, so there is no field to read
+		void ctx.env["site"]
+		return { n: 1 }
+	})
+})
+
+it("server context omitted", () => {
+	expectTypeOf(serverCtx()).toEqualTypeOf<Record<string, unknown>>()
+	// @ts-expect-error no field is required without a serverContext augmentation
+	const _requestId: string = serverCtx()["requestId"]
 })

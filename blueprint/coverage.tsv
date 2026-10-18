@@ -749,3 +749,24 @@ types.md#Matrix#case:server fn no optional	packages/core/tests/types/app/src/sec
 types.md#Matrix#case:server fn auth null	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::server fn auth null	n/a: type-only, no runtime surface
 types.md#Matrix#case:server fn auth required	packages/core/tests/types/app/src/sections/matrix-auth.types.ts::server fn auth required	n/a: type-only, no runtime surface
 types.md#Matrix#case:auth unaugmented	packages/core/tests/types/handwritten/src/sections/matrix.types.ts::auth unaugmented	n/a: type-only, no runtime surface
+types.md#Matrix#case:head loader	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::head loader	n/a: type-only, no runtime surface
+types.md#Matrix#case:headers record	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::headers record	n/a: type-only, no runtime surface
+types.md#Matrix#case:security no nonce	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::security no nonce	n/a: type-only, no runtime surface
+types.md#Matrix#case:loader deps raw	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::loader deps raw	n/a: runtime half pinned in packages/core/src/client/router/match-cache.test.ts (loader deps)
+types.md#Matrix#case:should refetch raw	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::should refetch raw	n/a: runtime half pinned in packages/core/src/client/router/match-cache.test.ts (should refetch)
+types.md#Matrix#case:error boundary	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::error boundary	n/a: type-only, no runtime surface
+types.md#Matrix#case:not found boundary	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::not found boundary	n/a: type-only, no runtime surface
+types.md#Matrix#case:auth boundary	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::auth boundary	n/a: type-only, no runtime surface
+types.md#Matrix#case:method order	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::method order	n/a: runtime throw pinned in packages/core/src/shared/route-builder/chain.test.ts (order)
+types.md#Matrix#case:boundary remains	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::boundary remains	n/a: runtime throw pinned in packages/core/src/shared/route-builder/boundaries.test.ts (boundary once)
+types.md#Matrix#case:boundaries done	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::boundaries done	n/a: runtime throw pinned in packages/core/src/shared/route-builder/boundaries.test.ts (boundary once)
+types.md#Matrix#case:intercept remains	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::intercept remains	n/a: runtime throw pinned in packages/core/src/shared/route-builder/page.test.ts (page intercept)
+types.md#Matrix#case:segment no data	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::segment no data	n/a: type-only, no runtime surface
+types.md#Matrix#case:segment parent	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::segment parent	n/a: type-only, no runtime surface
+types.md#Matrix#case:parents closed	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::parents closed	n/a: type-only, no runtime surface
+types.md#Matrix#case:keyed by route id	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::keyed by route id	n/a: type-only, no runtime surface
+types.md#Matrix#case:no virtual	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::no virtual	n/a: type-only, no runtime surface
+types.md#Matrix#case:no phantom	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::no phantom	n/a: type-only, no runtime surface
+types.md#Matrix#case:env omitted	packages/core/tests/types/handwritten/src/sections/matrix.types.ts::env omitted	n/a: type-only, no runtime surface
+types.md#Matrix#case:server context omitted	packages/core/tests/types/handwritten/src/sections/matrix.types.ts::server context omitted	n/a: the type; the runtime default, an empty record, is pinned in packages/core/src/server/context/ctx.test.ts (omitted is empty)
+types.md#Matrix#	packages/core/tests/types/app/src/sections/matrix-builder.types.ts::matrix prose	n/a: runtime href throw pinned in packages/core/src/shared/errors/redirect.test.ts (href)
