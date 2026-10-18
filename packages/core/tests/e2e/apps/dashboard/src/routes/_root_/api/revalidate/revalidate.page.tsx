@@ -1,10 +1,9 @@
 import { createPage } from "@lovrozagar/flare"
 import { revalidate } from "@lovrozagar/flare/server"
-import { secretFrom } from "../../../../e2e.ts"
 
 const encoder = new TextEncoder()
 
-// dx/cache.md "Purge from a webhook", as written there, but for where the secret comes from (e2e.ts `secretFrom`).
+// dx/cache.md "Purge from a webhook", as written there.
 // The header and the expected one are hashed to equal-length digests and compared in full, so the time taken never
 // tells a caller how much of a guess matched. An unset secret matches nothing.
 async function authorized(header: string | null, secret: string | undefined): Promise<boolean> {
@@ -19,7 +18,7 @@ async function authorized(header: string | null, secret: string | undefined): Pr
 
 export const route = createPage("_root_/api/revalidate").response(
 	async ({ request, env }) => {
-		if (!(await authorized(request.headers.get("authorization"), secretFrom(env, "REVALIDATE_SECRET")))) {
+		if (!(await authorized(request.headers.get("authorization"), env.REVALIDATE_SECRET))) {
 			return new Response(null, { status: 401 })
 		}
 		const body: unknown = await request.json()

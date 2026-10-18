@@ -6,6 +6,12 @@ type Fetch = (input: string | URL | Request, init?: RequestInit) => Promise<Resp
 declare module "@lovrozagar/flare" {
 	interface FlareRegister {
 		auth: import("./session.ts").Session
-		env: { ASSETS?: { fetch: Fetch }; SESSION_SECRET?: string; FLARE_E2E?: string }
+		env: {
+			ASSETS?: { fetch: Fetch }
+			SESSION_SECRET?: string
+			REVALIDATE_SECRET?: string
+			BILLING_SECRET?: string
+			FLARE_E2E?: string
+		}
 	}
 }

@@ -1,13 +1,13 @@
 import { createHmac } from "node:crypto"
 import type { APIRequestContext } from "@playwright/test"
 import { expect, signedIn, test } from "./dashboard.fixture.ts"
+import { E2E_ENV } from "./e2e-env.ts"
 
 // The app's `.response()` routes (bits/17): a CSV download behind the session, dx/cache.md's purge webhook, and a
 // signed billing webhook a payment provider posts from its own site.
 
 // The e2e boot's webhook secrets (apps/dashboard/src/e2e.ts): unset, the app uses these only under FLARE_E2E.
-const REVALIDATE_SECRET = "e2e-revalidate-secret"
-const BILLING_SECRET = "e2e-billing-secret"
+const { REVALIDATE_SECRET, BILLING_SECRET } = E2E_ENV
 
 async function renderOf(request: APIRequestContext, origin: string): Promise<string> {
 	const html = await (await request.get(`${origin}/app/status`)).text()

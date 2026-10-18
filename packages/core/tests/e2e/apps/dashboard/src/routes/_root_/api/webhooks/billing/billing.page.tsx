@@ -1,6 +1,5 @@
 import { createPage } from "@lovrozagar/flare"
 import { setPlan, signedUpUser, type Plan } from "../../../../../db.ts"
-import { secretFrom } from "../../../../../e2e.ts"
 
 const encoder = new TextEncoder()
 
@@ -20,7 +19,7 @@ async function signed(body: string, signature: string | null, secret: string | u
 export const route = createPage("_root_/api/webhooks/billing").response(
 	async ({ request, env }) => {
 		const body = await request.text()
-		if (!(await signed(body, request.headers.get("x-signature"), secretFrom(env, "BILLING_SECRET")))) {
+		if (!(await signed(body, request.headers.get("x-signature"), env.BILLING_SECRET))) {
 			return new Response(null, { status: 401 })
 		}
 		const event: unknown = JSON.parse(body)
