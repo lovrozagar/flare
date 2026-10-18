@@ -5,7 +5,7 @@ import { appFrom } from "./harness-app.ts"
 import { ENGINES, startHarness, type Harness } from "./hydrate.harness.ts"
 
 // dx/navigate.md's `useNavigation()` and `useNavigationProgress()` in each engine (B96): a real document
-// `createServer(...).fetch` serves, hydrated by the real `createClient`, with a data request held for two seconds.
+// `createServer(...).fetch` serves, hydrated by the real `createClient`, with a data request held until the creep is capped.
 
 let harness: Harness | undefined
 
@@ -42,10 +42,13 @@ const routeTree = [{ id: "_root_/", path: "/", module: page("_root_/") }, { id: 
 return { router: api.router.createRouter({ layouts: { _root_: root }, routeTree, prefetch: false }) }
 `)
 
-// The data request answers two seconds late; the steps record when the click went out and every value seen.
+// The data request answers once the creep has reached its cap, not after a fixed time: a slow runner's timers fire
+// late, and a fixed two seconds ended the navigation 4 and 36 steps short on CI's macOS runner. The steps record when
+// the click went out and every value seen.
 async function slowSteps(tab: Page): Promise<void> {
+	const capped = Promise.withResolvers<void>()
 	await tab.route("**/slow?_flare=data*", async (route) => {
-		await new Promise((done) => setTimeout(done, 2000))
+		await capped.promise
 		await route.continue()
 	})
 	await tab.waitForSelector("html[data-flare-hydrated]", { state: "attached" })
@@ -53,6 +56,10 @@ async function slowSteps(tab: Page): Promise<void> {
 		document.getElementById("to-slow")?.click()
 		return Math.round(performance.now())
 	})
+	await tab.waitForFunction(
+		() => (Reflect.get(window, "__flareCreep") as unknown[][] | undefined)?.at(-1)?.[2] === 0.994,
+	)
+	capped.resolve()
 	await tab.waitForFunction(() => document.getElementById("page")?.textContent === "/slow")
 	await tab.waitForFunction(() => (Reflect.get(window, "__flareHeld") as unknown[][]).at(-1)?.[0] === null, undefined, {
 		timeout: 10_000,
@@ -103,7 +110,7 @@ describe.each(ENGINES)("%s", (engine) => {
 		const [one, idle] = seen.held.slice(-2)
 		expect([one?.[0], idle?.[0]]).toEqual([1, null])
 		// The hook times the hold from its own start, a few milliseconds after the click; without the hold, idle comes as
-		// the page lands, two seconds in.
+		// the page lands, once the creep is capped: about one second in here.
 		expect((idle?.[1] ?? 0) - seen.start).toBeGreaterThanOrEqual(2400)
 	})
 })
