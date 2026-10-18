@@ -1,4 +1,4 @@
-import { createComponent, createMemo, Errored, Loading } from "solid-js"
+import { createComponent, createEffect, createMemo, Errored, Loading } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
 import { encodeFrame, type Frame } from "../../shared/protocol/index.ts"
@@ -76,6 +76,16 @@ const holding = createPage("_root_/held").render(() => {
 	return ["held:", () => value()]
 })
 
+// A page whose effect reads the browser's URL as it mounts, as an analytics page view does (BUGS.md 362).
+const urls: string[] = []
+const watching = createPage("_root_/watch").render(() => {
+	createEffect(
+		() => true,
+		() => void urls.push(location.pathname),
+	)
+	return "watch"
+})
+
 const router = createRouter({
 	layouts: { _root_: root },
 	routeTree: [
@@ -85,6 +95,7 @@ const router = createRouter({
 		{ id: "_root_/slots", path: "/slots", module: slotted },
 		{ id: "_root_/caught", path: "/caught", module: caught },
 		{ id: "_root_/escaped", path: "/escaped", module: escaped },
+		{ id: "_root_/watch", path: "/watch", module: watching },
 	],
 })
 
@@ -228,6 +239,7 @@ function frames(id: string): Response {
 function byPath(url: string): Response {
 	const path = new URL(url, "http://localhost").pathname
 	if (path.startsWith("/read/")) return frames("_root_/read/[id]")
+	if (path === "/watch") return frames("_root_/watch")
 	return frames(path === "/held" ? "_root_/held" : "_root_/")
 }
 
@@ -252,6 +264,17 @@ it("pending read commits", async () => {
 	expect(app.store.snapshot().location.pathname).toBe("/read/b")
 	expect(pushes.at(-1)).toBe("/read/b root[read:wait]")
 	push.mockRestore()
+})
+
+// A page's effects run with the commit that mounts it, and the URL is already its own: history moves with the DOM
+// commit, before any effect of the new page (B106, BUGS.md 362).
+it("effects see the url", async () => {
+	const app = await mountNavigator(router, async (url) => byPath(url))
+	urls.length = 0
+	await app.navigator.navigate({ to: "_root_/watch" })
+	await settled()
+	expect(app.text()).toBe("root[watch]")
+	expect(urls).toEqual(["/watch"])
 })
 
 // A commit that holds, a read with no <Loading> around it, does not move the URL while the old page is on screen. A

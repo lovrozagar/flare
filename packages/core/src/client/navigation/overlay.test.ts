@@ -63,7 +63,8 @@ it("overlay entry", () => {
 	const written: string[] = []
 	const deps = {
 		cache: createMatchCache({ staleTime: 0, gcTime: 60_000 }),
-		store: { commit: async () => undefined },
+		// The store calls `shown` as the commit goes on screen.
+		store: { commit: async (_next: unknown, shown?: () => void) => shown?.() },
 		history: {
 			index: () => 1,
 			push: (url: string) => void written.push(`push ${url}`),
