@@ -24,8 +24,10 @@ export type BunFetchOptions = { trustProxy?: number; idleTimeout?: number; env?:
 // The per-request timeout of the server Bun.serve hands its fetch.
 export type BunTimeouts = { timeout: (request: Request, seconds: number) => void }
 
-// Bun's own default `idleTimeout`, and its ceiling.
+// Bun's own default `idleTimeout`, and its ceiling. Bun counts the timeout in 4-second ticks from one sweep that runs
+// while any socket is open, so 1 to 4 seconds is the next sweep, which can cut a request as it starts (BUGS.md 423).
 const BUN_IDLE = 10
+const MIN_IDLE = 5
 const MAX_IDLE = 255
 
 // `drain` is what a SIGTERM handler awaits after `stop()`: it resolves once every answer in flight is sent and its
@@ -41,8 +43,10 @@ export function createBunFetch(
 } {
 	const { idleTimeout = BUN_IDLE, env = process.env, ...forwarding } = options
 	const hops = trustedHops("createBunFetch", forwarding, ["trustProxy", "idleTimeout", "env"])
-	if (!Number.isInteger(idleTimeout) || idleTimeout < 0 || idleTimeout > MAX_IDLE) {
-		throw new Error(`idleTimeout is an integer from 0 to ${MAX_IDLE} seconds`)
+	const range = `idleTimeout is 0 (no timeout) or a whole number of seconds from ${MIN_IDLE} to ${MAX_IDLE}`
+	if (!Number.isInteger(idleTimeout) || idleTimeout < 0 || idleTimeout > MAX_IDLE) throw new Error(range)
+	if (idleTimeout > 0 && idleTimeout < MIN_IDLE) {
+		throw new Error(`${range}: Bun counts it in 4-second ticks, so ${idleTimeout} can cut a request as it starts`)
 	}
 	const pending = pendingWork()
 	// Background work is held until it settles, so a drain waits for it; a rejection is logged, never left unhandled,
