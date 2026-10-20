@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest"
-import { createMemoryStore } from "./memory.ts"
+import { createMemoryStore, utf8Length } from "./memory.ts"
 
 afterEach(() => {
 	vi.restoreAllMocks()
@@ -83,5 +83,13 @@ it("lru bound", async () => {
 	])
 	for (const maxBytes of [0, 1.5, Number.NaN, -1]) {
 		expect(() => createMemoryStore({ maxBytes })).toThrow("createMemoryStore: maxBytes must be a positive whole number")
+	}
+})
+
+// An entry's size is counted without encoding it, and matches TextEncoder's byte length for every kind of code
+// point: ASCII, two-byte, three-byte, a surrogate pair, and a lone surrogate, which encodes as U+FFFD (B147).
+it("utf8 length", () => {
+	for (const text of ["", "plain", "é", "€", "😀", "a😀é€", "\uD800", "x\uDC00", "\uD800\uD800"]) {
+		expect([text, utf8Length(text)]).toEqual([text, new TextEncoder().encode(text).length])
 	}
 })

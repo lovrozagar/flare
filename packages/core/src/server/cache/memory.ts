@@ -11,7 +11,20 @@ const SWEEP = 2
 // The default bound: Next.js's in-memory incremental cache default (B147).
 const MAX_BYTES = 50 * 1024 * 1024
 
-const encoder = new TextEncoder()
+// A string's UTF-8 byte length without encoding it: what TextEncoder writes, a lone surrogate as U+FFFD's 3 bytes.
+export function utf8Length(text: string): number {
+	let bytes = 0
+	for (let index = 0; index < text.length; index++) {
+		const unit = text.charCodeAt(index)
+		if (unit < 0x80) bytes += 1
+		else if (unit < 0x800) bytes += 2
+		else if (unit >= 0xd800 && unit < 0xdc00 && (text.charCodeAt(index + 1) & 0xfc00) === 0xdc00) {
+			bytes += 4
+			index += 1
+		} else bytes += 3
+	}
+	return bytes
+}
 
 // An epoch record is never evicted and never counted: evicting one would let an entry it purged read as fresh. There
 // is one per tag or key something revalidated, so they grow only with purges, not with requests (B147).
@@ -89,7 +102,7 @@ function lruSlots(maxBytes: number) {
 			const now = Date.now()
 			sweep(now)
 			drop(key)
-			const size = isEpoch(key) ? 0 : encoder.encode(JSON.stringify(entry)).length
+			const size = isEpoch(key) ? 0 : utf8Length(JSON.stringify(entry))
 			if (size > maxBytes) return
 			slots.set(key, { entry, expiresAt: now + ttl, bytes: size })
 			bytes += size
