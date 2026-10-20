@@ -33,6 +33,11 @@ it("href", () => {
 	expect(thrown({ href: "https://ex.com/a" }).href).toBe("https://ex.com/a")
 	expect(thrown({ href: "http://ex.com/a" }).href).toBe("http://ex.com/a")
 	expect(() => redirect({ href: "javascript:alert(1)" })).toThrow("href")
+	// The scheme is matched in any case, and an href with no host, which no browser can follow, throws (BUGS.md 402).
+	expect(thrown({ href: "HTTPS://example.org/" }).href).toBe("HTTPS://example.org/")
+	expect(thrown({ href: "Http://ex.com" }).href).toBe("Http://ex.com")
+	for (const href of ["https://", "http://", "https://:80/a", "http:ex.com"])
+		expect(() => redirect({ href })).toThrow("href")
 	// A Location header cannot hold a control character (BUGS.md 168).
 	for (const char of ["\r", "\n", "\u0000", "\u007f"])
 		expect(() => redirect({ href: `https://ex.com/a${char}b` })).toThrow("href")

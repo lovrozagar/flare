@@ -64,8 +64,41 @@ it("custom base", async () => {
 })
 
 // A base that would point anywhere but one fixed directory throws when the store is created.
+// A base is one directory as a URL reads it: `..` or `.` in any spelling, a second slash, or a backslash, each of which
+// the documented Workers reader resolves out of it or to another host, throws too (BUGS.md 403).
+// A base with a space or a character outside ASCII is the directory a URL writes for it, percent-encoded: `/a b` is
+// read at `/a%20b`, as a pre-encoded `/a%20b` is (BUGS.md 403).
+it("encoded base", async () => {
+	const read = vi.fn<(path: string) => Promise<null>>(async () => null)
+	for (const [base, written] of [
+		["/a b", "/a%20b"],
+		["/é", "/%C3%A9"],
+		["/a%20b", "/a%20b"],
+	]) {
+		read.mockClear()
+		await createAssetsStore(read, { base }).get(KEY)
+		expect([base, read.mock.calls[0]?.[0].startsWith(`${written}/`)]).toEqual([base, true])
+	}
+})
+
 it("bad base", () => {
-	for (const base of ["/a/../b", "/a?x=1", "/a#x", "/a/", "a"]) {
+	expect(() => createAssetsStore(async () => null, { base: "/_flare-static/v1" })).not.toThrow()
+	for (const base of [
+		"/a/../b",
+		"/a?x=1",
+		"/a#x",
+		"/a/",
+		"a",
+		"//cdn.example",
+		"/%2e%2e/x",
+		"/%2E/x",
+		"/a\uD800",
+		"/a\\..\\..",
+		"/./a",
+		"/a//b",
+		"/",
+		"//[",
+	]) {
 		expect(() => createAssetsStore(async () => null, { base })).toThrow(/base/)
 	}
 })

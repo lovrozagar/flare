@@ -8,7 +8,15 @@ const ORIGIN = "https://flare.cache/"
 // How long a record with no ttl, a tombstone or an epoch, is kept: a year.
 const KEEP = 365 * 24 * 60 * 60
 
-const urlOf = (key: string): string => `${ORIGIN}${encodeURIComponent(key)}`
+const urlOf = (key: string): string => `${ORIGIN}${Array.from(key, encodeChar).join("")}`
+
+// One code point as `encodeURIComponent` writes it. A lone surrogate, which it throws on, is `%u` and its hex: that
+// encoder never writes `%u`, so each key keeps its own URL, as the other stores keep it apart (BUGS.md 404).
+function encodeChar(char: string): string {
+	const code = char.charCodeAt(0)
+	const lone = char.length === 1 && code >= 0xd800 && code <= 0xdfff
+	return lone ? `%u${code.toString(16).toUpperCase()}` : encodeURIComponent(char)
+}
 
 // A store over the Cache API. Each key is one cached Response, and a ttl is its `max-age`. Tombstones and epochs
 // live in the same cache, and nothing lists its entries. On Cloudflare a cache is local to one data center, so a

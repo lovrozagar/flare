@@ -225,8 +225,9 @@ export function createChain(_id: string): Chain {
 	}
 	const chain: Chain = {
 		intercept(config) {
-			if (config.from.length === 0 || typeof config.render !== "string") {
-				throw new Error("intercept needs route ids in from and a render label")
+			const ids = Array.isArray(config.from) && config.from.every((id) => typeof id === "string" && /^[^/]/.test(id))
+			if (!ids || config.from.length === 0 || typeof config.render !== "string") {
+				throw new Error("intercept needs route ids in from, not URL paths, and a render label")
 			}
 			return put("intercept", { from: [...config.from], render: config.render })
 		},
