@@ -189,6 +189,17 @@ test("safe error", async ({ page, docs }) => {
 	await expect(page.locator("#echo-error")).toHaveText("The playground quota is used up for today")
 })
 
+// A returned redirect resolves the call with the 302 itself, Location unread by fetch, whether it points here or to
+// another origin (BUGS.md 389).
+test("returned redirect", async ({ page, docs }) => {
+	await open(page, docs.origin, "/playground")
+	await page.locator("#moved-here").click()
+	await expect(page.locator("#echo-answer")).toHaveText('"302 /docs"')
+	await page.locator("#moved-away").click()
+	await expect(page.locator("#echo-answer")).toHaveText('"302 https://elsewhere.example/moved"')
+	await expect(page.locator("#echo-error")).toHaveText("")
+})
+
 test("unsafe error", async ({ page, docs }, info) => {
 	await open(page, docs.origin, "/playground")
 	await page.locator("#fail-loud").click()

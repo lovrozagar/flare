@@ -1,6 +1,7 @@
 import type { CacheConfig, ParamsFn } from "../../shared/route-builder/chain.ts"
 import type { FlareStore, FlareStoreEntry } from "./contract.ts"
 import { keyEpochKey, epochKey, type Lookup } from "./epoch.ts"
+import { encodeParam } from "../../shared/url/href.ts"
 
 // A seed file, `{ seed: true, key, renderedAt, tags, data }`, as the entry it stands for: `storedAt` is
 // `renderedAt`. A seed with no flag, no numeric `renderedAt`, no `tags` list, or a key other than the one asked
@@ -27,10 +28,25 @@ function paramsOf(cache: CacheConfig | undefined): ParamsFn | undefined {
 type Params = Record<string, string | string[]>
 
 // A page's slugs grouped by the names each entry sets: per group, the names and its entries' values. A catch-all
-// value is its segments joined by `/`, and a name the URL lacks reads as empty.
+// value is its segments joined by `/`, and a name the URL lacks reads as empty. Each segment is written as `buildUrl`
+// encodes it, so a listed value and the request's raw param compare as one URL: `a b`, `a%20b`, and `é` against
+// `%c3%a9` (BUGS.md 388). A segment `buildUrl` refuses keeps its text.
 type Slugs = Map<string, { names: readonly string[]; values: Set<string> }>
 
-const joined = (value: string | string[] | undefined): string => [value ?? []].flat().join("/")
+const joined = (value: string | string[] | undefined): string =>
+	[value ?? []]
+		.flat()
+		.flatMap((text) => text.split("/"))
+		.map(encoded)
+		.join("/")
+
+function encoded(segment: string): string {
+	try {
+		return encodeParam(segment, "")
+	} catch {
+		return segment
+	}
+}
 
 const valuesOf = (names: readonly string[], params: Params): string =>
 	JSON.stringify(names.map((name) => joined(params[name])))

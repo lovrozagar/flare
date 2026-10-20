@@ -1,5 +1,5 @@
 import { UnauthenticatedError, UnauthorizedError } from "../../shared/errors/http.ts"
-import { COOKIES_HEADER, FN_HEADER, fnPrefix } from "../../shared/protocol/index.ts"
+import { COOKIES_HEADER, FN_HEADER, fnPrefix, REDIRECT_STATUSES, STATUS_HEADER } from "../../shared/protocol/index.ts"
 import { runValidator } from "../../shared/validation/index.ts"
 import { fnCaller } from "../auth/caller.ts"
 import { requestScope, type RequestScope } from "../context/ctx.ts"
@@ -197,11 +197,16 @@ function reply(fn: ServerFnRef, envelope: Envelope, status: number): StageResult
 // overwritten (B43). `flare-fn: response` tells the client not to read it as an envelope, whatever the handler set.
 // `flare-cookies: set` says this Response wrote a cookie; a cookie a middleware or an authenticate refresh adds later
 // never sets it, and neither does the handler's own copy (B133). A fetched body arrives decoded, so its encoding goes.
+// A redirect is a 200 naming its status in `flare-status`, private as a thrown one is, since fetch would follow it
+// (BUGS.md 389).
 function passThrough(fn: ServerFnRef, response: Response): StageResult {
 	const headers = decodedHeaders(response)
 	setCacheControl(headers, fn.record, response.status)
 	headers.set(FN_HEADER, "response")
 	headers.delete(COOKIES_HEADER)
+	headers.delete(STATUS_HEADER)
 	if (response.headers.getSetCookie().length > 0) headers.set(COOKIES_HEADER, "set")
-	return { status: response.status, body: response.body, headers }
+	if (!REDIRECT_STATUSES.includes(response.status)) return { status: response.status, body: response.body, headers }
+	headers.set(STATUS_HEADER, String(response.status))
+	return { status: 200, body: response.body, headers }
 }

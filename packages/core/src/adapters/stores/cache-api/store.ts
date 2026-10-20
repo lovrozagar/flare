@@ -1,5 +1,5 @@
 import type { FlareStore, FlareStoreEntry } from "../../../server/cache/contract.ts"
-import { bumpEpochs, epochKey } from "../../../server/cache/epoch.ts"
+import { bumpEpochs, damagedEpoch, epochKey, reportDamaged } from "../../../server/cache/epoch.ts"
 import { tombstone } from "../../../server/cache/tombstone.ts"
 
 // The origin every key's cache URL sits under. It is never fetched.
@@ -23,10 +23,10 @@ export function createCacheApiStore(options: { cacheName?: string; caches?: Cach
 	}
 	const store: FlareStore = {
 		async get(key) {
-			const found = await (await opened()).match(urlOf(key))
+			const cache = await opened()
+			const found = await cache.match(urlOf(key))
 			if (found === undefined) return null
-			const entry: FlareStoreEntry = await found.json()
-			return entry
+			return (await entryOf(found, key)) ?? damaged(cache, key, write)
 		},
 		set: write,
 		delete: (key) => write(key, tombstone(Date.now())),
@@ -36,4 +36,33 @@ export function createCacheApiStore(options: { cacheName?: string; caches?: Cach
 		deleteByTags: (tags) => bumpEpochs(store, tags.map(epochKey)),
 	}
 	return store
+}
+
+// A cached body that is no entry, JSON that does not parse or is not an object, or an epoch with no finite number
+// (BUGS.md 394).
+async function entryOf(found: Response, key: string): Promise<FlareStoreEntry | undefined> {
+	const entry: unknown = await found.json().catch(() => undefined)
+	if (typeof entry !== "object" || entry === null) return undefined
+	const counted = !key.startsWith("epoch:") || Number.isFinite(Reflect.get(entry, "data"))
+	return counted ? (entry as FlareStoreEntry) : undefined
+}
+
+// A damaged page entry is removed and read as a miss. A damaged epoch is replaced by a purge now, unless a purge
+// wrote a good one meanwhile, which stands (BUGS.md 394).
+async function damaged(
+	cache: Cache,
+	key: string,
+	write: (key: string, entry: FlareStoreEntry) => Promise<void>,
+): Promise<FlareStoreEntry | null> {
+	reportDamaged(key)
+	if (!key.startsWith("epoch:")) {
+		await cache.delete(urlOf(key))
+		return null
+	}
+	const entry = damagedEpoch(Date.now())
+	const again = await cache.match(urlOf(key))
+	const meanwhile = again === undefined ? undefined : await entryOf(again, key)
+	if (meanwhile !== undefined) return meanwhile
+	await write(key, entry)
+	return entry
 }

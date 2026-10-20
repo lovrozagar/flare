@@ -67,6 +67,13 @@ it("parse validator", async () => {
 	expect(await runValidator(parsed, 2, { dev: false })).toEqual({ ok: true, value: { parsed: 2 } })
 })
 
+// A validator that is both a function and `{ parse }` runs as `parse`: the documented order is Standard Schema, then
+// `{ parse }`, then a function (BUGS.md 396).
+it("parse before function", async () => {
+	const both: Validator = Object.assign(() => "function ran", { parse: () => "parse ran" })
+	expect(await runValidator(both, 1, { dev: false })).toEqual({ ok: true, value: "parse ran" })
+})
+
 it("async validator", async () => {
 	const standard: Validator = { "~standard": { validate: async () => ({ issues: [{ message: "no" }] }) } }
 	const parse: Validator = { parse: async (value) => ({ parsed: value }) }

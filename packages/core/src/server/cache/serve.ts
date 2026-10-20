@@ -20,7 +20,7 @@ import { isPublic } from "../lifecycle/policies.ts"
 import type { StoreOption } from "../lifecycle/options.ts"
 import { NDJSON } from "../navigation/index.ts"
 import type { FlareStore } from "./contract.ts"
-import { readStored, type Lookup } from "./epoch.ts"
+import { guardedRead, readStored, type Lookup, type ReadGuard } from "./epoch.ts"
 import { inflight, type Landing } from "./inflight.ts"
 import { buildId, storeKey } from "./key.ts"
 import { hitOf, storedPageOf, type Hit } from "./read.ts"
@@ -97,19 +97,22 @@ function unlisted(exchange: Exchange, matched: Loaded): Promise<Response> {
 }
 
 // An SSG page reads only its static seed, so a tombstone or an epoch never hides it. A listed slug with no seed
-// renders live, and nothing is written.
+// renders live, and nothing is written. A seed read that fails or hangs renders live and uncached (BUGS.md 391).
 async function seeded(
 	exchange: Exchange,
 	matched: Loaded,
 	at: { prepared: Prepared; seeds: FlareStore },
 ): Promise<Response> {
 	const key = keyOf(exchange, matched, defined(matched.id, "the static page"))
-	const read = async (): Promise<Lookup | null> => {
-		const seed = await at.seeds.get(key)
-		return seed === null ? null : { entry: seed, purged: false }
+	const unread = { failed: false }
+	const seed = async (): Promise<Lookup | null> => {
+		const entry = await at.seeds.get(key)
+		return entry === null ? null : { entry, purged: false }
 	}
+	const read = () => guardedRead(seed, key, { report: reporter(exchange), unread })
 	const looked = await gated(exchange, matched, { prepared: at.prepared, read })
 	if (looked instanceof Response) return looked
+	if (unread.failed) return live(exchange, matched, uncached(at.prepared))
 	const page = looked === null ? undefined : storedPageOf(looked.entry.data)
 	if (page === undefined) return live(exchange, matched, at.prepared)
 	return served(exchange, page, { policy: at.prepared.policy, cache: "hit", cookies: [] })
@@ -167,20 +170,27 @@ async function stored(exchange: Exchange, matched: Loaded, at: Stored): Promise<
 	const timing = defined(storeTiming(id, matched.chain.at(-1)?.module.cache), "the stored page's timing")
 	const keyed = { ...at, key: keyOf(exchange, matched, id), timing }
 	const unread = { failed: false }
-	const read = () => readStored(at.store, keyed.key, { report: reporter(exchange), unread })
+	const guard = { report: reporter(exchange), unread }
+	const read = () => readStored(at.store, keyed.key, guard)
 	const looked = await gated(exchange, matched, { prepared: at.prepared, read })
 	if (looked instanceof Response) return looked
-	// A store that failed or did not answer serves the page live, uncached, and is not written to (plan 21 3.3).
+	// A store that failed or did not answer serves the page live, uncached, and is not written to (plan 21 3.3), and
+	// so does an ISR seed's read (BUGS.md 391).
 	if (unread.failed) return live(exchange, matched, uncached(at.prepared))
-	const hit = await hitFor(exchange, { ...keyed, looked })
-	if (hit === undefined) return missed(exchange, matched, keyed)
+	const hit = await hitFor(exchange, { ...keyed, looked }, guard)
+	if (hit === undefined)
+		return unread.failed ? live(exchange, matched, uncached(at.prepared)) : missed(exchange, matched, keyed)
 	if (hit.stale) refresh(exchange, matched, keyed)
 	return served(exchange, hit.page, { policy: at.prepared.policy, cache: "hit", cookies: [] })
 }
 
 // The store's hit, else a seed's.
-async function hitFor(exchange: Exchange, at: Keyed & { looked: Lookup | null }): Promise<Hit | undefined> {
-	return hitOf(at.looked, at.timing, Date.now()) ?? seedHit(exchange, at)
+async function hitFor(
+	exchange: Exchange,
+	at: Keyed & { looked: Lookup | null },
+	guard: ReadGuard,
+): Promise<Hit | undefined> {
+	return hitOf(at.looked, at.timing, Date.now()) ?? seedHit(exchange, at, guard)
 }
 
 // A miss runs one shared render, coalesced per key, that writes both variants and serves this request's variant exactly
@@ -213,10 +223,14 @@ function keyOf(exchange: Exchange, matched: Loaded, id: string): string {
 
 // A build-time ISR seed stands in when the mutable read gives no hit and the seed is newer than what the store holds
 // (B86). It turns stale and expires on the same timing.
-async function seedHit(exchange: Exchange, at: Keyed & { looked: Lookup | null }): Promise<Hit | undefined> {
+async function seedHit(
+	exchange: Exchange,
+	at: Keyed & { looked: Lookup | null },
+	guard: ReadGuard,
+): Promise<Hit | undefined> {
 	const seeds = at.mode === "isr" ? exchange.seeds() : undefined
 	if (seeds === undefined) return undefined
-	return hitOf(await seedLookup(seeds, at), at.timing, Date.now())
+	return hitOf(await guardedRead(() => seedLookup(seeds, at), at.key, guard), at.timing, Date.now())
 }
 
 // The store read. Behind `authorize` it is the gate's last step, and a gate that stops answers here.

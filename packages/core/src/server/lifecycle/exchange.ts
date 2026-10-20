@@ -5,7 +5,7 @@ import type { Session } from "../context/ctx.ts"
 import type { LoaderRun } from "../loaders/run.ts"
 import type { MountContext } from "../mount/mount.ts"
 import { projectError, type ErrorSink } from "../render/projector.ts"
-import { applySecurity, type Secured, type SecurityConfig } from "../security/apply.ts"
+import { applySecurity, isSecurityHeader, type Secured, type SecurityConfig } from "../security/apply.ts"
 import { carryMark, finalize, keptAs, ownStage, type StageResult } from "./finalize.ts"
 import { NDJSON, redirectBody } from "../navigation/response.ts"
 import { exitHeaders, NO_STORE } from "./policies.ts"
@@ -95,7 +95,8 @@ export function routeSecured<E extends Pick<Exchange, "request" | "secured" | "s
 // The cacheability decision writes these on a rendered page. `.headers()` cannot (dx/cache.md).
 const DECIDED = new Set(["cache-control", "cdn-cache-control", "cache-tag"])
 
-// The route's merged `.headers()` come first, so the security set and the media type win over them.
+// The route's merged `.headers()` come first, so the security set and the media type win over them. A security header
+// among them is dropped, so one the set does not hold stays absent (BUGS.md 385).
 export function typed(
 	exchange: Answering,
 	type: string,
@@ -103,7 +104,7 @@ export function typed(
 ): Headers {
 	const headers = new Headers()
 	for (const [name, value] of Object.entries(route)) {
-		if (DECIDED.has(name)) continue
+		if (DECIDED.has(name) || isSecurityHeader(name)) continue
 		for (const item of [value].flat()) headers.append(name, item)
 	}
 	overlay(headers, exchange.secured.headers)

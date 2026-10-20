@@ -1,5 +1,5 @@
 import { createNodeListener } from "../../adapters/node/index.ts"
-import { mintTab, TAB_HEADER, tabMeta } from "../../shared/protocol/index.ts"
+import { mintTab, sentTab, tabMeta } from "../../shared/protocol/index.ts"
 import { createTabs, TAB_EVENT, tabbedPayload, type TabClient } from "./tabs.ts"
 
 // What the handler needs from Vite's dev server. A real `ViteDevServer` is one. A test passes a small object.
@@ -78,7 +78,7 @@ export function devFetch(deps: DevDeps): (request: Request, env?: unknown, ctx?:
 		try {
 			return await (await deps.load()).fetch(request, env, ctx)
 		} catch (error) {
-			const token = request.headers.get(TAB_HEADER) ?? deps.tab?.()
+			const token = sentTab(request) ?? deps.tab?.()
 			const { err } = overlayPayload(error)
 			deps.log?.(err.stack === "" ? `[flare:load] ${err.message}` : `[flare:load] ${err.message}\n${err.stack}`)
 			deps.report?.(error, token)

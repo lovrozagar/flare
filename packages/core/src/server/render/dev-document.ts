@@ -1,4 +1,4 @@
-import { isTabToken, mintTab, TAB_HEADER, tabMeta } from "../../shared/protocol/index.ts"
+import { mintTab, sentTab, tabMeta } from "../../shared/protocol/index.ts"
 import { carryMark } from "../lifecycle/finalize.ts"
 import { escapeAttr } from "./escape.ts"
 
@@ -13,8 +13,7 @@ export type DevTags = { head: string; token: string }
 
 // The request's dev tab token: the one its tab sent, or a fresh one for a document (B42).
 export function devToken(request: Request): string {
-	const sent = request.headers.get(TAB_HEADER)
-	return sent !== null && isTabToken(sent) ? sent : mintTab()
+	return sentTab(request) ?? mintTab()
 }
 
 // A document a dev server serves (B95 (b)): devHead last in `<head>`, then the `csp-nonce` meta with the response's

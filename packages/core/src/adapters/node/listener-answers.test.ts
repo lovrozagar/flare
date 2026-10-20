@@ -186,10 +186,12 @@ function failingAnswer(): Response {
 }
 
 // The raw bytes of one GET, until the socket closes.
-function rawGet(port: number): Promise<string> {
+function rawGet(port: number, host = "site.test"): Promise<string> {
 	return new Promise((resolve) => {
 		let text = ""
-		const socket = connect(port, "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nhost: site.test\r\n\r\n"))
+		const socket = connect(port, "127.0.0.1", () =>
+			socket.write(`GET / HTTP/1.1\r\nhost: ${host}\r\nconnection: close\r\n\r\n`),
+		)
 		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
 		socket.on("close", () => resolve(text))
 	})
@@ -210,6 +212,47 @@ it("node cut keeps sent", async () => {
 		expect(text.endsWith("\r\n0\r\n\r\n")).toBe(false)
 		expect(logged).toHaveBeenCalledTimes(1)
 	} finally {
+		logged.mockRestore()
+		await new Promise((resolve) => server.close(resolve))
+	}
+})
+
+// Hosts shaped like a host that are no URL authority: a port past 65535, a bracket that is no IPv6 address, an IPv4
+// address with an octet past 255 (BUGS.md 384).
+const UNPARSEABLE_HOSTS = ["a:99999", "a:65536", "[1.2.3]", "[1:2]", "999.1.1.1", "1.2.3.256"]
+
+function brokenAnswer(): Response {
+	throw new Error("the app broke")
+}
+
+// Through a real socket, such a Host is the listener's 400, never a throw in the server. An answer that throws is the
+// listener's own 500 with no body, whatever NODE_ENV says, logged once (BUGS.md 384).
+it("node unparseable host and throw", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const server = createHttpServer(createNodeListener({ fetch: brokenAnswer }))
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+	try {
+		const address = server.address()
+		const port = typeof address === "object" && address !== null ? address.port : 0
+		for (const host of UNPARSEABLE_HOSTS) {
+			expect([host, (await rawGet(port, host)).split("\r\n")[0]]).toEqual([host, "HTTP/1.1 400 Bad Request"])
+		}
+		for (const mode of ["development", "production"]) {
+			vi.stubEnv("NODE_ENV", mode)
+			const text = await rawGet(port)
+			const [head = "", body = ""] = text.split("\r\n\r\n")
+			// An empty body, chunked (its last chunk alone) or not.
+			const empty = body === "" || body === "0"
+			expect([mode, head.split("\r\n")[0], /^flare-build:/im.test(head), empty]).toEqual([
+				mode,
+				"HTTP/1.1 500 Internal Server Error",
+				true,
+				true,
+			])
+		}
+		expect(logged).toHaveBeenCalledTimes(2)
+	} finally {
+		vi.unstubAllEnvs()
 		logged.mockRestore()
 		await new Promise((resolve) => server.close(resolve))
 	}

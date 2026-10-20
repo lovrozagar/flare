@@ -1,11 +1,12 @@
 import { createComponent, createMemo, Loading } from "solid-js"
 import { Dynamic } from "@solidjs/web"
-import { afterAll, expect, it } from "vitest"
-import { notFound, unauthenticated, unauthorized } from "../../src/shared/errors/index.ts"
+import { afterAll, expect, it, vi } from "vitest"
+import { notFound, redirect, unauthenticated, unauthorized } from "../../src/shared/errors/index.ts"
 import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import type { Render } from "../../src/shared/route-builder/chain.ts"
+import { SECURITY_KEYS } from "../../src/server/security/apply.ts"
 import { bodyOf, documentOf, frames, serve } from "./builder-app.ts"
 import { builtServer, fixtureApps, page as pageSource } from "./vite-app.ts"
 
@@ -107,6 +108,7 @@ it("security", async () => {
 		.render((props) => props.children)
 	const page = createPage("_root_/area/p")
 		.loader(() => ({ text: "framed" }))
+		.headers(() => OWN_SECURITY)
 		.security((ctx) => ({ "X-Frame-Options": false, "Cross-Origin-Opener-Policy": ctx.loaderData.text }))
 		.render(() => "p")
 	const plain = createPage("_root_/area/plain").render(() => "plain")
@@ -123,7 +125,30 @@ it("security", async () => {
 	expect(p.headers.get("cross-origin-opener-policy")).toBe("framed")
 	const plainAnswer = await get("/area/plain")
 	expect(plainAnswer.headers.get("x-frame-options")).toBe("SAMEORIGIN")
+	// `.headers()` sets no security header, even one the set does not hold: a key `.security()` turned off stays off
+	// (BUGS.md 385).
+	expect(p.headers.get("content-security-policy")).not.toBe("default-src *")
+	const off = Object.fromEntries(SECURITY_KEYS.map((key) => [key, false]))
+	const bare = serve([{ id: "_root_/area/p", path: "/area/p", module: page }], {
+		layouts: { "_root_/area": area },
+		security: off,
+	})
+	const answer = await bare("/area/p")
+	// Off on the server, every one is absent, but the layout's own Referrer-Policy, which `.security()` set.
+	const sent = Object.keys(OWN_SECURITY).map((name) => [name, answer.headers.get(name)])
+	expect(sent).toEqual(
+		Object.keys(OWN_SECURITY).map((name) => [name, name === "referrer-policy" ? "no-referrer" : null]),
+	)
 })
+
+// A `.headers()` answer that names every security header Flare writes.
+const OWN_SECURITY = {
+	"content-security-policy": "default-src *",
+	"strict-transport-security": "max-age=1",
+	"x-frame-options": "ALLOWALL",
+	"permissions-policy": "camera=*",
+	"referrer-policy": "unsafe-url",
+}
 
 const apps = fixtureApps()
 
@@ -339,9 +364,58 @@ it("boundary rank", async () => {
 		],
 		{ layouts: { "_root_/area": area } },
 	)
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const crashes = () =>
+		logged.mock.calls.filter((call) => call.some((part) => String(part).includes("layout broke"))).length
 	expect((await get("/area/p")).status).toBe(500)
-	expect((await get("/area/in")).status).toBe(401)
-	expect((await get("/area/no")).status).toBe(403)
+	expect(crashes()).toBe(1)
+	// The crash a named status outranks is still a bug, logged on the document and on the data answer (BUGS.md 390).
+	for (const [path, status] of [
+		["/area/in", 401],
+		["/area/no", 403],
+		["/area/in?_flare=data", 401],
+	] as const) {
+		logged.mockClear()
+		expect([path, (await get(path)).status, crashes()]).toEqual([path, status, 1])
+	}
+	logged.mockRestore()
+})
+
+// A layout whose loader throws this, over a page that crashes.
+function crashUnder(id: string, thrown: () => never): Parameters<typeof serve> {
+	const layout = createLayout(`_root_/${id}`)
+		.loader((): { text: string } => thrown())
+		.render((props) => props.children)
+	const crash = fails(`_root_/${id}/p`, () => {
+		throw new Error(`${id} page broke`)
+	})
+	return [[{ id: `_root_/${id}/p`, path: `/${id}/p`, module: crash }], { layouts: { [`_root_/${id}`]: layout } }]
+}
+
+// A page's crash under a layout's notFound() or redirect() answers what the rank gives, and is still logged, on the
+// document and on the data answer (BUGS.md 390).
+it("rank logs", async () => {
+	const gone = serve(...crashUnder("gone", () => notFound()))
+	const moved = serve(...crashUnder("moved", () => redirect({ href: "https://example.com/" })))
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const answers = []
+	for (const [get, path] of [
+		[gone, "/gone/p"],
+		[gone, "/gone/p?_flare=data"],
+		[moved, "/moved/p"],
+		[moved, "/moved/p?_flare=data"],
+	] as const) {
+		logged.mockClear()
+		const { status } = await get(path)
+		answers.push([path, status, logged.mock.calls.flat().some((part) => String(part).includes("page broke"))])
+	}
+	logged.mockRestore()
+	expect(answers).toEqual([
+		["/gone/p", 404, true],
+		["/gone/p?_flare=data", 404, true],
+		["/moved/p", 303, true],
+		["/moved/p?_flare=data", 200, true],
+	])
 })
 
 // Render props: this route's params, its search raw or validated, its own loader data (`void` with no loader), the

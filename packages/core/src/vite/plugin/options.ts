@@ -117,3 +117,23 @@ function parseBroadcast(value: boolean | undefined): boolean {
 	if (value === undefined) return true
 	throw new Error("broadcast")
 }
+
+// The unspecified addresses as a URL writes them, IPv4, IPv6, and IPv4-mapped.
+const UNSPECIFIED: ReadonlySet<string> = new Set(["0.0.0.0", "[::]", "[::ffff:0:0]"])
+
+// A bind on every interface would expose the dev server. It runs on the resolved config, so a later plugin's host
+// counts, and reads the host as an address, so "", "0", "::0", and "[::]" are the wildcard too (BUGS.md 386).
+export function assertHost(host: string | boolean | undefined): void {
+	if (isWildcard(host)) throw new Error(`server.host ${JSON.stringify(host)} binds every interface`)
+}
+
+function isWildcard(host: string | boolean | undefined): boolean {
+	if (host === undefined || host === false) return false
+	if (host === true || host.trim() === "") return true
+	const bracketed = host.includes(":") && !host.startsWith("[") ? `[${host}]` : host
+	try {
+		return UNSPECIFIED.has(new URL(`http://${bracketed}`).hostname)
+	} catch {
+		return false
+	}
+}

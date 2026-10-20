@@ -1,6 +1,6 @@
 import { expect, it, vi } from "vitest"
 import type { FlareStore } from "./contract.ts"
-import { epochKey, lookup } from "./epoch.ts"
+import { epochKey, lookup, reportDamaged } from "./epoch.ts"
 import { createMemoryStore } from "./memory.ts"
 import { createRevalidateFn } from "./revalidate.ts"
 
@@ -80,4 +80,17 @@ it("corrupt envelope", async () => {
 	const reads = [await lookup(store, "a", report), await lookup(store, "b", report), await lookup(store, "c", report)]
 	expect([...reads, await lookup(store, "d")]).toEqual([null, null, null, null])
 	expect(reported).toEqual(["a", "b", "c"].map((key) => `the store holds a corrupt record for ${key}: rendered again`))
+})
+
+// One error line per damaged key, and the keys logged are bounded: once 1024 are held the set starts again, so a key
+// logged before is logged once more (BUGS.md 394, B147).
+it("damaged log bound", () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	reportDamaged("bound:first")
+	reportDamaged("bound:first")
+	expect(logged).toHaveBeenCalledTimes(1)
+	for (let index = 0; index < 1024; index++) reportDamaged(`bound:${index}`)
+	reportDamaged("bound:first")
+	expect(logged).toHaveBeenCalledTimes(1026)
+	logged.mockRestore()
 })

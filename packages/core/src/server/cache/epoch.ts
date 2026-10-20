@@ -1,3 +1,4 @@
+import { createLogger } from "../lifecycle/logger.ts"
 import type { FlareStore, FlareStoreEntry } from "./contract.ts"
 
 // A tag purge writes `epoch:<tag>`, a number. An entry whose render started at or before its tag's epoch is purged:
@@ -44,18 +45,23 @@ function isEnvelope(entry: unknown): entry is FlareStoreEntry {
 // How long a stored page waits for its store read (plan 21 3.3).
 const READ_MS = 2000
 
-// The read a stored page makes. One that throws, or does not answer within READ_MS, is reported, marks `unread`, and
-// reads as nothing, so the caller can render live: a failing or hung store is never a 500 or a hung request.
-export async function readStored(
-	store: FlareStore,
-	key: string,
-	at: { report: (message: string) => void; unread: { failed: boolean } },
-): Promise<Lookup | null> {
+// Where a guarded read reports, and what it marks when it fails.
+export type ReadGuard = { report: (message: string) => void; unread: { failed: boolean } }
+
+// The read a stored page makes of its mutable store.
+export function readStored(store: FlareStore, key: string, at: ReadGuard): Promise<Lookup | null> {
+	return guardedRead(() => lookup(store, key, at.report), key, at)
+}
+
+// A stored page's read of a store, mutable or static (BUGS.md 391). One that throws, or does not answer within
+// READ_MS, is reported, marks `unread`, and reads as nothing, so the caller can render live: a failing or hung store
+// is never a 500 or a hung request.
+export async function guardedRead<T>(read: () => Promise<T>, key: string, at: ReadGuard): Promise<T | null> {
 	const late = Promise.withResolvers<"late">()
 	const timer = setTimeout(() => late.resolve("late"), READ_MS)
 	try {
-		const read = await Promise.race([lookup(store, key, at.report), late.promise])
-		if (read !== "late") return read
+		const answered = await Promise.race([read(), late.promise])
+		if (answered !== "late") return answered
 		at.report(`the store did not answer for ${key} within 2 s: served live`)
 	} catch (error) {
 		at.report(`the store read for ${key} failed: served live: ${String(error)}`)
@@ -77,4 +83,26 @@ export async function bumpEpochs(store: FlareStore, keys: readonly string[]): Pr
 			await store.set(key, { data: epoch, storedAt: now })
 		}),
 	)
+}
+
+// A record a built-in store holds but cannot read, bytes that do not parse or a shape it never wrote (BUGS.md 394). A
+// page's is a miss, so the next render writes a good one. An epoch's reads as a purge now: reading it as absent would
+// bring back every page that purge hid, and now is never earlier than the purge it stood for.
+export function damagedEpoch(now: number): FlareStoreEntry {
+	return { data: now, storedAt: now }
+}
+
+// How many damaged keys a process remembers having logged: a flood of them never grows memory (B147).
+const DAMAGED_LOGGED = 1024
+
+// per-process-constant: the damaged keys this process has logged
+const damagedLogged = new Set<string>()
+
+// One error line per damaged key, until the set is full; then it starts again.
+export function reportDamaged(key: string): void {
+	if (damagedLogged.has(key)) return
+	if (damagedLogged.size >= DAMAGED_LOGGED) damagedLogged.clear()
+	damagedLogged.add(key)
+	const read = key.startsWith("epoch:") ? "read as a purge now" : "read as a miss"
+	createLogger({ dev: false }).error("cache", `the store held a damaged record for ${key}: ${read}`)
 }

@@ -172,6 +172,12 @@ function conclude(input: ValidRun, outcomes: readonly Loaded[], contexts: readon
 	})
 	// Only a bug opens the dev overlay. A named status and an input failure do not (B76).
 	if (result.failed?.status === 500) input.overlay?.(result.failed.error)
+	// A crash the rank passed over is still a bug: it is logged, and opens the overlay, as a head's is (BUGS.md 390).
+	for (const outcome of outcomes) {
+		const settled = outcome.settled
+		if (!settled.ok && settled.error !== result.failed?.error && statusOf(settled.error) === 500)
+			bugs.push(settled.error)
+	}
 	return {
 		response: finalize({ status: result.status, body: "" }),
 		frames: result.frames,

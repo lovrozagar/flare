@@ -1,4 +1,10 @@
-import { BUILD_HEADER, COOKIES_HEADER, FN_HEADER } from "../../shared/protocol/index.ts"
+import {
+	BUILD_HEADER,
+	COOKIES_HEADER,
+	FN_HEADER,
+	REDIRECT_STATUSES,
+	STATUS_HEADER,
+} from "../../shared/protocol/index.ts"
 import { bindServerFn, type CreateServerFn, type ServerFnCall } from "../../shared/server-fn/builder.ts"
 import { shapeIssues, type Issue } from "../../shared/validation/index.ts"
 import { fnRequest } from "./codec.ts"
@@ -32,7 +38,7 @@ export const createServerFn: CreateServerFn = bindServerFn(bootedCall)
 
 export type CallTarget = { id: string; name: string; record: { method: "get" | "post" } }
 
-export type Redirect = { to: string; status: number; replace: boolean }
+export type Redirect = { to: string; status: number; replace: boolean; document?: true }
 
 type Wire = {
 	status: number
@@ -72,10 +78,11 @@ export async function callServerFn(fn: CallTarget, input: unknown, deps: CallDep
 	return answerOf(await send(fn, input, deps), deps)
 }
 
-// A returned Response, marked by the server, resolves untouched, body unread, whatever its status. Otherwise a JSON
-// body is the envelope, and anything else is a bare framework status, such as an unknown id or a wrong method.
+// A returned Response, marked by the server, resolves untouched, body unread, whatever its status; a redirect, sent
+// as a 200 naming it, resolves as that redirect (BUGS.md 389). Otherwise a JSON body is the envelope, and anything
+// else is a bare framework status, such as an unknown id or a wrong method.
 export async function answerOf(response: Response, deps: CallDeps): Promise<unknown> {
-	if (response.headers.get(FN_HEADER) === "response") return response
+	if (response.headers.get(FN_HEADER) === "response") return redirected(response)
 	const wire = envelopeOf(await readJson(response))
 	if (wire === undefined) throw new ServerFnError({ status: response.status })
 	return settle(wire, deps)
@@ -96,17 +103,25 @@ export async function send(fn: CallTarget, input: unknown, deps: CallDeps): Prom
 	return response
 }
 
-// A same-origin redirect is the internal URL navigation with the envelope's `replace`. An `href` elsewhere is a
-// full page load. The call rejects either way, as it does for any failure.
+// A same-origin `to` is the internal URL navigation with the envelope's `replace`. An `href`, marked `document`, is a
+// full page load wherever it points, and so is anything elsewhere (BUGS.md 397). The call rejects either way, as it
+// does for any failure.
 export function settle(wire: Wire, deps: CallDeps): unknown {
 	const redirect = wire.redirect
 	if (redirect !== undefined) {
-		if (new URL(redirect.to, deps.origin).origin === deps.origin) deps.go(redirect.to, redirect.replace)
+		const inside = redirect.document !== true && new URL(redirect.to, deps.origin).origin === deps.origin
+		if (inside) deps.go(redirect.to, redirect.replace)
 		else deps.assign(redirect.to)
 		throw new ServerFnError(wire)
 	}
 	if (wire.status !== 200) throw new ServerFnError(wire)
 	return wire.data
+}
+
+function redirected(response: Response): Response {
+	const status = Number(response.headers.get(STATUS_HEADER))
+	if (response.status !== 200 || !REDIRECT_STATUSES.includes(status)) return response
+	return new Response(response.body, { status, headers: response.headers })
 }
 
 async function readJson(response: Response): Promise<unknown> {
@@ -132,6 +147,7 @@ export function envelopeOf(value: unknown): Wire | undefined {
 	if (typeof redirect === "object" && redirect !== null) {
 		const to: unknown = Reflect.get(redirect, "to")
 		wire.redirect = { to: String(to), status, replace: Reflect.get(redirect, "replace") === true }
+		if (Reflect.get(redirect, "document") === true) wire.redirect.document = true
 	}
 	return wire
 }

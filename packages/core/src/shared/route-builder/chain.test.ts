@@ -40,6 +40,17 @@ it("one mode", () => {
 	expect(() => createChain("_root_").cache({ ssr: { ttl: "1m" }, isr: true } as never)).toThrow(/one cache mode/)
 })
 
+// `isr: { dynamicParams: false }` lists the only slugs served, so it needs `params`: without it, it throws when the
+// chain is built, and the type rejects it (BUGS.md 395).
+it("dynamicParams needs params", () => {
+	expect(() => {
+		// @ts-expect-error dynamicParams false needs params
+		createChain("_root_").cache({ isr: { dynamicParams: false } })
+	}).toThrow("isr: { dynamicParams: false } needs params")
+	expect(() => createChain("_root_").cache({ isr: { dynamicParams: false, params: () => [] } })).not.toThrow()
+	expect(() => createChain("_root_").cache({ isr: { dynamicParams: true } })).not.toThrow()
+})
+
 it("no author key", () => {
 	const built = createChain("_root_")
 	// @ts-expect-error ssr has no author key

@@ -12,7 +12,8 @@ export type Envelope = {
 	errors?: { issues: readonly Issue[]; fieldErrors: Record<string, string[]> }
 	digest?: string
 	stack?: string
-	redirect?: { to: string; status: number; replace: boolean }
+	// `document` marks an `href` redirect, a full page load even on the app's own origin (BUGS.md 397).
+	redirect?: { to: string; status: number; replace: boolean; document?: true }
 	// The last line of a `.stream()` that finished (B140).
 	end?: true
 }
@@ -32,7 +33,13 @@ export function errorEnvelope(
 	if (thrown instanceof RedirectError) {
 		const status = thrown.status
 		const to = redirectLocation(thrown, context)
-		return { http: 200, envelope: { name, status, redirect: { to, status, replace: thrown.replace } } }
+		const redirect = {
+			to,
+			status,
+			replace: thrown.replace,
+			...(thrown.href !== undefined && { document: true as const }),
+		}
+		return { http: 200, envelope: { name, status, redirect } }
 	}
 	const projected = projectError(thrown, context.sink)
 	const { message, stack, digest } = projected.wire

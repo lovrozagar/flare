@@ -2,7 +2,7 @@ import { useBlocker } from "@lovrozagar/flare"
 import { createSignal, For, Show } from "solid-js"
 import type { JSX } from "@solidjs/web"
 import { buildLog, buildStatus } from "../fns/build-log.ts"
-import { echo, failLoudly, failSafely } from "../fns/echo.ts"
+import { echo, failLoudly, failSafely, moved } from "../fns/echo.ts"
 
 const button =
 	"rounded-md bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-50 dark:bg-white dark:text-ink-950"
@@ -67,6 +67,12 @@ export function EchoCard(props: { calls: Calls }): JSX.Element {
 	)
 }
 
+// A returned redirect's status and Location, read from the Response the call resolves with.
+async function movedTo(away: boolean): Promise<string> {
+	const response = await moved({ away })
+	return `${response.status} ${response.headers.get("location") ?? ""}`
+}
+
 export function ErrorsCard(props: { calls: Calls }): JSX.Element {
 	return (
 		<Card title="Errors">
@@ -76,6 +82,12 @@ export function ErrorsCard(props: { calls: Calls }): JSX.Element {
 				</button>
 				<button id="fail-loud" type="button" class={button} onClick={() => void props.calls.run(() => failLoudly())}>
 					Unsafe error
+				</button>
+				<button id="moved-here" type="button" class={button} onClick={() => void props.calls.run(() => movedTo(false))}>
+					Redirect here
+				</button>
+				<button id="moved-away" type="button" class={button} onClick={() => void props.calls.run(() => movedTo(true))}>
+					Redirect away
 				</button>
 			</div>
 		</Card>

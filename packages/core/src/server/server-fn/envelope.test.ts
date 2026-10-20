@@ -90,11 +90,13 @@ it("redirect", () => {
 	expect(dev.send).not.toHaveBeenCalled()
 })
 
+// An `href` redirect is marked a document load, so the client loads it in full even on its own origin (BUGS.md 397).
 it("href", () => {
 	const error = thrown(() => redirect({ href: "https://example.com/a" }))
+	const redirected = { to: "https://example.com/a", status: 303, replace: true, document: true }
 	expect(errorEnvelope("echo", error, { sink: sink(false), basePath: "/", trailingSlash: "preserve" })).toEqual({
 		http: 200,
-		envelope: { name: "echo", status: 303, redirect: { to: "https://example.com/a", status: 303, replace: true } },
+		envelope: { name: "echo", status: 303, redirect: redirected },
 	})
 })
 

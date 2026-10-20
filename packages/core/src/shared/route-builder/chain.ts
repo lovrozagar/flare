@@ -195,6 +195,16 @@ function advance(state: ChainState, step: Name): void {
 	state.used.add(step)
 }
 
+// One cache mode. `isr: { dynamicParams: false }` serves only the slugs `params` lists, so it needs them (BUGS.md 395).
+function checkCache(config: CacheConfig): CacheConfig {
+	if (MODES.filter((key) => Object.hasOwn(config, key)).length > 1) throw new Error("one cache mode")
+	const isr = config.isr
+	if (typeof isr === "object" && isr.dynamicParams === false && isr.params === undefined) {
+		throw new Error("isr: { dynamicParams: false } needs params, the slugs it serves")
+	}
+	return config
+}
+
 export function createChain(_id: string): Chain {
 	const state: ChainState = { used: new Set(), record: {}, at: 0 }
 	const record = state.record
@@ -220,10 +230,7 @@ export function createChain(_id: string): Chain {
 			}
 			return put("intercept", { from: [...config.from], render: config.render })
 		},
-		cache(config) {
-			if (MODES.filter((key) => Object.hasOwn(config, key)).length > 1) throw new Error("one cache mode")
-			return put("cache", config)
-		},
+		cache: (config) => put("cache", checkCache(config)),
 		input(config) {
 			if (config.params === undefined && config.searchParams === undefined) {
 				throw new Error("input needs params or searchParams")

@@ -86,6 +86,11 @@ it("reject", async () => {
 	await rejection(callServerFn(echo, 1, outside))
 	expect(outside.assign).toHaveBeenCalledExactlyOnceWith("https://example.com/a")
 	expect(outside.go).not.toHaveBeenCalled()
+	// An `href`, here or elsewhere, is a full page load, never the internal navigation (BUGS.md 397).
+	const reload = { to: "http://localhost/elsewhere", status: 303, replace: true, document: true }
+	const fresh = deps(json({ name: "echo", status: 303, redirect: reload }))
+	await rejection(callServerFn(echo, 1, fresh))
+	expect([fresh.assign.mock.calls, fresh.go.mock.calls]).toEqual([[["http://localhost/elsewhere"]], []])
 	// A bare status has no envelope.
 	expect(await rejection(callServerFn(echo, 1, deps({ body: null, status: 405 })))).toMatchObject({
 		message: "HTTP 405",
@@ -108,6 +113,30 @@ it("returned response", async () => {
 	expect(await teapot.text()).toBe("x")
 	// Unmarked, the same answer is a bare framework status.
 	expect(await rejection(callServerFn(echo, 1, deps({ body: "x", status: 418 })))).toMatchObject({ status: 418 })
+})
+
+// A returned redirect arrives as a 200 with `flare-status`, and resolves as the redirect Response, body unread. A
+// `flare-status` outside the redirect set, or on an unmarked answer, is ignored (BUGS.md 389).
+it("returned redirect", async () => {
+	const moved = await returned({ body: "moved", headers: { "flare-status": "307", location: "/next" } })
+	expect([moved.status, moved.headers.get("location"), moved.bodyUsed]).toEqual([307, "/next", false])
+	expect(await moved.text()).toBe("moved")
+	const forged = await returned({ body: "x", headers: { "flare-status": "200" } })
+	expect((await returned({ body: "x", headers: { "flare-status": "304" } })).status).toBe(200)
+	expect(forged.status).toBe(200)
+	const unmarked = await callServerFn(echo, 1, deps(json({ status: 200, data: 1 }, 200, { "flare-status": "302" })))
+	expect(unmarked).toBe(1)
+})
+
+// An `application/json` answer that is not JSON, a proxy's HTML say, rejects with the parser's own error, not a
+// ServerFnError (dx/server-fn.md Wire).
+it("unparseable json", async () => {
+	const proxied = deps({
+		body: "<html>bad gateway</html>",
+		status: 502,
+		headers: { "content-type": "application/json" },
+	})
+	await expect(callServerFn(echo, 1, proxied)).rejects.toBeInstanceOf(SyntaxError)
 })
 
 it("json response", async () => {

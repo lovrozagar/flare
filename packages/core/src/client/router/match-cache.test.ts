@@ -113,7 +113,7 @@ it("loader deps", () => {
 	const { cache } = cacheAt()
 	const loaderDeps = vi.fn<NonNullable<Effects["loaderDeps"]>>(({ search }) => [search.q])
 	const first = page({ loaderDeps }, { search: { q: "a" } })
-	cache.store(first, { data: "a", deferred: false, deps: cache.deps(first) })
+	cache.store(first, { data: "a", deferred: false, deps: cache.deps(first) ?? undefined })
 	expect(plan(cache, [page({ loaderDeps }, { search: { q: "b" } })]).stale).toEqual([])
 	expect(loaderDeps).toHaveBeenLastCalledWith({ search: { q: "b" }, params: { id: "7" } })
 	expect(() => createPage("_root_/x").effects({})).toThrow(/effects/)
@@ -127,7 +127,7 @@ it("loader deps same", () => {
 	const { cache } = cacheAt()
 	const loaderDeps: Effects["loaderDeps"] = byQuery
 	const first = page({ loaderDeps }, { search: { q: "a" } })
-	cache.store(first, { data: "a", deferred: false, deps: cache.deps(first) })
+	cache.store(first, { data: "a", deferred: false, deps: cache.deps(first) ?? undefined })
 	const again = page({ loaderDeps }, { search: { q: "a" } })
 	expect(plan(cache, [again]).stale).toEqual(["id=7&"])
 	expect(again.id).toBe(first.id)
@@ -143,6 +143,31 @@ it("loader deps held", () => {
 	expect(cache.read(page({ loaderDeps }, { search: { q: "a" } }))?.deps).toBe(JSON.stringify(["a"]))
 	expect(plan(cache, [page({ loaderDeps }, { search: { q: "a" } })]).stale).toEqual(["id=7&"])
 	expect(plan(cache, [page({ loaderDeps }, { search: { q: "b" } })]).stale).toEqual([])
+})
+
+// A loaderDeps that throws, or returns what JSON cannot write, is the app's bug: it is reported, the landing is still
+// remembered, so the hydrate that runs it still mounts, and the page never counts as fresh (BUGS.md 392).
+it("loader deps throw", () => {
+	const reported: unknown[] = []
+	const cache = createMatchCache({
+		staleTime: 1000,
+		gcTime: 60_000,
+		now: clock().now,
+		report: (error) => void reported.push(error),
+	})
+	const landing = { data: { "_root_/users/[id]": "a" }, heads: {} }
+	const broken = page({
+		loaderDeps: () => {
+			throw new Error("DEPS")
+		},
+	})
+	const big = page({ loaderDeps: () => [1n] })
+	expect(() => remember(cache, [broken], landing)).not.toThrow()
+	expect(cache.read(broken)?.data).toBe("a")
+	expect(plan(cache, [broken]).stale).toEqual([])
+	remember(cache, [big], landing)
+	expect(plan(cache, [big]).stale).toEqual([])
+	expect(reported.map((error) => (error as Error).name)).toEqual(["Error", "Error", "TypeError", "TypeError"])
 })
 
 it("should refetch", () => {

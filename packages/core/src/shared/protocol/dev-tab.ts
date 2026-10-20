@@ -12,6 +12,13 @@ export function isTabToken(value: string): boolean {
 	return TOKEN.test(value)
 }
 
+// The token a request's tab sent, or undefined when it sent none or a header that is no token, which is never written
+// into a page (BUGS.md 387).
+export function sentTab(request: Request): string | undefined {
+	const sent = request.headers.get(TAB_HEADER)
+	return sent !== null && isTabToken(sent) ? sent : undefined
+}
+
 // The tag a dev document carries, so the tab announces its token and its requests name it. Written at the response
 // boundary, after the app answered, so no store ever keeps it.
 export function tabMeta(token: string): string {

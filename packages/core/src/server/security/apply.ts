@@ -15,6 +15,15 @@ export const SECURITY_KEYS: readonly (keyof SecurityConfig)[] = [
 	"X-Powered-By",
 ]
 
+const SECURITY_NAMES: ReadonlySet<string> = new Set(SECURITY_KEYS.map((key) => key.toLowerCase()))
+
+// Whether a header is one only the request's security set writes. A route's `.headers()` never sets one, even one the
+// set does not hold: a key `.security()` turned off stays off, and dev's missing Strict-Transport-Security stays
+// missing (dx/builder.md `headers(fn)`, BUGS.md 385).
+export function isSecurityHeader(name: string): boolean {
+	return SECURITY_NAMES.has(name.toLowerCase())
+}
+
 // The keys whose value is the header's own: a string sets it, and `false` removes it. CSP and Permissions-Policy also
 // take an object, which buildCsp writes.
 const PLAIN = [
@@ -50,7 +59,6 @@ export function applySecurity(input: {
 	url: string
 	headers: Headers
 	dev?: boolean
-	routeHeaders?: Record<string, string>
 	security?: ServerSecurity | undefined
 	context?: SecurityContext
 	route?: SecurityConfig
@@ -70,7 +78,6 @@ export function applySecurity(input: {
 		...(kept !== undefined && { "Content-Security-Policy": kept }),
 	}
 	const headers = new Headers(input.headers)
-	writeRoute(headers, input.routeHeaders)
 	const built = buildCsp({
 		url: input.url,
 		nonce: candidate,
@@ -98,11 +105,6 @@ function serverConfig(
 ): SecurityConfig {
 	if (typeof security !== "function") return security ?? {}
 	return context === undefined ? {} : security({ ...context, nonce })
-}
-
-function writeRoute(headers: Headers, routeHeaders: Record<string, string> | undefined): void {
-	if (routeHeaders === undefined) return
-	for (const [key, value] of Object.entries(routeHeaders)) headers.set(key, value)
 }
 
 // Parent to child (dx/builder.md `headers(fn)`): names are case-insensitive, a child key wins, `set-cookie` appends

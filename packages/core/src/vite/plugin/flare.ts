@@ -23,7 +23,7 @@ import { realPath } from "./real-path.ts"
 import { appModule } from "./app-module.ts"
 import { preloadPlugin } from "./preload.ts"
 import { checkCloudflare, composesCloudflare, WORKER_MAIN } from "./cloudflare.ts"
-import { parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts"
+import { assertHost, parseOptions, type FlareOptions, type ParsedOptions } from "./options.ts"
 import { peerGuard } from "./peers.ts"
 import { productionConditions } from "./conditions.ts"
 
@@ -110,6 +110,7 @@ function core(parsed: ParsedOptions, state: State): Plugin {
 			return flareConfig(config, parsed, state)
 		},
 		configResolved(config) {
+			assertHost(config.server.host)
 			state.base = config.base
 			state.root = config.root
 			if (composesCloudflare(config.plugins) !== state.cloudflare) {
@@ -159,7 +160,6 @@ const CLIENT_LIBRARIES = ["@lovrozagar/flare > seroval", "@lovrozagar/flare > se
 
 // The Vite config flare owns. Flare owns the entries and the dev server, so Vite serves no index.html (B89).
 function flareConfig(config: UserConfig, parsed: ParsedOptions, state: State): UserConfig {
-	assertHost(config.server?.host)
 	// Vite gives module ids as real paths, so the root is one too: a root reached through a symlink would otherwise
 	// put every app module outside it (BUGS.md B51).
 	const root = realPath(resolve(config.root ?? process.cwd()))
@@ -281,11 +281,6 @@ function boundary(fixed?: Graph): Plugin {
 			return null
 		},
 	}
-}
-
-// A public bind would expose the dev server.
-function assertHost(host: string | boolean | undefined): void {
-	if (host === true || host === "0.0.0.0" || host === "::") throw new Error(String(host))
 }
 
 function assertEntry(root: string, entryPath: string, label: string): void {

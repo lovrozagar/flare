@@ -41,6 +41,7 @@ function lint(code: string, relative: string): number {
 			"/server/render/dev-document.ts",
 			"/vite/dev/guard.ts",
 			"/features/image/vite/dev-endpoint.ts",
+			"/client/server-fn/call.ts",
 		].some((end) => relative.endsWith(end))
 		expect(reports.length).toBe(allowed ? 0 : 1)
 		const proc = spawnSync(oxlint, ["--config", join(dir, ".oxlintrc.json"), dir], { encoding: "utf8" })
@@ -116,6 +117,15 @@ it("image endpoint", () => {
 	const status = lint(
 		"export function missing() {\n\treturn new Response(null, { status: 404 });\n}\n",
 		"src/features/image/vite/dev-endpoint.ts",
+	)
+	expect(status).toBe(0)
+})
+
+// The client rebuilds a server function's returned redirect from the 200 the server sent it as (BUGS.md 389).
+it("client redirect", () => {
+	const status = lint(
+		"export function redirected(body) {\n\treturn new Response(body, { status: 302 });\n}\n",
+		"src/client/server-fn/call.ts",
 	)
 	expect(status).toBe(0)
 })

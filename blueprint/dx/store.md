@@ -1,7 +1,7 @@
 # Stores and revalidate
 
 
-A store that fails never takes the site down with it. A stored page's read waits 2 s at most: a read that throws or does not answer in time is logged at error level, and the page renders live, `private, no-store`, with nothing written. A record whose envelope the store was never given, a `storedAt` that is no number or `tags` that are no list of strings, is logged and read as a miss, so the render writes a good record over it (`tests/integration/cache-modes.test.ts` `store read fails`, `corrupt record heals`, `server/cache/epoch.test.ts` `corrupt envelope`, BUGS.md 175).
+A store that fails never takes the site down with it. A stored page's read waits 2 s at most: a read that throws or does not answer in time is logged at error level, and the page renders live, `private, no-store`, with nothing written. That holds for each store a page reads: the mutable store, an SSG page's `static` seed, and an ISR page's seed (`server/cache/seed.test.ts` `static read fails`, BUGS.md 391). A record whose envelope the store was never given, a `storedAt` that is no number or `tags` that are no list of strings, is logged and read as a miss, so the render writes a good record over it (`tests/integration/cache-modes.test.ts` `store read fails`, `corrupt record heals`, `server/cache/epoch.test.ts` `corrupt envelope`, BUGS.md 175). A built-in store that holds bytes it cannot read, a file cut short by a crash or a cached body that is no entry, logs the key once and reads a page's record as a miss, removing it, so the next render writes a good one. A damaged `epoch:<tag>` reads as a purge now and is written back so, never as absent, which would bring back every page that purge hid; a purge that lands meanwhile stands (`adapters/stores/fs/store.test.ts` `damaged page`, `damaged epoch`, `damaged epoch race`, `adapters/stores/cache-api/store.test.ts` `damaged entry`, `tests/integration/store.test.ts` `damaged file heals`, BUGS.md 394).
 ## FlareStore
 
 `createServer({ store })` and `createServer({ static })` both take this interface. `static` is read. A `put` on that object is never called (`server.md`).
@@ -61,7 +61,7 @@ createAssetsStore(read, { base? })
 
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
-| `read` | yes | — | `(path: string) => Promise<Response \| Uint8Array \| null \| undefined>` | `get` calls `read` with the artifact path. `Uint8Array` is the file bytes. A `Response` that is ok is read as text. `null` and `undefined` are a miss | a `Response` that is not ok is a miss, and its body is cancelled. A throw from `read` propagates and is not kept. A missing file is a miss, not a 500. A seed never changes within a deploy, so the store keeps each key's read, hit or miss, for the 512 most recently read keys: a second `get` reads no file and parses nothing (`assets.test.ts` `kept reads`, plan 21 15.2) | `assets.test.ts` `workers read`, `node read`, `not ok` |
+| `read` | yes | — | `(path: string) => Promise<Response \| Uint8Array \| null \| undefined>` | `get` calls `read` with the artifact path. `Uint8Array` is the file bytes. A `Response` that is ok is read as text. `null` and `undefined` are a miss | a `Response` that is not ok is a miss, and its body is cancelled. A throw from `read` rejects `get` and is not kept; a page's read logs it and renders live (BUGS.md 391). A missing file is a miss, not a 500. A seed never changes within a deploy, so the store keeps each key's read, hit or miss, for the 512 most recently read keys: a second `get` reads no file and parses nothing (`assets.test.ts` `kept reads`, plan 21 15.2) | `assets.test.ts` `workers read`, `node read`, `not ok` |
 | `base` | no | `"/assets/_flare-static"` | a path that starts with `/` and does not end with `/` | the directory prefix. The default is the seeds' path inside the client output, `/<assetsDir>/_flare-static`, without Vite `base`, which `fileAssets` and the Workers assets binding read. A `read` that fetches seeds by their public URL passes that public prefix as `base` | a query, a hash, a trailing slash, or `..` throws when the store is created. Changing `flare({ assetsBase })` without passing the same prefix here makes every SSG `get` miss | `assets.test.ts` `custom base`, `bad base` |
 
 Workers, where the binding is on `env`:
@@ -105,7 +105,7 @@ createCacheApiStore({ cacheName?, caches? })
 | `cacheName` | no | `"flare"` | string | the name passed to `caches.open` | two names are two stores | `adapters/stores/cache-api/store.test.ts` `round trip` |
 | `caches` | no | the global `caches` | `CacheStorage` | | tests pass a fake. Production omits it | same |
 
-The implementation does not call `keys()` (`no list`). Tombstones live in the cache (`tombstone in cache`).
+The implementation does not call `keys()` (`no list`). Tombstones live in the cache (`tombstone in cache`). A cached body that is no entry is a damaged record, as above (`damaged entry`).
 
 On Cloudflare the Cache API is local to the data center that handled the call. A tag delete clears that location only. Old deploys stay unreachable because the key contains the build id. A purge that must be global uses a store that replicates. That is why this store is not the only one.
 

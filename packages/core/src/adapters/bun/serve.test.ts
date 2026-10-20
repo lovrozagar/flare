@@ -385,3 +385,63 @@ it.runIf(bun !== undefined)(
 	},
 	90_000,
 )
+
+// Behind a real Bun.serve, a Host shaped like a host that is no URL authority is the adapter's 400, and an answer that
+// throws is Flare's plain 500 with its build and the default security set, logged once, whatever NODE_ENV is: Bun's
+// development error page, with the cwd, paths, stack, and source, never answers (BUGS.md 384).
+it.runIf(bun !== undefined)("bun unparseable host and throw", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const throwing = {
+		fetch(request: Request): Response {
+			throw new Error(`the app broke at ${new URL(request.url).pathname}`)
+		},
+	}
+	const served: unknown = Reflect.apply(Reflect.get(Object(bun), "serve"), bun, [
+		{ hostname: "127.0.0.1", port: 0, ...createBunFetch(throwing) },
+	])
+	const port = Number(Reflect.get(Object(served), "port"))
+	const raw = (host: string): Promise<string> =>
+		new Promise((resolve) => {
+			let text = ""
+			const socket = connect(port, "127.0.0.1", () =>
+				socket.write(`GET /where HTTP/1.1\r\nhost: ${host}\r\nconnection: close\r\n\r\n`),
+			)
+			socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
+			socket.on("error", () => resolve(text))
+			socket.on("close", () => resolve(text))
+		})
+	try {
+		for (const host of ["a:99999", "a:65536", "[1.2.3]", "[1:2]", "999.1.1.1", "1.2.3.256"]) {
+			expect([host, (await raw(host)).split("\r\n")[0]]).toEqual([host, "HTTP/1.1 400 Bad Request"])
+		}
+		const text = await raw(`127.0.0.1:${port}`)
+		const [head = "", body = ""] = text.split("\r\n\r\n")
+		expect([
+			head.split("\r\n")[0],
+			/^flare-build:/im.test(head),
+			/^x-content-type-options: nosniff/im.test(head),
+		]).toEqual(["HTTP/1.1 500 Internal Server Error", true, true])
+		for (const leak of [process.cwd(), "the app broke", "at ", ".ts"]) {
+			expect([leak, body.includes(leak)]).toEqual([leak, false])
+		}
+		expect(logged).toHaveBeenCalledTimes(1)
+	} finally {
+		logged.mockRestore()
+		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
+	}
+})
+
+// Bun hands a throw to `error`: Flare's plain 500, with its build and the default security set, logged once, never
+// Bun's development page. Bun calls it only on a throw, so a real Bun.serve case pins the path and this one the
+// answer (BUGS.md 384).
+it("error answer", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const answer = createBunFetch({ fetch: () => new Response("") }).error(new Error("the app broke"))
+	expect([answer.status, answer.headers.get("x-content-type-options"), await answer.text()]).toEqual([
+		500,
+		"nosniff",
+		"",
+	])
+	expect(logged).toHaveBeenCalledTimes(1)
+	logged.mockRestore()
+})

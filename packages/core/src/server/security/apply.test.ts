@@ -5,7 +5,7 @@ import { serveWith } from "../lifecycle/create.ts"
 import { createPage } from "../../shared/route-builder/page.ts"
 import { createRootLayout } from "../../shared/route-builder/root-layout.ts"
 import { createRouter } from "../../shared/router/create-router.ts"
-import { applySecurity, mergeHeaders, type SecurityConfig } from "./apply.ts"
+import { applySecurity, isSecurityHeader, mergeHeaders, type SecurityConfig } from "./apply.ts"
 
 const url = "https://example.com/"
 
@@ -88,14 +88,12 @@ it("false removes", () => {
 	expect(result.headers.has("x-frame-options")).toBe(false)
 })
 
+// A route's `.headers()` cannot set a security header, in any case: only the request's set writes those (BUGS.md 385).
 it("headers() cannot", () => {
-	const result = applySecurity({
-		url,
-		headers: new Headers(),
-		routeHeaders: { "Content-Security-Policy": "from-headers" },
-		security: { "Content-Security-Policy": "from-security" },
-	})
-	expect(result.headers.get("content-security-policy")).toBe("from-security")
+	for (const name of ["Content-Security-Policy", "strict-transport-security", "X-FRAME-OPTIONS", "x-powered-by"]) {
+		expect([name, isSecurityHeader(name)]).toEqual([name, true])
+	}
+	expect(isSecurityHeader("x-custom")).toBe(false)
 })
 
 it("both cookies", () => {

@@ -13,6 +13,8 @@ it("names", () => {
 		CACHE_HEADER: "flare-cache",
 		COOKIES_HEADER: "flare-cookies",
 		FN_HEADER: "flare-fn",
+		STATUS_HEADER: "flare-status",
+		REDIRECT_STATUSES: [301, 302, 303, 307, 308],
 		FAILED_HEADER: "flare-failed",
 		TAB_HEADER: "flare-dev-tab",
 	})

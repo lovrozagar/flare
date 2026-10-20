@@ -19,6 +19,8 @@ export const rule = {
 				if (file.endsWith("/vite/dev/guard.ts")) return
 				// The image dev endpoint is one of those (bits/13).
 				if (file.endsWith("/features/image/vite/dev-endpoint.ts")) return
+				// The client rebuilds a server function's returned redirect from the 200 that carried it (BUGS.md 389).
+				if (file.endsWith("/client/server-fn/call.ts")) return
 				context.report({ node, message: "return new Response only from finalize" })
 			},
 		}

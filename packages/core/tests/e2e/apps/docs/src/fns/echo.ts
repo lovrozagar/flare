@@ -18,6 +18,17 @@ export const failSafely = createServerFn().handler(() => {
 	throw markSafeError(new Error("The playground quota is used up for today"))
 })
 
+// A returned redirect resolves the call with the 302 Response itself, here or to another origin (BUGS.md 389).
+export const moved = createServerFn()
+	.input({ parse: (value: { away: boolean }) => ({ away: value.away === true }) })
+	.handler(
+		({ input }) =>
+			new Response(null, {
+				status: 302,
+				headers: { location: input.away ? "https://elsewhere.example/moved" : "/docs" },
+			}),
+	)
+
 export const failLoudly = createServerFn().handler(() => {
 	throw new Error("connection string postgres://admin:hunter2@db leaked")
 })
