@@ -7,7 +7,8 @@ import { sharedCache, type SharedCache } from "./shared-cache.ts"
 // RFC 9213's CDN-Cache-Control, each at the permissive edge the RFC allows, so a pass there means no compliant cache
 // leaks (plan 28).
 
-type Answer = { status?: number; headers?: Record<string, string | string[]>; body?: string }
+// `cut` sends the body's first chunk and then resets the connection, with no terminating chunk.
+type Answer = { status?: number; headers?: Record<string, string | string[]>; body?: string; cut?: boolean }
 
 let origin: Server
 let base = ""
@@ -22,10 +23,13 @@ function answer(request: IncomingMessage, response: ServerResponse): void {
 		status = 200,
 		headers = {},
 		body = `body of ${path} #${hits[path]}`,
+		cut = false,
 	} = answers[path.split("?")[0] ?? ""] ?? {}
 	for (const [name, value] of Object.entries(headers)) response.setHeader(name, value)
 	response.writeHead(status)
-	response.end(request.method === "HEAD" ? undefined : body)
+	if (!cut) return void response.end(request.method === "HEAD" ? undefined : body)
+	response.write(body)
+	setTimeout(() => response.destroy(), 20)
 }
 
 beforeAll(async () => {
@@ -162,6 +166,18 @@ it("post passes", async () => {
 })
 
 // A redirect passes through unfollowed, with its Location, so a browser behind the cache sees what it would see direct.
+// An answer cut short, a reset with no terminating chunk, is incomplete: it is never stored, so the next request goes
+// to the origin (RFC 9111 3.3, BUGS.md 383).
+it("incomplete not stored", async () => {
+	answers["/cut"] = { headers: { "cache-control": "public, max-age=0, s-maxage=60" }, cut: true }
+	for (let index = 0; index < 2; index++) {
+		// A cut body is undici's "terminated" under Node, and ECONNRESET under Bun's fetch.
+		const response = await fetch(`${cache.origin}/cut`)
+		await expect(response.text()).rejects.toThrow(/terminated|ECONNRESET/)
+	}
+	expect([hits["/cut"], cache.hits]).toEqual([2, []])
+})
+
 it("redirect", async () => {
 	answers["/old"] = { status: 302, headers: { location: "/new" } }
 	const moved = await fetch(`${cache.origin}/old`, { redirect: "manual" })

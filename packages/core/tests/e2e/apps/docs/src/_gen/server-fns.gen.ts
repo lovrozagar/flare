@@ -6,6 +6,7 @@ export const serverFns = {
 	"b0a63c2593985fa7": () => import("../fns/build-log.ts").then((loaded) => loaded.releaseBuild),
 	"7cb6122a95a85d41": () => import("../fns/build-log.ts").then((loaded) => loaded.buildLog),
 	"65db9aa115d9e88f": () => import("../fns/build-log.ts").then((loaded) => loaded.buildStatus),
+	"2e97c302f1613d77": () => import("../fns/build-log.ts").then((loaded) => loaded.buildSteps),
 	"cdc7455c086f4359": () => import("../fns/echo.ts").then((loaded) => loaded.echo),
 	"c00c555855065ef7": () => import("../fns/echo.ts").then((loaded) => loaded.failSafely),
 	"0d9dc6b2c8204ad2": () => import("../fns/echo.ts").then((loaded) => loaded.failLoudly),

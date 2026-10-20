@@ -86,3 +86,14 @@ function stopped(signal: AbortSignal): Promise<void> {
 export const buildStatus = createServerFn({ method: "get" })
 	.input({ parse: (value: { run: string }) => ({ run: String(value.run) }) })
 	.handler(({ input }) => ({ run: input.run, status: runs.get(input.run) ?? "unknown" }))
+
+// A cached GET stream, held before it is answered: public when it ends cleanly, private with its error line when
+// `fail` throws after the first step (BUGS.md 383).
+export const buildSteps = createServerFn({ method: "get" })
+	.cache({ maxAge: "1m" })
+	.input({ parse: (value: { fail?: boolean }) => ({ fail: value.fail === true }) })
+	.stream(async function* ({ input }) {
+		yield { line: 1, step: STEPS[0] }
+		if (input.fail) throw new Error("the log store is down")
+		yield { line: 2, step: STEPS[1] }
+	})

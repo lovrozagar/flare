@@ -13,11 +13,11 @@ import {
 	type ServerFnContext,
 	type ServerFnRef,
 } from "../../shared/server-fn/builder.ts"
-import { setCacheControl } from "./cache-control.ts"
+import { fnIsPublic, setCacheControl } from "./cache-control.ts"
 import { checkCsrf } from "./csrf.ts"
 import { errorEnvelope, okEnvelope, type Envelope } from "./envelope.ts"
 import { readInput, type InputErrors } from "./input.ts"
-import { streamEnvelopes } from "./stream.ts"
+import { heldStream, PUBLIC_STREAM_BYTES, streamEnvelopes } from "./stream.ts"
 import { dataToWire } from "../../shared/protocol/value.ts"
 
 // `serverFns` from src/_gen/server-fns.gen.ts: one lazy import per exported createServerFn, keyed by its B41 id.
@@ -134,16 +134,23 @@ async function run(fn: ServerFnRef, input: DispatchInput): Promise<StageResult> 
 	return reply(fn, okEnvelope(fn.name, value), 200)
 }
 
-// The NDJSON body starts once every step before the generator has passed. Its lines are envelopes.
-function streamed(fn: ServerFnRef, source: AsyncIterable<unknown>, input: DispatchInput): StageResult {
+// The NDJSON body starts once every step before the generator has passed. Its lines are envelopes. A public stream
+// is held before it is answered, since its Cache-Control goes out first: the cache decision reads how it ended
+// (`heldStream`, BUGS.md 383).
+async function streamed(fn: ServerFnRef, source: AsyncIterable<unknown>, input: DispatchInput): Promise<StageResult> {
 	const body = streamEnvelopes(fn.name, source, {
 		sink: input.sink,
 		basePath: input.basePath,
 		trailingSlash: input.trailingSlash,
 	})
 	const headers = new Headers({ "content-type": NDJSON })
-	setCacheControl(headers, fn.record, 200)
-	return { status: 200, body, headers }
+	if (!fnIsPublic(fn.record)) {
+		setCacheControl(headers, fn.record, 200)
+		return { status: 200, body, headers }
+	}
+	const held = await heldStream(body, PUBLIC_STREAM_BYTES)
+	setCacheControl(headers, fn.record, held.status)
+	return { status: 200, body: held.body, headers }
 }
 
 function active(): RequestScope {
