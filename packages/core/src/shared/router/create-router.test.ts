@@ -142,6 +142,23 @@ it("direction storage", () => {
 	expect(() => createRouter({ ...bare, direction: { storageKey: "" } })).toThrow(/storageKey/)
 })
 
+// With `caseSensitive: true` the locale param takes only a configured tag's own spelling: a wrong-case tag is no
+// locale, so `/EN/x` matches nothing, and no page ever sees a tag outside `locales` (B22, BUGS.md 410).
+it("strict locale", () => {
+	const locale = { locales: ["en", "zh-Hant-TW"], defaultLocale: "en" }
+	const routeTree = [{ id: "[[locale]]/_root_/x", path: "/[[locale]]/x", module: {} }]
+	const strict = createRouter({ layouts: {}, routeTree, locale, caseSensitive: true })
+	const paramsAt = (path: string) => strict.match(path).params
+	expect([paramsAt("/en/x"), paramsAt("/zh-Hant-TW/x"), paramsAt("/x")]).toEqual([
+		{ locale: "en" },
+		{ locale: "zh-Hant-TW" },
+		{ locale: undefined },
+	])
+	for (const path of ["/EN/x", "/zh-hant-tw/x"]) expect([path, strict.match(path).id]).toEqual([path, undefined])
+	const folding = createRouter({ layouts: {}, routeTree, locale })
+	expect(folding.match("/EN/x").params).toEqual({ locale: "EN" })
+})
+
 it("locale types", () => {
 	const locale = { locales: ["en", "hr"], defaultLocale: "en" }
 	expect(createRouter({ ...bare, locale }).locale).toEqual({

@@ -1,4 +1,4 @@
-import { behaviorOf, clientCacheOf } from "./behavior.ts"
+import { basePathOf, behaviorOf, clientCacheOf } from "./behavior.ts"
 import type { BoundaryRecord, ClientCache, NotFoundRender, PrefetchTrigger } from "../route-builder/index.ts"
 import type { ChainRecord, Intercept } from "../route-builder/chain.ts"
 import type { Location, LocationRewrite } from "../url/index.ts"
@@ -156,7 +156,7 @@ export function createRouter(options: RouterOptions): Router {
 	const router: Router = {
 		layouts: options.layouts,
 		routeTree: options.routeTree,
-		basePath: options.basePath ?? "/",
+		basePath: basePathOf(options.basePath),
 		notFoundMode: options.notFoundMode ?? "root",
 		...behaviorOf(options),
 		prefetch: prefetchOf(options.prefetch),
@@ -195,7 +195,7 @@ const KEPT_MATCHES = 256
 // The matcher options every lookup of this router shares: its case rule, and the locale param's filter.
 function matchOptions(router: Pick<Router, "caseSensitive" | "locale">): MatchOptions {
 	const options: MatchOptions = { caseSensitive: router.caseSensitive }
-	if (router.locale !== undefined) options.accepts = localeParam(router.locale)
+	if (router.locale !== undefined) options.accepts = localeParam(router.locale, router.caseSensitive)
 	return options
 }
 

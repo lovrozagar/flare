@@ -52,6 +52,41 @@ it("chunks", async () => {
 
 // A tab's own request names its token, so the tab keeps its routing (B42). A document gets a fresh one, and a header
 // that is not a token is not written into the page.
+// A stream that stays open, after these chunks.
+function open(...chunks: string[]): Response {
+	const body = new ReadableStream<Uint8Array>({
+		start(controller) {
+			for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk))
+		},
+	})
+	return html(body)
+}
+
+// What a stream sends before it ends: its first read, as text.
+async function firstRead(response: Response): Promise<string> {
+	if (response.body === null) throw new Error("a body")
+	const reader = response.body.getReader()
+	const { value } = await reader.read()
+	await reader.cancel()
+	return new TextDecoder().decode(value)
+}
+
+// The tags never hold a stream: a fragment gets them in front at once, `</HEAD>` and `<BODY>` in any case are found,
+// and a document that has neither gets them after its doctype, never before it (BUGS.md 412).
+it("streams held", async () => {
+	const tags = `${HEAD}<meta name="flare-dev-tab" content="T1">`
+	const tagged = (response: Response) => devDocument(response, { head: HEAD, token: "T1" })
+	expect(await firstRead(tagged(open("<li>1</li>")))).toBe(`${tags}<li>1</li>`)
+	expect(await firstRead(tagged(open("<!DOCTYPE html><HTML><HEAD><title>x</title></HEAD><BODY>part")))).toBe(
+		`<!DOCTYPE html><HTML><HEAD><title>x</title>${tags}</HEAD><BODY>part`,
+	)
+	expect(await firstRead(tagged(open("<!doctype html><html><head><title>x</title><body>part")))).toBe(
+		`<!doctype html><html><head><title>x</title>${tags}<body>part`,
+	)
+	const headless = await tagged(html("<!doctype html><p>x</p>")).text()
+	expect(headless).toBe(`<!doctype html>${tags}<p>x</p>`)
+})
+
 it("request token", () => {
 	expect(devToken(new Request("http://x/", { headers: { "flare-dev-tab": "tab-7" } }))).toBe("tab-7")
 	expect(devToken(new Request("http://x/"))).toMatch(/^[0-9a-f-]{36}$/)
@@ -149,4 +184,34 @@ it("dev styles", async () => {
 		["_root_", "_root_/a"],
 		["_root_", "_root_/b"],
 	])
+})
+
+// A finished body sent in two chunks, cut at `at`.
+function split(body: string, at: number): Response {
+	const stream = new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(new TextEncoder().encode(body.slice(0, at)))
+			controller.enqueue(new TextEncoder().encode(body.slice(at)))
+			controller.close()
+		},
+	})
+	return html(stream)
+}
+
+// A document cut anywhere in its doctype, its `<html`, or a comment before them is still a document: the tags land in
+// its head, or after the doctype when it has no head, never in front of it (BUGS.md 412).
+it("document cut anywhere", async () => {
+	const tags = `${HEAD}<meta name="flare-dev-tab" content="T1">`
+	const cases = [
+		["<!doctype html><html><head></head><body>b", "<!doctype html><html><head>" + tags + "</head><body>b"],
+		["<!-- c --><!DOCTYPE html><HTML><HEAD></HEAD>b", "<!-- c --><!DOCTYPE html><HTML><HEAD>" + tags + "</HEAD>b"],
+		["<!doctype html><p>x</p>", "<!doctype html>" + tags + "<p>x</p>"],
+		["<!-- c --><!doctype html><p>x</p>", "<!-- c --><!doctype html>" + tags + "<p>x</p>"],
+	]
+	for (const [body, want] of cases) {
+		for (let at = 1; at < 26; at += 1) {
+			const got = await devDocument(split(body, at), { head: HEAD, token: "T1" }).text()
+			expect([body, at, got]).toEqual([body, at, want])
+		}
+	}
 })

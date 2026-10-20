@@ -6,7 +6,18 @@ import { escapeAttr } from "./escape.ts"
 // the styles it injects and its error overlay, so a nonce CSP does not block them.
 const POLICY_NONCE = /'nonce-([A-Za-z0-9+/=_-]+)'/
 
-const HEAD_CLOSE = "</head>"
+// Where the tags go in a document: before the head's close, or the body's open when the head is never closed. Any case
+// counts, as an HTML parser reads tags (BUGS.md 412).
+const TAG_SPOT = /<\/head\s*>|<body[\s>]/i
+
+// A body that opens as a document. Any other is a fragment, a `.response()` route's say, and takes the tags in front.
+const DOCUMENT = /^\s*<(?:!doctype|html)[\s>]/i
+
+// A doctype the tags must follow: before it, the page would render in quirks mode.
+const DOCTYPE = /^\s*<!doctype[^>]*>/i
+
+// Whitespace and whole comments at the start of a body.
+const LEAD = /^(?:\s|<!--[\s\S]*?-->)*/
 
 // `head` is devHead, what `transformIndexHtml` adds to an empty document. `token` is the request's dev tab token.
 export type DevTags = { head: string; token: string }
@@ -29,8 +40,9 @@ export function devDocument(response: Response, tags: DevTags): Response {
 	return carryMark(response, new Response(body, { status: response.status, headers }))
 }
 
-// The tags go in before the first `</head>`, found across chunks; a document with no head gets them in front. Every
-// chunk goes through one decoder, so a character split across chunks arrives whole (BUGS.md B8).
+// The tags go in before the first `</head>`, found across chunks. A fragment gets them in front at once and is never
+// held, and a document with no head gets them after its doctype (BUGS.md 412). Every chunk goes through one decoder,
+// so a character split across chunks arrives whole (BUGS.md B8).
 function withTags(body: ReadableStream<Uint8Array>, tags: string): ReadableStream<Uint8Array> {
 	const decoder = new TextDecoder()
 	const encoder = new TextEncoder()
@@ -42,17 +54,36 @@ function withTags(body: ReadableStream<Uint8Array>, tags: string): ReadableStrea
 				const text = decoder.decode(chunk, { stream: true })
 				if (written) return void (text === "" || controller.enqueue(encoder.encode(text)))
 				pending += text
-				const close = pending.indexOf(HEAD_CLOSE)
-				if (close === -1) return
-				controller.enqueue(encoder.encode(`${pending.slice(0, close)}${tags}${pending.slice(close)}`))
+				const spot = spotOf(pending)
+				if (spot === undefined) return
+				controller.enqueue(encoder.encode(`${pending.slice(0, spot)}${tags}${pending.slice(spot)}`))
 				pending = ""
 				written = true
 			},
 			flush(controller) {
 				const rest = `${pending}${decoder.decode()}`
-				const out = written ? rest : `${tags}${rest}`
+				const lead = leadOf(rest)
+				const spot = lead + (DOCTYPE.exec(rest.slice(lead))?.[0].length ?? 0)
+				const out = written ? rest : `${rest.slice(0, spot)}${tags}${rest.slice(spot)}`
 				if (out !== "") controller.enqueue(encoder.encode(out))
 			},
 		}),
 	)
+}
+
+// Where the tags go in what has arrived so far, or undefined while a document has not reached its head's close or its
+// body yet, or what has arrived may still open one: whitespace and comments, an unclosed comment, or a cut
+// `<!doctype` or `<html` (BUGS.md 412).
+function spotOf(text: string): number | undefined {
+	const found = TAG_SPOT.exec(text)
+	if (found !== null) return found.index
+	const rest = text.slice(leadOf(text)).toLowerCase()
+	const opening = ["<!--", "<!doctype", "<html"].some((start) => start.startsWith(rest) || rest.startsWith("<!--"))
+	if (rest === "" || opening || DOCUMENT.test(rest)) return undefined
+	return 0
+}
+
+// The length of the whitespace and whole comments a body opens with, which may come before a doctype.
+function leadOf(text: string): number {
+	return text.length - text.replace(LEAD, "").length
 }

@@ -146,9 +146,10 @@ it("repeated param", () => {
 })
 
 it("two params", () => {
-	const same = ["_root_/[id]/a.page.tsx", "_root_/[slug]/b.page.tsx"]
-	expect(() => routesOf(same)).toThrow("[id]/a.page.tsx")
-	expect(() => routesOf(same)).toThrow("[slug]/b.page.tsx")
+	// Under one parent, two names for one param folder clash even where the URLs differ after it (a same URL is a
+	// duplicate, `same url`).
+	const same = ["_root_/[id]/a/a.page.tsx", "_root_/[slug]/b/b.page.tsx"]
+	expect(() => routesOf(same)).toThrow("two params: _root_/[id]/a/a.page.tsx, _root_/[slug]/b/b.page.tsx")
 	const each = ["_root_/[id]/a.page.tsx", "_root_/[[locale]]/b.page.tsx", "_root_/[...path]/c.page.tsx"]
 	expect(routesOf(each).routes).toHaveLength(3)
 	const catchAlls = ["_root_/[id]/a.page.tsx", "_root_/[...path]/c.page.tsx", "_root_/[[...rest]]/d.page.tsx"]
@@ -200,6 +201,27 @@ it("duplicate url", () => {
 	]
 	expect(() => routesOf(files)).toThrow(/_root_\/dashboard\/dashboard\.page\.tsx/)
 	expect(() => routesOf(files)).toThrow(/_admin_\/dashboard\/dashboard\.page\.tsx/)
+})
+
+// Two pages the matcher cannot tell apart are one URL, and fail the build naming both: static folders that differ only
+// in case (the router matches case-insensitively by default), and params of one kind under one URL parent, whatever
+// their names or the group or root between them. A literal-bracket folder is static text, not its param (BUGS.md 406).
+it("same url", () => {
+	const clashes = [
+		["_root_/About/a.page.tsx", "_root_/about/b.page.tsx"],
+		["_root_/users/[id]/a.page.tsx", "_root_/(g)/users/[slug]/b.page.tsx"],
+		["_root_/(a)/[id]/a.page.tsx", "_root_/(b)/[slug]/b.page.tsx"],
+		["_root_/[id]/a.page.tsx", "_admin_/[key]/b.page.tsx", "_admin_/admin.root-layout.tsx"],
+		["_root_/docs/[...p]/a.page.tsx", "_root_/(g)/docs/[...rest]/b.page.tsx"],
+	]
+	for (const [first, second, ...rest] of clashes) {
+		expect(() => routesOf([first ?? "", second ?? "", ...rest])).toThrow(`duplicate url: ${first}, ${second}`)
+	}
+	const apart = [
+		["_root_/[_]id]/a.page.tsx", "_root_/[id]/b.page.tsx"],
+		["_root_/[_]...p]/a.page.tsx", "_root_/(g)/[...p]/b.page.tsx"],
+	]
+	for (const routeFiles of apart) expect(routesOf(routeFiles).routes).toHaveLength(2)
 })
 
 it("shadow", () => {

@@ -35,6 +35,29 @@ function counted(name: string, value: number, max: number): number {
 // milliseconds.
 export function clientCacheOf(client: RouterCache["client"]): Router["cache"]["client"] {
 	if (client === false) return false
-	const staleTime = client?.staleTime === undefined ? 0 : parseDuration(client.staleTime)
-	return { staleTime, gcTime: client?.gcTime ?? "5m" }
+	const staleTime = client?.staleTime === undefined ? 0 : duration("staleTime", client.staleTime)
+	const gcTime = client?.gcTime ?? "5m"
+	duration("gcTime", gcTime)
+	return { staleTime, gcTime }
+}
+
+// A client cache duration, parsed when the router is made: the client parses `gcTime` again as it boots, and a bad
+// one would stop it there (BUGS.md 413).
+function duration(field: string, value: string): number {
+	try {
+		return parseDuration(value)
+	} catch {
+		throw new Error(`cache.client.${field} is not a duration: ${String(value)}`)
+	}
+}
+
+// `basePath` is `"/"` or one directory: it starts with `/`, ends without one, holds no `//`, `?`, `#`, or backslash,
+// and a URL reads it back as written, so a request path can equal it (dx/router.md, BUGS.md 409).
+export function basePathOf(basePath: string | undefined): string {
+	if (basePath === undefined || basePath === "/") return "/"
+	const fixed = basePath.startsWith("/") && !basePath.endsWith("/") && !/[?#\\]|\/\//.test(basePath)
+	if (!fixed || new URL(basePath, "http://base").pathname !== basePath) {
+		throw new Error(`basePath ${JSON.stringify(basePath)} is not "/" or one directory a request path can equal`)
+	}
+	return basePath
 }

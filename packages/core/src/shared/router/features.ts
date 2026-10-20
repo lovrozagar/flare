@@ -93,9 +93,11 @@ export function localeLike(segment: string): boolean {
 
 // With a locale config, the `paramName` param holds only a configured tag, in any case, so the wrong case can 301 to
 // its spelling. Any other segment, `pricing` or an unconfigured tag, is an ordinary path segment (B73, plan 21 3.8).
-export function localeParam(config: LocaleConfig): (name: string, value: string) => boolean {
-	const tags = new Set(config.locales.map((tag) => tag.toLowerCase()))
-	return (name, value) => name !== config.paramName || tags.has(value.toLowerCase())
+// A case-sensitive router has no such redirect (B22), so there it takes only the tag's own spelling (BUGS.md 410).
+export function localeParam(config: LocaleConfig, sensitive = false): (name: string, value: string) => boolean {
+	const fold = (text: string): string => (sensitive ? text : text.toLowerCase())
+	const tags = new Set(config.locales.map(fold))
+	return (name, value) => name !== config.paramName || tags.has(fold(value))
 }
 
 // The canonical spelling of a tag, or nothing when `Intl` rejects it.

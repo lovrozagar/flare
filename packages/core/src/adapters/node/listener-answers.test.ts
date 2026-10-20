@@ -217,6 +217,61 @@ it("node cut keeps sent", async () => {
 	}
 })
 
+// A client that stops reading a large stream, so the listener waits on backpressure, then disconnects, ends that
+// request: the wait gives up with the socket, so a drain still resolves `true`, at once (BUGS.md 411).
+it("stalled disconnect drains", async () => {
+	const chunk = new Uint8Array(1024 * 1024)
+	const listener = createNodeListener({
+		fetch: () => new Response(new ReadableStream({ pull: (controller) => controller.enqueue(chunk) })),
+	})
+	const http = createHttpServer(listener)
+	await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", resolve))
+	const address = http.address()
+	const port = typeof address === "object" && address !== null ? address.port : 0
+	try {
+		await new Promise<void>((resolve) => {
+			const socket = connect(port, "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nhost: a\r\n\r\n"))
+			socket.once("data", () => {
+				socket.pause()
+				setTimeout(() => {
+					socket.destroy()
+					resolve()
+				}, 300)
+			})
+		})
+		const started = Date.now()
+		expect(await listener.drain({ timeout: "2s" })).toBe(true)
+		expect(Date.now() - started).toBeLessThan(1000)
+	} finally {
+		http.closeAllConnections()
+		await new Promise((resolve) => http.close(resolve))
+	}
+})
+
+// A client that leaves while the listener holds a chunk: the write to the closed answer reports backpressure, and the
+// wait ends at once, since no drain will come (BUGS.md 411).
+it("closed before backpressure", async () => {
+	const handlers: Record<string, () => void> = {}
+	let ended = false
+	const body = new ReadableStream<Uint8Array>({ pull: (controller) => controller.enqueue(new Uint8Array(8)) })
+	const listener = createNodeListener({ fetch: () => new Response(body) })
+	listener(req(), {
+		writeHead() {},
+		setHeader() {},
+		write() {
+			handlers["close"]?.()
+			return false
+		},
+		end() {
+			ended = true
+		},
+		once(event, callback) {
+			handlers[event] = callback
+		},
+	})
+	await vi.waitFor(() => expect(ended).toBe(true))
+})
+
 // Hosts shaped like a host that are no URL authority: a port past 65535, a bracket that is no IPv6 address, an IPv4
 // address with an octet past 255 (BUGS.md 384).
 const UNPARSEABLE_HOSTS = ["a:99999", "a:65536", "[1.2.3]", "[1:2]", "999.1.1.1", "1.2.3.256"]
