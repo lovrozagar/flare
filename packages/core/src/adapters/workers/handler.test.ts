@@ -114,9 +114,21 @@ it("assets missing", async () => {
 		logged.push(args)
 	}
 	try {
+		// Logged once per handler, however many requests miss it, and the 500, like the 405 beside it, carries the
+		// security set, as every adapter's own answer does (BUGS.md 420).
 		const handler = createWorkersHandler({ fetch: unmatched }, { assets: "ASSETS" })
-		const response = await handler.fetch(new Request("https://example.com/app.js"), {}, ctx())
-		expect(response.status).toBe(500)
+		const answers = []
+		for (const method of ["GET", "GET", "HEAD", "POST"]) {
+			const response = await handler.fetch(new Request("https://example.com/app.js", { method }), {}, ctx())
+			const csp = response.headers.has("content-security-policy")
+			answers.push([method, response.status, csp, response.headers.get("x-content-type-options")])
+		}
+		expect(answers).toEqual([
+			["GET", 500, true, "nosniff"],
+			["GET", 500, true, "nosniff"],
+			["HEAD", 500, true, "nosniff"],
+			["POST", 405, true, "nosniff"],
+		])
 		expect(logged).toHaveLength(1)
 	} finally {
 		console.error = error

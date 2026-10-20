@@ -12,6 +12,9 @@ export type Pending = {
 	draining: () => boolean
 }
 
+// The longest delay a timer holds.
+const MAX_TIMER = 2 ** 31 - 1
+
 export function pendingWork(): Pending {
 	const pending = new Set<Promise<unknown>>()
 	const state = { draining: false }
@@ -26,7 +29,15 @@ export function pendingWork(): Pending {
 			const timeout = parseDuration(options.timeout)
 			state.draining = true
 			const expired = Promise.withResolvers<false>()
-			const timer = setTimeout(() => expired.resolve(false), timeout)
+			// A timer holds at most 2^31 - 1 ms and fires at once past it, so a longer timeout re-arms until its deadline
+			// (BUGS.md 421).
+			const deadline = Date.now() + timeout
+			let timer: ReturnType<typeof setTimeout> | undefined
+			const arm = (): void => {
+				const left = deadline - Date.now()
+				timer = setTimeout(() => (left > MAX_TIMER ? arm() : expired.resolve(false)), Math.min(left, MAX_TIMER))
+			}
+			arm()
 			try {
 				while (pending.size > 0) {
 					const settled = Promise.allSettled(pending).then(() => true)

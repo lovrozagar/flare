@@ -21,6 +21,8 @@ export function createWorkersHandler(
 	options?: { assets?: string },
 ): { fetch: (request: Request, env: WorkerEnv, ctx: WorkerCtx) => Promise<Response> } {
 	const assets = options?.assets
+	// A missing binding is the deploy's mistake, the same on every request: logged once per handler (BUGS.md 420).
+	let reported = false
 	return {
 		async fetch(request, env, ctx) {
 			// The server's ingress computes the canonical path once (B22): a non-canonical one is its 301 or 400 here, as
@@ -34,12 +36,15 @@ export function createWorkersHandler(
 			// Only a document no route matched reaches the binding: the app's own 404s stay (plan 21 13.4).
 			if (!isUnmatched(response) || assets === undefined) return keepingSent(response)
 			if (request.method !== "GET" && request.method !== "HEAD") {
-				return finalize({ status: 405, body: "", headers: new Headers({ allow: "GET, HEAD, OPTIONS" }) })
+				const headers = new Headers({ allow: "GET, HEAD, OPTIONS" })
+				return finalize({ status: 405, body: "", url: request.url, headers })
 			}
 			const binding = env[assets]
+			// The request's URL gives the answer the security set, as every adapter's own answer has (BUGS.md 341, 420).
 			if (binding === undefined) {
-				createLogger({ dev: false }).error("assets", "missing binding")
-				return finalize({ status: 500, body: "" })
+				if (!reported) createLogger({ dev: false }).error("assets", "missing binding")
+				reported = true
+				return finalize({ status: 500, body: "", url: request.url })
 			}
 			// A file the binding has is its response, untouched. A path it does not have either is the app's own
 			// not-found answer, as on Node and Bun (dx/adapters.md). A 404 passed the server's ingress, so the path is
