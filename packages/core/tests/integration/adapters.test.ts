@@ -442,14 +442,14 @@ function held(origin: string, target: string): Promise<{ body: string; closedAft
 	})
 }
 
-// A stream that goes quiet longer than Bun's `idleTimeout` still completes: the adapter lifts the timeout while a
-// streamed body is in flight. Once the body ends the timeout applies again, so the idle keep-alive socket still
-// closes. Bun checks the timeout every few seconds, so a 1 s timeout cuts a 5 s gap (plan 21 8.3, BUGS.md 198).
+// A stream quiet longer than Bun's `idleTimeout` still completes: the adapter lifts the timeout while it is in flight,
+// and sets it back once it ends, so the idle keep-alive socket still closes. Bun counts it in 4-second ticks, so 5 s
+// cuts a socket idle for 4 to 8 s, and the gap is longer (plan 21 8.3, BUGS.md 198, 423).
 it.runIf(bun !== undefined)(
 	"bun idle stream",
 	async () => {
-		const gap = new Promise<void>((resolve) => setTimeout(resolve, 5000))
-		const fetcher = createBunFetch(app(gap), { idleTimeout: 1 })
+		const gap = new Promise<void>((resolve) => setTimeout(resolve, 9000))
+		const fetcher = createBunFetch(app(gap), { idleTimeout: 5 })
 		const served: unknown = Reflect.apply(Reflect.get(Object(bun), "serve"), bun, [
 			{ hostname: "127.0.0.1", port: 0, ...fetcher },
 		])
@@ -461,7 +461,7 @@ it.runIf(bun !== undefined)(
 			await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
 		}
 	},
-	30_000,
+	90_000,
 )
 
 // A request line with this method: the response's head, lowercased.

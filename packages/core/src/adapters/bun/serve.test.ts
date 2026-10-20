@@ -203,8 +203,21 @@ it("idle timeout", async () => {
 	expect(await (await streamed.fetch(new Request("http://localhost/"))).text()).toBe("streamed")
 	const server = { fetch: () => new Response("") }
 	for (const idleTimeout of [-1, 1.5, 256]) {
-		expect(() => createBunFetch(server, { idleTimeout })).toThrow("idleTimeout is an integer from 0 to 255 seconds")
+		expect(() => createBunFetch(server, { idleTimeout })).toThrow(IDLE_RANGE)
 	}
+})
+
+const IDLE_RANGE = "idleTimeout is 0 (no timeout) or a whole number of seconds from 5 to 255"
+
+// Bun counts `idleTimeout` in 4-second ticks from a sweep that runs while any socket is open, so 1 to 4 is one tick:
+// the next sweep, which can come as soon as a fresh request starts, cuts it. Those values are refused; 0 and 5 are
+// not (BUGS.md 423).
+it("idle tick", () => {
+	const server = { fetch: () => new Response("") }
+	for (const idleTimeout of [1, 2, 3, 4]) {
+		expect(() => createBunFetch(server, { idleTimeout })).toThrow(`${IDLE_RANGE}: Bun counts it in 4-second ticks`)
+	}
+	expect([0, 5].map((idleTimeout) => createBunFetch(server, { idleTimeout }).idleTimeout)).toEqual([0, 5])
 })
 
 // A drain waits for each answer until its streamed body ends, fails, or is cancelled, and for the `waitUntil` work the
