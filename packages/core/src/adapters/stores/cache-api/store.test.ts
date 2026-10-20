@@ -72,6 +72,25 @@ it("global caches", async () => {
 	vi.unstubAllGlobals()
 })
 
+// A key or tag holding a lone surrogate is a key like any other, as on the memory and filesystem stores: each one is
+// its own entry, and a tag purge of one resolves (BUGS.md 404).
+it("lone surrogate", async () => {
+	const { caches } = fakeCaches()
+	const store = createCacheApiStore({ caches })
+	await store.set("k\uD800", { ...entry, data: "high" })
+	await store.set("k\uDC00", { ...entry, data: "low" })
+	await store.set("k\uFFFD", { ...entry, data: "replacement" })
+	const read = async (key: string) => (await store.get(key))?.data
+	expect([await read("k\uD800"), await read("k\uDC00"), await read("k\uFFFD"), await read("k%uD800")]).toEqual([
+		"high",
+		"low",
+		"replacement",
+		undefined,
+	])
+	await expect(createRevalidateFn(store)({ tags: ["\uD800"] })).resolves.toBeUndefined()
+	expect(typeof (await store.get("epoch:\uD800"))?.data).toBe("number")
+})
+
 // Where the store keeps a key.
 function url(key: string): string {
 	return `https://flare.cache/${encodeURIComponent(key)}`

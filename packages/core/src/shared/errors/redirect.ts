@@ -67,7 +67,17 @@ export function redirect(target: RedirectTarget): never {
 
 function assertHref(target: RedirectTarget, href: string): void {
 	if (target.to !== undefined || target.params !== undefined || target.search !== undefined) throw new Error("href")
-	if (!href.startsWith("https://") && !href.startsWith("http://")) throw new Error("href")
+	// `http://` or `https://` in any case, as the URL standard reads a scheme, and a host to go to (BUGS.md 402).
+	if (!/^https?:\/\//i.test(href) || !hasHost(href)) throw new Error("href")
 	// A control character, a CR or LF from the request say, cannot be a Location header (BUGS.md 168).
 	if ([...href].some((char) => char.charCodeAt(0) < 0x20 || char.charCodeAt(0) === 0x7f)) throw new Error("href")
+}
+
+// `URL.canParse` is above the browser floor, so a parse that throws is the answer.
+function hasHost(href: string): boolean {
+	try {
+		return new URL(href).hostname !== ""
+	} catch {
+		return false
+	}
 }

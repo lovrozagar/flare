@@ -320,3 +320,45 @@ it("authenticate undefined logged", async () => {
 	expect(statuses).toEqual([500, 500])
 	expect(messages.filter((message) => message.includes("authenticate returned undefined"))).toHaveLength(2)
 })
+
+// `authorize` passes on a truthy return and refuses on any falsy one, 403, not only on `false` (dx/builder.md).
+it("authorize truthiness", async () => {
+	const statuses = []
+	for (const value of [false, undefined, 0, "", null, true, "yes", 1]) {
+		const page = createPage("_root_/p")
+			.authorize(() => value as boolean)
+			.render(() => "p")
+		const server = serve({
+			layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+			routeTree: [{ id: "_root_/p", path: "/p", module: page }],
+		})
+		statuses.push([value, (await get(server, "/p")).status])
+	}
+	expect(statuses).toEqual([
+		[false, 403],
+		[undefined, 403],
+		[0, 403],
+		["", 403],
+		[null, 403],
+		[true, 200],
+		["yes", 200],
+		[1, 200],
+	])
+})
+
+// An OPTIONS a `.response()` route did not declare is answered by Flare: 204, with `Allow` naming the declared methods,
+// HEAD, and OPTIONS, and `fn` is not called (dx/builder.md `response`).
+it("response options", async () => {
+	const fn = vi.fn<() => Response>(() => new Response("x"))
+	const api = createPage("_root_/api").response(fn, { methods: ["GET", "POST"] })
+	const server = serve({
+		layouts: { _root_: createRootLayout("_root_").render((props) => props.children) },
+		routeTree: [{ id: "_root_/api", path: "/api", module: api, response: true, methods: ["GET", "POST"] }],
+	})
+	const response = await server.fetch(new Request("http://localhost/api", { method: "OPTIONS" }))
+	expect([response.status, response.headers.get("allow"), fn.mock.calls.length]).toEqual([
+		204,
+		"GET, POST, HEAD, OPTIONS",
+		0,
+	])
+})

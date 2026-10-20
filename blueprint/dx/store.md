@@ -62,7 +62,7 @@ createAssetsStore(read, { base? })
 | prop | required | default | accepts | outcome | pitfall | test |
 | --- | --- | --- | --- | --- | --- | --- |
 | `read` | yes | — | `(path: string) => Promise<Response \| Uint8Array \| null \| undefined>` | `get` calls `read` with the artifact path. `Uint8Array` is the file bytes. A `Response` that is ok is read as text. `null` and `undefined` are a miss | a `Response` that is not ok is a miss, and its body is cancelled. A throw from `read` rejects `get` and is not kept; a page's read logs it and renders live (BUGS.md 391). A missing file is a miss, not a 500. A seed never changes within a deploy, so the store keeps each key's read, hit or miss, for the 512 most recently read keys: a second `get` reads no file and parses nothing (`assets.test.ts` `kept reads`, plan 21 15.2) | `assets.test.ts` `workers read`, `node read`, `not ok` |
-| `base` | no | `"/assets/_flare-static"` | a path that starts with `/` and does not end with `/` | the directory prefix. The default is the seeds' path inside the client output, `/<assetsDir>/_flare-static`, without Vite `base`, which `fileAssets` and the Workers assets binding read. A `read` that fetches seeds by their public URL passes that public prefix as `base` | a query, a hash, a trailing slash, or `..` throws when the store is created. Changing `flare({ assetsBase })` without passing the same prefix here makes every SSG `get` miss | `assets.test.ts` `custom base`, `bad base` |
+| `base` | no | `"/assets/_flare-static"` | a path that starts with `/` and does not end with `/` | the directory prefix. The default is the seeds' path inside the client output, `/<assetsDir>/_flare-static`, without Vite `base`, which `fileAssets` and the Workers assets binding read. A `read` that fetches seeds by their public URL passes that public prefix as `base` | a query, a hash, a trailing slash, `//`, a backslash, or `..` or `.` in any spelling a URL resolves (`%2e%2e`) throws when the store is created: a base is one directory the documented Workers reader cannot leave (BUGS.md 403). A space or a character outside ASCII is read percent-encoded, as a URL writes it: `/a b` is `/a%20b` (`encoded base`). Changing `flare({ assetsBase })` without passing the same prefix here makes every SSG `get` miss | `assets.test.ts` `custom base`, `bad base` |
 
 Workers, where the binding is on `env`:
 
@@ -105,7 +105,7 @@ createCacheApiStore({ cacheName?, caches? })
 | `cacheName` | no | `"flare"` | string | the name passed to `caches.open` | two names are two stores | `adapters/stores/cache-api/store.test.ts` `round trip` |
 | `caches` | no | the global `caches` | `CacheStorage` | | tests pass a fake. Production omits it | same |
 
-The implementation does not call `keys()` (`no list`). Tombstones live in the cache (`tombstone in cache`). A cached body that is no entry is a damaged record, as above (`damaged entry`).
+The implementation does not call `keys()` (`no list`). Tombstones live in the cache (`tombstone in cache`). A cached body that is no entry is a damaged record, as above (`damaged entry`). A key or tag holding a lone surrogate is kept apart from every other, as on the memory and filesystem stores (`lone surrogate`, BUGS.md 404).
 
 On Cloudflare the Cache API is local to the data center that handled the call. A tag delete clears that location only. Old deploys stay unreachable because the key contains the build id. A purge that must be global uses a store that replicates. That is why this store is not the only one.
 

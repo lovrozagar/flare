@@ -262,15 +262,29 @@ it("client literals", () => {
 	.render(() => "x");
 `
 	const off = 'export const route = createPage("_root_/off").cache({ client: false }).render(() => "x");\n'
-	const sources: Record<string, string> = { "_root_/home.page.tsx": page, "_root_/off/off.page.tsx": off }
-	const generated = generateRoutes(
-		["_root_/home.page.tsx", "_root_/off/off.page.tsx", rootLayout],
-		(file) => sources[file] ?? routeSource,
-	).source
+	const list = 'export const route = createPage("_root_/list").render(() => "x");\n'
+	const sources: Record<string, string> = {
+		"_root_/home.page.tsx": page,
+		"_root_/off/off.page.tsx": off,
+		"_root_/list/list.page.tsx": list,
+	}
+	const files = ["_root_/home.page.tsx", "_root_/off/off.page.tsx", "_root_/list/list.page.tsx", rootLayout]
+	const generated = generateRoutes(files, (file) => sources[file] ?? routeSource).source
 	expect(generated).toContain(
 		'{ id: "_root_/", path: "/", client: {"prefetch":{"data":"hover","modules":"viewport"},"staleTime":"30s","gcTime":"5m","prefetchStaleTime":"10s","prefetchGcTime":"1m","cacheDeferred":true}, intercept: {"from":["_root_/list"],"render":"modal"}, module: () =>',
 	)
 	expect(generated).toContain('{ id: "_root_/off", path: "/off", client: false, module: () =>')
+})
+
+// An intercept's `from` names pages: an id no page has, a URL path among them, fails codegen, naming the file and the
+// id (BUGS.md 401).
+it("intercept ids", () => {
+	for (const id of ["/photos", "_root_/no-such-route", "_root_"]) {
+		const page = `export const route = createPage("_root_/").intercept({ from: [${JSON.stringify(id)}], render: "modal" }).render(() => "x");\n`
+		const generate = () =>
+			generateRoutes(["_root_/home.page.tsx", rootLayout], (file) => (file === rootLayout ? routeSource : page))
+		expect(generate).toThrow(`_root_/home.page.tsx: intercept from: no route has id ${JSON.stringify(id)}`)
+	}
 })
 
 // Auth and the server cache modes stay off the record. A non-literal client field is left out and is not an error.

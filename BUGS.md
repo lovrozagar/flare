@@ -1556,6 +1556,26 @@ Every bug the docs e2e app (`packages/core/tests/e2e/apps/docs`) found in `packa
 400.1 [x] Found by plan 29's gap review of dx/cache.md (2026-10-20, `.tmp/grunt/reviews/6.1-cache.md` D6): the recipe awaited `request.json()` with no guard, so an authorized CMS that sent `not json` or an empty body got a 500 and the server logged `[flare:render] ... SyntaxError`, while the recipe's own check answers 400 for every other bad body; a CMS that retries on 5xx kept retrying. `cache.test.ts` `webhook purge` copied the recipe but sent only good JSON.
 400.2 [x] Fix: the recipe reads the body with `request.json().catch(() => undefined)`, so a body that is not JSON falls to its 400. dx/cache.md and the test's copy match. Red first: cache.test `webhook purge` (`not json`, empty, `null`, and an empty `tags` list are 400 with nothing logged).
 
+401 [x] `intercept({ from })` took any value as a route id, so a URL path, the doc's own named pitfall, built and never intercepted
+401.1 [x] Found by plan 29's gap review of dx/builder.md (2026-10-20, `.tmp/grunt/reviews/6.1-builder.md` D4): the chain checked only that `from` was not empty, codegen only that each element was a string literal, and the overlay compares `from.includes(page.id)`, so `{ from: ["/photos"] }`, `["_root_/no-such-route"]`, `[""]`, `"a"`, and `[5]` passed every gate and the intercept never opened. `page intercept` checked only `from: []`.
+401.2 [x] Fix: the chain throws `intercept needs route ids in from, not URL paths, and a render label` for a `from` that is no list of non-empty strings or holds a URL path, and codegen fails for an id no page has, naming the file and the id. dx/builder.md says so. Red first: page.test `page intercept` and routes.test `intercept ids`.
+
+402 [x] `redirect({ href })` refused an `https:` URL written in capitals and took one with no host
+402.1 [x] Found by plan 29's gap review of dx/builder.md (2026-10-20, `.tmp/grunt/reviews/6.1-builder.md` D6): `assertHref` used `startsWith("https://")` and `startsWith("http://")`, so `redirect({ href: "HTTPS://example.org/" })` threw though its scheme is `https:` per the URL standard, and `redirect({ href: "https://" })` passed: a loader that threw it answered 303 with `Location: https://`, which no browser follows. `redirect.test.ts` `href` covered lowercase schemes with a host and `javascript:`.
+402.2 [x] Fix: an `href` must start `http://` or `https://` in any case and parse as a URL with a host (a `try` around `new URL`, since `URL.canParse` is above the browser floor). The doc says so. Red first: redirect.test `href` (`HTTPS://example.org/`, `Http://ex.com`, `https://`, `http://`, `https://:80/a`, `http:ex.com`).
+
+403 [x] The static store's `base` check missed spellings of `..` and a second leading slash, which the documented Workers reader resolves out of the directory or to another host
+403.1 [x] Found by plan 29's gap review of dx/store.md (2026-10-20, `.tmp/grunt/reviews/6.1-store.md` D5): `checkBase` refused only literal `..` segments, `?`, and `#`, so `"//cdn.example"` made `new URL(path, "http://assets")` read `http://cdn.example/dev/x.json`, `"/%2e%2e/x"` and `"/a\\..\\.."` resolved out of the directory, and `"/./a"` and `"/a//b"` were accepted; every SSG `get` then missed or read another directory. `bad base` listed only the literal forms.
+403.2 [x] Fix: a base also refuses `//` and a backslash, and must read back unchanged as a URL path, so `..` or `.` in any spelling a URL resolves throws when the store is created. dx/store.md says so. Red first: assets.test `bad base` (`//cdn.example`, `/%2e%2e/x`, `/%2E/x`, `/a\\..\\..`, `/./a`, `/a//b`, `/`, `//[`).
+
+404 [x] `createCacheApiStore` threw on a key or tag holding a lone surrogate, which the memory and filesystem stores accept
+404.1 [x] Found by plan 29's gap review of dx/store.md (2026-10-20, `.tmp/grunt/reviews/6.1-store.md` D6): `urlOf` ran `encodeURIComponent(key)`, which throws `URIError` on a lone surrogate, and `epochKey(tag)` passes a tag straight in, so `createRevalidateFn(store)({ tags: ["\uD800"] })` rejected `URI malformed` on the Cache API store and resolved on the memory store; a page tagged so threw on every read. The stores are documented as interchangeable, with no character limit on a key.
+404.2 [x] Fix: `urlOf` encodes each code point as `encodeURIComponent` does and a lone surrogate as `%u` and its hex, which that encoder never writes, so every key keeps its own URL and a well-formed key's URL is unchanged. dx/store.md says so. Red first: cache-api store.test `lone surrogate` (`k\uD800`, `k\uDC00`, and `k\uFFFD` stay three entries; the tag purge resolves).
+
+405 [x] dx/builder.md said a production root with no `<html>` or `</body>` answers an empty 500; it answers the built-in error page
+405.1 [x] Found by plan 29's gap review of dx/builder.md (2026-10-20, `.tmp/grunt/reviews/6.1-builder.md` D5): the `render(fn)` pitfall said "an empty 500", but `answers.ts` builds `errorPage({ status: 500, ... "Something went wrong" })` and `shape.test.ts` `prod document-less` pins that page (a 222-byte document in the review's probe). The code and its test agree, so the doc was the side that disagreed.
+405.2 [x] Fix: the pitfall names the built-in error page and its test. No code changed.
+
 ## Verify
 
 97 [x] Verify

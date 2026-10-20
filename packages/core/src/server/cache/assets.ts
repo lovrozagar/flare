@@ -14,18 +14,34 @@ function readOnly(): Promise<never> {
 	return Promise.reject(new Error("createAssetsStore is read-only: SSG seeds ship with the build"))
 }
 
-// One fixed directory: it starts with `/`, ends without one, and holds no `..`, query, or hash.
-function checkBase(base: string): void {
-	const fixed = base.startsWith("/") && !base.endsWith("/") && !/[?#]/.test(base)
-	if (!fixed || base.split("/").includes("..")) throw new Error(`createAssetsStore: base ${base} is not one directory`)
+// One fixed directory, as the URL path a read uses: it starts with `/`, ends without one, and holds no query, hash, `//`,
+// or backslash. A space or a character outside ASCII is written percent-encoded, as a URL writes it, and a `%HH`
+// already there stays; a URL must then read the base back as written, so no `..` or `.` in any spelling moves a read
+// out of it or to another host (BUGS.md 403).
+function baseOf(base: string): string {
+	const fixed = base.startsWith("/") && !base.endsWith("/") && !/[?#\\]|\/\//.test(base)
+	const written = fixed ? encodedPath(base) : undefined
+	if (written === undefined || new URL(`${written}/x`, "http://assets").pathname !== `${written}/x`) {
+		throw new Error(`createAssetsStore: base ${base} is not one directory`)
+	}
+	return written
+}
+
+// The path with every character a URL path would encode written as `%HH`, `%` itself kept; undefined for a lone
+// surrogate, which no URL can carry.
+function encodedPath(path: string): string | undefined {
+	try {
+		return path.replaceAll(/[^\w\-.~!$&'()*+,;=:@/%]/gu, (char) => encodeURIComponent(char))
+	} catch {
+		return undefined
+	}
 }
 
 // The read-only store over the SSG seeds prerender wrote into the client output (dx/store.md). `get` reads the one
 // artifact path for a key of this build. A missing file, a Response that is not ok, JSON that does not parse, and
 // a seed the checker refuses are all a miss, never a 500. A throw from `read` propagates.
 export function createAssetsStore(read: AssetRead, options: { base?: string } = {}): FlareStore {
-	const base = options.base ?? ARTIFACT_BASE
-	checkBase(base)
+	const base = baseOf(options.base ?? ARTIFACT_BASE)
 	const kept = new Map<string, Promise<FlareStoreEntry | null>>()
 	const load = async (key: string): Promise<FlareStoreEntry | null> => {
 		const path = await artifactPath(key, { build: buildId(), base })
