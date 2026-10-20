@@ -186,18 +186,18 @@ function body(): ReadableStream<Uint8Array> {
 	return new Response("streamed").body ?? new ReadableStream()
 }
 
-// A streamed body may go quiet longer than `idleTimeout`: the timeout is lifted while it is sent and set back to
-// `idleTimeout` once it ends, so an idle keep-alive socket still closes. A body that is not a stream keeps the timeout,
-// and so does a call with no Bun server. `idleTimeout` is Bun's 10 s by default and goes to Bun.serve with the fetch;
-// it is an integer from 0 to 255, as Bun takes it (plan 21 8.3, BUGS.md 198).
+// A streamed body may go quiet longer than `idleTimeout`: the timeout, Bun's 255 s while the handler runs (BUGS.md 424),
+// is lifted while the body is sent and set back to `idleTimeout` once it ends, so an idle keep-alive socket still
+// closes. A call with no Bun server touches nothing. `idleTimeout` is Bun's 10 s by default and goes to Bun.serve with
+// the fetch (plan 21 8.3, BUGS.md 198).
 it("idle timeout", async () => {
 	const streamed = createBunFetch({ fetch: () => finalize({ status: 200, body: body() }) }, { idleTimeout: 30 })
 	expect(streamed.idleTimeout).toBe(30)
 	const bun = timeouts()
 	const response = await streamed.fetch(new Request("http://localhost/"), bun)
-	expect(bun.calls).toEqual([0])
+	expect(bun.calls).toEqual([255, 0])
 	expect([response.status, await response.text()]).toEqual([200, "streamed"])
-	expect(bun.calls).toEqual([0, 30])
+	expect(bun.calls).toEqual([255, 0, 30])
 	// A body that is not a stream keeps the timeout: `blob body` pins it, through Bun's inspector or its stand-in.
 	expect(createBunFetch({ fetch: () => finalize({ status: 200, body: "whole" }) }).idleTimeout).toBe(10)
 	expect(await (await streamed.fetch(new Request("http://localhost/"))).text()).toBe("streamed")
@@ -253,7 +253,7 @@ it("drain", async () => {
 })
 
 // Under Bun a string or bytes body is a Blob its inspector shows: it is sent as it is, its type Bun's own, and the idle
-// timeout is never touched (plan 21 12.7).
+// timeout goes back to `idleTimeout` from the handler's 255 s (plan 21 12.7, BUGS.md 424).
 it("blob body", async () => {
 	// Under Node a stand-in inspector; under Bun, Bun's own.
 	const inspect = vi.fn<(value: unknown) => string>(() => "Response (4 bytes) {\n  Blob (4 bytes)\n}")
@@ -264,7 +264,7 @@ it("blob body", async () => {
 		const fetcher = createBunFetch({ fetch: () => keptAs(own, finalize({ status: 200, body: null })) ?? own })
 		const bun = timeouts()
 		expect(await fetcher.fetch(new Request("http://localhost/"), bun)).toBe(own)
-		expect(bun.calls).toEqual([])
+		expect(bun.calls).toEqual([255, 10])
 		expect(inspect.mock.calls).toEqual(stubbed ? [[own]] : [])
 	} finally {
 		vi.unstubAllGlobals()
@@ -272,13 +272,37 @@ it("blob body", async () => {
 })
 
 // A kept Response with no body, a middleware's 204 or a page's `new Response(null)`, is sent as it is: there is nothing
-// to watch, so the timeout is never lifted and the request is not left in flight (BUGS.md 238).
+// to watch, so the timeout goes back to `idleTimeout` and the request is not left in flight (BUGS.md 238, 424).
 it("kept empty body", async () => {
 	const own = new Response(null, { status: 204 })
 	const fetcher = createBunFetch({ fetch: () => keptAs(own, finalize({ status: 204, body: null })) ?? own })
 	const bun = timeouts()
 	const response = await fetcher.fetch(new Request("http://localhost/"), bun)
-	expect([response.status, response.body, bun.calls]).toEqual([204, null, []])
+	expect([response.status, response.body, bun.calls]).toEqual([204, null, [255, 10]])
+})
+
+// Bun counts a handler that has not answered yet as idle, so a render slower than `idleTimeout` before its first byte
+// was cut: the handler runs under Bun's longest timeout, 255 s, which still bounds one that hangs, and an answer that
+// rejects sets `idleTimeout` back (BUGS.md 424).
+it("slow first byte", async () => {
+	const answer = Promise.withResolvers<Response>()
+	const bun = timeouts()
+	const pending = createBunFetch({ fetch: () => answer.promise }, { idleTimeout: 30 }).fetch(
+		new Request("http://localhost/"),
+		bun,
+	)
+	await Promise.resolve()
+	expect(bun.calls).toEqual([255])
+	answer.reject(new Error("render failed"))
+	await expect(pending).rejects.toThrow("render failed")
+	expect(bun.calls).toEqual([255, 30])
+	// `idleTimeout: 0` is no timeout, and the handler keeps it: no 255 s bound the app did not ask for.
+	const unbounded = timeouts()
+	await createBunFetch({ fetch: () => new Response(null, { status: 204 }) }, { idleTimeout: 0 }).fetch(
+		new Request("http://localhost/"),
+		unbounded,
+	)
+	expect(unbounded.calls).toEqual([0, 0])
 })
 
 // A client that cancels while the answer's body waits on the app ends it once, with no write into the cancelled
@@ -340,3 +364,24 @@ it.runIf(bun !== undefined)("bun cut keeps sent", async () => {
 		await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
 	}
 })
+
+// Behind a real Bun.serve at `idleTimeout` 5, which cuts a socket idle for 4 to 8 s, a handler that answers after 12 s
+// is answered, not reset (BUGS.md 424).
+it.runIf(bun !== undefined)(
+	"bun slow first byte",
+	async () => {
+		const slow = {
+			fetch: () => new Promise<Response>((resolve) => setTimeout(() => resolve(new Response("late")), 12_000)),
+		}
+		const served: unknown = Reflect.apply(Reflect.get(Object(bun), "serve"), bun, [
+			{ hostname: "127.0.0.1", port: 0, ...createBunFetch(slow, { idleTimeout: 5 }) },
+		])
+		try {
+			const response = await fetch(`http://127.0.0.1:${Number(Reflect.get(Object(served), "port"))}/`)
+			expect([response.status, await response.text()]).toEqual([200, "late"])
+		} finally {
+			await Reflect.apply(Reflect.get(Object(served), "stop"), served, [true])
+		}
+	},
+	90_000,
+)
