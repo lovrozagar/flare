@@ -1,15 +1,10 @@
 import { withServerContext } from "../context/ctx.ts"
 import { drawn, framed, loaderInput, type Loaded } from "../lifecycle/answers.ts"
+import { sharedInput } from "../lifecycle/policies.ts"
 import { answerQueries } from "../render/state.ts"
 import type { Exchange } from "../lifecycle/exchange.ts"
 import { runLoaders, type LoaderRun } from "../loaders/run.ts"
 import { dataBody, dataFrames } from "../navigation/index.ts"
-
-// The request every shared render makes: `site` plus the canonical pathname, with no search and no request
-// headers, so no cookie, no authorization, and no Host reach a body that every visitor is served (dx/cache.md).
-export function sharedRequest(site: string, request: Request): Request {
-	return new Request(new URL(new URL(request.url).pathname, site))
-}
 
 // A shared render that finished as a clean 200. `html` is the shell, `nonce` the one its tags carry, and `settled`
 // is every "resolve" value fulfilled. `startedAt` is the render's start, the entry's `storedAt`.
@@ -38,10 +33,8 @@ export function sharedRender(
 	exchange: Exchange,
 	matched: Loaded,
 ): Promise<SharedRender | typeof INCOMPLETE | undefined> {
-	// A store requires `site`. A public page with none behind it renders on the request's own origin (plan 21 4.4).
-	const request = sharedRequest(exchange.options.site ?? new URL(exchange.request.url).origin, exchange.request)
-	const { env, store, waitUntil } = exchange
-	const context = { request, env, serverContext: exchange.options.serverContext, store, waitUntil }
+	const context = sharedInput(exchange)
+	const request = context.request
 	return withServerContext(
 		context,
 		(scope) => rendered({ ...exchange, request, session: scope.session, kind: "document", stale: null }, matched),

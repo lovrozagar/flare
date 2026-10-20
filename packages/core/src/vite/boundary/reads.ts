@@ -68,7 +68,25 @@ function topDeclarations(program: Program): Declaration[] {
 
 // The declarations the references outside every declaration reach, and the ones those reach, to a fixed point.
 function reached(declarations: readonly Declaration[], references: readonly Reference[]): Set<Declaration> {
-	const names = new Set(references.filter((node) => !declarations.some((item) => contains(item, node))).map(nameOf))
+	const outside = references.filter((node) => !declarations.some((item) => contains(item, node)))
+	return reach(declarations, references, new Set(outside.map(nameOf)))
+}
+
+// The module-scope names the code in `span` reads, directly or through the module's own declarations it reaches. An
+// imported helper is a name, not followed.
+export function spanReads(program: Program, span: Span): Set<string> {
+	const references = moduleReferences(program)
+	const names = new Set(references.filter((node) => contains(span, node)).map(nameOf))
+	reach(topDeclarations(program), references, names)
+	return names
+}
+
+// The declarations `names` reach, to a fixed point. `names` grows by every name a reached declaration reads.
+function reach(
+	declarations: readonly Declaration[],
+	references: readonly Reference[],
+	names: Set<string>,
+): Set<Declaration> {
 	const live = new Set<Declaration>()
 	let grew = true
 	while (grew) {

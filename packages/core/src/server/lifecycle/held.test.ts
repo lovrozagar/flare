@@ -1,9 +1,9 @@
 import { expect, it } from "vitest"
 import type { LoaderRun } from "../loaders/run.ts"
-import { awaited, type Policy } from "./held.ts"
+import { awaited, NO_TAGS, type Policy } from "./held.ts"
 
-const PRIVATE: Policy = { decision: { policy: "private", cdn: {} }, params: {} }
-const PUBLIC: Policy = { decision: { policy: "shared", class: "public", cdn: { maxAge: "1m" } }, params: {} }
+const PRIVATE: Policy = { decision: { policy: "private", cdn: {} }, tags: NO_TAGS }
+const PUBLIC: Policy = { decision: { policy: "shared", class: "public", cdn: { maxAge: "1m" } }, tags: NO_TAGS }
 
 // A three-match run whose page deferred `deferred`, with a layout defer kept above it.
 function runOf(deferred: Promise<unknown>, headers: LoaderRun["headers"] = {}): LoaderRun {

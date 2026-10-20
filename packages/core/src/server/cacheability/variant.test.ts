@@ -28,6 +28,6 @@ it("no vary", () => {
 		{ policy: "no-store", cdn: {} },
 	] as const
 	for (const decision of decisions) {
-		expect(policyHeaders(decision, { status: 200, params: {} }).has("vary")).toBe(false)
+		expect(policyHeaders(decision, { status: 200, tags: [] }).has("vary")).toBe(false)
 	}
 })

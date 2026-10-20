@@ -25,7 +25,7 @@ import { answerQueries } from "../render/state.ts"
 import { answer, bare, routeSecured, typed, type Exchange } from "./exchange.ts"
 import { clientEntry } from "./build-info.ts"
 import { finalize, type StageResult } from "./finalize.ts"
-import { applyPolicy, policyHeaders } from "./policies.ts"
+import { applyPolicy, policyHeaders, policyTags } from "./policies.ts"
 
 // The rendered-page answers, which createServer routes to: a document, data, and the not-found page (02-system 10-13).
 
@@ -34,16 +34,15 @@ export const HTML = "text/html; charset=utf-8"
 // A match whose modules are loaded (02-system step 10).
 export type Loaded = Omit<Match, "chain"> & { chain: readonly LoadedEntry[] }
 
-// The request's decision, and the raw params a `cdn.tags` function reads (B32). `rejected` is a deferred value that
-// rejected before a public answer was sent.
+// The request's decision, and its tags. `rejected` is a deferred value that rejected before a public answer was sent.
 export type { Policy } from "./held.ts"
-import { awaited, type Policy } from "./held.ts"
+import { awaited, NO_TAGS, type Policy } from "./held.ts"
 
 // What the decision hands the loaders, and the policy the answer writes.
 export type Prepared = { input: RunInput; policy: Policy }
 
 // An unknown path answers 404, which no policy makes public.
-const UNDECIDED: Policy = { decision: { policy: "no-store", cdn: {} }, params: {} }
+const UNDECIDED: Policy = { decision: { policy: "no-store", cdn: {} }, tags: NO_TAGS }
 
 export type Decided = Rendered & { policy: Policy }
 
@@ -70,7 +69,7 @@ export async function decided(exchange: Exchange, matched: Loaded): Promise<Prep
 			: decide({ chain: modules.map((module) => module.cache), auth, session })
 	return {
 		input: { ...input, shared: decision.policy === "shared" },
-		policy: { decision, params: definedParams(matched.params) },
+		policy: { decision, tags: await policyTags(exchange, matched, decision) },
 	}
 }
 
@@ -84,7 +83,7 @@ export function cached(
 	const route = [answer.run.headers["set-cookie"] ?? []].flat()
 	const decision = withCookies(policy.decision, { route, all: result.headers.getSetCookie() })
 	const errored = answer.errored || policy.rejected === true
-	const written = policyHeaders(decision, { status: result.status, params: policy.params, errored })
+	const written = policyHeaders(decision, { status: result.status, tags: policy.tags.edge, errored })
 	applyPolicy(result.headers, written)
 	return finalize(result)
 }

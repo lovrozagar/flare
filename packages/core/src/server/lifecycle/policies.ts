@@ -2,14 +2,20 @@ import { parseDuration } from "../../shared/duration/index.ts"
 import type { EffectiveAuth } from "../auth/effective.ts"
 import { foreignCookies } from "../cacheability/cookies.ts"
 import type { Decision } from "../cacheability/decide.ts"
+import { entryTags } from "../cache/write.ts"
+import { sharedRequest, withServerContext, type ServerContextInput } from "../context/ctx.ts"
+import { definedParams } from "../render/matches.ts"
+import type { Loaded } from "./answers.ts"
 import { buildId } from "./build-info.ts"
+import type { Exchange } from "./exchange.ts"
+import { NO_TAGS, type PolicyTags } from "./held.ts"
 
 // Every answer that no rule makes public. finalize starts from it.
 export const NO_STORE = "private, no-store"
 
 // What the answer itself says. `errored` is a data or prefetch answer with an `e` frame or a redirect, which
-// stays HTTP 200 (B73). `params` are the raw params a `cdn.tags` function reads (B32).
-export type PolicyAnswer = { status: number; params: Record<string, string | string[]>; errored?: boolean }
+// stays HTTP 200 (B73). `tags` are the decision's `cdn.tags`, resolved on the anonymous request (BUGS.md 379).
+export type PolicyAnswer = { status: number; tags: readonly string[]; errored?: boolean }
 
 function seconds(duration: string): number {
 	return Math.floor(parseDuration(duration) / 1000)
@@ -23,14 +29,13 @@ function seconds(duration: string): number {
 // of the previous build's pages can be purged once its hashed assets are gone (dx/server.md Deploying, plan 21 16.10).
 export function policyHeaders(decision: Decision, answer: PolicyAnswer): Headers {
 	const headers = new Headers({ "cache-control": NO_STORE })
-	const { maxAge, swr, tags } = decision.cdn
+	const { maxAge, swr } = decision.cdn
 	if (!isPublic(decision) || maxAge === undefined) return headers
 	if (answer.status < 200 || answer.status > 299 || answer.errored === true) return headers
 	headers.set("cache-control", `public, max-age=0, s-maxage=${seconds(maxAge)}`)
 	const stale = swr === undefined ? "" : `, stale-while-revalidate=${seconds(swr)}`
 	headers.set("cdn-cache-control", `public, max-age=${seconds(maxAge)}${stale}`)
-	const list = typeof tags === "function" ? tags({ params: answer.params }) : (tags ?? [])
-	headers.set("cache-tag", [...list, buildTag()].join(", "))
+	headers.set("cache-tag", [...answer.tags, buildTag()].join(", "))
 	return headers
 }
 
@@ -116,4 +121,32 @@ export function decodedHeaders(response: Response): Headers {
 // The edge tag every public page of this build carries.
 export function buildTag(): string {
 	return `flare-build-${buildId}`
+}
+
+// The scope every shared render runs in: `site` plus the canonical pathname, no request header. A store requires
+// `site`; a public page with none behind it renders on the request's own origin (plan 21 4.4).
+export function sharedInput(exchange: Exchange): ServerContextInput {
+	const request = sharedRequest(exchange.options.site ?? new URL(exchange.request.url).origin, exchange.request)
+	const { env, store, waitUntil } = exchange
+	return { request, env, serverContext: exchange.options.serverContext, store, waitUntil }
+}
+
+// A shared answer's tags, each function read with the raw params (B32). A function runs on the anonymous request the
+// shared render makes, never the visitor's, so neither a stored entry nor a `Cache-Tag` carries a visitor's cookie or
+// session (BUGS.md 379). A serverContext that throws there leaves no tags: the shared render fails the same way, and
+// the answer is private.
+export async function policyTags(exchange: Exchange, matched: Loaded, decision: Decision): Promise<PolicyTags> {
+	if (decision.policy !== "shared") return NO_TAGS
+	const ssr = matched.chain.at(-1)?.module.cache?.ssr?.tags
+	const params = definedParams(matched.params)
+	const resolve = (): PolicyTags => {
+		const edge = entryTags([decision.cdn.tags], params)
+		return { store: entryTags([ssr, edge], params), edge }
+	}
+	if (typeof ssr !== "function" && typeof decision.cdn.tags !== "function") return resolve()
+	return withServerContext(
+		sharedInput(exchange),
+		async () => resolve(),
+		() => NO_TAGS,
+	)
 }
