@@ -171,6 +171,29 @@ it("memory isolated", async () => {
 	expect((await serve({ store: createMemoryStore() }).get()).cache).toBe("miss")
 })
 
+// A page larger than the memory store's `maxBytes` is not stored, so every request renders it (B147).
+it("memory bound", async () => {
+	const bounded = serve({ store: createMemoryStore({ maxBytes: 64 }) })
+	await bounded.get()
+	await new Promise((resolve) => setTimeout(resolve, 50))
+	expect([(await bounded.get()).cache, bounded.renders.count]).toEqual(["miss", 2])
+})
+
+// Past the filesystem store's `maxBytes`, the next write's pass removes the oldest-written record, so a stored page
+// is a miss again (B147).
+it("filesystem bound", async () => {
+	const dir = temp()
+	const first = serve({ store: createFilesystemStore({ dir }) })
+	await first.get()
+	await vi.waitFor(async () => expect((await first.get()).cache).toBe("hit"))
+	const store = createFilesystemStore({ dir, maxBytes: 64 })
+	await store.set("other", { data: 1, storedAt: 1 })
+	const second = serve({ store })
+	expect((await second.get()).cache).toBe("miss")
+	// The miss's own write lands before the temp dir goes, so no later case joins a flight into a removed dir.
+	await vi.waitFor(async () => expect((await second.get()).cache).toBe("hit"))
+})
+
 // The filesystem store writes one file per key under `dir`, named by the SHA-256 hex of the key, and a second store
 // over the same dir, as after a restart, serves it (store.md createFilesystemStore, dir).
 it("filesystem store", async () => {

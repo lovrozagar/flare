@@ -101,6 +101,7 @@ const TABLES: Readonly<Record<string, Readonly<Record<string, Source | readonly 
 		proxy: { file: "src/server/proxy/proxy.ts", fn: "proxy" },
 	},
 	"store.md": {
+		createMemoryStore: { file: "src/server/cache/memory.ts", fn: "createMemoryStore" },
 		createFilesystemStore: { file: "src/adapters/stores/fs/store.ts", fn: "createFilesystemStore" },
 		createAssetsStore: { file: "src/server/cache/assets.ts", fn: "createAssetsStore" },
 		createCacheApiStore: { file: "src/adapters/stores/cache-api/store.ts", fn: "createCacheApiStore" },
