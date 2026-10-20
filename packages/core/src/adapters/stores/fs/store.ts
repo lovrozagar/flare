@@ -2,7 +2,7 @@ import { createHash } from "node:crypto"
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 import type { FlareStore, FlareStoreEntry } from "../../../server/cache/contract.ts"
-import { bumpEpochs, epochKey } from "../../../server/cache/epoch.ts"
+import { bumpEpochs, damagedEpoch, epochKey, reportDamaged } from "../../../server/cache/epoch.ts"
 import { tombstone } from "../../../server/cache/tombstone.ts"
 
 // The record holds its key, so a file that holds another key is a miss.
@@ -52,9 +52,11 @@ export function createFilesystemStore(options: { dir?: string; maxBytes?: number
 	}
 	const store: FlareStore = {
 		async get(key) {
-			const text = await readFile(fileOf(dir, key), "utf8").catch((error: unknown) => missing(error))
+			const file = fileOf(dir, key)
+			const text = await readFile(file, "utf8").catch((error: unknown) => missing(error))
 			if (text === null) return null
-			const record: Record = JSON.parse(text)
+			const record = recordOf(text, key)
+			if (record === undefined) return damaged(file, key)
 			if (record.key !== key) return null
 			return record.expiresAt !== null && record.expiresAt <= Date.now() ? null : record.entry
 		},
@@ -66,6 +68,42 @@ export function createFilesystemStore(options: { dir?: string; maxBytes?: number
 		deleteByTags: (tags) => bumpEpochs(store, tags.map(epochKey)),
 	}
 	return store
+}
+
+// A file that does not hold a record, written by no store or cut short by a crash before the rename (BUGS.md 394).
+// An epoch record also holds a finite number: one that does not would read as no purge (BUGS.md 394).
+function recordOf(text: string, key: string): Record | undefined {
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(text)
+	} catch {
+		return undefined
+	}
+	if (typeof parsed !== "object" || parsed === null) return undefined
+	const { key: held, entry, expiresAt } = parsed as Partial<Record>
+	const timed = expiresAt === null || typeof expiresAt === "number"
+	const shaped = typeof held === "string" && typeof entry === "object" && entry !== null && timed
+	const counted = !key.startsWith("epoch:") || Number.isFinite(entry?.data)
+	return shaped && counted ? (parsed as Record) : undefined
+}
+
+// A damaged page record is removed and read as a miss, so the next render writes a good one. A damaged epoch is
+// replaced by a purge now, through the same tmp and rename as a write. The file is read again first: a record a
+// concurrent purge wrote meanwhile stands. Now is taken after that read, so a purge landing after it loses to a later
+// epoch. The residual is a purge that lands while the tmp file is written, before the rename (BUGS.md 394).
+async function damaged(file: string, key: string): Promise<FlareStoreEntry | null> {
+	reportDamaged(key)
+	if (!key.startsWith("epoch:")) {
+		await rm(file, { force: true })
+		return null
+	}
+	const meanwhile = recordOf(await readFile(file, "utf8").catch(() => ""), key)
+	if (meanwhile?.key === key) return meanwhile.entry
+	const entry = damagedEpoch(Date.now())
+	const pending = `${file}.${crypto.randomUUID()}.tmp`
+	await writeFile(pending, JSON.stringify({ key, entry, expiresAt: null } satisfies Record))
+	await rename(pending, file)
+	return entry
 }
 
 // A pass's start: the directory's records, after the oldest-written are removed until the rest fit `maxBytes`. An

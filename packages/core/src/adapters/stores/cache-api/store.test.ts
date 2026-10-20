@@ -18,6 +18,7 @@ function fakeCaches(): { caches: CacheStorage; names: string[] } {
 			put: async (request: RequestInfo, response: Response) => {
 				held.set(String(request instanceof Request ? request.url : request), response)
 			},
+			delete: async (request: RequestInfo) => held.delete(String(request instanceof Request ? request.url : request)),
 		}
 	}
 	return { caches: { open } as unknown as CacheStorage, names }
@@ -69,4 +70,40 @@ it("global caches", async () => {
 	expect(await store.get("k")).toEqual(entry)
 	expect(names).toEqual(["flare", "flare"])
 	vi.unstubAllGlobals()
+})
+
+// Where the store keeps a key.
+function url(key: string): string {
+	return `https://flare.cache/${encodeURIComponent(key)}`
+}
+
+// A cached body that is no entry is logged and read as a miss for a page, removed; for an epoch it reads as a purge now,
+// written back, unless a good epoch is there by then (BUGS.md 394).
+it("damaged entry", async () => {
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+	vi.useFakeTimers({ now: 3000, toFake: ["Date"] })
+	const { caches } = fakeCaches()
+	const cache = await caches.open("flare")
+	const store = createCacheApiStore({ caches })
+	await cache.put(url("page"), new Response("{trunc"))
+	expect([await store.get("page"), await cache.match(url("page"))]).toEqual([null, undefined])
+	await cache.put(url("epoch:t"), new Response("null"))
+	expect(await store.get("epoch:t")).toEqual({ data: 3000, storedAt: 3000 })
+	expect(await store.get("epoch:t")).toEqual({ data: 3000, storedAt: 3000 })
+	// A purge that wrote a good epoch between the damaged read and the rewrite stands, and nothing is written over it.
+	const put = vi.fn<Cache["put"]>()
+	const match = vi.fn<Cache["match"]>()
+	match.mockResolvedValueOnce(new Response("null")).mockResolvedValueOnce(Response.json({ data: 4000, storedAt: 4000 }))
+	const raced = createCacheApiStore({ caches: { open: async () => ({ match, put }) } as unknown as CacheStorage })
+	expect([await raced.get("epoch:t"), put.mock.calls.length]).toEqual([{ data: 4000, storedAt: 4000 }, 0])
+	// One gone by then is written.
+	match.mockResolvedValueOnce(new Response("{")).mockResolvedValueOnce(undefined)
+	expect([await raced.get("epoch:t"), put.mock.calls.length]).toEqual([{ data: 3000, storedAt: 3000 }, 1])
+	// An epoch body that parses but holds no finite number is damaged too.
+	for (const body of ["{}", '{"data":"x"}']) {
+		await cache.put(url("epoch:u"), new Response(body))
+		expect(await store.get("epoch:u")).toEqual({ data: 3000, storedAt: 3000 })
+	}
+	vi.useRealTimers()
+	vi.restoreAllMocks()
 })

@@ -37,17 +37,15 @@ export function createBunFetch(
 	options: BunFetchOptions = {},
 ): {
 	fetch: (request: Request, bun?: BunTimeouts) => Promise<Response>
+	error: (error: unknown) => Response
+	development: false
 	maxRequestBodySize: number
 	idleTimeout: number
 	drain: (options: DrainOptions) => Promise<boolean>
 } {
 	const { idleTimeout = BUN_IDLE, env = process.env, ...forwarding } = options
 	const hops = trustedHops("createBunFetch", forwarding, ["trustProxy", "idleTimeout", "env"])
-	const range = `idleTimeout is 0 (no timeout) or a whole number of seconds from ${MIN_IDLE} to ${MAX_IDLE}`
-	if (!Number.isInteger(idleTimeout) || idleTimeout < 0 || idleTimeout > MAX_IDLE) throw new Error(range)
-	if (idleTimeout > 0 && idleTimeout < MIN_IDLE) {
-		throw new Error(`${range}: Bun counts it in 4-second ticks, so ${idleTimeout} can cut a request as it starts`)
-	}
+	checkIdle(idleTimeout)
 	const pending = pendingWork()
 	// Background work is held until it settles, so a drain waits for it; a rejection is logged, never left unhandled,
 	// as on Node (BUGS.md 153).
@@ -82,9 +80,28 @@ export function createBunFetch(
 				},
 			)
 		},
+		error: failed,
+		development: false,
 		maxRequestBodySize: BUN_CEILING,
 		idleTimeout,
 		drain: pending.drain,
+	}
+}
+
+// Bun.serve's `development` defaults to true unless NODE_ENV is "production", and its development error page shows the
+// cwd, paths, stack, and source. Flare answers every throw itself: a plain 500 with its build and the default security
+// set, logged once (BUGS.md 384).
+function failed(error: unknown): Response {
+	createLogger({ dev: false }).error("bun", "the request failed", error)
+	return finalize({ status: 500, body: "", url: "http://localhost/" })
+}
+
+// 0, no timeout, or 5 to 255 seconds: 1 to 4 is Bun's next 4-second sweep (BUGS.md 423).
+function checkIdle(idleTimeout: number): void {
+	const range = `idleTimeout is 0 (no timeout) or a whole number of seconds from ${MIN_IDLE} to ${MAX_IDLE}`
+	if (!Number.isInteger(idleTimeout) || idleTimeout < 0 || idleTimeout > MAX_IDLE) throw new Error(range)
+	if (idleTimeout > 0 && idleTimeout < MIN_IDLE) {
+		throw new Error(`${range}: Bun counts it in 4-second ticks, so ${idleTimeout} can cut a request as it starts`)
 	}
 }
 

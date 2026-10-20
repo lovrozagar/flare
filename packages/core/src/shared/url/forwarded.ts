@@ -23,9 +23,21 @@ export function forwardedHttps(hops: number, proto: string | null | undefined): 
 
 // A Host header is a host and an optional port: a name, an IPv4 address, or a bracketed IPv6 one. Anything else, a path,
 // a query, a fragment, userinfo, or a space, would change the URL the router reads, so an adapter answers 400
-// (BUGS.md 150). An absent Host is the adapter's default.
+// (BUGS.md 150). It must also be a URL authority: a port past 65535, a bracket that is no IPv6 address, or an IPv4
+// address with an octet past 255 matches the shape and makes the adapter's URL throw (BUGS.md 384). An absent Host is
+// the adapter's default.
 const HOST = /^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._-]+)(?::\d{1,5})?$/
 
 export function validHost(host: string | null | undefined): boolean {
-	return host === null || host === undefined || HOST.test(host)
+	return host === null || host === undefined || (HOST.test(host) && authority(host))
+}
+
+// Whether a URL parses with `host` as its authority. `URL.canParse` is above the browser floor (B123).
+function authority(host: string): boolean {
+	try {
+		new URL(`http://${host}/`)
+		return true
+	} catch {
+		return false
+	}
 }

@@ -458,7 +458,7 @@ it("wire redirect", async () => {
 	expect(await response.json().then(envelopeOf)).toEqual({
 		name: "away",
 		status: 303,
-		redirect: { to: "https://example.com/next", status: 303, replace: true },
+		redirect: { to: "https://example.com/next", status: 303, replace: true, document: true },
 	})
 })
 

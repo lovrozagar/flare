@@ -296,3 +296,24 @@ it("cache api store", async () => {
 function never(): never {
 	throw new Error("unreachable")
 }
+
+// A filesystem store's damaged page file is a miss the next render writes over, so the page caches again; a damaged
+// epoch is a purge now, so the tag's purge still answers (BUGS.md 394).
+it("damaged file heals", async () => {
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const dir = temp()
+	const store = createFilesystemStore({ dir })
+	const { get, renders } = serve({ store }, { purge: { tags: ["t"] } })
+	const file = (key: string) =>
+		join(dir, `${key.startsWith("epoch:") ? "epoch-" : ""}${createHash("sha256").update(key).digest("hex")}.json`)
+	await get()
+	await vi.waitFor(() => expect(existsSync(file(KEY))).toBe(true))
+	writeFileSync(file(KEY), "{trunc")
+	expect((await get()).cache).toBe("miss")
+	await vi.waitFor(async () => expect((await store.get(KEY))?.storedAt).toBeTypeOf("number"))
+	expect([(await get()).cache, renders.count]).toEqual(["hit", 2])
+	await store.deleteByTags(["t"])
+	writeFileSync(file("epoch:t"), "{trunc")
+	expect(await (await get("/purge")).text).toContain("purged")
+	vi.restoreAllMocks()
+})

@@ -103,10 +103,11 @@ it("plugin present", () => {
 		root,
 		plugins,
 		environments: { ssr: { resolve: { conditions } } },
+		server: {},
 	})
 	expect(() => hook("configResolved")(resolved(["workerd", "module"]))).not.toThrow()
 	expect(() => hook("configResolved")(resolved(["module", "node"]))).toThrow("must run in the ssr environment")
-	expect(() => hook("configResolved")({ base: "/", root, plugins: cloudflare, environments: {} })).toThrow(
+	expect(() => hook("configResolved")({ base: "/", root, plugins: cloudflare, environments: {}, server: {} })).toThrow(
 		"must run in the ssr environment",
 	)
 	expect(() => core(root, [])("configResolved")(resolved(["workerd"]))).toThrow(

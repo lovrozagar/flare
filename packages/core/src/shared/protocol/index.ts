@@ -8,11 +8,13 @@ export {
 	FN_PREFIX,
 	INPUT_PARAM,
 	KIND_PARAM,
+	REDIRECT_STATUSES,
 	RENDER_HEADER,
 	STALE_PARAM,
+	STATUS_HEADER,
 	TAB_HEADER,
 } from "./constants.ts"
-export { isTabToken, mintTab, tabMeta } from "./dev-tab.ts"
+export { mintTab, sentTab, tabMeta } from "./dev-tab.ts"
 export {
 	STYLES_EVENT,
 	stylesReply,

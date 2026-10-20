@@ -113,6 +113,9 @@ it("wrong method", async () => {
 	const read = createServerFn(named("read", "get")).handler(() => null)
 	const posted = await send([read], post(read, 1))
 	expect(posted.headers.get("allow")).toBe("GET, OPTIONS")
+	// HEAD is not GET: a HEAD on a GET function is a wrong method too.
+	const head = await send([read], new Request(`http://localhost/_flare/fn/${read.id}`, { method: "HEAD" }))
+	expect([head.status, head.headers.get("allow")]).toEqual([405, "GET, OPTIONS"])
 })
 
 it("order", async () => {
@@ -301,4 +304,37 @@ it("authorize only csrf", async () => {
 	const bare = new Request(`http://localhost/_flare/fn/${guarded.id}`, { method: "POST", body: "1", headers })
 	expect((await send([guarded], bare)).status).toBe(403)
 	expect(authorize).not.toHaveBeenCalled()
+})
+
+// A handler that returns this status, with a Location and its own `flare-status`.
+function moved(status: number): () => Response {
+	return () =>
+		new Response(status === 304 ? null : "moved", { status, headers: { location: "/next", "flare-status": "302" } })
+}
+
+// A server function that returns `moved(status)`, a cached GET or a POST.
+function movedFn(status: number, method: "get" | "post"): ServerFnRef {
+	const fn = createServerFn(named(`moved${status}${method}`, method))
+	return method === "get" ? fn.cache({ maxAge: "1m" }).handler(moved(status)) : fn.handler(moved(status))
+}
+
+// What a client reads of that function's answer: status, flare-status, Location, Cache-Control, and body.
+async function redirectAnswer(status: number, method: "get" | "post" = "post"): Promise<unknown[]> {
+	const fn = movedFn(status, method)
+	const request = method === "get" ? new Request(`http://localhost/_flare/fn/${fn.id}`) : post(fn, undefined)
+	const { status: sent, headers, body } = await send([fn], request)
+	return [sent, headers.get("flare-status"), headers.get("location"), headers.get("cache-control"), body]
+}
+
+// A returned 301, 302, 303, 307, or 308 is a 200 with `flare-status`, Location and its body kept, since fetch would
+// follow the redirect and no browser shows the client a 3xx. It is private, as a thrown redirect is, and so is any answer with a Location. Any other status
+// passes as it is, and a handler's own `flare-status` goes (BUGS.md 389).
+it("returned redirect", async () => {
+	for (const status of [301, 302, 303, 307, 308]) {
+		expect(await redirectAnswer(status)).toEqual([200, String(status), "/next", "private, no-store", "moved"])
+	}
+	expect(await redirectAnswer(302, "get")).toEqual([200, "302", "/next", "private, no-store", "moved"])
+	expect(await redirectAnswer(300)).toEqual([300, null, "/next", "private, no-store", "moved"])
+	expect(await redirectAnswer(304, "get")).toEqual([304, null, "/next", "private, no-store", ""])
+	expect(await redirectAnswer(200, "get")).toEqual([200, null, "/next", "private, no-store", "moved"])
 })

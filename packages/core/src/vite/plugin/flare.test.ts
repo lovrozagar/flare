@@ -24,7 +24,7 @@ function project(): string {
 	return root
 }
 
-function apply(config: { root?: string; server?: { host?: string | boolean } }, options?: OwnOptions): void {
+function apply(config: { root?: string }, options?: OwnOptions): void {
 	const plugin = flare(options).find((item) => item.name === "flare")
 	const hook = plugin?.config
 	if (typeof hook !== "function") throw new Error("config")
@@ -51,18 +51,22 @@ it("entry", () => {
 	}
 })
 
+// The plugin's configResolved, given a resolved config whose dev server binds this host.
+function resolveHost(host: string | boolean | undefined): void {
+	const hook = flare().find((item) => item.name === "flare")?.configResolved
+	if (typeof hook !== "function") throw new Error("configResolved")
+	const config = { base: "/", root: tmpdir(), plugins: [], environments: {}, server: { host } }
+	hook.call(null as never, config as never)
+}
+
+// Every spelling of a bind on all interfaces throws once the config is resolved, so a later plugin's host counts too;
+// a loopback host does not (BUGS.md 386).
 it("host", () => {
-	const root = project()
-	try {
-		expect(() => apply({ root, server: { host: true } })).toThrow(/^true$/)
-		expect(() => apply({ root, server: { host: "0.0.0.0" } })).toThrow("0.0.0.0")
-		expect(() => apply({ root, server: { host: "::" } })).toThrow(/^::$/)
-		expect(() => apply({ root })).not.toThrow()
-		expect(() => apply({ root, server: { host: "localhost" } })).not.toThrow()
-		expect(() => apply({ root, server: { host: "127.0.0.1" } })).not.toThrow()
-		expect(() => apply({ root, server: { host: "::1" } })).not.toThrow()
-	} finally {
-		rmSync(root, { recursive: true, force: true })
+	for (const host of [true, "", " ", "0", "0.0.0.0", "0x0", "::", "::0", "[::]", "0:0:0:0:0:0:0:0", "::ffff:0.0.0.0"]) {
+		expect(() => resolveHost(host)).toThrow(`server.host ${JSON.stringify(host)} binds every interface`)
+	}
+	for (const host of [undefined, false, "localhost", "127.0.0.1", "::1", "[::1]", "fe80::1%lo0"]) {
+		expect(() => resolveHost(host)).not.toThrow()
 	}
 })
 

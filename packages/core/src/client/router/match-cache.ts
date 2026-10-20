@@ -61,7 +61,8 @@ export type MatchCache = {
 	// The entry still holding this data now has every deferred value settled. It keeps its clock.
 	filled: (match: CachedMatch, data: unknown) => void
 	read: (match: CachedMatch) => Stored | undefined
-	deps: (match: CachedMatch) => string | undefined
+	// `null` when the page's loaderDeps threw: those deps match nothing, so the page is never fresh (BUGS.md 392).
+	deps: (match: CachedMatch) => string | undefined | null
 	plan: (plan: Plan) => CachePlan
 	// Every entry goes: a cookie a server function wrote, or `invalidate()` (B133).
 	clear: () => void
@@ -89,6 +90,7 @@ export function createMatchCache(options: {
 		entries.set(key, { ...entry, touched: now() })
 		return entry
 	}
+	const depsOf = (match: CachedMatch) => guardedDeps(match, options.report ?? logged("loaderDeps"))
 	return {
 		store(match, entry, at = now()) {
 			entries.delete(matchKey(match))
@@ -99,11 +101,11 @@ export function createMatchCache(options: {
 		clear: () => entries.clear(),
 		filled: (match, data) => fill(entries, matchKey(match), data),
 		read,
-		deps,
+		deps: depsOf,
 		// A page the client holds fresh is listed in _flare_stale, so the server skips its loader (B30). A layout
 		// never is. Hydrate fetches only when a page asks to refetch on "initial".
 		plan(plan) {
-			const asks = asker(plan, options.report ?? logged)
+			const asks = asker(plan, options.report ?? logged("shouldRefetch"))
 			// `anyAge` holds an entry past its staleTime too, as a Back or Forward step paints it (B137).
 			const held = (match: CachedMatch, anyAge = false): boolean => {
 				const entry = read(match)
@@ -112,7 +114,8 @@ export function createMatchCache(options: {
 				const staleTime = entry.staleTime ?? options.staleTime
 				if (!anyAge && (staleTime === 0 || now() - entry.at > staleTime)) return false
 				// A deferred entry is reused only once filled, which only `cacheDeferred: true` marks (B19).
-				return entry.deps === deps(match) && !entry.deferred
+				const current = depsOf(match)
+				return current !== null && entry.deps === current && !entry.deferred
 			}
 			const pages = plan.matches.filter((match) => !match.layout)
 			const kept = pages.filter((match) => held(match) && !asks(match))
@@ -126,9 +129,9 @@ export function createMatchCache(options: {
 	}
 }
 
-// A throwing shouldRefetch before the boot names its reporter.
-function logged(error: unknown): void {
-	console.error("[flare] a page's shouldRefetch threw", error)
+// A throwing shouldRefetch or loaderDeps before the boot names its reporter.
+function logged(effect: "shouldRefetch" | "loaderDeps"): (error: unknown) => void {
+	return (error) => console.error(`[flare] a page's ${effect} threw`, error)
 }
 
 // Whether a page's shouldRefetch asks to refetch it. Each page is asked once per plan. A throw is the app's bug: it is
@@ -162,12 +165,23 @@ function matchKey(match: CachedMatch): string {
 	return `${match.route}\n${match.id}`
 }
 
-// loaderDeps values compared as JSON: a new array with the same values is the same deps.
+// loaderDeps values compared as JSON: a new array with the same values is the same deps. A throw, the app's or
+// JSON's, is the cache's to report.
 function deps(match: CachedMatch): string | undefined {
 	const loaderDeps = match.effects?.loaderDeps
 	return loaderDeps === undefined
 		? undefined
 		: JSON.stringify(loaderDeps({ search: match.search, params: match.params }))
+}
+
+// A match's deps, or `null` when its loaderDeps threw, reported (BUGS.md 392).
+function guardedDeps(match: CachedMatch, report: (error: unknown) => void): string | undefined | null {
+	try {
+		return deps(match)
+	} catch (error) {
+		report(error)
+		return null
+	}
 }
 
 // The cache and the stale plan key a match alike: raw params plus the search's one key text (B31, BUGS.md 147). A module loadChain already
@@ -193,7 +207,7 @@ export function remember(cache: MatchCache, matches: readonly CachedMatch[], lan
 	for (const match of matches) {
 		if (landing.failure?.route === match.route || match.client === false) cache.evict(match)
 		else if (match.route in landing.data) {
-			const entry = entryOf(match, landing)
+			const entry = entryOf(match, landing, cache.deps(match))
 			cache.store(match, entry, landing.at)
 			// `cacheDeferred: true`: once every deferred value settles, the entry counts as filled (dx/cache.md, B19).
 			if (entry.deferred && clientOf(match.client).cacheDeferred === true) {
@@ -212,7 +226,7 @@ function deferredOf(value: unknown): Promise<unknown>[] {
 	return [promise instanceof Promise ? promise : new Promise<never>(() => undefined)]
 }
 
-function entryOf(match: CachedMatch, landing: Landed): CacheEntry {
+function entryOf(match: CachedMatch, landing: Landed, cachedDeps: string | undefined | null): CacheEntry {
 	const data = landing.data[match.route]
 	const entry: CacheEntry = { data, deferred: holds(data) }
 	const head = landing.heads[match.route]
@@ -220,8 +234,7 @@ function entryOf(match: CachedMatch, landing: Landed): CacheEntry {
 	const values = landing.values?.[match.route]
 	const client = clientOf(match.client)
 	// The deps the page was cached under. Without them a page with `loaderDeps` never counts as fresh (B19).
-	const cachedDeps = deps(match)
-	if (cachedDeps !== undefined) entry.deps = cachedDeps
+	if (typeof cachedDeps === "string") entry.deps = cachedDeps
 	if (head !== undefined) entry.head = head
 	if (preloader !== undefined) entry.preloader = preloader
 	if (values !== undefined) entry.values = values

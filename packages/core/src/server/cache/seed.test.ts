@@ -116,6 +116,63 @@ it("purged beats seed", async () => {
 	}
 })
 
+// An SSG page and an ISR page whose static read throws or never answers, with the error lines the server logged.
+function failingStatic(read: () => Promise<Uint8Array | null>) {
+	const errors: string[] = []
+	const log: Logger = { ...quiet, error: (...parts: unknown[]) => void errors.push(parts.map(String).join(" ")) }
+	const memory = createMemoryStore()
+	const set = vi.fn<FlareStore["set"]>(memory.set)
+	const ssg = createPage("_root_/s")
+		.cache({ ssg: true })
+		.render(() => "live")
+	const isr = createPage("_root_/i")
+		.cache({ isr: { revalidate: "30s" } })
+		.render(() => "live")
+	const routeTree = [
+		{ id: "_root_/s", path: "/s", module: ssg },
+		{ id: "_root_/i", path: "/i", module: isr },
+	]
+	const router = createRouter({ layouts: { _root_: root }, routeTree })
+	const app = serveWith(
+		{ router, site: SITE, store: { ...memory, set }, static: createAssetsStore(read) },
+		{ dev: false, log },
+	)
+	return { app, errors, set }
+}
+
+// One answer through a failing static store, after `wait` ms of fake time.
+async function failedAnswer(app: ReturnType<typeof serveWith>, path: string, wait = 0): Promise<unknown[]> {
+	const pending = app.fetch(new Request(`${SITE}${path}`))
+	await vi.advanceTimersByTimeAsync(wait)
+	const response = await pending
+	return [path, response.status, response.headers.get("cache-control"), (await response.text()).includes("live")]
+}
+
+// A static read that throws or does not answer within 2 s, an SSG page's or an ISR seed's, is logged and the page
+// renders live, private, and is not stored, as a failing mutable read does (BUGS.md 391).
+it("static read fails", async () => {
+	vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+	const down = failingStatic(() => Promise.reject(new Error("binding down")))
+	const hung = failingStatic(() => new Promise(() => undefined))
+	const answers = [
+		await failedAnswer(down.app, "/s"),
+		await failedAnswer(down.app, "/i"),
+		await failedAnswer(hung.app, "/s", 2000),
+		await failedAnswer(hung.app, "/i", 2000),
+	]
+	vi.useRealTimers()
+	expect(answers).toEqual([
+		["/s", 200, "private, no-store", true],
+		["/i", 200, "private, no-store", true],
+		["/s", 200, "private, no-store", true],
+		["/i", 200, "private, no-store", true],
+	])
+	expect([down.errors.length, hung.errors.length, down.set.mock.calls.length, hung.set.mock.calls.length]).toEqual([
+		2, 2, 0, 0,
+	])
+	expect(down.errors.every((line) => line.includes("served live"))).toBe(true)
+})
+
 const slugs = () => [{ slug: "a" }]
 
 // A slug the page's `params()` did not return is the normal 404, document and data alike.
@@ -178,6 +235,25 @@ it("listed slugs", async () => {
 	expect(await listed(undefined, {}, false)).toBe(true)
 	expect(await listed({ ssg: () => [{}] }, { slug: "x" }, false)).toBe(true)
 	expect(await listed({ ssg: () => [] }, {}, false)).toBe(false)
+})
+
+const encodedSlugs: ParamsFn = (): Record<string, string | string[]>[] => [
+	{ slug: "a b" },
+	{ slug: "é" },
+	{ slug: "x%20y" },
+	{ path: ["c d", "e"] },
+]
+
+// A listed value matches the URL `buildUrl` writes for it: the request's raw param and the listed value compare as
+// that one encoding, so a slug that needs percent-encoding, listed decoded or encoded, is served (BUGS.md 388).
+it("listed encoded", async () => {
+	const cache = { ssg: encodedSlugs }
+	for (const slug of ["a%20b", "%C3%A9", "%c3%a9", "x%20y"])
+		expect([slug, await listed(cache, { slug }, false)]).toEqual([slug, true])
+	expect(await listed(cache, { path: "c%20d/e" }, false)).toBe(true)
+	expect(await listed(cache, { path: ["c%20d", "e"] }, false)).toBe(true)
+	expect(await listed(cache, { slug: "a" }, false)).toBe(false)
+	expect(await listed({ ssg: () => [{ slug: ".." }] }, { slug: ".." }, false)).toBe(true)
 })
 
 // Outside dev a page's `params()` runs once per server, with `ctx.params` as `{}` like the prerender's call

@@ -16,8 +16,12 @@ export type SsrCache = {
 	defer?: DeferMode
 }
 
-// `true` and `{}` are on demand. A set `revalidate` stores for twice that, capped at 24h (B47).
-export type IsrCache = true | { revalidate?: string; defer?: DeferMode; params?: ParamsFn; dynamicParams?: boolean }
+// `true` and `{}` are on demand. A set `revalidate` stores for twice that, capped at 24h (B47). `dynamicParams: false`
+// serves only the slugs `params` lists, so it needs them (BUGS.md 395).
+export type IsrCache =
+	| true
+	| { revalidate?: string; defer?: DeferMode; params?: ParamsFn; dynamicParams?: true }
+	| { revalidate?: string; defer?: DeferMode; params: ParamsFn; dynamicParams: false }
 
 // A function is shorthand for `{ params }`.
 export type SsgCache = true | { defer?: DeferMode } | ParamsFn | { params: ParamsFn; defer?: DeferMode }

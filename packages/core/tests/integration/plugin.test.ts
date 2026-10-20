@@ -357,6 +357,12 @@ it("options checked", async () => {
 	}
 	await expect(resolve({ entry: { client: "/abs/client.tsx" } })).rejects.toThrow(/entry\.client/)
 	await expect(resolve({ entry: { server: "src/missing.ts" } })).rejects.toThrow(/entry\.server src\/missing\.ts/)
-	for (const host of [true, "0.0.0.0", "::"]) await expect(resolve({}, { host })).rejects.toThrow(String(host))
+	for (const host of [true, "0.0.0.0", "::", "", "0", "::0", "[::]"]) {
+		await expect(resolve({}, { host })).rejects.toThrow(`server.host ${JSON.stringify(host)} binds every interface`)
+	}
+	const later = { name: "later", config: () => ({ server: { host: true } }) }
+	const root = apps.make({})
+	const config = { root, configFile: false as const, logLevel: "silent" as const, plugins: [flare({}), later] }
+	await expect(resolveConfig(config, "serve")).rejects.toThrow("server.host true binds every interface")
 	for (const host of ["localhost", "127.0.0.1", "::1"]) await expect(resolve({}, { host })).resolves.toBeDefined()
 })

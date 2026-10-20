@@ -32,8 +32,10 @@ export async function runValidator<In>(
 			const result = await validator["~standard"].validate(raw)
 			return result.issues === undefined ? { ok: true, value: result.value } : failed(result.issues.map(issueOf))
 		}
-		if (typeof validator === "function") return { ok: true, value: await validator(raw) }
-		return { ok: true, value: await validator.parse(raw) }
+		// Then `{ parse }`, before a call, so a function that also carries `parse` runs as `parse` (BUGS.md 396).
+		if ("parse" in validator && typeof validator.parse === "function")
+			return { ok: true, value: await validator.parse(raw) }
+		return { ok: true, value: await (validator as (value: In) => unknown)(raw) }
 	} catch (error) {
 		return failed(thrownIssues(error, options.dev))
 	}

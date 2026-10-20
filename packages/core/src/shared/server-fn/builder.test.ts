@@ -48,6 +48,18 @@ it("get with auth and maxAge", () => {
 	expect(cached.cache).toEqual({ maxAge: "1s" })
 })
 
+// A `maxAge` that is no duration throws when the chain is built, naming it, not on each call after the handler ran
+// (BUGS.md 393).
+it("maxAge checked", () => {
+	for (const maxAge of ["1 minute", "", "1y", "-1s"]) {
+		const cache = { maxAge } as unknown as { maxAge: "1s" }
+		expect(() => createServerFn({ method: "get" }).cache(cache)).toThrow(
+			`cache.maxAge ${JSON.stringify(maxAge)} is no duration`,
+		)
+	}
+	expect(() => createServerFn({ method: "get" }).cache({ maxAge: "1m30s" })).not.toThrow()
+})
+
 it("stream or handler", () => {
 	const chain = createServerFn()
 	chain.handler(handler)

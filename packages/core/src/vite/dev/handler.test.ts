@@ -159,6 +159,28 @@ it("load error page", async () => {
 	expect(await (await plain(new Request("http://localhost/"))).text()).toContain('from "/@vite/client"')
 })
 
+// A `flare-dev-tab` header that is no token is never written into the failure page, nor reported under: the page and
+// the overlay take the dev server's tab, as with no header (BUGS.md 387).
+it("load error token", async () => {
+	const reported: unknown[] = []
+	const fetch = devFetch({
+		load: () => Promise.reject(new Error("x")),
+		tab: () => "T5",
+		head: Promise.resolve(""),
+		report: (_error, token) => void reported.push(token),
+	})
+	for (const sent of ['x"><script>alert(1)</script>', "</script><script>alert(2)</script>"]) {
+		const page = await (await fetch(new Request("http://localhost/", { headers: { "flare-dev-tab": sent } }))).text()
+		expect([page.includes("alert"), page.includes('content="T5"'), page.includes('{ token: "T5" }')]).toEqual([
+			false,
+			true,
+			true,
+		])
+	}
+	await fetch(new Request("http://localhost/", { headers: { "flare-dev-tab": "T6" } }))
+	expect(reported).toEqual(["T5", "T5", "T6"])
+})
+
 type Tab = { send: (payload: unknown) => void }
 
 function devServer(middlewareMode: boolean) {

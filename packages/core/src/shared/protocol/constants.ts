@@ -20,6 +20,12 @@ export const CACHE_HEADER = "flare-cache"
 // Marks a server function's returned Response, so the client resolves it untouched instead of reading an envelope.
 export const FN_HEADER = "flare-fn"
 
+// A returned Response with one of these statuses is sent as a 200 that names it here, Location and body kept: fetch
+// follows a 3xx, and a browser shows script no redirect, so the client rebuilds it (BUGS.md 389). A caller other
+// than Flare's client sees the 200 and this header.
+export const STATUS_HEADER = "flare-status"
+export const REDIRECT_STATUSES: readonly number[] = [301, 302, 303, 307, 308]
+
 // `set` on a server function's answer whose own returned Response wrote a cookie, which fetch cannot read, so the
 // client forgets the matches and queries it held for the visitor before (B133).
 export const COOKIES_HEADER = "flare-cookies"

@@ -2,6 +2,7 @@
 
 import { getObserver, getOwner } from "solid-js"
 import { devWarn } from "../dev/warn.ts"
+import { parseDuration } from "../duration/index.ts"
 import type { FlareRegister, RegisteredEnv, RegisteredServerContext, ResolvedAuth } from "../route-builder/register.ts"
 import type { ValidatorInput, ValidatorOutput } from "../route-builder/types.ts"
 import type { Validator } from "../validation/index.ts"
@@ -168,6 +169,7 @@ function chainOf(config: { method?: "get" | "post" }, call: ServerFnCall): Chain
 		},
 		cache: (cache) => {
 			once("cache")
+			checkMaxAge(cache.maxAge)
 			record.cache = cache
 			return chain
 		},
@@ -212,4 +214,14 @@ function callable(internal: Internal, record: ServerFnRecord, call: ServerFnCall
 	Object.defineProperty(invoke, "name", { value: internal.name })
 	const fn = Object.assign(invoke, { id: internal.id, record })
 	return fn
+}
+
+// `.cache({ maxAge })` parses its duration when the chain is built, so a bad one never answers 500 after the handler
+// ran (BUGS.md 393).
+function checkMaxAge(maxAge: string): void {
+	try {
+		parseDuration(maxAge)
+	} catch {
+		throw new Error(`cache.maxAge ${JSON.stringify(maxAge)} is no duration`)
+	}
 }

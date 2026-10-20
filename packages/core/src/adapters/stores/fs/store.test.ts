@@ -4,7 +4,27 @@ import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, utimes, writeFile
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
+import { lookup } from "../../../server/cache/epoch.ts"
 import { createFilesystemStore } from "./store.ts"
+
+// A step to run once, right after the `nth` read of a file named `epoch-…`: the races in `damaged epoch race`.
+const hooks = vi.hoisted(() => ({ afterRead: undefined as { nth: number; run: () => Promise<void> } | undefined }))
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+	const real = await importOriginal<typeof import("node:fs/promises")>()
+	let reads = 0
+	const readFile = (async (...args: Parameters<typeof real.readFile>) => {
+		const text = await real.readFile(...args)
+		const hook = hooks.afterRead
+		if (hook !== undefined && String(args[0]).includes("epoch-") && (reads += 1) === hook.nth) {
+			hooks.afterRead = undefined
+			reads = 0
+			await hook.run()
+		}
+		return text
+	}) as typeof real.readFile
+	return { ...real, readFile }
+})
 
 let dir = ""
 
@@ -148,5 +168,76 @@ it("bound", async () => {
 	expect((await store.get("epoch:t"))?.storedAt).toBeTypeOf("number")
 	for (const maxBytes of [0, 1.5, Number.NaN]) {
 		expect(() => createFilesystemStore({ dir, maxBytes })).toThrow("createFilesystemStore: maxBytes must be")
+	}
+})
+
+const fileOf = (key: string): string =>
+	join(dir, `${key.startsWith("epoch:") ? "epoch-" : ""}${createHash("sha256").update(key).digest("hex")}.json`)
+
+// A page file that does not hold a record, bytes cut short or a shape no store wrote, is logged once, removed, and
+// read as a miss, so the next write lands a good one (BUGS.md 394).
+it("damaged page", async () => {
+	const errors = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const store = createFilesystemStore({ dir })
+	for (const text of ["{trunc", "", "null", '{"key":"k"}']) {
+		await store.set("k", entry)
+		await writeFile(fileOf("k"), text)
+		expect([text, await store.get("k"), existsSync(fileOf("k"))]).toEqual([text, null, false])
+	}
+	await store.set("k", entry)
+	expect(await store.get("k")).toEqual(entry)
+	expect(errors.mock.calls.map((call) => call.join(" "))).toEqual([
+		"[flare:cache] the store held a damaged record for k: read as a miss",
+	])
+})
+
+// A damaged epoch reads as a purge now, written back good, so a page stored before the read is purged once and the
+// tag's next purge reads a number. A page purged before the damage stays purged: the epoch never reads as absent.
+it("damaged epoch", async () => {
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+	vi.useFakeTimers({ now: 1000, toFake: ["Date"] })
+	const store = createFilesystemStore({ dir })
+	await store.set("page", { ...entry, storedAt: 1000 })
+	vi.setSystemTime(2000)
+	await store.deleteByTags(["t"])
+	await writeFile(fileOf("epoch:t"), "{trunc")
+	vi.setSystemTime(3000)
+	expect((await lookup(store, "page"))?.purged).toBe(true)
+	expect(JSON.parse(await readFile(fileOf("epoch:t"), "utf8")).entry).toEqual({ data: 3000, storedAt: 3000 })
+	await store.set("fresh", { ...entry, storedAt: 3001 })
+	expect((await lookup(store, "fresh"))?.purged).toBe(false)
+	vi.setSystemTime(4000)
+	await expect(store.deleteByTags(["t"])).resolves.toBeUndefined()
+	expect((await store.get("epoch:t"))?.data).toBe(4000)
+})
+
+// A purge that lands between the damaged read and its rewrite stands: the rewrite reads the file again just before
+// its rename, so the epoch never goes back past that purge (BUGS.md 394).
+it("damaged epoch race", async () => {
+	vi.spyOn(console, "error").mockImplementation(() => undefined)
+	vi.useFakeTimers({ now: 1000, toFake: ["Date"] })
+	const store = createFilesystemStore({ dir })
+	const purgeAt = (at: number) => async () => {
+		vi.setSystemTime(at)
+		await store.set("epoch:t", { data: at, storedAt: at })
+	}
+	// A purge before the read again stands as written.
+	await writeFile(fileOf("epoch:t"), "{trunc")
+	hooks.afterRead = { nth: 1, run: purgeAt(2000) }
+	expect([(await store.get("epoch:t"))?.data, (await store.get("epoch:t"))?.data]).toEqual([2000, 2000])
+	// A purge after the read again loses to the rewrite's later now, so the epoch never goes back past it.
+	await writeFile(fileOf("epoch:t"), "{trunc")
+	hooks.afterRead = { nth: 2, run: purgeAt(3000) }
+	expect((await store.get("epoch:t"))?.data).toBe(3000)
+	expect((await readdir(dir)).filter((name) => name.endsWith(".tmp"))).toEqual([])
+	// An epoch file gone by then is written good.
+	await writeFile(fileOf("epoch:t"), "{trunc")
+	hooks.afterRead = { nth: 1, run: () => rm(fileOf("epoch:t")) }
+	expect((await store.get("epoch:t"))?.data).toBe(3000)
+	expect(JSON.parse(await readFile(fileOf("epoch:t"), "utf8")).entry.data).toBe(3000)
+	// An epoch record that parses but holds no finite number is damaged too, and reads as a purge now.
+	for (const entry of [{}, { data: "x" }, { data: null }]) {
+		await writeFile(fileOf("epoch:t"), JSON.stringify({ key: "epoch:t", entry, expiresAt: null }))
+		expect([entry, (await store.get("epoch:t"))?.data]).toEqual([entry, 3000])
 	}
 })

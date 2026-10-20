@@ -9,6 +9,7 @@ import { createLayout } from "../../src/shared/route-builder/layout.ts"
 import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createRootLayout } from "../../src/shared/route-builder/root-layout.ts"
 import { createRouter, type RouteModule } from "../../src/shared/router/create-router.ts"
+import { buildUrl } from "../../src/shared/url/href.ts"
 import { stateIn } from "../../src/server/wire.fixture.ts"
 
 const SITE = "https://example.com"
@@ -189,6 +190,26 @@ it("not found", async () => {
 	}
 	expect(set).not.toHaveBeenCalled()
 	expect((await app.fetch(new Request(`${SITE}/post/a`))).status).toBe(200)
+})
+
+// A listed slug that needs percent-encoding is served at the URL prerender writes for it, `buildUrl`'s; the same URL
+// in lowercase hex redirects there (BUGS.md 388).
+it("listed encoded", async () => {
+	const slugs = [{ slug: "a b" }, { slug: "é" }]
+	const page = createPage("_root_/post/[slug]")
+		.cache({ ssg: () => slugs })
+		.render(() => "post")
+	const router = createRouter({
+		layouts: { _root_: root },
+		routeTree: [{ id: "_root_/post/[slug]", path: "/post/[slug]", module: page }],
+	})
+	const app = createServer({ router, site: SITE, store: createMemoryStore() })
+	const urls = [...slugs.map((params) => buildUrl({ to: "_root_/post/[slug]", params })), "/post/%c3%a9"]
+	const statuses = await Promise.all(urls.map(async (url) => (await app.fetch(new Request(`${SITE}${url}`))).status))
+	expect([urls, statuses]).toEqual([
+		["/post/a%20b", "/post/%C3%A9", "/post/%c3%a9"],
+		[200, 200, 301],
+	])
 })
 
 // A listed slug whose tombstone is newer renders live, and the body may be stored again.

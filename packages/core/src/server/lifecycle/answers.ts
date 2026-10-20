@@ -89,7 +89,7 @@ export function cached(
 }
 
 // A data or prefetch request (bit 06). The stale pages run no loader. A thrown redirect is HTTP 200 with one `x` line.
-// Validation and a gate status answer bare; a named failure its status with the frames above it (B132).
+// Validation and a gate answer bare, a named failure its status and frames above (B132). All bugs log (BUGS.md 390).
 export async function data(exchange: Exchange, matched: Loaded, prepared: Prepared): Promise<Response> {
 	const id = matchId(definedParams(matched.params), searchKey(new URL(exchange.request.url).search))
 	const matches = matched.chain.map((entry) => ({ route: entry.id, id, layout: entry.kind !== "page" }))
@@ -103,6 +103,7 @@ export async function dataFrom(
 	run: LoaderRun,
 	{ skip, policy }: { skip: ReadonlySet<string>; policy: Policy },
 ): Promise<Response> {
+	for (const bug of run.bugs) projectError(bug, exchange.sink)
 	const thrown = run.thrown ?? run.failed?.error
 	if (thrown instanceof RedirectError) {
 		const u = redirectLocation(thrown, exchange.options.router)
@@ -113,7 +114,6 @@ export async function dataFrom(
 	const kept = above && dataBody({ ...above, deferred: run.deferred, project: framed(exchange) })
 	if (run.response.status !== 200)
 		return bare(routeSecured(exchange, run.security), run, { failed: run.failed?.m, kept })
-	for (const bug of run.bugs) projectError(bug, exchange.sink)
 	// A data answer carries a rejection as its own `e` frame, which the client paints in place (dx/defer.md).
 	const settled = await awaited(run, policy, false)
 	const frames = { ...dataFrames(run, skip), queries: answerQueries(exchange.sink) }
@@ -159,11 +159,12 @@ export function painted(exchange: Exchange, rendered: Decided): Promise<Response
 	return settle(exchange, rendered)
 }
 
-// A thrown redirect() answers its status and Location, with no render and no boundary (B73). A failed match
-// paints the walked boundary at the failure's status. Validation and a gate status answer bare.
+// A thrown redirect() answers its status and Location, with no render and no boundary (B73), and logs the run's bugs,
+// which no paint will (BUGS.md 390). A failed match paints the walked boundary; validation and a gate answer bare.
 function settle(exchange: Exchange, rendered: Decided): Promise<Response> {
 	const thrown = rendered.run.thrown ?? rendered.run.failed?.error
 	if (thrown instanceof RedirectError) {
+		for (const bug of rendered.run.bugs) projectError(bug, exchange.sink)
 		const location = redirectLocation(thrown, exchange.options.router)
 		return Promise.resolve(answer(routeSecured(exchange, rendered.run.security), thrown.status, location))
 	}

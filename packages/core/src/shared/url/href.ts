@@ -66,7 +66,7 @@ const DOT_SEGMENT = /^(?:\.|%2e){1,2}$/i
 // A param is encoded by code point, so a character outside the BMP keeps its surrogate pair; a lone surrogate, which no
 // URL can carry, is a bad param (plan 21 8.2). A bad value throws naming its key, never the value, which can be request
 // data a 500 logs (BUGS.md 308).
-function encodeParam(value: string, name: string): string {
+export function encodeParam(value: string, name: string): string {
 	if (value.includes("/") || value.includes("\\") || DOT_SEGMENT.test(value)) throw new Error(`param ${name}`)
 	const chars = Array.from(value)
 	let out = ""
