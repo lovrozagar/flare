@@ -49,6 +49,18 @@ it("quick start marked", () => {
 // The Install section is what an app runs: its `bun add` line names the package and every peer an app needs, each with
 // the range the package declares, since a bare name installs the `latest` tag and solid-js's is 1.9 (BUGS.md 299); its
 // table names every peer with that range (plan 21 5.5). The consumer cell `readme install` runs that line.
+// The install line splits as a shell would: a quoted spec is one, its range's spaces included (BUGS.md 426).
+it("install tokens", () => {
+	const text =
+		'## Install\n\nbun add @lovrozagar/flare "solid-js@>=2.0.0-rc.15 <2.0.0-rc.16" "vite@>=8.1.4" magic-string\n'
+	expect(installCommand(text)).toEqual([
+		"@lovrozagar/flare",
+		"solid-js@>=2.0.0-rc.15 <2.0.0-rc.16",
+		"vite@>=8.1.4",
+		"magic-string",
+	])
+})
+
 it("install names every peer", () => {
 	const manifest = JSON.parse(readFileSync(join(repo, "packages/core/package.json"), "utf8"))
 	const peers: Record<string, string> = manifest.peerDependencies

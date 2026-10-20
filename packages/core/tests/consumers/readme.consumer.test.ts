@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 import { afterAll, beforeAll, expect, it } from "vitest"
 import type { PinnedNode } from "../../../../scripts/node-at.ts"
 import { installCommand, readme } from "../structure/readme.ts"
@@ -34,6 +36,23 @@ function readmePackages(): string[] {
 	return [run.packed ?? "", ...peers]
 }
 
+// The Solid pair stays at the release the package is tested on, its devDependency: the README's own install resolves to
+// it, never a newer pre-release (BUGS.md 426).
+const SOLID = ["solid-js", "@solidjs/web"]
+
+function manifestAt(path: string): Record<string, unknown> {
+	return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>
+}
+
+function versions(dir: string, field: "installed" | "tested"): Record<string, string | undefined> {
+	const tested = manifestAt(join(import.meta.dirname, "../../package.json"))["devDependencies"] as Record<
+		string,
+		string
+	>
+	const installed = (name: string) => manifestAt(join(dir, "node_modules", name, "package.json"))["version"] as string
+	return Object.fromEntries(SOLID.map((name) => [name, field === "tested" ? tested[name] : installed(name)]))
+}
+
 async function buildsAndServes(dir: string, sentinel: string): Promise<void> {
 	const built = buildApp(current(), dir)
 	expect([built.status, built.output]).toEqual([0, expect.any(String)])
@@ -54,6 +73,7 @@ it("readme install, bun", async () => {
 	const added = spawnSync("bun", ["add", ...readmePackages()], { cwd: app.dir, encoding: "utf8", env: shellEnv() })
 	const output = `${added.stdout}${added.stderr}`
 	expect([added.status, output.includes("ERESOLVE"), output]).toEqual([0, false, expect.any(String)])
+	expect(versions(app.dir, "installed")).toEqual(versions(app.dir, "tested"))
 	await buildsAndServes(app.dir, "readme-bun")
 })
 
@@ -64,5 +84,6 @@ it("readme install, npm", async () => {
 	const [tgz = "", ...peers] = readmePackages()
 	const added = install(current(), { dir: app.dir, packed: tgz, specs: peers, legacy: false })
 	expect([added.status, added.output.includes("ERESOLVE"), added.output]).toEqual([0, false, expect.any(String)])
+	expect(versions(app.dir, "installed")).toEqual(versions(app.dir, "tested"))
 	await buildsAndServes(app.dir, "readme-npm")
 })
