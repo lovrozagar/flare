@@ -243,3 +243,53 @@ it("fonts", () => {
 	const bad: unknown[] = ["fonts", null, {}, { dir: "" }, { dir: 1 }, { dir: "fonts", extra: true }]
 	for (const fonts of bad) expect(() => parseOptions({ fonts } as unknown as FlareOptions)).toThrow(/^fonts/)
 })
+
+// `fonts.dir` is a path inside the root: an absolute one or one that climbs out throws, naming the option.
+it("fonts dir inside", () => {
+	for (const dir of ["/srv/fonts", "../fonts", "a/../../fonts"])
+		expect(() => parseOptions({ fonts: { dir } })).toThrow("fonts.dir")
+	expect(parseOptions({ fonts: { dir: "assets/fonts" } }).fonts).toEqual({ dir: "assets/fonts" })
+})
+
+// Each option's shape is checked when the options are parsed, and the error names the option: a wrong type, `null`,
+// an unknown key, an empty `widths`, a `css.reset` that is no boolean, an `entry` that is no object or holds an empty
+// or non-string path, and an `assetsBase` with `//`, a backslash, or a dot segment (BUGS.md 419).
+it("shapes checked", () => {
+	const cases: Array<[unknown, string]> = [
+		[{ css: { reset: "false" } }, "css.reset"],
+		[{ css: true }, "css"],
+		[{ css: null }, "css"],
+		[{ entry: "src/main.tsx" }, "entry"],
+		[{ entry: null }, "entry"],
+		[{ entry: { client: "src/client.tsx", worker: "x" } }, "entry.worker"],
+		[{ entry: { client: 5 } }, "entry.client"],
+		[{ entry: { server: "" } }, "entry.server"],
+		[{ image: true }, "image"],
+		[{ image: null }, "image"],
+		[{ image: { loader: "x" } }, "image.loader"],
+		[{ image: { widths: [] } }, "image.widths"],
+		[{ prerender: null }, "prerender"],
+		[{ prerender: "yes" }, "prerender"],
+		[{ assetsBase: "//cdn.example" }, "assetsBase //cdn.example"],
+		[{ assetsBase: "/../up" }, "assetsBase /../up"],
+		[{ assetsBase: "/a\\b" }, "assetsBase /a\\b"],
+		[{ assetsBase: "/a b" }, "assetsBase /a b"],
+		[{ assetsBase: 42 }, "assetsBase 42"],
+	]
+	for (const [options, message] of cases) {
+		let thrown = ""
+		try {
+			parseOptions(options as FlareOptions)
+		} catch (error) {
+			thrown = error instanceof Error ? error.message : String(error)
+		}
+		expect([options, thrown.includes(message)]).toEqual([options, true])
+	}
+	expect(
+		parseOptions({ css: { reset: true }, entry: { client: "app/client.tsx" }, assetsBase: "/static/v1" }),
+	).toMatchObject({
+		css: { reset: true },
+		entry: { client: "app/client.tsx", server: "src/server.ts" },
+		assetsBase: "/static/v1",
+	})
+})

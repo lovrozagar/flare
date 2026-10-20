@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs"
-import { isAbsolute, resolve } from "node:path"
+import { existsSync, statSync } from "node:fs"
+import { isAbsolute, relative, resolve, sep } from "node:path"
 import { fileURLToPath } from "node:url"
 import solid from "@solidjs/vite-plugin"
 import type { Plugin, UserConfig } from "vite"
@@ -283,7 +283,15 @@ function boundary(fixed?: Graph): Plugin {
 	}
 }
 
+// A path relative to the project, to a file inside it (BUGS.md 419).
 function assertEntry(root: string, entryPath: string, label: string): void {
 	if (isAbsolute(entryPath)) throw new Error(label)
-	if (!existsSync(resolve(root, entryPath))) throw new Error(`${label} ${entryPath}`)
+	const full = resolve(root, entryPath)
+	// Out of the project is `..` or under it, or another drive; `..x.tsx` is a file inside it.
+	const rel = relative(root, full)
+	if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+		throw new Error(`${label} ${entryPath} is outside the project`)
+	}
+	if (!existsSync(full)) throw new Error(`${label} ${entryPath}`)
+	if (!statSync(full).isFile()) throw new Error(`${label} ${entryPath} is not a file`)
 }

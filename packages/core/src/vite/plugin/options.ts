@@ -1,3 +1,4 @@
+import { isAbsolute, normalize } from "node:path"
 import { sitemap } from "../../features/seo/vite/index.ts"
 import type { PrerenderConfig } from "../prerender/run.ts"
 
@@ -33,10 +34,7 @@ export function parseOptions(input?: FlareOptions): ParsedOptions {
 	return {
 		assetsBase: parseAssetsBase(options.assetsBase),
 		prerender: parsePrerender(options.prerender),
-		entry: {
-			client: entryPath(options.entry, "client"),
-			server: entryPath(options.entry, "server"),
-		},
+		entry: parseEntry(options.entry),
 		image: parseImage(options.image),
 		css: parseCss(options.css),
 		broadcast: parseBroadcast(options.broadcast),
@@ -51,32 +49,48 @@ function parseFonts(value: unknown): ParsedOptions["fonts"] {
 	const keys = Object.keys(value)
 	const dir: unknown = Reflect.get(value, "dir")
 	if (keys.length !== 1 || typeof dir !== "string" || dir === "") throw new Error("fonts.dir")
+	// Inside the root: an absolute path or one that climbs out of it is refused.
+	if (isAbsolute(dir) || normalize(dir).split(/[\\/]/)[0] === "..") throw new Error("fonts.dir")
 	return { dir }
 }
 
-function parseAssetsBase(value: string | undefined): string {
-	if (value === undefined) return "/assets"
-	// "/" is the only legal base that ends with a slash.
-	if (value === "/") return "/"
-	if (!value.startsWith("/")) throw new Error(value)
-	if (value.endsWith("/")) throw new Error(value)
-	if (value.includes("?")) throw new Error(value)
-	if (value.includes("#")) throw new Error(value)
-	return value
+// An object, not null or a list, holding only the keys named: anything else throws naming the option (BUGS.md 419).
+function shaped(value: unknown, name: string, keys: readonly string[]): Record<string, unknown> {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error(name)
+	for (const key of Object.keys(value)) if (!keys.includes(key)) throw new Error(`${name}.${key}`)
+	return value as Record<string, unknown>
 }
 
-function entryPath(entry: FlareOptions["entry"], key: "client" | "server"): string {
-	if (entry === undefined) return ENTRY[key]
-	const value = entry[key]
-	return value === undefined ? ENTRY[key] : value
+// "/" or one directory: it starts with `/`, ends without one, holds no query, hash, `//`, or backslash, and a URL reads
+// it back as written, so no dot segment or text a URL encodes moves the assets elsewhere (BUGS.md 419).
+function parseAssetsBase(value: unknown): string {
+	if (value === undefined) return "/assets"
+	if (value === "/") return "/"
+	const text = String(value)
+	const fixed = typeof value === "string" && text.startsWith("/") && !text.endsWith("/") && !/[?#\\]|\/\//.test(text)
+	if (!fixed || new URL(`${text}/x`, "http://assets").pathname !== `${text}/x`) throw new Error(`assetsBase ${text}`)
+	return text
+}
+
+// `{ client?, server? }`, each a non-empty path; the plugin checks that it is a file inside the project.
+function parseEntry(value: unknown): ParsedOptions["entry"] {
+	if (value === undefined) return { ...ENTRY }
+	const entry = shaped(value, "entry", ["client", "server"])
+	const pathOf = (key: "client" | "server"): string => {
+		const path = entry[key] ?? ENTRY[key]
+		if (typeof path !== "string" || path === "") throw new Error(`entry.${key}`)
+		return path
+	}
+	return { client: pathOf("client"), server: pathOf("server") }
 }
 
 // Unique integer widths from 1 to 4096, an integer quality from 1 to 100, and a RegExp to exclude (dx/plugin.md image).
-function parseImage(image: FlareOptions["image"]): ParsedOptions["image"] {
-	if (image === undefined) return undefined
+function parseImage(value: FlareOptions["image"]): ParsedOptions["image"] {
+	if (value === undefined) return undefined
+	const image = shaped(value, "image", ["widths", "quality", "exclude"]) as NonNullable<FlareOptions["image"]>
 	const widths = image.widths ?? WIDTHS
-	const whole = widths.every((width) => Number.isInteger(width) && width >= 1 && width <= 4096)
-	if (!whole || new Set(widths).size !== widths.length) throw new Error("image.widths")
+	const whole = Array.isArray(widths) && widths.every((width) => Number.isInteger(width) && width >= 1 && width <= 4096)
+	if (!whole || widths.length === 0 || new Set(widths).size !== widths.length) throw new Error("image.widths")
 	const quality = image.quality ?? 75
 	if (!Number.isInteger(quality) || quality < 1 || quality > 100) throw new Error("image.quality")
 	if (image.exclude !== undefined && !(image.exclude instanceof RegExp)) throw new Error("image.exclude")
@@ -86,12 +100,11 @@ function parseImage(image: FlareOptions["image"]): ParsedOptions["image"] {
 }
 
 // Omission, `{}`, and `reset: false` are the same: no preflight.
-function parseCss(css: FlareOptions["css"]): ParsedOptions["css"] {
-	if (css === undefined) return { reset: false }
-	for (const key of Object.keys(css)) {
-		if (key !== "reset") throw new Error(key)
-	}
-	return { reset: Boolean(css.reset) }
+function parseCss(value: FlareOptions["css"]): ParsedOptions["css"] {
+	if (value === undefined) return { reset: false }
+	const reset = shaped(value, "css", ["reset"])["reset"] ?? false
+	if (typeof reset !== "boolean") throw new Error("css.reset")
+	return { reset }
 }
 
 const PRERENDER_KEYS = new Set(["concurrency", "env", "exclude", "sitemap"])
@@ -101,7 +114,7 @@ const PRERENDER_KEYS = new Set(["concurrency", "env", "exclude", "sitemap"])
 function parsePrerender(value: FlareOptions["prerender"]): PrerenderConfig | false {
 	if (value === undefined || value === false) return false
 	if (value === true) return {}
-	for (const key of Object.keys(value)) if (!PRERENDER_KEYS.has(key)) throw new Error(`prerender.${key}`)
+	shaped(value, "prerender", [...PRERENDER_KEYS])
 	const checks: Array<[string, unknown, (field: unknown) => boolean]> = [
 		["concurrency", value.concurrency, (field) => Number.isInteger(field) && Number(field) >= 1],
 		["exclude", value.exclude, (field) => Array.isArray(field) && field.every((id) => typeof id === "string")],

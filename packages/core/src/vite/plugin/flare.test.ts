@@ -46,6 +46,16 @@ it("entry", () => {
 		expect(() => apply({ root }, { entry: { server: "/tmp/server.ts" } })).toThrow(/^entry\.server$/)
 		expect(() => apply({ root }, { entry: { client: "src/missing.tsx" } })).toThrow("entry.client src/missing.tsx")
 		expect(() => apply({ root }, { entry: { server: "src/missing.ts" } })).toThrow("entry.server src/missing.ts")
+		// A directory is no entry, and a path out of the project is refused, naming the option (BUGS.md 419).
+		expect(() => apply({ root }, { entry: { client: "src" } })).toThrow("entry.client src is not a file")
+		writeFileSync(join(root, "../outside-server.ts"), "")
+		expect(() => apply({ root }, { entry: { server: "../outside-server.ts" } })).toThrow(
+			"entry.server ../outside-server.ts is outside the project",
+		)
+		rmSync(join(root, "../outside-server.ts"))
+		// A file inside the project whose name starts with two dots is inside it.
+		writeFileSync(join(root, "..x.tsx"), "")
+		expect(() => apply({ root }, { entry: { client: "..x.tsx" } })).not.toThrow()
 	} finally {
 		rmSync(root, { recursive: true, force: true })
 	}
