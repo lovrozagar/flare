@@ -25,6 +25,8 @@ export function createCacheApiStore(options: { cacheName?: string; caches?: Cach
 	const name = options.cacheName ?? "flare"
 	const opened = (): Promise<Cache> => (options.caches ?? caches).open(name)
 	const write = async (key: string, entry: FlareStoreEntry, ttl?: number): Promise<void> => {
+		// A ttl of 0 or below stores nothing and leaves no earlier entry, as on the other stores.
+		if (ttl !== undefined && ttl <= 0) return void (await (await opened()).delete(urlOf(key)))
 		const seconds = ttl === undefined ? KEEP : Math.max(1, Math.ceil(ttl / 1000))
 		const headers = { "content-type": "application/json", "cache-control": `max-age=${seconds}` }
 		await (await opened()).put(urlOf(key), new Response(JSON.stringify(entry), { headers }))

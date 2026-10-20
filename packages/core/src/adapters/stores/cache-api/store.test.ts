@@ -126,3 +126,17 @@ it("damaged entry", async () => {
 	vi.useRealTimers()
 	vi.restoreAllMocks()
 })
+
+// A ttl of 0 or below stores nothing, as on the memory and filesystem stores: the key reads as a miss, and an entry it
+// held before is gone; a positive ttl under a second is kept for one (dx/store.md set).
+it("ttl at most zero", async () => {
+	const { caches } = fakeCaches()
+	const store = createCacheApiStore({ caches })
+	for (const ttl of [0, -1]) {
+		await store.set("k", entry)
+		await store.set("k", entry, ttl)
+		expect([ttl, await store.get("k")]).toEqual([ttl, null])
+	}
+	await store.set("k", entry, 500)
+	expect(await store.get("k")).toEqual(entry)
+})
