@@ -283,8 +283,8 @@ const NODE_ARGS = ["--input-type=module", "-e", NODE_SERVE]
 
 const BUN_SERVE = `${STATIC}
 import { createBunFetch } from "@lovrozagar/flare/adapters/bun";
-// The documented spread, Bun's server handed on; idle 4 s for docs-data \`stream quiet past idle\` (BUGS.md 382).
-const app = createBunFetch(server, { idleTimeout: 4 });
+// The documented spread, Bun's server handed on; idle 8 s, as at 4 Bun 1.4.3 resets fresh requests (BUGS.md 382).
+const app = createBunFetch(server, { idleTimeout: 8 });
 const bun = Bun.serve({
 	...app,
 	hostname: "127.0.0.1",

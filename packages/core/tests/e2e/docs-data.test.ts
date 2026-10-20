@@ -227,7 +227,7 @@ test("stream", async ({ page, http, docs }) => {
 // timeout while a body streams (BUGS.md 198). Until 382 it never did in a built app: the server bundle's copy of Flare
 // marked its streams where the adapter, imported from the package, could not see them (BUGS.md 382).
 // The idleTimeout boot.ts gives bun-prod's createBunFetch, in seconds.
-const BUN_IDLE = 4
+const BUN_IDLE = 8
 
 test("stream quiet past idle", async ({ page, http, docs }, info) => {
 	test.skip(serverOf(info) !== "bun-prod", "Bun's idleTimeout: only bun-prod serves through Bun.serve")
