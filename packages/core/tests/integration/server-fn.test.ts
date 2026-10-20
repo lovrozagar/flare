@@ -290,6 +290,11 @@ function cachedFn(name: string, handler: (input: unknown) => unknown) {
 // A cached GET's answer is public only when it is a 2xx with no Set-Cookie: an invalid input, a thrown notFound(), a
 // thrown error, and a returned Response that sets a cookie are each `private, no-store`, so no CDN keeps them
 // (plan 21 2.5, BUGS.md 166).
+async function* steps(fail: boolean): AsyncGenerator<number> {
+	yield 1
+	if (fail) throw new Error("db down")
+}
+
 it("cache errors private", async () => {
 	const missing = cachedFn("cmissing", () => notFound())
 	const broken = cachedFn("cbroken", () => {
@@ -301,7 +306,14 @@ it("cache errors private", async () => {
 		throw redirect({ href: "https://login.example/" })
 	})
 	const fine = cachedFn("cfine", () => "ok")
-	const server = serve([missing, broken, cookie, moved, fine])
+	// A cached stream is held before it is answered: whole, it is public; failing, private with its error line (BUGS.md 383).
+	const held = createServerFn(config("cheld", "get"))
+		.cache({ maxAge: "1m" })
+		.stream(() => steps(false))
+	const cut = createServerFn(config("ccut", "get"))
+		.cache({ maxAge: "1m" })
+		.stream(() => steps(true))
+	const server = serve([missing, broken, cookie, moved, fine, held, cut])
 	const control = async (fn: Fn, input: unknown) => {
 		const response = await server.fetch(get(fn, input))
 		return [response.status, response.headers.get("cache-control")]
@@ -313,6 +325,14 @@ it("cache errors private", async () => {
 	expect(await control(broken, "x")).toEqual([500, "private, no-store"])
 	expect(await control(cookie, "x")).toEqual([200, "private, no-store"])
 	expect(await control(moved, "x")).toEqual([200, "private, no-store"])
+	const lines = async (fn: Fn) => {
+		const response = await server.fetch(get(fn, "x"))
+		return [response.headers.get("cache-control"), (await response.text()).match(/"status":\d+/g)]
+	}
+	expect([await lines(held), await lines(cut)]).toEqual([
+		["public, max-age=60", ['"status":200', '"status":200']],
+		["private, no-store", ['"status":200', '"status":500']],
+	])
 })
 
 // `cache: { maxAge }` on a public GET is a public max-age; with POST, `authenticate`, or `authorize` the chain throws.

@@ -13,6 +13,11 @@ export function fnCacheControl(record: Caching): string {
 	return `public, max-age=${Math.floor(parseDuration(record.cache.maxAge) / 1000)}`
 }
 
+// Whether a 2xx answer with no Set-Cookie is public: a stream's header goes out before its outcome is known.
+export function fnIsPublic(record: Caching): boolean {
+	return fnCacheControl(record) !== PRIVATE
+}
+
 // A returned Response keeps its other headers, and this one is overwritten (B43). Only a 2xx answer with no Set-Cookie
 // may be public: an error envelope, a thrown status, or a cookie is one visitor's, and no CDN may keep it
 // (BUGS.md 166).

@@ -5,7 +5,7 @@ import type { Logger } from "../lifecycle/logger.ts"
 import type { ServerFnRef } from "../../shared/server-fn/builder.ts"
 import { createServerFn } from "./dispatch.ts"
 import { dispatch } from "./dispatch.ts"
-import { streamEnvelopes } from "./stream.ts"
+import { heldStream, streamEnvelopes } from "./stream.ts"
 import { fromWire, toWire } from "../../shared/protocol/value.ts"
 
 function noop(): void {}
@@ -170,4 +170,37 @@ it("throw after cancel", async () => {
 	expect(await pending).toEqual({ done: true, value: undefined })
 	await new Promise((resolve) => setTimeout(resolve, 0))
 	expect(logged).toEqual([])
+})
+
+// A public stream is held until it ends: its outcome is the end line's 200 or the error line's status. Past the cap it
+// is answered as it runs, the held lines first, and a cancel of that answer reaches the source (BUGS.md 383).
+// A finished stream of these texts, one chunk each.
+function chunked(...texts: string[]): ReadableStream<Uint8Array> {
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			for (const text of texts) controller.enqueue(new TextEncoder().encode(text))
+			controller.close()
+		},
+	})
+}
+
+it("held stream", async () => {
+	const clean = await heldStream(chunked('{"status":200,"data":1}\n', '{"status":200,"end":true}\n'), 1024)
+	expect([clean.status, clean.body]).toEqual([200, '{"status":200,"data":1}\n{"status":200,"end":true}\n'])
+	const failed = await heldStream(chunked('{"status":200,"data":1}\n', '{"status":503,"message":"x"}\n'), 1024)
+	expect(failed.status).toBe(503)
+	const over = await heldStream(chunked("aaaa", "bbbb", "cccc"), 6)
+	expect([over.status, await new Response(over.body).text()]).toEqual([0, "aaaabbbbcccc"])
+	let cancelled = false
+	const endless = new ReadableStream<Uint8Array>({
+		pull(controller) {
+			controller.enqueue(new Uint8Array(8))
+		},
+		cancel() {
+			cancelled = true
+		},
+	})
+	const running = await heldStream(endless, 10)
+	await (running.body as ReadableStream<Uint8Array>).cancel()
+	expect([running.status, cancelled]).toEqual([0, true])
 })

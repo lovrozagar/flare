@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs"
 import type { APIRequestContext, Browser, Page, TestInfo } from "@playwright/test"
 import { expect, serverOf, signedIn, test as dashboardTest } from "./dashboard.fixture.ts"
-import { sessionCookie, test as docsTest } from "./docs.fixture.ts"
+import { fnId, sessionCookie, test as docsTest, wire } from "./docs.fixture.ts"
 import { sharedCache, type Decision, type SharedCache } from "./shared-cache.ts"
 
 // What one visitor gets never reaches another through a shared cache (plan 21 5.3, plan 28). Each production runtime
@@ -146,6 +146,35 @@ docsTest("public pages shared", async ({ page, docs, browser, browserName }, inf
 	} finally {
 		await recorded(info, cache)
 		await anonymous.close()
+		await cache.close()
+	}
+})
+
+// The cache-control and the NDJSON lines' statuses of one GET of `buildSteps`, through the cache or not.
+async function steps(origin: string, fail: boolean): Promise<[string | null, number[]]> {
+	const input = encodeURIComponent(JSON.stringify(wire({ fail })))
+	const response = await fetch(`${origin}/_flare/fn/${fnId("src/fns/build-log.ts", "buildSteps")}?_i=${input}`)
+	const lines = (await response.text()).trimEnd().split("\n")
+	return [response.headers.get("cache-control"), lines.map((line) => Number(JSON.parse(line).status))]
+}
+
+// A cached GET `.stream()` is held before it is answered, since its Cache-Control goes out first: a run that throws
+// after its first step is private with its error line, so no cache keeps it and a second visitor reaches the origin; a
+// run that ends cleanly is public and the second visitor's hit (RFC 9111, BUGS.md 383).
+docsTest("public stream held", async ({ docs, browserName }, info) => {
+	sharedOnly(info, browserName)
+	const cache = await sharedCache(docs.origin)
+	try {
+		for (const visitor of ["first", "second"]) {
+			expect([visitor, ...(await steps(cache.origin, true))]).toEqual([visitor, "private, no-store", [200, 500]])
+		}
+		const whole = ["public, max-age=60", [200, 200, 200]]
+		expect([await steps(cache.origin, false), await steps(cache.origin, false)]).toEqual([whole, whole])
+		const id = fnId("src/fns/build-log.ts", "buildSteps")
+		expect(cache.hits.map((hit) => hit.includes(id))).toEqual([true])
+		invariant(cache)
+	} finally {
+		await recorded(info, cache)
 		await cache.close()
 	}
 })

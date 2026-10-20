@@ -10,7 +10,9 @@ import type { AddressInfo } from "node:net"
 // - CDN-Cache-Control, when present, is read instead of Cache-Control (RFC 9213);
 // - a request with Authorization reuses a stored answer only when it says `public` or `s-maxage` (RFC 9111 3.5);
 // - a stored answer's headers are replayed, Set-Cookie included; the request's own Cache-Control is ignored, as CDNs do;
-// - HEAD is answered from a stored GET; every other method passes through.
+// - HEAD is answered from a stored GET; every other method passes through;
+// - an answer cut short is incomplete and never stored (RFC 9111 3.3). node:http reports a body that loses its socket,
+//   by reset or clean close, as an error, never `end` (Node 26, Bun), so the `complete` check guards an unused path.
 
 const HEURISTIC_SECONDS = 60
 
@@ -28,8 +30,7 @@ const HOP_BY_HOP = new Set([
 	"content-length",
 ])
 
-// One answer from the origin, as the cache judged it: whether it was stored, from what freshness, and whether it
-// carried Set-Cookie.
+// One origin answer as the cache judged it: whether it was stored, from what freshness, and with Set-Cookie or not.
 export type Decision = {
 	method: string
 	url: string
@@ -132,10 +133,9 @@ function headersOf(incoming: IncomingMessage): Headers {
 	return headers
 }
 
-// The request sent on to the origin as a CDN sends it, its Host kept, which `fetch` would replace, so an origin that
-// checks a request's Origin against its Host sees the visitor's own; the answer relayed as it arrives, as a CDN
-// relays a stream, unfollowed. `judge` sees the status and headers first and says whether to keep the body, which is
-// then stored once the answer has ended whole. A visitor that leaves cancels the origin request.
+// The request sent on as a CDN sends it, its Host kept (`fetch` would replace it), so an origin checking Origin against
+// Host sees the visitor's own; the answer relayed as it arrives, unfollowed. `judge` sees the status and headers first
+// and says whether to keep the body, stored once the answer has ended whole. A visitor that leaves cancels the request.
 function relay(input: {
 	url: string
 	init: { method: string; headers: Headers; body: ArrayBuffer | undefined }
@@ -160,7 +160,7 @@ function relay(input: {
 			})
 			incoming.on("end", () => {
 				response.end()
-				keep?.(new Uint8Array(Buffer.concat(chunks)))
+				if (incoming.complete) keep?.(new Uint8Array(Buffer.concat(chunks)))
 				resolve()
 			})
 			incoming.on("error", reject)
