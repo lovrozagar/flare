@@ -1,8 +1,12 @@
+import { createServer as createHttpServer } from "node:http"
+import { connect } from "node:net"
 import { expect, it, vi } from "vitest"
-import { adaptedOf, createNodeListener } from "./listener.ts"
+import { finalize } from "../../server/lifecycle/finalize.ts"
+import { adaptedOf, createNodeListener, CUT_MS } from "./listener.ts"
 
-// The answers the Node listener gives itself, which never reach the server: a 400 for a request it cannot route and the
-// 500 of a failure before the headers. Split from listener.test.ts at its 500-line limit.
+// The answers the Node listener gives itself, which never reach the server: a 400 for a request it cannot route, the
+// 500 of a failure before the headers, and the cut of one after them. Split from listener.test.ts at its 500-line
+// limit.
 
 function req(): { method: string; url: string; headers: Record<string, string> } {
 	return { method: "GET", url: "/", headers: {} }
@@ -43,6 +47,74 @@ it("fetch throws", async () => {
 	expect(ended).toBe(true)
 	expect(logged).toHaveBeenCalledExactlyOnceWith("[flare:node]", "the request failed", expect.any(Error))
 	logged.mockRestore()
+})
+
+// A failure after the headers waits for what is still buffered to leave, then destroys the socket with no last chunk,
+// so the client keeps what was written (BUGS.md 382).
+it("cut after drain", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const events: string[] = []
+	const drain = { now: (): void => undefined }
+	const body = new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(new Uint8Array([1]))
+		},
+		pull(controller) {
+			controller.error(new Error("the source broke"))
+		},
+	})
+	const listener = createNodeListener({ fetch: () => new Response(body) })
+	listener(req(), {
+		writeHead: () => undefined,
+		setHeader: () => undefined,
+		write: () => true,
+		end: () => events.push("end"),
+		once(event, callback) {
+			if (event === "drain") drain.now = callback
+		},
+		writableLength: 1,
+		destroy: () => events.push("destroy"),
+	})
+	await new Promise((resolve) => setTimeout(resolve, 10))
+	expect(events).toEqual([])
+	drain.now()
+	expect(events).toEqual(["destroy"])
+	logged.mockRestore()
+})
+
+// A client that stops reading never drains what is buffered, so the cut destroys the socket at its deadline instead of
+// holding it and its bytes for good (BUGS.md 382).
+it("cut deadline", async () => {
+	vi.useFakeTimers()
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const events: string[] = []
+	const body = new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(new Uint8Array([1]))
+		},
+		pull(controller) {
+			controller.error(new Error("the source broke"))
+		},
+	})
+	try {
+		const listener = createNodeListener({ fetch: () => new Response(body) })
+		listener(req(), {
+			writeHead: () => undefined,
+			setHeader: () => undefined,
+			write: () => true,
+			end: () => events.push("end"),
+			once: () => undefined,
+			writableLength: 1,
+			destroy: () => events.push("destroy"),
+		})
+		await vi.advanceTimersByTimeAsync(CUT_MS - 1)
+		expect(events).toEqual([])
+		await vi.advanceTimersByTimeAsync(1)
+		expect(events).toEqual(["destroy"])
+	} finally {
+		logged.mockRestore()
+		vi.useRealTimers()
+	}
 })
 
 // A target or Host the listener cannot route is its own 400, never the server's, and like every answer it names its
@@ -98,4 +170,47 @@ it("socket address", () => {
 	expect(at({ "x-forwarded-for": "1.1.1.1" }, 2).clientIp).toBe("10.0.0.9")
 	expect(at({ "x-forwarded-for": "1.1.1.1, 2.2.2.2" }, 1).clientIp).toBe("2.2.2.2")
 	expect(adaptedOf({ ...req(), headers: { host: "site.test" } }, 0).clientIp).toBe("")
+})
+
+// A streamed answer, finalized as Flare's own are, that sends its first line and then fails.
+function failingAnswer(): Response {
+	let sent = false
+	const body = new ReadableStream<Uint8Array>({
+		pull(controller) {
+			if (sent) return controller.error(new Error("the source broke"))
+			sent = true
+			controller.enqueue(new TextEncoder().encode("first line\n"))
+		},
+	})
+	return finalize({ status: 200, body, url: "http://localhost/" })
+}
+
+// The raw bytes of one GET, until the socket closes.
+function rawGet(port: number): Promise<string> {
+	return new Promise((resolve) => {
+		let text = ""
+		const socket = connect(port, "127.0.0.1", () => socket.write("GET / HTTP/1.1\r\nhost: site.test\r\n\r\n"))
+		socket.on("data", (chunk: Buffer) => void (text += chunk.toString("latin1")))
+		socket.on("close", () => resolve(text))
+	})
+}
+
+// Such a body is cut short through a real socket: the bytes written before the failure reach the client, and the
+// message never ends with its last chunk, so no cache keeps it and the client reads a cut stream with the values that
+// arrived (B140, BUGS.md 382).
+it("node cut keeps sent", async () => {
+	const logged = vi.spyOn(console, "error").mockImplementation(() => undefined)
+	const server = createHttpServer(createNodeListener({ fetch: failingAnswer }))
+	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+	try {
+		const address = server.address()
+		const text = await rawGet(typeof address === "object" && address !== null ? address.port : 0)
+		expect(text.startsWith("HTTP/1.1 200 OK")).toBe(true)
+		expect(text.includes("first line\n")).toBe(true)
+		expect(text.endsWith("\r\n0\r\n\r\n")).toBe(false)
+		expect(logged).toHaveBeenCalledTimes(1)
+	} finally {
+		logged.mockRestore()
+		await new Promise((resolve) => server.close(resolve))
+	}
 })

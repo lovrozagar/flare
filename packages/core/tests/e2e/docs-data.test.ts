@@ -223,6 +223,34 @@ test("stream", async ({ page, http, docs }) => {
 	await expect(page.locator("#stream-status")).toHaveText("done")
 })
 
+// A stream that goes quiet for longer than Bun's idleTimeout still arrives whole on bun-prod: the adapter lifts the
+// timeout while a body streams (BUGS.md 198). Until 382 it never did in a built app: the server bundle's copy of Flare
+// marked its streams where the adapter, imported from the package, could not see them (BUGS.md 382).
+// The idleTimeout boot.ts gives bun-prod's createBunFetch, in seconds.
+const BUN_IDLE = 4
+
+test("stream quiet past idle", async ({ page, http, docs }, info) => {
+	test.skip(serverOf(info) !== "bun-prod", "Bun's idleTimeout: only bun-prod serves through Bun.serve")
+	const run = `idle-${Math.random().toString(16).slice(2, 10)}`
+	const call = async (id: string): Promise<unknown> =>
+		envelopeOf(
+			await (
+				await http.post(`${docs.origin}/_flare/fn/${id}`, { headers: { origin: docs.origin }, data: wire({ run }) })
+			).json(),
+		)
+	expect(await call(HOLD_BUILD)).toMatchObject({ data: { held: true } })
+	await open(page, docs.origin, `/playground?run=${run}`)
+	await page.locator("#stream-start").click()
+	const lines = page.locator("#stream-log li")
+	await expect(lines).toHaveCount(1)
+	await page.waitForTimeout((BUN_IDLE + 2) * 1000)
+	for (let count = 2; count <= STEPS.length; count += 1) {
+		expect(await call(RELEASE_BUILD)).toMatchObject({ data: { released: true } })
+		await expect(lines).toHaveCount(count)
+	}
+	await expect(page.locator("#stream-status")).toHaveText("done")
+})
+
 // A line lands every 150 ms, faster than the expect retry backs off, so the stop polls each frame for a second line.
 test("stream abort", async ({ page, docs }, info) => {
 	test.skip(

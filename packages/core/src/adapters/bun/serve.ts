@@ -1,4 +1,4 @@
-import { finalize, rebodied, streamsBody } from "../../server/lifecycle/finalize.ts"
+import { finalize, rebodied } from "../../server/lifecycle/finalize.ts"
 import { createLogger } from "../../server/lifecycle/logger.ts"
 import { forwardedHttps, trustedHops, validHost } from "../../shared/url/index.ts"
 import { pendingWork, type DrainOptions } from "../drain.ts"
@@ -84,10 +84,12 @@ type Watch = { timeout: ((seconds: number) => void) | undefined; idle: number; s
 // A streamed answer counts as in flight until its body ends or the client leaves. Bun closes a socket idle for
 // `idleTimeout`, a response in flight included, so a stream that goes quiet between chunks, a slow deferred value or a
 // server function's `.stream()`, would be cut: the timeout is lifted while it is sent and set back once it ends, so an
-// idle keep-alive socket still closes (plan 21 8.3, BUGS.md 198). A kept Response with no body, a 204 or a redirect,
-// has nothing to watch; its body is read only after `blobBody`, since reading a Blob body makes it a stream (BUGS.md 238).
+// idle keep-alive socket still closes (plan 21 8.3, BUGS.md 198). Every stream body is watched, whoever built it: a
+// server bundle carries its own copy of Flare, so a mark this copy kept would miss its answers (BUGS.md 382). A Blob
+// body and an answer with no body, a 204 or a redirect, have nothing to watch; the body is read only after `blobBody`,
+// since reading a Blob body makes it a stream (BUGS.md 238).
 function watched(response: Response, watch: Watch): Response {
-	if (!streamsBody(response) || blobBody(response) || response.body === null) {
+	if (blobBody(response) || response.body === null) {
 		watch.sent()
 		return response
 	}
@@ -116,8 +118,15 @@ function ended(body: ReadableStream<Uint8Array>, done: () => void): ReadableStre
 				controller.close()
 				done()
 			} catch (error) {
-				controller.error(error)
-				done()
+				// Bun drops a chunk it has not sent when the body errors in the same turn, so the error waits one: the bytes
+				// before the failure reach the client, and the message still ends with no last chunk (BUGS.md 382). This rests
+				// on Bun's scheduling, measured on 1.4.3, not on a signal: the chunk arrived in 0 of 20 runs with the error at
+				// once or in a microtask, and in 20 of 20 one macrotask later; a direct stream's `flush()` before closing with
+				// the error kept it in 0 of 20. An upgrade that changes the order fails `bun cut keeps sent`.
+				setImmediate(() => {
+					controller.error(error)
+					done()
+				})
 			}
 		},
 		cancel(reason) {

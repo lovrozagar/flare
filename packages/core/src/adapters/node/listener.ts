@@ -39,6 +39,7 @@ type NodeRes = {
 	end: () => void
 	once: (event: "drain" | "close", callback: () => void) => void
 	writableFinished?: boolean
+	writableLength?: number
 	destroy?: () => void
 }
 
@@ -64,7 +65,7 @@ export function createNodeListener(server: Server, options: NodeListenerOptions 
 		// After them the socket is destroyed: the status is gone. Either is logged, never silent (plan 21 13.6).
 		const pumped = pump(job).catch((error: unknown) => {
 			log.error("node", "the request failed", error)
-			if (job.sent) return void res.destroy?.()
+			if (job.sent) return cut(res)
 			writeHeaders(res, ownAnswer(500).headers)
 			res.writeHead(500)
 			res.end()
@@ -72,6 +73,24 @@ export function createNodeListener(server: Server, options: NodeListenerOptions 
 		pending.track(pumped)
 	}
 	return Object.assign(listener, { drain: pending.drain })
+}
+
+// How long a cut answer waits for its buffered bytes to leave before the socket goes anyway: a client that stops
+// reading never drains them.
+export const CUT_MS = 5000
+
+// A message cut after its headers: what was written leaves first, then the socket is destroyed with no last chunk, so
+// the client keeps the values that arrived and no cache keeps the answer (B140, BUGS.md 382). A write made this tick
+// is corked until the next, so the length is read after it. A client that never drains is cut at CUT_MS.
+function cut(res: NodeRes): void {
+	setImmediate(() => {
+		if ((res.writableLength ?? 0) === 0) return void res.destroy?.()
+		const deadline = setTimeout(() => res.destroy?.(), CUT_MS)
+		res.once("drain", () => {
+			clearTimeout(deadline)
+			res.destroy?.()
+		})
+	})
 }
 
 type Job = {
@@ -208,7 +227,8 @@ async function writeBody(res: NodeRes, body: ReadableStream<Uint8Array> | null, 
 		return
 	}
 	const reader = body.getReader()
-	gone.addEventListener("abort", () => void reader.cancel(), { once: true })
+	// A body that already failed rejects its cancel with that failure, which the pump has logged.
+	gone.addEventListener("abort", () => void reader.cancel().catch(() => undefined), { once: true })
 	for (;;) {
 		const step = await reader.read()
 		if (step.done) {

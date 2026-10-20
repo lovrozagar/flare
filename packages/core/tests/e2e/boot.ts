@@ -283,15 +283,16 @@ const NODE_ARGS = ["--input-type=module", "-e", NODE_SERVE]
 
 const BUN_SERVE = `${STATIC}
 import { createBunFetch } from "@lovrozagar/flare/adapters/bun";
-const app = createBunFetch(server);
+// The documented spread, Bun's server handed on; idle 4 s for docs-data \`stream quiet past idle\` (BUGS.md 382).
+const app = createBunFetch(server, { idleTimeout: 4 });
 const bun = Bun.serve({
+	...app,
 	hostname: "127.0.0.1",
 	port: 0,
-	maxRequestBodySize: app.maxRequestBodySize,
-	async fetch(request) {
+	async fetch(request, served) {
 		// A Host Bun cannot read leaves request.url relative: no file, so the adapter answers it.
 		const found = URL.canParse(request.url) ? await file(new URL(request.url).pathname) : undefined;
-		if (found === undefined) return app.fetch(request);
+		if (found === undefined) return app.fetch(request, served);
 		return new Response(found.body, { headers: found.headers });
 	},
 });

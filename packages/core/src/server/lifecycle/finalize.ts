@@ -32,9 +32,23 @@ export function finalize(stage: StageResult): Response {
 	const response = recordCookies(
 		new Response(settled.body === "" ? null : settled.body, { status: settled.status, headers }),
 	)
-	if (settled.body instanceof ReadableStream) streams.add(response)
+	if (settled.body instanceof ReadableStream) markStream(response)
 	ours.set(response, ownOf(settled))
 	return response
+}
+
+// The answers whose body is a stream the app or Flare built, which can fail after its headers. The mark is a registered
+// symbol on the Response, so a second copy of Flare in the process, a server bundle beside an adapter imported from
+// the package, reads it too; a module's own WeakSet missed every answer of the other copy (BUGS.md 382). Only an
+// adapter that cannot tell a stream from a fixed body by itself reads it: the Workers handler.
+const STREAM = Symbol.for("flare.stream-body")
+
+function markStream(response: Response): void {
+	Object.defineProperty(response, STREAM, { value: true })
+}
+
+export function streamsBody(response: Response): response is Response & { body: ReadableStream<Uint8Array> } {
+	return Reflect.get(response, STREAM) === true && response.body !== null
 }
 
 type Own = Pick<StageResult, "render" | "cache">
@@ -52,14 +66,6 @@ function ownOf(stage: StageResult): Own {
 
 export function ownStage(response: Response): Own {
 	return ours.get(response) ?? {}
-}
-
-// The answers whose body is a stream, which can go quiet between chunks: a render waiting on a deferred value, a
-// server function's `.stream()`, a fetched body. Bun's adapter lifts its idle timeout while one is sent (plan 21 8.3).
-const streams = new WeakSet<Response>()
-
-export function streamsBody(response: Response): response is Response & { body: ReadableStream<Uint8Array> } {
-	return streams.has(response)
 }
 
 // The not-found document of a request no route matched. Only it may fall through to a platform's static files, as
@@ -137,8 +143,8 @@ function copySecurity(headers: Headers, url: string): void {
 
 // A Response the app built that names no type leaves as itself, the built answer's headers set on it, and its body is
 // never read: Bun types a string body `text/plain` only while nothing reads that body, and with `nosniff` an untyped
-// one downloads (plan 21 12.7). Its body may stream, so it counts as streaming; the Bun adapter tells a string from a
-// stream before it reads one. Undefined when its headers cannot change, as a `fetch()` answer's cannot.
+// one downloads (plan 21 12.7). Its body may stream, so it is marked as one; the Bun adapter tells a string from a stream
+// before it reads one. Undefined when its headers cannot change, as a `fetch()` answer's cannot.
 export function keptAs(original: Response, built: Response): Response | undefined {
 	try {
 		// A snapshot of the names: deleting while the live iterator runs would skip some.
@@ -150,6 +156,7 @@ export function keptAs(original: Response, built: Response): Response | undefine
 	} catch {
 		return undefined
 	}
-	streams.add(original)
+	// Marked without reading `body`: reading a Blob body makes it a stream on Bun (BUGS.md 238).
+	markStream(original)
 	return recordCookies(original)
 }
