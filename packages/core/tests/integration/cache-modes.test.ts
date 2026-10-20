@@ -7,6 +7,7 @@ import { createPage } from "../../src/shared/route-builder/page.ts"
 import { createPathSegment } from "../../src/shared/route-builder/segment.ts"
 import { bodyOf, serve, type Answer, type Serve } from "./builder-app.ts"
 import { stateIn } from "../../src/server/wire.fixture.ts"
+import { serverCtx } from "../../src/server/context/ctx.ts"
 
 // dx/cache.md's server modes through the real createServer(...).fetch and a real memory store (B96): what is stored,
 // for how long, what a purge drops, and the headers each decision sends. A stored answer says so in `flare-cache`.
@@ -27,9 +28,9 @@ function clock(): (ms: number) => void {
 }
 
 // Asks for `path` until the store answers it. A store write runs after its miss is sent.
-async function stored(get: Serve, path: string): Promise<Answer> {
+async function stored(get: Serve, path: string, init?: RequestInit): Promise<Answer> {
 	for (let tries = 0; tries < 50; tries++) {
-		const answer = await get(path)
+		const answer = await get(path, init)
 		if (answer.headers.get("flare-cache") === "hit") return answer
 		await new Promise((resolve) => setTimeout(resolve, 10))
 	}
@@ -370,6 +371,40 @@ it("cdn headers", async () => {
 		expect(answer.headers.get("cdn-cache-control")).toBe("public, max-age=60, stale-while-revalidate=30")
 		expect(answer.headers.get("cache-tag")).toBe("u7, users, flare-build-dev")
 	}
+})
+
+// A tags function runs on the anonymous request public renders use, never the visitor's: the stored tags and the
+// `Cache-Tag` a CDN keeps never hold the cookie of the visitor who asked first, nor of a later one. A serverContext
+// that throws on that request leaves no tags, and the visitor's own render is private (BUGS.md 379).
+const who = () => [`who:${String((serverCtx() as { cookie: string | null }).cookie)}`]
+
+const cookie = ({ request }: { request: Request }) => ({ cookie: request.headers.get("cookie") })
+
+function tagged(id: string) {
+	return createPage(id)
+		.cache({ ssr: { ttl: "1h", tags: who }, cdn: { maxAge: "1m", tags: who } })
+		.render(() => "p")
+}
+
+it("tags anonymous", async () => {
+	clock()
+	const store = createMemoryStore()
+	const tags = vi.spyOn(store, "set")
+	const get = serve([{ id: "_root_/p", path: "/p", module: tagged("_root_/p") }], { store, serverContext: cookie })
+	const miss = await get("/p", { headers: { cookie: "session=alice" } })
+	const hit = await stored(get, "/p", { headers: { cookie: "session=bob" } })
+	const sent = [miss, hit].map((answer) => answer.headers.get("cache-tag"))
+	const written = tags.mock.calls.map(([, entry]) => entry.tags)
+	expect([...sent, written]).toEqual(["who:null, flare-build-dev", "who:null, flare-build-dev", [["who:null"]]])
+	const signedOnly = serve([{ id: "_root_/q", path: "/q", module: tagged("_root_/q") }], {
+		store: createMemoryStore(),
+		serverContext: ({ request }) => {
+			if (!request.headers.has("cookie")) throw new Error("signed in only")
+			return {}
+		},
+	})
+	const live = await signedOnly("/q", { headers: { cookie: "session=alice" } })
+	expect([live.status, live.headers.get("cache-control"), live.headers.get("cache-tag")]).toEqual([200, PRIVATE, null])
 })
 
 // `private: true` on a layout makes every page under it private and unstored: a child's `false` cannot undo it.

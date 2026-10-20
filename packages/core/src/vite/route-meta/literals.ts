@@ -60,7 +60,8 @@ function arrayValue(elements: readonly ArrayExpressionElement[]): Literal {
 	return { ok: true, value }
 }
 
-function keyOf(key: PropertyKey): string | undefined {
+// A property's name: an identifier, or a string or number literal. A computed key has none.
+export function keyOf(key: PropertyKey): string | undefined {
 	if (key.type === "Identifier") return key.name
 	if (key.type === "Literal" && (typeof key.value === "string" || typeof key.value === "number"))
 		return String(key.value)

@@ -1,22 +1,17 @@
 import type { Loaded, Policy, Prepared } from "../lifecycle/answers.ts"
 import type { Exchange } from "../lifecycle/exchange.ts"
 import { INCOMPLETE, sharedRender, type SharedRender } from "./scrub.ts"
-import { entryTags, storedPage, type EntryInput, type StoredPage } from "./write.ts"
+import { storedPage, type EntryInput, type StoredPage } from "./write.ts"
 
 // What a stored entry is built from: the shared render with its status, headers, security set, render mode, and tags.
-export function entryInput(
-	shared: SharedRender,
-	matched: Loaded,
-	at: { mode: "isr" | "ssr" | "ssg"; policy: Policy },
-): EntryInput {
-	const cache = matched.chain.at(-1)?.module.cache
+export function entryInput(shared: SharedRender, at: { mode: "isr" | "ssr" | "ssg"; policy: Policy }): EntryInput {
 	return {
 		...shared,
 		status: shared.run.response.status,
 		headers: shared.run.headers,
 		security: shared.run.security,
 		render: at.mode,
-		tags: entryTags([cache?.ssr?.tags, at.policy.decision.cdn.tags], at.policy.params),
+		tags: at.policy.tags.store,
 	}
 }
 
@@ -34,6 +29,6 @@ export async function sharedPage(
 	const cache = matched.chain.at(-1)?.module.cache
 	const mode = cache?.isr === undefined ? (cache?.ssg === undefined ? "ssr" : "ssg") : "isr"
 	const policy: Policy = { ...prepared.policy, rejected: !shared.settled }
-	const page = storedPage(entryInput(shared, matched, { mode, policy }))
+	const page = storedPage(entryInput(shared, { mode, policy }))
 	return { page, policy, cookies: [shared.run.headers["set-cookie"] ?? []].flat() }
 }

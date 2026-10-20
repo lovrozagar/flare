@@ -32,6 +32,12 @@ export type RequestScope = {
 	waitUntil: (promise: Promise<unknown>) => void
 }
 
+// The request every shared render makes: `site` plus the canonical pathname, with no search and no request
+// headers, so no cookie, no authorization, and no Host reach a body that every visitor is served (dx/cache.md).
+export function sharedRequest(site: string, request: Request): Request {
+	return new Request(new URL(new URL(request.url).pathname, site))
+}
+
 const NO_STORE = (): undefined => undefined
 
 // Without an adapter, background work still runs. A rejection there is not a process crash.

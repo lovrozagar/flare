@@ -8,10 +8,10 @@ import {
 	type Program,
 	Visitor,
 } from "oxc-parser"
-import { langOf, boundNames, requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts"
+import { langOf, boundNames, keyOf, requireLiteral, serverFnsOf, type Span } from "../route-meta/index.ts"
 import { cacheKeyKept, routeMethod } from "./allow.ts"
 import { namespaceValue } from "./env.ts"
-import { deadDeclarations, moduleReads, nonReferences } from "./reads.ts"
+import { deadDeclarations, moduleReads, nonReferences, spanReads } from "./reads.ts"
 
 const BUILDERS = new Set(["createPage", "createLayout", "createRootLayout", "createPathSegment"])
 
@@ -39,7 +39,7 @@ export type Edit = { file: string; source: string; out: MagicString; removed: Sp
 
 // The route chains and the server function bodies of the client graph, into a shared edit.
 export function splitEdits(edit: Edit, program: Program): void {
-	for (const [name, steps] of routeChains(edit.file, program)) stripRoute(edit, name, steps)
+	for (const [name, steps] of routeChains(edit.file, program)) stripRoute(edit, { program, name }, steps)
 	for (const record of serverFnsOf(edit.file, program)) {
 		for (const method of record.methods) {
 			if (["input", "authorize", "handler", "stream"].includes(method.name)) blank(edit, method.args)
@@ -170,14 +170,18 @@ function stepsOf(expression: Expression, builders: Builders): Step[] | undefined
 	return undefined
 }
 
-function stripRoute(edit: Edit, name: string, steps: readonly Step[]): void {
+// The route chain an edit is in: its module and its export's name.
+type Route = { program: Program; name: string }
+
+function stripRoute(edit: Edit, route: Route, steps: readonly Step[]): void {
+	const { name } = route
 	steps.forEach((step, index) => {
 		if (step.name === "") {
 			throw new Error(`${edit.file}: ${name} calls a chain method by element access. Call each method by name`)
 		}
 		const verdict = routeMethod(step.name)
 		if (verdict === "unknown") throw new Error(`${edit.file}: .${step.name}() is not a route chain method`)
-		if (verdict === "cache") cache(edit, name, step)
+		if (verdict === "cache") cache(edit, route, step)
 		if (verdict === "remove" && index === steps.length - 1) blank(edit, step.call.arguments)
 		else if (verdict === "remove") cut(edit, step)
 	})
@@ -186,7 +190,8 @@ function stripRoute(edit: Edit, name: string, steps: readonly Step[]): void {
 // `.cache()` keeps its `client` field alone, or goes when it has none. The argument is an object literal with named
 // fields, so the fields are found without running the module. A field's value may be anything: a server field's
 // `params` or `tags` function goes with that field (dx/cache.md).
-function cache(edit: Edit, name: string, step: Step): void {
+function cache(edit: Edit, route: Route, step: Step): void {
+	const { name } = route
 	const [argument] = step.call.arguments
 	const named =
 		argument?.type === "ObjectExpression" &&
@@ -194,6 +199,7 @@ function cache(edit: Edit, name: string, step: Step): void {
 	// Anything else, a spread or a computed key included, fails with the literal message.
 	if (argument?.type !== "ObjectExpression" || !named)
 		return void requireLiteral(edit.file, `${name} .cache()`, undefined)
+	for (const property of argument.properties) checkTags(edit, route, property as ObjectProperty)
 	const client = argument.properties.find(
 		(property): property is ObjectProperty =>
 			property.type === "Property" && property.key.type === "Identifier" && cacheKeyKept(property.key.name),
@@ -201,6 +207,46 @@ function cache(edit: Edit, name: string, step: Step): void {
 	if (client === undefined) return cut(edit, step)
 	edit.out.overwrite(argument.start, argument.end, `{ ${edit.source.slice(client.start, client.end)} }`)
 	edit.removed.push({ start: argument.start, end: argument.end })
+}
+
+// A `tags` function reads `params` only. One that reads the request, inline or through the module's own helpers, is a
+// build error that names the field (dx/cache.md). An imported helper is not followed: the server runs every tags
+// function on the anonymous request, so a visitor never reaches its tags either way (BUGS.md 379).
+function checkTags(edit: Edit, route: Route, property: ObjectProperty): void {
+	if (property.value.type !== "ObjectExpression") return
+	const tags = property.value.properties.find(
+		(field): field is ObjectProperty => field.type === "Property" && !field.computed && keyOf(field.key) === "tags",
+	)
+	if (tags === undefined) return
+	const readers = requestReaders(route.program)
+	for (const read of spanReads(route.program, tags.value)) {
+		const reader = readers.get(read)
+		if (reader === undefined) continue
+		const field = `${keyOf(property.key)}.tags`
+		const message = `${field} reads the request through ${reader}: a tags function reads params only`
+		throw new Error(`${edit.file}: ${route.name} .cache() ${message}`)
+	}
+}
+
+// The function that reads the request in each module that exports one.
+const REQUEST_READERS: Readonly<Record<string, string>> = {
+	"@lovrozagar/flare/server": "serverCtx",
+	"@solidjs/web": "getRequestEvent",
+}
+
+// The request readers the module imports, by local name. A namespace of a reader's module counts as the reader: a
+// tags function has no use for anything else there.
+function requestReaders(program: Program): Map<string, string> {
+	const readers = new Map<string, string>()
+	for (const statement of program.body) {
+		const reader = statement.type === "ImportDeclaration" ? REQUEST_READERS[statement.source.value] : undefined
+		if (statement.type !== "ImportDeclaration" || reader === undefined) continue
+		for (const specifier of statement.specifiers) {
+			const imported: string | undefined = specifier.type === "ImportSpecifier" ? keyOf(specifier.imported) : reader
+			if (imported === reader) readers.set(specifier.local.name, reader)
+		}
+	}
+	return readers
 }
 
 // `.method(args)` goes from the end of the object it was called on.

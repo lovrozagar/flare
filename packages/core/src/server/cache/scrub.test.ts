@@ -7,7 +7,8 @@ import { createRouter } from "../../shared/router/create-router.ts"
 import { createServer } from "../lifecycle/create.ts"
 import type { FlareStore, FlareStoreEntry } from "./contract.ts"
 import { createMemoryStore } from "./memory.ts"
-import { sharedRequest, shellOf } from "./scrub.ts"
+import { sharedRequest } from "../context/ctx.ts"
+import { shellOf } from "./scrub.ts"
 import type { StoredPage } from "./write.ts"
 
 // The populate request carries no credential, and no other request header either (dx/cache.md).

@@ -8,7 +8,7 @@ import { createRouter, type RouteModule } from "../../shared/router/create-route
 import type { CacheConfig } from "../../shared/route-builder/chain.ts"
 
 const open = { requires: false, reads: false }
-const ok = { status: 200, params: { id: "7" } }
+const ok = { status: 200, tags: ["a", "b"] }
 
 function decided(page: CacheConfig | undefined, extra: Partial<DecideInput> = {}): ReturnType<typeof decide> {
 	return decide({ chain: [undefined, page], auth: open, session: false, ...extra })
@@ -45,14 +45,7 @@ it("no-store header", () => {
 // assets are gone (dx/server.md Deploying, plan 21 16.10).
 it("cache tag", () => {
 	expect(policyHeaders(shared, ok).get("cache-tag")).toBe("a, b, flare-build-dev")
-	// A tags function gets the raw params, the values the store key uses (B32).
-	const byParams = decided({
-		isr: true,
-		cdn: { maxAge: "60s", tags: ({ params }) => [`user:${String(params["id"])}`] },
-	})
-	expect(policyHeaders(byParams, ok).get("cache-tag")).toBe("user:7, flare-build-dev")
-	const untagged = decided({ isr: true, cdn: { maxAge: "60s", tags: [] } })
-	expect(policyHeaders(untagged, ok).get("cache-tag")).toBe("flare-build-dev")
+	expect(policyHeaders(shared, { ...ok, tags: [] }).get("cache-tag")).toBe("flare-build-dev")
 })
 
 // Flare sends no Vary, so a CDN cannot tell a session from none: the anonymous answer stays private at the edge.

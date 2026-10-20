@@ -108,6 +108,40 @@ export const isr = createPage("_root_/i/[id]").cache({ isr: { params: list } }).
 	expect(kept).toContain('createPage("_root_/i/[id]").render(r)')
 })
 
+// A tags function that reads the request is a build error that names the route and the field: inline, through an
+// alias or a namespace, or through the module's own helper. A local of the same name, another import of the same
+// module, and the request read anywhere else, are not (dx/cache.md, BUGS.md 379).
+it("tags read the request", () => {
+	const ctx = 'import { serverCtx as ctx } from "@lovrozagar/flare/server";\n'
+	const event = 'import { getRequestEvent } from "@solidjs/web";\n'
+	const cases = [
+		[ctx, "{ ssr: { ttl: '1h', tags: () => [ctx().user] } }", "ssr.tags reads the request through serverCtx"],
+		[event, "{ cdn: { maxAge: '1m', tags: who } }", "cdn.tags reads the request through getRequestEvent"],
+		[
+			'import { "getRequestEvent" as ev } from "@solidjs/web";\n',
+			"{ 'ssr': { ttl: '1h', 'tags': () => [String(ev())] } }",
+			"ssr.tags reads the request through getRequestEvent",
+		],
+		[
+			'import * as server from "@lovrozagar/flare/server";\n',
+			"{ cdn: { tags: () => [server.serverCtx().id] } }",
+			"cdn.tags reads the request through serverCtx",
+		],
+	] as const
+	const helper = "function who() { return [String(viaEvent())] }\nconst viaEvent = () => getRequestEvent();\n"
+	for (const [imports, cache, message] of cases) {
+		const source = `${BUILDER}${imports}${helper}export const route = createPage("_root_/a").cache(${cache}).render(r);\n`
+		expect(() => split(source)).toThrow(`src/routes/a.page.tsx: route .cache() ${message}`)
+	}
+	const web = 'import { isServer } from "@solidjs/web";\n'
+	const fine = `${BUILDER}${ctx}${web}export const route = createPage("_root_/a")
+	.cache({ ssr: { ttl: "1h", tags: ({ params }) => { const ctx = () => params.id; return [ctx(), String(isServer)] } } })
+	.loader(() => ctx())
+	.render(r);
+`
+	expect(split(fine)).not.toContain("tags")
+})
+
 it("server fn bodies", () => {
 	const source = `import { createServerFn } from "@lovrozagar/flare/server-fn";
 import { db } from "../server/db.ts";

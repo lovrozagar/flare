@@ -129,7 +129,7 @@ async function prerendered(
 	if (shared === INCOMPLETE) return live(exchange, matched, uncached(at.prepared))
 	const mode = matched.chain.at(-1)?.module.cache?.ssg === undefined ? "isr" : "ssg"
 	const policy: Policy = { ...at.prepared.policy, rejected: !shared.settled }
-	const input = entryInput(shared, matched, { mode, policy })
+	const input = entryInput(shared, { mode, policy })
 	const page = storedPage(input)
 	const entry = buildEntry(input, page)
 	if (entry !== undefined) at.capture(keyOf(exchange, matched, defined(matched.id, "the prerendered page")), entry)
@@ -243,7 +243,7 @@ async function flight(exchange: Exchange, matched: Loaded, at: Keyed): Promise<L
 	const shared = await sharedRender(exchange, matched)
 	if (shared === undefined || shared === INCOMPLETE) return { flight: shared, written: Promise.resolve() }
 	const policy: Policy = { ...at.prepared.policy, rejected: !shared.settled }
-	const input = entryInput(shared, matched, { mode: at.mode, policy })
+	const input = entryInput(shared, { mode: at.mode, policy })
 	const page = storedPage(input)
 	const cookies = [shared.run.headers["set-cookie"] ?? []].flat()
 	const entry = buildEntry(input, page)
