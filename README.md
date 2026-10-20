@@ -7,14 +7,14 @@ Package: [`@lovrozagar/flare`](https://www.npmjs.com/package/@lovrozagar/flare).
 ## Install
 
 ```bash
-bun add @lovrozagar/flare "solid-js@>=2.0.0-rc.15" "@solidjs/web@>=2.0.0-rc.15" "@solidjs/vite-plugin@>=3.0.0-next.50" "vite@>=8.1.4" "oxc-parser@>=0.139.0" "magic-string@>=0.30.21" "seroval@>=1.6.7" "seroval-plugins@>=1.6.7"
+bun add @lovrozagar/flare "solid-js@>=2.0.0-rc.15 <2.0.0-rc.16" "@solidjs/web@>=2.0.0-rc.15 <2.0.0-rc.16" "@solidjs/vite-plugin@>=3.0.0-next.50" "vite@>=8.1.4" "oxc-parser@>=0.139.0" "magic-string@>=0.30.21" "seroval@>=1.6.7" "seroval-plugins@>=1.6.7"
 ```
 
 Each peer carries its range: a bare name installs the `latest` tag, and Solid 2 is not `latest` yet (`solid-js@latest` is 1.9).
 
 | peer                                                  | range                            | needed for                                        |
 | ----------------------------------------------------- | -------------------------------- | ------------------------------------------------- |
-| `solid-js`, `@solidjs/web`                            | `>=2.0.0-rc.15`                  | every app                                         |
+| `solid-js`, `@solidjs/web`                            | `>=2.0.0-rc.15 <2.0.0-rc.16`     | every app                                         |
 | `@solidjs/vite-plugin`                                | `>=3.0.0-next.50`                | every app; `flare()` adds it, so the app does not |
 | `vite`                                                | `>=8.1.4`                        | every app                                         |
 | `oxc-parser`, `magic-string`                          | `>=0.139.0`, `>=0.30.21`         | the plugin's codegen and boundary transform       |

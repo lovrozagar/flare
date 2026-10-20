@@ -123,7 +123,7 @@ Two files may call `console`: `server/lifecycle/logger.ts` on the server, and `s
 
 ## Dependencies
 
-The published package has no `dependencies` key (B79). A nested copy of Solid, Vite, or a parser is the thing an app then installs twice. A library this package imports is a `peerDependency`, and the same library is a `devDependency` at the exact version this repo tests. The peer range is `>=` that version. A `^`, a `~`, or an exact peer version does not. An app may depend on these libraries. `@lovrozagar/flare` does not.
+The published package has no `dependencies` key (B79). A nested copy of Solid, Vite, or a parser is the thing an app then installs twice. A library this package imports is a `peerDependency`, and the same library is a `devDependency` at the exact version this repo tests. The peer range is `>=` that version. A `^`, a `~`, or an exact peer version does not. A peer whose next release is known broken also takes an upper bound below that release, named in BUGS.md (`solid-js` and `@solidjs/web`, BUGS.md 426). An app may depend on these libraries. `@lovrozagar/flare` does not.
 
 Source under `packages/core/src` imports only Node builtins through `node:`, the package's own name, and the names in `dependencies` and `peerDependencies`. `lint/boundaries.js` reads that set from `package.json` and checks every import form, `import type`, re-exports, and literal `import()` included. Test code (`*.test.*`, `*.fixture.*`, `tests/`) may import devDependencies, and the published package ships none of it.
 
@@ -131,8 +131,8 @@ Required peers:
 
 | package | devDependency | peerDependency |
 | --- | --- | --- |
-| `solid-js` | `2.0.0-rc.15` | `>=2.0.0-rc.15` |
-| `@solidjs/web` | `2.0.0-rc.15` | `>=2.0.0-rc.15` |
+| `solid-js` | `2.0.0-rc.15` | `>=2.0.0-rc.15 <2.0.0-rc.16` |
+| `@solidjs/web` | `2.0.0-rc.15` | `>=2.0.0-rc.15 <2.0.0-rc.16` |
 | `@solidjs/vite-plugin` | `3.0.0-next.50` | `>=3.0.0-next.50` |
 | `vite` | `8.1.4` | `>=8.1.4` |
 | `oxc-parser` | `0.139.0` | `>=0.139.0` |

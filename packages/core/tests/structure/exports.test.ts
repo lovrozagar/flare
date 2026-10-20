@@ -359,12 +359,18 @@ it("engines", () => {
 	expect(Reflect.get(packed.manifest, "engines")).toEqual({ node: ">=22.12" })
 })
 
+// A peer whose next release is known broken takes an upper bound below it, each named here with its BUGS row: Solid
+// rc.16 escapes twice through SafeErrored and hangs a failed query (BUGS.md 426).
+const CAPPED: Record<string, string> = { "solid-js": "<2.0.0-rc.16", "@solidjs/web": "<2.0.0-rc.16" }
+
 it("peer floors", () => {
 	const source = JSON.parse(readFileSync(join(core, "package.json"), "utf8"))
 	const peers: Record<string, string> = Object(Reflect.get(packed.manifest, "peerDependencies"))
 	expect(Object.keys(peers).length).toBeGreaterThan(0)
-	for (const [name, range] of Object.entries(peers))
-		expect([name, range]).toEqual([name, `>=${source.devDependencies[name]}`])
+	for (const [name, range] of Object.entries(peers)) {
+		const cap = CAPPED[name] === undefined ? "" : ` ${CAPPED[name]}`
+		expect([name, range]).toEqual([name, `>=${source.devDependencies[name]}${cap}`])
+	}
 	const meta: Record<string, { optional?: boolean }> = Object(Reflect.get(packed.manifest, "peerDependenciesMeta"))
 	const optional = Object.entries(meta)
 		.filter(([, value]) => value.optional === true)
